@@ -2,7 +2,7 @@
 
 # Domain Model & Technical Architecture
 
-*Stage note: the domain model here is shared by all stages. Stage 1 uses it with notation input (provenance "imported") and runs fully in the browser, as described in MVP · Stage 1; the analysis pipeline and backend arrive with Stage 3.*
+*Stage note: the domain model here is shared by all stages. Stage 1 uses it with notation input (provenance "imported") and runs in the browser, as described in MVP · Stage 1, plus a thin AI gateway (decision record 0003); the analysis pipeline and backend arrive with Stage 3. The technology choices below (Rust, Flutter, FastAPI) are superseded by decision record 0001: C# music-core, Blazor WebAssembly, .NET MAUI and Azure Functions.*
 
 ## Domain model at a glance
 
@@ -39,6 +39,8 @@ One event model serves display, hints, feedback, explanations, variations, playb
 - A time map converts between audio seconds and musical time (bar, beat, tick at 480 ticks per quarter note), built from the beat list, the tempo curve and meter segments.
 - Events store both: `onset_s` for audio sync and `pos` (bar, beat, tick) for grid logic.
 - A tuning offset in cents keeps rendered sound in tune with the original.
+
+*Implementation note: decision record 0002 (`docs/decisions/0002-canonical-time.md`) makes absolute canonical ticks the stored truth for notation input, with bar and beat derived from a meter map. It also defines exact source conversion and the rounding policy.*
 
 **Event types**
 

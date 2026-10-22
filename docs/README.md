@@ -5,7 +5,7 @@ Product concept and specification for Motiff Lab, exported from the shared speci
 | File | What it covers |
 | --- | --- |
 | [00-overview.md](00-overview.md) | Vision, principles, users, journey and modules, development stages, scope, business model, roadmap, risks |
-| [01-mvp-stage-1.md](01-mvp-stage-1.md) | **First milestone:** notation-based motif exploration (MIDI, MusicXML), requirements S1-…, variation engine, learning modes, screens N1–N7, architecture, validation, milestones |
+| [01-mvp-stage-1.md](01-mvp-stage-1.md) | **First milestone:** notation-based motif exploration (MIDI, MusicXML): core journey, requirements S1-…, rhythm restoration, variation engine and Keep table, learning modes, AI assistance, screens, acceptance criteria, architecture, validation, milestones, open decisions |
 | [02-brand-identity.md](02-brand-identity.md) | Name, positioning, tagline, voice, messaging, palette with contrast checks, typography, verification checklist |
 | [03-prd.md](03-prd.md) | Stages 2–3: user stories, functional requirements FR-…, hint system, feedback rules, variation operations, acceptance criteria, edge cases, NFRs, analytics events |
 | [04-mvp-ux.md](04-mvp-ux.md) | Stages 2–3: screen map, layout rules, flows 1–6 (S1–S12), system states |
@@ -13,6 +13,7 @@ Product concept and specification for Motiff Lab, exported from the shared speci
 | [06-validation-plan.md](06-validation-plan.md) | Hypotheses, three studies, accuracy benchmark, product metrics, decision rules, consent |
 | [images/](images/) | Diagrams and wireframes used in the documents |
 | [source/](source/) | Original concept, vision, MVP and brand notes the specification was built from |
+| [decisions/](decisions/) | Architecture decision records: 0001 sets the .NET and Azure stack (it supersedes the Rust, Flutter and FastAPI choices in 05); 0002 defines canonical musical time; 0003 adds AI assistance through Azure AI Foundry |
 
 ## How the documents relate
 
@@ -23,5 +24,5 @@ Product concept and specification for Motiff Lab, exported from the shared speci
 
 ## Conventions
 
-- Requirement IDs: `S1-…` for Stage 1, `FR-…` and `NFR-…` for Stages 2–3, `AC-…` acceptance criteria, `US-…` user stories, `V1–V12` variation operations, `H…` hints and hypotheses.
+- Requirement IDs: `S1-…` for Stage 1 (`S1-R…` rhythm restoration, `S1-AI…` AI assistance, `AC-S1-…` Stage 1 acceptance criteria), `FR-…` and `NFR-…` for Stages 2–3, `AC-…` acceptance criteria, `US-…` user stories, `V1–V12` variation operations, `H…` hints and hypotheses.
 - When code implements a requirement, reference its ID in the commit message or PR.
