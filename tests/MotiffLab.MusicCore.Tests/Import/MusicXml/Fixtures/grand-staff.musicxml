@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
+<!-- Self-made test fixture for Motiff Lab: a short waltz sketch on a grand staff. Not published music. -->
+<score-partwise version="4.0">
+  <work><work-title>Waltz sketch</work-title></work>
+  <part-list>
+    <score-part id="P1">
+      <part-name>Piano</part-name>
+      <score-instrument id="P1-I1"><instrument-name>Acoustic Grand Piano</instrument-name></score-instrument>
+    </score-part>
+  </part-list>
+  <part id="P1">
+    <!-- One-beat pickup, left out of the bar numbering. -->
+    <measure number="0" implicit="yes">
+      <attributes>
+        <divisions>2</divisions>
+        <key><fifths>1</fifths><mode>major</mode></key>
+        <time><beats>3</beats><beat-type>4</beat-type></time>
+        <staves>2</staves>
+        <clef number="1"><sign>G</sign><line>2</line></clef>
+        <clef number="2"><sign>F</sign><line>4</line></clef>
+      </attributes>
+      <direction placement="above">
+        <direction-type>
+          <metronome><beat-unit>quarter</beat-unit><per-minute>96</per-minute></metronome>
+        </direction-type>
+        <sound tempo="96" dynamics="70"/>
+      </direction>
+      <note><pitch><step>D</step><octave>5</octave></pitch><duration>2</duration><voice>1</voice><type>quarter</type><staff>1</staff></note>
+      <backup><duration>2</duration></backup>
+      <note><rest/><duration>2</duration><voice>5</voice><type>quarter</type><staff>2</staff></note>
+    </measure>
+    <measure number="1">
+      <note><pitch><step>G</step><octave>4</octave></pitch><duration>4</duration><voice>1</voice><type>half</type><staff>1</staff></note>
+      <note><chord/><pitch><step>B</step><octave>4</octave></pitch><duration>4</duration><voice>1</voice><type>half</type><staff>1</staff></note>
+      <note><chord/><pitch><step>D</step><octave>5</octave></pitch><duration>4</duration><voice>1</voice><type>half</type><staff>1</staff></note>
+      <note><pitch><step>A</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>quarter</type><staff>1</staff></note>
+      <backup><duration>6</duration></backup>
+      <note><pitch><step>G</step><octave>2</octave></pitch><duration>6</duration><voice>5</voice><type>half</type><dot/><staff>2</staff></note>
+    </measure>
+    <measure number="2">
+      <!-- Divisions change mid-part so the triplet eighths are whole numbers. -->
+      <attributes><divisions>6</divisions></attributes>
+      <note><pitch><step>B</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>eighth</type>
+        <time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification><staff>1</staff></note>
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>2</duration><voice>1</voice><type>eighth</type>
+        <time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification><staff>1</staff></note>
+      <note><pitch><step>D</step><octave>5</octave></pitch><duration>2</duration><voice>1</voice><type>eighth</type>
+        <time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification><staff>1</staff></note>
+      <note><pitch><step>E</step><octave>5</octave></pitch><duration>12</duration><tie type="start"/><voice>1</voice><type>half</type><staff>1</staff></note>
+      <backup><duration>18</duration></backup>
+      <note><pitch><step>D</step><octave>3</octave></pitch><duration>12</duration><voice>5</voice><type>half</type><staff>2</staff></note>
+      <note><rest/><duration>6</duration><voice>5</voice><type>quarter</type><staff>2</staff></note>
+    </measure>
+    <measure number="3">
+      <note><pitch><step>E</step><octave>5</octave></pitch><duration>6</duration><tie type="stop"/><voice>1</voice><type>quarter</type><staff>1</staff></note>
+      <note><grace/><pitch><step>E</step><octave>5</octave></pitch><voice>1</voice><type>eighth</type><staff>1</staff></note>
+      <note dynamics="110"><pitch><step>D</step><octave>5</octave></pitch><duration>12</duration><voice>1</voice><type>half</type><staff>1</staff></note>
+      <backup><duration>18</duration></backup>
+      <note><pitch><step>G</step><octave>2</octave></pitch><duration>18</duration><voice>5</voice><type>half</type><dot/><staff>2</staff></note>
+      <barline location="right"><bar-style>light-heavy</bar-style></barline>
+    </measure>
+  </part>
+</score-partwise>

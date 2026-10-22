@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <None Include="Import\Midi\Fixtures\*.mid" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Import\MusicXml\Fixtures\*.musicxml" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
