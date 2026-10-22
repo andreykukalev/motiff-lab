@@ -455,7 +455,7 @@ Stage 1 runs in the browser: files are parsed, analysed, restored, transformed a
 
 **Source reference on every imported event**
 
-Each note keeps where it came from, so "Show in piece", corrections and exports stay exact. Positions are absolute canonical ticks (decision record 0002); bar and beat are derived from the meter map for display:
+Each note keeps where it came from, so "Show in piece", corrections and exports stay exact. Positions are absolute canonical ticks (decision record 0002); bar and beat are derived from the meter map for display. Decision record 0004 settles the note shape and the meter rules, including pickup bars:
 
 ```json
 {
