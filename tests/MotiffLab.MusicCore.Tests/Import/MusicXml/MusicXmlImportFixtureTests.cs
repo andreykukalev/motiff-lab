@@ -6,7 +6,7 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Tests.Import.MusicXml;
 
 /// <summary>The self-made files in Fixtures and what each must import as.</summary>
-public class MusicXmlFixtureTests
+public class MusicXmlImportFixtureTests
 {
     private static MusicXmlImport ImportFixture(string name) =>
         MusicXmlImporter.Import(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "MusicXml", "Fixtures", name)));
@@ -14,7 +14,7 @@ public class MusicXmlFixtureTests
     [Fact]
     public void Grand_staff_with_pickup_splits_hands_by_staff()
     {
-        MusicXmlImport result = ImportFixture("grand-staff.musicxml");
+        MusicXmlImport result = ImportFixture("importer-grand-staff.musicxml");
         const int bar = 3 * 480;
 
         Assert.Equal("4.0", result.Version);
@@ -72,7 +72,7 @@ public class MusicXmlFixtureTests
     [Fact]
     public void Two_parts_keep_their_own_divisions_keys_and_transposition()
     {
-        MusicXmlImport result = ImportFixture("two-parts.musicxml");
+        MusicXmlImport result = ImportFixture("importer-two-parts.musicxml");
 
         Assert.Equal(["Clarinet in B♭", "Cello"], result.Parts.Select(part => part.Name));
         Assert.Equal([7, 4], result.Parts.Select(part => part.NoteCount));
@@ -108,7 +108,7 @@ public class MusicXmlFixtureTests
     [Fact]
     public void Septuplets_are_rounded_by_at_most_half_a_tick_and_reported()
     {
-        MusicXmlImport result = ImportFixture("septuplets.musicxml");
+        MusicXmlImport result = ImportFixture("importer-septuplets.musicxml");
 
         Assert.Equal(8, result.Notes.Count);
         Assert.Equal(7, result.Report.CountOf(MusicXmlIssueCodes.NotesRounded));

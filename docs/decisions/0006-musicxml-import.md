@@ -50,7 +50,7 @@ Codes (`MusicXmlIssueCodes`) are stable keys; messages are plain English. The re
 
 ## Consequences
 
-- No new package in music-core. Unit tests use inline scores, and three self-made fixtures (`tests/MotiffLab.MusicCore.Tests/Import/MusicXml/Fixtures`) cover a grand staff with a pickup and triplets, two parts with different divisions and a transposing instrument, and septuplets. None contain published music. They can move to the shared corpus of #7 when it lands.
+- No new package in music-core. Unit tests use inline scores, and three self-made fixtures (`importer-*.musicxml` in `tests/MotiffLab.MusicCore.Tests/Import/MusicXml/Fixtures`, named so they sit beside the #7 corpus) cover a grand staff with a pickup and triplets, two parts with different divisions and a transposing instrument, and septuplets. None contain published music. Tests that pin what the #7 corpus imports as can follow once it lands.
 - #10 adds tie merging, tuplet and grace flags, rest events and `.mxl` on top of the same cursor.
 - Bars excluded from numbering, and score measure numbers in the UI, need a meter map extension (0004); the measure list already carries what it needs.
 - Repeats and endings are not unfolded: notes follow the written order.
