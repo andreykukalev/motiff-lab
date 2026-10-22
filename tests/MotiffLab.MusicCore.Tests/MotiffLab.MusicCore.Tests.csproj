@@ -19,6 +19,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="Import\Midi\Fixtures\*.mid" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\MotiffLab.MusicCore\MotiffLab.MusicCore.csproj" />
   </ItemGroup>
 
