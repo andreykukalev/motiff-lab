@@ -43,39 +43,67 @@ jobs:
           name: web
           path: publish/wwwroot
 
-  # Deploys the published app to Azure Static Web Apps: main goes to production,
-  # each pull request gets its own preview environment. See infra/README.md.
+  # Provisions infra/main.bicep and deploys the published app to Azure Static Web Apps.
+  # main: provision, then deploy production. Pull requests: what-if, then deploy a preview.
+  # Signs in through OIDC as the identity from infra/bootstrap.bicep; see infra/README.md.
+  # Skipped until the bootstrap has set the AZURE_* repository variables, and on forks.
   deploy:
     needs: build-test
+    if: >-
+      vars.AZURE_CLIENT_ID != '' &&
+      (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     concurrency:
       group: deploy-${{ github.ref }}
-      cancel-in-progress: true
+      # Never cancel a production provision halfway; superseded previews can go.
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     permissions:
       contents: read
+      id-token: write # OIDC sign-in to Azure
       pull-requests: write # the deploy action comments the preview URL on the PR
     env:
-      SWA_TOKEN: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+      RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      SWA_NAME: swa-motifflab
     steps:
-      # Forks and repositories without the secret skip the deploy instead of failing.
-      - name: Check deployment token
-        id: token
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Preview infrastructure changes
+        if: github.event_name == 'pull_request'
+        run: >-
+          az deployment group what-if
+          --resource-group "$RESOURCE_GROUP"
+          --template-file infra/main.bicep
+          --parameters infra/main.bicepparam
+
+      - name: Provision infrastructure
+        if: github.event_name == 'push'
+        run: >-
+          az deployment group create
+          --resource-group "$RESOURCE_GROUP"
+          --name "main-${{ github.run_number }}"
+          --template-file infra/main.bicep
+          --parameters infra/main.bicepparam
+          --output none
+
+      # The deployment token is read at run time, so it is never stored in GitHub.
+      - name: Get deployment token
         run: |
-          if [ -z "$SWA_TOKEN" ]; then
-            echo "::notice::AZURE_STATIC_WEB_APPS_API_TOKEN is not set; skipping deploy."
-            echo "present=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "present=true" >> "$GITHUB_OUTPUT"
-          fi
+          token="$(az staticwebapp secrets list --name "$SWA_NAME" --resource-group "$RESOURCE_GROUP" --query properties.apiKey --output tsv)"
+          echo "::add-mask::$token"
+          echo "SWA_TOKEN=$token" >> "$GITHUB_ENV"
 
       - uses: actions/download-artifact@v4
-        if: steps.token.outputs.present == 'true'
         with:
           name: web
           path: web
 
       - name: Deploy to Static Web Apps
-        if: steps.token.outputs.present == 'true'
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ env.SWA_TOKEN }}
@@ -87,13 +115,30 @@ jobs:
           skip_api_build: true
 
   close-preview:
-    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    if: >-
+      vars.AZURE_CLIENT_ID != '' &&
+      github.event_name == 'pull_request' && github.event.action == 'closed' &&
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
     env:
-      SWA_TOKEN: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+      RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      SWA_NAME: swa-motifflab
     steps:
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get deployment token
+        run: |
+          token="$(az staticwebapp secrets list --name "$SWA_NAME" --resource-group "$RESOURCE_GROUP" --query properties.apiKey --output tsv)"
+          echo "::add-mask::$token"
+          echo "SWA_TOKEN=$token" >> "$GITHUB_ENV"
+
       - name: Close preview environment
-        if: env.SWA_TOKEN != ''
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ env.SWA_TOKEN }}

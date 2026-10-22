@@ -4,58 +4,47 @@ Stage 1 needs one Azure resource: a Static Web App on the Free plan in West Euro
 
 Static Web Apps is only offered in a few regions, and West Europe is the only EU one, so Sweden Central is not an option for this resource. Static content is served from the global edge; the region holds the app's metadata and, later, its managed Functions.
 
-## Deploys
+## Files
 
-The `CI` workflow ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) builds and tests, publishes the web app, then deploys the published `wwwroot` with the deployment token:
+| File | What it is |
+| --- | --- |
+| [`main.bicep`](main.bicep), [`main.bicepparam`](main.bicepparam) | The app's infrastructure. CI provisions it on every push to `main`. |
+| [`bootstrap.bicep`](bootstrap.bicep) | One-time CI identity: a user-assigned managed identity with GitHub OIDC federated credentials (`main` and pull requests) and Contributor on the resource group only. |
+| [`bootstrap.sh`](bootstrap.sh) | Runs the one-time setup below. |
 
-- **Push to `main`** deploys to production.
-- **Pull request** (from this repository) deploys to a preview environment and comments its URL on the PR. Closing the PR deletes the preview.
-- Without the `AZURE_STATIC_WEB_APPS_API_TOKEN` secret (and on forks) the deploy step is skipped, not failed.
+## How deploys work
+
+The `CI` workflow ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) builds and tests, publishes the web app, then signs in to Azure through OIDC as the bootstrap identity. No Azure secret is stored in GitHub: the Static Web Apps deployment token is read at run time.
+
+- **Push to `main`**: deploys `main.bicep` (incremental), then deploys the app to production.
+- **Pull request** from this repository: shows a `what-if` of `main.bicep` in the log, deploys a preview environment and comments its URL on the PR. Closing the PR deletes the preview.
+- Until the bootstrap has set the `AZURE_*` repository variables, and on forks, the deploy jobs are skipped.
 
 The Free plan allows 3 preview environments at a time. A fourth open PR fails its deploy until an older PR is closed.
 
 ## One-time setup
 
-Requires the Azure CLI (2.53 or later for `.bicepparam`) and, for step 4, the GitHub CLI.
+Requires the Azure CLI (2.53 or later) signed in with rights to create role assignments on the new resource group (Owner on the subscription, as on a Visual Studio subscription), and the GitHub CLI signed in to this repository.
 
-1. Sign in and pick the subscription:
+```bash
+az login
+az account set --subscription "<subscription name or id>"
+gh auth login
+./infra/bootstrap.sh
+```
 
-   ```bash
-   az login
-   az account set --subscription "<subscription name or id>"
-   ```
+The script asks for confirmation, then:
 
-2. Create the resource group:
+1. creates the resource group `rg-motifflab` in West Europe,
+2. deploys `bootstrap.bicep` (CI identity, federated credentials, role assignment),
+3. deploys `main.bicep` once, so pull requests have a site to deploy previews to,
+4. sets the repository variables `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` and `AZURE_RESOURCE_GROUP` (identifiers, not secrets).
 
-   ```bash
-   az group create --name rg-motifflab --location westeurope
-   ```
-
-3. Deploy the Bicep:
-
-   ```bash
-   az deployment group create \
-     --resource-group rg-motifflab \
-     --template-file infra/main.bicep \
-     --parameters infra/main.bicepparam
-   ```
-
-   The output `defaultHostName` is the production URL.
-
-4. Copy the deployment token into the repository secret:
-
-   ```bash
-   az staticwebapp secrets list --name swa-motifflab --resource-group rg-motifflab \
-     --query properties.apiKey --output tsv \
-     | gh secret set AZURE_STATIC_WEB_APPS_API_TOKEN --repo andreykukalev/motiff-lab
-   ```
-
-   Without the GitHub CLI: run the first command alone, then add the value under **Settings → Secrets and variables → Actions → New repository secret** with the name `AZURE_STATIC_WEB_APPS_API_TOKEN`.
-
-5. Re-run the latest `CI` run on `main` (or push a commit) to make the first production deploy.
+Then re-run CI on an open PR, or push to `main`, for the first app deploy. Re-running the script is safe.
 
 ## Changes later
 
-- Re-running step 3 is safe; the deployment is incremental and idempotent.
-- To rotate the token: `az staticwebapp secrets reset-api-key --name swa-motifflab --resource-group rg-motifflab`, then repeat step 4.
+- Change infrastructure by editing `main.bicep`; the PR shows the `what-if`, and merging applies it.
+- The CI identity is Contributor on the resource group, which includes the identity itself. That is acceptable for a single-owner project; move it to its own resource group if more people get write access to the repository.
+- To rotate the deployment token: `az staticwebapp secrets reset-api-key --name swa-motifflab --resource-group rg-motifflab`. Nothing else needs to change.
 - To add a custom domain, use `Microsoft.Web/staticSites/customDomains` in `main.bicep` after the DNS record exists.

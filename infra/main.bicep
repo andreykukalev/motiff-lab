@@ -36,7 +36,7 @@ resource site 'Microsoft.Web/staticSites@2024-11-01' = {
     tier: sku
   }
   properties: {
-    // Deploys come from GitHub Actions with the deployment token, so the site is not
+    // CI deploys with the deployment token it reads at run time, so the site is not
     // linked to the repository here (linking would need a GitHub PAT at deploy time).
     stagingEnvironmentPolicy: 'Enabled'
     allowConfigFileUpdates: true
