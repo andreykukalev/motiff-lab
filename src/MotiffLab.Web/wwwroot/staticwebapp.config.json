@@ -1,6 +1,9 @@
 {
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/_framework/*", "/css/*", "/js/*", "/audio/*", "*.{png,ico,js,json,webmanifest,wasm,dat,dll,pdb,mp3}"]
+    "exclude": ["/_framework/*", "/css/*", "/js/*", "/audio/*", "/lib/*", "*.{png,ico,js,mjs,json,webmanifest,wasm,dat,dll,pdb,mp3,txt}"]
+  },
+  "mimeTypes": {
+    ".mjs": "text/javascript"
   }
 }

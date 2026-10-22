@@ -1,0 +1,95 @@
+@using MotiffLab.MusicCore.Time
+@using MotiffLab.Web.Playback
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject Player Player
+
+@* Engraved by Verovio in Scripts/score (decision record 0008); the host's children belong to the script. *@
+<div class="score" @ref="_host" aria-label="Score"></div>
+@if (_error is not null)
+{
+    <p class="error">@_error</p>
+}
+else if (_loading)
+{
+    <p class="meta">Engraving the score…</p>
+}
+
+@code {
+    private ElementReference _host;
+    private IJSObjectReference? _module;
+    private IJSObjectReference? _view;
+    private DotNetObjectReference<ScoreView>? _self;
+    private ScoreSource? _shown;
+    private bool _loading;
+    private string? _error;
+
+    /// <summary>What to show. The view engraves it again only when a different instance is given.</summary>
+    [Parameter, EditorRequired]
+    public ScoreSource? Source { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        _loading = !ReferenceEquals(Source, _shown) && Source is not null;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _self = DotNetObjectReference.Create(this);
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/score/score-view.js");
+            _view = await _module.InvokeAsync<IJSObjectReference>("createScoreView", _host, _self);
+        }
+
+        if (_view is null || ReferenceEquals(Source, _shown) || Source is null)
+        {
+            return;
+        }
+
+        ScoreSource source = Source;
+        _shown = source;
+        try
+        {
+            await _view.InvokeAsync<ScoreLoadResult>("load", source.Data);
+            await _view.InvokeVoidAsync("follow", Player.Engine);
+            _error = null;
+        }
+        catch (JSException exception)
+        {
+            _error = $"The score could not be shown: {exception.Message}";
+        }
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    /// <summary>Called by the script when a note is clicked: playback moves to its onset.</summary>
+    [JSInvokable]
+    public Task OnScoreNoteClicked(double tick) => Player.SeekAsync(new Tick(Math.Max(0, (long)Math.Round(tick))));
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_view is not null)
+            {
+                await _view.InvokeVoidAsync("dispose");
+                await _view.DisposeAsync();
+            }
+
+            if (_module is not null)
+            {
+                await _module.DisposeAsync();
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // The page is going away with the view.
+        }
+
+        _self?.Dispose();
+    }
+
+    private sealed record ScoreLoadResult(int Pages, int Notes);
+}

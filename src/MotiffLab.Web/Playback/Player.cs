@@ -58,6 +58,9 @@ public sealed class Player(IJSRuntime js) : IAsyncDisposable
 
     public IReadOnlyList<string> ActiveSources { get; private set; } = [];
 
+    /// <summary>The script-side player, for views that read the position every frame (the score view); null until ready.</summary>
+    internal IJSObjectReference? Engine => _engine;
+
     /// <summary>Creates the audio engine and loads the piano. Safe to call more than once.</summary>
     public Task InitializeAsync() => _initializing ??= InitializeCoreAsync();
 

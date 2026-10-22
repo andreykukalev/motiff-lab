@@ -2,15 +2,17 @@
 @using MotiffLab.MusicCore.Events
 @using MotiffLab.MusicCore.Import.Midi
 @using MotiffLab.MusicCore.Import.MusicXml
+@using MotiffLab.MusicCore.Notation
 @using MotiffLab.MusicCore.Playback
 @using MotiffLab.MusicCore.Time
 @using MotiffLab.Web.Playback
+@using MotiffLab.Web.Score
 @implements IDisposable
 @inject Player Player
 
 <PageTitle>Playback · Motiff Lab</PageTitle>
 
-@* A test bench for the playback engine (S1-W4, S1-W5) until the workspace exists. Files stay on the device. *@
+@* A test bench for the playback engine (S1-W4, S1-W5) and the score view (S1-W7) until the workspace exists. Files stay on the device. *@
 <main class="lab">
     <h1>Playback</h1>
     <p class="meta">A test bench for playback until the workspace lands. Open a MIDI or MusicXML file or use the demo; nothing leaves this device.</p>
@@ -76,6 +78,22 @@
             <span class="meta">The test variation is the same notes an octave higher.</span>
         </section>
 
+        <section class="score-panel">
+            <div class="row">
+                <label><input type="checkbox" checked="@_showScore" @onchange="() => _showScore = !_showScore" /> Score</label>
+                @if (_asWritten is not null)
+                {
+                    <label><input type="radio" name="score" checked="@(!_showGenerated)" @onchange="() => _showGenerated = false" /> As written</label>
+                    <label><input type="radio" name="score" checked="@_showGenerated" @onchange="() => _showGenerated = true" /> Generated from the notes</label>
+                }
+            </div>
+            @if (_showScore && ShownScore is { } shown)
+            {
+                <ScoreView Source="shown" />
+                <p class="meta">@ScoreNote(shown)</p>
+            }
+        </section>
+
         <section class="tracks">
             @foreach (int track in _tracks)
             {
@@ -91,6 +109,8 @@
     <p class="credit">
         Piano: <a href="https://archive.org/details/SalamanderGrandPianoV3">Salamander Grand Piano V3</a> by Alexander Holm,
         <a href="https://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a>, shortened and re-encoded for Motiff Lab.
+        Score engraving: <a href="https://www.verovio.org">Verovio</a> 6.3.0,
+        <a href="lib/verovio/COPYING.LESSER.txt">LGPL 3.0</a>, <a href="https://github.com/rism-digital/verovio/tree/version-6.3.0">source</a>.
     </p>
 </main>
 
@@ -112,6 +132,12 @@
     private int _loopTo = 2;
     private string? _title;
     private string? _message;
+    private ScoreSource? _asWritten;
+    private ScoreSource? _generated;
+    private bool _showScore = true;
+    private bool _showGenerated;
+
+    private ScoreSource? ShownScore => _showGenerated || _asWritten is null ? _generated : _asWritten;
 
     private int TempoPercent => (int)Math.Round(Player.Tempo * 100);
 
@@ -151,7 +177,12 @@
 
     private void OnPlayerChanged() => _ = InvokeAsync(StateHasChanged);
 
-    private Task LoadDemoAsync() => LoadAsync(DemoPiece.Create(), "Demo piece (two hands, 3/4 with a pickup)");
+    private Task LoadDemoAsync()
+    {
+        (PlaybackScore score, MeterMap meter, IReadOnlyList<Note> notes) = DemoPiece.Create();
+        GeneratedNotation notation = NotationGenerator.Generate(notes, meter, [], score.End, "Demo piece");
+        return LoadAsync((score, meter, notes), "Demo piece (two hands, 3/4 with a pickup)", notation, musicXml: null);
+    }
 
     private async Task OpenFileAsync(InputFileChangeEventArgs args)
     {
@@ -165,12 +196,13 @@
             if (args.File.Name.EndsWith(".mid", StringComparison.OrdinalIgnoreCase) || args.File.Name.EndsWith(".midi", StringComparison.OrdinalIgnoreCase))
             {
                 MidiImport import = MidiImporter.Import(data);
-                await LoadAsync((PlaybackScore.FromMidi(import), import.Meter, import.Notes), args.File.Name);
+                await LoadAsync((PlaybackScore.FromMidi(import), import.Meter, import.Notes), args.File.Name, NotationGenerator.FromMidi(import, args.File.Name), musicXml: null);
             }
             else
             {
                 MusicXmlImport import = MusicXmlImporter.Import(data);
-                await LoadAsync((PlaybackScore.FromMusicXml(import), import.Meter, import.Notes), args.File.Name);
+                using var text = new StreamReader(new MemoryStream(data), detectEncodingFromByteOrderMarks: true);
+                await LoadAsync((PlaybackScore.FromMusicXml(import), import.Meter, import.Notes), args.File.Name, NotationGenerator.FromMusicXml(import, args.File.Name), await text.ReadToEndAsync());
             }
         }
         catch (MidiImportException exception)
@@ -187,8 +219,11 @@
         }
     }
 
-    private async Task LoadAsync((PlaybackScore Score, MeterMap Meter, IReadOnlyList<Note> Notes) piece, string title)
+    private async Task LoadAsync((PlaybackScore Score, MeterMap Meter, IReadOnlyList<Note> Notes) piece, string title, GeneratedNotation notation, string? musicXml)
     {
+        _generated = ScoreSource.FromNotes(notation);
+        _asWritten = musicXml is null ? null : ScoreSource.AsWritten(musicXml);
+        _showGenerated = false;
         _score = piece.Score;
         _meter = piece.Meter;
         _title = title;
@@ -200,6 +235,34 @@
         await Player.LoadAsync(_score);
         await Player.SetSourceAsync(VariationSource, _score.WithNotes(piece.Notes.Select(OctaveUp)));
         await Player.SetTracksAsync([], []);
+    }
+
+    /// <summary>What the shown score is, and what was inferred to write it (decision record 0008).</summary>
+    private static string ScoreNote(ScoreSource source)
+    {
+        if (source.Generated is not { } notation)
+        {
+            return "As written in the MusicXML file. Click a note to play from there.";
+        }
+
+        var parts = new List<string> { "Generated from the notes: note values, voices and spelling are inferred." };
+        if (notation.ApproximatedNoteCount > 0)
+        {
+            parts.Add($"{notation.ApproximatedNoteCount} of {notation.NoteCount} notes are shown at the nearest 32nd.");
+        }
+
+        if (notation.ShortenedNoteCount > 0)
+        {
+            parts.Add($"{notation.ShortenedNoteCount} notes are shown shorter to fit four voices per staff.");
+        }
+
+        if (notation.Staves.Any(staff => staff.IsSplitInferred))
+        {
+            parts.Add("The staves are split at middle C.");
+        }
+
+        parts.Add("Click a note to play from there.");
+        return string.Join(" ", parts);
     }
 
     private static Note OctaveUp(Note note) =>

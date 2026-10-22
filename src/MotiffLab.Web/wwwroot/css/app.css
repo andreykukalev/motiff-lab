@@ -194,3 +194,36 @@ html, body {
 .lab .track {
     min-width: 5rem;
 }
+
+/* Score view (Score/ScoreView.razor, Scripts/score): ink on a raised surface, the notes being heard in the accent. */
+.score {
+    max-height: 70vh;
+    overflow-y: auto;
+    background: #1E242C;
+    color: var(--ml-white);
+    border-radius: 0.4rem;
+    margin: 0.5rem 0;
+}
+
+.score:empty {
+    display: none;
+}
+
+.score svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    /* Verovio sets color="black" on its SVG and leaves glyph fills to the default; CSS overrides both. */
+    color: var(--ml-white);
+    fill: currentColor;
+}
+
+.score g.note, .score g.chord {
+    cursor: pointer;
+}
+
+.score g.note.playing, .score g.chord.playing {
+    fill: var(--ml-lime);
+    stroke: var(--ml-lime);
+    color: var(--ml-lime);
+}

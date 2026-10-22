@@ -96,7 +96,7 @@ Stage 1 must deliver one complete journey on one motif; everything else is label
 | AI rhythm-restoration recommendations | Should | S1-AI4 |
 | AI questions, hints and feedback in the three modes | Should | S1-AI5 |
 | Starter library of public-domain files | Should | S1-C1 |
-| Score view from MusicXML | Could | S1-W7 |
+| Score view: the piece, motif and variation as notation, following playback | Must | S1-W7 |
 | Free-form questions to the AI about a passage | Could | S1-AI6 |
 | Playback to a connected MIDI instrument; MIDI keyboard input | Later | Stage 2 |
 | Reconstruction attempts, progressive hints and feedback on played attempts | Later | Stage 2 (PRD module C) |
@@ -104,7 +104,7 @@ Stage 1 must deliver one complete journey on one motif; everything else is label
 | Rhythm restoration of free-tempo performances (no usable tempo map) | Later | Stage 2 or 3, with beat tracking |
 | Audio import, transcription and audio-based rhythm restoration | Later | Stage 3 (PRD module A) |
 | Sync with DAWs, other devices or apps | Later | Stage 4 |
-| PDF or photographed scores (optical music recognition) | Later | After Stage 3 |
+| PDF or photographed scores (optical music recognition) | Later | After Stage 3 (confirmed 2026-10-22); meanwhile, MusicXML exported by an OMR tool imports like any other MusicXML |
 | Harmonic colour, reharmonisation, counter-melodies | Later | Stage 4 |
 
 **Out of scope for Stage 1**
@@ -116,7 +116,7 @@ Stage 1 must deliver one complete journey on one motif; everything else is label
 - Full DAW functionality, or support for every instrument.
 - Social features and public distribution of copyrighted arrangements.
 
-**Changes from the exported specification:** S1-I6 now hands off to the new rhythm-restoration section (S1-R); S1-W8 (MIDI output) moved to Stage 2; the score view S1-W7 moved from Should to Could, since Stage 1 does not depend on sheet music; S1-A4, S1-A5 and the S1-AI requirements are new.
+**Changes from the exported specification:** S1-I6 now hands off to the new rhythm-restoration section (S1-R); S1-W8 (MIDI output) moved to Stage 2; the score view S1-W7 moved from Should to Could, and then on 2026-10-22 up to Must, because seeing notation while listening matters to the players this stage is for; S1-A4, S1-A5 and the S1-AI requirements are new.
 
 ## Functional requirements
 
@@ -145,7 +145,7 @@ These requirements cover everything in Stage 1 except rhythm restoration, the va
 | S1-W4 | Playback in the browser: play, pause, loop the motif, tempo 25–150%, metronome, count-in, solo and mute per track | Must |
 | S1-W5 | Sources: original motif, variation, both layered, and A/B switching at the same position (as PRD FR-E6) | Must |
 | S1-W6 | Switching between Explore, Restore, Transform and Compare keeps the selection and playback position (as PRD FR-B8) | Must |
-| S1-W7 | Score view of the motif and its variation, from the MusicXML source or generated notation | Could |
+| S1-W7 | Score view of the piece, the motif and its variation: a MusicXML source as written, or notation generated from the notes (MIDI imports, variations) and labelled as generated; the notes being heard are highlighted and the view follows playback (decision record 0008) | Must |
 
 ### Motif selection
 
@@ -382,7 +382,7 @@ The wireframe shows the Transform screen in Discovery mode: kept properties firs
 **N4 · Motif workspace, Understand**
 
 - Transport: play, loop, tempo 25–150%, metronome, count-in, solo and mute (S1-W4).
-- Piano roll and keyboard (S1-W2, S1-W3); score view toggle when available (S1-W7).
+- Piano roll and keyboard (S1-W2, S1-W3); score view toggle (S1-W7).
 - Lens tabs: **Rhythm**, **Melody**, **Harmony**, **Structure** (S1-A1 to S1-A5), each with two or three plain facts, for example "6 notes · range of a 6th · moves down, then up".
 - **Explain** opens an AI explanation that cites the facts it uses (S1-AI1); with AI off, it shows the template explanation.
 - **Show in piece** jumps back to the source position (S1-M4).
@@ -448,7 +448,7 @@ Stage 1 runs in the browser: files are parsed, analysed, restored, transformed a
 | 4. Analysis and rhythm restoration | music-core rules: rhythm, melody, harmony, repetition, character facts, timing statistics and grid alignment | Same rules on audio-derived events |
 | 5. Transformation engine | music-core operations V1–V12, pure and seeded, with Keep checks and diffs | Same library on mobile and server |
 | 6. Playback | Web Audio with an AudioWorklet and a sampled piano, called from Blazor through a thin TypeScript layer | Mobile audio engine replaces it in Stage 2 |
-| 7. Visualisation | Canvas piano roll and keyboard in the TypeScript layer; optional score view rendered by an open-source engraver (OpenSheetMusicDisplay or Verovio, licence to confirm) | Same views |
+| 7. Visualisation | Canvas piano roll and keyboard in the TypeScript layer; score view engraved by Verovio (LGPL-3.0, loaded on first use) from the MusicXML source or from MEI that music-core generates from the notes (decision record 0008) | Same views |
 | 8. Learning interaction | Mode state machine; guided sequences and comparison tasks stored as JSON content | Extended with hints and attempts |
 | 9. AI assistance | Fact digest built by music-core; gateway in Azure Functions calling Azure AI Foundry through a replaceable adapter; response validation against the digest and the operation catalogue | Same gateway for the Stage 3 AI tutor |
 | 10. Persistence | IndexedDB in the browser, autosave, project export file | Synced accounts from Stage 2 |
