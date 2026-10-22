@@ -1,6 +1,7 @@
 namespace MotiffLab.MusicCore.Import;
 
 /// <summary>What an importer did with a source file, for the import report (S1-I8).</summary>
+/// <param name="MeasureCount">Bars from the start of the piece to its end, counting a final partial bar.</param>
 /// <remarks>
 /// Issues are grouped by code and track with a count, so a large file gives a short report.
 /// They appear in the order each kind of issue was first met, which is deterministic for a given
@@ -11,6 +12,7 @@ public sealed record ImportReport(
     string Format,
     int TrackCount,
     int NoteCount,
+    int MeasureCount,
     IReadOnlyList<ImportIssue> Issues)
 {
     public IEnumerable<ImportIssue> OfKind(ImportIssueKind kind) => Issues.Where(issue => issue.Kind == kind);

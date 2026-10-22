@@ -1,3 +1,4 @@
+using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Midi;
 using MotiffLab.MusicCore.Time;
@@ -18,15 +19,15 @@ public class MidiFixtureTests
         Assert.Equal(0, result.Format);
         Assert.Equal(96, result.TimeBase.TicksPerQuarter);
         Assert.Equal("Scale study", Assert.Single(result.Tracks).Name);
-        Assert.Equal(15, result.Notes.Count);
-        Assert.All(result.Notes, note =>
+        Assert.Equal(15, result.SourceNotes.Count);
+        Assert.All(result.SourceNotes, note =>
         {
             Assert.Equal(480, note.Span.Duration);
             Assert.True(note.IsExact);
             Assert.Equal(MidiNoteEnd.NoteOnVelocityZero, note.EndSource);
         });
-        Assert.Equal([60, 62, 64, 65, 67, 69, 71, 72, 71, 69, 67, 65, 64, 62, 60], result.Notes.Select(note => note.Pitch));
-        Assert.Equal(new Tick(14 * 480), result.Notes[^1].Span.Onset);
+        Assert.Equal([60, 62, 64, 65, 67, 69, 71, 72, 71, 69, 67, 65, 64, 62, 60], result.SourceNotes.Select(note => note.Pitch));
+        Assert.Equal(new Tick(14 * 480), result.SourceNotes[^1].Span.Onset);
 
         Assert.Equal(new MidiTempoChange(Tick.Zero, 0, 600_000, false), Assert.Single(result.Tempos));
         Assert.Equal(new MidiTimeSignature(Tick.Zero, 0, 4, 4, false), Assert.Single(result.TimeSignatures));
@@ -55,7 +56,7 @@ public class MidiFixtureTests
         Assert.Equal(new MidiKeySignature(Tick.Zero, 0, 1, false), Assert.Single(result.KeySignatures));
         Assert.Equal(new Tick(4 * bar), result.End);
 
-        MidiNote high = Assert.Single(result.Notes, note => note.Pitch == 74);
+        MidiNote high = Assert.Single(result.SourceNotes, note => note.Pitch == 74);
         Assert.Equal(new TickSpan(new Tick(bar), bar), high.Span);
         Assert.Equal(1, high.Track);
 
@@ -75,22 +76,22 @@ public class MidiFixtureTests
         MidiImport result = ImportFixture("performance-type1.mid");
 
         Assert.Equal(1000, result.TimeBase.TicksPerQuarter);
-        Assert.Equal(7, result.Notes.Count);
+        Assert.Equal(7, result.SourceNotes.Count);
 
         // 13 × 480 / 1000 = 6.24 → 6; 470 × 0.48 = 225.6 → 226.
-        MidiNote first = result.Notes[0];
+        MidiNote first = result.SourceNotes[0];
         Assert.Equal(new TickSpan(new Tick(6), 220), first.Span);
         Assert.False(first.IsExact);
 
         // The re-struck key pairs first on, first off.
-        MidiNote[] repeated = [.. result.Notes.Where(note => note.Pitch == 67)];
+        MidiNote[] repeated = [.. result.SourceNotes.Where(note => note.Pitch == 67)];
         Assert.Equal([(1007L, 1990L), (1500L, 2420L)], repeated.Select(note => (note.NoteOnTick, note.NoteOffTick)));
 
-        MidiNote zeroLength = Assert.Single(result.Notes, note => note.Pitch == 71);
+        MidiNote zeroLength = Assert.Single(result.SourceNotes, note => note.Pitch == 71);
         Assert.Equal(MidiNoteEnd.Widened, zeroLength.EndSource);
         Assert.Equal(new TickSpan(new Tick(1440), 1), zeroLength.Span);
 
-        MidiNote hanging = Assert.Single(result.Notes, note => note.Pitch == 72);
+        MidiNote hanging = Assert.Single(result.SourceNotes, note => note.Pitch == 72);
         Assert.Equal(MidiNoteEnd.Assumed, hanging.EndSource);
         Assert.Equal(4000, hanging.NoteOffTick);
 
@@ -113,7 +114,7 @@ public class MidiFixtureTests
     {
         MidiImport result = ImportFixture("performance-type1.mid");
 
-        foreach (MidiNote note in result.Notes.Where(note => note.EndSource != MidiNoteEnd.Widened))
+        foreach (MidiNote note in result.SourceNotes.Where(note => note.EndSource != MidiNoteEnd.Widened))
         {
             AssertWithinHalfTick(note.NoteOnTick, note.Span.Onset);
             AssertWithinHalfTick(note.NoteOffTick, note.Span.End);
@@ -128,6 +129,48 @@ public class MidiFixtureTests
     }
 
     [Fact]
+    public void Notes_map_to_the_shared_event_model_as_imported_facts()
+    {
+        MidiImport result = ImportFixture("scale-type0.mid");
+
+        Note first = result.Notes[0];
+        Assert.Equal("n_0001", first.Id);
+        Assert.Equal(new Pitch(60), first.Pitch);
+        Assert.Equal(new TickSpan(Tick.Zero, 480), first.Span);
+        Assert.Equal(80, first.Velocity);
+        Assert.Equal(0, first.Track);
+        Assert.Null(first.Voice);
+        Assert.Null(first.Hand);
+        Assert.Equal(Attribution.Imported, first.Attribution);
+        Assert.Equal(new MidiSourceLocation(0, 0, result.SourceNotes[0].NoteOnIndex), first.Source);
+        Assert.Equal(result.SourceNotes.Count, result.Notes.Count);
+        Assert.Equal(result.Notes.Count, result.Notes.Select(note => note.Id).Distinct().Count());
+    }
+
+    [Fact]
+    public void A_note_whose_end_was_assumed_is_marked_inferred()
+    {
+        MidiImport result = ImportFixture("performance-type1.mid");
+
+        Note hanging = Assert.Single(result.Notes, note => note.Pitch == new Pitch(72));
+        Assert.Equal(Attribution.Inferred(MidiImporter.AssumedEndConfidence), hanging.Attribution);
+        Assert.All(result.Notes.Where(note => note != hanging), note => Assert.Equal(Attribution.Imported, note.Attribution));
+    }
+
+    [Theory]
+    [InlineData("scale-type0.mid", 4, "4/4")] // 15 quarters: three full bars and a partial fourth
+    [InlineData("two-hands-type1.mid", 4, "3/4")]
+    [InlineData("performance-type1.mid", 1, "4/4")] // assumed 4/4; 4000 ticks at PPQ 1000 is one bar
+    public void Meter_map_and_measure_count_come_from_the_time_signatures(string fixture, int measures, string signature)
+    {
+        MidiImport result = ImportFixture(fixture);
+
+        Assert.Equal(measures, result.Report.MeasureCount);
+        Assert.Equal(signature, result.Meter.SignatureAt(Tick.Zero).ToString());
+        Assert.Equal(result.TimeSignatures.Count, result.Meter.Changes.Count);
+    }
+
+    [Fact]
     public void Import_is_deterministic()
     {
         byte[] bytes = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "Midi", "Fixtures", "two-hands-type1.mid"));
@@ -135,6 +178,7 @@ public class MidiFixtureTests
         MidiImport first = MidiImporter.Import(bytes);
         MidiImport second = MidiImporter.Import(bytes);
 
+        Assert.Equal(first.SourceNotes, second.SourceNotes);
         Assert.Equal(first.Notes, second.Notes);
         Assert.Equal(first.Report.Issues, second.Report.Issues);
     }

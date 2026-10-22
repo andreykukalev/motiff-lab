@@ -1,3 +1,4 @@
+using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Import.Midi;
@@ -6,18 +7,22 @@ namespace MotiffLab.MusicCore.Import.Midi;
 /// Everything Stage 1 keeps from a Standard MIDI File, on the canonical timeline, with the import report.
 /// </summary>
 /// <remarks>
-/// These are source facts, not the shared event model: each record keeps its MIDI ticks and track
-/// position next to the canonical time, and says whether a value was assumed. Mapping to the
-/// shared note event and meter map happens on top of this result.
+/// <see cref="Notes"/> and <see cref="Meter"/> are the shared event model (decision record 0004).
+/// The other lists are source facts: each keeps its MIDI ticks and track position next to the
+/// canonical time, and says whether a value was assumed.
 /// </remarks>
+/// <param name="Notes">Shared-model notes in the same order as <paramref name="SourceNotes"/>, with ids n_0001, n_0002, ….</param>
+/// <param name="SourceNotes">The paired note-ons and note-offs the notes were built from.</param>
 /// <param name="End">The end of the piece: the latest end-of-track position across tracks.</param>
 public sealed record MidiImport(
     int Format,
     MidiTimeBase TimeBase,
     IReadOnlyList<MidiTrackInfo> Tracks,
-    IReadOnlyList<MidiNote> Notes,
+    IReadOnlyList<Note> Notes,
+    IReadOnlyList<MidiNote> SourceNotes,
     IReadOnlyList<MidiTempoChange> Tempos,
     IReadOnlyList<MidiTimeSignature> TimeSignatures,
+    MeterMap Meter,
     IReadOnlyList<MidiKeySignature> KeySignatures,
     Tick End,
     ImportReport Report);

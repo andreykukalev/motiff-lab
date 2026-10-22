@@ -1,5 +1,6 @@
 using System.Text;
 
+using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Import.Midi;
@@ -16,6 +17,11 @@ namespace MotiffLab.MusicCore.Import.Midi;
 /// onset and end separately.
 /// </para>
 /// <para>
+/// Notes map to the shared <see cref="Note"/> as imported facts. A note whose end had to be
+/// assumed (no note-off) is marked inferred, with confidence <see cref="AssumedEndConfidence"/>,
+/// because its length is a guess.
+/// </para>
+/// <para>
 /// The import is pure and deterministic: the same bytes give the same result and report.
 /// </para>
 /// </remarks>
@@ -23,6 +29,9 @@ public static class MidiImporter
 {
     /// <summary>The Stage 1 file size limit (S1-I1).</summary>
     public const int MaxFileBytes = 5 * 1024 * 1024;
+
+    /// <summary>Confidence of a note whose end was assumed: the note is real, its length is a guess.</summary>
+    public const double AssumedEndConfidence = 0.5;
 
     private const int DrumChannel = 9;
     private const int SustainPedalController = 64;
@@ -111,14 +120,29 @@ public static class MidiImporter
             end = lastNoteEnd > end ? lastNoteEnd : end;
         }
 
+        var meter = new MeterMap(meters.Select(change => new MeterChange(change.At, new TimeSignature(change.Numerator, change.Denominator))));
+        var events = notes.Select(ToNote).ToList();
+
         var report = new ImportReport(
             Format: $"MIDI type {file.Format}",
             TrackCount: file.Tracks.Count,
             NoteCount: notes.Count,
+            MeasureCount: meter.BarsBefore(end).Count(),
             Issues: issues.Build(MidiIssueCodes.Describe));
 
-        return new MidiImport(file.Format, timeBase, trackInfos, notes, tempos, meters, keys, end, report);
+        return new MidiImport(file.Format, timeBase, trackInfos, events, notes, tempos, meters, meter, keys, end, report);
     }
+
+    private static Note ToNote(MidiNote source, int index) => new()
+    {
+        Id = $"n_{index + 1:D4}",
+        Pitch = new Pitch(source.Pitch),
+        Span = source.Span,
+        Velocity = source.Velocity,
+        Track = source.Track,
+        Attribution = source.EndSource == MidiNoteEnd.Assumed ? Attribution.Inferred(AssumedEndConfidence) : Attribution.Imported,
+        Source = new MidiSourceLocation(source.Track, source.Channel, source.NoteOnIndex),
+    };
 
     /// <summary>
     /// Orders meta values by position (ties keep file order: earlier tracks, then earlier events),
