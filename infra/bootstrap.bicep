@@ -4,8 +4,10 @@
 
 targetScope = 'resourceGroup'
 
-@description('GitHub repository as owner/name.')
-param repository string = 'andreykukalev/motiff-lab'
+// GitHub puts immutable owner and repository IDs in the OIDC subject
+// (repo:owner@ownerId/name@repoId:...), so renaming the repo does not silently re-target trust.
+@description('GitHub repository as it appears in the OIDC subject claim: owner@ownerId/name@repoId.')
+param repository string = 'andreykukalev@130970440/motiff-lab@1430211759'
 
 param location string = resourceGroup().location
 

@@ -4,6 +4,8 @@
 set -euo pipefail
 
 REPO="${REPO:-andreykukalev/motiff-lab}"
+# Repository as GitHub writes it in the OIDC subject claim: owner@ownerId/name@repoId.
+OIDC_REPO="${OIDC_REPO:-andreykukalev@130970440/motiff-lab@1430211759}"
 RESOURCE_GROUP="${RESOURCE_GROUP:-rg-motifflab}"
 LOCATION="${LOCATION:-westeurope}"
 
@@ -19,7 +21,7 @@ az group create --name "$RESOURCE_GROUP" --location "$LOCATION" \
 
 client_id="$(az deployment group create --resource-group "$RESOURCE_GROUP" \
   --name bootstrap --template-file infra/bootstrap.bicep \
-  --parameters repository="$REPO" \
+  --parameters repository="$OIDC_REPO" \
   --query properties.outputs.clientId.value --output tsv)"
 
 # First provision, so pull requests have a Static Web App to deploy previews to.
