@@ -1,0 +1,35 @@
+# 0007 · Playback engine
+
+Status: proposed, 2026-10-22
+
+## Context
+
+S1-W4 needs playback in the browser: play, pause, loop the motif with no audible gap, tempo 25–150%, metronome, count-in, solo and mute per track. S1-W5 needs the original motif, a variation, both layered, and A/B switching at the same position. The piano roll and keyboard need the position as it plays. Decision record 0001 puts Web Audio with an AudioWorklet in a thin TypeScript layer, called from Blazor with whole note lists, so timing stays out of C#. Playback must work in current Chrome, Edge, Safari and Firefox, and work offline like the rest of the PWA.
+
+## Options considered
+
+| Option | Verdict |
+| --- | --- |
+| Schedule `AudioBufferSourceNode`s from a main-thread timer (the usual "look-ahead" scheduler, or Tone.js) | Rejected. Blazor rendering and .NET garbage collection run on the main thread; a late timer drops or delays notes. Loops and tempo changes are rescheduled from the main thread, so a wrap can click or slip, and a tempo change has to cancel and recreate scheduled nodes. Tone.js would also add a dependency of about 300 kB for features we do not use |
+| Render everything in an AudioWorklet: the engine owns the clock and mixes the samples itself | **Chosen.** The audio thread advances a canonical tick position frame by frame, so a loop wraps on the exact frame, a tempo change applies at its tick, and nothing on the main thread can delay a note |
+| A General MIDI SoundFont player (SF2 synthesis in WebAssembly) | Rejected for Stage 1. Larger download, more code, and one good piano is all the workspace needs |
+
+## Decision
+
+1. **music-core builds the score.** `PlaybackScore` (`MotiffLab.MusicCore.Playback`) is a pure, ordered view of the shared model: notes as canonical spans with pitch, velocity and track; the tempo map as microseconds per quarter from tick 0; every metronome beat (downbeats flagged, pickup beats counted from the end of a full bar as in 0004); and the bars, for the count-in. `FromMidi` and `FromMusicXml` build it from an import; `WithNotes` gives a variation the same timeline.
+2. **One timeline, many sources.** The engine holds one timeline and any number of sources (note lists) that share it. Any set can be active: one for A/B, two for layering. Switching keeps the tick position, and notes already sounding in a newly active source are struck at once, so a switch in the middle of a held chord is not silent.
+3. **The audio thread owns time.** `Scripts/playback/playback-processor.ts` is an AudioWorklet processor around a plain `Engine` class. Each 128-frame block is split at tempo changes, the loop end and the end of the piece; events land on the first frame at or after their tick. Ticks stay the unit of position everywhere; seconds and frames exist only inside the engine, as floating point, which is the one place 0002's "no floating point for timing" does not reach: it is audio output, never stored or analysed.
+4. **Transport.** Play, pause (keeps the position), seek, loop a tick range, tempo as a rate from 0.25 to 1.5 applied immediately, metronome (accented downbeats), and a one-bar count-in in the meter and tempo where playback starts. A track sounds when it is not muted and, if any track is soloed, it is soloed. Playback stops at the end of the piece and returns to the start (or the loop start).
+5. **The piano.** Salamander Grand Piano V3 by Alexander Holm, CC BY 3.0: one velocity layer of 30 samples in minor thirds, mono, shortened, 1.7 MB of MP3 (`tools/piano/README.md` records the licence check and the changes). The engine pitch-shifts the nearest sample with linear interpolation, applies the retuned `.sfz` corrections, scales loudness by velocity, damps a key that is struck again, releases notes over about 120 ms, and caps polyphony at 96 voices. The main thread decodes the samples and trims each to its attack, because MP3 encoders add silence before it. A compressor after the worklet keeps dense chords from clipping. The samples are cached for offline use.
+6. **Position back to Blazor.** The engine reports the tick, transport state and frame about 30 times a second. The main-thread module turns that into the tick being heard (report time, elapsed time and output latency, wrapped into the loop): `currentTick()` for drawing every animation frame, and `OnPlaybackPosition` on the C# `Player` at most every 50 ms and on every state change.
+7. **C# surface.** `MotiffLab.Web.Playback.Player` (scoped) loads a score, adds sources, selects them, and drives the transport; it raises `Changed` with `Position` and `State`. A test bench at `/playback` plays a self-made demo piece or a file the player opens, with a test variation an octave higher for A/B, until the workspace exists.
+8. **Browser quirks handled.** The `AudioContext` starts suspended and resumes on the first pointer or key gesture, and on Play. iOS gets `navigator.audioSession.type = "playback"` where supported, so the ringer switch does not mute it. MP3, AudioWorklet and `decodeAudioData` promises are in all four target browsers.
+
+## Consequences
+
+- The engine is tested in Node (`tests/web`, `node --test`) on the compiled module: exact note frames, tempo scaling and clamping, tempo changes, loop wraps (including loops that are not a whole number of blocks), metronome, count-in, solo and mute, source switching at the same position, layering, pause and resume, the end, position reports and the voice cap. CI runs them after the build.
+- TypeScript compiles during `dotnet build` through `Microsoft.TypeScript.MSBuild` (the native compiler, no Node needed for the build). The output in `wwwroot/js` is not committed; the project file compiles it before static web assets are collected, so it is fingerprinted, compressed and in the offline manifest.
+- Automated checks run in headless Chromium only. Safari and Firefox need a manual pass on the preview deploy before #14 closes as verified; the page at `/playback` is meant for that.
+- The sustain pedal is not played, since the importers drop it (0005). When pedal is modelled, it becomes a per-source list of pedal spans that hold releases.
+- One velocity layer sounds less varied than the full instrument. Adding a soft and a loud layer is a manifest change and about 3 MB more.
+- The piano credit must stay visible wherever the piano plays (CC BY 3.0).

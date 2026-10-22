@@ -32,6 +32,14 @@ jobs:
       - name: Test
         run: dotnet test MotiffLab.slnx --configuration Release --no-build
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # The build compiles the TypeScript layer to wwwroot/js; these tests run the compiled engine.
+      - name: Test TypeScript layer
+        run: node --test "tests/web/*.test.mjs"
+
       - name: Install WebAssembly build tools
         run: dotnet workload install wasm-tools
 

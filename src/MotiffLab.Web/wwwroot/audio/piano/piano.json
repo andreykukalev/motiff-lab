@@ -1,0 +1,160 @@
+{
+  "name": "Salamander Grand Piano V3 (Motiff Lab cut)",
+  "author": "Alexander Holm",
+  "license": "CC BY 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+  "source": "https://archive.org/details/SalamanderGrandPianoV3",
+  "changes": "Velocity layer 10 of 16, retuned values from SalamanderGrandPianoV3Retuned.sfz; mixed to mono, shortened with a 1 s fade-out, encoded as 96 kbit/s MP3. See tools/piano/README.md.",
+  "samples": [
+    {
+      "pitch": 21,
+      "file": "021.mp3",
+      "tuneCents": 10
+    },
+    {
+      "pitch": 24,
+      "file": "024.mp3",
+      "tuneCents": 13
+    },
+    {
+      "pitch": 27,
+      "file": "027.mp3",
+      "tuneCents": 11
+    },
+    {
+      "pitch": 30,
+      "file": "030.mp3",
+      "tuneCents": -3
+    },
+    {
+      "pitch": 33,
+      "file": "033.mp3",
+      "tuneCents": -9
+    },
+    {
+      "pitch": 36,
+      "file": "036.mp3",
+      "tuneCents": -9
+    },
+    {
+      "pitch": 39,
+      "file": "039.mp3",
+      "tuneCents": -11
+    },
+    {
+      "pitch": 42,
+      "file": "042.mp3",
+      "tuneCents": -7
+    },
+    {
+      "pitch": 45,
+      "file": "045.mp3",
+      "tuneCents": -4
+    },
+    {
+      "pitch": 48,
+      "file": "048.mp3",
+      "tuneCents": 0
+    },
+    {
+      "pitch": 51,
+      "file": "051.mp3",
+      "tuneCents": -6
+    },
+    {
+      "pitch": 54,
+      "file": "054.mp3",
+      "tuneCents": -3
+    },
+    {
+      "pitch": 57,
+      "file": "057.mp3",
+      "tuneCents": -3
+    },
+    {
+      "pitch": 60,
+      "file": "060.mp3",
+      "tuneCents": -6
+    },
+    {
+      "pitch": 63,
+      "file": "063.mp3",
+      "tuneCents": -3
+    },
+    {
+      "pitch": 66,
+      "file": "066.mp3",
+      "tuneCents": 0
+    },
+    {
+      "pitch": 69,
+      "file": "069.mp3",
+      "tuneCents": -4
+    },
+    {
+      "pitch": 72,
+      "file": "072.mp3",
+      "tuneCents": -8
+    },
+    {
+      "pitch": 75,
+      "file": "075.mp3",
+      "tuneCents": -8
+    },
+    {
+      "pitch": 78,
+      "file": "078.mp3",
+      "tuneCents": -5
+    },
+    {
+      "pitch": 81,
+      "file": "081.mp3",
+      "tuneCents": -7
+    },
+    {
+      "pitch": 84,
+      "file": "084.mp3",
+      "tuneCents": -8
+    },
+    {
+      "pitch": 87,
+      "file": "087.mp3",
+      "tuneCents": -12
+    },
+    {
+      "pitch": 90,
+      "file": "090.mp3",
+      "tuneCents": -13
+    },
+    {
+      "pitch": 93,
+      "file": "093.mp3",
+      "tuneCents": -12
+    },
+    {
+      "pitch": 96,
+      "file": "096.mp3",
+      "tuneCents": -17
+    },
+    {
+      "pitch": 99,
+      "file": "099.mp3",
+      "tuneCents": -17
+    },
+    {
+      "pitch": 102,
+      "file": "102.mp3",
+      "tuneCents": 0
+    },
+    {
+      "pitch": 105,
+      "file": "105.mp3",
+      "tuneCents": -38
+    },
+    {
+      "pitch": 108,
+      "file": "108.mp3",
+      "tuneCents": -38
+    }
+  ]
+}
