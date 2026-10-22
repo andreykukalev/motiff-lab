@@ -480,3 +480,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# TypeScript output (compiled from src/MotiffLab.Web/Scripts by Microsoft.TypeScript.MSBuild)
+src/MotiffLab.Web/wwwroot/js/

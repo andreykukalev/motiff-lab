@@ -8,10 +8,11 @@ The first release (Stage 1) is a browser app for notation-based motif exploratio
 
 ## Development
 
-Requires the .NET 10 SDK.
+Requires the .NET 10 SDK, and Node 22 or later for the TypeScript tests.
 
 ```bash
 dotnet test MotiffLab.slnx
+node --test "tests/web/*.test.mjs"
 dotnet run --project src/MotiffLab.Web
 ```
 

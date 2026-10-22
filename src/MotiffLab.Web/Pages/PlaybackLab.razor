@@ -1,0 +1,249 @@
+@page "/playback"
+@using MotiffLab.MusicCore.Events
+@using MotiffLab.MusicCore.Import.Midi
+@using MotiffLab.MusicCore.Import.MusicXml
+@using MotiffLab.MusicCore.Playback
+@using MotiffLab.MusicCore.Time
+@using MotiffLab.Web.Playback
+@implements IDisposable
+@inject Player Player
+
+<PageTitle>Playback · Motiff Lab</PageTitle>
+
+@* A test bench for the playback engine (S1-W4, S1-W5) until the workspace exists. Files stay on the device. *@
+<main class="lab">
+    <h1>Playback</h1>
+    <p class="meta">A test bench for playback until the workspace lands. Open a MIDI or MusicXML file or use the demo; nothing leaves this device.</p>
+
+    @if (Player.Error is not null)
+    {
+        <p class="error">@Player.Error</p>
+    }
+    else if (!Player.IsReady)
+    {
+        <p class="meta">Loading the piano…</p>
+    }
+
+    <section class="row">
+        <button @onclick="LoadDemoAsync" disabled="@(!Player.IsReady)">Demo piece</button>
+        <label class="file">
+            Open file
+            <InputFile OnChange="OpenFileAsync" accept=".mid,.midi,.musicxml,.xml" disabled="@(!Player.IsReady)" />
+        </label>
+        @if (_title is not null)
+        {
+            <span class="meta">@_title</span>
+        }
+    </section>
+    @if (_message is not null)
+    {
+        <p class="error">@_message</p>
+    }
+
+    @if (_score is not null && _meter is not null)
+    {
+        <section class="row transport">
+            <button class="primary" @onclick="TogglePlayAsync">@(Player.State == PlaybackState.Stopped ? "Play" : "Pause")</button>
+            <button @onclick="StopAsync">Stop</button>
+            <span class="position" aria-live="off">@PositionText</span>
+            <span class="meta">@StateText</span>
+        </section>
+
+        <section class="row">
+            <input class="seek" type="range" min="0" max="@_score.End.Value" step="1" value="@Player.Position.Value"
+                   @onchange="SeekAsync" aria-label="Position" />
+        </section>
+
+        <section class="row">
+            <label>Tempo <input type="range" min="25" max="150" step="5" value="@TempoPercent" @oninput="SetTempoAsync" /> @TempoPercent%</label>
+            <label><input type="checkbox" checked="@Player.Metronome" @onchange="ToggleMetronomeAsync" /> Metronome</label>
+            <label><input type="checkbox" checked="@Player.CountIn" @onchange="ToggleCountInAsync" /> Count-in</label>
+        </section>
+
+        <section class="row">
+            <label><input type="checkbox" checked="@(Player.Loop is not null)" @onchange="ToggleLoopAsync" /> Loop bars</label>
+            <input type="number" min="@_meter.FirstBarNumber" max="@_lastBar" @bind="_loopFrom" @bind:after="UpdateLoopAsync" aria-label="Loop from bar" />
+            <span>to</span>
+            <input type="number" min="@_meter.FirstBarNumber" max="@_lastBar" @bind="_loopTo" @bind:after="UpdateLoopAsync" aria-label="Loop to bar" />
+        </section>
+
+        <section class="row">
+            <span>Source</span>
+            @foreach ((string label, string[] ids) in s_sources)
+            {
+                <label><input type="radio" name="source" checked="@Player.ActiveSources.SequenceEqual(ids)" @onchange="() => Player.SelectSourcesAsync(ids)" /> @label</label>
+            }
+            <span class="meta">The test variation is the same notes an octave higher.</span>
+        </section>
+
+        <section class="tracks">
+            @foreach (int track in _tracks)
+            {
+                <div class="row">
+                    <span class="track">Track @(track + 1)</span>
+                    <button class="@(Player.Muted.Contains(track) ? "on" : null)" @onclick="() => ToggleTrackAsync(track, solo: false)">Mute</button>
+                    <button class="@(Player.Soloed.Contains(track) ? "on" : null)" @onclick="() => ToggleTrackAsync(track, solo: true)">Solo</button>
+                </div>
+            }
+        </section>
+    }
+
+    <p class="credit">
+        Piano: <a href="https://archive.org/details/SalamanderGrandPianoV3">Salamander Grand Piano V3</a> by Alexander Holm,
+        <a href="https://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a>, shortened and re-encoded for Motiff Lab.
+    </p>
+</main>
+
+@code {
+    private const string VariationSource = "variation";
+
+    private static readonly (string Label, string[] Ids)[] s_sources =
+    [
+        ("Original", [Player.OriginalSource]),
+        ("Variation", [VariationSource]),
+        ("Both", [Player.OriginalSource, VariationSource]),
+    ];
+
+    private PlaybackScore? _score;
+    private MeterMap? _meter;
+    private int[] _tracks = [];
+    private int _lastBar;
+    private int _loopFrom = 1;
+    private int _loopTo = 2;
+    private string? _title;
+    private string? _message;
+
+    private int TempoPercent => (int)Math.Round(Player.Tempo * 100);
+
+    private string PositionText
+    {
+        get
+        {
+            MetricPosition position = _meter!.ToPosition(Player.Position);
+            return $"Bar {position.Bar}, beat {position.Beat}";
+        }
+    }
+
+    private string StateText => Player.State switch
+    {
+        PlaybackState.CountingIn => "Count-in",
+        PlaybackState.Playing => "Playing",
+        _ => "Stopped",
+    };
+
+    protected override void OnInitialized()
+    {
+        Player.Changed += OnPlayerChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Player.InitializeAsync();
+        }
+    }
+
+    public void Dispose()
+    {
+        Player.Changed -= OnPlayerChanged;
+    }
+
+    private void OnPlayerChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private Task LoadDemoAsync() => LoadAsync(DemoPiece.Create(), "Demo piece (two hands, 3/4 with a pickup)");
+
+    private async Task OpenFileAsync(InputFileChangeEventArgs args)
+    {
+        _message = null;
+        try
+        {
+            await using Stream stream = args.File.OpenReadStream(MidiImporter.MaxFileBytes);
+            using var memory = new MemoryStream();
+            await stream.CopyToAsync(memory);
+            byte[] data = memory.ToArray();
+            if (args.File.Name.EndsWith(".mid", StringComparison.OrdinalIgnoreCase) || args.File.Name.EndsWith(".midi", StringComparison.OrdinalIgnoreCase))
+            {
+                MidiImport import = MidiImporter.Import(data);
+                await LoadAsync((PlaybackScore.FromMidi(import), import.Meter, import.Notes), args.File.Name);
+            }
+            else
+            {
+                MusicXmlImport import = MusicXmlImporter.Import(data);
+                await LoadAsync((PlaybackScore.FromMusicXml(import), import.Meter, import.Notes), args.File.Name);
+            }
+        }
+        catch (MidiImportException exception)
+        {
+            _message = exception.Message;
+        }
+        catch (MusicXmlImportException exception)
+        {
+            _message = exception.Message;
+        }
+        catch (IOException)
+        {
+            _message = "This file is larger than 5 MB, the most Motiff Lab can import.";
+        }
+    }
+
+    private async Task LoadAsync((PlaybackScore Score, MeterMap Meter, IReadOnlyList<Note> Notes) piece, string title)
+    {
+        _score = piece.Score;
+        _meter = piece.Meter;
+        _title = title;
+        _tracks = piece.Notes.Select(note => note.Track).Distinct().Order().ToArray();
+        _lastBar = _meter.BarAt(new Tick(Math.Max(0, _score.End.Value - 1))).Number;
+        _loopFrom = Math.Max(1, _meter.FirstBarNumber);
+        _loopTo = Math.Min(_lastBar, _loopFrom + 1);
+
+        await Player.LoadAsync(_score);
+        await Player.SetSourceAsync(VariationSource, _score.WithNotes(piece.Notes.Select(OctaveUp)));
+        await Player.SetTracksAsync([], []);
+    }
+
+    private static Note OctaveUp(Note note) =>
+        note with { Pitch = new Pitch(Math.Min(Pitch.MaxMidiNumber, note.Pitch.MidiNumber + 12)) };
+
+    private Task TogglePlayAsync() => Player.State == PlaybackState.Stopped ? Player.PlayAsync() : Player.PauseAsync();
+
+    private async Task StopAsync()
+    {
+        await Player.PauseAsync();
+        await Player.SeekAsync(Player.Loop?.Onset ?? Tick.Zero);
+    }
+
+    private Task SeekAsync(ChangeEventArgs args) =>
+        long.TryParse(args.Value?.ToString(), out long tick) ? Player.SeekAsync(new Tick(tick)) : Task.CompletedTask;
+
+    private Task SetTempoAsync(ChangeEventArgs args) =>
+        int.TryParse(args.Value?.ToString(), out int percent) ? Player.SetTempoAsync(Math.Clamp(percent, 25, 150) / 100.0) : Task.CompletedTask;
+
+    private Task ToggleMetronomeAsync() => Player.SetMetronomeAsync(!Player.Metronome);
+
+    private Task ToggleCountInAsync() => Player.SetCountInAsync(!Player.CountIn);
+
+    private Task ToggleLoopAsync() => Player.Loop is null ? Player.SetLoopAsync(LoopRange()) : Player.SetLoopAsync(null);
+
+    private Task UpdateLoopAsync() => Player.Loop is null ? Task.CompletedTask : Player.SetLoopAsync(LoopRange());
+
+    private TickSpan LoopRange()
+    {
+        int from = Math.Clamp(Math.Min(_loopFrom, _loopTo), _meter!.FirstBarNumber, _lastBar);
+        int to = Math.Clamp(Math.Max(_loopFrom, _loopTo), from, _lastBar);
+        return TickSpan.FromBounds(_meter.GetBar(from).Span.Onset, _meter.GetBar(to).Span.End);
+    }
+
+    private Task ToggleTrackAsync(int track, bool solo)
+    {
+        var muted = Player.Muted.ToHashSet();
+        var soloed = Player.Soloed.ToHashSet();
+        HashSet<int> target = solo ? soloed : muted;
+        if (!target.Remove(track))
+        {
+            target.Add(track);
+        }
+
+        return Player.SetTracksAsync(muted, soloed);
+    }
+}

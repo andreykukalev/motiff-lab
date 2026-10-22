@@ -120,3 +120,77 @@ html, body {
 .home code {
     color: var(--ml-lime);
 }
+
+.home a, .lab a {
+    color: var(--ml-lime);
+}
+
+/* Playback test bench (Pages/PlaybackLab.razor). */
+.lab {
+    max-width: 48rem;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+}
+
+.lab .meta, .lab .credit {
+    color: var(--ml-gray);
+}
+
+.lab .credit {
+    margin-top: 3rem;
+    font-size: 0.85rem;
+}
+
+.lab .error {
+    color: #ff8a80;
+}
+
+.lab .row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0.75rem 0;
+}
+
+.lab button, .lab .file {
+    background: transparent;
+    color: var(--ml-white);
+    border: 1px solid var(--ml-gray);
+    border-radius: 0.4rem;
+    padding: 0.35rem 0.8rem;
+    font: inherit;
+    cursor: pointer;
+}
+
+.lab button.primary, .lab button.on {
+    background: var(--ml-lime);
+    border-color: var(--ml-lime);
+    color: var(--ml-charcoal);
+}
+
+.lab button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.lab .file input {
+    display: none;
+}
+
+.lab input[type=number] {
+    width: 4rem;
+}
+
+.lab .seek {
+    width: 100%;
+}
+
+.lab .position {
+    font-variant-numeric: tabular-nums;
+    min-width: 9rem;
+}
+
+.lab .track {
+    min-width: 5rem;
+}
