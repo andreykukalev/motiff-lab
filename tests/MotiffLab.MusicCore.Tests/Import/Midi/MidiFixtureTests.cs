@@ -1,3 +1,5 @@
+using System.Globalization;
+
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Midi;
@@ -8,8 +10,11 @@ namespace MotiffLab.MusicCore.Tests.Import.Midi;
 /// <summary>The self-made files in Fixtures (see make_fixtures.py) and what each must import as.</summary>
 public class MidiFixtureTests
 {
-    private static MidiImport ImportFixture(string name) =>
-        MidiImporter.Import(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "Midi", "Fixtures", name)));
+    private static MidiImport ImportFixture(string name) => MidiImporter.Import(File.ReadAllBytes(FixturePath(name)));
+
+    private static string FixturePath(string name) => Path.Combine(AppContext.BaseDirectory, "Import", "Midi", "Fixtures", name);
+
+    private static long OffsetFromGrid(long tick, long grid) => Math.Min(tick % grid, grid - (tick % grid));
 
     [Fact]
     public void Type_0_scale_with_running_status()
@@ -171,9 +176,107 @@ public class MidiFixtureTests
     }
 
     [Fact]
+    public void Single_track_piano_has_both_hands_on_one_channel_and_a_hand_key()
+    {
+        MidiImport result = ImportFixture("piano-single-track.mid");
+
+        Assert.Equal(0, result.Format);
+        Assert.Equal(55, Assert.Single(result.Tracks).NoteCount);
+        Assert.Equal([0], result.Tracks[0].Channels);
+        Assert.Empty(result.Report.Issues);
+
+        // Every line of the hand key names exactly one imported note, and every note has a line.
+        (long Tick, int Pitch, string Hand)[] key = [.. File.ReadLines(FixturePath("piano-single-track.hands.txt"))
+            .Where(line => !line.StartsWith('#'))
+            .Select(line => line.Split(' '))
+            .Select(parts => (long.Parse(parts[0], CultureInfo.InvariantCulture), int.Parse(parts[1], CultureInfo.InvariantCulture), parts[2]))];
+        Assert.Equal(
+            result.SourceNotes.Select(note => (note.NoteOnTick, note.Pitch)).Order(),
+            key.Select(entry => (entry.Tick, entry.Pitch)).Order());
+        Assert.Equal(23, key.Count(entry => entry.Hand == "R"));
+        Assert.Equal(32, key.Count(entry => entry.Hand == "L"));
+
+        // The hands share a register, so no single split point separates them.
+        int highestLeft = key.Where(entry => entry.Hand == "L").Max(entry => entry.Pitch);
+        int lowestRight = key.Where(entry => entry.Hand == "R").Min(entry => entry.Pitch);
+        Assert.True(highestLeft >= lowestRight, $"left hand reaches {highestLeft}, right hand {lowestRight}");
+    }
+
+    [Fact]
+    public void Performance_to_a_click_keeps_a_tempo_map_that_fits_the_playing()
+    {
+        MidiImport result = ImportFixture("performance-click.mid");
+
+        Assert.Equal(["Played to a click", "Right hand", "Left hand"], result.Tracks.Select(track => track.Name));
+        Assert.Equal(128, result.Notes.Count);
+        Assert.Equal(new MidiTempoChange(Tick.Zero, 0, 625_000, false), Assert.Single(result.Tempos));
+        Assert.False(Assert.Single(result.TimeSignatures).IsAssumed);
+        Assert.Empty(result.Report.Issues);
+
+        // Played, not quantised: many onsets miss the 16th grid, but none by more than 40 ticks.
+        long[] offsets = [.. result.SourceNotes.Select(note => OffsetFromGrid(note.Span.Onset.Value, 120))];
+        Assert.True(offsets.Count(offset => offset > 10) > result.SourceNotes.Count / 3);
+        Assert.All(offsets, offset => Assert.InRange(offset, 0, 40));
+    }
+
+    [Fact]
+    public void Free_tempo_performance_declares_defaults_the_playing_ignores()
+    {
+        MidiImport result = ImportFixture("free-tempo.mid");
+
+        Assert.Equal(46, result.Notes.Count);
+        Assert.Equal(new MidiTempoChange(Tick.Zero, 0, 500_000, false), Assert.Single(result.Tempos));
+        Assert.Equal(new MidiTimeSignature(Tick.Zero, 0, 4, 4, false), Assert.Single(result.TimeSignatures));
+        Assert.Empty(result.Report.Issues);
+
+        // Onsets spread across the whole beat instead of clustering near grid points.
+        long[] offsets = [.. result.SourceNotes.Select(note => OffsetFromGrid(note.Span.Onset.Value, 480))];
+        Assert.Contains(offsets, offset => offset > 160);
+        Assert.True(offsets.Count(offset => offset > 40) > result.SourceNotes.Count * 3 / 4);
+    }
+
+    [Fact]
+    public void Drum_channel_notes_are_left_out_of_a_mixed_track()
+    {
+        MidiImport result = ImportFixture("drums-channel10.mid");
+
+        Assert.Equal(12, result.Notes.Count);
+        Assert.Equal([0], Assert.Single(result.Tracks).Channels);
+        Assert.Equal(24, result.Report.CountOf(MidiIssueCodes.DrumsExcluded));
+        Assert.Equal("Track 1: 24 notes on the drum channel (10) were left out.", Assert.Single(result.Report.Issues).Message);
+    }
+
+    [Fact]
+    public void A_file_without_a_time_signature_is_read_as_four_four_with_a_notice()
+    {
+        MidiImport result = ImportFixture("no-time-signature.mid");
+
+        Assert.Equal(240, result.TimeBase.TicksPerQuarter);
+        Assert.Equal(24, result.Notes.Count);
+        Assert.Equal(new MidiTimeSignature(Tick.Zero, 0, 4, 4, true), Assert.Single(result.TimeSignatures));
+        Assert.Equal(new MidiKeySignature(Tick.Zero, 0, 2, false), Assert.Single(result.KeySignatures));
+        Assert.Equal(1, result.Report.CountOf(MidiIssueCodes.MeterDefault));
+        Assert.Equal(6, result.Report.MeasureCount);
+        Assert.Single(result.Report.Issues);
+    }
+
+    [Fact]
+    public void Large_file_has_five_thousand_quantised_notes()
+    {
+        MidiImport result = ImportFixture("large-5000-notes.mid");
+
+        Assert.Equal(1, result.Format);
+        Assert.Equal(5000, result.Report.NoteCount);
+        Assert.Equal([0, 3200, 1800], result.Tracks.Select(track => track.NoteCount));
+        Assert.Equal(200, result.Report.MeasureCount);
+        Assert.Empty(result.Report.Issues);
+        Assert.Equal(5000, result.Notes.Select(note => note.Id).Distinct().Count());
+    }
+
+    [Fact]
     public void Import_is_deterministic()
     {
-        byte[] bytes = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "Midi", "Fixtures", "two-hands-type1.mid"));
+        byte[] bytes = File.ReadAllBytes(FixturePath("two-hands-type1.mid"));
 
         MidiImport first = MidiImporter.Import(bytes);
         MidiImport second = MidiImporter.Import(bytes);
