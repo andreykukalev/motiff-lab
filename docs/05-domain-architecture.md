@@ -40,7 +40,7 @@ One event model serves display, hints, feedback, explanations, variations, playb
 - Events store both: `onset_s` for audio sync and `pos` (bar, beat, tick) for grid logic.
 - A tuning offset in cents keeps rendered sound in tune with the original.
 
-*Implementation note: decision record 0002 (`docs/decisions/0002-canonical-time.md`) makes absolute canonical ticks the stored truth for notation input, with bar and beat derived from a meter map. It also defines exact source conversion and the rounding policy.*
+*Implementation note: decision record 0002 (`docs/decisions/0002-canonical-time.md`) makes absolute canonical ticks the stored truth for notation input, with bar and beat derived from a meter map. It also defines exact source conversion and the rounding policy. Decision record 0004 reconciles the note event below with Stage 1: timing is a tick span, provenance adds `imported`, and hand carries its own provenance.*
 
 **Event types**
 

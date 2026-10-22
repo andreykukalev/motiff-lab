@@ -13,7 +13,7 @@ Product concept and specification for Motiff Lab, exported from the shared speci
 | [06-validation-plan.md](06-validation-plan.md) | Hypotheses, three studies, accuracy benchmark, product metrics, decision rules, consent |
 | [images/](images/) | Diagrams and wireframes used in the documents |
 | [source/](source/) | Original concept, vision, MVP and brand notes the specification was built from |
-| [decisions/](decisions/) | Architecture decision records: 0001 sets the .NET and Azure stack (it supersedes the Rust, Flutter and FastAPI choices in 05); 0002 defines canonical musical time; 0003 adds AI assistance through Azure AI Foundry |
+| [decisions/](decisions/) | Architecture decision records: 0001 sets the .NET and Azure stack (it supersedes the Rust, Flutter and FastAPI choices in 05); 0002 defines canonical musical time; 0003 adds AI assistance through Azure AI Foundry; 0004 fixes the note event shape and the meter map |
 
 ## How the documents relate
 

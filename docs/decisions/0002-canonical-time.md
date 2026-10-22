@@ -29,4 +29,4 @@ Every Motiff Lab feature reads note timing: display, playback, motif selection, 
 
 - MusicXML decimal divisions and durations are allowed by the format but rare. They are reported as unsupported for now.
 - Widening a sub-tick span to one tick can make it overlap the next event by one tick. That is preferred over dropping a note.
-- The next increment adds the meter map (bar, beat and pickup bars) and the note event. That will reconcile the `pos` and `duration_ticks` fields in 01 with the event shape in 05.
+- Decision record 0004 adds the meter map (bar, beat and pickup bars) and the note event, reconciling the `pos` and `duration_ticks` fields in 01 with the event shape in 05.
