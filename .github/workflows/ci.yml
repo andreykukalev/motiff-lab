@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore MotiffLab.slnx
+
+      - name: Check formatting
+        run: dotnet format MotiffLab.slnx --verify-no-changes --no-restore
+
+      - name: Build
+        run: dotnet build MotiffLab.slnx --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test MotiffLab.slnx --configuration Release --no-build
+
+      - name: Install WebAssembly build tools
+        run: dotnet workload install wasm-tools
+
+      - name: Publish web app
+        run: dotnet publish src/MotiffLab.Web --configuration Release --output publish
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web
+          path: publish/wwwroot
