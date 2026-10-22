@@ -4,7 +4,7 @@ Musical exploration workspace: help musicians move from reproducing music to und
 
 ## Stack
 
-See `docs/decisions/0001-stack.md`.
+See `docs/decisions/0001-stack.md` (stack) and `docs/decisions/0002-canonical-time.md` (musical time).
 
 - `src/MotiffLab.MusicCore` — C# music-core: shared event model, parsing, analysis, variation operations. Pure and deterministic; no UI, I/O or browser dependencies.
 - `src/MotiffLab.Web` — Blazor WebAssembly PWA. Browser-only APIs (Web Audio, Web MIDI, canvas, IndexedDB) go through a thin TypeScript layer via JS interop.
@@ -24,7 +24,7 @@ Warnings are errors (`Directory.Build.props`).
 ## Conventions
 
 - Reference requirement IDs (`S1-…`, `V1–V12`, `FR-…`) in commit messages and PR descriptions when code implements them.
-- Musical time uses 480 ticks per quarter note (`TickResolution`); parsers rescale from the file's own resolution.
+- Musical time: absolute `Tick` positions and `TickSpan`s at 480 ticks per quarter (`MotiffLab.MusicCore.Time`). Importers convert source units through `MidiTimeBase` or `MusicXmlDivisions` to exact `QuarterFraction`s, accumulate positions exactly, and round only via `CanonicalTime` (onset and end separately). Never treat MusicXML divisions as MIDI PPQ, and never use floating point for timing.
 - Every event carries provenance and confidence. Anything inferred (hands, alignment, keys, chords) is marked inferred, never presented as imported fact.
 - Variation operations are pure: same events, context, parameters and seed give the same events and diff. Explanations state only facts present in the diff.
 - Nothing the player imports leaves the device in Stage 1. Analytics carry no note content.
