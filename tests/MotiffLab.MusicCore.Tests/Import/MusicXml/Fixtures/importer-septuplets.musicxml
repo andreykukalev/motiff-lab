@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Self-made test fixture for Motiff Lab: a septuplet run, which 480 ticks per quarter cannot
+     represent exactly. Not published music. -->
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes>
+        <divisions>7</divisions>
+        <time><beats>4</beats><beat-type>4</beat-type></time>
+      </attributes>
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>16th</type><time-modification><actual-notes>7</actual-notes><normal-notes>4</normal-notes></time-modification></note>
+      <note><pitch><step>D</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>16th</type><time-modification><actual-notes>7</actual-notes><normal-notes>4</normal-notes></time-modification></note>
+      <note><pitch><step>E</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>16th</type><time-modification><actual-notes>7</actual-notes><normal-notes>4</normal-notes></time-modification></note>
+      <note><pitch><step>F</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>16th</type><time-modification><actual-notes>7</actual-notes><normal-notes>4</normal-notes></time-modification></note>
+      <note><pitch><step>G</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>16th</type><time-modification><actual-notes>7</actual-notes><normal-notes>4</normal-notes></time-modification></note>
+      <note><pitch><step>A</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>16th</type><time-modification><actual-notes>7</actual-notes><normal-notes>4</normal-notes></time-modification></note>
+      <note><pitch><step>B</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>16th</type><time-modification><actual-notes>7</actual-notes><normal-notes>4</normal-notes></time-modification></note>
+      <note><pitch><step>C</step><octave>6</octave></pitch><duration>21</duration><voice>1</voice><type>half</type><dot/></note>
+    </measure>
+  </part>
+</score-partwise>
