@@ -15,7 +15,7 @@ dotnet test MotiffLab.slnx
 dotnet run --project src/MotiffLab.Web
 ```
 
-The stack is described in [docs/decisions/0001-stack.md](docs/decisions/0001-stack.md).
+The stack is described in [docs/decisions/0001-stack.md](docs/decisions/0001-stack.md). Hosting (Azure Static Web Apps) and the deploy setup are in [infra/README.md](infra/README.md).
 
 ## Documentation
 

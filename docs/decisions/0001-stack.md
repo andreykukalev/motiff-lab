@@ -11,7 +11,7 @@ Stage 1 (notation-based motif exploration) runs fully in the browser: files are 
 - **music-core** is a C# class library (.NET 10). Operations are pure, seeded functions with xUnit tests. The same library runs in the browser (Blazor WebAssembly), on the server (Azure Functions, from Stage 2) and on mobile (.NET MAUI, from Stage 2).
 - **Web app** is a standalone Blazor WebAssembly PWA with no server needed for the core loop.
 - **Browser-only APIs** (Web Audio with an AudioWorklet, Web MIDI, Canvas 2D for the piano roll and keyboard, IndexedDB) live in a thin TypeScript layer called through JS interop. C# passes whole note lists, so timing-critical scheduling stays in JavaScript.
-- **Hosting** is Azure Static Web Apps on the Free plan, with managed Functions (.NET isolated) for the analytics endpoint, writing to Table Storage. Region: Sweden Central or West Europe.
+- **Hosting** is Azure Static Web Apps on the Free plan, with managed Functions (.NET isolated) for the analytics endpoint, writing to Table Storage. Region: West Europe, the only EU region Static Web Apps offers. Infrastructure is defined in Bicep under `infra/`.
 - **CI** is GitHub Actions: format check, build, tests and a publish of the web app on every pull request.
 
 ## Consequences
