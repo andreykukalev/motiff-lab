@@ -2,7 +2,7 @@
 
 # Domain Model & Technical Architecture
 
-*Stage note: the domain model here is shared by all stages. Stage 1 uses it with notation input (provenance "imported") and runs fully in the browser, as described in MVP · Stage 1; the analysis pipeline and backend arrive with Stage 3.*
+*Stage note: the domain model here is shared by all stages. Stage 1 uses it with notation input (provenance "imported") and runs in the browser, as described in MVP · Stage 1, plus a thin AI gateway (decision record 0003); the analysis pipeline and backend arrive with Stage 3. The technology choices below (Rust, Flutter, FastAPI) are superseded by decision record 0001: C# music-core, Blazor WebAssembly, .NET MAUI and Azure Functions.*
 
 ## Domain model at a glance
 

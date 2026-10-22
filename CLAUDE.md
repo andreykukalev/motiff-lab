@@ -4,7 +4,7 @@ Musical exploration workspace: help musicians move from reproducing music to und
 
 ## Stack
 
-See `docs/decisions/0001-stack.md` (stack) and `docs/decisions/0002-canonical-time.md` (musical time).
+See `docs/decisions/0001-stack.md` (stack), `0002-canonical-time.md` (musical time) and `0003-ai-integration.md` (AI assistance).
 
 - `src/MotiffLab.MusicCore` — C# music-core: shared event model, parsing, analysis, variation operations. Pure and deterministic; no UI, I/O or browser dependencies.
 - `src/MotiffLab.Web` — Blazor WebAssembly PWA. Browser-only APIs (Web Audio, Web MIDI, canvas, IndexedDB) go through a thin TypeScript layer via JS interop.
@@ -28,3 +28,4 @@ Warnings are errors (`Directory.Build.props`).
 - Every event carries provenance and confidence. Anything inferred (hands, alignment, keys, chords) is marked inferred, never presented as imported fact.
 - Variation operations are pure: same events, context, parameters and seed give the same events and diff. Explanations state only facts present in the diff.
 - Nothing the player imports leaves the device in Stage 1. Analytics carry no note content.
+- AI interprets engine results; it never produces notes, timing, analysis or Keep checks. music-core has no AI or Azure dependency. AI output must cite fact IDs from the digest and propose only catalogue operations with in-range parameters; anything else falls back to template text. Every feature must work with AI off.

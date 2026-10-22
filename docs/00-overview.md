@@ -101,7 +101,7 @@ Motiff Lab is built in four stages, each validated before the next is committed.
 
 | Stage | Goal | Input | Status |
 | --- | --- | --- | --- |
-| 1. Notation-based motif exploration | Validate the value of exploring motifs and making meaningful variations | MIDI, MusicXML | First milestone, about 10 weeks; specified in MVP · Stage 1 |
+| 1. Notation-based motif exploration | Validate the value of exploring motifs and making meaningful variations, with rhythm restoration of played MIDI and optional AI explanations | MIDI, MusicXML | First milestone, about 12 weeks; specified in MVP · Stage 1 |
 | 2. Guided reconstruction and ear training | Attempts, progressive hints, feedback, independent reproduction | Notation, MIDI keyboard | Specified in the PRD, MVP UX and Validation Plan tabs |
 | 3. Audio-based reconstruction | Start from a recording, through the same workspace | Solo piano recordings, later layered music | Specified in the PRD, MVP UX and Domain & Architecture tabs |
 | 4. Advanced creative exploration | Reharmonisation, motif development, DAW, more instruments, sharing where licensed | All inputs | Ideas backlog and could-have items below |
@@ -181,6 +181,7 @@ The app works only on audio the user already has, never hosts or shares it, and 
 - Microphone audio, when added, is processed on the phone and never uploaded.
 - Account deletion removes all personal data; processors (hosting, auth, payments) sign data processing agreements.
 - A plain-language privacy policy before the first public beta.
+- AI assistance (from Stage 1) is off until the player turns it on, sends only a digest of engine facts about the current motif to Azure AI Foundry in an EU region, and stores no prompts on Motiff Lab servers (decision record 0003).
 
 This section is product thinking, not legal advice.
 
@@ -217,7 +218,7 @@ Four phases over about 22 weeks of part-time work, each started only when the pr
 
 Week counts assume one person working evenings and weekends. Gate thresholds and the continue, change or stop rules are defined in the Validation Plan, so the decision to continue is made on data, not enthusiasm.
 
-*Stage note: this roadmap covers the audio-based product (Stages 2–3). It begins after the Stage 1 exit gate, about 10 weeks from the start; Stage 1 milestones are in the MVP · Stage 1 tab.*
+*Stage note: this roadmap covers the audio-based product (Stages 2–3). It begins after the Stage 1 exit gate, about 12 weeks from the start; Stage 1 milestones are in the MVP · Stage 1 tab.*
 
 ## Risks and open questions
 
@@ -245,7 +246,7 @@ The biggest risk is note accuracy on real-world piano recordings: heavy pedal, r
 - [ ] What note accuracy is good enough for the learning loop?
 - [ ] Which six variation operations matter most to players?
 - [ ] Should the full-reveal view be free, to build trust, or part of Pro?
-- [ ] Flutter or React Native, given the native audio work?
-- [ ] music-core in Rust (one library everywhere) or TypeScript (faster start for the prototype)?
+- [x] Flutter or React Native, given the native audio work? Decided: .NET MAUI (decision record 0001).
+- [x] music-core in Rust (one library everywhere) or TypeScript (faster start for the prototype)? Decided: C# (decision record 0001).
 - [ ] Which recordings can the starter library and the study passages legally use?
 - [ ] Clear the brand name Motiff Lab (checklist in Brand Identity).

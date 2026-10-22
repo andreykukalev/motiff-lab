@@ -1,6 +1,6 @@
 # 0001 · Technology stack
 
-Status: accepted, 2026-10-22
+Status: accepted, 2026-10-22. Extended by 0003, which adds a thin AI gateway in Azure Functions.
 
 ## Context
 
