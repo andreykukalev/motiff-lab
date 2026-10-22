@@ -20,7 +20,7 @@ public class MidiImporterTests
 
         Assert.Equal(
             [TickSpan.FromBounds(new Tick(0), new Tick(480)), TickSpan.FromBounds(new Tick(480), new Tick(960))],
-            result.Notes.Select(note => note.Span));
+            result.SourceNotes.Select(note => note.Span));
         Assert.Equal(1, result.Report.CountOf(MidiIssueCodes.SamePitchOverlap));
     }
 
@@ -33,7 +33,7 @@ public class MidiImporterTests
             .Off(240, 60, channel: 1)
             .Off(240, 60, channel: 0)));
 
-        Assert.Equal([(0, 480L), (1, 240L)], result.Notes.OrderBy(n => n.Channel).Select(n => (n.Channel, n.Span.Duration)));
+        Assert.Equal([(0, 480L), (1, 240L)], result.SourceNotes.OrderBy(n => n.Channel).Select(n => (n.Channel, n.Span.Duration)));
         Assert.Equal(0, result.Report.CountOf(MidiIssueCodes.SamePitchOverlap));
     }
 
@@ -46,8 +46,8 @@ public class MidiImporterTests
             .Raw(96, 60, 0)
             .Raw(0, 64, 0)));
 
-        Assert.Equal([(60, 100), (64, 90)], result.Notes.Select(n => (n.Pitch, n.Velocity)));
-        Assert.All(result.Notes, n => Assert.Equal(MidiNoteEnd.NoteOnVelocityZero, n.EndSource));
+        Assert.Equal([(60, 100), (64, 90)], result.SourceNotes.Select(n => (n.Pitch, n.Velocity)));
+        Assert.All(result.SourceNotes, n => Assert.Equal(MidiNoteEnd.NoteOnVelocityZero, n.EndSource));
     }
 
     [Fact]
@@ -59,7 +59,7 @@ public class MidiImporterTests
             .Name(0, "x")
             .Raw(0, 62, 80)));
 
-        MidiNote note = Assert.Single(result.Notes);
+        MidiNote note = Assert.Single(result.SourceNotes);
         Assert.Equal(60, note.Pitch);
         Assert.Equal(1, result.Report.CountOf(MidiIssueCodes.TrackDamaged));
     }
@@ -76,8 +76,8 @@ public class MidiImporterTests
 
         MidiImport result = MidiImporter.Import(cut);
 
-        Assert.Equal([60, 62], result.Notes.Select(n => n.Pitch));
-        Assert.Equal(MidiNoteEnd.Assumed, result.Notes[1].EndSource);
+        Assert.Equal([60, 62], result.SourceNotes.Select(n => n.Pitch));
+        Assert.Equal(MidiNoteEnd.Assumed, result.SourceNotes[1].EndSource);
         Assert.Equal(1, result.Report.CountOf(MidiIssueCodes.TrackTruncated));
         Assert.Equal(1, result.Report.CountOf(MidiIssueCodes.TrackDamaged));
         Assert.Equal(1, result.Report.CountOf(MidiIssueCodes.NoteOffMissing));
@@ -88,7 +88,7 @@ public class MidiImporterTests
     {
         MidiImport result = Import(new SmfBuilder(0, 480).Track(t => t.On(0, 60).On(960, 62)));
 
-        MidiNote last = result.Notes[1];
+        MidiNote last = result.SourceNotes[1];
         Assert.Equal(TickSpan.FromBounds(new Tick(960), new Tick(1440)), last.Span);
         Assert.Equal(new Tick(1440), result.End);
     }
@@ -103,7 +103,7 @@ public class MidiImporterTests
 
         MidiImport result = Import(builder);
 
-        Assert.Equal(2, result.Notes.Count);
+        Assert.Equal(2, result.SourceNotes.Count);
         Assert.Equal(1, result.Report.CountOf(MidiIssueCodes.EndOfTrackMissing));
         Assert.Equal(1, result.Report.CountOf(MidiIssueCodes.UnknownChunk));
         Assert.Equal(1, result.Report.CountOf(MidiIssueCodes.TrackCountMismatch));
@@ -203,7 +203,7 @@ public class MidiImporterTests
     {
         MidiImport result = Import(new SmfBuilder(0, 480).Track(t => t.On(0, 60).Off(480, 60).Meta(0, 0x2F).On(0, 62)));
 
-        Assert.Single(result.Notes);
+        Assert.Single(result.SourceNotes);
         Assert.Equal(1, result.Report.CountOf(MidiIssueCodes.DataAfterEndOfTrack));
     }
 
@@ -259,7 +259,7 @@ public class MidiImporterTests
         MidiImport result = MidiImporter.Import(bytes);
         watch.Stop();
 
-        Assert.Equal(5000, result.Notes.Count);
+        Assert.Equal(5000, result.SourceNotes.Count);
         Assert.True(watch.Elapsed < TimeSpan.FromSeconds(3), $"Import took {watch.Elapsed}"); // AC-S1-01
     }
 }
