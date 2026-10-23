@@ -22,6 +22,10 @@ namespace MotiffLab.MusicCore.Import.Midi;
 /// because its length is a guess.
 /// </para>
 /// <para>
+/// When all the notes are on one piano track, their hands are inferred by pitch and continuity
+/// (<see cref="HandInference"/>, S1-I4) and the report says so. Other files get no hands.
+/// </para>
+/// <para>
 /// The import is pure and deterministic: the same bytes give the same result and report.
 /// </para>
 /// </remarks>
@@ -34,6 +38,7 @@ public static class MidiImporter
     public const double AssumedEndConfidence = 0.5;
 
     private const int DrumChannel = 9;
+    private const int LastPianoProgram = 7; // General MIDI programs 0–7 are pianos.
     private const int SustainPedalController = 64;
 
     private static readonly Encoding StrictUtf8 = new UTF8Encoding(false, throwOnInvalidBytes: true);
@@ -121,7 +126,12 @@ public static class MidiImporter
         }
 
         var meter = new MeterMap(meters.Select(change => new MeterChange(change.At, new TimeSignature(change.Numerator, change.Denominator))));
-        var events = notes.Select(ToNote).ToList();
+        IReadOnlyList<Note> events = notes.Select(ToNote).ToList();
+        if (IsSinglePianoTrack(trackInfos) && HandInference.Applies(events.ToList()))
+        {
+            events = HandInference.Infer(events);
+            issues.Add(ImportIssueKind.Assumed, MidiIssueCodes.HandsInferred, events[0].Track, events.Count);
+        }
 
         var report = new ImportReport(
             Format: $"MIDI type {file.Format}",
@@ -131,6 +141,13 @@ public static class MidiImporter
             Issues: issues.Build(MidiIssueCodes.Describe));
 
         return new MidiImport(file.Format, timeBase, trackInfos, events, notes, tempos, meters, meter, keys, end, report);
+    }
+
+    /// <summary>True when one track holds all the notes and none of its channels is set to an instrument other than piano.</summary>
+    private static bool IsSinglePianoTrack(List<MidiTrackInfo> tracks)
+    {
+        var withNotes = tracks.Where(static track => track.NoteCount > 0).ToList();
+        return withNotes.Count == 1 && withNotes[0].Programs.All(static program => program.Program <= LastPianoProgram);
     }
 
     private static Note ToNote(MidiNote source, int index) => new()
