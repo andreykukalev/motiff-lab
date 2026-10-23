@@ -6,13 +6,14 @@
 @using MotiffLab.MusicCore.Playback
 @using MotiffLab.MusicCore.Time
 @using MotiffLab.Web.Playback
+@using MotiffLab.Web.Roll
 @using MotiffLab.Web.Score
 @implements IDisposable
 @inject Player Player
 
 <PageTitle>Playback · Motiff Lab</PageTitle>
 
-@* A test bench for the playback engine (S1-W4, S1-W5) and the score view (S1-W7) until the workspace exists. Files stay on the device. *@
+@* A test bench for the playback engine (S1-W4, S1-W5), the piano roll and keyboard (S1-W2, S1-W3) and the score view (S1-W7) until the workspace exists. Files stay on the device. *@
 <main class="lab">
     <h1>Playback</h1>
     <p class="meta">A test bench for playback until the workspace lands. Open a MIDI or MusicXML file or use the demo; nothing leaves this device.</p>
@@ -78,6 +79,10 @@
             <span class="meta">The test variation is the same notes an octave higher.</span>
         </section>
 
+        <section class="roll-panel">
+            <PianoRoll Notes="_notes" Score="_score" Meter="_meter" />
+        </section>
+
         <section class="score-panel">
             <div class="row">
                 <label><input type="checkbox" checked="@_showScore" @onchange="() => _showScore = !_showScore" /> Score</label>
@@ -125,6 +130,7 @@
     ];
 
     private PlaybackScore? _score;
+    private IReadOnlyList<Note>? _notes;
     private MeterMap? _meter;
     private int[] _tracks = [];
     private int _lastBar;
@@ -226,6 +232,7 @@
         _asWritten = musicXml is null ? null : ScoreSource.AsWritten(musicXml);
         _showGenerated = false;
         _score = piece.Score;
+        _notes = piece.Notes;
         _meter = piece.Meter;
         _title = title;
         _tracks = piece.Notes.Select(note => note.Track).Distinct().Order().ToArray();

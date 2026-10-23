@@ -227,3 +227,46 @@ html, body {
     stroke: var(--ml-lime);
     color: var(--ml-lime);
 }
+
+/* Piano roll and keyboard (Roll/PianoRoll.razor, Scripts/roll): canvases on the raised surface. */
+.roll {
+    margin: 0.5rem 0;
+}
+
+.roll canvas {
+    display: block;
+    border-radius: 0.4rem;
+}
+
+.roll .roll-notes {
+    cursor: pointer;
+}
+
+.roll .roll-notes:focus-visible {
+    outline: 2px solid var(--ml-lime);
+    outline-offset: 2px;
+}
+
+.roll .roll-scroll {
+    width: 100%;
+    margin: 0.25rem 0;
+}
+
+.roll .roll-keys {
+    margin-top: 0.25rem;
+}
+
+.roll .roll-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1rem;
+    margin-top: 0.5rem;
+    color: var(--ml-gray);
+    font-size: 0.85rem;
+}
+
+.roll .roll-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
