@@ -210,6 +210,43 @@ html, body {
     min-height: 2.6em;
 }
 
+/* Facts about the selection (S1-A1, S1-A2): each with its lens and how sure it is. */
+.lab .facts {
+    list-style: none;
+    margin: 0.25rem 0;
+    padding: 0;
+}
+
+.lab .facts li {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: baseline;
+    padding: 0.15rem 0;
+}
+
+.lab .facts .lens {
+    color: var(--ml-gray);
+    min-width: 4rem;
+}
+
+.lab .facts .certainty {
+    font-size: 0.8em;
+    border: 1px solid var(--ml-gray);
+    border-radius: 0.6rem;
+    padding: 0 0.4rem;
+    color: var(--ml-gray);
+}
+
+.lab .facts .certainty.detected {
+    border-color: var(--ml-lime);
+    color: var(--ml-lime);
+}
+
+.lab .facts .certainty.uncertain {
+    border-style: dashed;
+}
+
 /* Score view (Score/ScoreView.razor, Scripts/score): ink on a raised surface, the notes being heard in the accent. */
 .score {
     max-height: 70vh;
