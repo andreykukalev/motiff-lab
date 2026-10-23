@@ -558,7 +558,7 @@ Stage 1 takes about 12 weeks of part-time work: ten to build and two to run the 
 
 Milestone 3 is the riskiest: the variation engine must sound musical, and explanations must match every result. The AI spike in milestone 2 tests grounding and cost early, before features depend on it.
 
-**Proposed, 2026-10-23 (not yet decided).** The product definition ([07-product-definition.md](07-product-definition.md)) adds a pilot gate, milestone 2b: three pianists try a hand-written track page and three hand-made experiments on Für Elise before milestone 3 work on the track page and experiment flow starts. Import and analysis work (#15, #16, #17) continues meanwhile. Also proposed: the AI spike moves after the pilot; #27, #28, #38, #40, #45 and #55 wait for the pilot and study; #46–49 are decided after the pilot; #62 becomes a Must with five pieces. Priorities in the scope table stay as they are until these are decided.
+**Decided 2026-10-23.** The product definition ([07-product-definition.md](07-product-definition.md)) adds a pilot gate, milestone 2b (#77): three pianists try a hand-written track page and three hand-made experiments on Für Elise before milestone 3 work on the track page and experiment flow starts. Import and analysis work (#15, #16, #17) continues meanwhile. The AI spike (#30) moves after the pilot. #27, #28, #38, #40, #45 and #55 move to Should and wait for the pilot and study; #46–49 are decided after the pilot; the starter library (#62) becomes a Must with five pieces. Until the post-pilot spec PR, the requirement tables keep their earlier priorities; the issue labels and tracking issue #6 carry the current ones.
 
 | Outcome at the gate | Condition | Next step |
 | --- | --- | --- |
