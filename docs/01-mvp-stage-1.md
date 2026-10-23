@@ -558,6 +558,8 @@ Stage 1 takes about 12 weeks of part-time work: ten to build and two to run the 
 
 Milestone 3 is the riskiest: the variation engine must sound musical, and explanations must match every result. The AI spike in milestone 2 tests grounding and cost early, before features depend on it.
 
+**Proposed, 2026-10-23 (not yet decided).** The product definition ([07-product-definition.md](07-product-definition.md)) adds a pilot gate, milestone 2b: three pianists try a hand-written track page and three hand-made experiments on Für Elise before milestone 3 work on the track page and experiment flow starts. Import and analysis work (#15, #16, #17) continues meanwhile. Also proposed: the AI spike moves after the pilot; #27, #28, #38, #40, #45 and #55 wait for the pilot and study; #46–49 are decided after the pilot; #62 becomes a Must with five pieces. Priorities in the scope table stay as they are until these are decided.
+
 | Outcome at the gate | Condition | Next step |
 | --- | --- | --- |
 | Continue | All usability and creative-engagement criteria met, AI trust criteria met, and at least 2 of the 3 learning thresholds | Start Stage 2: reconstruction attempts, hints, MIDI input and output on notation (PRD modules C and F) |
