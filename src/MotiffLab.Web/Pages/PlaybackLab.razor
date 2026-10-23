@@ -2,6 +2,7 @@
 @using MotiffLab.MusicCore.Events
 @using MotiffLab.MusicCore.Import.Midi
 @using MotiffLab.MusicCore.Import.MusicXml
+@using MotiffLab.MusicCore.Motifs
 @using MotiffLab.MusicCore.Notation
 @using MotiffLab.MusicCore.Playback
 @using MotiffLab.MusicCore.Time
@@ -13,7 +14,7 @@
 
 <PageTitle>Playback · Motiff Lab</PageTitle>
 
-@* A test bench for the playback engine (S1-W4, S1-W5), the piano roll and keyboard (S1-W2, S1-W3) and the score view (S1-W7) until the workspace exists. Files stay on the device. *@
+@* A test bench for the playback engine (S1-W4, S1-W5), the piano roll and keyboard (S1-W2, S1-W3), motif selection and its loop (S1-M1, S1-M2, S1-M5) and the score view (S1-W7) until the workspace exists. Files stay on the device. *@
 <main class="lab">
     <h1>Playback</h1>
     <p class="meta">A test bench for playback until the workspace lands. Open a MIDI or MusicXML file or use the demo; nothing leaves this device.</p>
@@ -64,23 +65,40 @@
         </section>
 
         <section class="row">
-            <label><input type="checkbox" checked="@(Player.Loop is not null)" @onchange="ToggleLoopAsync" /> Loop bars</label>
-            <input type="number" min="@_meter.FirstBarNumber" max="@_lastBar" @bind="_loopFrom" @bind:after="UpdateLoopAsync" aria-label="Loop from bar" />
-            <span>to</span>
-            <input type="number" min="@_meter.FirstBarNumber" max="@_lastBar" @bind="_loopTo" @bind:after="UpdateLoopAsync" aria-label="Loop to bar" />
-        </section>
-
-        <section class="row">
             <span>Source</span>
             @foreach ((string label, string[] ids) in s_sources)
             {
-                <label><input type="radio" name="source" checked="@Player.ActiveSources.SequenceEqual(ids)" @onchange="() => Player.SelectSourcesAsync(ids)" /> @label</label>
+                <label><input type="radio" name="source" checked="@Player.ActiveSources.SequenceEqual(ids)" disabled="@_looping" @onchange="() => Player.SelectSourcesAsync(ids)" /> @label</label>
             }
-            <span class="meta">The test variation is the same notes an octave higher.</span>
+            <span class="meta">@(_looping ? "Only the selected notes play while the selection loops." : "The test variation is the same notes an octave higher.")</span>
+        </section>
+
+        <section class="selection" aria-label="Selection">
+            <div class="row">
+                <span>Select bars</span>
+                <input type="number" min="@_meter.FirstBarNumber" max="@_lastBar" @bind="_barFrom" aria-label="From bar" />
+                <span>to</span>
+                <input type="number" min="@_meter.FirstBarNumber" max="@_lastBar" @bind="_barTo" aria-label="To bar" />
+                <button @onclick="SelectBarsAsync">Select</button>
+                <label>
+                    Notes
+                    <select @onchange="SetFilterAsync" aria-label="Which notes the selection keeps">
+                        @for (int i = 0; i < _filters.Length; i++)
+                        {
+                            <option value="@i" selected="@(_filters[i].Filter == _filter)">@_filters[i].Label</option>
+                        }
+                    </select>
+                </label>
+                <button class="@(_looping ? "on" : "primary")" @onclick="ToggleLoopSelectionAsync" disabled="@(_selection is not { NoteIds.Count: > 0 })">
+                    @(_looping ? "Stop looping" : "Loop selection")
+                </button>
+                <button @onclick="ClearSelectionAsync" disabled="@(_selection is null)">Clear</button>
+            </div>
+            <p class="meta" aria-live="polite">@SelectionText</p>
         </section>
 
         <section class="roll-panel">
-            <PianoRoll Notes="_notes" Score="_score" Meter="_meter" />
+            <PianoRoll Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" RangePicked="OnRangePickedAsync" />
         </section>
 
         <section class="score-panel">
@@ -122,6 +140,9 @@
 @code {
     private const string VariationSource = "variation";
 
+    /// <summary>The selected notes alone, played while the selection loops.</summary>
+    private const string SelectionSource = "selection";
+
     private static readonly (string Label, string[] Ids)[] s_sources =
     [
         ("Original", [Player.OriginalSource]),
@@ -134,8 +155,14 @@
     private MeterMap? _meter;
     private int[] _tracks = [];
     private int _lastBar;
-    private int _loopFrom = 1;
-    private int _loopTo = 2;
+    private int _barFrom = 1;
+    private int _barTo = 2;
+    private MotifSelection? _selection;
+    private SelectionFilter _filter = SelectionFilter.All;
+    private (string Label, SelectionFilter Filter)[] _filters = [("All notes", SelectionFilter.All)];
+    private string? _selectionNote;
+    private bool _looping;
+    private string[] _sourcesBeforeLoop = [Player.OriginalSource];
     private string? _title;
     private string? _message;
     private ScoreSource? _asWritten;
@@ -236,9 +263,14 @@
         _meter = piece.Meter;
         _title = title;
         _tracks = piece.Notes.Select(note => note.Track).Distinct().Order().ToArray();
-        _lastBar = _meter.BarAt(new Tick(Math.Max(0, _score.End.Value - 1))).Number;
-        _loopFrom = Math.Max(1, _meter.FirstBarNumber);
-        _loopTo = Math.Min(_lastBar, _loopFrom + 1);
+        _lastBar = MotifSelector.LastBar(_meter, _score.End);
+        _barFrom = Math.Max(1, _meter.FirstBarNumber);
+        _barTo = Math.Min(_lastBar, _barFrom + 1);
+        _filters = Filters(piece.Notes, _tracks);
+        _filter = SelectionFilter.All;
+        _selection = null;
+        _selectionNote = null;
+        _looping = false;
 
         await Player.LoadAsync(_score);
         await Player.SetSourceAsync(VariationSource, _score.WithNotes(piece.Notes.Select(OctaveUp)));
@@ -294,15 +326,180 @@
 
     private Task ToggleCountInAsync() => Player.SetCountInAsync(!Player.CountIn);
 
-    private Task ToggleLoopAsync() => Player.Loop is null ? Player.SetLoopAsync(LoopRange()) : Player.SetLoopAsync(null);
-
-    private Task UpdateLoopAsync() => Player.Loop is null ? Task.CompletedTask : Player.SetLoopAsync(LoopRange());
-
-    private TickSpan LoopRange()
+    /// <summary>What a selection can be limited to (S1-M2): a hand when the piece has hands, a track when it has several.</summary>
+    private static (string Label, SelectionFilter Filter)[] Filters(IReadOnlyList<Note> notes, int[] tracks)
     {
-        int from = Math.Clamp(Math.Min(_loopFrom, _loopTo), _meter!.FirstBarNumber, _lastBar);
-        int to = Math.Clamp(Math.Max(_loopFrom, _loopTo), from, _lastBar);
-        return TickSpan.FromBounds(_meter.GetBar(from).Span.Onset, _meter.GetBar(to).Span.End);
+        var filters = new List<(string, SelectionFilter)> { ("All notes", SelectionFilter.All) };
+        foreach ((Hand hand, string label) in new[] { (Hand.Right, "Right hand"), (Hand.Left, "Left hand") })
+        {
+            if (notes.Any(note => note.Hand?.Value == hand))
+            {
+                filters.Add((label, SelectionFilter.ForHand(hand)));
+            }
+        }
+
+        if (tracks.Length > 1)
+        {
+            filters.AddRange(tracks.Select(track => ($"Track {track + 1}", SelectionFilter.ForTrack(track))));
+        }
+
+        return [.. filters];
+    }
+
+    /// <summary>Selects whole bars from the bar boxes, keeping to the piece and to 8 bars (S1-M1).</summary>
+    private Task SelectBarsAsync()
+    {
+        int from = Math.Clamp(Math.Min(_barFrom, _barTo), _meter!.FirstBarNumber, _lastBar);
+        int to = Math.Clamp(Math.Max(_barFrom, _barTo), from, _lastBar);
+        string? note = null;
+        if (to - from + 1 > MotifSelection.MaxBars)
+        {
+            to = from + MotifSelection.MaxBars - 1;
+            note = $"A selection spans at most {MotifSelection.MaxBars} bars, so it ends at bar {to}.";
+        }
+
+        return SelectAsync(MotifSelector.Bars(_meter, from, to, _score!.End), note);
+    }
+
+    /// <summary>A click on a bar number selects that bar; a drag selects the beats it covers (S1-M1).</summary>
+    private Task OnRangePickedAsync(RollRange range)
+    {
+        Tick last = new(_score!.End.Value - 1);
+        if (range.IsClick)
+        {
+            int bar = _meter!.BarAt(range.Anchor > last ? last : range.Anchor).Number;
+            return SelectAsync(MotifSelector.Bars(_meter, bar, bar, _score.End), note: null);
+        }
+
+        TickSpan span = MotifSelector.Drag(_meter!, range.Anchor, range.Current, _score.End);
+        Tick low = range.Anchor < range.Current ? range.Anchor : range.Current;
+        Tick high = new(Math.Max(low.Value, Math.Max(range.Anchor.Value, range.Current.Value) - 1));
+        bool capped = _meter!.BarAt(high > last ? last : high).Number - _meter.BarAt(low > last ? last : low).Number + 1 > MotifSelection.MaxBars;
+        return SelectAsync(span, capped ? $"A selection spans at most {MotifSelection.MaxBars} bars, so the drag stopped there." : null);
+    }
+
+    private Task SetFilterAsync(ChangeEventArgs args)
+    {
+        if (!int.TryParse(args.Value?.ToString(), out int index) || index < 0 || index >= _filters.Length)
+        {
+            return Task.CompletedTask;
+        }
+
+        _filter = _filters[index].Filter;
+        return _selection is { } selection ? SelectAsync(selection.Span, note: null) : Task.CompletedTask;
+    }
+
+    private async Task SelectAsync(TickSpan span, string? note)
+    {
+        _selection = MotifSelector.Select(_notes!, _meter!, span, _filter);
+        _selectionNote = note;
+        _barFrom = _selection.FirstBar;
+        _barTo = _selection.LastBar;
+        if (_looping)
+        {
+            if (_selection.NoteIds.Count == 0)
+            {
+                await StopLoopingAsync();
+            }
+            else
+            {
+                await LoopSelectionAsync(_selection);
+            }
+        }
+    }
+
+    private async Task ClearSelectionAsync()
+    {
+        if (_looping)
+        {
+            await StopLoopingAsync();
+        }
+
+        _selection = null;
+        _selectionNote = null;
+    }
+
+    private async Task ToggleLoopSelectionAsync()
+    {
+        if (_looping)
+        {
+            await StopLoopingAsync();
+        }
+        else if (_selection is { NoteIds.Count: > 0 } selection)
+        {
+            _sourcesBeforeLoop = [.. Player.ActiveSources];
+            _looping = true;
+            await LoopSelectionAsync(selection);
+        }
+    }
+
+    /// <summary>Loops the selection's range with only its notes sounding (S1-W4, S1-M5).</summary>
+    private async Task LoopSelectionAsync(MotifSelection selection)
+    {
+        var ids = selection.NoteIds.ToHashSet(StringComparer.Ordinal);
+        await Player.SetSourceAsync(SelectionSource, _score!.WithNotes(_notes!.Where(note => ids.Contains(note.Id))));
+        await Player.SelectSourcesAsync(SelectionSource);
+        await Player.SetLoopAsync(selection.Span);
+        if (!selection.Span.Contains(Player.Position))
+        {
+            await Player.SeekAsync(selection.Span.Onset);
+        }
+    }
+
+    private async Task StopLoopingAsync()
+    {
+        _looping = false;
+        await Player.SetLoopAsync(null);
+        await Player.SelectSourcesAsync(_sourcesBeforeLoop);
+    }
+
+    /// <summary>The selection in words: where it is, which notes it keeps and whether a hand is inferred.</summary>
+    private string SelectionText
+    {
+        get
+        {
+            if (_selection is not { } selection)
+            {
+                return "Nothing selected. Drag across the bar numbers on the piano roll, click a bar number, or type the bars.";
+            }
+
+            var parts = new List<string> { $"Selected {Where(selection)}" };
+            if (selection.Filter != SelectionFilter.All)
+            {
+                string label = _filters.FirstOrDefault(filter => filter.Filter == selection.Filter).Label ?? "filtered";
+                parts.Add(selection.HandInferred ? $"{label.ToLowerInvariant()} (inferred for some notes)" : label.ToLowerInvariant());
+            }
+
+            string text = string.Join(", ", parts) + selection.NoteIds.Count switch
+            {
+                0 => ": no notes start here, so there is nothing to loop.",
+                1 => ": 1 note.",
+                int count => $": {count} notes.",
+            };
+            if (_looping)
+            {
+                text += " Looping; only these notes play.";
+            }
+
+            return _selectionNote is null ? text : $"{text} {_selectionNote}";
+        }
+    }
+
+    /// <summary>"bars 5–6", or with beats when an edge is inside a bar: "bar 5, beat 2, through bar 6, beat 1".</summary>
+    private string Where(MotifSelection selection)
+    {
+        Bar first = _meter!.GetBar(selection.FirstBar);
+        Bar last = _meter.GetBar(selection.LastBar);
+        if (selection.Span.Onset == first.Span.Onset && selection.Span.End == last.Span.End)
+        {
+            return selection.FirstBar == selection.LastBar ? $"bar {selection.FirstBar}" : $"bars {selection.FirstBar}–{selection.LastBar}";
+        }
+
+        MetricPosition from = _meter.ToPosition(selection.Span.Onset);
+        MetricPosition through = _meter.ToPosition(new Tick(selection.Span.End.Value - 1));
+        return from.Bar == through.Bar && from.Beat == through.Beat
+            ? $"bar {from.Bar}, beat {from.Beat}"
+            : $"bar {from.Bar}, beat {from.Beat}, through bar {through.Bar}, beat {through.Beat}";
     }
 
     private Task ToggleTrackAsync(int track, bool solo)

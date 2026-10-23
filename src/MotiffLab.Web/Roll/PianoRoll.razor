@@ -1,4 +1,5 @@
 @using MotiffLab.MusicCore.Events
+@using MotiffLab.MusicCore.Motifs
 @using MotiffLab.MusicCore.Playback
 @using MotiffLab.MusicCore.Time
 @using MotiffLab.Web.Playback
@@ -6,7 +7,7 @@
 @inject IJSRuntime JS
 @inject Player Player
 
-@* Drawn on canvas in Scripts/roll (S1-W2, S1-W3); the host's children belong to the script. *@
+@* Drawn on canvas in Scripts/roll (S1-W2, S1-W3, S1-M1); the host's children belong to the script. *@
 <div class="row roll-tools">
     <span>Colour by</span>
     <label><input type="radio" name="roll-colour" checked="@(_colourBy == "track")" @onchange='() => SetColourByAsync("track")' /> Track</label>
@@ -28,6 +29,8 @@
     private Dictionary<string, Note> _byId = [];
     private string _colourBy = "track";
     private IReadOnlyList<string> _selected = [];
+    private MotifSelection? _shownMotif;
+    private bool _shownAlone;
 
     /// <summary>The notes to draw. The view loads them again only when a different list is given.</summary>
     [Parameter, EditorRequired]
@@ -39,6 +42,21 @@
 
     [Parameter, EditorRequired]
     public MeterMap? Meter { get; set; }
+
+    /// <summary>The motif selection to show: its range shaded and the notes outside it faint. Null for none.</summary>
+    [Parameter]
+    public MotifSelection? Motif { get; set; }
+
+    /// <summary>True while only the motif's notes play, so only they light up as they sound.</summary>
+    [Parameter]
+    public bool MotifPlaysAlone { get; set; }
+
+    /// <summary>
+    /// Raised when the player drags across the bar numbers, with where the drag started and ended in
+    /// ticks, not yet snapped; a click without a drag comes with <see cref="RollRange.IsClick"/> set.
+    /// </summary>
+    [Parameter]
+    public EventCallback<RollRange> RangePicked { get; set; }
 
     /// <summary>Raised with the ids of the selected notes, in time order.</summary>
     [Parameter]
@@ -53,19 +71,47 @@
             _view = await _module.InvokeAsync<IJSObjectReference>("createPianoRoll", _host, _self);
         }
 
-        if (_view is null || ReferenceEquals(Notes, _shown) || Notes is null || Score is null)
+        if (_view is null || Notes is null || Score is null)
         {
             return;
         }
 
-        _shown = Notes;
-        _byId = Notes.ToDictionary(note => note.Id);
-        _selected = [];
-        await _view.InvokeVoidAsync("load", PianoRollPayload.Create(Notes, Score));
-        await _view.InvokeVoidAsync("setColourBy", _colourBy);
-        await _view.InvokeVoidAsync("follow", Player.Engine);
-        StateHasChanged();
+        if (!ReferenceEquals(Notes, _shown))
+        {
+            _shown = Notes;
+            _byId = Notes.ToDictionary(note => note.Id);
+            _selected = [];
+            _shownMotif = null;
+            await _view.InvokeVoidAsync("load", PianoRollPayload.Create(Notes, Score));
+            await _view.InvokeVoidAsync("setColourBy", _colourBy);
+            await _view.InvokeVoidAsync("follow", Player.Engine);
+            await ShowMotifAsync(_view);
+            StateHasChanged();
+        }
+        else if (!ReferenceEquals(Motif, _shownMotif) || MotifPlaysAlone != _shownAlone)
+        {
+            await ShowMotifAsync(_view);
+        }
     }
+
+    private async Task ShowMotifAsync(IJSObjectReference view)
+    {
+        _shownMotif = Motif;
+        _shownAlone = MotifPlaysAlone;
+        if (Motif is { } motif)
+        {
+            await view.InvokeVoidAsync("setMotif", motif.Span.Onset.Value, motif.Span.End.Value, motif.NoteIds, MotifPlaysAlone);
+        }
+        else
+        {
+            await view.InvokeVoidAsync("clearMotif");
+        }
+    }
+
+    /// <summary>Called by the script when a drag across the bar numbers ends.</summary>
+    [JSInvokable]
+    public Task OnRollRange(long anchor, long current, bool click) =>
+        RangePicked.InvokeAsync(new RollRange(new Tick(Math.Max(0, anchor)), new Tick(Math.Max(0, current)), click));
 
     /// <summary>Called by the script when the selection changes.</summary>
     [JSInvokable]
@@ -100,7 +146,7 @@
         {
             if (_selected.Count == 0 || Meter is null)
             {
-                return "Click a note to select it; Shift-click adds to the selection.";
+                return "Drag across the bar numbers to select bars. Click a note to select it; Shift-click adds to the selection.";
             }
 
             if (_selected.Count > 1)
