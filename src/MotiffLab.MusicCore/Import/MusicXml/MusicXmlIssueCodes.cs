@@ -13,7 +13,6 @@ public static class MusicXmlIssueCodes
     public const string DivisionsDefault = "musicxml.divisions-default";
     public const string VelocityDefault = "musicxml.velocity-default";
     public const string MicrotoneRounded = "musicxml.microtone-rounded";
-    public const string TiesNotMerged = "musicxml.ties-not-merged";
     public const string MeasureShort = "musicxml.measure-short";
     public const string MeasureLong = "musicxml.measure-long";
 
@@ -23,9 +22,10 @@ public static class MusicXmlIssueCodes
     public const string PartNotListed = "musicxml.part-not-listed";
     public const string DivisionsInvalid = "musicxml.divisions-invalid";
     public const string NoteWithoutDuration = "musicxml.note-without-duration";
+    public const string TieWithoutStart = "musicxml.tie-without-start";
 
     // Dropped
-    public const string GraceNotesIgnored = "musicxml.grace-notes-ignored";
+    public const string GraceNotesFlagged = "musicxml.grace-notes-flagged";
     public const string CueNotesIgnored = "musicxml.cue-notes-ignored";
     public const string UnpitchedIgnored = "musicxml.unpitched-ignored";
     public const string PitchInvalid = "musicxml.pitch-invalid";
@@ -44,15 +44,15 @@ public static class MusicXmlIssueCodes
         DivisionsDefault => "The part gives durations before saying how many divisions make a quarter note, so 1 per quarter is assumed.",
         VelocityDefault => $"{Plural(count, "note has", "notes have")} no playback dynamics; a moderate velocity of {MusicXmlImporter.DefaultVelocity} is assumed.",
         MicrotoneRounded => $"{Plural(count, "note with a microtonal alteration was", "notes with microtonal alterations were")} rounded to the nearest semitone.",
-        TiesNotMerged => $"{Plural(count, "tied note was", "tied notes were")} kept as separate notes; tied notes are not merged yet.",
         MeasureShort => $"{Plural(count, "measure is", "measures are")} shorter than the time signature (for example a bar split at a repeat); each is kept as a short bar.",
         MeasureLong => $"{Plural(count, "measure is", "measures are")} longer than the time signature; the extra time is shown as a short extra bar, so later bar numbers move on by one.",
         ZeroLengthWidened => $"{Notes(count)} had a duration of zero and were widened to one tick.",
         BackupBeforeMeasure => $"{Plural(count, "backup goes", "backups go")} back past the start of the measure; the position was set to the start of the measure.",
         PartNotListed => "The part is missing from the score's part list; its notes were read without a part name.",
         DivisionsInvalid => $"{Plural(count, "divisions value was", "divisions values were")} not a positive whole number and were ignored.",
+        TieWithoutStart => $"{Plural(count, "note ends a tie that does not start on the same pitch before it; it was", "notes end a tie that does not start on the same pitch before them; they were")} kept as separate notes.",
         NoteWithoutDuration => $"{Plural(count, "note, rest, backup or forward has", "notes, rests, backups or forwards have")} no duration and were left out.",
-        GraceNotesIgnored => $"{Plural(count, "grace note was", "grace notes were")} left out; grace notes are not imported yet.",
+        GraceNotesFlagged => $"{Plural(count, "grace note is", "grace notes are")} listed as grace notes but not played or analysed yet.",
         CueNotesIgnored => $"{Plural(count, "cue note was", "cue notes were")} left out, since cue notes are not played.",
         UnpitchedIgnored => $"{Plural(count, "unpitched (percussion) note was", "unpitched (percussion) notes were")} left out.",
         PitchInvalid => $"{Plural(count, "note had", "notes had")} a missing or out-of-range pitch and were left out.",

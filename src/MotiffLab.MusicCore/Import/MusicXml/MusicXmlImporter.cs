@@ -8,8 +8,8 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Import.MusicXml;
 
 /// <summary>
-/// Imports an uncompressed partwise MusicXML score onto the canonical timeline (S1-I1, S1-I3,
-/// S1-I4, S1-I8). Decision record 0006 describes the policies.
+/// Imports a partwise MusicXML score, uncompressed or <c>.mxl</c>, onto the canonical timeline
+/// (S1-I1, S1-I2, S1-I3, S1-I4, S1-I8). Decision record 0006 describes the policies.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -20,8 +20,9 @@ namespace MotiffLab.MusicCore.Import.MusicXml;
 /// <see cref="CanonicalTime"/>, onset and end separately.
 /// </para>
 /// <para>
-/// Notes map to the shared <see cref="Note"/> as imported facts. A part with two staves is a grand
-/// staff: staff 1 is the right hand and staff 2 the left, both imported.
+/// Notes map to the shared <see cref="Note"/> as imported facts, with tied notes merged into one.
+/// A part with two staves is a grand staff: staff 1 is the right hand and staff 2 the left, both
+/// imported. Grace notes and rests are kept as source facts beside the notes.
 /// </para>
 /// <para>
 /// The import is pure and deterministic: the same bytes give the same result and report.
@@ -47,14 +48,7 @@ public static class MusicXmlImporter
             throw new MusicXmlImportException(MusicXmlImportFailure.TooLarge, "This file is larger than 5 MB, the most Motiff Lab can import.");
         }
 
-        if (data.StartsWith("PK\u0003\u0004"u8))
-        {
-            throw new MusicXmlImportException(
-                MusicXmlImportFailure.Unsupported,
-                "This is a compressed MusicXML file (.mxl), which Motiff Lab cannot read yet. Export it as uncompressed MusicXML (.musicxml) instead.");
-        }
-
-        XElement root = Load(data);
+        XElement root = Load(MxlArchive.IsArchive(data) ? MxlArchive.ReadScore(data) : data);
         switch (root.Name.LocalName)
         {
             case "score-partwise":
@@ -91,6 +85,20 @@ public static class MusicXmlImporter
         }
 
         return Build(root, parts, issues);
+    }
+
+    /// <summary>
+    /// The score's XML: the root file of a compressed <c>.mxl</c> archive, or the bytes as given.
+    /// Lets a caller show the file as written without unpacking it itself.
+    /// </summary>
+    public static byte[] ReadScoreXml(ReadOnlySpan<byte> data)
+    {
+        if (data.Length > MaxFileBytes)
+        {
+            throw new MusicXmlImportException(MusicXmlImportFailure.TooLarge, "This file is larger than 5 MB, the most Motiff Lab can import.");
+        }
+
+        return MxlArchive.IsArchive(data) ? MxlArchive.ReadScore(data) : data.ToArray();
     }
 
     private static MusicXmlImport Build(XElement root, List<PartReader> parts, ImportIssueCollector issues)
@@ -134,14 +142,17 @@ public static class MusicXmlImporter
 
         // Notes
         var sourceNotes = new List<MusicXmlNote>();
+        var noteCounts = new int[parts.Count];
         foreach (PartReader part in parts)
         {
-            foreach (PartNote note in part.Notes)
+            List<TiedNote> merged = MergeTies(part, At, issues);
+            noteCounts[part.Index] = merged.Count;
+            foreach ((PartNote note, QuarterFraction onset, QuarterFraction noteEnd, int written) in merged)
             {
-                QuarterFraction onset = At(note.MeasureIndex, note.Offset);
+                QuarterFraction duration = noteEnd - onset;
                 TickSpan span;
                 bool exact;
-                if (note.Duration == QuarterFraction.Zero)
+                if (duration == QuarterFraction.Zero)
                 {
                     issues.Add(ImportIssueKind.Repaired, MusicXmlIssueCodes.ZeroLengthWidened, part.Index);
                     span = new TickSpan(CanonicalTime.ToTick(onset).Tick, 1);
@@ -149,7 +160,7 @@ public static class MusicXmlImporter
                 }
                 else
                 {
-                    ConvertedSpan converted = CanonicalTime.ToSpan(onset, onset + note.Duration);
+                    ConvertedSpan converted = CanonicalTime.ToSpan(onset, noteEnd);
                     span = converted.Span;
                     exact = converted.IsExact;
                     if (!exact)
@@ -169,9 +180,11 @@ public static class MusicXmlImporter
                     note.Velocity ?? DefaultVelocity,
                     note.Velocity is null,
                     onset,
-                    note.Duration,
+                    duration,
                     span,
-                    exact));
+                    exact,
+                    written,
+                    note.Tuplet));
             }
         }
 
@@ -197,6 +210,30 @@ public static class MusicXmlImporter
         });
 
         issues.Add(ImportIssueKind.Assumed, MusicXmlIssueCodes.VelocityDefault, count: sourceNotes.Count(note => note.IsVelocityAssumed));
+
+        // Grace notes and rests: source facts, not sounding notes.
+        var graceNotes = parts
+            .SelectMany(part => part.GraceNotes.Select(grace =>
+            {
+                QuarterFraction at = At(grace.MeasureIndex, grace.Offset);
+                return new MusicXmlGraceNote(part.Index, part.Id, grace.MeasureIndex, grace.NoteIndex, grace.Staff, grace.Voice, grace.Pitch, at, CanonicalTime.ToTick(at).Tick, grace.IsSlashed);
+            }))
+            .OrderBy(grace => grace.Onset)
+            .ThenBy(grace => grace.Track)
+            .ThenBy(grace => grace.MeasureIndex)
+            .ThenBy(grace => grace.NoteIndex)
+            .ToList();
+        var rests = parts
+            .SelectMany(part => part.Rests.Select(rest =>
+            {
+                QuarterFraction onset = At(rest.MeasureIndex, rest.Offset);
+                return new MusicXmlRest(part.Index, part.Id, rest.MeasureIndex, rest.NoteIndex, rest.Staff, rest.Voice, onset, rest.Duration, CanonicalTime.ToSpan(onset, onset + rest.Duration).Span, rest.IsMeasureRest);
+            }))
+            .OrderBy(rest => rest.Onset)
+            .ThenBy(rest => rest.Track)
+            .ThenBy(rest => rest.MeasureIndex)
+            .ThenBy(rest => rest.NoteIndex)
+            .ToList();
 
         // Tempo
         var tempos = Merge(
@@ -283,7 +320,7 @@ public static class MusicXmlImporter
         }
 
         var partInfos = parts
-            .Select(part => new MusicXmlPartInfo(part.Index, part.Id, part.Name, part.InstrumentName, part.Staves, part.Notes.Count))
+            .Select(part => new MusicXmlPartInfo(part.Index, part.Id, part.Name, part.InstrumentName, part.Staves, noteCounts[part.Index]))
             .ToList();
         var events = sourceNotes.Select((note, index) => ToNote(note, index, partInfos[note.Track])).ToList();
         string? version = Trimmed(root.Attribute("version")?.Value);
@@ -295,7 +332,60 @@ public static class MusicXmlImporter
             MeasureCount: meter.BarsBefore(end).Count(),
             Issues: issues.Build(MusicXmlIssueCodes.Describe));
 
-        return new MusicXmlImport(version, partInfos, events, sourceNotes, measures, tempos, timeSignatures, meter, keys, end, report);
+        return new MusicXmlImport(version, partInfos, events, sourceNotes, graceNotes, rests, measures, tempos, timeSignatures, meter, keys, end, report);
+    }
+
+    /// <summary>
+    /// Merges each chain of tied notes in a part into its first note (S1-I2, AC-S1-02). A tie stop
+    /// continues the open tie of the same pitch that ends where it starts, else the one in the same
+    /// voice and staff; with neither, the note stays on its own and is reported.
+    /// </summary>
+    private static List<TiedNote> MergeTies(PartReader part, Func<int, QuarterFraction, QuarterFraction> at, ImportIssueCollector issues)
+    {
+        var merged = new List<TiedNote>();
+        var open = new List<int>(); // indexes into merged of notes whose tie continues
+        foreach (PartNote note in part.Notes)
+        {
+            QuarterFraction onset = at(note.MeasureIndex, note.Offset);
+            QuarterFraction end = onset + note.Duration;
+            int match = -1;
+            if (note.TieStop)
+            {
+                match = open.FindIndex(i => merged[i].Note.Pitch == note.Pitch && merged[i].End == onset);
+                if (match < 0)
+                {
+                    match = open.FindIndex(i => merged[i].Note.Pitch == note.Pitch && merged[i].Note.Voice == note.Voice && merged[i].Note.Staff == note.Staff);
+                }
+            }
+
+            if (match >= 0)
+            {
+                int target = open[match];
+                TiedNote tied = merged[target];
+                merged[target] = tied with { End = end > tied.End ? end : tied.End, Written = tied.Written + 1 };
+                if (!note.TieStart)
+                {
+                    open.RemoveAt(match);
+                }
+
+                continue;
+            }
+
+            if (note.TieStop)
+            {
+                issues.Add(ImportIssueKind.Repaired, MusicXmlIssueCodes.TieWithoutStart, part.Index);
+            }
+
+            // A new note of the same pitch in the same voice ends a tie that was never stopped.
+            open.RemoveAll(i => merged[i].Note.Pitch == note.Pitch && merged[i].Note.Voice == note.Voice && merged[i].Note.Staff == note.Staff);
+            merged.Add(new TiedNote(note, onset, end, 1));
+            if (note.TieStart)
+            {
+                open.Add(merged.Count - 1);
+            }
+        }
+
+        return merged;
     }
 
     /// <summary>
@@ -481,7 +571,17 @@ public static class MusicXmlImporter
         int Pitch,
         int? Velocity,
         int Staff,
-        string Voice);
+        string Voice,
+        bool TieStart,
+        bool TieStop,
+        MusicXmlTuplet? Tuplet);
+
+    /// <summary>A note with the written notes tied to it: exact onset and end, and how many were merged.</summary>
+    private sealed record TiedNote(PartNote Note, QuarterFraction Onset, QuarterFraction End, int Written);
+
+    private sealed record PartGraceNote(int MeasureIndex, int NoteIndex, QuarterFraction Offset, int Pitch, int Staff, string Voice, bool IsSlashed);
+
+    private sealed record PartRest(int MeasureIndex, int NoteIndex, QuarterFraction Offset, QuarterFraction Duration, int Staff, string Voice, bool IsMeasureRest);
 
     private sealed record MeasureInfo(string? Number, bool IsImplicit, QuarterFraction Length);
 
@@ -513,6 +613,10 @@ public static class MusicXmlImporter
         public List<MeasureInfo> Measures { get; } = [];
 
         public List<PartNote> Notes { get; } = [];
+
+        public List<PartGraceNote> GraceNotes { get; } = [];
+
+        public List<PartRest> Rests { get; } = [];
 
         public List<Timed<decimal>> Tempos { get; } = [];
 
@@ -603,9 +707,9 @@ public static class MusicXmlImporter
 
         private void ReadNote(XElement note)
         {
-            if (note.Element("grace") is not null)
+            if (note.Element("grace") is XElement grace)
             {
-                issues.Add(ImportIssueKind.Dropped, MusicXmlIssueCodes.GraceNotesIgnored, index);
+                ReadGraceNote(note, grace);
                 return;
             }
 
@@ -628,8 +732,13 @@ public static class MusicXmlImporter
                 return;
             }
 
-            if (note.Element("rest") is not null)
+            int staff = TryParseInt(note.Element("staff")?.Value, out int s) && s >= 1 ? s : 1;
+            string voice = Trimmed(note.Element("voice")?.Value) ?? "1";
+            if (note.Element("rest") is XElement rest)
             {
+                bool isMeasureRest = string.Equals(rest.Attribute("measure")?.Value.Trim(), "yes", StringComparison.Ordinal);
+                Rests.Add(new PartRest(_measureIndex, _noteIndex, onset, duration, staff, voice, isMeasureRest));
+                Staves = Math.Max(Staves, staff);
                 return;
             }
 
@@ -645,17 +754,66 @@ public static class MusicXmlImporter
                 return;
             }
 
-            if (note.Elements("tie").Any(tie => tie.Attribute("type")?.Value.Trim() == "stop"))
+            Staves = Math.Max(Staves, staff);
+            int? velocity = ToVelocity(note.Attribute("dynamics")?.Value) ?? _velocity;
+            (bool tieStart, bool tieStop) = ReadTies(note);
+
+            Notes.Add(new PartNote(_measureIndex, _noteIndex, onset, duration, pitch, velocity, staff, voice, tieStart, tieStop, ReadTuplet(note)));
+        }
+
+        /// <summary>A grace note takes no time: it is listed at the cursor, before the note it ornaments.</summary>
+        private void ReadGraceNote(XElement note, XElement grace)
+        {
+            if (note.Element("cue") is not null)
             {
-                issues.Add(ImportIssueKind.Assumed, MusicXmlIssueCodes.TiesNotMerged, index);
+                issues.Add(ImportIssueKind.Dropped, MusicXmlIssueCodes.CueNotesIgnored, index);
+                return;
+            }
+
+            if (note.Element("rest") is not null || note.Element("unpitched") is not null)
+            {
+                return;
+            }
+
+            if (ReadPitch(note.Element("pitch")) is not int pitch)
+            {
+                issues.Add(ImportIssueKind.Dropped, MusicXmlIssueCodes.PitchInvalid, index);
+                return;
             }
 
             int staff = TryParseInt(note.Element("staff")?.Value, out int s) && s >= 1 ? s : 1;
             Staves = Math.Max(Staves, staff);
             string voice = Trimmed(note.Element("voice")?.Value) ?? "1";
-            int? velocity = ToVelocity(note.Attribute("dynamics")?.Value) ?? _velocity;
+            bool isSlashed = string.Equals(grace.Attribute("slash")?.Value.Trim(), "yes", StringComparison.Ordinal);
+            GraceNotes.Add(new PartGraceNote(_measureIndex, _noteIndex, _cursor, pitch, staff, voice, isSlashed));
+            issues.Add(ImportIssueKind.Dropped, MusicXmlIssueCodes.GraceNotesFlagged, index);
+        }
 
-            Notes.Add(new PartNote(_measureIndex, _noteIndex, onset, duration, pitch, velocity, staff, voice));
+        /// <summary>
+        /// Whether a tie starts or stops at the note: the sounding <c>&lt;tie&gt;</c>, or the notated
+        /// <c>&lt;tied&gt;</c> when the file has only that.
+        /// </summary>
+        private static (bool Start, bool Stop) ReadTies(XElement note)
+        {
+            var types = note.Elements("tie").Select(tie => tie.Attribute("type")?.Value.Trim()).ToList();
+            if (types.Count == 0)
+            {
+                types = note.Elements("notations").Elements("tied").Select(tied => tied.Attribute("type")?.Value.Trim()).ToList();
+            }
+
+            bool isContinue = types.Contains("continue");
+            return (types.Contains("start") || isContinue, types.Contains("stop") || isContinue);
+        }
+
+        private static MusicXmlTuplet? ReadTuplet(XElement note)
+        {
+            XElement? modification = note.Element("time-modification");
+            return modification is not null
+                && TryParseInt(modification.Element("actual-notes")?.Value, out int actual) && actual >= 1
+                && TryParseInt(modification.Element("normal-notes")?.Value, out int normal) && normal >= 1
+                && actual != normal
+                ? new MusicXmlTuplet(actual, normal)
+                : null;
         }
 
         private int? ReadPitch(XElement? pitch)

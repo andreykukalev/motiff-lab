@@ -20,7 +20,7 @@ public class MusicXmlImportFixtureTests
         Assert.Equal("4.0", result.Version);
         MusicXmlPartInfo part = Assert.Single(result.Parts);
         Assert.Equal(("P1", "Piano", "Acoustic Grand Piano", 2, true), (part.Id, part.Name, part.InstrumentName, part.Staves, part.HasHands));
-        Assert.Equal(14, result.Notes.Count);
+        Assert.Equal(13, result.Notes.Count); // 14 written: the E5 tied across bars 2 and 3 is one note.
 
         // Pickup: one beat, bar 1 starts after it (0004).
         Assert.True(result.Meter.HasPickup);
@@ -47,9 +47,9 @@ public class MusicXmlImportFixtureTests
             result.Notes.Where(note => note.Hand!.Value == Hand.Right && note.Span.Onset.Value is >= 480 and < 1920)
                 .Select(note => (note.Pitch.MidiNumber, note.Span.Onset.Value, note.Span.Duration)));
 
-        // Triplet eighths after a divisions change are exact (AC-S1-02).
+        // Triplet eighths after a divisions change are exact, and the tied E5 is one note (AC-S1-02).
         Assert.Equal(
-            [(71, 1920L, 160L), (72, 2080, 160), (74, 2240, 160), (76, 2400, 960)],
+            [(71, 1920L, 160L), (72, 2080, 160), (74, 2240, 160), (76, 2400, 1440)],
             result.Notes.Where(note => note.Hand!.Value == Hand.Right && note.Span.Onset.Value is >= 1920 and < 3360)
                 .Select(note => (note.Pitch.MidiNumber, note.Span.Onset.Value, note.Span.Duration)));
         Assert.All(result.SourceNotes, note => Assert.True(note.IsExact));
@@ -63,9 +63,9 @@ public class MusicXmlImportFixtureTests
         Assert.Equal(new MusicXmlKeySignature(Tick.Zero, 0, 0, 1, "major"), Assert.Single(result.KeySignatures));
         Assert.Equal(new Tick(480 + (3 * bar)), result.End);
 
-        Assert.Equal(("MusicXML 4.0", 1, 14, 4), (result.Report.Format, result.Report.TrackCount, result.Report.NoteCount, result.Report.MeasureCount));
+        Assert.Equal(("MusicXML 4.0", 1, 13, 4), (result.Report.Format, result.Report.TrackCount, result.Report.NoteCount, result.Report.MeasureCount));
         Assert.Equal(
-            [(MusicXmlIssueCodes.TiesNotMerged, 1), (MusicXmlIssueCodes.GraceNotesIgnored, 1)],
+            [(MusicXmlIssueCodes.GraceNotesFlagged, 1)],
             result.Report.Issues.Select(issue => (issue.Code, issue.Count)));
     }
 
@@ -103,6 +103,47 @@ public class MusicXmlImportFixtureTests
         ImportIssue issue = Assert.Single(result.Report.Issues);
         Assert.Equal((ImportIssueKind.Assumed, MusicXmlIssueCodes.VelocityDefault, 11), (issue.Kind, issue.Code, issue.Count));
         Assert.Equal(3, result.Report.MeasureCount);
+    }
+
+    [Fact]
+    public void Ties_merge_triplets_are_exact_and_bar_1_follows_the_pickup()
+    {
+        MusicXmlImport result = ImportFixture("ties-triplets-pickup.musicxml");
+
+        // AC-S1-02: 20 written notes, 18 after merging the two ties.
+        Assert.Equal(18, result.Notes.Count);
+        Assert.Equal(18, result.Parts[0].NoteCount);
+        Assert.Equal(2, result.SourceNotes.Count(note => note.WrittenNotes == 2));
+
+        // D5 quarter + eighth inside bar 1, and G5 across the bar line from bar 3 to bar 4.
+        MusicXmlNote d5 = Assert.Single(result.SourceNotes, note => note.WrittenNotes == 2 && note.Pitch == 74);
+        Assert.Equal((new QuarterFraction(9, 6), 1, new TickSpan(new Tick(480), 720)), (d5.Duration, d5.MeasureIndex, d5.Span));
+        MusicXmlNote g5 = Assert.Single(result.SourceNotes, note => note.WrittenNotes == 2 && note.Pitch == 79);
+        Assert.Equal((new QuarterFraction(18, 6), 3), (g5.Duration, g5.MeasureIndex));
+        Assert.Equal(1440, Assert.Single(result.Notes, note => note.Span.Onset == g5.Span.Onset && note.Pitch.MidiNumber == 79).Span.Duration);
+
+        // Triplet onsets are exact and flagged; bar 1 starts after the one-beat pickup.
+        Assert.All(result.SourceNotes, note => Assert.True(note.IsExact));
+        Assert.Equal(9, result.SourceNotes.Count(note => note.Tuplet == new MusicXmlTuplet(3, 2)));
+        Assert.Equal(new Tick(480), result.Meter.GetBar(1).Span.Onset);
+        Assert.Equal(0, result.Report.CountOf(MusicXmlIssueCodes.NotesRounded));
+        Assert.Equal(0, result.Report.CountOf(MusicXmlIssueCodes.TieWithoutStart));
+    }
+
+    [Fact]
+    public void Compressed_score_imports_like_the_uncompressed_one()
+    {
+        MusicXmlImport compressed = ImportFixture("grand-staff.mxl");
+        MusicXmlImport plain = ImportFixture("grand-staff.musicxml");
+
+        Assert.Equal(plain.Notes, compressed.Notes);
+        Assert.Equal(plain.Rests, compressed.Rests);
+        Assert.Equal(plain.Report, compressed.Report with { Issues = plain.Report.Issues });
+        Assert.Equal(plain.Report.Issues, compressed.Report.Issues);
+        Assert.Equal(26, compressed.Notes.Count);
+        Assert.Equal(
+            File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "MusicXml", "Fixtures", "grand-staff.musicxml")),
+            MusicXmlImporter.ReadScoreXml(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "MusicXml", "Fixtures", "grand-staff.mxl"))));
     }
 
     [Fact]

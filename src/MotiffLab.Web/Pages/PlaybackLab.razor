@@ -30,7 +30,7 @@
         <button @onclick="LoadDemoAsync" disabled="@(!Player.IsReady)">Demo piece</button>
         <label class="file">
             Open file
-            <InputFile OnChange="OpenFileAsync" accept=".mid,.midi,.musicxml,.xml" disabled="@(!Player.IsReady)" />
+            <InputFile OnChange="OpenFileAsync" accept=".mid,.midi,.musicxml,.mxl,.xml" disabled="@(!Player.IsReady)" />
         </label>
         @if (_title is not null)
         {
@@ -200,8 +200,9 @@
             }
             else
             {
-                MusicXmlImport import = MusicXmlImporter.Import(data);
-                using var text = new StreamReader(new MemoryStream(data), detectEncodingFromByteOrderMarks: true);
+                byte[] score = MusicXmlImporter.ReadScoreXml(data);
+                MusicXmlImport import = MusicXmlImporter.Import(score);
+                using var text = new StreamReader(new MemoryStream(score), detectEncodingFromByteOrderMarks: true);
                 await LoadAsync((PlaybackScore.FromMusicXml(import), import.Meter, import.Notes), args.File.Name, NotationGenerator.FromMusicXml(import, args.File.Name), await text.ReadToEndAsync());
             }
         }

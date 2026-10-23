@@ -1,6 +1,7 @@
 using System.Text;
 
 using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.MusicXml;
 using MotiffLab.MusicCore.Time;
 
@@ -56,9 +57,8 @@ public class MusicXmlImporterTests
     }
 
     [Fact]
-    public void Compressed_timewise_and_fractional_files_are_unsupported()
+    public void Timewise_and_fractional_files_are_unsupported()
     {
-        Assert.Equal(MusicXmlImportFailure.Unsupported, FailureOf([(byte)'P', (byte)'K', 3, 4, 20, 0]));
         Assert.Equal(MusicXmlImportFailure.Unsupported, FailureOf("<score-timewise><measure number=\"1\"/></score-timewise>"));
         Assert.Equal(
             MusicXmlImportFailure.Unsupported,
@@ -144,7 +144,7 @@ public class MusicXmlImporterTests
     }
 
     [Fact]
-    public void Rests_grace_cue_and_unpitched_notes_are_not_imported_but_rests_and_cues_take_time()
+    public void Rests_grace_cue_and_unpitched_notes_are_not_notes_but_rests_and_cues_take_time()
     {
         MusicXmlImport result = Import(
             FourFour
@@ -156,7 +156,10 @@ public class MusicXmlImporterTests
 
         var note = Assert.Single(result.SourceNotes);
         Assert.Equal((60, 480L, 2), (note.Pitch, note.Span.Onset.Value, note.NoteIndex));
-        Assert.Equal(1, result.Report.CountOf(MusicXmlIssueCodes.GraceNotesIgnored));
+        Assert.Equal(1, result.Report.CountOf(MusicXmlIssueCodes.GraceNotesFlagged));
+        Assert.Equal(new MusicXmlGraceNote(0, "P1", 0, 1, 1, "1", 59, new QuarterFraction(1, 1), new Tick(480), IsSlashed: false), Assert.Single(result.GraceNotes));
+        MusicXmlRest rest = Assert.Single(result.Rests);
+        Assert.Equal((QuarterFraction.Zero, new TickSpan(Tick.Zero, 480), 0), (rest.Onset, rest.Span, rest.NoteIndex));
         Assert.Equal(1, result.Report.CountOf(MusicXmlIssueCodes.CueNotesIgnored));
         Assert.Equal(1, result.Report.CountOf(MusicXmlIssueCodes.UnpitchedIgnored));
         Assert.Equal(new Tick(1920), result.End);
@@ -306,5 +309,103 @@ public class MusicXmlImporterTests
 
         Assert.Equal(first.Notes, second.Notes);
         Assert.Equal(first.Report.Issues, second.Report.Issues);
+    }
+
+    [Fact]
+    public void Tied_notes_merge_into_one_note_across_bar_lines_and_chords()
+    {
+        MusicXmlImport result = Import(
+            FourFour
+                + Note("C", 4, 2) + Note("E", 4, 4, "<chord/>") + Note("G", 4, 2, "<chord/>")
+                + Note("C", 4, 2, "<tie type=\"start\"/>") + Note("E", 4, 2, "<chord/><tie type=\"start\"/>"),
+            Note("C", 4, 1, "<tie type=\"stop\"/><tie type=\"start\"/>") + Note("E", 4, 1, "<chord/><tie type=\"stop\"/>") + Note("C", 4, 1, "<tie type=\"stop\"/>") + Note("C", 4, 2));
+
+        Assert.Equal(
+            [(60, 0L, 960L), (64, 0, 1920), (67, 0, 960), (60, 960, 1920), (64, 960, 1440), (60, 2880, 960)],
+            result.Notes.Select(note => (note.Pitch.MidiNumber, note.Span.Onset.Value, note.Span.Duration)));
+        Assert.Equal([1, 1, 1, 3, 2, 1], result.SourceNotes.Select(note => note.WrittenNotes));
+        Assert.Equal(6, result.Report.NoteCount);
+        Assert.Equal(0, result.Report.CountOf(MusicXmlIssueCodes.TieWithoutStart));
+    }
+
+    [Fact]
+    public void Notated_ties_merge_when_the_sounding_tie_is_missing()
+    {
+        MusicXmlImport result = Import(
+            FourFour
+                + "<note><pitch><step>D</step><octave>5</octave></pitch><duration>1</duration><notations><tied type=\"start\"/></notations></note>"
+                + "<note><pitch><step>D</step><octave>5</octave></pitch><duration>1</duration><notations><tied type=\"stop\"/></notations></note>");
+
+        Assert.Equal((74, 0L, 960L), (result.Notes[0].Pitch.MidiNumber, result.Notes[0].Span.Onset.Value, result.Notes[0].Span.Duration));
+        Assert.Single(result.Notes);
+    }
+
+    [Fact]
+    public void A_tie_stop_without_a_start_keeps_the_note_and_is_reported()
+    {
+        MusicXmlImport result = Import(FourFour + Note("C", 4, 1) + Note("D", 4, 1, "<tie type=\"stop\"/>"));
+
+        Assert.Equal(2, result.Notes.Count);
+        ImportIssue issue = Assert.Single(result.Report.Issues, issue => issue.Code == MusicXmlIssueCodes.TieWithoutStart);
+        Assert.Equal((ImportIssueKind.Repaired, 1), (issue.Kind, issue.Count));
+    }
+
+    [Fact]
+    public void Tuplets_are_flagged_with_their_ratio()
+    {
+        const string triplet = "<time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>";
+        MusicXmlImport result = Import(
+            "<attributes><divisions>3</divisions></attributes>"
+                + Note("C", 4, 1).Replace("</duration>", "</duration>" + triplet)
+                + Note("D", 4, 1).Replace("</duration>", "</duration>" + triplet)
+                + Note("E", 4, 1).Replace("</duration>", "</duration>" + triplet)
+                + Note("F", 4, 3));
+
+        Assert.Equal([new MusicXmlTuplet(3, 2), new MusicXmlTuplet(3, 2), new MusicXmlTuplet(3, 2), null], result.SourceNotes.Select(note => note.Tuplet));
+        Assert.Equal([0L, 160, 320, 480], result.Notes.Select(note => note.Span.Onset.Value));
+    }
+
+    [Fact]
+    public void Compressed_files_read_the_root_file_named_in_the_container()
+    {
+        string score = "<score-partwise><part-list><score-part id=\"P1\"/></part-list><part id=\"P1\"><measure number=\"1\">"
+            + FourFour + Note("A", 4, 4) + "</measure></part></score-partwise>";
+        byte[] archive = Zip(
+            ("mimetype", "application/vnd.recordare.musicxml"),
+            ("META-INF/container.xml", "<container><rootfiles><rootfile full-path=\"music/song.xml\" media-type=\"application/vnd.recordare.musicxml+xml\"/><rootfile full-path=\"song.pdf\" media-type=\"application/pdf\"/></rootfiles></container>"),
+            ("decoy.xml", "<score-partwise/>"),
+            ("music/song.xml", score));
+
+        Assert.Equal(69, Assert.Single(MusicXmlImporter.Import(archive).Notes).Pitch.MidiNumber);
+        Assert.Equal(score, Encoding.UTF8.GetString(MusicXmlImporter.ReadScoreXml(archive)));
+
+        // Without a container, the only score outside META-INF is the root file.
+        Assert.Single(MusicXmlImporter.Import(Zip(("song.musicxml", score))).Notes);
+    }
+
+    [Fact]
+    public void Damaged_compressed_files_fail_with_a_reason()
+    {
+        Assert.Equal(MusicXmlImportFailure.Damaged, FailureOf([(byte)'P', (byte)'K', 3, 4, 20, 0]));
+        Assert.Equal(
+            MusicXmlImportFailure.Damaged,
+            FailureOf(Zip(("META-INF/container.xml", "<container><rootfiles><rootfile full-path=\"missing.xml\"/></rootfiles></container>"))));
+        Assert.Equal(MusicXmlImportFailure.Damaged, FailureOf(Zip(("a.xml", "<score-partwise/>"), ("b.xml", "<score-partwise/>"))));
+        Assert.Equal(MusicXmlImportFailure.NotMusicXml, FailureOf(Zip(("score.xml", "not xml"))));
+    }
+
+    private static byte[] Zip(params (string Name, string Content)[] entries)
+    {
+        using var stream = new MemoryStream();
+        using (var archive = new System.IO.Compression.ZipArchive(stream, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach ((string name, string content) in entries)
+            {
+                using var writer = new StreamWriter(archive.CreateEntry(name).Open());
+                writer.Write(content);
+            }
+        }
+
+        return stream.ToArray();
     }
 }
