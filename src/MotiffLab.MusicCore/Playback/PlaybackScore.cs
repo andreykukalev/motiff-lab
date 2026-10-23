@@ -1,4 +1,5 @@
 using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Midi;
 using MotiffLab.MusicCore.Import.MusicXml;
 using MotiffLab.MusicCore.Time;
@@ -23,8 +24,6 @@ namespace MotiffLab.MusicCore.Playback;
 /// </remarks>
 public sealed class PlaybackScore
 {
-    private readonly MeterMap _meter;
-
     private PlaybackScore(
         IReadOnlyList<PlaybackNote> notes,
         IReadOnlyList<PlaybackTempo> tempos,
@@ -33,7 +32,7 @@ public sealed class PlaybackScore
         MeterMap meter,
         Tick end)
     {
-        _meter = meter;
+        Meter = meter;
         Notes = notes;
         Tempos = tempos;
         Beats = beats;
@@ -52,6 +51,9 @@ public sealed class PlaybackScore
 
     /// <summary>The bars that start before <see cref="End"/>, for the count-in and bar snapping.</summary>
     public IReadOnlyList<PlaybackBar> Bars { get; }
+
+    /// <summary>The bars of the piece, as the metronome and count-in follow them.</summary>
+    public MeterMap Meter { get; }
 
     /// <summary>Where playback stops when it is not looping: the end of the piece or of its last note, whichever is later.</summary>
     public Tick End { get; }
@@ -93,6 +95,12 @@ public sealed class PlaybackScore
             }
         }
 
+        return Build(ordered, tempoMap, meter, end);
+    }
+
+    /// <summary>Bars, beats and the end around notes and a tempo map that are already ordered and checked.</summary>
+    private static PlaybackScore Build(PlaybackNote[] ordered, PlaybackTempo[] tempoMap, MeterMap meter, Tick end)
+    {
         Tick last = ordered.Length == 0 ? end : ordered.Max(static note => note.Span.End);
         Tick scoreEnd = last > end ? last : end;
 
@@ -149,7 +157,18 @@ public sealed class PlaybackScore
     /// The same timeline with other notes, for a second source such as a variation (S1-W5). The
     /// end is kept, or extended if the new notes run past it.
     /// </summary>
-    public PlaybackScore WithNotes(IEnumerable<Note> notes) => Create(notes, Tempos, _meter, End);
+    public PlaybackScore WithNotes(IEnumerable<Note> notes) => Create(notes, Tempos, Meter, End);
+
+    /// <summary>The same notes and timeline, running to <paramref name="end"/> when that is later than <see cref="End"/>.</summary>
+    public PlaybackScore ExtendedTo(Tick end) => end > End ? Build([.. Notes], [.. Tempos], Meter, end) : this;
+
+    /// <summary>The playback score of an imported piece, whichever format it came from.</summary>
+    public static PlaybackScore FromPiece(ImportedPiece piece)
+    {
+        ArgumentNullException.ThrowIfNull(piece);
+
+        return piece.Midi is { } midi ? FromMidi(midi) : FromMusicXml(piece.MusicXml!);
+    }
 }
 
 /// <summary>A note as the playback engine plays it.</summary>
