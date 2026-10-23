@@ -7,6 +7,7 @@
 @using MotiffLab.MusicCore.Notation
 @using MotiffLab.MusicCore.Playback
 @using MotiffLab.MusicCore.Time
+@using MotiffLab.MusicCore.Variations
 @using MotiffLab.Web.Playback
 @using MotiffLab.Web.Roll
 @using MotiffLab.Web.Score
@@ -71,7 +72,7 @@
             {
                 <label><input type="radio" name="source" checked="@Player.ActiveSources.SequenceEqual(ids)" disabled="@_looping" @onchange="() => Player.SelectSourcesAsync(ids)" /> @label</label>
             }
-            <span class="meta">@(_looping ? "Only the selected notes play while the selection loops." : "The test variation is the same notes an octave higher.")</span>
+            <span class="meta">@(_looping ? "Only the selected notes play while the selection loops." : "The variation is empty until you reshape a selection below.")</span>
         </section>
 
         <section class="selection" aria-label="Selection">
@@ -109,6 +110,33 @@
                     }
                 </ul>
                 <p class="meta">Detected: read from the notes or the file. Inferred: worked out by a rule. Uncertain: a guess on thin evidence. Hover a fact to see why.</p>
+            }
+            @if (_selection is { NoteIds.Count: > 0 })
+            {
+                <div class="variation" aria-label="Variation">
+                    <div class="row keep" role="group" aria-label="What to keep">
+                        <span>Keep</span>
+                        @foreach (KeepProperty property in Enum.GetValues<KeepProperty>())
+                        {
+                            <label class="@KeepClass(property)" title="@KeepStatusText(property)">
+                                <input type="checkbox" checked="@_keep.Contains(property)" @onchange="() => ToggleKeepAsync(property)" /> @KeepLabel(property)
+                            </label>
+                        }
+                    </div>
+                    <div class="row">
+                        <span>V1 Rhythm reshape</span>
+                        <select @onchange="SetReshapeAsync" aria-label="How to reshape the rhythm" disabled="@(DisabledReason is not null)">
+                            @for (int i = 0; i < s_reshapes.Length; i++)
+                            {
+                                <option value="@i" selected="@(i == _reshape)">@s_reshapes[i].Label</option>
+                            }
+                        </select>
+                        <button class="primary" @onclick="() => ApplyAsync(play: true)" disabled="@(UnavailableReason is not null)">Apply and play</button>
+                        <button @onclick="() => AuditionAsync(variation: false)">Hear original</button>
+                        <button @onclick="() => AuditionAsync(variation: true)" disabled="@(_variation is null)">Hear variation</button>
+                    </div>
+                    <p class="meta" aria-live="polite">@(UnavailableReason ?? _variation?.Explanation ?? "Choose what to keep, then a reshape. The original notes are never changed.")</p>
+                </div>
             }
         </section>
 
@@ -158,6 +186,15 @@
     /// <summary>The selected notes alone, played while the selection loops.</summary>
     private const string SelectionSource = "selection";
 
+    private static readonly (string Label, RhythmReshapeParameters Parameters)[] s_reshapes =
+    [
+        ("Half-time", new(RhythmReshapeKind.HalfTime)),
+        ("Double-time", new(RhythmReshapeKind.DoubleTime)),
+        ("Displace by 1 eighth", new(RhythmReshapeKind.Displace, 1)),
+        ("Displace by 2 eighths", new(RhythmReshapeKind.Displace, 2)),
+        ("Displace by 3 eighths", new(RhythmReshapeKind.Displace, 3)),
+    ];
+
     private static readonly (string Label, string[] Ids)[] s_sources =
     [
         ("Original", [Player.OriginalSource]),
@@ -178,6 +215,9 @@
     private SelectionFilter _filter = SelectionFilter.All;
     private (string Label, SelectionFilter Filter)[] _filters = [("All notes", SelectionFilter.All)];
     private string? _selectionNote;
+    private readonly HashSet<KeepProperty> _keep = [KeepProperty.Pitches, KeepProperty.PitchOrder];
+    private int _reshape;
+    private Variation? _variation;
     private bool _looping;
     private string[] _sourcesBeforeLoop = [Player.OriginalSource];
     private string? _title;
@@ -290,9 +330,10 @@
         _analysis = null;
         _selectionNote = null;
         _looping = false;
+        _variation = null;
 
         await Player.LoadAsync(_score);
-        await Player.SetSourceAsync(VariationSource, _score.WithNotes(piece.Notes.Select(OctaveUp)));
+        await Player.SetSourceAsync(VariationSource, _score.WithNotes([]));
         await Player.SetTracksAsync([], []);
     }
 
@@ -323,9 +364,6 @@
         parts.Add("Click a note to play from there.");
         return string.Join(" ", parts);
     }
-
-    private static Note OctaveUp(Note note) =>
-        note with { Pitch = new Pitch(Math.Min(Pitch.MaxMidiNumber, note.Pitch.MidiNumber + 12)) };
 
     private Task TogglePlayAsync() => Player.State == PlaybackState.Stopped ? Player.PlayAsync() : Player.PauseAsync();
 
@@ -413,6 +451,7 @@
         _selection = MotifSelector.Select(_notes!, _meter!, span, _filter);
         _analysis = MotifAnalyzer.Analyze(_notes!, _meter!, _selection, KeySignature.InForce(_keys, span.Onset));
         _selectionNote = note;
+        await ClearVariationAsync();
         _barFrom = _selection.FirstBar;
         _barTo = _selection.LastBar;
         if (_looping)
@@ -438,6 +477,134 @@
         _selection = null;
         _analysis = null;
         _selectionNote = null;
+        await ClearVariationAsync();
+    }
+
+    /// <summary>Why the Keep choices rule V1 out (S1-E2), or null.</summary>
+    private string? DisabledReason => RhythmReshape.DisabledReason(_keep);
+
+    /// <summary>Why V1 cannot run on this selection with these choices, or null.</summary>
+    private string? UnavailableReason => DisabledReason ?? (_selection is { } selection
+        ? RhythmReshape.UnavailableReason(VariationFacts.MotifNotes(_notes!, selection), selection.Span, s_reshapes[_reshape].Parameters)
+        : "Select some notes first.");
+
+    private static string KeepLabel(KeepProperty property) => property switch
+    {
+        KeepProperty.PitchOrder => "Pitch order",
+        _ => property.ToString(),
+    };
+
+    private KeepStatus? KeepStatusOf(KeepProperty property) =>
+        _variation?.Checks.FirstOrDefault(check => check.Property == property)?.Status;
+
+    private string KeepClass(KeepProperty property) => KeepStatusOf(property) switch
+    {
+        KeepStatus.Kept => "chip kept",
+        KeepStatus.NoLongerKept => "chip broken",
+        _ => "chip",
+    };
+
+    private string? KeepStatusText(KeepProperty property) => KeepStatusOf(property) switch
+    {
+        KeepStatus.Kept => "Kept in the variation.",
+        KeepStatus.NoLongerKept => "No longer kept in the variation.",
+        KeepStatus.NotChecked => "Not checked yet: this needs voice and chord analysis.",
+        _ => null,
+    };
+
+    private async Task ToggleKeepAsync(KeepProperty property)
+    {
+        if (!_keep.Remove(property))
+        {
+            _keep.Add(property);
+        }
+
+        if (_variation is not null)
+        {
+            await ApplyAsync(play: false);
+        }
+    }
+
+    /// <summary>A new parameter re-runs the operation and plays the result at once (S1-E3).</summary>
+    private Task SetReshapeAsync(ChangeEventArgs args)
+    {
+        if (!int.TryParse(args.Value?.ToString(), out int index) || index < 0 || index >= s_reshapes.Length)
+        {
+            return Task.CompletedTask;
+        }
+
+        _reshape = index;
+        return _variation is null ? Task.CompletedTask : ApplyAsync(play: true);
+    }
+
+    /// <summary>Runs V1 on the selection, keeping the original notes as they are (S1-E1, S1-E4, S1-E9).</summary>
+    private async Task ApplyAsync(bool play)
+    {
+        if (_selection is not { } selection || UnavailableReason is not null)
+        {
+            await ClearVariationAsync();
+            return;
+        }
+
+        _variation = RhythmReshape.Apply(_notes!, selection, _keep, s_reshapes[_reshape].Parameters);
+        await Player.SetSourceAsync(VariationSource, _score!.WithNotes(_variation.Notes));
+        if (play || (_looping && Player.ActiveSources.SequenceEqual([VariationSource])))
+        {
+            await AuditionAsync(variation: true);
+        }
+    }
+
+    private async Task ClearVariationAsync()
+    {
+        if (_variation is null)
+        {
+            return;
+        }
+
+        if (_looping && Player.ActiveSources.SequenceEqual([VariationSource]))
+        {
+            await StopLoopingAsync();
+        }
+
+        _variation = null;
+        await Player.SetSourceAsync(VariationSource, _score!.WithNotes([]));
+    }
+
+    /// <summary>Loops the selected notes or their variation, each over the whole bars it sounds in.</summary>
+    private async Task AuditionAsync(bool variation)
+    {
+        if (_selection is not { } selection)
+        {
+            return;
+        }
+
+        if (!_looping)
+        {
+            _sourcesBeforeLoop = [.. Player.ActiveSources];
+            _looping = true;
+        }
+
+        TickSpan span = selection.Span;
+        if (variation && _variation is { Notes.Count: > 0 } result)
+        {
+            Tick end = result.Notes.Max(note => note.Span.End);
+            Tick barEnd = _meter!.BarAt(new Tick(end.Value - 1)).Span.End;
+            span = TickSpan.FromBounds(span.Onset, barEnd > span.End ? barEnd : span.End);
+            await Player.SelectSourcesAsync(VariationSource);
+        }
+        else
+        {
+            var ids = selection.NoteIds.ToHashSet(StringComparer.Ordinal);
+            await Player.SetSourceAsync(SelectionSource, _score!.WithNotes(_notes!.Where(note => ids.Contains(note.Id))));
+            await Player.SelectSourcesAsync(SelectionSource);
+        }
+
+        await Player.SetLoopAsync(span);
+        await Player.SeekAsync(span.Onset);
+        if (Player.State == PlaybackState.Stopped)
+        {
+            await Player.PlayAsync();
+        }
     }
 
     private async Task ToggleLoopSelectionAsync()
