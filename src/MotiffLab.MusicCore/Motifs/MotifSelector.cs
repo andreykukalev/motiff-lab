@@ -5,7 +5,8 @@ namespace MotiffLab.MusicCore.Motifs;
 
 /// <summary>
 /// Turns what the player marks on the piano roll into a <see cref="MotifSelection"/>: whole bars
-/// typed in or clicked, or a drag whose edges snap to beats (S1-M1), limited to 1–8 bars.
+/// typed in or clicked, or a drag whose edges snap to beats (S1-M1), limited to 1–8 bars; or
+/// 2–32 notes clicked one by one (S1-M3).
 /// </summary>
 public static class MotifSelector
 {
@@ -100,6 +101,54 @@ public static class MotifSelector
             && hand.Attribution.Provenance is not (Provenance.Imported or Provenance.UserConfirmed or Provenance.UserEdited));
 
         return new MotifSelection(span, firstBar, lastBar, filter, chosen.Select(static note => note.Id).ToArray(), handInferred);
+    }
+
+    /// <summary>
+    /// A selection of individual notes (S1-M3): 2–32 notes, given by id in any order. Its range runs
+    /// from the beat the first note starts in to the first beat line at or after the last note ends,
+    /// so the harmonic context of the bars it spans comes with it. Like a range, it spans at most
+    /// <see cref="MotifSelection.MaxBars"/> bars. Throws for an unknown id, a repeated id, or a count or
+    /// span out of bounds.
+    /// </summary>
+    public static MotifSelection SelectNotes(IEnumerable<Note> notes, MeterMap meter, IEnumerable<string> noteIds)
+    {
+        ArgumentNullException.ThrowIfNull(notes);
+        ArgumentNullException.ThrowIfNull(meter);
+        ArgumentNullException.ThrowIfNull(noteIds);
+
+        string[] ids = [.. noteIds];
+        if (ids.Length is < MotifSelection.MinNotes or > MotifSelection.MaxNotes)
+        {
+            throw new ArgumentOutOfRangeException(nameof(noteIds), ids.Length, $"Pick {MotifSelection.MinNotes} to {MotifSelection.MaxNotes} notes.");
+        }
+
+        if (ids.Distinct(StringComparer.Ordinal).Count() != ids.Length)
+        {
+            throw new ArgumentException("A note can be picked only once.", nameof(noteIds));
+        }
+
+        var byId = new Dictionary<string, Note>(StringComparer.Ordinal);
+        foreach (Note note in notes)
+        {
+            byId.TryAdd(note.Id, note);
+        }
+
+        Note[] chosen = [.. ids
+            .Select(id => byId.TryGetValue(id, out Note? note) ? note : throw new ArgumentException($"No note has the id {id}.", nameof(noteIds)))
+            .OrderBy(static note => note.Span.Onset)
+            .ThenBy(static note => note.Pitch.MidiNumber)
+            .ThenBy(static note => note.Id, StringComparer.Ordinal)];
+
+        Tick start = BeatStart(meter, chosen[0].Span.Onset);
+        Tick stop = BeatEnd(meter, chosen.Max(static note => note.Span.End));
+        int firstBar = meter.BarAt(start).Number;
+        int lastBar = meter.BarAt(new Tick(stop.Value - 1)).Number;
+        if (lastBar - firstBar + 1 > MotifSelection.MaxBars)
+        {
+            throw new ArgumentOutOfRangeException(nameof(noteIds), $"A selection spans at most {MotifSelection.MaxBars} bars.");
+        }
+
+        return new MotifSelection(TickSpan.FromBounds(start, stop), firstBar, lastBar, SelectionFilter.All, [.. chosen.Select(static note => note.Id)], HandInferred: false);
     }
 
     /// <summary>The number of the last bar that starts before <paramref name="end"/>.</summary>
