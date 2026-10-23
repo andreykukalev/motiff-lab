@@ -22,7 +22,7 @@ namespace MotiffLab.MusicCore.Import.MusicXml;
 /// <para>
 /// Notes map to the shared <see cref="Note"/> as imported facts, with tied notes merged into one.
 /// A part with two staves is a grand staff: staff 1 is the right hand and staff 2 the left, both
-/// imported. Grace notes and rests are kept as source facts beside the notes.
+/// imported. Grace notes, rests, slurs and repeat signs are kept as source facts beside the notes.
 /// </para>
 /// <para>
 /// The import is pure and deterministic: the same bytes give the same result and report.
@@ -235,6 +235,24 @@ public static class MusicXmlImporter
             .ThenBy(rest => rest.NoteIndex)
             .ToList();
 
+        // Slurs and repeat signs: the source's phrase evidence (S1-I5).
+        var slurs = parts
+            .SelectMany(part => PairSlurs(part, At, issues))
+            .OrderBy(slur => slur.Start)
+            .ThenBy(slur => slur.Track)
+            .ThenBy(slur => slur.Stop)
+            .ToList();
+        var repeats = parts
+            .SelectMany(part => part.Repeats)
+            .Select(repeat => new MusicXmlRepeat(
+                CanonicalTime.ToTick(starts[repeat.IsAtEnd ? repeat.MeasureIndex + 1 : repeat.MeasureIndex]).Tick,
+                repeat.MeasureIndex,
+                repeat.Direction))
+            .Distinct()
+            .OrderBy(repeat => repeat.At)
+            .ThenBy(repeat => repeat.Direction)
+            .ToList();
+
         // Tempo
         var tempos = Merge(
                 parts.SelectMany(part => part.Tempos),
@@ -332,7 +350,45 @@ public static class MusicXmlImporter
             MeasureCount: meter.BarsBefore(end).Count(),
             Issues: issues.Build(MusicXmlIssueCodes.Describe));
 
-        return new MusicXmlImport(version, partInfos, events, sourceNotes, graceNotes, rests, measures, tempos, timeSignatures, meter, keys, end, report);
+        return new MusicXmlImport(version, partInfos, events, sourceNotes, graceNotes, rests, slurs, repeats, measures, tempos, timeSignatures, meter, keys, end, report);
+    }
+
+    /// <summary>
+    /// Pairs the slur starts and stops of a part by their <c>number</c>, in document order. A start
+    /// whose number is already open replaces the open one; a stop with nothing open and a start never
+    /// stopped are left out and reported.
+    /// </summary>
+    private static List<MusicXmlSlur> PairSlurs(PartReader part, Func<int, QuarterFraction, QuarterFraction> at, ImportIssueCollector issues)
+    {
+        var slurs = new List<MusicXmlSlur>();
+        var open = new Dictionary<int, PartSlurMark>();
+        foreach (PartSlurMark mark in part.Slurs)
+        {
+            if (mark.IsStart)
+            {
+                if (open.ContainsKey(mark.Number))
+                {
+                    issues.Add(ImportIssueKind.Dropped, MusicXmlIssueCodes.SlurUnmatched, part.Index);
+                }
+
+                open[mark.Number] = mark;
+                continue;
+            }
+
+            if (!open.Remove(mark.Number, out PartSlurMark? start))
+            {
+                issues.Add(ImportIssueKind.Dropped, MusicXmlIssueCodes.SlurUnmatched, part.Index);
+                continue;
+            }
+
+            Tick first = CanonicalTime.ToTick(at(start.MeasureIndex, start.Offset)).Tick;
+            Tick last = CanonicalTime.ToTick(at(mark.MeasureIndex, mark.Offset)).Tick;
+            (first, last) = first <= last ? (first, last) : (last, first);
+            slurs.Add(new MusicXmlSlur(part.Index, part.Id, mark.Number, start.MeasureIndex, first, last));
+        }
+
+        issues.Add(ImportIssueKind.Dropped, MusicXmlIssueCodes.SlurUnmatched, part.Index, open.Count);
+        return slurs;
     }
 
     /// <summary>
@@ -583,6 +639,12 @@ public static class MusicXmlImporter
 
     private sealed record PartRest(int MeasureIndex, int NoteIndex, QuarterFraction Offset, QuarterFraction Duration, int Staff, string Voice, bool IsMeasureRest);
 
+    /// <summary>A slur start or stop on a note, at the note's onset.</summary>
+    private sealed record PartSlurMark(int MeasureIndex, QuarterFraction Offset, int Number, bool IsStart);
+
+    /// <summary>A repeat sign on the left (start) or right (end) bar line of a measure.</summary>
+    private sealed record PartRepeat(int MeasureIndex, bool IsAtEnd, MusicXmlRepeatDirection Direction);
+
     private sealed record MeasureInfo(string? Number, bool IsImplicit, QuarterFraction Length);
 
     /// <summary>Walks one part: keeps a position cursor per measure and collects notes, attributes and directions.</summary>
@@ -617,6 +679,10 @@ public static class MusicXmlImporter
         public List<PartGraceNote> GraceNotes { get; } = [];
 
         public List<PartRest> Rests { get; } = [];
+
+        public List<PartSlurMark> Slurs { get; } = [];
+
+        public List<PartRepeat> Repeats { get; } = [];
 
         public List<Timed<decimal>> Tempos { get; } = [];
 
@@ -687,6 +753,9 @@ public static class MusicXmlImporter
                             break;
                         case "sound":
                             ReadSound(element);
+                            break;
+                        case "barline":
+                            ReadBarline(element);
                             break;
                     }
                 }
@@ -759,6 +828,48 @@ public static class MusicXmlImporter
             (bool tieStart, bool tieStop) = ReadTies(note);
 
             Notes.Add(new PartNote(_measureIndex, _noteIndex, onset, duration, pitch, velocity, staff, voice, tieStart, tieStop, ReadTuplet(note)));
+            ReadSlurs(note, onset);
+        }
+
+        /// <summary>Slur starts and stops on a note; a <c>continue</c> neither opens nor closes a slur.</summary>
+        private void ReadSlurs(XElement note, QuarterFraction onset)
+        {
+            foreach (XElement slur in note.Elements("notations").Elements("slur"))
+            {
+                string? type = slur.Attribute("type")?.Value.Trim();
+                if (type is not ("start" or "stop"))
+                {
+                    continue;
+                }
+
+                int number = TryParseInt(slur.Attribute("number")?.Value, out int n) ? n : 1;
+                Slurs.Add(new PartSlurMark(_measureIndex, onset, number, type == "start"));
+            }
+        }
+
+        private void ReadBarline(XElement barline)
+        {
+            if (barline.Element("repeat")?.Attribute("direction")?.Value.Trim() is not string direction)
+            {
+                return;
+            }
+
+            string location = barline.Attribute("location")?.Value.Trim() ?? "right";
+            if (location == "middle")
+            {
+                return;
+            }
+
+            MusicXmlRepeatDirection? parsed = direction switch
+            {
+                "forward" => MusicXmlRepeatDirection.Forward,
+                "backward" => MusicXmlRepeatDirection.Backward,
+                _ => null,
+            };
+            if (parsed is { } value)
+            {
+                Repeats.Add(new PartRepeat(_measureIndex, location == "right", value));
+            }
         }
 
         /// <summary>A grace note takes no time: it is listed at the cursor, before the note it ornaments.</summary>
@@ -786,6 +897,7 @@ public static class MusicXmlImporter
             string voice = Trimmed(note.Element("voice")?.Value) ?? "1";
             bool isSlashed = string.Equals(grace.Attribute("slash")?.Value.Trim(), "yes", StringComparison.Ordinal);
             GraceNotes.Add(new PartGraceNote(_measureIndex, _noteIndex, _cursor, pitch, staff, voice, isSlashed));
+            ReadSlurs(note, _cursor);
             issues.Add(ImportIssueKind.Dropped, MusicXmlIssueCodes.GraceNotesFlagged, index);
         }
 

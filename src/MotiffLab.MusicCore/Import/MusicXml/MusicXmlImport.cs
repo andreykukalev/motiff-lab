@@ -1,3 +1,4 @@
+using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Time;
 
@@ -17,6 +18,8 @@ namespace MotiffLab.MusicCore.Import.MusicXml;
 /// <param name="SourceNotes">The sounding notes the shared notes were built from, with their exact source timing.</param>
 /// <param name="GraceNotes">Grace notes, flagged and kept apart from <paramref name="Notes"/>: they take no notated time, so they are not played or analysed yet.</param>
 /// <param name="Rests">Rests in every part and voice, in time order.</param>
+/// <param name="Slurs">Slurs, start and stop paired, in time order (S1-I5).</param>
+/// <param name="Repeats">Repeat signs on bar lines, one per position and direction, in time order (S1-I5).</param>
 /// <param name="Measures">The measures of the score, aligned across parts.</param>
 /// <param name="KeySignatures">Key signatures per part: parts can differ, for example transposing instruments.</param>
 /// <param name="End">The end of the piece: the end of the last measure, or of the last note if that is later.</param>
@@ -27,13 +30,21 @@ public sealed record MusicXmlImport(
     IReadOnlyList<MusicXmlNote> SourceNotes,
     IReadOnlyList<MusicXmlGraceNote> GraceNotes,
     IReadOnlyList<MusicXmlRest> Rests,
+    IReadOnlyList<MusicXmlSlur> Slurs,
+    IReadOnlyList<MusicXmlRepeat> Repeats,
     IReadOnlyList<MusicXmlMeasure> Measures,
     IReadOnlyList<MusicXmlTempoChange> Tempos,
     IReadOnlyList<MusicXmlTimeSignature> TimeSignatures,
     MeterMap Meter,
     IReadOnlyList<MusicXmlKeySignature> KeySignatures,
     Tick End,
-    ImportReport Report);
+    ImportReport Report)
+{
+    /// <summary>The slurs and repeat signs as phrase evidence for <see cref="PhraseBoundaryFinder"/>.</summary>
+    public PhraseMarks PhraseMarks => new(
+        [.. Slurs.Select(static slur => new SlurMark(slur.Track, slur.Start, slur.Stop))],
+        [.. Repeats.Select(static repeat => repeat.At).Distinct()]);
+}
 
 /// <param name="Index">Zero-based track index: the position of the <c>&lt;part&gt;</c> in the file.</param>
 /// <param name="Id">The part's <c>id</c> attribute, for example "P1".</param>
@@ -103,6 +114,27 @@ public sealed record MusicXmlRest(
     QuarterFraction Duration,
     TickSpan Span,
     bool IsMeasureRest);
+
+/// <summary>A slur from <c>&lt;notations&gt;&lt;slur&gt;</c>, its start and stop paired by <c>number</c>.</summary>
+/// <param name="Number">The slur's <c>number</c> attribute, 1 when not given; a slur inside another has a different number.</param>
+/// <param name="MeasureIndex">The measure of the note the slur starts on.</param>
+/// <param name="Start">The onset of the note the slur starts on.</param>
+/// <param name="Stop">The onset of the note the slur ends on.</param>
+public sealed record MusicXmlSlur(int Track, string PartId, int Number, int MeasureIndex, Tick Start, Tick Stop);
+
+/// <summary>A repeat sign from a <c>&lt;barline&gt;</c>. Repeats are not unfolded: notes follow the written order (0006).</summary>
+/// <param name="At">The bar line: the start of the measure for a left bar line, its end for a right one.</param>
+/// <param name="MeasureIndex">The measure whose bar line carries the sign.</param>
+public sealed record MusicXmlRepeat(Tick At, int MeasureIndex, MusicXmlRepeatDirection Direction);
+
+public enum MusicXmlRepeatDirection
+{
+    /// <summary>Start of a repeated section.</summary>
+    Forward,
+
+    /// <summary>End of a repeated section: play again from the forward repeat, or from the start.</summary>
+    Backward,
+}
 
 /// <param name="Index">Zero-based position of the <c>&lt;measure&gt;</c> in each part.</param>
 /// <param name="Number">The <c>number</c> label as written; it can repeat or be non-numeric.</param>

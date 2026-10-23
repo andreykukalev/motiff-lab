@@ -34,6 +34,7 @@ public static class MusicXmlIssueCodes
     public const string TempoSuperseded = "musicxml.tempo-superseded";
     public const string MeterSuperseded = "musicxml.meter-superseded";
     public const string MeterInPickup = "musicxml.meter-in-pickup";
+    public const string SlurUnmatched = "musicxml.slur-unmatched";
 
     public static string Describe(string code, int count) => code switch
     {
@@ -61,6 +62,7 @@ public static class MusicXmlIssueCodes
         TempoSuperseded => $"{Plural(count, "tempo mark was", "tempo marks were")} replaced by a different one at the same position.",
         MeterSuperseded => $"{Plural(count, "time signature was", "time signatures were")} replaced by a different one at the same position.",
         MeterInPickup => $"{Plural(count, "time signature inside the pickup bar was", "time signatures inside the pickup bar were")} left out.",
+        SlurUnmatched => $"{Plural(count, "slur mark has", "slur marks have")} no matching start or end and were left out, so no phrase boundary is taken from them.",
         _ => throw new ArgumentOutOfRangeException(nameof(code), code, "Unknown MusicXML issue code."),
     };
 
