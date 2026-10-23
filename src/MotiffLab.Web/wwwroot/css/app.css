@@ -195,6 +195,21 @@ html, body {
     min-width: 5rem;
 }
 
+/* Motif selection (S1-M1, S1-M2): its controls, and its state in words. */
+.lab .selection {
+    border-left: 3px solid var(--ml-lime);
+    padding-left: 0.75rem;
+}
+
+.lab .selection select {
+    font: inherit;
+}
+
+/* Room for two lines, so the roll below does not move as the description changes. */
+.lab .selection p {
+    min-height: 2.6em;
+}
+
 /* Score view (Score/ScoreView.razor, Scripts/score): ink on a raised surface, the notes being heard in the accent. */
 .score {
     max-height: 70vh;

@@ -1,5 +1,6 @@
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Playback;
+using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.Web.Roll;
 
@@ -59,3 +60,6 @@ internal static class PianoRollPayload
 }
 
 internal sealed record RollPayload(string[] Ids, long[] Notes, long[] Bars, long End);
+
+/// <summary>A drag across the roll's bar numbers, from where it started to where it ended; a click when it barely moved.</summary>
+public readonly record struct RollRange(Tick Anchor, Tick Current, bool IsClick);
