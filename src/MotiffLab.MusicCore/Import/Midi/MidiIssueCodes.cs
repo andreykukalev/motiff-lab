@@ -14,6 +14,7 @@ public static class MidiIssueCodes
     public const string SamePitchOverlap = "midi.same-pitch-overlap";
     public const string TempoOutsideFirstTrack = "midi.tempo-outside-first-track";
     public const string Format0WithManyTracks = "midi.format0-many-tracks";
+    public const string HandsInferred = "midi.hands-inferred";
 
     // Repaired
     public const string ZeroLengthWidened = "midi.zero-length-widened";
@@ -49,6 +50,7 @@ public static class MidiIssueCodes
         SamePitchOverlap => $"{Notes(count)} started while the same key was already sounding; note-offs were paired in order (first on, first off).",
         TempoOutsideFirstTrack => $"{Plural(count, "tempo change", "tempo changes")} found outside the first track were applied to the whole piece.",
         Format0WithManyTracks => "The file says it is type 0 but has more than one track; every track was read.",
+        HandsInferred => $"The file has both hands on one track, so the hand of {Plural(count, "note was", "all notes were")} inferred from pitch and continuity; you can reassign any note.",
         ZeroLengthWidened => $"{Notes(count)} ended at the same tick they started and were widened to one tick.",
         TrackDamaged => "The track is damaged; events up to the damage were kept and the rest left out.",
         TrackTruncated => "The track is shorter than its header says; what was there was read.",

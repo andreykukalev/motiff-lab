@@ -53,4 +53,5 @@ The report groups issues by code and track with a count, so a 5,000-note file gi
 - The sustain pedal is dropped for now. Playback with pedal, and the domain model's `sounding_offset_s`, need it later; adding it is one more record type, since the reader already sees CC64.
 - Markers and lyrics are dropped. They could later seed phrase or section boundaries (S1-I5), marked as imported.
 - The report's measure count (S1-I8) comes from the meter map: bars from the start to the end of the piece, counting a final partial bar.
-- Single-track hand inference (S1-I4) and performance detection (S1-I6) build on `MidiImport` and are separate increments.
+- Single-track hand inference (S1-I4) runs at the end of the import: when one track holds all the notes, its channels are pianos (programs 0–7, or none set) and two notes sound at once somewhere, `HandInference` assigns each note a hand by pitch and continuity, marked inferred with a confidence, and the report says so (`midi.hands-inferred`, Assumed). Multi-track files and single melodic lines get no hands. `HandInference.Reassign` records the player's change as user-edited (AC-S1-04).
+- Performance detection (S1-I6) builds on `MidiImport` and is a separate increment.

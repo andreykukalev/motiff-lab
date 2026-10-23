@@ -183,7 +183,8 @@ public class MidiFixtureTests
         Assert.Equal(0, result.Format);
         Assert.Equal(55, Assert.Single(result.Tracks).NoteCount);
         Assert.Equal([0], result.Tracks[0].Channels);
-        Assert.Empty(result.Report.Issues);
+        ImportIssue hands = Assert.Single(result.Report.Issues);
+        Assert.Equal((ImportIssueKind.Assumed, MidiIssueCodes.HandsInferred, 55), (hands.Kind, hands.Code, hands.Count));
 
         // Every line of the hand key names exactly one imported note, and every note has a line.
         (long Tick, int Pitch, string Hand)[] key = [.. File.ReadLines(FixturePath("piano-single-track.hands.txt"))
@@ -227,7 +228,7 @@ public class MidiFixtureTests
         Assert.Equal(46, result.Notes.Count);
         Assert.Equal(new MidiTempoChange(Tick.Zero, 0, 500_000, false), Assert.Single(result.Tempos));
         Assert.Equal(new MidiTimeSignature(Tick.Zero, 0, 4, 4, false), Assert.Single(result.TimeSignatures));
-        Assert.Empty(result.Report.Issues);
+        Assert.Equal(MidiIssueCodes.HandsInferred, Assert.Single(result.Report.Issues).Code); // melody and bass on one track
 
         // Onsets spread across the whole beat instead of clustering near grid points.
         long[] offsets = [.. result.SourceNotes.Select(note => OffsetFromGrid(note.Span.Onset.Value, 480))];
@@ -243,7 +244,7 @@ public class MidiFixtureTests
         Assert.Equal(12, result.Notes.Count);
         Assert.Equal([0], Assert.Single(result.Tracks).Channels);
         Assert.Equal(24, result.Report.CountOf(MidiIssueCodes.DrumsExcluded));
-        Assert.Equal("Track 1: 24 notes on the drum channel (10) were left out.", Assert.Single(result.Report.Issues).Message);
+        Assert.Equal("Track 1: 24 notes on the drum channel (10) were left out.", Assert.Single(result.Report.Issues, issue => issue.Code == MidiIssueCodes.DrumsExcluded).Message);
     }
 
     [Fact]
