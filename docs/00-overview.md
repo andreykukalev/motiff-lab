@@ -27,7 +27,7 @@ Existing tools sit at two extremes:
 
 The core question is not "how do I convert audio into notes?" but "how can I use music I love to learn to hear, reconstruct, understand and transform musical ideas?" The product should reduce the friction of that process without removing the effort that makes it learning.
 
-Competitor features are from memory and need a check before this doc is shared.
+Competitor features were checked against public product pages and 2026 reviews on 2026-10-23 (stem-separation and transcription tools, piano-learning apps, ear-training apps, AI composition tools). None of them combines a player's own piece, controlled and explained variations, and a record of what the player found. Generative tools are closest in output and furthest in intent: they make the music for the player.
 
 ## Vision and principles
 
