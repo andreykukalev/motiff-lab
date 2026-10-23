@@ -1,13 +1,174 @@
 @page "/"
-@using MotiffLab.MusicCore.Time
+@using MotiffLab.MusicCore.Motifs
+@using MotiffLab.MusicCore.Projects
+@using MotiffLab.Web.Import
+@using MotiffLab.Web.Projects
+@inject ProjectStore Projects
+@inject CurrentPiece CurrentPiece
+@inject NavigationManager Navigation
 
 <PageTitle>Motiff Lab</PageTitle>
 
-<main class="home">
+@* N1 · Projects (S1-P1): the projects saved in this browser, with export and re-import as one file for backup (AC-S1-20). *@
+<main class="lab projects">
     <h1>Motiff Lab</h1>
     <p class="tagline">Hear. Understand. Transform.</p>
-    <p>Stage 1 is under construction: import a MIDI or MusicXML file, pick a motif, and transform it one property at a time.</p>
-    <p><a href="import">Import a file</a>: a MIDI or MusicXML file of your own, read on this device.</p>
-    <p><a href="playback">Try playback</a> with a demo piece or a file of your own.</p>
-    <p class="meta">music-core resolution: <code>@CanonicalTime.TicksPerQuarter</code> ticks per quarter note</p>
+
+    <section class="row">
+        <a class="button primary" href="import">Import a file</a>
+        <label class="file">
+            Import a project file
+            <InputFile OnChange="ImportProjectAsync" accept=".json" />
+        </label>
+        <a href="playback">Playback test bench</a>
+    </section>
+
+    @if (_message is not null)
+    {
+        <p class="error" role="alert">@_message</p>
+    }
+
+    @if (_nearlyFull)
+    {
+        <p class="warning" role="status">Storage in this browser is nearly full. Export the projects you want to keep, then delete them here to make room.</p>
+    }
+
+    @if (_summaries is null)
+    {
+        <p class="meta">Loading your projects…</p>
+    }
+    else if (_summaries.Count == 0)
+    {
+        <section class="empty">
+            <p>Motiff Lab helps you explore the music you love: pick a motif, hear how it works, and transform it one property at a time.</p>
+            <p class="meta">Import a MIDI or MusicXML file to start. Your projects are saved in this browser and never leave this device.</p>
+        </section>
+    }
+    else
+    {
+        <table class="project-table">
+            <thead>
+                <tr><th scope="col">Piece</th><th scope="col">Motifs</th><th scope="col">Variations</th><th scope="col">Last opened</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr>
+            </thead>
+            <tbody>
+                @foreach (ProjectSummary summary in _summaries)
+                {
+                    <tr>
+                        <td><button class="link" @onclick="() => OpenAsync(summary.Id)">@summary.FileName</button></td>
+                        <td>@summary.MotifCount</td>
+                        <td>@summary.VariationCount</td>
+                        <td>@summary.LastOpened.ToLocalTime().ToString("d MMM yyyy, HH:mm")</td>
+                        <td class="actions">
+                            <button @onclick="() => ExportAsync(summary.Id)">Export</button>
+                            @if (_confirmDelete == summary.Id)
+                            {
+                                <button class="on" @onclick="() => DeleteAsync(summary.Id)">Delete for good</button>
+                                <button @onclick="() => _confirmDelete = null">Keep</button>
+                            }
+                            else
+                            {
+                                <button @onclick="() => _confirmDelete = summary.Id">Delete</button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <p class="meta">Projects are saved in this browser only. Export a project to keep a copy or move it to another device.</p>
+    }
 </main>
+
+@code {
+    private IReadOnlyList<ProjectSummary>? _summaries;
+    private bool _nearlyFull;
+    private string? _message;
+    private string? _confirmDelete;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await RefreshAsync();
+            StateHasChanged();
+        }
+    }
+
+    private async Task RefreshAsync()
+    {
+        _summaries = await Projects.ListAsync();
+        _nearlyFull = await Projects.IsNearlyFullAsync();
+    }
+
+    /// <summary>Rebuilds the project from its source and opens it in the workspace, where it carries on autosaving.</summary>
+    private async Task OpenAsync(string id)
+    {
+        _message = null;
+        try
+        {
+            if (await Projects.LoadAsync(id) is not { } saved)
+            {
+                _message = "This project is no longer saved in this browser.";
+                await RefreshAsync();
+                return;
+            }
+
+            Project project = saved with { LastOpened = DateTimeOffset.Now };
+            OpenedProject opened = OpenedProject.Open(project);
+            await Projects.SaveAsync(project);
+            CurrentPiece.Open(opened.Piece, opened.Motifs.FirstOrDefault()?.Filter ?? SelectionFilter.All, project, opened);
+            Navigation.NavigateTo("playback");
+        }
+        catch (ProjectFileException exception)
+        {
+            _message = exception.Message;
+        }
+    }
+
+    private async Task ExportAsync(string id)
+    {
+        _message = null;
+        try
+        {
+            if (await Projects.LoadAsync(id) is { } project)
+            {
+                await Projects.ExportAsync(project);
+            }
+        }
+        catch (ProjectFileException exception)
+        {
+            _message = exception.Message;
+        }
+    }
+
+    private async Task DeleteAsync(string id)
+    {
+        _confirmDelete = null;
+        await Projects.DeleteAsync(id);
+        await RefreshAsync();
+    }
+
+    /// <summary>Re-imports an exported project (AC-S1-20). It replaces a saved project with the same id.</summary>
+    private async Task ImportProjectAsync(InputFileChangeEventArgs args)
+    {
+        _message = null;
+        try
+        {
+            // A project holds a source of at most 5 MB, which base64 and the JSON around it grow by about a third.
+            await using Stream stream = args.File.OpenReadStream(8 * 1024 * 1024);
+            using var memory = new MemoryStream();
+            await stream.CopyToAsync(memory);
+            Project project = ProjectFile.Read(memory.ToArray());
+            OpenedProject.Open(project);
+            await Projects.SaveAsync(project);
+            await RefreshAsync();
+        }
+        catch (ProjectFileException exception)
+        {
+            _message = $"{args.File.Name}: {exception.Message}";
+        }
+        catch (IOException)
+        {
+            _message = $"{args.File.Name} is too large to be a Motiff Lab project file.";
+        }
+    }
+}
