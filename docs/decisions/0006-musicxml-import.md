@@ -48,6 +48,8 @@ Policies:
 | Tuplets | Timing needs nothing extra (exact quarters); `MusicXmlNote.Tuplet` keeps the `<time-modification>` ratio | — |
 | Rests | Listed as `MusicXmlRest` with part, staff, voice, exact and canonical timing, and whether it is a whole-measure rest | — |
 | Grace notes | Listed as `MusicXmlGraceNote` (pitch, the position of the note they ornament, slash) and kept out of `Notes`, since they take no notated time; not played or analysed yet | Dropped, counted |
+| Slurs | `<notations><slur>` start and stop paired by `number` in document order, listed as `MusicXmlSlur` from the onset of the first note to the onset of the last; `continue` is ignored. `PhraseBoundaryFinder` reads the outermost ones as phrase marks (S1-I5) | Unmatched start or stop: Dropped |
+| Repeat signs | `<barline><repeat>` listed as `MusicXmlRepeat` at the measure's start (left bar line) or end (right), once per position and direction across parts; phrase evidence for `PhraseBoundaryFinder` (S1-I5) | — |
 | Cue notes, unpitched notes, invalid pitches | Left out; cue and unpitched notes still take time | Dropped |
 
 Codes (`MusicXmlIssueCodes`) are stable keys; messages are plain English. The report's track is the part index.
