@@ -50,7 +50,7 @@ public static class MidiIssueCodes
         SamePitchOverlap => $"{Notes(count)} started while the same key was already sounding; note-offs were paired in order (first on, first off).",
         TempoOutsideFirstTrack => $"{Plural(count, "tempo change", "tempo changes")} found outside the first track were applied to the whole piece.",
         Format0WithManyTracks => "The file says it is type 0 but has more than one track; every track was read.",
-        HandsInferred => $"The file has both hands on one track, so the hand of {Plural(count, "note was", "all notes were")} inferred from pitch and continuity; you can reassign any note.",
+        HandsInferred => $"The file has both hands on one track, so the hand of {Plural(count, "note was", "notes were")} inferred from pitch and continuity; you can reassign any note.",
         ZeroLengthWidened => $"{Notes(count)} ended at the same tick they started and were widened to one tick.",
         TrackDamaged => "The track is damaged; events up to the damage were kept and the rest left out.",
         TrackTruncated => "The track is shorter than its header says; what was there was read.",

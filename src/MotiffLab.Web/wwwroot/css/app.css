@@ -341,3 +341,66 @@ html, body {
     align-items: center;
     gap: 0.4rem;
 }
+
+/* Import screen (Pages/Import.razor, N2): a drop zone over the native file input, then the report. */
+.import .dropzone {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 8rem;
+    margin: 1rem 0;
+    border: 2px dashed var(--ml-gray);
+    border-radius: 0.6rem;
+    color: var(--ml-gray);
+    cursor: pointer;
+}
+
+.import .dropzone:hover, .import .dropzone:focus-within {
+    border-color: var(--ml-lime);
+    color: var(--ml-white);
+}
+
+.import .dropzone.busy {
+    cursor: progress;
+}
+
+/* The input covers the zone, so a drop lands on it and the browser reads the file as a pick. */
+.import .dropzone input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: inherit;
+}
+
+.import .summary {
+    font-size: 1.1rem;
+}
+
+.import .tracks-table {
+    border-collapse: collapse;
+    margin: 0.5rem 0 1rem;
+}
+
+.import .tracks-table th, .import .tracks-table td {
+    text-align: left;
+    padding: 0.2rem 1rem 0.2rem 0;
+}
+
+.import .tracks-table th {
+    color: var(--ml-gray);
+    font-weight: normal;
+}
+
+.import .warnings .kind {
+    color: var(--ml-gray);
+    min-width: 5rem;
+    display: inline-block;
+}
+
+.import .start {
+    border-left: 3px solid var(--ml-lime);
+    padding-left: 0.75rem;
+}
