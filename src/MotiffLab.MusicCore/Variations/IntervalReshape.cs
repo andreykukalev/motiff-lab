@@ -3,17 +3,18 @@ using MotiffLab.MusicCore.Analysis;
 namespace MotiffLab.MusicCore.Variations;
 
 /// <summary>The parameters of V9 Interval reshape.</summary>
-/// <param name="Steps">Scale steps added to every melody interval: 1 or 2 widens, −1 or −2 narrows.</param>
-public sealed record IntervalReshapeParameters(int Steps) : OperationParameters
+/// <param name="Steps">Scale steps added to each changed melody interval: 1 or 2 widens, −1 or −2 narrows.</param>
+/// <param name="Intervals">The melody intervals to reshape; null reshapes them all.</param>
+public sealed record IntervalReshapeParameters(int Steps, IntervalSet? Intervals = null) : OperationParameters
 {
     public const int MaxSteps = 2;
 }
 
 /// <summary>
-/// V9 Interval reshape: widens or narrows every melody interval by 1–2 steps of the key's scale and
-/// keeps its direction, so the contour stays. A repeated note stays repeated, and narrowing stops at
-/// a 2nd so no step turns into a repeat. Rhythm and the other voices stay. Pure and deterministic.
-/// Reshaping only selected intervals follows when the lab can select intervals.
+/// V9 Interval reshape: widens or narrows every melody interval, or the picked ones, by 1–2 steps of
+/// the key's scale and keeps its direction, so the contour stays. A repeated note stays repeated, and
+/// narrowing stops at a 2nd so no step turns into a repeat. Intervals left out keep their size in
+/// scale steps. Rhythm and the other voices stay. Pure and deterministic.
 /// </summary>
 public sealed class IntervalReshape : MelodyOperation<IntervalReshapeParameters>
 {
@@ -39,16 +40,18 @@ public sealed class IntervalReshape : MelodyOperation<IntervalReshapeParameters>
 
     protected override bool IsDiatonic(IntervalReshapeParameters parameters) => true;
 
+    protected override IntervalSet? Intervals(IntervalReshapeParameters parameters) => parameters.Intervals;
+
     protected override string? MelodyPrecondition(int[] melody, MusicalKey? key, IntervalReshapeParameters parameters)
     {
-        int[] steps = Steps(melody, key!.Value);
+        int[] steps = [.. Steps(melody, key!.Value).Where((_, i) => Changes(parameters, i))];
         if (steps.All(step => step == 0))
         {
-            return $"{Name} has no interval to reshape: the melody repeats one note, so it is not available for this selection.";
+            return $"{Name} has no interval to reshape: {(parameters.Intervals is null ? "the melody repeats one note" : "the picked intervals repeat a note")}, so it is not available for this selection.";
         }
 
         return parameters.Steps < 0 && steps.All(step => Math.Abs(step) <= 1)
-            ? $"{Name} cannot narrow a melody that moves only by 2nds without turning steps into repeats, so it is not available for this selection."
+            ? $"{Name} cannot narrow {(parameters.Intervals is null ? "a melody that moves" : "intervals that move")} only by 2nds without turning steps into repeats, so it is not available for this selection."
             : null;
     }
 
@@ -62,7 +65,7 @@ public sealed class IntervalReshape : MelodyOperation<IntervalReshapeParameters>
         for (int i = 1; i < melody.Length; i++)
         {
             int interval = positions[i].Step - positions[i - 1].Step;
-            step += interval == 0 ? 0 : Math.Sign(interval) * Math.Max(1, Math.Abs(interval) + parameters.Steps);
+            step += interval == 0 || !Changes(parameters, i - 1) ? interval : Math.Sign(interval) * Math.Max(1, Math.Abs(interval) + parameters.Steps);
             result[i] = interval == 0 && positions[i].Alteration == positions[i - 1].Alteration
                 ? result[i - 1]
                 : ScaleSteps.MidiNumber(scale, positions[i] with { Step = step });

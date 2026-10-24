@@ -7,12 +7,14 @@ namespace MotiffLab.MusicCore.Variations;
 /// True mirrors in steps of the key's scale, so a 3rd up becomes a 3rd down and the melody stays in
 /// the key; false mirrors in semitones, so every interval keeps its exact size.
 /// </param>
-public sealed record ChangeDirectionParameters(bool Diatonic = true) : OperationParameters;
+/// <param name="Intervals">The melody intervals to flip; null flips them all, which mirrors the whole melody around its first note.</param>
+public sealed record ChangeDirectionParameters(bool Diatonic = true, IntervalSet? Intervals = null) : OperationParameters;
 
 /// <summary>
 /// V10 Change direction: mirrors the melody around its first note, so every step up becomes a step
-/// down of the same size and the other way round. Rhythm and the other voices stay. Pure and
-/// deterministic. Flipping only selected intervals follows when the lab can select intervals.
+/// down of the same size and the other way round; or flips only the picked intervals, and the notes
+/// after each flipped interval move with it, so every other interval keeps its size and direction.
+/// The first note is the fixed axis. Rhythm and the other voices stay. Pure and deterministic.
 /// </summary>
 public sealed class ChangeDirection : MelodyOperation<ChangeDirectionParameters>
 {
@@ -34,25 +36,39 @@ public sealed class ChangeDirection : MelodyOperation<ChangeDirectionParameters>
 
     protected override bool IsDiatonic(ChangeDirectionParameters parameters) => parameters.Diatonic;
 
+    protected override IntervalSet? Intervals(ChangeDirectionParameters parameters) => parameters.Intervals;
+
     protected override string? MelodyPrecondition(int[] melody, MusicalKey? key, ChangeDirectionParameters parameters) =>
-        melody.All(pitch => pitch == melody[0])
-            ? $"{Name} has nothing to turn: the melody repeats one note, so it is not available for this selection."
+        Enumerable.Range(0, melody.Length - 1).All(i => !Changes(parameters, i) || melody[i + 1] == melody[i])
+            ? $"{Name} has nothing to turn: {(parameters.Intervals is null ? "the melody repeats one note" : "the picked intervals repeat a note")}, so it is not available for this selection."
             : null;
 
+    /// <remarks>Walks the intervals from the first note, turning each picked one over; with every interval picked this mirrors the melody around its first note.</remarks>
     protected override int[] NewMelody(int[] melody, MusicalKey? key, ChangeDirectionParameters parameters)
     {
-        int axis = melody[0];
+        var result = new int[melody.Length];
+        result[0] = melody[0];
         if (!parameters.Diatonic)
         {
-            return [.. melody.Select(pitch => (2 * axis) - pitch)];
+            for (int i = 1; i < melody.Length; i++)
+            {
+                int interval = melody[i] - melody[i - 1];
+                result[i] = result[i - 1] + (Changes(parameters, i - 1) ? -interval : interval);
+            }
+
+            return result;
         }
 
         MusicalKey scale = key!.Value;
-        int axisStep = ScaleSteps.Locate(scale, axis).Step;
-        return [.. melody.Select(pitch =>
+        ScalePosition[] positions = [.. melody.Select(pitch => ScaleSteps.Locate(scale, pitch))];
+        int step = positions[0].Step;
+        for (int i = 1; i < melody.Length; i++)
         {
-            ScalePosition position = ScaleSteps.Locate(scale, pitch);
-            return ScaleSteps.MidiNumber(scale, position with { Step = (2 * axisStep) - position.Step });
-        })];
+            int interval = positions[i].Step - positions[i - 1].Step;
+            step += Changes(parameters, i - 1) ? -interval : interval;
+            result[i] = ScaleSteps.MidiNumber(scale, positions[i] with { Step = step });
+        }
+
+        return result;
     }
 }

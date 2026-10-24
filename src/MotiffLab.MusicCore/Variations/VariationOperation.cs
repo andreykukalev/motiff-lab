@@ -10,19 +10,26 @@ public abstract record OperationParameters;
 
 /// <summary>
 /// What an operation reads besides the notes and its parameters: the motif's span, the Keep choices,
-/// a seed and the key. Operations that pick among equal choices use only <see cref="Seed"/>, never a
+/// a seed, the key and the meter. Operations that pick among equal choices use only <see cref="Seed"/>, never a
 /// clock or a shared random source, so the same input always gives the same output.
 /// </summary>
 /// <param name="Key">
 /// The key diatonic operations count scale steps in: the key the motif's analysis read
 /// (<see cref="MotifAnalysis.Key"/>). Null when there is none, which leaves diatonic operations unavailable.
 /// </param>
-public sealed record VariationContext(TickSpan Span, IReadOnlySet<KeepProperty> Keep, int Seed = 0, MusicalKey? Key = null)
+/// <param name="Meter">
+/// The piece's bars and beats, which beat-based operations (V1 Syncopate and Dotted) and the
+/// explanation's beat names read. Null reads <see cref="MeterMap.Default"/>, 4/4 from the start.
+/// </param>
+public sealed record VariationContext(TickSpan Span, IReadOnlySet<KeepProperty> Keep, int Seed = 0, MusicalKey? Key = null, MeterMap? Meter = null)
 {
-    public static VariationContext For(MotifSelection selection, IReadOnlySet<KeepProperty> keep, int seed = 0, MusicalKey? key = null)
+    /// <summary>The meter to count beats in: <see cref="Meter"/>, or 4/4 from the start when there is none.</summary>
+    public MeterMap Beats => Meter ?? MeterMap.Default;
+
+    public static VariationContext For(MotifSelection selection, IReadOnlySet<KeepProperty> keep, int seed = 0, MusicalKey? key = null, MeterMap? meter = null)
     {
         ArgumentNullException.ThrowIfNull(selection);
-        return new VariationContext(selection.Span, keep, seed, key);
+        return new VariationContext(selection.Span, keep, seed, key, meter);
     }
 }
 
@@ -89,7 +96,7 @@ public abstract class VariationOperation<TParameters> : IVariationOperation
             throw new InvalidOperationException(reason);
         }
 
-        return VariationFacts.Build(Id, context.Span, notes, after!, context.Keep, flags, context.Key);
+        return VariationFacts.Build(Id, context.Span, notes, after!, context.Keep, flags, context.Key, context.Meter);
     }
 
     /// <summary>Applies the operation to the selected notes of <paramref name="notes"/>.</summary>

@@ -25,6 +25,7 @@ public static class VariationFacts
     /// checks of the kept properties against <paramref name="before"/>, and the explanation.
     /// </summary>
     /// <param name="key">The key the step counted scale steps in, or null; intervals then also count as kept when their sizes in scale steps are (the Keep table's footnote 2).</param>
+    /// <param name="meter">The meter the explanation names beats in; null reads <see cref="MeterMap.Default"/>.</param>
     public static Variation Build(
         string operation,
         TickSpan span,
@@ -32,7 +33,8 @@ public static class VariationFacts
         IEnumerable<Note> after,
         IReadOnlySet<KeepProperty> keep,
         IReadOnlyList<string> flags,
-        MusicalKey? key = null)
+        MusicalKey? key = null,
+        MeterMap? meter = null)
     {
         ArgumentNullException.ThrowIfNull(before);
         ArgumentNullException.ThrowIfNull(after);
@@ -56,6 +58,11 @@ public static class VariationFacts
             .ToArray();
         KeepCheck[] checks = properties.Where(check => keep.Contains(check.Property)).ToArray();
         string explanation = Explain(changes, added, removed, source, ordered, textures.Before, textures.After, Sequence(source, copies, span, key));
+        if (OperationTemplates.Lead(operation, changes, textures.Before, textures.After, key, meter ?? MeterMap.Default) is { } lead)
+        {
+            explanation = $"{lead} {explanation}";
+        }
+
         bool sameMelody = Pitches(textures.Before.Melody).SequenceEqual(Pitches(textures.After.Melody));
         string unchanged = Unchanged(properties, textures.Before, sameMelody);
         if (changes.Length + added.Length + removed.Length > 0 && unchanged.Length > 0)

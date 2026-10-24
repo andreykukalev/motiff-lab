@@ -94,6 +94,8 @@ public class RhythmReshapeTests
 
     public static TheoryData<RhythmReshapeKind, int> EveryParameter => new()
     {
+        { RhythmReshapeKind.Syncopate, 1 },
+        { RhythmReshapeKind.Dotted, 1 },
         { RhythmReshapeKind.HalfTime, 1 },
         { RhythmReshapeKind.DoubleTime, 1 },
         { RhythmReshapeKind.Displace, 1 },
@@ -203,6 +205,82 @@ public class RhythmReshapeTests
             "The pitch sequence is unchanged. Every note keeps its length. All 4 notes start 1 eighth later."
             + " Unchanged: pitches, pitch order, contour, intervals, melody pitches and register.",
             Apply(RhythmReshapeKind.Displace).Explanation);
+    }
+
+    [Fact]
+    public void Syncopate_moves_each_beat_after_the_first_half_a_beat_earlier_and_keeps_where_it_ends()
+    {
+        Variation variation = Apply(RhythmReshapeKind.Syncopate);
+
+        Assert.Equal([0L, 240, 720, 1200], variation.Notes.Select(note => note.Span.Onset.Value));
+        Assert.Equal([240L, 720, 1200, 1920], variation.Notes.Select(note => note.Span.End.Value));
+        Assert.Equal([60, 62, 64, 67], variation.Notes.Select(note => note.Pitch.MidiNumber));
+    }
+
+    /// <summary>AC-S1-11: V1 Syncopate on a melody with Keep pitches on keeps the pitch sequence, and the explanation's counts and beats match the diff.</summary>
+    [Fact]
+    public void Syncopate_on_a_melody_keeps_the_pitch_sequence_and_its_explanation_matches_the_diff()
+    {
+        Variation variation = Apply(RhythmReshapeKind.Syncopate, keep: new HashSet<KeepProperty> { KeepProperty.Pitches });
+
+        Assert.Equal([new KeepCheck(KeepProperty.Pitches, KeepStatus.Kept)], variation.Checks);
+        Assert.DoesNotContain(variation.Changes, change => change.PitchChanged);
+        NoteChange[] moved = [.. variation.Changes.Where(change => change.OnsetChanged)];
+        Assert.Equal([480L, 960, 1440], moved.Select(change => change.Before.Span.Onset.Value));
+        Assert.All(moved, change => Assert.Equal(Eighth, change.Before.Span.Onset.Value - change.After.Span.Onset.Value));
+        Assert.Equal(2, variation.Changes.Count(change => change.DurationChanged));
+        Assert.Equal(
+            "3 notes that started on a beat now start 1 eighth ahead of it: beats 2, 3 and 4 of bar 1. The pitch sequence is unchanged."
+            + " 2 of 4 notes change length. 3 of 4 notes start at a new place."
+            + " Unchanged: pitches, pitch order, contour, intervals, melody pitches and register.",
+            variation.Explanation);
+    }
+
+    [Fact]
+    public void Syncopate_counts_beats_in_the_meter_and_skips_a_beat_with_a_note_just_before_it()
+    {
+        // 3/8: a beat is an eighth, so notes move a sixteenth. Beat 2 has a note a sixteenth before it.
+        var meter = new MeterMap([new MeterChange(Tick.Zero, new TimeSignature(3, 8))]);
+        Note[] notes = [Note("n1", 72, 0, 120), Note("n2", 74, 120, 120), Note("n3", 76, 240, 240), Note("n4", 77, 480, 240)];
+        var context = new VariationContext(new TickSpan(Tick.Zero, 720), s_keepPitchOrder, Meter: meter);
+
+        Variation variation = RhythmReshape.Instance.Apply(notes, context, new RhythmReshapeParameters(RhythmReshapeKind.Syncopate));
+
+        Assert.Equal([0L, 120, 240, 360], variation.Notes.Select(note => note.Span.Onset.Value));
+        Assert.Equal([120L, 240, 360, 720], variation.Notes.Select(note => note.Span.End.Value));
+        Assert.StartsWith("1 note that started on a beat now starts 1 sixteenth ahead of it: beat 3 of bar 1.", variation.Explanation);
+    }
+
+    [Fact]
+    public void Syncopate_is_unavailable_when_every_beat_has_a_note_just_before_it()
+    {
+        Note[] notes = [.. Enumerable.Range(0, 8).Select(i => Note($"n{i}", 60 + i, i * Eighth, Eighth))];
+
+        Assert.Contains("Syncopate needs", RhythmReshape.Instance.UnavailableReason(notes, VariationContext.For(FirstBar(notes), s_keepPitchOrder), new RhythmReshapeParameters(RhythmReshapeKind.Syncopate)));
+    }
+
+    [Fact]
+    public void Dotted_turns_pairs_of_equal_notes_on_the_beat_into_long_short()
+    {
+        Variation variation = Apply(RhythmReshapeKind.Dotted);
+
+        Assert.Equal([0L, 720, 960, 1680], variation.Notes.Select(note => note.Span.Onset.Value));
+        Assert.Equal([720L, 240, 720, 240], variation.Notes.Select(note => note.Span.Duration));
+        Assert.StartsWith("2 pairs of equal notes become long–short, 3 eighths then 1 eighth, starting on beats 1 and 3 of bar 1.", variation.Explanation);
+    }
+
+    [Fact]
+    public void Dotted_leaves_notes_that_do_not_pair_and_is_unavailable_without_a_pair()
+    {
+        // A dotted quarter and an eighth already, then two eighths on beat 3, then a quarter.
+        Note[] notes = [Note("n1", 60, 0, 720), Note("n2", 62, 720, Eighth), Note("n3", 64, 960, Eighth), Note("n4", 65, 1200, Eighth), Note("n5", 67, 1440, Quarter)];
+        Variation variation = RhythmReshape.Instance.Apply(notes, FirstBar(notes), s_keepPitchOrder, new RhythmReshapeParameters(RhythmReshapeKind.Dotted));
+
+        Assert.Equal([0L, 720, 960, 1320, 1440], variation.Notes.Select(note => note.Span.Onset.Value));
+        Assert.Equal(["n3", "n4"], variation.Changes.Where(change => change.OnsetChanged || change.DurationChanged).Select(change => change.Before.Id));
+
+        Note[] lone = [Note("n1", 60, 0, 720), Note("n2", 62, 720, Eighth)];
+        Assert.Contains("Dotted needs", RhythmReshape.Instance.UnavailableReason(lone, VariationContext.For(FirstBar(lone), s_keepPitchOrder), new RhythmReshapeParameters(RhythmReshapeKind.Dotted)));
     }
 
     [Theory]

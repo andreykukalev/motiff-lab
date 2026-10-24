@@ -25,6 +25,12 @@ public abstract class MelodyOperation<TParameters> : VariationOperation<TParamet
     /// <param name="key">The context's key; never null when <see cref="IsDiatonic"/> is true.</param>
     protected abstract int[] NewMelody(int[] melody, MusicalKey? key, TParameters parameters);
 
+    /// <summary>The intervals these parameters change, or null for every interval.</summary>
+    protected abstract IntervalSet? Intervals(TParameters parameters);
+
+    /// <summary>Whether the parameters change interval <paramref name="index"/> of the melody.</summary>
+    protected bool Changes(TParameters parameters, int index) => Intervals(parameters)?.Contains(index) ?? true;
+
     /// <summary>Why the operation has nothing to do on this melody, or null. Runs after the shared checks.</summary>
     protected virtual string? MelodyPrecondition(int[] melody, MusicalKey? key, TParameters parameters) => null;
 
@@ -42,6 +48,11 @@ public abstract class MelodyOperation<TParameters> : VariationOperation<TParamet
         }
 
         int[] melody = [.. texture.Melody.Select(static note => note.Pitch.MidiNumber)];
+        if (Intervals(parameters) is { } picked && picked.Indices[^1] >= melody.Length - 1)
+        {
+            return $"{Name} is asked to change interval {picked.Indices[^1] + 1}, and the melody has {melody.Length - 1}, so it is not available for this selection.";
+        }
+
         if (MelodyPrecondition(melody, context.Key, parameters) is { } reason)
         {
             return reason;
@@ -76,4 +87,33 @@ public abstract class MelodyOperation<TParameters> : VariationOperation<TParamet
     }
 
     private static bool IsMelody(MotifTexture texture, Note note) => texture.Melody.Any(melody => melody.Id == note.Id);
+}
+/// <summary>
+/// The melody intervals a melody operation changes, by position: interval 0 runs from the melody's
+/// first note to its second. Compares by value, so steps that pick the same intervals are equal.
+/// </summary>
+public sealed record IntervalSet
+{
+    /// <exception cref="ArgumentException">No interval is given, or one is negative.</exception>
+    public IntervalSet(IEnumerable<int> indices)
+    {
+        ArgumentNullException.ThrowIfNull(indices);
+        Indices = [.. indices.Distinct().Order()];
+        if (Indices.Count == 0 || Indices[0] < 0)
+        {
+            throw new ArgumentException("Pick at least one interval, numbered from 0.", nameof(indices));
+        }
+    }
+
+    /// <summary>The picked intervals, in order, each once.</summary>
+    public IReadOnlyList<int> Indices { get; }
+
+    public bool Contains(int index) => Indices.Contains(index);
+
+    public bool Equals(IntervalSet? other) => other is not null && Indices.SequenceEqual(other.Indices);
+
+    public override int GetHashCode() => Indices.Aggregate(0, HashCode.Combine);
+
+    /// <summary>The picked intervals counted from 1, as the player reads them: "1, 3".</summary>
+    public override string ToString() => string.Join(", ", Indices.Select(static index => index + 1));
 }
