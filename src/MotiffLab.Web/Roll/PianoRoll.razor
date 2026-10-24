@@ -2,6 +2,7 @@
 @using MotiffLab.MusicCore.Motifs
 @using MotiffLab.MusicCore.Playback
 @using MotiffLab.MusicCore.Time
+@using MotiffLab.MusicCore.Variations
 @using MotiffLab.Web.Playback
 @implements IAsyncDisposable
 @inject IJSRuntime JS
@@ -10,10 +11,19 @@
 @* Drawn on canvas in Scripts/roll (S1-W2, S1-W3, S1-M1); the host's children belong to the script. *@
 <div class="row roll-tools">
     <span>Colour by</span>
-    <label><input type="radio" name="roll-colour" checked="@(_colourBy == "track")" @onchange='() => SetColourByAsync("track")' /> Track</label>
-    <label><input type="radio" name="roll-colour" checked="@(_colourBy == "voice")" @onchange='() => SetColourByAsync("voice")' /> Voice</label>
+    @foreach ((string mode, string label) in s_colourModes)
+    {
+        int lanes = LaneCount(mode);
+        <label class="@(lanes < 2 ? "unavailable" : null)" title="@(lanes < 2 ? OneLaneText(mode) : null)">
+            <input type="radio" name="roll-colour" checked="@(_colourBy == mode)" disabled="@(lanes < 2)" @onchange="() => SetColourByAsync(mode)" /> @label
+        </label>
+    }
     <button @onclick="() => ZoomAsync(1 / ZoomStep)" aria-label="Zoom out">−</button>
     <button @onclick="() => ZoomAsync(ZoomStep)" aria-label="Zoom in">+</button>
+    @if (s_colourModes.Any(mode => LaneCount(mode.Mode) < 2) && Notes is { Count: > 0 })
+    {
+        <span class="meta">@string.Join(" ", s_colourModes.Where(mode => LaneCount(mode.Mode) < 2).Select(mode => OneLaneText(mode.Mode)))</span>
+    }
 </div>
 <div class="roll" @ref="_host"></div>
 <p class="meta" aria-live="polite">@SelectionText</p>
@@ -27,7 +37,13 @@
     private DotNetObjectReference<PianoRoll>? _self;
     private IReadOnlyList<Note>? _shown;
     private Dictionary<string, Note> _byId = [];
+    private static readonly (string Mode, string Label)[] s_colourModes = [("track", "Track"), ("voice", "Voice"), ("hand", "Hand")];
+
     private string _colourBy = "track";
+    private Dictionary<string, int> _laneCounts = [];
+    private IReadOnlyCollection<string>? _shownKept;
+    private Variation? _shownVariation;
+    private (bool Original, bool Variation) _shownAudible = (true, false);
     private IReadOnlyList<string> _selected = [];
     private MotifSelection? _shownMotif;
     private bool _shownAlone;
@@ -67,6 +83,22 @@
     [Parameter]
     public EventCallback PlayPausePressed { get; set; }
 
+    /// <summary>The ids of the notes the Notes filter keeps, drawn at full strength and lit as they sound; null keeps all.</summary>
+    [Parameter]
+    public IReadOnlyCollection<string>? Kept { get; set; }
+
+    /// <summary>The variation of the motif, drawn as outlines over it with a line from each note it moved; null for none.</summary>
+    [Parameter]
+    public Variation? Variation { get; set; }
+
+    /// <summary>Whether the piece's notes are being heard (the original or the selection source), so they light up.</summary>
+    [Parameter]
+    public bool OriginalAudible { get; set; } = true;
+
+    /// <summary>Whether the variation is being heard, so its outlines light up as they sound.</summary>
+    [Parameter]
+    public bool VariationAudible { get; set; }
+
     /// <summary>Raised with the ids of the selected notes, in time order.</summary>
     [Parameter]
     public EventCallback<IReadOnlyList<string>> SelectionChanged { get; set; }
@@ -91,17 +123,80 @@
             _byId = Notes.ToDictionary(note => note.Id);
             _selected = [];
             _shownMotif = null;
+            _shownKept = null;
+            _shownVariation = null;
+            _laneCounts = new()
+            {
+                ["track"] = Notes.Select(note => note.Track).Distinct().Count(),
+                // Without notated voices, Voice would only repeat Track.
+                ["voice"] = Notes.Any(note => note.Voice is not null) ? Notes.Select(note => (note.Track, note.Voice)).Distinct().Count() : 1,
+                ["hand"] = Notes.Select(note => note.Hand?.Value).Distinct().Count(),
+            };
+            // Start with the grouping that tells notes apart: tracks, else hands, else voices.
+            _colourBy = s_colourModes.Select(mode => mode.Mode).OrderBy(mode => mode switch { "track" => 0, "hand" => 1, _ => 2 })
+                .FirstOrDefault(mode => LaneCount(mode) > 1) ?? "track";
             await _view.InvokeVoidAsync("load", PianoRollPayload.Create(Notes, Score));
             await _view.InvokeVoidAsync("setColourBy", _colourBy);
             await _view.InvokeVoidAsync("follow", Player.Engine);
             await ShowMotifAsync(_view);
+            await ShowOverlaysAsync(_view);
             StateHasChanged();
         }
-        else if (!ReferenceEquals(Motif, _shownMotif) || MotifPlaysAlone != _shownAlone)
+        else
         {
-            await ShowMotifAsync(_view);
+            if (!ReferenceEquals(Motif, _shownMotif) || MotifPlaysAlone != _shownAlone)
+            {
+                await ShowMotifAsync(_view);
+            }
+
+            await ShowOverlaysAsync(_view);
         }
     }
+
+    /// <summary>Sends the Notes filter, the variation and which sources are heard, each only when it changed.</summary>
+    private async Task ShowOverlaysAsync(IJSObjectReference view)
+    {
+        if (!ReferenceEquals(Kept, _shownKept))
+        {
+            _shownKept = Kept;
+            // Cast, so the array goes across as one argument rather than as the argument list.
+            await view.InvokeVoidAsync("setFilter", (object?)Kept?.ToArray());
+        }
+
+        if (!ReferenceEquals(Variation, _shownVariation))
+        {
+            _shownVariation = Variation;
+            if (Variation is { } variation)
+            {
+                long[] packed = [.. variation.Changes.SelectMany(change => new[]
+                {
+                    change.After.Span.Onset.Value, change.After.Span.End.Value, change.After.Pitch.MidiNumber,
+                    change.Before.Span.Onset.Value, change.Before.Pitch.MidiNumber,
+                })];
+                await view.InvokeVoidAsync("setVariation", packed);
+            }
+            else
+            {
+                await view.InvokeVoidAsync("clearVariation");
+            }
+        }
+
+        if ((OriginalAudible, VariationAudible) != _shownAudible)
+        {
+            _shownAudible = (OriginalAudible, VariationAudible);
+            await view.InvokeVoidAsync("setAudible", OriginalAudible, VariationAudible);
+        }
+    }
+
+    private int LaneCount(string mode) => _laneCounts.GetValueOrDefault(mode, 0);
+
+    /// <summary>Why a grouping is off for this piece, so the control never looks like it does nothing.</summary>
+    private static string OneLaneText(string mode) => mode switch
+    {
+        "track" => "One track, so Track is off.",
+        "voice" => "No voices to tell apart, so Voice is off.",
+        _ => "No hands in this file, so Hand is off.",
+    };
 
     private async Task ShowMotifAsync(IJSObjectReference view)
     {
@@ -163,7 +258,7 @@
         {
             if (_selected.Count == 0 || Meter is null)
             {
-                return "Drag across the roll to select a range; click a bar number for one bar, Shift-click to extend. Click a note to select it; Shift-click adds to the selection. Click an empty place or press Escape to clear. Space plays and pauses.";
+                return "Drag across the roll to select a range, then drag its edges to adjust it; click a bar number for one bar, Shift-click to extend. Click a note to hear and select it, or a key or pitch name to hear it, also while the piece plays. Click an empty place or press Escape to clear. Space plays and pauses.";
             }
 
             if (_selected.Count > 1)

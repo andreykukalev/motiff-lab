@@ -288,3 +288,27 @@ test("the voice count stays bounded", () => {
 
     assert.ok(e.voiceCount <= 96);
 });
+
+test("a live note sounds at once while stopped and stops when released", () => {
+    const e = engine();
+    e.handle({ type: "noteOn", pitch: 60, velocity: 100 });
+    assert.deepEqual(noteStarts(run(e, BLOCK)), [0]);
+    e.handle({ type: "noteOff", pitch: 60 });
+    const after = run(e, BLOCK * 200);
+    assert.ok(after.slice(BLOCK * 100).every((sample) => Math.abs(sample) < 1e-3), "released note fades out");
+});
+
+test("a live note keeps sounding over pause, seek and source changes", () => {
+    const e = engine();
+    source(e, "original", [[0, 480]]);
+    e.handle({ type: "activeSources", ids: ["original"] });
+    e.handle({ type: "play" });
+    run(e, BLOCK);
+    e.handle({ type: "noteOn", pitch: 60, velocity: 127 });
+    e.handle({ type: "pause" });
+    e.handle({ type: "seek", tick: 960 });
+    e.handle({ type: "activeSources", ids: [] });
+    e.handle({ type: "tracks", muted: [0], soloed: [0] });
+    // The live voice's spike lands SPIKE frames into the next block: it was not released.
+    assert.deepEqual(noteStarts(run(e, BLOCK)), [0]);
+});

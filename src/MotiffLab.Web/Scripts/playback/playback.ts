@@ -122,6 +122,16 @@ export class Player {
         this.post({ type: "tracks", muted, soloed });
     }
 
+    /** Strikes a key by hand, over playback or without it, until noteOff (the roll and keyboard call this). */
+    noteOn(pitch: number, velocity = 96): void {
+        void this.resume();
+        this.post({ type: "noteOn", pitch, velocity });
+    }
+
+    noteOff(pitch: number): void {
+        this.post({ type: "noteOff", pitch });
+    }
+
     /**
      * The tick being heard now: the engine's last report moved on by the time since, less the
      * output latency, and wrapped into the loop. For drawing the piano roll and keyboard every frame.

@@ -122,6 +122,16 @@ test("lanes are tracks, or voices within the tracks that have them", () => {
     assert.deepEqual(roll.lanes("voice").map((lane) => lane.label), ["Track 1, voice 1", "Track 1, voice 2", "Track 2"]);
 });
 
+test("hand lanes put the right hand first, then the left, then notes with no hand", () => {
+    const roll = model([
+        ["a", 0, 480, 48, 0, 1, HAND_LEFT, 0],
+        ["b", 0, 480, 64, 0, 1, HAND_RIGHT, 0],
+        ["c", 480, 480, 60, 0, 1, HAND_NONE, 0],
+    ]);
+
+    assert.deepEqual(roll.lanes("hand").map((lane) => lane.label), ["Right hand", "Left hand", "No hand"]);
+});
+
 test("the arrow keys step through the notes in time order and stop at the ends", () => {
     const roll = model([
         ["a", 0, 480, 60, 0, 0, 0, 0],

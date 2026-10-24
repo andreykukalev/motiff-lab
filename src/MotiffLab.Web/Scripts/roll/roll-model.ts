@@ -3,7 +3,7 @@
 // tick. Kept free of the DOM so Node can test it.
 
 /** How the roll groups notes for colour and pattern. */
-export type ColourBy = "track" | "voice";
+export type ColourBy = "track" | "voice" | "hand";
 
 /** No hand (MIDI, or a part without a grand staff). */
 export const HAND_NONE = 0;
@@ -82,8 +82,18 @@ export function pitchName(pitch: number): string {
 }
 
 export function laneKey(note: RollNote, by: ColourBy): number {
-    return by === "track" ? note.track * 1000 : note.track * 1000 + note.voice;
+    switch (by) {
+        case "track":
+            return note.track * 1000;
+        case "voice":
+            return note.track * 1000 + note.voice;
+        case "hand":
+            // Right hand first, so it takes the first lane colour on a piano piece.
+            return note.hand === HAND_RIGHT ? 0 : note.hand === HAND_LEFT ? 1 : 2;
+    }
 }
+
+const HAND_LABELS = ["Right hand", "Left hand", "No hand"];
 
 export class RollModel {
     /** Ordered by onset, then pitch, then id. */
@@ -207,7 +217,12 @@ export class RollModel {
             const key = laneKey(note, by);
             if (!keys.has(key)) {
                 const track = `Track ${note.track + 1}`;
-                const label = by === "voice" && voiced.has(note.track) ? `${track}, voice ${note.voice > 0 ? note.voice : "none"}` : track;
+                const label =
+                    by === "hand"
+                        ? HAND_LABELS[key]
+                        : by === "voice" && voiced.has(note.track)
+                          ? `${track}, voice ${note.voice > 0 ? note.voice : "none"}`
+                          : track;
                 keys.set(key, { key, label });
             }
         }

@@ -127,9 +127,71 @@ html, body {
 
 /* Playback test bench (Pages/PlaybackLab.razor). */
 .lab {
-    max-width: 48rem;
+    max-width: 112rem;
     margin: 0 auto;
-    padding: 2rem 1rem;
+    padding: 1rem 1.5rem 2rem;
+}
+
+.lab h1 {
+    margin: 0.25rem 0;
+}
+
+.lab h2 {
+    font-size: 1.05rem;
+    margin: 0.25rem 0 0.5rem;
+}
+
+/* The main workspace (docs/ui-conventions.md): the roll on the left, the score on the right, everything else below. */
+.lab .workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+}
+
+@media (min-width: 70rem) {
+    .lab .workspace.with-score {
+        grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    }
+}
+
+/* The score panel scrolls within the height of the roll beside it. */
+.lab .workspace.with-score .score-panel .score {
+    max-height: 32rem;
+    margin-top: 0;
+}
+
+.lab .below {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem 2rem;
+    margin-top: 1rem;
+}
+
+@media (min-width: 60rem) {
+    .lab .below {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+}
+
+.lab .toolbar {
+    padding: 0.4rem 0;
+    border-top: 1px solid #343C47;
+    border-bottom: 1px solid #343C47;
+}
+
+.lab .toolbar select {
+    font: inherit;
+}
+
+.lab .divider {
+    width: 1px;
+    height: 1.4em;
+    background: #343C47;
+}
+
+.lab .roll-tools .unavailable {
+    opacity: 0.5;
 }
 
 .lab .meta, .lab .credit {
@@ -183,7 +245,8 @@ html, body {
 }
 
 .lab .seek {
-    width: 100%;
+    flex: 1 1 12rem;
+    min-width: 8rem;
 }
 
 .lab .position {
@@ -205,9 +268,14 @@ html, body {
     font: inherit;
 }
 
-/* Room for two lines, so the roll below does not move as the description changes. */
+/* Room for two lines, so the panels do not jump as the description changes. */
 .lab .selection p {
     min-height: 2.6em;
+}
+
+.lab .facts-panel {
+    border-left: 3px solid #343C47;
+    padding-left: 0.75rem;
 }
 
 /* Facts about the selection (S1-A1, S1-A2, S1-A4, Facts/FactsPanel.razor): a collapsible section per lens, each fact with how sure it is. */
@@ -289,22 +357,49 @@ html, body {
     border-style: dashed;
 }
 
-/* Variation (S1-E1 to S1-E4, S1-E9): Keep chips that show whether each kept property survived the step. */
+/* Variation (S1-E1 to S1-E4, S1-E9): reshapes as one-click buttons, Keep as toggle chips that show whether each kept property survived the step. */
 .lab .variation {
     margin-top: 0.5rem;
 }
 
-.lab .keep .chip {
-    border: 1px solid var(--ml-gray);
+.lab .segmented {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 0.5rem 0;
+}
+
+.lab .segmented button {
+    border-radius: 0;
+    margin-left: -1px;
+}
+
+.lab .segmented button:first-child {
+    border-radius: 0.4rem 0 0 0.4rem;
+    margin-left: 0;
+}
+
+.lab .segmented button:last-child {
+    border-radius: 0 0.4rem 0.4rem 0;
+}
+
+.lab .keep button.chip {
     border-radius: 0.8rem;
-    padding: 0 0.5rem;
+    padding: 0.1rem 0.6rem;
+    color: var(--ml-gray);
 }
 
-.lab .keep .chip.kept {
+.lab .keep button.chip[aria-pressed=true] {
+    color: var(--ml-white);
+    border-color: var(--ml-white);
+    font-weight: 600;
+}
+
+.lab .keep button.chip.kept {
     border-color: var(--ml-lime);
+    color: var(--ml-lime);
 }
 
-.lab .keep .chip.broken {
+.lab .keep button.chip.broken {
     border-style: dashed;
 }
 
@@ -509,4 +604,9 @@ html, body {
     overflow: hidden;
     clip: rect(0 0 0 0);
     white-space: nowrap;
+}
+
+/* Keys can be played by hand. */
+.roll .roll-keys {
+    cursor: pointer;
 }

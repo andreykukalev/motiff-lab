@@ -61,27 +61,120 @@
             <button @onclick="StopAsync">Stop</button>
             <span class="position" aria-live="off">@PositionText</span>
             <span class="meta">@StateText</span>
-        </section>
-
-        <section class="row">
             <input class="seek" type="range" min="0" max="@_score.End.Value" step="1" value="@Player.Position.Value"
                    @onchange="SeekAsync" aria-label="Position" />
-        </section>
-
-        <section class="row">
             <label>Tempo <input type="range" min="25" max="150" step="5" value="@TempoPercent" @oninput="SetTempoAsync" /> @TempoPercent%</label>
             <label><input type="checkbox" checked="@Player.Metronome" @onchange="ToggleMetronomeAsync" /> Metronome</label>
             <label><input type="checkbox" checked="@Player.CountIn" @onchange="ToggleCountInAsync" /> Count-in</label>
         </section>
 
-        <section class="row">
-            <span>Source</span>
+        @* Which notes play and light up (S1-M2), what is heard, and whether the score shows. *@
+        <section class="row toolbar">
+            <label>
+                Notes
+                <select @onchange="SetFilterAsync" aria-label="Which notes play, light up and can be selected">
+                    @for (int i = 0; i < _filters.Length; i++)
+                    {
+                        <option value="@i" selected="@(_filters[i].Filter == _filter)">@_filters[i].Label</option>
+                    }
+                    @foreach (string category in s_coreCategories)
+                    {
+                        <option disabled>@category (needs voice and chord analysis)</option>
+                    }
+                </select>
+            </label>
+            <span class="divider" aria-hidden="true"></span>
+            <span>Hear</span>
             @foreach ((string label, string[] ids) in Sources)
             {
                 <label><input type="radio" name="source" checked="@Player.ActiveSources.SequenceEqual(ids)" disabled="@_looping" @onchange="() => Player.SelectSourcesAsync(ids)" /> @label</label>
             }
-            <span class="meta">@(_looping ? "Only the selected notes play while the selection loops." : "The variation is empty until you reshape a selection below.")</span>
+            <span class="divider" aria-hidden="true"></span>
+            <label><input type="checkbox" checked="@_showScore" @onchange="() => _showScore = !_showScore" /> Score</label>
+            @if (_showScore)
+            {
+                @foreach ((ScoreChoice choice, string label) in ScoreChoices)
+                {
+                    <label><input type="radio" name="score" checked="@(ShownChoice == choice)" @onchange="() => _scoreChoice = choice" /> @label</label>
+                }
+            }
         </section>
+
+        @* The roll on the left and the score on the right; without the score the roll takes the width. *@
+        <div class="workspace @(_showScore && ShownScore is not null ? "with-score" : null)">
+            <section class="roll-panel">
+                <PianoRoll Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping"
+                           Kept="_keptIds" Variation="_variation" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible"
+                           RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync" />
+            </section>
+            @if (_showScore && ShownScore is { } shown)
+            {
+                @* Clicks on the page outside the roll clear the selection, except inside panels marked data-keeps-selection (docs/ui-conventions.md). *@
+                <section class="score-panel" data-keeps-selection>
+                    <ScoreView Source="shown" />
+                    <p class="meta">@ScoreNote(shown)</p>
+                </section>
+            }
+        </div>
+
+        <div class="below">
+            <section class="selection" aria-label="Selection" data-keeps-selection>
+                <div class="row">
+                    <button class="@(_looping ? "on" : "primary")" @onclick="ToggleLoopSelectionAsync" disabled="@(_selection is not { NoteIds.Count: > 0 })">
+                        @(_looping ? "Stop looping" : "Loop selection")
+                    </button>
+                    <button @onclick="ClearSelectionAsync" disabled="@(_selection is null)">Clear</button>
+                    <span class="meta" aria-live="polite">@SelectionText</span>
+                </div>
+
+                <div class="variation" aria-label="Rhythm reshape">
+                    <h2>V1 Rhythm reshape</h2>
+                    <p class="meta">Moves when the selected notes start and how long they last; the pitches stay. Pick a reshape to hear it at once. In the roll each reshaped note is outlined where it lands, with a line from where it was.</p>
+                    @if (_selection is { NoteIds.Count: > 0 })
+                    {
+                        <div class="segmented" role="group" aria-label="How to reshape the rhythm">
+                            @for (int i = 0; i < s_reshapes.Length; i++)
+                            {
+                                int index = i;
+                                string? reason = ReshapeUnavailable(index);
+                                <button class="@(_variation is not null && _reshape == index ? "on" : null)" aria-pressed="@(_variation is not null && _reshape == index ? "true" : "false")"
+                                        disabled="@(reason is not null)" title="@(reason ?? s_reshapes[index].Hint)" @onclick="() => ReshapeAsync(index)">
+                                    @s_reshapes[index].Label
+                                </button>
+                            }
+                        </div>
+                        <div class="row">
+                            <button @onclick="() => AuditionAsync(variation: false)">Hear original</button>
+                            <button @onclick="() => AuditionAsync(variation: true)" disabled="@(_variation is null)">Hear variation</button>
+                            <button @onclick="RemoveVariationAsync" disabled="@(_variation is null)">Remove variation</button>
+                        </div>
+                        <div class="row keep" role="group" aria-label="What to keep">
+                            <span title="Properties the variation should leave as they are. A chip turns dashed when the step changes it.">Keep</span>
+                            @foreach (KeepProperty property in Enum.GetValues<KeepProperty>())
+                            {
+                                <button class="@KeepClass(property)" aria-pressed="@(_keep.Contains(property) ? "true" : "false")" title="@KeepStatusText(property)" @onclick="() => ToggleKeepAsync(property)">
+                                    @KeepLabel(property)
+                                </button>
+                            }
+                        </div>
+                        <p class="meta" aria-live="polite">@(DisabledReason ?? _variation?.Explanation ?? "Keep marks what should stay the same; rhythm reshape needs Keep rhythm off. The original notes are never changed.")</p>
+                    }
+                    else
+                    {
+                        <p class="meta">Select some bars on the roll first: drag across it, or click a bar number.</p>
+                    }
+                </div>
+            </section>
+
+            <section class="facts-panel" aria-label="Facts" data-keeps-selection>
+                <h2>Facts about the selection</h2>
+                @if (Facts.Count == 0)
+                {
+                    <p class="meta">Select some bars to see what music-core finds in them.</p>
+                }
+                <FactsPanel Facts="Facts" />
+            </section>
+        </div>
 
         @* A second file as the variation (S1-W5): it plays on this piece's timeline, so A/B keeps the position. *@
         <section class="row">
@@ -109,88 +202,12 @@
             <p class="meta">Second file: @difference</p>
         }
 
-        @* The roll sits above the selection panel, so it stays put as facts come and go under it. *@
-        <section class="roll-panel">
-            <PianoRoll Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync" />
-        </section>
-
-        @* Clicks on the page outside the roll clear the selection, except inside panels marked data-keeps-selection (docs/ui-conventions.md). *@
-        <section class="selection" aria-label="Selection" data-keeps-selection>
-            <div class="row">
-                <span>Select bars</span>
-                <input type="number" min="@_meter.FirstBarNumber" max="@_lastBar" @bind="_barFrom" aria-label="From bar" />
-                <span>to</span>
-                <input type="number" min="@_meter.FirstBarNumber" max="@_lastBar" @bind="_barTo" aria-label="To bar" />
-                <button @onclick="SelectBarsAsync">Select</button>
-                <label>
-                    Notes
-                    <select @onchange="SetFilterAsync" aria-label="Which notes the selection keeps">
-                        @for (int i = 0; i < _filters.Length; i++)
-                        {
-                            <option value="@i" selected="@(_filters[i].Filter == _filter)">@_filters[i].Label</option>
-                        }
-                    </select>
-                </label>
-                <button class="@(_looping ? "on" : "primary")" @onclick="ToggleLoopSelectionAsync" disabled="@(_selection is not { NoteIds.Count: > 0 })">
-                    @(_looping ? "Stop looping" : "Loop selection")
-                </button>
-                <button @onclick="ClearSelectionAsync" disabled="@(_selection is null)">Clear</button>
-            </div>
-            <p class="meta" aria-live="polite">@SelectionText</p>
-            <FactsPanel Facts="Facts" />
-            @if (_selection is { NoteIds.Count: > 0 })
-            {
-                <div class="variation" aria-label="Variation">
-                    <div class="row keep" role="group" aria-label="What to keep">
-                        <span>Keep</span>
-                        @foreach (KeepProperty property in Enum.GetValues<KeepProperty>())
-                        {
-                            <label class="@KeepClass(property)" title="@KeepStatusText(property)">
-                                <input type="checkbox" checked="@_keep.Contains(property)" @onchange="() => ToggleKeepAsync(property)" /> @KeepLabel(property)
-                            </label>
-                        }
-                    </div>
-                    <div class="row">
-                        <span>V1 Rhythm reshape</span>
-                        <select @onchange="SetReshapeAsync" aria-label="How to reshape the rhythm" disabled="@(DisabledReason is not null)">
-                            @for (int i = 0; i < s_reshapes.Length; i++)
-                            {
-                                <option value="@i" selected="@(i == _reshape)">@s_reshapes[i].Label</option>
-                            }
-                        </select>
-                        <button class="primary" @onclick="() => ApplyAsync(play: true)" disabled="@(UnavailableReason is not null)">Apply and play</button>
-                        <button @onclick="() => AuditionAsync(variation: false)">Hear original</button>
-                        <button @onclick="() => AuditionAsync(variation: true)" disabled="@(_variation is null)">Hear variation</button>
-                    </div>
-                    <p class="meta" aria-live="polite">@(UnavailableReason ?? _variation?.Explanation ?? "Choose what to keep, then a reshape. The original notes are never changed.")</p>
-                </div>
-            }
-        </section>
-
-        <section class="score-panel" data-keeps-selection>
-            <div class="row">
-                <label><input type="checkbox" checked="@_showScore" @onchange="() => _showScore = !_showScore" /> Score</label>
-                @if (_asWritten is not null)
-                {
-                    <label><input type="radio" name="score" checked="@(!_showGenerated)" @onchange="() => _showGenerated = false" /> As written</label>
-                    <label><input type="radio" name="score" checked="@_showGenerated" @onchange="() => _showGenerated = true" /> Generated from the notes</label>
-                }
-            </div>
-            @if (_showScore && ShownScore is { } shown)
-            {
-                <ScoreView Source="shown" />
-                <p class="meta">@ScoreNote(shown)</p>
-            }
-        </section>
-
-        <section class="tracks">
+        <section class="row tracks">
             @foreach (int track in _tracks)
             {
-                <div class="row">
-                    <span class="track">Track @(track + 1)</span>
-                    <button class="@(Player.Muted.Contains(track) ? "on" : null)" @onclick="() => ToggleTrackAsync(track, solo: false)">Mute</button>
-                    <button class="@(Player.Soloed.Contains(track) ? "on" : null)" @onclick="() => ToggleTrackAsync(track, solo: true)">Solo</button>
-                </div>
+                <span class="track">Track @(track + 1)</span>
+                <button class="@(Player.Muted.Contains(track) ? "on" : null)" @onclick="() => ToggleTrackAsync(track, solo: false)">Mute</button>
+                <button class="@(Player.Soloed.Contains(track) ? "on" : null)" @onclick="() => ToggleTrackAsync(track, solo: true)">Solo</button>
             }
         </section>
     }
@@ -209,14 +226,17 @@
     /// <summary>The selected notes alone, played while the selection loops.</summary>
     private const string SelectionSource = "selection";
 
-    private static readonly (string Label, RhythmReshapeParameters Parameters)[] s_reshapes =
+    private static readonly (string Label, RhythmReshapeParameters Parameters, string Hint)[] s_reshapes =
     [
-        ("Half-time", new(RhythmReshapeKind.HalfTime)),
-        ("Double-time", new(RhythmReshapeKind.DoubleTime)),
-        ("Displace by 1 eighth", new(RhythmReshapeKind.Displace, 1)),
-        ("Displace by 2 eighths", new(RhythmReshapeKind.Displace, 2)),
-        ("Displace by 3 eighths", new(RhythmReshapeKind.Displace, 3)),
+        ("Half-time", new(RhythmReshapeKind.HalfTime), "Every note twice as long, and twice as far from the start of the selection."),
+        ("Double-time", new(RhythmReshapeKind.DoubleTime), "Every note half as long, and half as far from the start of the selection."),
+        ("Later by 1 eighth", new(RhythmReshapeKind.Displace, 1), "Every note starts an eighth later; lengths stay."),
+        ("Later by 2 eighths", new(RhythmReshapeKind.Displace, 2), "Every note starts a quarter later; lengths stay."),
+        ("Later by 3 eighths", new(RhythmReshapeKind.Displace, 3), "Every note starts three eighths later; lengths stay."),
     ];
+
+    /// <summary>Note categories the player expects but music-core cannot pick out yet; shown, not offered (S1-A3).</summary>
+    private static readonly string[] s_coreCategories = ["Melody", "Bass", "Harmony"];
 
     /// <summary>A second file opened as the variation (S1-W5).</summary>
     private const string SecondFileId = "second-file";
@@ -241,8 +261,6 @@
     private MeterMap? _meter;
     private int[] _tracks = [];
     private int _lastBar;
-    private int _barFrom = 1;
-    private int _barTo = 2;
     private MotifSelection? _selection;
     private MotifAnalysis? _analysis;
     private StructureAnalysis? _structure;
@@ -251,6 +269,9 @@
     private IReadOnlyList<AccentMark>? _accents;
     private SelectionFilter _filter = SelectionFilter.All;
     private (string Label, SelectionFilter Filter)[] _filters = [("All notes", SelectionFilter.All)];
+
+    /// <summary>The ids of the notes the filter keeps, for the roll; null when it keeps them all.</summary>
+    private IReadOnlyCollection<string>? _keptIds;
     private string? _selectionNote;
 
     /// <summary>Everything music-core found about the selection, for the facts panel to group by lens.</summary>
@@ -279,10 +300,55 @@
     private bool _restoring;
     private ScoreSource? _asWritten;
     private ScoreSource? _generated;
-    private bool _showScore = true;
-    private bool _showGenerated;
 
-    private ScoreSource? ShownScore => _showGenerated || _asWritten is null ? _generated : _asWritten;
+    /// <summary>The piece with the variation in place of the motif, engraved from the notes; null without a variation.</summary>
+    private ScoreSource? _variationScore;
+    private bool _showScore = true;
+    private ScoreChoice _scoreChoice = ScoreChoice.AsWritten;
+
+    private enum ScoreChoice
+    {
+        AsWritten,
+        Generated,
+        Variation,
+    }
+
+    private IEnumerable<(ScoreChoice Choice, string Label)> ScoreChoices
+    {
+        get
+        {
+            if (_asWritten is not null)
+            {
+                yield return (ScoreChoice.AsWritten, "As written");
+            }
+
+            yield return (ScoreChoice.Generated, "Generated from the notes");
+            if (_variationScore is not null)
+            {
+                yield return (ScoreChoice.Variation, "With the variation");
+            }
+        }
+    }
+
+    /// <summary>The choice in effect: one that is not available falls back to the file as written, else the generated score.</summary>
+    private ScoreChoice ShownChoice => _scoreChoice switch
+    {
+        ScoreChoice.Variation when _variationScore is not null => ScoreChoice.Variation,
+        ScoreChoice.AsWritten or ScoreChoice.Variation when _asWritten is not null => ScoreChoice.AsWritten,
+        _ => ScoreChoice.Generated,
+    };
+
+    private ScoreSource? ShownScore => ShownChoice switch
+    {
+        ScoreChoice.Variation => _variationScore,
+        ScoreChoice.AsWritten => _asWritten,
+        _ => _generated,
+    };
+
+    /// <summary>The piece's notes are heard: the original, or the selection on its own.</summary>
+    private bool OriginalAudible => Player.ActiveSources.Contains(Player.OriginalSource) || Player.ActiveSources.Contains(SelectionSource);
+
+    private bool VariationAudible => Player.ActiveSources.Contains(VariationSource);
 
     private int TempoPercent => (int)Math.Round(Player.Tempo * 100);
 
@@ -401,6 +467,7 @@
             _score = second.Timeline;
             _lastBar = MotifSelector.LastBar(_meter!, _score.End);
             await Player.LoadAsync(_score);
+            await ApplyFilterAsync();
             await Player.SetSourceAsync(VariationSource, _score.WithNotes(_variation?.Notes ?? []));
             await Player.SeekAsync(position);
         }
@@ -447,17 +514,17 @@
         _keys = keys;
         _generated = ScoreSource.FromNotes(notation);
         _asWritten = musicXml is null ? null : ScoreSource.AsWritten(musicXml);
-        _showGenerated = false;
+        _variationScore = null;
+        _scoreChoice = ScoreChoice.AsWritten;
         _score = piece.Score;
         _notes = piece.Notes;
         _meter = piece.Meter;
         _title = title;
         _tracks = piece.Notes.Select(note => note.Track).Distinct().Order().ToArray();
         _lastBar = MotifSelector.LastBar(_meter, _score.End);
-        _barFrom = Math.Max(1, _meter.FirstBarNumber);
-        _barTo = Math.Min(_lastBar, _barFrom + 1);
         _filters = Filters(piece.Notes, _tracks);
         _filter = SelectionFilter.All;
+        _keptIds = null;
         _selection = null;
         _analysis = null;
         _structure = null;
@@ -540,7 +607,10 @@
 
     private Task ToggleCountInAsync() => Player.SetCountInAsync(!Player.CountIn);
 
-    /// <summary>What a selection can be limited to (S1-M2): a hand when the piece has hands, a track when it has several.</summary>
+    /// <summary>
+    /// What playback, the roll and a selection can be limited to (S1-M2): a hand when the piece has
+    /// hands, a track when it has several, and a notated voice when a track has several.
+    /// </summary>
     private static (string Label, SelectionFilter Filter)[] Filters(IReadOnlyList<Note> notes, int[] tracks)
     {
         var filters = new List<(string, SelectionFilter)> { ("All notes", SelectionFilter.All) };
@@ -557,11 +627,17 @@
             filters.AddRange(tracks.Select(track => ($"Track {track + 1}", SelectionFilter.ForTrack(track))));
         }
 
+        foreach (int track in tracks)
+        {
+            int[] voices = [.. notes.Where(note => note.Track == track && note.Voice is not null).Select(note => note.Voice!.Value).Distinct().Order()];
+            if (voices.Length > 1)
+            {
+                filters.AddRange(voices.Select(voice => (tracks.Length > 1 ? $"Track {track + 1}, voice {voice}" : $"Voice {voice}", SelectionFilter.ForVoice(track, voice))));
+            }
+        }
+
         return [.. filters];
     }
-
-    /// <summary>Selects whole bars from the bar boxes (S1-M1).</summary>
-    private Task SelectBarsAsync() => SelectBarRangeAsync(_barFrom, _barTo);
 
     /// <summary>Selects whole bars, keeping to the piece and to 8 bars (S1-M1).</summary>
     private Task SelectBarRangeAsync(int fromBar, int toBar)
@@ -606,15 +682,30 @@
         return SelectAsync(span, capped ? $"A selection spans at most {MotifSelection.MaxBars} bars, so the drag stopped there." : null);
     }
 
-    private Task SetFilterAsync(ChangeEventArgs args)
+    /// <summary>
+    /// Limits what plays and lights up on the roll to the chosen notes (S1-M2). The selection keeps
+    /// its range and the variation is made again on the kept notes.
+    /// </summary>
+    private async Task SetFilterAsync(ChangeEventArgs args)
     {
         if (!int.TryParse(args.Value?.ToString(), out int index) || index < 0 || index >= _filters.Length)
         {
-            return Task.CompletedTask;
+            return;
         }
 
         _filter = _filters[index].Filter;
-        return _selection is { } selection ? SelectAsync(selection.Span, note: null) : Task.CompletedTask;
+        await ApplyFilterAsync();
+        if (_selection is { } selection)
+        {
+            await SelectAsync(selection.Span, note: null);
+        }
+    }
+
+    /// <summary>Plays only the notes the filter keeps as the original, and tells the roll which to draw at full strength.</summary>
+    private async Task ApplyFilterAsync()
+    {
+        _keptIds = _filter == SelectionFilter.All ? null : _notes!.Where(_filter.Matches).Select(note => note.Id).ToHashSet(StringComparer.Ordinal);
+        await Player.SetSourceAsync(Player.OriginalSource, _filter == SelectionFilter.All ? _score! : _score!.WithNotes(_notes!.Where(_filter.Matches)));
     }
 
     private async Task SelectAsync(TickSpan span, string? note)
@@ -624,9 +715,16 @@
         _analysis = MotifAnalyzer.Analyze(_notes!, _meter!, _selection, KeySignature.InForce(_keys, span.Onset), _accents, phrases);
         _structure = StructureAnalyzer.Analyze(_notes!, _meter!, _selection, phrases);
         _selectionNote = note;
-        await ClearVariationAsync();
-        _barFrom = _selection.FirstBar;
-        _barTo = _selection.LastBar;
+        // A reshape in place follows the selection as it changes, so the player keeps hearing and seeing it.
+        if (_variation is not null && UnavailableReason is null)
+        {
+            await ApplyAsync(play: false);
+        }
+        else
+        {
+            await ClearVariationAsync();
+        }
+
         if (_looping)
         {
             if (_selection.NoteIds.Count == 0)
@@ -703,15 +801,37 @@
     }
 
     /// <summary>A new parameter re-runs the operation and plays the result at once (S1-E3).</summary>
-    private Task SetReshapeAsync(ChangeEventArgs args)
+    private Task ReshapeAsync(int index)
     {
-        if (!int.TryParse(args.Value?.ToString(), out int index) || index < 0 || index >= s_reshapes.Length)
+        _reshape = index;
+        // Show the reshape in the score as well, the first time one is made.
+        if (_variation is null)
         {
-            return Task.CompletedTask;
+            _scoreChoice = ScoreChoice.Variation;
         }
 
-        _reshape = index;
-        return _variation is null ? Task.CompletedTask : ApplyAsync(play: true);
+        return ApplyAsync(play: true);
+    }
+
+    /// <summary>Why one reshape cannot run on this selection with these Keep choices, or null.</summary>
+    private string? ReshapeUnavailable(int index) => DisabledReason ?? (_selection is { } selection
+        ? RhythmReshape.UnavailableReason(VariationFacts.MotifNotes(_notes!, selection), selection.Span, s_reshapes[index].Parameters)
+        : "Select some notes first.");
+
+    private async Task RemoveVariationAsync()
+    {
+        await ClearVariationAsync();
+        await SaveProjectAsync();
+    }
+
+    /// <summary>The piece with the variation's notes in place of the motif's, engraved from the notes; what it writes is inferred (decision record 0008).</summary>
+    private ScoreSource VariationScore(Variation variation)
+    {
+        var changed = variation.Changes.Select(change => change.Before.Id).ToHashSet(StringComparer.Ordinal);
+        Note[] notes = [.. _notes!.Where(note => !changed.Contains(note.Id)), .. variation.Notes];
+        Tick end = notes.Length == 0 ? _score!.End : notes.Max(note => note.Span.End);
+        IEnumerable<KeyChange> keys = _keys.Select(key => new KeyChange(key.At, Math.Clamp(key.Fifths, -7, 7)));
+        return ScoreSource.FromNotes(NotationGenerator.Generate(notes, _meter!, keys, end > _score!.End ? end : _score.End, _title));
     }
 
     /// <summary>Runs V1 on the selection, keeping the original notes as they are (S1-E1, S1-E4, S1-E9).</summary>
@@ -724,6 +844,7 @@
         }
 
         _variation = RhythmReshape.Apply(_notes!, selection, _keep, s_reshapes[_reshape].Parameters);
+        _variationScore = VariationScore(_variation);
         await Player.SetSourceAsync(VariationSource, _score!.WithNotes(_variation.Notes));
         if (play || (_looping && Player.ActiveSources.SequenceEqual([VariationSource])))
         {
@@ -797,6 +918,7 @@
         }
 
         _variation = null;
+        _variationScore = null;
         await Player.SetSourceAsync(VariationSource, _score!.WithNotes([]));
     }
 
@@ -878,7 +1000,7 @@
         {
             if (_selection is not { } selection)
             {
-                return "Nothing selected. Drag across the piano roll, click a bar number, or type the bars.";
+                return "Nothing selected. Drag across the piano roll or click a bar number.";
             }
 
             var parts = new List<string> { $"Selected {Where(selection)}" };

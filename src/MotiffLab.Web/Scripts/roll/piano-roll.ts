@@ -24,7 +24,22 @@ interface DotNetObject {
 interface PlayerHandle {
     currentTick(): number;
     state(): string;
+    /** Strikes and releases a key by hand, over playback or without it. */
+    noteOn?(pitch: number, velocity?: number): void;
+    noteOff?(pitch: number): void;
 }
+
+/** A note of the variation drawn over the roll, with where it came from in the motif. */
+interface VariationNote {
+    onset: number;
+    end: number;
+    pitch: number;
+    fromOnset: number;
+    fromPitch: number;
+}
+
+/** Fields per note in setVariation's packed array: onset, end, pitch, the motif note's onset and pitch. */
+const VARIATION_FIELDS = 5;
 
 const TICKS_PER_QUARTER = 480;
 
@@ -36,7 +51,7 @@ const MAX_ZOOM = 480;
 const GUTTER = 40;
 // Tall enough to press and drag on for a bar selection (WCAG 2.2 target size, 2.5.8).
 const HEADER = 24;
-const ROLL_HEIGHT = 300;
+const ROLL_HEIGHT = 360;
 const MIN_ROW = 5;
 const MAX_ROW = 14;
 const KEYBOARD_HEIGHT = 64;
@@ -44,6 +59,9 @@ const KEYBOARD_HEIGHT = 64;
 /** While playing, the view pages on when the playhead passes this share of its width. */
 const FOLLOW_RIGHT = 0.85;
 const FOLLOW_LEFT = 0.15;
+
+/** How close, in pixels, a press must be to an edge of the selection to drag that edge. */
+const EDGE_GRAB = 6;
 
 /** A press that moves less than this many pixels is a click, not a drag. */
 const CLICK_SLOP = 4;
@@ -73,6 +91,11 @@ const SELECTION_BAND = "rgba(200, 241, 105, 0.14)";
 const SELECTION_HEADER = "rgba(200, 241, 105, 0.45)";
 /** Notes outside the selected motif are drawn faint, so the motif stands out. */
 const OUTSIDE_ALPHA = 0.3;
+/** Motif notes behind a variation are drawn this faint, so the variation's outlines read on top of them. */
+const BEHIND_VARIATION_ALPHA = 0.4;
+const VARIATION_FILL = "rgba(244, 245, 242, 0.28)";
+const VARIATION_FILL_SOUNDING = "rgba(244, 245, 242, 0.75)";
+const VARIATION_LINK = "rgba(244, 245, 242, 0.45)";
 const LANE_COLOURS = ["#C8F169", "#6EC6FF", "#FF9E80", "#C5A3FF", "#F2D16B", "#5FE0C1"];
 
 /** Patterns go with colours so that lanes differ by more than colour (WCAG 2.2 AA, 1.4.1). */
@@ -97,10 +120,24 @@ export class PianoRoll {
     private focusIndex: number | undefined;
     /** The motif selection (S1-M1, S1-M2): its range and its notes, or null for none. */
     private motif: { start: number; end: number; notes: Set<number>; alone: boolean } | null = null;
-    /** A drag across the roll selecting a range: where it started and where the pointer is. */
-    private drag: { pointer: number; anchorX: number; anchor: number; current: number } | null = null;
+    /** A drag across the roll selecting a range: where it started and where the pointer is; edge when it moves an edge of the selection. */
+    private drag: { pointer: number; anchorX: number; anchor: number; current: number; edge: boolean } | null = null;
+    /** Indexes of the notes the Notes filter keeps, or null for all; the others are drawn faint and never light up. */
+    private filtered: Set<number> | null = null;
+    /** The variation of the motif, drawn as outlines over it, or null for none. */
+    private variation: VariationNote[] | null = null;
+    /** Which sources are heard, so only notes being heard light up. */
+    private originalAudible = true;
+    private variationAudible = false;
+    /** The key held on the keyboard by a pointer, so a drag across the keys plays each in turn. */
+    private keysPress: { pointer: number; pitch: number | null } | null = null;
+
+    /** Keys struck by hand on the roll or the keyboard, lit while held. */
+    private readonly live = new Map<number, number>();
+    /** Key x positions from the last keyboard draw, for finding the key under the pointer. */
+    private keyLayout: { positions: Map<number, number>; whiteWidth: number; blackWidth: number; blackHeight: number } | null = null;
     /** A press on the notes area that becomes a click on a note or the grid, or a range drag once it moves. */
-    private press: { pointer: number; x: number; tick: number; pitch: number; add: boolean } | null = null;
+    private press: { pointer: number; x: number; tick: number; pitch: number; add: boolean; sounding: number | null } | null = null;
     /** Where a press outside the roll started, so that a drag (such as selecting text) is not a click. */
     private outsidePress: { x: number; y: number; target: Element } | null = null;
     private player: PlayerHandle | null = null;
@@ -119,7 +156,7 @@ export class PianoRoll {
         this.roll.setAttribute("role", "application");
         this.roll.setAttribute(
             "aria-label",
-            "Piano roll. Drag anywhere across the roll to select a range, click a bar number to select that bar, Shift-click a bar number to extend the selection to it. Click a note to select it, Shift-click to add to the selection. Click an empty place or press Escape to clear the selection. Space plays the selection on a loop, or the piece, and pauses. Arrow keys move the note selection, plus and minus zoom.",
+            "Piano roll. Drag anywhere across the roll to select a range, drag an edge of the selection to move it, click a bar number to select that bar, Shift-click a bar number to extend the selection to it. Click a note to hear and select it, Shift-click to add to the selection; click the pitch names or the keyboard to hear a key. Click an empty place or press Escape to clear the selection. Space plays the selection on a loop, or the piece, and pauses. Arrow keys move the note selection, plus and minus zoom.",
         );
 
         this.scroller = document.createElement("input");
@@ -132,7 +169,7 @@ export class PianoRoll {
         this.keys = document.createElement("canvas");
         this.keys.className = "roll-keys";
         this.keys.setAttribute("role", "img");
-        this.keys.setAttribute("aria-label", "Keyboard: the keys of the notes being heard are lit and marked with a dot.");
+        this.keys.setAttribute("aria-label", "Keyboard: the keys of the notes being heard are lit and marked with a dot. Click or drag across the keys to play them, also while the piece plays.");
 
         this.legend = document.createElement("div");
         this.legend.className = "roll-legend";
@@ -145,6 +182,10 @@ export class PianoRoll {
         this.roll.addEventListener("pointercancel", this.onPointerCancel);
         this.roll.addEventListener("keydown", this.onKeyDown);
         this.roll.addEventListener("wheel", this.onWheel, { passive: false });
+        this.keys.addEventListener("pointerdown", this.onKeysDown);
+        this.keys.addEventListener("pointermove", this.onKeysMove);
+        this.keys.addEventListener("pointerup", this.onKeysUp);
+        this.keys.addEventListener("pointercancel", this.onKeysUp);
         this.scroller.addEventListener("input", this.onScroll);
         document.addEventListener("pointerdown", this.onDocumentPointerDown);
         document.addEventListener("pointerup", this.onDocumentPointerUp);
@@ -160,6 +201,8 @@ export class PianoRoll {
         this.selected = new Set();
         this.focusIndex = undefined;
         this.motif = null;
+        this.filtered = null;
+        this.variation = null;
         this.drag = null;
         this.press = null;
         this.scroll = 0;
@@ -212,6 +255,43 @@ export class PianoRoll {
         this.invalidate();
     }
 
+    /** Keeps only the notes with these ids at full strength, for the Notes filter; null keeps all. */
+    setFilter(ids: string[] | null): void {
+        const model = this.model;
+        if (model === null) {
+            return;
+        }
+        this.filtered = ids === null ? null : new Set(ids.map((id) => model.indexOf(id)).filter((index): index is number => index !== undefined));
+        this.invalidate();
+    }
+
+    /**
+     * Draws a variation over the motif (V1 and later): each note as an outline where it lands, with
+     * a line from the motif note it came from when it moved. Packed as VARIATION_FIELDS per note.
+     */
+    setVariation(packed: number[]): void {
+        const notes: VariationNote[] = [];
+        for (let at = 0; at + VARIATION_FIELDS <= packed.length; at += VARIATION_FIELDS) {
+            notes.push({ onset: packed[at], end: packed[at + 1], pitch: packed[at + 2], fromOnset: packed[at + 3], fromPitch: packed[at + 4] });
+        }
+        this.variation = notes;
+        this.renderLegend();
+        this.invalidate();
+    }
+
+    clearVariation(): void {
+        this.variation = null;
+        this.renderLegend();
+        this.invalidate();
+    }
+
+    /** Which sources are being heard, so only their notes light up as they sound. */
+    setAudible(original: boolean, variation: boolean): void {
+        this.originalAudible = original;
+        this.variationAudible = variation;
+        this.invalidate();
+    }
+
     /** Follows the player every animation frame, until called with null. */
     follow(player: PlayerHandle | null): void {
         this.player = player;
@@ -228,6 +308,11 @@ export class PianoRoll {
         this.roll.removeEventListener("pointercancel", this.onPointerCancel);
         this.roll.removeEventListener("keydown", this.onKeyDown);
         this.roll.removeEventListener("wheel", this.onWheel);
+        this.keys.removeEventListener("pointerdown", this.onKeysDown);
+        this.keys.removeEventListener("pointermove", this.onKeysMove);
+        this.keys.removeEventListener("pointerup", this.onKeysUp);
+        this.keys.removeEventListener("pointercancel", this.onKeysUp);
+        this.releaseAllLive();
         this.scroller.removeEventListener("input", this.onScroll);
         document.removeEventListener("pointerdown", this.onDocumentPointerDown);
         document.removeEventListener("pointerup", this.onDocumentPointerUp);
@@ -381,6 +466,15 @@ export class PianoRoll {
                 context.fillStyle = ACCENT;
                 context.fillRect(Math.round(left), 0, 1, height);
                 context.fillRect(Math.round(right) - 1, 0, 1, height);
+                // Grips on the bar numbers show that the edges can be dragged.
+                if (this.drag === null) {
+                    if (left > GUTTER) {
+                        context.fillRect(Math.round(left), 0, 4, HEADER);
+                    }
+                    if (right < width) {
+                        context.fillRect(Math.round(right) - 4, 0, 4, HEADER);
+                    }
+                }
             }
         }
 
@@ -400,8 +494,9 @@ export class PianoRoll {
             const h = Math.max(2, row - 2);
             const lane = this.laneIndex.get(laneKey(note, this.colourBy)) ?? 0;
 
-            const outside = this.motif !== null && !this.motif.notes.has(index);
-            context.globalAlpha = outside ? OUTSIDE_ALPHA : sounding.has(index) ? 1 : 0.82;
+            const outside = (this.motif !== null && !this.motif.notes.has(index)) || (this.filtered !== null && !this.filtered.has(index));
+            const behind = this.variation !== null && this.motif !== null && this.motif.notes.has(index);
+            context.globalAlpha = outside ? OUTSIDE_ALPHA : behind ? BEHIND_VARIATION_ALPHA : sounding.has(index) ? 1 : 0.82;
             context.fillStyle = LANE_COLOURS[lane % LANE_COLOURS.length];
             context.fillRect(x, y, w, h);
             const pattern = this.pattern(LANE_PATTERNS[lane % LANE_PATTERNS.length], context);
@@ -435,6 +530,7 @@ export class PianoRoll {
                 context.strokeRect(x - 1, y - 1, w + 2, h + 2);
             }
         }
+        this.drawVariation(context, from, to, high, low, row);
         context.restore();
 
         // Playhead.
@@ -442,6 +538,38 @@ export class PianoRoll {
         if (playhead >= GUTTER && playhead <= width) {
             context.fillStyle = ACCENT;
             context.fillRect(Math.round(playhead) - 1, 0, 2, height);
+        }
+    }
+
+    /** The variation as outlines where its notes land, each linked to the motif note it came from when it moved. */
+    private drawVariation(context: CanvasRenderingContext2D, from: number, to: number, high: number, low: number, row: number): void {
+        const variation = this.variation;
+        if (variation === null) {
+            return;
+        }
+        const centre = (pitch: number): number => HEADER + (high - pitch) * row + row / 2;
+        for (const note of variation) {
+            if (note.end < from || note.onset > to || note.pitch < low || note.pitch > high) {
+                continue;
+            }
+            const x = this.xOf(note.onset);
+            const w = Math.max(2, ((note.end - note.onset) * this.zoom) / TICKS_PER_QUARTER - 1);
+            const y = HEADER + (high - note.pitch) * row + 1;
+            const h = Math.max(2, row - 2);
+            if (note.onset !== note.fromOnset || note.pitch !== note.fromPitch) {
+                context.strokeStyle = VARIATION_LINK;
+                context.lineWidth = 1;
+                context.beginPath();
+                context.moveTo(this.xOf(note.fromOnset), centre(note.fromPitch));
+                context.lineTo(x, centre(note.pitch));
+                context.stroke();
+            }
+            const sounding = this.variationAudible && note.onset <= this.tickNow && note.end > this.tickNow;
+            context.fillStyle = sounding ? VARIATION_FILL_SOUNDING : VARIATION_FILL;
+            context.fillRect(x, y, w, h);
+            context.strokeStyle = INK;
+            context.lineWidth = 2;
+            context.strokeRect(x + 1, y + 1, w - 2, h - 2);
         }
     }
 
@@ -457,6 +585,15 @@ export class PianoRoll {
             for (const index of this.soundingNow(model)) {
                 const note = model.notes[index];
                 lit.set(note.pitch, this.laneIndex.get(laneKey(note, this.colourBy)) ?? 0);
+            }
+        }
+        // Variation notes and keys struck by hand light in the ink colour, so they read apart from the piece's lanes.
+        const struck = new Set<number>(this.live.keys());
+        if (this.variation !== null && this.variationAudible) {
+            for (const note of this.variation) {
+                if (note.onset <= this.tickNow && note.end > this.tickNow) {
+                    struck.add(note.pitch);
+                }
             }
         }
 
@@ -484,14 +621,15 @@ export class PianoRoll {
             const w = black ? blackWidth : whiteWidth;
             const h = black ? blackHeight : KEYBOARD_HEIGHT;
             const lane = lit.get(pitch);
-            context.fillStyle = lane !== undefined ? LANE_COLOURS[lane % LANE_COLOURS.length] : black ? CHARCOAL : INK;
+            const byHand = struck.has(pitch);
+            context.fillStyle = byHand ? MUTED : lane !== undefined ? LANE_COLOURS[lane % LANE_COLOURS.length] : black ? CHARCOAL : INK;
             context.fillRect(x + 0.5, 0, w - 1, h);
             if (!black) {
                 context.fillStyle = BAR_LINE;
                 context.fillRect(x, 0, 1, h);
             }
             // A dot as well as the colour, so a lit key reads without colour vision.
-            if (lane !== undefined) {
+            if (lane !== undefined || byHand) {
                 const radius = Math.max(2, Math.min(w * 0.28, 5));
                 context.fillStyle = CHARCOAL;
                 context.beginPath();
@@ -499,6 +637,7 @@ export class PianoRoll {
                 context.fill();
             }
         };
+        this.keyLayout = { positions, whiteWidth, blackWidth, blackHeight };
         for (let pitch = LOWEST_KEY; pitch <= HIGHEST_KEY; pitch++) {
             if (!isBlackKey(pitch)) {
                 drawKey(pitch, false);
@@ -538,7 +677,10 @@ export class PianoRoll {
             items.push(legendItem(swatch(LANE_COLOURS[index % LANE_COLOURS.length], LANE_PATTERNS[index % LANE_PATTERNS.length], false), lane.label));
         }
         if (model !== null && model.notes.length > 0) {
-            items.push(legendItem(null, "Drag across the roll to select · Shift-click a bar number to extend · click an empty place to clear"));
+            items.push(legendItem(null, "Drag across the roll to select · drag its edges to adjust · click an empty place to clear · click a note or key to hear it"));
+        }
+        if (this.variation !== null) {
+            items.push(legendItem(variationSwatch(), "Outlined: the variation, linked to the notes it moved from"));
         }
         if (model?.notes.some((note) => note.noteInferred || note.handInferred)) {
             items.push(legendItem(swatch(SURFACE, "solid", true), "Dashed outline: inferred, not in the file"));
@@ -579,39 +721,69 @@ export class PianoRoll {
         const box = this.roll.getBoundingClientRect();
         const x = event.clientX - box.left;
         const y = event.clientY - box.top;
-        if (x < GUTTER) {
-            return;
-        }
-        const tick = this.tickAtX(x);
+        const { high, row } = this.pitchRange();
+        const pitch = high - Math.floor((y - HEADER) / row);
         this.roll.setPointerCapture(event.pointerId);
         // No text selection while dragging; focus by hand so the keys (Escape, arrows) reach the roll.
         event.preventDefault();
         this.roll.focus({ preventScroll: true });
+        if (x < GUTTER) {
+            // The pitch names play their row's key, as the keyboard does.
+            if (y >= HEADER) {
+                this.press = { pointer: event.pointerId, x, tick: -1, pitch, add: false, sounding: this.strike(pitch) };
+            }
+            return;
+        }
+        const tick = this.tickAtX(x);
+        // A press on an edge of the selection drags that edge; the other edge stays where it is.
+        const edge = this.edgeAt(x);
+        if (edge !== null && this.motif !== null) {
+            const anchor = edge === "start" ? this.motif.end - 1 : this.motif.start;
+            this.drag = { pointer: event.pointerId, anchorX: Number.NaN, anchor, current: tick, edge: true };
+            this.invalidate();
+            return;
+        }
         if (y < HEADER) {
             // Shift-click on a bar number extends the selection to that bar.
             if (event.shiftKey && this.motif !== null) {
                 void this.dotnet.invokeMethodAsync("OnRollRange", Math.round(tick), Math.round(tick), true, true);
                 return;
             }
-            this.drag = { pointer: event.pointerId, anchorX: x, anchor: tick, current: tick };
+            this.drag = { pointer: event.pointerId, anchorX: x, anchor: tick, current: tick, edge: false };
             this.invalidate();
             return;
         }
-        const { high, row } = this.pitchRange();
-        const pitch = high - Math.floor((y - HEADER) / row);
-        this.press = { pointer: event.pointerId, x, tick, pitch, add: event.shiftKey || event.ctrlKey || event.metaKey };
+        // A note sounds as soon as it is pressed, over playback too.
+        const index = model.noteAt(tick, pitch);
+        const sounding = index !== undefined ? this.strike(model.notes[index].pitch) : null;
+        this.press = { pointer: event.pointerId, x, tick, pitch, add: event.shiftKey || event.ctrlKey || event.metaKey, sounding };
     };
 
     private readonly onPointerMove = (event: PointerEvent): void => {
         const box = this.roll.getBoundingClientRect();
         const x = event.clientX - box.left;
-        // A press on the notes area that moves becomes a range drag, as on the bar numbers.
         const press = this.press;
-        if (press !== null && event.pointerId === press.pointer && Math.abs(x - press.x) >= CLICK_SLOP) {
-            this.drag = { pointer: press.pointer, anchorX: press.x, anchor: press.tick, current: press.tick };
-            this.press = null;
+        if (press !== null && event.pointerId === press.pointer) {
+            if (press.tick < 0) {
+                // Dragging down the pitch names plays each key in turn.
+                const { high, row } = this.pitchRange();
+                const pitch = high - Math.floor((event.clientY - box.top - HEADER) / row);
+                if (pitch !== press.pitch) {
+                    this.release(press.sounding);
+                    press.pitch = pitch;
+                    press.sounding = this.strike(pitch);
+                }
+                return;
+            }
+            // A press on the notes area that moves becomes a range drag, as on the bar numbers.
+            if (Math.abs(x - press.x) >= CLICK_SLOP) {
+                this.release(press.sounding);
+                this.drag = { pointer: press.pointer, anchorX: press.x, anchor: press.tick, current: press.tick, edge: false };
+                this.press = null;
+            }
         }
         if (this.drag === null || event.pointerId !== this.drag.pointer) {
+            this.roll.style.cursor = x >= GUTTER && this.edgeAt(x) !== null ? "ew-resize" : "";
             return;
         }
         this.drag.current = this.tickAtX(Math.max(GUTTER, x));
@@ -630,6 +802,10 @@ export class PianoRoll {
         const press = this.press;
         if (press !== null && event.pointerId === press.pointer) {
             this.press = null;
+            this.release(press.sounding);
+            if (press.tick < 0) {
+                return;
+            }
             const model = this.model;
             const index = model?.noteAt(press.tick, press.pitch);
             if (index !== undefined || press.add) {
@@ -645,16 +821,113 @@ export class PianoRoll {
         }
         const box = this.roll.getBoundingClientRect();
         const x = event.clientX - box.left;
-        const click = Math.abs(x - drag.anchorX) < CLICK_SLOP;
-        void this.dotnet.invokeMethodAsync("OnRollRange", Math.round(drag.anchor), Math.round(drag.current), click, false);
+        const click = !drag.edge && Math.abs(x - drag.anchorX) < CLICK_SLOP;
+        // An end edge let go on a beat line ends there, not a beat later: music-core rounds an end up to the next beat.
+        const current = drag.edge && drag.current > drag.anchor ? Math.max(drag.anchor, drag.current - 1) : drag.current;
+        void this.dotnet.invokeMethodAsync("OnRollRange", Math.round(drag.anchor), Math.round(current), click, false);
         this.drag = null;
         this.invalidate();
     };
 
     private readonly onPointerCancel = (): void => {
+        this.release(this.press?.sounding ?? null);
         this.drag = null;
         this.press = null;
         this.invalidate();
+    };
+
+    /** Which edge of the selection is under x, if any. */
+    private edgeAt(x: number): "start" | "end" | null {
+        const motif = this.motif;
+        if (motif === null) {
+            return null;
+        }
+        if (Math.abs(x - this.xOf(motif.end)) <= EDGE_GRAB) {
+            return "end";
+        }
+        return Math.abs(x - this.xOf(motif.start)) <= EDGE_GRAB ? "start" : null;
+    }
+
+    /** Strikes a key by hand and lights it; returns the pitch, to release later. */
+    private strike(pitch: number): number | null {
+        if (pitch < 0 || pitch > 127 || this.player?.noteOn === undefined) {
+            return null;
+        }
+        this.player.noteOn(pitch);
+        this.live.set(pitch, (this.live.get(pitch) ?? 0) + 1);
+        this.invalidate();
+        return pitch;
+    }
+
+    private release(pitch: number | null): void {
+        if (pitch === null) {
+            return;
+        }
+        const held = (this.live.get(pitch) ?? 1) - 1;
+        if (held > 0) {
+            this.live.set(pitch, held);
+        } else {
+            this.live.delete(pitch);
+            this.player?.noteOff?.(pitch);
+        }
+        this.invalidate();
+    }
+
+    private releaseAllLive(): void {
+        for (const pitch of this.live.keys()) {
+            this.player?.noteOff?.(pitch);
+        }
+        this.live.clear();
+    }
+
+    /** The key under a point on the keyboard: black keys first, as they sit on top. */
+    private keyAt(x: number, y: number): number | null {
+        const layout = this.keyLayout;
+        if (layout === null) {
+            return null;
+        }
+        if (y < layout.blackHeight) {
+            for (const [pitch, left] of layout.positions) {
+                if (isBlackKey(pitch) && x >= left && x < left + layout.blackWidth) {
+                    return pitch;
+                }
+            }
+        }
+        for (const [pitch, left] of layout.positions) {
+            if (!isBlackKey(pitch) && x >= left && x < left + layout.whiteWidth) {
+                return pitch;
+            }
+        }
+        return null;
+    }
+
+    private readonly onKeysDown = (event: PointerEvent): void => {
+        const box = this.keys.getBoundingClientRect();
+        this.keys.setPointerCapture(event.pointerId);
+        event.preventDefault();
+        this.keysPress = { pointer: event.pointerId, pitch: this.strike(this.keyAt(event.clientX - box.left, event.clientY - box.top) ?? -1) };
+    };
+
+    private readonly onKeysMove = (event: PointerEvent): void => {
+        const press = this.keysPress;
+        if (press === null || event.pointerId !== press.pointer) {
+            return;
+        }
+        const box = this.keys.getBoundingClientRect();
+        const pitch = this.keyAt(event.clientX - box.left, event.clientY - box.top);
+        if (pitch !== press.pitch) {
+            this.release(press.pitch);
+            press.pitch = this.strike(pitch ?? -1);
+        }
+    };
+
+    private readonly onKeysUp = (event: PointerEvent): void => {
+        const press = this.keysPress;
+        if (press === null || event.pointerId !== press.pointer) {
+            return;
+        }
+        this.release(press.pitch);
+        this.keysPress = null;
     };
 
     /** Clears the selected notes and asks the page to clear the motif selection, when there is any. */
@@ -701,10 +974,16 @@ export class PianoRoll {
     };
 
     /** The notes being heard: those at the playhead, only the motif's when it plays alone. */
+    /** The piece's notes being heard: none while only the variation plays, the motif's when it plays alone, and only those the Notes filter keeps. */
     private soundingNow(model: RollModel): number[] {
+        if (!this.originalAudible) {
+            return [];
+        }
         const motif = this.motif;
-        const sounding = model.soundingAt(this.tickNow);
-        return motif !== null && motif.alone ? sounding.filter((index) => motif.notes.has(index)) : sounding;
+        const filtered = this.filtered;
+        return model
+            .soundingAt(this.tickNow)
+            .filter((index) => (motif === null || !motif.alone || motif.notes.has(index)) && (filtered === null || filtered.has(index)));
     }
 
     private tickAtX(x: number): number {
@@ -845,6 +1124,17 @@ function swatch(colour: string, kind: PatternKind, dashed: boolean): HTMLCanvasE
         context.strokeStyle = INK;
         context.strokeRect(0.5, 0.5, width - 1, height - 1);
     }
+    return canvas;
+}
+
+function variationSwatch(): HTMLCanvasElement {
+    const canvas = swatch(SURFACE, "solid", false);
+    const context = canvas.getContext("2d")!;
+    context.fillStyle = VARIATION_FILL;
+    context.fillRect(0, 0, 28, 12);
+    context.strokeStyle = INK;
+    context.lineWidth = 2;
+    context.strokeRect(1, 1, 26, 10);
     return canvas;
 }
 
