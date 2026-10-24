@@ -10,9 +10,10 @@ permissions:
   contents: read
 
 # A newer push to the same pull request supersedes the run in progress. Never cancel a run on main:
-# it may be provisioning infrastructure.
+# it may be provisioning infrastructure. Pull requests group by number, not ref: when a pull request
+# closes, github.ref is the base branch, and grouping by ref let the close run cancel the push to main.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
