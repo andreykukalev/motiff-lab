@@ -4,8 +4,12 @@ Small, pragmatic rules for the web UI (`src/MotiffLab.Web`) so that UI fixes sta
 
 ## Layout
 
-- The playback lab is a wide workspace: the piano roll on the left and the score on the right, splitting the width 50/50 from about 70rem; below that they stack. Hiding the score gives the roll the full width.
-- A toolbar above the workspace holds what changes the whole view: the Notes filter, what is heard (Hear), and the score switch and choice. Selection, reshape controls and facts sit below the workspace, side by side on wide screens.
+- The playback lab follows the iPad mockups (PR #120): a header, the canvas on the left, the inspector on the right from about 64rem (below that it stacks under the canvas), and the transport fixed along the bottom.
+- The header holds the piece and what changes the whole view: Notes (the filter), Hear and Score (Hidden, As written, Generated from the notes, With the variation), each a labelled select.
+- The canvas is the piano roll with its keyboard, the score below it (ink on paper, scrolling within its panel), and a closed "Compare with a second file, mute and solo tracks" section.
+- The inspector stays in view as the canvas scrolls. On top it says what is selected, with Loop and Clear; under that three tabs: **Selection** (Keep preset and chips, the reshapes, the steps, What changed, hear and export), **Facts** (the facts panel) and **Edit** (editing variation notes and correcting imported notes). Put new selection tools in the tab they belong to, not under the canvas.
+- The transport: a round lime play button, Stop, the position slider and text, the state, tempo, metronome and count-in.
+- Tokens are on `:root` in `wwwroot/css/app.css`: charcoal ground, `--ml-panel` and `--ml-surface` for raised panels, lime for what is on, `--ml-inferred` (blue) and `--ml-uncertain` (amber) for certainty, and a monospace stack for positions and counts. Buttons are rounded (0.6rem) with a `--ml-border` outline; on or primary ones are lime.
 - There are no bar number boxes: selection is made on the roll, with the mouse or, with the roll focused, the keyboard.
 
 ## Selection on the piano roll
@@ -15,7 +19,7 @@ Small, pragmatic rules for the web UI (`src/MotiffLab.Web`) so that UI fixes sta
 - **Click a bar number** to select that bar. **Shift-click a bar number** to extend the selection to that bar, in whole bars.
 - **By keyboard**, with the roll focused: **]** and **[** select the bar after or before the selection (the first bar when nothing is selected), and with **Shift** they extend the selection by that bar, as a click or Shift-click on its number does (WCAG 2.1.1). Space loops the selection.
 - **Click a note** to hear it and select it; Shift, Ctrl or Cmd adds to the note selection. A press on a note that moves becomes a range drag.
-- **Clear** with Escape, a click on an empty place in the roll, or a click on the page outside the roll. Clicks on controls (buttons, inputs, links, labels) never clear. Panels that show or act on the selection carry `data-keeps-selection`, so reading or using them does not clear it: today the selection panel (facts, Keep, variation) and the score. Mark any new panel of that kind the same way.
+- **Clear** with Escape, a click on an empty place in the roll, or a click on the page outside the roll. Clicks on controls (buttons, inputs, links, labels) never clear. Panels that show or act on the selection carry `data-keeps-selection`, so reading or using them does not clear it: today the inspector and the score. Mark any new panel of that kind the same way.
 - **Space** plays and pauses from anywhere on the page: with notes selected it loops them and plays (later presses pause and resume the loop), with nothing selected it plays the piece. It acts on buttons and sliders too (Enter still presses a button), but not in text fields, lists, checkboxes or radios, where Space types or ticks.
 - The 8-bar limit and its message come from music-core (`MotifSelection.MaxBars`).
 
@@ -59,7 +63,7 @@ Small, pragmatic rules for the web UI (`src/MotiffLab.Web`) so that UI fixes sta
 
 - Facts are shown by `Facts/FactsPanel.razor`, one collapsible section per `FactLens`, in the enum's order. A new fact, or a new lens added to `FactLens`, appears without UI changes. Pass every analysis's facts to the panel in one list.
 - Each section header gives the lens, the number of facts and how many are detected, inferred or uncertain, so a closed section still shows how sure it is. Closed sections stay closed as the selection changes.
-- Every fact keeps its certainty label (detected, inferred, uncertain) and its basis as the hover text. Never drop either.
+- Every fact keeps its certainty badge and its basis. The badge differs by line as well as colour: solid grey for detected, dashed blue for inferred, dotted amber for uncertain. The basis is the hover text and also opens under the fact with its Basis button, so it can be read on touch. Never drop either.
 
 ## General
 

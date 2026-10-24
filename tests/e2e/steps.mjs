@@ -46,5 +46,5 @@ export async function selectBar(page, bar, { pickup = 0.5, barQuarters = 1.5 } =
     const box = await roll.boundingBox();
     const quarters = pickup + (bar - 1) * barQuarters + 0.4;
     await page.mouse.click(box.x + GUTTER + quarters * PIXELS_PER_QUARTER, box.y + HEADER / 2);
-    await expect(page.locator(".selection .meta").first()).toContainText("bar " + bar);
+    await expect(page.locator(".inspector .selection-text")).toContainText("bar " + bar);
 }

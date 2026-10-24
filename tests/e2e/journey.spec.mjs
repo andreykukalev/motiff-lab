@@ -26,17 +26,17 @@ async function startTime(page, button) {
 test("open a piece, loop a bar, propose and hear a variation", async ({ page }) => {
     const errors = await openFurElise(page);
     await selectBar(page, 1);
-    const play = page.locator(".transport").getByRole("button", { name: "Play" });
-    const pause = page.locator(".transport").getByRole("button", { name: "Pause" });
+    const play = page.locator(".transport-bar").getByRole("button", { name: "Play" });
+    const pause = page.locator(".transport-bar").getByRole("button", { name: "Pause" });
 
-    await page.getByRole("button", { name: "Loop selection" }).click();
+    await page.getByRole("button", { name: "Loop", exact: true }).click();
     const original = await startTime(page, play);
     await pause.click();
 
     // Picking a reshape plays it at once (S1-W5).
     const variation = await startTime(page, page.getByRole("button", { name: "Dotted" }));
-    await expect(page.locator(".variation > p.meta[aria-live]")).not.toBeEmpty();
-    await expect(page.getByRole("radio", { name: "Variation", exact: true })).toBeChecked();
+    await expect(page.locator(".inspector .changed p").first()).not.toBeEmpty();
+    await expect(page.locator("select[aria-label='What is heard'] option:checked")).toHaveText("Variation");
     await expect(page.getByText(/Bar 1, beat [23]/)).toBeVisible();
     await pause.click();
 

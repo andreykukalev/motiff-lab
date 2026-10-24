@@ -24,9 +24,62 @@
 <PageTitle>Playback · Motiff Lab</PageTitle>
 
 @* A test bench for the playback engine (S1-W4, S1-W5), the piano roll and keyboard (S1-W2, S1-W3), motif selection, its loop and its facts (S1-M1, S1-M2, S1-M5, S1-A1, S1-A2) and the score view (S1-W7) and a second file as the variation (S1-W5) until the workspace exists. Files stay on the device. *@
-<main class="lab">
-    <h1>Playback</h1>
-    <p class="meta">A test bench for playback until the workspace lands. Open a MIDI or MusicXML file or try Für Elise; nothing leaves this device.</p>
+<main class="lab app">
+    @* The workspace layout from the iPad mockups (docs/ui-conventions.md): a header with what the whole view shows, the roll and score
+       on the left, an inspector for the selection on the right (Selection, Facts, Edit), and the transport along the bottom. *@
+    <header class="app-header">
+        <a class="back" href="">‹ Projects</a>
+        <div class="app-title">
+            <strong>@(_title ?? "Playback")</strong>
+            <span class="meta">@(_score is null ? "Open a MIDI or MusicXML file or try Für Elise; nothing leaves this device." : "Files stay on this device.")</span>
+        </div>
+        <div class="app-actions">
+            <button @onclick="LoadFurEliseAsync" disabled="@(!Player.IsReady)" title="The opening of Beethoven's Für Elise, the pickup and bars 1–8, written out for the lab.">Für Elise</button>
+            <label class="file">
+                Open file
+                <InputFile OnChange="OpenFileAsync" accept="@PieceImporter.AcceptedExtensions" disabled="@(!Player.IsReady)" />
+            </label>
+            <a class="button" href="import">Import with the report</a>
+        </div>
+        @if (_score is not null && _meter is not null)
+        {
+            @* Which notes play and light up (S1-M2), what is heard, and which score shows. *@
+            <div class="app-view" role="group" aria-label="View">
+                <label class="pick">
+                    <span>Notes</span>
+                    <select @onchange="SetFilterAsync" aria-label="Which notes play, light up and can be selected">
+                        @for (int i = 0; i < _filters.Length; i++)
+                        {
+                            <option value="@i" selected="@(_filters[i].Filter == _filter)">@_filters[i].Label</option>
+                        }
+                        @foreach (string category in s_coreCategories)
+                        {
+                            <option disabled>@category (needs voice and chord analysis)</option>
+                        }
+                    </select>
+                </label>
+                <label class="pick">
+                    <span>Hear</span>
+                    <select @onchange="HearChosenAsync" aria-label="What is heard">
+                        @for (int i = 0; i < Sources.Length; i++)
+                        {
+                            <option value="@i" selected="@_hear.SequenceEqual(Sources[i].Ids)">@Sources[i].Label</option>
+                        }
+                    </select>
+                </label>
+                <label class="pick">
+                    <span>Score</span>
+                    <select @onchange="SetScoreChoice" aria-label="Which score shows">
+                        <option value="off" selected="@(!_showScore)">Hidden</option>
+                        @foreach ((ScoreChoice choice, string label) in ScoreChoices)
+                        {
+                            <option value="@choice" selected="@(_showScore && ShownChoice == choice)">@label</option>
+                        }
+                    </select>
+                </label>
+            </div>
+        }
+    </header>
 
     @if (Player.Error is not null)
     {
@@ -36,19 +89,6 @@
     {
         <p class="meta">Loading the piano…</p>
     }
-
-    <section class="row">
-        <button @onclick="LoadFurEliseAsync" disabled="@(!Player.IsReady)" title="The opening of Beethoven's Für Elise, the pickup and bars 1–8, written out for the lab.">Für Elise</button>
-        <label class="file">
-            Open file
-            <InputFile OnChange="OpenFileAsync" accept="@PieceImporter.AcceptedExtensions" disabled="@(!Player.IsReady)" />
-        </label>
-        <a href="import">Import with the report</a>
-        @if (_title is not null)
-        {
-            <span class="meta">@_title</span>
-        }
-    </section>
     @if (_message is not null)
     {
         <p class="error">@_message</p>
@@ -57,314 +97,331 @@
 
     @if (_score is not null && _meter is not null)
     {
-        <section class="row transport">
-            <button class="primary" @onclick="TogglePlayAsync">@(Player.State == PlaybackState.Stopped ? "Play" : "Pause")</button>
-            <button @onclick="StopAsync">Stop</button>
-            <span class="position" aria-live="off">@PositionText</span>
-            <span class="meta">@StateText</span>
-            <input class="seek" type="range" min="0" max="@_score.End.Value" step="1" value="@Player.Position.Value"
-                   @onchange="SeekAsync" aria-label="Position" />
-            <label>Tempo <input type="range" min="25" max="150" step="5" value="@TempoPercent" @oninput="SetTempoAsync" /> @TempoPercent%</label>
-            <label><input type="checkbox" checked="@Player.Metronome" @onchange="ToggleMetronomeAsync" /> Metronome</label>
-            <label><input type="checkbox" checked="@Player.CountIn" @onchange="ToggleCountInAsync" /> Count-in</label>
-        </section>
-
-        @* Which notes play and light up (S1-M2), what is heard, and whether the score shows. *@
-        <section class="row toolbar">
-            <label>
-                Notes
-                <select @onchange="SetFilterAsync" aria-label="Which notes play, light up and can be selected">
-                    @for (int i = 0; i < _filters.Length; i++)
-                    {
-                        <option value="@i" selected="@(_filters[i].Filter == _filter)">@_filters[i].Label</option>
-                    }
-                    @foreach (string category in s_coreCategories)
-                    {
-                        <option disabled>@category (needs voice and chord analysis)</option>
-                    }
-                </select>
-            </label>
-            <span class="divider" aria-hidden="true"></span>
-            <span>Hear</span>
-            @foreach ((string label, string[] ids) in Sources)
-            {
-                <label><input type="radio" name="source" checked="@_hear.SequenceEqual(ids)" @onchange="() => HearAsync(ids)" /> @label</label>
-            }
-            <span class="divider" aria-hidden="true"></span>
-            <label><input type="checkbox" checked="@_showScore" @onchange="() => _showScore = !_showScore" /> Score</label>
-            @if (_showScore)
-            {
-                @foreach ((ScoreChoice choice, string label) in ScoreChoices)
+        <div class="app-body">
+            @* The roll above the score; the score scrolls within its own panel. *@
+            <section class="canvas" aria-label="Piano roll and score">
+                <div class="roll-panel">
+                    <PianoRoll Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping"
+                               Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible"
+                               RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync" />
+                </div>
+                @if (_showScore && ShownScore is { } shown)
                 {
-                    <label><input type="radio" name="score" checked="@(ShownChoice == choice)" @onchange="() => _scoreChoice = choice" /> @label</label>
+                    @* Clicks on the page outside the roll clear the selection, except inside panels marked data-keeps-selection (docs/ui-conventions.md). *@
+                    <div class="score-panel" data-keeps-selection>
+                        <ScoreView Source="shown" Range="ShownRange" />
+                        <p class="meta">@ScoreNote(shown)</p>
+                    </div>
                 }
-            }
-        </section>
 
-        @* The roll on the left and the score on the right; without the score the roll takes the width. *@
-        <div class="workspace @(_showScore && ShownScore is not null ? "with-score" : null)">
-            <section class="roll-panel">
-                <PianoRoll Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping"
-                           Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible"
-                           RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync" />
-            </section>
-            @if (_showScore && ShownScore is { } shown)
-            {
-                @* Clicks on the page outside the roll clear the selection, except inside panels marked data-keeps-selection (docs/ui-conventions.md). *@
-                <section class="score-panel" data-keeps-selection>
-                    <ScoreView Source="shown" Range="ShownRange" />
-                    <p class="meta">@ScoreNote(shown)</p>
-                </section>
-            }
-        </div>
-
-        <div class="below">
-            <section class="selection" aria-label="Selection" data-keeps-selection>
-                <div class="row">
-                    <button class="@(_looping ? "on" : "primary")" @onclick="ToggleLoopSelectionAsync" disabled="@(_selection is not { NoteIds.Count: > 0 })">
-                        @(_looping ? "Stop looping" : "Loop selection")
-                    </button>
-                    <button @onclick="ClearSelectionAsync" disabled="@(_selection is null)">Clear</button>
-                    <span class="meta" aria-live="polite">@SelectionText</span>
-                </div>
-
-                <div class="variation" aria-label="Rhythm reshape">
-                    <h2>V1 Rhythm reshape</h2>
-                    <p class="meta">Moves when the selected notes start and how long they last; the pitches stay. Pick a reshape to hear it at once, then accept it to build the next step on it, or reject it. In the roll each reshaped note is outlined where it lands, with a line from where it was.</p>
-                    @if (_selection is { NoteIds.Count: > 0 } chosen)
-                    {
-                        <div class="segmented" role="group" aria-label="How to reshape the rhythm">
-                            @for (int i = 0; i < s_reshapes.Length; i++)
-                            {
-                                int index = i;
-                                string? reason = ReshapeUnavailable(index);
-                                bool trying = _chain?.Pending?.Parameters == s_reshapes[index].Parameters;
-                                <button class="@(trying ? "on" : null)" aria-pressed="@(trying ? "true" : "false")"
-                                        disabled="@(reason is not null)" title="@(reason ?? s_reshapes[index].Hint)" @onclick="() => ReshapeAsync(index)">
-                                    @s_reshapes[index].Label
-                                </button>
-                            }
-                        </div>
-                        <div class="row" role="group" aria-label="Steps">
-                            <button class="primary" @onclick="AcceptStepAsync" disabled="@(_chain?.AcceptDisabledReason is not null)" title="@(_chain?.AcceptDisabledReason ?? "Keep this step; the next reshape builds on it.")">Accept step</button>
-                            <button @onclick="RejectStepAsync" disabled="@(_chain?.Pending is null)" title="Drop this step and go back to the accepted ones.">Reject step</button>
-                            <button @onclick="UndoStepAsync" disabled="@(_chain?.CanUndo != true)" title="Take back the last accepted step.">Undo</button>
-                            <button @onclick="RedoStepAsync" disabled="@(_chain?.CanRedo != true)" title="Bring back the last step you undid.">Redo</button>
-                            <span class="meta" aria-live="polite">@StepsText</span>
-                        </div>
-                        <div class="row">
-                            <button @onclick="() => AuditionAsync(variation: false)">Hear original</button>
-                            <button @onclick="() => AuditionAsync(variation: true)" disabled="@(_variation is null)">Hear variation</button>
-                            <button @onclick="RemoveVariationAsync" disabled="@(_variation is null)">Remove variation</button>
-                            <button @onclick="() => ExportMidiAsync(variation: false)" title="Save the selected notes as a MIDI file for a DAW: one track per hand, with the tempo.">Export motif MIDI</button>
-                            <button @onclick="() => ExportMidiAsync(variation: true)" disabled="@(_variation is null)" title="Save the variation as a MIDI file for a DAW: one track per hand, with the tempo.">Export variation MIDI</button>
-                        </div>
-                        <div class="row" role="group" aria-label="Keep presets">
-                            @foreach (KeepPreset preset in KeepTable.Presets)
-                            {
-                                bool on = _keep.SetEquals(preset.Keep);
-                                <button class="@(on ? "on" : null)" aria-pressed="@(on ? "true" : "false")" title="@PresetHint(preset)" @onclick="() => ApplyPresetAsync(preset)">
-                                    @preset.Label
-                                </button>
-                            }
-                        </div>
-                        <div class="row keep" role="group" aria-label="What to keep">
-                            <span title="Properties the variation should leave as they are. A chip turns dashed when the step changes it.">Keep</span>
-                            @foreach (KeepProperty property in Enum.GetValues<KeepProperty>())
-                            {
-                                <button class="@KeepClass(property)" aria-pressed="@(_keep.Contains(property) ? "true" : "false")" title="@KeepStatusText(property)" @onclick="() => ToggleKeepAsync(property)">
-                                    @KeepLabel(property)
-                                </button>
-                            }
-                        </div>
-                        <p class="meta" aria-live="polite">@(DisabledReason ?? ExplanationText ?? "Keep marks what should stay the same; rhythm reshape needs Keep rhythm off. The original notes are never changed.")</p>
-                        @foreach (string flag in _variation?.Flags ?? [])
+                <details class="more">
+                    <summary>Compare with a second file, mute and solo tracks</summary>
+                    @* A second file as the variation (S1-W5): it plays on this piece's timeline, so A/B keeps the position. *@
+                    <section class="row">
+                        <label class="file">
+                            Open a second file
+                            <InputFile OnChange="OpenSecondFileAsync" accept="@PieceImporter.AcceptedExtensions" />
+                        </label>
+                        @if (_secondTitle is not null)
                         {
-                            <p class="meta">Check: @flag</p>
-                        }
-
-                        @* S1-E7, S1-E9: edit single notes of the variation; each edit is a step, and the Keep chips are checked again after it. *@
-                        <div class="corrections" aria-label="Edit variation notes">
-                            <button class="section-toggle" aria-expanded="@(_showHandEdits ? "true" : "false")" @onclick="() => _showHandEdits = !_showHandEdits">
-                                <span class="caret" aria-hidden="true">@(_showHandEdits ? "▾" : "▸")</span>
-                                Edit notes by hand · @Plural(HandEditCount, "edit")
-                            </button>
-                            @if (_showHandEdits)
-                            {
-                                <p class="meta">Change, add or remove notes of the variation you hear; with no steps yet, this makes a variation by hand. Each edit is a step: Undo takes it back, and a Keep chip turns dashed when an edit changes what it keeps. The original notes are never changed.</p>
-                                <table class="notes-table">
-                                    <thead>
-                                        <tr><th scope="col">Note</th><th scope="col">Where</th><th scope="col">Length</th><th scope="col">Velocity</th><th scope="col"></th></tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach (Note note in HeardNotes(chosen))
-                                        {
-                                            bool edited = note.Attribution.Provenance == Provenance.UserEdited;
-                                            <tr class="@(edited ? "edited" : null)">
-                                                <td>
-                                                    <button title="A semitone lower" @onclick="() => EditNoteAsync(note, pitch: -1)">▼</button>
-                                                    @note.Pitch
-                                                    <button title="A semitone higher" @onclick="() => EditNoteAsync(note, pitch: 1)">▲</button>
-                                                </td>
-                                                <td>
-                                                    <button title="A 16th earlier" disabled="@(note.Span.Onset.Value - SixteenthTicks < chosen.Span.Onset.Value)" @onclick="() => EditNoteAsync(note, onset: -SixteenthTicks)">◀</button>
-                                                    @NotePosition(note)
-                                                    <button title="A 16th later" @onclick="() => EditNoteAsync(note, onset: SixteenthTicks)">▶</button>
-                                                </td>
-                                                <td>
-                                                    <button title="A 16th shorter" disabled="@(note.Span.Duration <= SixteenthTicks)" @onclick="() => EditNoteAsync(note, length: -SixteenthTicks)">−</button>
-                                                    @VariationFacts.Length(note.Span.Duration)
-                                                    <button title="A 16th longer" @onclick="() => EditNoteAsync(note, length: SixteenthTicks)">+</button>
-                                                </td>
-                                                <td>
-                                                    <button title="Softer" disabled="@(note.Velocity <= Note.MinVelocity)" @onclick="() => EditNoteAsync(note, velocity: -10)">−</button>
-                                                    @note.Velocity
-                                                    <button title="Louder" disabled="@(note.Velocity >= Note.MaxVelocity)" @onclick="() => EditNoteAsync(note, velocity: 10)">+</button>
-                                                </td>
-                                                <td>
-                                                    <button title="Add a note of the same pitch and length straight after this one." @onclick="() => AddNoteAfterAsync(note)">Add after</button>
-                                                    <button title="Take this note out of the variation." @onclick="() => RemoveVariationNoteAsync(note)">Remove</button>
-                                                    @if (edited)
-                                                    {
-                                                        <span class="kind">Edited by you</span>
-                                                    }
-                                                </td>
-                                            </tr>
-                                        }
-                                    </tbody>
-                                </table>
-                                @if (_handEditNote is not null)
-                                {
-                                    <p class="meta" aria-live="polite">@_handEditNote</p>
-                                }
-                            }
-                        </div>
-                    }
-                    else
-                    {
-                        <p class="meta">Select some bars on the roll first: drag across it, or click a bar number.</p>
-                    }
-                </div>
-
-                @* S1-I7: correct or remove imported notes. Every correction goes to the project's edit log; the imported notes stay as they were. *@
-                <div class="corrections" aria-label="Correct notes">
-                    <button class="section-toggle" aria-expanded="@(_showCorrections ? "true" : "false")" @onclick="() => _showCorrections = !_showCorrections">
-                        <span class="caret" aria-hidden="true">@(_showCorrections ? "▾" : "▸")</span>
-                        Correct notes · @Plural(_edits.EditedIds.Count(), "note") corrected
-                    </button>
-                    @if (_showCorrections)
-                    {
-                        <p class="meta">Fix what the import got wrong in the selected notes. Corrected notes are marked as edited by you; Undo or Revert puts the imported value back exactly.</p>
-                        <div class="row">
-                            <button @onclick="UndoCorrectionAsync" disabled="@_edits.IsEmpty" title="Take back the last correction.">Undo correction</button>
-                            <span class="meta">@Plural(_edits.Edits.Count, "correction") in the edit log</span>
-                        </div>
-                        @if (_selection is { NoteIds.Count: > 0 } picked)
-                        {
-                            <table class="notes-table">
-                                <thead>
-                                    <tr><th scope="col">Note</th><th scope="col">Where</th><th scope="col">Length</th><th scope="col">Velocity</th><th scope="col"></th></tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (Note note in CorrectableNotes(picked))
-                                    {
-                                        bool edited = note.Attribution.Provenance == Provenance.UserEdited;
-                                        <tr class="@(edited ? "edited" : null)">
-                                            <td>
-                                                <button title="A semitone lower" @onclick="() => CorrectAsync(note, pitch: -1)">▼</button>
-                                                @note.Pitch
-                                                <button title="A semitone higher" @onclick="() => CorrectAsync(note, pitch: 1)">▲</button>
-                                            </td>
-                                            <td>
-                                                <button title="A 16th earlier" disabled="@(note.Span.Onset.Value < SixteenthTicks)" @onclick="() => CorrectAsync(note, onset: -SixteenthTicks)">◀</button>
-                                                @NotePosition(note)
-                                                <button title="A 16th later" @onclick="() => CorrectAsync(note, onset: SixteenthTicks)">▶</button>
-                                            </td>
-                                            <td>
-                                                <button title="A 16th shorter" disabled="@(note.Span.Duration <= SixteenthTicks)" @onclick="() => CorrectAsync(note, length: -SixteenthTicks)">−</button>
-                                                @VariationFacts.Length(note.Span.Duration)
-                                                <button title="A 16th longer" @onclick="() => CorrectAsync(note, length: SixteenthTicks)">+</button>
-                                            </td>
-                                            <td>
-                                                <button title="Softer" disabled="@(note.Velocity <= Note.MinVelocity)" @onclick="() => CorrectAsync(note, velocity: -10)">−</button>
-                                                @note.Velocity
-                                                <button title="Louder" disabled="@(note.Velocity >= Note.MaxVelocity)" @onclick="() => CorrectAsync(note, velocity: 10)">+</button>
-                                            </td>
-                                            <td>
-                                                <button title="Take this note out of the piece." @onclick="() => RemoveNoteAsync(note)">Remove</button>
-                                                @if (edited)
-                                                {
-                                                    <button title="Put this note back as it was imported." @onclick="() => RevertNoteAsync(note)">Revert</button>
-                                                    <span class="kind">Edited by you</span>
-                                                }
-                                            </td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
+                            <span class="meta">@_secondTitle</span>
+                            <button @onclick="RemoveSecondFileAsync">Remove</button>
                         }
                         else
                         {
-                            <p class="meta">Select some bars to list their notes here.</p>
+                            <span class="meta">Compare the piece with another file, such as your own variation of it.</span>
                         }
-                        @if (RemovedNotes.Count > 0)
+                    </section>
+                    @if (_secondMessage is not null)
+                    {
+                        <p class="error">@_secondMessage</p>
+                        <p class="meta">@_secondTip</p>
+                    }
+                    @foreach (string difference in _secondDifferences)
+                    {
+                        <p class="meta">Second file: @difference</p>
+                    }
+
+                    <section class="row tracks">
+                        @foreach (int track in _tracks)
                         {
-                            <p class="meta">Removed: @string.Join(", ", RemovedNotes.Select(note => $"{note.Pitch} at {NotePosition(note)}")). Revert brings a note back:</p>
-                            <div class="row">
-                                @foreach (Note note in RemovedNotes)
-                                {
-                                    <button @onclick="() => RevertNoteAsync(note)">Revert @note.Pitch at @NotePosition(note)</button>
-                                }
-                            </div>
+                            <span class="track">Track @(track + 1)</span>
+                            <button class="@(Player.Muted.Contains(track) ? "on" : null)" @onclick="() => ToggleTrackAsync(track, solo: false)">Mute</button>
+                            <button class="@(Player.Soloed.Contains(track) ? "on" : null)" @onclick="() => ToggleTrackAsync(track, solo: true)">Solo</button>
                         }
+                    </section>
+                </details>
+            </section>
+
+            <aside class="inspector" aria-label="Inspector" data-keeps-selection>
+                <div class="inspector-head">
+                    <p class="selection-text" aria-live="polite">@SelectionText</p>
+                    <div class="inspector-actions">
+                        <button class="@(_looping ? "on" : "primary")" @onclick="ToggleLoopSelectionAsync" disabled="@(_selection is not { NoteIds.Count: > 0 })">
+                            @(_looping ? "Looping" : "Loop")
+                        </button>
+                        <button @onclick="ClearSelectionAsync" disabled="@(_selection is null)">Clear</button>
+                    </div>
+                </div>
+
+                <div class="tabs" role="tablist" aria-label="Inspector">
+                    @foreach ((InspectorTab tab, string label) in InspectorTabs)
+                    {
+                        <button role="tab" class="tab" aria-selected="@(_tab == tab ? "true" : "false")" @onclick="() => _tab = tab">@label</button>
                     }
                 </div>
-            </section>
 
-            <section class="facts-panel" aria-label="Facts" data-keeps-selection>
-                <h2>Facts about the selection</h2>
-                @if (Facts.Count == 0)
-                {
-                    <p class="meta">Select some bars to see what music-core finds in them.</p>
-                }
-                <FactsPanel Facts="Facts" />
-            </section>
+                <div class="tab-panel" role="tabpanel" aria-label="@_tab">
+                    @switch (_tab)
+                    {
+                        case InspectorTab.Selection:
+                            @if (_selection is { NoteIds.Count: > 0 })
+                            {
+                                <div class="group">
+                                    <h3>Keep</h3>
+                                    <select class="preset" @onchange="ApplyPresetChosenAsync" aria-label="Keep preset" title="@(CurrentPreset is { } current ? PresetHint(current) : "Your own choice of what to keep.")">
+                                        @if (CurrentPreset is null)
+                                        {
+                                            <option selected>Your own choice of what to keep</option>
+                                        }
+                                        @foreach (KeepPreset preset in KeepTable.Presets)
+                                        {
+                                            <option value="@preset.Id" selected="@(_keep.SetEquals(preset.Keep))">@preset.Label</option>
+                                        }
+                                    </select>
+                                    <div class="keep" role="group" aria-label="What to keep" title="Properties the variation should leave as they are. A chip turns dashed when the step changes it.">
+                                        @foreach (KeepProperty property in Enum.GetValues<KeepProperty>())
+                                        {
+                                            <button class="@KeepClass(property)" aria-pressed="@(_keep.Contains(property) ? "true" : "false")" title="@KeepStatusText(property)" @onclick="() => ToggleKeepAsync(property)">
+                                                @KeepLabel(property)
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
+
+                                <div class="group variation" aria-label="Rhythm reshape">
+                                    <h3>V1 Rhythm reshape</h3>
+                                    <div class="choices" role="group" aria-label="How to reshape the rhythm">
+                                        @for (int i = 0; i < s_reshapes.Length; i++)
+                                        {
+                                            int index = i;
+                                            string? reason = ReshapeUnavailable(index);
+                                            bool trying = _chain?.Pending?.Parameters == s_reshapes[index].Parameters;
+                                            <button class="@(trying ? "on" : null)" aria-pressed="@(trying ? "true" : "false")"
+                                                    disabled="@(reason is not null)" title="@(reason ?? s_reshapes[index].Hint)" @onclick="() => ReshapeAsync(index)">
+                                                @s_reshapes[index].Label
+                                            </button>
+                                        }
+                                    </div>
+                                    @if (StepsText is { } steps)
+                                    {
+                                        <p class="steps" aria-live="polite">@steps</p>
+                                    }
+                                    <div class="step-buttons" role="group" aria-label="Steps">
+                                        <button class="primary" @onclick="AcceptStepAsync" disabled="@(_chain?.AcceptDisabledReason is not null)" title="@(_chain?.AcceptDisabledReason ?? "Keep this step; the next reshape builds on it.")">Accept step</button>
+                                        <button @onclick="RejectStepAsync" disabled="@(_chain?.Pending is null)" title="Drop this step and go back to the accepted ones.">Reject step</button>
+                                        <button @onclick="UndoStepAsync" disabled="@(_chain?.CanUndo != true)" title="Take back the last accepted step.">Undo</button>
+                                        <button @onclick="RedoStepAsync" disabled="@(_chain?.CanRedo != true)" title="Bring back the last step you undid.">Redo</button>
+                                    </div>
+                                </div>
+
+                                <div class="changed" aria-live="polite">
+                                    <h3>What changed</h3>
+                                    <p>@(DisabledReason ?? ExplanationText ?? "Pick a reshape to hear it. Keep marks what should stay the same; rhythm reshape needs Keep rhythm off. The original notes are never changed.")</p>
+                                    @foreach (string flag in _variation?.Flags ?? [])
+                                    {
+                                        <p class="meta">Check: @flag</p>
+                                    }
+                                </div>
+
+                                <div class="group">
+                                    <div class="row">
+                                        <button @onclick="() => AuditionAsync(variation: false)">Hear original</button>
+                                        <button @onclick="() => AuditionAsync(variation: true)" disabled="@(_variation is null)">Hear variation</button>
+                                        <button @onclick="RemoveVariationAsync" disabled="@(_variation is null)">Remove variation</button>
+                                    </div>
+                                    <div class="row">
+                                        <button @onclick="() => ExportMidiAsync(variation: false)" title="Save the selected notes as a MIDI file for a DAW: one track per hand, with the tempo.">Export motif MIDI</button>
+                                        <button @onclick="() => ExportMidiAsync(variation: true)" disabled="@(_variation is null)" title="Save the variation as a MIDI file for a DAW: one track per hand, with the tempo.">Export variation MIDI</button>
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <p class="meta">Select some bars on the roll first: drag across it, or click a bar number. Then pick what to keep and a reshape here.</p>
+                            }
+                            break;
+                        case InspectorTab.Facts:
+                            @if (Facts.Count == 0)
+                            {
+                                <p class="meta">Select some bars to see what music-core finds in them.</p>
+                            }
+                            <FactsPanel Facts="Facts" />
+                            break;
+                        default:
+                            @if (_selection is { NoteIds.Count: > 0 } chosen)
+                            {
+                                @* S1-E7, S1-E9: edit single notes of the variation; each edit is a step, and the Keep chips are checked again after it. *@
+                                <div class="corrections" aria-label="Edit variation notes">
+                                    <button class="section-toggle" aria-expanded="@(_showHandEdits ? "true" : "false")" @onclick="() => _showHandEdits = !_showHandEdits">
+                                        <span class="caret" aria-hidden="true">@(_showHandEdits ? "▾" : "▸")</span>
+                                        Edit notes by hand · @Plural(HandEditCount, "edit")
+                                    </button>
+                                    @if (_showHandEdits)
+                                    {
+                                        <p class="meta">Change, add or remove notes of the variation you hear; with no steps yet, this makes a variation by hand. Each edit is a step: Undo takes it back, and a Keep chip turns dashed when an edit changes what it keeps. The original notes are never changed.</p>
+                                        <table class="notes-table">
+                                            <thead>
+                                                <tr><th scope="col">Note</th><th scope="col">Where</th><th scope="col">Length</th><th scope="col">Velocity</th><th scope="col"></th></tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (Note note in HeardNotes(chosen))
+                                                {
+                                                    bool edited = note.Attribution.Provenance == Provenance.UserEdited;
+                                                    <tr class="@(edited ? "edited" : null)">
+                                                        <td>
+                                                            <button title="A semitone lower" @onclick="() => EditNoteAsync(note, pitch: -1)">▼</button>
+                                                            @note.Pitch
+                                                            <button title="A semitone higher" @onclick="() => EditNoteAsync(note, pitch: 1)">▲</button>
+                                                        </td>
+                                                        <td>
+                                                            <button title="A 16th earlier" disabled="@(note.Span.Onset.Value - SixteenthTicks < chosen.Span.Onset.Value)" @onclick="() => EditNoteAsync(note, onset: -SixteenthTicks)">◀</button>
+                                                            @NotePosition(note)
+                                                            <button title="A 16th later" @onclick="() => EditNoteAsync(note, onset: SixteenthTicks)">▶</button>
+                                                        </td>
+                                                        <td>
+                                                            <button title="A 16th shorter" disabled="@(note.Span.Duration <= SixteenthTicks)" @onclick="() => EditNoteAsync(note, length: -SixteenthTicks)">−</button>
+                                                            @VariationFacts.Length(note.Span.Duration)
+                                                            <button title="A 16th longer" @onclick="() => EditNoteAsync(note, length: SixteenthTicks)">+</button>
+                                                        </td>
+                                                        <td>
+                                                            <button title="Softer" disabled="@(note.Velocity <= Note.MinVelocity)" @onclick="() => EditNoteAsync(note, velocity: -10)">−</button>
+                                                            @note.Velocity
+                                                            <button title="Louder" disabled="@(note.Velocity >= Note.MaxVelocity)" @onclick="() => EditNoteAsync(note, velocity: 10)">+</button>
+                                                        </td>
+                                                        <td>
+                                                            <button title="Add a note of the same pitch and length straight after this one." @onclick="() => AddNoteAfterAsync(note)">Add after</button>
+                                                            <button title="Take this note out of the variation." @onclick="() => RemoveVariationNoteAsync(note)">Remove</button>
+                                                            @if (edited)
+                                                            {
+                                                                <span class="kind">Edited by you</span>
+                                                            }
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                        @if (_handEditNote is not null)
+                                        {
+                                            <p class="meta" aria-live="polite">@_handEditNote</p>
+                                        }
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <p class="meta">Select some bars to edit the variation's notes or correct the imported ones.</p>
+                            }
+
+                            @* S1-I7: correct or remove imported notes. Every correction goes to the project's edit log; the imported notes stay as they were. *@
+                            <div class="corrections" aria-label="Correct notes">
+                                <button class="section-toggle" aria-expanded="@(_showCorrections ? "true" : "false")" @onclick="() => _showCorrections = !_showCorrections">
+                                    <span class="caret" aria-hidden="true">@(_showCorrections ? "▾" : "▸")</span>
+                                    Correct notes · @Plural(_edits.EditedIds.Count(), "note") corrected
+                                </button>
+                                @if (_showCorrections)
+                                {
+                                    <p class="meta">Fix what the import got wrong in the selected notes. Corrected notes are marked as edited by you; Undo or Revert puts the imported value back exactly.</p>
+                                    <div class="row">
+                                        <button @onclick="UndoCorrectionAsync" disabled="@_edits.IsEmpty" title="Take back the last correction.">Undo correction</button>
+                                        <span class="meta">@Plural(_edits.Edits.Count, "correction") in the edit log</span>
+                                    </div>
+                                    @if (_selection is { NoteIds.Count: > 0 } picked)
+                                    {
+                                        <table class="notes-table">
+                                            <thead>
+                                                <tr><th scope="col">Note</th><th scope="col">Where</th><th scope="col">Length</th><th scope="col">Velocity</th><th scope="col"></th></tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (Note note in CorrectableNotes(picked))
+                                                {
+                                                    bool edited = note.Attribution.Provenance == Provenance.UserEdited;
+                                                    <tr class="@(edited ? "edited" : null)">
+                                                        <td>
+                                                            <button title="A semitone lower" @onclick="() => CorrectAsync(note, pitch: -1)">▼</button>
+                                                            @note.Pitch
+                                                            <button title="A semitone higher" @onclick="() => CorrectAsync(note, pitch: 1)">▲</button>
+                                                        </td>
+                                                        <td>
+                                                            <button title="A 16th earlier" disabled="@(note.Span.Onset.Value < SixteenthTicks)" @onclick="() => CorrectAsync(note, onset: -SixteenthTicks)">◀</button>
+                                                            @NotePosition(note)
+                                                            <button title="A 16th later" @onclick="() => CorrectAsync(note, onset: SixteenthTicks)">▶</button>
+                                                        </td>
+                                                        <td>
+                                                            <button title="A 16th shorter" disabled="@(note.Span.Duration <= SixteenthTicks)" @onclick="() => CorrectAsync(note, length: -SixteenthTicks)">−</button>
+                                                            @VariationFacts.Length(note.Span.Duration)
+                                                            <button title="A 16th longer" @onclick="() => CorrectAsync(note, length: SixteenthTicks)">+</button>
+                                                        </td>
+                                                        <td>
+                                                            <button title="Softer" disabled="@(note.Velocity <= Note.MinVelocity)" @onclick="() => CorrectAsync(note, velocity: -10)">−</button>
+                                                            @note.Velocity
+                                                            <button title="Louder" disabled="@(note.Velocity >= Note.MaxVelocity)" @onclick="() => CorrectAsync(note, velocity: 10)">+</button>
+                                                        </td>
+                                                        <td>
+                                                            <button title="Take this note out of the piece." @onclick="() => RemoveNoteAsync(note)">Remove</button>
+                                                            @if (edited)
+                                                            {
+                                                                <button title="Put this note back as it was imported." @onclick="() => RevertNoteAsync(note)">Revert</button>
+                                                                <span class="kind">Edited by you</span>
+                                                            }
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    }
+                                    else
+                                    {
+                                        <p class="meta">Select some bars to list their notes here.</p>
+                                    }
+                                    @if (RemovedNotes.Count > 0)
+                                    {
+                                        <p class="meta">Removed: @string.Join(", ", RemovedNotes.Select(note => $"{note.Pitch} at {NotePosition(note)}")). Revert brings a note back:</p>
+                                        <div class="row">
+                                            @foreach (Note note in RemovedNotes)
+                                            {
+                                                <button @onclick="() => RevertNoteAsync(note)">Revert @note.Pitch at @NotePosition(note)</button>
+                                            }
+                                        </div>
+                                    }
+                                }
+                            </div>
+                            break;
+                    }
+                </div>
+            </aside>
         </div>
 
-        @* A second file as the variation (S1-W5): it plays on this piece's timeline, so A/B keeps the position. *@
-        <section class="row">
-            <label class="file">
-                Open a second file
-                <InputFile OnChange="OpenSecondFileAsync" accept="@PieceImporter.AcceptedExtensions" />
-            </label>
-            @if (_secondTitle is not null)
-            {
-                <span class="meta">@_secondTitle</span>
-                <button @onclick="RemoveSecondFileAsync">Remove</button>
-            }
-            else
-            {
-                <span class="meta">Compare the piece with another file, such as your own variation of it.</span>
-            }
-        </section>
-        @if (_secondMessage is not null)
-        {
-            <p class="error">@_secondMessage</p>
-            <p class="meta">@_secondTip</p>
-        }
-        @foreach (string difference in _secondDifferences)
-        {
-            <p class="meta">Second file: @difference</p>
-        }
-
-        <section class="row tracks">
-            @foreach (int track in _tracks)
-            {
-                <span class="track">Track @(track + 1)</span>
-                <button class="@(Player.Muted.Contains(track) ? "on" : null)" @onclick="() => ToggleTrackAsync(track, solo: false)">Mute</button>
-                <button class="@(Player.Soloed.Contains(track) ? "on" : null)" @onclick="() => ToggleTrackAsync(track, solo: true)">Solo</button>
-            }
-        </section>
+        <footer class="transport-bar" aria-label="Transport">
+            <button class="play" @onclick="TogglePlayAsync" aria-label="@(Player.State == PlaybackState.Stopped ? "Play" : "Pause")">
+                @if (Player.State != PlaybackState.Stopped)
+                {
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 4h4v16H6zM14 4h4v16h-4z" /></svg>
+                }
+                else
+                {
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" /></svg>
+                }
+            </button>
+            <button @onclick="StopAsync">Stop</button>
+            <input class="seek" type="range" min="0" max="@_score.End.Value" step="1" value="@Player.Position.Value"
+                   @onchange="SeekAsync" aria-label="Position" />
+            <span class="position" aria-live="off">@PositionText</span>
+            <span class="meta state">@StateText</span>
+            <label class="tempo">Tempo <input type="range" min="25" max="150" step="5" value="@TempoPercent" @oninput="SetTempoAsync" /> <span class="mono">@TempoPercent%</span></label>
+            <label><input type="checkbox" checked="@Player.Metronome" @onchange="ToggleMetronomeAsync" /> Metronome</label>
+            <label><input type="checkbox" checked="@Player.CountIn" @onchange="ToggleCountInAsync" /> Count-in</label>
+        </footer>
     }
 
     <p class="credit">
@@ -480,6 +537,35 @@
     private bool _startingPreview;
     private bool _showScore = true;
     private ScoreChoice _scoreChoice = ScoreChoice.AsWritten;
+
+    private InspectorTab _tab = InspectorTab.Selection;
+
+    /// <summary>The inspector's tabs (docs/ui-conventions.md): the selection with Keep and the reshapes, its facts, and editing notes.</summary>
+    private enum InspectorTab
+    {
+        Selection,
+        Facts,
+        Edit,
+    }
+
+    private (InspectorTab Tab, string Label)[] InspectorTabs =>
+    [
+        (InspectorTab.Selection, "Selection"),
+        (InspectorTab.Facts, Facts.Count > 0 ? $"Facts · {Facts.Count}" : "Facts"),
+        (InspectorTab.Edit, "Edit"),
+    ];
+
+    private Task HearChosenAsync(ChangeEventArgs args) =>
+        int.TryParse(args.Value?.ToString(), out int index) && index >= 0 && index < Sources.Length ? HearAsync(Sources[index].Ids) : Task.CompletedTask;
+
+    private void SetScoreChoice(ChangeEventArgs args)
+    {
+        _showScore = Enum.TryParse(args.Value?.ToString(), out ScoreChoice choice);
+        if (_showScore)
+        {
+            _scoreChoice = choice;
+        }
+    }
 
     private enum ScoreChoice
     {
@@ -1157,6 +1243,12 @@
         _keep.UnionWith(preset.Keep);
         return KeepChangedAsync();
     }
+
+    /// <summary>The Keep preset the chips match, or null when the player chose their own.</summary>
+    private KeepPreset? CurrentPreset => KeepTable.Presets.FirstOrDefault(preset => _keep.SetEquals(preset.Keep));
+
+    private Task ApplyPresetChosenAsync(ChangeEventArgs args) =>
+        KeepTable.Presets.FirstOrDefault(preset => preset.Id == args.Value?.ToString()) is { } preset ? ApplyPresetAsync(preset) : Task.CompletedTask;
 
     /// <summary>"Suggests Rhythm reshape, Density and rests and Accent shift.", read from the Keep table.</summary>
     private static string PresetHint(KeepPreset preset)

@@ -32,6 +32,7 @@ test("import, its report, the opened piece and the project on the home screen", 
 
     await page.getByText("Open the piece").click();
     await selectBar(page, 1, { pickup: 0, barQuarters: 4 });
+    await page.getByRole("tab", { name: "Edit" }).click();
     await page.locator("[aria-label='Correct notes'] button.section-toggle").click();
     expect(await violations(page)).toEqual([]);
 
@@ -44,8 +45,11 @@ test("playback lab with a selection, a variation and the note editor", async ({ 
     await openFurElise(page);
     await selectBar(page, 1);
     await page.getByRole("button", { name: "Dotted" }).click();
+    await page.getByRole("tab", { name: /^Facts/ }).click();
+    expect(await violations(page)).toEqual([]);
+    await page.getByRole("tab", { name: "Edit" }).click();
     await page.locator("[aria-label='Edit variation notes'] button.section-toggle").click();
-    await page.locator(".transport").getByRole("button", { name: "Pause" }).click();
+    await page.locator(".transport-bar").getByRole("button", { name: "Pause" }).click();
     expect(await violations(page)).toEqual([]);
 });
 
@@ -62,7 +66,7 @@ test("the journey by keyboard: open a piece, select bars, loop them", async ({ p
     await page.keyboard.press("BracketRight");
     await page.keyboard.press("BracketRight");
     await page.keyboard.press("Shift+BracketRight");
-    await expect(page.locator(".selection .meta").first()).toContainText("bars 1–2");
+    await expect(page.locator(".inspector .selection-text")).toContainText("bars 1–2");
     await page.keyboard.press("Space");
     await expect(page.getByText("Playing", { exact: true })).toBeVisible();
 });
