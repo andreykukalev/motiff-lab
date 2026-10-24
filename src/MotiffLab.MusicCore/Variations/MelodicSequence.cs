@@ -38,8 +38,6 @@ public sealed class MelodicSequence : VariationOperation<MelodicSequenceParamete
 {
     public const string OperationId = "V4";
 
-    private static readonly HashSet<KeepProperty> s_compatible = [KeepProperty.Contour, KeepProperty.Intervals, KeepProperty.Rhythm];
-
     private MelodicSequence()
     {
     }
@@ -49,9 +47,6 @@ public sealed class MelodicSequence : VariationOperation<MelodicSequenceParamete
     public override string Id => OperationId;
 
     public override string Name => "Melodic sequence";
-
-    public override string? DisabledReason(IReadOnlySet<KeepProperty> keep) =>
-        KeepTable.DisabledReason(Name, "repeats the motif at another pitch level", s_compatible, keep);
 
     protected override void Validate(MelodicSequenceParameters parameters)
     {

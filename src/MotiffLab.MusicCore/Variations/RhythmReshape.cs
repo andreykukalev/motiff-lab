@@ -45,15 +45,6 @@ public sealed class RhythmReshape : VariationOperation<RhythmReshapeParameters>
 
     public override string Name => "Rhythm reshape";
 
-    /// <summary>Why the Keep choices rule V1 out (the Keep table's V1 row), or null when it can run.</summary>
-    public override string? DisabledReason(IReadOnlySet<KeepProperty> keep)
-    {
-        ArgumentNullException.ThrowIfNull(keep);
-        return keep.Contains(KeepProperty.Rhythm)
-            ? "Rhythm reshape changes when notes start and how long they last, so it is off while Keep rhythm is on."
-            : null;
-    }
-
     protected override void Validate(RhythmReshapeParameters parameters)
     {
         if (parameters.Kind == RhythmReshapeKind.Displace

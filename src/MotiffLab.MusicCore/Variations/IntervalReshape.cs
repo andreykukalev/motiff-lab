@@ -19,8 +19,6 @@ public sealed class IntervalReshape : MelodyOperation<IntervalReshapeParameters>
 {
     public const string OperationId = "V9";
 
-    private static readonly HashSet<KeepProperty> s_compatible = [KeepProperty.Contour, KeepProperty.Rhythm, KeepProperty.Bass];
-
     private IntervalReshape()
     {
     }
@@ -30,10 +28,6 @@ public sealed class IntervalReshape : MelodyOperation<IntervalReshapeParameters>
     public override string Id => OperationId;
 
     public override string Name => "Interval reshape";
-
-    protected override IReadOnlySet<KeepProperty> Compatible => s_compatible;
-
-    protected override string WhatItChanges => "changes the size of the melody's intervals";
 
     protected override void Validate(IntervalReshapeParameters parameters)
     {

@@ -18,8 +18,6 @@ public sealed class ChangeDirection : MelodyOperation<ChangeDirectionParameters>
 {
     public const string OperationId = "V10";
 
-    private static readonly HashSet<KeepProperty> s_compatible = [KeepProperty.Rhythm, KeepProperty.Bass];
-
     private ChangeDirection()
     {
     }
@@ -29,10 +27,6 @@ public sealed class ChangeDirection : MelodyOperation<ChangeDirectionParameters>
     public override string Id => OperationId;
 
     public override string Name => "Change direction";
-
-    protected override IReadOnlySet<KeepProperty> Compatible => s_compatible;
-
-    protected override string WhatItChanges => "turns the melody's movement upside down";
 
     protected override void Validate(ChangeDirectionParameters parameters)
     {
