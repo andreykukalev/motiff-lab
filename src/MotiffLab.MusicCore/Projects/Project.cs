@@ -55,18 +55,35 @@ public sealed record SavedMotif(
     }
 }
 
-/// <summary>A variation as saved: the step that made it from a motif, which is pure, so it is re-run on open.</summary>
-/// <param name="Operation">The catalogue id, for example "V1".</param>
+/// <summary>One step of a saved variation: the operation's catalogue id and its parameters.</summary>
+public sealed record SavedStep(string Operation, OperationParameters Parameters)
+{
+    public static SavedStep From(VariationStep step)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+        return new(step.Operation.Id, step.Parameters);
+    }
+}
+
+/// <summary>
+/// A variation as saved: the chain of steps that made it from a motif (S1-E5). Steps are pure, so
+/// they are run again on open. Undone steps are not saved.
+/// </summary>
+/// <param name="Steps">The accepted steps, oldest first.</param>
+/// <param name="Pending">The step that was being heard and not yet accepted or rejected, or null.</param>
 /// <param name="Keep">The properties the player asked to keep, in Keep table order.</param>
 public sealed record SavedVariation(
     string Id,
     string MotifId,
-    string Operation,
-    RhythmReshapeParameters Parameters,
+    IReadOnlyList<SavedStep> Steps,
+    SavedStep? Pending,
     IReadOnlyList<KeepProperty> Keep)
 {
-    public static SavedVariation Create(string id, string motifId, RhythmReshapeParameters parameters, IEnumerable<KeepProperty> keep) =>
-        new(id, motifId, RhythmReshape.OperationId, parameters, [.. keep.Distinct().Order()]);
+    public static SavedVariation Create(string id, string motifId, VariationChain chain)
+    {
+        ArgumentNullException.ThrowIfNull(chain);
+        return new(id, motifId, [.. chain.Steps.Select(SavedStep.From)], chain.Pending is { } pending ? SavedStep.From(pending) : null, [.. chain.Context.Keep.Distinct().Order()]);
+    }
 }
 
 /// <summary>A project opened for work: the source imported again, and its motifs and variations rebuilt.</summary>
@@ -74,7 +91,7 @@ public sealed record OpenedProject(
     Project Project,
     ImportedPiece Piece,
     IReadOnlyList<Motif> Motifs,
-    IReadOnlyList<(SavedVariation Saved, Variation Variation)> Variations)
+    IReadOnlyList<(SavedVariation Saved, VariationChain Chain)> Variations)
 {
     /// <summary>
     /// Imports the project's source and rebuilds what was made from it. Throws
@@ -104,20 +121,40 @@ public sealed record OpenedProject(
             motifs.Add(Motif.Create(saved.Id, motifs.Count + 1, selection, saved.Kind, saved.Mode, piece.Notes) with { Name = saved.Name });
         }
 
-        var variations = new List<(SavedVariation, Variation)>();
+        var variations = new List<(SavedVariation, VariationChain)>();
         foreach (SavedVariation saved in project.Variations)
         {
             Motif motif = motifs.FirstOrDefault(motif => motif.Id == saved.MotifId)
                 ?? throw new ProjectFileException($"A variation refers to a motif ({saved.MotifId}) that is not in the project.");
-            if (saved.Operation != RhythmReshape.OperationId)
+            VariationChain chain = VariationChain.Start(
+                VariationFacts.MotifNotes(piece.Notes, motif.Selection),
+                VariationContext.For(motif.Selection, saved.Keep.ToHashSet()));
+            foreach (SavedStep step in saved.Steps)
             {
-                throw new ProjectFileException($"A variation uses an operation ({saved.Operation}) this version of Motiff Lab does not have.");
+                chain = Propose(chain, step).Accept();
             }
 
-            variations.Add((saved, RhythmReshape.Apply(piece.Notes, motif.Selection, saved.Keep.ToHashSet(), saved.Parameters)));
+            if (saved.Pending is { } pending)
+            {
+                chain = Propose(chain, pending);
+            }
+
+            variations.Add((saved, chain));
         }
 
         return new OpenedProject(project, piece, motifs, variations);
+    }
+
+    private static VariationChain Propose(VariationChain chain, SavedStep step)
+    {
+        IVariationOperation operation = VariationOperations.Find(step.Operation)
+            ?? throw new ProjectFileException($"A variation uses an operation ({step.Operation}) this version of Motiff Lab does not have.");
+        if (chain.UnavailableReason(operation, step.Parameters) is { } reason)
+        {
+            throw new ProjectFileException($"A variation can no longer be made: {reason}");
+        }
+
+        return chain.Propose(operation, step.Parameters);
     }
 }
 

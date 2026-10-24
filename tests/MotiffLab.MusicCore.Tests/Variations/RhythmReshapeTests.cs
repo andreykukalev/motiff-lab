@@ -38,7 +38,7 @@ public class RhythmReshapeTests
     private static Variation Apply(RhythmReshapeKind kind, int eighths = 1, IReadOnlySet<KeepProperty>? keep = null)
     {
         Note[] notes = Piece();
-        return RhythmReshape.Apply(notes, FirstBar(notes), keep ?? s_keepPitchOrder, new RhythmReshapeParameters(kind, eighths));
+        return RhythmReshape.Instance.Apply(notes, FirstBar(notes), keep ?? s_keepPitchOrder, new RhythmReshapeParameters(kind, eighths));
     }
 
     [Fact]
@@ -92,11 +92,48 @@ public class RhythmReshapeTests
         Assert.Equal(first.Explanation, second.Explanation);
     }
 
+    public static TheoryData<RhythmReshapeKind, int> EveryParameter => new()
+    {
+        { RhythmReshapeKind.HalfTime, 1 },
+        { RhythmReshapeKind.DoubleTime, 1 },
+        { RhythmReshapeKind.Displace, 1 },
+        { RhythmReshapeKind.Displace, 2 },
+        { RhythmReshapeKind.Displace, 3 },
+    };
+
+    [Theory]
+    [MemberData(nameof(EveryParameter))]
+    public void Every_parameter_is_deterministic_and_leaves_the_input_as_it_was(RhythmReshapeKind kind, int eighths)
+    {
+        Note[] notes = Piece();
+        var context = new VariationContext(FirstBar(notes).Span, s_keepPitchOrder, Seed: 7);
+        IReadOnlyList<Note> motif = VariationFacts.MotifNotes(notes, FirstBar(notes));
+        var parameters = new RhythmReshapeParameters(kind, eighths);
+
+        Variation first = RhythmReshape.Instance.Apply(motif, context, parameters);
+        Variation second = RhythmReshape.Instance.Apply(motif, context with { Seed = 7 }, parameters);
+
+        Assert.Equal(first.Notes, second.Notes);
+        Assert.Equal(first.Changes, second.Changes);
+        Assert.Equal(first.Checks, second.Checks);
+        Assert.Equal(first.Explanation, second.Explanation);
+        Assert.Empty(first.Added);
+        Assert.Empty(first.Removed);
+        Assert.Equal(Piece(), notes);
+    }
+
+    [Fact]
+    public void The_operation_is_registered_by_its_catalogue_id()
+    {
+        Assert.Same(RhythmReshape.Instance, VariationOperations.Find("V1"));
+        Assert.Null(VariationOperations.Find("V99"));
+    }
+
     [Fact]
     public void Keep_rhythm_disables_the_operation_with_a_reason()
     {
-        Assert.Contains("Keep rhythm", RhythmReshape.DisabledReason(new HashSet<KeepProperty> { KeepProperty.Rhythm }));
-        Assert.Null(RhythmReshape.DisabledReason(s_keepPitchOrder));
+        Assert.Contains("Keep rhythm", RhythmReshape.Instance.DisabledReason(new HashSet<KeepProperty> { KeepProperty.Rhythm }));
+        Assert.Null(RhythmReshape.Instance.DisabledReason(s_keepPitchOrder));
         Assert.Throws<InvalidOperationException>(() => Apply(RhythmReshapeKind.HalfTime, keep: new HashSet<KeepProperty> { KeepProperty.Rhythm }));
     }
 
@@ -112,9 +149,9 @@ public class RhythmReshapeTests
         Note[] notes = [Note("n1", 60, 0, 3), Note("n2", 62, 3, 477)];
         MotifSelection selection = FirstBar(notes);
 
-        Assert.NotNull(RhythmReshape.UnavailableReason(notes, selection.Span, new RhythmReshapeParameters(RhythmReshapeKind.DoubleTime)));
+        Assert.NotNull(RhythmReshape.Instance.UnavailableReason(notes, VariationContext.For(selection, s_keepPitchOrder), new RhythmReshapeParameters(RhythmReshapeKind.DoubleTime)));
         Assert.Throws<InvalidOperationException>(() =>
-            RhythmReshape.Apply(notes, selection, s_keepPitchOrder, new RhythmReshapeParameters(RhythmReshapeKind.DoubleTime)));
+            RhythmReshape.Instance.Apply(notes, selection, s_keepPitchOrder, new RhythmReshapeParameters(RhythmReshapeKind.DoubleTime)));
     }
 
     [Fact]

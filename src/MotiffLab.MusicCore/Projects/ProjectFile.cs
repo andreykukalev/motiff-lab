@@ -21,7 +21,8 @@ public static class ProjectFile
 {
     public const string FormatName = "motiff-lab-project";
 
-    public const int Version = 1;
+    /// <summary>2 saves each variation as a chain of steps; files of version 1 hold one step and still open.</summary>
+    public const int Version = 2;
 
     /// <summary>The extension an exported project gets.</summary>
     public const string Extension = ".motiff.json";
@@ -87,11 +88,22 @@ public static class ProjectFile
                 json.WriteStartObject();
                 json.WriteString("id", variation.Id);
                 json.WriteString("motifId", variation.MotifId);
-                json.WriteString("operation", variation.Operation);
-                json.WriteStartObject("parameters");
-                json.WriteString("kind", variation.Parameters.Kind.ToString());
-                json.WriteNumber("eighths", variation.Parameters.Eighths);
-                json.WriteEndObject();
+                json.WriteStartArray("steps");
+                foreach (SavedStep step in variation.Steps)
+                {
+                    json.WriteStartObject();
+                    WriteStep(json, step);
+                    json.WriteEndObject();
+                }
+
+                json.WriteEndArray();
+                if (variation.Pending is { } pending)
+                {
+                    json.WriteStartObject("pending");
+                    WriteStep(json, pending);
+                    json.WriteEndObject();
+                }
+
                 json.WriteStartArray("keep");
                 foreach (KeepProperty property in variation.Keep)
                 {
@@ -151,7 +163,7 @@ public static class ProjectFile
             }
 
             var motifs = Property(root, "motifs", JsonValueKind.Array).EnumerateArray().Select(ReadMotif).ToList();
-            var variations = Property(root, "variations", JsonValueKind.Array).EnumerateArray().Select(ReadVariation).ToList();
+            var variations = Property(root, "variations", JsonValueKind.Array).EnumerateArray().Select(variation => ReadVariation(variation, version)).ToList();
             return new Project(
                 Text(root, "id"),
                 Text(root, "fileName"),
@@ -214,28 +226,63 @@ public static class ProjectFile
             noteIds);
     }
 
-    private static SavedVariation ReadVariation(JsonElement variation)
+    private static void WriteStep(Utf8JsonWriter json, SavedStep step)
     {
-        Expect(variation, JsonValueKind.Object, "variations");
-        JsonElement parameters = Property(variation, "parameters", JsonValueKind.Object);
-        int eighths = Integer(parameters, "eighths");
-        if (eighths is < RhythmReshapeParameters.MinEighths or > RhythmReshapeParameters.MaxEighths)
+        json.WriteString("operation", step.Operation);
+        json.WriteStartObject("parameters");
+        switch (step.Parameters)
         {
-            throw Damaged("variation parameters");
+            case RhythmReshapeParameters reshape:
+                json.WriteString("kind", reshape.Kind.ToString());
+                json.WriteNumber("eighths", reshape.Eighths);
+                break;
+            default:
+                throw new ArgumentException($"Operation {step.Operation} has parameters the project file cannot write.", nameof(step));
         }
 
+        json.WriteEndObject();
+    }
+
+    private static SavedVariation ReadVariation(JsonElement variation, int version)
+    {
+        Expect(variation, JsonValueKind.Object, "variations");
         var keep = Property(variation, "keep", JsonValueKind.Array)
             .EnumerateArray()
             .Select(property => property.ValueKind == JsonValueKind.String && TryName(property.GetString(), out KeepProperty value) ? value : throw Damaged("Keep choices"))
             .Distinct()
             .Order()
             .ToList();
+
+        // Version 1 saved one step on the variation itself.
+        List<SavedStep> steps = version == 1
+            ? [ReadStep(variation)]
+            : Property(variation, "steps", JsonValueKind.Array).EnumerateArray().Select(ReadStep).ToList();
+        SavedStep? pending = version > 1 && variation.TryGetProperty("pending", out JsonElement step) ? ReadStep(step) : null;
         return new SavedVariation(
             Text(variation, "id"),
             Text(variation, "motifId"),
-            Text(variation, "operation"),
-            new RhythmReshapeParameters(Name<RhythmReshapeKind>(parameters, "kind"), eighths),
+            steps,
+            pending,
             keep);
+    }
+
+    private static SavedStep ReadStep(JsonElement step)
+    {
+        Expect(step, JsonValueKind.Object, "variation steps");
+        string operation = Text(step, "operation");
+        JsonElement parameters = Property(step, "parameters", JsonValueKind.Object);
+        if (operation != RhythmReshape.OperationId)
+        {
+            throw new ProjectFileException($"A variation uses an operation ({operation}) this version of Motiff Lab does not have.");
+        }
+
+        int eighths = Integer(parameters, "eighths");
+        if (eighths is < RhythmReshapeParameters.MinEighths or > RhythmReshapeParameters.MaxEighths)
+        {
+            throw Damaged("variation parameters");
+        }
+
+        return new SavedStep(operation, new RhythmReshapeParameters(Name<RhythmReshapeKind>(parameters, "kind"), eighths));
     }
 
     private static JsonElement Property(JsonElement parent, string name, JsonValueKind kind)

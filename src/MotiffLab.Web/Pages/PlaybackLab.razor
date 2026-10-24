@@ -129,7 +129,7 @@
 
                 <div class="variation" aria-label="Rhythm reshape">
                     <h2>V1 Rhythm reshape</h2>
-                    <p class="meta">Moves when the selected notes start and how long they last; the pitches stay. Pick a reshape to hear it at once. In the roll each reshaped note is outlined where it lands, with a line from where it was.</p>
+                    <p class="meta">Moves when the selected notes start and how long they last; the pitches stay. Pick a reshape to hear it at once, then accept it to build the next step on it, or reject it. In the roll each reshaped note is outlined where it lands, with a line from where it was.</p>
                     @if (_selection is { NoteIds.Count: > 0 })
                     {
                         <div class="segmented" role="group" aria-label="How to reshape the rhythm">
@@ -137,11 +137,19 @@
                             {
                                 int index = i;
                                 string? reason = ReshapeUnavailable(index);
-                                <button class="@(_variation is not null && _reshape == index ? "on" : null)" aria-pressed="@(_variation is not null && _reshape == index ? "true" : "false")"
+                                bool trying = _chain?.Pending?.Parameters == s_reshapes[index].Parameters;
+                                <button class="@(trying ? "on" : null)" aria-pressed="@(trying ? "true" : "false")"
                                         disabled="@(reason is not null)" title="@(reason ?? s_reshapes[index].Hint)" @onclick="() => ReshapeAsync(index)">
                                     @s_reshapes[index].Label
                                 </button>
                             }
+                        </div>
+                        <div class="row" role="group" aria-label="Steps">
+                            <button class="primary" @onclick="AcceptStepAsync" disabled="@(_chain?.AcceptDisabledReason is not null)" title="@(_chain?.AcceptDisabledReason ?? "Keep this step; the next reshape builds on it.")">Accept step</button>
+                            <button @onclick="RejectStepAsync" disabled="@(_chain?.Pending is null)" title="Drop this step and go back to the accepted ones.">Reject step</button>
+                            <button @onclick="UndoStepAsync" disabled="@(_chain?.CanUndo != true)" title="Take back the last accepted step.">Undo</button>
+                            <button @onclick="RedoStepAsync" disabled="@(_chain?.CanRedo != true)" title="Bring back the last step you undid.">Redo</button>
+                            <span class="meta" aria-live="polite">@StepsText</span>
                         </div>
                         <div class="row">
                             <button @onclick="() => AuditionAsync(variation: false)">Hear original</button>
@@ -157,7 +165,11 @@
                                 </button>
                             }
                         </div>
-                        <p class="meta" aria-live="polite">@(DisabledReason ?? _variation?.Explanation ?? "Keep marks what should stay the same; rhythm reshape needs Keep rhythm off. The original notes are never changed.")</p>
+                        <p class="meta" aria-live="polite">@(DisabledReason ?? ExplanationText ?? "Keep marks what should stay the same; rhythm reshape needs Keep rhythm off. The original notes are never changed.")</p>
+                        @foreach (string flag in _variation?.Flags ?? [])
+                        {
+                            <p class="meta">Check: @flag</p>
+                        }
                     }
                     else
                     {
@@ -279,7 +291,9 @@
     /// <summary>Everything music-core found about the selection, for the facts panel to group by lens.</summary>
     private IReadOnlyList<MotifFact> Facts => [.. _analysis?.Facts ?? [], .. _structure?.Facts ?? [], .. _character];
     private readonly HashSet<KeepProperty> _keep = [KeepProperty.Pitches, KeepProperty.PitchOrder];
-    private int _reshape;
+    /// <summary>The steps made from the selection (S1-E5, S1-E8); null when none were tried.</summary>
+    private VariationChain? _chain;
+    /// <summary>The chain's result, as heard and drawn: the original against every accepted step and the pending one.</summary>
     private Variation? _variation;
     private bool _looping;
     /// <summary>What the player chose to hear. While the selection loops, the original stands for the selection's notes alone.</summary>
@@ -537,6 +551,7 @@
         _selectionNote = null;
         _looping = false;
         _hear = [Player.OriginalSource];
+        _chain = null;
         _variation = null;
         _secondTitle = null;
         _secondDifferences = [];
@@ -723,15 +738,8 @@
         _structure = StructureAnalyzer.Analyze(_notes!, _meter!, _selection, phrases);
         _character = MotifAnalyzer.AnalyzeCharacter(_notes!, _meter!, _selection, KeySignature.InForce(_keys, span.Onset), _characterContext!);
         _selectionNote = note;
-        // A reshape in place follows the selection as it changes, so the player keeps hearing and seeing it.
-        if (_variation is not null && UnavailableReason is null)
-        {
-            await ApplyAsync(play: false);
-        }
-        else
-        {
-            await ClearVariationAsync();
-        }
+        // The steps follow the selection as it changes, so the player keeps hearing and seeing them.
+        await ReplayAsync();
 
         if (_looping)
         {
@@ -765,12 +773,23 @@
     }
 
     /// <summary>Why the Keep choices rule V1 out (S1-E2), or null.</summary>
-    private string? DisabledReason => RhythmReshape.DisabledReason(_keep);
+    private string? DisabledReason => RhythmReshape.Instance.DisabledReason(_keep);
 
-    /// <summary>Why V1 cannot run on this selection with these choices, or null.</summary>
-    private string? UnavailableReason => DisabledReason ?? (_selection is { } selection
-        ? RhythmReshape.UnavailableReason(VariationFacts.MotifNotes(_notes!, selection), selection.Span, s_reshapes[_reshape].Parameters)
-        : "Select some notes first.");
+    /// <summary>The breadcrumbs of the chain, for example "Original › Half-time › trying Later by 1 eighth".</summary>
+    private string? StepsText => _chain is null
+        ? null
+        : string.Join(" › ", ["Original", .. _chain.Steps.Select(StepLabel), .. _chain.Pending is { } pending ? [$"trying {StepLabel(pending)}"] : Array.Empty<string>()]);
+
+    /// <summary>What the pending step changed, then what all the steps changed from the original; both read from the diff (S1-E4).</summary>
+    private string? ExplanationText => _chain switch
+    {
+        { Pending: { } pending, Steps.Count: > 0, Result: { } result } => $"This step: {pending.Result.Explanation} From the original: {result.Explanation}",
+        { Result: { } result } => result.Explanation,
+        _ => null,
+    };
+
+    private static string StepLabel(VariationStep step) =>
+        s_reshapes.FirstOrDefault(reshape => reshape.Parameters == step.Parameters).Label ?? step.Operation.Name;
 
     private static string KeepLabel(KeepProperty property) => property switch
     {
@@ -803,29 +822,54 @@
             _keep.Add(property);
         }
 
-        if (_variation is not null)
+        if (_chain is not null)
         {
-            await ApplyAsync(play: false);
+            await ReplayAsync();
+            await SaveProjectAsync();
         }
     }
 
     /// <summary>A new parameter re-runs the operation and plays the result at once (S1-E3).</summary>
     private Task ReshapeAsync(int index)
     {
-        _reshape = index;
+        if (_selection is not { } selection)
+        {
+            return Task.CompletedTask;
+        }
+
         // Show the reshape in the score as well, the first time one is made.
         if (_variation is null)
         {
             _scoreChoice = ScoreChoice.Variation;
         }
 
-        return ApplyAsync(play: true);
+        VariationChain chain = _chain ?? StartChain(selection);
+        return ShowAsync(chain.Propose(RhythmReshape.Instance, s_reshapes[index].Parameters), play: true);
     }
 
-    /// <summary>Why one reshape cannot run on this selection with these Keep choices, or null.</summary>
-    private string? ReshapeUnavailable(int index) => DisabledReason ?? (_selection is { } selection
-        ? RhythmReshape.UnavailableReason(VariationFacts.MotifNotes(_notes!, selection), selection.Span, s_reshapes[index].Parameters)
-        : "Select some notes first.");
+    /// <summary>Why one reshape cannot run on the current notes with these Keep choices, or null.</summary>
+    private string? ReshapeUnavailable(int index) => _selection is { } selection
+        ? (_chain ?? StartChain(selection)).UnavailableReason(RhythmReshape.Instance, s_reshapes[index].Parameters)
+        : "Select some notes first.";
+
+    private Task AcceptStepAsync() => _chain is { AcceptDisabledReason: null } chain ? ShowAsync(chain.Accept(), play: false) : Task.CompletedTask;
+
+    private Task RejectStepAsync() => _chain is { Pending: not null } chain ? ShowAsync(chain.Reject(), play: false) : Task.CompletedTask;
+
+    private Task UndoStepAsync() => _chain is { CanUndo: true } chain ? ShowAsync(chain.Undo(), play: false) : Task.CompletedTask;
+
+    private Task RedoStepAsync() => _chain is { CanRedo: true } chain ? ShowAsync(chain.Redo(), play: false) : Task.CompletedTask;
+
+    /// <summary>A chain with no steps over the selected notes, with a copy of the Keep choices.</summary>
+    private VariationChain StartChain(MotifSelection selection) =>
+        VariationChain.Start(VariationFacts.MotifNotes(_notes!, selection), VariationContext.For(selection, _keep.ToHashSet()));
+
+    /// <summary>Runs the chain's steps again on the selection and Keep choices as they are now; clears it when a step no longer runs.</summary>
+    private Task ReplayAsync() =>
+        _chain is not null && _selection is { } selection
+            && _chain.Replay(VariationFacts.MotifNotes(_notes!, selection), VariationContext.For(selection, _keep.ToHashSet())) is { } replayed
+            ? ShowAsync(replayed, play: false)
+            : ClearVariationAsync();
 
     private async Task RemoveVariationAsync()
     {
@@ -836,23 +880,28 @@
     /// <summary>The piece with the variation's notes in place of the motif's, engraved from the notes; what it writes is inferred (decision record 0008).</summary>
     private ScoreSource VariationScore(Variation variation)
     {
-        var changed = variation.Changes.Select(change => change.Before.Id).ToHashSet(StringComparer.Ordinal);
+        var changed = variation.Changes.Select(change => change.Before.Id).Concat(variation.Removed.Select(note => note.Id)).ToHashSet(StringComparer.Ordinal);
         Note[] notes = [.. _notes!.Where(note => !changed.Contains(note.Id)), .. variation.Notes];
         Tick end = notes.Length == 0 ? _score!.End : notes.Max(note => note.Span.End);
         IEnumerable<KeyChange> keys = _keys.Select(key => new KeyChange(key.At, Math.Clamp(key.Fifths, -7, 7)));
         return ScoreSource.FromNotes(NotationGenerator.Generate(notes, _meter!, keys, end > _score!.End ? end : _score.End, _title));
     }
 
-    /// <summary>Runs V1 on the selection, keeping the original notes as they are (S1-E1, S1-E4, S1-E9).</summary>
-    private async Task ApplyAsync(bool play)
+    /// <summary>
+    /// Shows the chain's result in place of the motif, keeping the original notes as they are
+    /// (S1-E1, S1-E4, S1-E5, S1-E9). A chain with nothing to show (every step undone) is kept for redo.
+    /// </summary>
+    private async Task ShowAsync(VariationChain chain, bool play)
     {
-        if (_selection is not { } selection || UnavailableReason is not null)
+        if (_selection is not { } selection || chain.Result is null)
         {
-            await ClearVariationAsync();
+            await ClearVariationAsync(_selection is null ? null : chain);
+            await SaveProjectAsync();
             return;
         }
 
-        _variation = RhythmReshape.Apply(_notes!, selection, _keep, s_reshapes[_reshape].Parameters);
+        _chain = chain;
+        _variation = chain.Result;
         _variationScore = VariationScore(_variation);
         await Player.SetSourceAsync(VariationSource, _score!.WithNotes(_variation.Notes));
         if (play)
@@ -884,9 +933,9 @@
         if (_selection is { NoteIds.Count: > 0 } selection)
         {
             motifs.Insert(0, SavedMotif.From(Motif.Create(_motifId, 1, selection, MotifSelectionKind.Range, MotifMode.Discovery, _notes!)));
-            if (_variation is not null)
+            if (_chain is { Result: not null } chain)
             {
-                variations.Insert(0, SavedVariation.Create(_motifId.Replace("m_", "v_", StringComparison.Ordinal), _motifId, s_reshapes[_reshape].Parameters, _keep));
+                variations.Insert(0, SavedVariation.Create(_motifId.Replace("m_", "v_", StringComparison.Ordinal), _motifId, chain));
             }
         }
 
@@ -905,12 +954,12 @@
         {
             _filter = _filters.Any(filter => filter.Filter == motif.Filter) ? motif.Filter : SelectionFilter.All;
             await SelectAsync(motif.Span, note: $"Restored \"{motif.Name}\" from the project.");
-            if (opened.Variations.FirstOrDefault(variation => variation.Saved.MotifId == motif.Id).Saved is { } saved)
+            if (opened.Variations.FirstOrDefault(variation => variation.Saved.MotifId == motif.Id).Chain is { } chain)
             {
                 _keep.Clear();
-                _keep.UnionWith(saved.Keep);
-                _reshape = Math.Max(0, Array.FindIndex(s_reshapes, reshape => reshape.Parameters == saved.Parameters));
-                await ApplyAsync(play: false);
+                _keep.UnionWith(chain.Context.Keep);
+                _chain = chain;
+                await ReplayAsync();
             }
         }
         finally
@@ -919,8 +968,10 @@
         }
     }
 
-    private async Task ClearVariationAsync()
+    /// <summary>Stops showing a variation. The chain goes too, unless <paramref name="chain"/> is kept for redo.</summary>
+    private async Task ClearVariationAsync(VariationChain? chain = null)
     {
+        _chain = chain;
         if (_variation is null)
         {
             return;
