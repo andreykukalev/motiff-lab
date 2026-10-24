@@ -1,18 +1,20 @@
 @page "/playback"
 @using MotiffLab.MusicCore.Analysis
 @using MotiffLab.MusicCore.Events
-@using MotiffLab.MusicCore.Import.Midi
+@using MotiffLab.MusicCore.Import
 @using MotiffLab.MusicCore.Import.MusicXml
 @using MotiffLab.MusicCore.Motifs
 @using MotiffLab.MusicCore.Notation
 @using MotiffLab.MusicCore.Playback
 @using MotiffLab.MusicCore.Time
 @using MotiffLab.MusicCore.Variations
+@using MotiffLab.Web.Import
 @using MotiffLab.Web.Playback
 @using MotiffLab.Web.Roll
 @using MotiffLab.Web.Score
 @implements IDisposable
 @inject Player Player
+@inject CurrentPiece CurrentPiece
 
 <PageTitle>Playback · Motiff Lab</PageTitle>
 
@@ -34,8 +36,9 @@
         <button @onclick="LoadDemoAsync" disabled="@(!Player.IsReady)">Demo piece</button>
         <label class="file">
             Open file
-            <InputFile OnChange="OpenFileAsync" accept=".mid,.midi,.musicxml,.mxl,.xml" disabled="@(!Player.IsReady)" />
+            <InputFile OnChange="OpenFileAsync" accept="@PieceImporter.AcceptedExtensions" disabled="@(!Player.IsReady)" />
         </label>
+        <a href="import">Import with the report</a>
         @if (_title is not null)
         {
             <span class="meta">@_title</span>
@@ -44,6 +47,7 @@
     @if (_message is not null)
     {
         <p class="error">@_message</p>
+        <p class="meta">@_tip</p>
     }
 
     @if (_score is not null && _meter is not null)
@@ -222,6 +226,8 @@
     private string[] _sourcesBeforeLoop = [Player.OriginalSource];
     private string? _title;
     private string? _message;
+    private string? _tip;
+    private int _pieceVersion;
     private ScoreSource? _asWritten;
     private ScoreSource? _generated;
     private bool _showScore = true;
@@ -258,6 +264,19 @@
         {
             await Player.InitializeAsync();
         }
+
+        // A piece opened from the import screen (N2), with the track or hand the player chose to start with.
+        if (CurrentPiece.Piece is { } piece && CurrentPiece.Version != _pieceVersion && Player.IsReady)
+        {
+            _pieceVersion = CurrentPiece.Version;
+            await LoadPieceAsync(piece);
+            if (_filters.Any(filter => filter.Filter == CurrentPiece.StartWith))
+            {
+                _filter = CurrentPiece.StartWith;
+            }
+
+            StateHasChanged();
+        }
     }
 
     public void Dispose()
@@ -276,38 +295,37 @@
 
     private async Task OpenFileAsync(InputFileChangeEventArgs args)
     {
-        _message = null;
-        try
+        (_message, _tip) = (null, null);
+        ImportRejection? rejection = PieceImporter.CheckSize(args.File.Size);
+        if (rejection is null)
         {
-            await using Stream stream = args.File.OpenReadStream(MidiImporter.MaxFileBytes);
+            await using Stream stream = args.File.OpenReadStream(PieceImporter.MaxFileBytes);
             using var memory = new MemoryStream();
             await stream.CopyToAsync(memory);
-            byte[] data = memory.ToArray();
-            if (args.File.Name.EndsWith(".mid", StringComparison.OrdinalIgnoreCase) || args.File.Name.EndsWith(".midi", StringComparison.OrdinalIgnoreCase))
+            PieceImportResult result = PieceImporter.Import(args.File.Name, memory.ToArray());
+            if (result.Piece is { } piece)
             {
-                MidiImport import = MidiImporter.Import(data);
-                await LoadAsync((PlaybackScore.FromMidi(import), import.Meter, import.Notes), args.File.Name, NotationGenerator.FromMidi(import, args.File.Name), musicXml: null, KeySignature.FromMidi(import));
+                await LoadPieceAsync(piece);
+                return;
             }
-            else
-            {
-                byte[] score = MusicXmlImporter.ReadScoreXml(data);
-                MusicXmlImport import = MusicXmlImporter.Import(score);
-                using var text = new StreamReader(new MemoryStream(score), detectEncodingFromByteOrderMarks: true);
-                await LoadAsync((PlaybackScore.FromMusicXml(import), import.Meter, import.Notes), args.File.Name, NotationGenerator.FromMusicXml(import, args.File.Name), await text.ReadToEndAsync(), KeySignature.FromMusicXml(import));
-            }
+
+            rejection = result.Rejection;
         }
-        catch (MidiImportException exception)
+
+        (_message, _tip) = (rejection?.Message, rejection?.Tip);
+    }
+
+    private async Task LoadPieceAsync(ImportedPiece piece)
+    {
+        if (piece.Midi is { } midi)
         {
-            _message = exception.Message;
+            await LoadAsync((PlaybackScore.FromMidi(midi), piece.Meter, piece.Notes), piece.FileName, NotationGenerator.FromMidi(midi, piece.FileName), musicXml: null, piece.Keys);
+            return;
         }
-        catch (MusicXmlImportException exception)
-        {
-            _message = exception.Message;
-        }
-        catch (IOException)
-        {
-            _message = "This file is larger than 5 MB, the most Motiff Lab can import.";
-        }
+
+        MusicXmlImport import = piece.MusicXml!;
+        using var text = new StreamReader(new MemoryStream(piece.ScoreXml!), detectEncodingFromByteOrderMarks: true);
+        await LoadAsync((PlaybackScore.FromMusicXml(import), piece.Meter, piece.Notes), piece.FileName, NotationGenerator.FromMusicXml(import, piece.FileName), await text.ReadToEndAsync(), piece.Keys);
     }
 
     private async Task LoadAsync((PlaybackScore Score, MeterMap Meter, IReadOnlyList<Note> Notes) piece, string title, GeneratedNotation notation, string? musicXml, IReadOnlyList<KeySignature> keys)

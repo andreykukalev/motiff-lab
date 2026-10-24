@@ -1,0 +1,172 @@
+@page "/import"
+@using System.Diagnostics
+@using MotiffLab.MusicCore.Import
+@using MotiffLab.Web.Import
+@inject CurrentPiece CurrentPiece
+@inject NavigationManager Navigation
+
+<PageTitle>Import · Motiff Lab</PageTitle>
+
+@* N2 · Import (S1-I1, S1-I8): drop or pick a file, read the import report, pick where to start. Parsing runs in the browser; the file never leaves the device. *@
+<main class="lab import">
+    <h1>Import a piece</h1>
+    <p class="meta">Motiff Lab reads MIDI (.mid) and MusicXML (.musicxml, .mxl) files up to 5 MB. The file is read in this browser and never leaves this device.</p>
+
+    <label class="dropzone @(_reading ? "busy" : null)">
+        <InputFile OnChange="OpenFileAsync" accept="@PieceImporter.AcceptedExtensions" disabled="@_reading" aria-label="Choose a MIDI or MusicXML file" />
+        <span>@(_reading ? "Reading…" : "Drop a file here, or click to choose one")</span>
+    </label>
+
+    @if (_rejection is { } rejection)
+    {
+        <section class="rejection" role="alert">
+            <p class="error"><strong>@_fileName</strong>: @rejection.Message</p>
+            <p>@rejection.Tip</p>
+        </section>
+    }
+
+    @if (_piece is { } piece)
+    {
+        ImportReport report = piece.Report;
+        <section class="report" aria-label="Import report">
+            <h2>@piece.FileName</h2>
+            <p class="summary">
+                @FormatName(piece.Format) · @Plural(piece.Tracks.Count, "track") with notes · @Plural(report.NoteCount, "note") · @Plural(report.MeasureCount, "bar")
+            </p>
+            <p class="meta">Read in @_elapsed.TotalSeconds.ToString("0.00") s on this device.</p>
+
+            <table class="tracks-table">
+                <thead>
+                    <tr><th scope="col">Track</th><th scope="col">Instrument</th><th scope="col">Notes</th><th scope="col">Hands</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (ImportedTrack track in piece.Tracks)
+                    {
+                        <tr>
+                            <td>@track.Label</td>
+                            <td>@(track.InstrumentName ?? "–")</td>
+                            <td>@track.NoteCount</td>
+                            <td>@HandsLabel(track.Hands)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            <h3>Timing</h3>
+            @if (report.OfKind(ImportIssueKind.Rounded).ToList() is { Count: > 0 } rounded)
+            {
+                <ul>
+                    @foreach (ImportIssue issue in rounded)
+                    {
+                        <li>@issue.Message</li>
+                    }
+                </ul>
+                <p class="meta">Rounded timing moves a note by at most half a tick, 1/960 of a quarter note.</p>
+            }
+            else
+            {
+                <p class="meta">No timing had to be rounded.</p>
+            }
+
+            <h3>Warnings</h3>
+            @if (report.Issues.Where(issue => issue.Kind != ImportIssueKind.Rounded).ToList() is { Count: > 0 } warnings)
+            {
+                <ul class="warnings">
+                    @foreach (ImportIssue issue in warnings)
+                    {
+                        <li><span class="kind">@KindLabel(issue.Kind)</span> @issue.Message</li>
+                    }
+                </ul>
+                <p class="meta">Assumed: the file did not say, so Motiff Lab chose a value. Repaired: the file was damaged and Motiff Lab kept what it could read. Left out: not used in this version.</p>
+            }
+            else
+            {
+                <p class="meta">None.</p>
+            }
+        </section>
+
+        <section class="start" aria-label="Where to start">
+            <h3>Start with</h3>
+            <div class="row" role="radiogroup">
+                @for (int i = 0; i < piece.StartChoices.Count; i++)
+                {
+                    int index = i;
+                    StartChoice choice = piece.StartChoices[i];
+                    <label title="@(choice.IsInferred ? "Hands were worked out from pitch and movement, not read from the file." : null)">
+                        <input type="radio" name="start" checked="@(index == _start)" @onchange="() => _start = index" /> @choice.Label
+                    </label>
+                }
+            </div>
+            <button class="primary" @onclick="Open">Open the piece</button>
+        </section>
+    }
+
+    <p><a href="">Back</a></p>
+</main>
+
+@code {
+    private string? _fileName;
+    private ImportedPiece? _piece;
+    private ImportRejection? _rejection;
+    private TimeSpan _elapsed;
+    private int _start;
+    private bool _reading;
+
+    private async Task OpenFileAsync(InputFileChangeEventArgs args)
+    {
+        _fileName = args.File.Name;
+        _piece = null;
+        _rejection = PieceImporter.CheckSize(args.File.Size);
+        _start = 0;
+        if (_rejection is not null)
+        {
+            return;
+        }
+
+        _reading = true;
+        try
+        {
+            var watch = Stopwatch.StartNew();
+            await using Stream stream = args.File.OpenReadStream(PieceImporter.MaxFileBytes);
+            using var memory = new MemoryStream();
+            await stream.CopyToAsync(memory);
+            PieceImportResult result = PieceImporter.Import(args.File.Name, memory.ToArray());
+            _elapsed = watch.Elapsed;
+            (_piece, _rejection) = (result.Piece, result.Rejection);
+        }
+        finally
+        {
+            _reading = false;
+        }
+    }
+
+    private void Open()
+    {
+        if (_piece is not { } piece)
+        {
+            return;
+        }
+
+        CurrentPiece.Open(piece, piece.StartChoices[Math.Clamp(_start, 0, piece.StartChoices.Count - 1)].Filter);
+        Navigation.NavigateTo("playback");
+    }
+
+    private static string FormatName(SourceFormat format) => format == SourceFormat.Midi ? "MIDI" : "MusicXML";
+
+    private static string Plural(int count, string noun) => count == 1 ? $"1 {noun}" : $"{count:N0} {noun}s";
+
+    private static string HandsLabel(TrackHands hands) => hands switch
+    {
+        TrackHands.Imported => "From the score",
+        TrackHands.Inferred => "Inferred",
+        _ => "–",
+    };
+
+    private static string KindLabel(ImportIssueKind kind) => kind switch
+    {
+        ImportIssueKind.Assumed => "Assumed",
+        ImportIssueKind.Repaired => "Repaired",
+        ImportIssueKind.Dropped => "Left out",
+        _ => "Rounded",
+    };
+}
