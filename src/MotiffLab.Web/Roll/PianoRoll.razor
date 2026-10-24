@@ -44,6 +44,7 @@
     private IReadOnlyCollection<string>? _shownKept;
     private Variation? _shownVariation;
     private (bool Original, bool Variation) _shownAudible = (true, false);
+    private TickSpan? _shownPlayRange;
     private IReadOnlyList<string> _selected = [];
     private MotifSelection? _shownMotif;
     private bool _shownAlone;
@@ -91,6 +92,10 @@
     [Parameter]
     public Variation? Variation { get; set; }
 
+    /// <summary>The range that plays for the selection, which a variation can lengthen or shorten; null for none.</summary>
+    [Parameter]
+    public TickSpan? PlayRange { get; set; }
+
     /// <summary>Whether the piece's notes are being heard (the original or the selection source), so they light up.</summary>
     [Parameter]
     public bool OriginalAudible { get; set; } = true;
@@ -125,6 +130,7 @@
             _shownMotif = null;
             _shownKept = null;
             _shownVariation = null;
+            _shownPlayRange = null;
             _laneCounts = new()
             {
                 ["track"] = Notes.Select(note => note.Track).Distinct().Count(),
@@ -153,7 +159,7 @@
         }
     }
 
-    /// <summary>Sends the Notes filter, the variation and which sources are heard, each only when it changed.</summary>
+    /// <summary>Sends the Notes filter, the variation, the play range and which sources are heard, each only when it changed.</summary>
     private async Task ShowOverlaysAsync(IJSObjectReference view)
     {
         if (!ReferenceEquals(Kept, _shownKept))
@@ -178,6 +184,19 @@
             else
             {
                 await view.InvokeVoidAsync("clearVariation");
+            }
+        }
+
+        if (PlayRange != _shownPlayRange)
+        {
+            _shownPlayRange = PlayRange;
+            if (PlayRange is { } range)
+            {
+                await view.InvokeVoidAsync("setPlayRange", range.Onset.Value, range.End.Value);
+            }
+            else
+            {
+                await view.InvokeVoidAsync("clearPlayRange");
             }
         }
 

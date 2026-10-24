@@ -87,7 +87,7 @@
             <span>Hear</span>
             @foreach ((string label, string[] ids) in Sources)
             {
-                <label><input type="radio" name="source" checked="@Player.ActiveSources.SequenceEqual(ids)" disabled="@_looping" @onchange="() => Player.SelectSourcesAsync(ids)" /> @label</label>
+                <label><input type="radio" name="source" checked="@_hear.SequenceEqual(ids)" @onchange="() => HearAsync(ids)" /> @label</label>
             }
             <span class="divider" aria-hidden="true"></span>
             <label><input type="checkbox" checked="@_showScore" @onchange="() => _showScore = !_showScore" /> Score</label>
@@ -104,14 +104,14 @@
         <div class="workspace @(_showScore && ShownScore is not null ? "with-score" : null)">
             <section class="roll-panel">
                 <PianoRoll Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping"
-                           Kept="_keptIds" Variation="_variation" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible"
+                           Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible"
                            RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync" />
             </section>
             @if (_showScore && ShownScore is { } shown)
             {
                 @* Clicks on the page outside the roll clear the selection, except inside panels marked data-keeps-selection (docs/ui-conventions.md). *@
                 <section class="score-panel" data-keeps-selection>
-                    <ScoreView Source="shown" />
+                    <ScoreView Source="shown" Range="ShownRange" />
                     <p class="meta">@ScoreNote(shown)</p>
                 </section>
             }
@@ -280,7 +280,8 @@
     private int _reshape;
     private Variation? _variation;
     private bool _looping;
-    private string[] _sourcesBeforeLoop = [Player.OriginalSource];
+    /// <summary>What the player chose to hear. While the selection loops, the original stands for the selection's notes alone.</summary>
+    private string[] _hear = [Player.OriginalSource];
     private string? _title;
     private string? _message;
     private string? _tip;
@@ -475,14 +476,14 @@
         _secondTitle = piece.FileName;
         _secondDifferences = second.Differences;
         await Player.SetSourceAsync(SecondFileId, second.Notes);
-        await Player.SelectSourcesAsync(SecondFileId);
+        await HearAsync([SecondFileId]);
     }
 
     private async Task RemoveSecondFileAsync()
     {
-        if (Player.ActiveSources.Contains(SecondFileId))
+        if (_hear.Contains(SecondFileId))
         {
-            await Player.SelectSourcesAsync(Player.OriginalSource);
+            await HearAsync([Player.OriginalSource]);
         }
 
         await Player.SetSourceAsync(SecondFileId, _score!.WithNotes([]));
@@ -530,6 +531,7 @@
         _structure = null;
         _selectionNote = null;
         _looping = false;
+        _hear = [Player.OriginalSource];
         _variation = null;
         _secondTitle = null;
         _secondDifferences = [];
@@ -846,9 +848,14 @@
         _variation = RhythmReshape.Apply(_notes!, selection, _keep, s_reshapes[_reshape].Parameters);
         _variationScore = VariationScore(_variation);
         await Player.SetSourceAsync(VariationSource, _score!.WithNotes(_variation.Notes));
-        if (play || (_looping && Player.ActiveSources.SequenceEqual([VariationSource])))
+        if (play)
         {
             await AuditionAsync(variation: true);
+        }
+        else if (_looping)
+        {
+            // The loop follows the variation's new length.
+            await LoopSelectionAsync(selection);
         }
 
         await SaveProjectAsync();
@@ -912,47 +919,42 @@
             return;
         }
 
-        if (_looping && Player.ActiveSources.SequenceEqual([VariationSource]))
-        {
-            await StopLoopingAsync();
-        }
-
         _variation = null;
         _variationScore = null;
         await Player.SetSourceAsync(VariationSource, _score!.WithNotes([]));
+        // Nothing is left to hear as the variation: go back to the original, keeping the loop.
+        if (_hear.Contains(VariationSource))
+        {
+            await HearAsync([Player.OriginalSource]);
+        }
     }
 
-    /// <summary>Loops the selected notes or their variation, each over the whole bars it sounds in.</summary>
+    /// <summary>Chooses what to hear. While the selection loops, the loop carries on with the new choice and its range.</summary>
+    private async Task HearAsync(string[] ids)
+    {
+        _hear = ids;
+        if (_looping && _selection is { NoteIds.Count: > 0 } selection)
+        {
+            await LoopSelectionAsync(selection);
+        }
+        else
+        {
+            await Player.SelectSourcesAsync(ids);
+        }
+    }
+
+    /// <summary>Loops the selection as it is, or its variation, from the start of the selection.</summary>
     private async Task AuditionAsync(bool variation)
     {
-        if (_selection is not { } selection)
+        if (_selection is not { NoteIds.Count: > 0 } selection)
         {
             return;
         }
 
-        if (!_looping)
-        {
-            _sourcesBeforeLoop = [.. Player.ActiveSources];
-            _looping = true;
-        }
-
-        TickSpan span = selection.Span;
-        if (variation && _variation is { Notes.Count: > 0 } result)
-        {
-            Tick end = result.Notes.Max(note => note.Span.End);
-            Tick barEnd = _meter!.BarAt(new Tick(end.Value - 1)).Span.End;
-            span = TickSpan.FromBounds(span.Onset, barEnd > span.End ? barEnd : span.End);
-            await Player.SelectSourcesAsync(VariationSource);
-        }
-        else
-        {
-            var ids = selection.NoteIds.ToHashSet(StringComparer.Ordinal);
-            await Player.SetSourceAsync(SelectionSource, _score!.WithNotes(_notes!.Where(note => ids.Contains(note.Id))));
-            await Player.SelectSourcesAsync(SelectionSource);
-        }
-
-        await Player.SetLoopAsync(span);
-        await Player.SeekAsync(span.Onset);
+        _hear = variation && _variation is not null ? [VariationSource] : [Player.OriginalSource];
+        _looping = true;
+        TickSpan range = await LoopSelectionAsync(selection);
+        await Player.SeekAsync(range.Onset);
         if (Player.State == PlaybackState.Stopped)
         {
             await Player.PlayAsync();
@@ -967,30 +969,75 @@
         }
         else if (_selection is { NoteIds.Count: > 0 } selection)
         {
-            _sourcesBeforeLoop = [.. Player.ActiveSources];
             _looping = true;
             await LoopSelectionAsync(selection);
         }
     }
 
-    /// <summary>Loops the selection's range with only its notes sounding (S1-W4, S1-M5).</summary>
-    private async Task LoopSelectionAsync(MotifSelection selection)
+    /// <summary>
+    /// Loops what the player chose to hear, kept to the selection (S1-W4, S1-M5): the original as the
+    /// selection's notes alone, the variation as its notes. Returns the range that loops.
+    /// </summary>
+    private async Task<TickSpan> LoopSelectionAsync(MotifSelection selection)
     {
         var ids = selection.NoteIds.ToHashSet(StringComparer.Ordinal);
         await Player.SetSourceAsync(SelectionSource, _score!.WithNotes(_notes!.Where(note => ids.Contains(note.Id))));
-        await Player.SelectSourcesAsync(SelectionSource);
-        await Player.SetLoopAsync(selection.Span);
-        if (!selection.Span.Contains(Player.Position))
+        await Player.SelectSourcesAsync([.. _hear.Select(id => id == Player.OriginalSource ? SelectionSource : id)]);
+        TickSpan range = PlayRange(selection);
+        await Player.SetLoopAsync(range);
+        if (!range.Contains(Player.Position))
         {
-            await Player.SeekAsync(selection.Span.Onset);
+            await Player.SeekAsync(range.Onset);
         }
+
+        return range;
     }
+
+    /// <summary>
+    /// What plays for the selection: its own range, or, when the variation is heard, the range the
+    /// variation's notes take, rounded out to whole beats. A variation that runs longer extends it,
+    /// one that runs shorter shortens it; heard together with the original it never ends before the
+    /// selection. Never past the end of the piece.
+    /// </summary>
+    private TickSpan PlayRange(MotifSelection selection)
+    {
+        TickSpan span = selection.Span;
+        if (!_hear.Contains(VariationSource) || _variation is not { Notes.Count: > 0 } variation)
+        {
+            return span;
+        }
+
+        Tick end = BeatEnd(variation.Notes.Max(note => note.Span.End));
+        if (_hear.Contains(Player.OriginalSource) && span.End > end)
+        {
+            end = span.End;
+        }
+
+        Tick pieceEnd = _score!.End;
+        end = end > pieceEnd ? pieceEnd : end;
+        return end > span.Onset ? TickSpan.FromBounds(span.Onset, end) : span;
+    }
+
+    /// <summary>The first beat line at or after an end, in the bar it falls in.</summary>
+    private Tick BeatEnd(Tick end)
+    {
+        Bar bar = _meter!.BarAt(new Tick(Math.Max(0, end.Value - 1)));
+        long beat = bar.Signature.BeatTicks;
+        // A pickup's beats count back from its bar line.
+        long barStart = bar.IsPickup ? bar.Span.End.Value - bar.Signature.BarTicks : bar.Span.Onset.Value;
+        long past = (end.Value - barStart) % beat;
+        long snapped = past == 0 ? end.Value : end.Value + beat - past;
+        return new Tick(Math.Min(snapped, bar.Span.End.Value));
+    }
+
+    /// <summary>The range that plays for the selection as things stand, for the roll and the score to show; null without a selection.</summary>
+    private TickSpan? ShownRange => _selection is { } selection ? (_selection.NoteIds.Count > 0 ? PlayRange(selection) : selection.Span) : null;
 
     private async Task StopLoopingAsync()
     {
         _looping = false;
         await Player.SetLoopAsync(null);
-        await Player.SelectSourcesAsync(_sourcesBeforeLoop);
+        await Player.SelectSourcesAsync(_hear);
     }
 
     /// <summary>The selection in words: where it is, which notes it keeps and whether a hand is inferred.</summary>

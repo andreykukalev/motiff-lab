@@ -151,7 +151,7 @@ html, body {
 
 @media (min-width: 70rem) {
     .lab .workspace.with-score {
-        grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     }
 }
 
@@ -428,6 +428,11 @@ html, body {
 
 .score g.note, .score g.chord {
     cursor: pointer;
+}
+
+/* Notes outside the range that plays for the selection go faint, as on the roll. */
+.score g.note.outside {
+    opacity: 0.3;
 }
 
 .score g.note.playing, .score g.chord.playing {
