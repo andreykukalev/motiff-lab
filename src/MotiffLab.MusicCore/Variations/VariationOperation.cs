@@ -88,7 +88,7 @@ public abstract class VariationOperation<TParameters> : IVariationOperation
             throw new InvalidOperationException(reason);
         }
 
-        return VariationFacts.Build(Id, context.Span, notes, after!, context.Keep, flags);
+        return VariationFacts.Build(Id, context.Span, notes, after!, context.Keep, flags, context.Key);
     }
 
     /// <summary>Applies the operation to the selected notes of <paramref name="notes"/>.</summary>
@@ -141,8 +141,27 @@ public abstract class VariationOperation<TParameters> : IVariationOperation
 /// <summary>The operations this version offers, by catalogue id. New operations register here.</summary>
 public static class VariationOperations
 {
-    public static IReadOnlyList<IVariationOperation> All { get; } = [RhythmReshape.Instance, IntervalReshape.Instance, ChangeDirection.Instance];
+    public static IReadOnlyList<IVariationOperation> All { get; } = [RhythmReshape.Instance, MelodicSequence.Instance, IntervalReshape.Instance, ChangeDirection.Instance];
 
     /// <summary>The operation with this catalogue id, or null when this version does not have it.</summary>
     public static IVariationOperation? Find(string id) => All.FirstOrDefault(operation => operation.Id == id);
+}
+/// <summary>An operation's row of the Keep table (S1-E2): the Keep choices it can run with, and why the others rule it out.</summary>
+internal static class KeepTable
+{
+    /// <param name="whatItChanges">"changes the melody's intervals", completing "&lt;name&gt; …, so it is off while Keep x is on".</param>
+    public static string? DisabledReason(string name, string whatItChanges, IReadOnlySet<KeepProperty> compatible, IReadOnlySet<KeepProperty> keep)
+    {
+        ArgumentNullException.ThrowIfNull(keep);
+        KeepProperty[] blocking = [.. Enum.GetValues<KeepProperty>().Where(property => keep.Contains(property) && !compatible.Contains(property))];
+        return blocking.Length == 0
+            ? null
+            : $"{name} {whatItChanges}, so it is off while Keep {string.Join(" and Keep ", blocking.Select(KeepName))} {(blocking.Length == 1 ? "is" : "are")} on.";
+    }
+
+    private static string KeepName(KeepProperty property) => property switch
+    {
+        KeepProperty.PitchOrder => "pitch order",
+        _ => property.ToString().ToLowerInvariant(),
+    };
 }
