@@ -97,7 +97,7 @@ public class ProjectFileTests
     [Theory]
     [InlineData("not json", "not valid JSON")]
     [InlineData("{\"format\":\"something-else\"}", "not a Motiff Lab project file")]
-    [InlineData("{\"format\":\"motiff-lab-project\",\"version\":3}", "newer version")]
+    [InlineData("{\"format\":\"motiff-lab-project\",\"version\":4}", "newer version")]
     [InlineData("{\"format\":\"motiff-lab-project\",\"version\":1,\"source\":\"!!\"}", "source")]
     public void Unreadable_files_get_a_plain_reason(string json, string reason)
     {
@@ -142,7 +142,7 @@ public class ProjectFileTests
     public void A_version_1_file_opens_with_its_variation_as_one_step()
     {
         string json = Encoding.UTF8.GetString(ProjectFile.Write(Worked() with { Variations = [] }))
-            .Replace("\"version\": 2", "\"version\": 1", StringComparison.Ordinal)
+            .Replace("\"version\": 3", "\"version\": 1", StringComparison.Ordinal)
             .Replace(
                 "\"variations\": []",
                 "\"variations\": [{\"id\": \"v_0001\", \"motifId\": \"m_0001\", \"operation\": \"V1\", \"parameters\": {\"kind\": \"HalfTime\", \"eighths\": 1}, \"keep\": [\"Pitches\"]}]",
@@ -163,5 +163,83 @@ public class ProjectFileTests
         var exception = Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Encoding.UTF8.GetBytes(json)));
 
         Assert.Contains("V99", exception.Message);
+    }
+
+    /// <summary>The worked project with the first note of the right-hand motif a semitone higher and louder, and its variation.</summary>
+    private static Project Corrected()
+    {
+        Project project = Worked();
+        ImportedPiece piece = PieceImporter.Import(project.FileName, project.Source).Piece!;
+        Note first = piece.Notes.First(note => note.Id == project.Motifs[0].NoteIds[0]);
+        NoteEditLog edits = NoteEditLog.Empty
+            .Change(piece.Notes, first.Id, NoteValues.Of(first) with { Pitch = new Pitch(first.Pitch.MidiNumber + 1), Velocity = 100 });
+        return project with { Edits = edits, Variations = [project.Variations[0]] };
+    }
+
+    [Fact]
+    public void Note_corrections_are_saved_and_applied_on_open()
+    {
+        Project project = Corrected();
+
+        Project reread = ProjectFile.Read(ProjectFile.Write(project));
+        OpenedProject opened = OpenedProject.Open(reread);
+
+        Assert.Equal(project.Edits, reread.Edits);
+        NoteEdit edit = Assert.Single(reread.Edits.Edits);
+        Note corrected = opened.Notes.Single(note => note.Id == edit.NoteId);
+        Assert.Equal(edit.After, NoteValues.Of(corrected));
+        Assert.Equal(Provenance.UserEdited, corrected.Attribution.Provenance);
+        Assert.Equal(edit.Before, NoteValues.Of(opened.Piece.Notes.Single(note => note.Id == edit.NoteId)));
+        Assert.Contains(opened.Variations[0].Chain.Original, note => note.Id == edit.NoteId && note.Pitch == edit.After!.Value.Pitch);
+        Assert.Equal(ProjectFile.Write(project), ProjectFile.Write(reread));
+    }
+
+    [Fact]
+    public void A_removed_note_is_saved_without_values_after()
+    {
+        Project project = Worked() with { Motifs = [], Variations = [] };
+        ImportedPiece piece = PieceImporter.Import(project.FileName, project.Source).Piece!;
+        project = project with { Edits = NoteEditLog.Empty.Remove(piece.Notes, piece.Notes[2].Id) };
+
+        string json = Encoding.UTF8.GetString(ProjectFile.Write(project));
+        OpenedProject opened = OpenedProject.Open(ProjectFile.Read(Encoding.UTF8.GetBytes(json)));
+
+        Assert.DoesNotContain("\"after\"", json);
+        Assert.Equal(piece.Notes.Count - 1, opened.Notes.Count);
+        Assert.DoesNotContain(opened.Notes, note => note.Id == piece.Notes[2].Id);
+    }
+
+    [Fact]
+    public void A_version_2_file_opens_with_no_corrections()
+    {
+        string json = Encoding.UTF8.GetString(ProjectFile.Write(Worked()))
+            .Replace("\"version\": 3", "\"version\": 2", StringComparison.Ordinal)
+            .Replace(",\n  \"edits\": []", "", StringComparison.Ordinal);
+        Assert.DoesNotContain("edits", json);
+
+        Assert.True(ProjectFile.Read(Encoding.UTF8.GetBytes(json)).Edits.IsEmpty);
+    }
+
+    [Fact]
+    public void Corrections_that_no_longer_fit_the_piece_are_reported()
+    {
+        Project project = Corrected();
+        NoteEdit edit = project.Edits.Edits[0];
+        Project wrong = project with { Edits = new NoteEditLog([edit with { Before = edit.Before with { Velocity = 1 } }]) };
+
+        var exception = Assert.Throws<ProjectFileException>(() => OpenedProject.Open(wrong));
+
+        Assert.Contains("note corrections", exception.Message);
+    }
+
+    [Theory]
+    [InlineData("\"velocity\": 100", "\"velocity\": 0")]
+    [InlineData("\"noteId\": \"", "\"noteId\": 7, \"x\": \"")]
+    public void Damaged_corrections_are_rejected(string field, string damaged)
+    {
+        string json = Encoding.UTF8.GetString(ProjectFile.Write(Corrected()));
+        Assert.Contains(field, json);
+
+        Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Encoding.UTF8.GetBytes(json.Replace(field, damaged, StringComparison.Ordinal))));
     }
 }

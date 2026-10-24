@@ -188,6 +188,80 @@
                         <p class="meta">Select some bars on the roll first: drag across it, or click a bar number.</p>
                     }
                 </div>
+
+                @* S1-I7: correct or remove imported notes. Every correction goes to the project's edit log; the imported notes stay as they were. *@
+                <div class="corrections" aria-label="Correct notes">
+                    <button class="section-toggle" aria-expanded="@(_showCorrections ? "true" : "false")" @onclick="() => _showCorrections = !_showCorrections">
+                        <span class="caret" aria-hidden="true">@(_showCorrections ? "▾" : "▸")</span>
+                        Correct notes · @Plural(_edits.EditedIds.Count(), "note") corrected
+                    </button>
+                    @if (_showCorrections)
+                    {
+                        <p class="meta">Fix what the import got wrong in the selected notes. Corrected notes are marked as edited by you; Undo or Revert puts the imported value back exactly.</p>
+                        <div class="row">
+                            <button @onclick="UndoCorrectionAsync" disabled="@_edits.IsEmpty" title="Take back the last correction.">Undo correction</button>
+                            <span class="meta">@Plural(_edits.Edits.Count, "correction") in the edit log</span>
+                        </div>
+                        @if (_selection is { NoteIds.Count: > 0 } picked)
+                        {
+                            <table class="notes-table">
+                                <thead>
+                                    <tr><th scope="col">Note</th><th scope="col">Where</th><th scope="col">Length</th><th scope="col">Velocity</th><th scope="col"></th></tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (Note note in CorrectableNotes(picked))
+                                    {
+                                        bool edited = note.Attribution.Provenance == Provenance.UserEdited;
+                                        <tr class="@(edited ? "edited" : null)">
+                                            <td>
+                                                <button title="A semitone lower" @onclick="() => CorrectAsync(note, pitch: -1)">▼</button>
+                                                @note.Pitch
+                                                <button title="A semitone higher" @onclick="() => CorrectAsync(note, pitch: 1)">▲</button>
+                                            </td>
+                                            <td>
+                                                <button title="A 16th earlier" disabled="@(note.Span.Onset.Value < SixteenthTicks)" @onclick="() => CorrectAsync(note, onset: -SixteenthTicks)">◀</button>
+                                                @NotePosition(note)
+                                                <button title="A 16th later" @onclick="() => CorrectAsync(note, onset: SixteenthTicks)">▶</button>
+                                            </td>
+                                            <td>
+                                                <button title="A 16th shorter" disabled="@(note.Span.Duration <= SixteenthTicks)" @onclick="() => CorrectAsync(note, length: -SixteenthTicks)">−</button>
+                                                @VariationFacts.Length(note.Span.Duration)
+                                                <button title="A 16th longer" @onclick="() => CorrectAsync(note, length: SixteenthTicks)">+</button>
+                                            </td>
+                                            <td>
+                                                <button title="Softer" disabled="@(note.Velocity <= Note.MinVelocity)" @onclick="() => CorrectAsync(note, velocity: -10)">−</button>
+                                                @note.Velocity
+                                                <button title="Louder" disabled="@(note.Velocity >= Note.MaxVelocity)" @onclick="() => CorrectAsync(note, velocity: 10)">+</button>
+                                            </td>
+                                            <td>
+                                                <button title="Take this note out of the piece." @onclick="() => RemoveNoteAsync(note)">Remove</button>
+                                                @if (edited)
+                                                {
+                                                    <button title="Put this note back as it was imported." @onclick="() => RevertNoteAsync(note)">Revert</button>
+                                                    <span class="kind">Edited by you</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                        else
+                        {
+                            <p class="meta">Select some bars to list their notes here.</p>
+                        }
+                        @if (RemovedNotes.Count > 0)
+                        {
+                            <p class="meta">Removed: @string.Join(", ", RemovedNotes.Select(note => $"{note.Pitch} at {NotePosition(note)}")). Revert brings a note back:</p>
+                            <div class="row">
+                                @foreach (Note note in RemovedNotes)
+                                {
+                                    <button @onclick="() => RevertNoteAsync(note)">Revert @note.Pitch at @NotePosition(note)</button>
+                                }
+                            </div>
+                        }
+                    }
+                </div>
             </section>
 
             <section class="facts-panel" aria-label="Facts" data-keeps-selection>
@@ -305,6 +379,15 @@
     /// <summary>Everything music-core found about the selection, for the facts panel to group by lens.</summary>
     private IReadOnlyList<MotifFact> Facts => [.. _analysis?.Facts ?? [], .. _structure?.Facts ?? [], .. _character];
     private readonly HashSet<KeepProperty> _keep = [KeepProperty.Pitches, KeepProperty.PitchOrder];
+
+    private const long SixteenthTicks = CanonicalTime.TicksPerQuarter / 4;
+
+    /// <summary>The notes as imported; <see cref="_notes"/> is them with <see cref="_edits"/> applied (S1-I7).</summary>
+    private IReadOnlyList<Note> _imported = [];
+
+    /// <summary>The player's corrections of imported notes, saved with the project.</summary>
+    private NoteEditLog _edits = NoteEditLog.Empty;
+    private bool _showCorrections;
     /// <summary>The steps made from the selection (S1-E5, S1-E8); null when none were tried.</summary>
     private VariationChain? _chain;
     /// <summary>The chain's result, as heard and drawn: the original against every accepted step and the pending one.</summary>
@@ -422,6 +505,19 @@
             }
 
             _project = CurrentPiece.Project;
+            if (_project is { Edits.IsEmpty: false } corrected)
+            {
+                _restoring = true;
+                try
+                {
+                    await ApplyEditsAsync(corrected.Edits);
+                }
+                finally
+                {
+                    _restoring = false;
+                }
+            }
+
             if (CurrentPiece.Opened is { Motifs.Count: > 0 } opened)
             {
                 await RestoreAsync(opened);
@@ -551,6 +647,8 @@
         _scoreChoice = ScoreChoice.AsWritten;
         _score = piece.Score;
         _notes = piece.Notes;
+        _imported = piece.Notes;
+        _edits = NoteEditLog.Empty;
         _meter = piece.Meter;
         _title = title;
         _tracks = piece.Notes.Select(note => note.Track).Distinct().Order().ToArray();
@@ -802,6 +900,92 @@
         _ => null,
     };
 
+    /// <summary>The selected notes, then any note the player moved or edited out of the range, so a correction never hides it.</summary>
+    private IEnumerable<Note> CorrectableNotes(MotifSelection selection)
+    {
+        var ids = selection.NoteIds.ToHashSet(StringComparer.Ordinal);
+        return _notes!.Where(note => ids.Contains(note.Id) || (_edits.EditedIds.Contains(note.Id) && note.Span.Overlaps(selection.Span)));
+    }
+
+    /// <summary>Imported notes the edit log removes.</summary>
+    private IReadOnlyList<Note> RemovedNotes
+    {
+        get
+        {
+            if (_edits.IsEmpty)
+            {
+                return [];
+            }
+
+            var kept = _notes!.Select(note => note.Id).ToHashSet(StringComparer.Ordinal);
+            return [.. _imported.Where(note => !kept.Contains(note.Id))];
+        }
+    }
+
+    private string NotePosition(Note note)
+    {
+        MetricPosition position = _meter!.ToPosition(note.Span.Onset);
+        return position.BeatOffset == 0
+            ? $"bar {position.Bar}, beat {position.Beat}"
+            : $"bar {position.Bar}, beat {position.Beat} + {VariationFacts.Length(position.BeatOffset)}";
+    }
+
+    private Task CorrectAsync(Note note, int pitch = 0, long onset = 0, long length = 0, int velocity = 0)
+    {
+        NoteValues values = NoteValues.Of(note);
+        NoteValues after = new(
+            new Pitch(Math.Clamp(note.Pitch.MidiNumber + pitch, 0, Pitch.MaxMidiNumber)),
+            new TickSpan(new Tick(Math.Max(0, note.Span.Onset.Value + onset)), Math.Max(1, note.Span.Duration + length)),
+            Math.Clamp(note.Velocity + velocity, Note.MinVelocity, Note.MaxVelocity));
+        return after == values ? Task.CompletedTask : ApplyEditsAsync(_edits.Change(_imported, note.Id, after));
+    }
+
+    private Task RemoveNoteAsync(Note note) => ApplyEditsAsync(_edits.Remove(_imported, note.Id));
+
+    private Task RevertNoteAsync(Note note) => ApplyEditsAsync(_edits.Revert(note.Id));
+
+    private Task UndoCorrectionAsync() => _edits.IsEmpty ? Task.CompletedTask : ApplyEditsAsync(_edits.Undo());
+
+    /// <summary>
+    /// Plays, draws, engraves and analyses the imported notes with <paramref name="edits"/> applied
+    /// (S1-I7), keeping the position and the selection's range; the steps are made again on the
+    /// corrected notes, and the project saves the edit log.
+    /// </summary>
+    private async Task ApplyEditsAsync(NoteEditLog edits)
+    {
+        _edits = edits;
+        _notes = edits.Apply(_imported);
+        if (_selection is { } current)
+        {
+            // Renders between the awaits below must not see a selection that names a removed note.
+            _selection = MotifSelector.Select(_notes, _meter!, current.Span, _filter);
+        }
+
+        _score = PlaybackScore.Create(_notes, _score!.Tempos, _meter!, _score.End);
+        _lastBar = MotifSelector.LastBar(_meter!, _score.End);
+        IEnumerable<KeyChange> keys = _keys.Select(key => new KeyChange(key.At, Math.Clamp(key.Fifths, -7, 7)));
+        _generated = ScoreSource.FromNotes(NotationGenerator.Generate(_notes, _meter!, keys, _score.End, _title));
+        if (!edits.IsEmpty && _scoreChoice == ScoreChoice.AsWritten)
+        {
+            // The file as written does not know the corrections.
+            _scoreChoice = ScoreChoice.Generated;
+        }
+
+        Tick position = Player.Position;
+        await Player.LoadAsync(_score);
+        await ApplyFilterAsync();
+        await Player.SetSourceAsync(VariationSource, _score.WithNotes(_variation?.Notes ?? []));
+        await Player.SeekAsync(position);
+        if (_selection is { } selection)
+        {
+            await SelectAsync(selection.Span, note: null);
+        }
+        else
+        {
+            await SaveProjectAsync();
+        }
+    }
+
     /// <summary>Hands the player the motif or the variation as a MIDI file (S1-X1), named after the project, the bars and the steps.</summary>
     private async Task ExportMidiAsync(bool variation)
     {
@@ -819,6 +1003,8 @@
         byte[] file = MidiExporter.Export(notes, _score.Tempos, _meter, project, selection.Span.Onset);
         await Projects.DownloadAsync(MidiExporter.FileName(project, bars, steps), file, "audio/midi");
     }
+
+    private static string Plural(int count, string noun) => count == 1 ? $"1 {noun}" : $"{count} {noun}s";
 
     private static string StepLabel(VariationStep step) =>
         s_reshapes.FirstOrDefault(reshape => reshape.Parameters == step.Parameters).Label ?? step.Operation.Name;
@@ -991,7 +1177,7 @@
             }
         }
 
-        _project = _project with { Motifs = motifs, Variations = variations };
+        _project = _project with { Motifs = motifs, Variations = variations, Edits = _edits };
         CurrentPiece.Saved(_project);
         await Projects.SaveAsync(_project);
     }
