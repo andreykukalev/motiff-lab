@@ -43,7 +43,7 @@ public class MelodyFactTests
         [.. new[] { 64, 64, 65, 67, 67, 65, 64, 62 }.Select((pitch, i) => Note($"o{i + 1}", pitch, i * Quarter, Quarter))];
 
     private static MotifAnalysis Analyze(Note[] notes, MeterMap meter, long from, long to, KeySignature? signature, IEnumerable<PhraseBoundary>? phrases = null) =>
-        MotifAnalyzer.Analyze(notes, meter, MotifSelector.Select(notes, meter, TickSpan.FromBounds(new Tick(from), new Tick(to)), SelectionFilter.All), signature, phrases);
+        MotifAnalyzer.Analyze(notes, meter, MotifSelector.Select(notes, meter, TickSpan.FromBounds(new Tick(from), new Tick(to)), SelectionFilter.All), signature, phrases: phrases);
 
     private static MotifFact Fact(MotifAnalysis analysis, string id) => Assert.Single(analysis.Facts, fact => fact.Id == id);
 
@@ -135,7 +135,7 @@ public class MelodyFactTests
         IReadOnlyList<PhraseBoundary> phrases = PhraseBoundaryFinder.Find(import.Notes, import.Meter, import.PhraseMarks);
         MotifSelection selection = MotifSelector.Select(import.Notes, import.Meter, TickSpan.FromBounds(new Tick(1920), new Tick(5760)), SelectionFilter.All);
 
-        MotifFact fact = Fact(MotifAnalyzer.Analyze(import.Notes, import.Meter, selection, null, phrases), "melody.phrases");
+        MotifFact fact = Fact(MotifAnalyzer.Analyze(import.Notes, import.Meter, selection, null, phrases: phrases), "melody.phrases");
 
         Assert.Equal("1 phrase boundary inside the motif: at bar 3 beat 2, from a slur and a rest of a beat or more.", fact.Text);
         Assert.Equal(FactCertainty.Detected, fact.Certainty);

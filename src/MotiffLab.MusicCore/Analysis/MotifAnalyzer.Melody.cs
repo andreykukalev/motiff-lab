@@ -44,7 +44,7 @@ public static partial class MotifAnalyzer
             if (end - start > 1)
             {
                 string times = end - start == 2 ? "twice" : $"{end - start} times";
-                runs.Add($"{key.Spell(line[start].Pitch.MidiNumber)} {times} from {PositionText(meter.ToPosition(line[start].Span.Onset))}");
+                runs.Add($"{key.Spell(line[start].Pitch.MidiNumber)} {times} from {Place(meter.ToPosition(line[start].Span.Onset))}");
             }
 
             start = end;
@@ -73,7 +73,7 @@ public static partial class MotifAnalyzer
 
         string text = inside.Length == 0
             ? "No phrase boundary falls inside the motif."
-            : $"{Count(inside.Length, "phrase boundary", "phrase boundaries")} inside the motif: {string.Join("; ", inside.Select(boundary => $"at {PositionText(meter.ToPosition(boundary.At))}, {EvidenceText(boundary)}"))}.";
+            : $"{Count(inside.Length, "phrase boundary", "phrase boundaries")} inside the motif: {string.Join("; ", inside.Select(boundary => $"at {Place(meter.ToPosition(boundary.At))}, {EvidenceText(boundary)}"))}.";
         if (atStart is not null)
         {
             text += $" It starts where a phrase starts ({EvidenceText(atStart)}).";
@@ -111,8 +111,4 @@ public static partial class MotifAnalyzer
             _ => source,
         };
     }
-
-    /// <summary>"bar 2 beat 1", or "bar 2 after beat 1" off the beat.</summary>
-    private static string PositionText(MetricPosition position) =>
-        position.BeatOffset == 0 ? $"bar {position.Bar} beat {position.Beat}" : $"bar {position.Bar} after beat {position.Beat}";
 }
