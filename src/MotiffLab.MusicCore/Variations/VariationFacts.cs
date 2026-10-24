@@ -50,7 +50,7 @@ public static class VariationFacts
             .Select(property => new KeepCheck(property, Check(property, source, ordered, span, textures.Before, textures.After)))
             .ToArray();
         KeepCheck[] checks = properties.Where(check => keep.Contains(check.Property)).ToArray();
-        string explanation = Explain(changes, added, removed, source, ordered);
+        string explanation = Explain(changes, added, removed, source, ordered, textures.Before, textures.After);
         string unchanged = Unchanged(properties, textures.Before);
         if (changes.Length + added.Length + removed.Length > 0 && unchanged.Length > 0)
         {
@@ -143,7 +143,7 @@ public static class VariationFacts
     private static IEnumerable<(long Offset, long Duration)> Rhythm(Note[] notes, TickSpan span) =>
         notes.Select(note => (note.Span.Onset.Value - span.Onset.Value, note.Span.Duration));
 
-    private static string Explain(IReadOnlyList<NoteChange> changes, Note[] added, Note[] removed, Note[] before, Note[] after)
+    private static string Explain(IReadOnlyList<NoteChange> changes, Note[] added, Note[] removed, Note[] before, Note[] after, MotifTexture textureBefore, MotifTexture textureAfter)
     {
         int count = changes.Count;
         if (count == 0 && added.Length == 0 && removed.Length == 0)
@@ -169,6 +169,11 @@ public static class VariationFacts
 
         int pitchChanges = changes.Count(static change => change.PitchChanged);
         sentences.Add(pitchChanges == 0 ? "The pitch sequence is unchanged." : $"{pitchChanges} of {count} notes change pitch.");
+        if (pitchChanges > 0 && MelodyIntervals(textureBefore, textureAfter) is { } melody)
+        {
+            sentences.Add(melody);
+        }
+
 
         int lengthChanges = changes.Count(static change => change.DurationChanged);
         if (changes.All(static change => change.After.Span.Duration == change.Before.Span.Duration * 2))
@@ -219,6 +224,30 @@ public static class VariationFacts
 
         return string.Join(" ", sentences);
     }
+
+    /// <summary>
+    /// "The melody's intervals in semitones go from +3 +5 −1 to −3 −5 +1.", when the melody has the
+    /// same notes by id before and after and its intervals changed; null otherwise.
+    /// </summary>
+    private static string? MelodyIntervals(MotifTexture before, MotifTexture after)
+    {
+        if (before.Melody.Count < 2
+            || !before.Melody.Select(static note => note.Id).SequenceEqual(after.Melody.Select(static note => note.Id), StringComparer.Ordinal))
+        {
+            return null;
+        }
+
+        int[] from = [.. Steps(Pitches(before.Melody))];
+        int[] to = [.. Steps(Pitches(after.Melody))];
+        return from.SequenceEqual(to) ? null : $"The melody's intervals in semitones go from {Signed(from)} to {Signed(to)}.";
+    }
+
+    private static string Signed(int[] steps) => string.Join(" ", steps.Select(static step => step switch
+    {
+        > 0 => $"+{step}",
+        < 0 => $"−{-step}",
+        _ => "0",
+    }));
 
     private static string Every(int count, string one, string many) => count == 1 ? $"The note {one}" : $"All {count} notes {many}";
 
