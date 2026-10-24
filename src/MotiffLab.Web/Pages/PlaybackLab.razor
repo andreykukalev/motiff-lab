@@ -131,7 +131,7 @@
                 <div class="variation" aria-label="Rhythm reshape">
                     <h2>V1 Rhythm reshape</h2>
                     <p class="meta">Moves when the selected notes start and how long they last; the pitches stay. Pick a reshape to hear it at once, then accept it to build the next step on it, or reject it. In the roll each reshaped note is outlined where it lands, with a line from where it was.</p>
-                    @if (_selection is { NoteIds.Count: > 0 })
+                    @if (_selection is { NoteIds.Count: > 0 } chosen)
                     {
                         <div class="segmented" role="group" aria-label="How to reshape the rhythm">
                             @for (int i = 0; i < s_reshapes.Length; i++)
@@ -182,6 +182,63 @@
                         {
                             <p class="meta">Check: @flag</p>
                         }
+
+                        @* S1-E7, S1-E9: edit single notes of the variation; each edit is a step, and the Keep chips are checked again after it. *@
+                        <div class="corrections" aria-label="Edit variation notes">
+                            <button class="section-toggle" aria-expanded="@(_showHandEdits ? "true" : "false")" @onclick="() => _showHandEdits = !_showHandEdits">
+                                <span class="caret" aria-hidden="true">@(_showHandEdits ? "▾" : "▸")</span>
+                                Edit notes by hand · @Plural(HandEditCount, "edit")
+                            </button>
+                            @if (_showHandEdits)
+                            {
+                                <p class="meta">Change, add or remove notes of the variation you hear; with no steps yet, this makes a variation by hand. Each edit is a step: Undo takes it back, and a Keep chip turns dashed when an edit changes what it keeps. The original notes are never changed.</p>
+                                <table class="notes-table">
+                                    <thead>
+                                        <tr><th scope="col">Note</th><th scope="col">Where</th><th scope="col">Length</th><th scope="col">Velocity</th><th scope="col"></th></tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (Note note in HeardNotes(chosen))
+                                        {
+                                            bool edited = note.Attribution.Provenance == Provenance.UserEdited;
+                                            <tr class="@(edited ? "edited" : null)">
+                                                <td>
+                                                    <button title="A semitone lower" @onclick="() => EditNoteAsync(note, pitch: -1)">▼</button>
+                                                    @note.Pitch
+                                                    <button title="A semitone higher" @onclick="() => EditNoteAsync(note, pitch: 1)">▲</button>
+                                                </td>
+                                                <td>
+                                                    <button title="A 16th earlier" disabled="@(note.Span.Onset.Value - SixteenthTicks < chosen.Span.Onset.Value)" @onclick="() => EditNoteAsync(note, onset: -SixteenthTicks)">◀</button>
+                                                    @NotePosition(note)
+                                                    <button title="A 16th later" @onclick="() => EditNoteAsync(note, onset: SixteenthTicks)">▶</button>
+                                                </td>
+                                                <td>
+                                                    <button title="A 16th shorter" disabled="@(note.Span.Duration <= SixteenthTicks)" @onclick="() => EditNoteAsync(note, length: -SixteenthTicks)">−</button>
+                                                    @VariationFacts.Length(note.Span.Duration)
+                                                    <button title="A 16th longer" @onclick="() => EditNoteAsync(note, length: SixteenthTicks)">+</button>
+                                                </td>
+                                                <td>
+                                                    <button title="Softer" disabled="@(note.Velocity <= Note.MinVelocity)" @onclick="() => EditNoteAsync(note, velocity: -10)">−</button>
+                                                    @note.Velocity
+                                                    <button title="Louder" disabled="@(note.Velocity >= Note.MaxVelocity)" @onclick="() => EditNoteAsync(note, velocity: 10)">+</button>
+                                                </td>
+                                                <td>
+                                                    <button title="Add a note of the same pitch and length straight after this one." @onclick="() => AddNoteAfterAsync(note)">Add after</button>
+                                                    <button title="Take this note out of the variation." @onclick="() => RemoveVariationNoteAsync(note)">Remove</button>
+                                                    @if (edited)
+                                                    {
+                                                        <span class="kind">Edited by you</span>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                                @if (_handEditNote is not null)
+                                {
+                                    <p class="meta" aria-live="polite">@_handEditNote</p>
+                                }
+                            }
+                        </div>
                     }
                     else
                     {
@@ -327,7 +384,7 @@
     private static readonly (string Label, RhythmReshapeParameters Parameters, string Hint)[] s_reshapes =
     [
         ("Syncopate", new(RhythmReshapeKind.Syncopate), "Notes on a beat start half a beat early and are held into the beat."),
-        ("Dotted", new(RhythmReshapeKind.Dotted), "Pairs of equal quarters or eighths become long–short."),
+        ("Dotted", new(RhythmReshapeKind.Dotted), "Pairs of notes a quarter, an eighth or a 16th apart become long–short."),
         ("Half-time", new(RhythmReshapeKind.HalfTime), "Every note twice as long, and twice as far from the start of the selection."),
         ("Double-time", new(RhythmReshapeKind.DoubleTime), "Every note half as long, and half as far from the start of the selection."),
         ("Later by 1 eighth", new(RhythmReshapeKind.Displace, 1), "Every note starts an eighth later; lengths stay."),
@@ -388,6 +445,9 @@
     /// <summary>The player's corrections of imported notes, saved with the project.</summary>
     private NoteEditLog _edits = NoteEditLog.Empty;
     private bool _showCorrections;
+    private bool _showHandEdits;
+    /// <summary>Why the last hand edit could not be made, or null.</summary>
+    private string? _handEditNote;
     /// <summary>The steps made from the selection (S1-E5, S1-E8); null when none were tried.</summary>
     private VariationChain? _chain;
     /// <summary>The chain's result, as heard and drawn: the original against every accepted step and the pending one.</summary>
@@ -896,6 +956,7 @@
     private string? ExplanationText => _chain switch
     {
         { Pending: { } pending, Steps.Count: > 0, Result: { } result } => $"This step: {pending.Result.Explanation} From the original: {result.Explanation}",
+        { Pending: null, Steps.Count: > 1, Result: { } result } when _chain.Steps[^1].Operation is HandEdit => $"This edit: {_chain.Steps[^1].Result.Explanation} From the original: {result.Explanation}",
         { Result: { } result } => result.Explanation,
         _ => null,
     };
@@ -938,6 +999,49 @@
             new TickSpan(new Tick(Math.Max(0, note.Span.Onset.Value + onset)), Math.Max(1, note.Span.Duration + length)),
             Math.Clamp(note.Velocity + velocity, Note.MinVelocity, Note.MaxVelocity));
         return after == values ? Task.CompletedTask : ApplyEditsAsync(_edits.Change(_imported, note.Id, after));
+    }
+
+    /// <summary>The accepted hand edits in the chain.</summary>
+    private int HandEditCount => _chain?.Steps.Count(step => step.Operation is HandEdit) ?? 0;
+
+    /// <summary>The variation's notes as heard, or the selected notes when there are no steps yet.</summary>
+    private IReadOnlyList<Note> HeardNotes(MotifSelection selection) => _chain?.Heard ?? VariationFacts.MotifNotes(_notes!, selection);
+
+    private Task EditNoteAsync(Note note, int pitch = 0, long onset = 0, long length = 0, int velocity = 0) =>
+        HandEditAsync(HandEditParameters.Change(note.Id, new NoteValues(
+            new Pitch(Math.Clamp(note.Pitch.MidiNumber + pitch, 0, Pitch.MaxMidiNumber)),
+            new TickSpan(new Tick(Math.Max(0, note.Span.Onset.Value + onset)), Math.Max(1, note.Span.Duration + length)),
+            Math.Clamp(note.Velocity + velocity, Note.MinVelocity, Note.MaxVelocity))));
+
+    private Task RemoveVariationNoteAsync(Note note) => HandEditAsync(HandEditParameters.Remove(note.Id));
+
+    private Task AddNoteAfterAsync(Note note) => _selection is { } selection
+        ? HandEditAsync(HandEditParameters.Add(
+            HandEdit.NewId([.. _notes!, .. HeardNotes(selection)]),
+            new NoteValues(note.Pitch, new TickSpan(note.Span.End, note.Span.Duration), note.Velocity)))
+        : Task.CompletedTask;
+
+    /// <summary>Adds one hand edit to the variation as a step (S1-E7), starting a chain when there is none.</summary>
+    private Task HandEditAsync(HandEditParameters edit)
+    {
+        if (_selection is not { } selection)
+        {
+            return Task.CompletedTask;
+        }
+
+        VariationChain chain = _chain ?? StartChain(selection);
+        _handEditNote = chain.EditUnavailableReason(edit);
+        if (_handEditNote is not null)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (_variation is null)
+        {
+            _scoreChoice = ScoreChoice.Variation;
+        }
+
+        return ShowAsync(chain.Edit(edit), play: false);
     }
 
     private Task RemoveNoteAsync(Note note) => ApplyEditsAsync(_edits.Remove(_imported, note.Id));

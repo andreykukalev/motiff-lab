@@ -32,8 +32,59 @@ public static class OperationTemplates
             RhythmReshape.OperationId => Anticipated(changes, meter) ?? Dotted(changes, meter),
             IntervalReshape.OperationId => Reshaped(before, after, key),
             ChangeDirection.OperationId => Turned(before, after, key),
+            HandEdit.OperationId => Edited(changes, before, after, meter),
             _ => null,
         };
+    }
+
+    /// <summary>
+    /// "By hand, E5 at beat 2 of bar 1 is removed.", "By hand, F5 is added at beat 3 of bar 1, lasting
+    /// 1 eighth.", or "By hand, E5 at beat 2 of bar 1 changes: pitch to F5, velocity from 80 to 90.",
+    /// when exactly one note was removed, added or changed.
+    /// </summary>
+    private static string? Edited(IReadOnlyList<NoteChange> changes, MotifTexture before, MotifTexture after, MeterMap meter)
+    {
+        Note[] removed = [.. before.Notes.Where(note => !after.Notes.Any(other => other.Id == note.Id))];
+        Note[] added = [.. after.Notes.Where(note => !before.Notes.Any(other => other.Id == note.Id))];
+        NoteChange[] changed = [.. changes.Where(static change => NoteValues.Of(change.Before) != NoteValues.Of(change.After))];
+        return (removed.Length, added.Length, changed.Length) switch
+        {
+            (1, 0, 0) => $"By hand, {removed[0].Pitch} at {Place(removed[0].Span.Onset, meter)} is removed.",
+            (0, 1, 0) => $"By hand, {added[0].Pitch} is added at {Place(added[0].Span.Onset, meter)}, lasting {VariationFacts.Length(added[0].Span.Duration)}.",
+            (0, 0, 1) => $"By hand, {changed[0].Before.Pitch} at {Place(changed[0].Before.Span.Onset, meter)} changes: {string.Join(", ", Edits(changed[0], meter))}.",
+            _ => null,
+        };
+    }
+
+    private static IEnumerable<string> Edits(NoteChange change, MeterMap meter)
+    {
+        if (change.PitchChanged)
+        {
+            yield return $"pitch to {change.After.Pitch}";
+        }
+
+        if (change.OnsetChanged)
+        {
+            yield return $"start to {Place(change.After.Span.Onset, meter)}";
+        }
+
+        if (change.DurationChanged)
+        {
+            yield return $"length from {VariationFacts.Length(change.Before.Span.Duration)} to {VariationFacts.Length(change.After.Span.Duration)}";
+        }
+
+        if (change.Before.Velocity != change.After.Velocity)
+        {
+            yield return $"velocity from {change.Before.Velocity} to {change.After.Velocity}";
+        }
+    }
+
+    /// <summary>"beat 2 of bar 1", or "1 sixteenth after beat 2 of bar 1" off the beat.</summary>
+    private static string Place(Tick onset, MeterMap meter)
+    {
+        MetricPosition position = meter.ToPosition(onset);
+        string beat = $"beat {position.Beat} of bar {position.Bar}";
+        return position.BeatOffset == 0 ? beat : $"{VariationFacts.Length(position.BeatOffset)} after {beat}";
     }
 
     /// <summary>
@@ -63,29 +114,30 @@ public static class OperationTemplates
 
     /// <summary>
     /// "2 pairs of equal notes become long–short, 3 sixteenths then 1 sixteenth, starting on beats 1
-    /// and 3 of bar 1.", when every note that changed is the first of a pair, now half as long again,
-    /// or the second, now starting that much later and half as long.
+    /// and 3 of bar 1.", when every note that changed is in a pair a length apart: the first now
+    /// sounds half that length longer, and the second starts half that length later.
     /// </summary>
     private static string? Dotted(IReadOnlyList<NoteChange> changes, MeterMap meter)
     {
         NoteChange[] changed = [.. changes.Where(static change => change.OnsetChanged || change.DurationChanged)];
-        NoteChange[] firsts = [.. changed.Where(static change => !change.OnsetChanged && change.After.Span.Duration * 2 == change.Before.Span.Duration * 3)];
-        NoteChange[] seconds = [.. changed.Where(static change => change.After.Span.Duration * 2 == change.Before.Span.Duration
-            && change.After.Span.Onset.Value == change.Before.Span.Onset.Value + change.After.Span.Duration)];
+        NoteChange[] firsts = [.. changed.Where(static change => !change.OnsetChanged && change.After.Span.Duration > change.Before.Span.Duration)];
+        NoteChange[] seconds = [.. changed.Where(static change => change.After.Span.Onset > change.Before.Span.Onset && change.After.Span.Duration <= change.Before.Span.Duration)];
         if (firsts.Length == 0 || firsts.Length + seconds.Length != changed.Length)
         {
             return null;
         }
 
-        Tick[] starts = [.. firsts.Select(static change => change.Before.Span.Onset).Distinct().Order()];
-        bool paired = starts.All(start => seconds.Any(second => second.Before.Span.Onset.Value == start.Value + firsts.First(first => first.Before.Span.Onset == start).Before.Span.Duration))
-            && seconds.All(second => firsts.Any(first => first.Before.Span.End == second.Before.Span.Onset && first.Before.Span.Duration == second.Before.Span.Duration));
+        static long Grown(NoteChange first) => first.After.Span.Duration - first.Before.Span.Duration;
+        static long Shift(NoteChange second) => second.After.Span.Onset.Value - second.Before.Span.Onset.Value;
+        bool paired = firsts.All(first => seconds.Any(second => Shift(second) == Grown(first) && second.Before.Span.Onset.Value == first.Before.Span.Onset.Value + (2 * Grown(first))))
+            && seconds.All(second => firsts.Any(first => Grown(first) == Shift(second) && first.Before.Span.Onset.Value == second.Before.Span.Onset.Value - (2 * Shift(second))));
         if (!paired)
         {
             return null;
         }
 
-        long[] lengths = [.. firsts.Select(static change => change.Before.Span.Duration).Distinct()];
+        Tick[] starts = [.. firsts.Select(static change => change.Before.Span.Onset).Distinct().Order()];
+        long[] lengths = [.. firsts.Select(static change => 2 * Grown(change)).Distinct()];
         string shape = lengths.Length == 1
             ? $"{VariationFacts.Length(lengths[0] * 3 / 2)} then {VariationFacts.Length(lengths[0] / 2)}"
             : "the first of each pair 3 times as long as the second";
@@ -185,7 +237,11 @@ public static class OperationTemplates
         return [.. from.Zip(from.Skip(1), static (a, b) => b - a).Zip(to.Zip(to.Skip(1), static (a, b) => b - a))];
     }
 
-    /// <summary>"beat 2 of bar 1", "beats 2, 3 and 4 of bar 1 and beat 1 of bar 2", from the meter, in order.</summary>
+    /// <summary>
+    /// "beat 2 of bar 1", "beats 2, 3 and 4 of bar 1 and beat 1 of bar 2", from the meter, in order;
+    /// in a bar with a position off the beat, each is named on its own: "beat 1 of bar 1 and 1 eighth
+    /// after beat 1 of bar 1".
+    /// </summary>
     public static string Beats(IEnumerable<Tick> onsets, MeterMap meter)
     {
         ArgumentNullException.ThrowIfNull(onsets);
@@ -195,10 +251,17 @@ public static class OperationTemplates
             .Order()
             .Select(meter.ToPosition)
             .GroupBy(static position => position.Bar)
-            .Select(static bar =>
+            .SelectMany(static bar =>
             {
+                if (bar.Any(static position => position.BeatOffset != 0))
+                {
+                    return bar.Select(static position => position.BeatOffset == 0
+                        ? $"beat {position.Beat} of bar {position.Bar}"
+                        : $"{VariationFacts.Length(position.BeatOffset)} after beat {position.Beat} of bar {position.Bar}");
+                }
+
                 int[] beats = [.. bar.Select(static position => position.Beat)];
-                return beats.Length == 1 ? $"beat {beats[0]} of bar {bar.Key}" : $"beats {List(beats.Select(static beat => $"{beat}"))} of bar {bar.Key}";
+                return [beats.Length == 1 ? $"beat {beats[0]} of bar {bar.Key}" : $"beats {List(beats.Select(static beat => $"{beat}"))} of bar {bar.Key}"];
             })];
         return List(bars);
     }
