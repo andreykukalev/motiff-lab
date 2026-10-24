@@ -19,6 +19,9 @@ public enum FactLens
     Rhythm,
     Melody,
     Key,
+
+    /// <summary>Repetition and phrasing around the motif (S1-A4).</summary>
+    Structure,
 }
 
 /// <summary>One plain fact about a motif, with how sure it is and why.</summary>
