@@ -1,5 +1,6 @@
 @page "/import"
 @using System.Diagnostics
+@using MotiffLab.MusicCore.Analytics
 @using MotiffLab.MusicCore.Import
 @using MotiffLab.MusicCore.Projects
 @using MotiffLab.Web.Import
@@ -7,6 +8,7 @@
 @inject CurrentPiece CurrentPiece
 @inject ProjectStore Projects
 @inject NavigationManager Navigation
+@inject MotiffLab.Web.Analytics.UsageAnalytics Analytics
 
 <PageTitle>Import · Motiff Lab</PageTitle>
 
@@ -135,8 +137,10 @@
         _timing = null;
         _rejection = PieceImporter.CheckSize(args.File.Size);
         _start = 0;
+        _elapsed = TimeSpan.Zero;
         if (_rejection is not null)
         {
+            await TrackImportAsync();
             return;
         }
 
@@ -157,7 +161,13 @@
         {
             _reading = false;
         }
+
+        await TrackImportAsync();
     }
+
+    private Task TrackImportAsync() => Analytics.TrackAsync(AnalyticsEvent.PieceImported(
+        AnalyticsEvent.FormatOf(_fileName ?? ""), _piece is not null, _piece?.Report.NoteCount ?? 0, _piece?.Tracks.Count ?? 0,
+        _timing?.Kind == TimingKind.Performance, (long)_elapsed.TotalMilliseconds));
 
     /// <summary>Saves the piece as a new project on the device (S1-P1) and opens it in the workspace.</summary>
     private async Task OpenAsync()

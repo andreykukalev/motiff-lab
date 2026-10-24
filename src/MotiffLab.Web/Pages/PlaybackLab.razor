@@ -1,5 +1,6 @@
 @page "/playback"
 @using MotiffLab.MusicCore.Analysis
+@using MotiffLab.MusicCore.Analytics
 @using MotiffLab.MusicCore.Events
 @using MotiffLab.MusicCore.Export
 @using MotiffLab.MusicCore.Import
@@ -20,6 +21,7 @@
 @inject Player Player
 @inject CurrentPiece CurrentPiece
 @inject ProjectStore Projects
+@inject MotiffLab.Web.Analytics.UsageAnalytics Analytics
 
 <PageTitle>Playback · Motiff Lab</PageTitle>
 
@@ -597,14 +599,15 @@
 
     protected override bool ShouldRender() => !_startingPreview;
 
-    private Task LoadFurEliseAsync()
+    private async Task LoadFurEliseAsync()
     {
         (PlaybackScore score, MeterMap meter, IReadOnlyList<Note> notes) = FurElise.Create();
         GeneratedNotation notation = NotationGenerator.Generate(notes, meter, [new KeyChange(FurElise.Key.At, FurElise.Key.Fifths)], score.End, FurElise.Title);
         _accents = null;
         _phraseMarks = PhraseMarks.None;
         _characterContext = new CharacterContext(score.Tempos, TempoAssumed: false, FromNotation: false);
-        return LoadAsync((score, meter, notes), FurElise.Title, notation, musicXml: null, keys: [FurElise.Key]);
+        await LoadAsync((score, meter, notes), FurElise.Title, notation, musicXml: null, keys: [FurElise.Key]);
+        await Analytics.TrackAsync(AnalyticsEvent.StarterOpened("fur_elise"));
     }
 
     private async Task OpenFileAsync(InputFileChangeEventArgs args)
@@ -777,7 +780,7 @@
             await ToggleLoopSelectionAsync();
             if (Player.State == PlaybackState.Stopped)
             {
-                await Player.PlayAsync();
+                await PlayAsync();
             }
 
             return;
@@ -786,7 +789,15 @@
         await TogglePlayAsync();
     }
 
-    private Task TogglePlayAsync() => Player.State == PlaybackState.Stopped ? Player.PlayAsync() : Player.PauseAsync();
+    private Task TogglePlayAsync() => Player.State == PlaybackState.Stopped ? PlayAsync() : Player.PauseAsync();
+
+    /// <summary>Starts playback, and counts it for analytics when the player has turned them on (#64).</summary>
+    private async Task PlayAsync()
+    {
+        await Player.PlayAsync();
+        string hear = !_hear.Contains(VariationSource) ? "original" : _hear.Length > 1 ? "both" : "variation";
+        await Analytics.TrackAsync(AnalyticsEvent.PlaybackStarted(hear, TempoPercent, _looping));
+    }
 
     private async Task StopAsync()
     {
@@ -913,6 +924,11 @@
         _structure = StructureAnalyzer.Analyze(_notes!, _meter!, _selection, phrases);
         _character = MotifAnalyzer.AnalyzeCharacter(_notes!, _meter!, _selection, KeySignature.InForce(_keys, span.Onset), _characterContext!);
         _selectionNote = note;
+        if (!_restoring && _selection.NoteIds.Count > 0)
+        {
+            await Analytics.TrackAsync(AnalyticsEvent.MotifSelected(_selection.BarCount));
+        }
+
         // The steps follow the selection as it changes, so the player keeps hearing and seeing them.
         await ReplayAsync();
 
@@ -1025,18 +1041,18 @@
         : Task.CompletedTask;
 
     /// <summary>Adds one hand edit to the variation as a step (S1-E7), starting a chain when there is none.</summary>
-    private Task HandEditAsync(HandEditParameters edit)
+    private async Task HandEditAsync(HandEditParameters edit)
     {
         if (_selection is not { } selection)
         {
-            return Task.CompletedTask;
+            return;
         }
 
         VariationChain chain = _chain ?? StartChain(selection);
         _handEditNote = chain.EditUnavailableReason(edit);
         if (_handEditNote is not null)
         {
-            return Task.CompletedTask;
+            return;
         }
 
         if (_variation is null)
@@ -1044,7 +1060,8 @@
             _scoreChoice = ScoreChoice.Variation;
         }
 
-        return ShowAsync(chain.Edit(edit), play: false);
+        await ShowAsync(chain.Edit(edit), play: false);
+        await Analytics.TrackAsync(AnalyticsEvent.NoteEdited(edit.Kind));
     }
 
     private Task RemoveNoteAsync(Note note) => ApplyEditsAsync(_edits.Remove(_imported, note.Id));
@@ -1109,6 +1126,7 @@
             : null;
         byte[] file = MidiExporter.Export(notes, _score.Tempos, _meter, project, selection.Span.Onset);
         await Projects.DownloadAsync(MidiExporter.FileName(project, bars, steps), file, "audio/midi");
+        await Analytics.TrackAsync(AnalyticsEvent.MidiExported(variation, variation ? _chain?.Steps.Count ?? 0 : 0));
     }
 
     private static string Plural(int count, string noun) => count == 1 ? $"1 {noun}" : $"{count} {noun}s";
@@ -1175,11 +1193,11 @@
     }
 
     /// <summary>A new parameter re-runs the operation and plays the result at once (S1-E3).</summary>
-    private Task ReshapeAsync(int index)
+    private async Task ReshapeAsync(int index)
     {
         if (_selection is not { } selection)
         {
-            return Task.CompletedTask;
+            return;
         }
 
         // Show the reshape in the score as well, the first time one is made.
@@ -1189,7 +1207,8 @@
         }
 
         VariationChain chain = _chain ?? StartChain(selection);
-        return ShowAsync(chain.Propose(RhythmReshape.Instance, s_reshapes[index].Parameters), play: true);
+        await ShowAsync(chain.Propose(RhythmReshape.Instance, s_reshapes[index].Parameters), play: true);
+        await Analytics.TrackAsync(AnalyticsEvent.VariationProposed(s_reshapes[index].Parameters, _keep.Count));
     }
 
     /// <summary>Why one reshape cannot run on the current notes with these Keep choices, or null.</summary>
@@ -1197,13 +1216,19 @@
         ? (_chain ?? StartChain(selection)).UnavailableReason(RhythmReshape.Instance, s_reshapes[index].Parameters)
         : "Select some notes first.";
 
-    private Task AcceptStepAsync() => _chain is { AcceptDisabledReason: null } chain ? ShowAsync(chain.Accept(), play: false) : Task.CompletedTask;
+    private Task AcceptStepAsync() => _chain is { AcceptDisabledReason: null } chain ? StepAsync(chain.Accept(), "accept") : Task.CompletedTask;
 
-    private Task RejectStepAsync() => _chain is { Pending: not null } chain ? ShowAsync(chain.Reject(), play: false) : Task.CompletedTask;
+    private Task RejectStepAsync() => _chain is { Pending: not null } chain ? StepAsync(chain.Reject(), "reject") : Task.CompletedTask;
 
-    private Task UndoStepAsync() => _chain is { CanUndo: true } chain ? ShowAsync(chain.Undo(), play: false) : Task.CompletedTask;
+    private Task UndoStepAsync() => _chain is { CanUndo: true } chain ? StepAsync(chain.Undo(), "undo") : Task.CompletedTask;
 
-    private Task RedoStepAsync() => _chain is { CanRedo: true } chain ? ShowAsync(chain.Redo(), play: false) : Task.CompletedTask;
+    private Task RedoStepAsync() => _chain is { CanRedo: true } chain ? StepAsync(chain.Redo(), "redo") : Task.CompletedTask;
+
+    private async Task StepAsync(VariationChain chain, string action)
+    {
+        await ShowAsync(chain, play: false);
+        await Analytics.TrackAsync(AnalyticsEvent.VariationStep(action, chain.Steps.Count));
+    }
 
     /// <summary>A chain with no steps over the selected notes, with a copy of the Keep choices.</summary>
     private VariationChain StartChain(MotifSelection selection) =>
@@ -1370,7 +1395,7 @@
         await Player.SeekAsync(range.Onset);
         if (Player.State == PlaybackState.Stopped)
         {
-            await Player.PlayAsync();
+            await PlayAsync();
         }
     }
 
