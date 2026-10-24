@@ -1,5 +1,6 @@
 using System.Text;
 
+using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.MusicXml;
@@ -407,5 +408,18 @@ public class MusicXmlImporterTests
         }
 
         return stream.ToArray();
+    }
+
+    [Fact]
+    public void Accents_on_notes_are_kept_by_note_id()
+    {
+        const string Accent = "<notations><articulations><accent/></articulations></notations>";
+        const string Strong = "<notations><articulations><accent/><strong-accent type=\"up\"/></articulations></notations>";
+        MusicXmlImport import = Import(FourFour + Note("C", 4, 1, Accent) + Note("D", 4, 1) + Note("E", 4, 1, Strong) + Note("F", 4, 1, "<notations><articulations><staccato/></articulations></notations>"));
+
+        Assert.Equal(
+            [new AccentMark("n_0001", AccentKind.Accent), new AccentMark("n_0003", AccentKind.StrongAccent)],
+            import.AccentMarks);
+        Assert.Null(import.SourceNotes[1].Accent);
     }
 }

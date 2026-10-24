@@ -44,6 +44,12 @@ public sealed record MusicXmlImport(
     public PhraseMarks PhraseMarks => new(
         [.. Slurs.Select(static slur => new SlurMark(slur.Track, slur.Start, slur.Stop))],
         [.. Repeats.Select(static repeat => repeat.At).Distinct()]);
+
+    /// <summary>The accents written on the notes, by shared-model note id, for <see cref="MotifAnalyzer"/> (S1-A1).</summary>
+    public IReadOnlyList<AccentMark> AccentMarks =>
+        [.. SourceNotes.Zip(Notes)
+            .Where(static pair => pair.First.Accent is not null)
+            .Select(static pair => new AccentMark(pair.Second.Id, pair.First.Accent!.Value))];
 }
 
 /// <param name="Index">Zero-based track index: the position of the <c>&lt;part&gt;</c> in the file.</param>
@@ -65,6 +71,7 @@ public sealed record MusicXmlPartInfo(int Index, string Id, string? Name, string
 /// <param name="IsExact">True when both boundaries landed on canonical ticks without rounding or widening.</param>
 /// <param name="WrittenNotes">How many written notes were tied into this one; 1 for a note without ties (S1-I2).</param>
 /// <param name="Tuplet">The first written note's tuplet ratio, for example 3:2 for a triplet; null outside tuplets.</param>
+/// <param name="Accent">The accent written on the first written note, from <c>&lt;articulations&gt;</c>; null when none is.</param>
 public sealed record MusicXmlNote(
     int Track,
     string PartId,
@@ -80,7 +87,8 @@ public sealed record MusicXmlNote(
     TickSpan Span,
     bool IsExact,
     int WrittenNotes,
-    MusicXmlTuplet? Tuplet);
+    MusicXmlTuplet? Tuplet,
+    AccentKind? Accent = null);
 
 /// <summary>A tuplet ratio from <c>&lt;time-modification&gt;</c>: <paramref name="Actual"/> notes in the time of <paramref name="Normal"/>.</summary>
 public sealed record MusicXmlTuplet(int Actual, int Normal);
