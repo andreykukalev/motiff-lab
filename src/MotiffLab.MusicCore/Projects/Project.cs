@@ -1,3 +1,4 @@
+using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Time;
@@ -12,7 +13,8 @@ namespace MotiffLab.MusicCore.Projects;
 /// </summary>
 /// <remarks>
 /// Motifs and variations are stored as the choices that made them: a motif's range, filter and note
-/// ids, and a variation's operation, parameters and Keep choices. Timing layers join the format with
+/// ids, and a variation's operation, parameters and Keep choices. Corrections of imported notes are
+/// stored as the edit log (S1-I7), applied to the notes on every open. Timing layers join the format with
 /// rhythm restoration (#27). Times are passed in, never read from a clock, so building a project is pure.
 /// </remarks>
 /// <param name="Id">Stable for the life of the project, for example "p_3f9c…".</param>
@@ -26,6 +28,9 @@ public sealed record Project(
     IReadOnlyList<SavedMotif> Motifs,
     IReadOnlyList<SavedVariation> Variations)
 {
+    /// <summary>The player's corrections of the imported notes, oldest first (S1-I7).</summary>
+    public NoteEditLog Edits { get; init; } = NoteEditLog.Empty;
+
     /// <summary>A new project for a file the player just imported, with nothing made from it yet.</summary>
     public static Project Create(string id, string fileName, byte[] source, DateTimeOffset now) =>
         new(id, fileName, source, now, now, [], []);
@@ -86,10 +91,12 @@ public sealed record SavedVariation(
     }
 }
 
-/// <summary>A project opened for work: the source imported again, and its motifs and variations rebuilt.</summary>
+/// <summary>A project opened for work: the source imported again, the edit log applied, and its motifs and variations rebuilt.</summary>
+/// <param name="Notes">The piece's notes with the project's corrections applied; <see cref="ImportedPiece.Notes"/> stays as imported.</param>
 public sealed record OpenedProject(
     Project Project,
     ImportedPiece Piece,
+    IReadOnlyList<Note> Notes,
     IReadOnlyList<Motif> Motifs,
     IReadOnlyList<(SavedVariation Saved, VariationChain Chain)> Variations)
 {
@@ -107,18 +114,28 @@ public sealed record OpenedProject(
             throw new ProjectFileException($"The piece in this project cannot be read: {imported.Rejection?.Message}");
         }
 
+        IReadOnlyList<Note> notes;
+        try
+        {
+            notes = project.Edits.Apply(piece.Notes);
+        }
+        catch (InvalidOperationException exception)
+        {
+            throw new ProjectFileException($"The note corrections in this project no longer fit the piece: {exception.Message}");
+        }
+
         var motifs = new List<Motif>();
         foreach (SavedMotif saved in project.Motifs)
         {
             MotifSelection selection = saved.Kind == MotifSelectionKind.Notes
-                ? MotifSelector.SelectNotes(piece.Notes, piece.Meter, saved.NoteIds)
-                : MotifSelector.Select(piece.Notes, piece.Meter, saved.Span, saved.Filter);
+                ? MotifSelector.SelectNotes(notes, piece.Meter, saved.NoteIds)
+                : MotifSelector.Select(notes, piece.Meter, saved.Span, saved.Filter);
             if (!selection.NoteIds.SequenceEqual(saved.NoteIds, StringComparer.Ordinal))
             {
                 throw new ProjectFileException($"\"{saved.Name}\" no longer matches the notes of the piece.");
             }
 
-            motifs.Add(Motif.Create(saved.Id, motifs.Count + 1, selection, saved.Kind, saved.Mode, piece.Notes) with { Name = saved.Name });
+            motifs.Add(Motif.Create(saved.Id, motifs.Count + 1, selection, saved.Kind, saved.Mode, notes) with { Name = saved.Name });
         }
 
         var variations = new List<(SavedVariation, VariationChain)>();
@@ -127,7 +144,7 @@ public sealed record OpenedProject(
             Motif motif = motifs.FirstOrDefault(motif => motif.Id == saved.MotifId)
                 ?? throw new ProjectFileException($"A variation refers to a motif ({saved.MotifId}) that is not in the project.");
             VariationChain chain = VariationChain.Start(
-                VariationFacts.MotifNotes(piece.Notes, motif.Selection),
+                VariationFacts.MotifNotes(notes, motif.Selection),
                 VariationContext.For(motif.Selection, saved.Keep.ToHashSet()));
             foreach (SavedStep step in saved.Steps)
             {
@@ -142,7 +159,7 @@ public sealed record OpenedProject(
             variations.Add((saved, chain));
         }
 
-        return new OpenedProject(project, piece, motifs, variations);
+        return new OpenedProject(project, piece, notes, motifs, variations);
     }
 
     private static VariationChain Propose(VariationChain chain, SavedStep step)

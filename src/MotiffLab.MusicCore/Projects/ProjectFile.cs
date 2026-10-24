@@ -21,8 +21,11 @@ public static class ProjectFile
 {
     public const string FormatName = "motiff-lab-project";
 
-    /// <summary>2 saves each variation as a chain of steps; files of version 1 hold one step and still open.</summary>
-    public const int Version = 2;
+    /// <summary>
+    /// 3 adds the edit log of note corrections; 2 saves each variation as a chain of steps. Files of
+    /// versions 1 and 2 still open, with no corrections; version 1 holds one step per variation.
+    /// </summary>
+    public const int Version = 3;
 
     /// <summary>The extension an exported project gets.</summary>
     public const string Extension = ".motiff.json";
@@ -115,6 +118,22 @@ public static class ProjectFile
             }
 
             json.WriteEndArray();
+
+            json.WriteStartArray("edits");
+            foreach (NoteEdit edit in project.Edits.Edits)
+            {
+                json.WriteStartObject();
+                json.WriteString("noteId", edit.NoteId);
+                WriteValues(json, "before", edit.Before);
+                if (edit.After is { } after)
+                {
+                    WriteValues(json, "after", after);
+                }
+
+                json.WriteEndObject();
+            }
+
+            json.WriteEndArray();
             json.WriteEndObject();
         }
 
@@ -164,6 +183,9 @@ public static class ProjectFile
 
             var motifs = Property(root, "motifs", JsonValueKind.Array).EnumerateArray().Select(ReadMotif).ToList();
             var variations = Property(root, "variations", JsonValueKind.Array).EnumerateArray().Select(variation => ReadVariation(variation, version)).ToList();
+            NoteEditLog edits = version >= 3
+                ? new NoteEditLog(Property(root, "edits", JsonValueKind.Array).EnumerateArray().Select(ReadEdit))
+                : NoteEditLog.Empty;
             return new Project(
                 Text(root, "id"),
                 Text(root, "fileName"),
@@ -171,7 +193,10 @@ public static class ProjectFile
                 Time(root, "createdAt"),
                 Time(root, "lastOpened"),
                 motifs,
-                variations);
+                variations)
+            {
+                Edits = edits,
+            };
         }
     }
 
@@ -224,6 +249,40 @@ public static class ProjectFile
             new TickSpan(new Tick(onset), duration),
             selectionFilter,
             noteIds);
+    }
+
+    private static void WriteValues(Utf8JsonWriter json, string name, NoteValues values)
+    {
+        json.WriteStartObject(name);
+        json.WriteNumber("pitch", values.Pitch.MidiNumber);
+        json.WriteNumber("onset", values.Span.Onset.Value);
+        json.WriteNumber("duration", values.Span.Duration);
+        json.WriteNumber("velocity", values.Velocity);
+        json.WriteEndObject();
+    }
+
+    private static NoteEdit ReadEdit(JsonElement edit)
+    {
+        Expect(edit, JsonValueKind.Object, "note corrections");
+        return new NoteEdit(
+            Text(edit, "noteId"),
+            ReadValues(Property(edit, "before", JsonValueKind.Object)),
+            edit.TryGetProperty("after", out JsonElement after) ? ReadValues(after) : null);
+    }
+
+    private static NoteValues ReadValues(JsonElement values)
+    {
+        Expect(values, JsonValueKind.Object, "note corrections");
+        int pitch = Integer(values, "pitch");
+        long onset = Long(values, "onset");
+        long duration = Long(values, "duration");
+        int velocity = Integer(values, "velocity");
+        if (pitch is < 0 or > Pitch.MaxMidiNumber || onset < 0 || duration <= 0 || velocity is < Note.MinVelocity or > Note.MaxVelocity)
+        {
+            throw Damaged("note corrections");
+        }
+
+        return new NoteValues(new Pitch(pitch), new TickSpan(new Tick(onset), duration), velocity);
     }
 
     private static void WriteStep(Utf8JsonWriter json, SavedStep step)

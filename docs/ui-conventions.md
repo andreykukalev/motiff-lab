@@ -43,6 +43,12 @@ Small, pragmatic rules for the web UI (`src/MotiffLab.Web`) so that UI fixes sta
 - Draw variations from `Variation.Changes` (before and after per note), never by recomputing the operation in the UI.
 - **Export motif MIDI** and **Export variation MIDI** hand over the file `MidiExporter` writes (S1-X1), named by `MidiExporter.FileName` after the project, the bars and the steps. The download goes through the storage script; nothing leaves the device.
 
+## Correcting imported notes
+
+- **Correct notes** (S1-I7) is a collapsible table of the selected notes under the variation controls: each row nudges pitch by a semitone, onset and length by a 16th, and velocity by 10, or removes the note. Edited rows are marked "Edited by you" as well as by the lime edge.
+- Every correction goes through `NoteEditLog`; the UI never changes a note itself. **Undo correction** drops the last edit and **Revert** drops every edit of one note, so the imported value comes back exactly. Removed notes are listed with a Revert button each.
+- The project saves the log, and opening a project applies it. After the first correction the score switches from the file as written to the score generated from the notes, since the file does not know the corrections.
+
 ## Facts
 
 - Facts are shown by `Facts/FactsPanel.razor`, one collapsible section per `FactLens`, in the enum's order. A new fact, or a new lens added to `FactLens`, appears without UI changes. Pass every analysis's facts to the panel in one list.

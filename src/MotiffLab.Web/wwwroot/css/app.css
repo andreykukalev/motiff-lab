@@ -357,6 +357,55 @@ html, body {
     border-style: dashed;
 }
 
+/* Note corrections (S1-I7): a collapsible table of the selected notes with nudge buttons; edited rows are marked by a label as well as the lime edge. */
+.lab .corrections {
+    margin-top: 1rem;
+    border-top: 1px solid #343C47;
+}
+
+.lab .corrections button.section-toggle {
+    border: none;
+    border-radius: 0;
+    padding: 0.4rem 0;
+    text-align: left;
+    width: 100%;
+}
+
+.lab .corrections .caret {
+    display: inline-block;
+    width: 1em;
+    color: var(--ml-gray);
+}
+
+.lab .notes-table {
+    border-collapse: collapse;
+}
+
+.lab .notes-table th, .lab .notes-table td {
+    text-align: left;
+    padding: 0.15rem 0.75rem 0.15rem 0;
+    white-space: nowrap;
+}
+
+.lab .notes-table th {
+    color: var(--ml-gray);
+    font-weight: normal;
+}
+
+.lab .notes-table button {
+    padding: 0 0.4rem;
+}
+
+.lab .notes-table tr.edited td:first-child {
+    box-shadow: inset 3px 0 0 var(--ml-lime);
+    padding-left: 0.5rem;
+}
+
+.lab .notes-table .kind {
+    color: var(--ml-gray);
+    font-size: 0.85rem;
+}
+
 /* Variation (S1-E1 to S1-E4, S1-E9): reshapes as one-click buttons, Keep as toggle chips that show whether each kept property survived the step. */
 .lab .variation {
     margin-top: 0.5rem;
