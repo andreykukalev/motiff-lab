@@ -122,3 +122,13 @@ export function downloadText(fileName: string, text: string): void {
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 0);
 }
+
+/** Hands the player a binary file to save, such as a MIDI export. */
+export function downloadBytes(fileName: string, data: Uint8Array, contentType: string): void {
+    const url = URL.createObjectURL(new Blob([data as BlobPart], { type: contentType }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+}

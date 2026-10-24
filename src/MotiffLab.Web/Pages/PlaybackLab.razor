@@ -1,6 +1,7 @@
 @page "/playback"
 @using MotiffLab.MusicCore.Analysis
 @using MotiffLab.MusicCore.Events
+@using MotiffLab.MusicCore.Export
 @using MotiffLab.MusicCore.Import
 @using MotiffLab.MusicCore.Import.MusicXml
 @using MotiffLab.MusicCore.Motifs
@@ -155,6 +156,8 @@
                             <button @onclick="() => AuditionAsync(variation: false)">Hear original</button>
                             <button @onclick="() => AuditionAsync(variation: true)" disabled="@(_variation is null)">Hear variation</button>
                             <button @onclick="RemoveVariationAsync" disabled="@(_variation is null)">Remove variation</button>
+                            <button @onclick="() => ExportMidiAsync(variation: false)" title="Save the selected notes as a MIDI file for a DAW: one track per hand, with the tempo.">Export motif MIDI</button>
+                            <button @onclick="() => ExportMidiAsync(variation: true)" disabled="@(_variation is null)" title="Save the variation as a MIDI file for a DAW: one track per hand, with the tempo.">Export variation MIDI</button>
                         </div>
                         <div class="row" role="group" aria-label="Keep presets">
                             @foreach (KeepPreset preset in KeepTable.Presets)
@@ -798,6 +801,24 @@
         { Result: { } result } => result.Explanation,
         _ => null,
     };
+
+    /// <summary>Hands the player the motif or the variation as a MIDI file (S1-X1), named after the project, the bars and the steps.</summary>
+    private async Task ExportMidiAsync(bool variation)
+    {
+        if (_selection is not { } selection || _notes is null || _score is null || _meter is null || (variation && _variation is null))
+        {
+            return;
+        }
+
+        IReadOnlyList<Note> notes = variation ? _variation!.Notes : VariationFacts.MotifNotes(_notes, selection);
+        string project = Path.GetFileNameWithoutExtension(_project?.FileName ?? CurrentPiece.Piece?.FileName ?? "");
+        string bars = selection.BarCount == 1 ? $"bar {selection.FirstBar}" : $"bars {selection.FirstBar}–{selection.LastBar}";
+        string? steps = variation && _chain is { } chain
+            ? string.Join(" › ", [.. chain.Steps.Select(StepLabel), .. chain.Pending is { } pending ? [StepLabel(pending)] : Array.Empty<string>()])
+            : null;
+        byte[] file = MidiExporter.Export(notes, _score.Tempos, _meter, project, selection.Span.Onset);
+        await Projects.DownloadAsync(MidiExporter.FileName(project, bars, steps), file, "audio/midi");
+    }
 
     private static string StepLabel(VariationStep step) =>
         s_reshapes.FirstOrDefault(reshape => reshape.Parameters == step.Parameters).Label ?? step.Operation.Name;

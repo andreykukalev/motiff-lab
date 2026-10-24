@@ -70,6 +70,14 @@
             {
                 <p class="meta">No timing had to be rounded.</p>
             }
+            @if (_timing?.Describe() is { } played)
+            {
+                <p class="notice" role="status">@played</p>
+                @if (_timing.Kind == TimingKind.Performance)
+                {
+                    <p class="meta">Restore rhythm is not in this version yet, so for now the file plays as it was recorded.</p>
+                }
+            }
 
             <h3>Warnings</h3>
             @if (report.Issues.Where(issue => issue.Kind != ImportIssueKind.Rounded).ToList() is { Count: > 0 } warnings)
@@ -111,6 +119,9 @@
 @code {
     private string? _fileName;
     private ImportedPiece? _piece;
+
+    /// <summary>How the MIDI file's onsets sit against the grid (S1-I6, S1-R1, S1-R2); null for MusicXML, which is written.</summary>
+    private PerformanceTiming? _timing;
     private byte[] _data = [];
     private ImportRejection? _rejection;
     private TimeSpan _elapsed;
@@ -121,6 +132,7 @@
     {
         _fileName = args.File.Name;
         _piece = null;
+        _timing = null;
         _rejection = PieceImporter.CheckSize(args.File.Size);
         _start = 0;
         if (_rejection is not null)
@@ -139,6 +151,7 @@
             PieceImportResult result = PieceImporter.Import(args.File.Name, _data);
             _elapsed = watch.Elapsed;
             (_piece, _rejection) = (result.Piece, result.Rejection);
+            _timing = _piece is { Format: SourceFormat.Midi } midi ? PerformanceTiming.Measure(midi.Notes, midi.Meter) : null;
         }
         finally
         {

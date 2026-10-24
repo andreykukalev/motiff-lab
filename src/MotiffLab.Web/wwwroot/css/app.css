@@ -536,6 +536,11 @@ html, body {
     font-weight: normal;
 }
 
+.import .notice {
+    border-left: 3px solid var(--ml-lime);
+    padding-left: 0.75rem;
+}
+
 .import .warnings .kind {
     color: var(--ml-gray);
     min-width: 5rem;

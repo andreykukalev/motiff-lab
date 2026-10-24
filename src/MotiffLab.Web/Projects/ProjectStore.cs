@@ -72,6 +72,13 @@ public sealed class ProjectStore(IJSRuntime js) : IAsyncDisposable
         await module.InvokeVoidAsync("downloadText", name + ProjectFile.Extension, Encoding.UTF8.GetString(ProjectFile.Write(project)));
     }
 
+    /// <summary>Hands the player a file made on the device, such as a MIDI export (S1-X1).</summary>
+    public async Task DownloadAsync(string fileName, byte[] data, string contentType)
+    {
+        IJSObjectReference module = await ModuleAsync();
+        await module.InvokeVoidAsync("downloadBytes", fileName, data, contentType);
+    }
+
     public async ValueTask DisposeAsync()
     {
         if (_module is not null)
