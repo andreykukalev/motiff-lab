@@ -9,6 +9,7 @@
 @using MotiffLab.MusicCore.Projects
 @using MotiffLab.MusicCore.Time
 @using MotiffLab.MusicCore.Variations
+@using MotiffLab.Web.Facts
 @using MotiffLab.Web.Import
 @using MotiffLab.Web.Playback
 @using MotiffLab.Web.Projects
@@ -108,7 +109,13 @@
             <p class="meta">Second file: @difference</p>
         }
 
-        <section class="selection" aria-label="Selection">
+        @* The roll sits above the selection panel, so it stays put as facts come and go under it. *@
+        <section class="roll-panel">
+            <PianoRoll Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" />
+        </section>
+
+        @* Clicks on the page outside the roll clear the selection, except inside panels marked data-keeps-selection (docs/ui-conventions.md). *@
+        <section class="selection" aria-label="Selection" data-keeps-selection>
             <div class="row">
                 <span>Select bars</span>
                 <input type="number" min="@_meter.FirstBarNumber" max="@_lastBar" @bind="_barFrom" aria-label="From bar" />
@@ -130,20 +137,7 @@
                 <button @onclick="ClearSelectionAsync" disabled="@(_selection is null)">Clear</button>
             </div>
             <p class="meta" aria-live="polite">@SelectionText</p>
-            @if (_analysis is { Facts.Count: > 0 } analysis)
-            {
-                <ul class="facts" aria-label="Facts about the selection">
-                    @foreach (MotifFact fact in analysis.Facts.Concat(_structure?.Facts ?? []))
-                    {
-                        <li title="@fact.Basis">
-                            <span class="lens">@fact.Lens</span>
-                            <span>@fact.Text</span>
-                            <span class="certainty @fact.Certainty.ToString().ToLowerInvariant()">@CertaintyLabel(fact.Certainty)</span>
-                        </li>
-                    }
-                </ul>
-                <p class="meta">Detected: read from the notes or the file. Inferred: worked out by a rule. Uncertain: a guess on thin evidence. Hover a fact to see why.</p>
-            }
+            <FactsPanel Facts="Facts" />
             @if (_selection is { NoteIds.Count: > 0 })
             {
                 <div class="variation" aria-label="Variation">
@@ -173,11 +167,7 @@
             }
         </section>
 
-        <section class="roll-panel">
-            <PianoRoll Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" RangePicked="OnRangePickedAsync" />
-        </section>
-
-        <section class="score-panel">
+        <section class="score-panel" data-keeps-selection>
             <div class="row">
                 <label><input type="checkbox" checked="@_showScore" @onchange="() => _showScore = !_showScore" /> Score</label>
                 @if (_asWritten is not null)
@@ -262,6 +252,9 @@
     private SelectionFilter _filter = SelectionFilter.All;
     private (string Label, SelectionFilter Filter)[] _filters = [("All notes", SelectionFilter.All)];
     private string? _selectionNote;
+
+    /// <summary>Everything music-core found about the selection, for the facts panel to group by lens.</summary>
+    private IReadOnlyList<MotifFact> Facts => [.. _analysis?.Facts ?? [], .. _structure?.Facts ?? []];
     private readonly HashSet<KeepProperty> _keep = [KeepProperty.Pitches, KeepProperty.PitchOrder];
     private int _reshape;
     private Variation? _variation;
@@ -547,11 +540,14 @@
         return [.. filters];
     }
 
-    /// <summary>Selects whole bars from the bar boxes, keeping to the piece and to 8 bars (S1-M1).</summary>
-    private Task SelectBarsAsync()
+    /// <summary>Selects whole bars from the bar boxes (S1-M1).</summary>
+    private Task SelectBarsAsync() => SelectBarRangeAsync(_barFrom, _barTo);
+
+    /// <summary>Selects whole bars, keeping to the piece and to 8 bars (S1-M1).</summary>
+    private Task SelectBarRangeAsync(int fromBar, int toBar)
     {
-        int from = Math.Clamp(Math.Min(_barFrom, _barTo), _meter!.FirstBarNumber, _lastBar);
-        int to = Math.Clamp(Math.Max(_barFrom, _barTo), from, _lastBar);
+        int from = Math.Clamp(Math.Min(fromBar, toBar), _meter!.FirstBarNumber, _lastBar);
+        int to = Math.Clamp(Math.Max(fromBar, toBar), from, _lastBar);
         string? note = null;
         if (to - from + 1 > MotifSelection.MaxBars)
         {
@@ -562,11 +558,22 @@
         return SelectAsync(MotifSelector.Bars(_meter, from, to, _score!.End), note);
     }
 
-    /// <summary>A click on a bar number selects that bar; a drag selects the beats it covers (S1-M1).</summary>
+    /// <summary>
+    /// A click on a bar number selects that bar, a Shift-click extends the selection to it in whole
+    /// bars, and a drag selects the beats it covers (S1-M1).
+    /// </summary>
     private Task OnRangePickedAsync(RollRange range)
     {
         Tick last = new(_score!.End.Value - 1);
-        if (range.IsClick)
+        if (range.Extend && _selection is { } selection)
+        {
+            int clicked = _meter!.BarAt(range.Anchor > last ? last : range.Anchor).Number;
+            return clicked < selection.FirstBar
+                ? SelectBarRangeAsync(clicked, selection.LastBar)
+                : SelectBarRangeAsync(selection.FirstBar, clicked);
+        }
+
+        if (range.IsClick || range.Extend)
         {
             int bar = _meter!.BarAt(range.Anchor > last ? last : range.Anchor).Number;
             return SelectAsync(MotifSelector.Bars(_meter, bar, bar, _score.End), note: null);
@@ -851,7 +858,7 @@
         {
             if (_selection is not { } selection)
             {
-                return "Nothing selected. Drag across the bar numbers on the piano roll, click a bar number, or type the bars.";
+                return "Nothing selected. Drag across the piano roll, click a bar number, or type the bars.";
             }
 
             var parts = new List<string> { $"Selected {Where(selection)}" };
@@ -892,13 +899,6 @@
             ? $"bar {from.Bar}, beat {from.Beat}"
             : $"bar {from.Bar}, beat {from.Beat}, through bar {through.Bar}, beat {through.Beat}";
     }
-
-    private static string CertaintyLabel(FactCertainty certainty) => certainty switch
-    {
-        FactCertainty.Detected => "detected",
-        FactCertainty.Inferred => "inferred",
-        _ => "uncertain",
-    };
 
     private Task ToggleTrackAsync(int track, bool solo)
     {

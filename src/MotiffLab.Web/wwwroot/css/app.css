@@ -210,10 +210,51 @@ html, body {
     min-height: 2.6em;
 }
 
-/* Facts about the selection (S1-A1, S1-A2): each with its lens and how sure it is. */
+/* Facts about the selection (S1-A1, S1-A2, S1-A4, Facts/FactsPanel.razor): a collapsible section per lens, each fact with how sure it is. */
 .lab .facts {
+    margin: 0.5rem 0;
+}
+
+.lab .facts .lens-group {
+    border-top: 1px solid #343C47;
+}
+
+.lab .facts .lens-group:last-of-type {
+    border-bottom: 1px solid #343C47;
+}
+
+.lab .facts button.lens-toggle {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    width: 100%;
+    border: none;
+    border-radius: 0;
+    padding: 0.4rem 0;
+    text-align: left;
+}
+
+.lab .facts button.lens-toggle:hover .lens {
+    color: var(--ml-lime);
+}
+
+.lab .facts .caret {
+    width: 1em;
+    color: var(--ml-gray);
+}
+
+.lab .facts .lens {
+    font-weight: 600;
+}
+
+.lab .facts .count {
+    color: var(--ml-gray);
+    font-size: 0.85em;
+}
+
+.lab .facts ul {
     list-style: none;
-    margin: 0.25rem 0;
+    margin: 0 0 0.5rem 1.5rem;
     padding: 0;
 }
 
@@ -225,12 +266,13 @@ html, body {
     padding: 0.15rem 0;
 }
 
-.lab .facts .lens {
-    color: var(--ml-gray);
-    min-width: 4rem;
+/* The fact text takes the line and its certainty label stays beside it, not wrapped under it. */
+.lab .facts li > span:first-child {
+    flex: 1 1 0;
 }
 
 .lab .facts .certainty {
+    flex: none;
     font-size: 0.8em;
     border: 1px solid var(--ml-gray);
     border-radius: 0.6rem;

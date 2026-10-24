@@ -61,5 +61,9 @@ internal static class PianoRollPayload
 
 internal sealed record RollPayload(string[] Ids, long[] Notes, long[] Bars, long End);
 
-/// <summary>A drag across the roll's bar numbers, from where it started to where it ended; a click when it barely moved.</summary>
-public readonly record struct RollRange(Tick Anchor, Tick Current, bool IsClick);
+/// <summary>
+/// A drag across the roll, from where it started to where it ended; a click on a bar number when it
+/// barely moved. <paramref name="Extend"/> marks a Shift-click on a bar number, which extends the
+/// selection to that bar.
+/// </summary>
+public readonly record struct RollRange(Tick Anchor, Tick Current, bool IsClick, bool Extend = false);

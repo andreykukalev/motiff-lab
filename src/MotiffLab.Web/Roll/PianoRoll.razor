@@ -52,11 +52,16 @@
     public bool MotifPlaysAlone { get; set; }
 
     /// <summary>
-    /// Raised when the player drags across the bar numbers, with where the drag started and ended in
-    /// ticks, not yet snapped; a click without a drag comes with <see cref="RollRange.IsClick"/> set.
+    /// Raised when the player drags across the roll, with where the drag started and ended in ticks,
+    /// not yet snapped; a click on a bar number comes with <see cref="RollRange.IsClick"/> set, and a
+    /// Shift-click on one with <see cref="RollRange.Extend"/> set.
     /// </summary>
     [Parameter]
     public EventCallback<RollRange> RangePicked { get; set; }
+
+    /// <summary>Raised when the player clears the selection: Escape, or a click on an empty place in or outside the roll.</summary>
+    [Parameter]
+    public EventCallback Cleared { get; set; }
 
     /// <summary>Raised with the ids of the selected notes, in time order.</summary>
     [Parameter]
@@ -108,10 +113,14 @@
         }
     }
 
-    /// <summary>Called by the script when a drag across the bar numbers ends.</summary>
+    /// <summary>Called by the script when a drag across the roll ends, or a bar number is clicked.</summary>
     [JSInvokable]
-    public Task OnRollRange(long anchor, long current, bool click) =>
-        RangePicked.InvokeAsync(new RollRange(new Tick(Math.Max(0, anchor)), new Tick(Math.Max(0, current)), click));
+    public Task OnRollRange(long anchor, long current, bool click, bool extend) =>
+        RangePicked.InvokeAsync(new RollRange(new Tick(Math.Max(0, anchor)), new Tick(Math.Max(0, current)), click, extend));
+
+    /// <summary>Called by the script when the player clears the selection.</summary>
+    [JSInvokable]
+    public Task OnRollClear() => Cleared.InvokeAsync();
 
     /// <summary>Called by the script when the selection changes.</summary>
     [JSInvokable]
@@ -146,7 +155,7 @@
         {
             if (_selected.Count == 0 || Meter is null)
             {
-                return "Drag across the bar numbers to select bars. Click a note to select it; Shift-click adds to the selection.";
+                return "Drag across the roll to select a range; click a bar number for one bar, Shift-click to extend. Click a note to select it; Shift-click adds to the selection. Click an empty place or press Escape to clear.";
             }
 
             if (_selected.Count > 1)
