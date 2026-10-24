@@ -30,4 +30,5 @@ Warnings are errors (`Directory.Build.props`).
 - Every event carries provenance and confidence. Anything inferred (hands, alignment, keys, chords) is marked inferred, never presented as imported fact.
 - Variation operations are pure: same events, context, parameters and seed give the same events and diff. Explanations state only facts present in the diff.
 - Nothing the player imports leaves the device in Stage 1. Analytics carry no note content.
+- UI work follows `docs/ui-conventions.md`: the UI only displays music-core output and never changes analysis or variation code or its data shapes.
 - AI interprets engine results; it never produces notes, timing, analysis or Keep checks. music-core has no AI or Azure dependency. AI output must cite fact IDs from the digest and propose only catalogue operations with in-range parameters; anything else falls back to template text. Every feature must work with AI off.

@@ -45,8 +45,14 @@ const KEYBOARD_HEIGHT = 64;
 const FOLLOW_RIGHT = 0.85;
 const FOLLOW_LEFT = 0.15;
 
-/** A press on the bar numbers that moves less than this many pixels is a click on one bar. */
+/** A press that moves less than this many pixels is a click, not a drag. */
 const CLICK_SLOP = 4;
+
+/**
+ * A click outside the roll clears the selection unless it lands on a control or inside an element
+ * marked data-keeps-selection, such as the panels that show or act on the selection.
+ */
+const KEEPS_SELECTION = "button, input, select, textarea, label, a, summary, [role=button], [data-keeps-selection]";
 
 // Brand surface and ink (docs/02-brand-identity.md), and lane colours that hold 3:1 against the surface.
 const SURFACE = "#1E242C";
@@ -85,8 +91,12 @@ export class PianoRoll {
     private focusIndex: number | undefined;
     /** The motif selection (S1-M1, S1-M2): its range and its notes, or null for none. */
     private motif: { start: number; end: number; notes: Set<number>; alone: boolean } | null = null;
-    /** A drag across the bar numbers in progress: where it started and where the pointer is. */
+    /** A drag across the roll selecting a range: where it started and where the pointer is. */
     private drag: { pointer: number; anchorX: number; anchor: number; current: number } | null = null;
+    /** A press on the notes area that becomes a click on a note or the grid, or a range drag once it moves. */
+    private press: { pointer: number; x: number; tick: number; pitch: number; add: boolean } | null = null;
+    /** Where a press outside the roll started, so that a drag (such as selecting text) is not a click. */
+    private outsidePress: { x: number; y: number; target: Element } | null = null;
     private player: PlayerHandle | null = null;
     private tickNow = 0;
     private dirty = true;
@@ -103,7 +113,7 @@ export class PianoRoll {
         this.roll.setAttribute("role", "application");
         this.roll.setAttribute(
             "aria-label",
-            "Piano roll. Drag across the bar numbers to select bars, or click a bar number to select that bar. Click a note to select it, Shift-click to add to the selection. Arrow keys move the selection, Escape clears it, plus and minus zoom.",
+            "Piano roll. Drag anywhere across the roll to select a range, click a bar number to select that bar, Shift-click a bar number to extend the selection to it. Click a note to select it, Shift-click to add to the selection. Click an empty place or press Escape to clear the selection. Arrow keys move the note selection, plus and minus zoom.",
         );
 
         this.scroller = document.createElement("input");
@@ -130,6 +140,8 @@ export class PianoRoll {
         this.roll.addEventListener("keydown", this.onKeyDown);
         this.roll.addEventListener("wheel", this.onWheel, { passive: false });
         this.scroller.addEventListener("input", this.onScroll);
+        document.addEventListener("pointerdown", this.onDocumentPointerDown);
+        document.addEventListener("pointerup", this.onDocumentPointerUp);
         this.resizeObserver = new ResizeObserver(() => this.invalidate());
         this.resizeObserver.observe(host);
         this.frame = requestAnimationFrame(this.tick);
@@ -142,6 +154,7 @@ export class PianoRoll {
         this.focusIndex = undefined;
         this.motif = null;
         this.drag = null;
+        this.press = null;
         this.scroll = 0;
         this.updateLanes();
     }
@@ -209,6 +222,8 @@ export class PianoRoll {
         this.roll.removeEventListener("keydown", this.onKeyDown);
         this.roll.removeEventListener("wheel", this.onWheel);
         this.scroller.removeEventListener("input", this.onScroll);
+        document.removeEventListener("pointerdown", this.onDocumentPointerDown);
+        document.removeEventListener("pointerup", this.onDocumentPointerUp);
         this.host.replaceChildren();
     }
 
@@ -515,7 +530,7 @@ export class PianoRoll {
             items.push(legendItem(swatch(LANE_COLOURS[index % LANE_COLOURS.length], LANE_PATTERNS[index % LANE_PATTERNS.length], false), lane.label));
         }
         if (model !== null && model.notes.length > 0) {
-            items.push(legendItem(null, "Drag across the bar numbers to select bars"));
+            items.push(legendItem(null, "Drag across the roll to select · Shift-click a bar number to extend · click an empty place to clear"));
         }
         if (model?.notes.some((note) => note.noteInferred || note.handInferred)) {
             items.push(legendItem(swatch(SURFACE, "solid", true), "Dashed outline: inferred, not in the file"));
@@ -560,24 +575,37 @@ export class PianoRoll {
             return;
         }
         const tick = this.tickAtX(x);
+        this.roll.setPointerCapture(event.pointerId);
+        // No text selection while dragging; focus by hand so the keys (Escape, arrows) reach the roll.
+        event.preventDefault();
+        this.roll.focus({ preventScroll: true });
         if (y < HEADER) {
-            this.roll.setPointerCapture(event.pointerId);
+            // Shift-click on a bar number extends the selection to that bar.
+            if (event.shiftKey && this.motif !== null) {
+                void this.dotnet.invokeMethodAsync("OnRollRange", Math.round(tick), Math.round(tick), true, true);
+                return;
+            }
             this.drag = { pointer: event.pointerId, anchorX: x, anchor: tick, current: tick };
             this.invalidate();
-            event.preventDefault();
             return;
         }
         const { high, row } = this.pitchRange();
         const pitch = high - Math.floor((y - HEADER) / row);
-        this.selectIndex(model.noteAt(tick, pitch), event.shiftKey || event.ctrlKey || event.metaKey);
+        this.press = { pointer: event.pointerId, x, tick, pitch, add: event.shiftKey || event.ctrlKey || event.metaKey };
     };
 
     private readonly onPointerMove = (event: PointerEvent): void => {
+        const box = this.roll.getBoundingClientRect();
+        const x = event.clientX - box.left;
+        // A press on the notes area that moves becomes a range drag, as on the bar numbers.
+        const press = this.press;
+        if (press !== null && event.pointerId === press.pointer && Math.abs(x - press.x) >= CLICK_SLOP) {
+            this.drag = { pointer: press.pointer, anchorX: press.x, anchor: press.tick, current: press.tick };
+            this.press = null;
+        }
         if (this.drag === null || event.pointerId !== this.drag.pointer) {
             return;
         }
-        const box = this.roll.getBoundingClientRect();
-        const x = event.clientX - box.left;
         this.drag.current = this.tickAtX(Math.max(GUTTER, x));
         // Dragging past either edge scrolls the roll along.
         if (x > this.host.clientWidth - 8 || x < GUTTER + 8) {
@@ -586,8 +614,23 @@ export class PianoRoll {
         this.invalidate();
     };
 
-    /** Ends a drag across the bar numbers; music-core snaps the range to beats and replies with setMotif. */
+    /**
+     * Ends a press. A drag sends its range; music-core snaps it to beats and replies with setMotif.
+     * A click on a note selects it; a click on an empty place clears the selection.
+     */
     private readonly onPointerUp = (event: PointerEvent): void => {
+        const press = this.press;
+        if (press !== null && event.pointerId === press.pointer) {
+            this.press = null;
+            const model = this.model;
+            const index = model?.noteAt(press.tick, press.pitch);
+            if (index !== undefined || press.add) {
+                this.selectIndex(index, press.add);
+            } else {
+                this.clearAll();
+            }
+            return;
+        }
         const drag = this.drag;
         if (drag === null || event.pointerId !== drag.pointer) {
             return;
@@ -595,14 +638,45 @@ export class PianoRoll {
         const box = this.roll.getBoundingClientRect();
         const x = event.clientX - box.left;
         const click = Math.abs(x - drag.anchorX) < CLICK_SLOP;
-        void this.dotnet.invokeMethodAsync("OnRollRange", Math.round(drag.anchor), Math.round(drag.current), click);
+        void this.dotnet.invokeMethodAsync("OnRollRange", Math.round(drag.anchor), Math.round(drag.current), click, false);
         this.drag = null;
         this.invalidate();
     };
 
     private readonly onPointerCancel = (): void => {
         this.drag = null;
+        this.press = null;
         this.invalidate();
+    };
+
+    /** Clears the selected notes and asks the page to clear the motif selection, when there is any. */
+    private clearAll(): void {
+        if (this.selected.size > 0) {
+            this.selectIndex(undefined, false);
+        }
+        if (this.motif !== null) {
+            void this.dotnet.invokeMethodAsync("OnRollClear");
+        }
+    }
+
+    private readonly onDocumentPointerDown = (event: PointerEvent): void => {
+        const target = event.target;
+        this.outsidePress =
+            target instanceof Element && !this.host.contains(target) && target.closest(KEEPS_SELECTION) === null
+                ? { x: event.clientX, y: event.clientY, target }
+                : null;
+    };
+
+    /** A click on the page outside the roll, away from any control, clears the selection. */
+    private readonly onDocumentPointerUp = (event: PointerEvent): void => {
+        const press = this.outsidePress;
+        this.outsidePress = null;
+        if (press === null || Math.hypot(event.clientX - press.x, event.clientY - press.y) >= CLICK_SLOP) {
+            return;
+        }
+        if (this.host.isConnected && this.host.offsetParent !== null) {
+            this.clearAll();
+        }
     };
 
     /** The notes being heard: those at the playhead, only the motif's when it plays alone. */
@@ -632,7 +706,7 @@ export class PianoRoll {
                 break;
             }
             case "Escape":
-                this.selectIndex(undefined, false);
+                this.clearAll();
                 break;
             case "+":
             case "=":
