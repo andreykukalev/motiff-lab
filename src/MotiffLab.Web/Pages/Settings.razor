@@ -1,0 +1,79 @@
+@page "/settings"
+@using MotiffLab.MusicCore.Analytics
+@using MotiffLab.Web.Analytics
+@implements IDisposable
+@inject UsageAnalytics Analytics
+
+<PageTitle>Settings · Motiff Lab</PageTitle>
+
+@* Settings (S1-AI0, #64, #65): anonymous analytics with consent, and the privacy notice and terms of use. AI assistance joins this page when it arrives. *@
+<main class="lab settings">
+    <h1>Settings</h1>
+
+    <section aria-labelledby="analytics-heading">
+        <h2 id="analytics-heading">Anonymous usage analytics</h2>
+        <p>
+            Help us learn how Motiff Lab is used by sending a few anonymous events: that the app was opened, a file was
+            imported, a motif selected, playback started, a variation tried or exported. They never contain your music,
+            file names or titles. Analytics are off until you turn them on, and you can turn them off at any time.
+        </p>
+        <label>
+            <input type="checkbox" checked="@Analytics.On" @onchange="ToggleAsync" />
+            Send anonymous usage analytics
+        </label>
+        <p class="meta">
+            @if (Analytics.On)
+            {
+                @: This browser's random ID is @Analytics.DeviceId. Turning analytics off deletes it.
+            }
+            else
+            {
+                @: Nothing is recorded while analytics are off.
+            }
+        </p>
+        <p class="meta">This version does not send analytics yet: events wait on this device, and the list below shows exactly what would be sent. <a href="privacy#analytics">What each event holds</a>.</p>
+
+        @if (Analytics.On)
+        {
+            <h3>Waiting to be sent (@Analytics.Pending.Count)</h3>
+            @if (Analytics.Pending.Count == 0)
+            {
+                <p class="meta">Nothing yet.</p>
+            }
+            else
+            {
+                <ol class="events" reversed>
+                    @foreach (AnalyticsEvent recorded in Analytics.Pending.Reverse())
+                    {
+                        <li><code>@recorded.Name</code> @string.Join(", ", recorded.Properties.Select(p => $"{p.Key}: {Format(p.Value)}"))</li>
+                    }
+                </ol>
+            }
+        }
+    </section>
+
+    <section aria-labelledby="documents-heading">
+        <h2 id="documents-heading">Privacy and terms</h2>
+        <p><a href="privacy">Privacy notice</a> · <a href="terms">Terms of use</a></p>
+    </section>
+</main>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        Analytics.Changed += OnChanged;
+        await Analytics.LoadAsync();
+    }
+
+    public void Dispose() => Analytics.Changed -= OnChanged;
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private Task ToggleAsync(ChangeEventArgs args) => Analytics.SetOnAsync(args.Value is true);
+
+    private static string Format(object value) => value switch
+    {
+        bool flag => flag ? "yes" : "no",
+        _ => value.ToString() ?? "",
+    };
+}
