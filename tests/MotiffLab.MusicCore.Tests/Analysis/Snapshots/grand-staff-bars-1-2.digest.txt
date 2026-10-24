@@ -19,3 +19,9 @@ key [inferred] Key: F major.
 structure.recurrences [inferred] The motif does not recur elsewhere, exactly or transposed.
 structure.phrases [detected] No phrase boundary is marked, so the notes read as one span, bars 1–4.
 structure.new-material [inferred] Every bar with notes brings new material (4 bars); none repeats an earlier bar.
+character.tempo [detected] Tempo: 96 BPM throughout the motif.
+character.density [detected] Density: 1.2 onsets per beat (7 onsets over 6 beats); the busiest beat holds 2. Counting every note of a chord, 2.7 notes per beat.
+character.register [detected] Register: F2 to F5, a range of 36 semitones; 8 of 16 notes are at or above middle C, and the middle pitch is B♭3.
+character.velocity [detected] Velocity: every note has 80, on the MIDI scale of 1 to 127.
+character.articulation [detected] Articulation: notes sound for 100% of the time to the next onset on average; 13 of 13 notes sound until the next onset, and 0 sound for less than half of it.
+character.syncopation [detected] Syncopation share: 0 of 7 onsets (0%).
