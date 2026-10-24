@@ -1,8 +1,11 @@
 @page "/import"
 @using System.Diagnostics
 @using MotiffLab.MusicCore.Import
+@using MotiffLab.MusicCore.Projects
 @using MotiffLab.Web.Import
+@using MotiffLab.Web.Projects
 @inject CurrentPiece CurrentPiece
+@inject ProjectStore Projects
 @inject NavigationManager Navigation
 
 <PageTitle>Import · Motiff Lab</PageTitle>
@@ -97,16 +100,18 @@
                     </label>
                 }
             </div>
-            <button class="primary" @onclick="Open">Open the piece</button>
+            <button class="primary" @onclick="OpenAsync">Open the piece</button>
+            <p class="meta">Opening saves the piece as a project in this browser, so you can come back to it.</p>
         </section>
     }
 
-    <p><a href="">Back</a></p>
+    <p><a href="">Back to projects</a></p>
 </main>
 
 @code {
     private string? _fileName;
     private ImportedPiece? _piece;
+    private byte[] _data = [];
     private ImportRejection? _rejection;
     private TimeSpan _elapsed;
     private int _start;
@@ -130,7 +135,8 @@
             await using Stream stream = args.File.OpenReadStream(PieceImporter.MaxFileBytes);
             using var memory = new MemoryStream();
             await stream.CopyToAsync(memory);
-            PieceImportResult result = PieceImporter.Import(args.File.Name, memory.ToArray());
+            _data = memory.ToArray();
+            PieceImportResult result = PieceImporter.Import(args.File.Name, _data);
             _elapsed = watch.Elapsed;
             (_piece, _rejection) = (result.Piece, result.Rejection);
         }
@@ -140,14 +146,17 @@
         }
     }
 
-    private void Open()
+    /// <summary>Saves the piece as a new project on the device (S1-P1) and opens it in the workspace.</summary>
+    private async Task OpenAsync()
     {
         if (_piece is not { } piece)
         {
             return;
         }
 
-        CurrentPiece.Open(piece, piece.StartChoices[Math.Clamp(_start, 0, piece.StartChoices.Count - 1)].Filter);
+        var project = Project.Create($"p_{Guid.NewGuid():N}", piece.FileName, _data, DateTimeOffset.Now);
+        await Projects.SaveAsync(project);
+        CurrentPiece.Open(piece, piece.StartChoices[Math.Clamp(_start, 0, piece.StartChoices.Count - 1)].Filter, project);
         Navigation.NavigateTo("playback");
     }
 

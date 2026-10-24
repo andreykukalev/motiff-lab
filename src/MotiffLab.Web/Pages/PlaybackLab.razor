@@ -6,15 +6,18 @@
 @using MotiffLab.MusicCore.Motifs
 @using MotiffLab.MusicCore.Notation
 @using MotiffLab.MusicCore.Playback
+@using MotiffLab.MusicCore.Projects
 @using MotiffLab.MusicCore.Time
 @using MotiffLab.MusicCore.Variations
 @using MotiffLab.Web.Import
 @using MotiffLab.Web.Playback
+@using MotiffLab.Web.Projects
 @using MotiffLab.Web.Roll
 @using MotiffLab.Web.Score
 @implements IDisposable
 @inject Player Player
 @inject CurrentPiece CurrentPiece
+@inject ProjectStore Projects
 
 <PageTitle>Playback · Motiff Lab</PageTitle>
 
@@ -269,6 +272,15 @@
     private string? _secondTip;
     private IReadOnlyList<string> _secondDifferences = [];
     private int _pieceVersion;
+
+    /// <summary>The project the piece autosaves to (S1-P1); null for files opened here or the demo.</summary>
+    private Project? _project;
+
+    /// <summary>The motif the lab's selection is saved as. The lab works on one motif; a project can hold more.</summary>
+    private string _motifId = "m_0001";
+
+    /// <summary>True while a saved project is put back, so the steps of restoring do not autosave over it.</summary>
+    private bool _restoring;
     private ScoreSource? _asWritten;
     private ScoreSource? _generated;
     private bool _showScore = true;
@@ -314,6 +326,12 @@
             if (_filters.Any(filter => filter.Filter == CurrentPiece.StartWith))
             {
                 _filter = CurrentPiece.StartWith;
+            }
+
+            _project = CurrentPiece.Project;
+            if (CurrentPiece.Opened is { Motifs.Count: > 0 } opened)
+            {
+                await RestoreAsync(opened);
             }
 
             StateHasChanged();
@@ -405,6 +423,8 @@
         await Player.SetSourceAsync(SecondFileId, _score!.WithNotes([]));
         _secondTitle = null;
         _secondDifferences = [];
+        _motifId = "m_0001";
+        _project = null;
     }
 
     private async Task LoadPieceAsync(ImportedPiece piece)
@@ -579,6 +599,8 @@
                 await LoopSelectionAsync(_selection);
             }
         }
+
+        await SaveProjectAsync();
     }
 
     private async Task ClearSelectionAsync()
@@ -592,6 +614,7 @@
         _analysis = null;
         _selectionNote = null;
         await ClearVariationAsync();
+        await SaveProjectAsync();
     }
 
     /// <summary>Why the Keep choices rule V1 out (S1-E2), or null.</summary>
@@ -665,6 +688,59 @@
         if (play || (_looping && Player.ActiveSources.SequenceEqual([VariationSource])))
         {
             await AuditionAsync(variation: true);
+        }
+
+        await SaveProjectAsync();
+    }
+
+    /// <summary>
+    /// Autosaves the selection as the project's working motif, with its variation and Keep choices
+    /// (S1-P1). Other motifs and variations in the project are kept as they are.
+    /// </summary>
+    private async Task SaveProjectAsync()
+    {
+        if (_project is null || _restoring)
+        {
+            return;
+        }
+
+        var motifs = _project.Motifs.Where(motif => motif.Id != _motifId).ToList();
+        var variations = _project.Variations.Where(variation => variation.MotifId != _motifId).ToList();
+        if (_selection is { NoteIds.Count: > 0 } selection)
+        {
+            motifs.Insert(0, SavedMotif.From(Motif.Create(_motifId, 1, selection, MotifSelectionKind.Range, MotifMode.Discovery, _notes!)));
+            if (_variation is not null)
+            {
+                variations.Insert(0, SavedVariation.Create(_motifId.Replace("m_", "v_", StringComparison.Ordinal), _motifId, s_reshapes[_reshape].Parameters, _keep));
+            }
+        }
+
+        _project = _project with { Motifs = motifs, Variations = variations };
+        CurrentPiece.Saved(_project);
+        await Projects.SaveAsync(_project);
+    }
+
+    /// <summary>Puts a saved project's first motif back as the selection, with its variation and Keep choices.</summary>
+    private async Task RestoreAsync(OpenedProject opened)
+    {
+        Motif motif = opened.Motifs[0];
+        _motifId = motif.Id;
+        _restoring = true;
+        try
+        {
+            _filter = _filters.Any(filter => filter.Filter == motif.Filter) ? motif.Filter : SelectionFilter.All;
+            await SelectAsync(motif.Span, note: $"Restored \"{motif.Name}\" from the project.");
+            if (opened.Variations.FirstOrDefault(variation => variation.Saved.MotifId == motif.Id).Saved is { } saved)
+            {
+                _keep.Clear();
+                _keep.UnionWith(saved.Keep);
+                _reshape = Math.Max(0, Array.FindIndex(s_reshapes, reshape => reshape.Parameters == saved.Parameters));
+                await ApplyAsync(play: false);
+            }
+        }
+        finally
+        {
+            _restoring = false;
         }
     }
 
