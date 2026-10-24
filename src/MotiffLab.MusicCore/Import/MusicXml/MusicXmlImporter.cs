@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Xml;
 using System.Xml.Linq;
 
+using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Time;
 
@@ -184,7 +185,8 @@ public static class MusicXmlImporter
                     span,
                     exact,
                     written,
-                    note.Tuplet));
+                    note.Tuplet,
+                    note.Accent));
             }
         }
 
@@ -630,7 +632,8 @@ public static class MusicXmlImporter
         string Voice,
         bool TieStart,
         bool TieStop,
-        MusicXmlTuplet? Tuplet);
+        MusicXmlTuplet? Tuplet,
+        AccentKind? Accent);
 
     /// <summary>A note with the written notes tied to it: exact onset and end, and how many were merged.</summary>
     private sealed record TiedNote(PartNote Note, QuarterFraction Onset, QuarterFraction End, int Written);
@@ -827,8 +830,17 @@ public static class MusicXmlImporter
             int? velocity = ToVelocity(note.Attribute("dynamics")?.Value) ?? _velocity;
             (bool tieStart, bool tieStop) = ReadTies(note);
 
-            Notes.Add(new PartNote(_measureIndex, _noteIndex, onset, duration, pitch, velocity, staff, voice, tieStart, tieStop, ReadTuplet(note)));
+            Notes.Add(new PartNote(_measureIndex, _noteIndex, onset, duration, pitch, velocity, staff, voice, tieStart, tieStop, ReadTuplet(note), ReadAccent(note)));
             ReadSlurs(note, onset);
+        }
+
+        /// <summary>The accent written on a note (S1-A1); a strong accent wins when both are written.</summary>
+        private static AccentKind? ReadAccent(XElement note)
+        {
+            IEnumerable<XElement> articulations = note.Elements("notations").Elements("articulations").Elements();
+            return articulations.Any(mark => mark.Name.LocalName == "strong-accent") ? AccentKind.StrongAccent
+                : articulations.Any(mark => mark.Name.LocalName == "accent") ? AccentKind.Accent
+                : null;
         }
 
         /// <summary>Slur starts and stops on a note; a <c>continue</c> neither opens nor closes a slur.</summary>
