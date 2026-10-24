@@ -33,7 +33,8 @@ public sealed record MotifAnalysis(
 
 /// <summary>
 /// Plain facts about a selected motif: melody line, intervals, contour, range, scale degrees
-/// (S1-A2), durations, onset grid and silences (S1-A1), and key. No AI: every fact is measured
+/// (S1-A2), durations, onset grid, silences, beat grouping, syncopation, accents where marked and
+/// repeated rhythms (S1-A1), and key. No AI: every fact is measured
 /// from the notes or read from the file, and labelled detected, inferred or uncertain.
 /// </summary>
 /// <remarks>
@@ -41,7 +42,7 @@ public sealed record MotifAnalysis(
 /// Interval names go by size in semitones, not by spelling, so three semitones is a minor 3rd
 /// even where the score writes an augmented 2nd.
 /// </remarks>
-public static class MotifAnalyzer
+public static partial class MotifAnalyzer
 {
     /// <summary>A key read from fewer notes or pitch classes than this is uncertain.</summary>
     public const int MinNotesForKey = 6;
@@ -89,7 +90,8 @@ public static class MotifAnalyzer
 
     /// <param name="notes">The notes of the piece; the selection's notes are picked by id.</param>
     /// <param name="signature">The key signature in force where the selection starts, or null when the file has none.</param>
-    public static MotifAnalysis Analyze(IEnumerable<Note> notes, MeterMap meter, MotifSelection selection, KeySignature? signature)
+    /// <param name="accents">The accents the file writes, or null when the format cannot mark accents (MIDI), which leaves out the accent fact.</param>
+    public static MotifAnalysis Analyze(IEnumerable<Note> notes, MeterMap meter, MotifSelection selection, KeySignature? signature, IEnumerable<AccentMark>? accents = null)
     {
         ArgumentNullException.ThrowIfNull(notes);
         ArgumentNullException.ThrowIfNull(meter);
@@ -148,6 +150,15 @@ public static class MotifAnalyzer
         facts.Add(DurationsFact(chosen, offGrid));
         facts.Add(GridFact(onsets.Select(group => group.Key).ToArray(), meter));
         facts.Add(SilenceFact(chosen, selection.Span));
+        Hit[] hits = Hits(onsets);
+        facts.Add(GroupingFact(hits, meter, selection.Span, offGrid));
+        facts.Add(SyncopationFact(hits, meter, offGrid));
+        if (accents is not null)
+        {
+            facts.Add(AccentFact(chosen, accents, meter, key.Key));
+        }
+
+        facts.Add(PatternFact(hits, meter, selection.Span, offGrid));
         facts.Add(KeyFact(key, signature, chosen.Length, PitchClassCount(chosen)));
 
         if (selection.HandInferred)
