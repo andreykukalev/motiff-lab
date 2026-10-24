@@ -23,6 +23,7 @@
     <None Include="Import\Midi\Fixtures\*.hands.txt" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Import\MusicXml\Fixtures\*.musicxml" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Import\MusicXml\Fixtures\*.mxl" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Analysis\Snapshots\*.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
