@@ -1,4 +1,4 @@
-engine 1
+engine 2
 subject motif
 rhythm.durations [detected] Lengths: 14 quarters, 1 dotted quarter, 1 eighth.
 rhythm.grid [detected] Onsets fit the eighth-note grid. 6 of 7 onsets fall on a beat. It starts on beat 1 of bar 1.
@@ -7,13 +7,14 @@ rhythm.grouping [detected] Onsets per beat, bar by bar: 1 1 1 | 1 2 1. Most beat
 rhythm.syncopation [detected] No syncopation: no onset off the beat is held into the next beat, and no note is held across the bar line from a weak beat.
 rhythm.accents [detected] No accents are marked on the motif's notes.
 rhythm.patterns [detected] No bar rhythm or beat figure repeats within the motif.
-melody.line [inferred] 7 notes in the top line: A4 C5 F5 E5 B♭3 D5 C5.
-melody.intervals [inferred] Intervals in semitones: +3 +5 −1 −18 +16 −2. 2 steps, 4 leaps. Largest leap: an octave and a tritone down.
-melody.contour [inferred] Zigzags, turning 3 times; ends a minor 3rd higher than it starts.
+melody.line [inferred] 6 notes in the top line: A4 C5 F5 E5 D5 C5.
+melody.intervals [inferred] Intervals in semitones: +3 +5 −1 −2 −2. 3 steps, 2 leaps. Largest leap: a perfect 4th up.
+melody.contour [inferred] Moves up, then down; ends a minor 3rd higher than it starts.
 melody.range [detected] Range: F2 to F5, 3 octaves (36 semitones).
-melody.degrees [inferred] Scale degrees in F major: 3 5 1 7 4 6 5.
-melody.interval-names [inferred] Intervals by name: minor 3rd up, perfect 4th up, minor 2nd down, octave and a tritone down, octave and a major 3rd up, major 2nd down.
-melody.repeated-notes [inferred] No note is repeated straight away. C5 sounds most often, 2 of 7 notes.
+melody.degrees [inferred] Scale degrees in F major: 3 5 1 7 6 5.
+melody.interval-names [inferred] Intervals by name: minor 3rd up, perfect 4th up, minor 2nd down, major 2nd down, major 2nd down. Most common: a major 2nd (2 of 5).
+melody.repeated-notes [inferred] No note is repeated straight away. C5 sounds most often, 2 of 6 notes.
+melody.over-chords [inferred] 6 of 6 melody notes sound over lower notes: 5 struck together with them, 1 over notes still held. 1 shares its pitch class with a lower note, so it is also part of the chord below: C5 (with C4).
 melody.phrases [detected] No phrase boundary falls inside the motif.
 key [inferred] Key: F major.
 structure.recurrences [inferred] The motif does not recur elsewhere, exactly or transposed.

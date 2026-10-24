@@ -153,4 +153,50 @@ public class MelodyFactTests
         Assert.Equal(first.Facts, second.Facts);
         Assert.Equal(first.Facts.Count, first.Facts.Select(fact => fact.Id).Distinct().Count());
     }
+
+    [Fact]
+    public void A_single_line_has_no_fact_about_melody_over_chords()
+    {
+        MotifAnalysis analysis = Analyze(OdeToJoy(), MeterMap.Default, 0, 8 * Quarter, s_cMajor);
+
+        Assert.DoesNotContain(analysis.Facts, fact => fact.Id == "melody.over-chords");
+    }
+
+    [Fact]
+    public void Melody_notes_over_chords_are_counted_and_shared_pitch_classes_named()
+    {
+        // E5 struck with C3 E4 G4 (E is in the chord), then D5 over the held chord, then F5 struck with B3 D4 (F is not doubled).
+        Note[] notes =
+        [
+            Note("c3", 48, 0, 2 * Quarter), Note("e4", 64, 0, 2 * Quarter), Note("g4", 67, 0, 2 * Quarter),
+            Note("e5", 76, 0, Quarter), Note("d5", 74, Quarter, Quarter),
+            Note("b3", 59, 2 * Quarter, Quarter), Note("d4", 62, 2 * Quarter, Quarter), Note("f5", 77, 2 * Quarter, Quarter),
+        ];
+
+        MotifAnalysis analysis = Analyze(notes, MeterMap.Default, 0, 3 * Quarter, s_cMajor);
+
+        MotifFact fact = Fact(analysis, "melody.over-chords");
+        Assert.Equal(
+            "3 of 3 melody notes sound over lower notes: 2 struck together with them, 1 over notes still held. 1 shares its pitch class with a lower note, so it is also part of the chord below: E5 (with E4).",
+            fact.Text);
+        Assert.Equal(FactCertainty.Inferred, fact.Certainty);
+        Assert.Equal(["e5", "d5", "f5"], analysis.Line.Select(note => note.Id));
+    }
+
+    [Fact]
+    public void Accompaniment_under_a_held_melody_note_stays_out_of_the_melody_facts()
+    {
+        // The melody holds A4 while the accompaniment moves below it; the old top-note-per-onset reading counted E3 and A3 as melody.
+        Note[] notes =
+        [
+            Note("a4", 69, 0, 3 * Eighth), Note("a2", 45, 0, Eighth), Note("e3", 52, Eighth, Eighth), Note("a3", 57, 2 * Eighth, Eighth),
+            Note("b4", 71, 3 * Eighth, Eighth),
+        ];
+
+        MotifAnalysis analysis = Analyze(notes, MeterMap.Default, 0, 4 * Eighth, s_aMinor);
+
+        Assert.Equal(["a4", "b4"], analysis.Line.Select(note => note.Id));
+        Assert.Equal([2], analysis.Intervals);
+        Assert.StartsWith("1 of 2 melody notes sound over lower notes: 1 struck together with them.", Fact(analysis, "melody.over-chords").Text);
+    }
 }

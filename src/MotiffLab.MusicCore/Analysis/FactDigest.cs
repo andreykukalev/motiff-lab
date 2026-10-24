@@ -29,7 +29,7 @@ public sealed record DigestFact(string Id, FactCertainty Certainty, string Text)
 public sealed record FactDigest(string EngineVersion, string Subject, IReadOnlyList<DigestFact> Facts)
 {
     /// <summary>The analysis engine's version. Raise it whenever a fact id or the meaning of a fact changes.</summary>
-    public const string CurrentEngineVersion = "1";
+    public const string CurrentEngineVersion = "2";
 
     public const string MotifSubject = "motif";
 

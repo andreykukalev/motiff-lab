@@ -1,11 +1,13 @@
 using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Analysis;
 
 /// <summary>
 /// Melody facts beyond line, intervals in semitones, contour, range and degrees (S1-A2): interval
-/// names, repeated notes, and the phrase boundaries the source marks or the player set.
+/// names, repeated notes, melody notes that sound with lower notes, and the phrase boundaries the
+/// source marks or the player set.
 /// </summary>
 public static partial class MotifAnalyzer
 {
@@ -61,6 +63,68 @@ public static partial class MotifAnalyzer
         }
 
         return new MotifFact("melody.repeated-notes", FactLens.Melody, certainty, text, basis);
+    }
+
+    /// <summary>
+    /// Melody notes that sound over lower notes, struck with them or over notes still held, and those
+    /// whose pitch class a lower note shares: such a note is both a melody note and a note of the chord
+    /// under it, so the ear can take it either way.
+    /// </summary>
+    private static MotifFact SoundingWithFact(MotifTexture texture, MusicalKey key)
+    {
+        int struck = 0;
+        int held = 0;
+        var shared = new List<string>();
+        foreach (Note note in texture.Melody)
+        {
+            Note[] lower = [.. texture.SoundingWith(note).Where(other => other.Pitch < note.Pitch)];
+            if (lower.Length == 0)
+            {
+                continue;
+            }
+
+            if (lower.Any(other => other.Span.Onset == note.Span.Onset))
+            {
+                struck++;
+            }
+            else
+            {
+                held++;
+            }
+
+            Note[] doubled = [.. lower.Where(other => other.Pitch.PitchClass == note.Pitch.PitchClass).OrderByDescending(other => other.Pitch.MidiNumber)];
+            if (doubled.Length > 0)
+            {
+                shared.Add($"{key.Spell(note.Pitch.MidiNumber)} (with {string.Join(", ", doubled.Select(other => key.Spell(other.Pitch.MidiNumber)))})");
+            }
+        }
+
+        int over = struck + held;
+        string text;
+        if (over == 0)
+        {
+            text = "Every melody note sounds on its own; the other notes fall between melody notes.";
+        }
+        else
+        {
+            string[] how = [.. new[] { (struck, "struck together with them"), (held, "over notes still held") }
+                .Where(part => part.Item1 > 0)
+                .Select(part => $"{part.Item1} {part.Item2}")];
+            text = $"{over} of {Count(texture.Melody.Count, "melody note", "melody notes")} sound over lower notes: {string.Join(", ", how)}.";
+            string list = shared.Count <= MaxNamedIntervals
+                ? string.Join(", ", shared)
+                : $"{string.Join(", ", shared.Take(MaxNamedIntervals))} and {shared.Count - MaxNamedIntervals} more";
+            text += shared.Count == 0
+                ? " None shares its pitch class with a lower note."
+                : $" {Count(shared.Count, "shares its pitch class", "share their pitch class")} with a lower note, so {(shared.Count == 1 ? "it is" : "they are")} also part of the chord below: {list}.";
+        }
+
+        return new MotifFact(
+            "melody.over-chords",
+            FactLens.Melody,
+            FactCertainty.Inferred,
+            text,
+            "The melody is the inferred top line. A lower note sounds with a melody note when it starts with it or is still held when it starts. A shared pitch class means the melody note is also a note of the chord under it.");
     }
 
     private static MotifFact PhraseFact(Note[] notes, IEnumerable<PhraseBoundary> phrases, MeterMap meter)
