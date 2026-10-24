@@ -5,7 +5,7 @@ using MotiffLab.MusicCore.Motifs;
 namespace MotiffLab.MusicCore.Variations;
 
 /// <summary>
-/// The shared part of the melody operations (V4, V9, V10): they change the pitches of the motif's
+/// The shared part of the melody operations V9 and V10: they change the pitches of the motif's
 /// melody (<see cref="MotifTexture.Melody"/>) and leave every other note, and every onset and
 /// length, as it was (Stage 1 spec, motif definition: melodic operations use the melody voice).
 /// </summary>
@@ -24,14 +24,7 @@ public abstract class MelodyOperation<TParameters> : VariationOperation<TParamet
     /// <summary>"changes the melody's intervals", completing "&lt;Name&gt; …, so it is off while Keep x is on".</summary>
     protected abstract string WhatItChanges { get; }
 
-    public sealed override string? DisabledReason(IReadOnlySet<KeepProperty> keep)
-    {
-        ArgumentNullException.ThrowIfNull(keep);
-        KeepProperty[] blocking = [.. Enum.GetValues<KeepProperty>().Where(property => keep.Contains(property) && !Compatible.Contains(property))];
-        return blocking.Length == 0
-            ? null
-            : $"{Name} {WhatItChanges}, so it is off while Keep {string.Join(" and Keep ", blocking.Select(KeepName))} {(blocking.Length == 1 ? "is" : "are")} on.";
-    }
+    public sealed override string? DisabledReason(IReadOnlySet<KeepProperty> keep) => KeepTable.DisabledReason(Name, WhatItChanges, Compatible, keep);
 
     /// <summary>Whether these parameters count in scale steps, and so need a key.</summary>
     protected abstract bool IsDiatonic(TParameters parameters);
@@ -91,10 +84,4 @@ public abstract class MelodyOperation<TParameters> : VariationOperation<TParamet
     }
 
     private static bool IsMelody(MotifTexture texture, Note note) => texture.Melody.Any(melody => melody.Id == note.Id);
-
-    private static string KeepName(KeepProperty property) => property switch
-    {
-        KeepProperty.PitchOrder => "pitch order",
-        _ => property.ToString().ToLowerInvariant(),
-    };
 }

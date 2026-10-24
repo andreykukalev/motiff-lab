@@ -181,6 +181,7 @@ public sealed class VariationChain
             original,
             final,
             context.Keep,
-            OperationRules.Check(original, final).Flags);
+            OperationRules.Check(original, final).Flags,
+            context.Key);
     }
 }
