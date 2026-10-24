@@ -23,6 +23,9 @@ export interface TimelinePayload {
 /** Blazor is told the position at most this often while playing; the canvas reads it every frame through currentTick. */
 const DOTNET_REPORT_MS = 50;
 
+/** How long play waits at most for the engine to report it started, for example when nothing is left to play. */
+const PLAY_CONFIRM_MS = 250;
+
 /** The attack starts where the sample first rises above this level; encoders add silence before it. */
 const ONSET_THRESHOLD = 0.003;
 
@@ -35,6 +38,7 @@ export class Player {
     private last: PositionReport | null = null;
     private lastDotnetReport = 0;
     private lastDotnetState: TransportState | null = null;
+    private startWaiters: (() => void)[] = [];
     private disposed = false;
 
     private constructor(context: AudioContext, node: AudioWorkletNode, dotnet: DotNetObject) {
@@ -85,9 +89,19 @@ export class Player {
         this.post({ type: "activeSources", ids });
     }
 
+    /**
+     * Starts playback, and resolves once the engine reports it has started (or after PLAY_CONFIRM_MS).
+     * Some browsers (Safari) pass messages to the audio thread only while the page's thread is free,
+     * so callers wait for this before heavy work such as rendering (#66).
+     */
     async play(): Promise<void> {
         await this.resume();
+        const started = new Promise<void>((resolve) => {
+            this.startWaiters.push(resolve);
+            setTimeout(resolve, PLAY_CONFIRM_MS);
+        });
         this.post({ type: "play" });
+        await started;
     }
 
     pause(): void {
@@ -225,6 +239,12 @@ export class Player {
         }
 
         this.last = report;
+        if (report.state !== "stopped" && this.startWaiters.length > 0) {
+            for (const resolve of this.startWaiters.splice(0)) {
+                resolve();
+            }
+        }
+
         const now = performance.now();
         const stateChanged = report.state !== this.lastDotnetState;
         if (stateChanged || now - this.lastDotnetReport >= DOTNET_REPORT_MS) {

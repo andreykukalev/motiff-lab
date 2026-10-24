@@ -103,6 +103,7 @@ public sealed class Player(IJSRuntime js) : IAsyncDisposable
         Changed?.Invoke();
     }
 
+    /// <summary>Starts playback; completes once the engine has started, so the page can render after without delaying it.</summary>
     public async Task PlayAsync()
     {
         IJSObjectReference engine = await EngineAsync();

@@ -477,6 +477,7 @@
 
     /// <summary>The piece with the variation in place of the motif, engraved from the notes; null without a variation.</summary>
     private ScoreSource? _variationScore;
+    private bool _startingPreview;
     private bool _showScore = true;
     private ScoreChoice _scoreChoice = ScoreChoice.AsWritten;
 
@@ -593,6 +594,8 @@
     }
 
     private void OnPlayerChanged() => _ = InvokeAsync(StateHasChanged);
+
+    protected override bool ShouldRender() => !_startingPreview;
 
     private Task LoadFurEliseAsync()
     {
@@ -1244,18 +1247,28 @@
 
         _chain = chain;
         _variation = chain.Result;
-        _variationScore = VariationScore(_variation);
-        await Player.SetSourceAsync(VariationSource, _score!.WithNotes(_variation.Notes));
-        if (play)
+        // Rendering the page and engraving the variation take longer than starting the preview, so
+        // they wait until the engine has started (Player.PlayAsync): previews start within 300 ms (#66).
+        _startingPreview = play;
+        try
         {
-            await AuditionAsync(variation: true);
+            await Player.SetSourceAsync(VariationSource, _score!.WithNotes(_variation.Notes));
+            if (play)
+            {
+                await AuditionAsync(variation: true);
+            }
+            else if (_looping)
+            {
+                // The loop follows the variation's new length.
+                await LoopSelectionAsync(selection);
+            }
         }
-        else if (_looping)
+        finally
         {
-            // The loop follows the variation's new length.
-            await LoopSelectionAsync(selection);
+            _startingPreview = false;
         }
 
+        _variationScore = VariationScore(_variation);
         await SaveProjectAsync();
     }
 

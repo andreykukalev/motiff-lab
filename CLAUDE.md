@@ -10,6 +10,7 @@ See `docs/decisions/0001-stack.md` (stack), `0002-canonical-time.md` (musical ti
 - `src/MotiffLab.Web` — Blazor WebAssembly PWA. Browser-only APIs (Web Audio, Web MIDI, canvas, IndexedDB) go through a thin TypeScript layer via JS interop: sources in `Scripts/`, compiled to `wwwroot/js/` (not committed) during `dotnet build`.
 - `tests/MotiffLab.MusicCore.Tests` — xUnit tests for music-core.
 - `tests/web` — Node tests for the TypeScript layer, run on the compiled output.
+- `tests/e2e` — Playwright tests of the published app: the core journey in Chromium, Firefox and WebKit (desktop and tablet), offline, and WCAG 2.2 AA with axe.
 
 ## Commands
 
@@ -17,6 +18,7 @@ See `docs/decisions/0001-stack.md` (stack), `0002-canonical-time.md` (musical ti
 dotnet build MotiffLab.slnx
 dotnet test MotiffLab.slnx
 node --test "tests/web/*.test.mjs"     # after a build; Node 22+
+dotnet publish src/MotiffLab.Web -c Release -o publish && (cd tests/e2e && npm ci && npx playwright test)  # browser tests
 dotnet format MotiffLab.slnx            # CI runs with --verify-no-changes
 dotnet run --project src/MotiffLab.Web  # local dev server
 ```

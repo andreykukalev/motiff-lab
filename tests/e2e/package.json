@@ -1,0 +1,13 @@
+{
+  "name": "motiff-lab-e2e",
+  "private": true,
+  "type": "module",
+  "description": "Browser smoke, offline and accessibility tests for the published app (issue #66).",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "1.63.0"
+  }
+}

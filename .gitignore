@@ -483,3 +483,6 @@ $RECYCLE.BIN/
 
 # TypeScript output (compiled from src/MotiffLab.Web/Scripts by Microsoft.TypeScript.MSBuild)
 src/MotiffLab.Web/wwwroot/js/
+
+# Playwright reports (tests/e2e)
+playwright-report/

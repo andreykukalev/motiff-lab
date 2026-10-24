@@ -6,13 +6,14 @@ Small, pragmatic rules for the web UI (`src/MotiffLab.Web`) so that UI fixes sta
 
 - The playback lab is a wide workspace: the piano roll on the left and the score on the right, splitting the width 50/50 from about 70rem; below that they stack. Hiding the score gives the roll the full width.
 - A toolbar above the workspace holds what changes the whole view: the Notes filter, what is heard (Hear), and the score switch and choice. Selection, reshape controls and facts sit below the workspace, side by side on wide screens.
-- There are no bar number boxes: selection is made with the mouse on the roll.
+- There are no bar number boxes: selection is made on the roll, with the mouse or, with the roll focused, the keyboard.
 
 ## Selection on the piano roll
 
 - **Drag anywhere** on the roll (the bar numbers or the notes area) to select a range. music-core snaps it to beats (`MotifSelector.Drag`); the roll only reports where the drag started and ended.
 - **Drag an edge** of the selection (grips on the bar numbers, an ew-resize cursor anywhere on the edge line) to move just that edge; the other edge stays. A reshape in place is made again on the new range.
 - **Click a bar number** to select that bar. **Shift-click a bar number** to extend the selection to that bar, in whole bars.
+- **By keyboard**, with the roll focused: **]** and **[** select the bar after or before the selection (the first bar when nothing is selected), and with **Shift** they extend the selection by that bar, as a click or Shift-click on its number does (WCAG 2.1.1). Space loops the selection.
 - **Click a note** to hear it and select it; Shift, Ctrl or Cmd adds to the note selection. A press on a note that moves becomes a range drag.
 - **Clear** with Escape, a click on an empty place in the roll, or a click on the page outside the roll. Clicks on controls (buttons, inputs, links, labels) never clear. Panels that show or act on the selection carry `data-keeps-selection`, so reading or using them does not clear it: today the selection panel (facts, Keep, variation) and the score. Mark any new panel of that kind the same way.
 - **Space** plays and pauses from anywhere on the page: with notes selected it loops them and plays (later presses pause and resume the loop), with nothing selected it plays the piece. It acts on buttons and sliders too (Enter still presses a button), but not in text fields, lists, checkboxes or radios, where Space types or ticks.
