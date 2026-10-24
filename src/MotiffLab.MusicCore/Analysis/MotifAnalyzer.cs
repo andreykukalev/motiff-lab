@@ -17,7 +17,7 @@ public enum ContourStep
 public sealed record KeyReading(MusicalKey Key, FactCertainty Certainty, MusicalKey? RunnerUp);
 
 /// <summary>What the engine measured in a motif, as values and as plain facts.</summary>
-/// <param name="Line">The melody: the notes in order, or the highest note at each onset when notes sound together.</param>
+/// <param name="Line">The melody: the notes in order, or the top line (<see cref="MotifTexture.Melody"/>) when notes sound together.</param>
 /// <param name="LineIsTopNotes">True when notes sound together, so <paramref name="Line"/> is inferred as the top line.</param>
 /// <param name="Intervals">Semitones from each melody note to the next; positive is up.</param>
 /// <param name="Contour">The direction of each interval.</param>
@@ -121,15 +121,16 @@ public static partial class MotifAnalyzer
         }
 
         IGrouping<Tick, Note>[] onsets = [.. chosen.GroupBy(note => note.Span.Onset)];
-        Note[] line = [.. onsets.Select(group => group.MaxBy(note => note.Pitch.MidiNumber)!)];
-        bool topNotes = onsets.Any(group => group.Count() > 1);
+        MotifTexture texture = MotifTexture.Read(chosen);
+        Note[] line = [.. texture.Melody];
+        bool topNotes = !texture.IsSingleLine;
         int[] intervals = [.. line.Zip(line.Skip(1), (from, to) => to.Pitch.MidiNumber - from.Pitch.MidiNumber)];
         ContourStep[] contour = [.. intervals.Select(step => step > 0 ? ContourStep.Up : step < 0 ? ContourStep.Down : ContourStep.Same)];
         KeyReading key = ReadKey(chosen, signature);
 
         FactCertainty lineCertainty = topNotes ? FactCertainty.Inferred : FactCertainty.Detected;
         string lineBasis = topNotes
-            ? "Notes sound together, so the melody is taken as the highest note at each onset."
+            ? "Notes sound together, so the melody is taken as the top line: the highest note at each onset, among right-hand notes when there are any, leaving out notes under a melody note still held."
             : "Read from the notes, one at a time.";
 
         var facts = new List<MotifFact>
@@ -162,6 +163,11 @@ public static partial class MotifAnalyzer
         }
 
         facts.Add(RepeatedNotesFact(line, meter, key.Key, lineCertainty, lineBasis));
+        if (topNotes)
+        {
+            facts.Add(SoundingWithFact(texture, key.Key));
+        }
+
         if (phrases is not null)
         {
             facts.Add(PhraseFact(chosen, phrases, meter));

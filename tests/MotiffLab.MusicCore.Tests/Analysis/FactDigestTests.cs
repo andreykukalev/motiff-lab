@@ -95,7 +95,7 @@ public class FactDigestTests
 
         // Every line after the two header lines is one analyser fact, and nothing else.
         string[] lines = digest.ToText().TrimEnd('\n').Split('\n');
-        Assert.Equal(["engine 1", "subject motif"], lines[..2]);
+        Assert.Equal([$"engine {FactDigest.CurrentEngineVersion}", "subject motif"], lines[..2]);
         Assert.Equal(facts.Count, lines.Length - 2);
         Assert.Equal(facts.OrderBy(fact => fact.Lens).Select(fact => fact.Id), digest.Facts.Select(fact => fact.Id));
         Assert.DoesNotContain("Basis that stays", digest.ToText(), StringComparison.Ordinal);
@@ -137,7 +137,7 @@ public class FactDigestTests
         Assert.Equal([FactDigest.OperationId, FactDigest.ChangesId, FactDigest.KeepId], digest.Facts.TakeLast(3).Select(fact => fact.Id));
         Assert.Equal("Operation: V1.", digest.Find(FactDigest.OperationId)!.Text);
         Assert.Equal(variation.Explanation, digest.Find(FactDigest.ChangesId)!.Text);
-        Assert.Equal("Kept: pitches. Not checked yet: melody.", digest.Find(FactDigest.KeepId)!.Text);
+        Assert.Equal("Kept: pitches, melody.", digest.Find(FactDigest.KeepId)!.Text);
     }
 
     [Fact]

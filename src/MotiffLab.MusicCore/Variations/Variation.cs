@@ -24,11 +24,15 @@ public enum KeepStatus
     /// <summary>The step changed it; shown on its chip, never blocking.</summary>
     NoLongerKept,
 
-    /// <summary>The engine cannot check it yet: melody, bass and harmony need voice and chord analysis (S1-A3).</summary>
+    /// <summary>The engine cannot check it yet: harmony needs chord analysis (S1-A3).</summary>
     NotChecked,
 }
 
-/// <summary>The result of checking one kept property against the motif before the step.</summary>
+/// <summary>
+/// The result of checking one property against the motif before the step. Contour, intervals,
+/// melody and bass are read on the lines of <see cref="Motifs.MotifTexture"/>, so a chord under the
+/// melody does not count as melodic movement.
+/// </summary>
 public sealed record KeepCheck(KeepProperty Property, KeepStatus Status);
 
 /// <summary>One note of the motif before and after a step. Both share the note's id.</summary>
@@ -43,8 +47,8 @@ public sealed record NoteChange(Note Before, Note After)
 
 /// <summary>
 /// A variation of a motif: its notes, the note-by-note diff to the notes it was made from, the
-/// checks of the kept properties, the operation rules it raised, and an explanation built only from
-/// the diff (S1-E4).
+/// checks of the kept properties and of every other property, the operation rules it raised, and an
+/// explanation built only from the diff (S1-E4).
 /// </summary>
 /// <remarks>
 /// The diff pairs notes by id. A note whose id is in both is a <see cref="NoteChange"/>, even when
@@ -55,6 +59,11 @@ public sealed record NoteChange(Note Before, Note After)
 /// <param name="Changes">Every source note that is still there, paired with its varied note, in the source's order.</param>
 /// <param name="Added">Notes the step added, in the order of <paramref name="Notes"/>.</param>
 /// <param name="Removed">Source notes the step removed, in the source's order.</param>
+/// <param name="Checks">The properties the player asked to keep, each checked, in the order of the Keep table.</param>
+/// <param name="Properties">
+/// All nine properties checked, whether or not they were asked to be kept: what the step changed
+/// and what stayed invariant, in the order of the Keep table.
+/// </param>
 /// <param name="Flags">Operation rules the result raises without being blocked, such as a hand span over a 10th.</param>
 public sealed record Variation(
     string Operation,
@@ -63,5 +72,6 @@ public sealed record Variation(
     IReadOnlyList<Note> Added,
     IReadOnlyList<Note> Removed,
     IReadOnlyList<KeepCheck> Checks,
+    IReadOnlyList<KeepCheck> Properties,
     IReadOnlyList<string> Flags,
     string Explanation);

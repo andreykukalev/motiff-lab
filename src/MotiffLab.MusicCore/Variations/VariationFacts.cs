@@ -45,11 +45,42 @@ public static class VariationFacts
         Note[] added = ordered.Where(note => !beforeIds.Contains(note.Id)).ToArray();
         Note[] removed = before.Where(note => !afterById.ContainsKey(note.Id)).ToArray();
         Note[] source = [.. before];
-        KeepCheck[] checks = Enum.GetValues<KeepProperty>()
-            .Where(keep.Contains)
-            .Select(property => new KeepCheck(property, Check(property, source, ordered, span)))
+        var textures = (Before: MotifTexture.Read(source), After: MotifTexture.Read(ordered));
+        KeepCheck[] properties = Enum.GetValues<KeepProperty>()
+            .Select(property => new KeepCheck(property, Check(property, source, ordered, span, textures.Before, textures.After)))
             .ToArray();
-        return new Variation(operation, ordered, changes, added, removed, checks, flags, Explain(changes, added, removed, source, ordered));
+        KeepCheck[] checks = properties.Where(check => keep.Contains(check.Property)).ToArray();
+        string explanation = Explain(changes, added, removed, source, ordered);
+        string unchanged = Unchanged(properties, textures.Before);
+        if (changes.Length + added.Length + removed.Length > 0 && unchanged.Length > 0)
+        {
+            explanation = $"{explanation} {unchanged}";
+        }
+
+        return new Variation(operation, ordered, changes, added, removed, checks, properties, flags, explanation);
+    }
+
+    /// <summary>
+    /// "Unchanged: pitches, pitch order and register.", naming every property the diff shows the step
+    /// left as it was; the bass is named only when the source has one apart from its melody.
+    /// </summary>
+    private static string Unchanged(IReadOnlyList<KeepCheck> properties, MotifTexture before)
+    {
+        string[] names = [.. properties
+            .Where(check => check.Status == KeepStatus.Kept && (check.Property != KeepProperty.Bass || !before.IsSingleLine))
+            .Select(check => check.Property switch
+            {
+                KeepProperty.PitchOrder => "pitch order",
+                KeepProperty.Melody => "melody pitches",
+                KeepProperty.Bass => "bass pitches",
+                _ => check.Property.ToString().ToLowerInvariant(),
+            })];
+        return names.Length switch
+        {
+            0 => "",
+            1 => $"Unchanged: {names[0]}.",
+            _ => $"Unchanged: {string.Join(", ", names[..^1])} and {names[^1]}.",
+        };
     }
 
     /// <summary>"3 quarter notes", "1 eighth", "5 sixteenths", or ticks when the length is finer than that.</summary>
@@ -72,21 +103,31 @@ public static class VariationFacts
         .ThenBy(static note => note.Id, StringComparer.Ordinal)
         .ToArray();
 
-    private static KeepStatus Check(KeepProperty property, Note[] before, Note[] after, TickSpan span)
+    /// <remarks>
+    /// Pitches, pitch order and register read every note. Contour and intervals read the melody, as
+    /// the melody facts do (S1-A2), so the notes of a chord under it are not melodic steps. Melody
+    /// and bass are kept when their lines keep their pitches in order; their rhythm may change
+    /// (the Keep table's footnote 1).
+    /// </remarks>
+    private static KeepStatus Check(KeepProperty property, Note[] before, Note[] after, TickSpan span, MotifTexture textureBefore, MotifTexture textureAfter)
     {
-        if (property is KeepProperty.Melody or KeepProperty.Bass or KeepProperty.Harmony)
+        if (property is KeepProperty.Harmony)
         {
             return KeepStatus.NotChecked;
         }
 
         int[] pitchesBefore = before.Select(static note => note.Pitch.MidiNumber).ToArray();
         int[] pitchesAfter = after.Select(static note => note.Pitch.MidiNumber).ToArray();
+        int[] melodyBefore = Pitches(textureBefore.Melody);
+        int[] melodyAfter = Pitches(textureAfter.Melody);
         bool kept = property switch
         {
             KeepProperty.Pitches => pitchesBefore.Order().SequenceEqual(pitchesAfter.Order()),
             KeepProperty.PitchOrder => pitchesBefore.SequenceEqual(pitchesAfter),
-            KeepProperty.Contour => Steps(pitchesBefore).Select(Math.Sign).SequenceEqual(Steps(pitchesAfter).Select(Math.Sign)),
-            KeepProperty.Intervals => Steps(pitchesBefore).SequenceEqual(Steps(pitchesAfter)),
+            KeepProperty.Contour => Steps(melodyBefore).Select(Math.Sign).SequenceEqual(Steps(melodyAfter).Select(Math.Sign)),
+            KeepProperty.Intervals => Steps(melodyBefore).SequenceEqual(Steps(melodyAfter)),
+            KeepProperty.Melody => melodyBefore.SequenceEqual(melodyAfter),
+            KeepProperty.Bass => Pitches(textureBefore.Bass).SequenceEqual(Pitches(textureAfter.Bass)),
             KeepProperty.Rhythm => Rhythm(before, span).SequenceEqual(Rhythm(after, span)),
             KeepProperty.Register => pitchesBefore.Length == pitchesAfter.Length
                 && (pitchesBefore.Length == 0 || (pitchesBefore.Min() == pitchesAfter.Min() && pitchesBefore.Max() == pitchesAfter.Max())),
@@ -94,6 +135,8 @@ public static class VariationFacts
         };
         return kept ? KeepStatus.Kept : KeepStatus.NoLongerKept;
     }
+
+    private static int[] Pitches(IReadOnlyList<Note> line) => line.Select(static note => note.Pitch.MidiNumber).ToArray();
 
     private static IEnumerable<int> Steps(int[] pitches) => pitches.Zip(pitches.Skip(1), static (a, b) => b - a);
 
