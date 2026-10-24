@@ -215,4 +215,58 @@ public class MelodyOperationTests
         Assert.Same(IntervalReshape.Instance, VariationOperations.Find("V9"));
         Assert.Same(ChangeDirection.Instance, VariationOperations.Find("V10"));
     }
+
+    [Fact]
+    public void Interval_reshape_widens_only_the_picked_intervals()
+    {
+        Note[] notes = FurElise();
+
+        Variation variation = IntervalReshape.Instance.Apply(notes, Context(notes, s_aMinor), new IntervalReshapeParameters(1, new IntervalSet([2])));
+
+        // Interval 3 (E5 down to B4, a 4th) becomes a 5th down to A4; the notes after it move with it.
+        Assert.Equal([76, 75, 76, 69, 72, 71, 67], Pitches(variation));
+        Assert.StartsWith("1 of 6 melody intervals is 1 scale step wider in the key's scale, keeping its direction.", variation.Explanation);
+    }
+
+    [Fact]
+    public void Change_direction_flips_only_the_picked_intervals_and_the_rest_keep_their_size_and_direction()
+    {
+        Note[] notes = FurElise();
+
+        Variation variation = ChangeDirection.Instance.Apply(notes, Context(notes, key: null), new ChangeDirectionParameters(Diatonic: false, new IntervalSet([2])));
+
+        // E5 down a 4th to B4 becomes E5 up a 4th to A5; the intervals after it stay: +3 −2 −3.
+        Assert.Equal([76, 75, 76, 81, 84, 82, 79], Pitches(variation));
+        Assert.StartsWith("1 of 6 melody intervals turns the other way, keeping its size in semitones.", variation.Explanation);
+    }
+
+    [Fact]
+    public void Change_direction_of_every_interval_names_the_axis()
+    {
+        Note[] notes = FurElise();
+
+        Variation variation = ChangeDirection.Instance.Apply(notes, Context(notes, s_aMinor), new ChangeDirectionParameters());
+
+        Assert.StartsWith("The melody is mirrored around its first note, E5: every interval turns the other way, keeping its size in steps of the key's scale.", variation.Explanation);
+    }
+
+    [Fact]
+    public void Picking_an_interval_the_melody_does_not_have_is_unavailable()
+    {
+        Note[] notes = FurElise();
+
+        string? reason = ChangeDirection.Instance.UnavailableReason(notes, Context(notes, s_aMinor), new ChangeDirectionParameters(Intervals: new IntervalSet([6])));
+
+        Assert.Equal("Change direction is asked to change interval 7, and the melody has 6, so it is not available for this selection.", reason);
+    }
+
+    [Fact]
+    public void Interval_sets_compare_by_value_and_reject_an_empty_pick()
+    {
+        Assert.Equal(new IntervalReshapeParameters(1, new IntervalSet([2, 0, 2])), new IntervalReshapeParameters(1, new IntervalSet([0, 2])));
+        Assert.NotEqual(new IntervalSet([0]), new IntervalSet([1]));
+        Assert.Equal("1, 3", new IntervalSet([2, 0]).ToString());
+        Assert.Throws<ArgumentException>(() => new IntervalSet([]));
+        Assert.Throws<ArgumentException>(() => new IntervalSet([-1]));
+    }
 }

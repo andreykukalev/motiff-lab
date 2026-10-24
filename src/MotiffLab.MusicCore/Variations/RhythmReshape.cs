@@ -3,9 +3,23 @@ using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Variations;
 
-/// <summary>The V1 rhythm reshapes this slice offers. Syncopate and dotted follow in #35.</summary>
+/// <summary>The V1 rhythm reshapes (Stage 1 spec, Operations in Stage 1 · V1).</summary>
 public enum RhythmReshapeKind
 {
+    /// <summary>
+    /// Every onset on a beat after the motif's first moves half a beat earlier and is held to where it
+    /// ended, so it is heard ahead of the beat and tied into it; a note that ran up to that beat ends
+    /// half a beat earlier. A beat is skipped when something already starts in the half beat before it.
+    /// </summary>
+    Syncopate,
+
+    /// <summary>
+    /// Every pair of equal quarters or eighths that starts on a multiple of its pair's length from the
+    /// bar line becomes long–short: the first note lasts half as long again, and the second starts that
+    /// much later and lasts half as long.
+    /// </summary>
+    Dotted,
+
     /// <summary>Every onset twice as far from the motif's start, every note twice as long.</summary>
     HalfTime,
 
@@ -54,18 +68,126 @@ public sealed class RhythmReshape : VariationOperation<RhythmReshapeParameters>
         }
     }
 
-    protected override string? Precondition(IReadOnlyList<Note> notes, VariationContext context, RhythmReshapeParameters parameters) =>
-        parameters.Kind == RhythmReshapeKind.DoubleTime
-            && notes.Any(note => (note.Span.Onset.Value - context.Span.Onset.Value) % 2 != 0 || note.Span.Duration % 2 != 0)
-            ? "Double-time would put a note between ticks, so it is not available for this selection."
-            : null;
+    protected override string? Precondition(IReadOnlyList<Note> notes, VariationContext context, RhythmReshapeParameters parameters) => parameters.Kind switch
+    {
+        RhythmReshapeKind.DoubleTime when notes.Any(note => (note.Span.Onset.Value - context.Span.Onset.Value) % 2 != 0 || note.Span.Duration % 2 != 0) =>
+            "Double-time would put a note between ticks, so it is not available for this selection.",
+        RhythmReshapeKind.Syncopate when Anticipations(notes, context).Count == 0 =>
+            "Syncopate needs a note on a beat after the first with nothing starting in the half beat before it, so it is not available for this selection.",
+        RhythmReshapeKind.Dotted when Pairs(notes, context.Beats).Count == 0 =>
+            "Dotted needs two equal quarters or eighths in a row, starting on the beat, so it is not available for this selection.",
+        _ => null,
+    };
 
-    protected override IEnumerable<Note> Transform(IReadOnlyList<Note> notes, VariationContext context, RhythmReshapeParameters parameters) =>
-        notes.Select(note => note with
+    protected override IEnumerable<Note> Transform(IReadOnlyList<Note> notes, VariationContext context, RhythmReshapeParameters parameters)
+    {
+        Dictionary<string, TickSpan> spans = parameters.Kind switch
         {
-            Span = Reshape(note.Span, context.Span.Onset.Value, parameters),
-            Attribution = Attribution.UserEdited,
-        });
+            RhythmReshapeKind.Syncopate => Syncopate(notes, context),
+            RhythmReshapeKind.Dotted => Dot(notes, context.Beats),
+            _ => notes.ToDictionary(static note => note.Id, note => Reshape(note.Span, context.Span.Onset.Value, parameters), StringComparer.Ordinal),
+        };
+        return notes.Select(note => spans.TryGetValue(note.Id, out TickSpan span) && span != note.Span
+            ? note with { Span = span, Attribution = Attribution.UserEdited }
+            : note);
+    }
+
+    /// <summary>The beats Syncopate anticipates, each with how far: half a beat of the bar it is in.</summary>
+    private static List<(Tick Beat, long Early)> Anticipations(IReadOnlyList<Note> notes, VariationContext context)
+    {
+        MeterMap meter = context.Beats;
+        Tick[] onsets = [.. notes.Select(static note => note.Span.Onset).Distinct().Order()];
+        var found = new List<(Tick, long)>();
+        foreach (Tick onset in onsets)
+        {
+            long beat = meter.SignatureAt(onset).BeatTicks;
+            if (meter.ToPosition(onset).BeatOffset != 0 || beat % 2 != 0)
+            {
+                continue;
+            }
+
+            long early = beat / 2;
+            long from = onset.Value - early;
+            if (from >= context.Span.Onset.Value && !onsets.Any(other => other.Value >= from && other < onset))
+            {
+                found.Add((onset, early));
+            }
+        }
+
+        return found;
+    }
+
+    private static Dictionary<string, TickSpan> Syncopate(IReadOnlyList<Note> notes, VariationContext context)
+    {
+        List<(Tick Beat, long Early)> beats = Anticipations(notes, context);
+        Dictionary<string, (long Onset, long End)> spans = notes.ToDictionary(
+            static note => note.Id,
+            note => beats.FirstOrDefault(beat => beat.Beat == note.Span.Onset) is { Early: > 0 } moved
+                ? (note.Span.Onset.Value - moved.Early, note.Span.End.Value)
+                : (note.Span.Onset.Value, note.Span.End.Value),
+            StringComparer.Ordinal);
+        foreach ((Tick beat, long early) in beats)
+        {
+            long from = beat.Value - early;
+            foreach (string id in spans.Keys.ToArray())
+            {
+                (long onset, long end) = spans[id];
+                if (onset < from && end > from && end <= beat.Value)
+                {
+                    spans[id] = (onset, from);
+                }
+            }
+        }
+
+        return spans.ToDictionary(static pair => pair.Key, static pair => TickSpan.FromBounds(new Tick(pair.Value.Onset), new Tick(pair.Value.End)), StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// The onset groups Dotted pairs, in order: two groups in a row whose notes all last the same quarter
+    /// or eighth, the second starting where the first ends, the first on a multiple of twice that length
+    /// from its bar's first beat. A group already in a pair is not paired again.
+    /// </summary>
+    private static List<(Note[] First, Note[] Second, long Length)> Pairs(IReadOnlyList<Note> notes, MeterMap meter)
+    {
+        Note[][] groups = [.. notes.GroupBy(static note => note.Span.Onset).OrderBy(static group => group.Key).Select(static group => group.ToArray())];
+        var pairs = new List<(Note[], Note[], long)>();
+        for (int i = 0; i + 1 < groups.Length; i++)
+        {
+            long length = groups[i][0].Span.Duration;
+            Tick onset = groups[i][0].Span.Onset;
+            MetricPosition position = meter.ToPosition(onset);
+            long fromBar = ((position.Beat - 1L) * meter.SignatureAt(onset).BeatTicks) + position.BeatOffset;
+            if (length is CanonicalTime.TicksPerQuarter or EighthTicks
+                && groups[i].Concat(groups[i + 1]).All(note => note.Span.Duration == length)
+                && groups[i + 1][0].Span.Onset.Value == onset.Value + length
+                && fromBar % (2 * length) == 0)
+            {
+                pairs.Add((groups[i], groups[i + 1], length));
+                i++;
+            }
+        }
+
+        return pairs;
+    }
+
+    private static Dictionary<string, TickSpan> Dot(IReadOnlyList<Note> notes, MeterMap meter)
+    {
+        var spans = new Dictionary<string, TickSpan>(StringComparer.Ordinal);
+        foreach ((Note[] first, Note[] second, long length) in Pairs(notes, meter))
+        {
+            foreach (Note note in first)
+            {
+                spans[note.Id] = new TickSpan(note.Span.Onset, length + (length / 2));
+            }
+
+            foreach (Note note in second)
+            {
+                spans[note.Id] = new TickSpan(note.Span.Onset.Offset(length / 2), length / 2);
+            }
+        }
+
+        return spans;
+    }
 
     private static TickSpan Reshape(TickSpan span, long start, RhythmReshapeParameters parameters)
     {

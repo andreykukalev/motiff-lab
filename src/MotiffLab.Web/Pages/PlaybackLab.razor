@@ -249,6 +249,8 @@
 
     private static readonly (string Label, RhythmReshapeParameters Parameters, string Hint)[] s_reshapes =
     [
+        ("Syncopate", new(RhythmReshapeKind.Syncopate), "Notes on a beat start half a beat early and are held into the beat."),
+        ("Dotted", new(RhythmReshapeKind.Dotted), "Pairs of equal quarters or eighths become long–short."),
         ("Half-time", new(RhythmReshapeKind.HalfTime), "Every note twice as long, and twice as far from the start of the selection."),
         ("Double-time", new(RhythmReshapeKind.DoubleTime), "Every note half as long, and half as far from the start of the selection."),
         ("Later by 1 eighth", new(RhythmReshapeKind.Displace, 1), "Every note starts an eighth later; lengths stay."),
@@ -891,12 +893,12 @@
 
     /// <summary>A chain with no steps over the selected notes, with a copy of the Keep choices.</summary>
     private VariationChain StartChain(MotifSelection selection) =>
-        VariationChain.Start(VariationFacts.MotifNotes(_notes!, selection), VariationContext.For(selection, _keep.ToHashSet()));
+        VariationChain.Start(VariationFacts.MotifNotes(_notes!, selection), VariationContext.For(selection, _keep.ToHashSet(), meter: _meter));
 
     /// <summary>Runs the chain's steps again on the selection and Keep choices as they are now; clears it when a step no longer runs.</summary>
     private Task ReplayAsync() =>
         _chain is not null && _selection is { } selection
-            && _chain.Replay(VariationFacts.MotifNotes(_notes!, selection), VariationContext.For(selection, _keep.ToHashSet())) is { } replayed
+            && _chain.Replay(VariationFacts.MotifNotes(_notes!, selection), VariationContext.For(selection, _keep.ToHashSet(), meter: _meter)) is { } replayed
             ? ShowAsync(replayed, play: false)
             : ClearVariationAsync();
 
