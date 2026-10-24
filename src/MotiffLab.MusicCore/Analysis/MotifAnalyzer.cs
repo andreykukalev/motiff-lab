@@ -91,7 +91,17 @@ public static partial class MotifAnalyzer
     /// <param name="notes">The notes of the piece; the selection's notes are picked by id.</param>
     /// <param name="signature">The key signature in force where the selection starts, or null when the file has none.</param>
     /// <param name="accents">The accents the file writes, or null when the format cannot mark accents (MIDI), which leaves out the accent fact.</param>
-    public static MotifAnalysis Analyze(IEnumerable<Note> notes, MeterMap meter, MotifSelection selection, KeySignature? signature, IEnumerable<AccentMark>? accents = null)
+    /// <param name="phrases">
+    /// The phrase boundaries of the notes the motif was picked from, found in the source and set by
+    /// the player (<see cref="PhraseBoundaryFinder"/>), or null to leave out the phrase fact.
+    /// </param>
+    public static MotifAnalysis Analyze(
+        IEnumerable<Note> notes,
+        MeterMap meter,
+        MotifSelection selection,
+        KeySignature? signature,
+        IEnumerable<AccentMark>? accents = null,
+        IEnumerable<PhraseBoundary>? phrases = null)
     {
         ArgumentNullException.ThrowIfNull(notes);
         ArgumentNullException.ThrowIfNull(meter);
@@ -145,6 +155,17 @@ public static partial class MotifAnalyzer
             Weaker(lineCertainty, key.Certainty),
             $"Scale degrees in {key.Key.Name}: {string.Join(" ", line.Select(note => Degree(note.Pitch, key.Key)))}.",
             $"Counted from the tonic of {key.Key.Name}; ♯ and ♭ mark notes outside its {(key.Key.Mode == KeyMode.Minor ? "natural minor" : "major")} scale. {(key.Certainty == FactCertainty.Detected ? "The key is stated by the file." : "The key is a reading of the notes, so the degrees are too.")}"));
+
+        if (intervals.Length > 0)
+        {
+            facts.Add(IntervalNamesFact(intervals, lineCertainty, lineBasis));
+        }
+
+        facts.Add(RepeatedNotesFact(line, meter, key.Key, lineCertainty, lineBasis));
+        if (phrases is not null)
+        {
+            facts.Add(PhraseFact(chosen, phrases, meter));
+        }
 
         bool offGrid = OffGridCount(chosen, meter) > 0;
         facts.Add(DurationsFact(chosen, offGrid));

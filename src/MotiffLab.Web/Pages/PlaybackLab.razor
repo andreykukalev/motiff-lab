@@ -593,8 +593,9 @@
     private async Task SelectAsync(TickSpan span, string? note)
     {
         _selection = MotifSelector.Select(_notes!, _meter!, span, _filter);
-        _analysis = MotifAnalyzer.Analyze(_notes!, _meter!, _selection, KeySignature.InForce(_keys, span.Onset), _accents);
-        _structure = StructureAnalyzer.Analyze(_notes!, _meter!, _selection, PhraseBoundaryFinder.Find(_notes!.Where(_filter.Matches), _meter!, _phraseMarks));
+        IReadOnlyList<PhraseBoundary> phrases = PhraseBoundaryFinder.Find(_notes!.Where(_filter.Matches), _meter!, _phraseMarks);
+        _analysis = MotifAnalyzer.Analyze(_notes!, _meter!, _selection, KeySignature.InForce(_keys, span.Onset), _accents, phrases);
+        _structure = StructureAnalyzer.Analyze(_notes!, _meter!, _selection, phrases);
         _selectionNote = note;
         await ClearVariationAsync();
         _barFrom = _selection.FirstBar;
