@@ -91,6 +91,9 @@ const SELECTION_BAND = "rgba(200, 241, 105, 0.14)";
 const SELECTION_HEADER = "rgba(200, 241, 105, 0.45)";
 /** Notes outside the selected motif are drawn faint, so the motif stands out. */
 const OUTSIDE_ALPHA = 0.3;
+/** The range that plays, marked on the bar numbers, with a band where it runs past the selection. */
+const PLAY_RANGE = INK;
+const PLAY_RANGE_EXTENSION = "rgba(244, 245, 242, 0.08)";
 /** Motif notes behind a variation are drawn this faint, so the variation's outlines read on top of them. */
 const BEHIND_VARIATION_ALPHA = 0.4;
 const VARIATION_FILL = "rgba(244, 245, 242, 0.28)";
@@ -124,6 +127,8 @@ export class PianoRoll {
     private drag: { pointer: number; anchorX: number; anchor: number; current: number; edge: boolean } | null = null;
     /** Indexes of the notes the Notes filter keeps, or null for all; the others are drawn faint and never light up. */
     private filtered: Set<number> | null = null;
+    /** The range that plays for the selection [start, end), when it differs from what is selected; null for none. */
+    private playRange: { start: number; end: number } | null = null;
     /** The variation of the motif, drawn as outlines over it, or null for none. */
     private variation: VariationNote[] | null = null;
     /** Which sources are heard, so only notes being heard light up. */
@@ -201,6 +206,7 @@ export class PianoRoll {
         this.selected = new Set();
         this.focusIndex = undefined;
         this.motif = null;
+        this.playRange = null;
         this.filtered = null;
         this.variation = null;
         this.drag = null;
@@ -252,6 +258,20 @@ export class PianoRoll {
     clearMotif(): void {
         this.motif = null;
         this.drag = null;
+        this.invalidate();
+    }
+
+    /**
+     * Shows the range that plays for the selection: a line over the bar numbers, a band where it runs
+     * past the selection and a dashed line where it ends, when that differs from the selection's end.
+     */
+    setPlayRange(start: number, end: number): void {
+        this.playRange = { start, end };
+        this.invalidate();
+    }
+
+    clearPlayRange(): void {
+        this.playRange = null;
         this.invalidate();
     }
 
@@ -474,6 +494,32 @@ export class PianoRoll {
                     if (right < width) {
                         context.fillRect(Math.round(right) - 4, 0, 4, HEADER);
                     }
+                }
+            }
+        }
+
+        // The range that plays, which a variation can make longer or shorter than the selection.
+        const play = this.drag === null ? this.playRange : null;
+        if (play !== null) {
+            const left = Math.max(GUTTER, this.xOf(play.start));
+            const right = Math.min(width, this.xOf(play.end));
+            if (right > left) {
+                context.fillStyle = PLAY_RANGE;
+                context.fillRect(left, 0, right - left, 3);
+                const selectionEnd = this.motif?.end ?? play.end;
+                if (play.end > selectionEnd) {
+                    const from = Math.max(GUTTER, this.xOf(selectionEnd));
+                    context.fillStyle = PLAY_RANGE_EXTENSION;
+                    context.fillRect(from, HEADER, right - from, height - HEADER);
+                }
+                if (play.end !== selectionEnd && right < width) {
+                    context.strokeStyle = PLAY_RANGE;
+                    context.setLineDash([4, 4]);
+                    context.beginPath();
+                    context.moveTo(Math.round(right) - 0.5, 0);
+                    context.lineTo(Math.round(right) - 0.5, height);
+                    context.stroke();
+                    context.setLineDash([]);
                 }
             }
         }

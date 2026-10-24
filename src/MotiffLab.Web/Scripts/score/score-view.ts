@@ -51,6 +51,9 @@ const RELAYOUT_THRESHOLD_PX = 24;
 
 const PLAYING_CLASS = "playing";
 
+/** Notes outside the range that plays for the selection, drawn faint as on the piano roll. */
+const OUTSIDE_CLASS = "outside";
+
 let toolkit: Promise<VerovioToolkit> | null = null;
 
 function loadToolkit(): Promise<VerovioToolkit> {
@@ -79,6 +82,8 @@ export class ScoreView {
     private player: PlayerHandle | null = null;
     private marked = new Set<string>();
     private markedKey = "";
+    /** The range that plays for the selection [start, end), or null when nothing is selected. */
+    private range: { start: number; end: number } | null = null;
     private laidOutWidth = 0;
     private frame = 0;
     private relayoutTimer = 0;
@@ -119,6 +124,15 @@ export class ScoreView {
         } else {
             this.mark([], false);
         }
+    }
+
+    /**
+     * Shows the range that plays for the selection: notes that start outside [start, end) go faint,
+     * and the first note in it is scrolled into view. Null shows every note at full strength.
+     */
+    setRange(start: number | null, end: number | null): void {
+        this.range = start === null || end === null ? null : { start, end };
+        this.applyRange(true);
     }
 
     dispose(): void {
@@ -162,11 +176,33 @@ export class ScoreView {
         }
         this.host.replaceChildren(...pages);
 
+        this.applyRange(false);
+
         // The new SVG has no marks; put back the ones that were showing.
         const marked = [...this.marked];
         this.marked = new Set();
         this.markedKey = "";
         this.mark(marked, false);
+    }
+
+    private applyRange(scroll: boolean): void {
+        const timeline = this.timeline;
+        if (timeline === null) {
+            return;
+        }
+        const range = this.range;
+        let first: Element | null = null;
+        for (const span of timeline.spans) {
+            const element = this.element(span.id);
+            const inside = range === null || (span.onset >= range.start && span.onset < range.end);
+            element?.classList.toggle(OUTSIDE_CLASS, !inside);
+            if (inside && range !== null && first === null) {
+                first = element;
+            }
+        }
+        if (scroll && first !== null && this.player?.state() !== "playing") {
+            this.scrollIntoView(first);
+        }
     }
 
     private scheduleRelayout(): void {

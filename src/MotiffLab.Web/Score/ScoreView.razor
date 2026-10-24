@@ -23,10 +23,15 @@ else if (_loading)
     private ScoreSource? _shown;
     private bool _loading;
     private string? _error;
+    private TickSpan? _shownRange;
 
     /// <summary>What to show. The view engraves it again only when a different instance is given.</summary>
     [Parameter, EditorRequired]
     public ScoreSource? Source { get; set; }
+
+    /// <summary>The range that plays for the selection; notes outside it are drawn faint. Null shows all at full strength.</summary>
+    [Parameter]
+    public TickSpan? Range { get; set; }
 
     protected override void OnParametersSet()
     {
@@ -42,8 +47,18 @@ else if (_loading)
             _view = await _module.InvokeAsync<IJSObjectReference>("createScoreView", _host, _self);
         }
 
-        if (_view is null || ReferenceEquals(Source, _shown) || Source is null)
+        if (_view is null || Source is null)
         {
+            return;
+        }
+
+        if (ReferenceEquals(Source, _shown))
+        {
+            if (Range != _shownRange)
+            {
+                await ShowRangeAsync(_view);
+            }
+
             return;
         }
 
@@ -53,6 +68,7 @@ else if (_loading)
         {
             await _view.InvokeAsync<ScoreLoadResult>("load", source.Data);
             await _view.InvokeVoidAsync("follow", Player.Engine);
+            await ShowRangeAsync(_view);
             _error = null;
         }
         catch (JSException exception)
@@ -62,6 +78,12 @@ else if (_loading)
 
         _loading = false;
         StateHasChanged();
+    }
+
+    private async Task ShowRangeAsync(IJSObjectReference view)
+    {
+        _shownRange = Range;
+        await view.InvokeVoidAsync("setRange", Range?.Onset.Value, Range?.End.Value);
     }
 
     /// <summary>Called by the script when a note is clicked: playback moves to its onset.</summary>

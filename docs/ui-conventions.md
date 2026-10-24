@@ -4,7 +4,7 @@ Small, pragmatic rules for the web UI (`src/MotiffLab.Web`) so that UI fixes sta
 
 ## Layout
 
-- The playback lab is a wide workspace: the piano roll on the left and the score on the right, side by side from about 70rem; below that they stack. Hiding the score gives the roll the full width.
+- The playback lab is a wide workspace: the piano roll on the left and the score on the right, splitting the width 50/50 from about 70rem; below that they stack. Hiding the score gives the roll the full width.
 - A toolbar above the workspace holds what changes the whole view: the Notes filter, what is heard (Hear), and the score switch and choice. Selection, reshape controls and facts sit below the workspace, side by side on wide screens.
 - There are no bar number boxes: selection is made with the mouse on the roll.
 
@@ -17,6 +17,13 @@ Small, pragmatic rules for the web UI (`src/MotiffLab.Web`) so that UI fixes sta
 - **Clear** with Escape, a click on an empty place in the roll, or a click on the page outside the roll. Clicks on controls (buttons, inputs, links, labels) never clear. Panels that show or act on the selection carry `data-keeps-selection`, so reading or using them does not clear it: today the selection panel (facts, Keep, variation) and the score. Mark any new panel of that kind the same way.
 - **Space** plays and pauses from anywhere on the page: with notes selected it loops them and plays (later presses pause and resume the loop), with nothing selected it plays the piece. It acts on buttons and sliders too (Enter still presses a button), but not in text fields, lists, checkboxes or radios, where Space types or ticks.
 - The 8-bar limit and its message come from music-core (`MotifSelection.MaxBars`).
+
+## The selection in the score, and the range that plays
+
+- The score shows the same selection as the roll: notes that start outside the range that plays are drawn faint, as on the roll, and the first note in the range is scrolled into view. Both views take the range from the page (`ShownRange`), so they never disagree with each other or with what loops.
+- The range that plays is the selection's range while the original is heard. While the variation is heard it runs from the selection's start to the end of the variation's last note, rounded up to the beat: a variation that runs longer (half-time) extends it, one that runs shorter (double-time) shortens it. Heard together with the original (Both), it never ends before the selection. It never runs past the end of the piece.
+- The roll marks the range that plays with a white line over the bar numbers; where it differs from the selection it adds a dashed end line, and a light band where it runs past the selection. The selection itself (lime band and edges) stays as the player made it.
+- Applying, changing or removing a variation never changes the selection. While the selection loops, the loop follows what is heard and the variation's length; changing Hear while it loops keeps looping.
 
 ## Hearing notes by hand
 
