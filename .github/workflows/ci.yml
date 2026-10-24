@@ -2,69 +2,32 @@ name: CI
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, closed]
+    types: [opened, synchronize, reopened, ready_for_review, closed]
   push:
     branches: [main]
 
 permissions:
   contents: read
 
+# A newer push to the same pull request supersedes the run in progress. Never cancel a run on main:
+# it may be provisioning infrastructure.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
 jobs:
+  # One job for build, test, publish and deploy: a second job would pay for another runner start, checkout,
+  # artifact upload and download, and billing rounds each job up to a whole minute.
+  # The job name is the required check, so it always runs and reports; what it skips it skips by step.
   build-test:
-    if: github.event.action != 'closed'
+    if: github.event.action != 'closed' && github.event.pull_request.draft != true
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-dotnet@v4
-        with:
-          global-json-file: global.json
-
-      - name: Restore
-        run: dotnet restore MotiffLab.slnx
-
-      - name: Check formatting
-        run: dotnet format MotiffLab.slnx --verify-no-changes --no-restore
-
-      - name: Build
-        run: dotnet build MotiffLab.slnx --configuration Release --no-restore
-
-      - name: Test
-        run: dotnet test MotiffLab.slnx --configuration Release --no-build
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      # The build compiles the TypeScript layer to wwwroot/js; these tests run the compiled engine.
-      - name: Test TypeScript layer
-        run: node --test "tests/web/*.test.mjs"
-
-      - name: Install WebAssembly build tools
-        run: dotnet workload install wasm-tools
-
-      - name: Publish web app
-        run: dotnet publish src/MotiffLab.Web --configuration Release --output publish
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: web
-          path: publish/wwwroot
-
-  # Provisions infra/main.bicep and deploys the published app to Azure Static Web Apps.
-  # main: provision, then deploy production. Pull requests: what-if, then deploy a preview.
-  # Signs in through OIDC as the identity from infra/bootstrap.bicep; see infra/README.md.
-  # Skipped until the bootstrap has set the AZURE_* repository variables, and on forks.
-  deploy:
-    needs: build-test
-    if: >-
-      vars.AZURE_CLIENT_ID != '' &&
-      (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
-    runs-on: ubuntu-latest
-    concurrency:
-      group: deploy-${{ github.ref }}
-      # Never cancel a production provision halfway; superseded previews can go.
-      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+    timeout-minutes: 15
     permissions:
       contents: read
       id-token: write # OIDC sign-in to Azure
@@ -75,14 +38,104 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Documentation-only changes skip the build and tests. Only changes to the app (src, infra, SDK and
+      # build settings) are published and deployed; test-only changes are built and tested but not deployed.
+      # Any doubt (a commit that cannot be fetched) runs everything.
+      - name: Find what changed
+        id: changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+        run: |
+          code=true
+          app=true
+          if [[ -n "$BASE_SHA" && "$BASE_SHA" != 0000000000000000000000000000000000000000 ]] \
+            && git fetch --depth=1 --no-tags origin "$BASE_SHA" 2>/dev/null; then
+            changed="$(git diff --name-only "$BASE_SHA" HEAD)"
+            echo "$changed"
+            code=false
+            app=false
+            while IFS= read -r f; do
+              case "$f" in
+                '') ;;
+                *.md|docs/*|stage1-issues/*|pilot/*|LICENSE*|.github/ISSUE_TEMPLATE/*|.github/pull_request_template.md) ;;
+                src/*|infra/*|global.json|Directory.Build.props|Directory.Packages.props|MotiffLab.slnx|.github/workflows/ci.yml)
+                  code=true
+                  app=true ;;
+                *) code=true ;;
+              esac
+            done <<< "$changed"
+          fi
+          azure=false
+          if [[ "$app" == true && -n "$AZURE_CLIENT_ID" ]] \
+            && [[ "${{ github.event_name }}" == push || "${{ github.event.pull_request.head.repo.full_name }}" == "${{ github.repository }}" ]]; then
+            azure=true
+          fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "deploy=$azure" >> "$GITHUB_OUTPUT"
+          echo "code=$code deploy=$azure"
+
+      - uses: actions/setup-dotnet@v4
+        if: steps.changes.outputs.code == 'true'
+        with:
+          global-json-file: global.json
+
+      - uses: actions/cache@v4
+        if: steps.changes.outputs.code == 'true'
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Build.props', 'Directory.Packages.props', 'global.json') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Restore
+        if: steps.changes.outputs.code == 'true'
+        run: dotnet restore MotiffLab.slnx
+
+      - name: Check formatting
+        if: steps.changes.outputs.code == 'true'
+        run: dotnet format MotiffLab.slnx --verify-no-changes --no-restore
+
+      - name: Build
+        if: steps.changes.outputs.code == 'true'
+        run: dotnet build MotiffLab.slnx --configuration Release --no-restore
+
+      - name: Test
+        if: steps.changes.outputs.code == 'true'
+        run: dotnet test MotiffLab.slnx --configuration Release --no-build
+
+      - uses: actions/setup-node@v4
+        if: steps.changes.outputs.code == 'true'
+        with:
+          node-version: 22
+
+      # The build compiles the TypeScript layer to wwwroot/js; these tests run the compiled engine.
+      - name: Test TypeScript layer
+        if: steps.changes.outputs.code == 'true'
+        run: node --test "tests/web/*.test.mjs"
+
+      # Publishing needs the wasm-tools workload (about 35 s to install) and a trimming publish (about a minute),
+      # so it only runs when the result is deployed.
+      - name: Install WebAssembly build tools
+        if: steps.changes.outputs.deploy == 'true'
+        run: dotnet workload install wasm-tools
+
+      - name: Publish web app
+        if: steps.changes.outputs.deploy == 'true'
+        run: dotnet publish src/MotiffLab.Web --configuration Release --output publish
+
+      # Provisions infra/main.bicep and deploys the published app to Azure Static Web Apps.
+      # main: provision, then deploy production. Pull requests: what-if, then deploy a preview.
+      # Signs in through OIDC as the identity from infra/bootstrap.bicep; see infra/README.md.
+      # Skipped until the bootstrap has set the AZURE_* repository variables, and on forks.
       - uses: azure/login@v2
+        if: steps.changes.outputs.deploy == 'true'
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       - name: Preview infrastructure changes
-        if: github.event_name == 'pull_request'
+        if: steps.changes.outputs.deploy == 'true' && github.event_name == 'pull_request'
         run: >-
           az deployment group what-if
           --resource-group "$RESOURCE_GROUP"
@@ -90,7 +143,7 @@ jobs:
           --parameters infra/main.bicepparam
 
       - name: Provision infrastructure
-        if: github.event_name == 'push'
+        if: steps.changes.outputs.deploy == 'true' && github.event_name == 'push'
         run: >-
           az deployment group create
           --resource-group "$RESOURCE_GROUP"
@@ -101,23 +154,20 @@ jobs:
 
       # The deployment token is read at run time, so it is never stored in GitHub.
       - name: Get deployment token
+        if: steps.changes.outputs.deploy == 'true'
         run: |
           token="$(az staticwebapp secrets list --name "$SWA_NAME" --resource-group "$RESOURCE_GROUP" --query properties.apiKey --output tsv)"
           echo "::add-mask::$token"
           echo "SWA_TOKEN=$token" >> "$GITHUB_ENV"
 
-      - uses: actions/download-artifact@v4
-        with:
-          name: web
-          path: web
-
       - name: Deploy to Static Web Apps
+        if: steps.changes.outputs.deploy == 'true'
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ env.SWA_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
-          app_location: web
+          app_location: publish/wwwroot
           output_location: ''
           skip_app_build: true
           skip_api_build: true
@@ -128,6 +178,7 @@ jobs:
       github.event_name == 'pull_request' && github.event.action == 'closed' &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       id-token: write
     env:
