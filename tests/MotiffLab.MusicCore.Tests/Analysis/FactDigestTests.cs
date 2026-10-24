@@ -33,7 +33,8 @@ public class FactDigestTests
         IReadOnlyList<PhraseBoundary> phrases = PhraseBoundaryFinder.Find(piece.Notes, piece.Meter, marks);
         MotifAnalysis motif = MotifAnalyzer.Analyze(piece.Notes, piece.Meter, selection, KeySignature.InForce(piece.Keys, span.Onset), piece.MusicXml?.AccentMarks, phrases);
         StructureAnalysis structure = StructureAnalyzer.Analyze(piece.Notes, piece.Meter, selection, phrases);
-        return ([.. motif.Facts, .. structure.Facts], selection);
+        IReadOnlyList<MotifFact> character = MotifAnalyzer.AnalyzeCharacter(piece.Notes, piece.Meter, selection, KeySignature.InForce(piece.Keys, span.Onset), CharacterContext.FromPiece(piece));
+        return ([.. motif.Facts, .. structure.Facts, .. character], selection);
     }
 
     private static FactDigest GrandStaffDigest() =>
