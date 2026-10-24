@@ -6,19 +6,22 @@
 @using MotiffLab.MusicCore.Motifs
 @using MotiffLab.MusicCore.Notation
 @using MotiffLab.MusicCore.Playback
+@using MotiffLab.MusicCore.Projects
 @using MotiffLab.MusicCore.Time
 @using MotiffLab.MusicCore.Variations
 @using MotiffLab.Web.Import
 @using MotiffLab.Web.Playback
+@using MotiffLab.Web.Projects
 @using MotiffLab.Web.Roll
 @using MotiffLab.Web.Score
 @implements IDisposable
 @inject Player Player
 @inject CurrentPiece CurrentPiece
+@inject ProjectStore Projects
 
 <PageTitle>Playback · Motiff Lab</PageTitle>
 
-@* A test bench for the playback engine (S1-W4, S1-W5), the piano roll and keyboard (S1-W2, S1-W3), motif selection, its loop and its facts (S1-M1, S1-M2, S1-M5, S1-A1, S1-A2) and the score view (S1-W7) until the workspace exists. Files stay on the device. *@
+@* A test bench for the playback engine (S1-W4, S1-W5), the piano roll and keyboard (S1-W2, S1-W3), motif selection, its loop and its facts (S1-M1, S1-M2, S1-M5, S1-A1, S1-A2) and the score view (S1-W7) and a second file as the variation (S1-W5) until the workspace exists. Files stay on the device. *@
 <main class="lab">
     <h1>Playback</h1>
     <p class="meta">A test bench for playback until the workspace lands. Open a MIDI or MusicXML file or use the demo; nothing leaves this device.</p>
@@ -72,12 +75,38 @@
 
         <section class="row">
             <span>Source</span>
-            @foreach ((string label, string[] ids) in s_sources)
+            @foreach ((string label, string[] ids) in Sources)
             {
                 <label><input type="radio" name="source" checked="@Player.ActiveSources.SequenceEqual(ids)" disabled="@_looping" @onchange="() => Player.SelectSourcesAsync(ids)" /> @label</label>
             }
             <span class="meta">@(_looping ? "Only the selected notes play while the selection loops." : "The variation is empty until you reshape a selection below.")</span>
         </section>
+
+        @* A second file as the variation (S1-W5): it plays on this piece's timeline, so A/B keeps the position. *@
+        <section class="row">
+            <label class="file">
+                Open a second file
+                <InputFile OnChange="OpenSecondFileAsync" accept="@PieceImporter.AcceptedExtensions" />
+            </label>
+            @if (_secondTitle is not null)
+            {
+                <span class="meta">@_secondTitle</span>
+                <button @onclick="RemoveSecondFileAsync">Remove</button>
+            }
+            else
+            {
+                <span class="meta">Compare the piece with another file, such as your own variation of it.</span>
+            }
+        </section>
+        @if (_secondMessage is not null)
+        {
+            <p class="error">@_secondMessage</p>
+            <p class="meta">@_secondTip</p>
+        }
+        @foreach (string difference in _secondDifferences)
+        {
+            <p class="meta">Second file: @difference</p>
+        }
 
         <section class="selection" aria-label="Selection">
             <div class="row">
@@ -199,12 +228,23 @@
         ("Displace by 3 eighths", new(RhythmReshapeKind.Displace, 3)),
     ];
 
+    /// <summary>A second file opened as the variation (S1-W5).</summary>
+    private const string SecondFileId = "second-file";
+
     private static readonly (string Label, string[] Ids)[] s_sources =
     [
         ("Original", [Player.OriginalSource]),
         ("Variation", [VariationSource]),
         ("Both", [Player.OriginalSource, VariationSource]),
     ];
+
+    private static readonly (string Label, string[] Ids)[] s_secondFileSources =
+    [
+        ("Second file", [SecondFileId]),
+        ("Original and second file", [Player.OriginalSource, SecondFileId]),
+    ];
+
+    private (string Label, string[] Ids)[] Sources => _secondTitle is null ? s_sources : [.. s_sources, .. s_secondFileSources];
 
     private PlaybackScore? _score;
     private IReadOnlyList<Note>? _notes;
@@ -227,7 +267,20 @@
     private string? _title;
     private string? _message;
     private string? _tip;
+    private string? _secondTitle;
+    private string? _secondMessage;
+    private string? _secondTip;
+    private IReadOnlyList<string> _secondDifferences = [];
     private int _pieceVersion;
+
+    /// <summary>The project the piece autosaves to (S1-P1); null for files opened here or the demo.</summary>
+    private Project? _project;
+
+    /// <summary>The motif the lab's selection is saved as. The lab works on one motif; a project can hold more.</summary>
+    private string _motifId = "m_0001";
+
+    /// <summary>True while a saved project is put back, so the steps of restoring do not autosave over it.</summary>
+    private bool _restoring;
     private ScoreSource? _asWritten;
     private ScoreSource? _generated;
     private bool _showScore = true;
@@ -275,6 +328,12 @@
                 _filter = CurrentPiece.StartWith;
             }
 
+            _project = CurrentPiece.Project;
+            if (CurrentPiece.Opened is { Motifs.Count: > 0 } opened)
+            {
+                await RestoreAsync(opened);
+            }
+
             StateHasChanged();
         }
     }
@@ -296,23 +355,76 @@
     private async Task OpenFileAsync(InputFileChangeEventArgs args)
     {
         (_message, _tip) = (null, null);
-        ImportRejection? rejection = PieceImporter.CheckSize(args.File.Size);
-        if (rejection is null)
+        PieceImportResult result = await ReadAsync(args.File);
+        if (result.Piece is { } piece)
         {
-            await using Stream stream = args.File.OpenReadStream(PieceImporter.MaxFileBytes);
-            using var memory = new MemoryStream();
-            await stream.CopyToAsync(memory);
-            PieceImportResult result = PieceImporter.Import(args.File.Name, memory.ToArray());
-            if (result.Piece is { } piece)
-            {
-                await LoadPieceAsync(piece);
-                return;
-            }
-
-            rejection = result.Rejection;
+            await LoadPieceAsync(piece);
+            return;
         }
 
-        (_message, _tip) = (rejection?.Message, rejection?.Tip);
+        (_message, _tip) = (result.Rejection?.Message, result.Rejection?.Tip);
+    }
+
+    /// <summary>Reads a picked file on the device and imports it; the file never leaves the browser.</summary>
+    private static async Task<PieceImportResult> ReadAsync(IBrowserFile file)
+    {
+        if (PieceImporter.CheckSize(file.Size) is { } rejection)
+        {
+            return new(null, rejection);
+        }
+
+        await using Stream stream = file.OpenReadStream(PieceImporter.MaxFileBytes);
+        using var memory = new MemoryStream();
+        await stream.CopyToAsync(memory);
+        return PieceImporter.Import(file.Name, memory.ToArray());
+    }
+
+    /// <summary>Opens a second file as the variation source and switches to it at the same position (S1-W5).</summary>
+    private async Task OpenSecondFileAsync(InputFileChangeEventArgs args)
+    {
+        (_secondMessage, _secondTip) = (null, null);
+        PieceImportResult result = await ReadAsync(args.File);
+        if (result.Piece is not { } piece || _score is null)
+        {
+            (_secondMessage, _secondTip) = (result.Rejection?.Message, result.Rejection?.Tip);
+            return;
+        }
+
+        if (_looping)
+        {
+            await StopLoopingAsync();
+        }
+
+        SecondFileSource second = SecondFileSource.Align(_score, piece);
+        if (second.Timeline != _score)
+        {
+            // The second file runs longer: reload the timeline, which stops playback, and come back to the same place.
+            Tick position = Player.Position;
+            _score = second.Timeline;
+            _lastBar = MotifSelector.LastBar(_meter!, _score.End);
+            await Player.LoadAsync(_score);
+            await Player.SetSourceAsync(VariationSource, _score.WithNotes(_variation?.Notes ?? []));
+            await Player.SeekAsync(position);
+        }
+
+        _secondTitle = piece.FileName;
+        _secondDifferences = second.Differences;
+        await Player.SetSourceAsync(SecondFileId, second.Notes);
+        await Player.SelectSourcesAsync(SecondFileId);
+    }
+
+    private async Task RemoveSecondFileAsync()
+    {
+        if (Player.ActiveSources.Contains(SecondFileId))
+        {
+            await Player.SelectSourcesAsync(Player.OriginalSource);
+        }
+
+        await Player.SetSourceAsync(SecondFileId, _score!.WithNotes([]));
+        _secondTitle = null;
+        _secondDifferences = [];
+        _motifId = "m_0001";
+        _project = null;
     }
 
     private async Task LoadPieceAsync(ImportedPiece piece)
@@ -349,9 +461,13 @@
         _selectionNote = null;
         _looping = false;
         _variation = null;
+        _secondTitle = null;
+        _secondDifferences = [];
+        (_secondMessage, _secondTip) = (null, null);
 
         await Player.LoadAsync(_score);
         await Player.SetSourceAsync(VariationSource, _score.WithNotes([]));
+        await Player.SetSourceAsync(SecondFileId, _score.WithNotes([]));
         await Player.SetTracksAsync([], []);
     }
 
@@ -483,6 +599,8 @@
                 await LoopSelectionAsync(_selection);
             }
         }
+
+        await SaveProjectAsync();
     }
 
     private async Task ClearSelectionAsync()
@@ -496,6 +614,7 @@
         _analysis = null;
         _selectionNote = null;
         await ClearVariationAsync();
+        await SaveProjectAsync();
     }
 
     /// <summary>Why the Keep choices rule V1 out (S1-E2), or null.</summary>
@@ -569,6 +688,59 @@
         if (play || (_looping && Player.ActiveSources.SequenceEqual([VariationSource])))
         {
             await AuditionAsync(variation: true);
+        }
+
+        await SaveProjectAsync();
+    }
+
+    /// <summary>
+    /// Autosaves the selection as the project's working motif, with its variation and Keep choices
+    /// (S1-P1). Other motifs and variations in the project are kept as they are.
+    /// </summary>
+    private async Task SaveProjectAsync()
+    {
+        if (_project is null || _restoring)
+        {
+            return;
+        }
+
+        var motifs = _project.Motifs.Where(motif => motif.Id != _motifId).ToList();
+        var variations = _project.Variations.Where(variation => variation.MotifId != _motifId).ToList();
+        if (_selection is { NoteIds.Count: > 0 } selection)
+        {
+            motifs.Insert(0, SavedMotif.From(Motif.Create(_motifId, 1, selection, MotifSelectionKind.Range, MotifMode.Discovery, _notes!)));
+            if (_variation is not null)
+            {
+                variations.Insert(0, SavedVariation.Create(_motifId.Replace("m_", "v_", StringComparison.Ordinal), _motifId, s_reshapes[_reshape].Parameters, _keep));
+            }
+        }
+
+        _project = _project with { Motifs = motifs, Variations = variations };
+        CurrentPiece.Saved(_project);
+        await Projects.SaveAsync(_project);
+    }
+
+    /// <summary>Puts a saved project's first motif back as the selection, with its variation and Keep choices.</summary>
+    private async Task RestoreAsync(OpenedProject opened)
+    {
+        Motif motif = opened.Motifs[0];
+        _motifId = motif.Id;
+        _restoring = true;
+        try
+        {
+            _filter = _filters.Any(filter => filter.Filter == motif.Filter) ? motif.Filter : SelectionFilter.All;
+            await SelectAsync(motif.Span, note: $"Restored \"{motif.Name}\" from the project.");
+            if (opened.Variations.FirstOrDefault(variation => variation.Saved.MotifId == motif.Id).Saved is { } saved)
+            {
+                _keep.Clear();
+                _keep.UnionWith(saved.Keep);
+                _reshape = Math.Max(0, Array.FindIndex(s_reshapes, reshape => reshape.Parameters == saved.Parameters));
+                await ApplyAsync(play: false);
+            }
+        }
+        finally
+        {
+            _restoring = false;
         }
     }
 

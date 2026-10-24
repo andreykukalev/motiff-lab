@@ -404,3 +404,67 @@ html, body {
     border-left: 3px solid var(--ml-lime);
     padding-left: 0.75rem;
 }
+
+/* Projects screen (Pages/Home.razor, N1). */
+.projects .tagline {
+    color: var(--ml-lime);
+}
+
+.lab a.button {
+    display: inline-block;
+    border: 1px solid var(--ml-gray);
+    border-radius: 0.4rem;
+    padding: 0.35rem 0.8rem;
+    text-decoration: none;
+}
+
+.lab a.button.primary {
+    background: var(--ml-lime);
+    border-color: var(--ml-lime);
+    color: var(--ml-charcoal);
+}
+
+.lab button.link {
+    border: none;
+    padding: 0;
+    color: var(--ml-lime);
+    text-decoration: underline;
+    text-align: left;
+}
+
+.projects .warning {
+    border-left: 3px solid #ffd166;
+    padding-left: 0.75rem;
+}
+
+.projects .project-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+}
+
+.projects .project-table th, .projects .project-table td {
+    text-align: left;
+    padding: 0.4rem 1rem 0.4rem 0;
+    border-bottom: 1px solid #2A313B;
+}
+
+.projects .project-table th {
+    color: var(--ml-gray);
+    font-weight: normal;
+}
+
+.projects .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
