@@ -133,7 +133,7 @@
             @if (_analysis is { Facts.Count: > 0 } analysis)
             {
                 <ul class="facts" aria-label="Facts about the selection">
-                    @foreach (MotifFact fact in analysis.Facts)
+                    @foreach (MotifFact fact in analysis.Facts.Concat(_structure?.Facts ?? []))
                     {
                         <li title="@fact.Basis">
                             <span class="lens">@fact.Lens</span>
@@ -255,9 +255,10 @@
     private int _barTo = 2;
     private MotifSelection? _selection;
     private MotifAnalysis? _analysis;
+    private StructureAnalysis? _structure;
+    private PhraseMarks _phraseMarks = PhraseMarks.None;
     private IReadOnlyList<KeySignature> _keys = [];
     private IReadOnlyList<AccentMark>? _accents;
-    private PhraseMarks _phraseMarks = PhraseMarks.None;
     private SelectionFilter _filter = SelectionFilter.All;
     private (string Label, SelectionFilter Filter)[] _filters = [("All notes", SelectionFilter.All)];
     private string? _selectionNote;
@@ -466,6 +467,7 @@
         _filter = SelectionFilter.All;
         _selection = null;
         _analysis = null;
+        _structure = null;
         _selectionNote = null;
         _looping = false;
         _variation = null;
@@ -593,6 +595,7 @@
         _selection = MotifSelector.Select(_notes!, _meter!, span, _filter);
         IReadOnlyList<PhraseBoundary> phrases = PhraseBoundaryFinder.Find(_notes!.Where(_filter.Matches), _meter!, _phraseMarks);
         _analysis = MotifAnalyzer.Analyze(_notes!, _meter!, _selection, KeySignature.InForce(_keys, span.Onset), _accents, phrases);
+        _structure = StructureAnalyzer.Analyze(_notes!, _meter!, _selection, phrases);
         _selectionNote = note;
         await ClearVariationAsync();
         _barFrom = _selection.FirstBar;
@@ -621,6 +624,7 @@
 
         _selection = null;
         _analysis = null;
+        _structure = null;
         _selectionNote = null;
         await ClearVariationAsync();
         await SaveProjectAsync();
