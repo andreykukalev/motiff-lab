@@ -8,6 +8,7 @@ Small, pragmatic rules for the web UI (`src/MotiffLab.Web`) so that UI fixes sta
 - **Click a bar number** to select that bar. **Shift-click a bar number** to extend the selection to that bar, in whole bars.
 - **Click a note** to select it; Shift, Ctrl or Cmd adds to the note selection. A press on a note that moves becomes a range drag.
 - **Clear** with Escape, a click on an empty place in the roll, or a click on the page outside the roll. Clicks on controls (buttons, inputs, links, labels) never clear. Panels that show or act on the selection carry `data-keeps-selection`, so reading or using them does not clear it: today the selection panel (facts, Keep, variation) and the score. Mark any new panel of that kind the same way.
+- **Space** plays and pauses from anywhere on the page: with notes selected it loops them and plays (later presses pause and resume the loop), with nothing selected it plays the piece. It acts on buttons and sliders too (Enter still presses a button), but not in text fields, lists, checkboxes or radios, where Space types or ticks.
 - The 8-bar limit and its message come from music-core (`MotifSelection.MaxBars`).
 
 ## Facts

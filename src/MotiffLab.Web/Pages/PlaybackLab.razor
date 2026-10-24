@@ -111,7 +111,7 @@
 
         @* The roll sits above the selection panel, so it stays put as facts come and go under it. *@
         <section class="roll-panel">
-            <PianoRoll Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" />
+            <PianoRoll Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync" />
         </section>
 
         @* Clicks on the page outside the roll clear the selection, except inside panels marked data-keeps-selection (docs/ui-conventions.md). *@
@@ -500,6 +500,26 @@
 
         parts.Add("Click a note to play from there.");
         return string.Join(" ", parts);
+    }
+
+    /// <summary>
+    /// Space (S1-W4, S1-M5): with notes selected it starts looping them and playing, or pauses and
+    /// resumes the loop; with nothing selected it plays or pauses the piece.
+    /// </summary>
+    private async Task PlayPauseAsync()
+    {
+        if (!_looping && _selection is { NoteIds.Count: > 0 })
+        {
+            await ToggleLoopSelectionAsync();
+            if (Player.State == PlaybackState.Stopped)
+            {
+                await Player.PlayAsync();
+            }
+
+            return;
+        }
+
+        await TogglePlayAsync();
     }
 
     private Task TogglePlayAsync() => Player.State == PlaybackState.Stopped ? Player.PlayAsync() : Player.PauseAsync();

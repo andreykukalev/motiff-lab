@@ -54,6 +54,12 @@ const CLICK_SLOP = 4;
  */
 const KEEPS_SELECTION = "button, input, select, textarea, label, a, summary, [role=button], [data-keeps-selection]";
 
+/**
+ * Space plays and pauses from anywhere on the page, buttons and sliders included (Enter still
+ * presses a button), except where Space types or ticks: text fields, lists, checkboxes and radios.
+ */
+const SPACE_OWNERS = "input:not([type=range]), select, textarea, [contenteditable]";
+
 // Brand surface and ink (docs/02-brand-identity.md), and lane colours that hold 3:1 against the surface.
 const SURFACE = "#1E242C";
 const SURFACE_DARK = "#191E25";
@@ -113,7 +119,7 @@ export class PianoRoll {
         this.roll.setAttribute("role", "application");
         this.roll.setAttribute(
             "aria-label",
-            "Piano roll. Drag anywhere across the roll to select a range, click a bar number to select that bar, Shift-click a bar number to extend the selection to it. Click a note to select it, Shift-click to add to the selection. Click an empty place or press Escape to clear the selection. Arrow keys move the note selection, plus and minus zoom.",
+            "Piano roll. Drag anywhere across the roll to select a range, click a bar number to select that bar, Shift-click a bar number to extend the selection to it. Click a note to select it, Shift-click to add to the selection. Click an empty place or press Escape to clear the selection. Space plays the selection on a loop, or the piece, and pauses. Arrow keys move the note selection, plus and minus zoom.",
         );
 
         this.scroller = document.createElement("input");
@@ -142,6 +148,7 @@ export class PianoRoll {
         this.scroller.addEventListener("input", this.onScroll);
         document.addEventListener("pointerdown", this.onDocumentPointerDown);
         document.addEventListener("pointerup", this.onDocumentPointerUp);
+        document.addEventListener("keydown", this.onDocumentKeyDown);
         this.resizeObserver = new ResizeObserver(() => this.invalidate());
         this.resizeObserver.observe(host);
         this.frame = requestAnimationFrame(this.tick);
@@ -224,6 +231,7 @@ export class PianoRoll {
         this.scroller.removeEventListener("input", this.onScroll);
         document.removeEventListener("pointerdown", this.onDocumentPointerDown);
         document.removeEventListener("pointerup", this.onDocumentPointerUp);
+        document.removeEventListener("keydown", this.onDocumentKeyDown);
         this.host.replaceChildren();
     }
 
@@ -668,6 +676,19 @@ export class PianoRoll {
     };
 
     /** A click on the page outside the roll, away from any control, clears the selection. */
+    /** Space asks the page to play or pause: the selection on a loop when there is one, else the piece. */
+    private readonly onDocumentKeyDown = (event: KeyboardEvent): void => {
+        if (event.key !== " " || event.repeat || event.ctrlKey || event.altKey || event.metaKey || this.model === null) {
+            return;
+        }
+        const target = event.target;
+        if (target instanceof Element && target.closest(SPACE_OWNERS) !== null) {
+            return;
+        }
+        event.preventDefault();
+        void this.dotnet.invokeMethodAsync("OnRollSpace");
+    };
+
     private readonly onDocumentPointerUp = (event: PointerEvent): void => {
         const press = this.outsidePress;
         this.outsidePress = null;
