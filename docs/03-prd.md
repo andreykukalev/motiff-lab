@@ -226,12 +226,14 @@ The MVP ships six rule-based operations, one per category from the vision, each 
 
 | ID | Operation | Changes | Locked | Parameters (default first) | Phase |
 | --- | --- | --- | --- | --- | --- |
-| V1 | Rhythm reshape | Note timing of the chosen line | Pitches, harmony | Style: syncopate, dotted, half-time, double-time; line: melody or accompaniment | 1 |
+| V1 | Rhythm reshape | Note timing of the chosen line | Pitches, harmony | Style: syncopate, dotted, half-time, double-time, displace by 1–3 eighths; line: melody or accompaniment | 1 |
 | V2 | Accompaniment pattern | How the left hand plays the chords | Melody, harmony | Pattern: broken chord, arpeggio up, arpeggio up-down, Alberti, repeated notes; subdivision: 8ths, triplets, 16ths | 1 |
-| V3 | Voicing and register | Chord inversion, spacing, octave of a line | Melody pitch classes, rhythm | Inversion: root, 1st, 2nd; spacing: close, open; octave shift: −1, +1 | 1 |
+| V3 | Voicing and register | Chord inversion, spacing, octave of a line, hand distribution | Melody pitch classes, rhythm | Inversion: root, 1st, 2nd; spacing: close, open; octave shift: −1, +1; move a chord tone to the other hand | 1 |
 | V4 | Melodic sequence | Repeats the motif from another scale step | Rhythm, interval shape | Steps: −4 to +4 scale degrees (default +1); repeats: 1–3; diatonic or exact | 2 |
 | V5 | Harmonic colour | Adds tones to the chords | Melody, bass | Add: 6th, 7th, 9th, sus2, sus4; apply to: all chords or the selected one | 2 |
 | V6 | Simplify | Fewer, easier notes | Melody contour, harmony | Level 1: drop inner voices; level 2: also bass roots only; level 3: also rhythm rounded to 8ths and leaps over an octave folded | 2 |
+
+Stage 1 continues this catalogue with V7 Density and rests, V8 Accent shift, V9 Interval reshape, V10 Change direction, V11 Passing and neighbour notes and V12 Bass pattern, and adds displacement to V1 and hand distribution to V3. Their parameters, the Keep table and their priorities are in `docs/01-mvp-stage-1.md`, Operations in Stage 1; the IDs are shared, so later stages extend the same engine.
 
 **Constraints every operation respects**
 
