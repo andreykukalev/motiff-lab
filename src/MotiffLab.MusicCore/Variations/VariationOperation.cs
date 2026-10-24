@@ -1,3 +1,4 @@
+using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Time;
@@ -8,16 +9,20 @@ namespace MotiffLab.MusicCore.Variations;
 public abstract record OperationParameters;
 
 /// <summary>
-/// What an operation reads besides the notes and its parameters: the motif's span, the Keep choices
-/// and a seed. Operations that pick among equal choices use only <see cref="Seed"/>, never a clock
-/// or a shared random source, so the same input always gives the same output.
+/// What an operation reads besides the notes and its parameters: the motif's span, the Keep choices,
+/// a seed and the key. Operations that pick among equal choices use only <see cref="Seed"/>, never a
+/// clock or a shared random source, so the same input always gives the same output.
 /// </summary>
-public sealed record VariationContext(TickSpan Span, IReadOnlySet<KeepProperty> Keep, int Seed = 0)
+/// <param name="Key">
+/// The key diatonic operations count scale steps in: the key the motif's analysis read
+/// (<see cref="MotifAnalysis.Key"/>). Null when there is none, which leaves diatonic operations unavailable.
+/// </param>
+public sealed record VariationContext(TickSpan Span, IReadOnlySet<KeepProperty> Keep, int Seed = 0, MusicalKey? Key = null)
 {
-    public static VariationContext For(MotifSelection selection, IReadOnlySet<KeepProperty> keep, int seed = 0)
+    public static VariationContext For(MotifSelection selection, IReadOnlySet<KeepProperty> keep, int seed = 0, MusicalKey? key = null)
     {
         ArgumentNullException.ThrowIfNull(selection);
-        return new VariationContext(selection.Span, keep, seed);
+        return new VariationContext(selection.Span, keep, seed, key);
     }
 }
 
@@ -136,7 +141,7 @@ public abstract class VariationOperation<TParameters> : IVariationOperation
 /// <summary>The operations this version offers, by catalogue id. New operations register here.</summary>
 public static class VariationOperations
 {
-    public static IReadOnlyList<IVariationOperation> All { get; } = [RhythmReshape.Instance];
+    public static IReadOnlyList<IVariationOperation> All { get; } = [RhythmReshape.Instance, IntervalReshape.Instance, ChangeDirection.Instance];
 
     /// <summary>The operation with this catalogue id, or null when this version does not have it.</summary>
     public static IVariationOperation? Find(string id) => All.FirstOrDefault(operation => operation.Id == id);
