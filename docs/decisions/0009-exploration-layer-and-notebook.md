@@ -40,5 +40,5 @@ What is missing is the step that turns facts into invitations, one place that sa
 - #24 gains a requirement for stable IDs and a text snapshot test of the digest, so ID churn is caught in CI.
 - #18 becomes the track page (or a reworked piece overview), built on the observation catalogue. A new issue covers the empty and low-confidence state.
 - The Stage 1 data model gains `ExperimentRecord` and `ProcessNote`; the spec changes after the pilot, not before.
-- The observation catalogue is new engine work. If the pilot shows that hand-written pages only work with richer facts than Stage 1 plans (hypothesis H6), that is a scope finding to decide separately.
+- The observation catalogue is new engine work: `ObservationCatalogue.Invite` in `MotiffLab.MusicCore.Observations` (#79), with availability in `ActionStatus`. Its first rules cover the pilot page: exact repeat, running 16ths, pickup, register, plus the dotted (V1), mirror (V10) and sequence (V4) experiments, each offered only when the operation can run on the motif. If the pilot shows that hand-written pages only work with richer facts than Stage 1 plans (hypothesis H6), that is a scope finding to decide separately.
 - Safari may evict IndexedDB data for sites not used for a while; the project export remains the player's backup. Whether to request persistent storage is checked when #16 lands.
