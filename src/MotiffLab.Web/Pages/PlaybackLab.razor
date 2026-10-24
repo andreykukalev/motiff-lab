@@ -257,6 +257,7 @@
     private MotifAnalysis? _analysis;
     private IReadOnlyList<KeySignature> _keys = [];
     private IReadOnlyList<AccentMark>? _accents;
+    private PhraseMarks _phraseMarks = PhraseMarks.None;
     private SelectionFilter _filter = SelectionFilter.All;
     private (string Label, SelectionFilter Filter)[] _filters = [("All notes", SelectionFilter.All)];
     private string? _selectionNote;
@@ -351,6 +352,7 @@
         (PlaybackScore score, MeterMap meter, IReadOnlyList<Note> notes) = DemoPiece.Create();
         GeneratedNotation notation = NotationGenerator.Generate(notes, meter, [], score.End, "Demo piece");
         _accents = null;
+        _phraseMarks = PhraseMarks.None;
         return LoadAsync((score, meter, notes), "Demo piece (two hands, 3/4 with a pickup)", notation, musicXml: null, keys: []);
     }
 
@@ -433,6 +435,8 @@
     {
         // MIDI cannot mark accents, so a MIDI piece has no accent fact rather than "no accents".
         _accents = piece.MusicXml?.AccentMarks;
+        // MIDI has no slurs or repeat signs; rests still mark phrase boundaries.
+        _phraseMarks = piece.MusicXml?.PhraseMarks ?? PhraseMarks.None;
         if (piece.Midi is { } midi)
         {
             await LoadAsync((PlaybackScore.FromMidi(midi), piece.Meter, piece.Notes), piece.FileName, NotationGenerator.FromMidi(midi, piece.FileName), musicXml: null, piece.Keys);
@@ -587,7 +591,8 @@
     private async Task SelectAsync(TickSpan span, string? note)
     {
         _selection = MotifSelector.Select(_notes!, _meter!, span, _filter);
-        _analysis = MotifAnalyzer.Analyze(_notes!, _meter!, _selection, KeySignature.InForce(_keys, span.Onset), _accents);
+        IReadOnlyList<PhraseBoundary> phrases = PhraseBoundaryFinder.Find(_notes!.Where(_filter.Matches), _meter!, _phraseMarks);
+        _analysis = MotifAnalyzer.Analyze(_notes!, _meter!, _selection, KeySignature.InForce(_keys, span.Onset), _accents, phrases);
         _selectionNote = note;
         await ClearVariationAsync();
         _barFrom = _selection.FirstBar;

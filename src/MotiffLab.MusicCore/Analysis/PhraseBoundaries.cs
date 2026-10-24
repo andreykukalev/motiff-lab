@@ -28,10 +28,11 @@ public sealed record PhraseMarks(IReadOnlyList<SlurMark> Slurs, IReadOnlyList<Ti
 
 /// <summary>A place where a new phrase starts: the onset of its first note.</summary>
 /// <param name="At">The onset of the first note after the boundary.</param>
-/// <param name="Evidence">Everything that supports the boundary, in enum order.</param>
+/// <param name="Evidence">Everything in the source that supports the boundary, in enum order; empty for a boundary only the player set.</param>
 /// <param name="Attribution">
 /// Imported when a slur or repeat sign in the source marks it; inferred, with
-/// <see cref="PhraseBoundaryFinder.RestConfidence"/>, when only a rest does.
+/// <see cref="PhraseBoundaryFinder.RestConfidence"/>, when only a rest does; user-confirmed or
+/// user-edited when the player set it (<see cref="PhraseBoundaryFinder.WithPlayerBoundaries"/>).
 /// </param>
 public sealed record PhraseBoundary(Tick At, IReadOnlyList<PhraseEvidence> Evidence, Attribution Attribution);
 
@@ -126,6 +127,32 @@ public static class PhraseBoundaryFinder
             entry.Key,
             [.. entry.Value],
             entry.Value.Any(static evidence => evidence != PhraseEvidence.Rest) ? Attribution.Imported : Attribution.Inferred(RestConfidence)))];
+    }
+
+    /// <summary>
+    /// Adds the boundaries the player set (S1-A2). A player boundary where the source already has
+    /// one confirms it and keeps its evidence; anywhere else it is a new boundary with no source
+    /// evidence, marked user-edited. Either way the player's word makes it certain.
+    /// </summary>
+    public static IReadOnlyList<PhraseBoundary> WithPlayerBoundaries(IEnumerable<PhraseBoundary> found, IEnumerable<Tick> setByPlayer)
+    {
+        ArgumentNullException.ThrowIfNull(found);
+        ArgumentNullException.ThrowIfNull(setByPlayer);
+
+        var merged = new SortedDictionary<Tick, PhraseBoundary>();
+        foreach (PhraseBoundary boundary in found)
+        {
+            merged[boundary.At] = boundary;
+        }
+
+        foreach (Tick at in setByPlayer)
+        {
+            merged[at] = merged.TryGetValue(at, out PhraseBoundary? source)
+                ? source with { Attribution = Attribution.UserConfirmed }
+                : new PhraseBoundary(at, [], Attribution.UserEdited);
+        }
+
+        return [.. merged.Values];
     }
 
     /// <summary>The first onset at or after a position, or null when no note starts there or later.</summary>
