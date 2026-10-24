@@ -26,7 +26,7 @@
 @* A test bench for the playback engine (S1-W4, S1-W5), the piano roll and keyboard (S1-W2, S1-W3), motif selection, its loop and its facts (S1-M1, S1-M2, S1-M5, S1-A1, S1-A2) and the score view (S1-W7) and a second file as the variation (S1-W5) until the workspace exists. Files stay on the device. *@
 <main class="lab">
     <h1>Playback</h1>
-    <p class="meta">A test bench for playback until the workspace lands. Open a MIDI or MusicXML file or use the demo; nothing leaves this device.</p>
+    <p class="meta">A test bench for playback until the workspace lands. Open a MIDI or MusicXML file or try Für Elise; nothing leaves this device.</p>
 
     @if (Player.Error is not null)
     {
@@ -38,7 +38,7 @@
     }
 
     <section class="row">
-        <button @onclick="LoadDemoAsync" disabled="@(!Player.IsReady)">Demo piece</button>
+        <button @onclick="LoadFurEliseAsync" disabled="@(!Player.IsReady)" title="The opening of Beethoven's Für Elise, the pickup and bars 1–8, written out for the lab.">Für Elise</button>
         <label class="file">
             Open file
             <InputFile OnChange="OpenFileAsync" accept="@PieceImporter.AcceptedExtensions" disabled="@(!Player.IsReady)" />
@@ -464,7 +464,7 @@
     private IReadOnlyList<string> _secondDifferences = [];
     private int _pieceVersion;
 
-    /// <summary>The project the piece autosaves to (S1-P1); null for files opened here or the demo.</summary>
+    /// <summary>The project the piece autosaves to (S1-P1); null for files opened here or Für Elise.</summary>
     private Project? _project;
 
     /// <summary>The motif the lab's selection is saved as. The lab works on one motif; a project can hold more.</summary>
@@ -594,14 +594,14 @@
 
     private void OnPlayerChanged() => _ = InvokeAsync(StateHasChanged);
 
-    private Task LoadDemoAsync()
+    private Task LoadFurEliseAsync()
     {
-        (PlaybackScore score, MeterMap meter, IReadOnlyList<Note> notes) = DemoPiece.Create();
-        GeneratedNotation notation = NotationGenerator.Generate(notes, meter, [], score.End, "Demo piece");
+        (PlaybackScore score, MeterMap meter, IReadOnlyList<Note> notes) = FurElise.Create();
+        GeneratedNotation notation = NotationGenerator.Generate(notes, meter, [new KeyChange(FurElise.Key.At, FurElise.Key.Fifths)], score.End, FurElise.Title);
         _accents = null;
         _phraseMarks = PhraseMarks.None;
         _characterContext = new CharacterContext(score.Tempos, TempoAssumed: false, FromNotation: false);
-        return LoadAsync((score, meter, notes), "Demo piece (two hands, 3/4 with a pickup)", notation, musicXml: null, keys: []);
+        return LoadAsync((score, meter, notes), FurElise.Title, notation, musicXml: null, keys: [FurElise.Key]);
     }
 
     private async Task OpenFileAsync(InputFileChangeEventArgs args)
