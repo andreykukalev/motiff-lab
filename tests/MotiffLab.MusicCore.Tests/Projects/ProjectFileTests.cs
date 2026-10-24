@@ -17,6 +17,8 @@ public class ProjectFileTests
     private static byte[] Fixture(string folder, string name) =>
         File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", folder, "Fixtures", name));
 
+    private static SavedStep Step(RhythmReshapeKind kind, int eighths = 1) => new(RhythmReshape.OperationId, new RhythmReshapeParameters(kind, eighths));
+
     /// <summary>A grand-staff piece with a bar motif in the right hand, a picked-notes motif, and a variation of each.</summary>
     private static Project Worked()
     {
@@ -33,8 +35,8 @@ public class ProjectFileTests
             Motifs = [SavedMotif.From(first), SavedMotif.From(second)],
             Variations =
             [
-                SavedVariation.Create("v_0001", "m_0001", new(RhythmReshapeKind.HalfTime), [KeepProperty.PitchOrder, KeepProperty.Pitches]),
-                SavedVariation.Create("v_0002", "m_0002", new(RhythmReshapeKind.Displace, 2), [KeepProperty.Pitches]),
+                new SavedVariation("v_0001", "m_0001", [Step(RhythmReshapeKind.HalfTime), Step(RhythmReshapeKind.Displace, 1)], Step(RhythmReshapeKind.Displace, 3), [KeepProperty.Pitches, KeepProperty.PitchOrder]),
+                new SavedVariation("v_0002", "m_0002", [], Step(RhythmReshapeKind.Displace, 2), [KeepProperty.Pitches]),
             ],
         };
     }
@@ -56,10 +58,11 @@ public class ProjectFileTests
         for (int i = 0; i < 2; i++)
         {
             Assert.Equal(project.Variations[i].Keep, reread.Variations[i].Keep);
-            Assert.Equal(project.Variations[i].Parameters, reread.Variations[i].Parameters);
-            Assert.Equal(before.Variations[i].Variation.Notes, after.Variations[i].Variation.Notes);
-            Assert.Equal(before.Variations[i].Variation.Checks, after.Variations[i].Variation.Checks);
-            Assert.Equal(before.Variations[i].Variation.Explanation, after.Variations[i].Variation.Explanation);
+            Assert.Equal(project.Variations[i].Steps, reread.Variations[i].Steps);
+            Assert.Equal(project.Variations[i].Pending, reread.Variations[i].Pending);
+            Assert.Equal(before.Variations[i].Chain.Result!.Notes, after.Variations[i].Chain.Result!.Notes);
+            Assert.Equal(before.Variations[i].Chain.Result!.Checks, after.Variations[i].Chain.Result!.Checks);
+            Assert.Equal(before.Variations[i].Chain.Result!.Explanation, after.Variations[i].Chain.Result!.Explanation);
         }
     }
 
@@ -79,7 +82,9 @@ public class ProjectFileTests
 
         Assert.Equal(["Opening turn", "Motif 2 · bars 0–1"], opened.Motifs.Select(motif => motif.Name));
         Assert.Equal([KeepProperty.Pitches, KeepProperty.PitchOrder], opened.Project.Variations[0].Keep);
-        Assert.Equal(RhythmReshape.OperationId, opened.Variations[0].Variation.Operation);
+        Assert.Equal(2, opened.Variations[0].Chain.Steps.Count);
+        Assert.NotNull(opened.Variations[0].Chain.Pending);
+        Assert.Equal("V1 › V1 › V1", opened.Variations[0].Chain.Result!.Operation);
     }
 
     [Fact]
@@ -92,7 +97,7 @@ public class ProjectFileTests
     [Theory]
     [InlineData("not json", "not valid JSON")]
     [InlineData("{\"format\":\"something-else\"}", "not a Motiff Lab project file")]
-    [InlineData("{\"format\":\"motiff-lab-project\",\"version\":2}", "newer version")]
+    [InlineData("{\"format\":\"motiff-lab-project\",\"version\":3}", "newer version")]
     [InlineData("{\"format\":\"motiff-lab-project\",\"version\":1,\"source\":\"!!\"}", "source")]
     public void Unreadable_files_get_a_plain_reason(string json, string reason)
     {
@@ -131,5 +136,32 @@ public class ProjectFileTests
         Project project = Worked() with { Motifs = [] };
 
         Assert.Throws<ProjectFileException>(() => OpenedProject.Open(project));
+    }
+
+    [Fact]
+    public void A_version_1_file_opens_with_its_variation_as_one_step()
+    {
+        string json = Encoding.UTF8.GetString(ProjectFile.Write(Worked() with { Variations = [] }))
+            .Replace("\"version\": 2", "\"version\": 1", StringComparison.Ordinal)
+            .Replace(
+                "\"variations\": []",
+                "\"variations\": [{\"id\": \"v_0001\", \"motifId\": \"m_0001\", \"operation\": \"V1\", \"parameters\": {\"kind\": \"HalfTime\", \"eighths\": 1}, \"keep\": [\"Pitches\"]}]",
+                StringComparison.Ordinal);
+
+        Project project = ProjectFile.Read(Encoding.UTF8.GetBytes(json));
+
+        Assert.Equal([Step(RhythmReshapeKind.HalfTime)], project.Variations[0].Steps);
+        Assert.Null(project.Variations[0].Pending);
+        Assert.Single(OpenedProject.Open(project).Variations[0].Chain.Steps);
+    }
+
+    [Fact]
+    public void An_unknown_operation_is_reported()
+    {
+        string json = Encoding.UTF8.GetString(ProjectFile.Write(Worked())).Replace("\"V1\"", "\"V99\"", StringComparison.Ordinal);
+
+        var exception = Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Encoding.UTF8.GetBytes(json)));
+
+        Assert.Contains("V99", exception.Message);
     }
 }

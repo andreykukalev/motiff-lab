@@ -42,15 +42,26 @@ public sealed record NoteChange(Note Before, Note After)
 }
 
 /// <summary>
-/// A variation of a motif after one step: its notes, the note-by-note diff to the motif, the checks
-/// of the kept properties, and an explanation built only from the diff (S1-E4).
+/// A variation of a motif: its notes, the note-by-note diff to the notes it was made from, the
+/// checks of the kept properties, the operation rules it raised, and an explanation built only from
+/// the diff (S1-E4).
 /// </summary>
-/// <param name="Operation">The catalogue id of the operation, for example "V1".</param>
+/// <remarks>
+/// The diff pairs notes by id. A note whose id is in both is a <see cref="NoteChange"/>, even when
+/// nothing about it changed; a note only in the result is added, and one only in the source removed.
+/// </remarks>
+/// <param name="Operation">The catalogue id of the operation, for example "V1"; for a chain of steps, the ids in order, joined by " › ".</param>
 /// <param name="Notes">The variation's notes, ordered by onset, then pitch, then id.</param>
-/// <param name="Changes">Every motif note paired with its varied note, in the motif's order.</param>
+/// <param name="Changes">Every source note that is still there, paired with its varied note, in the source's order.</param>
+/// <param name="Added">Notes the step added, in the order of <paramref name="Notes"/>.</param>
+/// <param name="Removed">Source notes the step removed, in the source's order.</param>
+/// <param name="Flags">Operation rules the result raises without being blocked, such as a hand span over a 10th.</param>
 public sealed record Variation(
     string Operation,
     IReadOnlyList<Note> Notes,
     IReadOnlyList<NoteChange> Changes,
+    IReadOnlyList<Note> Added,
+    IReadOnlyList<Note> Removed,
     IReadOnlyList<KeepCheck> Checks,
+    IReadOnlyList<string> Flags,
     string Explanation);

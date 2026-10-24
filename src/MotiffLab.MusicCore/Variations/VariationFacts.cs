@@ -5,8 +5,8 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Variations;
 
 /// <summary>
-/// What every operation shares: the motif's notes, the diff, the kept-property checks (S1-E9) and
-/// the explanation, which states only facts read from the diff (S1-E4).
+/// What every operation and every chain of steps shares: the motif's notes, the diff, the
+/// kept-property checks (S1-E9) and the explanation, which states only facts read from the diff (S1-E4).
 /// </summary>
 public static class VariationFacts
 {
@@ -19,18 +19,37 @@ public static class VariationFacts
         return selection.NoteIds.Select(id => byId[id]).ToArray();
     }
 
-    /// <summary>Builds the variation from its diff: ordered notes, checks of the kept properties and the explanation.</summary>
-    public static Variation Build(string operation, TickSpan span, IReadOnlyList<NoteChange> changes, IReadOnlySet<KeepProperty> keep)
+    /// <summary>
+    /// Builds the variation from the notes before and after: the diff by note id, ordered notes,
+    /// checks of the kept properties against <paramref name="before"/>, and the explanation.
+    /// </summary>
+    public static Variation Build(
+        string operation,
+        TickSpan span,
+        IReadOnlyList<Note> before,
+        IEnumerable<Note> after,
+        IReadOnlySet<KeepProperty> keep,
+        IReadOnlyList<string> flags)
     {
-        ArgumentNullException.ThrowIfNull(changes);
+        ArgumentNullException.ThrowIfNull(before);
+        ArgumentNullException.ThrowIfNull(after);
         ArgumentNullException.ThrowIfNull(keep);
-        Note[] before = changes.Select(static change => change.Before).ToArray();
-        Note[] after = Ordered(changes.Select(static change => change.After));
+        ArgumentNullException.ThrowIfNull(flags);
+        Note[] ordered = Ordered(after);
+        Dictionary<string, Note> afterById = ordered.ToDictionary(static note => note.Id, StringComparer.Ordinal);
+        var beforeIds = before.Select(static note => note.Id).ToHashSet(StringComparer.Ordinal);
+        NoteChange[] changes = before
+            .Where(note => afterById.ContainsKey(note.Id))
+            .Select(note => new NoteChange(note, afterById[note.Id]))
+            .ToArray();
+        Note[] added = ordered.Where(note => !beforeIds.Contains(note.Id)).ToArray();
+        Note[] removed = before.Where(note => !afterById.ContainsKey(note.Id)).ToArray();
+        Note[] source = [.. before];
         KeepCheck[] checks = Enum.GetValues<KeepProperty>()
             .Where(keep.Contains)
-            .Select(property => new KeepCheck(property, Check(property, before, after, span)))
+            .Select(property => new KeepCheck(property, Check(property, source, ordered, span)))
             .ToArray();
-        return new Variation(operation, after, changes, checks, Explain(changes));
+        return new Variation(operation, ordered, changes, added, removed, checks, flags, Explain(changes, added, removed, source, ordered));
     }
 
     /// <summary>"3 quarter notes", "1 eighth", "5 sixteenths", or ticks when the length is finer than that.</summary>
@@ -81,15 +100,30 @@ public static class VariationFacts
     private static IEnumerable<(long Offset, long Duration)> Rhythm(Note[] notes, TickSpan span) =>
         notes.Select(note => (note.Span.Onset.Value - span.Onset.Value, note.Span.Duration));
 
-    private static string Explain(IReadOnlyList<NoteChange> changes)
+    private static string Explain(IReadOnlyList<NoteChange> changes, Note[] added, Note[] removed, Note[] before, Note[] after)
     {
         int count = changes.Count;
-        if (count == 0)
+        if (count == 0 && added.Length == 0 && removed.Length == 0)
         {
             return "The selection has no notes, so nothing changed.";
         }
 
         var sentences = new List<string>();
+        if (added.Length > 0)
+        {
+            sentences.Add(added.Length == 1 ? "1 note is added." : $"{added.Length} notes are added.");
+        }
+
+        if (removed.Length > 0)
+        {
+            sentences.Add(removed.Length == 1 ? "1 note is removed." : $"{removed.Length} notes are removed.");
+        }
+
+        if (count == 0)
+        {
+            return string.Join(" ", sentences);
+        }
+
         int pitchChanges = changes.Count(static change => change.PitchChanged);
         sentences.Add(pitchChanges == 0 ? "The pitch sequence is unchanged." : $"{pitchChanges} of {count} notes change pitch.");
 
@@ -133,8 +167,8 @@ public static class VariationFacts
             sentences.Add($"{moved} of {count} notes start at a new place.");
         }
 
-        long lengthBefore = Extent(changes.Select(static change => change.Before));
-        long lengthAfter = Extent(changes.Select(static change => change.After));
+        long lengthBefore = Extent(before);
+        long lengthAfter = Extent(after);
         if (lengthBefore != lengthAfter)
         {
             sentences.Add($"From its first onset to its last note's end, the motif now takes {Length(lengthAfter)} instead of {Length(lengthBefore)}.");
@@ -153,9 +187,6 @@ public static class VariationFacts
         return onsets.Zip(onsets.Skip(1), static (a, b) => b - a).ToArray();
     }
 
-    private static long Extent(IEnumerable<Note> notes)
-    {
-        Note[] all = notes.ToArray();
-        return all.Max(static note => note.Span.End.Value) - all.Min(static note => note.Span.Onset.Value);
-    }
+    private static long Extent(Note[] notes) =>
+        notes.Length == 0 ? 0 : notes.Max(static note => note.Span.End.Value) - notes.Min(static note => note.Span.Onset.Value);
 }

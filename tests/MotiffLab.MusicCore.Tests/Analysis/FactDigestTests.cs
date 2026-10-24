@@ -129,7 +129,7 @@ public class FactDigestTests
     {
         ImportedPiece piece = Import("grand-staff.musicxml", Fixture("grand-staff.musicxml"));
         (IReadOnlyList<MotifFact> facts, MotifSelection selection) = Analyze(piece, 1, 1);
-        Variation variation = RhythmReshape.Apply(piece.Notes, selection, new HashSet<KeepProperty> { KeepProperty.Pitches, KeepProperty.Melody }, new RhythmReshapeParameters(RhythmReshapeKind.HalfTime));
+        Variation variation = RhythmReshape.Instance.Apply(piece.Notes, selection, new HashSet<KeepProperty> { KeepProperty.Pitches, KeepProperty.Melody }, new RhythmReshapeParameters(RhythmReshapeKind.HalfTime));
 
         FactDigest digest = FactDigest.ForVariation(facts, variation);
 
@@ -176,7 +176,7 @@ public class FactDigestTests
     {
         ImportedPiece piece = Import("grand-staff.musicxml", Fixture("grand-staff.musicxml"));
         (IReadOnlyList<MotifFact> facts, MotifSelection selection) = Analyze(piece, 1, 1);
-        Variation variation = RhythmReshape.Apply(piece.Notes, selection, new HashSet<KeepProperty> { KeepProperty.Pitches }, new RhythmReshapeParameters(RhythmReshapeKind.DoubleTime));
+        Variation variation = RhythmReshape.Instance.Apply(piece.Notes, selection, new HashSet<KeepProperty> { KeepProperty.Pitches }, new RhythmReshapeParameters(RhythmReshapeKind.DoubleTime));
 
         TemplateExplanation explanation = FactTemplates.Explain(FactDigest.ForVariation(facts, variation));
 

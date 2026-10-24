@@ -39,6 +39,7 @@ Small, pragmatic rules for the web UI (`src/MotiffLab.Web`) so that UI fixes sta
 
 - Each operation's parameters are one-click buttons that apply and play at once (S1-E3); Keep properties are toggle chips that turn lime when kept and dashed when the step broke them.
 - The roll draws the variation as white outlines where its notes land, with a line from each note it moved; the motif's own notes go faint behind it. The score can show the piece with the variation in place ("With the variation"), generated from the notes and so marked inferred; making the first variation switches the score to it.
+- A variation is a chain of steps (`VariationChain`): a parameter button proposes a step on top of the accepted ones; **Accept step**, **Reject step**, **Undo** and **Redo** sit in one row with the breadcrumbs ("Original › Half-time › trying Later by 1 eighth"). Selection and Keep changes replay the chain; if a step no longer runs, the variation is cleared. Rule flags (`Variation.Flags`) are listed under the explanation, never hidden.
 - Draw variations from `Variation.Changes` (before and after per note), never by recomputing the operation in the UI.
 
 ## Facts
