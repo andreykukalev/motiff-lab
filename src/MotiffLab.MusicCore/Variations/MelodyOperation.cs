@@ -18,14 +18,6 @@ namespace MotiffLab.MusicCore.Variations;
 public abstract class MelodyOperation<TParameters> : VariationOperation<TParameters>
     where TParameters : OperationParameters
 {
-    /// <summary>The Keep choices this operation can run with (its Keep table row, S1-E2).</summary>
-    protected abstract IReadOnlySet<KeepProperty> Compatible { get; }
-
-    /// <summary>"changes the melody's intervals", completing "&lt;Name&gt; …, so it is off while Keep x is on".</summary>
-    protected abstract string WhatItChanges { get; }
-
-    public sealed override string? DisabledReason(IReadOnlySet<KeepProperty> keep) => KeepTable.DisabledReason(Name, WhatItChanges, Compatible, keep);
-
     /// <summary>Whether these parameters count in scale steps, and so need a key.</summary>
     protected abstract bool IsDiatonic(TParameters parameters);
 

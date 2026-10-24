@@ -156,6 +156,15 @@
                             <button @onclick="() => AuditionAsync(variation: true)" disabled="@(_variation is null)">Hear variation</button>
                             <button @onclick="RemoveVariationAsync" disabled="@(_variation is null)">Remove variation</button>
                         </div>
+                        <div class="row" role="group" aria-label="Keep presets">
+                            @foreach (KeepPreset preset in KeepTable.Presets)
+                            {
+                                bool on = _keep.SetEquals(preset.Keep);
+                                <button class="@(on ? "on" : null)" aria-pressed="@(on ? "true" : "false")" title="@PresetHint(preset)" @onclick="() => ApplyPresetAsync(preset)">
+                                    @preset.Label
+                                </button>
+                            }
+                        </div>
                         <div class="row keep" role="group" aria-label="What to keep">
                             <span title="Properties the variation should leave as they are. A chip turns dashed when the step changes it.">Keep</span>
                             @foreach (KeepProperty property in Enum.GetValues<KeepProperty>())
@@ -815,13 +824,33 @@
         _ => null,
     };
 
-    private async Task ToggleKeepAsync(KeepProperty property)
+    private Task ToggleKeepAsync(KeepProperty property)
     {
         if (!_keep.Remove(property))
         {
             _keep.Add(property);
         }
 
+        return KeepChangedAsync();
+    }
+
+    /// <summary>A preset replaces the Keep choices with its own (S1-E2).</summary>
+    private Task ApplyPresetAsync(KeepPreset preset)
+    {
+        _keep.Clear();
+        _keep.UnionWith(preset.Keep);
+        return KeepChangedAsync();
+    }
+
+    /// <summary>"Suggests Rhythm reshape, Density and rests and Accent shift.", read from the Keep table.</summary>
+    private static string PresetHint(KeepPreset preset)
+    {
+        string[] names = [.. preset.Operations.Select(id => KeepTable.Find(id)?.Name ?? id)];
+        return names.Length == 1 ? $"Suggests {names[0]}." : $"Suggests {string.Join(", ", names[..^1])} and {names[^1]}.";
+    }
+
+    private async Task KeepChangedAsync()
+    {
         if (_chain is not null)
         {
             await ReplayAsync();

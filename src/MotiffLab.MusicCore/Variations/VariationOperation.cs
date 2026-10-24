@@ -68,7 +68,8 @@ public abstract class VariationOperation<TParameters> : IVariationOperation
 
     public abstract string Name { get; }
 
-    public abstract string? DisabledReason(IReadOnlySet<KeepProperty> keep);
+    /// <summary>Why the Keep choices rule the operation out, read from its <see cref="KeepTable"/> row (S1-E2), or null when it can run.</summary>
+    public string? DisabledReason(IReadOnlySet<KeepProperty> keep) => KeepTable.DisabledReason(Id, keep);
 
     public string? UnavailableReason(IReadOnlyList<Note> notes, VariationContext context, TParameters parameters) =>
         Run(notes, context, parameters).Reason;
@@ -145,23 +146,4 @@ public static class VariationOperations
 
     /// <summary>The operation with this catalogue id, or null when this version does not have it.</summary>
     public static IVariationOperation? Find(string id) => All.FirstOrDefault(operation => operation.Id == id);
-}
-/// <summary>An operation's row of the Keep table (S1-E2): the Keep choices it can run with, and why the others rule it out.</summary>
-internal static class KeepTable
-{
-    /// <param name="whatItChanges">"changes the melody's intervals", completing "&lt;name&gt; …, so it is off while Keep x is on".</param>
-    public static string? DisabledReason(string name, string whatItChanges, IReadOnlySet<KeepProperty> compatible, IReadOnlySet<KeepProperty> keep)
-    {
-        ArgumentNullException.ThrowIfNull(keep);
-        KeepProperty[] blocking = [.. Enum.GetValues<KeepProperty>().Where(property => keep.Contains(property) && !compatible.Contains(property))];
-        return blocking.Length == 0
-            ? null
-            : $"{name} {whatItChanges}, so it is off while Keep {string.Join(" and Keep ", blocking.Select(KeepName))} {(blocking.Length == 1 ? "is" : "are")} on.";
-    }
-
-    private static string KeepName(KeepProperty property) => property switch
-    {
-        KeepProperty.PitchOrder => "pitch order",
-        _ => property.ToString().ToLowerInvariant(),
-    };
 }

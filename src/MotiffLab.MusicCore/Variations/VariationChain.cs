@@ -16,6 +16,9 @@ public sealed class VariationChain
     /// <summary>The most accepted steps a chain holds, and so the depth of undo and redo (S1-E5).</summary>
     public const int MaxSteps = 50;
 
+    /// <summary>What joins the catalogue ids of a chain's steps in <see cref="Variation.Operation"/>.</summary>
+    public const string StepSeparator = " › ";
+
     private VariationChain(
         IReadOnlyList<Note> original,
         VariationContext context,
@@ -176,7 +179,7 @@ public sealed class VariationChain
     {
         IReadOnlyList<Note> final = steps[^1].Result.Notes;
         return VariationFacts.Build(
-            string.Join(" › ", steps.Select(static step => step.Operation.Id)),
+            string.Join(StepSeparator, steps.Select(static step => step.Operation.Id)),
             context.Span,
             original,
             final,
