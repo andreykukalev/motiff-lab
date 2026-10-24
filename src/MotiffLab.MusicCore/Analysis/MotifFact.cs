@@ -22,6 +22,9 @@ public enum FactLens
 
     /// <summary>Repetition and phrasing around the motif (S1-A4).</summary>
     Structure,
+
+    /// <summary>The measurable side of musical character: tempo, density, register, loudness, articulation (S1-A5).</summary>
+    Character,
 }
 
 /// <summary>One plain fact about a motif, with how sure it is and why.</summary>

@@ -182,15 +182,7 @@ public static partial class MotifAnalyzer
         facts.Add(PatternFact(hits, meter, selection.Span, offGrid));
         facts.Add(KeyFact(key, signature, chosen.Length, PitchClassCount(chosen)));
 
-        if (selection.HandInferred)
-        {
-            const string HandBasis = "The hand is inferred, so which notes the motif holds is inferred too. ";
-            facts = [.. facts.Select(fact => fact.Certainty == FactCertainty.Detected
-                ? fact with { Certainty = FactCertainty.Inferred, Basis = HandBasis + fact.Basis }
-                : fact)];
-        }
-
-        return new MotifAnalysis(line, topNotes, intervals, contour, key, facts);
+        return new MotifAnalysis(line, topNotes, intervals, contour, key, WithHand(facts, selection));
     }
 
     /// <summary>"minor 3rd", "octave", "octave and a major 2nd", "2 octaves".</summary>
@@ -213,6 +205,20 @@ public static partial class MotifAnalyzer
     {
         int offset = ((pitch.PitchClass - key.TonicPitchClass) % 12 + 12) % 12;
         return key.Mode == KeyMode.Major ? s_majorDegrees[offset] : s_minorDegrees[offset];
+    }
+
+    /// <summary>Detected facts become inferred when the hand that picked the motif's notes is inferred.</summary>
+    private static List<MotifFact> WithHand(List<MotifFact> facts, MotifSelection selection)
+    {
+        if (!selection.HandInferred)
+        {
+            return facts;
+        }
+
+        const string HandBasis = "The hand is inferred, so which notes the motif holds is inferred too. ";
+        return [.. facts.Select(fact => fact.Certainty == FactCertainty.Detected
+            ? fact with { Certainty = FactCertainty.Inferred, Basis = HandBasis + fact.Basis }
+            : fact)];
     }
 
     private static KeyReading ReadKey(Note[] notes, KeySignature? signature)

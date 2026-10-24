@@ -80,7 +80,21 @@ public static partial class MotifAnalyzer
         _ => $"{{0}} {onsets} onsets",
     }).Replace("{0}", plural ? "hold" : "holds", StringComparison.Ordinal).Replace("{1}", plural ? "split" : "splits", StringComparison.Ordinal);
 
+    private const string SyncopationBasis = "An onset is syncopated when it starts off the beat and still sounds on the next beat, or starts on a beat other than the first and sounds across the bar line. Tied notes count as one note.";
+
     private static MotifFact SyncopationFact(Hit[] hits, MeterMap meter, bool offGrid)
+    {
+        List<string> found = Syncopations(hits, meter);
+        string text = found.Count == 0
+            ? "No syncopation: no onset off the beat is held into the next beat, and no note is held across the bar line from a weak beat."
+            : $"{Count(found.Count, "syncopation", "syncopations")}: {Listed(found)}.";
+        return offGrid
+            ? new MotifFact("rhythm.syncopation", FactLens.Rhythm, FactCertainty.Uncertain, text, SyncopationBasis + PerformanceBasis)
+            : new MotifFact("rhythm.syncopation", FactLens.Rhythm, FactCertainty.Detected, text, SyncopationBasis);
+    }
+
+    /// <summary>Where each syncopated onset is, in time order; shared by the syncopation fact and the syncopation share (S1-A5).</summary>
+    private static List<string> Syncopations(Hit[] hits, MeterMap meter)
     {
         var found = new List<string>();
         foreach (Hit hit in hits)
@@ -103,13 +117,7 @@ public static partial class MotifAnalyzer
             }
         }
 
-        string text = found.Count == 0
-            ? "No syncopation: no onset off the beat is held into the next beat, and no note is held across the bar line from a weak beat."
-            : $"{Count(found.Count, "syncopation", "syncopations")}: {Listed(found)}.";
-        const string Basis = "An onset is syncopated when it starts off the beat and still sounds on the next beat, or starts on a beat other than the first and sounds across the bar line. Tied notes count as one note.";
-        return offGrid
-            ? new MotifFact("rhythm.syncopation", FactLens.Rhythm, FactCertainty.Uncertain, text, Basis + PerformanceBasis)
-            : new MotifFact("rhythm.syncopation", FactLens.Rhythm, FactCertainty.Detected, text, Basis);
+        return found;
     }
 
     private static MotifFact AccentFact(Note[] notes, IEnumerable<AccentMark> accents, MeterMap meter, MusicalKey key)

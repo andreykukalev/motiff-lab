@@ -278,7 +278,7 @@ html, body {
     padding-left: 0.75rem;
 }
 
-/* Facts about the selection (S1-A1, S1-A2, S1-A4, Facts/FactsPanel.razor): a collapsible section per lens, each fact with how sure it is. */
+/* Facts about the selection (S1-A1, S1-A2, S1-A4, S1-A5, Facts/FactsPanel.razor): a collapsible section per lens, each fact with how sure it is. */
 .lab .facts {
     margin: 0.5rem 0;
 }
