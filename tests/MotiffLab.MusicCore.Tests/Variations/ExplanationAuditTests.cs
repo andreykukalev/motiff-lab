@@ -253,10 +253,11 @@ public partial class ExplanationAuditTests
 
         if ((m = Dotted().Match(sentence)).Success)
         {
-            NoteChange[] firsts = [.. changes.Where(static change => !change.OnsetChanged && change.After.Span.Duration * 2 == change.Before.Span.Duration * 3)];
+            NoteChange[] firsts = [.. changes.Where(static change => !change.OnsetChanged && change.After.Span.Duration > change.Before.Span.Duration)];
             Tick[] starts = [.. firsts.Select(static change => change.Before.Span.Onset).Distinct()];
+            long apart = 2 * (firsts[0].After.Span.Duration - firsts[0].Before.Span.Duration);
             string? lengths = m.Groups[2].Value.Contains(" then ", StringComparison.Ordinal)
-                ? Expect(m.Groups[2].Value.Split(" then ").Select(Ticks).ToArray(), [firsts[0].After.Span.Duration, firsts[0].Before.Span.Duration / 2])
+                ? Expect(m.Groups[2].Value.Split(" then ").Select(Ticks).ToArray(), [apart * 3 / 2, apart / 2])
                 : null;
             return lengths ?? Expect(int.Parse(m.Groups[1].Value), starts.Length) ?? Expect(BeatSet(m.Groups[3].Value), BeatSet(starts, meter));
         }
@@ -330,6 +331,7 @@ public partial class ExplanationAuditTests
             "quarter note" => Quarter,
             "eighth" => Eighth,
             "sixteenth" => Quarter / 4,
+            "thirty-second" => Quarter / 8,
             _ => 1,
         };
         return long.Parse(m.Groups[1].Value) * unit;
@@ -409,7 +411,7 @@ public partial class ExplanationAuditTests
     [GeneratedRegex(@"^(\d+) of (\d+) melody intervals turns? the other way, keeping (?:its|their) size in (semitones|steps of the key's scale)$")]
     private static partial Regex Turned();
 
-    [GeneratedRegex(@"^(\d+) (quarter note|eighth|sixteenth|tick)s?$")]
+    [GeneratedRegex(@"^(\d+) (quarter note|eighth|sixteenth|thirty-second|tick)s?$")]
     private static partial Regex LengthName();
 
     [GeneratedRegex(@"beats? ([\d, and]+?) of bar (\d+)")]

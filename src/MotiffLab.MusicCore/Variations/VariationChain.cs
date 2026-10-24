@@ -68,6 +68,9 @@ public sealed class VariationChain
         ? "There is no step to accept."
         : Steps.Count >= MaxSteps ? $"A variation holds up to {MaxSteps} steps." : null;
 
+    /// <summary>Why a hand edit cannot be added, or null when it can: the chain is full.</summary>
+    public string? EditDisabledReason => Steps.Count + (Pending is null ? 0 : 1) >= MaxSteps ? $"A variation holds up to {MaxSteps} steps." : null;
+
     /// <summary>A chain with no steps yet over the motif's notes.</summary>
     public static VariationChain Start(IReadOnlyList<Note> original, VariationContext context)
     {
@@ -101,6 +104,31 @@ public sealed class VariationChain
 
         return new VariationChain(Original, Context, [.. Steps, Pending!], null, []);
     }
+
+    /// <summary>
+    /// Edits one note of the variation as it is heard (S1-E7): a pending step is accepted first, then
+    /// the edit is added as an accepted step, so it can be undone like any other. Redo is no longer
+    /// possible after it.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The chain is full, or the edit cannot apply to the notes.</exception>
+    public VariationChain Edit(HandEditParameters edit)
+    {
+        ArgumentNullException.ThrowIfNull(edit);
+        if (EditDisabledReason is { } reason)
+        {
+            throw new InvalidOperationException(reason);
+        }
+
+        VariationChain heard = Pending is null ? this : Accept();
+        return heard.Propose(HandEdit.Instance, edit).Accept();
+    }
+
+    /// <summary>Why the edit cannot apply to the notes as they are heard, or null when it can.</summary>
+    public string? EditUnavailableReason(HandEditParameters edit) =>
+        EditDisabledReason ?? HandEdit.Instance.UnavailableReason(Heard, Context, edit);
+
+    /// <summary>The notes as they are heard: after the accepted steps and the pending one.</summary>
+    public IReadOnlyList<Note> Heard => Pending?.Result.Notes ?? Current;
 
     /// <summary>Drops the pending step; the accepted steps stay.</summary>
     public VariationChain Reject() => new(Original, Context, Steps, null, Undone);

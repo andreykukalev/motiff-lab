@@ -283,6 +283,29 @@ public class RhythmReshapeTests
         Assert.Contains("Dotted needs", RhythmReshape.Instance.UnavailableReason(lone, VariationContext.For(FirstBar(lone), s_keepPitchOrder), new RhythmReshapeParameters(RhythmReshapeKind.Dotted)));
     }
 
+    [Fact]
+    public void Dotted_pairs_16ths_and_keeps_a_detached_note_s_gap()
+    {
+        // Four 16ths on beat 1, played detached (100 of 120 ticks), then a quarter.
+        Note[] notes = [Note("n1", 60, 0, 100), Note("n2", 62, 120, 100), Note("n3", 64, 240, 100), Note("n4", 65, 360, 100), Note("n5", 67, 480, Quarter)];
+        Variation variation = RhythmReshape.Instance.Apply(notes, FirstBar(notes), s_keepPitchOrder, new RhythmReshapeParameters(RhythmReshapeKind.Dotted));
+
+        Assert.Equal([0L, 180, 240, 420, 480], variation.Notes.Select(note => note.Span.Onset.Value));
+        Assert.Equal([160L, 60, 160, 60, Quarter], variation.Notes.Select(note => note.Span.Duration));
+        Assert.StartsWith("2 pairs of equal notes become long–short, 3 thirty-seconds then 1 thirty-second, starting on beat 1 of bar 1 and 1 eighth after beat 1 of bar 1.", variation.Explanation);
+    }
+
+    [Fact]
+    public void Dotted_moves_the_melody_over_a_held_bass()
+    {
+        // Two right-hand quarters over a left-hand half note, then two more quarters.
+        Note[] notes = [Note("b", 48, 0, 2 * Quarter), Note("n1", 72, 0, Quarter), Note("n2", 74, Quarter, Quarter), Note("n3", 76, 2 * Quarter, Quarter), Note("n4", 77, 3 * Quarter, Quarter)];
+        Variation variation = RhythmReshape.Instance.Apply(notes, FirstBar(notes), s_keepPitchOrder, new RhythmReshapeParameters(RhythmReshapeKind.Dotted));
+
+        Assert.Equal(new TickSpan(Tick.Zero, 2 * Quarter), variation.Notes.Single(note => note.Id == "b").Span);
+        Assert.Equal([0L, 720, 960, 1680], variation.Notes.Where(note => note.Id != "b").Select(note => note.Span.Onset.Value));
+    }
+
     [Theory]
     [InlineData(480, "1 quarter note")]
     [InlineData(1440, "3 quarter notes")]

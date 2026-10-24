@@ -199,11 +199,14 @@ public class ObservationCatalogueTests
     }
 
     [Fact]
-    public void Even_16ths_offer_no_dotted_rhythm_since_V1_dots_only_quarters_and_8ths()
+    public void The_pilot_s_even_16ths_offer_a_dotted_rhythm_but_not_once_the_melody_holds_an_8th()
     {
         (Note[] notes, MeterMap meter) = FurElise();
+        Invitation invitation = Find(ObservationCatalogue.Invite(Context(notes, meter, 0, meter.GetBar(1).Span.End.Value, s_aMinor)), "rhythm.even")!;
 
         Assert.Null(Find(ObservationCatalogue.Invite(Context(notes, meter, 0, meter.GetBar(2).Span.End.Value, s_aMinor)), "rhythm.even"));
+        Assert.Equal(new OperationAction("V1", "dotted", new RhythmReshapeParameters(RhythmReshapeKind.Dotted), "keep-pitch-order"), invitation.Action);
+        Assert.Equal("The melody moves in even 16ths. Is the tune in its pitches or in its even flow?", invitation.Question);
     }
 
     [Fact]

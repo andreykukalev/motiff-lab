@@ -151,6 +151,7 @@ public static class VariationOperations
 {
     public static IReadOnlyList<IVariationOperation> All { get; } = [RhythmReshape.Instance, MelodicSequence.Instance, IntervalReshape.Instance, ChangeDirection.Instance];
 
-    /// <summary>The operation with this catalogue id, or null when this version does not have it.</summary>
-    public static IVariationOperation? Find(string id) => All.FirstOrDefault(operation => operation.Id == id);
+    /// <summary>The operation with this catalogue id, or <see cref="HandEdit"/> for its step id; null when this version does not have it.</summary>
+    public static IVariationOperation? Find(string id) =>
+        id == HandEdit.OperationId ? HandEdit.Instance : All.FirstOrDefault(operation => operation.Id == id);
 }

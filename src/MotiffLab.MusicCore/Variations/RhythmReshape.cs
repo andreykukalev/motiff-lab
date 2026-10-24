@@ -14,9 +14,9 @@ public enum RhythmReshapeKind
     Syncopate,
 
     /// <summary>
-    /// Every pair of equal quarters or eighths that starts on a multiple of its pair's length from the
-    /// bar line becomes long–short: the first note lasts half as long again, and the second starts that
-    /// much later and lasts half as long.
+    /// Every pair of notes a quarter, an eighth or a 16th apart that starts on a multiple of twice
+    /// that distance from the bar line becomes long–short: the first note sounds half the distance
+    /// longer, and the second starts that much later. Notes held longer than the distance stay.
     /// </summary>
     Dotted,
 
@@ -49,6 +49,8 @@ public sealed class RhythmReshape : VariationOperation<RhythmReshapeParameters>
 
     private const long EighthTicks = CanonicalTime.TicksPerQuarter / 2;
 
+    private const long SixteenthTicks = CanonicalTime.TicksPerQuarter / 4;
+
     private RhythmReshape()
     {
     }
@@ -75,7 +77,7 @@ public sealed class RhythmReshape : VariationOperation<RhythmReshapeParameters>
         RhythmReshapeKind.Syncopate when Anticipations(notes, context).Count == 0 =>
             "Syncopate needs a note on a beat after the first with nothing starting in the half beat before it, so it is not available for this selection.",
         RhythmReshapeKind.Dotted when Pairs(notes, context.Beats).Count == 0 =>
-            "Dotted needs two equal quarters or eighths in a row, starting on the beat, so it is not available for this selection.",
+            "Dotted needs two notes in a row a quarter, an eighth or a 16th apart, the first on a multiple of twice that distance from the bar line, so it is not available for this selection.",
         _ => null,
     };
 
@@ -143,9 +145,11 @@ public sealed class RhythmReshape : VariationOperation<RhythmReshapeParameters>
     }
 
     /// <summary>
-    /// The onset groups Dotted pairs, in order: two groups in a row whose notes all last the same quarter
-    /// or eighth, the second starting where the first ends, the first on a multiple of twice that length
-    /// from its bar's first beat. A group already in a pair is not paired again.
+    /// The onset groups Dotted pairs, in order: two onsets in a row a quarter, an eighth or a 16th
+    /// apart, the first on a multiple of twice that length from its bar's first beat, with nothing
+    /// starting sooner than that length after the second. Only notes no longer than the length move;
+    /// a longer note, such as a bass held under the pair, stays as it is. A group already in a pair
+    /// is not paired again.
     /// </summary>
     private static List<(Note[] First, Note[] Second, long Length)> Pairs(IReadOnlyList<Note> notes, MeterMap meter)
     {
@@ -153,16 +157,19 @@ public sealed class RhythmReshape : VariationOperation<RhythmReshapeParameters>
         var pairs = new List<(Note[], Note[], long)>();
         for (int i = 0; i + 1 < groups.Length; i++)
         {
-            long length = groups[i][0].Span.Duration;
             Tick onset = groups[i][0].Span.Onset;
+            long length = groups[i + 1][0].Span.Onset.Value - onset.Value;
             MetricPosition position = meter.ToPosition(onset);
             long fromBar = ((position.Beat - 1L) * meter.SignatureAt(onset).BeatTicks) + position.BeatOffset;
-            if (length is CanonicalTime.TicksPerQuarter or EighthTicks
-                && groups[i].Concat(groups[i + 1]).All(note => note.Span.Duration == length)
-                && groups[i + 1][0].Span.Onset.Value == onset.Value + length
-                && fromBar % (2 * length) == 0)
+            Note[] first = [.. groups[i].Where(note => note.Span.Duration <= length)];
+            Note[] second = [.. groups[i + 1].Where(note => note.Span.Duration <= length)];
+            if (length is CanonicalTime.TicksPerQuarter or EighthTicks or SixteenthTicks
+                && fromBar % (2 * length) == 0
+                && (i + 2 == groups.Length || groups[i + 2][0].Span.Onset.Value - groups[i + 1][0].Span.Onset.Value >= length)
+                && first.Length > 0
+                && second.Length > 0)
             {
-                pairs.Add((groups[i], groups[i + 1], length));
+                pairs.Add((first, second, length));
                 i++;
             }
         }
@@ -170,6 +177,11 @@ public sealed class RhythmReshape : VariationOperation<RhythmReshapeParameters>
         return pairs;
     }
 
+    /// <summary>
+    /// Each pair becomes long–short: the first note's notes sound half the length longer, and the
+    /// second's start half the length later and last at most that half, so a note played detached
+    /// keeps its gap and every result stays on the grid when its source was.
+    /// </summary>
     private static Dictionary<string, TickSpan> Dot(IReadOnlyList<Note> notes, MeterMap meter)
     {
         var spans = new Dictionary<string, TickSpan>(StringComparer.Ordinal);
@@ -177,12 +189,12 @@ public sealed class RhythmReshape : VariationOperation<RhythmReshapeParameters>
         {
             foreach (Note note in first)
             {
-                spans[note.Id] = new TickSpan(note.Span.Onset, length + (length / 2));
+                spans[note.Id] = new TickSpan(note.Span.Onset, note.Span.Duration + (length / 2));
             }
 
             foreach (Note note in second)
             {
-                spans[note.Id] = new TickSpan(note.Span.Onset.Offset(length / 2), length / 2);
+                spans[note.Id] = new TickSpan(note.Span.Onset.Offset(length / 2), Math.Min(note.Span.Duration, length / 2));
             }
         }
 

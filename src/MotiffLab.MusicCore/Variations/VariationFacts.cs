@@ -105,6 +105,7 @@ public static class VariationFacts
             _ when ticks % CanonicalTime.TicksPerQuarter == 0 => (CanonicalTime.TicksPerQuarter, "quarter note"),
             _ when ticks % (CanonicalTime.TicksPerQuarter / 2) == 0 => (CanonicalTime.TicksPerQuarter / 2, "eighth"),
             _ when ticks % (CanonicalTime.TicksPerQuarter / 4) == 0 => (CanonicalTime.TicksPerQuarter / 4, "sixteenth"),
+            _ when ticks % (CanonicalTime.TicksPerQuarter / 8) == 0 => (CanonicalTime.TicksPerQuarter / 8, "thirty-second"),
             _ => (1L, "tick"),
         };
         long count = ticks / unit;
@@ -286,6 +287,13 @@ public static class VariationFacts
         else
         {
             sentences.Add(lengthChanges == 0 ? "Every note keeps its length." : $"{lengthChanges} of {count} notes change length.");
+        }
+
+        int louder = changes.Count(static change => change.After.Velocity > change.Before.Velocity);
+        int softer = changes.Count(static change => change.After.Velocity < change.Before.Velocity);
+        if (louder + softer > 0)
+        {
+            sentences.Add($"{louder + softer} of {count} notes change velocity ({louder} louder, {softer} softer).");
         }
 
         long[] shifts = changes.Select(static change => change.After.Span.Onset.Value - change.Before.Span.Onset.Value).ToArray();

@@ -270,16 +270,16 @@ public static class ProjectFile
             edit.TryGetProperty("after", out JsonElement after) ? ReadValues(after) : null);
     }
 
-    private static NoteValues ReadValues(JsonElement values)
+    private static NoteValues ReadValues(JsonElement values, string what = "note corrections")
     {
-        Expect(values, JsonValueKind.Object, "note corrections");
+        Expect(values, JsonValueKind.Object, what);
         int pitch = Integer(values, "pitch");
         long onset = Long(values, "onset");
         long duration = Long(values, "duration");
         int velocity = Integer(values, "velocity");
         if (pitch is < 0 or > Pitch.MaxMidiNumber || onset < 0 || duration <= 0 || velocity is < Note.MinVelocity or > Note.MaxVelocity)
         {
-            throw Damaged("note corrections");
+            throw Damaged(what);
         }
 
         return new NoteValues(new Pitch(pitch), new TickSpan(new Tick(onset), duration), velocity);
@@ -294,6 +294,15 @@ public static class ProjectFile
             case RhythmReshapeParameters reshape:
                 json.WriteString("kind", reshape.Kind.ToString());
                 json.WriteNumber("eighths", reshape.Eighths);
+                break;
+            case HandEditParameters edit:
+                json.WriteString("kind", edit.Kind.ToString());
+                json.WriteString("noteId", edit.NoteId);
+                if (edit.Values is { } values)
+                {
+                    WriteValues(json, "values", values);
+                }
+
                 break;
             default:
                 throw new ArgumentException($"Operation {step.Operation} has parameters the project file cannot write.", nameof(step));
@@ -330,6 +339,13 @@ public static class ProjectFile
         Expect(step, JsonValueKind.Object, "variation steps");
         string operation = Text(step, "operation");
         JsonElement parameters = Property(step, "parameters", JsonValueKind.Object);
+        if (operation == HandEdit.OperationId)
+        {
+            HandEditKind kind = Name<HandEditKind>(parameters, "kind");
+            NoteValues? values = kind == HandEditKind.Remove ? null : ReadValues(Property(parameters, "values", JsonValueKind.Object), "variation steps");
+            return new SavedStep(operation, new HandEditParameters(kind, Text(parameters, "noteId"), values));
+        }
+
         if (operation != RhythmReshape.OperationId)
         {
             throw new ProjectFileException($"A variation uses an operation ({operation}) this version of Motiff Lab does not have.");

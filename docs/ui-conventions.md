@@ -49,6 +49,11 @@ Small, pragmatic rules for the web UI (`src/MotiffLab.Web`) so that UI fixes sta
 - Every correction goes through `NoteEditLog`; the UI never changes a note itself. **Undo correction** drops the last edit and **Revert** drops every edit of one note, so the imported value comes back exactly. Removed notes are listed with a Revert button each.
 - The project saves the log, and opening a project applies it. After the first correction the score switches from the file as written to the score generated from the notes, since the file does not know the corrections.
 
+## Editing variation notes
+
+- **Edit notes by hand** (S1-E7) is a collapsible table inside the variation controls, with the same nudges as Correct notes plus **Add after** (a note of the same pitch and length straight after) and **Remove**. It lists the notes as heard; with no steps yet it lists the selected notes, and the first edit starts a hand-made variation.
+- Every edit goes through `VariationChain.Edit` as one step: a reshape being tried is accepted first, Undo and Redo take edits back like any other step, and the explanation shows "This edit" before "From the original". Keep chips are checked again after each edit and are never a reason to block it (S1-E9). A reason why an edit cannot apply is shown under the table.
+
 ## Facts
 
 - Facts are shown by `Facts/FactsPanel.razor`, one collapsible section per `FactLens`, in the enum's order. A new fact, or a new lens added to `FactLens`, appears without UI changes. Pass every analysis's facts to the panel in one list.
