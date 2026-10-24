@@ -58,7 +58,16 @@ export type EngineMessage =
     | { type: "loopOff" }
     | { type: "metronome"; on: boolean }
     | { type: "countIn"; bars: number }
-    | { type: "tracks"; muted: number[]; soloed: number[] };
+    | { type: "tracks"; muted: number[]; soloed: number[] }
+    | { type: "noteOn"; pitch: number; velocity: number }
+    | { type: "noteOff"; pitch: number };
+
+/**
+ * Notes the player strikes by hand (clicking the roll or the keyboard). They sound at once, over
+ * playback or without it, until released; transport, source and track changes leave them alone.
+ */
+export const LIVE_SOURCE = "live";
+const LIVE_TRACK = -1;
 
 export interface PositionReport {
     type: "position";
@@ -272,7 +281,15 @@ export class Engine {
             case "tracks":
                 this.muted = new Set(message.muted);
                 this.soloed = new Set(message.soloed);
-                this.releaseWhere((voice) => !this.isAudible(voice.track), 0);
+                this.releaseWhere((voice) => voice.sourceId !== LIVE_SOURCE && !this.isAudible(voice.track), 0);
+                break;
+            case "noteOn":
+                if (message.pitch >= 0 && message.pitch < 128) {
+                    this.startVoice(LIVE_SOURCE, message.pitch, Math.min(127, Math.max(1, message.velocity)), LIVE_TRACK, Infinity, 0);
+                }
+                break;
+            case "noteOff":
+                this.releaseWhere((voice) => voice.sourceId === LIVE_SOURCE && voice.pitch === message.pitch, 0);
                 break;
         }
     }
@@ -400,7 +417,7 @@ export class Engine {
         const next = ids.filter((id) => this.sources.has(id));
         const added = next.filter((id) => !this.active.includes(id));
         this.active = next;
-        this.releaseWhere((voice) => !next.includes(voice.sourceId), 0);
+        this.releaseWhere((voice) => voice.sourceId !== LIVE_SOURCE && !next.includes(voice.sourceId), 0);
         for (const id of added) {
             const source = this.sources.get(id)!;
             source.cursor = firstAtOrAfter(source.onset, this.position);
@@ -450,14 +467,14 @@ export class Engine {
             return;
         }
         this.state = "stopped";
-        this.releaseWhere(() => true, 0);
+        this.releaseWhere((voice) => voice.sourceId !== LIVE_SOURCE, 0);
         this.requestReport();
     }
 
     private seek(tick: number): void {
         const end = this.timeline?.end ?? 0;
         this.position = Math.min(Math.max(0, tick), end);
-        this.releaseWhere(() => true, 0);
+        this.releaseWhere((voice) => voice.sourceId !== LIVE_SOURCE, 0);
         this.relocate(this.state === "playing");
         this.requestReport();
     }
@@ -568,7 +585,7 @@ export class Engine {
         if (boundary === nextTempo && boundary < stop) {
             this.position = boundary + overshoot * (this.ticksPerFrame(tempo + 1) / perFrame);
         } else if (looping) {
-            this.releaseWhere(() => true, offset + frames);
+            this.releaseWhere((voice) => voice.sourceId !== LIVE_SOURCE, offset + frames);
             this.position = this.loopStart;
             this.relocate(false);
             this.position += overshoot * (this.ticksPerFrame(this.tempoIndex(this.loopStart)) / perFrame);
