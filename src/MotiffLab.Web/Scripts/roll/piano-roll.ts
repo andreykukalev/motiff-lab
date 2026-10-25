@@ -97,6 +97,12 @@ const PLAY_RANGE_EXTENSION = "rgba(244, 245, 242, 0.08)";
 /** Motif notes behind a variation are drawn this faint, so the variation's outlines read on top of them. */
 const BEHIND_VARIATION_ALPHA = 0.4;
 const VARIATION_FILL = "rgba(244, 245, 242, 0.28)";
+/** Phrase starts (#18): a flag on the bar numbers and a faint line down the roll, dashed and blue where inferred. */
+const PHRASE_MARK = INK;
+const PHRASE_INFERRED = "#7CC4FA";
+const PHRASE_LINE_ALPHA = 0.35;
+/** How a phrase start was found, as setPhrases sends it. */
+const PHRASE_INFERRED_KIND = 1;
 const VARIATION_FILL_SOUNDING = "rgba(244, 245, 242, 0.75)";
 const VARIATION_LINK = "rgba(244, 245, 242, 0.45)";
 const LANE_COLOURS = ["#C8F169", "#6EC6FF", "#FF9E80", "#C5A3FF", "#F2D16B", "#5FE0C1"];
@@ -131,6 +137,8 @@ export class PianoRoll {
     private playRange: { start: number; end: number } | null = null;
     /** The variation of the motif, drawn as outlines over it, or null for none. */
     private variation: VariationNote[] | null = null;
+    /** Where phrases start and whether each start is inferred (#18). */
+    private phrases: { tick: number; inferred: boolean }[] = [];
     /** Which sources are heard, so only notes being heard light up. */
     private originalAudible = true;
     private variationAudible = false;
@@ -272,6 +280,16 @@ export class PianoRoll {
 
     clearPlayRange(): void {
         this.playRange = null;
+        this.invalidate();
+    }
+
+    /** Marks where phrases start: packed as pairs of tick and kind (0 from the file, 1 inferred, 2 the player's). */
+    setPhrases(packed: number[]): void {
+        const phrases: { tick: number; inferred: boolean }[] = [];
+        for (let at = 0; at + 2 <= packed.length; at += 2) {
+            phrases.push({ tick: packed[at], inferred: packed[at + 1] === PHRASE_INFERRED_KIND });
+        }
+        this.phrases = phrases;
         this.invalidate();
     }
 
@@ -490,6 +508,37 @@ export class PianoRoll {
                 context.fillText(String(line.bar), x + 3, HEADER / 2);
                 lastLabel = x;
             }
+        }
+
+        // Phrase starts: a flag on the bar numbers and a faint line down the roll; inferred ones dashed and blue.
+        for (const phrase of this.phrases) {
+            if (phrase.tick < from || phrase.tick > to) {
+                continue;
+            }
+            const x = Math.round(this.xOf(phrase.tick)) + 0.5;
+            const colour = phrase.inferred ? PHRASE_INFERRED : PHRASE_MARK;
+            context.strokeStyle = colour;
+            context.lineWidth = 1;
+            context.setLineDash(phrase.inferred ? [4, 3] : []);
+            context.globalAlpha = PHRASE_LINE_ALPHA;
+            context.beginPath();
+            context.moveTo(x, HEADER);
+            context.lineTo(x, height);
+            context.stroke();
+            context.globalAlpha = 1;
+            context.lineWidth = 2;
+            context.beginPath();
+            context.moveTo(x, 0);
+            context.lineTo(x, HEADER);
+            context.stroke();
+            context.setLineDash([]);
+            context.fillStyle = colour;
+            context.beginPath();
+            context.moveTo(x, 0);
+            context.lineTo(x + 7, 4);
+            context.lineTo(x, 8);
+            context.closePath();
+            context.fill();
         }
 
         // The selected range, or the range being dragged, shaded and marked on the bar numbers.

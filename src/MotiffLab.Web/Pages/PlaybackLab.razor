@@ -16,6 +16,7 @@
 @using MotiffLab.Web.Explore
 @using MotiffLab.Web.Facts
 @using MotiffLab.Web.Import
+@using MotiffLab.Web.Phrases
 @using MotiffLab.Web.Playback
 @using MotiffLab.Web.Projects
 @using MotiffLab.Web.Roll
@@ -105,8 +106,13 @@
         <div class="app-body">
             @* The roll above the score; the score scrolls within its own panel. *@
             <section class="canvas" aria-label="Piano roll and score">
+                @if (_phrases is not null)
+                {
+                    <PhraseStrip Map="_phrases" Current="CurrentPhrase" CanMake="@(_selection is not null && CurrentPhrase is null)"
+                                 Picked="PickPhraseAsync" Make="MakePhraseAsync" Join="JoinPhraseAsync" Reset="ResetPhrasesAsync" />
+                }
                 <div class="roll-panel">
-                    <PianoRoll Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping"
+                    <PianoRoll Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases"
                                Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible"
                                RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync" />
                 </div>
@@ -114,7 +120,7 @@
                 {
                     @* Clicks on the page outside the roll clear the selection, except inside panels marked data-keeps-selection (docs/ui-conventions.md). *@
                     <div class="score-panel" data-keeps-selection>
-                        <ScoreView Source="shown" Range="ShownRange" />
+                        <ScoreView Source="shown" Range="ShownRange" Phrases="ScorePhrases" />
                         <p class="meta">@ScoreNote(shown)</p>
                     </div>
                 }
@@ -589,6 +595,9 @@
     private IReadOnlyList<MotifFact> _character = [];
     private CharacterContext? _characterContext;
     private PhraseMarks _phraseMarks = PhraseMarks.None;
+
+    /// <summary>The piece as phrases, with the player's own boundaries (S1-I5); null without a piece.</summary>
+    private PhraseMap? _phrases;
     private IReadOnlyList<KeySignature> _keys = [];
     private IReadOnlyList<AccentMark>? _accents;
     private SelectionFilter _filter = SelectionFilter.All;
@@ -796,6 +805,11 @@
             }
 
             _project = CurrentPiece.Project;
+            if (_project is { Phrases.IsEmpty: false } phrased)
+            {
+                _phrases = _phrases!.With(phrased.Phrases);
+            }
+
             if (_project is { Edits.IsEmpty: false } corrected)
             {
                 _restoring = true;
@@ -947,6 +961,7 @@
         _title = title;
         _tracks = piece.Notes.Select(note => note.Track).Distinct().Order().ToArray();
         _lastBar = MotifSelector.LastBar(_meter, _score.End);
+        _phrases = PhraseMap.Suggest(piece.Notes, _meter, _phraseMarks, _score.End);
         _filters = Filters(piece.Notes, _tracks);
         _filter = SelectionFilter.All;
         _keptIds = null;
@@ -1155,7 +1170,7 @@
     private async Task SelectAsync(TickSpan span, string? note)
     {
         _selection = MotifSelector.Select(_notes!, _meter!, span, _filter);
-        IReadOnlyList<PhraseBoundary> phrases = PhraseBoundaryFinder.Find(_notes!.Where(_filter.Matches), _meter!, _phraseMarks);
+        IReadOnlyList<PhraseBoundary> phrases = _phrases!.Boundaries;
         _analysis = MotifAnalyzer.Analyze(_notes!, _meter!, _selection, KeySignature.InForce(_keys, span.Onset), _accents, phrases);
         _structure = StructureAnalyzer.Analyze(_notes!, _meter!, _selection, phrases);
         _character = MotifAnalyzer.AnalyzeCharacter(_notes!, _meter!, _selection, KeySignature.InForce(_keys, span.Onset), _characterContext!);
@@ -1203,6 +1218,79 @@
         }
 
         await SaveProjectAsync();
+    }
+
+    /// <summary>The phrase the selection stands for, or null when the selection is another range (#18).</summary>
+    private Phrase? CurrentPhrase => _selection is { } selection ? _phrases?.Matching(selection.Span) : null;
+
+    /// <summary>The phrase starts the score marks, with how each was found; the first phrase starts with the piece and is not marked.</summary>
+    private IReadOnlyList<ScorePhrase>? ScorePhrases
+    {
+        get
+        {
+            if (_phrases is null)
+            {
+                return null;
+            }
+
+            if (!ReferenceEquals(_phrases, _scorePhrasesFor))
+            {
+                _scorePhrasesFor = _phrases;
+                _scorePhrases = [.. _phrases.Phrases.Where(phrase => phrase.Start is not null)
+                    .Select(phrase => new ScorePhrase(phrase.Span.Onset.Value, $"Phrase {phrase.Number}", PhraseStrip.KindClass(phrase.Start)))];
+            }
+
+            return _scorePhrases;
+        }
+    }
+
+    private PhraseMap? _scorePhrasesFor;
+    private IReadOnlyList<ScorePhrase>? _scorePhrases;
+
+    /// <summary>Selects a phrase as the working context (#18): Explore and the facts read it. A phrase longer than a selection is selected up to 8 bars.</summary>
+    private Task PickPhraseAsync(Phrase phrase)
+    {
+        if (_phrases is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        TickSpan span = _phrases.Selectable(phrase);
+        string? note = phrase.FitsSelection ? null : $"Phrase {phrase.Number} runs {phrase.BarCount} bars; a selection holds at most {MotifSelection.MaxBars}, so it ends at bar {_meter!.BarAt(new Tick(span.End.Value - 1)).Number}.";
+        return SelectAsync(span, note);
+    }
+
+    /// <summary>Makes the selected range one phrase (moving or splitting boundaries), then selects that phrase.</summary>
+    private Task MakePhraseAsync() =>
+        _phrases is { } map && _selection is { } selection ? ChangePhrasesAsync(map.MakePhrase(selection.Span), selection.Span) : Task.CompletedTask;
+
+    /// <summary>Joins the phrase with the next one, then selects the joined phrase.</summary>
+    private Task JoinPhraseAsync(Phrase phrase) =>
+        _phrases is { } map ? ChangePhrasesAsync(map.JoinWithNext(phrase), phrase.Span) : Task.CompletedTask;
+
+    /// <summary>Drops the player's boundaries; the selection stays as it is.</summary>
+    private Task ResetPhrasesAsync() =>
+        _phrases is not null ? ChangePhrasesAsync(PhraseEdits.None, around: null) : Task.CompletedTask;
+
+    /// <summary>
+    /// Puts the player's phrase edits in effect and saves them with the project. With <paramref name="around"/>,
+    /// the phrase that now covers most of it is selected; otherwise the selection stays and its facts are read again.
+    /// </summary>
+    private async Task ChangePhrasesAsync(PhraseEdits edits, TickSpan? around)
+    {
+        _phrases = _phrases!.With(edits);
+        if (around is { } span)
+        {
+            await PickPhraseAsync(_phrases.Covering(span));
+        }
+        else if (_selection is { } selection)
+        {
+            await SelectAsync(selection.Span, note: null);
+        }
+        else
+        {
+            await SaveProjectAsync();
+        }
     }
 
     private async Task ClearSelectionAsync()
@@ -1347,6 +1435,7 @@
 
         _score = PlaybackScore.Create(_notes, _score!.Tempos, _meter!, _score.End);
         _lastBar = MotifSelector.LastBar(_meter!, _score.End);
+        _phrases = PhraseMap.Suggest(_notes, _meter!, _phraseMarks, _score.End, _phrases?.Edits);
         IEnumerable<KeyChange> keys = _keys.Select(key => new KeyChange(key.At, Math.Clamp(key.Fifths, -7, 7)));
         _generated = ScoreSource.FromNotes(NotationGenerator.Generate(_notes, _meter!, keys, _score.End, _title));
         if (!edits.IsEmpty && _scoreChoice == ScoreChoice.AsWritten)
@@ -1809,7 +1898,7 @@
             }
         }
 
-        _project = _project with { Motifs = motifs, Variations = variations, Edits = _edits };
+        _project = _project with { Motifs = motifs, Variations = variations, Edits = _edits, Phrases = _phrases?.Edits ?? PhraseEdits.None };
         CurrentPiece.Saved(_project);
         await Projects.SaveAsync(_project);
     }
@@ -1986,7 +2075,7 @@
                 return "Nothing selected. Drag across the piano roll or click a bar number.";
             }
 
-            var parts = new List<string> { $"Selected {Where(selection)}" };
+            var parts = new List<string> { CurrentPhrase is { } phrase ? $"Selected phrase {phrase.Number}, {PhraseBars(phrase)}" : $"Selected {Where(selection)}" };
             if (selection.Filter != SelectionFilter.All)
             {
                 string label = _filters.FirstOrDefault(filter => filter.Filter == selection.Filter).Label ?? "filtered";
@@ -2016,6 +2105,10 @@
             return _selectionNote is null ? text : $"{text} {_selectionNote}";
         }
     }
+
+    /// <summary>"bars 4–8": the bars a phrase touches, its pickup included, as the phrase strip names them.</summary>
+    private static string PhraseBars(Phrase phrase) =>
+        phrase.FirstBar == phrase.LastBar ? $"bar {phrase.FirstBar}" : $"bars {phrase.FirstBar}–{phrase.LastBar}";
 
     /// <summary>"bars 5–6", or with beats when an edge is inside a bar: "bar 5, beat 2, through bar 6, beat 1".</summary>
     private string Where(MotifSelection selection)

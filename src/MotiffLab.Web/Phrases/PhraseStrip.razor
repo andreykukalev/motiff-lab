@@ -1,0 +1,116 @@
+@using MotiffLab.MusicCore.Analysis
+@using MotiffLab.MusicCore.Events
+@using MotiffLab.MusicCore.Motifs
+@using MotiffLab.MusicCore.Time
+
+@* The piece as phrases (S1-I5, #18): the phrases music-core suggests, each marked with how its start was found, to pick
+   as the working context, and the player's own boundaries. It only displays what PhraseMap returns; the page selects and saves. *@
+<nav class="phrases" aria-label="Phrases" data-keeps-selection>
+    <div class="phrase-list" role="group" aria-label="Phrases of the piece">
+        @foreach (Phrase phrase in Map.Phrases)
+        {
+            bool on = Current?.Number == phrase.Number;
+            <button class="phrase @KindClass(phrase.Start) @(on ? "on" : null)" aria-pressed="@(on ? "true" : "false")"
+                    aria-label="@Label(phrase)" title="@Title(phrase)" @onclick="() => Picked.InvokeAsync(phrase)">
+                <span class="number">@phrase.Number</span>
+                <span class="bars">@Bars(phrase)</span>
+                <span class="how">@Tag(phrase.Start)</span>
+            </button>
+        }
+    </div>
+    <div class="row phrase-actions">
+        <button @onclick="() => Make.InvokeAsync()" disabled="@(!CanMake)"
+                title="@(CanMake ? "Mark the selected range as one phrase: its edges become phrase boundaries, and boundaries inside it go." : "Select a range on the roll that is not a phrase yet: drag across it, or drag an edge of a phrase.")">
+            Make the selection a phrase
+        </button>
+        <button @onclick="() => Join.InvokeAsync(Current!)" disabled="@(Current is null || Current.Number == Map.Phrases.Count)"
+                title="Take away the boundary after this phrase, so it runs on into the next one.">
+            Join with the next phrase
+        </button>
+        <button @onclick="() => Reset.InvokeAsync()" disabled="@Map.Edits.IsEmpty" title="Forget your own boundaries and show the phrases suggested from the file.">
+            Back to the suggested phrases
+        </button>
+    </div>
+    @if (EvidenceText is { } note)
+    {
+        <p class="meta">@note</p>
+    }
+</nav>
+
+@code {
+    /// <summary>The piece's phrases with the player's edits.</summary>
+    [Parameter, EditorRequired]
+    public PhraseMap Map { get; set; } = null!;
+
+    /// <summary>The phrase the selection stands for, or null when the selection is another range or there is none.</summary>
+    [Parameter]
+    public Phrase? Current { get; set; }
+
+    /// <summary>Whether there is a selection that could become a phrase.</summary>
+    [Parameter]
+    public bool CanMake { get; set; }
+
+    [Parameter]
+    public EventCallback<Phrase> Picked { get; set; }
+
+    [Parameter]
+    public EventCallback Make { get; set; }
+
+    [Parameter]
+    public EventCallback<Phrase> Join { get; set; }
+
+    [Parameter]
+    public EventCallback Reset { get; set; }
+
+    /// <summary>What the file says about its phrases when it says little, so the player knows to choose bars instead.</summary>
+    private string? EvidenceText => Map.Evidence switch
+    {
+        PhraseEvidenceLevel.None when Map.Edits.IsEmpty =>
+            "The file marks no phrase slurs or repeat signs, has no rest of a beat or more, and no passage comes back note for note, so no phrases are suggested. Select bars on the roll, then Make the selection a phrase to mark your own.",
+        PhraseEvidenceLevel.None => "The file marks no phrases; these are the ones you made.",
+        PhraseEvidenceLevel.Partial when Map.Phrases.FirstOrDefault(phrase => !phrase.FitsSelection) is { } longest =>
+            $"Phrase {longest.Number} runs {longest.BarCount} bars with nothing in the file to divide it, so picking it selects its first {MotifSelection.MaxBars} bars. Select bars on the roll and Make the selection a phrase to divide it yourself.",
+        _ => null,
+    };
+
+    private static string Bars(Phrase phrase) =>
+        phrase.FirstBar == phrase.LastBar ? $"bar {phrase.FirstBar}" : $"bars {phrase.FirstBar}–{phrase.LastBar}";
+
+    /// <summary>"Phrase 2, bars 3–4, starts after a rest of a beat or more, inferred".</summary>
+    private static string Label(Phrase phrase) => $"Phrase {phrase.Number}, {Bars(phrase)}, starts {Describe(phrase.Start)}";
+
+    private static string Title(Phrase phrase) =>
+        phrase.FitsSelection
+            ? $"Starts {Describe(phrase.Start)}."
+            : $"Starts {Describe(phrase.Start)}. It runs {phrase.BarCount} bars; a selection holds at most {MotifSelection.MaxBars}.";
+
+    /// <summary>How the start was found, with "inferred" and its confidence when it is a reading of the notes.</summary>
+    private static string Describe(PhraseBoundary? start) =>
+        start?.Attribution is { Provenance: Provenance.Inferred or Provenance.Detected } attribution
+            ? $"{PhraseMap.Describe(start)} (inferred, {(int)Math.Round(attribution.Confidence * 100)}% sure)"
+            : PhraseMap.Describe(start);
+
+    /// <summary>The short tag on the chip: "slur", "rest", "repeat sign", "comes back", "yours", or "start" for the first phrase.</summary>
+    private static string Tag(PhraseBoundary? start) => start switch
+    {
+        null => "start",
+        { Attribution.Provenance: Provenance.UserEdited } => "yours",
+        { Evidence: var evidence } => string.Join(" + ", evidence.Select(mark => mark switch
+        {
+            PhraseEvidence.Slur => "slur",
+            PhraseEvidence.Rest => "rest",
+            PhraseEvidence.RepeatSign => "repeat sign",
+            PhraseEvidence.Repetition => "comes back",
+            _ => mark.ToString().ToLowerInvariant(),
+        })) + (start.Attribution.Provenance == Provenance.UserConfirmed ? " ✓" : ""),
+    };
+
+    /// <summary>Certainty by line as well as colour (docs/ui-conventions.md): solid for marks in the file and the player's own, dashed for inferred.</summary>
+    internal static string KindClass(PhraseBoundary? start) => start?.Attribution.Provenance switch
+    {
+        null => "start",
+        Provenance.UserEdited or Provenance.UserConfirmed => "yours",
+        Provenance.Inferred or Provenance.Detected => "inferred",
+        _ => "imported",
+    };
+}

@@ -1,3 +1,4 @@
+using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Motifs;
@@ -30,6 +31,9 @@ public sealed record Project(
 {
     /// <summary>The player's corrections of the imported notes, oldest first (S1-I7).</summary>
     public NoteEditLog Edits { get; init; } = NoteEditLog.Empty;
+
+    /// <summary>The player's changes to the suggested phrase boundaries (S1-I5): boundaries they set and ones they took away.</summary>
+    public PhraseEdits Phrases { get; init; } = PhraseEdits.None;
 
     /// <summary>A new project for a file the player just imported, with nothing made from it yet.</summary>
     public static Project Create(string id, string fileName, byte[] source, DateTimeOffset now) =>

@@ -848,6 +848,8 @@ html, body {
 .score {
     --ml-score-ink: #15191F;
     --ml-score-playing: #4D7A00;
+    --ml-score-inferred: #1F5F96;
+    position: relative;
     max-height: 70vh;
     overflow-y: auto;
     background: var(--ml-white);
@@ -882,6 +884,88 @@ html, body {
     fill: var(--ml-score-playing);
     stroke: var(--ml-score-playing);
     color: var(--ml-score-playing);
+}
+
+/* Phrase starts in the score (#18): a line through the system with its label above; dashed and blue where inferred. */
+.score .phrase-mark {
+    position: absolute;
+    pointer-events: none;
+    border-left: 2px solid var(--ml-score-ink);
+    opacity: 0.8;
+}
+
+.score .phrase-mark span {
+    position: absolute;
+    top: -1.1rem;
+    left: -2px;
+    padding: 0.05rem 0.3rem;
+    border-radius: 0.3rem;
+    background: var(--ml-white);
+    border: 1px solid currentColor;
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.score .phrase-mark.inferred {
+    border-left-style: dashed;
+    border-left-color: var(--ml-score-inferred);
+    color: var(--ml-score-inferred);
+}
+
+/* The phrase strip (Phrases/PhraseStrip.razor, #18): the piece as phrases to pick, each saying how its start was found.
+   Certainty by line as well as colour: solid from the file or the player, dashed blue inferred. */
+.phrases {
+    margin-bottom: 0.5rem;
+}
+
+.phrases .phrase-list {
+    display: flex;
+    gap: 0.4rem;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+}
+
+.phrases button.phrase {
+    flex: none;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    border-width: 1.5px;
+}
+
+.phrases button.phrase .number {
+    font-family: var(--ml-mono);
+    font-weight: 700;
+}
+
+.phrases button.phrase .how {
+    font-size: 0.72rem;
+    color: var(--ml-gray);
+}
+
+.phrases button.phrase.inferred {
+    border-style: dashed;
+    border-color: var(--ml-inferred);
+}
+
+.phrases button.phrase.inferred .how {
+    color: var(--ml-inferred);
+}
+
+/* The phrase being worked on is lime like any control that is on; its tag stays readable on lime. */
+.phrases button.phrase.on .how {
+    color: var(--ml-charcoal);
+}
+
+.phrases .phrase-actions {
+    margin-top: 0.25rem;
+}
+
+.phrases .meta {
+    font-size: 0.85rem;
+    margin: 0.25rem 0 0;
 }
 
 /* Piano roll and keyboard (Roll/PianoRoll.razor, Scripts/roll): canvases on the raised surface. */

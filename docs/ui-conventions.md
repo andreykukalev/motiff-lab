@@ -12,6 +12,14 @@ Small, pragmatic rules for the web UI (`src/MotiffLab.Web`) so that UI fixes sta
 - Tokens are on `:root` in `wwwroot/css/app.css`: charcoal ground, `--ml-panel` and `--ml-surface` for raised panels, lime for what is on, `--ml-inferred` (blue) and `--ml-uncertain` (amber) for certainty, and a monospace stack for positions and counts. Buttons are rounded (0.6rem) with a `--ml-border` outline; on or primary ones are lime.
 - There are no bar number boxes: selection is made on the roll, with the mouse or, with the roll focused, the keyboard.
 
+## Phrases
+
+- The piece is shown as phrases (#18, `Phrases/PhraseStrip.razor`): a strip above the roll with one chip per phrase from `PhraseMap`, its number, its bars and how its start was found (slur, rest, repeat sign, comes back, yours, or start). Certainty shows by line as well as colour: solid for marks in the file and the player's own boundaries, dashed blue for inferred ones. The chip's accessible name and hover text say the whole reason and the confidence.
+- Picking a chip selects the phrase as the working context; Explore and the facts read it. A phrase longer than a selection holds (8 bars) is selected up to 8 bars, and the selection text says so. The selection text names the phrase ("Selected phrase 2, bars 4–8").
+- **Make the selection a phrase** turns any other selection into a phrase (moving or splitting boundaries; an edge less than a beat from a boundary keeps that boundary), **Join with the next phrase** takes away the boundary after the selected phrase, and **Back to the suggested phrases** forgets the player's boundaries. Edits are saved with the project; the UI never computes a boundary itself.
+- Where the file gives little evidence, the strip says so and points to selecting bars; no boundary is invented.
+- The roll marks each phrase start with a flag on the bar numbers and a faint line, and the score with a labelled line through the system (`setPhrases` in the roll and score scripts); both dashed and blue where inferred.
+
 ## Selection on the piano roll
 
 - **Drag anywhere** on the roll (the bar numbers or the notes area) to select a range. music-core snaps it to beats (`MotifSelector.Drag`); the roll only reports where the drag started and ended.

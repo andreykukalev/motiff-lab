@@ -54,6 +54,16 @@ const PLAYING_CLASS = "playing";
 /** Notes outside the range that plays for the selection, drawn faint as on the piano roll. */
 const OUTSIDE_CLASS = "outside";
 
+/** A mark above the staves where a phrase starts (#18), placed over the engraving. */
+const PHRASE_MARK_CLASS = "phrase-mark";
+
+/** A phrase start as Blazor sends it: where, the mark's text, and how it was found (imported, inferred or yours). */
+export interface ScorePhrase {
+    tick: number;
+    label: string;
+    kind: string;
+}
+
 let toolkit: Promise<VerovioToolkit> | null = null;
 
 function loadToolkit(): Promise<VerovioToolkit> {
@@ -84,6 +94,7 @@ export class ScoreView {
     private markedKey = "";
     /** The range that plays for the selection [start, end), or null when nothing is selected. */
     private range: { start: number; end: number } | null = null;
+    private phrases: ScorePhrase[] = [];
     private laidOutWidth = 0;
     private frame = 0;
     private relayoutTimer = 0;
@@ -135,6 +146,12 @@ export class ScoreView {
         this.applyRange(true);
     }
 
+    /** Marks where phrases start: a line and a label at the first engraved note at or after each start. */
+    setPhrases(phrases: ScorePhrase[]): void {
+        this.phrases = phrases;
+        this.placePhrases();
+    }
+
     dispose(): void {
         this.disposed = true;
         cancelAnimationFrame(this.frame);
@@ -177,6 +194,7 @@ export class ScoreView {
         this.host.replaceChildren(...pages);
 
         this.applyRange(false);
+        this.placePhrases();
 
         // The new SVG has no marks; put back the ones that were showing.
         const marked = [...this.marked];
@@ -202,6 +220,37 @@ export class ScoreView {
         }
         if (scroll && first !== null && this.player?.state() !== "playing") {
             this.scrollIntoView(first);
+        }
+    }
+
+    private placePhrases(): void {
+        for (const old of this.host.querySelectorAll(`.${PHRASE_MARK_CLASS}`)) {
+            old.remove();
+        }
+        const timeline = this.timeline;
+        if (timeline === null || this.phrases.length === 0) {
+            return;
+        }
+        const view = this.host.getBoundingClientRect();
+        for (const phrase of this.phrases) {
+            const span = timeline.spans.find((candidate) => candidate.onset >= phrase.tick);
+            const note = span === undefined ? null : this.element(span.id);
+            if (note === null) {
+                continue;
+            }
+            const system = note.closest("g.system") ?? note;
+            const box = note.getBoundingClientRect();
+            const around = system.getBoundingClientRect();
+            const mark = document.createElement("span");
+            mark.className = `${PHRASE_MARK_CLASS} ${phrase.kind}`;
+            mark.setAttribute("aria-hidden", "true");
+            const label = document.createElement("span");
+            label.textContent = phrase.label;
+            mark.append(label);
+            mark.style.left = `${box.left - view.left + this.host.scrollLeft - 4}px`;
+            mark.style.top = `${around.top - view.top + this.host.scrollTop}px`;
+            mark.style.height = `${around.height}px`;
+            this.host.append(mark);
         }
     }
 

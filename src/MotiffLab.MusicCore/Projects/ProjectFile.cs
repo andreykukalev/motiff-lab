@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 
+using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Time;
@@ -22,13 +23,13 @@ public static class ProjectFile
     public const string FormatName = "motiff-lab-project";
 
     /// <summary>
-    /// 4 saves the melody operations (V4, V9, V10), Accompaniment pattern (V2), Articulation (V13)
+    /// 5 saves the player's phrase boundaries; 4 saves the melody operations (V4, V9, V10), Accompaniment pattern (V2), Articulation (V13)
     /// and each step's scope; 3 adds
     /// the edit log of note corrections; 2 saves each variation as a chain of steps. Files of earlier
     /// versions still open: their steps change the whole selection, versions 1 and 2 have no
-    /// corrections, and version 1 holds one step per variation.
+    /// corrections, versions 1 to 4 have the suggested phrases unchanged, and version 1 holds one step per variation.
     /// </summary>
-    public const int Version = 4;
+    public const int Version = 5;
 
     /// <summary>The extension an exported project gets.</summary>
     public const string Extension = ".motiff.json";
@@ -137,6 +138,11 @@ public static class ProjectFile
             }
 
             json.WriteEndArray();
+
+            json.WriteStartObject("phrases");
+            WriteTicks(json, "added", project.Phrases.Added);
+            WriteTicks(json, "removed", project.Phrases.Removed);
+            json.WriteEndObject();
             json.WriteEndObject();
         }
 
@@ -189,6 +195,7 @@ public static class ProjectFile
             NoteEditLog edits = version >= 3
                 ? new NoteEditLog(Property(root, "edits", JsonValueKind.Array).EnumerateArray().Select(ReadEdit))
                 : NoteEditLog.Empty;
+            PhraseEdits phrases = version >= 5 ? ReadPhrases(Property(root, "phrases", JsonValueKind.Object)) : PhraseEdits.None;
             return new Project(
                 Text(root, "id"),
                 Text(root, "fileName"),
@@ -199,6 +206,7 @@ public static class ProjectFile
                 variations)
             {
                 Edits = edits,
+                Phrases = phrases,
             };
         }
     }
@@ -252,6 +260,30 @@ public static class ProjectFile
             new TickSpan(new Tick(onset), duration),
             selectionFilter,
             noteIds);
+    }
+
+    private static void WriteTicks(Utf8JsonWriter json, string name, IEnumerable<Tick> ticks)
+    {
+        json.WriteStartArray(name);
+        foreach (Tick tick in ticks)
+        {
+            json.WriteNumberValue(tick.Value);
+        }
+
+        json.WriteEndArray();
+    }
+
+    private static PhraseEdits ReadPhrases(JsonElement phrases)
+    {
+        Tick[] Ticks(string name)
+        {
+            Tick[] ticks = [.. Property(phrases, name, JsonValueKind.Array)
+                .EnumerateArray()
+                .Select(tick => tick.ValueKind == JsonValueKind.Number && tick.TryGetInt64(out long value) && value > 0 ? new Tick(value) : throw Damaged("phrase boundaries"))];
+            return ticks.Distinct().Order().SequenceEqual(ticks) ? ticks : throw Damaged("phrase boundaries");
+        }
+
+        return new PhraseEdits(Ticks("added"), Ticks("removed"));
     }
 
     private static void WriteValues(Utf8JsonWriter json, string name, NoteValues values)

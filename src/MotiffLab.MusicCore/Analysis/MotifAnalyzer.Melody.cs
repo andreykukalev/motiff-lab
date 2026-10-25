@@ -145,9 +145,9 @@ public static partial class MotifAnalyzer
 
         PhraseBoundary[] cited = atStart is null ? inside : [atStart, .. inside];
         bool inferred = cited.Any(boundary => boundary.Attribution.Provenance is Provenance.Inferred or Provenance.Detected);
-        const string Basis = "Boundaries come from phrase slurs, rests of a beat or more and repeat signs in the source, and from boundaries the player set; where none of these marks one, none is invented.";
+        const string Basis = "Boundaries come from phrase slurs, rests of a beat or more and repeat signs in the source, from a passage that comes back note for note, and from boundaries the player set; where none of these marks one, none is invented.";
         return inferred
-            ? new MotifFact("melody.phrases", FactLens.Melody, FactCertainty.Inferred, text, $"{Basis} A boundary from a rest alone is a reading of the notes, not a mark in the score.")
+            ? new MotifFact("melody.phrases", FactLens.Melody, FactCertainty.Inferred, text, $"{Basis} A boundary from a rest or a return alone is a reading of the notes, not a mark in the score.")
             : new MotifFact("melody.phrases", FactLens.Melody, FactCertainty.Detected, text, Basis);
     }
 
@@ -159,6 +159,7 @@ public static partial class MotifAnalyzer
             PhraseEvidence.Slur => "a slur",
             PhraseEvidence.Rest => "a rest of a beat or more",
             PhraseEvidence.RepeatSign => "a repeat sign",
+            PhraseEvidence.Repetition => "a passage that comes back note for note",
             _ => mark.ToString(),
         })];
         string source = evidence.Length switch

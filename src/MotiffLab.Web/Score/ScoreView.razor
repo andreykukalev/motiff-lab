@@ -25,6 +25,7 @@ else if (_loading)
     private bool _loading;
     private string? _error;
     private TickSpan? _shownRange;
+    private IReadOnlyList<ScorePhrase>? _shownPhrases;
 
     /// <summary>What to show. The view engraves it again only when a different instance is given.</summary>
     [Parameter, EditorRequired]
@@ -33,6 +34,10 @@ else if (_loading)
     /// <summary>The range that plays for the selection; notes outside it are drawn faint. Null shows all at full strength.</summary>
     [Parameter]
     public TickSpan? Range { get; set; }
+
+    /// <summary>Where phrases start, marked above the staves (#18); null or empty marks none.</summary>
+    [Parameter]
+    public IReadOnlyList<ScorePhrase>? Phrases { get; set; }
 
     protected override void OnParametersSet()
     {
@@ -60,6 +65,11 @@ else if (_loading)
                 await ShowRangeAsync(_view);
             }
 
+            if (!ReferenceEquals(Phrases, _shownPhrases))
+            {
+                await ShowPhrasesAsync(_view);
+            }
+
             return;
         }
 
@@ -70,6 +80,7 @@ else if (_loading)
             await _view.InvokeAsync<ScoreLoadResult>("load", source.Data);
             await _view.InvokeVoidAsync("follow", Player.Engine);
             await ShowRangeAsync(_view);
+            await ShowPhrasesAsync(_view);
             _error = null;
         }
         catch (JSException exception)
@@ -85,6 +96,13 @@ else if (_loading)
     {
         _shownRange = Range;
         await view.InvokeVoidAsync("setRange", Range?.Onset.Value, Range?.End.Value);
+    }
+
+    private async Task ShowPhrasesAsync(IJSObjectReference view)
+    {
+        _shownPhrases = Phrases;
+        // Cast, so the array goes across as one argument rather than as the argument list.
+        await view.InvokeVoidAsync("setPhrases", (object)(Phrases ?? []).ToArray());
     }
 
     /// <summary>Called by the script when a note is clicked: playback moves to its onset.</summary>
