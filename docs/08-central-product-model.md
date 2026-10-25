@@ -54,7 +54,7 @@ These don't have to be three separate pages. The player switches between them wh
 | Core capability | Value for the player | Where it stands (2026-10-25) |
 | --- | --- | --- |
 | Import and score model | The piece opens as a working musical environment, not just a document | Built: MIDI, MusicXML and .mxl import, note events with provenance, score view |
-| Phrase segmentation | The player can focus on a manageable passage | music-core finds boundaries from slurs, rests and repeat signs and takes the player's own; not yet shown as phrases in the app (#18) |
+| Phrase segmentation | The player can focus on a manageable passage | Built: boundaries from slurs, rests, repeat signs and passages that come back, the player's own edits, and the phrase strip in the app (#18) |
 | Fact analysis | They explore the actual properties of this piece | Built: rhythm, melody, structure and character facts, fact digest with stable IDs |
 | Transformations | They hear alternatives and test their own ideas | Built: V1, V2, V4, V9, V10, V13, hand edits, step scope, experiment catalogue and Explore card |
 | Diff and comparison | They understand what changed between the original and a variation | Built: diff, Keep checks, "What changed", and returning to the original to compare (#43) |
@@ -86,12 +86,12 @@ Take the interface that already works and build one complete workflow around it:
 | Step | What the player does | Issue |
 | --- | --- | --- |
 | 1 | Open a score file | Built |
-| 2 | Select a suggested musical phrase | #18 |
-| 3 | Play it in the normal mode | #50 |
-| 4 | Open one specific musical analysis | #25 |
+| 2 | Select a suggested musical phrase | Built (phrase strip, #18) |
+| 3 | Play it in the normal mode | Built (Practise, #50) |
+| 4 | Open one specific musical analysis | Built (Understand, #25) |
 | 5 | Try one meaningful experiment | Built (Explore card, PR #125) |
 | 6 | Return to the original and compare | Built (Compare, #43) |
-| 7 | Move to the neighbouring phrase or play a larger section | #126 |
+| 7 | Move to the neighbouring phrase or play a larger section | Built (#126) |
 
 Keeping what was found (#78) supports steps 5 and 6. The pilot (#77) runs this workflow at the piano.
 

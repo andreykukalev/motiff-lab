@@ -2,11 +2,15 @@
 @using MotiffLab.MusicCore.Events
 @using MotiffLab.MusicCore.Motifs
 @using MotiffLab.MusicCore.Time
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 
 @* The piece as phrases (S1-I5, #18): the phrases music-core suggests, each marked with how its start was found, to pick
-   as the working context, and the player's own boundaries. It only displays what PhraseMap returns; the page selects and saves. *@
+   as the working context, and the player's own boundaries; previous and next phrase by touch and with Page Up and Page Down (#126),
+   and the selection run on into a neighbouring phrase. It only displays what PhraseMap returns; the page selects and saves. *@
 <nav class="phrases" aria-label="Phrases" data-keeps-selection>
     <div class="phrase-list" role="group" aria-label="Phrases of the piece">
+        <button class="step" aria-label="Previous phrase" title="Previous phrase (Page Up)" disabled="@(Previous is null)" @onclick="() => StepAsync(-1)">‹</button>
         @foreach (Phrase phrase in Map.Phrases)
         {
             bool on = Current?.Number == phrase.Number;
@@ -17,6 +21,7 @@
                 <span class="how">@Tag(phrase.Start)</span>
             </button>
         }
+        <button class="step" aria-label="Next phrase" title="Next phrase (Page Down)" disabled="@(Next is null)" @onclick="() => StepAsync(1)">›</button>
     </div>
     <div class="row phrase-actions">
         <button @onclick="() => Make.InvokeAsync()" disabled="@(!CanMake)"
@@ -29,6 +34,17 @@
         </button>
         <button @onclick="() => Reset.InvokeAsync()" disabled="@Map.Edits.IsEmpty" title="Forget your own boundaries and show the phrases suggested from the file.">
             Back to the suggested phrases
+        </button>
+    </div>
+    <div class="row phrase-extend" role="group" aria-label="Hear the transition">
+        <span class="meta">Hear the transition:</span>
+        <button @onclick="() => Extend.InvokeAsync(-1)" disabled="@(!CanExtendBack)"
+                title="Select the previous phrase together with this one, to hear how one leads into the other. The phrases stay as they are.">
+            Add the previous phrase
+        </button>
+        <button @onclick="() => Extend.InvokeAsync(1)" disabled="@(!CanExtendOn)"
+                title="Select this phrase together with the next one, to hear how one leads into the other. The phrases stay as they are.">
+            Add the next phrase
         </button>
     </div>
     @if (EvidenceText is { } note)
@@ -61,6 +77,63 @@
 
     [Parameter]
     public EventCallback Reset { get; set; }
+
+    /// <summary>The phrase before the selection's, which Previous phrase and Page Up select; null at the start.</summary>
+    [Parameter]
+    public Phrase? Previous { get; set; }
+
+    /// <summary>The phrase after the selection's, which Next phrase and Page Down select; null at the end.</summary>
+    [Parameter]
+    public Phrase? Next { get; set; }
+
+    /// <summary>Whether the selection can run back into the phrase before it.</summary>
+    [Parameter]
+    public bool CanExtendBack { get; set; }
+
+    /// <summary>Whether the selection can run on into the phrase after it.</summary>
+    [Parameter]
+    public bool CanExtendOn { get; set; }
+
+    /// <summary>-1 to add the previous phrase to the selection, 1 to add the next.</summary>
+    [Parameter]
+    public EventCallback<int> Extend { get; set; }
+
+    private IJSObjectReference? _keys;
+    private DotNetObjectReference<PhraseStrip>? _self;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _self = DotNetObjectReference.Create(this);
+            IJSObjectReference module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/phrases/phrase-keys.js");
+            _keys = await module.InvokeAsync<IJSObjectReference>("listen", _self);
+            await module.DisposeAsync();
+        }
+    }
+
+    /// <summary>Selects the previous (-1) or next (1) phrase, from the buttons or from Page Up and Page Down.</summary>
+    [JSInvokable]
+    public Task StepAsync(int direction) =>
+        (direction < 0 ? Previous : Next) is { } phrase ? Picked.InvokeAsync(phrase) : Task.CompletedTask;
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_keys is not null)
+        {
+            try
+            {
+                await _keys.InvokeVoidAsync("dispose");
+                await _keys.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+                // The page is going away; its listener goes with it.
+            }
+        }
+
+        _self?.Dispose();
+    }
 
     /// <summary>What the file says about its phrases when it says little, so the player knows to choose bars instead.</summary>
     private string? EvidenceText => Map.Evidence switch

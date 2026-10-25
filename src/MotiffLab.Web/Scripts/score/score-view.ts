@@ -69,6 +69,8 @@ export interface ScorePhrase {
     tick: number;
     label: string;
     kind: string;
+    /** The selected phrase, marked so the player sees where it sits in the piece. */
+    current: boolean;
 }
 
 let toolkit: Promise<VerovioToolkit> | null = null;
@@ -267,6 +269,7 @@ export class ScoreView {
             const around = system.getBoundingClientRect();
             const mark = document.createElement("span");
             mark.className = `${PHRASE_MARK_CLASS} ${phrase.kind}`;
+            mark.classList.toggle("current", phrase.current);
             mark.setAttribute("aria-hidden", "true");
             const label = document.createElement("span");
             label.textContent = phrase.label;

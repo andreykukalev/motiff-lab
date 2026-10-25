@@ -25,6 +25,18 @@
                 <button @onclick="() => Step.InvokeAsync(-1)" disabled="@(!CanGoBack)">‹ Previous phrase</button>
                 <button @onclick="() => Step.InvokeAsync(1)" disabled="@(!CanGoOn)">Next phrase ›</button>
             </div>
+            @* The wider context (#126): the piece around the phrase, then back to it. *@
+            <div class="row step wider">
+                @if (PlayingOn)
+                {
+                    <button class="primary" @onclick="() => Back.InvokeAsync()" title="Stop and go back to the start of the phrase, looping it again if it looped.">Back to the phrase</button>
+                }
+                else
+                {
+                    <button @onclick="() => PlayOn.InvokeAsync(false)" title="Play from the start of the phrase to the end of the piece, with every note.">Play on to the end</button>
+                    <button @onclick="() => PlayOn.InvokeAsync(true)" title="Play the piece from its start; the phrase stays selected.">Play the whole piece</button>
+                }
+            </div>
         </div>
 
         <div class="group" role="group" aria-label="Tempo">
@@ -124,6 +136,17 @@
 
     [Parameter]
     public EventCallback<ListenTo> ListenToChanged { get; set; }
+
+    /// <summary>Whether the piece plays on beyond the phrase, so Back to the phrase is offered.</summary>
+    [Parameter]
+    public bool PlayingOn { get; set; }
+
+    /// <summary>True to play the whole piece from its start, false to play on from the phrase to the end.</summary>
+    [Parameter]
+    public EventCallback<bool> PlayOn { get; set; }
+
+    [Parameter]
+    public EventCallback Back { get; set; }
 
     private static bool IsLayer(ListenTo choice) => choice is ListenTo.Melody or ListenTo.Accompaniment;
 }

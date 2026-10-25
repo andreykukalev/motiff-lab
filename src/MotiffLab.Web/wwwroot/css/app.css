@@ -1172,6 +1172,22 @@ html, body {
     color: var(--ml-score-inferred);
 }
 
+/* The selected phrase's mark (#126): the label in reverse, so the player sees where the phrase sits in the piece. */
+.score .phrase-mark.current {
+    border-left-width: 3px;
+}
+
+.score .phrase-mark.current span {
+    background: var(--ml-score-ink);
+    border-color: var(--ml-score-ink);
+    color: #FFFFFF;
+}
+
+.score .phrase-mark.inferred.current span {
+    background: var(--ml-score-inferred);
+    border-color: var(--ml-score-inferred);
+}
+
 /* The phrase strip (Phrases/PhraseStrip.razor, #18): the piece as phrases to pick, each saying how its start was found.
    Certainty by line as well as colour: solid from the file or the player, dashed blue inferred. */
 .phrases {
@@ -1217,8 +1233,21 @@ html, body {
     color: var(--ml-charcoal);
 }
 
-.phrases .phrase-actions {
+.phrases .phrase-actions, .phrases .phrase-extend {
     margin-top: 0.25rem;
+}
+
+/* Previous and next phrase at either end of the chips (#126). */
+.lab .phrases button.step {
+    flex: none;
+    min-width: 2.5rem;
+    font-size: 1.2rem;
+    line-height: 1;
+}
+
+.phrases .phrase-extend .meta {
+    margin: 0;
+    align-self: center;
 }
 
 .phrases .meta {

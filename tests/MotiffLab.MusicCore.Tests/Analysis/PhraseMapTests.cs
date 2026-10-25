@@ -169,6 +169,54 @@ public class PhraseMapTests
     }
 
     [Fact]
+    public void A_selection_extends_into_the_next_or_the_previous_phrase()
+    {
+        PhraseMap map = Phrases();
+
+        PhraseExtension? next = map.ExtendInto(map.Phrases[0].Span, 1);
+        Assert.Equal(TickSpan.FromBounds(Tick.Zero, new Tick(4 * Bar)), next?.Span);
+        Assert.Equal(2, next?.Into.Number);
+        Assert.False(next?.Shortened);
+
+        PhraseExtension? previous = map.ExtendInto(map.Phrases[2].Span, -1);
+        Assert.Equal(TickSpan.FromBounds(new Tick(4320), new Tick(5 * Bar)), previous?.Span);
+        Assert.Equal(2, previous?.Into.Number);
+
+        // A selection inside a phrase runs on to the end of that phrase.
+        Assert.Equal(TickSpan.FromBounds(new Tick(Bar), new Tick(4320)), map.ExtendInto(TickSpan.FromBounds(new Tick(Bar), new Tick(2 * Bar)), 1)?.Span);
+
+        Assert.Null(map.ExtendInto(map.Phrases[2].Span, 1));
+        Assert.Null(map.ExtendInto(map.Phrases[0].Span, -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => map.ExtendInto(map.Phrases[0].Span, 2));
+    }
+
+    [Fact]
+    public void An_extended_selection_stops_at_the_most_bars_a_selection_holds()
+    {
+        // Ten bars of whole notes with a beat of rest only before bar 10: phrases of bars 1–10 and bar 10.
+        Note[] notes = [.. Enumerable.Range(0, 10).Select(bar => new Note
+        {
+            Id = $"n{bar}",
+            Pitch = new Pitch(60),
+            Span = new TickSpan(new Tick((bar * Bar) + (bar == 9 ? 480 : 0)), bar == 8 ? Bar - 480 : Bar - (bar == 9 ? 480 : 0)),
+            Velocity = 80,
+            Track = 0,
+            Attribution = Attribution.Imported,
+        })];
+        PhraseMap map = PhraseMap.Suggest(notes, MeterMap.Default, PhraseMarks.None, new Tick(10 * Bar));
+
+        PhraseExtension? next = map.ExtendInto(TickSpan.FromBounds(Tick.Zero, new Tick(Bar)), 1);
+        Assert.Equal(TickSpan.FromBounds(Tick.Zero, new Tick(8 * Bar)), next?.Span);
+        Assert.True(next?.Shortened);
+        // Already as long as a selection can be: nothing more to add.
+        Assert.Null(map.ExtendInto(next!.Span, 1));
+
+        PhraseExtension? previous = map.ExtendInto(map.Phrases[1].Span, -1);
+        Assert.Equal(TickSpan.FromBounds(new Tick(2 * Bar), new Tick(10 * Bar)), previous?.Span);
+        Assert.True(previous?.Shortened);
+    }
+
+    [Fact]
     public void Describe_says_how_a_phrase_start_was_found()
     {
         PhraseMap map = Phrases();

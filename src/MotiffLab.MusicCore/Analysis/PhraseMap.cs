@@ -50,6 +50,12 @@ public sealed record Phrase(int Number, TickSpan Span, int FirstBar, int LastBar
     public bool FitsSelection => BarCount <= MotifSelection.MaxBars;
 }
 
+/// <summary>A selection run on into a neighbouring phrase (#126).</summary>
+/// <param name="Span">The selection with the neighbouring phrase.</param>
+/// <param name="Into">The phrase it runs into.</param>
+/// <param name="Shortened">Whether it stops before the far edge of <paramref name="Into"/>, because a selection holds at most <see cref="MotifSelection.MaxBars"/> bars.</param>
+public sealed record PhraseExtension(TickSpan Span, Phrase Into, bool Shortened);
+
 /// <summary>
 /// The piece as phrases (S1-I5): the boundaries <see cref="PhraseBoundaryFinder"/> finds in the
 /// source, with the player's own changes, cut into the phrases between them. The phrases are the
@@ -193,6 +199,44 @@ public sealed class PhraseMap
 
         Tick stop = _meter.GetBar(phrase.FirstBar + MotifSelection.MaxBars - 1).Span.End;
         return TickSpan.FromBounds(phrase.Span.Onset, stop < phrase.Span.End ? stop : phrase.Span.End);
+    }
+
+    /// <summary>
+    /// The selection <paramref name="span"/> run on into its neighbouring phrase (#126), so the player can
+    /// hear the transition: to the end of the phrase its end falls in (<paramref name="direction"/> 1), or back
+    /// to the start of the phrase before its start (-1). A selection holds at most
+    /// <see cref="MotifSelection.MaxBars"/> bars, so the edge that moves stops there. Null at either end of the
+    /// piece, and when the selection already holds as many bars as it can that way.
+    /// </summary>
+    public PhraseExtension? ExtendInto(TickSpan span, int direction)
+    {
+        if (direction is not (1 or -1))
+        {
+            throw new ArgumentOutOfRangeException(nameof(direction), direction, "Extend by -1 (the previous phrase) or 1 (the next).");
+        }
+
+        if (direction == 1)
+        {
+            if (span.End >= End)
+            {
+                return null;
+            }
+
+            Phrase next = At(span.End);
+            int lastBar = _meter.BarAt(span.Onset).Number + MotifSelection.MaxBars - 1;
+            Tick stop = lastBar < _meter.BarAt(new Tick(next.Span.End.Value - 1)).Number ? _meter.GetBar(lastBar).Span.End : next.Span.End;
+            return stop > span.End ? new PhraseExtension(TickSpan.FromBounds(span.Onset, stop), next, stop < next.Span.End) : null;
+        }
+
+        if (span.Onset == Tick.Zero)
+        {
+            return null;
+        }
+
+        Phrase previous = At(new Tick(span.Onset.Value - 1));
+        int firstBar = _meter.BarAt(new Tick(span.End.Value - 1)).Number - MotifSelection.MaxBars + 1;
+        Tick start = firstBar > _meter.BarAt(previous.Span.Onset).Number ? _meter.GetBar(firstBar).Span.Onset : previous.Span.Onset;
+        return start < span.Onset ? new PhraseExtension(TickSpan.FromBounds(start, span.End), previous, start > previous.Span.Onset) : null;
     }
 
     /// <summary>

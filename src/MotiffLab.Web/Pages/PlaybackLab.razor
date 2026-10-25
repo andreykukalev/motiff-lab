@@ -111,7 +111,9 @@
                 @if (_phrases is not null)
                 {
                     <PhraseStrip Map="_phrases" Current="CurrentPhrase" CanMake="@(_selection is not null && CurrentPhrase is null)"
-                                 Picked="PickPhraseAsync" Make="MakePhraseAsync" Join="JoinPhraseAsync" Reset="ResetPhrasesAsync" />
+                                 Picked="PickPhraseAsync" Make="MakePhraseAsync" Join="JoinPhraseAsync" Reset="ResetPhrasesAsync"
+                                 Previous="StepTarget(-1)" Next="StepTarget(1)" CanExtendBack="@(Extension(-1) is not null)" CanExtendOn="@(Extension(1) is not null)"
+                                 Extend="ExtendSelectionAsync" />
                 }
                 <div class="roll-panel">
                     <PianoRoll Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases"
@@ -198,7 +200,8 @@
                                            TempoPercent="TempoPercent" Choices="ListenChoices" ListenTo="_listenTo" HandsNote="@HandsNote"
                                            CanGoBack="@(StepTarget(-1) is not null)" CanGoOn="@(StepTarget(1) is not null)"
                                            PlayPressed="PractisePlayAsync" LoopPressed="ToggleLoopSelectionAsync" Step="StepPhraseAsync"
-                                           TempoChanged="SetTempoPercentAsync" ListenToChanged="PractiseListenToAsync" />
+                                           TempoChanged="SetTempoPercentAsync" ListenToChanged="PractiseListenToAsync"
+                                           PlayingOn="@(_playOnLooped is not null)" PlayOn="PlayOnAsync" Back="BackToPhraseAsync" />
                             break;
                         case InspectorTab.Explore:
                             <ExploreCard HasSelection="@(_selection is { NoteIds.Count: > 0 })" Offers="CardOffers" Trial="ActiveTrial" Explanation="@_variation?.Explanation"
@@ -1005,6 +1008,7 @@
         _looping = false;
         _alternating = false;
         _answerLoop = null;
+        _playOnLooped = null;
         _hear = [Player.OriginalSource];
         _chain = null;
         _variation = null;
@@ -1133,9 +1137,12 @@
     /// <summary>The phrase the selection stands for or lies mostly in, which Previous and Next phrase step from.</summary>
     private Phrase? StepFrom => _phrases is { } map && _selection is { } selection ? CurrentPhrase ?? map.Covering(selection.Span) : null;
 
-    /// <summary>The phrase before (-1) or after (1) the one the selection is in, or null at either end.</summary>
-    private Phrase? StepTarget(int direction) =>
-        StepFrom is { } from && from.Number + direction is int number && number >= 1 && number <= _phrases!.Phrases.Count ? _phrases.Phrases[number - 1] : null;
+    /// <summary>The phrase before (-1) or after (1) the one the selection is in, or null at either end; with nothing selected, the next is the first phrase.</summary>
+    private Phrase? StepTarget(int direction) => StepFrom switch
+    {
+        null => direction > 0 && _selection is null ? _phrases?.Phrases[0] : null,
+        { } from => from.Number + direction is int number && number >= 1 && number <= _phrases!.Phrases.Count ? _phrases.Phrases[number - 1] : null,
+    };
 
     /// <summary>Selects the previous or next phrase; the loop, the tempo and what is heard carry on.</summary>
     private Task StepPhraseAsync(int direction) => StepTarget(direction) is { } phrase ? PickPhraseAsync(phrase) : Task.CompletedTask;
@@ -1350,7 +1357,10 @@
     /// <summary>The phrase the selection stands for, or null when the selection is another range (#18).</summary>
     private Phrase? CurrentPhrase => _selection is { } selection ? _phrases?.Matching(selection.Span) : null;
 
-    /// <summary>The phrase starts the score marks, with how each was found; the first phrase starts with the piece and is not marked.</summary>
+    /// <summary>
+    /// The phrase starts the score marks, with how each was found, the selected phrase's marked as current (#126).
+    /// The first phrase starts with the piece and is marked only while it is selected.
+    /// </summary>
     private IReadOnlyList<ScorePhrase>? ScorePhrases
     {
         get
@@ -1360,11 +1370,13 @@
                 return null;
             }
 
-            if (!ReferenceEquals(_phrases, _scorePhrasesFor))
+            int? current = CurrentPhrase?.Number;
+            if (!ReferenceEquals(_phrases, _scorePhrasesFor) || current != _scorePhrasesCurrent)
             {
                 _scorePhrasesFor = _phrases;
-                _scorePhrases = [.. _phrases.Phrases.Where(phrase => phrase.Start is not null)
-                    .Select(phrase => new ScorePhrase(phrase.Span.Onset.Value, $"Phrase {phrase.Number}", PhraseStrip.KindClass(phrase.Start)))];
+                _scorePhrasesCurrent = current;
+                _scorePhrases = [.. _phrases.Phrases.Where(phrase => phrase.Start is not null || phrase.Number == current)
+                    .Select(phrase => new ScorePhrase(phrase.Span.Onset.Value, $"Phrase {phrase.Number}", PhraseStrip.KindClass(phrase.Start), phrase.Number == current))];
             }
 
             return _scorePhrases;
@@ -1372,6 +1384,7 @@
     }
 
     private PhraseMap? _scorePhrasesFor;
+    private int? _scorePhrasesCurrent;
     private IReadOnlyList<ScorePhrase>? _scorePhrases;
 
     /// <summary>Selects a phrase as the working context (#18): Explore and the facts read it. A phrase longer than a selection is selected up to 8 bars.</summary>
@@ -1438,6 +1451,7 @@
         _layered = false;
         _listenTo = ListenTo.Everything;
         _selectionNote = null;
+        _playOnLooped = null;
         await ClearVariationAsync();
         await SaveProjectAsync();
     }
@@ -2158,6 +2172,7 @@
         }
         else if (_selection is { NoteIds.Count: > 0 } selection)
         {
+            _playOnLooped = null;
             _looping = true;
             await LoopSelectionAsync(selection);
         }
@@ -2252,7 +2267,10 @@
                 return "Nothing selected. Drag across the piano roll or click a bar number.";
             }
 
-            var parts = new List<string> { CurrentPhrase is { } phrase ? $"Selected phrase {phrase.Number}, {PhraseBars(phrase)}" : $"Selected {Where(selection)}" };
+            var parts = new List<string>
+            {
+                CurrentPhrase is { } phrase ? $"Selected phrase {phrase.Number}, {PhraseBars(phrase)}" : $"Selected {SpannedPhrases(selection) ?? Where(selection)}",
+            };
             if (selection.Filter != SelectionFilter.All)
             {
                 string label = _filters.FirstOrDefault(filter => filter.Filter == selection.Filter).Label ?? "filtered";
@@ -2272,6 +2290,10 @@
             else if (_alternating)
             {
                 text += " Looping the original, then the variation.";
+            }
+            else if (PlayOnText is { } playingOn)
+            {
+                text += $" {playingOn}";
             }
             else if (_looping)
             {
