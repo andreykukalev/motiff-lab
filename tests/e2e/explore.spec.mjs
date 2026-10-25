@@ -23,7 +23,8 @@ test("explore a phrase: try an experiment, keep it, answer the motif and leave",
     await expect(heard).toHaveText("Original");
 
     await card.getByRole("button", { name: "Keep this variation" }).click();
-    await expect(card.getByRole("status")).toContainText("Kept with the project");
+    // Für Elise has no project, so the card says the variation is kept while the page is open (#78).
+    await expect(card.getByRole("status")).toContainText("Kept until you leave the page");
     await card.getByRole("button", { name: "Try another" }).click();
     await expect(card.locator("h3")).toHaveText("Same notes, different groove");
 

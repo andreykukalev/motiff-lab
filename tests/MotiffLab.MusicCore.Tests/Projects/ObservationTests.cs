@@ -265,6 +265,50 @@ public class ObservationTests
     }
 
     [Fact]
+    public void Changing_the_note_trims_it_and_a_blank_note_is_taken_away()
+    {
+        Project project = Worked();
+
+        Project noted = project.ChangeObservationNote("o_0002", "  Slower, but it still dances. ");
+        Project cleared = noted.ChangeObservationNote("o_0001", " ");
+
+        Assert.Equal([null, "Slower, but it still dances.", "The left hand leads here."], noted.ChangeObservationNote("o_0001", null).Observations.Select(observation => observation.Note));
+        Assert.Equal(project.Observations[1] with { Note = "Slower, but it still dances." }, noted.Observations[1]);
+        Assert.Null(cleared.Observations[0].Note);
+        Assert.Equal(project.Observations[0].Variation, cleared.Observations[0].Variation);
+        Assert.Equal("Sounds like a question now.", project.Observations[0].Note);
+        Assert.Throws<ArgumentException>(() => project.ChangeObservationNote("o_0003", "  "));
+        Assert.Throws<KeyNotFoundException>(() => project.ChangeObservationNote("o_9999", "Lost"));
+    }
+
+    [Fact]
+    public void Restoring_hears_the_variation_as_it_was_kept_on_the_notes_given()
+    {
+        Project project = Worked();
+        ImportedPiece piece = Piece();
+        OpenedProject opened = OpenedProject.Open(project);
+
+        VariationChain restored = project.Observations[0].Restore(piece.Notes, piece.Meter)!;
+
+        Assert.Equal(opened.Observations[0].Chain!.Result!.Notes, restored.Result!.Notes);
+        Assert.Equal(project.Observations[0].Variation, KeptVariation.Create(restored, project.Observations[0].Variation!.Passage.Filter));
+        Assert.Equal(project.Observations[1].Variation, KeptVariation.Create(project.Observations[1].Restore(piece.Notes, piece.Meter)!, SelectionFilter.ForHand(Hand.Right)));
+        Assert.Null(project.Observations[2].Restore(piece.Notes, piece.Meter));
+    }
+
+    [Fact]
+    public void Restoring_on_notes_that_no_longer_match_says_which_variation()
+    {
+        Project project = Worked();
+        ImportedPiece piece = Piece();
+        string first = project.Observations[0].Variation!.NoteIds[0];
+
+        var exception = Assert.Throws<ProjectFileException>(() => project.Observations[0].Restore([.. piece.Notes.Where(note => note.Id != first)], piece.Meter));
+
+        Assert.Contains("Higher answer", exception.Message);
+    }
+
+    [Fact]
     public void Keeping_the_same_id_twice_is_refused()
     {
         Project project = Worked();

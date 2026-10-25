@@ -1,0 +1,78 @@
+@* A note in the player's own words on something they kept (#78): saved when the field loses focus or with Save note.
+   The text is the player's: it is stored as they wrote it (trimmed), never read, scored or sent anywhere. *@
+<div class="observation-note">
+    <label for="@_fieldId">@Label</label>
+    <textarea id="@_fieldId" rows="3" maxlength="@MaxLength" placeholder="@Placeholder"
+              @bind="_draft" @bind:event="oninput" @onchange="SaveAsync"></textarea>
+    <div class="row">
+        <button @onclick="SaveAsync" disabled="@(!Changed)">@SaveLabel</button>
+        @if (Cancel.HasDelegate)
+        {
+            <button @onclick="() => Cancel.InvokeAsync()">Cancel</button>
+        }
+        <span class="meta" aria-live="polite">@(_saved && !Changed ? SavedText : null)</span>
+    </div>
+</div>
+
+@code {
+    /// <summary>Long enough for a few sentences; the project file stays small.</summary>
+    public const int MaxLength = 2000;
+
+    private static int s_fields;
+    private readonly string _fieldId = $"observation-note-{++s_fields}";
+
+    /// <summary>What the note is about, so the field starts again when it changes (an observation id, or the phrase for a new note).</summary>
+    [Parameter, EditorRequired]
+    public string For { get; set; } = "";
+
+    /// <summary>The note as saved, or null for none.</summary>
+    [Parameter]
+    public string? Note { get; set; }
+
+    [Parameter]
+    public string Label { get; set; } = "Your note (optional)";
+
+    [Parameter]
+    public string SaveLabel { get; set; } = "Save note";
+
+    [Parameter]
+    public string SavedText { get; set; } = "Note saved.";
+
+    [Parameter]
+    public string? Placeholder { get; set; } = "What did you hear or notice?";
+
+    /// <summary>Raised with the text as written when it changed; the page trims and stores it.</summary>
+    [Parameter]
+    public EventCallback<string> Saved { get; set; }
+
+    /// <summary>Shown as a Cancel button when set.</summary>
+    [Parameter]
+    public EventCallback Cancel { get; set; }
+
+    private string? _for;
+    private string _draft = "";
+    private bool _saved;
+
+    private bool Changed => _draft.Trim() != (Note ?? "");
+
+    protected override void OnParametersSet()
+    {
+        if (_for != For)
+        {
+            _for = For;
+            _draft = Note ?? "";
+            _saved = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (!Changed)
+        {
+            return;
+        }
+
+        await Saved.InvokeAsync(_draft);
+        _saved = true;
+    }
+}

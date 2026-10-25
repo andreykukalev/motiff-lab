@@ -16,6 +16,7 @@
 @using MotiffLab.Web.Compare
 @using MotiffLab.Web.Explore
 @using MotiffLab.Web.Import
+@using MotiffLab.Web.Observations
 @using MotiffLab.Web.Phrases
 @using MotiffLab.Web.Playback
 @using MotiffLab.Web.Practise
@@ -111,7 +112,8 @@
                 @if (_phrases is not null)
                 {
                     <PhraseStrip Map="_phrases" Current="CurrentPhrase" CanMake="@(_selection is not null && CurrentPhrase is null)"
-                                 Picked="PickPhraseAsync" Make="MakePhraseAsync" Join="JoinPhraseAsync" Reset="ResetPhrasesAsync" />
+                                 Picked="PickPhraseAsync" Make="MakePhraseAsync" Join="JoinPhraseAsync" Reset="ResetPhrasesAsync"
+                                 KeptCount="KeptCount" />
                 }
                 <div class="roll-panel">
                     <PianoRoll Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases"
@@ -205,10 +207,18 @@
                                          OriginalHeard="ComparingOriginal" VariationHeard="ComparingVariation"
                                          AnswerLooping="@(_answerLoop is not null)" Layered="_layered" ListenTo="_listenTo"
                                          Try="TryExperimentAsync" Hear="CompareAsync" Keep="KeepExperimentAsync" Leave="LeaveExperimentAsync"
-                                         Surprise="SurpriseAsync" HearInContext="HearAnswerAsync" ListenToChanged="SetListenToAsync" FactChosen="ShowFactAsync" />
+                                         Surprise="SurpriseAsync" HearInContext="HearAnswerAsync" ListenToChanged="SetListenToAsync" FactChosen="ShowFactAsync"
+                                         KeptText="@KeptText" KeptId="@KeptOnCard?.Id" KeptNote="@KeptOnCard?.Note" NoteSaved="SaveKeptNoteAsync" />
                             @if (_variation is not null && _selection is { NoteIds.Count: > 0 })
                             {
                                 <ComparePanel Variation="_variation" />
+                            }
+                            @if (_selection is not null)
+                            {
+                                @* Kept for this phrase (#78): what the player kept about the phrase, to open, rename, export or delete. *@
+                                <ObservationList Heading="@ListedHeading" Rows="KeptRows" SessionOnly="KeptForSessionOnly" CanKeepHeard="CanKeepHeard" CanWrite="true"
+                                                 Status="@ObservationStatus" Open="OpenObservationAsync" Rename="RenameObservationAsync" Note="NoteObservationAsync"
+                                                 Export="ExportObservationAsync" Delete="DeleteObservationAsync" KeepHeard="KeepHeardAsync" Write="WriteNoteAsync" />
                             }
                             break;
                         case InspectorTab.Selection:
@@ -1012,6 +1022,9 @@
         _invitationContext = null;
         _trial = null;
         _tried.Clear();
+        // A new piece has its own project, or none (#78): nothing kept about another piece shows or saves here.
+        _project = null;
+        ForgetSessionObservations();
         _listenTo = ListenTo.Everything;
         _layered = false;
         _scope = OperationScope.All;
@@ -1668,6 +1681,7 @@
         }
 
         _trial = trial with { Kept = true };
+        KeepObservation(_trial);
         await SaveProjectAsync();
         await Analytics.TrackAsync(AnalyticsEvent.ExperimentKept(trial.Experiment.Id, trial.Alternative));
     }

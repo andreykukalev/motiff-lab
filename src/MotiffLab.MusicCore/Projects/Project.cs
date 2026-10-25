@@ -76,6 +76,15 @@ public sealed record Project(
         return this with { Observations = [.. Observations.Where(kept => kept.Id != id)] };
     }
 
+    /// <summary>The project with the observation's note changed to <paramref name="note"/>; blank takes the note away.</summary>
+    /// <exception cref="KeyNotFoundException">No observation has the id.</exception>
+    /// <exception cref="ArgumentException">The note is blank and the observation keeps no variation.</exception>
+    public Project ChangeObservationNote(string id, string? note)
+    {
+        Observation changed = FindObservation(id).WithNote(note);
+        return this with { Observations = [.. Observations.Select(kept => kept.Id == id ? changed : kept)] };
+    }
+
     private Observation FindObservation(string id) =>
         Observations.FirstOrDefault(observation => observation.Id == id) ?? throw new KeyNotFoundException($"The project keeps no observation {id}.");
 }
@@ -203,7 +212,7 @@ public sealed record OpenedProject(
         var observations = new List<(Observation, VariationChain?)>();
         foreach (Observation observation in project.Observations)
         {
-            observations.Add((observation, observation.Variation is { } kept ? Rebuild(kept, observation.Name, notes, piece.Meter) : null));
+            observations.Add((observation, observation.Restore(notes, piece.Meter)));
         }
 
         return new OpenedProject(project, piece, notes, motifs, variations) { Observations = observations };
@@ -212,44 +221,8 @@ public sealed record OpenedProject(
     /// <summary>The observations, in the project's order, each with its variation's chain rebuilt; null for a note alone.</summary>
     public IReadOnlyList<(Observation Saved, VariationChain? Chain)> Observations { get; init; } = [];
 
-    /// <summary>
-    /// A kept variation's chain, over the same notes, Keep choices and key it ran with. The notes are
-    /// those of its passage, or the notes it names when the player picked notes one by one.
-    /// </summary>
-    private static VariationChain Rebuild(KeptVariation kept, string name, IReadOnlyList<Note> notes, MeterMap meter)
-    {
-        MotifSelection? selection;
-        try
-        {
-            selection = MotifSelector.Select(notes, meter, kept.Passage.Span, kept.Passage.Filter);
-            if (!selection.NoteIds.SequenceEqual(kept.NoteIds, StringComparer.Ordinal))
-            {
-                MotifSelection picked = MotifSelector.SelectNotes(notes, meter, kept.NoteIds);
-                selection = picked.Span == kept.Passage.Span && picked.NoteIds.SequenceEqual(kept.NoteIds, StringComparer.Ordinal) ? picked : null;
-            }
-        }
-        catch (ArgumentException)
-        {
-            selection = null;
-        }
-
-        if (selection is null)
-        {
-            throw new ProjectFileException($"The kept variation \"{name}\" no longer matches the notes of the piece.");
-        }
-
-        VariationChain chain = VariationChain.Start(
-            VariationFacts.MotifNotes(notes, selection),
-            VariationContext.For(selection, kept.Keep.ToHashSet(), key: kept.Key, meter: meter));
-        foreach (SavedStep step in kept.Steps)
-        {
-            chain = Propose(chain, step).Accept();
-        }
-
-        return kept.Pending is { } pending ? Propose(chain, pending) : chain;
-    }
-
-    private static VariationChain Propose(VariationChain chain, SavedStep step)
+    /// <summary>A saved step proposed on the chain again; shared with <see cref="Observation.Restore"/>.</summary>
+    internal static VariationChain Propose(VariationChain chain, SavedStep step)
     {
         IVariationOperation operation = VariationOperations.Find(step.Operation)
             ?? throw new ProjectFileException($"A variation uses an operation ({step.Operation}) this version of Motiff Lab does not have.");
