@@ -103,6 +103,7 @@ export class ScoreView {
     private markedKey = "";
     /** The range that plays for the selection [start, end), or null when nothing is selected. */
     private range: { start: number; end: number } | null = null;
+    private holding = false;
     private phrases: ScorePhrase[] = [];
     /** The places of the chosen fact, and the engraved notes and rests that stand for them. */
     private highlight: HighlightPlace[] = [];
@@ -162,6 +163,18 @@ export class ScoreView {
         this.applyRange(true);
     }
 
+    /**
+     * While held, the score never gets shorter: each engraving keeps at least the tallest height so far,
+     * so the page below it does not jump when two versions take turns. Released, it fits its content again.
+     */
+    holdHeight(hold: boolean): void {
+        this.holding = hold;
+        this.host.style.minHeight = "";
+        if (hold) {
+            this.keepHeight();
+        }
+    }
+
     /** Marks where phrases start: a line and a label at the first engraved note at or after each start. */
     setPhrases(phrases: ScorePhrase[]): void {
         this.phrases = phrases;
@@ -217,6 +230,9 @@ export class ScoreView {
             pages.push(container);
         }
         this.host.replaceChildren(...pages);
+        if (this.holding) {
+            this.keepHeight();
+        }
 
         this.applyRange(false);
         this.placePhrases();
@@ -227,6 +243,10 @@ export class ScoreView {
         this.marked = new Set();
         this.markedKey = "";
         this.mark(marked, false);
+    }
+
+    private keepHeight(): void {
+        this.host.style.minHeight = `${this.host.getBoundingClientRect().height}px`;
     }
 
     private applyRange(scroll: boolean): void {

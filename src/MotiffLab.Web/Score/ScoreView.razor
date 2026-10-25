@@ -12,7 +12,7 @@
 {
     <p class="error">@_error</p>
 }
-else if (_loading)
+else if (_loading && !HoldHeight)
 {
     <p class="meta">Engraving the score…</p>
 }
@@ -28,6 +28,7 @@ else if (_loading)
     private TickSpan? _shownRange;
     private IReadOnlyList<ScorePhrase>? _shownPhrases;
     private IReadOnlyList<HighlightPlace>? _shownHighlight;
+    private bool _shownHold;
 
     /// <summary>What to show. The view engraves it again only when a different instance is given.</summary>
     [Parameter, EditorRequired]
@@ -44,6 +45,13 @@ else if (_loading)
     /// <summary>The places of the fact chosen on the Understand tab (#25), highlighted; null or empty highlights none.</summary>
     [Parameter]
     public IReadOnlyList<HighlightPlace>? Highlight { get; set; }
+
+    /// <summary>
+    /// While true the score never gets shorter, so what is below it stays put when two versions take turns
+    /// (One after the other, #43): a tablet stacks the inspector under it.
+    /// </summary>
+    [Parameter]
+    public bool HoldHeight { get; set; }
 
     protected override void OnParametersSet()
     {
@@ -62,6 +70,12 @@ else if (_loading)
         if (_view is null || Source is null)
         {
             return;
+        }
+
+        if (HoldHeight != _shownHold)
+        {
+            _shownHold = HoldHeight;
+            await _view.InvokeVoidAsync("holdHeight", HoldHeight);
         }
 
         if (ReferenceEquals(Source, _shown))

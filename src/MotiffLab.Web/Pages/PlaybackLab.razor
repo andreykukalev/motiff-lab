@@ -78,11 +78,12 @@
                 </label>
                 <label class="pick">
                     <span>Score</span>
-                    <select @onchange="SetScoreChoice" aria-label="Which score shows">
-                        <option value="off" selected="@(!_showScore)">Hidden</option>
+                    @* The select's value, not each option's selected attribute: Firefox can fall back to the first option when the options and their selected attributes change in one render. *@
+                    <select @onchange="SetScoreChoice" aria-label="Which score shows" value="@(_showScore ? ShownChoice.ToString() : "off")">
+                        <option value="off">Hidden</option>
                         @foreach ((ScoreChoice choice, string label) in ScoreChoices)
                         {
-                            <option value="@choice" selected="@(_showScore && ShownChoice == choice)">@label</option>
+                            <option value="@choice">@label</option>
                         }
                     </select>
                 </label>
@@ -125,7 +126,7 @@
                 {
                     @* Clicks on the page outside the roll clear the selection, except inside panels marked data-keeps-selection (docs/ui-conventions.md). *@
                     <div class="score-panel" data-keeps-selection>
-                        <ScoreView Source="shown" Range="ShownRange" Phrases="ScorePhrases" Highlight="_highlight?.Places" />
+                        <ScoreView Source="shown" Range="ShownRange" Phrases="ScorePhrases" Highlight="_highlight?.Places" HoldHeight="_alternating" />
                         <p class="meta">@ScoreNote(shown)</p>
                     </div>
                 }
