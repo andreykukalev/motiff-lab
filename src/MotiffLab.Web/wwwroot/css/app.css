@@ -125,7 +125,19 @@ html, body {
     color: var(--ml-lime);
 }
 
-/* Playback test bench (Pages/PlaybackLab.razor). */
+/* Shared screens (Pages/*.razor) and the playback workspace (Pages/PlaybackLab.razor), after the iPad mockups:
+   charcoal ground, raised panels, lime for what is on, blue for inferred, amber for uncertain. */
+:root {
+    --ml-panel: #181D24;
+    --ml-surface: #1E242C;
+    --ml-raised: #2A313B;
+    --ml-line: #2A313B;
+    --ml-border: #3A424D;
+    --ml-inferred: #7CC4FA;
+    --ml-uncertain: #F2C14E;
+    --ml-mono: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+}
+
 .lab {
     max-width: 112rem;
     margin: 0 auto;
@@ -141,57 +153,18 @@ html, body {
     margin: 0.25rem 0 0.5rem;
 }
 
-/* The main workspace (docs/ui-conventions.md): the roll on the left, the score on the right, everything else below. */
-.lab .workspace {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 1rem;
-    align-items: start;
+.lab h3 {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--ml-gray);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 0 0 0.5rem;
 }
 
-@media (min-width: 70rem) {
-    .lab .workspace.with-score {
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    }
-}
-
-/* The score panel scrolls within the height of the roll beside it. */
-.lab .workspace.with-score .score-panel .score {
-    max-height: 32rem;
-    margin-top: 0;
-}
-
-.lab .below {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 1rem 2rem;
-    margin-top: 1rem;
-}
-
-@media (min-width: 60rem) {
-    .lab .below {
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    }
-}
-
-.lab .toolbar {
-    padding: 0.4rem 0;
-    border-top: 1px solid #343C47;
-    border-bottom: 1px solid #343C47;
-}
-
-.lab .toolbar select {
-    font: inherit;
-}
-
-.lab .divider {
-    width: 1px;
-    height: 1.4em;
-    background: #343C47;
-}
-
-.lab .roll-tools .unavailable {
-    opacity: 0.5;
+.lab .mono, .lab .position {
+    font-family: var(--ml-mono);
+    font-variant-numeric: tabular-nums;
 }
 
 .lab .meta, .lab .credit {
@@ -199,7 +172,7 @@ html, body {
 }
 
 .lab .credit {
-    margin-top: 3rem;
+    margin-top: 2rem;
     font-size: 0.85rem;
 }
 
@@ -211,28 +184,45 @@ html, body {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.5rem 0.75rem;
     margin: 0.75rem 0;
 }
 
-.lab button, .lab .file {
+.lab button, .lab .file, .lab select {
     background: transparent;
     color: var(--ml-white);
-    border: 1px solid var(--ml-gray);
-    border-radius: 0.4rem;
-    padding: 0.35rem 0.8rem;
+    border: 1px solid var(--ml-border);
+    border-radius: 0.6rem;
+    min-height: 2.25rem;
+    padding: 0.3rem 0.8rem;
     font: inherit;
+    font-size: 0.9rem;
     cursor: pointer;
+}
+
+.lab .file {
+    display: inline-flex;
+    align-items: center;
+    box-sizing: border-box;
+}
+
+.lab select {
+    background: var(--ml-surface);
+}
+
+.lab button:hover:not(:disabled), .lab .file:hover {
+    border-color: var(--ml-gray);
 }
 
 .lab button.primary, .lab button.on {
     background: var(--ml-lime);
     border-color: var(--ml-lime);
     color: var(--ml-charcoal);
+    font-weight: 600;
 }
 
 .lab button:disabled {
-    opacity: 0.5;
+    opacity: 0.45;
     cursor: default;
 }
 
@@ -244,51 +234,300 @@ html, body {
     width: 4rem;
 }
 
-.lab .seek {
-    flex: 1 1 12rem;
-    min-width: 8rem;
-}
-
-.lab .position {
-    font-variant-numeric: tabular-nums;
-    min-width: 9rem;
+.lab input[type=range], .lab input[type=checkbox] {
+    accent-color: var(--ml-lime);
 }
 
 .lab .track {
     min-width: 5rem;
 }
 
-/* Motif selection (S1-M1, S1-M2): its controls, and its state in words. */
-.lab .selection {
-    border-left: 3px solid var(--ml-lime);
-    padding-left: 0.75rem;
+/* The workspace fills the window: header, then the canvas and the inspector, with the transport fixed along the bottom. */
+.lab.app {
+    max-width: none;
+    padding: 0 0 1rem;
 }
 
-.lab .selection select {
-    font: inherit;
+.app-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
+    padding: 0.6rem 1.25rem;
+    border-bottom: 1px solid var(--ml-line);
 }
 
-/* Room for two lines, so the panels do not jump as the description changes. */
-.lab .selection p {
-    min-height: 2.6em;
+.app-header .back {
+    text-decoration: none;
+    font-weight: 500;
 }
 
-.lab .facts-panel {
-    border-left: 3px solid #343C47;
-    padding-left: 0.75rem;
+.app-header .app-title {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 12rem;
+    min-width: 0;
 }
 
-/* Facts about the selection (S1-A1, S1-A2, S1-A4, S1-A5, Facts/FactsPanel.razor): a collapsible section per lens, each fact with how sure it is. */
+.app-header .app-title .meta {
+    font-size: 0.8rem;
+}
+
+.app-header .app-actions, .app-header .app-view {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.app-header .app-view {
+    flex-basis: 100%;
+    justify-content: flex-end;
+}
+
+.app-header .pick {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--ml-gray);
+    font-size: 0.85rem;
+}
+
+.app > .error, .app > .meta {
+    padding: 0 1.25rem;
+}
+
+.app-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+}
+
+@media (min-width: 64rem) {
+    .app-body {
+        grid-template-columns: minmax(0, 1fr) minmax(22rem, 28rem);
+    }
+
+    .app-header .app-view {
+        flex-basis: auto;
+    }
+}
+
+.app .canvas {
+    padding: 0.75rem 1.25rem;
+    min-width: 0;
+}
+
+.app .score-panel .score {
+    max-height: 26rem;
+    margin: 0.25rem 0;
+}
+
+.app .score-panel .meta {
+    font-size: 0.85rem;
+    margin: 0.25rem 0 0;
+}
+
+.app details.more {
+    margin-top: 1rem;
+    border-top: 1px solid var(--ml-line);
+    padding-top: 0.5rem;
+}
+
+.app details.more summary {
+    cursor: pointer;
+    color: var(--ml-gray);
+}
+
+/* The inspector: the selection and its loop on top, then the tabs. It stays in view as the canvas scrolls. */
+.app .inspector {
+    background: var(--ml-panel);
+    border-left: 1px solid var(--ml-line);
+    padding: 0.9rem 1rem 1rem;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+@media (min-width: 64rem) {
+    .app .inspector {
+        position: sticky;
+        top: 0;
+        max-height: calc(100vh - 5rem);
+        overflow-y: auto;
+        min-height: calc(100vh - 9rem);
+    }
+}
+
+.inspector-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.inspector-head .selection-text {
+    flex: 1;
+    margin: 0;
+    font-weight: 600;
+    line-height: 1.35;
+    min-height: 2.7em;
+}
+
+.inspector-actions {
+    display: flex;
+    gap: 0.4rem;
+    flex: none;
+}
+
+.inspector .tabs {
+    display: flex;
+    gap: 0.25rem;
+    margin: 0.9rem 0 0.75rem;
+}
+
+.lab .inspector button.tab {
+    flex: 1;
+    border: none;
+    color: var(--ml-gray);
+}
+
+.lab .inspector button.tab[aria-selected=true] {
+    background: var(--ml-raised);
+    color: var(--ml-white);
+    font-weight: 600;
+}
+
+.inspector .group {
+    margin-bottom: 1.1rem;
+}
+
+.inspector .choices, .inspector .keep {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 0.5rem;
+}
+
+.lab .inspector select.preset {
+    width: 100%;
+    margin-bottom: 0.5rem;
+    border-color: var(--ml-lime);
+    background: rgba(200, 241, 105, 0.12);
+}
+
+.app-header select {
+    max-width: 16rem;
+}
+
+/* The roll's how-to text stays small, so the score sits close below it. */
+.app .roll-panel > p.meta {
+    font-size: 0.8rem;
+    line-height: 1.4;
+    margin: 0.25rem 0 0.5rem;
+}
+
+.inspector .steps {
+    font-family: var(--ml-mono);
+    font-size: 0.8rem;
+    color: var(--ml-lime);
+    margin: 0.25rem 0 0.5rem;
+}
+
+.inspector .step-buttons {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.4rem;
+}
+
+.lab .inspector .step-buttons button {
+    padding: 0.3rem 0.4rem;
+}
+
+.inspector .changed {
+    background: var(--ml-surface);
+    border-radius: 0.75rem;
+    padding: 0.75rem 0.9rem;
+    margin-bottom: 1.1rem;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.inspector .changed p {
+    margin: 0;
+}
+
+.inspector .changed p + p {
+    margin-top: 0.4rem;
+}
+
+.inspector .row {
+    margin: 0.4rem 0;
+}
+
+/* The transport, fixed along the bottom: a round play button, the position and the playback settings. */
+.transport-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.9rem;
+    padding: 0.6rem 1.25rem;
+    background: var(--ml-surface);
+    border-top: 1px solid var(--ml-line);
+}
+
+.lab .transport-bar button.play {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--ml-lime);
+    border-color: var(--ml-lime);
+    color: var(--ml-charcoal);
+}
+
+.transport-bar .seek {
+    flex: 1 1 12rem;
+    min-width: 8rem;
+}
+
+.transport-bar .position {
+    min-width: 8rem;
+    font-size: 0.85rem;
+}
+
+.transport-bar .state {
+    min-width: 4.5rem;
+    font-size: 0.85rem;
+}
+
+.transport-bar label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.9rem;
+}
+
+.lab .roll-tools .unavailable {
+    opacity: 0.5;
+}
+
+/* Facts about the selection (S1-A1, S1-A2, S1-A4, S1-A5, Facts/FactsPanel.razor): a card per lens, each fact with how sure it is and its basis on demand. */
 .lab .facts {
-    margin: 0.5rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
 }
 
 .lab .facts .lens-group {
-    border-top: 1px solid #343C47;
-}
-
-.lab .facts .lens-group:last-of-type {
-    border-bottom: 1px solid #343C47;
+    background: var(--ml-charcoal);
+    border-radius: 0.75rem;
 }
 
 .lab .facts button.lens-toggle {
@@ -297,8 +536,7 @@ html, body {
     gap: 0.5rem;
     width: 100%;
     border: none;
-    border-radius: 0;
-    padding: 0.4rem 0;
+    padding: 0.6rem 0.8rem;
     text-align: left;
 }
 
@@ -313,62 +551,88 @@ html, body {
 
 .lab .facts .lens {
     font-weight: 600;
+    flex: 1;
 }
 
 .lab .facts .count {
     color: var(--ml-gray);
-    font-size: 0.85em;
+    font-family: var(--ml-mono);
+    font-size: 0.75rem;
 }
 
 .lab .facts ul {
     list-style: none;
-    margin: 0 0 0.5rem 1.5rem;
-    padding: 0;
+    margin: 0;
+    padding: 0 0.8rem 0.5rem;
 }
 
 .lab .facts li {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    align-items: baseline;
-    padding: 0.15rem 0;
+    gap: 0.6rem;
+    align-items: flex-start;
+    padding: 0.45rem 0;
+    border-top: 1px solid var(--ml-line);
+    font-size: 0.9rem;
+    line-height: 1.35;
 }
 
-/* The fact text takes the line and its certainty label stays beside it, not wrapped under it. */
-.lab .facts li > span:first-child {
+.lab .facts .fact {
     flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
 }
 
+.lab .facts .basis {
+    color: var(--ml-gray);
+    font-size: 0.8rem;
+}
+
+.lab .facts button.basis-toggle {
+    flex: none;
+    border: none;
+    min-height: 0;
+    padding: 0 0.2rem;
+    color: var(--ml-inferred);
+    font-size: 0.8rem;
+}
+
+/* Certainty is told by the line as well as the colour: solid detected, dashed inferred, dotted uncertain. */
 .lab .facts .certainty {
     flex: none;
-    font-size: 0.8em;
-    border: 1px solid var(--ml-gray);
-    border-radius: 0.6rem;
-    padding: 0 0.4rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    border: 1.5px solid var(--ml-gray);
+    border-radius: 0.7rem;
+    padding: 0.05rem 0.5rem;
     color: var(--ml-gray);
 }
 
-.lab .facts .certainty.detected {
-    border-color: var(--ml-lime);
-    color: var(--ml-lime);
+.lab .facts .certainty.inferred {
+    border-style: dashed;
+    border-color: var(--ml-inferred);
+    color: var(--ml-inferred);
 }
 
 .lab .facts .certainty.uncertain {
-    border-style: dashed;
+    border-style: dotted;
+    border-color: var(--ml-uncertain);
+    color: var(--ml-uncertain);
 }
 
-/* Note corrections (S1-I7): a collapsible table of the selected notes with nudge buttons; edited rows are marked by a label as well as the lime edge. */
+/* Note corrections (S1-I7) and hand edits (S1-E7): a collapsible table of notes with nudge buttons; edited rows are marked by a label as well as the lime edge. */
 .lab .corrections {
-    margin-top: 1rem;
-    border-top: 1px solid #343C47;
+    margin-top: 0.75rem;
+    border-top: 1px solid var(--ml-line);
+    overflow-x: auto;
 }
 
 .lab .corrections button.section-toggle {
     border: none;
-    border-radius: 0;
     padding: 0.4rem 0;
     text-align: left;
     width: 100%;
+    font-weight: 600;
 }
 
 .lab .corrections .caret {
@@ -379,11 +643,12 @@ html, body {
 
 .lab .notes-table {
     border-collapse: collapse;
+    font-size: 0.85rem;
 }
 
 .lab .notes-table th, .lab .notes-table td {
     text-align: left;
-    padding: 0.15rem 0.75rem 0.15rem 0;
+    padding: 0.15rem 0.6rem 0.15rem 0;
     white-space: nowrap;
 }
 
@@ -393,6 +658,7 @@ html, body {
 }
 
 .lab .notes-table button {
+    min-height: 1.75rem;
     padding: 0 0.4rem;
 }
 
@@ -406,35 +672,13 @@ html, body {
     font-size: 0.85rem;
 }
 
-/* Variation (S1-E1 to S1-E4, S1-E9): reshapes as one-click buttons, Keep as toggle chips that show whether each kept property survived the step. */
-.lab .variation {
-    margin-top: 0.5rem;
-}
-
-.lab .segmented {
-    display: flex;
-    flex-wrap: wrap;
-    margin: 0.5rem 0;
-}
-
-.lab .segmented button {
-    border-radius: 0;
-    margin-left: -1px;
-}
-
-.lab .segmented button:first-child {
-    border-radius: 0.4rem 0 0 0.4rem;
-    margin-left: 0;
-}
-
-.lab .segmented button:last-child {
-    border-radius: 0 0.4rem 0.4rem 0;
-}
-
+/* Keep chips (S1-E1 to S1-E4, S1-E9): toggles that show whether each kept property survived the step. */
 .lab .keep button.chip {
-    border-radius: 0.8rem;
-    padding: 0.1rem 0.6rem;
+    border-radius: 1.1rem;
+    border-width: 1.5px;
+    padding: 0.1rem 0.7rem;
     color: var(--ml-gray);
+    font-size: 0.85rem;
 }
 
 .lab .keep button.chip[aria-pressed=true] {
@@ -446,19 +690,22 @@ html, body {
 .lab .keep button.chip.kept {
     border-color: var(--ml-lime);
     color: var(--ml-lime);
+    background: rgba(200, 241, 105, 0.12);
 }
 
 .lab .keep button.chip.broken {
     border-style: dashed;
 }
 
-/* Score view (Score/ScoreView.razor, Scripts/score): ink on a raised surface, the notes being heard in the accent. */
+/* Score view (Score/ScoreView.razor, Scripts/score): ink on paper, as in the mockups; the notes being heard in a dark lime that reads on paper. */
 .score {
+    --ml-score-ink: #15191F;
+    --ml-score-playing: #4D7A00;
     max-height: 70vh;
     overflow-y: auto;
-    background: #1E242C;
-    color: var(--ml-white);
-    border-radius: 0.4rem;
+    background: var(--ml-white);
+    color: var(--ml-score-ink);
+    border-radius: 0.5rem;
     margin: 0.5rem 0;
 }
 
@@ -471,7 +718,7 @@ html, body {
     width: 100%;
     height: auto;
     /* Verovio sets color="black" on its SVG and leaves glyph fills to the default; CSS overrides both. */
-    color: var(--ml-white);
+    color: var(--ml-score-ink);
     fill: currentColor;
 }
 
@@ -485,9 +732,9 @@ html, body {
 }
 
 .score g.note.playing, .score g.chord.playing {
-    fill: var(--ml-lime);
-    stroke: var(--ml-lime);
-    color: var(--ml-lime);
+    fill: var(--ml-score-playing);
+    stroke: var(--ml-score-playing);
+    color: var(--ml-score-playing);
 }
 
 /* Piano roll and keyboard (Roll/PianoRoll.razor, Scripts/roll): canvases on the raised surface. */
@@ -607,9 +854,13 @@ html, body {
 }
 
 .lab a.button {
-    display: inline-block;
-    border: 1px solid var(--ml-gray);
-    border-radius: 0.4rem;
+    display: inline-flex;
+    align-items: center;
+    box-sizing: border-box;
+    min-height: 2.25rem;
+    font-size: 0.9rem;
+    border: 1px solid var(--ml-border);
+    border-radius: 0.6rem;
     padding: 0.35rem 0.8rem;
     text-decoration: none;
 }
@@ -622,6 +873,7 @@ html, body {
 
 .lab button.link {
     border: none;
+    min-height: 0;
     padding: 0;
     color: var(--ml-lime);
     text-decoration: underline;
@@ -670,6 +922,11 @@ html, body {
     cursor: pointer;
 }
 
+.score:focus-visible {
+    outline: 2px solid var(--ml-lime);
+    outline-offset: 2px;
+}
+
 /* Footer on every page: settings, privacy notice and terms of use (#65). */
 .site-footer {
     max-width: 112rem;
@@ -710,4 +967,9 @@ html, body {
 .lab.settings .events {
     font-size: 0.9rem;
     padding-left: 1.5rem;
+}
+
+/* The playback transport is fixed along the bottom; the footer clears it. */
+body:has(.transport-bar) .site-footer {
+    padding-bottom: 6rem;
 }

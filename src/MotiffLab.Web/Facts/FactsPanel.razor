@@ -25,22 +25,33 @@
                     <ul>
                         @foreach (MotifFact fact in facts)
                         {
+                            bool showBasis = _basisShown.Contains(fact.Id);
                             <li title="@fact.Basis">
-                                <span>@fact.Text</span>
                                 <span class="certainty @fact.Certainty.ToString().ToLowerInvariant()">@CertaintyLabel(fact.Certainty)</span>
+                                <div class="fact">
+                                    <span>@fact.Text</span>
+                                    @if (showBasis)
+                                    {
+                                        <span class="basis">Basis: @fact.Basis</span>
+                                    }
+                                </div>
+                                <button class="basis-toggle" aria-expanded="@(showBasis ? "true" : "false")" @onclick="() => ToggleBasis(fact.Id)">@(showBasis ? "Hide basis" : "Basis")</button>
                             </li>
                         }
                     </ul>
                 }
             </section>
         }
-        <p class="meta">Detected: read from the notes or the file. Inferred: worked out by a rule. Uncertain: a guess on thin evidence. Hover a fact to see why.</p>
+        <p class="meta">Detected: read from the notes or the file. Inferred: worked out by a rule. Uncertain: a guess on thin evidence. Basis shows why.</p>
     </div>
 }
 
 @code {
     /// <summary>The lenses the player closed; they stay closed as the selection changes.</summary>
     private readonly HashSet<FactLens> _collapsed = [];
+
+    /// <summary>The facts whose basis the player opened.</summary>
+    private readonly HashSet<string> _basisShown = new(StringComparer.Ordinal);
 
     /// <summary>The facts to show, from any analysis, in the order music-core gives them within each lens.</summary>
     [Parameter, EditorRequired]
@@ -51,6 +62,14 @@
         if (!_collapsed.Remove(lens))
         {
             _collapsed.Add(lens);
+        }
+    }
+
+    private void ToggleBasis(string id)
+    {
+        if (!_basisShown.Remove(id))
+        {
+            _basisShown.Add(id);
         }
     }
 
