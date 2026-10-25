@@ -1,14 +1,16 @@
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Projects;
+using MotiffLab.Web.Projects;
 
 namespace MotiffLab.Web.Import;
 
 /// <summary>
 /// The piece the player opened, from the import screen (N2) or the projects screen (N1), and where
-/// they chose to start, handed to the workspace. The piece's project autosaves on the device.
+/// they chose to start, handed to the workspace. The piece's project autosaves on the device, and the
+/// workspace's address names it, so a reload or a link opens it again from there.
 /// </summary>
-public sealed class CurrentPiece
+public sealed class CurrentPiece(ProjectStore projects)
 {
     public ImportedPiece? Piece { get; private set; }
 
@@ -31,6 +33,31 @@ public sealed class CurrentPiece
         Project = project;
         Opened = opened;
         Version++;
+    }
+
+    /// <summary>The workspace with the project open: "playback?project=p_…".</summary>
+    public static string WorkspaceUrl(Project project)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+        return $"playback?project={Uri.EscapeDataString(project.Id)}";
+    }
+
+    /// <summary>
+    /// Rebuilds a saved project from its source and opens it, marked as opened now. False when it is no
+    /// longer saved; throws <see cref="ProjectFileException"/> when it is damaged.
+    /// </summary>
+    public async Task<bool> OpenSavedAsync(string id)
+    {
+        if (await projects.LoadAsync(id) is not { } saved)
+        {
+            return false;
+        }
+
+        Project project = saved with { LastOpened = DateTimeOffset.Now };
+        OpenedProject opened = OpenedProject.Open(project);
+        await projects.SaveAsync(project);
+        Open(opened.Piece, opened.Motifs.FirstOrDefault()?.Filter ?? SelectionFilter.All, project, opened);
+        return true;
     }
 
     /// <summary>Keeps the latest save, so the next one builds on it.</summary>

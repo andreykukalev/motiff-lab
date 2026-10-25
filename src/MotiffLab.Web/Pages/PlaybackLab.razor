@@ -28,6 +28,7 @@
 @inject Player Player
 @inject CurrentPiece CurrentPiece
 @inject ProjectStore Projects
+@inject NavigationManager Navigation
 @inject MotiffLab.Web.Analytics.UsageAnalytics Analytics
 
 <PageTitle>Playback · Motiff Lab</PageTitle>
@@ -705,8 +706,15 @@
     private IReadOnlyList<string> _secondDifferences = [];
     private int _pieceVersion;
 
-    /// <summary>The project the piece autosaves to (S1-P1); null for files opened here or Für Elise.</summary>
+    /// <summary>The project the piece autosaves to (S1-P1); null for Für Elise.</summary>
     private Project? _project;
+
+    /// <summary>The project the address names ("playback?project=p_…"), reopened from the device when the page loads without a piece.</summary>
+    [SupplyParameterFromQuery(Name = "project")]
+    public string? ProjectId { get; set; }
+
+    /// <summary>True once the project in the address was looked for, so a missing one is reported once.</summary>
+    private bool _reopened;
 
     /// <summary>The motif the lab's selection is saved as. The lab works on one motif; a project can hold more.</summary>
     private string _motifId = "m_0001";
@@ -838,6 +846,25 @@
             await Player.InitializeAsync();
         }
 
+        // A reload or a link: the open piece lives only in memory, so open the project the address names from the device.
+        if (CurrentPiece.Piece is null && ProjectId is { Length: > 0 } id && !_reopened)
+        {
+            _reopened = true;
+            try
+            {
+                if (!await CurrentPiece.OpenSavedAsync(id))
+                {
+                    (_message, _tip) = ("This project is no longer saved in this browser.", "Open it again from Projects, or import the file.");
+                }
+            }
+            catch (ProjectFileException exception)
+            {
+                (_message, _tip) = (exception.Message, null);
+            }
+
+            StateHasChanged();
+        }
+
         // A piece opened from the import screen (N2), with the track or hand the player chose to start with.
         if (CurrentPiece.Piece is { } piece && CurrentPiece.Version != _pieceVersion && Player.IsReady)
         {
@@ -893,16 +920,27 @@
         _phraseMarks = PhraseMarks.None;
         _characterContext = new CharacterContext(score.Tempos, TempoAssumed: false, FromNotation: false);
         await LoadAsync((score, meter, notes), FurElise.Title, notation, musicXml: null, keys: [FurElise.Key]);
+        // Für Elise has no project, so the address no longer names one.
+        if (ProjectId is not null)
+        {
+            Navigation.NavigateTo("playback", replace: true);
+        }
+
         await Analytics.TrackAsync(AnalyticsEvent.StarterOpened("fur_elise"));
     }
 
     private async Task OpenFileAsync(InputFileChangeEventArgs args)
     {
         (_message, _tip) = (null, null);
-        PieceImportResult result = await ReadAsync(args.File);
+        (PieceImportResult result, byte[] data) = await ReadAsync(args.File);
         if (result.Piece is { } piece)
         {
-            await LoadPieceAsync(piece);
+            // Saved as a project, as the import screen does (S1-P1), so it is still there after a reload.
+            // The workspace opens it as it opens an imported piece.
+            var project = Project.Create($"p_{Guid.NewGuid():N}", piece.FileName, data, DateTimeOffset.Now);
+            await Projects.SaveAsync(project);
+            CurrentPiece.Open(piece, SelectionFilter.All, project);
+            Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(project), replace: true);
             return;
         }
 
@@ -910,24 +948,25 @@
     }
 
     /// <summary>Reads a picked file on the device and imports it; the file never leaves the browser.</summary>
-    private static async Task<PieceImportResult> ReadAsync(IBrowserFile file)
+    private static async Task<(PieceImportResult Result, byte[] Data)> ReadAsync(IBrowserFile file)
     {
         if (PieceImporter.CheckSize(file.Size) is { } rejection)
         {
-            return new(null, rejection);
+            return (new(null, rejection), []);
         }
 
         await using Stream stream = file.OpenReadStream(PieceImporter.MaxFileBytes);
         using var memory = new MemoryStream();
         await stream.CopyToAsync(memory);
-        return PieceImporter.Import(file.Name, memory.ToArray());
+        byte[] data = memory.ToArray();
+        return (PieceImporter.Import(file.Name, data), data);
     }
 
     /// <summary>Opens a second file as the variation source and switches to it at the same position (S1-W5).</summary>
     private async Task OpenSecondFileAsync(InputFileChangeEventArgs args)
     {
         (_secondMessage, _secondTip) = (null, null);
-        PieceImportResult result = await ReadAsync(args.File);
+        (PieceImportResult result, _) = await ReadAsync(args.File);
         if (result.Piece is not { } piece || _score is null)
         {
             (_secondMessage, _secondTip) = (result.Rejection?.Message, result.Rejection?.Tip);

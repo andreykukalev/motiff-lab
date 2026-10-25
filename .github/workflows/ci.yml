@@ -1,10 +1,18 @@
 name: CI
 
+# The browser tests (tests/e2e) are heavy, so they run only when asked: label a pull request
+# `browser-tests`, or run CI from the Actions tab with "Run the browser tests" ticked.
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review, closed]
+    types: [opened, synchronize, reopened, ready_for_review, labeled, closed]
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      browser_tests:
+        description: Run the browser tests
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -26,9 +34,14 @@ jobs:
   # artifact upload and download, and billing rounds each job up to a whole minute.
   # The job name is the required check, so it always runs and reports; what it skips it skips by step.
   build-test:
-    if: github.event.action != 'closed' && github.event.pull_request.draft != true
+    # Of labels, only adding browser-tests starts a run.
+    if: >-
+      github.event.action != 'closed' && github.event.pull_request.draft != true &&
+      (github.event.action != 'labeled' || github.event.label.name == 'browser-tests')
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # CI stays within 5 minutes. The browser suite alone takes about 15 minutes on one worker, so a run
+    # that asks for it gets longer.
+    timeout-minutes: ${{ (inputs.browser_tests || contains(github.event.pull_request.labels.*.name, 'browser-tests')) && 30 || 5 }}
     permissions:
       contents: read
       id-token: write # OIDC sign-in to Azure
@@ -41,17 +54,19 @@ jobs:
 
       # Documentation-only changes skip the build and tests. Only changes to the app (src, infra, SDK and
       # build settings) are published and deployed; test-only changes are built and tested but not deployed.
-      # The browser tests run on the published app when the app or they change. Any doubt (a commit that
-      # cannot be fetched) runs everything.
+      # The browser tests run on the published app only when asked (see the top), and then only when
+      # the app or they changed. Any doubt (a commit that cannot be fetched) runs everything asked for.
       - name: Find what changed
         id: changes
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          BROWSER_ASKED: ${{ inputs.browser_tests || contains(github.event.pull_request.labels.*.name, 'browser-tests') }}
         run: |
           code=true
           app=true
           browser=true
+          infra=true
           if [[ -n "$BASE_SHA" && "$BASE_SHA" != 0000000000000000000000000000000000000000 ]] \
             && git fetch --depth=1 --no-tags origin "$BASE_SHA" 2>/dev/null; then
             changed="$(git diff --name-only "$BASE_SHA" HEAD)"
@@ -59,6 +74,7 @@ jobs:
             code=false
             app=false
             browser=false
+            infra=false
             while IFS= read -r f; do
               case "$f" in
                 '') ;;
@@ -72,7 +88,13 @@ jobs:
                   browser=true ;;
                 *) code=true ;;
               esac
+              case "$f" in
+                infra/*) infra=true ;;
+              esac
             done <<< "$changed"
+          fi
+          if [[ "$BROWSER_ASKED" != true ]]; then
+            browser=false
           fi
           azure=false
           if [[ "$app" == true && -n "$AZURE_CLIENT_ID" ]] \
@@ -87,7 +109,8 @@ jobs:
           echo "browser=$browser" >> "$GITHUB_OUTPUT"
           echo "publish=$publish" >> "$GITHUB_OUTPUT"
           echo "deploy=$azure" >> "$GITHUB_OUTPUT"
-          echo "code=$code browser=$browser publish=$publish deploy=$azure"
+          echo "infra=$infra" >> "$GITHUB_OUTPUT"
+          echo "code=$code browser=$browser publish=$publish deploy=$azure infra=$infra"
 
       - uses: actions/setup-dotnet@v4
         if: steps.changes.outputs.code == 'true'
@@ -105,9 +128,11 @@ jobs:
         if: steps.changes.outputs.code == 'true'
         run: dotnet restore MotiffLab.slnx
 
+      # Whitespace only, without loading the solution (seconds rather than a minute): code style and
+      # analyzers fail the build already (EnforceCodeStyleInBuild with warnings as errors).
       - name: Check formatting
         if: steps.changes.outputs.code == 'true'
-        run: dotnet format MotiffLab.slnx --verify-no-changes --no-restore
+        run: dotnet format whitespace --folder --verify-no-changes
 
       - name: Build
         if: steps.changes.outputs.code == 'true'
@@ -127,7 +152,7 @@ jobs:
         if: steps.changes.outputs.code == 'true'
         run: node --test "tests/web/*.test.mjs"
 
-      # Publishing needs the wasm-tools workload (about 35 s to install) and a trimming publish (about a minute),
+      # Publishing needs the wasm-tools workload (about 30 s to install) and a trimming publish (about a minute),
       # so it only runs when the result is tested in browsers or deployed.
       - name: Install WebAssembly build tools
         if: steps.changes.outputs.publish == 'true'
@@ -138,7 +163,7 @@ jobs:
         run: dotnet publish src/MotiffLab.Web --configuration Release --output publish
 
       # Smoke, offline and accessibility tests of the published app in Chromium, Firefox and WebKit
-      # (tests/e2e, issue #66), before it is deployed. Firefox plays audio only with a sound device,
+      # (tests/e2e, issue #66), when asked, before it is deployed. Firefox plays audio only with a sound device,
       # so PulseAudio gives the runner a silent one.
       - uses: actions/cache@v4
         if: steps.changes.outputs.browser == 'true'
@@ -178,8 +203,9 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
+      # Infrastructure is previewed and provisioned only when infra/ changed (about 40 s).
       - name: Preview infrastructure changes
-        if: steps.changes.outputs.deploy == 'true' && github.event_name == 'pull_request'
+        if: steps.changes.outputs.deploy == 'true' && steps.changes.outputs.infra == 'true' && github.event_name == 'pull_request'
         run: >-
           az deployment group what-if
           --resource-group "$RESOURCE_GROUP"
@@ -187,7 +213,7 @@ jobs:
           --parameters infra/main.bicepparam
 
       - name: Provision infrastructure
-        if: steps.changes.outputs.deploy == 'true' && github.event_name == 'push'
+        if: steps.changes.outputs.deploy == 'true' && steps.changes.outputs.infra == 'true' && github.event_name == 'push'
         run: >-
           az deployment group create
           --resource-group "$RESOURCE_GROUP"
