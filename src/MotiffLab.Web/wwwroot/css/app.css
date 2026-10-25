@@ -891,7 +891,7 @@ html, body {
     position: absolute;
     pointer-events: none;
     border-left: 2px solid var(--ml-score-ink);
-    opacity: 0.8;
+    color: var(--ml-score-ink);
 }
 
 .score .phrase-mark span {
