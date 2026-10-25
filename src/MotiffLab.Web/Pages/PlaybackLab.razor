@@ -13,6 +13,7 @@
 @using MotiffLab.MusicCore.Projects
 @using MotiffLab.MusicCore.Time
 @using MotiffLab.MusicCore.Variations
+@using MotiffLab.Web.Compare
 @using MotiffLab.Web.Explore
 @using MotiffLab.Web.Facts
 @using MotiffLab.Web.Import
@@ -70,7 +71,7 @@
                     <select @onchange="HearChosenAsync" aria-label="What is heard">
                         @for (int i = 0; i < Sources.Length; i++)
                         {
-                            <option value="@i" selected="@_hear.SequenceEqual(Sources[i].Ids)">@Sources[i].Label</option>
+                            <option value="@i" selected="@HearShown(Sources[i].Ids)">@Sources[i].Label</option>
                         }
                     </select>
                 </label>
@@ -167,13 +168,19 @@
 
             <aside class="inspector" aria-label="Inspector" data-keeps-selection>
                 <div class="inspector-head">
-                    <p class="selection-text" aria-live="polite">@SelectionText</p>
+                    @* Which one sounds while the two loop one after the other is shown, not announced at every pass. *@
+                    <p class="selection-text" aria-live="polite">@SelectionText<span aria-hidden="true">@SoundingText</span></p>
                     <div class="inspector-actions">
                         <button class="@(Looping ? "on" : "primary")" @onclick="ToggleLoopSelectionAsync" disabled="@(_selection is not { NoteIds.Count: > 0 })">
                             @(Looping ? "Looping" : "Loop")
                         </button>
                         <button @onclick="ClearSelectionAsync" disabled="@(_selection is null)">Clear</button>
                     </div>
+                    @if (_variation is not null && _selection is { NoteIds.Count: > 0 })
+                    {
+                        <CompareSwitch Original="ComparingOriginal" Variation="ComparingVariation" Alternating="_alternating" Sounding="SoundingVariation"
+                                       Choose="CompareAsync" OneAfterTheOther="ToggleOneAfterTheOtherAsync" />
+                    }
                 </div>
 
                 <div class="tabs" role="tablist" aria-label="Inspector">
@@ -195,10 +202,14 @@
                             break;
                         case InspectorTab.Explore:
                             <ExploreCard HasSelection="@(_selection is { NoteIds.Count: > 0 })" Offers="CardOffers" Trial="ActiveTrial" Explanation="@_variation?.Explanation"
-                                         OriginalHeard="@(OriginalAudible && !VariationAudible)" VariationHeard="@(Player.ActiveSources.Contains(VariationSource) && !OriginalAudible)"
+                                         OriginalHeard="ComparingOriginal" VariationHeard="ComparingVariation"
                                          AnswerLooping="@(_answerLoop is not null)" Layered="_layered" ListenTo="_listenTo"
-                                         Try="TryExperimentAsync" Hear="AuditionAsync" Keep="KeepExperimentAsync" Leave="LeaveExperimentAsync"
+                                         Try="TryExperimentAsync" Hear="CompareAsync" Keep="KeepExperimentAsync" Leave="LeaveExperimentAsync"
                                          Surprise="SurpriseAsync" HearInContext="HearAnswerAsync" ListenToChanged="SetListenToAsync" />
+                            @if (_variation is not null && _selection is { NoteIds.Count: > 0 })
+                            {
+                                <ComparePanel Variation="_variation" />
+                            }
                             break;
                         case InspectorTab.Selection:
                             @if (_selection is { NoteIds.Count: > 0 })
@@ -297,6 +308,10 @@
                                         <p class="meta">Check: @flag</p>
                                     }
                                 </div>
+                                @if (_variation is not null)
+                                {
+                                    <ComparePanel Variation="_variation" ShowFlags="false" />
+                                }
 
                                 <div class="group">
                                     <div class="row">
@@ -588,7 +603,7 @@
     private (string Label, string[] Ids)[] Sources =>
     [
         .. s_sources,
-        .. _variation is null ? [] : new (string, string[])[] { ("The piece with the variation", [InPlaceSource]) },
+        .. _variation is null ? [] : new (string, string[])[] { ("The piece with the variation", [InPlaceSource]), ("The original, then the variation", [OneAfterTheOther]) },
         .. _secondTitle is null ? [] : s_secondFileSources,
     ];
 
@@ -719,7 +734,7 @@
     ];
 
     private Task HearChosenAsync(ChangeEventArgs args) =>
-        int.TryParse(args.Value?.ToString(), out int index) && index >= 0 && index < Sources.Length ? HearAsync(Sources[index].Ids) : Task.CompletedTask;
+        int.TryParse(args.Value?.ToString(), out int index) && index >= 0 && index < Sources.Length ? HearOrAlternateAsync(Sources[index].Ids) : Task.CompletedTask;
 
     private void SetScoreChoice(ChangeEventArgs args)
     {
@@ -754,8 +769,11 @@
         }
     }
 
-    /// <summary>The choice in effect: one that is not available falls back to the file as written, else the generated score.</summary>
-    private ScoreChoice ShownChoice => _scoreChoice switch
+    /// <summary>
+    /// The choice in effect, or while the original and the variation loop one after the other, the score of the one sounding.
+    /// One that is not available falls back to the file as written, else the generated score.
+    /// </summary>
+    private ScoreChoice ShownChoice => (SoundingScore ?? _scoreChoice) switch
     {
         ScoreChoice.Variation when _variationScore is not null => ScoreChoice.Variation,
         ScoreChoice.AsWritten or ScoreChoice.Variation when _asWritten is not null => ScoreChoice.AsWritten,
@@ -984,6 +1002,7 @@
         _character = [];
         _selectionNote = null;
         _looping = false;
+        _alternating = false;
         _answerLoop = null;
         _hear = [Player.OriginalSource];
         _chain = null;
@@ -1709,6 +1728,7 @@
         TickSpan range = TickSpan.FromBounds(start, end);
 
         _looping = false;
+        _alternating = false;
         _hear = [InPlaceSource];
         await Player.SelectSourcesAsync(_hear);
         await Player.SetLoopAsync(range);
@@ -2048,7 +2068,7 @@
         _variationScore = null;
         await SetVariationSourcesAsync();
         // Nothing is left to hear as the variation: go back to the original, keeping the loop.
-        if (VariationChosen)
+        if (VariationChosen || _alternating)
         {
             await HearAsync([Player.OriginalSource]);
         }
@@ -2058,6 +2078,7 @@
     private async Task HearAsync(string[] ids)
     {
         _hear = ids;
+        _alternating = false;
         if (_answerLoop is not null)
         {
             _answerLoop = null;
@@ -2082,6 +2103,7 @@
             return;
         }
 
+        Auditioned(variation);
         _hear = variation && _variation is not null ? [VariationSource] : [Player.OriginalSource];
         _looping = true;
         TickSpan range = await LoopSelectionAsync(selection);
@@ -2114,6 +2136,13 @@
         _answerLoop = null;
         var ids = selection.NoteIds.ToHashSet(StringComparer.Ordinal);
         await Player.SetSourceAsync(SelectionSource, _score!.WithNotes(Voiced([.. _notes!.Where(note => ids.Contains(note.Id))])));
+        // One after the other (#43) keeps alternating as the selection, its notes or the variation change.
+        _alternating = _alternating && _variation is { Notes.Count: > 0 };
+        if (_alternating)
+        {
+            return await AlternateAsync(selection);
+        }
+
         await Player.SelectSourcesAsync([.. _hear.Select(id => id == Player.OriginalSource ? SelectionSource : id)]);
         TickSpan range = PlayRange(selection);
         await Player.SetLoopAsync(range);
@@ -2131,16 +2160,19 @@
     /// one that runs shorter shortens it; heard together with the original it never ends before the
     /// selection. Never past the end of the piece.
     /// </summary>
-    private TickSpan PlayRange(MotifSelection selection)
+    private TickSpan PlayRange(MotifSelection selection) => PlayRange(selection, _hear);
+
+    /// <summary>What plays for the selection when <paramref name="hear"/> is heard; see <see cref="PlayRange(MotifSelection)"/>.</summary>
+    private TickSpan PlayRange(MotifSelection selection, string[] hear)
     {
         TickSpan span = selection.Span;
-        if (!VariationChosen || _variation is not { Notes.Count: > 0 } variation)
+        if (!(hear.Contains(VariationSource) || hear.Contains(InPlaceSource)) || _variation is not { Notes.Count: > 0 } variation)
         {
             return span;
         }
 
         Tick end = BeatEnd(variation.Notes.Max(note => note.Span.End));
-        if ((_hear.Contains(Player.OriginalSource) || _hear.Contains(InPlaceSource)) && span.End > end)
+        if ((hear.Contains(Player.OriginalSource) || hear.Contains(InPlaceSource)) && span.End > end)
         {
             end = span.End;
         }
@@ -2163,11 +2195,12 @@
     }
 
     /// <summary>The range that plays for the selection as things stand, for the roll and the score to show; null without a selection.</summary>
-    private TickSpan? ShownRange => _answerLoop ?? (_selection is { } selection ? (_selection.NoteIds.Count > 0 ? PlayRange(selection) : selection.Span) : null);
+    private TickSpan? ShownRange => _answerLoop ?? SoundingRange ?? (_selection is { } selection ? (_selection.NoteIds.Count > 0 ? PlayRange(selection) : selection.Span) : null);
 
     private async Task StopLoopingAsync()
     {
         _looping = false;
+        _alternating = false;
         _answerLoop = null;
         await Player.SetLoopAsync(null);
         await Player.SelectSourcesAsync(_hear);
@@ -2199,6 +2232,10 @@
             if (_answerLoop is not null)
             {
                 text += " Looping the motif and its new answer.";
+            }
+            else if (_alternating)
+            {
+                text += " Looping the original, then the variation.";
             }
             else if (_looping)
             {

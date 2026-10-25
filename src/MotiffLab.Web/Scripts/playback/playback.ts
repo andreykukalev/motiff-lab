@@ -2,7 +2,7 @@
 // loads the sampled piano, forwards transport commands to the audio-thread engine, and reports the
 // playback position to Blazor. Blazor imports this module through JS interop.
 
-import type { EngineMessage, EngineReport, PositionReport, SampleRegion, TransportState } from "./playback-processor.js";
+import type { EngineMessage, EngineReport, LoopPass, PositionReport, SampleRegion, TransportState } from "./playback-processor.js";
 
 interface DotNetObject {
     invokeMethodAsync(method: string, ...args: unknown[]): Promise<unknown>;
@@ -38,6 +38,7 @@ export class Player {
     private last: PositionReport | null = null;
     private lastDotnetReport = 0;
     private lastDotnetState: TransportState | null = null;
+    private lastDotnetPass = -1;
     private startWaiters: (() => void)[] = [];
     private disposed = false;
 
@@ -122,6 +123,11 @@ export class Player {
 
     clearLoop(): void {
         this.post({ type: "loopOff" });
+    }
+
+    /** Loops each pass in turn, its sources over its range, from the start of the first (#43). */
+    setAlternation(passes: LoopPass[]): void {
+        this.post({ type: "alternate", passes });
     }
 
     setMetronome(on: boolean): void {
@@ -246,11 +252,13 @@ export class Player {
         }
 
         const now = performance.now();
-        const stateChanged = report.state !== this.lastDotnetState;
-        if (stateChanged || now - this.lastDotnetReport >= DOTNET_REPORT_MS) {
+        // A new state or a new pass of an alternating loop goes to Blazor at once, so the views follow what is heard.
+        const changed = report.state !== this.lastDotnetState || report.pass !== this.lastDotnetPass;
+        if (changed || now - this.lastDotnetReport >= DOTNET_REPORT_MS) {
             this.lastDotnetReport = now;
             this.lastDotnetState = report.state;
-            void this.dotnet.invokeMethodAsync("OnPlaybackPosition", Math.round(this.currentTick()), report.state);
+            this.lastDotnetPass = report.pass;
+            void this.dotnet.invokeMethodAsync("OnPlaybackPosition", Math.round(this.currentTick()), report.state, report.pass);
         }
     }
 }
