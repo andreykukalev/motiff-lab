@@ -1,7 +1,7 @@
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Invitations;
 using MotiffLab.MusicCore.Motifs;
-using MotiffLab.MusicCore.Observations;
 using MotiffLab.MusicCore.Time;
 using MotiffLab.MusicCore.Variations;
 
@@ -97,7 +97,7 @@ public sealed record SurprisePick(Experiment Experiment, int Alternative);
 /// </summary>
 /// <remarks>
 /// <para>
-/// The catalogue reads the same context as the observation catalogue, so Understand and Explore
+/// The catalogue reads the same context as the invitation catalogue, so Understand and Explore
 /// rest on the same facts. A rule needs every fact it cites to be present and not uncertain. An
 /// alternative is kept only when every step can run in turn on the passage with the experiment's
 /// Keep preset, so a card never leads to a disabled step.
@@ -148,7 +148,7 @@ public static class ExperimentCatalogue
     };
 
     /// <summary>The experiments that fit the selection, in the catalogue's order; empty when none does.</summary>
-    public static IReadOnlyList<Experiment> Offer(ObservationContext context)
+    public static IReadOnlyList<Experiment> Offer(InvitationContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
         if (context.Selection.NoteIds.Count == 0)
@@ -161,7 +161,7 @@ public static class ExperimentCatalogue
     }
 
     /// <summary>The experiments that fit the selection and explore <paramref name="topic"/>.</summary>
-    public static IReadOnlyList<Experiment> ForQuestion(ObservationContext context, ExperimentTopic topic) =>
+    public static IReadOnlyList<Experiment> ForQuestion(InvitationContext context, ExperimentTopic topic) =>
         [.. Offer(context).Where(experiment => experiment.Topic == topic)];
 
     /// <summary>
@@ -181,7 +181,7 @@ public static class ExperimentCatalogue
     /// <paramref name="tried"/>, and one of its alternatives, both chosen by <paramref name="seed"/>.
     /// Null when nothing fits.
     /// </summary>
-    public static SurprisePick? Surprise(ObservationContext context, int seed, IReadOnlySet<string> tried)
+    public static SurprisePick? Surprise(InvitationContext context, int seed, IReadOnlySet<string> tried)
     {
         ArgumentNullException.ThrowIfNull(tried);
         IReadOnlyList<Experiment> offered = Offer(context);
@@ -213,7 +213,7 @@ public static class ExperimentCatalogue
 
     /// <summary>The variation of one alternative, over the notes, meter and key the experiment was offered for.</summary>
     /// <exception cref="InvalidOperationException">A step cannot run on these notes.</exception>
-    public static VariationChain Start(Experiment experiment, int alternative, ObservationContext context)
+    public static VariationChain Start(Experiment experiment, int alternative, InvitationContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
         return Start(experiment, alternative, context.Notes, context.Meter, KeyOf(context));
@@ -225,7 +225,7 @@ public static class ExperimentCatalogue
     /// </summary>
     private static Experiment? MelodySpace(ExperimentContext context)
     {
-        IReadOnlyList<Note> line = context.Observation.Motif.Line;
+        IReadOnlyList<Note> line = context.Source.Motif.Line;
         if (!context.Confident("character.articulation", "melody.line") || line.Count < 2 || ConnectedShare(line) < MinConnectedShare)
         {
             return null;
@@ -252,7 +252,7 @@ public static class ExperimentCatalogue
     /// </summary>
     private static Experiment? Groove(ExperimentContext context)
     {
-        IReadOnlyList<Note> line = context.Observation.Motif.Line;
+        IReadOnlyList<Note> line = context.Source.Motif.Line;
         Tick[] onsets = [.. line.Select(static note => note.Span.Onset)];
         long[] steps = [.. onsets.Zip(onsets.Skip(1), static (from, to) => to.Value - from.Value).Distinct()];
         if (!context.Confident("rhythm.durations", "melody.contour") || line.Count < MinEvenNotes || steps.Length != 1)
@@ -316,7 +316,7 @@ public static class ExperimentCatalogue
     private static Experiment? AnswerTheMotif(ExperimentContext context)
     {
         if (!context.Confident("structure.recurrences")
-            || context.Observation.Structure.Recurrences.FirstOrDefault(recurrence => recurrence.IsExact && recurrence.Span.Onset >= context.Observation.Selection.Span.End) is not { } repeat)
+            || context.Source.Structure.Recurrences.FirstOrDefault(recurrence => recurrence.IsExact && recurrence.Span.Onset >= context.Source.Selection.Span.End) is not { } repeat)
         {
             return null;
         }
@@ -384,7 +384,7 @@ public static class ExperimentCatalogue
         return (decimal)held / (line.Count - 1);
     }
 
-    private static MusicalKey? KeyOf(ObservationContext context) =>
+    private static MusicalKey? KeyOf(InvitationContext context) =>
         context.Motif.Key is { Certainty: not FactCertainty.Uncertain } reading ? reading.Key : null;
 
     /// <summary>"bar 5", "bars 5–6", "the pickup", "the pickup and bar 1".</summary>
@@ -397,15 +397,15 @@ public static class ExperimentCatalogue
         _ => $"bars {first}–{last}",
     };
 
-    /// <summary>The observation context with its key, and the helpers every rule shares.</summary>
-    private sealed record ExperimentContext(ObservationContext Observation, MusicalKey? Key)
+    /// <summary>The invitation context with its key, and the helpers every rule shares.</summary>
+    private sealed record ExperimentContext(InvitationContext Source, MusicalKey? Key)
     {
         /// <summary>The selected notes.</summary>
-        public IReadOnlyList<Note> Notes { get; } = VariationFacts.MotifNotes(Observation.Notes, Observation.Selection);
+        public IReadOnlyList<Note> Notes { get; } = VariationFacts.MotifNotes(Source.Notes, Source.Selection);
 
         /// <summary>Whether every fact is in the analysis and none is uncertain.</summary>
         public bool Confident(params string[] ids) =>
-            ids.All(id => Observation.Motif.Facts.Concat(Observation.Structure.Facts).Concat(Observation.Character)
+            ids.All(id => Source.Motif.Facts.Concat(Source.Structure.Facts).Concat(Source.Character)
                 .FirstOrDefault(fact => fact.Id == id) is { Certainty: not FactCertainty.Uncertain });
 
         /// <summary>
@@ -425,7 +425,7 @@ public static class ExperimentCatalogue
             Passage? passage = null,
             SelectionFilter? filter = null)
         {
-            MotifSelection selection = Observation.Selection;
+            MotifSelection selection = Source.Selection;
             Passage where = passage ?? new Passage(selection.Span, selection.FirstBar, selection.LastBar);
             SelectionFilter which = filter ?? selection.Filter;
             var runnable = new List<ExperimentAlternative>();
@@ -433,7 +433,7 @@ public static class ExperimentCatalogue
             foreach (ExperimentAlternative alternative in alternatives)
             {
                 // An alternative that sounds like an earlier one, such as Short and Detached on 16ths, is left out.
-                if (TryStart(where.Span, which, presetId, alternative.Steps, Observation.Notes, Observation.Meter, Key, out _) is { Result: { } result }
+                if (TryStart(where.Span, which, presetId, alternative.Steps, Source.Notes, Source.Meter, Key, out _) is { Result: { } result }
                     && !heard.Any(notes => notes.SequenceEqual(result.Notes)))
                 {
                     runnable.Add(alternative);

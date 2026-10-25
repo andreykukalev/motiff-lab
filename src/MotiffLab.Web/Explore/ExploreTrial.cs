@@ -1,5 +1,5 @@
 using MotiffLab.MusicCore.Experiments;
-using MotiffLab.MusicCore.Observations;
+using MotiffLab.MusicCore.Invitations;
 using MotiffLab.MusicCore.Variations;
 
 namespace MotiffLab.Web.Explore;
@@ -28,7 +28,7 @@ public sealed record ExploreRequest(Experiment Experiment, int Alternative, stri
 public sealed record ExploreTrial(
     Experiment Experiment,
     int Alternative,
-    ObservationContext OfferedIn,
+    InvitationContext OfferedIn,
     IReadOnlyList<Experiment> Offers,
     VariationChain Chain,
     VariationChain? Before,

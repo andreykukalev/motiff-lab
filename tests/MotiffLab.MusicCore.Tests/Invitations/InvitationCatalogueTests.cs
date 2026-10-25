@@ -1,15 +1,15 @@
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Invitations;
 using MotiffLab.MusicCore.Motifs;
-using MotiffLab.MusicCore.Observations;
 using MotiffLab.MusicCore.Playback;
 using MotiffLab.MusicCore.Time;
 using MotiffLab.MusicCore.Variations;
 
-namespace MotiffLab.MusicCore.Tests.Observations;
+namespace MotiffLab.MusicCore.Tests.Invitations;
 
-/// <summary>The observation catalogue: facts to invitations (#79).</summary>
-public class ObservationCatalogueTests
+/// <summary>The invitation catalogue: facts to invitations (#79).</summary>
+public class InvitationCatalogueTests
 {
     private const long Sixteenth = 120;
     private const long Eighth = 240;
@@ -86,10 +86,10 @@ public class ObservationCatalogueTests
         return ([.. notes], meter);
     }
 
-    private static ObservationContext Context(Note[] notes, MeterMap meter, long from, long to, KeySignature? key = null, SelectionFilter? filter = null)
+    private static InvitationContext Context(Note[] notes, MeterMap meter, long from, long to, KeySignature? key = null, SelectionFilter? filter = null)
     {
         MotifSelection selection = MotifSelector.Select(notes, meter, TickSpan.FromBounds(new Tick(from), new Tick(to)), filter ?? SelectionFilter.All);
-        return new ObservationContext(
+        return new InvitationContext(
             notes,
             meter,
             selection,
@@ -105,7 +105,7 @@ public class ObservationCatalogueTests
     public void The_pilot_piece_gets_its_listening_invitations()
     {
         (Note[] notes, MeterMap meter) = FurElise();
-        IReadOnlyList<Invitation> invitations = ObservationCatalogue.Invite(Context(notes, meter, 0, meter.GetBar(2).Span.End.Value, s_aMinor));
+        IReadOnlyList<Invitation> invitations = InvitationCatalogue.Invite(Context(notes, meter, 0, meter.GetBar(2).Span.End.Value, s_aMinor));
 
         Assert.Equal(["repeat.exact", "rhythm.running", "rhythm.pickup", "melody.mirror"], invitations.Select(static invitation => invitation.RuleId));
         Assert.All(invitations.Take(3), static invitation => Assert.Equal(ActionAvailability.AvailableNow, invitation.Availability));
@@ -115,7 +115,7 @@ public class ObservationCatalogueTests
     public void An_exact_repeat_compares_the_stretch_from_each_appearance()
     {
         (Note[] notes, MeterMap meter) = FurElise();
-        Invitation invitation = Find(ObservationCatalogue.Invite(Context(notes, meter, 0, meter.GetBar(2).Span.End.Value, s_aMinor)), "repeat.exact")!;
+        Invitation invitation = Find(InvitationCatalogue.Invite(Context(notes, meter, 0, meter.GetBar(2).Span.End.Value, s_aMinor)), "repeat.exact")!;
 
         Assert.Equal(InvitationKind.Noticing, invitation.Kind);
         Assert.Equal(["structure.recurrences"], invitation.FactIds);
@@ -131,7 +131,7 @@ public class ObservationCatalogueTests
     public void An_exact_repeat_in_quarters_compares_up_to_the_repeat()
     {
         Note[] song = Quarters([60, 62, 64, 60], [65, 64, 62, 60], [60, 62, 64, 60], [67, 65, 64, 62]);
-        Invitation invitation = Find(ObservationCatalogue.Invite(Context(song, MeterMap.Default, 0, Bar, s_cMajor)), "repeat.exact")!;
+        Invitation invitation = Find(InvitationCatalogue.Invite(Context(song, MeterMap.Default, 0, Bar, s_cMajor)), "repeat.exact")!;
 
         Assert.Equal("The motif's line in bar 1 comes back exactly in bar 3. Where does the music stop being the same?", invitation.Question);
         Assert.Equal([(1, 2), (3, 4)], ((ListeningAction)invitation.Action).Passages.Select(static passage => (passage.FirstBar, passage.LastBar)));
@@ -141,13 +141,13 @@ public class ObservationCatalogueTests
     public void Running_16ths_are_followed_slower_through_the_phrase()
     {
         (Note[] notes, MeterMap meter) = FurElise();
-        Invitation invitation = Find(ObservationCatalogue.Invite(Context(notes, meter, 0, meter.GetBar(2).Span.End.Value, s_aMinor)), "rhythm.running")!;
+        Invitation invitation = Find(InvitationCatalogue.Invite(Context(notes, meter, 0, meter.GetBar(2).Span.End.Value, s_aMinor)), "rhythm.running")!;
 
         Assert.Equal(["rhythm.grid", "character.density"], invitation.FactIds);
         Assert.Equal("A note starts every 16th through the pickup and bars 1–2, with no gap. Played slower, does the movement ever stop before the end of bar 7?", invitation.Question);
         ListeningAction action = Assert.IsType<ListeningAction>(invitation.Action);
         Assert.Equal(ListeningKind.Slow, action.Kind);
-        Assert.Equal(ObservationCatalogue.SlowTempoPercent, action.TempoPercent);
+        Assert.Equal(InvitationCatalogue.SlowTempoPercent, action.TempoPercent);
         Assert.Equal((0, 7), (action.Passages[0].FirstBar, action.Passages[0].LastBar));
     }
 
@@ -158,15 +158,15 @@ public class ObservationCatalogueTests
         long end = meter.GetBar(2).Span.End.Value;
         Note[] played = [.. notes.Select(note => note.Id == "r3" ? note with { Span = new TickSpan(note.Span.Onset.Offset(7), note.Span.Duration) } : note)];
 
-        Assert.Null(Find(ObservationCatalogue.Invite(Context(notes, meter, 0, end, s_aMinor, SelectionFilter.ForTrack(0))), "rhythm.running"));
-        Assert.Null(Find(ObservationCatalogue.Invite(Context(played, meter, 0, end, s_aMinor)), "rhythm.running"));
+        Assert.Null(Find(InvitationCatalogue.Invite(Context(notes, meter, 0, end, s_aMinor, SelectionFilter.ForTrack(0))), "rhythm.running"));
+        Assert.Null(Find(InvitationCatalogue.Invite(Context(played, meter, 0, end, s_aMinor)), "rhythm.running"));
     }
 
     [Fact]
     public void A_pickup_loops_the_opening_and_the_next_bar()
     {
         (Note[] notes, MeterMap meter) = FurElise();
-        Invitation invitation = Find(ObservationCatalogue.Invite(Context(notes, meter, 0, meter.GetBar(2).Span.End.Value, s_aMinor)), "rhythm.pickup")!;
+        Invitation invitation = Find(InvitationCatalogue.Invite(Context(notes, meter, 0, meter.GetBar(2).Span.End.Value, s_aMinor)), "rhythm.pickup")!;
 
         Assert.Equal(["rhythm.grid"], invitation.FactIds);
         Assert.Equal("The motif starts in the pickup, before the bar line of bar 1. How many of its notes do you need to recognise it?", invitation.Question);
@@ -179,17 +179,17 @@ public class ObservationCatalogueTests
     public void A_motif_that_starts_after_the_downbeat_gets_the_pickup_question()
     {
         Note[] song = Quarters([0, 0, 64, 65], [67, 65, 64, 62]);
-        Invitation invitation = Find(ObservationCatalogue.Invite(Context(song, MeterMap.Default, 2 * Quarter, 2 * Bar, s_cMajor)), "rhythm.pickup")!;
+        Invitation invitation = Find(InvitationCatalogue.Invite(Context(song, MeterMap.Default, 2 * Quarter, 2 * Bar, s_cMajor)), "rhythm.pickup")!;
 
         Assert.Equal("The motif starts on beat 3 of bar 1, before the bar line of bar 2. How many of its notes do you need to recognise it?", invitation.Question);
-        Assert.Null(Find(ObservationCatalogue.Invite(Context(song, MeterMap.Default, Bar, 2 * Bar, s_cMajor)), "rhythm.pickup"));
+        Assert.Null(Find(InvitationCatalogue.Invite(Context(song, MeterMap.Default, Bar, 2 * Bar, s_cMajor)), "rhythm.pickup"));
     }
 
     [Fact]
     public void An_even_melody_in_quarters_offers_a_dotted_rhythm()
     {
         Note[] song = Quarters([60, 62, 64, 65], [67, 65, 64, 62]);
-        Invitation invitation = Find(ObservationCatalogue.Invite(Context(song, MeterMap.Default, 0, Bar, s_cMajor)), "rhythm.even")!;
+        Invitation invitation = Find(InvitationCatalogue.Invite(Context(song, MeterMap.Default, 0, Bar, s_cMajor)), "rhythm.even")!;
 
         Assert.Equal(InvitationKind.Experiment, invitation.Kind);
         Assert.Equal(["rhythm.durations", "melody.contour"], invitation.FactIds);
@@ -202,9 +202,9 @@ public class ObservationCatalogueTests
     public void The_pilot_s_even_16ths_offer_a_dotted_rhythm_but_not_once_the_melody_holds_an_8th()
     {
         (Note[] notes, MeterMap meter) = FurElise();
-        Invitation invitation = Find(ObservationCatalogue.Invite(Context(notes, meter, 0, meter.GetBar(1).Span.End.Value, s_aMinor)), "rhythm.even")!;
+        Invitation invitation = Find(InvitationCatalogue.Invite(Context(notes, meter, 0, meter.GetBar(1).Span.End.Value, s_aMinor)), "rhythm.even")!;
 
-        Assert.Null(Find(ObservationCatalogue.Invite(Context(notes, meter, 0, meter.GetBar(2).Span.End.Value, s_aMinor)), "rhythm.even"));
+        Assert.Null(Find(InvitationCatalogue.Invite(Context(notes, meter, 0, meter.GetBar(2).Span.End.Value, s_aMinor)), "rhythm.even"));
         Assert.Equal(new OperationAction("V1", "dotted", new RhythmReshapeParameters(RhythmReshapeKind.Dotted), "keep-pitch-order"), invitation.Action);
         Assert.Equal("The melody moves in even 16ths. Is the tune in its pitches or in its even flow?", invitation.Question);
     }
@@ -213,7 +213,7 @@ public class ObservationCatalogueTests
     public void A_melody_that_moves_both_ways_offers_a_mirror()
     {
         Note[] song = Quarters([60, 62, 64, 62], [60, 0, 0, 0]);
-        Invitation invitation = Find(ObservationCatalogue.Invite(Context(song, MeterMap.Default, 0, 2 * Bar, s_cMajor)), "melody.mirror")!;
+        Invitation invitation = Find(InvitationCatalogue.Invite(Context(song, MeterMap.Default, 0, 2 * Bar, s_cMajor)), "melody.mirror")!;
 
         Assert.Equal(["melody.contour"], invitation.FactIds);
         Assert.Equal("The melody moves up twice and down twice. Does the motif survive moving the other way?", invitation.Question);
@@ -225,7 +225,7 @@ public class ObservationCatalogueTests
     public void A_transposed_repeat_offers_a_sequence_in_its_direction()
     {
         Note[] song = Quarters([60, 62, 64, 60], [60, 62, 64, 60], [64, 65, 67, 67], [65, 67, 69, 65]);
-        Invitation invitation = Find(ObservationCatalogue.Invite(Context(song, MeterMap.Default, 0, Bar, s_cMajor)), "repeat.transposed")!;
+        Invitation invitation = Find(InvitationCatalogue.Invite(Context(song, MeterMap.Default, 0, Bar, s_cMajor)), "repeat.transposed")!;
 
         Assert.Equal(["structure.recurrences", "key"], invitation.FactIds);
         Assert.Equal("The motif comes back a perfect 4th higher in bar 4. What does it sound like one scale step higher, straight after itself?", invitation.Question);
@@ -237,7 +237,7 @@ public class ObservationCatalogueTests
     public void A_motif_above_middle_C_offers_an_octave_lower_and_needs_a_Should_item()
     {
         Note[] song = Quarters([72, 74, 76, 72]);
-        Invitation invitation = Find(ObservationCatalogue.Invite(Context(song, MeterMap.Default, 0, Bar, s_cMajor)), "character.register")!;
+        Invitation invitation = Find(InvitationCatalogue.Invite(Context(song, MeterMap.Default, 0, Bar, s_cMajor)), "character.register")!;
 
         Assert.Equal(["character.register"], invitation.FactIds);
         Assert.Equal("Every note of the motif is at or above middle C. What stays the same if it moves an octave lower?", invitation.Question);
@@ -249,7 +249,7 @@ public class ObservationCatalogueTests
     [Fact]
     public void A_motif_below_middle_C_offers_an_octave_higher()
     {
-        Invitation invitation = Find(ObservationCatalogue.Invite(Context(Quarters([48, 50, 52, 48]), MeterMap.Default, 0, Bar, s_cMajor)), "character.register")!;
+        Invitation invitation = Find(InvitationCatalogue.Invite(Context(Quarters([48, 50, 52, 48]), MeterMap.Default, 0, Bar, s_cMajor)), "character.register")!;
 
         Assert.Equal("Every note of the motif is below middle C. What stays the same if it moves an octave higher?", invitation.Question);
         Assert.Equal("octave shift up", ((OperationAction)invitation.Action).Option);
@@ -261,7 +261,7 @@ public class ObservationCatalogueTests
         // Two played notes either side of middle C, off every grid: too short to repeat or mirror, and uncertain in rhythm.
         Note[] played = [Note("a", 59, 7, 200), Note("b", 61, 251, 200)];
 
-        Assert.Empty(ObservationCatalogue.Invite(Context(played, MeterMap.Default, 0, Bar)));
+        Assert.Empty(InvitationCatalogue.Invite(Context(played, MeterMap.Default, 0, Bar)));
     }
 
     [Fact]
@@ -269,20 +269,20 @@ public class ObservationCatalogueTests
     {
         Note[] song = Quarters([0, 0, 64, 65], [67, 65, 64, 62]);
         Note[] played = [.. song.Select(note => note.Id == "b2.2" ? note with { Span = new TickSpan(note.Span.Onset.Offset(9), note.Span.Duration) } : note)];
-        ObservationContext context = Context(played, MeterMap.Default, 2 * Quarter, 2 * Bar, s_cMajor);
+        InvitationContext context = Context(played, MeterMap.Default, 2 * Quarter, 2 * Bar, s_cMajor);
 
         Assert.Equal(FactCertainty.Uncertain, context.Motif.Facts.Single(fact => fact.Id == "rhythm.grid").Certainty);
-        Assert.Null(Find(ObservationCatalogue.Invite(context), "rhythm.pickup"));
+        Assert.Null(Find(InvitationCatalogue.Invite(context), "rhythm.pickup"));
     }
 
     [Fact]
     public void Inviting_is_deterministic()
     {
         (Note[] notes, MeterMap meter) = FurElise();
-        ObservationContext context = Context(notes, meter, 0, meter.GetBar(2).Span.End.Value, s_aMinor);
+        InvitationContext context = Context(notes, meter, 0, meter.GetBar(2).Span.End.Value, s_aMinor);
 
-        Assert.Equal(ObservationCatalogue.Invite(context), ObservationCatalogue.Invite(context));
-        Assert.Equal(ObservationCatalogue.Invite(context), ObservationCatalogue.Invite(context with { }));
+        Assert.Equal(InvitationCatalogue.Invite(context), InvitationCatalogue.Invite(context));
+        Assert.Equal(InvitationCatalogue.Invite(context), InvitationCatalogue.Invite(context with { }));
     }
 
     [Fact]
@@ -290,12 +290,12 @@ public class ObservationCatalogueTests
     {
         (Note[] notes, MeterMap meter) = FurElise();
         Note[][] pieces = [Quarters([60, 62, 64, 65], [67, 65, 64, 62]), Quarters([72, 74, 76, 72]), Quarters([60, 62, 64, 60], [60, 62, 64, 60], [64, 65, 67, 67], [65, 67, 69, 65])];
-        ObservationContext[] contexts = [Context(notes, meter, 0, meter.GetBar(2).Span.End.Value, s_aMinor), .. pieces.Select(piece => Context(piece, MeterMap.Default, 0, Bar, s_cMajor))];
+        InvitationContext[] contexts = [Context(notes, meter, 0, meter.GetBar(2).Span.End.Value, s_aMinor), .. pieces.Select(piece => Context(piece, MeterMap.Default, 0, Bar, s_cMajor))];
 
-        foreach (ObservationContext context in contexts)
+        foreach (InvitationContext context in contexts)
         {
             string[] facts = [.. context.Motif.Facts.Concat(context.Structure.Facts).Concat(context.Character).Select(static fact => fact.Id)];
-            foreach (Invitation invitation in ObservationCatalogue.Invite(context))
+            foreach (Invitation invitation in InvitationCatalogue.Invite(context))
             {
                 Assert.NotEmpty(invitation.FactIds);
                 Assert.All(invitation.FactIds, id => Assert.Contains(id, facts));

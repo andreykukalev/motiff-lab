@@ -4,12 +4,12 @@ using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Time;
 using MotiffLab.MusicCore.Variations;
 
-namespace MotiffLab.MusicCore.Observations;
+namespace MotiffLab.MusicCore.Invitations;
 
-/// <summary>What the observation catalogue reads: a motif, the piece around it, and what the engine measured.</summary>
+/// <summary>What the invitation and experiment catalogues read: a motif, the piece around it, and what the engine measured.</summary>
 /// <param name="Notes">The notes of the piece; the motif's notes are picked by id.</param>
 /// <param name="Character">The motif's character facts (<see cref="MotifAnalyzer.AnalyzeCharacter"/>).</param>
-public sealed record ObservationContext(
+public sealed record InvitationContext(
     IReadOnlyList<Note> Notes,
     MeterMap Meter,
     MotifSelection Selection,
@@ -35,7 +35,7 @@ public sealed record ObservationContext(
 /// AI; it works the same with AI off.
 /// </para>
 /// </remarks>
-public static class ObservationCatalogue
+public static class InvitationCatalogue
 {
     /// <summary>The fewest onsets, every one the same step after the last, that count as running notes.</summary>
     public const int MinRunningOnsets = 8;
@@ -51,7 +51,7 @@ public static class ObservationCatalogue
 
     private const int MiddleC = 60;
 
-    private static readonly Func<ObservationContext, Invitation?>[] s_rules =
+    private static readonly Func<InvitationContext, Invitation?>[] s_rules =
     [
         ExactRepeat,
         RunningNotes,
@@ -63,7 +63,7 @@ public static class ObservationCatalogue
     ];
 
     /// <summary>The invitations for the motif, in the rules' order; empty when no rule finds anything confident.</summary>
-    public static IReadOnlyList<Invitation> Invite(ObservationContext context)
+    public static IReadOnlyList<Invitation> Invite(InvitationContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
         return context.Selection.NoteIds.Count == 0 ? [] : [.. s_rules.Select(rule => rule(context)).OfType<Invitation>()];
@@ -73,7 +73,7 @@ public static class ObservationCatalogue
     /// "repeat.exact": the motif's line comes back exactly. Compare the stretch from the motif to the
     /// repeat with the same length from the repeat: where do they stop being the same?
     /// </summary>
-    private static Invitation? ExactRepeat(ObservationContext context)
+    private static Invitation? ExactRepeat(InvitationContext context)
     {
         if (!Confident(context, "structure.recurrences") || context.Structure.Recurrences.FirstOrDefault(static recurrence => recurrence.IsExact) is not { } repeat)
         {
@@ -103,7 +103,7 @@ public static class ObservationCatalogue
     /// "rhythm.running": every onset of the motif is the same short step after the last, 8th or
     /// shorter. Follow the movement slower, through the phrase when it runs on past the motif.
     /// </summary>
-    private static Invitation? RunningNotes(ObservationContext context)
+    private static Invitation? RunningNotes(InvitationContext context)
     {
         Tick[] onsets = [.. MotifNotes(context).Select(static note => note.Span.Onset).Distinct().Order()];
         if (!Confident(context, "rhythm.grid", "character.density") || onsets.Length < MinRunningOnsets || EvenStep(onsets) is not { } step
@@ -130,7 +130,7 @@ public static class ObservationCatalogue
     /// "rhythm.pickup": the motif starts off the downbeat and runs over the next bar line. Loop the
     /// opening and the next bar: how many notes does it take to recognise it?
     /// </summary>
-    private static Invitation? Pickup(ObservationContext context)
+    private static Invitation? Pickup(InvitationContext context)
     {
         Note[] notes = MotifNotes(context);
         if (!Confident(context, "rhythm.grid"))
@@ -160,7 +160,7 @@ public static class ObservationCatalogue
     /// "rhythm.even": the melody moves in even steps. Make it long–short with V1 Rhythm reshape,
     /// dotted, keeping the pitch order: is the tune in its pitches or in its even flow?
     /// </summary>
-    private static Invitation? EvenFlow(ObservationContext context)
+    private static Invitation? EvenFlow(InvitationContext context)
     {
         IReadOnlyList<Note> line = context.Motif.Line;
         if (!Confident(context, "rhythm.durations", "melody.contour") || line.Count < MinEvenNotes
@@ -184,7 +184,7 @@ public static class ObservationCatalogue
     /// "melody.mirror": the melody moves up and down. Mirror it with V10 Change direction, keeping
     /// the rhythm: does the motif survive moving the other way?
     /// </summary>
-    private static Invitation? Mirror(ObservationContext context)
+    private static Invitation? Mirror(InvitationContext context)
     {
         IReadOnlyList<ContourStep> contour = context.Motif.Contour;
         int up = contour.Count(static step => step == ContourStep.Up);
@@ -209,7 +209,7 @@ public static class ObservationCatalogue
     /// "repeat.transposed": the motif comes back at another pitch. Try another pitch level with V4
     /// Melodic sequence, a scale step in the same direction, keeping the rhythm.
     /// </summary>
-    private static Invitation? TransposedRepeat(ObservationContext context)
+    private static Invitation? TransposedRepeat(InvitationContext context)
     {
         if (!Confident(context, "structure.recurrences", "key")
             || context.Structure.Recurrences.FirstOrDefault(static recurrence => !recurrence.IsExact) is not { } repeat)
@@ -234,7 +234,7 @@ public static class ObservationCatalogue
     /// "character.register": every note sits on one side of middle C. Move the motif an octave the
     /// other way with V3 Voicing and register, keeping the melody's pitch classes.
     /// </summary>
-    private static Invitation? Register(ObservationContext context)
+    private static Invitation? Register(InvitationContext context)
     {
         Note[] notes = MotifNotes(context);
         if (!Confident(context, "character.register"))
@@ -261,7 +261,7 @@ public static class ObservationCatalogue
     }
 
     /// <summary>The preset's id when the Keep table allows the operation with it and the operation can run on the motif; otherwise null.</summary>
-    private static string? Offered<TParameters>(ObservationContext context, VariationOperation<TParameters> operation, TParameters parameters, string presetId)
+    private static string? Offered<TParameters>(InvitationContext context, VariationOperation<TParameters> operation, TParameters parameters, string presetId)
         where TParameters : OperationParameters
     {
         IReadOnlySet<KeepProperty> keep = KeepTable.FindPreset(presetId)!.Keep;
@@ -271,18 +271,18 @@ public static class ObservationCatalogue
     }
 
     /// <summary>Whether every fact is in the motif's analysis and none is uncertain.</summary>
-    private static bool Confident(ObservationContext context, params string[] ids) =>
+    private static bool Confident(InvitationContext context, params string[] ids) =>
         ids.All(id => Facts(context).FirstOrDefault(fact => fact.Id == id) is { Certainty: not FactCertainty.Uncertain });
 
-    private static IEnumerable<MotifFact> Facts(ObservationContext context) =>
+    private static IEnumerable<MotifFact> Facts(InvitationContext context) =>
         context.Motif.Facts.Concat(context.Structure.Facts).Concat(context.Character);
 
-    private static MusicalKey? KeyOf(ObservationContext context) =>
+    private static MusicalKey? KeyOf(InvitationContext context) =>
         context.Motif.Key is { Certainty: not FactCertainty.Uncertain } reading ? reading.Key : null;
 
-    private static Note[] MotifNotes(ObservationContext context) => [.. VariationFacts.MotifNotes(context.Notes, context.Selection)];
+    private static Note[] MotifNotes(InvitationContext context) => [.. VariationFacts.MotifNotes(context.Notes, context.Selection)];
 
-    private static int LastBar(ObservationContext context) =>
+    private static int LastBar(InvitationContext context) =>
         context.Meter.BarAt(new Tick(context.Notes.Max(static note => note.Span.End.Value) - 1)).Number;
 
     /// <summary>The step between the onsets when every one is the same step after the last; null otherwise.</summary>
