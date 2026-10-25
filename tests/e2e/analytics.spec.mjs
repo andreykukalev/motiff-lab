@@ -16,6 +16,9 @@ test("analytics record nothing until turned on, never the piece, and forget ever
     // A new load of the app reads the choice back from this browser.
     await openFurElise(page);
     await selectBar(page, 1);
+    await page.getByRole("button", { name: /Give the melody more space/ }).click();
+    await page.getByRole("button", { name: "Keep this variation" }).click();
+    await page.getByRole("tab", { name: "Selection" }).click();
     await page.getByRole("button", { name: "Dotted" }).click();
 
     await page.getByRole("link", { name: "Settings" }).click();
@@ -27,6 +30,8 @@ test("analytics record nothing until turned on, never the piece, and forget ever
     expect(text).toContain("motif_selected bars: 1");
     expect(text).toContain("variation_proposed op: V1, kind: dotted");
     expect(text).toContain("playback_started hear: variation");
+    expect(text).toContain("experiment_tried experiment: melody.space, alternative: 0, entry: offer");
+    expect(text).toContain("experiment_kept experiment: melody.space, alternative: 0");
     expect(text).not.toContain("Beethoven");
     expect(await page.evaluate(() => localStorage.getItem("motifflab.analytics.device"))).toMatch(/^[0-9a-f]{32}$/);
 

@@ -2,15 +2,18 @@
 @using MotiffLab.MusicCore.Analysis
 @using MotiffLab.MusicCore.Analytics
 @using MotiffLab.MusicCore.Events
+@using MotiffLab.MusicCore.Experiments
 @using MotiffLab.MusicCore.Export
 @using MotiffLab.MusicCore.Import
 @using MotiffLab.MusicCore.Import.MusicXml
 @using MotiffLab.MusicCore.Motifs
 @using MotiffLab.MusicCore.Notation
+@using MotiffLab.MusicCore.Observations
 @using MotiffLab.MusicCore.Playback
 @using MotiffLab.MusicCore.Projects
 @using MotiffLab.MusicCore.Time
 @using MotiffLab.MusicCore.Variations
+@using MotiffLab.Web.Explore
 @using MotiffLab.Web.Facts
 @using MotiffLab.Web.Import
 @using MotiffLab.Web.Playback
@@ -28,7 +31,7 @@
 @* A test bench for the playback engine (S1-W4, S1-W5), the piano roll and keyboard (S1-W2, S1-W3), motif selection, its loop and its facts (S1-M1, S1-M2, S1-M5, S1-A1, S1-A2) and the score view (S1-W7) and a second file as the variation (S1-W5) until the workspace exists. Files stay on the device. *@
 <main class="lab app">
     @* The workspace layout from the iPad mockups (docs/ui-conventions.md): a header with what the whole view shows, the roll and score
-       on the left, an inspector for the selection on the right (Selection, Facts, Edit), and the transport along the bottom. *@
+       on the left, an inspector for the selection on the right (Explore, Selection, Facts, Edit), and the transport along the bottom. *@
     <header class="app-header">
         <a class="back" href="">‹ Projects</a>
         <div class="app-title">
@@ -159,8 +162,8 @@
                 <div class="inspector-head">
                     <p class="selection-text" aria-live="polite">@SelectionText</p>
                     <div class="inspector-actions">
-                        <button class="@(_looping ? "on" : "primary")" @onclick="ToggleLoopSelectionAsync" disabled="@(_selection is not { NoteIds.Count: > 0 })">
-                            @(_looping ? "Looping" : "Loop")
+                        <button class="@(Looping ? "on" : "primary")" @onclick="ToggleLoopSelectionAsync" disabled="@(_selection is not { NoteIds.Count: > 0 })">
+                            @(Looping ? "Looping" : "Loop")
                         </button>
                         <button @onclick="ClearSelectionAsync" disabled="@(_selection is null)">Clear</button>
                     </div>
@@ -176,6 +179,13 @@
                 <div class="tab-panel" role="tabpanel" aria-label="@_tab">
                     @switch (_tab)
                     {
+                        case InspectorTab.Explore:
+                            <ExploreCard HasSelection="@(_selection is { NoteIds.Count: > 0 })" Offers="CardOffers" Trial="ActiveTrial" Explanation="@_variation?.Explanation"
+                                         OriginalHeard="@(OriginalAudible && !VariationAudible)" VariationHeard="@(Player.ActiveSources.Contains(VariationSource) && !OriginalAudible)"
+                                         AnswerLooping="@(_answerLoop is not null)" Layered="_layered" ListenTo="_listenTo"
+                                         Try="TryExperimentAsync" Hear="AuditionAsync" Keep="KeepExperimentAsync" Leave="LeaveExperimentAsync"
+                                         Surprise="SurpriseAsync" HearInContext="HearAnswerAsync" ListenToChanged="SetListenToAsync" />
+                            break;
                         case InspectorTab.Selection:
                             @if (_selection is { NoteIds.Count: > 0 })
                             {
@@ -201,26 +211,64 @@
                                     </div>
                                 </div>
 
-                                <div class="group variation" aria-label="Rhythm reshape">
-                                    <h3>V1 Rhythm reshape</h3>
-                                    <div class="choices" role="group" aria-label="How to reshape the rhythm">
-                                        @for (int i = 0; i < s_reshapes.Length; i++)
+                                <div class="group">
+                                    <label class="pick scope" title="Rhythm reshape and Articulation can change one layer and leave the rest as it is. The melody is the top line of the notes, whichever hand plays it.">
+                                        <span>Change</span>
+                                        <select @onchange="SetScope" aria-label="Which notes a step changes">
+                                            @foreach ((OperationScope scope, string label) in s_scopes)
+                                            {
+                                                <option value="@scope" selected="@(_scope == scope)">@label</option>
+                                            }
+                                        </select>
+                                    </label>
+                                </div>
+
+                                @foreach (OperationGroup group in s_operations)
+                                {
+                                    string id = group.Operation.Id;
+                                    bool open = _openGroups.Contains(id);
+                                    <div class="group variation" role="group" aria-label="@group.Operation.Name">
+                                        <button class="section-toggle" aria-expanded="@(open ? "true" : "false")" @onclick="() => ToggleGroup(id)">
+                                            <span class="caret" aria-hidden="true">@(open ? "▾" : "▸")</span>
+                                            @id @group.Operation.Name
+                                            @if (_chain?.Pending?.Operation.Id == id)
+                                            {
+                                                <span class="kind">trying</span>
+                                            }
+                                        </button>
+                                        @if (open)
                                         {
-                                            int index = i;
-                                            string? reason = ReshapeUnavailable(index);
-                                            bool trying = _chain?.Pending?.Parameters == s_reshapes[index].Parameters;
-                                            <button class="@(trying ? "on" : null)" aria-pressed="@(trying ? "true" : "false")"
-                                                    disabled="@(reason is not null)" title="@(reason ?? s_reshapes[index].Hint)" @onclick="() => ReshapeAsync(index)">
-                                                @s_reshapes[index].Label
-                                            </button>
+                                            @if (group.Operation.DisabledReason(_keep) is { } disabled)
+                                            {
+                                                <p class="meta">@disabled</p>
+                                            }
+                                            else if (_scope != OperationScope.All && !group.Operation.Supports(_scope))
+                                            {
+                                                <p class="meta">Changes every selected note, whatever Change says.</p>
+                                            }
+                                            <div class="choices" role="group" aria-label="@group.Question">
+                                                @foreach (OperationChoice choice in group.Choices)
+                                                {
+                                                    OperationParameters parameters = Scoped(group, choice);
+                                                    string? reason = OperationUnavailable(group, parameters);
+                                                    bool trying = _chain?.Pending?.Parameters == parameters;
+                                                    <button class="@(trying ? "on" : null)" aria-pressed="@(trying ? "true" : "false")"
+                                                            disabled="@(reason is not null)" title="@(reason ?? choice.Hint)" @onclick="() => ProposeAsync(group, parameters)">
+                                                        @choice.Label
+                                                    </button>
+                                                }
+                                            </div>
                                         }
                                     </div>
+                                }
+
+                                <div class="group">
                                     @if (StepsText is { } steps)
                                     {
                                         <p class="steps" aria-live="polite">@steps</p>
                                     }
                                     <div class="step-buttons" role="group" aria-label="Steps">
-                                        <button class="primary" @onclick="AcceptStepAsync" disabled="@(_chain?.AcceptDisabledReason is not null)" title="@(_chain?.AcceptDisabledReason ?? "Keep this step; the next reshape builds on it.")">Accept step</button>
+                                        <button class="primary" @onclick="AcceptStepAsync" disabled="@(_chain?.AcceptDisabledReason is not null)" title="@(_chain?.AcceptDisabledReason ?? "Keep this step; the next change builds on it.")">Accept step</button>
                                         <button @onclick="RejectStepAsync" disabled="@(_chain?.Pending is null)" title="Drop this step and go back to the accepted ones.">Reject step</button>
                                         <button @onclick="UndoStepAsync" disabled="@(_chain?.CanUndo != true)" title="Take back the last accepted step.">Undo</button>
                                         <button @onclick="RedoStepAsync" disabled="@(_chain?.CanRedo != true)" title="Bring back the last step you undid.">Redo</button>
@@ -229,7 +277,7 @@
 
                                 <div class="changed" aria-live="polite">
                                     <h3>What changed</h3>
-                                    <p>@(DisabledReason ?? ExplanationText ?? "Pick a reshape to hear it. Keep marks what should stay the same; rhythm reshape needs Keep rhythm off. The original notes are never changed.")</p>
+                                    <p>@(ExplanationText ?? "Pick a change to hear it. Keep marks what should stay the same, and a change that would alter a kept property is not offered. The original notes are never changed.")</p>
                                     @foreach (string flag in _variation?.Flags ?? [])
                                     {
                                         <p class="meta">Check: @flag</p>
@@ -250,7 +298,7 @@
                             }
                             else
                             {
-                                <p class="meta">Select some bars on the roll first: drag across it, or click a bar number. Then pick what to keep and a reshape here.</p>
+                                <p class="meta">Select some bars on the roll first: drag across it, or click a bar number. Then pick what to keep and a change here.</p>
                             }
                             break;
                         case InspectorTab.Facts:
@@ -440,15 +488,68 @@
     /// <summary>The selected notes alone, played while the selection loops.</summary>
     private const string SelectionSource = "selection";
 
-    private static readonly (string Label, RhythmReshapeParameters Parameters, string Hint)[] s_reshapes =
+    /// <summary>The piece with the variation in place of the motif, so a variation can be heard in its surroundings.</summary>
+    private const string InPlaceSource = "in-place";
+
+    /// <summary>One parameter button of an operation: one click proposes it and plays it (S1-E3).</summary>
+    private sealed record OperationChoice(string Label, OperationParameters Parameters, string Hint);
+
+    /// <summary>An operation of the catalogue with the parameters the Selection tab offers for it.</summary>
+    private sealed record OperationGroup(IVariationOperation Operation, string Question, OperationChoice[] Choices);
+
+    private static readonly OperationGroup[] s_operations =
     [
-        ("Syncopate", new(RhythmReshapeKind.Syncopate), "Notes on a beat start half a beat early and are held into the beat."),
-        ("Dotted", new(RhythmReshapeKind.Dotted), "Pairs of notes a quarter, an eighth or a 16th apart become long–short."),
-        ("Half-time", new(RhythmReshapeKind.HalfTime), "Every note twice as long, and twice as far from the start of the selection."),
-        ("Double-time", new(RhythmReshapeKind.DoubleTime), "Every note half as long, and half as far from the start of the selection."),
-        ("Later by 1 eighth", new(RhythmReshapeKind.Displace, 1), "Every note starts an eighth later; lengths stay."),
-        ("Later by 2 eighths", new(RhythmReshapeKind.Displace, 2), "Every note starts a quarter later; lengths stay."),
-        ("Later by 3 eighths", new(RhythmReshapeKind.Displace, 3), "Every note starts three eighths later; lengths stay."),
+        new(RhythmReshape.Instance, "How to reshape the rhythm",
+        [
+            new("Syncopate", new RhythmReshapeParameters(RhythmReshapeKind.Syncopate), "Notes on a beat start half a beat early and are held into the beat."),
+            new("Dotted", new RhythmReshapeParameters(RhythmReshapeKind.Dotted), "Pairs of notes a quarter, an eighth or a 16th apart become long–short."),
+            new("Half-time", new RhythmReshapeParameters(RhythmReshapeKind.HalfTime), "Every note twice as long, and twice as far from the start of the selection."),
+            new("Double-time", new RhythmReshapeParameters(RhythmReshapeKind.DoubleTime), "Every note half as long, and half as far from the start of the selection."),
+            new("Later by 1 eighth", new RhythmReshapeParameters(RhythmReshapeKind.Displace, 1), "Every note starts an eighth later; lengths stay."),
+            new("Later by 2 eighths", new RhythmReshapeParameters(RhythmReshapeKind.Displace, 2), "Every note starts a quarter later; lengths stay."),
+            new("Later by 3 eighths", new RhythmReshapeParameters(RhythmReshapeKind.Displace, 3), "Every note starts three eighths later; lengths stay."),
+        ]),
+        new(Articulation.Instance, "How long the notes sound",
+        [
+            new("Short", new ArticulationParameters(ArticulationKind.Short), "Each note sounds for about a quarter of the time to the next one; pitches and onsets stay."),
+            new("Detached", new ArticulationParameters(ArticulationKind.Detached), "Each note sounds for about half of the time to the next one; pitches and onsets stay."),
+            new("Connected", new ArticulationParameters(ArticulationKind.Connected), "Each note holds until the next one starts; pitches and onsets stay."),
+        ]),
+        new(AccompanimentPattern.Instance, "How the accompaniment plays its notes",
+        [
+            new("Held chord", new AccompanimentPatternParameters(AccompanimentPatternKind.HeldChord), "Each bar's accompaniment notes, struck together once and held to the end of the bar."),
+            new("Repeated chord in 8ths", new AccompanimentPatternParameters(AccompanimentPatternKind.RepeatedChord, PatternUnit.Eighths), "Each bar's accompaniment notes, struck together on every eighth."),
+            new("Rising arpeggio in 16ths", new AccompanimentPatternParameters(AccompanimentPatternKind.ArpeggioUp, PatternUnit.Sixteenths), "One accompaniment note per 16th, from the lowest to the highest, then again."),
+            new("Falling arpeggio in 16ths", new AccompanimentPatternParameters(AccompanimentPatternKind.ArpeggioDown, PatternUnit.Sixteenths), "One accompaniment note per 16th, from the highest to the lowest, then again."),
+            new("Up and down in triplets", new AccompanimentPatternParameters(AccompanimentPatternKind.UpDown, PatternUnit.Triplets), "One accompaniment note per triplet eighth, up to the highest and back down."),
+            new("Alberti in 16ths", new AccompanimentPatternParameters(AccompanimentPatternKind.Alberti, PatternUnit.Sixteenths), "Lowest, highest, middle, highest, one per 16th. Needs three different notes in each bar."),
+        ]),
+        new(MelodicSequence.Instance, "Where the copies go",
+        [
+            new("A step higher", new MelodicSequenceParameters(1), "A copy of the motif follows straight after, one scale step higher."),
+            new("A step lower", new MelodicSequenceParameters(-1), "A copy of the motif follows straight after, one scale step lower."),
+            new("Climbing, three times", new MelodicSequenceParameters(1, 3), "Three copies follow, each one scale step higher than the one before."),
+            new("A third lower", new MelodicSequenceParameters(-2), "A copy of the motif follows straight after, two scale steps lower."),
+        ]),
+        new(IntervalReshape.Instance, "How the steps of the melody change",
+        [
+            new("Wider steps", new IntervalReshapeParameters(1), "Each step of the melody grows by a scale step; the rhythm and the contour stay."),
+            new("Much wider", new IntervalReshapeParameters(2), "Each step of the melody grows by two scale steps; the rhythm and the contour stay."),
+            new("Narrower steps", new IntervalReshapeParameters(-1), "Each step of the melody shrinks by a scale step; the rhythm and the contour stay."),
+        ]),
+        new(ChangeDirection.Instance, "How the melody turns",
+        [
+            new("Upside down", new ChangeDirectionParameters(Diatonic: true), "The melody moves the other way from its first note, in scale steps of the key."),
+            new("Upside down, exact", new ChangeDirectionParameters(Diatonic: false), "The melody moves the other way from its first note, by the same number of semitones."),
+        ]),
+    ];
+
+    private static readonly (OperationScope Scope, string Label)[] s_scopes =
+    [
+        (OperationScope.All, "Every selected note"),
+        (OperationScope.Melody, "The melody"),
+        (OperationScope.Accompaniment, "The accompaniment"),
+        (OperationScope.Bass, "The bass"),
     ];
 
     /// <summary>Note categories the player expects but music-core cannot pick out yet; shown, not offered (S1-A3).</summary>
@@ -470,7 +571,12 @@
         ("Original and second file", [Player.OriginalSource, SecondFileId]),
     ];
 
-    private (string Label, string[] Ids)[] Sources => _secondTitle is null ? s_sources : [.. s_sources, .. s_secondFileSources];
+    private (string Label, string[] Ids)[] Sources =>
+    [
+        .. s_sources,
+        .. _variation is null ? [] : new (string, string[])[] { ("The piece with the variation", [InPlaceSource]) },
+        .. _secondTitle is null ? [] : s_secondFileSources,
+    ];
 
     private PlaybackScore? _score;
     private IReadOnlyList<Note>? _notes;
@@ -512,6 +618,37 @@
     /// <summary>The chain's result, as heard and drawn: the original against every accepted step and the pending one.</summary>
     private Variation? _variation;
     private bool _looping;
+
+    /// <summary>The range that loops while the motif and its new answer are heard together, or null.</summary>
+    private TickSpan? _answerLoop;
+
+    /// <summary>Whether something loops: the selection, or the motif with its answer.</summary>
+    private bool Looping => _looping || _answerLoop is not null;
+
+    /// <summary>The experiments music-core offers for the selection (decision record 0010).</summary>
+    private IReadOnlyList<Experiment> _offers = [];
+
+    /// <summary>The selection's notes and facts as the experiment catalogue reads them; null without a selection.</summary>
+    private ObservationContext? _observation;
+
+    /// <summary>The last experiment tried; see <see cref="ActiveTrial"/>.</summary>
+    private ExploreTrial? _trial;
+
+    /// <summary>The experiments tried since the piece was opened, which Surprise me picks last.</summary>
+    private readonly HashSet<string> _tried = new(StringComparer.Ordinal);
+    private int _surprises;
+
+    /// <summary>Which layer plays while the selection loops.</summary>
+    private ListenTo _listenTo = ListenTo.Everything;
+
+    /// <summary>Whether the selection has a melody over an accompaniment.</summary>
+    private bool _layered;
+
+    /// <summary>Which notes the next step of the Selection tab changes, for the operations that can be limited.</summary>
+    private OperationScope _scope = OperationScope.All;
+
+    /// <summary>The operations whose buttons are shown; the others are folded.</summary>
+    private readonly HashSet<string> _openGroups = new(StringComparer.Ordinal) { RhythmReshape.OperationId };
     /// <summary>What the player chose to hear. While the selection loops, the original stands for the selection's notes alone.</summary>
     private string[] _hear = [Player.OriginalSource];
     private string? _title;
@@ -540,11 +677,12 @@
     private bool _showScore = true;
     private ScoreChoice _scoreChoice = ScoreChoice.AsWritten;
 
-    private InspectorTab _tab = InspectorTab.Selection;
+    private InspectorTab _tab = InspectorTab.Explore;
 
-    /// <summary>The inspector's tabs (docs/ui-conventions.md): the selection with Keep and the reshapes, its facts, and editing notes.</summary>
+    /// <summary>The inspector's tabs (docs/ui-conventions.md): experiments, the selection with Keep and the operations, its facts, and editing notes.</summary>
     private enum InspectorTab
     {
+        Explore,
         Selection,
         Facts,
         Edit,
@@ -552,6 +690,7 @@
 
     private (InspectorTab Tab, string Label)[] InspectorTabs =>
     [
+        (InspectorTab.Explore, "Explore"),
         (InspectorTab.Selection, "Selection"),
         (InspectorTab.Facts, Facts.Count > 0 ? $"Facts · {Facts.Count}" : "Facts"),
         (InspectorTab.Edit, "Edit"),
@@ -611,7 +750,10 @@
     /// <summary>The piece's notes are heard: the original, or the selection on its own.</summary>
     private bool OriginalAudible => Player.ActiveSources.Contains(Player.OriginalSource) || Player.ActiveSources.Contains(SelectionSource);
 
-    private bool VariationAudible => Player.ActiveSources.Contains(VariationSource);
+    private bool VariationAudible => Player.ActiveSources.Contains(VariationSource) || Player.ActiveSources.Contains(InPlaceSource);
+
+    /// <summary>Whether the player chose to hear the variation, alone, with the original, or in place.</summary>
+    private bool VariationChosen => _hear.Contains(VariationSource) || _hear.Contains(InPlaceSource);
 
     private int TempoPercent => (int)Math.Round(Player.Tempo * 100);
 
@@ -748,7 +890,7 @@
             _lastBar = MotifSelector.LastBar(_meter!, _score.End);
             await Player.LoadAsync(_score);
             await ApplyFilterAsync();
-            await Player.SetSourceAsync(VariationSource, _score.WithNotes(_variation?.Notes ?? []));
+            await SetVariationSourcesAsync();
             await Player.SeekAsync(position);
         }
 
@@ -814,15 +956,23 @@
         _character = [];
         _selectionNote = null;
         _looping = false;
+        _answerLoop = null;
         _hear = [Player.OriginalSource];
         _chain = null;
         _variation = null;
+        _offers = [];
+        _observation = null;
+        _trial = null;
+        _tried.Clear();
+        _listenTo = ListenTo.Everything;
+        _layered = false;
+        _scope = OperationScope.All;
         _secondTitle = null;
         _secondDifferences = [];
         (_secondMessage, _secondTip) = (null, null);
 
         await Player.LoadAsync(_score);
-        await Player.SetSourceAsync(VariationSource, _score.WithNotes([]));
+        await SetVariationSourcesAsync();
         await Player.SetSourceAsync(SecondFileId, _score.WithNotes([]));
         await Player.SetTracksAsync([], []);
     }
@@ -881,7 +1031,7 @@
     private async Task PlayAsync()
     {
         await Player.PlayAsync();
-        string hear = !_hear.Contains(VariationSource) ? "original" : _hear.Length > 1 ? "both" : "variation";
+        string hear = !VariationChosen ? "original" : _hear.Length > 1 ? "both" : "variation";
         await Analytics.TrackAsync(AnalyticsEvent.PlaybackStarted(hear, TempoPercent, _looping));
     }
 
@@ -1009,10 +1159,32 @@
         _analysis = MotifAnalyzer.Analyze(_notes!, _meter!, _selection, KeySignature.InForce(_keys, span.Onset), _accents, phrases);
         _structure = StructureAnalyzer.Analyze(_notes!, _meter!, _selection, phrases);
         _character = MotifAnalyzer.AnalyzeCharacter(_notes!, _meter!, _selection, KeySignature.InForce(_keys, span.Onset), _characterContext!);
+        _observation = new ObservationContext(_notes!, _meter!, _selection, _analysis, _structure, _character);
+        _offers = ExperimentCatalogue.Offer(_observation);
+        MotifTexture? texture = _selection.NoteIds.Count == 0 ? null : MotifTexture.Read(VariationFacts.MotifNotes(_notes!, _selection));
+        _layered = texture is { IsSingleLine: false } && texture.Melody.Count < texture.Notes.Count;
+        if (!_layered)
+        {
+            _listenTo = ListenTo.Everything;
+        }
+
         _selectionNote = note;
         if (!_restoring && _selection.NoteIds.Count > 0)
         {
             await Analytics.TrackAsync(AnalyticsEvent.MotifSelected(_selection.BarCount));
+        }
+
+        if (_answerLoop is not null)
+        {
+            await StopLoopingAsync();
+        }
+
+        // An experiment only being tried does not follow the selection: the player's own steps come back.
+        if (ActiveTrial is { Kept: false } trial)
+        {
+            _chain = trial.Before;
+            _keep.Clear();
+            _keep.UnionWith(trial.KeepBefore);
         }
 
         // The steps follow the selection as it changes, so the player keeps hearing and seeing them.
@@ -1044,13 +1216,15 @@
         _analysis = null;
         _structure = null;
         _character = [];
+        _observation = null;
+        _offers = [];
+        _trial = null;
+        _layered = false;
+        _listenTo = ListenTo.Everything;
         _selectionNote = null;
         await ClearVariationAsync();
         await SaveProjectAsync();
     }
-
-    /// <summary>Why the Keep choices rule V1 out (S1-E2), or null.</summary>
-    private string? DisabledReason => RhythmReshape.Instance.DisabledReason(_keep);
 
     /// <summary>The breadcrumbs of the chain, for example "Original › Half-time › trying Later by 1 eighth".</summary>
     private string? StepsText => _chain is null
@@ -1184,7 +1358,7 @@
         Tick position = Player.Position;
         await Player.LoadAsync(_score);
         await ApplyFilterAsync();
-        await Player.SetSourceAsync(VariationSource, _score.WithNotes(_variation?.Notes ?? []));
+        await SetVariationSourcesAsync();
         await Player.SeekAsync(position);
         if (_selection is { } selection)
         {
@@ -1193,6 +1367,176 @@
         else
         {
             await SaveProjectAsync();
+        }
+    }
+
+    /// <summary>The experiment the page shows: the last one tried, while the variation is still the one it made.</summary>
+    private ExploreTrial? ActiveTrial => _trial is { } trial && ReferenceEquals(trial.Chain, _chain) ? trial : null;
+
+    /// <summary>What the Explore card offers: what fits the selection, or while an experiment runs, what fitted where it was offered.</summary>
+    private IReadOnlyList<Experiment> CardOffers => ActiveTrial?.Offers ?? _offers;
+
+    /// <summary>
+    /// Tries one alternative of an experiment (decision record 0010): its steps become the variation,
+    /// heard at once, with the experiment's Keep choices. An experiment that changes another passage
+    /// (the motif's return) moves the selection there. Nothing is saved until the player keeps it.
+    /// </summary>
+    private async Task TryExperimentAsync(ExploreRequest request)
+    {
+        if (_selection is not { NoteIds.Count: > 0 } selection || _observation is null)
+        {
+            return;
+        }
+
+        ExploreTrial? active = ActiveTrial;
+        bool tryingOne = active is { Kept: false };
+        ObservationContext offeredIn = active?.OfferedIn ?? _observation;
+        Experiment experiment = request.Experiment;
+        VariationChain chain = ExperimentCatalogue.Start(experiment, request.Alternative, offeredIn);
+        var trial = new ExploreTrial(
+            experiment,
+            request.Alternative,
+            offeredIn,
+            active?.Offers ?? _offers,
+            chain,
+            tryingOne ? active!.Before : _chain,
+            tryingOne ? active!.KeepBefore : _keep.ToHashSet(),
+            Kept: false);
+
+        if (selection.Span != experiment.Passage.Span || _filter != experiment.Filter)
+        {
+            await MoveSelectionAsync(experiment.Passage.Span, experiment.Filter, trial.Elsewhere ? "This experiment changes the motif's return." : null);
+        }
+
+        _keep.Clear();
+        _keep.UnionWith(chain.Context.Keep);
+        if (_variation is null)
+        {
+            _scoreChoice = ScoreChoice.Variation;
+        }
+
+        _trial = trial;
+        _tried.Add(experiment.Id);
+        await ShowAsync(chain, play: true);
+        await Analytics.TrackAsync(AnalyticsEvent.ExperimentTried(experiment.Id, request.Alternative, request.Entry));
+    }
+
+    /// <summary>Selects another range for an experiment without saving or replaying the steps: the experiment's own come next.</summary>
+    private async Task MoveSelectionAsync(TickSpan span, SelectionFilter filter, string? note)
+    {
+        await ClearVariationAsync();
+        if (_filter != filter)
+        {
+            _filter = filter;
+            await ApplyFilterAsync();
+        }
+
+        _restoring = true;
+        try
+        {
+            await SelectAsync(span, note);
+        }
+        finally
+        {
+            _restoring = false;
+        }
+    }
+
+    /// <summary>Keeps the experiment's variation: it is saved with the project and the Selection tab builds on it.</summary>
+    private async Task KeepExperimentAsync()
+    {
+        if (ActiveTrial is not { Kept: false } trial)
+        {
+            return;
+        }
+
+        _trial = trial with { Kept = true };
+        await SaveProjectAsync();
+        await Analytics.TrackAsync(AnalyticsEvent.ExperimentKept(trial.Experiment.Id, trial.Alternative));
+    }
+
+    /// <summary>Leaves the experiment: the selection, Keep choices and steps the player had come back.</summary>
+    private async Task LeaveExperimentAsync()
+    {
+        if (ActiveTrial is not { Kept: false } trial)
+        {
+            return;
+        }
+
+        _trial = null;
+        MotifSelection origin = trial.OfferedIn.Selection;
+        await ClearVariationAsync();
+        _chain = trial.Before;
+        _keep.Clear();
+        _keep.UnionWith(trial.KeepBefore);
+        if (_selection is { } selection && (selection.Span != origin.Span || _filter != origin.Filter))
+        {
+            if (_filter != origin.Filter)
+            {
+                _filter = origin.Filter;
+                await ApplyFilterAsync();
+            }
+
+            await SelectAsync(origin.Span, note: null);
+        }
+        else
+        {
+            await ReplayAsync();
+        }
+    }
+
+    /// <summary>Surprise me: an experiment not tried yet, chosen by music-core from a seed that moves on each press.</summary>
+    private Task SurpriseAsync() =>
+        (ActiveTrial?.OfferedIn ?? _observation) is { } context && ExperimentCatalogue.Surprise(context, _surprises++, _tried) is { } pick
+            ? TryExperimentAsync(new ExploreRequest(pick.Experiment, pick.Alternative, "surprise"))
+            : Task.CompletedTask;
+
+    /// <summary>Loops from the motif to the end of its return, with the new answer in place; pressed again, it stops.</summary>
+    private async Task HearAnswerAsync()
+    {
+        if (_answerLoop is not null)
+        {
+            await StopLoopingAsync();
+            return;
+        }
+
+        if (ActiveTrial is not { Elsewhere: true } trial || _variation is not { Notes.Count: > 0 } variation)
+        {
+            return;
+        }
+
+        TickSpan origin = trial.OfferedIn.Selection.Span;
+        TickSpan passage = trial.Experiment.Passage.Span;
+        Tick start = origin.Onset < passage.Onset ? origin.Onset : passage.Onset;
+        Tick end = BeatEnd(variation.Notes.Max(note => note.Span.End));
+        end = end < passage.End ? passage.End : end;
+        end = end > _score!.End ? _score.End : end;
+        TickSpan range = TickSpan.FromBounds(start, end);
+
+        _looping = false;
+        _hear = [InPlaceSource];
+        await Player.SelectSourcesAsync(_hear);
+        await Player.SetLoopAsync(range);
+        _answerLoop = range;
+        await Player.SeekAsync(range.Onset);
+        if (Player.State == PlaybackState.Stopped)
+        {
+            await PlayAsync();
+        }
+    }
+
+    /// <summary>Listens to one layer of the selection, or to all of it, and loops it at once.</summary>
+    private async Task SetListenToAsync(ListenTo choice)
+    {
+        _listenTo = choice;
+        await SetVariationSourcesAsync();
+        if (_looping && _selection is { NoteIds.Count: > 0 } selection)
+        {
+            await LoopSelectionAsync(selection);
+        }
+        else
+        {
+            await AuditionAsync(variation: _variation is not null && VariationChosen);
         }
     }
 
@@ -1217,8 +1561,14 @@
 
     private static string Plural(int count, string noun) => count == 1 ? $"1 {noun}" : $"{count} {noun}s";
 
-    private static string StepLabel(VariationStep step) =>
-        s_reshapes.FirstOrDefault(reshape => reshape.Parameters == step.Parameters).Label ?? step.Operation.Name;
+    /// <summary>The button label of a step, with the layer it was limited to: "Detached (the melody)".</summary>
+    private static string StepLabel(VariationStep step)
+    {
+        OperationParameters whole = step.Parameters with { Scope = OperationScope.All };
+        string label = s_operations.Where(group => group.Operation.Id == step.Operation.Id).SelectMany(group => group.Choices)
+            .FirstOrDefault(choice => choice.Parameters == whole)?.Label ?? step.Operation.Name;
+        return step.Parameters.Scope == OperationScope.All ? label : $"{label} ({OperationScopes.Describe(step.Parameters.Scope)})";
+    }
 
     private static string KeepLabel(KeepProperty property) => property switch
     {
@@ -1285,28 +1635,51 @@
     }
 
     /// <summary>A new parameter re-runs the operation and plays the result at once (S1-E3).</summary>
-    private async Task ReshapeAsync(int index)
+    private async Task ProposeAsync(OperationGroup group, OperationParameters parameters)
     {
         if (_selection is not { } selection)
         {
             return;
         }
 
-        // Show the reshape in the score as well, the first time one is made.
+        // Show the change in the score as well, the first time one is made.
         if (_variation is null)
         {
             _scoreChoice = ScoreChoice.Variation;
         }
 
         VariationChain chain = _chain ?? StartChain(selection);
-        await ShowAsync(chain.Propose(RhythmReshape.Instance, s_reshapes[index].Parameters), play: true);
-        await Analytics.TrackAsync(AnalyticsEvent.VariationProposed(s_reshapes[index].Parameters, _keep.Count));
+        await ShowAsync(chain.Propose(group.Operation, parameters), play: true);
+        if (parameters is RhythmReshapeParameters reshape)
+        {
+            await Analytics.TrackAsync(AnalyticsEvent.VariationProposed(reshape, _keep.Count));
+        }
     }
 
-    /// <summary>Why one reshape cannot run on the current notes with these Keep choices, or null.</summary>
-    private string? ReshapeUnavailable(int index) => _selection is { } selection
-        ? (_chain ?? StartChain(selection)).UnavailableReason(RhythmReshape.Instance, s_reshapes[index].Parameters)
+    /// <summary>The choice's parameters, limited to the chosen layer when the operation can be.</summary>
+    private OperationParameters Scoped(OperationGroup group, OperationChoice choice) =>
+        group.Operation.Supports(_scope) ? choice.Parameters with { Scope = _scope } : choice.Parameters;
+
+    /// <summary>Why a parameter cannot run on the current notes with these Keep choices, or null.</summary>
+    private string? OperationUnavailable(OperationGroup group, OperationParameters parameters) => _selection is { } selection
+        ? (_chain ?? StartChain(selection)).UnavailableReason(group.Operation, parameters)
         : "Select some notes first.";
+
+    private void ToggleGroup(string id)
+    {
+        if (!_openGroups.Remove(id))
+        {
+            _openGroups.Add(id);
+        }
+    }
+
+    private void SetScope(ChangeEventArgs args)
+    {
+        if (Enum.TryParse(args.Value?.ToString(), out OperationScope scope))
+        {
+            _scope = scope;
+        }
+    }
 
     private Task AcceptStepAsync() => _chain is { AcceptDisabledReason: null } chain ? StepAsync(chain.Accept(), "accept") : Task.CompletedTask;
 
@@ -1324,12 +1697,15 @@
 
     /// <summary>A chain with no steps over the selected notes, with a copy of the Keep choices.</summary>
     private VariationChain StartChain(MotifSelection selection) =>
-        VariationChain.Start(VariationFacts.MotifNotes(_notes!, selection), VariationContext.For(selection, _keep.ToHashSet(), meter: _meter));
+        VariationChain.Start(VariationFacts.MotifNotes(_notes!, selection), VariationContext.For(selection, _keep.ToHashSet(), key: Key, meter: _meter));
+
+    /// <summary>The key the selection's analysis read, which diatonic operations count steps in; null when it is uncertain.</summary>
+    private MusicalKey? Key => _analysis?.Key is { Certainty: not FactCertainty.Uncertain } reading ? reading.Key : null;
 
     /// <summary>Runs the chain's steps again on the selection and Keep choices as they are now; clears it when a step no longer runs.</summary>
     private Task ReplayAsync() =>
         _chain is not null && _selection is { } selection
-            && _chain.Replay(VariationFacts.MotifNotes(_notes!, selection), VariationContext.For(selection, _keep.ToHashSet(), meter: _meter)) is { } replayed
+            && _chain.Replay(VariationFacts.MotifNotes(_notes!, selection), VariationContext.For(selection, _keep.ToHashSet(), key: Key, meter: _meter)) is { } replayed
             ? ShowAsync(replayed, play: false)
             : ClearVariationAsync();
 
@@ -1342,12 +1718,33 @@
     /// <summary>The piece with the variation's notes in place of the motif's, engraved from the notes; what it writes is inferred (decision record 0008).</summary>
     private ScoreSource VariationScore(Variation variation)
     {
-        var changed = variation.Changes.Select(change => change.Before.Id).Concat(variation.Removed.Select(note => note.Id)).ToHashSet(StringComparer.Ordinal);
-        Note[] notes = [.. _notes!.Where(note => !changed.Contains(note.Id)), .. variation.Notes];
+        Note[] notes = InPlaceNotes(variation);
         Tick end = notes.Length == 0 ? _score!.End : notes.Max(note => note.Span.End);
         IEnumerable<KeyChange> keys = _keys.Select(key => new KeyChange(key.At, Math.Clamp(key.Fifths, -7, 7)));
         return ScoreSource.FromNotes(NotationGenerator.Generate(notes, _meter!, keys, end > _score!.End ? end : _score.End, _title));
     }
+
+    /// <summary>The piece's notes with the variation's in place of the ones it changed or removed.</summary>
+    private Note[] InPlaceNotes(Variation variation)
+    {
+        var changed = variation.Changes.Select(change => change.Before.Id).Concat(variation.Removed.Select(note => note.Id)).ToHashSet(StringComparer.Ordinal);
+        return [.. _notes!.Where(note => !changed.Contains(note.Id)), .. variation.Notes];
+    }
+
+    /// <summary>Gives the engine the variation as heard (only the layer the player listens to) and the piece with it in place.</summary>
+    private async Task SetVariationSourcesAsync()
+    {
+        await Player.SetSourceAsync(VariationSource, _score!.WithNotes(_variation is null ? [] : Voiced(_variation.Notes)));
+        await Player.SetSourceAsync(InPlaceSource, _score!.WithNotes(_variation is null ? [] : InPlaceNotes(_variation)));
+    }
+
+    /// <summary>The layer of the notes the player listens to; the layers are read from the notes' texture, not the hands.</summary>
+    private IEnumerable<Note> Voiced(IReadOnlyList<Note> notes) => _listenTo switch
+    {
+        ListenTo.Melody => OperationScopes.Split(notes, OperationScope.Melody).Inside,
+        ListenTo.Accompaniment => OperationScopes.Split(notes, OperationScope.Melody).Outside,
+        _ => notes,
+    };
 
     /// <summary>
     /// Shows the chain's result in place of the motif, keeping the original notes as they are
@@ -1369,7 +1766,7 @@
         _startingPreview = play;
         try
         {
-            await Player.SetSourceAsync(VariationSource, _score!.WithNotes(_variation.Notes));
+            await SetVariationSourcesAsync();
             if (play)
             {
                 await AuditionAsync(variation: true);
@@ -1395,7 +1792,8 @@
     /// </summary>
     private async Task SaveProjectAsync()
     {
-        if (_project is null || _restoring)
+        // An experiment being tried is saved only once the player keeps it.
+        if (_project is null || _restoring || ActiveTrial is { Kept: false })
         {
             return;
         }
@@ -1451,9 +1849,9 @@
 
         _variation = null;
         _variationScore = null;
-        await Player.SetSourceAsync(VariationSource, _score!.WithNotes([]));
+        await SetVariationSourcesAsync();
         // Nothing is left to hear as the variation: go back to the original, keeping the loop.
-        if (_hear.Contains(VariationSource))
+        if (VariationChosen)
         {
             await HearAsync([Player.OriginalSource]);
         }
@@ -1463,6 +1861,12 @@
     private async Task HearAsync(string[] ids)
     {
         _hear = ids;
+        if (_answerLoop is not null)
+        {
+            _answerLoop = null;
+            await Player.SetLoopAsync(null);
+        }
+
         if (_looping && _selection is { NoteIds.Count: > 0 } selection)
         {
             await LoopSelectionAsync(selection);
@@ -1493,7 +1897,7 @@
 
     private async Task ToggleLoopSelectionAsync()
     {
-        if (_looping)
+        if (Looping)
         {
             await StopLoopingAsync();
         }
@@ -1510,8 +1914,9 @@
     /// </summary>
     private async Task<TickSpan> LoopSelectionAsync(MotifSelection selection)
     {
+        _answerLoop = null;
         var ids = selection.NoteIds.ToHashSet(StringComparer.Ordinal);
-        await Player.SetSourceAsync(SelectionSource, _score!.WithNotes(_notes!.Where(note => ids.Contains(note.Id))));
+        await Player.SetSourceAsync(SelectionSource, _score!.WithNotes(Voiced([.. _notes!.Where(note => ids.Contains(note.Id))])));
         await Player.SelectSourcesAsync([.. _hear.Select(id => id == Player.OriginalSource ? SelectionSource : id)]);
         TickSpan range = PlayRange(selection);
         await Player.SetLoopAsync(range);
@@ -1532,13 +1937,13 @@
     private TickSpan PlayRange(MotifSelection selection)
     {
         TickSpan span = selection.Span;
-        if (!_hear.Contains(VariationSource) || _variation is not { Notes.Count: > 0 } variation)
+        if (!VariationChosen || _variation is not { Notes.Count: > 0 } variation)
         {
             return span;
         }
 
         Tick end = BeatEnd(variation.Notes.Max(note => note.Span.End));
-        if (_hear.Contains(Player.OriginalSource) && span.End > end)
+        if ((_hear.Contains(Player.OriginalSource) || _hear.Contains(InPlaceSource)) && span.End > end)
         {
             end = span.End;
         }
@@ -1561,11 +1966,12 @@
     }
 
     /// <summary>The range that plays for the selection as things stand, for the roll and the score to show; null without a selection.</summary>
-    private TickSpan? ShownRange => _selection is { } selection ? (_selection.NoteIds.Count > 0 ? PlayRange(selection) : selection.Span) : null;
+    private TickSpan? ShownRange => _answerLoop ?? (_selection is { } selection ? (_selection.NoteIds.Count > 0 ? PlayRange(selection) : selection.Span) : null);
 
     private async Task StopLoopingAsync()
     {
         _looping = false;
+        _answerLoop = null;
         await Player.SetLoopAsync(null);
         await Player.SelectSourcesAsync(_hear);
     }
@@ -1593,9 +1999,18 @@
                 1 => ": 1 note.",
                 int count => $": {count} notes.",
             };
-            if (_looping)
+            if (_answerLoop is not null)
             {
-                text += " Looping; only these notes play.";
+                text += " Looping the motif and its new answer.";
+            }
+            else if (_looping)
+            {
+                text += _listenTo switch
+                {
+                    ListenTo.Melody => " Looping the melody alone.",
+                    ListenTo.Accompaniment => " Looping the accompaniment alone.",
+                    _ => " Looping; only these notes play.",
+                };
             }
 
             return _selectionNote is null ? text : $"{text} {_selectionNote}";

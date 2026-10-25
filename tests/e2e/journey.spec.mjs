@@ -34,6 +34,7 @@ test("open a piece, loop a bar, propose and hear a variation", async ({ page }) 
     await pause.click();
 
     // Picking a reshape plays it at once (S1-W5).
+    await page.getByRole("tab", { name: "Selection" }).click();
     const variation = await startTime(page, page.getByRole("button", { name: "Dotted" }));
     await expect(page.locator(".inspector .changed p").first()).not.toBeEmpty();
     await expect(page.locator("select[aria-label='What is heard'] option:checked")).toHaveText("Variation");

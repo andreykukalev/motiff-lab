@@ -43,9 +43,17 @@ test("import, its report, the opened piece and the project on the home screen", 
     expect(await violations(page)).toEqual([]);
 });
 
-test("playback lab with a selection, a variation and the note editor", async ({ page }) => {
+test("playback lab with a selection, the Explore card, a variation and the note editor", async ({ page }) => {
     await openFurElise(page);
     await selectBar(page, 1);
+    await page.getByRole("button", { name: "I have a question" }).click();
+    expect(await violations(page)).toEqual([]);
+    await page.getByRole("button", { name: "Which changes keep the motif recognisable?" }).click();
+    await expect(page.locator(".explore h3")).toHaveText("Answer the motif differently");
+    expect(await violations(page)).toEqual([]);
+    await page.getByRole("button", { name: "Leave it" }).click();
+    await page.getByRole("tab", { name: "Selection" }).click();
+    await page.locator(".variation button.section-toggle", { hasText: "V2 Accompaniment pattern" }).click();
     await page.getByRole("button", { name: "Dotted" }).click();
     await page.getByRole("tab", { name: /^Facts/ }).click();
     expect(await violations(page)).toEqual([]);
