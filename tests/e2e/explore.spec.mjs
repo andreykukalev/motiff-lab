@@ -1,0 +1,61 @@
+// The Explore card (decision record 0010) in every browser project: the experiments music-core offers
+// for a phrase, tried, heard against the original, kept, and left; a question that changes the motif's
+// return; and the accompaniment re-patterned while the melody plays alone.
+import { expect, test } from "@playwright/test";
+import { openFurElise, selectBar } from "./steps.mjs";
+
+test("explore a phrase: try an experiment, keep it, answer the motif and leave", async ({ page }) => {
+    const errors = await openFurElise(page);
+    await selectBar(page, 1);
+    const card = page.locator(".explore");
+    const selection = page.locator(".inspector .selection-text");
+    const heard = page.locator("select[aria-label='What is heard'] option:checked");
+
+    // Bar 1 offers space, groove and an answer; trying one plays its variation at once.
+    await expect(card.getByRole("button", { name: /Same notes, different groove/ })).toBeVisible();
+    await card.getByRole("button", { name: /Give the melody more space/ }).click();
+    await expect(card.locator("h3")).toHaveText("Give the melody more space");
+    await expect(card.locator(".passage")).toHaveText("Selected phrase · bar 1");
+    await expect(heard).toHaveText("Variation");
+    await expect(card.getByRole("button", { name: "Variation", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await card.getByRole("button", { name: "Original", exact: true }).click();
+    await expect(heard).toHaveText("Original");
+
+    await card.getByRole("button", { name: "Keep this variation" }).click();
+    await expect(card.getByRole("status")).toContainText("Kept with the project");
+    await card.getByRole("button", { name: "Try another" }).click();
+    await expect(card.locator("h3")).toHaveText("Same notes, different groove");
+
+    // A question about the motif changes its return in bar 5, and hears the motif and the answer together.
+    await card.getByRole("button", { name: "I have a question" }).click();
+    await card.getByRole("button", { name: "Which changes keep the motif recognisable?" }).click();
+    await expect(card.locator("h3")).toHaveText("Answer the motif differently");
+    await expect(card.locator(".passage")).toHaveText("The motif's return · bar 5");
+    await expect(selection).toContainText("bar 5");
+    await card.getByRole("button", { name: "Upside down" }).click();
+    await card.getByRole("button", { name: "Hear the motif, then the answer" }).click();
+    await expect(selection).toContainText("Looping the motif and its new answer.");
+    await expect(heard).toHaveText("The piece with the variation");
+
+    // Leave it puts back the selection and the variation that was kept.
+    await card.getByRole("button", { name: "Leave it" }).click();
+    await expect(selection).toContainText("bar 1");
+    await expect(page.locator(".inspector .tabs")).toBeVisible();
+    await page.getByRole("tab", { name: "Selection" }).click();
+    await expect(page.locator(".inspector .steps")).toContainText("Detached (the melody)");
+    await page.locator(".transport-bar").getByRole("button", { name: "Pause" }).click();
+    expect(errors).toEqual([]);
+});
+
+test("change the accompaniment and hear the melody alone", async ({ page }) => {
+    const errors = await openFurElise(page);
+    await selectBar(page, 2);
+    const card = page.locator(".explore");
+    await card.getByRole("button", { name: /Keep the melody, change the accompaniment/ }).click();
+    await card.getByRole("button", { name: "Held chord", exact: true }).click();
+    await expect(card.locator(".what-changed")).toContainText("the accompaniment keeps its pitches");
+    await card.getByRole("button", { name: "Melody alone" }).click();
+    await expect(page.locator(".inspector .selection-text")).toContainText("Looping the melody alone.");
+    await page.locator(".transport-bar").getByRole("button", { name: "Pause" }).click();
+    expect(errors).toEqual([]);
+});

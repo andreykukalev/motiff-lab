@@ -21,6 +21,6 @@ The review page of 2026-10-25 traced five candidate experiments to the engine. A
 ## Consequences
 
 - Project files move to version 4 and save each step's scope, plus V2, V4, V9, V10 and V13 steps.
-- The Explore card over the score view is the next UI step; it reads `ExperimentCatalogue.Offer`, `ForQuestion` and `Surprise`, and starts alternatives with `ExperimentCatalogue.Start`.
+- The Explore card is the first tab of the playback lab's inspector (`Explore/ExploreCard.razor`, docs/ui-conventions.md). It reads `ExperimentCatalogue.Offer` and `Surprise`, lists questions by `ExperimentTopic`, and starts alternatives with `ExperimentCatalogue.Start`. An experiment being tried is saved with the project only when the player keeps it; Leave it puts back the selection, Keep choices and steps the player had. The card can play the melody or the accompaniment alone, read from the texture, and for the motif's return it loops the motif and the new answer with the piece around them. Analytics count which experiment and alternative was tried or kept and how the player got there (`experiment_tried`, `experiment_kept`), never the notes.
 - Backlog items that this reframes (learning modes #50, guided sequences #51, the Transform, Compare and Variations screens #41, #43, #44) are not changed until the direction is confirmed.
 - AI may later phrase the idea or choose among catalogue experiments, citing fact IDs, but it never adds a transformation (0003).

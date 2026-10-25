@@ -463,6 +463,153 @@ html, body {
     margin: 0.4rem 0;
 }
 
+/* The Selection tab's operations fold to their names; the open ones show their parameter buttons. */
+.lab .inspector .variation button.section-toggle {
+    border: none;
+    padding: 0.35rem 0;
+    min-height: 0;
+    text-align: left;
+    width: 100%;
+    font-weight: 600;
+}
+
+.lab .inspector .variation .caret {
+    display: inline-block;
+    width: 1em;
+    color: var(--ml-gray);
+}
+
+.lab .inspector .variation .kind {
+    color: var(--ml-lime);
+    font-weight: normal;
+    font-size: 0.8rem;
+    margin-left: 0.4rem;
+}
+
+.inspector .variation > p.meta {
+    font-size: 0.85rem;
+    margin: 0 0 0.4rem;
+}
+
+.inspector .group + .group.variation {
+    margin-top: -0.6rem;
+}
+
+.inspector .pick.scope {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.lab .inspector .pick.scope select {
+    flex: 1;
+}
+
+/* The Explore card (Explore/ExploreCard.razor): one experiment at a time, as in the mockup. */
+.explore .eyebrow {
+    color: var(--ml-lime);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 0.5rem;
+}
+
+.explore .experiment {
+    background: var(--ml-surface);
+    border: 1px solid var(--ml-line);
+    border-radius: 0.9rem;
+    padding: 0.9rem 1rem;
+    line-height: 1.5;
+}
+
+.explore .experiment h3 {
+    font-size: 1.15rem;
+    margin: 0 0 0.35rem;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--ml-white);
+}
+
+.explore .experiment p {
+    margin: 0 0 0.5rem;
+}
+
+.explore .what-changed {
+    font-size: 0.9rem;
+}
+
+.explore .question {
+    font-style: italic;
+}
+
+.explore .passage {
+    display: inline-block;
+    border: 1px solid var(--ml-border);
+    border-radius: 1.1rem;
+    padding: 0.1rem 0.7rem;
+    font-size: 0.85rem;
+    color: var(--ml-gray);
+}
+
+.explore .choices, .explore .ab, .explore .listen, .explore .ideas, .explore .questions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 0.5rem 0;
+}
+
+.explore .ab button {
+    flex: 1;
+}
+
+.lab .explore button.context {
+    width: 100%;
+    margin-bottom: 0.5rem;
+}
+
+.explore .focus {
+    border-left: 3px solid var(--ml-lime);
+    padding-left: 0.6rem;
+}
+
+.explore .kept {
+    color: var(--ml-lime);
+    font-weight: 600;
+}
+
+.explore h4 {
+    font-size: 0.85rem;
+    color: var(--ml-gray);
+    margin: 1rem 0 0.25rem;
+    font-weight: 600;
+}
+
+.explore .ideas {
+    flex-direction: column;
+}
+
+.lab .explore button.idea {
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.55rem 0.8rem;
+}
+
+.explore button.idea span {
+    color: var(--ml-gray);
+    font-size: 0.85rem;
+}
+
+.explore .questions {
+    flex-direction: column;
+}
+
+.lab .explore .questions button {
+    text-align: left;
+}
+
 /* The transport, fixed along the bottom: a round play button, the position and the playback settings. */
 .transport-bar {
     position: fixed;

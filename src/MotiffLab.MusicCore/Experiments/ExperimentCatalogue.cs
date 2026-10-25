@@ -115,6 +115,20 @@ public static class ExperimentCatalogue
     /// <summary>The fewest melody notes evenly spaced that a groove experiment needs.</summary>
     public const int MinEvenNotes = 4;
 
+    /// <summary>The most alternatives an experiment offers.</summary>
+    public const int MaxAlternatives = 4;
+
+    public const string MelodySpaceId = "melody.space";
+
+    public const string GrooveId = "rhythm.groove";
+
+    public const string AccompanimentId = "layers.accompaniment";
+
+    public const string AnswerId = "motif.answer";
+
+    /// <summary>Every experiment's id, in the catalogue's order; analytics may send only these.</summary>
+    public static IReadOnlyList<string> Ids { get; } = [MelodySpaceId, GrooveId, AccompanimentId, AnswerId];
+
     private static readonly Func<ExperimentContext, Experiment?>[] s_rules =
     [
         MelodySpace,
@@ -206,7 +220,7 @@ public static class ExperimentCatalogue
         }
 
         return context.Build(
-            "melody.space",
+            MelodySpaceId,
             ExperimentTopic.Character,
             "Give the melody more space",
             "Same pitches, same onsets. Each melody note sounds for part of its time, so a gap opens before the next one; the accompaniment is not changed.",
@@ -235,7 +249,7 @@ public static class ExperimentCatalogue
         }
 
         return context.Build(
-            "rhythm.groove",
+            GrooveId,
             ExperimentTopic.Rhythm,
             "Same notes, different groove",
             "The melody keeps its pitches and their order; its rhythm changes. The accompaniment is not changed.",
@@ -265,7 +279,7 @@ public static class ExperimentCatalogue
             new(AccompanimentPattern.OperationId, new AccompanimentPatternParameters(kind, unit));
         const string Keeps = "the melody and the notes of each bar's accompaniment";
         return context.Build(
-            "layers.accompaniment",
+            AccompanimentId,
             ExperimentTopic.Layers,
             "Keep the melody, change the accompaniment",
             "The melody stays as written. Each bar's accompaniment plays the same notes in a new pattern.",
@@ -298,7 +312,7 @@ public static class ExperimentCatalogue
         var passage = new Passage(repeat.Span, repeat.FirstBar, repeat.LastBar);
         bool diatonic = context.Key is not null;
         return context.Build(
-            "motif.answer",
+            AnswerId,
             ExperimentTopic.Motif,
             "Answer the motif differently",
             $"The motif stays as written; when it comes back in {Bars(repeat.FirstBar, repeat.LastBar)}, its melody changes and its rhythm stays.",

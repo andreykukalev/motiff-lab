@@ -20,6 +20,8 @@ public class AnalyticsCatalogueTests
             AnalyticsEvent.VariationStep("accept", 1),
             AnalyticsEvent.NoteEdited(HandEditKind.Remove),
             AnalyticsEvent.MidiExported(variation: true, steps: 3),
+            AnalyticsEvent.ExperimentTried("melody.space", alternative: 1, entry: "surprise"),
+            AnalyticsEvent.ExperimentKept("motif.answer", alternative: 2),
         ];
 
         Assert.Equal(AnalyticsCatalogue.EventNames, events.Select(e => e.Name));

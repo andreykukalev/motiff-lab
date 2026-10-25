@@ -1,3 +1,4 @@
+using MotiffLab.MusicCore.Experiments;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Variations;
 
@@ -77,6 +78,17 @@ public static class AnalyticsCatalogue
         ],
         ["note_edited"] = [new ChoiceProperty("kind", [.. Enum.GetValues<HandEditKind>().Select(kind => Choice(kind))])],
         ["midi_exported"] = [new FlagProperty("variation"), new CountProperty("steps", 0, VariationChain.MaxSteps)],
+        ["experiment_tried"] =
+        [
+            new ChoiceProperty("experiment", ExperimentCatalogue.Ids),
+            new CountProperty("alternative", 0, ExperimentCatalogue.MaxAlternatives - 1),
+            new ChoiceProperty("entry", ["offer", "question", "surprise", "another"]),
+        ],
+        ["experiment_kept"] =
+        [
+            new ChoiceProperty("experiment", ExperimentCatalogue.Ids),
+            new CountProperty("alternative", 0, ExperimentCatalogue.MaxAlternatives - 1),
+        ],
     };
 
     /// <summary>The events' names, in the order above.</summary>

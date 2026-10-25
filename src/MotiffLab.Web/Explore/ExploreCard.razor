@@ -1,0 +1,246 @@
+@using MotiffLab.MusicCore.Experiments
+
+@* The Explore card (decision record 0010): the experiments music-core offers for the selection, one at a time, with its
+   alternatives, Original and Variation, Keep and Try another; and two ways in, Surprise me and I have a question.
+   It only displays what ExperimentCatalogue returns; the page runs the steps, plays and saves. *@
+<section class="explore" aria-label="Explore this phrase">
+    <p class="eyebrow">Explore this phrase</p>
+    @if (!HasSelection)
+    {
+        <p class="meta">Select a phrase on the roll: drag across a bar or two, or click a bar number. Then try what else it can become.</p>
+    }
+    else if (Trial is { } trial)
+    {
+        Experiment experiment = trial.Experiment;
+        <div class="experiment">
+            <h3>@experiment.Title</h3>
+            <p>@experiment.Change</p>
+            <p class="question">@experiment.Question</p>
+            <p class="passage">@(trial.Elsewhere ? "The motif's return" : "Selected phrase") · @Bars(experiment.Passage.FirstBar, experiment.Passage.LastBar)</p>
+            @if (experiment.Alternatives.Count > 1)
+            {
+                <div class="choices" role="group" aria-label="Ways to try it">
+                    @for (int i = 0; i < experiment.Alternatives.Count; i++)
+                    {
+                        int index = i;
+                        bool on = index == trial.Alternative;
+                        <button class="@(on ? "on" : null)" aria-pressed="@(on ? "true" : "false")" @onclick='() => TryAsync(experiment, index, "offer")'>@experiment.Alternatives[index].Label</button>
+                    }
+                </div>
+            }
+            <p class="meta">Keeps @trial.Current.Keeps.</p>
+            @if (Explanation is not null)
+            {
+                <p class="what-changed" aria-live="polite"><strong>What changed:</strong> @Explanation</p>
+            }
+
+            <div class="ab" role="group" aria-label="Hear">
+                <button class="@(OriginalHeard ? "on" : null)" aria-pressed="@(OriginalHeard ? "true" : "false")" @onclick="() => Hear.InvokeAsync(false)">Original</button>
+                <button class="@(VariationHeard ? "on" : null)" aria-pressed="@(VariationHeard ? "true" : "false")" @onclick="() => Hear.InvokeAsync(true)">Variation</button>
+            </div>
+            @if (trial.Elsewhere)
+            {
+                <button class="context @(AnswerLooping ? "on" : null)" aria-pressed="@(AnswerLooping ? "true" : "false")" @onclick="HearInContext"
+                        title="Loops from the motif to the end of its return, with the new answer in place.">
+                    Hear the motif, then the answer
+                </button>
+            }
+            @if (Layered)
+            {
+                <div class="listen" role="group" aria-label="Listen to" title="While the phrase loops. The melody is the top line of the notes, whichever hand plays it.">
+                    @foreach ((ListenTo choice, string label) in s_listen)
+                    {
+                        bool on = ListenTo == choice;
+                        <button class="@(on ? "on" : null)" aria-pressed="@(on ? "true" : "false")" @onclick="() => ListenToChanged.InvokeAsync(choice)">@label</button>
+                    }
+                </div>
+            }
+            <p class="focus"><strong>At the piano:</strong> @experiment.ListeningFocus</p>
+
+            <div class="row actions">
+                @if (trial.Kept)
+                {
+                    <span class="kept" role="status">Kept with the project. Build on it in the Selection tab.</span>
+                }
+                else
+                {
+                    <button class="primary" @onclick="() => Keep.InvokeAsync()">Keep this variation</button>
+                }
+                <button @onclick="TryAnotherAsync" disabled="@(Next(trial) is null)" title="@NextText(trial)">Try another</button>
+                @if (!trial.Kept)
+                {
+                    <button @onclick="() => Leave.InvokeAsync()" title="Go back to what you had before this experiment.">Leave it</button>
+                }
+            </div>
+        </div>
+
+        Experiment[] others = [.. trial.Offers.Where(other => other.Id != experiment.Id)];
+        @if (others.Length > 0)
+        {
+            <h4>Other ideas for this phrase</h4>
+            <div class="ideas">
+                @foreach (Experiment other in others)
+                {
+                    <button class="idea" @onclick='() => TryAsync(other, 0, "offer")'>@other.Title</button>
+                }
+            </div>
+        }
+    }
+    else if (Offers.Count > 0)
+    {
+        <div class="ideas">
+            @foreach (Experiment offer in Shown)
+            {
+                <button class="idea" @onclick='() => TryAsync(offer, 0, _topic is null ? "offer" : "question")'>
+                    <strong>@offer.Title</strong>
+                    <span>@offer.Question</span>
+                </button>
+            }
+        </div>
+    }
+    else
+    {
+        <p class="meta">No experiment fits this selection yet. They need a melody of a few notes: try a bar or two with a tune in it.</p>
+    }
+
+    @if (HasSelection)
+    {
+        <div class="row entry">
+            <button @onclick="() => Surprise.InvokeAsync()" disabled="@(Offers.Count == 0)" title="Picks an experiment you have not tried yet.">Surprise me</button>
+            <button class="@(_asking ? "on" : null)" aria-expanded="@(_asking ? "true" : "false")" @onclick="() => _asking = !_asking">I have a question</button>
+        </div>
+        @if (_asking)
+        {
+            <div class="questions" role="group" aria-label="Questions">
+                @foreach (ExperimentTopic topic in Enum.GetValues<ExperimentTopic>())
+                {
+                    bool fits = Offers.Any(offer => offer.Topic == topic);
+                    <button disabled="@(!fits)" title="@(fits ? null : "Nothing for this question in this selection yet.")" @onclick="() => AskAsync(topic)">@ExperimentCatalogue.Prompt(topic)</button>
+                }
+            </div>
+        }
+    }
+</section>
+
+@code {
+    private static readonly (ListenTo Choice, string Label)[] s_listen =
+    [
+        (ListenTo.Everything, "Everything"),
+        (ListenTo.Melody, "Melody alone"),
+        (ListenTo.Accompaniment, "Accompaniment alone"),
+    ];
+
+    /// <summary>Whether the question list is open.</summary>
+    private bool _asking;
+
+    /// <summary>The question picked when it has several experiments, which the list then shows alone.</summary>
+    private ExperimentTopic? _topic;
+
+    [Parameter, EditorRequired]
+    public bool HasSelection { get; set; }
+
+    /// <summary>The experiments that fit, in the catalogue's order: the trial's own offers while one runs.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<Experiment> Offers { get; set; } = [];
+
+    /// <summary>The experiment being tried, or null.</summary>
+    [Parameter]
+    public ExploreTrial? Trial { get; set; }
+
+    /// <summary>What the variation changed, read from its diff (S1-E4).</summary>
+    [Parameter]
+    public string? Explanation { get; set; }
+
+    [Parameter]
+    public bool OriginalHeard { get; set; }
+
+    [Parameter]
+    public bool VariationHeard { get; set; }
+
+    /// <summary>Whether the motif and its new answer loop together.</summary>
+    [Parameter]
+    public bool AnswerLooping { get; set; }
+
+    /// <summary>Whether the passage has a melody and an accompaniment to listen to apart.</summary>
+    [Parameter]
+    public bool Layered { get; set; }
+
+    [Parameter]
+    public ListenTo ListenTo { get; set; }
+
+    [Parameter]
+    public EventCallback<ExploreRequest> Try { get; set; }
+
+    /// <summary>Loops the passage: true for the variation, false for the original.</summary>
+    [Parameter]
+    public EventCallback<bool> Hear { get; set; }
+
+    [Parameter]
+    public EventCallback Keep { get; set; }
+
+    [Parameter]
+    public EventCallback Leave { get; set; }
+
+    [Parameter]
+    public EventCallback Surprise { get; set; }
+
+    [Parameter]
+    public EventCallback HearInContext { get; set; }
+
+    [Parameter]
+    public EventCallback<ListenTo> ListenToChanged { get; set; }
+
+    private IEnumerable<Experiment> Shown => _topic is { } topic ? Offers.Where(offer => offer.Topic == topic) : Offers;
+
+    protected override void OnParametersSet()
+    {
+        if (_topic is { } topic && !Offers.Any(offer => offer.Topic == topic))
+        {
+            _topic = null;
+        }
+    }
+
+    private Task TryAsync(Experiment experiment, int alternative, string entry) =>
+        Try.InvokeAsync(new ExploreRequest(experiment, alternative, entry));
+
+    /// <summary>A question with one experiment tries it at once; with several, the list shows only those.</summary>
+    private Task AskAsync(ExperimentTopic topic)
+    {
+        Experiment[] fitting = [.. Offers.Where(offer => offer.Topic == topic)];
+        _asking = false;
+        _topic = fitting.Length > 1 ? topic : null;
+        return fitting.Length == 1 ? TryAsync(fitting[0], 0, "question") : Task.CompletedTask;
+    }
+
+    /// <summary>The next alternative, or after the last one the next experiment offered.</summary>
+    private Task TryAnotherAsync() => Next(Trial!) is { } next ? TryAsync(next.Experiment, next.Alternative, "another") : Task.CompletedTask;
+
+    private static (Experiment Experiment, int Alternative)? Next(ExploreTrial trial)
+    {
+        if (trial.Alternative + 1 < trial.Experiment.Alternatives.Count)
+        {
+            return (trial.Experiment, trial.Alternative + 1);
+        }
+
+        int at = trial.Offers.ToList().FindIndex(offer => offer.Id == trial.Experiment.Id);
+        Experiment? next = trial.Offers.Count == 0 ? null : trial.Offers[(at + 1) % trial.Offers.Count];
+        return next is null || (next.Id == trial.Experiment.Id && trial.Alternative == 0) ? null : (next, 0);
+    }
+
+    private static string NextText(ExploreTrial trial) => Next(trial) switch
+    {
+        { } next when next.Experiment.Id == trial.Experiment.Id => $"Next: {next.Experiment.Alternatives[next.Alternative].Label}.",
+        { } next => $"Next idea: {next.Experiment.Title}.",
+        _ => "Nothing else fits this phrase.",
+    };
+
+    /// <summary>"bar 5", "bars 5–6", "the pickup", "the pickup and bar 1".</summary>
+    private static string Bars(int first, int last) => (first, last) switch
+    {
+        (0, 0) => "the pickup",
+        (0, 1) => "the pickup and bar 1",
+        (0, _) => $"the pickup and bars 1–{last}",
+        _ when first == last => $"bar {first}",
+        _ => $"bars {first}–{last}",
+    };
+}

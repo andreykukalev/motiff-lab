@@ -80,4 +80,13 @@ public sealed record AnalyticsEvent(string Name, IReadOnlyDictionary<string, obj
     /// <summary>The original or the variation was exported as MIDI (S1-X1).</summary>
     public static AnalyticsEvent MidiExported(bool variation, int steps) =>
         AnalyticsCatalogue.Create("midi_exported", new Dictionary<string, object> { ["variation"] = variation, ["steps"] = steps });
+
+    /// <summary>An experiment of the Explore card was tried (decision record 0010), by its id and which alternative.</summary>
+    /// <param name="entry">How the player got to it: "offer" (picked from the card), "question", "surprise" or "another" (Try another).</param>
+    public static AnalyticsEvent ExperimentTried(string experiment, int alternative, string entry) =>
+        AnalyticsCatalogue.Create("experiment_tried", new Dictionary<string, object> { ["experiment"] = experiment, ["alternative"] = alternative, ["entry"] = entry });
+
+    /// <summary>The player kept the variation an experiment made.</summary>
+    public static AnalyticsEvent ExperimentKept(string experiment, int alternative) =>
+        AnalyticsCatalogue.Create("experiment_kept", new Dictionary<string, object> { ["experiment"] = experiment, ["alternative"] = alternative });
 }
