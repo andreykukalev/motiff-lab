@@ -1,5 +1,4 @@
 @page "/"
-@using MotiffLab.MusicCore.Motifs
 @using MotiffLab.MusicCore.Projects
 @using MotiffLab.Web.Import
 @using MotiffLab.Web.Projects
@@ -105,18 +104,14 @@
         _message = null;
         try
         {
-            if (await Projects.LoadAsync(id) is not { } saved)
+            if (!await CurrentPiece.OpenSavedAsync(id))
             {
                 _message = "This project is no longer saved in this browser.";
                 await RefreshAsync();
                 return;
             }
 
-            Project project = saved with { LastOpened = DateTimeOffset.Now };
-            OpenedProject opened = OpenedProject.Open(project);
-            await Projects.SaveAsync(project);
-            CurrentPiece.Open(opened.Piece, opened.Motifs.FirstOrDefault()?.Filter ?? SelectionFilter.All, project, opened);
-            Navigation.NavigateTo("playback");
+            Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(CurrentPiece.Project!));
         }
         catch (ProjectFileException exception)
         {
