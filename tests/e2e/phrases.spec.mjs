@@ -15,10 +15,12 @@ test("pick a suggested phrase, make your own and go back to the suggestions", as
     await expect(phrases.nth(1)).toHaveClass(/inferred/);
     await expect(page.locator(".score .phrase-mark")).toHaveCount(1);
 
-    // Picking a phrase selects it as the working context; Explore reads it.
+    // Picking a phrase selects it as the working context; Practise and Explore read it.
     await phrases.nth(1).click();
     await expect(phrases.nth(1)).toHaveAttribute("aria-pressed", "true");
     await expect(selection).toContainText("Selected phrase 2");
+    await expect(page.locator(".practise").getByRole("button", { name: "Play from the start" })).toBeVisible();
+    await page.getByRole("tab", { name: "Explore" }).click();
     await expect(page.locator(".explore h4, .explore .experiment, .explore button").first()).toBeVisible();
 
     // A bar of your own becomes a phrase, marked as yours; back to the suggestions undoes it.

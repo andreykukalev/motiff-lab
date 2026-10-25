@@ -43,9 +43,12 @@ test("import, its report, the opened piece and the project on the home screen", 
     expect(await violations(page)).toEqual([]);
 });
 
-test("playback lab with a selection, the Explore card, a variation and the note editor", async ({ page }) => {
+test("playback lab with a selection, Practise, the Explore card, a variation and the note editor", async ({ page }) => {
     await openFurElise(page);
     await selectBar(page, 1);
+    // Practise, the default tab.
+    expect(await violations(page)).toEqual([]);
+    await page.getByRole("tab", { name: "Explore" }).click();
     await page.getByRole("button", { name: "I have a question" }).click();
     expect(await violations(page)).toEqual([]);
     await page.getByRole("button", { name: "Which changes keep the motif recognisable?" }).click();

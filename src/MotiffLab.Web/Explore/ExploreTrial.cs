@@ -4,12 +4,17 @@ using MotiffLab.MusicCore.Variations;
 
 namespace MotiffLab.Web.Explore;
 
-/// <summary>Which layer of the passage is heard while it loops; the layers are read from the texture, not the hands.</summary>
+/// <summary>Which hand or layer of the passage is heard while it loops; the layers are read from the texture, not the hands.</summary>
 public enum ListenTo
 {
     Everything,
     Melody,
     Accompaniment,
+
+    /// <summary>The notes the right hand plays, as the file marks them or as inferred.</summary>
+    RightHand,
+
+    LeftHand,
 }
 
 /// <summary>A request from the Explore card to try one alternative of an experiment.</summary>

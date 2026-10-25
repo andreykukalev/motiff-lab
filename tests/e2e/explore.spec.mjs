@@ -7,6 +7,7 @@ import { openFurElise, selectBar } from "./steps.mjs";
 test("explore a phrase: try an experiment, keep it, answer the motif and leave", async ({ page }) => {
     const errors = await openFurElise(page);
     await selectBar(page, 1);
+    await page.getByRole("tab", { name: "Explore" }).click();
     const card = page.locator(".explore");
     const selection = page.locator(".inspector .selection-text");
     const heard = page.locator("select[aria-label='What is heard'] option:checked");
@@ -50,6 +51,7 @@ test("explore a phrase: try an experiment, keep it, answer the motif and leave",
 test("change the accompaniment and hear the melody alone", async ({ page }) => {
     const errors = await openFurElise(page);
     await selectBar(page, 2);
+    await page.getByRole("tab", { name: "Explore" }).click();
     const card = page.locator(".explore");
     await card.getByRole("button", { name: /Keep the melody, change the accompaniment/ }).click();
     await card.getByRole("button", { name: "Held chord", exact: true }).click();

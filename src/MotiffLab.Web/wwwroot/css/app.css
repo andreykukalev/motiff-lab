@@ -505,6 +505,56 @@ html, body {
     flex: 1;
 }
 
+/* Practise (Practise/PractisePanel.razor): play, loop and tempo large enough to reach with the iPad on the music stand (#50). */
+.practise .eyebrow {
+    color: var(--ml-lime);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 0.5rem;
+}
+
+.practise .play-row, .practise .step, .practise .tempo-steps {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.lab .practise .play-row button {
+    flex: 1;
+    min-height: 3.25rem;
+    font-size: 1.05rem;
+}
+
+.lab .practise .step button {
+    flex: 1;
+}
+
+.practise .tempo-steps {
+    align-items: center;
+}
+
+.lab .practise .tempo-steps button {
+    min-width: 3.25rem;
+    min-height: 3.25rem;
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.practise .tempo-steps output {
+    flex: 1;
+    text-align: center;
+    font-size: 1.6rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.lab .practise .choices button {
+    flex: 1;
+    min-height: 2.75rem;
+}
+
 /* The Explore card (Explore/ExploreCard.razor): one experiment at a time, as in the mockup. */
 .explore .eyebrow {
     color: var(--ml-lime);

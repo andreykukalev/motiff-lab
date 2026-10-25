@@ -1,0 +1,129 @@
+@using MotiffLab.Web.Explore
+
+@* Practise the phrase (#50, docs/08-central-product-model.md sections 3 and 6): play it, loop it, slow it down and hear
+   one hand or one layer, with controls large enough to reach with the iPad on the music stand. No tasks and no scores.
+   It only shows the page's playback state; the page plays, loops and moves between phrases. *@
+<section class="practise" aria-label="Practise this phrase">
+    <p class="eyebrow">Practise this phrase</p>
+    @if (!HasSelection)
+    {
+        <p class="meta">Pick a phrase above, or drag across a bar or two on the roll. Then play it, loop it and slow it down.</p>
+    }
+    else
+    {
+        <div class="group" role="group" aria-label="Play">
+            <div class="play-row">
+                <button class="@(Playing ? "on" : "primary")" @onclick="() => PlayPressed.InvokeAsync()">
+                    @(Playing ? "Pause" : "Play from the start")
+                </button>
+                <button class="@(Looping ? "on" : null)" aria-pressed="@(Looping ? "true" : "false")" @onclick="() => LoopPressed.InvokeAsync()"
+                        title="Play the phrase over and over. Off, playing carries on into the rest of the piece.">
+                    Loop the phrase
+                </button>
+            </div>
+            <div class="row step">
+                <button @onclick="() => Step.InvokeAsync(-1)" disabled="@(!CanGoBack)">‹ Previous phrase</button>
+                <button @onclick="() => Step.InvokeAsync(1)" disabled="@(!CanGoOn)">Next phrase ›</button>
+            </div>
+        </div>
+
+        <div class="group" role="group" aria-label="Tempo">
+            <h3>Tempo</h3>
+            <div class="tempo-steps">
+                <button aria-label="Slower" title="5% slower" @onclick="() => TempoChanged.InvokeAsync(TempoPercent - TempoStep)" disabled="@(TempoPercent <= MinTempo)">−</button>
+                <output aria-live="polite" aria-label="Tempo">@TempoPercent%</output>
+                <button aria-label="Faster" title="5% faster" @onclick="() => TempoChanged.InvokeAsync(TempoPercent + TempoStep)" disabled="@(TempoPercent >= MaxTempo)">+</button>
+            </div>
+            <div class="choices">
+                @foreach (int preset in s_presets)
+                {
+                    bool on = TempoPercent == preset;
+                    <button class="@(on ? "on" : null)" aria-pressed="@(on ? "true" : "false")" @onclick="() => TempoChanged.InvokeAsync(preset)">@preset%</button>
+                }
+            </div>
+        </div>
+
+        @if (Choices.Count > 1)
+        {
+            <div class="group" role="group" aria-label="Hear">
+                <h3>Hear</h3>
+                @* The hands on one row, the layers on the next. *@
+                @foreach (var row in Choices.GroupBy(choice => IsLayer(choice.Choice)))
+                {
+                    <div class="choices" title="While the phrase loops.">
+                        @foreach ((ListenTo choice, string label) in row)
+                        {
+                            bool on = ListenTo == choice;
+                            <button class="@(on ? "on" : null)" aria-pressed="@(on ? "true" : "false")" @onclick="() => ListenToChanged.InvokeAsync(choice)">@label</button>
+                        }
+                    </div>
+                }
+                @if (HandsNote is not null)
+                {
+                    <p class="meta">@HandsNote</p>
+                }
+            </div>
+        }
+
+        <p class="meta">Understand and Explore work on the same phrase: the tempo and the loop stay as they are when you switch.</p>
+    }
+</section>
+
+@code {
+    private const int TempoStep = 5;
+
+    /// <summary>The tempo range of the transport's slider.</summary>
+    internal const int MinTempo = 25;
+
+    internal const int MaxTempo = 150;
+
+    private static readonly int[] s_presets = [50, 75, 100];
+
+    [Parameter]
+    public bool HasSelection { get; set; }
+
+    [Parameter]
+    public bool Playing { get; set; }
+
+    [Parameter]
+    public bool Looping { get; set; }
+
+    /// <summary>The tempo as a percentage of the piece's own.</summary>
+    [Parameter]
+    public int TempoPercent { get; set; } = 100;
+
+    /// <summary>What can be heard alone, the whole first; a single choice shows nothing.</summary>
+    [Parameter]
+    public IReadOnlyList<(ListenTo Choice, string Label)> Choices { get; set; } = [];
+
+    [Parameter]
+    public ListenTo ListenTo { get; set; }
+
+    /// <summary>Why the hands may not be the ones in the file, or null when the file gives them.</summary>
+    [Parameter]
+    public string? HandsNote { get; set; }
+
+    [Parameter]
+    public bool CanGoBack { get; set; }
+
+    [Parameter]
+    public bool CanGoOn { get; set; }
+
+    [Parameter]
+    public EventCallback PlayPressed { get; set; }
+
+    [Parameter]
+    public EventCallback LoopPressed { get; set; }
+
+    /// <summary>-1 for the previous phrase, 1 for the next.</summary>
+    [Parameter]
+    public EventCallback<int> Step { get; set; }
+
+    [Parameter]
+    public EventCallback<int> TempoChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<ListenTo> ListenToChanged { get; set; }
+
+    private static bool IsLayer(ListenTo choice) => choice is ListenTo.Melody or ListenTo.Accompaniment;
+}

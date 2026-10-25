@@ -18,6 +18,7 @@
 @using MotiffLab.Web.Import
 @using MotiffLab.Web.Phrases
 @using MotiffLab.Web.Playback
+@using MotiffLab.Web.Practise
 @using MotiffLab.Web.Projects
 @using MotiffLab.Web.Roll
 @using MotiffLab.Web.Score
@@ -185,6 +186,13 @@
                 <div class="tab-panel" role="tabpanel" aria-label="@_tab">
                     @switch (_tab)
                     {
+                        case InspectorTab.Practise:
+                            <PractisePanel HasSelection="@(_selection is { NoteIds.Count: > 0 })" Playing="@(Player.State != PlaybackState.Stopped)" Looping="_looping"
+                                           TempoPercent="TempoPercent" Choices="ListenChoices" ListenTo="_listenTo" HandsNote="@HandsNote"
+                                           CanGoBack="@(StepTarget(-1) is not null)" CanGoOn="@(StepTarget(1) is not null)"
+                                           PlayPressed="PractisePlayAsync" LoopPressed="ToggleLoopSelectionAsync" Step="StepPhraseAsync"
+                                           TempoChanged="SetTempoPercentAsync" ListenToChanged="PractiseListenToAsync" />
+                            break;
                         case InspectorTab.Explore:
                             <ExploreCard HasSelection="@(_selection is { NoteIds.Count: > 0 })" Offers="CardOffers" Trial="ActiveTrial" Explanation="@_variation?.Explanation"
                                          OriginalHeard="@(OriginalAudible && !VariationAudible)" VariationHeard="@(Player.ActiveSources.Contains(VariationSource) && !OriginalAudible)"
@@ -686,11 +694,15 @@
     private bool _showScore = true;
     private ScoreChoice _scoreChoice = ScoreChoice.AsWritten;
 
-    private InspectorTab _tab = InspectorTab.Explore;
+    private InspectorTab _tab = InspectorTab.Practise;
 
-    /// <summary>The inspector's tabs (docs/ui-conventions.md): experiments, the selection with Keep and the operations, its facts, and editing notes.</summary>
+    /// <summary>
+    /// The inspector's tabs (docs/ui-conventions.md): the three ways of working on the phrase (practise, its facts, experiments),
+    /// then the selection with Keep and the operations, and editing notes. Switching keeps the phrase, the tempo and the loop.
+    /// </summary>
     private enum InspectorTab
     {
+        Practise,
         Explore,
         Selection,
         Facts,
@@ -699,9 +711,10 @@
 
     private (InspectorTab Tab, string Label)[] InspectorTabs =>
     [
+        (InspectorTab.Practise, "Practise"),
+        (InspectorTab.Facts, Facts.Count > 0 ? $"Facts · {Facts.Count}" : "Facts"),
         (InspectorTab.Explore, "Explore"),
         (InspectorTab.Selection, "Selection"),
-        (InspectorTab.Facts, Facts.Count > 0 ? $"Facts · {Facts.Count}" : "Facts"),
         (InspectorTab.Edit, "Edit"),
     ];
 
@@ -1060,7 +1073,99 @@
         long.TryParse(args.Value?.ToString(), out long tick) ? Player.SeekAsync(new Tick(tick)) : Task.CompletedTask;
 
     private Task SetTempoAsync(ChangeEventArgs args) =>
-        int.TryParse(args.Value?.ToString(), out int percent) ? Player.SetTempoAsync(Math.Clamp(percent, 25, 150) / 100.0) : Task.CompletedTask;
+        int.TryParse(args.Value?.ToString(), out int percent) ? SetTempoPercentAsync(percent) : Task.CompletedTask;
+
+    private Task SetTempoPercentAsync(int percent) =>
+        Player.SetTempoAsync(Math.Clamp(percent, PractisePanel.MinTempo, PractisePanel.MaxTempo) / 100.0);
+
+    /// <summary>Plays from the start of the phrase, looping when the loop is on and carrying on into the piece when it is not; pauses while playing.</summary>
+    private async Task PractisePlayAsync()
+    {
+        if (Player.State != PlaybackState.Stopped)
+        {
+            await Player.PauseAsync();
+            return;
+        }
+
+        if (_selection is not { NoteIds.Count: > 0 } selection)
+        {
+            return;
+        }
+
+        await Player.SeekAsync(_looping ? PlayRange(selection).Onset : selection.Span.Onset);
+        await PlayAsync();
+    }
+
+    /// <summary>Hears one hand or one layer: the phrase loops so the choice can be heard (#50).</summary>
+    private async Task PractiseListenToAsync(ListenTo choice)
+    {
+        if (_selection is not { NoteIds.Count: > 0 } selection)
+        {
+            return;
+        }
+
+        _listenTo = choice;
+        await SetVariationSourcesAsync();
+        _looping = true;
+        await LoopSelectionAsync(selection);
+    }
+
+    /// <summary>The phrase the selection stands for or lies mostly in, which Previous and Next phrase step from.</summary>
+    private Phrase? StepFrom => _phrases is { } map && _selection is { } selection ? CurrentPhrase ?? map.Covering(selection.Span) : null;
+
+    /// <summary>The phrase before (-1) or after (1) the one the selection is in, or null at either end.</summary>
+    private Phrase? StepTarget(int direction) =>
+        StepFrom is { } from && from.Number + direction is int number && number >= 1 && number <= _phrases!.Phrases.Count ? _phrases.Phrases[number - 1] : null;
+
+    /// <summary>Selects the previous or next phrase; the loop, the tempo and what is heard carry on.</summary>
+    private Task StepPhraseAsync(int direction) => StepTarget(direction) is { } phrase ? PickPhraseAsync(phrase) : Task.CompletedTask;
+
+    /// <summary>
+    /// What the player can hear alone while the phrase loops: a hand when the selection has notes in both,
+    /// and the melody or the accompaniment when it has a melody over an accompaniment.
+    /// </summary>
+    private IReadOnlyList<(ListenTo Choice, string Label)> ListenChoices
+    {
+        get
+        {
+            Note[] notes = SelectedNotes;
+            bool hands = notes.Any(note => note.Hand?.Value == Hand.Right) && notes.Any(note => note.Hand?.Value == Hand.Left);
+            var choices = new List<(ListenTo, string)> { (ListenTo.Everything, hands && !_layered ? "Both hands" : "Everything") };
+            if (hands)
+            {
+                choices.Add((ListenTo.RightHand, "Right hand"));
+                choices.Add((ListenTo.LeftHand, "Left hand"));
+            }
+
+            if (_layered)
+            {
+                choices.Add((ListenTo.Melody, "Melody alone"));
+                choices.Add((ListenTo.Accompaniment, "Accompaniment alone"));
+            }
+
+            return choices;
+        }
+    }
+
+    /// <summary>Says when the hands are a reading of the notes rather than marked in the file.</summary>
+    private string? HandsNote =>
+        ListenChoices.Any(choice => choice.Choice == ListenTo.RightHand) && SelectedNotes.Any(note => note.Hand?.Attribution.Provenance == Provenance.Inferred)
+            ? "Which hand plays some of these notes is inferred, not marked in the file. The melody is the top line, whichever hand plays it."
+            : _layered ? "The melody is the top line of the notes, whichever hand plays it." : null;
+
+    private Note[] SelectedNotes
+    {
+        get
+        {
+            if (_selection is not { NoteIds.Count: > 0 } selection)
+            {
+                return [];
+            }
+
+            var ids = selection.NoteIds.ToHashSet(StringComparer.Ordinal);
+            return [.. _notes!.Where(note => ids.Contains(note.Id))];
+        }
+    }
 
     private Task ToggleMetronomeAsync() => Player.SetMetronomeAsync(!Player.Metronome);
 
@@ -1178,7 +1283,8 @@
         _offers = ExperimentCatalogue.Offer(_invitationContext);
         MotifTexture? texture = _selection.NoteIds.Count == 0 ? null : MotifTexture.Read(VariationFacts.MotifNotes(_notes!, _selection));
         _layered = texture is { IsSingleLine: false } && texture.Melody.Count < texture.Notes.Count;
-        if (!_layered)
+        // A hand or a layer the new selection does not have goes back to everything.
+        if (!ListenChoices.Any(choice => choice.Choice == _listenTo))
         {
             _listenTo = ListenTo.Everything;
         }
@@ -1827,11 +1933,13 @@
         await Player.SetSourceAsync(InPlaceSource, _score!.WithNotes(_variation is null ? [] : InPlaceNotes(_variation)));
     }
 
-    /// <summary>The layer of the notes the player listens to; the layers are read from the notes' texture, not the hands.</summary>
+    /// <summary>The hand or layer of the notes the player listens to; the layers are read from the notes' texture, not the hands.</summary>
     private IEnumerable<Note> Voiced(IReadOnlyList<Note> notes) => _listenTo switch
     {
         ListenTo.Melody => OperationScopes.Split(notes, OperationScope.Melody).Inside,
         ListenTo.Accompaniment => OperationScopes.Split(notes, OperationScope.Melody).Outside,
+        ListenTo.RightHand => notes.Where(note => note.Hand?.Value == Hand.Right),
+        ListenTo.LeftHand => notes.Where(note => note.Hand?.Value == Hand.Left),
         _ => notes,
     };
 
@@ -2098,6 +2206,8 @@
                 {
                     ListenTo.Melody => " Looping the melody alone.",
                     ListenTo.Accompaniment => " Looping the accompaniment alone.",
+                    ListenTo.RightHand => " Looping the right hand alone.",
+                    ListenTo.LeftHand => " Looping the left hand alone.",
                     _ => " Looping; only these notes play.",
                 };
             }
