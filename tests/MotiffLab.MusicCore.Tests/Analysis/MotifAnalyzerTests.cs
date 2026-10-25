@@ -194,6 +194,8 @@ public class MotifAnalyzerTests
         MotifFact durations = Fact(analysis, "rhythm.durations");
         Assert.Equal(FactCertainty.Uncertain, durations.Certainty);
         Assert.Equal("Lengths: 1 quarter, 2 lengths that are no single note value.", durations.Text);
+        Assert.Equal([("between grid lines", "b"), ("start, bar 1 beat 1", "a")], grid.Places.Select(place => (place.Label, string.Join(" ", place.NoteIds))));
+        Assert.Equal([("quarter", "c"), ("no single note value", "a b")], durations.Places.Select(place => (place.Label, string.Join(" ", place.NoteIds))));
     }
 
     [Fact]
@@ -207,6 +209,7 @@ public class MotifAnalyzerTests
         Assert.True(selection.HandInferred);
         Assert.DoesNotContain(analysis.Facts, fact => fact.Certainty == FactCertainty.Detected);
         Assert.StartsWith("The hand is inferred", Fact(analysis, "melody.intervals").Basis);
+        Assert.Equal(["lowest, C5", "highest, D5"], Fact(analysis, "melody.range").Places.Select(place => place.Label));
     }
 
     [Fact]

@@ -139,6 +139,67 @@ public class ExperimentCatalogueTests
     }
 
     [Fact]
+    public void A_fact_lists_the_experiments_that_rest_on_it()
+    {
+        IReadOnlyList<Experiment> offered = ExperimentCatalogue.Offer(Context(FurElise, 0, 1));
+
+        Assert.Equal(["melody.space"], ExperimentCatalogue.RestingOn(offered, "melody.line").Select(experiment => experiment.Id));
+        Assert.Equal(["rhythm.groove"], ExperimentCatalogue.RestingOn(offered, "melody.contour").Select(experiment => experiment.Id));
+        Assert.Equal(["motif.answer"], ExperimentCatalogue.RestingOn(offered, "structure.recurrences").Select(experiment => experiment.Id));
+        Assert.Empty(ExperimentCatalogue.RestingOn(offered, "key"));
+    }
+
+    [Fact]
+    public void Experiments_cite_only_facts_the_analysis_carries_and_the_links_go_both_ways()
+    {
+        foreach ((string name, int first, int last) in new[] { (FurElise, 0, 1), (FurElise, 0, 2), (FurElise, 2, 4), (OdeToJoy, 1, 2), (OdeToJoy, 1, 4) })
+        {
+            ObservationContext context = Context(name, first, last);
+            string[] factIds = [.. context.Motif.Facts.Concat(context.Structure.Facts).Concat(context.Character).Select(fact => fact.Id)];
+            IReadOnlyList<Experiment> offered = ExperimentCatalogue.Offer(context);
+
+            Assert.All(offered, experiment => Assert.All(experiment.FactIds, id =>
+            {
+                Assert.Contains(id, factIds);
+                Assert.Contains(experiment, ExperimentCatalogue.RestingOn(offered, id));
+            }));
+            Assert.All(factIds, id => Assert.All(ExperimentCatalogue.RestingOn(offered, id), experiment => Assert.Contains(id, experiment.FactIds)));
+        }
+    }
+
+    [Fact]
+    public void The_recurrence_fact_points_to_the_repeat_the_answer_changes()
+    {
+        ObservationContext context = Context(FurElise, 0, 1);
+        Experiment answer = Find(context, "motif.answer");
+
+        FactPlace repeat = Assert.Single(context.Structure.Facts.Single(fact => fact.Id == "structure.recurrences").Places);
+
+        Assert.Equal("exactly in bars 4–5", repeat.Label);
+        Assert.Equal(answer.Passage.Span, repeat.Span);
+        Assert.Equal(8, repeat.NoteIds.Count);
+    }
+
+    [Fact]
+    public void Every_place_on_the_pilot_pieces_holds_notes_of_the_piece_in_time_order()
+    {
+        foreach ((string name, int first, int last) in new[] { (FurElise, 0, 1), (FurElise, 2, 4), (OdeToJoy, 1, 4) })
+        {
+            ObservationContext context = Context(name, first, last);
+            var byId = context.Notes.ToDictionary(note => note.Id, StringComparer.Ordinal);
+            FactPlace[] places = [.. context.Motif.Facts.Concat(context.Structure.Facts).Concat(context.Character).SelectMany(fact => fact.Places)];
+
+            Assert.NotEmpty(places);
+            Assert.All(places, place =>
+            {
+                Note[] notes = [.. place.NoteIds.Select(id => byId[id])];
+                Assert.All(notes, note => Assert.True(place.Span.Contains(note.Span.Onset)));
+                Assert.Equal(notes.OrderBy(note => note.Span.Onset).Select(note => note.Id), place.NoteIds);
+            });
+        }
+    }
+
+    [Fact]
     public void A_question_lists_only_its_experiments()
     {
         ObservationContext context = Context(FurElise, 0, 1);

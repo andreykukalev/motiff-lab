@@ -165,6 +165,18 @@ public static class ExperimentCatalogue
         [.. Offer(context).Where(experiment => experiment.Topic == topic)];
 
     /// <summary>
+    /// The experiments of <paramref name="offered"/> that rest on the fact <paramref name="factId"/>,
+    /// in their order, so a fact can link to its experiments as each experiment links to its facts
+    /// through <see cref="Experiment.FactIds"/>.
+    /// </summary>
+    public static IReadOnlyList<Experiment> RestingOn(IEnumerable<Experiment> offered, string factId)
+    {
+        ArgumentNullException.ThrowIfNull(offered);
+        ArgumentNullException.ThrowIfNull(factId);
+        return [.. offered.Where(experiment => experiment.FactIds.Contains(factId, StringComparer.Ordinal))];
+    }
+
+    /// <summary>
     /// "Surprise me": one experiment that fits, preferring those whose id is not in
     /// <paramref name="tried"/>, and one of its alternatives, both chosen by <paramref name="seed"/>.
     /// Null when nothing fits.
