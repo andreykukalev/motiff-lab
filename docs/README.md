@@ -12,6 +12,7 @@ Product concept and specification for Motiff Lab, exported from the shared speci
 | [05-domain-architecture.md](05-domain-architecture.md) | Shared domain model: audio assets, musical events and layers, motifs, corrections, transformations, alignment, playback, analysis pipeline, system architecture, storage and API |
 | [06-validation-plan.md](06-validation-plan.md) | Hypotheses, three studies, accuracy benchmark, product metrics, decision rules, consent |
 | [07-product-definition.md](07-product-definition.md) | Core use case and value, facts / interpretations / actions, the track page, the notebook, Stage 1 constraints, hypotheses H1–H9 and the Für Elise pilot. Draft; the spec changes only after the pilot |
+| [08-central-product-model.md](08-central-product-model.md) | **Current product frame:** the piece and the work session, the phrase as the unit of work, the three ways of working (practise, understand, experiment), putting the piece together, and the first complete workflow mapped to issues |
 | [ui-conventions.md](ui-conventions.md) | Working rules for the web UI: selecting on the piano roll, clearing the selection, the facts panel |
 | [images/](images/) | Diagrams and wireframes used in the documents |
 | [source/](source/) | Original concept, vision, MVP and brand notes the specification was built from |

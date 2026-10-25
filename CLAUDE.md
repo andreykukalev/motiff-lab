@@ -1,6 +1,6 @@
 # Motiff Lab
 
-Musical exploration workspace: help musicians move from reproducing music to understanding, transforming and creating it. Product and technical specs live in `docs/` (start with `docs/README.md`). The current stage is **Stage 1, notation-based motif exploration** (`docs/01-mvp-stage-1.md`).
+Musical exploration workspace: help musicians move from reproducing music to understanding, transforming and creating it. Product and technical specs live in `docs/` (start with `docs/README.md`). The current stage is **Stage 1, notation-based motif exploration** (`docs/01-mvp-stage-1.md`). The product frame for the current work is `docs/08-central-product-model.md`: the loaded piece is the context for a work session and the phrase is the unit of work.
 
 ## Stack
 
