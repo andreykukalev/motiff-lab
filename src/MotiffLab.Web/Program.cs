@@ -16,5 +16,6 @@ builder.Services.AddScoped<Player>();
 builder.Services.AddScoped<CurrentPiece>();
 builder.Services.AddScoped<ProjectStore>();
 builder.Services.AddScoped<UsageAnalytics>();
+builder.Services.AddScoped<ScanService>();
 
 await builder.Build().RunAsync();

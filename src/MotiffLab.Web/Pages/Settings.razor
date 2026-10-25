@@ -3,10 +3,11 @@
 @using MotiffLab.Web.Analytics
 @implements IDisposable
 @inject UsageAnalytics Analytics
+@inject MotiffLab.Web.Import.ScanService Scans
 
 <PageTitle>Settings · Motiff Lab</PageTitle>
 
-@* Settings (S1-AI0, #64, #65): anonymous analytics with consent, and the privacy notice and terms of use. AI assistance joins this page when it arrives. *@
+@* Settings (S1-AI0, #64, #65): anonymous analytics with consent, the scan server for sheet music scanning (0011), and the privacy notice and terms of use. AI assistance joins this page when it arrives. *@
 <main class="lab settings">
     <h1>Settings</h1>
 
@@ -52,6 +53,36 @@
         }
     </section>
 
+    <section aria-labelledby="scan-heading">
+        <h2 id="scan-heading">Sheet music scanning</h2>
+        <p>
+            Motiff Lab can read a PDF or a photo of printed music with homr, an open-source recognition engine that runs
+            on your own computer. Start it with Docker, then give its address here. Scanning stays off until you do.
+        </p>
+        <pre class="command"><code>docker build -t motiff-omr services/omr
+docker run --rm -p 8765:8000 motiff-omr</code></pre>
+        <p class="meta">
+            Run these in a copy of the Motiff Lab repository. The build takes a few minutes and downloads about 2 GB once; after that
+            the server works offline. <a href="https://github.com/andreykukalev/motiff-lab/tree/main/services/omr">More about the scan server</a>.
+        </p>
+        <div class="row">
+            <label>
+                Scan server address
+                <input type="url" @bind="_address" placeholder="@MotiffLab.Web.Import.ScanService.SuggestedAddress" aria-describedby="scan-status" />
+            </label>
+            <button @onclick="SaveAddressAsync">Save and check</button>
+            @if (Scans.Address is not null)
+            {
+                <button @onclick="TurnScanningOffAsync">Turn scanning off</button>
+            }
+        </div>
+        <p id="scan-status" class="meta" role="status">@_scanStatus</p>
+        @if (Scans.Address is not null && !Scans.IsLocal)
+        {
+            <p class="notice">This address is another computer, so pages you scan leave this one. Each scan asks before it sends anything.</p>
+        }
+    </section>
+
     <section aria-labelledby="documents-heading">
         <h2 id="documents-heading">Privacy and terms</h2>
         <p><a href="privacy">Privacy notice</a> · <a href="terms">Terms of use</a></p>
@@ -59,10 +90,37 @@
 </main>
 
 @code {
+    private string? _address;
+    private string? _scanStatus;
+
     protected override async Task OnInitializedAsync()
     {
         Analytics.Changed += OnChanged;
         await Analytics.LoadAsync();
+        await Scans.LoadAsync();
+        _address = Scans.Address?.ToString() ?? MotiffLab.Web.Import.ScanService.SuggestedAddress;
+        _scanStatus = Scans.Address is null ? "Scanning is off." : $"Scanning uses {Scans.Address}.";
+    }
+
+    private async Task SaveAddressAsync()
+    {
+        if (MotiffLab.Web.Import.ScanService.Parse(_address) is not { } address)
+        {
+            _scanStatus = "Give an address such as http://localhost:8765, with no path after it.";
+            return;
+        }
+
+        await Scans.SetAddressAsync(address);
+        _scanStatus = "Checking…";
+        StateHasChanged();
+        (string? engine, string? problem) = await Scans.CheckAsync();
+        _scanStatus = engine is not null ? $"Connected: the scan server runs {engine}. Scanning is on." : $"Saved, but {char.ToLowerInvariant(problem![0])}{problem[1..]}";
+    }
+
+    private async Task TurnScanningOffAsync()
+    {
+        await Scans.SetAddressAsync(null);
+        _scanStatus = "Scanning is off.";
     }
 
     public void Dispose() => Analytics.Changed -= OnChanged;

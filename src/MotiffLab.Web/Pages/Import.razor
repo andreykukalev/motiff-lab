@@ -2,6 +2,7 @@
 @using System.Diagnostics
 @using MotiffLab.MusicCore.Analytics
 @using MotiffLab.MusicCore.Import
+@using MotiffLab.MusicCore.Import.Scan
 @using MotiffLab.MusicCore.Projects
 @using MotiffLab.Web.Import
 @using MotiffLab.Web.Projects
@@ -9,10 +10,12 @@
 @inject ProjectStore Projects
 @inject NavigationManager Navigation
 @inject MotiffLab.Web.Analytics.UsageAnalytics Analytics
+@inject ScanService Scans
 
 <PageTitle>Import · Motiff Lab</PageTitle>
 
-@* N2 · Import (S1-I1, S1-I8): drop or pick a file, read the import report, pick where to start. Parsing runs in the browser; the file never leaves the device. *@
+@* N2 · Import (S1-I1, S1-I8): drop or pick a file, read the import report, pick where to start. Parsing runs in the browser; the file never leaves the device.
+   Scanning (0011) is the one exception: a PDF or photo the player picks for it goes to the scan server they set in Settings, and comes back as MusicXML. *@
 <main class="lab import">
     <h1>Import a piece</h1>
     <p class="meta">Motiff Lab reads MIDI (.mid) and MusicXML (.musicxml, .mxl) files up to 5 MB. The file is read in this browser and never leaves this device.</p>
@@ -26,9 +29,36 @@
     {
         <section class="rejection" role="alert">
             <p class="error"><strong>@_fileName</strong>: @rejection.Message</p>
-            <p>@rejection.Tip</p>
+            <p>@TipFor(rejection)</p>
         </section>
     }
+
+    <section class="scan" aria-labelledby="scan-heading">
+        <h2 id="scan-heading">Scan printed music</h2>
+        @if (Scans.Address is not { } server)
+        {
+            <p class="meta">Motiff Lab can read a PDF or a photo of printed music with a scan server you run on your computer. <a href="settings#scan-heading">Set it up in Settings</a>.</p>
+        }
+        else
+        {
+            <p class="meta">
+                A PDF of up to 8 pages, or a photo of one page, is sent to the scan server at @server@(Scans.IsLocal ? " on this computer" : "") to be read,
+                and deleted there as soon as it has been. A page takes 20 to 60 seconds. The notes come back marked as detected, for you to check.
+            </p>
+            @if (!Scans.IsLocal)
+            {
+                <label>
+                    <input type="checkbox" @bind="_sendElsewhere" />
+                    Send the page to @server.Host, which is another computer
+                </label>
+            }
+
+            <label class="dropzone @(_scanning ? "busy" : null)">
+                <InputFile OnChange="ScanFileAsync" accept="@ScanService.AcceptedExtensions" disabled="@(_reading || _scanning || !(Scans.IsLocal || _sendElsewhere))" aria-label="Choose a PDF or photo of printed music to scan" />
+                <span>@(_scanning ? "Reading the notes… this takes a while for each page" : "Drop a PDF or photo here, or click to choose one")</span>
+            </label>
+        }
+    </section>
 
     @if (_piece is { } piece)
     {
@@ -36,9 +66,37 @@
         <section class="report" aria-label="Import report">
             <h2>@piece.FileName</h2>
             <p class="summary">
-                @FormatName(piece.Format) · @Plural(piece.Tracks.Count, "track") with notes · @Plural(report.NoteCount, "note") · @Plural(report.MeasureCount, "bar")
+                @(_scan is null ? FormatName(piece.Format) : $"Scanned by {_scanEngine}") · @Plural(piece.Tracks.Count, "track") with notes · @Plural(report.NoteCount, "note") · @Plural(report.MeasureCount, "bar")
             </p>
-            <p class="meta">Read in @_elapsed.TotalSeconds.ToString("0.00") s on this device.</p>
+            @if (_scan is { } scan)
+            {
+                <p class="meta">@Plural(_scanPages, "page") read in @_elapsed.TotalSeconds.ToString("0") s by the scan server.</p>
+                @* Check the scan (0011): the bars the rules flag come first; the player checks them in the workspace. *@
+                <section class="scan-check" aria-label="Check the scan">
+                    <h3>Check the scan</h3>
+                    @if (scan.Flagged.ToList() is { Count: > 0 } flagged)
+                    {
+                        <p>
+                            @Plural(flagged.Count, "bar") of @scan.Bars.Count may have been misread. Every note is marked as detected until you
+                            check it; after opening, the Scan tab in the workspace takes you to each of these bars.
+                        </p>
+                        <ul class="warnings">
+                            @foreach (ScanBar bar in flagged)
+                            {
+                                <li><span class="kind">Bar @bar.Bar</span> @string.Join(" ", bar.Reasons)</li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <p>No bar looks wrong to the checks. The notes are still a reading of the page, marked as detected until you check them.</p>
+                    }
+                </section>
+            }
+            else
+            {
+                <p class="meta">Read in @_elapsed.TotalSeconds.ToString("0.00") s on this device.</p>
+            }
 
             <table class="tracks-table">
                 <thead>
@@ -51,7 +109,7 @@
                             <td>@track.Label</td>
                             <td>@(track.InstrumentName ?? "–")</td>
                             <td>@track.NoteCount</td>
-                            <td>@HandsLabel(track.Hands)</td>
+                            <td>@(_scan is not null && track.Hands != TrackHands.None ? "From the scan's staves" : HandsLabel(track.Hands))</td>
                         </tr>
                     }
                 </tbody>
@@ -130,10 +188,20 @@
     private int _start;
     private bool _reading;
 
+    /// <summary>The checks of a piece read by the scan server (0011); null for a file imported on the device.</summary>
+    private ScanCheck? _scan;
+    private string _scanEngine = "";
+    private int _scanPages;
+    private bool _scanning;
+    private bool _sendElsewhere;
+
+    protected override Task OnInitializedAsync() => Scans.LoadAsync();
+
     private async Task OpenFileAsync(InputFileChangeEventArgs args)
     {
         _fileName = args.File.Name;
         _piece = null;
+        _scan = null;
         _timing = null;
         _rejection = PieceImporter.CheckSize(args.File.Size);
         _start = 0;
@@ -165,6 +233,62 @@
         await TrackImportAsync();
     }
 
+    /// <summary>Sends a PDF or photo to the scan server and imports the MusicXML it reads, with the notes marked as detected (0011).</summary>
+    private async Task ScanFileAsync(InputFileChangeEventArgs args)
+    {
+        _fileName = args.File.Name;
+        _piece = null;
+        _scan = null;
+        _timing = null;
+        _rejection = null;
+        _start = 0;
+        if (args.File.Size == 0 || args.File.Size > ScanService.MaxUploadBytes)
+        {
+            _rejection = new(
+                args.File.Size == 0 ? ImportRejectionReason.Empty : ImportRejectionReason.TooLarge,
+                args.File.Size == 0 ? "This file is empty." : "This file is larger than 20 MB, the most the scan server reads.",
+                "Scan fewer pages at a time, or save the photo at a lower resolution.");
+            return;
+        }
+
+        _scanning = true;
+        try
+        {
+            var watch = Stopwatch.StartNew();
+            await using Stream stream = args.File.OpenReadStream(ScanService.MaxUploadBytes);
+            using var memory = new MemoryStream();
+            await stream.CopyToAsync(memory);
+            ScanResult result = await Scans.RecogniseAsync(args.File.Name, memory.ToArray());
+            _elapsed = watch.Elapsed;
+            if (result.MusicXml is not { } musicXml)
+            {
+                _rejection = new(ImportRejectionReason.NotMusic, result.Problem!, "Try a sharper photo that shows the whole page, straight on and in good light.");
+                return;
+            }
+
+            string name = Path.ChangeExtension(args.File.Name, ".musicxml");
+            PieceImportResult imported = PieceImporter.Import(name, musicXml);
+            if (imported.Piece is not { } piece)
+            {
+                _rejection = imported.Rejection;
+                return;
+            }
+
+            _scan = ScanCheck.Of(piece);
+            (_piece, _data, _fileName, _scanEngine, _scanPages) = (_scan.Mark(piece, []), musicXml, name, result.Engine, result.Pages);
+        }
+        finally
+        {
+            _scanning = false;
+        }
+    }
+
+    /// <summary>The importer's tip, or a pointer to scanning for a PDF or photo when it is set up.</summary>
+    private string TipFor(ImportRejection rejection) =>
+        rejection.Reason is ImportRejectionReason.Pdf or ImportRejectionReason.Image && Scans.Address is not null && _scan is null
+            ? "To read the notes from it, drop it under Scan printed music below."
+            : rejection.Tip;
+
     private Task TrackImportAsync() => Analytics.TrackAsync(AnalyticsEvent.PieceImported(
         AnalyticsEvent.FormatOf(_fileName ?? ""), _piece is not null, _piece?.Report.NoteCount ?? 0, _piece?.Tracks.Count ?? 0,
         _timing?.Kind == TimingKind.Performance, (long)_elapsed.TotalMilliseconds));
@@ -177,7 +301,10 @@
             return;
         }
 
-        var project = Project.Create($"p_{Guid.NewGuid():N}", piece.FileName, _data, DateTimeOffset.Now);
+        var project = Project.Create($"p_{Guid.NewGuid():N}", piece.FileName, _data, DateTimeOffset.Now) with
+        {
+            Scan = _scan is null ? null : ScanOrigin.Read(_scanEngine),
+        };
         await Projects.SaveAsync(project);
         CurrentPiece.Open(piece, piece.StartChoices[Math.Clamp(_start, 0, piece.StartChoices.Count - 1)].Filter, project);
         Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(project));

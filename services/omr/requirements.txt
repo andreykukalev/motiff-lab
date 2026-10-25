@@ -1,0 +1,6 @@
+# The service and the engine. homr is AGPL-3.0 and runs unmodified (see README.md).
+homr==0.7.0
+fastapi==0.115.6
+uvicorn==0.54.0
+python-multipart==0.0.20
+pypdfium2==5.14.0
