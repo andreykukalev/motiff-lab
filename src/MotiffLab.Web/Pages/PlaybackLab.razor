@@ -8,7 +8,7 @@
 @using MotiffLab.MusicCore.Import.MusicXml
 @using MotiffLab.MusicCore.Motifs
 @using MotiffLab.MusicCore.Notation
-@using MotiffLab.MusicCore.Observations
+@using MotiffLab.MusicCore.Invitations
 @using MotiffLab.MusicCore.Playback
 @using MotiffLab.MusicCore.Projects
 @using MotiffLab.MusicCore.Time
@@ -629,7 +629,7 @@
     private IReadOnlyList<Experiment> _offers = [];
 
     /// <summary>The selection's notes and facts as the experiment catalogue reads them; null without a selection.</summary>
-    private ObservationContext? _observation;
+    private InvitationContext? _invitationContext;
 
     /// <summary>The last experiment tried; see <see cref="ActiveTrial"/>.</summary>
     private ExploreTrial? _trial;
@@ -961,7 +961,7 @@
         _chain = null;
         _variation = null;
         _offers = [];
-        _observation = null;
+        _invitationContext = null;
         _trial = null;
         _tried.Clear();
         _listenTo = ListenTo.Everything;
@@ -1159,8 +1159,8 @@
         _analysis = MotifAnalyzer.Analyze(_notes!, _meter!, _selection, KeySignature.InForce(_keys, span.Onset), _accents, phrases);
         _structure = StructureAnalyzer.Analyze(_notes!, _meter!, _selection, phrases);
         _character = MotifAnalyzer.AnalyzeCharacter(_notes!, _meter!, _selection, KeySignature.InForce(_keys, span.Onset), _characterContext!);
-        _observation = new ObservationContext(_notes!, _meter!, _selection, _analysis, _structure, _character);
-        _offers = ExperimentCatalogue.Offer(_observation);
+        _invitationContext = new InvitationContext(_notes!, _meter!, _selection, _analysis, _structure, _character);
+        _offers = ExperimentCatalogue.Offer(_invitationContext);
         MotifTexture? texture = _selection.NoteIds.Count == 0 ? null : MotifTexture.Read(VariationFacts.MotifNotes(_notes!, _selection));
         _layered = texture is { IsSingleLine: false } && texture.Melody.Count < texture.Notes.Count;
         if (!_layered)
@@ -1216,7 +1216,7 @@
         _analysis = null;
         _structure = null;
         _character = [];
-        _observation = null;
+        _invitationContext = null;
         _offers = [];
         _trial = null;
         _layered = false;
@@ -1383,14 +1383,14 @@
     /// </summary>
     private async Task TryExperimentAsync(ExploreRequest request)
     {
-        if (_selection is not { NoteIds.Count: > 0 } selection || _observation is null)
+        if (_selection is not { NoteIds.Count: > 0 } selection || _invitationContext is null)
         {
             return;
         }
 
         ExploreTrial? active = ActiveTrial;
         bool tryingOne = active is { Kept: false };
-        ObservationContext offeredIn = active?.OfferedIn ?? _observation;
+        InvitationContext offeredIn = active?.OfferedIn ?? _invitationContext;
         Experiment experiment = request.Experiment;
         VariationChain chain = ExperimentCatalogue.Start(experiment, request.Alternative, offeredIn);
         var trial = new ExploreTrial(
@@ -1487,7 +1487,7 @@
 
     /// <summary>Surprise me: an experiment not tried yet, chosen by music-core from a seed that moves on each press.</summary>
     private Task SurpriseAsync() =>
-        (ActiveTrial?.OfferedIn ?? _observation) is { } context && ExperimentCatalogue.Surprise(context, _surprises++, _tried) is { } pick
+        (ActiveTrial?.OfferedIn ?? _invitationContext) is { } context && ExperimentCatalogue.Surprise(context, _surprises++, _tried) is { } pick
             ? TryExperimentAsync(new ExploreRequest(pick.Experiment, pick.Alternative, "surprise"))
             : Task.CompletedTask;
 

@@ -21,13 +21,13 @@ What is missing is the step that turns facts into invitations, one place that sa
 | --- | --- |
 | Generate the track page with AI from the digest | Rejected for Stage 1. It breaks "every feature works with AI off" and makes invitations hard to test. AI may later reword invitations, citing the same fact IDs (S1-AI1, S1-AI3) |
 | Hand-write pages per piece | Fine for the pilot and the starter library, but it does not cover the player's own files |
-| **A deterministic observation catalogue in music-core** | **Chosen.** Rules map facts to invitations, as the variation catalogue maps parameters to notes. Testable with xUnit, the same for every player, no network |
+| **A deterministic invitation catalogue in music-core** | **Chosen.** Rules map facts to invitations, as the variation catalogue maps parameters to notes. Testable with xUnit, the same for every player, no network |
 | A backend store for notebooks | Rejected. Stage 1 keeps everything the player imports or writes on the device |
 
 ## Decision
 
 1. **Stable fact IDs.** Facts from S1-A1 to S1-A5 get IDs that stay the same for the same notes, analysis settings and engine version, so a notebook entry or an interpretation can cite them later (#24). The digest for AI uses the same IDs.
-2. **Observation catalogue, pure, in music-core.** A function from the facts of a piece or motif to a list of invitations. Each invitation names the fact IDs it rests on, a question, and a product action: a listening action (loop, tempo, compare two selections) or a catalogue operation with parameters and a Keep preset. Same facts give the same invitations. Rules that find nothing confident produce nothing; the page then says so and offers the actions that always work.
+2. **Invitation catalogue, pure, in music-core.** A function from the facts of a piece or motif to a list of invitations. Each invitation names the fact IDs it rests on, a question, and a product action: a listening action (loop, tempo, compare two selections) or a catalogue operation with parameters and a Keep preset. Same facts give the same invitations. Rules that find nothing confident produce nothing; the page then says so and offers the actions that always work.
 3. **Availability from one place.** Each action carries a status: available now, planned for Stage 1 (a Must, not built yet), needs a Should item (for example V2, V3 and V12 need chord detection S1-A3), or later stage. The track page and the experiment screen read the same status; nothing is hidden or faked.
 4. **Experiment record and process note.** Two new objects in the Stage 1 data model, stored in IndexedDB with the project and included in the project export:
    - `ExperimentRecord`: motif, operation, parameters, Keep preset, diff reference, optional prediction (fixed choice), optional observation, optional next move, times. It extends what `LearningRecord` holds and replaces separate records for Guided and Discovery (#50, #51).
@@ -38,7 +38,7 @@ What is missing is the step that turns facts into invitations, one place that sa
 ## Consequences
 
 - #24 gains a requirement for stable IDs and a text snapshot test of the digest, so ID churn is caught in CI.
-- #18 becomes the track page (or a reworked piece overview), built on the observation catalogue. A new issue covers the empty and low-confidence state.
+- #18 becomes the track page (or a reworked piece overview), built on the invitation catalogue. A new issue covers the empty and low-confidence state.
 - The Stage 1 data model gains `ExperimentRecord` and `ProcessNote`; the spec changes after the pilot, not before.
-- The observation catalogue is new engine work: `ObservationCatalogue.Invite` in `MotiffLab.MusicCore.Observations` (#79), with availability in `ActionStatus`. Its first rules cover the pilot page: exact repeat, running 16ths, pickup, register, plus the dotted (V1), mirror (V10) and sequence (V4) experiments, each offered only when the operation can run on the motif. If the pilot shows that hand-written pages only work with richer facts than Stage 1 plans (hypothesis H6), that is a scope finding to decide separately.
+- The invitation catalogue is new engine work: `InvitationCatalogue.Invite` in `MotiffLab.MusicCore.Invitations` (#79), with availability in `ActionStatus`. Its first rules cover the pilot page: exact repeat, running 16ths, pickup, register, plus the dotted (V1), mirror (V10) and sequence (V4) experiments, each offered only when the operation can run on the motif. If the pilot shows that hand-written pages only work with richer facts than Stage 1 plans (hypothesis H6), that is a scope finding to decide separately.
 - Safari may evict IndexedDB data for sites not used for a while; the project export remains the player's backup. Whether to request persistent storage is checked when #16 lands.
