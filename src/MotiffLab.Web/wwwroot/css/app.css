@@ -1083,6 +1083,132 @@ html, body {
     color: var(--ml-gray);
 }
 
+/* Kept for this phrase (Observations/ObservationList.razor, #78) and the note in the player's words (ObservationNote.razor).
+   The variation heard now has a lime edge and says so in words, so it differs by more than colour. */
+.inspector .observations {
+    margin: 0.9rem 0 1.1rem;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.inspector .observations .kept-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.inspector .observations li {
+    background: var(--ml-surface);
+    border: 1px solid var(--ml-line);
+    border-left: 3px solid var(--ml-border);
+    border-radius: 0.75rem;
+    padding: 0.6rem 0.8rem;
+}
+
+.inspector .observations li.heard {
+    border-left-color: var(--ml-lime);
+}
+
+.inspector .observations p {
+    margin: 0 0 0.25rem;
+}
+
+.inspector .observations .name {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 0.5rem;
+}
+
+/* While the name is edited, the field stands in for it; the hidden name still names the item. */
+.inspector .observations .name[hidden] {
+    display: none;
+}
+
+.inspector .observations .heard-now {
+    color: var(--ml-lime);
+    font-size: 0.8rem;
+}
+
+.inspector .observations .note {
+    white-space: pre-wrap;
+    border-left: 2px solid var(--ml-gray);
+    padding-left: 0.5rem;
+}
+
+.inspector .observations .label {
+    color: var(--ml-gray);
+}
+
+.inspector .observations .row {
+    margin: 0.4rem 0 0;
+}
+
+.lab .observations button.danger {
+    border-color: #ff8a80;
+    color: #ff8a80;
+}
+
+.inspector .observations .rename {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.25rem;
+}
+
+.observation-note {
+    margin-top: 0.6rem;
+}
+
+.observation-note label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--ml-gray);
+    margin-bottom: 0.25rem;
+}
+
+.lab .observation-note textarea, .lab .observations input[type=text] {
+    box-sizing: border-box;
+    background: var(--ml-charcoal);
+    color: var(--ml-white);
+    border: 1px solid var(--ml-border);
+    border-radius: 0.6rem;
+    padding: 0.4rem 0.6rem;
+    font: inherit;
+    font-size: 0.9rem;
+}
+
+.lab .observation-note textarea {
+    width: 100%;
+    resize: vertical;
+}
+
+.lab .observations input[type=text] {
+    flex: 1;
+    min-width: 10rem;
+    min-height: 2.25rem;
+}
+
+.lab .observation-note textarea:focus-visible, .lab .observations input[type=text]:focus-visible {
+    outline: 2px solid var(--ml-lime);
+    outline-offset: 1px;
+}
+
+.observation-note .row {
+    margin: 0.4rem 0 0;
+}
+
+.phrases button.phrase .kept-count {
+    font-size: 0.72rem;
+    border: 1px solid currentColor;
+    border-radius: 1rem;
+    padding: 0 0.4rem;
+}
+
 /* Score view (Score/ScoreView.razor, Scripts/score): ink on paper, as in the mockups; the notes being heard in a dark lime that reads on paper. */
 .score {
     --ml-score-ink: #15191F;

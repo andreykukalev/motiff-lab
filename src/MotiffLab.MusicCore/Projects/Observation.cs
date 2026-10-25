@@ -1,4 +1,5 @@
 using MotiffLab.MusicCore.Analysis;
+using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Export;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Time;
@@ -143,6 +144,63 @@ public sealed record Observation(
     /// <summary>The same observation under another name.</summary>
     /// <exception cref="ArgumentException">The name is blank.</exception>
     public Observation Rename(string name) => this with { Name = Trimmed(name) };
+
+    /// <summary>The same observation with another note; a blank note is none.</summary>
+    /// <exception cref="ArgumentException">The note is blank and there is no variation, so nothing would be kept.</exception>
+    public Observation WithNote(string? note)
+    {
+        string? text = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+        return Variation is null && text is null
+            ? throw new ArgumentException("An observation keeps a variation, a note or both.", nameof(note))
+            : this with { Note = text };
+    }
+
+    /// <summary>
+    /// The variation's chain, over the same notes, Keep choices and key it ran with, so it is heard as
+    /// it was kept; null for a note alone. The notes are those of its passage, or the notes it names
+    /// when the player picked notes one by one.
+    /// </summary>
+    /// <param name="notes">The piece's notes, with the project's corrections applied.</param>
+    /// <exception cref="ProjectFileException">The notes or a step no longer fit the piece; the message is a plain reason for the player.</exception>
+    public VariationChain? Restore(IReadOnlyList<Note> notes, MeterMap meter)
+    {
+        ArgumentNullException.ThrowIfNull(notes);
+        ArgumentNullException.ThrowIfNull(meter);
+        if (Variation is not { } kept)
+        {
+            return null;
+        }
+
+        MotifSelection? selection;
+        try
+        {
+            selection = MotifSelector.Select(notes, meter, kept.Passage.Span, kept.Passage.Filter);
+            if (!selection.NoteIds.SequenceEqual(kept.NoteIds, StringComparer.Ordinal))
+            {
+                MotifSelection picked = MotifSelector.SelectNotes(notes, meter, kept.NoteIds);
+                selection = picked.Span == kept.Passage.Span && picked.NoteIds.SequenceEqual(kept.NoteIds, StringComparer.Ordinal) ? picked : null;
+            }
+        }
+        catch (ArgumentException)
+        {
+            selection = null;
+        }
+
+        if (selection is null)
+        {
+            throw new ProjectFileException($"The kept variation \"{Name}\" no longer matches the notes of the piece.");
+        }
+
+        VariationChain chain = VariationChain.Start(
+            VariationFacts.MotifNotes(notes, selection),
+            VariationContext.For(selection, kept.Keep.ToHashSet(), key: kept.Key, meter: meter));
+        foreach (SavedStep step in kept.Steps)
+        {
+            chain = OpenedProject.Propose(chain, step).Accept();
+        }
+
+        return kept.Pending is { } pending ? OpenedProject.Propose(chain, pending) : chain;
+    }
 
     /// <summary>
     /// "Für Elise – bars 1–2 – Brighter answer.mid": the project's file name without its extension,

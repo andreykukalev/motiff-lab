@@ -14,11 +14,16 @@
         @foreach (Phrase phrase in Map.Phrases)
         {
             bool on = Current?.Number == phrase.Number;
+            int kept = KeptCount?.Invoke(phrase) ?? 0;
             <button class="phrase @KindClass(phrase.Start) @(on ? "on" : null)" aria-pressed="@(on ? "true" : "false")"
-                    aria-label="@Label(phrase)" title="@Title(phrase)" @onclick="() => Picked.InvokeAsync(phrase)">
+                    aria-label="@(Label(phrase) + KeptText(kept))" title="@Title(phrase)" @onclick="() => Picked.InvokeAsync(phrase)">
                 <span class="number">@phrase.Number</span>
                 <span class="bars">@Bars(phrase)</span>
                 <span class="how">@Tag(phrase.Start)</span>
+                @if (kept > 0)
+                {
+                    <span class="kept-count" aria-hidden="true">@kept kept</span>
+                }
             </button>
         }
         <button class="step" aria-label="Next phrase" title="Next phrase (Page Down)" disabled="@(Next is null)" @onclick="() => StepAsync(1)">›</button>
@@ -65,6 +70,10 @@
     /// <summary>Whether there is a selection that could become a phrase.</summary>
     [Parameter]
     public bool CanMake { get; set; }
+
+    /// <summary>How many observations the player kept about a phrase (#78), shown on its chip; null shows none.</summary>
+    [Parameter]
+    public Func<Phrase, int>? KeptCount { get; set; }
 
     [Parameter]
     public EventCallback<Phrase> Picked { get; set; }
@@ -151,6 +160,13 @@
 
     /// <summary>"Phrase 2, bars 3–4, starts after a rest of a beat or more, inferred".</summary>
     private static string Label(Phrase phrase) => $"Phrase {phrase.Number}, {Bars(phrase)}, starts {Describe(phrase.Start)}";
+
+    private static string KeptText(int kept) => kept switch
+    {
+        0 => "",
+        1 => ", 1 kept",
+        _ => $", {kept} kept",
+    };
 
     private static string Title(Phrase phrase) =>
         phrase.FitsSelection

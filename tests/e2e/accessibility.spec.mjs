@@ -77,6 +77,31 @@ test("playback lab with a selection, Practise, the Explore card, a variation and
     expect(await violations(page)).toEqual([]);
 });
 
+test("kept for this phrase: a kept variation with its note, renaming, a note alone and deleting", async ({ page }) => {
+    await openFurElise(page);
+    await page.locator(".phrases button.phrase").first().click();
+    await page.getByRole("tab", { name: "Explore" }).click();
+    const card = page.locator(".explore");
+    const kept = page.locator(".observations");
+    await card.getByRole("button", { name: /Give the melody more space/ }).click();
+    await card.getByRole("button", { name: "Keep this variation" }).click();
+    await card.getByLabel("Add a note in your own words (optional)").fill("Lighter.");
+    await card.getByRole("button", { name: "Save note" }).click();
+    await expect(kept.getByRole("listitem")).toContainText("You hear this");
+    await page.locator(".transport-bar").getByRole("button", { name: "Pause" }).click();
+    expect(await violations(page)).toEqual([]);
+
+    const item = kept.getByRole("listitem").first();
+    await item.getByRole("button", { name: "Rename" }).click();
+    await item.getByRole("button", { name: "Edit note" }).click();
+    await kept.getByRole("button", { name: "Write a note about this phrase" }).click();
+    expect(await violations(page)).toEqual([]);
+    await item.getByRole("button", { name: "Cancel" }).first().click();
+    await item.getByRole("button", { name: "Delete" }).click();
+    await expect(item.getByRole("button", { name: "Delete for good" })).toBeVisible();
+    expect(await violations(page)).toEqual([]);
+});
+
 test("the journey by keyboard: open a piece, select bars, loop them", async ({ page }) => {
     await page.goto("/playback");
     const load = page.getByRole("button", { name: "Für Elise" });
