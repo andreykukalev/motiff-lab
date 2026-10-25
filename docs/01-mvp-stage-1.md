@@ -104,7 +104,7 @@ Stage 1 must deliver one complete journey on one motif; everything else is label
 | Rhythm restoration of free-tempo performances (no usable tempo map) | Later | Stage 2 or 3, with beat tracking |
 | Audio import, transcription and audio-based rhythm restoration | Later | Stage 3 (PRD module A) |
 | Sync with DAWs, other devices or apps | Later | Stage 4 |
-| PDF or photographed scores (optical music recognition) | Later | After Stage 3 (confirmed 2026-10-22); meanwhile, MusicXML exported by an OMR tool imports like any other MusicXML |
+| PDF or photographed scores (optical music recognition) | Started | Pulled forward 2026-10-25: homr on a scan server the player runs on their own computer, with a Check the scan step (decision record 0011). MusicXML exported by any OMR tool still imports like any other MusicXML |
 | Harmonic colour, reharmonisation, counter-melodies | Later | Stage 4 |
 
 **Out of scope for Stage 1**

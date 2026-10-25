@@ -23,15 +23,16 @@ public static class ProjectFile
     public const string FormatName = "motiff-lab-project";
 
     /// <summary>
+    /// 7 marks a project read from a photo or PDF, with the bars the player checked (0011);
     /// 6 adds the player's observations of phrases (#78); 5 the player's phrase boundaries;
     /// 4 saves the melody operations (V4, V9, V10), Accompaniment pattern (V2), Articulation (V13)
     /// and each step's scope; 3 adds
     /// the edit log of note corrections; 2 saves each variation as a chain of steps. Files of earlier
-    /// versions still open: versions before 6 have no observations, steps of versions before 4
+    /// versions still open: versions before 7 were never scanned, versions before 6 have no observations, steps of versions before 4
     /// change the whole selection, versions 1 and 2 have no corrections, and version 1 holds one
     /// step per variation.
     /// </summary>
-    public const int Version = 6;
+    public const int Version = 7;
 
     /// <summary>The extension an exported project gets.</summary>
     public const string Extension = ".motiff.json";
@@ -107,6 +108,25 @@ public static class ProjectFile
             WriteTicks(json, "added", project.Phrases.Added);
             WriteTicks(json, "removed", project.Phrases.Removed);
             json.WriteEndObject();
+
+            if (project.Scan is { } scan)
+            {
+                json.WriteStartObject("scan");
+                json.WriteString("engine", scan.Engine);
+                json.WriteStartArray("confirmedBars");
+                foreach (int bar in scan.ConfirmedBars)
+                {
+                    json.WriteNumberValue(bar);
+                }
+
+                json.WriteEndArray();
+                json.WriteEndObject();
+            }
+            else
+            {
+                json.WriteNull("scan");
+            }
+
             json.WriteEndObject();
         }
 
@@ -168,6 +188,7 @@ public static class ProjectFile
                 ? new NoteEditLog(Property(root, "edits", JsonValueKind.Array).EnumerateArray().Select(ReadEdit))
                 : NoteEditLog.Empty;
             PhraseEdits phrases = version >= 5 ? ReadPhrases(Property(root, "phrases", JsonValueKind.Object)) : PhraseEdits.None;
+            ScanOrigin? scan = version >= 7 ? ReadScan(root) : null;
             return new Project(
                 Text(root, "id"),
                 Text(root, "fileName"),
@@ -180,6 +201,7 @@ public static class ProjectFile
                 Edits = edits,
                 Phrases = phrases,
                 Observations = observations,
+                Scan = scan,
             };
         }
     }
@@ -292,6 +314,24 @@ public static class ProjectFile
         }
 
         return new PhraseEdits(Ticks("added"), Ticks("removed"));
+    }
+
+    private static ScanOrigin? ReadScan(JsonElement root)
+    {
+        if (!root.TryGetProperty("scan", out JsonElement scan) || scan.ValueKind is not (JsonValueKind.Null or JsonValueKind.Object))
+        {
+            throw Damaged("scan");
+        }
+
+        if (scan.ValueKind == JsonValueKind.Null)
+        {
+            return null;
+        }
+
+        int[] bars = [.. Property(scan, "confirmedBars", JsonValueKind.Array)
+            .EnumerateArray()
+            .Select(bar => bar.ValueKind == JsonValueKind.Number && bar.TryGetInt32(out int value) && value >= 0 ? value : throw Damaged("checked bars"))];
+        return new ScanOrigin(Text(scan, "engine"), bars);
     }
 
     private static List<string> ReadNoteIds(JsonElement parent, string what) =>

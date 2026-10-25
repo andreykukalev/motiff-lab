@@ -1,0 +1,88 @@
+@using MotiffLab.MusicCore.Import.Scan
+@using MotiffLab.MusicCore.Projects
+
+@* Check the scan (decision record 0011): the bars the rules flag in a piece read from a photo or PDF, first, then a way to confirm
+   any other bars once the player has compared them with the page. Everything shown comes from ScanCheck; confirming only names bars. *@
+<section class="scan-check" aria-label="Check the scan">
+    <p>
+        Read from a scan by @Scan.Engine. Its notes are detected, not taken from a file: they show as inferred on the roll until you
+        say their bar looks right. @Plural(Scan.ConfirmedBars.Count(bar => Check.Find(bar) is not null), "bar") of @Check.Bars.Count checked.
+    </p>
+
+    <h3>Bars to check</h3>
+    @if (Flagged.Count == 0)
+    {
+        <p class="meta">No bar looks wrong to the checks. Compare a few bars with the page anyway: the checks only see rhythm that does not add up.</p>
+    }
+    else
+    {
+        <p class="meta">@Plural(Flagged.Count(bar => !Scan.IsConfirmed(bar.Bar)), "bar") left. Show selects the bar, so you can loop it and compare it with the page.</p>
+        <ul class="scan-bars">
+            @foreach (ScanBar bar in Flagged)
+            {
+                bool confirmed = Scan.IsConfirmed(bar.Bar);
+                <li class="@(confirmed ? "confirmed" : null)">
+                    <strong>@Label(bar)</strong>
+                    <span>@string.Join(" ", bar.Reasons)</span>
+                    <span class="row">
+                        <button @onclick="() => Show.InvokeAsync(bar)">Show</button>
+                        <button @onclick="() => Correct.InvokeAsync(bar)" title="Select the bar and open Correct notes.">Correct notes</button>
+                        @if (confirmed)
+                        {
+                            <span class="kind">Looks right ✓</span>
+                            <button @onclick="() => Unconfirm.InvokeAsync(bar.Bar)" title="Mark its notes as detected again.">Check again</button>
+                        }
+                        else
+                        {
+                            <button class="primary" @onclick="() => Confirm.InvokeAsync([bar.Bar])">Looks right</button>
+                        }
+                    </span>
+                </li>
+            }
+        </ul>
+    }
+
+    <h3>Other bars</h3>
+    @if (SelectedBars.Count(bar => !Scan.IsConfirmed(bar)) is > 0 and int open)
+    {
+        <button @onclick="() => Confirm.InvokeAsync(SelectedBars)">@(SelectedBars.Count == 1 ? $"Bar {SelectedBars[0]} looks right" : $"Bars {SelectedBars[0]}–{SelectedBars[^1]} look right") (@Plural(open, "bar") not checked)</button>
+    }
+    else
+    {
+        <p class="meta">Select bars on the roll and compare them with the page; then confirm them here.</p>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public required ScanCheck Check { get; set; }
+
+    [Parameter, EditorRequired]
+    public required ScanOrigin Scan { get; set; }
+
+    /// <summary>The scanned bars the selection covers, in order.</summary>
+    [Parameter]
+    public IReadOnlyList<int> SelectedBars { get; set; } = [];
+
+    [Parameter]
+    public EventCallback<ScanBar> Show { get; set; }
+
+    [Parameter]
+    public EventCallback<ScanBar> Correct { get; set; }
+
+    [Parameter]
+    public EventCallback<IReadOnlyList<int>> Confirm { get; set; }
+
+    [Parameter]
+    public EventCallback<int> Unconfirm { get; set; }
+
+    private List<ScanBar> Flagged => [.. Check.Flagged];
+
+    /// <summary>"Bar 16", with the measure's number in the scan when the two differ, so the player can find it on the page.</summary>
+    private static string Label(ScanBar bar) =>
+        bar.Measure is { } measure && measure != bar.Bar.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            ? $"Bar {bar.Bar} (measure {measure} in the scan)"
+            : $"Bar {bar.Bar}";
+
+    private static string Plural(int count, string noun) => count == 1 ? $"1 {noun}" : $"{count} {noun}s";
+}

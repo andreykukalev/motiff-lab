@@ -1,6 +1,7 @@
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
+using MotiffLab.MusicCore.Import.Scan;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Time;
 using MotiffLab.MusicCore.Variations;
@@ -35,6 +36,9 @@ public sealed record Project(
 
     /// <summary>The player's changes to the suggested phrase boundaries (S1-I5): boundaries they set and ones they took away.</summary>
     public PhraseEdits Phrases { get; init; } = PhraseEdits.None;
+
+    /// <summary>Set when the source was read from a photo or PDF by sheet music recognition (0011); null for a file the player imported.</summary>
+    public ScanOrigin? Scan { get; init; }
 
     /// <summary>A new project for a file the player just imported, with nothing made from it yet.</summary>
     public static Project Create(string id, string fileName, byte[] source, DateTimeOffset now) =>
@@ -162,6 +166,16 @@ public sealed record OpenedProject(
         if (imported.Piece is not { } piece)
         {
             throw new ProjectFileException($"The piece in this project cannot be read: {imported.Rejection?.Message}");
+        }
+
+        if (project.Scan is { } scan)
+        {
+            if (piece.MusicXml is null)
+            {
+                throw new ProjectFileException("This project says it was scanned, but its piece is not MusicXML.");
+            }
+
+            piece = ScanCheck.Of(piece).Mark(piece, scan.ConfirmedBars);
         }
 
         IReadOnlyList<Note> notes;

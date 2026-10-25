@@ -344,6 +344,10 @@
                                 <p class="meta">Select some bars on the roll first: drag across it, or click a bar number. Then pick what to keep and a change here.</p>
                             }
                             break;
+                        case InspectorTab.Scan when _scanCheck is not null && _project?.Scan is { } scan:
+                            <ScanCheckPanel Check="_scanCheck" Scan="scan" SelectedBars="SelectedScanBars" Show="ShowScanBarAsync" Correct="CorrectScanBarAsync"
+                                            Confirm="ConfirmScanBarsAsync" Unconfirm="UnconfirmScanBarAsync" />
+                            break;
                         case InspectorTab.Understand:
                             @if (Facts.Count == 0)
                             {
@@ -738,6 +742,8 @@
     /// </summary>
     private enum InspectorTab
     {
+        /// <summary>Check the scan, shown only for a piece read from a photo or PDF (0011).</summary>
+        Scan,
         Practise,
         Understand,
         Explore,
@@ -747,6 +753,7 @@
 
     private (InspectorTab Tab, string Label)[] InspectorTabs =>
     [
+        .. _scanCheck is null ? Array.Empty<(InspectorTab, string)>() : [(InspectorTab.Scan, "Scan")],
         (InspectorTab.Practise, "Practise"),
         (InspectorTab.Understand, "Understand"),
         (InspectorTab.Explore, "Explore"),
@@ -876,6 +883,7 @@
             }
 
             _project = CurrentPiece.Project;
+            StartScanCheck(piece);
             if (_project is { Phrases.IsEmpty: false } phrased)
             {
                 _phrases = _phrases!.With(phrased.Phrases);
@@ -1067,6 +1075,12 @@
         _tried.Clear();
         // A new piece has its own project, or none (#78): nothing kept about another piece shows or saves here.
         _project = null;
+        _scanCheck = null;
+        if (_tab == InspectorTab.Scan)
+        {
+            _tab = InspectorTab.Practise;
+        }
+
         ForgetSessionObservations();
         _listenTo = ListenTo.Everything;
         _layered = false;

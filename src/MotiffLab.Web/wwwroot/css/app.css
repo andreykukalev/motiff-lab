@@ -1492,6 +1492,50 @@ html, body {
     padding-left: 0.75rem;
 }
 
+/* Scanning (decision record 0011): the scan drop zone and the bars to check after a scan. */
+.import .scan {
+    margin-top: 1.5rem;
+}
+
+.import .scan h2 {
+    font-size: 1.1rem;
+}
+
+.import .scan-check {
+    border-left: 3px solid var(--ml-inferred);
+    padding-left: 0.75rem;
+}
+
+.lab .scan-check .scan-bars {
+    list-style: none;
+    padding: 0;
+    margin: 0.5rem 0 1rem;
+    display: grid;
+    gap: 0.75rem;
+}
+
+.lab .scan-check .scan-bars li {
+    display: grid;
+    gap: 0.25rem;
+    border-left: 3px solid var(--ml-uncertain);
+    padding-left: 0.6rem;
+}
+
+.lab .scan-check .scan-bars li.confirmed {
+    border-left-color: var(--ml-lime);
+}
+
+.lab .scan-check .kind {
+    color: var(--ml-lime);
+}
+
+.lab.settings pre.command {
+    overflow-x: auto;
+    padding: 0.6rem 0.8rem;
+    background: var(--ml-surface);
+    border-radius: 0.4rem;
+}
+
 /* Projects screen (Pages/Home.razor, N1). */
 .projects .tagline {
     color: var(--ml-lime);

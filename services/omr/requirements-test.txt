@@ -1,0 +1,7 @@
+# Unit tests run without homr: they replace the engine with a stand-in.
+fastapi==0.115.6
+python-multipart==0.0.20
+httpx==0.28.1
+pytest==8.3.4
+Pillow==12.3.0
+pypdfium2==5.14.0
