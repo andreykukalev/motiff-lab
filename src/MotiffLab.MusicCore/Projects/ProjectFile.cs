@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 
+using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Time;
@@ -22,13 +23,15 @@ public static class ProjectFile
     public const string FormatName = "motiff-lab-project";
 
     /// <summary>
+    /// 6 adds the player's observations of phrases (#78); 5 the player's phrase boundaries;
     /// 4 saves the melody operations (V4, V9, V10), Accompaniment pattern (V2), Articulation (V13)
     /// and each step's scope; 3 adds
     /// the edit log of note corrections; 2 saves each variation as a chain of steps. Files of earlier
-    /// versions still open: their steps change the whole selection, versions 1 and 2 have no
-    /// corrections, and version 1 holds one step per variation.
+    /// versions still open: versions before 6 have no observations, steps of versions before 4
+    /// change the whole selection, versions 1 and 2 have no corrections, and version 1 holds one
+    /// step per variation.
     /// </summary>
-    public const int Version = 4;
+    public const int Version = 6;
 
     /// <summary>The extension an exported project gets.</summary>
     public const string Extension = ".motiff.json";
@@ -57,32 +60,8 @@ public static class ProjectFile
                 json.WriteString("name", motif.Name);
                 json.WriteString("kind", motif.Kind.ToString());
                 json.WriteString("mode", motif.Mode.ToString());
-                json.WriteNumber("onset", motif.Span.Onset.Value);
-                json.WriteNumber("duration", motif.Span.Duration);
-                json.WriteStartObject("filter");
-                if (motif.Filter.Hand is Hand hand)
-                {
-                    json.WriteString("hand", hand.ToString());
-                }
-
-                if (motif.Filter.Track is int track)
-                {
-                    json.WriteNumber("track", track);
-                }
-
-                if (motif.Filter.Voice is int voice)
-                {
-                    json.WriteNumber("voice", voice);
-                }
-
-                json.WriteEndObject();
-                json.WriteStartArray("noteIds");
-                foreach (string id in motif.NoteIds)
-                {
-                    json.WriteStringValue(id);
-                }
-
-                json.WriteEndArray();
+                WriteRange(json, motif.Span, motif.Filter);
+                WriteNoteIds(json, motif.NoteIds);
                 json.WriteEndObject();
             }
 
@@ -94,30 +73,16 @@ public static class ProjectFile
                 json.WriteStartObject();
                 json.WriteString("id", variation.Id);
                 json.WriteString("motifId", variation.MotifId);
-                json.WriteStartArray("steps");
-                foreach (SavedStep step in variation.Steps)
-                {
-                    json.WriteStartObject();
-                    WriteStep(json, step);
-                    json.WriteEndObject();
-                }
-
-                json.WriteEndArray();
-                if (variation.Pending is { } pending)
-                {
-                    json.WriteStartObject("pending");
-                    WriteStep(json, pending);
-                    json.WriteEndObject();
-                }
-
-                json.WriteStartArray("keep");
-                foreach (KeepProperty property in variation.Keep)
-                {
-                    json.WriteStringValue(property.ToString());
-                }
-
-                json.WriteEndArray();
+                WriteChain(json, variation.Steps, variation.Pending, variation.Keep);
                 json.WriteEndObject();
+            }
+
+            json.WriteEndArray();
+
+            json.WriteStartArray("observations");
+            foreach (Observation observation in project.Observations)
+            {
+                WriteObservation(json, observation);
             }
 
             json.WriteEndArray();
@@ -186,6 +151,14 @@ public static class ProjectFile
 
             var motifs = Property(root, "motifs", JsonValueKind.Array).EnumerateArray().Select(ReadMotif).ToList();
             var variations = Property(root, "variations", JsonValueKind.Array).EnumerateArray().Select(variation => ReadVariation(variation, version)).ToList();
+            List<Observation> observations = version >= 6
+                ? Property(root, "observations", JsonValueKind.Array).EnumerateArray().Select(ReadObservation).ToList()
+                : [];
+            if (observations.Select(static observation => observation.Id).Distinct(StringComparer.Ordinal).Count() != observations.Count)
+            {
+                throw Damaged("observations");
+            }
+
             NoteEditLog edits = version >= 3
                 ? new NoteEditLog(Property(root, "edits", JsonValueKind.Array).EnumerateArray().Select(ReadEdit))
                 : NoteEditLog.Empty;
@@ -199,6 +172,7 @@ public static class ProjectFile
                 variations)
             {
                 Edits = edits,
+                Observations = observations,
             };
         }
     }
@@ -206,38 +180,8 @@ public static class ProjectFile
     private static SavedMotif ReadMotif(JsonElement motif)
     {
         Expect(motif, JsonValueKind.Object, "motifs");
-        long onset = Long(motif, "onset");
-        long duration = Long(motif, "duration");
-        if (onset < 0 || duration <= 0)
-        {
-            throw Damaged("motif range");
-        }
-
-        JsonElement filter = Property(motif, "filter", JsonValueKind.Object);
-        Hand? hand = filter.TryGetProperty("hand", out _) ? Name<Hand>(filter, "hand") : null;
-        int? track = filter.TryGetProperty("track", out _) ? Integer(filter, "track") : null;
-        int? voice = filter.TryGetProperty("voice", out _) ? Integer(filter, "voice") : null;
-        SelectionFilter selectionFilter;
-        try
-        {
-            selectionFilter = (hand, track, voice) switch
-            {
-                (null, null, null) => SelectionFilter.All,
-                ({ } h, null, null) => SelectionFilter.ForHand(h),
-                (null, { } t, null) => SelectionFilter.ForTrack(t),
-                (null, { } t, { } v) => SelectionFilter.ForVoice(t, v),
-                _ => throw Damaged("motif filter"),
-            };
-        }
-        catch (ArgumentOutOfRangeException)
-        {
-            throw Damaged("motif filter");
-        }
-
-        var noteIds = Property(motif, "noteIds", JsonValueKind.Array)
-            .EnumerateArray()
-            .Select(id => id.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(id.GetString()) ? id.GetString()! : throw Damaged("motif notes"))
-            .ToList();
+        (TickSpan span, SelectionFilter filter) = ReadRange(motif, "motif");
+        IReadOnlyList<string> noteIds = ReadNoteIds(motif, "motif notes");
         string name = Text(motif, "name");
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -249,9 +193,212 @@ public static class ProjectFile
             name,
             Name<MotifSelectionKind>(motif, "kind"),
             Name<MotifMode>(motif, "mode"),
-            new TickSpan(new Tick(onset), duration),
-            selectionFilter,
+            span,
+            filter,
             noteIds);
+    }
+
+    private static void WriteRange(Utf8JsonWriter json, TickSpan span, SelectionFilter filter)
+    {
+        json.WriteNumber("onset", span.Onset.Value);
+        json.WriteNumber("duration", span.Duration);
+        json.WriteStartObject("filter");
+        if (filter.Hand is Hand hand)
+        {
+            json.WriteString("hand", hand.ToString());
+        }
+
+        if (filter.Track is int track)
+        {
+            json.WriteNumber("track", track);
+        }
+
+        if (filter.Voice is int voice)
+        {
+            json.WriteNumber("voice", voice);
+        }
+
+        json.WriteEndObject();
+    }
+
+    /// <summary>A range and its filter, written by <see cref="WriteRange"/>; <paramref name="what"/> names it in a damaged file's reason.</summary>
+    private static (TickSpan Span, SelectionFilter Filter) ReadRange(JsonElement parent, string what)
+    {
+        long onset = Long(parent, "onset");
+        long duration = Long(parent, "duration");
+        if (onset < 0 || duration <= 0)
+        {
+            throw Damaged($"{what} range");
+        }
+
+        JsonElement filter = Property(parent, "filter", JsonValueKind.Object);
+        Hand? hand = filter.TryGetProperty("hand", out _) ? Name<Hand>(filter, "hand") : null;
+        int? track = filter.TryGetProperty("track", out _) ? Integer(filter, "track") : null;
+        int? voice = filter.TryGetProperty("voice", out _) ? Integer(filter, "voice") : null;
+        try
+        {
+            return (new TickSpan(new Tick(onset), duration), (hand, track, voice) switch
+            {
+                (null, null, null) => SelectionFilter.All,
+                ({ } h, null, null) => SelectionFilter.ForHand(h),
+                (null, { } t, null) => SelectionFilter.ForTrack(t),
+                (null, { } t, { } v) => SelectionFilter.ForVoice(t, v),
+                _ => throw Damaged($"{what} filter"),
+            });
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            throw Damaged($"{what} filter");
+        }
+    }
+
+    private static void WriteNoteIds(Utf8JsonWriter json, IReadOnlyList<string> noteIds)
+    {
+        json.WriteStartArray("noteIds");
+        foreach (string id in noteIds)
+        {
+            json.WriteStringValue(id);
+        }
+
+        json.WriteEndArray();
+    }
+
+    private static List<string> ReadNoteIds(JsonElement parent, string what) =>
+        Property(parent, "noteIds", JsonValueKind.Array)
+            .EnumerateArray()
+            .Select(id => id.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(id.GetString()) ? id.GetString()! : throw Damaged(what))
+            .ToList();
+
+    /// <summary>A chain's steps, the pending one and the Keep choices, as a variation and a kept variation save them.</summary>
+    private static void WriteChain(Utf8JsonWriter json, IReadOnlyList<SavedStep> steps, SavedStep? pending, IReadOnlyList<KeepProperty> keep)
+    {
+        json.WriteStartArray("steps");
+        foreach (SavedStep step in steps)
+        {
+            json.WriteStartObject();
+            WriteStep(json, step);
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
+        if (pending is not null)
+        {
+            json.WriteStartObject("pending");
+            WriteStep(json, pending);
+            json.WriteEndObject();
+        }
+
+        json.WriteStartArray("keep");
+        foreach (KeepProperty property in keep)
+        {
+            json.WriteStringValue(property.ToString());
+        }
+
+        json.WriteEndArray();
+    }
+
+    private static List<KeepProperty> ReadKeep(JsonElement parent) =>
+        Property(parent, "keep", JsonValueKind.Array)
+            .EnumerateArray()
+            .Select(property => property.ValueKind == JsonValueKind.String && TryName(property.GetString(), out KeepProperty value) ? value : throw Damaged("Keep choices"))
+            .Distinct()
+            .Order()
+            .ToList();
+
+    private static void WriteObservation(Utf8JsonWriter json, Observation observation)
+    {
+        json.WriteStartObject();
+        json.WriteString("id", observation.Id);
+        json.WriteString("name", observation.Name);
+        if (observation.Note is { } note)
+        {
+            json.WriteString("note", note);
+        }
+
+        json.WriteString("createdAt", observation.CreatedAt.ToString("O", CultureInfo.InvariantCulture));
+        json.WriteStartObject("phrase");
+        WriteRange(json, observation.Phrase.Span, observation.Phrase.Filter);
+        json.WriteEndObject();
+        if (observation is { ExperimentId: { } experiment, Alternative: { } alternative })
+        {
+            json.WriteStartObject("experiment");
+            json.WriteString("id", experiment);
+            json.WriteNumber("alternative", alternative);
+            json.WriteEndObject();
+        }
+
+        if (observation.Variation is { } variation)
+        {
+            json.WriteStartObject("variation");
+            WriteRange(json, variation.Passage.Span, variation.Passage.Filter);
+            WriteNoteIds(json, variation.NoteIds);
+            WriteChain(json, variation.Steps, variation.Pending, variation.Keep);
+            if (variation.Key is { } key)
+            {
+                json.WriteStartObject("key");
+                json.WriteNumber("fifths", key.Fifths);
+                json.WriteString("mode", key.Mode.ToString());
+                json.WriteEndObject();
+            }
+
+            json.WriteEndObject();
+        }
+
+        json.WriteEndObject();
+    }
+
+    private static Observation ReadObservation(JsonElement observation)
+    {
+        Expect(observation, JsonValueKind.Object, "observations");
+        (TickSpan phrase, SelectionFilter phraseFilter) = ReadRange(Property(observation, "phrase", JsonValueKind.Object), "observation phrase");
+        (string Id, int Alternative)? experiment = null;
+        if (observation.TryGetProperty("experiment", out _))
+        {
+            JsonElement tried = Property(observation, "experiment", JsonValueKind.Object);
+            int alternative = Integer(tried, "alternative");
+            experiment = alternative >= 0 ? (Text(tried, "id"), alternative) : throw Damaged("observation experiment");
+        }
+
+        KeptVariation? variation = observation.TryGetProperty("variation", out _) ? ReadKeptVariation(Property(observation, "variation", JsonValueKind.Object)) : null;
+        string? note = observation.TryGetProperty("note", out _) ? Text(observation, "note") : null;
+        string id = Text(observation, "id");
+        string name = Text(observation, "name");
+        DateTimeOffset createdAt = Time(observation, "createdAt");
+        try
+        {
+            return Observation.Create(id, new SavedPassage(phrase, phraseFilter), variation, name, note, createdAt, experiment);
+        }
+        catch (ArgumentException)
+        {
+            throw Damaged("observation");
+        }
+    }
+
+    private static KeptVariation ReadKeptVariation(JsonElement variation)
+    {
+        (TickSpan span, SelectionFilter filter) = ReadRange(variation, "kept variation");
+        List<string> noteIds = ReadNoteIds(variation, "kept variation notes");
+        if (noteIds.Count == 0)
+        {
+            throw Damaged("kept variation notes");
+        }
+
+        List<SavedStep> steps = Property(variation, "steps", JsonValueKind.Array).EnumerateArray().Select(ReadStep).ToList();
+        SavedStep? pending = variation.TryGetProperty("pending", out JsonElement step) ? ReadStep(step) : null;
+        if (steps.Count == 0 && pending is null)
+        {
+            throw Damaged("kept variation steps");
+        }
+
+        MusicalKey? key = null;
+        if (variation.TryGetProperty("key", out _))
+        {
+            JsonElement reading = Property(variation, "key", JsonValueKind.Object);
+            int fifths = Integer(reading, "fifths");
+            key = fifths is >= -7 and <= 7 ? new MusicalKey(fifths, Name<KeyMode>(reading, "mode")) : throw Damaged("kept variation key");
+        }
+
+        return new KeptVariation(new SavedPassage(span, filter), noteIds, steps, pending, ReadKeep(variation), key);
     }
 
     private static void WriteValues(Utf8JsonWriter json, string name, NoteValues values)
@@ -359,12 +506,7 @@ public static class ProjectFile
     private static SavedVariation ReadVariation(JsonElement variation, int version)
     {
         Expect(variation, JsonValueKind.Object, "variations");
-        var keep = Property(variation, "keep", JsonValueKind.Array)
-            .EnumerateArray()
-            .Select(property => property.ValueKind == JsonValueKind.String && TryName(property.GetString(), out KeepProperty value) ? value : throw Damaged("Keep choices"))
-            .Distinct()
-            .Order()
-            .ToList();
+        List<KeepProperty> keep = ReadKeep(variation);
 
         // Version 1 saved one step on the variation itself.
         List<SavedStep> steps = version == 1

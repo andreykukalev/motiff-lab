@@ -16,6 +16,7 @@ namespace MotiffLab.MusicCore.Projects;
 /// ids, and a variation's operation, parameters and Keep choices. Corrections of imported notes are
 /// stored as the edit log (S1-I7), applied to the notes on every open. Timing layers join the format with
 /// rhythm restoration (#27). Times are passed in, never read from a clock, so building a project is pure.
+/// What the player kept about a phrase is stored as observations (#78), each variation as its steps.
 /// </remarks>
 /// <param name="Id">Stable for the life of the project, for example "p_3f9c…".</param>
 /// <param name="Source">The imported file's bytes, exactly as picked.</param>
@@ -37,6 +38,42 @@ public sealed record Project(
 
     /// <summary>The row on the projects screen (N1).</summary>
     public ProjectSummary Summary => new(Id, FileName, Motifs.Count, Variations.Count, LastOpened);
+
+    /// <summary>What the player kept about the piece's phrases (#78), in the order it was kept.</summary>
+    public IReadOnlyList<Observation> Observations { get; init; } = [];
+
+    /// <summary>The observations about the phrase, in the order they were kept (<see cref="Observation.IsAbout"/>).</summary>
+    public IReadOnlyList<Observation> ObservationsAbout(TickSpan phrase) => [.. Observations.Where(observation => observation.IsAbout(phrase))];
+
+    /// <summary>The project with the observation kept after the others.</summary>
+    /// <exception cref="ArgumentException">An observation with the same id is already kept.</exception>
+    public Project Keep(Observation observation)
+    {
+        ArgumentNullException.ThrowIfNull(observation);
+        return Observations.Any(kept => kept.Id == observation.Id)
+            ? throw new ArgumentException($"The project already keeps an observation {observation.Id}.", nameof(observation))
+            : this with { Observations = [.. Observations, observation] };
+    }
+
+    /// <summary>The project with one observation renamed; the others stay as they are.</summary>
+    /// <exception cref="ArgumentException">The name is blank.</exception>
+    /// <exception cref="KeyNotFoundException">No observation has the id.</exception>
+    public Project RenameObservation(string id, string name)
+    {
+        Observation renamed = FindObservation(id).Rename(name);
+        return this with { Observations = [.. Observations.Select(kept => kept.Id == id ? renamed : kept)] };
+    }
+
+    /// <summary>The project without the observation; the others keep their order.</summary>
+    /// <exception cref="KeyNotFoundException">No observation has the id.</exception>
+    public Project DeleteObservation(string id)
+    {
+        _ = FindObservation(id);
+        return this with { Observations = [.. Observations.Where(kept => kept.Id != id)] };
+    }
+
+    private Observation FindObservation(string id) =>
+        Observations.FirstOrDefault(observation => observation.Id == id) ?? throw new KeyNotFoundException($"The project keeps no observation {id}.");
 }
 
 /// <summary>A project's row on the projects screen (N1).</summary>
@@ -159,7 +196,53 @@ public sealed record OpenedProject(
             variations.Add((saved, chain));
         }
 
-        return new OpenedProject(project, piece, notes, motifs, variations);
+        var observations = new List<(Observation, VariationChain?)>();
+        foreach (Observation observation in project.Observations)
+        {
+            observations.Add((observation, observation.Variation is { } kept ? Rebuild(kept, observation.Name, notes, piece.Meter) : null));
+        }
+
+        return new OpenedProject(project, piece, notes, motifs, variations) { Observations = observations };
+    }
+
+    /// <summary>The observations, in the project's order, each with its variation's chain rebuilt; null for a note alone.</summary>
+    public IReadOnlyList<(Observation Saved, VariationChain? Chain)> Observations { get; init; } = [];
+
+    /// <summary>
+    /// A kept variation's chain, over the same notes, Keep choices and key it ran with. The notes are
+    /// those of its passage, or the notes it names when the player picked notes one by one.
+    /// </summary>
+    private static VariationChain Rebuild(KeptVariation kept, string name, IReadOnlyList<Note> notes, MeterMap meter)
+    {
+        MotifSelection? selection;
+        try
+        {
+            selection = MotifSelector.Select(notes, meter, kept.Passage.Span, kept.Passage.Filter);
+            if (!selection.NoteIds.SequenceEqual(kept.NoteIds, StringComparer.Ordinal))
+            {
+                MotifSelection picked = MotifSelector.SelectNotes(notes, meter, kept.NoteIds);
+                selection = picked.Span == kept.Passage.Span && picked.NoteIds.SequenceEqual(kept.NoteIds, StringComparer.Ordinal) ? picked : null;
+            }
+        }
+        catch (ArgumentException)
+        {
+            selection = null;
+        }
+
+        if (selection is null)
+        {
+            throw new ProjectFileException($"The kept variation \"{name}\" no longer matches the notes of the piece.");
+        }
+
+        VariationChain chain = VariationChain.Start(
+            VariationFacts.MotifNotes(notes, selection),
+            VariationContext.For(selection, kept.Keep.ToHashSet(), key: kept.Key, meter: meter));
+        foreach (SavedStep step in kept.Steps)
+        {
+            chain = Propose(chain, step).Accept();
+        }
+
+        return kept.Pending is { } pending ? Propose(chain, pending) : chain;
     }
 
     private static VariationChain Propose(VariationChain chain, SavedStep step)
