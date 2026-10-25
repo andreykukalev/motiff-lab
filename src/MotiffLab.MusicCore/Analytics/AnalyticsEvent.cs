@@ -82,7 +82,7 @@ public sealed record AnalyticsEvent(string Name, IReadOnlyDictionary<string, obj
         AnalyticsCatalogue.Create("midi_exported", new Dictionary<string, object> { ["variation"] = variation, ["steps"] = steps });
 
     /// <summary>An experiment of the Explore card was tried (decision record 0010), by its id and which alternative.</summary>
-    /// <param name="entry">How the player got to it: "offer" (picked from the card), "question", "surprise" or "another" (Try another).</param>
+    /// <param name="entry">How the player got to it: "offer" (picked from the card), "question", "surprise", "another" (Try another) or "fact" (from a fact on the Understand tab).</param>
     public static AnalyticsEvent ExperimentTried(string experiment, int alternative, string entry) =>
         AnalyticsCatalogue.Create("experiment_tried", new Dictionary<string, object> { ["experiment"] = experiment, ["alternative"] = alternative, ["entry"] = entry });
 

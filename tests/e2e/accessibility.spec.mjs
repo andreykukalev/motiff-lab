@@ -55,7 +55,9 @@ test("playback lab with a selection, the Explore card, a variation and the note 
     await page.getByRole("tab", { name: "Selection" }).click();
     await page.locator(".variation button.section-toggle", { hasText: "V2 Accompaniment pattern" }).click();
     await page.getByRole("button", { name: "Dotted" }).click();
-    await page.getByRole("tab", { name: /^Facts/ }).click();
+    await page.getByRole("tab", { name: /^Understand/ }).click();
+    await page.getByRole("button", { name: /The motif recurs once/ }).click();
+    await expect(page.locator(".inspector .highlighted")).toBeVisible();
     expect(await violations(page)).toEqual([]);
     await page.getByRole("tab", { name: "Edit" }).click();
     await page.locator("[aria-label='Edit variation notes'] button.section-toggle").click();

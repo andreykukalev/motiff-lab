@@ -1,5 +1,6 @@
 @using MotiffLab.MusicCore.Time
 @using MotiffLab.Web.Playback
+@using MotiffLab.Web.Understand
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject Player Player
@@ -26,6 +27,7 @@ else if (_loading)
     private string? _error;
     private TickSpan? _shownRange;
     private IReadOnlyList<ScorePhrase>? _shownPhrases;
+    private IReadOnlyList<HighlightPlace>? _shownHighlight;
 
     /// <summary>What to show. The view engraves it again only when a different instance is given.</summary>
     [Parameter, EditorRequired]
@@ -38,6 +40,10 @@ else if (_loading)
     /// <summary>Where phrases start, marked above the staves (#18); null or empty marks none.</summary>
     [Parameter]
     public IReadOnlyList<ScorePhrase>? Phrases { get; set; }
+
+    /// <summary>The places of the fact chosen on the Understand tab (#25), highlighted; null or empty highlights none.</summary>
+    [Parameter]
+    public IReadOnlyList<HighlightPlace>? Highlight { get; set; }
 
     protected override void OnParametersSet()
     {
@@ -70,6 +76,11 @@ else if (_loading)
                 await ShowPhrasesAsync(_view);
             }
 
+            if (!ReferenceEquals(Highlight, _shownHighlight))
+            {
+                await ShowHighlightAsync(_view);
+            }
+
             return;
         }
 
@@ -81,6 +92,7 @@ else if (_loading)
             await _view.InvokeVoidAsync("follow", Player.Engine);
             await ShowRangeAsync(_view);
             await ShowPhrasesAsync(_view);
+            await ShowHighlightAsync(_view);
             _error = null;
         }
         catch (JSException exception)
@@ -103,6 +115,12 @@ else if (_loading)
         _shownPhrases = Phrases;
         // Cast, so the array goes across as one argument rather than as the argument list.
         await view.InvokeVoidAsync("setPhrases", (object)(Phrases ?? []).ToArray());
+    }
+
+    private async Task ShowHighlightAsync(IJSObjectReference view)
+    {
+        _shownHighlight = Highlight;
+        await view.InvokeVoidAsync("setHighlight", (object)(Highlight ?? []).ToArray());
     }
 
     /// <summary>Called by the script when a note is clicked: playback moves to its onset.</summary>

@@ -1,8 +1,9 @@
 // The score view (S1-W7, decision record 0008): engraves MusicXML or generated MEI with Verovio,
-// marks the notes being heard, scrolls with playback and moves playback to a clicked note.
+// marks the notes being heard, scrolls with playback and moves playback to a clicked note, and
+// highlights the places a chosen fact names (#25).
 // Blazor imports this module through JS interop. Verovio loads on first use.
 
-import { ScoreTimeline, type TimemapEntry } from "./score-timeline.js";
+import { ScoreTimeline, highlightedIds, type HighlightPlace, type TimemapEntry } from "./score-timeline.js";
 
 interface DotNetObject {
     invokeMethodAsync(method: string, ...args: unknown[]): Promise<unknown>;
@@ -23,6 +24,8 @@ interface VerovioToolkit {
     renderToSVG(page: number): string;
     renderToTimemap(options?: Record<string, unknown>): TimemapEntry[];
     redoLayout(options?: Record<string, unknown>): void;
+    /** The MIDI values of an engraved note, its key among them; empty for a rest. */
+    getMIDIValuesForElement(id: string): { pitch?: number };
     getLog(): string;
 }
 
@@ -56,6 +59,10 @@ const OUTSIDE_CLASS = "outside";
 
 /** A mark above the staves where a phrase starts (#18), placed over the engraving. */
 const PHRASE_MARK_CLASS = "phrase-mark";
+
+/** The notes and rests of the places a chosen fact names (#25): blue, with a box around each, so they differ from playing and outside by more than colour. */
+const HIGHLIGHT_CLASS = "highlight";
+const HIGHLIGHT_MARK_CLASS = "highlight-mark";
 
 /** A phrase start as Blazor sends it: where, the mark's text, and how it was found (imported, inferred or yours). */
 export interface ScorePhrase {
@@ -95,6 +102,11 @@ export class ScoreView {
     /** The range that plays for the selection [start, end), or null when nothing is selected. */
     private range: { start: number; end: number } | null = null;
     private phrases: ScorePhrase[] = [];
+    /** The places of the chosen fact, and the engraved notes and rests that stand for them. */
+    private highlight: HighlightPlace[] = [];
+    private highlighted = new Set<string>();
+    /** The MIDI key of each engraved note asked about since the last load; undefined for a rest or when Verovio has none. */
+    private pitches = new Map<string, number | undefined>();
     private laidOutWidth = 0;
     private frame = 0;
     private relayoutTimer = 0;
@@ -121,7 +133,9 @@ export class ScoreView {
         }
 
         this.engraver = engraver;
-        this.timeline = ScoreTimeline.fromTimemap(engraver.renderToTimemap());
+        this.pitches = new Map();
+        this.highlighted = new Set();
+        this.timeline = ScoreTimeline.fromTimemap(engraver.renderToTimemap({ includeRests: true }));
         this.render();
         return { pages: engraver.getPageCount(), notes: this.timeline.spans.length };
     }
@@ -150,6 +164,15 @@ export class ScoreView {
     setPhrases(phrases: ScorePhrase[]): void {
         this.phrases = phrases;
         this.placePhrases();
+    }
+
+    /**
+     * Highlights the places a chosen fact names: their engraved notes and rests turn blue with a box
+     * around each, and the first is scrolled into view. An empty list clears the highlight.
+     */
+    setHighlight(places: HighlightPlace[]): void {
+        this.highlight = places;
+        this.applyHighlight(true);
     }
 
     dispose(): void {
@@ -195,6 +218,7 @@ export class ScoreView {
 
         this.applyRange(false);
         this.placePhrases();
+        this.applyHighlight(false);
 
         // The new SVG has no marks; put back the ones that were showing.
         const marked = [...this.marked];
@@ -252,6 +276,59 @@ export class ScoreView {
             mark.style.height = `${around.height}px`;
             this.host.append(mark);
         }
+    }
+
+    private applyHighlight(scroll: boolean): void {
+        for (const old of this.host.querySelectorAll(`.${HIGHLIGHT_MARK_CLASS}`)) {
+            old.remove();
+        }
+        for (const id of this.highlighted) {
+            this.element(id)?.classList.remove(HIGHLIGHT_CLASS);
+        }
+        const timeline = this.timeline;
+        this.highlighted = timeline === null || this.highlight.length === 0 ? new Set() : highlightedIds(timeline, this.highlight, (id) => this.pitchOf(id));
+
+        const view = this.host.getBoundingClientRect();
+        let first: Element | null = null;
+        for (const id of this.highlighted) {
+            const element = this.element(id);
+            if (element === null) {
+                continue;
+            }
+            element.classList.add(HIGHLIGHT_CLASS);
+            first ??= element;
+            // The box goes round the notehead, not the stem, so neighbouring notes keep their own boxes.
+            const box = (element.querySelector("g.notehead") ?? element).getBoundingClientRect();
+            const mark = document.createElement("span");
+            mark.className = HIGHLIGHT_MARK_CLASS;
+            mark.setAttribute("aria-hidden", "true");
+            mark.style.left = `${box.left - view.left + this.host.scrollLeft - 3}px`;
+            mark.style.top = `${box.top - view.top + this.host.scrollTop - 3}px`;
+            mark.style.width = `${box.width + 6}px`;
+            mark.style.height = `${box.height + 6}px`;
+            this.host.append(mark);
+        }
+        if (scroll && first !== null && this.player?.state() !== "playing") {
+            this.scrollIntoView(first);
+        }
+    }
+
+    private pitchOf(id: string): number | undefined {
+        const engraver = this.engraver;
+        if (engraver === null) {
+            return undefined;
+        }
+        if (!this.pitches.has(id)) {
+            let pitch: number | undefined;
+            try {
+                const values = engraver.getMIDIValuesForElement(id);
+                pitch = typeof values?.pitch === "number" ? values.pitch : undefined;
+            } catch {
+                pitch = undefined;
+            }
+            this.pitches.set(id, pitch);
+        }
+        return this.pitches.get(id);
     }
 
     private scheduleRelayout(): void {

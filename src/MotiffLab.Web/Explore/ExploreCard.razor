@@ -1,3 +1,4 @@
+@using MotiffLab.MusicCore.Analysis
 @using MotiffLab.MusicCore.Experiments
 
 @* The Explore card (decision record 0010): the experiments music-core offers for the selection, one at a time, with its
@@ -56,6 +57,17 @@
                 </div>
             }
             <p class="focus"><strong>At the piano:</strong> @experiment.ListeningFocus</p>
+            @if (RestsOn(trial) is { Length: > 0 } facts)
+            {
+                @* The facts the experiment cites (#25), each opening Understand with it highlighted. *@
+                <div class="rests-on" role="group" aria-label="Rests on">
+                    <span>Rests on:</span>
+                    @foreach (MotifFact fact in facts)
+                    {
+                        <button class="fact-link" @onclick="() => FactChosen.InvokeAsync(fact)" title="Show this fact on the Understand tab, highlighted in the score.">@fact.Text</button>
+                    }
+                </div>
+            }
 
             <div class="row actions">
                 @if (trial.Kept)
@@ -190,6 +202,10 @@
     [Parameter]
     public EventCallback<ListenTo> ListenToChanged { get; set; }
 
+    /// <summary>Raised with a fact the experiment rests on, to show it on the Understand tab.</summary>
+    [Parameter]
+    public EventCallback<MotifFact> FactChosen { get; set; }
+
     private IEnumerable<Experiment> Shown => _topic is { } topic ? Offers.Where(offer => offer.Topic == topic) : Offers;
 
     protected override void OnParametersSet()
@@ -233,6 +249,13 @@
         { } next => $"Next idea: {next.Experiment.Title}.",
         _ => "Nothing else fits this phrase.",
     };
+
+    /// <summary>The facts the experiment cites, in its order, from the facts of the selection it was offered for.</summary>
+    private static MotifFact[] RestsOn(ExploreTrial trial)
+    {
+        IReadOnlyList<MotifFact> facts = trial.Facts;
+        return [.. trial.Experiment.FactIds.Select(id => facts.FirstOrDefault(fact => fact.Id == id)).OfType<MotifFact>()];
+    }
 
     /// <summary>"bar 5", "bars 5–6", "the pickup", "the pickup and bar 1".</summary>
     private static string Bars(int first, int last) => (first, last) switch

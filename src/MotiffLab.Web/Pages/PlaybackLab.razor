@@ -14,13 +14,13 @@
 @using MotiffLab.MusicCore.Time
 @using MotiffLab.MusicCore.Variations
 @using MotiffLab.Web.Explore
-@using MotiffLab.Web.Facts
 @using MotiffLab.Web.Import
 @using MotiffLab.Web.Phrases
 @using MotiffLab.Web.Playback
 @using MotiffLab.Web.Projects
 @using MotiffLab.Web.Roll
 @using MotiffLab.Web.Score
+@using MotiffLab.Web.Understand
 @implements IDisposable
 @inject Player Player
 @inject CurrentPiece CurrentPiece
@@ -32,7 +32,7 @@
 @* A test bench for the playback engine (S1-W4, S1-W5), the piano roll and keyboard (S1-W2, S1-W3), motif selection, its loop and its facts (S1-M1, S1-M2, S1-M5, S1-A1, S1-A2) and the score view (S1-W7) and a second file as the variation (S1-W5) until the workspace exists. Files stay on the device. *@
 <main class="lab app">
     @* The workspace layout from the iPad mockups (docs/ui-conventions.md): a header with what the whole view shows, the roll and score
-       on the left, an inspector for the selection on the right (Explore, Selection, Facts, Edit), and the transport along the bottom. *@
+       on the left, an inspector for the selection on the right (Explore, Selection, Understand, Edit), and the transport along the bottom. *@
     <header class="app-header">
         <a class="back" href="">‹ Projects</a>
         <div class="app-title">
@@ -113,14 +113,14 @@
                 }
                 <div class="roll-panel">
                     <PianoRoll Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases"
-                               Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible"
+                               Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible" Highlight="_highlight?.Places"
                                RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync" />
                 </div>
                 @if (_showScore && ShownScore is { } shown)
                 {
                     @* Clicks on the page outside the roll clear the selection, except inside panels marked data-keeps-selection (docs/ui-conventions.md). *@
                     <div class="score-panel" data-keeps-selection>
-                        <ScoreView Source="shown" Range="ShownRange" Phrases="ScorePhrases" />
+                        <ScoreView Source="shown" Range="ShownRange" Phrases="ScorePhrases" Highlight="_highlight?.Places" />
                         <p class="meta">@ScoreNote(shown)</p>
                     </div>
                 }
@@ -190,7 +190,7 @@
                                          OriginalHeard="@(OriginalAudible && !VariationAudible)" VariationHeard="@(Player.ActiveSources.Contains(VariationSource) && !OriginalAudible)"
                                          AnswerLooping="@(_answerLoop is not null)" Layered="_layered" ListenTo="_listenTo"
                                          Try="TryExperimentAsync" Hear="AuditionAsync" Keep="KeepExperimentAsync" Leave="LeaveExperimentAsync"
-                                         Surprise="SurpriseAsync" HearInContext="HearAnswerAsync" ListenToChanged="SetListenToAsync" />
+                                         Surprise="SurpriseAsync" HearInContext="HearAnswerAsync" ListenToChanged="SetListenToAsync" FactChosen="ShowFactAsync" />
                             break;
                         case InspectorTab.Selection:
                             @if (_selection is { NoteIds.Count: > 0 })
@@ -307,12 +307,12 @@
                                 <p class="meta">Select some bars on the roll first: drag across it, or click a bar number. Then pick what to keep and a change here.</p>
                             }
                             break;
-                        case InspectorTab.Facts:
+                        case InspectorTab.Understand:
                             @if (Facts.Count == 0)
                             {
                                 <p class="meta">Select some bars to see what music-core finds in them.</p>
                             }
-                            <FactsPanel Facts="Facts" />
+                            <UnderstandPanel Facts="Facts" Offers="UnderstandOffers" Chosen="_highlight?.Choice" Choose="ChooseFactAsync" Try="TryFromFactAsync" />
                             break;
                         default:
                             @if (_selection is { NoteIds.Count: > 0 } chosen)
@@ -693,7 +693,7 @@
     {
         Explore,
         Selection,
-        Facts,
+        Understand,
         Edit,
     }
 
@@ -701,7 +701,7 @@
     [
         (InspectorTab.Explore, "Explore"),
         (InspectorTab.Selection, "Selection"),
-        (InspectorTab.Facts, Facts.Count > 0 ? $"Facts · {Facts.Count}" : "Facts"),
+        (InspectorTab.Understand, Facts.Count > 0 ? $"Understand · {Facts.Count}" : "Understand"),
         (InspectorTab.Edit, "Edit"),
     ];
 
@@ -966,6 +966,7 @@
         _filter = SelectionFilter.All;
         _keptIds = null;
         _selection = null;
+        _highlight = null;
         _analysis = null;
         _structure = null;
         _character = [];
@@ -1176,6 +1177,7 @@
         _character = MotifAnalyzer.AnalyzeCharacter(_notes!, _meter!, _selection, KeySignature.InForce(_keys, span.Onset), _characterContext!);
         _invitationContext = new InvitationContext(_notes!, _meter!, _selection, _analysis, _structure, _character);
         _offers = ExperimentCatalogue.Offer(_invitationContext);
+        _highlight = null;
         MotifTexture? texture = _selection.NoteIds.Count == 0 ? null : MotifTexture.Read(VariationFacts.MotifNotes(_notes!, _selection));
         _layered = texture is { IsSingleLine: false } && texture.Melody.Count < texture.Notes.Count;
         if (!_layered)
@@ -1301,6 +1303,7 @@
         }
 
         _selection = null;
+        _highlight = null;
         _analysis = null;
         _structure = null;
         _character = [];
@@ -1579,6 +1582,39 @@
         (ActiveTrial?.OfferedIn ?? _invitationContext) is { } context && ExperimentCatalogue.Surprise(context, _surprises++, _tried) is { } pick
             ? TryExperimentAsync(new ExploreRequest(pick.Experiment, pick.Alternative, "surprise"))
             : Task.CompletedTask;
+
+    /// <summary>The fact chosen on the Understand tab and what the score and the roll highlight for it (#25); null for none. A new selection clears it.</summary>
+    private FactHighlight? _highlight;
+
+    /// <summary>
+    /// The experiments the Understand tab links its facts to: those offered for the same selection as the facts.
+    /// None while an experiment offered for another selection runs (the motif's return), as its offers rest on other facts.
+    /// </summary>
+    private IReadOnlyList<Experiment> UnderstandOffers => ActiveTrial is { } trial && !ReferenceEquals(trial.OfferedIn, _invitationContext) ? [] : CardOffers;
+
+    /// <summary>Highlights the places of a fact, or one of them and moves playback to its start; null clears the highlight.</summary>
+    private async Task ChooseFactAsync(FactChoice? choice)
+    {
+        _highlight = choice is null || _notes is null ? null : FactHighlight.Create(choice, _notes);
+        if (choice?.Place is { } place)
+        {
+            await Player.SeekAsync(place.Span.Onset);
+        }
+    }
+
+    /// <summary>A fact the experiment on the Explore card rests on: Understand opens with it highlighted.</summary>
+    private Task ShowFactAsync(MotifFact fact)
+    {
+        _tab = InspectorTab.Understand;
+        return ChooseFactAsync(new FactChoice(fact));
+    }
+
+    /// <summary>An experiment a fact links to: Explore opens and tries its first alternative.</summary>
+    private Task TryFromFactAsync(Experiment experiment)
+    {
+        _tab = InspectorTab.Explore;
+        return TryExperimentAsync(new ExploreRequest(experiment, 0, "fact"));
+    }
 
     /// <summary>Loops from the motif to the end of its return, with the new answer in place; pressed again, it stops.</summary>
     private async Task HearAnswerAsync()
