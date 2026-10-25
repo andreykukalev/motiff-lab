@@ -104,6 +104,14 @@ const PHRASE_LINE_ALPHA = 0.35;
 /** How a phrase start was found, as setPhrases sends it. */
 const PHRASE_INFERRED_KIND = 1;
 const VARIATION_FILL_SOUNDING = "rgba(244, 245, 242, 0.75)";
+/**
+ * The places of a fact chosen on Understand (#25): a solid blue box round each of their notes, a faint
+ * band over each place and a blue underline along the bottom, so they differ from the selection
+ * (lime), the variation (white) and inferred marks (dashed) by line as well as colour.
+ */
+const HIGHLIGHT = "#7CC4FA";
+const HIGHLIGHT_BAND = "rgba(124, 196, 250, 0.12)";
+const HIGHLIGHT_UNDERLINE = 4;
 const VARIATION_LINK = "rgba(244, 245, 242, 0.45)";
 const LANE_COLOURS = ["#C8F169", "#6EC6FF", "#FF9E80", "#C5A3FF", "#F2D16B", "#5FE0C1"];
 
@@ -137,6 +145,8 @@ export class PianoRoll {
     private playRange: { start: number; end: number } | null = null;
     /** The variation of the motif, drawn as outlines over it, or null for none. */
     private variation: VariationNote[] | null = null;
+    /** The places of the fact chosen on Understand (#25): their stretches of time and their notes, or null for none. */
+    private highlight: { spans: { start: number; end: number }[]; notes: Set<number> } | null = null;
     /** Where phrases start and whether each start is inferred (#18). */
     private phrases: { tick: number; inferred: boolean }[] = [];
     /** Which sources are heard, so only notes being heard light up. */
@@ -217,6 +227,7 @@ export class PianoRoll {
         this.playRange = null;
         this.filtered = null;
         this.variation = null;
+        this.highlight = null;
         this.drag = null;
         this.press = null;
         this.scroll = 0;
@@ -290,6 +301,29 @@ export class PianoRoll {
             phrases.push({ tick: packed[at], inferred: packed[at + 1] === PHRASE_INFERRED_KIND });
         }
         this.phrases = phrases;
+        this.invalidate();
+    }
+
+    /**
+     * Highlights the places a chosen fact names: spans packed as pairs of start and end, and the ids
+     * of their notes. The first place is scrolled into view. Empty clears the highlight; unknown ids are ignored.
+     */
+    setHighlight(packed: number[], ids: string[]): void {
+        const model = this.model;
+        const spans: { start: number; end: number }[] = [];
+        for (let at = 0; at + 2 <= packed.length; at += 2) {
+            spans.push({ start: packed[at], end: packed[at + 1] });
+        }
+        if (model === null || spans.length === 0) {
+            this.highlight = null;
+        } else {
+            const notes = new Set(ids.map((id) => model.indexOf(id)).filter((index): index is number => index !== undefined));
+            this.highlight = { spans, notes };
+            if (this.player?.state() !== "playing") {
+                this.keepInView(Math.min(...spans.map((span) => span.start)));
+            }
+        }
+        this.renderLegend();
         this.invalidate();
     }
 
@@ -592,6 +626,18 @@ export class PianoRoll {
             }
         }
 
+        // The places of the chosen fact: a faint band and an underline along the bottom.
+        for (const span of this.highlight?.spans ?? []) {
+            const left = Math.max(GUTTER, this.xOf(span.start));
+            const right = Math.min(width, this.xOf(span.end));
+            if (right > left) {
+                context.fillStyle = HIGHLIGHT_BAND;
+                context.fillRect(left, HEADER, right - left, height - HEADER);
+                context.fillStyle = HIGHLIGHT;
+                context.fillRect(left, height - HIGHLIGHT_UNDERLINE, Math.max(2, right - left - 1), HIGHLIGHT_UNDERLINE);
+            }
+        }
+
         context.save();
         context.beginPath();
         context.rect(GUTTER, HEADER, width - GUTTER, height - HEADER);
@@ -608,7 +654,9 @@ export class PianoRoll {
             const h = Math.max(2, row - 2);
             const lane = this.laneIndex.get(laneKey(note, this.colourBy)) ?? 0;
 
-            const outside = (this.motif !== null && !this.motif.notes.has(index)) || (this.filtered !== null && !this.filtered.has(index));
+            const highlighted = this.highlight?.notes.has(index) ?? false;
+            // A highlighted note outside the selection stays at full strength, as the fact points to it.
+            const outside = !highlighted && ((this.motif !== null && !this.motif.notes.has(index)) || (this.filtered !== null && !this.filtered.has(index)));
             const behind = this.variation !== null && this.motif !== null && this.motif.notes.has(index);
             context.globalAlpha = outside ? OUTSIDE_ALPHA : behind ? BEHIND_VARIATION_ALPHA : sounding.has(index) ? 1 : 0.82;
             context.fillStyle = LANE_COLOURS[lane % LANE_COLOURS.length];
@@ -642,6 +690,15 @@ export class PianoRoll {
                 context.strokeStyle = INK;
                 context.lineWidth = 2;
                 context.strokeRect(x - 1, y - 1, w + 2, h + 2);
+            }
+            // Highlighted notes get a solid blue box with a dark edge, outside the selection's outline.
+            if (highlighted) {
+                context.strokeStyle = CHARCOAL;
+                context.lineWidth = 5;
+                context.strokeRect(x - 3, y - 3, w + 6, h + 6);
+                context.strokeStyle = HIGHLIGHT;
+                context.lineWidth = 2;
+                context.strokeRect(x - 3, y - 3, w + 6, h + 6);
             }
         }
         this.drawVariation(context, from, to, high, low, row);
@@ -795,6 +852,9 @@ export class PianoRoll {
         }
         if (this.variation !== null) {
             items.push(legendItem(variationSwatch(), "Outlined: the variation, linked to the notes it moved from"));
+        }
+        if (this.highlight !== null) {
+            items.push(legendItem(highlightSwatch(), "Blue box and underline: the places of the fact chosen on Understand"));
         }
         if (model?.notes.some((note) => note.noteInferred || note.handInferred)) {
             items.push(legendItem(swatch(SURFACE, "solid", true), "Dashed outline: inferred, not in the file"));
@@ -1255,6 +1315,19 @@ function variationSwatch(): HTMLCanvasElement {
     context.strokeStyle = INK;
     context.lineWidth = 2;
     context.strokeRect(1, 1, 26, 10);
+    return canvas;
+}
+
+function highlightSwatch(): HTMLCanvasElement {
+    const canvas = swatch(SURFACE, "solid", false);
+    const context = canvas.getContext("2d")!;
+    context.fillStyle = HIGHLIGHT_BAND;
+    context.fillRect(0, 0, 28, 12);
+    context.strokeStyle = HIGHLIGHT;
+    context.lineWidth = 2;
+    context.strokeRect(1, 1, 26, 7);
+    context.fillStyle = HIGHLIGHT;
+    context.fillRect(0, 10, 28, 2);
     return canvas;
 }
 

@@ -5,6 +5,7 @@
 @using MotiffLab.MusicCore.Time
 @using MotiffLab.MusicCore.Variations
 @using MotiffLab.Web.Playback
+@using MotiffLab.Web.Understand
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject Player Player
@@ -47,6 +48,7 @@
     private (bool Original, bool Variation) _shownAudible = (true, false);
     private TickSpan? _shownPlayRange;
     private PhraseMap? _shownPhrases;
+    private IReadOnlyList<HighlightPlace>? _shownHighlight;
     private IReadOnlyList<string> _selected = [];
     private MotifSelection? _shownMotif;
     private bool _shownAlone;
@@ -110,6 +112,10 @@
     [Parameter]
     public PhraseMap? Phrases { get; set; }
 
+    /// <summary>The places of the fact chosen on the Understand tab (#25), highlighted; null or empty highlights none.</summary>
+    [Parameter]
+    public IReadOnlyList<HighlightPlace>? Highlight { get; set; }
+
     /// <summary>Raised with the ids of the selected notes, in time order.</summary>
     [Parameter]
     public EventCallback<IReadOnlyList<string>> SelectionChanged { get; set; }
@@ -138,6 +144,7 @@
             _shownVariation = null;
             _shownPlayRange = null;
             _shownPhrases = null;
+            _shownHighlight = null;
             _laneCounts = new()
             {
                 ["track"] = Notes.Select(note => note.Track).Distinct().Count(),
@@ -166,7 +173,7 @@
         }
     }
 
-    /// <summary>Sends the Notes filter, the variation, the play range and which sources are heard, each only when it changed.</summary>
+    /// <summary>Sends the Notes filter, the variation, the play range, the phrases, the highlight and which sources are heard, each only when it changed.</summary>
     private async Task ShowOverlaysAsync(IJSObjectReference view)
     {
         if (!ReferenceEquals(Kept, _shownKept))
@@ -222,6 +229,15 @@
                 },
             })];
             await view.InvokeVoidAsync("setPhrases", packed);
+        }
+
+        if (!ReferenceEquals(Highlight, _shownHighlight))
+        {
+            _shownHighlight = Highlight;
+            IReadOnlyList<HighlightPlace> places = Highlight ?? [];
+            long[] spans = [.. places.SelectMany(place => new[] { place.Start, place.End })];
+            string[] ids = [.. places.SelectMany(place => place.Notes).Select(note => note.Id).Distinct(StringComparer.Ordinal)];
+            await view.InvokeVoidAsync("setHighlight", spans, ids);
         }
 
         if ((OriginalAudible, VariationAudible) != _shownAudible)

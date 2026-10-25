@@ -135,6 +135,8 @@ html, body {
     --ml-border: #3A424D;
     --ml-inferred: #7CC4FA;
     --ml-uncertain: #F2C14E;
+    /* The places of a fact chosen on Understand (#25): the information blue, always with a solid line or box. */
+    --ml-highlight: #7CC4FA;
     --ml-mono: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
 }
 
@@ -623,6 +625,28 @@ html, body {
     padding-left: 0.6rem;
 }
 
+/* The facts an experiment rests on (#25), each opening Understand with it highlighted. */
+.explore .rests-on {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.3rem 0.5rem;
+    margin: 0.5rem 0;
+    font-size: 0.85rem;
+}
+
+.explore .rests-on > span {
+    color: var(--ml-gray);
+}
+
+.lab .explore button.fact-link {
+    min-height: 1.5rem;
+    padding: 0.1rem 0.6rem;
+    border-color: var(--ml-highlight);
+    text-align: left;
+    font-size: 0.85rem;
+}
+
 .explore .kept {
     color: var(--ml-lime);
     font-weight: 600;
@@ -817,6 +841,76 @@ html, body {
     color: var(--ml-uncertain);
 }
 
+/* Understand (#25, Understand/UnderstandPanel.razor): a fact with places is a toggle that highlights them in the score and on the roll,
+   its places are chips, and it links to the experiments resting on it. The chosen fact has a solid blue edge, never dashed like inferred. */
+.lab .facts li.chosen {
+    box-shadow: inset 3px 0 0 var(--ml-highlight);
+    padding-left: 0.5rem;
+}
+
+.lab .facts button.fact-text {
+    border: none;
+    min-height: 1.5rem;
+    padding: 0;
+    text-align: left;
+    line-height: 1.35;
+}
+
+.lab .facts button.fact-text[aria-pressed=true] {
+    font-weight: 600;
+}
+
+.lab .facts button.fact-text .where {
+    margin-left: 0.3em;
+    white-space: nowrap;
+    color: var(--ml-gray);
+    font-size: 0.8rem;
+    font-weight: normal;
+    text-decoration: underline;
+}
+
+.lab .places {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin: 0.15rem 0;
+}
+
+.lab .places button.chip {
+    min-height: 1.5rem;
+    border: 1.5px solid var(--ml-highlight);
+    border-radius: 1.1rem;
+    padding: 0.05rem 0.6rem;
+    font-size: 0.8rem;
+}
+
+.lab .places button.chip[aria-pressed=true] {
+    background: var(--ml-highlight);
+    color: var(--ml-charcoal);
+    font-weight: 600;
+}
+
+.lab .facts button.try {
+    align-self: flex-start;
+    min-height: 1.5rem;
+    padding: 0.05rem 0.6rem;
+    border-color: var(--ml-lime);
+    color: var(--ml-lime);
+    font-size: 0.8rem;
+}
+
+.lab .highlighted {
+    border: 1.5px solid var(--ml-highlight);
+    border-radius: 0.75rem;
+    padding: 0.5rem 0.8rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.lab .highlighted p {
+    margin: 0 0 0.4rem;
+}
+
 /* Note corrections (S1-I7) and hand edits (S1-E7): a collapsible table of notes with nudge buttons; edited rows are marked by a label as well as the lime edge. */
 .lab .corrections {
     margin-top: 0.75rem;
@@ -994,6 +1088,8 @@ html, body {
     --ml-score-ink: #15191F;
     --ml-score-playing: #4D7A00;
     --ml-score-inferred: #1F5F96;
+    /* Information blue on paper (docs/02-brand-identity.md, 4.8 : 1 on white). */
+    --ml-score-highlight: #1F6FB2;
     position: relative;
     max-height: 70vh;
     overflow-y: auto;
@@ -1023,6 +1119,23 @@ html, body {
 /* Notes outside the range that plays for the selection go faint, as on the roll. */
 .score g.note.outside {
     opacity: 0.3;
+}
+
+/* The places of the fact chosen on Understand (#25): blue and at full strength, with a solid box round each notehead or rest,
+   so they differ from playing (colour only) and outside (faint) by more than colour. The playing colour still shows over them. */
+.score g.note.highlight, .score g.rest.highlight {
+    fill: var(--ml-score-highlight);
+    stroke: var(--ml-score-highlight);
+    color: var(--ml-score-highlight);
+    opacity: 1;
+}
+
+.score .highlight-mark {
+    position: absolute;
+    box-sizing: border-box;
+    pointer-events: none;
+    border: 2px solid var(--ml-score-highlight);
+    border-radius: 0.3rem;
 }
 
 .score g.note.playing, .score g.chord.playing {

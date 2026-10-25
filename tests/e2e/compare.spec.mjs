@@ -40,7 +40,7 @@ test("go back to the original, compare, and hear the two one after the other", a
     await expect(score).toHaveText("With the variation");
 
     // The switch is in the head, so it is there on every tab.
-    await page.getByRole("tab", { name: "Facts" }).click();
+    await page.getByRole("tab", { name: "Understand" }).click();
     await expect(original).toBeVisible();
     await page.getByRole("tab", { name: "Explore" }).click();
 

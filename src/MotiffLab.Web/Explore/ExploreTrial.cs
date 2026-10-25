@@ -1,3 +1,4 @@
+using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Experiments;
 using MotiffLab.MusicCore.Invitations;
 using MotiffLab.MusicCore.Variations;
@@ -18,7 +19,7 @@ public enum ListenTo
 }
 
 /// <summary>A request from the Explore card to try one alternative of an experiment.</summary>
-/// <param name="Entry">How the player got there, for analytics: "offer", "question", "surprise" or "another".</param>
+/// <param name="Entry">How the player got there, for analytics: "offer", "question", "surprise", "another" or "fact" (from the Understand tab).</param>
 public sealed record ExploreRequest(Experiment Experiment, int Alternative, string Entry);
 
 /// <summary>
@@ -42,6 +43,9 @@ public sealed record ExploreTrial(
 {
     /// <summary>The alternative being heard.</summary>
     public ExperimentAlternative Current => Experiment.Alternatives[Alternative];
+
+    /// <summary>The facts music-core found where the experiment was offered, which its fact ids name (#25).</summary>
+    public IReadOnlyList<MotifFact> Facts => [.. OfferedIn.Motif.Facts, .. OfferedIn.Structure.Facts, .. OfferedIn.Character];
 
     /// <summary>Whether the experiment changes another passage than the one it was offered for (the motif's return).</summary>
     public bool Elsewhere => Experiment.Passage.Span != OfferedIn.Selection.Span;

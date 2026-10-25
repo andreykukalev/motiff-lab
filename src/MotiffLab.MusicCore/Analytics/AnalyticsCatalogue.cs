@@ -82,7 +82,7 @@ public static class AnalyticsCatalogue
         [
             new ChoiceProperty("experiment", ExperimentCatalogue.Ids),
             new CountProperty("alternative", 0, ExperimentCatalogue.MaxAlternatives - 1),
-            new ChoiceProperty("entry", ["offer", "question", "surprise", "another"]),
+            new ChoiceProperty("entry", ["offer", "question", "surprise", "another", "fact"]),
         ],
         ["experiment_kept"] =
         [
