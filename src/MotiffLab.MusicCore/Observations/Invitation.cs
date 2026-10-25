@@ -114,6 +114,7 @@ public static class ActionStatus
     private static readonly Dictionary<string, (ActionAvailability Availability, string Note)> s_operations = new(StringComparer.Ordinal)
     {
         ["V1"] = (ActionAvailability.AvailableNow, "In the playback lab."),
+        ["V13"] = (ActionAvailability.PlannedForStage1, "Planned for the Explore experiments, not in the app yet."),
         ["V4"] = (ActionAvailability.PlannedForStage1, "Planned for Stage 1 on the Transform screen."),
         ["V9"] = (ActionAvailability.PlannedForStage1, "Planned for Stage 1 on the Transform screen."),
         ["V10"] = (ActionAvailability.PlannedForStage1, "Planned for Stage 1 on the Transform screen."),
@@ -127,7 +128,7 @@ public static class ActionStatus
         ["V5"] = (ActionAvailability.LaterStage, "Harmonic colour waits for Stage 4."),
     };
 
-    /// <summary>The catalogue ids the table knows, V1–V12.</summary>
+    /// <summary>The catalogue ids the table knows, V1–V13.</summary>
     public static IEnumerable<string> OperationIds => s_operations.Keys;
 
     public static ActionAvailability Of(InvitationAction action)

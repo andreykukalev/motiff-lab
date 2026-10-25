@@ -209,6 +209,7 @@ The variation engine is the central Stage 1 feature. The player first says what 
 | ID | Category | Operation | Keeps | Changes | Parameters |
 | --- | --- | --- | --- | --- | --- |
 | V1 | Rhythm | Rhythm reshape | Pitches and their order | Onsets and durations | Syncopate, dotted, half-time, double-time, displace by 1–3 eighths |
+| V13 | Rhythm | Articulation | Pitches, onsets | How long each note sounds | Short, detached or connected: a quarter, half or all of the time to the next onset |
 | V7 | Rhythm | Density and rests | Pitch order | Note count and rests | Repeat notes, split into 8ths or 16ths, merge repeats, insert or remove a rest at a chosen beat |
 | V8 | Rhythm | Accent shift | Pitches and timing | Which notes are accented | Accent pattern: on-beat, off-beat, every 3rd note, custom |
 | V4 | Melody | Melodic sequence | Rhythm, interval shape | Pitch level, repeats | Steps −4 to +4 scale degrees, repeats 1–3, diatonic or exact |
@@ -222,6 +223,8 @@ The variation engine is the central Stage 1 feature. The player first says what 
 
 V6 is a Should for Stage 1. V5 (harmonic colour) and any reharmonisation wait for Stage 4. Accompaniment and voicing operations need chord detection (S1-A3), so they ship with it; on a single melody line they are disabled with a reason. V1 and V3 extend the PRD parameters with displacement and hand distribution; the PRD catalogue should be updated to match.
 
+V13 Articulation was added on 2026-10-25 for the Explore experiments. It changes only lengths, so Keep rhythm (onsets and lengths) rules it out even though every onset stays. V1 and V13 can be limited to the melody, the accompaniment or the bass of the selection, as read by the shared texture; operations that pick their own notes (V4, V9, V10, hand edits) always use the whole selection.
+
 ### Keep constraints
 
 Before choosing an operation, the player picks what to keep from nine properties: pitches, pitch order, contour, intervals, rhythm, melody, bass, harmony and register. Only operations compatible with those choices stay enabled, which turns each variation into a deliberate experiment.
@@ -229,6 +232,7 @@ Before choosing an operation, the player picks what to keep from nine properties
 | Keep → | Pitches | Pitch order | Contour | Intervals | Rhythm | Melody | Bass | Harmony | Register |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | V1 Rhythm reshape | ✓ | ✓ | ✓ | ✓ | – | ✓¹ | ✓ | ✓ | ✓ |
+| V13 Articulation | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ |
 | V7 Density and rests | – | ✓ | ✓ | – | – | – | ✓ | ✓ | ✓ |
 | V8 Accent shift | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | V4 Melodic sequence | – | – | ✓ | ✓² | ✓ | – | – | – | – |

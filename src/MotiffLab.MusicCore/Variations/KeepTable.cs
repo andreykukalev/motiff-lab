@@ -58,12 +58,18 @@ public static class KeepTable
 
     public static KeepFootnote UpperVoicesOnly { get; } = new(4, "Only spacing, register of upper voices and hand distribution change; inversions are off while Keep bass is on.");
 
-    /// <summary>The table's rows in the spec's order: rhythm, melody, accompaniment, voicing, difficulty.</summary>
+    /// <summary>
+    /// The table's rows in the spec's order: rhythm, melody, accompaniment, voicing, difficulty. V13
+    /// Articulation, added for the Explore experiments, sits with the rhythm operations. Keep rhythm
+    /// covers onsets and lengths, so it rules V13 out even though V13 keeps every onset.
+    /// </summary>
     public static IReadOnlyList<KeepRow> Rows { get; } =
     [
         Row("V1", "Rhythm reshape", "changes when notes start and how long they last",
             [KeepProperty.Pitches, KeepProperty.PitchOrder, KeepProperty.Contour, KeepProperty.Intervals, KeepProperty.Melody, KeepProperty.Bass, KeepProperty.Harmony, KeepProperty.Register],
             (KeepProperty.Melody, MelodyPitchesOnly)),
+        Row("V13", "Articulation", "changes how long notes sound",
+            [KeepProperty.Pitches, KeepProperty.PitchOrder, KeepProperty.Contour, KeepProperty.Intervals, KeepProperty.Melody, KeepProperty.Bass, KeepProperty.Harmony, KeepProperty.Register]),
         Row("V7", "Density and rests", "changes how many notes there are and where the rests fall",
             [KeepProperty.PitchOrder, KeepProperty.Contour, KeepProperty.Bass, KeepProperty.Harmony, KeepProperty.Register]),
         Row("V8", "Accent shift", "changes which notes are accented",

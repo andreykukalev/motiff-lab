@@ -33,6 +33,7 @@ public static class OperationTemplates
             IntervalReshape.OperationId => Reshaped(before, after, key),
             ChangeDirection.OperationId => Turned(before, after, key),
             HandEdit.OperationId => Edited(changes, before, after, meter),
+            Articulation.OperationId => Articulated(changes),
             _ => null,
         };
     }
@@ -77,6 +78,24 @@ public static class OperationTemplates
         {
             yield return $"velocity from {change.Before.Velocity} to {change.After.Velocity}";
         }
+    }
+
+    /// <summary>
+    /// "Only note lengths change: 9 notes sound shorter.", or "… 4 notes sound longer.", when every
+    /// note that changed kept its pitch and onset and all of them changed length the same way.
+    /// </summary>
+    private static string? Articulated(IReadOnlyList<NoteChange> changes)
+    {
+        NoteChange[] changed = [.. changes.Where(static change => change.DurationChanged)];
+        if (changed.Length == 0 || changes.Any(static change => change.PitchChanged || change.OnsetChanged))
+        {
+            return null;
+        }
+
+        string notes = changed.Length == 1 ? "1 note sounds" : $"{changed.Length} notes sound";
+        return changed.All(static change => change.After.Span.Duration < change.Before.Span.Duration) ? $"Only note lengths change: {notes} shorter."
+            : changed.All(static change => change.After.Span.Duration > change.Before.Span.Duration) ? $"Only note lengths change: {notes} longer."
+            : null;
     }
 
     /// <summary>"beat 2 of bar 1", or "1 sixteenth after beat 2 of bar 1" off the beat.</summary>
