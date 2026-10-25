@@ -61,6 +61,9 @@ public sealed class RhythmReshape : VariationOperation<RhythmReshapeParameters>
 
     public override string Name => "Rhythm reshape";
 
+    /// <summary>Any scope: limited to the melody, it reshapes the melody's rhythm under an unchanged accompaniment.</summary>
+    public override bool Supports(OperationScope scope) => true;
+
     protected override void Validate(RhythmReshapeParameters parameters)
     {
         if (parameters.Kind == RhythmReshapeKind.Displace

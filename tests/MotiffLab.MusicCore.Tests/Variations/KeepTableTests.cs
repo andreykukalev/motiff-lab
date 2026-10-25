@@ -13,6 +13,7 @@ public class KeepTableTests
     private static readonly (string Id, string Cells)[] s_spec =
     [
         ("V1", "✓✓✓✓–✓✓✓✓"),
+        ("V13", "✓✓✓✓–✓✓✓✓"),
         ("V7", "–✓✓–––✓✓✓"),
         ("V8", "✓✓✓✓✓✓✓✓✓"),
         ("V4", "––✓✓✓––––"),

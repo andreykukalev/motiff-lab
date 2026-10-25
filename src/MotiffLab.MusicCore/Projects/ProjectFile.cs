@@ -22,10 +22,13 @@ public static class ProjectFile
     public const string FormatName = "motiff-lab-project";
 
     /// <summary>
-    /// 3 adds the edit log of note corrections; 2 saves each variation as a chain of steps. Files of
-    /// versions 1 and 2 still open, with no corrections; version 1 holds one step per variation.
+    /// 4 saves the melody operations (V4, V9, V10), Accompaniment pattern (V2), Articulation (V13)
+    /// and each step's scope; 3 adds
+    /// the edit log of note corrections; 2 saves each variation as a chain of steps. Files of earlier
+    /// versions still open: their steps change the whole selection, versions 1 and 2 have no
+    /// corrections, and version 1 holds one step per variation.
     /// </summary>
-    public const int Version = 3;
+    public const int Version = 4;
 
     /// <summary>The extension an exported project gets.</summary>
     public const string Extension = ".motiff.json";
@@ -295,6 +298,26 @@ public static class ProjectFile
                 json.WriteString("kind", reshape.Kind.ToString());
                 json.WriteNumber("eighths", reshape.Eighths);
                 break;
+            case ArticulationParameters articulation:
+                json.WriteString("kind", articulation.Kind.ToString());
+                break;
+            case AccompanimentPatternParameters pattern:
+                json.WriteString("kind", pattern.Kind.ToString());
+                json.WriteString("unit", pattern.Unit.ToString());
+                break;
+            case MelodicSequenceParameters sequence:
+                json.WriteNumber("steps", sequence.Steps);
+                json.WriteNumber("repeats", sequence.Repeats);
+                json.WriteBoolean("diatonic", sequence.Diatonic);
+                break;
+            case IntervalReshapeParameters reshape:
+                json.WriteNumber("steps", reshape.Steps);
+                WriteIntervals(json, reshape.Intervals);
+                break;
+            case ChangeDirectionParameters direction:
+                json.WriteBoolean("diatonic", direction.Diatonic);
+                WriteIntervals(json, direction.Intervals);
+                break;
             case HandEditParameters edit:
                 json.WriteString("kind", edit.Kind.ToString());
                 json.WriteString("noteId", edit.NoteId);
@@ -308,7 +331,29 @@ public static class ProjectFile
                 throw new ArgumentException($"Operation {step.Operation} has parameters the project file cannot write.", nameof(step));
         }
 
+        if (step.Parameters.Scope != OperationScope.All)
+        {
+            json.WriteString("scope", step.Parameters.Scope.ToString());
+        }
+
         json.WriteEndObject();
+    }
+
+    /// <summary>The picked intervals, numbered from 0; nothing when every interval is picked.</summary>
+    private static void WriteIntervals(Utf8JsonWriter json, IntervalSet? intervals)
+    {
+        if (intervals is null)
+        {
+            return;
+        }
+
+        json.WriteStartArray("intervals");
+        foreach (int index in intervals.Indices)
+        {
+            json.WriteNumberValue(index);
+        }
+
+        json.WriteEndArray();
     }
 
     private static SavedVariation ReadVariation(JsonElement variation, int version)
@@ -339,25 +384,65 @@ public static class ProjectFile
         Expect(step, JsonValueKind.Object, "variation steps");
         string operation = Text(step, "operation");
         JsonElement parameters = Property(step, "parameters", JsonValueKind.Object);
-        if (operation == HandEdit.OperationId)
+        OperationParameters read = operation switch
         {
-            HandEditKind kind = Name<HandEditKind>(parameters, "kind");
-            NoteValues? values = kind == HandEditKind.Remove ? null : ReadValues(Property(parameters, "values", JsonValueKind.Object), "variation steps");
-            return new SavedStep(operation, new HandEditParameters(kind, Text(parameters, "noteId"), values));
-        }
+            HandEdit.OperationId => ReadHandEdit(parameters),
+            RhythmReshape.OperationId => ReadRhythmReshape(parameters),
+            Articulation.OperationId => new ArticulationParameters(Name<ArticulationKind>(parameters, "kind")),
+            AccompanimentPattern.OperationId => new AccompanimentPatternParameters(Name<AccompanimentPatternKind>(parameters, "kind"), Name<PatternUnit>(parameters, "unit")),
+            MelodicSequence.OperationId => ReadMelodicSequence(parameters),
+            IntervalReshape.OperationId => ReadIntervalReshape(parameters),
+            ChangeDirection.OperationId => new ChangeDirectionParameters(Boolean(parameters, "diatonic"), ReadIntervals(parameters)),
+            _ => throw new ProjectFileException($"A variation uses an operation ({operation}) this version of Motiff Lab does not have."),
+        };
+        OperationScope scope = parameters.TryGetProperty("scope", out _) ? Name<OperationScope>(parameters, "scope") : OperationScope.All;
+        return new SavedStep(operation, read with { Scope = scope });
+    }
 
-        if (operation != RhythmReshape.OperationId)
-        {
-            throw new ProjectFileException($"A variation uses an operation ({operation}) this version of Motiff Lab does not have.");
-        }
+    private static HandEditParameters ReadHandEdit(JsonElement parameters)
+    {
+        HandEditKind kind = Name<HandEditKind>(parameters, "kind");
+        NoteValues? values = kind == HandEditKind.Remove ? null : ReadValues(Property(parameters, "values", JsonValueKind.Object), "variation steps");
+        return new HandEditParameters(kind, Text(parameters, "noteId"), values);
+    }
 
+    private static RhythmReshapeParameters ReadRhythmReshape(JsonElement parameters)
+    {
         int eighths = Integer(parameters, "eighths");
-        if (eighths is < RhythmReshapeParameters.MinEighths or > RhythmReshapeParameters.MaxEighths)
+        return eighths is < RhythmReshapeParameters.MinEighths or > RhythmReshapeParameters.MaxEighths
+            ? throw Damaged("variation parameters")
+            : new RhythmReshapeParameters(Name<RhythmReshapeKind>(parameters, "kind"), eighths);
+    }
+
+    private static MelodicSequenceParameters ReadMelodicSequence(JsonElement parameters)
+    {
+        int steps = Integer(parameters, "steps");
+        int repeats = Integer(parameters, "repeats");
+        return steps == 0 || Math.Abs(steps) > MelodicSequenceParameters.MaxSteps || repeats is < MelodicSequenceParameters.MinRepeats or > MelodicSequenceParameters.MaxRepeats
+            ? throw Damaged("variation parameters")
+            : new MelodicSequenceParameters(steps, repeats, Boolean(parameters, "diatonic"));
+    }
+
+    private static IntervalReshapeParameters ReadIntervalReshape(JsonElement parameters)
+    {
+        int steps = Integer(parameters, "steps");
+        return steps == 0 || Math.Abs(steps) > IntervalReshapeParameters.MaxSteps
+            ? throw Damaged("variation parameters")
+            : new IntervalReshapeParameters(steps, ReadIntervals(parameters));
+    }
+
+    /// <summary>The picked intervals, or null when the file names none, which picks every interval.</summary>
+    private static IntervalSet? ReadIntervals(JsonElement parameters)
+    {
+        if (!parameters.TryGetProperty("intervals", out _))
         {
-            throw Damaged("variation parameters");
+            return null;
         }
 
-        return new SavedStep(operation, new RhythmReshapeParameters(Name<RhythmReshapeKind>(parameters, "kind"), eighths));
+        int[] indices = [.. Property(parameters, "intervals", JsonValueKind.Array)
+            .EnumerateArray()
+            .Select(index => index.ValueKind == JsonValueKind.Number && index.TryGetInt32(out int value) && value >= 0 ? value : throw Damaged("variation parameters"))];
+        return indices.Length > 0 ? new IntervalSet(indices) : throw Damaged("variation parameters");
     }
 
     private static JsonElement Property(JsonElement parent, string name, JsonValueKind kind)
@@ -383,6 +468,11 @@ public static class ProjectFile
         string value = Property(parent, name, JsonValueKind.String).GetString()!;
         return value.Length > 0 ? value : throw Damaged(name);
     }
+
+    private static bool Boolean(JsonElement parent, string name) =>
+        parent.TryGetProperty(name, out JsonElement value) && value.ValueKind is JsonValueKind.True or JsonValueKind.False
+            ? value.GetBoolean()
+            : throw Damaged(name);
 
     private static int Integer(JsonElement parent, string name) =>
         Property(parent, name, JsonValueKind.Number).TryGetInt32(out int value) ? value : throw Damaged(name);

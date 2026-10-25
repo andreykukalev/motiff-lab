@@ -15,7 +15,7 @@ Product concept and specification for Motiff Lab, exported from the shared speci
 | [ui-conventions.md](ui-conventions.md) | Working rules for the web UI: selecting on the piano roll, clearing the selection, the facts panel |
 | [images/](images/) | Diagrams and wireframes used in the documents |
 | [source/](source/) | Original concept, vision, MVP and brand notes the specification was built from |
-| [decisions/](decisions/) | Architecture decision records: 0001 sets the .NET and Azure stack (it supersedes the Rust, Flutter and FastAPI choices in 05); 0002 defines canonical musical time; 0003 adds AI assistance through Azure AI Foundry; 0004 fixes the note event shape and the meter map; 0005 and 0006 cover MIDI and MusicXML import; 0007 the browser playback engine; 0008 the score view; 0009 (proposed) the exploration layer and notebook |
+| [decisions/](decisions/) | Architecture decision records: 0001 sets the .NET and Azure stack (it supersedes the Rust, Flutter and FastAPI choices in 05); 0002 defines canonical musical time; 0003 adds AI assistance through Azure AI Foundry; 0004 fixes the note event shape and the meter map; 0005 and 0006 cover MIDI and MusicXML import; 0007 the browser playback engine; 0008 the score view; 0009 (proposed) the exploration layer and notebook; 0010 (proposed) Explore experiments built from catalogue operations |
 
 ## How the documents relate
 

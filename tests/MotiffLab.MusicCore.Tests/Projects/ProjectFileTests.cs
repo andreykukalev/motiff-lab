@@ -94,6 +94,39 @@ public class ProjectFileTests
     }
 
     [Fact]
+    public void Every_saved_operation_round_trips_with_its_parameters_and_scope()
+    {
+        SavedStep[] steps =
+        [
+            new(Articulation.OperationId, new ArticulationParameters(ArticulationKind.Detached) { Scope = OperationScope.Melody }),
+            new(RhythmReshape.OperationId, new RhythmReshapeParameters(RhythmReshapeKind.Dotted) { Scope = OperationScope.Accompaniment }),
+            new(IntervalReshape.OperationId, new IntervalReshapeParameters(-1, new IntervalSet([0, 2]))),
+            new(ChangeDirection.OperationId, new ChangeDirectionParameters(Diatonic: false)),
+            new(AccompanimentPattern.OperationId, new AccompanimentPatternParameters(AccompanimentPatternKind.Alberti, PatternUnit.Triplets)),
+        ];
+        var pending = new SavedStep(MelodicSequence.OperationId, new MelodicSequenceParameters(-2, 3, Diatonic: false));
+        Project project = Worked() with { Variations = [new SavedVariation("v_0001", "m_0001", steps, pending, [])] };
+
+        Project reread = ProjectFile.Read(ProjectFile.Write(project));
+
+        Assert.Equal(steps, reread.Variations[0].Steps);
+        Assert.Equal(pending, reread.Variations[0].Pending);
+    }
+
+    [Fact]
+    public void A_step_limited_to_the_melody_opens_with_its_scope()
+    {
+        var step = new SavedStep(Articulation.OperationId, new ArticulationParameters(ArticulationKind.Short) { Scope = OperationScope.Melody });
+        Project project = Worked() with { Variations = [new SavedVariation("v_0001", "m_0001", [step], null, [])] };
+
+        VariationChain chain = OpenedProject.Open(ProjectFile.Read(ProjectFile.Write(project))).Variations[0].Chain;
+
+        Assert.Equal("V13", chain.Result!.Operation);
+        Assert.Equal(OperationScope.Melody, chain.Steps.Single().Parameters.Scope);
+        Assert.Equal(OpenedProject.Open(project).Variations[0].Chain.Result!.Notes, chain.Result.Notes);
+    }
+
+    [Fact]
     public void Writing_is_deterministic_and_round_trips_byte_for_byte()
     {
         byte[] written = ProjectFile.Write(Worked());
@@ -124,7 +157,7 @@ public class ProjectFileTests
     [Theory]
     [InlineData("not json", "not valid JSON")]
     [InlineData("{\"format\":\"something-else\"}", "not a Motiff Lab project file")]
-    [InlineData("{\"format\":\"motiff-lab-project\",\"version\":4}", "newer version")]
+    [InlineData("{\"format\":\"motiff-lab-project\",\"version\":5}", "newer version")]
     [InlineData("{\"format\":\"motiff-lab-project\",\"version\":1,\"source\":\"!!\"}", "source")]
     public void Unreadable_files_get_a_plain_reason(string json, string reason)
     {
@@ -169,7 +202,7 @@ public class ProjectFileTests
     public void A_version_1_file_opens_with_its_variation_as_one_step()
     {
         string json = Encoding.UTF8.GetString(ProjectFile.Write(Worked() with { Variations = [] }))
-            .Replace("\"version\": 3", "\"version\": 1", StringComparison.Ordinal)
+            .Replace("\"version\": 4", "\"version\": 1", StringComparison.Ordinal)
             .Replace(
                 "\"variations\": []",
                 "\"variations\": [{\"id\": \"v_0001\", \"motifId\": \"m_0001\", \"operation\": \"V1\", \"parameters\": {\"kind\": \"HalfTime\", \"eighths\": 1}, \"keep\": [\"Pitches\"]}]",
@@ -240,7 +273,7 @@ public class ProjectFileTests
     public void A_version_2_file_opens_with_no_corrections()
     {
         string json = Encoding.UTF8.GetString(ProjectFile.Write(Worked()))
-            .Replace("\"version\": 3", "\"version\": 2", StringComparison.Ordinal)
+            .Replace("\"version\": 4", "\"version\": 2", StringComparison.Ordinal)
             .Replace(",\n  \"edits\": []", "", StringComparison.Ordinal);
         Assert.DoesNotContain("edits", json);
 
