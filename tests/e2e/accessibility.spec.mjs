@@ -15,11 +15,13 @@ async function violations(page) {
     return results.violations.map(v => `${v.id} (${v.impact}): ${v.help}\n  ${v.nodes.slice(0, 5).map(n => n.target.join(" ")).join("\n  ")}`);
 }
 
-test("home", async ({ page }) => {
-    await page.goto("/");
-    await expect(page.locator("h1")).toBeVisible();
-    expect(await violations(page)).toEqual([]);
-});
+for (const path of ["/", "/settings", "/privacy", "/terms"]) {
+    test(`page ${path}`, async ({ page }) => {
+        await page.goto(path);
+        await expect(page.locator("h1")).toBeVisible();
+        expect(await violations(page)).toEqual([]);
+    });
+}
 
 test("import, its report, the opened piece and the project on the home screen", async ({ page }) => {
     await page.goto("/import");

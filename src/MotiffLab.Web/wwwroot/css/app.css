@@ -245,7 +245,7 @@ html, body {
 /* The workspace fills the window: header, then the canvas and the inspector, with the transport fixed along the bottom. */
 .lab.app {
     max-width: none;
-    padding: 0 0 6rem;
+    padding: 0 0 1rem;
 }
 
 .app-header {
@@ -925,4 +925,51 @@ html, body {
 .score:focus-visible {
     outline: 2px solid var(--ml-lime);
     outline-offset: 2px;
+}
+
+/* Footer on every page: settings, privacy notice and terms of use (#65). */
+.site-footer {
+    max-width: 112rem;
+    margin: 0 auto;
+    padding: 0 1.5rem 1.5rem;
+    color: var(--ml-gray);
+}
+
+.site-footer a {
+    color: var(--ml-lime);
+}
+
+/* Settings, privacy notice and terms of use: text set for reading. */
+.lab.document, .lab.settings {
+    max-width: 48rem;
+}
+
+.lab.document code, .lab.settings code {
+    color: var(--ml-lime);
+}
+
+.lab.document h2, .lab.settings h2 {
+    margin-top: 1.5rem;
+}
+
+.lab.document table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.lab.document th, .lab.document td {
+    text-align: left;
+    vertical-align: top;
+    padding: 0.35rem 0.75rem 0.35rem 0;
+    border-bottom: 1px solid #343C47;
+}
+
+.lab.settings .events {
+    font-size: 0.9rem;
+    padding-left: 1.5rem;
+}
+
+/* The playback transport is fixed along the bottom; the footer clears it. */
+body:has(.transport-bar) .site-footer {
+    padding-bottom: 6rem;
 }

@@ -8,7 +8,7 @@ import { resolve } from "node:path";
 
 const publish = resolve(import.meta.dirname, "../..", process.env.PUBLISH_DIR ?? "publish", "wwwroot");
 const port = 5180;
-const chromiumOnly = /accessibility\.spec/;
+const chromiumOnly = /(accessibility|analytics)\.spec/;
 
 export default defineConfig({
     testDir: ".",
@@ -27,7 +27,7 @@ export default defineConfig({
         reuseExistingServer: !process.env.CI,
     },
     // Chrome and Edge share Chromium; Safari is WebKit. Tablets are emulated in the engine they ship
-    // with. The accessibility checks read markup and styles, the same in every engine, so run once.
+    // with. The accessibility and analytics checks read markup and app logic, the same in every engine, so run once.
     projects: [
         { name: "chromium", use: { ...devices["Desktop Chrome"] } },
         { name: "firefox", use: { ...devices["Desktop Firefox"] }, testIgnore: chromiumOnly },
