@@ -1,7 +1,7 @@
 using MotiffLab.MusicCore.Time;
 using MotiffLab.MusicCore.Variations;
 
-namespace MotiffLab.MusicCore.Observations;
+namespace MotiffLab.MusicCore.Invitations;
 
 /// <summary>The part of the track page an invitation belongs to.</summary>
 public enum InvitationKind

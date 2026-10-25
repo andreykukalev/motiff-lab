@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { ScoreTimeline } from "../../src/MotiffLab.Web/wwwroot/js/score/score-timeline.js";
+import { ScoreTimeline, highlightedIds } from "../../src/MotiffLab.Web/wwwroot/js/score/score-timeline.js";
 import createVerovioModule from "../../src/MotiffLab.Web/wwwroot/lib/verovio/verovio-module.mjs";
 import { VerovioToolkit } from "../../src/MotiffLab.Web/wwwroot/lib/verovio/verovio.mjs";
 
@@ -102,4 +102,71 @@ test("the vendored Verovio engraves MusicXML as written", async () => {
     assert.ok(toolkit.loadData(musicXml));
     const timeline = ScoreTimeline.fromTimemap(toolkit.renderToTimemap());
     assert.deepEqual(timeline.spans.map((span) => [span.onset, span.end]), [[0, 720], [720, 960]]);
+});
+
+test("rests come from the timemap's restsOn and restsOff, apart from the notes", () => {
+    const timeline = ScoreTimeline.fromTimemap([
+        { qstamp: 0, on: ["a"] },
+        { qstamp: 1, off: ["a"], restsOn: ["r"] },
+        { qstamp: 1.5, restsOff: ["r"], on: ["b"] },
+        { qstamp: 2, off: ["b"] },
+    ]);
+
+    assert.deepEqual(timeline.spans.map((span) => span.id), ["a", "b"]);
+    assert.deepEqual(timeline.rests, [{ id: "r", onset: 480, end: 720 }]);
+    assert.deepEqual(timeline.soundingAt(500), []);
+});
+
+test("a fact's place finds its engraved notes by key and time, and a stretch of time takes all that starts in it", () => {
+    // Verovio's own ids: a chord of E4 and C5 on the beat with the other hand's A2, a tie over the bar line, a rest.
+    const timeline = ScoreTimeline.fromTimemap([
+        { qstamp: 0, on: ["e4", "c5", "a2"] },
+        { qstamp: 1, off: ["e4", "c5", "a2"], on: ["tied"] },
+        { qstamp: 1.5, off: ["tied"], on: ["tied-on"] },
+        { qstamp: 2, off: ["tied-on"], restsOn: ["rest"] },
+        { qstamp: 3, restsOff: ["rest"] },
+    ]);
+    const pitches = new Map([["e4", 64], ["c5", 72], ["a2", 45], ["tied", 69], ["tied-on", 69]]);
+    const pitchOf = (id) => pitches.get(id);
+
+    // The top note of the chord only; the note tied over the bar line in both its pieces.
+    const top = { start: 0, end: 480, notes: [{ id: "n_0002", onset: 0, end: 480, pitch: 72 }] };
+    const tied = { start: 480, end: 960, notes: [{ id: "n_0003", onset: 480, end: 960, pitch: 69 }] };
+    assert.deepEqual([...highlightedIds(timeline, [top], pitchOf)], ["c5"]);
+    assert.deepEqual([...highlightedIds(timeline, [tied], pitchOf)], ["tied", "tied-on"]);
+
+    // A silence, with no notes of its own, takes the rest engraved in it.
+    assert.deepEqual([...highlightedIds(timeline, [{ start: 960, end: 1440, notes: [] }], pitchOf)], ["rest"]);
+
+    // Without keys, a note is found by its onset, so the chord's notes all come.
+    assert.deepEqual([...highlightedIds(timeline, [top], () => undefined)].sort(), ["a2", "c5", "e4"]);
+});
+
+test("a generated score keeps the notes' own ids, which match a note engraved at the nearest 32nd", () => {
+    // A note at tick 470 engraved at 480 with its tied piece, and another note whose id only starts the same.
+    const timeline = ScoreTimeline.fromTimemap([
+        { qstamp: 1, on: ["n_0007"] },
+        { qstamp: 2, off: ["n_0007"], on: ["n_0007-2", "n_00070"] },
+        { qstamp: 3, off: ["n_0007-2", "n_00070"] },
+    ]);
+    const pitchOf = (id) => (id === "n_00070" ? 60 : 67);
+    const place = { start: 470, end: 1440, notes: [{ id: "n_0007", onset: 470, end: 1440, pitch: 67 }] };
+
+    assert.deepEqual([...highlightedIds(timeline, [place], pitchOf)], ["n_0007", "n_0007-2"]);
+});
+
+test("the vendored Verovio gives each engraved note its MIDI key and times rests on request", async () => {
+    const toolkit = new VerovioToolkit(await createVerovioModule());
+    const mei = `<?xml version="1.0" encoding="UTF-8"?>
+<mei xmlns="http://www.music-encoding.org/ns/mei" meiversion="5.1"><meiHead><fileDesc><titleStmt><title>Test</title></titleStmt><pubStmt/></fileDesc></meiHead>
+<music><body><mdiv><score><scoreDef meter.count="2" meter.unit="4"><staffGrp><staffDef n="1" lines="5" clef.shape="G" clef.line="2"/></staffGrp></scoreDef>
+<section><measure n="1"><staff n="1"><layer n="1"><note xml:id="n_0001" dur="4" pname="e" oct="5"/><rest xml:id="r_0001" dur="8"/><note xml:id="n_0002" dur="8" pname="d" oct="5" accid="s"/></layer></staff></measure></section>
+</score></mdiv></body></music></mei>`;
+
+    assert.ok(toolkit.loadData(mei));
+    const timeline = ScoreTimeline.fromTimemap(toolkit.renderToTimemap({ includeRests: true }));
+    assert.deepEqual(timeline.rests, [{ id: "r_0001", onset: 480, end: 720 }]);
+    assert.equal(toolkit.getMIDIValuesForElement("n_0001").pitch, 76);
+    assert.equal(toolkit.getMIDIValuesForElement("n_0002").pitch, 75);
+    assert.equal(toolkit.getMIDIValuesForElement("r_0001").pitch, undefined);
 });

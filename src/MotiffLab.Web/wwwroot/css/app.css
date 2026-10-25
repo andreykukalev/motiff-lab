@@ -135,6 +135,8 @@ html, body {
     --ml-border: #3A424D;
     --ml-inferred: #7CC4FA;
     --ml-uncertain: #F2C14E;
+    /* The places of a fact chosen on Understand (#25): the information blue, always with a solid line or box. */
+    --ml-highlight: #7CC4FA;
     --ml-mono: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
 }
 
@@ -505,6 +507,56 @@ html, body {
     flex: 1;
 }
 
+/* Practise (Practise/PractisePanel.razor): play, loop and tempo large enough to reach with the iPad on the music stand (#50). */
+.practise .eyebrow {
+    color: var(--ml-lime);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 0.5rem;
+}
+
+.practise .play-row, .practise .step, .practise .tempo-steps {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.lab .practise .play-row button {
+    flex: 1;
+    min-height: 3.25rem;
+    font-size: 1.05rem;
+}
+
+.lab .practise .step button {
+    flex: 1;
+}
+
+.practise .tempo-steps {
+    align-items: center;
+}
+
+.lab .practise .tempo-steps button {
+    min-width: 3.25rem;
+    min-height: 3.25rem;
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.practise .tempo-steps output {
+    flex: 1;
+    text-align: center;
+    font-size: 1.6rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.lab .practise .choices button {
+    flex: 1;
+    min-height: 2.75rem;
+}
+
 /* The Explore card (Explore/ExploreCard.razor): one experiment at a time, as in the mockup. */
 .explore .eyebrow {
     color: var(--ml-lime);
@@ -571,6 +623,28 @@ html, body {
 .explore .focus {
     border-left: 3px solid var(--ml-lime);
     padding-left: 0.6rem;
+}
+
+/* The facts an experiment rests on (#25), each opening Understand with it highlighted. */
+.explore .rests-on {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.3rem 0.5rem;
+    margin: 0.5rem 0;
+    font-size: 0.85rem;
+}
+
+.explore .rests-on > span {
+    color: var(--ml-gray);
+}
+
+.lab .explore button.fact-link {
+    min-height: 1.5rem;
+    padding: 0.1rem 0.6rem;
+    border-color: var(--ml-highlight);
+    text-align: left;
+    font-size: 0.85rem;
 }
 
 .explore .kept {
@@ -767,6 +841,76 @@ html, body {
     color: var(--ml-uncertain);
 }
 
+/* Understand (#25, Understand/UnderstandPanel.razor): a fact with places is a toggle that highlights them in the score and on the roll,
+   its places are chips, and it links to the experiments resting on it. The chosen fact has a solid blue edge, never dashed like inferred. */
+.lab .facts li.chosen {
+    box-shadow: inset 3px 0 0 var(--ml-highlight);
+    padding-left: 0.5rem;
+}
+
+.lab .facts button.fact-text {
+    border: none;
+    min-height: 1.5rem;
+    padding: 0;
+    text-align: left;
+    line-height: 1.35;
+}
+
+.lab .facts button.fact-text[aria-pressed=true] {
+    font-weight: 600;
+}
+
+.lab .facts button.fact-text .where {
+    margin-left: 0.3em;
+    white-space: nowrap;
+    color: var(--ml-gray);
+    font-size: 0.8rem;
+    font-weight: normal;
+    text-decoration: underline;
+}
+
+.lab .places {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin: 0.15rem 0;
+}
+
+.lab .places button.chip {
+    min-height: 1.5rem;
+    border: 1.5px solid var(--ml-highlight);
+    border-radius: 1.1rem;
+    padding: 0.05rem 0.6rem;
+    font-size: 0.8rem;
+}
+
+.lab .places button.chip[aria-pressed=true] {
+    background: var(--ml-highlight);
+    color: var(--ml-charcoal);
+    font-weight: 600;
+}
+
+.lab .facts button.try {
+    align-self: flex-start;
+    min-height: 1.5rem;
+    padding: 0.05rem 0.6rem;
+    border-color: var(--ml-lime);
+    color: var(--ml-lime);
+    font-size: 0.8rem;
+}
+
+.lab .highlighted {
+    border: 1.5px solid var(--ml-highlight);
+    border-radius: 0.75rem;
+    padding: 0.5rem 0.8rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.lab .highlighted p {
+    margin: 0 0 0.4rem;
+}
+
 /* Note corrections (S1-I7) and hand edits (S1-E7): a collapsible table of notes with nudge buttons; edited rows are marked by a label as well as the lime edge. */
 .lab .corrections {
     margin-top: 0.75rem;
@@ -844,10 +988,235 @@ html, body {
     border-style: dashed;
 }
 
+/* Return to the original and compare (#43, Compare/CompareSwitch.razor): a row under the selection text on every tab. */
+.inspector-head {
+    flex-wrap: wrap;
+}
+
+.compare-switch {
+    flex-basis: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.compare-switch .ab {
+    display: flex;
+}
+
+.lab .compare-switch .ab button:first-child {
+    border-radius: 0.6rem 0 0 0.6rem;
+}
+
+.lab .compare-switch .ab button:last-child {
+    border-radius: 0 0.6rem 0.6rem 0;
+    border-left-width: 0;
+}
+
+/* The one sounding while the two loop one after the other: lime outline, as against the lime fill of a choice. */
+.lab .compare-switch button.sounding {
+    border-color: var(--ml-lime);
+    color: var(--ml-lime);
+    background: rgba(200, 241, 105, 0.12);
+    font-weight: 600;
+}
+
+/* What changed and what was kept (Compare/ComparePanel.razor), from the diff and the Keep checks. */
+.inspector .compare {
+    background: var(--ml-surface);
+    border-radius: 0.75rem;
+    padding: 0.75rem 0.9rem;
+    margin: 0.9rem 0 1.1rem;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.inspector .compare h3 {
+    margin: 0 0 0.25rem;
+}
+
+.inspector .compare h4 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin: 0.5rem 0 0.2rem;
+}
+
+.inspector .compare ul {
+    margin: 0;
+    padding-left: 1.1rem;
+}
+
+.inspector .compare ul.checks {
+    list-style: none;
+    padding-left: 0;
+}
+
+.inspector .compare p {
+    margin: 0.25rem 0 0;
+}
+
+.inspector .compare .label {
+    color: var(--ml-gray);
+}
+
+.inspector .compare .property {
+    display: inline-block;
+    border: 1.5px solid var(--ml-border);
+    border-radius: 1.1rem;
+    padding: 0 0.6rem;
+    margin: 0.15rem 0 0.15rem 0.3rem;
+    font-size: 0.8rem;
+}
+
+.inspector .compare .kept .property {
+    border-color: var(--ml-lime);
+    color: var(--ml-lime);
+}
+
+.inspector .compare .broken .property {
+    border-style: dashed;
+}
+
+.inspector .compare .unchecked .property {
+    border-style: dotted;
+    color: var(--ml-gray);
+}
+
+/* Kept for this phrase (Observations/ObservationList.razor, #78) and the note in the player's words (ObservationNote.razor).
+   The variation heard now has a lime edge and says so in words, so it differs by more than colour. */
+.inspector .observations {
+    margin: 0.9rem 0 1.1rem;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.inspector .observations .kept-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.inspector .observations li {
+    background: var(--ml-surface);
+    border: 1px solid var(--ml-line);
+    border-left: 3px solid var(--ml-border);
+    border-radius: 0.75rem;
+    padding: 0.6rem 0.8rem;
+}
+
+.inspector .observations li.heard {
+    border-left-color: var(--ml-lime);
+}
+
+.inspector .observations p {
+    margin: 0 0 0.25rem;
+}
+
+.inspector .observations .name {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 0.5rem;
+}
+
+/* While the name is edited, the field stands in for it; the hidden name still names the item. */
+.inspector .observations .name[hidden] {
+    display: none;
+}
+
+.inspector .observations .heard-now {
+    color: var(--ml-lime);
+    font-size: 0.8rem;
+}
+
+.inspector .observations .note {
+    white-space: pre-wrap;
+    border-left: 2px solid var(--ml-gray);
+    padding-left: 0.5rem;
+}
+
+.inspector .observations .label {
+    color: var(--ml-gray);
+}
+
+.inspector .observations .row {
+    margin: 0.4rem 0 0;
+}
+
+.lab .observations button.danger {
+    border-color: #ff8a80;
+    color: #ff8a80;
+}
+
+.inspector .observations .rename {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.25rem;
+}
+
+.observation-note {
+    margin-top: 0.6rem;
+}
+
+.observation-note label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--ml-gray);
+    margin-bottom: 0.25rem;
+}
+
+.lab .observation-note textarea, .lab .observations input[type=text] {
+    box-sizing: border-box;
+    background: var(--ml-charcoal);
+    color: var(--ml-white);
+    border: 1px solid var(--ml-border);
+    border-radius: 0.6rem;
+    padding: 0.4rem 0.6rem;
+    font: inherit;
+    font-size: 0.9rem;
+}
+
+.lab .observation-note textarea {
+    width: 100%;
+    resize: vertical;
+}
+
+.lab .observations input[type=text] {
+    flex: 1;
+    min-width: 10rem;
+    min-height: 2.25rem;
+}
+
+.lab .observation-note textarea:focus-visible, .lab .observations input[type=text]:focus-visible {
+    outline: 2px solid var(--ml-lime);
+    outline-offset: 1px;
+}
+
+.observation-note .row {
+    margin: 0.4rem 0 0;
+}
+
+.phrases button.phrase .kept-count {
+    font-size: 0.72rem;
+    border: 1px solid currentColor;
+    border-radius: 1rem;
+    padding: 0 0.4rem;
+}
+
 /* Score view (Score/ScoreView.razor, Scripts/score): ink on paper, as in the mockups; the notes being heard in a dark lime that reads on paper. */
 .score {
     --ml-score-ink: #15191F;
     --ml-score-playing: #4D7A00;
+    --ml-score-inferred: #1F5F96;
+    /* Information blue on paper (docs/02-brand-identity.md, 4.8 : 1 on white). */
+    --ml-score-highlight: #1F6FB2;
+    position: relative;
     max-height: 70vh;
     overflow-y: auto;
     background: var(--ml-white);
@@ -878,10 +1247,138 @@ html, body {
     opacity: 0.3;
 }
 
+/* The places of the fact chosen on Understand (#25): blue and at full strength, with a solid box round each notehead or rest,
+   so they differ from playing (colour only) and outside (faint) by more than colour. The playing colour still shows over them. */
+.score g.note.highlight, .score g.rest.highlight {
+    fill: var(--ml-score-highlight);
+    stroke: var(--ml-score-highlight);
+    color: var(--ml-score-highlight);
+    opacity: 1;
+}
+
+.score .highlight-mark {
+    position: absolute;
+    box-sizing: border-box;
+    pointer-events: none;
+    border: 2px solid var(--ml-score-highlight);
+    border-radius: 0.3rem;
+}
+
 .score g.note.playing, .score g.chord.playing {
     fill: var(--ml-score-playing);
     stroke: var(--ml-score-playing);
     color: var(--ml-score-playing);
+}
+
+/* Phrase starts in the score (#18): a line through the system with its label above; dashed and blue where inferred. */
+.score .phrase-mark {
+    position: absolute;
+    pointer-events: none;
+    border-left: 2px solid var(--ml-score-ink);
+    color: var(--ml-score-ink);
+}
+
+.score .phrase-mark span {
+    position: absolute;
+    top: -1.1rem;
+    left: -2px;
+    padding: 0.05rem 0.3rem;
+    border-radius: 0.3rem;
+    background: var(--ml-white);
+    border: 1px solid currentColor;
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.score .phrase-mark.inferred {
+    border-left-style: dashed;
+    border-left-color: var(--ml-score-inferred);
+    color: var(--ml-score-inferred);
+}
+
+/* The selected phrase's mark (#126): the label in reverse, so the player sees where the phrase sits in the piece. */
+.score .phrase-mark.current {
+    border-left-width: 3px;
+}
+
+.score .phrase-mark.current span {
+    background: var(--ml-score-ink);
+    border-color: var(--ml-score-ink);
+    color: #FFFFFF;
+}
+
+.score .phrase-mark.inferred.current span {
+    background: var(--ml-score-inferred);
+    border-color: var(--ml-score-inferred);
+}
+
+/* The phrase strip (Phrases/PhraseStrip.razor, #18): the piece as phrases to pick, each saying how its start was found.
+   Certainty by line as well as colour: solid from the file or the player, dashed blue inferred. */
+.phrases {
+    margin-bottom: 0.5rem;
+}
+
+.phrases .phrase-list {
+    display: flex;
+    gap: 0.4rem;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+}
+
+.phrases button.phrase {
+    flex: none;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    border-width: 1.5px;
+}
+
+.phrases button.phrase .number {
+    font-family: var(--ml-mono);
+    font-weight: 700;
+}
+
+.phrases button.phrase .how {
+    font-size: 0.72rem;
+    color: var(--ml-gray);
+}
+
+.phrases button.phrase.inferred {
+    border-style: dashed;
+    border-color: var(--ml-inferred);
+}
+
+.phrases button.phrase.inferred .how {
+    color: var(--ml-inferred);
+}
+
+/* The phrase being worked on is lime like any control that is on; its tag stays readable on lime. */
+.phrases button.phrase.on .how {
+    color: var(--ml-charcoal);
+}
+
+.phrases .phrase-actions, .phrases .phrase-extend {
+    margin-top: 0.25rem;
+}
+
+/* Previous and next phrase at either end of the chips (#126). */
+.lab .phrases button.step {
+    flex: none;
+    min-width: 2.5rem;
+    font-size: 1.2rem;
+    line-height: 1;
+}
+
+.phrases .phrase-extend .meta {
+    margin: 0;
+    align-self: center;
+}
+
+.phrases .meta {
+    font-size: 0.85rem;
+    margin: 0.25rem 0 0;
 }
 
 /* Piano roll and keyboard (Roll/PianoRoll.razor, Scripts/roll): canvases on the raised surface. */

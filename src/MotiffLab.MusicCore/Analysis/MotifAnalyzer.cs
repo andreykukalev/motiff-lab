@@ -140,13 +140,22 @@ public static partial class MotifAnalyzer
                 FactLens.Melody,
                 lineCertainty,
                 $"{Count(line.Length, "note", "notes")} in the {(topNotes ? "top line" : "melody")}: {string.Join(" ", line.Select(note => key.Key.Spell(note.Pitch.MidiNumber)))}.",
-                $"{lineBasis} Spelled for {key.Key.Name}."),
+                $"{lineBasis} Spelled for {key.Key.Name}.")
+            {
+                Places = [FactPlace.Of(topNotes ? "the top line" : "the melody", line)],
+            },
         };
 
         if (intervals.Length > 0)
         {
-            facts.Add(new MotifFact("melody.intervals", FactLens.Melody, lineCertainty, IntervalsText(intervals), $"{lineBasis} Intervals are named by their size in semitones."));
-            facts.Add(new MotifFact("melody.contour", FactLens.Melody, lineCertainty, ContourText(contour, intervals.Sum()), lineBasis));
+            facts.Add(new MotifFact("melody.intervals", FactLens.Melody, lineCertainty, IntervalsText(intervals), $"{lineBasis} Intervals are named by their size in semitones.")
+            {
+                Places = LeapPlaces(line, intervals, key.Key),
+            });
+            facts.Add(new MotifFact("melody.contour", FactLens.Melody, lineCertainty, ContourText(contour, intervals.Sum()), lineBasis)
+            {
+                Places = ContourPlaces(line, contour, key.Key),
+            });
         }
 
         facts.Add(RangeFact(chosen, key.Key));
@@ -155,11 +164,18 @@ public static partial class MotifAnalyzer
             FactLens.Melody,
             Weaker(lineCertainty, key.Certainty),
             $"Scale degrees in {key.Key.Name}: {string.Join(" ", line.Select(note => Degree(note.Pitch, key.Key)))}.",
-            $"Counted from the tonic of {key.Key.Name}; ♯ and ♭ mark notes outside its {(key.Key.Mode == KeyMode.Minor ? "natural minor" : "major")} scale. {(key.Certainty == FactCertainty.Detected ? "The key is stated by the file." : "The key is a reading of the notes, so the degrees are too.")}"));
+            $"Counted from the tonic of {key.Key.Name}; ♯ and ♭ mark notes outside its {(key.Key.Mode == KeyMode.Minor ? "natural minor" : "major")} scale. {(key.Certainty == FactCertainty.Detected ? "The key is stated by the file." : "The key is a reading of the notes, so the degrees are too.")}")
+        {
+            // The notes outside the scale, which the degrees mark with ♯ or ♭.
+            Places = [.. line
+                .Select(note => (Note: note, Degree: Degree(note.Pitch, key.Key)))
+                .Where(entry => entry.Degree.Length > 1)
+                .Select(entry => FactPlace.Of($"{key.Key.Spell(entry.Note.Pitch.MidiNumber)}, degree {entry.Degree}", [entry.Note]))],
+        });
 
         if (intervals.Length > 0)
         {
-            facts.Add(IntervalNamesFact(intervals, lineCertainty, lineBasis));
+            facts.Add(IntervalNamesFact(line, intervals, lineCertainty, lineBasis));
         }
 
         facts.Add(RepeatedNotesFact(line, meter, key.Key, lineCertainty, lineBasis));
@@ -175,17 +191,17 @@ public static partial class MotifAnalyzer
 
         bool offGrid = OffGridCount(chosen, meter) > 0;
         facts.Add(DurationsFact(chosen, offGrid));
-        facts.Add(GridFact(onsets.Select(group => group.Key).ToArray(), meter));
+        facts.Add(GridFact(chosen, onsets.Select(group => group.Key).ToArray(), meter));
         facts.Add(SilenceFact(chosen, selection.Span));
         Hit[] hits = Hits(onsets);
         facts.Add(GroupingFact(hits, meter, selection.Span, offGrid));
-        facts.Add(SyncopationFact(hits, meter, offGrid));
+        facts.Add(SyncopationFact(chosen, hits, meter, offGrid));
         if (accents is not null)
         {
             facts.Add(AccentFact(chosen, accents, meter, key.Key));
         }
 
-        facts.Add(PatternFact(hits, meter, selection.Span, offGrid));
+        facts.Add(PatternFact(chosen, hits, meter, selection.Span, offGrid));
         facts.Add(KeyFact(key, signature, chosen.Length, PitchClassCount(chosen)));
 
         return new MotifAnalysis(line, topNotes, intervals, contour, key, WithHand(facts, selection));
@@ -343,42 +359,109 @@ public static partial class MotifAnalyzer
         string text = span == 0
             ? $"Range: one pitch, {key.Spell(low.Pitch.MidiNumber)}."
             : $"Range: {key.Spell(low.Pitch.MidiNumber)} to {key.Spell(high.Pitch.MidiNumber)}, {WithArticle(IntervalName(span))} ({Count(span, "semitone", "semitones")}).";
-        return new MotifFact("melody.range", FactLens.Melody, FactCertainty.Detected, text, "Measured over every note of the motif.");
+        return new MotifFact("melody.range", FactLens.Melody, FactCertainty.Detected, text, "Measured over every note of the motif.")
+        {
+            Places = ExtremePlaces(notes, key),
+        };
+    }
+
+    /// <summary>The lowest and the highest notes, each pitch as one place with every note on it; one place when every note has one pitch.</summary>
+    private static FactPlace[] ExtremePlaces(Note[] notes, MusicalKey key)
+    {
+        int low = notes.Min(note => note.Pitch.MidiNumber);
+        int high = notes.Max(note => note.Pitch.MidiNumber);
+        return low == high
+            ? [FactPlace.Of($"one pitch, {key.Spell(low)}", notes)]
+            :
+            [
+                FactPlace.Of($"lowest, {key.Spell(low)}", notes.Where(note => note.Pitch.MidiNumber == low)),
+                FactPlace.Of($"highest, {key.Spell(high)}", notes.Where(note => note.Pitch.MidiNumber == high)),
+            ];
+    }
+
+    /// <summary>Each place where the line makes its largest leap, the two notes of the leap; none when the line has no leap.</summary>
+    private static FactPlace[] LeapPlaces(Note[] line, int[] intervals, MusicalKey key)
+    {
+        if (!intervals.Any(step => Math.Abs(step) > 2))
+        {
+            return [];
+        }
+
+        int largest = intervals.OrderByDescending(Math.Abs).ThenByDescending(step => step).First();
+        return [.. Enumerable.Range(0, intervals.Length)
+            .Where(i => intervals[i] == largest)
+            .Select(i => FactPlace.Of($"largest leap, {key.Spell(line[i].Pitch.MidiNumber)} to {key.Spell(line[i + 1].Pitch.MidiNumber)}", [line[i], line[i + 1]]))];
+    }
+
+    /// <summary>
+    /// Where the contour starts, turns and ends: a turn is the note the line leaves in a new
+    /// direction, a peak when it turns down and a low point when it turns up. None for one pitch.
+    /// </summary>
+    private static FactPlace[] ContourPlaces(Note[] line, ContourStep[] contour, MusicalKey key)
+    {
+        if (contour.All(step => step == ContourStep.Same))
+        {
+            return [];
+        }
+
+        var places = new List<FactPlace> { FactPlace.Of($"start, {key.Spell(line[0].Pitch.MidiNumber)}", [line[0]]) };
+        ContourStep? direction = null;
+        for (int i = 0; i < contour.Length; i++)
+        {
+            if (contour[i] == ContourStep.Same)
+            {
+                continue;
+            }
+
+            if (direction is not null && contour[i] != direction)
+            {
+                places.Add(FactPlace.Of($"{(contour[i] == ContourStep.Down ? "peak" : "low point")}, {key.Spell(line[i].Pitch.MidiNumber)}", [line[i]]));
+            }
+
+            direction = contour[i];
+        }
+
+        places.Add(FactPlace.Of($"end, {key.Spell(line[^1].Pitch.MidiNumber)}", [line[^1]]));
+        return [.. places];
     }
 
     private static MotifFact DurationsFact(Note[] notes, bool offGrid)
     {
-        var counts = new List<(long Ticks, string One, string Many, int Count)>();
-        int other = 0;
+        var counts = new List<(long Ticks, string One, string Many, Note[] Notes)>();
+        var other = new List<Note>();
         foreach (IGrouping<long, Note> group in notes.GroupBy(note => note.Span.Duration))
         {
             int index = Array.FindIndex(s_values, value => value.Ticks == group.Key);
             if (index < 0)
             {
-                other += group.Count();
+                other.AddRange(group);
             }
             else
             {
-                counts.Add((s_values[index].Ticks, s_values[index].One, s_values[index].Many, group.Count()));
+                counts.Add((s_values[index].Ticks, s_values[index].One, s_values[index].Many, [.. group]));
             }
         }
 
-        var parts = counts
-            .OrderByDescending(value => value.Count)
+        // Each length the text names is a place: the notes of that length.
+        var ordered = counts
+            .OrderByDescending(value => value.Notes.Length)
             .ThenByDescending(value => value.Ticks)
-            .Select(value => Count(value.Count, value.One, value.Many))
             .ToList();
-        if (other > 0)
+        var parts = ordered.Select(value => Count(value.Notes.Length, value.One, value.Many)).ToList();
+        var places = ordered.Select(value => FactPlace.Of(value.Notes.Length == 1 ? value.One : value.Many, value.Notes)).ToList();
+        if (other.Count > 0)
         {
-            parts.Add(Count(other, "length that is no single note value", "lengths that are no single note value"));
+            parts.Add(Count(other.Count, "length that is no single note value", "lengths that are no single note value"));
+            places.Add(FactPlace.Of("no single note value", other));
         }
 
-        return offGrid
+        MotifFact fact = offGrid
             ? new MotifFact("rhythm.durations", FactLens.Rhythm, FactCertainty.Uncertain, $"Lengths: {string.Join(", ", parts)}.", "Onsets fall between grid lines, as in a played performance, so lengths may not be the written note values.")
             : new MotifFact("rhythm.durations", FactLens.Rhythm, FactCertainty.Detected, $"Lengths: {string.Join(", ", parts)}.", "Read from the notes' lengths; a tied note counts as one length.");
+        return fact with { Places = places };
     }
 
-    private static MotifFact GridFact(Tick[] onsets, MeterMap meter)
+    private static MotifFact GridFact(Note[] notes, Tick[] onsets, MeterMap meter)
     {
         int onBeat = onsets.Count(onset => OffsetInBar(meter, onset) % meter.SignatureAt(onset).BeatTicks == 0);
         int offGrid = 0;
@@ -407,6 +490,7 @@ public static partial class MotifAnalyzer
             ? $"It starts on beat {start.Beat} of bar {start.Bar}."
             : $"It starts after beat {start.Beat} of bar {start.Bar}, off the beat.";
         string beats = $"{onBeat} of {Count(onsets.Length, "onset", "onsets")} {(onBeat == 1 ? "falls" : "fall")} on a beat.";
+        FactPlace startPlace = FactPlace.Of($"start, {Place(start)}", notes.Where(note => note.Span.Onset == onsets[0]));
 
         if (offGrid > 0)
         {
@@ -415,7 +499,10 @@ public static partial class MotifAnalyzer
                 FactLens.Rhythm,
                 FactCertainty.Uncertain,
                 $"{offGrid} of {Count(onsets.Length, "onset", "onsets")} {(offGrid == 1 ? "falls" : "fall")} between thirty-second and triplet grid lines. {beats} {startText}",
-                "Measured from the bar lines. Onsets off every grid usually mean a played performance whose timing was not quantised.");
+                "Measured from the bar lines. Onsets off every grid usually mean a played performance whose timing was not quantised.")
+            {
+                Places = [FactPlace.Of("between grid lines", notes.Where(note => !s_grids.Any(grid => OffsetInBar(meter, note.Span.Onset) % grid.Ticks == 0))), startPlace],
+            };
         }
 
         // A triplet grid covers straight onsets that fall on its lines, such as quarters on the eighth-note triplet grid.
@@ -426,18 +513,23 @@ public static partial class MotifAnalyzer
             _ when s_grids[finestStraight].Ticks % s_grids[finestTriplet].Ticks == 0 => $"the {s_grids[finestTriplet].Name} grid",
             _ => $"the {s_grids[finestStraight].Name} grid, with {s_grids[finestTriplet].Name}s",
         };
-        return new MotifFact("rhythm.grid", FactLens.Rhythm, FactCertainty.Detected, $"Onsets fit {grid}. {beats} {startText}", "Measured from the bar lines.");
+        return new MotifFact("rhythm.grid", FactLens.Rhythm, FactCertainty.Detected, $"Onsets fit {grid}. {beats} {startText}", "Measured from the bar lines.")
+        {
+            Places = [startPlace],
+        };
     }
 
     private static MotifFact SilenceFact(Note[] notes, TickSpan span)
     {
         var gaps = new List<long>();
+        var places = new List<FactPlace>();
         Tick soundingUntil = notes[0].Span.End;
         foreach (Note note in notes.Skip(1))
         {
             if (note.Span.Onset > soundingUntil)
             {
                 gaps.Add(note.Span.Onset.Value - soundingUntil.Value);
+                places.Add(new FactPlace($"silence, {LengthName(gaps[^1])}", TickSpan.FromBounds(soundingUntil, note.Span.Onset), []));
             }
 
             if (note.Span.End > soundingUntil)
@@ -453,9 +545,13 @@ public static partial class MotifAnalyzer
         if (before > 0)
         {
             text += $"; the selection opens with {LengthName(before)} of silence";
+            places.Add(new FactPlace($"opening silence, {LengthName(before)}", TickSpan.FromBounds(span.Onset, notes[0].Span.Onset), []));
         }
 
-        return new MotifFact("rhythm.silences", FactLens.Rhythm, FactCertainty.Detected, $"{text}.", "Measured where no note of the motif sounds; rests in other voices or hands are not counted.");
+        return new MotifFact("rhythm.silences", FactLens.Rhythm, FactCertainty.Detected, $"{text}.", "Measured where no note of the motif sounds; rests in other voices or hands are not counted.")
+        {
+            Places = places,
+        };
     }
 
     private static int OffGridCount(Note[] notes, MeterMap meter) =>

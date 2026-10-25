@@ -16,6 +16,7 @@ test("analytics record nothing until turned on, never the piece, and forget ever
     // A new load of the app reads the choice back from this browser.
     await openFurElise(page);
     await selectBar(page, 1);
+    await page.getByRole("tab", { name: "Explore" }).click();
     await page.getByRole("button", { name: /Give the melody more space/ }).click();
     await page.getByRole("button", { name: "Keep this variation" }).click();
     await page.getByRole("tab", { name: "Selection" }).click();

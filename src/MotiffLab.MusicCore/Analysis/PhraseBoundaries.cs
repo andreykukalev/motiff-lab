@@ -14,6 +14,12 @@ public enum PhraseEvidence
 
     /// <summary>A repeat sign stands on the bar line here. Imported.</summary>
     RepeatSign,
+
+    /// <summary>
+    /// The passage that opens the piece, or that starts at another boundary, comes back here note for
+    /// note. Derived from the notes, so inferred.
+    /// </summary>
+    Repetition,
 }
 
 /// <summary>A slur in the source, from the onset of its first note to the onset of its last.</summary>
@@ -38,7 +44,8 @@ public sealed record PhraseBoundary(Tick At, IReadOnlyList<PhraseEvidence> Evide
 
 /// <summary>
 /// Marks phrase boundaries only where the source supports them (S1-I5): phrase slurs, rests of a
-/// beat or more, and repeat signs. Where the source gives no evidence, no boundary is invented.
+/// beat or more, repeat signs, and a passage that comes back note for note. Where the source gives
+/// no evidence, no boundary is invented.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -47,6 +54,13 @@ public sealed record PhraseBoundary(Tick At, IReadOnlyList<PhraseEvidence> Evide
 /// beat of the time signature where the silence starts. A repeat sign marks the first note at or
 /// after its bar line. Boundaries before or at the first note are left out, since a piece's start
 /// is not a boundary.
+/// </para>
+/// <para>
+/// A repetition is read on the top line, the highest note at each onset: when the
+/// <see cref="MinRepeatNotes"/> onsets from the start of the piece, or from a boundary found
+/// another way, come back later with the same pitches and the same time between them, the place
+/// they come back is a boundary, unless one is already less than a beat away. Boundaries found
+/// this way are searched in turn, so a passage that comes back twice marks both returns.
 /// </para>
 /// <para>
 /// Pass the notes the phrases are wanted for, for example one hand or track: silences are
@@ -58,6 +72,12 @@ public static class PhraseBoundaryFinder
 {
     /// <summary>A beat of rest often ends a phrase, but not always, so a boundary from a rest alone is not certain.</summary>
     public const double RestConfidence = 0.7;
+
+    /// <summary>A passage that comes back often starts a phrase again, but a figure can also repeat inside one, so it is less certain than a rest.</summary>
+    public const double RepetitionConfidence = 0.6;
+
+    /// <summary>The fewest onsets that must come back note for note, so a short figure repeating inside a phrase marks nothing.</summary>
+    public const int MinRepeatNotes = 8;
 
     public static IReadOnlyList<PhraseBoundary> Find(IEnumerable<Note> notes, MeterMap meter, PhraseMarks marks)
     {
@@ -123,10 +143,90 @@ public static class PhraseBoundaryFinder
             Add(FirstOnsetFrom(onsets, sign), PhraseEvidence.RepeatSign);
         }
 
+        // Repetitions: what starts the piece or a boundary, coming back note for note.
+        foreach (Tick at in Repetitions(sorted, meter, found.Keys))
+        {
+            Add(at, PhraseEvidence.Repetition);
+        }
+
         return [.. found.Select(static entry => new PhraseBoundary(
             entry.Key,
             [.. entry.Value],
-            entry.Value.Any(static evidence => evidence != PhraseEvidence.Rest) ? Attribution.Imported : Attribution.Inferred(RestConfidence)))];
+            Attributed(entry.Value)))];
+    }
+
+    /// <summary>Imported when the file marks it; otherwise inferred, as sure as its surest evidence.</summary>
+    private static Attribution Attributed(SortedSet<PhraseEvidence> evidence) =>
+        evidence.Any(static mark => mark is PhraseEvidence.Slur or PhraseEvidence.RepeatSign) ? Attribution.Imported
+        : evidence.Contains(PhraseEvidence.Rest) ? Attribution.Inferred(RestConfidence)
+        : Attribution.Inferred(RepetitionConfidence);
+
+    /// <summary>
+    /// Where the passage at the start of the piece or at one of <paramref name="boundaries"/> comes
+    /// back on the top line, less than a beat from no boundary already known.
+    /// </summary>
+    private static List<Tick> Repetitions(Note[] sorted, MeterMap meter, IEnumerable<Tick> boundaries)
+    {
+        // The top line: the highest note at each onset.
+        (Tick At, int Pitch)[] line = [.. sorted
+            .GroupBy(static note => note.Span.Onset)
+            .Select(static onset => (onset.Key, onset.Max(static note => note.Pitch.MidiNumber)))];
+        var index = new Dictionary<Tick, int>();
+        for (int i = 0; i < line.Length; i++)
+        {
+            index[line[i].At] = i;
+        }
+
+        var known = new SortedSet<Tick>(boundaries) { line[0].At };
+        var found = new List<Tick>();
+        var sources = new Queue<Tick>(known);
+        while (sources.Count > 0)
+        {
+            if (!index.TryGetValue(sources.Dequeue(), out int start) || start + MinRepeatNotes > line.Length)
+            {
+                continue;
+            }
+
+            for (int at = start + MinRepeatNotes; at + MinRepeatNotes <= line.Length; at++)
+            {
+                if (!Same(line, start, at))
+                {
+                    continue;
+                }
+
+                Tick tick = line[at].At;
+                long beat = meter.SignatureAt(tick).BeatTicks;
+                if (!known.Any(other => Math.Abs(other.Value - tick.Value) < beat) || known.Contains(tick))
+                {
+                    if (known.Add(tick))
+                    {
+                        sources.Enqueue(tick);
+                    }
+
+                    found.Add(tick);
+                }
+
+                // The return itself is not searched for a return inside it.
+                at += MinRepeatNotes - 1;
+            }
+        }
+
+        return found;
+    }
+
+    /// <summary>Whether the onsets from <paramref name="first"/> and from <paramref name="second"/> have the same pitches and the same time between them.</summary>
+    private static bool Same((Tick At, int Pitch)[] line, int first, int second)
+    {
+        for (int i = 0; i < MinRepeatNotes; i++)
+        {
+            if (line[first + i].Pitch != line[second + i].Pitch
+                || (i > 0 && line[first + i].At.Value - line[first + i - 1].At.Value != line[second + i].At.Value - line[second + i - 1].At.Value))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>
