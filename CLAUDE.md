@@ -18,12 +18,14 @@ See `docs/decisions/0001-stack.md` (stack), `0002-canonical-time.md` (musical ti
 dotnet build MotiffLab.slnx
 dotnet test MotiffLab.slnx
 node --test "tests/web/*.test.mjs"     # after a build; Node 22+
-dotnet publish src/MotiffLab.Web -c Release -o publish && (cd tests/e2e && npm ci && npx playwright test)  # browser tests
-dotnet format MotiffLab.slnx            # CI runs with --verify-no-changes
+dotnet publish src/MotiffLab.Web -c Release -o publish && (cd tests/e2e && npm ci && npx playwright test)  # browser tests, locally
+dotnet format MotiffLab.slnx            # CI checks whitespace: dotnet format whitespace --folder --verify-no-changes
 dotnet run --project src/MotiffLab.Web  # local dev server
 ```
 
 Warnings are errors (`Directory.Build.props`).
+
+CI must stay within 5 minutes (the job's timeout): it runs the whitespace check, build, unit and TypeScript tests, then publishes and deploys. The browser tests are heavy and run in CI only when asked: ask Andrei before running them there (the `browser-tests` PR label, or a manual CI run with "Run the browser tests"). Keep CI light; run browser tests locally for the specs you touch.
 
 ## Conventions
 
