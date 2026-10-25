@@ -192,7 +192,9 @@ public class ExperimentCatalogueTests
             Assert.Equal(offered, ExperimentCatalogue.Offer(context));
             foreach (Experiment experiment in offered)
             {
-                Assert.NotEmpty(experiment.Alternatives);
+                // Analytics may send only the catalogue's ids and alternative numbers.
+                Assert.Contains(experiment.Id, ExperimentCatalogue.Ids);
+                Assert.InRange(experiment.Alternatives.Count, 1, ExperimentCatalogue.MaxAlternatives);
                 for (int i = 0; i < experiment.Alternatives.Count; i++)
                 {
                     Assert.NotNull(ExperimentCatalogue.Start(experiment, i, context).Result);
