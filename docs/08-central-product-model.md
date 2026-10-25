@@ -57,7 +57,7 @@ These don't have to be three separate pages. The player switches between them wh
 | Phrase segmentation | The player can focus on a manageable passage | music-core finds boundaries from slurs, rests and repeat signs and takes the player's own; not yet shown as phrases in the app (#18) |
 | Fact analysis | They explore the actual properties of this piece | Built: rhythm, melody, structure and character facts, fact digest with stable IDs |
 | Transformations | They hear alternatives and test their own ideas | Built: V1, V2, V4, V9, V10, V13, hand edits, step scope, experiment catalogue and Explore card |
-| Diff and comparison | They understand what changed between the original and a variation | Diff, Keep checks and "What changed" built; return-and-compare flow is #43 |
+| Diff and comparison | They understand what changed between the original and a variation | Built: diff, Keep checks, "What changed", and returning to the original to compare (#43) |
 | Recording observations | They keep their own conclusions and come back to them | Keep this variation saves with the project; observations per phrase are #78 |
 | Export and restoring the original | They continue outside the app without losing the original | MIDI export and per-note revert built |
 
@@ -90,7 +90,7 @@ Take the interface that already works and build one complete workflow around it:
 | 3 | Play it in the normal mode | #50 |
 | 4 | Open one specific musical analysis | #25 |
 | 5 | Try one meaningful experiment | Built (Explore card, PR #125) |
-| 6 | Return to the original and compare | #43 |
+| 6 | Return to the original and compare | Built (Compare, #43) |
 | 7 | Move to the neighbouring phrase or play a larger section | #126 |
 
 Keeping what was found (#78) supports steps 5 and 6. The pilot (#77) runs this workflow at the piano.

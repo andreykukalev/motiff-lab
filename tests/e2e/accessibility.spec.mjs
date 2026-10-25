@@ -55,6 +55,11 @@ test("playback lab with a selection, the Explore card, a variation and the note 
     await page.getByRole("tab", { name: "Selection" }).click();
     await page.locator(".variation button.section-toggle", { hasText: "V2 Accompaniment pattern" }).click();
     await page.getByRole("button", { name: "Dotted" }).click();
+    // Compare (#43): the panel next to What changed, and the original and the variation one after the other.
+    await expect(page.locator(".changed + .compare")).toBeVisible();
+    await page.getByRole("button", { name: "One after the other" }).click();
+    await expect(page.locator(".inspector .selection-text")).toContainText("Looping the original, then the variation.");
+    expect(await violations(page)).toEqual([]);
     await page.getByRole("tab", { name: /^Facts/ }).click();
     expect(await violations(page)).toEqual([]);
     await page.getByRole("tab", { name: "Edit" }).click();

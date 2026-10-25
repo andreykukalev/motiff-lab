@@ -58,6 +58,12 @@ public sealed class Player(IJSRuntime js) : IAsyncDisposable
 
     public IReadOnlyList<string> ActiveSources { get; private set; } = [];
 
+    /// <summary>The passes of an alternating loop (<see cref="AlternateAsync"/>), or null when the engine is not alternating.</summary>
+    public IReadOnlyList<LoopPass>? Passes { get; private set; }
+
+    /// <summary>The pass of the alternating loop being heard, from 0, as last reported by the engine; -1 when not alternating.</summary>
+    public int Pass { get; private set; } = -1;
+
     /// <summary>The script-side player, for views that read the position every frame (the score view); null until ready.</summary>
     internal IJSObjectReference? Engine => _engine;
 
@@ -99,6 +105,7 @@ public sealed class Player(IJSRuntime js) : IAsyncDisposable
     {
         IJSObjectReference engine = await EngineAsync();
         ActiveSources = ids;
+        EndAlternation();
         await engine.InvokeVoidAsync("setActiveSources", (object)ids);
         Changed?.Invoke();
     }
@@ -140,6 +147,7 @@ public sealed class Player(IJSRuntime js) : IAsyncDisposable
     {
         IJSObjectReference engine = await EngineAsync();
         Loop = range;
+        EndAlternation();
         if (range is { } span)
         {
             await engine.InvokeVoidAsync("setLoop", span.Onset.Value, span.End.Value);
@@ -149,6 +157,26 @@ public sealed class Player(IJSRuntime js) : IAsyncDisposable
             await engine.InvokeVoidAsync("clearLoop");
         }
 
+        Changed?.Invoke();
+    }
+
+    /// <summary>
+    /// Loops the passes in turn, from the start of the first (#43): each plays its sources over its
+    /// range, and the next starts on the frame the range ends, so the switch is sample-accurate and
+    /// never depends on the page. <see cref="Pass"/>, <see cref="ActiveSources"/> and <see cref="Loop"/>
+    /// follow the pass the engine reports. Choosing sources or a loop ends it.
+    /// </summary>
+    public async Task AlternateAsync(IReadOnlyList<LoopPass> passes)
+    {
+        ArgumentNullException.ThrowIfNull(passes);
+        ArgumentOutOfRangeException.ThrowIfZero(passes.Count);
+        IJSObjectReference engine = await EngineAsync();
+        Passes = passes;
+        Pass = 0;
+        ActiveSources = passes[0].Sources;
+        Loop = passes[0].Range;
+        Position = passes[0].Range.Onset;
+        await engine.InvokeVoidAsync("setAlternation", (object)passes.Select(pass => new { ids = pass.Sources, start = pass.Range.Onset.Value, end = pass.Range.End.Value }).ToArray());
         Changed?.Invoke();
     }
 
@@ -182,10 +210,18 @@ public sealed class Player(IJSRuntime js) : IAsyncDisposable
         Changed?.Invoke();
     }
 
-    /// <summary>Called by the engine with the position being heard and the transport state.</summary>
+    /// <summary>Called by the engine with the position being heard, the transport state and the pass of an alternating loop (-1 for none).</summary>
     [JSInvokable]
-    public void OnPlaybackPosition(double tick, string state)
+    public void OnPlaybackPosition(double tick, string state, int pass)
     {
+        // A report from before the page started or ended the alternation names no pass of it; it is ignored.
+        if (Passes is { } passes && pass >= 0 && pass < passes.Count && pass != Pass)
+        {
+            Pass = pass;
+            ActiveSources = passes[pass].Sources;
+            Loop = passes[pass].Range;
+        }
+
         Position = new Tick(Math.Max(0, (long)Math.Round(tick)));
         State = state switch
         {
@@ -219,6 +255,12 @@ public sealed class Player(IJSRuntime js) : IAsyncDisposable
         _self?.Dispose();
     }
 
+    private void EndAlternation()
+    {
+        Passes = null;
+        Pass = -1;
+    }
+
     private async Task<IJSObjectReference> EngineAsync()
     {
         await InitializeAsync();
@@ -242,6 +284,9 @@ public sealed class Player(IJSRuntime js) : IAsyncDisposable
         Changed?.Invoke();
     }
 }
+
+/// <summary>One pass of an alternating loop: the sources that play and the range they loop over.</summary>
+public sealed record LoopPass(IReadOnlyList<string> Sources, TickSpan Range);
 
 public enum PlaybackState
 {

@@ -844,6 +844,101 @@ html, body {
     border-style: dashed;
 }
 
+/* Return to the original and compare (#43, Compare/CompareSwitch.razor): a row under the selection text on every tab. */
+.inspector-head {
+    flex-wrap: wrap;
+}
+
+.compare-switch {
+    flex-basis: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.compare-switch .ab {
+    display: flex;
+}
+
+.lab .compare-switch .ab button:first-child {
+    border-radius: 0.6rem 0 0 0.6rem;
+}
+
+.lab .compare-switch .ab button:last-child {
+    border-radius: 0 0.6rem 0.6rem 0;
+    border-left-width: 0;
+}
+
+/* The one sounding while the two loop one after the other: lime outline, as against the lime fill of a choice. */
+.lab .compare-switch button.sounding {
+    border-color: var(--ml-lime);
+    color: var(--ml-lime);
+    background: rgba(200, 241, 105, 0.12);
+    font-weight: 600;
+}
+
+/* What changed and what was kept (Compare/ComparePanel.razor), from the diff and the Keep checks. */
+.inspector .compare {
+    background: var(--ml-surface);
+    border-radius: 0.75rem;
+    padding: 0.75rem 0.9rem;
+    margin: 0.9rem 0 1.1rem;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.inspector .compare h3 {
+    margin: 0 0 0.25rem;
+}
+
+.inspector .compare h4 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin: 0.5rem 0 0.2rem;
+}
+
+.inspector .compare ul {
+    margin: 0;
+    padding-left: 1.1rem;
+}
+
+.inspector .compare ul.checks {
+    list-style: none;
+    padding-left: 0;
+}
+
+.inspector .compare p {
+    margin: 0.25rem 0 0;
+}
+
+.inspector .compare .label {
+    color: var(--ml-gray);
+}
+
+.inspector .compare .property {
+    display: inline-block;
+    border: 1.5px solid var(--ml-border);
+    border-radius: 1.1rem;
+    padding: 0 0.6rem;
+    margin: 0.15rem 0 0.15rem 0.3rem;
+    font-size: 0.8rem;
+}
+
+.inspector .compare .kept .property {
+    border-color: var(--ml-lime);
+    color: var(--ml-lime);
+}
+
+.inspector .compare .broken .property {
+    border-style: dashed;
+}
+
+.inspector .compare .unchecked .property {
+    border-style: dotted;
+    color: var(--ml-gray);
+}
+
 /* Score view (Score/ScoreView.razor, Scripts/score): ink on paper, as in the mockups; the notes being heard in a dark lime that reads on paper. */
 .score {
     --ml-score-ink: #15191F;
