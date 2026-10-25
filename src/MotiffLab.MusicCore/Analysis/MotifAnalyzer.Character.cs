@@ -84,11 +84,11 @@ public static partial class MotifAnalyzer
         var facts = new List<MotifFact>
         {
             TempoFact(context, meter, selection.Span),
-            DensityFact(hits, chosen.Length, meter, selection.Span),
+            DensityFact(chosen, hits, meter, selection.Span),
             RegisterFact(chosen, key),
             VelocityFact(chosen, context.FromNotation),
             ArticulationFact(chosen, hits, context.FromNotation),
-            SyncopationShareFact(hits, meter, offGrid),
+            SyncopationShareFact(chosen, hits, meter, offGrid),
         };
         return WithHand(facts, selection);
     }
@@ -112,6 +112,11 @@ public static partial class MotifAnalyzer
             }
         }
 
+        // Each change is a place: from where it takes effect to the next change or the end of the selection.
+        FactPlace[] places = [.. changes.Select((tempo, i) => new FactPlace(
+            $"{Bpm(tempo.MicrosecondsPerQuarter)} BPM at {Place(meter.ToPosition(tempo.At))}",
+            TickSpan.FromBounds(tempo.At, i + 1 < changes.Count ? changes[i + 1].At : span.End),
+            []))];
         bool assumed = context.TempoAssumed && first == 0;
         string start = Bpm(tempos[first].MicrosecondsPerQuarter);
         string text;
@@ -127,15 +132,18 @@ public static partial class MotifAnalyzer
         }
 
         const string Basis = "Read from the file's tempo map, in quarter notes per minute, rounded to a tenth for display.";
-        return assumed
+        MotifFact fact = assumed
             ? new MotifFact("character.tempo", FactLens.Character, FactCertainty.Inferred, text, $"The file states no tempo at its start, so the default of {Bpm(PlaybackTempo.DefaultMicrosecondsPerQuarter)} BPM is assumed. {Basis}")
             : new MotifFact("character.tempo", FactLens.Character, FactCertainty.Detected, text, Basis);
+        return fact with { Places = places };
     }
 
-    private static MotifFact DensityFact(Hit[] hits, int noteCount, MeterMap meter, TickSpan span)
+    private static MotifFact DensityFact(Note[] notes, Hit[] hits, MeterMap meter, TickSpan span)
     {
+        int noteCount = notes.Length;
         List<BeatSlot> beats = Beats(meter, span);
-        int busiest = beats.Max(beat => hits.Count(hit => hit.At >= beat.Start && hit.At < beat.End));
+        int[] counts = [.. beats.Select(beat => hits.Count(hit => hit.At >= beat.Start && hit.At < beat.End))];
+        int busiest = counts.Max();
         string text = $"Density: {Ratio(hits.Length, beats.Count)} onsets per beat ({Count(hits.Length, "onset", "onsets")} over {Count(beats.Count, "beat", "beats")}); the busiest beat holds {busiest}.";
         if (noteCount > hits.Length)
         {
@@ -147,7 +155,13 @@ public static partial class MotifAnalyzer
             FactLens.Character,
             FactCertainty.Detected,
             text,
-            "Counted over the beats of the selection, from the bar lines; notes that start together count as one onset.");
+            "Counted over the beats of the selection, from the bar lines; notes that start together count as one onset.")
+        {
+            // Every beat that holds the most onsets, with the notes that start in it.
+            Places = [.. beats
+                .Where((beat, i) => counts[i] == busiest)
+                .Select(beat => SlotPlace($"busiest beat, {Place(meter.ToPosition(beat.Start))}", TickSpan.FromBounds(beat.Start, beat.End), notes))],
+        };
     }
 
     private static MotifFact RegisterFact(Note[] notes, MusicalKey key)
@@ -171,7 +185,10 @@ public static partial class MotifAnalyzer
             FactLens.Character,
             FactCertainty.Detected,
             text,
-            $"Measured over every note of the motif; middle C is C4. The middle pitch is the median, the lower of the two middle ones for an even count. Spelled for {key.Name}.");
+            $"Measured over every note of the motif; middle C is C4. The middle pitch is the median, the lower of the two middle ones for an even count. Spelled for {key.Name}.")
+        {
+            Places = low == high ? ExtremePlaces(notes, key) : [.. ExtremePlaces(notes, key), FactPlace.Of($"middle pitch, {key.Spell(median)}", notes.Where(note => note.Pitch.MidiNumber == median))],
+        };
     }
 
     private static MotifFact VelocityFact(Note[] notes, bool fromNotation)
@@ -183,13 +200,26 @@ public static partial class MotifAnalyzer
         string basis = fromNotation
             ? $"Read from the notes. A notation file holds no played loudness: velocities come from its dynamics marks, or the default of {MusicXmlImporter.DefaultVelocity} where it has none."
             : "Read from the notes' MIDI velocities.";
-        return new MotifFact("character.velocity", FactLens.Character, FactCertainty.Detected, text, basis);
+        int median = velocities[(velocities.Length - 1) / 2];
+        FactPlace[] places = velocities[0] == velocities[^1]
+            ? []
+            :
+            [
+                FactPlace.Of($"lowest velocity, {velocities[0]}", notes.Where(note => note.Velocity == velocities[0])),
+                FactPlace.Of($"highest velocity, {velocities[^1]}", notes.Where(note => note.Velocity == velocities[^1])),
+                FactPlace.Of($"median velocity, {median}", notes.Where(note => note.Velocity == median)),
+            ];
+        return new MotifFact("character.velocity", FactLens.Character, FactCertainty.Detected, text, basis)
+        {
+            Places = places,
+        };
     }
 
     private static MotifFact ArticulationFact(Note[] notes, Hit[] hits, bool fromNotation)
     {
         // Each note against the time from its onset to the next onset of the motif; the last onset has none.
         var percents = new List<decimal>();
+        var measured = new List<Note>();
         foreach (Note note in notes)
         {
             int next = Array.FindIndex(hits, hit => hit.At > note.Span.Onset);
@@ -197,6 +227,7 @@ public static partial class MotifAnalyzer
             {
                 long gap = hits[next].At.Value - note.Span.Onset.Value;
                 percents.Add(Math.Min(note.Span.Duration, gap) * 100m / gap);
+                measured.Add(note);
             }
         }
 
@@ -211,17 +242,35 @@ public static partial class MotifAnalyzer
         int detached = percents.Count(percent => percent < DetachedPercent);
         string text = $"Articulation: notes sound for {Percent(percents.Sum(), percents.Count)}% of the time to the next onset on average; "
             + $"{held} of {Count(percents.Count, "note", "notes")} {(held == 1 ? "sounds" : "sound")} until the next onset, and {detached} {(detached == 1 ? "sounds" : "sound")} for less than half of it.";
-        return new MotifFact("character.articulation", FactLens.Character, FactCertainty.Detected, text, basis);
+
+        // The two sets the text counts: the notes held until the next onset, and the detached ones.
+        var places = new List<FactPlace>();
+        if (held > 0)
+        {
+            places.Add(FactPlace.Of("until the next onset", measured.Where((note, i) => percents[i] == 100m)));
+        }
+
+        if (detached > 0)
+        {
+            places.Add(FactPlace.Of("less than half", measured.Where((note, i) => percents[i] < DetachedPercent)));
+        }
+
+        return new MotifFact("character.articulation", FactLens.Character, FactCertainty.Detected, text, basis)
+        {
+            Places = places,
+        };
     }
 
-    private static MotifFact SyncopationShareFact(Hit[] hits, MeterMap meter, bool offGrid)
+    private static MotifFact SyncopationShareFact(Note[] notes, Hit[] hits, MeterMap meter, bool offGrid)
     {
-        int syncopated = Syncopations(hits, meter).Count;
+        List<FactPlace> places = Syncopations(notes, hits, meter);
+        int syncopated = places.Count;
         string text = $"Syncopation share: {syncopated} of {Count(hits.Length, "onset", "onsets")} ({Percent(syncopated * 100m, hits.Length)}%).";
         const string Basis = "Onsets counted with the same rule as the syncopation fact. " + SyncopationBasis;
-        return offGrid
+        MotifFact fact = offGrid
             ? new MotifFact("character.syncopation", FactLens.Character, FactCertainty.Uncertain, text, Basis + PerformanceBasis)
             : new MotifFact("character.syncopation", FactLens.Character, FactCertainty.Detected, text, Basis);
+        return fact with { Places = places };
     }
 
     /// <summary>Quarter notes per minute, to a tenth: "96", "92.3".</summary>

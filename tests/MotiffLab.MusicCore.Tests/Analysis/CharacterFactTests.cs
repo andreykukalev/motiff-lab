@@ -46,6 +46,10 @@ public class CharacterFactTests
 
     private static MotifFact Fact(IReadOnlyList<MotifFact> facts, string id) => Assert.Single(facts, fact => fact.Id == id);
 
+    /// <summary>Each place of a fact as "label: note ids", or the label alone for a stretch of time.</summary>
+    private static string[] Places(MotifFact fact) =>
+        [.. fact.Places.Select(place => place.NoteIds.Count == 0 ? place.Label : $"{place.Label}: {string.Join(" ", place.NoteIds)}")];
+
     [Fact]
     public void Facts_are_in_the_character_lens_with_stable_ids_in_order()
     {
@@ -103,6 +107,12 @@ public class CharacterFactTests
 
         Assert.Equal("Tempo: starts at 96 BPM and changes twice: 92.3 BPM at bar 1 beat 3; 100 BPM at bar 2 beat 3. It ranges from 92.3 to 100 BPM.", tempo.Text);
         Assert.Equal(FactCertainty.Inferred, tempo.Certainty);
+
+        // Each change lasts until the next one, the last until the end of the selection.
+        Assert.Equal(
+            [("92.3 BPM at bar 1 beat 3", TickSpan.FromBounds(new Tick(2 * Quarter), new Tick(6 * Quarter))), ("100 BPM at bar 2 beat 3", TickSpan.FromBounds(new Tick(6 * Quarter), new Tick(8 * Quarter)))],
+            tempo.Places.Select(place => (place.Label, place.Span)));
+        Assert.All(tempo.Places, place => Assert.Empty(place.NoteIds));
     }
 
     [Fact]
@@ -114,6 +124,7 @@ public class CharacterFactTests
 
         Assert.Equal("Tempo: 80 BPM throughout the motif.", tempo.Text);
         Assert.Equal(FactCertainty.Detected, tempo.Certainty);
+        Assert.Empty(tempo.Places);
     }
 
     [Fact]
@@ -134,6 +145,7 @@ public class CharacterFactTests
         MotifFact density = Fact(Analyze(notes, 0, 4 * Quarter), "character.density");
 
         Assert.Equal("Density: 1.3 onsets per beat (5 onsets over 4 beats); the busiest beat holds 2. Counting every note of a chord, 1.8 notes per beat.", density.Text);
+        Assert.Equal(["busiest beat, bar 1 beat 3: e1 e2", "busiest beat, bar 1 beat 4: e3 e4"], Places(density));
         Assert.Equal(FactCertainty.Detected, density.Certainty);
     }
 
@@ -147,6 +159,7 @@ public class CharacterFactTests
 
         Assert.Equal("Register: G3 to E5, a range of 21 semitones; 2 of 4 notes are at or above middle C, and the middle pitch is B3.", register.Text);
         Assert.Equal("Register: C4 to G4, a range of 7 semitones; every note is at or above middle C, and the middle pitch is E4.", high.Text);
+        Assert.Equal(["lowest, C4: n1", "highest, G4: n5", "middle pitch, E4: n3"], Places(high));
     }
 
     [Fact]
@@ -155,8 +168,10 @@ public class CharacterFactTests
         Note[] even = [Note("a", 60, 0, Quarter), Note("b", 62, Quarter, Quarter)];
 
         Assert.Equal("Velocity: 64 to 96, median 80, on the MIDI scale of 1 to 127.", Fact(Analyze(Scale(), 0, 8 * Quarter), "character.velocity").Text);
+        Assert.Equal(["lowest velocity, 64: n1", "highest velocity, 96: n5", "median velocity, 80: n3"], Places(Fact(Analyze(Scale(), 0, 8 * Quarter), "character.velocity")));
         MotifFact flat = Fact(Analyze(even, 0, 4 * Quarter, new CharacterContext([], TempoAssumed: true, FromNotation: true)), "character.velocity");
         Assert.Equal("Velocity: every note has 80, on the MIDI scale of 1 to 127.", flat.Text);
+        Assert.Empty(flat.Places);
         Assert.Contains("A notation file holds no played loudness", flat.Basis, StringComparison.Ordinal);
     }
 
@@ -179,6 +194,7 @@ public class CharacterFactTests
         Assert.Equal("Articulation: notes sound for 66% of the time to the next onset on average; 2 of 4 notes sound until the next onset, and 1 sounds for less than half of it.", articulation.Text);
         Assert.Equal(FactCertainty.Detected, articulation.Certainty);
         Assert.DoesNotContain("written", articulation.Basis, StringComparison.Ordinal);
+        Assert.Equal(["until the next onset: a d", "less than half: c"], Places(articulation));
     }
 
     [Fact]
@@ -218,6 +234,8 @@ public class CharacterFactTests
 
         Assert.StartsWith("2 syncopations", rhythm.Text, StringComparison.Ordinal);
         Assert.Equal("Syncopation share: 2 of 6 onsets (33%).", share.Text);
+        Assert.Equal(["r2", "r5"], share.Places.SelectMany(place => place.NoteIds));
+        Assert.Equal(rhythm.Places, share.Places);
         Assert.Equal(FactCertainty.Detected, share.Certainty);
     }
 
