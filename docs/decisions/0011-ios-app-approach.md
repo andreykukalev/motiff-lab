@@ -1,4 +1,4 @@
-# 0010 · iOS app approach
+# 0011 · iOS app approach
 
 Status: proposed, 2026-10-24. To be accepted, changed or rejected after the spikes in phase 1 of [../ios/03-technical-design.md](../ios/03-technical-design.md). The web app remains the primary Stage 1 track.
 

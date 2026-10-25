@@ -41,7 +41,8 @@ jobs:
 
       # Documentation-only changes skip the build and tests. Only changes to the app (src, infra, SDK and
       # build settings) are published and deployed; test-only changes are built and tested but not deployed.
-      # Any doubt (a commit that cannot be fetched) runs everything.
+      # The browser tests run on the published app when the app or they change. Any doubt (a commit that
+      # cannot be fetched) runs everything.
       - name: Find what changed
         id: changes
         env:
@@ -50,19 +51,25 @@ jobs:
         run: |
           code=true
           app=true
+          browser=true
           if [[ -n "$BASE_SHA" && "$BASE_SHA" != 0000000000000000000000000000000000000000 ]] \
             && git fetch --depth=1 --no-tags origin "$BASE_SHA" 2>/dev/null; then
             changed="$(git diff --name-only "$BASE_SHA" HEAD)"
             echo "$changed"
             code=false
             app=false
+            browser=false
             while IFS= read -r f; do
               case "$f" in
                 '') ;;
                 *.md|docs/*|stage1-issues/*|pilot/*|LICENSE*|.github/ISSUE_TEMPLATE/*|.github/pull_request_template.md) ;;
                 src/*|infra/*|global.json|Directory.Build.props|Directory.Packages.props|MotiffLab.slnx|.github/workflows/ci.yml)
                   code=true
-                  app=true ;;
+                  app=true
+                  browser=true ;;
+                tests/e2e/*)
+                  code=true
+                  browser=true ;;
                 *) code=true ;;
               esac
             done <<< "$changed"
@@ -72,9 +79,15 @@ jobs:
             && [[ "${{ github.event_name }}" == push || "${{ github.event.pull_request.head.repo.full_name }}" == "${{ github.repository }}" ]]; then
             azure=true
           fi
+          publish=false
+          if [[ "$browser" == true || "$azure" == true ]]; then
+            publish=true
+          fi
           echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "browser=$browser" >> "$GITHUB_OUTPUT"
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
           echo "deploy=$azure" >> "$GITHUB_OUTPUT"
-          echo "code=$code deploy=$azure"
+          echo "code=$code browser=$browser publish=$publish deploy=$azure"
 
       - uses: actions/setup-dotnet@v4
         if: steps.changes.outputs.code == 'true'
@@ -115,14 +128,44 @@ jobs:
         run: node --test "tests/web/*.test.mjs"
 
       # Publishing needs the wasm-tools workload (about 35 s to install) and a trimming publish (about a minute),
-      # so it only runs when the result is deployed.
+      # so it only runs when the result is tested in browsers or deployed.
       - name: Install WebAssembly build tools
-        if: steps.changes.outputs.deploy == 'true'
+        if: steps.changes.outputs.publish == 'true'
         run: dotnet workload install wasm-tools
 
       - name: Publish web app
-        if: steps.changes.outputs.deploy == 'true'
+        if: steps.changes.outputs.publish == 'true'
         run: dotnet publish src/MotiffLab.Web --configuration Release --output publish
+
+      # Smoke, offline and accessibility tests of the published app in Chromium, Firefox and WebKit
+      # (tests/e2e, issue #66), before it is deployed. Firefox plays audio only with a sound device,
+      # so PulseAudio gives the runner a silent one.
+      - uses: actions/cache@v4
+        if: steps.changes.outputs.browser == 'true'
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('tests/e2e/package-lock.json') }}
+
+      - name: Install browsers
+        if: steps.changes.outputs.browser == 'true'
+        working-directory: tests/e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium firefox webkit
+          sudo apt-get install --yes --no-install-recommends pulseaudio
+          pulseaudio --start --exit-idle-time=-1
+
+      - name: Test in browsers
+        if: steps.changes.outputs.browser == 'true'
+        working-directory: tests/e2e
+        run: npx playwright test
+
+      - uses: actions/upload-artifact@v4
+        if: failure() && steps.changes.outputs.browser == 'true'
+        with:
+          name: browser-test-results
+          path: tests/e2e/test-results
+          retention-days: 7
 
       # Provisions infra/main.bicep and deploys the published app to Azure Static Web Apps.
       # main: provision, then deploy production. Pull requests: what-if, then deploy a preview.

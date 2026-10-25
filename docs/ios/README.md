@@ -9,7 +9,7 @@ These documents describe how the current web workspace (playback lab, piano roll
 | [01-concept.md](01-concept.md) | Why an iOS app, who it is for, what it does in each stage, what stays the same as the web, and what it must never do |
 | [02-ux.md](02-ux.md) | Layouts for iPad and iPhone, the touch gesture map for selection and editing, panels as sheets and inspectors, hover-free hints, accessibility, hardware keyboard, Pencil and trackpad |
 | [03-technical-design.md](03-technical-design.md) | Approach options compared, the recommended architecture, audio and latency, offline projects on the device, privacy, rights and App Store constraints, build and CI, and the phased plan with exit criteria |
-| [../decisions/0010-ios-app-approach.md](../decisions/0010-ios-app-approach.md) | Proposed decision record: .NET MAUI Blazor Hybrid shell over a shared UI library, with a native audio engine before Stage 2 |
+| [../decisions/0011-ios-app-approach.md](../decisions/0011-ios-app-approach.md) | Proposed decision record: .NET MAUI Blazor Hybrid shell over a shared UI library, with a native audio engine before Stage 2 |
 
 ## The recommendation in short
 

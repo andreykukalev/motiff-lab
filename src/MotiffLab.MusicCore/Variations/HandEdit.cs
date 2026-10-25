@@ -57,6 +57,9 @@ public sealed class HandEdit : IVariationOperation
         return null;
     }
 
+    /// <summary>A hand edit names its note, so it has no scope.</summary>
+    public bool Supports(OperationScope scope) => scope == OperationScope.All;
+
     /// <summary>The first free id for an added note, "h1", "h2" and so on, not used by any of <paramref name="notes"/>.</summary>
     public static string NewId(IEnumerable<Note> notes)
     {
@@ -76,6 +79,11 @@ public sealed class HandEdit : IVariationOperation
         ArgumentNullException.ThrowIfNull(notes);
         ArgumentNullException.ThrowIfNull(context);
         HandEditParameters edit = Cast(parameters);
+        if (edit.Scope != OperationScope.All)
+        {
+            return $"{Name} names its note, so it can't be limited to {OperationScopes.Describe(edit.Scope)}.";
+        }
+
         Note? note = notes.FirstOrDefault(note => note.Id == edit.NoteId);
         switch (edit.Kind)
         {

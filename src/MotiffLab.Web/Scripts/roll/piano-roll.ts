@@ -161,7 +161,7 @@ export class PianoRoll {
         this.roll.setAttribute("role", "application");
         this.roll.setAttribute(
             "aria-label",
-            "Piano roll. Drag anywhere across the roll to select a range, drag an edge of the selection to move it, click a bar number to select that bar, Shift-click a bar number to extend the selection to it. Click a note to hear and select it, Shift-click to add to the selection; click the pitch names or the keyboard to hear a key. Click an empty place or press Escape to clear the selection. Space plays the selection on a loop, or the piece, and pauses. Arrow keys move the note selection, plus and minus zoom.",
+            "Piano roll. Drag anywhere across the roll to select a range, drag an edge of the selection to move it, click a bar number to select that bar, Shift-click a bar number to extend the selection to it. Click a note to hear and select it, Shift-click to add to the selection; click the pitch names or the keyboard to hear a key. Click an empty place or press Escape to clear the selection. Space plays the selection on a loop, or the piece, and pauses. Right and left square brackets select the next or previous bar, with Shift they extend the selection by it. Arrow keys move the note selection, plus and minus zoom.",
         );
 
         this.scroller = document.createElement("input");
@@ -393,6 +393,25 @@ export class PianoRoll {
     private scrollTo(tick: number): void {
         this.scroll = Math.round(Math.min(this.maxScroll(), Math.max(0, tick)));
         this.invalidate();
+    }
+
+    /**
+     * Selects the bar after or before the selection (the first bar when there is none), or with
+     * extend adds it to the selection: a click or Shift-click on its number, by keyboard (WCAG 2.1.1).
+     */
+    private stepBar(model: RollModel, step: 1 | -1, extend: boolean): void {
+        const motif = this.motif;
+        let index = 0;
+        if (motif !== null) {
+            const edge = step > 0 ? motif.end - 1 : motif.start;
+            index = model.bars.findIndex((bar) => bar.onset <= edge && edge < bar.end) + step;
+        }
+        const bar = model.bars[index];
+        if (bar === undefined) {
+            return;
+        }
+        this.keepInView(bar.onset);
+        void this.dotnet.invokeMethodAsync("OnRollRange", bar.onset, bar.onset, true, extend && motif !== null);
     }
 
     private keepInView(tick: number): void {
@@ -1039,6 +1058,12 @@ export class PianoRoll {
     private readonly onKeyDown = (event: KeyboardEvent): void => {
         const model = this.model;
         if (model === null) {
+            return;
+        }
+        // By key position, so Shift (which turns them into braces) and other layouts keep working.
+        if (event.code === "BracketRight" || event.code === "BracketLeft") {
+            this.stepBar(model, event.code === "BracketRight" ? 1 : -1, event.shiftKey);
+            event.preventDefault();
             return;
         }
         switch (event.key) {

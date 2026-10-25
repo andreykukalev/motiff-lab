@@ -114,20 +114,21 @@ public static class ActionStatus
     private static readonly Dictionary<string, (ActionAvailability Availability, string Note)> s_operations = new(StringComparer.Ordinal)
     {
         ["V1"] = (ActionAvailability.AvailableNow, "In the playback lab."),
-        ["V4"] = (ActionAvailability.PlannedForStage1, "Planned for Stage 1 on the Transform screen."),
-        ["V9"] = (ActionAvailability.PlannedForStage1, "Planned for Stage 1 on the Transform screen."),
-        ["V10"] = (ActionAvailability.PlannedForStage1, "Planned for Stage 1 on the Transform screen."),
+        ["V13"] = (ActionAvailability.AvailableNow, "In the playback lab, and on the Explore card."),
+        ["V4"] = (ActionAvailability.AvailableNow, "In the playback lab."),
+        ["V9"] = (ActionAvailability.AvailableNow, "In the playback lab, and on the Explore card."),
+        ["V10"] = (ActionAvailability.AvailableNow, "In the playback lab, and on the Explore card."),
         ["V7"] = (ActionAvailability.PlannedForStage1, "Planned for Stage 1, not built yet."),
         ["V8"] = (ActionAvailability.PlannedForStage1, "Planned for Stage 1, not built yet."),
         ["V11"] = (ActionAvailability.PlannedForStage1, "Planned for Stage 1, not built yet."),
-        ["V2"] = (ActionAvailability.NeedsShouldItem, "Needs chord detection (S1-A3), a Should item of Stage 1."),
+        ["V2"] = (ActionAvailability.AvailableNow, "In the playback lab, and on the Explore card: it replays each bar's own accompaniment notes, so it needs no chord detection."),
         ["V12"] = (ActionAvailability.NeedsShouldItem, "Needs chord detection (S1-A3), a Should item of Stage 1."),
         ["V3"] = (ActionAvailability.NeedsShouldItem, "Needs chord detection (S1-A3), a Should item of Stage 1."),
         ["V6"] = (ActionAvailability.NeedsShouldItem, "Simplify is a Should item of Stage 1."),
         ["V5"] = (ActionAvailability.LaterStage, "Harmonic colour waits for Stage 4."),
     };
 
-    /// <summary>The catalogue ids the table knows, V1–V12.</summary>
+    /// <summary>The catalogue ids the table knows, V1–V13.</summary>
     public static IEnumerable<string> OperationIds => s_operations.Keys;
 
     public static ActionAvailability Of(InvitationAction action)

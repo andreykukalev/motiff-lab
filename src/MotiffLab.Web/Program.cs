@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 
 using MotiffLab.Web;
+using MotiffLab.Web.Analytics;
 using MotiffLab.Web.Import;
 using MotiffLab.Web.Playback;
 using MotiffLab.Web.Projects;
@@ -14,5 +15,6 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.
 builder.Services.AddScoped<Player>();
 builder.Services.AddScoped<CurrentPiece>();
 builder.Services.AddScoped<ProjectStore>();
+builder.Services.AddScoped<UsageAnalytics>();
 
 await builder.Build().RunAsync();

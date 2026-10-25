@@ -6,7 +6,15 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Variations;
 
 /// <summary>The parameters of one operation. Each operation derives its own record, so steps compare by value.</summary>
-public abstract record OperationParameters;
+public abstract record OperationParameters
+{
+    /// <summary>
+    /// Which of the selected notes the step may change; the others stay exactly as they were. Each
+    /// step has its own scope, so one step can change the melody and the next the accompaniment.
+    /// Operations that already choose their notes accept only <see cref="OperationScope.All"/>.
+    /// </summary>
+    public OperationScope Scope { get; init; } = OperationScope.All;
+}
 
 /// <summary>
 /// What an operation reads besides the notes and its parameters: the motif's span, the Keep choices,
@@ -48,6 +56,9 @@ public interface IVariationOperation
     /// <summary>Why the Keep choices rule the operation out (its Keep table row, S1-E2), or null when it can run.</summary>
     string? DisabledReason(IReadOnlySet<KeepProperty> keep);
 
+    /// <summary>Whether a step can be limited to <paramref name="scope"/> (<see cref="OperationParameters.Scope"/>).</summary>
+    bool Supports(OperationScope scope);
+
     /// <summary>
     /// Why these parameters cannot apply to these notes, including results that would break an
     /// operation rule (off the grid, out of range, voices crossing), or null when they can.
@@ -77,6 +88,9 @@ public abstract class VariationOperation<TParameters> : IVariationOperation
 
     /// <summary>Why the Keep choices rule the operation out, read from its <see cref="KeepTable"/> row (S1-E2), or null when it can run.</summary>
     public string? DisabledReason(IReadOnlySet<KeepProperty> keep) => KeepTable.DisabledReason(Id, keep);
+
+    /// <summary>Whether a step can be limited to <paramref name="scope"/>; by default only the whole selection.</summary>
+    public virtual bool Supports(OperationScope scope) => scope == OperationScope.All;
 
     public string? UnavailableReason(IReadOnlyList<Note> notes, VariationContext context, TParameters parameters) =>
         Run(notes, context, parameters).Reason;
@@ -112,10 +126,10 @@ public abstract class VariationOperation<TParameters> : IVariationOperation
     /// <summary>Throws <see cref="ArgumentOutOfRangeException"/> when a parameter is outside the operation's range.</summary>
     protected abstract void Validate(TParameters parameters);
 
-    /// <summary>Why the operation cannot run on these notes before trying it, or null.</summary>
+    /// <summary>Why the operation cannot run on these notes before trying it, or null. Reads only the notes in the step's scope.</summary>
     protected virtual string? Precondition(IReadOnlyList<Note> notes, VariationContext context, TParameters parameters) => null;
 
-    /// <summary>The varied notes. Pure: reads only its arguments.</summary>
+    /// <summary>The varied notes in the step's scope; notes outside it are kept as they are. Pure: reads only its arguments.</summary>
     protected abstract IEnumerable<Note> Transform(IReadOnlyList<Note> notes, VariationContext context, TParameters parameters);
 
     private (string? Reason, Note[]? After, IReadOnlyList<string> Flags) Run(IReadOnlyList<Note> notes, VariationContext context, TParameters parameters)
@@ -129,13 +143,24 @@ public abstract class VariationOperation<TParameters> : IVariationOperation
             return ("The selection has no notes to vary.", null, []);
         }
 
-        string? reason = Precondition(notes, context, parameters);
+        if (!Supports(parameters.Scope))
+        {
+            return ($"{Name} works on the whole selection, so it can't be limited to {OperationScopes.Describe(parameters.Scope)}.", null, []);
+        }
+
+        (Note[] inside, Note[] outside) = OperationScopes.Split(notes, parameters.Scope);
+        if (inside.Length == 0)
+        {
+            return ($"The selection has no notes in {OperationScopes.Describe(parameters.Scope)} to vary.", null, []);
+        }
+
+        string? reason = Precondition(inside, context, parameters);
         if (reason is not null)
         {
             return (reason, null, []);
         }
 
-        Note[] after = [.. Transform(notes, context, parameters)];
+        Note[] after = [.. outside, .. Transform(inside, context, parameters)];
         RuleReport rules = OperationRules.Check(notes, after);
         return rules.Violation is { } violation
             ? ($"{Name} {violation}, so it is not available for this selection.", null, [])
@@ -149,7 +174,7 @@ public abstract class VariationOperation<TParameters> : IVariationOperation
 /// <summary>The operations this version offers, by catalogue id. New operations register here.</summary>
 public static class VariationOperations
 {
-    public static IReadOnlyList<IVariationOperation> All { get; } = [RhythmReshape.Instance, MelodicSequence.Instance, IntervalReshape.Instance, ChangeDirection.Instance];
+    public static IReadOnlyList<IVariationOperation> All { get; } = [RhythmReshape.Instance, Articulation.Instance, MelodicSequence.Instance, AccompanimentPattern.Instance, IntervalReshape.Instance, ChangeDirection.Instance];
 
     /// <summary>The operation with this catalogue id, or <see cref="HandEdit"/> for its step id; null when this version does not have it.</summary>
     public static IVariationOperation? Find(string id) =>
