@@ -121,7 +121,7 @@ public static class ActionStatus
         ["V7"] = (ActionAvailability.PlannedForStage1, "Planned for Stage 1, not built yet."),
         ["V8"] = (ActionAvailability.PlannedForStage1, "Planned for Stage 1, not built yet."),
         ["V11"] = (ActionAvailability.PlannedForStage1, "Planned for Stage 1, not built yet."),
-        ["V2"] = (ActionAvailability.NeedsShouldItem, "Needs chord detection (S1-A3), a Should item of Stage 1."),
+        ["V2"] = (ActionAvailability.PlannedForStage1, "Planned for the Explore experiments: it replays each bar's own accompaniment notes, so it needs no chord detection."),
         ["V12"] = (ActionAvailability.NeedsShouldItem, "Needs chord detection (S1-A3), a Should item of Stage 1."),
         ["V3"] = (ActionAvailability.NeedsShouldItem, "Needs chord detection (S1-A3), a Should item of Stage 1."),
         ["V6"] = (ActionAvailability.NeedsShouldItem, "Simplify is a Should item of Stage 1."),

@@ -223,6 +223,8 @@ The variation engine is the central Stage 1 feature. The player first says what 
 
 V6 is a Should for Stage 1. V5 (harmonic colour) and any reharmonisation wait for Stage 4. Accompaniment and voicing operations need chord detection (S1-A3), so they ship with it; on a single melody line they are disabled with a reason. V1 and V3 extend the PRD parameters with displacement and hand distribution; the PRD catalogue should be updated to match.
 
+V2 is built ahead of chord detection for the Explore experiments (2026-10-25): it replays the pitches each bar's accompaniment already has (held chord, repeated chord, arpeggio up or down, up-down, Alberti; 8ths, triplets, 16ths), so the harmony is the source's own and no chord has to be detected. V12 and V3 still wait for S1-A3.
+
 V13 Articulation was added on 2026-10-25 for the Explore experiments. It changes only lengths, so Keep rhythm (onsets and lengths) rules it out even though every onset stays. V1 and V13 can be limited to the melody, the accompaniment or the bass of the selection, as read by the shared texture; operations that pick their own notes (V4, V9, V10, hand edits) always use the whole selection.
 
 ### Keep constraints

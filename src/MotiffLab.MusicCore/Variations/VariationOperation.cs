@@ -174,7 +174,7 @@ public abstract class VariationOperation<TParameters> : IVariationOperation
 /// <summary>The operations this version offers, by catalogue id. New operations register here.</summary>
 public static class VariationOperations
 {
-    public static IReadOnlyList<IVariationOperation> All { get; } = [RhythmReshape.Instance, Articulation.Instance, MelodicSequence.Instance, IntervalReshape.Instance, ChangeDirection.Instance];
+    public static IReadOnlyList<IVariationOperation> All { get; } = [RhythmReshape.Instance, Articulation.Instance, MelodicSequence.Instance, AccompanimentPattern.Instance, IntervalReshape.Instance, ChangeDirection.Instance];
 
     /// <summary>The operation with this catalogue id, or <see cref="HandEdit"/> for its step id; null when this version does not have it.</summary>
     public static IVariationOperation? Find(string id) =>

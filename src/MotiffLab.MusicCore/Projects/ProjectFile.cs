@@ -22,7 +22,8 @@ public static class ProjectFile
     public const string FormatName = "motiff-lab-project";
 
     /// <summary>
-    /// 4 saves the melody operations (V4, V9, V10), Articulation (V13) and each step's scope; 3 adds
+    /// 4 saves the melody operations (V4, V9, V10), Accompaniment pattern (V2), Articulation (V13)
+    /// and each step's scope; 3 adds
     /// the edit log of note corrections; 2 saves each variation as a chain of steps. Files of earlier
     /// versions still open: their steps change the whole selection, versions 1 and 2 have no
     /// corrections, and version 1 holds one step per variation.
@@ -300,6 +301,10 @@ public static class ProjectFile
             case ArticulationParameters articulation:
                 json.WriteString("kind", articulation.Kind.ToString());
                 break;
+            case AccompanimentPatternParameters pattern:
+                json.WriteString("kind", pattern.Kind.ToString());
+                json.WriteString("unit", pattern.Unit.ToString());
+                break;
             case MelodicSequenceParameters sequence:
                 json.WriteNumber("steps", sequence.Steps);
                 json.WriteNumber("repeats", sequence.Repeats);
@@ -384,6 +389,7 @@ public static class ProjectFile
             HandEdit.OperationId => ReadHandEdit(parameters),
             RhythmReshape.OperationId => ReadRhythmReshape(parameters),
             Articulation.OperationId => new ArticulationParameters(Name<ArticulationKind>(parameters, "kind")),
+            AccompanimentPattern.OperationId => new AccompanimentPatternParameters(Name<AccompanimentPatternKind>(parameters, "kind"), Name<PatternUnit>(parameters, "unit")),
             MelodicSequence.OperationId => ReadMelodicSequence(parameters),
             IntervalReshape.OperationId => ReadIntervalReshape(parameters),
             ChangeDirection.OperationId => new ChangeDirectionParameters(Boolean(parameters, "diatonic"), ReadIntervals(parameters)),

@@ -34,6 +34,7 @@ public static class OperationTemplates
             ChangeDirection.OperationId => Turned(before, after, key),
             HandEdit.OperationId => Edited(changes, before, after, meter),
             Articulation.OperationId => Articulated(changes),
+            AccompanimentPattern.OperationId => Repatterned(before, after, meter),
             _ => null,
         };
     }
@@ -96,6 +97,40 @@ public static class OperationTemplates
         return changed.All(static change => change.After.Span.Duration < change.Before.Span.Duration) ? $"Only note lengths change: {notes} shorter."
             : changed.All(static change => change.After.Span.Duration > change.Before.Span.Duration) ? $"Only note lengths change: {notes} longer."
             : null;
+    }
+
+    /// <summary>
+    /// "In bars 2–3 the accompaniment keeps its pitches and plays them in a new rhythm or order; the
+    /// melody is unchanged.", when the melody is note for note the same and every bar's accompaniment
+    /// sounds the same pitches as before, at other times.
+    /// </summary>
+    private static string? Repatterned(MotifTexture before, MotifTexture after, MeterMap meter)
+    {
+        static (long, long, int) Shape(Note note) => (note.Span.Onset.Value, note.Span.Duration, note.Pitch.MidiNumber);
+        if (!before.Melody.Select(Shape).SequenceEqual(after.Melody.Select(Shape)))
+        {
+            return null;
+        }
+
+        HashSet<string> melody = after.Melody.Select(static note => note.Id).ToHashSet(StringComparer.Ordinal);
+        Dictionary<int, int[]> Pitches(MotifTexture texture) => texture.Notes
+            .Where(note => !melody.Contains(note.Id))
+            .GroupBy(note => meter.BarAt(note.Span.Onset).Number)
+            .ToDictionary(static bar => bar.Key, static bar => bar.Select(static note => note.Pitch.MidiNumber).Distinct().Order().ToArray());
+        Dictionary<int, int[]> was = Pitches(before);
+        Dictionary<int, int[]> now = Pitches(after);
+        bool samePitches = was.Count > 0 && was.Keys.Order().SequenceEqual(now.Keys.Order()) && was.All(bar => bar.Value.SequenceEqual(now[bar.Key]));
+        bool moved = !before.Notes.Where(note => !melody.Contains(note.Id)).Select(Shape).Order()
+            .SequenceEqual(after.Notes.Where(note => !melody.Contains(note.Id)).Select(Shape).Order());
+        if (!samePitches || !moved)
+        {
+            return null;
+        }
+
+        int first = was.Keys.Min();
+        int last = was.Keys.Max();
+        string bars = first == last ? $"bar {first}" : $"bars {first}–{last}";
+        return $"In {bars} the accompaniment keeps its pitches and plays them in a new rhythm or order; the melody is unchanged.";
     }
 
     /// <summary>"beat 2 of bar 1", or "1 sixteenth after beat 2 of bar 1" off the beat.</summary>
