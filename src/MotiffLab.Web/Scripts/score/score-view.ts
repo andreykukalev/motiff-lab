@@ -1,6 +1,6 @@
 // The score view (S1-W7, decision record 0008): engraves MusicXML or generated MEI with Verovio,
 // marks the notes being heard, scrolls with playback and moves playback to a clicked note, and
-// highlights the places a chosen fact names (#25).
+// highlights the places a chosen fact names (#25). A click on a bar selects it (0012).
 // Blazor imports this module through JS interop. Verovio loads on first use.
 
 import { ScoreTimeline, highlightedIds, type HighlightPlace, type TimemapEntry } from "./score-timeline.js";
@@ -138,7 +138,7 @@ export class ScoreView {
         this.engraver = engraver;
         this.pitches = new Map();
         this.highlighted = new Set();
-        this.timeline = ScoreTimeline.fromTimemap(engraver.renderToTimemap({ includeRests: true }));
+        this.timeline = ScoreTimeline.fromTimemap(engraver.renderToTimemap({ includeRests: true, includeMeasures: true }));
         this.render();
         return { pages: engraver.getPageCount(), notes: this.timeline.spans.length };
     }
@@ -433,6 +433,13 @@ export class ScoreView {
         const onset = note?.id ? timeline.onsetOf(note.id) : undefined;
         if (onset !== undefined) {
             void this.dotnet.invokeMethodAsync("OnScoreNoteClicked", onset);
+            return;
+        }
+        // A click on a bar away from its notes selects that bar, as on the roll's bar numbers (0012); Shift extends to it.
+        const measure = event.target.closest("g.measure");
+        const start = measure?.id ? timeline.measureOnset(measure.id) : undefined;
+        if (start !== undefined) {
+            void this.dotnet.invokeMethodAsync("OnScoreBarClicked", start, event.shiftKey);
         }
     };
 }

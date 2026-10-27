@@ -1661,3 +1661,398 @@ html, body {
 body:has(.transport-bar) .site-footer {
     padding-bottom: 6rem;
 }
+
+/* The workspace structure (0012): the score first and taller, a folded way to open another piece, the hand-off from Understand to Explore. */
+.app .score-panel .score {
+    max-height: 40vh;
+    min-height: 12rem;
+}
+
+.app-header details.open-another summary {
+    cursor: pointer;
+    color: var(--ml-gray);
+    font-size: 0.9rem;
+    list-style: none;
+}
+
+.app-header details.open-another summary::-webkit-details-marker {
+    display: none;
+}
+
+.app-header details.open-another summary::before {
+    content: "▸ ";
+}
+
+.app-header details.open-another[open] summary::before {
+    content: "▾ ";
+}
+
+.app-header details.open-another .row {
+    margin: 0.4rem 0 0;
+}
+
+.app .empty-hint {
+    padding: 0 1.25rem;
+}
+
+.inspector .handoff {
+    margin-top: 0.75rem;
+}
+
+.lab .inspector .handoff button {
+    width: 100%;
+    border-color: var(--ml-lime);
+    color: var(--ml-lime);
+    min-height: 2.75rem;
+}
+
+/* Tools (0012): the mechanisms, each a folding section; the first holds Keep, the operations and the steps. */
+.lab .corrections.shape {
+    margin-top: 0;
+    border-top: none;
+}
+
+.lab .corrections.shape > p.meta {
+    font-size: 0.85rem;
+    margin: 0 0 0.75rem;
+}
+
+/* The phrase strip's tools fold away (0012). */
+.lab .phrases button.section-toggle {
+    border: none;
+    padding: 0.2rem 0;
+    min-height: 0;
+    color: var(--ml-gray);
+    font-size: 0.85rem;
+}
+
+.lab .phrases .caret {
+    display: inline-block;
+    width: 1em;
+}
+
+.phrases .phrase-more {
+    margin: 0.1rem 0 0;
+}
+
+/* Projects (Pages/Home.razor) and the project page (Pages/ProjectPage.razor, 0012): cards, not a table, so they read on a tablet. */
+.lab .project-list, .lab .session-list, .lab .idea-list {
+    list-style: none;
+    padding: 0;
+    margin: 0.5rem 0 1rem;
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+}
+
+.lab .project-card, .lab .session-card, .lab .idea-card {
+    background: var(--ml-surface);
+    border: 1px solid var(--ml-line);
+    border-radius: 0.9rem;
+    padding: 0.8rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.lab .project-card .project-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    text-decoration: none;
+    overflow-wrap: anywhere;
+}
+
+.lab .project-card p, .lab .session-card p, .lab .idea-card p {
+    margin: 0;
+}
+
+.lab .project-card .actions, .lab .session-card .actions, .lab .idea-card .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.4rem;
+}
+
+.lab.project .crumbs a {
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.lab.project .project-head h1 {
+    overflow-wrap: anywhere;
+}
+
+.lab.project section {
+    margin-top: 1.5rem;
+}
+
+.lab.project .intents {
+    display: grid;
+    gap: 0.6rem;
+    grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+    margin: 0.75rem 0;
+}
+
+.lab.project button.intent {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+    text-align: left;
+    padding: 0.8rem 1rem;
+    min-height: 4.5rem;
+    border-color: var(--ml-lime);
+}
+
+.lab.project button.intent.open {
+    border-color: var(--ml-border);
+}
+
+.lab.project button.intent strong {
+    font-size: 1.05rem;
+}
+
+.lab.project button.intent span {
+    color: var(--ml-gray);
+    font-size: 0.9rem;
+}
+
+.lab.project label.task {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 0.75rem;
+    color: var(--ml-gray);
+    font-size: 0.9rem;
+}
+
+.lab.project label.task input {
+    flex: 1 1 18rem;
+    box-sizing: border-box;
+    background: var(--ml-charcoal);
+    color: var(--ml-white);
+    border: 1px solid var(--ml-border);
+    border-radius: 0.6rem;
+    padding: 0.45rem 0.7rem;
+    font: inherit;
+    min-height: 2.5rem;
+}
+
+.lab.project label.task input:focus-visible {
+    outline: 2px solid var(--ml-lime);
+    outline-offset: 1px;
+}
+
+.lab .session-card .intent-tag {
+    display: inline-block;
+    border: 1.5px solid var(--ml-lime);
+    color: var(--ml-lime);
+    border-radius: 1.1rem;
+    padding: 0 0.6rem;
+    font-size: 0.8rem;
+    margin-right: 0.4rem;
+}
+
+.lab .session-card.open .intent-tag {
+    border-color: var(--ml-gray);
+    color: var(--ml-gray);
+}
+
+.lab .idea-card .note {
+    white-space: pre-wrap;
+    border-left: 2px solid var(--ml-gray);
+    padding-left: 0.5rem;
+}
+
+.lab .idea-card .label {
+    color: var(--ml-gray);
+}
+
+/* The canvas as the workspace (0012, batch 2): Score, Piano roll or Both, a divider between the two, and Focus mode.
+   On a wide screen, and in Focus mode at any width, the layout script marks the canvas data-fill and measures the chrome
+   (header, Focus bar, transport) into --ml-chrome, so the canvas fills the window and the two views share it by --ml-split. */
+.app-header .view-switch, .focus-bar .view-switch {
+    display: inline-flex;
+    border: 1px solid var(--ml-border);
+    border-radius: 0.6rem;
+    overflow: hidden;
+}
+
+.lab .view-switch button {
+    border: 0;
+    border-radius: 0;
+    min-height: 2.25rem;
+}
+
+.lab .view-switch button + button {
+    border-left: 1px solid var(--ml-border);
+}
+
+.lab .view-switch button.on {
+    background: var(--ml-raised);
+    color: var(--ml-white);
+}
+
+.app .canvas[data-fill="true"] {
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    height: calc(100dvh - var(--ml-chrome, 9rem));
+    overflow: hidden;
+    padding-bottom: 0.5rem;
+}
+
+.app .canvas[data-fill="true"] > .phrases {
+    flex: none;
+}
+
+.app .canvas[data-fill="true"] > .score-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-height: 0;
+}
+
+.app .canvas[data-fill="true"] > .score-panel .score {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+}
+
+.app .canvas[data-fill="true"] > .roll-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-height: 0;
+}
+
+/* The roll never collapses: given less room than its notes need, it scrolls within itself, keyboard and all. */
+.app .canvas[data-fill="true"] > .roll-panel .roll {
+    flex: 1 1 auto;
+    min-height: 12rem;
+    overflow-y: auto;
+}
+
+.app .canvas[data-fill="true"] > .roll-panel .roll-tools, .app .canvas[data-fill="true"] > .roll-panel > p.meta {
+    flex: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.app .canvas[data-fill="true"] > .roll-panel .roll-tools {
+    overflow-x: auto;
+}
+
+/* With both views, the divider sets the shares; a view alone takes the whole canvas. */
+.app .canvas[data-fill="true"] > .score-panel:has(+ .divider) {
+    flex: var(--ml-split, 0.6) 1 0;
+}
+
+.app .canvas[data-fill="true"] > .divider + .roll-panel {
+    flex: calc(1 - var(--ml-split, 0.6)) 1 0;
+}
+
+.app .divider {
+    display: none;
+}
+
+.app .canvas[data-fill="true"] > .divider {
+    display: block;
+    flex: none;
+    position: relative;
+    height: 1rem;
+    margin: 0.1rem 0;
+    cursor: row-resize;
+    touch-action: none;
+    border-radius: 0.5rem;
+}
+
+.app .divider::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 4rem;
+    height: 0.25rem;
+    transform: translate(-50%, -50%);
+    border-radius: 0.125rem;
+    background: var(--ml-border);
+}
+
+.app .divider:hover::before, .app .divider.dragging::before, .app .divider:focus-visible::before {
+    background: var(--ml-lime);
+}
+
+.app .divider:focus-visible {
+    outline: 2px solid var(--ml-lime);
+    outline-offset: -2px;
+}
+
+@media (min-width: 64rem) {
+    .app .inspector {
+        max-height: calc(100dvh - var(--ml-chrome, 5rem));
+        min-height: calc(100dvh - var(--ml-chrome, 9rem));
+    }
+}
+
+/* Focus mode: the phrase, its loop, the views and the transport; the rest of the page goes. */
+.app.focus .app-header, .app.focus .inspector, .app.focus .credit, .app.focus > .meta,
+.app.focus .phrases .phrase-more, .app.focus .phrases .phrase-actions, .app.focus .phrases .phrase-extend,
+.app.focus .score-panel .meta, .app.focus .roll-panel .roll-tools, .app.focus .roll-panel > p.meta {
+    display: none;
+}
+
+body:has(main.focus) .site-footer {
+    display: none;
+}
+
+.app.focus .app-body {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.focus-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.9rem;
+    padding: 0.5rem 1.25rem;
+    border-bottom: 1px solid var(--ml-line);
+    background: var(--ml-panel);
+}
+
+.focus-bar .phrase {
+    flex: 1 1 12rem;
+    min-width: 0;
+    font-weight: 500;
+}
+
+.focus-bar .steps {
+    display: inline-flex;
+    gap: 0.4rem;
+}
+
+/* Reachable from the music stand: every control on the Focus bar and the transport is at least 44px (WCAG 2.5.8). */
+.lab .focus-bar button, .lab .focus-bar .view-switch button {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+    font-size: 1rem;
+}
+
+.lab .focus-bar .compare-switch button {
+    min-height: 2.75rem;
+}
+
+.app.focus .transport-bar {
+    padding: 0.75rem 1.25rem;
+}
+
+.lab.app.focus .transport-bar button {
+    min-height: 2.75rem;
+}
+
+@media (max-width: 48rem) {
+    .app.focus .transport-bar .state, .app.focus .transport-bar label:not(.tempo) {
+        display: none;
+    }
+}

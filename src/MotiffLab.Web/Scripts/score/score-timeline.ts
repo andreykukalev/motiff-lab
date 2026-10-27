@@ -9,6 +9,8 @@ export interface TimemapEntry {
     off?: string[];
     restsOn?: string[];
     restsOff?: string[];
+    /** With includeMeasures, the id of the measure that starts here. */
+    measureOn?: string;
 }
 
 /** An engraved note (or one piece of a tied note) and the ticks it sounds for. */
@@ -29,8 +31,10 @@ export class ScoreTimeline {
     readonly rests: readonly NoteSpan[];
     private readonly longest: number;
     private readonly onsets: Map<string, number>;
+    /** Where each engraved measure starts (0012), when the timemap has measures. */
+    private readonly measures: Map<string, number>;
 
-    private constructor(spans: NoteSpan[], rests: NoteSpan[]) {
+    private constructor(spans: NoteSpan[], rests: NoteSpan[], measures: Map<string, number> = new Map()) {
         spans.sort(byOnset);
         rests.sort(byOnset);
         this.spans = spans;
@@ -42,6 +46,7 @@ export class ScoreTimeline {
                 this.onsets.set(span.id, span.onset);
             }
         }
+        this.measures = measures;
     }
 
     static fromTimemap(entries: readonly TimemapEntry[]): ScoreTimeline {
@@ -49,6 +54,7 @@ export class ScoreTimeline {
         const openRests = new Map<string, number>();
         const spans: NoteSpan[] = [];
         const rests: NoteSpan[] = [];
+        const measures = new Map<string, number>();
         let last = 0;
         const close = (ids: string[] | undefined, from: Map<string, number>, into: NoteSpan[], tick: number): void => {
             for (const id of ids ?? []) {
@@ -70,6 +76,9 @@ export class ScoreTimeline {
             for (const id of entry.restsOn ?? []) {
                 openRests.set(id, tick);
             }
+            if (entry.measureOn !== undefined && !measures.has(entry.measureOn)) {
+                measures.set(entry.measureOn, tick);
+            }
         }
         // A note the timemap never stops lasts to the end.
         for (const [id, onset] of open) {
@@ -78,7 +87,12 @@ export class ScoreTimeline {
         for (const [id, onset] of openRests) {
             rests.push({ id, onset, end: Math.max(last, onset + 1) });
         }
-        return new ScoreTimeline(spans, rests);
+        return new ScoreTimeline(spans, rests, measures);
+    }
+
+    /** Where an engraved measure starts, or undefined when the timemap had no measures or no such one. */
+    measureOnset(id: string): number | undefined {
+        return this.measures.get(id);
     }
 
     /** Ids of the notes sounding at a tick: started at or before it and not yet ended. */

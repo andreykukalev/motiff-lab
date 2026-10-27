@@ -4,12 +4,25 @@
 @implements IDisposable
 @inject UsageAnalytics Analytics
 @inject MotiffLab.Web.Import.ScanService Scans
+@inject MotiffLab.Web.Localization.UiText Text
 
 <PageTitle>Settings · Motiff Lab</PageTitle>
 
 @* Settings (S1-AI0, #64, #65): anonymous analytics with consent, the scan server for sheet music scanning (0011), and the privacy notice and terms of use. AI assistance joins this page when it arrives. *@
 <main class="lab settings">
     <h1>Settings</h1>
+
+    <section aria-labelledby="language-heading">
+        <h2 id="language-heading">@Text["settings.language"]</h2>
+        <p class="meta">@Text["settings.languageHint"]</p>
+        <div class="row" role="group" aria-label="@Text["settings.language"]">
+            @foreach ((string tag, string name) in MotiffLab.Web.Localization.UiText.Languages)
+            {
+                bool on = Text.Language == tag;
+                <button class="@(on ? "on" : null)" aria-pressed="@(on ? "true" : "false")" lang="@tag" @onclick="() => Text.SetLanguageAsync(tag)">@name</button>
+            }
+        </div>
+    </section>
 
     <section aria-labelledby="analytics-heading">
         <h2 id="analytics-heading">Anonymous usage analytics</h2>
@@ -96,6 +109,7 @@ docker run --rm -p 8765:8000 motiff-omr</code></pre>
     protected override async Task OnInitializedAsync()
     {
         Analytics.Changed += OnChanged;
+        Text.Changed += OnChanged;
         await Analytics.LoadAsync();
         await Scans.LoadAsync();
         _address = Scans.Address?.ToString() ?? MotiffLab.Web.Import.ScanService.SuggestedAddress;
@@ -123,7 +137,11 @@ docker run --rm -p 8765:8000 motiff-omr</code></pre>
         _scanStatus = "Scanning is off.";
     }
 
-    public void Dispose() => Analytics.Changed -= OnChanged;
+    public void Dispose()
+    {
+        Analytics.Changed -= OnChanged;
+        Text.Changed -= OnChanged;
+    }
 
     private void OnChanged() => _ = InvokeAsync(StateHasChanged);
 

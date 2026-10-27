@@ -17,6 +17,9 @@ export interface ProjectSummary {
     motifCount: number;
     variationCount: number;
     lastOpened: string;
+    /** Work sessions and kept ideas (0012); rows saved by earlier versions have neither. */
+    sessionCount?: number;
+    ideaCount?: number;
 }
 
 export interface StorageUse {

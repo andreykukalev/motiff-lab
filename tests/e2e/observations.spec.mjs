@@ -58,7 +58,7 @@ test("keep a variation with a note, come back to it, rename, export and delete i
     const compare = page.locator(".inspector-head").getByRole("group", { name: "Compare with the original" });
     await expect(compare.getByRole("button", { name: "Variation", exact: true })).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator(".explore + .compare")).toBeVisible();
-    await page.getByRole("tab", { name: "Selection" }).click();
+    await page.getByRole("tab", { name: "Tools", exact: true }).click();
     await expect(page.locator(".inspector .steps")).toContainText("Short");
     await page.getByRole("tab", { name: "Explore" }).click();
 
@@ -133,9 +133,14 @@ test("what is kept is saved with the project and comes back when it is opened ag
     await expect(kept.getByRole("listitem")).toContainText("Your note: Airier.");
     await page.locator(".transport-bar").getByRole("button", { name: "Pause" }).click();
 
-    // Open the project again from the projects screen.
+    // The project page lists the idea in its library (0012), and continuing the session comes back to the phrase.
     await page.goto("/");
-    await page.getByRole("button", { name: "importer-grand-staff.musicxml" }).click();
+    await page.getByRole("link", { name: "importer-grand-staff.musicxml" }).click();
+    const idea = page.locator(".idea-card").filter({ hasText: "Give the melody more space: Detached" });
+    await expect(idea).toContainText("Your note: Airier.");
+    await expect(page.locator(".session-card")).toHaveCount(1);
+    await page.locator(".session-card").getByRole("button", { name: "Continue" }).click();
+    await expect(page.locator(".inspector .selection-text")).toContainText("Selected phrase 1");
     await expect(phrases.nth(0)).toHaveAccessibleName(/, 1 kept$/);
     await phrases.nth(0).click();
     await page.getByRole("tab", { name: "Explore" }).click();

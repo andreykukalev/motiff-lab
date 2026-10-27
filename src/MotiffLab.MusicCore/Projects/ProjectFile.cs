@@ -23,16 +23,17 @@ public static class ProjectFile
     public const string FormatName = "motiff-lab-project";
 
     /// <summary>
+    /// 8 adds the player's work sessions and marks each observation with the session it was kept in (0012);
     /// 7 marks a project read from a photo or PDF, with the bars the player checked (0011);
     /// 6 adds the player's observations of phrases (#78); 5 the player's phrase boundaries;
     /// 4 saves the melody operations (V4, V9, V10), Accompaniment pattern (V2), Articulation (V13)
     /// and each step's scope; 3 adds
     /// the edit log of note corrections; 2 saves each variation as a chain of steps. Files of earlier
-    /// versions still open: versions before 7 were never scanned, versions before 6 have no observations, steps of versions before 4
+    /// versions still open: versions before 8 have no sessions, versions before 7 were never scanned, versions before 6 have no observations, steps of versions before 4
     /// change the whole selection, versions 1 and 2 have no corrections, and version 1 holds one
     /// step per variation.
     /// </summary>
-    public const int Version = 7;
+    public const int Version = 8;
 
     /// <summary>The extension an exported project gets.</summary>
     public const string Extension = ".motiff.json";
@@ -108,6 +109,31 @@ public static class ProjectFile
             WriteTicks(json, "added", project.Phrases.Added);
             WriteTicks(json, "removed", project.Phrases.Removed);
             json.WriteEndObject();
+
+            json.WriteStartArray("sessions");
+            foreach (Session session in project.Sessions)
+            {
+                json.WriteStartObject();
+                json.WriteString("id", session.Id);
+                json.WriteString("intent", session.Intent.ToString());
+                if (session.Task is { } task)
+                {
+                    json.WriteString("task", task);
+                }
+
+                if (session.Passage is { } passage)
+                {
+                    json.WriteStartObject("passage");
+                    WriteRange(json, passage.Span, passage.Filter);
+                    json.WriteEndObject();
+                }
+
+                json.WriteString("startedAt", session.StartedAt.ToString("O", CultureInfo.InvariantCulture));
+                json.WriteString("lastActive", session.LastActive.ToString("O", CultureInfo.InvariantCulture));
+                json.WriteEndObject();
+            }
+
+            json.WriteEndArray();
 
             if (project.Scan is { } scan)
             {
@@ -189,6 +215,19 @@ public static class ProjectFile
                 : NoteEditLog.Empty;
             PhraseEdits phrases = version >= 5 ? ReadPhrases(Property(root, "phrases", JsonValueKind.Object)) : PhraseEdits.None;
             ScanOrigin? scan = version >= 7 ? ReadScan(root) : null;
+            List<Session> sessions = version >= 8
+                ? Property(root, "sessions", JsonValueKind.Array).EnumerateArray().Select(ReadSession).ToList()
+                : [];
+            if (sessions.Select(static session => session.Id).Distinct(StringComparer.Ordinal).Count() != sessions.Count)
+            {
+                throw Damaged("sessions");
+            }
+
+            if (observations.Any(observation => observation.SessionId is { } sessionId && sessions.All(session => session.Id != sessionId)))
+            {
+                throw Damaged("observation session");
+            }
+
             return new Project(
                 Text(root, "id"),
                 Text(root, "fileName"),
@@ -202,6 +241,7 @@ public static class ProjectFile
                 Phrases = phrases,
                 Observations = observations,
                 Scan = scan,
+                Sessions = sessions,
             };
         }
     }
@@ -376,11 +416,38 @@ public static class ProjectFile
             .Order()
             .ToList();
 
+    private static Session ReadSession(JsonElement session)
+    {
+        Expect(session, JsonValueKind.Object, "sessions");
+        SavedPassage? passage = null;
+        if (session.TryGetProperty("passage", out _))
+        {
+            (TickSpan span, SelectionFilter filter) = ReadRange(Property(session, "passage", JsonValueKind.Object), "session passage");
+            passage = new SavedPassage(span, filter);
+        }
+
+        string? task = session.TryGetProperty("task", out _) ? Text(session, "task") : null;
+        try
+        {
+            return Session.Start(Text(session, "id"), Name<SessionIntent>(session, "intent"), task, Time(session, "startedAt"))
+                .Touch(passage, Time(session, "lastActive"));
+        }
+        catch (ArgumentException)
+        {
+            throw Damaged("session");
+        }
+    }
+
     private static void WriteObservation(Utf8JsonWriter json, Observation observation)
     {
         json.WriteStartObject();
         json.WriteString("id", observation.Id);
         json.WriteString("name", observation.Name);
+        if (observation.SessionId is { } sessionId)
+        {
+            json.WriteString("sessionId", sessionId);
+        }
+
         if (observation.Note is { } note)
         {
             json.WriteString("note", note);
@@ -435,9 +502,10 @@ public static class ProjectFile
         string id = Text(observation, "id");
         string name = Text(observation, "name");
         DateTimeOffset createdAt = Time(observation, "createdAt");
+        string? sessionId = observation.TryGetProperty("sessionId", out _) ? Text(observation, "sessionId") : null;
         try
         {
-            return Observation.Create(id, new SavedPassage(phrase, phraseFilter), variation, name, note, createdAt, experiment);
+            return Observation.Create(id, new SavedPassage(phrase, phraseFilter), variation, name, note, createdAt, experiment) with { SessionId = sessionId };
         }
         catch (ArgumentException)
         {

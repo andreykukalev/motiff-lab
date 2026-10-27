@@ -305,9 +305,12 @@
         {
             Scan = _scan is null ? null : ScanOrigin.Read(_scanEngine),
         };
+        // The piece opens in a session (0012), so the work has a context to come back to from the project page.
+        Session session = Session.Start(project.NextSessionId(), SessionIntent.Open, null, DateTimeOffset.Now);
+        project = project.StartSession(session);
         await Projects.SaveAsync(project);
         CurrentPiece.Open(piece, piece.StartChoices[Math.Clamp(_start, 0, piece.StartChoices.Count - 1)].Filter, project);
-        Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(project));
+        Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(project, session.Id));
     }
 
     private static string FormatName(SourceFormat format) => format == SourceFormat.Midi ? "MIDI" : "MusicXML";

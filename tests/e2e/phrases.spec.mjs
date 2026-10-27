@@ -25,6 +25,8 @@ test("pick a suggested phrase, make your own and go back to the suggestions", as
 
     // A bar of your own becomes a phrase, marked as yours; back to the suggestions undoes it.
     await selectBar(page, 2);
+    // The boundary tools fold away under the strip (0012).
+    await strip.getByRole("button", { name: "Adjust phrases and hear transitions" }).click();
     const make = strip.getByRole("button", { name: "Make the selection a phrase" });
     await expect(make).toBeEnabled();
     await make.click();
