@@ -2,7 +2,7 @@
 
 @* Practise the phrase (#50, docs/08-central-product-model.md sections 3 and 6): play it, loop it, slow it down and hear
    one hand or one layer, with controls large enough to reach with the iPad on the music stand. No tasks and no scores.
-   It only shows the page's playback state; the page plays, loops and moves between phrases. *@
+   It only shows the workspace state (0013): the page plays, loops and moves between phrases. *@
 <section class="practise" aria-label="Practise this phrase">
     <p class="eyebrow">Practise this phrase</p>
     @if (!HasSelection)
@@ -91,35 +91,29 @@
 
     private static readonly int[] s_presets = [50, 75, 100];
 
-    [Parameter]
-    public bool HasSelection { get; set; }
+    /// <summary>The shared workspace state the page cascades; this panel reads its selection and playback.</summary>
+    [CascadingParameter]
+    public WorkspaceState State { get; set; } = null!;
 
-    [Parameter]
-    public bool Playing { get; set; }
+    private bool HasSelection => State.Selection.HasNotes;
 
-    [Parameter]
-    public bool Looping { get; set; }
+    private bool Playing => State.Playback.Playing;
 
-    /// <summary>The tempo as a percentage of the piece's own.</summary>
-    [Parameter]
-    public int TempoPercent { get; set; } = 100;
+    private bool Looping => State.Playback.Looping;
 
-    /// <summary>What can be heard alone, the whole first; a single choice shows nothing.</summary>
-    [Parameter]
-    public IReadOnlyList<(ListenTo Choice, string Label)> Choices { get; set; } = [];
+    private int TempoPercent => State.Playback.TempoPercent;
 
-    [Parameter]
-    public ListenTo ListenTo { get; set; }
+    private IReadOnlyList<(ListenTo Choice, string Label)> Choices => State.Playback.ListenChoices;
 
-    /// <summary>Why the hands may not be the ones in the file, or null when the file gives them.</summary>
-    [Parameter]
-    public string? HandsNote { get; set; }
+    private ListenTo ListenTo => State.Playback.ListenTo;
 
-    [Parameter]
-    public bool CanGoBack { get; set; }
+    private string? HandsNote => State.Playback.HandsNote;
 
-    [Parameter]
-    public bool CanGoOn { get; set; }
+    private bool CanGoBack => State.Selection.Previous is not null;
+
+    private bool CanGoOn => State.Selection.Next is not null;
+
+    private bool PlayingOn => State.Playback.PlayingOn;
 
     [Parameter]
     public EventCallback PlayPressed { get; set; }
@@ -136,10 +130,6 @@
 
     [Parameter]
     public EventCallback<ListenTo> ListenToChanged { get; set; }
-
-    /// <summary>Whether the piece plays on beyond the phrase, so Back to the phrase is offered.</summary>
-    [Parameter]
-    public bool PlayingOn { get; set; }
 
     /// <summary>True to play the whole piece from its start, false to play on from the phrase to the end.</summary>
     [Parameter]

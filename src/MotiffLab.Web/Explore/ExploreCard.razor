@@ -4,7 +4,7 @@
 
 @* The Explore card (decision record 0010): the experiments music-core offers for the selection, one at a time, with its
    alternatives, Original and Variation, Keep and Try another; and two ways in, Surprise me and I have a question.
-   It only displays what ExperimentCatalogue returns; the page runs the steps, plays and saves. *@
+   It only displays the workspace state (0013) and what ExperimentCatalogue returns; the page runs the steps, plays and saves. *@
 <section class="explore" aria-label="Explore this phrase">
     <p class="eyebrow">Explore this phrase</p>
     @if (!HasSelection)
@@ -154,37 +154,32 @@
     /// <summary>The question picked when it has several experiments, which the list then shows alone.</summary>
     private ExperimentTopic? _topic;
 
-    [Parameter, EditorRequired]
-    public bool HasSelection { get; set; }
+    /// <summary>The shared workspace state the page cascades; the card reads its selection, playback, variation and ideas.</summary>
+    [CascadingParameter]
+    public WorkspaceState State { get; set; } = null!;
+
+    private bool HasSelection => State.Selection.HasNotes;
 
     /// <summary>The experiments that fit, in the catalogue's order: the trial's own offers while one runs.</summary>
-    [Parameter, EditorRequired]
-    public IReadOnlyList<Experiment> Offers { get; set; } = [];
+    private IReadOnlyList<Experiment> Offers => State.Variation.Offers;
 
     /// <summary>The experiment being tried, or null.</summary>
-    [Parameter]
-    public ExploreTrial? Trial { get; set; }
+    private ExploreTrial? Trial => State.Variation.Trial;
 
     /// <summary>What the variation changed, read from its diff (S1-E4).</summary>
-    [Parameter]
-    public string? Explanation { get; set; }
+    private string? Explanation => State.Variation.Explanation;
 
-    [Parameter]
-    public bool OriginalHeard { get; set; }
+    private bool OriginalHeard => State.Playback.OriginalHeard;
 
-    [Parameter]
-    public bool VariationHeard { get; set; }
+    private bool VariationHeard => State.Playback.VariationHeard;
 
     /// <summary>Whether the motif and its new answer loop together.</summary>
-    [Parameter]
-    public bool AnswerLooping { get; set; }
+    private bool AnswerLooping => State.Playback.AnswerLooping;
 
     /// <summary>Whether the passage has a melody and an accompaniment to listen to apart.</summary>
-    [Parameter]
-    public bool Layered { get; set; }
+    private bool Layered => State.Playback.Layered;
 
-    [Parameter]
-    public ListenTo ListenTo { get; set; }
+    private ListenTo ListenTo => State.Playback.ListenTo;
 
     [Parameter]
     public EventCallback<ExploreRequest> Try { get; set; }
@@ -200,15 +195,12 @@
     public EventCallback Leave { get; set; }
 
     /// <summary>Where a kept variation is saved, said plainly: with the project, or only while the page is open.</summary>
-    [Parameter]
-    public string KeptText { get; set; } = "Kept with the project.";
+    private string KeptText => State.Ideas.KeptText;
 
     /// <summary>The observation the kept variation was saved as (#78), whose note the card offers to write; null for none.</summary>
-    [Parameter]
-    public string? KeptId { get; set; }
+    private string? KeptId => State.Ideas.OnCard?.Id;
 
-    [Parameter]
-    public string? KeptNote { get; set; }
+    private string? KeptNote => State.Ideas.OnCard?.Note;
 
     /// <summary>Raised with the note as the player wrote it.</summary>
     [Parameter]
