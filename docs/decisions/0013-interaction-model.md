@@ -17,7 +17,7 @@ This record defines that model. It names what exists in code today and what chan
 | **Project** | the source piece, its notes, meter and keys, the player's corrections, the phrases and (later) sentences and sections, the ideas, the sessions | `Project`, `ProjectFile` (version 8) | adds sentences and sections beside phrases; nothing else moves |
 | **Session** | the player's goal (intent and task), the **working context** (the selected musical object, the active variation, the tab) and the **experiment history** (the chains tried in it, kept or not) | `Session(Id, Intent, Task, Passage, StartedAt, LastActive)` | `Passage` becomes a `WorkingContext`; the history is the session's list of chain ids; a session keeps working when the player moves from a phrase to its sentence or down to a motif, so moving levels never starts a session or drops its history |
 | **Musical object** | a region or structure of the source piece: its kind, its span, which notes count, and how it was found | `MotifSelection` (span, bars, filter, note ids), `Phrase` (number, span, boundary with provenance) | one `MusicalObject` record (below) that every level shares; `MotifSelection` stays the note-level resolution of an object |
-| **Idea** (a saved observation) | a reference to a musical object, the variation kept with it (as steps, so it is restored by replaying), the player's interpretation and note, what they intended and what they heard, and the session it was kept in | `Observation(Id, Phrase: SavedPassage, ExperimentId, Alternative, Variation, Name, Note, CreatedAt) { SessionId }` | `Phrase` becomes a `MusicalObject` reference; gains `Intended`, `Heard` and `Interpretation` (#135, #136); the parent idea when branched |
+| **Idea** (a saved observation) | a reference to a musical object, the variation kept with it (as steps, so it is restored by replaying), the player's interpretation and note, what they intended and what they heard, and the session it was kept in; later also a kept **annotation on the object's notes**, such as a fingering, keyed by note id so it stays attached when the visible range or the view changes | `Observation(Id, Phrase: SavedPassage, ExperimentId, Alternative, Variation, Name, Note, CreatedAt) { SessionId }` | `Phrase` becomes a `MusicalObject` reference; gains `Intended`, `Heard` and `Interpretation` (#135, #136); the parent idea when branched |
 
 Rule: a project outlives its sessions, a session outlives its selections, an idea outlives the session it was kept in. Nothing in a session is lost by ending it except the session itself.
 
@@ -76,6 +76,8 @@ A "Recommended next" or an intention button offers only what the engine can run 
 5. Keep or Leave; Keep records what was intended (the recommendation's words), what changed, and, if the player answers, what they heard.
 
 A suggestion the catalogue cannot execute is not shown as a button. It may be shown as a question for the player to answer at the instrument, marked so.
+
+The same contract holds for any generated candidate the player tries and keeps, not only variations of the notes: a fingering candidate (movement-aware fingering, a later batch) names its strategy and the notes it covers, never changes the notes, explains its trade-off from what it computed, is compared one tap from its alternatives, and is kept as an annotation marked Inferred until the player edits it (UserEdited). Only a strategy with a valid candidate for the actual passage is offered.
 
 ### 6. The shared workspace state
 
@@ -147,6 +149,7 @@ Guidance is a layer over the shared state, not a fourth tab. It suggests the nex
 | the passage is dense (note count, hand crossing or a register change detected) | listen first at a slower tempo, then isolate one hand or the transition |
 | the player has looped one hand for a while | integrate the hands when the single hand feels comfortable |
 | the selection contains a repeated motif (detected) | ask what changes between the statements |
+| the selection contains a large leap or a change of hand position (detected) | examine the fingering and the movement into the next position; compare two candidates, then try the transition slowly (a leap is a question to ask, never assumed difficult) |
 | a variation was just created | compare what was intended with what was heard (§5, step 5) |
 | an idea was just kept | develop it further, or return to the original passage |
 
