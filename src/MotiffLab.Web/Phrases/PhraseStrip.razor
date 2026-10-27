@@ -7,7 +7,7 @@
 
 @* The piece as phrases (S1-I5, #18): the phrases music-core suggests, each marked with how its start was found, to pick
    as the working context, and the player's own boundaries; previous and next phrase by touch and with Page Up and Page Down (#126),
-   and the selection run on into a neighbouring phrase. It only displays what PhraseMap returns; the page selects and saves. *@
+   and the selection run on into a neighbouring phrase. It only displays the workspace state (0013) and what PhraseMap returns; the page selects and saves. *@
 <nav class="phrases" aria-label="Phrases" data-keeps-selection>
     <div class="phrase-list" role="group" aria-label="Phrases of the piece">
         <button class="step" aria-label="Previous phrase" title="Previous phrase (Page Up)" disabled="@(Previous is null)" @onclick="() => StepAsync(-1)">‹</button>
@@ -69,17 +69,18 @@
 </nav>
 
 @code {
-    /// <summary>The piece's phrases with the player's edits.</summary>
-    [Parameter, EditorRequired]
-    public PhraseMap Map { get; set; } = null!;
+    /// <summary>The shared workspace state the page cascades; the strip reads its selection.</summary>
+    [CascadingParameter]
+    public WorkspaceState State { get; set; } = null!;
+
+    /// <summary>The piece's phrases with the player's edits. The page shows the strip only once there is a map.</summary>
+    private PhraseMap Map => State.Selection.Phrases!;
 
     /// <summary>The phrase the selection stands for, or null when the selection is another range or there is none.</summary>
-    [Parameter]
-    public Phrase? Current { get; set; }
+    private Phrase? Current => State.Selection.Phrase;
 
     /// <summary>Whether there is a selection that could become a phrase.</summary>
-    [Parameter]
-    public bool CanMake { get; set; }
+    private bool CanMake => State.Selection.CanMakePhrase;
 
     /// <summary>How many observations the player kept about a phrase (#78), shown on its chip; null shows none.</summary>
     [Parameter]
@@ -98,12 +99,10 @@
     public EventCallback Reset { get; set; }
 
     /// <summary>The phrase before the selection's, which Previous phrase and Page Up select; null at the start.</summary>
-    [Parameter]
-    public Phrase? Previous { get; set; }
+    private Phrase? Previous => State.Selection.Previous;
 
     /// <summary>The phrase after the selection's, which Next phrase and Page Down select; null at the end.</summary>
-    [Parameter]
-    public Phrase? Next { get; set; }
+    private Phrase? Next => State.Selection.Next;
 
     /// <summary>Whether the selection can run back into the phrase before it.</summary>
     [Parameter]

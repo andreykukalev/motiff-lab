@@ -4,7 +4,7 @@
 @* Understand (#25; S1-A1, S1-A2, S1-A4, S1-A5): the facts about the selection, one collapsible section per lens in FactLens order.
    A fact with places can be chosen to highlight them in the score and on the roll, one place at a time from its chips,
    and links to the experiments that rest on it. A new fact or a new lens from music-core shows up here without changes;
-   the panel only displays, and the page highlights, plays and tries. *@
+   the panel only displays the workspace state (0013), and the page highlights, plays and tries. *@
 @if (Chosen is { } chosen)
 {
     <div class="highlighted" role="group" aria-label="Highlighted in the score and on the roll">
@@ -89,17 +89,18 @@
     /// <summary>The facts whose basis the player opened.</summary>
     private readonly HashSet<string> _basisShown = new(StringComparer.Ordinal);
 
+    /// <summary>The shared workspace state the page cascades; this panel reads its facts and the offers for them.</summary>
+    [CascadingParameter]
+    public WorkspaceState State { get; set; } = null!;
+
     /// <summary>The facts to show, from any analysis, in the order music-core gives them within each lens.</summary>
-    [Parameter, EditorRequired]
-    public IReadOnlyList<MotifFact> Facts { get; set; } = [];
+    private IReadOnlyList<MotifFact> Facts => State.Facts.All;
 
     /// <summary>The experiments offered for the same selection as <see cref="Facts"/>; each fact links to those resting on it.</summary>
-    [Parameter]
-    public IReadOnlyList<Experiment> Offers { get; set; } = [];
+    private IReadOnlyList<Experiment> Offers => State.Variation.UnderstandOffers;
 
     /// <summary>The fact being highlighted, and its place when one was chosen; null for none.</summary>
-    [Parameter]
-    public FactChoice? Chosen { get; set; }
+    private FactChoice? Chosen => State.Facts.Chosen;
 
     /// <summary>Raised with the fact (and place) to highlight, or null to clear the highlight.</summary>
     [Parameter]

@@ -1,6 +1,6 @@
 @* Return to the original and compare (#43, step 6 of docs/08-central-product-model.md): in the inspector head on
    every tab while a variation exists. Original and Variation switch what is heard and what the score shows;
-   One after the other loops the original, then the variation. The page does the switching; this only shows it. *@
+   One after the other loops the original, then the variation. The page does the switching; this only shows the workspace state (0013). *@
 <div class="compare-switch" role="group" aria-label="Compare with the original">
     <div class="ab" role="group" aria-label="Hear and show">
         <button class="@ButtonClass(Original, sounding: Sounding == false)" aria-pressed="@(Original ? "true" : "false")" aria-current="@(Sounding == false ? "true" : null)"
@@ -19,21 +19,21 @@
 </div>
 
 @code {
+    /// <summary>The shared workspace state the page cascades; the switch reads its playback.</summary>
+    [CascadingParameter]
+    public WorkspaceState State { get; set; } = null!;
+
     /// <summary>Whether the original phrase is what the player chose to hear.</summary>
-    [Parameter]
-    public bool Original { get; set; }
+    private bool Original => State.Playback.OriginalHeard;
 
     /// <summary>Whether the variation is what the player chose to hear.</summary>
-    [Parameter]
-    public bool Variation { get; set; }
+    private bool Variation => State.Playback.VariationHeard;
 
     /// <summary>Whether the original and the variation loop one after the other.</summary>
-    [Parameter]
-    public bool Alternating { get; set; }
+    private bool Alternating => State.Playback.Alternating;
 
     /// <summary>While they loop one after the other: true while the variation sounds, false while the original does; otherwise null.</summary>
-    [Parameter]
-    public bool? Sounding { get; set; }
+    private bool? Sounding => State.Playback.SoundingVariation;
 
     /// <summary>Hear and show the original (false) or the variation (true).</summary>
     [Parameter]

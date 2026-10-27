@@ -68,9 +68,12 @@
         (KeepStatus.NotChecked, "Not checked (needs chord analysis)"),
     ];
 
-    /// <summary>The variation against the original phrase: every accepted step and the one being tried.</summary>
-    [Parameter, EditorRequired]
-    public Variation Variation { get; set; } = null!;
+    /// <summary>The shared workspace state the page cascades; the panel reads its variation.</summary>
+    [CascadingParameter]
+    public WorkspaceState State { get; set; } = null!;
+
+    /// <summary>The variation against the original phrase: every accepted step and the one being tried. The page shows the panel only while there is one.</summary>
+    private Variation Variation => State.Variation.Current!;
 
     /// <summary>Whether to list the rule flags; off where the page lists them already, just above.</summary>
     [Parameter]
