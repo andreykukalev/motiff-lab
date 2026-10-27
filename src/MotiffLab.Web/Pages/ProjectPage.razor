@@ -1,0 +1,306 @@
+@page "/project/{Id}"
+@using MotiffLab.MusicCore.Import
+@using MotiffLab.MusicCore.Projects
+@using MotiffLab.MusicCore.Time
+@using MotiffLab.Web.Import
+@using MotiffLab.Web.Localization
+@using MotiffLab.Web.Projects
+@implements IDisposable
+@inject ProjectStore Projects
+@inject CurrentPiece CurrentPiece
+@inject NavigationManager Navigation
+@inject UiText Text
+
+<PageTitle>@(_project?.FileName ?? Text["project.title"]) · Motiff Lab</PageTitle>
+
+@* The project page (0012, section 1 of the UI review): a piece and its context. The player arrives with an intention, so the
+   page offers to start a session for it, lists the recent sessions to resume, and the ideas kept about the piece to open again.
+   A session refers to the piece; it never copies the score. *@
+<main class="lab project">
+    <nav class="crumbs" aria-label="@Text["nav.label"]"><a href="">‹ @Text["nav.projects"]</a></nav>
+
+    @if (_message is not null)
+    {
+        <p class="error" role="alert">@_message</p>
+    }
+    else if (_project is null)
+    {
+        <p class="meta">@Text["project.loading"]</p>
+    }
+    else
+    {
+        <header class="project-head">
+            <h1>@_project.FileName</h1>
+            <p class="meta">
+                @Text.Format("project.summary", _piece?.Report.MeasureCount ?? 0, _project.Sessions.Count, _project.Observations.Count)
+                @if (_project.Scan is not null)
+                {
+                    <span> · @Text["project.scanned"]</span>
+                }
+            </p>
+            <div class="row">
+                <button @onclick="ExportAsync">@Text["home.export"]</button>
+                @if (_confirmDelete)
+                {
+                    <button class="on" @onclick="DeleteAsync">@Text["home.deleteForGood"]</button>
+                    <button @onclick="() => _confirmDelete = false">@Text["home.keep"]</button>
+                }
+                else
+                {
+                    <button @onclick="() => _confirmDelete = true">@Text["home.delete"]</button>
+                }
+            </div>
+        </header>
+
+        <section class="start" aria-labelledby="start-heading">
+            <h2 id="start-heading">@Text["project.startHeading"]</h2>
+            <p class="meta">@Text["project.startHint"]</p>
+            <div class="intents" role="group" aria-label="@Text["project.startHeading"]">
+                @foreach (SessionIntent intent in s_intents)
+                {
+                    <button class="intent @(intent == SessionIntent.Open ? "open" : null)" @onclick="() => StartAsync(intent)" disabled="@_starting">
+                        <strong>@Text[$"intent.{Key(intent)}"]</strong>
+                        <span>@Text[$"intent.{Key(intent)}.hint"]</span>
+                    </button>
+                }
+            </div>
+            <label class="task">
+                <span>@Text["project.taskLabel"]</span>
+                <input type="text" maxlength="120" @bind="_task" @bind:event="oninput" placeholder="@Text["project.taskPlaceholder"]" />
+            </label>
+        </section>
+
+        <section class="sessions" aria-labelledby="sessions-heading">
+            <h2 id="sessions-heading">@Text["project.sessions"]</h2>
+            @if (_project.Sessions.Count == 0)
+            {
+                <p class="meta">@Text["project.noSessions"]</p>
+            }
+            else
+            {
+                <ul class="session-list">
+                    @foreach (Session session in _project.RecentSessions)
+                    {
+                        int ideas = _project.Observations.Count(observation => observation.SessionId == session.Id);
+                        <li class="session-card @Key(session.Intent)">
+                            <p class="name">
+                                <span class="intent-tag">@Text[$"intent.{Key(session.Intent)}"]</span>
+                                <strong>@(session.Task ?? Text[$"intent.{Key(session.Intent)}.hint"])</strong>
+                            </p>
+                            <p class="meta">
+                                @(session.Passage is { } passage ? Bars(passage.Span) : Text["project.noPassage"])
+                                · @Text.Format("project.ideasKept", ideas)
+                                · @Text.Format("project.lastActive", session.LastActive.ToLocalTime().ToString("g", Text.Culture))
+                            </p>
+                            <div class="actions">
+                                <button class="primary" @onclick="() => ResumeAsync(session)" disabled="@_starting">@Text["project.resume"]</button>
+                                @if (_confirmEnd == session.Id)
+                                {
+                                    <button class="on" @onclick="() => EndAsync(session)">@Text["project.endForGood"]</button>
+                                    <button @onclick="() => _confirmEnd = null">@Text["home.keep"]</button>
+                                }
+                                else
+                                {
+                                    <button @onclick="() => _confirmEnd = session.Id" title="@Text["project.endHint"]">@Text["project.end"]</button>
+                                }
+                            </div>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+
+        <section class="ideas" aria-labelledby="ideas-heading">
+            <h2 id="ideas-heading">@Text["project.ideas"]</h2>
+            @if (_project.Observations.Count == 0)
+            {
+                <p class="meta">@Text["project.noIdeas"]</p>
+            }
+            else
+            {
+                <ul class="idea-list">
+                    @foreach (Observation idea in _project.Observations.OrderByDescending(observation => observation.CreatedAt))
+                    {
+                        Session? from = idea.SessionId is { } sessionId ? _project.FindSession(sessionId) : null;
+                        <li class="idea-card">
+                            <p class="name"><strong>@idea.Name</strong></p>
+                            <p class="meta">
+                                @Bars((idea.Variation?.Passage ?? idea.Phrase).Span)
+                                · @Text[idea.Variation is null ? "idea.note" : idea.ExperimentId is null ? "idea.steps" : "idea.experiment"]
+                                @if (from is not null)
+                                {
+                                    <span> · @(from.Task ?? Text[$"intent.{Key(from.Intent)}"])</span>
+                                }
+                            </p>
+                            @if (idea.Note is { } note)
+                            {
+                                <p class="note"><span class="label">@Text["idea.yourNote"]</span> @note</p>
+                            }
+                            <div class="actions">
+                                <button class="primary" @onclick="() => OpenIdeaAsync(idea)" disabled="@_starting">@Text["project.openIdea"]</button>
+                            </div>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+    }
+</main>
+
+@code {
+    private static readonly SessionIntent[] s_intents = [SessionIntent.Practise, SessionIntent.Understand, SessionIntent.Explore, SessionIntent.Open];
+
+    [Parameter]
+    public string Id { get; set; } = "";
+
+    private Project? _project;
+    private ImportedPiece? _piece;
+    private string? _message;
+    private string? _task;
+    private bool _starting;
+    private bool _confirmDelete;
+    private string? _confirmEnd;
+
+    /// <summary>The project page's address: "project/p_…".</summary>
+    public static string Url(string id) => $"project/{Uri.EscapeDataString(id)}";
+
+    protected override void OnInitialized() => Text.Changed += OnTextChanged;
+
+    public void Dispose() => Text.Changed -= OnTextChanged;
+
+    private void OnTextChanged() => _ = InvokeAsync(StateHasChanged);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _message = null;
+        try
+        {
+            _project = await Projects.LoadAsync(Id);
+            if (_project is null)
+            {
+                _message = Text["project.gone"];
+                return;
+            }
+
+            // The piece is imported again for its bars; importing is deterministic, so this is what opening does anyway.
+            _piece = PieceImporter.Import(_project.FileName, _project.Source).Piece;
+        }
+        catch (ProjectFileException exception)
+        {
+            _message = exception.Message;
+        }
+    }
+
+    internal static string Key(SessionIntent intent) => intent.ToString().ToLowerInvariant();
+
+    /// <summary>Starts a session for the intent and opens the workspace on it (0012).</summary>
+    private async Task StartAsync(SessionIntent intent)
+    {
+        if (_project is null)
+        {
+            return;
+        }
+
+        _starting = true;
+        Session session = Session.Start(_project.NextSessionId(), intent, _task, DateTimeOffset.Now);
+        await Projects.SaveAsync(_project.StartSession(session));
+        await GoAsync(session.Id, idea: null);
+    }
+
+    private async Task ResumeAsync(Session session)
+    {
+        _starting = true;
+        await GoAsync(session.Id, idea: null);
+    }
+
+    /// <summary>Opens a kept idea in the workspace, in the session it was kept in, or in a new one to explore from it.</summary>
+    private async Task OpenIdeaAsync(Observation idea)
+    {
+        if (_project is null)
+        {
+            return;
+        }
+
+        _starting = true;
+        string sessionId;
+        if (idea.SessionId is { } kept && _project.FindSession(kept) is not null)
+        {
+            sessionId = kept;
+        }
+        else
+        {
+            Session session = Session.Start(_project.NextSessionId(), SessionIntent.Explore, idea.Name, DateTimeOffset.Now);
+            await Projects.SaveAsync(_project.StartSession(session));
+            sessionId = session.Id;
+        }
+
+        await GoAsync(sessionId, idea.Id);
+    }
+
+    private async Task GoAsync(string sessionId, string? idea)
+    {
+        try
+        {
+            if (!await CurrentPiece.OpenSavedAsync(Id))
+            {
+                _message = Text["project.gone"];
+                _starting = false;
+                return;
+            }
+
+            Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(CurrentPiece.Project!, sessionId, idea));
+        }
+        catch (ProjectFileException exception)
+        {
+            _message = exception.Message;
+            _starting = false;
+        }
+    }
+
+    private async Task EndAsync(Session session)
+    {
+        _confirmEnd = null;
+        if (_project is null)
+        {
+            return;
+        }
+
+        _project = _project.EndSession(session.Id);
+        await Projects.SaveAsync(_project);
+    }
+
+    private async Task ExportAsync()
+    {
+        if (_project is not null)
+        {
+            await Projects.ExportAsync(_project);
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        _confirmDelete = false;
+        await Projects.DeleteAsync(Id);
+        Navigation.NavigateTo("");
+    }
+
+    /// <summary>"bar 5", "bars 5–6", "the pickup and bars 1–4", as the workspace names a passage.</summary>
+    private string Bars(TickSpan span)
+    {
+        if (_piece is null)
+        {
+            return "";
+        }
+
+        int first = _piece.Meter.BarAt(span.Onset).Number;
+        int last = _piece.Meter.BarAt(new Tick(Math.Max(span.Onset.Value, span.End.Value - 1))).Number;
+        return (first, last) switch
+        {
+            (0, 0) => Text["bars.pickup"],
+            (0, 1) => Text["bars.pickupAndOne"],
+            (0, _) => Text.Format("bars.pickupAndRange", last),
+            _ when first == last => Text.Format("bars.one", first),
+            _ => Text.Format("bars.range", first, last),
+        };
+    }
+}

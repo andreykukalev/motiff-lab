@@ -43,7 +43,7 @@ test("explore a phrase: try an experiment, keep it, answer the motif and leave",
     await card.getByRole("button", { name: "Leave it" }).click();
     await expect(selection).toContainText("bar 1");
     await expect(page.locator(".inspector .tabs")).toBeVisible();
-    await page.getByRole("tab", { name: "Selection" }).click();
+    await page.getByRole("tab", { name: "Tools", exact: true }).click();
     await expect(page.locator(".inspector .steps")).toContainText("Detached (the melody)");
     await page.locator(".transport-bar").getByRole("button", { name: "Pause" }).click();
     expect(errors).toEqual([]);

@@ -28,6 +28,7 @@ test("step between phrases, hear the transition, play on and come back", async (
 
     // The next phrase added, to hear one lead into the other. With the pickup the two phrases touch nine
     // bars, one more than a selection holds, so the selection stops at bar 7 and says so.
+    await strip.getByRole("button", { name: "Adjust phrases and hear transitions" }).click();
     await strip.getByRole("button", { name: "Add the next phrase" }).click();
     await expect(selection).toContainText("Selected bars 0–7");
     await expect(selection).toContainText("A selection holds at most 8 bars, so it stops at bar 7.");

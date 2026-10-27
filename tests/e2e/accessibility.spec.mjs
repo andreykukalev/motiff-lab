@@ -34,7 +34,7 @@ test("import, its report, the opened piece and the project on the home screen", 
 
     await page.getByText("Open the piece").click();
     await selectBar(page, 1, { pickup: 0, barQuarters: 4 });
-    await page.getByRole("tab", { name: "Edit" }).click();
+    await page.getByRole("tab", { name: "Tools", exact: true }).click();
     await page.locator("[aria-label='Correct notes'] button.section-toggle").click();
     expect(await violations(page)).toEqual([]);
 
@@ -59,7 +59,7 @@ test("playback lab with a selection, Practise, the Explore card, a variation and
     await expect(page.locator(".explore h3")).toHaveText("Answer the motif differently");
     expect(await violations(page)).toEqual([]);
     await page.getByRole("button", { name: "Leave it" }).click();
-    await page.getByRole("tab", { name: "Selection" }).click();
+    await page.getByRole("tab", { name: "Tools", exact: true }).click();
     await page.locator(".variation button.section-toggle", { hasText: "V2 Accompaniment pattern" }).click();
     await page.getByRole("button", { name: "Dotted" }).click();
     // Compare (#43): the panel next to What changed, and the original and the variation one after the other.
@@ -71,7 +71,7 @@ test("playback lab with a selection, Practise, the Explore card, a variation and
     await page.getByRole("button", { name: /The motif recurs once/ }).click();
     await expect(page.locator(".inspector .highlighted")).toBeVisible();
     expect(await violations(page)).toEqual([]);
-    await page.getByRole("tab", { name: "Edit" }).click();
+    await page.getByRole("tab", { name: "Tools", exact: true }).click();
     await page.locator("[aria-label='Edit variation notes'] button.section-toggle").click();
     await page.locator(".transport-bar").getByRole("button", { name: "Pause" }).click();
     expect(await violations(page)).toEqual([]);

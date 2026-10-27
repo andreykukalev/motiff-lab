@@ -18,7 +18,8 @@ namespace MotiffLab.MusicCore.Projects;
 /// ids, and a variation's operation, parameters and Keep choices. Corrections of imported notes are
 /// stored as the edit log (S1-I7), applied to the notes on every open. Timing layers join the format with
 /// rhythm restoration (#27). Times are passed in, never read from a clock, so building a project is pure.
-/// What the player kept about a phrase is stored as observations (#78), each variation as its steps.
+/// What the player kept about a phrase is stored as observations (#78), each variation as its steps,
+/// and the sessions the player worked in (0012) as the task, intent and passage of each.
 /// </remarks>
 /// <param name="Id">Stable for the life of the project, for example "p_3f9c…".</param>
 /// <param name="Source">The imported file's bytes, exactly as picked.</param>
@@ -45,7 +46,65 @@ public sealed record Project(
         new(id, fileName, source, now, now, [], []);
 
     /// <summary>The row on the projects screen (N1).</summary>
-    public ProjectSummary Summary => new(Id, FileName, Motifs.Count, Variations.Count, LastOpened);
+    public ProjectSummary Summary => new(Id, FileName, Motifs.Count, Variations.Count, LastOpened, Sessions.Count, Observations.Count);
+
+    /// <summary>The player's work sessions on the piece (0012), in the order they were started.</summary>
+    public IReadOnlyList<Session> Sessions { get; init; } = [];
+
+    /// <summary>The sessions most recently active first.</summary>
+    public IReadOnlyList<Session> RecentSessions => [.. Sessions.OrderByDescending(session => session.LastActive).ThenByDescending(session => session.StartedAt)];
+
+    /// <summary>The session with the id, or null.</summary>
+    public Session? FindSession(string id) => Sessions.FirstOrDefault(session => session.Id == id);
+
+    /// <summary>The project with the session started after the others.</summary>
+    /// <exception cref="ArgumentException">A session with the same id is already there.</exception>
+    public Project StartSession(Session session)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        return Sessions.Any(started => started.Id == session.Id)
+            ? throw new ArgumentException($"The project already has a session {session.Id}.", nameof(session))
+            : this with { Sessions = [.. Sessions, session] };
+    }
+
+    /// <summary>The project with one session changed by <paramref name="change"/>; the others stay as they are.</summary>
+    /// <exception cref="KeyNotFoundException">No session has the id.</exception>
+    public Project ChangeSession(string id, Func<Session, Session> change)
+    {
+        ArgumentNullException.ThrowIfNull(change);
+        Session changed = change(FindSession(id) ?? throw new KeyNotFoundException($"The project has no session {id}."));
+        return this with { Sessions = [.. Sessions.Select(session => session.Id == id ? changed : session)] };
+    }
+
+    /// <summary>
+    /// The project without the session. What was kept during it stays, as ideas of the project, no
+    /// longer marked with the session.
+    /// </summary>
+    /// <exception cref="KeyNotFoundException">No session has the id.</exception>
+    public Project EndSession(string id)
+    {
+        _ = FindSession(id) ?? throw new KeyNotFoundException($"The project has no session {id}.");
+        return this with
+        {
+            Sessions = [.. Sessions.Where(session => session.Id != id)],
+            Observations = [.. Observations.Select(kept => kept.SessionId == id ? kept with { SessionId = null } : kept)],
+        };
+    }
+
+    /// <summary>"s_0004": one more than the highest session number, so ids stay stable for the life of the project.</summary>
+    public string NextSessionId() => NextId("s_", Sessions.Select(session => session.Id));
+
+    /// <summary>"o_0004": one more than the highest observation number.</summary>
+    public string NextObservationId() => NextId("o_", Observations.Select(observation => observation.Id));
+
+    private static string NextId(string prefix, IEnumerable<string> ids)
+    {
+        int highest = ids
+            .Select(id => id.StartsWith(prefix, StringComparison.Ordinal) && int.TryParse(id.AsSpan(prefix.Length), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int number) ? number : 0)
+            .DefaultIfEmpty(0)
+            .Max();
+        return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{prefix}{highest + 1:0000}");
+    }
 
     /// <summary>What the player kept about the piece's phrases (#78), in the order it was kept.</summary>
     public IReadOnlyList<Observation> Observations { get; init; } = [];
@@ -93,8 +152,8 @@ public sealed record Project(
         Observations.FirstOrDefault(observation => observation.Id == id) ?? throw new KeyNotFoundException($"The project keeps no observation {id}.");
 }
 
-/// <summary>A project's row on the projects screen (N1).</summary>
-public sealed record ProjectSummary(string Id, string FileName, int MotifCount, int VariationCount, DateTimeOffset LastOpened);
+/// <summary>A project's row on the projects screen (N1): the piece, its sessions and ideas, and when it was last opened.</summary>
+public sealed record ProjectSummary(string Id, string FileName, int MotifCount, int VariationCount, DateTimeOffset LastOpened, int SessionCount = 0, int IdeaCount = 0);
 
 /// <summary>A motif as saved: what the player picked, from which the motif is rebuilt on open.</summary>
 /// <param name="NoteIds">The selected notes, checked against the source when the project opens.</param>

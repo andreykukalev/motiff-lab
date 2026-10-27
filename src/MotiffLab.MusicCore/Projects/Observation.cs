@@ -97,6 +97,9 @@ public sealed record Observation(
     string? Note,
     DateTimeOffset CreatedAt)
 {
+    /// <summary>The session the player kept it in (0012), or null when kept outside one or the session has ended.</summary>
+    public string? SessionId { get; init; }
+
     /// <summary>
     /// An observation from what the player kept. The name and note are trimmed, and a blank note
     /// is none.

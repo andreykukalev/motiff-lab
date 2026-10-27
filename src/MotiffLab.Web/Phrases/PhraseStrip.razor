@@ -28,30 +28,40 @@
         }
         <button class="step" aria-label="Next phrase" title="Next phrase (Page Down)" disabled="@(Next is null)" @onclick="() => StepAsync(1)">›</button>
     </div>
-    <div class="row phrase-actions">
-        <button @onclick="() => Make.InvokeAsync()" disabled="@(!CanMake)"
-                title="@(CanMake ? "Mark the selected range as one phrase: its edges become phrase boundaries, and boundaries inside it go." : "Select a range on the roll that is not a phrase yet: drag across it, or drag an edge of a phrase.")">
-            Make the selection a phrase
-        </button>
-        <button @onclick="() => Join.InvokeAsync(Current!)" disabled="@(Current is null || Current.Number == Map.Phrases.Count)"
-                title="Take away the boundary after this phrase, so it runs on into the next one.">
-            Join with the next phrase
-        </button>
-        <button @onclick="() => Reset.InvokeAsync()" disabled="@Map.Edits.IsEmpty" title="Forget your own boundaries and show the phrases suggested from the file.">
-            Back to the suggested phrases
+    @* The boundary and transition tools fold away (0012), so the strip is one row of phrases to pick. *@
+    <div class="row phrase-more">
+        <button class="section-toggle" aria-expanded="@(_adjusting ? "true" : "false")" @onclick="() => _adjusting = !_adjusting">
+            <span class="caret" aria-hidden="true">@(_adjusting ? "▾" : "▸")</span>
+            Adjust phrases and hear transitions
         </button>
     </div>
-    <div class="row phrase-extend" role="group" aria-label="Hear the transition">
-        <span class="meta">Hear the transition:</span>
-        <button @onclick="() => Extend.InvokeAsync(-1)" disabled="@(!CanExtendBack)"
-                title="Select the previous phrase together with this one, to hear how one leads into the other. The phrases stay as they are.">
-            Add the previous phrase
-        </button>
-        <button @onclick="() => Extend.InvokeAsync(1)" disabled="@(!CanExtendOn)"
-                title="Select this phrase together with the next one, to hear how one leads into the other. The phrases stay as they are.">
-            Add the next phrase
-        </button>
-    </div>
+    @if (_adjusting)
+    {
+        <div class="row phrase-actions">
+            <button @onclick="() => Make.InvokeAsync()" disabled="@(!CanMake)"
+                    title="@(CanMake ? "Mark the selected range as one phrase: its edges become phrase boundaries, and boundaries inside it go." : "Select a range on the roll that is not a phrase yet: drag across it, or drag an edge of a phrase.")">
+                Make the selection a phrase
+            </button>
+            <button @onclick="() => Join.InvokeAsync(Current!)" disabled="@(Current is null || Current.Number == Map.Phrases.Count)"
+                    title="Take away the boundary after this phrase, so it runs on into the next one.">
+                Join with the next phrase
+            </button>
+            <button @onclick="() => Reset.InvokeAsync()" disabled="@Map.Edits.IsEmpty" title="Forget your own boundaries and show the phrases suggested from the file.">
+                Back to the suggested phrases
+            </button>
+        </div>
+        <div class="row phrase-extend" role="group" aria-label="Hear the transition">
+            <span class="meta">Hear the transition:</span>
+            <button @onclick="() => Extend.InvokeAsync(-1)" disabled="@(!CanExtendBack)"
+                    title="Select the previous phrase together with this one, to hear how one leads into the other. The phrases stay as they are.">
+                Add the previous phrase
+            </button>
+            <button @onclick="() => Extend.InvokeAsync(1)" disabled="@(!CanExtendOn)"
+                    title="Select this phrase together with the next one, to hear how one leads into the other. The phrases stay as they are.">
+                Add the next phrase
+            </button>
+        </div>
+    }
     @if (EvidenceText is { } note)
     {
         <p class="meta">@note</p>
@@ -106,6 +116,9 @@
     /// <summary>-1 to add the previous phrase to the selection, 1 to add the next.</summary>
     [Parameter]
     public EventCallback<int> Extend { get; set; }
+
+    /// <summary>Whether the boundary and transition tools are shown.</summary>
+    private bool _adjusting;
 
     private IJSObjectReference? _keys;
     private DotNetObjectReference<PhraseStrip>? _self;

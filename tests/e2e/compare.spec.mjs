@@ -79,7 +79,7 @@ test("go back to the original, compare, and hear the two one after the other", a
     await expect(panel.locator("li").first()).toContainText(/of \d+ notes/);
     await expect(panel.getByRole("heading", { name: "What was kept" })).toBeVisible();
     await expect(panel.locator(".checks .kept .property").first()).not.toBeEmpty();
-    await page.getByRole("tab", { name: "Selection" }).click();
+    await page.getByRole("tab", { name: "Tools", exact: true }).click();
     await expect(page.locator(".changed + .compare .checks .kept")).toContainText("Kept:");
 
     await page.locator(".transport-bar").getByRole("button", { name: "Pause" }).click();

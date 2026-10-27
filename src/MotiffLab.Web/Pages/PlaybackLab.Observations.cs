@@ -1,5 +1,3 @@
-using System.Globalization;
-
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Analytics;
 using MotiffLab.MusicCore.Export;
@@ -121,7 +119,7 @@ public partial class PlaybackLab
             note: null,
             DateTimeOffset.Now,
             (trial.Experiment.Id, trial.Alternative));
-        Change(notebook => notebook.Keep(observation));
+        Change(notebook => notebook.Keep(InSession(observation)));
         _keptTrial = (trial, observation.Id);
         Say(null);
     }
@@ -136,7 +134,7 @@ public partial class PlaybackLab
 
         string name = string.Join(" › ", [.. chain.Steps.Select(StepLabel), .. chain.Pending is { } pending ? [StepLabel(pending)] : Array.Empty<string>()]);
         Observation observation = Observation.Create(NextObservationId(), SavedPassage.Of(selection), KeptVariation.Create(chain, selection.Filter), name, note: null, DateTimeOffset.Now);
-        return SaveObservationsAsync(notebook => notebook.Keep(observation), $"Kept “{observation.Name}”.");
+        return SaveObservationsAsync(notebook => notebook.Keep(InSession(observation)), $"Kept “{observation.Name}”.");
     }
 
     /// <summary>A note alone about the selection, in the player's words.</summary>
@@ -148,7 +146,7 @@ public partial class PlaybackLab
         }
 
         Observation observation = Observation.Create(NextObservationId(), SavedPassage.Of(selection), variation: null, $"Note on {BarsOf(selection.Span)}", note, DateTimeOffset.Now);
-        return SaveObservationsAsync(notebook => notebook.Keep(observation), "Note kept.");
+        return SaveObservationsAsync(notebook => notebook.Keep(InSession(observation)), "Note kept.");
     }
 
     /// <summary>The note on the kept experiment of the Explore card.</summary>
@@ -277,13 +275,7 @@ public partial class PlaybackLab
     }
 
     /// <summary>"o_0004": one more than the highest number kept, so ids stay stable for the life of the project.</summary>
-    private string NextObservationId()
-    {
-        int highest = Kept.Select(observation => observation.Id.StartsWith("o_", StringComparison.Ordinal) && int.TryParse(observation.Id.AsSpan(2), NumberStyles.None, CultureInfo.InvariantCulture, out int number) ? number : 0)
-            .DefaultIfEmpty(0)
-            .Max();
-        return string.Create(CultureInfo.InvariantCulture, $"o_{highest + 1:0000}");
-    }
+    private string NextObservationId() => (_project ?? _session)?.NextObservationId() ?? "o_0001";
 
     /// <summary>"bar 5", "bars 5–6", "the pickup", "the pickup and bars 1–4", as the Explore card names a passage.</summary>
     private string BarsOf(TickSpan span)

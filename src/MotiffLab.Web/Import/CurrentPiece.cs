@@ -35,11 +35,25 @@ public sealed class CurrentPiece(ProjectStore projects)
         Version++;
     }
 
-    /// <summary>The workspace with the project open: "playback?project=p_…".</summary>
-    public static string WorkspaceUrl(Project project)
+    /// <summary>
+    /// The workspace with the project open: "playback?project=p_…", with the session it works in
+    /// ("&amp;session=s_…", 0012) and an idea to open on arrival ("&amp;idea=o_…") when given.
+    /// </summary>
+    public static string WorkspaceUrl(Project project, string? sessionId = null, string? ideaId = null)
     {
         ArgumentNullException.ThrowIfNull(project);
-        return $"playback?project={Uri.EscapeDataString(project.Id)}";
+        string url = $"playback?project={Uri.EscapeDataString(project.Id)}";
+        if (sessionId is not null)
+        {
+            url += $"&session={Uri.EscapeDataString(sessionId)}";
+        }
+
+        if (ideaId is not null)
+        {
+            url += $"&idea={Uri.EscapeDataString(ideaId)}";
+        }
+
+        return url;
     }
 
     /// <summary>

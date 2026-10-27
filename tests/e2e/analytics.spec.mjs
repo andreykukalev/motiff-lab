@@ -19,7 +19,7 @@ test("analytics record nothing until turned on, never the piece, and forget ever
     await page.getByRole("tab", { name: "Explore" }).click();
     await page.getByRole("button", { name: /Give the melody more space/ }).click();
     await page.getByRole("button", { name: "Keep this variation" }).click();
-    await page.getByRole("tab", { name: "Selection" }).click();
+    await page.getByRole("tab", { name: "Tools", exact: true }).click();
     await page.getByRole("button", { name: "Dotted" }).click();
 
     await page.getByRole("link", { name: "Settings" }).click();

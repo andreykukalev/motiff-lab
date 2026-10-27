@@ -1,25 +1,28 @@
 @page "/"
 @using MotiffLab.MusicCore.Projects
 @using MotiffLab.Web.Import
+@using MotiffLab.Web.Localization
 @using MotiffLab.Web.Projects
+@implements IDisposable
 @inject ProjectStore Projects
-@inject CurrentPiece CurrentPiece
 @inject NavigationManager Navigation
+@inject UiText Text
 
 <PageTitle>Motiff Lab</PageTitle>
 
-@* N1 · Projects (S1-P1): the projects saved in this browser, with export and re-import as one file for backup (AC-S1-20). *@
+@* N1 · Projects (S1-P1, 0012): a project is a piece and everything the player made around it. Opening one goes to its page,
+   with its sessions and ideas; export and re-import as one file for backup (AC-S1-20). *@
 <main class="lab projects">
     <h1>Motiff Lab</h1>
-    <p class="tagline">Hear. Understand. Transform.</p>
+    <p class="tagline">@Text["home.tagline"]</p>
 
     <section class="row">
-        <a class="button primary" href="import">Import a file</a>
+        <a class="button primary" href="import">@Text["home.import"]</a>
         <label class="file">
-            Import a project file
+            @Text["home.importProject"]
             <InputFile OnChange="ImportProjectAsync" accept=".json" />
         </label>
-        <a href="playback">Playback test bench</a>
+        <a href="playback">@Text["home.tryFurElise"]</a>
     </section>
 
     @if (_message is not null)
@@ -29,51 +32,49 @@
 
     @if (_nearlyFull)
     {
-        <p class="warning" role="status">Storage in this browser is nearly full. Export the projects you want to keep, then delete them here to make room.</p>
+        <p class="warning" role="status">@Text["home.nearlyFull"]</p>
     }
 
     @if (_summaries is null)
     {
-        <p class="meta">Loading your projects…</p>
+        <p class="meta">@Text["home.loading"]</p>
     }
     else if (_summaries.Count == 0)
     {
         <section class="empty">
-            <p>Motiff Lab helps you explore the music you love: pick a motif, hear how it works, and transform it one property at a time.</p>
-            <p class="meta">Import a MIDI or MusicXML file to start. Your projects are saved in this browser and never leave this device.</p>
+            <p>@Text["home.emptyWhat"]</p>
+            <p class="meta">@Text["home.emptyHow"]</p>
         </section>
     }
     else
     {
-        <table class="project-table">
-            <thead>
-                <tr><th scope="col">Piece</th><th scope="col">Motifs</th><th scope="col">Variations</th><th scope="col">Last opened</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr>
-            </thead>
-            <tbody>
-                @foreach (ProjectSummary summary in _summaries)
-                {
-                    <tr>
-                        <td><button class="link" @onclick="() => OpenAsync(summary.Id)">@summary.FileName</button></td>
-                        <td>@summary.MotifCount</td>
-                        <td>@summary.VariationCount</td>
-                        <td>@summary.LastOpened.ToLocalTime().ToString("d MMM yyyy, HH:mm")</td>
-                        <td class="actions">
-                            <button @onclick="() => ExportAsync(summary.Id)">Export</button>
-                            @if (_confirmDelete == summary.Id)
-                            {
-                                <button class="on" @onclick="() => DeleteAsync(summary.Id)">Delete for good</button>
-                                <button @onclick="() => _confirmDelete = null">Keep</button>
-                            }
-                            else
-                            {
-                                <button @onclick="() => _confirmDelete = summary.Id">Delete</button>
-                            }
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-        <p class="meta">Projects are saved in this browser only. Export a project to keep a copy or move it to another device.</p>
+        <h2>@Text["home.projects"]</h2>
+        <ul class="project-list">
+            @foreach (ProjectSummary summary in _summaries)
+            {
+                <li class="project-card">
+                    <a class="project-name" href="@ProjectPage.Url(summary.Id)">@summary.FileName</a>
+                    <p class="meta">
+                        @Text.Format("home.counts", summary.SessionCount, summary.IdeaCount)
+                        · @Text.Format("home.lastOpened", summary.LastOpened.ToLocalTime().ToString("g", Text.Culture))
+                    </p>
+                    <div class="actions">
+                        <a class="button primary" href="@ProjectPage.Url(summary.Id)">@Text["home.open"]</a>
+                        <button @onclick="() => ExportAsync(summary.Id)">@Text["home.export"]</button>
+                        @if (_confirmDelete == summary.Id)
+                        {
+                            <button class="on" @onclick="() => DeleteAsync(summary.Id)">@Text["home.deleteForGood"]</button>
+                            <button @onclick="() => _confirmDelete = null">@Text["home.keep"]</button>
+                        }
+                        else
+                        {
+                            <button @onclick="() => _confirmDelete = summary.Id">@Text["home.delete"]</button>
+                        }
+                    </div>
+                </li>
+            }
+        </ul>
+        <p class="meta">@Text["home.savedHere"]</p>
     }
 </main>
 
@@ -82,6 +83,12 @@
     private bool _nearlyFull;
     private string? _message;
     private string? _confirmDelete;
+
+    protected override void OnInitialized() => Text.Changed += OnTextChanged;
+
+    public void Dispose() => Text.Changed -= OnTextChanged;
+
+    private void OnTextChanged() => _ = InvokeAsync(StateHasChanged);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -96,27 +103,6 @@
     {
         _summaries = await Projects.ListAsync();
         _nearlyFull = await Projects.IsNearlyFullAsync();
-    }
-
-    /// <summary>Rebuilds the project from its source and opens it in the workspace, where it carries on autosaving.</summary>
-    private async Task OpenAsync(string id)
-    {
-        _message = null;
-        try
-        {
-            if (!await CurrentPiece.OpenSavedAsync(id))
-            {
-                _message = "This project is no longer saved in this browser.";
-                await RefreshAsync();
-                return;
-            }
-
-            Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(CurrentPiece.Project!));
-        }
-        catch (ProjectFileException exception)
-        {
-            _message = exception.Message;
-        }
     }
 
     private async Task ExportAsync(string id)
@@ -163,7 +149,7 @@
         }
         catch (IOException)
         {
-            _message = $"{args.File.Name} is too large to be a Motiff Lab project file.";
+            _message = Text.Format("home.tooLarge", args.File.Name);
         }
     }
 }

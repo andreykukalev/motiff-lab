@@ -8,7 +8,7 @@ namespace MotiffLab.Web.Pages;
 
 /// <summary>
 /// Check the scan (decision record 0011): a piece read from a photo or PDF opens on its own tab, which
-/// lists the bars the rules flag. Show and Correct notes select a bar, and confirming bars marks their
+/// lists the bars the rules flag (on the Tools tab, 0012). Show and Correct notes select a bar, and confirming bars marks their
 /// notes as confirmed by the player; corrections go to the edit log as for any piece.
 /// </summary>
 public partial class PlaybackLab
@@ -32,7 +32,7 @@ public partial class PlaybackLab
         {
             _asWritten = null;
             _scoreChoice = ScoreChoice.Generated;
-            _tab = InspectorTab.Scan;
+            _tab = InspectorTab.Tools;
         }
     }
 
@@ -46,7 +46,7 @@ public partial class PlaybackLab
     {
         await ShowScanBarAsync(bar);
         _showCorrections = true;
-        _tab = InspectorTab.Edit;
+        _tab = InspectorTab.Tools;
     }
 
     private Task ConfirmScanBarsAsync(IReadOnlyList<int> bars) =>

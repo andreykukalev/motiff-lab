@@ -1,5 +1,6 @@
 // A reload keeps the open piece (S1-P1): the workspace's address names the project, which is saved on the
-// device, whether the file came through the import screen or the workspace's own Open file.
+// device, whether the file came through the import screen or the workspace's own Open file. The address names
+// the session too (0012), so the work has a context to come back to from the project page.
 import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 
@@ -12,7 +13,7 @@ test("a piece opened from the import screen is open again after a reload", async
     await page.goto("/import");
     await page.setInputFiles("input[type=file]", minuet);
     await page.getByText("Open the piece").click();
-    await expect(page).toHaveURL(/\/playback\?project=p_[0-9a-f]+$/);
+    await expect(page).toHaveURL(/\/playback\?project=p_[0-9a-f]+&session=s_\d{4}$/);
     await expect(title(page)).toHaveText("importer-grand-staff.musicxml");
     const phrases = page.locator(".phrases button.phrase");
     await phrases.nth(0).click();
@@ -34,13 +35,13 @@ test("a file opened in the workspace is saved as a project and survives a reload
     await expect(open).toBeEnabled({ timeout: 30_000 });
     await open.setInputFiles(minuet);
     await expect(title(page)).toHaveText("importer-grand-staff.musicxml");
-    await expect(page).toHaveURL(/\/playback\?project=p_[0-9a-f]+$/);
+    await expect(page).toHaveURL(/\/playback\?project=p_[0-9a-f]+&session=s_\d{4}$/);
 
     await page.reload();
     await expect(title(page)).toHaveText("importer-grand-staff.musicxml", { timeout: 30_000 });
 
     await page.goto("/");
-    await expect(page.getByRole("button", { name: "importer-grand-staff.musicxml" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "importer-grand-staff.musicxml" })).toBeVisible();
     expect(errors).toEqual([]);
 });
 
