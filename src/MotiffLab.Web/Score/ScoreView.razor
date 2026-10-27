@@ -137,9 +137,17 @@ else if (_loading && !HoldHeight)
         await view.InvokeVoidAsync("setHighlight", (object)(Highlight ?? []).ToArray());
     }
 
+    /// <summary>Raised when a bar is clicked away from its notes (0012): where it starts, and whether Shift extended the selection to it.</summary>
+    [Parameter]
+    public EventCallback<(Tick Start, bool Extend)> BarPicked { get; set; }
+
     /// <summary>Called by the script when a note is clicked: playback moves to its onset.</summary>
     [JSInvokable]
     public Task OnScoreNoteClicked(double tick) => Player.SeekAsync(new Tick(Math.Max(0, (long)Math.Round(tick))));
+
+    /// <summary>Called by the script when a bar is clicked away from its notes.</summary>
+    [JSInvokable]
+    public Task OnScoreBarClicked(double tick, bool extend) => BarPicked.InvokeAsync((new Tick(Math.Max(0, (long)Math.Round(tick))), extend));
 
     public async ValueTask DisposeAsync()
     {

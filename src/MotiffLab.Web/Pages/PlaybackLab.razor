@@ -26,7 +26,9 @@
 @using MotiffLab.Web.Score
 @using MotiffLab.Web.Understand
 @implements IDisposable
+@inject IJSRuntime JS
 @inject Player Player
+@inject Preferences Preferences
 @inject CurrentPiece CurrentPiece
 @inject ProjectStore Projects
 @inject NavigationManager Navigation
@@ -39,7 +41,7 @@
    unit of work. A header with the piece and the session, the score as the primary view with the piano roll under it, an inspector
    for the passage on the right (Practise, Understand and Explore share the selection; Tools holds the mechanisms), and the
    transport along the bottom. It also covers S1-W2 to S1-W7, S1-M1, S1-M2, S1-M5, S1-A1 and S1-A2. Files stay on the device. *@
-<main class="lab app">
+<main class="lab app @(_focus ? "focus" : null)" @ref="_main">
     <header class="app-header">
         <a class="back" href="@BackUrl">‹ @BackLabel</a>
         <div class="app-title">
@@ -75,6 +77,8 @@
         {
             @* Which notes play and light up (S1-M2), what is heard, and which score shows. *@
             <div class="app-view" role="group" aria-label="@Text["workspace.view"]">
+                @ViewSwitch
+                <button class="focus-button" @onclick="EnterFocusAsync" title="@Text["focus.hint"]">@Text["focus.enter"]</button>
                 <label class="pick">
                     <span>@Text["workspace.notes"]</span>
                     <select @onchange="SetFilterAsync" aria-label="Which notes play, light up and can be selected">
@@ -100,8 +104,7 @@
                 <label class="pick">
                     <span>@Text["workspace.score"]</span>
                     @* The select's value, not each option's selected attribute: Firefox can fall back to the first option when the options and their selected attributes change in one render. *@
-                    <select @onchange="SetScoreChoice" aria-label="Which score shows" value="@(_showScore ? ShownChoice.ToString() : "off")">
-                        <option value="off">Hidden</option>
+                    <select @onchange="SetScoreChoice" aria-label="Which score shows" value="@ShownChoice.ToString()" disabled="@(!ShowScore)">
                         @foreach ((ScoreChoice choice, string label) in ScoreChoices)
                         {
                             <option value="@choice">@label</option>
@@ -130,11 +133,33 @@
         <p class="meta empty-hint">@Text["workspace.emptyHint"]</p>
     }
 
+    @if (_focus && _score is not null && _meter is not null)
+    {
+        @* Focus mode (0012): what playing at the instrument needs, and a way back; the header and the inspector are hidden by CSS. *@
+        <div class="focus-bar" role="toolbar" aria-label="@Text["focus.label"]" data-keeps-selection>
+            <button class="exit" @onclick="LeaveFocusAsync">‹ @Text["focus.exit"]</button>
+            <span class="phrase" aria-live="polite">@SelectionText</span>
+            <div class="steps" role="group" aria-label="@Text["workspace.phrases"]">
+                <button @onclick="() => StepPhraseAsync(-1)" disabled="@(StepTarget(-1) is null)" aria-label="@Text["focus.previous"]" title="@Text["focus.previous"]">‹</button>
+                <button @onclick="() => StepPhraseAsync(1)" disabled="@(StepTarget(1) is null)" aria-label="@Text["focus.next"]" title="@Text["focus.next"]">›</button>
+            </div>
+            <button class="@(Looping ? "on" : null)" aria-pressed="@(Looping ? "true" : "false")" @onclick="ToggleLoopSelectionAsync" disabled="@(_selection is not { NoteIds.Count: > 0 })">
+                @(Looping ? Text["focus.looping"] : Text["focus.loop"])
+            </button>
+            @if (_variation is not null && _selection is { NoteIds.Count: > 0 })
+            {
+                <CompareSwitch Original="ComparingOriginal" Variation="ComparingVariation" Alternating="_alternating" Sounding="SoundingVariation"
+                               Choose="CompareAsync" OneAfterTheOther="ToggleOneAfterTheOtherAsync" />
+            }
+            @ViewSwitch
+        </div>
+    }
+
     @if (_score is not null && _meter is not null)
     {
         <div class="app-body">
             @* The score first, as the primary view (0012); the roll under it, scrolling within its own panel. *@
-            <section class="canvas" aria-label="@Text["workspace.canvas"]">
+            <section class="canvas" aria-label="@Text["workspace.canvas"]" @ref="_canvas">
                 @if (_phrases is not null)
                 {
                     <PhraseStrip Map="_phrases" Current="CurrentPhrase" CanMake="@(_selection is not null && CurrentPhrase is null)"
@@ -142,19 +167,28 @@
                                  Previous="StepTarget(-1)" Next="StepTarget(1)" CanExtendBack="@(Extension(-1) is not null)" CanExtendOn="@(Extension(1) is not null)"
                                  Extend="ExtendSelectionAsync" KeptCount="KeptCount" />
                 }
-                @if (_showScore && ShownScore is { } shown)
+                @if (ShowScore && ShownScore is { } shown)
                 {
                     @* Clicks on the page outside the roll clear the selection, except inside panels marked data-keeps-selection (docs/ui-conventions.md). *@
                     <div class="score-panel" data-keeps-selection>
-                        <ScoreView Source="shown" Range="ShownRange" Phrases="ScorePhrases" Highlight="_highlight?.Places" HoldHeight="_alternating" />
+                        <ScoreView Source="shown" Range="ShownRange" Phrases="ScorePhrases" Highlight="_highlight?.Places" HoldHeight="_alternating" BarPicked="OnScoreBarPickedAsync" />
                         <p class="meta">@ScoreNote(shown)</p>
                     </div>
+                    @if (ShowRoll)
+                    {
+                        @* The divider between the two views: dragged, or moved with the arrow keys, Home and End (WCAG 2.1.1). *@
+                        <div class="divider" role="separator" aria-orientation="horizontal" aria-label="@Text["divider.label"]" title="@Text["divider.hint"]"
+                             tabindex="0" aria-valuemin="20" aria-valuemax="80" aria-valuenow="@((int)Math.Round(_split * 100))" @ref="_handle" data-keeps-selection></div>
+                    }
                 }
-                <div class="roll-panel">
-                    <PianoRoll Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases"
-                               Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible" Highlight="_highlight?.Places"
-                               RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync" />
-                </div>
+                @if (ShowRoll)
+                {
+                    <div class="roll-panel">
+                        <PianoRoll Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases"
+                                   Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible" Highlight="_highlight?.Places"
+                                   RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync" />
+                    </div>
+                }
             </section>
 
             <aside class="inspector" aria-label="@Text["workspace.inspector"]" data-keeps-selection>
@@ -774,7 +808,6 @@
     /// <summary>The piece with the variation in place of the motif, engraved from the notes; null without a variation.</summary>
     private ScoreSource? _variationScore;
     private bool _startingPreview;
-    private bool _showScore = true;
     private ScoreChoice _scoreChoice = ScoreChoice.AsWritten;
 
     private InspectorTab _tab = InspectorTab.Practise;
@@ -811,12 +844,19 @@
 
     private void SetScoreChoice(ChangeEventArgs args)
     {
-        _showScore = Enum.TryParse(args.Value?.ToString(), out ScoreChoice choice);
-        if (_showScore)
+        if (Enum.TryParse(args.Value?.ToString(), out ScoreChoice choice))
         {
             _scoreChoice = choice;
         }
     }
+
+    /// <summary>Score, Piano roll or Both (0012), in the header and on the Focus bar.</summary>
+    private RenderFragment ViewSwitch => @<div class="view-switch" role="group" aria-label="@Text["workspace.canvas"]">
+        @foreach ((ViewMode mode, string label) in ViewModes)
+        {
+            <button class="@(_view == mode ? "on" : null)" aria-pressed="@(_view == mode ? "true" : "false")" @onclick="() => SetViewAsync(mode)">@label</button>
+        }
+    </div>;
 
     private enum ScoreChoice
     {
@@ -896,6 +936,7 @@
     {
         if (firstRender)
         {
+            await ReadLayoutPreferencesAsync();
             await Player.InitializeAsync();
         }
 
@@ -956,6 +997,8 @@
             await ArriveInSessionAsync();
             StateHasChanged();
         }
+
+        await SyncLayoutAsync();
     }
 
     public void Dispose()

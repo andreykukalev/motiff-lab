@@ -1867,3 +1867,192 @@ body:has(.transport-bar) .site-footer {
 .lab .idea-card .label {
     color: var(--ml-gray);
 }
+
+/* The canvas as the workspace (0012, batch 2): Score, Piano roll or Both, a divider between the two, and Focus mode.
+   On a wide screen, and in Focus mode at any width, the layout script marks the canvas data-fill and measures the chrome
+   (header, Focus bar, transport) into --ml-chrome, so the canvas fills the window and the two views share it by --ml-split. */
+.app-header .view-switch, .focus-bar .view-switch {
+    display: inline-flex;
+    border: 1px solid var(--ml-border);
+    border-radius: 0.6rem;
+    overflow: hidden;
+}
+
+.lab .view-switch button {
+    border: 0;
+    border-radius: 0;
+    min-height: 2.25rem;
+}
+
+.lab .view-switch button + button {
+    border-left: 1px solid var(--ml-border);
+}
+
+.lab .view-switch button.on {
+    background: var(--ml-raised);
+    color: var(--ml-white);
+}
+
+.app .canvas[data-fill="true"] {
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    height: calc(100dvh - var(--ml-chrome, 9rem));
+    overflow: hidden;
+    padding-bottom: 0.5rem;
+}
+
+.app .canvas[data-fill="true"] > .phrases {
+    flex: none;
+}
+
+.app .canvas[data-fill="true"] > .score-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-height: 0;
+}
+
+.app .canvas[data-fill="true"] > .score-panel .score {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+}
+
+.app .canvas[data-fill="true"] > .roll-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-height: 0;
+}
+
+/* The roll never collapses: given less room than its notes need, it scrolls within itself, keyboard and all. */
+.app .canvas[data-fill="true"] > .roll-panel .roll {
+    flex: 1 1 auto;
+    min-height: 12rem;
+    overflow-y: auto;
+}
+
+.app .canvas[data-fill="true"] > .roll-panel .roll-tools, .app .canvas[data-fill="true"] > .roll-panel > p.meta {
+    flex: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.app .canvas[data-fill="true"] > .roll-panel .roll-tools {
+    overflow-x: auto;
+}
+
+/* With both views, the divider sets the shares; a view alone takes the whole canvas. */
+.app .canvas[data-fill="true"] > .score-panel:has(+ .divider) {
+    flex: var(--ml-split, 0.6) 1 0;
+}
+
+.app .canvas[data-fill="true"] > .divider + .roll-panel {
+    flex: calc(1 - var(--ml-split, 0.6)) 1 0;
+}
+
+.app .divider {
+    display: none;
+}
+
+.app .canvas[data-fill="true"] > .divider {
+    display: block;
+    flex: none;
+    position: relative;
+    height: 1rem;
+    margin: 0.1rem 0;
+    cursor: row-resize;
+    touch-action: none;
+    border-radius: 0.5rem;
+}
+
+.app .divider::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 4rem;
+    height: 0.25rem;
+    transform: translate(-50%, -50%);
+    border-radius: 0.125rem;
+    background: var(--ml-border);
+}
+
+.app .divider:hover::before, .app .divider.dragging::before, .app .divider:focus-visible::before {
+    background: var(--ml-lime);
+}
+
+.app .divider:focus-visible {
+    outline: 2px solid var(--ml-lime);
+    outline-offset: -2px;
+}
+
+@media (min-width: 64rem) {
+    .app .inspector {
+        max-height: calc(100dvh - var(--ml-chrome, 5rem));
+        min-height: calc(100dvh - var(--ml-chrome, 9rem));
+    }
+}
+
+/* Focus mode: the phrase, its loop, the views and the transport; the rest of the page goes. */
+.app.focus .app-header, .app.focus .inspector, .app.focus .credit, .app.focus > .meta,
+.app.focus .phrases .phrase-more, .app.focus .phrases .phrase-actions, .app.focus .phrases .phrase-extend,
+.app.focus .score-panel .meta, .app.focus .roll-panel .roll-tools, .app.focus .roll-panel > p.meta {
+    display: none;
+}
+
+body:has(main.focus) .site-footer {
+    display: none;
+}
+
+.app.focus .app-body {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.focus-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.9rem;
+    padding: 0.5rem 1.25rem;
+    border-bottom: 1px solid var(--ml-line);
+    background: var(--ml-panel);
+}
+
+.focus-bar .phrase {
+    flex: 1 1 12rem;
+    min-width: 0;
+    font-weight: 500;
+}
+
+.focus-bar .steps {
+    display: inline-flex;
+    gap: 0.4rem;
+}
+
+/* Reachable from the music stand: every control on the Focus bar and the transport is at least 44px (WCAG 2.5.8). */
+.lab .focus-bar button, .lab .focus-bar .view-switch button {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+    font-size: 1rem;
+}
+
+.lab .focus-bar .compare-switch button {
+    min-height: 2.75rem;
+}
+
+.app.focus .transport-bar {
+    padding: 0.75rem 1.25rem;
+}
+
+.lab.app.focus .transport-bar button {
+    min-height: 2.75rem;
+}
+
+@media (max-width: 48rem) {
+    .app.focus .transport-bar .state, .app.focus .transport-bar label:not(.tempo) {
+        display: none;
+    }
+}

@@ -52,6 +52,8 @@ const GUTTER = 40;
 // Tall enough to press and drag on for a bar selection (WCAG 2.2 target size, 2.5.8).
 const HEADER = 24;
 const ROLL_HEIGHT = 360;
+/** The notes area never gets shorter than this when the roll fills its panel (0012). */
+const MIN_ROLL_HEIGHT = 160;
 const MIN_ROW = 5;
 const MAX_ROW = 14;
 const KEYBOARD_HEIGHT = 64;
@@ -269,8 +271,13 @@ export class PianoRoll {
             return;
         }
         const notes = new Set(ids.map((id) => model.indexOf(id)).filter((index): index is number => index !== undefined));
+        const moved = this.motif === null || this.motif.start !== start;
         this.motif = { start, end, notes, alone };
         this.drag = null;
+        // A selection made elsewhere (a phrase chip, the score) scrolls into view, as the score does (0012).
+        if (moved) {
+            this.keepInView(start);
+        }
         this.invalidate();
     }
 
@@ -479,8 +486,21 @@ export class PianoRoll {
         const model = this.model;
         const low = Math.max(0, (model?.lowest ?? 60) - 1);
         const high = Math.min(127, (model?.highest ?? 72) + 1);
-        const row = Math.min(MAX_ROW, Math.max(MIN_ROW, Math.floor(ROLL_HEIGHT / (high - low + 1))));
+        const row = Math.min(MAX_ROW, Math.max(MIN_ROW, Math.floor(this.rollHeight() / (high - low + 1))));
         return { low, high, row };
+    }
+
+    /**
+     * The height of the notes area: fixed, or when the canvas fills the window (data-fill on the host or
+     * a panel around it, 0012), what the host leaves after the scroller, the keyboard and the legend.
+     */
+    private rollHeight(): number {
+        if (this.host.closest<HTMLElement>("[data-fill]")?.dataset.fill !== "true") {
+            return ROLL_HEIGHT;
+        }
+        const rest = [this.scroller, this.keys, this.legend].reduce((sum, part) => sum + part.getBoundingClientRect().height, 0);
+        // The parts' margins (css: .roll-scroll, .roll-keys, .roll-legend) sit between them, and the bar numbers sit above the notes.
+        return Math.max(MIN_ROLL_HEIGHT, Math.floor(this.host.clientHeight - rest - 20 - HEADER));
     }
 
     private draw(): void {

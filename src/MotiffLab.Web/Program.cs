@@ -19,6 +19,7 @@ builder.Services.AddScoped<ProjectStore>();
 builder.Services.AddScoped<UsageAnalytics>();
 builder.Services.AddScoped<ScanService>();
 builder.Services.AddScoped<UiText>();
+builder.Services.AddScoped<Preferences>();
 
 WebAssemblyHost host = builder.Build();
 // The interface's words load before the first page renders, so nothing shows in a key or the wrong language (0012).

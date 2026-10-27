@@ -4,7 +4,7 @@ Musical exploration workspace: help musicians move from reproducing music to und
 
 ## Stack
 
-See `docs/decisions/0001-stack.md` (stack), `0002-canonical-time.md` (musical time), `0003-ai-integration.md` (AI assistance), `0004-note-event-and-meter-map.md` (note event, bars and beats), `0007-playback-engine.md` (browser playback) and `0008-score-view.md` (notation).
+See `docs/decisions/0001-stack.md` (stack), `0002-canonical-time.md` (musical time), `0003-ai-integration.md` (AI assistance), `0004-note-event-and-meter-map.md` (note event, bars and beats), `0007-playback-engine.md` (browser playback), `0008-score-view.md` (notation) and `0012-workspace-structure.md` (projects, sessions and ideas, the score-first workspace, Focus mode, localization).
 
 - `src/MotiffLab.MusicCore` — C# music-core: shared event model, parsing, analysis, variation operations. Pure and deterministic; no UI, I/O or browser dependencies.
 - `src/MotiffLab.Web` — Blazor WebAssembly PWA. Browser-only APIs (Web Audio, Web MIDI, canvas, IndexedDB) go through a thin TypeScript layer via JS interop: sources in `Scripts/`, compiled to `wwwroot/js/` (not committed) during `dotnet build`.
