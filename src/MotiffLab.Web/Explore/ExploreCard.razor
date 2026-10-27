@@ -1,4 +1,6 @@
+@using MotiffLab.MusicCore.Analysis
 @using MotiffLab.MusicCore.Experiments
+@using MotiffLab.Web.Observations
 
 @* The Explore card (decision record 0010): the experiments music-core offers for the selection, one at a time, with its
    alternatives, Original and Variation, Keep and Try another; and two ways in, Surprise me and I have a question.
@@ -56,11 +58,22 @@
                 </div>
             }
             <p class="focus"><strong>At the piano:</strong> @experiment.ListeningFocus</p>
+            @if (RestsOn(trial) is { Length: > 0 } facts)
+            {
+                @* The facts the experiment cites (#25), each opening Understand with it highlighted. *@
+                <div class="rests-on" role="group" aria-label="Rests on">
+                    <span>Rests on:</span>
+                    @foreach (MotifFact fact in facts)
+                    {
+                        <button class="fact-link" @onclick="() => FactChosen.InvokeAsync(fact)" title="Show this fact on the Understand tab, highlighted in the score.">@fact.Text</button>
+                    }
+                </div>
+            }
 
             <div class="row actions">
                 @if (trial.Kept)
                 {
-                    <span class="kept" role="status">Kept with the project. Build on it in the Selection tab.</span>
+                    <span class="kept" role="status">@KeptText Build on it in the Selection tab.</span>
                 }
                 else
                 {
@@ -72,6 +85,11 @@
                     <button @onclick="() => Leave.InvokeAsync()" title="Go back to what you had before this experiment.">Leave it</button>
                 }
             </div>
+            @if (trial.Kept && KeptId is not null)
+            {
+                @* After Keep, a note in the player's own words (#78), kept with the variation. *@
+                <ObservationNote For="@KeptId" Note="@KeptNote" Label="Add a note in your own words (optional)" Saved="NoteSaved" />
+            }
         </div>
 
         Experiment[] others = [.. trial.Offers.Where(other => other.Id != experiment.Id)];
@@ -181,6 +199,21 @@
     [Parameter]
     public EventCallback Leave { get; set; }
 
+    /// <summary>Where a kept variation is saved, said plainly: with the project, or only while the page is open.</summary>
+    [Parameter]
+    public string KeptText { get; set; } = "Kept with the project.";
+
+    /// <summary>The observation the kept variation was saved as (#78), whose note the card offers to write; null for none.</summary>
+    [Parameter]
+    public string? KeptId { get; set; }
+
+    [Parameter]
+    public string? KeptNote { get; set; }
+
+    /// <summary>Raised with the note as the player wrote it.</summary>
+    [Parameter]
+    public EventCallback<string> NoteSaved { get; set; }
+
     [Parameter]
     public EventCallback Surprise { get; set; }
 
@@ -189,6 +222,10 @@
 
     [Parameter]
     public EventCallback<ListenTo> ListenToChanged { get; set; }
+
+    /// <summary>Raised with a fact the experiment rests on, to show it on the Understand tab.</summary>
+    [Parameter]
+    public EventCallback<MotifFact> FactChosen { get; set; }
 
     private IEnumerable<Experiment> Shown => _topic is { } topic ? Offers.Where(offer => offer.Topic == topic) : Offers;
 
@@ -233,6 +270,13 @@
         { } next => $"Next idea: {next.Experiment.Title}.",
         _ => "Nothing else fits this phrase.",
     };
+
+    /// <summary>The facts the experiment cites, in its order, from the facts of the selection it was offered for.</summary>
+    private static MotifFact[] RestsOn(ExploreTrial trial)
+    {
+        IReadOnlyList<MotifFact> facts = trial.Facts;
+        return [.. trial.Experiment.FactIds.Select(id => facts.FirstOrDefault(fact => fact.Id == id)).OfType<MotifFact>()];
+    }
 
     /// <summary>"bar 5", "bars 5–6", "the pickup", "the pickup and bar 1".</summary>
     private static string Bars(int first, int last) => (first, last) switch

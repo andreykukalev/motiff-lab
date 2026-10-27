@@ -1,0 +1,47 @@
+@* Return to the original and compare (#43, step 6 of docs/08-central-product-model.md): in the inspector head on
+   every tab while a variation exists. Original and Variation switch what is heard and what the score shows;
+   One after the other loops the original, then the variation. The page does the switching; this only shows it. *@
+<div class="compare-switch" role="group" aria-label="Compare with the original">
+    <div class="ab" role="group" aria-label="Hear and show">
+        <button class="@ButtonClass(Original, sounding: Sounding == false)" aria-pressed="@(Original ? "true" : "false")" aria-current="@(Sounding == false ? "true" : null)"
+                title="Hear the original phrase and show it in the score. The variation stays to come back to." @onclick="() => Choose.InvokeAsync(false)">
+            Original
+        </button>
+        <button class="@ButtonClass(Variation, sounding: Sounding == true)" aria-pressed="@(Variation ? "true" : "false")" aria-current="@(Sounding == true ? "true" : null)"
+                title="Hear the variation and show it in the score with the variation in place." @onclick="() => Choose.InvokeAsync(true)">
+            Variation
+        </button>
+    </div>
+    <button class="alternate @(Alternating ? "on" : null)" aria-pressed="@(Alternating ? "true" : "false")"
+            title="Loops the original phrase, then the variation, then again." @onclick="() => OneAfterTheOther.InvokeAsync()">
+        One after the other
+    </button>
+</div>
+
+@code {
+    /// <summary>Whether the original phrase is what the player chose to hear.</summary>
+    [Parameter]
+    public bool Original { get; set; }
+
+    /// <summary>Whether the variation is what the player chose to hear.</summary>
+    [Parameter]
+    public bool Variation { get; set; }
+
+    /// <summary>Whether the original and the variation loop one after the other.</summary>
+    [Parameter]
+    public bool Alternating { get; set; }
+
+    /// <summary>While they loop one after the other: true while the variation sounds, false while the original does; otherwise null.</summary>
+    [Parameter]
+    public bool? Sounding { get; set; }
+
+    /// <summary>Hear and show the original (false) or the variation (true).</summary>
+    [Parameter]
+    public EventCallback<bool> Choose { get; set; }
+
+    /// <summary>Starts or stops looping the original, then the variation.</summary>
+    [Parameter]
+    public EventCallback OneAfterTheOther { get; set; }
+
+    private static string? ButtonClass(bool pressed, bool sounding) => pressed ? "on" : sounding ? "sounding" : null;
+}

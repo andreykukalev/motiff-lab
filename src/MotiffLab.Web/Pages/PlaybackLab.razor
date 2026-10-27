@@ -8,22 +8,27 @@
 @using MotiffLab.MusicCore.Import.MusicXml
 @using MotiffLab.MusicCore.Motifs
 @using MotiffLab.MusicCore.Notation
-@using MotiffLab.MusicCore.Observations
+@using MotiffLab.MusicCore.Invitations
 @using MotiffLab.MusicCore.Playback
 @using MotiffLab.MusicCore.Projects
 @using MotiffLab.MusicCore.Time
 @using MotiffLab.MusicCore.Variations
+@using MotiffLab.Web.Compare
 @using MotiffLab.Web.Explore
-@using MotiffLab.Web.Facts
 @using MotiffLab.Web.Import
+@using MotiffLab.Web.Observations
+@using MotiffLab.Web.Phrases
 @using MotiffLab.Web.Playback
+@using MotiffLab.Web.Practise
 @using MotiffLab.Web.Projects
 @using MotiffLab.Web.Roll
 @using MotiffLab.Web.Score
+@using MotiffLab.Web.Understand
 @implements IDisposable
 @inject Player Player
 @inject CurrentPiece CurrentPiece
 @inject ProjectStore Projects
+@inject NavigationManager Navigation
 @inject MotiffLab.Web.Analytics.UsageAnalytics Analytics
 
 <PageTitle>Playback · Motiff Lab</PageTitle>
@@ -31,7 +36,7 @@
 @* A test bench for the playback engine (S1-W4, S1-W5), the piano roll and keyboard (S1-W2, S1-W3), motif selection, its loop and its facts (S1-M1, S1-M2, S1-M5, S1-A1, S1-A2) and the score view (S1-W7) and a second file as the variation (S1-W5) until the workspace exists. Files stay on the device. *@
 <main class="lab app">
     @* The workspace layout from the iPad mockups (docs/ui-conventions.md): a header with what the whole view shows, the roll and score
-       on the left, an inspector for the selection on the right (Explore, Selection, Facts, Edit), and the transport along the bottom. *@
+       on the left, an inspector for the selection on the right (Explore, Selection, Understand, Edit), and the transport along the bottom. *@
     <header class="app-header">
         <a class="back" href="">‹ Projects</a>
         <div class="app-title">
@@ -68,17 +73,18 @@
                     <select @onchange="HearChosenAsync" aria-label="What is heard">
                         @for (int i = 0; i < Sources.Length; i++)
                         {
-                            <option value="@i" selected="@_hear.SequenceEqual(Sources[i].Ids)">@Sources[i].Label</option>
+                            <option value="@i" selected="@HearShown(Sources[i].Ids)">@Sources[i].Label</option>
                         }
                     </select>
                 </label>
                 <label class="pick">
                     <span>Score</span>
-                    <select @onchange="SetScoreChoice" aria-label="Which score shows">
-                        <option value="off" selected="@(!_showScore)">Hidden</option>
+                    @* The select's value, not each option's selected attribute: Firefox can fall back to the first option when the options and their selected attributes change in one render. *@
+                    <select @onchange="SetScoreChoice" aria-label="Which score shows" value="@(_showScore ? ShownChoice.ToString() : "off")">
+                        <option value="off">Hidden</option>
                         @foreach ((ScoreChoice choice, string label) in ScoreChoices)
                         {
-                            <option value="@choice" selected="@(_showScore && ShownChoice == choice)">@label</option>
+                            <option value="@choice">@label</option>
                         }
                     </select>
                 </label>
@@ -105,16 +111,23 @@
         <div class="app-body">
             @* The roll above the score; the score scrolls within its own panel. *@
             <section class="canvas" aria-label="Piano roll and score">
+                @if (_phrases is not null)
+                {
+                    <PhraseStrip Map="_phrases" Current="CurrentPhrase" CanMake="@(_selection is not null && CurrentPhrase is null)"
+                                 Picked="PickPhraseAsync" Make="MakePhraseAsync" Join="JoinPhraseAsync" Reset="ResetPhrasesAsync"
+                                 Previous="StepTarget(-1)" Next="StepTarget(1)" CanExtendBack="@(Extension(-1) is not null)" CanExtendOn="@(Extension(1) is not null)"
+                                 Extend="ExtendSelectionAsync" KeptCount="KeptCount" />
+                }
                 <div class="roll-panel">
-                    <PianoRoll Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping"
-                               Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible"
+                    <PianoRoll Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases"
+                               Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible" Highlight="_highlight?.Places"
                                RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync" />
                 </div>
                 @if (_showScore && ShownScore is { } shown)
                 {
                     @* Clicks on the page outside the roll clear the selection, except inside panels marked data-keeps-selection (docs/ui-conventions.md). *@
                     <div class="score-panel" data-keeps-selection>
-                        <ScoreView Source="shown" Range="ShownRange" />
+                        <ScoreView Source="shown" Range="ShownRange" Phrases="ScorePhrases" Highlight="_highlight?.Places" HoldHeight="_alternating" />
                         <p class="meta">@ScoreNote(shown)</p>
                     </div>
                 }
@@ -160,13 +173,19 @@
 
             <aside class="inspector" aria-label="Inspector" data-keeps-selection>
                 <div class="inspector-head">
-                    <p class="selection-text" aria-live="polite">@SelectionText</p>
+                    @* Which one sounds while the two loop one after the other is shown, not announced at every pass. *@
+                    <p class="selection-text" aria-live="polite">@SelectionText<span aria-hidden="true">@SoundingText</span></p>
                     <div class="inspector-actions">
                         <button class="@(Looping ? "on" : "primary")" @onclick="ToggleLoopSelectionAsync" disabled="@(_selection is not { NoteIds.Count: > 0 })">
                             @(Looping ? "Looping" : "Loop")
                         </button>
                         <button @onclick="ClearSelectionAsync" disabled="@(_selection is null)">Clear</button>
                     </div>
+                    @if (_variation is not null && _selection is { NoteIds.Count: > 0 })
+                    {
+                        <CompareSwitch Original="ComparingOriginal" Variation="ComparingVariation" Alternating="_alternating" Sounding="SoundingVariation"
+                                       Choose="CompareAsync" OneAfterTheOther="ToggleOneAfterTheOtherAsync" />
+                    }
                 </div>
 
                 <div class="tabs" role="tablist" aria-label="Inspector">
@@ -179,12 +198,32 @@
                 <div class="tab-panel" role="tabpanel" aria-label="@_tab">
                     @switch (_tab)
                     {
+                        case InspectorTab.Practise:
+                            <PractisePanel HasSelection="@(_selection is { NoteIds.Count: > 0 })" Playing="@(Player.State != PlaybackState.Stopped)" Looping="_looping"
+                                           TempoPercent="TempoPercent" Choices="ListenChoices" ListenTo="_listenTo" HandsNote="@HandsNote"
+                                           CanGoBack="@(StepTarget(-1) is not null)" CanGoOn="@(StepTarget(1) is not null)"
+                                           PlayPressed="PractisePlayAsync" LoopPressed="ToggleLoopSelectionAsync" Step="StepPhraseAsync"
+                                           TempoChanged="SetTempoPercentAsync" ListenToChanged="PractiseListenToAsync"
+                                           PlayingOn="@(_playOnLooped is not null)" PlayOn="PlayOnAsync" Back="BackToPhraseAsync" />
+                            break;
                         case InspectorTab.Explore:
                             <ExploreCard HasSelection="@(_selection is { NoteIds.Count: > 0 })" Offers="CardOffers" Trial="ActiveTrial" Explanation="@_variation?.Explanation"
-                                         OriginalHeard="@(OriginalAudible && !VariationAudible)" VariationHeard="@(Player.ActiveSources.Contains(VariationSource) && !OriginalAudible)"
+                                         OriginalHeard="ComparingOriginal" VariationHeard="ComparingVariation"
                                          AnswerLooping="@(_answerLoop is not null)" Layered="_layered" ListenTo="_listenTo"
-                                         Try="TryExperimentAsync" Hear="AuditionAsync" Keep="KeepExperimentAsync" Leave="LeaveExperimentAsync"
-                                         Surprise="SurpriseAsync" HearInContext="HearAnswerAsync" ListenToChanged="SetListenToAsync" />
+                                         Try="TryExperimentAsync" Hear="CompareAsync" Keep="KeepExperimentAsync" Leave="LeaveExperimentAsync"
+                                         Surprise="SurpriseAsync" HearInContext="HearAnswerAsync" ListenToChanged="SetListenToAsync" FactChosen="ShowFactAsync"
+                                         KeptText="@KeptText" KeptId="@KeptOnCard?.Id" KeptNote="@KeptOnCard?.Note" NoteSaved="SaveKeptNoteAsync" />
+                            @if (_variation is not null && _selection is { NoteIds.Count: > 0 })
+                            {
+                                <ComparePanel Variation="_variation" />
+                            }
+                            @if (_selection is not null)
+                            {
+                                @* Kept for this phrase (#78): what the player kept about the phrase, to open, rename, export or delete. *@
+                                <ObservationList Heading="@ListedHeading" Rows="KeptRows" SessionOnly="KeptForSessionOnly" CanKeepHeard="CanKeepHeard" CanWrite="true"
+                                                 Status="@ObservationStatus" Open="OpenObservationAsync" Rename="RenameObservationAsync" Note="NoteObservationAsync"
+                                                 Export="ExportObservationAsync" Delete="DeleteObservationAsync" KeepHeard="KeepHeardAsync" Write="WriteNoteAsync" />
+                            }
                             break;
                         case InspectorTab.Selection:
                             @if (_selection is { NoteIds.Count: > 0 })
@@ -283,6 +322,10 @@
                                         <p class="meta">Check: @flag</p>
                                     }
                                 </div>
+                                @if (_variation is not null)
+                                {
+                                    <ComparePanel Variation="_variation" ShowFlags="false" />
+                                }
 
                                 <div class="group">
                                     <div class="row">
@@ -301,12 +344,16 @@
                                 <p class="meta">Select some bars on the roll first: drag across it, or click a bar number. Then pick what to keep and a change here.</p>
                             }
                             break;
-                        case InspectorTab.Facts:
+                        case InspectorTab.Scan when _scanCheck is not null && _project?.Scan is { } scan:
+                            <ScanCheckPanel Check="_scanCheck" Scan="scan" SelectedBars="SelectedScanBars" Show="ShowScanBarAsync" Correct="CorrectScanBarAsync"
+                                            Confirm="ConfirmScanBarsAsync" Unconfirm="UnconfirmScanBarAsync" />
+                            break;
+                        case InspectorTab.Understand:
                             @if (Facts.Count == 0)
                             {
                                 <p class="meta">Select some bars to see what music-core finds in them.</p>
                             }
-                            <FactsPanel Facts="Facts" />
+                            <UnderstandPanel Facts="Facts" Offers="UnderstandOffers" Chosen="_highlight?.Choice" Choose="ChooseFactAsync" Try="TryFromFactAsync" />
                             break;
                         default:
                             @if (_selection is { NoteIds.Count: > 0 } chosen)
@@ -574,7 +621,7 @@
     private (string Label, string[] Ids)[] Sources =>
     [
         .. s_sources,
-        .. _variation is null ? [] : new (string, string[])[] { ("The piece with the variation", [InPlaceSource]) },
+        .. _variation is null ? [] : new (string, string[])[] { ("The piece with the variation", [InPlaceSource]), ("The original, then the variation", [OneAfterTheOther]) },
         .. _secondTitle is null ? [] : s_secondFileSources,
     ];
 
@@ -589,6 +636,9 @@
     private IReadOnlyList<MotifFact> _character = [];
     private CharacterContext? _characterContext;
     private PhraseMarks _phraseMarks = PhraseMarks.None;
+
+    /// <summary>The piece as phrases, with the player's own boundaries (S1-I5); null without a piece.</summary>
+    private PhraseMap? _phrases;
     private IReadOnlyList<KeySignature> _keys = [];
     private IReadOnlyList<AccentMark>? _accents;
     private SelectionFilter _filter = SelectionFilter.All;
@@ -629,7 +679,7 @@
     private IReadOnlyList<Experiment> _offers = [];
 
     /// <summary>The selection's notes and facts as the experiment catalogue reads them; null without a selection.</summary>
-    private ObservationContext? _observation;
+    private InvitationContext? _invitationContext;
 
     /// <summary>The last experiment tried; see <see cref="ActiveTrial"/>.</summary>
     private ExploreTrial? _trial;
@@ -660,8 +710,15 @@
     private IReadOnlyList<string> _secondDifferences = [];
     private int _pieceVersion;
 
-    /// <summary>The project the piece autosaves to (S1-P1); null for files opened here or Für Elise.</summary>
+    /// <summary>The project the piece autosaves to (S1-P1); null for Für Elise.</summary>
     private Project? _project;
+
+    /// <summary>The project the address names ("playback?project=p_…"), reopened from the device when the page loads without a piece.</summary>
+    [SupplyParameterFromQuery(Name = "project")]
+    public string? ProjectId { get; set; }
+
+    /// <summary>True once the project in the address was looked for, so a missing one is reported once.</summary>
+    private bool _reopened;
 
     /// <summary>The motif the lab's selection is saved as. The lab works on one motif; a project can hold more.</summary>
     private string _motifId = "m_0001";
@@ -677,27 +734,35 @@
     private bool _showScore = true;
     private ScoreChoice _scoreChoice = ScoreChoice.AsWritten;
 
-    private InspectorTab _tab = InspectorTab.Explore;
+    private InspectorTab _tab = InspectorTab.Practise;
 
-    /// <summary>The inspector's tabs (docs/ui-conventions.md): experiments, the selection with Keep and the operations, its facts, and editing notes.</summary>
+    /// <summary>
+    /// The inspector's tabs (docs/ui-conventions.md): the three ways of working on the phrase (practise, understand, explore),
+    /// then the selection with Keep and the operations, and editing notes. Switching keeps the phrase, the tempo and the loop.
+    /// </summary>
     private enum InspectorTab
     {
+        /// <summary>Check the scan, shown only for a piece read from a photo or PDF (0011).</summary>
+        Scan,
+        Practise,
+        Understand,
         Explore,
         Selection,
-        Facts,
         Edit,
     }
 
     private (InspectorTab Tab, string Label)[] InspectorTabs =>
     [
+        .. _scanCheck is null ? Array.Empty<(InspectorTab, string)>() : [(InspectorTab.Scan, "Scan")],
+        (InspectorTab.Practise, "Practise"),
+        (InspectorTab.Understand, "Understand"),
         (InspectorTab.Explore, "Explore"),
         (InspectorTab.Selection, "Selection"),
-        (InspectorTab.Facts, Facts.Count > 0 ? $"Facts · {Facts.Count}" : "Facts"),
         (InspectorTab.Edit, "Edit"),
     ];
 
     private Task HearChosenAsync(ChangeEventArgs args) =>
-        int.TryParse(args.Value?.ToString(), out int index) && index >= 0 && index < Sources.Length ? HearAsync(Sources[index].Ids) : Task.CompletedTask;
+        int.TryParse(args.Value?.ToString(), out int index) && index >= 0 && index < Sources.Length ? HearOrAlternateAsync(Sources[index].Ids) : Task.CompletedTask;
 
     private void SetScoreChoice(ChangeEventArgs args)
     {
@@ -732,8 +797,11 @@
         }
     }
 
-    /// <summary>The choice in effect: one that is not available falls back to the file as written, else the generated score.</summary>
-    private ScoreChoice ShownChoice => _scoreChoice switch
+    /// <summary>
+    /// The choice in effect, or while the original and the variation loop one after the other, the score of the one sounding.
+    /// One that is not available falls back to the file as written, else the generated score.
+    /// </summary>
+    private ScoreChoice ShownChoice => (SoundingScore ?? _scoreChoice) switch
     {
         ScoreChoice.Variation when _variationScore is not null => ScoreChoice.Variation,
         ScoreChoice.AsWritten or ScoreChoice.Variation when _asWritten is not null => ScoreChoice.AsWritten,
@@ -785,6 +853,25 @@
             await Player.InitializeAsync();
         }
 
+        // A reload or a link: the open piece lives only in memory, so open the project the address names from the device.
+        if (CurrentPiece.Piece is null && ProjectId is { Length: > 0 } id && !_reopened)
+        {
+            _reopened = true;
+            try
+            {
+                if (!await CurrentPiece.OpenSavedAsync(id))
+                {
+                    (_message, _tip) = ("This project is no longer saved in this browser.", "Open it again from Projects, or import the file.");
+                }
+            }
+            catch (ProjectFileException exception)
+            {
+                (_message, _tip) = (exception.Message, null);
+            }
+
+            StateHasChanged();
+        }
+
         // A piece opened from the import screen (N2), with the track or hand the player chose to start with.
         if (CurrentPiece.Piece is { } piece && CurrentPiece.Version != _pieceVersion && Player.IsReady)
         {
@@ -796,6 +883,12 @@
             }
 
             _project = CurrentPiece.Project;
+            StartScanCheck(piece);
+            if (_project is { Phrases.IsEmpty: false } phrased)
+            {
+                _phrases = _phrases!.With(phrased.Phrases);
+            }
+
             if (_project is { Edits.IsEmpty: false } corrected)
             {
                 _restoring = true;
@@ -835,16 +928,27 @@
         _phraseMarks = PhraseMarks.None;
         _characterContext = new CharacterContext(score.Tempos, TempoAssumed: false, FromNotation: false);
         await LoadAsync((score, meter, notes), FurElise.Title, notation, musicXml: null, keys: [FurElise.Key]);
+        // Für Elise has no project, so the address no longer names one.
+        if (ProjectId is not null)
+        {
+            Navigation.NavigateTo("playback", replace: true);
+        }
+
         await Analytics.TrackAsync(AnalyticsEvent.StarterOpened("fur_elise"));
     }
 
     private async Task OpenFileAsync(InputFileChangeEventArgs args)
     {
         (_message, _tip) = (null, null);
-        PieceImportResult result = await ReadAsync(args.File);
+        (PieceImportResult result, byte[] data) = await ReadAsync(args.File);
         if (result.Piece is { } piece)
         {
-            await LoadPieceAsync(piece);
+            // Saved as a project, as the import screen does (S1-P1), so it is still there after a reload.
+            // The workspace opens it as it opens an imported piece.
+            var project = Project.Create($"p_{Guid.NewGuid():N}", piece.FileName, data, DateTimeOffset.Now);
+            await Projects.SaveAsync(project);
+            CurrentPiece.Open(piece, SelectionFilter.All, project);
+            Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(project), replace: true);
             return;
         }
 
@@ -852,24 +956,25 @@
     }
 
     /// <summary>Reads a picked file on the device and imports it; the file never leaves the browser.</summary>
-    private static async Task<PieceImportResult> ReadAsync(IBrowserFile file)
+    private static async Task<(PieceImportResult Result, byte[] Data)> ReadAsync(IBrowserFile file)
     {
         if (PieceImporter.CheckSize(file.Size) is { } rejection)
         {
-            return new(null, rejection);
+            return (new(null, rejection), []);
         }
 
         await using Stream stream = file.OpenReadStream(PieceImporter.MaxFileBytes);
         using var memory = new MemoryStream();
         await stream.CopyToAsync(memory);
-        return PieceImporter.Import(file.Name, memory.ToArray());
+        byte[] data = memory.ToArray();
+        return (PieceImporter.Import(file.Name, data), data);
     }
 
     /// <summary>Opens a second file as the variation source and switches to it at the same position (S1-W5).</summary>
     private async Task OpenSecondFileAsync(InputFileChangeEventArgs args)
     {
         (_secondMessage, _secondTip) = (null, null);
-        PieceImportResult result = await ReadAsync(args.File);
+        (PieceImportResult result, _) = await ReadAsync(args.File);
         if (result.Piece is not { } piece || _score is null)
         {
             (_secondMessage, _secondTip) = (result.Rejection?.Message, result.Rejection?.Tip);
@@ -947,23 +1052,36 @@
         _title = title;
         _tracks = piece.Notes.Select(note => note.Track).Distinct().Order().ToArray();
         _lastBar = MotifSelector.LastBar(_meter, _score.End);
+        _phrases = PhraseMap.Suggest(piece.Notes, _meter, _phraseMarks, _score.End);
         _filters = Filters(piece.Notes, _tracks);
         _filter = SelectionFilter.All;
         _keptIds = null;
         _selection = null;
+        _highlight = null;
         _analysis = null;
         _structure = null;
         _character = [];
         _selectionNote = null;
         _looping = false;
+        _alternating = false;
         _answerLoop = null;
+        _playOnLooped = null;
         _hear = [Player.OriginalSource];
         _chain = null;
         _variation = null;
         _offers = [];
-        _observation = null;
+        _invitationContext = null;
         _trial = null;
         _tried.Clear();
+        // A new piece has its own project, or none (#78): nothing kept about another piece shows or saves here.
+        _project = null;
+        _scanCheck = null;
+        if (_tab == InspectorTab.Scan)
+        {
+            _tab = InspectorTab.Practise;
+        }
+
+        ForgetSessionObservations();
         _listenTo = ListenTo.Everything;
         _layered = false;
         _scope = OperationScope.All;
@@ -1045,7 +1163,102 @@
         long.TryParse(args.Value?.ToString(), out long tick) ? Player.SeekAsync(new Tick(tick)) : Task.CompletedTask;
 
     private Task SetTempoAsync(ChangeEventArgs args) =>
-        int.TryParse(args.Value?.ToString(), out int percent) ? Player.SetTempoAsync(Math.Clamp(percent, 25, 150) / 100.0) : Task.CompletedTask;
+        int.TryParse(args.Value?.ToString(), out int percent) ? SetTempoPercentAsync(percent) : Task.CompletedTask;
+
+    private Task SetTempoPercentAsync(int percent) =>
+        Player.SetTempoAsync(Math.Clamp(percent, PractisePanel.MinTempo, PractisePanel.MaxTempo) / 100.0);
+
+    /// <summary>Plays from the start of the phrase, looping when the loop is on and carrying on into the piece when it is not; pauses while playing.</summary>
+    private async Task PractisePlayAsync()
+    {
+        if (Player.State != PlaybackState.Stopped)
+        {
+            await Player.PauseAsync();
+            return;
+        }
+
+        if (_selection is not { NoteIds.Count: > 0 } selection)
+        {
+            return;
+        }
+
+        await Player.SeekAsync(_looping ? PlayRange(selection).Onset : selection.Span.Onset);
+        await PlayAsync();
+    }
+
+    /// <summary>Hears one hand or one layer: the phrase loops so the choice can be heard (#50).</summary>
+    private async Task PractiseListenToAsync(ListenTo choice)
+    {
+        if (_selection is not { NoteIds.Count: > 0 } selection)
+        {
+            return;
+        }
+
+        _listenTo = choice;
+        await SetVariationSourcesAsync();
+        _looping = true;
+        await LoopSelectionAsync(selection);
+    }
+
+    /// <summary>The phrase the selection stands for or lies mostly in, which Previous and Next phrase step from.</summary>
+    private Phrase? StepFrom => _phrases is { } map && _selection is { } selection ? CurrentPhrase ?? map.Covering(selection.Span) : null;
+
+    /// <summary>The phrase before (-1) or after (1) the one the selection is in, or null at either end; with nothing selected, the next is the first phrase.</summary>
+    private Phrase? StepTarget(int direction) => StepFrom switch
+    {
+        null => direction > 0 && _selection is null ? _phrases?.Phrases[0] : null,
+        { } from => from.Number + direction is int number && number >= 1 && number <= _phrases!.Phrases.Count ? _phrases.Phrases[number - 1] : null,
+    };
+
+    /// <summary>Selects the previous or next phrase; the loop, the tempo and what is heard carry on.</summary>
+    private Task StepPhraseAsync(int direction) => StepTarget(direction) is { } phrase ? PickPhraseAsync(phrase) : Task.CompletedTask;
+
+    /// <summary>
+    /// What the player can hear alone while the phrase loops: a hand when the selection has notes in both,
+    /// and the melody or the accompaniment when it has a melody over an accompaniment.
+    /// </summary>
+    private IReadOnlyList<(ListenTo Choice, string Label)> ListenChoices
+    {
+        get
+        {
+            Note[] notes = SelectedNotes;
+            bool hands = notes.Any(note => note.Hand?.Value == Hand.Right) && notes.Any(note => note.Hand?.Value == Hand.Left);
+            var choices = new List<(ListenTo, string)> { (ListenTo.Everything, hands && !_layered ? "Both hands" : "Everything") };
+            if (hands)
+            {
+                choices.Add((ListenTo.RightHand, "Right hand"));
+                choices.Add((ListenTo.LeftHand, "Left hand"));
+            }
+
+            if (_layered)
+            {
+                choices.Add((ListenTo.Melody, "Melody alone"));
+                choices.Add((ListenTo.Accompaniment, "Accompaniment alone"));
+            }
+
+            return choices;
+        }
+    }
+
+    /// <summary>Says when the hands are a reading of the notes rather than marked in the file.</summary>
+    private string? HandsNote =>
+        ListenChoices.Any(choice => choice.Choice == ListenTo.RightHand) && SelectedNotes.Any(note => note.Hand?.Attribution.Provenance == Provenance.Inferred)
+            ? "Which hand plays some of these notes is inferred, not marked in the file. The melody is the top line, whichever hand plays it."
+            : _layered ? "The melody is the top line of the notes, whichever hand plays it." : null;
+
+    private Note[] SelectedNotes
+    {
+        get
+        {
+            if (_selection is not { NoteIds.Count: > 0 } selection)
+            {
+                return [];
+            }
+
+            var ids = selection.NoteIds.ToHashSet(StringComparer.Ordinal);
+            return [.. _notes!.Where(note => ids.Contains(note.Id))];
+        }
+    }
 
     private Task ToggleMetronomeAsync() => Player.SetMetronomeAsync(!Player.Metronome);
 
@@ -1155,15 +1368,17 @@
     private async Task SelectAsync(TickSpan span, string? note)
     {
         _selection = MotifSelector.Select(_notes!, _meter!, span, _filter);
-        IReadOnlyList<PhraseBoundary> phrases = PhraseBoundaryFinder.Find(_notes!.Where(_filter.Matches), _meter!, _phraseMarks);
+        IReadOnlyList<PhraseBoundary> phrases = _phrases!.Boundaries;
         _analysis = MotifAnalyzer.Analyze(_notes!, _meter!, _selection, KeySignature.InForce(_keys, span.Onset), _accents, phrases);
         _structure = StructureAnalyzer.Analyze(_notes!, _meter!, _selection, phrases);
         _character = MotifAnalyzer.AnalyzeCharacter(_notes!, _meter!, _selection, KeySignature.InForce(_keys, span.Onset), _characterContext!);
-        _observation = new ObservationContext(_notes!, _meter!, _selection, _analysis, _structure, _character);
-        _offers = ExperimentCatalogue.Offer(_observation);
+        _invitationContext = new InvitationContext(_notes!, _meter!, _selection, _analysis, _structure, _character);
+        _offers = ExperimentCatalogue.Offer(_invitationContext);
+        _highlight = null;
         MotifTexture? texture = _selection.NoteIds.Count == 0 ? null : MotifTexture.Read(VariationFacts.MotifNotes(_notes!, _selection));
         _layered = texture is { IsSingleLine: false } && texture.Melody.Count < texture.Notes.Count;
-        if (!_layered)
+        // A hand or a layer the new selection does not have goes back to everything.
+        if (!ListenChoices.Any(choice => choice.Choice == _listenTo))
         {
             _listenTo = ListenTo.Everything;
         }
@@ -1205,6 +1420,85 @@
         await SaveProjectAsync();
     }
 
+    /// <summary>The phrase the selection stands for, or null when the selection is another range (#18).</summary>
+    private Phrase? CurrentPhrase => _selection is { } selection ? _phrases?.Matching(selection.Span) : null;
+
+    /// <summary>
+    /// The phrase starts the score marks, with how each was found, the selected phrase's marked as current (#126).
+    /// The first phrase starts with the piece and is marked only while it is selected.
+    /// </summary>
+    private IReadOnlyList<ScorePhrase>? ScorePhrases
+    {
+        get
+        {
+            if (_phrases is null)
+            {
+                return null;
+            }
+
+            int? current = CurrentPhrase?.Number;
+            if (!ReferenceEquals(_phrases, _scorePhrasesFor) || current != _scorePhrasesCurrent)
+            {
+                _scorePhrasesFor = _phrases;
+                _scorePhrasesCurrent = current;
+                _scorePhrases = [.. _phrases.Phrases.Where(phrase => phrase.Start is not null || phrase.Number == current)
+                    .Select(phrase => new ScorePhrase(phrase.Span.Onset.Value, $"Phrase {phrase.Number}", PhraseStrip.KindClass(phrase.Start), phrase.Number == current))];
+            }
+
+            return _scorePhrases;
+        }
+    }
+
+    private PhraseMap? _scorePhrasesFor;
+    private int? _scorePhrasesCurrent;
+    private IReadOnlyList<ScorePhrase>? _scorePhrases;
+
+    /// <summary>Selects a phrase as the working context (#18): Explore and the facts read it. A phrase longer than a selection is selected up to 8 bars.</summary>
+    private Task PickPhraseAsync(Phrase phrase)
+    {
+        if (_phrases is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        TickSpan span = _phrases.Selectable(phrase);
+        string? note = phrase.FitsSelection ? null : $"Phrase {phrase.Number} runs {phrase.BarCount} bars; a selection holds at most {MotifSelection.MaxBars}, so it ends at bar {_meter!.BarAt(new Tick(span.End.Value - 1)).Number}.";
+        return SelectAsync(span, note);
+    }
+
+    /// <summary>Makes the selected range one phrase (moving or splitting boundaries), then selects that phrase.</summary>
+    private Task MakePhraseAsync() =>
+        _phrases is { } map && _selection is { } selection ? ChangePhrasesAsync(map.MakePhrase(selection.Span), selection.Span) : Task.CompletedTask;
+
+    /// <summary>Joins the phrase with the next one, then selects the joined phrase.</summary>
+    private Task JoinPhraseAsync(Phrase phrase) =>
+        _phrases is { } map ? ChangePhrasesAsync(map.JoinWithNext(phrase), phrase.Span) : Task.CompletedTask;
+
+    /// <summary>Drops the player's boundaries; the selection stays as it is.</summary>
+    private Task ResetPhrasesAsync() =>
+        _phrases is not null ? ChangePhrasesAsync(PhraseEdits.None, around: null) : Task.CompletedTask;
+
+    /// <summary>
+    /// Puts the player's phrase edits in effect and saves them with the project. With <paramref name="around"/>,
+    /// the phrase that now covers most of it is selected; otherwise the selection stays and its facts are read again.
+    /// </summary>
+    private async Task ChangePhrasesAsync(PhraseEdits edits, TickSpan? around)
+    {
+        _phrases = _phrases!.With(edits);
+        if (around is { } span)
+        {
+            await PickPhraseAsync(_phrases.Covering(span));
+        }
+        else if (_selection is { } selection)
+        {
+            await SelectAsync(selection.Span, note: null);
+        }
+        else
+        {
+            await SaveProjectAsync();
+        }
+    }
+
     private async Task ClearSelectionAsync()
     {
         if (_looping)
@@ -1213,15 +1507,17 @@
         }
 
         _selection = null;
+        _highlight = null;
         _analysis = null;
         _structure = null;
         _character = [];
-        _observation = null;
+        _invitationContext = null;
         _offers = [];
         _trial = null;
         _layered = false;
         _listenTo = ListenTo.Everything;
         _selectionNote = null;
+        _playOnLooped = null;
         await ClearVariationAsync();
         await SaveProjectAsync();
     }
@@ -1347,6 +1643,7 @@
 
         _score = PlaybackScore.Create(_notes, _score!.Tempos, _meter!, _score.End);
         _lastBar = MotifSelector.LastBar(_meter!, _score.End);
+        _phrases = PhraseMap.Suggest(_notes, _meter!, _phraseMarks, _score.End, _phrases?.Edits);
         IEnumerable<KeyChange> keys = _keys.Select(key => new KeyChange(key.At, Math.Clamp(key.Fifths, -7, 7)));
         _generated = ScoreSource.FromNotes(NotationGenerator.Generate(_notes, _meter!, keys, _score.End, _title));
         if (!edits.IsEmpty && _scoreChoice == ScoreChoice.AsWritten)
@@ -1383,14 +1680,14 @@
     /// </summary>
     private async Task TryExperimentAsync(ExploreRequest request)
     {
-        if (_selection is not { NoteIds.Count: > 0 } selection || _observation is null)
+        if (_selection is not { NoteIds.Count: > 0 } selection || _invitationContext is null)
         {
             return;
         }
 
         ExploreTrial? active = ActiveTrial;
         bool tryingOne = active is { Kept: false };
-        ObservationContext offeredIn = active?.OfferedIn ?? _observation;
+        InvitationContext offeredIn = active?.OfferedIn ?? _invitationContext;
         Experiment experiment = request.Experiment;
         VariationChain chain = ExperimentCatalogue.Start(experiment, request.Alternative, offeredIn);
         var trial = new ExploreTrial(
@@ -1451,6 +1748,7 @@
         }
 
         _trial = trial with { Kept = true };
+        KeepObservation(_trial);
         await SaveProjectAsync();
         await Analytics.TrackAsync(AnalyticsEvent.ExperimentKept(trial.Experiment.Id, trial.Alternative));
     }
@@ -1487,9 +1785,42 @@
 
     /// <summary>Surprise me: an experiment not tried yet, chosen by music-core from a seed that moves on each press.</summary>
     private Task SurpriseAsync() =>
-        (ActiveTrial?.OfferedIn ?? _observation) is { } context && ExperimentCatalogue.Surprise(context, _surprises++, _tried) is { } pick
+        (ActiveTrial?.OfferedIn ?? _invitationContext) is { } context && ExperimentCatalogue.Surprise(context, _surprises++, _tried) is { } pick
             ? TryExperimentAsync(new ExploreRequest(pick.Experiment, pick.Alternative, "surprise"))
             : Task.CompletedTask;
+
+    /// <summary>The fact chosen on the Understand tab and what the score and the roll highlight for it (#25); null for none. A new selection clears it.</summary>
+    private FactHighlight? _highlight;
+
+    /// <summary>
+    /// The experiments the Understand tab links its facts to: those offered for the same selection as the facts.
+    /// None while an experiment offered for another selection runs (the motif's return), as its offers rest on other facts.
+    /// </summary>
+    private IReadOnlyList<Experiment> UnderstandOffers => ActiveTrial is { } trial && !ReferenceEquals(trial.OfferedIn, _invitationContext) ? [] : CardOffers;
+
+    /// <summary>Highlights the places of a fact, or one of them and moves playback to its start; null clears the highlight.</summary>
+    private async Task ChooseFactAsync(FactChoice? choice)
+    {
+        _highlight = choice is null || _notes is null ? null : FactHighlight.Create(choice, _notes);
+        if (choice?.Place is { } place)
+        {
+            await Player.SeekAsync(place.Span.Onset);
+        }
+    }
+
+    /// <summary>A fact the experiment on the Explore card rests on: Understand opens with it highlighted.</summary>
+    private Task ShowFactAsync(MotifFact fact)
+    {
+        _tab = InspectorTab.Understand;
+        return ChooseFactAsync(new FactChoice(fact));
+    }
+
+    /// <summary>An experiment a fact links to: Explore opens and tries its first alternative.</summary>
+    private Task TryFromFactAsync(Experiment experiment)
+    {
+        _tab = InspectorTab.Explore;
+        return TryExperimentAsync(new ExploreRequest(experiment, 0, "fact"));
+    }
 
     /// <summary>Loops from the motif to the end of its return, with the new answer in place; pressed again, it stops.</summary>
     private async Task HearAnswerAsync()
@@ -1514,6 +1845,7 @@
         TickSpan range = TickSpan.FromBounds(start, end);
 
         _looping = false;
+        _alternating = false;
         _hear = [InPlaceSource];
         await Player.SelectSourcesAsync(_hear);
         await Player.SetLoopAsync(range);
@@ -1738,11 +2070,13 @@
         await Player.SetSourceAsync(InPlaceSource, _score!.WithNotes(_variation is null ? [] : InPlaceNotes(_variation)));
     }
 
-    /// <summary>The layer of the notes the player listens to; the layers are read from the notes' texture, not the hands.</summary>
+    /// <summary>The hand or layer of the notes the player listens to; the layers are read from the notes' texture, not the hands.</summary>
     private IEnumerable<Note> Voiced(IReadOnlyList<Note> notes) => _listenTo switch
     {
         ListenTo.Melody => OperationScopes.Split(notes, OperationScope.Melody).Inside,
         ListenTo.Accompaniment => OperationScopes.Split(notes, OperationScope.Melody).Outside,
+        ListenTo.RightHand => notes.Where(note => note.Hand?.Value == Hand.Right),
+        ListenTo.LeftHand => notes.Where(note => note.Hand?.Value == Hand.Left),
         _ => notes,
     };
 
@@ -1809,7 +2143,7 @@
             }
         }
 
-        _project = _project with { Motifs = motifs, Variations = variations, Edits = _edits };
+        _project = _project with { Motifs = motifs, Variations = variations, Edits = _edits, Phrases = _phrases?.Edits ?? PhraseEdits.None };
         CurrentPiece.Saved(_project);
         await Projects.SaveAsync(_project);
     }
@@ -1851,7 +2185,7 @@
         _variationScore = null;
         await SetVariationSourcesAsync();
         // Nothing is left to hear as the variation: go back to the original, keeping the loop.
-        if (VariationChosen)
+        if (VariationChosen || _alternating)
         {
             await HearAsync([Player.OriginalSource]);
         }
@@ -1861,6 +2195,7 @@
     private async Task HearAsync(string[] ids)
     {
         _hear = ids;
+        _alternating = false;
         if (_answerLoop is not null)
         {
             _answerLoop = null;
@@ -1885,6 +2220,7 @@
             return;
         }
 
+        Auditioned(variation);
         _hear = variation && _variation is not null ? [VariationSource] : [Player.OriginalSource];
         _looping = true;
         TickSpan range = await LoopSelectionAsync(selection);
@@ -1903,6 +2239,7 @@
         }
         else if (_selection is { NoteIds.Count: > 0 } selection)
         {
+            _playOnLooped = null;
             _looping = true;
             await LoopSelectionAsync(selection);
         }
@@ -1917,6 +2254,13 @@
         _answerLoop = null;
         var ids = selection.NoteIds.ToHashSet(StringComparer.Ordinal);
         await Player.SetSourceAsync(SelectionSource, _score!.WithNotes(Voiced([.. _notes!.Where(note => ids.Contains(note.Id))])));
+        // One after the other (#43) keeps alternating as the selection, its notes or the variation change.
+        _alternating = _alternating && _variation is { Notes.Count: > 0 };
+        if (_alternating)
+        {
+            return await AlternateAsync(selection);
+        }
+
         await Player.SelectSourcesAsync([.. _hear.Select(id => id == Player.OriginalSource ? SelectionSource : id)]);
         TickSpan range = PlayRange(selection);
         await Player.SetLoopAsync(range);
@@ -1934,16 +2278,19 @@
     /// one that runs shorter shortens it; heard together with the original it never ends before the
     /// selection. Never past the end of the piece.
     /// </summary>
-    private TickSpan PlayRange(MotifSelection selection)
+    private TickSpan PlayRange(MotifSelection selection) => PlayRange(selection, _hear);
+
+    /// <summary>What plays for the selection when <paramref name="hear"/> is heard; see <see cref="PlayRange(MotifSelection)"/>.</summary>
+    private TickSpan PlayRange(MotifSelection selection, string[] hear)
     {
         TickSpan span = selection.Span;
-        if (!VariationChosen || _variation is not { Notes.Count: > 0 } variation)
+        if (!(hear.Contains(VariationSource) || hear.Contains(InPlaceSource)) || _variation is not { Notes.Count: > 0 } variation)
         {
             return span;
         }
 
         Tick end = BeatEnd(variation.Notes.Max(note => note.Span.End));
-        if ((_hear.Contains(Player.OriginalSource) || _hear.Contains(InPlaceSource)) && span.End > end)
+        if ((hear.Contains(Player.OriginalSource) || hear.Contains(InPlaceSource)) && span.End > end)
         {
             end = span.End;
         }
@@ -1966,11 +2313,12 @@
     }
 
     /// <summary>The range that plays for the selection as things stand, for the roll and the score to show; null without a selection.</summary>
-    private TickSpan? ShownRange => _answerLoop ?? (_selection is { } selection ? (_selection.NoteIds.Count > 0 ? PlayRange(selection) : selection.Span) : null);
+    private TickSpan? ShownRange => _answerLoop ?? SoundingRange ?? (_selection is { } selection ? (_selection.NoteIds.Count > 0 ? PlayRange(selection) : selection.Span) : null);
 
     private async Task StopLoopingAsync()
     {
         _looping = false;
+        _alternating = false;
         _answerLoop = null;
         await Player.SetLoopAsync(null);
         await Player.SelectSourcesAsync(_hear);
@@ -1986,7 +2334,10 @@
                 return "Nothing selected. Drag across the piano roll or click a bar number.";
             }
 
-            var parts = new List<string> { $"Selected {Where(selection)}" };
+            var parts = new List<string>
+            {
+                CurrentPhrase is { } phrase ? $"Selected phrase {phrase.Number}, {PhraseBars(phrase)}" : $"Selected {SpannedPhrases(selection) ?? Where(selection)}",
+            };
             if (selection.Filter != SelectionFilter.All)
             {
                 string label = _filters.FirstOrDefault(filter => filter.Filter == selection.Filter).Label ?? "filtered";
@@ -2003,12 +2354,22 @@
             {
                 text += " Looping the motif and its new answer.";
             }
+            else if (_alternating)
+            {
+                text += " Looping the original, then the variation.";
+            }
+            else if (PlayOnText is { } playingOn)
+            {
+                text += $" {playingOn}";
+            }
             else if (_looping)
             {
                 text += _listenTo switch
                 {
                     ListenTo.Melody => " Looping the melody alone.",
                     ListenTo.Accompaniment => " Looping the accompaniment alone.",
+                    ListenTo.RightHand => " Looping the right hand alone.",
+                    ListenTo.LeftHand => " Looping the left hand alone.",
                     _ => " Looping; only these notes play.",
                 };
             }
@@ -2016,6 +2377,10 @@
             return _selectionNote is null ? text : $"{text} {_selectionNote}";
         }
     }
+
+    /// <summary>"bars 4–8": the bars a phrase touches, its pickup included, as the phrase strip names them.</summary>
+    private static string PhraseBars(Phrase phrase) =>
+        phrase.FirstBar == phrase.LastBar ? $"bar {phrase.FirstBar}" : $"bars {phrase.FirstBar}–{phrase.LastBar}";
 
     /// <summary>"bars 5–6", or with beats when an edge is inside a bar: "bar 5, beat 2, through bar 6, beat 1".</summary>
     private string Where(MotifSelection selection)

@@ -29,6 +29,14 @@ public class AnalyticsCatalogueTests
     }
 
     [Fact]
+    public void An_experiment_tried_from_a_fact_says_so_and_other_entries_are_refused()
+    {
+        // The Understand tab links a fact to the experiments resting on it (#25).
+        Assert.Equal("fact", AnalyticsEvent.ExperimentTried("motif.answer", alternative: 0, entry: "fact").Properties["entry"]);
+        Assert.Throws<ArgumentException>(() => AnalyticsEvent.ExperimentTried("motif.answer", alternative: 0, entry: "structure.recurrences"));
+    }
+
+    [Fact]
     public void A_note_count_is_sent_as_its_band()
     {
         Assert.Equal("5000", AnalyticsEvent.PieceImported("midi", true, 1_234, 2, false, 85).Properties["notes"]);

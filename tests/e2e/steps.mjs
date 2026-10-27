@@ -43,6 +43,8 @@ export async function openFurElise(page) {
 export async function selectBar(page, bar, { pickup = 0.5, barQuarters = 1.5 } = {}) {
     const roll = page.locator(".roll");
     await expect(roll).toBeVisible();
+    // On a tablet the inspector stacks under the canvas, so a tab clicked there can scroll the roll away.
+    await roll.scrollIntoViewIfNeeded();
     const box = await roll.boundingBox();
     const quarters = pickup + (bar - 1) * barQuarters + 0.4;
     await page.mouse.click(box.x + GUTTER + quarters * PIXELS_PER_QUARTER, box.y + HEADER / 2);

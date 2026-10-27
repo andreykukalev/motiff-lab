@@ -312,3 +312,85 @@ test("a live note keeps sounding over pause, seek and source changes", () => {
     // The live voice's spike lands SPIKE frames into the next block: it was not released.
     assert.deepEqual(noteStarts(run(e, BLOCK)), [0]);
 });
+
+/** The original over a quarter, then the variation over two quarters, as "One after the other" plays them (#43). */
+function alternating() {
+    const e = engine();
+    source(e, "original", [[0, 120], [240, 120]]);
+    source(e, "variation", [[120, 120], [600, 120]]);
+    e.handle({ type: "alternate", passes: [{ ids: ["original"], start: 0, end: 480 }, { ids: ["variation"], start: 0, end: 960 }] });
+    return e;
+}
+
+test("an alternating loop plays each pass's sources over its own range, switching on the exact frame", () => {
+    const e = alternating();
+    e.handle({ type: "play" });
+
+    const out = run(e, frames(QUARTER * 4 + 1000));
+
+    // The original over 0–480 (one quarter), the variation over 0–960 from frame QUARTER, then the original
+    // again from QUARTER * 3. Neither source sounds in the other's pass.
+    assert.deepEqual(noteStarts(out), [0, QUARTER / 2, QUARTER * 1.25, QUARTER * 2.25, QUARTER * 3, QUARTER * 3.5]);
+});
+
+test("an alternating loop reports which pass plays, with its range, on the frame it starts", () => {
+    const e = alternating();
+    e.handle({ type: "play" });
+    e.takeReports();
+
+    run(e, frames(QUARTER * 3.5));
+
+    const positions = e.takeReports().filter((report) => report.type === "position");
+    const starts = positions.filter((report, i) => i > 0 && report.pass !== positions[i - 1].pass);
+    assert.deepEqual(
+        // The tick carries the overshoot across the wrap, under a frame's worth.
+        starts.map(({ frame, tick, pass, loopStart, loopEnd }) => ({ frame, tick: Math.round(tick * 1e6) / 1e6, pass, loopStart, loopEnd })),
+        [
+            { frame: QUARTER, tick: 0, pass: 1, loopStart: 0, loopEnd: 960 },
+            { frame: QUARTER * 3, tick: 0, pass: 0, loopStart: 0, loopEnd: 480 },
+        ],
+    );
+    assert.equal(positions[0].pass, 0);
+});
+
+test("an alternating loop starts at its first pass and is deterministic", () => {
+    const outputs = [];
+    for (let i = 0; i < 2; i++) {
+        const e = engine();
+        source(e, "original", [[0, 120], [240, 120]]);
+        source(e, "variation", [[120, 120], [600, 120]]);
+        e.handle({ type: "seek", tick: 1500 });
+        e.handle({ type: "alternate", passes: [{ ids: ["original"], start: 0, end: 480 }, { ids: ["variation"], start: 0, end: 960 }] });
+        assert.equal(e.tick, 0);
+        e.handle({ type: "play" });
+        outputs.push(Array.from(run(e, frames(QUARTER * 4))));
+    }
+
+    assert.deepEqual(outputs[0], outputs[1]);
+});
+
+test("a loop, a loop off or a choice of sources ends an alternating loop", () => {
+    for (const message of [{ type: "loop", start: 0, end: 480 }, { type: "loopOff" }, { type: "activeSources", ids: ["original"] }]) {
+        const e = alternating();
+        e.handle(message);
+        e.handle({ type: "play" });
+        e.takeReports();
+
+        run(e, frames(QUARTER * 2));
+
+        const positions = e.takeReports().filter((report) => report.type === "position");
+        assert.ok(positions.length > 0 && positions.every((report) => report.pass === -1), message.type);
+    }
+});
+
+test("an alternating loop with no pass inside the piece loops nothing", () => {
+    const e = engine({ end: 960 });
+    source(e, "original", [[0, 120]]);
+    e.handle({ type: "alternate", passes: [{ ids: ["original"], start: 2000, end: 3000 }] });
+    e.takeReports();
+    e.handle({ type: "play" });
+
+    const report = e.takeReports().find((r) => r.type === "position");
+    assert.equal(report.pass, -1);
+    assert.equal(report.loopEnd, 0);
+});

@@ -2,8 +2,8 @@ using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Experiments;
 using MotiffLab.MusicCore.Import;
+using MotiffLab.MusicCore.Invitations;
 using MotiffLab.MusicCore.Motifs;
-using MotiffLab.MusicCore.Observations;
 using MotiffLab.MusicCore.Time;
 using MotiffLab.MusicCore.Variations;
 
@@ -19,12 +19,12 @@ public class ExperimentCatalogueTests
         PieceImporter.Import(name, File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Experiments", "Fixtures", name))).Piece!;
 
     /// <summary>What the app reads for a selection of bars: the motif, structure and character analyses.</summary>
-    private static ObservationContext Context(string name, int firstBar, int lastBar)
+    private static InvitationContext Context(string name, int firstBar, int lastBar)
     {
         ImportedPiece piece = Piece(name);
         MotifSelection selection = MotifSelector.Select(piece.Notes, piece.Meter, MotifSelector.Bars(piece.Meter, firstBar, lastBar, piece.End), SelectionFilter.All);
         KeySignature? key = KeySignature.InForce(piece.Keys, selection.Span.Onset);
-        return new ObservationContext(
+        return new InvitationContext(
             piece.Notes,
             piece.Meter,
             selection,
@@ -33,7 +33,7 @@ public class ExperimentCatalogueTests
             MotifAnalyzer.AnalyzeCharacter(piece.Notes, piece.Meter, selection, key, CharacterContext.FromPiece(piece)));
     }
 
-    private static Experiment Find(ObservationContext context, string id) => ExperimentCatalogue.Offer(context).Single(experiment => experiment.Id == id);
+    private static Experiment Find(InvitationContext context, string id) => ExperimentCatalogue.Offer(context).Single(experiment => experiment.Id == id);
 
     [Fact]
     public void The_fur_elise_motif_offers_space_groove_and_an_answer()
@@ -55,7 +55,7 @@ public class ExperimentCatalogueTests
     [Fact]
     public void Experiment_a_spaces_the_melody_and_leaves_the_left_hand_ringing()
     {
-        ObservationContext context = Context(FurElise, 0, 2);
+        InvitationContext context = Context(FurElise, 0, 2);
         Experiment experiment = Find(context, "melody.space");
 
         Variation result = ExperimentCatalogue.Start(experiment, 0, context).Result!;
@@ -71,7 +71,7 @@ public class ExperimentCatalogueTests
     [Fact]
     public void Experiment_b_makes_ode_to_joy_long_short_or_pushes_it_ahead_of_the_beat()
     {
-        ObservationContext context = Context(OdeToJoy, 1, 2);
+        InvitationContext context = Context(OdeToJoy, 1, 2);
         Experiment experiment = Find(context, "rhythm.groove");
 
         Assert.Equal(["Long–short", "Ahead of the beat"], experiment.Alternatives.Select(alternative => alternative.Label));
@@ -90,7 +90,7 @@ public class ExperimentCatalogueTests
     [Fact]
     public void Experiment_c_replays_the_fur_elise_left_hand_as_repeated_chords()
     {
-        ObservationContext context = Context(FurElise, 2, 4);
+        InvitationContext context = Context(FurElise, 2, 4);
         Experiment experiment = Find(context, "layers.accompaniment");
 
         Assert.Equal(ExperimentTopic.Layers, experiment.Topic);
@@ -106,7 +106,7 @@ public class ExperimentCatalogueTests
     [Fact]
     public void Experiment_c_can_compose_two_steps()
     {
-        ObservationContext context = Context(FurElise, 2, 4);
+        InvitationContext context = Context(FurElise, 2, 4);
         Experiment experiment = Find(context, "layers.accompaniment");
 
         VariationChain chain = ExperimentCatalogue.Start(experiment, 3, context);
@@ -118,7 +118,7 @@ public class ExperimentCatalogueTests
     [Fact]
     public void Experiment_d_changes_the_repeat_and_keeps_its_rhythm()
     {
-        ObservationContext context = Context(FurElise, 0, 1);
+        InvitationContext context = Context(FurElise, 0, 1);
         Experiment experiment = Find(context, "motif.answer");
 
         Assert.Equal((4, 5), (experiment.Passage.FirstBar, experiment.Passage.LastBar));
@@ -139,9 +139,70 @@ public class ExperimentCatalogueTests
     }
 
     [Fact]
+    public void A_fact_lists_the_experiments_that_rest_on_it()
+    {
+        IReadOnlyList<Experiment> offered = ExperimentCatalogue.Offer(Context(FurElise, 0, 1));
+
+        Assert.Equal(["melody.space"], ExperimentCatalogue.RestingOn(offered, "melody.line").Select(experiment => experiment.Id));
+        Assert.Equal(["rhythm.groove"], ExperimentCatalogue.RestingOn(offered, "melody.contour").Select(experiment => experiment.Id));
+        Assert.Equal(["motif.answer"], ExperimentCatalogue.RestingOn(offered, "structure.recurrences").Select(experiment => experiment.Id));
+        Assert.Empty(ExperimentCatalogue.RestingOn(offered, "key"));
+    }
+
+    [Fact]
+    public void Experiments_cite_only_facts_the_analysis_carries_and_the_links_go_both_ways()
+    {
+        foreach ((string name, int first, int last) in new[] { (FurElise, 0, 1), (FurElise, 0, 2), (FurElise, 2, 4), (OdeToJoy, 1, 2), (OdeToJoy, 1, 4) })
+        {
+            InvitationContext context = Context(name, first, last);
+            string[] factIds = [.. context.Motif.Facts.Concat(context.Structure.Facts).Concat(context.Character).Select(fact => fact.Id)];
+            IReadOnlyList<Experiment> offered = ExperimentCatalogue.Offer(context);
+
+            Assert.All(offered, experiment => Assert.All(experiment.FactIds, id =>
+            {
+                Assert.Contains(id, factIds);
+                Assert.Contains(experiment, ExperimentCatalogue.RestingOn(offered, id));
+            }));
+            Assert.All(factIds, id => Assert.All(ExperimentCatalogue.RestingOn(offered, id), experiment => Assert.Contains(id, experiment.FactIds)));
+        }
+    }
+
+    [Fact]
+    public void The_recurrence_fact_points_to_the_repeat_the_answer_changes()
+    {
+        InvitationContext context = Context(FurElise, 0, 1);
+        Experiment answer = Find(context, "motif.answer");
+
+        FactPlace repeat = Assert.Single(context.Structure.Facts.Single(fact => fact.Id == "structure.recurrences").Places);
+
+        Assert.Equal("exactly in bars 4–5", repeat.Label);
+        Assert.Equal(answer.Passage.Span, repeat.Span);
+        Assert.Equal(8, repeat.NoteIds.Count);
+    }
+
+    [Fact]
+    public void Every_place_on_the_pilot_pieces_holds_notes_of_the_piece_in_time_order()
+    {
+        foreach ((string name, int first, int last) in new[] { (FurElise, 0, 1), (FurElise, 2, 4), (OdeToJoy, 1, 4) })
+        {
+            InvitationContext context = Context(name, first, last);
+            var byId = context.Notes.ToDictionary(note => note.Id, StringComparer.Ordinal);
+            FactPlace[] places = [.. context.Motif.Facts.Concat(context.Structure.Facts).Concat(context.Character).SelectMany(fact => fact.Places)];
+
+            Assert.NotEmpty(places);
+            Assert.All(places, place =>
+            {
+                Note[] notes = [.. place.NoteIds.Select(id => byId[id])];
+                Assert.All(notes, note => Assert.True(place.Span.Contains(note.Span.Onset)));
+                Assert.Equal(notes.OrderBy(note => note.Span.Onset).Select(note => note.Id), place.NoteIds);
+            });
+        }
+    }
+
+    [Fact]
     public void A_question_lists_only_its_experiments()
     {
-        ObservationContext context = Context(FurElise, 0, 1);
+        InvitationContext context = Context(FurElise, 0, 1);
 
         Assert.Equal(["rhythm.groove"], ExperimentCatalogue.ForQuestion(context, ExperimentTopic.Rhythm).Select(experiment => experiment.Id));
         Assert.Empty(ExperimentCatalogue.ForQuestion(context, ExperimentTopic.Layers));
@@ -151,7 +212,7 @@ public class ExperimentCatalogueTests
     [Fact]
     public void Surprise_me_is_deterministic_and_prefers_what_was_not_tried()
     {
-        ObservationContext context = Context(FurElise, 0, 1);
+        InvitationContext context = Context(FurElise, 0, 1);
 
         Assert.Equal(ExperimentCatalogue.Surprise(context, 7, new HashSet<string>()), ExperimentCatalogue.Surprise(context, 7, new HashSet<string>()));
         for (int seed = 0; seed < 10; seed++)
@@ -170,7 +231,7 @@ public class ExperimentCatalogueTests
     {
         ImportedPiece piece = Piece(OdeToJoy);
         MotifSelection selection = MotifSelector.Select(piece.Notes, piece.Meter, new TickSpan(Tick.Zero, 480), SelectionFilter.All);
-        var context = new ObservationContext(
+        var context = new InvitationContext(
             piece.Notes,
             piece.Meter,
             selection,
@@ -187,7 +248,7 @@ public class ExperimentCatalogueTests
     {
         foreach ((string name, int first, int last) in new[] { (FurElise, 0, 1), (FurElise, 0, 2), (FurElise, 2, 4), (OdeToJoy, 1, 2), (OdeToJoy, 1, 4) })
         {
-            ObservationContext context = Context(name, first, last);
+            InvitationContext context = Context(name, first, last);
             IReadOnlyList<Experiment> offered = ExperimentCatalogue.Offer(context);
             Assert.Equal(offered, ExperimentCatalogue.Offer(context));
             foreach (Experiment experiment in offered)

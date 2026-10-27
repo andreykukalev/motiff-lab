@@ -260,7 +260,11 @@ public static class StructureAnalyzer
             text += $" It is first heard in {Bars(earlier.FirstBar, earlier.LastBar)}.";
         }
 
-        return new MotifFact("structure.recurrences", FactLens.Structure, certainty, text, lineBasis + Rule);
+        // Every recurrence is a place, the text's list cut or not; the motif itself is the selection.
+        return new MotifFact("structure.recurrences", FactLens.Structure, certainty, text, lineBasis + Rule)
+        {
+            Places = [.. recurrences.Select((recurrence, i) => new FactPlace(places[i], recurrence.Span, recurrence.NoteIds))],
+        };
     }
 
     private static MotifFact PhraseFact(IReadOnlyList<PhraseSpan> spans, Tick motifStart)
@@ -273,7 +277,10 @@ public static class StructureAnalyzer
                 FactLens.Structure,
                 FactCertainty.Detected,
                 $"No phrase boundary is marked, so the notes read as one span, {Bars(spans[0].FirstBar, spans[0].LastBar)}.",
-                Basis + " Where nothing marks a boundary, none is invented.");
+                Basis + " Where nothing marks a boundary, none is invented.")
+            {
+                Places = [new FactPlace(Bars(spans[0].FirstBar, spans[0].LastBar), spans[0].Span, [])],
+            };
         }
 
         int containing = spans.Select((span, index) => (span, index)).Last(entry => entry.span.Span.Onset <= motifStart).index;
@@ -281,9 +288,15 @@ public static class StructureAnalyzer
             + $"({Joined(spans.Select(span => span.BarCount.ToString(CultureInfo.InvariantCulture)).ToList())} bars). "
             + $"The motif starts in phrase {containing + 1}.";
         bool inferred = spans.Any(span => span.Start?.Provenance is Provenance.Inferred or Provenance.Detected);
-        return inferred
+        MotifFact fact = inferred
             ? new MotifFact("structure.phrases", FactLens.Structure, FactCertainty.Inferred, text, Basis + " Some boundaries rest on a rest alone, which is a reading of the notes, not a mark in the score.")
             : new MotifFact("structure.phrases", FactLens.Structure, FactCertainty.Detected, text, Basis);
+
+        // Every phrase is a place, a stretch of time from its boundary to the next.
+        return fact with
+        {
+            Places = [.. spans.Select((span, i) => new FactPlace($"phrase {i + 1}, {Bars(span.FirstBar, span.LastBar)}", span.Span, []))],
+        };
     }
 
     private static MotifFact NewMaterialFact(IReadOnlyList<int> newBars, Note[] line, MeterMap meter, bool inferred, string lineBasis)
@@ -293,21 +306,35 @@ public static class StructureAnalyzer
         string text = repeated == 0
             ? $"Every bar with notes brings new material ({Count(barsWithNotes, "bar", "bars")}); none repeats an earlier bar."
             : $"New material in {BarList(newBars)}; the other {Count(repeated, "bar repeats", "bars repeat")} an earlier bar, exactly or transposed.";
+
+        // Every run of new bars is a place: the bars, with the line notes that were compared.
+        FactPlace[] places = [.. Runs(newBars).Select(run =>
+        {
+            TickSpan bars = TickSpan.FromBounds(meter.GetBar(run.First).Span.Onset, meter.GetBar(run.Last).Span.End);
+            return new FactPlace(Bars(run.First, run.Last), bars, [.. line.Where(note => bars.Contains(note.Span.Onset)).Select(note => note.Id)]);
+        })];
         return new MotifFact(
             "structure.new-material",
             FactLens.Structure,
             inferred ? FactCertainty.Inferred : FactCertainty.Detected,
             text,
-            lineBasis + " Bars are compared by their line's onsets from the bar line and its pitches, or its intervals for a transposed repeat.");
+            lineBasis + " Bars are compared by their line's onsets from the bar line and its pitches, or its intervals for a transposed repeat.")
+        {
+            Places = places,
+        };
     }
 
     /// <summary>"bar 5", "bars 5–6".</summary>
     private static string Bars(int first, int last) => first == last ? $"bar {first}" : $"bars {first}–{last}";
 
     /// <summary>"bars 1–2, 5 and 9": runs of consecutive bars joined.</summary>
-    private static string BarList(IReadOnlyList<int> bars)
+    private static string BarList(IReadOnlyList<int> bars) =>
+        (bars.Count == 1 ? "bar " : "bars ") + Joined([.. Runs(bars).Select(run => run.First == run.Last ? $"{run.First}" : $"{run.First}–{run.Last}")]);
+
+    /// <summary>Runs of consecutive bars, in order.</summary>
+    private static List<(int First, int Last)> Runs(IReadOnlyList<int> bars)
     {
-        var runs = new List<string>();
+        var runs = new List<(int First, int Last)>();
         for (int i = 0; i < bars.Count;)
         {
             int j = i;
@@ -316,11 +343,11 @@ public static class StructureAnalyzer
                 j++;
             }
 
-            runs.Add(j == i ? $"{bars[i]}" : $"{bars[i]}–{bars[j]}");
+            runs.Add((bars[i], bars[j]));
             i = j + 1;
         }
 
-        return (bars.Count == 1 ? "bar " : "bars ") + Joined(runs);
+        return runs;
     }
 
     private static string Times(int count) => count switch

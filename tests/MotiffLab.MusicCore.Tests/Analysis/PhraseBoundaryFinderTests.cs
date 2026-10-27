@@ -178,4 +178,44 @@ public class PhraseBoundaryFinderTests
         Assert.Equal((3, 960L, 1440L), (slur.Number, slur.Start.Value, slur.Stop.Value));
         Assert.Equal(2, result.Report.CountOf(MusicXmlIssueCodes.SlurUnmatched));
     }
+
+    /// <summary>Eighth notes, one after another from <paramref name="start"/>, with these pitches.</summary>
+    private static IEnumerable<Note> Line(string prefix, long start, params int[] pitches) =>
+        pitches.Select((pitch, i) => Note($"{prefix}{i}", pitch, start + (i * 240), 240));
+
+    [Fact]
+    public void A_passage_that_comes_back_note_for_note_starts_a_phrase_and_is_inferred()
+    {
+        int[] opening = [76, 75, 76, 75, 76, 71, 74, 72];
+        Note[] notes = [.. Line("a", 0, opening), .. Line("b", 8 * 240, 69, 60, 64, 69), .. Line("c", 12 * 240, opening), .. Line("d", 20 * 240, 69)];
+
+        PhraseBoundary boundary = Assert.Single(PhraseBoundaryFinder.Find(notes, s_fourFour, PhraseMarks.None));
+
+        Assert.Equal(new Tick(12 * 240), boundary.At);
+        Assert.Equal([PhraseEvidence.Repetition], boundary.Evidence);
+        Assert.Equal(Attribution.Inferred(PhraseBoundaryFinder.RepetitionConfidence), boundary.Attribution);
+    }
+
+    [Fact]
+    public void A_return_with_other_rhythm_or_fewer_notes_marks_nothing()
+    {
+        int[] opening = [76, 75, 76, 75, 76, 71, 74, 72];
+        Note[] slower = [.. Line("a", 0, opening), .. opening.Select((pitch, i) => Note($"s{i}", pitch, (8 * 240) + (i * 480), 480))];
+        Note[] shorter = [.. Line("a", 0, opening), .. Line("b", 8 * 240, 60, 62), .. Line("c", 10 * 240, opening[..7]), .. Line("d", 17 * 240, 60)];
+
+        Assert.Empty(PhraseBoundaryFinder.Find(slower, s_fourFour, PhraseMarks.None));
+        Assert.Empty(PhraseBoundaryFinder.Find(shorter, s_fourFour, PhraseMarks.None));
+    }
+
+    [Fact]
+    public void A_passage_after_a_boundary_that_comes_back_marks_its_return_too()
+    {
+        int[] tune = [60, 62, 64, 65, 67, 65, 64, 62];
+        // An opening phrase, a beat of rest, the tune, other notes, then the tune again a little later.
+        Note[] notes = [.. Line("a", 0, 72, 71, 69), .. Line("t", 6 * 240, tune), .. Line("b", 14 * 240, 50, 52, 53), .. Line("u", 17 * 240, tune), .. Line("e", 25 * 240, 48)];
+
+        IReadOnlyList<PhraseBoundary> boundaries = PhraseBoundaryFinder.Find(notes, s_fourFour, PhraseMarks.None);
+
+        Assert.Equal([(6 * 240L, PhraseEvidence.Rest), (17 * 240L, PhraseEvidence.Repetition)], boundaries.Select(b => (b.At.Value, Assert.Single(b.Evidence))));
+    }
 }

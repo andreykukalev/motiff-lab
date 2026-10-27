@@ -1,6 +1,6 @@
 # iOS technical design
 
-Status: proposal, 2026-10-24. The decision it asks for is in [../decisions/0011-ios-app-approach.md](../decisions/0011-ios-app-approach.md). Nothing here changes code on the web track; the phased plan at the end says when each piece would start.
+Status: proposal, 2026-10-24. The decision it asks for is in [../decisions/0012-ios-app-approach.md](../decisions/0012-ios-app-approach.md). Nothing here changes code on the web track; the phased plan at the end says when each piece would start.
 
 ## Starting point
 
@@ -194,9 +194,9 @@ Each phase has an exit check. The web track keeps priority: phases 1 and 2 do no
 
 | Phase | Contents | Size | Exit check |
 | --- | --- | --- | --- |
-| 0 · Docs (this PR) | Concept, UX, technical design, proposed decision record 0011 | Done here | Andrei accepts or changes 0011 |
+| 0 · Docs (this PR) | Concept, UX, technical design, proposed decision record 0012 | Done here | Andrei accepts or changes 0012 |
 | 0b · Web touch readiness (web track, optional) | Small web changes that help both platforms: show disabled reasons and Keep status as text, not only `title`; `touch-action` on the roll; multi-touch keys. Filed as issues for the backlog, not done here | A few small PRs on the web track | The web workspace works on an iPad in Safari with a finger |
-| 1 · Spikes | MAUI Blazor Hybrid shell running the lab; audio and touch latency; MIDI in with AVAudioEngine; AudioWorklet and Verovio loading in the app scheme; Verovio licence question sent | 1 to 2 weeks, part-time | Numbers recorded in 0011; go, switch to option B, or stop |
+| 1 · Spikes | MAUI Blazor Hybrid shell running the lab; audio and touch latency; MIDI in with AVAudioEngine; AudioWorklet and Verovio loading in the app scheme; Verovio licence question sent | 1 to 2 weeks, part-time | Numbers recorded in 0012; go, switch to option B, or stop |
 | 2 · Shared UI library | Extract `MotiffLab.Ui`; add the platform service interfaces with web implementations; no behaviour change on the web | About a week; one PR | Web CI green, preview deploy behaves the same, no open backlog PR conflicts |
 | 3 · iPad alpha | `MotiffLab.App` for iPad: iOS services (files, project store, audio session, haptics, idle timer), the iPad layouts and gesture map from [02-ux.md](02-ux.md), document types, credits screen, privacy manifest, `ios.yml` | 3 to 4 weeks | Internal TestFlight: the Stage 1 loop works offline with a finger; a web project opens identically; Verovio licence settled |
 | 4 · iPhone | Compact layouts, sheets, Roll or Score switch, landscape "on the stand" | 2 weeks | External TestFlight with pilot participants; usability criteria from the Stage 1 study met on iPad and iPhone |

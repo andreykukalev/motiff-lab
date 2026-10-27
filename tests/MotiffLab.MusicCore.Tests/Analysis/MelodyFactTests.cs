@@ -47,6 +47,10 @@ public class MelodyFactTests
 
     private static MotifFact Fact(MotifAnalysis analysis, string id) => Assert.Single(analysis.Facts, fact => fact.Id == id);
 
+    /// <summary>Each place of a fact as "label: note ids", or the label alone for a stretch of time.</summary>
+    private static string[] Places(MotifFact fact) =>
+        [.. fact.Places.Select(place => place.NoteIds.Count == 0 ? place.Label : $"{place.Label}: {string.Join(" ", place.NoteIds)}")];
+
     [Fact]
     public void Intervals_are_named_with_their_direction_and_the_most_common_size()
     {
@@ -70,6 +74,36 @@ public class MelodyFactTests
             "Intervals by name: unison, minor 2nd up, major 2nd up, unison, major 2nd down, minor 2nd down, major 2nd down. Most common: a major 2nd (3 of 7).",
             Fact(ode, "melody.interval-names").Text);
         Assert.Equal("No note is repeated straight away. E5 sounds most often, 3 of 9 notes.", Fact(elise, "melody.repeated-notes").Text);
+    }
+
+    [Fact]
+    public void Melody_facts_name_the_notes_they_refer_to()
+    {
+        MotifAnalysis analysis = Analyze(FurElise(), s_threeEight, 0, 9 * Sixteenth, s_aMinor);
+
+        Assert.Equal(["the melody: n1 n2 n3 n4 n5 n6 n7 n8 n9"], Places(Fact(analysis, "melody.line")));
+        Assert.Equal(["largest leap, E5 to B4: n5 n6"], Places(Fact(analysis, "melody.intervals")));
+        Assert.Equal(
+            ["start, E5: n1", "low point, D♯5: n2", "peak, E5: n3", "low point, D♯5: n4", "peak, E5: n5", "low point, B4: n6", "peak, D5: n7", "end, A4: n9"],
+            Places(Fact(analysis, "melody.contour")));
+        Assert.Equal(["lowest, A4: n9", "highest, E5: n1 n3 n5"], Places(Fact(analysis, "melody.range")));
+        Assert.Equal(["D♯5, degree ♯4: n2", "D♯5, degree ♯4: n4"], Places(Fact(analysis, "melody.degrees")));
+        Assert.Equal(["most common, minor 2nd: n1 n2 n3 n4 n5"], Places(Fact(analysis, "melody.interval-names")));
+        Assert.Equal(["most often, E5: n1 n3 n5"], Places(Fact(analysis, "melody.repeated-notes")));
+        Assert.Empty(Fact(analysis, "key").Places);
+
+        // A place spans its notes: the highest E5s from the first onset to the end of the last.
+        Assert.Equal(TickSpan.FromBounds(Tick.Zero, new Tick(5 * Sixteenth)), Fact(analysis, "melody.range").Places[1].Span);
+    }
+
+    [Fact]
+    public void Repeated_notes_and_a_rise_and_fall_name_their_places()
+    {
+        MotifAnalysis ode = Analyze(OdeToJoy(), MeterMap.Default, 0, 8 * Quarter, s_cMajor);
+
+        Assert.Equal(["E4 twice from bar 1 beat 1: o1 o2", "G4 twice from bar 1 beat 4: o4 o5", "most often, E4: o1 o2 o7"], Places(Fact(ode, "melody.repeated-notes")));
+        Assert.Equal(["start, E4: o1", "peak, G4: o5", "end, D4: o8"], Places(Fact(ode, "melody.contour")));
+        Assert.Empty(Fact(ode, "melody.intervals").Places);
     }
 
     [Fact]
@@ -102,6 +136,8 @@ public class MelodyFactTests
         Assert.Equal("2 phrase boundaries inside the motif: at bar 1 beat 3, from a slur; at bar 2 beat 1, from a rest of a beat or more.", twoBars.Text);
         Assert.Equal(FactCertainty.Inferred, twoBars.Certainty);
         Assert.Equal("No phrase boundary falls inside the motif. It starts where a phrase starts (from a slur).", fromTheSlur.Text);
+        Assert.Equal(["phrase boundary, bar 1 beat 3: p2", "phrase boundary, bar 2 beat 1: p4"], Places(twoBars));
+        Assert.Equal(["phrase start: p2"], Places(fromTheSlur));
     }
 
     [Fact]
@@ -181,6 +217,8 @@ public class MelodyFactTests
             fact.Text);
         Assert.Equal(FactCertainty.Inferred, fact.Certainty);
         Assert.Equal(["e5", "d5", "f5"], analysis.Line.Select(note => note.Id));
+        Assert.Equal(["E5 (with E4): e4 e5"], Places(fact));
+        Assert.Equal(["the top line: e5 d5 f5"], Places(Fact(analysis, "melody.line")));
     }
 
     [Fact]

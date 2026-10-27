@@ -44,6 +44,16 @@ export interface SourceMessage {
     notes: number[];
 }
 
+/**
+ * One pass of an alternating loop: the sources that play and the tick range [start, end) they loop
+ * over. For example the original phrase over its bars, then the variation over the bars it takes.
+ */
+export interface LoopPass {
+    ids: string[];
+    start: number;
+    end: number;
+}
+
 export type EngineMessage =
     | { type: "samples"; regions: SampleRegion[] }
     | TimelineMessage
@@ -56,6 +66,7 @@ export type EngineMessage =
     | { type: "rate"; value: number }
     | { type: "loop"; start: number; end: number }
     | { type: "loopOff" }
+    | { type: "alternate"; passes: LoopPass[] }
     | { type: "metronome"; on: boolean }
     | { type: "countIn"; bars: number }
     | { type: "tracks"; muted: number[]; soloed: number[] }
@@ -80,6 +91,8 @@ export interface PositionReport {
     ticksPerSecond: number;
     loopStart: number;
     loopEnd: number;
+    /** The pass of an alternating loop that is playing, from 0; -1 when the engine is not alternating. */
+    pass: number;
 }
 
 export type EngineReport = PositionReport | { type: "ended"; tick: number };
@@ -185,6 +198,9 @@ export class Engine {
     private rate = 1;
     private loopStart = 0;
     private loopEnd = 0;
+    /** An alternating loop: each pass plays its sources over its range, then the next pass starts on the same frame. */
+    private passes: LoopPass[] | null = null;
+    private pass = -1;
     private metronome = false;
     private countInBars = 0;
     private muted = new Set<number>();
@@ -249,6 +265,7 @@ export class Engine {
                 this.releaseWhere((voice) => voice.sourceId === message.id, 0);
                 break;
             case "activeSources":
+                this.stopAlternating();
                 this.setActive(message.ids);
                 break;
             case "play":
@@ -265,9 +282,14 @@ export class Engine {
                 this.requestReport();
                 break;
             case "loop":
+                this.stopAlternating();
                 this.setLoop(message.start, message.end);
                 break;
+            case "alternate":
+                this.alternate(message.passes);
+                break;
             case "loopOff":
+                this.stopAlternating();
                 this.loopStart = 0;
                 this.loopEnd = 0;
                 this.requestReport();
@@ -377,6 +399,7 @@ export class Engine {
         }
 
         this.timeline = timeline;
+        this.stopAlternating();
         this.releaseWhere(() => true, 0);
         this.state = "stopped";
         this.position = 0;
@@ -493,6 +516,39 @@ export class Engine {
         this.requestReport();
     }
 
+    /**
+     * Starts an alternating loop at the start of its first pass: that pass's sources play over its
+     * range, and when the range ends the next pass starts on the same frame, with its own sources and
+     * range, then the first again. Passes whose range is empty once kept to the piece are dropped. A
+     * loop, a loop off, a choice of sources or a new timeline ends it.
+     */
+    private alternate(passes: LoopPass[]): void {
+        const limit = this.timeline?.end ?? 0;
+        const kept = passes
+            .map((pass) => ({ ids: [...pass.ids], start: Math.min(Math.max(0, pass.start), limit), end: Math.min(Math.max(0, pass.end), limit) }))
+            .filter((pass) => pass.end > pass.start);
+        if (kept.length === 0) {
+            this.stopAlternating();
+            this.loopStart = 0;
+            this.loopEnd = 0;
+            this.requestReport();
+            return;
+        }
+
+        this.passes = kept;
+        this.pass = 0;
+        // The seek below releases what was sounding and strikes the first pass's notes already sounding there.
+        this.active = kept[0].ids.filter((id) => this.sources.has(id));
+        this.loopStart = kept[0].start;
+        this.loopEnd = kept[0].end;
+        this.seek(kept[0].start);
+    }
+
+    private stopAlternating(): void {
+        this.passes = null;
+        this.pass = -1;
+    }
+
     private hasLoop(): boolean {
         return this.loopEnd > this.loopStart;
     }
@@ -586,9 +642,23 @@ export class Engine {
             this.position = boundary + overshoot * (this.ticksPerFrame(tempo + 1) / perFrame);
         } else if (looping) {
             this.releaseWhere((voice) => voice.sourceId !== LIVE_SOURCE, offset + frames);
+            const alternating = this.passes !== null;
+            if (this.passes !== null) {
+                // The next pass starts on this frame, with its own sources and range.
+                this.pass = (this.pass + 1) % this.passes.length;
+                const next = this.passes[this.pass];
+                this.active = next.ids.filter((id) => this.sources.has(id));
+                this.loopStart = next.start;
+                this.loopEnd = next.end;
+            }
             this.position = this.loopStart;
             this.relocate(false);
             this.position += overshoot * (this.ticksPerFrame(this.tempoIndex(this.loopStart)) / perFrame);
+            if (alternating) {
+                // Tell the page at once which pass is playing, so the views follow it.
+                this.blockOffset = offset + frames;
+                this.requestReport();
+            }
         } else {
             this.state = "stopped";
             this.reports.push({ type: "ended", tick: timeline.end });
@@ -771,6 +841,7 @@ export class Engine {
             ticksPerSecond,
             loopStart: this.loopStart,
             loopEnd: this.loopEnd,
+            pass: this.pass,
         });
     }
 }

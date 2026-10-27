@@ -42,6 +42,10 @@ public class StructureAnalyzerTests
 
     private static MotifFact Fact(StructureAnalysis analysis, string id) => Assert.Single(analysis.Facts, fact => fact.Id == id);
 
+    /// <summary>Each place of a fact as "label: note ids", or the label alone for a stretch of time.</summary>
+    private static string[] Places(MotifFact fact) =>
+        [.. fact.Places.Select(place => place.NoteIds.Count == 0 ? place.Label : $"{place.Label}: {string.Join(" ", place.NoteIds)}")];
+
     [Fact]
     public void Exact_and_transposed_recurrences_are_found()
     {
@@ -53,6 +57,36 @@ public class StructureAnalyzerTests
         Assert.Equal("The motif recurs 3 times (2 exact, 1 transposed): exactly in bar 2, a perfect 4th higher in bar 4 and exactly in bar 5.", fact.Text);
         Assert.Equal(FactCertainty.Detected, fact.Certainty);
         Assert.Equal(FactLens.Structure, fact.Lens);
+    }
+
+    [Fact]
+    public void Each_recurrence_is_a_place_with_its_notes()
+    {
+        StructureAnalysis analysis = Analyze(Song(), 1, 1);
+
+        MotifFact fact = Fact(analysis, "structure.recurrences");
+        Assert.Equal(
+            ["exactly in bar 2: b2.1 b2.2 b2.3 b2.4", "a perfect 4th higher in bar 4: b4.1 b4.2 b4.3 b4.4", "exactly in bar 5: b5.1 b5.2 b5.3 b5.4"],
+            Places(fact));
+        Assert.Equal(analysis.Recurrences.Select(recurrence => recurrence.Span), fact.Places.Select(place => place.Span));
+        Assert.Empty(Fact(Analyze(Song(), 3, 3), "structure.recurrences").Places);
+    }
+
+    [Fact]
+    public void Phrases_and_new_material_are_places_in_bars()
+    {
+        PhraseBoundary[] slur = [new(new Tick(2 * Bar), [PhraseEvidence.Slur], Attribution.Imported)];
+
+        StructureAnalysis marked = Analyze(Song(), 4, 4, slur);
+        StructureAnalysis unmarked = Analyze(Song(), 1, 1);
+
+        Assert.Equal(
+            [("phrase 1, bars 1–2", new TickSpan(Tick.Zero, 2 * Bar)), ("phrase 2, bars 3–5", new TickSpan(new Tick(2 * Bar), 3 * Bar))],
+            Fact(marked, "structure.phrases").Places.Select(place => (place.Label, place.Span)));
+        Assert.Equal(["bars 1–5"], Places(Fact(unmarked, "structure.phrases")));
+        MotifFact newMaterial = Fact(unmarked, "structure.new-material");
+        Assert.Equal(["bar 1: b1.1 b1.2 b1.3 b1.4", "bar 3: b3.1 b3.2 b3.3 b3.4"], Places(newMaterial));
+        Assert.Equal(new TickSpan(new Tick(2 * Bar), Bar), newMaterial.Places[1].Span);
     }
 
     [Fact]

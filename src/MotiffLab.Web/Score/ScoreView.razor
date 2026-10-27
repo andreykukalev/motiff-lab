@@ -1,5 +1,6 @@
 @using MotiffLab.MusicCore.Time
 @using MotiffLab.Web.Playback
+@using MotiffLab.Web.Understand
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject Player Player
@@ -11,7 +12,7 @@
 {
     <p class="error">@_error</p>
 }
-else if (_loading)
+else if (_loading && !HoldHeight)
 {
     <p class="meta">Engraving the score…</p>
 }
@@ -25,6 +26,9 @@ else if (_loading)
     private bool _loading;
     private string? _error;
     private TickSpan? _shownRange;
+    private IReadOnlyList<ScorePhrase>? _shownPhrases;
+    private IReadOnlyList<HighlightPlace>? _shownHighlight;
+    private bool _shownHold;
 
     /// <summary>What to show. The view engraves it again only when a different instance is given.</summary>
     [Parameter, EditorRequired]
@@ -33,6 +37,21 @@ else if (_loading)
     /// <summary>The range that plays for the selection; notes outside it are drawn faint. Null shows all at full strength.</summary>
     [Parameter]
     public TickSpan? Range { get; set; }
+
+    /// <summary>Where phrases start, marked above the staves (#18); null or empty marks none.</summary>
+    [Parameter]
+    public IReadOnlyList<ScorePhrase>? Phrases { get; set; }
+
+    /// <summary>The places of the fact chosen on the Understand tab (#25), highlighted; null or empty highlights none.</summary>
+    [Parameter]
+    public IReadOnlyList<HighlightPlace>? Highlight { get; set; }
+
+    /// <summary>
+    /// While true the score never gets shorter, so what is below it stays put when two versions take turns
+    /// (One after the other, #43): a tablet stacks the inspector under it.
+    /// </summary>
+    [Parameter]
+    public bool HoldHeight { get; set; }
 
     protected override void OnParametersSet()
     {
@@ -53,11 +72,27 @@ else if (_loading)
             return;
         }
 
+        if (HoldHeight != _shownHold)
+        {
+            _shownHold = HoldHeight;
+            await _view.InvokeVoidAsync("holdHeight", HoldHeight);
+        }
+
         if (ReferenceEquals(Source, _shown))
         {
             if (Range != _shownRange)
             {
                 await ShowRangeAsync(_view);
+            }
+
+            if (!ReferenceEquals(Phrases, _shownPhrases))
+            {
+                await ShowPhrasesAsync(_view);
+            }
+
+            if (!ReferenceEquals(Highlight, _shownHighlight))
+            {
+                await ShowHighlightAsync(_view);
             }
 
             return;
@@ -70,6 +105,8 @@ else if (_loading)
             await _view.InvokeAsync<ScoreLoadResult>("load", source.Data);
             await _view.InvokeVoidAsync("follow", Player.Engine);
             await ShowRangeAsync(_view);
+            await ShowPhrasesAsync(_view);
+            await ShowHighlightAsync(_view);
             _error = null;
         }
         catch (JSException exception)
@@ -85,6 +122,19 @@ else if (_loading)
     {
         _shownRange = Range;
         await view.InvokeVoidAsync("setRange", Range?.Onset.Value, Range?.End.Value);
+    }
+
+    private async Task ShowPhrasesAsync(IJSObjectReference view)
+    {
+        _shownPhrases = Phrases;
+        // Cast, so the array goes across as one argument rather than as the argument list.
+        await view.InvokeVoidAsync("setPhrases", (object)(Phrases ?? []).ToArray());
+    }
+
+    private async Task ShowHighlightAsync(IJSObjectReference view)
+    {
+        _shownHighlight = Highlight;
+        await view.InvokeVoidAsync("setHighlight", (object)(Highlight ?? []).ToArray());
     }
 
     /// <summary>Called by the script when a note is clicked: playback moves to its onset.</summary>

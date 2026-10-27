@@ -48,6 +48,10 @@ public class RhythmFactTests
 
     private static MotifFact Fact(MotifAnalysis analysis, string id) => Assert.Single(analysis.Facts, fact => fact.Id == id);
 
+    /// <summary>Each place of a fact as "label: note ids", or the label alone for a stretch of time.</summary>
+    private static string[] Places(MotifFact fact) =>
+        [.. fact.Places.Select(place => place.NoteIds.Count == 0 ? place.Label : $"{place.Label}: {string.Join(" ", place.NoteIds)}")];
+
     [Fact]
     public void Onsets_are_counted_per_beat_bar_by_bar()
     {
@@ -78,6 +82,34 @@ public class RhythmFactTests
 
         Assert.Equal("2 syncopations: bar 1 after beat 1, held into beat 2; bar 1 beat 4, held across the bar line.", syncopation.Text);
         Assert.Equal(FactCertainty.Detected, syncopation.Certainty);
+        Assert.Equal(["bar 1 after beat 1, held into beat 2: r2", "bar 1 beat 4, held across the bar line: r5"], Places(syncopation));
+    }
+
+    [Fact]
+    public void Lengths_silences_and_the_start_name_their_places()
+    {
+        MotifAnalysis analysis = Analyze(FurElise(), s_threeEight, 0, 14 * Sixteenth, s_aMinor);
+
+        Assert.Equal("Lengths: 11 sixteenths, 1 eighth.", Fact(analysis, "rhythm.durations").Text);
+        Assert.Equal(["sixteenths: n1 n2 n3 n4 n5 n6 n7 n8 n10 n11 n12", "eighth: n9"], Places(Fact(analysis, "rhythm.durations")));
+        MotifFact silences = Fact(analysis, "rhythm.silences");
+        Assert.Equal(["silence, a sixteenth"], Places(silences));
+        Assert.Equal(new TickSpan(new Tick(10 * Sixteenth), Sixteenth), silences.Places[0].Span);
+        Assert.Equal(["start, bar 0 beat 3: n1"], Places(Fact(analysis, "rhythm.grid")));
+        Assert.Empty(Fact(analysis, "rhythm.grouping").Places);
+        Assert.Empty(Fact(analysis, "rhythm.syncopation").Places);
+    }
+
+    [Fact]
+    public void A_selection_that_opens_with_silence_marks_it()
+    {
+        Note[] notes = Rhythm((Quarter, Quarter), (2 * Quarter, Quarter));
+
+        MotifFact silences = Fact(Analyze(notes, MeterMap.Default, 0, 4 * Quarter), "rhythm.silences");
+
+        Assert.Equal("No silence between notes; the selection opens with a quarter of silence.", silences.Text);
+        Assert.Equal(["opening silence, a quarter"], Places(silences));
+        Assert.Equal(new TickSpan(Tick.Zero, Quarter), silences.Places[0].Span);
     }
 
     [Fact]
@@ -99,6 +131,11 @@ public class RhythmFactTests
         MotifFact patterns = Fact(Analyze(notes, MeterMap.Default, 0, 16 * Quarter), "rhythm.patterns");
 
         Assert.Equal("Bars 1, 2 and 4 have the same rhythm. The figure eighth–eighth fills 3 beats.", patterns.Text);
+        Assert.Equal(
+            ["bar 1", "bar 2", "bar 4", "eighth–eighth, bar 1 beat 2", "eighth–eighth, bar 2 beat 2", "eighth–eighth, bar 4 beat 2"],
+            patterns.Places.Select(place => place.Label));
+        Assert.Equal(new TickSpan(new Tick(12 * Quarter), 4 * Quarter), patterns.Places[2].Span);
+        Assert.Equal(["r2", "r3"], patterns.Places[3].NoteIds);
     }
 
     [Fact]
@@ -136,6 +173,7 @@ public class RhythmFactTests
         Assert.Equal("No accents are marked on the motif's notes.", Fact(none, "rhythm.accents").Text);
         MotifFact accents = Fact(marked, "rhythm.accents");
         Assert.Equal("Accents marked on 2 of 12 notes: E5 at bar 0 beat 3 (strong accent); B4 at bar 1 after beat 2.", accents.Text);
+        Assert.Equal(["E5 at bar 0 beat 3 (strong accent): n1", "B4 at bar 1 after beat 2: n6"], Places(accents));
         Assert.Equal(FactCertainty.Detected, accents.Certainty);
     }
 

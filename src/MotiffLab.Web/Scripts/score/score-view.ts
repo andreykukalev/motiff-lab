@@ -1,8 +1,9 @@
 // The score view (S1-W7, decision record 0008): engraves MusicXML or generated MEI with Verovio,
-// marks the notes being heard, scrolls with playback and moves playback to a clicked note.
+// marks the notes being heard, scrolls with playback and moves playback to a clicked note, and
+// highlights the places a chosen fact names (#25).
 // Blazor imports this module through JS interop. Verovio loads on first use.
 
-import { ScoreTimeline, type TimemapEntry } from "./score-timeline.js";
+import { ScoreTimeline, highlightedIds, type HighlightPlace, type TimemapEntry } from "./score-timeline.js";
 
 interface DotNetObject {
     invokeMethodAsync(method: string, ...args: unknown[]): Promise<unknown>;
@@ -23,6 +24,8 @@ interface VerovioToolkit {
     renderToSVG(page: number): string;
     renderToTimemap(options?: Record<string, unknown>): TimemapEntry[];
     redoLayout(options?: Record<string, unknown>): void;
+    /** The MIDI values of an engraved note, its key among them; empty for a rest. */
+    getMIDIValuesForElement(id: string): { pitch?: number };
     getLog(): string;
 }
 
@@ -54,6 +57,22 @@ const PLAYING_CLASS = "playing";
 /** Notes outside the range that plays for the selection, drawn faint as on the piano roll. */
 const OUTSIDE_CLASS = "outside";
 
+/** A mark above the staves where a phrase starts (#18), placed over the engraving. */
+const PHRASE_MARK_CLASS = "phrase-mark";
+
+/** The notes and rests of the places a chosen fact names (#25): blue, with a box around each, so they differ from playing and outside by more than colour. */
+const HIGHLIGHT_CLASS = "highlight";
+const HIGHLIGHT_MARK_CLASS = "highlight-mark";
+
+/** A phrase start as Blazor sends it: where, the mark's text, and how it was found (imported, inferred or yours). */
+export interface ScorePhrase {
+    tick: number;
+    label: string;
+    kind: string;
+    /** The selected phrase, marked so the player sees where it sits in the piece. */
+    current: boolean;
+}
+
 let toolkit: Promise<VerovioToolkit> | null = null;
 
 function loadToolkit(): Promise<VerovioToolkit> {
@@ -84,6 +103,13 @@ export class ScoreView {
     private markedKey = "";
     /** The range that plays for the selection [start, end), or null when nothing is selected. */
     private range: { start: number; end: number } | null = null;
+    private holding = false;
+    private phrases: ScorePhrase[] = [];
+    /** The places of the chosen fact, and the engraved notes and rests that stand for them. */
+    private highlight: HighlightPlace[] = [];
+    private highlighted = new Set<string>();
+    /** The MIDI key of each engraved note asked about since the last load; undefined for a rest or when Verovio has none. */
+    private pitches = new Map<string, number | undefined>();
     private laidOutWidth = 0;
     private frame = 0;
     private relayoutTimer = 0;
@@ -110,7 +136,9 @@ export class ScoreView {
         }
 
         this.engraver = engraver;
-        this.timeline = ScoreTimeline.fromTimemap(engraver.renderToTimemap());
+        this.pitches = new Map();
+        this.highlighted = new Set();
+        this.timeline = ScoreTimeline.fromTimemap(engraver.renderToTimemap({ includeRests: true }));
         this.render();
         return { pages: engraver.getPageCount(), notes: this.timeline.spans.length };
     }
@@ -133,6 +161,33 @@ export class ScoreView {
     setRange(start: number | null, end: number | null): void {
         this.range = start === null || end === null ? null : { start, end };
         this.applyRange(true);
+    }
+
+    /**
+     * While held, the score never gets shorter: each engraving keeps at least the tallest height so far,
+     * so the page below it does not jump when two versions take turns. Released, it fits its content again.
+     */
+    holdHeight(hold: boolean): void {
+        this.holding = hold;
+        this.host.style.minHeight = "";
+        if (hold) {
+            this.keepHeight();
+        }
+    }
+
+    /** Marks where phrases start: a line and a label at the first engraved note at or after each start. */
+    setPhrases(phrases: ScorePhrase[]): void {
+        this.phrases = phrases;
+        this.placePhrases();
+    }
+
+    /**
+     * Highlights the places a chosen fact names: their engraved notes and rests turn blue with a box
+     * around each, and the first is scrolled into view. An empty list clears the highlight.
+     */
+    setHighlight(places: HighlightPlace[]): void {
+        this.highlight = places;
+        this.applyHighlight(true);
     }
 
     dispose(): void {
@@ -175,14 +230,23 @@ export class ScoreView {
             pages.push(container);
         }
         this.host.replaceChildren(...pages);
+        if (this.holding) {
+            this.keepHeight();
+        }
 
         this.applyRange(false);
+        this.placePhrases();
+        this.applyHighlight(false);
 
         // The new SVG has no marks; put back the ones that were showing.
         const marked = [...this.marked];
         this.marked = new Set();
         this.markedKey = "";
         this.mark(marked, false);
+    }
+
+    private keepHeight(): void {
+        this.host.style.minHeight = `${this.host.getBoundingClientRect().height}px`;
     }
 
     private applyRange(scroll: boolean): void {
@@ -203,6 +267,91 @@ export class ScoreView {
         if (scroll && first !== null && this.player?.state() !== "playing") {
             this.scrollIntoView(first);
         }
+    }
+
+    private placePhrases(): void {
+        for (const old of this.host.querySelectorAll(`.${PHRASE_MARK_CLASS}`)) {
+            old.remove();
+        }
+        const timeline = this.timeline;
+        if (timeline === null || this.phrases.length === 0) {
+            return;
+        }
+        const view = this.host.getBoundingClientRect();
+        for (const phrase of this.phrases) {
+            const span = timeline.spans.find((candidate) => candidate.onset >= phrase.tick);
+            const note = span === undefined ? null : this.element(span.id);
+            if (note === null) {
+                continue;
+            }
+            const system = note.closest("g.system") ?? note;
+            const box = note.getBoundingClientRect();
+            const around = system.getBoundingClientRect();
+            const mark = document.createElement("span");
+            mark.className = `${PHRASE_MARK_CLASS} ${phrase.kind}`;
+            mark.classList.toggle("current", phrase.current);
+            mark.setAttribute("aria-hidden", "true");
+            const label = document.createElement("span");
+            label.textContent = phrase.label;
+            mark.append(label);
+            mark.style.left = `${box.left - view.left + this.host.scrollLeft - 4}px`;
+            mark.style.top = `${around.top - view.top + this.host.scrollTop}px`;
+            mark.style.height = `${around.height}px`;
+            this.host.append(mark);
+        }
+    }
+
+    private applyHighlight(scroll: boolean): void {
+        for (const old of this.host.querySelectorAll(`.${HIGHLIGHT_MARK_CLASS}`)) {
+            old.remove();
+        }
+        for (const id of this.highlighted) {
+            this.element(id)?.classList.remove(HIGHLIGHT_CLASS);
+        }
+        const timeline = this.timeline;
+        this.highlighted = timeline === null || this.highlight.length === 0 ? new Set() : highlightedIds(timeline, this.highlight, (id) => this.pitchOf(id));
+
+        const view = this.host.getBoundingClientRect();
+        let first: Element | null = null;
+        for (const id of this.highlighted) {
+            const element = this.element(id);
+            if (element === null) {
+                continue;
+            }
+            element.classList.add(HIGHLIGHT_CLASS);
+            first ??= element;
+            // The box goes round the notehead, not the stem, so neighbouring notes keep their own boxes.
+            const box = (element.querySelector("g.notehead") ?? element).getBoundingClientRect();
+            const mark = document.createElement("span");
+            mark.className = HIGHLIGHT_MARK_CLASS;
+            mark.setAttribute("aria-hidden", "true");
+            mark.style.left = `${box.left - view.left + this.host.scrollLeft - 3}px`;
+            mark.style.top = `${box.top - view.top + this.host.scrollTop - 3}px`;
+            mark.style.width = `${box.width + 6}px`;
+            mark.style.height = `${box.height + 6}px`;
+            this.host.append(mark);
+        }
+        if (scroll && first !== null && this.player?.state() !== "playing") {
+            this.scrollIntoView(first);
+        }
+    }
+
+    private pitchOf(id: string): number | undefined {
+        const engraver = this.engraver;
+        if (engraver === null) {
+            return undefined;
+        }
+        if (!this.pitches.has(id)) {
+            let pitch: number | undefined;
+            try {
+                const values = engraver.getMIDIValuesForElement(id);
+                pitch = typeof values?.pitch === "number" ? values.pitch : undefined;
+            } catch {
+                pitch = undefined;
+            }
+            this.pitches.set(id, pitch);
+        }
+        return this.pitches.get(id);
     }
 
     private scheduleRelayout(): void {

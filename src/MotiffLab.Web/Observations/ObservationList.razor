@@ -1,0 +1,214 @@
+@using MotiffLab.MusicCore.Projects
+
+@* Kept for this phrase (#78, Recording observations in docs/08-central-product-model.md): the variations and notes the
+   player kept about the phrase they work on, from Project.ObservationsAbout. Open puts the variation back to hear and
+   compare; Rename, Note, Export MIDI and Delete act on one. It only displays observations; the page restores, saves and
+   exports, and nothing leaves the device. *@
+<section class="observations" aria-labelledby="observations-heading">
+    <h3 id="observations-heading">@Heading</h3>
+    @if (SessionOnly)
+    {
+        <p class="meta session-only">This piece is not saved as a project, so what you keep here goes when you leave the page. A file you open or import is saved on this device with what you keep.</p>
+    }
+
+    @if (Rows.Count == 0)
+    {
+        <p class="meta">Nothing kept for this phrase yet. Keep a variation you want to come back to, or write a note about the phrase.</p>
+    }
+    else
+    {
+        <ul class="kept-list">
+            @foreach (ObservationRow row in Rows)
+            {
+                Observation observation = row.Observation;
+                string nameId = $"observation-{observation.Id}";
+                <li class="@(row.Heard ? "heard" : null)" aria-labelledby="@nameId" aria-current="@(row.Heard ? "true" : null)">
+                    @if (_renaming == observation.Id)
+                    {
+                        <form class="rename" @onsubmit="SaveNameAsync" @onsubmit:preventDefault>
+                            <label for="rename-@observation.Id">Name</label>
+                            <input id="rename-@observation.Id" type="text" maxlength="120" @bind="_name" @bind:event="oninput" @onkeydown="RenameKeyAsync" />
+                            <button type="submit" class="primary" disabled="@string.IsNullOrWhiteSpace(_name)">Save name</button>
+                            <button type="button" @onclick="StopRenaming">Cancel</button>
+                        </form>
+                    }
+                    <p class="name" hidden="@(_renaming == observation.Id)">
+                        <strong id="@nameId">@observation.Name</strong>
+                        @if (row.Heard)
+                        {
+                            <span class="kind heard-now">You hear this</span>
+                        }
+                    </p>
+                    <p class="meta where">@row.Where · @row.Source</p>
+                    @if (observation.Note is { } note && _noting != observation.Id)
+                    {
+                        <p class="note"><span class="label">Your note:</span> @note</p>
+                    }
+                    @if (_noting == observation.Id)
+                    {
+                        <ObservationNote For="@observation.Id" Note="@observation.Note" Label="Your note"
+                                         Saved="text => NoteAsync(observation, text)" Cancel="() => _noting = null" />
+                    }
+
+                    @if (_deleting == observation.Id)
+                    {
+                        <div class="row confirm" role="group" aria-label="Delete @observation.Name?">
+                            <span>Delete “@observation.Name”? This cannot be undone.</span>
+                            <button class="danger" @onclick="() => DeleteAsync(observation)">Delete for good</button>
+                            <button @onclick="() => _deleting = null">Keep</button>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="row actions" role="group" aria-label="@observation.Name">
+                            @if (observation.Variation is not null)
+                            {
+                                <button class="@(row.Heard ? null : "primary")" disabled="@row.Heard" @onclick="() => Open.InvokeAsync(observation)"
+                                        title="@(row.Heard ? "This is the variation you hear now." : "Select its bars and hear the variation again, to compare it with the original.")">
+                                    Open
+                                </button>
+                            }
+                            <button @onclick="() => StartRenaming(observation)">Rename</button>
+                            <button @onclick="() => _noting = _noting == observation.Id ? null : observation.Id">@(observation.Note is null ? "Add a note" : "Edit note")</button>
+                            @if (observation.Variation is not null)
+                            {
+                                <button @onclick="() => Export.InvokeAsync(observation)" title="Save the kept variation as a MIDI file for a DAW: one track per hand, with the tempo.">Export MIDI</button>
+                            }
+                            <button @onclick="() => _deleting = observation.Id">Delete</button>
+                        </div>
+                    }
+                </li>
+            }
+        </ul>
+    }
+
+    @if (Status is not null)
+    {
+        <p class="meta" aria-live="polite">@Status</p>
+    }
+
+    @if (CanKeepHeard || CanWrite)
+    {
+        <div class="row">
+            @if (CanKeepHeard)
+            {
+                <button @onclick="() => KeepHeard.InvokeAsync()" title="Keep the variation you hear now, made with your own steps, to come back to.">Keep the variation you hear</button>
+            }
+            @if (CanWrite && !_writing)
+            {
+                <button @onclick="() => _writing = true">Write a note about this phrase</button>
+            }
+        </div>
+        @if (CanWrite && _writing)
+        {
+            <ObservationNote For="@($"new:{Heading}")" Label="A note about this phrase, in your own words" SaveLabel="Keep note" SavedText=""
+                             Saved="WriteAsync" Cancel="() => _writing = false" />
+        }
+    }
+</section>
+
+@code {
+    /// <summary>"Kept for phrase 2".</summary>
+    [Parameter, EditorRequired]
+    public string Heading { get; set; } = "";
+
+    /// <summary>The observations about the phrase, in the order they were kept.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<ObservationRow> Rows { get; set; } = [];
+
+    /// <summary>Whether the piece has no project, so what is kept lasts only while the page is open.</summary>
+    [Parameter]
+    public bool SessionOnly { get; set; }
+
+    /// <summary>Whether there is a variation of the player's own steps, not kept yet, to keep.</summary>
+    [Parameter]
+    public bool CanKeepHeard { get; set; }
+
+    /// <summary>Whether there is a selection to write a note about.</summary>
+    [Parameter]
+    public bool CanWrite { get; set; }
+
+    /// <summary>What just happened, or why something could not be done.</summary>
+    [Parameter]
+    public string? Status { get; set; }
+
+    [Parameter]
+    public EventCallback<Observation> Open { get; set; }
+
+    [Parameter]
+    public EventCallback<ObservationText> Rename { get; set; }
+
+    /// <summary>A new note for a kept observation; blank takes it away.</summary>
+    [Parameter]
+    public EventCallback<ObservationText> Note { get; set; }
+
+    [Parameter]
+    public EventCallback<Observation> Export { get; set; }
+
+    [Parameter]
+    public EventCallback<Observation> Delete { get; set; }
+
+    [Parameter]
+    public EventCallback KeepHeard { get; set; }
+
+    /// <summary>A note alone about the phrase.</summary>
+    [Parameter]
+    public EventCallback<string> Write { get; set; }
+
+    private string? _renaming;
+    private string _name = "";
+    private string? _noting;
+    private string? _deleting;
+    private bool _writing;
+
+    private void StartRenaming(Observation observation)
+    {
+        _renaming = observation.Id;
+        _name = observation.Name;
+        _deleting = null;
+    }
+
+    private void StopRenaming() => _renaming = null;
+
+    private async Task SaveNameAsync()
+    {
+        if (_renaming is { } id && !string.IsNullOrWhiteSpace(_name))
+        {
+            await Rename.InvokeAsync(new ObservationText(id, _name));
+            _renaming = null;
+        }
+    }
+
+    private Task RenameKeyAsync(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape")
+        {
+            StopRenaming();
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private async Task NoteAsync(Observation observation, string text)
+    {
+        await Note.InvokeAsync(new ObservationText(observation.Id, text));
+        _noting = null;
+    }
+
+    private async Task DeleteAsync(Observation observation)
+    {
+        _deleting = null;
+        await Delete.InvokeAsync(observation);
+    }
+
+    private async Task WriteAsync(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
+
+        await Write.InvokeAsync(text);
+        _writing = false;
+    }
+}

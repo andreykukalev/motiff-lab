@@ -1,5 +1,6 @@
 using System.Text;
 
+using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Motifs;
@@ -157,7 +158,7 @@ public class ProjectFileTests
     [Theory]
     [InlineData("not json", "not valid JSON")]
     [InlineData("{\"format\":\"something-else\"}", "not a Motiff Lab project file")]
-    [InlineData("{\"format\":\"motiff-lab-project\",\"version\":5}", "newer version")]
+    [InlineData("{\"format\":\"motiff-lab-project\",\"version\":8}", "newer version")]
     [InlineData("{\"format\":\"motiff-lab-project\",\"version\":1,\"source\":\"!!\"}", "source")]
     public void Unreadable_files_get_a_plain_reason(string json, string reason)
     {
@@ -202,7 +203,7 @@ public class ProjectFileTests
     public void A_version_1_file_opens_with_its_variation_as_one_step()
     {
         string json = Encoding.UTF8.GetString(ProjectFile.Write(Worked() with { Variations = [] }))
-            .Replace("\"version\": 4", "\"version\": 1", StringComparison.Ordinal)
+            .Replace("\"version\": 7", "\"version\": 1", StringComparison.Ordinal)
             .Replace(
                 "\"variations\": []",
                 "\"variations\": [{\"id\": \"v_0001\", \"motifId\": \"m_0001\", \"operation\": \"V1\", \"parameters\": {\"kind\": \"HalfTime\", \"eighths\": 1}, \"keep\": [\"Pitches\"]}]",
@@ -270,10 +271,48 @@ public class ProjectFileTests
     }
 
     [Fact]
+    public void The_players_phrase_boundaries_round_trip()
+    {
+        Project project = Worked() with { Phrases = new PhraseEdits([new Tick(960), new Tick(1920)], [new Tick(4320)]) };
+
+        Project read = ProjectFile.Read(ProjectFile.Write(project));
+
+        Assert.Equal(project.Phrases, read.Phrases);
+        Assert.Equal(ProjectFile.Write(project), ProjectFile.Write(read));
+    }
+
+    [Fact]
+    public void A_version_4_file_opens_with_the_suggested_phrases()
+    {
+        string json = Encoding.UTF8.GetString(ProjectFile.Write(Worked()))
+            .Replace("\"version\": 7", "\"version\": 4", StringComparison.Ordinal);
+        json = json[..json.IndexOf(",\n  \"phrases\"", StringComparison.Ordinal)] + "\n}";
+        Assert.DoesNotContain("phrases", json);
+
+        Assert.True(ProjectFile.Read(Encoding.UTF8.GetBytes(json)).Phrases.IsEmpty);
+    }
+
+    [Theory]
+    [InlineData("\"added\": [-5]")]
+    [InlineData("\"added\": [960, 960]")]
+    [InlineData("\"added\": [1920, 960]")]
+    [InlineData("\"added\": \"960\"")]
+    public void Damaged_phrase_boundaries_are_rejected(string damaged)
+    {
+        string json = Encoding.UTF8.GetString(ProjectFile.Write(Worked() with { Phrases = new PhraseEdits([new Tick(960)], []) }));
+        string broken = System.Text.RegularExpressions.Regex.Replace(json, "\"added\": \\[[^\\]]*\\]", damaged);
+        Assert.NotEqual(json, broken);
+
+        var exception = Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Encoding.UTF8.GetBytes(broken)));
+
+        Assert.Contains("damaged", exception.Message);
+    }
+
+    [Fact]
     public void A_version_2_file_opens_with_no_corrections()
     {
         string json = Encoding.UTF8.GetString(ProjectFile.Write(Worked()))
-            .Replace("\"version\": 4", "\"version\": 2", StringComparison.Ordinal)
+            .Replace("\"version\": 7", "\"version\": 2", StringComparison.Ordinal)
             .Replace(",\n  \"edits\": []", "", StringComparison.Ordinal);
         Assert.DoesNotContain("edits", json);
 
