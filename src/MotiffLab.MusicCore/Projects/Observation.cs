@@ -177,7 +177,7 @@ public sealed record Observation(
         MotifSelection? selection;
         try
         {
-            selection = MotifSelector.Select(notes, meter, kept.Passage.Span, kept.Passage.Filter);
+            selection = MotifSelector.Select(notes, meter, kept.Passage.Span, kept.Passage.Filter, MotifSelection.MaxStructureBars);
             if (!selection.NoteIds.SequenceEqual(kept.NoteIds, StringComparer.Ordinal))
             {
                 MotifSelection picked = MotifSelector.SelectNotes(notes, meter, kept.NoteIds);

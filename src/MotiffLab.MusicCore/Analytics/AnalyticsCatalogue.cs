@@ -57,7 +57,7 @@ public static class AnalyticsCatalogue
             new CountProperty("read_ms", 0, MaxMilliseconds),
         ],
         ["starter_opened"] = [new ChoiceProperty("piece", ["fur_elise"])],
-        ["motif_selected"] = [new CountProperty("bars", 1, MotifSelection.MaxBars)],
+        ["motif_selected"] = [new CountProperty("bars", 1, MotifSelection.MaxStructureBars)],
         ["playback_started"] =
         [
             new ChoiceProperty("hear", ["original", "variation", "both"]),

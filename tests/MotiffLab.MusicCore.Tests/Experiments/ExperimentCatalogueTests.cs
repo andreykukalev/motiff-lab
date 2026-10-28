@@ -19,10 +19,11 @@ public class ExperimentCatalogueTests
         PieceImporter.Import(name, File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Experiments", "Fixtures", name))).Piece!;
 
     /// <summary>What the app reads for a selection of bars: the motif, structure and character analyses.</summary>
-    private static InvitationContext Context(string name, int firstBar, int lastBar)
+    private static InvitationContext Context(string name, int firstBar, int lastBar, int maxBars = MotifSelection.MaxBars)
     {
         ImportedPiece piece = Piece(name);
-        MotifSelection selection = MotifSelector.Select(piece.Notes, piece.Meter, MotifSelector.Bars(piece.Meter, firstBar, lastBar, piece.End), SelectionFilter.All);
+        TickSpan span = TickSpan.FromBounds(piece.Meter.GetBar(firstBar).Span.Onset, lastBar == MotifSelector.LastBar(piece.Meter, piece.End) ? piece.End : piece.Meter.GetBar(lastBar).Span.End);
+        MotifSelection selection = MotifSelector.Select(piece.Notes, piece.Meter, span, SelectionFilter.All, maxBars);
         KeySignature? key = KeySignature.InForce(piece.Keys, selection.Span.Onset);
         return new InvitationContext(
             piece.Notes,
@@ -42,6 +43,16 @@ public class ExperimentCatalogueTests
 
         Assert.Equal(["melody.space", "rhythm.groove", "motif.answer"], offered.Select(experiment => experiment.Id));
         Assert.Equal([ExperimentTopic.Character, ExperimentTopic.Rhythm, ExperimentTopic.Motif], offered.Select(experiment => experiment.Topic));
+    }
+
+    [Fact]
+    public void A_structure_selected_whole_is_offered_experiments_on_itself()
+    {
+        // The whole opening of Für Elise, nine bars with the pickup: more than a range holds, selected whole as a sentence (0013).
+        IReadOnlyList<Experiment> offered = ExperimentCatalogue.Offer(Context(FurElise, 0, 8, MotifSelection.MaxStructureBars));
+
+        Assert.NotEmpty(offered);
+        Assert.All(offered, experiment => Assert.Equal((0, 8), (experiment.Passage.FirstBar, experiment.Passage.LastBar)));
     }
 
     [Fact]

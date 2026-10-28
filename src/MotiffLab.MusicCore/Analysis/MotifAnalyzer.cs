@@ -243,7 +243,8 @@ public static partial class MotifAnalyzer
             : fact)];
     }
 
-    private static KeyReading ReadKey(Note[] notes, KeySignature? signature)
+    /// <summary>The key the notes are in: stated by the file, or read from the pitches with the signature's help when it gives only the accidentals.</summary>
+    internal static KeyReading ReadKey(Note[] notes, KeySignature? signature)
     {
         var weights = new double[12];
         foreach (Note note in notes)

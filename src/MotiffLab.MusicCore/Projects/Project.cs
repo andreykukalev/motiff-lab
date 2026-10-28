@@ -252,7 +252,7 @@ public sealed record OpenedProject(
         {
             MotifSelection selection = saved.Kind == MotifSelectionKind.Notes
                 ? MotifSelector.SelectNotes(notes, piece.Meter, saved.NoteIds)
-                : MotifSelector.Select(notes, piece.Meter, saved.Span, saved.Filter);
+                : MotifSelector.Select(notes, piece.Meter, saved.Span, saved.Filter, MotifSelection.MaxStructureBars);
             if (!selection.NoteIds.SequenceEqual(saved.NoteIds, StringComparer.Ordinal))
             {
                 throw new ProjectFileException($"\"{saved.Name}\" no longer matches the notes of the piece.");

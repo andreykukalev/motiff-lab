@@ -46,7 +46,7 @@ public sealed record Phrase(int Number, TickSpan Span, int FirstBar, int LastBar
     /// <summary>The number of bars the phrase touches, counting partly covered bars.</summary>
     public int BarCount => LastBar - FirstBar + 1;
 
-    /// <summary>Whether the whole phrase fits a selection (<see cref="MotifSelection.MaxBars"/>).</summary>
+    /// <summary>Whether the whole phrase fits a range selection (<see cref="MotifSelection.MaxBars"/>); a longer one is still selected whole as a structure.</summary>
     public bool FitsSelection => BarCount <= MotifSelection.MaxBars;
 }
 
@@ -186,18 +186,19 @@ public sealed class PhraseMap
     }
 
     /// <summary>
-    /// The span to select for a phrase: the whole phrase, or when it runs longer than a selection
-    /// can (<see cref="MotifSelection.MaxBars"/>), its first bars up to that many.
+    /// The span to select for a phrase: the whole phrase, since a structure the map knows is selected
+    /// whole (<see cref="MotifSelection.MaxStructureBars"/>, decision record 0013); or, when it runs
+    /// even longer than that, its first bars up to that many.
     /// </summary>
     public TickSpan Selectable(Phrase phrase)
     {
         ArgumentNullException.ThrowIfNull(phrase);
-        if (phrase.FitsSelection)
+        if (phrase.BarCount <= MotifSelection.MaxStructureBars)
         {
             return phrase.Span;
         }
 
-        Tick stop = _meter.GetBar(phrase.FirstBar + MotifSelection.MaxBars - 1).Span.End;
+        Tick stop = _meter.GetBar(phrase.FirstBar + MotifSelection.MaxStructureBars - 1).Span.End;
         return TickSpan.FromBounds(phrase.Span.Onset, stop < phrase.Span.End ? stop : phrase.Span.End);
     }
 

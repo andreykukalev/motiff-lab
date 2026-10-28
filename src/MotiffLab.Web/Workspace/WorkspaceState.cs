@@ -35,21 +35,52 @@ public sealed record WorkspaceState(
 /// <param name="Filter">Which notes count: all, a hand, a track.</param>
 /// <param name="Phrases">The project's phrase map, once the piece has loaded.</param>
 /// <param name="Phrase">The phrase the selection is, when it matches one exactly.</param>
-/// <param name="Previous">The phrase ‹ leads to, when there is one.</param>
-/// <param name="Next">The phrase › leads to, when there is one.</param>
+/// <param name="Previous">The phrase before the selection's, when there is one.</param>
+/// <param name="Next">The phrase after the selection's, when there is one.</param>
+/// <param name="Sentences">The sentences over the phrases (#133), once the piece has loaded.</param>
+/// <param name="Sentence">The sentence the selection is, when it matches one exactly.</param>
+/// <param name="SentenceAround">The sentence the selection lies within: the selection itself when it is one, else its parent as context.</param>
+/// <param name="PhraseAround">The phrase the selection lies within: the selection itself when it is one, else its parent as context; null when it crosses phrases.</param>
+/// <param name="PreviousSentence">The sentence before the selection's, when there is one.</param>
+/// <param name="NextSentence">The sentence after the selection's, when there is one.</param>
 public sealed record WorkspaceSelection(
     MotifSelection? Motif,
     SelectionFilter Filter,
     PhraseMap? Phrases,
     Phrase? Phrase,
     Phrase? Previous,
-    Phrase? Next)
+    Phrase? Next,
+    IReadOnlyList<Sentence> Sentences,
+    Sentence? Sentence,
+    Sentence? SentenceAround,
+    Phrase? PhraseAround,
+    Sentence? PreviousSentence,
+    Sentence? NextSentence)
 {
     /// <summary>Whether the selection has notes to play, describe or vary.</summary>
     public bool HasNotes => Motif is { NoteIds.Count: > 0 };
 
     /// <summary>Whether the selection could be made a phrase: it has notes and is not one yet.</summary>
     public bool CanMakePhrase => HasNotes && Phrase is null;
+
+    /// <summary>The level the selection is at (decision record 0013, section 3): ‹ › step among the siblings of this level.</summary>
+    public SelectionLevel Level => Motif is null ? SelectionLevel.None : Sentence is not null ? SelectionLevel.Sentence : Phrase is not null ? SelectionLevel.Phrase : SelectionLevel.Range;
+
+    /// <summary>Whether ‹ (-1) or › (1) leads somewhere at the selected level: a sibling sentence, else a neighbouring phrase.</summary>
+    public bool CanStep(int direction) => Level == SelectionLevel.Sentence
+        ? (direction < 0 ? PreviousSentence : NextSentence) is not null
+        : (direction < 0 ? Previous : Next) is not null;
+}
+
+/// <summary>The level of the primary selection.</summary>
+public enum SelectionLevel
+{
+    None,
+    Sentence,
+    Phrase,
+
+    /// <summary>Bars or notes that are not a structure the maps know.</summary>
+    Range,
 }
 
 /// <summary>What plays, loops and is heard; the same whichever tab is open.</summary>
@@ -98,10 +129,13 @@ public sealed record WorkspaceVariation(
     public string? Explanation => Current?.Explanation;
 }
 
-/// <summary>The facts about the selection (S1-A1 to S1-A5) and the one chosen to highlight.</summary>
+/// <summary>The facts about the selection (S1-A1 to S1-A5), the one to hear first, and the one chosen to highlight.</summary>
 /// <param name="All">The facts of the selection from every analysis, in music-core's order within each lens.</param>
 /// <param name="Chosen">The fact highlighted in the score and on the roll, with the place when one is.</param>
-public sealed record WorkspaceFacts(IReadOnlyList<MotifFact> All, FactChoice? Chosen);
+/// <param name="KeyObservation">The one fact to hear first, as <see cref="FactRanking"/> ranks them (#132); null without facts.</param>
+/// <param name="KeyReason">Why that fact comes first, from the ranking's own criteria.</param>
+/// <param name="Recommended">The one experiment recommended next: the first the catalogue offers for the selection, so it can always run; null without offers.</param>
+public sealed record WorkspaceFacts(IReadOnlyList<MotifFact> All, FactChoice? Chosen, MotifFact? KeyObservation, string? KeyReason, Experiment? Recommended);
 
 /// <summary>What the player kept about the selection.</summary>
 /// <param name="Rows">The observations kept for the selected phrase, with where each one comes from.</param>

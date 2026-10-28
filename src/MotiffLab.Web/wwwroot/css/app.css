@@ -841,6 +841,70 @@ html, body {
     color: var(--ml-uncertain);
 }
 
+/* An interpretation (0013 section 9): a reading that rests on other facts, double-ruled so it reads as a different kind, not a surer one. */
+.lab .facts .certainty.interpretation {
+    border-style: double;
+    border-width: 3px;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+/* Understand's two views (#132): Now, the one observation to hear first, and Details, every fact by lens. */
+.lab .view-switch {
+    display: flex;
+    gap: 0.3rem;
+    margin-bottom: 0.5rem;
+}
+
+.lab .view-switch button {
+    min-height: 1.75rem;
+    padding: 0.1rem 0.8rem;
+    border-radius: 1rem;
+}
+
+.lab .facts.now section {
+    margin-bottom: 0.75rem;
+}
+
+.lab .facts.now h4 {
+    margin: 0 0 0.3rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ml-gray);
+}
+
+.lab .facts.now .fact-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.lab .facts.now .fact-row .certainty {
+    margin-top: 0.2rem;
+}
+
+.lab .facts.now .text {
+    margin: 0 0 0.3rem;
+    font-size: 1.05rem;
+    line-height: 1.35;
+}
+
+.lab .facts.now .row {
+    margin: 0.2rem 0;
+}
+
+.lab .facts.now p.basis {
+    margin: 0.2rem 0;
+    font-size: 0.85rem;
+    color: var(--ml-gray);
+}
+
+.lab .facts.now .recommended .text {
+    font-size: 1rem;
+}
+
 /* Understand (#25, Understand/UnderstandPanel.razor): a fact with places is a toggle that highlights them in the score and on the roll,
    its places are chips, and it links to the experiments resting on it. The chosen fact has a solid blue edge, never dashed like inferred. */
 .lab .facts li.chosen {
@@ -1314,10 +1378,117 @@ html, body {
     border-color: var(--ml-score-inferred);
 }
 
+/* The hierarchy line (Structure/HierarchyLine.razor, #133, decision record 0013 section 3): piece › sentence › phrase › bars,
+   the selected level on, every other level one tap away; an inferred level is dashed blue as well as tagged. */
+.hierarchy {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem;
+    margin-bottom: 0.4rem;
+    font-size: 0.85rem;
+}
+
+.hierarchy .sep {
+    color: var(--ml-gray);
+}
+
+.hierarchy .crumb {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    min-height: 1.75rem;
+    padding: 0.1rem 0.6rem;
+    border: 1.5px solid transparent;
+    border-radius: 1rem;
+    color: var(--ml-white);
+}
+
+.hierarchy span.crumb.piece {
+    padding-left: 0;
+    color: var(--ml-gray);
+}
+
+.hierarchy button.crumb {
+    border-color: var(--ml-gray);
+}
+
+.hierarchy button.crumb.inferred {
+    border-style: dashed;
+    border-color: var(--ml-inferred);
+}
+
+.hierarchy .crumb.on {
+    background: var(--ml-lime);
+    border-color: var(--ml-lime);
+    color: var(--ml-charcoal);
+    font-weight: 600;
+}
+
+.hierarchy .crumb .how {
+    font-size: 0.72rem;
+    color: var(--ml-inferred);
+}
+
+.hierarchy .crumb.on .how {
+    color: var(--ml-charcoal);
+}
+
 /* The phrase strip (Phrases/PhraseStrip.razor, #18): the piece as phrases to pick, each saying how its start was found.
    Certainty by line as well as colour: solid from the file or the player, dashed blue inferred. */
 .phrases {
     margin-bottom: 0.5rem;
+}
+
+/* The sentences over the phrases (#133): one chip per sentence above the phrases, lettered; the sentence the selection
+   lies within is marked as its context, and the phrases of the selected sentence are outlined as its children. */
+.phrases .sentence-list {
+    display: flex;
+    gap: 0.4rem;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+    margin-bottom: 0.15rem;
+}
+
+.phrases button.sentence {
+    flex: none;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    border-width: 1.5px;
+    border-radius: 0.6rem;
+}
+
+.phrases button.sentence .number {
+    font-family: var(--ml-mono);
+    font-weight: 700;
+}
+
+.phrases button.sentence .how {
+    font-size: 0.72rem;
+    color: var(--ml-gray);
+}
+
+.phrases button.sentence.inferred {
+    border-style: dashed;
+    border-color: var(--ml-inferred);
+}
+
+.phrases button.sentence.inferred .how {
+    color: var(--ml-inferred);
+}
+
+.phrases button.sentence.on .how {
+    color: var(--ml-charcoal);
+}
+
+.phrases button.sentence.around {
+    box-shadow: inset 0 -3px 0 var(--ml-lime);
+}
+
+.phrases button.phrase.child {
+    outline: 2px dashed var(--ml-lime);
+    outline-offset: 2px;
 }
 
 .phrases .phrase-list {

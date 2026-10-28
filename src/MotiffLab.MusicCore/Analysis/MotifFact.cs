@@ -14,6 +14,12 @@ public enum FactCertainty
 
     /// <summary>A rule's best guess on thin or conflicting evidence.</summary>
     Uncertain,
+
+    /// <summary>
+    /// A musical reading the notes do not decide, such as that one phrase answers another (decision
+    /// record 0013): offered as a reading, never as a measurement, with the facts it rests on in its basis.
+    /// </summary>
+    Interpretation,
 }
 
 /// <summary>The lens a fact belongs to on the Understand screen (N4).</summary>

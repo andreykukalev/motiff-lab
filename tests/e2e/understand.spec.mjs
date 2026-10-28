@@ -12,6 +12,11 @@ test("understand a phrase: highlight a fact's places, try its experiment and com
     const panel = page.locator(".tab-panel");
     const highlighted = page.locator(".score .highlight");
 
+    // The tab opens on Now, one observation to hear first; Details lists every fact by lens (#132).
+    await expect(panel.getByRole("button", { name: "Now", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(panel.locator(".key-observation .certainty")).toHaveCount(1);
+    await panel.getByRole("button", { name: "Details" }).click();
+
     // Every fact keeps its certainty and basis; the motif's return is a structure fact, inferred.
     const fact = panel.getByRole("button", { name: /The motif recurs once/ });
     await expect(fact.locator("xpath=ancestor::li").locator(".certainty")).toHaveText("inferred");
@@ -45,10 +50,11 @@ test("understand a phrase: highlight a fact's places, try its experiment and com
     await expect(card.locator("h3")).toHaveText("Answer the motif differently");
     await expect(page.locator(".inspector .selection-text")).toContainText("bar 5");
 
-    // The experiment links back to its fact, which Understand shows highlighted.
+    // The experiment links back to its fact, which Understand shows highlighted above either view.
     await card.getByRole("group", { name: "Rests on" }).getByRole("button", { name: /The motif recurs once/ }).click();
     await expect(tab).toHaveAttribute("aria-selected", "true");
     await expect(page.locator(".inspector .highlighted")).toContainText("The motif recurs once");
+    await expect(panel.getByRole("button", { name: "Now", exact: true })).toHaveAttribute("aria-pressed", "true");
     await page.locator("select[aria-label='Which score shows']").selectOption({ label: "Generated from the notes" });
     await expect(highlighted.first()).toBeVisible();
     await page.locator(".inspector .highlighted").getByRole("button", { name: "Clear highlight" }).click();
