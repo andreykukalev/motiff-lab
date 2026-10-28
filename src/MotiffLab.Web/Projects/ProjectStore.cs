@@ -4,19 +4,28 @@ using System.Text;
 using Microsoft.JSInterop;
 
 using MotiffLab.MusicCore.Projects;
+using MotiffLab.Web.Account;
 
 namespace MotiffLab.Web.Projects;
 
 /// <summary>
 /// Projects saved on the device (S1-P1): a thin C# handle on the IndexedDB wrapper in
 /// <c>Scripts/storage</c>. Each project is stored as its project file, so what autosave keeps and
-/// what export hands over are the same bytes. Nothing leaves the device.
+/// what export hands over are the same bytes. Nothing leaves the device unless the player signed in and
+/// turned saving online on (0014); then each save and delete is repeated online a moment later.
 /// </summary>
-public sealed class ProjectStore(IJSRuntime js) : IAsyncDisposable
+public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncDisposable
 {
     private IJSObjectReference? _module;
 
     public async Task SaveAsync(Project project)
+    {
+        await SaveHereAsync(project);
+        await online.QueueAsync(project);
+    }
+
+    /// <summary>Saves on this device only, as for a project just fetched from its online copy.</summary>
+    public async Task SaveHereAsync(Project project)
     {
         ArgumentNullException.ThrowIfNull(project);
         IJSObjectReference module = await ModuleAsync();
@@ -55,6 +64,7 @@ public sealed class ProjectStore(IJSRuntime js) : IAsyncDisposable
     {
         IJSObjectReference module = await ModuleAsync();
         await module.InvokeVoidAsync("deleteProject", id);
+        await online.DeleteAsync(id);
     }
 
     /// <summary>True when the browser says this site's storage is nearly full; false when it does not say.</summary>

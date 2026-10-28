@@ -11,9 +11,26 @@
     <h2>Your music stays on this device</h2>
     <p>
         Files you import, your projects, motifs and variations are read, analysed, changed and played in this browser,
-        and saved in this browser's storage, with the variations and notes you keep about a phrase. Motiff Lab never
-        uploads them. Exports (MIDI and project files) are saved straight to this device. To delete a project, use
+        and saved in this browser's storage, with the variations and notes you keep about a phrase. Motiff Lab does not
+        upload them unless you sign in and turn on saving online (below). Exports (MIDI and project files) are saved straight to this device. To delete a project, use
         Delete on the home screen; clearing this site's data in the browser deletes everything.
+    </p>
+
+    <h2 id="online">Your account and saving online</h2>
+    <p>
+        Signing in is optional, and only some versions of Motiff Lab offer it. You sign in with Apple, Google or a code
+        sent to your email, through Microsoft Entra External ID. Motiff Lab then receives an account ID, and your name
+        or email address to show you who is signed in; Microsoft keeps the sign-in details, and Apple or Google know you
+        used them to sign in.
+    </p>
+    <p>
+        Saving online stays off until you turn it on in <a href="settings">Settings</a>. Then each project file, the same
+        file an export gives you, with the music you imported and everything you made around it, is sent to Motiff Lab's
+        server and kept in a Microsoft Azure Cosmos DB database in Poland (EU), under your account ID only, until you
+        delete it. Deleting a project on a device deletes its online copy too, while saving online is on. <em>Delete
+        everything saved online</em> in Settings deletes every online copy and turns saving online off; the projects in
+        this browser are kept. The server keeps no other record of what you saved, and nothing online is shared with
+        anyone or used for anything else.
     </p>
 
     <h2 id="scanning">Scanning printed music</h2>
@@ -24,6 +41,12 @@
         and logs nothing about it. What comes back is the music as MusicXML, which is saved with the project in this
         browser. The picture itself is not kept. If the address you give is another computer, Motiff Lab asks before each
         scan, since the page then leaves this one. MIDI and MusicXML files are never sent anywhere.
+    </p>
+    <p>
+        Some versions offer Motiff Lab's own scan server instead, for signed-in players. It runs the same engine in
+        Microsoft Azure in Poland (EU), handles a page the same way, deleted as soon as it has been read, and also asks
+        before each scan. Your sign-in goes with the page, so the server knows that a signed-in player sent it, but it
+        records nothing about who did.
     </p>
 
     <h2>Hosting</h2>

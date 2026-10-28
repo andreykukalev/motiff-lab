@@ -107,5 +107,45 @@
   "tools.shapeHint": "The mechanisms behind the experiments: choose what to keep, then one change at a time. The original notes are never changed.",
 
   "settings.language": "Language",
-  "settings.languageHint": "The interface in English or Russian. Musical facts and explanations stay in English for now."
+  "settings.languageHint": "The interface in English or Russian. Musical facts and explanations stay in English for now.",
+
+  "home.onlineOnly": "Saved online, not on this device",
+  "home.getHere": "Get it here",
+  "home.savedOnlineToo": "Projects are saved in this browser, and online for your account. Export a project to keep a copy of your own.",
+
+  "settings.online": "Save your projects online",
+  "settings.onlineWhat": "Sign in to keep your projects online as well as in this browser, so you can open them on another device. Saving online stays off until you turn it on.",
+  "settings.onlineSignedOut": "Sign in with Apple, Google or an email code.",
+  "settings.signIn": "Sign in",
+  "settings.signedInAs": "Signed in as {0}.",
+  "settings.saveOnline": "Save my projects online",
+  "settings.onlineOn": "Each project is saved here first, then online a few seconds later.",
+  "settings.onlineOff": "Saving online is off. Your projects stay in this browser only.",
+  "settings.signOut": "Sign out",
+  "settings.deleteOnline": "Delete everything saved online",
+  "settings.deleteOnlineForGood": "Delete online copies for good",
+  "settings.onlineWhatIsKept": "What is kept online, and where",
+  "settings.useHostedScan": "Use Motiff Lab's scan server",
+  "settings.hostedScanNotice": "Motiff Lab's scan server reads pages for signed-in players. Each page is deleted as soon as it has been read, and each scan asks before it sends anything.",
+
+  "online.signInFirst": "Sign in on Settings to save projects online. They are kept on this device meanwhile.",
+  "online.offline": "Not saved online: no connection. The project is kept on this device and goes online with its next save.",
+  "online.tooLarge": "This project is too large to save online yet. It is kept on this device.",
+  "online.notFound": "It is not saved online.",
+  "online.problem": "Saving online did not work this time. The project is kept on this device.",
+  "online.deleted": "Deleted online too.",
+  "online.deletedEverything": "Everything saved online is deleted, and saving online is off. Your projects on this device are kept.",
+  "online.saved": "Saved online at {0}.",
+
+  "account.title": "Your account",
+  "account.signingIn": "Signing you in…",
+  "account.signInFailed": "Signing in did not work. Your projects on this device are not affected.",
+  "account.signingOut": "Signing you out…",
+  "account.signOutFailed": "Signing out did not finish. Try again from Settings.",
+  "account.signedOut": "You are signed out. Your projects stay in this browser.",
+  "account.backToSettings": "Back to Settings",
+  "account.notInThisVersion": "This version of Motiff Lab has no sign-in. Your projects are saved in this browser.",
+
+  "scan.signIn": "Sign in on Settings to scan with Motiff Lab's scan server.",
+  "scan.sendHosted": "Send the page to Motiff Lab's scan server, which deletes it once read"
 }

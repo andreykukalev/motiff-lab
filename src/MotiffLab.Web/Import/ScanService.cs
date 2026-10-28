@@ -4,18 +4,22 @@ using System.Text.Json;
 
 using Microsoft.JSInterop;
 
+using MotiffLab.Web.Account;
+using MotiffLab.Web.Localization;
+
 namespace MotiffLab.Web.Import;
 
 /// <summary>
 /// Sheet music scanning (decision record 0011): sends a PDF or photo of printed music to the scan
 /// server the player runs on their own computer (services/omr, homr in Docker) and gets MusicXML back.
-/// Off until the player gives the server's address in Settings.
+/// Off until the player gives the server's address in Settings, or picks Motiff Lab's hosted server (0014),
+/// which reads pages only for a signed-in player.
 /// </summary>
 /// <remarks>
 /// The page goes only to that address, and only when the player picks it for scanning; the server
 /// deletes it as soon as it has been read. MIDI and MusicXML files never leave the browser.
 /// </remarks>
-public sealed class ScanService(IJSRuntime js)
+public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text)
 {
     /// <summary>The address the service's README starts it on.</summary>
     public const string SuggestedAddress = "http://localhost:8765";
@@ -37,6 +41,12 @@ public sealed class ScanService(IJSRuntime js)
 
     /// <summary>True when the address is this computer, so the page does not leave it.</summary>
     public bool IsLocal => Address is { IsLoopback: true };
+
+    /// <summary>Motiff Lab's hosted scan server, in a build with sign-in; null otherwise.</summary>
+    public Uri? HostedAddress => account.IsAvailable ? Parse(account.Options.Scan) : null;
+
+    /// <summary>True when scanning uses the hosted server, which needs the player signed in.</summary>
+    public bool IsHosted => Address is not null && Address == HostedAddress;
 
     /// <summary>Reads the address from this browser. Safe to call more than once.</summary>
     public Task LoadAsync() => _loading ??= LoadCoreAsync();
@@ -115,9 +125,21 @@ public sealed class ScanService(IJSRuntime js)
         var file = new ByteArrayContent(data);
         file.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
         content.Add(file, "file", Path.GetFileName(fileName));
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(address, "recognise")) { Content = content };
+        // The sign-in goes to Motiff Lab's own server only, never to an address typed in Settings.
+        if (IsHosted)
+        {
+            if (await account.TokenAsync(account.Options.ScanScope) is not { } token)
+            {
+                return ScanResult.Failed(text["scan.signIn"]);
+            }
+
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        }
+
         try
         {
-            using HttpResponseMessage response = await s_http.PostAsync(new Uri(address, "recognise"), content, cancellation);
+            using HttpResponseMessage response = await s_http.SendAsync(request, cancellation);
             if (response.IsSuccessStatusCode)
             {
                 byte[] musicXml = await response.Content.ReadAsByteArrayAsync(cancellation);

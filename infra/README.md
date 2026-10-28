@@ -83,6 +83,7 @@ Players sign in with Apple, Google or an email code before their projects are sa
    ```
 
    Then run the `API` workflow from the Actions tab (and make the `motiff-api` package public, as for `motiff-omr`), and re-run `Scan server`: from then on it reads pages only for signed-in players.
+7. **Tell the web app**, in [`src/MotiffLab.Web/wwwroot/appsettings.json`](../src/MotiffLab.Web/wwwroot/appsettings.json) (public identifiers, committed): `Authority` `https://<domain>.ciamlogin.com/<tenant id>`, `ClientId` the *Motiff Lab* client id, `ApiScope` `api://<API client id>/Projects.ReadWrite`, `ScanScope` `api://<API client id>/Scan`, and the addresses the `API` and `Scan server` workflows print, as `Api` and `Scan`. Until these are set, the app shows nothing about accounts.
 
 ## Changes later
 
