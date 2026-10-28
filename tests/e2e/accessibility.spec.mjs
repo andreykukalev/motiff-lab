@@ -68,6 +68,9 @@ test("playback lab with a selection, Practise, the Explore card, a variation and
     await expect(page.locator(".inspector .selection-text")).toContainText("Looping the original, then the variation.");
     expect(await violations(page)).toEqual([]);
     await page.getByRole("tab", { name: /^Understand/ }).click();
+    // Now, then Details with every fact (#132); both scanned.
+    expect(await violations(page)).toEqual([]);
+    await page.getByRole("button", { name: "Details" }).click();
     await page.getByRole("button", { name: /The motif recurs once/ }).click();
     await expect(page.locator(".inspector .highlighted")).toBeVisible();
     expect(await violations(page)).toEqual([]);

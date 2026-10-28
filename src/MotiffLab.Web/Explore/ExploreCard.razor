@@ -18,7 +18,7 @@
             <h3>@experiment.Title</h3>
             <p>@experiment.Change</p>
             <p class="question">@experiment.Question</p>
-            <p class="passage">@(trial.Elsewhere ? "The motif's return" : "Selected phrase") · @Bars(experiment.Passage.FirstBar, experiment.Passage.LastBar)</p>
+            <p class="passage">@(trial.Elsewhere ? "The motif's return" : State.Selection.Level == SelectionLevel.Sentence ? "Selected sentence" : "Selected phrase") · @Bars(experiment.Passage.FirstBar, experiment.Passage.LastBar)</p>
             @if (experiment.Alternatives.Count > 1)
             {
                 <div class="choices" role="group" aria-label="Ways to try it">
