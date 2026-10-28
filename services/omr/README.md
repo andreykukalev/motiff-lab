@@ -19,7 +19,7 @@ A page takes 20 to 60 seconds, depending on the computer. A PDF can have up to 8
 
 ## Hosted
 
-The same image also runs in Azure Container Apps for the iOS app and for players without Docker (decision record [0014](../../docs/decisions/0014-hosted-scan-server.md)). The `Scan server` workflow publishes it as `ghcr.io/andreykukalev/motiff-omr` and deploys it with [`infra/scan.bicep`](../../infra/scan.bicep) on each change here on `main`. There it takes PDFs of up to 4 pages, answers browsers only from the web app and its previews (`ALLOWED_ORIGINS`, `ALLOWED_ORIGIN_REGEX`), and scales to zero when idle.
+The same image also runs in Azure Container Apps for the iOS app and for players without Docker (decision record [0014](../../docs/decisions/0014-hosted-scan-server.md)). The `Scan server` workflow publishes it as `ghcr.io/andreykukalev/motiff-omr` and deploys it with [`infra/scan.bicep`](../../infra/scan.bicep) on each change here on `main`. There it takes PDFs of up to 4 pages, answers browsers only from the web app and its previews (`ALLOWED_ORIGINS`, `ALLOWED_ORIGIN_REGEX`), and scales to zero when idle. With `AUTH_AUTHORITY` and `AUTH_AUDIENCE` set, it reads a page only for a player signed in through Microsoft Entra External ID whose token carries the `Scan` scope, and answers `401` otherwise; `/health` says so with `"signIn": true`. Unset, as on your own computer, nothing is checked.
 
 ## What it does with your pages
 

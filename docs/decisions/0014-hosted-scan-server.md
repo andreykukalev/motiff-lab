@@ -1,6 +1,6 @@
 # 0014 · A hosted scan server, and a database for what players keep
 
-Status: proposed, 2026-10-28, for Andrei's review. The scan server part is ready to deploy; the database part waits on how players sign in.
+Status: accepted, 2026-10-28. Andrei chose sign-in with Apple, Google or an email code through Microsoft Entra External ID. The scan server is deployed; the API waits on the tenant's one-time setup (`infra/README.md`).
 
 ## Context
 
@@ -24,10 +24,12 @@ The Azure subscription is shared with an unrelated project. Its Container Apps e
 7. **Only the Motiff Lab API reaches the data, with its own identity** (`id-motifflab-api`), allowed into this one database through Cosmos DB's data roles. No account key is used or stored, and nothing on the account or in its other databases changes.
 8. **What is stored:** a project document (the project file of 0009 and 0012: sessions, observations, the scan origin) and a source document with the imported MusicXML or MIDI, compressed. A source too large for a 2 MB document goes to Blob storage instead, which is added only when one first needs it.
 
-## Open
+### Sign-in and the API
 
-- **How players sign in.** Storing a player's work needs to know whose it is, and the scan server needs the same check before it can take more than one copy's worth of traffic. Microsoft Entra External ID (free for the first 50,000 monthly users, with Apple, Google, Microsoft and email codes) is the recommendation; the API and the web app's sync are built once this is decided.
-- **The rule that imports never leave the device** (CLAUDE.md, 0011) changes for players who sign in and choose to save to the cloud. The privacy notice, the consent wording and the analytics catalogue are updated with the API.
+9. **Players sign in with Microsoft Entra External ID**, in its own external tenant: Apple, Google or a one-time code by email. The core is free for the first 50,000 monthly active users. One app registration, *Motiff Lab API*, exposes two scopes, `Projects.ReadWrite` and `Scan`; the web app and, later, the iOS app ask for them. A player is their `oid` in the tenant, the same from every app, and that is the partition their documents sit in.
+10. **The API is `src/MotiffLab.Api`**, an ASP.NET Core service in the scan server's environment (`infra/api.bicep`), scaled to zero. It lists, reads, saves and deletes the calling player's projects (`/projects`, `/projects/{id}`) and deletes everything they keep (`DELETE /me`, the right to erasure). A save is a project file; the API reads it with `ProjectFile` before storing it, refuses one that is not that project, and returns an ETag, so a save from a stale copy on another device is refused (`If-Match`, 412) rather than lost. It logs no project content.
+11. **The hosted scan server reads a page only with a token that carries `Scan`** once `AUTH_AUTHORITY` and `AUTH_AUDIENCE` are set; on the player's own computer nothing is checked, as before.
+12. **Saving online is the player's choice, never the default.** The rule that imports never leave the device (CLAUDE.md, 0011) becomes: nothing leaves the device unless the player signs in and turns on saving online, and then only to this API. The web app's sign-in and sync, the privacy notice and the consent wording come in the next batch.
 
 ## Consequences
 

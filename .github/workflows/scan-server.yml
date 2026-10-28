@@ -84,5 +84,6 @@ jobs:
             --name "scan-${{ github.run_number }}" \
             --template-file infra/scan.bicep \
             --parameters image="$IMAGE:${{ github.sha }}" \
+              authAuthority="${{ vars.AUTH_AUTHORITY }}" authAudience="${{ vars.AUTH_AUDIENCE }}" \
             --query properties.outputs.url.value --output tsv)"
           echo "Scan server: $url" | tee -a "$GITHUB_STEP_SUMMARY"

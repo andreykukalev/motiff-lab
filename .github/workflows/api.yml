@@ -1,0 +1,102 @@
+name: API
+
+# Publishes the Motiff Lab API's image (src/MotiffLab.Api) to GitHub's container registry and deploys it to
+# Azure Container Apps (infra/api.bicep, decision record 0014), next to the scan server. CI runs its tests.
+# The deploy waits until the sign-in and database are set up: the repository variables AUTH_AUTHORITY,
+# AUTH_AUDIENCE and COSMOS_ENDPOINT (see infra/README.md).
+on:
+  push:
+    branches: [main]
+    paths:
+      - src/MotiffLab.Api/**
+      - src/MotiffLab.MusicCore/**
+      - infra/api.bicep
+      - .github/workflows/api.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deploy at a time, and never cancel one halfway.
+concurrency:
+  group: api
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/motiff-api
+
+jobs:
+  publish-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write # push the image to ghcr.io
+      id-token: write # OIDC sign-in to Azure
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # The source label links the package to this repository.
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/MotiffLab.Api/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.description=Motiff Lab API: a signed-in player's projects in Cosmos DB
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Container Apps pulls the image without credentials, so the package must be public. GitHub makes a
+      # new package private, and only its owner can change that, once: see infra/README.md.
+      - name: Check the image is public
+        run: |
+          docker logout ghcr.io
+          if ! docker manifest inspect "$IMAGE:${{ github.sha }}" > /dev/null; then
+            echo "::error::The package motiff-api is private. Make it public once (Package settings, Change visibility), then re-run this workflow."
+            exit 1
+          fi
+
+      - name: Check sign-in and database settings
+        id: settings
+        run: |
+          if [[ -z "${{ vars.AZURE_CLIENT_ID }}" || -z "${{ vars.AUTH_AUTHORITY }}" || -z "${{ vars.AUTH_AUDIENCE }}" || -z "${{ vars.COSMOS_ENDPOINT }}" ]]; then
+            echo "::notice::Not deployed: set AUTH_AUTHORITY, AUTH_AUDIENCE and COSMOS_ENDPOINT first (infra/README.md)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: azure/login@v2
+        if: steps.settings.outputs.ready == 'true'
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to Container Apps
+        if: steps.settings.outputs.ready == 'true'
+        env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+        run: |
+          url="$(az deployment group create \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "api-${{ github.run_number }}" \
+            --template-file infra/api.bicep \
+            --parameters image="$IMAGE:${{ github.sha }}" \
+              authAuthority="${{ vars.AUTH_AUTHORITY }}" authAudience="${{ vars.AUTH_AUDIENCE }}" \
+              cosmosEndpoint="${{ vars.COSMOS_ENDPOINT }}" \
+            --query properties.outputs.url.value --output tsv)"
+          echo "API: $url" | tee -a "$GITHUB_STEP_SUMMARY"

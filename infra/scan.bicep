@@ -20,6 +20,12 @@ param extraOrigins array = []
 @description('Pages a PDF may have. Container Apps ends a request after 240 s, and a page takes up to 40 s.')
 param maxPages int = 4
 
+@description('External ID authority, https://<tenant>.ciamlogin.com/<tenant id>/v2.0. Empty: anyone may scan.')
+param authAuthority string = ''
+
+@description('Client id of the Motiff Lab API app registration, the audience of the players\' tokens.')
+param authAudience string = ''
+
 param tags object = {
   app: 'motiff-lab'
   service: 'scan'
@@ -83,6 +89,15 @@ resource scan 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'MAX_PAGES'
               value: string(maxPages)
             }
+            // A page is read only for a signed-in player once both are set (0014).
+            {
+              name: 'AUTH_AUTHORITY'
+              value: authAuthority
+            }
+            {
+              name: 'AUTH_AUDIENCE'
+              value: authAudience
+            }
           ]
           probes: [
             {
@@ -99,7 +114,7 @@ resource scan 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       // Zero when idle. One copy at most: the server reads one upload at a time, and one copy caps what
-      // anyone calling it can cost until scanning needs a sign-in.
+      // scanning can cost, signed in or not.
       scale: {
         minReplicas: 0
         maxReplicas: 1
