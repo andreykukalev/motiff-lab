@@ -1,0 +1,58 @@
+namespace MotiffLab.MusicCore.Analysis;
+
+/// <summary>
+/// Which fact to show first about a selection (#132, decision record 0013): a ranking of the facts
+/// music-core already found, not new analysis, so the Understand tab can open on one observation
+/// and say why that one. Deterministic: the same facts give the same choice.
+/// </summary>
+public static class FactRanking
+{
+    /// <summary>The lenses in the order they are worth hearing first: structure, then the line, its rhythm, its character, the key.</summary>
+    private static readonly FactLens[] s_lensOrder = [FactLens.Structure, FactLens.Melody, FactLens.Rhythm, FactLens.Character, FactLens.Key];
+
+    /// <summary>
+    /// The one fact to hear first: the first that names places in the score, by lens order, the
+    /// surer first; an interpretation is never it, since it rests on other facts. Null without facts.
+    /// </summary>
+    public static MotifFact? KeyObservation(IReadOnlyList<MotifFact> facts)
+    {
+        ArgumentNullException.ThrowIfNull(facts);
+        return facts
+            .Select((fact, index) => (fact, index))
+            .Where(entry => entry.fact.Certainty != FactCertainty.Interpretation)
+            .OrderBy(entry => entry.fact.Places.Count == 0 ? 1 : 0)
+            .ThenBy(entry => LensRank(entry.fact.Lens))
+            .ThenBy(entry => entry.fact.Certainty)
+            .ThenBy(entry => entry.index)
+            .Select(entry => entry.fact)
+            .FirstOrDefault();
+    }
+
+    /// <summary>Why a fact is shown first, from the ranking's own criteria: "It names places to show in the score, is about structure, and is detected."</summary>
+    public static string Reason(MotifFact fact)
+    {
+        ArgumentNullException.ThrowIfNull(fact);
+        string places = fact.Places.Count > 0 ? "names places to show in the score" : "names no places, like every fact here";
+        string lens = fact.Lens switch
+        {
+            FactLens.Structure => "is about structure",
+            FactLens.Melody => "is about the line",
+            FactLens.Rhythm => "is about the rhythm",
+            FactLens.Character => "is about the character",
+            _ => "is about the key",
+        };
+        string certainty = fact.Certainty switch
+        {
+            FactCertainty.Detected => "is detected",
+            FactCertainty.Inferred => "is inferred",
+            _ => "is uncertain, like the rest",
+        };
+        return $"It {places}, {lens}, and {certainty}.";
+    }
+
+    private static int LensRank(FactLens lens)
+    {
+        int rank = Array.IndexOf(s_lensOrder, lens);
+        return rank < 0 ? s_lensOrder.Length : rank;
+    }
+}
