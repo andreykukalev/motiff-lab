@@ -1,22 +1,28 @@
 #!/usr/bin/env bash
-# One-time setup of Motiff Lab's database in the shared, free-tier Cosmos DB account in rg-shared
-# (decision record 0014). Run from the repository root, signed in with `az login` to the subscription
-# that holds rg-shared. Safe to re-run.
+# One-time setup of Motiff Lab's services (decision record 0014) in the subscription that holds rg-shared
+# and its free-tier Cosmos DB account. Run from the repository root, signed in with `az login` to that
+# subscription and `gh auth login` to this repository. Safe to re-run.
 #
-# It only adds: the database `motifflab` with its container, an identity for the Motiff Lab API, and that
-# identity's data access to this one database. It changes nothing on the account itself or in any other
-# database, and it stops before creating anything if the database would take the account past the free
-# tier's 1000 RU/s.
+# It only adds:
+# - the resource group rg-motifflab-services (Poland Central) for the scan server and the API,
+# - a CI identity there (infra/bootstrap.bicep: GitHub OIDC, Contributor on that group only),
+# - the database `motifflab` with its container in the shared account,
+# - an identity for the API with data access to that one database,
+# - the repository variables the Scan server and API workflows read (identifiers, not secrets).
+# It changes nothing on the Cosmos DB account itself or in any other database or group, and it stops before
+# creating anything if the database would take the account past the free tier's 1000 RU/s.
 set -euo pipefail
 
+REPO="${REPO:-andreykukalev/motiff-lab}"
+OIDC_REPO="${OIDC_REPO:-andreykukalev@130970440/motiff-lab@1430211759}"
 SHARED_GROUP="${SHARED_GROUP:-rg-shared}"
-RESOURCE_GROUP="${RESOURCE_GROUP:-rg-motifflab}"
+RESOURCE_GROUP="${RESOURCE_GROUP:-rg-motifflab-services}"
+LOCATION="${LOCATION:-polandcentral}"
 DATABASE="${DATABASE:-motifflab}"
 CONTAINER="${CONTAINER:-projects}"
 THROUGHPUT="${THROUGHPUT:-400}" # the least a database with shared throughput can have
 FREE_TIER_RU=1000
 IDENTITY="${IDENTITY:-id-motifflab-api}"
-IDENTITY_LOCATION="${IDENTITY_LOCATION:-polandcentral}"
 DATA_CONTRIBUTOR=00000000-0000-0000-0000-000000000002 # Cosmos DB Built-in Data Contributor
 
 echo "Subscription: $(az account show --query name --output tsv)"
@@ -80,7 +86,8 @@ if [[ "$exists" == 0 && "$serverless" == 0 ]]; then
 fi
 
 echo "Account: $account ($([[ "$serverless" == 0 ]] && echo "free tier, $DATABASE gets $THROUGHPUT RU/s shared" || echo serverless))"
-echo "Creates: database $DATABASE, container $CONTAINER (partition /ownerId), identity $IDENTITY in $RESOURCE_GROUP"
+echo "Creates: group $RESOURCE_GROUP ($LOCATION) with the CI identity and $IDENTITY;"
+echo "         database $DATABASE, container $CONTAINER (partition /ownerId); repository variables on $REPO"
 read -r -p "Continue? [y/N] " answer
 [[ "$answer" == [yY] ]] || exit 1
 
@@ -99,7 +106,14 @@ az cosmosdb sql container create --account-name "$account" --resource-group "$SH
   --database-name "$DATABASE" --name "$CONTAINER" --partition-key-path /ownerId --output none 2>/dev/null \
   || echo "Container $CONTAINER already exists."
 
-az identity create --name "$IDENTITY" --resource-group "$RESOURCE_GROUP" --location "$IDENTITY_LOCATION" \
+az group create --name "$RESOURCE_GROUP" --location "$LOCATION" --tags app=motiff-lab --output none
+
+ci_client_id="$(az deployment group create --resource-group "$RESOURCE_GROUP" \
+  --name bootstrap --template-file infra/bootstrap.bicep \
+  --parameters repository="$OIDC_REPO" \
+  --query properties.outputs.clientId.value --output tsv | tr -d '\r')"
+
+az identity create --name "$IDENTITY" --resource-group "$RESOURCE_GROUP" --location "$LOCATION" \
   --tags app=motiff-lab service=api --output none
 principal="$(az identity show --name "$IDENTITY" --resource-group "$RESOURCE_GROUP" --query principalId --output tsv | tr -d '\r')"
 
@@ -111,4 +125,13 @@ if [[ "$assigned" == 0 ]]; then
     --role-definition-id "$DATA_CONTRIBUTOR" --principal-id "$principal" --scope "/dbs/$DATABASE" --output none
 fi
 
-echo "Done. Endpoint: $(az cosmosdb show --name "$account" --resource-group "$SHARED_GROUP" --query documentEndpoint --output tsv)"
+endpoint="$(az cosmosdb show --name "$account" --resource-group "$SHARED_GROUP" --query documentEndpoint --output tsv | tr -d '\r')"
+
+# The services' own sign-in; the web app's AZURE_* variables keep pointing at rg-motifflab.
+gh variable set AZURE_SERVICES_CLIENT_ID --repo "$REPO" --body "$ci_client_id"
+gh variable set AZURE_SERVICES_TENANT_ID --repo "$REPO" --body "$(az account show --query tenantId --output tsv | tr -d '\r')"
+gh variable set AZURE_SERVICES_SUBSCRIPTION_ID --repo "$REPO" --body "$(az account show --query id --output tsv | tr -d '\r')"
+gh variable set AZURE_SERVICES_RESOURCE_GROUP --repo "$REPO" --body "$RESOURCE_GROUP"
+gh variable set COSMOS_ENDPOINT --repo "$REPO" --body "$endpoint"
+
+echo "Done. Cosmos DB endpoint: $endpoint. Run the Scan server workflow from the Actions tab to deploy."

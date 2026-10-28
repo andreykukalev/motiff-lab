@@ -18,7 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from starlette.concurrency import run_in_threadpool
 
-from app import merge, pages, recognise
+from app import auth, merge, pages, recognise
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 MAX_PAGES = int(os.environ.get("MAX_PAGES", "8"))
@@ -32,10 +32,17 @@ ALLOWED_ORIGIN_REGEX = os.environ.get("ALLOWED_ORIGIN_REGEX") or None
 MUSICXML_TYPE = "application/vnd.recordare.musicxml+xml"
 
 
+def _verifier_from_environment() -> Callable[[str | None], None] | None:
+    """Hosted (0014), a page is read only for a signed-in player; on the player's own computer, for anyone."""
+    authority, audience = os.environ.get("AUTH_AUTHORITY"), os.environ.get("AUTH_AUDIENCE")
+    return auth.TokenVerifier(authority, audience).verify if authority and audience else None
+
+
 def create_app(
     recognise_page: Callable[[Path, int], bytes] = recognise.recognise_page,
     allowed_origins: list[str] = ALLOWED_ORIGINS,
     allowed_origin_regex: str | None = ALLOWED_ORIGIN_REGEX,
+    verify: Callable[[str | None], None] | None = _verifier_from_environment(),
 ) -> FastAPI:
     app = FastAPI(title="Motiff Lab sheet music recognition", docs_url=None, redoc_url=None, openapi_url=None)
     app.add_middleware(
@@ -62,10 +69,16 @@ def create_app(
 
     @app.get("/health")
     def health() -> dict[str, object]:
-        return {"engine": "homr", "version": recognise.engine_version(), "maxPages": MAX_PAGES}
+        return {"engine": "homr", "version": recognise.engine_version(), "maxPages": MAX_PAGES, "signIn": verify is not None}
 
     @app.post("/recognise")
-    async def recognise_upload(file: UploadFile) -> Response:
+    async def recognise_upload(request: Request, file: UploadFile) -> Response:
+        if verify is not None:
+            try:
+                await run_in_threadpool(verify, request.headers.get("authorization"))
+            except auth.AuthError as error:
+                return _problem(401, str(error))
+
         data = await file.read(MAX_UPLOAD_BYTES + 1)
         if len(data) == 0:
             return _problem(400, "The file is empty.")

@@ -11,8 +11,9 @@ Static Web Apps is only offered in a few regions, and West Europe is the only EU
 | [`main.bicep`](main.bicep), [`main.bicepparam`](main.bicepparam) | The app's infrastructure. CI provisions it on every push to `main`. |
 | [`bootstrap.bicep`](bootstrap.bicep) | One-time CI identity: a user-assigned managed identity with GitHub OIDC federated credentials (`main` and pull requests) and Contributor on the resource group only. |
 | [`bootstrap.sh`](bootstrap.sh) | Runs the one-time setup below. |
-| [`scan.bicep`](scan.bicep) | The hosted scan server (decision record [0014](../docs/decisions/0014-hosted-scan-server.md)): a Consumption-only Container Apps environment and the app, in Poland Central. Deployed by the `Scan server` workflow, not by CI. |
-| [`cosmos-bootstrap.sh`](cosmos-bootstrap.sh) | One-time: Motiff Lab's database in the shared free-tier Cosmos DB account, and the API's identity with access to that database only. |
+| [`scan.bicep`](scan.bicep) | The hosted scan server (decision record [0014](../docs/decisions/0014-hosted-scan-server.md)): a Consumption-only Container Apps environment and the app, in `rg-motifflab-services`. Deployed by the `Scan server` workflow, not by CI. |
+| [`services-bootstrap.sh`](services-bootstrap.sh) | One-time, in the subscription with `rg-shared`: the group `rg-motifflab-services` with its CI identity, Motiff Lab's database in the shared free-tier Cosmos DB account, and the API's identity with access to that database only. |
+| [`api.bicep`](api.bicep) | The Motiff Lab API (`src/MotiffLab.Api`) next to the scan server, signing in to Cosmos DB as `id-motifflab-api`. Deployed by the `API` workflow once sign-in and the database are set up. |
 
 ## How deploys work
 
@@ -44,24 +45,44 @@ The script asks for confirmation, then:
 
 Then re-run CI on an open PR, or push to `main`, for the first app deploy. Re-running the script is safe.
 
-## The scan server and the database
+## The scan server, the API and the database
 
-The scan server (`services/omr`) is published and deployed by [`.github/workflows/scan-server.yml`](../.github/workflows/scan-server.yml) whenever `services/omr` or `scan.bicep` changes on `main`, or when run by hand from the Actions tab. It builds the image (about 2 GB, longer than CI's 5 minutes, hence its own workflow), pushes it to `ghcr.io/andreykukalev/motiff-omr`, and deploys `scan.bicep` as the CI identity; the job summary shows the server's address.
+These live apart from the web app: in the subscription that holds `rg-shared` and its free-tier Cosmos DB account, in the resource group `rg-motifflab-services` (Poland Central), so the API reaches its database with its own identity and no keys. They sign in to Azure with their own CI identity, through the `AZURE_SERVICES_*` repository variables; the web app's `AZURE_*` variables keep pointing at `rg-motifflab`.
 
-Nothing here has a standing cost: the Consumption-only environment has no load balancer and no Log Analytics workspace, and the app scales to zero, with one copy at most.
+The scan server (`services/omr`) is published and deployed by [`.github/workflows/scan-server.yml`](../.github/workflows/scan-server.yml) whenever `services/omr` or `scan.bicep` changes on `main`, or when run by hand from the Actions tab. It builds the image (about 2 GB, longer than CI's 5 minutes, hence its own workflow), pushes it to `ghcr.io/andreykukalev/motiff-omr`, and deploys `scan.bicep`; the job summary shows the server's address. The API's [`.github/workflows/api.yml`](../.github/workflows/api.yml) does the same for `src/MotiffLab.Api` and `api.bicep`, once sign-in is set up (below). Until the setup has run, both only publish their images.
 
-Once, after the first run of the workflow:
+Nothing here has a standing cost: the Consumption-only environment has no load balancer and no Log Analytics workspace, the apps scale to zero, and the database stays within the free tier.
 
-1. **Make the image public.** GitHub creates a new package as private, and Container Apps pulls without credentials. On GitHub open your profile's **Packages**, then **motiff-omr**, **Package settings**, **Change visibility**, **Public**. Then re-run the `Scan server` workflow, which stops with this message until then.
-2. **Create the database.** Signed in to the subscription with `rg-shared`:
+Once, signed in to the subscription with `rg-shared`, and to GitHub:
+
+```bash
+az login
+az account set --subscription "<subscription with rg-shared>"
+gh auth login
+./infra/services-bootstrap.sh
+```
+
+The script finds the free-tier account in `rg-shared`, adds up the RU/s its databases already use, and stops without creating anything if Motiff Lab's 400 RU/s would go past the free 1000. Otherwise it asks, then creates `rg-motifflab-services` with a CI identity ([`bootstrap.bicep`](bootstrap.bicep), Contributor on that group only), the database `motifflab` with the container `projects`, the identity `id-motifflab-api` with data access to that database only, and the repository variables `AZURE_SERVICES_*` and `COSMOS_ENDPOINT`. It does not change the Cosmos DB account, its other databases or any other group. Re-running it is safe. Then run the `Scan server` workflow from the Actions tab.
+
+GitHub makes a new package private, and Container Apps pulls without credentials. If a workflow stops with *the package is private*, open your profile's **Packages**, the package, **Package settings**, **Change visibility**, **Public**, and re-run it.
+
+## Sign-in (Microsoft Entra External ID)
+
+Players sign in with Apple, Google or an email code before their projects are saved online or a page goes to the hosted scan server (decision record [0014](../docs/decisions/0014-hosted-scan-server.md)). External ID is free for the first 50,000 monthly active users. Set it up once in the [Microsoft Entra admin center](https://entra.microsoft.com), signed in with the account that owns the subscription:
+
+1. **Create the tenant.** *Entra ID → Overview → Manage tenants → Create → External*. Name it *Motiff Lab*, pick a domain such as `motifflab` (sign-in then runs on `motifflab.ciamlogin.com`), choose Europe, and link it to the subscription and group of the services, `rg-motifflab-services`. Switch to the new tenant for the steps below and note its **tenant id**.
+2. **Register the API.** *App registrations → New registration*: *Motiff Lab API*, this tenant only, no redirect URI. Under *Expose an API*, accept the Application ID URI `api://<client id>` and add two scopes, both consentable by admins and users: `Projects.ReadWrite` (*Save and read your projects*) and `Scan` (*Read photos and PDFs of printed music*). In *Manifest*, set `"requestedAccessTokenVersion": 2`. Note the **client id**.
+3. **Register the web app.** *New registration*: *Motiff Lab*, this tenant only, platform *Single-page application*, redirect URIs `https://<the Static Web App's host>/authentication/login-callback`, `https://localhost:7281/authentication/login-callback` and `http://localhost:5112/authentication/login-callback` (Entra takes no wildcards, so a pull request preview signs in only once its address is added here). Under *API permissions*, add *My APIs → Motiff Lab API →* both scopes, then *Grant admin consent*. Note this **client id** too; the iOS app gets its own registration later.
+4. **Create the user flow.** *External Identities → User flows → New user flow*: *Sign up and sign in*, with *Email one-time passcode*, collecting no attributes beyond the email. Under the flow's *Applications*, add *Motiff Lab*.
+5. **Add Google and Apple** as identity providers and tick them in the user flow: [Google](https://learn.microsoft.com/entra/external-id/customers/how-to-google-federation-customers) needs an OAuth client in Google Cloud; [Apple](https://learn.microsoft.com/entra/external-id/customers/how-to-apple-federation-customers) needs the Apple Developer Program, and its key must be renewed every 6 months.
+6. **Tell GitHub**, as repository variables (identifiers, not secrets; `services-bootstrap.sh` has set the others):
 
    ```bash
-   az login
-   az account set --subscription "<subscription name or id>"
-   ./infra/cosmos-bootstrap.sh
+   gh variable set AUTH_AUTHORITY --body "https://<domain>.ciamlogin.com/<tenant id>/v2.0"
+   gh variable set AUTH_AUDIENCE --body "<Motiff Lab API client id>"
    ```
 
-   It finds the free-tier account in `rg-shared`, adds up the RU/s its databases already use, and stops without creating anything if Motiff Lab's 400 RU/s would go past the free 1000. Otherwise it asks, then creates the database `motifflab` with the container `projects`, and the identity `id-motifflab-api` in `rg-motifflab` with data access to that database only. It does not change the account or its other databases. Re-running it is safe.
+   Then run the `API` workflow from the Actions tab (and make the `motiff-api` package public, as for `motiff-omr`), and re-run `Scan server`: from then on it reads pages only for signed-in players.
 
 ## Changes later
 

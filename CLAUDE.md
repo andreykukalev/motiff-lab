@@ -7,6 +7,7 @@ Musical exploration workspace: help musicians move from reproducing music to und
 See `docs/decisions/0001-stack.md` (stack), `0002-canonical-time.md` (musical time), `0003-ai-integration.md` (AI assistance), `0004-note-event-and-meter-map.md` (note event, bars and beats), `0007-playback-engine.md` (browser playback), `0008-score-view.md` (notation) `0012-workspace-structure.md` (projects, sessions and ideas, the score-first workspace, Focus mode, localization), `0014-hosted-scan-server.md` (the scan server in Azure Container Apps, Motiff Lab's Cosmos DB database) and `0013-interaction-model.md` (one musical object and one primary selection behind Practise, Understand and Explore, claim kinds with evidence, the Try it contract, Russian terms, the Guidance Layer).
 
 - `src/MotiffLab.MusicCore` — C# music-core: shared event model, parsing, analysis, variation operations. Pure and deterministic; no UI, I/O or browser dependencies.
+- `src/MotiffLab.Api` — ASP.NET Core API that saves a signed-in player's projects in Cosmos DB (0014), with xUnit tests in `tests/MotiffLab.Api.Tests`. Deployed by the `API` workflow, not CI.
 - `src/MotiffLab.Web` — Blazor WebAssembly PWA. Browser-only APIs (Web Audio, Web MIDI, canvas, IndexedDB) go through a thin TypeScript layer via JS interop: sources in `Scripts/`, compiled to `wwwroot/js/` (not committed) during `dotnet build`.
 - `tests/MotiffLab.MusicCore.Tests` — xUnit tests for music-core.
 - `tests/web` — Node tests for the TypeScript layer, run on the compiled output.

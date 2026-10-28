@@ -1,9 +1,11 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/MotiffLab.Api/MotiffLab.Api.csproj" />
     <Project Path="src/MotiffLab.MusicCore/MotiffLab.MusicCore.csproj" />
     <Project Path="src/MotiffLab.Web/MotiffLab.Web.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/MotiffLab.Api.Tests/MotiffLab.Api.Tests.csproj" />
     <Project Path="tests/MotiffLab.MusicCore.Tests/MotiffLab.MusicCore.Tests.csproj" />
   </Folder>
 </Solution>
