@@ -2,8 +2,8 @@ name: API
 
 # Publishes the Motiff Lab API's image (src/MotiffLab.Api) to GitHub's container registry and deploys it to
 # Azure Container Apps (infra/api.bicep, decision record 0014), next to the scan server. CI runs its tests.
-# The deploy waits until the sign-in and database are set up: the repository variables AUTH_AUTHORITY,
-# AUTH_AUDIENCE and COSMOS_ENDPOINT (see infra/README.md).
+# The deploy waits until the services and sign-in are set up: the repository variables AZURE_SERVICES_*,
+# COSMOS_ENDPOINT (infra/services-bootstrap.sh), AUTH_AUTHORITY and AUTH_AUDIENCE (see infra/README.md).
 on:
   push:
     branches: [main]
@@ -72,8 +72,8 @@ jobs:
       - name: Check sign-in and database settings
         id: settings
         run: |
-          if [[ -z "${{ vars.AZURE_CLIENT_ID }}" || -z "${{ vars.AUTH_AUTHORITY }}" || -z "${{ vars.AUTH_AUDIENCE }}" || -z "${{ vars.COSMOS_ENDPOINT }}" ]]; then
-            echo "::notice::Not deployed: set AUTH_AUTHORITY, AUTH_AUDIENCE and COSMOS_ENDPOINT first (infra/README.md)."
+          if [[ -z "${{ vars.AZURE_SERVICES_CLIENT_ID }}" || -z "${{ vars.AUTH_AUTHORITY }}" || -z "${{ vars.AUTH_AUDIENCE }}" || -z "${{ vars.COSMOS_ENDPOINT }}" ]]; then
+            echo "::notice::Not deployed: run infra/services-bootstrap.sh and set AUTH_AUTHORITY and AUTH_AUDIENCE first (infra/README.md)."
             echo "ready=false" >> "$GITHUB_OUTPUT"
           else
             echo "ready=true" >> "$GITHUB_OUTPUT"
@@ -82,14 +82,14 @@ jobs:
       - uses: azure/login@v2
         if: steps.settings.outputs.ready == 'true'
         with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ vars.AZURE_SERVICES_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_SERVICES_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SERVICES_SUBSCRIPTION_ID }}
 
       - name: Deploy to Container Apps
         if: steps.settings.outputs.ready == 'true'
         env:
-          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          RESOURCE_GROUP: ${{ vars.AZURE_SERVICES_RESOURCE_GROUP }}
         run: |
           url="$(az deployment group create \
             --resource-group "$RESOURCE_GROUP" \

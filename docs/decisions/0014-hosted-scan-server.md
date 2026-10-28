@@ -12,7 +12,7 @@ The Azure subscription is shared with an unrelated project. Its Container Apps e
 
 ### The scan server
 
-1. **The `services/omr` image runs in Azure Container Apps in Poland Central** (`infra/scan.bicep`), in a Consumption-only environment on Azure's own network, with no Log Analytics workspace. Such an environment costs nothing by itself; the app is billed per second only while it reads, and it scales to zero when idle. One copy at most, with 2 cores and 4 GiB (the most a Consumption-only app gets), reading one upload at a time.
+1. **The `services/omr` image runs in Azure Container Apps in Poland Central** (`infra/scan.bicep`), in its own group, `rg-motifflab-services`, in the subscription that holds the Cosmos DB account rather than the web app's (so the API's identity can be given data access in the same tenant, with no keys), in a Consumption-only environment on Azure's own network, with no Log Analytics workspace. Such an environment costs nothing by itself; the app is billed per second only while it reads, and it scales to zero when idle. One copy at most, with 2 cores and 4 GiB (the most a Consumption-only app gets), reading one upload at a time.
 2. **The image is public on GitHub's container registry** (`ghcr.io/andreykukalev/motiff-omr`), built and deployed by the `Scan server` workflow on each change to `services/omr` on `main`. The repository is public and the service is AGPL, so nothing is lost by a public image, and no registry is paid for. The image's source label points to this repository, which is where homr's source is named.
 3. **A PDF may have up to 4 pages when hosted**, not 8: Container Apps ends a request after 240 s, and a page takes up to 40 s on 2 cores.
 4. **Browsers may call it only from the web app and its pull request previews** (`ALLOWED_ORIGINS`, `ALLOWED_ORIGIN_REGEX`). A native app sends no origin, and an origin is no protection against a script, so until scanning needs a sign-in, the single copy is what caps the cost of misuse.
@@ -20,7 +20,7 @@ The Azure subscription is shared with an unrelated project. Its Container Apps e
 
 ### The database
 
-6. **Motiff Lab gets its own database, `motifflab`, in the shared free-tier account**, with 400 RU/s shared by its containers, and one container, `projects`, partitioned by `/ownerId`, so each player's projects, sessions and sources sit in one partition. `infra/cosmos-bootstrap.sh` creates it once, and first adds up what the account's other databases use, so it stops rather than take the account past the free tier's 1000 RU/s.
+6. **Motiff Lab gets its own database, `motifflab`, in the shared free-tier account**, with 400 RU/s shared by its containers, and one container, `projects`, partitioned by `/ownerId`, so each player's projects, sessions and sources sit in one partition. `infra/services-bootstrap.sh` creates it once, and first adds up what the account's other databases use, so it stops rather than take the account past the free tier's 1000 RU/s.
 7. **Only the Motiff Lab API reaches the data, with its own identity** (`id-motifflab-api`), allowed into this one database through Cosmos DB's data roles. No account key is used or stored, and nothing on the account or in its other databases changes.
 8. **What is stored:** a project document (the project file of 0009 and 0012: sessions, observations, the scan origin) and a source document with the imported MusicXML or MIDI, compressed. A source too large for a 2 MB document goes to Blob storage instead, which is added only when one first needs it.
 

@@ -14,6 +14,10 @@ param image string
 // Poland Central, next to the shared Cosmos DB account; an EU region either way.
 param location string = 'polandcentral'
 
+// The Static Web App lives in another subscription (rg-motifflab), so its host name is given, not looked up.
+@description('Host name of the web app: swa-motifflab\'s default host name.')
+param webHost string = 'nice-smoke-0169fb403.6.azurestaticapps.net'
+
 @description('Other addresses allowed to call the server from a browser, besides the web app and its previews.')
 param extraOrigins array = []
 
@@ -31,14 +35,10 @@ param tags object = {
   service: 'scan'
 }
 
-resource staticSite 'Microsoft.Web/staticSites@2024-11-01' existing = {
-  name: 'swa-motifflab'
-}
-
 // The web app, and its pull request previews: <name>.<n>.azurestaticapps.net becomes
 // <name>-<pr>.westeurope.<n>.azurestaticapps.net.
-var siteHost = split(staticSite.properties.defaultHostname, '.')
-var allowedOrigins = concat([ 'https://${staticSite.properties.defaultHostname}' ], extraOrigins)
+var siteHost = split(webHost, '.')
+var allowedOrigins = concat([ 'https://${webHost}' ], extraOrigins)
 var previewOrigins = 'https://${siteHost[0]}-[0-9]+\\.westeurope\\.${siteHost[1]}\\.azurestaticapps\\.net'
 
 // No workloadProfiles: a Consumption-only environment. No appLogsConfiguration: no Log Analytics bill.

@@ -1,6 +1,6 @@
 // The Motiff Lab API (src/MotiffLab.Api, decision record 0014): a signed-in player's projects in Cosmos DB.
 // Deployed by .github/workflows/api.yml after it publishes the image, into the environment of scan.bicep.
-// It reaches Cosmos DB as id-motifflab-api, which infra/cosmos-bootstrap.sh allows into the motifflab
+// It reaches Cosmos DB as id-motifflab-api, which infra/services-bootstrap.sh allows into the motifflab
 // database only; no account key is used.
 
 targetScope = 'resourceGroup'
@@ -19,6 +19,10 @@ param cosmosEndpoint string
 
 param location string = 'polandcentral'
 
+// The Static Web App lives in another subscription (rg-motifflab), so its host name is given, not looked up.
+@description('Host name of the web app: swa-motifflab\'s default host name.')
+param webHost string = 'nice-smoke-0169fb403.6.azurestaticapps.net'
+
 param tags object = {
   app: 'motiff-lab'
   service: 'api'
@@ -32,12 +36,8 @@ resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' 
   name: 'id-motifflab-api'
 }
 
-resource staticSite 'Microsoft.Web/staticSites@2024-11-01' existing = {
-  name: 'swa-motifflab'
-}
-
 // The web app, and its pull request previews (see scan.bicep).
-var siteHost = split(staticSite.properties.defaultHostname, '.')
+var siteHost = split(webHost, '.')
 
 resource api 'Microsoft.App/containerApps@2024-03-01' = {
   name: 'ca-motifflab-api'
@@ -89,7 +89,7 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'Cors__Origins'
-              value: 'https://${staticSite.properties.defaultHostname}'
+              value: 'https://${webHost}'
             }
             {
               name: 'Cors__OriginPattern'
