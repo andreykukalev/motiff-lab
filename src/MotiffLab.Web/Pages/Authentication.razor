@@ -1,0 +1,34 @@
+@page "/authentication/{action}"
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+@using MotiffLab.Web.Account
+@inject CloudAccount Account
+@inject MotiffLab.Web.Localization.UiText Text
+
+<PageTitle>@Text["account.title"] · Motiff Lab</PageTitle>
+
+@* Signing in and out (0014): the External ID pages come and go through here. A build without sign-in has nothing to show. *@
+<main class="lab document">
+    <h1>@Text["account.title"]</h1>
+    @if (Account.IsAvailable)
+    {
+        <RemoteAuthenticatorView Action="@Action">
+            <LoggingIn><p class="meta" role="status">@Text["account.signingIn"]</p></LoggingIn>
+            <CompletingLoggingIn><p class="meta" role="status">@Text["account.signingIn"]</p></CompletingLoggingIn>
+            <LogInFailed><p class="error" role="alert">@Text["account.signInFailed"]</p><p><a href="settings">@Text["account.backToSettings"]</a></p></LogInFailed>
+            <LogOut><p class="meta" role="status">@Text["account.signingOut"]</p></LogOut>
+            <CompletingLogOut><p class="meta" role="status">@Text["account.signingOut"]</p></CompletingLogOut>
+            <LogOutFailed><p class="error" role="alert">@Text["account.signOutFailed"]</p><p><a href="settings">@Text["account.backToSettings"]</a></p></LogOutFailed>
+            <LogOutSucceeded><p role="status">@Text["account.signedOut"]</p><p><a href="settings">@Text["account.backToSettings"]</a></p></LogOutSucceeded>
+        </RemoteAuthenticatorView>
+    }
+    else
+    {
+        <p>@Text["account.notInThisVersion"]</p>
+        <p><a href="settings">@Text["account.backToSettings"]</a></p>
+    }
+</main>
+
+@code {
+    [Parameter]
+    public string? Action { get; set; }
+}

@@ -11,6 +11,7 @@
 @inject NavigationManager Navigation
 @inject MotiffLab.Web.Analytics.UsageAnalytics Analytics
 @inject ScanService Scans
+@inject MotiffLab.Web.Localization.UiText Text
 
 <PageTitle>Import · Motiff Lab</PageTitle>
 
@@ -45,7 +46,14 @@
                 A PDF of up to 8 pages, or a photo of one page, is sent to the scan server at @server@(Scans.IsLocal ? " on this computer" : "") to be read,
                 and deleted there as soon as it has been. A page takes 20 to 60 seconds. The notes come back marked as detected, for you to check.
             </p>
-            @if (!Scans.IsLocal)
+            @if (Scans.IsHosted)
+            {
+                <label>
+                    <input type="checkbox" @bind="_sendElsewhere" />
+                    @Text["scan.sendHosted"]
+                </label>
+            }
+            else if (!Scans.IsLocal)
             {
                 <label>
                     <input type="checkbox" @bind="_sendElsewhere" />

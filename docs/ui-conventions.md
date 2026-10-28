@@ -20,6 +20,7 @@ Small, pragmatic rules for the web UI (`src/MotiffLab.Web`) so that UI fixes sta
 - Projects (`Pages/Home.razor`) are cards, each a link to the project page (`Pages/ProjectPage.razor`, `/project/{id}`), with Open, Export and Delete.
 - The project page shows the piece (bars, sessions, ideas), **What do you want to do?** with the four intents (Practise, Understand, Explore, Just open the piece) and an optional task in the player's words, **Recent sessions** (Continue, End session) and **Saved ideas** (Open). Starting or continuing a session opens the workspace on the tab the intent asks for and on the passage the session was last on.
 - Everything kept in a session is marked with it (`Observation.SessionId`), shown as an idea on the project page; ending a session keeps its ideas with the piece. The UI never builds a session or an observation itself: it asks the project (`StartSession`, `ChangeSession`, `Keep`).
+- Saving online (0014) is reached only through `ProjectStore`: `SaveAsync` and `DeleteAsync` repeat the change online when the player turned it on, and `SaveHereAsync` keeps a project fetched from online on the device only. Pages never call the API themselves; anything about accounts shows only when `CloudAccount.IsAvailable`, and an online failure is said on Settings, never in the way of the piece.
 
 ## Localization
 

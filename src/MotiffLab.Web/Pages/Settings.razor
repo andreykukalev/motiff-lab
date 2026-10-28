@@ -5,6 +5,9 @@
 @inject UsageAnalytics Analytics
 @inject MotiffLab.Web.Import.ScanService Scans
 @inject MotiffLab.Web.Localization.UiText Text
+@inject MotiffLab.Web.Account.CloudAccount Account
+@inject MotiffLab.Web.Account.OnlineProjects Online
+@inject MotiffLab.Web.Projects.ProjectStore Projects
 
 <PageTitle>Settings · Motiff Lab</PageTitle>
 
@@ -23,6 +26,48 @@
             }
         </div>
     </section>
+
+    @if (Account.IsAvailable)
+    {
+        @* Saving online (0014): a signed-in player's choice, off until they turn it on; the device stays the working copy. *@
+        <section aria-labelledby="online-heading">
+            <h2 id="online-heading">@Text["settings.online"]</h2>
+            <p>@Text["settings.onlineWhat"]</p>
+            @if (_player is null)
+            {
+                <p class="meta">@Text["settings.onlineSignedOut"]</p>
+                <div class="row">
+                    <button class="primary" @onclick="Account.SignIn">@Text["settings.signIn"]</button>
+                </div>
+            }
+            else
+            {
+                <p class="meta">@Text.Format("settings.signedInAs", _player)</p>
+                <label>
+                    <input type="checkbox" checked="@_online" @onchange="ToggleOnlineAsync" />
+                    @Text["settings.saveOnline"]
+                </label>
+                <p class="meta" role="status">@(Online.Status ?? (_online ? Text["settings.onlineOn"] : Text["settings.onlineOff"]))</p>
+                <div class="row">
+                    <button @onclick="Account.SignOut">@Text["settings.signOut"]</button>
+                    @if (_confirmDeleteOnline)
+                    {
+                        <button class="on" @onclick="DeleteOnlineAsync">@Text["settings.deleteOnlineForGood"]</button>
+                        <button @onclick="() => _confirmDeleteOnline = false">@Text["home.keep"]</button>
+                    }
+                    else
+                    {
+                        <button @onclick="() => _confirmDeleteOnline = true">@Text["settings.deleteOnline"]</button>
+                    }
+                </div>
+                @if (_onlineMessage is not null)
+                {
+                    <p class="meta" role="status">@_onlineMessage</p>
+                }
+            }
+            <p class="meta"><a href="privacy#online">@Text["settings.onlineWhatIsKept"]</a></p>
+        </section>
+    }
 
     <section aria-labelledby="analytics-heading">
         <h2 id="analytics-heading">Anonymous usage analytics</h2>
@@ -84,13 +129,21 @@ docker run --rm -p 8765:8000 motiff-omr</code></pre>
                 <input type="url" @bind="_address" placeholder="@MotiffLab.Web.Import.ScanService.SuggestedAddress" aria-describedby="scan-status" />
             </label>
             <button @onclick="SaveAddressAsync">Save and check</button>
+            @if (Scans.HostedAddress is { } hosted && !Scans.IsHosted)
+            {
+                <button @onclick="() => UseHostedAsync(hosted)">@Text["settings.useHostedScan"]</button>
+            }
             @if (Scans.Address is not null)
             {
                 <button @onclick="TurnScanningOffAsync">Turn scanning off</button>
             }
         </div>
         <p id="scan-status" class="meta" role="status">@_scanStatus</p>
-        @if (Scans.Address is not null && !Scans.IsLocal)
+        @if (Scans.IsHosted)
+        {
+            <p class="notice">@Text["settings.hostedScanNotice"]</p>
+        }
+        else if (Scans.Address is not null && !Scans.IsLocal)
         {
             <p class="notice">This address is another computer, so pages you scan leave this one. Each scan asks before it sends anything.</p>
         }
@@ -105,11 +158,18 @@ docker run --rm -p 8765:8000 motiff-omr</code></pre>
 @code {
     private string? _address;
     private string? _scanStatus;
+    private string? _player;
+    private bool _online;
+    private bool _confirmDeleteOnline;
+    private string? _onlineMessage;
 
     protected override async Task OnInitializedAsync()
     {
         Analytics.Changed += OnChanged;
         Text.Changed += OnChanged;
+        Online.Changed += OnChanged;
+        _player = await Account.PlayerAsync();
+        _online = _player is not null && await Online.IsOnAsync();
         await Analytics.LoadAsync();
         await Scans.LoadAsync();
         _address = Scans.Address?.ToString() ?? MotiffLab.Web.Import.ScanService.SuggestedAddress;
@@ -131,6 +191,44 @@ docker run --rm -p 8765:8000 motiff-omr</code></pre>
         _scanStatus = engine is not null ? $"Connected: the scan server runs {engine}. Scanning is on." : $"Saved, but {char.ToLowerInvariant(problem![0])}{problem[1..]}";
     }
 
+    private async Task UseHostedAsync(Uri hosted)
+    {
+        _address = hosted.ToString();
+        await SaveAddressAsync();
+    }
+
+    /// <summary>Turning saving online on sends the projects already on this device, so they are all online.</summary>
+    private async Task ToggleOnlineAsync(ChangeEventArgs args)
+    {
+        _online = args.Value is true;
+        _onlineMessage = null;
+        await Online.SetOnAsync(_online);
+        if (_online)
+        {
+            foreach (MotiffLab.MusicCore.Projects.ProjectSummary summary in await Projects.ListAsync())
+            {
+                try
+                {
+                    if (await Projects.LoadAsync(summary.Id) is { } project)
+                    {
+                        await Online.QueueAsync(project);
+                    }
+                }
+                catch (MotiffLab.MusicCore.Projects.ProjectFileException)
+                {
+                    // A damaged project stays on this device; Home says so when it is opened.
+                }
+            }
+        }
+    }
+
+    private async Task DeleteOnlineAsync()
+    {
+        _confirmDeleteOnline = false;
+        _onlineMessage = await Online.DeleteEverythingAsync();
+        _online = await Online.IsOnAsync();
+    }
+
     private async Task TurnScanningOffAsync()
     {
         await Scans.SetAddressAsync(null);
@@ -141,6 +239,7 @@ docker run --rm -p 8765:8000 motiff-omr</code></pre>
     {
         Analytics.Changed -= OnChanged;
         Text.Changed -= OnChanged;
+        Online.Changed -= OnChanged;
     }
 
     private void OnChanged() => _ = InvokeAsync(StateHasChanged);

@@ -7,6 +7,7 @@
 @inject ProjectStore Projects
 @inject NavigationManager Navigation
 @inject UiText Text
+@inject MotiffLab.Web.Account.OnlineProjects Online
 
 <PageTitle>Motiff Lab</PageTitle>
 
@@ -74,7 +75,28 @@
                 </li>
             }
         </ul>
-        <p class="meta">@Text["home.savedHere"]</p>
+        <p class="meta">@Text[_onlineOn ? "home.savedOnlineToo" : "home.savedHere"]</p>
+    }
+
+    @if (_onlineOnly is { Count: > 0 })
+    {
+        @* Saved online from another device (0014): fetched only when the player asks for it. *@
+        <h2>@Text["home.onlineOnly"]</h2>
+        <ul class="project-list">
+            @foreach (ProjectSummary summary in _onlineOnly)
+            {
+                <li class="project-card">
+                    <span class="project-name">@summary.FileName</span>
+                    <p class="meta">
+                        @Text.Format("home.counts", summary.SessionCount, summary.IdeaCount)
+                        · @Text.Format("home.lastOpened", summary.LastOpened.ToLocalTime().ToString("g", Text.Culture))
+                    </p>
+                    <div class="actions">
+                        <button class="primary" @onclick="() => GetHereAsync(summary.Id)">@Text["home.getHere"]</button>
+                    </div>
+                </li>
+            }
+        </ul>
     }
 </main>
 
@@ -83,6 +105,8 @@
     private bool _nearlyFull;
     private string? _message;
     private string? _confirmDelete;
+    private IReadOnlyList<ProjectSummary>? _onlineOnly;
+    private bool _onlineOn;
 
     protected override void OnInitialized() => Text.Changed += OnTextChanged;
 
@@ -103,6 +127,29 @@
     {
         _summaries = await Projects.ListAsync();
         _nearlyFull = await Projects.IsNearlyFullAsync();
+        _onlineOnly = null;
+        _onlineOn = await Online.IsOnAsync();
+        if (_onlineOn)
+        {
+            // Offline or signed out, the list is just left out: this screen is about the projects here.
+            (IReadOnlyList<ProjectSummary>? online, _) = await Online.ListAsync();
+            HashSet<string> here = [.. _summaries.Select(summary => summary.Id)];
+            _onlineOnly = online?.Where(summary => !here.Contains(summary.Id)).ToList();
+        }
+    }
+
+    private async Task GetHereAsync(string id)
+    {
+        _message = null;
+        (Project? project, string? problem) = await Online.DownloadAsync(id);
+        if (project is null)
+        {
+            _message = problem;
+            return;
+        }
+
+        await Projects.SaveHereAsync(project);
+        await RefreshAsync();
     }
 
     private async Task ExportAsync(string id)
