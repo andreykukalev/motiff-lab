@@ -94,3 +94,20 @@ def test_the_app_may_call_from_the_internet():
     )
     assert response.status_code == 200
     assert response.headers["access-control-allow-private-network"] == "true"
+
+
+def test_a_hosted_server_answers_only_the_app_and_its_previews():
+    hosted = TestClient(
+        create_app(
+            lambda path, number: page("1", "2"),
+            allowed_origins=["https://motiff.example"],
+            allowed_origin_regex=r"https://motiff-[0-9]+\.example",
+        )
+    )
+
+    def preflight(origin: str):
+        return hosted.options("/recognise", headers={"Origin": origin, "Access-Control-Request-Method": "POST"})
+
+    assert preflight("https://motiff.example").headers["access-control-allow-origin"] == "https://motiff.example"
+    assert preflight("https://motiff-12.example").headers["access-control-allow-origin"] == "https://motiff-12.example"
+    assert "access-control-allow-origin" not in preflight("https://elsewhere.example").headers

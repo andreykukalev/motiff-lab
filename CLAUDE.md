@@ -4,13 +4,13 @@ Musical exploration workspace: help musicians move from reproducing music to und
 
 ## Stack
 
-See `docs/decisions/0001-stack.md` (stack), `0002-canonical-time.md` (musical time), `0003-ai-integration.md` (AI assistance), `0004-note-event-and-meter-map.md` (note event, bars and beats), `0007-playback-engine.md` (browser playback), `0008-score-view.md` (notation) `0012-workspace-structure.md` (projects, sessions and ideas, the score-first workspace, Focus mode, localization) and `0013-interaction-model.md` (one musical object and one primary selection behind Practise, Understand and Explore, claim kinds with evidence, the Try it contract, Russian terms, the Guidance Layer).
+See `docs/decisions/0001-stack.md` (stack), `0002-canonical-time.md` (musical time), `0003-ai-integration.md` (AI assistance), `0004-note-event-and-meter-map.md` (note event, bars and beats), `0007-playback-engine.md` (browser playback), `0008-score-view.md` (notation) `0012-workspace-structure.md` (projects, sessions and ideas, the score-first workspace, Focus mode, localization), `0014-hosted-scan-server.md` (the scan server in Azure Container Apps, Motiff Lab's Cosmos DB database) and `0013-interaction-model.md` (one musical object and one primary selection behind Practise, Understand and Explore, claim kinds with evidence, the Try it contract, Russian terms, the Guidance Layer).
 
 - `src/MotiffLab.MusicCore` — C# music-core: shared event model, parsing, analysis, variation operations. Pure and deterministic; no UI, I/O or browser dependencies.
 - `src/MotiffLab.Web` — Blazor WebAssembly PWA. Browser-only APIs (Web Audio, Web MIDI, canvas, IndexedDB) go through a thin TypeScript layer via JS interop: sources in `Scripts/`, compiled to `wwwroot/js/` (not committed) during `dotnet build`.
 - `tests/MotiffLab.MusicCore.Tests` — xUnit tests for music-core.
 - `tests/web` — Node tests for the TypeScript layer, run on the compiled output.
-- `services/omr` — the scan server for sheet music recognition: homr (AGPL-3.0, unmodified) behind a small Python HTTP service, run by the player in Docker on their own computer (`docs/decisions/0011-sheet-music-recognition.md`). Its unit tests run with `python -m pytest` in that folder.
+- `services/omr` — the scan server for sheet music recognition: homr (AGPL-3.0, unmodified) behind a small Python HTTP service, run by the player in Docker on their own computer (`docs/decisions/0011-sheet-music-recognition.md`) or hosted in Azure Container Apps (`0014`, deployed by the `Scan server` workflow, not CI). Its unit tests run with `python -m pytest` in that folder.
 - `tests/e2e` — Playwright tests of the published app: the core journey in Chromium, Firefox and WebKit (desktop and tablet), offline, and WCAG 2.2 AA with axe.
 
 ## Commands

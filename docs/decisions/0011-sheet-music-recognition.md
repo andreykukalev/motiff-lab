@@ -18,7 +18,7 @@ homr is a Python program with about 190 MB of ONNX models, so it cannot run insi
 
 ## Consequences
 
-- Nothing about scanning needs Azure. If a hosted server is wanted later, the same container fits Azure Container Apps in an EU region, with the per-upload consent this decision already has for a server on another computer.
+- Nothing about scanning needs Azure. If a hosted server is wanted later, the same container fits Azure Container Apps in an EU region, with the per-upload consent this decision already has for a server on another computer. (2026-10-28: 0014 hosts it, for the iOS app.)
 - Analysis and hints are not held back until bars are checked: unchecked notes show as inferred on the roll, and flagged bars sit below the 0.6 confidence hints need.
 - Not built yet: a crop of the page next to each flagged bar (homr knows the staff positions but does not write them to MusicXML), and an on-device engine for iPad and iPhone, which waits for a permissively licensed model of homr's quality.
 - The CI job runs the service's unit tests with the engine replaced by a stand-in; homr itself is not installed in CI.
