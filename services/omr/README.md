@@ -17,6 +17,10 @@ To keep it running in the background, start it with `docker run -d --restart unl
 
 A page takes 20 to 60 seconds, depending on the computer. A PDF can have up to 8 pages (`-e MAX_PAGES=12` raises that).
 
+## Hosted
+
+The same image also runs in Azure Container Apps for the iOS app and for players without Docker (decision record [0014](../../docs/decisions/0014-hosted-scan-server.md)). The `Scan server` workflow publishes it as `ghcr.io/andreykukalev/motiff-omr` and deploys it with [`infra/scan.bicep`](../../infra/scan.bicep) on each change here on `main`. There it takes PDFs of up to 4 pages, answers browsers only from the web app and its previews (`ALLOWED_ORIGINS`, `ALLOWED_ORIGIN_REGEX`), and scales to zero when idle.
+
 ## What it does with your pages
 
 Each upload is written to a temporary folder, read by homr page by page, and the folder is deleted when the answer has been sent. Nothing is kept, and the server logs no request details. It answers any web page that calls it, which is fine on your own computer; on a shared one, start it with `-e ALLOWED_ORIGINS=https://<the app's address>`.

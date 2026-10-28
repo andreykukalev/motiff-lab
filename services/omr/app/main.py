@@ -24,17 +24,24 @@ MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 MAX_PAGES = int(os.environ.get("MAX_PAGES", "8"))
 
 # The service is meant for one player's own computer. Narrow the origins to the app's address with
-# ALLOWED_ORIGINS="https://…" (comma separated) when the machine is shared.
+# ALLOWED_ORIGINS="https://…" (comma separated) when the machine is shared. The hosted server (0014)
+# also allows the app's preview addresses through ALLOWED_ORIGIN_REGEX.
 ALLOWED_ORIGINS = [origin.strip() for origin in os.environ.get("ALLOWED_ORIGINS", "*").split(",") if origin.strip()]
+ALLOWED_ORIGIN_REGEX = os.environ.get("ALLOWED_ORIGIN_REGEX") or None
 
 MUSICXML_TYPE = "application/vnd.recordare.musicxml+xml"
 
 
-def create_app(recognise_page: Callable[[Path, int], bytes] = recognise.recognise_page) -> FastAPI:
+def create_app(
+    recognise_page: Callable[[Path, int], bytes] = recognise.recognise_page,
+    allowed_origins: list[str] = ALLOWED_ORIGINS,
+    allowed_origin_regex: str | None = ALLOWED_ORIGIN_REGEX,
+) -> FastAPI:
     app = FastAPI(title="Motiff Lab sheet music recognition", docs_url=None, redoc_url=None, openapi_url=None)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=ALLOWED_ORIGINS,
+        allow_origins=allowed_origins,
+        allow_origin_regex=allowed_origin_regex,
         allow_methods=["GET", "POST"],
         allow_headers=["*"],
         expose_headers=["X-Engine", "X-Pages"],
