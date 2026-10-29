@@ -2,6 +2,7 @@ using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Scan;
+using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Time;
 using MotiffLab.MusicCore.Variations;
@@ -40,6 +41,9 @@ public sealed record Project(
 
     /// <summary>Set when the source was read from a photo or PDF by sheet music recognition (0011); null for a file the player imported.</summary>
     public ScanOrigin? Scan { get; init; }
+
+    /// <summary>Set when the source was heard in an audio or video recording by transcription (0014); null otherwise.</summary>
+    public TranscriptionOrigin? Transcription { get; init; }
 
     /// <summary>A new project for a file the player just imported, with nothing made from it yet.</summary>
     public static Project Create(string id, string fileName, byte[] source, DateTimeOffset now) =>
@@ -235,6 +239,16 @@ public sealed record OpenedProject(
             }
 
             piece = ScanCheck.Of(piece).Mark(piece, scan.ConfirmedBars);
+        }
+
+        if (project.Transcription is not null)
+        {
+            if (piece.Midi is null)
+            {
+                throw new ProjectFileException("This project says it was transcribed from a recording, but its piece is not MIDI.");
+            }
+
+            piece = Transcribed.Mark(piece);
         }
 
         IReadOnlyList<Note> notes;

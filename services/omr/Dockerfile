@@ -1,21 +1,26 @@
-# Motiff Lab sheet music recognition: homr behind a small HTTP service, for the player's own computer.
+# Motiff Lab sheet music recognition and transcription: homr and Basic Pitch behind a small HTTP service,
+# for the player's own computer or hosted (0014).
 #   docker build -t motiff-omr services/omr
 #   docker run --rm -p 8765:8000 motiff-omr
 FROM python:3.12-slim
 
+# librosa compiles some of its code with numba on first use, and the service's user may write only in /tmp.
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    NUMBA_CACHE_DIR=/tmp/numba
 
-# OpenCV (used by homr) needs these shared libraries even in its headless build.
+# OpenCV (used by homr) needs these shared libraries even in its headless build; ffmpeg takes the sound
+# out of a recording for Basic Pitch.
 RUN apt-get update \
-    && apt-get install --yes --no-install-recommends libglib2.0-0 libgl1 \
+    && apt-get install --yes --no-install-recommends libglib2.0-0 libgl1 ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /srv
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip install -r requirements.txt \
+    && pip install --no-deps basic-pitch==0.4.0
 
 # The models (about 190 MB) are downloaded once, into the image, so the service works offline.
 RUN homr --gpu no --init

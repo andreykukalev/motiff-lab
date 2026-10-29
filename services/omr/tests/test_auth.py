@@ -45,7 +45,7 @@ def test_a_signed_in_player_with_the_scan_scope_may_scan():
     [
         (None, "Sign in"),
         ("Basic abc", "Sign in"),
-        (f"Bearer {token(scope='Projects.ReadWrite')}", "does not allow scanning"),
+        (f"Bearer {token(scope='Projects.ReadWrite')}", "does not allow reading music"),
         (f"Bearer {token(audience='another-api')}", "not valid"),
         (f"Bearer {token(expires_in=-60)}", "not valid"),
         (f"Bearer {token(kid='unknown')}", "not valid"),
@@ -69,7 +69,7 @@ def test_a_hosted_server_reads_no_page_without_a_sign_in():
 
     refused = client.post("/recognise", files={"file": ("photo.png", png(), "image/png")})
     assert refused.status_code == 401
-    assert refused.json()["message"] == "Sign in to scan printed music."
+    assert refused.json()["message"] == "Sign in to have Motiff Lab's server read your music."
     assert read == []
 
     allowed = client.post(

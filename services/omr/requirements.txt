@@ -6,3 +6,13 @@ python-multipart==0.0.20
 pypdfium2==5.14.0
 PyJWT[crypto]==2.12.1
 cryptography==46.0.3
+# Transcription of recordings (0014): Basic Pitch is Apache-2.0 and runs unmodified on ONNX Runtime,
+# which homr already brings. Basic Pitch itself is installed without its own requirements in the
+# Dockerfile, since they ask for TensorFlow, which this Python has no build of; these are the ones it uses.
+librosa==1.0.0
+pretty-midi==0.2.11.post0
+resampy==0.4.2
+scikit-learn==1.9.1
+mir-eval==0.8.2
+# resampy still imports pkg_resources, which setuptools 81 removes.
+setuptools==80.9.0
