@@ -4,7 +4,7 @@
 # subscription and `gh auth login` to this repository. Safe to re-run.
 #
 # It only adds:
-# - the resource group rg-motifflab-services (Poland Central) for the scan server and the API,
+# - the resource group rg-motifflab (Poland Central) for the scan server and the API,
 # - a CI identity there (infra/bootstrap.bicep: GitHub OIDC, Contributor on that group only),
 # - the database `motifflab` with its container in the shared account,
 # - an identity for the API with data access to that one database,
@@ -16,7 +16,7 @@ set -euo pipefail
 REPO="${REPO:-andreykukalev/motiff-lab}"
 OIDC_REPO="${OIDC_REPO:-andreykukalev@130970440/motiff-lab@1430211759}"
 SHARED_GROUP="${SHARED_GROUP:-rg-shared}"
-RESOURCE_GROUP="${RESOURCE_GROUP:-rg-motifflab-services}"
+RESOURCE_GROUP="${RESOURCE_GROUP:-rg-motifflab}"
 LOCATION="${LOCATION:-polandcentral}"
 DATABASE="${DATABASE:-motifflab}"
 CONTAINER="${CONTAINER:-projects}"
