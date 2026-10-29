@@ -3,6 +3,7 @@
 @using MotiffLab.MusicCore.Analytics
 @using MotiffLab.MusicCore.Import
 @using MotiffLab.MusicCore.Import.Scan
+@using MotiffLab.MusicCore.Import.Transcription
 @using MotiffLab.MusicCore.Projects
 @using MotiffLab.Web.Import
 @using MotiffLab.Web.Projects
@@ -16,7 +17,8 @@
 <PageTitle>Import · Motiff Lab</PageTitle>
 
 @* N2 · Import (S1-I1, S1-I8): drop or pick a file, read the import report, pick where to start. Parsing runs in the browser; the file never leaves the device.
-   Scanning (0011) is the one exception: a PDF or photo the player picks for it goes to the scan server they set in Settings, and comes back as MusicXML. *@
+   Scanning (0011) is one exception: a PDF or photo the player picks for it goes to the scan server they set in Settings, and comes back as MusicXML.
+   Transcription (0014) is the other: the sound of a recording the player picks goes to the same server, and comes back as MIDI. *@
 <main class="lab import">
     <h1>Import a piece</h1>
     <p class="meta">Motiff Lab reads MIDI (.mid) and MusicXML (.musicxml, .mxl) files up to 5 MB. The file is read in this browser and never leaves this device.</p>
@@ -68,13 +70,37 @@
         }
     </section>
 
+    <section class="scan" aria-labelledby="transcribe-heading">
+        <h2 id="transcribe-heading">@Text["transcribe.heading"]</h2>
+        @if (Scans.Address is not { } listener)
+        {
+            <p class="meta">@Text["transcribe.setUp"] <a href="settings#scan-heading">@Text["transcribe.setUpLink"]</a>.</p>
+        }
+        else
+        {
+            <p class="meta">@Text.Format("transcribe.what", listener)</p>
+            @if (!Scans.IsLocal)
+            {
+                <label>
+                    <input type="checkbox" @bind="_sendSound" />
+                    @(Scans.IsHosted ? Text["transcribe.sendHosted"] : Text.Format("transcribe.sendElsewhere", listener.Host))
+                </label>
+            }
+
+            <label class="dropzone @(_transcribing ? "busy" : null)">
+                <InputFile @ref="_recordingInput" OnChange="TranscribeFileAsync" accept="@ScanService.AcceptedRecordings" disabled="@(_reading || _scanning || _transcribing || !(Scans.IsLocal || _sendSound))" aria-label="@Text["transcribe.choose"]" />
+                <span>@(_transcribing ? Text["transcribe.busy"] : Text["transcribe.drop"])</span>
+            </label>
+        }
+    </section>
+
     @if (_piece is { } piece)
     {
         ImportReport report = piece.Report;
         <section class="report" aria-label="Import report">
             <h2>@piece.FileName</h2>
             <p class="summary">
-                @(_scan is null ? FormatName(piece.Format) : $"Scanned by {_scanEngine}") · @Plural(piece.Tracks.Count, "track") with notes · @Plural(report.NoteCount, "note") · @Plural(report.MeasureCount, "bar")
+                @(_scan is not null ? $"Scanned by {_scanEngine}" : _transcriptionEngine is { } heardBy ? Text.Format("transcribe.by", heardBy) : FormatName(piece.Format)) · @Plural(piece.Tracks.Count, "track") with notes · @Plural(report.NoteCount, "note") · @Plural(report.MeasureCount, "bar")
             </p>
             @if (_scan is { } scan)
             {
@@ -98,6 +124,18 @@
                     else
                     {
                         <p>No bar looks wrong to the checks. The notes are still a reading of the page, marked as detected until you check them.</p>
+                    }
+                </section>
+            }
+            else if (_transcriptionEngine is not null)
+            {
+                <p class="meta">@Text.Format("transcribe.heard", _heardSeconds.ToString("0", Text.Culture), _elapsed.TotalSeconds.ToString("0.#", Text.Culture))</p>
+                <section class="scan-check" aria-label="@Text["transcribe.checkHeading"]">
+                    <h3>@Text["transcribe.checkHeading"]</h3>
+                    <p>@Text["transcribe.draft"]</p>
+                    @if (_cut)
+                    {
+                        <p class="notice">@Text["transcribe.cut"]</p>
                     }
                 </section>
             }
@@ -203,6 +241,14 @@
     private bool _scanning;
     private bool _sendElsewhere;
 
+    /// <summary>The engine that heard a transcribed recording (0014); null for anything else.</summary>
+    private string? _transcriptionEngine;
+    private double _heardSeconds;
+    private bool _cut;
+    private bool _transcribing;
+    private bool _sendSound;
+    private InputFile? _recordingInput;
+
     protected override Task OnInitializedAsync() => Scans.LoadAsync();
 
     private async Task OpenFileAsync(InputFileChangeEventArgs args)
@@ -210,6 +256,7 @@
         _fileName = args.File.Name;
         _piece = null;
         _scan = null;
+        _transcriptionEngine = null;
         _timing = null;
         _rejection = PieceImporter.CheckSize(args.File.Size);
         _start = 0;
@@ -247,6 +294,7 @@
         _fileName = args.File.Name;
         _piece = null;
         _scan = null;
+        _transcriptionEngine = null;
         _timing = null;
         _rejection = null;
         _start = 0;
@@ -291,11 +339,82 @@
         }
     }
 
-    /// <summary>The importer's tip, or a pointer to scanning for a PDF or photo when it is set up.</summary>
-    private string TipFor(ImportRejection rejection) =>
-        rejection.Reason is ImportRejectionReason.Pdf or ImportRejectionReason.Image && Scans.Address is not null && _scan is null
-            ? "To read the notes from it, drop it under Scan printed music below."
-            : rejection.Tip;
+    /// <summary>
+    /// Takes the sound out of a recording on this device, sends it to the scan server to be heard, and imports
+    /// the MIDI that comes back with every note marked as detected (0014). A browser that cannot decode the
+    /// file sends the file itself, when it is small enough to pass through the app.
+    /// </summary>
+    private async Task TranscribeFileAsync(InputFileChangeEventArgs args)
+    {
+        _fileName = args.File.Name;
+        _piece = null;
+        _scan = null;
+        _transcriptionEngine = null;
+        _timing = null;
+        _rejection = null;
+        _start = 0;
+        if (args.File.Size == 0)
+        {
+            _rejection = new(ImportRejectionReason.Empty, Text["transcribe.empty"], Text["transcribe.tooLargeTip"]);
+            return;
+        }
+
+        _transcribing = true;
+        try
+        {
+            var watch = Stopwatch.StartNew();
+            RecordingSound? sound = _recordingInput?.Element is { } input ? await Scans.SoundOfAsync(input) : null;
+            byte[] upload;
+            if (sound is not null)
+            {
+                upload = sound.Wav;
+            }
+            else if (args.File.Size > ScanService.MaxRecordingUploadBytes)
+            {
+                _rejection = new(ImportRejectionReason.TooLarge, Text["transcribe.tooLarge"], Text["transcribe.tooLargeTip"]);
+                return;
+            }
+            else
+            {
+                await using Stream stream = args.File.OpenReadStream(ScanService.MaxRecordingUploadBytes);
+                using var memory = new MemoryStream();
+                await stream.CopyToAsync(memory);
+                upload = memory.ToArray();
+            }
+
+            // The server is not told the file's name: it reads the format from the content.
+            TranscriptionResult result = await Scans.TranscribeAsync(sound is null ? "recording" : "recording.wav", upload);
+            _elapsed = watch.Elapsed;
+            if (result.Midi is not { } midi)
+            {
+                _rejection = new(ImportRejectionReason.NotMusic, result.Problem!, Text["transcribe.notHeardTip"]);
+                return;
+            }
+
+            string name = Path.ChangeExtension(args.File.Name, ".mid");
+            PieceImportResult imported = PieceImporter.Import(name, midi);
+            if (imported.Piece is not { } piece)
+            {
+                _rejection = imported.Rejection;
+                return;
+            }
+
+            (_piece, _data, _fileName, _transcriptionEngine) = (Transcribed.Mark(piece), midi, name, result.Engine);
+            (_heardSeconds, _cut) = (sound?.Seconds ?? result.Seconds, sound?.Cut == true || result.Cut);
+        }
+        finally
+        {
+            _transcribing = false;
+        }
+    }
+
+    /// <summary>The importer's tip, or a pointer to scanning for a PDF or photo, or to transcription for a recording, when it is set up.</summary>
+    private string TipFor(ImportRejection rejection) => rejection.Reason switch
+    {
+        ImportRejectionReason.Pdf or ImportRejectionReason.Image when Scans.Address is not null && _scan is null => "To read the notes from it, drop it under Scan printed music below.",
+        ImportRejectionReason.Audio when Scans.Address is not null && _transcriptionEngine is null => Text["transcribe.tip"],
+        _ => rejection.Tip,
+    };
 
     private Task TrackImportAsync() => Analytics.TrackAsync(AnalyticsEvent.PieceImported(
         AnalyticsEvent.FormatOf(_fileName ?? ""), _piece is not null, _piece?.Report.NoteCount ?? 0, _piece?.Tracks.Count ?? 0,
@@ -312,6 +431,7 @@
         var project = Project.Create($"p_{Guid.NewGuid():N}", piece.FileName, _data, DateTimeOffset.Now) with
         {
             Scan = _scan is null ? null : ScanOrigin.Read(_scanEngine),
+            Transcription = _transcriptionEngine is null ? null : new TranscriptionOrigin(_transcriptionEngine),
         };
         // The piece opens in a session (0012), so the work has a context to come back to from the project page.
         Session session = Session.Start(project.NextSessionId(), SessionIntent.Open, null, DateTimeOffset.Now);

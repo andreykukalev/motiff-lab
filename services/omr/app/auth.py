@@ -54,7 +54,7 @@ class TokenVerifier:
 
     def verify(self, authorization: str | None) -> None:
         if not authorization or not authorization.startswith("Bearer "):
-            raise AuthError("Sign in to scan printed music.")
+            raise AuthError("Sign in to have Motiff Lab's server read your music.")
         token = authorization.removeprefix("Bearer ").strip()
         try:
             key = self._key(jwt.get_unverified_header(token).get("kid", ""))
@@ -69,4 +69,4 @@ class TokenVerifier:
         except jwt.PyJWTError as error:
             raise AuthError("The sign-in is not valid. Sign in again.") from error
         if SCOPE not in str(claims.get("scp", "")).split():
-            raise AuthError("This sign-in does not allow scanning.")
+            raise AuthError("This sign-in does not allow reading music on this server.")

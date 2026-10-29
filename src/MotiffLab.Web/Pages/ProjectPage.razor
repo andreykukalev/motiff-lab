@@ -37,6 +37,10 @@
                 {
                     <span> · @Text["project.scanned"]</span>
                 }
+                @if (_project.Transcription is not null)
+                {
+                    <span> · @Text["project.transcribed"]</span>
+                }
             </p>
             <div class="row">
                 <button @onclick="ExportAsync">@Text["home.export"]</button>
