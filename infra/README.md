@@ -1,6 +1,6 @@
 # Infrastructure
 
-The web app needs one Azure resource: a Static Web App on the Free plan in West Europe ([`main.bicep`](main.bicep)). The app runs fully in the browser (see [docs/decisions/0001-stack.md](../docs/decisions/0001-stack.md)). The hosted scan server and the database are below.
+The web app needs one Azure resource: a Static Web App on the Free plan in West Europe ([`main.bicep`](main.bicep)), `swa-motifflab` in `rg-motifflab`, next to the scan server, the API and their database. The app runs fully in the browser (see [docs/decisions/0001-stack.md](../docs/decisions/0001-stack.md)). The hosted scan server and the database are below.
 
 Static Web Apps is only offered in a few regions, and West Europe is the only EU one, so Sweden Central is not an option for this resource. Static content is served from the global edge; the region holds the app's metadata and, later, its managed Functions.
 
@@ -10,9 +10,9 @@ Static Web Apps is only offered in a few regions, and West Europe is the only EU
 | --- | --- |
 | [`main.bicep`](main.bicep), [`main.bicepparam`](main.bicepparam) | The app's infrastructure. CI provisions it on every push to `main`. |
 | [`bootstrap.bicep`](bootstrap.bicep) | One-time CI identity: a user-assigned managed identity with GitHub OIDC federated credentials (`main` and pull requests) and Contributor on the resource group only. |
-| [`bootstrap.sh`](bootstrap.sh) | Runs the one-time setup below. |
+| [`bootstrap.sh`](bootstrap.sh) | The first setup, from when the web app lived alone in another subscription. Replaced by `azure/setup.ps1`. |
 | [`scan.bicep`](scan.bicep) | The hosted scan server (decision record [0014](../docs/decisions/0014-hosted-scan-server.md)): a Consumption-only Container Apps environment and the app, in `rg-motifflab`. Deployed by the `Scan server` workflow, not by CI. |
-| [`azure/setup.ps1`](azure/setup.ps1), [`azure/MotiffAzure.psm1`](azure/MotiffAzure.psm1) | One-time, in the subscription with `rg-shared`: the group `rg-motifflab` with its CI identity, Motiff Lab's database in the shared free-tier Cosmos DB account, the API's identity with access to that database only, the players' sign-in tenant, the repository variables, then the first deploys. |
+| [`azure/setup.ps1`](azure/setup.ps1), [`azure/MotiffAzure.psm1`](azure/MotiffAzure.psm1) | One-time, in the subscription with `rg-shared`: the group `rg-motifflab` with its CI identity, the web app's Static Web App, Motiff Lab's database, the API's identity with access to that database only, the players' sign-in tenant, the repository variables, then the first deploys. |
 | [`api.bicep`](api.bicep) | The Motiff Lab API (`src/MotiffLab.Api`) next to the scan server, signing in to Cosmos DB as `id-motifflab-api`. Deployed by the `API` workflow once sign-in and the database are set up. |
 
 ## How deploys work
@@ -27,27 +27,11 @@ The Free plan allows 3 preview environments at a time. A fourth open PR fails it
 
 ## One-time setup
 
-Requires the Azure CLI (2.53 or later) signed in with rights to create role assignments on the new resource group (Owner on the subscription, as on a Visual Studio subscription), and the GitHub CLI signed in to this repository.
-
-```bash
-az login
-az account set --subscription "<subscription name or id>"
-gh auth login
-./infra/bootstrap.sh
-```
-
-The script asks for confirmation, then:
-
-1. creates the resource group `rg-motifflab` in West Europe,
-2. deploys `bootstrap.bicep` (CI identity, federated credentials, role assignment),
-3. deploys `main.bicep` once, so pull requests have a site to deploy previews to,
-4. sets the repository variables `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` and `AZURE_RESOURCE_GROUP` (identifiers, not secrets).
-
-Then re-run CI on an open PR, or push to `main`, for the first app deploy. Re-running the script is safe.
+`azure/setup.ps1` sets up everything, the web app included: see [Setting up the services and sign-in, once](#setting-up-the-services-and-sign-in-once). Until 2026-10-30 the web app lived alone in the *Visual Studio Professional* subscription, set up by `bootstrap.sh`; Azure cannot move a resource to a subscription of another tenant, so `setup.ps1` creates a new Static Web App in `rg-motifflab`, with a new address, and points CI's `AZURE_*` variables at it. The old site stops getting deploys and can then be deleted.
 
 ## The scan server, the API and the database
 
-These live apart from the web app: in the subscription that holds `rg-shared` and its free-tier Cosmos DB account, in a resource group also named `rg-motifflab` (Poland Central), so the API reaches its database with its own identity and no keys. The two groups share a name but not a subscription. The services sign in to Azure with their own CI identity, through the `AZURE_SERVICES_*` repository variables; the web app's `AZURE_*` variables keep pointing at the web app's group.
+These live with the web app in the subscription that holds `rg-shared`, in the resource group `rg-motifflab` (Poland Central), so the API reaches its database with its own identity and no keys. Everything signs in to Azure as the one CI identity: the services through the `AZURE_SERVICES_*` repository variables, CI's web app deploys through `AZURE_*`, both set to that group by the setup script.
 
 The scan server (`services/omr`) is published and deployed by [`.github/workflows/scan-server.yml`](../.github/workflows/scan-server.yml) whenever `services/omr` or `scan.bicep` changes on `main`, or when run by hand from the Actions tab. It builds the image (about 2 GB, longer than CI's 5 minutes, hence its own workflow), pushes it to `ghcr.io/andreykukalev/motiff-omr`, and deploys `scan.bicep`; the job summary shows the server's address. The API's [`.github/workflows/api.yml`](../.github/workflows/api.yml) does the same for `src/MotiffLab.Api` and `api.bicep`. Until the setup below has run, both only publish their images.
 
@@ -65,9 +49,9 @@ git pull
 If Windows refuses to run scripts, start it with `powershell -ExecutionPolicy Bypass -File .\infra\azure\setup.ps1`. The script signs in where it needs to (a browser window opens: choose the account that owns *[Andrey Kukalev] Visual Studio Premium*, not a work account), shows what it will create, and asks once. Then:
 
 1. it adds up the RU/s the shared account's databases already use. If Motiff Lab's 400 RU/s fit in the free 1000, it creates the database `motifflab` with the container `projects` (partition `/ownerId`) there, changing nothing on the account itself or its other databases. If they don't (cix's two databases take 800), it creates Motiff Lab's own serverless account `cosmos-motifflab-<subscription prefix>` in `rg-motifflab` instead, with the same database and container: no reserved RU/s, billed only for requests and storage (cents a month at this use; Andrei's choice, 2026-10-30). A later run finds that account and keeps it;
-2. creates `rg-motifflab` with the CI identity `id-motifflab-github` ([`bootstrap.bicep`](bootstrap.bicep), Contributor on that group only) and `id-motifflab-api`, with data access to the `motifflab` database only;
+2. creates `rg-motifflab` with the CI identity `id-motifflab-github` ([`bootstrap.bicep`](bootstrap.bicep), Contributor on that group only), `id-motifflab-api`, with data access to the `motifflab` database only, and the web app's Static Web App `swa-motifflab` ([`main.bicep`](main.bicep), Free plan), whose address it keeps as `WEB_HOST`;
 3. creates the sign-in tenant (Microsoft Entra External ID, `motifflab.onmicrosoft.com`, Europe, 5 to 30 minutes), linked to `rg-motifflab`, signs in to it (a second browser window), and registers *Motiff Lab API* (scopes `Projects.ReadWrite` and `Scan`, v2 tokens) and *Motiff Lab* (the web app, with the redirect URIs of the Static Web App and of `dotnet run`), consents for every player, and creates the flow *Motiff Lab sign-in* (sign up and sign in with a code sent by email). If the Azure CLI may not create flows in the tenant, it says how to make that one in the Entra admin center, and waits;
-4. sets the repository variables (identifiers, not secrets): `AZURE_SERVICES_*`, `COSMOS_ENDPOINT`, `AUTH_AUTHORITY`, `AUTH_AUDIENCE`, `AUTH_CLIENT_ID`, then `SCAN_URL` and `API_URL`;
+4. sets the repository variables (identifiers, not secrets): `AZURE_*` and `AZURE_SERVICES_*`, `WEB_HOST`, `COSMOS_ENDPOINT`, `AUTH_AUTHORITY`, `AUTH_AUDIENCE`, `AUTH_CLIENT_ID`, then `SCAN_URL` and `API_URL`;
 5. runs the `Scan server`, `API` and `CI` workflows and waits for each. GitHub makes a new package private, Container Apps pulls without credentials, and GitHub has no command to change a package's visibility: the first time, the script opens the package's settings page (*Change visibility*, *Public*), waits, and re-runs the workflow.
 
 CI then builds the web app with the sign-in settings from those variables (it writes `wwwroot/appsettings.json` before publishing; the committed file stays empty, so pull request previews and local builds have no accounts unless you fill it in). Running the script again is safe: it finds what is there and adds only what is missing. `-SkipDeploy` stops before the workflows; `-Domain <name>` picks another sign-in domain if `motifflab` is taken.

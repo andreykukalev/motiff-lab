@@ -97,6 +97,7 @@ jobs:
             --template-file infra/api.bicep \
             --parameters image="$IMAGE:${{ github.sha }}" \
               authAuthority="${{ vars.AUTH_AUTHORITY }}" authAudience="${{ vars.AUTH_AUDIENCE }}" \
+              webHost="${{ vars.WEB_HOST || 'nice-smoke-0169fb403.6.azurestaticapps.net' }}" \
               cosmosEndpoint="${{ vars.COSMOS_ENDPOINT }}" \
             --query properties.outputs.url.value --output tsv)"
           echo "API: $url" | tee -a "$GITHUB_STEP_SUMMARY"

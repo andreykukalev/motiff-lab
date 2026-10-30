@@ -3,8 +3,8 @@ name: Scan server
 # Publishes the scan server's image (services/omr) to GitHub's container registry and deploys it to
 # Azure Container Apps (infra/scan.bicep, decision record 0014). Its own workflow, not a CI step:
 # the image is about 2 GB and takes longer to build than CI's 5 minutes. CI still runs its tests.
-# The services live next to the Cosmos DB account, in another subscription than the web app, and sign in
-# with their own CI identity (AZURE_SERVICES_*, set by infra/azure/setup.ps1).
+# The services live in rg-motifflab next to their database and the web app, and sign in as the CI identity
+# set up by infra/azure/setup.ps1 (AZURE_SERVICES_*).
 on:
   push:
     branches: [main]
@@ -87,5 +87,6 @@ jobs:
             --template-file infra/scan.bicep \
             --parameters image="$IMAGE:${{ github.sha }}" \
               authAuthority="${{ vars.AUTH_AUTHORITY }}" authAudience="${{ vars.AUTH_AUDIENCE }}" \
+              webHost="${{ vars.WEB_HOST || 'nice-smoke-0169fb403.6.azurestaticapps.net' }}" \
             --query properties.outputs.url.value --output tsv)"
           echo "Scan server: $url" | tee -a "$GITHUB_STEP_SUMMARY"
