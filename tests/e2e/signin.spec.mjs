@@ -53,7 +53,7 @@ test("Sign in opens the sign-in page in the app's language", async ({ page }) =>
     const opened = await signInTenant(page);
     const errors = [];
     page.on("console", message => { if (message.type() === "error") errors.push(message.text()); });
-    await page.goto("/settings");
+    await page.goto("/");
     await page.getByRole("button", { name: "Русский" }).click();
     await page.getByRole("button", { name: "Войти" }).first().click();
 
@@ -74,4 +74,19 @@ test("Create an account opens the sign-up form", async ({ page }) => {
     const query = opened.at(-1).searchParams;
     expect(query.get("prompt")).toBe("create");
     expect(query.get("ui_locales")).toBe("en-US");
+});
+
+test("with sign-in, the header holds the language and Sign in, and the account page only the account", async ({ page }) => {
+    await signInTenant(page);
+    await page.goto("/");
+    await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "English" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("link", { name: "Settings" })).toHaveCount(0);
+
+    // Scanning uses Motiff Lab's server: nothing to set, and its screen asks only to sign in.
+    await page.goto("/settings");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Your account");
+    await expect(page.locator("#scan")).toHaveCount(0);
+    await page.goto("/import/scan");
+    await expect(page.locator(".sign-in-prompt").getByRole("button", { name: "Sign in" })).toBeVisible();
 });

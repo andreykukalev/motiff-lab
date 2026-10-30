@@ -256,8 +256,15 @@ public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text
     {
         try
         {
+            // Motiff Lab's server, where the build has one, is the only one: there is nothing for the player to set.
+            if (HostedAddress is { } hosted)
+            {
+                Address = hosted;
+                return;
+            }
+
             string? stored = await js.InvokeAsync<string?>("localStorage.getItem", AddressKey);
-            Address = stored == OffValue ? null : Parse(stored) ?? HostedAddress;
+            Address = stored == OffValue ? null : Parse(stored);
         }
         catch (JSException)
         {

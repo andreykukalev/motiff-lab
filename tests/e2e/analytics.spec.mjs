@@ -5,7 +5,7 @@ import { openFurElise, selectBar } from "./steps.mjs";
 
 test("analytics record nothing until turned on, never the piece, and forget everything when turned off", async ({ page }) => {
     await openFurElise(page);
-    await page.goto("/settings");
+    await page.goto("/privacy");
     const toggle = page.getByLabel("Send anonymous usage analytics");
     await expect(toggle).not.toBeChecked();
     await expect(page.getByText("Nothing is recorded while analytics are off.")).toBeVisible();
@@ -22,9 +22,8 @@ test("analytics record nothing until turned on, never the piece, and forget ever
     await page.getByRole("tab", { name: "Tools", exact: true }).click();
     await page.getByRole("button", { name: "Dotted" }).click();
 
-    // Settings is reached from Projects (the gear by the account), within the same load of the app.
-    await page.getByRole("link", { name: "‹ Projects" }).click();
-    await page.getByRole("link", { name: "Settings" }).click();
+    // The choice is on the privacy notice, linked from every page's footer, within the same load of the app.
+    await page.getByRole("link", { name: "Privacy" }).click();
     await expect(page.locator(".events")).toContainText("app_opened");
     const events = page.locator(".events li");
     await expect(events.first()).toBeVisible();
