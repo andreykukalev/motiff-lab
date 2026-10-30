@@ -65,11 +65,13 @@ public sealed class VariationChain
 
     /// <summary>Why the pending step cannot be accepted, or null when it can.</summary>
     public string? AcceptDisabledReason => Pending is null
-        ? "There is no step to accept."
-        : Steps.Count >= MaxSteps ? $"A variation holds up to {MaxSteps} steps." : null;
+        ? Context.Words.T("There is no step to accept.", "Нет шага, который можно принять.")
+        : Steps.Count >= MaxSteps ? Full : null;
 
     /// <summary>Why a hand edit cannot be added, or null when it can: the chain is full.</summary>
-    public string? EditDisabledReason => Steps.Count + (Pending is null ? 0 : 1) >= MaxSteps ? $"A variation holds up to {MaxSteps} steps." : null;
+    public string? EditDisabledReason => Steps.Count + (Pending is null ? 0 : 1) >= MaxSteps ? Full : null;
+
+    private string Full => Context.Words.T($"A variation holds up to {MaxSteps} steps.", $"В вариации может быть не больше {MaxSteps} шагов.");
 
     /// <summary>A chain with no steps yet over the motif's notes.</summary>
     public static VariationChain Start(IReadOnlyList<Note> original, VariationContext context)
@@ -83,7 +85,7 @@ public sealed class VariationChain
     public string? UnavailableReason(IVariationOperation operation, OperationParameters parameters)
     {
         ArgumentNullException.ThrowIfNull(operation);
-        return operation.DisabledReason(Context.Keep) ?? operation.UnavailableReason(Current, Context, parameters);
+        return operation.DisabledReason(Context.Keep, Context.Words) ?? operation.UnavailableReason(Current, Context, parameters);
     }
 
     /// <summary>Runs a step on the current notes and holds it as pending, in place of any pending step.</summary>
@@ -198,7 +200,7 @@ public sealed class VariationChain
     }
 
     private static string? Unavailable(IVariationOperation operation, OperationParameters parameters, IReadOnlyList<Note> notes, VariationContext context) =>
-        operation.DisabledReason(context.Keep) ?? operation.UnavailableReason(notes, context, parameters);
+        operation.DisabledReason(context.Keep, context.Words) ?? operation.UnavailableReason(notes, context, parameters);
 
     private static VariationStep Step(IVariationOperation operation, OperationParameters parameters, IReadOnlyList<Note> notes, VariationContext context) =>
         new(operation, parameters, operation.Apply(notes, context, parameters));
@@ -212,7 +214,7 @@ public sealed class VariationChain
             original,
             final,
             context.Keep,
-            OperationRules.Check(original, final).Flags,
+            OperationRules.Check(original, final, context.Words).Flags,
             context.Key,
             context.Meter,
             context.Words);

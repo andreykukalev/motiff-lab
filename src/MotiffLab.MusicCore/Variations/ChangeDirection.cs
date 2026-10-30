@@ -38,9 +38,12 @@ public sealed class ChangeDirection : MelodyOperation<ChangeDirectionParameters>
 
     protected override IntervalSet? Intervals(ChangeDirectionParameters parameters) => parameters.Intervals;
 
-    protected override string? MelodyPrecondition(int[] melody, MusicalKey? key, ChangeDirectionParameters parameters) =>
+    protected override string? MelodyPrecondition(int[] melody, MusicalKey? key, ChangeDirectionParameters parameters, Words words) =>
         Enumerable.Range(0, melody.Length - 1).All(i => !Changes(parameters, i) || melody[i + 1] == melody[i])
-            ? $"{Name} has nothing to turn: {(parameters.Intervals is null ? "the melody repeats one note" : "the picked intervals repeat a note")}, so it is not available for this selection."
+            ? NotAvailable(
+                words,
+                $"has nothing to turn: {(parameters.Intervals is null ? "the melody repeats one note" : "the picked intervals repeat a note")}",
+                $"переворачивать нечего, {(parameters.Intervals is null ? "мелодия повторяет одну ноту" : "выбранные интервалы повторяют ноту")}")
             : null;
 
     /// <remarks>Walks the intervals from the first note, turning each picked one over; with every interval picked this mirrors the melody around its first note.</remarks>

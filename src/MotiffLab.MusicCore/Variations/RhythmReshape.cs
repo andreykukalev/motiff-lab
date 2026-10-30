@@ -75,12 +75,15 @@ public sealed class RhythmReshape : VariationOperation<RhythmReshapeParameters>
 
     protected override string? Precondition(IReadOnlyList<Note> notes, VariationContext context, RhythmReshapeParameters parameters) => parameters.Kind switch
     {
-        RhythmReshapeKind.DoubleTime when notes.Any(note => (note.Span.Onset.Value - context.Span.Onset.Value) % 2 != 0 || note.Span.Duration % 2 != 0) =>
+        RhythmReshapeKind.DoubleTime when notes.Any(note => (note.Span.Onset.Value - context.Span.Onset.Value) % 2 != 0 || note.Span.Duration % 2 != 0) => context.Words.T(
             "Double-time would put a note between ticks, so it is not available for this selection.",
-        RhythmReshapeKind.Syncopate when Anticipations(notes, context).Count == 0 =>
+            "Для этого выделения «Вдвое быстрее» не подходит: нота попала бы между тиками."),
+        RhythmReshapeKind.Syncopate when Anticipations(notes, context).Count == 0 => context.Words.T(
             "Syncopate needs a note on a beat after the first with nothing starting in the half beat before it, so it is not available for this selection.",
-        RhythmReshapeKind.Dotted when Pairs(notes, context.Beats).Count == 0 =>
+            "Для этого выделения синкопирование не подходит: нужна нота на доле после первой, и чтобы за полдоли до неё ничего не начиналось."),
+        RhythmReshapeKind.Dotted when Pairs(notes, context.Beats).Count == 0 => context.Words.T(
             "Dotted needs two notes in a row a quarter, an eighth or a 16th apart, the first on a multiple of twice that distance from the bar line, so it is not available for this selection.",
+            "Для этого выделения пунктир не подходит: нужны две ноты подряд на расстоянии четверти, восьмой или шестнадцатой, и первая из них на месте, кратном удвоенному расстоянию от тактовой черты."),
         _ => null,
     };
 

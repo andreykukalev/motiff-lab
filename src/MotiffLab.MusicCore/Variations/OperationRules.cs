@@ -29,26 +29,29 @@ public static class OperationRules
     /// </summary>
     private static readonly long[] s_grids = [CanonicalTime.TicksPerQuarter / 8, CanonicalTime.TicksPerQuarter / 6];
 
-    public static RuleReport Check(IReadOnlyList<Note> before, IReadOnlyList<Note> after)
+    public static RuleReport Check(IReadOnlyList<Note> before, IReadOnlyList<Note> after) => Check(before, after, Words.English);
+
+    /// <summary>The rules, with the violation and the flags in the player's language (#134).</summary>
+    public static RuleReport Check(IReadOnlyList<Note> before, IReadOnlyList<Note> after, Words words)
     {
         ArgumentNullException.ThrowIfNull(before);
         ArgumentNullException.ThrowIfNull(after);
-        string? violation = Range(after) ?? Grid(before, after) ?? Crossing(before, after);
-        return new RuleReport(violation, HandSpans(before, after));
+        string? violation = Range(after, words) ?? Grid(before, after, words) ?? Crossing(before, after, words);
+        return new RuleReport(violation, HandSpans(before, after, words));
     }
 
-    private static string? Range(IReadOnlyList<Note> after) =>
+    private static string? Range(IReadOnlyList<Note> after, Words w) =>
         after.Any(static note => note.Pitch.MidiNumber is < LowestPitch or > HighestPitch)
-            ? "would put a note outside the piano's range (A0–C8)"
+            ? w.T("would put a note outside the piano's range (A0–C8)", "нота вышла бы за пределы диапазона фортепиано (A0–C8)")
             : null;
 
     /// <summary>A note whose source was on the grid must stay on it; an added note must be on it when every source note was.</summary>
-    private static string? Grid(IReadOnlyList<Note> before, IReadOnlyList<Note> after)
+    private static string? Grid(IReadOnlyList<Note> before, IReadOnlyList<Note> after, Words w)
     {
         Dictionary<string, Note> byId = before.ToDictionary(static note => note.Id, StringComparer.Ordinal);
         bool allOnGrid = before.All(OnGrid);
         bool leaves = after.Any(note => !OnGrid(note) && (byId.TryGetValue(note.Id, out Note? source) ? OnGrid(source) : allOnGrid));
-        return leaves ? "would put a note off the grid of 32nds and triplet 16ths" : null;
+        return leaves ? w.T("would put a note off the grid of 32nds and triplet 16ths", "нота сошла бы с сетки тридцать вторых и триольных шестнадцатых") : null;
     }
 
     private static bool OnGrid(Note note) => OnGrid(note.Span.Onset.Value) && OnGrid(note.Span.End.Value);
@@ -59,11 +62,11 @@ public static class OperationRules
     /// Two voices cross when one sounds above the other where the source only had it below. Voices
     /// are notated voices within a track; without them, hands. Notes with neither are not compared.
     /// </summary>
-    private static string? Crossing(IReadOnlyList<Note> before, IReadOnlyList<Note> after)
+    private static string? Crossing(IReadOnlyList<Note> before, IReadOnlyList<Note> after, Words w)
     {
         HashSet<(string Upper, string Lower)> was = Orders(before);
         return Orders(after).Any(order => !was.Contains(order) && was.Contains((order.Lower, order.Upper)))
-            ? "would make voices cross"
+            ? w.T("would make voices cross", "голоса перекрестились бы")
             : null;
     }
 
@@ -98,13 +101,15 @@ public static class OperationRules
         : note.Hand is { } hand ? $"{hand.Value} hand" : null;
 
     /// <summary>Each hand's widest chord in the result that is wider than a 10th and was not already in the source.</summary>
-    private static IReadOnlyList<string> HandSpans(IReadOnlyList<Note> before, IReadOnlyList<Note> after)
+    private static IReadOnlyList<string> HandSpans(IReadOnlyList<Note> before, IReadOnlyList<Note> after, Words w)
     {
         Dictionary<Hand, int> was = WidestSpans(before);
         return WidestSpans(after)
             .Where(span => span.Value > MaxHandSpan && span.Value > was.GetValueOrDefault(span.Key))
             .OrderBy(static span => span.Key)
-            .Select(static span => $"The {span.Key.ToString().ToLowerInvariant()} hand spans {span.Value} semitones, more than a 10th.")
+            .Select(span => w.IsRussian
+                ? $"{(span.Key == Hand.Left ? "Левая" : "Правая")} рука охватывает {w.Count(span.Value, "", "", "полутон", "полутона", "полутонов")}, больше децимы."
+                : $"The {span.Key.ToString().ToLowerInvariant()} hand spans {span.Value} semitones, more than a 10th.")
             .ToArray();
     }
 

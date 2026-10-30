@@ -72,6 +72,7 @@ public partial class RussianExplanationTests
         ImportedPiece piece = Piece(name);
         var found = new SortedSet<string>(StringComparer.Ordinal);
         int explained = 0;
+        int unavailable = 0;
         foreach (MotifSelection selection in Selections(piece))
         {
             IReadOnlyList<Note> notes = VariationFacts.MotifNotes(piece.Notes, selection);
@@ -84,6 +85,8 @@ public partial class RussianExplanationTests
                 {
                     if (operation.UnavailableReason(notes, english, parameters) is not null)
                     {
+                        AddLatin(found, $"{operation.Id} {parameters} unavailable", operation.UnavailableReason(notes, russian, parameters)!);
+                        unavailable++;
                         continue;
                     }
 
@@ -99,6 +102,7 @@ public partial class RussianExplanationTests
 
         Assert.Empty(found);
         Assert.True(explained >= 50, $"Only {explained} explanations ran on {name}.");
+        Assert.True(unavailable > 0, $"No step was unavailable on {name}.");
     }
 
     [Theory]
@@ -144,6 +148,44 @@ public partial class RussianExplanationTests
 
         Assert.Empty(found);
         Assert.True(offered > 0, $"No experiment was offered on {name}.");
+    }
+
+    [Fact]
+    public void The_keep_table_reads_in_russian()
+    {
+        var found = new SortedSet<string>(StringComparer.Ordinal);
+        KeepProperty[] properties = Enum.GetValues<KeepProperty>();
+        foreach (KeepRow row in KeepTable.Rows)
+        {
+            foreach (KeepProperty first in properties)
+            {
+                foreach (KeepProperty second in properties)
+                {
+                    var keep = new HashSet<KeepProperty> { first, second };
+                    Assert.Equal(KeepTable.DisabledReason(row.OperationId, keep) is null, KeepTable.DisabledReason(row.OperationId, keep, Words.Russian) is null);
+                    if (KeepTable.DisabledReason(row.OperationId, keep, Words.Russian) is { } reason)
+                    {
+                        AddLatin(found, row.OperationId, reason);
+                    }
+                }
+            }
+
+            AddLatin(found, row.OperationId, row.NameIn(Words.Russian));
+            foreach (KeepFootnote footnote in row.Footnotes.Values)
+            {
+                AddLatin(found, row.OperationId, footnote.TextIn(Words.Russian));
+            }
+        }
+
+        foreach (KeepPreset preset in KeepTable.Presets)
+        {
+            AddLatin(found, preset.Id, preset.LabelIn(Words.Russian));
+        }
+
+        Assert.Empty(found);
+        Assert.Equal(
+            "«Изменение ритма» меняет, когда начинаются ноты и сколько они длятся, поэтому эту операцию нельзя применить, пока в «Сохранить» отмечено: ритм.",
+            KeepTable.DisabledReason("V1", new HashSet<KeepProperty> { KeepProperty.Rhythm }, Words.Russian));
     }
 
     [Fact]
