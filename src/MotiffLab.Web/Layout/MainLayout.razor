@@ -31,7 +31,7 @@
             await Analytics.TrackAsync(AnalyticsEvent.AppOpened());
         }
 
-        // The layout renders again with each new page, so a link to a place on it ("import#scan-heading") lands there.
+        // The layout renders again with each new page, so a link to a place on it ("settings#account") lands there.
         string uri = Navigation.Uri;
         int hash = uri.IndexOf('#', StringComparison.Ordinal);
         if (hash >= 0 && hash < uri.Length - 1 && uri != _scrolledFor)

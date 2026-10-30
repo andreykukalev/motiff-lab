@@ -41,7 +41,7 @@
     }
 
     @* The routes in, as large tiles a finger finds on an iPad at the piano. Scanning and transcription say here when they
-       need a server or a sign-in first; the import screen has the details. *@
+       need a server or a sign-in first; their screens have the details. *@
     <section class="start-new" aria-labelledby="start-heading">
         <h2 id="start-heading">@Text["home.startHeading"]</h2>
         <ul class="start-tiles">
@@ -53,7 +53,7 @@
                 </a>
             </li>
             <li>
-                <a class="start-tile" href="import#scan-heading">
+                <a class="start-tile" href="import/scan">
                     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 8V4h4 M16 4h4v4 M20 16v4h-4 M8 20H4v-4 M7 9h10 M7 12h10 M7 15h10" /></svg>
                     <strong>@Text["home.fromScan"]</strong>
                     <span class="hint">@Text["home.fromScanHint"]</span>
@@ -64,7 +64,7 @@
                 </a>
             </li>
             <li>
-                <a class="start-tile" href="import#transcribe-heading">
+                <a class="start-tile" href="import/recording">
                     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 12h2 M7 8v8 M11 5v14 M15 9v6 M19 11v2 M21 12h0" /></svg>
                     <strong>@Text["home.fromRecording"]</strong>
                     <span class="hint">@Text["home.fromRecordingHint"]</span>
@@ -262,8 +262,8 @@
         _message = null;
         try
         {
-            // A project holds a source of at most 5 MB, which base64 and the JSON around it grow by about a third.
-            await using Stream stream = args.File.OpenReadStream(8 * 1024 * 1024);
+            // A project holds a source of at most 50 MB, which base64 and the JSON around it grow by about a third.
+            await using Stream stream = args.File.OpenReadStream(70 * 1024 * 1024);
             using var memory = new MemoryStream();
             await stream.CopyToAsync(memory);
             Project project = ProjectFile.Read(memory.ToArray());

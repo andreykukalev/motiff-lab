@@ -64,7 +64,7 @@ async function violations(page) {
 }
 
 test("transcription is off until Settings has a scan server", async ({ page }) => {
-    await page.goto("/import");
+    await page.goto("/import/recording");
     await expect(page.getByText("Set up the scan server in Settings")).toBeVisible();
     await expect(page.getByLabel("Choose an audio or video recording to transcribe")).toHaveCount(0);
 });
@@ -75,7 +75,7 @@ test("a recording's sound is sent as mono audio, and its notes open marked as he
     await page.getByRole("button", { name: "Save and check" }).click();
     await expect(page.getByText("Connected: the scan server runs homr 0.7.0")).toBeVisible();
 
-    await page.goto("/import");
+    await page.goto("/import/recording");
     await page.getByLabel("Choose an audio or video recording to transcribe").setInputFiles(await recording());
     await expect(page.getByText("Transcribed by basic-pitch 0.4.0")).toBeVisible();
     await expect(page.locator(".report .summary")).toContainText("7 notes");

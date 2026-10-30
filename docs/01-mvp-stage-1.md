@@ -126,7 +126,7 @@ These requirements cover everything in Stage 1 except rhythm restoration, the va
 
 | ID | Requirement | Priority |
 | --- | --- | --- |
-| S1-I1 | Accept .mid (Standard MIDI File type 0 and 1, timed in ticks per quarter note) and .musicxml or .mxl (MusicXML) files up to 5 MB | Must |
+| S1-I1 | Accept .mid (Standard MIDI File type 0 and 1, timed in ticks per quarter note) and .musicxml or .mxl (MusicXML) files up to 50 MB | Must |
 | S1-I2 | Parse notes (pitch, onset, duration, velocity), rests, chords, ties (merged into one note), tuplets and grace notes (flagged); exclude MIDI drum channel 10 with a notice | Must |
 | S1-I3 | Keep the tempo map, time signatures, key signatures and pickup bars; MIDI without a time signature is read as 4/4 with a notice | Must |
 | S1-I4 | Keep track, part and instrument names; split a piano grand staff into right and left hand by staff; for a single-track piano MIDI, infer hands by pitch and continuity, marked as inferred | Must |

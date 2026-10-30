@@ -11,8 +11,8 @@ namespace MotiffLab.MusicCore.Import.MusicXml;
 /// </summary>
 internal static class MxlArchive
 {
-    /// <summary>The most an archive may unpack to. MusicXML compresses about tenfold.</summary>
-    public const int MaxScoreBytes = 10 * MusicXmlImporter.MaxFileBytes;
+    /// <summary>The most an archive may unpack to: a score far larger than any piece, short of what a browser can hold.</summary>
+    public const int MaxScoreBytes = 200 * 1024 * 1024;
 
     private const string MusicXmlMediaType = "application/vnd.recordare.musicxml+xml";
 

@@ -42,6 +42,25 @@ public sealed class UiText(HttpClient http, IJSRuntime js)
     /// <summary>The string for a key with its placeholders filled, as <see cref="string.Format(IFormatProvider, string, object[])"/> does.</summary>
     public string Format(string key, params object[] args) => string.Format(CultureInfo.InvariantCulture, this[key], args);
 
+    /// <summary>
+    /// A count with its noun in the right form, from <c>key.one</c>, <c>key.few</c> or <c>key.many</c> (Russian has all
+    /// three; English uses one and many), each with {0} for the number.
+    /// </summary>
+    public string Count(string key, int count) => Format($"{key}.{PluralForm(Language, count)}", count.ToString("N0", Culture));
+
+    /// <summary>"one", "few" or "many" for a count: Russian's three forms, or English's one and many.</summary>
+    public static string PluralForm(string language, int count)
+    {
+        if (language != "ru")
+        {
+            return count == 1 ? "one" : "many";
+        }
+
+        int tens = count % 100;
+        int units = count % 10;
+        return units == 1 && tens != 11 ? "one" : units is >= 2 and <= 4 && tens is < 12 or > 14 ? "few" : "many";
+    }
+
     /// <summary>Whether the key has a string in the language in use or in English.</summary>
     public bool Has(string key) => _strings.ContainsKey(key) || _fallback.ContainsKey(key);
 

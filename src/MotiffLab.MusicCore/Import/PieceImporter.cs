@@ -237,7 +237,7 @@ public static class PieceImporter
         ImportRejectionReason.Empty => new(reason, message ?? "This file is empty.", "Export the piece again and pick the new file."),
         ImportRejectionReason.TooLarge => new(
             reason,
-            message ?? "This file is larger than 5 MB, the most Motiff Lab can import.",
+            message ?? "This file is larger than 50 MB, the most Motiff Lab can import.",
             "Export only the movement or the tracks you want to explore."),
         ImportRejectionReason.Pdf => new(reason, message ?? "This looks like a PDF.", NotationTip),
         ImportRejectionReason.Image => new(

@@ -37,7 +37,7 @@ async function scanServer(page) {
 }
 
 test("scanning is off until Settings has a scan server", async ({ page }) => {
-    await page.goto("/import");
+    await page.goto("/import/scan");
     await expect(page.getByText("Set it up in Settings")).toBeVisible();
     await expect(page.getByLabel("Choose a PDF or photo of printed music to scan")).toHaveCount(0);
 });
@@ -49,7 +49,7 @@ test("a scanned page opens with its doubtful bars to check, and checked bars sta
     await expect(page.getByText("Connected: the scan server runs homr 0.7.0")).toBeVisible();
     expect(await violations(page)).toEqual([]);
 
-    await page.goto("/import");
+    await page.goto("/import/scan");
     await page.getByLabel("Choose a PDF or photo of printed music to scan").setInputFiles(photo);
     const check = page.locator(".scan-check");
     await expect(check).toContainText("7 bars of 32 may have been misread");

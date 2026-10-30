@@ -32,7 +32,7 @@ namespace MotiffLab.MusicCore.Import.Midi;
 public static class MidiImporter
 {
     /// <summary>The Stage 1 file size limit (S1-I1).</summary>
-    public const int MaxFileBytes = 5 * 1024 * 1024;
+    public const int MaxFileBytes = 50 * 1024 * 1024;
 
     /// <summary>Confidence of a note whose end was assumed: the note is real, its length is a guess.</summary>
     public const double AssumedEndConfidence = 0.5;
@@ -47,7 +47,7 @@ public static class MidiImporter
     {
         if (data.Length > MaxFileBytes)
         {
-            throw new MidiImportException(MidiImportFailure.TooLarge, "This file is larger than 5 MB, the most Motiff Lab can import.");
+            throw new MidiImportException(MidiImportFailure.TooLarge, "This file is larger than 50 MB, the most Motiff Lab can import.");
         }
 
         var issues = new ImportIssueCollector();
