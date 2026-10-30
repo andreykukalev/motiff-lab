@@ -15,7 +15,7 @@
 
 @* N1 · Projects (S1-P1, 0012): a project is a piece and everything the player made around it. Opening one goes to its page,
    with its sessions and ideas; export and re-import as one file for backup (AC-S1-20). The screen also starts a new piece
-   by each route in (a file, a scan, a recording, Für Elise) and says where projects are saved (0014). *@
+   by each route in (a file, a scan, a recording, Für Elise). *@
 <main class="lab projects home-screen">
     <header class="page-header">
         <div class="brand">
@@ -161,33 +161,6 @@
         </section>
     }
 
-    @* Where the projects are: this browser only, or online too once the player signs in and turns it on (0014). *@
-    @if (_summaries is not null)
-    {
-        <section class="saving" aria-labelledby="saving-heading">
-            <h2 id="saving-heading">@Text["home.savingHeading"]</h2>
-            @if (!Account.IsAvailable)
-            {
-                <p class="meta">@Text["home.savedHere"]</p>
-            }
-            else if (_player is null)
-            {
-                <MotiffLab.Web.Account.SignInPrompt Text="@Text["home.savingSignedOut"]" />
-            }
-            else if (!_onlineOn)
-            {
-                <p>@Text.Format("home.savingOff", _player) <a href="settings#account">@Text["home.turnOnline"]</a></p>
-            }
-            else
-            {
-                <p>@Text.Format("home.savingOn", _player)</p>
-                @if (Online.Status is { } status)
-                {
-                    <p class="meta" role="status">@status</p>
-                }
-            }
-        </section>
-    }
 </main>
 
 @code {
@@ -196,23 +169,14 @@
     private string? _message;
     private string? _confirmDelete;
     private IReadOnlyList<ProjectSummary>? _onlineOnly;
-    private bool _onlineOn;
     private string? _player;
 
     /// <summary>What scanning and transcription need before they work here, or null when they are ready.</summary>
     private string? _serverNote;
 
-    protected override void OnInitialized()
-    {
-        Text.Changed += OnChanged;
-        Online.Changed += OnChanged;
-    }
+    protected override void OnInitialized() => Text.Changed += OnChanged;
 
-    public void Dispose()
-    {
-        Text.Changed -= OnChanged;
-        Online.Changed -= OnChanged;
-    }
+    public void Dispose() => Text.Changed -= OnChanged;
 
     private void OnChanged()
     {
@@ -246,8 +210,7 @@
         _summaries = await Projects.ListAsync();
         _nearlyFull = await Projects.IsNearlyFullAsync();
         _onlineOnly = null;
-        _onlineOn = await Online.IsOnAsync();
-        if (_onlineOn)
+        if (await Online.IsOnAsync())
         {
             // Offline or signed out, the list is just left out: this screen is about the projects here.
             (IReadOnlyList<ProjectSummary>? online, _) = await Online.ListAsync();

@@ -22,6 +22,8 @@ test("analytics record nothing until turned on, never the piece, and forget ever
     await page.getByRole("tab", { name: "Tools", exact: true }).click();
     await page.getByRole("button", { name: "Dotted" }).click();
 
+    // Settings is reached from Projects (the gear by the account), within the same load of the app.
+    await page.getByRole("link", { name: "‹ Projects" }).click();
     await page.getByRole("link", { name: "Settings" }).click();
     await expect(page.locator(".events")).toContainText("app_opened");
     const events = page.locator(".events li");
