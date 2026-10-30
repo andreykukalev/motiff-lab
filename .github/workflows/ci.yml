@@ -80,7 +80,7 @@ jobs:
             while IFS= read -r f; do
               case "$f" in
                 '') ;;
-                *.md|docs/*|stage1-issues/*|pilot/*|LICENSE*|.github/ISSUE_TEMPLATE/*|.github/pull_request_template.md) ;;
+                *.md|docs/*|ios/*|stage1-issues/*|pilot/*|LICENSE*|.github/ISSUE_TEMPLATE/*|.github/pull_request_template.md) ;;
                 src/*|infra/*|global.json|Directory.Build.props|Directory.Packages.props|MotiffLab.slnx|.github/workflows/ci.yml)
                   code=true
                   app=true

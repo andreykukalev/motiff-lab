@@ -1,0 +1,14 @@
+// Build settings for the Motiff Lab iPad app (project.yml). Put yours in Local.xcconfig next to this file
+// (copy Local.xcconfig.example); it is not committed, so each Mac keeps its own signing team.
+
+// The deployed web app the app opens: swa-motifflab in Azure. In an xcconfig "//" starts a comment, so
+// the address is a host name; https:// is added in Info.plist.
+MOTIFF_WEB_HOST = nice-smoke-0169fb403.6.azurestaticapps.net
+
+// Must be unique among all apps signed by Apple. A free Apple ID can sign it for 7 days at a time.
+PRODUCT_BUNDLE_IDENTIFIER = com.andreykukalev.motifflab
+
+// Your Apple developer team: set it in Local.xcconfig, or pick it in Xcode under Signing & Capabilities.
+DEVELOPMENT_TEAM =
+
+#include? "Local.xcconfig"

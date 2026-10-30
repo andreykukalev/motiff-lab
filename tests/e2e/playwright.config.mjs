@@ -8,7 +8,7 @@ import { resolve } from "node:path";
 
 const publish = resolve(import.meta.dirname, "../..", process.env.PUBLISH_DIR ?? "publish", "wwwroot");
 const port = 5180;
-const chromiumOnly = /(accessibility|analytics|scan)\.spec/;
+const chromiumOnly = /(accessibility|analytics|pencil|scan)\.spec/;
 
 export default defineConfig({
     testDir: ".",

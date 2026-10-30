@@ -1,0 +1,9 @@
+// Copy to Local.xcconfig (not committed) and fill in. Your team ID is in Xcode: Settings > Accounts >
+// your Apple ID > the team, or on developer.apple.com > Membership. A free Apple ID has a "Personal Team".
+DEVELOPMENT_TEAM = ABCDE12345
+
+// Another bundle ID, if com.andreykukalev.motifflab is taken by another Apple ID.
+// PRODUCT_BUNDLE_IDENTIFIER = com.yourname.motifflab
+
+// A pull request preview of the web app instead of the deployed one, for trying a change on the iPad.
+// MOTIFF_WEB_HOST = nice-smoke-0169fb403-123.westeurope.6.azurestaticapps.net

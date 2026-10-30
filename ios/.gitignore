@@ -1,0 +1,8 @@
+# Made by XcodeGen from project.yml.
+MotiffLab.xcodeproj/
+MotiffLab/Info.plist
+# Each Mac's own signing team.
+Config/Local.xcconfig
+# Xcode's per-user state.
+xcuserdata/
+DerivedData/

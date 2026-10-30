@@ -2,6 +2,8 @@
 // project file (ProjectFile.cs) next to a summary row for the projects screen (N1), so listing never
 // loads the source files. Nothing here leaves the device.
 
+export { deleteMarks } from "./pencil-store.js";
+
 const DATABASE = "motiff-lab";
 const VERSION = 1;
 const PROJECTS = "projects";
