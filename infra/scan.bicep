@@ -14,7 +14,7 @@ param image string
 // Poland Central, next to the shared Cosmos DB account; an EU region either way.
 param location string = 'polandcentral'
 
-// The Static Web App lives in another subscription (rg-motifflab), so its host name is given, not looked up.
+// The workflow passes the WEB_HOST repository variable, which infra/azure/setup.ps1 sets from swa-motifflab in this group.
 @description('Host name of the web app: swa-motifflab\'s default host name.')
 param webHost string = 'nice-smoke-0169fb403.6.azurestaticapps.net'
 

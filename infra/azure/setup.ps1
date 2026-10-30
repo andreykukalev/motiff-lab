@@ -9,12 +9,14 @@
     1. the database motifflab (400 RU/s shared) and its container projects in the shared account. It first adds up what
        the account's other databases use, and stops, creating nothing, if Motiff Lab would take it past the free 1000 RU/s;
     2. the resource group rg-motifflab (Poland Central) with the CI identity id-motifflab-github (infra/bootstrap.bicep,
-       Contributor on that group only) and the API's identity id-motifflab-api (data access to the motifflab database only);
+       Contributor on that group only), the API's identity id-motifflab-api (data access to the motifflab database only)
+       and the web app's Static Web App swa-motifflab (infra/main.bicep, Free plan, West Europe), so everything Motiff Lab
+       runs is in one group and CI deploys all of it as one identity;
     3. the sign-in tenant, Microsoft Entra External ID (free up to 50,000 monthly users), linked to rg-motifflab, with the
        app registrations Motiff Lab API (scopes Projects.ReadWrite and Scan) and Motiff Lab (the web app), and a sign-up
        and sign-in flow by email code. Google and Apple are added later, by hand (infra/README.md);
-    4. the repository variables the workflows read (identifiers, not secrets): AZURE_SERVICES_*, COSMOS_ENDPOINT, AUTH_*,
-       SCAN_URL and API_URL;
+    4. the repository variables the workflows read (identifiers, not secrets): AZURE_* and AZURE_SERVICES_* (both this
+       group now), WEB_HOST, COSMOS_ENDPOINT, AUTH_*, SCAN_URL and API_URL;
     5. then it runs the Scan server, API and CI workflows and waits for each. GitHub makes a new package private and has no
        command to change that, so the first time it opens the package's settings for you to make it public, and goes on.
   It changes nothing on the Cosmos DB account itself, in its other databases or in any other resource group.
@@ -23,6 +25,8 @@
   .\infra\azure\setup.ps1
 .EXAMPLE
   .\infra\azure\setup.ps1 -SkipDeploy      # Azure, sign-in and GitHub variables only, no workflows
+.PARAMETER WebHost
+  The web app's address, when it is not the Static Web App's own *.azurestaticapps.net one (a custom domain).
 .PARAMETER Domain
   The sign-in tenant's domain: players sign in on <Domain>.ciamlogin.com. Letters and digits; it must be free worldwide.
 #>
@@ -31,7 +35,7 @@ param(
   [string]$Subscription = '[Andrey Kukalev] Visual Studio Premium',
   [ValidatePattern('^[a-z0-9]{1,26}$')][string]$Domain = 'motifflab',
   [ValidatePattern('^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$')][string]$Repository = 'andreykukalev/motiff-lab',
-  [string]$WebHost = 'nice-smoke-0169fb403.6.azurestaticapps.net',
+  [string]$WebHost,
   [string]$CosmosAccount,
   [switch]$SkipDeploy,
   [switch]$Yes
@@ -59,11 +63,6 @@ $GraphOfflineAccess = '7427e0e9-2fba-42fe-b0c0-848c9e6a8182' # offline_access
 $Scopes = @(
   @{ value = 'Projects.ReadWrite'; name = 'Save and read your projects'; description = 'Motiff Lab saves your projects online and reads them back on your other devices.' },
   @{ value = 'Scan'; name = 'Read printed music and recordings you send'; description = "Motiff Lab's server reads the pages and recordings you send it, and keeps none of them." }
-)
-$RedirectUris = @(
-  "https://$WebHost/authentication/login-callback",
-  'https://localhost:7281/authentication/login-callback',
-  'http://localhost:5112/authentication/login-callback'
 )
 $Owner = $Repository.Split('/')[0]
 
@@ -112,7 +111,7 @@ $account = Connect-MotiffAzure -Subscription $Subscription
 $subscriptionId = "$($account.id)"
 $homeTenant = "$($account.tenantId)"
 $ArmArgs = @('--subscription', $subscriptionId)
-foreach ($provider in 'Microsoft.App', 'Microsoft.ManagedIdentity', 'Microsoft.DocumentDB', 'Microsoft.AzureActiveDirectory') {
+foreach ($provider in 'Microsoft.App', 'Microsoft.ManagedIdentity', 'Microsoft.DocumentDB', 'Microsoft.AzureActiveDirectory', 'Microsoft.Web') {
   $state = "$(Invoke-MotiffAz (@('provider', 'show', '--namespace', $provider, '--query', 'registrationState', '-o', 'tsv') + $ArmArgs))".Trim()
   if ($state -ne 'Registered') {
     Write-MotiffInfo "Registering $provider for the subscription (a minute or two)..."
@@ -180,7 +179,7 @@ if ($groupExists) {
 
 Write-MotiffStep 'What this creates'
 Write-MotiffInfo "In $($account.name):"
-Write-MotiffInfo "  - resource group $ResourceGroup ($Location) with id-motifflab-github (CI) and $ApiIdentity (the API)"
+Write-MotiffInfo "  - resource group $ResourceGroup ($Location) with id-motifflab-github (CI), $ApiIdentity (the API) and the web app's Static Web App swa-motifflab (Free plan)"
 if ($createAccount) { Write-MotiffInfo "  - the serverless Cosmos DB account $OwnAccount in $ResourceGroup, with the $plan; $SharedGroup is left as it is" }
 else { Write-MotiffInfo "  - $plan in $CosmosAccount ($CosmosGroup), nothing else there changes" }
 Write-MotiffInfo "  - $(if ($tenant) { "the sign-in tenant $Domain is there already" } else { "the sign-in tenant $Domain.onmicrosoft.com (External ID, Europe, free up to 50,000 monthly users)" })"
@@ -229,12 +228,33 @@ if ($assigned.Count -eq 0) {
     '--role-definition-id', $DataContributor, '--principal-id', $principal, '--scope', "/dbs/$Database", '-o', 'none') + $ArmArgs) | Out-Null
 }
 Write-MotiffInfo "$ApiIdentity may read and write the database $Database, and nothing else in $CosmosAccount."
-# The services' own sign-in; the web app's AZURE_* variables keep pointing at its own group in the other subscription.
 Set-RepoVariable 'AZURE_SERVICES_CLIENT_ID' $ciClientId
 Set-RepoVariable 'AZURE_SERVICES_TENANT_ID' $homeTenant
 Set-RepoVariable 'AZURE_SERVICES_SUBSCRIPTION_ID' $subscriptionId
 Set-RepoVariable 'AZURE_SERVICES_RESOURCE_GROUP' $ResourceGroup
 Set-RepoVariable 'COSMOS_ENDPOINT' $cosmosEndpoint
+
+Write-MotiffStep 'Web app'
+# The Static Web App lives here too, next to the services (Andrei, 2026-10-30). The first one is in a subscription of
+# another tenant, which Azure cannot move a resource across, so this is a new one with a new address; CI deploys to it
+# from now on, signing in as the same identity as the services.
+$siteHost = "$(Invoke-MotiffAz (@('deployment', 'group', 'create', '--resource-group', $ResourceGroup, '--name', 'web',
+  '--template-file', (Join-Path (Join-Path (Get-MotiffRepoRoot) 'infra') 'main.bicep'),
+  '--parameters', (Join-Path (Join-Path (Get-MotiffRepoRoot) 'infra') 'main.bicepparam'),
+  '--query', 'properties.outputs.defaultHostName.value', '-o', 'tsv') + $ArmArgs))".Trim()
+if (-not $WebHost) { $WebHost = $siteHost }
+Write-MotiffInfo "Static Web App swa-motifflab: https://$siteHost"
+Set-RepoVariable 'AZURE_CLIENT_ID' $ciClientId
+Set-RepoVariable 'AZURE_TENANT_ID' $homeTenant
+Set-RepoVariable 'AZURE_SUBSCRIPTION_ID' $subscriptionId
+Set-RepoVariable 'AZURE_RESOURCE_GROUP' $ResourceGroup
+# The scan server and the API answer browsers from this address and its pull request previews only.
+Set-RepoVariable 'WEB_HOST' $WebHost
+$RedirectUris = @(
+  "https://$WebHost/authentication/login-callback",
+  'https://localhost:7281/authentication/login-callback',
+  'http://localhost:5112/authentication/login-callback'
+)
 
 Write-MotiffStep "Sign-in tenant $Domain"
 if (-not $tenant) {
