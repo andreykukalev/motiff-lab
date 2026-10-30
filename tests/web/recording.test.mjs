@@ -13,7 +13,7 @@ test("stereo is averaged to mono and cut to the length asked for", () => {
     assert.deepEqual([...mixToMono([], 2)], [0, 0]);
 });
 
-test("the WAV file is 16-bit mono PCM at Basic Pitch's rate, with clipped samples", () => {
+test("the WAV file is 16-bit mono PCM at 22,050 Hz, with clipped samples", () => {
     const wav = encodeWav(Float32Array.from([0, 1, -1, 2]), SAMPLE_RATE);
     const view = new DataView(wav.buffer);
     const text = (offset, length) => String.fromCharCode(...wav.subarray(offset, offset + length));

@@ -18,7 +18,7 @@ def client(transcribe=lambda path, seconds: Transcription(MIDI, 12.0, False), **
 
 def test_health_names_the_transcription_engine_and_its_limits():
     body = client().get("/health").json()["transcribe"]
-    assert body["engine"] == "basic-pitch"
+    assert body["engine"] == "transkun"
     assert body["maxSeconds"] == main.MAX_RECORDING_SECONDS
 
 
@@ -35,7 +35,7 @@ def test_a_recording_comes_back_as_midi_and_its_folder_is_gone():
     assert response.status_code == 200
     assert response.headers["content-type"] == MIDI_TYPE
     assert response.content == MIDI
-    assert response.headers["x-engine"].startswith("basic-pitch ")
+    assert response.headers["x-engine"].startswith("transkun ")
     assert response.headers["x-seconds"] == "61.2"
     assert response.headers["x-cut"] == "true"
     assert not seen[0].parent.exists()
@@ -111,10 +111,10 @@ def test_ffmpeg_reads_only_the_upload_as_a_known_format():
         assert "hls" not in INPUT_FORMATS.split(",") and "concat" not in INPUT_FORMATS.split(",")
 
 
-def test_ffmpeg_keeps_only_the_first_minutes_of_sound_in_basic_pitchs_rate():
+def test_ffmpeg_keeps_only_the_first_minutes_of_sound_in_transkuns_rate():
     command = extract_command(Path("/w/upload"), Path("/w/sound.wav"), 300)
     assert command[command.index("-t") + 1] == "300"
-    assert command[command.index("-ar") + 1] == "22050"
+    assert command[command.index("-ar") + 1] == "44100"
     assert command[command.index("-ac") + 1] == "1"
     assert command[-1] == "/w/sound.wav"
     assert command.index("-i") < command.index("-t")

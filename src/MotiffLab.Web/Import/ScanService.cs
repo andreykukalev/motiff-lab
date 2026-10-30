@@ -34,8 +34,8 @@ public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text
     /// <summary>What the transcription drop zone offers: recordings a phone, a camera or an app writes.</summary>
     public const string AcceptedRecordings = "audio/*,video/*,.m4a,.mp3,.wav,.aac,.flac,.ogg,.mp4,.mov,.webm,.mkv";
 
-    /// <summary>How much of a recording the server hears, from its start.</summary>
-    public const int MaxRecordingSeconds = 600;
+    /// <summary>How much of a recording the server hears, from its start: as much as Transkun hears in the four minutes the hosted server may take (0014).</summary>
+    public const int MaxRecordingSeconds = 150;
 
     /// <summary>
     /// The largest recording sent as it is, when this browser cannot take its sound out: the whole file then
@@ -288,7 +288,7 @@ public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text
 public sealed record RecordingSound(byte[] Wav, double Seconds, bool Cut);
 
 /// <summary>What the scan server heard in a recording: the notes as MIDI, or why there are none.</summary>
-/// <param name="Engine">The engine and its version, for example "basic-pitch 0.4.0".</param>
+/// <param name="Engine">The engine and its version, for example "transkun 2.0.1".</param>
 /// <param name="Seconds">How much of the recording was heard.</param>
 /// <param name="Cut">True when the recording was longer than what was heard.</param>
 public sealed record TranscriptionResult(byte[]? Midi, string Engine, double Seconds, bool Cut, string? Problem)

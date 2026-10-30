@@ -8,8 +8,8 @@ namespace MotiffLab.MusicCore.Import.Transcription;
 /// every one is marked <see cref="Provenance.Detected"/> at <see cref="Confidence"/>.
 /// </summary>
 /// <remarks>
-/// The engine gives no score the player could check per note, and it hears any instrument rather than
-/// the piano's pedal, so every note gets the same low confidence, below the 0.6 that hints need
+/// The engine gives no score the player could check per note, and its accuracy on real recordings is
+/// not yet measured, so every note gets the same low confidence, below the 0.6 that hints need
 /// (05-domain-architecture). Hands worked out from the notes stay inferred, as for any MIDI file.
 /// Corrections still go to the edit log and become user-edited. Pure and deterministic.
 /// </remarks>

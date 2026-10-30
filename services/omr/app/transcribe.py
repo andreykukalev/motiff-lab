@@ -1,9 +1,10 @@
 """Transcribes a recording of piano music, audio or video, into MIDI notes (decision record 0014).
 
-ffmpeg takes the sound out of the upload as mono 22,050 Hz audio, and Basic Pitch (Apache-2.0, from
-Spotify) turns it into notes on the CPU through ONNX Runtime. Both run unmodified, each recording in
-the request's own temporary folder. Basic Pitch is cheap rather than exact: it hears any instrument,
-not the piano's pedal, so its notes are a first draft for the player to check.
+ffmpeg takes the sound out of the upload as mono 44,100 Hz audio, and Transkun V2 (MIT, Yujia Yan) turns
+it into notes on the CPU through PyTorch. Both run unmodified, each recording in the request's own
+temporary folder. Transkun is trained on the piano alone: it hears overtones as overtones rather than as
+notes of their own, and it hears the sustain pedal. It takes about a second of two cores for a second
+of sound, so the server hears the first few minutes of a recording.
 """
 
 from __future__ import annotations
@@ -11,19 +12,19 @@ from __future__ import annotations
 import io
 import subprocess
 from dataclasses import dataclass
-from importlib import metadata
+import wave
+from importlib import metadata, resources
 from pathlib import Path
 
-# Basic Pitch's own rate: the model is trained on audio at this rate.
-SAMPLE_RATE = 22050
+ENGINE = "transkun"
+
+# Transkun's own rate: the model is trained on audio at this rate. It listens up to 8 kHz, so the
+# 22,050 Hz sound the web app sends loses nothing it hears.
+SAMPLE_RATE = 44100
 
 # Containers and codecs a phone, a camera or a recording app writes. ffmpeg opens nothing else, so an
 # upload cannot make it read a playlist, another file or the network.
 INPUT_FORMATS = "mov,mp4,m4a,3gp,3g2,mj2,matroska,webm,wav,mp3,ogg,flac,aac,aiff,caf"
-
-# The keys of an 88-key piano, A0 to C8, in hertz: anything outside is noise, not a note.
-LOWEST_PIANO_HZ = 27.5
-HIGHEST_PIANO_HZ = 4186.0
 
 # Extracting a few minutes of sound takes seconds; this only stops a file that never ends.
 EXTRACT_TIMEOUT_SECONDS = 120
@@ -44,7 +45,7 @@ class Transcription:
 
 def engine_version() -> str:
     try:
-        return metadata.version("basic-pitch")
+        return metadata.version(ENGINE)
     except metadata.PackageNotFoundError:
         return "not installed"
 
@@ -95,27 +96,33 @@ def extract_audio(source: Path, folder: Path, max_seconds: int) -> tuple[Path, f
 
 
 def transcribe_audio(audio: Path) -> bytes:
-    """The notes Basic Pitch hears in a mono WAV file, as a MIDI file."""
+    """The notes Transkun hears in a mono 16-bit WAV file, as a MIDI file."""
     # Imported here, so the service starts and its tests run without the model and its libraries.
-    from basic_pitch import ICASSP_2022_MODEL_PATH, note_creation
-    from basic_pitch.inference import Model, run_inference
+    import moduleconf
+    import numpy
+    import torch
+    from transkun.Data import writeMidi
 
-    output = run_inference(audio, Model(ICASSP_2022_MODEL_PATH))
-    midi, notes = note_creation.model_output_to_notes(
-        output,
-        onset_thresh=0.5,
-        frame_thresh=0.3,
-        min_note_len=11,
-        min_freq=LOWEST_PIANO_HZ,
-        max_freq=HIGHEST_PIANO_HZ,
-        include_pitch_bends=False,
-        melodia_trick=True,
-    )
-    if not notes:
+    # The model is loaded for each recording rather than kept: it takes a second or two, against a
+    # minute or more of hearing, and the memory is free for homr between recordings.
+    pretrained = resources.files(ENGINE) / "pretrained"
+    configuration = moduleconf.parseFromFile(str(pretrained / "2.0.conf"))["Model"]
+    model = configuration.module.TransKun(conf=configuration.config)
+    checkpoint = torch.load(str(pretrained / "2.0.pt"), map_location="cpu")
+    model.load_state_dict(checkpoint.get("best_state_dict", checkpoint.get("state_dict")), strict=False)
+    model.eval()
+
+    with wave.open(str(audio), "rb") as sound:
+        samples = numpy.frombuffer(sound.readframes(sound.getnframes()), dtype=numpy.int16)
+    signal = torch.from_numpy(samples.astype(numpy.float32).reshape(-1, 1) / 32768)
+
+    with torch.inference_mode():
+        notes = model.transcribe(signal, discardSecondHalf=False)
+    if not any(note.pitch > 0 for note in notes):
         raise TranscribeError("No notes were heard in this recording. Record closer to the piano, with less noise around it.")
 
     buffer = io.BytesIO()
-    midi.write(buffer)
+    writeMidi(notes).write(buffer)
     return buffer.getvalue()
 
 

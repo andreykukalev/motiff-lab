@@ -8,7 +8,7 @@ namespace MotiffLab.MusicCore.Projects;
 /// the engine wrote. On every open the notes are marked by <see cref="Transcribed"/>, so the marks need
 /// not be stored.
 /// </summary>
-/// <param name="Engine">The engine and its version as it reported them, for example "basic-pitch 0.4.0".</param>
+/// <param name="Engine">The engine and its version as it reported them, for example "transkun 2.0.1".</param>
 public sealed record TranscriptionOrigin(string Engine)
 {
     public string Engine { get; } = !string.IsNullOrWhiteSpace(Engine) ? Engine : throw new ArgumentException("The engine is required.", nameof(Engine));
