@@ -29,15 +29,16 @@ public abstract record OperationParameters
 /// The piece's bars and beats, which beat-based operations (V1 Syncopate and Dotted) and the
 /// explanation's beat names read. Null reads <see cref="MeterMap.Default"/>, 4/4 from the start.
 /// </param>
-public sealed record VariationContext(TickSpan Span, IReadOnlySet<KeepProperty> Keep, int Seed = 0, MusicalKey? Key = null, MeterMap? Meter = null)
+/// <param name="Words">The language the explanation is written in (#134); English by default. It never changes the notes.</param>
+public sealed record VariationContext(TickSpan Span, IReadOnlySet<KeepProperty> Keep, int Seed = 0, MusicalKey? Key = null, MeterMap? Meter = null, Words Words = default)
 {
     /// <summary>The meter to count beats in: <see cref="Meter"/>, or 4/4 from the start when there is none.</summary>
     public MeterMap Beats => Meter ?? MeterMap.Default;
 
-    public static VariationContext For(MotifSelection selection, IReadOnlySet<KeepProperty> keep, int seed = 0, MusicalKey? key = null, MeterMap? meter = null)
+    public static VariationContext For(MotifSelection selection, IReadOnlySet<KeepProperty> keep, int seed = 0, MusicalKey? key = null, MeterMap? meter = null, Words words = default)
     {
         ArgumentNullException.ThrowIfNull(selection);
-        return new VariationContext(selection.Span, keep, seed, key, meter);
+        return new VariationContext(selection.Span, keep, seed, key, meter, words);
     }
 }
 
@@ -110,7 +111,7 @@ public abstract class VariationOperation<TParameters> : IVariationOperation
             throw new InvalidOperationException(reason);
         }
 
-        return VariationFacts.Build(Id, context.Span, notes, after!, context.Keep, flags, context.Key, context.Meter);
+        return VariationFacts.Build(Id, context.Span, notes, after!, context.Keep, flags, context.Key, context.Meter, context.Words);
     }
 
     /// <summary>Applies the operation to the selected notes of <paramref name="notes"/>.</summary>

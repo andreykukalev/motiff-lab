@@ -40,7 +40,7 @@ public partial class PlaybackLab
     private bool KeptForSessionOnly => _project is null;
 
     /// <summary>Said on the Explore card once a variation is kept.</summary>
-    private string KeptText => KeptForSessionOnly ? "Kept until you leave the page; this piece is not saved as a project." : "Kept with the project.";
+    private string KeptText => Text[KeptForSessionOnly ? "explore.keptForSession" : "explore.keptWithProject"];
 
     /// <summary>The observation the kept experiment on the card was saved as; null when the card shows no kept experiment.</summary>
     private Observation? KeptOnCard =>

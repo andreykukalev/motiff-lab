@@ -21,7 +21,8 @@ public static class OperationTemplates
         MotifTexture before,
         MotifTexture after,
         MusicalKey? key,
-        MeterMap meter)
+        MeterMap meter,
+        Words words = default)
     {
         ArgumentNullException.ThrowIfNull(changes);
         ArgumentNullException.ThrowIfNull(before);
@@ -29,12 +30,12 @@ public static class OperationTemplates
         ArgumentNullException.ThrowIfNull(meter);
         return operation switch
         {
-            RhythmReshape.OperationId => Anticipated(changes, meter) ?? Dotted(changes, meter),
-            IntervalReshape.OperationId => Reshaped(before, after, key),
-            ChangeDirection.OperationId => Turned(before, after, key),
-            HandEdit.OperationId => Edited(changes, before, after, meter),
-            Articulation.OperationId => Articulated(changes),
-            AccompanimentPattern.OperationId => Repatterned(before, after, meter),
+            RhythmReshape.OperationId => Anticipated(changes, meter, words) ?? Dotted(changes, meter, words),
+            IntervalReshape.OperationId => Reshaped(before, after, key, words),
+            ChangeDirection.OperationId => Turned(before, after, key, words),
+            HandEdit.OperationId => Edited(changes, before, after, meter, words),
+            Articulation.OperationId => Articulated(changes, words),
+            AccompanimentPattern.OperationId => Repatterned(before, after, meter, words),
             _ => null,
         };
     }
@@ -44,40 +45,48 @@ public static class OperationTemplates
     /// 1 eighth.", or "By hand, E5 at beat 2 of bar 1 changes: pitch to F5, velocity from 80 to 90.",
     /// when exactly one note was removed, added or changed.
     /// </summary>
-    private static string? Edited(IReadOnlyList<NoteChange> changes, MotifTexture before, MotifTexture after, MeterMap meter)
+    private static string? Edited(IReadOnlyList<NoteChange> changes, MotifTexture before, MotifTexture after, MeterMap meter, Words w)
     {
         Note[] removed = [.. before.Notes.Where(note => !after.Notes.Any(other => other.Id == note.Id))];
         Note[] added = [.. after.Notes.Where(note => !before.Notes.Any(other => other.Id == note.Id))];
         NoteChange[] changed = [.. changes.Where(static change => NoteValues.Of(change.Before) != NoteValues.Of(change.After))];
         return (removed.Length, added.Length, changed.Length) switch
         {
-            (1, 0, 0) => $"By hand, {removed[0].Pitch} at {Place(removed[0].Span.Onset, meter)} is removed.",
-            (0, 1, 0) => $"By hand, {added[0].Pitch} is added at {Place(added[0].Span.Onset, meter)}, lasting {VariationFacts.Length(added[0].Span.Duration)}.",
-            (0, 0, 1) => $"By hand, {changed[0].Before.Pitch} at {Place(changed[0].Before.Span.Onset, meter)} changes: {string.Join(", ", Edits(changed[0], meter))}.",
+            (1, 0, 0) => w.T(
+                $"By hand, {removed[0].Pitch} at {Place(removed[0].Span.Onset, meter, w)} is removed.",
+                $"Вручную удалена нота {removed[0].Pitch} ({Place(removed[0].Span.Onset, meter, w)})."),
+            (0, 1, 0) => w.T(
+                $"By hand, {added[0].Pitch} is added at {Place(added[0].Span.Onset, meter, w)}, lasting {VariationFacts.Length(added[0].Span.Duration)}.",
+                $"Вручную добавлена нота {added[0].Pitch} ({Place(added[0].Span.Onset, meter, w)}), длина: {VariationFacts.Length(added[0].Span.Duration, w)}."),
+            (0, 0, 1) => w.T(
+                $"By hand, {changed[0].Before.Pitch} at {Place(changed[0].Before.Span.Onset, meter, w)} changes: {string.Join(", ", Edits(changed[0], meter, w))}.",
+                $"Вручную изменена нота {changed[0].Before.Pitch} ({Place(changed[0].Before.Span.Onset, meter, w)}): {string.Join(", ", Edits(changed[0], meter, w))}."),
             _ => null,
         };
     }
 
-    private static IEnumerable<string> Edits(NoteChange change, MeterMap meter)
+    private static IEnumerable<string> Edits(NoteChange change, MeterMap meter, Words w)
     {
         if (change.PitchChanged)
         {
-            yield return $"pitch to {change.After.Pitch}";
+            yield return w.T($"pitch to {change.After.Pitch}", $"высота: {change.After.Pitch}");
         }
 
         if (change.OnsetChanged)
         {
-            yield return $"start to {Place(change.After.Span.Onset, meter)}";
+            yield return w.T($"start to {Place(change.After.Span.Onset, meter, w)}", $"начало: {Place(change.After.Span.Onset, meter, w)}");
         }
 
         if (change.DurationChanged)
         {
-            yield return $"length from {VariationFacts.Length(change.Before.Span.Duration)} to {VariationFacts.Length(change.After.Span.Duration)}";
+            yield return w.T(
+                $"length from {VariationFacts.Length(change.Before.Span.Duration)} to {VariationFacts.Length(change.After.Span.Duration)}",
+                $"длина: {VariationFacts.Length(change.Before.Span.Duration, w)} → {VariationFacts.Length(change.After.Span.Duration, w)}");
         }
 
         if (change.Before.Velocity != change.After.Velocity)
         {
-            yield return $"velocity from {change.Before.Velocity} to {change.After.Velocity}";
+            yield return w.T($"velocity from {change.Before.Velocity} to {change.After.Velocity}", $"громкость: {change.Before.Velocity} → {change.After.Velocity}");
         }
     }
 
@@ -85,7 +94,7 @@ public static class OperationTemplates
     /// "Only note lengths change: 9 notes sound shorter.", or "… 4 notes sound longer.", when every
     /// note that changed kept its pitch and onset and all of them changed length the same way.
     /// </summary>
-    private static string? Articulated(IReadOnlyList<NoteChange> changes)
+    private static string? Articulated(IReadOnlyList<NoteChange> changes, Words w)
     {
         NoteChange[] changed = [.. changes.Where(static change => change.DurationChanged)];
         if (changed.Length == 0 || changes.Any(static change => change.PitchChanged || change.OnsetChanged))
@@ -93,10 +102,21 @@ public static class OperationTemplates
             return null;
         }
 
+        bool shorter = changed.All(static change => change.After.Span.Duration < change.Before.Span.Duration);
+        bool longer = changed.All(static change => change.After.Span.Duration > change.Before.Span.Duration);
+        if (!shorter && !longer)
+        {
+            return null;
+        }
+
+        if (w.IsRussian)
+        {
+            string sound = Words.RussianForm(changed.Length, "звучит", "звучат", "звучат");
+            return $"Меняются только длины нот: {(shorter ? "короче" : "дольше")} {sound} {w.Count(changed.Length, "", "", "нота", "ноты", "нот")}.";
+        }
+
         string notes = changed.Length == 1 ? "1 note sounds" : $"{changed.Length} notes sound";
-        return changed.All(static change => change.After.Span.Duration < change.Before.Span.Duration) ? $"Only note lengths change: {notes} shorter."
-            : changed.All(static change => change.After.Span.Duration > change.Before.Span.Duration) ? $"Only note lengths change: {notes} longer."
-            : null;
+        return $"Only note lengths change: {notes} {(shorter ? "shorter" : "longer")}.";
     }
 
     /// <summary>
@@ -104,7 +124,7 @@ public static class OperationTemplates
     /// melody is unchanged.", when the melody is note for note the same and every bar's accompaniment
     /// sounds the same pitches as before, at other times.
     /// </summary>
-    private static string? Repatterned(MotifTexture before, MotifTexture after, MeterMap meter)
+    private static string? Repatterned(MotifTexture before, MotifTexture after, MeterMap meter, Words w)
     {
         static (long, long, int) Shape(Note note) => (note.Span.Onset.Value, note.Span.Duration, note.Pitch.MidiNumber);
         if (!before.Melody.Select(Shape).SequenceEqual(after.Melody.Select(Shape)))
@@ -129,14 +149,27 @@ public static class OperationTemplates
 
         int first = was.Keys.Min();
         int last = was.Keys.Max();
+        if (w.IsRussian)
+        {
+            string inBars = first == last ? $"В такте {first}" : $"В тактах {first}–{last}";
+            return $"{inBars} аккомпанемент сохраняет высоты и играет их в новом ритме или порядке; мелодия не изменилась.";
+        }
+
         string bars = first == last ? $"bar {first}" : $"bars {first}–{last}";
         return $"In {bars} the accompaniment keeps its pitches and plays them in a new rhythm or order; the melody is unchanged.";
     }
 
-    /// <summary>"beat 2 of bar 1", or "1 sixteenth after beat 2 of bar 1" off the beat.</summary>
-    private static string Place(Tick onset, MeterMap meter)
+    /// <summary>"beat 2 of bar 1", or "1 sixteenth after beat 2 of bar 1" off the beat; "доля 2 такта 1", "1 шестнадцатая после доли 2 такта 1".</summary>
+    private static string Place(Tick onset, MeterMap meter, Words w)
     {
         MetricPosition position = meter.ToPosition(onset);
+        if (w.IsRussian)
+        {
+            return position.BeatOffset == 0
+                ? $"доля {position.Beat} такта {position.Bar}"
+                : $"{VariationFacts.Length(position.BeatOffset, w)} после доли {position.Beat} такта {position.Bar}";
+        }
+
         string beat = $"beat {position.Beat} of bar {position.Bar}";
         return position.BeatOffset == 0 ? beat : $"{VariationFacts.Length(position.BeatOffset)} after {beat}";
     }
@@ -145,7 +178,7 @@ public static class OperationTemplates
     /// "3 notes that started on a beat now start 1 eighth ahead of it: beats 2, 3 and 4 of bar 1.",
     /// when every note that moved started on a beat and now starts half that beat earlier.
     /// </summary>
-    private static string? Anticipated(IReadOnlyList<NoteChange> changes, MeterMap meter)
+    private static string? Anticipated(IReadOnlyList<NoteChange> changes, MeterMap meter, Words w)
     {
         NoteChange[] moved = [.. changes.Where(static change => change.OnsetChanged)];
         if (moved.Length == 0 || !moved.All(change => AheadOfBeat(change, meter)))
@@ -154,9 +187,19 @@ public static class OperationTemplates
         }
 
         long[] early = [.. moved.Select(static change => change.Before.Span.Onset.Value - change.After.Span.Onset.Value).Distinct()];
+        string beats = Beats(moved.Select(static change => change.Before.Span.Onset), meter, w);
+        if (w.IsRussian)
+        {
+            string earlier = early.Length == 1 ? $"на {VariationFacts.Length(early[0], w, accusative: true)} раньше" : "на полдоли раньше";
+            string notes = moved.Length == 1
+                ? "1 нота, которая начиналась на доле, теперь начинается"
+                : $"{w.Count(moved.Length, "", "", "нота", "ноты", "нот")}, которые начинались на доле, теперь начинаются";
+            return $"{notes} {earlier}: {beats}.";
+        }
+
         string ahead = early.Length == 1 ? $"{VariationFacts.Length(early[0])} ahead of it" : "half a beat ahead of it";
-        string notes = moved.Length == 1 ? "1 note that started on a beat now starts" : $"{moved.Length} notes that started on a beat now start";
-        return $"{notes} {ahead}: {Beats(moved.Select(static change => change.Before.Span.Onset), meter)}.";
+        string english = moved.Length == 1 ? "1 note that started on a beat now starts" : $"{moved.Length} notes that started on a beat now start";
+        return $"{english} {ahead}: {beats}.";
     }
 
     private static bool AheadOfBeat(NoteChange change, MeterMap meter)
@@ -171,7 +214,7 @@ public static class OperationTemplates
     /// and 3 of bar 1.", when every note that changed is in a pair a length apart: the first now
     /// sounds half that length longer, and the second starts half that length later.
     /// </summary>
-    private static string? Dotted(IReadOnlyList<NoteChange> changes, MeterMap meter)
+    private static string? Dotted(IReadOnlyList<NoteChange> changes, MeterMap meter, Words w)
     {
         NoteChange[] changed = [.. changes.Where(static change => change.OnsetChanged || change.DurationChanged)];
         NoteChange[] firsts = [.. changed.Where(static change => !change.OnsetChanged && change.After.Span.Duration > change.Before.Span.Duration)];
@@ -192,11 +235,20 @@ public static class OperationTemplates
 
         Tick[] starts = [.. firsts.Select(static change => change.Before.Span.Onset).Distinct().Order()];
         long[] lengths = [.. firsts.Select(static change => 2 * Grown(change)).Distinct()];
+        if (w.IsRussian)
+        {
+            string russianShape = lengths.Length == 1
+                ? $"{VariationFacts.Length(lengths[0] * 3 / 2, w)}, затем {VariationFacts.Length(lengths[0] / 2, w)}"
+                : "первая нота каждой пары втрое длиннее второй";
+            string become = Words.RussianForm(starts.Length, "становится", "становятся", "становятся");
+            return $"{w.Count(starts.Length, "", "", "пара", "пары", "пар")} равных нот {become} «долгая–короткая»: {russianShape}; начало: {Beats(starts, meter, w)}.";
+        }
+
         string shape = lengths.Length == 1
             ? $"{VariationFacts.Length(lengths[0] * 3 / 2)} then {VariationFacts.Length(lengths[0] / 2)}"
             : "the first of each pair 3 times as long as the second";
         string pairs = starts.Length == 1 ? "1 pair of equal notes becomes" : $"{starts.Length} pairs of equal notes become";
-        return $"{pairs} long–short, {shape}, starting on {Beats(starts, meter)}.";
+        return $"{pairs} long–short, {shape}, starting on {Beats(starts, meter, w)}.";
     }
 
     /// <summary>
@@ -204,7 +256,7 @@ public static class OperationTemplates
     /// when the melody kept its notes and every interval that changed size in scale steps grew or
     /// shrank by the same number of steps without turning.
     /// </summary>
-    private static string? Reshaped(MotifTexture before, MotifTexture after, MusicalKey? key)
+    private static string? Reshaped(MotifTexture before, MotifTexture after, MusicalKey? key, Words w)
     {
         if (key is not { } scale || ScaleIntervals(before, after, scale) is not { } intervals)
         {
@@ -223,6 +275,14 @@ public static class OperationTemplates
             return null;
         }
 
+        if (w.IsRussian)
+        {
+            string russianWhich = changed.Length == intervals.Length
+                ? intervals.Length == 1 ? "Интервал мелодии стал" : $"Все {intervals.Length} {Words.RussianForm(intervals.Length, "интервал", "интервала", "интервалов")} мелодии стали"
+                : $"{changed.Length} {w.OutOf(intervals.Length, "", "", "интервала мелодии", "интервалов мелодии")} {Words.RussianForm(changed.Length, "стал", "стали", "стали")}";
+            return $"{russianWhich} {(growth[0] > 0 ? "шире" : "уже")} на {w.Count(Math.Abs(growth[0]), "", "", "ступень", "ступени", "ступеней")} гаммы тональности, сохранив направление.";
+        }
+
         string steps = Math.Abs(growth[0]) == 1 ? "1 scale step" : $"{Math.Abs(growth[0])} scale steps";
         string which = changed.Length == intervals.Length
             ? intervals.Length == 1 ? "The melody interval is" : $"All {intervals.Length} melody intervals are"
@@ -236,18 +296,18 @@ public static class OperationTemplates
     /// when the melody kept its notes and every interval that changed is the old one turned over, in
     /// semitones or else in scale steps.
     /// </summary>
-    private static string? Turned(MotifTexture before, MotifTexture after, MusicalKey? key)
+    private static string? Turned(MotifTexture before, MotifTexture after, MusicalKey? key, Words w)
     {
         if (SemitoneIntervals(before, after) is not { } semitones)
         {
             return null;
         }
 
-        string? size = Flips(semitones) ? "semitones" : null;
+        string? size = Flips(semitones) ? w.T("semitones", "полутонах") : null;
         (int From, int To)[] intervals = semitones;
         if (size is null && key is { } scale && ScaleIntervals(before, after, scale) is { } steps && Flips(steps))
         {
-            size = "steps of the key's scale";
+            size = w.T("steps of the key's scale", "ступенях гаммы тональности");
             intervals = steps;
         }
 
@@ -260,7 +320,14 @@ public static class OperationTemplates
         int turned = intervals.Count(static interval => interval.From != 0 && interval.To == -interval.From);
         if (turned == moving && before.Melody[0].Pitch == after.Melody[0].Pitch)
         {
-            return $"The melody is mirrored around its first note, {before.Melody[0].Pitch}: every interval turns the other way, keeping its size in {size}.";
+            return w.T(
+                $"The melody is mirrored around its first note, {before.Melody[0].Pitch}: every interval turns the other way, keeping its size in {size}.",
+                $"Мелодия отражена относительно первой ноты, {before.Melody[0].Pitch}: каждый интервал меняет направление, сохраняя размер в {size}.");
+        }
+
+        if (w.IsRussian)
+        {
+            return $"{turned} {w.OutOf(intervals.Length, "", "", "интервала мелодии", "интервалов мелодии")} {Words.RussianForm(turned, "меняет", "меняют", "меняют")} направление, сохраняя размер в {size}.";
         }
 
         string which = turned == 1 ? $"1 of {intervals.Length} melody intervals turns" : $"{turned} of {intervals.Length} melody intervals turn";
@@ -296,33 +363,41 @@ public static class OperationTemplates
     /// in a bar with a position off the beat, each is named on its own: "beat 1 of bar 1 and 1 eighth
     /// after beat 1 of bar 1".
     /// </summary>
-    public static string Beats(IEnumerable<Tick> onsets, MeterMap meter)
+    public static string Beats(IEnumerable<Tick> onsets, MeterMap meter) => Beats(onsets, meter, Words.English);
+
+    /// <summary>The beats in a language: "beats 2 and 3 of bar 1"; "доли 2 и 3 такта 1".</summary>
+    public static string Beats(IEnumerable<Tick> onsets, MeterMap meter, Words words)
     {
         ArgumentNullException.ThrowIfNull(onsets);
         ArgumentNullException.ThrowIfNull(meter);
+        Words w = words;
         string[] bars = [.. onsets
             .Distinct()
             .Order()
             .Select(meter.ToPosition)
             .GroupBy(static position => position.Bar)
-            .SelectMany(static bar =>
+            .SelectMany(bar =>
             {
                 if (bar.Any(static position => position.BeatOffset != 0))
                 {
-                    return bar.Select(static position => position.BeatOffset == 0
-                        ? $"beat {position.Beat} of bar {position.Bar}"
-                        : $"{VariationFacts.Length(position.BeatOffset)} after beat {position.Beat} of bar {position.Bar}");
+                    return bar.Select(position => position.BeatOffset == 0
+                        ? w.T($"beat {position.Beat} of bar {position.Bar}", $"доля {position.Beat} такта {position.Bar}")
+                        : w.T(
+                            $"{VariationFacts.Length(position.BeatOffset)} after beat {position.Beat} of bar {position.Bar}",
+                            $"{VariationFacts.Length(position.BeatOffset, w)} после доли {position.Beat} такта {position.Bar}"));
                 }
 
                 int[] beats = [.. bar.Select(static position => position.Beat)];
-                return [beats.Length == 1 ? $"beat {beats[0]} of bar {bar.Key}" : $"beats {List(beats.Select(static beat => $"{beat}"))} of bar {bar.Key}"];
+                return [beats.Length == 1
+                    ? w.T($"beat {beats[0]} of bar {bar.Key}", $"доля {beats[0]} такта {bar.Key}")
+                    : w.T($"beats {List(beats.Select(static beat => $"{beat}"), w)} of bar {bar.Key}", $"доли {List(beats.Select(static beat => $"{beat}"), w)} такта {bar.Key}")];
             })];
-        return List(bars);
+        return List(bars, w);
     }
 
-    private static string List(IEnumerable<string> items)
+    private static string List(IEnumerable<string> items, Words w)
     {
         string[] all = [.. items];
-        return all.Length <= 1 ? string.Concat(all) : $"{string.Join(", ", all[..^1])} and {all[^1]}";
+        return all.Length <= 1 ? string.Concat(all) : w.Joined(all);
     }
 }

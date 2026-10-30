@@ -126,7 +126,7 @@ public sealed class HandEdit : IVariationOperation
             HandEditKind.Change => [.. notes.Select(note => note.Id == edit.NoteId ? With(note, edit.Values!.Value) : note)],
             _ => [.. notes, Added(notes, edit.NoteId, edit.Values!.Value)],
         };
-        return VariationFacts.Build(OperationId, context.Span, notes, after, context.Keep, OperationRules.Check(notes, after).Flags, context.Key, context.Meter);
+        return VariationFacts.Build(OperationId, context.Span, notes, after, context.Keep, OperationRules.Check(notes, after).Flags, context.Key, context.Meter, context.Words);
     }
 
     private static Note With(Note note, NoteValues values) =>

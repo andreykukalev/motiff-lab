@@ -62,3 +62,23 @@ test("change the accompaniment and hear the melody alone", async ({ page }) => {
     await page.locator(".transport-bar").getByRole("button", { name: "Pause" }).click();
     expect(errors).toEqual([]);
 });
+
+test("the experiments and what changed read in Russian when the app is in Russian (#134)", async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem("motiff-lab:ml-language", "ru"));
+    const errors = [];
+    page.on("pageerror", error => errors.push(String(error)));
+    await page.goto("/playback?start=fur-elise");
+    await selectBar(page, 1);
+    await page.getByRole("tab", { name: "Исследовать" }).click();
+    const card = page.locator(".explore");
+
+    await expect(card.getByRole("button", { name: /Те же ноты, другой ритм/ })).toBeVisible();
+    await card.getByRole("button", { name: /Дать мелодии больше воздуха/ }).click();
+    await expect(card.locator("h3")).toHaveText("Дать мелодии больше воздуха");
+    await expect(card.locator(".passage")).toHaveText("Выделенная фраза · такт 1");
+    await expect(card.locator(".what-changed")).toContainText("Что изменилось:");
+    await expect(card.locator(".what-changed")).not.toContainText(/\b(notes?|bar|beat|changed)\b/);
+    await card.getByRole("button", { name: "Оставить эту вариацию" }).click();
+    await expect(card.getByRole("status")).toContainText("Сохранено, пока вы не уйдёте со страницы");
+    expect(errors).toEqual([]);
+});

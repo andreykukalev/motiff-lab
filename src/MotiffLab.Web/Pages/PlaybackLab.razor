@@ -1023,13 +1023,18 @@
 
     private void OnPlayerChanged() => _ = InvokeAsync(StateHasChanged);
 
-    /// <summary>The facts are written in the chosen language, so a new language reads the selection again (#134).</summary>
-    private void OnLanguageChanged() => _ = InvokeAsync(() =>
+    /// <summary>The facts and the variation's explanation are written in the chosen language, so a new language reads the selection again (#134).</summary>
+    private void OnLanguageChanged() => _ = InvokeAsync(async () =>
     {
         if (_selection is { } selection)
         {
             Analyze(selection);
             _highlight = null;
+            // A trial runs over its own passage, so it keeps the words it was offered in.
+            if (_chain is not null && ActiveTrial is null)
+            {
+                await ReplayAsync();
+            }
         }
 
         StateHasChanged();
@@ -1490,7 +1495,7 @@
         _analysis = MotifAnalyzer.Analyze(_notes!, _meter!, selection, key, _accents, phrases, Words);
         _structure = StructureAnalyzer.Analyze(_notes!, _meter!, selection, phrases, Words);
         _character = MotifAnalyzer.AnalyzeCharacter(_notes!, _meter!, selection, key, _characterContext!, Words);
-        _invitationContext = new InvitationContext(_notes!, _meter!, selection, _analysis, _structure, _character);
+        _invitationContext = new InvitationContext(_notes!, _meter!, selection, _analysis, _structure, _character, Words);
         _offers = ExperimentCatalogue.Offer(_invitationContext);
     }
 
@@ -1649,13 +1654,13 @@
     /// <summary>The breadcrumbs of the chain, for example "Original › Half-time › trying Later by 1 eighth".</summary>
     private string? StepsText => _chain is null
         ? null
-        : string.Join(" › ", ["Original", .. _chain.Steps.Select(StepLabel), .. _chain.Pending is { } pending ? [$"trying {StepLabel(pending)}"] : Array.Empty<string>()]);
+        : string.Join(" › ", [Text["term.original"], .. _chain.Steps.Select(StepLabel), .. _chain.Pending is { } pending ? [Text.Format("variation.trying", StepLabel(pending))] : Array.Empty<string>()]);
 
     /// <summary>What the pending step changed, then what all the steps changed from the original; both read from the diff (S1-E4).</summary>
     private string? ExplanationText => _chain switch
     {
-        { Pending: { } pending, Steps.Count: > 0, Result: { } result } => $"This step: {pending.Result.Explanation} From the original: {result.Explanation}",
-        { Pending: null, Steps.Count: > 1, Result: { } result } when _chain.Steps[^1].Operation is HandEdit => $"This edit: {_chain.Steps[^1].Result.Explanation} From the original: {result.Explanation}",
+        { Pending: { } pending, Steps.Count: > 0, Result: { } result } => Text.Format("variation.thisStep", pending.Result.Explanation, result.Explanation),
+        { Pending: null, Steps.Count: > 1, Result: { } result } when _chain.Steps[^1].Operation is HandEdit => Text.Format("variation.thisEdit", _chain.Steps[^1].Result.Explanation, result.Explanation),
         { Result: { } result } => result.Explanation,
         _ => null,
     };
@@ -2153,7 +2158,7 @@
 
     /// <summary>A chain with no steps over the selected notes, with a copy of the Keep choices.</summary>
     private VariationChain StartChain(MotifSelection selection) =>
-        VariationChain.Start(VariationFacts.MotifNotes(_notes!, selection), VariationContext.For(selection, _keep.ToHashSet(), key: Key, meter: _meter));
+        VariationChain.Start(VariationFacts.MotifNotes(_notes!, selection), VariationContext.For(selection, _keep.ToHashSet(), key: Key, meter: _meter, words: Words));
 
     /// <summary>The key the selection's analysis read, which diatonic operations count steps in; null when it is uncertain.</summary>
     private MusicalKey? Key => _analysis?.Key is { Certainty: not FactCertainty.Uncertain } reading ? reading.Key : null;
@@ -2161,7 +2166,7 @@
     /// <summary>Runs the chain's steps again on the selection and Keep choices as they are now; clears it when a step no longer runs.</summary>
     private Task ReplayAsync() =>
         _chain is not null && _selection is { } selection
-            && _chain.Replay(VariationFacts.MotifNotes(_notes!, selection), VariationContext.For(selection, _keep.ToHashSet(), key: Key, meter: _meter)) is { } replayed
+            && _chain.Replay(VariationFacts.MotifNotes(_notes!, selection), VariationContext.For(selection, _keep.ToHashSet(), key: Key, meter: _meter, words: Words)) is { } replayed
             ? ShowAsync(replayed, play: false)
             : ClearVariationAsync();
 

@@ -214,6 +214,7 @@ public sealed class VariationChain
             context.Keep,
             OperationRules.Check(original, final).Flags,
             context.Key,
-            context.Meter);
+            context.Meter,
+            context.Words);
     }
 }
