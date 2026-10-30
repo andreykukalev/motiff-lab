@@ -1,4 +1,5 @@
 @page "/playback"
+@using MotiffLab.MusicCore
 @using MotiffLab.MusicCore.Analysis
 @using MotiffLab.MusicCore.Analytics
 @using MotiffLab.MusicCore.Events
@@ -933,7 +934,7 @@
     protected override void OnInitialized()
     {
         Player.Changed += OnPlayerChanged;
-        Text.Changed += OnPlayerChanged;
+        Text.Changed += OnLanguageChanged;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -1017,10 +1018,25 @@
     public void Dispose()
     {
         Player.Changed -= OnPlayerChanged;
-        Text.Changed -= OnPlayerChanged;
+        Text.Changed -= OnLanguageChanged;
     }
 
     private void OnPlayerChanged() => _ = InvokeAsync(StateHasChanged);
+
+    /// <summary>The facts are written in the chosen language, so a new language reads the selection again (#134).</summary>
+    private void OnLanguageChanged() => _ = InvokeAsync(() =>
+    {
+        if (_selection is { } selection)
+        {
+            Analyze(selection);
+            _highlight = null;
+        }
+
+        StateHasChanged();
+    });
+
+    /// <summary>The words music-core writes the facts in: the interface language.</summary>
+    private Words Words => Words.For(Text.Language);
 
     protected override bool ShouldRender() => !_startingPreview;
 
@@ -1466,15 +1482,22 @@
         await Player.SetSourceAsync(Player.OriginalSource, _filter == SelectionFilter.All ? _score! : _score!.WithNotes(_notes!.Where(_filter.Matches)));
     }
 
+    /// <summary>The facts about a selection and the experiments offered for them.</summary>
+    private void Analyze(MotifSelection selection)
+    {
+        IReadOnlyList<PhraseBoundary> phrases = _phrases!.Boundaries;
+        KeySignature? key = KeySignature.InForce(_keys, selection.Span.Onset);
+        _analysis = MotifAnalyzer.Analyze(_notes!, _meter!, selection, key, _accents, phrases, Words);
+        _structure = StructureAnalyzer.Analyze(_notes!, _meter!, selection, phrases, Words);
+        _character = MotifAnalyzer.AnalyzeCharacter(_notes!, _meter!, selection, key, _characterContext!, Words);
+        _invitationContext = new InvitationContext(_notes!, _meter!, selection, _analysis, _structure, _character);
+        _offers = ExperimentCatalogue.Offer(_invitationContext);
+    }
+
     private async Task SelectAsync(TickSpan span, string? note)
     {
         _selection = MotifSelector.Select(_notes!, _meter!, span, _filter);
-        IReadOnlyList<PhraseBoundary> phrases = _phrases!.Boundaries;
-        _analysis = MotifAnalyzer.Analyze(_notes!, _meter!, _selection, KeySignature.InForce(_keys, span.Onset), _accents, phrases);
-        _structure = StructureAnalyzer.Analyze(_notes!, _meter!, _selection, phrases);
-        _character = MotifAnalyzer.AnalyzeCharacter(_notes!, _meter!, _selection, KeySignature.InForce(_keys, span.Onset), _characterContext!);
-        _invitationContext = new InvitationContext(_notes!, _meter!, _selection, _analysis, _structure, _character);
-        _offers = ExperimentCatalogue.Offer(_invitationContext);
+        Analyze(_selection);
         _highlight = null;
         MotifTexture? texture = _selection.NoteIds.Count == 0 ? null : MotifTexture.Read(VariationFacts.MotifNotes(_notes!, _selection));
         _layered = texture is { IsSingleLine: false } && texture.Melody.Count < texture.Notes.Count;

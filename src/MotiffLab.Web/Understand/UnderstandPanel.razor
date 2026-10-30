@@ -1,5 +1,7 @@
 @using MotiffLab.MusicCore.Analysis
 @using MotiffLab.MusicCore.Experiments
+@using MotiffLab.Web.Localization
+@inject UiText Text
 
 @* Understand (#25; S1-A1, S1-A2, S1-A4, S1-A5): the facts about the selection, one collapsible section per lens in FactLens order.
    A fact with places can be chosen to highlight them in the score and on the roll, one place at a time from its chips,
@@ -7,22 +9,22 @@
    the panel only displays the workspace state (0013), and the page highlights, plays and tries. *@
 @if (Chosen is { } chosen)
 {
-    <div class="highlighted" role="group" aria-label="Highlighted in the score and on the roll">
+    <div class="highlighted" role="group" aria-label="@Text["understand.highlightedLabel"]">
         <p aria-live="polite">
-            <strong>Highlighted:</strong> @chosen.Fact.Text
-            <span class="meta">@(chosen.Place is { } place ? place.Label : Plural(chosen.Fact.Places.Count, "place")), in the score and on the roll.</span>
+            <strong>@Text["understand.highlighted"]</strong> @chosen.Fact.Text
+            <span class="meta">@Text.Format("understand.inScore", chosen.Place is { } place ? place.Label : Text.Count("understand.places", chosen.Fact.Places.Count))</span>
         </p>
         @if (!Facts.Contains(chosen.Fact))
         {
-            <p class="meta">A fact about the passage the experiment was offered for.</p>
+            <p class="meta">@Text["understand.offeredFor"]</p>
             @PlaceChips(chosen.Fact)
         }
-        <button @onclick="() => Choose.InvokeAsync(null)">Clear highlight</button>
+        <button @onclick="() => Choose.InvokeAsync(null)">@Text["understand.clear"]</button>
     </div>
 }
 @if (Facts.Count > 0)
 {
-    <div class="facts" role="group" aria-label="Facts about the selection">
+    <div class="facts" role="group" aria-label="@Text["understand.factsLabel"]">
         @foreach (FactLens lens in Enum.GetValues<FactLens>())
         {
             MotifFact[] facts = Facts.Where(fact => fact.Lens == lens).ToArray();
@@ -51,7 +53,7 @@
                                     @if (fact.Places.Count > 0)
                                     {
                                         <button class="fact-text" aria-pressed="@(isChosen ? "true" : "false")" @onclick="() => Choose.InvokeAsync(isChosen ? null : new FactChoice(fact))">
-                                            @fact.Text <span class="where">@(isChosen ? "Shown" : "Show") @Plural(fact.Places.Count, "place")</span>
+                                            @fact.Text <span class="where">@Text.Format(isChosen ? "understand.shown" : "understand.show", Text.Count("understand.places", fact.Places.Count))</span>
                                         </button>
                                     }
                                     else
@@ -60,7 +62,7 @@
                                     }
                                     @if (showBasis)
                                     {
-                                        <span class="basis">Basis: @fact.Basis</span>
+                                        <span class="basis">@Text["understand.basisPrefix"] @fact.Basis</span>
                                     }
                                     @if (isChosen)
                                     {
@@ -68,17 +70,17 @@
                                     }
                                     @foreach (Experiment experiment in ExperimentCatalogue.RestingOn(Offers, fact.Id))
                                     {
-                                        <button class="try" @onclick="() => Try.InvokeAsync(experiment)" title="@experiment.Question">Try: @experiment.Title</button>
+                                        <button class="try" @onclick="() => Try.InvokeAsync(experiment)" title="@experiment.Question">@Text.Format("understand.try", experiment.Title)</button>
                                     }
                                 </div>
-                                <button class="basis-toggle" aria-expanded="@(showBasis ? "true" : "false")" @onclick="() => ToggleBasis(fact.Id)">@(showBasis ? "Hide basis" : "Basis")</button>
+                                <button class="basis-toggle" aria-expanded="@(showBasis ? "true" : "false")" @onclick="() => ToggleBasis(fact.Id)">@Text[showBasis ? "understand.hideBasis" : "understand.basis"]</button>
                             </li>
                         }
                     </ul>
                 }
             </section>
         }
-        <p class="meta">Detected: read from the notes or the file. Inferred: worked out by a rule. Uncertain: a guess on thin evidence. Basis shows why. Choose a fact that names places to see them in the score and on the roll.</p>
+        <p class="meta">@Text["understand.legend"]</p>
     </div>
 }
 
@@ -112,11 +114,11 @@
 
     /// <summary>The places of a chosen fact as chips; a chip highlights only its place, and pressed again, all of them.</summary>
     private RenderFragment PlaceChips(MotifFact fact) =>
-        @<div class="places" role="group" aria-label="Places">
+        @<div class="places" role="group" aria-label="@Text["understand.placesLabel"]">
             @foreach (FactPlace place in fact.Places)
             {
                 bool on = Chosen?.Place == place;
-                <button class="chip" aria-pressed="@(on ? "true" : "false")" title="Highlight only this place and move playback to its start."
+                <button class="chip" aria-pressed="@(on ? "true" : "false")" title="@Text["understand.placeHint"]"
                         @onclick="() => Choose.InvokeAsync(on ? new FactChoice(fact) : new FactChoice(fact, place))">@place.Label</button>
             }
         </div>;
@@ -137,24 +139,17 @@
         }
     }
 
-    private static string LensLabel(FactLens lens) => lens.ToString();
-
-    private static string Plural(int count, string noun) => count == 1 ? $"1 {noun}" : $"{count} {noun}s";
+    private string LensLabel(FactLens lens) => Text[$"term.lens.{lens.ToString().ToLowerInvariant()}"];
 
     /// <summary>"4 facts: 3 detected, 1 inferred", so a closed section still says how sure it is.</summary>
-    private static string CountText(MotifFact[] facts)
+    private string CountText(MotifFact[] facts)
     {
         IEnumerable<string> parts = Enum.GetValues<FactCertainty>()
             .Select(certainty => (certainty, count: facts.Count(fact => fact.Certainty == certainty)))
             .Where(pair => pair.count > 0)
-            .Select(pair => $"{pair.count} {CertaintyLabel(pair.certainty)}");
-        return $"{facts.Length} {(facts.Length == 1 ? "fact" : "facts")}: {string.Join(", ", parts)}";
+            .Select(pair => Text.Format("understand.certaintyCount", CertaintyLabel(pair.certainty), pair.count));
+        return $"{Text.Count("understand.facts", facts.Length)}: {string.Join(", ", parts)}";
     }
 
-    public static string CertaintyLabel(FactCertainty certainty) => certainty switch
-    {
-        FactCertainty.Detected => "detected",
-        FactCertainty.Inferred => "inferred",
-        _ => "uncertain",
-    };
+    private string CertaintyLabel(FactCertainty certainty) => Text[$"term.certainty.{certainty.ToString().ToLowerInvariant()}"];
 }

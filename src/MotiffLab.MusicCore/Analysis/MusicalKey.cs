@@ -16,6 +16,8 @@ public readonly record struct MusicalKey
 {
     private static readonly string[] s_steps = ["C", "D", "E", "F", "G", "A", "B"];
 
+    private static readonly string[] s_russianSteps = ["до", "ре", "ми", "фа", "соль", "ля", "си"];
+
     /// <param name="fifths">Sharps (positive) or flats (negative) of its key signature, −7 to 7.</param>
     public MusicalKey(int fifths, KeyMode mode)
     {
@@ -39,6 +41,24 @@ public readonly record struct MusicalKey
 
     /// <summary>For example "A minor" or "E♭ major".</summary>
     public string Name => $"{SpellPitchClass(TonicPitchClass)} {(Mode == KeyMode.Major ? "major" : "minor")}";
+
+    /// <summary>The name in a language: "A minor"; "ля минор", "ми-бемоль мажор".</summary>
+    public string NameIn(Words words)
+    {
+        if (!words.IsRussian)
+        {
+            return Name;
+        }
+
+        SpelledPitch tonic = PitchSpeller.Spell(60 + TonicPitchClass, Fifths);
+        string accidental = tonic.Alter switch
+        {
+            -1 => "-бемоль",
+            1 => "-диез",
+            _ => "",
+        };
+        return $"{s_russianSteps[tonic.Step]}{accidental} {(Mode == KeyMode.Major ? "мажор" : "минор")}";
+    }
 
     /// <summary>The key with the same signature and the other mode.</summary>
     public MusicalKey Relative => new(Fifths, Mode == KeyMode.Major ? KeyMode.Minor : KeyMode.Major);
