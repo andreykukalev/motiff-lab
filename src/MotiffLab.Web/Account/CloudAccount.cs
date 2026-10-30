@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
@@ -97,9 +99,11 @@ public sealed class CloudAccount(AccountOptions options, NavigationManager navig
             request.TryAddAdditionalParameter("prompt", "create");
         }
 
-        // External ID takes both: ui_locales picks the page's language, mkt its market strings.
+        // External ID takes both: ui_locales picks the page's language, mkt its market strings. A JsonElement, because the
+        // request is serialized with a source-generated context that knows strings, string lists and JsonElement only.
         string locale = text.Language == "ru" ? "ru-RU" : "en-US";
-        request.TryAddAdditionalParameter("extraQueryParameters", new Dictionary<string, string> { ["ui_locales"] = locale, ["mkt"] = locale });
+        using JsonDocument query = JsonDocument.Parse($$"""{"ui_locales":"{{locale}}","mkt":"{{locale}}"}""");
+        request.TryAddAdditionalParameter("extraQueryParameters", query.RootElement.Clone());
         navigation.NavigateToLogin("authentication/login", request);
     }
 
