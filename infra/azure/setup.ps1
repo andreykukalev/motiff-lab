@@ -120,17 +120,27 @@ foreach ($provider in 'Microsoft.App', 'Microsoft.ManagedIdentity', 'Microsoft.D
   }
 }
 
-Write-MotiffStep "Shared Cosmos DB account ($SharedGroup)"
-if (-not $CosmosAccount) {
+Write-MotiffStep "Cosmos DB account"
+$groupExists = (Test-MotiffAz (@('group', 'exists', '--name', $ResourceGroup) + $ArmArgs)) -match 'true'
+# Motiff Lab's own serverless account, for when the shared free tier has no room left (two cix databases take 800 RU/s).
+$OwnAccount = "cosmos-motifflab-$($subscriptionId.Substring(0, 8))"
+$CosmosGroup = $SharedGroup
+$createAccount = $false
+$cosmos = $null
+if (-not $CosmosAccount -and $groupExists) {
+  $json = Test-MotiffAz (@('cosmosdb', 'show', '--name', $OwnAccount, '--resource-group', $ResourceGroup, '-o', 'json') + $ArmArgs)
+  if ($json) { $cosmos = $json | ConvertFrom-Json; $CosmosAccount = $OwnAccount; $CosmosGroup = $ResourceGroup }
+}
+if (-not $cosmos -and -not $CosmosAccount) {
   $free = @(Invoke-MotiffAz (@('cosmosdb', 'list', '--resource-group', $SharedGroup, '-o', 'json') + $ArmArgs) | ConvertFrom-MotiffJson |
       Where-Object { Get-MotiffField $_ 'enableFreeTier' })
   if ($free.Count -ne 1) { throw "Expected one free-tier Cosmos DB account in $SharedGroup, found $($free.Count). Name it with -CosmosAccount <name>." }
   $CosmosAccount = "$($free[0].name)"
 }
-$cosmos = Invoke-MotiffAz (@('cosmosdb', 'show', '--name', $CosmosAccount, '--resource-group', $SharedGroup, '-o', 'json') + $ArmArgs) | ConvertFrom-Json
+if (-not $cosmos) { $cosmos = Invoke-MotiffAz (@('cosmosdb', 'show', '--name', $CosmosAccount, '--resource-group', $CosmosGroup, '-o', 'json') + $ArmArgs) | ConvertFrom-Json }
 if ("$($cosmos.kind)" -ne 'GlobalDocumentDB') { throw "$CosmosAccount is a $($cosmos.kind) account; Motiff Lab needs the NoSQL API (GlobalDocumentDB)." }
 $serverless = @(@(Get-MotiffField $cosmos 'capabilities') | Where-Object { $_ -and "$($_.name)" -eq 'EnableServerless' }).Count -gt 0
-$databases = @(Invoke-MotiffAz (@('cosmosdb', 'sql', 'database', 'list', '--account-name', $CosmosAccount, '--resource-group', $SharedGroup, '-o', 'json') + $ArmArgs) |
+$databases = @(Invoke-MotiffAz (@('cosmosdb', 'sql', 'database', 'list', '--account-name', $CosmosAccount, '--resource-group', $CosmosGroup, '-o', 'json') + $ArmArgs) |
     ConvertFrom-MotiffJson | ForEach-Object { "$($_.name)" })
 $databaseExists = $databases -contains $Database
 if (-not $databaseExists -and -not $serverless) {
@@ -146,37 +156,55 @@ if (-not $databaseExists -and -not $serverless) {
     }
   }
   Write-MotiffInfo "$CosmosAccount already uses $used of the free tier's $FreeTierRu RU/s."
-  if ($used + $Throughput -gt $FreeTierRu) { throw "Adding $Throughput RU/s for $Database would go past the free tier and cost money. Nothing was created." }
+  if ($used + $Throughput -gt $FreeTierRu) {
+    # Its RU/s would be billed by the hour, used or not; a serverless account bills only the requests and the storage.
+    Write-MotiffWarn "Adding $Throughput RU/s for $Database would go past the free tier. Motiff Lab gets its own serverless account instead, $OwnAccount in ${ResourceGroup}: no reserved RU/s, billed per request (about 0.25 USD per million RU and 0.25 USD per GB a month, cents at this use)."
+    $CosmosAccount = $OwnAccount
+    $CosmosGroup = $ResourceGroup
+    $createAccount = $true
+    $serverless = $true
+    $databaseExists = $false
+    $cosmos = $null
+  }
 }
 $plan = if ($databaseExists) { "database $Database is there already" } elseif ($serverless) { "database $Database (serverless)" } else { "database $Database at $Throughput RU/s shared" }
-Write-MotiffInfo "Account: $CosmosAccount; $plan, container $Container (partition /ownerId)"
+Write-MotiffInfo "Account: $CosmosAccount ($CosmosGroup)$(if ($createAccount) { ', new, serverless' }); $plan, container $Container (partition /ownerId)"
 
 $tenantResource = "/subscriptions/$subscriptionId/resourceGroups/$ResourceGroup/providers/Microsoft.AzureActiveDirectory/ciamDirectories/$Domain"
 $tenantUrl = "https://management.azure.com${tenantResource}?api-version=$TenantApiVersion"
 $tenant = $null
-if ((Test-MotiffAz (@('group', 'exists', '--name', $ResourceGroup) + $ArmArgs)) -match 'true') {
+if ($groupExists) {
   $json = Test-MotiffAz @('rest', '--method', 'get', '--url', $tenantUrl, '-o', 'json')
   if ($json) { $tenant = $json | ConvertFrom-Json }
 }
 
 Write-MotiffStep 'What this creates'
 Write-MotiffInfo "In $($account.name):"
-Write-MotiffInfo "  - $plan in $CosmosAccount ($SharedGroup), nothing else there changes"
 Write-MotiffInfo "  - resource group $ResourceGroup ($Location) with id-motifflab-github (CI) and $ApiIdentity (the API)"
+if ($createAccount) { Write-MotiffInfo "  - the serverless Cosmos DB account $OwnAccount in $ResourceGroup, with the $plan; $SharedGroup is left as it is" }
+else { Write-MotiffInfo "  - $plan in $CosmosAccount ($CosmosGroup), nothing else there changes" }
 Write-MotiffInfo "  - $(if ($tenant) { "the sign-in tenant $Domain is there already" } else { "the sign-in tenant $Domain.onmicrosoft.com (External ID, Europe, free up to 50,000 monthly users)" })"
 Write-MotiffInfo "In the sign-in tenant: app registrations '$ApiAppName' and '$WebAppName', and the flow '$FlowName' (email code)"
 Write-MotiffInfo "On ${Repository}: repository variables (identifiers, not secrets)$(if (-not $SkipDeploy) { ', then the Scan server, API and CI workflows' })"
-Write-MotiffInfo 'Standing cost: none. The apps scale to zero and the database stays in the free tier.'
+Write-MotiffInfo "Standing cost: none. The apps scale to zero, and $(if ($serverless) { 'the serverless database bills only its requests and storage' } else { 'the database stays in the free tier' })."
 Confirm-Step 'Go ahead?'
 
 Write-MotiffStep 'Database'
+if ($createAccount) {
+  Invoke-MotiffAz (@('group', 'create', '--name', $ResourceGroup, '--location', $Location, '--tags', 'app=motiff-lab', '-o', 'none') + $ArmArgs) | Out-Null
+  Write-MotiffInfo "Creating the serverless account $OwnAccount (5 to 10 minutes)..."
+  Invoke-MotiffAz (@('cosmosdb', 'create', '--name', $OwnAccount, '--resource-group', $ResourceGroup,
+    '--locations', "regionName=$Location", 'failoverPriority=0', 'isZoneRedundant=False',
+    '--capabilities', 'EnableServerless', '--default-consistency-level', 'Session', '--tags', 'app=motiff-lab', '-o', 'none') + $ArmArgs) | Out-Null
+  $cosmos = Invoke-MotiffAz (@('cosmosdb', 'show', '--name', $OwnAccount, '--resource-group', $ResourceGroup, '-o', 'json') + $ArmArgs) | ConvertFrom-Json
+}
 if (-not $databaseExists) {
-  $create = @('cosmosdb', 'sql', 'database', 'create', '--account-name', $CosmosAccount, '--resource-group', $SharedGroup, '--name', $Database, '-o', 'none') + $ArmArgs
+  $create = @('cosmosdb', 'sql', 'database', 'create', '--account-name', $CosmosAccount, '--resource-group', $CosmosGroup, '--name', $Database, '-o', 'none') + $ArmArgs
   if (-not $serverless) { $create += @('--throughput', "$Throughput") }
   Invoke-MotiffAz $create | Out-Null
   Write-MotiffInfo "Created the database $Database."
 }
-$containerArgs = @('--account-name', $CosmosAccount, '--resource-group', $SharedGroup, '--database-name', $Database, '--name', $Container) + $ArmArgs
+$containerArgs = @('--account-name', $CosmosAccount, '--resource-group', $CosmosGroup, '--database-name', $Database, '--name', $Container) + $ArmArgs
 if ($null -eq (Test-MotiffAz (@('cosmosdb', 'sql', 'container', 'show') + $containerArgs + @('-o', 'none')))) {
   # One container for everything a player keeps, partitioned by player, so a player's data is one partition.
   Invoke-MotiffAz (@('cosmosdb', 'sql', 'container', 'create') + $containerArgs + @('--partition-key-path', '/ownerId', '-o', 'none')) | Out-Null
@@ -194,10 +222,10 @@ Invoke-MotiffAz (@('identity', 'create', '--name', $ApiIdentity, '--resource-gro
   '--tags', 'app=motiff-lab', 'service=api', '-o', 'none') + $ArmArgs) | Out-Null
 $principal = "$(Invoke-MotiffAz (@('identity', 'show', '--name', $ApiIdentity, '--resource-group', $ResourceGroup, '--query', 'principalId', '-o', 'tsv') + $ArmArgs))".Trim()
 # Data access to this database only, never to the account's other databases or its keys.
-$assigned = @(Invoke-MotiffAz (@('cosmosdb', 'sql', 'role', 'assignment', 'list', '--account-name', $CosmosAccount, '--resource-group', $SharedGroup, '-o', 'json') + $ArmArgs) |
+$assigned = @(Invoke-MotiffAz (@('cosmosdb', 'sql', 'role', 'assignment', 'list', '--account-name', $CosmosAccount, '--resource-group', $CosmosGroup, '-o', 'json') + $ArmArgs) |
     ConvertFrom-MotiffJson | Where-Object { "$($_.principalId)" -eq $principal })
 if ($assigned.Count -eq 0) {
-  Invoke-MotiffAz (@('cosmosdb', 'sql', 'role', 'assignment', 'create', '--account-name', $CosmosAccount, '--resource-group', $SharedGroup,
+  Invoke-MotiffAz (@('cosmosdb', 'sql', 'role', 'assignment', 'create', '--account-name', $CosmosAccount, '--resource-group', $CosmosGroup,
     '--role-definition-id', $DataContributor, '--principal-id', $principal, '--scope', "/dbs/$Database", '-o', 'none') + $ArmArgs) | Out-Null
 }
 Write-MotiffInfo "$ApiIdentity may read and write the database $Database, and nothing else in $CosmosAccount."
