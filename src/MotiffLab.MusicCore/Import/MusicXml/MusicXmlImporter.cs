@@ -32,7 +32,7 @@ namespace MotiffLab.MusicCore.Import.MusicXml;
 public static class MusicXmlImporter
 {
     /// <summary>The Stage 1 file size limit (S1-I1).</summary>
-    public const int MaxFileBytes = 5 * 1024 * 1024;
+    public const int MaxFileBytes = 50 * 1024 * 1024;
 
     /// <summary>Velocity for notes the score gives no playback dynamics: between mp and mf.</summary>
     public const int DefaultVelocity = 80;
@@ -46,7 +46,7 @@ public static class MusicXmlImporter
     {
         if (data.Length > MaxFileBytes)
         {
-            throw new MusicXmlImportException(MusicXmlImportFailure.TooLarge, "This file is larger than 5 MB, the most Motiff Lab can import.");
+            throw new MusicXmlImportException(MusicXmlImportFailure.TooLarge, "This file is larger than 50 MB, the most Motiff Lab can import.");
         }
 
         XElement root = Load(MxlArchive.IsArchive(data) ? MxlArchive.ReadScore(data) : data);
@@ -96,7 +96,7 @@ public static class MusicXmlImporter
     {
         if (data.Length > MaxFileBytes)
         {
-            throw new MusicXmlImportException(MusicXmlImportFailure.TooLarge, "This file is larger than 5 MB, the most Motiff Lab can import.");
+            throw new MusicXmlImportException(MusicXmlImportFailure.TooLarge, "This file is larger than 50 MB, the most Motiff Lab can import.");
         }
 
         return MxlArchive.IsArchive(data) ? MxlArchive.ReadScore(data) : data.ToArray();

@@ -2001,16 +2001,38 @@ html, body {
 }
 
 .lab .sign-in-prompt {
-    border-left: 3px solid var(--ml-lime);
-    padding-left: 0.75rem;
+    color: var(--ml-gray);
 }
 
-.lab .sign-in-prompt p {
-    margin: 0;
+/* Inline, so the line keeps its height; the padding still widens what a finger can hit. */
+.lab .sign-in-prompt button.link {
+    display: inline;
+    font-size: inherit;
+    font-weight: 600;
+    padding: 0.7rem 0.3rem;
 }
 
-.lab .sign-in-prompt .row {
-    margin-bottom: 0;
+.lab .account-nav .languages {
+    display: inline-flex;
+    border: 1px solid var(--ml-border);
+    border-radius: 0.6rem;
+    overflow: hidden;
+}
+
+.lab .account-nav .languages button {
+    border: none;
+    border-radius: 0;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    padding: 0 0.6rem;
+    font-size: 0.85rem;
+    color: var(--ml-gray);
+}
+
+.lab .account-nav .languages button.on {
+    background: var(--ml-raised);
+    color: var(--ml-white);
+    font-weight: 600;
 }
 
 /* The playback transport is fixed along the bottom; the footer clears it. */
@@ -2134,7 +2156,7 @@ h1:focus {
     outline: none;
 }
 
-/* Projects (Pages/Home.razor): a reading width, the routes in as tiles at least 44px to touch, then the pieces and where they are saved. */
+/* Projects (Pages/Home.razor): a reading width, the routes in as tiles at least 44px to touch, then the pieces. */
 .lab.home-screen {
     max-width: 72rem;
 }
@@ -2270,22 +2292,6 @@ body:has(.home-screen) .site-footer {
     margin: 0.5rem 0 0;
     padding-left: 1.4rem;
     line-height: 1.6;
-}
-
-.home-screen .saving {
-    background: var(--ml-surface);
-    border: 1px solid var(--ml-line);
-    border-radius: 0.9rem;
-    padding: 0.9rem 1rem;
-}
-
-.home-screen .saving p {
-    margin: 0.25rem 0;
-}
-
-.home-screen .saving .sign-in-prompt {
-    border-left: none;
-    padding-left: 0;
 }
 
 .home-screen .project-card .actions a.button, .home-screen .project-card .actions button {

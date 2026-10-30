@@ -4,7 +4,7 @@ Status: proposed, 2026-10-22
 
 ## Context
 
-S1-I1 to S1-I4 and S1-I8 need a Standard MIDI File importer: types 0 and 1 timed in ticks per quarter note, notes with velocity, the tempo map, time and key signatures, track and instrument names, channel 10 excluded with a notice, files up to 5 MB, and an import report that says what was rounded, guessed or left out. Timing must go through the exact model of 0002. music-core is pure and deterministic and runs in Blazor WebAssembly, where download size matters (0001).
+S1-I1 to S1-I4 and S1-I8 need a Standard MIDI File importer: types 0 and 1 timed in ticks per quarter note, notes with velocity, the tempo map, time and key signatures, track and instrument names, channel 10 excluded with a notice, files up to 50 MB, and an import report that says what was rounded, guessed or left out. Timing must go through the exact model of 0002. music-core is pure and deterministic and runs in Blazor WebAssembly, where download size matters (0001).
 
 ## Options considered
 
@@ -26,7 +26,7 @@ Policies:
 
 | Situation | Policy | Report |
 | --- | --- | --- |
-| Type 2, SMPTE timing, RIFF (.rmi) wrapper, not MIDI, header damaged, no tracks, over 5 MB | Fail with `MidiImportException` and a plain reason (N2) | — |
+| Type 2, SMPTE timing, RIFF (.rmi) wrapper, not MIDI, header damaged, no tracks, over 50 MB | Fail with `MidiImportException` and a plain reason (N2) | — |
 | Timing | Ticks convert through `MidiTimeBase`; onset and end round separately in `CanonicalTime` | Rounded: notes, and tempo/meter/key positions |
 | Note pairing | Per track, channel and key, first on first off. A note-on that comes just before the previous note's note-off at the same tick then pairs correctly instead of making a zero-length note | — |
 | Same key struck again while sounding | Kept as two overlapping notes, paired in order | Assumed |

@@ -27,7 +27,7 @@ public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text
     public const string SuggestedAddress = "http://localhost:8765";
 
     /// <summary>The largest upload the server accepts.</summary>
-    public const long MaxUploadBytes = 20 * 1024 * 1024;
+    public const long MaxUploadBytes = 50 * 1024 * 1024;
 
     public const string AcceptedExtensions = ".pdf,.png,.jpg,.jpeg";
 

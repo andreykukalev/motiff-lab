@@ -15,7 +15,7 @@
 
 @* N1 · Projects (S1-P1, 0012): a project is a piece and everything the player made around it. Opening one goes to its page,
    with its sessions and ideas; export and re-import as one file for backup (AC-S1-20). The screen also starts a new piece
-   by each route in (a file, a scan, a recording, Für Elise) and says where projects are saved (0014). *@
+   by each route in (a file, a scan, a recording, Für Elise). *@
 <main class="lab projects home-screen">
     <header class="page-header">
         <div class="brand">
@@ -41,7 +41,7 @@
     }
 
     @* The routes in, as large tiles a finger finds on an iPad at the piano. Scanning and transcription say here when they
-       need a server or a sign-in first; the import screen has the details. *@
+       need a server or a sign-in first; their screens have the details. *@
     <section class="start-new" aria-labelledby="start-heading">
         <h2 id="start-heading">@Text["home.startHeading"]</h2>
         <ul class="start-tiles">
@@ -53,7 +53,7 @@
                 </a>
             </li>
             <li>
-                <a class="start-tile" href="import#scan-heading">
+                <a class="start-tile" href="import/scan">
                     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 8V4h4 M16 4h4v4 M20 16v4h-4 M8 20H4v-4 M7 9h10 M7 12h10 M7 15h10" /></svg>
                     <strong>@Text["home.fromScan"]</strong>
                     <span class="hint">@Text["home.fromScanHint"]</span>
@@ -64,7 +64,7 @@
                 </a>
             </li>
             <li>
-                <a class="start-tile" href="import#transcribe-heading">
+                <a class="start-tile" href="import/recording">
                     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 12h2 M7 8v8 M11 5v14 M15 9v6 M19 11v2 M21 12h0" /></svg>
                     <strong>@Text["home.fromRecording"]</strong>
                     <span class="hint">@Text["home.fromRecordingHint"]</span>
@@ -161,33 +161,6 @@
         </section>
     }
 
-    @* Where the projects are: this browser only, or online too once the player signs in and turns it on (0014). *@
-    @if (_summaries is not null)
-    {
-        <section class="saving" aria-labelledby="saving-heading">
-            <h2 id="saving-heading">@Text["home.savingHeading"]</h2>
-            @if (!Account.IsAvailable)
-            {
-                <p class="meta">@Text["home.savedHere"]</p>
-            }
-            else if (_player is null)
-            {
-                <MotiffLab.Web.Account.SignInPrompt Text="@Text["home.savingSignedOut"]" />
-            }
-            else if (!_onlineOn)
-            {
-                <p>@Text.Format("home.savingOff", _player) <a href="settings#account">@Text["home.turnOnline"]</a></p>
-            }
-            else
-            {
-                <p>@Text.Format("home.savingOn", _player)</p>
-                @if (Online.Status is { } status)
-                {
-                    <p class="meta" role="status">@status</p>
-                }
-            }
-        </section>
-    }
 </main>
 
 @code {
@@ -196,23 +169,14 @@
     private string? _message;
     private string? _confirmDelete;
     private IReadOnlyList<ProjectSummary>? _onlineOnly;
-    private bool _onlineOn;
     private string? _player;
 
     /// <summary>What scanning and transcription need before they work here, or null when they are ready.</summary>
     private string? _serverNote;
 
-    protected override void OnInitialized()
-    {
-        Text.Changed += OnChanged;
-        Online.Changed += OnChanged;
-    }
+    protected override void OnInitialized() => Text.Changed += OnChanged;
 
-    public void Dispose()
-    {
-        Text.Changed -= OnChanged;
-        Online.Changed -= OnChanged;
-    }
+    public void Dispose() => Text.Changed -= OnChanged;
 
     private void OnChanged()
     {
@@ -246,8 +210,7 @@
         _summaries = await Projects.ListAsync();
         _nearlyFull = await Projects.IsNearlyFullAsync();
         _onlineOnly = null;
-        _onlineOn = await Online.IsOnAsync();
-        if (_onlineOn)
+        if (await Online.IsOnAsync())
         {
             // Offline or signed out, the list is just left out: this screen is about the projects here.
             (IReadOnlyList<ProjectSummary>? online, _) = await Online.ListAsync();
@@ -299,8 +262,8 @@
         _message = null;
         try
         {
-            // A project holds a source of at most 5 MB, which base64 and the JSON around it grow by about a third.
-            await using Stream stream = args.File.OpenReadStream(8 * 1024 * 1024);
+            // A project holds a source of at most 50 MB, which base64 and the JSON around it grow by about a third.
+            await using Stream stream = args.File.OpenReadStream(70 * 1024 * 1024);
             using var memory = new MemoryStream();
             await stream.CopyToAsync(memory);
             Project project = ProjectFile.Read(memory.ToArray());

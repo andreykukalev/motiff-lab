@@ -1,4 +1,6 @@
 @page "/import"
+@page "/import/scan"
+@page "/import/recording"
 @using System.Diagnostics
 @using MotiffLab.MusicCore.Analytics
 @using MotiffLab.MusicCore.Import
@@ -14,139 +16,148 @@
 @inject ScanService Scans
 @inject MotiffLab.Web.Localization.UiText Text
 @inject MotiffLab.Web.Account.CloudAccount Account
+@implements IDisposable
 
-<PageTitle>Import · Motiff Lab</PageTitle>
+<PageTitle>@Text[Heading] · Motiff Lab</PageTitle>
 
-@* N2 · Import (S1-I1, S1-I8): drop or pick a file, read the import report, pick where to start. Parsing runs in the browser; the file never leaves the device.
-   Scanning (0011) is one exception: a PDF or photo the player picks for it goes to the scan server they set in Settings, and comes back as MusicXML.
-   Transcription (0014) is the other: the sound of a recording the player picks goes to the same server, and comes back as MIDI. *@
+@* N2 · Import (S1-I1, S1-I8): pick a file, read the import report, pick where to start. Each way in has its own screen, so the
+   file picker takes only what that way reads. Opening a file (/import) parses it in the browser; the file never leaves the device.
+   Scanning (/import/scan, 0011) is one exception: a PDF or photo the player picks for it goes to the scan server they set in Settings,
+   and comes back as MusicXML. Transcription (/import/recording, 0014) is the other: the sound of a recording the player picks goes to
+   the same server, and comes back as MIDI. *@
 <main class="lab import">
-    <h1>Import a piece</h1>
-    <p class="meta">Motiff Lab reads MIDI (.mid) and MusicXML (.musicxml, .mxl) files up to 5 MB. The file is read in this browser and never leaves this device.</p>
+    <h1>@Text[Heading]</h1>
 
-    <label class="dropzone @(_reading ? "busy" : null)">
-        <InputFile OnChange="OpenFileAsync" accept="@PieceImporter.AcceptedExtensions" disabled="@_reading" aria-label="Choose a MIDI or MusicXML file" />
-        <span>@(_reading ? "Reading…" : "Drop a file here, or click to choose one")</span>
-    </label>
+    @if (_route == ImportRoute.File)
+    {
+        <p class="meta">@Text["import.fileWhat"]</p>
+        <label class="dropzone @(_reading ? "busy" : null)">
+            <InputFile OnChange="OpenFileAsync" accept="@PieceImporter.AcceptedExtensions" disabled="@_reading" aria-label="@Text["import.fileChoose"]" />
+            <span>@(_reading ? Text["import.reading"] : Text["import.fileDrop"])</span>
+        </label>
+    }
+    else if (_route == ImportRoute.Scan)
+    {
+        <section class="scan" aria-label="@Text["home.fromScan"]">
+            @if (Scans.Address is not { } server)
+            {
+                @if (Scans.HostedAddress is not null)
+                {
+                    <p class="meta">@Text["scan.turnedOff"] <a href="settings#scan">@Text["scan.turnOn"]</a>.</p>
+                }
+                else
+                {
+                    <p class="meta">@Text["import.scanSetUp"] <a href="settings#scan-heading">@Text["import.scanSetUpLink"]</a>.</p>
+                }
+            }
+            else if (Scans.IsHosted && !_signedIn)
+            {
+                <MotiffLab.Web.Account.SignInPrompt Text="@Text["scan.signInPrompt"]" />
+            }
+            else
+            {
+                <p class="meta">@Text.Format(Scans.IsLocal ? "import.scanWhatHere" : "import.scanWhat", server)</p>
+                @if (Scans.IsHosted)
+                {
+                    <label>
+                        <input type="checkbox" @bind="_sendElsewhere" />
+                        @Text["scan.sendHosted"]
+                    </label>
+                }
+                else if (!Scans.IsLocal)
+                {
+                    <label>
+                        <input type="checkbox" @bind="_sendElsewhere" />
+                        @Text.Format("import.scanSendElsewhere", server.Host)
+                    </label>
+                }
+
+                <label class="dropzone @(_scanning ? "busy" : null)">
+                    <InputFile OnChange="ScanFileAsync" accept="@ScanService.AcceptedExtensions" disabled="@(_reading || _scanning || !(Scans.IsLocal || _sendElsewhere))" aria-label="@Text["import.scanChoose"]" />
+                    <span>@(_scanning ? Text["import.scanBusy"] : Text["import.scanDrop"])</span>
+                </label>
+            }
+        </section>
+    }
+    else
+    {
+        <section class="scan" aria-label="@Text["home.fromRecording"]">
+            @if (Scans.Address is not { } listener)
+            {
+                @if (Scans.HostedAddress is not null)
+                {
+                    <p class="meta">@Text["scan.turnedOff"] <a href="settings#scan">@Text["scan.turnOn"]</a>.</p>
+                }
+                else
+                {
+                    <p class="meta">@Text["transcribe.setUp"] <a href="settings#scan-heading">@Text["transcribe.setUpLink"]</a>.</p>
+                }
+            }
+            else if (Scans.IsHosted && !_signedIn)
+            {
+                <MotiffLab.Web.Account.SignInPrompt Text="@Text["transcribe.signInPrompt"]" />
+            }
+            else
+            {
+                <p class="meta">@Text.Format("transcribe.what", listener)</p>
+                @if (!Scans.IsLocal)
+                {
+                    <label>
+                        <input type="checkbox" @bind="_sendSound" />
+                        @(Scans.IsHosted ? Text["transcribe.sendHosted"] : Text.Format("transcribe.sendElsewhere", listener.Host))
+                    </label>
+                }
+
+                <label class="dropzone @(_transcribing ? "busy" : null)">
+                    <InputFile @ref="_recordingInput" OnChange="TranscribeFileAsync" accept="@ScanService.AcceptedRecordings" disabled="@(_reading || _scanning || _transcribing || !(Scans.IsLocal || _sendSound))" aria-label="@Text["transcribe.choose"]" />
+                    <span>@(_transcribing ? Text["transcribe.busy"] : Text["transcribe.drop"])</span>
+                </label>
+            }
+        </section>
+    }
 
     @if (_rejection is { } rejection)
     {
         <section class="rejection" role="alert">
             <p class="error"><strong>@_fileName</strong>: @rejection.Message</p>
-            <p>@TipFor(rejection)</p>
+            @if (TipFor(rejection) is { } tip)
+            {
+                <p>@tip</p>
+            }
+            @if (OtherRouteFor(rejection) is { } other)
+            {
+                <p><a href="@other.Href">@Text[other.Label]</a></p>
+            }
         </section>
     }
-
-    <section class="scan" aria-labelledby="scan-heading">
-        <h2 id="scan-heading">Scan printed music</h2>
-        @if (Scans.Address is not { } server)
-        {
-            @if (Scans.HostedAddress is not null)
-            {
-                <p class="meta">@Text["scan.turnedOff"] <a href="settings#scan">@Text["scan.turnOn"]</a>.</p>
-            }
-            else
-            {
-                <p class="meta">Motiff Lab can read a PDF or a photo of printed music with a scan server you run on your computer. <a href="settings#scan-heading">Set it up in Settings</a>.</p>
-            }
-        }
-        else if (Scans.IsHosted && !_signedIn)
-        {
-            <MotiffLab.Web.Account.SignInPrompt Text="@Text["scan.signInPrompt"]" />
-        }
-        else
-        {
-            <p class="meta">
-                A PDF of up to 8 pages, or a photo of one page, is sent to the scan server at @server@(Scans.IsLocal ? " on this computer" : "") to be read,
-                and deleted there as soon as it has been. A page takes 20 to 60 seconds. The notes come back marked as detected, for you to check.
-            </p>
-            @if (Scans.IsHosted)
-            {
-                <label>
-                    <input type="checkbox" @bind="_sendElsewhere" />
-                    @Text["scan.sendHosted"]
-                </label>
-            }
-            else if (!Scans.IsLocal)
-            {
-                <label>
-                    <input type="checkbox" @bind="_sendElsewhere" />
-                    Send the page to @server.Host, which is another computer
-                </label>
-            }
-
-            <label class="dropzone @(_scanning ? "busy" : null)">
-                <InputFile OnChange="ScanFileAsync" accept="@ScanService.AcceptedExtensions" disabled="@(_reading || _scanning || !(Scans.IsLocal || _sendElsewhere))" aria-label="Choose a PDF or photo of printed music to scan" />
-                <span>@(_scanning ? "Reading the notes… this takes a while for each page" : "Drop a PDF or photo here, or click to choose one")</span>
-            </label>
-        }
-    </section>
-
-    <section class="scan" aria-labelledby="transcribe-heading">
-        <h2 id="transcribe-heading">@Text["transcribe.heading"]</h2>
-        @if (Scans.Address is not { } listener)
-        {
-            @if (Scans.HostedAddress is not null)
-            {
-                <p class="meta">@Text["scan.turnedOff"] <a href="settings#scan">@Text["scan.turnOn"]</a>.</p>
-            }
-            else
-            {
-                <p class="meta">@Text["transcribe.setUp"] <a href="settings#scan-heading">@Text["transcribe.setUpLink"]</a>.</p>
-            }
-        }
-        else if (Scans.IsHosted && !_signedIn)
-        {
-            <MotiffLab.Web.Account.SignInPrompt Text="@Text["transcribe.signInPrompt"]" />
-        }
-        else
-        {
-            <p class="meta">@Text.Format("transcribe.what", listener)</p>
-            @if (!Scans.IsLocal)
-            {
-                <label>
-                    <input type="checkbox" @bind="_sendSound" />
-                    @(Scans.IsHosted ? Text["transcribe.sendHosted"] : Text.Format("transcribe.sendElsewhere", listener.Host))
-                </label>
-            }
-
-            <label class="dropzone @(_transcribing ? "busy" : null)">
-                <InputFile @ref="_recordingInput" OnChange="TranscribeFileAsync" accept="@ScanService.AcceptedRecordings" disabled="@(_reading || _scanning || _transcribing || !(Scans.IsLocal || _sendSound))" aria-label="@Text["transcribe.choose"]" />
-                <span>@(_transcribing ? Text["transcribe.busy"] : Text["transcribe.drop"])</span>
-            </label>
-        }
-    </section>
 
     @if (_piece is { } piece)
     {
         ImportReport report = piece.Report;
-        <section class="report" aria-label="Import report">
+        <section class="report" aria-label="@Text["import.report"]">
             <h2>@piece.FileName</h2>
             <p class="summary">
-                @(_scan is not null ? $"Scanned by {_scanEngine}" : _transcriptionEngine is { } heardBy ? Text.Format("transcribe.by", heardBy) : FormatName(piece.Format)) · @Plural(piece.Tracks.Count, "track") with notes · @Plural(report.NoteCount, "note") · @Plural(report.MeasureCount, "bar")
+                @(_scan is not null ? Text.Format("import.scannedBy", _scanEngine) : _transcriptionEngine is { } heardBy ? Text.Format("transcribe.by", heardBy) : FormatName(piece.Format)) · @Text.Count("import.tracks", piece.Tracks.Count) · @Text.Count("import.noteCount", report.NoteCount) · @Text.Count("import.barCount", report.MeasureCount)
             </p>
             @if (_scan is { } scan)
             {
-                <p class="meta">@Plural(_scanPages, "page") read in @_elapsed.TotalSeconds.ToString("0") s by the scan server.</p>
+                <p class="meta">@Text.Format("import.scanRead", Text.Count("import.pageCount", _scanPages), _elapsed.TotalSeconds.ToString("0", Text.Culture))</p>
                 @* Check the scan (0011): the bars the rules flag come first; the player checks them in the workspace. *@
-                <section class="scan-check" aria-label="Check the scan">
-                    <h3>Check the scan</h3>
+                <section class="scan-check" aria-label="@Text["import.scanCheck"]">
+                    <h3>@Text["import.scanCheck"]</h3>
                     @if (scan.Flagged.ToList() is { Count: > 0 } flagged)
                     {
-                        <p>
-                            @Plural(flagged.Count, "bar") of @scan.Bars.Count may have been misread. Every note is marked as detected until you
-                            check it; after opening, the Scan tab in the workspace takes you to each of these bars.
-                        </p>
+                        <p>@Text.Format("import.scanFlagged", Text.Count("import.barCount", flagged.Count), scan.Bars.Count)</p>
                         <ul class="warnings">
                             @foreach (ScanBar bar in flagged)
                             {
-                                <li><span class="kind">Bar @bar.Bar</span> @string.Join(" ", bar.Reasons)</li>
+                                <li><span class="kind">@Text.Format("import.bar", bar.Bar)</span> @string.Join(" ", bar.Reasons)</li>
                             }
                         </ul>
                     }
                     else
                     {
-                        <p>No bar looks wrong to the checks. The notes are still a reading of the page, marked as detected until you check them.</p>
+                        <p>@Text["import.scanClean"]</p>
                     }
                 </section>
             }
@@ -164,12 +175,12 @@
             }
             else
             {
-                <p class="meta">Read in @_elapsed.TotalSeconds.ToString("0.00") s on this device.</p>
+                <p class="meta">@Text.Format("import.readHere", _elapsed.TotalSeconds.ToString("0.00", Text.Culture))</p>
             }
 
             <table class="tracks-table">
                 <thead>
-                    <tr><th scope="col">Track</th><th scope="col">Instrument</th><th scope="col">Notes</th><th scope="col">Hands</th></tr>
+                    <tr><th scope="col">@Text["import.track"]</th><th scope="col">@Text["import.instrument"]</th><th scope="col">@Text["import.notes"]</th><th scope="col">@Text["import.hands"]</th></tr>
                 </thead>
                 <tbody>
                     @foreach (ImportedTrack track in piece.Tracks)
@@ -178,13 +189,13 @@
                             <td>@track.Label</td>
                             <td>@(track.InstrumentName ?? "–")</td>
                             <td>@track.NoteCount</td>
-                            <td>@(_scan is not null && track.Hands != TrackHands.None ? "From the scan's staves" : HandsLabel(track.Hands))</td>
+                            <td>@(_scan is not null && track.Hands != TrackHands.None ? Text["import.handsScan"] : HandsLabel(track.Hands))</td>
                         </tr>
                     }
                 </tbody>
             </table>
 
-            <h3>Timing</h3>
+            <h3>@Text["import.timing"]</h3>
             @if (report.OfKind(ImportIssueKind.Rounded).ToList() is { Count: > 0 } rounded)
             {
                 <ul>
@@ -193,22 +204,22 @@
                         <li>@issue.Message</li>
                     }
                 </ul>
-                <p class="meta">Rounded timing moves a note by at most half a tick, 1/960 of a quarter note.</p>
+                <p class="meta">@Text["import.roundedHow"]</p>
             }
             else
             {
-                <p class="meta">No timing had to be rounded.</p>
+                <p class="meta">@Text["import.notRounded"]</p>
             }
             @if (_timing?.Describe() is { } played)
             {
                 <p class="notice" role="status">@played</p>
                 @if (_timing.Kind == TimingKind.Performance)
                 {
-                    <p class="meta">Restore rhythm is not in this version yet, so for now the file plays as it was recorded.</p>
+                    <p class="meta">@Text["import.noRestoreYet"]</p>
                 }
             }
 
-            <h3>Warnings</h3>
+            <h3>@Text["import.warnings"]</h3>
             @if (report.Issues.Where(issue => issue.Kind != ImportIssueKind.Rounded).ToList() is { Count: > 0 } warnings)
             {
                 <ul class="warnings">
@@ -217,32 +228,32 @@
                         <li><span class="kind">@KindLabel(issue.Kind)</span> @issue.Message</li>
                     }
                 </ul>
-                <p class="meta">Assumed: the file did not say, so Motiff Lab chose a value. Repaired: the file was damaged and Motiff Lab kept what it could read. Left out: not used in this version.</p>
+                <p class="meta">@Text["import.warningKinds"]</p>
             }
             else
             {
-                <p class="meta">None.</p>
+                <p class="meta">@Text["import.none"]</p>
             }
         </section>
 
-        <section class="start" aria-label="Where to start">
-            <h3>Start with</h3>
+        <section class="start" aria-label="@Text["import.whereToStart"]">
+            <h3>@Text["import.startWith"]</h3>
             <div class="row" role="radiogroup">
                 @for (int i = 0; i < piece.StartChoices.Count; i++)
                 {
                     int index = i;
                     StartChoice choice = piece.StartChoices[i];
-                    <label title="@(choice.IsInferred ? "Hands were worked out from pitch and movement, not read from the file." : null)">
+                    <label title="@(choice.IsInferred ? Text["import.handsInferredWhy"] : null)">
                         <input type="radio" name="start" checked="@(index == _start)" @onchange="() => _start = index" /> @choice.Label
                     </label>
                 }
             </div>
-            <button class="primary" @onclick="OpenAsync">Open the piece</button>
-            <p class="meta">Opening saves the piece as a project in this browser, so you can come back to it.</p>
+            <button class="primary" @onclick="OpenAsync">@Text["import.open"]</button>
+            <p class="meta">@Text["import.openSaves"]</p>
         </section>
     }
 
-    <p><a href="">Back to projects</a></p>
+    <p><a href="">@Text["import.back"]</a></p>
 </main>
 
 @code {
@@ -275,10 +286,49 @@
     /// <summary>Whether a player is signed in, which Motiff Lab's scan server needs.</summary>
     private bool _signedIn;
 
+    /// <summary>The way in this screen is for, from its address.</summary>
+    private enum ImportRoute
+    {
+        File,
+        Scan,
+        Recording,
+    }
+
+    private ImportRoute _route;
+
+    private string Heading => _route switch
+    {
+        ImportRoute.Scan => "home.fromScan",
+        ImportRoute.Recording => "home.fromRecording",
+        _ => "home.fromFile",
+    };
+
+    protected override void OnInitialized() => Text.Changed += OnTextChanged;
+
+    public void Dispose() => Text.Changed -= OnTextChanged;
+
+    private void OnTextChanged() => _ = InvokeAsync(StateHasChanged);
+
     protected override async Task OnInitializedAsync()
     {
         await Scans.LoadAsync();
         _signedIn = await Account.PlayerAsync() is not null;
+    }
+
+    protected override void OnParametersSet()
+    {
+        string path = Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0].TrimEnd('/');
+        ImportRoute route = path switch
+        {
+            "import/scan" => ImportRoute.Scan,
+            "import/recording" => ImportRoute.Recording,
+            _ => ImportRoute.File,
+        };
+        if (route != _route)
+        {
+            // Another way in starts afresh: what was picked on the last screen is not this one's.
+            (_route, _piece, _rejection, _scan, _transcriptionEngine, _timing) = (route, null, null, null, null, null);
+        }
     }
 
     private async Task OpenFileAsync(InputFileChangeEventArgs args)
@@ -332,8 +382,8 @@
         {
             _rejection = new(
                 args.File.Size == 0 ? ImportRejectionReason.Empty : ImportRejectionReason.TooLarge,
-                args.File.Size == 0 ? "This file is empty." : "This file is larger than 20 MB, the most the scan server reads.",
-                "Scan fewer pages at a time, or save the photo at a lower resolution.");
+                Text[args.File.Size == 0 ? "transcribe.empty" : "import.scanTooLarge"],
+                Text["import.scanTooLargeTip"]);
             return;
         }
 
@@ -348,7 +398,7 @@
             _elapsed = watch.Elapsed;
             if (result.MusicXml is not { } musicXml)
             {
-                _rejection = new(ImportRejectionReason.NotMusic, result.Problem!, "Try a sharper photo that shows the whole page, straight on and in good light.");
+                _rejection = new(ImportRejectionReason.NotMusic, result.Problem!, Text["import.scanNotReadTip"]);
                 return;
             }
 
@@ -438,12 +488,15 @@
         }
     }
 
-    /// <summary>The importer's tip, or a pointer to scanning for a PDF or photo, or to transcription for a recording, when it is set up.</summary>
-    private string TipFor(ImportRejection rejection) => rejection.Reason switch
+    /// <summary>The importer's tip; for a PDF, photo or recording picked as a file, the screen that reads it is linked instead.</summary>
+    private string? TipFor(ImportRejection rejection) => OtherRouteFor(rejection) is null ? rejection.Tip : null;
+
+    /// <summary>The screen for what was picked, when this one cannot read it: scanning for a PDF or photo, transcription for a recording.</summary>
+    private (string Href, string Label)? OtherRouteFor(ImportRejection rejection) => rejection.Reason switch
     {
-        ImportRejectionReason.Pdf or ImportRejectionReason.Image when Scans.Address is not null && _scan is null => "To read the notes from it, drop it under Scan printed music below.",
-        ImportRejectionReason.Audio when Scans.Address is not null && _transcriptionEngine is null => Text["transcribe.tip"],
-        _ => rejection.Tip,
+        ImportRejectionReason.Pdf or ImportRejectionReason.Image when _route != ImportRoute.Scan => ("import/scan", "import.goScan"),
+        ImportRejectionReason.Audio when _route != ImportRoute.Recording => ("import/recording", "import.goRecording"),
+        _ => null,
     };
 
     private Task TrackImportAsync() => Analytics.TrackAsync(AnalyticsEvent.PieceImported(
@@ -473,20 +526,18 @@
 
     private static string FormatName(SourceFormat format) => format == SourceFormat.Midi ? "MIDI" : "MusicXML";
 
-    private static string Plural(int count, string noun) => count == 1 ? $"1 {noun}" : $"{count:N0} {noun}s";
-
-    private static string HandsLabel(TrackHands hands) => hands switch
+    private string HandsLabel(TrackHands hands) => hands switch
     {
-        TrackHands.Imported => "From the score",
-        TrackHands.Inferred => "Inferred",
+        TrackHands.Imported => Text["import.handsScore"],
+        TrackHands.Inferred => Text["import.handsInferred"],
         _ => "–",
     };
 
-    private static string KindLabel(ImportIssueKind kind) => kind switch
+    private string KindLabel(ImportIssueKind kind) => Text[kind switch
     {
-        ImportIssueKind.Assumed => "Assumed",
-        ImportIssueKind.Repaired => "Repaired",
-        ImportIssueKind.Dropped => "Left out",
-        _ => "Rounded",
-    };
+        ImportIssueKind.Assumed => "import.assumed",
+        ImportIssueKind.Repaired => "import.repaired",
+        ImportIssueKind.Dropped => "import.leftOut",
+        _ => "import.rounded",
+    }];
 }

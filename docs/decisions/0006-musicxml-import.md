@@ -26,7 +26,7 @@ Policies:
 
 | Situation | Policy | Report |
 | --- | --- | --- |
-| Over 5 MB, not XML or not a score, broken XML, no parts or measures, a duration that is not a number | Fail with `MusicXmlImportException` and a plain reason (N2) | — |
+| Over 50 MB, not XML or not a score, broken XML, no parts or measures, a duration that is not a number | Fail with `MusicXmlImportException` and a plain reason (N2) | — |
 | Compressed `.mxl` | Unzipped with `System.IO.Compression`; the score is the first MusicXML root file in `META-INF/container.xml`, or without a container the only `.xml` or `.musicxml` outside `META-INF`. It may unpack to at most 50 MB. A broken archive, or a container naming a missing file, fails as damaged | — |
 | `score-timewise`, decimal divisions or durations | Fail as unsupported for now (0002) | — |
 | Part ids | Tracks follow `<part>` order; names come from the part list. A part missing from the list keeps its notes | Repaired |
