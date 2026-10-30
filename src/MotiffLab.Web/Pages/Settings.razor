@@ -9,16 +9,134 @@
 @inject MotiffLab.Web.Account.OnlineProjects Online
 @inject MotiffLab.Web.Projects.ProjectStore Projects
 
-<PageTitle>Settings · Motiff Lab</PageTitle>
+<PageTitle>@Text["settings.title"] · Motiff Lab</PageTitle>
 
-@* Settings (S1-AI0, #64, #65): anonymous analytics with consent, the scan server for sheet music scanning (0011), and the privacy notice and terms of use. AI assistance joins this page when it arrives. *@
+@* Settings (S1-AI0, #64, #65), grouped in cards as in most apps: the account (0014), scanning and transcription (0011),
+   language, anonymous analytics with consent, and the privacy notice and terms of use. AI assistance joins this page when it arrives. *@
 <main class="lab settings">
-    <h1>Settings</h1>
+    <nav class="crumbs" aria-label="@Text["nav.label"]"><a href="">‹ @Text["nav.projects"]</a></nav>
+    <h1>@Text["settings.title"]</h1>
 
-    <section aria-labelledby="language-heading">
+    @if (Account.IsAvailable)
+    {
+        @* The account first, as in most apps (0014): sign in or create an account; once signed in, who it is, saving
+           online (a choice that stays off until the player turns it on; the device stays the working copy) and erasure. *@
+        <section id="account" class="card account" aria-labelledby="account-heading">
+            @if (_player is null)
+            {
+                <h2 id="account-heading">@Text["settings.accountTitle"]</h2>
+                <p>@Text["settings.accountWhy"]</p>
+                <div class="row">
+                    <button class="primary" @onclick="() => Account.SignIn()">@Text["settings.signIn"]</button>
+                    <button @onclick="() => Account.SignIn(create: true)">@Text["settings.createAccount"]</button>
+                </div>
+                <p class="meta">@Text["settings.signInHow"] <a href="privacy#online">@Text["settings.onlineWhatIsKept"]</a></p>
+            }
+            else
+            {
+                <h2 id="account-heading" class="visually-hidden">@Text["account.title"]</h2>
+                <div class="account-head">
+                    <span class="avatar" aria-hidden="true">@MotiffLab.Web.Account.AccountButton.Initial(_player)</span>
+                    <p class="who"><strong>@_player</strong><span class="meta">@Text["settings.signedIn"]</span></p>
+                    <button @onclick="Account.SignOut">@Text["settings.signOut"]</button>
+                </div>
+                <div class="switch-row">
+                    <label for="save-online">@Text["settings.saveOnline"]</label>
+                    <input id="save-online" type="checkbox" class="switch" checked="@_online" @onchange="ToggleOnlineAsync" aria-describedby="online-status" />
+                </div>
+                <p id="online-status" class="meta" role="status">@(Online.Status ?? (_online ? Text["settings.onlineOn"] : Text["settings.onlineOff"]))</p>
+                <p class="meta"><a href="privacy#online">@Text["settings.onlineWhatIsKept"]</a></p>
+                <div class="row danger">
+                    @if (_confirmDeleteOnline)
+                    {
+                        <button class="destructive" @onclick="DeleteOnlineAsync">@Text["settings.deleteOnlineForGood"]</button>
+                        <button @onclick="() => _confirmDeleteOnline = false">@Text["home.keep"]</button>
+                    }
+                    else
+                    {
+                        <button class="link destructive" @onclick="() => _confirmDeleteOnline = true">@Text["settings.deleteOnline"]</button>
+                    }
+                </div>
+                @if (_onlineMessage is not null)
+                {
+                    <p class="meta" role="status">@_onlineMessage</p>
+                }
+            }
+        </section>
+    }
+
+    @* Scanning and transcription (0011, 0014): Motiff Lab's server where the build has one, the player's own server, or off.
+       Running one's own server is folded away, since most players never need it. *@
+    <section id="scan" class="card" aria-labelledby="scan-heading">
+        <h2 id="scan-heading">@Text["settings.scanTitle"]</h2>
+        <p class="meta">@Text["settings.scanWhat"]</p>
+        @if (Scans.HostedAddress is { } hosted)
+        {
+            <div class="choices" role="radiogroup" aria-labelledby="scan-heading">
+                <label class="choice @(Choice == ScanChoice.Hosted ? "on" : null)">
+                    <input type="radio" name="scan-server" checked="@(Choice == ScanChoice.Hosted)" @onchange="() => UseHostedAsync(hosted)" />
+                    <span>
+                        <strong>@Text["settings.scanHosted"]</strong> <span class="badge">@Text["settings.scanRecommended"]</span>
+                        <span class="meta">@Text["settings.scanHostedWhat"]</span>
+                    </span>
+                </label>
+                <label class="choice @(Choice == ScanChoice.Own ? "on" : null)">
+                    <input type="radio" name="scan-server" checked="@(Choice == ScanChoice.Own)" @onchange="ChooseOwn" />
+                    <span>
+                        <strong>@Text["settings.scanOwn"]</strong>
+                        <span class="meta">@Text["settings.scanOwnWhat"]</span>
+                    </span>
+                </label>
+                <label class="choice @(Choice == ScanChoice.Off ? "on" : null)">
+                    <input type="radio" name="scan-server" checked="@(Choice == ScanChoice.Off)" @onchange="TurnScanningOffAsync" />
+                    <span><strong>@Text["settings.scanOff"]</strong></span>
+                </label>
+            </div>
+            @if (Choice == ScanChoice.Hosted && _player is null)
+            {
+                <div class="notice row">
+                    <span>@Text["settings.scanSignIn"]</span>
+                    <button class="primary" @onclick="() => Account.SignIn()">@Text["settings.signIn"]</button>
+                </div>
+            }
+        }
+
+        @if (Scans.HostedAddress is null || Choice == ScanChoice.Own)
+        {
+            <div class="own-server">
+                <div class="row">
+                    <label>
+                        @Text["settings.scanAddress"]
+                        <input type="url" @bind="_address" placeholder="@MotiffLab.Web.Import.ScanService.SuggestedAddress" aria-describedby="scan-status" />
+                    </label>
+                    <button @onclick="SaveAddressAsync">@Text["settings.scanSave"]</button>
+                    @if (Scans.HostedAddress is null && Scans.Address is not null)
+                    {
+                        <button @onclick="TurnScanningOffAsync">@Text["settings.scanTurnOff"]</button>
+                    }
+                </div>
+                <button class="disclosure" aria-expanded="@(_showHowToRun ? "true" : "false")" aria-controls="how-to-run" @onclick="() => _showHowToRun = !_showHowToRun">@Text["settings.scanHowToRun"]</button>
+                @if (_showHowToRun)
+                {
+                    <div id="how-to-run">
+                        <pre class="command"><code>docker build -t motiff-omr services/omr
+docker run --rm -p 8765:8000 motiff-omr</code></pre>
+                        <p class="meta">@Text["settings.scanDocker"] <a href="https://github.com/andreykukalev/motiff-lab/tree/main/services/omr">@Text["settings.scanMore"]</a>.</p>
+                    </div>
+                }
+            </div>
+        }
+        <p id="scan-status" class="meta" role="status">@(_scanStatus ?? ScanStatus())</p>
+        @if (Scans.Address is not null && !Scans.IsLocal && !Scans.IsHosted)
+        {
+            <p class="notice">@Text["settings.scanElsewhere"]</p>
+        }
+    </section>
+
+    <section class="card" aria-labelledby="language-heading">
         <h2 id="language-heading">@Text["settings.language"]</h2>
         <p class="meta">@Text["settings.languageHint"]</p>
-        <div class="row" role="group" aria-label="@Text["settings.language"]">
+        <div class="segmented" role="group" aria-label="@Text["settings.language"]">
             @foreach ((string tag, string name) in MotiffLab.Web.Localization.UiText.Languages)
             {
                 bool on = Text.Language == tag;
@@ -27,49 +145,7 @@
         </div>
     </section>
 
-    @if (Account.IsAvailable)
-    {
-        @* Saving online (0014): a signed-in player's choice, off until they turn it on; the device stays the working copy. *@
-        <section aria-labelledby="online-heading">
-            <h2 id="online-heading">@Text["settings.online"]</h2>
-            <p>@Text["settings.onlineWhat"]</p>
-            @if (_player is null)
-            {
-                <p class="meta">@Text["settings.onlineSignedOut"]</p>
-                <div class="row">
-                    <button class="primary" @onclick="Account.SignIn">@Text["settings.signIn"]</button>
-                </div>
-            }
-            else
-            {
-                <p class="meta">@Text.Format("settings.signedInAs", _player)</p>
-                <label>
-                    <input type="checkbox" checked="@_online" @onchange="ToggleOnlineAsync" />
-                    @Text["settings.saveOnline"]
-                </label>
-                <p class="meta" role="status">@(Online.Status ?? (_online ? Text["settings.onlineOn"] : Text["settings.onlineOff"]))</p>
-                <div class="row">
-                    <button @onclick="Account.SignOut">@Text["settings.signOut"]</button>
-                    @if (_confirmDeleteOnline)
-                    {
-                        <button class="on" @onclick="DeleteOnlineAsync">@Text["settings.deleteOnlineForGood"]</button>
-                        <button @onclick="() => _confirmDeleteOnline = false">@Text["home.keep"]</button>
-                    }
-                    else
-                    {
-                        <button @onclick="() => _confirmDeleteOnline = true">@Text["settings.deleteOnline"]</button>
-                    }
-                </div>
-                @if (_onlineMessage is not null)
-                {
-                    <p class="meta" role="status">@_onlineMessage</p>
-                }
-            }
-            <p class="meta"><a href="privacy#online">@Text["settings.onlineWhatIsKept"]</a></p>
-        </section>
-    }
-
-    <section aria-labelledby="analytics-heading">
+    <section class="card" aria-labelledby="analytics-heading">
         <h2 id="analytics-heading">Anonymous usage analytics</h2>
         <p>
             Help us learn how Motiff Lab is used by sending a few anonymous events: that the app was opened, a file was
@@ -111,58 +187,26 @@
         }
     </section>
 
-    <section aria-labelledby="scan-heading">
-        <h2 id="scan-heading">Sheet music scanning</h2>
-        <p>
-            Motiff Lab can read a PDF or a photo of printed music with homr, an open-source recognition engine that runs
-            on your own computer. Start it with Docker, then give its address here. Scanning stays off until you do.
-        </p>
-        <pre class="command"><code>docker build -t motiff-omr services/omr
-docker run --rm -p 8765:8000 motiff-omr</code></pre>
-        <p class="meta">
-            Run these in a copy of the Motiff Lab repository. The build takes a few minutes and downloads about 2 GB once; after that
-            the server works offline. <a href="https://github.com/andreykukalev/motiff-lab/tree/main/services/omr">More about the scan server</a>.
-        </p>
-        <p class="meta">@Text["settings.transcribeNote"]</p>
-        <div class="row">
-            <label>
-                Scan server address
-                <input type="url" @bind="_address" placeholder="@MotiffLab.Web.Import.ScanService.SuggestedAddress" aria-describedby="scan-status" />
-            </label>
-            <button @onclick="SaveAddressAsync">Save and check</button>
-            @if (Scans.HostedAddress is { } hosted && !Scans.IsHosted)
-            {
-                <button @onclick="() => UseHostedAsync(hosted)">@Text["settings.useHostedScan"]</button>
-            }
-            @if (Scans.Address is not null)
-            {
-                <button @onclick="TurnScanningOffAsync">Turn scanning off</button>
-            }
-        </div>
-        <p id="scan-status" class="meta" role="status">@_scanStatus</p>
-        @if (Scans.IsHosted)
-        {
-            <p class="notice">@Text["settings.hostedScanNotice"]</p>
-        }
-        else if (Scans.Address is not null && !Scans.IsLocal)
-        {
-            <p class="notice">This address is another computer, so pages you scan leave this one. Each scan asks before it sends anything.</p>
-        }
-    </section>
-
-    <section aria-labelledby="documents-heading">
+    <section class="card" aria-labelledby="documents-heading">
         <h2 id="documents-heading">Privacy and terms</h2>
         <p><a href="privacy">Privacy notice</a> · <a href="terms">Terms of use</a></p>
     </section>
 </main>
 
 @code {
+    private enum ScanChoice { Hosted, Own, Off }
+
     private string? _address;
     private string? _scanStatus;
     private string? _player;
     private bool _online;
     private bool _confirmDeleteOnline;
     private string? _onlineMessage;
+    private bool _ownChosen;
+    private bool _showHowToRun;
+
+    /// <summary>The scanning choice on show: the hosted server, the player's own (also while its address is being typed), or off.</summary>
+    private ScanChoice Choice => Scans.IsHosted ? ScanChoice.Hosted : Scans.Address is not null || _ownChosen ? ScanChoice.Own : ScanChoice.Off;
 
     protected override async Task OnInitializedAsync()
     {
@@ -173,29 +217,54 @@ docker run --rm -p 8765:8000 motiff-omr</code></pre>
         _online = _player is not null && await Online.IsOnAsync();
         await Analytics.LoadAsync();
         await Scans.LoadAsync();
-        _address = Scans.Address?.ToString() ?? MotiffLab.Web.Import.ScanService.SuggestedAddress;
-        _scanStatus = Scans.Address is null ? "Scanning is off." : $"Scanning uses {Scans.Address}.";
+        _address = Scans.Address is { } address && !Scans.IsHosted ? address.ToString() : MotiffLab.Web.Import.ScanService.SuggestedAddress;
     }
+
+    private string ScanStatus() =>
+        Scans.IsHosted ? (_player is null ? "" : Text["settings.scanStatusHosted"])
+        : Scans.Address is { } address ? Text.Format("settings.scanStatusUses", address)
+        : _ownChosen ? ""
+        : Text["settings.scanStatusOff"];
 
     private async Task SaveAddressAsync()
     {
         if (MotiffLab.Web.Import.ScanService.Parse(_address) is not { } address)
         {
-            _scanStatus = "Give an address such as http://localhost:8765, with no path after it.";
+            _scanStatus = Text["settings.scanBadAddress"];
             return;
         }
 
         await Scans.SetAddressAsync(address);
-        _scanStatus = "Checking…";
+        _scanStatus = Text["settings.scanChecking"];
         StateHasChanged();
         (string? engine, string? problem) = await Scans.CheckAsync();
-        _scanStatus = engine is not null ? $"Connected: the scan server runs {engine}. Scanning is on." : $"Saved, but {char.ToLowerInvariant(problem![0])}{problem[1..]}";
+        _scanStatus = engine is not null ? Text.Format("settings.scanConnected", engine) : Text.Format("settings.scanSavedBut", problem!);
     }
 
     private async Task UseHostedAsync(Uri hosted)
     {
-        _address = hosted.ToString();
-        await SaveAddressAsync();
+        _ownChosen = false;
+        await Scans.SetAddressAsync(hosted);
+        _scanStatus = null;
+        if (_player is not null)
+        {
+            _scanStatus = Text["settings.scanChecking"];
+            StateHasChanged();
+            (string? engine, string? problem) = await Scans.CheckAsync();
+            _scanStatus = engine is not null ? Text.Format("settings.scanConnected", engine) : Text.Format("settings.scanSavedBut", problem!);
+        }
+    }
+
+    /// <summary>Picking one's own server shows its address and how to run it; scanning changes once the address is saved.</summary>
+    private async Task ChooseOwn()
+    {
+        _ownChosen = true;
+        _showHowToRun = true;
+        _scanStatus = null;
+        if (Scans.IsHosted)
+        {
+            await Scans.SetAddressAsync(null);
+        }
     }
 
     /// <summary>Turning saving online on sends the projects already on this device, so they are all online.</summary>
@@ -232,8 +301,9 @@ docker run --rm -p 8765:8000 motiff-omr</code></pre>
 
     private async Task TurnScanningOffAsync()
     {
+        _ownChosen = false;
         await Scans.SetAddressAsync(null);
-        _scanStatus = "Scanning is off.";
+        _scanStatus = null;
     }
 
     public void Dispose()

@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
 
+using MotiffLab.Web.Localization;
+
 namespace MotiffLab.Web.Account;
 
 /// <summary>
@@ -36,7 +38,7 @@ public sealed record AccountOptions
 /// The player's account, when the build has sign-in: who is signed in, and tokens for the API and the hosted
 /// scan server. Signing in and out go through the External ID pages (<c>Pages/Authentication.razor</c>).
 /// </summary>
-public sealed class CloudAccount(AccountOptions options, NavigationManager navigation, IServiceProvider services)
+public sealed class CloudAccount(AccountOptions options, NavigationManager navigation, UiText text, IServiceProvider services)
 {
     public AccountOptions Options => options;
 
@@ -83,7 +85,23 @@ public sealed class CloudAccount(AccountOptions options, NavigationManager navig
         }
     }
 
-    public void SignIn() => navigation.NavigateToLogin("authentication/login");
+    /// <summary>
+    /// Opens the sign-in page in the app's language, and comes back to this page. <paramref name="create"/> opens it on
+    /// the sign-up form (<c>prompt=create</c>), so a new player does not first meet "we couldn't find an account".
+    /// </summary>
+    public void SignIn(bool create = false)
+    {
+        var request = new InteractiveRequestOptions { Interaction = InteractionType.SignIn, ReturnUrl = navigation.Uri };
+        if (create)
+        {
+            request.TryAddAdditionalParameter("prompt", "create");
+        }
+
+        // External ID takes both: ui_locales picks the page's language, mkt its market strings.
+        string locale = text.Language == "ru" ? "ru-RU" : "en-US";
+        request.TryAddAdditionalParameter("extraQueryParameters", new Dictionary<string, string> { ["ui_locales"] = locale, ["mkt"] = locale });
+        navigation.NavigateToLogin("authentication/login", request);
+    }
 
     public void SignOut() => navigation.NavigateToLogout("authentication/logout", "settings");
 }

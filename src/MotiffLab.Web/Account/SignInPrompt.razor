@@ -1,0 +1,17 @@
+@inject CloudAccount Account
+@inject MotiffLab.Web.Localization.UiText Labels
+
+@* What needs an account says so where it is, with the way in next to it, instead of sending the player to Settings (0014). *@
+<div class="sign-in-prompt">
+    <p>@Text</p>
+    <div class="row">
+        <button class="primary" @onclick="() => Account.SignIn()">@Labels["settings.signIn"]</button>
+        <button @onclick="() => Account.SignIn(create: true)">@Labels["settings.createAccount"]</button>
+    </div>
+</div>
+
+@code {
+    /// <summary>What signing in gives here.</summary>
+    [Parameter, EditorRequired]
+    public string Text { get; set; } = "";
+}
