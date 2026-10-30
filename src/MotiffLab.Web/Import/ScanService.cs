@@ -13,8 +13,9 @@ namespace MotiffLab.Web.Import;
 /// <summary>
 /// Sheet music scanning (decision record 0011): sends a PDF or photo of printed music to the scan
 /// server the player runs on their own computer (services/omr, homr in Docker) and gets MusicXML back.
-/// Off until the player gives the server's address in Settings, or picks Motiff Lab's hosted server (0014),
-/// which reads pages only for a signed-in player.
+/// In a build with sign-in, Motiff Lab's hosted server (0014) is the choice until the player picks their own server
+/// or turns scanning off in Settings; it reads pages only for a signed-in player, and each send asks first. In a build
+/// without sign-in, scanning is off until the player gives their own server's address.
 /// </summary>
 /// <remarks>
 /// The page goes only to that address, and only when the player picks it for scanning; the server
@@ -43,6 +44,9 @@ public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text
     public const long MaxRecordingUploadBytes = 50 * 1024 * 1024;
 
     private const string AddressKey = "motifflab.scan.address";
+
+    /// <summary>What the address key holds once the player turned scanning off, so the hosted server is not chosen again.</summary>
+    private const string OffValue = "off";
 
     // A page takes 20 to 60 s; a long PDF on a slow computer gets several minutes.
     private static readonly HttpClient s_http = new() { Timeout = TimeSpan.FromMinutes(10) };
@@ -75,21 +79,14 @@ public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text
             ? address
             : null;
 
-    /// <summary>Sets the address, or turns scanning off with null.</summary>
+    /// <summary>Sets the address, or turns scanning off with null; it stays off until the player picks a server.</summary>
     public async Task SetAddressAsync(Uri? address)
     {
         await LoadAsync();
         Address = address;
         try
         {
-            if (address is null)
-            {
-                await js.InvokeVoidAsync("localStorage.removeItem", AddressKey);
-            }
-            else
-            {
-                await js.InvokeVoidAsync("localStorage.setItem", AddressKey, address.ToString());
-            }
+            await js.InvokeVoidAsync("localStorage.setItem", AddressKey, address?.ToString() ?? OffValue);
         }
         catch (JSException)
         {
@@ -259,11 +256,12 @@ public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text
     {
         try
         {
-            Address = Parse(await js.InvokeAsync<string?>("localStorage.getItem", AddressKey));
+            string? stored = await js.InvokeAsync<string?>("localStorage.getItem", AddressKey);
+            Address = stored == OffValue ? null : Parse(stored) ?? HostedAddress;
         }
         catch (JSException)
         {
-            Address = null;
+            Address = HostedAddress;
         }
     }
 

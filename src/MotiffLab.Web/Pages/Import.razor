@@ -13,6 +13,7 @@
 @inject MotiffLab.Web.Analytics.UsageAnalytics Analytics
 @inject ScanService Scans
 @inject MotiffLab.Web.Localization.UiText Text
+@inject MotiffLab.Web.Account.CloudAccount Account
 
 <PageTitle>Import · Motiff Lab</PageTitle>
 
@@ -40,7 +41,18 @@
         <h2 id="scan-heading">Scan printed music</h2>
         @if (Scans.Address is not { } server)
         {
-            <p class="meta">Motiff Lab can read a PDF or a photo of printed music with a scan server you run on your computer. <a href="settings#scan-heading">Set it up in Settings</a>.</p>
+            @if (Scans.HostedAddress is not null)
+            {
+                <p class="meta">@Text["scan.turnedOff"] <a href="settings#scan">@Text["scan.turnOn"]</a>.</p>
+            }
+            else
+            {
+                <p class="meta">Motiff Lab can read a PDF or a photo of printed music with a scan server you run on your computer. <a href="settings#scan-heading">Set it up in Settings</a>.</p>
+            }
+        }
+        else if (Scans.IsHosted && !_signedIn)
+        {
+            <MotiffLab.Web.Account.SignInPrompt Text="@Text["scan.signInPrompt"]" />
         }
         else
         {
@@ -74,7 +86,18 @@
         <h2 id="transcribe-heading">@Text["transcribe.heading"]</h2>
         @if (Scans.Address is not { } listener)
         {
-            <p class="meta">@Text["transcribe.setUp"] <a href="settings#scan-heading">@Text["transcribe.setUpLink"]</a>.</p>
+            @if (Scans.HostedAddress is not null)
+            {
+                <p class="meta">@Text["scan.turnedOff"] <a href="settings#scan">@Text["scan.turnOn"]</a>.</p>
+            }
+            else
+            {
+                <p class="meta">@Text["transcribe.setUp"] <a href="settings#scan-heading">@Text["transcribe.setUpLink"]</a>.</p>
+            }
+        }
+        else if (Scans.IsHosted && !_signedIn)
+        {
+            <MotiffLab.Web.Account.SignInPrompt Text="@Text["transcribe.signInPrompt"]" />
         }
         else
         {
@@ -249,7 +272,14 @@
     private bool _sendSound;
     private InputFile? _recordingInput;
 
-    protected override Task OnInitializedAsync() => Scans.LoadAsync();
+    /// <summary>Whether a player is signed in, which Motiff Lab's scan server needs.</summary>
+    private bool _signedIn;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Scans.LoadAsync();
+        _signedIn = await Account.PlayerAsync() is not null;
+    }
 
     private async Task OpenFileAsync(InputFileChangeEventArgs args)
     {
