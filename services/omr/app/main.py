@@ -1,7 +1,7 @@
 """Motiff Lab sheet music recognition: a small HTTP service around homr, run on the player's own computer.
 
 POST /recognise takes one PDF or photo of printed music and returns MusicXML. POST /transcribe takes an
-audio or video recording and returns the notes heard in it as MIDI (Basic Pitch, decision record 0014).
+audio or video recording and returns the notes heard in it as MIDI (Transkun, decision record 0014).
 Each upload lives in its own temporary folder for as long as the request, and the folder is deleted when
 it ends. Nothing about the music is logged: the log has the request line and status only.
 """
@@ -24,9 +24,11 @@ from app import auth, merge, pages, recognise, transcribe
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 MAX_PAGES = int(os.environ.get("MAX_PAGES", "8"))
 
-# A recording may be a video, so it is allowed to be larger; only its first minutes are heard.
+# A recording may be a video, so it is allowed to be larger; only its first minutes are heard. Two and
+# a half minutes take Transkun about as long on two cores, well inside the four minutes Azure Container
+# Apps waits for an answer (0014).
 MAX_RECORDING_BYTES = int(os.environ.get("MAX_RECORDING_MB", "200")) * 1024 * 1024
-MAX_RECORDING_SECONDS = int(os.environ.get("MAX_RECORDING_SECONDS", "600"))
+MAX_RECORDING_SECONDS = int(os.environ.get("MAX_RECORDING_SECONDS", "150"))
 
 # The service is meant for one player's own computer. Narrow the origins to the app's address with
 # ALLOWED_ORIGINS="https://…" (comma separated) when the machine is shared. The hosted server (0014)
@@ -62,7 +64,7 @@ def create_app(
         max_age=600,
     )
 
-    # homr and Basic Pitch use every core, so one upload is read at a time and a second waits its turn.
+    # homr and Transkun use every core, so one upload is read at a time and a second waits its turn.
     busy = threading.Lock()
 
     @app.middleware("http")
@@ -82,7 +84,7 @@ def create_app(
             "maxPages": MAX_PAGES,
             "signIn": verify is not None,
             "transcribe": {
-                "engine": "basic-pitch",
+                "engine": transcribe.ENGINE,
                 "version": transcribe.engine_version(),
                 "maxMegabytes": MAX_RECORDING_BYTES // (1024 * 1024),
                 "maxSeconds": MAX_RECORDING_SECONDS,
@@ -162,7 +164,7 @@ def create_app(
             content=result.midi,
             media_type=MIDI_TYPE,
             headers={
-                "X-Engine": f"basic-pitch {transcribe.engine_version()}",
+                "X-Engine": f"{transcribe.ENGINE} {transcribe.engine_version()}",
                 "X-Seconds": f"{result.seconds:.1f}",
                 "X-Cut": "true" if result.cut else "false",
                 "Cache-Control": "no-store",

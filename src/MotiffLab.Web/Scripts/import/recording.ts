@@ -1,9 +1,9 @@
 // Takes the sound out of an audio or video recording in the browser, for transcription (0014): the
-// file is decoded here, mixed to mono at Basic Pitch's 22,050 Hz and cut to the first minutes the
-// server hears, so only that sound is sent, never the video. Browsers decode what they can play;
-// when one cannot decode a file, the caller sends the file itself and the server's ffmpeg reads it.
+// file is decoded here, mixed to mono at 22,050 Hz and cut to the first minutes the server hears, so
+// only that sound is sent, never the video. Browsers decode what they can play; when one cannot
+// decode a file, the caller sends the file itself and the server's ffmpeg reads it.
 
-/** Basic Pitch's own sample rate. */
+/** Enough for Transkun, which listens up to 8 kHz, at half the size of its own 44,100 Hz; the server resamples. */
 export const SAMPLE_RATE = 22050;
 
 /** The sound of a recording as a 16-bit mono WAV file, how many seconds it holds, and whether the recording was longer. */
@@ -71,7 +71,7 @@ export async function soundOf(input: HTMLInputElement, maxSeconds: number): Prom
     }
     let decoded: AudioBuffer;
     try {
-        // A context at Basic Pitch's rate decodes straight to it; it is never started.
+        // A context at this rate decodes straight to it; it is never started.
         const context = new OfflineAudioContext(1, 1, SAMPLE_RATE);
         decoded = await context.decodeAudioData(await file.arrayBuffer());
     } catch {
