@@ -122,9 +122,10 @@ export class PencilLayer {
         host.addEventListener("pointermove", this.onPointerMove);
         host.addEventListener("pointerup", this.onPointerUp);
         host.addEventListener("pointercancel", this.onPointerCancel);
-        // The Pencil would scroll the score as a finger does; stopping its touches keeps it writing. Fingers still scroll.
+        // The Pencil would scroll the score as a finger does; stopping its touch at the start keeps it writing. Fingers still
+        // scroll. Only touchstart listens, and not passively: a touchmove listener that is not passive makes Safari wait for
+        // the page at every move of every finger, so scrolling the score would stutter whenever the page is busy.
         host.addEventListener("touchstart", this.onTouch, { passive: false });
-        host.addEventListener("touchmove", this.onTouch, { passive: false });
         window.addEventListener("motiff-pencil", this.onNativePencil);
         window.addEventListener("pagehide", this.onPageHide);
     }
@@ -235,7 +236,6 @@ export class PencilLayer {
         this.host.removeEventListener("pointerup", this.onPointerUp);
         this.host.removeEventListener("pointercancel", this.onPointerCancel);
         this.host.removeEventListener("touchstart", this.onTouch);
-        this.host.removeEventListener("touchmove", this.onTouch);
         window.removeEventListener("motiff-pencil", this.onNativePencil);
         window.removeEventListener("pagehide", this.onPageHide);
         this.svg.remove();
