@@ -416,8 +416,16 @@ function Invoke-Workflow([string]$File, [string]$Package, [string]$Label, [strin
   $id = "$($run.databaseId)"
   Write-MotiffInfo "https://github.com/$Repository/actions/runs/$id"
   for ($attempt = 1; ; $attempt++) {
-    Invoke-MotiffNative { & gh run watch $id --repo $Repository --exit-status --interval 20 }
-    if ($LASTEXITCODE -eq 0) { break }
+    # Polled rather than `gh run watch`, whose screen refreshes would end up in what this function returns.
+    $last = ''
+    while ($true) {
+      $state = Invoke-MotiffGh @('run', 'view', $id, '--repo', $Repository, '--json', 'status,conclusion') | ConvertFrom-Json
+      $now = "$($state.status) $($state.conclusion)".Trim()
+      if ($now -ne $last) { Write-MotiffInfo "  ...$now"; $last = $now }
+      if ("$($state.status)" -eq 'completed') { break }
+      Start-Sleep -Seconds 20
+    }
+    if ("$($state.conclusion)" -eq 'success') { break }
     $failed = Invoke-MotiffNative { & gh run view $id --repo $Repository --log-failed 2>&1 } | Out-String
     if (-not $Package -or $failed -notmatch 'is private' -or $attempt -gt 3) { throw "The $File run failed: https://github.com/$Repository/actions/runs/$id" }
     $settingsPage = "https://github.com/users/$Owner/packages/container/$Package/settings"

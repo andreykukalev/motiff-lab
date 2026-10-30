@@ -191,6 +191,12 @@ jobs:
           API_URL: ${{ vars.API_URL }}
           SCAN_URL: ${{ vars.SCAN_URL }}
         run: |
+          for address in "$API_URL" "${SCAN_URL:-https://unset}"; do
+            if [[ ! "$address" =~ ^https://[A-Za-z0-9.-]+$ ]]; then
+              echo "::error::API_URL and SCAN_URL must be plain https addresses; one is: ${address:0:80}"
+              exit 1
+            fi
+          done
           jq -n --arg authority "${AUTHORITY%/v2.0}" --arg client "$CLIENT_ID" --arg audience "$AUDIENCE" \
             --arg api "$API_URL" --arg scan "$SCAN_URL" \
             '{Account: {Authority: $authority, ClientId: $client, ApiScope: "api://\($audience)/Projects.ReadWrite",
