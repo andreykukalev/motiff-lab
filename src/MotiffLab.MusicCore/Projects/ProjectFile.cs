@@ -3,6 +3,7 @@ using System.Text.Json;
 
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Time;
 using MotiffLab.MusicCore.Variations;
@@ -23,6 +24,7 @@ public static class ProjectFile
     public const string FormatName = "motiff-lab-project";
 
     /// <summary>
+    /// 10 adds the bars and tempo worked out for a transcription (0016);
     /// 9 marks a project heard in an audio or video recording by transcription (0014);
     /// 8 adds the player's work sessions and marks each observation with the session it was kept in (0012);
     /// 7 marks a project read from a photo or PDF, with the bars the player checked (0011);
@@ -30,11 +32,11 @@ public static class ProjectFile
     /// 4 saves the melody operations (V4, V9, V10), Accompaniment pattern (V2), Articulation (V13)
     /// and each step's scope; 3 adds
     /// the edit log of note corrections; 2 saves each variation as a chain of steps. Files of earlier
-    /// versions still open: versions before 9 were never transcribed, versions before 8 have no sessions, versions before 7 were never scanned, versions before 6 have no observations, steps of versions before 4
+    /// versions still open: versions before 10 keep a transcription's bars as the engine wrote them, versions before 9 were never transcribed, versions before 8 have no sessions, versions before 7 were never scanned, versions before 6 have no observations, steps of versions before 4
     /// change the whole selection, versions 1 and 2 have no corrections, and version 1 holds one
     /// step per variation.
     /// </summary>
-    public const int Version = 9;
+    public const int Version = 10;
 
     /// <summary>The extension an exported project gets.</summary>
     public const string Extension = ".motiff.json";
@@ -158,6 +160,26 @@ public static class ProjectFile
             {
                 json.WriteStartObject("transcription");
                 json.WriteString("engine", transcription.Engine);
+                if (transcription.Bars is { } bars)
+                {
+                    json.WriteStartObject("bars");
+                    json.WriteNumber("origin", bars.Origin.Value);
+                    json.WriteNumber("sixteenthMicroseconds", bars.SixteenthMicroseconds);
+                    json.WriteString("signature", bars.Signature.ToString());
+                    json.WriteStartArray("barStarts");
+                    foreach (int start in bars.BarStarts)
+                    {
+                        json.WriteNumberValue(start);
+                    }
+
+                    json.WriteEndArray();
+                    json.WriteEndObject();
+                }
+                else
+                {
+                    json.WriteNull("bars");
+                }
+
                 json.WriteEndObject();
             }
             else
@@ -227,7 +249,7 @@ public static class ProjectFile
                 : NoteEditLog.Empty;
             PhraseEdits phrases = version >= 5 ? ReadPhrases(Property(root, "phrases", JsonValueKind.Object)) : PhraseEdits.None;
             ScanOrigin? scan = version >= 7 ? ReadScan(root) : null;
-            TranscriptionOrigin? transcription = version >= 9 ? ReadTranscription(root) : null;
+            TranscriptionOrigin? transcription = version >= 9 ? ReadTranscription(root, version) : null;
             if (scan is not null && transcription is not null)
             {
                 throw Damaged("origin");
@@ -393,7 +415,7 @@ public static class ProjectFile
         return new ScanOrigin(Text(scan, "engine"), bars);
     }
 
-    private static TranscriptionOrigin? ReadTranscription(JsonElement root)
+    private static TranscriptionOrigin? ReadTranscription(JsonElement root, int version)
     {
         if (!root.TryGetProperty("transcription", out JsonElement transcription) || transcription.ValueKind is not (JsonValueKind.Null or JsonValueKind.Object))
         {
@@ -406,7 +428,48 @@ public static class ProjectFile
         }
 
         string engine = Text(transcription, "engine");
-        return string.IsNullOrWhiteSpace(engine) ? throw Damaged("engine") : new TranscriptionOrigin(engine);
+        if (string.IsNullOrWhiteSpace(engine))
+        {
+            throw Damaged("engine");
+        }
+
+        return new TranscriptionOrigin(engine, version >= 10 ? ReadBars(transcription) : null);
+    }
+
+    private static BarGrid? ReadBars(JsonElement transcription)
+    {
+        if (!transcription.TryGetProperty("bars", out JsonElement bars) || bars.ValueKind is not (JsonValueKind.Null or JsonValueKind.Object))
+        {
+            throw Damaged("bars");
+        }
+
+        if (bars.ValueKind == JsonValueKind.Null)
+        {
+            return null;
+        }
+
+        string[] signature = Text(bars, "signature").Split('/');
+        TimeSignature? meter = signature.Length == 2 && int.TryParse(signature[0], NumberStyles.None, CultureInfo.InvariantCulture, out int numerator)
+            && int.TryParse(signature[1], NumberStyles.None, CultureInfo.InvariantCulture, out int denominator)
+            ? BarGrid.Signatures.FirstOrDefault(offered => offered.Numerator == numerator && offered.Denominator == denominator)
+            : null;
+        int[] starts = [.. Property(bars, "barStarts", JsonValueKind.Array)
+            .EnumerateArray()
+            .Select(start => start.ValueKind == JsonValueKind.Number && start.TryGetInt32(out int value) ? value : throw Damaged("bars"))];
+        long origin = Long(bars, "origin");
+        if (meter is not { } chosen || !BarGrid.Signatures.Contains(chosen) || origin < 0)
+        {
+            throw Damaged("bars");
+        }
+
+        try
+        {
+            return new BarGrid(new Tick(origin), Integer(bars, "sixteenthMicroseconds"), chosen, starts);
+        }
+        catch (ArgumentException)
+        {
+            throw Damaged("bars");
+        }
     }
 
     private static List<string> ReadNoteIds(JsonElement parent, string what) =>

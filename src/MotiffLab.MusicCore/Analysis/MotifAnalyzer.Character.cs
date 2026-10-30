@@ -16,7 +16,8 @@ namespace MotiffLab.MusicCore.Analysis;
 /// True for a notation file (MusicXML): its lengths are written note values and its velocities come
 /// from dynamics marks or a default, not from playing.
 /// </param>
-public sealed record CharacterContext(IReadOnlyList<PlaybackTempo> Tempos, bool TempoAssumed, bool FromNotation)
+/// <param name="TempoEstimated">True when the tempo was worked out from the notes of a transcription with its bars (decision record 0016), not read from a file.</param>
+public sealed record CharacterContext(IReadOnlyList<PlaybackTempo> Tempos, bool TempoAssumed, bool FromNotation, bool TempoEstimated = false)
 {
     public static CharacterContext FromPiece(ImportedPiece piece)
     {
@@ -25,7 +26,7 @@ public sealed record CharacterContext(IReadOnlyList<PlaybackTempo> Tempos, bool 
         bool assumed = piece.Midi is { } midi
             ? midi.Tempos.Count == 0 || midi.Tempos[0].IsAssumed
             : piece.MusicXml!.Tempos.Count == 0 || piece.MusicXml.Tempos[0].IsAssumed;
-        return new CharacterContext(PlaybackScore.FromPiece(piece).Tempos, assumed, FromNotation: piece.Midi is null);
+        return new CharacterContext(PlaybackScore.FromPiece(piece).Tempos, assumed, FromNotation: piece.Midi is null, TempoEstimated: piece.Bars is not null);
     }
 }
 
@@ -132,7 +133,9 @@ public static partial class MotifAnalyzer
         }
 
         const string Basis = "Read from the file's tempo map, in quarter notes per minute, rounded to a tenth for display.";
-        MotifFact fact = assumed
+        MotifFact fact = context.TempoEstimated && first == 0
+            ? new MotifFact("character.tempo", FactLens.Character, FactCertainty.Inferred, text, "Worked out from the notes heard in the recording, with the bars: the steady beat their onsets fit best, in quarter notes per minute, rounded to a tenth for display.")
+            : assumed
             ? new MotifFact("character.tempo", FactLens.Character, FactCertainty.Inferred, text, $"The file states no tempo at its start, so the default of {Bpm(PlaybackTempo.DefaultMicrosecondsPerQuarter)} BPM is assumed. {Basis}")
             : new MotifFact("character.tempo", FactLens.Character, FactCertainty.Detected, text, Basis);
         return fact with { Places = places };

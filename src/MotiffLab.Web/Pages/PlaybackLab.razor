@@ -6,6 +6,7 @@
 @using MotiffLab.MusicCore.Export
 @using MotiffLab.MusicCore.Import
 @using MotiffLab.MusicCore.Import.MusicXml
+@using MotiffLab.MusicCore.Import.Transcription
 @using MotiffLab.MusicCore.Motifs
 @using MotiffLab.MusicCore.Notation
 @using MotiffLab.MusicCore.Invitations
@@ -765,6 +766,9 @@
     /// <summary>Whether the selection has a melody over an accompaniment.</summary>
     private bool _layered;
 
+    /// <summary>For notes heard in a recording, short gaps are written as held notes (decision record 0016).</summary>
+    private bool _holdShortGaps;
+
     /// <summary>Which notes the next step of the Selection tab changes, for the operations that can be limited.</summary>
     private OperationScope _scope = OperationScope.All;
 
@@ -1031,6 +1035,7 @@
         _accents = null;
         _phraseMarks = PhraseMarks.None;
         _characterContext = new CharacterContext(score.Tempos, TempoAssumed: false, FromNotation: false);
+        _holdShortGaps = false;
         await LoadAsync((score, meter, notes), FurElise.Title, notation, musicXml: null, keys: [FurElise.Key]);
         // Für Elise has no project, so the address no longer names one.
         if (ProjectId is not null)
@@ -1132,9 +1137,10 @@
         _characterContext = CharacterContext.FromPiece(piece);
         // MIDI has no slurs or repeat signs; rests still mark phrase boundaries.
         _phraseMarks = piece.MusicXml?.PhraseMarks ?? PhraseMarks.None;
+        _holdShortGaps = Transcribed.IsHeard(piece);
         if (piece.Midi is { } midi)
         {
-            await LoadAsync((PlaybackScore.FromMidi(midi), piece.Meter, piece.Notes), piece.FileName, NotationGenerator.FromMidi(midi, piece.FileName), musicXml: null, piece.Keys);
+            await LoadAsync((PlaybackScore.FromMidi(midi), piece.Meter, piece.Notes), piece.FileName, NotationGenerator.FromMidi(midi, piece.FileName, _holdShortGaps), musicXml: null, piece.Keys);
             return;
         }
 
@@ -1213,6 +1219,11 @@
         if (notation.ShortenedNoteCount > 0)
         {
             parts.Add($"{notation.ShortenedNoteCount} notes are shown shorter to fit four voices per staff.");
+        }
+
+        if (notation.LengthenedNoteCount > 0)
+        {
+            parts.Add($"{notation.LengthenedNoteCount} notes heard in the recording are shown held to the next note, as the gap was shorter than an eighth.");
         }
 
         if (notation.Staves.Any(staff => staff.IsSplitInferred))
@@ -1746,7 +1757,7 @@
         _lastBar = MotifSelector.LastBar(_meter!, _score.End);
         _phrases = PhraseMap.Suggest(_notes, _meter!, _phraseMarks, _score.End, _phrases?.Edits);
         IEnumerable<KeyChange> keys = _keys.Select(key => new KeyChange(key.At, Math.Clamp(key.Fifths, -7, 7)));
-        _generated = ScoreSource.FromNotes(NotationGenerator.Generate(_notes, _meter!, keys, _score.End, _title));
+        _generated = ScoreSource.FromNotes(NotationGenerator.Generate(_notes, _meter!, keys, _score.End, _title, _holdShortGaps));
         if (!edits.IsEmpty && _scoreChoice == ScoreChoice.AsWritten)
         {
             // The file as written does not know the corrections.
@@ -2154,7 +2165,7 @@
         Note[] notes = InPlaceNotes(variation);
         Tick end = notes.Length == 0 ? _score!.End : notes.Max(note => note.Span.End);
         IEnumerable<KeyChange> keys = _keys.Select(key => new KeyChange(key.At, Math.Clamp(key.Fifths, -7, 7)));
-        return ScoreSource.FromNotes(NotationGenerator.Generate(notes, _meter!, keys, end > _score!.End ? end : _score.End, _title));
+        return ScoreSource.FromNotes(NotationGenerator.Generate(notes, _meter!, keys, end > _score!.End ? end : _score.End, _title, _holdShortGaps));
     }
 
     /// <summary>The piece's notes with the variation's in place of the ones it changed or removed.</summary>

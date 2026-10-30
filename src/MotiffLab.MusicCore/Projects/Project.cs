@@ -248,6 +248,18 @@ public sealed record OpenedProject(
                 throw new ProjectFileException("This project says it was transcribed from a recording, but its piece is not MIDI.");
             }
 
+            if (project.Transcription.Bars is { } bars)
+            {
+                try
+                {
+                    piece = bars.Apply(piece);
+                }
+                catch (ArgumentException exception)
+                {
+                    throw new ProjectFileException($"The bars worked out for this transcription no longer fit its notes: {exception.Message}");
+                }
+            }
+
             piece = Transcribed.Mark(piece);
         }
 

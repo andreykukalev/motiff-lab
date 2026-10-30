@@ -9,7 +9,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const heard = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/Transcription/Fixtures/basic-pitch-melody.mid", import.meta.url));
+const fixtures = "../MotiffLab.MusicCore.Tests/Import/Transcription/Fixtures/";
+const heard = fileURLToPath(new URL(`${fixtures}basic-pitch-melody.mid`, import.meta.url));
+const furElise = fileURLToPath(new URL(`${fixtures}transkun-fur-elise.mid`, import.meta.url));
 const server = "http://localhost:8765";
 
 // The app's service worker would answer the page's requests before the test's stand-in server could.
@@ -42,10 +44,10 @@ async function recording() {
     return path;
 }
 
-/** Plays the scan server; returns the uploads it received. */
-async function scanServer(page) {
+/** Plays the scan server, answering with the MIDI file given; returns the uploads it received. */
+async function scanServer(page, answer = heard) {
     const uploads = [];
-    const midi = await readFile(heard);
+    const midi = await readFile(answer);
     const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Expose-Headers": "X-Engine, X-Pages, X-Seconds, X-Cut" };
     await page.route(`${server}/health`, route => route.fulfill({
         json: { engine: "homr", version: "0.7.0", maxPages: 8, transcribe: { engine: "basic-pitch", version: "0.4.0", maxMegabytes: 200, maxSeconds: 600 } },
@@ -94,6 +96,44 @@ test("a recording's sound is sent as mono audio, and its notes open marked as he
 
     await page.getByText("Open the piece").click();
     await expect(page).toHaveURL(/playback/);
+    await page.goto("/");
+    await page.getByRole("link", { name: "Take 1 at the piano.mid" }).first().click();
+    await expect(page.getByText("heard in a recording")).toBeVisible();
+});
+
+test("a transcription is written in bars and a tempo worked out from its notes, which the player can change", async ({ page }) => {
+    await scanServer(page, furElise);
+    await page.goto("/settings");
+    await page.getByRole("button", { name: "Save and check" }).click();
+    await expect(page.getByText("Connected: the scan server runs homr 0.7.0")).toBeVisible();
+
+    await page.goto("/import/recording");
+    await page.getByLabel("Choose an audio or video recording to transcribe").setInputFiles(await recording());
+    const bars = page.getByRole("region", { name: "Bars and tempo" });
+    await expect(bars.getByText("3/8 with a quarter at 72 a minute")).toBeVisible();
+    await expect(bars.getByText("The piece starts with a pickup.")).toBeVisible();
+    await expect(page.getByText("were worked out from the notes", { exact: false })).toBeVisible();
+    expect(await violations(page)).toEqual([]);
+
+    // Another time signature lays out the same notes again; twice the tempo halves the 16th.
+    await bars.getByLabel("Time signature").selectOption("6/8");
+    await expect(bars.getByText("6/8 with a quarter at 72 a minute")).toBeVisible();
+    await bars.getByRole("button", { name: "Twice the tempo" }).click();
+    await expect(bars.getByText("6/8 with a quarter at 144 a minute")).toBeVisible();
+
+    // Off, the engine's 4/4 at 120 comes back.
+    await bars.getByLabel("Write the notes in bars worked out from the playing").uncheck();
+    await expect(bars.getByText("The notes stay in the bars the engine wrote", { exact: false })).toBeVisible();
+    await expect(page.getByText("were worked out from the notes", { exact: false })).toHaveCount(0);
+    await bars.getByLabel("Write the notes in bars worked out from the playing").check();
+    await bars.getByLabel("Time signature").selectOption("3/8");
+    await bars.getByRole("button", { name: "Half the tempo" }).click();
+    await expect(bars.getByText("3/8 with a quarter at 72 a minute")).toBeVisible();
+
+    // The workspace writes the notes in those bars, with short gaps held.
+    await page.getByText("Open the piece").click();
+    await expect(page).toHaveURL(/playback/);
+    await expect(page.getByText("shown held to the next note", { exact: false })).toBeVisible();
     await page.goto("/");
     await page.getByRole("link", { name: "Take 1 at the piano.mid" }).first().click();
     await expect(page.getByText("heard in a recording")).toBeVisible();
