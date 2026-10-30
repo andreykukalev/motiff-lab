@@ -21,7 +21,8 @@ from starlette.concurrency import run_in_threadpool
 
 from app import auth, merge, pages, recognise, transcribe
 
-MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+# A scanned PDF or photo; the app allows the same 50 MB (Andrei, 2026-10-30).
+MAX_UPLOAD_BYTES = int(os.environ.get("MAX_UPLOAD_MB", "50")) * 1024 * 1024
 MAX_PAGES = int(os.environ.get("MAX_PAGES", "8"))
 
 # A recording may be a video, so it is allowed to be larger; only its first minutes are heard. Two and
