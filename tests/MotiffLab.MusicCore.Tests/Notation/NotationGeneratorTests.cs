@@ -362,6 +362,34 @@ public class NotationGeneratorTests
         static (GeneratedNotation, IReadOnlyList<Note>, MeterMap) MusicXml(MusicXmlImport import) => (NotationGenerator.FromMusicXml(import), import.Notes, import.Meter);
     }
 
+    [Fact]
+    public void Held_gaps_write_a_note_heard_in_a_recording_up_to_the_next_one()
+    {
+        // A quarter let go a 16th early, then a quarter with a quarter's rest after it, then the last note.
+        Note[] notes = [Note("n_0001", 72, 0, 360), Note("n_0002", 74, 480, 480), Note("n_0003", 76, 1440, 480)];
+
+        GeneratedNotation held = NotationGenerator.Generate(notes, MeterMap.Default, [], new Tick(1920), holdShortGaps: true);
+        GeneratedNotation asPlayed = NotationGenerator.Generate(notes, MeterMap.Default, [], new Tick(1920));
+
+        XDocument mei = XDocument.Parse(held.Mei);
+        Assert.Equal(1, held.LengthenedNoteCount);
+        Assert.Equal("4", (string)ById(mei, "n_0001").Attribute("dur")!);
+        Assert.Equal("4", (string)ById(mei, "n_0002").Attribute("dur")!);
+        Assert.Equal(0, asPlayed.LengthenedNoteCount);
+        Assert.Equal("8", (string)ById(XDocument.Parse(asPlayed.Mei), "n_0001").Attribute("dur")!);
+    }
+
+    [Fact]
+    public void Held_gaps_close_only_on_the_same_staff()
+    {
+        // A short bass note is followed by a treble note: the bass staff has no next onset to hold to.
+        Note[] notes = [Note("n_0001", 40, 0, 240), Note("n_0002", 76, 300, 240), Note("n_0003", 80, 1440, 240)];
+
+        GeneratedNotation held = NotationGenerator.Generate(notes, MeterMap.Default, [], new Tick(1920), holdShortGaps: true);
+
+        Assert.Equal(0, held.LengthenedNoteCount);
+    }
+
     private static (string Name, string? Accid, string? Gestural) Spelling(XElement note) =>
         ((string)note.Attribute("pname")!, (string?)note.Attribute("accid"), (string?)note.Attribute("accid.ges"));
 }

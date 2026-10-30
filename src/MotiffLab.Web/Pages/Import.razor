@@ -7,6 +7,7 @@
 @using MotiffLab.MusicCore.Import.Scan
 @using MotiffLab.MusicCore.Import.Transcription
 @using MotiffLab.MusicCore.Projects
+@using MotiffLab.MusicCore.Time
 @using MotiffLab.Web.Import
 @using MotiffLab.Web.Projects
 @inject CurrentPiece CurrentPiece
@@ -172,6 +173,50 @@
                         <p class="notice">@Text["transcribe.cut"]</p>
                     }
                 </section>
+                @* Bars and tempo worked out from the notes (0016): an inference the player can change or turn off. *@
+                <section class="scan-check" aria-label="@Text["transcribe.barsHeading"]">
+                    <h3>@Text["transcribe.barsHeading"]</h3>
+                    @if (_bars is not { } bars)
+                    {
+                        <p>@Text["transcribe.barsNone"]</p>
+                    }
+                    else
+                    {
+                        <label>
+                            <input type="checkbox" checked="@_barsOn" @onchange="ToggleBars" /> @Text["transcribe.barsOn"]
+                        </label>
+                        @if (_barsOn)
+                        {
+                            <p>@Text.Format("transcribe.barsFound", bars.Signature, bars.QuarterNotesPerMinute)</p>
+                            @if (bars.HasPickup)
+                            {
+                                <p class="meta">@Text["transcribe.barsPickup"]</p>
+                            }
+                            @if (bars.ShortBarCount > 0)
+                            {
+                                <p class="meta">@Text.Count("transcribe.shortBars", bars.ShortBarCount)</p>
+                            }
+                            <div class="row">
+                                <label>
+                                    @Text["transcribe.signature"]
+                                    <select value="@bars.Signature.ToString()" @onchange="ChangeSignature">
+                                        @foreach (TimeSignature signature in BarGrid.Signatures)
+                                        {
+                                            <option value="@signature.ToString()">@signature</option>
+                                        }
+                                    </select>
+                                </label>
+                                <button @onclick="() => ChangeTempo(faster: true)" disabled="@(bars.SixteenthMicroseconds / 2 < BarGrid.ShortestSixteenth)">@Text["transcribe.faster"]</button>
+                                <button @onclick="() => ChangeTempo(faster: false)" disabled="@(bars.SixteenthMicroseconds * 2L > BarGrid.LongestSixteenth)">@Text["transcribe.slower"]</button>
+                            </div>
+                            <p class="meta">@Text["transcribe.tempoHow"]</p>
+                        }
+                        else
+                        {
+                            <p class="meta">@Text["transcribe.barsOff"]</p>
+                        }
+                    }
+                </section>
             }
             else
             {
@@ -281,6 +326,13 @@
     private bool _cut;
     private bool _transcribing;
     private bool _sendSound;
+
+    /// <summary>The transcription as the engine wrote it, marked as heard, before any bars are worked out.</summary>
+    private ImportedPiece? _heard;
+
+    /// <summary>The bars and tempo worked out from the notes (0016), as found or as the player changed them; null when none were found.</summary>
+    private BarGrid? _bars;
+    private bool _barsOn;
     private InputFile? _recordingInput;
 
     /// <summary>Whether a player is signed in, which Motiff Lab's scan server needs.</summary>
@@ -427,6 +479,7 @@
     private async Task TranscribeFileAsync(InputFileChangeEventArgs args)
     {
         _fileName = args.File.Name;
+        (_heard, _bars, _barsOn) = (null, null, false);
         _piece = null;
         _scan = null;
         _transcriptionEngine = null;
@@ -479,12 +532,49 @@
                 return;
             }
 
-            (_piece, _data, _fileName, _transcriptionEngine) = (Transcribed.Mark(piece), midi, name, result.Engine);
+            (_heard, _data, _fileName, _transcriptionEngine) = (Transcribed.Mark(piece), midi, name, result.Engine);
             (_heardSeconds, _cut) = (sound?.Seconds ?? result.Seconds, sound?.Cut == true || result.Cut);
+            _bars = BarGrid.Find(piece.Midi!);
+            _barsOn = _bars is not null;
+            ShowBars();
         }
         finally
         {
             _transcribing = false;
+        }
+    }
+
+    /// <summary>The transcription in the bars the player chose, or as the engine wrote it.</summary>
+    private void ShowBars() => _piece = _barsOn && _bars is { } bars ? bars.Apply(_heard!) : _heard;
+
+    private void ToggleBars(ChangeEventArgs args)
+    {
+        _barsOn = args.Value is true;
+        ShowBars();
+    }
+
+    private void ChangeSignature(ChangeEventArgs args)
+    {
+        if (_bars is { } bars && BarGrid.Signatures.FirstOrDefault(signature => signature.ToString() == args.Value as string) is { Numerator: > 1 } chosen)
+        {
+            _bars = BarGrid.Find(_heard!.Midi!, chosen, bars.SixteenthMicroseconds) ?? bars;
+            ShowBars();
+        }
+    }
+
+    /// <summary>Twice or half the tempo: the same notes written in note values half or twice as long.</summary>
+    private void ChangeTempo(bool faster)
+    {
+        if (_bars is not { } bars)
+        {
+            return;
+        }
+
+        long step = faster ? bars.SixteenthMicroseconds / 2 : bars.SixteenthMicroseconds * 2L;
+        if (step >= BarGrid.ShortestSixteenth && step <= BarGrid.LongestSixteenth)
+        {
+            _bars = BarGrid.Find(_heard!.Midi!, bars.Signature, (int)step) ?? bars;
+            ShowBars();
         }
     }
 
@@ -514,7 +604,7 @@
         var project = Project.Create($"p_{Guid.NewGuid():N}", piece.FileName, _data, DateTimeOffset.Now) with
         {
             Scan = _scan is null ? null : ScanOrigin.Read(_scanEngine),
-            Transcription = _transcriptionEngine is null ? null : new TranscriptionOrigin(_transcriptionEngine),
+            Transcription = _transcriptionEngine is null ? null : new TranscriptionOrigin(_transcriptionEngine, _barsOn ? _bars : null),
         };
         // The piece opens in a session (0012), so the work has a context to come back to from the project page.
         Session session = Session.Start(project.NextSessionId(), SessionIntent.Open, null, DateTimeOffset.Now);

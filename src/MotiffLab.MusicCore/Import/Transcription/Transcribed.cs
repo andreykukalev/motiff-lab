@@ -26,6 +26,16 @@ public static class Transcribed
         return [.. notes.Select(note => note with { Attribution = detected })];
     }
 
+    /// <summary>
+    /// Whether the piece's notes were heard in a recording: MIDI whose notes are all marked detected,
+    /// as <see cref="Mark(ImportedPiece)"/> leaves them. Scanned notes are detected too, but are MusicXML.
+    /// </summary>
+    public static bool IsHeard(ImportedPiece piece)
+    {
+        ArgumentNullException.ThrowIfNull(piece);
+        return piece.Midi is not null && piece.Notes.Count > 0 && piece.Notes.All(note => note.Attribution.Provenance == Provenance.Detected);
+    }
+
     /// <summary>The piece with its notes marked as transcribed (<see cref="Mark(IReadOnlyList{Note})"/>).</summary>
     /// <exception cref="ArgumentException">The piece was not imported from MIDI, which is what transcription writes.</exception>
     public static ImportedPiece Mark(ImportedPiece piece)

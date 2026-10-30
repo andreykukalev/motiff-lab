@@ -50,11 +50,15 @@ public static class NotationGenerator
 
     private static readonly string[] s_stepNames = ["c", "d", "e", "f", "g", "a", "b"];
 
+    /// <summary>The longest gap before the next onset that <c>holdShortGaps</c> closes: an eighth note.</summary>
+    public const long HeldGap = CanonicalTime.TicksPerQuarter / 2;
+
     /// <summary>Notation for a MIDI import, with its key signatures.</summary>
-    public static GeneratedNotation FromMidi(MidiImport import, string? title = null)
+    /// <param name="holdShortGaps">See <see cref="Generate"/>.</param>
+    public static GeneratedNotation FromMidi(MidiImport import, string? title = null, bool holdShortGaps = false)
     {
         ArgumentNullException.ThrowIfNull(import);
-        return Generate(import.Notes, import.Meter, import.KeySignatures.Select(key => new KeyChange(key.At, Math.Clamp(key.Sharps, -7, 7))), import.End, title);
+        return Generate(import.Notes, import.Meter, import.KeySignatures.Select(key => new KeyChange(key.At, Math.Clamp(key.Sharps, -7, 7))), import.End, title, holdShortGaps);
     }
 
     /// <summary>Notation for a MusicXML import, generated from its notes rather than engraved as written. Key signatures come from the first part.</summary>
@@ -73,7 +77,12 @@ public static class NotationGenerator
     /// <param name="keys">Key signatures; C major until the first. A change takes effect at the next bar line.</param>
     /// <param name="end">The end of the piece; the last bar is the one that contains the end, or the last note's end if later.</param>
     /// <param name="title">The title written in the MEI header.</param>
-    public static GeneratedNotation Generate(IEnumerable<Note> notes, MeterMap meter, IEnumerable<KeyChange> keys, Tick end, string? title = null)
+    /// <param name="holdShortGaps">
+    /// For notes heard in a recording, where a key is let go a little before the next is played: a
+    /// note that ends less than <see cref="HeldGap"/> before the next onset on its staff is written up
+    /// to that onset, as legato rather than a short note and a rest. The notes themselves keep their lengths.
+    /// </param>
+    public static GeneratedNotation Generate(IEnumerable<Note> notes, MeterMap meter, IEnumerable<KeyChange> keys, Tick end, string? title = null, bool holdShortGaps = false)
     {
         ArgumentNullException.ThrowIfNull(notes);
         ArgumentNullException.ThrowIfNull(meter);
@@ -89,6 +98,12 @@ public static class NotationGenerator
         Bar[] bars = [.. meter.BarsBefore(new Tick(last))];
 
         List<StaffPlan> staves = PlanStaves(shown);
+        var lengthened = new HashSet<string>();
+        if (holdShortGaps)
+        {
+            staves = [.. staves.Select(staff => staff with { Notes = HeldToNextOnset(staff.Notes, lengthened) })];
+        }
+
         var shortened = new HashSet<string>();
         foreach (StaffPlan staff in staves)
         {
@@ -104,10 +119,33 @@ public static class NotationGenerator
 
         string mei = WriteMei(title ?? "Generated notation", staves, measures);
         NotationStaff[] staffInfo = [.. staves.Select(staff => new NotationStaff(staff.Number, staff.Track, staff.Clef, staff.Hand, staff.IsSplitInferred))];
-        return new GeneratedNotation(mei, staffInfo, input.Length, approximated, shortened.Count);
+        return new GeneratedNotation(mei, staffInfo, input.Length, approximated, shortened.Count, lengthened.Count);
     }
 
     private static long Snap(long tick) => (tick + (Grid / 2)) / Grid * Grid;
+
+    /// <summary>Each note that ends less than <see cref="HeldGap"/> before the staff's next onset, written up to it.</summary>
+    private static ShownNote[] HeldToNextOnset(ShownNote[] notes, HashSet<string> lengthened)
+    {
+        long[] onsets = [.. notes.Select(note => note.Onset).Distinct().Order()];
+        return [.. notes.Select(note =>
+        {
+            int index = Array.BinarySearch(onsets, note.Onset);
+            if (index + 1 >= onsets.Length)
+            {
+                return note;
+            }
+
+            long next = onsets[index + 1];
+            if (note.End >= next || next - note.End >= HeldGap)
+            {
+                return note;
+            }
+
+            lengthened.Add(note.Note.Id);
+            return new ShownNote(note.Note, note.Onset, next);
+        })];
+    }
 
     private static int KeyAt(KeyChange[] keys, Tick position)
     {

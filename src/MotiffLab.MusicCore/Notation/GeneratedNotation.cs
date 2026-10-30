@@ -13,12 +13,14 @@ namespace MotiffLab.MusicCore.Notation;
 /// <param name="NoteCount">Notes in the input.</param>
 /// <param name="ApproximatedNoteCount">Notes whose onset or end moved to the nearest 32nd note to be written.</param>
 /// <param name="ShortenedNoteCount">Notes written shorter than they are because more than four voices on one staff would have been needed.</param>
+/// <param name="LengthenedNoteCount">Notes heard in a recording that are written up to the next note on their staff, because the gap was shorter than an eighth.</param>
 public sealed record GeneratedNotation(
     string Mei,
     IReadOnlyList<NotationStaff> Staves,
     int NoteCount,
     int ApproximatedNoteCount,
-    int ShortenedNoteCount);
+    int ShortenedNoteCount,
+    int LengthenedNoteCount = 0);
 
 /// <param name="Number">The MEI staff number, from 1 at the top.</param>
 /// <param name="Track">The track whose notes the staff shows.</param>
