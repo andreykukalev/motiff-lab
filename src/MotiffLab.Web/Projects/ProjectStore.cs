@@ -5,6 +5,7 @@ using Microsoft.JSInterop;
 
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.Web.Account;
+using MotiffLab.Web.Score;
 
 namespace MotiffLab.Web.Projects;
 
@@ -64,6 +65,8 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
     {
         IJSObjectReference module = await ModuleAsync();
         await module.InvokeVoidAsync("deleteProject", id);
+        // The pencil marks on its score go with it (0015).
+        await module.InvokeVoidAsync("deleteMarks", PencilMarks.ProjectKey(id));
         await online.DeleteAsync(id);
     }
 

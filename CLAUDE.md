@@ -4,7 +4,7 @@ Musical exploration workspace: help musicians move from reproducing music to und
 
 ## Stack
 
-See `docs/decisions/0001-stack.md` (stack), `0002-canonical-time.md` (musical time), `0003-ai-integration.md` (AI assistance), `0004-note-event-and-meter-map.md` (note event, bars and beats), `0007-playback-engine.md` (browser playback), `0008-score-view.md` (notation) `0012-workspace-structure.md` (projects, sessions and ideas, the score-first workspace, Focus mode, localization), `0014-hosted-scan-server.md` (the scan server in Azure Container Apps, Motiff Lab's Cosmos DB database) and `0013-interaction-model.md` (one musical object and one primary selection behind Practise, Understand and Explore, claim kinds with evidence, the Try it contract, Russian terms, the Guidance Layer).
+See `docs/decisions/0001-stack.md` (stack), `0002-canonical-time.md` (musical time), `0003-ai-integration.md` (AI assistance), `0004-note-event-and-meter-map.md` (note event, bars and beats), `0007-playback-engine.md` (browser playback), `0008-score-view.md` (notation) `0012-workspace-structure.md` (projects, sessions and ideas, the score-first workspace, Focus mode, localization), `0014-hosted-scan-server.md` (the scan server in Azure Container Apps, Motiff Lab's Cosmos DB database), `0015-ipad-app.md` (the iPad app, pencil marks on the score) and `0013-interaction-model.md` (one musical object and one primary selection behind Practise, Understand and Explore, claim kinds with evidence, the Try it contract, Russian terms, the Guidance Layer).
 
 - `src/MotiffLab.MusicCore` — C# music-core: shared event model, parsing, analysis, variation operations. Pure and deterministic; no UI, I/O or browser dependencies.
 - `src/MotiffLab.Api` — ASP.NET Core API that saves a signed-in player's projects in Cosmos DB (0014), with xUnit tests in `tests/MotiffLab.Api.Tests`. Deployed by the `API` workflow, not CI.
@@ -12,6 +12,7 @@ See `docs/decisions/0001-stack.md` (stack), `0002-canonical-time.md` (musical ti
 - `tests/MotiffLab.MusicCore.Tests` — xUnit tests for music-core.
 - `tests/web` — Node tests for the TypeScript layer, run on the compiled output.
 - `services/omr` — the scan server for sheet music recognition and transcription: homr (AGPL-3.0, unmodified) and Basic Pitch (Apache-2.0) behind a small Python HTTP service, run by the player in Docker on their own computer (`docs/decisions/0011-sheet-music-recognition.md`) or hosted in Azure Container Apps (`0014`, deployed by the `Scan server` workflow, not CI). Its unit tests run with `python -m pytest` in that folder.
+- `ios` — the iPad app (`0015`): a Swift shell around the deployed web app, generated with XcodeGen from `ios/project.yml` and built in Xcode on a Mac (`ios/README.md`), not in CI. Pencil marks on the score are part of the web app.
 - `tests/e2e` — Playwright tests of the published app: the core journey in Chromium, Firefox and WebKit (desktop and tablet), offline, and WCAG 2.2 AA with axe.
 
 ## Commands

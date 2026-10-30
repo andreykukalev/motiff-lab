@@ -171,7 +171,7 @@
                     {
                         @* Clicks on the page outside the roll clear the selection, except inside panels marked data-keeps-selection (docs/ui-conventions.md). *@
                         <div class="score-panel" data-keeps-selection>
-                            <ScoreView Source="shown" Range="ShownRange" Phrases="ScorePhrases" Highlight="_highlight?.Places" HoldHeight="_alternating" BarPicked="OnScoreBarPickedAsync" />
+                            <ScoreView Source="shown" Range="ShownRange" Phrases="ScorePhrases" Highlight="_highlight?.Places" HoldHeight="_alternating" PencilKey="ShownPencilKey" BarPicked="OnScoreBarPickedAsync" />
                             <p class="meta">@ScoreNote(shown)</p>
                         </div>
                         @if (ShowRoll)
@@ -893,6 +893,9 @@
         ScoreChoice.AsWritten => _asWritten,
         _ => _generated,
     };
+
+    /// <summary>The piece's pencil marks (0015), on its own score as written or generated; a score with a variation in it shows none.</summary>
+    private string? ShownPencilKey => ShownChoice == ScoreChoice.Variation ? null : PencilMarks.KeyFor(_project?.Id, _title);
 
     /// <summary>The piece's notes are heard: the original, or the selection on its own.</summary>
     private bool OriginalAudible => Player.ActiveSources.Contains(Player.OriginalSource) || Player.ActiveSources.Contains(SelectionSource);

@@ -1314,6 +1314,94 @@ html, body {
     border-color: var(--ml-score-inferred);
 }
 
+/* Pencil marks (Score/ScoreView.razor, Scripts/score/pencil-layer.ts, 0015): the player's own writing over the engraving,
+   in pencil colours on paper. No long-press menu or text selection under the Pencil. */
+.score {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.score.pencil-on {
+    cursor: crosshair;
+}
+
+.score .pencil-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    overflow: visible;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.score .pencil-mark.pen.ink {
+    fill: #2B2F36;
+}
+
+.score .pencil-mark.pen.red {
+    fill: #C62828;
+}
+
+.score .pencil-mark.pen.blue {
+    fill: #1F5FBF;
+}
+
+.score .pencil-mark.highlighter {
+    fill: #F2D400;
+    opacity: 0.38;
+    mix-blend-mode: multiply;
+}
+
+/* The Pencil tools above the score: one button until turned on; touch-sized for the iPad on the music stand. */
+.pencil-tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0.25rem 0;
+}
+
+.lab .pencil-tools button {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+}
+
+.lab .pencil-tools button.pencil-pen {
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pencil-tools .pencil-pen span {
+    display: block;
+    width: 1.1rem;
+    height: 1.1rem;
+    border-radius: 50%;
+    border: 2px solid var(--ml-white);
+}
+
+.pencil-tools .pencil-pen.ink span {
+    background: #2B2F36;
+}
+
+.pencil-tools .pencil-pen.red span {
+    background: #C62828;
+}
+
+.pencil-tools .pencil-pen.blue span {
+    background: #1F5FBF;
+}
+
+.lab .pencil-tools button.pencil-pen.on span {
+    border-color: var(--ml-charcoal);
+}
+
+.pencil-tools .meta {
+    font-size: 0.8rem;
+}
+
 /* The phrase strip (Phrases/PhraseStrip.razor, #18): the piece as phrases to pick, each saying how its start was found.
    Certainty by line as well as colour: solid from the file or the player, dashed blue inferred. */
 .phrases {

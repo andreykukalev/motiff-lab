@@ -1,8 +1,11 @@
 // The score view (S1-W7, decision record 0008): engraves MusicXML or generated MEI with Verovio,
 // marks the notes being heard, scrolls with playback and moves playback to a clicked note, and
-// highlights the places a chosen fact names (#25). A click on a bar selects it (0012).
+// highlights the places a chosen fact names (#25). A click on a bar selects it (0012). The player's
+// pencil marks are drawn over it (pencil-layer.ts, 0015).
 // Blazor imports this module through JS interop. Verovio loads on first use.
 
+import type { BarFrame } from "./pencil-marks.js";
+import { PencilLayer, type PencilState } from "./pencil-layer.js";
 import { ScoreTimeline, highlightedIds, type HighlightPlace, type TimemapEntry } from "./score-timeline.js";
 
 interface DotNetObject {
@@ -114,10 +117,16 @@ export class ScoreView {
     private frame = 0;
     private relayoutTimer = 0;
     private disposed = false;
+    private readonly pencil: PencilLayer;
 
     constructor(host: HTMLElement, dotnet: DotNetObject) {
         this.host = host;
         this.dotnet = dotnet;
+        this.pencil = new PencilLayer(host, {
+            frames: () => this.barFrames(),
+            tap: (target, extend) => this.pick(target, extend),
+            changed: (state: PencilState) => void this.dotnet.invokeMethodAsync("OnPencilChanged", state),
+        });
         this.host.addEventListener("click", this.onClick);
         this.resizeObserver = new ResizeObserver(() => this.scheduleRelayout());
         this.resizeObserver.observe(host);
@@ -190,8 +199,14 @@ export class ScoreView {
         this.applyHighlight(true);
     }
 
+    /** The pencil marks over the score, for Blazor to choose the piece and the tool (0015). */
+    pencilLayer(): PencilLayer {
+        return this.pencil;
+    }
+
     dispose(): void {
         this.disposed = true;
+        this.pencil.dispose();
         cancelAnimationFrame(this.frame);
         clearTimeout(this.relayoutTimer);
         this.resizeObserver.disconnect();
@@ -243,6 +258,45 @@ export class ScoreView {
         this.marked = new Set();
         this.markedKey = "";
         this.mark(marked, false);
+
+        this.pencil.relayout();
+    }
+
+    /**
+     * Where each engraved bar sits, in the score's content pixels, for the pencil marks: its box, and its
+     * top staff line and the space between lines, so marks keep their size against the staves.
+     */
+    private barFrames(): BarFrame[] {
+        const timeline = this.timeline;
+        if (timeline === null) {
+            return [];
+        }
+        const view = this.host.getBoundingClientRect();
+        const left = this.host.scrollLeft - view.left;
+        const top = this.host.scrollTop - view.top;
+        const frames: BarFrame[] = [];
+        for (const measure of this.host.querySelectorAll("g.measure")) {
+            const tick = measure.id ? timeline.measureOnset(measure.id) : undefined;
+            if (tick === undefined) {
+                continue;
+            }
+            const box = measure.getBoundingClientRect();
+            // Verovio draws a staff's five lines as its first paths.
+            const lines = measure.querySelector("g.staff")?.querySelectorAll(":scope > path");
+            const first = lines?.[0]?.getBoundingClientRect();
+            const second = lines?.[1]?.getBoundingClientRect();
+            const space = first !== undefined && second !== undefined ? second.top - first.top : 0;
+            frames.push({
+                tick,
+                left: box.left + left,
+                right: box.right + left,
+                top: box.top + top,
+                bottom: box.bottom + top,
+                staffTop: (first?.top ?? box.top) + top,
+                space: space > 0 ? space : box.height / 8,
+            });
+        }
+        return frames;
     }
 
     private keepHeight(): void {
@@ -423,12 +477,20 @@ export class ScoreView {
     }
 
     private readonly onClick = (event: MouseEvent): void => {
+        // A press the pencil layer took is handled there: a tap comes back through pick.
+        if (event.target instanceof Element && !this.pencil.swallowsClick()) {
+            this.pick(event.target, event.shiftKey);
+        }
+    };
+
+    /** A click or a pen tap on the score: a note moves playback to it, a bar away from its notes selects it. */
+    private pick(target: Element, extend: boolean): void {
         const timeline = this.timeline;
-        if (timeline === null || !(event.target instanceof Element)) {
+        if (timeline === null) {
             return;
         }
         // A click on a chord's stem finds the chord; its notes start where it starts.
-        const hit = event.target.closest("g.note, g.chord");
+        const hit = target.closest("g.note, g.chord");
         const note = hit?.matches("g.chord") ? hit.querySelector("g.note") : hit;
         const onset = note?.id ? timeline.onsetOf(note.id) : undefined;
         if (onset !== undefined) {
@@ -436,12 +498,12 @@ export class ScoreView {
             return;
         }
         // A click on a bar away from its notes selects that bar, as on the roll's bar numbers (0012); Shift extends to it.
-        const measure = event.target.closest("g.measure");
+        const measure = target.closest("g.measure");
         const start = measure?.id ? timeline.measureOnset(measure.id) : undefined;
         if (start !== undefined) {
-            void this.dotnet.invokeMethodAsync("OnScoreBarClicked", start, event.shiftKey);
+            void this.dotnet.invokeMethodAsync("OnScoreBarClicked", start, extend);
         }
-    };
+    }
 }
 
 /** Entry point for Blazor. */

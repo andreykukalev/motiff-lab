@@ -1,9 +1,40 @@
 @using MotiffLab.MusicCore.Time
+@using MotiffLab.Web.Localization
 @using MotiffLab.Web.Playback
 @using MotiffLab.Web.Understand
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject Player Player
+@inject UiText Text
+
+@if (PencilKey is not null)
+{
+    @* Pencil marks (0015): the Apple Pencil writes on the score at any time; these tools choose the pen, the highlighter or the eraser. *@
+    <div class="pencil-tools" role="toolbar" aria-label="@Text["pencil.label"]" data-keeps-selection>
+        <button class="pencil-toggle @(_pencilState.On ? "on" : null)" aria-pressed="@(_pencilState.On ? "true" : "false")" title="@Text["pencil.hint"]"
+                @onclick="TogglePencilAsync">✎ @Text["pencil.toggle"]</button>
+        @if (_pencilState.On)
+        {
+            @foreach ((string colour, string key) in s_penColours)
+            {
+                bool chosen = _pencilState.Tool == PenTool && _pencilState.Colour == colour;
+                <button class="pencil-pen @colour @(chosen ? "on" : null)" aria-pressed="@(chosen ? "true" : "false")" aria-label="@Text[key]" title="@Text[key]"
+                        @onclick="() => ChooseAsync(PenTool, colour)"><span aria-hidden="true"></span></button>
+            }
+            <button class="@(_pencilState.Tool == HighlighterTool ? "on" : null)" aria-pressed="@(_pencilState.Tool == HighlighterTool ? "true" : "false")"
+                    @onclick="() => ChooseAsync(HighlighterTool, null)">@Text["pencil.highlighter"]</button>
+            <button class="@(_pencilState.Tool == EraserTool ? "on" : null)" aria-pressed="@(_pencilState.Tool == EraserTool ? "true" : "false")"
+                    @onclick="() => ChooseAsync(EraserTool, null)">@Text["pencil.eraser"]</button>
+            <button @onclick="UndoPencilAsync" disabled="@(!_pencilState.CanUndo)">@Text["pencil.undo"]</button>
+            <button @onclick="ClearPencilAsync" disabled="@(_pencilState.Marks == 0)" title="@Text["pencil.clearHint"]">@Text["pencil.clear"]</button>
+            <span class="meta">@Text["pencil.how"]</span>
+        }
+        @if (_pencilState.Hidden > 0)
+        {
+            <span class="meta">@Text.Format("pencil.hidden", _pencilState.Hidden)</span>
+        }
+    </div>
+}
 
 @* Engraved by Verovio in Scripts/score (decision record 0008); the host's children belong to the script. *@
 @* Focusable, so the score can be scrolled by keyboard within its panel. *@
@@ -21,6 +52,9 @@ else if (_loading && !HoldHeight)
     private ElementReference _host;
     private IJSObjectReference? _module;
     private IJSObjectReference? _view;
+    private IJSObjectReference? _pencil;
+    private string? _shownPencilKey;
+    private PencilState _pencilState = new(false, "pen", "ink", 0, 0, false);
     private DotNetObjectReference<ScoreView>? _self;
     private ScoreSource? _shown;
     private bool _loading;
@@ -53,6 +87,20 @@ else if (_loading && !HoldHeight)
     [Parameter]
     public bool HoldHeight { get; set; }
 
+    /// <summary>
+    /// Which piece's pencil marks to show and keep on this device (0015, <see cref="PencilMarks"/>); null shows none and
+    /// leaves the pen to scroll, as for a score with a variation in it.
+    /// </summary>
+    [Parameter]
+    public string? PencilKey { get; set; }
+
+    private static readonly (string Colour, string Key)[] s_penColours =
+    [
+        ("ink", "pencil.penInk"),
+        ("red", "pencil.penRed"),
+        ("blue", "pencil.penBlue"),
+    ];
+
     protected override void OnParametersSet()
     {
         _loading = !ReferenceEquals(Source, _shown) && Source is not null;
@@ -65,6 +113,13 @@ else if (_loading && !HoldHeight)
             _self = DotNetObjectReference.Create(this);
             _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/score/score-view.js");
             _view = await _module.InvokeAsync<IJSObjectReference>("createScoreView", _host, _self);
+            _pencil = await _view.InvokeAsync<IJSObjectReference>("pencilLayer");
+        }
+
+        if (_pencil is not null && PencilKey != _shownPencilKey)
+        {
+            _shownPencilKey = PencilKey;
+            await _pencil.InvokeVoidAsync("setKey", PencilKey);
         }
 
         if (_view is null || Source is null)
@@ -145,6 +200,39 @@ else if (_loading && !HoldHeight)
     [JSInvokable]
     public Task OnScoreNoteClicked(double tick) => Player.SeekAsync(new Tick(Math.Max(0, (long)Math.Round(tick))));
 
+    private const string PenTool = "pen";
+    private const string HighlighterTool = "highlighter";
+    private const string EraserTool = "eraser";
+
+    private Task TogglePencilAsync() => PencilAsync("setOn", !_pencilState.On);
+
+    /// <summary>The pen in a colour, the highlighter or the eraser; null keeps the colour the script picks.</summary>
+    private Task ChooseAsync(string tool, string? colour) => PencilAsync("setTool", tool, colour);
+
+    private Task UndoPencilAsync() => PencilAsync("undoLast");
+
+    /// <summary>Takes away every mark on the piece; Undo brings them back, so nothing asks first.</summary>
+    private Task ClearPencilAsync() => PencilAsync("clear");
+
+    private async Task PencilAsync(string method, params object?[] args)
+    {
+        if (_pencil is not null)
+        {
+            await _pencil.InvokeVoidAsync(method, args);
+        }
+    }
+
+    /// <summary>Called by the script when the pencil tools or the marks change.</summary>
+    [JSInvokable]
+    public void OnPencilChanged(PencilState state)
+    {
+        if (state != _pencilState)
+        {
+            _pencilState = state;
+            StateHasChanged();
+        }
+    }
+
     /// <summary>Called by the script when a bar is clicked away from its notes.</summary>
     [JSInvokable]
     public Task OnScoreBarClicked(double tick, bool extend) => BarPicked.InvokeAsync((new Tick(Math.Max(0, (long)Math.Round(tick))), extend));
@@ -153,6 +241,11 @@ else if (_loading && !HoldHeight)
     {
         try
         {
+            if (_pencil is not null)
+            {
+                await _pencil.DisposeAsync();
+            }
+
             if (_view is not null)
             {
                 await _view.InvokeVoidAsync("dispose");
@@ -173,4 +266,7 @@ else if (_loading && !HoldHeight)
     }
 
     private sealed record ScoreLoadResult(int Pages, int Notes);
+
+    /// <summary>What the pencil tools show, as the script reports it (Scripts/score/pencil-layer.ts).</summary>
+    public sealed record PencilState(bool On, string Tool, string Colour, int Marks, int Hidden, bool CanUndo);
 }

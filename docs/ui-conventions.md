@@ -56,6 +56,12 @@ Small, pragmatic rules for the web UI (`src/MotiffLab.Web`) so that UI fixes sta
 - The roll marks the range that plays with a white line over the bar numbers; where it differs from the selection it adds a dashed end line, and a light band where it runs past the selection. The selection itself (lime band and edges) stays as the player made it.
 - Applying, changing or removing a variation never changes the selection. While the selection loops, the loop follows what is heard and the variation's length; changing Hear while it loops keeps looping.
 
+## Pencil marks on the score
+
+- The player writes on the score by hand (decision record 0015, `Score/ScoreView.razor`, `Scripts/score/pencil-layer.ts`). A pen (the Apple Pencil) writes at any time; a finger never writes and still scrolls; a pen tap picks a note or a bar as a click does. The **✎ Pencil** button above the score turns the tools on (writing with the pen turns them on too): pen in black, red or blue, Highlighter, Eraser, Undo and Clear marks. With them on, the mouse writes as well. Controls are at least 44px.
+- Marks are kept against the bar they start in and drawn again after every layout; the page passes the piece's key (`PencilMarks.KeyFor`) for its own score, as written or generated, and none for the score with a variation in it. Marks whose bar is not in the score shown are kept and counted next to the tools.
+- Marks are the player's writing, never music: no analysis, fact or variation reads them. They stay on the device and go with their project when it is deleted.
+
 ## Practise
 
 - The Practise tab (`Practise/PractisePanel.razor`, #50) is the "I'm just practising" way of working: **Play from the start** (of the phrase; Pause while playing), **Loop the phrase**, **Previous phrase** and **Next phrase**, the tempo with − and + in steps of 5% and presets 50%, 75% and 100%, and what to hear while the phrase loops. Controls are large enough to reach with the iPad on the music stand. Nothing asks the player to do a task and nothing scores them.
