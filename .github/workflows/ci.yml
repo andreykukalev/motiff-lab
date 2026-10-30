@@ -101,7 +101,8 @@ jobs:
           fi
           azure=false
           if [[ "$app" == true && -n "$AZURE_CLIENT_ID" ]] \
-            && [[ "${{ github.event_name }}" == push || "${{ github.event.pull_request.head.repo.full_name }}" == "${{ github.repository }}" ]]; then
+            && [[ "${{ github.event_name }}" == push || "${{ github.event.pull_request.head.repo.full_name }}" == "${{ github.repository }}" \
+              || ( "${{ github.event_name }}" == workflow_dispatch && "${{ github.ref }}" == refs/heads/main ) ]]; then
             azure=true
           fi
           publish=false
