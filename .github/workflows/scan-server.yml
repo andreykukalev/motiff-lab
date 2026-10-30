@@ -4,7 +4,7 @@ name: Scan server
 # Azure Container Apps (infra/scan.bicep, decision record 0014). Its own workflow, not a CI step:
 # the image is about 2 GB and takes longer to build than CI's 5 minutes. CI still runs its tests.
 # The services live next to the Cosmos DB account, in another subscription than the web app, and sign in
-# with their own CI identity (AZURE_SERVICES_*, set by infra/services-bootstrap.sh).
+# with their own CI identity (AZURE_SERVICES_*, set by infra/azure/setup.ps1).
 on:
   push:
     branches: [main]

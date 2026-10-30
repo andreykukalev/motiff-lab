@@ -177,6 +177,27 @@ jobs:
         if: steps.changes.outputs.publish == 'true'
         run: dotnet workload install wasm-tools
 
+      # Sign-in and saving online (0014) in the deployed app: the External ID tenant and the services' addresses come
+      # from repository variables that infra/azure/setup.ps1 sets. Pull request previews keep the committed
+      # appsettings.json, with no accounts: Entra takes no wildcard redirect, so a preview could not sign in.
+      - name: Write the sign-in settings
+        if: >-
+          steps.changes.outputs.publish == 'true' && github.event_name != 'pull_request' &&
+          vars.AUTH_AUTHORITY != '' && vars.AUTH_CLIENT_ID != '' && vars.AUTH_AUDIENCE != '' && vars.API_URL != ''
+        env:
+          AUTHORITY: ${{ vars.AUTH_AUTHORITY }}
+          CLIENT_ID: ${{ vars.AUTH_CLIENT_ID }}
+          AUDIENCE: ${{ vars.AUTH_AUDIENCE }}
+          API_URL: ${{ vars.API_URL }}
+          SCAN_URL: ${{ vars.SCAN_URL }}
+        run: |
+          jq -n --arg authority "${AUTHORITY%/v2.0}" --arg client "$CLIENT_ID" --arg audience "$AUDIENCE" \
+            --arg api "$API_URL" --arg scan "$SCAN_URL" \
+            '{Account: {Authority: $authority, ClientId: $client, ApiScope: "api://\($audience)/Projects.ReadWrite",
+              ScanScope: "api://\($audience)/Scan", Api: $api, Scan: $scan}}' \
+            > src/MotiffLab.Web/wwwroot/appsettings.json
+          cat src/MotiffLab.Web/wwwroot/appsettings.json
+
       - name: Publish web app
         if: steps.changes.outputs.publish == 'true'
         run: dotnet publish src/MotiffLab.Web --configuration Release --output publish
