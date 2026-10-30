@@ -32,7 +32,7 @@ Each upload is written to a temporary folder, read by homr page by page (or, for
 | Request | Answer |
 | --- | --- |
 | `GET /health` | `{"engine": "homr", "version": "0.7.0", "maxPages": 8, "signIn": false, "transcribe": {"engine": "transkun", "version": "2.0.1", "maxMegabytes": 200, "maxSeconds": 150}}` |
-| `POST /recognise`, multipart form with `file` (PDF, PNG or JPEG, up to 20 MB) | `200` with the MusicXML (`application/vnd.recordare.musicxml+xml`) and the headers `X-Engine: homr 0.7.0` and `X-Pages`; otherwise `4xx` with `{"message": "…"}` in plain words |
+| `POST /recognise`, multipart form with `file` (PDF, PNG or JPEG, up to 50 MB, `MAX_UPLOAD_MB`) | `200` with the MusicXML (`application/vnd.recordare.musicxml+xml`) and the headers `X-Engine: homr 0.7.0` and `X-Pages`; otherwise `4xx` with `{"message": "…"}` in plain words |
 | `POST /transcribe`, multipart form with `file` (MP4, MOV, M4A, MP3, WAV, WebM, OGG, FLAC and the like, up to 200 MB) | `200` with the notes as MIDI (`audio/midi`, at 120 beats a minute, so a beat is half a second, with the sustain pedal as controller 64) and the headers `X-Engine: transkun 2.0.1`, `X-Seconds` (how much was heard) and `X-Cut: true` when the recording was longer than the first 2½ minutes that are heard; otherwise `4xx` with `{"message": "…"}` |
 
 Pages of a PDF are joined into one score: the measures of page 2 follow those of page 1, and measure numbers run on. One upload, scan or recording, is read at a time; a second waits its turn. `-e MAX_RECORDING_MB=…` and `-e MAX_RECORDING_SECONDS=…` change the limits for recordings.
