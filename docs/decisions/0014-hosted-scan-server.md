@@ -1,6 +1,6 @@
 # 0014 · A hosted scan server, and a database for what players keep
 
-Status: accepted, 2026-10-28. Andrei chose sign-in with Apple, Google or an email code through Microsoft Entra External ID. The scan server is deployed; the API waits on the tenant's one-time setup (`infra/README.md`).
+Status: accepted, 2026-10-28. Andrei chose sign-in with Apple, Google or an email code through Microsoft Entra External ID. The scan server, the API and the sign-in tenant wait on the one-time setup, `infra/azure/setup.ps1` (`infra/README.md`).
 
 ## Context
 
@@ -21,7 +21,7 @@ The Azure subscription is shared with an unrelated project. Its Container Apps e
 
 ### The database
 
-7. **Motiff Lab gets its own database, `motifflab`, in the shared free-tier account**, with 400 RU/s shared by its containers, and one container, `projects`, partitioned by `/ownerId`, so each player's projects, sessions and sources sit in one partition. `infra/services-bootstrap.sh` creates it once, and first adds up what the account's other databases use, so it stops rather than take the account past the free tier's 1000 RU/s.
+7. **Motiff Lab gets its own database, `motifflab`, in the shared free-tier account**, with 400 RU/s shared by its containers, and one container, `projects`, partitioned by `/ownerId`, so each player's projects, sessions and sources sit in one partition. `infra/azure/setup.ps1` creates it once, and first adds up what the account's other databases use, so it stops rather than take the account past the free tier's 1000 RU/s.
 8. **Only the Motiff Lab API reaches the data, with its own identity** (`id-motifflab-api`), allowed into this one database through Cosmos DB's data roles. No account key is used or stored, and nothing on the account or in its other databases changes.
 9. **What is stored:** one document per project: its summary for the list, and the project file of 0009 and 0012 (the imported source, sessions, observations, the scan origin), gzip-compressed. A project still over the 2 MB document limit once compressed is refused for now and stays on the device; Blob storage is added only when one first needs it.
 
@@ -31,7 +31,7 @@ The Azure subscription is shared with an unrelated project. Its Container Apps e
 11. **The API is `src/MotiffLab.Api`**, an ASP.NET Core service in the scan server's environment (`infra/api.bicep`), scaled to zero. It lists, reads, saves and deletes the calling player's projects (`/projects`, `/projects/{id}`) and deletes everything they keep (`DELETE /me`, the right to erasure). A save is a project file; the API reads it with `ProjectFile` before storing it, refuses one that is not that project, and returns an ETag, so a save from a stale copy on another device is refused (`If-Match`, 412) rather than lost. It logs no project content.
 12. **The hosted scan server reads a page only with a token that carries `Scan`** once `AUTH_AUTHORITY` and `AUTH_AUDIENCE` are set; on the player's own computer nothing is checked, as before.
 13. **Saving online is the player's choice, never the default.** The rule that imports never leave the device (CLAUDE.md, 0011) becomes: nothing leaves the device unless the player signs in and turns on saving online, and then only to this API.
-14. **The web app signs in with MSAL** (`Microsoft.Authentication.WebAssembly.Msal`, redirect mode) only when `wwwroot/appsettings.json` names the tenant, the web app's client id, the scopes and the API's address (`Account`, public identifiers); with it empty, nothing about accounts shows. Settings signs in and out, turns saving online on (which sends the projects already on the device), and deletes everything online. The device stays the working copy: each save goes to IndexedDB first and to the API three seconds after the last change, the last save wins, and a failed upload only shows on Settings. Home lists projects saved online from another device, fetched when the player asks. The Scan token goes only to the hosted scan server's address (`Account:Scan`), never to an address typed in Settings.
+14. **The web app signs in with MSAL** (`Microsoft.Authentication.WebAssembly.Msal`, redirect mode) only when `wwwroot/appsettings.json` names the tenant, the web app's client id, the scopes and the API's address (`Account`, public identifiers); with it empty, nothing about accounts shows. The committed file is empty: CI fills it in for the deployed app, on `main` only, from the repository variables `infra/azure/setup.ps1` sets. Settings signs in and out, turns saving online on (which sends the projects already on the device), and deletes everything online. The device stays the working copy: each save goes to IndexedDB first and to the API three seconds after the last change, the last save wins, and a failed upload only shows on Settings. Home lists projects saved online from another device, fetched when the player asks. The Scan token goes only to the hosted scan server's address (`Account:Scan`), never to an address typed in Settings.
 
 ## Consequences
 

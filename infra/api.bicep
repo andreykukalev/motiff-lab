@@ -1,6 +1,6 @@
 // The Motiff Lab API (src/MotiffLab.Api, decision record 0014): a signed-in player's projects in Cosmos DB.
 // Deployed by .github/workflows/api.yml after it publishes the image, into the environment of scan.bicep.
-// It reaches Cosmos DB as id-motifflab-api, which infra/services-bootstrap.sh allows into the motifflab
+// It reaches Cosmos DB as id-motifflab-api, which infra/azure/setup.ps1 allows into the motifflab
 // database only; no account key is used.
 
 targetScope = 'resourceGroup'

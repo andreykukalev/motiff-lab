@@ -3,7 +3,7 @@ name: API
 # Publishes the Motiff Lab API's image (src/MotiffLab.Api) to GitHub's container registry and deploys it to
 # Azure Container Apps (infra/api.bicep, decision record 0014), next to the scan server. CI runs its tests.
 # The deploy waits until the services and sign-in are set up: the repository variables AZURE_SERVICES_*,
-# COSMOS_ENDPOINT (infra/services-bootstrap.sh), AUTH_AUTHORITY and AUTH_AUDIENCE (see infra/README.md).
+# COSMOS_ENDPOINT, AUTH_AUTHORITY and AUTH_AUDIENCE, all set by infra/azure/setup.ps1 (infra/README.md).
 on:
   push:
     branches: [main]
@@ -73,7 +73,7 @@ jobs:
         id: settings
         run: |
           if [[ -z "${{ vars.AZURE_SERVICES_CLIENT_ID }}" || -z "${{ vars.AUTH_AUTHORITY }}" || -z "${{ vars.AUTH_AUDIENCE }}" || -z "${{ vars.COSMOS_ENDPOINT }}" ]]; then
-            echo "::notice::Not deployed: run infra/services-bootstrap.sh and set AUTH_AUTHORITY and AUTH_AUDIENCE first (infra/README.md)."
+            echo "::notice::Not deployed: run infra/azure/setup.ps1 first (infra/README.md)."
             echo "ready=false" >> "$GITHUB_OUTPUT"
           else
             echo "ready=true" >> "$GITHUB_OUTPUT"
