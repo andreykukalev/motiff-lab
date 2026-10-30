@@ -57,6 +57,12 @@ const RELAYOUT_THRESHOLD_PX = 24;
 
 const PLAYING_CLASS = "playing";
 
+/** After the player scrolls the score by hand, playback leaves it where they put it for this long before following again. */
+const FOLLOW_PAUSE_MS = 4000;
+
+/** The keys that scroll the score when it has focus. */
+const SCROLL_KEYS = new Set(["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"]);
+
 /** Notes outside the range that plays for the selection, drawn faint as on the piano roll. */
 const OUTSIDE_CLASS = "outside";
 
@@ -114,6 +120,8 @@ export class ScoreView {
     /** The MIDI key of each engraved note asked about since the last load; undefined for a rest or when Verovio has none. */
     private pitches = new Map<string, number | undefined>();
     private laidOutWidth = 0;
+    /** When the player last scrolled the score by hand, from performance.now(). */
+    private scrolledByHand = -Infinity;
     private frame = 0;
     private relayoutTimer = 0;
     private disposed = false;
@@ -128,6 +136,10 @@ export class ScoreView {
             changed: (state: PencilState) => void this.dotnet.invokeMethodAsync("OnPencilChanged", state),
         });
         this.host.addEventListener("click", this.onClick);
+        // Passive: they only note that the player is scrolling, and never hold the scroll up.
+        this.host.addEventListener("wheel", this.onScrollByHand, { passive: true });
+        this.host.addEventListener("touchmove", this.onScrollByHand, { passive: true });
+        this.host.addEventListener("keydown", this.onScrollByHand);
         this.resizeObserver = new ResizeObserver(() => this.scheduleRelayout());
         this.resizeObserver.observe(host);
     }
@@ -211,6 +223,9 @@ export class ScoreView {
         clearTimeout(this.relayoutTimer);
         this.resizeObserver.disconnect();
         this.host.removeEventListener("click", this.onClick);
+        this.host.removeEventListener("wheel", this.onScrollByHand);
+        this.host.removeEventListener("touchmove", this.onScrollByHand);
+        this.host.removeEventListener("keydown", this.onScrollByHand);
         this.host.replaceChildren();
     }
 
@@ -417,7 +432,11 @@ export class ScoreView {
             if (this.engraver !== null && !this.disposed) {
                 this.engraver.setOptions(this.layoutOptions());
                 this.engraver.redoLayout();
+                // Laid out again at a new width, the score keeps the player's place in it rather than jumping to the top.
+                const host = this.host;
+                const place = host.scrollHeight > 0 ? host.scrollTop / host.scrollHeight : 0;
                 this.render();
+                host.scrollTop = place * host.scrollHeight;
             }
         }, RELAYOUT_DELAY_MS);
     }
@@ -454,7 +473,8 @@ export class ScoreView {
         }
         this.marked = next;
 
-        if (scroll && ids.length > 0) {
+        // Playback does not pull the score back while the player is reading elsewhere in it.
+        if (scroll && ids.length > 0 && performance.now() - this.scrolledByHand >= FOLLOW_PAUSE_MS) {
             this.scrollIntoView(this.element(ids[0]));
         }
     }
@@ -471,6 +491,13 @@ export class ScoreView {
             this.host.scrollTo({ top: this.host.scrollTop + box.top - view.top - 8, behavior: "smooth" });
         }
     }
+
+    private readonly onScrollByHand = (event: Event): void => {
+        if (event instanceof KeyboardEvent && !SCROLL_KEYS.has(event.key)) {
+            return;
+        }
+        this.scrolledByHand = performance.now();
+    };
 
     private element(id: string): Element | null {
         return this.host.querySelector(`#${CSS.escape(id)}`);

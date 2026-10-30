@@ -39,6 +39,9 @@ export class Player {
     private lastDotnetReport = 0;
     private lastDotnetState: TransportState | null = null;
     private lastDotnetPass = -1;
+    private lastDotnetTick = -1;
+    /** Set when the page sends the engine a command, so the position after it goes to Blazor even if it did not move. */
+    private dotnetStale = true;
     private startWaiters: (() => void)[] = [];
     private disposed = false;
 
@@ -191,6 +194,7 @@ export class Player {
 
     private post(message: EngineMessage, transfer: Transferable[] = []): void {
         if (!this.disposed) {
+            this.dotnetStale = true;
             this.node.port.postMessage(message, transfer);
         }
     }
@@ -252,13 +256,19 @@ export class Player {
         }
 
         const now = performance.now();
+        const tick = Math.round(this.currentTick());
         // A new state or a new pass of an alternating loop goes to Blazor at once, so the views follow what is heard.
-        const changed = report.state !== this.lastDotnetState || report.pass !== this.lastDotnetPass;
-        if (changed || now - this.lastDotnetReport >= DOTNET_REPORT_MS) {
+        // A position that has not moved, stopped or paused, is not sent again: each report draws the whole page
+        // over in Blazor, which would keep the page's thread busy and make scrolling stutter on an iPad.
+        const changed = report.state !== this.lastDotnetState || report.pass !== this.lastDotnetPass || this.dotnetStale;
+        const moved = tick !== this.lastDotnetTick;
+        if (changed || (moved && now - this.lastDotnetReport >= DOTNET_REPORT_MS)) {
             this.lastDotnetReport = now;
             this.lastDotnetState = report.state;
             this.lastDotnetPass = report.pass;
-            void this.dotnet.invokeMethodAsync("OnPlaybackPosition", Math.round(this.currentTick()), report.state, report.pass);
+            this.lastDotnetTick = tick;
+            this.dotnetStale = false;
+            void this.dotnet.invokeMethodAsync("OnPlaybackPosition", tick, report.state, report.pass);
         }
     }
 }

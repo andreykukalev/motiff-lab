@@ -1216,9 +1216,13 @@ html, body {
     --ml-score-inferred: #1F5F96;
     /* Information blue on paper (docs/02-brand-identity.md, 4.8 : 1 on white). */
     --ml-score-highlight: #1F6FB2;
+    /* The ink at 30% on paper. */
+    --ml-score-faint: #B9BABC;
     position: relative;
     max-height: 70vh;
     overflow-y: auto;
+    /* Scrolling past either end does not move the page under the score. */
+    overscroll-behavior: contain;
     background: var(--ml-white);
     color: var(--ml-score-ink);
     border-radius: 0.5rem;
@@ -1242,9 +1246,12 @@ html, body {
     cursor: pointer;
 }
 
-/* Notes outside the range that plays for the selection go faint, as on the roll. */
+/* Notes outside the range that plays for the selection go faint, as on the roll. A paler ink rather than opacity:
+   Safari draws every translucent group on its own layer, and with most of a long piece faint, scrolling stuttered. */
 .score g.note.outside {
-    opacity: 0.3;
+    fill: var(--ml-score-faint);
+    stroke: var(--ml-score-faint);
+    color: var(--ml-score-faint);
 }
 
 /* The places of the fact chosen on Understand (#25): blue and at full strength, with a solid box round each notehead or rest,
@@ -1253,7 +1260,6 @@ html, body {
     fill: var(--ml-score-highlight);
     stroke: var(--ml-score-highlight);
     color: var(--ml-score-highlight);
-    opacity: 1;
 }
 
 .score .highlight-mark {
