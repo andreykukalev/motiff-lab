@@ -2,20 +2,49 @@
 @using MotiffLab.MusicCore.Analytics
 @using MotiffLab.Web.Analytics
 @inject UsageAnalytics Analytics
+@inject MotiffLab.Web.Localization.UiText Text
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@implements IDisposable
 
 @Body
 
 <footer class="site-footer">
-    <nav aria-label="About Motiff Lab"><a href="settings">Settings</a> · <a href="privacy">Privacy</a> · <a href="terms">Terms of use</a></nav>
+    <nav aria-label="@Text["footer.label"]"><a href="settings">@Text["settings.title"]</a> · <a href="privacy">@Text["footer.privacy"]</a> · <a href="terms">@Text["footer.terms"]</a></nav>
 </footer>
 
 @code {
+    protected override void OnInitialized() => Text.Changed += OnTextChanged;
+
+    public void Dispose() => Text.Changed -= OnTextChanged;
+
+    private void OnTextChanged() => _ = InvokeAsync(StateHasChanged);
+
+    /// <summary>The address whose fragment was last scrolled to, so each link scrolls once.</summary>
+    private string? _scrolledFor;
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         // The layout stays across pages, so this counts loads of the app, not pages (#64).
         if (firstRender)
         {
             await Analytics.TrackAsync(AnalyticsEvent.AppOpened());
+        }
+
+        // The layout renders again with each new page, so a link to a place on it ("import#scan-heading") lands there.
+        string uri = Navigation.Uri;
+        int hash = uri.IndexOf('#', StringComparison.Ordinal);
+        if (hash >= 0 && hash < uri.Length - 1 && uri != _scrolledFor)
+        {
+            _scrolledFor = uri;
+            try
+            {
+                await using IJSObjectReference module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/layout/fragment.js");
+                await module.InvokeAsync<bool>("scrollToFragment", Uri.UnescapeDataString(uri[(hash + 1)..]));
+            }
+            catch (JSException)
+            {
+            }
         }
     }
 }

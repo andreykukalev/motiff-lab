@@ -791,6 +791,13 @@
     /// <summary>True once the project in the address was looked for, so a missing one is reported once.</summary>
     private bool _reopened;
 
+    /// <summary>"fur-elise" when the address asks to open the example ("playback?start=fur-elise", from Projects).</summary>
+    [SupplyParameterFromQuery(Name = "start")]
+    public string? Start { get; set; }
+
+    /// <summary>True once the example the address asks for was opened, so it opens once.</summary>
+    private bool _started;
+
     /// <summary>The motif the lab's selection is saved as. The lab works on one motif; a project can hold more.</summary>
     private string _motifId = "m_0001";
 
@@ -935,6 +942,15 @@
         {
             await ReadLayoutPreferencesAsync();
             await Player.InitializeAsync();
+        }
+
+        // Try Für Elise on Projects opens it as soon as the player is ready, rather than a piece still in memory.
+        if (Start == "fur-elise" && !_started && Player.IsReady)
+        {
+            _started = true;
+            _pieceVersion = CurrentPiece.Version;
+            await LoadFurEliseAsync();
+            StateHasChanged();
         }
 
         // A reload or a link: the open piece lives only in memory, so open the project the address names from the device.

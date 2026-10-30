@@ -8,26 +8,27 @@
 @inject NavigationManager Navigation
 @inject UiText Text
 @inject MotiffLab.Web.Account.OnlineProjects Online
+@inject MotiffLab.Web.Account.CloudAccount Account
+@inject ScanService Scans
 
 <PageTitle>Motiff Lab</PageTitle>
 
 @* N1 · Projects (S1-P1, 0012): a project is a piece and everything the player made around it. Opening one goes to its page,
-   with its sessions and ideas; export and re-import as one file for backup (AC-S1-20). *@
-<main class="lab projects">
+   with its sessions and ideas; export and re-import as one file for backup (AC-S1-20). The screen also starts a new piece
+   by each route in (a file, a scan, a recording, Für Elise) and says where projects are saved (0014). *@
+<main class="lab projects home-screen">
     <header class="page-header">
-        <h1>Motiff Lab</h1>
+        <div class="brand">
+            <h1>Motiff Lab</h1>
+            <p class="tagline">@Text["home.tagline"]</p>
+        </div>
         <MotiffLab.Web.Account.AccountButton />
     </header>
-    <p class="tagline">@Text["home.tagline"]</p>
 
-    <section class="row">
-        <a class="button primary" href="import">@Text["home.import"]</a>
-        <label class="file">
-            @Text["home.importProject"]
-            <InputFile OnChange="ImportProjectAsync" accept=".json" />
-        </label>
-        <a href="playback">@Text["home.tryFurElise"]</a>
-    </section>
+    @if (_summaries is { Count: 0 })
+    {
+        <p class="lead">@Text["home.emptyWhat"]</p>
+    }
 
     @if (_message is not null)
     {
@@ -39,67 +40,153 @@
         <p class="warning" role="status">@Text["home.nearlyFull"]</p>
     }
 
+    @* The routes in, as large tiles a finger finds on an iPad at the piano. Scanning and transcription say here when they
+       need a server or a sign-in first; the import screen has the details. *@
+    <section class="start-new" aria-labelledby="start-heading">
+        <h2 id="start-heading">@Text["home.startHeading"]</h2>
+        <ul class="start-tiles">
+            <li>
+                <a class="start-tile" href="import">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3h8l4 4v14H6z M14 3v4h4 M10 17V11l5-1v6 M10 17a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z M15 16a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z" /></svg>
+                    <strong>@Text["home.fromFile"]</strong>
+                    <span class="hint">@Text["home.fromFileHint"]</span>
+                </a>
+            </li>
+            <li>
+                <a class="start-tile" href="import#scan-heading">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 8V4h4 M16 4h4v4 M20 16v4h-4 M8 20H4v-4 M7 9h10 M7 12h10 M7 15h10" /></svg>
+                    <strong>@Text["home.fromScan"]</strong>
+                    <span class="hint">@Text["home.fromScanHint"]</span>
+                    @if (_serverNote is not null)
+                    {
+                        <span class="needs">@_serverNote</span>
+                    }
+                </a>
+            </li>
+            <li>
+                <a class="start-tile" href="import#transcribe-heading">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 12h2 M7 8v8 M11 5v14 M15 9v6 M19 11v2 M21 12h0" /></svg>
+                    <strong>@Text["home.fromRecording"]</strong>
+                    <span class="hint">@Text["home.fromRecordingHint"]</span>
+                    @if (_serverNote is not null)
+                    {
+                        <span class="needs">@_serverNote</span>
+                    }
+                </a>
+            </li>
+            <li>
+                <a class="start-tile demo" href="playback?start=fur-elise">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5v14l11-7z" /></svg>
+                    <strong>@Text["home.tryFurElise"]</strong>
+                    <span class="hint">@Text["home.furEliseHint"]</span>
+                </a>
+            </li>
+        </ul>
+        <p class="restore">
+            <label class="file">
+                @Text["home.importProject"]
+                <InputFile OnChange="ImportProjectAsync" accept=".json" />
+            </label>
+            <span class="meta">@Text["home.importProjectHint"]</span>
+        </p>
+    </section>
+
     @if (_summaries is null)
     {
         <p class="meta">@Text["home.loading"]</p>
     }
     else if (_summaries.Count == 0)
     {
-        <section class="empty">
-            <p>@Text["home.emptyWhat"]</p>
-            <p class="meta">@Text["home.emptyHow"]</p>
+        <section class="how" aria-labelledby="how-heading">
+            <h2 id="how-heading">@Text["home.howHeading"]</h2>
+            <ol class="steps">
+                <li>@Text["home.step1"]</li>
+                <li>@Text["home.step2"]</li>
+                <li>@Text["home.step3"]</li>
+            </ol>
         </section>
     }
     else
     {
-        <h2>@Text["home.projects"]</h2>
-        <ul class="project-list">
-            @foreach (ProjectSummary summary in _summaries)
-            {
-                <li class="project-card">
-                    <a class="project-name" href="@ProjectPage.Url(summary.Id)">@summary.FileName</a>
-                    <p class="meta">
-                        @Text.Format("home.counts", summary.SessionCount, summary.IdeaCount)
-                        · @Text.Format("home.lastOpened", summary.LastOpened.ToLocalTime().ToString("g", Text.Culture))
-                    </p>
-                    <div class="actions">
-                        <a class="button primary" href="@ProjectPage.Url(summary.Id)">@Text["home.open"]</a>
-                        <button @onclick="() => ExportAsync(summary.Id)">@Text["home.export"]</button>
-                        @if (_confirmDelete == summary.Id)
-                        {
-                            <button class="on" @onclick="() => DeleteAsync(summary.Id)">@Text["home.deleteForGood"]</button>
-                            <button @onclick="() => _confirmDelete = null">@Text["home.keep"]</button>
-                        }
-                        else
-                        {
-                            <button @onclick="() => _confirmDelete = summary.Id">@Text["home.delete"]</button>
-                        }
-                    </div>
-                </li>
-            }
-        </ul>
-        <p class="meta">@Text[_onlineOn ? "home.savedOnlineToo" : "home.savedHere"]</p>
+        <section aria-labelledby="projects-heading">
+            <h2 id="projects-heading">@Text["home.projects"]</h2>
+            <ul class="project-list">
+                @foreach (ProjectSummary summary in _summaries)
+                {
+                    <li class="project-card">
+                        <a class="project-name" href="@ProjectPage.Url(summary.Id)">@summary.FileName</a>
+                        <p class="meta">
+                            @Text.Format("home.counts", summary.SessionCount, summary.IdeaCount)
+                            · @Text.Format("home.lastOpened", summary.LastOpened.ToLocalTime().ToString("g", Text.Culture))
+                        </p>
+                        <div class="actions">
+                            <a class="button primary" href="@ProjectPage.Url(summary.Id)">@Text["home.open"]</a>
+                            <button @onclick="() => ExportAsync(summary.Id)">@Text["home.export"]</button>
+                            @if (_confirmDelete == summary.Id)
+                            {
+                                <button class="on" @onclick="() => DeleteAsync(summary.Id)">@Text["home.deleteForGood"]</button>
+                                <button @onclick="() => _confirmDelete = null">@Text["home.keep"]</button>
+                            }
+                            else
+                            {
+                                <button @onclick="() => _confirmDelete = summary.Id">@Text["home.delete"]</button>
+                            }
+                        </div>
+                    </li>
+                }
+            </ul>
+        </section>
     }
 
     @if (_onlineOnly is { Count: > 0 })
     {
         @* Saved online from another device (0014): fetched only when the player asks for it. *@
-        <h2>@Text["home.onlineOnly"]</h2>
-        <ul class="project-list">
-            @foreach (ProjectSummary summary in _onlineOnly)
+        <section aria-labelledby="online-only-heading">
+            <h2 id="online-only-heading">@Text["home.onlineOnly"]</h2>
+            <ul class="project-list">
+                @foreach (ProjectSummary summary in _onlineOnly)
+                {
+                    <li class="project-card">
+                        <span class="project-name">@summary.FileName</span>
+                        <p class="meta">
+                            @Text.Format("home.counts", summary.SessionCount, summary.IdeaCount)
+                            · @Text.Format("home.lastOpened", summary.LastOpened.ToLocalTime().ToString("g", Text.Culture))
+                        </p>
+                        <div class="actions">
+                            <button class="primary" @onclick="() => GetHereAsync(summary.Id)">@Text["home.getHere"]</button>
+                        </div>
+                    </li>
+                }
+            </ul>
+        </section>
+    }
+
+    @* Where the projects are: this browser only, or online too once the player signs in and turns it on (0014). *@
+    @if (_summaries is not null)
+    {
+        <section class="saving" aria-labelledby="saving-heading">
+            <h2 id="saving-heading">@Text["home.savingHeading"]</h2>
+            @if (!Account.IsAvailable)
             {
-                <li class="project-card">
-                    <span class="project-name">@summary.FileName</span>
-                    <p class="meta">
-                        @Text.Format("home.counts", summary.SessionCount, summary.IdeaCount)
-                        · @Text.Format("home.lastOpened", summary.LastOpened.ToLocalTime().ToString("g", Text.Culture))
-                    </p>
-                    <div class="actions">
-                        <button class="primary" @onclick="() => GetHereAsync(summary.Id)">@Text["home.getHere"]</button>
-                    </div>
-                </li>
+                <p class="meta">@Text["home.savedHere"]</p>
             }
-        </ul>
+            else if (_player is null)
+            {
+                <MotiffLab.Web.Account.SignInPrompt Text="@Text["home.savingSignedOut"]" />
+            }
+            else if (!_onlineOn)
+            {
+                <p>@Text.Format("home.savingOff", _player) <a href="settings#account">@Text["home.turnOnline"]</a></p>
+            }
+            else
+            {
+                <p>@Text.Format("home.savingOn", _player)</p>
+                @if (Online.Status is { } status)
+                {
+                    <p class="meta" role="status">@status</p>
+                }
+            }
+        </section>
     }
 </main>
 
@@ -110,12 +197,40 @@
     private string? _confirmDelete;
     private IReadOnlyList<ProjectSummary>? _onlineOnly;
     private bool _onlineOn;
+    private string? _player;
 
-    protected override void OnInitialized() => Text.Changed += OnTextChanged;
+    /// <summary>What scanning and transcription need before they work here, or null when they are ready.</summary>
+    private string? _serverNote;
 
-    public void Dispose() => Text.Changed -= OnTextChanged;
+    protected override void OnInitialized()
+    {
+        Text.Changed += OnChanged;
+        Online.Changed += OnChanged;
+    }
 
-    private void OnTextChanged() => _ = InvokeAsync(StateHasChanged);
+    public void Dispose()
+    {
+        Text.Changed -= OnChanged;
+        Online.Changed -= OnChanged;
+    }
+
+    private void OnChanged()
+    {
+        _serverNote = ServerNote();
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Scans.LoadAsync();
+        _player = await Account.PlayerAsync();
+        _serverNote = ServerNote();
+    }
+
+    /// <summary>The same states the import screen explains: no server set, Motiff Lab's server turned off, or not signed in for it.</summary>
+    private string? ServerNote() => Scans.Address is null
+        ? Text[Scans.HostedAddress is null ? "home.needsServer" : "home.scanTurnedOff"]
+        : Scans.IsHosted && _player is null ? Text["home.needsSignIn"] : null;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
