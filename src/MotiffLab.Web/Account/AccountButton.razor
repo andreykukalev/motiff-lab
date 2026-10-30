@@ -2,9 +2,9 @@
 @inject MotiffLab.Web.Localization.UiText Text
 @implements IDisposable
 
-@* The language and the account at the top right, as in most apps (0014): RU | EN, then Sign in and the Settings gear while
-   signed out, or the player's initial once signed in, which leads to Settings (the player's own page). A build without
-   sign-in shows the gear. *@
+@* The language and the account at the top right, as in most apps (0014): RU | EN, then Sign in while signed out, or the
+   player's initial once signed in, which leads to the player's own page. A build without sign-in shows a Settings gear,
+   for the address of a scan server of one's own. *@
 <nav class="account-nav" aria-label="@Text["account.nav"]">
     <div class="languages" role="group" aria-label="@Text["settings.language"]">
         @foreach ((string tag, string name) in MotiffLab.Web.Localization.UiText.Languages)
@@ -24,7 +24,7 @@
             <a class="avatar" href="settings#account" title="@_player" aria-label="@Text.Format("account.open", _player)">@Initial(_player)</a>
         }
     }
-    @if (_player is null)
+    @if (!Account.IsAvailable)
     {
         <a class="settings-link" href="settings" aria-label="@Text["settings.title"]" title="@Text["settings.title"]">
             <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path fill="currentColor" d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.6 7.6 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.6 7.6 0 0 0-1.7 1l-2.5-1-2 3.5L4.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.6 7.6 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.6 7.6 0 0 0 1.7-1l2.5 1 2-3.5L19.4 13zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" /></svg>

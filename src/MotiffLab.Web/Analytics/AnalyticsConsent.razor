@@ -1,0 +1,67 @@
+@using MotiffLab.MusicCore.Analytics
+@implements IDisposable
+@inject UsageAnalytics Analytics
+
+@* Consent to anonymous usage analytics (#64), on the privacy notice next to what each event holds: off until the player turns
+   it on, and turning it off forgets the device's ID and the events. *@
+<section class="consent" aria-labelledby="analytics-heading">
+    <h3 id="analytics-heading">Your choice</h3>
+    <p>
+        Help us learn how Motiff Lab is used by sending a few anonymous events: that the app was opened, a file was
+        imported, a motif selected, playback started, a variation tried or exported. They never contain your music,
+        file names or titles. Analytics are off until you turn them on, and you can turn them off at any time.
+    </p>
+    <label>
+        <input type="checkbox" checked="@Analytics.On" @onchange="ToggleAsync" />
+        Send anonymous usage analytics
+    </label>
+    <p class="meta">
+        @if (Analytics.On)
+        {
+            @: This browser's random ID is @Analytics.DeviceId. Turning analytics off deletes it.
+        }
+        else
+        {
+            @: Nothing is recorded while analytics are off.
+        }
+    </p>
+    <p class="meta">This version does not send analytics yet: events wait on this device, and the list below shows exactly what would be sent.</p>
+
+    @if (Analytics.On)
+    {
+        <h4>Waiting to be sent (@Analytics.Pending.Count)</h4>
+        @if (Analytics.Pending.Count == 0)
+        {
+            <p class="meta">Nothing yet.</p>
+        }
+        else
+        {
+            <ol class="events" reversed>
+                @foreach (AnalyticsEvent recorded in Analytics.Pending.Reverse())
+                {
+                    <li><code>@recorded.Name</code> @string.Join(", ", recorded.Properties.Select(p => $"{p.Key}: {Format(p.Value)}"))</li>
+                }
+            </ol>
+        }
+    }
+</section>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        Analytics.Changed += OnChanged;
+        await Analytics.LoadAsync();
+    }
+
+    public void Dispose() => Analytics.Changed -= OnChanged;
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private Task ToggleAsync(ChangeEventArgs args) => Analytics.SetOnAsync(args.Value is true);
+
+    private static string Format(object value) => value switch
+    {
+        bool flag => flag ? "yes" : "no",
+        _ => value.ToString() ?? "",
+    };
+}

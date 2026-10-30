@@ -71,16 +71,16 @@
 
     <h2 id="analytics">Anonymous usage analytics</h2>
     <p>
-        Analytics are off until you turn them on in <a href="settings">Settings</a>, and you can turn them off there at
-        any time. When they are on, this browser gets a random ID, so that a week of use can be counted, and the app
+        Analytics are off until you turn them on here, and you can turn them off here at any time. When they are on, this browser gets a random ID, so that a week of use can be counted, and the app
         records the events below. They hold counts, yes-or-no answers and choices from fixed lists; never your music,
         file names, titles or any text you type. Turning analytics off deletes the ID and any events not yet sent.
     </p>
     <p>
-        This version does not send analytics yet: events wait on this device, and Settings lists them. When sending
+        This version does not send analytics yet: events wait on this device, and the list below shows them. When sending
         starts, events will go to a Motiff Lab endpoint and be stored in Azure Table Storage in an EU region, without IP
         addresses; how long they are kept will be stated here before then. This version reports no errors.
     </p>
+    <MotiffLab.Web.Analytics.AnalyticsConsent />
     <table>
         <thead>
             <tr><th scope="col">Event</th><th scope="col">What it holds</th></tr>
@@ -102,7 +102,7 @@
         show exactly what is sent: a short digest of facts about the motif you selected, never your file. It will be
         processed by Microsoft, as provider of Azure AI Foundry, in an EU region, and Motiff Lab will not store it. The
         provider's retention and abuse-monitoring terms for the deployment will be stated here before AI can be turned
-        on. You will be able to turn it off in Settings at any time, and every feature works without it.
+        on. You will be able to turn it off at any time, and every feature works without it.
     </p>
 </main>
 
