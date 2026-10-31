@@ -779,6 +779,15 @@
   "score.error": "Не удалось показать ноты: {0}",
 
   "score.engraving": "Ноты готовятся к показу…",
+  "score.layout": "Вид нот",
+  "score.pages": "Страницы A4",
+  "score.pagesHint": "Ноты на страницах A4, как при печати: название на первой странице, номера на остальных",
+  "score.strip": "Лентой",
+  "score.stripHint": "Ноты одной лентой по ширине окна",
+  "score.pdf": "Скачать PDF",
+  "score.pdfHint": "Сохранить ноты в PDF на страницах A4, готовым к печати",
+  "score.pdfMaking": "Готовим PDF…",
+  "score.pdfError": "Не удалось сделать PDF: {0}",
 
   "roll.js.track": "Дорожка {0}",
   "roll.js.trackVoice": "{0}, голос {1}",

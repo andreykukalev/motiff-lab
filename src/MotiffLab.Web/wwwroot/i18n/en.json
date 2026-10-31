@@ -772,6 +772,15 @@
   "score.error": "The score could not be shown: {0}",
 
   "score.engraving": "Engraving the score…",
+  "score.layout": "Score layout",
+  "score.pages": "A4 pages",
+  "score.pagesHint": "The score on A4 pages, as it prints: the title on the first page, page numbers on the others",
+  "score.strip": "Strip",
+  "score.stripHint": "The score as one strip the width of the view",
+  "score.pdf": "Download PDF",
+  "score.pdfHint": "Save the score as a PDF of A4 pages, ready to print",
+  "score.pdfMaking": "Making the PDF…",
+  "score.pdfError": "The PDF could not be made: {0}",
 
   "roll.js.track": "Track {0}",
   "roll.js.trackVoice": "{0}, voice {1}",

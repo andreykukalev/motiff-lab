@@ -1246,6 +1246,45 @@ html, body {
     cursor: pointer;
 }
 
+/* A4 pages (0017): each page a sheet of paper on a darker desk, scaled to the view's width up to about
+   the size of a printed page; the gap between sheets shows where a page turns. */
+.score.paged {
+    background: var(--ml-raised);
+    padding: 0.75rem;
+}
+
+.score.paged .score-page {
+    background: var(--ml-white);
+    max-width: 52rem;
+    margin: 0 auto 0.75rem;
+    border-radius: 2px;
+    box-shadow: 0 1px 4px rgb(0 0 0 / 35%);
+}
+
+.score.paged .score-page:last-of-type {
+    margin-bottom: 0;
+}
+
+/* The layout and the PDF next to the pencil tools, on one row that wraps on a narrow screen. */
+.score-tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 1rem;
+}
+
+.score-layout {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0.25rem 0;
+}
+
+.lab .score-layout button {
+    min-height: 2.75rem;
+}
+
 /* Notes outside the range that plays for the selection go faint, as on the roll. A paler ink rather than opacity:
    Safari draws every translucent group on its own layer, and with most of a long piece faint, scrolling stuttered. */
 .score g.note.outside {

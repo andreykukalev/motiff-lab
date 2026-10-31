@@ -1,39 +1,57 @@
 @using MotiffLab.MusicCore.Time
 @using MotiffLab.Web.Localization
 @using MotiffLab.Web.Playback
+@using MotiffLab.Web.Projects
 @using MotiffLab.Web.Understand
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject Player Player
+@inject Preferences Preferences
 @inject UiText Text
 
-@if (PencilKey is not null)
-{
-    @* Pencil marks (0015): the Apple Pencil writes on the score at any time; these tools choose the pen, the highlighter or the eraser. *@
-    <div class="pencil-tools" role="toolbar" aria-label="@Text["pencil.label"]" data-keeps-selection>
-        <button class="pencil-toggle @(_pencilState.On ? "on" : null)" aria-pressed="@(_pencilState.On ? "true" : "false")" title="@Text["pencil.hint"]"
-                @onclick="TogglePencilAsync">✎ @Text["pencil.toggle"]</button>
-        @if (_pencilState.On)
-        {
-            @foreach ((string colour, string key) in s_penColours)
-            {
-                bool chosen = _pencilState.Tool == PenTool && _pencilState.Colour == colour;
-                <button class="pencil-pen @colour @(chosen ? "on" : null)" aria-pressed="@(chosen ? "true" : "false")" aria-label="@Text[key]" title="@Text[key]"
-                        @onclick="() => ChooseAsync(PenTool, colour)"><span aria-hidden="true"></span></button>
-            }
-            <button class="@(_pencilState.Tool == HighlighterTool ? "on" : null)" aria-pressed="@(_pencilState.Tool == HighlighterTool ? "true" : "false")"
-                    @onclick="() => ChooseAsync(HighlighterTool, null)">@Text["pencil.highlighter"]</button>
-            <button class="@(_pencilState.Tool == EraserTool ? "on" : null)" aria-pressed="@(_pencilState.Tool == EraserTool ? "true" : "false")"
-                    @onclick="() => ChooseAsync(EraserTool, null)">@Text["pencil.eraser"]</button>
-            <button @onclick="UndoPencilAsync" disabled="@(!_pencilState.CanUndo)">@Text["pencil.undo"]</button>
-            <button @onclick="ClearPencilAsync" disabled="@(_pencilState.Marks == 0)" title="@Text["pencil.clearHint"]">@Text["pencil.clear"]</button>
-            <span class="meta">@Text["pencil.how"]</span>
-        }
-        @if (_pencilState.Hidden > 0)
-        {
-            <span class="meta">@Text.Format("pencil.hidden", _pencilState.Hidden)</span>
-        }
+<div class="score-tools" data-keeps-selection>
+    @* The layout and the PDF (0017): A4 pages as the score prints, or one strip the width of the view. *@
+    <div class="score-layout" role="toolbar" aria-label="@Text["score.layout"]">
+        <button class="@(_paged ? "on" : null)" aria-pressed="@(_paged ? "true" : "false")" title="@Text["score.pagesHint"]"
+                @onclick="() => SetPagedAsync(true)">@Text["score.pages"]</button>
+        <button class="@(_paged ? null : "on")" aria-pressed="@(_paged ? "false" : "true")" title="@Text["score.stripHint"]"
+                @onclick="() => SetPagedAsync(false)">@Text["score.strip"]</button>
+        <button @onclick="ExportPdfAsync" disabled="@(_exporting || _shown is null || _loading)" title="@Text["score.pdfHint"]">
+            @(_exporting ? Text["score.pdfMaking"] : Text["score.pdf"])
+        </button>
     </div>
+    @if (PencilKey is not null)
+    {
+        @* Pencil marks (0015): the Apple Pencil writes on the score at any time; these tools choose the pen, the highlighter or the eraser. *@
+        <div class="pencil-tools" role="toolbar" aria-label="@Text["pencil.label"]">
+            <button class="pencil-toggle @(_pencilState.On ? "on" : null)" aria-pressed="@(_pencilState.On ? "true" : "false")" title="@Text["pencil.hint"]"
+                    @onclick="TogglePencilAsync">✎ @Text["pencil.toggle"]</button>
+            @if (_pencilState.On)
+            {
+                @foreach ((string colour, string key) in s_penColours)
+                {
+                    bool chosen = _pencilState.Tool == PenTool && _pencilState.Colour == colour;
+                    <button class="pencil-pen @colour @(chosen ? "on" : null)" aria-pressed="@(chosen ? "true" : "false")" aria-label="@Text[key]" title="@Text[key]"
+                            @onclick="() => ChooseAsync(PenTool, colour)"><span aria-hidden="true"></span></button>
+                }
+                <button class="@(_pencilState.Tool == HighlighterTool ? "on" : null)" aria-pressed="@(_pencilState.Tool == HighlighterTool ? "true" : "false")"
+                        @onclick="() => ChooseAsync(HighlighterTool, null)">@Text["pencil.highlighter"]</button>
+                <button class="@(_pencilState.Tool == EraserTool ? "on" : null)" aria-pressed="@(_pencilState.Tool == EraserTool ? "true" : "false")"
+                        @onclick="() => ChooseAsync(EraserTool, null)">@Text["pencil.eraser"]</button>
+                <button @onclick="UndoPencilAsync" disabled="@(!_pencilState.CanUndo)">@Text["pencil.undo"]</button>
+                <button @onclick="ClearPencilAsync" disabled="@(_pencilState.Marks == 0)" title="@Text["pencil.clearHint"]">@Text["pencil.clear"]</button>
+                <span class="meta">@Text["pencil.how"]</span>
+            }
+            @if (_pencilState.Hidden > 0)
+            {
+                <span class="meta">@Text.Format("pencil.hidden", _pencilState.Hidden)</span>
+            }
+        </div>
+    }
+</div>
+@if (_pdfError is not null)
+{
+    <p class="error" role="alert">@_pdfError</p>
 }
 
 @* Engraved by Verovio in Scripts/score (decision record 0008); the host's children belong to the script. *@
@@ -63,6 +81,12 @@ else if (_loading && !HoldHeight)
     private IReadOnlyList<ScorePhrase>? _shownPhrases;
     private IReadOnlyList<HighlightPlace>? _shownHighlight;
     private bool _shownHold;
+    private bool _paged = true;
+    private bool _exporting;
+    private string? _pdfError;
+
+    /// <summary>The device preference for the layout: "pages" or "strip".</summary>
+    private const string LayoutPreference = "ml-score-layout";
 
     /// <summary>What to show. The view engraves it again only when a different instance is given.</summary>
     [Parameter, EditorRequired]
@@ -94,6 +118,10 @@ else if (_loading && !HoldHeight)
     [Parameter]
     public string? PencilKey { get; set; }
 
+    /// <summary>The piece's name: heads a MusicXML file without a title on its first page and names the PDF (0017).</summary>
+    [Parameter]
+    public string? Title { get; set; }
+
     private static readonly (string Colour, string Key)[] s_penColours =
     [
         ("ink", "pencil.penInk"),
@@ -114,6 +142,12 @@ else if (_loading && !HoldHeight)
             _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/score/score-view.js");
             _view = await _module.InvokeAsync<IJSObjectReference>("createScoreView", _host, _self);
             _pencil = await _view.InvokeAsync<IJSObjectReference>("pencilLayer");
+            if (await Preferences.GetAsync(LayoutPreference) == "strip")
+            {
+                _paged = false;
+                await _view.InvokeVoidAsync("setPaged", false);
+                StateHasChanged();
+            }
         }
 
         if (_pencil is not null && PencilKey != _shownPencilKey)
@@ -157,7 +191,7 @@ else if (_loading && !HoldHeight)
         _shown = source;
         try
         {
-            await _view.InvokeAsync<ScoreLoadResult>("load", source.Data);
+            await _view.InvokeAsync<ScoreLoadResult>("load", source.Data, Title);
             await _view.InvokeVoidAsync("follow", Player.Engine);
             await ShowRangeAsync(_view);
             await ShowPhrasesAsync(_view);
@@ -199,6 +233,49 @@ else if (_loading && !HoldHeight)
     /// <summary>Called by the script when a note is clicked: playback moves to its onset.</summary>
     [JSInvokable]
     public Task OnScoreNoteClicked(double tick) => Player.SeekAsync(new Tick(Math.Max(0, (long)Math.Round(tick))));
+
+    private async Task SetPagedAsync(bool paged)
+    {
+        if (paged == _paged || _view is null)
+        {
+            return;
+        }
+
+        _paged = paged;
+        await Preferences.SetAsync(LayoutPreference, paged ? "pages" : "strip");
+        try
+        {
+            await _view.InvokeVoidAsync("setPaged", paged);
+        }
+        catch (JSException exception)
+        {
+            _error = Text.Format("score.error", exception.Message);
+        }
+    }
+
+    /// <summary>Engraves the score on A4 pages and hands the player the PDF to save; on the iPad it goes through Files.</summary>
+    private async Task ExportPdfAsync()
+    {
+        if (_view is null || _exporting)
+        {
+            return;
+        }
+
+        (_exporting, _pdfError) = (true, null);
+        StateHasChanged();
+        try
+        {
+            await _view.InvokeAsync<int>("exportPdf", Title);
+        }
+        catch (JSException exception)
+        {
+            _pdfError = Text.Format("score.pdfError", exception.Message);
+        }
+        finally
+        {
+            _exporting = false;
+        }
+    }
 
     private const string PenTool = "pen";
     private const string HighlighterTool = "highlighter";

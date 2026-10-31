@@ -26,7 +26,7 @@ Licence check: Verovio is LGPL-3.0-or-later (`COPYING.LESSER` in its repository)
 
 ## Decision
 
-1. **Verovio engraves, in the TypeScript layer.** `Scripts/score/score-view.ts` loads `wwwroot/lib/verovio/` (Verovio 6.3.0 from npm, unmodified) with a dynamic import the first time a score is shown, renders every page to SVG at the width of the view, and lays out again when the width changes.
+1. **Verovio engraves, in the TypeScript layer.** `Scripts/score/score-view.ts` loads `wwwroot/lib/verovio/` (Verovio 6.3.0 from npm, unmodified) with a dynamic import the first time a score is shown, renders every page to SVG at the width of the view, and lays out again when the width changes. Since 2026-10-31 the default layout is A4 pages, with this strip as the other choice, and the score downloads as an A4 PDF (0017).
 2. **Two sources, one view.**
    - *As written*: a MusicXML file goes to Verovio as it is, so spelling, beaming, voices and layout follow the source.
    - *Generated from the notes*: music-core writes MEI from the shared model (`MotiffLab.MusicCore.Notation.NotationGenerator`). This is how MIDI imports, and later variations and motifs, are shown, and it works the same for every input (one event model, one workspace).
