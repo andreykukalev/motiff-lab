@@ -1,12 +1,17 @@
 // The score view (S1-W7, decision record 0008): engraves MusicXML or generated MEI with Verovio,
 // marks the notes being heard, scrolls with playback and moves playback to a clicked note, and
 // highlights the places a chosen fact names (#25). A click on a bar selects it (0012). The player's
-// pencil marks are drawn over it (pencil-layer.ts, 0015).
+// pencil marks are drawn over it (pencil-layer.ts, 0015). The score is laid out as A4 pages or as one
+// strip the width of the view, and exported as an A4 PDF (decision record 0017).
 // Blazor imports this module through JS interop. Verovio loads on first use.
 
 import type { BarFrame } from "./pencil-marks.js";
 import { PencilLayer, type PencilState } from "./pencil-layer.js";
 import { ScoreTimeline, highlightedIds, type HighlightPlace, type TimemapEntry } from "./score-timeline.js";
+import { A4_HEIGHT, A4_WIDTH, buildPdf, crop, inkBounds, type InkLayer, type PdfPage } from "./pdf-document.js";
+import { hasText, svgToPdfOperators, textOnlySvg } from "./svg-to-pdf.js";
+import { A4_LAYOUT, pdfFileName, withTitle } from "./score-page.js";
+import { downloadBytes } from "../storage/project-store.js";
 
 interface DotNetObject {
     invokeMethodAsync(method: string, ...args: unknown[]): Promise<unknown>;
@@ -30,6 +35,8 @@ interface VerovioToolkit {
     /** The MIDI values of an engraved note, its key among them; empty for a rest. */
     getMIDIValuesForElement(id: string): { pitch?: number };
     getLog(): string;
+    /** Frees the toolkit's memory; it cannot be used after. */
+    destroy?(): void;
 }
 
 interface VerovioWrapper {
@@ -44,6 +51,9 @@ export interface ScoreLoadResult {
 }
 
 const VEROVIO_BASE = new URL("../../lib/verovio/", import.meta.url);
+
+/** The resolution of the text drawn over a PDF page's vectors: print quality. */
+const PDF_TEXT_DPI = 300;
 
 /** Verovio units per pixel are 100 / SCALE; 40 gives staves about 9 px apart. */
 const SCALE = 40;
@@ -82,19 +92,28 @@ export interface ScorePhrase {
     current: boolean;
 }
 
+let verovio: Promise<{ module: unknown; wrapper: VerovioWrapper }> | null = null;
 let toolkit: Promise<VerovioToolkit> | null = null;
 
-function loadToolkit(): Promise<VerovioToolkit> {
-    toolkit ??= (async () => {
+function loadVerovio(): Promise<{ module: unknown; wrapper: VerovioWrapper }> {
+    verovio ??= (async () => {
         const [factory, wrapper] = await Promise.all([
             import(new URL("verovio-module.mjs", VEROVIO_BASE).href) as Promise<{ default: () => Promise<unknown> }>,
             import(new URL("verovio.mjs", VEROVIO_BASE).href) as Promise<VerovioWrapper>,
         ]);
         const module = await factory.default();
         wrapper.enableLogToBuffer(true, module);
-        return new wrapper.VerovioToolkit(module);
+        return { module, wrapper };
     })();
     // A failed download can be retried on the next load.
+    verovio.catch(() => {
+        verovio = null;
+    });
+    return verovio;
+}
+
+function loadToolkit(): Promise<VerovioToolkit> {
+    toolkit ??= loadVerovio().then(({ module, wrapper }) => new wrapper.VerovioToolkit(module));
     toolkit.catch(() => {
         toolkit = null;
     });
@@ -126,6 +145,10 @@ export class ScoreView {
     private relayoutTimer = 0;
     private disposed = false;
     private readonly pencil: PencilLayer;
+    /** A4 pages (0017), or one strip the width of the view. */
+    private paged = true;
+    /** What was loaded, so a change of layout can engrave it again. */
+    private data: string | null = null;
 
     constructor(host: HTMLElement, dotnet: DotNetObject) {
         this.host = host;
@@ -135,6 +158,7 @@ export class ScoreView {
             tap: (target, extend) => this.pick(target, extend),
             changed: (state: PencilState) => void this.dotnet.invokeMethodAsync("OnPencilChanged", state),
         });
+        this.host.classList.toggle("paged", this.paged);
         this.host.addEventListener("click", this.onClick);
         // Passive: they only note that the player is scrolling, and never hold the scroll up.
         this.host.addEventListener("wheel", this.onScrollByHand, { passive: true });
@@ -144,24 +168,90 @@ export class ScoreView {
         this.resizeObserver.observe(host);
     }
 
-    /** Engraves a MusicXML or MEI document, replacing what was shown. Throws if Verovio cannot read it. */
-    async load(data: string): Promise<ScoreLoadResult> {
+    /**
+     * Engraves a MusicXML or MEI document, replacing what was shown; a MusicXML file without a title
+     * is headed by the one given. Throws if Verovio cannot read it.
+     */
+    async load(data: string, title?: string | null): Promise<ScoreLoadResult> {
         const engraver = await loadToolkit();
         if (this.disposed) {
             return { pages: 0, notes: 0 };
         }
 
+        const titled = withTitle(data, title);
+        // The page header is made when the data is read, so a change of layout reads it again.
         engraver.setOptions(this.layoutOptions());
-        if (!engraver.loadData(data)) {
+        if (!engraver.loadData(titled)) {
             throw new Error(`The score could not be engraved. ${engraver.getLog()}`.trim());
         }
 
+        this.data = titled;
         this.engraver = engraver;
         this.pitches = new Map();
         this.highlighted = new Set();
         this.timeline = ScoreTimeline.fromTimemap(engraver.renderToTimemap({ includeRests: true, includeMeasures: true }));
         this.render();
         return { pages: engraver.getPageCount(), notes: this.timeline.spans.length };
+    }
+
+    /**
+     * Lays the score out as A4 pages, as it prints, or as one strip the width of the view. What is
+     * showing is engraved again, keeping the player's place in it.
+     */
+    async setPaged(paged: boolean): Promise<void> {
+        if (paged === this.paged) {
+            return;
+        }
+        this.paged = paged;
+        this.host.classList.toggle("paged", paged);
+        const engraver = this.engraver;
+        const data = this.data;
+        if (engraver === null || data === null || this.disposed) {
+            return;
+        }
+        const host = this.host;
+        const place = host.scrollHeight > 0 ? host.scrollTop / host.scrollHeight : 0;
+        engraver.setOptions(this.layoutOptions());
+        engraver.loadData(data);
+        this.pitches = new Map();
+        this.highlighted = new Set();
+        this.timeline = ScoreTimeline.fromTimemap(engraver.renderToTimemap({ includeRests: true, includeMeasures: true }));
+        this.render();
+        host.scrollTop = place * host.scrollHeight;
+    }
+
+    /**
+     * Engraves what is showing on A4 pages and hands the player a PDF of them (0017): the notation as
+     * vectors, its text drawn by the browser over it. Returns the number of pages.
+     */
+    async exportPdf(title?: string | null): Promise<number> {
+        const data = this.data;
+        if (data === null) {
+            throw new Error("There is no score to export.");
+        }
+        const { module, wrapper } = await loadVerovio();
+        // A toolkit of its own, so the score on screen keeps its layout and ids.
+        const engraver = new wrapper.VerovioToolkit(module);
+        const svgs: string[] = [];
+        try {
+            engraver.setOptions({ ...A4_LAYOUT });
+            if (!engraver.loadData(data)) {
+                throw new Error(`The score could not be engraved. ${engraver.getLog()}`.trim());
+            }
+            for (let page = 1; page <= engraver.getPageCount(); page++) {
+                svgs.push(engraver.renderToSVG(page));
+            }
+        } finally {
+            engraver.destroy?.();
+        }
+
+        const pages: PdfPage[] = [];
+        for (const svg of svgs) {
+            pages.push({ operators: svgToPdfOperators(svg, A4_WIDTH, A4_HEIGHT), ink: hasText(svg) ? await textInk(svg) : null });
+        }
+        const pdf = await buildPdf(pages, { title: title?.trim() || undefined, creator: "Motiff Lab" });
+        downloadBytes(pdfFileName(title), pdf, "application/pdf");
+        return pages.length;
     }
 
     /** Marks the notes the player is sounding, every animation frame, until called with null. */
@@ -231,6 +321,9 @@ export class ScoreView {
 
     private layoutOptions(): Record<string, unknown> {
         this.laidOutWidth = this.host.clientWidth;
+        if (this.paged) {
+            return { ...A4_LAYOUT };
+        }
         return {
             scale: SCALE,
             pageWidth: Math.max(MIN_PAGE_WIDTH, Math.round((this.laidOutWidth * 100) / SCALE)),
@@ -242,6 +335,7 @@ export class ScoreView {
             breaks: "auto",
             header: "none",
             footer: "none",
+            justifyVertically: false,
             svgViewBox: true,
         };
     }
@@ -429,7 +523,13 @@ export class ScoreView {
         }
         clearTimeout(this.relayoutTimer);
         this.relayoutTimer = window.setTimeout(() => {
-            if (this.engraver !== null && !this.disposed) {
+            if (this.paged && this.engraver !== null && !this.disposed) {
+                // A4 pages keep their layout and only scale with the view: the marks over them move with it.
+                this.laidOutWidth = this.host.clientWidth;
+                this.placePhrases();
+                this.applyHighlight(false);
+                this.pencil.relayout();
+            } else if (this.engraver !== null && !this.disposed) {
                 this.engraver.setOptions(this.layoutOptions());
                 this.engraver.redoLayout();
                 // Laid out again at a new width, the score keeps the player's place in it rather than jumping to the top.
@@ -530,6 +630,53 @@ export class ScoreView {
         if (start !== undefined) {
             void this.dotnet.invokeMethodAsync("OnScoreBarClicked", start, extend);
         }
+    }
+}
+
+/**
+ * A page's text drawn by the browser at print resolution, as coverage for the PDF's ink layer: the
+ * browser knows the fonts (the title in any script, Verovio's music font for tempo marks), and the
+ * layer covers only the part of the page that has text.
+ */
+async function textInk(svg: string): Promise<InkLayer | null> {
+    const width = Math.round((210 / 25.4) * PDF_TEXT_DPI);
+    const height = Math.round((297 / 25.4) * PDF_TEXT_DPI);
+    const url = URL.createObjectURL(new Blob([textOnlySvg(svg, width, height)], { type: "image/svg+xml" }));
+    const canvas = document.createElement("canvas");
+    try {
+        const image = new Image();
+        image.src = url;
+        await image.decode();
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        if (context === null) {
+            return null;
+        }
+        context.drawImage(image, 0, 0, width, height);
+        const pixels = context.getImageData(0, 0, width, height).data;
+        const coverage = new Uint8Array(width * height);
+        for (let i = 0; i < coverage.length; i++) {
+            coverage[i] = pixels[i * 4 + 3];
+        }
+        const box = inkBounds(coverage, width, height);
+        if (box === null) {
+            return null;
+        }
+        return {
+            width: box.right - box.left,
+            height: box.bottom - box.top,
+            coverage: crop(coverage, width, box),
+            x: (box.left / width) * A4_WIDTH,
+            y: A4_HEIGHT - (box.bottom / height) * A4_HEIGHT,
+            widthPt: ((box.right - box.left) / width) * A4_WIDTH,
+            heightPt: ((box.bottom - box.top) / height) * A4_HEIGHT,
+        };
+    } finally {
+        URL.revokeObjectURL(url);
+        // Safari keeps a canvas's memory until its size is zero.
+        canvas.width = 0;
+        canvas.height = 0;
     }
 }
 

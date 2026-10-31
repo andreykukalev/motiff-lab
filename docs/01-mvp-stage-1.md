@@ -97,6 +97,7 @@ Stage 1 must deliver one complete journey on one motif; everything else is label
 | AI questions, hints and feedback in the three modes | Should | S1-AI5 |
 | Starter library of public-domain files | Should | S1-C1 |
 | Score view: the piece, motif and variation as notation, following playback | Must | S1-W7 |
+| The score on A4 pages and as a PDF | Must | S1-W9 |
 | Free-form questions to the AI about a passage | Could | S1-AI6 |
 | Playback to a connected MIDI instrument; MIDI keyboard input | Later | Stage 2 |
 | Reconstruction attempts, progressive hints and feedback on played attempts | Later | Stage 2 (PRD module C) |
@@ -146,6 +147,7 @@ These requirements cover everything in Stage 1 except rhythm restoration, the va
 | S1-W5 | Sources: original motif, variation, both layered, and A/B switching at the same position (as PRD FR-E6) | Must |
 | S1-W6 | Switching between Explore, Restore, Transform and Compare keeps the selection and playback position (as PRD FR-B8) | Must |
 | S1-W7 | Score view of the piece, the motif and its variation: a MusicXML source as written, or notation generated from the notes (MIDI imports, variations) and labelled as generated; the notes being heard are highlighted and the view follows playback (decision record 0008) | Must |
+| S1-W9 | The score on A4 pages, headed by the piece's title and numbered, and downloaded as an A4 PDF with the notation as vectors, in the browser and the iPad app (decision record 0017) | Must |
 
 ### Motif selection
 

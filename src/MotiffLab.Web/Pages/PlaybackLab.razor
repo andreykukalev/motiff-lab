@@ -181,7 +181,7 @@
                                     <label><input type="radio" name="heard-mode" checked="@(!_readable)" @onchange="() => SetReadable(false)" /> @Text["score.asPlayed"]</label>
                                 </div>
                             }
-                            <ScoreView Source="shown" Range="ShownRange" Phrases="ScorePhrases" Highlight="_highlight?.Places" HoldHeight="_alternating" PencilKey="ShownPencilKey" BarPicked="OnScoreBarPickedAsync" />
+                            <ScoreView Source="shown" Range="ShownRange" Phrases="ScorePhrases" Highlight="_highlight?.Places" HoldHeight="_alternating" PencilKey="ShownPencilKey" Title="@ScoreTitle.Of(_title)" BarPicked="OnScoreBarPickedAsync" />
                             <p class="meta">@ScoreNote(shown)</p>
                         </div>
                         @if (ShowRoll)
@@ -1179,15 +1179,15 @@
         {
             var score = PlaybackScore.FromMidi(midi);
             GeneratedNotation notation = _heard
-                ? HeardNotation(midi.Notes, midi.Meter, _heardKey is { } heardKey ? [new KeyChange(Tick.Zero, heardKey.Fifths)] : [], midi.End, piece.FileName, score)
-                : NotationGenerator.FromMidi(midi, piece.FileName);
+                ? HeardNotation(midi.Notes, midi.Meter, _heardKey is { } heardKey ? [new KeyChange(Tick.Zero, heardKey.Fifths)] : [], midi.End, ScoreTitle.Of(piece.FileName), score)
+                : NotationGenerator.FromMidi(midi, ScoreTitle.Of(piece.FileName));
             await LoadAsync((score, piece.Meter, piece.Notes), piece.FileName, notation, musicXml: null, piece.Keys);
             return;
         }
 
         MusicXmlImport import = piece.MusicXml!;
         using var text = new StreamReader(new MemoryStream(piece.ScoreXml!), detectEncodingFromByteOrderMarks: true);
-        await LoadAsync((PlaybackScore.FromMusicXml(import), piece.Meter, piece.Notes), piece.FileName, NotationGenerator.FromMusicXml(import, piece.FileName), await text.ReadToEndAsync(), piece.Keys);
+        await LoadAsync((PlaybackScore.FromMusicXml(import), piece.Meter, piece.Notes), piece.FileName, NotationGenerator.FromMusicXml(import, ScoreTitle.Of(piece.FileName)), await text.ReadToEndAsync(), piece.Keys);
     }
 
     private async Task LoadAsync((PlaybackScore Score, MeterMap Meter, IReadOnlyList<Note> Notes) piece, string title, GeneratedNotation notation, string? musicXml, IReadOnlyList<KeySignature> keys)
@@ -1251,7 +1251,7 @@
 
     /// <summary>The piece's notes engraved, in the mode the player chose for notes heard in a recording.</summary>
     private GeneratedNotation Notation(IEnumerable<Note> notes, Tick end) =>
-        _heard ? HeardNotation(notes, _meter!, NotationKeys(), end, _title, _score!) : NotationGenerator.Generate(notes, _meter!, NotationKeys(), end, _title);
+        _heard ? HeardNotation(notes, _meter!, NotationKeys(), end, ScoreTitle.Of(_title), _score!) : NotationGenerator.Generate(notes, _meter!, NotationKeys(), end, ScoreTitle.Of(_title));
 
     private GeneratedNotation HeardNotation(IEnumerable<Note> notes, MeterMap meter, IEnumerable<KeyChange> keys, Tick end, string? title, PlaybackScore played) =>
         _readable
