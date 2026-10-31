@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+  <!--
+    The same benchmark in the browser, built the way the web app is (Blazor WebAssembly, no AOT).
+    dotnet publish -c Release -o out, serve out/wwwroot, open it: the report is printed on the page.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.13" />
+    <Compile Include="..\CoreBridge\CoreBenchmark.cs" Link="CoreBenchmark.cs" />
+    <ProjectReference Include="..\..\..\src\MotiffLab.MusicCore\MotiffLab.MusicCore.csproj" />
+    <Content Include="..\assets\*.*" Link="wwwroot\assets\%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

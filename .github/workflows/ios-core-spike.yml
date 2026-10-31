@@ -1,0 +1,90 @@
+# Spike (spikes/ios-core): builds music-core for the iPad with NativeAOT, runs it in the iPad simulator
+# and checks that the device build links. Not part of CI: it runs only when the spike changes, or by hand.
+name: iOS core spike
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - spikes/ios-core/**
+      - .github/workflows/ios-core-spike.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-core-spike-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Tools
+        run: |
+          brew install xcodegen
+          xcodebuild -version
+          dotnet --version
+
+      - name: Build MotiffLabCore.xcframework
+        working-directory: spikes/ios-core
+        run: ./build-ios.sh | tee build-ios.log
+
+      - name: Generate the Xcode project
+        working-directory: spikes/ios-core/ios
+        run: xcodegen
+
+      - name: Test in the iPad simulator
+        working-directory: spikes/ios-core/ios
+        run: |
+          id=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          devices = [d for runtime, ds in json.load(sys.stdin)["devices"].items() if "iOS" in runtime for d in ds]
+          ipads = [d for d in devices if d["name"].startswith("iPad Pro")] or [d for d in devices if d["name"].startswith("iPad")]
+          print(ipads[-1]["udid"])')
+          echo "Simulator: $(xcrun simctl list devices | grep "$id")"
+          set -o pipefail
+          xcodebuild test -project CoreSpike.xcodeproj -scheme CoreSpike -destination "id=$id" CODE_SIGNING_ALLOWED=NO | tee test.log
+
+      - name: Build for a real iPad (unsigned)
+        working-directory: spikes/ios-core/ios
+        run: |
+          set -o pipefail
+          xcodebuild build -project CoreSpike.xcodeproj -scheme CoreSpike -configuration Release \
+            -destination generic/platform=iOS -derivedDataPath build CODE_SIGNING_ALLOWED=NO | tail -5
+          app=$(find build -name CoreSpike.app -path '*iphoneos*' | head -1)
+          echo "App size: $(du -sh "$app" | cut -f1)"
+          echo "APP_SIZE=$(du -sh "$app" | cut -f1)" >> "$GITHUB_ENV"
+
+      - name: Summary
+        if: always()
+        working-directory: spikes/ios-core
+        run: |
+          {
+            echo "## music-core on iOS (NativeAOT)"
+            echo
+            echo '```'
+            grep -E '^ios|^iossim' build-ios.log || true
+            echo "Device app (Release, unsigned): ${APP_SIZE:-not built}"
+            echo '```'
+            echo
+            echo "### Benchmark in the simulator (20 runs; ms: first run / median)"
+            echo
+            python3 summary.py ios/test.log || echo "No benchmark output."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MotiffLabCore-xcframework
+          path: |
+            spikes/ios-core/build/MotiffLabCore.xcframework
+            spikes/ios-core/ios/test.log
+          if-no-files-found: warn

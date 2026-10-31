@@ -1,0 +1,64 @@
+# The music-core spike app: a SwiftUI screen that runs music-core natively on the iPad
+# (NativeAOT, ../build-ios.sh) and shows how long each step takes. XcodeGen makes
+# CoreSpike.xcodeproj from this file (not committed): run ../build-ios.sh, then xcodegen here.
+name: CoreSpike
+options:
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+configFiles:
+  Debug: Config.xcconfig
+  Release: Config.xcconfig
+settings:
+  base:
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.0"
+targets:
+  CoreSpike:
+    type: application
+    platform: iOS
+    sources:
+      - path: CoreSpike
+      - path: ../assets/fur-elise-97-bars.musicxml
+        buildPhase: resources
+      - path: ../assets/large-5000-notes.mid
+        buildPhase: resources
+    dependencies:
+      - framework: ../build/MotiffLabCore.xcframework
+        embed: true
+        codeSign: true
+    settings:
+      base:
+        TARGETED_DEVICE_FAMILY: "2"
+        CODE_SIGN_STYLE: Automatic
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Core Spike
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+        SUPPORTS_MACCATALYST: NO
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+  CoreSpikeTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: CoreSpikeTests
+    dependencies:
+      - target: CoreSpike
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        TARGETED_DEVICE_FAMILY: "2"
+schemes:
+  CoreSpike:
+    build:
+      targets:
+        CoreSpike: all
+        CoreSpikeTests: [test]
+    test:
+      targets:
+        - CoreSpikeTests
+    run:
+      config: Release
