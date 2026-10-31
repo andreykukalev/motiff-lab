@@ -14,6 +14,9 @@ settings:
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "5.0"
+    # The core is built for Apple silicon only; a Release build for the simulator would otherwise
+    # also ask for an Intel (x86_64) slice and drop the arm64 one.
+    "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
 targets:
   CoreSpike:
     type: application
