@@ -116,6 +116,27 @@ public class CharacterFactTests
     }
 
     [Fact]
+    public void A_tempo_that_follows_the_playing_is_summed_up_rather_than_listed()
+    {
+        var context = new CharacterContext(
+            [
+                new PlaybackTempo(Tick.Zero, 625_000),
+                new PlaybackTempo(new Tick(Quarter), 600_000),
+                new PlaybackTempo(new Tick(2 * Quarter), 650_000),
+                new PlaybackTempo(new Tick(3 * Quarter), 750_000),
+            ],
+            TempoAssumed: true,
+            FromNotation: false,
+            TempoEstimated: true);
+
+        MotifFact tempo = Fact(Analyze(Scale(), 0, 8 * Quarter, context), "character.tempo");
+
+        Assert.Equal("Tempo: follows the playing, a quarter at about 92.3 BPM, from 80 to 100 BPM.", tempo.Text);
+        Assert.Equal(FactCertainty.Inferred, tempo.Certainty);
+        Assert.Empty(tempo.Places);
+    }
+
+    [Fact]
     public void A_motif_after_the_first_stated_tempo_change_is_not_marked_assumed()
     {
         var context = new CharacterContext([new PlaybackTempo(Tick.Zero, 500_000), new PlaybackTempo(new Tick(4 * Quarter), 750_000)], TempoAssumed: true, FromNotation: false);

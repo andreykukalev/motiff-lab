@@ -88,6 +88,71 @@ public class BarGridTests
         }
     }
 
+    /// <summary>
+    /// Twenty bars of 4/4 played freely, written as an engine writes them: the quarter slows from 0.7
+    /// to 0.85 s and back every two bars. A bass note on every beat, the lowest on beat 1, and a melody
+    /// in 16ths and eighths.
+    /// </summary>
+    private static byte[] Rubato()
+    {
+        static long Beat(int k) => 700_000 + (150_000 * (k % 8 < 4 ? k % 8 : 8 - (k % 8)) / 4);
+        static long Ticks(long microseconds) => ((microseconds * 480) + 250_000) / 500_000;
+        var notes = new List<Note>();
+        long at = 1_000_000;
+        for (int k = 0; k < 80; k++)
+        {
+            long beat = Beat(k);
+            void Add(long from, long length, int pitch) => notes.Add(new Note
+            {
+                Id = $"n_{notes.Count + 1:D4}",
+                Pitch = new Pitch(pitch),
+                Span = TickSpan.FromBounds(new Tick(Ticks(from)), new Tick(Ticks(from + length - 20_000))),
+                Velocity = 60,
+                Track = 0,
+                Attribution = Attribution.Imported,
+            });
+            Add(at, beat, k % 4 == 0 ? 36 : 43);
+            Add(at, beat / 4, 72 + (k % 5));
+            Add(at + (beat / 4), beat / 4, 74);
+            Add(at + (beat / 2), beat / 2, 76);
+            at += beat;
+        }
+
+        return MidiExporter.Export(notes, [], MeterMap.Default, "take");
+    }
+
+    [Fact]
+    public void A_free_tempo_follows_the_bass_and_keeps_the_bars()
+    {
+        BarGrid grid = BarGrid.Find(Import(Rubato()).Midi!)!;
+
+        Assert.True(grid.FollowsPlaying);
+        Assert.Equal(TimeSignature.CommonTime, grid.Signature);
+        // The bass falls on beats 1 and 3 when it is the lowest around: beats of a half note, eight 16ths.
+        Assert.Equal(8, grid.StepsPerBeat);
+        Assert.Equal([0], grid.BarStarts);
+        Assert.InRange(grid.QuarterNotesPerMinute, 70, 86);
+
+        // Every bass note on beat 1 starts a bar.
+        ImportedPiece barred = grid.Apply(Import(Rubato()));
+        foreach (Note bass in barred.Notes.Where(note => note.Pitch.MidiNumber == 36))
+        {
+            Assert.Equal(0, (bass.Span.Onset.Value + 30) % 1920 / 60);
+        }
+    }
+
+    [Fact]
+    public void Bar_lines_can_move_a_beat_either_way()
+    {
+        BarGrid grid = new(Tick.Zero, 150_000, new TimeSignature(3, 4), [4, 22]);
+
+        Assert.Equal([0, 18], grid.Shifted(-1).BarStarts);
+        Assert.Equal([8, 26], grid.Shifted(1).BarStarts);
+        Assert.Equal([8], grid.Shifted(-2).BarStarts.Take(1));
+        Assert.Equal(grid, grid.Shifted(1).Shifted(-1));
+        Assert.Equal([2], new BarGrid(Tick.Zero, 150_000, new TimeSignature(3, 8), [0]).Shifted(1).BarStarts);
+    }
+
     [Fact]
     public void Fur_elise_gets_its_printed_bars_and_tempo()
     {
@@ -135,10 +200,11 @@ public class BarGridTests
         MidiImport import = Import(Played(150_000, Waltz())).Midi!;
         BarGrid found = BarGrid.Find(import)!;
 
-        BarGrid faster = BarGrid.Find(import, new TimeSignature(6, 8), found.SixteenthMicroseconds / 2)!;
+        BarGrid faster = BarGrid.Find(import, new TimeSignature(6, 8), found.StepsPerBeat * 2)!;
 
         Assert.Equal(new TimeSignature(6, 8), faster.Signature);
         Assert.Equal(found.SixteenthMicroseconds / 2, faster.SixteenthMicroseconds);
+        Assert.Equal(found.Beats, faster.Beats);
         Assert.Equal(200, faster.QuarterNotesPerMinute);
     }
 
@@ -187,14 +253,26 @@ public class BarGridTests
 
     private static void SoundsAsHeard(ImportedPiece piece, ImportedPiece barred, BarGrid grid)
     {
-        Assert.Equal([grid.MicrosecondsPerQuarter], barred.Midi!.Tempos.Select(tempo => tempo.MicrosecondsPerQuarter));
+        Assert.True(grid.FollowsPlaying);
+        MidiTempoChange[] tempos = [.. barred.Midi!.Tempos];
+        long Written(long tick)
+        {
+            long microseconds = 0, at = 0, perQuarter = tempos[0].MicrosecondsPerQuarter;
+            foreach (MidiTempoChange tempo in tempos.Where(tempo => tempo.At.Value <= tick))
+            {
+                microseconds += (tempo.At.Value - at) * perQuarter / 480;
+                (at, perQuarter) = (tempo.At.Value, tempo.MicrosecondsPerQuarter);
+            }
+
+            return microseconds + ((tick - at) * perQuarter / 480);
+        }
+
         long firstHeard = piece.Notes.Min(note => note.Span.Onset.Value);
-        long firstWritten = barred.Notes.Min(note => note.Span.Onset.Value);
+        long firstWritten = Written(barred.Notes.Min(note => note.Span.Onset.Value));
         foreach ((Note before, Note after) in piece.Notes.Zip(barred.Notes))
         {
             long heard = (before.Span.Onset.Value - firstHeard) * 500_000 / 480;
-            long written = (after.Span.Onset.Value - firstWritten) * grid.MicrosecondsPerQuarter / 480;
-            Assert.InRange(written - heard, -2_000, 2_000);
+            Assert.InRange(Written(after.Span.Onset.Value) - firstWritten - heard, -2_000, 2_000);
         }
     }
 
@@ -209,7 +287,7 @@ public class BarGridTests
         ImportIssue notice = Assert.Single(barred.Report.Issues, issue => issue.Code == BarGrid.IssueCode);
         Assert.Equal(ImportIssueKind.Assumed, notice.Kind);
         Assert.Contains("(3/4)", notice.Message);
-        Assert.Contains("a quarter at 100 a minute", notice.Message);
+        Assert.Contains("follows the playing (a quarter at about 100 a minute)", notice.Message);
         Assert.Equal(0, barred.Report.CountOf(MidiIssueCodes.TempoDefault));
         Assert.Equal(17, barred.Report.MeasureCount);
     }
@@ -222,7 +300,7 @@ public class BarGridTests
         CharacterContext context = CharacterContext.FromPiece(barred);
 
         Assert.True(context.TempoEstimated);
-        Assert.InRange(context.Tempos[0].MicrosecondsPerQuarter, 594_000, 606_000);
+        Assert.All(context.Tempos, tempo => Assert.InRange(tempo.MicrosecondsPerQuarter, 540_000, 660_000));
     }
 
     [Fact]
@@ -247,6 +325,9 @@ public class BarGridTests
         Assert.Throws<ArgumentException>(() => new BarGrid(Tick.Zero, 150_000, waltz, [12]));
         Assert.Throws<ArgumentException>(() => new BarGrid(Tick.Zero, 150_000, waltz, [4, 4]));
         Assert.Throws<ArgumentOutOfRangeException>(() => new BarGrid(Tick.Zero, 1_000, waltz, [0]));
+        Assert.Throws<ArgumentException>(() => new BarGrid(Tick.Zero, 150_000, waltz, [0], [5, 300_000]));
+        Assert.Throws<ArgumentException>(() => new BarGrid(Tick.Zero, 150_000, waltz, [0], [0, 300_000, 300_000]));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new BarGrid(Tick.Zero, 150_000, waltz, [0], stepsPerBeat: 17));
     }
 
     [Fact]
@@ -285,9 +366,24 @@ public class BarGridTests
         {
             Transcription = new TranscriptionOrigin("basic-pitch 0.4.0", BarGrid.Find(Import(midi).Midi!)),
         };
-        string file = System.Text.Encoding.UTF8.GetString(ProjectFile.Write(project)).Replace("\"version\": 10", "\"version\": 9", StringComparison.Ordinal);
+        string file = System.Text.Encoding.UTF8.GetString(ProjectFile.Write(project)).Replace("\"version\": 11", "\"version\": 9", StringComparison.Ordinal);
 
         Assert.Null(ProjectFile.Read(System.Text.Encoding.UTF8.GetBytes(file)).Transcription!.Bars);
+    }
+
+    [Fact]
+    public void Version_10_bars_keep_one_tempo()
+    {
+        byte[] midi = Played(150_000, Waltz());
+        BarGrid found = BarGrid.Find(Import(midi).Midi!)!;
+        Project project = Project.Create("p_heard", "take.mid", midi, s_now) with { Transcription = new TranscriptionOrigin("transkun 2.0.1", found) };
+        string file = System.Text.Encoding.UTF8.GetString(ProjectFile.Write(project)).Replace("\"version\": 11", "\"version\": 10", StringComparison.Ordinal);
+
+        BarGrid read = ProjectFile.Read(System.Text.Encoding.UTF8.GetBytes(file)).Transcription!.Bars!;
+
+        Assert.False(read.FollowsPlaying);
+        Assert.Equal(2, read.StepsPerBeat);
+        Assert.Equal(found.BarStarts, read.BarStarts);
     }
 
     [Fact]

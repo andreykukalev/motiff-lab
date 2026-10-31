@@ -8,20 +8,24 @@ namespace MotiffLab.MusicCore.Import.Transcription;
 /// <summary>
 /// Bars and a tempo worked out from the onsets of a transcription (decision record 0016). The
 /// engine writes what it hears at 120 BPM in 4/4, so its bar lines say nothing about the music; this
-/// is a beat grid fitted to the playing, with bar lines where the bass falls.
+/// is a beat grid fitted to the playing, following its tempo, with bar lines where the bass falls.
 /// </summary>
 /// <remarks>
 /// <para>
-/// A grid is a 16th note of <see cref="SixteenthMicroseconds"/>, counted from <see cref="Origin"/>,
-/// with bars of <see cref="Signature"/> laid end to end from <see cref="BarStarts"/>: the first is the
-/// first downbeat (a pickup before it when it is not 0), and each later one starts the bars afresh
-/// after a short bar, where a repeat or a held beat moved the downbeat.
+/// A grid counts from <see cref="Origin"/>, the engine's first note, in beats of
+/// <see cref="StepsPerBeat"/> 16ths. <see cref="Beats"/> says when each beat falls in the recording,
+/// so the tempo follows the playing; after the last one, beats of <see cref="StepsPerBeat"/> times
+/// <see cref="SixteenthMicroseconds"/> continue. Bars of <see cref="Signature"/> are laid end to end
+/// from <see cref="BarStarts"/>: the first is the first downbeat (a pickup before it when it is not
+/// 0), and each later one starts the bars afresh after a short bar, where a repeat or a held beat
+/// moved the downbeat.
 /// </para>
 /// <para>
 /// <see cref="Apply"/> re-expresses the same notes against the grid: it moves no note in time, keeps
-/// every id, and plays back as the recording was heard. The grid is an inference shown as one, and
-/// the project keeps the engine's MIDI as its source, so the player can change or drop the grid.
-/// Everything is integer arithmetic and deterministic: the same notes give the same grid.
+/// every id, and plays back as the recording was heard, with a tempo change on every beat. The grid is
+/// an inference shown as one, and the project keeps the engine's MIDI as its source, so the player
+/// can change or drop the grid. Everything is integer arithmetic and deterministic: the same notes
+/// give the same grid.
 /// </para>
 /// </remarks>
 public sealed record BarGrid
@@ -39,12 +43,25 @@ public sealed record BarGrid
     public const int LongestSearched = 500_000;
 
     /// <summary>The shortest and longest 16th a grid may have, so that halving and doubling stay in reach.</summary>
-    public const int ShortestSixteenth = 20_000;
+    public const int ShortestSixteenth = 10_000;
 
     public const int LongestSixteenth = 2_000_000;
 
+    /// <summary>The fewest and most 16ths a tracked beat is written as: a 16th to a whole note.</summary>
+    public const int FewestStepsPerBeat = 1;
+
+    public const int MostStepsPerBeat = 16;
+
     /// <summary>A 16th at a quarter of 60 a minute: the search takes a longer step for an eighth.</summary>
     private const int SlowestUsualSixteenth = 250_000;
+
+    /// <summary>The shortest and longest beat the bass can mark: 300 ms and 2 s.</summary>
+    private const long ShortestBassBeat = 300_000;
+
+    private const long LongestBassBeat = 2_000_000;
+
+    /// <summary>The longest 16th a bass beat is divided into: a quarter at 50 a minute.</summary>
+    private const long SlowestBassSixteenth = 300_000;
 
     /// <summary>Onsets this close together are one chord: 30 ms.</summary>
     private const long ChordMicroseconds = 30_000;
@@ -55,11 +72,18 @@ public sealed record BarGrid
     public static IReadOnlyList<TimeSignature> Signatures { get; } =
         [new(2, 4), new(3, 4), new(4, 4), new(3, 8), new(6, 8)];
 
-    public BarGrid(Tick origin, int sixteenthMicroseconds, TimeSignature signature, IReadOnlyList<int> barStarts)
+    /// <param name="beats">When each beat falls, in microseconds after the origin, from 0; empty for a steady beat throughout.</param>
+    /// <param name="stepsPerBeat">How many 16ths a beat is written as, from 1 to 16.</param>
+    public BarGrid(Tick origin, int sixteenthMicroseconds, TimeSignature signature, IReadOnlyList<int> barStarts, IReadOnlyList<long>? beats = null, int stepsPerBeat = 2)
     {
         ArgumentNullException.ThrowIfNull(barStarts);
         ArgumentOutOfRangeException.ThrowIfLessThan(sixteenthMicroseconds, ShortestSixteenth);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(sixteenthMicroseconds, LongestSixteenth);
+        if (stepsPerBeat is < FewestStepsPerBeat or > MostStepsPerBeat)
+        {
+            throw new ArgumentOutOfRangeException(nameof(stepsPerBeat), stepsPerBeat, "A beat is written as 1 to 16 16ths.");
+        }
+
         if (signature.BarTicks % StepTicks != 0)
         {
             throw new ArgumentException("A bar must hold a whole number of 16ths.", nameof(signature));
@@ -79,22 +103,47 @@ public sealed record BarGrid
             }
         }
 
+        long[] times = [.. beats ?? []];
+        if (times.Length > 0 && times[0] != 0)
+        {
+            throw new ArgumentException("The first beat is at the origin.", nameof(beats));
+        }
+
+        for (int i = 1; i < times.Length; i++)
+        {
+            if (times[i] <= times[i - 1])
+            {
+                throw new ArgumentException("Beats must be in strictly increasing order.", nameof(beats));
+            }
+        }
+
         Origin = origin;
         SixteenthMicroseconds = sixteenthMicroseconds;
         Signature = signature;
         BarStarts = starts;
+        Beats = times;
+        StepsPerBeat = stepsPerBeat;
     }
 
-    /// <summary>Where the grid starts in the engine's MIDI: at or just before its first note.</summary>
+    /// <summary>Where the grid starts in the engine's MIDI: at its first note.</summary>
     public Tick Origin { get; }
 
-    /// <summary>How long a 16th lasts in the recording.</summary>
+    /// <summary>How long a 16th lasts in the recording: the typical one when the tempo follows the playing.</summary>
     public int SixteenthMicroseconds { get; }
 
     public TimeSignature Signature { get; }
 
     /// <summary>In 16ths from <see cref="Origin"/>: the first downbeat, then where the bars start afresh after a short bar.</summary>
     public IReadOnlyList<int> BarStarts { get; }
+
+    /// <summary>When each beat falls, in microseconds after <see cref="Origin"/>; empty for a steady beat.</summary>
+    public IReadOnlyList<long> Beats { get; }
+
+    /// <summary>How many 16ths a beat is written as.</summary>
+    public int StepsPerBeat { get; }
+
+    /// <summary>True when the beats follow the playing rather than one tempo.</summary>
+    public bool FollowsPlaying => Beats.Count > 1;
 
     public int StepsPerBar => (int)(Signature.BarTicks / StepTicks);
 
@@ -108,22 +157,62 @@ public sealed record BarGrid
     /// <summary>Bars cut short where the downbeat moved.</summary>
     public int ShortBarCount => BarStarts.Count - 1;
 
+    private long BeatMicroseconds => (long)SixteenthMicroseconds * StepsPerBeat;
+
     public bool Equals(BarGrid? other) =>
         other is not null
         && Origin == other.Origin
         && SixteenthMicroseconds == other.SixteenthMicroseconds
         && Signature == other.Signature
-        && BarStarts.SequenceEqual(other.BarStarts);
+        && StepsPerBeat == other.StepsPerBeat
+        && BarStarts.SequenceEqual(other.BarStarts)
+        && Beats.SequenceEqual(other.Beats);
 
-    public override int GetHashCode() => HashCode.Combine(Origin, SixteenthMicroseconds, Signature, BarStarts.Count);
+    public override int GetHashCode() => HashCode.Combine(Origin, SixteenthMicroseconds, Signature, StepsPerBeat, BarStarts.Count, Beats.Count);
+
+    /// <summary>
+    /// The same grid with every bar line moved by whole beats of its signature, later for a positive
+    /// number and earlier for a negative one: for a downbeat the bass misplaced.
+    /// </summary>
+    public BarGrid Shifted(int beats)
+    {
+        int by = beats * 16 / Signature.Denominator;
+        int first = (((BarStarts[0] + by) % StepsPerBar) + StepsPerBar) % StepsPerBar;
+        int[] later = [.. BarStarts.Skip(1).Select(start => start + by).Where(start => start > first)];
+        return new BarGrid(Origin, SixteenthMicroseconds, Signature, [first, .. later], Beats, StepsPerBeat);
+    }
+
+    /// <summary>When beat <paramref name="index"/> falls, in microseconds after the origin.</summary>
+    public long BeatAt(long index)
+    {
+        if (index < Beats.Count)
+        {
+            return Beats[(int)index];
+        }
+
+        return Beats.Count == 0 ? index * BeatMicroseconds : Beats[^1] + ((index - Beats.Count + 1) * BeatMicroseconds);
+    }
+
+    /// <summary>The beat a time falls in: the last beat at or before it.</summary>
+    private long BeatIndexAt(long microseconds)
+    {
+        if (Beats.Count > 1 && microseconds < Beats[^1])
+        {
+            int found = ((List<long>)[.. Beats]).BinarySearch(microseconds);
+            return found >= 0 ? found : ~found - 1;
+        }
+
+        long last = Beats.Count == 0 ? 0 : Beats[^1];
+        return Math.Max(0, Beats.Count - 1) + ((microseconds - last) / BeatMicroseconds);
+    }
 
     /// <summary>
     /// The grid that fits the transcription's onsets best, or null when there are too few onsets or
-    /// they follow no steady beat (free tempo or strong rubato).
+    /// they follow no beat, even one that bends with the playing.
     /// </summary>
     /// <param name="signature">The bars to lay out; null picks the one the bass supports best.</param>
-    /// <param name="sixteenthMicroseconds">The 16th to use, for example half or twice the one found; null searches for it.</param>
-    public static BarGrid? Find(MidiImport import, TimeSignature? signature = null, int? sixteenthMicroseconds = null)
+    /// <param name="stepsPerBeat">How many 16ths a beat is written as, for example twice or half as many as were found; null takes the ones found.</param>
+    public static BarGrid? Find(MidiImport import, TimeSignature? signature = null, int? stepsPerBeat = null)
     {
         ArgumentNullException.ThrowIfNull(import);
         if (signature is { } chosen && !Signatures.Contains(chosen))
@@ -131,10 +220,9 @@ public sealed record BarGrid
             throw new ArgumentException($"Bars of {chosen} are not offered.", nameof(signature));
         }
 
-        if (sixteenthMicroseconds is { } given)
+        if (stepsPerBeat is < FewestStepsPerBeat or > MostStepsPerBeat)
         {
-            ArgumentOutOfRangeException.ThrowIfLessThan(given, ShortestSixteenth, nameof(sixteenthMicroseconds));
-            ArgumentOutOfRangeException.ThrowIfGreaterThan(given, LongestSixteenth, nameof(sixteenthMicroseconds));
+            throw new ArgumentOutOfRangeException(nameof(stepsPerBeat), stepsPerBeat, "A beat is written as 1 to 16 16ths.");
         }
 
         var clock = new Clock(import.Tempos);
@@ -144,39 +232,51 @@ public sealed record BarGrid
             return null;
         }
 
-        long[] times = [.. onsets.Select(onset => onset.Microseconds)];
-        long step;
-        long phase;
-        if (sixteenthMicroseconds is { } fixedStep)
+        Tick origin = onsets[0].Tick;
+        long originUnits = onsets[0].Units;
+        long[] times = [.. onsets.Select(onset => (onset.Units - originUnits) / Clock.UnitsPerMicrosecond)];
+        long[] lows = Lows(onsets, times);
+        long[] beats;
+        int found;
+        long? bassBeat = BassBeat(lows);
+        if (bassBeat is { } period)
         {
-            step = fixedStep;
-            phase = BestPhase(times, step, 64);
+            // The bass keeps a steady beat: follow it, and write it in 16ths, or in triplets of
+            // them when those fit far better.
+            beats = TrackBass(times, lows, period);
+            found = Divisions(origin, times, beats, period);
         }
         else
         {
-            (step, phase) = Search(times);
-            // Onsets that ignore the grid sit a quarter of a step from it on average, as at random.
-            if (6 * Distance(times, step, phase) > times.Length * step)
-            {
-                return null;
-            }
-
+            // The opening gives the 16th; the beat, an eighth, then follows the playing.
+            (long step, _) = Search(times);
             // The shortest notes found are taken as 16ths. When they are eighths, that reads as a
             // quarter slower than 60 a minute; such slow tempos are rare, so halve the step.
             while (step > SlowestUsualSixteenth && step / 2 >= ShortestSearched)
             {
                 step /= 2;
             }
+
+            beats = Track(times, 2 * step);
+            found = 2;
         }
 
-        // The grid point nearest the first onset starts the grid, never after the first note.
-        long firstPoint = phase + (DivideRounded(times[0] - phase, step) * step);
-        Tick origin = clock.TickAtOrBefore(Math.Min(firstPoint, times[0]) * Clock.UnitsPerMicrosecond);
-        origin = origin > onsets[0].Tick ? onsets[0].Tick : origin;
-        long originUnits = clock.Units(origin);
-        int[] steps = [.. onsets.Select(onset => (int)DivideRounded(onset.Units - originUnits, step * Clock.UnitsPerMicrosecond))];
-        int[] lowest = [.. onsets.Select(onset => onset.Lowest)];
+        int perBeat = stepsPerBeat ?? found;
+        long[] sorted = [.. beats.Zip(beats.Skip(1), (a, b) => b - a).Order()];
+        long sixteenth = Math.Clamp(sorted[sorted.Length / 2] / perBeat, ShortestSixteenth, LongestSixteenth);
+        var grid = new BarGrid(origin, (int)sixteenth, TimeSignature.CommonTime, [0], beats, perBeat);
 
+        // Onsets that ignore the beat sit a quarter of a step from it on average, as at random, and a
+        // beat that bends to follow them still leaves them an eighth of a step away. A bass that
+        // keeps the beat is evidence enough, however freely the hands around it play.
+        long[] positions = [.. times.Select(grid.ThousandthsOfSteps)];
+        if (bassBeat is null && stepsPerBeat is null && 8 * Distance(positions) > positions.Length * 1000L)
+        {
+            return null;
+        }
+
+        int[] steps = [.. positions.Select(position => (int)((position + 500) / 1000))];
+        int[] lowest = [.. onsets.Select(onset => onset.Lowest)];
         TimeSignature picked;
         Layout layout;
         if (signature is { } wanted)
@@ -189,7 +289,163 @@ public sealed record BarGrid
             (picked, layout) = Pick(steps, lowest);
         }
 
-        return new BarGrid(origin, (int)step, picked, layout.Starts);
+        return new BarGrid(origin, (int)sixteenth, picked, layout.Starts, beats, perBeat);
+    }
+
+    /// <summary>The summed distance of positions, in thousandths of a 16th, to the nearest 16th.</summary>
+    private static long Distance(long[] positions) => positions.Sum(position => Math.Min(position % 1000, 1000 - (position % 1000)));
+
+    /// <summary>
+    /// When the onsets that are the lowest of their neighbours and below middle C fall: where the bass
+    /// plays, in microseconds after the first onset.
+    /// </summary>
+    private static long[] Lows(Onset[] onsets, long[] times)
+    {
+        var lows = new List<long>();
+        for (int i = 0; i < onsets.Length; i++)
+        {
+            int from = Math.Max(0, i - 3), to = Math.Min(onsets.Length, i + 4);
+            if (onsets[i].Lowest < MiddleC && onsets[from..to].All(other => other.Lowest >= onsets[i].Lowest))
+            {
+                lows.Add(times[i]);
+            }
+        }
+
+        return [.. lows];
+    }
+
+    /// <summary>
+    /// The beat the bass keeps, or null when it keeps none: the typical time between bass notes, when
+    /// most of those times are about that beat, half of it or twice it.
+    /// </summary>
+    private static long? BassBeat(long[] lows)
+    {
+        if (lows.Length < MinOnsets)
+        {
+            return null;
+        }
+
+        long[] gaps = [.. lows.Zip(lows.Skip(1), (a, b) => b - a)];
+        long[] usable = [.. gaps.Where(gap => gap is >= ShortestBassBeat and <= LongestBassBeat).Order()];
+        if (usable.Length < MinOnsets)
+        {
+            return null;
+        }
+
+        long beat = usable[usable.Length / 2];
+        static bool Near(long gap, long length) => 5 * Math.Abs(gap - length) < length;
+        int steady = gaps.Count(gap => Near(gap, beat) || Near(gap, beat / 2) || Near(gap, 2 * beat));
+        return 10 * steady >= 6 * gaps.Length ? beat : null;
+    }
+
+    /// <summary>
+    /// Beats of the bass, each moved to the bass note nearest where it is expected, or failing that to
+    /// any onset close to it, with the expected length following the last few beats. The beats before
+    /// the first bass note count back from it, so that the first beat is at the first onset.
+    /// </summary>
+    private static long[] TrackBass(long[] times, long[] lows, long period)
+    {
+        var beats = new List<long> { 0 };
+        long first = lows[0];
+        for (long back = DivideRounded(first, period) - 1; back >= 1; back--)
+        {
+            if (first - (back * period) >= beats[^1] + (period / 2))
+            {
+                beats.Add(first - (back * period));
+            }
+        }
+
+        if (first > beats[^1])
+        {
+            beats.Add(first);
+        }
+
+        long beat = period, at = beats[^1], last = times[^1];
+        long shortest = period * 3 / 5, longest = period * 8 / 5;
+        while (at < last)
+        {
+            long expected = at + beat;
+            long next = Nearest(lows, expected, beat / 4, at + (beat * 3 / 10))
+                ?? Nearest(times, expected, beat / 8, at)
+                ?? expected;
+            beat = Math.Clamp(((3 * beat) + (next - at)) / 4, shortest, longest);
+            beats.Add(next);
+            at = next;
+        }
+
+        return [.. beats];
+    }
+
+    /// <summary>
+    /// How many 16ths a bass beat is written as: the fewest of 2, 4, 8 or 16 that leave a 16th no
+    /// longer than <see cref="SlowestBassSixteenth"/>, or half as many again when triplets of them
+    /// leave the onsets far closer to the grid.
+    /// </summary>
+    private static int Divisions(Tick origin, long[] times, long[] beats, long period)
+    {
+        int straight = 2;
+        while (straight < 16 && period / straight > SlowestBassSixteenth)
+        {
+            straight *= 2;
+        }
+
+        int triple = straight * 3 / 2;
+        long Cost(int steps)
+        {
+            var grid = new BarGrid(origin, ShortestSixteenth, TimeSignature.CommonTime, [0], beats, steps);
+            return Distance([.. times.Select(grid.ThousandthsOfSteps)]);
+        }
+
+        return triple <= MostStepsPerBeat && 10 * Cost(triple) < 6 * Cost(straight) ? triple : straight;
+    }
+
+    /// <summary>The time nearest to <paramref name="expected"/>, closer than <paramref name="reach"/> and later than <paramref name="after"/>.</summary>
+    private static long? Nearest(long[] times, long expected, long reach, long after)
+    {
+        int index = Array.BinarySearch(times, expected);
+        index = index >= 0 ? index : ~index;
+        long? found = null;
+        long nearest = reach;
+        foreach (int candidate in new[] { index - 1, index })
+        {
+            if (candidate >= 0 && candidate < times.Length && times[candidate] > after && Math.Abs(times[candidate] - expected) < nearest)
+            {
+                nearest = Math.Abs(times[candidate] - expected);
+                found = times[candidate];
+            }
+        }
+
+        return found;
+    }
+
+    /// <summary>
+    /// Beats an eighth apart at first, each moved to the onset nearest where it is expected, within a
+    /// quarter of a beat, with the expected length following the last few beats: a tempo that bends
+    /// with the playing. Where nothing is played, the beat goes on at the tempo it had.
+    /// </summary>
+    private static long[] Track(long[] times, long period)
+    {
+        var beats = new List<long> { 0 };
+        long beat = period, at = 0, last = times[^1];
+        long shortest = period * 3 / 5, longest = period * 8 / 5;
+        while (at < last)
+        {
+            long expected = at + beat;
+            long next = Nearest(times, expected, beat / 4, at) ?? expected;
+            beat = Math.Clamp(((3 * beat) + (next - at)) / 4, shortest, longest);
+            beats.Add(next);
+            at = next;
+        }
+
+        return [.. beats];
+    }
+
+    /// <summary>Where a time falls on the grid, in thousandths of a 16th, rounded down.</summary>
+    private long ThousandthsOfSteps(long microseconds)
+    {
+        long index = BeatIndexAt(microseconds);
+        long from = BeatAt(index), to = BeatAt(index + 1);
+        return StepsPerBeat * ((index * 1000) + ((microseconds - from) * 1000 / (to - from)));
     }
 
     /// <summary>
@@ -204,8 +460,20 @@ public sealed record BarGrid
 
         var clock = new Clock(midi.Tempos);
         long originUnits = clock.Units(Origin);
-        long unitsPerQuarter = 4L * SixteenthMicroseconds * Clock.UnitsPerMicrosecond;
-        QuarterFraction At(Tick tick) => new(Math.Max(0, clock.Units(tick) - originUnits), unitsPerQuarter);
+        QuarterFraction At(Tick tick)
+        {
+            long units = clock.Units(tick) - originUnits;
+            if (units <= 0)
+            {
+                return QuarterFraction.Zero;
+            }
+
+            long index = BeatIndexAt(units / Clock.UnitsPerMicrosecond);
+            long from = BeatAt(index) * Clock.UnitsPerMicrosecond;
+            long length = (BeatAt(index + 1) * Clock.UnitsPerMicrosecond) - from;
+            return new QuarterFraction(StepsPerBeat * ((index * length) + (units - from)), 4 * length);
+        }
+
         Tick Moved(Tick tick) => CanonicalTime.ToTick(At(tick)).Tick;
         Note Placed(Note note)
         {
@@ -226,11 +494,28 @@ public sealed record BarGrid
         MeterChange[] changes = [new MeterChange(Tick.Zero, Signature), .. BarStarts.Skip(1).Select(start => new MeterChange(new Tick(start * StepTicks), Signature))];
         var meter = new MeterMap(changes, BarStarts[0] * StepTicks);
 
+        // A tempo change on every beat, so the notes sound when they were played.
+        var tempos = new List<MidiTempoChange>();
+        long beatTicks = StepsPerBeat * StepTicks;
+        for (long index = 0; index * beatTicks <= end.Value; index++)
+        {
+            int perQuarter = (int)Math.Clamp((BeatAt(index + 1) - BeatAt(index)) * 4 / StepsPerBeat, 1, int.MaxValue);
+            if (tempos.Count == 0 || tempos[^1].MicrosecondsPerQuarter != perQuarter)
+            {
+                tempos.Add(new MidiTempoChange(new Tick(index * beatTicks), index * beatTicks, perQuarter, IsAssumed: true));
+            }
+
+            if (!FollowsPlaying)
+            {
+                break;
+            }
+        }
+
         MidiKeySignature[] keys = [.. midi.KeySignatures.Select(key => key with { At = Moved(key.At) })];
         var import = midi with
         {
             Notes = midiNotes,
-            Tempos = [new MidiTempoChange(Tick.Zero, 0, MicrosecondsPerQuarter, IsAssumed: true)],
+            Tempos = tempos,
             TimeSignatures = [.. changes.Select(change => new MidiTimeSignature(change.Position, change.Position.Value, Signature.Numerator, Signature.Denominator, IsAssumed: true))],
             Meter = meter,
             KeySignatures = keys,
@@ -261,7 +546,8 @@ public sealed record BarGrid
     /// <summary>What was worked out, for the import report.</summary>
     public string Describe()
     {
-        string text = $"The bars ({Signature}) and the tempo (a quarter at {QuarterNotesPerMinute} a minute) were worked out from the notes, with the bar lines where the bass falls";
+        string tempo = FollowsPlaying ? $"the tempo, which follows the playing (a quarter at about {QuarterNotesPerMinute} a minute)" : $"the tempo (a quarter at {QuarterNotesPerMinute} a minute)";
+        string text = $"The bars ({Signature}) and {tempo} were worked out from the notes, with the bar lines where the bass falls";
         text += HasPickup ? $", after a pickup of {BarStarts[0]} 16ths" : "";
         text += ShortBarCount switch
         {
@@ -348,13 +634,6 @@ public sealed record BarGrid
                 best = (step, phase, cost);
             }
         }
-    }
-
-    private static long BestPhase(long[] times, long step, int phases)
-    {
-        (long, long, long) best = (0, 0, 0);
-        Consider(times, step, phases, ref best);
-        return best.Item2;
     }
 
     /// <summary>A least-squares line through the onsets near the grid: the step and phase that fit them best.</summary>

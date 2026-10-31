@@ -13,14 +13,30 @@ namespace MotiffLab.MusicCore.Notation;
 /// <param name="NoteCount">Notes in the input.</param>
 /// <param name="ApproximatedNoteCount">Notes whose onset or end moved to the nearest 32nd note to be written.</param>
 /// <param name="ShortenedNoteCount">Notes written shorter than they are because more than four voices on one staff would have been needed.</param>
-/// <param name="LengthenedNoteCount">Notes heard in a recording that are written up to the next note on their staff, because the gap was shorter than an eighth.</param>
+/// <param name="LengthenedNoteCount">Notes written as heard that are held to the next note on their staff, because the gap was shorter than a quarter.</param>
+/// <param name="CutNoteCount">Notes written as heard that end at the next note on their staff, where the pedal or a held key kept them sounding.</param>
+/// <param name="GraceNoteCount">Notes written as heard that are grace notes: shorter than a 32nd, just before the next.</param>
+/// <param name="WrittenAsHeard">True when the notes were written as heard: on a 16th grid, one line per staff where possible.</param>
 public sealed record GeneratedNotation(
     string Mei,
     IReadOnlyList<NotationStaff> Staves,
     int NoteCount,
     int ApproximatedNoteCount,
     int ShortenedNoteCount,
-    int LengthenedNoteCount = 0);
+    int LengthenedNoteCount = 0,
+    int CutNoteCount = 0,
+    int GraceNoteCount = 0,
+    bool WrittenAsHeard = false)
+{
+    /// <summary>Notes written with an accent because they were played clearly louder than those around them.</summary>
+    public int AccentCount { get; init; }
+
+    /// <summary>Dynamics written from how loud the bars were played.</summary>
+    public int DynamicCount { get; init; }
+
+    /// <summary>Tempo words ("rit.", "accel.", "a tempo") written where the playing slowed down or sped up.</summary>
+    public int TempoWordCount { get; init; }
+}
 
 /// <param name="Number">The MEI staff number, from 1 at the top.</param>
 /// <param name="Track">The track whose notes the staff shows.</param>

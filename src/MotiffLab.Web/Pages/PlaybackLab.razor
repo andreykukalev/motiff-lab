@@ -173,6 +173,14 @@
                     {
                         @* Clicks on the page outside the roll clear the selection, except inside panels marked data-keeps-selection (docs/ui-conventions.md). *@
                         <div class="score-panel" data-keeps-selection>
+                            @if (_heard && shown.Generated is not null)
+                            {
+                                @* Notes heard in a recording (0016): written for reading, or as close to the playing as notation goes. *@
+                                <div class="row" role="radiogroup" aria-label="@Text["score.heardMode"]">
+                                    <label><input type="radio" name="heard-mode" checked="@_readable" @onchange="() => SetReadable(true)" /> @Text["score.readable"]</label>
+                                    <label><input type="radio" name="heard-mode" checked="@(!_readable)" @onchange="() => SetReadable(false)" /> @Text["score.asPlayed"]</label>
+                                </div>
+                            }
                             <ScoreView Source="shown" Range="ShownRange" Phrases="ScorePhrases" Highlight="_highlight?.Places" HoldHeight="_alternating" PencilKey="ShownPencilKey" BarPicked="OnScoreBarPickedAsync" />
                             <p class="meta">@ScoreNote(shown)</p>
                         </div>
@@ -767,8 +775,14 @@
     /// <summary>Whether the selection has a melody over an accompaniment.</summary>
     private bool _layered;
 
-    /// <summary>For notes heard in a recording, short gaps are written as held notes (decision record 0016).</summary>
-    private bool _holdShortGaps;
+    /// <summary>The notes were heard in a recording (decision record 0016).</summary>
+    private bool _heard;
+
+    /// <summary>Notes heard in a recording are written for reading; otherwise as close to the playing as notation goes, with how they were played marked.</summary>
+    private bool _readable = true;
+
+    /// <summary>For notes heard in a recording, which have no key signature: the key the score is written in, worked out from the notes.</summary>
+    private MusicalKey? _heardKey;
 
     /// <summary>Which notes the next step of the Selection tab changes, for the operations that can be limited.</summary>
     private OperationScope _scope = OperationScope.All;
@@ -1056,7 +1070,7 @@
         _accents = null;
         _phraseMarks = PhraseMarks.None;
         _characterContext = new CharacterContext(score.Tempos, TempoAssumed: false, FromNotation: false);
-        _holdShortGaps = false;
+        (_heard, _heardKey) = (false, null);
         await LoadAsync((score, meter, notes), FurElise.Title, notation, musicXml: null, keys: [FurElise.Key]);
         // Für Elise has no project, so the address no longer names one.
         if (ProjectId is not null)
@@ -1158,10 +1172,15 @@
         _characterContext = CharacterContext.FromPiece(piece);
         // MIDI has no slurs or repeat signs; rests still mark phrase boundaries.
         _phraseMarks = piece.MusicXml?.PhraseMarks ?? PhraseMarks.None;
-        _holdShortGaps = Transcribed.IsHeard(piece);
+        _heard = Transcribed.IsHeard(piece);
+        _heardKey = _heard && piece.Keys.Count == 0 ? Transcribed.KeyOf(piece.Notes) : null;
         if (piece.Midi is { } midi)
         {
-            await LoadAsync((PlaybackScore.FromMidi(midi), piece.Meter, piece.Notes), piece.FileName, NotationGenerator.FromMidi(midi, piece.FileName, _holdShortGaps), musicXml: null, piece.Keys);
+            var score = PlaybackScore.FromMidi(midi);
+            GeneratedNotation notation = _heard
+                ? HeardNotation(midi.Notes, midi.Meter, _heardKey is { } heardKey ? [new KeyChange(Tick.Zero, heardKey.Fifths)] : [], midi.End, piece.FileName, score.Tempos)
+                : NotationGenerator.FromMidi(midi, piece.FileName);
+            await LoadAsync((score, piece.Meter, piece.Notes), piece.FileName, notation, musicXml: null, piece.Keys);
             return;
         }
 
@@ -1224,7 +1243,35 @@
     }
 
     /// <summary>What the shown score is, and what was inferred to write it (decision record 0008).</summary>
-    private static string ScoreNote(ScoreSource source)
+    /// <summary>The key signatures the score is written with: the piece's, or for notes heard in a recording, the key worked out from them.</summary>
+    private IEnumerable<KeyChange> NotationKeys() => _heardKey is { } heardKey
+        ? [new KeyChange(Tick.Zero, heardKey.Fifths)]
+        : _keys.Select(key => new KeyChange(key.At, Math.Clamp(key.Fifths, -7, 7)));
+
+    /// <summary>The piece's notes engraved, in the mode the player chose for notes heard in a recording.</summary>
+    private GeneratedNotation Notation(IEnumerable<Note> notes, Tick end) =>
+        _heard ? HeardNotation(notes, _meter!, NotationKeys(), end, _title, _score!.Tempos) : NotationGenerator.Generate(notes, _meter!, NotationKeys(), end, _title);
+
+    private GeneratedNotation HeardNotation(IEnumerable<Note> notes, MeterMap meter, IEnumerable<KeyChange> keys, Tick end, string? title, IReadOnlyList<PlaybackTempo> tempos) =>
+        NotationGenerator.Generate(notes, meter, keys, end, title, asHeard: _readable, playedTempos: _readable ? null : tempos);
+
+    /// <summary>Notes heard in a recording, written for reading or as played.</summary>
+    private void SetReadable(bool readable)
+    {
+        if (_readable == readable || _score is null || _notes is null)
+        {
+            return;
+        }
+
+        _readable = readable;
+        _generated = ScoreSource.FromNotes(Notation(_notes, _score.End));
+        if (_variationScore is not null && _variation is { } variation)
+        {
+            _variationScore = VariationScore(variation);
+        }
+    }
+
+    private string ScoreNote(ScoreSource source)
     {
         if (source.Generated is not { } notation)
         {
@@ -1232,19 +1279,35 @@
         }
 
         var parts = new List<string> { "Generated from the notes: note values, voices and spelling are inferred." };
-        if (notation.ApproximatedNoteCount > 0)
+        if (notation.WrittenAsHeard)
+        {
+            parts.Add("Written for reading: onsets at the nearest 16th, each chord with one length, and each note up to the next one on its staff, as the pedal held it or a gap shorter than a quarter left it.");
+            if (notation.GraceNoteCount > 0)
+            {
+                parts.Add($"{notation.GraceNoteCount} very short notes just before the next are grace notes.");
+            }
+        }
+        else if (_heard)
+        {
+            parts.Add("Written as played: onsets and lengths at the nearest 32nd.");
+            if (notation.DynamicCount + notation.AccentCount + notation.TempoWordCount > 0)
+            {
+                parts.Add("Dynamics and accents are worked out from how loud the notes were played, and rit., accel. and a tempo from where the playing slows down or speeds up.");
+            }
+        }
+        else if (notation.ApproximatedNoteCount > 0)
         {
             parts.Add($"{notation.ApproximatedNoteCount} of {notation.NoteCount} notes are shown at the nearest 32nd.");
+        }
+
+        if (_heard && _heardKey is { } key)
+        {
+            parts.Add($"The key signature ({key.Name}) is worked out from the notes.");
         }
 
         if (notation.ShortenedNoteCount > 0)
         {
             parts.Add($"{notation.ShortenedNoteCount} notes are shown shorter to fit four voices per staff.");
-        }
-
-        if (notation.LengthenedNoteCount > 0)
-        {
-            parts.Add($"{notation.LengthenedNoteCount} notes heard in the recording are shown held to the next note, as the gap was shorter than an eighth.");
         }
 
         if (notation.Staves.Any(staff => staff.IsSplitInferred))
@@ -1784,8 +1847,7 @@
         _score = PlaybackScore.Create(_notes, _score!.Tempos, _meter!, _score.End);
         _lastBar = MotifSelector.LastBar(_meter!, _score.End);
         _phrases = PhraseMap.Suggest(_notes, _meter!, _phraseMarks, _score.End, _phrases?.Edits);
-        IEnumerable<KeyChange> keys = _keys.Select(key => new KeyChange(key.At, Math.Clamp(key.Fifths, -7, 7)));
-        _generated = ScoreSource.FromNotes(NotationGenerator.Generate(_notes, _meter!, keys, _score.End, _title, _holdShortGaps));
+        _generated = ScoreSource.FromNotes(Notation(_notes, _score.End));
         if (!edits.IsEmpty && _scoreChoice == ScoreChoice.AsWritten)
         {
             // The file as written does not know the corrections.
@@ -2193,8 +2255,7 @@
     {
         Note[] notes = InPlaceNotes(variation);
         Tick end = notes.Length == 0 ? _score!.End : notes.Max(note => note.Span.End);
-        IEnumerable<KeyChange> keys = _keys.Select(key => new KeyChange(key.At, Math.Clamp(key.Fifths, -7, 7)));
-        return ScoreSource.FromNotes(NotationGenerator.Generate(notes, _meter!, keys, end > _score!.End ? end : _score.End, _title, _holdShortGaps));
+        return ScoreSource.FromNotes(Notation(notes, end > _score!.End ? end : _score.End));
     }
 
     /// <summary>The piece's notes with the variation's in place of the ones it changed or removed.</summary>

@@ -117,6 +117,23 @@ public static partial class MotifAnalyzer
             }
         }
 
+        if (context.TempoEstimated && changes.Count > 0)
+        {
+            // A tempo that follows the playing changes on every beat: its range and typical value say more than a list.
+            int[] beats = [.. new[] { tempos[first].MicrosecondsPerQuarter }.Concat(changes.Select(tempo => tempo.MicrosecondsPerQuarter)).Order()];
+            string typical = Bpm(beats[beats.Length / 2], w), slowest = Bpm(beats[^1], w), fastest = Bpm(beats[0], w);
+            return new MotifFact(
+                "character.tempo",
+                FactLens.Character,
+                FactCertainty.Inferred,
+                w.T(
+                    $"Tempo: follows the playing, a quarter at about {typical} BPM, from {slowest} to {fastest} BPM.",
+                    $"Темп: следует за игрой, четверть около {typical} BPM, от {slowest} до {fastest} BPM."),
+                w.T(
+                    "Worked out from the notes heard in the recording, with the bars: a beat that bends with the playing, in quarter notes per minute, rounded to a tenth for display; the typical value is the median beat.",
+                    "Выведено из нот, услышанных в записи, вместе с тактами: доля, которая гнётся вместе с игрой, в четвертях в минуту, с округлением до десятых для показа; типичное значение — медианная доля."));
+        }
+
         // Each change is a place: from where it takes effect to the next change or the end of the selection.
         FactPlace[] places = [.. changes.Select((tempo, i) => new FactPlace(
             TempoAt(tempo, meter, w),
@@ -143,8 +160,8 @@ public static partial class MotifAnalyzer
             "Прочитано по темповой карте файла, в четвертях в минуту, с округлением до десятых для показа.");
         MotifFact fact = context.TempoEstimated && first == 0
             ? new MotifFact("character.tempo", FactLens.Character, FactCertainty.Inferred, text, w.T(
-                "Worked out from the notes heard in the recording, with the bars: the steady beat their onsets fit best, in quarter notes per minute, rounded to a tenth for display.",
-                "Выведено из нот, услышанных в записи, вместе с тактами: ровная доля, к которой лучше всего подходят их атаки, в четвертях в минуту, с округлением до десятых для показа."))
+                "Worked out from the notes heard in the recording, with the bars: the beat their onsets fit best, in quarter notes per minute, rounded to a tenth for display.",
+                "Выведено из нот, услышанных в записи, вместе с тактами: доля, к которой лучше всего подходят их атаки, в четвертях в минуту, с округлением до десятых для показа."))
             : assumed
             ? new MotifFact("character.tempo", FactLens.Character, FactCertainty.Inferred, text, w.T(
                 $"The file states no tempo at its start, so the default of {Bpm(PlaybackTempo.DefaultMicrosecondsPerQuarter, w)} BPM is assumed. {basis}",
