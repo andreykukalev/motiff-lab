@@ -84,4 +84,14 @@ public sealed record RecordingRange
 
         return new(RecordingMilliseconds, Math.Min(from, to - least), to);
     }
+
+    /// <summary>
+    /// The same length of stretch starting at <paramref name="fromMilliseconds"/>, as when the player drags the
+    /// whole selection along the recording; it stops at the recording's start and end.
+    /// </summary>
+    public RecordingRange MovedTo(long fromMilliseconds)
+    {
+        long from = Math.Clamp(fromMilliseconds, 0, RecordingMilliseconds - Milliseconds);
+        return new(RecordingMilliseconds, from, from + Milliseconds);
+    }
 }

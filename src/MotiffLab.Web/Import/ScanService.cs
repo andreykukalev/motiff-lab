@@ -243,6 +243,23 @@ public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text
     public async Task PlayBetweenAsync(ElementReference player, long fromMilliseconds, long toMilliseconds) =>
         await (await RecordingModuleAsync()).InvokeVoidAsync("playBetween", player, fromMilliseconds, toMilliseconds);
 
+    /// <summary>
+    /// Wires up the selection editor over the held recording: dragging its edges or the whole selection, dragging the
+    /// play position, the space bar and arrow keys. The page hears of changes through <paramref name="page"/>'s
+    /// <c>DragRange</c> and <c>PlayingChanged</c>.
+    /// </summary>
+    public async Task AttachEditorAsync<T>(ElementReference editor, ElementReference player, DotNetObjectReference<T> page)
+        where T : class =>
+        await (await RecordingModuleAsync()).InvokeVoidAsync("attach", editor, player, page);
+
+    /// <summary>Plays or pauses the page's player.</summary>
+    public async Task TogglePlayAsync(ElementReference player) =>
+        await (await RecordingModuleAsync()).InvokeVoidAsync("toggle", player);
+
+    /// <summary>Moves the page's player by some milliseconds, back when negative.</summary>
+    public async Task SeekByAsync(ElementReference player, long milliseconds) =>
+        await (await RecordingModuleAsync()).InvokeVoidAsync("seekBy", player, milliseconds);
+
     private async Task<IJSObjectReference> RecordingModuleAsync() =>
         _recording ??= await js.InvokeAsync<IJSObjectReference>("import", "./js/import/recording.js");
 

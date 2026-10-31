@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { SAMPLE_RATE, encodeWav, forget, load, mixToMono, peaksOf, soundBetween } from "../../src/MotiffLab.Web/wwwroot/js/import/recording.js";
+import { SAMPLE_RATE, clock, encodeWav, forget, load, millisecondAt, mixToMono, peaksOf, soundBetween } from "../../src/MotiffLab.Web/wwwroot/js/import/recording.js";
 
 test("stereo is averaged to mono and cut to the length asked for", () => {
     const left = Float32Array.from([1, 0.5, -1, 0.25]);
@@ -78,4 +78,19 @@ test("a decoded recording is held, and only the chosen stretch of it is written 
         URL.createObjectURL = createObjectURL;
         URL.revokeObjectURL = revokeObjectURL;
     }
+});
+
+test("times are written as the page writes them, to a tenth of a second", () => {
+    assert.equal(clock(0), "0:00.0");
+    assert.equal(clock(752_049), "12:32.0");
+    assert.equal(clock(1_000_990), "16:40.9");
+    assert.equal(clock(3_725_400), "1:02:05.4");
+    assert.equal(clock(-5), "0:00.0");
+});
+
+test("a point across the shape is the millisecond under it, within the recording", () => {
+    assert.equal(millisecondAt(150, 100, 400, 600_000), 75_000);
+    assert.equal(millisecondAt(50, 100, 400, 600_000), 0);
+    assert.equal(millisecondAt(900, 100, 400, 600_000), 600_000);
+    assert.equal(millisecondAt(150, 100, 0, 600_000), 0);
 });
