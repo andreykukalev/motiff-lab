@@ -110,10 +110,43 @@
                     </label>
                 }
 
-                <label class="dropzone @(_transcribing ? "busy" : null)">
-                    <InputFile @ref="_recordingInput" OnChange="TranscribeFileAsync" accept="@ScanService.AcceptedRecordings" disabled="@(_reading || _scanning || _transcribing || !(Scans.IsLocal || _sendSound))" aria-label="@Text["transcribe.choose"]" />
-                    <span>@(!_transcribing ? Text["transcribe.drop"] : _parts > 1 ? Text.Format("transcribe.part", _part, _parts) : Text["transcribe.busy"])</span>
+                <label class="dropzone @(_transcribing || _decoding ? "busy" : null)">
+                    <InputFile @ref="_recordingInput" OnChange="PickRecordingAsync" accept="@ScanService.AcceptedRecordings" disabled="@(_reading || _scanning || _transcribing || _decoding || !(Scans.IsLocal || _sendSound))" aria-label="@Text["transcribe.choose"]" />
+                    <span>@(_decoding ? Text["transcribe.decoding"] : _loaded is not null && !_transcribing ? Text["transcribe.dropAnother"] : !_transcribing ? Text["transcribe.drop"] : _parts > 1 ? Text.Format("transcribe.part", _part, _parts) : Text["transcribe.busy"])</span>
                 </label>
+
+                @* The stretch to hear (0014): the recording's length and shape, a player to find the piece by ear, the two
+                   ends, and before sending, how many parts, and so requests to the server, the stretch takes. *@
+                @if (_loaded is { } loaded && _range is { } range)
+                {
+                    <section class="recording-range" aria-labelledby="range-heading">
+                        <h2 id="range-heading">@Text["transcribe.rangeHeading"]</h2>
+                        <p class="meta">@Text.Format("transcribe.length", _recordingName, Clock(loaded.Milliseconds))</p>
+                        <svg class="waveform" viewBox="0 0 @loaded.Peaks.Length 100" preserveAspectRatio="none" role="img" aria-label="@Text.Format("transcribe.waveform", Clock(range.FromMilliseconds), Clock(range.ToMilliseconds), Clock(loaded.Milliseconds))">
+                            <rect class="chosen" x="@Across(range.FromMilliseconds)" y="0" width="@Across(range.ToMilliseconds - range.FromMilliseconds)" height="100" />
+                            <path d="@_wave" />
+                        </svg>
+                        <audio @ref="_player" controls preload="metadata" src="@loaded.Url" aria-label="@Text["transcribe.player"]"></audio>
+                        <div class="range-end">
+                            <label for="range-from">@Text["transcribe.from"]</label>
+                            <input id="range-from" type="range" min="0" max="@loaded.Milliseconds" step="1000" value="@range.FromMilliseconds" @oninput="args => MoveRange(args, start: true)" disabled="@_transcribing" aria-valuetext="@Clock(range.FromMilliseconds)" />
+                            <output for="range-from">@Clock(range.FromMilliseconds)</output>
+                            <button @onclick="() => RangeHereAsync(start: true)" disabled="@_transcribing">@Text["transcribe.here"]</button>
+                        </div>
+                        <div class="range-end">
+                            <label for="range-to">@Text["transcribe.to"]</label>
+                            <input id="range-to" type="range" min="0" max="@loaded.Milliseconds" step="1000" value="@range.ToMilliseconds" @oninput="args => MoveRange(args, start: false)" disabled="@_transcribing" aria-valuetext="@Clock(range.ToMilliseconds)" />
+                            <output for="range-to">@Clock(range.ToMilliseconds)</output>
+                            <button @onclick="() => RangeHereAsync(start: false)" disabled="@_transcribing">@Text["transcribe.here"]</button>
+                        </div>
+                        <p class="meta">@Text.Format("transcribe.rangeHow", RecordingRange.MostMilliseconds / 60_000)</p>
+                        <p class="estimate">@Estimate(range)</p>
+                        <div class="actions">
+                            <button @onclick="ListenAsync" disabled="@_transcribing">@Text["transcribe.listen"]</button>
+                            <button class="primary" @onclick="TranscribeRangeAsync" disabled="@(_transcribing || !(Scans.IsLocal || _sendSound))">@Text["transcribe.hearRange"]</button>
+                        </div>
+                    </section>
+                }
             }
         </section>
     }
@@ -165,13 +198,15 @@
             }
             else if (_transcriptionEngine is not null)
             {
-                <p class="meta">@Text.Format("transcribe.heard", _heardSeconds.ToString("0", Text.Culture), _elapsed.TotalSeconds.ToString("0.#", Text.Culture))</p>
+                <p class="meta">@(_heardRange is { IsWhole: false } heardRange
+                    ? Text.Format("transcribe.heardRange", Clock(heardRange.FromMilliseconds), Clock(heardRange.ToMilliseconds), _elapsed.TotalSeconds.ToString("0.#", Text.Culture), Text.Count("transcribe.requests", _requests))
+                    : Text.Format("transcribe.heard", _heardSeconds.ToString("0", Text.Culture), _elapsed.TotalSeconds.ToString("0.#", Text.Culture)))</p>
                 <section class="scan-check" aria-label="@Text["transcribe.checkHeading"]">
                     <h3>@Text["transcribe.checkHeading"]</h3>
                     <p>@Text["transcribe.draft"]</p>
                     @if (_cut)
                     {
-                        <p class="notice">@Text.Format("transcribe.cut", _cutMinutes.ToString("0.#", Text.Culture))</p>
+                        <p class="notice">@Text.Format("transcribe.cut", (ScanService.ServerRecordingSeconds / 60.0).ToString("0.#", Text.Culture))</p>
                     }
                 </section>
                 @* Bars and tempo worked out from the notes (0016): an inference the player can change or turn off. *@
@@ -334,7 +369,20 @@
     private string? _transcriptionEngine;
     private double _heardSeconds;
     private bool _cut;
-    private double _cutMinutes;
+
+    /// <summary>A recording this browser decoded and holds, for the player to choose the stretch to hear; null before one is picked or when it could not be decoded.</summary>
+    private LoadedRecording? _loaded;
+    private RecordingRange? _range;
+    private string _recordingName = "";
+    private bool _decoding;
+
+    /// <summary>The recording's shape as one SVG path, worked out once when it is picked.</summary>
+    private string _wave = "";
+    private ElementReference _player;
+
+    /// <summary>The stretch the last transcription heard, and how many requests it took; null when the file itself was sent.</summary>
+    private RecordingRange? _heardRange;
+    private int _requests;
 
     /// <summary>While a long recording is heard in parts: the part being heard, from 1, and how many there are.</summary>
     private int _part;
@@ -372,7 +420,11 @@
 
     protected override void OnInitialized() => Text.Changed += OnTextChanged;
 
-    public void Dispose() => Text.Changed -= OnTextChanged;
+    public void Dispose()
+    {
+        Text.Changed -= OnTextChanged;
+        _ = Scans.ForgetRecordingAsync();
+    }
 
     private void OnTextChanged() => _ = InvokeAsync(StateHasChanged);
 
@@ -395,6 +447,8 @@
         {
             // Another way in starts afresh: what was picked on the last screen is not this one's.
             (_route, _piece, _rejection, _scan, _transcriptionEngine, _timing) = (route, null, null, null, null, null);
+            (_loaded, _range, _wave) = (null, null, "");
+            _ = Scans.ForgetRecordingAsync();
         }
     }
 
@@ -487,23 +541,42 @@
     }
 
     /// <summary>
-    /// Takes the sound out of a recording on this device, sends it to the scan server to be heard, and imports
-    /// the MIDI that comes back with every note marked as detected (0014). A browser that cannot decode the
-    /// file sends the file itself, when it is small enough to pass through the app.
+    /// Decodes a picked recording on this device and shows its length and shape, for the player to choose the
+    /// stretch to hear; nothing is sent yet. A browser that cannot decode the file sends the file itself,
+    /// when it is small enough to pass through the app, and the server hears its first minutes.
     /// </summary>
-    private async Task TranscribeFileAsync(InputFileChangeEventArgs args)
+    private async Task PickRecordingAsync(InputFileChangeEventArgs args)
     {
         _fileName = args.File.Name;
-        (_heard, _bars, _barsOn) = (null, null, false);
-        _piece = null;
-        _scan = null;
-        _transcriptionEngine = null;
-        _timing = null;
-        _rejection = null;
-        _start = 0;
+        ClearTranscription();
+        await ForgetRecordingAsync();
         if (args.File.Size == 0)
         {
             _rejection = new(ImportRejectionReason.Empty, Text["transcribe.empty"], Text["transcribe.tooLargeTip"]);
+            return;
+        }
+
+        _decoding = true;
+        LoadedRecording? loaded;
+        try
+        {
+            loaded = _recordingInput?.Element is { } input ? await Scans.LoadRecordingAsync(input) : null;
+        }
+        finally
+        {
+            _decoding = false;
+        }
+
+        if (loaded is { Milliseconds: > 0 })
+        {
+            (_loaded, _range, _recordingName) = (loaded, RecordingRange.Start(loaded.Milliseconds), args.File.Name);
+            _wave = WavePath(loaded.Peaks);
+            return;
+        }
+
+        if (args.File.Size > ScanService.MaxRecordingUploadBytes)
+        {
+            _rejection = new(ImportRejectionReason.TooLarge, Text["transcribe.tooLarge"], Text["transcribe.tooLargeTip"]);
             return;
         }
 
@@ -511,106 +584,212 @@
         try
         {
             var watch = Stopwatch.StartNew();
-            RecordingSound? sound = _recordingInput?.Element is { } input ? await Scans.SoundOfAsync(input) : null;
-            byte[] upload;
-            if (sound is not null)
+            await using Stream stream = args.File.OpenReadStream(ScanService.MaxRecordingUploadBytes);
+            using var memory = new MemoryStream();
+            await stream.CopyToAsync(memory);
+
+            // The server is not told the file's name: it reads the format from the content.
+            TranscriptionResult result = await Scans.TranscribeAsync("recording", memory.ToArray());
+            if (result.Midi is null)
             {
-                upload = sound.Wav;
-            }
-            else if (args.File.Size > ScanService.MaxRecordingUploadBytes)
-            {
-                _rejection = new(ImportRejectionReason.TooLarge, Text["transcribe.tooLarge"], Text["transcribe.tooLargeTip"]);
+                _rejection = new(ImportRejectionReason.NotMusic, result.Problem!, Text["transcribe.notHeardTip"]);
                 return;
             }
-            else
+
+            Show(args.File.Name, result.Midi, result, watch.Elapsed, result.Seconds, result.Cut, null, 1);
+        }
+        finally
+        {
+            _transcribing = false;
+        }
+    }
+
+    /// <summary>
+    /// Sends the sound of the chosen stretch to the scan server to be heard, in parts when it is longer than
+    /// the server hears at once, and imports the MIDI that comes back with every note marked as detected (0014).
+    /// </summary>
+    private async Task TranscribeRangeAsync()
+    {
+        if (_range is not { } range)
+        {
+            return;
+        }
+
+        ClearTranscription();
+        _fileName = _recordingName;
+        _transcribing = true;
+        try
+        {
+            var watch = Stopwatch.StartNew();
+            if (await Scans.SoundBetweenAsync(range.FromMilliseconds, range.ToMilliseconds) is not { } sound)
             {
-                await using Stream stream = args.File.OpenReadStream(ScanService.MaxRecordingUploadBytes);
-                using var memory = new MemoryStream();
-                await stream.CopyToAsync(memory);
-                upload = memory.ToArray();
+                _rejection = new(ImportRejectionReason.NotMusic, Text["transcribe.failed"], Text["transcribe.tooLargeTip"]);
+                return;
             }
 
-            // The server is not told the file's name: it reads the format from the content. A sound longer
-            // than the server hears at once goes in overlapping parts, one after another, and the notes are joined.
-            IReadOnlyList<RecordingPart> parts = sound is null ? [] : RecordingParts.Plan(Math.Max(1, sound.Milliseconds));
-            TranscriptionResult result;
+            // A stretch longer than the server hears at once goes in overlapping parts, one after another, and the
+            // notes are joined; the notes' times start at the stretch's start.
+            IReadOnlyList<RecordingPart> parts = RecordingParts.Plan(Math.Max(1, sound.Milliseconds));
+            var heard = new List<(RecordingPart, byte[])>();
+            TranscriptionResult result = TranscriptionResult.Failed("");
+            _parts = parts.Count;
+            foreach (RecordingPart part in parts)
+            {
+                _part = part.Index + 1;
+                StateHasChanged();
+                byte[] upload = parts.Count == 1 ? sound.Wav : sound.Part(part.SendFromMilliseconds, part.SendToMilliseconds);
+                TranscriptionResult partResult = await Scans.TranscribeAsync("recording.wav", upload);
+                if (partResult.Midi is { } partMidi)
+                {
+                    result = partResult;
+                    heard.Add((part, partMidi));
+                }
+                else if (partResult.NothingHeard && parts.Count > 1)
+                {
+                    // A quiet stretch: the other parts still have notes.
+                    result = heard.Count == 0 ? partResult : result;
+                }
+                else
+                {
+                    _rejection = new(ImportRejectionReason.NotMusic, partResult.Problem!, Text["transcribe.notHeardTip"]);
+                    return;
+                }
+            }
+
+            if (heard.Count == 0)
+            {
+                _rejection = new(ImportRejectionReason.NotMusic, result.Problem!, Text["transcribe.notHeardTip"]);
+                return;
+            }
+
             byte[] midi;
-            if (parts.Count > 1)
+            try
             {
-                var heard = new List<(RecordingPart, byte[])>();
-                result = TranscriptionResult.Failed("");
-                _parts = parts.Count;
-                foreach (RecordingPart part in parts)
-                {
-                    _part = part.Index + 1;
-                    StateHasChanged();
-                    TranscriptionResult partResult = await Scans.TranscribeAsync("recording.wav", sound!.Part(part.SendFromMilliseconds, part.SendToMilliseconds));
-                    if (partResult.Midi is { } partMidi)
-                    {
-                        result = partResult;
-                        heard.Add((part, partMidi));
-                    }
-                    else if (partResult.NothingHeard)
-                    {
-                        // A quiet stretch: the other parts still have notes.
-                        result = heard.Count == 0 ? partResult : result;
-                    }
-                    else
-                    {
-                        _rejection = new(ImportRejectionReason.NotMusic, partResult.Problem!, Text["transcribe.notHeardTip"]);
-                        return;
-                    }
-                }
-
-                if (heard.Count == 0)
-                {
-                    _rejection = new(ImportRejectionReason.NotMusic, result.Problem!, Text["transcribe.notHeardTip"]);
-                    return;
-                }
-
-                try
-                {
-                    midi = RecordingParts.Join(heard);
-                }
-                catch (MidiImportException)
-                {
-                    _rejection = new(ImportRejectionReason.NotMusic, Text["transcribe.failed"], Text["transcribe.notHeardTip"]);
-                    return;
-                }
+                midi = parts.Count == 1 ? result.Midi! : RecordingParts.Join(heard);
             }
-            else
+            catch (MidiImportException)
             {
-                result = await Scans.TranscribeAsync(sound is null ? "recording" : "recording.wav", upload);
-                if (result.Midi is null)
-                {
-                    _rejection = new(ImportRejectionReason.NotMusic, result.Problem!, Text["transcribe.notHeardTip"]);
-                    return;
-                }
-
-                midi = result.Midi;
-            }
-
-            _elapsed = watch.Elapsed;
-
-            string name = Path.ChangeExtension(args.File.Name, ".mid");
-            PieceImportResult imported = PieceImporter.Import(name, midi);
-            if (imported.Piece is not { } piece)
-            {
-                _rejection = imported.Rejection;
+                _rejection = new(ImportRejectionReason.NotMusic, Text["transcribe.failed"], Text["transcribe.notHeardTip"]);
                 return;
             }
 
-            (_heard, _data, _fileName, _transcriptionEngine) = (Transcribed.Mark(piece), midi, name, result.Engine);
-            (_heardSeconds, _cut) = (sound?.Seconds ?? result.Seconds, sound?.Cut == true || result.Cut);
-            _cutMinutes = (sound is null ? ScanService.ServerRecordingSeconds : ScanService.MaxRecordingSeconds) / 60.0;
-            _bars = BarGrid.Find(piece.Midi!);
-            _barsOn = _bars is not null;
-            ShowBars();
+            Show(_recordingName, midi, result, watch.Elapsed, sound.Seconds, false, range, parts.Count);
         }
         finally
         {
             (_transcribing, _part, _parts) = (false, 0, 0);
         }
+    }
+
+    /// <summary>Imports what the server heard, marked as heard, in the bars worked out from it (0016).</summary>
+    private void Show(string recordingName, byte[] midi, TranscriptionResult result, TimeSpan elapsed, double seconds, bool cut, RecordingRange? range, int requests)
+    {
+        _elapsed = elapsed;
+        string name = Path.ChangeExtension(recordingName, ".mid");
+        PieceImportResult imported = PieceImporter.Import(name, midi);
+        if (imported.Piece is not { } piece)
+        {
+            _rejection = imported.Rejection;
+            return;
+        }
+
+        (_heard, _data, _fileName, _transcriptionEngine) = (Transcribed.Mark(piece), midi, name, result.Engine);
+        (_heardSeconds, _cut, _heardRange, _requests) = (seconds, cut, range, requests);
+        _bars = BarGrid.Find(piece.Midi!);
+        _barsOn = _bars is not null;
+        ShowBars();
+    }
+
+    private void ClearTranscription()
+    {
+        (_heard, _bars, _barsOn) = (null, null, false);
+        _piece = null;
+        _scan = null;
+        _transcriptionEngine = null;
+        _timing = null;
+        _rejection = null;
+        _start = 0;
+        (_heardRange, _requests) = (null, 0);
+    }
+
+    private async Task ForgetRecordingAsync()
+    {
+        (_loaded, _range, _wave) = (null, null, "");
+        await Scans.ForgetRecordingAsync();
+    }
+
+    private void MoveRange(ChangeEventArgs args, bool start)
+    {
+        if (_range is { } range && long.TryParse(args.Value?.ToString(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out long at))
+        {
+            _range = start ? range.WithStart(at) : range.WithEnd(at);
+        }
+    }
+
+    /// <summary>Moves one end of the stretch to where the player is in the recording, to the nearest tenth of a second.</summary>
+    private async Task RangeHereAsync(bool start)
+    {
+        if (_range is { } range)
+        {
+            long at = (long)Math.Round(await Scans.PositionOfAsync(_player) / 100.0) * 100;
+            _range = start ? range.WithStart(at) : range.WithEnd(at);
+        }
+    }
+
+    private async Task ListenAsync()
+    {
+        if (_range is { } range)
+        {
+            await Scans.PlayBetweenAsync(_player, range.FromMilliseconds, range.ToMilliseconds);
+        }
+    }
+
+    /// <summary>
+    /// What hearing the stretch takes, before it is sent: its length, its parts, one request each, and roughly how
+    /// long the server listens, from the sound the requests carry.
+    /// </summary>
+    private string Estimate(RecordingRange range)
+    {
+        int parts = range.Parts.Count;
+        double seconds = range.SentMilliseconds / 1000.0 * ScanService.SecondsPerSecondHeard;
+        string time = seconds < 90
+            ? Text.Format("transcribe.aboutSeconds", (Math.Ceiling(seconds / 10) * 10).ToString("0", Text.Culture))
+            : Text.Format("transcribe.aboutMinutes", Math.Ceiling(seconds / 60).ToString("0", Text.Culture));
+        return Text.Format(
+            parts == 1 ? "transcribe.estimateOne" : "transcribe.estimate",
+            Clock(range.FromMilliseconds),
+            Clock(range.ToMilliseconds),
+            Clock(range.Milliseconds),
+            Text.Count("transcribe.parts", parts),
+            Text.Count("transcribe.requests", parts),
+            time);
+    }
+
+    /// <summary>A time in the recording as m:ss, or h:mm:ss from an hour.</summary>
+    private static string Clock(long milliseconds)
+    {
+        var time = TimeSpan.FromMilliseconds(Math.Max(0, milliseconds));
+        return time.TotalHours >= 1
+            ? $"{(int)time.TotalHours}:{time.Minutes:00}:{time.Seconds:00}"
+            : $"{(int)time.TotalMinutes}:{time.Seconds:00}";
+    }
+
+    /// <summary>A stretch of the recording in the waveform's units, one per loudness bar.</summary>
+    private string Across(long milliseconds) =>
+        _loaded is { } loaded ? (milliseconds * (double)loaded.Peaks.Length / loaded.Milliseconds).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) : "0";
+
+    /// <summary>One vertical line a bar, centred on the middle, as tall as the loudest sample in its stretch.</summary>
+    private static string WavePath(double[] peaks)
+    {
+        var path = new System.Text.StringBuilder();
+        var invariant = System.Globalization.CultureInfo.InvariantCulture;
+        for (int i = 0; i < peaks.Length; i++)
+        {
+            double half = Math.Max(0.5, Math.Clamp(peaks[i], 0, 1) * 48);
+            path.Append(invariant, $"M{i + 0.5:0.#} {50 - half:0.##}V{50 + half:0.##}");
+        }
+
+        return path.ToString();
     }
 
     /// <summary>The transcription in the bars the player chose, or as the engine wrote it.</summary>

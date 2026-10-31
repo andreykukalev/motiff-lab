@@ -1,10 +1,11 @@
 // Transcribing a recording (decision record 0014): Import takes the sound out of a recording in the browser,
-// sends only that sound to the scan server, and opens the MIDI it hears with every note marked as detected.
+// shows its length and shape for the player to choose the stretch to hear, sends only that stretch's sound
+// to the scan server, and opens the MIDI it hears with every note marked as detected.
 // The scan server is played by the test: it answers with what Basic Pitch heard in a synthesised melody.
 // Runs in every engine, since decoding the recording is the browser's own work.
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -38,7 +39,7 @@ async function recording(seconds = 1, rate = 44100) {
         bytes.writeInt16LE(sample, 44 + i * 4);
         bytes.writeInt16LE(sample, 46 + i * 4);
     }
-    const path = join(tmpdir(), "Take 1 at the piano.wav");
+    const path = join(await mkdtemp(join(tmpdir(), "recording-")), "Take 1 at the piano.wav");
     await writeFile(path, bytes);
     return path;
 }
@@ -57,6 +58,12 @@ async function scanServer(page, answer = heard) {
         return route.fulfill({ body: midi, contentType: "audio/midi", headers: { ...cors, "X-Engine": "basic-pitch 0.4.0", "X-Seconds": "1.0", "X-Cut": "false" } });
     });
     return uploads;
+}
+
+/** Picks a recording and, once the browser has read it, sends the stretch chosen (all of it, up to 7 minutes). */
+async function transcribe(page, file) {
+    await page.getByLabel("Choose an audio or video recording to transcribe").setInputFiles(file);
+    await page.getByRole("button", { name: "Transcribe the stretch" }).click();
 }
 
 async function violations(page) {
@@ -78,6 +85,12 @@ test("a recording's sound is sent as mono audio, and its notes open marked as he
 
     await page.goto("/import/recording");
     await page.getByLabel("Choose an audio or video recording to transcribe").setInputFiles(await recording());
+    const range = page.getByRole("region", { name: "Choose what to hear" });
+    await expect(range.getByText("Take 1 at the piano.wav · 0:01 long")).toBeVisible();
+    await expect(range.getByText("heard in one part, so 1 request to the scan server", { exact: false })).toBeVisible();
+    expect(uploads).toHaveLength(0);
+    expect(await violations(page)).toEqual([]);
+    await range.getByRole("button", { name: "Transcribe the stretch" }).click();
     await expect(page.getByText("Transcribed by basic-pitch 0.4.0")).toBeVisible();
     await expect(page.locator(".report .summary")).toContainText("7 notes");
     await expect(page.getByRole("heading", { name: "Check the transcription" })).toBeVisible();
@@ -107,7 +120,7 @@ test("a transcription is written in bars and a tempo worked out from its notes, 
     await expect(page.getByText("Connected: the scan server runs homr 0.7.0")).toBeVisible();
 
     await page.goto("/import/recording");
-    await page.getByLabel("Choose an audio or video recording to transcribe").setInputFiles(await recording());
+    await transcribe(page, await recording());
     const bars = page.getByRole("region", { name: "Bars and tempo" });
     await expect(bars.getByText("3/8 with a quarter at 72 a minute")).toBeVisible();
     await expect(bars.getByText("The piece starts with a pickup.")).toBeVisible();
@@ -158,7 +171,7 @@ test("a recording longer than two minutes is heard in overlapping parts and its 
     await expect(page.getByText("Connected: the scan server runs homr 0.7.0")).toBeVisible();
 
     await page.goto("/import/recording");
-    await page.getByLabel("Choose an audio or video recording to transcribe").setInputFiles(await recording(240, 8000));
+    await transcribe(page, await recording(240, 8000));
     await expect(page.getByRole("heading", { name: "Check the transcription" })).toBeVisible({ timeout: 30_000 });
 
     // Four minutes go as two parts of 2 minutes 5 seconds: each half with five seconds of the other.
@@ -173,4 +186,39 @@ test("a recording longer than two minutes is heard in overlapping parts and its 
     await expect(page.locator(".report .summary")).toContainText("notes");
     await expect(page.getByText("240 s of the recording heard", { exact: false })).toBeVisible();
     await expect(page.getByText("Only the first", { exact: false })).toHaveCount(0);
+});
+
+test("only the stretch the player chooses in a long recording is sent, and the parts it takes are told first", async ({ page }) => {
+    const uploads = await scanServer(page, furElise);
+    await page.goto("/settings");
+    await page.getByRole("button", { name: "Save and check" }).click();
+    await expect(page.getByText("Connected: the scan server runs homr 0.7.0")).toBeVisible();
+
+    await page.goto("/import/recording");
+    await page.getByLabel("Choose an audio or video recording to transcribe").setInputFiles(await recording(600, 8000));
+    const range = page.getByRole("region", { name: "Choose what to hear" });
+    await expect(range.getByText("10:00 long", { exact: false })).toBeVisible({ timeout: 30_000 });
+
+    // Ten minutes start as their first seven, which go in four parts.
+    await expect(range.getByText("0:00 to 7:00, 7:00 long: heard in 4 parts", { exact: false })).toBeVisible();
+    await expect(range.getByText("so 4 requests to the scan server", { exact: false })).toBeVisible();
+
+    // The start moves and the end stays; then the end comes closer.
+    await range.getByLabel("Start").fill("120000");
+    await expect(range.getByText("2:00 to 7:00, 5:00 long: heard in 3 parts", { exact: false })).toBeVisible();
+    await range.getByLabel("End").fill("270000");
+    await expect(range.getByText("2:00 to 4:30, 2:30 long: heard in 2 parts", { exact: false })).toBeVisible();
+    await expect(range.getByText("so 2 requests to the scan server", { exact: false })).toBeVisible();
+    expect(await violations(page)).toEqual([]);
+
+    // Two and a half minutes go as two parts of 75 s with five seconds of the other: 80 s each.
+    await range.getByRole("button", { name: "Transcribe the stretch" }).click();
+    await expect(page.getByRole("heading", { name: "Check the transcription" })).toBeVisible({ timeout: 30_000 });
+    expect(uploads).toHaveLength(2);
+    for (const body of uploads) {
+        const wav = body.indexOf(Buffer.from("RIFF"));
+        expect(body.readUInt32LE(wav + 40)).toBe(80 * 22050 * 2);
+    }
+    await expect(page.getByText("2:00 to 4:30 of the recording heard", { exact: false })).toBeVisible();
+    await expect(page.getByText("with 2 requests", { exact: false })).toBeVisible();
 });

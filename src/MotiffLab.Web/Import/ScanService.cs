@@ -36,11 +36,18 @@ public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text
     public const string AcceptedRecordings = "audio/*,video/*,.m4a,.mp3,.wav,.aac,.flac,.ogg,.mp4,.mov,.webm,.mkv";
 
     /// <summary>
-    /// How much of a recording this browser takes the sound out of, from its start (0014). The server hears
-    /// up to 2½ minutes a request, as much as Transkun hears in the four minutes the hosted server may take,
-    /// so a longer sound is sent in parts (<see cref="RecordingParts"/>).
+    /// The largest recording this browser decodes to let the player choose a stretch of it (0014): the file and
+    /// its decoded sound both pass through memory, so a long video is better saved as sound only. The server
+    /// hears up to 2½ minutes a request, as much as Transkun hears in the four minutes the hosted server may
+    /// take, so the stretch is sent in parts (<see cref="RecordingRange"/>, <see cref="RecordingParts"/>).
     /// </summary>
-    public const int MaxRecordingSeconds = 420;
+    public const long MaxDecodeBytes = 1024L * 1024 * 1024;
+
+    /// <summary>
+    /// Roughly how many seconds the server takes to hear a second of sound: Transkun on the hosted server's two
+    /// cores takes about one, plus sending (0014). Only for the estimate shown before sending.
+    /// </summary>
+    public const double SecondsPerSecondHeard = 1.1;
 
     /// <summary>How much of a recording sent as it is the server hears, when this browser cannot take its sound out.</summary>
     public const int ServerRecordingSeconds = 150;
@@ -183,21 +190,61 @@ public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text
     }
 
     /// <summary>
-    /// The first minutes of the sound of the recording picked in the input, decoded and mixed down on this
-    /// device; null when this browser cannot decode it.
+    /// Decodes the recording picked in the input on this device and holds its sound in the browser for
+    /// <see cref="SoundBetweenAsync"/>; null when this browser cannot decode it or it is larger than
+    /// <see cref="MaxDecodeBytes"/>. Nothing is sent.
     /// </summary>
-    public async Task<RecordingSound?> SoundOfAsync(ElementReference input)
+    public async Task<LoadedRecording?> LoadRecordingAsync(ElementReference input)
     {
         try
         {
-            _recording ??= await js.InvokeAsync<IJSObjectReference>("import", "./js/import/recording.js");
-            return await _recording.InvokeAsync<RecordingSound?>("soundOf", input, MaxRecordingSeconds);
+            return await (await RecordingModuleAsync()).InvokeAsync<LoadedRecording?>("load", input, MaxDecodeBytes);
         }
         catch (JSException)
         {
             return null;
         }
     }
+
+    /// <summary>The held recording's sound from one millisecond to another, as a mono WAV file; null when none is held.</summary>
+    public async Task<RecordingSound?> SoundBetweenAsync(long fromMilliseconds, long toMilliseconds)
+    {
+        try
+        {
+            return await (await RecordingModuleAsync()).InvokeAsync<RecordingSound?>("soundBetween", fromMilliseconds, toMilliseconds);
+        }
+        catch (JSException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Lets the browser drop the held recording.</summary>
+    public async Task ForgetRecordingAsync()
+    {
+        try
+        {
+            if (_recording is not null)
+            {
+                await _recording.InvokeVoidAsync("forget");
+            }
+        }
+        catch (JSException)
+        {
+            // Nothing is held then.
+        }
+    }
+
+    /// <summary>Where the page's player is in the recording, in milliseconds.</summary>
+    public async Task<long> PositionOfAsync(ElementReference player) =>
+        await (await RecordingModuleAsync()).InvokeAsync<long>("positionOf", player);
+
+    /// <summary>Plays the recording in the page's player from one millisecond, pausing at another.</summary>
+    public async Task PlayBetweenAsync(ElementReference player, long fromMilliseconds, long toMilliseconds) =>
+        await (await RecordingModuleAsync()).InvokeVoidAsync("playBetween", player, fromMilliseconds, toMilliseconds);
+
+    private async Task<IJSObjectReference> RecordingModuleAsync() =>
+        _recording ??= await js.InvokeAsync<IJSObjectReference>("import", "./js/import/recording.js");
 
     /// <summary>Sends a recording, or the sound taken out of it, to be transcribed; the MIDI and engine, or a plain reason there is none.</summary>
     public async Task<TranscriptionResult> TranscribeAsync(string fileName, byte[] data, CancellationToken cancellation = default)
@@ -302,8 +349,11 @@ public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text
     }
 }
 
-/// <summary>The sound the browser took out of a recording: a mono WAV file, its length, and whether the recording was longer.</summary>
-public sealed record RecordingSound(byte[] Wav, double Seconds, bool Cut)
+/// <summary>A recording the browser decoded and holds: its length, its loudness in equal stretches between 0 and 1, and an address its page can play it from.</summary>
+public sealed record LoadedRecording(long Milliseconds, double[] Peaks, string Url);
+
+/// <summary>The sound the browser took out of a stretch of a recording: a mono WAV file and its length.</summary>
+public sealed record RecordingSound(byte[] Wav, double Seconds)
 {
     private const int HeaderBytes = 44;
 

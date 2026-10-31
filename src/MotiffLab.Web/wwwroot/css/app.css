@@ -1634,6 +1634,86 @@ html, body {
     font-size: 1.1rem;
 }
 
+/* The stretch of a recording to hear (0014): its shape with the chosen stretch lit, a player, the two ends. */
+.import .recording-range {
+    margin: 1rem 0 1.5rem;
+    padding: 1rem;
+    border: 1px solid var(--ml-border);
+    border-radius: 0.6rem;
+    background: var(--ml-surface);
+}
+
+.import .recording-range .waveform {
+    display: block;
+    width: 100%;
+    height: 6rem;
+    margin: 0.5rem 0;
+    background: var(--ml-panel);
+    border-radius: 0.3rem;
+}
+
+.import .recording-range .waveform path {
+    stroke: var(--ml-gray);
+    stroke-width: 0.6;
+    fill: none;
+}
+
+.import .recording-range .waveform .chosen {
+    fill: var(--ml-lime);
+    opacity: 0.25;
+}
+
+.import .recording-range audio {
+    width: 100%;
+    margin: 0.25rem 0 0.75rem;
+}
+
+.import .recording-range .range-end {
+    display: grid;
+    grid-template-columns: 4.5rem 1fr 4.5rem auto;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0.5rem 0;
+}
+
+.import .recording-range .range-end input[type="range"] {
+    width: 100%;
+    min-height: 2.75rem;
+    accent-color: var(--ml-lime);
+}
+
+.import .recording-range .range-end output {
+    font-family: var(--ml-mono);
+    text-align: right;
+}
+
+.import .recording-range .range-end button,
+.import .recording-range .actions button {
+    min-height: 2.75rem;
+}
+
+.import .recording-range .estimate {
+    border-left: 3px solid var(--ml-lime);
+    padding-left: 0.75rem;
+}
+
+.import .recording-range .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+@media (max-width: 40rem) {
+    .import .recording-range .range-end {
+        grid-template-columns: 1fr auto;
+    }
+
+    .import .recording-range .range-end input[type="range"] {
+        grid-column: 1 / -1;
+        order: 3;
+    }
+}
+
 .import .scan-check {
     border-left: 3px solid var(--ml-inferred);
     padding-left: 0.75rem;
