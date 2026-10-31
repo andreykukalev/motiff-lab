@@ -1312,6 +1312,11 @@
             parts.Add($"{notation.ApproximatedNoteCount} of {notation.NoteCount} notes are shown at the nearest 32nd.");
         }
 
+        if (notation.TripletCount > 0)
+        {
+            parts.Add($"{notation.TripletCount} beats are written as triplets: their notes fall on thirds or sixths of the beat rather than on 16ths.");
+        }
+
         if (_heard && _heardKey is { } key)
         {
             parts.Add($"The key signature ({key.Name}) is worked out from the notes.");

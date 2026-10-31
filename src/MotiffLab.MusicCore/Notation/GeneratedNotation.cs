@@ -40,6 +40,9 @@ public sealed record GeneratedNotation(
     /// <summary>Crescendos and diminuendos written where the melody grew louder or softer: hairpins, or "cresc." and "dim." where longer than a bar.</summary>
     public int HairpinCount { get; init; }
 
+    /// <summary>Beats written as triplets (three or six notes to the beat), counted per staff.</summary>
+    public int TripletCount { get; init; }
+
     /// <summary>Slurs written where the melody's keys were held into the next note.</summary>
     public int SlurCount { get; init; }
 

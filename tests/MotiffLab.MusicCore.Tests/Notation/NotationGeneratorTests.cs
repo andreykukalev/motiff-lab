@@ -39,12 +39,15 @@ public class NotationGeneratorTests
     private static XElement ById(XDocument mei, string id) =>
         Assert.Single(mei.Descendants(), element => (string?)element.Attribute(s_xml + "id") == id);
 
-    /// <summary>Written length of an element in ticks, from @dur and @dots.</summary>
+    /// <summary>Length of an element in ticks, from @dur and @dots, and inside a tuplet its @numbase / @num.</summary>
     private static long Ticks(XElement element)
     {
         long ticks = 1920 / int.Parse((string)element.Attribute("dur")!);
         int dots = (int?)element.Attribute("dots") ?? 0;
-        return ticks + (dots == 1 ? ticks / 2 : 0);
+        ticks += dots == 1 ? ticks / 2 : 0;
+        return element.Ancestors(s_mei + "tuplet").FirstOrDefault() is { } tuplet
+            ? ticks * (int)tuplet.Attribute("numbase")! / (int)tuplet.Attribute("num")!
+            : ticks;
     }
 
     [Fact]
@@ -510,6 +513,101 @@ public class NotationGeneratorTests
         Assert.Empty(mei.Descendants(s_mei + "pedal"));
         Assert.Empty(mei.Descendants(s_mei + "slur"));
         Assert.Equal((0, 0), (reading.PedalCount, reading.SlurCount));
+    }
+
+    [Fact]
+    public void Three_even_notes_to_a_beat_are_written_as_a_triplet()
+    {
+        // A bar of 4/4: two beats of triplet eighths, then two quarters.
+        Note[] notes = [.. new long[] { 0, 160, 320, 480, 640, 800 }.Select((onset, i) => Note($"t_{i + 1}", 72 + i, onset, 160)), Note("q_1", 79, 960, 480), Note("q_2", 77, 1440, 480)];
+
+        (GeneratedNotation result, XDocument mei) = Generate(notes);
+
+        XElement[] tuplets = [.. mei.Descendants(s_mei + "tuplet")];
+        Assert.Equal(2, tuplets.Length);
+        Assert.All(tuplets, tuplet =>
+        {
+            Assert.Equal(("3", "2"), ((string)tuplet.Attribute("num")!, (string)tuplet.Attribute("numbase")!));
+            Assert.Equal(["8", "8", "8"], tuplet.Descendants(s_mei + "note").Select(note => (string)note.Attribute("dur")!));
+            Assert.Single(tuplet.Elements(s_mei + "beam"));
+        });
+        Assert.Equal(["4", "4"], ((XElement[])[ById(mei, "q_1"), ById(mei, "q_2")]).Select(note => (string)note.Attribute("dur")!));
+        Assert.Equal(2, result.TripletCount);
+        Assert.Equal(0, result.ApproximatedNoteCount);
+    }
+
+    [Fact]
+    public void Heard_triplets_are_found_through_the_timing_of_the_playing_and_16ths_stay_16ths()
+    {
+        // Beat 1: triplets played up to 15 ticks off. Beat 2: 16ths played as unevenly. Beats 3 and 4: rest.
+        long[] played = [10, 175, 305, 485, 615, 715, 860];
+        Note[] notes = [.. played.Select((onset, i) => Note($"n_{i + 1}", 72 + i, onset, 100))];
+
+        GeneratedNotation reading = NotationGenerator.Generate(notes, MeterMap.Default, [], new Tick(1920), asHeard: true);
+
+        XDocument mei = XDocument.Parse(reading.Mei);
+        XElement tuplet = Assert.Single(mei.Descendants(s_mei + "tuplet"));
+        Assert.Equal(["n_1", "n_2", "n_3"], tuplet.Descendants(s_mei + "note").Select(note => (string)note.Attribute(s_xml + "id")!));
+        Assert.Equal("16", (string)ById(mei, "n_5").Attribute("dur")!);
+        Assert.Equal(1, reading.TripletCount);
+    }
+
+    [Fact]
+    public void Six_even_notes_to_a_beat_are_triplet_16ths()
+    {
+        Note[] notes = [.. Enumerable.Range(0, 6).Select(i => Note($"s_{i + 1}", 72 + i, i * 80L, 80))];
+
+        (GeneratedNotation result, XDocument mei) = Generate(notes);
+
+        XElement tuplet = Assert.Single(mei.Descendants(s_mei + "tuplet"));
+        Assert.Equal(("6", "4"), ((string)tuplet.Attribute("num")!, (string)tuplet.Attribute("numbase")!));
+        Assert.All(tuplet.Descendants(s_mei + "note"), note => Assert.Equal("16", (string)note.Attribute("dur")!));
+        Assert.Equal(1, result.TripletCount);
+    }
+
+    [Fact]
+    public void A_short_dotted_rhythm_stays_dotted_unless_triplets_are_around_it()
+    {
+        // A dotted eighth and 16th played a little short (330 rather than 360).
+        Note[] alone = [Note("a", 72, 0, 330), Note("b", 74, 330, 150)];
+        Note[] after = [.. new long[] { 0, 160, 320 }.Select((onset, i) => Note($"t_{i + 1}", 72 + i, onset, 160)), Note("a", 72, 480, 330), Note("b", 74, 810, 150)];
+
+        GeneratedNotation dotted = NotationGenerator.Generate(alone, MeterMap.Default, [], new Tick(1920), asHeard: true);
+        GeneratedNotation tripleted = NotationGenerator.Generate(after, MeterMap.Default, [], new Tick(1920), asHeard: true);
+
+        Assert.Empty(XDocument.Parse(dotted.Mei).Descendants(s_mei + "tuplet"));
+        XElement[] tuplets = [.. XDocument.Parse(tripleted.Mei).Descendants(s_mei + "tuplet")];
+        Assert.Equal(2, tuplets.Length);
+        Assert.Equal(["4", "8"], tuplets[1].Descendants(s_mei + "note").Select(note => (string)note.Attribute("dur")!));
+    }
+
+    [Fact]
+    public void Triplets_against_eighths_are_written_only_in_the_hand_that_plays_them()
+    {
+        Note[] notes =
+        [
+            .. new long[] { 0, 160, 320 }.Select((onset, i) => Note($"r_{i + 1}", 72 + i, onset, 160)),
+            Note("l_1", 48, 0, 240),
+            Note("l_2", 52, 240, 240),
+        ];
+
+        (GeneratedNotation result, XDocument mei) = Generate(notes);
+
+        XElement tuplet = Assert.Single(mei.Descendants(s_mei + "tuplet"));
+        Assert.Equal("1", (string)tuplet.Ancestors(s_mei + "staff").Single().Attribute("n")!);
+        Assert.Equal("8", (string)ById(mei, "l_2").Attribute("dur")!);
+        Assert.Equal(1, result.TripletCount);
+    }
+
+    [Fact]
+    public void Compound_meters_already_divide_by_three()
+    {
+        Note[] notes = [.. Enumerable.Range(0, 6).Select(i => Note($"e_{i + 1}", 72, i * 240L, 240))];
+
+        (GeneratedNotation result, XDocument mei) = Generate(notes, Meter(6, 8), end: 1440);
+
+        Assert.Empty(mei.Descendants(s_mei + "tuplet"));
+        Assert.Equal(0, result.TripletCount);
     }
 
     private static (string Name, string? Accid, string? Gestural) Spelling(XElement note) =>
