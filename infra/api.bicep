@@ -93,7 +93,7 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'Cors__OriginPattern'
-              value: 'https://${siteHost[0]}-[0-9]+\\.westeurope\\.${siteHost[1]}\\.azurestaticapps\\.net'
+              value: 'https://${siteHost[0]}-[0-9]+\\.[a-z0-9]+\\.${siteHost[1]}\\.azurestaticapps\\.net'
             }
           ]
           probes: [

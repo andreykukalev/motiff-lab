@@ -1,8 +1,8 @@
 # Infrastructure
 
-The web app needs one Azure resource: a Static Web App on the Free plan in West Europe ([`main.bicep`](main.bicep)), `swa-motifflab` in `rg-motifflab`, next to the scan server, the API and their database. The app runs fully in the browser (see [docs/decisions/0001-stack.md](../docs/decisions/0001-stack.md)). The hosted scan server and the database are below.
+The web app needs one Azure resource: a Static Web App on the Free plan ([`main.bicep`](main.bicep)), `swa-motifflab` in `rg-motifflab`, next to the scan server, the API and their database. The app runs fully in the browser (see [docs/decisions/0001-stack.md](../docs/decisions/0001-stack.md)). The hosted scan server and the database are below.
 
-Static Web Apps is only offered in a few regions, and West Europe is the only EU one, so Sweden Central is not an option for this resource. Static content is served from the global edge; the region holds the app's metadata and, later, its managed Functions.
+Static Web Apps is only offered in five regions (West Europe, East US 2, Central US, West US 2, East Asia), and West Europe is the only EU one. On 2026-10-31 West Europe refused new sites in the services' subscription ("not accepting new customers"), so `setup.ps1` tries the regions in that order and takes the first that accepts the site. Static content is served from the global edge whatever the region; the region holds only the app's metadata and, later, its managed Functions. Players' projects never reach the Static Web App: they stay in the browser or go to the API and its database in Poland Central. A site can't change region, so CI provisions `main.bicep` with the region the site already has ([`site-location.sh`](site-location.sh)).
 
 ## Files
 

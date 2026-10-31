@@ -10,7 +10,7 @@
        the account's other databases use, and stops, creating nothing, if Motiff Lab would take it past the free 1000 RU/s;
     2. the resource group rg-motifflab (Poland Central) with the CI identity id-motifflab-github (infra/bootstrap.bicep,
        Contributor on that group only), the API's identity id-motifflab-api (data access to the motifflab database only)
-       and the web app's Static Web App swa-motifflab (infra/main.bicep, Free plan, West Europe), so everything Motiff Lab
+       and the web app's Static Web App swa-motifflab (infra/main.bicep, Free plan, West Europe or the next region that takes it), so everything Motiff Lab
        runs is in one group and CI deploys all of it as one identity;
     3. the sign-in tenant, Microsoft Entra External ID (free up to 50,000 monthly users), linked to rg-motifflab, with the
        app registrations Motiff Lab API (scopes Projects.ReadWrite and Scan) and Motiff Lab (the web app), and a sign-up
@@ -238,10 +238,28 @@ Write-MotiffStep 'Web app'
 # The Static Web App lives here too, next to the services (Andrei, 2026-10-30). The first one is in a subscription of
 # another tenant, which Azure cannot move a resource across, so this is a new one with a new address; CI deploys to it
 # from now on, signing in as the same identity as the services.
-$siteHost = "$(Invoke-MotiffAz (@('deployment', 'group', 'create', '--resource-group', $ResourceGroup, '--name', 'web',
-  '--template-file', (Join-Path (Join-Path (Get-MotiffRepoRoot) 'infra') 'main.bicep'),
-  '--parameters', (Join-Path (Join-Path (Get-MotiffRepoRoot) 'infra') 'main.bicepparam'),
-  '--query', 'properties.outputs.defaultHostName.value', '-o', 'tsv') + $ArmArgs))".Trim()
+# Static Web Apps has five regions, and one may refuse new sites in a subscription ("not accepting new customers",
+# 2026-10-31: West Europe). So a new site takes the first region that accepts it; an existing one keeps its region,
+# because a site can't change region. Static content is served from the global edge whatever the region.
+$siteRegions = @('westeurope', 'eastus2', 'centralus', 'westus2', 'eastasia')
+$existing = Test-MotiffAz (@('staticwebapp', 'show', '--name', 'swa-motifflab', '--resource-group', $ResourceGroup, '--query', 'location', '-o', 'tsv') + $ArmArgs)
+if ($existing) { $siteRegions = @(("$existing".Trim() -replace '\s', '').ToLowerInvariant()) }
+$siteHost = $null
+foreach ($region in $siteRegions) {
+  try {
+    $siteHost = "$(Invoke-MotiffAz (@('deployment', 'group', 'create', '--resource-group', $ResourceGroup, '--name', 'web',
+      '--template-file', (Join-Path (Join-Path (Get-MotiffRepoRoot) 'infra') 'main.bicep'),
+      '--parameters', (Join-Path (Join-Path (Get-MotiffRepoRoot) 'infra') 'main.bicepparam'), '--parameters', "location=$region",
+      '--query', 'properties.outputs.defaultHostName.value', '-o', 'tsv') + $ArmArgs))".Trim()
+    Write-MotiffInfo "Region: $region"
+    break
+  }
+  catch {
+    if ($existing -or "$($_.Exception.Message)" -notmatch 'locationineligible|not accepting new customers') { throw }
+    Write-MotiffInfo "$region doesn't take new Static Web Apps in this subscription; trying the next region."
+  }
+}
+if (-not $siteHost) { throw "No Static Web Apps region ($($siteRegions -join ', ')) takes a new site in this subscription." }
 if (-not $WebHost) { $WebHost = $siteHost }
 Write-MotiffInfo "Static Web App swa-motifflab: https://$siteHost"
 Set-RepoVariable 'AZURE_CLIENT_ID' $ciClientId

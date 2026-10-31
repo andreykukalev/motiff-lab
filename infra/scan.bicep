@@ -36,10 +36,10 @@ param tags object = {
 }
 
 // The web app, and its pull request previews: <name>.<n>.azurestaticapps.net becomes
-// <name>-<pr>.westeurope.<n>.azurestaticapps.net.
+// <name>-<pr>.<region>.<n>.azurestaticapps.net.
 var siteHost = split(webHost, '.')
 var allowedOrigins = concat([ 'https://${webHost}' ], extraOrigins)
-var previewOrigins = 'https://${siteHost[0]}-[0-9]+\\.westeurope\\.${siteHost[1]}\\.azurestaticapps\\.net'
+var previewOrigins = 'https://${siteHost[0]}-[0-9]+\\.[a-z0-9]+\\.${siteHost[1]}\\.azurestaticapps\\.net'
 
 // No workloadProfiles: a Consumption-only environment. No appLogsConfiguration: no Log Analytics bill.
 resource environment 'Microsoft.App/managedEnvironments@2024-03-01' = {

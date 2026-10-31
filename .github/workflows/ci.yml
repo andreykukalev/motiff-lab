@@ -250,7 +250,8 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      # Infrastructure is previewed and provisioned only when infra/ changed (about 40 s).
+      # Infrastructure is previewed and provisioned only when infra/ changed (about 40 s). A Static Web App
+      # can't change region, so the existing site's region overrides the one in main.bicepparam.
       - name: Preview infrastructure changes
         if: steps.changes.outputs.deploy == 'true' && steps.changes.outputs.infra == 'true' && github.event_name == 'pull_request'
         run: >-
@@ -258,6 +259,7 @@ jobs:
           --resource-group "$RESOURCE_GROUP"
           --template-file infra/main.bicep
           --parameters infra/main.bicepparam
+          --parameters location="$(infra/site-location.sh)"
 
       - name: Provision infrastructure
         if: steps.changes.outputs.deploy == 'true' && steps.changes.outputs.infra == 'true' && github.event_name == 'push'
@@ -267,6 +269,7 @@ jobs:
           --name "main-${{ github.run_number }}"
           --template-file infra/main.bicep
           --parameters infra/main.bicepparam
+          --parameters location="$(infra/site-location.sh)"
           --output none
 
       # The deployment token is read at run time, so it is never stored in GitHub.

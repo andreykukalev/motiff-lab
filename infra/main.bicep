@@ -6,12 +6,17 @@ targetScope = 'resourceGroup'
 @description('Name of the Static Web App. Becomes part of the default *.azurestaticapps.net host name.')
 param name string = 'swa-motifflab'
 
-// Static Web Apps is offered in a few regions only; West Europe is the EU one.
-// Static content is served from the global edge; the region holds the app's metadata
-// and, from Stage 2, its managed Functions.
+// Static Web Apps is offered in five regions only; West Europe is the EU one, and it may refuse new sites
+// in a subscription ("not accepting new customers"), so setup.ps1 falls back to the others in order.
+// Static content is served from the global edge; the region holds only the app's metadata
+// and, from Stage 2, its managed Functions. A site can't change region: CI passes the existing one.
 @description('Region for the Static Web App resource.')
 @allowed([
   'westeurope'
+  'eastus2'
+  'centralus'
+  'westus2'
+  'eastasia'
 ])
 param location string = 'westeurope'
 
