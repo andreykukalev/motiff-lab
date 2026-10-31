@@ -69,8 +69,10 @@ public static class StructureAnalyzer
     /// The phrase boundaries of the notes that pass the selection's filter, from
     /// <see cref="PhraseBoundaryFinder"/>, including any the player set.
     /// </param>
-    public static StructureAnalysis Analyze(IEnumerable<Note> notes, MeterMap meter, MotifSelection selection, IEnumerable<PhraseBoundary> phrases)
+    /// <param name="words">The language of the facts' text, bases and place labels; English by default.</param>
+    public static StructureAnalysis Analyze(IEnumerable<Note> notes, MeterMap meter, MotifSelection selection, IEnumerable<PhraseBoundary> phrases, Words words = default)
     {
+        Words w = words;
         ArgumentNullException.ThrowIfNull(notes);
         ArgumentNullException.ThrowIfNull(meter);
         ArgumentNullException.ThrowIfNull(selection);
@@ -89,8 +91,10 @@ public static class StructureAnalyzer
         Note[] motifLine = Line(motif);
         bool chords = scope.GroupBy(note => note.Span.Onset).Any(group => group.Count() > 1);
         bool inferred = chords || selection.HandInferred;
-        string lineBasis = (selection.HandInferred ? "The hand is inferred, so which notes are searched is inferred too. " : "")
-            + (chords ? "Notes sound together, so lines are taken as the highest note at each onset." : "Lines are read from the notes, one at a time.");
+        string lineBasis = (selection.HandInferred ? w.T("The hand is inferred, so which notes are searched is inferred too. ", "Рука предположена, поэтому и то, среди каких нот идёт поиск, предположено. ") : "")
+            + (chords
+                ? w.T("Notes sound together, so lines are taken as the highest note at each onset.", "Ноты звучат вместе, поэтому линией считается самая высокая нота каждой атаки.")
+                : w.T("Lines are read from the notes, one at a time.", "Линии прочитаны по нотам, одна за другой."));
 
         IReadOnlyList<Recurrence> recurrences = motifLine.Length < MinNotesForRecurrence ? [] : FindRecurrences(scopeLine, motifLine, meter);
         IReadOnlyList<PhraseSpan> spans = PhraseSpans(scope, phrases, meter);
@@ -98,16 +102,16 @@ public static class StructureAnalyzer
 
         var facts = new List<MotifFact>
         {
-            RecurrenceFact(recurrences, motifLine, inferred, lineBasis),
+            RecurrenceFact(recurrences, motifLine, inferred, lineBasis, w),
         };
         if (spans.Count > 0)
         {
-            facts.Add(PhraseFact(spans, motifLine[0].Span.Onset));
+            facts.Add(PhraseFact(spans, motifLine[0].Span.Onset, w));
         }
 
         if (scopeLine.Length > 0)
         {
-            facts.Add(NewMaterialFact(newBars, scopeLine, meter, inferred, lineBasis));
+            facts.Add(NewMaterialFact(newBars, scopeLine, meter, inferred, lineBasis, w));
         }
 
         return new StructureAnalysis(recurrences, spans, newBars, facts);
@@ -226,9 +230,11 @@ public static class StructureAnalyzer
         return newBars;
     }
 
-    private static MotifFact RecurrenceFact(IReadOnlyList<Recurrence> recurrences, Note[] motifLine, bool inferred, string lineBasis)
+    private static MotifFact RecurrenceFact(IReadOnlyList<Recurrence> recurrences, Note[] motifLine, bool inferred, string lineBasis, Words w)
     {
-        const string Rule = " A recurrence has the same onsets from its first note and every pitch moved by the same amount; note lengths are not compared.";
+        string rule = w.T(
+            " A recurrence has the same onsets from its first note and every pitch moved by the same amount; note lengths are not compared.",
+            " У повторения те же атаки от первой ноты, и все высоты сдвинуты на одно и то же расстояние; длины нот не сравниваются.");
         FactCertainty certainty = inferred ? FactCertainty.Inferred : FactCertainty.Detected;
         if (motifLine.Length < MinNotesForRecurrence)
         {
@@ -236,100 +242,134 @@ public static class StructureAnalyzer
                 "structure.recurrences",
                 FactLens.Structure,
                 certainty,
-                $"With {Count(motifLine.Length, "note", "notes")} in its line, the motif is too short to search for recurrences; it takes {MinNotesForRecurrence}.",
-                lineBasis + Rule);
+                w.IsRussian
+                    ? $"В линии мотива {w.Count(motifLine.Length, "", "", "нота", "ноты", "нот")}: слишком мало для поиска повторений, нужно {MinNotesForRecurrence}."
+                    : $"With {Count(motifLine.Length, "note", "notes")} in its line, the motif is too short to search for recurrences; it takes {MinNotesForRecurrence}.",
+                lineBasis + rule);
         }
 
         if (recurrences.Count == 0)
         {
-            return new MotifFact("structure.recurrences", FactLens.Structure, certainty, "The motif does not recur elsewhere, exactly or transposed.", lineBasis + Rule);
+            return new MotifFact("structure.recurrences", FactLens.Structure, certainty, w.T(
+                "The motif does not recur elsewhere, exactly or transposed.",
+                "Мотив больше нигде не повторяется, ни точно, ни с транспозицией."), lineBasis + rule);
         }
 
-        string[] places = [.. recurrences.Select(recurrence => recurrence.IsExact
-            ? $"exactly in {Bars(recurrence.FirstBar, recurrence.LastBar)}"
-            : $"{WithArticle(MotifAnalyzer.IntervalName(recurrence.Transposition))} {(recurrence.Transposition > 0 ? "higher" : "lower")} in {Bars(recurrence.FirstBar, recurrence.LastBar)}")];
+        string[] places = [.. recurrences.Select(recurrence => w.IsRussian
+            ? recurrence.IsExact
+                ? $"точно {InBars(recurrence.FirstBar, recurrence.LastBar, w)}"
+                : $"на {MotifAnalyzer.IntervalBy(recurrence.Transposition, w)} {(recurrence.Transposition > 0 ? "выше" : "ниже")} {InBars(recurrence.FirstBar, recurrence.LastBar, w)}"
+            : recurrence.IsExact
+                ? $"exactly {InBars(recurrence.FirstBar, recurrence.LastBar, w)}"
+                : $"{WithArticle(MotifAnalyzer.IntervalName(recurrence.Transposition))} {(recurrence.Transposition > 0 ? "higher" : "lower")} {InBars(recurrence.FirstBar, recurrence.LastBar, w)}")];
         string list = places.Length <= MaxListed
-            ? Joined(places)
-            : $"{string.Join(", ", places.Take(MaxListed))} and {places.Length - MaxListed} more times";
+            ? w.Joined(places)
+            : w.T($"{string.Join(", ", places.Take(MaxListed))} and {places.Length - MaxListed} more times", $"{string.Join(", ", places.Take(MaxListed))} и ещё {w.Times(places.Length - MaxListed)}");
         int exactCount = recurrences.Count(recurrence => recurrence.IsExact);
-        string text = $"The motif recurs {Times(recurrences.Count)} ({exactCount} exact, {recurrences.Count - exactCount} transposed): {list}.";
+        string text = w.IsRussian
+            ? $"Мотив повторяется {w.Times(recurrences.Count)} (точно: {exactCount}, с транспозицией: {recurrences.Count - exactCount}): {list}."
+            : $"The motif recurs {w.Times(recurrences.Count)} ({exactCount} exact, {recurrences.Count - exactCount} transposed): {list}.";
 
         Recurrence? earlier = recurrences.FirstOrDefault(recurrence => recurrence.Span.Onset < motifLine[0].Span.Onset);
         if (earlier is not null)
         {
-            text += $" It is first heard in {Bars(earlier.FirstBar, earlier.LastBar)}.";
+            text += w.T($" It is first heard {InBars(earlier.FirstBar, earlier.LastBar, w)}.", $" Впервые он звучит {InBars(earlier.FirstBar, earlier.LastBar, w)}.");
         }
 
         // Every recurrence is a place, the text's list cut or not; the motif itself is the selection.
-        return new MotifFact("structure.recurrences", FactLens.Structure, certainty, text, lineBasis + Rule)
+        return new MotifFact("structure.recurrences", FactLens.Structure, certainty, text, lineBasis + rule)
         {
             Places = [.. recurrences.Select((recurrence, i) => new FactPlace(places[i], recurrence.Span, recurrence.NoteIds))],
         };
     }
 
-    private static MotifFact PhraseFact(IReadOnlyList<PhraseSpan> spans, Tick motifStart)
+    private static MotifFact PhraseFact(IReadOnlyList<PhraseSpan> spans, Tick motifStart, Words w)
     {
-        const string Basis = "Phrases run between the boundaries that slurs, rests of a beat or more, repeat signs or the player mark; a bar a phrase starts or ends inside counts for that phrase.";
+        string basis = w.T(
+            "Phrases run between the boundaries that slurs, rests of a beat or more, repeat signs or the player mark; a bar a phrase starts or ends inside counts for that phrase.",
+            "Фразы идут между границами, которые отмечают лиги, паузы в долю и больше, знаки повторения или исполнитель; такт, внутри которого фраза начинается или кончается, относится к этой фразе.");
         if (spans.Count == 1)
         {
             return new MotifFact(
                 "structure.phrases",
                 FactLens.Structure,
                 FactCertainty.Detected,
-                $"No phrase boundary is marked, so the notes read as one span, {Bars(spans[0].FirstBar, spans[0].LastBar)}.",
-                Basis + " Where nothing marks a boundary, none is invented.")
+                w.T(
+                    $"No phrase boundary is marked, so the notes read as one span, {Bars(spans[0].FirstBar, spans[0].LastBar, w)}.",
+                    $"Границы фраз не отмечены, поэтому ноты читаются одним отрезком: {Bars(spans[0].FirstBar, spans[0].LastBar, w)}."),
+                basis + w.T(" Where nothing marks a boundary, none is invented.", " Где границу ничто не отмечает, она не придумывается."))
             {
-                Places = [new FactPlace(Bars(spans[0].FirstBar, spans[0].LastBar), spans[0].Span, [])],
+                Places = [new FactPlace(Bars(spans[0].FirstBar, spans[0].LastBar, w), spans[0].Span, [])],
             };
         }
 
         int containing = spans.Select((span, index) => (span, index)).Last(entry => entry.span.Span.Onset <= motifStart).index;
-        string text = $"{Count(spans.Count, "phrase", "phrases")}: {Listed(spans.Select(span => Bars(span.FirstBar, span.LastBar)).ToList())} "
-            + $"({Joined(spans.Select(span => span.BarCount.ToString(CultureInfo.InvariantCulture)).ToList())} bars). "
-            + $"The motif starts in phrase {containing + 1}.";
+        string barCounts = w.Joined(spans.Select(span => span.BarCount.ToString(CultureInfo.InvariantCulture)).ToList());
+        string text = w.IsRussian
+            ? $"{w.Count(spans.Count, "", "", "фраза", "фразы", "фраз")}: {Listed(spans.Select(span => Bars(span.FirstBar, span.LastBar, w)).ToList(), w)} "
+                + $"({barCounts} {Words.RussianForm(spans[^1].BarCount, "такт", "такта", "тактов")}). "
+                + $"Мотив начинается во фразе {containing + 1}."
+            : $"{Count(spans.Count, "phrase", "phrases")}: {Listed(spans.Select(span => Bars(span.FirstBar, span.LastBar, w)).ToList(), w)} "
+                + $"({barCounts} bars). "
+                + $"The motif starts in phrase {containing + 1}.";
         bool inferred = spans.Any(span => span.Start?.Provenance is Provenance.Inferred or Provenance.Detected);
         MotifFact fact = inferred
-            ? new MotifFact("structure.phrases", FactLens.Structure, FactCertainty.Inferred, text, Basis + " Some boundaries rest on a rest alone, which is a reading of the notes, not a mark in the score.")
-            : new MotifFact("structure.phrases", FactLens.Structure, FactCertainty.Detected, text, Basis);
+            ? new MotifFact("structure.phrases", FactLens.Structure, FactCertainty.Inferred, text, basis + w.T(
+                " Some boundaries rest on a rest alone, which is a reading of the notes, not a mark in the score.",
+                " Некоторые границы стоят только по паузе: это прочтение нот, а не знак в нотах."))
+            : new MotifFact("structure.phrases", FactLens.Structure, FactCertainty.Detected, text, basis);
 
         // Every phrase is a place, a stretch of time from its boundary to the next.
         return fact with
         {
-            Places = [.. spans.Select((span, i) => new FactPlace($"phrase {i + 1}, {Bars(span.FirstBar, span.LastBar)}", span.Span, []))],
+            Places = [.. spans.Select((span, i) => new FactPlace($"{w.T("phrase", "фраза")} {i + 1}, {Bars(span.FirstBar, span.LastBar, w)}", span.Span, []))],
         };
     }
 
-    private static MotifFact NewMaterialFact(IReadOnlyList<int> newBars, Note[] line, MeterMap meter, bool inferred, string lineBasis)
+    private static MotifFact NewMaterialFact(IReadOnlyList<int> newBars, Note[] line, MeterMap meter, bool inferred, string lineBasis, Words w)
     {
         int barsWithNotes = line.Select(note => meter.BarAt(note.Span.Onset).Number).Distinct().Count();
         int repeated = barsWithNotes - newBars.Count;
-        string text = repeated == 0
-            ? $"Every bar with notes brings new material ({Count(barsWithNotes, "bar", "bars")}); none repeats an earlier bar."
-            : $"New material in {BarList(newBars)}; the other {Count(repeated, "bar repeats", "bars repeat")} an earlier bar, exactly or transposed.";
+        string text = w.IsRussian
+            ? repeated == 0
+                ? $"Каждый такт с нотами приносит новый материал ({w.Count(barsWithNotes, "", "", "такт", "такта", "тактов")}); ни один не повторяет предыдущий."
+                : $"Новый материал {InBarList(newBars, w)}; остальные {w.Count(repeated, "", "", "такт повторяет", "такта повторяют", "тактов повторяют")} более ранний такт, точно или с транспозицией."
+            : repeated == 0
+                ? $"Every bar with notes brings new material ({Count(barsWithNotes, "bar", "bars")}); none repeats an earlier bar."
+                : $"New material {InBarList(newBars, w)}; the other {Count(repeated, "bar repeats", "bars repeat")} an earlier bar, exactly or transposed.";
 
         // Every run of new bars is a place: the bars, with the line notes that were compared.
         FactPlace[] places = [.. Runs(newBars).Select(run =>
         {
             TickSpan bars = TickSpan.FromBounds(meter.GetBar(run.First).Span.Onset, meter.GetBar(run.Last).Span.End);
-            return new FactPlace(Bars(run.First, run.Last), bars, [.. line.Where(note => bars.Contains(note.Span.Onset)).Select(note => note.Id)]);
+            return new FactPlace(Bars(run.First, run.Last, w), bars, [.. line.Where(note => bars.Contains(note.Span.Onset)).Select(note => note.Id)]);
         })];
         return new MotifFact(
             "structure.new-material",
             FactLens.Structure,
             inferred ? FactCertainty.Inferred : FactCertainty.Detected,
             text,
-            lineBasis + " Bars are compared by their line's onsets from the bar line and its pitches, or its intervals for a transposed repeat.")
+            lineBasis + w.T(
+                " Bars are compared by their line's onsets from the bar line and its pitches, or its intervals for a transposed repeat.",
+                " Такты сравниваются по атакам линии от тактовой черты и её высотам, а для транспонированного повтора — по интервалам."))
         {
             Places = places,
         };
     }
 
-    /// <summary>"bar 5", "bars 5–6".</summary>
-    private static string Bars(int first, int last) => first == last ? $"bar {first}" : $"bars {first}–{last}";
+    /// <summary>"bar 5", "bars 5–6"; "такт 5", "такты 5–6".</summary>
+    private static string Bars(int first, int last, Words w) => first == last
+        ? $"{w.T("bar", "такт")} {first}"
+        : $"{w.T("bars", "такты")} {first}–{last}";
 
-    /// <summary>"bars 1–2, 5 and 9": runs of consecutive bars joined.</summary>
-    private static string BarList(IReadOnlyList<int> bars) =>
-        (bars.Count == 1 ? "bar " : "bars ") + Joined([.. Runs(bars).Select(run => run.First == run.Last ? $"{run.First}" : $"{run.First}–{run.Last}")]);
+    /// <summary>"in bar 5", "in bars 5–6"; "в такте 5", "в тактах 5–6".</summary>
+    private static string InBars(int first, int last, Words w) => first == last
+        ? $"{w.T("in bar", "в такте")} {first}"
+        : $"{w.T("in bars", "в тактах")} {first}–{last}";
+
+    /// <summary>"in bars 1–2, 5 and 9": runs of consecutive bars joined; "в тактах 1–2, 5 и 9".</summary>
+    private static string InBarList(IReadOnlyList<int> bars, Words w) =>
+        (bars.Count == 1 ? w.T("in bar ", "в такте ") : w.T("in bars ", "в тактах ")) + w.Joined([.. Runs(bars).Select(run => run.First == run.Last ? $"{run.First}" : $"{run.First}–{run.Last}")]);
 
     /// <summary>Runs of consecutive bars, in order.</summary>
     private static List<(int First, int Last)> Runs(IReadOnlyList<int> bars)
@@ -350,19 +390,10 @@ public static class StructureAnalyzer
         return runs;
     }
 
-    private static string Times(int count) => count switch
-    {
-        1 => "once",
-        2 => "twice",
-        _ => $"{count} times",
-    };
-
-    private static string Listed(IReadOnlyList<string> items) =>
-        items.Count <= MaxListed ? string.Join(", ", items) : $"{string.Join(", ", items.Take(MaxListed))} and {items.Count - MaxListed} more";
-
-    /// <summary>"a", "a and b", "a, b and c".</summary>
-    private static string Joined(IReadOnlyList<string> items) =>
-        items.Count == 1 ? items[0] : $"{string.Join(", ", items.Take(items.Count - 1))} and {items[^1]}";
+    private static string Listed(IReadOnlyList<string> items, Words w) =>
+        items.Count <= MaxListed
+            ? string.Join(", ", items)
+            : w.T($"{string.Join(", ", items.Take(MaxListed))} and {items.Count - MaxListed} more", $"{string.Join(", ", items.Take(MaxListed))} и ещё {items.Count - MaxListed}");
 
     private static string Count(int count, string one, string many) => $"{count} {(count == 1 ? one : many)}";
 

@@ -48,6 +48,28 @@ public static class OperationScopes
         return ([.. notes.Where(note => ids.Contains(note.Id))], [.. notes.Where(note => !ids.Contains(note.Id))]);
     }
 
+    /// <summary>The layer in the player's language (#134): "the melody"; "мелодия".</summary>
+    public static string Describe(OperationScope scope, Words words) => words.IsRussian
+        ? scope switch
+        {
+            OperationScope.All => "выделение",
+            OperationScope.Melody => "мелодия",
+            OperationScope.Accompaniment => "аккомпанемент",
+            OperationScope.Bass => "бас",
+            _ => throw new ArgumentOutOfRangeException(nameof(scope), scope, "Unknown scope."),
+        }
+        : Describe(scope);
+
+    /// <summary>"В выделении", "В мелодии выделения": where a step looks for notes, in Russian.</summary>
+    public static string RussianIn(OperationScope scope) => scope switch
+    {
+        OperationScope.All => "В выделении",
+        OperationScope.Melody => "В мелодии выделения",
+        OperationScope.Accompaniment => "В аккомпанементе выделения",
+        OperationScope.Bass => "В басу выделения",
+        _ => throw new ArgumentOutOfRangeException(nameof(scope), scope, "Unknown scope."),
+    };
+
     /// <summary>"the melody", "the accompaniment", "the bass" or "the selection", completing "limited to …".</summary>
     public static string Describe(OperationScope scope) => scope switch
     {

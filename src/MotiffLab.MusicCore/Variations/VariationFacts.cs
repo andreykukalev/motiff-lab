@@ -26,6 +26,7 @@ public static class VariationFacts
     /// </summary>
     /// <param name="key">The key the step counted scale steps in, or null; intervals then also count as kept when their sizes in scale steps are (the Keep table's footnote 2).</param>
     /// <param name="meter">The meter the explanation names beats in; null reads <see cref="MeterMap.Default"/>.</param>
+    /// <param name="words">The language the explanation is written in; English by default.</param>
     public static Variation Build(
         string operation,
         TickSpan span,
@@ -34,7 +35,8 @@ public static class VariationFacts
         IReadOnlySet<KeepProperty> keep,
         IReadOnlyList<string> flags,
         MusicalKey? key = null,
-        MeterMap? meter = null)
+        MeterMap? meter = null,
+        Words words = default)
     {
         ArgumentNullException.ThrowIfNull(before);
         ArgumentNullException.ThrowIfNull(after);
@@ -57,14 +59,14 @@ public static class VariationFacts
             .Select(property => new KeepCheck(property, Check(property, source, ordered, copies, span, key, melodyPitchClasses, textures.Before, textures.After)))
             .ToArray();
         KeepCheck[] checks = properties.Where(check => keep.Contains(check.Property)).ToArray();
-        string explanation = Explain(changes, added, removed, source, ordered, textures.Before, textures.After, Sequence(source, copies, span, key));
-        if (OperationTemplates.Lead(operation, changes, textures.Before, textures.After, key, meter ?? MeterMap.Default) is { } lead)
+        string explanation = Explain(changes, added, removed, source, ordered, textures.Before, textures.After, Sequence(source, copies, span, key, words), words);
+        if (OperationTemplates.Lead(operation, changes, textures.Before, textures.After, key, meter ?? MeterMap.Default, words) is { } lead)
         {
             explanation = $"{lead} {explanation}";
         }
 
         bool sameMelody = Pitches(textures.Before.Melody).SequenceEqual(Pitches(textures.After.Melody));
-        string unchanged = Unchanged(properties, textures.Before, sameMelody);
+        string unchanged = Unchanged(properties, textures.Before, sameMelody, words);
         if (changes.Length + added.Length + removed.Length > 0 && unchanged.Length > 0)
         {
             explanation = $"{explanation} {unchanged}";
@@ -78,37 +80,50 @@ public static class VariationFacts
     /// left as it was; the bass is named only when the source has one apart from its melody, and a
     /// melody kept only by its pitch classes (footnote 3) is named as such.
     /// </summary>
-    private static string Unchanged(IReadOnlyList<KeepCheck> properties, MotifTexture before, bool sameMelody)
+    private static string Unchanged(IReadOnlyList<KeepCheck> properties, MotifTexture before, bool sameMelody, Words w)
     {
         string[] names = [.. properties
             .Where(check => check.Status == KeepStatus.Kept && (check.Property != KeepProperty.Bass || !before.IsSingleLine))
             .Select(check => check.Property switch
             {
-                KeepProperty.PitchOrder => "pitch order",
-                KeepProperty.Melody => sameMelody ? "melody pitches" : "melody pitch classes",
-                KeepProperty.Bass => "bass pitches",
+                KeepProperty.Pitches => w.T("pitches", "высоты"),
+                KeepProperty.PitchOrder => w.T("pitch order", "порядок высот"),
+                KeepProperty.Contour => w.T("contour", "контур"),
+                KeepProperty.Intervals => w.T("intervals", "интервалы"),
+                KeepProperty.Rhythm => w.T("rhythm", "ритм"),
+                KeepProperty.Melody => sameMelody ? w.T("melody pitches", "высоты мелодии") : w.T("melody pitch classes", "звуковысотные классы мелодии"),
+                KeepProperty.Bass => w.T("bass pitches", "высоты баса"),
+                KeepProperty.Harmony => w.T("harmony", "гармония"),
+                KeepProperty.Register => w.T("register", "регистр"),
                 _ => check.Property.ToString().ToLowerInvariant(),
             })];
-        return names.Length switch
-        {
-            0 => "",
-            1 => $"Unchanged: {names[0]}.",
-            _ => $"Unchanged: {string.Join(", ", names[..^1])} and {names[^1]}.",
-        };
+        return names.Length == 0 ? "" : $"{w.T("Unchanged", "Не изменились")}: {w.Joined(names)}.";
     }
 
     /// <summary>"3 quarter notes", "1 eighth", "5 sixteenths", or ticks when the length is finer than that.</summary>
-    public static string Length(long ticks)
+    public static string Length(long ticks) => Length(ticks, Words.English);
+
+    /// <summary>
+    /// The length in a language: "1 eighth"; "1 восьмая", or after a preposition that takes the
+    /// accusative ("на 1 восьмую позже") when <paramref name="accusative"/> is set.
+    /// </summary>
+    public static string Length(long ticks, Words words, bool accusative = false)
     {
-        (long unit, string name) = ticks switch
+        (long unit, string name, string one, string oneBy, string few, string many) = ticks switch
         {
-            _ when ticks % CanonicalTime.TicksPerQuarter == 0 => (CanonicalTime.TicksPerQuarter, "quarter note"),
-            _ when ticks % (CanonicalTime.TicksPerQuarter / 2) == 0 => (CanonicalTime.TicksPerQuarter / 2, "eighth"),
-            _ when ticks % (CanonicalTime.TicksPerQuarter / 4) == 0 => (CanonicalTime.TicksPerQuarter / 4, "sixteenth"),
-            _ when ticks % (CanonicalTime.TicksPerQuarter / 8) == 0 => (CanonicalTime.TicksPerQuarter / 8, "thirty-second"),
-            _ => (1L, "tick"),
+            _ when ticks % CanonicalTime.TicksPerQuarter == 0 => (CanonicalTime.TicksPerQuarter, "quarter note", "четверть", "четверть", "четверти", "четвертей"),
+            _ when ticks % (CanonicalTime.TicksPerQuarter / 2) == 0 => (CanonicalTime.TicksPerQuarter / 2, "eighth", "восьмая", "восьмую", "восьмые", "восьмых"),
+            _ when ticks % (CanonicalTime.TicksPerQuarter / 4) == 0 => (CanonicalTime.TicksPerQuarter / 4, "sixteenth", "шестнадцатая", "шестнадцатую", "шестнадцатые", "шестнадцатых"),
+            _ when ticks % (CanonicalTime.TicksPerQuarter / 8) == 0 => (CanonicalTime.TicksPerQuarter / 8, "thirty-second", "тридцать вторая", "тридцать вторую", "тридцать вторые", "тридцать вторых"),
+            _ => (1L, "tick", "тик", "тик", "тика", "тиков"),
         };
         long count = ticks / unit;
+        if (words.IsRussian)
+        {
+            int form = (int)(count % 100);
+            return $"{count} {Words.RussianForm(form, accusative ? oneBy : one, few, many)}";
+        }
+
         return count == 1 ? $"1 {name}" : $"{count} {name}s";
     }
 
@@ -238,18 +253,19 @@ public static class VariationFacts
         Note[] after,
         MotifTexture textureBefore,
         MotifTexture textureAfter,
-        string? sequence)
+        string? sequence,
+        Words w)
     {
         int count = changes.Count;
         if (count == 0 && added.Length == 0 && removed.Length == 0)
         {
-            return "The selection has no notes, so nothing changed.";
+            return w.T("The selection has no notes, so nothing changed.", "В выделении нет нот, поэтому ничего не изменилось.");
         }
 
         var sentences = new List<string>();
         if (added.Length > 0)
         {
-            sentences.Add(added.Length == 1 ? "1 note is added." : $"{added.Length} notes are added.");
+            sentences.Add(w.IsRussian ? $"Добавлено нот: {added.Length}." : added.Length == 1 ? "1 note is added." : $"{added.Length} notes are added.");
         }
 
         if (sequence is not null)
@@ -259,7 +275,7 @@ public static class VariationFacts
 
         if (removed.Length > 0)
         {
-            sentences.Add(removed.Length == 1 ? "1 note is removed." : $"{removed.Length} notes are removed.");
+            sentences.Add(w.IsRussian ? $"Удалено нот: {removed.Length}." : removed.Length == 1 ? "1 note is removed." : $"{removed.Length} notes are removed.");
         }
 
         if (count == 0)
@@ -268,8 +284,10 @@ public static class VariationFacts
         }
 
         int pitchChanges = changes.Count(static change => change.PitchChanged);
-        sentences.Add(pitchChanges == 0 ? "The pitch sequence is unchanged." : $"{pitchChanges} of {count} notes change pitch.");
-        if (pitchChanges > 0 && MelodyIntervals(textureBefore, textureAfter) is { } melody)
+        sentences.Add(pitchChanges == 0
+            ? w.T("The pitch sequence is unchanged.", "Последовательность высот не изменилась.")
+            : w.IsRussian ? $"Высоту меняют {pitchChanges} {NotesOf(count, w)}." : $"{pitchChanges} of {count} notes change pitch.");
+        if (pitchChanges > 0 && MelodyIntervals(textureBefore, textureAfter, w) is { } melody)
         {
             sentences.Add(melody);
         }
@@ -278,22 +296,26 @@ public static class VariationFacts
         int lengthChanges = changes.Count(static change => change.DurationChanged);
         if (changes.All(static change => change.After.Span.Duration == change.Before.Span.Duration * 2))
         {
-            sentences.Add($"{Every(count, "lasts twice as long", "last twice as long")}.");
+            sentences.Add($"{Every(count, "lasts twice as long", "last twice as long", "звучит вдвое дольше", "звучат вдвое дольше", w)}.");
         }
         else if (changes.All(static change => change.After.Span.Duration * 2 == change.Before.Span.Duration))
         {
-            sentences.Add($"{Every(count, "lasts half as long", "last half as long")}.");
+            sentences.Add($"{Every(count, "lasts half as long", "last half as long", "звучит вдвое короче", "звучат вдвое короче", w)}.");
         }
         else
         {
-            sentences.Add(lengthChanges == 0 ? "Every note keeps its length." : $"{lengthChanges} of {count} notes change length.");
+            sentences.Add(lengthChanges == 0
+                ? w.T("Every note keeps its length.", "Каждая нота сохраняет длину.")
+                : w.IsRussian ? $"Длину меняют {lengthChanges} {NotesOf(count, w)}." : $"{lengthChanges} of {count} notes change length.");
         }
 
         int louder = changes.Count(static change => change.After.Velocity > change.Before.Velocity);
         int softer = changes.Count(static change => change.After.Velocity < change.Before.Velocity);
         if (louder + softer > 0)
         {
-            sentences.Add($"{louder + softer} of {count} notes change velocity ({louder} louder, {softer} softer).");
+            sentences.Add(w.IsRussian
+                ? $"Громкость меняют {louder + softer} {NotesOf(count, w)} (громче: {louder}, тише: {softer})."
+                : $"{louder + softer} of {count} notes change velocity ({louder} louder, {softer} softer).");
         }
 
         long[] shifts = changes.Select(static change => change.After.Span.Onset.Value - change.Before.Span.Onset.Value).ToArray();
@@ -302,31 +324,35 @@ public static class VariationFacts
         long[] gapsAfter = Gaps(changes.Select(static change => change.After));
         if (moved == 0)
         {
-            sentences.Add("Every note starts where it did.");
+            sentences.Add(w.T("Every note starts where it did.", "Каждая нота начинается там же, где раньше."));
         }
         else if (shifts.Distinct().Count() == 1)
         {
             long shift = shifts[0];
-            sentences.Add($"{Every(count, "starts", "start")} {Length(Math.Abs(shift))} {(shift > 0 ? "later" : "earlier")}.");
+            sentences.Add(w.IsRussian
+                ? $"{Every(count, "", "", "начинается", "начинаются", w)} на {Length(Math.Abs(shift), w, accusative: true)} {(shift > 0 ? "позже" : "раньше")}."
+                : $"{Every(count, "starts", "start", "", "", w)} {Length(Math.Abs(shift))} {(shift > 0 ? "later" : "earlier")}.");
         }
         else if (gapsBefore.Length > 0 && gapsBefore.Zip(gapsAfter).All(static gap => gap.Second == gap.First * 2))
         {
-            sentences.Add($"The time between onsets doubles, so {Moved(moved, count)}.");
+            sentences.Add(w.T($"The time between onsets doubles, so {Moved(moved, count, w)}.", $"Время между атаками удваивается, поэтому {Moved(moved, count, w)}."));
         }
         else if (gapsBefore.Length > 0 && gapsBefore.Zip(gapsAfter).All(static gap => gap.Second * 2 == gap.First))
         {
-            sentences.Add($"The time between onsets halves, so {Moved(moved, count)}.");
+            sentences.Add(w.T($"The time between onsets halves, so {Moved(moved, count, w)}.", $"Время между атаками сокращается вдвое, поэтому {Moved(moved, count, w)}."));
         }
         else
         {
-            sentences.Add($"{moved} of {count} notes start at a new place.");
+            sentences.Add(w.IsRussian ? $"На новом месте начинаются {moved} {NotesOf(count, w)}." : $"{moved} of {count} notes start at a new place.");
         }
 
         long lengthBefore = Extent(before);
         long lengthAfter = Extent(after);
         if (lengthBefore != lengthAfter)
         {
-            sentences.Add($"From its first onset to its last note's end, the motif now takes {Length(lengthAfter)} instead of {Length(lengthBefore)}.");
+            sentences.Add(w.IsRussian
+                ? $"От первой атаки до конца последней ноты мотив теперь занимает {Length(lengthAfter, w, accusative: true)}; раньше — {Length(lengthBefore, w)}."
+                : $"From its first onset to its last note's end, the motif now takes {Length(lengthAfter)} instead of {Length(lengthBefore)}.");
         }
 
         return string.Join(" ", sentences);
@@ -336,7 +362,7 @@ public static class VariationFacts
     /// "The melody's intervals in semitones go from +3 +5 −1 to −3 −5 +1.", when the melody has the
     /// same notes by id before and after and its intervals changed; null otherwise.
     /// </summary>
-    private static string? MelodyIntervals(MotifTexture before, MotifTexture after)
+    private static string? MelodyIntervals(MotifTexture before, MotifTexture after, Words w)
     {
         if (before.Melody.Count < 2
             || !before.Melody.Select(static note => note.Id).SequenceEqual(after.Melody.Select(static note => note.Id), StringComparer.Ordinal))
@@ -346,7 +372,9 @@ public static class VariationFacts
 
         int[] from = [.. Steps(Pitches(before.Melody))];
         int[] to = [.. Steps(Pitches(after.Melody))];
-        return from.SequenceEqual(to) ? null : $"The melody's intervals in semitones go from {Signed(from)} to {Signed(to)}.";
+        return from.SequenceEqual(to)
+            ? null
+            : w.T($"The melody's intervals in semitones go from {Signed(from)} to {Signed(to)}.", $"Интервалы мелодии в полутонах: были {Signed(from)}, стали {Signed(to)}.");
     }
 
     /// <summary>
@@ -355,7 +383,7 @@ public static class VariationFacts
     /// rhythm and moves every note the same distance again, in semitones or else in scale steps;
     /// null otherwise.
     /// </summary>
-    private static string? Sequence(Note[] before, Note[][]? copies, TickSpan span, MusicalKey? key)
+    private static string? Sequence(Note[] before, Note[][]? copies, TickSpan span, MusicalKey? key, Words w)
     {
         if (copies is null)
         {
@@ -371,13 +399,15 @@ public static class VariationFacts
             return null;
         }
 
-        string repeats = shaped.Length == 2 ? "once" : $"{shaped.Length - 1} times";
+        string repeats = w.IsRussian ? w.Times(shaped.Length - 1) : shaped.Length == 2 ? "once" : $"{shaped.Length - 1} times";
         int semitones = shaped[1][0].Pitch.MidiNumber - source[0].Pitch.MidiNumber;
         if (Moves(shaped, source, (pitch, copy) => pitch + (copy * semitones)))
         {
             return semitones == 0
-                ? $"The motif repeats {repeats} at the same pitch, keeping its rhythm."
-                : Repeats(repeats, $"{(Math.Abs(semitones) >= 12 ? "an" : "a")} {MotifAnalyzer.IntervalName(semitones)} {(semitones > 0 ? "higher" : "lower")}");
+                ? w.T($"The motif repeats {repeats} at the same pitch, keeping its rhythm.", $"Мотив повторяется {repeats} на той же высоте, сохраняя ритм.")
+                : w.IsRussian
+                    ? Repeats(repeats, $"на {MotifAnalyzer.IntervalBy(semitones, w)} {(semitones > 0 ? "выше" : "ниже")}", w)
+                    : Repeats(repeats, $"{(Math.Abs(semitones) >= 12 ? "an" : "a")} {MotifAnalyzer.IntervalName(semitones)} {(semitones > 0 ? "higher" : "lower")}", w);
         }
 
         if (key is not { } scale)
@@ -387,12 +417,22 @@ public static class VariationFacts
 
         int steps = ScaleSteps.Locate(scale, shaped[1][0].Pitch.MidiNumber).Step - ScaleSteps.Locate(scale, source[0].Pitch.MidiNumber).Step;
         return steps != 0 && Moves(shaped, source, (pitch, copy) => ScaleSteps.Move(scale, pitch, copy * steps))
-            ? Repeats(repeats, $"a {Ordinal(Math.Abs(steps) + 1)} {(steps > 0 ? "higher" : "lower")} in the key's scale")
+            ? w.IsRussian
+                ? Repeats(repeats, $"на {RussianScaleDistance(Math.Abs(steps))} {(steps > 0 ? "выше" : "ниже")} по гамме тональности", w)
+                : Repeats(repeats, $"a {Ordinal(Math.Abs(steps) + 1)} {(steps > 0 ? "higher" : "lower")} in the key's scale", w)
             : null;
     }
 
-    private static string Repeats(string repeats, string distance) =>
-        $"The motif repeats {repeats}, each copy {distance} than the one before, keeping its rhythm.";
+    private static string Repeats(string repeats, string distance, Words w) => w.T(
+        $"The motif repeats {repeats}, each copy {distance} than the one before, keeping its rhythm.",
+        $"Мотив повторяется {repeats}, каждый раз {distance}, чем предыдущий, сохраняя ритм.");
+
+    // A distance in scale steps, after "на": "на секунду", "на терцию"; past a 10th, in steps.
+    private static readonly string[] s_russianScaleDistances = ["приму", "секунду", "терцию", "кварту", "квинту", "сексту", "септиму", "октаву", "нону", "дециму"];
+
+    private static string RussianScaleDistance(int steps) => steps < s_russianScaleDistances.Length
+        ? s_russianScaleDistances[steps]
+        : $"{steps} {Words.RussianForm(steps, "ступень", "ступени", "ступеней")}";
 
     /// <summary>Whether every later copy has the source's pitches moved as <paramref name="moved"/> says, given a pitch and the copy's number.</summary>
     private static bool Moves(Note[][] copies, Note[] source, Func<int, int, int> moved) =>
@@ -423,9 +463,16 @@ public static class VariationFacts
         _ => "0",
     }));
 
-    private static string Every(int count, string one, string many) => count == 1 ? $"The note {one}" : $"All {count} notes {many}";
+    private static string Every(int count, string one, string many, string russianOne, string russianMany, Words w) => w.IsRussian
+        ? count == 1 ? $"Нота {russianOne}" : $"Все {count} {Words.RussianForm(count, "нота", "ноты", "нот")} {russianMany}"
+        : count == 1 ? $"The note {one}" : $"All {count} notes {many}";
 
-    private static string Moved(int moved, int count) => moved == 1 ? $"1 of {count} notes moves" : $"{moved} of {count} notes move";
+    private static string Moved(int moved, int count, Words w) => w.IsRussian
+        ? $"{Words.RussianForm(moved, "сдвигается", "сдвигаются", "сдвигаются")} {moved} {NotesOf(count, w)}"
+        : moved == 1 ? $"1 of {count} notes moves" : $"{moved} of {count} notes move";
+
+    /// <summary>"из 5 нот", "из 1 ноты".</summary>
+    private static string NotesOf(int count, Words w) => w.OutOf(count, "note", "notes", "ноты", "нот");
 
     private static long[] Gaps(IEnumerable<Note> notes)
     {

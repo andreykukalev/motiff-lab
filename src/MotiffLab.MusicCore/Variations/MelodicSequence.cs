@@ -64,7 +64,7 @@ public sealed class MelodicSequence : VariationOperation<MelodicSequenceParamete
     /// <remarks>Exact sequences need the key too: it says how many semitones the scale steps are from the first melody note.</remarks>
     protected override string? Precondition(IReadOnlyList<Note> notes, VariationContext context, MelodicSequenceParameters parameters) =>
         context.Key is null
-            ? $"{Name} counts in steps of the key's scale, and this selection has no key, so it is not available."
+            ? NoKey(context.Words)
             : null;
 
     protected override IEnumerable<Note> Transform(IReadOnlyList<Note> notes, VariationContext context, MelodicSequenceParameters parameters)

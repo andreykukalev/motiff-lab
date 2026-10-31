@@ -51,11 +51,15 @@ public sealed class HandEdit : IVariationOperation
 
     public string Name => "Edit by hand";
 
+    public string NameIn(Words words) => words.T(Name, "Правка вручную");
+
     public string? DisabledReason(IReadOnlySet<KeepProperty> keep)
     {
         ArgumentNullException.ThrowIfNull(keep);
         return null;
     }
+
+    public string? DisabledReason(IReadOnlySet<KeepProperty> keep, Words words) => DisabledReason(keep);
 
     /// <summary>A hand edit names its note, so it has no scope.</summary>
     public bool Supports(OperationScope scope) => scope == OperationScope.All;
@@ -78,36 +82,42 @@ public sealed class HandEdit : IVariationOperation
     {
         ArgumentNullException.ThrowIfNull(notes);
         ArgumentNullException.ThrowIfNull(context);
+        Words w = context.Words;
         HandEditParameters edit = Cast(parameters);
         if (edit.Scope != OperationScope.All)
         {
-            return $"{Name} names its note, so it can't be limited to {OperationScopes.Describe(edit.Scope)}.";
+            return w.T(
+                $"{Name} names its note, so it can't be limited to {OperationScopes.Describe(edit.Scope)}.",
+                $"«{NameIn(w)}» относится к одной ноте: ограничить её слоем «{OperationScopes.Describe(edit.Scope, w)}» нельзя.");
         }
 
         Note? note = notes.FirstOrDefault(note => note.Id == edit.NoteId);
+        string missing = w.T($"Note {edit.NoteId} is not in the variation.", $"Ноты {edit.NoteId} нет в вариации.");
         switch (edit.Kind)
         {
             case HandEditKind.Remove:
-                return note is null ? $"Note {edit.NoteId} is not in the variation."
-                    : notes.Count == 1 ? "A variation keeps at least one note."
+                return note is null ? missing
+                    : notes.Count == 1 ? w.T("A variation keeps at least one note.", "В вариации должна остаться хотя бы одна нота.")
                     : null;
             case HandEditKind.Add when note is not null:
-                return $"The variation already has a note {edit.NoteId}.";
+                return w.T($"The variation already has a note {edit.NoteId}.", $"В вариации уже есть нота {edit.NoteId}.");
             case HandEditKind.Change when note is null:
-                return $"Note {edit.NoteId} is not in the variation.";
+                return missing;
             case HandEditKind.Change when NoteValues.Of(note) == edit.Values:
-                return "The note already has these values.";
+                return w.T("The note already has these values.", "У ноты уже эти значения.");
         }
 
         if (edit.Values is not { } values)
         {
-            return "The edit has no values for the note.";
+            return w.T("The edit has no values for the note.", "В правке нет значений для ноты.");
         }
 
         bool moved = note is null || note.Span.Onset != values.Span.Onset;
-        return values.Pitch.MidiNumber is < OperationRules.LowestPitch or > OperationRules.HighestPitch ? "The note would be outside the piano's range (A0–C8)."
-            : values.Velocity is < Note.MinVelocity or > Note.MaxVelocity ? $"Velocity runs from {Note.MinVelocity} to {Note.MaxVelocity}."
-            : moved && values.Span.Onset < context.Span.Onset ? "A note cannot start before the selection."
+        return values.Pitch.MidiNumber is < OperationRules.LowestPitch or > OperationRules.HighestPitch
+                ? w.T("The note would be outside the piano's range (A0–C8).", "Нота вышла бы за пределы диапазона фортепиано (A0–C8).")
+            : values.Velocity is < Note.MinVelocity or > Note.MaxVelocity
+                ? w.T($"Velocity runs from {Note.MinVelocity} to {Note.MaxVelocity}.", $"Сила нажатия (velocity) — от {Note.MinVelocity} до {Note.MaxVelocity}.")
+            : moved && values.Span.Onset < context.Span.Onset ? w.T("A note cannot start before the selection.", "Нота не может начинаться раньше выделения.")
             : null;
     }
 
@@ -126,7 +136,7 @@ public sealed class HandEdit : IVariationOperation
             HandEditKind.Change => [.. notes.Select(note => note.Id == edit.NoteId ? With(note, edit.Values!.Value) : note)],
             _ => [.. notes, Added(notes, edit.NoteId, edit.Values!.Value)],
         };
-        return VariationFacts.Build(OperationId, context.Span, notes, after, context.Keep, OperationRules.Check(notes, after).Flags, context.Key, context.Meter);
+        return VariationFacts.Build(OperationId, context.Span, notes, after, context.Keep, OperationRules.Check(notes, after, context.Words).Flags, context.Key, context.Meter, context.Words);
     }
 
     private static Note With(Note note, NoteValues values) =>

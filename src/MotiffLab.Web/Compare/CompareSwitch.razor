@@ -1,20 +1,23 @@
 @* Return to the original and compare (#43, step 6 of docs/08-central-product-model.md): in the inspector head on
    every tab while a variation exists. Original and Variation switch what is heard and what the score shows;
    One after the other loops the original, then the variation. The page does the switching; this only shows the workspace state (0013). *@
-<div class="compare-switch" role="group" aria-label="Compare with the original">
-    <div class="ab" role="group" aria-label="Hear and show">
+@using MotiffLab.Web.Localization
+@inject UiText Text
+
+<div class="compare-switch" role="group" aria-label="@Text["compare.title"]">
+    <div class="ab" role="group" aria-label="@Text["compare.hearAndShow"]">
         <button class="@ButtonClass(Original, sounding: Sounding == false)" aria-pressed="@(Original ? "true" : "false")" aria-current="@(Sounding == false ? "true" : null)"
-                title="Hear the original phrase and show it in the score. The variation stays to come back to." @onclick="() => Choose.InvokeAsync(false)">
-            Original
+                title="@Text["compare.originalHint"]" @onclick="() => Choose.InvokeAsync(false)">
+            @Text["term.original"]
         </button>
         <button class="@ButtonClass(Variation, sounding: Sounding == true)" aria-pressed="@(Variation ? "true" : "false")" aria-current="@(Sounding == true ? "true" : null)"
-                title="Hear the variation and show it in the score with the variation in place." @onclick="() => Choose.InvokeAsync(true)">
-            Variation
+                title="@Text["compare.variationHint"]" @onclick="() => Choose.InvokeAsync(true)">
+            @Text["term.variation"]
         </button>
     </div>
     <button class="alternate @(Alternating ? "on" : null)" aria-pressed="@(Alternating ? "true" : "false")"
-            title="Loops the original phrase, then the variation, then again." @onclick="() => OneAfterTheOther.InvokeAsync()">
-        One after the other
+            title="@Text["compare.alternateHint"]" @onclick="() => OneAfterTheOther.InvokeAsync()">
+        @Text["compare.alternate"]
     </button>
 </div>
 

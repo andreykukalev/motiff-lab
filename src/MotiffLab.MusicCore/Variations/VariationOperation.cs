@@ -29,15 +29,16 @@ public abstract record OperationParameters
 /// The piece's bars and beats, which beat-based operations (V1 Syncopate and Dotted) and the
 /// explanation's beat names read. Null reads <see cref="MeterMap.Default"/>, 4/4 from the start.
 /// </param>
-public sealed record VariationContext(TickSpan Span, IReadOnlySet<KeepProperty> Keep, int Seed = 0, MusicalKey? Key = null, MeterMap? Meter = null)
+/// <param name="Words">The language the explanation is written in (#134); English by default. It never changes the notes.</param>
+public sealed record VariationContext(TickSpan Span, IReadOnlySet<KeepProperty> Keep, int Seed = 0, MusicalKey? Key = null, MeterMap? Meter = null, Words Words = default)
 {
     /// <summary>The meter to count beats in: <see cref="Meter"/>, or 4/4 from the start when there is none.</summary>
     public MeterMap Beats => Meter ?? MeterMap.Default;
 
-    public static VariationContext For(MotifSelection selection, IReadOnlySet<KeepProperty> keep, int seed = 0, MusicalKey? key = null, MeterMap? meter = null)
+    public static VariationContext For(MotifSelection selection, IReadOnlySet<KeepProperty> keep, int seed = 0, MusicalKey? key = null, MeterMap? meter = null, Words words = default)
     {
         ArgumentNullException.ThrowIfNull(selection);
-        return new VariationContext(selection.Span, keep, seed, key, meter);
+        return new VariationContext(selection.Span, keep, seed, key, meter, words);
     }
 }
 
@@ -53,8 +54,14 @@ public interface IVariationOperation
     /// <summary>The operation's name as the player reads it, for example "Rhythm reshape".</summary>
     string Name { get; }
 
+    /// <summary>The operation's name in the player's language (#134); <see cref="Name"/> in English.</summary>
+    string NameIn(Words words);
+
     /// <summary>Why the Keep choices rule the operation out (its Keep table row, S1-E2), or null when it can run.</summary>
     string? DisabledReason(IReadOnlySet<KeepProperty> keep);
+
+    /// <summary>Why the Keep choices rule the operation out, in the player's language (#134).</summary>
+    string? DisabledReason(IReadOnlySet<KeepProperty> keep, Words words);
 
     /// <summary>Whether a step can be limited to <paramref name="scope"/> (<see cref="OperationParameters.Scope"/>).</summary>
     bool Supports(OperationScope scope);
@@ -89,6 +96,20 @@ public abstract class VariationOperation<TParameters> : IVariationOperation
     /// <summary>Why the Keep choices rule the operation out, read from its <see cref="KeepTable"/> row (S1-E2), or null when it can run.</summary>
     public string? DisabledReason(IReadOnlySet<KeepProperty> keep) => KeepTable.DisabledReason(Id, keep);
 
+    public string? DisabledReason(IReadOnlySet<KeepProperty> keep, Words words) => KeepTable.DisabledReason(Id, keep, words);
+
+    /// <summary>The name in the player's language, from the operation's Keep table row.</summary>
+    public string NameIn(Words words) => KeepTable.Find(Id)?.NameIn(words) ?? Name;
+
+    /// <summary>"Для этого выделения … не подходит: …" in Russian; "… , so it is not available for this selection." in English.</summary>
+    protected string NotAvailable(Words words, string english, string russian) =>
+        words.IsRussian ? $"Для этого выделения «{NameIn(words)}» не подходит: {russian}." : $"{Name} {english}, so it is not available for this selection.";
+
+    /// <summary>Why a step counted in scale steps cannot run without a key.</summary>
+    protected string NoKey(Words words) => words.T(
+        $"{Name} counts in steps of the key's scale, and this selection has no key, so it is not available.",
+        $"Для этого выделения «{NameIn(words)}» не подходит: счёт идёт по ступеням гаммы тональности, а тональность здесь не определена.");
+
     /// <summary>Whether a step can be limited to <paramref name="scope"/>; by default only the whole selection.</summary>
     public virtual bool Supports(OperationScope scope) => scope == OperationScope.All;
 
@@ -98,7 +119,7 @@ public abstract class VariationOperation<TParameters> : IVariationOperation
     public Variation Apply(IReadOnlyList<Note> notes, VariationContext context, TParameters parameters)
     {
         ArgumentNullException.ThrowIfNull(context);
-        string? disabled = DisabledReason(context.Keep);
+        string? disabled = DisabledReason(context.Keep, context.Words);
         if (disabled is not null)
         {
             throw new InvalidOperationException(disabled);
@@ -110,7 +131,7 @@ public abstract class VariationOperation<TParameters> : IVariationOperation
             throw new InvalidOperationException(reason);
         }
 
-        return VariationFacts.Build(Id, context.Span, notes, after!, context.Keep, flags, context.Key, context.Meter);
+        return VariationFacts.Build(Id, context.Span, notes, after!, context.Keep, flags, context.Key, context.Meter, context.Words);
     }
 
     /// <summary>Applies the operation to the selected notes of <paramref name="notes"/>.</summary>
@@ -138,20 +159,25 @@ public abstract class VariationOperation<TParameters> : IVariationOperation
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(parameters);
         Validate(parameters);
+        Words w = context.Words;
         if (notes.Count == 0)
         {
-            return ("The selection has no notes to vary.", null, []);
+            return (w.T("The selection has no notes to vary.", "В выделении нет нот для изменения."), null, []);
         }
 
         if (!Supports(parameters.Scope))
         {
-            return ($"{Name} works on the whole selection, so it can't be limited to {OperationScopes.Describe(parameters.Scope)}.", null, []);
+            return (w.T(
+                $"{Name} works on the whole selection, so it can't be limited to {OperationScopes.Describe(parameters.Scope)}.",
+                $"«{NameIn(w)}» меняет всё выделение сразу: ограничить шаг слоем «{OperationScopes.Describe(parameters.Scope, w)}» нельзя."), null, []);
         }
 
         (Note[] inside, Note[] outside) = OperationScopes.Split(notes, parameters.Scope);
         if (inside.Length == 0)
         {
-            return ($"The selection has no notes in {OperationScopes.Describe(parameters.Scope)} to vary.", null, []);
+            return (w.T(
+                $"The selection has no notes in {OperationScopes.Describe(parameters.Scope)} to vary.",
+                $"{OperationScopes.RussianIn(parameters.Scope)} нет нот для изменения."), null, []);
         }
 
         string? reason = Precondition(inside, context, parameters);
@@ -161,9 +187,9 @@ public abstract class VariationOperation<TParameters> : IVariationOperation
         }
 
         Note[] after = [.. outside, .. Transform(inside, context, parameters)];
-        RuleReport rules = OperationRules.Check(notes, after);
+        RuleReport rules = OperationRules.Check(notes, after, w);
         return rules.Violation is { } violation
-            ? ($"{Name} {violation}, so it is not available for this selection.", null, [])
+            ? (w.IsRussian ? $"Для этого выделения «{NameIn(w)}» не подходит: {violation}." : $"{Name} {violation}, so it is not available for this selection.", null, [])
             : (null, after, rules.Flags);
     }
 
