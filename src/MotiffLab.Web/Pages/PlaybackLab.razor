@@ -1313,6 +1313,11 @@
             parts.Add(Text.Format("score.approximated", notation.ApproximatedNoteCount, Text.Count("score.ofNotes", notation.NoteCount)));
         }
 
+        if (notation.TripletCount > 0)
+        {
+            parts.Add($"{notation.TripletCount} beats are written as triplets: their notes fall on thirds or sixths of the beat rather than on 16ths.");
+        }
+
         if (_heard && _heardKey is { } key)
         {
             parts.Add(Text.Format("score.heardKey", key.NameIn(Words)));

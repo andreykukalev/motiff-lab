@@ -124,13 +124,19 @@ public static class NotationGenerator
         long last = Math.Max(1, Math.Max(end.Value, shown.Length == 0 ? 0 : shown.Max(note => note.End)));
         Bar[] bars = [.. meter.BarsBefore(new Tick(last))];
 
-        List<StaffPlan> staves = PlanStaves(shown);
+        // Beats whose onsets fit three or six to the beat better than 16ths are written as triplets.
+        List<StaffPlan> staves = [.. PlanStaves(shown).Select(staff => staff with { Tuplets = FindTuplets(staff.Notes, bars) })];
         var heard = new HeardCounts();
         if (asHeard)
         {
-            staves = [.. staves.Select(staff => staff with { Notes = AsHeard(staff.Notes, heard) })];
-            approximated = staves.SelectMany(staff => staff.Notes).Count(note => note.Onset != note.Note.Span.Onset.Value || note.End != note.Note.Span.End.Value);
+            staves = [.. staves.Select(staff => staff with { Notes = AsHeard(staff.Notes, heard, staff.Tuplets) })];
         }
+        else
+        {
+            staves = [.. staves.Select(staff => staff with { Notes = OnTuplets(staff.Notes, staff.Tuplets) })];
+        }
+
+        approximated = staves.SelectMany(staff => staff.Notes).Count(note => note.Onset != note.Note.Span.Onset.Value || note.End != note.Note.Span.End.Value);
 
         PlayingMarks? marks = playedTempos is null ? null : PlayingMarks.Of(input, bars, playedTempos);
         var shortened = new HashSet<string>();
@@ -203,6 +209,7 @@ public static class NotationGenerator
             DynamicCount = marks?.Dynamics.Count ?? 0,
             TempoWordCount = marks?.TempoWords.Count ?? 0,
             HairpinCount = marks?.Hairpins.Count ?? 0,
+            TripletCount = staves.Sum(staff => staff.Tuplets.Length),
             SlurCount = slurCount,
             PedalCount = pedalCount,
         };
@@ -284,7 +291,7 @@ public static class NotationGenerator
     private static long SnapTo(long tick, long grid) => (tick + (grid / 2)) / grid * grid;
 
     /// <summary>A staff's notes written as heard (see <see cref="Generate"/>'s <c>asHeard</c>).</summary>
-    private static ShownNote[] AsHeard(ShownNote[] notes, HeardCounts counts)
+    private static ShownNote[] AsHeard(ShownNote[] notes, HeardCounts counts, TupletSpan[] tuplets)
     {
         // Onsets that start together are one chord.
         var chords = new List<List<ShownNote>>();
@@ -321,9 +328,9 @@ public static class NotationGenerator
             }
 
             long raw = chords[i][0].Note.Span.Onset.Value;
-            long onset = SnapTo(raw, HeardGrid);
-            onset = onset > previous ? onset : SnapTo(raw, Grid);
-            onset = onset > previous ? onset : previous + Grid;
+            long onset = SnapIn(raw, tuplets, HeardGrid);
+            onset = onset > previous ? onset : SnapIn(raw, tuplets, Grid);
+            onset = onset > previous ? onset : previous + StepAt(previous, tuplets);
             onsets[i] = previous = onset;
         }
 
@@ -340,7 +347,7 @@ public static class NotationGenerator
             }
 
             // A chord is written with one length, that of its longest note, so that it stays one chord.
-            long end = Math.Max(SnapTo(chords[i].Max(note => note.Note.Span.End.Value), HeardGrid), onsets[i] + Grid);
+            long end = Math.Max(SnapIn(chords[i].Max(note => note.Note.Span.End.Value), tuplets, HeardGrid), onsets[i] + StepAt(onsets[i], tuplets));
             if (next >= 0 && end > onsets[next])
             {
                 end = onsets[next];
@@ -356,6 +363,123 @@ public static class NotationGenerator
         }
 
         return [.. written];
+    }
+
+    /// <summary>
+    /// The beats of a staff whose onsets are triplets: beats of a simple meter (not 6/8, 9/8, 12/8, which
+    /// already divide by three) where the onsets, within a 12th of a beat early, lie on thirds of the beat
+    /// (triplet eighths in a quarter) or sixths (triplet 16ths), at least one off the 16ths, with half the
+    /// distance from that grid they have from the 16ths, and none further than a 12th of the beat from a
+    /// third, or a 24th from a sixth, and no triplet value shorter than a 32nd. A beat with only two onsets
+    /// counts only next to a beat of three or more, so that a dotted rhythm played a little short stays dotted.
+    /// </summary>
+    private static TupletSpan[] FindTuplets(ShownNote[] notes, Bar[] bars)
+    {
+        var onsets = new List<long>();
+        foreach (long onset in notes.Where(note => !note.IsGrace).Select(note => note.Note.Span.Onset.Value).Order())
+        {
+            if (onsets.Count == 0 || onset - onsets[^1] >= HeardChord)
+            {
+                onsets.Add(onset);
+            }
+        }
+
+        var candidates = new List<(TupletSpan Span, int Onsets)>();
+        foreach (Bar bar in bars)
+        {
+            long beat = bar.Signature.BeatTicks;
+            if (IsCompound(bar.Signature) || beat % 24 != 0)
+            {
+                continue;
+            }
+
+            long origin = bar.Span.Onset.Value - bar.LeadIn;
+            for (long start = origin; start + beat <= bar.Span.End.Value; start += beat)
+            {
+                long early = beat / 12;
+                int first = onsets.BinarySearch(start - early);
+                first = first >= 0 ? first : ~first;
+                long[] offsets = [.. onsets.Skip(first).TakeWhile(onset => onset < start + beat - early).Select(onset => onset - start)];
+                if (offsets.Length < 2 || offsets.All(offset => offset < 0))
+                {
+                    continue;
+                }
+
+                // The distance to a grid, and the grid point, from the beat's start (an onset may be a little early).
+                long Distance(long offset, long step) => Math.Abs(offset - Nearest(offset, step));
+                long Nearest(long offset, long step) => SnapTo(offset + beat, step) - beat;
+                long sixteenths = offsets.Sum(offset => Distance(offset, beat / 4));
+                long thirds = offsets.Sum(offset => Distance(offset, beat / 3));
+                long sixths = offsets.Sum(offset => Distance(offset, beat / 6));
+                // A triplet value is never shorter than the 32nd every note is shown at least as.
+                bool three = beat / 3 >= Grid
+                    && 2 * thirds < sixteenths
+                    && offsets.All(offset => Distance(offset, beat / 3) <= beat / 12)
+                    && offsets.Any(offset => Nearest(offset, beat / 3) % (beat / 4) != 0);
+                bool six = beat / 6 >= Grid
+                    && 2 * sixths < sixteenths
+                    && offsets.All(offset => Distance(offset, beat / 6) <= beat / 24)
+                    && offsets.Any(offset => Nearest(offset, beat / 6) % (beat / 4) != 0);
+                if (three && (!six || thirds <= sixths + (offsets.Length * beat / 48)))
+                {
+                    candidates.Add((new TupletSpan(start, beat, 3), offsets.Length));
+                }
+                else if (six)
+                {
+                    candidates.Add((new TupletSpan(start, beat, 6), offsets.Length));
+                }
+            }
+        }
+
+        var full = candidates.Where(candidate => candidate.Onsets >= 3).Select(candidate => candidate.Span.Start).ToHashSet();
+        return [.. candidates
+            .Where(candidate => candidate.Onsets >= 3 || full.Contains(candidate.Span.Start - candidate.Span.Length) || full.Contains(candidate.Span.End))
+            .Select(candidate => candidate.Span)];
+    }
+
+    /// <summary>The triplet beat whose onsets a tick goes with: from a 12th of the beat before it to a 12th before its end.</summary>
+    private static TupletSpan? TupletAround(long tick, TupletSpan[] tuplets)
+    {
+        foreach (TupletSpan span in tuplets)
+        {
+            if (tick >= span.Start - (span.Length / 12) && tick < span.End - (span.Length / 12))
+            {
+                return span;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// A tick on its triplet beat's grid, or on <paramref name="grid"/> outside triplets; a tick just before a
+    /// triplet beat's end that <paramref name="grid"/> would put inside it goes on the triplets' grid too.
+    /// </summary>
+    private static long SnapIn(long tick, TupletSpan[] tuplets, long grid)
+    {
+        long snapped = SnapTo(tick, grid);
+        TupletSpan? around = TupletAround(tick, tuplets) ?? (tuplets.FirstOrDefault(span => span.Start < snapped && snapped < span.End) is { Length: > 0 } inside ? inside : null);
+        return around is { } span ? span.Start + SnapTo(tick - span.Start + span.Length, span.Step) - span.Length : snapped;
+    }
+
+    /// <summary>The shortest value written at a position: a step of the triplet beat it is in, or a 32nd.</summary>
+    private static long StepAt(long tick, TupletSpan[] tuplets) =>
+        tuplets.FirstOrDefault(span => span.Start <= tick && tick < span.End) is { Length: > 0 } span ? span.Step : Grid;
+
+    /// <summary>Notes written on the 32nd grid, with those in triplet beats moved to the triplets' grid.</summary>
+    private static ShownNote[] OnTuplets(ShownNote[] notes, TupletSpan[] tuplets)
+    {
+        if (tuplets.Length == 0)
+        {
+            return notes;
+        }
+
+        return [.. notes.Select(note =>
+        {
+            long onset = SnapIn(note.Note.Span.Onset.Value, tuplets, Grid);
+            long end = Math.Max(SnapIn(note.Note.Span.End.Value, tuplets, Grid), onset + StepAt(onset, tuplets));
+            return note with { Onset = onset, RawEnd = end };
+        })];
     }
 
     /// <summary>Each grace note in front of the chord that holds the note it leads to.</summary>
@@ -497,28 +621,33 @@ public static class NotationGenerator
                 continue;
             }
 
+            // Triplets are written in a voice only where it starts or ends a note between the 16ths.
+            TupletSpan[] tuplets = [.. staff.Tuplets.Where(span => span.Start >= start && span.End <= stop && inBar.Any(chord =>
+                (chord.Onset > span.Start && chord.Onset < span.End && (chord.Onset - span.Start) % (span.Length / 4) != 0)
+                || (chord.End > span.Start && chord.End < span.End && (chord.End - span.Start) % (span.Length / 4) != 0)))];
             var elements = new List<Element>();
             long cursor = start;
             foreach (Chord chord in inBar)
             {
                 long from = Math.Max(chord.Onset, start);
                 long to = Math.Min(chord.End, stop);
-                elements.AddRange(Fill(cursor, from, grid, space: index > 0));
+                elements.AddRange(Fill(cursor, from, grid, space: index > 0, tuplets));
                 if (from == chord.Onset)
                 {
-                    elements.AddRange(chord.Graces.Select(grace => new ChordPiece(from, 0, 8, 0, grace, 0, tieIn: false, tieOut: false) { IsGrace = true }));
+                    TupletSpan? around = tuplets.FirstOrDefault(span => span.Start <= from && from < span.End) is { Length: > 0 } found ? found : null;
+                    elements.AddRange(chord.Graces.Select(grace => new ChordPiece(from, 0, 8, 0, grace, 0, tieIn: false, tieOut: false) { IsGrace = true, Tuplet = around }));
                 }
 
-                foreach ((long pieceStart, long ticks, int dur, int dots) in Decompose(from, to, grid))
+                foreach ((long pieceStart, long ticks, int dur, int dots, TupletSpan? tuplet) in Pieces(from, to, grid, tuplets))
                 {
-                    elements.Add(new ChordPiece(pieceStart, ticks, dur, dots, chord, chord.NextPiece++, pieceStart > chord.Onset, pieceStart + ticks < chord.End));
+                    elements.Add(new ChordPiece(pieceStart, ticks, dur, dots, chord, chord.NextPiece++, pieceStart > chord.Onset, pieceStart + ticks < chord.End) { Tuplet = tuplet });
                 }
 
                 cursor = to;
             }
 
-            elements.AddRange(Fill(cursor, stop, grid, space: index > 0));
-            layers.Add(Beam(elements, grid.Origin, beamGroup));
+            elements.AddRange(Fill(cursor, stop, grid, space: index > 0, tuplets));
+            layers.Add(Group(elements, grid.Origin, beamGroup));
         }
 
         WriteAccidentals(layers, fifths);
@@ -579,6 +708,70 @@ public static class NotationGenerator
 
     private static IEnumerable<Element> Fill(long from, long to, BarGrid grid, bool space) =>
         Decompose(from, to, grid).Select(value => new Rest(value.Start, value.Ticks, value.Dur, value.Dots, space));
+
+    private static IEnumerable<Element> Fill(long from, long to, BarGrid grid, bool space, TupletSpan[] tuplets) =>
+        Pieces(from, to, grid, tuplets).Select(value => new Rest(value.Start, value.Ticks, value.Dur, value.Dots, space) { Tuplet = value.Tuplet });
+
+    /// <summary>
+    /// Note values from one tick to another, as <see cref="Decompose"/> writes them, except inside a triplet
+    /// beat: there, three values take the time of two, so each is written as its length times 3/2.
+    /// </summary>
+    private static IEnumerable<(long Start, long Ticks, int Dur, int Dots, TupletSpan? Tuplet)> Pieces(long from, long to, BarGrid grid, TupletSpan[] tuplets)
+    {
+        for (long position = from; position < to;)
+        {
+            if (tuplets.FirstOrDefault(span => span.Start <= position && position < span.End) is { Length: > 0 } span)
+            {
+                long stop = Math.Min(to, span.End);
+                var written = new BarGrid(0, span.Step * 3 / 2, 0);
+                foreach ((long start, long ticks, int dur, int dots) in Decompose((position - span.Start) * 3 / 2, (stop - span.Start) * 3 / 2, written))
+                {
+                    yield return (span.Start + (start * 2 / 3), ticks * 2 / 3, dur, dots, span);
+                }
+
+                position = stop;
+            }
+            else
+            {
+                long stop = Math.Min(to, tuplets.Where(next => next.Start > position).Select(next => next.Start).DefaultIfEmpty(to).Min());
+                foreach ((long start, long ticks, int dur, int dots) in Decompose(position, stop, grid))
+                {
+                    yield return (start, ticks, dur, dots, null);
+                }
+
+                position = stop;
+            }
+        }
+    }
+
+    /// <summary>The elements of a layer with each triplet beat's in a tuplet, and eighths and shorter beamed.</summary>
+    private static List<Element> Group(List<Element> elements, long origin, long beamGroup)
+    {
+        var result = new List<Element>();
+        for (int i = 0; i < elements.Count;)
+        {
+            TupletSpan? tuplet = elements[i].Tuplet;
+            int next = i;
+            while (next < elements.Count && elements[next].Tuplet == tuplet)
+            {
+                next++;
+            }
+
+            List<Element> run = elements[i..next];
+            if (tuplet is { } span)
+            {
+                result.Add(new TupletGroup([.. Beam(run, span.Start, span.Length)], span));
+            }
+            else
+            {
+                result.AddRange(Beam(run, origin, beamGroup));
+            }
+
+            i = next;
+        }
+
+        return result;
+    }
 
     private static List<Element> Beam(List<Element> elements, long origin, long beamGroup)
     {
@@ -660,7 +853,12 @@ public static class NotationGenerator
     }
 
     private static IEnumerable<Element> Flatten(IEnumerable<Element> elements) =>
-        elements.SelectMany(element => element is Beamed beam ? beam.Elements : [element]);
+        elements.SelectMany(element => element switch
+        {
+            Beamed beam => Flatten(beam.Elements),
+            TupletGroup tuplet => Flatten(tuplet.Elements),
+            _ => [element],
+        });
 
     private static string WriteMei(string title, List<StaffPlan> staves, List<MeasurePlan> measures)
     {
@@ -905,6 +1103,19 @@ public static class NotationGenerator
                 xml.WriteEndElement();
                 break;
 
+            case TupletGroup tuplet:
+                xml.WriteStartElement("tuplet", MeiNamespace);
+                xml.WriteAttributeString("num", Number(tuplet.Span.Num));
+                xml.WriteAttributeString("numbase", Number(tuplet.Span.Num * 2 / 3));
+                xml.WriteAttributeString("num.format", "count");
+                foreach (Element inner in tuplet.Elements)
+                {
+                    WriteElement(xml, inner);
+                }
+
+                xml.WriteEndElement();
+                break;
+
             case Beamed beam:
                 xml.WriteStartElement("beam", MeiNamespace);
                 foreach (Element inner in beam.Elements)
@@ -1033,6 +1244,18 @@ public static class NotationGenerator
     private sealed record StaffPlan(int Number, int Track, Clef Clef, Hand? Hand, bool IsSplitInferred, ShownNote[] Notes)
     {
         public List<List<Chord>> Voices { get; set; } = [];
+
+        /// <summary>The staff's beats written as triplets, in order.</summary>
+        public TupletSpan[] Tuplets { get; init; } = [];
+    }
+
+    /// <summary>A beat written as a tuplet: three (triplet eighths in a quarter) or six (triplet 16ths) values in the time of two or four.</summary>
+    private readonly record struct TupletSpan(long Start, long Length, int Num)
+    {
+        public long End => Start + Length;
+
+        /// <summary>The time between two of its onsets.</summary>
+        public long Step => Length / Num;
     }
 
     /// <param name="Origin">Where a full bar would start: before the start of a pickup.</param>
@@ -1074,6 +1297,9 @@ public static class NotationGenerator
         public int Dur { get; } = dur;
 
         public int Dots { get; } = dots;
+
+        /// <summary>The triplet beat the element is written in, if any: its @dur is then 3/2 of its length.</summary>
+        public TupletSpan? Tuplet { get; init; }
     }
 
     private sealed class MeasureRest() : Element(0, 0, 0, 0);
@@ -1086,6 +1312,13 @@ public static class NotationGenerator
     private sealed class Beamed(Element[] elements) : Element(elements[0].Start, elements.Sum(element => element.Ticks), 0, 0)
     {
         public Element[] Elements { get; } = elements;
+    }
+
+    private sealed class TupletGroup(Element[] elements, TupletSpan span) : Element(elements[0].Start, elements.Sum(element => element.Ticks), 0, 0)
+    {
+        public Element[] Elements { get; } = elements;
+
+        public TupletSpan Span { get; } = span;
     }
 
     private sealed class ChordPiece(long start, long ticks, int dur, int dots, Chord chord, int index, bool tieIn, bool tieOut)
