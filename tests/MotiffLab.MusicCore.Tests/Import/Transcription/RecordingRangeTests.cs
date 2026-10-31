@@ -79,4 +79,14 @@ public class RecordingRangeTests
 
         Assert.Equal(4, RecordingRange.Start(30 * Minute).Parts.Count);
     }
+
+    [Fact]
+    public void Dragging_the_whole_stretch_keeps_its_length_and_stops_at_the_ends()
+    {
+        RecordingRange range = RecordingRange.Start(30 * Minute).WithEnd(3 * Minute);
+        RecordingRange moved = range.MovedTo(12 * Minute);
+        Assert.Equal((12 * Minute, 15 * Minute), (moved.FromMilliseconds, moved.ToMilliseconds));
+        Assert.Equal((27 * Minute, 30 * Minute), (range.MovedTo(29 * Minute).FromMilliseconds, range.MovedTo(29 * Minute).ToMilliseconds));
+        Assert.Equal((0L, 3 * Minute), (range.MovedTo(-5).FromMilliseconds, range.MovedTo(-5).ToMilliseconds));
+    }
 }

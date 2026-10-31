@@ -203,10 +203,13 @@ test("only the stretch the player chooses in a long recording is sent, and the p
     await expect(range.getByText("0:00 to 7:00, 7:00 long: heard in 4 parts", { exact: false })).toBeVisible();
     await expect(range.getByText("so 4 requests to the scan server", { exact: false })).toBeVisible();
 
-    // The start moves and the end stays; then the end comes closer.
-    await range.getByLabel("Start").fill("120000");
+    // Found by ear: the play position moved to 2:00, "Start here"; the end stays. Then to 4:30, "End here".
+    const player = page.locator(".recording-range audio");
+    await player.evaluate(audio => { audio.currentTime = 120; });
+    await range.getByRole("button", { name: "Start here" }).click();
     await expect(range.getByText("2:00 to 7:00, 5:00 long: heard in 3 parts", { exact: false })).toBeVisible();
-    await range.getByLabel("End").fill("270000");
+    await player.evaluate(audio => { audio.currentTime = 270; });
+    await range.getByRole("button", { name: "End here" }).click();
     await expect(range.getByText("2:00 to 4:30, 2:30 long: heard in 2 parts", { exact: false })).toBeVisible();
     await expect(range.getByText("so 2 requests to the scan server", { exact: false })).toBeVisible();
     expect(await violations(page)).toEqual([]);
@@ -221,4 +224,74 @@ test("only the stretch the player chooses in a long recording is sent, and the p
     }
     await expect(page.getByText("2:00 to 4:30 of the recording heard", { exact: false })).toBeVisible();
     await expect(page.getByText("with 2 requests", { exact: false })).toBeVisible();
+});
+
+test("the selection is dragged on the recording's shape, and the play position moved by the strip, the arrows and the space bar", async ({ page }) => {
+    await scanServer(page);
+    await page.goto("/settings");
+    await page.getByRole("button", { name: "Save and check" }).click();
+    await expect(page.getByText("Connected: the scan server runs homr 0.7.0")).toBeVisible();
+
+    await page.goto("/import/recording");
+    await page.getByLabel("Choose an audio or video recording to transcribe").setInputFiles(await recording(600, 8000));
+    const range = page.getByRole("region", { name: "Choose what to hear" });
+    await expect(range.getByText("0:00 to 7:00, 7:00 long", { exact: false })).toBeVisible({ timeout: 30_000 });
+    const start = range.getByRole("slider", { name: "Start" });
+    const end = range.getByRole("slider", { name: "End" });
+    const box = await range.locator(".wave").boundingBox();
+    const x = minutes => box.x + (box.width * minutes) / 10;
+    const y = box.y + box.height / 2;
+    const value = async slider => Number(await slider.getAttribute("aria-valuenow"));
+
+    // The end edge dragged to about 3 minutes, then the start edge to about 1.
+    const endBox = await end.boundingBox();
+    await page.mouse.move(endBox.x + endBox.width / 2, y);
+    await page.mouse.down();
+    await page.mouse.move(x(3), y, { steps: 5 });
+    await page.mouse.up();
+    await expect.poll(() => value(end)).toBeGreaterThan(170_000);
+    expect(await value(end)).toBeLessThan(190_000);
+    const startBox = await start.boundingBox();
+    await page.mouse.move(startBox.x + startBox.width / 2, y);
+    await page.mouse.down();
+    await page.mouse.move(x(1), y, { steps: 5 });
+    await page.mouse.up();
+    await expect.poll(() => value(start)).toBeGreaterThan(50_000);
+    const length = (await value(end)) - (await value(start));
+
+    // The whole selection dragged by about 4 minutes keeps its length.
+    await page.mouse.move(x(2), y);
+    await page.mouse.down();
+    await page.mouse.move(x(6), y, { steps: 8 });
+    await page.mouse.up();
+    await expect.poll(() => value(start)).toBeGreaterThan(280_000);
+    expect((await value(end)) - (await value(start))).toBe(length);
+
+    // A focused edge moves a second an arrow press.
+    const before = await value(end);
+    await end.focus();
+    await page.keyboard.press("ArrowRight");
+    await expect.poll(() => value(end)).toBe(before + 1000);
+
+    // The strip above the shape moves the play position; arrows move it 5 s; space plays and pauses.
+    const scrub = range.getByRole("slider", { name: "Position" });
+    const strip = await scrub.boundingBox();
+    await page.mouse.click(strip.x + strip.width / 2, strip.y + strip.height / 2);
+    const player = page.locator(".recording-range audio");
+    const position = () => player.evaluate(audio => Math.round(audio.currentTime));
+    await expect.poll(position).toBe(300);
+    await range.getByRole("heading", { name: "Choose what to hear" }).click();
+    await page.keyboard.press("ArrowRight");
+    await expect.poll(position).toBe(305);
+    await page.keyboard.press("ArrowLeft");
+    await page.keyboard.press("ArrowLeft");
+    await expect.poll(position).toBe(295);
+    await expect(range.locator("[data-position]")).toHaveText("4:55.0");
+
+    await range.getByRole("button", { name: /^▶ Play$/ }).focus();
+    await page.keyboard.press(" ");
+    await expect(range.getByRole("button", { name: /^⏸ Pause$/ })).toBeVisible();
+    await page.keyboard.press(" ");
+    await expect(range.getByRole("button", { name: /^▶ Play$/ })).toBeVisible();
+    expect(await violations(page)).toEqual([]);
 });

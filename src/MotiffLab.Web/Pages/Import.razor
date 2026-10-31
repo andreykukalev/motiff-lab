@@ -115,34 +115,52 @@
                     <span>@(_decoding ? Text["transcribe.decoding"] : _loaded is not null && !_transcribing ? Text["transcribe.dropAnother"] : !_transcribing ? Text["transcribe.drop"] : _parts > 1 ? Text.Format("transcribe.part", _part, _parts) : Text["transcribe.busy"])</span>
                 </label>
 
-                @* The stretch to hear (0014): the recording's length and shape, a player to find the piece by ear, the two
-                   ends, and before sending, how many parts, and so requests to the server, the stretch takes. *@
+                @* The stretch to hear (0014), chosen as in an audio trimmer: a selection window on the recording's shape whose
+                   edges, or the whole window, the player drags; a tap elsewhere moves the play position. Playing the selection
+                   from its start, or its last seconds, and arrow keys 5 s either way find the exact edges by ear; before
+                   sending, the estimate tells how many parts, and so requests to the server, the stretch takes. *@
                 @if (_loaded is { } loaded && _range is { } range)
                 {
                     <section class="recording-range" aria-labelledby="range-heading">
                         <h2 id="range-heading">@Text["transcribe.rangeHeading"]</h2>
                         <p class="meta">@Text.Format("transcribe.length", _recordingName, Clock(loaded.Milliseconds))</p>
-                        <svg class="waveform" viewBox="0 0 @loaded.Peaks.Length 100" preserveAspectRatio="none" role="img" aria-label="@Text.Format("transcribe.waveform", Clock(range.FromMilliseconds), Clock(range.ToMilliseconds), Clock(loaded.Milliseconds))">
-                            <rect class="chosen" x="@Across(range.FromMilliseconds)" y="0" width="@Across(range.ToMilliseconds - range.FromMilliseconds)" height="100" />
-                            <path d="@_wave" />
-                        </svg>
-                        <audio @ref="_player" controls preload="metadata" src="@loaded.Url" aria-label="@Text["transcribe.player"]"></audio>
-                        <div class="range-end">
-                            <label for="range-from">@Text["transcribe.from"]</label>
-                            <input id="range-from" type="range" min="0" max="@loaded.Milliseconds" step="1000" value="@range.FromMilliseconds" @oninput="args => MoveRange(args, start: true)" disabled="@_transcribing" aria-valuetext="@Clock(range.FromMilliseconds)" />
-                            <output for="range-from">@Clock(range.FromMilliseconds)</output>
-                            <button @onclick="() => RangeHereAsync(start: true)" disabled="@_transcribing">@Text["transcribe.here"]</button>
+                        <div class="wave-editor @(_transcribing ? "busy" : null)" @ref="_editor" data-from="@range.FromMilliseconds" data-to="@range.ToMilliseconds" data-length="@loaded.Milliseconds">
+                            <div class="scrub" role="slider" tabindex="0" aria-label="@Text["transcribe.position"]" aria-valuemin="0" aria-valuemax="@loaded.Milliseconds" aria-valuenow="0" aria-valuetext="@Clock(0, tenths: true)">
+                                <div class="knob"></div>
+                            </div>
+                            <div class="wave">
+                                <svg class="waveform" viewBox="0 0 @loaded.Peaks.Length 100" preserveAspectRatio="none" role="img" aria-label="@Text.Format("transcribe.waveform", Clock(range.FromMilliseconds), Clock(range.ToMilliseconds), Clock(loaded.Milliseconds))">
+                                    <path d="@_wave" />
+                                </svg>
+                                <div class="outside" style="left: 0; width: @Percent(range.FromMilliseconds)"></div>
+                                <div class="outside" style="left: @Percent(range.ToMilliseconds); right: 0"></div>
+                                <div class="selection" style="left: @Percent(range.FromMilliseconds); width: @Percent(range.Milliseconds)">
+                                    <div class="handle start" role="slider" tabindex="0" aria-label="@Text["transcribe.from"]" aria-valuemin="0" aria-valuemax="@loaded.Milliseconds" aria-valuenow="@range.FromMilliseconds" aria-valuetext="@Clock(range.FromMilliseconds, tenths: true)"></div>
+                                    <div class="handle end" role="slider" tabindex="0" aria-label="@Text["transcribe.to"]" aria-valuemin="0" aria-valuemax="@loaded.Milliseconds" aria-valuenow="@range.ToMilliseconds" aria-valuetext="@Clock(range.ToMilliseconds, tenths: true)"></div>
+                                </div>
+                            </div>
+                            <div class="playhead" aria-hidden="true"></div>
                         </div>
-                        <div class="range-end">
-                            <label for="range-to">@Text["transcribe.to"]</label>
-                            <input id="range-to" type="range" min="0" max="@loaded.Milliseconds" step="1000" value="@range.ToMilliseconds" @oninput="args => MoveRange(args, start: false)" disabled="@_transcribing" aria-valuetext="@Clock(range.ToMilliseconds)" />
-                            <output for="range-to">@Clock(range.ToMilliseconds)</output>
-                            <button @onclick="() => RangeHereAsync(start: false)" disabled="@_transcribing">@Text["transcribe.here"]</button>
+                        <div class="wave-times">
+                            <span>@Text["transcribe.from"] <strong>@Clock(range.FromMilliseconds, tenths: true)</strong></span>
+                            <span class="position" aria-live="off">@Text["transcribe.position"] <strong data-position>@Clock(0, tenths: true)</strong></span>
+                            <span>@Text["transcribe.to"] <strong>@Clock(range.ToMilliseconds, tenths: true)</strong></span>
+                        </div>
+                        <audio @ref="_player" preload="auto" src="@loaded.Url"></audio>
+                        <div class="transport" role="group" aria-label="@Text["transcribe.player"]">
+                            <button class="primary" @onclick="ListenAsync" disabled="@_transcribing">▶ @Text["transcribe.listen"]</button>
+                            <button @onclick="ListenToEndAsync" disabled="@_transcribing">@Text["transcribe.listenEnd"]</button>
+                            <button @onclick="TogglePlayAsync" disabled="@_transcribing">@(_playing ? "⏸ " + Text["transcribe.pause"] : "▶ " + Text["transcribe.play"])</button>
+                            <button @onclick="() => SeekByAsync(-5000)" disabled="@_transcribing" aria-label="@Text["transcribe.back5"]">@Text["transcribe.back5Short"]</button>
+                            <button @onclick="() => SeekByAsync(5000)" disabled="@_transcribing" aria-label="@Text["transcribe.forward5"]">@Text["transcribe.forward5Short"]</button>
+                        </div>
+                        <div class="transport">
+                            <button @onclick="() => RangeHereAsync(start: true)" disabled="@_transcribing">@Text["transcribe.startHere"]</button>
+                            <button @onclick="() => RangeHereAsync(start: false)" disabled="@_transcribing">@Text["transcribe.endHere"]</button>
                         </div>
                         <p class="meta">@Text.Format("transcribe.rangeHow", RecordingRange.MostMilliseconds / 60_000)</p>
                         <p class="estimate">@Estimate(range)</p>
                         <div class="actions">
-                            <button @onclick="ListenAsync" disabled="@_transcribing">@Text["transcribe.listen"]</button>
                             <button class="primary" @onclick="TranscribeRangeAsync" disabled="@(_transcribing || !(Scans.IsLocal || _sendSound))">@Text["transcribe.hearRange"]</button>
                         </div>
                     </section>
@@ -379,6 +397,15 @@
     /// <summary>The recording's shape as one SVG path, worked out once when it is picked.</summary>
     private string _wave = "";
     private ElementReference _player;
+    private ElementReference _editor;
+    private bool _playing;
+
+    /// <summary>Whether the selection editor's gestures and keys are wired up for the recording shown.</summary>
+    private bool _editorAttached;
+    private DotNetObjectReference<Import>? _self;
+
+    /// <summary>How much of the selection's end "Listen to the end" plays.</summary>
+    private const long EndCheckMilliseconds = 5_000;
 
     /// <summary>The stretch the last transcription heard, and how many requests it took; null when the file itself was sent.</summary>
     private RecordingRange? _heardRange;
@@ -424,6 +451,17 @@
     {
         Text.Changed -= OnTextChanged;
         _ = Scans.ForgetRecordingAsync();
+        _self?.Dispose();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_loaded is not null && !_editorAttached)
+        {
+            _editorAttached = true;
+            _self ??= DotNetObjectReference.Create(this);
+            await Scans.AttachEditorAsync(_editor, _player, _self);
+        }
     }
 
     private void OnTextChanged() => _ = InvokeAsync(StateHasChanged);
@@ -447,7 +485,7 @@
         {
             // Another way in starts afresh: what was picked on the last screen is not this one's.
             (_route, _piece, _rejection, _scan, _transcriptionEngine, _timing) = (route, null, null, null, null, null);
-            (_loaded, _range, _wave) = (null, null, "");
+            (_loaded, _range, _wave, _editorAttached, _playing) = (null, null, "", false, false);
             _ = Scans.ForgetRecordingAsync();
         }
     }
@@ -714,16 +752,37 @@
 
     private async Task ForgetRecordingAsync()
     {
-        (_loaded, _range, _wave) = (null, null, "");
+        (_loaded, _range, _wave, _editorAttached, _playing) = (null, null, "", false, false);
         await Scans.ForgetRecordingAsync();
     }
 
-    private void MoveRange(ChangeEventArgs args, bool start)
+    /// <summary>
+    /// The player dragged an edge of the selection ("start" or "end"), the whole selection ("move", to where it
+    /// now starts), or pressed an arrow key on an edge. The rules of <see cref="RecordingRange"/> decide where it lands.
+    /// </summary>
+    [JSInvokable]
+    public void DragRange(string edge, long milliseconds)
     {
-        if (_range is { } range && long.TryParse(args.Value?.ToString(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out long at))
+        if (_range is not { } range || _transcribing)
         {
-            _range = start ? range.WithStart(at) : range.WithEnd(at);
+            return;
         }
+
+        _range = edge switch
+        {
+            "start" => range.WithStart(milliseconds),
+            "end" => range.WithEnd(milliseconds),
+            _ => range.MovedTo(milliseconds),
+        };
+        StateHasChanged();
+    }
+
+    /// <summary>The recording started or stopped playing, by a button, the space bar or the end of the selection.</summary>
+    [JSInvokable]
+    public void PlayingChanged(bool playing)
+    {
+        _playing = playing;
+        StateHasChanged();
     }
 
     /// <summary>Moves one end of the stretch to where the player is in the recording, to the nearest tenth of a second.</summary>
@@ -736,6 +795,7 @@
         }
     }
 
+    /// <summary>Plays the selection from its start, pausing at its end.</summary>
     private async Task ListenAsync()
     {
         if (_range is { } range)
@@ -743,6 +803,19 @@
             await Scans.PlayBetweenAsync(_player, range.FromMilliseconds, range.ToMilliseconds);
         }
     }
+
+    /// <summary>Plays the selection's last seconds, to check where it ends.</summary>
+    private async Task ListenToEndAsync()
+    {
+        if (_range is { } range)
+        {
+            await Scans.PlayBetweenAsync(_player, Math.Max(range.FromMilliseconds, range.ToMilliseconds - EndCheckMilliseconds), range.ToMilliseconds);
+        }
+    }
+
+    private async Task TogglePlayAsync() => await Scans.TogglePlayAsync(_player);
+
+    private async Task SeekByAsync(long milliseconds) => await Scans.SeekByAsync(_player, milliseconds);
 
     /// <summary>
     /// What hearing the stretch takes, before it is sent: its length, its parts, one request each, and roughly how
@@ -765,18 +838,19 @@
             time);
     }
 
-    /// <summary>A time in the recording as m:ss, or h:mm:ss from an hour.</summary>
-    private static string Clock(long milliseconds)
+    /// <summary>A time in the recording as m:ss, or h:mm:ss from an hour, with tenths of a second when asked.</summary>
+    private static string Clock(long milliseconds, bool tenths = false)
     {
         var time = TimeSpan.FromMilliseconds(Math.Max(0, milliseconds));
-        return time.TotalHours >= 1
+        string whole = time.TotalHours >= 1
             ? $"{(int)time.TotalHours}:{time.Minutes:00}:{time.Seconds:00}"
             : $"{(int)time.TotalMinutes}:{time.Seconds:00}";
+        return tenths ? $"{whole}.{time.Milliseconds / 100}" : whole;
     }
 
-    /// <summary>A stretch of the recording in the waveform's units, one per loudness bar.</summary>
-    private string Across(long milliseconds) =>
-        _loaded is { } loaded ? (milliseconds * (double)loaded.Peaks.Length / loaded.Milliseconds).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) : "0";
+    /// <summary>A time in the recording as a share of its length, for placing the selection over its shape.</summary>
+    private string Percent(long milliseconds) =>
+        _loaded is { } loaded ? (milliseconds * 100.0 / loaded.Milliseconds).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + "%" : "0";
 
     /// <summary>One vertical line a bar, centred on the middle, as tall as the loudest sample in its stretch.</summary>
     private static string WavePath(double[] peaks)
