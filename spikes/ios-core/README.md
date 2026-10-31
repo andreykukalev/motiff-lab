@@ -18,12 +18,14 @@ Swift (SwiftUI)  ->  MotiffLabCore.xcframework  ->  C functions (include/motiffl
 - `Bench/` runs the benchmark as a console app (JIT, or NativeAOT for this computer); `native-check/` calls the native library from C; `WebBench/` runs it in the browser as the web app does today (Blazor WebAssembly, interpreted).
 - `assets/`: Für Elise as 97 bars of MusicXML (from the design kit) and the 5000-note MIDI file of the music-core tests.
 
-## Results so far (Linux container, 4 cores; ms for the whole pipeline)
+## Results so far (ms for the whole pipeline)
 
 | | Für Elise, 636 notes, 10 phrases: first run | then (median of 19) | 5000 notes, 39 phrases: first run | then |
 |---|---:|---:|---:|---:|
-| .NET JIT (as a server would run it) | 599 | 85 | 1208 | 281 |
-| **NativeAOT (as on the iPad)** | **40** | **26** | **447** | **314** |
+| .NET JIT, Linux container (as a server would run it) | 599 | 85 | 1208 | 281 |
+| **NativeAOT, Linux container** | **40** | **26** | **447** | **314** |
+| NativeAOT, iPad simulator on a macOS runner (Xcode 16) | 120 | 32 | 361 | 284 |
+| NativeAOT, iPad simulator on Andrei's MacBook Pro (Xcode 27.2) | 67 | 29 | | |
 | Browser, Blazor WebAssembly (the web app today, Chromium) | 1079 | 324 | 2335 | 2247 |
 
 - NativeAOT starts fast: the first run is already close to the warm one, because nothing is compiled at run time. The JIT catches up only after warming up.
