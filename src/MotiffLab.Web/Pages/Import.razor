@@ -4,6 +4,7 @@
 @using System.Diagnostics
 @using MotiffLab.MusicCore.Analytics
 @using MotiffLab.MusicCore.Import
+@using MotiffLab.MusicCore.Import.Midi
 @using MotiffLab.MusicCore.Import.Scan
 @using MotiffLab.MusicCore.Import.Transcription
 @using MotiffLab.MusicCore.Projects
@@ -111,7 +112,7 @@
 
                 <label class="dropzone @(_transcribing ? "busy" : null)">
                     <InputFile @ref="_recordingInput" OnChange="TranscribeFileAsync" accept="@ScanService.AcceptedRecordings" disabled="@(_reading || _scanning || _transcribing || !(Scans.IsLocal || _sendSound))" aria-label="@Text["transcribe.choose"]" />
-                    <span>@(_transcribing ? Text["transcribe.busy"] : Text["transcribe.drop"])</span>
+                    <span>@(!_transcribing ? Text["transcribe.drop"] : _parts > 1 ? Text.Format("transcribe.part", _part, _parts) : Text["transcribe.busy"])</span>
                 </label>
             }
         </section>
@@ -170,7 +171,7 @@
                     <p>@Text["transcribe.draft"]</p>
                     @if (_cut)
                     {
-                        <p class="notice">@Text["transcribe.cut"]</p>
+                        <p class="notice">@Text.Format("transcribe.cut", _cutMinutes.ToString("0.#", Text.Culture))</p>
                     }
                 </section>
                 @* Bars and tempo worked out from the notes (0016): an inference the player can change or turn off. *@
@@ -333,6 +334,11 @@
     private string? _transcriptionEngine;
     private double _heardSeconds;
     private bool _cut;
+    private double _cutMinutes;
+
+    /// <summary>While a long recording is heard in parts: the part being heard, from 1, and how many there are.</summary>
+    private int _part;
+    private int _parts;
     private bool _transcribing;
     private bool _sendSound;
 
@@ -524,14 +530,67 @@
                 upload = memory.ToArray();
             }
 
-            // The server is not told the file's name: it reads the format from the content.
-            TranscriptionResult result = await Scans.TranscribeAsync(sound is null ? "recording" : "recording.wav", upload);
-            _elapsed = watch.Elapsed;
-            if (result.Midi is not { } midi)
+            // The server is not told the file's name: it reads the format from the content. A sound longer
+            // than the server hears at once goes in overlapping parts, one after another, and the notes are joined.
+            IReadOnlyList<RecordingPart> parts = sound is null ? [] : RecordingParts.Plan(Math.Max(1, sound.Milliseconds));
+            TranscriptionResult result;
+            byte[] midi;
+            if (parts.Count > 1)
             {
-                _rejection = new(ImportRejectionReason.NotMusic, result.Problem!, Text["transcribe.notHeardTip"]);
-                return;
+                var heard = new List<(RecordingPart, byte[])>();
+                result = TranscriptionResult.Failed("");
+                _parts = parts.Count;
+                foreach (RecordingPart part in parts)
+                {
+                    _part = part.Index + 1;
+                    StateHasChanged();
+                    TranscriptionResult partResult = await Scans.TranscribeAsync("recording.wav", sound!.Part(part.SendFromMilliseconds, part.SendToMilliseconds));
+                    if (partResult.Midi is { } partMidi)
+                    {
+                        result = partResult;
+                        heard.Add((part, partMidi));
+                    }
+                    else if (partResult.NothingHeard)
+                    {
+                        // A quiet stretch: the other parts still have notes.
+                        result = heard.Count == 0 ? partResult : result;
+                    }
+                    else
+                    {
+                        _rejection = new(ImportRejectionReason.NotMusic, partResult.Problem!, Text["transcribe.notHeardTip"]);
+                        return;
+                    }
+                }
+
+                if (heard.Count == 0)
+                {
+                    _rejection = new(ImportRejectionReason.NotMusic, result.Problem!, Text["transcribe.notHeardTip"]);
+                    return;
+                }
+
+                try
+                {
+                    midi = RecordingParts.Join(heard);
+                }
+                catch (MidiImportException)
+                {
+                    _rejection = new(ImportRejectionReason.NotMusic, Text["transcribe.failed"], Text["transcribe.notHeardTip"]);
+                    return;
+                }
             }
+            else
+            {
+                result = await Scans.TranscribeAsync(sound is null ? "recording" : "recording.wav", upload);
+                if (result.Midi is null)
+                {
+                    _rejection = new(ImportRejectionReason.NotMusic, result.Problem!, Text["transcribe.notHeardTip"]);
+                    return;
+                }
+
+                midi = result.Midi;
+            }
+
+            _elapsed = watch.Elapsed;
 
             string name = Path.ChangeExtension(args.File.Name, ".mid");
             PieceImportResult imported = PieceImporter.Import(name, midi);
@@ -543,13 +602,14 @@
 
             (_heard, _data, _fileName, _transcriptionEngine) = (Transcribed.Mark(piece), midi, name, result.Engine);
             (_heardSeconds, _cut) = (sound?.Seconds ?? result.Seconds, sound?.Cut == true || result.Cut);
+            _cutMinutes = (sound is null ? ScanService.ServerRecordingSeconds : ScanService.MaxRecordingSeconds) / 60.0;
             _bars = BarGrid.Find(piece.Midi!);
             _barsOn = _bars is not null;
             ShowBars();
         }
         finally
         {
-            _transcribing = false;
+            (_transcribing, _part, _parts) = (false, 0, 0);
         }
     }
 

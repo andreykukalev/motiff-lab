@@ -5,6 +5,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 
+using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.Web.Account;
 using MotiffLab.Web.Localization;
 
@@ -34,8 +35,15 @@ public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text
     /// <summary>What the transcription drop zone offers: recordings a phone, a camera or an app writes.</summary>
     public const string AcceptedRecordings = "audio/*,video/*,.m4a,.mp3,.wav,.aac,.flac,.ogg,.mp4,.mov,.webm,.mkv";
 
-    /// <summary>How much of a recording the server hears, from its start: as much as Transkun hears in the four minutes the hosted server may take (0014).</summary>
-    public const int MaxRecordingSeconds = 150;
+    /// <summary>
+    /// How much of a recording this browser takes the sound out of, from its start (0014). The server hears
+    /// up to 2½ minutes a request, as much as Transkun hears in the four minutes the hosted server may take,
+    /// so a longer sound is sent in parts (<see cref="RecordingParts"/>).
+    /// </summary>
+    public const int MaxRecordingSeconds = 420;
+
+    /// <summary>How much of a recording sent as it is the server hears, when this browser cannot take its sound out.</summary>
+    public const int ServerRecordingSeconds = 150;
 
     /// <summary>
     /// The largest recording sent as it is, when this browser cannot take its sound out: the whole file then
@@ -235,7 +243,10 @@ public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text
             }
 
             string? problem = TextOf(await response.Content.ReadAsByteArrayAsync(cancellation), "message");
-            return TranscriptionResult.Failed(problem is { Length: > 0 } message ? message : text["transcribe.failed"]);
+            return TranscriptionResult.Failed(problem is { Length: > 0 } message ? message : text["transcribe.failed"]) with
+            {
+                NothingHeard = response.StatusCode == HttpStatusCode.UnprocessableEntity,
+            };
         }
         catch (TaskCanceledException) when (!cancellation.IsCancellationRequested)
         {
@@ -292,7 +303,28 @@ public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text
 }
 
 /// <summary>The sound the browser took out of a recording: a mono WAV file, its length, and whether the recording was longer.</summary>
-public sealed record RecordingSound(byte[] Wav, double Seconds, bool Cut);
+public sealed record RecordingSound(byte[] Wav, double Seconds, bool Cut)
+{
+    private const int HeaderBytes = 44;
+
+    /// <summary>The length in milliseconds.</summary>
+    public long Milliseconds => (long)Math.Round(Seconds * 1000);
+
+    /// <summary>The stretch of the sound from one millisecond to another, as a WAV file of its own.</summary>
+    public byte[] Part(long fromMilliseconds, long toMilliseconds)
+    {
+        int rate = BitConverter.ToInt32(Wav, 24);
+        int samples = (Wav.Length - HeaderBytes) / 2;
+        int from = (int)Math.Clamp(fromMilliseconds * rate / 1000, 0, samples);
+        int to = (int)Math.Clamp(toMilliseconds * rate / 1000, from, samples);
+        byte[] part = new byte[HeaderBytes + ((to - from) * 2)];
+        Wav.AsSpan(0, HeaderBytes).CopyTo(part);
+        Wav.AsSpan(HeaderBytes + (from * 2), (to - from) * 2).CopyTo(part.AsSpan(HeaderBytes));
+        BitConverter.TryWriteBytes(part.AsSpan(4), part.Length - 8);
+        BitConverter.TryWriteBytes(part.AsSpan(40), part.Length - HeaderBytes);
+        return part;
+    }
+}
 
 /// <summary>What the scan server heard in a recording: the notes as MIDI, or why there are none.</summary>
 /// <param name="Engine">The engine and its version, for example "transkun 2.0.1".</param>
@@ -301,6 +333,9 @@ public sealed record RecordingSound(byte[] Wav, double Seconds, bool Cut);
 public sealed record TranscriptionResult(byte[]? Midi, string Engine, double Seconds, bool Cut, string? Problem)
 {
     public static TranscriptionResult Failed(string problem) => new(null, "", 0, false, problem);
+
+    /// <summary>The server read the sound but heard no notes in it, as in a quiet stretch of a recording heard in parts.</summary>
+    public bool NothingHeard { get; init; }
 }
 
 /// <summary>What the scan server sent back: the recognised MusicXML, or why there is none.</summary>
