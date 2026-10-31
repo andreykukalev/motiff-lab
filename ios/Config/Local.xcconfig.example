@@ -4,6 +4,3 @@ DEVELOPMENT_TEAM = ABCDE12345
 
 // Another bundle ID, if com.andreykukalev.motifflab is taken by another Apple ID.
 // PRODUCT_BUNDLE_IDENTIFIER = com.yourname.motifflab
-
-// A pull request preview of the web app instead of the deployed one, for trying a change on the iPad.
-// MOTIFF_WEB_HOST = nice-smoke-0169fb403-123.westeurope.6.azurestaticapps.net

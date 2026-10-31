@@ -36,9 +36,9 @@ The first start needs an internet connection. After that the app opens without o
 - A double tap on the Pencil switches to the eraser and back (as set in Settings > Apple Pencil); a squeeze on the Pencil Pro shows or hides the tools.
 - Marks stay with the piece on this iPad and follow their bars when the score is laid out again (another width, the other orientation). They are not yet in exported project files or saved online.
 
-## Trying a change before it is deployed
+## Trying a change
 
-Set `MOTIFF_WEB_HOST` in `Config/Local.xcconfig` to the pull request's preview host (the address the deploy comment on the PR gives, without `https://`), run `xcodegen`, and run the app again.
+There are no preview sites: a change reaches the app once it is merged and CI has deployed it. The app opens the production site, so it shows the change once it next loads the web app.
 
 ## Looking inside the page
 
