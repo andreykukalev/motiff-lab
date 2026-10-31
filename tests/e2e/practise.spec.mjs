@@ -1,7 +1,7 @@
 // Practise a phrase (#50, docs/08-central-product-model.md): play it, loop it, slow it down and hear one
 // hand while it loops; moving to the next phrase and switching to Explore and back keep the tempo and the loop.
 import { expect, test } from "@playwright/test";
-import { openFurElise } from "./steps.mjs";
+import { openFurElise, selectBar } from "./steps.mjs";
 
 test("practise a phrase: loop it, slow it down, hear one hand and move on", async ({ page }) => {
     const errors = await openFurElise(page);
@@ -45,5 +45,22 @@ test("practise a phrase: loop it, slow it down, hear one hand and move on", asyn
     await panel.getByRole("button", { name: "Play from the start" }).click();
     await panel.getByRole("button", { name: "Pause" }).click();
     await expect(panel.getByRole("button", { name: "Play from the start" })).toBeVisible();
+    expect(errors).toEqual([]);
+});
+
+test("the workspace reads in Russian when the app is in Russian (#134)", async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem("motiff-lab:ml-language", "ru"));
+    const errors = [];
+    page.on("pageerror", error => errors.push(String(error)));
+    await page.goto("/playback?start=fur-elise");
+    await selectBar(page, 1);
+
+    await expect(page.locator(".inspector .selection-text")).toHaveText("Выделено: такт 1: 6 нот.");
+    await expect(page.getByRole("button", { name: "Цикл" })).toBeVisible();
+    await expect(page.locator(".practise")).toContainText("Повторять фразу");
+    await expect(page.locator(".roll-tools")).toContainText("Цвет по");
+    await expect(page.locator(".roll-legend")).toContainText("Дорожка 1");
+    await expect(page.locator(".roll-legend")).toContainText("Л, П: рука из файла");
+    await expect(page.getByRole("application", { name: /^Пиано-ролл/ })).toBeVisible();
     expect(errors).toEqual([]);
 });

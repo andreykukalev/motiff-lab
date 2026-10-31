@@ -107,6 +107,19 @@ public class ScanCheckTests
     }
 
     [Fact]
+    public void Every_reason_reads_in_russian_and_the_english_is_unchanged()
+    {
+        foreach (ScanFlag flag in Enum.GetValues<ScanFlag>())
+        {
+            string russian = ScanBar.Describe(flag, Words.Russian);
+            Assert.Equal(ScanBar.Describe(flag), ScanBar.Describe(flag, Words.English));
+            Assert.Matches(@"^\p{IsCyrillic}", russian);
+            // Only the app's name stays in Latin letters.
+            Assert.DoesNotMatch(@"\b[A-Za-z]{2,}\b", russian.Replace("Motiff Lab", "", StringComparison.Ordinal));
+        }
+    }
+
+    [Fact]
     public void Scanned_notes_are_detected_less_sure_where_flagged_and_confirmed_where_the_player_said_so()
     {
         ImportedPiece piece = Fixture("homr-fur-elise-page1.musicxml");

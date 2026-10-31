@@ -31,7 +31,7 @@ public partial class PlaybackLab
         }
 
         string? note = extension.Shortened
-            ? $"A selection holds at most {MotifSelection.MaxBars} bars, so it stops at bar {_meter!.BarAt(direction > 0 ? new Tick(extension.Span.End.Value - 1) : extension.Span.Onset).Number}."
+            ? Text.Format("selection.extendCapped", MotifSelection.MaxBars, _meter!.BarAt(direction > 0 ? new Tick(extension.Span.End.Value - 1) : extension.Span.Onset).Number)
             : null;
         return SelectAsync(extension.Span, note);
     }
@@ -87,7 +87,7 @@ public partial class PlaybackLab
     /// <summary>What plays while the piece plays on, for the selection text; null otherwise.</summary>
     private string? PlayOnText => _playOnLooped is null
         ? null
-        : _playOnWhole ? "Playing the whole piece." : "Playing on from here to the end.";
+        : Text[_playOnWhole ? "selection.playingWhole" : "selection.playingOn"];
 
     /// <summary>"phrases 1–2, bars 0–8" when the selection runs exactly from one phrase start to a later phrase's end; otherwise null.</summary>
     private string? SpannedPhrases(MotifSelection selection)
@@ -101,7 +101,7 @@ public partial class PlaybackLab
         }
 
         return first.FirstBar == last.LastBar
-            ? $"phrases {first.Number}–{last.Number}, bar {first.FirstBar}"
-            : $"phrases {first.Number}–{last.Number}, bars {first.FirstBar}–{last.LastBar}";
+            ? Text.Format("selection.phrasesBar", first.Number, last.Number, first.FirstBar)
+            : Text.Format("selection.phrasesBars", first.Number, last.Number, first.FirstBar, last.LastBar);
     }
 }

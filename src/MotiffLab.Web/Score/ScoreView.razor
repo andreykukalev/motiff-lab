@@ -38,14 +38,14 @@
 
 @* Engraved by Verovio in Scripts/score (decision record 0008); the host's children belong to the script. *@
 @* Focusable, so the score can be scrolled by keyboard within its panel. *@
-<div class="score" @ref="_host" role="figure" aria-label="Score" tabindex="0"></div>
+<div class="score" @ref="_host" role="figure" aria-label="@Text["workspace.score"]" tabindex="0"></div>
 @if (_error is not null)
 {
     <p class="error">@_error</p>
 }
 else if (_loading && !HoldHeight)
 {
-    <p class="meta">Engraving the score…</p>
+    <p class="meta">@Text["score.engraving"]</p>
 }
 
 @code {
@@ -166,7 +166,7 @@ else if (_loading && !HoldHeight)
         }
         catch (JSException exception)
         {
-            _error = $"The score could not be shown: {exception.Message}";
+            _error = Text.Format("score.error", exception.Message);
         }
 
         _loading = false;

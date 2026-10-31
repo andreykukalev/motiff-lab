@@ -1,50 +1,52 @@
 @using MotiffLab.Web.Explore
+@using MotiffLab.Web.Localization
+@inject UiText Text
 
 @* Practise the phrase (#50, docs/08-central-product-model.md sections 3 and 6): play it, loop it, slow it down and hear
    one hand or one layer, with controls large enough to reach with the iPad on the music stand. No tasks and no scores.
    It only shows the workspace state (0013): the page plays, loops and moves between phrases. *@
-<section class="practise" aria-label="Practise this phrase">
-    <p class="eyebrow">Practise this phrase</p>
+<section class="practise" aria-label="@Text["practise.title"]">
+    <p class="eyebrow">@Text["practise.title"]</p>
     @if (!HasSelection)
     {
-        <p class="meta">Pick a phrase above, or drag across a bar or two on the roll. Then play it, loop it and slow it down.</p>
+        <p class="meta">@Text["practise.selectFirst"]</p>
     }
     else
     {
-        <div class="group" role="group" aria-label="Play">
+        <div class="group" role="group" aria-label="@Text["transport.play"]">
             <div class="play-row">
                 <button class="@(Playing ? "on" : "primary")" @onclick="() => PlayPressed.InvokeAsync()">
-                    @(Playing ? "Pause" : "Play from the start")
+                    @(Playing ? Text["transport.pause"] : Text["practise.playFromStart"])
                 </button>
                 <button class="@(Looping ? "on" : null)" aria-pressed="@(Looping ? "true" : "false")" @onclick="() => LoopPressed.InvokeAsync()"
-                        title="Play the phrase over and over. Off, playing carries on into the rest of the piece.">
-                    Loop the phrase
+                        title="@Text["practise.loopHint"]">
+                    @Text["practise.loop"]
                 </button>
             </div>
             <div class="row step">
-                <button @onclick="() => Step.InvokeAsync(-1)" disabled="@(!CanGoBack)">‹ Previous phrase</button>
-                <button @onclick="() => Step.InvokeAsync(1)" disabled="@(!CanGoOn)">Next phrase ›</button>
+                <button @onclick="() => Step.InvokeAsync(-1)" disabled="@(!CanGoBack)">‹ @Text["focus.previous"]</button>
+                <button @onclick="() => Step.InvokeAsync(1)" disabled="@(!CanGoOn)">@Text["focus.next"] ›</button>
             </div>
             @* The wider context (#126): the piece around the phrase, then back to it. *@
             <div class="row step wider">
                 @if (PlayingOn)
                 {
-                    <button class="primary" @onclick="() => Back.InvokeAsync()" title="Stop and go back to the start of the phrase, looping it again if it looped.">Back to the phrase</button>
+                    <button class="primary" @onclick="() => Back.InvokeAsync()" title="@Text["practise.backHint"]">@Text["practise.back"]</button>
                 }
                 else
                 {
-                    <button @onclick="() => PlayOn.InvokeAsync(false)" title="Play from the start of the phrase to the end of the piece, with every note.">Play on to the end</button>
-                    <button @onclick="() => PlayOn.InvokeAsync(true)" title="Play the piece from its start; the phrase stays selected.">Play the whole piece</button>
+                    <button @onclick="() => PlayOn.InvokeAsync(false)" title="@Text["practise.playOnHint"]">@Text["practise.playOn"]</button>
+                    <button @onclick="() => PlayOn.InvokeAsync(true)" title="@Text["practise.wholeHint"]">@Text["practise.whole"]</button>
                 }
             </div>
         </div>
 
-        <div class="group" role="group" aria-label="Tempo">
-            <h3>Tempo</h3>
+        <div class="group" role="group" aria-label="@Text["transport.tempo"]">
+            <h3>@Text["transport.tempo"]</h3>
             <div class="tempo-steps">
-                <button aria-label="Slower" title="5% slower" @onclick="() => TempoChanged.InvokeAsync(TempoPercent - TempoStep)" disabled="@(TempoPercent <= MinTempo)">−</button>
-                <output aria-live="polite" aria-label="Tempo">@TempoPercent%</output>
-                <button aria-label="Faster" title="5% faster" @onclick="() => TempoChanged.InvokeAsync(TempoPercent + TempoStep)" disabled="@(TempoPercent >= MaxTempo)">+</button>
+                <button aria-label="@Text["practise.slower"]" title="@Text["practise.slowerHint"]" @onclick="() => TempoChanged.InvokeAsync(TempoPercent - TempoStep)" disabled="@(TempoPercent <= MinTempo)">−</button>
+                <output aria-live="polite" aria-label="@Text["transport.tempo"]">@TempoPercent%</output>
+                <button aria-label="@Text["practise.faster"]" title="@Text["practise.fasterHint"]" @onclick="() => TempoChanged.InvokeAsync(TempoPercent + TempoStep)" disabled="@(TempoPercent >= MaxTempo)">+</button>
             </div>
             <div class="choices">
                 @foreach (int preset in s_presets)
@@ -57,12 +59,12 @@
 
         @if (Choices.Count > 1)
         {
-            <div class="group" role="group" aria-label="Hear">
-                <h3>Hear</h3>
+            <div class="group" role="group" aria-label="@Text["explore.hear"]">
+                <h3>@Text["explore.hear"]</h3>
                 @* The hands on one row, the layers on the next. *@
                 @foreach (var row in Choices.GroupBy(choice => IsLayer(choice.Choice)))
                 {
-                    <div class="choices" title="While the phrase loops.">
+                    <div class="choices" title="@Text["practise.whileLooping"]">
                         @foreach ((ListenTo choice, string label) in row)
                         {
                             bool on = ListenTo == choice;
@@ -77,7 +79,7 @@
             </div>
         }
 
-        <p class="meta">Understand and Explore work on the same phrase: the tempo and the loop stay as they are when you switch.</p>
+        <p class="meta">@Text["practise.samePhrase"]</p>
     }
 </section>
 

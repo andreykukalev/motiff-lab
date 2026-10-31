@@ -1,4 +1,5 @@
 @using MotiffLab.MusicCore.Projects
+@inject MotiffLab.Web.Localization.UiText Text
 
 @* Kept for this phrase (#78, Recording observations in docs/08-central-product-model.md): the variations and notes the
    player kept about the phrase they work on, from Project.ObservationsAbout. Open puts the variation back to hear and
@@ -8,12 +9,12 @@
     <h3 id="observations-heading">@Heading</h3>
     @if (SessionOnly)
     {
-        <p class="meta session-only">This piece is not saved as a project, so what you keep here goes when you leave the page. A file you open or import is saved on this device with what you keep.</p>
+        <p class="meta session-only">@Text["obs.sessionOnly"]</p>
     }
 
     @if (Rows.Count == 0)
     {
-        <p class="meta">Nothing kept for this phrase yet. Keep a variation you want to come back to, or write a note about the phrase.</p>
+        <p class="meta">@Text["obs.empty"]</p>
     }
     else
     {
@@ -26,36 +27,36 @@
                     @if (_renaming == observation.Id)
                     {
                         <form class="rename" @onsubmit="SaveNameAsync" @onsubmit:preventDefault>
-                            <label for="rename-@observation.Id">Name</label>
+                            <label for="rename-@observation.Id">@Text["obs.name"]</label>
                             <input id="rename-@observation.Id" type="text" maxlength="120" @bind="_name" @bind:event="oninput" @onkeydown="RenameKeyAsync" />
-                            <button type="submit" class="primary" disabled="@string.IsNullOrWhiteSpace(_name)">Save name</button>
-                            <button type="button" @onclick="StopRenaming">Cancel</button>
+                            <button type="submit" class="primary" disabled="@string.IsNullOrWhiteSpace(_name)">@Text["obs.saveName"]</button>
+                            <button type="button" @onclick="StopRenaming">@Text["common.cancel"]</button>
                         </form>
                     }
                     <p class="name" hidden="@(_renaming == observation.Id)">
                         <strong id="@nameId">@observation.Name</strong>
                         @if (row.Heard)
                         {
-                            <span class="kind heard-now">You hear this</span>
+                            <span class="kind heard-now">@Text["obs.heardNow"]</span>
                         }
                     </p>
                     <p class="meta where">@row.Where · @row.Source</p>
                     @if (observation.Note is { } note && _noting != observation.Id)
                     {
-                        <p class="note"><span class="label">Your note:</span> @note</p>
+                        <p class="note"><span class="label">@Text["obs.yourNote"]</span> @note</p>
                     }
                     @if (_noting == observation.Id)
                     {
-                        <ObservationNote For="@observation.Id" Note="@observation.Note" Label="Your note"
+                        <ObservationNote For="@observation.Id" Note="@observation.Note" Label="@Text["obs.noteLabel"]"
                                          Saved="text => NoteAsync(observation, text)" Cancel="() => _noting = null" />
                     }
 
                     @if (_deleting == observation.Id)
                     {
-                        <div class="row confirm" role="group" aria-label="Delete @observation.Name?">
-                            <span>Delete “@observation.Name”? This cannot be undone.</span>
-                            <button class="danger" @onclick="() => DeleteAsync(observation)">Delete for good</button>
-                            <button @onclick="() => _deleting = null">Keep</button>
+                        <div class="row confirm" role="group" aria-label="@Text.Format("obs.deleteLabel", observation.Name)">
+                            <span>@Text.Format("obs.deleteConfirm", observation.Name)</span>
+                            <button class="danger" @onclick="() => DeleteAsync(observation)">@Text["obs.deleteForGood"]</button>
+                            <button @onclick="() => _deleting = null">@Text["home.keep"]</button>
                         </div>
                     }
                     else
@@ -64,17 +65,17 @@
                             @if (observation.Variation is not null)
                             {
                                 <button class="@(row.Heard ? null : "primary")" disabled="@row.Heard" @onclick="() => Open.InvokeAsync(observation)"
-                                        title="@(row.Heard ? "This is the variation you hear now." : "Select its bars and hear the variation again, to compare it with the original.")">
-                                    Open
+                                        title="@Text[row.Heard ? "obs.openHeard" : "obs.openHint"]">
+                                    @Text["home.open"]
                                 </button>
                             }
-                            <button @onclick="() => StartRenaming(observation)">Rename</button>
-                            <button @onclick="() => _noting = _noting == observation.Id ? null : observation.Id">@(observation.Note is null ? "Add a note" : "Edit note")</button>
+                            <button @onclick="() => StartRenaming(observation)">@Text["obs.rename"]</button>
+                            <button @onclick="() => _noting = _noting == observation.Id ? null : observation.Id">@Text[observation.Note is null ? "obs.addNote" : "obs.editNote"]</button>
                             @if (observation.Variation is not null)
                             {
-                                <button @onclick="() => Export.InvokeAsync(observation)" title="Save the kept variation as a MIDI file for a DAW: one track per hand, with the tempo.">Export MIDI</button>
+                                <button @onclick="() => Export.InvokeAsync(observation)" title="@Text["obs.exportHint"]">@Text["obs.export"]</button>
                             }
-                            <button @onclick="() => _deleting = observation.Id">Delete</button>
+                            <button @onclick="() => _deleting = observation.Id">@Text["obs.delete"]</button>
                         </div>
                     }
                 </li>
@@ -92,16 +93,16 @@
         <div class="row">
             @if (CanKeepHeard)
             {
-                <button @onclick="() => KeepHeard.InvokeAsync()" title="Keep the variation you hear now, made with your own steps, to come back to.">Keep the variation you hear</button>
+                <button @onclick="() => KeepHeard.InvokeAsync()" title="@Text["obs.keepHeardHint"]">@Text["obs.keepHeard"]</button>
             }
             @if (CanWrite && !_writing)
             {
-                <button @onclick="() => _writing = true">Write a note about this phrase</button>
+                <button @onclick="() => _writing = true">@Text["obs.write"]</button>
             }
         </div>
         @if (CanWrite && _writing)
         {
-            <ObservationNote For="@($"new:{Heading}")" Label="A note about this phrase, in your own words" SaveLabel="Keep note" SavedText=""
+            <ObservationNote For="@($"new:{Heading}")" Label="@Text["obs.newLabel"]" SaveLabel="@Text["obs.keepNote"]" SavedText=""
                              Saved="WriteAsync" Cancel="() => _writing = false" />
         }
     }

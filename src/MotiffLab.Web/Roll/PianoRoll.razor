@@ -9,22 +9,23 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject Player Player
+@inject MotiffLab.Web.Localization.UiText Text
 
 @* Drawn on canvas in Scripts/roll (S1-W2, S1-W3, S1-M1); the host's children belong to the script. *@
 <div class="row roll-tools">
-    <span>Colour by</span>
-    @foreach ((string mode, string label) in s_colourModes)
+    <span>@Text["roll.colourBy"]</span>
+    @foreach (string mode in s_colourModes)
     {
         int lanes = LaneCount(mode);
         <label class="@(lanes < 2 ? "unavailable" : null)" title="@(lanes < 2 ? OneLaneText(mode) : null)">
-            <input type="radio" name="roll-colour" checked="@(_colourBy == mode)" disabled="@(lanes < 2)" @onchange="() => SetColourByAsync(mode)" /> @label
+            <input type="radio" name="roll-colour" checked="@(_colourBy == mode)" disabled="@(lanes < 2)" @onchange="() => SetColourByAsync(mode)" /> @Text[$"roll.mode.{mode}"]
         </label>
     }
-    <button @onclick="() => ZoomAsync(1 / ZoomStep)" aria-label="Zoom out">−</button>
-    <button @onclick="() => ZoomAsync(ZoomStep)" aria-label="Zoom in">+</button>
-    @if (s_colourModes.Any(mode => LaneCount(mode.Mode) < 2) && Notes is { Count: > 0 })
+    <button @onclick="() => ZoomAsync(1 / ZoomStep)" aria-label="@Text["roll.zoomOut"]">−</button>
+    <button @onclick="() => ZoomAsync(ZoomStep)" aria-label="@Text["roll.zoomIn"]">+</button>
+    @if (s_colourModes.Any(mode => LaneCount(mode) < 2) && Notes is { Count: > 0 })
     {
-        <span class="meta">@string.Join(" ", s_colourModes.Where(mode => LaneCount(mode.Mode) < 2).Select(mode => OneLaneText(mode.Mode)))</span>
+        <span class="meta">@string.Join(" ", s_colourModes.Where(mode => LaneCount(mode) < 2).Select(OneLaneText))</span>
     }
 </div>
 <div class="roll" @ref="_host"></div>
@@ -39,7 +40,7 @@
     private DotNetObjectReference<PianoRoll>? _self;
     private IReadOnlyList<Note>? _shown;
     private Dictionary<string, Note> _byId = [];
-    private static readonly (string Mode, string Label)[] s_colourModes = [("track", "Track"), ("voice", "Voice"), ("hand", "Hand")];
+    private static readonly string[] s_colourModes = ["track", "voice", "hand"];
 
     private string _colourBy = "track";
     private Dictionary<string, int> _laneCounts = [];
@@ -126,7 +127,13 @@
         {
             _self = DotNetObjectReference.Create(this);
             _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/roll/piano-roll.js");
-            _view = await _module.InvokeAsync<IJSObjectReference>("createPianoRoll", _host, _self);
+            _view = await _module.InvokeAsync<IJSObjectReference>("createPianoRoll", _host, _self, Labels());
+            _labelsLanguage = Text.Language;
+        }
+        else if (_view is not null && _labelsLanguage != Text.Language)
+        {
+            _labelsLanguage = Text.Language;
+            await _view.InvokeVoidAsync("setLabels", Labels());
         }
 
         if (_view is null || Notes is null || Score is null)
@@ -153,7 +160,7 @@
                 ["hand"] = Notes.Select(note => note.Hand?.Value).Distinct().Count(),
             };
             // Start with the grouping that tells notes apart: tracks, else hands, else voices.
-            _colourBy = s_colourModes.Select(mode => mode.Mode).OrderBy(mode => mode switch { "track" => 0, "hand" => 1, _ => 2 })
+            _colourBy = s_colourModes.OrderBy(mode => mode switch { "track" => 0, "hand" => 1, _ => 2 })
                 .FirstOrDefault(mode => LaneCount(mode) > 1) ?? "track";
             await _view.InvokeVoidAsync("load", PianoRollPayload.Create(Notes, Score));
             await _view.InvokeVoidAsync("setColourBy", _colourBy);
@@ -249,13 +256,22 @@
 
     private int LaneCount(string mode) => _laneCounts.GetValueOrDefault(mode, 0);
 
-    /// <summary>Why a grouping is off for this piece, so the control never looks like it does nothing.</summary>
-    private static string OneLaneText(string mode) => mode switch
+    private string? _labelsLanguage;
+
+    /// <summary>The words the script draws, in the player's language (RollLabels in Scripts/roll/roll-model.ts).</summary>
+    private Dictionary<string, string> Labels() => new[]
     {
-        "track" => "One track, so Track is off.",
-        "voice" => "No voices to tell apart, so Voice is off.",
-        _ => "No hands in this file, so Hand is off.",
-    };
+        "track", "trackVoice", "noVoice", "rightHand", "leftHand", "noHand", "rightLetter", "leftLetter", "rollAria", "scrollAria", "keysAria",
+        "legendHint", "legendVariation", "legendHighlight", "legendInferred", "legendHands", "legendHandsInferred",
+    }.ToDictionary(name => name, name => Text[$"roll.js.{name}"]);
+
+    /// <summary>Why a grouping is off for this piece, so the control never looks like it does nothing.</summary>
+    private string OneLaneText(string mode) => Text[mode switch
+    {
+        "track" => "roll.oneTrack",
+        "voice" => "roll.noVoices",
+        _ => "roll.noHands",
+    }];
 
     private async Task ShowMotifAsync(IJSObjectReference view)
     {
@@ -317,38 +333,38 @@
         {
             if (_selected.Count == 0 || Meter is null)
             {
-                return "Drag across the roll to select a range, then drag its edges to adjust it; click a bar number for one bar, Shift-click to extend; by keyboard, ] and [ select the next and previous bar, with Shift they extend. Click a note to hear and select it, or a key or pitch name to hear it, also while the piece plays. Click an empty place or press Escape to clear. Space plays and pauses.";
+                return Text["roll.hint"];
             }
 
             if (_selected.Count > 1)
             {
-                return $"{_selected.Count} notes selected.";
+                return Text.Count("roll.selected", _selected.Count);
             }
 
             if (!_byId.TryGetValue(_selected[0], out Note? note))
             {
-                return "1 note selected.";
+                return Text.Count("roll.selected", 1);
             }
 
             MetricPosition position = Meter.ToPosition(note.Span.Onset);
-            var parts = new List<string> { $"{note.Pitch}, bar {position.Bar}, beat {position.Beat}", $"track {note.Track + 1}" };
+            var parts = new List<string> { Text.Format("roll.at", note.Pitch, position.Bar, position.Beat), Text.Format("roll.track", note.Track + 1) };
             if (note.Voice is int voice)
             {
-                parts.Add($"voice {voice}");
+                parts.Add(Text.Format("roll.voice", voice));
             }
 
             if (note.Hand is { } hand)
             {
-                string side = hand.Value == Hand.Left ? "left hand" : "right hand";
-                parts.Add(PianoRollPayload.IsCertain(hand.Attribution) ? $"{side} (from the file)" : $"{side} (inferred)");
+                string side = hand.Value == Hand.Left ? "left" : "right";
+                parts.Add(Text[$"roll.{side}{(PianoRollPayload.IsCertain(hand.Attribution) ? "FromFile" : "Inferred")}"]);
             }
 
             if (!PianoRollPayload.IsCertain(note.Attribution))
             {
-                parts.Add($"{note.Attribution.Provenance.ToString().ToLowerInvariant()}, not all of it stated in the file");
+                parts.Add(Text.Format("roll.notStated", Text[$"roll.provenance.{note.Attribution.Provenance}"]));
             }
 
-            return "Selected: " + string.Join(" · ", parts) + ".";
+            return Text.Format("roll.selectedNote", string.Join(" · ", parts));
         }
     }
 

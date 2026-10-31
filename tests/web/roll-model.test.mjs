@@ -5,12 +5,14 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+    ENGLISH_ROLL_LABELS,
     FLAG_HAND_INFERRED,
     FLAG_NOTE_INFERRED,
     HAND_LEFT,
     HAND_NONE,
     HAND_RIGHT,
     RollModel,
+    fill,
     isBlackKey,
     pitchName,
 } from "../../src/MotiffLab.Web/wwwroot/js/roll/roll-model.js";
@@ -130,6 +132,19 @@ test("hand lanes put the right hand first, then the left, then notes with no han
     ]);
 
     assert.deepEqual(roll.lanes("hand").map((lane) => lane.label), ["Right hand", "Left hand", "No hand"]);
+});
+
+test("lanes take their names from the labels given, as in Russian (#134)", () => {
+    const roll = model([
+        ["a", 0, 480, 60, 0, 1, HAND_RIGHT, 0],
+        ["b", 0, 480, 64, 0, 2, HAND_LEFT, 0],
+        ["c", 0, 480, 48, 1, 0, HAND_NONE, 0],
+    ]);
+    const labels = { ...ENGLISH_ROLL_LABELS, track: "Дорожка {0}", trackVoice: "{0}, голос {1}", rightHand: "Правая рука", leftHand: "Левая рука", noHand: "Рука не указана" };
+
+    assert.deepEqual(roll.lanes("voice", labels).map((lane) => lane.label), ["Дорожка 1, голос 1", "Дорожка 1, голос 2", "Дорожка 2"]);
+    assert.deepEqual(roll.lanes("hand", labels).map((lane) => lane.label), ["Правая рука", "Левая рука", "Рука не указана"]);
+    assert.equal(fill("{0} из {1}, снова {0}", 3, "пяти"), "3 из пяти, снова 3");
 });
 
 test("the arrow keys step through the notes in time order and stop at the ends", () => {

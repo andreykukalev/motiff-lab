@@ -243,8 +243,16 @@ public sealed class PhraseMap
     /// "after a rest of a beat or more", "at a slur and at a repeat sign", "set by you", "at a slur,
     /// confirmed by you", or for the first phrase "the start of the piece": how a phrase's start was found.
     /// </summary>
-    public static string Describe(PhraseBoundary? start)
+    public static string Describe(PhraseBoundary? start) => Describe(start, Words.English);
+
+    /// <summary>How a phrase's start was found, in the player's language (#134); the Russian completes "начинается …".</summary>
+    public static string Describe(PhraseBoundary? start, Words words)
     {
+        if (words.IsRussian)
+        {
+            return RussianDescribe(start);
+        }
+
         if (start is null)
         {
             return "the start of the piece";
@@ -269,6 +277,30 @@ public sealed class PhraseMap
         {
             Provenance.UserEdited or Provenance.UserConfirmed when source.Length == 0 => "set by you",
             Provenance.UserEdited or Provenance.UserConfirmed => $"{source}, confirmed by you",
+            _ => source,
+        };
+    }
+
+    private static string RussianDescribe(PhraseBoundary? start)
+    {
+        if (start is null)
+        {
+            return "с начала пьесы";
+        }
+
+        string[] evidence = [.. start.Evidence.Select(static mark => mark switch
+        {
+            PhraseEvidence.Slur => "по лиге",
+            PhraseEvidence.Rest => "после паузы в долю или больше",
+            PhraseEvidence.RepeatSign => "по знаку репризы",
+            PhraseEvidence.Repetition => "там, где нота в ноту возвращается более ранний отрывок",
+            _ => mark.ToString(),
+        })];
+        string source = evidence.Length == 0 ? "" : Words.Russian.Joined(evidence);
+        return start.Attribution.Provenance switch
+        {
+            Provenance.UserEdited or Provenance.UserConfirmed when source.Length == 0 => "там, где вы поставили границу",
+            Provenance.UserEdited or Provenance.UserConfirmed => $"{source}, подтверждено вами",
             _ => source,
         };
     }

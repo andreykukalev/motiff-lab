@@ -179,15 +179,28 @@ public sealed record ScanBar(int Bar, string? Measure, TickSpan Span, IReadOnlyL
     public bool IsFlagged => Flags.Count > 0;
 
     /// <summary>What each flag means, in plain words for the player, in the order the checks ran.</summary>
-    public IEnumerable<string> Reasons => Flags.Select(Describe);
+    public IEnumerable<string> Reasons => ReasonsIn(Words.English);
 
-    public static string Describe(ScanFlag flag) => flag switch
+    /// <summary><see cref="Reasons"/> in the player's language.</summary>
+    public IEnumerable<string> ReasonsIn(Words words) => Flags.Select(flag => Describe(flag, words));
+
+    public static string Describe(ScanFlag flag) => Describe(flag, Words.English);
+
+    public static string Describe(ScanFlag flag, Words words) => flag switch
     {
-        ScanFlag.BarTooLong => "The notes add up to more than the time signature allows: a note or rest was probably read too long.",
-        ScanFlag.BarTooShort => "The notes add up to less than the time signature: a note or rest was probably missed or read too short.",
-        ScanFlag.StavesDiffer => "The two hands do not add up to the same length.",
-        ScanFlag.OutOfPianoRange => "A note is outside the piano's range, so a clef or ledger line was probably misread.",
-        ScanFlag.GraceNotes => "The bar has grace notes, which are often misread, and Motiff Lab does not play them yet.",
+        ScanFlag.BarTooLong => words.T(
+            "The notes add up to more than the time signature allows: a note or rest was probably read too long.",
+            "Ноты в сумме длиннее, чем позволяет размер: вероятно, какую-то ноту или паузу прочитали слишком длинной."),
+        ScanFlag.BarTooShort => words.T(
+            "The notes add up to less than the time signature: a note or rest was probably missed or read too short.",
+            "Ноты в сумме короче, чем требует размер: вероятно, какую-то ноту или паузу пропустили или прочитали слишком короткой."),
+        ScanFlag.StavesDiffer => words.T("The two hands do not add up to the same length.", "У двух рук получается разная длина такта."),
+        ScanFlag.OutOfPianoRange => words.T(
+            "A note is outside the piano's range, so a clef or ledger line was probably misread.",
+            "Одна из нот выходит за диапазон фортепиано: вероятно, неверно прочитали ключ или добавочную линейку."),
+        ScanFlag.GraceNotes => words.T(
+            "The bar has grace notes, which are often misread, and Motiff Lab does not play them yet.",
+            "В такте есть форшлаги: их часто читают неверно, и Motiff Lab пока их не играет."),
         _ => throw new ArgumentOutOfRangeException(nameof(flag), flag, "Unknown scan flag."),
     };
 }

@@ -39,7 +39,7 @@ public partial class PlaybackLab
     private Task ShowScanBarAsync(ScanBar bar)
     {
         int last = _meter!.ToPosition(new Tick(bar.Span.End.Value - 1)).Bar;
-        return SelectAsync(MotifSelector.Bars(_meter, bar.Bar, last, _score!.End), note: $"Bar {bar.Bar} of the scan: compare it with the page.");
+        return SelectAsync(MotifSelector.Bars(_meter, bar.Bar, last, _score!.End), note: Text.Format("scan.compareBar", bar.Bar));
     }
 
     private async Task CorrectScanBarAsync(ScanBar bar)
