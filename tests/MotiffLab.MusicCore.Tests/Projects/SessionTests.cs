@@ -89,7 +89,7 @@ public class SessionTests
     public void A_version_7_file_opens_with_no_sessions()
     {
         string json = Encoding.UTF8.GetString(ProjectFile.Write(Worked() with { Sessions = [], Observations = [] }))
-            .Replace("\"version\": 10", "\"version\": 7", StringComparison.Ordinal)
+            .Replace("\"version\": 11", "\"version\": 7", StringComparison.Ordinal)
             .Replace(",\n  \"sessions\": []", "", StringComparison.Ordinal);
         Assert.DoesNotContain("sessions", json);
 

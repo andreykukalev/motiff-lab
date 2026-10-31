@@ -113,6 +113,18 @@ public static partial class MotifAnalyzer
             }
         }
 
+        if (context.TempoEstimated && changes.Count > 0)
+        {
+            // A tempo that follows the playing changes on every beat: its range and typical value say more than a list.
+            int[] beats = [.. new[] { tempos[first].MicrosecondsPerQuarter }.Concat(changes.Select(tempo => tempo.MicrosecondsPerQuarter)).Order()];
+            return new MotifFact(
+                "character.tempo",
+                FactLens.Character,
+                FactCertainty.Inferred,
+                $"Tempo: follows the playing, a quarter at about {Bpm(beats[beats.Length / 2])} BPM, from {Bpm(beats[^1])} to {Bpm(beats[0])} BPM.",
+                "Worked out from the notes heard in the recording, with the bars: a beat that bends with the playing, in quarter notes per minute, rounded to a tenth for display; the typical value is the median beat.");
+        }
+
         // Each change is a place: from where it takes effect to the next change or the end of the selection.
         FactPlace[] places = [.. changes.Select((tempo, i) => new FactPlace(
             $"{Bpm(tempo.MicrosecondsPerQuarter)} BPM at {Place(meter.ToPosition(tempo.At))}",
@@ -134,7 +146,7 @@ public static partial class MotifAnalyzer
 
         const string Basis = "Read from the file's tempo map, in quarter notes per minute, rounded to a tenth for display.";
         MotifFact fact = context.TempoEstimated && first == 0
-            ? new MotifFact("character.tempo", FactLens.Character, FactCertainty.Inferred, text, "Worked out from the notes heard in the recording, with the bars: the steady beat their onsets fit best, in quarter notes per minute, rounded to a tenth for display.")
+            ? new MotifFact("character.tempo", FactLens.Character, FactCertainty.Inferred, text, "Worked out from the notes heard in the recording, with the bars: the beat their onsets fit best, in quarter notes per minute, rounded to a tenth for display.")
             : assumed
             ? new MotifFact("character.tempo", FactLens.Character, FactCertainty.Inferred, text, $"The file states no tempo at its start, so the default of {Bpm(PlaybackTempo.DefaultMicrosecondsPerQuarter)} BPM is assumed. {Basis}")
             : new MotifFact("character.tempo", FactLens.Character, FactCertainty.Detected, text, Basis);

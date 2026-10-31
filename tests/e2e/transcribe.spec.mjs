@@ -112,8 +112,15 @@ test("a transcription is written in bars and a tempo worked out from its notes, 
     const bars = page.getByRole("region", { name: "Bars and tempo" });
     await expect(bars.getByText("3/8 with a quarter at 72 a minute")).toBeVisible();
     await expect(bars.getByText("The piece starts with a pickup.")).toBeVisible();
+    await expect(bars.getByText("The tempo follows the playing", { exact: false })).toBeVisible();
     await expect(page.getByText("were worked out from the notes", { exact: false })).toBeVisible();
     expect(await violations(page)).toEqual([]);
+
+    // The bar lines move a beat either way: a beat earlier, the pickup's two 16ths start the first bar.
+    await bars.getByRole("button", { name: "Bar lines a beat earlier" }).click();
+    await expect(bars.getByText("The piece starts with a pickup.")).toHaveCount(0);
+    await bars.getByRole("button", { name: "Bar lines a beat later" }).click();
+    await expect(bars.getByText("The piece starts with a pickup.")).toBeVisible();
 
     // Another time signature lays out the same notes again; twice the tempo halves the 16th.
     await bars.getByLabel("Time signature").selectOption("6/8");
@@ -130,10 +137,16 @@ test("a transcription is written in bars and a tempo worked out from its notes, 
     await bars.getByRole("button", { name: "Half the tempo" }).click();
     await expect(bars.getByText("3/8 with a quarter at 72 a minute")).toBeVisible();
 
-    // The workspace writes the notes in those bars, with short gaps held.
+    // The workspace writes the notes in those bars for reading, or as played.
     await page.getByText("Open the piece").click();
     await expect(page).toHaveURL(/playback/);
-    await expect(page.getByText("shown held to the next note", { exact: false })).toBeVisible();
+    await expect(page.getByText("Written for reading", { exact: false })).toBeVisible();
+    await expect(page.getByText("The key signature (A minor) is worked out from the notes.", { exact: false })).toBeVisible();
+    await page.getByRole("radio", { name: "As played" }).check();
+    await expect(page.getByText("Written as played", { exact: false })).toBeVisible();
+    expect(await violations(page)).toEqual([]);
+    await page.getByRole("radio", { name: "For reading" }).check();
+    await expect(page.getByText("Written for reading", { exact: false })).toBeVisible();
     await page.goto("/");
     await page.getByRole("link", { name: "Take 1 at the piano.mid" }).first().click();
     await expect(page.getByText("heard in a recording")).toBeVisible();

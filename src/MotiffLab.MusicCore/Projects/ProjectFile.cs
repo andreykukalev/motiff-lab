@@ -24,6 +24,7 @@ public static class ProjectFile
     public const string FormatName = "motiff-lab-project";
 
     /// <summary>
+    /// 11 adds the beats of a transcription's tempo, which follows the playing, and how many 16ths each is written as (0016);
     /// 10 adds the bars and tempo worked out for a transcription (0016);
     /// 9 marks a project heard in an audio or video recording by transcription (0014);
     /// 8 adds the player's work sessions and marks each observation with the session it was kept in (0012);
@@ -32,11 +33,11 @@ public static class ProjectFile
     /// 4 saves the melody operations (V4, V9, V10), Accompaniment pattern (V2), Articulation (V13)
     /// and each step's scope; 3 adds
     /// the edit log of note corrections; 2 saves each variation as a chain of steps. Files of earlier
-    /// versions still open: versions before 10 keep a transcription's bars as the engine wrote them, versions before 9 were never transcribed, versions before 8 have no sessions, versions before 7 were never scanned, versions before 6 have no observations, steps of versions before 4
+    /// versions still open: the bars of version 10 keep one tempo, versions before 10 keep a transcription's bars as the engine wrote them, versions before 9 were never transcribed, versions before 8 have no sessions, versions before 7 were never scanned, versions before 6 have no observations, steps of versions before 4
     /// change the whole selection, versions 1 and 2 have no corrections, and version 1 holds one
     /// step per variation.
     /// </summary>
-    public const int Version = 10;
+    public const int Version = 11;
 
     /// <summary>The extension an exported project gets.</summary>
     public const string Extension = ".motiff.json";
@@ -170,6 +171,14 @@ public static class ProjectFile
                     foreach (int start in bars.BarStarts)
                     {
                         json.WriteNumberValue(start);
+                    }
+
+                    json.WriteEndArray();
+                    json.WriteNumber("stepsPerBeat", bars.StepsPerBeat);
+                    json.WriteStartArray("beats");
+                    foreach (long beat in bars.Beats)
+                    {
+                        json.WriteNumberValue(beat);
                     }
 
                     json.WriteEndArray();
@@ -433,10 +442,10 @@ public static class ProjectFile
             throw Damaged("engine");
         }
 
-        return new TranscriptionOrigin(engine, version >= 10 ? ReadBars(transcription) : null);
+        return new TranscriptionOrigin(engine, version >= 10 ? ReadBars(transcription, version) : null);
     }
 
-    private static BarGrid? ReadBars(JsonElement transcription)
+    private static BarGrid? ReadBars(JsonElement transcription, int version)
     {
         if (!transcription.TryGetProperty("bars", out JsonElement bars) || bars.ValueKind is not (JsonValueKind.Null or JsonValueKind.Object))
         {
@@ -457,6 +466,12 @@ public static class ProjectFile
             .EnumerateArray()
             .Select(start => start.ValueKind == JsonValueKind.Number && start.TryGetInt32(out int value) ? value : throw Damaged("bars"))];
         long origin = Long(bars, "origin");
+        long[] beats = version >= 11
+            ? [.. Property(bars, "beats", JsonValueKind.Array)
+                .EnumerateArray()
+                .Select(beat => beat.ValueKind == JsonValueKind.Number && beat.TryGetInt64(out long value) ? value : throw Damaged("bars"))]
+            : [];
+        int perBeat = version >= 11 ? Integer(bars, "stepsPerBeat") : 2;
         if (meter is not { } chosen || !BarGrid.Signatures.Contains(chosen) || origin < 0)
         {
             throw Damaged("bars");
@@ -464,7 +479,7 @@ public static class ProjectFile
 
         try
         {
-            return new BarGrid(new Tick(origin), Integer(bars, "sixteenthMicroseconds"), chosen, starts);
+            return new BarGrid(new Tick(origin), Integer(bars, "sixteenthMicroseconds"), chosen, starts, beats, perBeat);
         }
         catch (ArgumentException)
         {
