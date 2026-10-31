@@ -56,6 +56,7 @@ public static class MidiImporter
         long fileEndTick = file.Tracks.Max(track => track.EndTick);
 
         var notes = new List<MidiNote>();
+        var pedal = new List<MidiPedal>();
         var trackInfos = new List<MidiTrackInfo>();
         var tempoEvents = new List<SourceValue<int>>();
         var meterEvents = new List<SourceValue<(int Numerator, int Denominator)>>();
@@ -72,6 +73,7 @@ public static class MidiImporter
             }
 
             notes.AddRange(reader.Notes);
+            pedal.AddRange(reader.Pedal);
             trackInfos.Add(reader.ToInfo());
         }
 
@@ -140,7 +142,10 @@ public static class MidiImporter
             MeasureCount: meter.BarsBefore(end).Count(),
             Issues: issues.Build(MidiIssueCodes.Describe));
 
-        return new MidiImport(file.Format, timeBase, trackInfos, events, notes, tempos, meters, meter, keys, end, report);
+        return new MidiImport(file.Format, timeBase, trackInfos, events, notes, tempos, meters, meter, keys, end, report)
+        {
+            SustainPedal = [.. pedal.OrderBy(static held => held.Span.Onset).ThenBy(static held => held.Track).ThenBy(static held => held.Channel)],
+        };
     }
 
     /// <summary>True when one track holds all the notes and none of its channels is set to an instrument other than piano.</summary>
@@ -230,10 +235,14 @@ public static class MidiImporter
         private readonly Dictionary<(int Channel, int Pitch), Queue<OpenNote>> _open = [];
         private readonly SortedSet<int> _channels = [];
         private readonly SortedDictionary<int, int> _programs = [];
+        private readonly Dictionary<int, long> _pedalDown = [];
         private string? _name;
         private string? _instrument;
 
         public List<MidiNote> Notes { get; } = [];
+
+        /// <summary>Where the sustain pedal was held down, by channel.</summary>
+        public List<MidiPedal> Pedal { get; } = [];
 
         public int TempoCount { get; private set; }
 
@@ -260,6 +269,11 @@ public static class MidiImporter
             }
 
             CloseOpenNotes();
+            foreach ((int channel, long down) in _pedalDown.OrderBy(static held => held.Key))
+            {
+                // A pedal never let go is held to the end of the piece.
+                AddPedal(channel, down, Math.Max(fileEndTick, down + 1));
+            }
         }
 
         public MidiTrackInfo ToInfo() => new(
@@ -283,11 +297,11 @@ public static class MidiImporter
                 case 0x80:
                     NoteOff(e, MidiNoteEnd.NoteOff);
                     break;
+                case 0xB0 when e.Data1 == SustainPedalController:
+                    ReadPedal(e);
+                    break;
                 case 0xB0:
-                    issues.Add(
-                        ImportIssueKind.Dropped,
-                        e.Data1 == SustainPedalController ? MidiIssueCodes.SustainPedalIgnored : MidiIssueCodes.ControllersIgnored,
-                        track);
+                    issues.Add(ImportIssueKind.Dropped, MidiIssueCodes.ControllersIgnored, track);
                     break;
                 case 0xC0:
                     _programs.TryAdd(e.Channel, e.Data1);
@@ -338,6 +352,35 @@ public static class MidiImporter
             }
 
             AddNote(e.Channel, e.Data1, queue.Dequeue(), e.Tick, endSource);
+        }
+
+        /// <summary>The sustain pedal: down from a value of 64, up below it, as General MIDI reads it.</summary>
+        private void ReadPedal(SmfChannelEvent e)
+        {
+            bool down = e.Data2 >= 64;
+            if (down)
+            {
+                _pedalDown.TryAdd(e.Channel, e.Tick);
+            }
+            else if (_pedalDown.Remove(e.Channel, out long from))
+            {
+                AddPedal(e.Channel, from, e.Tick);
+            }
+        }
+
+        private void AddPedal(int channel, long down, long up)
+        {
+            if (up <= down)
+            {
+                return;
+            }
+
+            Tick onset = timeBase.ToCanonical(down).Tick;
+            Tick end = timeBase.ToCanonical(up).Tick;
+            if (end > onset)
+            {
+                Pedal.Add(new MidiPedal(track, channel, down, up, TickSpan.FromBounds(onset, end)));
+            }
         }
 
         private void CloseOpenNotes()
