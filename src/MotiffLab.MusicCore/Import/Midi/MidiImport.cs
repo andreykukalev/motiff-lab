@@ -25,7 +25,11 @@ public sealed record MidiImport(
     MeterMap Meter,
     IReadOnlyList<MidiKeySignature> KeySignatures,
     Tick End,
-    ImportReport Report);
+    ImportReport Report)
+{
+    /// <summary>Where the sustain pedal was held down, in onset order: playback holds the notes it catches.</summary>
+    public IReadOnlyList<MidiPedal> SustainPedal { get; init; } = [];
+}
 
 /// <param name="Index">Zero-based track index in file order.</param>
 /// <param name="Channels">Channels whose notes were imported from this track, ascending.</param>
@@ -83,6 +87,12 @@ public sealed record MidiTempoChange(Tick At, long MidiTick, int MicrosecondsPer
 /// <param name="Denominator">Note value of the beat as a power of two, 1–128.</param>
 /// <param name="IsAssumed">True for the 4/4 default when the file sets no time signature at its start (S1-I3).</param>
 public sealed record MidiTimeSignature(Tick At, long MidiTick, int Numerator, int Denominator, bool IsAssumed);
+
+/// <summary>The sustain pedal (controller 64) held down on one channel: from a value of 64 or more to the next value below 64.</summary>
+/// <param name="DownTick">Source tick of the press.</param>
+/// <param name="UpTick">Source tick of the release; the end of the track when it was never released.</param>
+/// <param name="Span">Where it was held, on the canonical timeline.</param>
+public sealed record MidiPedal(int Track, int Channel, long DownTick, long UpTick, TickSpan Span);
 
 /// <param name="Sharps">Sharps (positive) or flats (negative), −7 to 7.</param>
 public sealed record MidiKeySignature(Tick At, long MidiTick, int Sharps, bool IsMinor);

@@ -161,4 +161,65 @@ public class PlaybackScoreTests
 
         Assert.Equal(first.Notes, second.Notes);
     }
+
+    private static PlaybackPedal Pedal(long down, long up, int track = 0) => new(TickSpan.FromBounds(new Tick(down), new Tick(up)), track);
+
+    [Fact]
+    public void A_note_released_under_the_pedal_sounds_until_the_pedal_comes_up()
+    {
+        PlaybackScore score = PlaybackScore.Create(
+            [Note("a", 48, 0, 240), Note("b", 60, 960, 240), Note("c", 64, 0, 240, track: 1)],
+            [],
+            MeterMap.Default,
+            new Tick(1920),
+            [Pedal(120, 900)]);
+
+        Assert.Equal(
+            [(48, 900L), (64, 240L), (60, 1200L)],
+            score.Notes.Select(note => (note.Pitch, note.Span.End.Value)));
+        Assert.Equal(Pedal(120, 900), Assert.Single(score.Pedal));
+    }
+
+    [Fact]
+    public void Striking_the_same_key_again_damps_the_held_sound()
+    {
+        PlaybackScore score = PlaybackScore.Create(
+            [Note("a", 60, 0, 240), Note("b", 60, 480, 240), Note("c", 60, 960, 240)],
+            [],
+            MeterMap.Default,
+            new Tick(1920),
+            [Pedal(0, 1800)]);
+
+        Assert.Equal([480L, 960L, 1800L], score.Notes.Select(note => note.Span.End.Value));
+    }
+
+    [Fact]
+    public void Lifting_and_pressing_the_pedal_at_once_still_damps_the_sound()
+    {
+        PlaybackScore score = PlaybackScore.Create([Note("a", 60, 0, 240)], [], MeterMap.Default, new Tick(1920), [Pedal(0, 480), Pedal(480, 960)]);
+
+        Assert.Equal(480, Assert.Single(score.Notes).Span.End.Value);
+    }
+
+    [Fact]
+    public void Notes_keep_their_length_without_a_pedal_and_a_variation_keeps_the_pedal()
+    {
+        PlaybackScore plain = PlaybackScore.Create([Note("a", 60, 0, 240)], [], MeterMap.Default, new Tick(1920));
+        PlaybackScore held = PlaybackScore.Create([Note("a", 60, 0, 240)], [], MeterMap.Default, new Tick(1920), [Pedal(0, 720)]);
+
+        Assert.Equal(240, Assert.Single(plain.Notes).Span.End.Value);
+        Assert.Equal(720, Assert.Single(held.WithNotes([Note("v", 67, 0, 120)]).Notes).Span.End.Value);
+        Assert.Equal(held.Pedal, held.ExtendedTo(new Tick(3840)).Pedal);
+    }
+
+    [Fact]
+    public void Midi_sustain_pedal_holds_the_notes_of_its_track()
+    {
+        MidiImport import = MidiImporter.Import(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "Midi", "Fixtures", "two-hands-type1.mid")));
+
+        PlaybackScore score = PlaybackScore.FromMidi(import);
+
+        Assert.Equal(import.SustainPedal.Count, score.Pedal.Count);
+        Assert.True(score.Notes.Sum(note => note.Span.Duration) > import.Notes.Sum(note => note.Span.Duration));
+    }
 }

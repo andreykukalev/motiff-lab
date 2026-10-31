@@ -1844,7 +1844,7 @@
             _selection = MotifSelector.Select(_notes, _meter!, current.Span, _filter);
         }
 
-        _score = PlaybackScore.Create(_notes, _score!.Tempos, _meter!, _score.End);
+        _score = PlaybackScore.Create(_notes, _score!.Tempos, _meter!, _score.End, _score.Pedal);
         _lastBar = MotifSelector.LastBar(_meter!, _score.End);
         _phrases = PhraseMap.Suggest(_notes, _meter!, _phraseMarks, _score.End, _phrases?.Edits);
         _generated = ScoreSource.FromNotes(Notation(_notes, _score.End));

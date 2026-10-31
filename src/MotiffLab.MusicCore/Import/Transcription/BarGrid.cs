@@ -512,6 +512,10 @@ public sealed record BarGrid
         }
 
         MidiKeySignature[] keys = [.. midi.KeySignatures.Select(key => key with { At = Moved(key.At) })];
+        MidiPedal[] pedal = [.. midi.SustainPedal
+            .Select(held => (Held: held, Onset: Moved(held.Span.Onset), End: Moved(held.Span.End)))
+            .Where(moved => moved.End > moved.Onset)
+            .Select(moved => moved.Held with { Span = TickSpan.FromBounds(moved.Onset, moved.End) })];
         var import = midi with
         {
             Notes = midiNotes,
@@ -520,6 +524,7 @@ public sealed record BarGrid
             Meter = meter,
             KeySignatures = keys,
             End = end,
+            SustainPedal = pedal,
         };
 
         // The engine's 120 BPM and 4/4 are no longer what the bars say, so their notices go.
