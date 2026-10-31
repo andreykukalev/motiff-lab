@@ -4,7 +4,7 @@ name: CI
 # `browser-tests`, or run CI from the Actions tab with "Run the browser tests" ticked.
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review, labeled, closed]
+    types: [opened, synchronize, reopened, ready_for_review, labeled]
   push:
     branches: [main]
   workflow_dispatch:
@@ -18,8 +18,8 @@ permissions:
   contents: read
 
 # A newer push to the same pull request supersedes the run in progress. Never cancel a run on main:
-# it may be provisioning infrastructure. Pull requests group by number, not ref: when a pull request
-# closes, github.ref is the base branch, and grouping by ref let the close run cancel the push to main.
+# it may be provisioning infrastructure. Pull requests group by number, not ref, so a pull request's
+# run never shares a group with main.
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -36,7 +36,7 @@ jobs:
   build-test:
     # Of labels, only adding browser-tests starts a run.
     if: >-
-      github.event.action != 'closed' && github.event.pull_request.draft != true &&
+      github.event.pull_request.draft != true &&
       (github.event.action != 'labeled' || github.event.label.name == 'browser-tests')
     runs-on: ubuntu-latest
     # CI stays within 5 minutes. The browser suite alone takes about 15 minutes on one worker, so a run
@@ -45,7 +45,6 @@ jobs:
     permissions:
       contents: read
       id-token: write # OIDC sign-in to Azure
-      pull-requests: write # the deploy action comments the preview URL on the PR
     env:
       RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
       SWA_NAME: swa-motifflab
@@ -101,8 +100,7 @@ jobs:
           fi
           azure=false
           if [[ "$app" == true && -n "$AZURE_CLIENT_ID" ]] \
-            && [[ "${{ github.event_name }}" == push || "${{ github.event.pull_request.head.repo.full_name }}" == "${{ github.repository }}" \
-              || ( "${{ github.event_name }}" == workflow_dispatch && "${{ github.ref }}" == refs/heads/main ) ]]; then
+            && [[ "${{ github.ref }}" == refs/heads/main && ( "${{ github.event_name }}" == push || "${{ github.event_name }}" == workflow_dispatch ) ]]; then
             azure=true
           fi
           publish=false
@@ -179,8 +177,8 @@ jobs:
         run: dotnet workload install wasm-tools
 
       # Sign-in and saving online (0014) in the deployed app: the External ID tenant and the services' addresses come
-      # from repository variables that infra/azure/setup.ps1 sets. Pull request previews keep the committed
-      # appsettings.json, with no accounts: Entra takes no wildcard redirect, so a preview could not sign in.
+      # from repository variables that infra/azure/setup.ps1 sets. Pull request builds keep the committed
+      # appsettings.json, with no accounts.
       - name: Write the sign-in settings
         if: >-
           steps.changes.outputs.publish == 'true' && github.event_name != 'pull_request' &&
@@ -239,10 +237,11 @@ jobs:
           path: tests/e2e/test-results
           retention-days: 7
 
-      # Provisions infra/main.bicep and deploys the published app to Azure Static Web Apps.
-      # main: provision, then deploy production. Pull requests: what-if, then deploy a preview.
+      # Provisions infra/main.bicep and deploys the published app to Azure Static Web Apps, from main only.
+      # Pull requests are built and tested but not deployed: there are no preview sites (Andrei, 2026-10-31;
+      # a preview can't sign in, and the iPad app opens the production site), so a change is checked there.
       # Signs in through OIDC as the identity from infra/bootstrap.bicep; see infra/README.md.
-      # Skipped until the bootstrap has set the AZURE_* repository variables, and on forks.
+      # Skipped until the bootstrap has set the AZURE_* repository variables.
       - uses: azure/login@v2
         if: steps.changes.outputs.deploy == 'true'
         with:
@@ -250,17 +249,9 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      # Infrastructure is previewed and provisioned only when infra/ changed (about 40 s).
-      - name: Preview infrastructure changes
-        if: steps.changes.outputs.deploy == 'true' && steps.changes.outputs.infra == 'true' && github.event_name == 'pull_request'
-        run: >-
-          az deployment group what-if
-          --resource-group "$RESOURCE_GROUP"
-          --template-file infra/main.bicep
-          --parameters infra/main.bicepparam
-
+      # Infrastructure is provisioned only when infra/ changed (about 40 s).
       - name: Provision infrastructure
-        if: steps.changes.outputs.deploy == 'true' && steps.changes.outputs.infra == 'true' && github.event_name == 'push'
+        if: steps.changes.outputs.deploy == 'true' && steps.changes.outputs.infra == 'true'
         run: >-
           az deployment group create
           --resource-group "$RESOURCE_GROUP"
@@ -282,41 +273,8 @@ jobs:
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ env.SWA_TOKEN }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
           app_location: publish/wwwroot
           output_location: ''
           skip_app_build: true
           skip_api_build: true
-
-  close-preview:
-    if: >-
-      vars.AZURE_CLIENT_ID != '' &&
-      github.event_name == 'pull_request' && github.event.action == 'closed' &&
-      github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      id-token: write
-    env:
-      RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
-      SWA_NAME: swa-motifflab
-    steps:
-      - uses: azure/login@v2
-        with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Get deployment token
-        run: |
-          token="$(az staticwebapp secrets list --name "$SWA_NAME" --resource-group "$RESOURCE_GROUP" --query properties.apiKey --output tsv)"
-          echo "::add-mask::$token"
-          echo "SWA_TOKEN=$token" >> "$GITHUB_ENV"
-
-      - name: Close preview environment
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ env.SWA_TOKEN }}
-          action: close
-          app_location: ''

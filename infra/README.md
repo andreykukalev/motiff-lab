@@ -20,10 +20,8 @@ Static Web Apps is only offered in a few regions, and West Europe is the only EU
 The `CI` workflow ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) builds and tests, publishes the web app, then signs in to Azure through OIDC as the bootstrap identity. No Azure secret is stored in GitHub: the Static Web Apps deployment token is read at run time.
 
 - **Push to `main`**: deploys `main.bicep` (incremental), then deploys the app to production.
-- **Pull request** from this repository: shows a `what-if` of `main.bicep` in the log, deploys a preview environment and comments its URL on the PR. Closing the PR deletes the preview.
-- Until the bootstrap has set the `AZURE_*` repository variables, and on forks, the deploy jobs are skipped.
-
-The Free plan allows 3 preview environments at a time. A fourth open PR fails its deploy until an older PR is closed.
+- **Pull request**: builds and tests only. There are no preview sites (Andrei, 2026-10-31): a preview can't sign in, and the iPad app opens the production site, so a change is checked there after it is merged.
+- Until the bootstrap has set the `AZURE_*` repository variables, the deploy steps are skipped.
 
 ## One-time setup
 
@@ -54,9 +52,9 @@ If Windows refuses to run scripts, start it with `powershell -ExecutionPolicy By
 4. sets the repository variables (identifiers, not secrets): `AZURE_*` and `AZURE_SERVICES_*`, `WEB_HOST`, `COSMOS_ENDPOINT`, `AUTH_AUTHORITY`, `AUTH_AUDIENCE`, `AUTH_CLIENT_ID`, then `SCAN_URL` and `API_URL`;
 5. runs the `Scan server`, `API` and `CI` workflows and waits for each. GitHub makes a new package private, Container Apps pulls without credentials, and GitHub has no command to change a package's visibility: the first time, the script opens the package's settings page (*Change visibility*, *Public*), waits, and re-runs the workflow.
 
-CI then builds the web app with the sign-in settings from those variables (it writes `wwwroot/appsettings.json` before publishing; the committed file stays empty, so pull request previews and local builds have no accounts unless you fill it in). Running the script again is safe: it finds what is there and adds only what is missing. `-SkipDeploy` stops before the workflows; `-Domain <name>` picks another sign-in domain if `motifflab` is taken.
+CI then builds the web app with the sign-in settings from those variables (it writes `wwwroot/appsettings.json` before publishing; the committed file stays empty, so pull request builds and local builds have no accounts unless you fill it in). Running the script again is safe: it finds what is there and adds only what is missing. `-SkipDeploy` stops before the workflows; `-Domain <name>` picks another sign-in domain if `motifflab` is taken.
 
-Google and Apple sign-in are added later, by hand, as identity providers ticked in the flow: [Google](https://learn.microsoft.com/entra/external-id/customers/how-to-google-federation-customers) needs an OAuth client in Google Cloud; [Apple](https://learn.microsoft.com/entra/external-id/customers/how-to-apple-federation-customers) needs the Apple Developer Program, and its key must be renewed every 6 months. A pull request preview signs in only once its address is added to *Motiff Lab*'s redirect URIs (Entra takes no wildcards); the iOS app gets its own registration later.
+Google and Apple sign-in are added later, by hand, as identity providers ticked in the flow: [Google](https://learn.microsoft.com/entra/external-id/customers/how-to-google-federation-customers) needs an OAuth client in Google Cloud; [Apple](https://learn.microsoft.com/entra/external-id/customers/how-to-apple-federation-customers) needs the Apple Developer Program, and its key must be renewed every 6 months. the iOS app gets its own registration later.
 
 ## Changes later
 
