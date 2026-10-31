@@ -8,7 +8,8 @@ namespace MotiffLab.MusicCore.Notation;
 /// Marks that say how notes heard in a recording were played (decision record 0016): dynamics from
 /// how loud each bar is, accents on notes played clearly louder than those around them, and tempo
 /// words where the playing slows down or speeds up. All of it is inferred from velocities and the
-/// tempo that follows the playing, and is written only on request. Pure and deterministic.
+/// tempo that follows the playing, and is written only on request; and hairpins where the melody
+/// grows steadily louder or softer. Pure and deterministic.
 /// </summary>
 internal sealed class PlayingMarks
 {
@@ -24,11 +25,20 @@ internal sealed class PlayingMarks
     /// <summary>How much louder than the bars around it a note must be to be accented, in velocity and as a share.</summary>
     private const int AccentMargin = 16;
 
-    private PlayingMarks(HashSet<string> accented, Dictionary<int, (long At, string Level)> dynamics, Dictionary<int, string> tempoWords)
+    /// <summary>How much the melody's loudness, averaged over five onsets, must rise or fall for a hairpin.</summary>
+    private const int HairpinChange = 12;
+
+    /// <summary>The fewest onsets a hairpin spans, and the shortest it is: a half note.</summary>
+    private const int HairpinOnsets = 4;
+
+    private const long HairpinTicks = 2 * CanonicalTime.TicksPerQuarter;
+
+    private PlayingMarks(HashSet<string> accented, Dictionary<int, (long At, string Level)> dynamics, Dictionary<int, string> tempoWords, IReadOnlyList<(long Start, long End, bool Crescendo)> hairpins)
     {
         Accented = accented;
         Dynamics = dynamics;
         TempoWords = tempoWords;
+        Hairpins = hairpins;
     }
 
     /// <summary>Ids of the notes written with an accent.</summary>
@@ -39,6 +49,9 @@ internal sealed class PlayingMarks
 
     /// <summary>By bar index: the tempo word written at the bar's start.</summary>
     public Dictionary<int, string> TempoWords { get; }
+
+    /// <summary>Crescendo and diminuendo hairpins, from one onset to another, in order.</summary>
+    public IReadOnlyList<(long Start, long End, bool Crescendo)> Hairpins { get; }
 
     public static PlayingMarks Of(IReadOnlyList<Note> notes, IReadOnlyList<Bar> bars, IReadOnlyList<PlaybackTempo> tempos)
     {
@@ -109,7 +122,76 @@ internal sealed class PlayingMarks
             }
         }
 
-        return new PlayingMarks(accented, dynamics, WordsFor(bars, tempos));
+        Note[] melody = onsets.Any(High) ? [.. onsets.Where(High)] : onsets;
+        return new PlayingMarks(accented, dynamics, WordsFor(bars, tempos), HairpinsFor(melody));
+    }
+
+    /// <summary>
+    /// The melody's loudness averaged over five onsets, split into legs that each rise or fall by at
+    /// least <see cref="HairpinChange"/> (a turn counts once the loudness has come back that much from
+    /// its highest or lowest); a leg over enough onsets and time is a hairpin.
+    /// </summary>
+    private static List<(long Start, long End, bool Crescendo)> HairpinsFor(Note[] melody)
+    {
+        var hairpins = new List<(long, long, bool)>();
+        int count = melody.Length;
+        if (count < HairpinOnsets)
+        {
+            return hairpins;
+        }
+
+        int[] loudness = new int[count];
+        for (int i = 0; i < count; i++)
+        {
+            int from = Math.Max(0, i - 2), to = Math.Min(count, i + 3);
+            loudness[i] = melody[from..to].Sum(note => note.Velocity) / (to - from);
+        }
+
+        void Leg(int start, int end)
+        {
+            if (end - start + 1 >= HairpinOnsets && melody[end].Span.Onset.Value - melody[start].Span.Onset.Value >= HairpinTicks)
+            {
+                hairpins.Add((melody[start].Span.Onset.Value, melody[end].Span.Onset.Value, loudness[end] > loudness[start]));
+            }
+        }
+
+        // Before the first leg: the quietest and loudest so far, either of which may start it.
+        int low = 0, high = 0, start = 0, extreme = 0, direction = 0;
+        for (int i = 1; i < count; i++)
+        {
+            if (direction == 0)
+            {
+                if (loudness[i] - loudness[low] >= HairpinChange)
+                {
+                    (start, extreme, direction) = (low, i, 1);
+                }
+                else if (loudness[high] - loudness[i] >= HairpinChange)
+                {
+                    (start, extreme, direction) = (high, i, -1);
+                }
+                else
+                {
+                    low = loudness[i] < loudness[low] ? i : low;
+                    high = loudness[i] > loudness[high] ? i : high;
+                }
+            }
+            else if (direction * (loudness[i] - loudness[extreme]) >= 0)
+            {
+                extreme = i;
+            }
+            else if (direction * (loudness[extreme] - loudness[i]) >= HairpinChange)
+            {
+                Leg(start, extreme);
+                (start, extreme, direction) = (extreme, i, -direction);
+            }
+        }
+
+        if (direction != 0 && Math.Abs(loudness[extreme] - loudness[start]) >= HairpinChange)
+        {
+            Leg(start, extreme);
+        }
+
+        return hairpins;
     }
 
     /// <summary>

@@ -442,8 +442,9 @@ public class NotationGeneratorTests
         Assert.Equal(2, played.DynamicCount);
         Assert.Equal("acc", (string)Assert.Single(mei.Descendants(s_mei + "artic")).Attribute("artic")!);
         Assert.Equal("n_0002", (string)Assert.Single(mei.Descendants(s_mei + "artic")).Parent!.Attribute(s_xml + "id")!);
-        Assert.Equal("rit.", Assert.Single(mei.Descendants(s_mei + "dir")).Value);
-        Assert.Single(measures[4].Elements(s_mei + "dir"));
+        XElement[] tempoWords = [.. mei.Descendants(s_mei + "dir").Where(dir => (string?)dir.Attribute("place") == "above")];
+        Assert.Equal("rit.", Assert.Single(tempoWords).Value);
+        Assert.Same(measures[4], tempoWords[0].Parent);
         Assert.False(played.WrittenAsHeard);
     }
 
@@ -457,6 +458,58 @@ public class NotationGeneratorTests
         Assert.Empty(mei.Descendants(s_mei + "dynam"));
         Assert.Empty(mei.Descendants(s_mei + "artic"));
         Assert.Equal(0, result.AccentCount);
+    }
+
+    [Fact]
+    public void Written_as_played_the_score_marks_legato_crescendo_and_the_pedal()
+    {
+        // Two bars of quarters growing louder: the first four held into the next, the rest let go early.
+        Note[] notes = [.. Enumerable.Range(0, 8).Select(i => Note($"n_{i + 1:D4}", 72 + (i % 3), i * 480L, i < 3 ? 480 : i == 3 ? 400 : 240) with { Velocity = 40 + (8 * i) })];
+        PlaybackTempo[] tempos = [new(Tick.Zero, 500_000)];
+        TickSpan[] pedal = [TickSpan.FromBounds(Tick.Zero, new Tick(960)), TickSpan.FromBounds(new Tick(960), new Tick(1920))];
+
+        GeneratedNotation played = NotationGenerator.Generate(notes, MeterMap.Default, [], new Tick(3840), playedTempos: tempos, pedal: pedal);
+
+        XDocument mei = XDocument.Parse(played.Mei);
+        XElement[] measures = Measures(mei);
+        XElement slur = Assert.Single(mei.Descendants(s_mei + "slur"));
+        Assert.Equal(("#n_0001", "#n_0004"), ((string)slur.Attribute("startid")!, (string)slur.Attribute("endid")!));
+        Assert.Equal(1, played.SlurCount);
+
+        // Longer than a bar, the crescendo is a word.
+        Assert.Equal("cresc.", Assert.Single(measures[0].Elements(s_mei + "dir")).Value);
+        Assert.Equal(1, played.HairpinCount);
+
+        Assert.Equal(
+            [("1", "down"), ("3", "up"), ("3", "down")],
+            measures[0].Elements(s_mei + "pedal").Select(mark => ((string)mark.Attribute("tstamp")!, (string)mark.Attribute("dir")!)));
+        Assert.Equal(("1", "up"), measures[1].Elements(s_mei + "pedal").Select(mark => ((string)mark.Attribute("tstamp")!, (string)mark.Attribute("dir")!)).Single());
+        Assert.Equal(2, played.PedalCount);
+    }
+
+    [Fact]
+    public void A_crescendo_within_a_bar_is_a_hairpin()
+    {
+        Note[] notes = [.. Enumerable.Range(0, 8).Select(i => Note($"n_{i + 1:D4}", 72, i * 240L, 120) with { Velocity = 96 - (8 * i) })];
+
+        GeneratedNotation played = NotationGenerator.Generate(notes, MeterMap.Default, [], new Tick(1920), playedTempos: [new(Tick.Zero, 500_000)]);
+
+        XElement hairpin = Assert.Single(XDocument.Parse(played.Mei).Descendants(s_mei + "hairpin"));
+        Assert.Equal(("dim", "1", "0m+4.5"), ((string)hairpin.Attribute("form")!, (string)hairpin.Attribute("tstamp")!, (string)hairpin.Attribute("tstamp2")!));
+        Assert.Empty(XDocument.Parse(played.Mei).Descendants(s_mei + "slur"));
+    }
+
+    [Fact]
+    public void For_reading_the_pedal_and_slurs_are_not_written()
+    {
+        Note[] notes = [.. Enumerable.Range(0, 4).Select(i => Note($"n_{i + 1:D4}", 72, i * 480L, 480))];
+
+        GeneratedNotation reading = NotationGenerator.Generate(notes, MeterMap.Default, [], new Tick(1920), asHeard: true, pedal: [TickSpan.FromBounds(Tick.Zero, new Tick(960))]);
+
+        XDocument mei = XDocument.Parse(reading.Mei);
+        Assert.Empty(mei.Descendants(s_mei + "pedal"));
+        Assert.Empty(mei.Descendants(s_mei + "slur"));
+        Assert.Equal((0, 0), (reading.PedalCount, reading.SlurCount));
     }
 
     private static (string Name, string? Accid, string? Gestural) Spelling(XElement note) =>
