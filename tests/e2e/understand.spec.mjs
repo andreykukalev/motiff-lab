@@ -57,3 +57,21 @@ test("understand a phrase: highlight a fact's places, try its experiment and com
     await page.locator(".transport-bar").getByRole("button", { name: "Pause" }).click();
     expect(errors).toEqual([]);
 });
+
+test("the facts read in Russian when the app is in Russian (#134)", async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem("motiff-lab:ml-language", "ru"));
+    const errors = [];
+    page.on("pageerror", error => errors.push(String(error)));
+    await page.goto("/playback?start=fur-elise");
+    await selectBar(page, 1);
+    await page.getByRole("tab", { name: "Понять" }).click();
+    const panel = page.locator(".tab-panel");
+
+    await expect(panel.getByRole("button", { name: /^Ритм/ })).toBeVisible();
+    await expect(panel.getByText("Тональность: ля минор.")).toBeVisible();
+    const fact = panel.getByRole("button", { name: /Мотив повторяется 1 раз/ });
+    await expect(fact.locator("xpath=ancestor::li").locator(".certainty")).toHaveText("предположено");
+    await fact.click();
+    await expect(panel.getByRole("group", { name: "Места" }).getByRole("button", { name: "точно в такте 5" })).toBeVisible();
+    expect(errors).toEqual([]);
+});

@@ -15,7 +15,8 @@ public sealed record InvitationContext(
     MotifSelection Selection,
     MotifAnalysis Motif,
     StructureAnalysis Structure,
-    IReadOnlyList<MotifFact> Character);
+    IReadOnlyList<MotifFact> Character,
+    Words Words = default);
 
 /// <summary>
 /// Turns the facts of a motif into the invitations of the track page (#79,

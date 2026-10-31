@@ -138,12 +138,15 @@ public static class ExperimentCatalogue
     ];
 
     /// <summary>The question each topic stands for in the "I have a question" list.</summary>
-    public static string Prompt(ExperimentTopic topic) => topic switch
+    public static string Prompt(ExperimentTopic topic) => Prompt(topic, Words.English);
+
+    /// <summary>The question for a topic in a language.</summary>
+    public static string Prompt(ExperimentTopic topic, Words words) => topic switch
     {
-        ExperimentTopic.Character => "How does the character change if the notes stay the same?",
-        ExperimentTopic.Rhythm => "Is the tune in its pitches or in its rhythm?",
-        ExperimentTopic.Layers => "What does each layer add?",
-        ExperimentTopic.Motif => "Which changes keep the motif recognisable?",
+        ExperimentTopic.Character => words.T("How does the character change if the notes stay the same?", "Как меняется характер, если ноты остаются теми же?"),
+        ExperimentTopic.Rhythm => words.T("Is the tune in its pitches or in its rhythm?", "Мелодия держится на высотах или на ритме?"),
+        ExperimentTopic.Layers => words.T("What does each layer add?", "Что добавляет каждый слой?"),
+        ExperimentTopic.Motif => words.T("Which changes keep the motif recognisable?", "Какие изменения оставляют мотив узнаваемым?"),
         _ => throw new ArgumentOutOfRangeException(nameof(topic), topic, "Unknown topic."),
     };
 
@@ -202,21 +205,22 @@ public static class ExperimentCatalogue
     /// which the player hears, keeps or changes like any other variation.
     /// </summary>
     /// <exception cref="InvalidOperationException">A step cannot run on these notes.</exception>
-    public static VariationChain Start(Experiment experiment, int alternative, IReadOnlyList<Note> notes, MeterMap meter, MusicalKey? key)
+    /// <param name="words">The language of the variation's explanation; English by default.</param>
+    public static VariationChain Start(Experiment experiment, int alternative, IReadOnlyList<Note> notes, MeterMap meter, MusicalKey? key, Words words = default)
     {
         ArgumentNullException.ThrowIfNull(experiment);
         ArgumentOutOfRangeException.ThrowIfNegative(alternative);
         ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(alternative, experiment.Alternatives.Count);
-        return TryStart(experiment.Passage.Span, experiment.Filter, experiment.KeepPresetId, experiment.Alternatives[alternative].Steps, notes, meter, key, out string? reason)
+        return TryStart(experiment.Passage.Span, experiment.Filter, experiment.KeepPresetId, experiment.Alternatives[alternative].Steps, notes, meter, key, words, out string? reason)
             ?? throw new InvalidOperationException(reason);
     }
 
-    /// <summary>The variation of one alternative, over the notes, meter and key the experiment was offered for.</summary>
+    /// <summary>The variation of one alternative, over the notes, meter and key the experiment was offered for, in the context's language.</summary>
     /// <exception cref="InvalidOperationException">A step cannot run on these notes.</exception>
     public static VariationChain Start(Experiment experiment, int alternative, InvitationContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
-        return Start(experiment, alternative, context.Notes, context.Meter, KeyOf(context));
+        return Start(experiment, alternative, context.Notes, context.Meter, KeyOf(context), context.Words);
     }
 
     /// <summary>
@@ -231,18 +235,24 @@ public static class ExperimentCatalogue
             return null;
         }
 
+        Words w = context.Source.Words;
+        string keeps = w.T("the pitches and when each note starts", "высоты и моменты начала нот");
         return context.Build(
             MelodySpaceId,
             ExperimentTopic.Character,
-            "Give the melody more space",
-            "Same pitches, same onsets. Each melody note sounds for part of its time, so a gap opens before the next one; the accompaniment is not changed.",
-            "How does the character change when the notes themselves stay the same?",
-            "Listen for the gaps between the melody notes. Then play the phrase detached on the piano, and once more connected.",
+            w.T("Give the melody more space", "Дать мелодии больше воздуха"),
+            w.T(
+                "Same pitches, same onsets. Each melody note sounds for part of its time, so a gap opens before the next one; the accompaniment is not changed.",
+                "Те же высоты, те же начала нот. Каждая нота мелодии звучит лишь часть своего времени, поэтому перед следующей появляется зазор; аккомпанемент не меняется."),
+            w.T("How does the character change when the notes themselves stay the same?", "Как меняется характер, если сами ноты остаются теми же?"),
+            w.T(
+                "Listen for the gaps between the melody notes. Then play the phrase detached on the piano, and once more connected.",
+                "Слушайте зазоры между нотами мелодии. Затем сыграйте фразу на фортепиано отрывисто, а потом ещё раз связно."),
             ["character.articulation", "melody.line"],
             "keep-pitch-order",
             [
-                Alternative("Detached", "the pitches and when each note starts", new ExperimentStep(Articulation.OperationId, new ArticulationParameters(ArticulationKind.Detached) { Scope = OperationScope.Melody })),
-                Alternative("Short", "the pitches and when each note starts", new ExperimentStep(Articulation.OperationId, new ArticulationParameters(ArticulationKind.Short) { Scope = OperationScope.Melody })),
+                Alternative(w.T("Detached", "Отрывисто"), keeps, new ExperimentStep(Articulation.OperationId, new ArticulationParameters(ArticulationKind.Detached) { Scope = OperationScope.Melody })),
+                Alternative(w.T("Short", "Коротко"), keeps, new ExperimentStep(Articulation.OperationId, new ArticulationParameters(ArticulationKind.Short) { Scope = OperationScope.Melody })),
             ]);
     }
 
@@ -260,18 +270,24 @@ public static class ExperimentCatalogue
             return null;
         }
 
+        Words w = context.Source.Words;
+        string keeps = w.T("the pitches and their order", "высоты и их порядок");
         return context.Build(
             GrooveId,
             ExperimentTopic.Rhythm,
-            "Same notes, different groove",
-            "The melody keeps its pitches and their order; its rhythm changes. The accompaniment is not changed.",
-            "Is the tune in its pitches or in its even flow?",
-            "Sing or play the new rhythm before you hear it again, then try it at the piano with the original pitches.",
+            w.T("Same notes, different groove", "Те же ноты, другой ритм"),
+            w.T(
+                "The melody keeps its pitches and their order; its rhythm changes. The accompaniment is not changed.",
+                "Мелодия сохраняет высоты и их порядок; меняется её ритм. Аккомпанемент не меняется."),
+            w.T("Is the tune in its pitches or in its even flow?", "Мелодия держится на высотах или на ровном движении?"),
+            w.T(
+                "Sing or play the new rhythm before you hear it again, then try it at the piano with the original pitches.",
+                "Пропойте или простучите новый ритм, прежде чем слушать снова, затем попробуйте его на фортепиано с исходными высотами."),
             ["rhythm.durations", "melody.contour"],
             "keep-pitch-order",
             [
-                Alternative("Long–short", "the pitches and their order", new ExperimentStep(RhythmReshape.OperationId, new RhythmReshapeParameters(RhythmReshapeKind.Dotted) { Scope = OperationScope.Melody })),
-                Alternative("Ahead of the beat", "the pitches and their order", new ExperimentStep(RhythmReshape.OperationId, new RhythmReshapeParameters(RhythmReshapeKind.Syncopate) { Scope = OperationScope.Melody })),
+                Alternative(w.T("Long–short", "Долгая–короткая"), keeps, new ExperimentStep(RhythmReshape.OperationId, new RhythmReshapeParameters(RhythmReshapeKind.Dotted) { Scope = OperationScope.Melody })),
+                Alternative(w.T("Ahead of the beat", "С опережением доли"), keeps, new ExperimentStep(RhythmReshape.OperationId, new RhythmReshapeParameters(RhythmReshapeKind.Syncopate) { Scope = OperationScope.Melody })),
             ]);
     }
 
@@ -289,21 +305,28 @@ public static class ExperimentCatalogue
 
         static ExperimentStep Pattern(AccompanimentPatternKind kind, PatternUnit unit) =>
             new(AccompanimentPattern.OperationId, new AccompanimentPatternParameters(kind, unit));
-        const string Keeps = "the melody and the notes of each bar's accompaniment";
+        Words w = context.Source.Words;
+        string keeps = w.T("the melody and the notes of each bar's accompaniment", "мелодия и ноты аккомпанемента каждого такта");
         return context.Build(
             AccompanimentId,
             ExperimentTopic.Layers,
-            "Keep the melody, change the accompaniment",
-            "The melody stays as written. Each bar's accompaniment plays the same notes in a new pattern.",
-            "What does each layer add to what you hear?",
-            "Play the melody alone first, then with the new accompaniment. Notice what the pattern adds to the movement.",
+            w.T("Keep the melody, change the accompaniment", "Мелодия та же, аккомпанемент другой"),
+            w.T(
+                "The melody stays as written. Each bar's accompaniment plays the same notes in a new pattern.",
+                "Мелодия остаётся как написано. Аккомпанемент каждого такта играет те же ноты в новом рисунке."),
+            w.T("What does each layer add to what you hear?", "Что добавляет каждый слой к тому, что вы слышите?"),
+            w.T(
+                "Play the melody alone first, then with the new accompaniment. Notice what the pattern adds to the movement.",
+                "Сначала сыграйте одну мелодию, затем с новым аккомпанементом. Заметьте, что рисунок добавляет к движению."),
             ["melody.line"],
             "keep-melody",
             [
-                Alternative("Repeated chord in 8ths", Keeps, Pattern(AccompanimentPatternKind.RepeatedChord, PatternUnit.Eighths)),
-                Alternative("Held chord", Keeps, Pattern(AccompanimentPatternKind.HeldChord, PatternUnit.Eighths)),
-                Alternative("Falling arpeggio", Keeps, Pattern(AccompanimentPatternKind.ArpeggioDown, PatternUnit.Sixteenths)),
-                Alternative("Held chord under a detached melody", "the pitches, the melody's onsets and the notes of each bar's accompaniment",
+                Alternative(w.T("Repeated chord in 8ths", "Повторяющийся аккорд восьмыми"), keeps, Pattern(AccompanimentPatternKind.RepeatedChord, PatternUnit.Eighths)),
+                Alternative(w.T("Held chord", "Выдержанный аккорд"), keeps, Pattern(AccompanimentPatternKind.HeldChord, PatternUnit.Eighths)),
+                Alternative(w.T("Falling arpeggio", "Нисходящее арпеджио"), keeps, Pattern(AccompanimentPatternKind.ArpeggioDown, PatternUnit.Sixteenths)),
+                Alternative(
+                    w.T("Held chord under a detached melody", "Выдержанный аккорд под отрывистой мелодией"),
+                    w.T("the pitches, the melody's onsets and the notes of each bar's accompaniment", "высоты, начала нот мелодии и ноты аккомпанемента каждого такта"),
                     Pattern(AccompanimentPatternKind.HeldChord, PatternUnit.Eighths),
                     new(Articulation.OperationId, new ArticulationParameters(ArticulationKind.Detached) { Scope = OperationScope.Melody })),
             ]);
@@ -323,19 +346,24 @@ public static class ExperimentCatalogue
 
         var passage = new Passage(repeat.Span, repeat.FirstBar, repeat.LastBar);
         bool diatonic = context.Key is not null;
+        Words w = context.Source.Words;
         return context.Build(
             AnswerId,
             ExperimentTopic.Motif,
-            "Answer the motif differently",
-            $"The motif stays as written; when it comes back in {Bars(repeat.FirstBar, repeat.LastBar)}, its melody changes and its rhythm stays.",
-            "Which changes keep the motif recognisable, and which turn it into a new idea?",
-            "Play the first statement as written, then the new answer. Then make up an answer of your own.",
+            w.T("Answer the motif differently", "Ответить на мотив иначе"),
+            w.T(
+                $"The motif stays as written; when it comes back in {Bars(repeat.FirstBar, repeat.LastBar)}, its melody changes and its rhythm stays.",
+                $"Мотив остаётся как написано; когда он возвращается {RussianInBars(repeat.FirstBar, repeat.LastBar)}, его мелодия меняется, а ритм остаётся."),
+            w.T("Which changes keep the motif recognisable, and which turn it into a new idea?", "Какие изменения оставляют мотив узнаваемым, а какие превращают его в новую мысль?"),
+            w.T(
+                "Play the first statement as written, then the new answer. Then make up an answer of your own.",
+                "Сыграйте первое проведение как написано, затем новый ответ. Потом придумайте свой."),
             ["structure.recurrences"],
             "keep-rhythm",
             [
-                Alternative("Wider steps", "the rhythm and the contour", new ExperimentStep(IntervalReshape.OperationId, new IntervalReshapeParameters(1))),
-                Alternative("Narrower steps", "the rhythm and the contour", new ExperimentStep(IntervalReshape.OperationId, new IntervalReshapeParameters(-1))),
-                Alternative("Upside down", "the rhythm", new ExperimentStep(ChangeDirection.OperationId, new ChangeDirectionParameters(diatonic))),
+                Alternative(w.T("Wider steps", "Шире интервалы"), w.T("the rhythm and the contour", "ритм и контур"), new ExperimentStep(IntervalReshape.OperationId, new IntervalReshapeParameters(1))),
+                Alternative(w.T("Narrower steps", "Уже интервалы"), w.T("the rhythm and the contour", "ритм и контур"), new ExperimentStep(IntervalReshape.OperationId, new IntervalReshapeParameters(-1))),
+                Alternative(w.T("Upside down", "Зеркально"), w.T("the rhythm", "ритм"), new ExperimentStep(ChangeDirection.OperationId, new ChangeDirectionParameters(diatonic))),
             ],
             passage,
             SelectionFilter.All);
@@ -352,17 +380,18 @@ public static class ExperimentCatalogue
         IReadOnlyList<Note> notes,
         MeterMap meter,
         MusicalKey? key,
+        Words words,
         out string? reason)
     {
         MotifSelection selection = MotifSelector.Select(notes, meter, span, filter);
-        reason = selection.NoteIds.Count == 0 ? "The passage has no notes." : null;
+        reason = selection.NoteIds.Count == 0 ? words.T("The passage has no notes.", "В отрывке нет нот.") : null;
         if (reason is not null)
         {
             return null;
         }
 
         IReadOnlySet<KeepProperty> keep = KeepTable.FindPreset(presetId)!.Keep;
-        VariationChain chain = VariationChain.Start(VariationFacts.MotifNotes(notes, selection), VariationContext.For(selection, keep, key: key, meter: meter));
+        VariationChain chain = VariationChain.Start(VariationFacts.MotifNotes(notes, selection), VariationContext.For(selection, keep, key: key, meter: meter, words: words));
         foreach (ExperimentStep step in steps)
         {
             reason = chain.UnavailableReason(step.Operation, step.Parameters);
@@ -395,6 +424,16 @@ public static class ExperimentCatalogue
         (0, _) => $"the pickup and bars 1–{last}",
         _ when first == last => $"bar {first}",
         _ => $"bars {first}–{last}",
+    };
+
+    /// <summary>"в такте 5", "в тактах 5–6", "в затакте", "в затакте и такте 1".</summary>
+    private static string RussianInBars(int first, int last) => (first, last) switch
+    {
+        (0, 0) => "в затакте",
+        (0, 1) => "в затакте и такте 1",
+        (0, _) => $"в затакте и тактах 1–{last}",
+        _ when first == last => $"в такте {first}",
+        _ => $"в тактах {first}–{last}",
     };
 
     /// <summary>The invitation context with its key, and the helpers every rule shares.</summary>
@@ -433,7 +472,7 @@ public static class ExperimentCatalogue
             foreach (ExperimentAlternative alternative in alternatives)
             {
                 // An alternative that sounds like an earlier one, such as Short and Detached on 16ths, is left out.
-                if (TryStart(where.Span, which, presetId, alternative.Steps, Source.Notes, Source.Meter, Key, out _) is { Result: { } result }
+                if (TryStart(where.Span, which, presetId, alternative.Steps, Source.Notes, Source.Meter, Key, Source.Words, out _) is { Result: { } result }
                     && !heard.Any(notes => notes.SequenceEqual(result.Notes)))
                 {
                     runnable.Add(alternative);

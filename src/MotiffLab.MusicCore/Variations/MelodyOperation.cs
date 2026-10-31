@@ -32,28 +32,31 @@ public abstract class MelodyOperation<TParameters> : VariationOperation<TParamet
     protected bool Changes(TParameters parameters, int index) => Intervals(parameters)?.Contains(index) ?? true;
 
     /// <summary>Why the operation has nothing to do on this melody, or null. Runs after the shared checks.</summary>
-    protected virtual string? MelodyPrecondition(int[] melody, MusicalKey? key, TParameters parameters) => null;
+    protected virtual string? MelodyPrecondition(int[] melody, MusicalKey? key, TParameters parameters, Words words) => null;
 
     protected sealed override string? Precondition(IReadOnlyList<Note> notes, VariationContext context, TParameters parameters)
     {
         MotifTexture texture = MotifTexture.Read(notes);
         if (texture.Melody.Count < 2)
         {
-            return $"{Name} needs at least two melody notes, so it is not available for this selection.";
+            return NotAvailable(context.Words, "needs at least two melody notes", "нужны хотя бы две ноты мелодии");
         }
 
         if (IsDiatonic(parameters) && context.Key is null)
         {
-            return $"{Name} counts in steps of the key's scale, and this selection has no key, so it is not available.";
+            return NoKey(context.Words);
         }
 
         int[] melody = [.. texture.Melody.Select(static note => note.Pitch.MidiNumber)];
         if (Intervals(parameters) is { } picked && picked.Indices[^1] >= melody.Length - 1)
         {
-            return $"{Name} is asked to change interval {picked.Indices[^1] + 1}, and the melody has {melody.Length - 1}, so it is not available for this selection.";
+            return NotAvailable(
+                context.Words,
+                $"is asked to change interval {picked.Indices[^1] + 1}, and the melody has {melody.Length - 1}",
+                $"нужно изменить интервал {picked.Indices[^1] + 1}, а в мелодии {context.Words.Count(melody.Length - 1, "", "", "интервал", "интервала", "интервалов")}");
         }
 
-        if (MelodyPrecondition(melody, context.Key, parameters) is { } reason)
+        if (MelodyPrecondition(melody, context.Key, parameters, context.Words) is { } reason)
         {
             return reason;
         }
@@ -64,7 +67,7 @@ public abstract class MelodyOperation<TParameters> : VariationOperation<TParamet
             Note note = texture.Melody[i];
             if (after[i] != melody[i] && texture.SoundingWith(note).Any(other => !IsMelody(texture, other) && other.Pitch.MidiNumber >= after[i]))
             {
-                return $"{Name} would put a melody note at or under its accompaniment, so it is not available for this selection.";
+                return NotAvailable(context.Words, "would put a melody note at or under its accompaniment", "нота мелодии оказалась бы на уровне аккомпанемента или ниже");
             }
         }
 

@@ -88,23 +88,27 @@ public sealed class AccompanimentPattern : VariationOperation<AccompanimentPatte
         Note[] accompaniment = [.. notes.Where(note => !melody.Contains(note.Id))];
         if (accompaniment.Length == 0)
         {
-            return $"{Name} needs an accompaniment under the melody, and this selection has none, so it is not available.";
+            return context.Words.T(
+                $"{Name} needs an accompaniment under the melody, and this selection has none, so it is not available.",
+                $"Для этого выделения «{NameIn(context.Words)}» не подходит: под мелодией нет аккомпанемента.");
         }
 
         if (parameters.Kind == AccompanimentPatternKind.Alberti && Bars(accompaniment, context).Any(static bar => bar.Pitches.Length < 3))
         {
-            return "Alberti needs three different accompaniment notes in each bar, so it is not available for this selection.";
+            return context.Words.T(
+                "Alberti needs three different accompaniment notes in each bar, so it is not available for this selection.",
+                "Для этого выделения альбертиев бас не подходит: в каждом такте нужны три разные ноты аккомпанемента.");
         }
 
         Note[] pattern = Pattern(accompaniment, context, parameters);
         if (pattern.Any(added => texture.Melody.Any(note => note.Span.Contains(added.Span.Onset) && note.Pitch.MidiNumber <= added.Pitch.MidiNumber)))
         {
-            return $"{Name} would put an accompaniment note at or above the melody, so it is not available for this selection.";
+            return NotAvailable(context.Words, "would put an accompaniment note at or above the melody", "нота аккомпанемента оказалась бы на уровне мелодии или выше");
         }
 
         static (long, long, int) Shape(Note note) => (note.Span.Onset.Value, note.Span.Duration, note.Pitch.MidiNumber);
         return accompaniment.Select(Shape).Order().SequenceEqual(pattern.Select(Shape).Order())
-            ? $"The accompaniment already plays this pattern, so {Name} has nothing to change."
+            ? context.Words.T($"The accompaniment already plays this pattern, so {Name} has nothing to change.", $"Аккомпанемент уже играет этот рисунок: «{NameIn(context.Words)}» ничего не изменит.")
             : null;
     }
 

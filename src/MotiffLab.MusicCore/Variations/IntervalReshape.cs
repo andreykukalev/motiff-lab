@@ -42,16 +42,22 @@ public sealed class IntervalReshape : MelodyOperation<IntervalReshapeParameters>
 
     protected override IntervalSet? Intervals(IntervalReshapeParameters parameters) => parameters.Intervals;
 
-    protected override string? MelodyPrecondition(int[] melody, MusicalKey? key, IntervalReshapeParameters parameters)
+    protected override string? MelodyPrecondition(int[] melody, MusicalKey? key, IntervalReshapeParameters parameters, Words words)
     {
         int[] steps = [.. Steps(melody, key!.Value).Where((_, i) => Changes(parameters, i))];
         if (steps.All(step => step == 0))
         {
-            return $"{Name} has no interval to reshape: {(parameters.Intervals is null ? "the melody repeats one note" : "the picked intervals repeat a note")}, so it is not available for this selection.";
+            return NotAvailable(
+                words,
+                $"has no interval to reshape: {(parameters.Intervals is null ? "the melody repeats one note" : "the picked intervals repeat a note")}",
+                $"менять нечего, {(parameters.Intervals is null ? "мелодия повторяет одну ноту" : "выбранные интервалы повторяют ноту")}");
         }
 
         return parameters.Steps < 0 && steps.All(step => Math.Abs(step) <= 1)
-            ? $"{Name} cannot narrow {(parameters.Intervals is null ? "a melody that moves" : "intervals that move")} only by 2nds without turning steps into repeats, so it is not available for this selection."
+            ? NotAvailable(
+                words,
+                $"cannot narrow {(parameters.Intervals is null ? "a melody that moves" : "intervals that move")} only by 2nds without turning steps into repeats",
+                $"{(parameters.Intervals is null ? "мелодию, которая движется" : "интервалы, которые движутся")} только секундами, нельзя сузить, не превратив шаги в повторы")
             : null;
     }
 

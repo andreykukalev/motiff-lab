@@ -1,13 +1,15 @@
 @using MotiffLab.MusicCore.Variations
+@using MotiffLab.Web.Localization
+@inject UiText Text
 
 @* Compare (#43, step 6 of docs/08-central-product-model.md): what the variation changed and what it kept, read only
    from its diff (Variation.Changes, Added, Removed), its Keep checks (Variation.Checks, Properties) and its rule
    flags. Nothing here is computed again: each line counts or names what music-core already returned. *@
-<section class="compare" aria-label="Compare with the original">
-    <h3>Compare with the original</h3>
+<section class="compare" aria-label="@Text["compare.title"]">
+    <h3>@Text["compare.title"]</h3>
 
     <div class="compare-part">
-        <h4>What changed</h4>
+        <h4>@Text["tools.whatChanged"]</h4>
         <ul>
             @foreach (string line in Changed)
             {
@@ -16,26 +18,26 @@
         </ul>
         @if (Names(Variation.Properties, KeepStatus.NoLongerKept) is { } changed)
         {
-            <p><span class="label">Changed:</span> @changed</p>
+            <p><span class="label">@Text["compare.changed"]</span> @changed</p>
         }
     </div>
 
     <div class="compare-part">
-        <h4>What was kept</h4>
+        <h4>@Text["compare.whatKept"]</h4>
         @if (Variation.Checks.Count == 0)
         {
-            <p class="meta">Nothing was asked to be kept.</p>
+            <p class="meta">@Text["compare.nothingAsked"]</p>
         }
         else
         {
             <ul class="checks">
-                @foreach ((KeepStatus status, string label) in s_statuses)
+                @foreach ((KeepStatus status, string key) in s_statuses)
                 {
                     KeepCheck[] checks = [.. Variation.Checks.Where(check => check.Status == status)];
                     @if (checks.Length > 0)
                     {
                         <li class="@StatusClass(status)">
-                            <span class="label">@label:</span>
+                            <span class="label">@Text[key]:</span>
                             @foreach (KeepCheck check in checks)
                             {
                                 <span class="property">@Label(check.Property)</span>
@@ -47,7 +49,7 @@
         }
         @if (Names(Unasked, KeepStatus.Kept) is { } unchanged)
         {
-            <p><span class="label">Also unchanged:</span> @unchanged</p>
+            <p><span class="label">@Text["compare.alsoUnchanged"]</span> @unchanged</p>
         }
     </div>
 
@@ -55,17 +57,17 @@
     {
         @foreach (string flag in Variation.Flags)
         {
-            <p class="meta flag">Check: @flag</p>
+            <p class="meta flag">@Text.Format("tools.check", flag)</p>
         }
     }
 </section>
 
 @code {
-    private static readonly (KeepStatus Status, string Label)[] s_statuses =
+    private static readonly (KeepStatus Status, string Key)[] s_statuses =
     [
-        (KeepStatus.Kept, "Kept"),
-        (KeepStatus.NoLongerKept, "No longer kept"),
-        (KeepStatus.NotChecked, "Not checked (needs chord analysis)"),
+        (KeepStatus.Kept, "compare.kept"),
+        (KeepStatus.NoLongerKept, "compare.notKept"),
+        (KeepStatus.NotChecked, "compare.notChecked"),
     ];
 
     /// <summary>The shared workspace state the page cascades; the panel reads its variation.</summary>
@@ -88,41 +90,36 @@
         get
         {
             int notes = Variation.Changes.Count + Variation.Removed.Count;
-            string of = $"of {Plural(notes, "note")}";
+            string of = Text.Count("compare.ofNotes", notes);
             int pitch = Variation.Changes.Count(change => change.PitchChanged);
             int onset = Variation.Changes.Count(change => change.OnsetChanged);
             int length = Variation.Changes.Count(change => change.DurationChanged);
             if (pitch == 0 && onset == 0 && length == 0 && Variation.Added.Count == 0 && Variation.Removed.Count == 0)
             {
-                yield return $"No note changed pitch, start or length ({Plural(notes, "note")}).";
+                yield return Text.Format("compare.nothing", Text.Count("compare.notes", notes));
                 yield break;
             }
 
-            yield return $"Pitch: {pitch} {of} changed.";
-            yield return $"Start: {onset} {of} moved.";
-            yield return $"Length: {length} {of} changed.";
+            yield return Text.Format("compare.pitch", pitch, of);
+            yield return Text.Format("compare.start", onset, of);
+            yield return Text.Format("compare.length", length, of);
             if (Variation.Added.Count > 0)
             {
-                yield return $"Added: {Plural(Variation.Added.Count, "note")}.";
+                yield return Text.Format("compare.added", Text.Count("compare.notes", Variation.Added.Count));
             }
 
             if (Variation.Removed.Count > 0)
             {
-                yield return $"Removed: {Plural(Variation.Removed.Count, "note")}.";
+                yield return Text.Format("compare.removed", Text.Count("compare.notes", Variation.Removed.Count));
             }
         }
     }
 
     /// <summary>"Contour, Rhythm and Register": the properties with this status, in the Keep table's order; null for none.</summary>
-    private static string? Names(IEnumerable<KeepCheck> checks, KeepStatus status)
+    private string? Names(IEnumerable<KeepCheck> checks, KeepStatus status)
     {
         string[] names = [.. checks.Where(check => check.Status == status).Select(check => Label(check.Property))];
-        return names.Length switch
-        {
-            0 => null,
-            1 => names[0],
-            _ => $"{string.Join(", ", names[..^1])} and {names[^1]}",
-        };
+        return names.Length == 0 ? null : MotiffLab.MusicCore.Words.For(Text.Language).Joined(names);
     }
 
     private static string StatusClass(KeepStatus status) => status switch
@@ -133,11 +130,5 @@
     };
 
     /// <summary>The property's name as the Keep chips show it.</summary>
-    public static string Label(KeepProperty property) => property switch
-    {
-        KeepProperty.PitchOrder => "Pitch order",
-        _ => property.ToString(),
-    };
-
-    private static string Plural(int count, string noun) => count == 1 ? $"1 {noun}" : $"{count} {noun}s";
+    private string Label(KeepProperty property) => Text[$"term.keep.{property}"];
 }

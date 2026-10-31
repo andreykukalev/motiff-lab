@@ -27,7 +27,7 @@ Small, pragmatic rules for the web UI (`src/MotiffLab.Web`) so that UI fixes sta
 
 ## Localization
 
-- Interface strings live in `wwwroot/i18n/en.json` and `ru.json`, read through `UiText` (`Text["key"]`, `Text.Format("key", args)`); a missing key falls back to English, then to the key. Add every new user-facing string to both files. The language is chosen on Settings and kept as a device preference; `Text.Changed` tells pages to render again.
+- Interface strings live in `wwwroot/i18n/en.json` and `ru.json`, read through `UiText` (`Text["key"]`, `Text.Format("key", args)`); a missing key falls back to English, then to the key. Add every new user-facing string to both files. The language is chosen in the header and kept as a device preference; `Text.Changed` tells pages to render again. Counted strings use `Text.Count("key", n)` with `key.one`, `key.few` (Russian only) and `key.many`. Musical text (facts, bases, place labels) comes from music-core in the language the page passes as `Words.For(Text.Language)`; the UI never translates or rewrites it, and analyses again when the language changes. Terms shared across screens live under `term.*` (0013 §7).
 - Do not translate what music-core returns (fact text, notes, bar labels); that is a music-core concern.
 
 ## Phrases

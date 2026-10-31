@@ -70,8 +70,12 @@ public sealed class Articulation : VariationOperation<ArticulationParameters>
         notes.All(note => Length(note, notes, context, parameters.Kind) == note.Span.Duration)
             ? parameters.Kind switch
             {
-                ArticulationKind.Connected => "Every note already holds until the next one starts, so Connected has nothing to change.",
-                _ => $"Every note is already this short, so {parameters.Kind} has nothing to change.",
+                ArticulationKind.Connected => context.Words.T(
+                    "Every note already holds until the next one starts, so Connected has nothing to change.",
+                    "Каждая нота уже держится до начала следующей: «Связно» ничего не изменит."),
+                _ => context.Words.T(
+                    $"Every note is already this short, so {parameters.Kind} has nothing to change.",
+                    $"Каждая нота уже настолько короткая: «{(parameters.Kind == ArticulationKind.Short ? "Коротко" : "Отрывисто")}» ничего не изменит."),
             }
             : null;
 
