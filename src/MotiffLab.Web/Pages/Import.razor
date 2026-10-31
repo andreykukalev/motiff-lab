@@ -152,7 +152,7 @@
                         <ul class="warnings">
                             @foreach (ScanBar bar in flagged)
                             {
-                                <li><span class="kind">@Text.Format("import.bar", bar.Bar)</span> @string.Join(" ", bar.Reasons)</li>
+                                <li><span class="kind">@Text.Format("import.bar", bar.Bar)</span> @string.Join(" ", bar.ReasonsIn(MotiffLab.MusicCore.Words.For(Text.Language)))</li>
                             }
                         </ul>
                     }

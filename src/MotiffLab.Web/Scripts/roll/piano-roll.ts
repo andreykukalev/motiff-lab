@@ -4,6 +4,7 @@
 // currentTick (decision record 0007). Blazor imports this module through JS interop.
 
 import {
+    ENGLISH_ROLL_LABELS,
     HAND_LEFT,
     HAND_NONE,
     HIGHEST_KEY,
@@ -13,6 +14,7 @@ import {
     laneKey,
     pitchName,
     type ColourBy,
+    type RollLabels,
     type RollPayload,
 } from "./roll-model.js";
 
@@ -170,8 +172,9 @@ export class PianoRoll {
     private dirty = true;
     private frame = 0;
     private disposed = false;
+    private labels: RollLabels;
 
-    constructor(host: HTMLElement, dotnet: DotNetObject) {
+    constructor(host: HTMLElement, dotnet: DotNetObject, labels: RollLabels = ENGLISH_ROLL_LABELS) {
         this.host = host;
         this.dotnet = dotnet;
 
@@ -179,25 +182,21 @@ export class PianoRoll {
         this.roll.className = "roll-notes";
         this.roll.tabIndex = 0;
         this.roll.setAttribute("role", "application");
-        this.roll.setAttribute(
-            "aria-label",
-            "Piano roll. Drag anywhere across the roll to select a range, drag an edge of the selection to move it, click a bar number to select that bar, Shift-click a bar number to extend the selection to it. Click a note to hear and select it, Shift-click to add to the selection; click the pitch names or the keyboard to hear a key. Click an empty place or press Escape to clear the selection. Space plays the selection on a loop, or the piece, and pauses. Right and left square brackets select the next or previous bar, with Shift they extend the selection by it. Arrow keys move the note selection, plus and minus zoom.",
-        );
 
         this.scroller = document.createElement("input");
         this.scroller.type = "range";
         this.scroller.className = "roll-scroll";
         this.scroller.min = "0";
         this.scroller.step = "1";
-        this.scroller.setAttribute("aria-label", "Scroll the piano roll");
 
         this.keys = document.createElement("canvas");
         this.keys.className = "roll-keys";
         this.keys.setAttribute("role", "img");
-        this.keys.setAttribute("aria-label", "Keyboard: the keys of the notes being heard are lit and marked with a dot. Click or drag across the keys to play them, also while the piece plays.");
 
         this.legend = document.createElement("div");
         this.legend.className = "roll-legend";
+        this.labels = labels;
+        this.applyLabels();
 
         this.host.replaceChildren(this.roll, this.scroller, this.keys, this.legend);
 
@@ -424,6 +423,20 @@ export class PianoRoll {
 
     private invalidate(): void {
         this.dirty = true;
+    }
+
+    /** Shows the roll's words in another language (#134): the lanes, the legend, the hand letters and what a screen reader hears. */
+    setLabels(labels: RollLabels): void {
+        this.labels = labels;
+        this.applyLabels();
+        this.renderLegend();
+        this.invalidate();
+    }
+
+    private applyLabels(): void {
+        this.roll.setAttribute("aria-label", this.labels.rollAria);
+        this.scroller.setAttribute("aria-label", this.labels.scrollAria);
+        this.keys.setAttribute("aria-label", this.labels.keysAria);
     }
 
     private updateLanes(): void {
@@ -700,7 +713,7 @@ export class PianoRoll {
                 context.fillStyle = CHARCOAL;
                 context.font = "bold 9px system-ui, sans-serif";
                 context.textAlign = "left";
-                context.fillText(`${note.hand === HAND_LEFT ? "L" : "R"}${note.handInferred ? "?" : ""}`, x + 3, y + h / 2);
+                context.fillText(`${note.hand === HAND_LEFT ? this.labels.leftLetter : this.labels.rightLetter}${note.handInferred ? "?" : ""}`, x + 3, y + h / 2);
             }
             // Selected notes get a thick light outline with a dark edge, readable on every lane colour.
             if (this.selected.has(index)) {
@@ -863,25 +876,25 @@ export class PianoRoll {
     private renderLegend(): void {
         const model = this.model;
         const items: HTMLElement[] = [];
-        for (const lane of model?.lanes(this.colourBy) ?? []) {
+        for (const lane of model?.lanes(this.colourBy, this.labels) ?? []) {
             const index = this.laneIndex.get(lane.key) ?? 0;
             items.push(legendItem(swatch(LANE_COLOURS[index % LANE_COLOURS.length], LANE_PATTERNS[index % LANE_PATTERNS.length], false), lane.label));
         }
         if (model !== null && model.notes.length > 0) {
-            items.push(legendItem(null, "Drag across the roll to select · drag its edges to adjust · click an empty place to clear · click a note or key to hear it"));
+            items.push(legendItem(null, this.labels.legendHint));
         }
         if (this.variation !== null) {
-            items.push(legendItem(variationSwatch(), "Outlined: the variation, linked to the notes it moved from"));
+            items.push(legendItem(variationSwatch(), this.labels.legendVariation));
         }
         if (this.highlight !== null) {
-            items.push(legendItem(highlightSwatch(), "Blue box and underline: the places of the fact chosen on Understand"));
+            items.push(legendItem(highlightSwatch(), this.labels.legendHighlight));
         }
         if (model?.notes.some((note) => note.noteInferred || note.handInferred)) {
-            items.push(legendItem(swatch(SURFACE, "solid", true), "Dashed outline: inferred, not in the file"));
+            items.push(legendItem(swatch(SURFACE, "solid", true), this.labels.legendInferred));
         }
         if (model?.notes.some((note) => note.hand !== HAND_NONE)) {
             const inferred = model.notes.some((note) => note.handInferred);
-            items.push(legendItem(null, inferred ? "L, R: hand from the file · L?, R?: hand inferred" : "L, R: hand from the file"));
+            items.push(legendItem(null, inferred ? this.labels.legendHandsInferred : this.labels.legendHands));
         }
         this.legend.replaceChildren(...items);
     }
@@ -1362,6 +1375,6 @@ function legendItem(mark: HTMLElement | null, label: string): HTMLElement {
 }
 
 /** Entry point for Blazor. */
-export function createPianoRoll(host: HTMLElement, dotnet: DotNetObject): PianoRoll {
-    return new PianoRoll(host, dotnet);
+export function createPianoRoll(host: HTMLElement, dotnet: DotNetObject, labels?: RollLabels): PianoRoll {
+    return new PianoRoll(host, dotnet, labels);
 }

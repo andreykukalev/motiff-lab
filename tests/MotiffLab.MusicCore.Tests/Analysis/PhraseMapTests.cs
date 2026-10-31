@@ -230,6 +230,18 @@ public class PhraseMapTests
     }
 
     [Fact]
+    public void Describe_says_it_in_russian_too()
+    {
+        PhraseMap map = Phrases();
+
+        Assert.Equal("с начала пьесы", PhraseMap.Describe(map.Phrases[0].Start, Words.Russian));
+        Assert.Equal("по лиге и после паузы в долю или больше", PhraseMap.Describe(map.Phrases[1].Start, Words.Russian));
+        Assert.Equal("по лиге, подтверждено вами", PhraseMap.Describe(new PhraseBoundary(new Tick(1), [PhraseEvidence.Slur], Attribution.UserConfirmed), Words.Russian));
+        Assert.Equal("там, где вы поставили границу", PhraseMap.Describe(new PhraseBoundary(new Tick(1), [], Attribution.UserEdited), Words.Russian));
+        Assert.Equal(PhraseMap.Describe(map.Phrases[2].Start), PhraseMap.Describe(map.Phrases[2].Start, Words.English));
+    }
+
+    [Fact]
     public void The_map_is_deterministic()
     {
         PhraseEdits edits = new([new Tick(Bar)], [new Tick(4 * Bar)]);

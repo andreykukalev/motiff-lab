@@ -4,13 +4,14 @@
 @using MotiffLab.MusicCore.Time
 @implements IAsyncDisposable
 @inject IJSRuntime JS
+@inject MotiffLab.Web.Localization.UiText Text
 
 @* The piece as phrases (S1-I5, #18): the phrases music-core suggests, each marked with how its start was found, to pick
    as the working context, and the player's own boundaries; previous and next phrase by touch and with Page Up and Page Down (#126),
    and the selection run on into a neighbouring phrase. It only displays the workspace state (0013) and what PhraseMap returns; the page selects and saves. *@
-<nav class="phrases" aria-label="Phrases" data-keeps-selection>
-    <div class="phrase-list" role="group" aria-label="Phrases of the piece">
-        <button class="step" aria-label="Previous phrase" title="Previous phrase (Page Up)" disabled="@(Previous is null)" @onclick="() => StepAsync(-1)">‹</button>
+<nav class="phrases" aria-label="@Text["workspace.phrases"]" data-keeps-selection>
+    <div class="phrase-list" role="group" aria-label="@Text["phrases.ofPiece"]">
+        <button class="step" aria-label="@Text["focus.previous"]" title="@Text["phrases.previousKey"]" disabled="@(Previous is null)" @onclick="() => StepAsync(-1)">‹</button>
         @foreach (Phrase phrase in Map.Phrases)
         {
             bool on = Current?.Number == phrase.Number;
@@ -22,43 +23,43 @@
                 <span class="how">@Tag(phrase.Start)</span>
                 @if (kept > 0)
                 {
-                    <span class="kept-count" aria-hidden="true">@kept kept</span>
+                    <span class="kept-count" aria-hidden="true">@Text.Format("phrases.keptShort", kept)</span>
                 }
             </button>
         }
-        <button class="step" aria-label="Next phrase" title="Next phrase (Page Down)" disabled="@(Next is null)" @onclick="() => StepAsync(1)">›</button>
+        <button class="step" aria-label="@Text["focus.next"]" title="@Text["phrases.nextKey"]" disabled="@(Next is null)" @onclick="() => StepAsync(1)">›</button>
     </div>
     @* The boundary and transition tools fold away (0012), so the strip is one row of phrases to pick. *@
     <div class="row phrase-more">
         <button class="section-toggle" aria-expanded="@(_adjusting ? "true" : "false")" @onclick="() => _adjusting = !_adjusting">
             <span class="caret" aria-hidden="true">@(_adjusting ? "▾" : "▸")</span>
-            Adjust phrases and hear transitions
+            @Text["phrases.adjust"]
         </button>
     </div>
     @if (_adjusting)
     {
         <div class="row phrase-actions">
             <button @onclick="() => Make.InvokeAsync()" disabled="@(!CanMake)"
-                    title="@(CanMake ? "Mark the selected range as one phrase: its edges become phrase boundaries, and boundaries inside it go." : "Select a range on the roll that is not a phrase yet: drag across it, or drag an edge of a phrase.")">
-                Make the selection a phrase
+                    title="@Text[CanMake ? "phrases.makeHint" : "phrases.makeDisabled"]">
+                @Text["phrases.make"]
             </button>
             <button @onclick="() => Join.InvokeAsync(Current!)" disabled="@(Current is null || Current.Number == Map.Phrases.Count)"
-                    title="Take away the boundary after this phrase, so it runs on into the next one.">
-                Join with the next phrase
+                    title="@Text["phrases.joinHint"]">
+                @Text["phrases.join"]
             </button>
-            <button @onclick="() => Reset.InvokeAsync()" disabled="@Map.Edits.IsEmpty" title="Forget your own boundaries and show the phrases suggested from the file.">
-                Back to the suggested phrases
+            <button @onclick="() => Reset.InvokeAsync()" disabled="@Map.Edits.IsEmpty" title="@Text["phrases.resetHint"]">
+                @Text["phrases.reset"]
             </button>
         </div>
-        <div class="row phrase-extend" role="group" aria-label="Hear the transition">
-            <span class="meta">Hear the transition:</span>
+        <div class="row phrase-extend" role="group" aria-label="@Text["phrases.transition"]">
+            <span class="meta">@Text["phrases.transition"]:</span>
             <button @onclick="() => Extend.InvokeAsync(-1)" disabled="@(!CanExtendBack)"
-                    title="Select the previous phrase together with this one, to hear how one leads into the other. The phrases stay as they are.">
-                Add the previous phrase
+                    title="@Text["phrases.addPreviousHint"]">
+                @Text["phrases.addPrevious"]
             </button>
             <button @onclick="() => Extend.InvokeAsync(1)" disabled="@(!CanExtendOn)"
-                    title="Select this phrase together with the next one, to hear how one leads into the other. The phrases stay as they are.">
-                Add the next phrase
+                    title="@Text["phrases.addNextHint"]">
+                @Text["phrases.addNext"]
             </button>
         </div>
     }
@@ -159,49 +160,45 @@
     /// <summary>What the file says about its phrases when it says little, so the player knows to choose bars instead.</summary>
     private string? EvidenceText => Map.Evidence switch
     {
-        PhraseEvidenceLevel.None when Map.Edits.IsEmpty =>
-            "The file marks no phrase slurs or repeat signs, has no rest of a beat or more, and no passage comes back note for note, so no phrases are suggested. Select bars on the roll, then Make the selection a phrase to mark your own.",
-        PhraseEvidenceLevel.None => "The file marks no phrases; these are the ones you made.",
+        PhraseEvidenceLevel.None when Map.Edits.IsEmpty => Text["phrases.noEvidence"],
+        PhraseEvidenceLevel.None => Text["phrases.yoursOnly"],
         PhraseEvidenceLevel.Partial when Map.Phrases.FirstOrDefault(phrase => !phrase.FitsSelection) is { } longest =>
-            $"Phrase {longest.Number} runs {longest.BarCount} bars with nothing in the file to divide it, so picking it selects its first {MotifSelection.MaxBars} bars. Select bars on the roll and Make the selection a phrase to divide it yourself.",
+            Text.Format("phrases.tooLong", longest.Number, longest.BarCount, MotifSelection.MaxBars),
         _ => null,
     };
 
-    private static string Bars(Phrase phrase) =>
-        phrase.FirstBar == phrase.LastBar ? $"bar {phrase.FirstBar}" : $"bars {phrase.FirstBar}–{phrase.LastBar}";
+    private string Bars(Phrase phrase) =>
+        phrase.FirstBar == phrase.LastBar ? Text.Format("bars.one", phrase.FirstBar) : Text.Format("bars.range", phrase.FirstBar, phrase.LastBar);
 
     /// <summary>"Phrase 2, bars 3–4, starts after a rest of a beat or more, inferred".</summary>
-    private static string Label(Phrase phrase) => $"Phrase {phrase.Number}, {Bars(phrase)}, starts {Describe(phrase.Start)}";
+    private string Label(Phrase phrase) => Text.Format("phrases.label", phrase.Number, Bars(phrase), Describe(phrase.Start));
 
-    private static string KeptText(int kept) => kept switch
-    {
-        0 => "",
-        1 => ", 1 kept",
-        _ => $", {kept} kept",
-    };
+    private string KeptText(int kept) => kept == 0 ? "" : ", " + Text.Format("phrases.keptShort", kept);
 
-    private static string Title(Phrase phrase) =>
+    private string Title(Phrase phrase) =>
         phrase.FitsSelection
-            ? $"Starts {Describe(phrase.Start)}."
-            : $"Starts {Describe(phrase.Start)}. It runs {phrase.BarCount} bars; a selection holds at most {MotifSelection.MaxBars}.";
+            ? Text.Format("phrases.starts", Describe(phrase.Start))
+            : Text.Format("phrases.startsLong", Describe(phrase.Start), phrase.BarCount, MotifSelection.MaxBars);
 
     /// <summary>How the start was found, with "inferred" and its confidence when it is a reading of the notes.</summary>
-    private static string Describe(PhraseBoundary? start) =>
+    private string Describe(PhraseBoundary? start) =>
         start?.Attribution is { Provenance: Provenance.Inferred or Provenance.Detected } attribution
-            ? $"{PhraseMap.Describe(start)} (inferred, {(int)Math.Round(attribution.Confidence * 100)}% sure)"
-            : PhraseMap.Describe(start);
+            ? Text.Format("phrases.inferred", PhraseMap.Describe(start, Words), (int)Math.Round(attribution.Confidence * 100))
+            : PhraseMap.Describe(start, Words);
+
+    private MotiffLab.MusicCore.Words Words => MotiffLab.MusicCore.Words.For(Text.Language);
 
     /// <summary>The short tag on the chip: "slur", "rest", "repeat sign", "comes back", "yours", or "start" for the first phrase.</summary>
-    private static string Tag(PhraseBoundary? start) => start switch
+    private string Tag(PhraseBoundary? start) => start switch
     {
-        null => "start",
-        { Attribution.Provenance: Provenance.UserEdited } => "yours",
+        null => Text["phrases.tag.start"],
+        { Attribution.Provenance: Provenance.UserEdited } => Text["phrases.tag.yours"],
         { Evidence: var evidence } => string.Join(" + ", evidence.Select(mark => mark switch
         {
-            PhraseEvidence.Slur => "slur",
-            PhraseEvidence.Rest => "rest",
-            PhraseEvidence.RepeatSign => "repeat sign",
-            PhraseEvidence.Repetition => "comes back",
+            PhraseEvidence.Slur => Text["phrases.tag.slur"],
+            PhraseEvidence.Rest => Text["phrases.tag.rest"],
+            PhraseEvidence.RepeatSign => Text["phrases.tag.repeat"],
+            PhraseEvidence.Repetition => Text["phrases.tag.comesBack"],
             _ => mark.ToString().ToLowerInvariant(),
         })) + (start.Attribution.Provenance == Provenance.UserConfirmed ? " ✓" : ""),
     };

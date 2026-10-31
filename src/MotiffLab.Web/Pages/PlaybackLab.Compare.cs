@@ -48,8 +48,8 @@ public partial class PlaybackLab
     /// <summary>Which one sounds, for the selection text.</summary>
     private string? SoundingText => SoundingVariation switch
     {
-        true => " Now the variation.",
-        false => " Now the original.",
+        true => " " + Text["compare.nowVariation"],
+        false => " " + Text["compare.nowOriginal"],
         null => null,
     };
 

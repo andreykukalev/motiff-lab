@@ -51,7 +51,7 @@ public partial class PlaybackLab
     /// <summary>The phrase whose kept observations are listed: the one selected, or the one the selection lies mostly in.</summary>
     private Phrase? ListedPhrase => _selection is { } selection && _phrases is { } map ? CurrentPhrase ?? map.Covering(selection.Span) : null;
 
-    private string ListedHeading => ListedPhrase is { } phrase ? $"Kept for phrase {phrase.Number}" : "Kept for this phrase";
+    private string ListedHeading => ListedPhrase is { } phrase ? Text.Format("kept.forPhrase", phrase.Number) : Text["kept.forThisPhrase"];
 
     /// <summary>The observations about the listed phrase (<see cref="Observation.IsAbout"/>), in the order they were kept.</summary>
     private IReadOnlyList<ObservationRow> KeptRows
@@ -67,7 +67,7 @@ public partial class PlaybackLab
             return [.. Kept.Where(observation => observation.IsAbout(phrase.Span)).Select(observation => new ObservationRow(
                 observation,
                 BarsOf((observation.Variation?.Passage ?? observation.Phrase).Span),
-                observation.Variation is null ? "a note" : observation.ExperimentId is null ? "your steps" : "an experiment",
+                Text[observation.Variation is null ? "obs.source.note" : observation.ExperimentId is null ? "obs.source.steps" : "obs.source.experiment"],
                 observation.Id == heard))];
         }
     }
@@ -134,7 +134,7 @@ public partial class PlaybackLab
 
         string name = string.Join(" › ", [.. chain.Steps.Select(StepLabel), .. chain.Pending is { } pending ? [StepLabel(pending)] : Array.Empty<string>()]);
         Observation observation = Observation.Create(NextObservationId(), SavedPassage.Of(selection), KeptVariation.Create(chain, selection.Filter), name, note: null, DateTimeOffset.Now);
-        return SaveObservationsAsync(notebook => notebook.Keep(InSession(observation)), $"Kept “{observation.Name}”.");
+        return SaveObservationsAsync(notebook => notebook.Keep(InSession(observation)), Text.Format("kept.kept", observation.Name));
     }
 
     /// <summary>A note alone about the selection, in the player's words.</summary>
@@ -145,8 +145,8 @@ public partial class PlaybackLab
             return Task.CompletedTask;
         }
 
-        Observation observation = Observation.Create(NextObservationId(), SavedPassage.Of(selection), variation: null, $"Note on {BarsOf(selection.Span)}", note, DateTimeOffset.Now);
-        return SaveObservationsAsync(notebook => notebook.Keep(InSession(observation)), "Note kept.");
+        Observation observation = Observation.Create(NextObservationId(), SavedPassage.Of(selection), variation: null, Text.Format("kept.noteOn", BarsOf(selection.Span)), note, DateTimeOffset.Now);
+        return SaveObservationsAsync(notebook => notebook.Keep(InSession(observation)), Text["kept.noteKept"]);
     }
 
     /// <summary>The note on the kept experiment of the Explore card.</summary>
@@ -162,17 +162,17 @@ public partial class PlaybackLab
 
         if (observation.Variation is null && string.IsNullOrWhiteSpace(change.Text))
         {
-            Say($"“{observation.Name}” is only a note, so it cannot be blank. Delete it instead.");
+            Say(Text.Format("kept.blankNote", observation.Name));
             return Task.CompletedTask;
         }
 
-        return SaveObservationsAsync(notebook => notebook.ChangeObservationNote(change.Id, change.Text), $"Note saved for “{observation.Name}”.");
+        return SaveObservationsAsync(notebook => notebook.ChangeObservationNote(change.Id, change.Text), Text.Format("kept.noteSaved", observation.Name));
     }
 
     private Task RenameObservationAsync(ObservationText change) =>
         string.IsNullOrWhiteSpace(change.Text)
             ? Task.CompletedTask
-            : SaveObservationsAsync(notebook => notebook.RenameObservation(change.Id, change.Text), $"Renamed “{change.Text.Trim()}”.");
+            : SaveObservationsAsync(notebook => notebook.RenameObservation(change.Id, change.Text), Text.Format("kept.renamed", change.Text.Trim()));
 
     private Task DeleteObservationAsync(Observation observation)
     {
@@ -181,7 +181,7 @@ public partial class PlaybackLab
             _keptTrial = null;
         }
 
-        return SaveObservationsAsync(notebook => notebook.DeleteObservation(observation.Id), $"Deleted “{observation.Name}”.");
+        return SaveObservationsAsync(notebook => notebook.DeleteObservation(observation.Id), Text.Format("kept.deleted", observation.Name));
     }
 
     /// <summary>
@@ -211,7 +211,7 @@ public partial class PlaybackLab
             return;
         }
 
-        await MoveSelectionAsync(kept.Passage.Span, kept.Passage.Filter, $"Opened “{observation.Name}”.");
+        await MoveSelectionAsync(kept.Passage.Span, kept.Passage.Filter, Text.Format("kept.opened", observation.Name));
         _keep.Clear();
         _keep.UnionWith(chain.Context.Keep);
         _scoreChoice = ScoreChoice.Variation;
@@ -284,11 +284,11 @@ public partial class PlaybackLab
         int last = _meter.BarAt(new Tick(Math.Max(span.Onset.Value, span.End.Value - 1))).Number;
         return (first, last) switch
         {
-            (0, 0) => "the pickup",
-            (0, 1) => "the pickup and bar 1",
-            (0, _) => $"the pickup and bars 1–{last}",
-            _ when first == last => $"bar {first}",
-            _ => $"bars {first}–{last}",
+            (0, 0) => Text["bars.pickup"],
+            (0, 1) => Text["bars.pickupAndOne"],
+            (0, _) => Text.Format("bars.pickupAndRange", last),
+            _ when first == last => Text.Format("bars.one", first),
+            _ => Text.Format("bars.range", first, last),
         };
     }
 }

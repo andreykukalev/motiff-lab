@@ -84,7 +84,7 @@ public partial class PlaybackLab
 
         if (session.Passage is { } passage && _selection?.Span != passage.Span)
         {
-            await MoveSelectionAsync(passage.Span, _filters.Any(filter => filter.Filter == passage.Filter) ? passage.Filter : SelectionFilter.All, note: null);
+            await MoveSelectionAsync(passage.Span, _filters.Contains(passage.Filter) ? passage.Filter : SelectionFilter.All, note: null);
         }
 
         string? idea = IdeaId;

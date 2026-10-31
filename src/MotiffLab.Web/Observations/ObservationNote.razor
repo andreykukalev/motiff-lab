@@ -1,16 +1,17 @@
 @* A note in the player's own words on something they kept (#78): saved when the field loses focus or with Save note.
    The text is the player's: it is stored as they wrote it (trimmed), never read, scored or sent anywhere. *@
+@inject MotiffLab.Web.Localization.UiText Text
 <div class="observation-note">
-    <label for="@_fieldId">@Label</label>
-    <textarea id="@_fieldId" rows="3" maxlength="@MaxLength" placeholder="@Placeholder"
+    <label for="@_fieldId">@(Label ?? Text["note.label"])</label>
+    <textarea id="@_fieldId" rows="3" maxlength="@MaxLength" placeholder="@(Placeholder ?? Text["note.placeholder"])"
               @bind="_draft" @bind:event="oninput" @onchange="SaveAsync"></textarea>
     <div class="row">
-        <button @onclick="SaveAsync" disabled="@(!Changed)">@SaveLabel</button>
+        <button @onclick="SaveAsync" disabled="@(!Changed)">@(SaveLabel ?? Text["note.save"])</button>
         @if (Cancel.HasDelegate)
         {
-            <button @onclick="() => Cancel.InvokeAsync()">Cancel</button>
+            <button @onclick="() => Cancel.InvokeAsync()">@Text["common.cancel"]</button>
         }
-        <span class="meta" aria-live="polite">@(_saved && !Changed ? SavedText : null)</span>
+        <span class="meta" aria-live="polite">@(_saved && !Changed ? SavedText ?? Text["note.saved"] : null)</span>
     </div>
 </div>
 
@@ -29,17 +30,21 @@
     [Parameter]
     public string? Note { get; set; }
 
+    /// <summary>The field's label; null for "Your note (optional)".</summary>
     [Parameter]
-    public string Label { get; set; } = "Your note (optional)";
+    public string? Label { get; set; }
 
+    /// <summary>The save button; null for "Save note".</summary>
     [Parameter]
-    public string SaveLabel { get; set; } = "Save note";
+    public string? SaveLabel { get; set; }
 
+    /// <summary>Shown once the note is saved; null for "Note saved.", empty for nothing.</summary>
     [Parameter]
-    public string SavedText { get; set; } = "Note saved.";
+    public string? SavedText { get; set; }
 
+    /// <summary>Null for "What did you hear or notice?".</summary>
     [Parameter]
-    public string? Placeholder { get; set; } = "What did you hear or notice?";
+    public string? Placeholder { get; set; }
 
     /// <summary>Raised with the text as written when it changed; the page trims and stores it.</summary>
     [Parameter]

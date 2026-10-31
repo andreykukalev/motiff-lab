@@ -93,7 +93,52 @@ export function laneKey(note: RollNote, by: ColourBy): number {
     }
 }
 
-const HAND_LABELS = ["Right hand", "Left hand", "No hand"];
+/** The words the roll shows, in the player's language; "{0}" and "{1}" stand for numbers or names. */
+export interface RollLabels {
+    track: string;
+    trackVoice: string;
+    noVoice: string;
+    rightHand: string;
+    leftHand: string;
+    noHand: string;
+    rightLetter: string;
+    leftLetter: string;
+    rollAria: string;
+    scrollAria: string;
+    keysAria: string;
+    legendHint: string;
+    legendVariation: string;
+    legendHighlight: string;
+    legendInferred: string;
+    legendHands: string;
+    legendHandsInferred: string;
+}
+
+export const ENGLISH_ROLL_LABELS: RollLabels = {
+    track: "Track {0}",
+    trackVoice: "{0}, voice {1}",
+    noVoice: "none",
+    rightHand: "Right hand",
+    leftHand: "Left hand",
+    noHand: "No hand",
+    rightLetter: "R",
+    leftLetter: "L",
+    rollAria:
+        "Piano roll. Drag anywhere across the roll to select a range, drag an edge of the selection to move it, click a bar number to select that bar, Shift-click a bar number to extend the selection to it. Click a note to hear and select it, Shift-click to add to the selection; click the pitch names or the keyboard to hear a key. Click an empty place or press Escape to clear the selection. Space plays the selection on a loop, or the piece, and pauses. Right and left square brackets select the next or previous bar, with Shift they extend the selection by it. Arrow keys move the note selection, plus and minus zoom.",
+    scrollAria: "Scroll the piano roll",
+    keysAria: "Keyboard: the keys of the notes being heard are lit and marked with a dot. Click or drag across the keys to play them, also while the piece plays.",
+    legendHint: "Drag across the roll to select · drag its edges to adjust · click an empty place to clear · click a note or key to hear it",
+    legendVariation: "Outlined: the variation, linked to the notes it moved from",
+    legendHighlight: "Blue box and underline: the places of the fact chosen on Understand",
+    legendInferred: "Dashed outline: inferred, not in the file",
+    legendHands: "L, R: hand from the file",
+    legendHandsInferred: "L, R: hand from the file · L?, R?: hand inferred",
+};
+
+/** A label with its "{0}", "{1}" filled in. */
+export function fill(label: string, ...values: (string | number)[]): string {
+    return values.reduce<string>((text, value, index) => text.replaceAll(`{${index}}`, String(value)), label);
+}
 
 export class RollModel {
     /** Ordered by onset, then pitch, then id. */
@@ -210,18 +255,18 @@ export class RollModel {
     }
 
     /** The groups notes are coloured by, in order: tracks, or voices within tracks. */
-    lanes(by: ColourBy): Lane[] {
+    lanes(by: ColourBy, labels: RollLabels = ENGLISH_ROLL_LABELS): Lane[] {
         const keys = new Map<number, Lane>();
         const voiced = new Set(this.notes.filter((note) => note.voice > 0).map((note) => note.track));
         for (const note of this.notes) {
             const key = laneKey(note, by);
             if (!keys.has(key)) {
-                const track = `Track ${note.track + 1}`;
+                const track = fill(labels.track, note.track + 1);
                 const label =
                     by === "hand"
-                        ? HAND_LABELS[key]
+                        ? [labels.rightHand, labels.leftHand, labels.noHand][key]
                         : by === "voice" && voiced.has(note.track)
-                          ? `${track}, voice ${note.voice > 0 ? note.voice : "none"}`
+                          ? fill(labels.trackVoice, track, note.voice > 0 ? note.voice : labels.noVoice)
                           : track;
                 keys.set(key, { key, label });
             }

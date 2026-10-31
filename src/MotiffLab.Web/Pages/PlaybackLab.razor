@@ -85,33 +85,33 @@
                     <button class="focus-button" @onclick="EnterFocusAsync" title="@Text["focus.hint"]">@Text["focus.enter"]</button>
                     <label class="pick">
                         <span>@Text["workspace.notes"]</span>
-                        <select @onchange="SetFilterAsync" aria-label="Which notes play, light up and can be selected">
+                        <select @onchange="SetFilterAsync" aria-label="@Text["workspace.notesLabel"]">
                             @for (int i = 0; i < _filters.Length; i++)
                             {
-                                <option value="@i" selected="@(_filters[i].Filter == _filter)">@_filters[i].Label</option>
+                                <option value="@i" selected="@(_filters[i] == _filter)">@FilterLabel(_filters[i])</option>
                             }
                             @foreach (string category in s_coreCategories)
                             {
-                                <option disabled>@category (needs voice and chord analysis)</option>
+                                <option disabled>@Text.Format("workspace.needsAnalysis", Text[category])</option>
                             }
                         </select>
                     </label>
                     <label class="pick">
                         <span>@Text["workspace.hear"]</span>
-                        <select @onchange="HearChosenAsync" aria-label="What is heard">
+                        <select @onchange="HearChosenAsync" aria-label="@Text["workspace.hearLabel"]">
                             @for (int i = 0; i < Sources.Length; i++)
                             {
-                                <option value="@i" selected="@HearShown(Sources[i].Ids)">@Sources[i].Label</option>
+                                <option value="@i" selected="@HearShown(Sources[i].Ids)">@Text[Sources[i].Key]</option>
                             }
                         </select>
                     </label>
                     <label class="pick">
                         <span>@Text["workspace.score"]</span>
                         @* The select's value, not each option's selected attribute: Firefox can fall back to the first option when the options and their selected attributes change in one render. *@
-                        <select @onchange="SetScoreChoice" aria-label="Which score shows" value="@ShownChoice.ToString()" disabled="@(!ShowScore)">
-                            @foreach ((ScoreChoice choice, string label) in ScoreChoices)
+                        <select @onchange="SetScoreChoice" aria-label="@Text["workspace.scoreLabel"]" value="@ShownChoice.ToString()" disabled="@(!ShowScore)">
+                            @foreach ((ScoreChoice choice, string key) in ScoreChoices)
                             {
-                                <option value="@choice">@label</option>
+                                <option value="@choice">@Text[key]</option>
                             }
                         </select>
                     </label>
@@ -199,9 +199,9 @@
                         <p class="selection-text" aria-live="polite">@SelectionText<span aria-hidden="true">@SoundingText</span></p>
                         <div class="inspector-actions">
                             <button class="@(Looping ? "on" : "primary")" @onclick="ToggleLoopSelectionAsync" disabled="@(_selection is not { NoteIds.Count: > 0 })">
-                                @(Looping ? "Looping" : "Loop")
+                                @(Looping ? Text["focus.looping"] : Text["focus.loop"])
                             </button>
-                            <button @onclick="ClearSelectionAsync" disabled="@(_selection is null)">Clear</button>
+                            <button @onclick="ClearSelectionAsync" disabled="@(_selection is null)">@Text["workspace.clear"]</button>
                         </div>
                         @if (_variation is not null && _selection is { NoteIds.Count: > 0 })
                         {
@@ -228,7 +228,7 @@
                             case InspectorTab.Understand:
                                 @if (Facts.Count == 0)
                                 {
-                                    <p class="meta">Select some bars to see what music-core finds in them.</p>
+                                    <p class="meta">@Text["workspace.understandEmpty"]</p>
                                 }
                                 <UnderstandPanel Choose="ChooseFactAsync" Try="TryFromFactAsync" />
                                 @if (Facts.Count > 0)
@@ -571,8 +571,8 @@
                 </aside>
             </div>
 
-            <footer class="transport-bar" aria-label="Transport">
-                <button class="play" @onclick="TogglePlayAsync" aria-label="@(Player.State == PlaybackState.Stopped ? "Play" : "Pause")">
+            <footer class="transport-bar" aria-label="@Text["transport.label"]">
+                <button class="play" @onclick="TogglePlayAsync" aria-label="@(Player.State == PlaybackState.Stopped ? Text["transport.play"] : Text["transport.pause"])">
                     @if (Player.State != PlaybackState.Stopped)
                     {
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 4h4v16H6zM14 4h4v16h-4z" /></svg>
@@ -582,22 +582,22 @@
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" /></svg>
                     }
                 </button>
-                <button @onclick="StopAsync">Stop</button>
+                <button @onclick="StopAsync">@Text["transport.stop"]</button>
                 <input class="seek" type="range" min="0" max="@_score.End.Value" step="1" value="@Player.Position.Value"
-                       @onchange="SeekAsync" aria-label="Position" />
+                       @onchange="SeekAsync" aria-label="@Text["transport.position"]" />
                 <span class="position" aria-live="off">@PositionText</span>
                 <span class="meta state">@StateText</span>
-                <label class="tempo">Tempo <input type="range" min="25" max="150" step="5" value="@TempoPercent" @oninput="SetTempoAsync" /> <span class="mono">@TempoPercent%</span></label>
-                <label><input type="checkbox" checked="@Player.Metronome" @onchange="ToggleMetronomeAsync" /> Metronome</label>
-                <label><input type="checkbox" checked="@Player.CountIn" @onchange="ToggleCountInAsync" /> Count-in</label>
+                <label class="tempo">@Text["transport.tempo"] <input type="range" min="25" max="150" step="5" value="@TempoPercent" @oninput="SetTempoAsync" /> <span class="mono">@TempoPercent%</span></label>
+                <label><input type="checkbox" checked="@Player.Metronome" @onchange="ToggleMetronomeAsync" /> @Text["transport.metronome"]</label>
+                <label><input type="checkbox" checked="@Player.CountIn" @onchange="ToggleCountInAsync" /> @Text["transport.countIn"]</label>
             </footer>
         }
 
         <p class="credit">
-            Piano: <a href="https://archive.org/details/SalamanderGrandPianoV3">Salamander Grand Piano V3</a> by Alexander Holm,
-            <a href="https://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a>, shortened and re-encoded for Motiff Lab.
-            Score engraving: <a href="https://www.verovio.org">Verovio</a> 6.3.0,
-            <a href="lib/verovio/COPYING.LESSER.txt">LGPL 3.0</a>, <a href="https://github.com/rism-digital/verovio/tree/version-6.3.0">source</a>.
+            @Text["credit.piano"] <a href="https://archive.org/details/SalamanderGrandPianoV3">Salamander Grand Piano V3</a> @Text["credit.by"] Alexander Holm,
+            <a href="https://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a>, @Text["credit.shortened"]
+            @Text["credit.engraving"] <a href="https://www.verovio.org">Verovio</a> 6.3.0,
+            <a href="lib/verovio/COPYING.LESSER.txt">LGPL 3.0</a>, <a href="https://github.com/rism-digital/verovio/tree/version-6.3.0">@Text["credit.source"]</a>.
         </p>
     </main>
 </CascadingValue>
@@ -673,28 +673,29 @@
     ];
 
     /// <summary>Note categories the player expects but music-core cannot pick out yet; shown, not offered (S1-A3).</summary>
-    private static readonly string[] s_coreCategories = ["Melody", "Bass", "Harmony"];
+    private static readonly string[] s_coreCategories = ["term.keep.Melody", "term.keep.Bass", "term.keep.Harmony"];
 
     /// <summary>A second file opened as the variation (S1-W5).</summary>
     private const string SecondFileId = "second-file";
 
-    private static readonly (string Label, string[] Ids)[] s_sources =
+    private static readonly (string Key, string[] Ids)[] s_sources =
     [
-        ("Original", [Player.OriginalSource]),
-        ("Variation", [VariationSource]),
-        ("Both", [Player.OriginalSource, VariationSource]),
+        ("term.original", [Player.OriginalSource]),
+        ("term.variation", [VariationSource]),
+        ("hear.both", [Player.OriginalSource, VariationSource]),
     ];
 
-    private static readonly (string Label, string[] Ids)[] s_secondFileSources =
+    private static readonly (string Key, string[] Ids)[] s_secondFileSources =
     [
-        ("Second file", [SecondFileId]),
-        ("Original and second file", [Player.OriginalSource, SecondFileId]),
+        ("hear.secondFile", [SecondFileId]),
+        ("hear.originalAndSecond", [Player.OriginalSource, SecondFileId]),
     ];
 
-    private (string Label, string[] Ids)[] Sources =>
+    /// <summary>What can be heard, each with its label's i18n key.</summary>
+    private (string Key, string[] Ids)[] Sources =>
     [
         .. s_sources,
-        .. _variation is null ? [] : new (string, string[])[] { ("The piece with the variation", [InPlaceSource]), ("The original, then the variation", [OneAfterTheOther]) },
+        .. _variation is null ? [] : new (string, string[])[] { ("hear.inPlace", [InPlaceSource]), ("hear.oneAfterTheOther", [OneAfterTheOther]) },
         .. _secondTitle is null ? [] : s_secondFileSources,
     ];
 
@@ -715,7 +716,7 @@
     private IReadOnlyList<KeySignature> _keys = [];
     private IReadOnlyList<AccentMark>? _accents;
     private SelectionFilter _filter = SelectionFilter.All;
-    private (string Label, SelectionFilter Filter)[] _filters = [("All notes", SelectionFilter.All)];
+    private SelectionFilter[] _filters = [SelectionFilter.All];
 
     /// <summary>The ids of the notes the filter keeps, for the roll; null when it keeps them all.</summary>
     private IReadOnlyCollection<string>? _keptIds;
@@ -871,19 +872,19 @@
         Variation,
     }
 
-    private IEnumerable<(ScoreChoice Choice, string Label)> ScoreChoices
+    private IEnumerable<(ScoreChoice Choice, string Key)> ScoreChoices
     {
         get
         {
             if (_asWritten is not null)
             {
-                yield return (ScoreChoice.AsWritten, "As written");
+                yield return (ScoreChoice.AsWritten, "score.asWritten");
             }
 
-            yield return (ScoreChoice.Generated, "Generated from the notes");
+            yield return (ScoreChoice.Generated, "score.generated");
             if (_variationScore is not null)
             {
-                yield return (ScoreChoice.Variation, "With the variation");
+                yield return (ScoreChoice.Variation, "score.withVariation");
             }
         }
     }
@@ -924,15 +925,15 @@
         get
         {
             MetricPosition position = _meter!.ToPosition(Player.Position);
-            return $"Bar {position.Bar}, beat {position.Beat}";
+            return Text.Format("transport.at", position.Bar, position.Beat);
         }
     }
 
     private string StateText => Player.State switch
     {
-        PlaybackState.CountingIn => "Count-in",
-        PlaybackState.Playing => "Playing",
-        _ => "Stopped",
+        PlaybackState.CountingIn => Text["transport.countIn"],
+        PlaybackState.Playing => Text["transport.playing"],
+        _ => Text["transport.stopped"],
     };
 
     protected override void OnInitialized()
@@ -966,7 +967,7 @@
             {
                 if (!await CurrentPiece.OpenSavedAsync(id))
                 {
-                    (_message, _tip) = ("This project is no longer saved in this browser.", "Open it again from Projects, or import the file.");
+                    (_message, _tip) = (Text["workspace.projectGone"], Text["workspace.projectGoneTip"]);
                 }
             }
             catch (ProjectFileException exception)
@@ -982,7 +983,7 @@
         {
             _pieceVersion = CurrentPiece.Version;
             await LoadPieceAsync(piece);
-            if (_filters.Any(filter => filter.Filter == CurrentPiece.StartWith))
+            if (_filters.Contains(CurrentPiece.StartWith))
             {
                 _filter = CurrentPiece.StartWith;
             }
@@ -1224,35 +1225,35 @@
     }
 
     /// <summary>What the shown score is, and what was inferred to write it (decision record 0008).</summary>
-    private static string ScoreNote(ScoreSource source)
+    private string ScoreNote(ScoreSource source)
     {
         if (source.Generated is not { } notation)
         {
-            return "As written in the MusicXML file. Click a note to play from there.";
+            return Text["score.asWrittenNote"];
         }
 
-        var parts = new List<string> { "Generated from the notes: note values, voices and spelling are inferred." };
+        var parts = new List<string> { Text["score.generatedNote"] };
         if (notation.ApproximatedNoteCount > 0)
         {
-            parts.Add($"{notation.ApproximatedNoteCount} of {notation.NoteCount} notes are shown at the nearest 32nd.");
+            parts.Add(Text.Format("score.approximated", notation.ApproximatedNoteCount, Text.Count("score.ofNotes", notation.NoteCount)));
         }
 
         if (notation.ShortenedNoteCount > 0)
         {
-            parts.Add($"{notation.ShortenedNoteCount} notes are shown shorter to fit four voices per staff.");
+            parts.Add(Text.Count("score.shortened", notation.ShortenedNoteCount));
         }
 
         if (notation.LengthenedNoteCount > 0)
         {
-            parts.Add($"{notation.LengthenedNoteCount} notes heard in the recording are shown held to the next note, as the gap was shorter than an eighth.");
+            parts.Add(Text.Count("score.lengthened", notation.LengthenedNoteCount));
         }
 
         if (notation.Staves.Any(staff => staff.IsSplitInferred))
         {
-            parts.Add("The staves are split at middle C.");
+            parts.Add(Text["score.split"]);
         }
 
-        parts.Add("Click a note to play from there.");
+        parts.Add(Text["score.clickNote"]);
         return string.Join(" ", parts);
     }
 
@@ -1356,17 +1357,17 @@
         {
             Note[] notes = SelectedNotes;
             bool hands = notes.Any(note => note.Hand?.Value == Hand.Right) && notes.Any(note => note.Hand?.Value == Hand.Left);
-            var choices = new List<(ListenTo, string)> { (ListenTo.Everything, hands && !_layered ? "Both hands" : "Everything") };
+            var choices = new List<(ListenTo, string)> { (ListenTo.Everything, Text[hands && !_layered ? "listen.bothHands" : "explore.everything"]) };
             if (hands)
             {
-                choices.Add((ListenTo.RightHand, "Right hand"));
-                choices.Add((ListenTo.LeftHand, "Left hand"));
+                choices.Add((ListenTo.RightHand, Text["filter.rightHand"]));
+                choices.Add((ListenTo.LeftHand, Text["filter.leftHand"]));
             }
 
             if (_layered)
             {
-                choices.Add((ListenTo.Melody, "Melody alone"));
-                choices.Add((ListenTo.Accompaniment, "Accompaniment alone"));
+                choices.Add((ListenTo.Melody, Text["explore.melodyAlone"]));
+                choices.Add((ListenTo.Accompaniment, Text["explore.accompanimentAlone"]));
             }
 
             return choices;
@@ -1376,8 +1377,8 @@
     /// <summary>Says when the hands are a reading of the notes rather than marked in the file.</summary>
     private string? HandsNote =>
         ListenChoices.Any(choice => choice.Choice == ListenTo.RightHand) && SelectedNotes.Any(note => note.Hand?.Attribution.Provenance == Provenance.Inferred)
-            ? "Which hand plays some of these notes is inferred, not marked in the file. The melody is the top line, whichever hand plays it."
-            : _layered ? "The melody is the top line of the notes, whichever hand plays it." : null;
+            ? Text["listen.handsInferred"]
+            : _layered ? Text["explore.listenHintShort"] : null;
 
     private Note[] SelectedNotes
     {
@@ -1401,20 +1402,20 @@
     /// What playback, the roll and a selection can be limited to (S1-M2): a hand when the piece has
     /// hands, a track when it has several, and a notated voice when a track has several.
     /// </summary>
-    private static (string Label, SelectionFilter Filter)[] Filters(IReadOnlyList<Note> notes, int[] tracks)
+    private static SelectionFilter[] Filters(IReadOnlyList<Note> notes, int[] tracks)
     {
-        var filters = new List<(string, SelectionFilter)> { ("All notes", SelectionFilter.All) };
-        foreach ((Hand hand, string label) in new[] { (Hand.Right, "Right hand"), (Hand.Left, "Left hand") })
+        var filters = new List<SelectionFilter> { SelectionFilter.All };
+        foreach (Hand hand in new[] { Hand.Right, Hand.Left })
         {
             if (notes.Any(note => note.Hand?.Value == hand))
             {
-                filters.Add((label, SelectionFilter.ForHand(hand)));
+                filters.Add(SelectionFilter.ForHand(hand));
             }
         }
 
         if (tracks.Length > 1)
         {
-            filters.AddRange(tracks.Select(track => ($"Track {track + 1}", SelectionFilter.ForTrack(track))));
+            filters.AddRange(tracks.Select(SelectionFilter.ForTrack));
         }
 
         foreach (int track in tracks)
@@ -1422,12 +1423,22 @@
             int[] voices = [.. notes.Where(note => note.Track == track && note.Voice is not null).Select(note => note.Voice!.Value).Distinct().Order()];
             if (voices.Length > 1)
             {
-                filters.AddRange(voices.Select(voice => (tracks.Length > 1 ? $"Track {track + 1}, voice {voice}" : $"Voice {voice}", SelectionFilter.ForVoice(track, voice))));
+                filters.AddRange(voices.Select(voice => SelectionFilter.ForVoice(track, voice)));
             }
         }
 
         return [.. filters];
     }
+
+    /// <summary>"All notes", "Right hand", "Track 2", "Track 2, voice 1" or "Voice 1", as the Notes list names a filter.</summary>
+    private string FilterLabel(SelectionFilter filter) => filter switch
+    {
+        { Hand: Hand.Right } => Text["filter.rightHand"],
+        { Hand: Hand.Left } => Text["filter.leftHand"],
+        { Track: int track, Voice: int voice } => _tracks.Length > 1 ? Text.Format("filter.trackVoice", track + 1, voice) : Text.Format("filter.voice", voice),
+        { Track: int track } => Text.Format("second.track", track + 1),
+        _ => Text["filter.all"],
+    };
 
     /// <summary>Selects whole bars, keeping to the piece and to 8 bars (S1-M1).</summary>
     private Task SelectBarRangeAsync(int fromBar, int toBar)
@@ -1438,7 +1449,7 @@
         if (to - from + 1 > MotifSelection.MaxBars)
         {
             to = from + MotifSelection.MaxBars - 1;
-            note = $"A selection spans at most {MotifSelection.MaxBars} bars, so it ends at bar {to}.";
+            note = Text.Format("selection.capped", MotifSelection.MaxBars, to);
         }
 
         return SelectAsync(MotifSelector.Bars(_meter, from, to, _score!.End), note);
@@ -1469,7 +1480,7 @@
         Tick low = range.Anchor < range.Current ? range.Anchor : range.Current;
         Tick high = new(Math.Max(low.Value, Math.Max(range.Anchor.Value, range.Current.Value) - 1));
         bool capped = _meter!.BarAt(high > last ? last : high).Number - _meter.BarAt(low > last ? last : low).Number + 1 > MotifSelection.MaxBars;
-        return SelectAsync(span, capped ? $"A selection spans at most {MotifSelection.MaxBars} bars, so the drag stopped there." : null);
+        return SelectAsync(span, capped ? Text.Format("selection.dragCapped", MotifSelection.MaxBars) : null);
     }
 
     /// <summary>
@@ -1483,7 +1494,7 @@
             return;
         }
 
-        _filter = _filters[index].Filter;
+        _filter = _filters[index];
         await ApplyFilterAsync();
         if (_selection is { } selection)
         {
@@ -1582,7 +1593,7 @@
                 _scorePhrasesFor = _phrases;
                 _scorePhrasesCurrent = current;
                 _scorePhrases = [.. _phrases.Phrases.Where(phrase => phrase.Start is not null || phrase.Number == current)
-                    .Select(phrase => new ScorePhrase(phrase.Span.Onset.Value, $"Phrase {phrase.Number}", PhraseStrip.KindClass(phrase.Start), phrase.Number == current))];
+                    .Select(phrase => new ScorePhrase(phrase.Span.Onset.Value, Text.Format("phrase.label", phrase.Number), PhraseStrip.KindClass(phrase.Start), phrase.Number == current))];
             }
 
             return _scorePhrases;
@@ -1602,7 +1613,7 @@
         }
 
         TickSpan span = _phrases.Selectable(phrase);
-        string? note = phrase.FitsSelection ? null : $"Phrase {phrase.Number} runs {phrase.BarCount} bars; a selection holds at most {MotifSelection.MaxBars}, so it ends at bar {_meter!.BarAt(new Tick(span.End.Value - 1)).Number}.";
+        string? note = phrase.FitsSelection ? null : Text.Format("selection.phraseCapped", phrase.Number, phrase.BarCount, MotifSelection.MaxBars, _meter!.BarAt(new Tick(span.End.Value - 1)).Number);
         return SelectAsync(span, note);
     }
 
@@ -1842,7 +1853,7 @@
 
         if (selection.Span != experiment.Passage.Span || _filter != experiment.Filter)
         {
-            await MoveSelectionAsync(experiment.Passage.Span, experiment.Filter, trial.Elsewhere ? "This experiment changes the motif's return." : null);
+            await MoveSelectionAsync(experiment.Passage.Span, experiment.Filter, trial.Elsewhere ? Text["selection.elsewhere"] : null);
         }
 
         _keep.Clear();
@@ -2297,8 +2308,8 @@
         _restoring = true;
         try
         {
-            _filter = _filters.Any(filter => filter.Filter == motif.Filter) ? motif.Filter : SelectionFilter.All;
-            await SelectAsync(motif.Span, note: $"Restored \"{motif.Name}\" from the project.");
+            _filter = _filters.Contains(motif.Filter) ? motif.Filter : SelectionFilter.All;
+            await SelectAsync(motif.Span, note: Text.Format("selection.restored", motif.Name));
             if (opened.Variations.FirstOrDefault(variation => variation.Saved.MotifId == motif.Id).Chain is { } chain)
             {
                 _keep.Clear();
@@ -2472,32 +2483,27 @@
         {
             if (_selection is not { } selection)
             {
-                return "Nothing selected. Drag across the piano roll or click a bar number.";
+                return Text["selection.none"];
             }
 
             var parts = new List<string>
             {
-                CurrentPhrase is { } phrase ? $"Selected phrase {phrase.Number}, {PhraseBars(phrase)}" : $"Selected {SpannedPhrases(selection) ?? Where(selection)}",
+                CurrentPhrase is { } phrase ? Text.Format("selection.phrase", phrase.Number, PhraseBars(phrase)) : Text.Format("selection.selected", SpannedPhrases(selection) ?? Where(selection)),
             };
             if (selection.Filter != SelectionFilter.All)
             {
-                string label = _filters.FirstOrDefault(filter => filter.Filter == selection.Filter).Label ?? "filtered";
-                parts.Add(selection.HandInferred ? $"{label.ToLowerInvariant()} (inferred for some notes)" : label.ToLowerInvariant());
+                string label = FilterLabel(selection.Filter).ToLowerInvariant();
+                parts.Add(selection.HandInferred ? Text.Format("selection.inferredFor", label) : label);
             }
 
-            string text = string.Join(", ", parts) + selection.NoteIds.Count switch
-            {
-                0 => ": no notes start here, so there is nothing to loop.",
-                1 => ": 1 note.",
-                int count => $": {count} notes.",
-            };
+            string text = string.Join(", ", parts) + (selection.NoteIds.Count == 0 ? Text["selection.noNotes"] : Text.Count("selection.notes", selection.NoteIds.Count));
             if (_answerLoop is not null)
             {
-                text += " Looping the motif and its new answer.";
+                text += " " + Text["selection.loopingAnswer"];
             }
             else if (_alternating)
             {
-                text += " Looping the original, then the variation.";
+                text += " " + Text["selection.loopingAlternate"];
             }
             else if (PlayOnText is { } playingOn)
             {
@@ -2505,14 +2511,14 @@
             }
             else if (_looping)
             {
-                text += _listenTo switch
+                text += " " + Text[_listenTo switch
                 {
-                    ListenTo.Melody => " Looping the melody alone.",
-                    ListenTo.Accompaniment => " Looping the accompaniment alone.",
-                    ListenTo.RightHand => " Looping the right hand alone.",
-                    ListenTo.LeftHand => " Looping the left hand alone.",
-                    _ => " Looping; only these notes play.",
-                };
+                    ListenTo.Melody => "selection.loopingMelody",
+                    ListenTo.Accompaniment => "selection.loopingAccompaniment",
+                    ListenTo.RightHand => "selection.loopingRight",
+                    ListenTo.LeftHand => "selection.loopingLeft",
+                    _ => "selection.looping",
+                }];
             }
 
             return _selectionNote is null ? text : $"{text} {_selectionNote}";
@@ -2520,8 +2526,8 @@
     }
 
     /// <summary>"bars 4–8": the bars a phrase touches, its pickup included, as the phrase strip names them.</summary>
-    private static string PhraseBars(Phrase phrase) =>
-        phrase.FirstBar == phrase.LastBar ? $"bar {phrase.FirstBar}" : $"bars {phrase.FirstBar}–{phrase.LastBar}";
+    private string PhraseBars(Phrase phrase) =>
+        phrase.FirstBar == phrase.LastBar ? Text.Format("bars.one", phrase.FirstBar) : Text.Format("bars.range", phrase.FirstBar, phrase.LastBar);
 
     /// <summary>"bars 5–6", or with beats when an edge is inside a bar: "bar 5, beat 2, through bar 6, beat 1".</summary>
     private string Where(MotifSelection selection)
@@ -2530,14 +2536,14 @@
         Bar last = _meter.GetBar(selection.LastBar);
         if (selection.Span.Onset == first.Span.Onset && selection.Span.End == last.Span.End)
         {
-            return selection.FirstBar == selection.LastBar ? $"bar {selection.FirstBar}" : $"bars {selection.FirstBar}–{selection.LastBar}";
+            return selection.FirstBar == selection.LastBar ? Text.Format("bars.one", selection.FirstBar) : Text.Format("bars.range", selection.FirstBar, selection.LastBar);
         }
 
         MetricPosition from = _meter.ToPosition(selection.Span.Onset);
         MetricPosition through = _meter.ToPosition(new Tick(selection.Span.End.Value - 1));
         return from.Bar == through.Bar && from.Beat == through.Beat
-            ? $"bar {from.Bar}, beat {from.Beat}"
-            : $"bar {from.Bar}, beat {from.Beat}, through bar {through.Bar}, beat {through.Beat}";
+            ? Text.Format("notes.at", from.Bar, from.Beat)
+            : Text.Format("selection.through", from.Bar, from.Beat, through.Bar, through.Beat);
     }
 
     private Task ToggleTrackAsync(int track, bool solo)
