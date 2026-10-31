@@ -1,4 +1,6 @@
+using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Import.Transcription;
 
@@ -34,6 +36,26 @@ public static class Transcribed
     {
         ArgumentNullException.ThrowIfNull(piece);
         return piece.Midi is not null && piece.Notes.Count > 0 && piece.Notes.All(note => note.Attribution.Provenance == Provenance.Detected);
+    }
+
+    /// <summary>
+    /// The key to write notes heard in a recording in, which the engine does not give: the major or
+    /// minor key whose profile best fits how long each pitch class sounds (decision record 0016), with
+    /// notes below middle C counting twice, since the bass carries the roots of the harmony.
+    /// An inference for the score's key signature only; analysis still treats the piece as having none.
+    /// Null without notes.
+    /// </summary>
+    public static MusicalKey? KeyOf(IReadOnlyList<Note> notes)
+    {
+        ArgumentNullException.ThrowIfNull(notes);
+        double[] weights = new double[12];
+        foreach (Note note in notes)
+        {
+            int bass = note.Pitch.MidiNumber < 60 ? 2 : 1;
+            weights[note.Pitch.MidiNumber % 12] += bass * Math.Min(note.Span.Duration, 4 * CanonicalTime.TicksPerQuarter);
+        }
+
+        return weights.All(weight => weight == 0) ? null : KeyFinder.Rank(weights)[0].Key;
     }
 
     /// <summary>The piece with its notes marked as transcribed (<see cref="Mark(IReadOnlyList{Note})"/>).</summary>

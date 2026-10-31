@@ -188,6 +188,10 @@
                         @if (_barsOn)
                         {
                             <p>@Text.Format("transcribe.barsFound", bars.Signature, bars.QuarterNotesPerMinute)</p>
+                            @if (bars.FollowsPlaying)
+                            {
+                                <p class="meta">@Text["transcribe.barsFollow"]</p>
+                            }
                             @if (bars.HasPickup)
                             {
                                 <p class="meta">@Text["transcribe.barsPickup"]</p>
@@ -206,10 +210,15 @@
                                         }
                                     </select>
                                 </label>
-                                <button @onclick="() => ChangeTempo(faster: true)" disabled="@(bars.SixteenthMicroseconds / 2 < BarGrid.ShortestSixteenth)">@Text["transcribe.faster"]</button>
-                                <button @onclick="() => ChangeTempo(faster: false)" disabled="@(bars.SixteenthMicroseconds * 2L > BarGrid.LongestSixteenth)">@Text["transcribe.slower"]</button>
+                                <button @onclick="() => ChangeTempo(faster: true)" disabled="@(bars.StepsPerBeat * 2 > BarGrid.MostStepsPerBeat)">@Text["transcribe.faster"]</button>
+                                <button @onclick="() => ChangeTempo(faster: false)" disabled="@(bars.StepsPerBeat % 2 != 0)">@Text["transcribe.slower"]</button>
                             </div>
                             <p class="meta">@Text["transcribe.tempoHow"]</p>
+                            <div class="row">
+                                <button @onclick="() => ShiftBars(-1)">@Text["transcribe.earlier"]</button>
+                                <button @onclick="() => ShiftBars(1)">@Text["transcribe.later"]</button>
+                            </div>
+                            <p class="meta">@Text["transcribe.shiftHow"]</p>
                         }
                         else
                         {
@@ -557,7 +566,7 @@
     {
         if (_bars is { } bars && BarGrid.Signatures.FirstOrDefault(signature => signature.ToString() == args.Value as string) is { Numerator: > 1 } chosen)
         {
-            _bars = BarGrid.Find(_heard!.Midi!, chosen, bars.SixteenthMicroseconds) ?? bars;
+            _bars = BarGrid.Find(_heard!.Midi!, chosen, bars.StepsPerBeat) ?? bars;
             ShowBars();
         }
     }
@@ -570,10 +579,20 @@
             return;
         }
 
-        long step = faster ? bars.SixteenthMicroseconds / 2 : bars.SixteenthMicroseconds * 2L;
-        if (step >= BarGrid.ShortestSixteenth && step <= BarGrid.LongestSixteenth)
+        int steps = faster ? bars.StepsPerBeat * 2 : bars.StepsPerBeat / 2;
+        if (steps >= BarGrid.FewestStepsPerBeat && steps <= BarGrid.MostStepsPerBeat && (faster || bars.StepsPerBeat % 2 == 0))
         {
-            _bars = BarGrid.Find(_heard!.Midi!, bars.Signature, (int)step) ?? bars;
+            _bars = BarGrid.Find(_heard!.Midi!, bars.Signature, steps) ?? bars;
+            ShowBars();
+        }
+    }
+
+    /// <summary>Every bar line a beat earlier or later, for a downbeat the bass misplaced.</summary>
+    private void ShiftBars(int beats)
+    {
+        if (_bars is { } bars)
+        {
+            _bars = bars.Shifted(beats);
             ShowBars();
         }
     }

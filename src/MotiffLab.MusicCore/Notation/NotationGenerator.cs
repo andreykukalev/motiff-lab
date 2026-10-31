@@ -5,6 +5,7 @@ using System.Xml;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import.Midi;
 using MotiffLab.MusicCore.Import.MusicXml;
+using MotiffLab.MusicCore.Playback;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Notation;
@@ -50,15 +51,21 @@ public static class NotationGenerator
 
     private static readonly string[] s_stepNames = ["c", "d", "e", "f", "g", "a", "b"];
 
-    /// <summary>The longest gap before the next onset that <c>holdShortGaps</c> closes: an eighth note.</summary>
-    public const long HeldGap = CanonicalTime.TicksPerQuarter / 2;
+    /// <summary>The gap before the next onset that writing as heard closes: shorter than a quarter note.</summary>
+    public const long HeldGap = CanonicalTime.TicksPerQuarter;
+
+    /// <summary>The grid notes heard in a recording are written on: a 16th, or a 32nd where 16ths would merge two onsets.</summary>
+    public const long HeardGrid = CanonicalTime.TicksPerQuarter / 4;
+
+    /// <summary>Onsets this close are one chord when written as heard: a 64th.</summary>
+    private const long HeardChord = Grid / 2;
 
     /// <summary>Notation for a MIDI import, with its key signatures.</summary>
-    /// <param name="holdShortGaps">See <see cref="Generate"/>.</param>
-    public static GeneratedNotation FromMidi(MidiImport import, string? title = null, bool holdShortGaps = false)
+    /// <param name="asHeard">See <see cref="Generate"/>.</param>
+    public static GeneratedNotation FromMidi(MidiImport import, string? title = null, bool asHeard = false)
     {
         ArgumentNullException.ThrowIfNull(import);
-        return Generate(import.Notes, import.Meter, import.KeySignatures.Select(key => new KeyChange(key.At, Math.Clamp(key.Sharps, -7, 7))), import.End, title, holdShortGaps);
+        return Generate(import.Notes, import.Meter, import.KeySignatures.Select(key => new KeyChange(key.At, Math.Clamp(key.Sharps, -7, 7))), import.End, title, asHeard);
     }
 
     /// <summary>Notation for a MusicXML import, generated from its notes rather than engraved as written. Key signatures come from the first part.</summary>
@@ -77,12 +84,21 @@ public static class NotationGenerator
     /// <param name="keys">Key signatures; C major until the first. A change takes effect at the next bar line.</param>
     /// <param name="end">The end of the piece; the last bar is the one that contains the end, or the last note's end if later.</param>
     /// <param name="title">The title written in the MEI header.</param>
-    /// <param name="holdShortGaps">
-    /// For notes heard in a recording, where a key is let go a little before the next is played: a
-    /// note that ends less than <see cref="HeldGap"/> before the next onset on its staff is written up
-    /// to that onset, as legato rather than a short note and a rest. The notes themselves keep their lengths.
+    /// <param name="asHeard">
+    /// For notes heard in a recording, written as a player reads them rather than as they sounded
+    /// (decision record 0016): onsets on the nearest 16th (a 32nd where 16ths would merge two
+    /// onsets, and onsets within a 64th are one chord); a note shorter than a 32nd just before the next
+    /// as a grace note; and each note up to the next onset on its staff, so that the pedal or a key let
+    /// go a little early does not write long ties, extra voices or short rests. A gap of a quarter or
+    /// more stays a rest; a chord is written with one length. The notes themselves keep their timing.
     /// </param>
-    public static GeneratedNotation Generate(IEnumerable<Note> notes, MeterMap meter, IEnumerable<KeyChange> keys, Tick end, string? title = null, bool holdShortGaps = false)
+    /// <param name="playedTempos">
+    /// For notes heard in a recording, written as played: the tempo that follows the playing. When
+    /// given, the score is marked with how the notes were played, all of it inferred: dynamics from
+    /// how loud the bars are, accents on notes clearly louder than those around them, and "rit.",
+    /// "accel." and "a tempo" where the bars slow down or speed up.
+    /// </param>
+    public static GeneratedNotation Generate(IEnumerable<Note> notes, MeterMap meter, IEnumerable<KeyChange> keys, Tick end, string? title = null, bool asHeard = false, IReadOnlyList<PlaybackTempo>? playedTempos = null)
     {
         ArgumentNullException.ThrowIfNull(notes);
         ArgumentNullException.ThrowIfNull(meter);
@@ -98,53 +114,143 @@ public static class NotationGenerator
         Bar[] bars = [.. meter.BarsBefore(new Tick(last))];
 
         List<StaffPlan> staves = PlanStaves(shown);
-        var lengthened = new HashSet<string>();
-        if (holdShortGaps)
+        var heard = new HeardCounts();
+        if (asHeard)
         {
-            staves = [.. staves.Select(staff => staff with { Notes = HeldToNextOnset(staff.Notes, lengthened) })];
+            staves = [.. staves.Select(staff => staff with { Notes = AsHeard(staff.Notes, heard) })];
+            approximated = staves.SelectMany(staff => staff.Notes).Count(note => note.Onset != note.Note.Span.Onset.Value || note.End != note.Note.Span.End.Value);
         }
 
+        PlayingMarks? marks = playedTempos is null ? null : PlayingMarks.Of(input, bars, playedTempos);
         var shortened = new HashSet<string>();
         foreach (StaffPlan staff in staves)
         {
-            staff.Voices = AssignVoices(staff.Notes, shortened);
+            staff.Voices = AssignVoices([.. staff.Notes.Where(note => !note.IsGrace)], shortened);
+            AttachGraces(staff, [.. staff.Notes.Where(note => note.IsGrace)]);
+            foreach (Chord chord in staff.Voices.SelectMany(voice => voice))
+            {
+                chord.IsAccented = marks is not null && chord.Notes.Any(note => marks.Accented.Contains(note.Note.Id));
+            }
         }
 
         var measures = new List<MeasurePlan>(bars.Length);
-        foreach (Bar bar in bars)
+        for (int index = 0; index < bars.Length; index++)
         {
+            Bar bar = bars[index];
             int fifths = KeyAt(keyChanges, bar.Span.Onset);
-            measures.Add(new MeasurePlan(bar, fifths, staves.Select(staff => LayOutStaff(staff, bar, fifths)).ToArray()));
+            measures.Add(new MeasurePlan(bar, fifths, staves.Select(staff => LayOutStaff(staff, bar, fifths)).ToArray())
+            {
+                Dynamic = marks is not null && marks.Dynamics.TryGetValue(index, out (long At, string Level) dynamic) ? dynamic : null,
+                TempoWord = marks is not null && marks.TempoWords.TryGetValue(index, out string? word) ? word : null,
+            });
         }
 
         string mei = WriteMei(title ?? "Generated notation", staves, measures);
         NotationStaff[] staffInfo = [.. staves.Select(staff => new NotationStaff(staff.Number, staff.Track, staff.Clef, staff.Hand, staff.IsSplitInferred))];
-        return new GeneratedNotation(mei, staffInfo, input.Length, approximated, shortened.Count, lengthened.Count);
+        return new GeneratedNotation(mei, staffInfo, input.Length, approximated, shortened.Count, heard.Held, heard.Cut, heard.Graces, asHeard)
+        {
+            AccentCount = marks?.Accented.Count ?? 0,
+            DynamicCount = marks?.Dynamics.Count ?? 0,
+            TempoWordCount = marks?.TempoWords.Count ?? 0,
+        };
     }
 
     private static long Snap(long tick) => (tick + (Grid / 2)) / Grid * Grid;
 
-    /// <summary>Each note that ends less than <see cref="HeldGap"/> before the staff's next onset, written up to it.</summary>
-    private static ShownNote[] HeldToNextOnset(ShownNote[] notes, HashSet<string> lengthened)
+    private sealed class HeardCounts
     {
-        long[] onsets = [.. notes.Select(note => note.Onset).Distinct().Order()];
-        return [.. notes.Select(note =>
+        public int Held { get; set; }
+
+        public int Cut { get; set; }
+
+        public int Graces { get; set; }
+    }
+
+    private static long SnapTo(long tick, long grid) => (tick + (grid / 2)) / grid * grid;
+
+    /// <summary>A staff's notes written as heard (see <see cref="Generate"/>'s <c>asHeard</c>).</summary>
+    private static ShownNote[] AsHeard(ShownNote[] notes, HeardCounts counts)
+    {
+        // Onsets that start together are one chord.
+        var chords = new List<List<ShownNote>>();
+        foreach (ShownNote note in notes.OrderBy(note => note.Note.Span.Onset).ThenBy(note => note.Note.Pitch.MidiNumber).ThenBy(note => note.Note.Id, StringComparer.Ordinal))
         {
-            int index = Array.BinarySearch(onsets, note.Onset);
-            if (index + 1 >= onsets.Length)
+            if (chords.Count > 0 && note.Note.Span.Onset.Value - chords[^1][0].Note.Span.Onset.Value < HeardChord)
             {
-                return note;
+                chords[^1].Add(note);
+            }
+            else
+            {
+                chords.Add([note]);
+            }
+        }
+
+        // A single note shorter than a 32nd, with the next onset within a dotted 32nd, is a grace note.
+        bool[] grace = new bool[chords.Count];
+        for (int i = 0; i + 1 < chords.Count; i++)
+        {
+            Note note = chords[i][0].Note;
+            grace[i] = chords[i].Count == 1
+                && note.Span.Duration < Grid
+                && chords[i + 1][0].Note.Span.Onset.Value - note.Span.Onset.Value < Grid * 3 / 2
+                && (i == 0 || !grace[i - 1]);
+        }
+
+        long[] onsets = new long[chords.Count];
+        long previous = -1;
+        for (int i = 0; i < chords.Count; i++)
+        {
+            if (grace[i])
+            {
+                continue;
             }
 
-            long next = onsets[index + 1];
-            if (note.End >= next || next - note.End >= HeldGap)
+            long raw = chords[i][0].Note.Span.Onset.Value;
+            long onset = SnapTo(raw, HeardGrid);
+            onset = onset > previous ? onset : SnapTo(raw, Grid);
+            onset = onset > previous ? onset : previous + Grid;
+            onsets[i] = previous = onset;
+        }
+
+        var written = new List<ShownNote>(notes.Length);
+        for (int i = 0; i < chords.Count; i++)
+        {
+            int next = Array.FindIndex(grace, i + 1, flag => !flag);
+            if (grace[i])
             {
-                return note;
+                // Played just before the next chord, written in front of it.
+                counts.Graces++;
+                written.Add(new ShownNote(chords[i][0].Note, onsets[next], onsets[next]) { IsGrace = true, Target = chords[next][0].Note.Id });
+                continue;
             }
 
-            lengthened.Add(note.Note.Id);
-            return new ShownNote(note.Note, note.Onset, next);
-        })];
+            // A chord is written with one length, that of its longest note, so that it stays one chord.
+            long end = Math.Max(SnapTo(chords[i].Max(note => note.Note.Span.End.Value), HeardGrid), onsets[i] + Grid);
+            if (next >= 0 && end > onsets[next])
+            {
+                end = onsets[next];
+                counts.Cut += chords[i].Count;
+            }
+            else if (next >= 0 && onsets[next] - end < HeldGap && end < onsets[next])
+            {
+                end = onsets[next];
+                counts.Held += chords[i].Count;
+            }
+
+            written.AddRange(chords[i].Select(note => new ShownNote(note.Note, onsets[i], end)));
+        }
+
+        return [.. written];
+    }
+
+    /// <summary>Each grace note in front of the chord that holds the note it leads to.</summary>
+    private static void AttachGraces(StaffPlan staff, ShownNote[] graces)
+    {
+        foreach (ShownNote grace in graces)
+        {
+            Chord chord = staff.Voices.SelectMany(voice => voice).First(chord => chord.Notes.Any(note => note.Note.Id == grace.Target));
+            chord.Graces.Add(new Chord(chord.Onset, chord.Onset, [grace]));
+        }
     }
 
     private static int KeyAt(KeyChange[] keys, Tick position)
@@ -263,8 +369,8 @@ public static class NotationGenerator
                 : [];
             if (inBar.Length == 0)
             {
-                // Lower voices leave empty bars out; the top voice rests for the whole bar.
-                if (index == 0)
+                // Voices leave empty bars out; the top voice rests for the whole bar when no voice plays.
+                if (index == 0 && staff.Voices.All(voice => !voice.Any(chord => chord.Onset < stop && chord.End > start)))
                 {
                     layers.Add(bar.IsComplete && !bar.IsPickup ? [new MeasureRest()] : [.. Fill(start, stop, grid, space: false)]);
                 }
@@ -283,6 +389,11 @@ public static class NotationGenerator
                 long from = Math.Max(chord.Onset, start);
                 long to = Math.Min(chord.End, stop);
                 elements.AddRange(Fill(cursor, from, grid, space: index > 0));
+                if (from == chord.Onset)
+                {
+                    elements.AddRange(chord.Graces.Select(grace => new ChordPiece(from, 0, 8, 0, grace, 0, tieIn: false, tieOut: false) { IsGrace = true }));
+                }
+
                 foreach ((long pieceStart, long ticks, int dur, int dots) in Decompose(from, to, grid))
                 {
                     elements.Add(new ChordPiece(pieceStart, ticks, dur, dots, chord, chord.NextPiece++, pieceStart > chord.Onset, pieceStart + ticks < chord.End));
@@ -378,7 +489,7 @@ public static class NotationGenerator
         {
             long first = (element.Start - origin) / beamGroup;
             long lastTick = (element.Start + element.Ticks - 1 - origin) / beamGroup;
-            bool beamable = element is ChordPiece && element.Dur >= 8 && first == lastTick;
+            bool beamable = element is ChordPiece { IsGrace: false } && element.Dur >= 8 && first == lastTick;
             if (!beamable || first != groupIndex)
             {
                 Flush();
@@ -579,7 +690,42 @@ public static class NotationGenerator
             xml.WriteEndElement();
         }
 
+        long origin = measure.Bar.IsPickup ? measure.Bar.Span.End.Value - measure.Bar.Signature.BarTicks : measure.Bar.Span.Onset.Value;
+        string Beat(long at) => (1 + ((decimal)(at - origin) * measure.Bar.Signature.Denominator / (4 * CanonicalTime.TicksPerQuarter))).ToString("0.###", CultureInfo.InvariantCulture);
+        if (measure.TempoWord is { } word)
+        {
+            xml.WriteStartElement("dir", MeiNamespace);
+            xml.WriteAttributeString("staff", "1");
+            xml.WriteAttributeString("place", "above");
+            xml.WriteAttributeString("tstamp", Beat(Math.Max(origin, measure.Bar.Span.Onset.Value)));
+            xml.WriteStartElement("rend", MeiNamespace);
+            xml.WriteAttributeString("fontstyle", "italic");
+            xml.WriteString(word);
+            xml.WriteEndElement();
+            xml.WriteEndElement();
+        }
+
+        if (measure.Dynamic is { } dynamic)
+        {
+            xml.WriteStartElement("dynam", MeiNamespace);
+            xml.WriteAttributeString("staff", "1");
+            xml.WriteAttributeString("place", "below");
+            xml.WriteAttributeString("tstamp", Beat(dynamic.At));
+            xml.WriteString(dynamic.Level);
+            xml.WriteEndElement();
+        }
+
         xml.WriteEndElement();
+    }
+
+    private static void WriteAccent(XmlWriter xml, ChordPiece piece)
+    {
+        if (piece.Chord.IsAccented && piece.Index == 0 && !piece.IsGrace)
+        {
+            xml.WriteStartElement("artic", MeiNamespace);
+            xml.WriteAttributeString("artic", "acc");
+            xml.WriteEndElement();
+        }
     }
 
     private static void WriteElement(XmlWriter xml, Element element)
@@ -610,8 +756,14 @@ public static class NotationGenerator
             case ChordPiece piece when piece.Chord.Notes.Length == 1:
                 xml.WriteStartElement("note", MeiNamespace);
                 WriteId(xml, piece.Chord.Notes[0].Note.Id, piece.Index);
+                if (piece.IsGrace)
+                {
+                    xml.WriteAttributeString("grace", "acc");
+                }
+
                 WriteDuration(xml, piece);
                 WritePitch(xml, piece, 0);
+                WriteAccent(xml, piece);
                 xml.WriteEndElement();
                 break;
 
@@ -619,6 +771,7 @@ public static class NotationGenerator
                 xml.WriteStartElement("chord", MeiNamespace);
                 WriteId(xml, "c_" + piece.Chord.Notes[0].Note.Id, piece.Index);
                 WriteDuration(xml, piece);
+                WriteAccent(xml, piece);
                 for (int i = 0; i < piece.Chord.Notes.Length; i++)
                 {
                     xml.WriteStartElement("note", MeiNamespace);
@@ -687,8 +840,13 @@ public static class NotationGenerator
 
     private sealed record ShownNote(Note Note, long Onset, long RawEnd)
     {
-        /// <summary>At least one grid step after the onset, so a very short note still shows.</summary>
-        public long End { get; } = Math.Max(RawEnd, Onset + Grid);
+        /// <summary>At least one grid step after the onset, so a very short note still shows; a grace note takes no time.</summary>
+        public long End => IsGrace ? Onset : Math.Max(RawEnd, Onset + Grid);
+
+        /// <summary>Written as a grace note in front of the chord that holds <see cref="Target"/>.</summary>
+        public bool IsGrace { get; init; }
+
+        public string? Target { get; init; }
     }
 
     private sealed class Chord(long onset, long end, ShownNote[] notes)
@@ -702,6 +860,12 @@ public static class NotationGenerator
 
         /// <summary>The piece number the next bar's piece of this chord gets, for its id.</summary>
         public int NextPiece { get; set; }
+
+        /// <summary>Grace notes written in front of the chord, in the order played.</summary>
+        public List<Chord> Graces { get; } = [];
+
+        /// <summary>Played clearly louder than the notes around it.</summary>
+        public bool IsAccented { get; set; }
     }
 
     private sealed record StaffPlan(int Number, int Track, Clef Clef, Hand? Hand, bool IsSplitInferred, ShownNote[] Notes)
@@ -712,7 +876,14 @@ public static class NotationGenerator
     /// <param name="Origin">Where a full bar would start: before the start of a pickup.</param>
     private readonly record struct BarGrid(long Origin, long Pulse, long Middle);
 
-    private sealed record MeasurePlan(Bar Bar, int Fifths, StaffMeasure[] Staves);
+    private sealed record MeasurePlan(Bar Bar, int Fifths, StaffMeasure[] Staves)
+    {
+        /// <summary>A dynamic written under the top staff, at an onset in the bar.</summary>
+        public (long At, string Level)? Dynamic { get; init; }
+
+        /// <summary>A tempo word written over the top staff at the bar's start.</summary>
+        public string? TempoWord { get; init; }
+    }
 
     private sealed record StaffMeasure(List<List<Element>> Layers);
 
@@ -751,6 +922,9 @@ public static class NotationGenerator
         public bool TieOut { get; } = tieOut;
 
         public SpelledPitch[] Spellings { get; set; } = [];
+
+        /// <summary>A grace note: written small and slashed, taking no time.</summary>
+        public bool IsGrace { get; init; }
 
         public bool[] ShowAccidental { get; set; } = [];
     }

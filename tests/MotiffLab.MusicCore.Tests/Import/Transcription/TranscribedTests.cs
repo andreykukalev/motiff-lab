@@ -95,4 +95,24 @@ public class TranscribedTests
 
         Assert.Throws<ProjectFileException>(() => ProjectFile.Read(System.Text.Encoding.UTF8.GetBytes(file)));
     }
+
+    [Fact]
+    public void The_key_is_worked_out_from_the_notes_with_the_bass_counting_twice()
+    {
+        // The melody alone leans to C minor; the bass on F, A-flat and C makes it F minor.
+        (int Pitch, int Quarters)[] played = [(72, 4), (67, 3), (68, 3), (63, 2), (64, 1), (41, 3), (44, 1), (48, 1)];
+        long at = 0;
+        Note[] notes = [.. played.Select((note, i) => new Note
+        {
+            Id = $"n_{i + 1:D4}",
+            Pitch = new Pitch(note.Pitch),
+            Span = new MotiffLab.MusicCore.Time.TickSpan(new MotiffLab.MusicCore.Time.Tick(at += 480), note.Quarters * 480L),
+            Velocity = 60,
+            Track = 0,
+            Attribution = Attribution.Imported,
+        })];
+
+        Assert.Equal("F minor", Transcribed.KeyOf(notes)!.Value.Name);
+        Assert.Null(Transcribed.KeyOf([]));
+    }
 }

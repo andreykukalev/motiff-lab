@@ -4,6 +4,7 @@ using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import.Midi;
 using MotiffLab.MusicCore.Import.MusicXml;
 using MotiffLab.MusicCore.Notation;
+using MotiffLab.MusicCore.Playback;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Tests.Notation;
@@ -368,7 +369,7 @@ public class NotationGeneratorTests
         // A quarter let go a 16th early, then a quarter with a quarter's rest after it, then the last note.
         Note[] notes = [Note("n_0001", 72, 0, 360), Note("n_0002", 74, 480, 480), Note("n_0003", 76, 1440, 480)];
 
-        GeneratedNotation held = NotationGenerator.Generate(notes, MeterMap.Default, [], new Tick(1920), holdShortGaps: true);
+        GeneratedNotation held = NotationGenerator.Generate(notes, MeterMap.Default, [], new Tick(1920), asHeard: true);
         GeneratedNotation asPlayed = NotationGenerator.Generate(notes, MeterMap.Default, [], new Tick(1920));
 
         XDocument mei = XDocument.Parse(held.Mei);
@@ -385,9 +386,77 @@ public class NotationGeneratorTests
         // A short bass note is followed by a treble note: the bass staff has no next onset to hold to.
         Note[] notes = [Note("n_0001", 40, 0, 240), Note("n_0002", 76, 300, 240), Note("n_0003", 80, 1440, 240)];
 
-        GeneratedNotation held = NotationGenerator.Generate(notes, MeterMap.Default, [], new Tick(1920), holdShortGaps: true);
+        GeneratedNotation held = NotationGenerator.Generate(notes, MeterMap.Default, [], new Tick(1920), asHeard: true);
 
         Assert.Equal(0, held.LengthenedNoteCount);
+    }
+
+    [Fact]
+    public void Written_for_reading_a_chord_has_one_length_and_the_pedal_is_cut_at_the_next_onset()
+    {
+        // A chord whose notes are let go at different times, then a note held by the pedal past the next one.
+        Note[] notes = [Note("n_0001", 72, 0, 450), Note("n_0002", 76, 10, 300), Note("n_0003", 79, 480, 1200), Note("n_0004", 81, 960, 960)];
+
+        GeneratedNotation held = NotationGenerator.Generate(notes, MeterMap.Default, [], new Tick(1920), asHeard: true);
+
+        XDocument mei = XDocument.Parse(held.Mei);
+        XElement chord = Assert.Single(mei.Descendants(s_mei + "chord"));
+        Assert.Equal("4", (string)chord.Attribute("dur")!);
+        Assert.Equal(["n_0001", "n_0002"], chord.Elements(s_mei + "note").Select(note => (string)note.Attribute(s_xml + "id")!).Order());
+        Assert.Equal("4", (string)ById(mei, "n_0003").Attribute("dur")!);
+        Assert.Equal(1, held.CutNoteCount);
+        Assert.Single(mei.Descendants(s_mei + "layer"), layer => layer.Parent!.Attribute("n")!.Value == "1");
+    }
+
+    [Fact]
+    public void Written_for_reading_onsets_go_to_the_nearest_16th_and_a_very_short_note_before_the_next_is_a_grace_note()
+    {
+        // A grace note played 50 ticks before a note that starts a little late.
+        Note[] notes = [Note("n_0001", 74, 450, 40), Note("n_0002", 72, 500, 400), Note("n_0003", 71, 960, 960)];
+
+        GeneratedNotation held = NotationGenerator.Generate(notes, MeterMap.Default, [], new Tick(1920), asHeard: true);
+
+        XDocument mei = XDocument.Parse(held.Mei);
+        Assert.Equal(1, held.GraceNoteCount);
+        Assert.Equal("acc", (string)ById(mei, "n_0001").Attribute("grace")!);
+        Assert.Equal("4", (string)ById(mei, "n_0002").Attribute("dur")!);
+        Assert.True(held.WrittenAsHeard);
+    }
+
+    [Fact]
+    public void Written_as_played_the_score_marks_dynamics_accents_and_tempo_words()
+    {
+        // Six bars of quarters: soft with one loud note in bar 1, loud from bar 3, and the last two bars slower.
+        Note[] notes = [.. Enumerable.Range(0, 24).Select(i => Note($"n_{i + 1:D4}", 72 + (i % 5), i * 480L, 480) with
+        {
+            Velocity = i == 1 ? 110 : i < 8 ? 40 : 90,
+        })];
+        PlaybackTempo[] tempos = [new(Tick.Zero, 500_000), new(new Tick(4 * 1920), 700_000)];
+
+        GeneratedNotation played = NotationGenerator.Generate(notes, MeterMap.Default, [], new Tick(6 * 1920), playedTempos: tempos);
+
+        XDocument mei = XDocument.Parse(played.Mei);
+        XElement[] measures = Measures(mei);
+        Assert.Equal("p", (string)Assert.Single(measures[0].Elements(s_mei + "dynam")));
+        Assert.Equal("f", (string)Assert.Single(measures[2].Elements(s_mei + "dynam")));
+        Assert.Equal(2, played.DynamicCount);
+        Assert.Equal("acc", (string)Assert.Single(mei.Descendants(s_mei + "artic")).Attribute("artic")!);
+        Assert.Equal("n_0002", (string)Assert.Single(mei.Descendants(s_mei + "artic")).Parent!.Attribute(s_xml + "id")!);
+        Assert.Equal("rit.", Assert.Single(mei.Descendants(s_mei + "dir")).Value);
+        Assert.Single(measures[4].Elements(s_mei + "dir"));
+        Assert.False(played.WrittenAsHeard);
+    }
+
+    [Fact]
+    public void Without_the_played_tempos_nothing_is_marked()
+    {
+        Note[] notes = [.. Enumerable.Range(0, 8).Select(i => Note($"n_{i + 1:D4}", 72, i * 480L, 480) with { Velocity = i == 1 ? 110 : 40 })];
+
+        (GeneratedNotation result, XDocument mei) = Generate(notes, end: 3840);
+
+        Assert.Empty(mei.Descendants(s_mei + "dynam"));
+        Assert.Empty(mei.Descendants(s_mei + "artic"));
+        Assert.Equal(0, result.AccentCount);
     }
 
     private static (string Name, string? Accid, string? Gestural) Spelling(XElement note) =>
