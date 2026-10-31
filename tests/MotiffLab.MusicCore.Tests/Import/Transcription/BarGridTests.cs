@@ -251,6 +251,18 @@ public class BarGridTests
         }
     }
 
+    [Fact]
+    public void Applying_moves_the_pedal_with_the_notes()
+    {
+        ImportedPiece played = Import(Played(150_000, Waltz()));
+        MidiPedal held = new(0, 0, 0, 0, TickSpan.FromBounds(played.Notes[0].Span.Onset, played.Notes[6].Span.Onset));
+        ImportedPiece piece = played with { Midi = played.Midi! with { SustainPedal = [held] } };
+
+        ImportedPiece barred = BarGrid.Find(piece.Midi!)!.Apply(piece);
+
+        Assert.Equal(TickSpan.FromBounds(barred.Notes[0].Span.Onset, barred.Notes[6].Span.Onset), Assert.Single(barred.Midi!.SustainPedal).Span);
+    }
+
     private static void SoundsAsHeard(ImportedPiece piece, ImportedPiece barred, BarGrid grid)
     {
         Assert.True(grid.FollowsPlaying);

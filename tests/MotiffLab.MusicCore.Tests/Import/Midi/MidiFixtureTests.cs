@@ -69,9 +69,9 @@ public class MidiFixtureTests
         Assert.Equal(27, report.NoteCount);
         Assert.Equal(4, report.TrackCount);
         Assert.Equal(4, report.CountOf(MidiIssueCodes.DrumsExcluded));
-        Assert.Equal(8, report.CountOf(MidiIssueCodes.SustainPedalIgnored));
         Assert.Equal(0, report.CountOf(MidiIssueCodes.NotesRounded));
-        Assert.Equal(2, report.Issues.Count);
+        Assert.Single(report.Issues);
+        Assert.Equal(4, result.SustainPedal.Count);
         Assert.Equal("Track 4: 4 notes on the drum channel (10) were left out.", report.Issues.Single(i => i.Code == MidiIssueCodes.DrumsExcluded).Message);
     }
 

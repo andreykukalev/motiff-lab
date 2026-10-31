@@ -27,7 +27,6 @@ public static class MidiIssueCodes
     // Dropped
     public const string DrumsExcluded = "midi.drums-excluded";
     public const string NoteOffUnmatched = "midi.note-off-unmatched";
-    public const string SustainPedalIgnored = "midi.sustain-pedal-ignored";
     public const string ControllersIgnored = "midi.controllers-ignored";
     public const string PitchBendIgnored = "midi.pitch-bend-ignored";
     public const string AftertouchIgnored = "midi.aftertouch-ignored";
@@ -59,7 +58,6 @@ public static class MidiIssueCodes
         TrailingBytes => "The file ends with stray bytes after its last track; they were ignored.",
         DrumsExcluded => $"{Plural(count, "note on the drum channel (10) was", "notes on the drum channel (10) were")} left out.",
         NoteOffUnmatched => $"{Plural(count, "note-off had", "note-offs had")} no matching note-on and were left out.",
-        SustainPedalIgnored => $"{Plural(count, "sustain pedal message was", "sustain pedal messages were")} left out; Stage 1 does not use the pedal yet.",
         ControllersIgnored => $"{Plural(count, "controller message was", "controller messages were")} left out.",
         PitchBendIgnored => $"{Plural(count, "pitch bend message was", "pitch bend messages were")} left out.",
         AftertouchIgnored => $"{Plural(count, "aftertouch message was", "aftertouch messages were")} left out.",

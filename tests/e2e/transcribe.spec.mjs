@@ -17,10 +17,9 @@ const server = "http://localhost:8765";
 // The app's service worker would answer the page's requests before the test's stand-in server could.
 test.use({ serviceWorkers: "block" });
 
-/** A second of a 440 Hz tone in stereo at 44.1 kHz, as a WAV file the browser decodes and mixes down. */
-async function recording() {
-    const rate = 44100;
-    const frames = rate;
+/** A 440 Hz tone in stereo, a second at 44.1 kHz by default, as a WAV file the browser decodes and mixes down. */
+async function recording(seconds = 1, rate = 44100) {
+    const frames = seconds * rate;
     const bytes = Buffer.alloc(44 + frames * 4);
     bytes.write("RIFF", 0);
     bytes.writeUInt32LE(36 + frames * 4, 4);
@@ -150,4 +149,28 @@ test("a transcription is written in bars and a tempo worked out from its notes, 
     await page.goto("/");
     await page.getByRole("link", { name: "Take 1 at the piano.mid" }).first().click();
     await expect(page.getByText("heard in a recording")).toBeVisible();
+});
+
+test("a recording longer than two minutes is heard in overlapping parts and its notes are joined", async ({ page }) => {
+    const uploads = await scanServer(page, furElise);
+    await page.goto("/settings");
+    await page.getByRole("button", { name: "Save and check" }).click();
+    await expect(page.getByText("Connected: the scan server runs homr 0.7.0")).toBeVisible();
+
+    await page.goto("/import/recording");
+    await page.getByLabel("Choose an audio or video recording to transcribe").setInputFiles(await recording(240, 8000));
+    await expect(page.getByRole("heading", { name: "Check the transcription" })).toBeVisible({ timeout: 30_000 });
+
+    // Four minutes go as two parts of 2 minutes 5 seconds: each half with five seconds of the other.
+    expect(uploads).toHaveLength(2);
+    for (const body of uploads) {
+        const wav = body.indexOf(Buffer.from("RIFF"));
+        expect(body.readUInt32LE(wav + 40)).toBe(125 * 22050 * 2);
+    }
+
+    // The stand-in answers each part with Für Elise's first 130 s: the first part keeps its first two
+    // minutes, the second what it heard after its five-second lead-in.
+    await expect(page.locator(".report .summary")).toContainText("notes");
+    await expect(page.getByText("240 s of the recording heard", { exact: false })).toBeVisible();
+    await expect(page.getByText("Only the first", { exact: false })).toHaveCount(0);
 });

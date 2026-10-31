@@ -1179,7 +1179,7 @@
         {
             var score = PlaybackScore.FromMidi(midi);
             GeneratedNotation notation = _heard
-                ? HeardNotation(midi.Notes, midi.Meter, _heardKey is { } heardKey ? [new KeyChange(Tick.Zero, heardKey.Fifths)] : [], midi.End, piece.FileName, score.Tempos)
+                ? HeardNotation(midi.Notes, midi.Meter, _heardKey is { } heardKey ? [new KeyChange(Tick.Zero, heardKey.Fifths)] : [], midi.End, piece.FileName, score)
                 : NotationGenerator.FromMidi(midi, piece.FileName);
             await LoadAsync((score, piece.Meter, piece.Notes), piece.FileName, notation, musicXml: null, piece.Keys);
             return;
@@ -1251,10 +1251,12 @@
 
     /// <summary>The piece's notes engraved, in the mode the player chose for notes heard in a recording.</summary>
     private GeneratedNotation Notation(IEnumerable<Note> notes, Tick end) =>
-        _heard ? HeardNotation(notes, _meter!, NotationKeys(), end, _title, _score!.Tempos) : NotationGenerator.Generate(notes, _meter!, NotationKeys(), end, _title);
+        _heard ? HeardNotation(notes, _meter!, NotationKeys(), end, _title, _score!) : NotationGenerator.Generate(notes, _meter!, NotationKeys(), end, _title);
 
-    private GeneratedNotation HeardNotation(IEnumerable<Note> notes, MeterMap meter, IEnumerable<KeyChange> keys, Tick end, string? title, IReadOnlyList<PlaybackTempo> tempos) =>
-        NotationGenerator.Generate(notes, meter, keys, end, title, asHeard: _readable, playedTempos: _readable ? null : tempos);
+    private GeneratedNotation HeardNotation(IEnumerable<Note> notes, MeterMap meter, IEnumerable<KeyChange> keys, Tick end, string? title, PlaybackScore played) =>
+        _readable
+            ? NotationGenerator.Generate(notes, meter, keys, end, title, asHeard: true)
+            : NotationGenerator.Generate(notes, meter, keys, end, title, playedTempos: played.Tempos, pedal: played.Pedal.Select(held => held.Span));
 
     /// <summary>Notes heard in a recording, written for reading or as played.</summary>
     private void SetReadable(bool readable)
@@ -1291,9 +1293,19 @@
         else if (_heard)
         {
             parts.Add(Text["score.asPlayedNote"]);
-            if (notation.DynamicCount + notation.AccentCount + notation.TempoWordCount > 0)
+            if (notation.DynamicCount + notation.AccentCount + notation.TempoWordCount + notation.HairpinCount > 0)
             {
                 parts.Add(Text["score.playingMarks"]);
+            }
+
+            if (notation.SlurCount > 0)
+            {
+                parts.Add(Text["score.slurs"]);
+            }
+
+            if (notation.PedalCount > 0)
+            {
+                parts.Add(Text["score.pedal"]);
             }
         }
         else if (notation.ApproximatedNoteCount > 0)
@@ -1855,7 +1867,7 @@
             _selection = MotifSelector.Select(_notes, _meter!, current.Span, _filter);
         }
 
-        _score = PlaybackScore.Create(_notes, _score!.Tempos, _meter!, _score.End);
+        _score = PlaybackScore.Create(_notes, _score!.Tempos, _meter!, _score.End, _score.Pedal);
         _lastBar = MotifSelector.LastBar(_meter!, _score.End);
         _phrases = PhraseMap.Suggest(_notes, _meter!, _phraseMarks, _score.End, _phrases?.Edits);
         _generated = ScoreSource.FromNotes(Notation(_notes, _score.End));

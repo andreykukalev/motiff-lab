@@ -188,11 +188,13 @@ public class MidiImporterTests
         Assert.All(
             new[]
             {
-                MidiIssueCodes.SustainPedalIgnored, MidiIssueCodes.ControllersIgnored, MidiIssueCodes.PitchBendIgnored,
+                MidiIssueCodes.ControllersIgnored, MidiIssueCodes.PitchBendIgnored,
                 MidiIssueCodes.SysExIgnored, MidiIssueCodes.MetaIgnored, MidiIssueCodes.NoteOffUnmatched,
             },
             code => Assert.Equal(1, report.CountOf(code)));
         Assert.Equal(2, report.CountOf(MidiIssueCodes.AftertouchIgnored));
+        MidiPedal held = Assert.Single(result.SustainPedal);
+        Assert.Equal(new TickSpan(Tick.Zero, 1), held.Span);
         Assert.All(
             report.Issues.Where(issue => issue.Code is not (MidiIssueCodes.TempoDefault or MidiIssueCodes.MeterDefault)),
             issue => Assert.Equal(ImportIssueKind.Dropped, issue.Kind));

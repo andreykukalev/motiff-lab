@@ -36,6 +36,15 @@ public sealed record GeneratedNotation(
 
     /// <summary>Tempo words ("rit.", "accel.", "a tempo") written where the playing slowed down or sped up.</summary>
     public int TempoWordCount { get; init; }
+
+    /// <summary>Crescendos and diminuendos written where the melody grew louder or softer: hairpins, or "cresc." and "dim." where longer than a bar.</summary>
+    public int HairpinCount { get; init; }
+
+    /// <summary>Slurs written where the melody's keys were held into the next note.</summary>
+    public int SlurCount { get; init; }
+
+    /// <summary>Times the sustain pedal is written as held, each with "Ped." and "*".</summary>
+    public int PedalCount { get; init; }
 }
 
 /// <param name="Number">The MEI staff number, from 1 at the top.</param>

@@ -39,6 +39,12 @@ public static class NotationGenerator
 
     private const int MiddleC = 60;
 
+    /// <summary>How much earlier than the next note a key may be let go, still legato: 30 ticks, a 64th.</summary>
+    private const long LegatoGap = CanonicalTime.TicksPerQuarter / 16;
+
+    /// <summary>The longest step between two notes under one slur: a half note.</summary>
+    private const long MostLegatoStep = 2 * CanonicalTime.TicksPerQuarter;
+
     private const string MeiNamespace = "http://www.music-encoding.org/ns/mei";
 
     // Note values from longest to shortest: ticks, MEI @dur, dots. The last three are only for
@@ -95,10 +101,15 @@ public static class NotationGenerator
     /// <param name="playedTempos">
     /// For notes heard in a recording, written as played: the tempo that follows the playing. When
     /// given, the score is marked with how the notes were played, all of it inferred: dynamics from
-    /// how loud the bars are, accents on notes clearly louder than those around them, and "rit.",
-    /// "accel." and "a tempo" where the bars slow down or speed up.
+    /// how loud the bars are, accents on notes clearly louder than those around them, "rit.",
+    /// "accel." and "a tempo" where the bars slow down or speed up, hairpins where the melody grows
+    /// louder or softer, and slurs where the melody's keys were held into the next note.
     /// </param>
-    public static GeneratedNotation Generate(IEnumerable<Note> notes, MeterMap meter, IEnumerable<KeyChange> keys, Tick end, string? title = null, bool asHeard = false, IReadOnlyList<PlaybackTempo>? playedTempos = null)
+    /// <param name="pedal">
+    /// With <paramref name="playedTempos"/>: when the sustain pedal was held, written as "Ped." and
+    /// "*" under the bottom staff.
+    /// </param>
+    public static GeneratedNotation Generate(IEnumerable<Note> notes, MeterMap meter, IEnumerable<KeyChange> keys, Tick end, string? title = null, bool asHeard = false, IReadOnlyList<PlaybackTempo>? playedTempos = null, IEnumerable<TickSpan>? pedal = null)
     {
         ArgumentNullException.ThrowIfNull(notes);
         ArgumentNullException.ThrowIfNull(meter);
@@ -133,6 +144,44 @@ public static class NotationGenerator
             }
         }
 
+        var controls = new ControlEvents[bars.Length];
+        for (int index = 0; index < bars.Length; index++)
+        {
+            controls[index] = new ControlEvents();
+        }
+
+        int pedalCount = 0, slurCount = 0;
+        if (marks is not null)
+        {
+            foreach ((long start, long stop, bool crescendo) in marks.Hairpins)
+            {
+                // Longer than a bar a hairpin is thin and hard to follow, so it is written as a word.
+                int first = BarIndex(bars, start), final = BarIndex(bars, stop);
+                bool word = stop - start > bars[first].Signature.BarTicks;
+                controls[first].Hairpins.Add(new HairpinPlan(start, crescendo, word ? null : $"{Number(final - first)}m+{Beat(bars[final], stop)}"));
+            }
+
+            foreach ((Chord from, Chord to, int staff) in Slurs(staves, bars))
+            {
+                controls[BarIndex(bars, from.Onset)].Slurs.Add((from, to, staff));
+                slurCount++;
+            }
+
+            int bottom = staves.Count == 0 ? 1 : staves.Max(staff => staff.Number);
+            foreach (TickSpan held in (pedal ?? []).OrderBy(span => span.Onset))
+            {
+                long down = Snap(held.Onset.Value), up = Snap(held.End.Value);
+                if (up - down < Grid || down >= last)
+                {
+                    continue;
+                }
+
+                controls[BarIndex(bars, down)].Pedals.Add((down, true, bottom));
+                controls[BarIndex(bars, Math.Min(up, last - 1))].Pedals.Add((up, false, bottom));
+                pedalCount++;
+            }
+        }
+
         var measures = new List<MeasurePlan>(bars.Length);
         for (int index = 0; index < bars.Length; index++)
         {
@@ -142,6 +191,7 @@ public static class NotationGenerator
             {
                 Dynamic = marks is not null && marks.Dynamics.TryGetValue(index, out (long At, string Level) dynamic) ? dynamic : null,
                 TempoWord = marks is not null && marks.TempoWords.TryGetValue(index, out string? word) ? word : null,
+                Controls = controls[index],
             });
         }
 
@@ -152,7 +202,72 @@ public static class NotationGenerator
             AccentCount = marks?.Accented.Count ?? 0,
             DynamicCount = marks?.Dynamics.Count ?? 0,
             TempoWordCount = marks?.TempoWords.Count ?? 0,
+            HairpinCount = marks?.Hairpins.Count ?? 0,
+            SlurCount = slurCount,
+            PedalCount = pedalCount,
         };
+    }
+
+    /// <summary>The index of the bar that holds <paramref name="tick"/>: the last bar for a tick at or after the end.</summary>
+    private static int BarIndex(Bar[] bars, long tick)
+    {
+        int low = 0, high = bars.Length - 1;
+        while (low < high)
+        {
+            int middle = (low + high + 1) / 2;
+            if (bars[middle].Span.Onset.Value <= tick)
+            {
+                low = middle;
+            }
+            else
+            {
+                high = middle - 1;
+            }
+        }
+
+        return low;
+    }
+
+    /// <summary>A position in a bar as an MEI time stamp: 1 on the bar's first beat, counted in the bar's beats.</summary>
+    private static string Beat(Bar bar, long at)
+    {
+        long origin = bar.IsPickup ? bar.Span.End.Value - bar.Signature.BarTicks : bar.Span.Onset.Value;
+        return (1 + ((decimal)(at - origin) * bar.Signature.Denominator / (4 * CanonicalTime.TicksPerQuarter))).ToString("0.###", CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
+    /// Legato on the top staff of each part: the melody (the highest note at each onset) under a slur
+    /// wherever at least three of its notes follow each other with the key held to the next one
+    /// (within <see cref="LegatoGap"/>), at most two bars to a slur, ending at a bar line.
+    /// </summary>
+    private static IEnumerable<(Chord From, Chord To, int Staff)> Slurs(List<StaffPlan> staves, Bar[] bars)
+    {
+        foreach (StaffPlan staff in staves.GroupBy(staff => staff.Track).Select(track => track.MinBy(staff => staff.Number)!))
+        {
+            Chord[] line = [.. staff.Voices.SelectMany(voice => voice)
+                .GroupBy(chord => chord.Onset)
+                .Select(group => group.MaxBy(chord => chord.Notes[^1].Note.Pitch.MidiNumber)!)
+                .OrderBy(chord => chord.Onset)];
+            int start = 0;
+            for (int i = 1; i <= line.Length; i++)
+            {
+                bool joined = i < line.Length
+                    && line[i].Onset - line[i - 1].Onset <= MostLegatoStep
+                    && line[i - 1].Notes[^1].Note.Span.End.Value + LegatoGap >= line[i].Notes[^1].Note.Span.Onset.Value
+                    && BarIndex(bars, line[i].Onset) - BarIndex(bars, line[start].Onset) < 2;
+                if (joined)
+                {
+                    continue;
+                }
+
+                if (i - start >= 3)
+                {
+                    yield return (line[start], line[i - 1], staff.Number);
+                }
+
+                start = i;
+            }
+        }
     }
 
     private static long Snap(long tick) => (tick + (Grid / 2)) / Grid * Grid;
@@ -691,7 +806,7 @@ public static class NotationGenerator
         }
 
         long origin = measure.Bar.IsPickup ? measure.Bar.Span.End.Value - measure.Bar.Signature.BarTicks : measure.Bar.Span.Onset.Value;
-        string Beat(long at) => (1 + ((decimal)(at - origin) * measure.Bar.Signature.Denominator / (4 * CanonicalTime.TicksPerQuarter))).ToString("0.###", CultureInfo.InvariantCulture);
+        string Beat(long at) => NotationGenerator.Beat(measure.Bar, at);
         if (measure.TempoWord is { } word)
         {
             xml.WriteStartElement("dir", MeiNamespace);
@@ -715,8 +830,55 @@ public static class NotationGenerator
             xml.WriteEndElement();
         }
 
+        foreach (HairpinPlan hairpin in measure.Controls.Hairpins.Where(hairpin => hairpin.Tstamp2 is null))
+        {
+            xml.WriteStartElement("dir", MeiNamespace);
+            xml.WriteAttributeString("staff", "1");
+            xml.WriteAttributeString("place", "below");
+            xml.WriteAttributeString("tstamp", Beat(hairpin.At));
+            xml.WriteStartElement("rend", MeiNamespace);
+            xml.WriteAttributeString("fontstyle", "italic");
+            xml.WriteString(hairpin.Crescendo ? "cresc." : "dim.");
+            xml.WriteEndElement();
+            xml.WriteEndElement();
+        }
+
+        foreach (HairpinPlan hairpin in measure.Controls.Hairpins.Where(hairpin => hairpin.Tstamp2 is not null))
+        {
+            xml.WriteStartElement("hairpin", MeiNamespace);
+            xml.WriteAttributeString("form", hairpin.Crescendo ? "cres" : "dim");
+            xml.WriteAttributeString("staff", "1");
+            xml.WriteAttributeString("place", "below");
+            xml.WriteAttributeString("tstamp", Beat(hairpin.At));
+            xml.WriteAttributeString("tstamp2", hairpin.Tstamp2!);
+            xml.WriteEndElement();
+        }
+
+        foreach ((Chord from, Chord to, int staff) in measure.Controls.Slurs)
+        {
+            xml.WriteStartElement("slur", MeiNamespace);
+            xml.WriteAttributeString("staff", Number(staff));
+            xml.WriteAttributeString("startid", "#" + ChordId(from));
+            xml.WriteAttributeString("endid", "#" + ChordId(to));
+            xml.WriteEndElement();
+        }
+
+        foreach ((long at, bool down, int staff) in measure.Controls.Pedals)
+        {
+            xml.WriteStartElement("pedal", MeiNamespace);
+            xml.WriteAttributeString("staff", Number(staff));
+            xml.WriteAttributeString("place", "below");
+            xml.WriteAttributeString("tstamp", Beat(at));
+            xml.WriteAttributeString("dir", down ? "down" : "up");
+            xml.WriteEndElement();
+        }
+
         xml.WriteEndElement();
     }
+
+    /// <summary>The id of a chord's first piece, as <see cref="WriteElement"/> writes it.</summary>
+    private static string ChordId(Chord chord) =>
+        XmlConvert.EncodeLocalName(chord.Notes.Length == 1 ? chord.Notes[0].Note.Id : "c_" + chord.Notes[0].Note.Id)!;
 
     private static void WriteAccent(XmlWriter xml, ChordPiece piece)
     {
@@ -883,7 +1045,23 @@ public static class NotationGenerator
 
         /// <summary>A tempo word written over the top staff at the bar's start.</summary>
         public string? TempoWord { get; init; }
+
+        /// <summary>Hairpins, slurs and pedal marks that start in the bar.</summary>
+        public ControlEvents Controls { get; init; } = new();
     }
+
+    private sealed class ControlEvents
+    {
+        public List<HairpinPlan> Hairpins { get; } = [];
+
+        public List<(Chord From, Chord To, int Staff)> Slurs { get; } = [];
+
+        /// <summary>"Ped." (down) or "*" (up) at a tick, under a staff.</summary>
+        public List<(long At, bool Down, int Staff)> Pedals { get; } = [];
+    }
+
+    /// <param name="Tstamp2">Where it ends: bars ahead and the beat in that bar, as MEI writes it; none for "cresc." or "dim." written as a word.</param>
+    private sealed record HairpinPlan(long At, bool Crescendo, string? Tstamp2);
 
     private sealed record StaffMeasure(List<List<Element>> Layers);
 
