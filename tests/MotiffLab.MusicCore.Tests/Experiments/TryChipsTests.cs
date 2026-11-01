@@ -70,8 +70,9 @@ public class TryChipsTests
         Assert.Equal(offered[0].OperationId, chain.Steps[0].Operation.Id);
         Assert.Equal(KeepTable.FindPreset(offered[0].KeepPresetId)!.Keep, chain.Context.Keep);
 
-        Assert.Null(TryChips.Start(TryChips.Find("v3.voicing")!, context, out string? missing));
-        Assert.Contains("V3", missing);
+        Assert.All(TryChips.Chips, chip => Assert.True(chip.IsBuilt));
+        Assert.Null(TryChips.Start(new TryChip("v5.colour", "V5", null, "keep-melody", "Colour", "Краска"), context, out string? missing));
+        Assert.Contains("V5", missing);
         Assert.Equal(TryChips.Offer("character.articulation", context), TryChips.Offer("character.articulation", context));
     }
 }

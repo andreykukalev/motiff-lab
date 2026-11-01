@@ -262,7 +262,7 @@ public static class InvitationCatalogue
             InvitationKind.Experiment,
             ["character.register"],
             $"Every note of the motif is {(above ? "at or above" : "below")} middle C. What stays the same if it moves an octave {direction}?",
-            new OperationAction("V3", $"octave shift {(shift < 0 ? "down" : "up")}", null, "keep-melody"));
+            new OperationAction("V3", $"octave shift {(shift < 0 ? "down" : "up")}", new VoicingParameters(shift < 0 ? VoicingKind.OctaveDown : VoicingKind.OctaveUp), "keep-melody"));
     }
 
     /// <summary>The preset's id when the Keep table allows the operation with it and the operation can run on the motif; otherwise null.</summary>

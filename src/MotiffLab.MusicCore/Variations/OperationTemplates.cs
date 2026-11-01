@@ -40,6 +40,8 @@ public static class OperationTemplates
             BassPattern.OperationId => Rebassed(before, after, meter, key, words),
             Ornament.OperationId => Ornamented(before, after, key, words),
             AccentShift.OperationId => Accented(changes, words),
+            VoicingAndRegister.OperationId => Revoiced(changes, before, after, key, meter, words),
+            Simplify.OperationId => Simplified(changes, before, after, words),
             PassingNotes.OperationId => Filled(before, after, key, words),
             Reharmonise.OperationId => Reharmonised(changes, before, after, key, meter, words),
             _ => null,
@@ -351,6 +353,127 @@ public static class OperationTemplates
             _ => ("A trill", "the note and the note above, in turn"),
         };
         return $"{english} on {(count == 1 ? "1 long note" : $"{count} long notes")} ({names}): {shape}, {step} each, then the note held; every other note is unchanged.";
+    }
+
+    /// <summary>
+    /// V3: "4 notes move an octave higher; their note names and the rhythm are unchanged.", "The chords keep their notes
+    /// and change position: C F G7 C become C/E F/A G7/D C/E; 6 notes move by an octave, and the melody and the rhythm
+    /// are unchanged.", "5 chord notes move by an octave (3 up, 2 down); …", or "3 notes move to the right hand; every
+    /// pitch, onset and length is unchanged.", when only octaves or hands changed.
+    /// </summary>
+    private static string? Revoiced(IReadOnlyList<NoteChange> changes, MotifTexture before, MotifTexture after, MusicalKey? key, MeterMap meter, Words w)
+    {
+        if (before.Notes.Count != after.Notes.Count || changes.Any(static change => change.OnsetChanged || change.DurationChanged || change.Before.Velocity != change.After.Velocity))
+        {
+            return null;
+        }
+
+        NoteChange[] moved = [.. changes.Where(static change => change.PitchChanged)];
+        NoteChange[] handed = [.. changes.Where(static change => change.Before.Hand?.Value != change.After.Hand?.Value)];
+        if (moved.Length == 0)
+        {
+            if (handed.Length == 0 || handed.Select(static change => change.After.Hand?.Value).Distinct().Count() != 1)
+            {
+                return null;
+            }
+
+            bool right = handed[0].After.Hand?.Value == Hand.Right;
+            return w.IsRussian
+                ? $"{w.Count(handed.Length, "", "", "нота", "ноты", "нот")} {Words.RussianForm(handed.Length, "переходит", "переходят", "переходят")} в {(right ? "правую" : "левую")} руку; высоты, начала и длительности не изменились."
+                : $"{(handed.Length == 1 ? "1 note moves" : $"{handed.Length} notes move")} to the {(right ? "right" : "left")} hand; every pitch, onset and length is unchanged.";
+        }
+
+        if (handed.Length > 0 || moved.Any(static change => (change.After.Pitch.MidiNumber - change.Before.Pitch.MidiNumber) % 12 != 0))
+        {
+            return null;
+        }
+
+        int up = moved.Count(static change => change.After.Pitch.MidiNumber > change.Before.Pitch.MidiNumber);
+        int down = moved.Length - up;
+        string Notes(int count) => w.Count(count, "note", "notes", "нота", "ноты", "нот");
+        if (moved.Length == before.Notes.Count && moved.All(change => change.After.Pitch.MidiNumber - change.Before.Pitch.MidiNumber == (up > 0 ? 12 : -12)))
+        {
+            return w.IsRussian
+                ? $"{Notes(moved.Length)} {Words.RussianForm(moved.Length, "звучит", "звучат", "звучат")} на октаву {(up > 0 ? "выше" : "ниже")}; названия звуков и ритм не изменились."
+                : $"{moved.Length} {(moved.Length == 1 ? "note moves" : "notes move")} an octave {(up > 0 ? "higher" : "lower")}; their note names and the rhythm are unchanged.";
+        }
+
+        static (long, long, int) Shape(Note note) => (note.Span.Onset.Value, note.Span.Duration, note.Pitch.MidiNumber);
+        if (!before.Melody.Select(Shape).SequenceEqual(after.Melody.Select(Shape)))
+        {
+            return null;
+        }
+
+        MusicalKey spelling = key ?? new MusicalKey(0, KeyMode.Major);
+        var span = TickSpan.FromBounds(before.Notes.Min(static note => note.Span.Onset), before.Notes.Max(static note => note.Span.End));
+        string[] was = [.. HarmonyAnalyzer.FindChords(before.Notes, meter, span, key).Select(chord => chord.Symbol(spelling))];
+        string[] now = [.. HarmonyAnalyzer.FindChords(after.Notes, meter, span, key).Select(chord => chord.Symbol(spelling))];
+        string how = up > 0 && down > 0
+            ? w.T($" ({up} up, {down} down)", $" ({up} вверх, {down} вниз)")
+            : w.T(up > 0 ? " up" : " down", up > 0 ? " вверх" : " вниз");
+        string octaves = w.IsRussian
+            ? $"{Notes(moved.Length)} {Words.RussianForm(moved.Length, "переходит", "переходят", "переходят")} на октаву{how}"
+            : $"{moved.Length} chord {(moved.Length == 1 ? "note moves" : "notes move")} by an octave{how}";
+        if (was.Length > 0 && was.Length == now.Length && !was.SequenceEqual(now))
+        {
+            return w.IsRussian
+                ? $"Аккорды сохраняют звуки и меняют расположение: {string.Join(" ", was)} → {string.Join(" ", now)}; {octaves}, а мелодия и ритм не изменились."
+                : $"The chords keep their notes and change position: {string.Join(" ", was)} become {string.Join(" ", now)}; {octaves}, and the melody and the rhythm are unchanged.";
+        }
+
+        return w.IsRussian
+            ? $"{octaves}: аккорды сохраняют звуки, а мелодия и ритм не изменились."
+            : $"{char.ToUpperInvariant(octaves[0])}{octaves[1..]}; the chords keep their notes, and the melody and the rhythm are unchanged.";
+    }
+
+    /// <summary>
+    /// V6: "6 inner notes are left out; the bass plays one root per chord; 12 notes move to the nearest eighth; the
+    /// melody's line stays.", from what the diff removed, added and moved.
+    /// </summary>
+    private static string? Simplified(IReadOnlyList<NoteChange> changes, MotifTexture before, MotifTexture after, Words w)
+    {
+        Note[] removed = [.. before.Notes.Where(note => !after.Notes.Any(other => other.Id == note.Id))];
+        Note[] added = [.. after.Notes.Where(note => !before.Notes.Any(other => other.Id == note.Id))];
+        if (removed.Length == 0 && changes.All(static change => !change.PitchChanged && !change.OnsetChanged && !change.DurationChanged))
+        {
+            return null;
+        }
+
+        int roots = added.Count(static note => note.Id.EndsWith("~b1", StringComparison.Ordinal));
+        int rounded = changes.Count(static change => change.OnsetChanged || change.DurationChanged);
+        int folded = changes.Count(static change => change.PitchChanged);
+        string Notes(int count) => w.Count(count, "note", "notes", "нота", "ноты", "нот");
+        var parts = new List<string>();
+        if (removed.Length > 0)
+        {
+            parts.Add(w.IsRussian
+                ? $"{Notes(removed.Length)} {Words.RussianForm(removed.Length, "убрана", "убраны", "убраны")}"
+                : $"{removed.Length} {(removed.Length == 1 ? "note is" : "notes are")} left out");
+        }
+
+        if (roots > 0)
+        {
+            parts.Add(w.T(
+                $"the bass plays {(roots == 1 ? "1 root" : $"{roots} roots")}, one per chord",
+                $"в басу {w.Count(roots, "", "", "основной тон", "основных тона", "основных тонов")}, по одному на аккорд"));
+        }
+
+        if (rounded > 0)
+        {
+            parts.Add(w.IsRussian
+                ? $"{Notes(rounded)} {Words.RussianForm(rounded, "встала", "встали", "встали")} на ближайшую восьмую"
+                : $"{rounded} {(rounded == 1 ? "note moves" : "notes move")} to the nearest eighth");
+        }
+
+        if (folded > 0)
+        {
+            parts.Add(w.IsRussian
+                ? $"{Notes(folded)} мелодии {Words.RussianForm(folded, "перенесена", "перенесены", "перенесены")} на октаву, чтобы скачок был не шире октавы"
+                : $"{folded} melody {(folded == 1 ? "note moves" : "notes move")} by an octave, so no leap is wider than an octave");
+        }
+
+        string list = string.Join("; ", parts);
+        return $"{char.ToUpperInvariant(list[0])}{list[1..]}.";
     }
 
     /// <summary>
