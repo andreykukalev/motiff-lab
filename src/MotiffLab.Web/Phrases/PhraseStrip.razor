@@ -6,17 +6,36 @@
 @inject IJSRuntime JS
 @inject MotiffLab.Web.Localization.UiText Text
 
-@* The piece as phrases (S1-I5, #18): the phrases music-core suggests, each marked with how its start was found, to pick
-   as the working context, and the player's own boundaries; previous and next phrase by touch and with Page Up and Page Down (#126),
-   and the selection run on into a neighbouring phrase. It only displays the workspace state (0013) and what PhraseMap returns; the page selects and saves. *@
+@* The piece as sentences and phrases (S1-I5, #18, #133): the sentences music-core groups over the phrases, each marked with how it was found,
+   and the phrases, each marked with how its start was found, to pick as the working context, with the player's own boundaries; the phrases of the
+   selected sentence are outlined as its children (0013 section 3); previous and next sibling at the selected level by touch and with Page Up and
+   Page Down (#126), and the selection run on into a neighbouring phrase. It only displays the workspace state and what the maps return; the page selects and saves. *@
 <nav class="phrases" aria-label="@Text["workspace.phrases"]" data-keeps-selection>
+    @if (Sentences.Count > 0)
+    {
+        <div class="sentence-list" role="group" aria-label="@Text["phrases.sentencesOfPiece"]">
+            @foreach (Sentence sentence in Sentences)
+            {
+                // A sentence of one phrase is selected whole exactly when its phrase is.
+                bool on = State.Selection.Sentence == sentence || (sentence.Phrases is [{ } only] && State.Selection.Phrase == only);
+                bool around = !on && State.Selection.SentenceAround == sentence;
+                <button class="sentence @SentenceKindClass(sentence) @(on ? "on" : around ? "around" : null)" aria-pressed="@(on ? "true" : "false")"
+                        aria-label="@SentenceLabel(sentence)" title="@sentence.Basis" @onclick="() => SentencePicked.InvokeAsync(sentence)">
+                    <span class="number">@sentence.Letter</span>
+                    <span class="bars">@Bars(sentence.FirstBar, sentence.LastBar)</span>
+                    <span class="how">@SentenceTag(sentence)</span>
+                </button>
+            }
+        </div>
+    }
     <div class="phrase-list" role="group" aria-label="@Text["phrases.ofPiece"]">
-        <button class="step" aria-label="@Text["focus.previous"]" title="@Text["phrases.previousKey"]" disabled="@(Previous is null)" @onclick="() => StepAsync(-1)">‹</button>
+        <button class="step" aria-label="@StepLabel(-1)" title="@StepTitle(-1)" disabled="@(!State.Selection.CanStep(-1))" @onclick="() => StepAsync(-1)">‹</button>
         @foreach (Phrase phrase in Map.Phrases)
         {
             bool on = Current?.Number == phrase.Number;
+            bool child = !on && State.Selection.Sentence is { } selected && selected.Contains(phrase.Span);
             int kept = KeptCount?.Invoke(phrase) ?? 0;
-            <button class="phrase @KindClass(phrase.Start) @(on ? "on" : null)" aria-pressed="@(on ? "true" : "false")"
+            <button class="phrase @KindClass(phrase.Start) @(on ? "on" : child ? "child" : null)" aria-pressed="@(on ? "true" : "false")"
                     aria-label="@(Label(phrase) + KeptText(kept))" title="@Title(phrase)" @onclick="() => Picked.InvokeAsync(phrase)">
                 <span class="number">@phrase.Number</span>
                 <span class="bars">@Bars(phrase)</span>
@@ -27,7 +46,7 @@
                 }
             </button>
         }
-        <button class="step" aria-label="@Text["focus.next"]" title="@Text["phrases.nextKey"]" disabled="@(Next is null)" @onclick="() => StepAsync(1)">›</button>
+        <button class="step" aria-label="@StepLabel(1)" title="@StepTitle(1)" disabled="@(!State.Selection.CanStep(1))" @onclick="() => StepAsync(1)">›</button>
     </div>
     @* The boundary and transition tools fold away (0012), so the strip is one row of phrases to pick. *@
     <div class="row phrase-more">
@@ -90,6 +109,13 @@
     [Parameter]
     public EventCallback<Phrase> Picked { get; set; }
 
+    /// <summary>Raised with a sentence to select whole as the working context (#133).</summary>
+    [Parameter]
+    public EventCallback<Sentence> SentencePicked { get; set; }
+
+    /// <summary>The sentences over the phrases; none until music-core has grouped them.</summary>
+    private IReadOnlyList<Sentence> Sentences => State.Selection.Sentences;
+
     [Parameter]
     public EventCallback Make { get; set; }
 
@@ -134,10 +160,27 @@
         }
     }
 
-    /// <summary>Selects the previous (-1) or next (1) phrase, from the buttons or from Page Up and Page Down.</summary>
+    /// <summary>Selects the previous (-1) or next (1) sibling at the selected level, from the buttons or from Page Up and Page Down: a sentence while a sentence is selected, else a phrase.</summary>
     [JSInvokable]
-    public Task StepAsync(int direction) =>
-        (direction < 0 ? Previous : Next) is { } phrase ? Picked.InvokeAsync(phrase) : Task.CompletedTask;
+    public Task StepAsync(int direction)
+    {
+        if (State.Selection.Level == SelectionLevel.Sentence)
+        {
+            return (direction < 0 ? State.Selection.PreviousSentence : State.Selection.NextSentence) is { } sentence ? SentencePicked.InvokeAsync(sentence) : Task.CompletedTask;
+        }
+
+        return (direction < 0 ? Previous : Next) is { } phrase ? Picked.InvokeAsync(phrase) : Task.CompletedTask;
+    }
+
+    /// <summary>"Previous sentence" while a sentence is selected, else "Previous phrase".</summary>
+    private string StepLabel(int direction) => State.Selection.Level == SelectionLevel.Sentence
+        ? Text[direction < 0 ? "focus.previousSentence" : "focus.nextSentence"]
+        : Text[direction < 0 ? "focus.previous" : "focus.next"];
+
+    /// <summary>The step label with its key: "Previous sentence (Page Up)".</summary>
+    private string StepTitle(int direction) => State.Selection.Level == SelectionLevel.Sentence
+        ? Text[direction < 0 ? "phrases.previousSentenceKey" : "phrases.nextSentenceKey"]
+        : Text[direction < 0 ? "phrases.previousKey" : "phrases.nextKey"];
 
     public async ValueTask DisposeAsync()
     {
@@ -167,8 +210,25 @@
         _ => null,
     };
 
-    private string Bars(Phrase phrase) =>
-        phrase.FirstBar == phrase.LastBar ? Text.Format("bars.one", phrase.FirstBar) : Text.Format("bars.range", phrase.FirstBar, phrase.LastBar);
+    private string Bars(Phrase phrase) => Bars(phrase.FirstBar, phrase.LastBar);
+
+    private string Bars(int first, int last) => first == last ? Text.Format("bars.one", first) : Text.Format("bars.range", first, last);
+
+    /// <summary>"Sentence A, bars 1–8, phrases 1–2, inferred (60% sure)".</summary>
+    private string SentenceLabel(Sentence sentence) =>
+        Text.Format("sentences.label", sentence.Letter, Bars(sentence.FirstBar, sentence.LastBar), sentence.PhrasesIn(Words)) + sentence.Found.Provenance switch
+        {
+            Provenance.Inferred => Text.Format("sentences.inferred", (int)Math.Round(sentence.Found.Confidence * 100)),
+            Provenance.Detected => Text["sentences.fromRepeatSign"],
+            _ => "",
+        };
+
+    /// <summary>The short tag on the chip: the phrases it holds, and "inferred" when the grouping is a reading of the notes.</summary>
+    private string SentenceTag(Sentence sentence) =>
+        sentence.Found.Provenance == Provenance.Inferred ? Text.Format("sentences.tagInferred", sentence.PhrasesIn(Words)) : sentence.PhrasesIn(Words);
+
+    /// <summary>Certainty by line as well as colour: solid for a repeat sign in the file, dashed for an inferred grouping.</summary>
+    private static string SentenceKindClass(Sentence sentence) => sentence.Found.Provenance == Provenance.Inferred ? "inferred" : "detected";
 
     /// <summary>"Phrase 2, bars 3–4, starts after a rest of a beat or more, inferred".</summary>
     private string Label(Phrase phrase) => Text.Format("phrases.label", phrase.Number, Bars(phrase), Describe(phrase.Start));

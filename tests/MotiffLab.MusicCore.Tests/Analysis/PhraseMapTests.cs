@@ -69,8 +69,8 @@ public class PhraseMapTests
 
         Assert.Equal(PhraseEvidenceLevel.Partial, map.Evidence);
         Assert.False(map.Phrases[0].FitsSelection);
-        // The long phrase is selected up to the most bars a selection holds.
-        Assert.Equal(TickSpan.FromBounds(Tick.Zero, new Tick(8 * Bar)), map.Selectable(map.Phrases[0]));
+        // The long phrase does not fit a range selection, but as a structure it is selected whole (decision record 0013).
+        Assert.Equal(map.Phrases[0].Span, map.Selectable(map.Phrases[0]));
         Assert.Equal(map.Phrases[1].Span, map.Selectable(map.Phrases[1]));
     }
 

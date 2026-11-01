@@ -20,7 +20,7 @@
             <h3>@experiment.Title</h3>
             <p>@experiment.Change</p>
             <p class="question">@experiment.Question</p>
-            <p class="passage">@Text[trial.Elsewhere ? "explore.motifReturn" : "explore.selectedPhrase"] · @Bars(experiment.Passage.FirstBar, experiment.Passage.LastBar)</p>
+            <p class="passage">@Text[trial.Elsewhere ? "explore.motifReturn" : State.Selection.Level == SelectionLevel.Sentence ? "explore.selectedSentence" : "explore.selectedPhrase"] · @Bars(experiment.Passage.FirstBar, experiment.Passage.LastBar)</p>
             @if (experiment.Alternatives.Count > 1)
             {
                 <div class="choices" role="group" aria-label="@Text["explore.ways"]">

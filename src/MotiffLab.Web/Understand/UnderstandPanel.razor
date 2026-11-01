@@ -1,12 +1,15 @@
 @using MotiffLab.MusicCore.Analysis
 @using MotiffLab.MusicCore.Experiments
+@using MotiffLab.MusicCore.Time
 @using MotiffLab.Web.Localization
 @inject UiText Text
 
-@* Understand (#25; S1-A1, S1-A2, S1-A4, S1-A5): the facts about the selection, one collapsible section per lens in FactLens order.
-   A fact with places can be chosen to highlight them in the score and on the roll, one place at a time from its chips,
+@* Understand (#25, #132; S1-A1, S1-A2, S1-A4, S1-A5; decision record 0013 section 9): two views of the facts about the selection.
+   Now opens on the one observation music-core ranks first, with its claim kind, why that one, its places in the score, the readings
+   that rest on the facts, and one recommended next step with Try it. Details lists every fact, one collapsible section per lens in
+   FactLens order. A fact with places can be chosen to highlight them in the score and on the roll, one place at a time from its chips,
    and links to the experiments that rest on it. A new fact or a new lens from music-core shows up here without changes;
-   the panel only displays the workspace state (0013), and the page highlights, plays and tries. *@
+   the panel only displays the workspace state (0013), and the page ranks, highlights, plays and tries. *@
 @if (Chosen is { } chosen)
 {
     <div class="highlighted" role="group" aria-label="@Text["understand.highlightedLabel"]">
@@ -23,6 +26,89 @@
     </div>
 }
 @if (Facts.Count > 0)
+{
+    <div class="view-switch" role="group" aria-label="@Text["understand.view"]">
+        <button class="@(_details ? null : "on")" aria-pressed="@(_details ? "false" : "true")" @onclick="() => _details = false">@Text["understand.now"]</button>
+        <button class="@(_details ? "on" : null)" aria-pressed="@(_details ? "true" : "false")" @onclick="() => _details = true">@Text["understand.details"]</button>
+    </div>
+}
+@if (Facts.Count > 0 && !_details)
+{
+    <div class="facts now" role="group" aria-label="@Text["understand.now"]">
+        @if (State.Facts.KeyObservation is { } key)
+        {
+            bool showWhy = _basisShown.Contains(key.Id);
+            bool keyChosen = Chosen?.Fact == key;
+            <section class="key-observation" aria-labelledby="key-observation-heading">
+                <h4 id="key-observation-heading">@Text["understand.keyObservation"]</h4>
+                <div class="fact-row" title="@key.Basis">
+                    <span class="certainty @key.Certainty.ToString().ToLowerInvariant()">@CertaintyLabel(key.Certainty)</span>
+                    <p class="text">@key.Text</p>
+                </div>
+                <div class="row">
+                    @if (key.Places.Count > 0)
+                    {
+                        <button class="show" aria-pressed="@(keyChosen ? "true" : "false")" @onclick="() => Choose.InvokeAsync(keyChosen ? null : new FactChoice(key))">
+                            @(keyChosen ? Text["understand.shownInScore"] : Text["understand.showInScore"])
+                        </button>
+                    }
+                    <button class="basis-toggle" aria-expanded="@(showWhy ? "true" : "false")" @onclick="() => ToggleBasis(key.Id)">@(showWhy ? Text["understand.hideWhy"] : Text["understand.why"])</button>
+                </div>
+                @if (showWhy)
+                {
+                    <p class="basis">@key.Basis</p>
+                    @if (State.Facts.KeyReason is { } reason)
+                    {
+                        <p class="basis"><strong>@Text["understand.whyThisOne"]</strong> @reason</p>
+                    }
+                }
+                @if (keyChosen)
+                {
+                    @PlaceChips(key)
+                }
+            </section>
+        }
+        @if (Facts.Any(fact => fact.Certainty == FactCertainty.Interpretation))
+        {
+            <section class="reading" aria-labelledby="reading-heading">
+                <h4 id="reading-heading">@Text["understand.reading"]</h4>
+                <ul>
+                    @foreach (MotifFact fact in Facts.Where(fact => fact.Certainty == FactCertainty.Interpretation))
+                    {
+                        bool showBasis = _basisShown.Contains(fact.Id);
+                        <li title="@fact.Basis">
+                            <span class="certainty interpretation">@CertaintyLabel(fact.Certainty)</span>
+                            <div class="fact">
+                                <span>@fact.Text</span>
+                                @if (showBasis)
+                                {
+                                    <span class="basis">@fact.Basis</span>
+                                }
+                            </div>
+                            <button class="basis-toggle" aria-expanded="@(showBasis ? "true" : "false")" @onclick="() => ToggleBasis(fact.Id)">@(showBasis ? Text["understand.hideWhy"] : Text["understand.why"])</button>
+                        </li>
+                    }
+                </ul>
+            </section>
+        }
+        <section class="recommended" aria-labelledby="recommended-heading">
+            <h4 id="recommended-heading">@Text["understand.recommended"]</h4>
+            @if (State.Facts.Recommended is { } next && _dismissedFor != State.Selection.Motif?.Span)
+            {
+                <p class="text"><strong>@next.Title</strong> <span class="meta">@next.Question</span></p>
+                <div class="row">
+                    <button class="primary" @onclick="() => Try.InvokeAsync(next)">@Text["understand.tryIt"]</button>
+                    <button @onclick="() => _dismissedFor = State.Selection.Motif?.Span">@Text["understand.notNow"]</button>
+                </div>
+            }
+            else
+            {
+                <p class="meta">@Text["understand.noRecommendation"]</p>
+            }
+        </section>
+    </div>
+}
+@if (Facts.Count > 0 && _details)
 {
     <div class="facts" role="group" aria-label="@Text["understand.factsLabel"]">
         @foreach (FactLens lens in Enum.GetValues<FactLens>())
@@ -85,6 +171,12 @@
 }
 
 @code {
+    /// <summary>Whether the Details view shows (every fact by lens) instead of Now (the one observation to hear first).</summary>
+    private bool _details;
+
+    /// <summary>The selection whose recommended next step the player put aside with Not now; another selection brings one back.</summary>
+    private TickSpan? _dismissedFor;
+
     /// <summary>The lenses the player closed; they stay closed as the selection changes.</summary>
     private readonly HashSet<FactLens> _collapsed = [];
 

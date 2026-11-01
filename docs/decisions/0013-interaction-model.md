@@ -1,6 +1,6 @@
 # 0013. The shared interaction model of the workspace
 
-**Status:** proposed, for Andrei's review · **Date:** 2026-10-27 · **Scope:** `MotiffLab.MusicCore` (musical objects, claims, sessions, guidance), `src/MotiffLab.Web` (one workspace state behind Practise, Understand and Explore, and the Guidance Layer over it)
+**Status:** proposed, for Andrei's review · **Date:** 2026-10-27 · **Scope:** `MotiffLab.MusicCore` (musical objects, claims, sessions, guidance, annotations), `src/MotiffLab.Web` (one workspace state behind Practise, Understand and Explore, and the Guidance Layer over it)
 
 ## Context
 
@@ -163,6 +163,46 @@ Guidance is a layer over the shared state, not a fourth tab. It suggests the nex
 
 **First implementation** is one scenario end to end, on one real piece: select a phrase, listen, identify one question, practise the relevant passage with one hand, integrate the hands, reflect. AI may later rephrase a hint's text (0003: an interpretation that cites the hint's fact ids); it never chooses the hint.
 
+### 9. Understand this phrase
+
+Understand is one capability over the selected object, not a report: it answers three questions about it, **what is happening**, **why it might matter** and **how to hear or recognise it**, and leads to an action. Andrei's specification (2026-10-27) is folded in here; #143 carries the batches.
+
+**Information hierarchy** (the *Now* view of #132): the selected object with its parent as context; one key observation, ranked from music-core's facts by `FactRanking` (deterministic, with its reason: places first, structure before the line, the surer first; an interpretation is never the key observation, since it rests on others); its **why it matters** line, which is an interpretation and says so; **Try this**, one action the engine can run now; then *Details*, where the dimensions open one at a time. Nothing is shown that analysis cannot support; where analysis is missing the view says so rather than filling the gap.
+
+**Dimensions** are the fact lenses, each a question: Melody (what is the line doing), Harmony (how the bass and the closes move the direction; a new lens that holds the key, the closes and bass movement, with its uncertainty always shown), Rhythm (how timing shapes the phrase), Structure (where the phrase comes from and what it contributes), Character (how the choices might be heard; always interpretive). The spec's claim types map onto §4: *observed* is Detected or Inferred with its confidence, *interpreted* is Interpretation, *uncertain* is the Uncertain threshold.
+
+**Local and global.** Every fact carries a scope: about the selected object itself, or about its place in the piece (its sentence, its recurrences, a similar gesture elsewhere). The view separates the two and lets the player move to the related object (a recurrence, the parent sentence) while the analytical question stays: the selection changes, the chosen dimension and the highlighted fact do not.
+
+**Relationships, not labels.** A fact's text may connect evidence to significance in one sentence ("phrase 2 repeats the start of phrase 1 and ends on the tonic instead of the dominant") when both halves are measured; the significance half ("so it feels like an answer") is a separate Interpretation claim that cites the measured one.
+
+**Active understanding.** Each supported fact can lead to a short activity, offered as an invitation, never a test, and run by the Guidance Layer (§8) as hint patterns: *Listen* (loop with one feature in mind, a hand or a layer alone), *Predict* (stop before the phrase end or the next bass note, then reveal), *Recall* (hide the score, play or sing, then show it), *Compare* (two occurrences, one after the other, then say what changed), *Explain* (write what makes it recognisable, kept as an annotation). The score and playback are always one tap away.
+
+**Continuity.** An observation becomes a practice focus (Practise with the same selection, a hint naming what to listen for), an experiment (Explore, only catalogue operations), an annotation (§10) or a kept idea with its source and context. The selection, the tab's question and the active variation carry across, as §6 requires.
+
+### 10. Annotations and practice continuity
+
+An **annotation** is the player's own claim or intention about the music, kept with the project and anchored to the music it is about, so that what is noticed away from the piano is there at the piano. Andrei's specification (2026-10-27) is folded in here; #144 carries the batches.
+
+```csharp
+public enum AnnotationKind { Observation, Question, PracticeGoal, CreativeIdea, Interpretation }
+public enum AnnotationStatus { Open, Resolved, Deferred, Done }
+
+public sealed record Annotation(
+    string Id, AnnotationKind Kind, string Text,
+    AnnotationAnchor Anchor,               // note ids; a musical object (kind, span, structure id); a transition between two objects; or the piece
+    AnnotationStatus Status, string? Resolution,
+    IReadOnlyList<string> FactIds,         // the facts it rests on or asks about
+    IReadOnlyList<string> IdeaIds,         // the kept ideas or experiments it led to
+    string? CreatedInSession, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
+```
+
+- **Ownership** follows §1: the project owns annotations; a session records which it created, reviewed or acted on; ending a session loses none of them. The existing `Observation` (a kept idea) stays what it is, a variation kept with its context; an annotation can point at it. Both are saved in the project file (a version bump), never in a new store.
+- **Anchors** are stable: note ids and a musical object (its structure id and span), with bar and beat kept only for display. When the notes change so that an anchor no longer resolves, the annotation is flagged for review, never moved to other music.
+- **Kinds** shape the actions, not a workflow: an Observation can become a Question or a Practice goal; a Question has a resolution note and is resolved, deferred or left open by the player, never by the app; a Practice goal can be added to a session and marked done; a Creative idea opens Explore and records intention and outcome (#135); an Interpretation is always marked as the player's and may cite facts, as §4 says.
+- **Where they live on screen:** the contextual panel shows the annotations of the selected object and its ancestors (under *Yours* in Understand and in *History*), with one-tap creation from the selection (kind, a line of text, save; no modal); the project page lists all of them with a filter by kind; the hierarchy line shows a count on an object that has them.
+- **Preparation to practice:** the project page works without a session (browse, select, read facts, annotate). Starting or resuming a session shows a compact preparation summary (open questions, practice goals, creative ideas, each opening its passage); it never starts playback or changes the selection by itself. Practice is possible without any of it.
+- **Guidance** (§8) reads open questions and goals as inputs, so a hint can say "you asked why the harmony changes in bar 6; loop the left hand there"; AI may later suggest questions, but never writes a note or resolves one.
+
 ## Consequences
 
 - Batches build on this in order: the shared state (no visible change, a refactor with the existing browser tests as the guard), then the sentence-level workflow end to end on one real piece (#133 with #132's Now panel), then claim kinds in facts and the Try it contract (#132, #137), then recording intended, changed and heard with ideas (#135, #136), then Russian terms and the rest of the strings (#134).
@@ -170,3 +210,4 @@ Guidance is a layer over the shared state, not a fourth tab. It suggests the nex
 - music-core gains `MusicalObject`, the `Interpretation` claim kind and evidence links; nothing in it depends on the UI.
 - Every claim on the screen can be traced: tap it, see its kind, its evidence and its places.
 - The Guidance Layer comes after the shared state and the sentence-level workflow, as the deterministic engine and the first scenario; its hints read the same state and offer only what §5 allows.
+- Understand this phrase (§9) lands in phases: the grounded observation with the sentence workflow (#133, #132), then local and global context and the dimensions, then the active-understanding activities through the Guidance Layer, then continuity into annotations. Annotations (§10) come with a project file version and the preparation summary (#144).
