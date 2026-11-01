@@ -78,6 +78,7 @@ The web app engraves with Verovio 6.3.0 compiled to WebAssembly (decision record
 |---|---:|---:|---:|---:|
 | iPad simulator, Verovio as released | 6 | 1549–1616 | 101–117 | 167–211 |
 | **iPad simulator, with the patch** | **7** | **50** | **32–56** | **25–46** |
+| iPad simulator on Andrei's MacBook Pro, with the patch (first Engrave after launch) | 51 | 101 | 68 | 70 |
 | macOS on the same runner, as released / with the patch | | 83 / 46 | 59 / 49 | 45 / 36 |
 | Linux container, as released | 15 | 37 | 39 | 32 |
 | Web app's WebAssembly build (Node on Linux) | | 101–175 | 59–77 | 54–62 |
