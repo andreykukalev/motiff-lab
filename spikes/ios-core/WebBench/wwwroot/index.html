@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>music-core in the browser</title>
+  <base href="/" />
+  <script type="importmap"></script>
+  <script>
+    window.showReport = text => {
+      const pre = document.createElement('pre');
+      pre.textContent = text;
+      document.body.append(pre);
+      console.log(text);
+    };
+  </script>
+</head>
+<body>
+  <h1>music-core in the browser (Blazor WebAssembly)</h1>
+  <script src="_framework/blazor.webassembly#[.{fingerprint}].js"></script>
+</body>
+</html>

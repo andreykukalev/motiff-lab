@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    music-core as a native library (NativeAOT). Spike, not part of MotiffLab.slnx or CI:
+      linux-x64 (here):  dotnet publish -c Release -r linux-x64
+      iPad (on a Mac):   ../build-ios.sh
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Library</OutputType>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsAotCompatible>true</IsAotCompatible>
+    <PublishAot>true</PublishAot>
+    <NativeLib>Shared</NativeLib>
+    <AssemblyName>MotiffLabCore</AssemblyName>
+    <RootNamespace>MotiffLab.CoreBridge</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <UseSystemResourceKeys>true</UseSystemResourceKeys>
+    <IlcGenerateStackTraceData>false</IlcGenerateStackTraceData>
+  </PropertyGroup>
+
+  <!-- iOS and the iOS simulator need the runtime pack from NuGet (supported since .NET 9). -->
+  <PropertyGroup Condition="$(RuntimeIdentifier.StartsWith('ios'))">
+    <PublishAotUsingRuntimePack>true</PublishAotUsingRuntimePack>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\MotiffLab.MusicCore\MotiffLab.MusicCore.csproj" />
+  </ItemGroup>
+
+</Project>

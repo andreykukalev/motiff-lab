@@ -1,0 +1,7 @@
+// Build settings for the spike app. The signing team comes from the main app's Local.xcconfig
+// (../../../ios/Config/Local.xcconfig), so a Mac that builds the iPad app builds this one too.
+DEVELOPMENT_TEAM =
+#include? "../../../ios/Config/Local.xcconfig"
+
+// Set after the include so the spike never replaces the Motiff Lab app on the iPad.
+PRODUCT_BUNDLE_IDENTIFIER = com.andreykukalev.motifflab.corespike
