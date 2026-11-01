@@ -33,6 +33,12 @@ public static class PieceImporter
 
     private const string MidiDamagedTip = "Export the MIDI file again from the app that made it, or export MusicXML instead.";
 
+    private const string RussianNotationTip = "Motiff Lab читает MIDI и MusicXML; большинство нотных редакторов умеют сохранять MusicXML.";
+
+    private const string RussianMidiDamagedTip = "Сохраните файл MIDI заново в программе, где он сделан, или сохраните вместо него MusicXML.";
+
+    private const string RussianMusicXmlTip = "Откройте партитуру в нотном редакторе и сохраните её в MusicXML ещё раз.";
+
     private static readonly byte[] s_png = [0x89, 0x50, 0x4E, 0x47];
     private static readonly byte[] s_jpeg = [0xFF, 0xD8, 0xFF];
     private static readonly byte[] s_utf8Bom = [0xEF, 0xBB, 0xBF];
@@ -72,11 +78,23 @@ public static class PieceImporter
         {
             return new(null, exception.Failure switch
             {
-                MidiImportFailure.NotMidi when midiHeader => new(ImportRejectionReason.Damaged, "This MIDI file breaks off inside its header.", MidiDamagedTip),
+                MidiImportFailure.NotMidi when midiHeader => new(ImportRejectionReason.Damaged, "This MIDI file breaks off inside its header.", MidiDamagedTip)
+                {
+                    RussianMessage = "Этот файл MIDI обрывается внутри заголовка.",
+                    RussianTip = RussianMidiDamagedTip,
+                },
                 MidiImportFailure.NotMidi => Rejection(ImportRejectionReason.NotMusic, exception.Message),
-                MidiImportFailure.Unsupported => new(ImportRejectionReason.Unsupported, exception.Message, "Export the piece again as a type 1 MIDI file, or as MusicXML."),
+                MidiImportFailure.Unsupported => new(ImportRejectionReason.Unsupported, exception.Message, "Export the piece again as a type 1 MIDI file, or as MusicXML.")
+                {
+                    RussianMessage = "Motiff Lab не читает этот вид файлов MIDI.",
+                    RussianTip = "Сохраните пьесу заново как файл MIDI типа 1 или как MusicXML.",
+                },
                 MidiImportFailure.TooLarge => Rejection(ImportRejectionReason.TooLarge),
-                _ => new(ImportRejectionReason.Damaged, exception.Message, MidiDamagedTip),
+                _ => new(ImportRejectionReason.Damaged, exception.Message, MidiDamagedTip)
+                {
+                    RussianMessage = "Этот файл MIDI повреждён, и Motiff Lab не может его прочитать.",
+                    RussianTip = RussianMidiDamagedTip,
+                },
             });
         }
         catch (MusicXmlImportException exception)
@@ -84,9 +102,17 @@ public static class PieceImporter
             return new(null, exception.Failure switch
             {
                 MusicXmlImportFailure.NotMusicXml => Rejection(ImportRejectionReason.NotMusic, exception.Message),
-                MusicXmlImportFailure.Unsupported => new(ImportRejectionReason.Unsupported, exception.Message, "Open the score in a notation app and export it as MusicXML again."),
+                MusicXmlImportFailure.Unsupported => new(ImportRejectionReason.Unsupported, exception.Message, "Open the score in a notation app and export it as MusicXML again.")
+                {
+                    RussianMessage = "Motiff Lab не читает этот вид файлов MusicXML.",
+                    RussianTip = RussianMusicXmlTip,
+                },
                 MusicXmlImportFailure.TooLarge => Rejection(ImportRejectionReason.TooLarge),
-                _ => new(ImportRejectionReason.Damaged, exception.Message, "Open the score in a notation app and export it as MusicXML again."),
+                _ => new(ImportRejectionReason.Damaged, exception.Message, "Open the score in a notation app and export it as MusicXML again.")
+                {
+                    RussianMessage = "Этот файл MusicXML повреждён, и Motiff Lab не может его прочитать.",
+                    RussianTip = RussianMusicXmlTip,
+                },
             });
         }
     }
@@ -234,25 +260,53 @@ public static class PieceImporter
 
     private static ImportRejection Rejection(ImportRejectionReason reason, string? message = null) => reason switch
     {
-        ImportRejectionReason.Empty => new(reason, message ?? "This file is empty.", "Export the piece again and pick the new file."),
+        ImportRejectionReason.Empty => new(reason, message ?? "This file is empty.", "Export the piece again and pick the new file.")
+        {
+            RussianMessage = "Этот файл пуст.",
+            RussianTip = "Сохраните пьесу заново и выберите новый файл.",
+        },
         ImportRejectionReason.TooLarge => new(
             reason,
             message ?? "This file is larger than 50 MB, the most Motiff Lab can import.",
-            "Export only the movement or the tracks you want to explore."),
-        ImportRejectionReason.Pdf => new(reason, message ?? "This looks like a PDF.", NotationTip),
+            "Export only the movement or the tracks you want to explore.")
+        {
+            RussianMessage = "Этот файл больше 50 МБ, а это предел для Motiff Lab.",
+            RussianTip = "Сохраните только ту часть или те дорожки, которые хотите изучать.",
+        },
+        ImportRejectionReason.Pdf => new(reason, message ?? "This looks like a PDF.", NotationTip)
+        {
+            RussianMessage = "Похоже, это PDF.",
+            RussianTip = RussianNotationTip,
+        },
         ImportRejectionReason.Image => new(
             reason,
             message ?? "This looks like an image, such as a photo or scan of a score.",
-            "Motiff Lab cannot read scanned scores yet. A notation app or a score-scanning app can turn the scan into MusicXML, which you can import."),
+            "Motiff Lab cannot read scanned scores yet. A notation app or a score-scanning app can turn the scan into MusicXML, which you can import.")
+        {
+            RussianMessage = "Похоже, это изображение, например фотография или скан нот.",
+            RussianTip = "Здесь Motiff Lab не читает сканы нот. Нотный редактор или программа распознавания нот может превратить скан в MusicXML, который можно открыть.",
+        },
         ImportRejectionReason.Audio => new(
             reason,
             message ?? "This looks like an audio recording.",
-            "Motiff Lab reads notation files for now: MIDI and MusicXML. Starting from a recording comes later."),
-        ImportRejectionReason.NoNotes => new(reason, message ?? "This file holds no notes to play.", "Check that you exported the part with the music, not an empty template."),
+            "Motiff Lab reads notation files for now: MIDI and MusicXML. Starting from a recording comes later.")
+        {
+            RussianMessage = "Похоже, это аудиозапись.",
+            RussianTip = "Здесь Motiff Lab читает нотные файлы: MIDI и MusicXML.",
+        },
+        ImportRejectionReason.NoNotes => new(reason, message ?? "This file holds no notes to play.", "Check that you exported the part with the music, not an empty template.")
+        {
+            RussianMessage = "В этом файле нет нот.",
+            RussianTip = "Проверьте, что сохранили партию с музыкой, а не пустой шаблон.",
+        },
         _ => new(
             ImportRejectionReason.NotMusic,
             message ?? "Motiff Lab cannot tell what kind of file this is.",
-            $"It reads .mid, .musicxml and .mxl files. {NotationTip}"),
+            $"It reads .mid, .musicxml and .mxl files. {NotationTip}")
+        {
+            RussianMessage = "Motiff Lab не может понять, что это за файл.",
+            RussianTip = $"Он читает файлы .mid, .musicxml и .mxl. {RussianNotationTip}",
+        },
     };
 }
 
@@ -266,7 +320,21 @@ public enum SourceFormat
 public sealed record PieceImportResult(ImportedPiece? Piece, ImportRejection? Rejection);
 
 /// <summary>Why a file could not be imported, in plain words, with what to try instead (N2).</summary>
-public sealed record ImportRejection(ImportRejectionReason Reason, string Message, string Tip);
+/// <param name="Message">Why, in plain English; for a damaged or unsupported file, the reader's own words about where it failed.</param>
+public sealed record ImportRejection(ImportRejectionReason Reason, string Message, string Tip)
+{
+    /// <summary>Why, in Russian; for a damaged or unsupported file, said in general without the reader's English detail.</summary>
+    public string? RussianMessage { get; init; }
+
+    /// <summary>What to try instead, in Russian.</summary>
+    public string? RussianTip { get; init; }
+
+    /// <summary>Why, in the language: the Russian when there is one, else the English.</summary>
+    public string Text(Words words) => words.IsRussian && RussianMessage is { } russian ? russian : Message;
+
+    /// <summary>What to try instead, in the language.</summary>
+    public string TipIn(Words words) => words.IsRussian && RussianTip is { } russian ? russian : Tip;
+}
 
 public enum ImportRejectionReason
 {

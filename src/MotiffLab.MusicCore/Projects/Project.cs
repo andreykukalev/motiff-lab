@@ -521,8 +521,13 @@ public sealed record OpenedProject(
 
         if (project.Check is null)
         {
-            // A file from before version 12: the Check flags are worked out from the piece, resolved where the player confirmed the bar.
-            project = project with { Check = project.Scan is { } scanned ? CheckFlag.FromScan(ScanCheck.Of(piece), scanned.ConfirmedBars) : [] };
+            // A file from before version 12: the Check flags are worked out from the piece, a scan's resolved where the player confirmed the bar.
+            project = project with
+            {
+                Check = project.Scan is { } scanned ? CheckFlag.FromScan(ScanCheck.Of(piece), scanned.ConfirmedBars)
+                    : project.Transcription is { } heard ? CheckFlag.FromTranscription(heard, project.Source, piece)
+                    : [],
+            };
         }
 
         return new OpenedProject(project, piece, notes, motifs, variations) { Observations = observations };

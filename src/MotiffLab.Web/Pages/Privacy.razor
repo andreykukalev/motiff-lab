@@ -1,119 +1,231 @@
 @page "/privacy"
 @using MotiffLab.MusicCore.Analytics
+@inject MotiffLab.Web.Localization.UiText Text
 
-<PageTitle>Privacy · Motiff Lab</PageTitle>
+<PageTitle>@(Text.Language == "ru" ? "Конфиденциальность" : "Privacy") · Motiff Lab</PageTitle>
 
 @* The privacy notice (#65, docs/01-mvp-stage-1.md: Content sources and rights). The analytics table is read from the catalogue, so it always matches what can be sent. *@
-<main class="lab document">
-    <h1>Privacy notice</h1>
-    <p class="meta">Draft for the Stage 1 study, before legal review. Questions: ask the person who invited you to the study.</p>
+@if (Text.Language == "ru")
+{
+    <main class="lab document">
+        <h1>Политика конфиденциальности</h1>
+        <p class="meta">Черновик для исследования этапа 1, до юридической проверки. Вопросы задавайте тому, кто пригласил вас в исследование.</p>
 
-    <h2>Your music stays on this device</h2>
-    <p>
-        Files you import, your projects, motifs and variations are read, analysed, changed and played in this browser,
-        and saved in this browser's storage, with the variations and notes you keep about a phrase. Motiff Lab does not
-        upload them unless you sign in and turn on saving online (below). Exports (MIDI and project files) are saved straight to this device. To delete a project, use
-        Delete on the home screen; clearing this site's data in the browser deletes everything.
-    </p>
+        <h2>Ваша музыка остаётся на этом устройстве</h2>
+        <p>
+            Файлы, которые вы открываете, ваши проекты, мотивы и вариации читаются, разбираются, меняются и звучат в этом
+            браузере и сохраняются в его хранилище вместе с вариациями и заметками о фразах. Motiff Lab не отправляет их
+            никуда, пока вы не войдёте и не включите сохранение онлайн (ниже). Файлы MIDI и файлы проектов сохраняются прямо
+            на это устройство. Чтобы удалить проект, нажмите «Удалить» на главном экране; очистка данных этого сайта в
+            браузере удаляет всё.
+        </p>
 
-    <h2 id="online">Your account and saving online</h2>
-    <p>
-        Signing in is optional, and only some versions of Motiff Lab offer it. You sign in with Apple, Google or a code
-        sent to your email, through Microsoft Entra External ID. Motiff Lab then receives an account ID, and your name
-        or email address to show you who is signed in; Microsoft keeps the sign-in details, and Apple or Google know you
-        used them to sign in.
-    </p>
-    <p>
-        Saving online stays off until you turn it on in <a href="settings">Settings</a>. Then each project file, the same
-        file an export gives you, with the music you imported and everything you made around it, is sent to Motiff Lab's
-        server and kept in a Microsoft Azure Cosmos DB database in Poland (EU), under your account ID only, until you
-        delete it. Deleting a project on a device deletes its online copy too, while saving online is on. <em>Delete
-        everything saved online</em> in Settings deletes every online copy and turns saving online off; the projects in
-        this browser are kept. The server keeps no other record of what you saved, and nothing online is shared with
-        anyone or used for anything else.
-    </p>
+        <h2 id="online">Ваша учётная запись и сохранение онлайн</h2>
+        <p>
+            Входить не обязательно, и вход есть не во всех версиях Motiff Lab. Вы входите через Apple, Google или код,
+            присланный на почту, с помощью Microsoft Entra External ID. Motiff Lab получает идентификатор учётной записи и
+            ваше имя или адрес почты, чтобы показать, кто вошёл; данные входа хранит Microsoft, а Apple или Google знают,
+            что вы вошли через них.
+        </p>
+        <p>
+            Сохранение онлайн выключено, пока вы не включите его в <a href="settings">настройках</a>. Тогда каждый файл
+            проекта, тот же файл, что даёт сохранение в файл, с открытой вами музыкой и всем, что вы с ней сделали,
+            отправляется на сервер Motiff Lab и хранится в базе данных Microsoft Azure Cosmos DB в Польше (ЕС), только под
+            вашим идентификатором, пока вы его не удалите. Пока сохранение онлайн включено, удаление проекта на устройстве
+            удаляет и его копию онлайн. <em>Удалить всё сохранённое онлайн</em> в настройках удаляет все копии онлайн и
+            выключает сохранение онлайн; проекты в этом браузере остаются. Других записей о сохранённом сервер не ведёт, и
+            ничего из сохранённого онлайн никому не передаётся и ни для чего другого не используется.
+        </p>
 
-    <h2 id="scanning">Scanning printed music</h2>
-    <p>
-        Scanning is off until you give the address of a scan server in <a href="settings">Settings</a>. The scan server
-        runs homr, an open-source recognition engine, on your own computer. When you pick a PDF or photo to scan, it is
-        sent to that address only, read there, and deleted as soon as the notes have been read; the server keeps no copy
-        and logs nothing about it. What comes back is the music as MusicXML, which is saved with the project in this
-        browser. The picture itself is not kept. If the address you give is another computer, Motiff Lab asks before each
-        scan, since the page then leaves this one. MIDI and MusicXML files you import are never sent anywhere.
-    </p>
-    <p>
-        Some versions offer Motiff Lab's own scan server instead, for signed-in players, and then use it for every scan
-        in place of a server of your own. Nothing is sent to it until you sign in and agree to the
-        scan. It runs the same engine in Microsoft Azure in Poland (EU), handles a page the same way, deleted as soon as
-        it has been read, and asks before each scan. Your sign-in goes with the page, so the server knows that a signed-in player sent it, but it
-        records nothing about who did.
-    </p>
+        <h2 id="scanning">Распознавание печатных нот</h2>
+        <p>
+            Распознавание выключено, пока вы не укажете адрес сервера распознавания в <a href="settings">настройках</a>.
+            Сервер распознавания запускает homr, открытую программу распознавания, на вашем собственном компьютере. Когда вы
+            выбираете PDF или фотографию, файл отправляется только по этому адресу, читается там и удаляется сразу после
+            того, как ноты прочитаны; сервер не хранит копий и ничего о нём не записывает. Обратно приходит музыка в
+            MusicXML, которая сохраняется с проектом в этом браузере. Само изображение не хранится. Если указанный адрес
+            ведёт на другой компьютер, Motiff Lab спрашивает перед каждым распознаванием, потому что страница тогда
+            покидает этот. Файлы MIDI и MusicXML, которые вы открываете, никуда не отправляются.
+        </p>
+        <p>
+            В некоторых версиях вместо вашего сервера есть собственный сервер распознавания Motiff Lab для вошедших
+            игроков, и тогда он используется для каждого распознавания. Ничего не отправляется, пока вы не войдёте и не
+            согласитесь на распознавание. На нём работает та же программа в Microsoft Azure в Польше (ЕС); страница так же
+            удаляется сразу после чтения, и приложение спрашивает перед каждым распознаванием. Вместе со страницей
+            отправляется ваш вход, так что сервер знает, что её прислал вошедший игрок, но не записывает, кто именно.
+        </p>
 
-    <h2 id="recordings">Transcribing a recording</h2>
-    <p>
-        Transcription uses the same scan server, and is off until scanning is set up. When you pick an audio or video
-        recording to transcribe, this browser takes the sound out of it on this device and sends only that sound, the
-        first 2½ minutes of it, to the scan server's address; a video's picture is not sent. If the browser cannot read
-        the file, the file itself is sent instead. The server writes down the notes it hears with Transkun, an
-        open-source engine, and deletes the sound as soon as it has been heard; it keeps no copy and logs nothing about
-        it, and the file's name is not sent. What comes back is the notes as MIDI, which are saved with the project in
-        this browser, marked as detected. The recording itself is not kept. On another computer or Motiff Lab's own
-        server, Motiff Lab asks before each recording is sent, as for a scan.
-    </p>
+        <h2 id="recordings">Расшифровка записи</h2>
+        <p>
+            Расшифровка использует тот же сервер распознавания и выключена, пока распознавание не настроено. Когда вы
+            выбираете аудио- или видеозапись для расшифровки, этот браузер извлекает из неё звук на этом устройстве и
+            отправляет на адрес сервера только звук, его первые 2½ минуты; изображение видео не отправляется. Если браузер
+            не может прочитать файл, вместо звука отправляется сам файл. Сервер записывает услышанные ноты с помощью
+            Transkun, открытой программы, и удаляет звук, как только он прослушан; сервер не хранит копий и ничего о нём не
+            записывает, а имя файла не отправляется. Обратно приходят ноты в MIDI, которые сохраняются с проектом в этом
+            браузере с отметкой «обнаружено». Сама запись не хранится. Для другого компьютера или собственного сервера
+            Motiff Lab приложение спрашивает перед отправкой каждой записи, как и при распознавании.
+        </p>
 
-    <h2>Hosting</h2>
-    <p>
-        The app is served by Microsoft Azure Static Web Apps. As with any website, the host processes your IP address
-        to deliver the app's files. Motiff Lab adds no tracking to this and keeps no record of it. After the first
-        visit the app works offline from this browser's cache.
-    </p>
+        <h2>Размещение</h2>
+        <p>
+            Приложение размещено в Microsoft Azure Static Web Apps. Как и любой сайт, хостинг обрабатывает ваш IP-адрес,
+            чтобы доставить файлы приложения. Motiff Lab не добавляет к этому отслеживания и ничего не записывает. После
+            первого посещения приложение работает без сети из кэша этого браузера.
+        </p>
 
-    <h2 id="analytics">Anonymous usage analytics</h2>
-    <p>
-        Analytics are off until you turn them on here, and you can turn them off here at any time. When they are on, this browser gets a random ID, so that a week of use can be counted, and the app
-        records the events below. They hold counts, yes-or-no answers and choices from fixed lists; never your music,
-        file names, titles or any text you type. Turning analytics off deletes the ID and any events not yet sent.
-    </p>
-    <p>
-        This version does not send analytics yet: events wait on this device, and the list below shows them. When sending
-        starts, events will go to a Motiff Lab endpoint and be stored in Azure Table Storage in an EU region, without IP
-        addresses; how long they are kept will be stated here before then. This version reports no errors.
-    </p>
-    <MotiffLab.Web.Analytics.AnalyticsConsent />
-    <table>
-        <thead>
-            <tr><th scope="col">Event</th><th scope="col">What it holds</th></tr>
-        </thead>
-        <tbody>
-            @foreach (string name in AnalyticsCatalogue.EventNames)
-            {
-                <tr>
-                    <td><code>@name</code></td>
-                    <td>@Describe(AnalyticsCatalogue.PropertiesOf(name))</td>
-                </tr>
-            }
-        </tbody>
-    </table>
+        <h2 id="analytics">Анонимная статистика использования</h2>
+        <p>
+            Статистика выключена, пока вы не включите её здесь, и выключить её здесь можно в любой момент. Когда она
+            включена, этот браузер получает случайный идентификатор, чтобы можно было посчитать неделю использования, и
+            приложение записывает события ниже. В них только числа, ответы «да» или «нет» и выбор из постоянных списков;
+            никогда ваша музыка, имена файлов, названия или текст, который вы вводите. Выключение статистики удаляет
+            идентификатор и все ещё не отправленные события.
+        </p>
+        <p>
+            Эта версия ещё не отправляет статистику: события ждут на этом устройстве, и список ниже их показывает. Когда
+            отправка начнётся, события будут уходить на адрес Motiff Lab и храниться в Azure Table Storage в регионе ЕС, без
+            IP-адресов; сколько они хранятся, будет указано здесь заранее. Эта версия не отправляет сообщений об ошибках.
+        </p>
+        <MotiffLab.Web.Analytics.AnalyticsConsent />
+        <table>
+            <thead>
+                <tr><th scope="col">Событие</th><th scope="col">Что в нём</th></tr>
+            </thead>
+            <tbody>
+                @foreach (string name in AnalyticsCatalogue.EventNames)
+                {
+                    <tr>
+                        <td><code>@name</code></td>
+                        <td>@Describe(AnalyticsCatalogue.PropertiesOf(name), russian: true)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
 
-    <h2>AI assistance</h2>
-    <p>
-        AI assistance is not in this version. When it arrives it will be off until you turn it on, and a panel will
-        show exactly what is sent: a short digest of facts about the motif you selected, never your file. It will be
-        processed by Microsoft, as provider of Azure AI Foundry, in an EU region, and Motiff Lab will not store it. The
-        provider's retention and abuse-monitoring terms for the deployment will be stated here before AI can be turned
-        on. You will be able to turn it off at any time, and every feature works without it.
-    </p>
-</main>
+        <h2>Помощь ИИ</h2>
+        <p>
+            Помощи ИИ в этой версии нет. Когда она появится, она будет выключена, пока вы её не включите, а панель будет
+            показывать, что именно отправляется: краткую сводку фактов о выбранном мотиве, никогда не ваш файл. Её будет
+            обрабатывать Microsoft как поставщик Azure AI Foundry в регионе ЕС, а Motiff Lab не будет её хранить. Условия
+            хранения и контроля злоупотреблений у поставщика будут указаны здесь до того, как ИИ можно будет включить.
+            Выключить его можно будет в любой момент, и все функции работают без него.
+        </p>
+    </main>
+}
+else
+{
+    <main class="lab document">
+        <h1>Privacy notice</h1>
+        <p class="meta">Draft for the Stage 1 study, before legal review. Questions: ask the person who invited you to the study.</p>
+
+        <h2>Your music stays on this device</h2>
+        <p>
+            Files you import, your projects, motifs and variations are read, analysed, changed and played in this browser,
+            and saved in this browser's storage, with the variations and notes you keep about a phrase. Motiff Lab does not
+            upload them unless you sign in and turn on saving online (below). Exports (MIDI and project files) are saved straight to this device. To delete a project, use
+            Delete on the home screen; clearing this site's data in the browser deletes everything.
+        </p>
+
+        <h2 id="online">Your account and saving online</h2>
+        <p>
+            Signing in is optional, and only some versions of Motiff Lab offer it. You sign in with Apple, Google or a code
+            sent to your email, through Microsoft Entra External ID. Motiff Lab then receives an account ID, and your name
+            or email address to show you who is signed in; Microsoft keeps the sign-in details, and Apple or Google know you
+            used them to sign in.
+        </p>
+        <p>
+            Saving online stays off until you turn it on in <a href="settings">Settings</a>. Then each project file, the same
+            file an export gives you, with the music you imported and everything you made around it, is sent to Motiff Lab's
+            server and kept in a Microsoft Azure Cosmos DB database in Poland (EU), under your account ID only, until you
+            delete it. Deleting a project on a device deletes its online copy too, while saving online is on. <em>Delete
+            everything saved online</em> in Settings deletes every online copy and turns saving online off; the projects in
+            this browser are kept. The server keeps no other record of what you saved, and nothing online is shared with
+            anyone or used for anything else.
+        </p>
+
+        <h2 id="scanning">Scanning printed music</h2>
+        <p>
+            Scanning is off until you give the address of a scan server in <a href="settings">Settings</a>. The scan server
+            runs homr, an open-source recognition engine, on your own computer. When you pick a PDF or photo to scan, it is
+            sent to that address only, read there, and deleted as soon as the notes have been read; the server keeps no copy
+            and logs nothing about it. What comes back is the music as MusicXML, which is saved with the project in this
+            browser. The picture itself is not kept. If the address you give is another computer, Motiff Lab asks before each
+            scan, since the page then leaves this one. MIDI and MusicXML files you import are never sent anywhere.
+        </p>
+        <p>
+            Some versions offer Motiff Lab's own scan server instead, for signed-in players, and then use it for every scan
+            in place of a server of your own. Nothing is sent to it until you sign in and agree to the
+            scan. It runs the same engine in Microsoft Azure in Poland (EU), handles a page the same way, deleted as soon as
+            it has been read, and asks before each scan. Your sign-in goes with the page, so the server knows that a signed-in player sent it, but it
+            records nothing about who did.
+        </p>
+
+        <h2 id="recordings">Transcribing a recording</h2>
+        <p>
+            Transcription uses the same scan server, and is off until scanning is set up. When you pick an audio or video
+            recording to transcribe, this browser takes the sound out of it on this device and sends only that sound, the
+            first 2½ minutes of it, to the scan server's address; a video's picture is not sent. If the browser cannot read
+            the file, the file itself is sent instead. The server writes down the notes it hears with Transkun, an
+            open-source engine, and deletes the sound as soon as it has been heard; it keeps no copy and logs nothing about
+            it, and the file's name is not sent. What comes back is the notes as MIDI, which are saved with the project in
+            this browser, marked as detected. The recording itself is not kept. On another computer or Motiff Lab's own
+            server, Motiff Lab asks before each recording is sent, as for a scan.
+        </p>
+
+        <h2>Hosting</h2>
+        <p>
+            The app is served by Microsoft Azure Static Web Apps. As with any website, the host processes your IP address
+            to deliver the app's files. Motiff Lab adds no tracking to this and keeps no record of it. After the first
+            visit the app works offline from this browser's cache.
+        </p>
+
+        <h2 id="analytics">Anonymous usage analytics</h2>
+        <p>
+            Analytics are off until you turn them on here, and you can turn them off here at any time. When they are on, this browser gets a random ID, so that a week of use can be counted, and the app
+            records the events below. They hold counts, yes-or-no answers and choices from fixed lists; never your music,
+            file names, titles or any text you type. Turning analytics off deletes the ID and any events not yet sent.
+        </p>
+        <p>
+            This version does not send analytics yet: events wait on this device, and the list below shows them. When sending
+            starts, events will go to a Motiff Lab endpoint and be stored in Azure Table Storage in an EU region, without IP
+            addresses; how long they are kept will be stated here before then. This version reports no errors.
+        </p>
+        <MotiffLab.Web.Analytics.AnalyticsConsent />
+        <table>
+            <thead>
+                <tr><th scope="col">Event</th><th scope="col">What it holds</th></tr>
+            </thead>
+            <tbody>
+                @foreach (string name in AnalyticsCatalogue.EventNames)
+                {
+                    <tr>
+                        <td><code>@name</code></td>
+                        <td>@Describe(AnalyticsCatalogue.PropertiesOf(name))</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <h2>AI assistance</h2>
+        <p>
+            AI assistance is not in this version. When it arrives it will be off until you turn it on, and a panel will
+            show exactly what is sent: a short digest of facts about the motif you selected, never your file. It will be
+            processed by Microsoft, as provider of Azure AI Foundry, in an EU region, and Motiff Lab will not store it. The
+            provider's retention and abuse-monitoring terms for the deployment will be stated here before AI can be turned
+            on. You will be able to turn it off at any time, and every feature works without it.
+        </p>
+    </main>
+}
 
 @code {
-    private static string Describe(IReadOnlyList<AnalyticsProperty> properties) => properties.Count == 0
-        ? "Nothing but the event and the time."
+    private static string Describe(IReadOnlyList<AnalyticsProperty> properties, bool russian = false) => properties.Count == 0
+        ? russian ? "Только событие и время." : "Nothing but the event and the time."
         : string.Join("; ", properties.Select(property => property switch
         {
-            CountProperty count => $"{count.Name}: a number from {count.Min} to {count.Max}",
-            FlagProperty flag => $"{flag.Name}: yes or no",
-            ChoiceProperty choice => $"{choice.Name}: one of {string.Join(", ", choice.Choices)}",
+            CountProperty count => russian ? $"{count.Name}: число от {count.Min} до {count.Max}" : $"{count.Name}: a number from {count.Min} to {count.Max}",
+            FlagProperty flag => russian ? $"{flag.Name}: да или нет" : $"{flag.Name}: yes or no",
+            ChoiceProperty choice => russian ? $"{choice.Name}: одно из {string.Join(", ", choice.Choices)}" : $"{choice.Name}: one of {string.Join(", ", choice.Choices)}",
             _ => property.Name,
         }));
 }

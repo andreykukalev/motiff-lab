@@ -172,7 +172,7 @@
     @if (_rejection is { } rejection)
     {
         <section class="rejection" role="alert">
-            <p class="error"><strong>@_fileName</strong>: @rejection.Message</p>
+            <p class="error"><strong>@_fileName</strong>: @rejection.Text(MotiffLab.MusicCore.Words.For(Text.Language))</p>
             @if (TipFor(rejection) is { } tip)
             {
                 <p>@tip</p>
@@ -309,7 +309,7 @@
                 <ul>
                     @foreach (ImportIssue issue in rounded)
                     {
-                        <li>@issue.Message</li>
+                        <li>@issue.Text(MotiffLab.MusicCore.Words.For(Text.Language))</li>
                     }
                 </ul>
                 <p class="meta">@Text["import.roundedHow"]</p>
@@ -318,7 +318,7 @@
             {
                 <p class="meta">@Text["import.notRounded"]</p>
             }
-            @if (_timing?.Describe() is { } played)
+            @if (_timing?.Describe(MotiffLab.MusicCore.Words.For(Text.Language)) is { } played)
             {
                 <p class="notice" role="status">@played</p>
                 @if (_timing.Kind == TimingKind.Performance)
@@ -333,7 +333,7 @@
                 <ul class="warnings">
                     @foreach (ImportIssue issue in warnings)
                     {
-                        <li><span class="kind">@KindLabel(issue.Kind)</span> @issue.Message</li>
+                        <li><span class="kind">@KindLabel(issue.Kind)</span> @issue.Text(MotiffLab.MusicCore.Words.For(Text.Language))</li>
                     }
                 </ul>
                 <p class="meta">@Text["import.warningKinds"]</p>
@@ -385,6 +385,9 @@
 
     /// <summary>The engine that heard a transcribed recording (0014); null for anything else.</summary>
     private string? _transcriptionEngine;
+
+    /// <summary>Where a recording heard in parts was joined, in milliseconds (0018, preparation item 12): the Check layer flags those bars.</summary>
+    private IReadOnlyList<long> _seams = [];
     private double _heardSeconds;
     private bool _cut;
 
@@ -711,7 +714,7 @@
                 return;
             }
 
-            Show(_recordingName, midi, result, watch.Elapsed, sound.Seconds, false, range, parts.Count);
+            Show(_recordingName, midi, result, watch.Elapsed, sound.Seconds, false, range, parts.Count, RecordingParts.Seams(parts));
         }
         finally
         {
@@ -720,8 +723,9 @@
     }
 
     /// <summary>Imports what the server heard, marked as heard, in the bars worked out from it (0016).</summary>
-    private void Show(string recordingName, byte[] midi, TranscriptionResult result, TimeSpan elapsed, double seconds, bool cut, RecordingRange? range, int requests)
+    private void Show(string recordingName, byte[] midi, TranscriptionResult result, TimeSpan elapsed, double seconds, bool cut, RecordingRange? range, int requests, IReadOnlyList<long>? seams = null)
     {
+        _seams = seams ?? [];
         _elapsed = elapsed;
         string name = Path.ChangeExtension(recordingName, ".mid");
         PieceImportResult imported = PieceImporter.Import(name, midi);
@@ -911,7 +915,7 @@
     }
 
     /// <summary>The importer's tip; for a PDF, photo or recording picked as a file, the screen that reads it is linked instead.</summary>
-    private string? TipFor(ImportRejection rejection) => OtherRouteFor(rejection) is null ? rejection.Tip : null;
+    private string? TipFor(ImportRejection rejection) => OtherRouteFor(rejection) is null ? rejection.TipIn(MotiffLab.MusicCore.Words.For(Text.Language)) : null;
 
     /// <summary>The screen for what was picked, when this one cannot read it: scanning for a PDF or photo, transcription for a recording.</summary>
     private (string Href, string Label)? OtherRouteFor(ImportRejection rejection) => rejection.Reason switch
@@ -936,12 +940,17 @@
         var project = Project.Create($"p_{Guid.NewGuid():N}", piece.FileName, _data, DateTimeOffset.Now) with
         {
             Scan = _scan is null ? null : ScanOrigin.Read(_scanEngine),
-            Transcription = _transcriptionEngine is null ? null : new TranscriptionOrigin(_transcriptionEngine, _barsOn ? _bars : null),
+            Transcription = _transcriptionEngine is null ? null : new TranscriptionOrigin(_transcriptionEngine, _barsOn ? _bars : null) { Seams = _seams },
         };
         // The piece opens at a resume point (0018), so it comes back to where it was left; a scan's Check flags start open.
         if (_scan is { } check)
         {
             project = project with { Check = CheckFlag.FromScan(check, []) };
+        }
+        else if (project.Transcription is { } heard)
+        {
+            // A transcription's doubts (0018, preparation item 12): where parts were joined, the tempo fits poorly, notes crowd or the hands were guessed.
+            project = project with { Check = CheckFlag.FromTranscription(heard, _data, piece) };
         }
 
         ResumePoint point = ResumePoint.Start(project.NextResumePointId(), DateTimeOffset.Now);

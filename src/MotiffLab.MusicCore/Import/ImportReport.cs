@@ -5,8 +5,8 @@ namespace MotiffLab.MusicCore.Import;
 /// <remarks>
 /// Issues are grouped by code and track with a count, so a large file gives a short report.
 /// They appear in the order each kind of issue was first met, which is deterministic for a given
-/// file. Messages are plain English for display; <see cref="ImportIssue.Code"/> is the stable key
-/// for localisation and tests.
+/// file. Messages are plain English; <see cref="ImportIssue.Text"/> gives them in the player's language
+/// (0018, preparation item 13), and <see cref="ImportIssue.Code"/> is the stable key for tests.
 /// </remarks>
 public sealed record ImportReport(
     string Format,
@@ -23,7 +23,19 @@ public sealed record ImportReport(
 
 /// <summary>One kind of thing the importer rounded, assumed, repaired or dropped.</summary>
 /// <param name="Track">Zero-based source track, or null when the issue concerns the whole file.</param>
-public sealed record ImportIssue(ImportIssueKind Kind, string Code, int? Track, int Count, string Message);
+/// <param name="Message">The issue in plain English.</param>
+public sealed record ImportIssue(ImportIssueKind Kind, string Code, int? Track, int Count, string Message)
+{
+    /// <summary>The issue in Russian; null where only the English is known.</summary>
+    public string? RussianMessage { get; init; }
+
+    /// <summary>The issue in the language: the Russian when there is one, else the English.</summary>
+    public string Text(Words words) => words.IsRussian && RussianMessage is { } russian ? russian : Message;
+
+    /// <summary>"Track 2: …"; "Дорожка 2: …" for an issue of one track.</summary>
+    internal static string OnTrack(int? track, string message, Words words) =>
+        track is int index ? $"{words.T("Track", "Дорожка")} {index + 1}: {message}" : message;
+}
 
 public enum ImportIssueKind
 {
@@ -66,18 +78,16 @@ internal sealed class ImportIssueCollector
 
     public int CountOf(string code) => _counts.Where(entry => entry.Key.Code == code).Sum(entry => entry.Value);
 
-    public IReadOnlyList<ImportIssue> Build(Func<string, int, string> describe) =>
+    /// <summary>The issues, each described in English and Russian.</summary>
+    public IReadOnlyList<ImportIssue> Build(Func<string, int, Words, string> describe) =>
         _order
             .Select(entry =>
             {
                 int count = _counts[(entry.Code, entry.Track)];
-                string message = describe(entry.Code, count);
-                if (entry.Track is int track)
+                return new ImportIssue(entry.Kind, entry.Code, entry.Track, count, ImportIssue.OnTrack(entry.Track, describe(entry.Code, count, Words.English), Words.English))
                 {
-                    message = $"Track {track + 1}: {message}";
-                }
-
-                return new ImportIssue(entry.Kind, entry.Code, entry.Track, count, message);
+                    RussianMessage = ImportIssue.OnTrack(entry.Track, describe(entry.Code, count, Words.Russian), Words.Russian),
+                };
             })
             .ToList();
 }

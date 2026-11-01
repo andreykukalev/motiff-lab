@@ -27,9 +27,11 @@ Ticks are integers at 480 per quarter ([0002](decisions/0002-canonical-time.md))
   "check": [ … ] | null,        // version 12
   "settings": { … },            // version 12
   "scan": { … },                // only a scanned piece (version 7)
-  "transcription": { … }        // only a transcribed piece (version 9; bars since 10)
+  "transcription": { … }        // only a transcribed piece (version 9; bars since 10; seams in 12)
 }
 ```
+
+The transcription keeps `"seams": [ms, …]` when a long recording was sent in parts ([0016](decisions/0016-bars-for-transcribed-notes.md)): where each part after the first takes over, in milliseconds from the start of the stretch of the recording that was sent, ascending. The Check layer flags the bars on either side of each seam (`PartSeam`). The array is left out when the recording went in one part, and a file without it reads as no seams.
 
 ## Marks (`marks`)
 
@@ -133,7 +135,9 @@ What the scan server or the transcription left for the player to look at, as dat
 ]
 ```
 
-`null` only in a file written for a project that was never opened since it was read from an older version; opening such a project works the flags out from the piece (`CheckFlag.FromScan`) and marks the bars the player had confirmed as resolved. Resolving a flag on a scanned piece also confirms the bar in `scan.confirmedBars`, so older readers see the same thing.
+`null` only in a file written for a project that was never opened since it was read from an older version; opening such a project works the flags out from the piece (`CheckFlag.FromScan`, or `CheckFlag.FromTranscription` for a transcription) and marks the bars the player had confirmed as resolved.
+
+A transcription's flags (prep item 12) are worked out from the notes the engine heard and the bars worked out for them: `PartSeam` for the bars on either side of a seam; `TempoUncertain` for a bar where at least half of four or more onsets sit more than 30 ticks off both the 16th and the triplet-8th grids; `DenseCluster` for a bar with four onsets within a 16th or a chord of three or more notes a second apart; `HandsGuessed` for a bar with two or more notes whose hand was guessed with confidence below 0.6. A reason other than `PartSeam` that would flag more than a quarter of the bars is left out, since it then says more about the recording than about a bar. Resolving a flag on a scanned piece also confirms the bar in `scan.confirmedBars`, so older readers see the same thing.
 
 ## Settings (`settings`)
 
@@ -153,6 +157,7 @@ Every version since 1 opens (`ProjectFile.Read`). The rules for the versions bef
 | --- | --- |
 | 8–11 | Each session becomes a resume point with the same number (`s_0001` → `r_0001`), named by the session's task, at its passage, with the session's `lastActive`; its intent is dropped. |
 | 6–11 | Observations lose `sessionId`; `factId` is absent. |
+| 12 without `transcription.seams` | The recording went in one part, or was transcribed before seams were kept: no `PartSeam` flags. |
 | < 12 | No marks, bookmarks (the four built-in categories only) or overrides. `check` is null until the project is opened, then worked out from the piece and the scan's confirmed bars. |
 | 12 without `phrases.short` / `phrases.sentences` | Written before the three phrase levels ([0018](decisions/0018-redesign.md), section 3): the Short and Sentence levels have no edits, so the engine suggests them. The level shown is the override `phrases.granularity`, as before. |
 

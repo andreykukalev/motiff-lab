@@ -79,7 +79,7 @@ internal sealed partial class OpenPiece
         if (result.Piece is not { } piece)
         {
             ImportRejection rejection = result.Rejection!;
-            throw new FacadeException("import", $"{rejection.Message} {rejection.Tip}".Trim()) { Data = { ["reason"] = Answer.Name(rejection.Reason), ["tip"] = rejection.Tip } };
+            throw new FacadeException("import", $"{rejection.Text(words)} {rejection.TipIn(words)}".Trim()) { Data = { ["reason"] = Answer.Name(rejection.Reason), ["tip"] = rejection.TipIn(words) } };
         }
 
         return new OpenPiece(Project.Create(id, fileName, data, now), piece, piece.Notes, words);
@@ -120,7 +120,7 @@ internal sealed partial class OpenPiece
 
     public string Call(string name, Request request) => name switch
     {
-        "piece" => Answer.Write(json => Answer.Piece(json, Piece, Notes, withNotes: true)),
+        "piece" => Answer.Write(json => Answer.Piece(json, Piece, Notes, withNotes: true, Words)),
         "language" => Language(request),
         "phrases" => Answer.Write(json => Answer.Phrases(json, Levels, LevelOf(request) ?? Level, Words)),
         "phrases.level" => ChangeLevel(request),
@@ -151,7 +151,7 @@ internal sealed partial class OpenPiece
     {
         Answer.Project(json, "project", Project);
         json.WriteStartObject("summary");
-        Answer.Piece(json, Piece, Notes, withNotes: false);
+        Answer.Piece(json, Piece, Notes, withNotes: false, Words);
         json.WriteEndObject();
         json.WriteString("language", Words.IsRussian ? "ru" : "en");
         if (Selection is { } selection)
