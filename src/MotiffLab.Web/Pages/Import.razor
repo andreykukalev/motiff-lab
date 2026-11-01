@@ -938,12 +938,17 @@
             Scan = _scan is null ? null : ScanOrigin.Read(_scanEngine),
             Transcription = _transcriptionEngine is null ? null : new TranscriptionOrigin(_transcriptionEngine, _barsOn ? _bars : null),
         };
-        // The piece opens in a session (0012), so the work has a context to come back to from the project page.
-        Session session = Session.Start(project.NextSessionId(), SessionIntent.Open, null, DateTimeOffset.Now);
-        project = project.StartSession(session);
+        // The piece opens at a resume point (0018), so it comes back to where it was left; a scan's Check flags start open.
+        if (_scan is { } check)
+        {
+            project = project with { Check = CheckFlag.FromScan(check, []) };
+        }
+
+        ResumePoint point = ResumePoint.Start(project.NextResumePointId(), DateTimeOffset.Now);
+        project = project.AddResumePoint(point);
         await Projects.SaveAsync(project);
         CurrentPiece.Open(piece, piece.StartChoices[Math.Clamp(_start, 0, piece.StartChoices.Count - 1)].Filter, project);
-        Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(project, session.Id));
+        Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(project, point.Id));
     }
 
     private static string FormatName(SourceFormat format) => format == SourceFormat.Midi ? "MIDI" : "MusicXML";

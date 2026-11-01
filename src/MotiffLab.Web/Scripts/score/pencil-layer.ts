@@ -1,8 +1,10 @@
 // The layer that takes pencil marks on the score (decision record 0015): the Apple Pencil, or a
 // pen, writes over the engraving at any time; with the Pencil tools on, a mouse writes too. A finger
 // never writes, so the hand resting on the screen and a finger scrolling the score leave no marks. A
-// tap with the pen picks a note or a bar, as a click does. Marks are kept per piece on the device
-// (storage/pencil-store.ts) and drawn again in their bars after every layout (pencil-marks.ts).
+// tap with the pen picks a note or a bar, as a click does. Marks are kept in the project file with the
+// piece (Projects/Marks.cs, project file v12): the host hands the strokes in with the key and is handed
+// them back after every change, and saves them. A piece open without a project keeps its marks on the
+// device (storage/pencil-store.ts). Marks are drawn again in their bars after every layout (pencil-marks.ts).
 //
 // The iPad app (ios/, 0015) relays the Pencil's double tap and squeeze as a "motiff-pencil" event on
 // the window: a double tap switches to the eraser and back, a squeeze shows or hides the tools.
@@ -48,6 +50,8 @@ export interface PencilHost {
     /** A tap with the pen or, with the tools on, the mouse: picks what is under it, as a click does. */
     tap(target: Element, extend: boolean): void;
     changed(state: PencilState): void;
+    /** The strokes of a project-backed piece after a change, as writeMarks writes them, for the host to keep in the project. */
+    marksChanged(text: string): void;
 }
 
 /** One step the player can take back: marks it added and marks it took away. */
@@ -90,11 +94,23 @@ function newId(): string {
     return `m${Date.now().toString(36)}${nextId.toString(36)}`;
 }
 
+/** Whether two sets of marks are the same strokes in the same order, whatever text they were read from. */
+function sameMarks(a: readonly PencilMark[], b: readonly PencilMark[]): boolean {
+    if (a.length !== b.length) {
+        return false;
+    }
+    const key = (mark: PencilMark): string =>
+        JSON.stringify([mark.id, mark.tool, mark.colour, mark.size, mark.bar, mark.u, mark.v, mark.points, mark.pressure]);
+    return a.every((mark, i) => key(mark) === key(b[i]));
+}
+
 export class PencilLayer {
     private readonly host: HTMLElement;
     private readonly score: PencilHost;
     private readonly svg: SVGSVGElement;
     private key: string | null = null;
+    /** True when the project keeps the marks: they came in with the key and go back through marksChanged. */
+    private inProject = false;
     /** Counts keys set, so a load that finishes after the next key is set is dropped. */
     private generation = 0;
     private marks: PencilMark[] = [];
@@ -102,7 +118,7 @@ export class PencilLayer {
     private on = false;
     private tool: PencilTool = "pen";
     private toolBeforeEraser: PencilTool = "pen";
-    private colour: MarkColour = "ink";
+    private colour: MarkColour = "graphite";
     private frames: BarFrame[] = [];
     private byTick = new Map<number, BarFrame>();
     private placed = new Map<string, { points: InkPoint[]; radius: number; path: SVGPathElement }>();
@@ -130,16 +146,24 @@ export class PencilLayer {
         window.addEventListener("pagehide", this.onPageHide);
     }
 
-    /** Which piece's marks to show and keep; null turns the layer off, as for the score with a variation in it. */
-    async setKey(key: string | null): Promise<void> {
-        if (key === this.key) {
+    /**
+     * Which piece's marks to show and keep; null turns the layer off, as for the score with a variation in it. With
+     * `ink`, the strokes the project file keeps (a string, empty for none), the project is where the marks live: the
+     * layer shows them and hands every change back through the host. Marks the device kept for the same key from
+     * before the project held them are taken into the project once and forgotten on the device. Without `ink`, the
+     * marks live on the device.
+     */
+    async setKey(key: string | null, ink?: string | null): Promise<void> {
+        const inProject = typeof ink === "string";
+        if (key === this.key && inProject === this.inProject) {
             return;
         }
         this.flush();
         this.key = key;
+        this.inProject = inProject;
         this.generation += 1;
         const generation = this.generation;
-        this.marks = [];
+        this.marks = inProject ? readMarks(ink) : [];
         this.undo = [];
         this.endStroke();
         this.svg.style.display = key === null ? "none" : "";
@@ -155,12 +179,46 @@ export class PencilLayer {
         } catch {
             // Storage that is blocked keeps marks for this visit only.
         }
-        if (generation === this.generation) {
+        if (generation !== this.generation) {
+            return;
+        }
+        if (!inProject) {
             // Marks written while the saved ones loaded stay, on top of them.
             this.marks = [...saved, ...this.marks];
             this.draw();
             this.notify();
+            return;
         }
+        // The project holds the marks now: what the device kept joins them once, then goes.
+        const known = new Set(this.marks.map((mark) => mark.id));
+        const moved = saved.filter((mark) => !known.has(mark.id));
+        if (saved.length > 0) {
+            void saveMarks(key, null).catch(() => {
+                // Left on the device, they would join again next time, and be known then.
+            });
+        }
+        if (moved.length > 0) {
+            this.marks = [...moved, ...this.marks];
+            this.changedMarks();
+        }
+    }
+
+    /** The strokes the project keeps, when the host changes them other than through this layer (another device, a file). */
+    setInk(ink: string): void {
+        if (!this.inProject || this.key === null) {
+            return;
+        }
+        const marks = readMarks(ink);
+        if (sameMarks(marks, this.marks)) {
+            return;
+        }
+        this.marks = marks;
+        this.undo = [];
+        this.endStroke();
+        this.dirty = false;
+        clearTimeout(this.saveTimer);
+        this.draw();
+        this.notify();
     }
 
     /** Turns the tools on or off. Off, the pen still writes; the mouse picks notes and bars again. */
@@ -182,9 +240,9 @@ export class PencilLayer {
         if (colour !== null) {
             this.colour = colour;
         } else if (tool === "highlighter") {
-            this.colour = "yellow";
-        } else if (tool === "pen" && this.colour === "yellow") {
-            this.colour = "ink";
+            this.colour = "amber";
+        } else if (tool === "pen" && this.colour === "amber") {
+            this.colour = "graphite";
         }
         this.setOn(true);
     }
@@ -286,14 +344,19 @@ export class PencilLayer {
         }
     }
 
-    /** Saves now what is waiting to be saved. */
+    /** Saves now what is waiting to be saved: to the project through the host, or to the device. */
     private flush(): void {
         clearTimeout(this.saveTimer);
         if (!this.dirty || this.key === null) {
             return;
         }
         this.dirty = false;
-        void saveMarks(this.key, this.marks.length === 0 ? null : writeMarks(this.marks)).catch(() => {
+        const text = this.marks.length === 0 ? null : writeMarks(this.marks);
+        if (this.inProject) {
+            this.score.marksChanged(text ?? "");
+            return;
+        }
+        void saveMarks(this.key, text).catch(() => {
             // Storage that is blocked or full keeps the marks for this visit only.
         });
     }

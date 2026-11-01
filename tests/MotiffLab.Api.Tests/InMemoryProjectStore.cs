@@ -27,7 +27,7 @@ internal sealed class InMemoryProjectStore : IProjectStore
         }
 
         string etag = $"\"{Interlocked.Increment(ref _version)}\"";
-        var row = new StoredSummary(summary.Id, summary.FileName, summary.MotifCount, summary.VariationCount, summary.LastOpened, summary.SessionCount, summary.IdeaCount, DateTimeOffset.UtcNow);
+        var row = new StoredSummary(summary.Id, summary.FileName, summary.MotifCount, summary.VariationCount, summary.LastOpened, summary.ResumeCount, summary.IdeaCount, DateTimeOffset.UtcNow);
         _documents[(ownerId, summary.Id)] = (row, new StoredProject(packedFile, etag));
         return Task.FromResult(etag);
     }

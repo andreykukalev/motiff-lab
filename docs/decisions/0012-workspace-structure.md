@@ -2,7 +2,7 @@
 
 **Status:** accepted · **Date:** 2026-10-27 · **Scope:** `src/MotiffLab.Web` (pages, layout, localization), `MotiffLab.MusicCore.Projects` (sessions), project file version 8
 
-> 2026-11-01: the redesign ([0018](0018-redesign.md)) replaces sessions with resume points, the project page with the library, the Score / Piano roll / Both views and Focus mode with the page, the piano roll drawer and phrase focus, and the inspector's tabs with the Insights stream. Projects, ideas, the score first, `i18n/*.json` and musical text from music-core stand.
+> 2026-11-01: the redesign ([0018](0018-redesign.md)) replaces sessions with resume points (project file version 12, [docs/project-file.md](../project-file.md): a session of versions 8–11 opens as a resume point named by its task, and the old project page offers Continue and Open afresh in place of the four intents), the project page with the library, the Score / Piano roll / Both views and Focus mode with the page, the piano roll drawer and phrase focus, and the inspector's tabs with the Insights stream. Projects, ideas, the score first, `i18n/*.json` and musical text from music-core stand.
 
 ## Context
 

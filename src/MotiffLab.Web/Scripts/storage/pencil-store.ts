@@ -1,6 +1,9 @@
 // Pencil marks saved on the device (decision record 0015): one row per piece, its marks as the text
 // pencil-marks.ts writes. A database of their own, so the projects database (project-store.ts) keeps
-// its version. Nothing here leaves the device; deleting a project deletes its marks (ProjectStore.cs).
+// its version. Since project file v12 a project keeps its marks itself (Projects/Marks.cs); this store
+// holds the marks of a piece open without a project, and marks saved before v12 until the pencil layer
+// takes them into their project. Nothing here leaves the device; deleting a project deletes what is
+// left here for it (ProjectStore.cs).
 
 const DATABASE = "motiff-lab-pencil";
 const VERSION = 1;

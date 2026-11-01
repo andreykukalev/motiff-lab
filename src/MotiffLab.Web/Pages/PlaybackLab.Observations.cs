@@ -119,7 +119,7 @@ public partial class PlaybackLab
             note: null,
             DateTimeOffset.Now,
             (trial.Experiment.Id, trial.Alternative));
-        Change(notebook => notebook.Keep(InSession(observation)));
+        Change(notebook => notebook.Keep(observation));
         _keptTrial = (trial, observation.Id);
         Say(null);
     }
@@ -134,7 +134,7 @@ public partial class PlaybackLab
 
         string name = string.Join(" › ", [.. chain.Steps.Select(StepLabel), .. chain.Pending is { } pending ? [StepLabel(pending)] : Array.Empty<string>()]);
         Observation observation = Observation.Create(NextObservationId(), SavedPassage.Of(selection), KeptVariation.Create(chain, selection.Filter), name, note: null, DateTimeOffset.Now);
-        return SaveObservationsAsync(notebook => notebook.Keep(InSession(observation)), Text.Format("kept.kept", observation.Name));
+        return SaveObservationsAsync(notebook => notebook.Keep(observation), Text.Format("kept.kept", observation.Name));
     }
 
     /// <summary>A note alone about the selection, in the player's words.</summary>
@@ -146,7 +146,7 @@ public partial class PlaybackLab
         }
 
         Observation observation = Observation.Create(NextObservationId(), SavedPassage.Of(selection), variation: null, Text.Format("kept.noteOn", BarsOf(selection.Span)), note, DateTimeOffset.Now);
-        return SaveObservationsAsync(notebook => notebook.Keep(InSession(observation)), Text["kept.noteKept"]);
+        return SaveObservationsAsync(notebook => notebook.Keep(observation), Text["kept.noteKept"]);
     }
 
     /// <summary>The note on the kept experiment of the Explore card.</summary>

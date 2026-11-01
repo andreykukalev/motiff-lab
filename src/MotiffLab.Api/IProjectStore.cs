@@ -33,7 +33,7 @@ internal sealed record StoredSummary(
     int MotifCount,
     int VariationCount,
     DateTimeOffset LastOpened,
-    int SessionCount,
+    int ResumeCount,
     int IdeaCount,
     DateTimeOffset SavedAt);
 

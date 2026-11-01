@@ -81,7 +81,7 @@ public sealed class OnlineProjects(CloudAccount account, Preferences preferences
             }
 
             OnlineSummary[] rows = await response.Content.ReadFromJsonAsync<OnlineSummary[]>() ?? [];
-            return ([.. rows.Select(row => new ProjectSummary(row.Id, row.FileName, row.MotifCount, row.VariationCount, row.LastOpened, row.SessionCount, row.IdeaCount))], null);
+            return ([.. rows.Select(row => new ProjectSummary(row.Id, row.FileName, row.MotifCount, row.VariationCount, row.LastOpened, row.ResumeCount, row.IdeaCount))], null);
         }
         catch (HttpRequestException)
         {
@@ -245,5 +245,5 @@ public sealed class OnlineProjects(CloudAccount account, Preferences preferences
         _ => "online.problem",
     };
 
-    private sealed record OnlineSummary(string Id, string FileName, int MotifCount, int VariationCount, DateTimeOffset LastOpened, int SessionCount, int IdeaCount);
+    private sealed record OnlineSummary(string Id, string FileName, int MotifCount, int VariationCount, DateTimeOffset LastOpened, int ResumeCount, int IdeaCount);
 }

@@ -20,7 +20,7 @@ export interface ProjectSummary {
     variationCount: number;
     lastOpened: string;
     /** Work sessions and kept ideas (0012); rows saved by earlier versions have neither. */
-    sessionCount?: number;
+    resumeCount?: number;
     ideaCount?: number;
 }
 

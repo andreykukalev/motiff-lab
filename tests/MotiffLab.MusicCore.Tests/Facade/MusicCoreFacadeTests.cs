@@ -350,6 +350,157 @@ public class MusicCoreFacadeTests
     }
 
     [Fact]
+    public void MarksAreKeptWithThePieceAndSavedInTheProjectFile()
+    {
+        (MusicCoreFacade facade, JsonElement opened) = Open();
+        Assert.Equal(0, opened.GetProperty("project").GetProperty("marks").GetInt32());
+
+        JsonElement inked = Call(facade, "ink.add", """{"strokes": [{"id": "s1", "tool": "pen", "colour": "carmine", "size": 2, "bar": 0, "u": 0.1, "v": 0.2, "points": [0, 0, 0.5, 1, 1, 0.5], "pressure": 0.5}]}""");
+        Assert.Equal("carmine", inked.GetProperty("ink")[0].GetProperty("colour").GetString());
+        JsonElement noted = Call(facade, "note.add", """{"bars": {"first": 1, "last": 2}, "text": "Lean into the E", "now": "2026-11-01T10:00:00Z"}""");
+        Assert.Equal("n_0001", noted.GetProperty("notes")[0].GetProperty("id").GetString());
+        Assert.Equal(1, noted.GetProperty("notes")[0].GetProperty("bars").GetProperty("first").GetInt32());
+        Call(facade, "highlight.add", """{"bars": {"first": 1, "last": 1}, "notes": []}""");
+        JsonElement fingered = Call(facade, "fingering.set", """{"noteId": "n1", "finger": 3}""");
+        Assert.Equal(3, fingered.GetProperty("fingering")[0].GetProperty("finger").GetInt32());
+        Assert.Equal("badRequest", Error(facade, 1, "fingering.set", """{"noteId": "n1", "finger": 6}"""));
+        Assert.Equal("badRequest", Error(facade, 1, "note.add", """{"bars": {"first": 1}, "text": "  "}"""));
+
+        JsonElement saved = Json(facade.Call(1, "project.save"));
+        Assert.Equal("s1", saved.GetProperty("marks").GetProperty("ink")[0].GetProperty("id").GetString());
+        Assert.Equal("Lean into the E", saved.GetProperty("marks").GetProperty("notes")[0].GetProperty("text").GetString());
+        Assert.Equal(4, Call(facade, "marks").GetProperty("ink").GetArrayLength() + Call(facade, "marks").GetProperty("notes").GetArrayLength() + Call(facade, "marks").GetProperty("highlights").GetArrayLength() + Call(facade, "marks").GetProperty("fingering").GetArrayLength());
+        Assert.Empty(Call(facade, "ink.clear").GetProperty("ink").EnumerateArray());
+    }
+
+    [Fact]
+    public void BookmarksHaveCategoriesAndFollowThePhraseTheyWereMadeFrom()
+    {
+        (MusicCoreFacade facade, _) = Open("""{"language": "ru"}""");
+        JsonElement[] phrases = [.. Call(facade, "phrases").GetProperty("phrases").EnumerateArray()];
+        int first = phrases[0].GetProperty("number").GetInt32();
+
+        JsonElement categories = Call(facade, "bookmarks").GetProperty("categories");
+        Assert.Equal(["practise", "performance", "structure", "teacher"], categories.EnumerateArray().Select(category => category.GetProperty("id").GetString()!).ToArray());
+        Assert.Equal("Поиграть", categories[0].GetProperty("name").GetString());
+
+        JsonElement added = Call(facade, "bookmark.add", $$$"""{"phrase": {{{first}}}, "category": "structure", "now": "2026-11-01T10:00:00Z"}""");
+        JsonElement bookmark = added.GetProperty("bookmarks")[0];
+        Assert.Equal("b_0001", bookmark.GetProperty("id").GetString());
+        Assert.True(bookmark.GetProperty("fromPhrase").GetBoolean());
+        Assert.StartsWith("такты", bookmark.GetProperty("title").GetString());
+        Assert.Equal(phrases[0].GetProperty("end").GetInt64(), bookmark.GetProperty("span").GetProperty("end").GetInt64());
+
+        Call(facade, "phrases.edit", $$$"""{"joinWithNext": {{{first}}}}""");
+        JsonElement followed = Call(facade, "bookmarks").GetProperty("bookmarks")[0];
+        Assert.Equal(phrases[1].GetProperty("end").GetInt64(), followed.GetProperty("span").GetProperty("end").GetInt64());
+
+        JsonElement own = Call(facade, "category.add", """{"name": "Экзамен", "ink": "ochre"}""");
+        Assert.Equal("c_0001", own.GetProperty("categories")[4].GetProperty("id").GetString());
+        Call(facade, "bookmark.change", """{"id": "b_0001", "title": "Тема", "category": "c_0001"}""");
+        JsonElement removed = Call(facade, "category.remove", """{"id": "c_0001"}""");
+        Assert.Equal("practise", removed.GetProperty("bookmarks")[0].GetProperty("category").GetString());
+        Assert.Equal("Тема", removed.GetProperty("bookmarks")[0].GetProperty("title").GetString());
+        Assert.Equal("badRequest", Error(facade, 1, "category.remove", """{"id": "practise"}"""));
+        Assert.Equal("badRequest", Error(facade, 1, "bookmark.add", """{"bars": {"first": 1}, "category": "nowhere"}"""));
+    }
+
+    [Fact]
+    public void ResumePointsSaveWhereThePlayerIsAndComeBackMostRecentFirst()
+    {
+        (MusicCoreFacade facade, JsonElement opened) = Open();
+        Assert.Equal(0, opened.GetProperty("project").GetProperty("resumePoints").GetInt32());
+
+        JsonElement started = Call(facade, "resume.save", """{"now": "2026-11-01T10:00:00Z"}""");
+        Assert.Equal("r_0001", started.GetProperty("saved").GetProperty("id").GetString());
+        Assert.Equal(100, started.GetProperty("saved").GetProperty("tempoPercent").GetInt32());
+        Assert.Equal("both", started.GetProperty("saved").GetProperty("hands").GetString());
+
+        JsonElement touched = Call(facade, "resume.save", """{"id": "r_0001", "passage": {"span": {"onset": 1920, "end": 3840}, "filter": {"hand": "left"}}, "overlays": ["insights", "pianoRoll"], "tempoPercent": 70, "hands": "left", "loop": true, "focused": true, "now": "2026-11-01T11:00:00Z"}""");
+        JsonElement point = touched.GetProperty("saved");
+        Assert.Equal(1920, point.GetProperty("at").GetInt64());
+        Assert.Equal("left", point.GetProperty("passage").GetProperty("filter").GetProperty("hand").GetString());
+        Assert.Equal(["pianoRoll", "insights"], point.GetProperty("overlays").EnumerateArray().Select(overlay => overlay.GetString()!).ToArray());
+        Assert.Equal((70, "left", true, true), (point.GetProperty("tempoPercent").GetInt32(), point.GetProperty("hands").GetString(), point.GetProperty("loop").GetBoolean(), point.GetProperty("focused").GetBoolean()));
+
+        Call(facade, "resume.save", """{"name": "Coda", "now": "2026-11-01T09:00:00Z"}""");
+        JsonElement listed = Call(facade, "resume").GetProperty("resumePoints");
+        Assert.Equal(["r_0001", "r_0002"], listed.EnumerateArray().Select(entry => entry.GetProperty("id").GetString()!).ToArray());
+        Assert.Equal("Coda", listed[1].GetProperty("name").GetString());
+        Assert.Equal("badRequest", Error(facade, 1, "resume.save", """{"id": "r_0001", "tempoPercent": 10}"""));
+        Assert.Single(Call(facade, "resume.remove", """{"id": "r_0002"}""").GetProperty("resumePoints").EnumerateArray());
+
+        JsonElement saved = Json(facade.Call(1, "project.save"));
+        Assert.Equal(1920, saved.GetProperty("resumePoints")[0].GetProperty("at").GetInt64());
+    }
+
+    [Fact]
+    public void IdeasKeepAVariationWithTheFactItCameFromAndOpenAgain()
+    {
+        (MusicCoreFacade facade, _) = Open();
+        Call(facade, "select", """{"bars": {"first": 1, "last": 2}}""");
+        Assert.Equal("unavailable", Error(facade, 1, "idea.keep"));
+        JsonElement experiment = Call(facade, "experiments").GetProperty("experiments")[0];
+        Call(facade, "experiments.start", $$$"""{"id": "{{{experiment.GetProperty("id").GetString()}}}", "alternative": 0}""");
+
+        JsonElement kept = Call(facade, "idea.keep", """{"now": "2026-11-01T10:00:00Z"}""").GetProperty("ideas")[0];
+        Assert.Equal("o_0001", kept.GetProperty("id").GetString());
+        Assert.Equal(experiment.GetProperty("id").GetString(), kept.GetProperty("experiment").GetProperty("id").GetString());
+        Assert.Equal(experiment.GetProperty("factIds")[0].GetString(), kept.GetProperty("factId").GetString());
+        Assert.True(kept.GetProperty("hasVariation").GetBoolean());
+
+        Call(facade, "variation.clear");
+        Call(facade, "select", """{"bars": {"first": 5, "last": 6}}""");
+        Call(facade, "idea.note", """{"id": "o_0001", "note": "Try it slower"}""");
+        JsonElement opened = Call(facade, "idea.open", """{"id": "o_0001"}""");
+        Assert.Equal(1, opened.GetProperty("selection").GetProperty("firstBar").GetInt32());
+        Assert.NotEmpty(Call(facade, "variation").GetProperty("steps").EnumerateArray());
+        Assert.Equal("Try it slower", Call(facade, "ideas").GetProperty("ideas")[0].GetProperty("note").GetString());
+
+        JsonElement saved = Json(facade.Call(1, "project.save"));
+        Assert.Equal(experiment.GetProperty("factIds")[0].GetString(), saved.GetProperty("observations")[0].GetProperty("factId").GetString());
+        Assert.Empty(Call(facade, "idea.remove", """{"id": "o_0001"}""").GetProperty("ideas").EnumerateArray());
+    }
+
+    [Fact]
+    public void SettingsHaveACatalogueAPresetAndPerPieceOverrides()
+    {
+        var facade = new MusicCoreFacade();
+        JsonElement catalogue = Json(facade.Call(0, "settings"));
+        JsonElement granularity = catalogue.GetProperty("settings").EnumerateArray().Single(setting => setting.GetProperty("id").GetString() == "phrases.granularity");
+        Assert.Equal("piece", granularity.GetProperty("scope").GetString());
+        Assert.Equal(["short", "phrases", "sentences"], granularity.GetProperty("choices").EnumerateArray().Select(choice => choice.GetString()!).ToArray());
+
+        JsonElement learning = Json(facade.Call(0, "settings.state", """{"preset": "learning"}"""));
+        Assert.Equal("learning", learning.GetProperty("preset").GetString());
+        Assert.Equal("on", learning.GetProperty("values").GetProperty("guidance.hints").GetString());
+        JsonElement custom = Json(facade.Call(0, "settings.state", """{"preset": "clean", "set": {"id": "guidance.hints", "value": "on"}}"""));
+        Assert.Equal("custom", custom.GetProperty("preset").GetString());
+        Assert.Equal("badRequest", Json(facade.Call(0, "settings.state", """{"set": {"id": "guidance.hints", "value": "maybe"}}""")).GetProperty("error").GetString());
+
+        Json(facade.Open(FurElise, Fixture(FurElise)));
+        JsonElement overridden = Call(facade, "settings.override", """{"id": "phrases.granularity", "value": "sentences"}""");
+        Assert.Equal("sentences", overridden.GetProperty("overrides").GetProperty("phrases.granularity").GetString());
+        Assert.Equal("badRequest", Error(facade, 1, "settings.override", """{"id": "appearance.theme", "value": "night"}"""));
+        JsonElement resolved = Json(facade.Call(0, "settings.state", """{"preset": "learning", "overrides": {"phrases.granularity": "sentences"}}"""));
+        Assert.Equal("sentences", resolved.GetProperty("values").GetProperty("phrases.granularity").GetString());
+        Assert.Equal("sentences", Json(facade.Call(1, "project.save")).GetProperty("settings").GetProperty("phrases.granularity").GetString());
+        Assert.Empty(Call(facade, "settings.override", """{"id": "phrases.granularity", "value": null}""").GetProperty("overrides").EnumerateObject());
+    }
+
+    [Fact]
+    public void CheckIsEmptyForAnImportedPieceAndFlagsCanBeResolved()
+    {
+        (MusicCoreFacade facade, JsonElement opened) = Open();
+        Assert.Equal(0, opened.GetProperty("project").GetProperty("openChecks").GetInt32());
+
+        JsonElement check = Call(facade, "check");
+        Assert.Empty(check.GetProperty("flags").EnumerateArray());
+        Assert.Equal(0, check.GetProperty("open").GetInt32());
+        Assert.Equal("badRequest", Error(facade, 1, "check.resolve", """{"bar": 1}"""));
+    }
+
+    [Fact]
     public void TheCatalogueNamesKeepAndTheOperations()
     {
         var facade = new MusicCoreFacade();

@@ -72,7 +72,8 @@ else if (_loading && !HoldHeight)
     private IJSObjectReference? _view;
     private IJSObjectReference? _pencil;
     private string? _shownPencilKey;
-    private PencilState _pencilState = new(false, "pen", "ink", 0, 0, false);
+    private string? _shownInk;
+    private PencilState _pencilState = new(false, "pen", "graphite", 0, 0, false);
     private DotNetObjectReference<ScoreView>? _self;
     private ScoreSource? _shown;
     private bool _loading;
@@ -112,21 +113,35 @@ else if (_loading && !HoldHeight)
     public bool HoldHeight { get; set; }
 
     /// <summary>
-    /// Which piece's pencil marks to show and keep on this device (0015, <see cref="PencilMarks"/>); null shows none and
+    /// Which piece's pencil marks to show and keep (0015, <see cref="PencilMarks"/>); null shows none and
     /// leaves the pen to scroll, as for a score with a variation in it.
     /// </summary>
     [Parameter]
     public string? PencilKey { get; set; }
 
+    /// <summary>
+    /// The strokes the project file keeps for the piece, as <see cref="MotiffLab.MusicCore.Projects.ProjectFile.WriteInk"/>
+    /// writes them (empty for none); then every change comes back through <see cref="MarksChanged"/> for the project to
+    /// save. Null when the piece has no project: its marks stay on the device.
+    /// </summary>
+    [Parameter]
+    public string? Ink { get; set; }
+
+    /// <summary>The project's strokes after the player wrote or erased, in the same shape as <see cref="Ink"/>; empty for none.</summary>
+    [Parameter]
+    public EventCallback<string> MarksChanged { get; set; }
+
     /// <summary>The piece's name: heads a MusicXML file without a title on its first page and names the PDF (0017).</summary>
     [Parameter]
     public string? Title { get; set; }
 
+    /// <summary>The four inks of the design kit (0018), in the project file's names (Projects/Marks.cs).</summary>
     private static readonly (string Colour, string Key)[] s_penColours =
     [
-        ("ink", "pencil.penInk"),
-        ("red", "pencil.penRed"),
-        ("blue", "pencil.penBlue"),
+        ("graphite", "pencil.penGraphite"),
+        ("carmine", "pencil.penCarmine"),
+        ("forest", "pencil.penForest"),
+        ("ochre", "pencil.penOchre"),
     ];
 
     protected override void OnParametersSet()
@@ -150,10 +165,17 @@ else if (_loading && !HoldHeight)
             }
         }
 
-        if (_pencil is not null && PencilKey != _shownPencilKey)
+        if (_pencil is not null && (PencilKey != _shownPencilKey || (Ink is null) != (_shownInk is null)))
         {
             _shownPencilKey = PencilKey;
-            await _pencil.InvokeVoidAsync("setKey", PencilKey);
+            _shownInk = Ink;
+            await _pencil.InvokeVoidAsync("setKey", PencilKey, Ink);
+        }
+        else if (_pencil is not null && Ink is not null && Ink != _shownInk)
+        {
+            // The project's strokes changed other than by writing here (a file opened again, a project reloaded).
+            _shownInk = Ink;
+            await _pencil.InvokeVoidAsync("setInk", Ink);
         }
 
         if (_view is null || Source is null)
@@ -308,6 +330,14 @@ else if (_loading && !HoldHeight)
             _pencilState = state;
             StateHasChanged();
         }
+    }
+
+    /// <summary>Called by the script after the player wrote or erased on a piece whose project keeps the marks.</summary>
+    [JSInvokable]
+    public Task OnPencilMarksChanged(string ink)
+    {
+        _shownInk = ink;
+        return MarksChanged.InvokeAsync(ink);
     }
 
     /// <summary>Called by the script when a bar is clicked away from its notes.</summary>

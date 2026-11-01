@@ -13,9 +13,9 @@
 
 <PageTitle>@(_project?.FileName ?? Text["project.title"]) · Motiff Lab</PageTitle>
 
-@* The project page (0012, section 1 of the UI review): a piece and its context. The player arrives with an intention, so the
-   page offers to start a session for it, lists the recent sessions to resume, and the ideas kept about the piece to open again.
-   A session refers to the piece; it never copies the score. *@
+@* The project page (0012; resume points of 0018): a piece and its context. The page resumes where the player left off,
+   lists the resume points to come back to, and the ideas kept about the piece to open again. A resume point refers to the
+   piece; it never copies the score. The redesign folds this page into the library. *@
 <main class="lab project">
     <nav class="crumbs" aria-label="@Text["nav.label"]"><a href="">‹ @Text["nav.projects"]</a></nav>
 
@@ -32,7 +32,7 @@
         <header class="project-head">
             <h1>@_project.FileName</h1>
             <p class="meta">
-                @Text.Format("project.summary", _piece?.Report.MeasureCount ?? 0, _project.Sessions.Count, _project.Observations.Count)
+                @Text.Format("project.summary", _piece?.Report.MeasureCount ?? 0, _project.ResumePoints.Count, _project.Observations.Count)
                 @if (_project.Scan is not null)
                 {
                     <span> · @Text["project.scanned"]</span>
@@ -59,14 +59,12 @@
         <section class="start" aria-labelledby="start-heading">
             <h2 id="start-heading">@Text["project.startHeading"]</h2>
             <p class="meta">@Text["project.startHint"]</p>
-            <div class="intents" role="group" aria-label="@Text["project.startHeading"]">
-                @foreach (SessionIntent intent in s_intents)
+            <div class="row">
+                @if (_project.RecentResumePoints.Count > 0)
                 {
-                    <button class="intent @(intent == SessionIntent.Open ? "open" : null)" @onclick="() => StartAsync(intent)" disabled="@_starting">
-                        <strong>@Text[$"intent.{Key(intent)}"]</strong>
-                        <span>@Text[$"intent.{Key(intent)}.hint"]</span>
-                    </button>
+                    <button class="primary" @onclick="() => ResumeAsync(_project.RecentResumePoints[0])" disabled="@_starting">@Text["project.resume"]</button>
                 }
+                <button class="@(_project.RecentResumePoints.Count == 0 ? "primary" : null)" @onclick="StartAsync" disabled="@_starting">@Text["project.open"]</button>
             </div>
             <label class="task">
                 <span>@Text["project.taskLabel"]</span>
@@ -76,36 +74,34 @@
 
         <section class="sessions" aria-labelledby="sessions-heading">
             <h2 id="sessions-heading">@Text["project.sessions"]</h2>
-            @if (_project.Sessions.Count == 0)
+            @if (_project.ResumePoints.Count == 0)
             {
                 <p class="meta">@Text["project.noSessions"]</p>
             }
             else
             {
                 <ul class="session-list">
-                    @foreach (Session session in _project.RecentSessions)
+                    @foreach (ResumePoint point in _project.RecentResumePoints)
                     {
-                        int ideas = _project.Observations.Count(observation => observation.SessionId == session.Id);
-                        <li class="session-card @Key(session.Intent)">
+                        <li class="session-card">
                             <p class="name">
-                                <span class="intent-tag">@Text[$"intent.{Key(session.Intent)}"]</span>
-                                <strong>@(session.Task ?? Text[$"intent.{Key(session.Intent)}.hint"])</strong>
+                                <strong>@(point.Name ?? (point.Passage is { } named ? Bars(named.Span) : Text["project.unnamedResume"]))</strong>
                             </p>
                             <p class="meta">
-                                @(session.Passage is { } passage ? Bars(passage.Span) : Text["project.noPassage"])
-                                · @Text.Format("project.ideasKept", ideas)
-                                · @Text.Format("project.lastActive", session.LastActive.ToLocalTime().ToString("g", Text.Culture))
+                                @(point.Passage is { } passage ? Bars(passage.Span) : Text["project.noPassage"])
+                                · @point.TempoPercent%
+                                · @Text.Format("project.lastActive", point.LastActive.ToLocalTime().ToString("g", Text.Culture))
                             </p>
                             <div class="actions">
-                                <button class="primary" @onclick="() => ResumeAsync(session)" disabled="@_starting">@Text["project.resume"]</button>
-                                @if (_confirmEnd == session.Id)
+                                <button class="primary" @onclick="() => ResumeAsync(point)" disabled="@_starting">@Text["project.resume"]</button>
+                                @if (_confirmEnd == point.Id)
                                 {
-                                    <button class="on" @onclick="() => EndAsync(session)">@Text["project.endForGood"]</button>
+                                    <button class="on" @onclick="() => RemoveAsync(point)">@Text["project.endForGood"]</button>
                                     <button @onclick="() => _confirmEnd = null">@Text["home.keep"]</button>
                                 }
                                 else
                                 {
-                                    <button @onclick="() => _confirmEnd = session.Id" title="@Text["project.endHint"]">@Text["project.end"]</button>
+                                    <button @onclick="() => _confirmEnd = point.Id" title="@Text["project.endHint"]">@Text["project.end"]</button>
                                 }
                             </div>
                         </li>
@@ -125,16 +121,11 @@
                 <ul class="idea-list">
                     @foreach (Observation idea in _project.Observations.OrderByDescending(observation => observation.CreatedAt))
                     {
-                        Session? from = idea.SessionId is { } sessionId ? _project.FindSession(sessionId) : null;
                         <li class="idea-card">
                             <p class="name"><strong>@idea.Name</strong></p>
                             <p class="meta">
                                 @Bars((idea.Variation?.Passage ?? idea.Phrase).Span)
                                 · @Text[idea.Variation is null ? "idea.note" : idea.ExperimentId is null ? "idea.steps" : "idea.experiment"]
-                                @if (from is not null)
-                                {
-                                    <span> · @(from.Task ?? Text[$"intent.{Key(from.Intent)}"])</span>
-                                }
                             </p>
                             @if (idea.Note is { } note)
                             {
@@ -152,8 +143,6 @@
 </main>
 
 @code {
-    private static readonly SessionIntent[] s_intents = [SessionIntent.Practise, SessionIntent.Understand, SessionIntent.Explore, SessionIntent.Open];
-
     [Parameter]
     public string Id { get; set; } = "";
 
@@ -195,10 +184,8 @@
         }
     }
 
-    internal static string Key(SessionIntent intent) => intent.ToString().ToLowerInvariant();
-
-    /// <summary>Starts a session for the intent and opens the workspace on it (0012).</summary>
-    private async Task StartAsync(SessionIntent intent)
+    /// <summary>Opens the piece afresh at a new resume point, named by the player's words when they gave any (0018).</summary>
+    private async Task StartAsync()
     {
         if (_project is null)
         {
@@ -206,18 +193,18 @@
         }
 
         _starting = true;
-        Session session = Session.Start(_project.NextSessionId(), intent, _task, DateTimeOffset.Now);
-        await Projects.SaveAsync(_project.StartSession(session));
-        await GoAsync(session.Id, idea: null);
+        ResumePoint point = ResumePoint.Start(_project.NextResumePointId(), DateTimeOffset.Now, _task);
+        await Projects.SaveAsync(_project.AddResumePoint(point));
+        await GoAsync(point.Id, idea: null);
     }
 
-    private async Task ResumeAsync(Session session)
+    private async Task ResumeAsync(ResumePoint point)
     {
         _starting = true;
-        await GoAsync(session.Id, idea: null);
+        await GoAsync(point.Id, idea: null);
     }
 
-    /// <summary>Opens a kept idea in the workspace, in the session it was kept in, or in a new one to explore from it.</summary>
+    /// <summary>Opens a kept idea in the workspace, at a new resume point named after it.</summary>
     private async Task OpenIdeaAsync(Observation idea)
     {
         if (_project is null)
@@ -226,22 +213,12 @@
         }
 
         _starting = true;
-        string sessionId;
-        if (idea.SessionId is { } kept && _project.FindSession(kept) is not null)
-        {
-            sessionId = kept;
-        }
-        else
-        {
-            Session session = Session.Start(_project.NextSessionId(), SessionIntent.Explore, idea.Name, DateTimeOffset.Now);
-            await Projects.SaveAsync(_project.StartSession(session));
-            sessionId = session.Id;
-        }
-
-        await GoAsync(sessionId, idea.Id);
+        ResumePoint point = ResumePoint.Start(_project.NextResumePointId(), DateTimeOffset.Now, idea.Name);
+        await Projects.SaveAsync(_project.AddResumePoint(point));
+        await GoAsync(point.Id, idea.Id);
     }
 
-    private async Task GoAsync(string sessionId, string? idea)
+    private async Task GoAsync(string resumeId, string? idea)
     {
         try
         {
@@ -252,7 +229,7 @@
                 return;
             }
 
-            Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(CurrentPiece.Project!, sessionId, idea));
+            Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(CurrentPiece.Project!, resumeId, idea));
         }
         catch (ProjectFileException exception)
         {
@@ -261,7 +238,7 @@
         }
     }
 
-    private async Task EndAsync(Session session)
+    private async Task RemoveAsync(ResumePoint point)
     {
         _confirmEnd = null;
         if (_project is null)
@@ -269,7 +246,7 @@
             return;
         }
 
-        _project = _project.EndSession(session.Id);
+        _project = _project.RemoveResumePoint(point.Id);
         await Projects.SaveAsync(_project);
     }
 

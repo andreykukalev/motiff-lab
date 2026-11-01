@@ -158,7 +158,7 @@ public class ProjectFileTests
     [Theory]
     [InlineData("not json", "not valid JSON")]
     [InlineData("{\"format\":\"something-else\"}", "not a Motiff Lab project file")]
-    [InlineData("{\"format\":\"motiff-lab-project\",\"version\":12}", "newer version")]
+    [InlineData("{\"format\":\"motiff-lab-project\",\"version\":13}", "newer version")]
     [InlineData("{\"format\":\"motiff-lab-project\",\"version\":1,\"source\":\"!!\"}", "source")]
     public void Unreadable_files_get_a_plain_reason(string json, string reason)
     {
@@ -203,7 +203,7 @@ public class ProjectFileTests
     public void A_version_1_file_opens_with_its_variation_as_one_step()
     {
         string json = Encoding.UTF8.GetString(ProjectFile.Write(Worked() with { Variations = [] }))
-            .Replace("\"version\": 11", "\"version\": 1", StringComparison.Ordinal)
+            .Replace($"\"version\": {ProjectFile.Version}", "\"version\": 1", StringComparison.Ordinal)
             .Replace(
                 "\"variations\": []",
                 "\"variations\": [{\"id\": \"v_0001\", \"motifId\": \"m_0001\", \"operation\": \"V1\", \"parameters\": {\"kind\": \"HalfTime\", \"eighths\": 1}, \"keep\": [\"Pitches\"]}]",
@@ -285,7 +285,7 @@ public class ProjectFileTests
     public void A_version_4_file_opens_with_the_suggested_phrases()
     {
         string json = Encoding.UTF8.GetString(ProjectFile.Write(Worked()))
-            .Replace("\"version\": 11", "\"version\": 4", StringComparison.Ordinal);
+            .Replace($"\"version\": {ProjectFile.Version}", "\"version\": 4", StringComparison.Ordinal);
         json = json[..json.IndexOf(",\n  \"phrases\"", StringComparison.Ordinal)] + "\n}";
         Assert.DoesNotContain("phrases", json);
 
@@ -312,7 +312,7 @@ public class ProjectFileTests
     public void A_version_2_file_opens_with_no_corrections()
     {
         string json = Encoding.UTF8.GetString(ProjectFile.Write(Worked()))
-            .Replace("\"version\": 11", "\"version\": 2", StringComparison.Ordinal)
+            .Replace($"\"version\": {ProjectFile.Version}", "\"version\": 2", StringComparison.Ordinal)
             .Replace(",\n  \"edits\": []", "", StringComparison.Ordinal);
         Assert.DoesNotContain("edits", json);
 

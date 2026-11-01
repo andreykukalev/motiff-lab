@@ -22,7 +22,7 @@ namespace MotiffLab.MusicCore.Facade;
 /// experiments offered for it, and the variation chain. The orchestration the web app's page does
 /// today, kept in one place for both apps.
 /// </summary>
-internal sealed class OpenPiece
+internal sealed partial class OpenPiece
 {
     private static readonly KeepProperty[] s_defaultKeep = [KeepProperty.Pitches, KeepProperty.PitchOrder];
 
@@ -88,7 +88,7 @@ internal sealed class OpenPiece
             throw new FacadeException("import", exception.Message) { Data = { ["reason"] = "damaged" } };
         }
 
-        var result = new OpenPiece(project, opened.Piece, opened.Notes, words);
+        var result = new OpenPiece(opened.Project, opened.Piece, opened.Notes, words);
         if (opened.Motifs.Count > 0)
         {
             Motif motif = opened.Motifs[0];
@@ -130,7 +130,7 @@ internal sealed class OpenPiece
         "playback" => Playback(request),
         "project.save" => Save(request),
         "dna" => Answer.Write(json => json.WriteString("status", "notYet")),
-        _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\"."),
+        _ => CallOnProject(name, request),
     };
 
     public void Summary(Utf8JsonWriter json)
@@ -182,6 +182,8 @@ internal sealed class OpenPiece
         }
 
         Phrases = Phrases.With(edits);
+        // Bookmarks made from a phrase follow it through the merge or split (0018, section 5).
+        Project = Project.FollowPhrases(Phrases.Phrases.Select(phrase => phrase.Span));
         _understood = null;
         _offered = null;
         return Answer.Write(json => Answer.Phrases(json, Phrases, Words));

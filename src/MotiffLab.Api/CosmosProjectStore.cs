@@ -55,7 +55,7 @@ internal sealed class CosmosProjectStore(Container container) : IProjectStore
             summary.MotifCount,
             summary.VariationCount,
             summary.LastOpened,
-            summary.SessionCount,
+            summary.ResumeCount,
             summary.IdeaCount,
             DateTimeOffset.UtcNow,
             packedFile);
@@ -118,7 +118,7 @@ internal sealed class CosmosProjectStore(Container container) : IProjectStore
         int MotifCount,
         int VariationCount,
         DateTimeOffset LastOpened,
-        int SessionCount,
+        int ResumeCount,
         int IdeaCount,
         DateTimeOffset SavedAt,
         string File);

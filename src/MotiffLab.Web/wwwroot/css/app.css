@@ -1444,20 +1444,25 @@ html, body {
     z-index: 1;
 }
 
-.score .pencil-mark.pen.ink {
-    fill: #2B2F36;
+/* The four inks and the highlighter's amber of the design kit (0018, design/kit/tokens.css). */
+.score .pencil-mark.pen.graphite {
+    fill: #3B3733;
 }
 
-.score .pencil-mark.pen.red {
-    fill: #C62828;
+.score .pencil-mark.pen.carmine {
+    fill: #C8352B;
 }
 
-.score .pencil-mark.pen.blue {
-    fill: #1F5FBF;
+.score .pencil-mark.pen.forest {
+    fill: #2E7D4F;
+}
+
+.score .pencil-mark.pen.ochre {
+    fill: #9C6A0C;
 }
 
 .score .pencil-mark.highlighter {
-    fill: #F2D400;
+    fill: #F0B429;
     opacity: 0.38;
     mix-blend-mode: multiply;
 }
@@ -1491,16 +1496,20 @@ html, body {
     border: 2px solid var(--ml-white);
 }
 
-.pencil-tools .pencil-pen.ink span {
-    background: #2B2F36;
+.pencil-tools .pencil-pen.graphite span {
+    background: #3B3733;
 }
 
-.pencil-tools .pencil-pen.red span {
-    background: #C62828;
+.pencil-tools .pencil-pen.carmine span {
+    background: #C8352B;
 }
 
-.pencil-tools .pencil-pen.blue span {
-    background: #1F5FBF;
+.pencil-tools .pencil-pen.forest span {
+    background: #2E7D4F;
+}
+
+.pencil-tools .pencil-pen.ochre span {
+    background: #9C6A0C;
 }
 
 .lab .pencil-tools button.pencil-pen.on span {

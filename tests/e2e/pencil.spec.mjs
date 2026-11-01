@@ -60,7 +60,7 @@ test("the Pencil writes on the score, a tap picks a bar, and the marks stay with
     await expect(marks).toHaveCount(1);
 
     // With the tools on, the mouse writes too, in the colour chosen: here over bar 4.
-    await tools.getByRole("button", { name: "Pen, red" }).click();
+    await tools.getByRole("button", { name: "Pen, carmine" }).click();
     // Selecting the bar scrolled the score smoothly; let it come to rest.
     await page.waitForTimeout(800);
     const bar4 = score.locator("g.measure").nth(4);
@@ -70,18 +70,18 @@ test("the Pencil writes on the score, a tap picks a bar, and the marks stay with
     await page.mouse.move(box.x + box.width - 10, box.y + 6, { steps: 8 });
     await page.mouse.up();
     await expect(marks).toHaveCount(2);
-    await expect(score.locator(".pencil-mark.red")).toHaveCount(1);
+    await expect(score.locator(".pencil-mark.carmine")).toHaveCount(1);
 
-    // The eraser takes the red line; Undo brings it back.
+    // The eraser takes the carmine line; Undo brings it back.
     await tools.getByRole("button", { name: "Eraser" }).click();
     await page.mouse.move(box.x + box.width / 2, box.y + 1);
     await page.mouse.down();
     await page.mouse.move(box.x + box.width / 2, box.y + 20, { steps: 10 });
     await page.mouse.up();
-    await expect(score.locator(".pencil-mark.red")).toHaveCount(0);
-    await expect(score.locator(".pencil-mark.ink")).toHaveCount(1);
+    await expect(score.locator(".pencil-mark.carmine")).toHaveCount(0);
+    await expect(score.locator(".pencil-mark.graphite")).toHaveCount(1);
     await tools.getByRole("button", { name: "Undo" }).click();
-    await expect(score.locator(".pencil-mark.red")).toHaveCount(1);
+    await expect(score.locator(".pencil-mark.carmine")).toHaveCount(1);
 
     // Turned off, the mouse picks again and writes nothing.
     await toggle.click();
@@ -96,7 +96,7 @@ test("the Pencil writes on the score, a tap picks a bar, and the marks stay with
     await page.setViewportSize({ width: 900, height: 720 });
     await expect.poll(async () => {
         const bar = await bar3.boundingBox();
-        const mark = await score.locator(".pencil-mark.ink").boundingBox();
+        const mark = await score.locator(".pencil-mark.graphite").boundingBox();
         return mark !== null && bar !== null && mark.x >= bar.x - 2 && mark.x + mark.width <= bar.x + bar.width + 2 && mark.y < bar.y + bar.height / 2;
     }).toBe(true);
 

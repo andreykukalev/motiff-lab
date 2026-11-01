@@ -22,7 +22,7 @@ namespace MotiffLab.MusicCore.Facade;
 /// layout is fixed and the native build needs no reflection. Ticks are integers at 480 per quarter;
 /// enums are lower camel case names.
 /// </summary>
-internal static class Answer
+internal static partial class Answer
 {
     public static string Write(Action<Utf8JsonWriter> body)
     {
@@ -320,8 +320,11 @@ internal static class Answer
         json.WriteNumber("motifs", project.Motifs.Count);
         json.WriteNumber("variations", project.Variations.Count);
         json.WriteNumber("corrections", project.Edits.Edits.Count);
-        json.WriteNumber("sessions", project.Sessions.Count);
-        json.WriteNumber("observations", project.Observations.Count);
+        json.WriteNumber("resumePoints", project.ResumePoints.Count);
+        json.WriteNumber("ideas", project.Observations.Count);
+        json.WriteNumber("marks", project.Marks.Count);
+        json.WriteNumber("bookmarks", project.Bookmarks.Count);
+        json.WriteNumber("openChecks", project.OpenChecks.Count);
         json.WriteEndObject();
     }
 
