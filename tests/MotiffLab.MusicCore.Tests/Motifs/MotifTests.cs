@@ -100,11 +100,11 @@ public class MotifTests
     }
 
     [Fact]
-    public void Selected_notes_span_at_most_eight_bars()
+    public void Selected_notes_span_at_most_the_bars_a_selection_holds()
     {
-        Note[] notes = [Note("a", 60, 0), Note("b", 62, 7 * Bar), Note("c", 64, 8 * Bar)];
+        Note[] notes = [Note("a", 60, 0), Note("b", 62, 31 * Bar), Note("c", 64, 32 * Bar)];
 
-        Assert.Equal((1, 8), (MotifSelector.SelectNotes(notes, MeterMap.Default, ["a", "b"]).FirstBar, MotifSelector.SelectNotes(notes, MeterMap.Default, ["a", "b"]).LastBar));
+        Assert.Equal((1, 32), (MotifSelector.SelectNotes(notes, MeterMap.Default, ["a", "b"]).FirstBar, MotifSelector.SelectNotes(notes, MeterMap.Default, ["a", "b"]).LastBar));
         Assert.Throws<ArgumentOutOfRangeException>(() => MotifSelector.SelectNotes(notes, MeterMap.Default, ["a", "c"]));
     }
 

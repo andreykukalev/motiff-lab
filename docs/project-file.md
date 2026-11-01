@@ -18,7 +18,9 @@ Ticks are integers at 480 per quarter ([0002](decisions/0002-canonical-time.md))
   "variations": [ … ],          // chains of steps on a motif (version 2)
   "observations": [ … ],        // ideas (version 6; factId since 12)
   "edits": [ … ],               // note corrections (version 3)
-  "phrases": { "added": [ticks], "removed": [ticks] },   // the player's phrase boundaries (version 5)
+  "phrases": { "added": [ticks], "removed": [ticks],   // the player's phrase boundaries (version 5)
+               "short": { "added": [ticks], "removed": [ticks] },       // cuts inside phrases at the Short level (0018, section 3; read as none when absent)
+               "sentences": { "added": [ticks], "removed": [ticks] } },  // phrase boundaries where a sentence must end, and ones it runs on across
   "marks": { … },               // version 12
   "bookmarks": { … },           // version 12
   "resumePoints": [ … ],        // version 12; replaces "sessions" (versions 8–11)
@@ -152,6 +154,7 @@ Every version since 1 opens (`ProjectFile.Read`). The rules for the versions bef
 | 8–11 | Each session becomes a resume point with the same number (`s_0001` → `r_0001`), named by the session's task, at its passage, with the session's `lastActive`; its intent is dropped. |
 | 6–11 | Observations lose `sessionId`; `factId` is absent. |
 | < 12 | No marks, bookmarks (the four built-in categories only) or overrides. `check` is null until the project is opened, then worked out from the piece and the scan's confirmed bars. |
+| 12 without `phrases.short` / `phrases.sentences` | Written before the three phrase levels ([0018](decisions/0018-redesign.md), section 3): the Short and Sentence levels have no edits, so the engine suggests them. The level shown is the override `phrases.granularity`, as before. |
 
 Pencil marks saved on the device before version 12 (the `motiff-lab-pencil` IndexedDB database, [0015](decisions/0015-ipad-app.md)) are taken into the project the first time its score is shown and then forgotten on the device. A piece open without a project (Für Elise from the start page) still keeps its marks on the device.
 

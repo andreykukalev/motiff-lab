@@ -42,6 +42,22 @@ public sealed record Project(
     /// <summary>The player's changes to the suggested phrase boundaries (S1-I5): boundaries they set and ones they took away.</summary>
     public PhraseEdits Phrases { get; init; } = PhraseEdits.None;
 
+    /// <summary>The player's changes at the Short level (decision record 0018, section 3): cuts inside phrases they set and suggested ones they took away.</summary>
+    public PhraseEdits ShortPhrases { get; init; } = PhraseEdits.None;
+
+    /// <summary>The player's changes at the Sentence level: phrase boundaries where a sentence must end, and ones the grouping must run on across.</summary>
+    public PhraseEdits Sentences { get; init; } = PhraseEdits.None;
+
+    /// <summary>The edits at all three levels, as <see cref="PhraseLevels"/> takes them.</summary>
+    public LevelEdits PhraseLevels => new(ShortPhrases, Phrases, Sentences);
+
+    /// <summary>The project with the edits of all three levels.</summary>
+    public Project WithPhraseLevels(LevelEdits edits)
+    {
+        ArgumentNullException.ThrowIfNull(edits);
+        return this with { ShortPhrases = edits.Short, Phrases = edits.Phrase, Sentences = edits.Sentence };
+    }
+
     /// <summary>Set when the source was read from a photo or PDF by sheet music recognition (0011); null for a file the player imported.</summary>
     public ScanOrigin? Scan { get; init; }
 

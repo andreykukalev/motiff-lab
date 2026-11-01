@@ -36,14 +36,15 @@ public class MotifSelectorTests
     }
 
     [Fact]
-    public void Bars_allow_one_to_eight_bars_inside_the_piece()
+    public void Bars_allow_one_to_thirty_two_bars_inside_the_piece()
     {
-        Tick end = new(20 * Bar);
+        Tick end = new(40 * Bar);
 
         Assert.Equal(Span(0, 8 * Bar), MotifSelector.Bars(MeterMap.Default, 1, 8, end));
-        Assert.Throws<ArgumentOutOfRangeException>(() => MotifSelector.Bars(MeterMap.Default, 1, 9, end));
+        Assert.Equal(Span(0, 32 * Bar), MotifSelector.Bars(MeterMap.Default, 1, 32, end));
+        Assert.Throws<ArgumentOutOfRangeException>(() => MotifSelector.Bars(MeterMap.Default, 1, 33, end));
         Assert.Throws<ArgumentOutOfRangeException>(() => MotifSelector.Bars(MeterMap.Default, 0, 2, end));
-        Assert.Throws<ArgumentOutOfRangeException>(() => MotifSelector.Bars(MeterMap.Default, 20, 21, end));
+        Assert.Throws<ArgumentOutOfRangeException>(() => MotifSelector.Bars(MeterMap.Default, 40, 41, end));
     }
 
     [Fact]
@@ -84,12 +85,13 @@ public class MotifSelectorTests
     }
 
     [Fact]
-    public void Drag_over_eight_bars_stops_eight_bars_from_where_it_started()
+    public void Drag_over_the_most_bars_a_selection_holds_stops_that_many_bars_from_where_it_started()
     {
-        Tick end = new(20 * Bar);
+        Tick end = new(60 * Bar);
 
-        Assert.Equal(Span(Beat, 8 * Bar), MotifSelector.Drag(MeterMap.Default, new Tick(Beat), new Tick(12 * Bar), end));
-        Assert.Equal(Span(3 * Bar, 11 * Bar), MotifSelector.Drag(MeterMap.Default, new Tick(11 * Bar), new Tick(100), end));
+        Assert.Equal(Span(Beat, 12 * Bar), MotifSelector.Drag(MeterMap.Default, new Tick(Beat), new Tick(12 * Bar), end));
+        Assert.Equal(Span(Beat, 32 * Bar), MotifSelector.Drag(MeterMap.Default, new Tick(Beat), new Tick(40 * Bar), end));
+        Assert.Equal(Span(9 * Bar, 41 * Bar), MotifSelector.Drag(MeterMap.Default, new Tick(41 * Bar), new Tick(100), end));
     }
 
     [Fact]
@@ -147,9 +149,11 @@ public class MotifSelectorTests
     }
 
     [Fact]
-    public void Select_rejects_more_than_eight_bars()
+    public void Select_rejects_more_bars_than_a_selection_holds()
     {
-        Assert.Throws<ArgumentOutOfRangeException>(() => MotifSelector.Select([], MeterMap.Default, Span(0, (8 * Bar) + 1), SelectionFilter.All));
+        // Eight bars were the cap until decision record 0018; a range now holds as many bars as a structure.
+        Assert.Equal((1, 9), (MotifSelector.Select([Note("a", 60, 0)], MeterMap.Default, Span(0, 9 * Bar), SelectionFilter.All) is var nine ? (nine.FirstBar, nine.LastBar) : default));
+        Assert.Throws<ArgumentOutOfRangeException>(() => MotifSelector.Select([], MeterMap.Default, Span(0, (MotifSelection.MaxBars * Bar) + 1), SelectionFilter.All));
     }
 
     [Fact]

@@ -118,6 +118,14 @@ public static class ProjectFile
             json.WriteStartObject("phrases");
             WriteTicks(json, "added", project.Phrases.Added);
             WriteTicks(json, "removed", project.Phrases.Removed);
+            json.WriteStartObject("short");
+            WriteTicks(json, "added", project.ShortPhrases.Added);
+            WriteTicks(json, "removed", project.ShortPhrases.Removed);
+            json.WriteEndObject();
+            json.WriteStartObject("sentences");
+            WriteTicks(json, "added", project.Sentences.Added);
+            WriteTicks(json, "removed", project.Sentences.Removed);
+            json.WriteEndObject();
             json.WriteEndObject();
 
             json.WriteStartObject("marks");
@@ -382,6 +390,8 @@ public static class ProjectFile
                 ? new NoteEditLog(Property(root, "edits", JsonValueKind.Array).EnumerateArray().Select(ReadEdit))
                 : NoteEditLog.Empty;
             PhraseEdits phrases = version >= 5 ? ReadPhrases(Property(root, "phrases", JsonValueKind.Object)) : PhraseEdits.None;
+            PhraseEdits shortPhrases = version >= 12 ? ReadPhraseLevel(Property(root, "phrases", JsonValueKind.Object), "short") : PhraseEdits.None;
+            PhraseEdits sentences = version >= 12 ? ReadPhraseLevel(Property(root, "phrases", JsonValueKind.Object), "sentences") : PhraseEdits.None;
             ScanOrigin? scan = version >= 7 ? ReadScan(root) : null;
             TranscriptionOrigin? transcription = version >= 9 ? ReadTranscription(root, version) : null;
             if (scan is not null && transcription is not null)
@@ -415,6 +425,8 @@ public static class ProjectFile
             {
                 Edits = edits,
                 Phrases = phrases,
+                ShortPhrases = shortPhrases,
+                Sentences = sentences,
                 Observations = observations,
                 Scan = scan,
                 Transcription = transcription,
@@ -856,6 +868,10 @@ public static class ProjectFile
 
         return new PhraseEdits(Ticks("added"), Ticks("removed"));
     }
+
+    /// <summary>The edits of the Short or the Sentence level inside "phrases" (0018; written since the engine package, read as none when absent).</summary>
+    private static PhraseEdits ReadPhraseLevel(JsonElement phrases, string name) =>
+        phrases.TryGetProperty(name, out JsonElement level) && level.ValueKind == JsonValueKind.Object ? ReadPhrases(level) : PhraseEdits.None;
 
     private static ScanOrigin? ReadScan(JsonElement root)
     {

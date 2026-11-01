@@ -25,10 +25,10 @@ public sealed record PhraseEdits(IReadOnlyList<Tick> Added, IReadOnlyList<Tick> 
 /// <summary>How much the source says about where its phrases are, before the player changes anything.</summary>
 public enum PhraseEvidenceLevel
 {
-    /// <summary>Every suggested phrase fits a selection.</summary>
+    /// <summary>No suggested phrase is long (<see cref="PhraseMap.LongPhraseBars"/>).</summary>
     Enough,
 
-    /// <summary>Some boundaries were found, but part of the piece runs longer than a selection without one.</summary>
+    /// <summary>Some boundaries were found, but part of the piece runs longer than <see cref="PhraseMap.LongPhraseBars"/> bars without one.</summary>
     Partial,
 
     /// <summary>Nothing in the source marks a boundary, so no phrase is suggested.</summary>
@@ -46,8 +46,11 @@ public sealed record Phrase(int Number, TickSpan Span, int FirstBar, int LastBar
     /// <summary>The number of bars the phrase touches, counting partly covered bars.</summary>
     public int BarCount => LastBar - FirstBar + 1;
 
-    /// <summary>Whether the whole phrase fits a range selection (<see cref="MotifSelection.MaxBars"/>); a longer one is still selected whole as a structure.</summary>
-    public bool FitsSelection => BarCount <= MotifSelection.MaxBars;
+    /// <summary>
+    /// Whether the phrase runs longer than a phrase usually does (<see cref="PhraseMap.LongPhraseBars"/>), so the
+    /// source probably lacks a boundary inside it. It is still selected whole (decision records 0013 and 0018).
+    /// </summary>
+    public bool IsLong => BarCount > PhraseMap.LongPhraseBars;
 }
 
 /// <summary>A selection run on into a neighbouring phrase (#126).</summary>
@@ -77,6 +80,12 @@ public sealed record PhraseExtension(TickSpan Span, Phrase Into, bool Shortened)
 /// </remarks>
 public sealed class PhraseMap
 {
+    /// <summary>
+    /// The most bars a phrase usually runs (decision record 0018, section 3: phrases are 4–8 bars). A longer
+    /// phrase is <see cref="Phrase.IsLong"/>: the source gave no boundary inside it, and the evidence is partial.
+    /// </summary>
+    public const int LongPhraseBars = 8;
+
     private readonly MeterMap _meter;
 
     private PhraseMap(IReadOnlyList<PhraseBoundary> found, PhraseEdits edits, IReadOnlyList<PhraseBoundary> boundaries, IReadOnlyList<Phrase> phrases, PhraseEvidenceLevel evidence, MeterMap meter, Tick end)
@@ -126,7 +135,7 @@ public sealed class PhraseMap
         IReadOnlyList<Phrase> suggested = Cut(found, meter, end);
         PhraseEvidenceLevel evidence = found.Count == 0
             ? PhraseEvidenceLevel.None
-            : suggested.All(static phrase => phrase.FitsSelection) ? PhraseEvidenceLevel.Enough : PhraseEvidenceLevel.Partial;
+            : suggested.All(static phrase => !phrase.IsLong) ? PhraseEvidenceLevel.Enough : PhraseEvidenceLevel.Partial;
         return Build(found, edits ?? PhraseEdits.None, meter, end, evidence);
     }
 
@@ -176,6 +185,26 @@ public sealed class PhraseMap
     {
         ArgumentNullException.ThrowIfNull(phrase);
         return EditsFor(Boundaries.Select(static boundary => boundary.At).Where(tick => tick != phrase.Span.End), []);
+    }
+
+    /// <summary>
+    /// The edits that take away every boundary strictly inside <paramref name="span"/> and leave its edges as
+    /// they are: what joining at a finer level (decision record 0018, section 3) needs when a short unit
+    /// is joined across a phrase boundary.
+    /// </summary>
+    public PhraseEdits JoinAcross(TickSpan span) =>
+        EditsFor(Boundaries.Select(static boundary => boundary.At).Where(tick => tick <= span.Onset || tick >= span.End), []);
+
+    /// <summary>
+    /// The edits that add a boundary at <paramref name="at"/>, snapped like an edge of <see cref="MakePhrase"/>,
+    /// and change nothing else: Split here. Unchanged at the start or the end of the piece.
+    /// </summary>
+    public PhraseEdits SplitAt(Tick at)
+    {
+        Tick edge = Snap(at);
+        return edge > Tick.Zero && edge < End
+            ? EditsFor(Boundaries.Select(static boundary => boundary.At).Append(edge), [edge])
+            : Edits;
     }
 
     /// <summary>The same notes and marks with other edits, for example after the player changed a boundary.</summary>

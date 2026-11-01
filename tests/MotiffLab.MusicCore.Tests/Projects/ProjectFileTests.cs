@@ -282,6 +282,31 @@ public class ProjectFileTests
     }
 
     [Fact]
+    public void The_edits_of_the_short_and_the_sentence_levels_round_trip_and_are_none_when_absent()
+    {
+        Project project = Worked() with
+        {
+            Phrases = new PhraseEdits([new Tick(1920)], []),
+            ShortPhrases = new PhraseEdits([new Tick(960)], [new Tick(2880)]),
+            Sentences = new PhraseEdits([], [new Tick(1920)]),
+        };
+
+        Project read = ProjectFile.Read(ProjectFile.Write(project));
+
+        Assert.Equal(project.PhraseLevels, read.PhraseLevels);
+        Assert.Equal(ProjectFile.Write(project), ProjectFile.Write(read));
+
+        string json = Encoding.UTF8.GetString(ProjectFile.Write(project));
+        int shortAt = json.IndexOf(",\n    \"short\"", StringComparison.Ordinal);
+        int marksAt = json.IndexOf("\n  },\n  \"marks\"", StringComparison.Ordinal);
+        string without = json[..shortAt] + json[marksAt..];
+        Project older = ProjectFile.Read(Encoding.UTF8.GetBytes(without));
+        Assert.Equal(project.Phrases, older.Phrases);
+        Assert.True(older.ShortPhrases.IsEmpty);
+        Assert.True(older.Sentences.IsEmpty);
+    }
+
+    [Fact]
     public void A_version_4_file_opens_with_the_suggested_phrases()
     {
         string json = Encoding.UTF8.GetString(ProjectFile.Write(Worked()))

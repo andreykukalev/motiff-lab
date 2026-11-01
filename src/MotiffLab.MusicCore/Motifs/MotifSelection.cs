@@ -4,7 +4,8 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Motifs;
 
 /// <summary>
-/// A passage the player picked to explore: a beat-aligned range of 1–8 bars (S1-M1), optionally
+/// A passage the player picked to explore: a beat-aligned range of 1–32 bars (S1-M1; decision record 0018
+/// took the 8-bar cap away), optionally
 /// limited to one hand, track or voice (S1-M2), and the ids of the notes it holds; or 2–32 notes
 /// picked one by one (S1-M3), with the beat-aligned range that holds them.
 /// </summary>
@@ -29,11 +30,17 @@ public sealed record MotifSelection(
 {
     public const int MinBars = 1;
 
-    public const int MaxBars = 8;
+    /// <summary>
+    /// The most bars a range selection holds. Until decision record 0018 a dragged or clicked range held 8 bars
+    /// and only a structure the maps know could be longer; the redesign took that cap away, so a range holds as
+    /// many bars as a structure (<see cref="MaxStructureBars"/>). <see cref="Analysis.PhraseMap.LongPhraseBars"/>
+    /// keeps the old 8 as what a phrase usually runs.
+    /// </summary>
+    public const int MaxBars = 32;
 
     /// <summary>
     /// The most bars a structure the piece's maps know (a phrase or a sentence) is selected whole (decision
-    /// record 0013): a range the player drags or clicks still holds at most <see cref="MaxBars"/>.
+    /// record 0013); the same as <see cref="MaxBars"/> since 0018.
     /// </summary>
     public const int MaxStructureBars = 32;
 

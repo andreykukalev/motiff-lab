@@ -371,8 +371,8 @@ public static class ExperimentCatalogue
 
     private static ExperimentAlternative Alternative(string label, string keeps, params ExperimentStep[] steps) => new(label, keeps, steps);
 
-    /// <summary>The chain of the steps over the passage, or null with the reason when a step cannot run.</summary>
-    private static VariationChain? TryStart(
+    /// <summary>The chain of the steps over the passage, or null with the reason when a step cannot run. <see cref="TryChips"/> runs its chips the same way.</summary>
+    internal static VariationChain? TryStart(
         TickSpan span,
         SelectionFilter filter,
         string presetId,

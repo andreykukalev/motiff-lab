@@ -106,20 +106,116 @@ public class MusicCoreFacadeTests
 
         JsonElement phrases = Call(facade, "phrases");
 
-        Assert.Equal(["phrase", "sentence", "period"], phrases.GetProperty("levels").EnumerateArray().Select(level => level.GetProperty("id").GetString()!).ToArray());
-        Assert.True(phrases.GetProperty("levels")[0].GetProperty("available").GetBoolean());
-        Assert.False(phrases.GetProperty("levels")[1].GetProperty("available").GetBoolean());
-        JsonElement[] found = [.. phrases.GetProperty("phrases").EnumerateArray()];
+        Assert.Equal("phrase", phrases.GetProperty("level").GetString());
+        Assert.Equal(["short", "phrase", "sentence"], phrases.GetProperty("levels").EnumerateArray().Select(level => level.GetProperty("id").GetString()!).ToArray());
+        Assert.All(phrases.GetProperty("levels").EnumerateArray(), level => Assert.True(level.GetProperty("available").GetBoolean()));
+        JsonElement[] found = [.. phrases.GetProperty("units").EnumerateArray()];
         Assert.True(found.Length > 1);
+        Assert.Equal(found.Length, phrases.GetProperty("levels")[1].GetProperty("count").GetInt32());
         Assert.Equal("phrase", found[0].GetProperty("level").GetString());
-        Assert.True(found[0].TryGetProperty("selectable", out _));
+        foreach (string field in new[] { "number", "firstBar", "lastBar", "onset", "end", "selectable", "long", "parent", "start" })
+        {
+            Assert.True(found[0].TryGetProperty(field, out _), field);
+        }
+
+        Assert.Equal("the start of the piece", found[0].GetProperty("start").GetProperty("description").GetString());
+        Assert.Equal(1, found[0].GetProperty("parent").GetInt32());
 
         JsonElement joined = Call(facade, "phrases.edit", $$$"""{"joinWithNext": {{{found[0].GetProperty("number").GetInt32()}}}}""");
-        Assert.Equal(found.Length - 1, joined.GetProperty("phrases").GetArrayLength());
-        Assert.NotEmpty(joined.GetProperty("edits").GetProperty("removed").EnumerateArray());
+        Assert.Equal(found.Length - 1, joined.GetProperty("units").GetArrayLength());
+        Assert.NotEmpty(joined.GetProperty("edits").GetProperty("phrase").GetProperty("removed").EnumerateArray());
 
         JsonElement reset = Call(facade, "phrases.edit", """{"reset": true}""");
-        Assert.Equal(found.Length, reset.GetProperty("phrases").GetArrayLength());
+        Assert.Equal(found.Length, reset.GetProperty("units").GetArrayLength());
+        Assert.Equal("badRequest", Error(facade, 1, "phrases.edit", """{"level": "period", "reset": true}"""));
+    }
+
+    [Fact]
+    public void TheLevelIsRememberedWithThePieceAndMovesTheSelection()
+    {
+        (MusicCoreFacade facade, _) = Open();
+        JsonElement shorts = Call(facade, "phrases", """{"level": "short"}""");
+        JsonElement sentences = Call(facade, "phrases", """{"level": "sentence"}""");
+        int phrases = Call(facade, "phrases").GetProperty("units").GetArrayLength();
+        Assert.True(shorts.GetProperty("units").GetArrayLength() >= phrases);
+        Assert.True(sentences.GetProperty("units").GetArrayLength() <= phrases);
+        Assert.All(shorts.GetProperty("units").EnumerateArray(), unit => Assert.Equal("short", unit.GetProperty("level").GetString()));
+        // Asking for a level does not change the one shown.
+        Assert.Equal("phrase", Call(facade, "phrases").GetProperty("level").GetString());
+
+        JsonElement firstPhrase = Call(facade, "phrases").GetProperty("units")[0];
+        Call(facade, "select", $$$"""{"span": {"onset": {{{firstPhrase.GetProperty("onset").GetInt64()}}}, "end": {{{firstPhrase.GetProperty("end").GetInt64()}}}}}""");
+
+        JsonElement changed = Call(facade, "phrases.level", """{"level": "sentence"}""");
+        Assert.Equal("sentence", changed.GetProperty("level").GetString());
+        JsonElement sentence = changed.GetProperty("units")[0];
+        Assert.Equal(sentence.GetProperty("end").GetInt64(), changed.GetProperty("selection").GetProperty("end").GetInt64());
+        Assert.Equal("sentences", Call(facade, "settings").GetProperty("overrides").GetProperty("phrases.granularity").GetString());
+
+        JsonElement back = Call(facade, "phrases.level", """{"level": "short"}""");
+        Assert.Equal(back.GetProperty("units")[0].GetProperty("end").GetInt64(), back.GetProperty("selection").GetProperty("end").GetInt64());
+
+        // The level comes back with the project file.
+        string saved = facade.Call(1, "project.save", """{"now": "2026-11-01T12:00:00Z"}""");
+        var again = new MusicCoreFacade();
+        again.Open("fur-elise" + ProjectFile.Extension, System.Text.Encoding.UTF8.GetBytes(saved));
+        Assert.Equal("short", Call(again, "phrases").GetProperty("level").GetString());
+    }
+
+    [Fact]
+    public void EditsAtOneLevelKeepTheLevelsNested()
+    {
+        (MusicCoreFacade facade, _) = Open();
+        JsonElement[] shorts = [.. Call(facade, "phrases", """{"level": "short"}""").GetProperty("units").EnumerateArray()];
+        JsonElement[] phrases = [.. Call(facade, "phrases").GetProperty("units").EnumerateArray()];
+        // A short unit that ends where a phrase ends: joining it with the next joins the phrases too.
+        JsonElement last = shorts.First(unit => unit.GetProperty("end").GetInt64() == phrases[0].GetProperty("end").GetInt64());
+
+        JsonElement joined = Call(facade, "phrases.edit", $$$"""{"level": "short", "joinWithNext": {{{last.GetProperty("number").GetInt32()}}}}""");
+
+        Assert.Equal(phrases.Length - 1, joined.GetProperty("units").GetArrayLength());
+        Assert.NotEmpty(joined.GetProperty("edits").GetProperty("phrase").GetProperty("removed").EnumerateArray());
+        Assert.Empty(joined.GetProperty("edits").GetProperty("short").GetProperty("removed").EnumerateArray());
+
+        // Splitting a sentence puts a phrase boundary there as well.
+        Call(facade, "phrases.edit", """{"reset": true}""");
+        long inside = phrases[0].GetProperty("onset").GetInt64() + ((phrases[0].GetProperty("end").GetInt64() - phrases[0].GetProperty("onset").GetInt64()) / 2);
+        JsonElement split = Call(facade, "phrases.edit", $$$"""{"level": "sentence", "split": {{{inside}}}}""");
+        Assert.NotEmpty(split.GetProperty("edits").GetProperty("phrase").GetProperty("added").EnumerateArray());
+        Assert.NotEmpty(split.GetProperty("edits").GetProperty("sentence").GetProperty("added").EnumerateArray());
+        Assert.Equal(phrases.Length + 1, split.GetProperty("units").GetArrayLength());
+    }
+
+    [Fact]
+    public void UnderstandRanksTheFactsAndOffersTryChipsOnlyForBuiltOperations()
+    {
+        (MusicCoreFacade facade, _) = Open();
+        Call(facade, "select", """{"bars": {"first": 1, "last": 2}}""");
+
+        JsonElement understood = Call(facade, "understand");
+
+        string[] strongest = [.. understood.GetProperty("strongest").EnumerateArray().Select(id => id.GetString()!)];
+        Assert.InRange(strongest.Length, 1, 3);
+        Assert.Equal(strongest[0], understood.GetProperty("keyObservation").GetProperty("id").GetString());
+        Assert.False(string.IsNullOrEmpty(understood.GetProperty("keyObservation").GetProperty("reason").GetString()));
+        Assert.True(understood.TryGetProperty("sentence", out _));
+
+        JsonElement[] facts = [.. understood.GetProperty("motif").GetProperty("facts").EnumerateArray().Concat(understood.GetProperty("character").EnumerateArray())];
+        JsonElement[] chips = [.. facts.SelectMany(fact => fact.GetProperty("tryChips").EnumerateArray())];
+        Assert.NotEmpty(chips);
+        foreach (JsonElement chip in chips)
+        {
+            Assert.NotNull(MotiffLab.MusicCore.Variations.VariationOperations.Find(chip.GetProperty("operation").GetString()!));
+            Assert.True(chip.TryGetProperty("parameters", out _));
+            Assert.False(string.IsNullOrEmpty(chip.GetProperty("label").GetString()));
+        }
+
+        JsonElement tried = Call(facade, "try", $$$"""{"chip": "{{{chips[0].GetProperty("id").GetString()}}}"}""");
+        Assert.Equal(chips[0].GetProperty("id").GetString(), tried.GetProperty("chip").GetString());
+        Assert.Single(tried.GetProperty("steps").EnumerateArray());
+        Assert.NotEqual(JsonValueKind.Null, tried.GetProperty("result").ValueKind);
+        Assert.Equal("badRequest", Error(facade, 1, "try", """{"chip": "v99.nothing"}"""));
+        Assert.Equal("unavailable", Error(facade, 1, "try", """{"chip": "v7.air"}"""));
     }
 
     [Fact]
@@ -323,7 +419,7 @@ public class MusicCoreFacadeTests
         Call(facade, "select", """{"bars": {"first": 1, "last": 2}, "filter": {"hand": "right"}}""");
         Call(facade, "variation.propose", """{"operation": "V1", "parameters": {"kind": "HalfTime", "eighths": 1}}""");
         Call(facade, "variation.accept");
-        JsonElement firstPhrase = Call(facade, "phrases").GetProperty("phrases")[0];
+        JsonElement firstPhrase = Call(facade, "phrases").GetProperty("units")[0];
         Call(facade, "phrases.edit", $$$"""{"joinWithNext": {{{firstPhrase.GetProperty("number").GetInt32()}}}}""");
 
         string saved = facade.Call(1, "project.save", """{"now": "2026-11-01T12:00:00Z"}""");
@@ -343,7 +439,7 @@ public class MusicCoreFacadeTests
         JsonElement chain = Call(again, "variation");
         Assert.Single(chain.GetProperty("steps").EnumerateArray());
         Assert.Equal("V1", chain.GetProperty("steps")[0].GetProperty("operation").GetString());
-        Assert.NotEmpty(Call(again, "phrases").GetProperty("edits").GetProperty("removed").EnumerateArray());
+        Assert.NotEmpty(Call(again, "phrases").GetProperty("edits").GetProperty("phrase").GetProperty("removed").EnumerateArray());
 
         // Saved again without a change, the file is the same bytes.
         Assert.Equal(saved, again.Call(1, "project.save", """{"now": "2026-11-01T12:00:00Z"}"""));
@@ -377,7 +473,7 @@ public class MusicCoreFacadeTests
     public void BookmarksHaveCategoriesAndFollowThePhraseTheyWereMadeFrom()
     {
         (MusicCoreFacade facade, _) = Open("""{"language": "ru"}""");
-        JsonElement[] phrases = [.. Call(facade, "phrases").GetProperty("phrases").EnumerateArray()];
+        JsonElement[] phrases = [.. Call(facade, "phrases").GetProperty("units").EnumerateArray()];
         int first = phrases[0].GetProperty("number").GetInt32();
 
         JsonElement categories = Call(facade, "bookmarks").GetProperty("categories");

@@ -43,6 +43,29 @@ public class FactRankingTests
     }
 
     [Fact]
+    public void The_strongest_three_start_with_the_key_observation_and_vary_the_lens()
+    {
+        MotifFact[] facts =
+        [
+            Fact("answer", FactLens.Structure, FactCertainty.Interpretation),
+            Fact("intervals", FactLens.Melody, FactCertainty.Detected),
+            Fact("contour", FactLens.Melody, FactCertainty.Detected),
+            Fact("recurs", FactLens.Structure, FactCertainty.Inferred),
+            Fact("durations", FactLens.Rhythm, FactCertainty.Detected),
+            Fact("key", FactLens.Key, FactCertainty.Detected, places: false),
+        ];
+
+        IReadOnlyList<MotifFact> strongest = FactRanking.Strongest(facts);
+
+        Assert.Equal(["recurs", "intervals", "durations"], strongest.Select(fact => fact.Id));
+        Assert.Equal(FactRanking.KeyObservation(facts), strongest[0]);
+        // Once every lens is shown, the next best fact follows whatever its lens; an interpretation never does.
+        Assert.Equal(["recurs", "intervals", "durations", "key", "contour"], FactRanking.Strongest(facts, 10).Select(fact => fact.Id));
+        Assert.Empty(FactRanking.Strongest(facts, 0));
+        Assert.Empty(FactRanking.Strongest([Fact("answer", FactLens.Structure, FactCertainty.Interpretation)]));
+    }
+
+    [Fact]
     public void Without_places_anywhere_the_first_by_lens_is_chosen_and_the_reason_says_so()
     {
         MotifFact[] facts =
