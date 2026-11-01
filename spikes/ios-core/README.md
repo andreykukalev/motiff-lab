@@ -78,10 +78,12 @@ The web app engraves with Verovio 6.3.0 compiled to WebAssembly (decision record
 |---|---:|---:|---:|---:|
 | iPad simulator, Verovio as released | 6 | 1549–1616 | 101–117 | 167–211 |
 | **iPad simulator, with the patch** | **7** | **50** | **32–56** | **25–46** |
-| iPad simulator on Andrei's MacBook Pro, with the patch (first Engrave after launch) | 51 | 101 | 68 | 70 |
+| iPad simulator on Andrei's MacBook Pro, with the patch: first Engrave after launch / again | 51 / 9–14 | 101 / 35–59 | 68 / 25–30 | 70 / 24–27 |
 | macOS on the same runner, as released / with the patch | | 83 / 46 | 59 / 49 | 45 / 36 |
 | Linux container, as released | 15 | 37 | 39 | 32 |
 | Web app's WebAssembly build (Node on Linux) | | 101–175 | 59–77 | 54–62 |
+
+On screen: the Score tab also times the web view from loading the SVG of the three pages to drawing them. On Andrei's Mac that took 2505 ms on the first Engrave after launch, which is mostly the web view's own process starting, and 71 ms the next time. So from a tap to the pages on screen takes about 175 ms once the web view is running; the real app should create its web view at launch so the first score does not wait for it.
 
 The 5000-note file (12 pages) takes 338–347 ms of layout and 260 ms for its SVG in the simulator with the patch, against 6742–6841 ms of layout without it; the web build takes 575–617 ms.
 
@@ -100,6 +102,6 @@ Verovio is LGPL-3.0-or-later. What the spike already does to meet section 4 (com
 ## Open questions for the real thing
 
 - The facade: which calls and which JSON (the project file v12 shapes plus facts, phrases, variations), and how Swift decodes it (`Codable`).
-- Drawing the score: Verovio's SVG in a web view, or its paths drawn natively (see above).
+- Drawing the score: Verovio's SVG in a web view is fast enough once the web view is running (71 ms for three pages); drawing its paths natively is a question of the overlays (phrase brackets, bookmarks, Pencil ink, selection), not of speed.
 - Offer the locale patch to Verovio's maintainers, so that a later release needs no patch.
 - App Store: both libraries are normal embedded dynamic frameworks; check the privacy manifest and the size of a release build.
