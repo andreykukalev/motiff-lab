@@ -103,67 +103,70 @@ When describing the AI, say what it does for the player ("suggests variations", 
 
 ## Visual direction
 
-The concept is the musical laboratory: a calm, dark, uncluttered workspace where one bright accent marks what the player is working on. It should feel like a focused creative instrument, not a theory textbook or a generic AI dashboard. Everything below is a starting direction, not a final brand system.
+<!-- Replaced on 2026-11-01 by the redesign (decision record 0018, section 13): the earlier direction, a dark workspace with an Electric Lime accent, is in the git history and in docs/source/04-brand-identity-motiff-lab.md. -->
 
-**Core palette**
+**Blue pencil on cream paper.** Editors and conductors have always marked printed music with a blue pencil: it is visible on the page, it never competes with the engraving, and it washes out when the music is photographed. Motiff Lab borrows that convention. The score is black engraving on cream paper; everything the app itself points at is cobalt; everything the musician writes is pencil-coloured ink; everything the app has composed (a variation, an idea) is plum; everything the musician marked (highlighter, notes, flags) is amber. The interface around the page is the desk: warm, matte, slightly darker than the paper, so the page is always the brightest thing on screen.
 
-| Name | Hex | Role | Contrast on Deep Charcoal |
-| --- | --- | --- | --- |
-| Deep Charcoal | #15191F | Main background of the dark workspace; text colour on light surfaces | — |
-| Electric Lime | #C8F169 | The one accent: selected items, kept properties, the variation, primary actions | 13.6 : 1 |
-| Soft White | #F4F5F2 | Main text on dark; background of the light theme | 16.1 : 1 |
-| Muted Gray | #B8C0CB | Secondary text, grid lines, the original in comparisons | 9.6 : 1 |
+Personality in five words: quiet, warm, precise, editorial, unhurried. The identity reads as a music stand with a good lamp, not as software.
 
-Contrast was computed with the WCAG formula. All three colours pass the strictest level (AAA) on Deep Charcoal, and Deep Charcoal text on an Electric Lime fill reaches 13.6 : 1.
+**Rules that follow from it**
 
-**Rules the numbers set**
+- One accent. Cobalt is the only colour that means "interactive" or "selected". It is never used decoratively.
+- Paper is the brightest surface. No white panels sit on top of the page except the small contextual menu and dialogs.
+- Matte over glossy. Sheets and pills are translucent surfaces with a blur, not glass; shadows are soft and warm, never black.
+- Type does the branding. A serif for titles and piece names, as on a printed edition; a humanist sans for controls; no gradients, no illustration.
+- Marks look hand-made. Phrase brackets, bookmarks and fingering use pencil weights and an italic serif, so the musician's own marks and the app's analysis sit on the page the way pencil does.
 
-- Electric Lime never carries text or thin lines on Soft White: the contrast is only 1.18 : 1. On light surfaces it appears only as a fill behind charcoal text.
-- Muted Gray on Soft White is 1.68 : 1, so the light theme needs a darker secondary grey (a candidate, #5B6573, reaches 5.4 : 1).
-- Lime marks focus and the player's own work. It never means "correct", so feedback states use their own colours plus shape and label.
+**Core palette** (`design/kit/tokens.css` is the source of truth; contrast is against the surface the colour is normally used on, WCAG 2.x)
 
-**Supporting colours (proposals to test)**
-
-| Purpose | Dark theme candidate | Contrast on charcoal | Light theme candidate | Contrast on Soft White |
+| Token | Role | Daylight | Night stand | Contrast |
 | --- | --- | --- | --- | --- |
-| Raised surface 1 | #1E242C | — | #FFFFFF | — |
-| Raised surface 2 | #2A313B | — | #E9EBE6 | — |
-| Error, wrong note | #FF8A7A | 7.7 : 1 | #B3261E | 6.0 : 1 |
-| Warning, uncertain | #F2C14E | 10.5 : 1 | #8A5A00 | 5.4 : 1 |
-| Information, hints | #7CC4FA | 9.4 : 1 | #1F6FB2 | 4.8 : 1 |
-| Accent for text or lines on light | — | — | #5A7A12 (olive lime) | 4.5 : 1 |
+| `--desk` | the app background behind the page | #E8E3D9 | #141311 | — |
+| `--surface` | sheets, drawers, the pill, the bar, cards | #F7F4ED | #1F1D19 | — |
+| `--paper` | the score page | #FCF9F2 | #E7E0D1 (Slate: #24221E) | — |
+| `--notation` | engraving ink on paper | #16130F | #16130F (Slate: #EDE6D7) | 17.6 : 1 |
+| `--ink` | primary text | #1F1C18 | #EEE9DF | 15.4 : 1 |
+| `--ink-2` | secondary text, captions | #5E584E | #A9A295 | 6.4 : 1 |
+| `--accent` | cobalt: selection, focus, playhead, active controls, links | #2F5BD6 | #7D9CFF | 5.3 : 1 |
+| `--plum` | what the app composed: ossia, variations, saved ideas | #7B3F9E | #B98CD8 | 6.3 : 1 |
+| `--amber` | what the user marked: highlighter, note markers, flags | #F0B429 | #F3C14E | fill only |
+| `--teal` | left-hand notes in the piano roll | #1F8A8A | #4FBFB4 | 3.8 : 1 graphic |
+| `--success` / `--warning` / `--danger` | done; attention and Check flags; delete and errors | #2E7D4F / #965D04 / #C8352B | #5CBB7D / #F3C14E / #F07C70 | 4.8 : 1 and above |
 
-**Typography (direction)**
+**User inks** do not change with the theme: they are pigments on the paper, which is cream in both themes. They are also the four default bookmark categories: graphite `#3B3733` (Structure), carmine `#C8352B` (Practise), forest `#2E7D4F` (Performance) and ochre `#9C6A0C` (Teacher, 4.5 : 1 on paper). On the Slate page the inks get a 1 px paper-coloured halo.
 
-- One clear sans serif for interface and headings, with a slightly technical character, and a monospaced companion for note names, bar and beat numbers, intervals and timing.
-- Must cover Lithuanian and other European diacritics, have open licences for web and app, and have tabular figures.
-- Candidate pairings to test: IBM Plex Sans with IBM Plex Mono; Manrope with JetBrains Mono.
+**Typography**
+
+- Source Serif 4 (500) for the wordmark, titles, piece names and anything that imitates print; bookmark titles and ink labels in its italic, as handwriting. Source Sans 3 (400, 500, 600) for every control and body text. The two families are drawn by the same designer, so their x-heights and weights match. Numerals are tabular everywhere, so bar numbers, tempo and times do not jitter.
+- Notation is Leland (the MuseScore SMuFL font, OFL) through Verovio.
+- Both families are OFL, available on Google Fonts and self-hosted as woff2 (`design/kit/fonts`); they cover Lithuanian, Russian and the other European scripts the app ships in.
+- Readability: body never below 15 px on the tablet; nothing interactive below 13 px; line length in sheets 45 to 65 characters; captions in `--ink-2`, never `--ink-3`, when they carry information.
 
 **Graphic elements**
 
-- The motif contour: a few connected dots tracing a melody's shape; the main brand motif, also usable as an icon.
-- Rhythm ticks and interval brackets as quiet decoration and as real UI (they are the hints in Stage 2).
-- Waveforms only where audio is actually present (Stage 3), never as decoration.
-- Logo direction: a wordmark "Motiff Lab" where the double f reads as two note stems, plus a symbol of a four-note contour in Electric Lime.
-- Signature motion: when a variation is applied, notes slide from their original positions to new ones, so the change itself is visible.
+- Icons are line icons on a 20 px grid with a 1.5 px stroke, round caps and joins, in `currentColor` (`design/kit/icons.js`); the music-specific ones (phrases, piano roll, metronome, lead-in, hands, tempo dial) are drawn on the same grid.
+- The phrase bracket (the ⎡ ⎤ shape drawn above the staff) is the brand's one graphic motif and the proposed app icon: a cream rounded square with a single cobalt bracket.
+- The wordmark is "Motiff Lab" set in Source Serif 4 Medium, ink on paper, with the tagline *Hear. Understand. Transform.* in the same serif, italic, at caption size. No symbol is needed inside the app.
+- Motion is quiet: 120 ms for hover, press and toggle, 200 ms for menus and chips, 320 ms for sheets and the phrase lifting into focus, one easing curve; `prefers-reduced-motion` drops slides to fades.
 
 ## The brand in the product
 
-In Stage 1 the brand is mostly felt, not shown: a dark, quiet workspace where Electric Lime always points to what the player chose or made. The wireframes in other tabs use neutral document colours; the mapping below applies when they are designed for real.
+The brand is the page itself: cream paper, black engraving, and one cobalt pencil that always points to what the player chose. The mapping below is the Design system's; the screens that show it are in `design/kit/screens`.
 
 | Product element | Brand treatment |
 | --- | --- |
-| Workspace background | Deep Charcoal by default; a light theme on Soft White is available from launch for daylight and accessibility |
-| Original notes in comparisons | Muted Gray, outlined |
-| Variation notes, kept-property chips, selected operation, primary button | Electric Lime fill with charcoal text |
-| Feedback states (wrong note, uncertain, hint) | Supporting colours plus a shape and a label, never lime |
-| Note names, bar and beat numbers, intervals | Monospaced face |
-| Explanations | Sans serif, sentence case, in the brand voice |
-| Applying a variation | The signature motion: notes slide to their new positions |
-| First run and empty states | Messaging library lines; the tagline appears once, on the first screen |
-| Sound | A neutral, warm sampled piano; no interface sound effects in the MVP |
+| The score | an A4 sheet on the desk, engraved in Leland, with a soft paper shadow; the page is always the brightest surface |
+| What the app points at: selection, focus, playhead, active control | cobalt, with its tint for bands and active backgrounds |
+| What the app composed: the ossia, variations, saved ideas | plum, dashed frame for the ossia, a dot on the bracket for a saved idea |
+| What the player marked: highlighter, margin notes, Check flags | amber |
+| What the player wrote: ink, bookmarks, fingering | the four user inks, pencil weights, an italic serif for titles |
+| Claim kinds on facts | tags tinted by meaning: detected cobalt, assumed hairline grey, check amber, saved plum |
+| Themes | Daylight; Night stand keeps the page cream; the Slate page for a dark room |
+| Explanations and facts | Source Sans 3, sentence case, in the brand voice, in the player's language |
+| First run and empty states | messaging library lines; the tagline appears once, on the first screen |
+| Sound | a neutral, warm sampled piano; no interface sound effects |
 
-**Feature names follow the tagline:** Listen and Explore (Hear), Understand, Transform, Compare, Perform. "Keep" is the name for preserve choices, and "Discovery", "Guided" and "Analysis" name the modes.
+**Feature names follow the tagline:** Hear, Understand and Transform are what the player does from a phrase, as the verbs of one Insights stream (Try, Keep, Adjust); "Keep" is the name for preserving choices.
 
 ## Verification and open decisions
 
@@ -182,9 +185,9 @@ The identity is not final until the name is cleared; these checks should finish 
 
 **Open decisions**
 
-- [ ] Final accent: Electric Lime or a softer chartreuse.
-- [ ] Whether the light theme is equal from launch or secondary.
-- [ ] Logo: commission a designer, or produce in-house from the direction above.
-- [ ] Turn the palette into design tokens shared by the web app and, later, the mobile apps.
+- [x] Final accent: cobalt, the blue pencil (decision record 0018, 2026-10-31).
+- [x] Themes: Daylight is the default; Night stand and the Slate page are equal from the redesign.
+- [ ] Wordmark and app icon: drawn in the visual pass from the direction above.
+- [x] The palette is design tokens shared by the web app and the iPad app (`design/kit/tokens.css`).
 
 Once the name is cleared, "Motif Lab" in earlier tabs can be replaced with "Motiff Lab".

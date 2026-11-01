@@ -2,6 +2,8 @@
 
 Status: proposed, 2026-10-30. Andrei asked to start the iPad app, built in Xcode on his Mac, with the Apple Pencil writing on the score as in the sheet-music app he uses now.
 
+> 2026-11-01: superseded in part by the redesign ([0018](0018-redesign.md), section 14) and by 0019, still to be written: the iPad app is fully native Swift, and pencil marks move from a device store into the project file. The Swift shell described here remains until the native app replaces it.
+
 ## Context
 
 The web app (0001, 0012) already runs on the iPad in Safari, and the workspace was laid out for it (PR #120's mockups, `docs/ui-conventions.md`): the score, the roll, Focus mode at the piano, touch-sized controls. PR #120 proposed a .NET MAUI Blazor Hybrid app; it is still open, with its decisions on publishing undecided. Since then the scan server and the API moved to Azure (0014), so nothing the app needs runs on the player's computer any more.

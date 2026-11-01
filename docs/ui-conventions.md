@@ -1,6 +1,6 @@
 # UI conventions
 
-Small, pragmatic rules for the web UI (`src/MotiffLab.Web`) so that UI fixes stay consistent while music-core is the priority. The UI only displays what music-core returns: it never changes analysis or variation code, or the shapes of their results, and it never computes musical facts itself.
+Small, pragmatic rules for the web UI (`src/MotiffLab.Web`) so that UI fixes stay consistent while music-core is the priority. They describe the current UI, which the redesign (decision record 0018) replaces screen by screen: a redesign PR follows `design/kit` (tokens, components, marks) and rewrites the section here for the screen it replaces, so this file always describes what is on main. The UI only displays what music-core returns: it never changes analysis or variation code, or the shapes of their results, and it never computes musical facts itself.
 
 ## Layout
 

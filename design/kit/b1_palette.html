@@ -1,0 +1,126 @@
+<!doctype html><html data-theme="light" ><head><meta charset="utf-8"><link rel="stylesheet" href="tokens.css"><link rel="stylesheet" href="ds.css"><style>body{padding:28px;background:#fff}.pal{padding:24px;border-radius:16px;background:var(--desk);color:var(--ink);margin-bottom:20px}.grp{margin-top:14px}.sws{display:flex;gap:12px;margin-top:8px;flex-wrap:wrap}.sw{width:118px}.sw .c{height:56px;border-radius:10px;border:1px solid var(--hairline)}.sw .n{font:600 13px/18px var(--font-ui);margin-top:6px}.sw .h{font:400 12px/16px var(--font-ui);color:var(--ink-2)}.sw .v{font:400 11px/14px var(--font-ui);color:var(--ink-3)}</style></head><body><script>// Motiff Lab icon set — 20px grid, 1.5 stroke, round caps/joins
+const ICONS = {
+  phrases: '<path d="M5 4H3.5v12H5M15 4h1.5v12H15"/><path d="M7.5 7.5h5M7.5 10h5M7.5 12.5h3"/>',
+  pen: '<path d="M4 16l1-4L13.5 3.5a1.4 1.4 0 0 1 2 0l1 1a1.4 1.4 0 0 1 0 2L8 15l-4 1z"/><path d="M12 5l3 3"/>',
+  roll: '<rect x="3" y="4" width="14" height="12" rx="1.5"/><path d="M5 7.5h4M8 10h5M6 12.5h3M12 7.5h3"/>',
+  insight: '<circle cx="9" cy="9" r="5.5"/><path d="M13 13l4 4M7 9a2 2 0 0 1 2-2"/>',
+  play: '<path d="M6 4.5v11l9-5.5z"/>',
+  playf: '<path d="M6 4.5v11l9-5.5z" fill="currentColor"/>',
+  pause: '<path d="M7 4.5v11M13 4.5v11"/>',
+  loop: '<path d="M4 9a5 5 0 0 1 5-5h7M16 4l-2.5-2.5M16 4l-2.5 2.5"/><path d="M16 11a5 5 0 0 1-5 5H4M4 16l2.5-2.5M4 16l2.5 2.5"/>',
+  metronome: '<path d="M7.5 3.5h5l2.5 13h-10z"/><path d="M10 12V5.5M10 12l4-6"/>',
+  count: '<circle cx="10" cy="10" r="7"/><path d="M10 6v4l2.5 1.5"/>',
+  hands: '<path d="M6 17v-4.5L3.5 9a1.3 1.3 0 0 1 2.2-1.4L7.5 10V4.5a1.2 1.2 0 0 1 2.4 0V9"/><path d="M9.9 9V4a1.2 1.2 0 0 1 2.4 0v5M12.3 9V5.5a1.2 1.2 0 0 1 2.4 0v7.5a4 4 0 0 1-4 4H6"/>',
+  pages: '<rect x="4" y="3" width="12" height="14" rx="1.5"/><path d="M7 7h6M7 10h6M7 13h4"/>',
+  check: '<path d="M4 10.5l4 4 8-9"/>',
+  note: '<path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h9A1.5 1.5 0 0 1 16 5.5v6a1.5 1.5 0 0 1-1.5 1.5H9l-4 3.5V13"/>',
+  tag: '<path d="M3.5 4.5v5l7.5 7.5 6.5-6.5L10 3H5a1.5 1.5 0 0 0-1.5 1.5z"/><circle cx="7" cy="7" r="1"/>',
+  highlight: '<path d="M5 15l-2 2h4l1-1M5 15l7-7 3 3-7 7"/><path d="M12 8l2-2 3 3-2 2"/>',
+  back: '<path d="M12.5 4.5L7 10l5.5 5.5"/>',
+  fwd: '<path d="M7.5 4.5L13 10l-5.5 5.5"/>',
+  more: '<circle cx="5" cy="10" r="1.2" fill="currentColor"/><circle cx="10" cy="10" r="1.2" fill="currentColor"/><circle cx="15" cy="10" r="1.2" fill="currentColor"/>',
+  plus: '<path d="M10 4v12M4 10h12"/>',
+  user: '<circle cx="10" cy="7" r="3.5"/><path d="M3.5 17a6.5 6.5 0 0 1 13 0"/>',
+  close: '<path d="M5 5l10 10M15 5L5 15"/>',
+  search: '<circle cx="9" cy="9" r="5.5"/><path d="M13 13l4 4"/>',
+  info: '<circle cx="10" cy="10" r="7"/><path d="M10 9v5M10 6.5v.5"/>',
+  layers: '<path d="M10 3l7 4-7 4-7-4z"/><path d="M3 11l7 4 7-4M3 14.5l7 4 7-4"/>',
+  trash: '<path d="M4 6h12M8 6V4h4v2M6 6l.8 10h6.4L14 6"/>',
+  export: '<path d="M10 13V4M6.5 7.5L10 4l3.5 3.5"/><path d="M4 12v3.5A1.5 1.5 0 0 0 5.5 17h9a1.5 1.5 0 0 0 1.5-1.5V12"/>',
+  mic: '<rect x="7.5" y="3" width="5" height="9" rx="2.5"/><path d="M5 10a5 5 0 0 0 10 0M10 15v2"/>',
+  camera: '<path d="M3.5 7.5A1.5 1.5 0 0 1 5 6h2l1.2-2h3.6L13 6h2a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 15 16H5a1.5 1.5 0 0 1-1.5-1.5z"/><circle cx="10" cy="11" r="2.8"/>',
+  file: '<path d="M5 3h6l4 4v9.5A1.5 1.5 0 0 1 13.5 18h-8A1.5 1.5 0 0 1 4 16.5v-12A1.5 1.5 0 0 1 5.5 3"/><path d="M11 3v4h4"/>',
+  tempo: '<path d="M4 15.5L10 4l6 11.5z"/><path d="M10 9v3"/>',
+  undo: '<path d="M7 7H3.5V3.5"/><path d="M3.8 7A6.5 6.5 0 1 1 3.5 11"/>',
+  chevd: '<path d="M5 8l5 5 5-5"/>',
+  dial: '<path d="M4 14a6.5 6.5 0 1 1 12 0"/><path d="M10 14l3.2-4.5"/><circle cx="10" cy="14" r="1.2" fill="currentColor"/>',
+  leadin: '<path d="M3 10h7.5M8 7l2.5 3L8 13"/><path d="M13.5 4H17v12h-3.5"/>',
+  bookmark: '<path d="M5.5 3.5h9v13l-4.5-3.2-4.5 3.2z"/>',
+  dot: '<circle cx="10" cy="10" r="3" fill="currentColor"/>'
+};
+function ic(name, cls) { return `<svg class="ic ${cls||''}" viewBox="0 0 20 20" aria-hidden="true">${ICONS[name]}</svg>`; }
+// Overlay helpers for score mockups
+function phraseRanges(total) {
+  const ps = [[0, 4]]; let s = 5;
+  while (s < total) { ps.push([s, s + 3], [s + 4, s + 11], [s + 12, s + 17]); s += 18; }
+  return ps.filter(p => p[0] < total).map(p => [p[0], Math.min(p[1], total - 1)]);
+}
+function measureBoxes(pageEl, rootEl, offset) {
+  const rb = rootEl.getBoundingClientRect(); const out = [];
+  pageEl.querySelectorAll('g.system').forEach((sys, si) => {
+    sys.querySelectorAll('g.measure').forEach(m => {
+      const b = m.getBoundingClientRect();
+      const staves = [...m.querySelectorAll('g.staff')].map(s => s.getBoundingClientRect());
+      const top = Math.min(...staves.map(s => s.top)), bottom = Math.max(...staves.map(s => s.bottom));
+      out.push({ idx: offset + out.length, sys: si, x: b.left - rb.left, w: b.width, top: top - rb.top, bottom: bottom - rb.top, el: m });
+    });
+  });
+  return out;
+}
+function drawBrackets(root, boxes, phrases, opts) {
+  opts = opts || {};
+  phrases.forEach((p, pi) => {
+    const ms = boxes.filter(b => b.idx >= p[0] && b.idx <= p[1]);
+    if (!ms.length) return;
+    const bySys = {}; ms.forEach(b => (bySys[b.sys] = bySys[b.sys] || []).push(b));
+    let first = true;
+    Object.values(bySys).forEach(seg => {
+      const x = seg[0].x + 2, w = seg[seg.length - 1].x + seg[seg.length - 1].w - x - 4;
+      const y = Math.min(...seg.map(b => b.top)) - 14;
+      const el = document.createElement('div');
+      el.className = 'bracket' + (opts.on === pi ? ' on' : '');
+      el.style.cssText = `left:${x}px;top:${y}px;width:${w}px`;
+      if (first) el.innerHTML = `<span class="n">${pi + 1}</span>` + (opts.saved && opts.saved.includes(pi) ? '<span class="dot"></span>' : '');
+      first = false; root.appendChild(el);
+    });
+  });
+}
+function drawBand(root, boxes, range, cls, handles) {
+  const ms = boxes.filter(b => b.idx >= range[0] && b.idx <= range[1]);
+  const bySys = {}; ms.forEach(b => (bySys[b.sys] = bySys[b.sys] || []).push(b));
+  const segs = Object.values(bySys);
+  segs.forEach((seg, i) => {
+    const x = seg[0].x, w = seg[seg.length - 1].x + seg[seg.length - 1].w - x;
+    const top = Math.min(...seg.map(b => b.top)) - 8, bottom = Math.max(...seg.map(b => b.bottom)) + 8;
+    const el = document.createElement('div'); el.className = 'band ' + (cls || '');
+    el.style.cssText = `left:${x}px;top:${top}px;width:${w}px;height:${bottom - top}px`; root.appendChild(el);
+    if (handles) {
+      const mid = (top + bottom) / 2;
+      if (i === 0) { const h = document.createElement('div'); h.className = 'handle'; h.style.cssText = `left:${x}px;top:${mid}px`; root.appendChild(h); }
+      if (i === segs.length - 1) { const h = document.createElement('div'); h.className = 'handle'; h.style.cssText = `left:${x + w}px;top:${mid}px`; root.appendChild(h); }
+    }
+  });
+  return segs;
+}
+function ringNotes(root, boxes, range, rootEl, every) {
+  const rb = rootEl.getBoundingClientRect(); let k = 0;
+  boxes.filter(b => b.idx >= range[0] && b.idx <= range[1]).forEach(b => {
+    const st = b.el.querySelector('g.staff');
+    st.querySelectorAll('g.note g.notehead').forEach(n => {
+      if (every && (k++ % every)) return;
+      const r = n.getBoundingClientRect(); const el = document.createElement('div'); el.className = 'ring';
+      const d = Math.max(r.width, r.height) + 8;
+      el.style.cssText = `left:${r.left + r.width / 2 - rb.left}px;top:${r.top + r.height / 2 - rb.top}px;width:${d}px;height:${d}px`; root.appendChild(el);
+    });
+  });
+}
+function rollRender(host, notes, bars, lo, hi, rowH, opts) {
+  opts = opts || {};
+  const W = host.clientWidth, H = host.clientHeight; const left = opts.left || 40; const px = (W - left) / (bars * 6);
+  const black = [1, 3, 6, 8, 10]; const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  let html = '';
+  for (let m = hi; m >= lo; m--) {
+    const y = (hi - m) * rowH;
+    html += `<div class="row ${black.includes(m % 12) ? 'black' : ''}" style="top:${y}px;height:${rowH}px"></div>`;
+    if (m % 12 === 0 || m % 12 === 4 || m % 12 === 9) html += `<div class="nm ${m % 12 === 0 ? 'c' : ''}" style="top:${y + rowH / 2}px">${names[m % 12]}${Math.floor(m / 12) - 1}</div>`;
+  }
+  for (let b = 0; b <= bars; b++) { html += `<div class="barl" style="left:${left + b * 6 * px}px"></div>`; for (let q = 1; q < 3; q++) html += `<div class="beat" style="left:${left + (b * 6 + q * 2) * px}px"></div>`; }
+  notes.forEach(n => {
+    const x = left + n.start * px, y = (hi - n.midi) * rowH + 1, w = n.dur * px - 2;
+    const nm = names[n.midi % 12] + (Math.floor(n.midi / 12) - 1);
+    html += `<div class="nt ${n.hand} ${opts.sel && opts.sel(n) ? 'sel' : ''}" style="left:${x}px;top:${y}px;width:${w}px;height:${rowH - 2}px;font:500 ${Math.max(8, rowH - 3)}px/${rowH - 2}px var(--font-ui);color:var(--on-accent);padding-left:4px;overflow:hidden">${w > 20 && n.hand === 'R' ? nm : ''}</div>`;
+  });
+  if (opts.playhead != null) html += `<div class="playhead" style="left:${left + opts.playhead * px}px;top:0;bottom:0"></div>`;
+  host.innerHTML = html;
+}
+</script><div data-theme="light" class="pal"><div class="heading" style="margin-bottom:12px">Daylight (light theme)</div><div class="grp"><div class="overline">Surfaces</div><div class="sws"><div class="sw"><div class="c" style="background:#E8E3D9"></div><div class="n">Desk</div><div class="h">#E8E3D9</div><div class="v">--desk</div></div><div class="sw"><div class="c" style="background:#F7F4ED"></div><div class="n">Surface</div><div class="h">#F7F4ED</div><div class="v">--surface</div></div><div class="sw"><div class="c" style="background:#FFFFFF"></div><div class="n">Surface 2</div><div class="h">#FFFFFF</div><div class="v">--surface-2</div></div><div class="sw"><div class="c" style="background:#FCF9F2"></div><div class="n">Paper</div><div class="h">#FCF9F2</div><div class="v">--paper</div></div><div class="sw"><div class="c" style="background:#16130F"></div><div class="n">Notation</div><div class="h">#16130F</div><div class="v">--notation</div></div></div></div><div class="grp"><div class="overline">Text</div><div class="sws"><div class="sw"><div class="c" style="background:#1F1C18"></div><div class="n">Ink</div><div class="h">#1F1C18</div><div class="v">--ink</div></div><div class="sw"><div class="c" style="background:#5E584E"></div><div class="n">Ink 2</div><div class="h">#5E584E</div><div class="v">--ink-2</div></div><div class="sw"><div class="c" style="background:#8F887B"></div><div class="n">Ink 3</div><div class="h">#8F887B</div><div class="v">--ink-3</div></div><div class="sw"><div class="c" style="background:rgba(31,28,24,.12)"></div><div class="n">Hairline</div><div class="h">rgba(31,28,24,.12)</div><div class="v">--hairline</div></div></div></div><div class="grp"><div class="overline">Accent & hues</div><div class="sws"><div class="sw"><div class="c" style="background:#2F5BD6"></div><div class="n">Cobalt</div><div class="h">#2F5BD6</div><div class="v">--accent</div></div><div class="sw"><div class="c" style="background:rgba(47,91,214,.14)"></div><div class="n">Cobalt tint</div><div class="h">rgba(47,91,214,.14)</div><div class="v">--accent-tint</div></div><div class="sw"><div class="c" style="background:#7B3F9E"></div><div class="n">Plum</div><div class="h">#7B3F9E</div><div class="v">--plum</div></div><div class="sw"><div class="c" style="background:#F0B429"></div><div class="n">Amber</div><div class="h">#F0B429</div><div class="v">--amber</div></div><div class="sw"><div class="c" style="background:#1F8A8A"></div><div class="n">Teal</div><div class="h">#1F8A8A</div><div class="v">--teal</div></div></div></div><div class="grp"><div class="overline">Semantic</div><div class="sws"><div class="sw"><div class="c" style="background:#2E7D4F"></div><div class="n">Success</div><div class="h">#2E7D4F</div><div class="v">--success</div></div><div class="sw"><div class="c" style="background:#965D04"></div><div class="n">Warning</div><div class="h">#965D04</div><div class="v">--warning</div></div><div class="sw"><div class="c" style="background:#C8352B"></div><div class="n">Danger</div><div class="h">#C8352B</div><div class="v">--danger</div></div></div></div><div class="grp"><div class="overline">User ink</div><div class="sws"><div class="sw"><div class="c" style="background:#3B3733"></div><div class="n">Graphite</div><div class="h">#3B3733</div><div class="v">--ink-graphite</div></div><div class="sw"><div class="c" style="background:#C8352B"></div><div class="n">Carmine</div><div class="h">#C8352B</div><div class="v">--ink-carmine</div></div><div class="sw"><div class="c" style="background:#2E7D4F"></div><div class="n">Forest</div><div class="h">#2E7D4F</div><div class="v">--ink-forest</div></div><div class="sw"><div class="c" style="background:rgba(240,180,41,.38)"></div><div class="n">Highlighter</div><div class="h">rgba(240,180,41,.38)</div><div class="v">--amber-tint</div></div></div></div></div><div data-theme="dark" class="pal"><div class="heading" style="margin-bottom:12px">Night stand (dark theme)</div><div class="grp"><div class="overline">Surfaces</div><div class="sws"><div class="sw"><div class="c" style="background:#141311"></div><div class="n">Desk</div><div class="h">#141311</div><div class="v">--desk</div></div><div class="sw"><div class="c" style="background:#1F1D19"></div><div class="n">Surface</div><div class="h">#1F1D19</div><div class="v">--surface</div></div><div class="sw"><div class="c" style="background:#2A2723"></div><div class="n">Surface 2</div><div class="h">#2A2723</div><div class="v">--surface-2</div></div><div class="sw"><div class="c" style="background:#E7E0D1"></div><div class="n">Paper</div><div class="h">#E7E0D1</div><div class="v">--paper</div></div><div class="sw"><div class="c" style="background:#24221E"></div><div class="n">Slate paper</div><div class="h">#24221E</div><div class="v">--paper (slate)</div></div></div></div><div class="grp"><div class="overline">Text</div><div class="sws"><div class="sw"><div class="c" style="background:#EEE9DF"></div><div class="n">Ink</div><div class="h">#EEE9DF</div><div class="v">--ink</div></div><div class="sw"><div class="c" style="background:#A9A295"></div><div class="n">Ink 2</div><div class="h">#A9A295</div><div class="v">--ink-2</div></div><div class="sw"><div class="c" style="background:#78715F"></div><div class="n">Ink 3</div><div class="h">#78715F</div><div class="v">--ink-3</div></div><div class="sw"><div class="c" style="background:rgba(238,233,223,.12)"></div><div class="n">Hairline</div><div class="h">rgba(238,233,223,.12)</div><div class="v">--hairline</div></div></div></div><div class="grp"><div class="overline">Accent & hues</div><div class="sws"><div class="sw"><div class="c" style="background:#7D9CFF"></div><div class="n">Cobalt</div><div class="h">#7D9CFF</div><div class="v">--accent</div></div><div class="sw"><div class="c" style="background:rgba(125,156,255,.20)"></div><div class="n">Cobalt tint</div><div class="h">rgba(125,156,255,.20)</div><div class="v">--accent-tint</div></div><div class="sw"><div class="c" style="background:#B98CD8"></div><div class="n">Plum</div><div class="h">#B98CD8</div><div class="v">--plum</div></div><div class="sw"><div class="c" style="background:#F3C14E"></div><div class="n">Amber</div><div class="h">#F3C14E</div><div class="v">--amber</div></div><div class="sw"><div class="c" style="background:#4FBFB4"></div><div class="n">Teal</div><div class="h">#4FBFB4</div><div class="v">--teal</div></div></div></div><div class="grp"><div class="overline">Semantic</div><div class="sws"><div class="sw"><div class="c" style="background:#5CBB7D"></div><div class="n">Success</div><div class="h">#5CBB7D</div><div class="v">--success</div></div><div class="sw"><div class="c" style="background:#F3C14E"></div><div class="n">Warning</div><div class="h">#F3C14E</div><div class="v">--warning</div></div><div class="sw"><div class="c" style="background:#F07C70"></div><div class="n">Danger</div><div class="h">#F07C70</div><div class="v">--danger</div></div></div></div><div class="grp"><div class="overline">User ink</div><div class="sws"><div class="sw"><div class="c" style="background:#3B3733"></div><div class="n">Graphite</div><div class="h">#3B3733</div><div class="v">--ink-graphite</div></div><div class="sw"><div class="c" style="background:#C8352B"></div><div class="n">Carmine</div><div class="h">#C8352B</div><div class="v">--ink-carmine</div></div><div class="sw"><div class="c" style="background:#2E7D4F"></div><div class="n">Forest</div><div class="h">#2E7D4F</div><div class="v">--ink-forest</div></div><div class="sw"><div class="c" style="background:rgba(240,180,41,.38)"></div><div class="n">Highlighter</div><div class="h">rgba(240,180,41,.38)</div><div class="v">--amber-tint</div></div></div></div></div></body></html>

@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Date:** 2026-10-27 · **Scope:** `src/MotiffLab.Web` (pages, layout, localization), `MotiffLab.MusicCore.Projects` (sessions), project file version 8
 
+> 2026-11-01: the redesign ([0018](0018-redesign.md)) replaces sessions with resume points, the project page with the library, the Score / Piano roll / Both views and Focus mode with the page, the piano roll drawer and phrase focus, and the inspector's tabs with the Insights stream. Projects, ideas, the score first, `i18n/*.json` and musical text from music-core stand.
+
 ## Context
 
 A UI/UX review of Stage 1 found the lab usable but shaped by how it was built rather than by how a musician works: the piano roll was the primary view and the engraved score a secondary panel; the inspector carried five tabs of mechanisms (Selection, Edit, Compare, the second file, the tracks) beside the three ways of working; a project held one open piece with no record of what the player sat down to do; what the player kept was a flat list; and nothing let the player stand at the instrument with only the phrase, the loop and the transport on the screen. The review also asked for levels of abstraction above the phrase, for a layering of observations, musical facts and interpretations, for Russian with a proper structure, and for an idea library with branching experiments.

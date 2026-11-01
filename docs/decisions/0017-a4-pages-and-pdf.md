@@ -2,6 +2,8 @@
 
 Status: accepted, 2026-10-31. Andrei: the app now makes scores (from MusicXML, MIDI, recordings and scans), so they should be laid out as A4 pages and exported as PDF.
 
+> 2026-11-01: the redesign ([0018](0018-redesign.md)) keeps A4 pages as the default and the PDF, and lays the pages out in one continuously scrolling document, two per row in landscape, with the kit's margins and scale.
+
 ## Context
 
 The score view (0008) lays the notation out as one strip the width of the view: no title, no pages, and systems that reflow whenever the window changes. That suits following playback in a short panel, but a score made from a recording or a scan is also something to print, put on the music stand or keep, and players expect it to look like a printed page. The export has to work in the iPad app (0015), a WKWebView that does nothing on `window.print()` and saves files only through downloads, and offline like the rest of the PWA.

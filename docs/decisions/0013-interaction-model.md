@@ -2,6 +2,8 @@
 
 **Status:** proposed, for Andrei's review · **Date:** 2026-10-27 · **Scope:** `MotiffLab.MusicCore` (musical objects, claims, sessions, guidance, annotations), `src/MotiffLab.Web` (one workspace state behind Practise, Understand and Explore, and the Guidance Layer over it)
 
+> 2026-11-01: the redesign ([0018](0018-redesign.md)) keeps this model and changes two things: Practise, Understand and Explore are the verbs of one Insights stream, not modes, and the Tag mark of section 10 becomes bookmarks with categories. Sections 3, 6 and 9 landed with PR #145 (SentenceMap, FactRanking, the Interpretation claim kind).
+
 ## Context
 
 0012 gave the workspace its structure: projects, sessions and ideas; the score first; Focus mode. Andrei's review of the mockups that followed asked for one more thing before more screens are built: a shared interaction model, so that the selected musical object, playback, the active variation, the facts and the ideas are one model that the three ways of working read, not three implementations of selection, playback and state. The review also asked to settle the relationship between a session and the object it works on, to make the selected level unambiguous, to tell kinds of musical claim apart rather than relying on a confidence number, to make a recommended experiment honest, and to define the Russian terms once. A second brief asked for guided musical exploration: a contextual practice guide that suggests the next useful question or action for the passage in front of the player, across the whole app rather than as another mode.

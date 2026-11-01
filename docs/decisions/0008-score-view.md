@@ -1,5 +1,7 @@
 # 0008 · Score view
 
+> 2026-11-01: the redesign ([0018](0018-redesign.md)) keeps this engraving pipeline and changes its face: Leland instead of Leipzig at the kit's page options, the strip as a switchable view instead of the default, and the score as the selection surface.
+
 Status: proposed, 2026-10-22
 
 ## Context
