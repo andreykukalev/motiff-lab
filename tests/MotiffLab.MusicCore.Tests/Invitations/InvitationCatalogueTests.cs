@@ -234,16 +234,15 @@ public class InvitationCatalogueTests
     }
 
     [Fact]
-    public void A_motif_above_middle_C_offers_an_octave_lower_and_needs_a_Should_item()
+    public void A_motif_above_middle_C_offers_an_octave_lower()
     {
         Note[] song = Quarters([72, 74, 76, 72]);
         Invitation invitation = Find(InvitationCatalogue.Invite(Context(song, MeterMap.Default, 0, Bar, s_cMajor)), "character.register")!;
 
         Assert.Equal(["character.register"], invitation.FactIds);
         Assert.Equal("Every note of the motif is at or above middle C. What stays the same if it moves an octave lower?", invitation.Question);
-        Assert.Equal(new OperationAction("V3", "octave shift down", null, "keep-melody"), invitation.Action);
-        Assert.Equal(ActionAvailability.NeedsShouldItem, invitation.Availability);
-        Assert.Equal("Voicing and register is a Should item of Stage 1; chord detection (S1-A3) is in.", ActionStatus.Note(invitation.Action));
+        Assert.Equal(new OperationAction("V3", "octave shift down", new VoicingParameters(VoicingKind.OctaveDown), "keep-melody"), invitation.Action);
+        Assert.Equal(ActionAvailability.AvailableNow, invitation.Availability);
     }
 
     [Fact]
@@ -311,8 +310,7 @@ public class InvitationCatalogueTests
     [Fact]
     public void Availability_comes_from_one_table_covering_the_catalogue()
     {
-        Assert.All(["V1", "V13", "V7", "V8", "V2", "V12", "V4", "V9", "V10", "V11", "V14", "V15"], id => Assert.Equal(ActionAvailability.AvailableNow, ActionStatus.Of(id)));
-        Assert.All(["V3", "V6"], id => Assert.Equal(ActionAvailability.NeedsShouldItem, ActionStatus.Of(id)));
+        Assert.All(["V1", "V13", "V7", "V8", "V2", "V12", "V3", "V6", "V4", "V9", "V10", "V11", "V14", "V15"], id => Assert.Equal(ActionAvailability.AvailableNow, ActionStatus.Of(id)));
         Assert.Equal(ActionAvailability.LaterStage, ActionStatus.Of("V5"));
         Assert.All(KeepTable.Rows, row => Assert.Contains(row.OperationId, ActionStatus.OperationIds));
         Assert.Equal(ActionAvailability.AvailableNow, ActionStatus.Of(new ListeningAction(ListeningKind.Loop, [])));

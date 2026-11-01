@@ -687,6 +687,23 @@
             new("walk", new BassPatternParameters(BassPatternKind.Walk)),
             new("pedal", new BassPatternParameters(BassPatternKind.Pedal)),
         ]),
+        new(VoicingAndRegister.Instance,
+        [
+            new("rootPosition", new VoicingParameters(VoicingKind.RootPosition)),
+            new("firstInversion", new VoicingParameters(VoicingKind.FirstInversion)),
+            new("secondInversion", new VoicingParameters(VoicingKind.SecondInversion)),
+            new("closeVoicing", new VoicingParameters(VoicingKind.Close)),
+            new("openVoicing", new VoicingParameters(VoicingKind.Open)),
+            new("octaveUp", new VoicingParameters(VoicingKind.OctaveUp)),
+            new("octaveDown", new VoicingParameters(VoicingKind.OctaveDown)),
+            new("otherHand", new VoicingParameters(VoicingKind.OtherHand)),
+        ]),
+        new(Simplify.Instance,
+        [
+            new("simplify1", new SimplifyParameters(1)),
+            new("simplify2", new SimplifyParameters(2)),
+            new("simplify3", new SimplifyParameters(3)),
+        ]),
         new(Reharmonise.Instance,
         [
             new("relative", new ReharmoniseParameters(ReharmoniseKind.Relative)),

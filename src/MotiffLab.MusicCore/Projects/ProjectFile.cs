@@ -1212,6 +1212,12 @@ public static class ProjectFile
                 }
 
                 break;
+            case VoicingParameters voicing:
+                json.WriteString("kind", voicing.Kind.ToString());
+                break;
+            case SimplifyParameters simplify:
+                json.WriteNumber("level", simplify.Level);
+                break;
             case PassingNotesParameters passing:
                 json.WriteString("kind", passing.Kind.ToString());
                 WriteIntervals(json, passing.Intervals);
@@ -1297,6 +1303,10 @@ public static class ProjectFile
             BassPattern.OperationId => new BassPatternParameters(Name<BassPatternKind>(parameters, "kind")),
             Ornament.OperationId => new OrnamentParameters(Name<OrnamentKind>(parameters, "kind")),
             AccentShift.OperationId => ReadAccents(parameters),
+            VoicingAndRegister.OperationId => new VoicingParameters(Name<VoicingKind>(parameters, "kind")),
+            Simplify.OperationId => Integer(parameters, "level") is int level and >= SimplifyParameters.MinLevel and <= SimplifyParameters.MaxLevel
+                ? new SimplifyParameters(level)
+                : throw Damaged("variation parameters"),
             PassingNotes.OperationId => new PassingNotesParameters(Name<PassingNoteKind>(parameters, "kind"), ReadIntervals(parameters)),
             Reharmonise.OperationId => new ReharmoniseParameters(Name<ReharmoniseKind>(parameters, "kind")),
             _ => throw new ProjectFileException($"A variation uses an operation ({operation}) this version of Motiff Lab does not have."),

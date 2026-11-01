@@ -49,7 +49,7 @@ public static class TryChips
     private const string Bass = "keep-bass";
     private const string Contour = "keep-contour";
 
-    /// <summary>Every chip, by id. Operations this version does not have yet (V3, V6) are rows without parameters.</summary>
+    /// <summary>Every chip, by id. An operation this version does not have would be a row without parameters; today every chip's operation is built.</summary>
     public static IReadOnlyList<TryChip> Chips { get; } =
     [
         new("v1.dotted", RhythmReshape.OperationId, new RhythmReshapeParameters(RhythmReshapeKind.Dotted) { Scope = OperationScope.Melody }, PitchOrder, "Long–short", "Долгая–короткая"),
@@ -73,8 +73,8 @@ public static class TryChips
         new("v11.passing", PassingNotes.OperationId, new PassingNotesParameters(PassingNoteKind.Passing) { Scope = OperationScope.Melody }, Bass, "Passing notes", "Проходящие ноты"),
         new("v12.pedal", BassPattern.OperationId, new BassPatternParameters(BassPatternKind.Pedal), Melody, "Pedal bass", "Бас на педали"),
         new("v12.roots", BassPattern.OperationId, new BassPatternParameters(BassPatternKind.RootsOnly), Melody, "Roots in the bass", "Основные тоны в басу"),
-        new("v3.voicing", "V3", null, Melody, "Another voicing", "Другое расположение"),
-        new("v6.simplify", "V6", null, Contour, "Simplify", "Упростить"),
+        new("v3.voicing", VoicingAndRegister.OperationId, new VoicingParameters(VoicingKind.Close), Melody, "Another voicing", "Другое расположение"),
+        new("v6.simplify", Simplify.OperationId, new SimplifyParameters(1), Contour, "Simplify", "Упростить"),
         new("v14.ornament", Ornament.OperationId, new OrnamentParameters(OrnamentKind.Mordent) { Scope = OperationScope.Melody }, Bass, "Ornament", "Орнамент"),
         new("v15.reharmonise", Reharmonise.OperationId, new ReharmoniseParameters(ReharmoniseKind.Relative), Melody, "Reharmonise", "Перегармонизовать"),
     ];
