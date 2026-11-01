@@ -47,11 +47,13 @@ final class MusicCoreTests: XCTestCase {
     }
 
     func testEngravingTimes() async throws {
-        for piece in SamplePiece.all {
+        print("Environment variables in the test process: \(ProcessInfo.processInfo.environment.count)")
+        // Each piece twice: the second run shows what is a one-off cost of the first.
+        for (piece, label) in SamplePiece.all.flatMap({ piece -> [(SamplePiece, String)] in [(piece, piece.file), (piece, piece.file + " (again)")] }) {
             let report = await MusicCore.onCoreThread { ScoreReport.engrave(piece) }
             XCTAssertNil(report.error, report.error ?? "")
             let json: [String: Any] = [
-                "file": piece.file, "notes": report.notes, "pages": report.pages, "svgKB": report.svgBytes / 1024,
+                "file": label, "notes": report.notes, "pages": report.pages, "svgKB": report.svgBytes / 1024,
                 "meiMs": report.meiMs.rounded(), "layoutMs": report.layoutMs.rounded(),
                 "firstPageMs": report.firstPageMs.rounded(), "allPagesMs": report.allPagesMs.rounded(),
                 "timemapMs": report.timemapMs.rounded(), "verovio": report.version,

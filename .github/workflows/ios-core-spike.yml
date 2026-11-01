@@ -170,6 +170,11 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           sed -n '/Sort by top of stack/,$p' "$RUNNER_TEMP/sample.txt" | head -45
+          # Who calls into the environment, locale and printf (seen in the first profile).
+          for leaf in __findenv_locked __scan_keyword _st_fmt __vfprintf; do
+            echo "=== callers of $leaf"
+            python3 native-check/callers.py "$RUNNER_TEMP/sample.txt" "$leaf" 3 14
+          done
 
       - uses: actions/upload-artifact@v4
         if: always()
