@@ -63,6 +63,7 @@ EOF
 </plist>
 EOF
   echo "verovio $slice: $(du -sh "$fw/$name" | cut -f1) ($(lipo -archs "$fw/$name"))"
+  echo "verovio $slice flags: $(grep -h '^CXX_FLAGS' "$out"/CMakeFiles/verovio.dir/flags.make 2>/dev/null | cut -c1-60 || true)"
 }
 
 framework iphoneos iPhoneOS verovio-ios-arm64

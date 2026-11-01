@@ -1,5 +1,6 @@
 # Spike (spikes/ios-core): builds music-core for the iPad with NativeAOT, runs it in the iPad simulator
-# and checks that the device build links. Not part of CI: it runs only when the spike changes, or by hand.
+# and checks that the device build links; a second job times and profiles Verovio on macOS itself.
+# Not part of CI: it runs only when the spike changes, or by hand.
 name: iOS core spike
 
 on:
@@ -115,4 +116,64 @@ jobs:
           path: |
             spikes/ios-core/build/MotiffLabCore.xcframework
             spikes/ios-core/ios/test.log
+          if-no-files-found: warn
+
+  # The same Verovio and music-core built for macOS on the same kind of runner, timed and profiled
+  # outside the simulator: tells a slow simulator from a slow build.
+  verovio-macos:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: music-core for macOS (NativeAOT)
+        run: dotnet publish spikes/ios-core/CoreBridge -c Release -r osx-arm64 -o "$RUNNER_TEMP/core" | tail -2
+
+      - name: Verovio for macOS
+        working-directory: ${{ runner.temp }}
+        run: |
+          git clone --quiet --depth 1 --branch version-6.3.0 https://github.com/rism-digital/verovio.git verovio
+          cmake -S verovio/cmake -B vrv -DCMAKE_BUILD_TYPE=Release -DBUILD_AS_LIBRARY=ON -DNO_HUMDRUM_SUPPORT=ON > cmake.log
+          cmake --build vrv --parallel "$(sysctl -n hw.ncpu)" > build.log
+          grep -h '^CXX_FLAGS' vrv/CMakeFiles/verovio.dir/flags.make | cut -c1-60
+          ls -la vrv/*.dylib
+
+      - name: Time and profile the engraving
+        working-directory: spikes/ios-core
+        run: |
+          core="$RUNNER_TEMP/core/MotiffLabCore.dylib"
+          vrv=$(ls "$RUNNER_TEMP"/vrv/libverovio*.dylib | head -1)
+          data="$RUNNER_TEMP/verovio/data"
+          for piece in fur-elise-97-bars.musicxml large-5000-notes.mid; do
+            python3 native-check/engrave.py "$core" "$vrv" "$data" "assets/$piece" 5 | tee -a "$RUNNER_TEMP/engrave.jsonl"
+          done
+          MOTIFF_ENGRAVE_LOOP=14 python3 native-check/engrave.py "$core" "$vrv" "$data" assets/fur-elise-97-bars.musicxml &
+          pid=$!
+          sleep 3
+          sample "$pid" 8 -mayDie -file "$RUNNER_TEMP/sample.txt" > /dev/null 2>&1 || true
+          wait "$pid"
+          {
+            echo "## Verovio on macOS (same runner type, outside the simulator)"
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/engrave.jsonl"
+            echo '```'
+            echo
+            echo "### Where the time goes (sample, top of stack)"
+            echo
+            echo '```'
+            sed -n '/Sort by top of stack/,$p' "$RUNNER_TEMP/sample.txt" | head -45
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          sed -n '/Sort by top of stack/,$p' "$RUNNER_TEMP/sample.txt" | head -45
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: verovio-macos-profile
+          path: ${{ runner.temp }}/sample.txt
           if-no-files-found: warn
