@@ -72,6 +72,7 @@ test("the facts read in Russian when the app is in Russian (#134)", async ({ pag
     await selectBar(page, 1);
     await page.getByRole("tab", { name: "Понять" }).click();
     const panel = page.locator(".tab-panel");
+    await panel.getByRole("button", { name: "Подробно" }).click();
 
     await expect(panel.getByRole("button", { name: /^Ритм/ })).toBeVisible();
     await expect(panel.getByText("Тональность: ля минор.")).toBeVisible();

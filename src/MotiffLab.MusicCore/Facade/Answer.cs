@@ -531,9 +531,10 @@ internal static partial class Answer
         json.WriteEndObject();
 
         Facts(json, "character", context.Character, chips, words);
+        Harmony(json, context.Harmony, motif.Key?.Key, chips, words);
         Facts(json, "sentence", sentence, chips, words);
 
-        MotifFact[] all = [.. motif.Facts, .. structure.Facts, .. context.Character, .. sentence];
+        MotifFact[] all = [.. motif.Facts, .. structure.Facts, .. context.Character, .. context.Harmony.Facts, .. sentence];
         Texts(json, "strongest", FactRanking.Strongest(all).Select(fact => fact.Id));
         if (FactRanking.KeyObservation(all) is { } key)
         {
@@ -546,6 +547,38 @@ internal static partial class Answer
         {
             json.WriteNull("keyObservation");
         }
+    }
+
+    /// <summary>
+    /// The selection's harmony (S1-A3): each chord with its symbol, root, quality, bass, inversion, confidence and
+    /// alternatives, every one inferred; the bass line's note ids; and the Harmony facts with their Try chips.
+    /// </summary>
+    public static void Harmony(Utf8JsonWriter json, HarmonyAnalysis harmony, MusicalKey? key, Func<MotifFact, IReadOnlyList<TryChip>> chips, Words words)
+    {
+        MusicalKey spelling = key ?? new MusicalKey(0, KeyMode.Major);
+        json.WriteStartObject("harmony");
+        json.WriteStartArray("chords");
+        foreach (ChordSpan chord in harmony.Chords)
+        {
+            json.WriteStartObject();
+            json.WriteNumber("onset", chord.Span.Onset.Value);
+            json.WriteNumber("end", chord.Span.End.Value);
+            json.WriteString("symbol", chord.Symbol(spelling));
+            json.WriteNumber("root", chord.Chord.Root);
+            json.WriteString("quality", Name(chord.Chord.Quality));
+            json.WriteNumber("bass", chord.Bass.MidiNumber);
+            json.WriteNumber("inversion", chord.Inversion);
+            json.WriteNumber("confidence", chord.Confidence);
+            json.WriteString("certainty", Name(chord.Confidence < HarmonyAnalyzer.ClearConfidence ? FactCertainty.Uncertain : FactCertainty.Inferred));
+            Texts(json, "alternatives", chord.Alternatives.Select(alternative => alternative.Symbol(spelling, chord.Bass.PitchClass)));
+            Texts(json, "noteIds", chord.NoteIds);
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
+        Texts(json, "bass", harmony.BassLine.Select(static note => note.Id));
+        Facts(json, "facts", harmony.Facts, chips, words);
+        json.WriteEndObject();
     }
 
     public static void Experiments(Utf8JsonWriter json, string name, IEnumerable<Experiment> experiments)

@@ -95,7 +95,8 @@ public static class KeepTable
     };
 
     /// <summary>
-    /// The table's rows in the spec's order: rhythm, melody, accompaniment, voicing, difficulty. V13
+    /// The table's rows in the spec's order: rhythm, melody, accompaniment, voicing, difficulty, then V14 Ornament and
+    /// V15 Reharmonise from the redesign (decision record 0018, section 7). V13
     /// Articulation, added for the Explore experiments, sits with the rhythm operations. Keep rhythm
     /// covers onsets and lengths, so it rules V13 out even though V13 keeps every onset.
     /// </summary>
@@ -128,15 +129,19 @@ public static class KeepTable
             (KeepProperty.Melody, MelodyPitchClasses), (KeepProperty.Bass, UpperVoicesOnly)),
         Row("V6", "Simplify", "plays fewer, easier notes", "Упрощение", "оставляет меньше нот, и они проще",
             [KeepProperty.Contour, KeepProperty.Harmony]),
+        Row("V14", "Ornament", "adds quick neighbour notes to the long melody notes", "Орнамент", "добавляет быстрые вспомогательные ноты к долгим нотам мелодии",
+            [KeepProperty.Bass, KeepProperty.Harmony]),
+        Row("V15", "Reharmonise", "changes the chords under the melody", "Перегармонизация", "меняет аккорды под мелодией",
+            [KeepProperty.Contour, KeepProperty.Intervals, KeepProperty.Rhythm, KeepProperty.Melody]),
     ];
 
-    /// <summary>The five presets, in the spec's order.</summary>
+    /// <summary>The five presets, in the spec's order; Keep melody also suggests V15 and Keep bass V14 (0018).</summary>
     public static IReadOnlyList<KeepPreset> Presets { get; } =
     [
         new("keep-pitch-order", "Keep the pitch order, change the rhythm", new HashSet<KeepProperty> { KeepProperty.PitchOrder }, ["V1", "V7", "V8"]) { RussianLabel = "Сохранить порядок высот, изменить ритм" },
         new("keep-rhythm", "Keep rhythm, change intervals", new HashSet<KeepProperty> { KeepProperty.Rhythm }, ["V9", "V10", "V4"]) { RussianLabel = "Сохранить ритм, изменить интервалы" },
-        new("keep-melody", "Keep the melody, change the accompaniment", new HashSet<KeepProperty> { KeepProperty.Melody }, ["V2", "V12", "V3"]) { RussianLabel = "Сохранить мелодию, изменить аккомпанемент" },
-        new("keep-bass", "Keep the bass, change the upper voices", new HashSet<KeepProperty> { KeepProperty.Bass }, ["V3"]) { RussianLabel = "Сохранить бас, изменить верхние голоса" },
+        new("keep-melody", "Keep the melody, change the accompaniment", new HashSet<KeepProperty> { KeepProperty.Melody }, ["V2", "V12", "V3", "V15"]) { RussianLabel = "Сохранить мелодию, изменить аккомпанемент" },
+        new("keep-bass", "Keep the bass, change the upper voices", new HashSet<KeepProperty> { KeepProperty.Bass }, ["V3", "V14"]) { RussianLabel = "Сохранить бас, изменить верхние голоса" },
         new("keep-contour", "Keep the contour, change interval sizes", new HashSet<KeepProperty> { KeepProperty.Contour }, ["V9"]) { RussianLabel = "Сохранить контур, изменить величину интервалов" },
     ];
 

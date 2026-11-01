@@ -243,7 +243,7 @@ public class InvitationCatalogueTests
         Assert.Equal("Every note of the motif is at or above middle C. What stays the same if it moves an octave lower?", invitation.Question);
         Assert.Equal(new OperationAction("V3", "octave shift down", null, "keep-melody"), invitation.Action);
         Assert.Equal(ActionAvailability.NeedsShouldItem, invitation.Availability);
-        Assert.Equal("Needs chord detection (S1-A3), a Should item of Stage 1.", ActionStatus.Note(invitation.Action));
+        Assert.Equal("Voicing and register is a Should item of Stage 1; chord detection (S1-A3) is in.", ActionStatus.Note(invitation.Action));
     }
 
     [Fact]
@@ -311,9 +311,9 @@ public class InvitationCatalogueTests
     [Fact]
     public void Availability_comes_from_one_table_covering_the_catalogue()
     {
-        Assert.All(["V1", "V13", "V2", "V4", "V9", "V10"], id => Assert.Equal(ActionAvailability.AvailableNow, ActionStatus.Of(id)));
-        Assert.All(["V7", "V8", "V11"], id => Assert.Equal(ActionAvailability.PlannedForStage1, ActionStatus.Of(id)));
-        Assert.All(["V3", "V12", "V6"], id => Assert.Equal(ActionAvailability.NeedsShouldItem, ActionStatus.Of(id)));
+        Assert.All(["V1", "V13", "V7", "V2", "V12", "V4", "V9", "V10", "V14", "V15"], id => Assert.Equal(ActionAvailability.AvailableNow, ActionStatus.Of(id)));
+        Assert.All(["V8", "V11"], id => Assert.Equal(ActionAvailability.PlannedForStage1, ActionStatus.Of(id)));
+        Assert.All(["V3", "V6"], id => Assert.Equal(ActionAvailability.NeedsShouldItem, ActionStatus.Of(id)));
         Assert.Equal(ActionAvailability.LaterStage, ActionStatus.Of("V5"));
         Assert.All(KeepTable.Rows, row => Assert.Contains(row.OperationId, ActionStatus.OperationIds));
         Assert.Equal(ActionAvailability.AvailableNow, ActionStatus.Of(new ListeningAction(ListeningKind.Loop, [])));

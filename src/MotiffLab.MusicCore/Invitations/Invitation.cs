@@ -118,17 +118,19 @@ public static class ActionStatus
         ["V4"] = (ActionAvailability.AvailableNow, "In the playback lab."),
         ["V9"] = (ActionAvailability.AvailableNow, "In the playback lab, and on the Explore card."),
         ["V10"] = (ActionAvailability.AvailableNow, "In the playback lab, and on the Explore card."),
-        ["V7"] = (ActionAvailability.PlannedForStage1, "Planned for Stage 1, not built yet."),
+        ["V7"] = (ActionAvailability.AvailableNow, "In the playback lab, and as the More air Try chip."),
         ["V8"] = (ActionAvailability.PlannedForStage1, "Planned for Stage 1, not built yet."),
         ["V11"] = (ActionAvailability.PlannedForStage1, "Planned for Stage 1, not built yet."),
         ["V2"] = (ActionAvailability.AvailableNow, "In the playback lab, and on the Explore card: it replays each bar's own accompaniment notes, so it needs no chord detection."),
-        ["V12"] = (ActionAvailability.NeedsShouldItem, "Needs chord detection (S1-A3), a Should item of Stage 1."),
-        ["V3"] = (ActionAvailability.NeedsShouldItem, "Needs chord detection (S1-A3), a Should item of Stage 1."),
+        ["V12"] = (ActionAvailability.AvailableNow, "In the playback lab, and as the Pedal bass Try chip: it builds the bass on the chords chord detection (S1-A3) reads."),
+        ["V3"] = (ActionAvailability.NeedsShouldItem, "Voicing and register is a Should item of Stage 1; chord detection (S1-A3) is in."),
         ["V6"] = (ActionAvailability.NeedsShouldItem, "Simplify is a Should item of Stage 1."),
         ["V5"] = (ActionAvailability.LaterStage, "Harmonic colour waits for Stage 4."),
+        ["V14"] = (ActionAvailability.AvailableNow, "In the playback lab, and as the Ornament Try chip (decision record 0018)."),
+        ["V15"] = (ActionAvailability.AvailableNow, "In the playback lab, and as the Reharmonise Try chip (decision record 0018): relative and parallel chords only."),
     };
 
-    /// <summary>The catalogue ids the table knows, V1–V13.</summary>
+    /// <summary>The catalogue ids the table knows, V1–V15.</summary>
     public static IEnumerable<string> OperationIds => s_operations.Keys;
 
     public static ActionAvailability Of(InvitationAction action)

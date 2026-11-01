@@ -49,7 +49,7 @@ public static class TryChips
     private const string Bass = "keep-bass";
     private const string Contour = "keep-contour";
 
-    /// <summary>Every chip, by id. Operations this version does not have yet (V3, V6, V7, V8, V11, V12, V14, V15) are rows without parameters.</summary>
+    /// <summary>Every chip, by id. Operations this version does not have yet (V3, V6, V8, V11) are rows without parameters.</summary>
     public static IReadOnlyList<TryChip> Chips { get; } =
     [
         new("v1.dotted", RhythmReshape.OperationId, new RhythmReshapeParameters(RhythmReshapeKind.Dotted) { Scope = OperationScope.Melody }, PitchOrder, "Long–short", "Долгая–короткая"),
@@ -68,14 +68,15 @@ public static class TryChips
         new("v2.held", AccompanimentPattern.OperationId, new AccompanimentPatternParameters(AccompanimentPatternKind.HeldChord, PatternUnit.Eighths), Melody, "Held chord", "Выдержанный аккорд"),
         new("v2.repeated", AccompanimentPattern.OperationId, new AccompanimentPatternParameters(AccompanimentPatternKind.RepeatedChord, PatternUnit.Eighths), Melody, "Repeated chord in 8ths", "Повторяющийся аккорд восьмыми"),
         new("v2.arpeggioDown", AccompanimentPattern.OperationId, new AccompanimentPatternParameters(AccompanimentPatternKind.ArpeggioDown, PatternUnit.Sixteenths), Melody, "Falling arpeggio", "Нисходящее арпеджио"),
-        new("v7.air", "V7", null, PitchOrder, "More air", "Больше воздуха"),
+        new("v7.air", DensityAndRests.OperationId, new DensityParameters(DensityKind.MoreAir) { Scope = OperationScope.Melody }, PitchOrder, "More air", "Больше воздуха"),
         new("v8.shift", "V8", null, PitchOrder, "Shift the accents", "Сдвинуть акценты"),
         new("v11.passing", "V11", null, Bass, "Passing notes", "Проходящие ноты"),
-        new("v12.pedal", "V12", null, Melody, "Pedal bass", "Бас на педали"),
+        new("v12.pedal", BassPattern.OperationId, new BassPatternParameters(BassPatternKind.Pedal), Melody, "Pedal bass", "Бас на педали"),
+        new("v12.roots", BassPattern.OperationId, new BassPatternParameters(BassPatternKind.RootsOnly), Melody, "Roots in the bass", "Основные тоны в басу"),
         new("v3.voicing", "V3", null, Melody, "Another voicing", "Другое расположение"),
         new("v6.simplify", "V6", null, Contour, "Simplify", "Упростить"),
-        new("v14.ornament", "V14", null, Bass, "Ornament", "Орнамент"),
-        new("v15.reharmonise", "V15", null, Melody, "Reharmonise", "Перегармонизовать"),
+        new("v14.ornament", Ornament.OperationId, new OrnamentParameters(OrnamentKind.Mordent) { Scope = OperationScope.Melody }, Bass, "Ornament", "Орнамент"),
+        new("v15.reharmonise", Reharmonise.OperationId, new ReharmoniseParameters(ReharmoniseKind.Relative), Melody, "Reharmonise", "Перегармонизовать"),
     ];
 
     /// <summary>The table, by fact kind, in the order the facts are listed; a kind not here offers no chips.</summary>
@@ -107,7 +108,10 @@ public static class TryChips
         new("sentence.repeat", ["v10.mirror", "v9.wider", "v4.up"]),
         new("sentence.answer", ["v10.mirror", "v9.narrower"]),
         new("harmony.chords", ["v2.repeated", "v2.arpeggioDown", "v12.pedal", "v15.reharmonise"]),
-        new("harmony.bass", ["v12.pedal", "v2.held"]),
+        new("harmony.bass", ["v12.pedal", "v12.roots", "v2.held"]),
+        new("harmony.rhythm", ["v15.reharmonise", "v2.held", "v12.roots"]),
+        new("harmony.voicing", ["v3.voicing", "v2.arpeggioDown", "v2.repeated"]),
+        new("harmony.shared", ["v15.reharmonise", "v12.pedal"]),
     ];
 
     private static readonly Dictionary<string, TryChip> s_chips = Chips.ToDictionary(chip => chip.Id, StringComparer.Ordinal);

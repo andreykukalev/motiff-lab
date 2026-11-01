@@ -24,6 +24,8 @@ public class KeepTableTests
         ("V12", "–––––✓–✓–"),
         ("V3", "––––✓✓✓✓–"),
         ("V6", "––✓––––✓–"),
+        ("V14", "––––––✓✓–"),
+        ("V15", "––✓✓✓✓–––"),
     ];
 
     private static HashSet<KeepProperty> Keep(params KeepProperty[] properties) => [.. properties];

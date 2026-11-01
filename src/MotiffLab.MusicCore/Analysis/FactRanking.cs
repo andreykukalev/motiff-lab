@@ -7,8 +7,8 @@ namespace MotiffLab.MusicCore.Analysis;
 /// </summary>
 public static class FactRanking
 {
-    /// <summary>The lenses in the order they are worth hearing first: structure, then the line, its rhythm, its character, the key.</summary>
-    private static readonly FactLens[] s_lensOrder = [FactLens.Structure, FactLens.Melody, FactLens.Rhythm, FactLens.Character, FactLens.Key];
+    /// <summary>The lenses in the order they are worth hearing first: structure, then the line, its rhythm, its character, its harmony, the key.</summary>
+    private static readonly FactLens[] s_lensOrder = [FactLens.Structure, FactLens.Melody, FactLens.Rhythm, FactLens.Character, FactLens.Harmony, FactLens.Key];
 
     /// <summary>
     /// The one fact to hear first: the first that names places in the score, by lens order, the
@@ -72,6 +72,7 @@ public static class FactRanking
             FactLens.Melody => words.T("is about the line", "о линии"),
             FactLens.Rhythm => words.T("is about the rhythm", "о ритме"),
             FactLens.Character => words.T("is about the character", "о характере"),
+            FactLens.Harmony => words.T("is about the harmony", "о гармонии"),
             _ => words.T("is about the key", "о тональности"),
         };
         string certainty = fact.Certainty switch

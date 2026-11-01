@@ -332,7 +332,8 @@ internal sealed partial class OpenPiece
         MotifAnalysis motif = MotifAnalyzer.Analyze(Notes, Piece.Meter, selection, key, Piece.MusicXml?.AccentMarks, Phrases.Boundaries, Words);
         StructureAnalysis structure = StructureAnalyzer.Analyze(Notes, Piece.Meter, selection, Phrases.Boundaries, Words);
         IReadOnlyList<MotifFact> character = MotifAnalyzer.AnalyzeCharacter(Notes, Piece.Meter, selection, key, CharacterContext.FromPiece(Piece), Words);
-        return _understood = new InvitationContext(Notes, Piece.Meter, selection, motif, structure, character, Words);
+        HarmonyAnalysis harmony = HarmonyAnalyzer.Analyze(Notes, Piece.Meter, selection, motif.Key?.Key, Words);
+        return _understood = new InvitationContext(Notes, Piece.Meter, selection, motif, structure, character, Words) { Harmony = harmony };
     }
 
     private IReadOnlyList<Experiment> Offered() => _offered ??= ExperimentCatalogue.Offer(Understood());

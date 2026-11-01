@@ -34,6 +34,9 @@ public enum FactLens
 
     /// <summary>The measurable side of musical character: tempo, density, register, loudness, articulation (S1-A5).</summary>
     Character,
+
+    /// <summary>Chords, the bass line, harmonic rhythm, voicing and shared notes, where notes sound together (S1-A3).</summary>
+    Harmony,
 }
 
 /// <summary>
