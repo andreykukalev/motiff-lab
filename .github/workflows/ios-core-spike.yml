@@ -38,7 +38,7 @@ jobs:
         run: ./build-ios.sh | tee build-ios.log
 
       # Verovio takes several minutes to compile; its build only changes with the script.
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
         id: verovio
         with:
           path: |
@@ -50,6 +50,15 @@ jobs:
         if: steps.verovio.outputs.cache-hit != 'true'
         working-directory: spikes/ios-core
         run: ./build-verovio.sh | tee build-verovio.log
+
+      # Saved straight after the build, so a failing test later does not throw the build away.
+      - uses: actions/cache/save@v4
+        if: steps.verovio.outputs.cache-hit != 'true'
+        with:
+          path: |
+            spikes/ios-core/build/Verovio.xcframework
+            spikes/ios-core/build/verovio-data
+          key: ${{ steps.verovio.outputs.cache-primary-key }}
 
       - name: Generate the Xcode project
         working-directory: spikes/ios-core/ios

@@ -38,9 +38,11 @@ framework() {
   cp "$lib" "$fw/$name"
   install_name_tool -id "@rpath/$name.framework/$name" "$fw/$name"
   cp "$src/tools/c_wrapper.h" "$fw/Headers/verovio_c.h"
+  # c_wrapper.h uses bool without including stdbool.h (Verovio's own Swift binding adds it the same way).
+  printf '#include <stdbool.h>\n#include "verovio_c.h"\n' > "$fw/Headers/$name.h"
   cat > "$fw/Modules/module.modulemap" <<EOF
 framework module $name {
-  header "verovio_c.h"
+  umbrella header "$name.h"
   export *
 }
 EOF

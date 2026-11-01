@@ -58,10 +58,10 @@ struct ScoreScreen: View {
         ]
         return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 16) {
-                ForEach(items, id: \.0) { item in
+                ForEach(items.indices, id: \.self) { index in
                     VStack(alignment: .leading) {
-                        Text(item.0).font(.caption).foregroundStyle(.secondary)
-                        Text(item.1).font(.callout.monospacedDigit())
+                        Text(items[index].0).font(.caption).foregroundStyle(.secondary)
+                        Text(items[index].1).font(.callout.monospacedDigit())
                     }
                 }
             }
