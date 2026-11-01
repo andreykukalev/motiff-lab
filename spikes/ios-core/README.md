@@ -59,22 +59,40 @@ dotnet publish spikes/ios-core/Bench -c Release -r linux-x64 -p:PublishAot=true 
 dotnet publish spikes/ios-core/CoreBridge -c Release -r linux-x64 -o /tmp/lib
 clang -I spikes/ios-core/CoreBridge/include spikes/ios-core/native-check/main.c -L /tmp/lib -l:MotiffLabCore.so -Wl,-rpath,/tmp/lib -o /tmp/check && /tmp/check spikes/ios-core/assets/fur-elise-97-bars.musicxml
 dotnet publish spikes/ios-core/WebBench -c Release -o /tmp/web   # serve /tmp/web/wwwroot and open it
+# the score pipeline, with a Verovio built as a shared library (build-verovio.sh shows the CMake options):
+python3 spikes/ios-core/native-check/engrave.py /tmp/lib/MotiffLabCore.so <libverovio.so> <verovio>/data spikes/ios-core/assets/fur-elise-97-bars.musicxml 5
 ```
 
 ## Verovio: the score on the iPad
 
 The web app engraves with Verovio 6.3.0 compiled to WebAssembly (decision record 0008). The iPad uses the same version, compiled from its unmodified source for iOS:
 
-- `build-verovio.sh` clones the `version-6.3.0` tag, builds it with CMake as a shared library (`BUILD_AS_LIBRARY`, no Humdrum, like the web build) for `iphoneos` and `iphonesimulator`, and packages `build/Verovio.xcframework`. Swift calls Verovio's own C functions (`tools/c_wrapper.h`, the ones its Python and Swift bindings use), so there is no wrapper code of ours in C++.
+- `build-verovio.sh` clones the `version-6.3.0` tag, applies one small patch (`verovio-classic-locale.patch`, below), builds it with CMake as a shared library (`BUILD_AS_LIBRARY`, no Humdrum, like the web build) for `iphoneos` and `iphonesimulator`, and packages `build/Verovio.xcframework`. Swift calls Verovio's own C functions (`tools/c_wrapper.h`, the ones its Python and Swift bindings use), so there is no wrapper code of ours in C++.
 - `build/verovio-data` holds the font data the app copies: Bravura and Leipzig (Verovio always loads them), Leland (the redesign's music font) and the text metrics, about 8 MB; Verovio's other fonts are left out.
 - The Score tab (`ios/CoreSpike/ScoreScreen.swift`, `Engraver.swift`) runs the score view's pipeline: music-core writes MEI (`ml_mei`), Verovio lays it out with the web app's A4 options (`Scripts/score/score-page.ts`) plus `"font": "Leland"`, and draws every page as SVG. The spike shows the SVG in a web view; the real app has to choose between that (simple, and the overlays could stay SVG) and drawing Verovio's paths natively, which is what the overlays on the score (phrase brackets, bookmarks, ink) would want.
-- Checked on Linux with the same library and C calls: Für Elise gives 3 A4 pages in Leland in about 45 ms of layout and 38 ms for the SVG of all pages; the 5000-note file gives 12 pages in 276 + 231 ms. The simulator numbers are in the workflow summary.
+- `native-check/engrave.py` runs the same pipeline with the same C calls outside the app (Linux or macOS); the workflow's `verovio-macos` job times and profiles it on macOS, and `native-check/callers.py` reads the profile.
+
+### Engraving times (ms; median of the runs after the first)
+
+| Für Elise: 636 notes, 3 A4 pages | MEI (music-core) | layout (`loadData`) | SVG of all pages | timemap |
+|---|---:|---:|---:|---:|
+| iPad simulator, Verovio as released | 6 | 1549–1616 | 101–117 | 167–211 |
+| **iPad simulator, with the patch** | **7** | **50** | **32–56** | **25–46** |
+| macOS on the same runner, as released / with the patch | | 83 / 46 | 59 / 49 | 45 / 36 |
+| Linux container, as released | 15 | 37 | 39 | 32 |
+| Web app's WebAssembly build (Node on Linux) | | 101–175 | 59–77 | 54–62 |
+
+The 5000-note file (12 pages) takes 338–347 ms of layout and 260 ms for its SVG in the simulator with the patch, against 6742–6841 ms of layout without it; the web build takes 575–617 ms.
+
+### The patch
+
+Verovio as released laid out Für Elise in 1.6 s in the iPad simulator, 20 to 40 times slower than natively elsewhere. The macOS profile showed why: every score definition (`ScoreDef`, one for each system and measure while laying out) reads Verovio's default tuning, and the tuning parser (`include/tuning-library/TuningsImpl.h`) builds `std::locale("C")` for every number it reads. Apple's C++ library builds a named locale from scratch, with its time names and time zone, so that cost is paid thousands of times; on Linux it is nearly free. The patch uses `std::locale::classic()`, which is the same "C" locale already built. Nothing else changes: same pages and SVG. Its version then reads `6.3.0-425dd7b-dirty`. It is small enough to offer upstream, and once a Verovio release has it the patch goes away.
 
 ### LGPL
 
-Verovio is LGPL-3.0-or-later. What the spike already does to meet section 4 (combined works), as the web app does: Verovio is unmodified, built from the tagged public source by a script in this repository, and shipped as its own dynamic framework that the app loads at run time; the licence texts (`COPYING`, `COPYING.LESSER`) go into the app with the font data. Still to do before an App Store release:
+Verovio is LGPL-3.0-or-later. What the spike already does to meet section 4 (combined works): Verovio is built from the tagged public source by a script in this repository, with one published patch (`verovio-classic-locale.patch`, a modified version under the same licence), and shipped as its own dynamic framework that the app loads at run time; the licence texts (`COPYING`, `COPYING.LESSER`) go into the app with the font data. Still to do before an App Store release:
 
-- a credit and licence screen in the app (Verovio, version, licence, link to the source), as the web score view has;
+- a credit and licence screen in the app (Verovio, version, licence, link to the source and to the patch), as the web score view has;
 - the "Installation Information" LGPL v3 asks for on a consumer device: since this repository is public, the build scripts and a free Apple ID are enough for anyone to build and install the app with another Verovio build; the README of the release should say so;
 - a decision whether the App Store's own terms of use are compatible with that. Verovio's maintainers publish it for iOS themselves (`Package.swift`, `Verovio.podspec` in its repository), which suggests they expect App Store use, but it is a legal question: ask them, or a lawyer, before the first App Store release. TestFlight-free development builds signed by Andrei are not affected.
 
@@ -82,4 +100,5 @@ Verovio is LGPL-3.0-or-later. What the spike already does to meet section 4 (com
 
 - The facade: which calls and which JSON (the project file v12 shapes plus facts, phrases, variations), and how Swift decodes it (`Codable`).
 - Drawing the score: Verovio's SVG in a web view, or its paths drawn natively (see above).
+- Offer the locale patch to Verovio's maintainers, so that a later release needs no patch.
 - App Store: both libraries are normal embedded dynamic frameworks; check the privacy manifest and the size of a release build.
