@@ -56,7 +56,7 @@ public static class VariationFacts
         Note[][]? copies = Copies(source, ordered, span);
         bool melodyPitchClasses = KeepTable.Qualifies(operation.Split(VariationChain.StepSeparator), KeepProperty.Melody, KeepTable.MelodyPitchClasses);
         KeepCheck[] properties = Enum.GetValues<KeepProperty>()
-            .Select(property => new KeepCheck(property, Check(property, source, ordered, copies, span, key, melodyPitchClasses, textures.Before, textures.After)))
+            .Select(property => new KeepCheck(property, Check(property, source, ordered, copies, span, key, melodyPitchClasses, textures.Before, textures.After, meter ?? MeterMap.Default)))
             .ToArray();
         KeepCheck[] checks = properties.Where(check => keep.Contains(check.Property)).ToArray();
         string explanation = Explain(changes, added, removed, source, ordered, textures.Before, textures.After, Sequence(source, copies, span, key, words), words);
@@ -183,11 +183,12 @@ public static class VariationFacts
         MusicalKey? key,
         bool melodyPitchClasses,
         MotifTexture textureBefore,
-        MotifTexture textureAfter)
+        MotifTexture textureAfter,
+        MeterMap meter)
     {
         if (property is KeepProperty.Harmony)
         {
-            return KeepStatus.NotChecked;
+            return SameHarmony(before, after, span, key, meter);
         }
 
         int[] pitchesBefore = before.Select(static note => note.Pitch.MidiNumber).ToArray();
@@ -210,6 +211,24 @@ public static class VariationFacts
             _ => throw new ArgumentOutOfRangeException(nameof(property), property, "Unknown property."),
         };
         return kept ? KeepStatus.Kept : KeepStatus.NoLongerKept;
+    }
+
+    /// <summary>
+    /// Harmony is kept when the chords read from the notes (<see cref="HarmonyAnalyzer.FindChords"/>) are the same at
+    /// every place a chord starts, before or after; not checked when the source has no chords, as on a single line.
+    /// </summary>
+    private static KeepStatus SameHarmony(Note[] before, Note[] after, TickSpan span, MusicalKey? key, MeterMap meter)
+    {
+        IReadOnlyList<ChordSpan> was = HarmonyAnalyzer.FindChords(before, meter, span, key);
+        if (was.Count == 0)
+        {
+            return KeepStatus.NotChecked;
+        }
+
+        IReadOnlyList<ChordSpan> now = HarmonyAnalyzer.FindChords(after, meter, span, key);
+        static ChordLabel? At(IReadOnlyList<ChordSpan> chords, Tick at) => chords.FirstOrDefault(chord => chord.Span.Contains(at))?.Chord;
+        bool same = was.Concat(now).Select(static chord => chord.Span.Onset).All(at => At(was, at) == At(now, at));
+        return same ? KeepStatus.Kept : KeepStatus.NoLongerKept;
     }
 
     /// <summary>Whether the whole result's melody, or else the melody of every copy, passes <paramref name="same"/>.</summary>

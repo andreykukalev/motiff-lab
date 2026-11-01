@@ -220,6 +220,36 @@ public class MusicCoreFacadeTests
     }
 
     [Fact]
+    public void UnderstandGivesTheChordsAndHarmonyFactsWithTryChips()
+    {
+        (MusicCoreFacade facade, _) = Open();
+        Call(facade, "select", """{"bars": {"first": 1, "last": 8}}""");
+
+        JsonElement harmony = Call(facade, "understand").GetProperty("harmony");
+
+        JsonElement[] chords = [.. harmony.GetProperty("chords").EnumerateArray()];
+        Assert.Equal(["Am", "E", "Am", "Am", "E", "Am"], chords.Select(chord => chord.GetProperty("symbol").GetString()));
+        Assert.All(chords, chord => Assert.NotEmpty(chord.GetProperty("noteIds").EnumerateArray()));
+        Assert.Equal(9, chords[0].GetProperty("root").GetInt32());
+        Assert.Equal("minor", chords[0].GetProperty("quality").GetString());
+        Assert.NotEmpty(harmony.GetProperty("bass").EnumerateArray());
+
+        JsonElement[] facts = [.. harmony.GetProperty("facts").EnumerateArray()];
+        Assert.All(facts, fact => Assert.Equal("harmony", fact.GetProperty("lens").GetString()));
+        JsonElement bass = facts.Single(fact => fact.GetProperty("id").GetString() == "harmony.bass");
+        string[] offered = [.. bass.GetProperty("tryChips").EnumerateArray().Select(chip => chip.GetProperty("id").GetString()!)];
+        Assert.Contains("v12.pedal", offered);
+
+        JsonElement tried = Call(facade, "try", """{"chip": "v12.pedal"}""");
+        Assert.Equal("V12", tried.GetProperty("steps")[0].GetProperty("operation").GetString());
+        Assert.NotEqual(JsonValueKind.Null, tried.GetProperty("result").ValueKind);
+
+        Call(facade, "language", """{"language": "ru"}""");
+        JsonElement russian = Call(facade, "understand").GetProperty("harmony");
+        Assert.All(russian.GetProperty("facts").EnumerateArray(), fact => Assert.Contains(fact.GetProperty("text").GetString()!, c => c >= 'А' && c <= 'я'));
+    }
+
+    [Fact]
     public void SelectingBarsGivesTheSelectionAndItsKey()
     {
         (MusicCoreFacade facade, _) = Open();

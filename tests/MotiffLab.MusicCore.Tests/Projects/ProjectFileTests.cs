@@ -104,6 +104,10 @@ public class ProjectFileTests
             new(IntervalReshape.OperationId, new IntervalReshapeParameters(-1, new IntervalSet([0, 2]))),
             new(ChangeDirection.OperationId, new ChangeDirectionParameters(Diatonic: false)),
             new(AccompanimentPattern.OperationId, new AccompanimentPatternParameters(AccompanimentPatternKind.Alberti, PatternUnit.Triplets)),
+            new(DensityAndRests.OperationId, new DensityParameters(DensityKind.MoreAir, PatternUnit.Sixteenths) { Scope = OperationScope.Melody }),
+            new(BassPattern.OperationId, new BassPatternParameters(BassPatternKind.Walk)),
+            new(Ornament.OperationId, new OrnamentParameters(OrnamentKind.Turn) { Scope = OperationScope.Melody }),
+            new(Reharmonise.OperationId, new ReharmoniseParameters(ReharmoniseKind.Parallel)),
         ];
         var pending = new SavedStep(MelodicSequence.OperationId, new MelodicSequenceParameters(-2, 3, Diatonic: false));
         Project project = Worked() with { Variations = [new SavedVariation("v_0001", "m_0001", steps, pending, [])] };

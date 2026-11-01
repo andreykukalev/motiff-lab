@@ -74,6 +74,9 @@ public readonly record struct MusicalKey
     /// <summary>A note name spelled for this key, for example "D♯5" in A minor.</summary>
     public string Spell(int midiNumber) => Spell(midiNumber, Fifths);
 
+    /// <summary>A pitch class spelled for this key without an octave, for example "G♯" in A minor; as chord symbols name roots.</summary>
+    public string SpellClass(int pitchClass) => SpellPitchClass(Mod12(pitchClass));
+
     public override string ToString() => Name;
 
     internal static string Spell(int midiNumber, int fifths)

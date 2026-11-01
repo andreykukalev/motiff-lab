@@ -16,7 +16,11 @@ public sealed record InvitationContext(
     MotifAnalysis Motif,
     StructureAnalysis Structure,
     IReadOnlyList<MotifFact> Character,
-    Words Words = default);
+    Words Words = default)
+{
+    /// <summary>The motif's chords and bass (<see cref="HarmonyAnalyzer.Analyze"/>, S1-A3); none on a single line.</summary>
+    public HarmonyAnalysis Harmony { get; init; } = HarmonyAnalysis.None;
+}
 
 /// <summary>
 /// Turns the facts of a motif into the invitations of the track page (#79,

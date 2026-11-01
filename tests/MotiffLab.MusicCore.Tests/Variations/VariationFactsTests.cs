@@ -74,7 +74,8 @@ public class VariationFactsTests
         Assert.Equal(KeepStatus.Kept, Status(KeepProperty.Melody));
         Assert.Equal(KeepStatus.Kept, Status(KeepProperty.Bass));
         Assert.Equal(KeepStatus.NoLongerKept, Status(KeepProperty.Pitches));
-        Assert.Equal(KeepStatus.NotChecked, Status(KeepProperty.Harmony));
+        // C E G becomes C A G: the chord read from the notes changes (S1-A3).
+        Assert.Equal(KeepStatus.NoLongerKept, Status(KeepProperty.Harmony));
     }
 
     [Fact]
@@ -98,7 +99,8 @@ public class VariationFactsTests
 
         Variation variation = VariationFacts.Build("V0", s_span, before, after, new HashSet<KeepProperty>(), []);
 
-        Assert.EndsWith("Unchanged: pitches, pitch order, contour, intervals, melody pitches, bass pitches and register.", variation.Explanation);
+        // Moved by an eighth inside the same beat, the chord read on each beat stays C major.
+        Assert.EndsWith("Unchanged: pitches, pitch order, contour, intervals, melody pitches, bass pitches, harmony and register.", variation.Explanation);
     }
 
     [Fact]

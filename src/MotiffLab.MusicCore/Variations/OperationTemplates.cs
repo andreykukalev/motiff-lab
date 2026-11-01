@@ -36,6 +36,10 @@ public static class OperationTemplates
             HandEdit.OperationId => Edited(changes, before, after, meter, words),
             Articulation.OperationId => Articulated(changes, words),
             AccompanimentPattern.OperationId => Repatterned(before, after, meter, words),
+            DensityAndRests.OperationId => Densified(changes, before, after, words),
+            BassPattern.OperationId => Rebassed(before, after, meter, key, words),
+            Ornament.OperationId => Ornamented(before, after, key, words),
+            Reharmonise.OperationId => Reharmonised(changes, before, after, key, meter, words),
             _ => null,
         };
     }
@@ -157,6 +161,217 @@ public static class OperationTemplates
 
         string bars = first == last ? $"bar {first}" : $"bars {first}–{last}";
         return $"In {bars} the accompaniment keeps its pitches and plays them in a new rhythm or order; the melody is unchanged.";
+    }
+
+    /// <summary>
+    /// V7: "3 notes are split into repeated notes at their pitches: 7 notes now sound where 3 did.", "4 repeated notes
+    /// are merged into 2 longer notes at the same pitches.", "5 notes now end 1 eighth before the next note, leaving a
+    /// rest; every note starts where it did.", or "3 notes are now held to the next note, so the rests between them
+    /// go; every note starts where it did.", when the diff has that shape and no pitch or onset changed.
+    /// </summary>
+    private static string? Densified(IReadOnlyList<NoteChange> changes, MotifTexture before, MotifTexture after, Words w)
+    {
+        if (changes.Any(static change => change.PitchChanged || change.OnsetChanged))
+        {
+            return null;
+        }
+
+        Note[] added = [.. after.Notes.Where(note => !before.Notes.Any(other => other.Id == note.Id))];
+        Note[] removed = [.. before.Notes.Where(note => !after.Notes.Any(other => other.Id == note.Id))];
+        NoteChange[] shorter = [.. changes.Where(static change => change.After.Span.Duration < change.Before.Span.Duration)];
+        NoteChange[] longer = [.. changes.Where(static change => change.After.Span.Duration > change.Before.Span.Duration)];
+        string Notes(int count) => w.Count(count, "note", "notes", "нота", "ноты", "нот");
+        if (added.Length > 0 && removed.Length == 0 && longer.Length == 0 && shorter.Length > 0
+            && added.All(note => shorter.Any(change => change.Before.Pitch == note.Pitch && change.Before.Span.Contains(note.Span.Onset))))
+        {
+            int total = shorter.Length + added.Length;
+            return w.IsRussian
+                ? $"{Notes(shorter.Length)} {Words.RussianForm(shorter.Length, "разбита", "разбиты", "разбиты")} на повторы той же высоты: теперь {Words.RussianForm(total, "звучит", "звучат", "звучат")} {Notes(total)} вместо {shorter.Length}."
+                : $"{(shorter.Length == 1 ? "1 note is" : $"{shorter.Length} notes are")} split into repeated notes at {(shorter.Length == 1 ? "its pitch" : "their pitches")}: {total} notes now sound where {shorter.Length} did.";
+        }
+
+        if (removed.Length > 0 && added.Length == 0 && shorter.Length == 0 && longer.Length > 0
+            && removed.All(note => longer.Any(change => change.After.Pitch == note.Pitch && change.After.Span.Contains(note.Span.Onset))))
+        {
+            int total = removed.Length + longer.Length;
+            return w.IsRussian
+                ? $"{Notes(total)}, {Words.RussianForm(total, "повторяющая", "повторяющие", "повторяющих")} одну высоту, {Words.RussianForm(total, "слита", "слиты", "слиты")} в {longer.Length} {Words.RussianForm(longer.Length, "ноту", "ноты", "нот")} подлиннее."
+                : $"{total} repeated notes are merged into {(longer.Length == 1 ? "1 longer note" : $"{longer.Length} longer notes")} at the same {(longer.Length == 1 ? "pitch" : "pitches")}.";
+        }
+
+        if (added.Length > 0 || removed.Length > 0)
+        {
+            return null;
+        }
+
+        long? Gap(NoteChange change) => after.Melody.Where(note => note.Span.Onset > change.After.Span.Onset).Select(note => (long?)(note.Span.Onset.Value - change.After.Span.End.Value)).FirstOrDefault();
+        if (shorter.Length > 0 && longer.Length == 0)
+        {
+            long?[] gaps = [.. shorter.Select(Gap)];
+            if (gaps.Any(static gap => gap is not > 0))
+            {
+                return null;
+            }
+
+            string rest = gaps.Distinct().Count() == 1
+                ? w.T($"{VariationFacts.Length(gaps[0]!.Value)} before the next note, leaving a rest", $"за {VariationFacts.Length(gaps[0]!.Value, w, accusative: true)} до следующей ноты, оставляя паузу")
+                : w.T("before the next note, leaving a rest", "раньше следующей ноты, оставляя паузу");
+            return w.IsRussian
+                ? $"{Notes(shorter.Length)} теперь {Words.RussianForm(shorter.Length, "заканчивается", "заканчиваются", "заканчиваются")} {rest}; каждая нота начинается там же, где раньше."
+                : $"{(shorter.Length == 1 ? "1 note now ends" : $"{shorter.Length} notes now end")} {rest}; every note starts where it did.";
+        }
+
+        if (longer.Length > 0 && shorter.Length == 0 && longer.All(change => Gap(change) == 0))
+        {
+            return w.IsRussian
+                ? $"{Notes(longer.Length)} теперь {Words.RussianForm(longer.Length, "тянется", "тянутся", "тянутся")} до следующей ноты, и паузы перед ними исчезают; каждая нота начинается там же, где раньше."
+                : $"{(longer.Length == 1 ? "1 note is" : $"{longer.Length} notes are")} now held to the next note, so the rests go; every note starts where it did.";
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// V12: "The bass line changes from A2 E2 A2 to A2 A2 E2 E2; the melody and the notes over the bass are unchanged.",
+    /// or "The bass now holds A2 as a pedal, struck once in each of bars 1–4; …", when only the bass changed.
+    /// </summary>
+    private static string? Rebassed(MotifTexture before, MotifTexture after, MeterMap meter, MusicalKey? key, Words w)
+    {
+        static (long, long, int) Shape(Note note) => (note.Span.Onset.Value, note.Span.Duration, note.Pitch.MidiNumber);
+        if (!before.Melody.Select(Shape).SequenceEqual(after.Melody.Select(Shape)))
+        {
+            return null;
+        }
+
+        static Note[] Line(MotifTexture texture) => [.. texture.Bass.Where(note => !texture.Melody.Contains(note))];
+        static Note[] Upper(MotifTexture texture) => [.. texture.Notes.Where(note => !texture.Bass.Contains(note) || texture.Melody.Contains(note))];
+        Note[] was = Line(before);
+        Note[] now = Line(after);
+        if (now.Length == 0 || !Upper(before).Select(Shape).Order().SequenceEqual(Upper(after).Select(Shape).Order()) || was.Select(Shape).SequenceEqual(now.Select(Shape)))
+        {
+            return null;
+        }
+
+        MusicalKey spelling = key ?? new MusicalKey(0, KeyMode.Major);
+        string Names(Note[] line) => string.Join(" ", line.Take(HarmonyAnalyzer.MaxNamedBassNotes).Select(note => spelling.Spell(note.Pitch.MidiNumber))) + (line.Length > HarmonyAnalyzer.MaxNamedBassNotes ? " …" : "");
+        string unchanged = w.T("the melody and the notes over the bass are unchanged", "мелодия и голоса над басом не изменились");
+        if (now.All(note => note.Pitch == now[0].Pitch))
+        {
+            int[] bars = [.. now.Select(note => meter.BarAt(note.Span.Onset).Number)];
+            string pitch = spelling.Spell(now[0].Pitch.MidiNumber);
+            if (bars.Distinct().Count() == bars.Length && bars.Length > 1 && bars[^1] - bars[0] == bars.Length - 1)
+            {
+                return w.T(
+                    $"The bass now holds {pitch} as a pedal, struck once in each of bars {bars[0]}–{bars[^1]}; {unchanged}.",
+                    $"Бас теперь держит {pitch} педалью и берёт его по разу в каждом такте {bars[0]}–{bars[^1]}; {unchanged}.");
+            }
+
+            return w.T(
+                $"The bass now stays on {pitch}: {(now.Length == 1 ? "1 note" : $"{now.Length} notes")}; {unchanged}.",
+                $"Бас теперь остаётся на {pitch}: {w.Count(now.Length, "", "", "нота", "ноты", "нот")}; {unchanged}.");
+        }
+
+        return w.T(
+            $"The bass line changes from {Names(was)} to {Names(now)}; {unchanged}.",
+            $"Линия баса меняется: была {Names(was)}, стала {Names(now)}; {unchanged}.");
+    }
+
+    /// <summary>
+    /// V14: "A mordent on 2 long notes (E5 and A4): the note, the note above and the note again, 1 thirty-second each,
+    /// then the note held; every other note is unchanged.", when every ornamented note has the same figure.
+    /// </summary>
+    private static string? Ornamented(MotifTexture before, MotifTexture after, MusicalKey? key, Words w)
+    {
+        Note[] added = [.. after.Notes.Where(note => !before.Notes.Any(other => other.Id == note.Id))];
+        if (added.Length == 0 || before.Notes.Any(note => !after.Notes.Any(other => other.Id == note.Id)))
+        {
+            return null;
+        }
+
+        var figures = new List<(Note Main, int[] Shape, long Step)>();
+        foreach (Note main in before.Notes)
+        {
+            Note[] parts = [.. after.Notes.Where(note => note.Id == main.Id || note.Id.StartsWith($"{main.Id}~o", StringComparison.Ordinal)).OrderBy(static note => note.Span.Onset)];
+            if (parts.Length == 1)
+            {
+                continue;
+            }
+
+            figures.Add((main, [.. parts.Select(part => Math.Sign(part.Pitch.MidiNumber - main.Pitch.MidiNumber))], parts[0].Span.Duration));
+        }
+
+        if (figures.Count == 0 || figures.Sum(static figure => figure.Shape.Length - 1) != added.Length || figures.Select(static figure => figure.Step).Distinct().Count() != 1)
+        {
+            return null;
+        }
+
+        static string? Kind(int[] shape) => shape switch
+        {
+            [0, 1, 0] => "mordent",
+            [0, -1, 0] => "lower",
+            [1, 0, -1, 0] => "turn",
+            _ when shape.Length >= 5 && shape[^1] == 0 && shape[..^1].Select((sign, i) => sign == (i % 2 == 0 ? 0 : 1)).All(static same => same) => "trill",
+            _ => null,
+        };
+        string?[] kinds = [.. figures.Select(figure => Kind(figure.Shape)).Distinct()];
+        if (kinds.Length != 1 || kinds[0] is not { } kind)
+        {
+            return null;
+        }
+
+        MusicalKey spelling = key ?? new MusicalKey(0, KeyMode.Major);
+        string names = w.Joined([.. figures.Select(figure => spelling.Spell(figure.Main.Pitch.MidiNumber))]);
+        int count = figures.Count;
+        string step = VariationFacts.Length(figures[0].Step, w);
+        if (w.IsRussian)
+        {
+            (string name, string figure) = kind switch
+            {
+                "mordent" => ("Мордент", "нота, верхняя соседняя и снова нота"),
+                "lower" => ("Нижний мордент", "нота, нижняя соседняя и снова нота"),
+                "turn" => ("Группетто", "верхняя соседняя, нота, нижняя соседняя и снова нота"),
+                _ => ("Трель", "нота и верхняя соседняя по очереди"),
+            };
+            return $"{name} на {count} {Words.RussianForm(count, "долгой ноте", "долгих нотах", "долгих нотах")} ({names}): {figure}, каждая — {step}, затем нота тянется; остальные ноты не изменились.";
+        }
+
+        (string english, string shape) = kind switch
+        {
+            "mordent" => ("A mordent", "the note, the note above and the note again"),
+            "lower" => ("A lower mordent", "the note, the note below and the note again"),
+            "turn" => ("A turn", "the note above, the note, the note below and the note again"),
+            _ => ("A trill", "the note and the note above, in turn"),
+        };
+        return $"{english} on {(count == 1 ? "1 long note" : $"{count} long notes")} ({names}): {shape}, {step} each, then the note held; every other note is unchanged.";
+    }
+
+    /// <summary>
+    /// V15: "Read from the notes, the chords change from C F C to Am Dm Am; the melody and the rhythm are unchanged, and
+    /// 4 accompaniment notes move to tones of the new chords.", when only accompaniment pitches changed.
+    /// </summary>
+    private static string? Reharmonised(IReadOnlyList<NoteChange> changes, MotifTexture before, MotifTexture after, MusicalKey? key, MeterMap meter, Words w)
+    {
+        static (long, long, int) Shape(Note note) => (note.Span.Onset.Value, note.Span.Duration, note.Pitch.MidiNumber);
+        NoteChange[] moved = [.. changes.Where(static change => change.PitchChanged)];
+        if (moved.Length == 0 || changes.Count != before.Notes.Count || changes.Any(static change => change.OnsetChanged || change.DurationChanged)
+            || !before.Melody.Select(Shape).SequenceEqual(after.Melody.Select(Shape)))
+        {
+            return null;
+        }
+
+        var span = TickSpan.FromBounds(before.Notes.Min(static note => note.Span.Onset), before.Notes.Max(static note => note.Span.End));
+        IReadOnlyList<ChordSpan> was = HarmonyAnalyzer.FindChords(before.Notes, meter, span, key);
+        IReadOnlyList<ChordSpan> now = HarmonyAnalyzer.FindChords(after.Notes, meter, span, key);
+        if (was.Count == 0 || now.Count == 0)
+        {
+            return null;
+        }
+
+        MusicalKey spelling = key ?? new MusicalKey(0, KeyMode.Major);
+        string Symbols(IReadOnlyList<ChordSpan> chords) => string.Join(" ", chords.Select(chord => chord.Symbol(spelling)));
+        return w.IsRussian
+            ? $"По нотам аккорды меняются: были {Symbols(was)}, стали {Symbols(now)}; мелодия и ритм не изменились, а {w.Count(moved.Length, "", "", "нота", "ноты", "нот")} аккомпанемента {Words.RussianForm(moved.Length, "переходит", "переходят", "переходят")} в звуки новых аккордов."
+            : $"Read from the notes, the chords change from {Symbols(was)} to {Symbols(now)}; the melody and the rhythm are unchanged, and {(moved.Length == 1 ? "1 accompaniment note moves" : $"{moved.Length} accompaniment notes move")} to tones of the new chords.";
     }
 
     /// <summary>"beat 2 of bar 1", or "1 sixteenth after beat 2 of bar 1" off the beat; "доля 2 такта 1", "1 шестнадцатая после доли 2 такта 1".</summary>

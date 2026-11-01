@@ -646,6 +646,21 @@
             new("detached", new ArticulationParameters(ArticulationKind.Detached)),
             new("connected", new ArticulationParameters(ArticulationKind.Connected)),
         ]),
+        new(DensityAndRests.Instance,
+        [
+            new("repeat8", new DensityParameters(DensityKind.Repeat, PatternUnit.Eighths)),
+            new("repeat16", new DensityParameters(DensityKind.Repeat, PatternUnit.Sixteenths)),
+            new("mergeRepeats", new DensityParameters(DensityKind.MergeRepeats)),
+            new("moreAir", new DensityParameters(DensityKind.MoreAir)),
+            new("fillRests", new DensityParameters(DensityKind.FillRests)),
+        ]),
+        new(Ornament.Instance,
+        [
+            new("mordent", new OrnamentParameters(OrnamentKind.Mordent)),
+            new("lowerMordent", new OrnamentParameters(OrnamentKind.LowerMordent)),
+            new("turn", new OrnamentParameters(OrnamentKind.Turn)),
+            new("trill", new OrnamentParameters(OrnamentKind.Trill)),
+        ]),
         new(AccompanimentPattern.Instance,
         [
             new("heldChord", new AccompanimentPatternParameters(AccompanimentPatternKind.HeldChord)),
@@ -654,6 +669,19 @@
             new("arpeggioDown", new AccompanimentPatternParameters(AccompanimentPatternKind.ArpeggioDown, PatternUnit.Sixteenths)),
             new("upDown", new AccompanimentPatternParameters(AccompanimentPatternKind.UpDown, PatternUnit.Triplets)),
             new("alberti", new AccompanimentPatternParameters(AccompanimentPatternKind.Alberti, PatternUnit.Sixteenths)),
+        ]),
+        new(BassPattern.Instance,
+        [
+            new("rootsOnly", new BassPatternParameters(BassPatternKind.RootsOnly)),
+            new("rootAndFifth", new BassPatternParameters(BassPatternKind.RootAndFifth)),
+            new("octaves", new BassPatternParameters(BassPatternKind.Octaves)),
+            new("walk", new BassPatternParameters(BassPatternKind.Walk)),
+            new("pedal", new BassPatternParameters(BassPatternKind.Pedal)),
+        ]),
+        new(Reharmonise.Instance,
+        [
+            new("relative", new ReharmoniseParameters(ReharmoniseKind.Relative)),
+            new("parallel", new ReharmoniseParameters(ReharmoniseKind.Parallel)),
         ]),
         new(MelodicSequence.Instance,
         [
@@ -718,6 +746,7 @@
     private MotifAnalysis? _analysis;
     private StructureAnalysis? _structure;
     private IReadOnlyList<MotifFact> _character = [];
+    private HarmonyAnalysis _harmony = HarmonyAnalysis.None;
     private CharacterContext? _characterContext;
     private PhraseMarks _phraseMarks = PhraseMarks.None;
 
@@ -733,7 +762,7 @@
     private string? _selectionNote;
 
     /// <summary>Everything music-core found about the selection, for the facts panel to group by lens.</summary>
-    private IReadOnlyList<MotifFact> Facts => [.. _analysis?.Facts ?? [], .. _structure?.Facts ?? [], .. _sentenceFacts, .. _character];
+    private IReadOnlyList<MotifFact> Facts => [.. _analysis?.Facts ?? [], .. _structure?.Facts ?? [], .. _sentenceFacts, .. _character, .. _harmony.Facts];
     private readonly HashSet<KeepProperty> _keep = [KeepProperty.Pitches, KeepProperty.PitchOrder];
 
     private const long SixteenthTicks = CanonicalTime.TicksPerQuarter / 4;
@@ -1266,6 +1295,7 @@
         _analysis = null;
         _structure = null;
         _character = [];
+        _harmony = HarmonyAnalysis.None;
         _sentenceFacts = [];
         _selectionNote = null;
         _looping = false;
@@ -1656,8 +1686,9 @@
         _analysis = MotifAnalyzer.Analyze(_notes!, _meter!, selection, key, _accents, phrases, Words);
         _structure = StructureAnalyzer.Analyze(_notes!, _meter!, selection, phrases, Words);
         _character = MotifAnalyzer.AnalyzeCharacter(_notes!, _meter!, selection, key, _characterContext!, Words);
+        _harmony = HarmonyAnalyzer.Analyze(_notes!, _meter!, selection, _analysis.Key?.Key, Words);
         _sentenceFacts = SentenceFactsFor(selection);
-        _invitationContext = new InvitationContext(_notes!, _meter!, selection, _analysis, _structure, _character, Words);
+        _invitationContext = new InvitationContext(_notes!, _meter!, selection, _analysis, _structure, _character, Words) { Harmony = _harmony };
         _offers = ExperimentCatalogue.Offer(_invitationContext);
     }
 
@@ -1803,6 +1834,7 @@
         _analysis = null;
         _structure = null;
         _character = [];
+        _harmony = HarmonyAnalysis.None;
         _sentenceFacts = [];
         _invitationContext = null;
         _offers = [];

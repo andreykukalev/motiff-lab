@@ -1191,6 +1191,19 @@ public static class ProjectFile
                 json.WriteBoolean("diatonic", direction.Diatonic);
                 WriteIntervals(json, direction.Intervals);
                 break;
+            case DensityParameters density:
+                json.WriteString("kind", density.Kind.ToString());
+                json.WriteString("unit", density.Unit.ToString());
+                break;
+            case BassPatternParameters bass:
+                json.WriteString("kind", bass.Kind.ToString());
+                break;
+            case OrnamentParameters ornament:
+                json.WriteString("kind", ornament.Kind.ToString());
+                break;
+            case ReharmoniseParameters reharmonise:
+                json.WriteString("kind", reharmonise.Kind.ToString());
+                break;
             case HandEditParameters edit:
                 json.WriteString("kind", edit.Kind.ToString());
                 json.WriteString("noteId", edit.NoteId);
@@ -1262,6 +1275,10 @@ public static class ProjectFile
             MelodicSequence.OperationId => ReadMelodicSequence(parameters),
             IntervalReshape.OperationId => ReadIntervalReshape(parameters),
             ChangeDirection.OperationId => new ChangeDirectionParameters(Boolean(parameters, "diatonic"), ReadIntervals(parameters)),
+            DensityAndRests.OperationId => ReadDensity(parameters),
+            BassPattern.OperationId => new BassPatternParameters(Name<BassPatternKind>(parameters, "kind")),
+            Ornament.OperationId => new OrnamentParameters(Name<OrnamentKind>(parameters, "kind")),
+            Reharmonise.OperationId => new ReharmoniseParameters(Name<ReharmoniseKind>(parameters, "kind")),
             _ => throw new ProjectFileException($"A variation uses an operation ({operation}) this version of Motiff Lab does not have."),
         };
         OperationScope scope = parameters.TryGetProperty("scope", out _) ? Name<OperationScope>(parameters, "scope") : OperationScope.All;
@@ -1273,6 +1290,14 @@ public static class ProjectFile
         HandEditKind kind = Name<HandEditKind>(parameters, "kind");
         NoteValues? values = kind == HandEditKind.Remove ? null : ReadValues(Property(parameters, "values", JsonValueKind.Object), "variation steps");
         return new HandEditParameters(kind, Text(parameters, "noteId"), values);
+    }
+
+    private static DensityParameters ReadDensity(JsonElement parameters)
+    {
+        PatternUnit unit = Name<PatternUnit>(parameters, "unit");
+        return unit is PatternUnit.Eighths or PatternUnit.Sixteenths
+            ? new DensityParameters(Name<DensityKind>(parameters, "kind"), unit)
+            : throw Damaged("variation parameters");
     }
 
     private static RhythmReshapeParameters ReadRhythmReshape(JsonElement parameters)
