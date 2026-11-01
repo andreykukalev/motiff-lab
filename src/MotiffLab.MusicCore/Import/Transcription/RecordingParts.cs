@@ -50,6 +50,13 @@ public static class RecordingParts
         return parts;
     }
 
+    /// <summary>Where the parts meet, in milliseconds from the start of the recording: each part's end but the last's.</summary>
+    public static IReadOnlyList<long> Seams(IReadOnlyList<RecordingPart> parts)
+    {
+        ArgumentNullException.ThrowIfNull(parts);
+        return [.. parts.OrderBy(part => part.Index).SkipLast(1).Select(part => part.KeepToMilliseconds)];
+    }
+
     /// <summary>
     /// The notes and pedal heard in each part, on the recording's own clock, as one type 1 MIDI file at
     /// 480 ticks a quarter and 120 BPM in 4/4, the shape an engine writes. A part's file is read with the

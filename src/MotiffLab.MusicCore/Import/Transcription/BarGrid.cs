@@ -531,7 +531,7 @@ public sealed record BarGrid
         ImportIssue[] issues =
         [
             .. piece.Report.Issues.Where(issue => issue.Code is not (MidiIssueCodes.TempoDefault or MidiIssueCodes.MeterDefault)),
-            new ImportIssue(ImportIssueKind.Assumed, IssueCode, null, 1, Describe()),
+            new ImportIssue(ImportIssueKind.Assumed, IssueCode, null, 1, Describe()) { RussianMessage = Describe(Words.Russian) },
         ];
         return piece with
         {
@@ -549,8 +549,26 @@ public sealed record BarGrid
     public const string IssueCode = "transcription.bars-inferred";
 
     /// <summary>What was worked out, for the import report.</summary>
-    public string Describe()
+    public string Describe() => Describe(Words.English);
+
+    /// <summary>What was worked out, for the import report, in a language.</summary>
+    public string Describe(Words words)
     {
+        if (words.IsRussian)
+        {
+            string темп = FollowsPlaying
+                ? $"темп, который следует за игрой (четверть примерно {QuarterNotesPerMinute} в минуту)"
+                : $"темп (четверть {QuarterNotesPerMinute} в минуту)";
+            string текст = $"Такты ({Signature}) и {темп} выведены из нот, тактовые черты стоят там, где вступает бас";
+            текст += HasPickup ? $", после затакта в {words.Count(BarStarts[0], "16th", "16ths", "шестнадцатую", "шестнадцатые", "шестнадцатых")}" : "";
+            текст += ShortBarCount switch
+            {
+                0 => ".",
+                int count => $". {words.Count(count, "bar", "bars", "такт", "такта", "тактов")} {Words.RussianForm(count, "укорочен", "укорочены", "укорочены")} там, где сдвигается сильная доля.",
+            };
+            return текст;
+        }
+
         string tempo = FollowsPlaying ? $"the tempo, which follows the playing (a quarter at about {QuarterNotesPerMinute} a minute)" : $"the tempo (a quarter at {QuarterNotesPerMinute} a minute)";
         string text = $"The bars ({Signature}) and {tempo} were worked out from the notes, with the bar lines where the bass falls";
         text += HasPickup ? $", after a pickup of {BarStarts[0]} 16ths" : "";

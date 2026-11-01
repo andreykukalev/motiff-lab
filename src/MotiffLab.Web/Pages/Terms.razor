@@ -1,38 +1,79 @@
 @page "/terms"
+@inject MotiffLab.Web.Localization.UiText Text
 
-<PageTitle>Terms of use · Motiff Lab</PageTitle>
+<PageTitle>@(Text.Language == "ru" ? "Условия использования" : "Terms of use") · Motiff Lab</PageTitle>
 
 @* The terms of use (#65, docs/01-mvp-stage-1.md: Content sources and rights · Rules). *@
-<main class="lab document">
-    <h1>Terms of use</h1>
-    <p class="meta">Draft for the Stage 1 study, before legal review.</p>
+@if (Text.Language == "ru")
+{
+    <main class="lab document">
+        <h1>Условия использования</h1>
+        <p class="meta">Черновик для исследования этапа 1, до юридической проверки.</p>
 
-    <h2>Personal study</h2>
-    <p>Motiff Lab is a tool for exploring music for your own study and practice. This version is an early test release.</p>
+        <h2>Для личных занятий</h2>
+        <p>Motiff Lab помогает изучать музыку для собственных занятий. Эта версия — ранний тестовый выпуск.</p>
 
-    <h2>What you import</h2>
-    <p>
-        Import only files you may use: your own work, your own performances, public-domain pieces, or a copy you may
-        use for personal study. Motiff Lab does not provide, host or share files, and your projects stay on this device.
-    </p>
+        <h2>Что вы открываете</h2>
+        <p>
+            Открывайте только файлы, которыми можете пользоваться: свои работы, записи своей игры, пьесы в общественном
+            достоянии или копии, которыми вам можно пользоваться для личных занятий. Motiff Lab не предоставляет, не хранит и
+            не распространяет файлы, а ваши проекты остаются на этом устройстве.
+        </p>
 
-    <h2>What you export</h2>
-    <p>
-        MIDI files and project files you export are for your personal practice and study. Do not share exports of
-        music you do not have the rights to.
-    </p>
+        <h2>Что вы сохраняете</h2>
+        <p>
+            Файлы MIDI и файлы проектов, которые вы сохраняете, предназначены для ваших личных занятий. Не распространяйте
+            их, если у вас нет прав на эту музыку.
+        </p>
 
-    <h2>What the app tells you</h2>
-    <p>
-        Analysis, facts and variations are worked out by the app from the notes. Anything inferred, such as hands,
-        keys or note values, is marked as inferred and can be wrong. Projects are saved in this browser only: export
-        the ones you want to keep, since clearing the browser's data deletes them.
-    </p>
+        <h2>Что сообщает приложение</h2>
+        <p>
+            Разбор, факты и вариации приложение выводит из нот. Всё предположенное, например руки, тональности или
+            длительности, отмечено как предположенное и может быть неверным. Проекты сохраняются только в этом браузере:
+            сохраните в файл те, что хотите оставить, потому что очистка данных браузера их удаляет.
+        </p>
 
-    <h2>Credits</h2>
-    <p>
-        The piano is the Salamander Grand Piano V3 by Alexander Holm, used under
-        <a href="https://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a> and shortened for the app. Für Elise
-        (Beethoven) is in the public domain; the opening in the app was written out for Motiff Lab.
-    </p>
-</main>
+        <h2>Благодарности</h2>
+        <p>
+            Звук фортепиано — Salamander Grand Piano V3 Александра Хольма, по лицензии
+            <a href="https://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a>, укороченный для приложения. «К Элизе»
+            (Бетховен) — в общественном достоянии; начало пьесы в приложении записано для Motiff Lab.
+        </p>
+    </main>
+}
+else
+{
+    <main class="lab document">
+        <h1>Terms of use</h1>
+        <p class="meta">Draft for the Stage 1 study, before legal review.</p>
+
+        <h2>Personal study</h2>
+        <p>Motiff Lab is a tool for exploring music for your own study and practice. This version is an early test release.</p>
+
+        <h2>What you import</h2>
+        <p>
+            Import only files you may use: your own work, your own performances, public-domain pieces, or a copy you may
+            use for personal study. Motiff Lab does not provide, host or share files, and your projects stay on this device.
+        </p>
+
+        <h2>What you export</h2>
+        <p>
+            MIDI files and project files you export are for your personal practice and study. Do not share exports of
+            music you do not have the rights to.
+        </p>
+
+        <h2>What the app tells you</h2>
+        <p>
+            Analysis, facts and variations are worked out by the app from the notes. Anything inferred, such as hands,
+            keys or note values, is marked as inferred and can be wrong. Projects are saved in this browser only: export
+            the ones you want to keep, since clearing the browser's data deletes them.
+        </p>
+
+        <h2>Credits</h2>
+        <p>
+            The piano is the Salamander Grand Piano V3 by Alexander Holm, used under
+            <a href="https://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a> and shortened for the app. Für Elise
+            (Beethoven) is in the public domain; the opening in the app was written out for Motiff Lab.
+        </p>
+    </main>
+}

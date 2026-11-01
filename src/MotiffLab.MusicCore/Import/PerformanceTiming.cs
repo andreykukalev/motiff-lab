@@ -94,10 +94,29 @@ public sealed record PerformanceTiming(TimingKind Kind, int Onsets, int OffGrid,
     }
 
     /// <summary>The import screen's sentence about the timing, with the figures, or null when there is nothing to say.</summary>
-    public string? Describe()
+    public string? Describe() => Describe(Words.English);
+
+    /// <summary>The import screen's sentence about the timing in a language, or null when there is nothing to say.</summary>
+    public string? Describe(Words words)
     {
         GridFit sixteenths = Grids[0];
-        string spread = $"on the 16th grid they are {Ticks(sixteenths.MeanOffset(Onsets))} off on average";
+        long mean = sixteenths.MeanOffset(Onsets);
+        if (words.IsRussian)
+        {
+            string разброс = $"от сетки шестнадцатых они отстоят в среднем на {words.Count((int)mean, "tick", "ticks", "тик", "тика", "тиков")}";
+            return Kind switch
+            {
+                TimingKind.Performance when DefaultGrid is { } grid =>
+                    $"Этот файл сыгран, а не записан нотами: {OffGridPercent}% начал нот отстоят больше чем на {Tolerance} тиков от сеток шестнадцатых и восьмых триолей, и {разброс}. "
+                    + $"Игра следует темпу файла, поэтому «Восстановить ритм» притянет её к {(grid.Step == Sixteenth ? "шестнадцатым" : "восьмым триолям")}: к этой сетке она ближе всего.",
+                TimingKind.FreeTempo =>
+                    $"Этот файл сыгран без следования его темпу: {OffGridPercent}% начал нот не попадают в сетки шестнадцатых и восьмых триолей, и {разброс}, примерно четверть шага, как будто сетки нет. "
+                    + "В этой версии Motiff Lab не умеет восстанавливать игру в свободном темпе, поэтому файл звучит так, как был записан.",
+                _ => null,
+            };
+        }
+
+        string spread = $"on the 16th grid they are {Ticks(mean)} off on average";
         return Kind switch
         {
             TimingKind.Performance when DefaultGrid is { } grid =>

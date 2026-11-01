@@ -1150,7 +1150,7 @@
             return;
         }
 
-        (_message, _tip) = (result.Rejection?.Message, result.Rejection?.Tip);
+        (_message, _tip) = (result.Rejection?.Text(Words), result.Rejection?.TipIn(Words));
     }
 
     /// <summary>Reads a picked file on the device and imports it; the file never leaves the browser.</summary>
@@ -1175,7 +1175,7 @@
         (PieceImportResult result, _) = await ReadAsync(args.File);
         if (result.Piece is not { } piece || _score is null)
         {
-            (_secondMessage, _secondTip) = (result.Rejection?.Message, result.Rejection?.Tip);
+            (_secondMessage, _secondTip) = (result.Rejection?.Text(Words), result.Rejection?.TipIn(Words));
             return;
         }
 
@@ -1368,7 +1368,7 @@
 
         if (notation.TripletCount > 0)
         {
-            parts.Add($"{notation.TripletCount} beats are written as triplets: their notes fall on thirds or sixths of the beat rather than on 16ths.");
+            parts.Add(Text.Count("score.triplets", notation.TripletCount));
         }
 
         if (_heard && _heardKey is { } key)

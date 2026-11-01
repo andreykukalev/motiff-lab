@@ -322,6 +322,17 @@ public static class ProjectFile
                     json.WriteNull("bars");
                 }
 
+                if (transcription.Seams.Count > 0)
+                {
+                    json.WriteStartArray("seams");
+                    foreach (long seam in transcription.Seams)
+                    {
+                        json.WriteNumberValue(seam);
+                    }
+
+                    json.WriteEndArray();
+                }
+
                 json.WriteEndObject();
             }
             else
@@ -909,7 +920,23 @@ public static class ProjectFile
             throw Damaged("engine");
         }
 
-        return new TranscriptionOrigin(engine, version >= 10 ? ReadBars(transcription, version) : null);
+        // Seams came within version 12 (0018, preparation item 12): a file without them was heard in one part, or before they were kept.
+        long[] seams = [];
+        if (transcription.TryGetProperty("seams", out JsonElement saved))
+        {
+            seams = saved.ValueKind == JsonValueKind.Array
+                ? [.. saved.EnumerateArray().Select(seam => seam.ValueKind == JsonValueKind.Number && seam.TryGetInt64(out long value) && value > 0 ? value : throw Damaged("seams"))]
+                : throw Damaged("seams");
+        }
+
+        try
+        {
+            return new TranscriptionOrigin(engine, version >= 10 ? ReadBars(transcription, version) : null) { Seams = seams };
+        }
+        catch (ArgumentException)
+        {
+            throw Damaged("seams");
+        }
     }
 
     private static BarGrid? ReadBars(JsonElement transcription, int version)

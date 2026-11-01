@@ -203,7 +203,7 @@ internal static partial class Answer
         json.WriteEndObject();
     }
 
-    public static void Piece(Utf8JsonWriter json, ImportedPiece piece, IReadOnlyList<Note> notes, bool withNotes)
+    public static void Piece(Utf8JsonWriter json, ImportedPiece piece, IReadOnlyList<Note> notes, bool withNotes, Words words = default)
     {
         json.WriteString("fileName", piece.FileName);
         json.WriteString("format", Name(piece.Format));
@@ -268,7 +268,7 @@ internal static partial class Answer
             }
 
             json.WriteNumber("count", issue.Count);
-            json.WriteString("message", issue.Message);
+            json.WriteString("message", issue.Text(words));
             json.WriteEndObject();
         }
 
