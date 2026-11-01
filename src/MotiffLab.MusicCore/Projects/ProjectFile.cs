@@ -687,7 +687,8 @@ public static class ProjectFile
         return new NoteValues(new Pitch(pitch), new TickSpan(new Tick(onset), duration), velocity);
     }
 
-    private static void WriteStep(Utf8JsonWriter json, SavedStep step)
+    /// <summary>One variation step as the file writes it; the facade (0020) uses the same shape.</summary>
+    internal static void WriteStep(Utf8JsonWriter json, SavedStep step)
     {
         json.WriteString("operation", step.Operation);
         json.WriteStartObject("parameters");
@@ -773,7 +774,8 @@ public static class ProjectFile
             keep);
     }
 
-    private static SavedStep ReadStep(JsonElement step)
+    /// <summary>One variation step as the file reads it: an object with "operation" and "parameters".</summary>
+    internal static SavedStep ReadStep(JsonElement step)
     {
         Expect(step, JsonValueKind.Object, "variation steps");
         string operation = Text(step, "operation");
