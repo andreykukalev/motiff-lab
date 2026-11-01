@@ -16,8 +16,11 @@ export interface InkPoint {
 
 export type MarkTool = "pen" | "highlighter";
 
-/** Pen colours and the highlighter's; the stylesheet gives each its colour on paper. */
-export type MarkColour = "ink" | "red" | "blue" | "yellow";
+/**
+ * The four inks of the design kit (0018, design/kit/tokens.css) and the highlighter's amber; the stylesheet gives each
+ * its colour on paper. The names are the project file's (Projects/Marks.cs), so a stroke saved here is read there as it is.
+ */
+export type MarkColour = "graphite" | "carmine" | "forest" | "ochre" | "amber";
 
 /** One stroke, kept against the bar it starts in. */
 export interface PencilMark {
@@ -53,9 +56,12 @@ export interface BarFrame {
     space: number;
 }
 
-/** What a saved set of marks looks like; version 1. */
+/**
+ * What a saved set of marks looks like: version 2, the shape the project file keeps under "marks.ink" (ProjectFile.WriteInk).
+ * Version 1 named the colours ink, red, blue and yellow; readMarks still reads it.
+ */
 export interface MarksFile {
-    version: 1;
+    version: 2;
     marks: PencilMark[];
 }
 
@@ -242,17 +248,25 @@ function distanceToSegment(a: InkPoint, b: InkPoint, x: number, y: number): numb
 }
 
 const TOOLS: ReadonlySet<string> = new Set<MarkTool>(["pen", "highlighter"]);
-const COLOURS: ReadonlySet<string> = new Set<MarkColour>(["ink", "red", "blue", "yellow"]);
+const COLOURS: ReadonlySet<string> = new Set<MarkColour>(["graphite", "carmine", "forest", "ochre", "amber"]);
+
+/** The colours of a version 1 file, by the ink nearest each. */
+const VERSION_1_COLOURS: ReadonlyMap<string, MarkColour> = new Map([
+    ["ink", "graphite"],
+    ["red", "carmine"],
+    ["blue", "forest"],
+    ["yellow", "amber"],
+]);
 
 const isNumber = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
 
 /** The marks as saved. */
 export function writeMarks(marks: readonly PencilMark[]): string {
-    const file: MarksFile = { version: 1, marks: [...marks] };
+    const file: MarksFile = { version: 2, marks: [...marks] };
     return JSON.stringify(file);
 }
 
-/** The marks in a saved file; marks that are not whole are left out, and anything unreadable gives none. */
+/** The marks in a saved file of version 1 or 2; marks that are not whole are left out, and anything unreadable gives none. */
 export function readMarks(text: string | null | undefined): PencilMark[] {
     if (!text) {
         return [];
@@ -263,15 +277,25 @@ export function readMarks(text: string | null | undefined): PencilMark[] {
     } catch {
         return [];
     }
+    const version = (file as { version?: unknown } | null)?.version;
     const marks = (file as Partial<MarksFile> | null)?.marks;
-    if ((file as Partial<MarksFile> | null)?.version !== 1 || !Array.isArray(marks)) {
+    if ((version !== 1 && version !== 2) || !Array.isArray(marks)) {
         return [];
     }
-    return marks.filter((mark): mark is PencilMark =>
-        typeof mark === "object" && mark !== null
-        && typeof mark.id === "string"
-        && TOOLS.has(mark.tool) && COLOURS.has(mark.colour)
-        && isNumber(mark.size) && mark.size > 0
-        && isNumber(mark.bar) && isNumber(mark.u) && isNumber(mark.v) && isNumber(mark.pressure)
-        && Array.isArray(mark.points) && mark.points.length % 3 === 0 && mark.points.every(isNumber));
+    const colourOf = (colour: unknown): MarkColour | undefined =>
+        version === 1 ? VERSION_1_COLOURS.get(colour as string) : COLOURS.has(colour as string) ? (colour as MarkColour) : undefined;
+    const whole: PencilMark[] = [];
+    for (const mark of marks as unknown[]) {
+        const candidate = mark as Partial<PencilMark> | null;
+        const colour = colourOf(candidate?.colour);
+        if (typeof candidate === "object" && candidate !== null
+            && typeof candidate.id === "string"
+            && TOOLS.has(candidate.tool as string) && colour !== undefined
+            && isNumber(candidate.size) && candidate.size > 0
+            && isNumber(candidate.bar) && isNumber(candidate.u) && isNumber(candidate.v) && isNumber(candidate.pressure)
+            && Array.isArray(candidate.points) && candidate.points.length % 3 === 0 && candidate.points.every(isNumber)) {
+            whole.push({ ...(candidate as PencilMark), colour });
+        }
+    }
+    return whole;
 }

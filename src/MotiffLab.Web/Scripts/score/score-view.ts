@@ -157,6 +157,7 @@ export class ScoreView {
             frames: () => this.barFrames(),
             tap: (target, extend) => this.pick(target, extend),
             changed: (state: PencilState) => void this.dotnet.invokeMethodAsync("OnPencilChanged", state),
+            marksChanged: (text: string) => void this.dotnet.invokeMethodAsync("OnPencilMarksChanged", text),
         });
         this.host.classList.toggle("paged", this.paged);
         this.host.addEventListener("click", this.onClick);

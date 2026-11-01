@@ -78,6 +78,20 @@ internal sealed class Request : IDisposable
         _ => throw Wrong(name, "a whole number"),
     };
 
+    public double? Double(string name) => Element(name) switch
+    {
+        null => null,
+        { ValueKind: JsonValueKind.Number } value when value.TryGetDouble(out double number) && double.IsFinite(number) => number,
+        _ => throw Wrong(name, "a number"),
+    };
+
+    public IReadOnlyList<JsonElement> Elements(string name) => Element(name) switch
+    {
+        null => [],
+        { ValueKind: JsonValueKind.Array } value => [.. value.EnumerateArray()],
+        _ => throw Wrong(name, "a list"),
+    };
+
     public bool? Bool(string name) => Element(name) switch
     {
         null => null,

@@ -183,7 +183,7 @@
                                     <label><input type="radio" name="heard-mode" checked="@(!_readable)" @onchange="() => SetReadable(false)" /> @Text["score.asPlayed"]</label>
                                 </div>
                             }
-                            <ScoreView Source="shown" Range="ShownRange" Phrases="ScorePhrases" Highlight="_highlight?.Places" HoldHeight="_alternating" PencilKey="ShownPencilKey" Title="@ScoreTitle.Of(_title)" BarPicked="OnScoreBarPickedAsync" />
+                            <ScoreView Source="shown" Range="ShownRange" Phrases="ScorePhrases" Highlight="_highlight?.Places" HoldHeight="_alternating" PencilKey="ShownPencilKey" Ink="@ShownInk" MarksChanged="OnPencilMarksChangedAsync" Title="@ScoreTitle.Of(_title)" BarPicked="OnScoreBarPickedAsync" />
                             <p class="meta">@ScoreNote(shown)</p>
                         </div>
                         @if (ShowRoll)
@@ -926,6 +926,54 @@
     /// <summary>The piece's pencil marks (0015), on its own score as written or generated; a score with a variation in it shows none.</summary>
     private string? ShownPencilKey => ShownChoice == ScoreChoice.Variation ? null : PencilMarks.KeyFor(_project?.Id, _title);
 
+    private IReadOnlyList<InkStroke>? _inkWritten;
+    private string _ink = "";
+
+    /// <summary>The strokes the project keeps (v12), for the score to show and write on; null without a project, when the device keeps them.</summary>
+    private string? ShownInk
+    {
+        get
+        {
+            if (_project is null)
+            {
+                return null;
+            }
+
+            if (!ReferenceEquals(_project.Marks.Ink, _inkWritten))
+            {
+                _inkWritten = _project.Marks.Ink;
+                _ink = _inkWritten.Count == 0 ? "" : ProjectFile.WriteInk(_inkWritten);
+            }
+
+            return _ink;
+        }
+    }
+
+    /// <summary>The player wrote or erased on the score: the strokes go into the project and are saved with it.</summary>
+    private async Task OnPencilMarksChangedAsync(string ink)
+    {
+        if (_project is null)
+        {
+            return;
+        }
+
+        IReadOnlyList<InkStroke> strokes;
+        try
+        {
+            strokes = ProjectFile.ReadInk(ink);
+        }
+        catch (ProjectFileException)
+        {
+            return;
+        }
+
+        _project = _project with { Marks = _project.Marks.WithInk(strokes) };
+        // The score already shows these strokes: the text it sent stands for the list the project now keeps.
+        _inkWritten = _project.Marks.Ink;
+        _ink = ink;
+        await SaveProjectAsync();
+    }
+
     /// <summary>The piece's notes are heard: the original, or the selection on its own.</summary>
     private bool OriginalAudible => Player.ActiveSources.Contains(Player.OriginalSource) || Player.ActiveSources.Contains(SelectionSource);
 
@@ -1030,7 +1078,7 @@
                 await RestoreAsync(opened);
             }
 
-            await ArriveInSessionAsync();
+            await ArriveAtResumePointAsync();
             StateHasChanged();
         }
 
@@ -1094,11 +1142,11 @@
             // Saved as a project, as the import screen does (S1-P1), so it is still there after a reload.
             // The workspace opens it as it opens an imported piece.
             var project = Project.Create($"p_{Guid.NewGuid():N}", piece.FileName, data, DateTimeOffset.Now);
-            Session session = Session.Start(project.NextSessionId(), SessionIntent.Open, null, DateTimeOffset.Now);
-            project = project.StartSession(session);
+            ResumePoint point = ResumePoint.Start(project.NextResumePointId(), DateTimeOffset.Now);
+            project = project.AddResumePoint(point);
             await Projects.SaveAsync(project);
             CurrentPiece.Open(piece, SelectionFilter.All, project);
-            Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(project, session.Id), replace: true);
+            Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(project, point.Id), replace: true);
             return;
         }
 
@@ -2388,7 +2436,7 @@
             }
         }
 
-        _project = TouchSession(_project with { Motifs = motifs, Variations = variations, Edits = _edits, Phrases = _phrases?.Edits ?? PhraseEdits.None });
+        _project = TouchResumePoint(_project with { Motifs = motifs, Variations = variations, Edits = _edits, Phrases = _phrases?.Edits ?? PhraseEdits.None });
         CurrentPiece.Saved(_project);
         await Projects.SaveAsync(_project);
     }

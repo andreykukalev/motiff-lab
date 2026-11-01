@@ -13,7 +13,7 @@ test("a piece opened from the import screen is open again after a reload", async
     await page.goto("/import");
     await page.setInputFiles("input[type=file]", minuet);
     await page.getByText("Open the piece").click();
-    await expect(page).toHaveURL(/\/playback\?project=p_[0-9a-f]+&session=s_\d{4}$/);
+    await expect(page).toHaveURL(/\/playback\?project=p_[0-9a-f]+&resume=r_\d{4}$/);
     await expect(title(page)).toHaveText("importer-grand-staff.musicxml");
     const phrases = page.locator(".phrases button.phrase");
     await phrases.nth(0).click();
@@ -35,7 +35,7 @@ test("a file opened in the workspace is saved as a project and survives a reload
     await expect(open).toBeEnabled({ timeout: 30_000 });
     await open.setInputFiles(minuet);
     await expect(title(page)).toHaveText("importer-grand-staff.musicxml");
-    await expect(page).toHaveURL(/\/playback\?project=p_[0-9a-f]+&session=s_\d{4}$/);
+    await expect(page).toHaveURL(/\/playback\?project=p_[0-9a-f]+&resume=r_\d{4}$/);
 
     await page.reload();
     await expect(title(page)).toHaveText("importer-grand-staff.musicxml", { timeout: 30_000 });

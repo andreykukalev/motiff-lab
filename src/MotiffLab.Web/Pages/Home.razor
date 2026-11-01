@@ -116,7 +116,7 @@
                     <li class="project-card">
                         <a class="project-name" href="@ProjectPage.Url(summary.Id)">@summary.FileName</a>
                         <p class="meta">
-                            @Text.Format("home.counts", summary.SessionCount, summary.IdeaCount)
+                            @Text.Format("home.counts", summary.ResumeCount, summary.IdeaCount)
                             · @Text.Format("home.lastOpened", summary.LastOpened.ToLocalTime().ToString("g", Text.Culture))
                         </p>
                         <div class="actions">
@@ -149,7 +149,7 @@
                     <li class="project-card">
                         <span class="project-name">@summary.FileName</span>
                         <p class="meta">
-                            @Text.Format("home.counts", summary.SessionCount, summary.IdeaCount)
+                            @Text.Format("home.counts", summary.ResumeCount, summary.IdeaCount)
                             · @Text.Format("home.lastOpened", summary.LastOpened.ToLocalTime().ToString("g", Text.Culture))
                         </p>
                         <div class="actions">

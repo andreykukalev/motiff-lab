@@ -18,7 +18,7 @@ import {
 
 const bar = (tick, left, right, staffTop, space = 10) => ({ tick, left, right, top: staffTop - 20, bottom: staffTop + 100, staffTop, space });
 
-const style = { id: "m1", tool: "pen", colour: "red", size: 0.2 };
+const style = { id: "m1", tool: "pen", colour: "carmine", size: 0.2 };
 
 test("a point belongs to the bar it lies in, or else the nearest", () => {
     const frames = [bar(0, 0, 100, 50), bar(1920, 100, 220, 50), bar(3840, 0, 150, 250)];
@@ -40,7 +40,7 @@ test("a mark is kept against its bar: a share across it, staff spaces below its 
     assert.deepEqual(mark, {
         id: "m1",
         tool: "pen",
-        colour: "red",
+        colour: "carmine",
         size: 0.2,
         bar: 1920,
         u: 0.25,
@@ -98,13 +98,22 @@ test("the eraser takes a stroke it comes within reach of, the stroke's thickness
     assert.equal(touches([{ x: 0, y: 0, pressure: 0.5 }], 1, 5, 5, 6), false);
 });
 
-test("marks read back as written, and anything damaged is left out", () => {
-    const mark = { id: "a", tool: "highlighter", colour: "yellow", size: 1.1, bar: 0, u: 0.5, v: 2, points: [1, 0, 0.5], pressure: 0.5 };
+test("marks read back as written, in the project file's shape, and anything damaged is left out", () => {
+    const mark = { id: "a", tool: "highlighter", colour: "amber", size: 1.1, bar: 0, u: 0.5, v: 2, points: [1, 0, 0.5], pressure: 0.5 };
     assert.deepEqual(readMarks(writeMarks([mark])), [mark]);
+    assert.equal(JSON.parse(writeMarks([mark])).version, 2);
 
-    const damaged = JSON.stringify({ version: 1, marks: [mark, { ...mark, id: "b", colour: "green" }, { ...mark, id: "c", points: [1, 2] }, null] });
+    const damaged = JSON.stringify({ version: 2, marks: [mark, { ...mark, id: "b", colour: "green" }, { ...mark, id: "c", points: [1, 2] }, null] });
     assert.deepEqual(readMarks(damaged).map((m) => m.id), ["a"]);
     assert.deepEqual(readMarks("not json"), []);
-    assert.deepEqual(readMarks(JSON.stringify({ version: 2, marks: [mark] })), []);
+    assert.deepEqual(readMarks(JSON.stringify({ version: 3, marks: [mark] })), []);
     assert.deepEqual(readMarks(null), []);
+    assert.deepEqual(readMarks(""), []);
+});
+
+test("a version 1 file's colours become the inks nearest them", () => {
+    const stroke = (id, colour, tool = "pen") => ({ id, tool, colour, size: 0.2, bar: 0, u: 0.5, v: 2, points: [], pressure: 0.5 });
+    const old = JSON.stringify({ version: 1, marks: [stroke("a", "ink"), stroke("b", "red"), stroke("c", "blue"), stroke("d", "yellow", "highlighter"), stroke("e", "carmine")] });
+
+    assert.deepEqual(readMarks(old).map((m) => [m.id, m.colour]), [["a", "graphite"], ["b", "carmine"], ["c", "forest"], ["d", "amber"]]);
 });

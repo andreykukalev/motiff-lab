@@ -378,7 +378,7 @@ public class BarGridTests
         {
             Transcription = new TranscriptionOrigin("basic-pitch 0.4.0", BarGrid.Find(Import(midi).Midi!)),
         };
-        string file = System.Text.Encoding.UTF8.GetString(ProjectFile.Write(project)).Replace("\"version\": 11", "\"version\": 9", StringComparison.Ordinal);
+        string file = System.Text.Encoding.UTF8.GetString(ProjectFile.Write(project)).Replace($"\"version\": {ProjectFile.Version}", "\"version\": 9", StringComparison.Ordinal).Replace("\"resumePoints\": []", "\"sessions\": []", StringComparison.Ordinal);
 
         Assert.Null(ProjectFile.Read(System.Text.Encoding.UTF8.GetBytes(file)).Transcription!.Bars);
     }
@@ -389,7 +389,7 @@ public class BarGridTests
         byte[] midi = Played(150_000, Waltz());
         BarGrid found = BarGrid.Find(Import(midi).Midi!)!;
         Project project = Project.Create("p_heard", "take.mid", midi, s_now) with { Transcription = new TranscriptionOrigin("transkun 2.0.1", found) };
-        string file = System.Text.Encoding.UTF8.GetString(ProjectFile.Write(project)).Replace("\"version\": 11", "\"version\": 10", StringComparison.Ordinal);
+        string file = System.Text.Encoding.UTF8.GetString(ProjectFile.Write(project)).Replace($"\"version\": {ProjectFile.Version}", "\"version\": 10", StringComparison.Ordinal).Replace("\"resumePoints\": []", "\"sessions\": []", StringComparison.Ordinal);
 
         BarGrid read = ProjectFile.Read(System.Text.Encoding.UTF8.GetBytes(file)).Transcription!.Bars!;
 

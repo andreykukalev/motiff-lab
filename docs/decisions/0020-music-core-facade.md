@@ -16,10 +16,10 @@ Options weighed:
 
 1. **`MotiffLab.MusicCore.Facade.MusicCoreFacade`** is the one entry point for an app. It keeps the pieces an app has open in memory, numbered from 1, and answers calls by name with JSON text. It is the only stateful part of music-core: everything under it stays pure, and the facade itself is deterministic (the same calls in the same order give the same answers).
    - `Open(fileName, bytes, language)` imports a MIDI or MusicXML file as a new project, or reads a project file (`.motiff.json`), and returns the piece's number with its summary. A rejected file answers with the importer's reason and tip.
-   - `Call(piece, name, request)` runs one call on an open piece; `piece` 0 is for the stateless calls (`version`, `catalogue`). `request` is a JSON object or null.
+   - `Call(piece, name, request)` runs one call on an open piece; `piece` 0 is for the stateless calls (`version`, `catalogue`, `settings`, `settings.state`). `request` is a JSON object or null.
    - `Close(piece)` forgets it.
    - Every answer is one JSON object. A failure is `{"error": code, "message": text}` and leaves the piece as it was. Codes: `import`, `noPiece`, `unknownCall`, `badRequest`, `noSelection`, `noVariation`, `unavailable`, `internal`.
-2. **The contract is versioned.** `version` returns `{"contract": 1, "projectFile": 11, "runtime": …}`. A field is added without changing the contract number; a field removed or renamed, or a call's meaning changed, raises it. The project file version ([[ProjectFile.Version]], 11) is part of the contract: the file an app saves is what the other app opens and what the API stores (0014). Planned additions (phrase levels, Piece DNA) are already visible as placeholders so that a client can code for them: `phrases` names the levels it knows and which are available; `dna` answers `{"status": "notYet"}` until Piece DNA exists.
+2. **The contract is versioned.** `version` returns `{"contract": 2, "projectFile": 12, "runtime": …}`. A field is added without changing the contract number; a field removed or renamed, or a call's meaning changed, raises it. The project file version ([[ProjectFile.Version]], 12, described in [docs/project-file.md](../project-file.md)) is part of the contract: the file an app saves is what the other app opens and what the API stores (0014). Contract 2 (2026-11-01, redesign package 2) replaced `sessions` and `observations` in the project summary with `resumePoints`, `ideas`, `marks`, `bookmarks` and `openChecks`, and added the calls below the line in the table. Planned additions (phrase levels, Piece DNA) are already visible as placeholders so that a client can code for them: `phrases` names the levels it knows and which are available; `dna` answers `{"status": "notYet"}` until Piece DNA exists.
 3. **JSON is written and read by hand** (`Utf8JsonWriter`, `JsonDocument`), as the project file is, so the output is fixed and NativeAOT needs no reflection. Ticks are integers at 480 per quarter ([[0002]]); enums are lower camel case names; what music-core inferred carries its provenance and confidence as the events do ([[0004]]). The parameters of a variation step use the project file's shape, so a step can be copied between a saved project and a request unchanged.
 4. **Words follow the piece.** `Open` takes a language tag (`en`, `ru`); `language` changes it. Every text in an answer (facts, phrase descriptions, operation names, explanations) comes from music-core's `Words`, never from the client.
 5. **The web app moves onto the facade in the redesign**, not before: the current page keeps its direct calls until it is replaced. The iPad app calls the facade through five C functions exported by the native build (`ml_version`, `ml_open`, `ml_call`, `ml_close`, `ml_free`), each returning UTF-8 JSON the caller frees. The spike's benchmark exports stay only in the spike.
@@ -52,10 +52,29 @@ Request fields are optional unless marked; a tick span is `{"onset", "end"}`; a 
 | `playback` | `of`: `piece` (default) / `heard` / `inPlace` | `notes`, `pedal`, `tempos`, `beats`, `bars`, `end` |
 | `project.save` | `now` (ISO time) | the project file itself (`format`, `version`, …), with the selection as the working motif and the chain as its variation, as the web app autosaves |
 | `dna` | – | `{"status": "notYet"}` |
+| `marks` | – | `ink` (strokes in the pencil layer's shape), `notes` (id, span, bars, text, createdAt), `highlights` (id, span, bars, noteIds, colour), `fingering` (noteId, finger) |
+| `ink.add` / `ink.remove` / `ink.clear` | `strokes` [stroke] / `ids` [ids] / – | as `marks` |
+| `note.add` / `note.change` / `note.remove` | a place (`span` {onset, end}, `bars` {first, last} or `phrase` number), `text`, `now` / `id`, `text` / `id` | as `marks` |
+| `highlight.add` / `highlight.remove` | a place, `notes` [ids], `colour` (default amber) / `id` | as `marks` |
+| `fingering.set` / `fingering.remove` | `noteId`, `finger` 1–5 / `noteId` | as `marks` |
+| `bookmarks` | – | `categories` (id, name in the language, ink, builtIn, bookmarks count), `bookmarks` in the player's order (id, title, category, span, bars, fromPhrase, ideas count, createdAt) |
+| `bookmark.add` / `.change` / `.move` / `.remove` | a place, `title` (default "bars 1–8"), `category` (default practise) / `id` and any of title, category, place / `id`, `index` / `id` | as `bookmarks` |
+| `category.add` / `.rename` / `.remove` | `name`, `ink` / `id`, `name` / `id` (own categories only; their bookmarks move to practise) | as `bookmarks` |
+| `resume` | – | `resumePoints`, most recent first: id, name, at, bar, passage (span, bars, filter), focused, overlays, tempoPercent, hands (`both` / `left` / `right`), loop, createdAt, lastActive |
+| `resume.save` | `id` (an existing point; none starts a new one), `name`, `at`, `passage` {span, filter}, `focused`, `overlays`, `tempoPercent` 25–150, `hands`, `loop`, `now`; fields not sent keep their values | `saved` (the point), `resumePoints` |
+| `resume.rename` / `resume.remove` | `id`, `name` / `id` | as `resume` |
+| `ideas` | – | `ideas`: id, name, note, factId, passage, experiment, hasVariation, createdAt |
+| `idea.keep` | `name`, `note`, `factId`, `now`; keeps the variation heard now with its experiment, the fact defaulting to the experiment's first | as `ideas` |
+| `idea.rename` / `idea.note` / `idea.remove` | `id`, `name` / `id`, `note` / `id` | as `ideas` |
+| `idea.open` | `id` | `selection`, `hasVariation`, `variation`: the idea's passage selected and its chain restored |
+| `settings` (piece 0) | – | `settings`: id, section, kind (switch / choice), choices, default, scope (device / account / piece), presets (learning, practising, clean) |
+| `settings.state` (piece 0) | `values` as stored, then `preset` or `set` {id, value}, then a piece's `overrides` | `preset` (learning / practising / clean / custom), `values` |
+| `settings` (on a piece) / `settings.override` | – / `id`, `value` (null clears; piece-scope settings only) | the catalogue with `overrides` / `overrides` |
+| `check` / `check.resolve` | – / `bar`, `resolved` (default true) | `flags` (bar, source, reason, resolved, text in the language), `open` count |
 
 The variation state: `keep`, `steps` (operation, parameters, explanation), `pending`, `undone` count, `canUndo`, `canRedo`, `acceptDisabledReason`, `editDisabledReason`, `current` notes, `heard` notes, `result` (operation, notes, changes before/after, added, removed, checks, properties, flags, explanation), `operations` (id, name, disabledReason under the current Keep).
 
-Calls kept for the next contract version: observations and sessions (the notebook, 0012), note corrections (S1-I7), MIDI export, the Keep table's parameter choices (today a UI list), and the fact digest for AI (0003).
+Calls kept for the next contract version: note corrections (S1-I7), MIDI export, the Keep table's parameter choices (today a UI list), and the fact digest for AI (0003).
 
 ## Consequences
 

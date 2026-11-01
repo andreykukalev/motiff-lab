@@ -35,7 +35,7 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
             "saveProject",
             project.Id,
             Encoding.UTF8.GetString(ProjectFile.Write(project)),
-            new StoredSummary(summary.Id, summary.FileName, summary.MotifCount, summary.VariationCount, Iso(summary.LastOpened), summary.SessionCount, summary.IdeaCount));
+            new StoredSummary(summary.Id, summary.FileName, summary.MotifCount, summary.VariationCount, Iso(summary.LastOpened), summary.ResumeCount, summary.IdeaCount));
     }
 
     /// <summary>The saved project, or null when there is none. Throws <see cref="ProjectFileException"/> when it is damaged.</summary>
@@ -57,7 +57,7 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
             row.MotifCount,
             row.VariationCount,
             DateTimeOffset.Parse(row.LastOpened, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
-            row.SessionCount,
+            row.ResumeCount,
             row.IdeaCount))];
     }
 
@@ -114,8 +114,8 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
     private async Task<IJSObjectReference> ModuleAsync() =>
         _module ??= await js.InvokeAsync<IJSObjectReference>("import", "./js/storage/project-store.js");
 
-    /// <summary>A summary row as stored; rows saved before sessions existed have no counts of them, so they read as 0.</summary>
-    private sealed record StoredSummary(string Id, string FileName, int MotifCount, int VariationCount, string LastOpened, int SessionCount = 0, int IdeaCount = 0);
+    /// <summary>A summary row as stored; rows saved before resume points existed have no counts of them, so they read as 0.</summary>
+    private sealed record StoredSummary(string Id, string FileName, int MotifCount, int VariationCount, string LastOpened, int ResumeCount = 0, int IdeaCount = 0);
 
     private sealed record StorageUse(double Usage, double Quota, bool NearlyFull);
 }

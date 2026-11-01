@@ -160,7 +160,7 @@ public sealed class ProjectApiTests : IClassFixture<ProjectApiTests.Api>
         return client;
     }
 
-    private sealed record Summary(string Id, string FileName, int MotifCount, int SessionCount);
+    private sealed record Summary(string Id, string FileName, int MotifCount, int ResumeCount);
 
     /// <summary>The API with an in-memory store and tokens signed by a test key instead of External ID's.</summary>
     public sealed class Api : WebApplicationFactory<Program>

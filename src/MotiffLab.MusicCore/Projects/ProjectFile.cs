@@ -5,6 +5,7 @@ using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Motifs;
+using MotiffLab.MusicCore.Settings;
 using MotiffLab.MusicCore.Time;
 using MotiffLab.MusicCore.Variations;
 
@@ -24,6 +25,9 @@ public static class ProjectFile
     public const string FormatName = "motiff-lab-project";
 
     /// <summary>
+    /// 12 keeps what the redesign keeps with the piece (0018): the marks (ink, margin notes, highlights, fingering), the
+    /// bookmarks and their categories, the resume points that replace the sessions, the Check flags, the piece's settings
+    /// overrides and the fact each idea came from;
     /// 11 adds the beats of a transcription's tempo, which follows the playing, and how many 16ths each is written as (0016);
     /// 10 adds the bars and tempo worked out for a transcription (0016);
     /// 9 marks a project heard in an audio or video recording by transcription (0014);
@@ -33,11 +37,13 @@ public static class ProjectFile
     /// 4 saves the melody operations (V4, V9, V10), Accompaniment pattern (V2), Articulation (V13)
     /// and each step's scope; 3 adds
     /// the edit log of note corrections; 2 saves each variation as a chain of steps. Files of earlier
-    /// versions still open: the bars of version 10 keep one tempo, versions before 10 keep a transcription's bars as the engine wrote them, versions before 9 were never transcribed, versions before 8 have no sessions, versions before 7 were never scanned, versions before 6 have no observations, steps of versions before 4
+    /// versions still open: before 12 there are no marks, bookmarks or overrides, the sessions open as resume points named by
+    /// their task, the ideas lose their session, and the Check flags are worked out when the project opens, resolved where
+    /// the player confirmed a scanned bar; the bars of version 10 keep one tempo, versions before 10 keep a transcription's bars as the engine wrote them, versions before 9 were never transcribed, versions before 8 have no sessions, versions before 7 were never scanned, versions before 6 have no observations, steps of versions before 4
     /// change the whole selection, versions 1 and 2 have no corrections, and version 1 holds one
     /// step per variation.
     /// </summary>
-    public const int Version = 11;
+    public const int Version = 12;
 
     /// <summary>The extension an exported project gets.</summary>
     public const string Extension = ".motiff.json";
@@ -114,30 +120,149 @@ public static class ProjectFile
             WriteTicks(json, "removed", project.Phrases.Removed);
             json.WriteEndObject();
 
-            json.WriteStartArray("sessions");
-            foreach (Session session in project.Sessions)
+            json.WriteStartObject("marks");
+            json.WriteStartArray("ink");
+            foreach (InkStroke stroke in project.Marks.Ink)
+            {
+                WriteStroke(json, stroke);
+            }
+
+            json.WriteEndArray();
+            json.WriteStartArray("notes");
+            foreach (MarginNote note in project.Marks.Notes)
             {
                 json.WriteStartObject();
-                json.WriteString("id", session.Id);
-                json.WriteString("intent", session.Intent.ToString());
-                if (session.Task is { } task)
+                json.WriteString("id", note.Id);
+                WriteSpan(json, note.Span);
+                json.WriteString("text", note.Text);
+                json.WriteString("createdAt", note.CreatedAt.ToString("O", CultureInfo.InvariantCulture));
+                json.WriteEndObject();
+            }
+
+            json.WriteEndArray();
+            json.WriteStartArray("highlights");
+            foreach (Highlight highlight in project.Marks.Highlights)
+            {
+                json.WriteStartObject();
+                json.WriteString("id", highlight.Id);
+                WriteSpan(json, highlight.Span);
+                WriteNoteIds(json, highlight.NoteIds);
+                json.WriteString("colour", highlight.Colour.ToString());
+                json.WriteEndObject();
+            }
+
+            json.WriteEndArray();
+            json.WriteStartArray("fingering");
+            foreach (Fingering fingering in project.Marks.Fingering)
+            {
+                json.WriteStartObject();
+                json.WriteString("noteId", fingering.NoteId);
+                json.WriteNumber("finger", fingering.Finger);
+                json.WriteEndObject();
+            }
+
+            json.WriteEndArray();
+            json.WriteEndObject();
+
+            json.WriteStartObject("bookmarks");
+            json.WriteStartArray("categories");
+            foreach (BookmarkCategory category in project.Categories)
+            {
+                json.WriteStartObject();
+                json.WriteString("id", category.Id);
+                if (category.Name is { } categoryName)
                 {
-                    json.WriteString("task", task);
+                    json.WriteString("name", categoryName);
                 }
 
-                if (session.Passage is { } passage)
+                json.WriteString("ink", category.Ink.ToString());
+                json.WriteEndObject();
+            }
+
+            json.WriteEndArray();
+            json.WriteStartArray("items");
+            foreach (Bookmark bookmark in project.Bookmarks)
+            {
+                json.WriteStartObject();
+                json.WriteString("id", bookmark.Id);
+                json.WriteString("title", bookmark.Title);
+                json.WriteString("category", bookmark.CategoryId);
+                WriteSpan(json, bookmark.Span);
+                json.WriteBoolean("fromPhrase", bookmark.FromPhrase);
+                json.WriteString("createdAt", bookmark.CreatedAt.ToString("O", CultureInfo.InvariantCulture));
+                json.WriteEndObject();
+            }
+
+            json.WriteEndArray();
+            json.WriteEndObject();
+
+            json.WriteStartArray("resumePoints");
+            foreach (ResumePoint point in project.ResumePoints)
+            {
+                json.WriteStartObject();
+                json.WriteString("id", point.Id);
+                if (point.Name is { } pointName)
+                {
+                    json.WriteString("name", pointName);
+                }
+
+                json.WriteNumber("at", point.At.Value);
+                if (point.Passage is { } passage)
                 {
                     json.WriteStartObject("passage");
                     WriteRange(json, passage.Span, passage.Filter);
                     json.WriteEndObject();
                 }
 
-                json.WriteString("startedAt", session.StartedAt.ToString("O", CultureInfo.InvariantCulture));
-                json.WriteString("lastActive", session.LastActive.ToString("O", CultureInfo.InvariantCulture));
+                json.WriteBoolean("focused", point.Focused);
+                json.WriteStartArray("overlays");
+                foreach (Overlay overlay in point.Overlays)
+                {
+                    json.WriteStringValue(overlay.ToString());
+                }
+
+                json.WriteEndArray();
+                json.WriteNumber("tempoPercent", point.TempoPercent);
+                if (point.Hands is { } hands)
+                {
+                    json.WriteString("hands", hands.ToString());
+                }
+
+                json.WriteBoolean("loop", point.Loop);
+                json.WriteString("createdAt", point.CreatedAt.ToString("O", CultureInfo.InvariantCulture));
+                json.WriteString("lastActive", point.LastActive.ToString("O", CultureInfo.InvariantCulture));
                 json.WriteEndObject();
             }
 
             json.WriteEndArray();
+
+            if (project.Check is { } check)
+            {
+                json.WriteStartArray("check");
+                foreach (CheckFlag flag in check)
+                {
+                    json.WriteStartObject();
+                    json.WriteNumber("bar", flag.Bar);
+                    json.WriteString("source", flag.Source.ToString());
+                    json.WriteString("reason", flag.Reason.ToString());
+                    json.WriteBoolean("resolved", flag.Resolved);
+                    json.WriteEndObject();
+                }
+
+                json.WriteEndArray();
+            }
+            else
+            {
+                json.WriteNull("check");
+            }
+
+            json.WriteStartObject("settings");
+            foreach ((string id, string value) in project.SettingOverrides.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+            {
+                json.WriteString(id, value);
+            }
+
+            json.WriteEndObject();
 
             if (project.Scan is { } scan)
             {
@@ -246,7 +371,7 @@ public static class ProjectFile
             var motifs = Property(root, "motifs", JsonValueKind.Array).EnumerateArray().Select(ReadMotif).ToList();
             var variations = Property(root, "variations", JsonValueKind.Array).EnumerateArray().Select(variation => ReadVariation(variation, version)).ToList();
             List<Observation> observations = version >= 6
-                ? Property(root, "observations", JsonValueKind.Array).EnumerateArray().Select(ReadObservation).ToList()
+                ? Property(root, "observations", JsonValueKind.Array).EnumerateArray().Select(observation => ReadObservation(observation, version)).ToList()
                 : [];
             if (observations.Select(static observation => observation.Id).Distinct(StringComparer.Ordinal).Count() != observations.Count)
             {
@@ -264,18 +389,20 @@ public static class ProjectFile
                 throw Damaged("origin");
             }
 
-            List<Session> sessions = version >= 8
-                ? Property(root, "sessions", JsonValueKind.Array).EnumerateArray().Select(ReadSession).ToList()
-                : [];
-            if (sessions.Select(static session => session.Id).Distinct(StringComparer.Ordinal).Count() != sessions.Count)
+            List<ResumePoint> resumePoints = version >= 12
+                ? Property(root, "resumePoints", JsonValueKind.Array).EnumerateArray().Select(ReadResumePoint).ToList()
+                : version >= 8 ? Property(root, "sessions", JsonValueKind.Array).EnumerateArray().Select(ReadSessionAsResumePoint).ToList() : [];
+            if (resumePoints.Select(static point => point.Id).Distinct(StringComparer.Ordinal).Count() != resumePoints.Count)
             {
-                throw Damaged("sessions");
+                throw Damaged("resume points");
             }
 
-            if (observations.Any(observation => observation.SessionId is { } sessionId && sessions.All(session => session.Id != sessionId)))
-            {
-                throw Damaged("observation session");
-            }
+            Marks marks = version >= 12 ? ReadMarks(Property(root, "marks", JsonValueKind.Object)) : Marks.Empty;
+            (IReadOnlyList<BookmarkCategory> categories, IReadOnlyList<Bookmark> bookmarks) = version >= 12
+                ? ReadBookmarks(Property(root, "bookmarks", JsonValueKind.Object))
+                : (BookmarkCategory.BuiltIn, []);
+            IReadOnlyList<CheckFlag>? check = version >= 12 ? ReadCheck(root) : null;
+            IReadOnlyDictionary<string, string> overrides = version >= 12 ? ReadSettings(Property(root, "settings", JsonValueKind.Object)) : new Dictionary<string, string>(StringComparer.Ordinal);
 
             return new Project(
                 Text(root, "id"),
@@ -291,9 +418,333 @@ public static class ProjectFile
                 Observations = observations,
                 Scan = scan,
                 Transcription = transcription,
-                Sessions = sessions,
+                ResumePoints = resumePoints,
+                Marks = marks,
+                Categories = categories,
+                Bookmarks = bookmarks,
+                Check = check,
+                SettingOverrides = overrides,
             };
         }
+    }
+
+    /// <summary>
+    /// The ink strokes as the pencil layer saves and reads them: {"version": 2, "marks": [stroke, …]}, each stroke in the
+    /// shape <see cref="InkStroke"/> describes, with the tool and the colour in lower case. The same shape the project
+    /// file holds under "marks": "ink", so the layer and the file never translate.
+    /// </summary>
+    public static string WriteInk(IReadOnlyList<InkStroke> ink)
+    {
+        ArgumentNullException.ThrowIfNull(ink);
+        using var buffer = new MemoryStream();
+        using (var json = new Utf8JsonWriter(buffer))
+        {
+            json.WriteStartObject();
+            json.WriteNumber("version", 2);
+            json.WriteStartArray("marks");
+            foreach (InkStroke stroke in ink)
+            {
+                WriteStroke(json, stroke);
+            }
+
+            json.WriteEndArray();
+            json.WriteEndObject();
+        }
+
+        return System.Text.Encoding.UTF8.GetString(buffer.ToArray());
+    }
+
+    /// <summary>The strokes in a document <see cref="WriteInk"/> wrote; nothing, or an unreadable document, gives none.</summary>
+    /// <exception cref="ProjectFileException">A stroke is not whole.</exception>
+    public static IReadOnlyList<InkStroke> ReadInk(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return [];
+        }
+
+        JsonDocument document;
+        try
+        {
+            document = JsonDocument.Parse(text);
+        }
+        catch (JsonException)
+        {
+            throw Damaged("ink");
+        }
+
+        using (document)
+        {
+            return document.RootElement.ValueKind == JsonValueKind.Object
+                ? Property(document.RootElement, "marks", JsonValueKind.Array).EnumerateArray().Select(ReadStroke).ToList()
+                : throw Damaged("ink");
+        }
+    }
+
+    private static void WriteStroke(Utf8JsonWriter json, InkStroke stroke)
+    {
+        json.WriteStartObject();
+        json.WriteString("id", stroke.Id);
+        json.WriteString("tool", Lower(stroke.Tool));
+        json.WriteString("colour", Lower(stroke.Colour));
+        json.WriteNumber("size", stroke.Size);
+        json.WriteNumber("bar", stroke.Bar.Value);
+        json.WriteNumber("u", stroke.U);
+        json.WriteNumber("v", stroke.V);
+        json.WriteStartArray("points");
+        foreach (double value in stroke.Points)
+        {
+            json.WriteNumberValue(value);
+        }
+
+        json.WriteEndArray();
+        json.WriteNumber("pressure", stroke.Pressure);
+        json.WriteEndObject();
+    }
+
+    /// <summary>One stroke in the pencil layer's shape; the facade (0020) reads a request's strokes with it.</summary>
+    internal static InkStroke ReadStroke(JsonElement stroke)
+    {
+        Expect(stroke, JsonValueKind.Object, "ink");
+        long bar = Long(stroke, "bar");
+        double[] points = [.. Property(stroke, "points", JsonValueKind.Array)
+            .EnumerateArray()
+            .Select(value => value.ValueKind == JsonValueKind.Number ? value.GetDouble() : throw Damaged("ink points"))];
+        try
+        {
+            return new InkStroke(
+                Text(stroke, "id"),
+                LowerName<InkTool>(stroke, "tool"),
+                LowerName<InkColour>(stroke, "colour"),
+                Number(stroke, "size"),
+                bar >= 0 ? new Tick(bar) : throw Damaged("ink bar"),
+                Number(stroke, "u"),
+                Number(stroke, "v"),
+                points,
+                Number(stroke, "pressure"));
+        }
+        catch (ArgumentException)
+        {
+            throw Damaged("ink");
+        }
+    }
+
+    private static Marks ReadMarks(JsonElement marks)
+    {
+        List<InkStroke> ink = Property(marks, "ink", JsonValueKind.Array).EnumerateArray().Select(ReadStroke).ToList();
+        List<MarginNote> notes = [];
+        foreach (JsonElement note in Property(marks, "notes", JsonValueKind.Array).EnumerateArray())
+        {
+            Expect(note, JsonValueKind.Object, "notes");
+            try
+            {
+                notes.Add(new MarginNote(Text(note, "id"), ReadSpan(note, "note"), Text(note, "text"), Time(note, "createdAt")));
+            }
+            catch (ArgumentException)
+            {
+                throw Damaged("notes");
+            }
+        }
+
+        List<Highlight> highlights = [];
+        foreach (JsonElement highlight in Property(marks, "highlights", JsonValueKind.Array).EnumerateArray())
+        {
+            Expect(highlight, JsonValueKind.Object, "highlights");
+            try
+            {
+                highlights.Add(new Highlight(Text(highlight, "id"), ReadSpan(highlight, "highlight"), ReadNoteIds(highlight, "highlight notes"), Name<InkColour>(highlight, "colour")));
+            }
+            catch (ArgumentException)
+            {
+                throw Damaged("highlights");
+            }
+        }
+
+        List<Fingering> fingering = [];
+        foreach (JsonElement finger in Property(marks, "fingering", JsonValueKind.Array).EnumerateArray())
+        {
+            Expect(finger, JsonValueKind.Object, "fingering");
+            int digit = Integer(finger, "finger");
+            fingering.Add(digit is >= 1 and <= 5 ? new Fingering(Text(finger, "noteId"), digit) : throw Damaged("fingering"));
+        }
+
+        try
+        {
+            Marks read = Marks.Empty.WithInk(ink) with { Notes = notes, Highlights = highlights, Fingering = fingering };
+            return notes.Select(static note => note.Id).Concat(highlights.Select(static highlight => highlight.Id)).Distinct(StringComparer.Ordinal).Count() == notes.Count + highlights.Count
+                && fingering.Select(static finger => finger.NoteId).Distinct(StringComparer.Ordinal).Count() == fingering.Count
+                ? read
+                : throw Damaged("marks");
+        }
+        catch (ArgumentException)
+        {
+            throw Damaged("marks");
+        }
+    }
+
+    private static (IReadOnlyList<BookmarkCategory> Categories, IReadOnlyList<Bookmark> Bookmarks) ReadBookmarks(JsonElement bookmarks)
+    {
+        List<BookmarkCategory> categories = [];
+        foreach (JsonElement category in Property(bookmarks, "categories", JsonValueKind.Array).EnumerateArray())
+        {
+            Expect(category, JsonValueKind.Object, "bookmark categories");
+            try
+            {
+                categories.Add(new BookmarkCategory(Text(category, "id"), category.TryGetProperty("name", out _) ? Text(category, "name") : null, Name<InkColour>(category, "ink")));
+            }
+            catch (ArgumentException)
+            {
+                throw Damaged("bookmark categories");
+            }
+        }
+
+        // The four built-in categories are always there, under their own name when the file does not name them.
+        for (int i = 0; i < BookmarkCategory.BuiltIn.Count; i++)
+        {
+            BookmarkCategory builtIn = BookmarkCategory.BuiltIn[i];
+            if (categories.All(category => category.Id != builtIn.Id))
+            {
+                categories.Insert(Math.Min(i, categories.Count), builtIn);
+            }
+        }
+
+        if (categories.Select(static category => category.Id).Distinct(StringComparer.Ordinal).Count() != categories.Count)
+        {
+            throw Damaged("bookmark categories");
+        }
+
+        List<Bookmark> items = [];
+        foreach (JsonElement bookmark in Property(bookmarks, "items", JsonValueKind.Array).EnumerateArray())
+        {
+            Expect(bookmark, JsonValueKind.Object, "bookmarks");
+            try
+            {
+                items.Add(new Bookmark(Text(bookmark, "id"), Text(bookmark, "title"), Text(bookmark, "category"), ReadSpan(bookmark, "bookmark"), Boolean(bookmark, "fromPhrase"), Time(bookmark, "createdAt")));
+            }
+            catch (ArgumentException)
+            {
+                throw Damaged("bookmarks");
+            }
+        }
+
+        return items.Select(static bookmark => bookmark.Id).Distinct(StringComparer.Ordinal).Count() == items.Count
+            && items.All(bookmark => categories.Any(category => category.Id == bookmark.CategoryId))
+            ? (categories, items)
+            : throw Damaged("bookmarks");
+    }
+
+    private static ResumePoint ReadResumePoint(JsonElement point)
+    {
+        Expect(point, JsonValueKind.Object, "resume points");
+        SavedPassage? passage = null;
+        if (point.TryGetProperty("passage", out _))
+        {
+            (TickSpan span, SelectionFilter filter) = ReadRange(Property(point, "passage", JsonValueKind.Object), "resume point passage");
+            passage = new SavedPassage(span, filter);
+        }
+
+        long at = Long(point, "at");
+        List<Overlay> overlays = Property(point, "overlays", JsonValueKind.Array)
+            .EnumerateArray()
+            .Select(overlay => overlay.ValueKind == JsonValueKind.String && TryName(overlay.GetString(), out Overlay value) ? value : throw Damaged("resume point overlays"))
+            .ToList();
+        try
+        {
+            return new ResumePoint(
+                Text(point, "id"),
+                point.TryGetProperty("name", out _) ? Text(point, "name") : null,
+                at >= 0 ? new Tick(at) : throw Damaged("resume point"),
+                passage,
+                Boolean(point, "focused"),
+                overlays,
+                Integer(point, "tempoPercent"),
+                point.TryGetProperty("hands", out _) ? Name<Hand>(point, "hands") : null,
+                Boolean(point, "loop"),
+                Time(point, "createdAt"),
+                Time(point, "lastActive"));
+        }
+        catch (ArgumentException)
+        {
+            throw Damaged("resume point");
+        }
+    }
+
+    /// <summary>A session of versions 8 to 11 as a resume point: its task is the name, its passage the place, "s_0001" becomes "r_0001".</summary>
+    private static ResumePoint ReadSessionAsResumePoint(JsonElement session)
+    {
+        Expect(session, JsonValueKind.Object, "sessions");
+        SavedPassage? passage = null;
+        if (session.TryGetProperty("passage", out _))
+        {
+            (TickSpan span, SelectionFilter filter) = ReadRange(Property(session, "passage", JsonValueKind.Object), "session passage");
+            passage = new SavedPassage(span, filter);
+        }
+
+        string id = Text(session, "id");
+        string? task = session.TryGetProperty("task", out _) ? Text(session, "task") : null;
+        try
+        {
+            return ResumePoint.Start(id.StartsWith("s_", StringComparison.Ordinal) ? "r_" + id[2..] : id, Time(session, "startedAt"), task)
+                .Touch(passage, Time(session, "lastActive"));
+        }
+        catch (ArgumentException)
+        {
+            throw Damaged("session");
+        }
+    }
+
+    private static IReadOnlyList<CheckFlag>? ReadCheck(JsonElement root)
+    {
+        if (!root.TryGetProperty("check", out JsonElement check) || check.ValueKind is not (JsonValueKind.Null or JsonValueKind.Array))
+        {
+            throw Damaged("check");
+        }
+
+        if (check.ValueKind == JsonValueKind.Null)
+        {
+            return null;
+        }
+
+        List<CheckFlag> flags = [];
+        foreach (JsonElement flag in check.EnumerateArray())
+        {
+            Expect(flag, JsonValueKind.Object, "check");
+            int bar = Integer(flag, "bar");
+            flags.Add(bar >= 0 ? new CheckFlag(bar, Name<CheckSource>(flag, "source"), Name<CheckReason>(flag, "reason"), Boolean(flag, "resolved")) : throw Damaged("check"));
+        }
+
+        return flags;
+    }
+
+    private static IReadOnlyDictionary<string, string> ReadSettings(JsonElement settings)
+    {
+        var overrides = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (JsonProperty property in settings.EnumerateObject())
+        {
+            Setting setting = SettingsCatalogue.Find(property.Name) ?? throw Damaged("settings");
+            string value = property.Value.ValueKind == JsonValueKind.String ? property.Value.GetString()! : throw Damaged("settings");
+            if (setting.Scope != SettingScope.Piece || !setting.Allows(value))
+            {
+                throw Damaged("settings");
+            }
+
+            overrides[property.Name] = value;
+        }
+
+        return overrides;
+    }
+
+    private static void WriteSpan(Utf8JsonWriter json, TickSpan span)
+    {
+        json.WriteNumber("onset", span.Onset.Value);
+        json.WriteNumber("duration", span.Duration);
+    }
+
+    private static TickSpan ReadSpan(JsonElement parent, string what)
+    {
+        long onset = Long(parent, "onset");
+        long duration = Long(parent, "duration");
+        return onset >= 0 && duration > 0 ? new TickSpan(new Tick(onset), duration) : throw Damaged($"{what} range");
     }
 
     private static SavedMotif ReadMotif(JsonElement motif)
@@ -529,36 +980,14 @@ public static class ProjectFile
             .Order()
             .ToList();
 
-    private static Session ReadSession(JsonElement session)
-    {
-        Expect(session, JsonValueKind.Object, "sessions");
-        SavedPassage? passage = null;
-        if (session.TryGetProperty("passage", out _))
-        {
-            (TickSpan span, SelectionFilter filter) = ReadRange(Property(session, "passage", JsonValueKind.Object), "session passage");
-            passage = new SavedPassage(span, filter);
-        }
-
-        string? task = session.TryGetProperty("task", out _) ? Text(session, "task") : null;
-        try
-        {
-            return Session.Start(Text(session, "id"), Name<SessionIntent>(session, "intent"), task, Time(session, "startedAt"))
-                .Touch(passage, Time(session, "lastActive"));
-        }
-        catch (ArgumentException)
-        {
-            throw Damaged("session");
-        }
-    }
-
     private static void WriteObservation(Utf8JsonWriter json, Observation observation)
     {
         json.WriteStartObject();
         json.WriteString("id", observation.Id);
         json.WriteString("name", observation.Name);
-        if (observation.SessionId is { } sessionId)
+        if (observation.FactId is { } factId)
         {
-            json.WriteString("sessionId", sessionId);
+            json.WriteString("factId", factId);
         }
 
         if (observation.Note is { } note)
@@ -598,7 +1027,7 @@ public static class ProjectFile
         json.WriteEndObject();
     }
 
-    private static Observation ReadObservation(JsonElement observation)
+    private static Observation ReadObservation(JsonElement observation, int version)
     {
         Expect(observation, JsonValueKind.Object, "observations");
         (TickSpan phrase, SelectionFilter phraseFilter) = ReadRange(Property(observation, "phrase", JsonValueKind.Object), "observation phrase");
@@ -615,10 +1044,11 @@ public static class ProjectFile
         string id = Text(observation, "id");
         string name = Text(observation, "name");
         DateTimeOffset createdAt = Time(observation, "createdAt");
-        string? sessionId = observation.TryGetProperty("sessionId", out _) ? Text(observation, "sessionId") : null;
+        // Before version 12 an observation named the session it was kept in; sessions are gone, so the name is dropped.
+        string? factId = version >= 12 && observation.TryGetProperty("factId", out _) ? Text(observation, "factId") : null;
         try
         {
-            return Observation.Create(id, new SavedPassage(phrase, phraseFilter), variation, name, note, createdAt, experiment) with { SessionId = sessionId };
+            return Observation.Create(id, new SavedPassage(phrase, phraseFilter), variation, name, note, createdAt, experiment) with { FactId = factId };
         }
         catch (ArgumentException)
         {
@@ -872,6 +1302,24 @@ public static class ProjectFile
 
     private static int Integer(JsonElement parent, string name) =>
         Property(parent, name, JsonValueKind.Number).TryGetInt32(out int value) ? value : throw Damaged(name);
+
+    private static double Number(JsonElement parent, string name) =>
+        Property(parent, name, JsonValueKind.Number).TryGetDouble(out double value) && double.IsFinite(value) ? value : throw Damaged(name);
+
+    /// <summary>An enum in lower camel case, as the pencil layer writes a stroke's tool and colour.</summary>
+    private static string Lower<T>(T value)
+        where T : struct, Enum
+    {
+        string name = value.ToString();
+        return char.ToLowerInvariant(name[0]) + name[1..];
+    }
+
+    private static T LowerName<T>(JsonElement parent, string name)
+        where T : struct, Enum
+    {
+        string text = Text(parent, name);
+        return Enum.GetNames<T>().FirstOrDefault(known => string.Equals(known, text, StringComparison.OrdinalIgnoreCase)) is { } match ? Enum.Parse<T>(match) : throw Damaged(name);
+    }
 
     private static long Long(JsonElement parent, string name) =>
         Property(parent, name, JsonValueKind.Number).TryGetInt64(out long value) ? value : throw Damaged(name);

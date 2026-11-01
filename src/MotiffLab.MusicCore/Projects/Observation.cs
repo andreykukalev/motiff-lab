@@ -76,9 +76,9 @@ public sealed record KeptVariation(
 /// </summary>
 /// <remarks>
 /// The phrase is saved as its span and filter rather than its place in the list of phrases, so it
-/// stays put when the player moves phrase boundaries. The note is the player's own text: it stays
-/// on the device with the project and never goes into analytics. Times are passed in, never read
-/// from a clock.
+/// stays put when the player moves phrase boundaries or changes the phrase level. The note is the
+/// player's own text: it stays on the device with the project and never goes into analytics. Times are
+/// passed in, never read from a clock. Any number of ideas can be kept about one phrase (0018).
 /// </remarks>
 /// <param name="Id">Stable for the life of the project, for example "o_0001".</param>
 /// <param name="Phrase">The phrase the player was working on.</param>
@@ -97,8 +97,42 @@ public sealed record Observation(
     string? Note,
     DateTimeOffset CreatedAt)
 {
-    /// <summary>The session the player kept it in (0012), or null when kept outside one or the session has ended.</summary>
-    public string? SessionId { get; init; }
+    /// <summary>
+    /// The fact the idea was born from (0018, section 7): the id of the fact whose Try chip or experiment
+    /// made the variation, as <see cref="Analysis.MotifFact.Id"/> names it, or null for an idea made by hand
+    /// or a note alone. Fact ids are stable for the same passage, so the Insights stream can list the idea
+    /// under its fact again.
+    /// </summary>
+    public string? FactId { get; init; }
+
+    /// <summary>
+    /// The phrase the idea belongs to among <paramref name="phrases"/>, the phrases of one level (0018,
+    /// section 3; preparation item 4): the one its passage starts in; failing that, the one it overlaps
+    /// most; null when it overlaps none. So after the level changes an idea shows under the phrase that
+    /// contains its beginning, a merge keeps it and a split leaves it on the first part.
+    /// </summary>
+    public TickSpan? Home(IEnumerable<TickSpan> phrases)
+    {
+        ArgumentNullException.ThrowIfNull(phrases);
+        TickSpan? best = null;
+        long bestOverlap = 0;
+        foreach (TickSpan phrase in phrases)
+        {
+            if (phrase.Contains(Phrase.Span.Onset))
+            {
+                return phrase;
+            }
+
+            long overlap = Math.Min(phrase.End.Value, Phrase.Span.End.Value) - Math.Max(phrase.Onset.Value, Phrase.Span.Onset.Value);
+            if (overlap > bestOverlap)
+            {
+                best = phrase;
+                bestOverlap = overlap;
+            }
+        }
+
+        return best;
+    }
 
     /// <summary>
     /// An observation from what the player kept. The name and note are trimmed, and a blank note

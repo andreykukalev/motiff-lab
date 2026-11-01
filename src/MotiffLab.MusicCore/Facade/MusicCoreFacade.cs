@@ -18,10 +18,13 @@ namespace MotiffLab.MusicCore.Facade;
 public sealed class MusicCoreFacade
 {
     /// <summary>
-    /// 1 is the first contract: open and save, piece, phrases with their edits, select, understand,
+    /// 2 moves to project file version 12 (0018): the project answer counts resume points, ideas, marks, bookmarks and
+    /// open Check flags in place of sessions and observations, and the calls for marks, bookmarks, resume points, ideas,
+    /// settings and Check join.
+    /// 1 was the first contract: open and save, piece, phrases with their edits, select, understand,
     /// experiments, the variation chain, notation, playback, the catalogue and the Piece DNA placeholder.
     /// </summary>
-    public const int Contract = 1;
+    public const int Contract = 2;
 
     private readonly Dictionary<int, OpenPiece> _pieces = [];
     private int _next = 1;
@@ -68,7 +71,7 @@ public sealed class MusicCoreFacade
         }
     }
 
-    /// <summary>Runs one call on an open piece; piece 0 is for the stateless calls (version, catalogue).</summary>
+    /// <summary>Runs one call on an open piece; piece 0 is for the stateless calls (version, catalogue, settings, settings.state).</summary>
     public string Call(int piece, string name, string? request = null)
     {
         ArgumentNullException.ThrowIfNull(name);
@@ -81,6 +84,8 @@ public sealed class MusicCoreFacade
                 {
                     "version" => Version(),
                     "catalogue" => Answer.Write(json => Answer.Catalogue(json, Words.For(fields.Text("language")))),
+                    "settings" => Answer.Write(json => Answer.SettingsCatalogue(json)),
+                    "settings.state" => OpenPiece.SettingsState(fields),
                     _ when _pieces.Count == 0 && IsPieceCall(name) => throw new FacadeException("noPiece", "Open a piece first."),
                     _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\" without a piece."),
                 };
@@ -109,7 +114,9 @@ public sealed class MusicCoreFacade
         json.WriteString("runtime", Runtime);
     });
 
-    private static bool IsPieceCall(string name) => name is "piece" or "phrases" or "select" or "understand" or "experiments" or "notation" or "playback" or "dna" || name.Contains('.');
+    private static bool IsPieceCall(string name) =>
+        name is "piece" or "phrases" or "select" or "understand" or "experiments" or "notation" or "playback" or "dna" or "marks" or "bookmarks" or "resume" or "ideas" or "check"
+        || (name.Contains('.') && !name.StartsWith("settings.", StringComparison.Ordinal));
 
     /// <summary>A project file by its extension, or by its first bytes: a JSON object naming the format.</summary>
     private static bool IsProjectFile(string fileName, byte[] data)

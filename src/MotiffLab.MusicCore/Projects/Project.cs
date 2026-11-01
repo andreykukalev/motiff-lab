@@ -4,6 +4,7 @@ using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Scan;
 using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Motifs;
+using MotiffLab.MusicCore.Settings;
 using MotiffLab.MusicCore.Time;
 using MotiffLab.MusicCore.Variations;
 
@@ -19,8 +20,10 @@ namespace MotiffLab.MusicCore.Projects;
 /// ids, and a variation's operation, parameters and Keep choices. Corrections of imported notes are
 /// stored as the edit log (S1-I7), applied to the notes on every open. Timing layers join the format with
 /// rhythm restoration (#27). Times are passed in, never read from a clock, so building a project is pure.
-/// What the player kept about a phrase is stored as observations (#78), each variation as its steps,
-/// and the sessions the player worked in (0012) as the task, intent and passage of each.
+/// What the player kept about a phrase is stored as observations (#78), each variation as its steps.
+/// Version 12 (0018) adds what the redesign keeps with the piece: the marks, the bookmarks and their
+/// categories, the resume points that replace the sessions of 0012, the Check flags and the piece's
+/// settings overrides.
 /// </remarks>
 /// <param name="Id">Stable for the life of the project, for example "p_3f9c…".</param>
 /// <param name="Source">The imported file's bytes, exactly as picked.</param>
@@ -50,58 +53,243 @@ public sealed record Project(
         new(id, fileName, source, now, now, [], []);
 
     /// <summary>The row on the projects screen (N1).</summary>
-    public ProjectSummary Summary => new(Id, FileName, Motifs.Count, Variations.Count, LastOpened, Sessions.Count, Observations.Count);
+    public ProjectSummary Summary => new(Id, FileName, Motifs.Count, Variations.Count, LastOpened, ResumePoints.Count, Observations.Count);
 
-    /// <summary>The player's work sessions on the piece (0012), in the order they were started.</summary>
-    public IReadOnlyList<Session> Sessions { get; init; } = [];
+    /// <summary>The marks the player made on the piece (0018, section 5): ink, margin notes, highlights and fingering.</summary>
+    public Marks Marks { get; init; } = Marks.Empty;
 
-    /// <summary>The sessions most recently active first.</summary>
-    public IReadOnlyList<Session> RecentSessions => [.. Sessions.OrderByDescending(session => session.LastActive).ThenByDescending(session => session.StartedAt)];
-
-    /// <summary>The session with the id, or null.</summary>
-    public Session? FindSession(string id) => Sessions.FirstOrDefault(session => session.Id == id);
-
-    /// <summary>The project with the session started after the others.</summary>
-    /// <exception cref="ArgumentException">A session with the same id is already there.</exception>
-    public Project StartSession(Session session)
-    {
-        ArgumentNullException.ThrowIfNull(session);
-        return Sessions.Any(started => started.Id == session.Id)
-            ? throw new ArgumentException($"The project already has a session {session.Id}.", nameof(session))
-            : this with { Sessions = [.. Sessions, session] };
-    }
-
-    /// <summary>The project with one session changed by <paramref name="change"/>; the others stay as they are.</summary>
-    /// <exception cref="KeyNotFoundException">No session has the id.</exception>
-    public Project ChangeSession(string id, Func<Session, Session> change)
+    /// <summary>The project with its marks changed by <paramref name="change"/>.</summary>
+    public Project ChangeMarks(Func<Marks, Marks> change)
     {
         ArgumentNullException.ThrowIfNull(change);
-        Session changed = change(FindSession(id) ?? throw new KeyNotFoundException($"The project has no session {id}."));
-        return this with { Sessions = [.. Sessions.Select(session => session.Id == id ? changed : session)] };
+        return this with { Marks = change(Marks) };
+    }
+
+    /// <summary>The bookmark categories (0018, section 5): the four built-in ones, as named here, then the player's own.</summary>
+    public IReadOnlyList<BookmarkCategory> Categories { get; init; } = BookmarkCategory.BuiltIn;
+
+    /// <summary>The player's bookmarks, in the player's order; <see cref="BookmarksInScoreOrder"/> sorts them by place.</summary>
+    public IReadOnlyList<Bookmark> Bookmarks { get; init; } = [];
+
+    public IReadOnlyList<Bookmark> BookmarksInScoreOrder => [.. Bookmarks.OrderBy(bookmark => bookmark.Span.Onset).ThenBy(bookmark => bookmark.Span.End)];
+
+    public BookmarkCategory? FindCategory(string id) => Categories.FirstOrDefault(category => category.Id == id);
+
+    public Bookmark? FindBookmark(string id) => Bookmarks.FirstOrDefault(bookmark => bookmark.Id == id);
+
+    /// <summary>The project with the bookmark at the end of the player's order.</summary>
+    /// <exception cref="ArgumentException">A bookmark with the same id is already there, or its category is not.</exception>
+    public Project AddBookmark(Bookmark bookmark)
+    {
+        ArgumentNullException.ThrowIfNull(bookmark);
+        if (Bookmarks.Any(kept => kept.Id == bookmark.Id))
+        {
+            throw new ArgumentException($"There is already a bookmark {bookmark.Id}.", nameof(bookmark));
+        }
+
+        return FindCategory(bookmark.CategoryId) is null
+            ? throw new ArgumentException($"There is no bookmark category {bookmark.CategoryId}.", nameof(bookmark))
+            : this with { Bookmarks = [.. Bookmarks, bookmark] };
+    }
+
+    /// <summary>The project with one bookmark changed by <paramref name="change"/>, keeping its id and place in the order.</summary>
+    /// <exception cref="KeyNotFoundException">No bookmark has the id.</exception>
+    /// <exception cref="ArgumentException">The change moved it to a category that is not there, or changed its id.</exception>
+    public Project ChangeBookmark(string id, Func<Bookmark, Bookmark> change)
+    {
+        ArgumentNullException.ThrowIfNull(change);
+        Bookmark changed = change(FindBookmark(id) ?? throw new KeyNotFoundException($"There is no bookmark {id}."));
+        if (changed.Id != id)
+        {
+            throw new ArgumentException("A bookmark keeps its id.", nameof(change));
+        }
+
+        return FindCategory(changed.CategoryId) is null
+            ? throw new ArgumentException($"There is no bookmark category {changed.CategoryId}.", nameof(change))
+            : this with { Bookmarks = [.. Bookmarks.Select(bookmark => bookmark.Id == id ? changed : bookmark)] };
+    }
+
+    /// <summary>The project with the bookmark moved to <paramref name="index"/> in the player's order.</summary>
+    /// <exception cref="KeyNotFoundException">No bookmark has the id.</exception>
+    public Project MoveBookmark(string id, int index)
+    {
+        Bookmark moved = FindBookmark(id) ?? throw new KeyNotFoundException($"There is no bookmark {id}.");
+        ArgumentOutOfRangeException.ThrowIfNegative(index);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, Bookmarks.Count);
+        var order = Bookmarks.Where(bookmark => bookmark.Id != id).ToList();
+        order.Insert(index, moved);
+        return this with { Bookmarks = order };
+    }
+
+    /// <exception cref="KeyNotFoundException">No bookmark has the id.</exception>
+    public Project RemoveBookmark(string id)
+    {
+        _ = FindBookmark(id) ?? throw new KeyNotFoundException($"There is no bookmark {id}.");
+        return this with { Bookmarks = [.. Bookmarks.Where(bookmark => bookmark.Id != id)] };
     }
 
     /// <summary>
-    /// The project without the session. What was kept during it stays, as ideas of the project, no
-    /// longer marked with the session.
+    /// The project with its bookmarks where they belong after the phrases changed (<see cref="Bookmark.Follow"/>):
+    /// called with the phrases of the level a bookmark was made from, after a merge or a split.
     /// </summary>
-    /// <exception cref="KeyNotFoundException">No session has the id.</exception>
-    public Project EndSession(string id)
+    public Project FollowPhrases(IEnumerable<TickSpan> phrases)
     {
-        _ = FindSession(id) ?? throw new KeyNotFoundException($"The project has no session {id}.");
+        TickSpan[] spans = [.. phrases ?? throw new ArgumentNullException(nameof(phrases))];
+        return this with { Bookmarks = [.. Bookmarks.Select(bookmark => bookmark.Follow(spans))] };
+    }
+
+    /// <summary>The project with a category of the player's own after the others.</summary>
+    /// <exception cref="ArgumentException">A category with the same id is already there.</exception>
+    public Project AddCategory(BookmarkCategory category)
+    {
+        ArgumentNullException.ThrowIfNull(category);
+        return FindCategory(category.Id) is not null
+            ? throw new ArgumentException($"There is already a category {category.Id}.", nameof(category))
+            : this with { Categories = [.. Categories, category] };
+    }
+
+    /// <summary>The project with the category renamed; blank gives a built-in one its own name back.</summary>
+    /// <exception cref="KeyNotFoundException">No category has the id.</exception>
+    public Project RenameCategory(string id, string? name)
+    {
+        BookmarkCategory renamed = (FindCategory(id) ?? throw new KeyNotFoundException($"There is no category {id}.")).Rename(name);
+        return this with { Categories = [.. Categories.Select(category => category.Id == id ? renamed : category)] };
+    }
+
+    /// <summary>
+    /// The project without a category of the player's own; its bookmarks move to Practise. The built-in
+    /// categories stay.
+    /// </summary>
+    /// <exception cref="KeyNotFoundException">No category has the id.</exception>
+    /// <exception cref="ArgumentException">The category is built in.</exception>
+    public Project RemoveCategory(string id)
+    {
+        BookmarkCategory category = FindCategory(id) ?? throw new KeyNotFoundException($"There is no category {id}.");
+        if (category.IsBuiltIn)
+        {
+            throw new ArgumentException("The four built-in categories stay.", nameof(id));
+        }
+
         return this with
         {
-            Sessions = [.. Sessions.Where(session => session.Id != id)],
-            Observations = [.. Observations.Select(kept => kept.SessionId == id ? kept with { SessionId = null } : kept)],
+            Categories = [.. Categories.Where(kept => kept.Id != id)],
+            Bookmarks = [.. Bookmarks.Select(bookmark => bookmark.CategoryId == id ? bookmark with { CategoryId = BookmarkCategory.PractiseId } : bookmark)],
         };
     }
 
-    /// <summary>"s_0004": one more than the highest session number, so ids stay stable for the life of the project.</summary>
-    public string NextSessionId() => NextId("s_", Sessions.Select(session => session.Id));
+    /// <summary>"b_0004": one more than the highest bookmark number.</summary>
+    public string NextBookmarkId() => NextId("b_", Bookmarks.Select(bookmark => bookmark.Id));
+
+    /// <summary>"c_0004": one more than the highest number among the player's own categories.</summary>
+    public string NextCategoryId() => NextId("c_", Categories.Select(category => category.Id));
+
+    /// <summary>Where the player left off (0018, section 9), in the order the points were made.</summary>
+    public IReadOnlyList<ResumePoint> ResumePoints { get; init; } = [];
+
+    /// <summary>The resume points most recently active first; Resume opens the first.</summary>
+    public IReadOnlyList<ResumePoint> RecentResumePoints => [.. ResumePoints.OrderByDescending(point => point.LastActive).ThenByDescending(point => point.CreatedAt)];
+
+    public ResumePoint? FindResumePoint(string id) => ResumePoints.FirstOrDefault(point => point.Id == id);
+
+    /// <summary>The project with the resume point added after the others.</summary>
+    /// <exception cref="ArgumentException">A resume point with the same id is already there.</exception>
+    public Project AddResumePoint(ResumePoint point)
+    {
+        ArgumentNullException.ThrowIfNull(point);
+        return ResumePoints.Any(kept => kept.Id == point.Id)
+            ? throw new ArgumentException($"The project already has a resume point {point.Id}.", nameof(point))
+            : this with { ResumePoints = [.. ResumePoints, point] };
+    }
+
+    /// <summary>The project with one resume point changed by <paramref name="change"/>; the others stay as they are.</summary>
+    /// <exception cref="KeyNotFoundException">No resume point has the id.</exception>
+    public Project ChangeResumePoint(string id, Func<ResumePoint, ResumePoint> change)
+    {
+        ArgumentNullException.ThrowIfNull(change);
+        ResumePoint changed = change(FindResumePoint(id) ?? throw new KeyNotFoundException($"The project has no resume point {id}."));
+        return this with { ResumePoints = [.. ResumePoints.Select(point => point.Id == id ? changed : point)] };
+    }
+
+    /// <exception cref="KeyNotFoundException">No resume point has the id.</exception>
+    public Project RemoveResumePoint(string id)
+    {
+        _ = FindResumePoint(id) ?? throw new KeyNotFoundException($"The project has no resume point {id}.");
+        return this with { ResumePoints = [.. ResumePoints.Where(point => point.Id != id)] };
+    }
+
+    /// <summary>"r_0004": one more than the highest resume point number, so ids stay stable for the life of the project.</summary>
+    public string NextResumePointId() => NextId("r_", ResumePoints.Select(point => point.Id));
 
     /// <summary>"o_0004": one more than the highest observation number.</summary>
     public string NextObservationId() => NextId("o_", Observations.Select(observation => observation.Id));
 
-    private static string NextId(string prefix, IEnumerable<string> ids)
+    /// <summary>
+    /// The Check flags (0018, section 9): the doubtful bars of a scan or a transcription, with whether the player
+    /// resolved each. Empty for a file the player imported. Null only for a project read from a file before
+    /// version 12, until it is opened: <see cref="OpenedProject.Open"/> works the flags out from the piece then.
+    /// </summary>
+    public IReadOnlyList<CheckFlag>? Check { get; init; } = [];
+
+    /// <summary>The flags the player has not resolved, in bar order.</summary>
+    public IReadOnlyList<CheckFlag> OpenChecks => [.. (Check ?? []).Where(flag => !flag.Resolved).OrderBy(flag => flag.Bar)];
+
+    /// <summary>
+    /// The project with every flag on the bar resolved, or open again. For a scan the bar is confirmed with
+    /// it (<see cref="ScanOrigin.ConfirmedBars"/>), so its notes read as confirmed by the player.
+    /// </summary>
+    public Project ResolveCheck(int bar, bool resolved = true)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(bar);
+        if (!(Check ?? []).Any(flag => flag.Bar == bar))
+        {
+            throw new KeyNotFoundException($"Check has nothing about bar {bar}.");
+        }
+
+        return this with
+        {
+            Check = [.. (Check ?? []).Select(flag => flag.Bar == bar ? flag with { Resolved = resolved } : flag)],
+            Scan = Scan is { } scan ? resolved ? scan.Confirm([bar]) : scan.Unconfirm(bar) : null,
+        };
+    }
+
+    /// <summary>
+    /// The piece's overrides of the settings (0018, section 10): only settings of <see cref="SettingScope.Piece"/>
+    /// scope, by id, each with a value the setting allows. They travel with the project.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> SettingOverrides { get; init; } = s_noSettings;
+
+    private static readonly IReadOnlyDictionary<string, string> s_noSettings = new Dictionary<string, string>(StringComparer.Ordinal);
+
+    /// <summary>The project with the setting overridden for this piece; null clears the override.</summary>
+    /// <exception cref="KeyNotFoundException">No setting has the id.</exception>
+    /// <exception cref="ArgumentException">The setting cannot be overridden for a piece, or does not allow the value.</exception>
+    public Project OverrideSetting(string id, string? value)
+    {
+        Setting setting = SettingsCatalogue.Get(id);
+        if (setting.Scope != SettingScope.Piece)
+        {
+            throw new ArgumentException($"\"{id}\" is the same for every piece.", nameof(id));
+        }
+
+        if (value is not null && !setting.Allows(value))
+        {
+            throw new ArgumentException($"\"{id}\" cannot be \"{value}\"; it is one of {string.Join(", ", setting.Choices)}.", nameof(value));
+        }
+
+        var overrides = new Dictionary<string, string>(SettingOverrides, StringComparer.Ordinal);
+        if (value is null)
+        {
+            overrides.Remove(id);
+        }
+        else
+        {
+            overrides[id] = value;
+        }
+
+        return this with { SettingOverrides = overrides };
+    }
+
+    internal static string NextId(string prefix, IEnumerable<string> ids)
     {
         int highest = ids
             .Select(id => id.StartsWith(prefix, StringComparison.Ordinal) && int.TryParse(id.AsSpan(prefix.Length), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int number) ? number : 0)
@@ -110,7 +298,7 @@ public sealed record Project(
         return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{prefix}{highest + 1:0000}");
     }
 
-    /// <summary>What the player kept about the piece's phrases (#78), in the order it was kept.</summary>
+    /// <summary>What the player kept about the piece's phrases (#78), the ideas, in the order it was kept.</summary>
     public IReadOnlyList<Observation> Observations { get; init; } = [];
 
     /// <summary>The observations about the phrase, in the order they were kept (<see cref="Observation.IsAbout"/>).</summary>
@@ -156,8 +344,8 @@ public sealed record Project(
         Observations.FirstOrDefault(observation => observation.Id == id) ?? throw new KeyNotFoundException($"The project keeps no observation {id}.");
 }
 
-/// <summary>A project's row on the projects screen (N1): the piece, its sessions and ideas, and when it was last opened.</summary>
-public sealed record ProjectSummary(string Id, string FileName, int MotifCount, int VariationCount, DateTimeOffset LastOpened, int SessionCount = 0, int IdeaCount = 0);
+/// <summary>A project's row on the projects screen (N1): the piece, its resume points and ideas, and when it was last opened.</summary>
+public sealed record ProjectSummary(string Id, string FileName, int MotifCount, int VariationCount, DateTimeOffset LastOpened, int ResumeCount = 0, int IdeaCount = 0);
 
 /// <summary>A motif as saved: what the player picked, from which the motif is rebuilt on open.</summary>
 /// <param name="NoteIds">The selected notes, checked against the source when the project opens.</param>
@@ -209,6 +397,7 @@ public sealed record SavedVariation(
 }
 
 /// <summary>A project opened for work: the source imported again, the edit log applied, and its motifs and variations rebuilt.</summary>
+/// <param name="Project">The project, with its Check flags worked out when the file it came from had none (before version 12).</param>
 /// <param name="Notes">The piece's notes with the project's corrections applied; <see cref="ImportedPiece.Notes"/> stays as imported.</param>
 public sealed record OpenedProject(
     Project Project,
@@ -312,6 +501,12 @@ public sealed record OpenedProject(
         foreach (Observation observation in project.Observations)
         {
             observations.Add((observation, observation.Restore(notes, piece.Meter)));
+        }
+
+        if (project.Check is null)
+        {
+            // A file from before version 12: the Check flags are worked out from the piece, resolved where the player confirmed the bar.
+            project = project with { Check = project.Scan is { } scanned ? CheckFlag.FromScan(ScanCheck.Of(piece), scanned.ConfirmedBars) : [] };
         }
 
         return new OpenedProject(project, piece, notes, motifs, variations) { Observations = observations };

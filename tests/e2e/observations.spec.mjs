@@ -133,7 +133,7 @@ test("what is kept is saved with the project and comes back when it is opened ag
     await expect(kept.getByRole("listitem")).toContainText("Your note: Airier.");
     await page.locator(".transport-bar").getByRole("button", { name: "Pause" }).click();
 
-    // The project page lists the idea in its library (0012), and continuing the session comes back to the phrase.
+    // The project page lists the idea in its library (0012), and continuing from the resume point comes back to the phrase.
     await page.goto("/");
     await page.getByRole("link", { name: "importer-grand-staff.musicxml" }).click();
     const idea = page.locator(".idea-card").filter({ hasText: "Give the melody more space: Detached" });

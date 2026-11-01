@@ -1,8 +1,9 @@
 namespace MotiffLab.Web.Score;
 
 /// <summary>
-/// Where the player's pencil marks on a score are kept on the device (decision record 0015): one set per piece,
-/// in <c>Scripts/storage/pencil-store.ts</c>. Marks are the player's own writing, never read as music.
+/// Which piece the pencil marks on a score belong to (decision record 0015). A project keeps its marks in its file
+/// (<see cref="MotiffLab.MusicCore.Projects.Marks"/>, project file v12); a piece open without one (Für Elise) keeps them
+/// on the device by its title, in <c>Scripts/storage/pencil-store.ts</c>. Marks are the player's own writing, never read as music.
 /// </summary>
 public static class PencilMarks
 {
