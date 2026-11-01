@@ -4,7 +4,12 @@ import SwiftUI
 struct CoreSpikeApp: App {
     var body: some Scene {
         WindowGroup {
-            BenchmarkView()
+            TabView {
+                BenchmarkView()
+                    .tabItem { Label("Engine", systemImage: "gauge.with.dots.needle.67percent") }
+                ScoreScreen()
+                    .tabItem { Label("Score", systemImage: "music.note.list") }
+            }
         }
     }
 }

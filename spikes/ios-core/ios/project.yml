@@ -1,6 +1,7 @@
 # The music-core spike app: a SwiftUI screen that runs music-core natively on the iPad
-# (NativeAOT, ../build-ios.sh) and shows how long each step takes. XcodeGen makes
-# CoreSpike.xcodeproj from this file (not committed): run ../build-ios.sh, then xcodegen here.
+# (NativeAOT, ../build-ios.sh), engraves its notation with Verovio (../build-verovio.sh) and shows how
+# long each step takes. XcodeGen makes CoreSpike.xcodeproj from this file (not committed): run
+# ../build-ios.sh and ../build-verovio.sh, then xcodegen here.
 name: CoreSpike
 options:
   deploymentTarget:
@@ -27,8 +28,15 @@ targets:
         buildPhase: resources
       - path: ../assets/large-5000-notes.mid
         buildPhase: resources
+      # Verovio's font data (../build-verovio.sh), copied into the app as a folder.
+      - path: ../build/verovio-data
+        type: folder
+        buildPhase: resources
     dependencies:
       - framework: ../build/MotiffLabCore.xcframework
+        embed: true
+        codeSign: true
+      - framework: ../build/Verovio.xcframework
         embed: true
         codeSign: true
     settings:

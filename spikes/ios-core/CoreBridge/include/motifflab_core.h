@@ -21,6 +21,9 @@ char *ml_benchmark(const char *file_name, const uint8_t *data, int32_t length, i
 // The suggested phrases of the file: number, first and last bar, onset and end in ticks.
 char *ml_phrases(const char *file_name, const uint8_t *data, int32_t length);
 
+// The notation of the whole piece as MEI for Verovio: {"notes": n, "ms": t, "mei": "<mei …>"}.
+char *ml_mei(const char *file_name, const uint8_t *data, int32_t length);
+
 // Frees a string returned by any function above.
 void ml_free(char *text);
 

@@ -20,6 +20,12 @@ enum MusicCore {
         }
     }
 
+    static func mei(fileName: String, data: Data) -> String {
+        call(fileName, data) { name, bytes, count in
+            ml_mei(name, bytes, count)
+        }
+    }
+
     /// Runs `work` on a thread with an 8 MB stack, as the .NET runtime expects, and hands the
     /// result back on the main actor.
     static func onCoreThread<T: Sendable>(_ work: @escaping @Sendable () -> T) async -> T {

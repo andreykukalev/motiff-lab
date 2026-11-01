@@ -23,6 +23,10 @@ public static unsafe class Exports
     public static byte* Phrases(byte* fileName, byte* data, int length) =>
         Guard(() => CoreBenchmark.Phrases(Text(fileName), Bytes(data, length)));
 
+    [UnmanagedCallersOnly(EntryPoint = "ml_mei")]
+    public static byte* Mei(byte* fileName, byte* data, int length) =>
+        Guard(() => CoreBenchmark.Mei(Text(fileName), Bytes(data, length)));
+
     [UnmanagedCallersOnly(EntryPoint = "ml_free")]
     public static void Free(byte* text) => NativeMemory.Free(text);
 

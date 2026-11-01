@@ -19,7 +19,7 @@ concurrency:
 jobs:
   ios:
     runs-on: macos-15
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
@@ -36,6 +36,20 @@ jobs:
       - name: Build MotiffLabCore.xcframework
         working-directory: spikes/ios-core
         run: ./build-ios.sh | tee build-ios.log
+
+      # Verovio takes several minutes to compile; its build only changes with the script.
+      - uses: actions/cache@v4
+        id: verovio
+        with:
+          path: |
+            spikes/ios-core/build/Verovio.xcframework
+            spikes/ios-core/build/verovio-data
+          key: verovio-ios-${{ hashFiles('spikes/ios-core/build-verovio.sh') }}
+
+      - name: Build Verovio.xcframework
+        if: steps.verovio.outputs.cache-hit != 'true'
+        working-directory: spikes/ios-core
+        run: ./build-verovio.sh | tee build-verovio.log
 
       - name: Generate the Xcode project
         working-directory: spikes/ios-core/ios
@@ -72,12 +86,17 @@ jobs:
             echo
             echo '```'
             grep -E '^ios|^iossim' build-ios.log || true
+            grep -E '^verovio' build-verovio.log 2>/dev/null || echo "verovio: from cache"
             echo "Device app (Release, unsigned): ${APP_SIZE:-not built}"
             echo '```'
             echo
             echo "### Benchmark in the simulator (20 runs; ms: first run / median)"
             echo
             python3 summary.py ios/test.log || echo "No benchmark output."
+            echo
+            echo "### Engraving with Verovio in the simulator (A4 pages, Leland)"
+            echo
+            python3 summary.py --engrave ios/test.log || echo "No engraving output."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v4

@@ -36,6 +36,31 @@ final class MusicCoreTests: XCTestCase {
         }
     }
 
+    func testEngravesFurEliseOnA4PagesInLeland() async throws {
+        let piece = SamplePiece.all[0]
+        let report = await MusicCore.onCoreThread { ScoreReport.engrave(piece) }
+        XCTAssertNil(report.error, report.error ?? "")
+        XCTAssertTrue(report.version.hasPrefix("6.3"), report.version)
+        XCTAssertGreaterThan(report.pages, 1)
+        XCTAssertTrue(report.svgPages[0].contains("<svg"))
+        XCTAssertTrue(report.svgPages[0].contains("viewBox=\"0 0 2100 2970\""), String(report.svgPages[0].prefix(400)))
+    }
+
+    func testEngravingTimes() async throws {
+        for piece in SamplePiece.all {
+            let report = await MusicCore.onCoreThread { ScoreReport.engrave(piece) }
+            XCTAssertNil(report.error, report.error ?? "")
+            let json: [String: Any] = [
+                "file": piece.file, "notes": report.notes, "pages": report.pages, "svgKB": report.svgBytes / 1024,
+                "meiMs": report.meiMs.rounded(), "layoutMs": report.layoutMs.rounded(),
+                "firstPageMs": report.firstPageMs.rounded(), "allPagesMs": report.allPagesMs.rounded(),
+                "timemapMs": report.timemapMs.rounded(), "verovio": report.version,
+            ]
+            let text = String(decoding: try JSONSerialization.data(withJSONObject: json, options: [.sortedKeys]), as: UTF8.self)
+            print("ENGRAVE-BEGIN\n\(text)\nENGRAVE-END")
+        }
+    }
+
     private func object(_ text: String) throws -> [String: Any] {
         try XCTUnwrap(JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any], text)
     }

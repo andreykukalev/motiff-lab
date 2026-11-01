@@ -35,20 +35,21 @@ Swift (SwiftUI)  ->  MotiffLabCore.xcframework  ->  C functions (include/motiffl
 
 ## Build and run on the iPad (Mac)
 
-You need Xcode 16 or later, XcodeGen (`brew install xcodegen`) and the .NET 10 SDK (https://dot.net, or `brew install --cask dotnet-sdk`).
+You need Xcode 16 or later, XcodeGen and CMake (`brew install xcodegen cmake`) and the .NET 10 SDK (https://dot.net, or `brew install --cask dotnet-sdk`). Terminal must use Xcode's tools: `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`.
 
 ```bash
 cd motiff-lab
 git fetch origin && git checkout claude/project-thread-f5sbg8
 cd spikes/ios-core
 ./build-ios.sh            # about 2-4 minutes the first time: NativeAOT for the iPad and the simulator
+./build-verovio.sh        # about 5-10 minutes, once: Verovio from source for the iPad and the simulator
 cd ios && xcodegen        # makes CoreSpike.xcodeproj
 open CoreSpike.xcodeproj
 ```
 
-Signing uses the team from the iPad app's `ios/Config/Local.xcconfig`; without it, choose your team under Signing & Capabilities. The spike installs as a separate "Core Spike" app (`com.andreykukalev.motifflab.corespike`) and never replaces Motiff Lab. Choose the iPad as the destination and Product > Run (the Run action builds Release). On the iPad: pick a piece, Run music-core, and read the table; "First call" is the time the .NET runtime takes to start.
+Signing uses the team from the iPad app's `ios/Config/Local.xcconfig`; without it, choose your team under Signing & Capabilities. The spike installs as a separate "Core Spike" app (`com.andreykukalev.motifflab.corespike`) and never replaces Motiff Lab. Choose the iPad as the destination and Product > Run (the Run action builds Release). On the iPad: pick a piece, Run music-core, and read the table; "First call" is the time the .NET runtime takes to start. The Score tab engraves the piece with Verovio on A4 pages in Leland and shows the pages with the time of each step.
 
-Product > Test (⌘U) runs `CoreSpikeTests` on the chosen device or simulator; the reports are printed in the test log between `BENCHMARK-BEGIN` and `BENCHMARK-END`.
+Product > Test (⌘U) runs `CoreSpikeTests` on the chosen device or simulator; the reports are printed in the test log between `BENCHMARK-BEGIN` and `BENCHMARK-END`, and the engraving times between `ENGRAVE-BEGIN` and `ENGRAVE-END`.
 
 ## Run it on Linux
 
@@ -60,8 +61,25 @@ clang -I spikes/ios-core/CoreBridge/include spikes/ios-core/native-check/main.c 
 dotnet publish spikes/ios-core/WebBench -c Release -o /tmp/web   # serve /tmp/web/wwwroot and open it
 ```
 
+## Verovio: the score on the iPad
+
+The web app engraves with Verovio 6.3.0 compiled to WebAssembly (decision record 0008). The iPad uses the same version, compiled from its unmodified source for iOS:
+
+- `build-verovio.sh` clones the `version-6.3.0` tag, builds it with CMake as a shared library (`BUILD_AS_LIBRARY`, no Humdrum, like the web build) for `iphoneos` and `iphonesimulator`, and packages `build/Verovio.xcframework`. Swift calls Verovio's own C functions (`tools/c_wrapper.h`, the ones its Python and Swift bindings use), so there is no wrapper code of ours in C++.
+- `build/verovio-data` holds the font data the app copies: Bravura and Leipzig (Verovio always loads them), Leland (the redesign's music font) and the text metrics, about 8 MB; Verovio's other fonts are left out.
+- The Score tab (`ios/CoreSpike/ScoreScreen.swift`, `Engraver.swift`) runs the score view's pipeline: music-core writes MEI (`ml_mei`), Verovio lays it out with the web app's A4 options (`Scripts/score/score-page.ts`) plus `"font": "Leland"`, and draws every page as SVG. The spike shows the SVG in a web view; the real app has to choose between that (simple, and the overlays could stay SVG) and drawing Verovio's paths natively, which is what the overlays on the score (phrase brackets, bookmarks, ink) would want.
+- Checked on Linux with the same library and C calls: Für Elise gives 3 A4 pages in Leland in about 45 ms of layout and 38 ms for the SVG of all pages; the 5000-note file gives 12 pages in 276 + 231 ms. The simulator numbers are in the workflow summary.
+
+### LGPL
+
+Verovio is LGPL-3.0-or-later. What the spike already does to meet section 4 (combined works), as the web app does: Verovio is unmodified, built from the tagged public source by a script in this repository, and shipped as its own dynamic framework that the app loads at run time; the licence texts (`COPYING`, `COPYING.LESSER`) go into the app with the font data. Still to do before an App Store release:
+
+- a credit and licence screen in the app (Verovio, version, licence, link to the source), as the web score view has;
+- the "Installation Information" LGPL v3 asks for on a consumer device: since this repository is public, the build scripts and a free Apple ID are enough for anyone to build and install the app with another Verovio build; the README of the release should say so;
+- a decision whether the App Store's own terms of use are compatible with that. Verovio's maintainers publish it for iOS themselves (`Package.swift`, `Verovio.podspec` in its repository), which suggests they expect App Store use, but it is a legal question: ask them, or a lawyer, before the first App Store release. TestFlight-free development builds signed by Andrei are not affected.
+
 ## Open questions for the real thing
 
 - The facade: which calls and which JSON (the project file v12 shapes plus facts, phrases, variations), and how Swift decodes it (`Codable`).
-- Verovio for the score: its own native framework (C++), LGPL terms.
-- App Store: the framework is a normal embedded dynamic framework; check the privacy manifest and the size of a release build.
+- Drawing the score: Verovio's SVG in a web view, or its paths drawn natively (see above).
+- App Store: both libraries are normal embedded dynamic frameworks; check the privacy manifest and the size of a release build.

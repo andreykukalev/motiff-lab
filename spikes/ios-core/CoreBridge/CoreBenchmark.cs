@@ -96,6 +96,26 @@ public static class CoreBenchmark
         });
     }
 
+    /// <summary>
+    /// The notation of the whole piece as MEI, the text the score view hands to Verovio, with the
+    /// time it took. The MEI is a JSON string so the result stays one JSON object.
+    /// </summary>
+    public static string Mei(string fileName, byte[] data)
+    {
+        var watch = Stopwatch.StartNew();
+        ImportedPiece piece = Import(fileName, data);
+        GeneratedNotation notation = piece.MusicXml is { } xml
+            ? NotationGenerator.FromMusicXml(xml, Path.GetFileNameWithoutExtension(fileName))
+            : NotationGenerator.FromMidi(piece.Midi!, Path.GetFileNameWithoutExtension(fileName));
+        double milliseconds = watch.Elapsed.TotalMilliseconds;
+        return Json(json =>
+        {
+            json.WriteNumber("notes", notation.NoteCount);
+            json.WriteNumber("ms", Math.Round(milliseconds, 2));
+            json.WriteString("mei", notation.Mei);
+        });
+    }
+
     public static string Error(Exception error) => Json(json =>
     {
         json.WriteString("error", error.GetType().Name);

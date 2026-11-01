@@ -7,7 +7,8 @@ set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 build="$here/build"
 name=MotiffLabCore
-rm -rf "$build"
+# Only this script's outputs: build-verovio.sh keeps its source and frameworks in build/ too.
+rm -rf "$build/publish" "$build/ios-arm64" "$build/iossimulator-arm64" "$build/$name.xcframework"
 mkdir -p "$build"
 
 framework() {
