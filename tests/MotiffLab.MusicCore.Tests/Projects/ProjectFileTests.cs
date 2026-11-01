@@ -22,7 +22,7 @@ public class ProjectFileTests
     private static SavedStep Step(RhythmReshapeKind kind, int eighths = 1) => new(RhythmReshape.OperationId, new RhythmReshapeParameters(kind, eighths));
 
     /// <summary>A grand-staff piece with a bar motif in the right hand, a picked-notes motif, and a variation of each.</summary>
-    private static Project Worked()
+    internal static Project Worked()
     {
         byte[] source = Fixture("MusicXml", "importer-grand-staff.musicxml");
         ImportedPiece piece = PieceImporter.Import("minuet.musicxml", source).Piece!;

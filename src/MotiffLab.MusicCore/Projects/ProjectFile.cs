@@ -1198,6 +1198,24 @@ public static class ProjectFile
             case BassPatternParameters bass:
                 json.WriteString("kind", bass.Kind.ToString());
                 break;
+            case AccentShiftParameters accents:
+                json.WriteString("pattern", accents.Pattern.ToString());
+                if (accents.Onsets is { } onsets)
+                {
+                    json.WriteStartArray("onsets");
+                    foreach (int index in onsets.Indices)
+                    {
+                        json.WriteNumberValue(index);
+                    }
+
+                    json.WriteEndArray();
+                }
+
+                break;
+            case PassingNotesParameters passing:
+                json.WriteString("kind", passing.Kind.ToString());
+                WriteIntervals(json, passing.Intervals);
+                break;
             case OrnamentParameters ornament:
                 json.WriteString("kind", ornament.Kind.ToString());
                 break;
@@ -1278,6 +1296,8 @@ public static class ProjectFile
             DensityAndRests.OperationId => ReadDensity(parameters),
             BassPattern.OperationId => new BassPatternParameters(Name<BassPatternKind>(parameters, "kind")),
             Ornament.OperationId => new OrnamentParameters(Name<OrnamentKind>(parameters, "kind")),
+            AccentShift.OperationId => ReadAccents(parameters),
+            PassingNotes.OperationId => new PassingNotesParameters(Name<PassingNoteKind>(parameters, "kind"), ReadIntervals(parameters)),
             Reharmonise.OperationId => new ReharmoniseParameters(Name<ReharmoniseKind>(parameters, "kind")),
             _ => throw new ProjectFileException($"A variation uses an operation ({operation}) this version of Motiff Lab does not have."),
         };
@@ -1290,6 +1310,23 @@ public static class ProjectFile
         HandEditKind kind = Name<HandEditKind>(parameters, "kind");
         NoteValues? values = kind == HandEditKind.Remove ? null : ReadValues(Property(parameters, "values", JsonValueKind.Object), "variation steps");
         return new HandEditParameters(kind, Text(parameters, "noteId"), values);
+    }
+
+    private static AccentShiftParameters ReadAccents(JsonElement parameters)
+    {
+        AccentPattern pattern = Name<AccentPattern>(parameters, "pattern");
+        IntervalSet? onsets = null;
+        if (parameters.TryGetProperty("onsets", out _))
+        {
+            int[] indices = [.. Property(parameters, "onsets", JsonValueKind.Array)
+                .EnumerateArray()
+                .Select(index => index.ValueKind == JsonValueKind.Number && index.TryGetInt32(out int value) && value >= 0 ? value : throw Damaged("variation parameters"))];
+            onsets = indices.Length > 0 ? new IntervalSet(indices) : throw Damaged("variation parameters");
+        }
+
+        return (pattern == AccentPattern.Custom) == (onsets is not null)
+            ? new AccentShiftParameters(pattern, onsets)
+            : throw Damaged("variation parameters");
     }
 
     private static DensityParameters ReadDensity(JsonElement parameters)

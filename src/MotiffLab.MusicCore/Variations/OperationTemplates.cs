@@ -39,6 +39,8 @@ public static class OperationTemplates
             DensityAndRests.OperationId => Densified(changes, before, after, words),
             BassPattern.OperationId => Rebassed(before, after, meter, key, words),
             Ornament.OperationId => Ornamented(before, after, key, words),
+            AccentShift.OperationId => Accented(changes, words),
+            PassingNotes.OperationId => Filled(before, after, key, words),
             Reharmonise.OperationId => Reharmonised(changes, before, after, key, meter, words),
             _ => null,
         };
@@ -310,6 +312,8 @@ public static class OperationTemplates
             [0, 1, 0] => "mordent",
             [0, -1, 0] => "lower",
             [1, 0, -1, 0] => "turn",
+            [1, 0] => "graceAbove",
+            [-1, 0] => "graceBelow",
             _ when shape.Length >= 5 && shape[^1] == 0 && shape[..^1].Select((sign, i) => sign == (i % 2 == 0 ? 0 : 1)).All(static same => same) => "trill",
             _ => null,
         };
@@ -330,6 +334,8 @@ public static class OperationTemplates
                 "mordent" => ("Мордент", "нота, верхняя соседняя и снова нота"),
                 "lower" => ("Нижний мордент", "нота, нижняя соседняя и снова нота"),
                 "turn" => ("Группетто", "верхняя соседняя, нота, нижняя соседняя и снова нота"),
+                "graceAbove" => ("Форшлаг сверху", "верхняя соседняя на месте ноты"),
+                "graceBelow" => ("Форшлаг снизу", "нижняя соседняя на месте ноты"),
                 _ => ("Трель", "нота и верхняя соседняя по очереди"),
             };
             return $"{name} на {count} {Words.RussianForm(count, "долгой ноте", "долгих нотах", "долгих нотах")} ({names}): {figure}, каждая — {step}, затем нота тянется; остальные ноты не изменились.";
@@ -340,9 +346,81 @@ public static class OperationTemplates
             "mordent" => ("A mordent", "the note, the note above and the note again"),
             "lower" => ("A lower mordent", "the note, the note below and the note again"),
             "turn" => ("A turn", "the note above, the note, the note below and the note again"),
+            "graceAbove" => ("A grace note from above", "the note above on the note's beat"),
+            "graceBelow" => ("A grace note from below", "the note below on the note's beat"),
             _ => ("A trill", "the note and the note above, in turn"),
         };
         return $"{english} on {(count == 1 ? "1 long note" : $"{count} long notes")} ({names}): {shape}, {step} each, then the note held; every other note is unchanged.";
+    }
+
+    /// <summary>
+    /// V8: "The accents move: 4 notes now play louder, at velocity 100, and 12 softer, at velocity 70; every pitch,
+    /// onset and length is unchanged.", when only velocities changed.
+    /// </summary>
+    private static string? Accented(IReadOnlyList<NoteChange> changes, Words w)
+    {
+        NoteChange[] changed = [.. changes.Where(static change => change.Before.Velocity != change.After.Velocity)];
+        if (changed.Length == 0 || changes.Any(static change => change.PitchChanged || change.OnsetChanged || change.DurationChanged))
+        {
+            return null;
+        }
+
+        NoteChange[] louder = [.. changed.Where(static change => change.After.Velocity > change.Before.Velocity)];
+        NoteChange[] softer = [.. changed.Where(static change => change.After.Velocity < change.Before.Velocity)];
+        string At(NoteChange[] group) => group.Select(static change => change.After.Velocity).Distinct().Count() == 1
+            ? w.T($", at velocity {group[0].After.Velocity}", $" (громкость {group[0].After.Velocity})")
+            : string.Empty;
+        string Part(NoteChange[] group, string english, string russian) => group.Length == 0
+            ? null!
+            : w.IsRussian
+                ? $"{w.Count(group.Length, "", "", "нота", "ноты", "нот")} {Words.RussianForm(group.Length, "звучит", "звучат", "звучат")} {russian}{At(group)}"
+                : $"{group.Length} {(group.Length == 1 ? "note" : "notes")} now {(group.Length == 1 ? "plays" : "play")} {english}{At(group)}";
+        string[] parts = [.. new[] { Part(louder, "louder", "громче"), Part(softer, "softer", "тише") }.Where(static part => part is not null)];
+        return w.IsRussian
+            ? $"Акценты сместились: {string.Join(", а ", parts)}; высоты, начала и длительности нот не изменились."
+            : $"The accents move: {string.Join(", and ", parts)}; every pitch, onset and length is unchanged.";
+    }
+
+    /// <summary>
+    /// V11: "Passing notes are added after 3 melody notes (D5 after C5, …), in the second half of each; every main note
+    /// keeps its pitch and onset.", when notes were only added after shortened melody notes.
+    /// </summary>
+    private static string? Filled(MotifTexture before, MotifTexture after, MusicalKey? key, Words w)
+    {
+        Note[] added = [.. after.Notes.Where(note => !before.Notes.Any(other => other.Id == note.Id))];
+        if (added.Length == 0 || before.Notes.Any(note => !after.Notes.Any(other => other.Id == note.Id)))
+        {
+            return null;
+        }
+
+        var figures = new List<(Note Main, Note? Next, Note[] Added)>();
+        for (int i = 0; i < before.Melody.Count; i++)
+        {
+            Note main = before.Melody[i];
+            Note[] parts = [.. added.Where(note => note.Id.StartsWith($"{main.Id}~p", StringComparison.Ordinal)).OrderBy(static note => note.Span.Onset)];
+            if (parts.Length > 0)
+            {
+                figures.Add((main, i + 1 < before.Melody.Count ? before.Melody[i + 1] : null, parts));
+            }
+        }
+
+        if (figures.Sum(static figure => figure.Added.Length) != added.Length || figures.Any(static figure => figure.Next is null))
+        {
+            return null;
+        }
+
+        bool Between(Note note, Note main, Note next) => Math.Min(main.Pitch.MidiNumber, next.Pitch.MidiNumber) < note.Pitch.MidiNumber
+            && note.Pitch.MidiNumber < Math.Max(main.Pitch.MidiNumber, next.Pitch.MidiNumber);
+        bool passing = figures.All(figure => figure.Added.All(note => Between(note, figure.Main, figure.Next!)));
+        MusicalKey spelling = key ?? new MusicalKey(0, KeyMode.Major);
+        string Figure((Note Main, Note? Next, Note[] Added) figure) => w.T(
+            $"{w.Joined([.. figure.Added.Select(note => spelling.Spell(note.Pitch.MidiNumber))])} after {spelling.Spell(figure.Main.Pitch.MidiNumber)}",
+            $"{w.Joined([.. figure.Added.Select(note => spelling.Spell(note.Pitch.MidiNumber))])} после {spelling.Spell(figure.Main.Pitch.MidiNumber)}");
+        string list = string.Join(", ", figures.Take(4).Select(Figure)) + (figures.Count > 4 ? ", …" : string.Empty);
+        int count = figures.Count;
+        return w.IsRussian
+            ? $"{(passing ? "Проходящие" : "Вспомогательные")} ноты добавлены после {count} {Words.RussianForm(count, "ноты", "нот", "нот")} мелодии ({list}), во второй половине каждой; основные ноты сохраняют высоту и начало."
+            : $"{(passing ? "Passing" : "Neighbour")} notes are added after {(count == 1 ? "1 melody note" : $"{count} melody notes")} ({list}), in the second half of {(count == 1 ? "it" : "each")}; every main note keeps its pitch and onset.";
     }
 
     /// <summary>

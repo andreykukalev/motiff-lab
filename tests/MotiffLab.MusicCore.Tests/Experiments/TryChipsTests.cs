@@ -45,7 +45,7 @@ public class TryChipsTests
     public void A_fact_offers_the_chips_of_its_kind_whose_operation_is_built()
     {
         Assert.Equal(["v1.dotted", "v1.syncopate", "v1.halfTime", "v7.air"], TryChips.For("rhythm.durations").Select(chip => chip.Id));
-        Assert.Equal(["v4.up", "v4.down", "v14.ornament"], TryChips.For("melody.line").Select(chip => chip.Id));
+        Assert.Equal(["v4.up", "v4.down", "v11.passing", "v14.ornament"], TryChips.For("melody.line").Select(chip => chip.Id));
         Assert.Equal(["v12.pedal", "v15.reharmonise"], TryChips.Table.Single(row => row.FactKind == "sentence.close").ChipIds);
         Assert.Equal(["v12.pedal", "v15.reharmonise"], TryChips.For("sentence.close.3").Select(chip => chip.Id));
         Assert.Empty(TryChips.For("key.unknown"));
@@ -70,8 +70,8 @@ public class TryChipsTests
         Assert.Equal(offered[0].OperationId, chain.Steps[0].Operation.Id);
         Assert.Equal(KeepTable.FindPreset(offered[0].KeepPresetId)!.Keep, chain.Context.Keep);
 
-        Assert.Null(TryChips.Start(TryChips.Find("v8.shift")!, context, out string? missing));
-        Assert.Contains("V8", missing);
+        Assert.Null(TryChips.Start(TryChips.Find("v3.voicing")!, context, out string? missing));
+        Assert.Contains("V3", missing);
         Assert.Equal(TryChips.Offer("character.articulation", context), TryChips.Offer("character.articulation", context));
     }
 }

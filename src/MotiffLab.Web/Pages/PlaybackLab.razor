@@ -654,10 +654,19 @@
             new("moreAir", new DensityParameters(DensityKind.MoreAir)),
             new("fillRests", new DensityParameters(DensityKind.FillRests)),
         ]),
+        new(AccentShift.Instance,
+        [
+            new("accentOnBeat", new AccentShiftParameters(AccentPattern.OnBeat)),
+            new("accentOffBeat", new AccentShiftParameters(AccentPattern.OffBeat)),
+            new("accentEveryThird", new AccentShiftParameters(AccentPattern.EveryThird)),
+            new("accentDownbeat", new AccentShiftParameters(AccentPattern.Downbeat)),
+        ]),
         new(Ornament.Instance,
         [
             new("mordent", new OrnamentParameters(OrnamentKind.Mordent)),
             new("lowerMordent", new OrnamentParameters(OrnamentKind.LowerMordent)),
+            new("graceAbove", new OrnamentParameters(OrnamentKind.GraceAbove)),
+            new("graceBelow", new OrnamentParameters(OrnamentKind.GraceBelow)),
             new("turn", new OrnamentParameters(OrnamentKind.Turn)),
             new("trill", new OrnamentParameters(OrnamentKind.Trill)),
         ]),
@@ -689,6 +698,12 @@
             new("stepLower", new MelodicSequenceParameters(-1)),
             new("climbing", new MelodicSequenceParameters(1, 3)),
             new("thirdLower", new MelodicSequenceParameters(-2)),
+        ]),
+        new(PassingNotes.Instance,
+        [
+            new("passing", new PassingNotesParameters(PassingNoteKind.Passing)),
+            new("upperNeighbour", new PassingNotesParameters(PassingNoteKind.UpperNeighbour)),
+            new("lowerNeighbour", new PassingNotesParameters(PassingNoteKind.LowerNeighbour)),
         ]),
         new(IntervalReshape.Instance,
         [

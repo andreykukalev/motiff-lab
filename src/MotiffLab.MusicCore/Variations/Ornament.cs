@@ -19,6 +19,12 @@ public enum OrnamentKind
 
     /// <summary>The note and the step above, alternating for half the note, then the note held.</summary>
     Trill,
+
+    /// <summary>A grace note a step above, struck on the note's onset, then the note held.</summary>
+    GraceAbove,
+
+    /// <summary>A grace note a step below, struck on the note's onset, then the note held.</summary>
+    GraceBelow,
 }
 
 /// <summary>The parameters of V14 Ornament.</summary>
@@ -31,7 +37,8 @@ public sealed record OrnamentParameters(OrnamentKind Kind) : OperationParameters
 /// under it are not touched. Pure and deterministic.
 /// </summary>
 /// <remarks>
-/// The ornamented note keeps its id for the first part at its own pitch (the second note of a turn) and
+/// The ornamented note keeps its id for the first part at its own pitch (the second note of a turn, the held note
+/// after a grace note) and
 /// the other parts add "~o" and their place ("n_0004~o2"). The ornament is not available when the line has no
 /// note a quarter or longer that starts on the 32nd grid, or when a neighbour note would sound at or below a note
 /// of the accompaniment sounding with it.
@@ -105,10 +112,12 @@ public sealed class Ornament : VariationOperation<OrnamentParameters>
             OrnamentKind.LowerMordent => [pitch, below],
             OrnamentKind.Turn => [above, pitch, below],
             OrnamentKind.Trill => [.. Enumerable.Range(0, TrillNotes(note.Span.Duration)).Select(i => i % 2 == 0 ? pitch : above)],
+            OrnamentKind.GraceAbove => [above],
+            OrnamentKind.GraceBelow => [below],
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown ornament."),
         };
 
-        // The note keeps its id on its first part at its own pitch; the turn's first part is the step above.
+        // The note keeps its id on its first part at its own pitch; a turn or a grace note starts on a neighbour.
         int keeper = Array.IndexOf(figure, pitch) is int index and >= 0 ? index : figure.Length;
         long onset = note.Span.Onset.Value;
         int part = 0;
