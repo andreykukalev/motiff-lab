@@ -29,6 +29,10 @@ namespace MotiffLab.MusicCore.Notation;
 /// Tuplets, grace notes, pedal and dynamics are not written: triplets land on the nearest 32nd and
 /// are counted as approximated. The notes themselves are never changed; only how they are written.
 /// </para>
+/// <para>
+/// An excerpt writes only some bars, and ossias stand above the original bar for bar as smaller staves of the
+/// same measures (decision record 0021).
+/// </para>
 /// </remarks>
 public static class NotationGenerator
 {
@@ -36,6 +40,9 @@ public static class NotationGenerator
     public const long Grid = CanonicalTime.TicksPerQuarter / 8;
 
     public const int MaxVoicesPerStaff = 4;
+
+    /// <summary>The size of an ossia's staves against the original's, as MEI writes it.</summary>
+    public const string OssiaScale = "75%";
 
     private const int MiddleC = 60;
 
@@ -109,7 +116,18 @@ public static class NotationGenerator
     /// With <paramref name="playedTempos"/>: when the sustain pedal was held, written as "Ped." and
     /// "*" under the bottom staff.
     /// </param>
-    public static GeneratedNotation Generate(IEnumerable<Note> notes, MeterMap meter, IEnumerable<KeyChange> keys, Tick end, string? title = null, bool asHeard = false, IReadOnlyList<PlaybackTempo>? playedTempos = null, IEnumerable<TickSpan>? pedal = null)
+    /// <param name="bars">
+    /// The bars to write, for an excerpt engraved on its own (decision record 0018, section 4; preparation item 10):
+    /// the whole piece when null. Every note is still planned, so voices, ties and the key in force are the same
+    /// as in the whole score; the bars keep their numbers.
+    /// </param>
+    /// <param name="ossias">
+    /// Staves above the original, bar for bar, at three quarters of the size, each with its label at the left:
+    /// a variation in place of the passage it changed, or the same notes written as played (item 10). Their
+    /// staves are numbered first; their note ids carry the prefix <c>ossia-</c> (<c>ossia2-</c> for a second),
+    /// so a note shown twice has two ids.
+    /// </param>
+    public static GeneratedNotation Generate(IEnumerable<Note> notes, MeterMap meter, IEnumerable<KeyChange> keys, Tick end, string? title = null, bool asHeard = false, IReadOnlyList<PlaybackTempo>? playedTempos = null, IEnumerable<TickSpan>? pedal = null, BarRange? bars = null, IReadOnlyList<NotationOssia>? ossias = null)
     {
         ArgumentNullException.ThrowIfNull(notes);
         ArgumentNullException.ThrowIfNull(meter);
@@ -117,15 +135,86 @@ public static class NotationGenerator
 
         Note[] input = [.. notes];
         KeyChange[] keyChanges = [.. keys.OrderBy(key => key.At)];
+        NotationOssia[] above = [.. ossias ?? []];
+        Note[][] ossiaNotes = [.. above.Select((ossia, index) => ossia.Notes.Select(note => note with { Id = OssiaIdPrefix(index) + note.Id }).ToArray())];
 
+        // The bars reach to the end given, or to the last note shown, in the original or an ossia.
+        long last = Math.Max(1, Math.Max(end.Value, input.Concat(ossiaNotes.SelectMany(part => part))
+            .Select(note => Math.Max(Snap(note.Span.End.Value), Snap(note.Span.Onset.Value) + Grid))
+            .DefaultIfEmpty(0)
+            .Max()));
+        Bar[] allBars = [.. meter.BarsBefore(new Tick(last))];
+        int firstIndex = 0, lastIndex = allBars.Length - 1;
+        if (bars is { } range)
+        {
+            firstIndex = Array.FindIndex(allBars, bar => bar.Number >= range.FirstBar);
+            lastIndex = Array.FindLastIndex(allBars, bar => bar.Number <= range.LastBar);
+            if (firstIndex < 0 || lastIndex < firstIndex)
+            {
+                throw new ArgumentOutOfRangeException(nameof(bars), $"The piece has bars {Number(allBars[0].Number)} to {Number(allBars[^1].Number)}.");
+            }
+        }
+
+        var written = new WrittenBars(allBars, firstIndex, lastIndex);
+
+        // The ossias stand above the original, so their staves come first.
+        var parts = new List<PartPlan>();
+        int nextStaff = 1;
+        for (int index = 0; index < above.Length; index++)
+        {
+            PartPlan part = PlanPart(ossiaNotes[index], written, above[index].AsHeard, above[index].PlayedTempos, above[index].Pedal, nextStaff, ossia: true);
+            parts.Add(part);
+            nextStaff += part.Staves.Count;
+        }
+
+        PartPlan main = PlanPart(input, written, asHeard, playedTempos, pedal, nextStaff, ossia: false);
+        parts.Add(main);
+
+        var measures = new List<MeasurePlan>(written.Count);
+        for (int index = firstIndex; index <= lastIndex; index++)
+        {
+            Bar bar = allBars[index];
+            int fifths = KeyAt(keyChanges, bar.Span.Onset);
+            measures.Add(new MeasurePlan(bar, fifths, [.. parts.Select(part => part.Measure(bar, index, fifths))]));
+        }
+
+        string mei = WriteMei(title ?? "Generated notation", parts, above, measures);
+        return new GeneratedNotation(mei, main.StaffInfo, input.Length, main.Approximated, main.Shortened.Count, main.Heard.Held, main.Heard.Cut, main.Heard.Graces, asHeard)
+        {
+            AccentCount = main.Marks?.Accented.Count ?? 0,
+            DynamicCount = main.Marks?.Dynamics.Count ?? 0,
+            TempoWordCount = main.Marks?.TempoWords.Count ?? 0,
+            HairpinCount = main.Marks?.Hairpins.Count ?? 0,
+            TripletCount = main.Staves.Sum(staff => staff.Tuplets.Length),
+            SlurCount = main.SlurCount,
+            PedalCount = main.PedalCount,
+            Excerpt = bars is null ? null : new BarRange(allBars[firstIndex].Number, allBars[lastIndex].Number),
+            Ossias = [.. above.Select((ossia, index) => new GeneratedOssia(ossia.Label, parts[index].StaffInfo, ossiaNotes[index].Length, OssiaIdPrefix(index)))],
+        };
+    }
+
+    /// <summary>The prefix of an ossia's note ids: the first ossia's "ossia-", the second's "ossia2-".</summary>
+    public static string OssiaIdPrefix(int index) => index == 0 ? "ossia-" : $"ossia{Number(index + 1)}-";
+
+    /// <summary>
+    /// Plans one set of staves (the original, or an ossia) over the piece's bars: the staves, their voices,
+    /// and the marks of the playing. Only the bars written get control events that end inside them. An ossia
+    /// has only the staves that show notes in the bars written: a variation of the melody is one staff above the grand staff.
+    /// </summary>
+    private static PartPlan PlanPart(Note[] input, WrittenBars written, bool asHeard, IReadOnlyList<PlaybackTempo>? playedTempos, IEnumerable<TickSpan>? pedal, int firstStaff, bool ossia)
+    {
+        Bar[] bars = written.Bars;
         var shown = input.Select(note => new ShownNote(note, Snap(note.Span.Onset.Value), Snap(note.Span.End.Value))).ToArray();
-        int approximated = shown.Count(note => note.Onset != note.Note.Span.Onset.Value || note.End != note.Note.Span.End.Value);
 
-        long last = Math.Max(1, Math.Max(end.Value, shown.Length == 0 ? 0 : shown.Max(note => note.End)));
-        Bar[] bars = [.. meter.BarsBefore(new Tick(last))];
+        List<StaffPlan> planned = PlanStaves(shown, firstStaff);
+        bool Shows(StaffPlan staff) => staff.Notes.Any(note => note.Onset < written.End && note.End > written.Start);
+        if (ossia && planned.Count > 1 && planned.Any(Shows) && !planned.All(Shows))
+        {
+            planned = [.. planned.Where(Shows).Select((staff, index) => staff with { Number = firstStaff + index })];
+        }
 
         // Beats whose onsets fit three or six to the beat better than 16ths are written as triplets.
-        List<StaffPlan> staves = [.. PlanStaves(shown).Select(staff => staff with { Tuplets = FindTuplets(staff.Notes, bars) })];
+        List<StaffPlan> staves = [.. planned.Select(staff => staff with { Tuplets = FindTuplets(staff.Notes, bars) })];
         var heard = new HeardCounts();
         if (asHeard)
         {
@@ -136,7 +225,7 @@ public static class NotationGenerator
             staves = [.. staves.Select(staff => staff with { Notes = OnTuplets(staff.Notes, staff.Tuplets) })];
         }
 
-        approximated = staves.SelectMany(staff => staff.Notes).Count(note => note.Onset != note.Note.Span.Onset.Value || note.End != note.Note.Span.End.Value);
+        int approximated = staves.SelectMany(staff => staff.Notes).Count(note => note.Onset != note.Note.Span.Onset.Value || note.End != note.Note.Span.End.Value);
 
         PlayingMarks? marks = playedTempos is null ? null : PlayingMarks.Of(input, bars, playedTempos);
         var shortened = new HashSet<string>();
@@ -161,58 +250,40 @@ public static class NotationGenerator
         {
             foreach ((long start, long stop, bool crescendo) in marks.Hairpins)
             {
-                // Longer than a bar a hairpin is thin and hard to follow, so it is written as a word.
+                // Longer than a bar a hairpin is thin and hard to follow, so it is written as a word; so is one that ends beyond the bars written.
                 int first = BarIndex(bars, start), final = BarIndex(bars, stop);
-                bool word = stop - start > bars[first].Signature.BarTicks;
+                bool word = stop - start > bars[first].Signature.BarTicks || !written.Holds(final);
                 controls[first].Hairpins.Add(new HairpinPlan(start, crescendo, word ? null : $"{Number(final - first)}m+{Beat(bars[final], stop)}"));
             }
 
             foreach ((Chord from, Chord to, int staff) in Slurs(staves, bars))
             {
+                // A slur to a chord beyond the bars written has nowhere to end.
+                if (to.Onset >= written.End)
+                {
+                    continue;
+                }
+
                 controls[BarIndex(bars, from.Onset)].Slurs.Add((from, to, staff));
                 slurCount++;
             }
 
-            int bottom = staves.Count == 0 ? 1 : staves.Max(staff => staff.Number);
+            int bottom = staves.Max(staff => staff.Number);
             foreach (TickSpan held in (pedal ?? []).OrderBy(span => span.Onset))
             {
-                long down = Snap(held.Onset.Value), up = Snap(held.End.Value);
-                if (up - down < Grid || down >= last)
+                long down = Snap(held.Onset.Value), up = Math.Min(Snap(held.End.Value), written.End);
+                if (up - down < Grid || down >= written.End)
                 {
                     continue;
                 }
 
                 controls[BarIndex(bars, down)].Pedals.Add((down, true, bottom));
-                controls[BarIndex(bars, Math.Min(up, last - 1))].Pedals.Add((up, false, bottom));
+                controls[BarIndex(bars, Math.Min(up, written.End - 1))].Pedals.Add((up, false, bottom));
                 pedalCount++;
             }
         }
 
-        var measures = new List<MeasurePlan>(bars.Length);
-        for (int index = 0; index < bars.Length; index++)
-        {
-            Bar bar = bars[index];
-            int fifths = KeyAt(keyChanges, bar.Span.Onset);
-            measures.Add(new MeasurePlan(bar, fifths, staves.Select(staff => LayOutStaff(staff, bar, fifths)).ToArray())
-            {
-                Dynamic = marks is not null && marks.Dynamics.TryGetValue(index, out (long At, string Level) dynamic) ? dynamic : null,
-                TempoWord = marks is not null && marks.TempoWords.TryGetValue(index, out string? word) ? word : null,
-                Controls = controls[index],
-            });
-        }
-
-        string mei = WriteMei(title ?? "Generated notation", staves, measures);
-        NotationStaff[] staffInfo = [.. staves.Select(staff => new NotationStaff(staff.Number, staff.Track, staff.Clef, staff.Hand, staff.IsSplitInferred))];
-        return new GeneratedNotation(mei, staffInfo, input.Length, approximated, shortened.Count, heard.Held, heard.Cut, heard.Graces, asHeard)
-        {
-            AccentCount = marks?.Accented.Count ?? 0,
-            DynamicCount = marks?.Dynamics.Count ?? 0,
-            TempoWordCount = marks?.TempoWords.Count ?? 0,
-            HairpinCount = marks?.Hairpins.Count ?? 0,
-            TripletCount = staves.Sum(staff => staff.Tuplets.Length),
-            SlurCount = slurCount,
-            PedalCount = pedalCount,
-        };
+        return new PartPlan(staves, controls, marks, heard, shortened, approximated, slurCount, pedalCount);
     }
 
     /// <summary>The index of the bar that holds <paramref name="tick"/>: the last bar for a tick at or after the end.</summary>
@@ -508,13 +579,14 @@ public static class NotationGenerator
         return fifths;
     }
 
-    private static List<StaffPlan> PlanStaves(ShownNote[] notes)
+    /// <summary>The staves for the notes, numbered from <paramref name="firstStaff"/> down.</summary>
+    private static List<StaffPlan> PlanStaves(ShownNote[] notes, int firstStaff)
     {
         int[] tracks = [.. notes.Select(note => note.Note.Track).Distinct().Order()];
         var staves = new List<StaffPlan>();
         if (tracks.Length == 0)
         {
-            staves.Add(new StaffPlan(1, 0, Clef.Treble, null, false, []));
+            staves.Add(new StaffPlan(firstStaff, 0, Clef.Treble, null, false, []));
             return staves;
         }
 
@@ -528,14 +600,14 @@ public static class NotationGenerator
             if (hasHands || (tracks.Length == 1 && spansBothClefs))
             {
                 static bool IsRight(ShownNote note) => note.Note.Hand?.Value is { } hand ? hand == Hand.Right : note.Note.Pitch.MidiNumber >= MiddleC;
-                staves.Add(new StaffPlan(staves.Count + 1, track, Clef.Treble, Hand.Right, !hasHands, [.. trackNotes.Where(IsRight)]));
-                staves.Add(new StaffPlan(staves.Count + 1, track, Clef.Bass, Hand.Left, !hasHands, [.. trackNotes.Where(note => !IsRight(note))]));
+                staves.Add(new StaffPlan(firstStaff + staves.Count, track, Clef.Treble, Hand.Right, !hasHands, [.. trackNotes.Where(IsRight)]));
+                staves.Add(new StaffPlan(firstStaff + staves.Count, track, Clef.Bass, Hand.Left, !hasHands, [.. trackNotes.Where(note => !IsRight(note))]));
             }
             else
             {
                 int high = trackNotes.Count(note => note.Note.Pitch.MidiNumber >= MiddleC);
                 Clef clef = high >= trackNotes.Length - high ? Clef.Treble : Clef.Bass;
-                staves.Add(new StaffPlan(staves.Count + 1, track, clef, null, false, trackNotes));
+                staves.Add(new StaffPlan(firstStaff + staves.Count, track, clef, null, false, trackNotes));
             }
         }
 
@@ -860,7 +932,7 @@ public static class NotationGenerator
             _ => [element],
         });
 
-    private static string WriteMei(string title, List<StaffPlan> staves, List<MeasurePlan> measures)
+    private static string WriteMei(string title, List<PartPlan> parts, NotationOssia[] ossias, List<MeasurePlan> measures)
     {
         // A StringBuilder would make the writer declare UTF-16; the document is handed on as UTF-8 text.
         var builder = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
@@ -889,7 +961,18 @@ public static class NotationGenerator
             xml.WriteStartElement("scoreDef", MeiNamespace);
             WriteMeter(xml, first.Bar.Signature);
             xml.WriteAttributeString("keysig", KeySig(first.Fifths));
-            WriteStaffGroups(xml, staves);
+            xml.WriteStartElement("staffGrp", MeiNamespace);
+            for (int index = 0; index < ossias.Length; index++)
+            {
+                // An ossia is a group of its own with the label at its left, above the original.
+                xml.WriteStartElement("staffGrp", MeiNamespace);
+                xml.WriteElementString("label", MeiNamespace, ossias[index].Label);
+                WriteStaffGroups(xml, parts[index].Staves, OssiaScale);
+                xml.WriteEndElement();
+            }
+
+            WriteStaffGroups(xml, parts[^1].Staves, null);
+            xml.WriteEndElement();
             xml.WriteEndElement();
 
             xml.WriteStartElement("section", MeiNamespace);
@@ -937,9 +1020,9 @@ public static class NotationGenerator
         _ => $"{Number(-fifths)}f",
     };
 
-    private static void WriteStaffGroups(XmlWriter xml, List<StaffPlan> staves)
+    /// <summary>The staves of one part, a braced pair for a piano part, each at <paramref name="scale"/> when given.</summary>
+    private static void WriteStaffGroups(XmlWriter xml, List<StaffPlan> staves, string? scale)
     {
-        xml.WriteStartElement("staffGrp", MeiNamespace);
         foreach (IGrouping<int, StaffPlan> track in staves.GroupBy(staff => staff.Track))
         {
             bool grand = track.Count() > 1;
@@ -957,6 +1040,11 @@ public static class NotationGenerator
                 xml.WriteAttributeString("lines", "5");
                 xml.WriteAttributeString("clef.shape", staff.Clef == Clef.Treble ? "G" : "F");
                 xml.WriteAttributeString("clef.line", staff.Clef == Clef.Treble ? "2" : "4");
+                if (scale is not null)
+                {
+                    xml.WriteAttributeString("scale", scale);
+                }
+
                 xml.WriteEndElement();
             }
 
@@ -965,8 +1053,6 @@ public static class NotationGenerator
                 xml.WriteEndElement();
             }
         }
-
-        xml.WriteEndElement();
     }
 
     private static void WriteMeasure(XmlWriter xml, MeasurePlan measure)
@@ -978,39 +1064,54 @@ public static class NotationGenerator
             xml.WriteAttributeString("metcon", "false");
         }
 
-        for (int staff = 0; staff < measure.Staves.Length; staff++)
+        foreach (PartMeasure part in measure.Parts)
         {
-            xml.WriteStartElement("staff", MeiNamespace);
-            xml.WriteAttributeString("n", Number(staff + 1));
-            List<List<Element>> layers = measure.Staves[staff].Layers;
-            for (int layer = 0; layer < layers.Count; layer++)
+            for (int staff = 0; staff < part.Staves.Length; staff++)
             {
-                if (layers[layer].Count == 0)
+                xml.WriteStartElement("staff", MeiNamespace);
+                xml.WriteAttributeString("n", Number(part.FirstStaff + staff));
+                List<List<Element>> layers = part.Staves[staff].Layers;
+                for (int layer = 0; layer < layers.Count; layer++)
                 {
-                    continue;
-                }
+                    if (layers[layer].Count == 0)
+                    {
+                        continue;
+                    }
 
-                xml.WriteStartElement("layer", MeiNamespace);
-                xml.WriteAttributeString("n", Number(layer + 1));
-                foreach (Element element in layers[layer])
-                {
-                    WriteElement(xml, element);
+                    xml.WriteStartElement("layer", MeiNamespace);
+                    xml.WriteAttributeString("n", Number(layer + 1));
+                    foreach (Element element in layers[layer])
+                    {
+                        WriteElement(xml, element);
+                    }
+
+                    xml.WriteEndElement();
                 }
 
                 xml.WriteEndElement();
             }
-
-            xml.WriteEndElement();
         }
 
-        long origin = measure.Bar.IsPickup ? measure.Bar.Span.End.Value - measure.Bar.Signature.BarTicks : measure.Bar.Span.Onset.Value;
-        string Beat(long at) => NotationGenerator.Beat(measure.Bar, at);
-        if (measure.TempoWord is { } word)
+        foreach (PartMeasure part in measure.Parts)
+        {
+            WriteDirections(xml, measure.Bar, part);
+        }
+
+        xml.WriteEndElement();
+    }
+
+    /// <summary>A part's words, dynamics, hairpins, slurs and pedal marks in a bar, on the part's own staves.</summary>
+    private static void WriteDirections(XmlWriter xml, Bar bar, PartMeasure part)
+    {
+        long origin = bar.IsPickup ? bar.Span.End.Value - bar.Signature.BarTicks : bar.Span.Onset.Value;
+        string top = Number(part.FirstStaff);
+        string Beat(long at) => NotationGenerator.Beat(bar, at);
+        if (part.TempoWord is { } word)
         {
             xml.WriteStartElement("dir", MeiNamespace);
-            xml.WriteAttributeString("staff", "1");
+            xml.WriteAttributeString("staff", top);
             xml.WriteAttributeString("place", "above");
-            xml.WriteAttributeString("tstamp", Beat(Math.Max(origin, measure.Bar.Span.Onset.Value)));
+            xml.WriteAttributeString("tstamp", Beat(Math.Max(origin, bar.Span.Onset.Value)));
             xml.WriteStartElement("rend", MeiNamespace);
             xml.WriteAttributeString("fontstyle", "italic");
             xml.WriteString(word);
@@ -1018,20 +1119,20 @@ public static class NotationGenerator
             xml.WriteEndElement();
         }
 
-        if (measure.Dynamic is { } dynamic)
+        if (part.Dynamic is { } dynamic)
         {
             xml.WriteStartElement("dynam", MeiNamespace);
-            xml.WriteAttributeString("staff", "1");
+            xml.WriteAttributeString("staff", top);
             xml.WriteAttributeString("place", "below");
             xml.WriteAttributeString("tstamp", Beat(dynamic.At));
             xml.WriteString(dynamic.Level);
             xml.WriteEndElement();
         }
 
-        foreach (HairpinPlan hairpin in measure.Controls.Hairpins.Where(hairpin => hairpin.Tstamp2 is null))
+        foreach (HairpinPlan hairpin in part.Controls.Hairpins.Where(hairpin => hairpin.Tstamp2 is null))
         {
             xml.WriteStartElement("dir", MeiNamespace);
-            xml.WriteAttributeString("staff", "1");
+            xml.WriteAttributeString("staff", top);
             xml.WriteAttributeString("place", "below");
             xml.WriteAttributeString("tstamp", Beat(hairpin.At));
             xml.WriteStartElement("rend", MeiNamespace);
@@ -1041,18 +1142,18 @@ public static class NotationGenerator
             xml.WriteEndElement();
         }
 
-        foreach (HairpinPlan hairpin in measure.Controls.Hairpins.Where(hairpin => hairpin.Tstamp2 is not null))
+        foreach (HairpinPlan hairpin in part.Controls.Hairpins.Where(hairpin => hairpin.Tstamp2 is not null))
         {
             xml.WriteStartElement("hairpin", MeiNamespace);
             xml.WriteAttributeString("form", hairpin.Crescendo ? "cres" : "dim");
-            xml.WriteAttributeString("staff", "1");
+            xml.WriteAttributeString("staff", top);
             xml.WriteAttributeString("place", "below");
             xml.WriteAttributeString("tstamp", Beat(hairpin.At));
             xml.WriteAttributeString("tstamp2", hairpin.Tstamp2!);
             xml.WriteEndElement();
         }
 
-        foreach ((Chord from, Chord to, int staff) in measure.Controls.Slurs)
+        foreach ((Chord from, Chord to, int staff) in part.Controls.Slurs)
         {
             xml.WriteStartElement("slur", MeiNamespace);
             xml.WriteAttributeString("staff", Number(staff));
@@ -1061,7 +1162,7 @@ public static class NotationGenerator
             xml.WriteEndElement();
         }
 
-        foreach ((long at, bool down, int staff) in measure.Controls.Pedals)
+        foreach ((long at, bool down, int staff) in part.Controls.Pedals)
         {
             xml.WriteStartElement("pedal", MeiNamespace);
             xml.WriteAttributeString("staff", Number(staff));
@@ -1070,8 +1171,6 @@ public static class NotationGenerator
             xml.WriteAttributeString("dir", down ? "down" : "up");
             xml.WriteEndElement();
         }
-
-        xml.WriteEndElement();
     }
 
     /// <summary>The id of a chord's first piece, as <see cref="WriteElement"/> writes it.</summary>
@@ -1261,7 +1360,42 @@ public static class NotationGenerator
     /// <param name="Origin">Where a full bar would start: before the start of a pickup.</param>
     private readonly record struct BarGrid(long Origin, long Pulse, long Middle);
 
-    private sealed record MeasurePlan(Bar Bar, int Fifths, StaffMeasure[] Staves)
+    /// <summary>The bars of the piece, and which of them are written: all of them, or an excerpt.</summary>
+    private sealed class WrittenBars(Bar[] bars, int firstIndex, int lastIndex)
+    {
+        public Bar[] Bars => bars;
+
+        public int Count => lastIndex - firstIndex + 1;
+
+        /// <summary>The tick where the first bar written starts.</summary>
+        public long Start => bars[firstIndex].Span.Onset.Value;
+
+        /// <summary>The tick after the last bar written.</summary>
+        public long End => bars[lastIndex].Span.End.Value;
+
+        public bool Holds(int index) => index >= firstIndex && index <= lastIndex;
+    }
+
+    /// <summary>One set of staves over the whole piece: the original, or an ossia above it.</summary>
+    private sealed record PartPlan(List<StaffPlan> Staves, ControlEvents[] Controls, PlayingMarks? Marks, HeardCounts Heard, HashSet<string> Shortened, int Approximated, int SlurCount, int PedalCount)
+    {
+        public int FirstStaff => Staves[0].Number;
+
+        public NotationStaff[] StaffInfo => [.. Staves.Select(staff => new NotationStaff(staff.Number, staff.Track, staff.Clef, staff.Hand, staff.IsSplitInferred))];
+
+        /// <summary>The part's staves laid out in a bar, with the marks of the playing that start there.</summary>
+        public PartMeasure Measure(Bar bar, int index, int fifths) => new(FirstStaff, [.. Staves.Select(staff => LayOutStaff(staff, bar, fifths))])
+        {
+            Dynamic = Marks is not null && Marks.Dynamics.TryGetValue(index, out (long At, string Level) dynamic) ? dynamic : null,
+            TempoWord = Marks is not null && Marks.TempoWords.TryGetValue(index, out string? word) ? word : null,
+            Controls = Controls[index],
+        };
+    }
+
+    private sealed record MeasurePlan(Bar Bar, int Fifths, PartMeasure[] Parts);
+
+    /// <param name="FirstStaff">The MEI number of the part's top staff; the others follow it.</param>
+    private sealed record PartMeasure(int FirstStaff, StaffMeasure[] Staves)
     {
         /// <summary>A dynamic written under the top staff, at an onset in the bar.</summary>
         public (long At, string Level)? Dynamic { get; init; }

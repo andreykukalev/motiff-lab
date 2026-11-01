@@ -11,6 +11,7 @@ import { ScoreTimeline, highlightedIds, type HighlightPlace, type TimemapEntry }
 import { A4_HEIGHT, A4_WIDTH, buildPdf, crop, inkBounds, type InkLayer, type PdfPage } from "./pdf-document.js";
 import { hasText, svgToPdfOperators, textOnlySvg } from "./svg-to-pdf.js";
 import { A4_LAYOUT, pdfFileName, withTitle } from "./score-page.js";
+import { ScoreGeometry, readPage, type PageGeometry, type PagePlacement } from "./score-geometry.js";
 import { downloadBytes } from "../storage/project-store.js";
 
 interface DotNetObject {
@@ -149,6 +150,9 @@ export class ScoreView {
     private paged = true;
     /** What was loaded, so a change of layout can engrave it again. */
     private data: string | null = null;
+    /** The pages as engraved, and their geometry once read (score-geometry.ts): read again after every layout. */
+    private pageSvgs: string[] = [];
+    private pageGeometry: PageGeometry[] | null = null;
 
     constructor(host: HTMLElement, dotnet: DotNetObject) {
         this.host = host;
@@ -302,6 +306,36 @@ export class ScoreView {
         this.applyHighlight(true);
     }
 
+    /**
+     * Where every page, system, bar and note sits now, in the score's content pixels, and the boxes overlays
+     * are drawn from (score-geometry.ts, 0018 preparation item 11); null before a score is engraved.
+     */
+    geometry(): ScoreGeometry | null {
+        const timeline = this.timeline;
+        if (timeline === null || this.pageSvgs.length === 0) {
+            return null;
+        }
+        this.pageGeometry ??= this.pageSvgs.map((svg, index) => readPage(svg, index + 1));
+        const pages = this.pageGeometry;
+        const view = this.host.getBoundingClientRect();
+        const placements: PagePlacement[] = [];
+        this.host.querySelectorAll(":scope > .score-page > svg").forEach((svg, index) => {
+            const page = pages[index];
+            if (page === undefined) {
+                return;
+            }
+            // The page's view box is fitted into the element and centred, as preserveAspectRatio has it.
+            const box = svg.getBoundingClientRect();
+            const scale = Math.min(box.width / page.width, box.height / page.height);
+            placements.push({
+                left: box.left - view.left + this.host.scrollLeft + (box.width - page.width * scale) / 2,
+                top: box.top - view.top + this.host.scrollTop + (box.height - page.height * scale) / 2,
+                scale,
+            });
+        });
+        return new ScoreGeometry(pages, placements, (id) => timeline.measureOnset(id));
+    }
+
     /** The pencil marks over the score, for Blazor to choose the piece and the tool (0015). */
     pencilLayer(): PencilLayer {
         return this.pencil;
@@ -348,10 +382,14 @@ export class ScoreView {
         }
 
         const pages: Element[] = [];
+        this.pageSvgs = [];
+        this.pageGeometry = null;
         for (let page = 1; page <= engraver.getPageCount(); page++) {
             const container = document.createElement("div");
             container.className = "score-page";
-            container.innerHTML = engraver.renderToSVG(page);
+            const svg = engraver.renderToSVG(page);
+            this.pageSvgs.push(svg);
+            container.innerHTML = svg;
             pages.push(container);
         }
         this.host.replaceChildren(...pages);
@@ -377,36 +415,7 @@ export class ScoreView {
      * top staff line and the space between lines, so marks keep their size against the staves.
      */
     private barFrames(): BarFrame[] {
-        const timeline = this.timeline;
-        if (timeline === null) {
-            return [];
-        }
-        const view = this.host.getBoundingClientRect();
-        const left = this.host.scrollLeft - view.left;
-        const top = this.host.scrollTop - view.top;
-        const frames: BarFrame[] = [];
-        for (const measure of this.host.querySelectorAll("g.measure")) {
-            const tick = measure.id ? timeline.measureOnset(measure.id) : undefined;
-            if (tick === undefined) {
-                continue;
-            }
-            const box = measure.getBoundingClientRect();
-            // Verovio draws a staff's five lines as its first paths.
-            const lines = measure.querySelector("g.staff")?.querySelectorAll(":scope > path");
-            const first = lines?.[0]?.getBoundingClientRect();
-            const second = lines?.[1]?.getBoundingClientRect();
-            const space = first !== undefined && second !== undefined ? second.top - first.top : 0;
-            frames.push({
-                tick,
-                left: box.left + left,
-                right: box.right + left,
-                top: box.top + top,
-                bottom: box.bottom + top,
-                staffTop: (first?.top ?? box.top) + top,
-                space: space > 0 ? space : box.height / 8,
-            });
-        }
-        return frames;
+        return this.geometry()?.barFrames() ?? [];
     }
 
     private keepHeight(): void {

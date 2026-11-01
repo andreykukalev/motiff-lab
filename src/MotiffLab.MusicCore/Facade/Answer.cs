@@ -692,8 +692,47 @@ internal static partial class Answer
     public static void Notation(Utf8JsonWriter json, GeneratedNotation notation)
     {
         json.WriteString("mei", notation.Mei);
+        Staves(json, notation.Staves);
+        if (notation.Excerpt is { } excerpt)
+        {
+            json.WriteStartObject("excerpt");
+            json.WriteNumber("firstBar", excerpt.FirstBar);
+            json.WriteNumber("lastBar", excerpt.LastBar);
+            json.WriteEndObject();
+        }
+        else
+        {
+            json.WriteNull("excerpt");
+        }
+
+        json.WriteStartArray("ossias");
+        foreach (GeneratedOssia ossia in notation.Ossias)
+        {
+            json.WriteStartObject();
+            json.WriteString("label", ossia.Label);
+            Staves(json, ossia.Staves);
+            json.WriteNumber("noteCount", ossia.NoteCount);
+            json.WriteString("idPrefix", ossia.IdPrefix);
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
+        json.WriteNumber("noteCount", notation.NoteCount);
+        json.WriteNumber("approximatedNoteCount", notation.ApproximatedNoteCount);
+        json.WriteNumber("shortenedNoteCount", notation.ShortenedNoteCount);
+        json.WriteNumber("lengthenedNoteCount", notation.LengthenedNoteCount);
+        json.WriteNumber("cutNoteCount", notation.CutNoteCount);
+        json.WriteNumber("graceNoteCount", notation.GraceNoteCount);
+        json.WriteNumber("tripletCount", notation.TripletCount);
+        json.WriteNumber("slurCount", notation.SlurCount);
+        json.WriteNumber("pedalCount", notation.PedalCount);
+        json.WriteBoolean("writtenAsHeard", notation.WrittenAsHeard);
+    }
+
+    private static void Staves(Utf8JsonWriter json, IReadOnlyList<NotationStaff> staves)
+    {
         json.WriteStartArray("staves");
-        foreach (NotationStaff staff in notation.Staves)
+        foreach (NotationStaff staff in staves)
         {
             json.WriteStartObject();
             json.WriteNumber("number", staff.Number);
@@ -709,16 +748,6 @@ internal static partial class Answer
         }
 
         json.WriteEndArray();
-        json.WriteNumber("noteCount", notation.NoteCount);
-        json.WriteNumber("approximatedNoteCount", notation.ApproximatedNoteCount);
-        json.WriteNumber("shortenedNoteCount", notation.ShortenedNoteCount);
-        json.WriteNumber("lengthenedNoteCount", notation.LengthenedNoteCount);
-        json.WriteNumber("cutNoteCount", notation.CutNoteCount);
-        json.WriteNumber("graceNoteCount", notation.GraceNoteCount);
-        json.WriteNumber("tripletCount", notation.TripletCount);
-        json.WriteNumber("slurCount", notation.SlurCount);
-        json.WriteNumber("pedalCount", notation.PedalCount);
-        json.WriteBoolean("writtenAsHeard", notation.WrittenAsHeard);
     }
 
     public static void Playback(Utf8JsonWriter json, PlaybackScore score)

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 using MotiffLab.MusicCore.Facade;
 using MotiffLab.MusicCore.Projects;
@@ -391,6 +392,47 @@ public class MusicCoreFacadeTests
         Assert.Contains("<mei", variation.GetProperty("mei").GetString());
         Assert.NotEqual(piece.GetProperty("mei").GetString(), variation.GetProperty("mei").GetString());
         Assert.Equal("badRequest", Error(facade, 1, "notation", """{"of": "moon"}"""));
+    }
+
+    [Fact]
+    public void NotationEngravesAnExcerptWithTheVariationOrAnIdeaAsAnOssiaAbove()
+    {
+        (MusicCoreFacade facade, _) = Open();
+
+        JsonElement excerpt = Call(facade, "notation", """{"bars": {"first": 3, "last": 4}}""");
+        Assert.Equal(3, excerpt.GetProperty("excerpt").GetProperty("firstBar").GetInt32());
+        Assert.Equal(4, excerpt.GetProperty("excerpt").GetProperty("lastBar").GetInt32());
+        Assert.Equal(2, Regex.Count(excerpt.GetProperty("mei").GetString()!, "<measure "));
+        Assert.Empty(excerpt.GetProperty("ossias").EnumerateArray());
+        Assert.Equal(JsonValueKind.Null, Call(facade, "notation").GetProperty("excerpt").ValueKind);
+        Assert.Equal("badRequest", Error(facade, 1, "notation", """{"bars": {"first": 4, "last": 3}}"""));
+        Assert.Equal("badRequest", Error(facade, 1, "notation", """{"bars": {"first": 1, "last": 999}}"""));
+        Assert.Equal("noSelection", Error(facade, 1, "notation", """{"bars": "selection"}"""));
+        Assert.Equal("unavailable", Error(facade, 1, "notation", """{"ossia": "asPlayed"}"""));
+
+        Call(facade, "select", """{"bars": {"first": 1, "last": 2}}""");
+        Assert.Equal("noVariation", Error(facade, 1, "notation", """{"bars": "selection", "ossia": "variation"}"""));
+        Call(facade, "variation.propose", """{"operation": "V1", "parameters": {"kind": "HalfTime", "eighths": 1}}""");
+        JsonElement withOssia = Call(facade, "notation", """{"bars": "selection", "ossia": "variation"}""");
+        string mei = withOssia.GetProperty("mei").GetString()!;
+        JsonElement ossia = Assert.Single(withOssia.GetProperty("ossias").EnumerateArray());
+        Assert.Equal("Variation", ossia.GetProperty("label").GetString());
+        Assert.Equal("ossia-", ossia.GetProperty("idPrefix").GetString());
+        Assert.True(ossia.GetProperty("noteCount").GetInt32() > 0);
+        Assert.Contains("<label>Variation</label>", mei);
+        Assert.Contains("xml:id=\"ossia-", mei);
+        int ossiaStaves = ossia.GetProperty("staves").GetArrayLength();
+        Assert.Equal(ossiaStaves + 1, withOssia.GetProperty("staves")[0].GetProperty("number").GetInt32());
+
+        Call(facade, "variation.accept");
+        string idea = Call(facade, "idea.keep", """{"name": "Half time", "now": "2026-11-01T10:00:00Z"}""").GetProperty("ideas")[0].GetProperty("id").GetString()!;
+        JsonElement compared = Call(facade, "notation", $$"""{"bars": {"first": 1, "last": 2}, "ossia": ["variation", "{{idea}}"]}""");
+        Assert.Equal(["Variation", "Half time"], compared.GetProperty("ossias").EnumerateArray().Select(item => item.GetProperty("label").GetString()));
+        Assert.Equal("badRequest", Error(facade, 1, "notation", """{"ossia": ["variation", "variation", "variation"]}"""));
+        Assert.Equal("badRequest", Error(facade, 1, "notation", """{"ossia": "o_9999"}"""));
+
+        Call(facade, "language", """{"language": "ru"}""");
+        Assert.Equal("Вариация", Call(facade, "notation", """{"bars": "selection", "ossia": "variation"}""").GetProperty("ossias")[0].GetProperty("label").GetString());
     }
 
     [Fact]
