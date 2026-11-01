@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Builds Verovio (the engraver of the web app's score view, decision record 0008) from its unmodified
-# source for the iPad and the iPad simulator, as a dynamic framework: build/Verovio.xcframework, and
-# copies the font data the app needs to build/verovio-data. Runs on a Mac with Xcode and CMake
-# (brew install cmake). Usage: ./build-verovio.sh
+# Builds Verovio (the engraver of the web app's score view, decision record 0008) from its source, with
+# one small patch (below), for the iPad and the iPad simulator as a dynamic framework,
+# build/Verovio.xcframework, and copies the font data the app needs to build/verovio-data. Runs on a Mac
+# with Xcode and CMake (brew install cmake). Usage: ./build-verovio.sh
 set -euo pipefail
 
 version=6.3.0   # the version the web app ships (tools/verovio/README.md)
@@ -14,6 +14,15 @@ mkdir -p "$build"
 
 if [ ! -d "$src" ]; then
   git clone --quiet --depth 1 --branch "version-$version" https://github.com/rism-digital/verovio.git "$src"
+fi
+
+# One change to Verovio's source: its tuning code builds std::locale("C") for every number it reads, and
+# every score definition reads the default tuning. With Apple's C++ library that rebuilds a whole named
+# locale each time (time names, time zone), which made layout in the iPad simulator 20 times slower. The
+# classic locale is the same "C" locale without building it. To be offered upstream.
+patch="$here/verovio-classic-locale.patch"
+if git -C "$src" apply --check "$patch" 2>/dev/null; then
+  git -C "$src" apply "$patch"
 fi
 
 framework() {

@@ -38,14 +38,14 @@ jobs:
         working-directory: spikes/ios-core
         run: ./build-ios.sh | tee build-ios.log
 
-      # Verovio takes several minutes to compile; its build only changes with the script.
+      # Verovio takes several minutes to compile; its build only changes with the script and the patch.
       - uses: actions/cache/restore@v4
         id: verovio
         with:
           path: |
             spikes/ios-core/build/Verovio.xcframework
             spikes/ios-core/build/verovio-data
-          key: verovio-ios-${{ hashFiles('spikes/ios-core/build-verovio.sh') }}
+          key: verovio-ios-${{ hashFiles('spikes/ios-core/build-verovio.sh', 'spikes/ios-core/verovio-classic-locale.patch') }}
 
       - name: Build Verovio.xcframework
         if: steps.verovio.outputs.cache-hit != 'true'
@@ -137,6 +137,7 @@ jobs:
         working-directory: ${{ runner.temp }}
         run: |
           git clone --quiet --depth 1 --branch version-6.3.0 https://github.com/rism-digital/verovio.git verovio
+          git -C verovio apply "$GITHUB_WORKSPACE/spikes/ios-core/verovio-classic-locale.patch"
           cmake -S verovio/cmake -B vrv -DCMAKE_BUILD_TYPE=Release -DBUILD_AS_LIBRARY=ON -DNO_HUMDRUM_SUPPORT=ON > cmake.log
           cmake --build vrv --parallel "$(sysctl -n hw.ncpu)" > build.log
           grep -h '^CXX_FLAGS' vrv/CMakeFiles/verovio.dir/flags.make | cut -c1-60
