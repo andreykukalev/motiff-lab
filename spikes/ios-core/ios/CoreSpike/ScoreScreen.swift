@@ -8,6 +8,8 @@ struct ScoreScreen: View {
     @State private var piece = SamplePiece.all[0]
     @State private var running = false
     @State private var report: ScoreReport?
+    /// From handing the pages to the web view until it has drawn them once.
+    @State private var shownMs: Double?
 
     var body: some View {
         NavigationStack {
@@ -18,7 +20,7 @@ struct ScoreScreen: View {
                 }
                 Divider()
                 if let report, report.error == nil {
-                    PagesView(pages: report.svgPages)
+                    PagesView(pages: report.svgPages) { shownMs = $0 }
                 } else if let error = report?.error {
                     ScrollView { Text(error).font(.system(.footnote, design: .monospaced)).padding() }
                 } else {
@@ -54,6 +56,7 @@ struct ScoreScreen: View {
             ("all pages", Self.ms(report.allPagesMs)),
             ("timemap", Self.ms(report.timemapMs)),
             ("total", Self.ms(report.totalMs)),
+            ("on screen", shownMs.map(Self.ms) ?? "…"),
             ("SVG", "\(report.svgBytes / 1024) KB"),
         ]
         return ScrollView(.horizontal, showsIndicators: false) {
@@ -72,6 +75,7 @@ struct ScoreScreen: View {
 
     private func engrave() async {
         running = true
+        shownMs = nil
         defer { running = false }
         let piece = piece
         report = await MusicCore.onCoreThread { ScoreReport.engrave(piece) }
@@ -80,18 +84,30 @@ struct ScoreScreen: View {
     private static func ms(_ value: Double) -> String { String(format: "%.0f ms", value) }
 }
 
-/// The pages as SVG, one under another on a grey desk, each as wide as the view.
+/// The pages as SVG, one under another on a grey desk, each as wide as the view. Reports how long the
+/// web view took from loading the pages to drawing them (two animation frames after the page is parsed).
 struct PagesView: UIViewRepresentable {
     let pages: [String]
+    var onShown: (Double) -> Void = { _ in }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeUIView(context: Context) -> WKWebView {
-        let view = WKWebView()
+        let configuration = WKWebViewConfiguration()
+        configuration.userContentController.add(context.coordinator, name: "shown")
+        let view = WKWebView(frame: .zero, configuration: configuration)
         view.isOpaque = false
         view.backgroundColor = .systemGroupedBackground
         return view
     }
 
     func updateUIView(_ view: WKWebView, context: Context) {
+        let coordinator = context.coordinator
+        coordinator.onShown = onShown
+        // SwiftUI calls this on every state change; load the pages only when they are new.
+        guard coordinator.loaded != pages else { return }
+        coordinator.loaded = pages
+        coordinator.start = .now
         let body = pages.map { "<div class=\"page\">\($0)</div>" }.joined()
         let html = """
         <!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -99,8 +115,21 @@ struct PagesView: UIViewRepresentable {
           body { margin: 0; padding: 16px; background: #e9e6df; }
           .page { background: #fbf8f1; margin: 0 auto 16px; max-width: 900px; box-shadow: 0 1px 4px rgba(0,0,0,.2); }
           .page svg { display: block; width: 100%; height: auto; }
-        </style></head><body>\(body)</body></html>
+        </style></head><body>\(body)
+        <script>requestAnimationFrame(() => requestAnimationFrame(() => webkit.messageHandlers.shown.postMessage(0)))</script>
+        </body></html>
         """
         view.loadHTMLString(html, baseURL: nil)
+    }
+
+    final class Coordinator: NSObject, WKScriptMessageHandler {
+        var loaded: [String] = []
+        var start = ContinuousClock.now
+        var onShown: (Double) -> Void = { _ in }
+
+        func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+            let elapsed = (ContinuousClock.now - start).components
+            onShown(Double(elapsed.seconds) * 1000 + Double(elapsed.attoseconds) / 1e15)
+        }
     }
 }
