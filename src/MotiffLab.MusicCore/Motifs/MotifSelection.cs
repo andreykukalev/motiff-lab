@@ -31,6 +31,12 @@ public sealed record MotifSelection(
 
     public const int MaxBars = 8;
 
+    /// <summary>
+    /// The most bars a structure the piece's maps know (a phrase or a sentence) is selected whole (decision
+    /// record 0013): a range the player drags or clicks still holds at most <see cref="MaxBars"/>.
+    /// </summary>
+    public const int MaxStructureBars = 32;
+
     /// <summary>The fewest notes a selection of single notes holds (S1-M3).</summary>
     public const int MinNotes = 2;
 

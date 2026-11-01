@@ -383,7 +383,8 @@ public static class ExperimentCatalogue
         Words words,
         out string? reason)
     {
-        MotifSelection selection = MotifSelector.Select(notes, meter, span, filter);
+        // The passage came from a selection the app made, so it may be a structure selected whole (0013).
+        MotifSelection selection = MotifSelector.Select(notes, meter, span, filter, MotifSelection.MaxStructureBars);
         reason = selection.NoteIds.Count == 0 ? words.T("The passage has no notes.", "В отрывке нет нот.") : null;
         if (reason is not null)
         {

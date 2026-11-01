@@ -145,6 +145,7 @@ public sealed record FactDigest(string EngineVersion, string Subject, IReadOnlyL
     {
         FactCertainty.Detected => "detected",
         FactCertainty.Inferred => "inferred",
+        FactCertainty.Interpretation => "interpretation",
         _ => "uncertain",
     };
 }

@@ -77,7 +77,7 @@ public static class MotifSelector
     }
 
     /// <summary>The notes of <paramref name="notes"/> that start inside <paramref name="span"/> and pass the filter.</summary>
-    public static MotifSelection Select(IEnumerable<Note> notes, MeterMap meter, TickSpan span, SelectionFilter filter)
+    public static MotifSelection Select(IEnumerable<Note> notes, MeterMap meter, TickSpan span, SelectionFilter filter, int maxBars = MotifSelection.MaxBars)
     {
         ArgumentNullException.ThrowIfNull(notes);
         ArgumentNullException.ThrowIfNull(meter);
@@ -85,9 +85,14 @@ public static class MotifSelector
 
         int firstBar = meter.BarAt(span.Onset).Number;
         int lastBar = meter.BarAt(new Tick(span.End.Value - 1)).Number;
-        if (lastBar - firstBar + 1 > MotifSelection.MaxBars)
+        if (maxBars is < MotifSelection.MaxBars or > MotifSelection.MaxStructureBars)
         {
-            throw new ArgumentOutOfRangeException(nameof(span), $"A selection spans at most {MotifSelection.MaxBars} bars.");
+            throw new ArgumentOutOfRangeException(nameof(maxBars), maxBars, $"A selection holds {MotifSelection.MaxBars} to {MotifSelection.MaxStructureBars} bars.");
+        }
+
+        if (lastBar - firstBar + 1 > maxBars)
+        {
+            throw new ArgumentOutOfRangeException(nameof(span), $"A selection spans at most {maxBars} bars.");
         }
 
         Note[] chosen = notes

@@ -1,6 +1,6 @@
 # 0020 · The music-core facade: one JSON contract for the web app and the iPad app
 
-Status: proposed, 2026-11-01. Andrei asked for one stable API with JSON in and out, shared by the web app and the native iPad app, with the project file as the contract between them (redesign preparation, item 21). Numbers 0018 (the redesign) and 0019 (the native iPad app) are reserved for records still to be written.
+Status: proposed, 2026-11-01. Andrei asked for one stable API with JSON in and out, shared by the web app and the native iPad app, with the project file as the contract between them (redesign preparation, item 21). Number 0019 (the native iPad app) is reserved for a record still to be written; the redesign is [0018](0018-redesign.md).
 
 ## Context
 

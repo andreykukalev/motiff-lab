@@ -1,0 +1,694 @@
+<!doctype html><html data-theme="light" ><head><meta charset="utf-8"><link rel="stylesheet" href="tokens.css"><link rel="stylesheet" href="ds.css"><style></style></head><body><script>// Motiff Lab icon set — 20px grid, 1.5 stroke, round caps/joins
+const ICONS = {
+  phrases: '<path d="M5 4H3.5v12H5M15 4h1.5v12H15"/><path d="M7.5 7.5h5M7.5 10h5M7.5 12.5h3"/>',
+  pen: '<path d="M4 16l1-4L13.5 3.5a1.4 1.4 0 0 1 2 0l1 1a1.4 1.4 0 0 1 0 2L8 15l-4 1z"/><path d="M12 5l3 3"/>',
+  roll: '<rect x="3" y="4" width="14" height="12" rx="1.5"/><path d="M5 7.5h4M8 10h5M6 12.5h3M12 7.5h3"/>',
+  insight: '<circle cx="9" cy="9" r="5.5"/><path d="M13 13l4 4M7 9a2 2 0 0 1 2-2"/>',
+  play: '<path d="M6 4.5v11l9-5.5z"/>',
+  playf: '<path d="M6 4.5v11l9-5.5z" fill="currentColor"/>',
+  pause: '<path d="M7 4.5v11M13 4.5v11"/>',
+  loop: '<path d="M4 9a5 5 0 0 1 5-5h7M16 4l-2.5-2.5M16 4l-2.5 2.5"/><path d="M16 11a5 5 0 0 1-5 5H4M4 16l2.5-2.5M4 16l2.5 2.5"/>',
+  metronome: '<path d="M7.5 3.5h5l2.5 13h-10z"/><path d="M10 12V5.5M10 12l4-6"/>',
+  count: '<circle cx="10" cy="10" r="7"/><path d="M10 6v4l2.5 1.5"/>',
+  hands: '<path d="M6 17v-4.5L3.5 9a1.3 1.3 0 0 1 2.2-1.4L7.5 10V4.5a1.2 1.2 0 0 1 2.4 0V9"/><path d="M9.9 9V4a1.2 1.2 0 0 1 2.4 0v5M12.3 9V5.5a1.2 1.2 0 0 1 2.4 0v7.5a4 4 0 0 1-4 4H6"/>',
+  pages: '<rect x="4" y="3" width="12" height="14" rx="1.5"/><path d="M7 7h6M7 10h6M7 13h4"/>',
+  check: '<path d="M4 10.5l4 4 8-9"/>',
+  note: '<path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h9A1.5 1.5 0 0 1 16 5.5v6a1.5 1.5 0 0 1-1.5 1.5H9l-4 3.5V13"/>',
+  tag: '<path d="M3.5 4.5v5l7.5 7.5 6.5-6.5L10 3H5a1.5 1.5 0 0 0-1.5 1.5z"/><circle cx="7" cy="7" r="1"/>',
+  highlight: '<path d="M5 15l-2 2h4l1-1M5 15l7-7 3 3-7 7"/><path d="M12 8l2-2 3 3-2 2"/>',
+  back: '<path d="M12.5 4.5L7 10l5.5 5.5"/>',
+  fwd: '<path d="M7.5 4.5L13 10l-5.5 5.5"/>',
+  more: '<circle cx="5" cy="10" r="1.2" fill="currentColor"/><circle cx="10" cy="10" r="1.2" fill="currentColor"/><circle cx="15" cy="10" r="1.2" fill="currentColor"/>',
+  plus: '<path d="M10 4v12M4 10h12"/>',
+  user: '<circle cx="10" cy="7" r="3.5"/><path d="M3.5 17a6.5 6.5 0 0 1 13 0"/>',
+  close: '<path d="M5 5l10 10M15 5L5 15"/>',
+  search: '<circle cx="9" cy="9" r="5.5"/><path d="M13 13l4 4"/>',
+  info: '<circle cx="10" cy="10" r="7"/><path d="M10 9v5M10 6.5v.5"/>',
+  layers: '<path d="M10 3l7 4-7 4-7-4z"/><path d="M3 11l7 4 7-4M3 14.5l7 4 7-4"/>',
+  trash: '<path d="M4 6h12M8 6V4h4v2M6 6l.8 10h6.4L14 6"/>',
+  export: '<path d="M10 13V4M6.5 7.5L10 4l3.5 3.5"/><path d="M4 12v3.5A1.5 1.5 0 0 0 5.5 17h9a1.5 1.5 0 0 0 1.5-1.5V12"/>',
+  mic: '<rect x="7.5" y="3" width="5" height="9" rx="2.5"/><path d="M5 10a5 5 0 0 0 10 0M10 15v2"/>',
+  camera: '<path d="M3.5 7.5A1.5 1.5 0 0 1 5 6h2l1.2-2h3.6L13 6h2a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 15 16H5a1.5 1.5 0 0 1-1.5-1.5z"/><circle cx="10" cy="11" r="2.8"/>',
+  file: '<path d="M5 3h6l4 4v9.5A1.5 1.5 0 0 1 13.5 18h-8A1.5 1.5 0 0 1 4 16.5v-12A1.5 1.5 0 0 1 5.5 3"/><path d="M11 3v4h4"/>',
+  tempo: '<path d="M4 15.5L10 4l6 11.5z"/><path d="M10 9v3"/>',
+  undo: '<path d="M7 7H3.5V3.5"/><path d="M3.8 7A6.5 6.5 0 1 1 3.5 11"/>',
+  chevd: '<path d="M5 8l5 5 5-5"/>',
+  dial: '<path d="M4 14a6.5 6.5 0 1 1 12 0"/><path d="M10 14l3.2-4.5"/><circle cx="10" cy="14" r="1.2" fill="currentColor"/>',
+  leadin: '<path d="M3 10h7.5M8 7l2.5 3L8 13"/><path d="M13.5 4H17v12h-3.5"/>',
+  bookmark: '<path d="M5.5 3.5h9v13l-4.5-3.2-4.5 3.2z"/>',
+  dot: '<circle cx="10" cy="10" r="3" fill="currentColor"/>'
+};
+function ic(name, cls) { return `<svg class="ic ${cls||''}" viewBox="0 0 20 20" aria-hidden="true">${ICONS[name]}</svg>`; }
+// Overlay helpers for score mockups
+function phraseRanges(total) {
+  const ps = [[0, 4]]; let s = 5;
+  while (s < total) { ps.push([s, s + 3], [s + 4, s + 11], [s + 12, s + 17]); s += 18; }
+  return ps.filter(p => p[0] < total).map(p => [p[0], Math.min(p[1], total - 1)]);
+}
+function measureBoxes(pageEl, rootEl, offset) {
+  const rb = rootEl.getBoundingClientRect(); const out = [];
+  pageEl.querySelectorAll('g.system').forEach((sys, si) => {
+    sys.querySelectorAll('g.measure').forEach(m => {
+      const b = m.getBoundingClientRect();
+      const staves = [...m.querySelectorAll('g.staff')].map(s => s.getBoundingClientRect());
+      const top = Math.min(...staves.map(s => s.top)), bottom = Math.max(...staves.map(s => s.bottom));
+      out.push({ idx: offset + out.length, sys: si, x: b.left - rb.left, w: b.width, top: top - rb.top, bottom: bottom - rb.top, el: m });
+    });
+  });
+  return out;
+}
+function drawBrackets(root, boxes, phrases, opts) {
+  opts = opts || {};
+  phrases.forEach((p, pi) => {
+    const ms = boxes.filter(b => b.idx >= p[0] && b.idx <= p[1]);
+    if (!ms.length) return;
+    const bySys = {}; ms.forEach(b => (bySys[b.sys] = bySys[b.sys] || []).push(b));
+    let first = true;
+    Object.values(bySys).forEach(seg => {
+      const x = seg[0].x + 2, w = seg[seg.length - 1].x + seg[seg.length - 1].w - x - 4;
+      const y = Math.min(...seg.map(b => b.top)) - 14;
+      const el = document.createElement('div');
+      el.className = 'bracket' + (opts.on === pi ? ' on' : '');
+      el.style.cssText = `left:${x}px;top:${y}px;width:${w}px`;
+      if (first) el.innerHTML = `<span class="n">${pi + 1}</span>` + (opts.saved && opts.saved.includes(pi) ? '<span class="dot"></span>' : '');
+      first = false; root.appendChild(el);
+    });
+  });
+}
+function drawBand(root, boxes, range, cls, handles) {
+  const ms = boxes.filter(b => b.idx >= range[0] && b.idx <= range[1]);
+  const bySys = {}; ms.forEach(b => (bySys[b.sys] = bySys[b.sys] || []).push(b));
+  const segs = Object.values(bySys);
+  segs.forEach((seg, i) => {
+    const x = seg[0].x, w = seg[seg.length - 1].x + seg[seg.length - 1].w - x;
+    const top = Math.min(...seg.map(b => b.top)) - 8, bottom = Math.max(...seg.map(b => b.bottom)) + 8;
+    const el = document.createElement('div'); el.className = 'band ' + (cls || '');
+    el.style.cssText = `left:${x}px;top:${top}px;width:${w}px;height:${bottom - top}px`; root.appendChild(el);
+    if (handles) {
+      const mid = (top + bottom) / 2;
+      if (i === 0) { const h = document.createElement('div'); h.className = 'handle'; h.style.cssText = `left:${x}px;top:${mid}px`; root.appendChild(h); }
+      if (i === segs.length - 1) { const h = document.createElement('div'); h.className = 'handle'; h.style.cssText = `left:${x + w}px;top:${mid}px`; root.appendChild(h); }
+    }
+  });
+  return segs;
+}
+function ringNotes(root, boxes, range, rootEl, every) {
+  const rb = rootEl.getBoundingClientRect(); let k = 0;
+  boxes.filter(b => b.idx >= range[0] && b.idx <= range[1]).forEach(b => {
+    const st = b.el.querySelector('g.staff');
+    st.querySelectorAll('g.note g.notehead').forEach(n => {
+      if (every && (k++ % every)) return;
+      const r = n.getBoundingClientRect(); const el = document.createElement('div'); el.className = 'ring';
+      const d = Math.max(r.width, r.height) + 8;
+      el.style.cssText = `left:${r.left + r.width / 2 - rb.left}px;top:${r.top + r.height / 2 - rb.top}px;width:${d}px;height:${d}px`; root.appendChild(el);
+    });
+  });
+}
+function rollRender(host, notes, bars, lo, hi, rowH, opts) {
+  opts = opts || {};
+  const W = host.clientWidth, H = host.clientHeight; const left = opts.left || 40; const px = (W - left) / (bars * 6);
+  const black = [1, 3, 6, 8, 10]; const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  let html = '';
+  for (let m = hi; m >= lo; m--) {
+    const y = (hi - m) * rowH;
+    html += `<div class="row ${black.includes(m % 12) ? 'black' : ''}" style="top:${y}px;height:${rowH}px"></div>`;
+    if (m % 12 === 0 || m % 12 === 4 || m % 12 === 9) html += `<div class="nm ${m % 12 === 0 ? 'c' : ''}" style="top:${y + rowH / 2}px">${names[m % 12]}${Math.floor(m / 12) - 1}</div>`;
+  }
+  for (let b = 0; b <= bars; b++) { html += `<div class="barl" style="left:${left + b * 6 * px}px"></div>`; for (let q = 1; q < 3; q++) html += `<div class="beat" style="left:${left + (b * 6 + q * 2) * px}px"></div>`; }
+  notes.forEach(n => {
+    const x = left + n.start * px, y = (hi - n.midi) * rowH + 1, w = n.dur * px - 2;
+    const nm = names[n.midi % 12] + (Math.floor(n.midi / 12) - 1);
+    html += `<div class="nt ${n.hand} ${opts.sel && opts.sel(n) ? 'sel' : ''}" style="left:${x}px;top:${y}px;width:${w}px;height:${rowH - 2}px;font:500 ${Math.max(8, rowH - 3)}px/${rowH - 2}px var(--font-ui);color:var(--on-accent);padding-left:4px;overflow:hidden">${w > 20 && n.hand === 'R' ? nm : ''}</div>`;
+  });
+  if (opts.playhead != null) html += `<div class="playhead" style="left:${left + opts.playhead * px}px;top:0;bottom:0"></div>`;
+  host.innerHTML = html;
+}
+</script><div class="screen ipad-l" id="scr">
+<div class="bar"><span class="act"><svg class="ic l" viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5L7 10l5.5 5.5"/></svg></span><span class="ttl">Für Elise</span><span class="pg">Piece DNA</span><span class="sp"></span><span class="caption">97 bars · 7 sections · 3 ideas · A minor</span><span class="act"><svg class="ic l" viewBox="0 0 20 20" aria-hidden="true"><circle cx="5" cy="10" r="1.2" fill="currentColor"/><circle cx="10" cy="10" r="1.2" fill="currentColor"/><circle cx="15" cy="10" r="1.2" fill="currentColor"/></svg></span></div>
+<div style="position:absolute;left:40px;top:76px;width:1100px">
+<svg style="position:absolute;left:0;top:0;width:1100px;height:62px;overflow:visible" viewBox="0 0 1100 62"><path d="M217.85714285714286 60 A 186.60714285714286 46 0 0 1 591.0714285714287 60" fill="none" stroke="var(--accent)" stroke-opacity=".55" stroke-width="1.2"/><path d="M353.57142857142856 60 A 186.60714285714286 46 0 0 1 726.7857142857143 60" fill="none" stroke="var(--accent)" stroke-opacity=".55" stroke-width="1.2"/><path d="M472.3214285714286 60 A 186.60714285714286 46 0 0 1 845.5357142857143 60" fill="none" stroke="var(--accent)" stroke-opacity=".55" stroke-width="1.2"/><path d="M591.0714285714287 60 A 186.60714285714286 46 0 0 1 998.2142857142858 60" fill="none" stroke="var(--accent)" stroke-opacity=".55" stroke-width="1.2"/></svg>
+<div style="position:relative;height:28px;margin-top:62px"><span class="overline" style="position:absolute;left:0;top:7px">Form</span><div class="dna-sec" style="left:150.0px;width:135.71428571428572px;background:var(--accent-tint)">A</div><div class="dna-sec" style="left:285.7142857142857px;width:135.71428571428572px;background:rgba(47,91,214,.07)">A′</div><div class="dna-sec" style="left:421.42857142857144px;width:101.78571428571429px;background:var(--plum-tint)">B</div><div class="dna-sec" style="left:523.2142857142858px;width:135.71428571428572px;background:var(--accent-tint)">A</div><div class="dna-sec" style="left:658.9285714285714px;width:135.71428571428572px;background:rgba(47,91,214,.07)">A′</div><div class="dna-sec" style="left:794.6428571428572px;width:101.78571428571429px;background:var(--plum-tint)">B</div><div class="dna-sec" style="left:896.4285714285714px;width:203.57142857142858px;background:var(--hairline)">Coda</div></div>
+<div style="position:relative;height:14px;font:var(--t-caption);color:var(--ink-3)"><span style="position:absolute;left:150.0px">1</span><span style="position:absolute;left:285.7142857142857px">9</span><span style="position:absolute;left:421.42857142857144px">17</span><span style="position:absolute;left:523.2142857142858px">23</span><span style="position:absolute;left:658.9285714285714px">31</span><span style="position:absolute;left:794.6428571428572px">39</span><span style="position:absolute;left:896.4285714285714px">45</span></div>
+<div style="position:relative;height:102px;margin-top:14px"><span class="overline" style="position:absolute;left:0;top:-14px">Ideas and where they occur</span><div class="lane" style="top:0px"><span class="n">a · the turn</span><div class="mk " style="left:158.48214285714286px"></div><div class="mk " style="left:192.41071428571428px"></div><div class="mk " style="left:226.33928571428572px"></div><div class="mk " style="left:294.19642857142856px"></div><div class="mk " style="left:328.125px"></div><div class="mk o" style="left:362.05357142857144px"></div><div class="mk " style="left:531.6964285714287px"></div><div class="mk " style="left:565.625px"></div><div class="mk " style="left:599.5535714285714px"></div><div class="mk " style="left:667.4107142857143px"></div><div class="mk " style="left:701.3392857142858px"></div><div class="mk o" style="left:735.2678571428572px"></div><div class="mk o" style="left:930.3571428571429px"></div><div class="mk v" style="left:1032.1428571428573px"></div></div><div class="lane" style="top:34px"><span class="n">b · the answer</span><div class="mk " style="left:183.92857142857144px"></div><div class="mk o" style="left:251.78571428571428px"></div><div class="mk " style="left:319.64285714285717px"></div><div class="mk o" style="left:387.5px"></div><div class="mk " style="left:557.1428571428571px"></div><div class="mk o" style="left:625.0px"></div><div class="mk " style="left:692.8571428571429px"></div><div class="mk o" style="left:760.7142857142858px"></div><div class="mk o" style="left:998.2142857142858px"></div></div><div class="lane" style="top:68px"><span class="n">c · the climb</span><div class="mk " style="left:429.9107142857143px"></div><div class="mk " style="left:463.8392857142857px"></div><div class="mk o" style="left:497.76785714285717px"></div><div class="mk " style="left:803.125px"></div><div class="mk " style="left:837.0535714285714px"></div><div class="mk o" style="left:870.9821428571429px"></div></div></div>
+<div style="position:relative;height:18px;margin-top:10px"><span class="overline" style="position:absolute;left:0;top:2px">Key</span><div style="position:absolute;left:150.0px;width:269.42857142857144px;top:0;height:18px;border-radius:4px;background:var(--accent-tint);font:var(--t-caption);padding:1px 6px;color:var(--ink-2)">A minor</div><div style="position:absolute;left:421.42857142857144px;width:99.78571428571429px;top:0;height:18px;border-radius:4px;background:var(--plum-tint);font:var(--t-caption);padding:1px 6px;color:var(--ink-2)">C major</div><div style="position:absolute;left:523.2142857142858px;width:269.42857142857144px;top:0;height:18px;border-radius:4px;background:var(--accent-tint);font:var(--t-caption);padding:1px 6px;color:var(--ink-2)">A minor</div><div style="position:absolute;left:794.6428571428572px;width:99.78571428571429px;top:0;height:18px;border-radius:4px;background:var(--plum-tint);font:var(--t-caption);padding:1px 6px;color:var(--ink-2)">C major</div><div style="position:absolute;left:896.4285714285714px;width:201.57142857142858px;top:0;height:18px;border-radius:4px;background:var(--accent-tint);font:var(--t-caption);padding:1px 6px;color:var(--ink-2)">A minor</div></div><div class="caption" style="text-align:right;margin-top:4px">● exact · ○ varied · ▼ inverted</div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:18px">
+<div class="dna-card"><div class="ex"><svg viewBox="0 0 289 110" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" overflow="visible" id="u18zrq1e">
+   <desc>Engraved by Verovio 6.4.0-33d1633</desc>
+   <defs>
+      <g id="E050-u18zrq1e">
+         <path transform="scale(1,-1)" d="M420 -206l-58 329c-59 -14 -104 -63 -104 -124c0 -49 22 -75 61 -99c12 -8 22 -13 22 -22s-9 -13 -17 -13c-80 0 -135 96 -135 166c0 94 62 190 153 217c-7 41 -14 88 -23 142c-15 -15 -31 -29 -48 -44c-88 -76 -174 -185 -174 -307c0 -151 122 -251 265 -251 c19 0 38 2 58 6zM332 822c-8 -31 -11 -65 -11 -102c0 -42 5 -81 11 -121c69 68 146 146 146 250c0 69 -24 118 -39 118c-52 0 -98 -105 -107 -145zM562 -21c0 89 -65 150 -155 150c7 -44 34 -203 55 -323c71 29 100 102 100 173zM122 -513c0 66 45 123 115 123 c75 0 116 -57 116 -111c0 -64 -47 -104 -94 -111c-3 -1 -5 -2 -5 -4c0 -1 2 -2 3 -3c2 0 23 -5 47 -5c101 0 154 55 154 159c0 53 -11 123 -30 219c-23 -4 -50 -7 -79 -7c-186 0 -349 147 -349 334c0 200 126 321 217 406c21 17 73 70 74 71c-17 112 -22 161 -22 215 c0 84 18 212 82 288c33 39 64 51 71 51c18 0 47 -35 71 -86c16 -36 44 -110 44 -201c0 -159 -73 -284 -179 -395c9 -56 19 -115 29 -175c146 0 253 -102 253 -253c0 -103 -73 -205 -171 -237c6 -39 12 -69 15 -89c10 -57 16 -102 16 -141c0 -63 -14 -129 -68 -167 c-36 -22 -77 -34 -124 -34c-135 0 -186 87 -186 153z" />
+      </g>
+      <g id="E083-u18zrq1e">
+         <path transform="scale(1,-1)" d="M272 16h-2c44 -14 94 -45 94 -118c0 -109 -104 -142 -200 -142c-74 0 -149 41 -149 123c0 36 29 65 65 65s64 -29 64 -65c0 -33 -27 -62 -60 -64c11 -8 37 -16 65 -16c42 0 87 18 87 85c0 70 -23 100 -67 106c-32 5 -55 5 -72 6c-11 1 -13 12 -13 12v20s1 14 13 14 s68 4 80 6s59 11 59 74c0 54 -45 79 -87 79c-19 0 -38 -5 -52 -15l-3 -3c28 -6 50 -34 50 -63c0 -36 -28 -64 -64 -64s-65 28 -65 64l1 2h-1s-5 122 167 122s175 -113 175 -122v-5c0 -18 -5 -70 -85 -101z" />
+      </g>
+      <g id="E088-u18zrq1e">
+         <path transform="scale(1,-1)" d="M268 45c18 9 40 32 40 80c0 46 -42 75 -104 75c-43 0 -79 -16 -79 -55c0 -45 75 -78 143 -100zM204 -192c63 0 98 35 98 62c0 55 -97 89 -165 112c0 0 -52 -16 -52 -83c0 -56 55 -91 119 -91zM324 18c52 -27 69 -72 69 -120c0 -81 -85 -146 -189 -146s-189 65 -189 146 c0 48 25 85 70 111c-47 30 -57 66 -57 106c0 72 79 131 176 131s176 -59 176 -131c0 -40 -23 -72 -56 -97z" />
+      </g>
+      <g id="E0A4-u18zrq1e">
+         <path transform="scale(1,-1)" d="M0 -42c0 92 116 174 213 174c62 0 112 -33 112 -92c0 -88 -109 -173 -213 -173c-81 0 -112 48 -112 91z" />
+      </g>
+      <g id="E243-u18zrq1e">
+         <path transform="scale(1,-1)" d="M37 240c146 39 226 114 230 268c-27 -48 -96 -104 -154 -149c-59 -45 -67 -82 -74 -107c0 -3 -1 -7 -2 -12zM0 -10v398c0 2 8 24 15 27c77 17 223 106 244 190l1 3c4 12 5 25 5 38c0 67 -26 101 -61 138c-4 4 -10 8 -10 11c0 5 13 8 17 8c6 0 12 -2 16 -5 c33 -26 79 -81 79 -160c0 -26 -2 -44 -6 -57c6 -37 9 -74 9 -107c0 -185 -140 -262 -193 -313c-40 -38 -71 -68 -86 -171c-2 -8 -7 -16 -15 -16s-15 8 -15 16z" />
+      </g>
+      <g id="E262-u18zrq1e">
+         <path transform="scale(1,-1)" d="M78 74v-166l89 19v165zM233 105l-38 -7v-165l33 7h2c8 0 14 -6 14 -14v-59c0 -6 -5 -13 -11 -14l-38 -7v-147h-28v141l-89 -18v-155h-28v149l-33 -7h-3c-8 0 -14 6 -14 14v58c0 6 5 13 11 14l39 8v165l-33 -7h-3c-8 0 -14 6 -14 14v58c0 6 5 13 11 14l39 8v147h28v-141 l89 18v155h28v-149l33 7h2c8 0 14 -6 14 -14v-59c0 -6 -5 -13 -11 -14z" />
+      </g>
+      <g id="E240-u18zrq1e">
+         <path transform="scale(1,-1)" d="M0 -227v226c0 7 6 13 13 13c6 0 11 -4 12 -8c0 0 9 -36 10 -39c2 -4 19 -61 56 -118c27 -42 122 -165 119 -165c0 0 74 -95 79 -224c0 -91 -17 -184 -62 -264c-4 -7 -9 -11 -16 -11c-6 0 -10 4 -10 10c-1 4 1 9 3 15c26 72 45 146 45 218c0 83 -29 126 -47 157 c-65 111 -151 165 -194 179c-7 3 -8 8 -8 11z" />
+      </g>
+      <g id="E4E7-u18zrq1e">
+         <path transform="scale(1,-1)" d="M343 186l-195 -693l-27 7l102 365c-30 -39 -69 -64 -119 -66c-20 0 -37 2 -56 10c-26 9 -47 34 -47 64c0 40 30 74 70 74c39 0 73 -29 73 -69c0 -17 -6 -34 -17 -48c51 13 108 78 122 125l45 159c-30 -39 -69 -64 -119 -66c-47 0 -101 19 -103 75c0 39 29 72 69 74 c39 0 74 -30 74 -69c0 -18 -5 -34 -17 -48c55 14 95 68 119 116c3 5 7 8 13 8c1 0 3 0 5 -1c6 -2 9 -7 9 -12c0 -2 0 -3 -1 -5z" />
+      </g>
+   </defs>
+   <style type="text/css">#u18zrq1e g.ending, #u18zrq1e g.fing, #u18zrq1e g.reh, #u18zrq1e g.tempo {font-weight:bold;}#u18zrq1e g.dir, #u18zrq1e g.dynam, #u18zrq1e g.mNum {font-style:italic;}#u18zrq1e g.label {font-weight:normal;}#u18zrq1e ellipse, #u18zrq1e path, #u18zrq1e polygon, #u18zrq1e polyline, #u18zrq1e rect {stroke:currentColor}#u18zrq1e g.cursor {fill:dodgerblue; color:dodgerblue;}#u18zrq1e g.cursor.chord {fill:limegreen; color:limegreen;}#u18zrq1e g.placeholder {visibility:hidden}</style>
+   <svg class="definition-scale" color="black" font-family="Times, serif" viewBox="0 0 5780 2200">
+      <g class="page-margin" transform="translate(200, 200)">
+         <g id="e13ecnb6" class="mdiv pageMilestone" />
+         <g id="f1b6w3gw" class="score pageMilestone" />
+         <g id="i1sgohsb" class="system">
+            <g id="hey7ppg" class="section placeholder systemMilestone">
+               <ellipse cx="0" cy="-540" rx="90" ry="90" />
+            </g>
+            <g id="c69shvn" class="section placeholder systemMilestone">
+               <ellipse cx="0" cy="0" rx="90" ry="90" />
+            </g>
+            <g id="u1vnoxcy" class="measure">
+               <g id="d12tp5fw" class="staff">
+                  <path d="M0 540 L3683 540" stroke-width="13" />
+                  <path d="M0 720 L3683 720" stroke-width="13" />
+                  <path d="M0 900 L3683 900" stroke-width="13" />
+                  <path d="M0 1080 L3683 1080" stroke-width="13" />
+                  <path d="M0 1260 L3683 1260" stroke-width="13" />
+                  <g id="e1ejwh0m" class="clef">
+                     <use href="#E050-u18zrq1e" transform="translate(90, 1080) scale(0.72, 0.72)" />
+                  </g>
+                  <g id="f14nzvxo" class="keySig" />
+                  <g id="gmkz3fd" class="meterSig">
+                     <use href="#E083-u18zrq1e" transform="translate(731, 720) scale(0.72, 0.72)" />
+                     <use href="#E088-u18zrq1e" transform="translate(720, 1080) scale(0.72, 0.72)" />
+                  </g>
+                  <g id="e15fuqjg" class="layer">
+                     <g id="fmi65fp" class="note">
+                        <g class="notehead">
+                           <use href="#E0A4-u18zrq1e" transform="translate(1272, 630) scale(0.72, 0.72)" />
+                        </g>
+                        <g id="tf6hki0" class="stem">
+                           <path d="M1281 660 L1281 1260" stroke-width="18" />
+                           <g id="umlqb3m" class="flag">
+                              <use href="#E243-u18zrq1e" transform="translate(1272, 1260) scale(0.72, 0.72)" />
+                           </g>
+                        </g>
+                     </g>
+                     <g id="g4uo90d" class="note">
+                        <g class="notehead">
+                           <use href="#E0A4-u18zrq1e" transform="translate(1816, 720) scale(0.72, 0.72)" />
+                        </g>
+                        <g id="vn1oyj6" class="stem">
+                           <path d="M1825 750 L1825 1350" stroke-width="18" />
+                           <g id="w8vbar7" class="flag">
+                              <use href="#E243-u18zrq1e" transform="translate(1816, 1350) scale(0.72, 0.72)" />
+                           </g>
+                        </g>
+                        <g id="hu4ldsj" class="accid">
+                           <use href="#E262-u18zrq1e" transform="translate(1596, 720) scale(0.72, 0.72)" />
+                        </g>
+                     </g>
+                     <g id="i15u04hy" class="note">
+                        <g class="notehead">
+                           <use href="#E0A4-u18zrq1e" transform="translate(2140, 630) scale(0.72, 0.72)" />
+                        </g>
+                        <g id="xf6xc1n" class="stem">
+                           <path d="M2149 660 L2149 1260" stroke-width="18" />
+                           <g id="y3akexf" class="flag">
+                              <use href="#E243-u18zrq1e" transform="translate(2140, 1260) scale(0.72, 0.72)" />
+                           </g>
+                        </g>
+                     </g>
+                     <g id="jqnjfz4" class="note">
+                        <g class="notehead">
+                           <use href="#E0A4-u18zrq1e" transform="translate(2684, 720) scale(0.72, 0.72)" />
+                        </g>
+                        <g id="z1ge6lbj" class="stem">
+                           <path d="M2693 750 L2693 1350" stroke-width="18" />
+                           <g id="a50dnr6" class="flag">
+                              <use href="#E243-u18zrq1e" transform="translate(2684, 1350) scale(0.72, 0.72)" />
+                           </g>
+                        </g>
+                        <g id="k113v878" class="accid">
+                           <use href="#E262-u18zrq1e" transform="translate(2464, 720) scale(0.72, 0.72)" />
+                        </g>
+                     </g>
+                     <g id="l1knf27g" class="note">
+                        <g class="notehead">
+                           <use href="#E0A4-u18zrq1e" transform="translate(3008, 630) scale(0.72, 0.72)" />
+                        </g>
+                        <g id="bs3m14y" class="stem">
+                           <path d="M3017 660 L3017 1260" stroke-width="18" />
+                           <g id="co7v3tq" class="flag">
+                              <use href="#E243-u18zrq1e" transform="translate(3008, 1260) scale(0.72, 0.72)" />
+                           </g>
+                        </g>
+                     </g>
+                     <g id="m1uj79e5" class="note">
+                        <g class="notehead">
+                           <use href="#E0A4-u18zrq1e" transform="translate(3332, 900) scale(0.72, 0.72)" />
+                        </g>
+                        <g id="d15do8or" class="stem">
+                           <path d="M3341 930 L3341 1500" stroke-width="18" />
+                           <g id="eoqxdw8" class="flag">
+                              <use href="#E243-u18zrq1e" transform="translate(3332, 1500) scale(0.72, 0.72)" />
+                           </g>
+                        </g>
+                     </g>
+                  </g>
+               </g>
+               <g id="c121jlew" class="barLine">
+                  <path d="M3670 540 L3670 1260" stroke-width="27" />
+               </g>
+            </g>
+            <g id="nipor3c" class="measure">
+               <g id="w1kqv3rq" class="staff">
+                  <path d="M3683 540 L5387 540" stroke-width="13" />
+                  <path d="M3683 720 L5387 720" stroke-width="13" />
+                  <path d="M3683 900 L5387 900" stroke-width="13" />
+                  <path d="M3683 1080 L5387 1080" stroke-width="13" />
+                  <path d="M3683 1260 L5387 1260" stroke-width="13" />
+                  <g id="x1xaruyf" class="layer">
+                     <g id="y1mk2212" class="note">
+                        <g class="notehead">
+                           <use href="#E0A4-u18zrq1e" transform="translate(3863, 720) scale(0.72, 0.72)" />
+                        </g>
+                        <g id="f1xga05m" class="stem">
+                           <path d="M3872 750 L3872 1350" stroke-width="18" />
+                           <g id="go6ucu4" class="flag">
+                              <use href="#E243-u18zrq1e" transform="translate(3863, 1350) scale(0.72, 0.72)" />
+                           </g>
+                        </g>
+                     </g>
+                     <g id="z1oaofy1" class="note">
+                        <g class="notehead">
+                           <use href="#E0A4-u18zrq1e" transform="translate(4187, 810) scale(0.72, 0.72)" />
+                        </g>
+                        <g id="hcapkiw" class="stem">
+                           <path d="M4196 840 L4196 1440" stroke-width="18" />
+                           <g id="i1qf95s7" class="flag">
+                              <use href="#E243-u18zrq1e" transform="translate(4187, 1440) scale(0.72, 0.72)" />
+                           </g>
+                        </g>
+                     </g>
+                     <g id="a1qhn6f5" class="note">
+                        <g class="notehead">
+                           <use href="#E0A4-u18zrq1e" transform="translate(4511, 990) scale(0.72, 0.72)" />
+                        </g>
+                        <g id="j1g5sqj6" class="stem">
+                           <path d="M4735 962 L4735 360" stroke-width="18" />
+                           <g id="kohsjmv" class="flag">
+                              <use href="#E240-u18zrq1e" transform="translate(4726, 360) scale(0.72, 0.72)" />
+                           </g>
+                        </g>
+                     </g>
+                     <g id="b1xvx9cu" class="rest">
+                        <use href="#E4E7-u18zrq1e" transform="translate(5024, 900) scale(0.72, 0.72)" />
+                     </g>
+                  </g>
+               </g>
+               <g id="vwstrqf" class="barLine">
+                  <path d="M5374 540 L5374 1260" stroke-width="27" />
+               </g>
+            </g>
+            <g id="l1lzjyyn" class="systemMilestoneEnd c69shvn" />
+            <g id="m1ojbvcl" class="systemMilestoneEnd hey7ppg" />
+         </g>
+         <g id="n112i6yq" class="pageMilestoneEnd f1b6w3gw" />
+         <g id="o1u88xge" class="pageMilestoneEnd e13ecnb6" />
+      </g>
+   </svg>
+</svg>
+</div><div class="heading" style="margin-top:10px">a · the turn</div><div class="caption" style="margin-top:4px">E–D♯–E, the opening cell. 10 times; 3 varied, once inverted in the coda.</div><div style="display:flex;gap:8px;margin-top:10px"><span class="btn secondary compact"><svg class="ic s" viewBox="0 0 20 20" aria-hidden="true"><path d="M6 4.5v11l9-5.5z"/></svg>Hear</span><span class="btn quiet compact">In the score</span><span style="flex:1"></span><span class="caption">10 ×</span></div></div>
+<div class="dna-card"><div class="ex"><svg viewBox="0 0 329 110" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" overflow="visible" id="w17lnrms">
+   <desc>Engraved by Verovio 6.4.0-33d1633</desc>
+   <defs>
+      <g id="E050-w17lnrms">
+         <path transform="scale(1,-1)" d="M420 -206l-58 329c-59 -14 -104 -63 -104 -124c0 -49 22 -75 61 -99c12 -8 22 -13 22 -22s-9 -13 -17 -13c-80 0 -135 96 -135 166c0 94 62 190 153 217c-7 41 -14 88 -23 142c-15 -15 -31 -29 -48 -44c-88 -76 -174 -185 -174 -307c0 -151 122 -251 265 -251 c19 0 38 2 58 6zM332 822c-8 -31 -11 -65 -11 -102c0 -42 5 -81 11 -121c69 68 146 146 146 250c0 69 -24 118 -39 118c-52 0 -98 -105 -107 -145zM562 -21c0 89 -65 150 -155 150c7 -44 34 -203 55 -323c71 29 100 102 100 173zM122 -513c0 66 45 123 115 123 c75 0 116 -57 116 -111c0 -64 -47 -104 -94 -111c-3 -1 -5 -2 -5 -4c0 -1 2 -2 3 -3c2 0 23 -5 47 -5c101 0 154 55 154 159c0 53 -11 123 -30 219c-23 -4 -50 -7 -79 -7c-186 0 -349 147 -349 334c0 200 126 321 217 406c21 17 73 70 74 71c-17 112 -22 161 -22 215 c0 84 18 212 82 288c33 39 64 51 71 51c18 0 47 -35 71 -86c16 -36 44 -110 44 -201c0 -159 -73 -284 -179 -395c9 -56 19 -115 29 -175c146 0 253 -102 253 -253c0 -103 -73 -205 -171 -237c6 -39 12 -69 15 -89c10 -57 16 -102 16 -141c0 -63 -14 -129 -68 -167 c-36 -22 -77 -34 -124 -34c-135 0 -186 87 -186 153z" />
+      </g>
+      <g id="E083-w17lnrms">
+         <path transform="scale(1,-1)" d="M272 16h-2c44 -14 94 -45 94 -118c0 -109 -104 -142 -200 -142c-74 0 -149 41 -149 123c0 36 29 65 65 65s64 -29 64 -65c0 -33 -27 -62 -60 -64c11 -8 37 -16 65 -16c42 0 87 18 87 85c0 70 -23 100 -67 106c-32 5 -55 5 -72 6c-11 1 -13 12 -13 12v20s1 14 13 14 s68 4 80 6s59 11 59 74c0 54 -45 79 -87 79c-19 0 -38 -5 -52 -15l-3 -3c28 -6 50 -34 50 -63c0 -36 -28 -64 -64 -64s-65 28 -65 64l1 2h-1s-5 122 167 122s175 -113 175 -122v-5c0 -18 -5 -70 -85 -101z" />
+      </g>
+      <g id="E088-w17lnrms">
+         <path transform="scale(1,-1)" d="M268 45c18 9 40 32 40 80c0 46 -42 75 -104 75c-43 0 -79 -16 -79 -55c0 -45 75 -78 143 -100zM204 -192c63 0 98 35 98 62c0 55 -97 89 -165 112c0 0 -52 -16 -52 -83c0 -56 55 -91 119 -91zM324 18c52 -27 69 -72 69 -120c0 -81 -85 -146 -189 -146s-189 65 -189 146 c0 48 25 85 70 111c-47 30 -57 66 -57 106c0 72 79 131 176 131s176 -59 176 -131c0 -40 -23 -72 -56 -97z" />
+      </g>
+      <g id="E0A4-w17lnrms">
+         <path transform="scale(1,-1)" d="M0 -42c0 92 116 174 213 174c62 0 112 -33 112 -92c0 -88 -109 -173 -213 -173c-81 0 -112 48 -112 91z" />
+      </g>
+      <g id="E240-w17lnrms">
+         <path transform="scale(1,-1)" d="M0 -227v226c0 7 6 13 13 13c6 0 11 -4 12 -8c0 0 9 -36 10 -39c2 -4 19 -61 56 -118c27 -42 122 -165 119 -165c0 0 74 -95 79 -224c0 -91 -17 -184 -62 -264c-4 -7 -9 -11 -16 -11c-6 0 -10 4 -10 10c-1 4 1 9 3 15c26 72 45 146 45 218c0 83 -29 126 -47 157 c-65 111 -151 165 -194 179c-7 3 -8 8 -8 11z" />
+      </g>
+      <g id="E4E7-w17lnrms">
+         <path transform="scale(1,-1)" d="M343 186l-195 -693l-27 7l102 365c-30 -39 -69 -64 -119 -66c-20 0 -37 2 -56 10c-26 9 -47 34 -47 64c0 40 30 74 70 74c39 0 73 -29 73 -69c0 -17 -6 -34 -17 -48c51 13 108 78 122 125l45 159c-30 -39 -69 -64 -119 -66c-47 0 -101 19 -103 75c0 39 29 72 69 74 c39 0 74 -30 74 -69c0 -18 -5 -34 -17 -48c55 14 95 68 119 116c3 5 7 8 13 8c1 0 3 0 5 -1c6 -2 9 -7 9 -12c0 -2 0 -3 -1 -5z" />
+      </g>
+      <g id="E242-w17lnrms">
+         <path transform="scale(1,-1)" d="M209 -473c8 -11 17 -24 25 -40c1 10 2 20 2 30c0 38 -9 78 -48 129c-36 47 -101 116 -152 116c1 -8 2 -15 3 -20c7 -26 25 -60 64 -99c49 -49 79 -81 106 -116zM0 -381v381c0 7 3 12 15 12c11 0 12 -5 14 -12c0 0 28 -103 66 -158s89 -107 136 -169 c34 -45 48 -92 48 -144c0 -49 -9 -86 -19 -123c3 -21 5 -45 5 -74c0 -56 -26 -110 -44 -138c-4 -6 -8 -14 -15 -14c-2 0 -3 0 -5 1c-5 3 -7 7 -7 11c0 5 3 11 4 16c15 40 22 91 22 115c1 6 1 11 1 17c0 34 -8 70 -42 121c-60 89 -138 139 -164 148c-7 3 -15 7 -15 10z" />
+      </g>
+      <g id="E241-w17lnrms">
+         <path transform="scale(1,-1)" d="M0 1v226c0 3 1 8 8 11c42 14 147 68 212 179c18 31 47 74 47 157c0 72 -16 125 -56 218c-2 4 -3 9 -3 12c0 6 2 10 7 12c1 1 3 1 5 1c6 0 12 -4 15 -11c53 -97 74 -173 74 -264c0 -88 -30 -154 -79 -224c-50 -70 -110 -117 -149 -182c-36 -59 -45 -97 -46 -101 c-1 -3 -10 -38 -10 -39c-1 -4 -7 -8 -12 -8c-7 0 -13 6 -13 13z" />
+      </g>
+      <g id="E262-w17lnrms">
+         <path transform="scale(1,-1)" d="M78 74v-166l89 19v165zM233 105l-38 -7v-165l33 7h2c8 0 14 -6 14 -14v-59c0 -6 -5 -13 -11 -14l-38 -7v-147h-28v141l-89 -18v-155h-28v149l-33 -7h-3c-8 0 -14 6 -14 14v58c0 6 5 13 11 14l39 8v165l-33 -7h-3c-8 0 -14 6 -14 14v58c0 6 5 13 11 14l39 8v147h28v-141 l89 18v155h28v-149l33 7h2c8 0 14 -6 14 -14v-59c0 -6 -5 -13 -11 -14z" />
+      </g>
+      <g id="E243-w17lnrms">
+         <path transform="scale(1,-1)" d="M37 240c146 39 226 114 230 268c-27 -48 -96 -104 -154 -149c-59 -45 -67 -82 -74 -107c0 -3 -1 -7 -2 -12zM0 -10v398c0 2 8 24 15 27c77 17 223 106 244 190l1 3c4 12 5 25 5 38c0 67 -26 101 -61 138c-4 4 -10 8 -10 11c0 5 13 8 17 8c6 0 12 -2 16 -5 c33 -26 79 -81 79 -160c0 -26 -2 -44 -6 -57c6 -37 9 -74 9 -107c0 -185 -140 -262 -193 -313c-40 -38 -71 -68 -86 -171c-2 -8 -7 -16 -15 -16s-15 8 -15 16z" />
+      </g>
+   </defs>
+   <style type="text/css">#w17lnrms g.ending, #w17lnrms g.fing, #w17lnrms g.reh, #w17lnrms g.tempo {font-weight:bold;}#w17lnrms g.dir, #w17lnrms g.dynam, #w17lnrms g.mNum {font-style:italic;}#w17lnrms g.label {font-weight:normal;}#w17lnrms ellipse, #w17lnrms path, #w17lnrms polygon, #w17lnrms polyline, #w17lnrms rect {stroke:currentColor}#w17lnrms g.cursor {fill:dodgerblue; color:dodgerblue;}#w17lnrms g.cursor.chord {fill:limegreen; color:limegreen;}#w17lnrms g.placeholder {visibility:hidden}</style>
+   <svg class="definition-scale" color="black" font-family="Times, serif" viewBox="0 0 6570 2200">
+      <g class="page-margin" transform="translate(200, 200)">
+         <g id="g5rxdto" class="mdiv pageMilestone" />
+         <g id="h1pzsz4c" class="score pageMilestone" />
+         <g id="j18ntfp2" class="system">
+            <g id="jqesrss" class="section placeholder systemMilestone">
+               <ellipse cx="0" cy="-540" rx="90" ry="90" />
+            </g>
+            <g id="d1s80nhi" class="section placeholder systemMilestone">
+               <ellipse cx="0" cy="0" rx="90" ry="90" />
+            </g>
+            <g id="w1nh8923" class="measure">
+               <g id="f1wqpnis" class="staff">
+                  <path d="M0 540 L3627 540" stroke-width="13" />
+                  <path d="M0 720 L3627 720" stroke-width="13" />
+                  <path d="M0 900 L3627 900" stroke-width="13" />
+                  <path d="M0 1080 L3627 1080" stroke-width="13" />
+                  <path d="M0 1260 L3627 1260" stroke-width="13" />
+                  <g id="dy8ga6b" class="clef">
+                     <use href="#E050-w17lnrms" transform="translate(90, 1080) scale(0.72, 0.72)" />
+                  </g>
+                  <g id="e19opid2" class="keySig" />
+                  <g id="fjzh3b5" class="meterSig">
+                     <use href="#E083-w17lnrms" transform="translate(731, 720) scale(0.72, 0.72)" />
+                     <use href="#E088-w17lnrms" transform="translate(720, 1080) scale(0.72, 0.72)" />
+                  </g>
+                  <g class="ledgerLines below">
+                     <path d="M2037 1440 L2367 1440" stroke-width="22" />
+                  </g>
+                  <g id="g1s4d0sr" class="layer">
+                     <g id="hrnew52" class="note">
+                        <g class="notehead">
+                           <use href="#E0A4-w17lnrms" transform="translate(1272, 990) scale(0.72, 0.72)" />
+                        </g>
+                        <g id="ul0aace" class="stem">
+                           <path d="M1496 962 L1496 360" stroke-width="18" />
+                           <g id="v1elc92u" class="flag">
+                              <use href="#E240-w17lnrms" transform="translate(1487, 360) scale(0.72, 0.72)" />
+                           </g>
+                        </g>
+                     </g>
+                     <g id="iwpsnbz" class="rest">
+                        <use href="#E4E7-w17lnrms" transform="translate(1785, 900) scale(0.72, 0.72)" />
+                     </g>
+                     <g id="j1wglide" class="note">
+                        <g class="notehead">
+                           <use href="#E0A4-w17lnrms" transform="translate(2085, 1440) scale(0.72, 0.72)" />
+                        </g>
+                        <g id="wseozgl" class="stem">
+                           <path d="M2309 1412 L2309 810" stroke-width="18" />
+                           <g id="xy2lhk5" class="flag">
+                              <use href="#E242-w17lnrms" transform="translate(2300, 810) scale(0.72, 0.72)" />
+                           </g>
+                        </g>
+                     </g>
+                     <g id="k17083ny" class="note">
+                        <g class="notehead">
+                           <use href="#E0A4-w17lnrms" transform="translate(2590, 1260) scale(0.72, 0.72)" />
+                        </g>
+                        <g id="ynanblv" class="stem">
+                           <path d="M2814 1232 L2814 630" stroke-width="18" />
+                           <g id="z1glhr72" class="flag">
+                              <use href="#E242-w17lnrms" transform="translate(2805, 630) scale(0.72, 0.72)" />
+                           </g>
+                        </g>
+                     </g>
+                     <g id="l11uwu3q" class="note">
+                        <g class="notehead">
+                           <use href="#E0A4-w17lnrms" transform="translate(3095, 990) scale(0.72, 0.72)" />
+                        </g>
+                        <g id="ao81aol" class="stem">
+                           <path d="M3319 962 L3319 360" stroke-width="18" />
+                           <g id="bzonpq1" class="flag">
+                              <use href="#E242-w17lnrms" transform="translate(3310, 360) scale(0.72, 0.72)" />
+                           </g>
+                        </g>
+                     </g>
+                  </g>
+               </g>
+               <g id="ecuv8q" class="barLine">
+                  <path d="M3614 540 L3614 1260" stroke-width="27" />
+               </g>
+            </g>
+            <g id="mve0c77" class="measure">
+               <g id="vno82u0" class="staff">
+                  <path d="M3627 540 L6174 540" stroke-width="13" />
+                  <path d="M3627 720 L6174 720" stroke-width="13" />
+                  <path d="M3627 900 L6174 900" stroke-width="13" />
+                  <path d="M3627 1080 L6174 1080" stroke-width="13" />
+                  <path d="M3627 1260 L6174 1260" stroke-width="13" />
+                  <g id="w1bqco2e" class="layer">
+                     <g id="x1ht1t8" class="note">
+                        <g class="notehead">
+                           <use href="#E0A4-w17lnrms" transform="translate(3807, 900) scale(0.72, 0.72)" />
+                        </g>
+                        <g id="c18cunqo" class="stem">
+                           <path d="M3816 930 L3816 1500" stroke-width="18" />
+                           <g id="d86gnvl" class="flag">
+                              <use href="#E241-w17lnrms" transform="translate(3807, 1500) scale(0.72, 0.72)" />
+                           </g>
+                        </g>
+                     </g>
+                     <g id="y1mjiaid" class="rest">
+                        <use href="#E4E7-w17lnrms" transform="translate(4257, 900) scale(0.72, 0.72)" />
+                     </g>
+                     <g id="zg69rsq" class="note">
+                        <g class="notehead">
+                           <use href="#E0A4-w17lnrms" transform="translate(4593, 1260) scale(0.72, 0.72)" />
+                        </g>
+                        <g id="efn0ey9" class="stem">
+                           <path d="M4817 1232 L4817 630" stroke-width="18" />
+                           <g id="ffwj8p1" class="flag">
+                              <use href="#E242-w17lnrms" transform="translate(4808, 630) scale(0.72, 0.72)" />
+                           </g>
+                        </g>
+                     </g>
+                     <g id="a6dqc6g" class="note">
+                        <g class="notehead">
+                           <use href="#E0A4-w17lnrms" transform="translate(5318, 1080) scale(0.72, 0.72)" />
+                        </g>
+                        <g id="g1dgxh68" class="stem">
+                           <path d="M5542 1052 L5542 450" stroke-width="18" />
+                           <g id="h5zmd4v" class="flag">
+                              <use href="#E242-w17lnrms" transform="translate(5533, 450) scale(0.72, 0.72)" />
+                           </g>
+                        </g>
+                        <g id="b10yj1ld" class="accid">
+                           <use href="#E262-w17lnrms" transform="translate(5098, 1080) scale(0.72, 0.72)" />
+                        </g>
+                     </g>
+                     <g id="c1i3yfam" class="note">
+                        <g class="notehead">
+                           <use href="#E0A4-w17lnrms" transform="translate(5823, 900) scale(0.72, 0.72)" />
+                        </g>
+                        <g id="i1comk23" class="stem">
+                           <path d="M5832 930 L5832 1500" stroke-width="18" />
+                           <g id="j1dfrtkx" class="flag">
+                              <use href="#E243-w17lnrms" transform="translate(5823, 1500) scale(0.72, 0.72)" />
+                           </g>
+                        </g>
+                     </g>
+                  </g>
+               </g>
+               <g id="u12jua6k" class="barLine">
+                  <path d="M6161 540 L6161 1260" stroke-width="27" />
+               </g>
+            </g>
+            <g id="mfiblpm" class="systemMilestoneEnd d1s80nhi" />
+            <g id="nlgvm4t" class="systemMilestoneEnd jqesrss" />
+         </g>
+         <g id="o1651ldm" class="pageMilestoneEnd h1pzsz4c" />
+         <g id="psfafv7" class="pageMilestoneEnd g5rxdto" />
+      </g>
+   </svg>
+</svg>
+</div><div class="heading" style="margin-top:10px">b · the answer</div><div class="caption" style="margin-top:4px">A–C–E rising, closes each A. 5 times; varied at every return.</div><div style="display:flex;gap:8px;margin-top:10px"><span class="btn secondary compact"><svg class="ic s" viewBox="0 0 20 20" aria-hidden="true"><path d="M6 4.5v11l9-5.5z"/></svg>Hear</span><span class="btn quiet compact">In the score</span><span style="flex:1"></span><span class="caption">5 ×</span></div></div>
+<div class="dna-card"><div class="ex"><svg viewBox="0 0 251 110" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" overflow="visible" id="v1936348">
+   <desc>Engraved by Verovio 6.4.0-33d1633</desc>
+   <defs>
+      <g id="E050-v1936348">
+         <path transform="scale(1,-1)" d="M420 -206l-58 329c-59 -14 -104 -63 -104 -124c0 -49 22 -75 61 -99c12 -8 22 -13 22 -22s-9 -13 -17 -13c-80 0 -135 96 -135 166c0 94 62 190 153 217c-7 41 -14 88 -23 142c-15 -15 -31 -29 -48 -44c-88 -76 -174 -185 -174 -307c0 -151 122 -251 265 -251 c19 0 38 2 58 6zM332 822c-8 -31 -11 -65 -11 -102c0 -42 5 -81 11 -121c69 68 146 146 146 250c0 69 -24 118 -39 118c-52 0 -98 -105 -107 -145zM562 -21c0 89 -65 150 -155 150c7 -44 34 -203 55 -323c71 29 100 102 100 173zM122 -513c0 66 45 123 115 123 c75 0 116 -57 116 -111c0 -64 -47 -104 -94 -111c-3 -1 -5 -2 -5 -4c0 -1 2 -2 3 -3c2 0 23 -5 47 -5c101 0 154 55 154 159c0 53 -11 123 -30 219c-23 -4 -50 -7 -79 -7c-186 0 -349 147 -349 334c0 200 126 321 217 406c21 17 73 70 74 71c-17 112 -22 161 -22 215 c0 84 18 212 82 288c33 39 64 51 71 51c18 0 47 -35 71 -86c16 -36 44 -110 44 -201c0 -159 -73 -284 -179 -395c9 -56 19 -115 29 -175c146 0 253 -102 253 -253c0 -103 -73 -205 -171 -237c6 -39 12 -69 15 -89c10 -57 16 -102 16 -141c0 -63 -14 -129 -68 -167 c-36 -22 -77 -34 -124 -34c-135 0 -186 87 -186 153z" />
+      </g>
+      <g id="E083-v1936348">
+         <path transform="scale(1,-1)" d="M272 16h-2c44 -14 94 -45 94 -118c0 -109 -104 -142 -200 -142c-74 0 -149 41 -149 123c0 36 29 65 65 65s64 -29 64 -65c0 -33 -27 -62 -60 -64c11 -8 37 -16 65 -16c42 0 87 18 87 85c0 70 -23 100 -67 106c-32 5 -55 5 -72 6c-11 1 -13 12 -13 12v20s1 14 13 14 s68 4 80 6s59 11 59 74c0 54 -45 79 -87 79c-19 0 -38 -5 -52 -15l-3 -3c28 -6 50 -34 50 -63c0 -36 -28 -64 -64 -64s-65 28 -65 64l1 2h-1s-5 122 167 122s175 -113 175 -122v-5c0 -18 -5 -70 -85 -101z" />
+      </g>
+      <g id="E088-v1936348">
+         <path transform="scale(1,-1)" d="M268 45c18 9 40 32 40 80c0 46 -42 75 -104 75c-43 0 -79 -16 -79 -55c0 -45 75 -78 143 -100zM204 -192c63 0 98 35 98 62c0 55 -97 89 -165 112c0 0 -52 -16 -52 -83c0 -56 55 -91 119 -91zM324 18c52 -27 69 -72 69 -120c0 -81 -85 -146 -189 -146s-189 65 -189 146 c0 48 25 85 70 111c-47 30 -57 66 -57 106c0 72 79 131 176 131s176 -59 176 -131c0 -40 -23 -72 -56 -97z" />
+      </g>
+      <g id="E0A4-v1936348">
+         <path transform="scale(1,-1)" d="M0 -42c0 92 116 174 213 174c62 0 112 -33 112 -92c0 -88 -109 -173 -213 -173c-81 0 -112 48 -112 91z" />
+      </g>
+      <g id="E241-v1936348">
+         <path transform="scale(1,-1)" d="M0 1v226c0 3 1 8 8 11c42 14 147 68 212 179c18 31 47 74 47 157c0 72 -16 125 -56 218c-2 4 -3 9 -3 12c0 6 2 10 7 12c1 1 3 1 5 1c6 0 12 -4 15 -11c53 -97 74 -173 74 -264c0 -88 -30 -154 -79 -224c-50 -70 -110 -117 -149 -182c-36 -59 -45 -97 -46 -101 c-1 -3 -10 -38 -10 -39c-1 -4 -7 -8 -12 -8c-7 0 -13 6 -13 13z" />
+      </g>
+      <g id="E243-v1936348">
+         <path transform="scale(1,-1)" d="M37 240c146 39 226 114 230 268c-27 -48 -96 -104 -154 -149c-59 -45 -67 -82 -74 -107c0 -3 -1 -7 -2 -12zM0 -10v398c0 2 8 24 15 27c77 17 223 106 244 190l1 3c4 12 5 25 5 38c0 67 -26 101 -61 138c-4 4 -10 8 -10 11c0 5 13 8 17 8c6 0 12 -2 16 -5 c33 -26 79 -81 79 -160c0 -26 -2 -44 -6 -57c6 -37 9 -74 9 -107c0 -185 -140 -262 -193 -313c-40 -38 -71 -68 -86 -171c-2 -8 -7 -16 -15 -16s-15 8 -15 16z" />
+      </g>
+   </defs>
+   <style type="text/css">#v1936348 g.ending, #v1936348 g.fing, #v1936348 g.reh, #v1936348 g.tempo {font-weight:bold;}#v1936348 g.dir, #v1936348 g.dynam, #v1936348 g.mNum {font-style:italic;}#v1936348 g.label {font-weight:normal;}#v1936348 ellipse, #v1936348 path, #v1936348 polygon, #v1936348 polyline, #v1936348 rect {stroke:currentColor}#v1936348 g.cursor {fill:dodgerblue; color:dodgerblue;}#v1936348 g.cursor.chord {fill:limegreen; color:limegreen;}#v1936348 g.placeholder {visibility:hidden}</style>
+   <svg class="definition-scale" color="black" font-family="Times, serif" viewBox="0 0 5010 2200">
+      <g class="page-margin" transform="translate(200, 200)">
+         <g id="fhrt1x1" class="mdiv pageMilestone" />
+         <g id="ge6v4q2" class="score pageMilestone" />
+         <g id="f1uughh7" class="system">
+            <g id="i11rst97" class="section placeholder systemMilestone">
+               <ellipse cx="0" cy="-540" rx="90" ry="90" />
+            </g>
+            <g id="zwrfiu6" class="section placeholder systemMilestone">
+               <ellipse cx="0" cy="0" rx="90" ry="90" />
+            </g>
+            <g id="v1yok1i0" class="measure">
+               <g id="e9f2l9f" class="staff">
+                  <path d="M0 540 L2851 540" stroke-width="13" />
+                  <path d="M0 720 L2851 720" stroke-width="13" />
+                  <path d="M0 900 L2851 900" stroke-width="13" />
+                  <path d="M0 1080 L2851 1080" stroke-width="13" />
+                  <path d="M0 1260 L2851 1260" stroke-width="13" />
+                  <g id="b1l5g9bh" class="clef">
+                     <use href="#E050-v1936348" transform="translate(90, 1080) scale(0.72, 0.72)" />
+                  </g>
+                  <g id="c1vwrw9c" class="keySig" />
+                  <g id="d15wh3d" class="meterSig">
+                     <use href="#E083-v1936348" transform="translate(731, 720) scale(0.72, 0.72)" />
+                     <use href="#E088-v1936348" transform="translate(720, 1080) scale(0.72, 0.72)" />
+                  </g>
+                  <g id="f1148s4l" class="layer">
+                     <g id="gflm61p" class="note">
+                        <g class="notehead">
+                           <use href="#E0A4-v1936348" transform="translate(1272, 630) scale(0.72, 0.72)" />
+                        </g>
+                        <g id="rmj2e42" class="dots">
+                           <ellipse cx="1596" cy="630" rx="36" ry="36" />
+                        </g>
+                        <g id="qxfyosr" class="stem">
+                           <path d="M1281 660 L1281 1260" stroke-width="18" />
+                           <g id="s1mpbb5z" class="flag">
+                              <use href="#E241-v1936348" transform="translate(1272, 1260) scale(0.72, 0.72)" />
+                           </g>
+                        </g>
+                     </g>
+                     <g id="hjtczpy" class="note">
+                        <g class="notehead">
+                           <use href="#E0A4-v1936348" transform="translate(1852, 450) scale(0.72, 0.72)" />
+                        </g>
+                        <g id="t1cxqbo1" class="stem">
+                           <path d="M1861 480 L1861 1080" stroke-width="18" />
+                           <g id="uhhvbkv" class="flag">
+                              <use href="#E243-v1936348" transform="translate(1852, 1080) scale(0.72, 0.72)" />
+                           </g>
+                        </g>
+                     </g>
+                     <g id="i1y9uznq" class="note">
+                        <g class="notehead">
+                           <use href="#E0A4-v1936348" transform="translate(2176, 540) scale(0.72, 0.72)" />
+                        </g>
+                        <g id="v1asi6j7" class="stem">
+                           <path d="M2185 570 L2185 1170" stroke-width="18" />
+                           <g id="w18t6093" class="flag">
+                              <use href="#E243-v1936348" transform="translate(2176, 1170) scale(0.72, 0.72)" />
+                           </g>
+                        </g>
+                     </g>
+                     <g id="j9w0se" class="note">
+                        <g class="notehead">
+                           <use href="#E0A4-v1936348" transform="translate(2500, 630) scale(0.72, 0.72)" />
+                        </g>
+                        <g id="x1opa7yk" class="stem">
+                           <path d="M2509 660 L2509 1260" stroke-width="18" />
+                           <g id="y1scyah8" class="flag">
+                              <use href="#E243-v1936348" transform="translate(2500, 1260) scale(0.72, 0.72)" />
+                           </g>
+                        </g>
+                     </g>
+                  </g>
+               </g>
+               <g id="dwf02oy" class="barLine">
+                  <path d="M2838 540 L2838 1260" stroke-width="27" />
+               </g>
+            </g>
+            <g id="k8fxhhm" class="measure">
+               <g id="tyb7sna" class="staff">
+                  <path d="M2851 540 L4610 540" stroke-width="13" />
+                  <path d="M2851 720 L4610 720" stroke-width="13" />
+                  <path d="M2851 900 L4610 900" stroke-width="13" />
+                  <path d="M2851 1080 L4610 1080" stroke-width="13" />
+                  <path d="M2851 1260 L4610 1260" stroke-width="13" />
+                  <g id="u1s2t9jm" class="layer">
+                     <g id="vn4kl9o" class="note">
+                        <g class="notehead">
+                           <use href="#E0A4-v1936348" transform="translate(3031, 720) scale(0.72, 0.72)" />
+                        </g>
+                        <g id="a18amj4z" class="dots">
+                           <ellipse cx="3355" cy="630" rx="36" ry="36" />
+                        </g>
+                        <g id="z1b165a1" class="stem">
+                           <path d="M3040 750 L3040 1350" stroke-width="18" />
+                           <g id="b1qutucw" class="flag">
+                              <use href="#E241-v1936348" transform="translate(3031, 1350) scale(0.72, 0.72)" />
+                           </g>
+                        </g>
+                     </g>
+                     <g id="w18dmx37" class="note">
+                        <g class="notehead">
+                           <use href="#E0A4-v1936348" transform="translate(3611, 540) scale(0.72, 0.72)" />
+                        </g>
+                        <g id="cnrfzea" class="stem">
+                           <path d="M3620 570 L3620 1170" stroke-width="18" />
+                           <g id="d1vzl1l2" class="flag">
+                              <use href="#E243-v1936348" transform="translate(3611, 1170) scale(0.72, 0.72)" />
+                           </g>
+                        </g>
+                     </g>
+                     <g id="x1vmnrcn" class="note">
+                        <g class="notehead">
+                           <use href="#E0A4-v1936348" transform="translate(3935, 630) scale(0.72, 0.72)" />
+                        </g>
+                        <g id="e1dqozz0" class="stem">
+                           <path d="M3944 660 L3944 1260" stroke-width="18" />
+                           <g id="fglwkw" class="flag">
+                              <use href="#E243-v1936348" transform="translate(3935, 1260) scale(0.72, 0.72)" />
+                           </g>
+                        </g>
+                     </g>
+                     <g id="y1hnlc4t" class="note">
+                        <g class="notehead">
+                           <use href="#E0A4-v1936348" transform="translate(4259, 720) scale(0.72, 0.72)" />
+                        </g>
+                        <g id="g141v27c" class="stem">
+                           <path d="M4268 750 L4268 1350" stroke-width="18" />
+                           <g id="h1fhzb05" class="flag">
+                              <use href="#E243-v1936348" transform="translate(4259, 1350) scale(0.72, 0.72)" />
+                           </g>
+                        </g>
+                     </g>
+                  </g>
+               </g>
+               <g id="s1294l4i" class="barLine">
+                  <path d="M4597 540 L4597 1260" stroke-width="27" />
+               </g>
+            </g>
+            <g id="ipvx486" class="systemMilestoneEnd zwrfiu6" />
+            <g id="j17ajlai" class="systemMilestoneEnd i11rst97" />
+         </g>
+         <g id="k1nf1qmo" class="pageMilestoneEnd ge6v4q2" />
+         <g id="ldmukv8" class="pageMilestoneEnd fhrt1x1" />
+      </g>
+   </svg>
+</svg>
+</div><div class="heading" style="margin-top:10px">c · the climb</div><div class="caption" style="margin-top:4px">Stepwise descent over a C pedal, in B only. 6 times, shortened the second time.</div><div style="display:flex;gap:8px;margin-top:10px"><span class="btn secondary compact"><svg class="ic s" viewBox="0 0 20 20" aria-hidden="true"><path d="M6 4.5v11l9-5.5z"/></svg>Hear</span><span class="btn quiet compact">In the score</span><span style="flex:1"></span><span class="caption">6 ×</span></div></div>
+</div>
+<div style="display:flex;gap:10px;margin-top:16px"><span class="btn primary compact"><svg class="ic s" viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 3.5h9v13l-4.5-3.2-4.5 3.2z"/></svg>Add Structure bookmarks</span><span class="btn secondary compact"><svg class="ic s" viewBox="0 0 20 20" aria-hidden="true"><circle cx="9" cy="9" r="5.5"/><path d="M13 13l4 4"/></svg>Ask about the piece</span><span class="btn secondary compact"><svg class="ic s" viewBox="0 0 20 20" aria-hidden="true"><path d="M6 4.5v11l9-5.5z"/></svg>Play the map</span><span style="flex:1"></span><span class="btn quiet compact"><svg class="ic s" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3l7 4-7 4-7-4z"/><path d="M3 11l7 4 7-4M3 14.5l7 4 7-4"/></svg>More lanes</span></div>
+</div></div></body></html>

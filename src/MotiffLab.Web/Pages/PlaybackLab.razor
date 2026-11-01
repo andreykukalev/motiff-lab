@@ -26,6 +26,7 @@
 @using MotiffLab.Web.Projects
 @using MotiffLab.Web.Roll
 @using MotiffLab.Web.Score
+@using MotiffLab.Web.Structure
 @using MotiffLab.Web.Understand
 @implements IDisposable
 @inject IJSRuntime JS
@@ -144,8 +145,8 @@
                 <button class="exit" @onclick="LeaveFocusAsync">‹ @Text["focus.exit"]</button>
                 <span class="phrase" aria-live="polite">@SelectionText</span>
                 <div class="steps" role="group" aria-label="@Text["workspace.phrases"]">
-                    <button @onclick="() => StepPhraseAsync(-1)" disabled="@(StepTarget(-1) is null)" aria-label="@Text["focus.previous"]" title="@Text["focus.previous"]">‹</button>
-                    <button @onclick="() => StepPhraseAsync(1)" disabled="@(StepTarget(1) is null)" aria-label="@Text["focus.next"]" title="@Text["focus.next"]">›</button>
+                    <button @onclick="() => StepPhraseAsync(-1)" disabled="@(!CanStep(-1))" aria-label="@StepLabel(-1)" title="@StepLabel(-1)">‹</button>
+                    <button @onclick="() => StepPhraseAsync(1)" disabled="@(!CanStep(1))" aria-label="@StepLabel(1)" title="@StepLabel(1)">›</button>
                 </div>
                 <button class="@(Looping ? "on" : null)" aria-pressed="@(Looping ? "true" : "false")" @onclick="ToggleLoopSelectionAsync" disabled="@(_selection is not { NoteIds.Count: > 0 })">
                     @(Looping ? Text["focus.looping"] : Text["focus.loop"])
@@ -165,7 +166,8 @@
                 <section class="canvas" aria-label="@Text["workspace.canvas"]" @ref="_canvas">
                     @if (_phrases is not null)
                     {
-                        <PhraseStrip Picked="PickPhraseAsync" Make="MakePhraseAsync" Join="JoinPhraseAsync" Reset="ResetPhrasesAsync"
+                        <HierarchyLine Picked="PickSpanAsync" />
+                        <PhraseStrip Picked="PickPhraseAsync" SentencePicked="PickSentenceAsync" Make="MakePhraseAsync" Join="JoinPhraseAsync" Reset="ResetPhrasesAsync"
                                      CanExtendBack="@(Extension(-1) is not null)" CanExtendOn="@(Extension(1) is not null)"
                                      Extend="ExtendSelectionAsync" KeptCount="KeptCount" />
                     }
@@ -236,7 +238,7 @@
                             case InspectorTab.Understand:
                                 @if (Facts.Count == 0)
                                 {
-                                    <p class="meta">@Text["workspace.understandEmpty"]</p>
+                                    <p class="meta">@Text["understand.nothingYet"]</p>
                                 }
                                 <UnderstandPanel Choose="ChooseFactAsync" Try="TryFromFactAsync" />
                                 @if (Facts.Count > 0)
@@ -731,7 +733,7 @@
     private string? _selectionNote;
 
     /// <summary>Everything music-core found about the selection, for the facts panel to group by lens.</summary>
-    private IReadOnlyList<MotifFact> Facts => [.. _analysis?.Facts ?? [], .. _structure?.Facts ?? [], .. _character];
+    private IReadOnlyList<MotifFact> Facts => [.. _analysis?.Facts ?? [], .. _structure?.Facts ?? [], .. _sentenceFacts, .. _character];
     private readonly HashSet<KeepProperty> _keep = [KeepProperty.Pitches, KeepProperty.PitchOrder];
 
     private const long SixteenthTicks = CanonicalTime.TicksPerQuarter / 4;
@@ -1007,6 +1009,7 @@
             if (_project is { Phrases.IsEmpty: false } phrased)
             {
                 _phrases = _phrases!.With(phrased.Phrases);
+                SuggestSentences();
             }
 
             if (_project is { Edits.IsEmpty: false } corrected)
@@ -1206,6 +1209,7 @@
         _tracks = piece.Notes.Select(note => note.Track).Distinct().Order().ToArray();
         _lastBar = MotifSelector.LastBar(_meter, _score.End);
         _phrases = PhraseMap.Suggest(piece.Notes, _meter, _phraseMarks, _score.End);
+        SuggestSentences();
         _filters = Filters(piece.Notes, _tracks);
         _filter = SelectionFilter.All;
         _keptIds = null;
@@ -1214,6 +1218,7 @@
         _analysis = null;
         _structure = null;
         _character = [];
+        _sentenceFacts = [];
         _selectionNote = null;
         _looping = false;
         _alternating = false;
@@ -1424,8 +1429,14 @@
         { } from => from.Number + direction is int number && number >= 1 && number <= _phrases!.Phrases.Count ? _phrases.Phrases[number - 1] : null,
     };
 
-    /// <summary>Selects the previous or next phrase; the loop, the tempo and what is heard carry on.</summary>
-    private Task StepPhraseAsync(int direction) => StepTarget(direction) is { } phrase ? PickPhraseAsync(phrase) : Task.CompletedTask;
+    /// <summary>Selects the previous or next sibling at the selected level, a sentence or a phrase (0013); the loop, the tempo and what is heard carry on.</summary>
+    private Task StepPhraseAsync(int direction) => CurrentSentence is not null
+        ? SentenceTarget(direction) is { } sentence ? PickSentenceAsync(sentence) : Task.CompletedTask
+        : StepTarget(direction) is { } phrase ? PickPhraseAsync(phrase) : Task.CompletedTask;
+
+    /// <summary>"Previous sentence" or "Next phrase": what ‹ and › lead to at the selected level.</summary>
+    private string StepLabel(int direction) =>
+        Text[CurrentSentence is not null ? (direction < 0 ? "focus.previousSentence" : "focus.nextSentence") : (direction < 0 ? "focus.previous" : "focus.next")];
 
     /// <summary>
     /// What the player can hear alone while the phrase loops: a hand when the selection has notes in both,
@@ -1597,13 +1608,14 @@
         _analysis = MotifAnalyzer.Analyze(_notes!, _meter!, selection, key, _accents, phrases, Words);
         _structure = StructureAnalyzer.Analyze(_notes!, _meter!, selection, phrases, Words);
         _character = MotifAnalyzer.AnalyzeCharacter(_notes!, _meter!, selection, key, _characterContext!, Words);
+        _sentenceFacts = SentenceFactsFor(selection);
         _invitationContext = new InvitationContext(_notes!, _meter!, selection, _analysis, _structure, _character, Words);
         _offers = ExperimentCatalogue.Offer(_invitationContext);
     }
 
     private async Task SelectAsync(TickSpan span, string? note)
     {
-        _selection = MotifSelector.Select(_notes!, _meter!, span, _filter);
+        _selection = MotifSelector.Select(_notes!, _meter!, span, _filter, SelectionCap(span));
         Analyze(_selection);
         _highlight = null;
         MotifTexture? texture = _selection.NoteIds.Count == 0 ? null : MotifTexture.Read(VariationFacts.MotifNotes(_notes!, _selection));
@@ -1693,7 +1705,7 @@
         }
 
         TickSpan span = _phrases.Selectable(phrase);
-        string? note = phrase.FitsSelection ? null : Text.Format("selection.phraseCapped", phrase.Number, phrase.BarCount, MotifSelection.MaxBars, _meter!.BarAt(new Tick(span.End.Value - 1)).Number);
+        string? note = phrase.BarCount <= MotifSelection.MaxStructureBars ? null : Text.Format("selection.phraseCapped", phrase.Number, phrase.BarCount, MotifSelection.MaxStructureBars, _meter!.BarAt(new Tick(span.End.Value - 1)).Number);
         return SelectAsync(span, note);
     }
 
@@ -1716,6 +1728,7 @@
     private async Task ChangePhrasesAsync(PhraseEdits edits, TickSpan? around)
     {
         _phrases = _phrases!.With(edits);
+        SuggestSentences();
         if (around is { } span)
         {
             await PickPhraseAsync(_phrases.Covering(span));
@@ -1742,6 +1755,7 @@
         _analysis = null;
         _structure = null;
         _character = [];
+        _sentenceFacts = [];
         _invitationContext = null;
         _offers = [];
         _trial = null;
@@ -1869,12 +1883,13 @@
         if (_selection is { } current)
         {
             // Renders between the awaits below must not see a selection that names a removed note.
-            _selection = MotifSelector.Select(_notes, _meter!, current.Span, _filter);
+            _selection = MotifSelector.Select(_notes, _meter!, current.Span, _filter, SelectionCap(current.Span));
         }
 
         _score = PlaybackScore.Create(_notes, _score!.Tempos, _meter!, _score.End, _score.Pedal);
         _lastBar = MotifSelector.LastBar(_meter!, _score.End);
         _phrases = PhraseMap.Suggest(_notes, _meter!, _phraseMarks, _score.End, _phrases?.Edits);
+        SuggestSentences();
         _generated = ScoreSource.FromNotes(Notation(_notes, _score.End));
         if (!edits.IsEmpty && _scoreChoice == ScoreChoice.AsWritten)
         {
@@ -2566,7 +2581,8 @@
 
             var parts = new List<string>
             {
-                CurrentPhrase is { } phrase ? Text.Format("selection.phrase", phrase.Number, PhraseBars(phrase)) : Text.Format("selection.selected", SpannedPhrases(selection) ?? Where(selection)),
+                CurrentSentence is { } sentence ? Text.Format("selection.sentence", sentence.Letter, SentenceBars(sentence), sentence.PhrasesIn(Words))
+                    : CurrentPhrase is { } phrase ? Text.Format("selection.phrase", phrase.Number, PhraseBars(phrase)) : Text.Format("selection.selected", SpannedPhrases(selection) ?? Where(selection)),
             };
             if (selection.Filter != SelectionFilter.All)
             {
@@ -2602,6 +2618,10 @@
             return _selectionNote is null ? text : $"{text} {_selectionNote}";
         }
     }
+
+    /// <summary>"bars 1–8": the bars a sentence spans, as the strip names them.</summary>
+    private static string SentenceBars(Sentence sentence) =>
+        sentence.FirstBar == sentence.LastBar ? $"bar {sentence.FirstBar}" : $"bars {sentence.FirstBar}–{sentence.LastBar}";
 
     /// <summary>"bars 4–8": the bars a phrase touches, its pickup included, as the phrase strip names them.</summary>
     private string PhraseBars(Phrase phrase) =>

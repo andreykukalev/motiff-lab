@@ -153,6 +153,17 @@ public class MotifSelectorTests
     }
 
     [Fact]
+    public void A_structure_is_selected_whole_up_to_the_structure_cap()
+    {
+        // A sentence of nine bars is selected whole (decision record 0013); 33 bars is still too many, and the cap itself is bounded.
+        MotifSelection nine = MotifSelector.Select([Note("a", 60, 0)], MeterMap.Default, Span(0, 9 * Bar), SelectionFilter.All, MotifSelection.MaxStructureBars);
+        Assert.Equal((1, 9), (nine.FirstBar, nine.LastBar));
+        Assert.Throws<ArgumentOutOfRangeException>(() => MotifSelector.Select([], MeterMap.Default, Span(0, 33 * Bar), SelectionFilter.All, MotifSelection.MaxStructureBars));
+        Assert.Throws<ArgumentOutOfRangeException>(() => MotifSelector.Select([], MeterMap.Default, Span(0, Bar), SelectionFilter.All, 4));
+        Assert.Throws<ArgumentOutOfRangeException>(() => MotifSelector.Select([], MeterMap.Default, Span(0, Bar), SelectionFilter.All, 64));
+    }
+
+    [Fact]
     public void Select_is_deterministic_whatever_the_input_order()
     {
         Note[] notes = [Note("x", 64, 0), Note("y", 64, 0), Note("w", 60, 0)];

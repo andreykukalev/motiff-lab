@@ -1,0 +1,63 @@
+@using MotiffLab.MusicCore.Analysis
+@using MotiffLab.MusicCore.Events
+@using MotiffLab.MusicCore.Motifs
+@using MotiffLab.MusicCore.Time
+@using MotiffLab.Web.Localization
+@inject UiText Text
+
+@* The levels as context (#133, decision record 0013 section 3): the chain from the piece to the primary selection,
+   the piece › sentence › phrase › bars (the piece by name is in the header above), with the selected level on and every other level one tap away. It only reads the
+   workspace state; the page selects. A level that is a reading of the notes is marked inferred, by line as well as colour. *@
+<nav class="hierarchy" aria-label="@Text["hierarchy.label"]" data-keeps-selection>
+    <span class="crumb piece">@Text["workspace.piece"]</span>
+    @if (State.Selection.Motif is not { } motif)
+    {
+        <span class="meta">@Text["hierarchy.hint"]</span>
+    }
+    else
+    {
+        @if (State.Selection.SentenceAround is { } sentence)
+        {
+            bool on = State.Selection.Level == SelectionLevel.Sentence;
+            <span class="sep" aria-hidden="true">›</span>
+            <button class="crumb @(on ? "on" : null) @(sentence.Found.Provenance == Provenance.Inferred ? "inferred" : null)" aria-current="@(on ? "true" : null)"
+                    title="@sentence.Basis" @onclick="() => Picked.InvokeAsync(sentence.Span)">
+                @Text.Format("hierarchy.sentence", sentence.Letter) · @Bars(sentence.FirstBar, sentence.LastBar)
+                @if (sentence.Found.Provenance == Provenance.Inferred)
+                {
+                    <span class="how">@Text["hierarchy.inferred"]</span>
+                }
+            </button>
+        }
+        @if (State.Selection.PhraseAround is { } phrase)
+        {
+            bool on = State.Selection.Level == SelectionLevel.Phrase;
+            <span class="sep" aria-hidden="true">›</span>
+            <button class="crumb @(on ? "on" : null) @(phrase.Start?.Attribution.Provenance is Provenance.Inferred or Provenance.Detected ? "inferred" : null)" aria-current="@(on ? "true" : null)"
+                    title="@PhraseMap.Describe(phrase.Start, MotiffLab.MusicCore.Words.For(Text.Language))" @onclick="() => Picked.InvokeAsync(phrase.Span)">
+                @Text.Format("hierarchy.phrase", phrase.Number) · @Bars(phrase.FirstBar, phrase.LastBar)
+                @if (phrase.Start?.Attribution.Provenance is Provenance.Inferred or Provenance.Detected)
+                {
+                    <span class="how">@Text["hierarchy.inferred"]</span>
+                }
+            </button>
+        }
+        @if (State.Selection.Level == SelectionLevel.Range)
+        {
+            <span class="sep" aria-hidden="true">›</span>
+            <span class="crumb on" aria-current="true">@Bars(motif.FirstBar, motif.LastBar)</span>
+        }
+    }
+</nav>
+
+@code {
+    /// <summary>The shared workspace state the page cascades; the line reads its selection and the context around it.</summary>
+    [CascadingParameter]
+    public WorkspaceState State { get; set; } = null!;
+
+    /// <summary>Raised with the span of a level to select: a sentence or a phrase the selection lies within.</summary>
+    [Parameter]
+    public EventCallback<TickSpan> Picked { get; set; }
+
+    private string Bars(int first, int last) => first == last ? Text.Format("hierarchy.bar", first) : Text.Format("hierarchy.bars", first, last);
+}

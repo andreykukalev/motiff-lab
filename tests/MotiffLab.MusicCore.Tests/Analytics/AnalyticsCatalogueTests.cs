@@ -1,4 +1,5 @@
 using MotiffLab.MusicCore.Analytics;
+using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Variations;
 
 namespace MotiffLab.MusicCore.Tests.Analytics;
@@ -70,7 +71,8 @@ public class AnalyticsCatalogueTests
     [Fact]
     public void Values_outside_their_range_and_unknown_or_incomplete_events_are_refused()
     {
-        Assert.Throws<ArgumentException>(() => AnalyticsEvent.MotifSelected(9));
+        // A structure is selected whole up to 32 bars (0013); more than that is never a selection.
+        Assert.Throws<ArgumentException>(() => AnalyticsEvent.MotifSelected(MotifSelection.MaxStructureBars + 1));
         Assert.Throws<ArgumentException>(() => AnalyticsEvent.PlaybackStarted("both", 200, false));
         Assert.Throws<ArgumentException>(() => AnalyticsCatalogue.Create("note_played"));
         Assert.Throws<ArgumentException>(() => AnalyticsCatalogue.Create("motif_selected"));
