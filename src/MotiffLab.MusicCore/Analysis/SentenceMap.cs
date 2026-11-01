@@ -85,12 +85,15 @@ public sealed class SentenceMap
     private readonly Dictionary<int, Sentence> _ofPhrase;
     private readonly Dictionary<int, PhraseClose> _closes;
     private readonly Words _words;
+    private readonly PhraseMap _phrases;
 
-    private SentenceMap(IReadOnlyList<Sentence> sentences, IReadOnlyList<PhraseClose> closes, KeyReading key, Words words)
+    private SentenceMap(PhraseMap phrases, IReadOnlyList<Sentence> sentences, IReadOnlyList<PhraseClose> closes, KeyReading key, PhraseEdits edits, Words words)
     {
+        _phrases = phrases;
         Sentences = sentences;
         Closes = closes;
         Key = key;
+        Edits = edits;
         _words = words;
         _ofPhrase = sentences.SelectMany(sentence => sentence.Phrases.Select(phrase => (phrase.Number, sentence))).ToDictionary(pair => pair.Number, pair => pair.sentence);
         _closes = closes.ToDictionary(close => close.Phrase.Number);
@@ -105,8 +108,19 @@ public sealed class SentenceMap
     /// <summary>The key the closes are read in, with how sure it is.</summary>
     public KeyReading Key { get; }
 
+    /// <summary>
+    /// The player's changes at this level (decision record 0018, section 3): phrase boundaries where a sentence
+    /// must end (<see cref="PhraseEdits.Added"/>) and phrase boundaries the grouping must run on across
+    /// (<see cref="PhraseEdits.Removed"/>). An edit at a tick that is not a phrase boundary in effect is left out.
+    /// </summary>
+    public PhraseEdits Edits { get; }
+
     /// <summary>The sentences over <paramref name="phrases"/>, read from the piece's <paramref name="notes"/> and its key signature at the start, if any, written in <paramref name="words"/>.</summary>
-    public static SentenceMap Suggest(PhraseMap phrases, IEnumerable<Note> notes, KeySignature? signature, Words words = default)
+    public static SentenceMap Suggest(PhraseMap phrases, IEnumerable<Note> notes, KeySignature? signature, Words words = default) =>
+        Suggest(phrases, notes, signature, null, words);
+
+    /// <summary>The sentences over <paramref name="phrases"/> with the player's <paramref name="edits"/> at the sentence level.</summary>
+    public static SentenceMap Suggest(PhraseMap phrases, IEnumerable<Note> notes, KeySignature? signature, PhraseEdits? edits, Words words = default)
     {
         ArgumentNullException.ThrowIfNull(phrases);
         ArgumentNullException.ThrowIfNull(notes);
@@ -114,7 +128,51 @@ public sealed class SentenceMap
         Note[] all = [.. notes];
         KeyReading key = MotifAnalyzer.ReadKey(all, signature);
         IReadOnlyList<PhraseClose> closes = [.. phrases.Phrases.Select(phrase => ReadClose(phrase, all, key, words))];
-        return new SentenceMap(Group(phrases.Phrases, closes, words), closes, key, words);
+        return new SentenceMap(phrases, Group(phrases.Phrases, closes, edits ?? PhraseEdits.None, words), closes, key, edits ?? PhraseEdits.None, words);
+    }
+
+    /// <summary>The same phrases and notes with other edits at the sentence level.</summary>
+    public SentenceMap With(PhraseEdits edits)
+    {
+        ArgumentNullException.ThrowIfNull(edits);
+        return new SentenceMap(_phrases, Group(_phrases.Phrases, Closes, edits, _words), Closes, Key, edits, _words);
+    }
+
+    /// <summary>The sentence that holds a position; the last sentence for the end of the piece or later.</summary>
+    public Sentence At(Tick position) => Sentences.LastOrDefault(sentence => sentence.Span.Onset <= position) ?? Sentences[0];
+
+    /// <summary>
+    /// The edits that make <paramref name="span"/> one sentence, given that its edges are phrase boundaries or
+    /// the piece's ends: the sentence ends at both edges and runs on across every phrase boundary inside.
+    /// </summary>
+    public PhraseEdits MakeSentence(TickSpan span)
+    {
+        Tick[] boundaries = [.. _phrases.Boundaries.Select(static boundary => boundary.At)];
+        IEnumerable<Tick> ends = Edits.Added.Where(tick => tick <= span.Onset || tick >= span.End).Concat(new[] { span.Onset, span.End }.Where(tick => boundaries.Contains(tick)));
+        IEnumerable<Tick> runsOn = Edits.Removed.Where(tick => tick != span.Onset && tick != span.End).Concat(boundaries.Where(tick => tick > span.Onset && tick < span.End));
+        return Normalize(ends, runsOn);
+    }
+
+    /// <summary>The edits that join a sentence with the one after it: the grouping runs on across the phrase boundary between them. Unchanged for the last sentence.</summary>
+    public PhraseEdits JoinWithNext(Sentence sentence)
+    {
+        ArgumentNullException.ThrowIfNull(sentence);
+        return sentence.Span.End >= _phrases.End
+            ? Edits
+            : Normalize(Edits.Added.Where(tick => tick != sentence.Span.End), Edits.Removed.Append(sentence.Span.End));
+    }
+
+    /// <summary>The edits that end a sentence at the phrase boundary <paramref name="at"/>; unchanged when no phrase starts there.</summary>
+    public PhraseEdits SplitAt(Tick at) =>
+        _phrases.Boundaries.Any(boundary => boundary.At == at)
+            ? Normalize(Edits.Added.Append(at), Edits.Removed.Where(tick => tick != at))
+            : Edits;
+
+    private PhraseEdits Normalize(IEnumerable<Tick> ends, IEnumerable<Tick> runsOn)
+    {
+        var boundaries = _phrases.Boundaries.Select(static boundary => boundary.At).ToHashSet();
+        Tick[] added = [.. ends.Where(boundaries.Contains).Distinct().Order()];
+        return new PhraseEdits(added, [.. runsOn.Where(tick => boundaries.Contains(tick) && !added.Contains(tick)).Distinct().Order()]);
     }
 
     /// <summary>The sentence whose span is exactly <paramref name="span"/>, or null.</summary>
@@ -376,13 +434,16 @@ public sealed class SentenceMap
         return position.Alteration == 0 ? (((position.Step % ScaleSteps.StepsPerOctave) + ScaleSteps.StepsPerOctave) % ScaleSteps.StepsPerOctave) + 1 : null;
     }
 
-    private static IReadOnlyList<Sentence> Group(IReadOnlyList<Phrase> phrases, IReadOnlyList<PhraseClose> closes, Words words)
+    private static IReadOnlyList<Sentence> Group(IReadOnlyList<Phrase> phrases, IReadOnlyList<PhraseClose> closes, PhraseEdits edits, Words words)
     {
         var sentences = new List<Sentence>();
         var current = new List<Phrase>();
         var reasons = new List<string>();
+        var forcedEnds = edits.Added.ToHashSet();
+        var forcedRunsOn = edits.Removed.ToHashSet();
         double confidence = 1;
         bool detected = true;
+        bool edited = false;
         for (int i = 0; i < phrases.Count; i++)
         {
             Phrase phrase = phrases[i];
@@ -396,6 +457,18 @@ public sealed class SentenceMap
                 reasons.Add(current.Count == 1
                     ? words.T("it ends with the piece", "она заканчивается вместе с произведением")
                     : words.T($"phrase {phrase.Number} ends with the piece", $"фраза {phrase.Number} заканчивается вместе с произведением"));
+            }
+            else if (forcedEnds.Contains(next.Span.Onset))
+            {
+                ends = true;
+                edited = true;
+                reasons.Add(words.T($"you ended it after phrase {phrase.Number}", $"вы завершили его после фразы {phrase.Number}"));
+            }
+            else if (forcedRunsOn.Contains(next.Span.Onset))
+            {
+                ends = false;
+                edited = true;
+                reasons.Add(words.T($"you joined phrase {next.Number} to it", $"вы присоединили к нему фразу {next.Number}"));
             }
             else if (next.Start?.Evidence.Contains(PhraseEvidence.RepeatSign) == true)
             {
@@ -431,9 +504,9 @@ public sealed class SentenceMap
             if (ends)
             {
                 Phrase first = current[0];
-                bool startsMarked = first.Number == 1 || first.Start?.Evidence.Contains(PhraseEvidence.RepeatSign) == true;
+                bool startsMarked = first.Number == 1 || first.Start?.Evidence.Contains(PhraseEvidence.RepeatSign) == true || forcedEnds.Contains(first.Span.Onset);
                 Attribution found = detected && startsMarked
-                    ? new Attribution(Provenance.Detected, MarkedConfidence)
+                    ? edited ? Attribution.UserEdited : new Attribution(Provenance.Detected, MarkedConfidence)
                     : new Attribution(Provenance.Inferred, Math.Min(confidence, GroupConfidence));
                 string basis = Words.Capitalize(string.Join("; ", reasons)) + ".";
                 sentences.Add(new Sentence(sentences.Count + 1, TickSpan.FromBounds(first.Span.Onset, phrase.Span.End), first.FirstBar, phrase.LastBar, [.. current], found, basis));
@@ -441,6 +514,7 @@ public sealed class SentenceMap
                 reasons.Clear();
                 confidence = 1;
                 detected = true;
+                edited = false;
             }
         }
 

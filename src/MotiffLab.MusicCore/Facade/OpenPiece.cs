@@ -11,6 +11,7 @@ using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Notation;
 using MotiffLab.MusicCore.Playback;
 using MotiffLab.MusicCore.Projects;
+using MotiffLab.MusicCore.Settings;
 using MotiffLab.MusicCore.Time;
 using MotiffLab.MusicCore.Variations;
 
@@ -29,6 +30,7 @@ internal sealed partial class OpenPiece
     private InvitationContext? _understood;
     private IReadOnlyList<Experiment>? _offered;
     private (Experiment Experiment, int Alternative)? _trial;
+    private TryChip? _chip;
     private MotifSelectionKind _selectionKind = MotifSelectionKind.Range;
 
     private OpenPiece(Project project, ImportedPiece piece, IReadOnlyList<Note> notes, Words words)
@@ -37,9 +39,13 @@ internal sealed partial class OpenPiece
         Piece = piece;
         Notes = notes;
         Words = words;
-        Phrases = PhraseMap.Suggest(notes, piece.Meter, piece.MusicXml?.PhraseMarks ?? PhraseMarks.None, piece.End, project.Phrases);
+        Levels = PhraseLevels.Suggest(notes, piece.Meter, piece.MusicXml?.PhraseMarks ?? PhraseMarks.None, piece.End, KeySignature.InForce(piece.Keys, Tick.Zero), words, project.PhraseLevels);
+        Level = PhraseLevels.Parse(project.SettingOverrides.GetValueOrDefault(GranularitySetting)) ?? PhraseLevels.Parse(SettingsCatalogue.Get(GranularitySetting).Default) ?? PhraseLevel.Phrase;
         Keep = [.. s_defaultKeep];
     }
+
+    /// <summary>The piece setting that remembers the level shown (0018, section 3).</summary>
+    public const string GranularitySetting = "phrases.granularity";
 
     public Project Project { get; private set; }
 
@@ -50,7 +56,13 @@ internal sealed partial class OpenPiece
 
     public Words Words { get; private set; }
 
-    public PhraseMap Phrases { get; private set; }
+    /// <summary>The piece in three levels (0018, section 3) with the player's edits at each.</summary>
+    public PhraseLevels Levels { get; private set; }
+
+    /// <summary>The level the app shows, remembered per piece through <see cref="GranularitySetting"/>.</summary>
+    public PhraseLevel Level { get; private set; }
+
+    public PhraseMap Phrases => Levels.Phrases;
 
     public MotifSelection? Selection { get; private set; }
 
@@ -110,13 +122,15 @@ internal sealed partial class OpenPiece
     {
         "piece" => Answer.Write(json => Answer.Piece(json, Piece, Notes, withNotes: true)),
         "language" => Language(request),
-        "phrases" => Answer.Write(json => Answer.Phrases(json, Phrases, Words)),
+        "phrases" => Answer.Write(json => Answer.Phrases(json, Levels, LevelOf(request) ?? Level, Words)),
+        "phrases.level" => ChangeLevel(request),
         "phrases.edit" => EditPhrases(request),
         "select" => Select(request),
-        "understand" => Answer.Write(json => Answer.Understanding(json, Understood())),
+        "understand" => Answer.Write(json => Answer.Understanding(json, Understood(), SentenceFacts(), fact => TryChips.Offer(fact.Id, Understood()))),
         "experiments" => Answer.Write(json => Answer.Experiments(json, "experiments", Offered())),
         "experiments.start" => StartExperiment(request),
         "experiments.surprise" => Surprise(request),
+        "try" => TryChip(request),
         "variation" => ChainAnswer(Chain ?? throw FacadeException.NoVariation()),
         "variation.start" => StartChain(request),
         "variation.propose" => Propose(request),
@@ -155,38 +169,118 @@ internal sealed partial class OpenPiece
     private string Language(Request request)
     {
         Words = Words.For(request.Required("language"));
+        Levels = PhraseLevels.Suggest(Notes, Piece.Meter, Piece.MusicXml?.PhraseMarks ?? PhraseMarks.None, Piece.End, KeySignature.InForce(Piece.Keys, Tick.Zero), Words, Levels.Edits);
         _understood = null;
         _offered = null;
         return Answer.Write(json => json.WriteString("language", Words.IsRussian ? "ru" : "en"));
     }
 
+    /// <summary>The level a request names in "level", or null when it names none.</summary>
+    private static PhraseLevel? LevelOf(Request request) =>
+        request.Text("level") is { } name
+            ? PhraseLevels.Parse(name) ?? throw FacadeException.BadRequest("\"level\" is \"short\", \"phrase\" or \"sentence\".")
+            : null;
+
+    /// <summary>
+    /// Shows another level and remembers it with the piece (0018, section 3). The selection moves to the unit that
+    /// is, encloses or starts it at the new level; the answer is the phrases with the selection as it now is.
+    /// </summary>
+    private string ChangeLevel(Request request)
+    {
+        PhraseLevel level = LevelOf(request) ?? throw FacadeException.BadRequest("Send \"level\": \"short\", \"phrase\" or \"sentence\".");
+        Level = level;
+        Project = Project.OverrideSetting(GranularitySetting, PhraseLevels.SettingValue(level));
+        if (Selection is { } selection && _selectionKind == MotifSelectionKind.Range)
+        {
+            TickSpan mapped = Levels.Selectable(Levels.Map(selection.Span, level));
+            if (mapped != selection.Span)
+            {
+                MotifSelection moved = MotifSelector.Select(Notes, Piece.Meter, mapped, selection.Filter, MotifSelection.MaxStructureBars);
+                if (moved.NoteIds.Count > 0)
+                {
+                    Selection = moved;
+                    _understood = null;
+                    _offered = null;
+                    _trial = null;
+                    _chip = null;
+                    Chain = null;
+                }
+            }
+        }
+
+        return Answer.Write(json =>
+        {
+            Answer.Phrases(json, Levels, Level, Words);
+            if (Selection is { } now)
+            {
+                Answer.Selection(json, "selection", now, KeySignature.InForce(Piece.Keys, now.Span.Onset));
+            }
+            else
+            {
+                json.WriteNull("selection");
+            }
+        });
+    }
+
+    /// <summary>Make phrase, Merge with next, Split here or Reset to detected at a level (the one shown unless "level" says otherwise).</summary>
     private string EditPhrases(Request request)
     {
-        PhraseEdits edits;
+        PhraseLevel level = LevelOf(request) ?? Level;
+        LevelEdits edits;
         if (request.Span("makePhrase") is { } span)
         {
-            edits = Phrases.MakePhrase(span);
+            edits = Levels.MakeUnit(level, span);
         }
         else if (request.Int("joinWithNext") is int number)
         {
-            Phrase phrase = Phrases.Phrases.FirstOrDefault(phrase => phrase.Number == number) ?? throw FacadeException.BadRequest($"There is no phrase {number}.");
-            edits = Phrases.JoinWithNext(phrase);
+            PhraseUnit unit = Levels.Units(level).FirstOrDefault(unit => unit.Number == number) ?? throw FacadeException.BadRequest($"There is no {PhraseLevels.Name(level)} {number}.");
+            edits = Levels.JoinWithNext(level, unit);
+        }
+        else if (request.Long("split") is long at)
+        {
+            edits = Levels.SplitAt(level, new Tick(at));
         }
         else if (request.Bool("reset") == true)
         {
-            edits = PhraseEdits.None;
+            edits = Levels.Reset(level);
         }
         else
         {
-            throw FacadeException.BadRequest("Send \"makePhrase\" (a span), \"joinWithNext\" (a phrase number) or \"reset\".");
+            throw FacadeException.BadRequest("Send \"makePhrase\" (a span), \"joinWithNext\" (a number), \"split\" (a tick) or \"reset\", with an optional \"level\".");
         }
 
-        Phrases = Phrases.With(edits);
+        Levels = Levels.With(edits);
         // Bookmarks made from a phrase follow it through the merge or split (0018, section 5).
-        Project = Project.FollowPhrases(Phrases.Phrases.Select(phrase => phrase.Span));
+        Project = Project.WithPhraseLevels(Levels.Edits).FollowPhrases(Levels.Phrases.Phrases.Select(phrase => phrase.Span));
         _understood = null;
         _offered = null;
-        return Answer.Write(json => Answer.Phrases(json, Phrases, Words));
+        return Answer.Write(json => Answer.Phrases(json, Levels, Level, Words));
+    }
+
+    /// <summary>The sentence map's facts about the selection: about the phrase it is, or the sentence it is; none for another range.</summary>
+    private IReadOnlyList<MotifFact> SentenceFacts()
+    {
+        MotifSelection selection = Selection ?? throw FacadeException.NoSelection();
+        if (Levels.Phrases.Matching(selection.Span) is { } phrase)
+        {
+            return Levels.Sentences.Facts(phrase);
+        }
+
+        return Levels.Sentences.Matching(selection.Span) is { } sentence ? Levels.Sentences.Facts(sentence) : [];
+    }
+
+    /// <summary>Sounds a Try chip (0018, section 7): one accepted step over the selection with the chip's Keep preset.</summary>
+    private string TryChip(Request request)
+    {
+        string id = request.Required("chip");
+        TryChip chip = TryChips.Find(id) ?? throw FacadeException.BadRequest($"There is no chip \"{id}\".");
+        VariationChain chain = TryChips.Start(chip, Understood(), out string? reason) ?? throw FacadeException.Unavailable(reason ?? "The chip cannot run on this selection.");
+        Keep.Clear();
+        Keep.UnionWith(chain.Context.Keep);
+        Chain = chain;
+        _trial = null;
+        _chip = chip;
+        return ChainAnswer(chain);
     }
 
     private string Select(Request request)
@@ -221,6 +315,7 @@ internal sealed partial class OpenPiece
         _understood = null;
         _offered = null;
         _trial = null;
+        _chip = null;
         Chain = null;
         return Answer.Write(json => Answer.Selection(json, "selection", selection, KeySignature.InForce(Piece.Keys, selection.Span.Onset)));
     }
@@ -272,6 +367,7 @@ internal sealed partial class OpenPiece
         Keep.UnionWith(chain.Context.Keep);
         Chain = chain;
         _trial = (experiment, alternative);
+        _chip = null;
         return ChainAnswer(chain);
     }
 
@@ -285,6 +381,7 @@ internal sealed partial class OpenPiece
         }
 
         _trial = null;
+        _chip = null;
         Chain = NewChain(selection, request.Int("seed") ?? 0);
         return ChainAnswer(Chain);
     }
@@ -356,6 +453,7 @@ internal sealed partial class OpenPiece
     {
         Chain = null;
         _trial = null;
+        _chip = null;
         return Answer.Write(json => json.WriteBoolean("cleared", true));
     }
 
@@ -373,6 +471,8 @@ internal sealed partial class OpenPiece
         {
             json.WriteNull("experiment");
         }
+
+        json.WriteString("chip", _chip?.Id);
     });
 
     private string Notation(Request request)
@@ -473,11 +573,10 @@ internal sealed partial class OpenPiece
             }
         }
 
-        Project = Project with
+        Project = Project.WithPhraseLevels(Levels.Edits) with
         {
             Motifs = motifs,
             Variations = variations,
-            Phrases = Phrases.Edits,
             LastOpened = now ?? Project.LastOpened,
         };
         return System.Text.Encoding.UTF8.GetString(ProjectFile.Write(Project));

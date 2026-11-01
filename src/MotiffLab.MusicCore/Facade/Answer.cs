@@ -328,54 +328,69 @@ internal static partial class Answer
         json.WriteEndObject();
     }
 
-    public static void Phrases(Utf8JsonWriter json, PhraseMap map, Words words)
+    /// <summary>The three levels (0018, section 3; contract 3): the level shown, every level with its count, the edits per level and the units of the level shown.</summary>
+    public static void Phrases(Utf8JsonWriter json, PhraseLevels levels, PhraseLevel shown, Words words)
     {
+        json.WriteString("level", PhraseLevels.Name(shown));
         json.WriteStartArray("levels");
-        foreach ((string level, bool available) in new[] { ("phrase", true), ("sentence", false), ("period", false) })
+        foreach (PhraseLevel level in PhraseLevels.All)
         {
             json.WriteStartObject();
-            json.WriteString("id", level);
-            json.WriteBoolean("available", available);
+            json.WriteString("id", PhraseLevels.Name(level));
+            json.WriteBoolean("available", true);
+            json.WriteNumber("count", levels.Units(level).Count);
             json.WriteEndObject();
         }
 
         json.WriteEndArray();
-        json.WriteString("evidence", Name(map.Evidence));
+        json.WriteString("evidence", Name(levels.Phrases.Evidence));
         json.WriteStartObject("edits");
-        Ticks(json, "added", map.Edits.Added);
-        Ticks(json, "removed", map.Edits.Removed);
+        foreach (PhraseLevel level in PhraseLevels.All)
+        {
+            json.WriteStartObject(PhraseLevels.Name(level));
+            Ticks(json, "added", levels.Edits[level].Added);
+            Ticks(json, "removed", levels.Edits[level].Removed);
+            json.WriteEndObject();
+        }
+
         json.WriteEndObject();
 
-        json.WriteStartArray("phrases");
-        foreach (Phrase phrase in map.Phrases)
+        json.WriteStartArray("units");
+        foreach (PhraseUnit unit in levels.Units(shown))
         {
-            json.WriteStartObject();
-            json.WriteNumber("number", phrase.Number);
-            json.WriteString("level", "phrase");
-            json.WriteNumber("firstBar", phrase.FirstBar);
-            json.WriteNumber("lastBar", phrase.LastBar);
-            json.WriteNumber("onset", phrase.Span.Onset.Value);
-            json.WriteNumber("end", phrase.Span.End.Value);
-            Span(json, "selectable", map.Selectable(phrase));
-            json.WriteBoolean("fitsSelection", phrase.FitsSelection);
-            if (phrase.Start is { } start)
-            {
-                json.WriteStartObject("start");
-                json.WriteNumber("at", start.At.Value);
-                Texts(json, "evidence", start.Evidence.Select(Name));
-                Attribution(json, start.Attribution);
-                json.WriteString("description", PhraseMap.Describe(start, words));
-                json.WriteEndObject();
-            }
-            else
-            {
-                json.WriteNull("start");
-            }
-
-            json.WriteEndObject();
+            Unit(json, levels, unit, words);
         }
 
         json.WriteEndArray();
+    }
+
+    public static void Unit(Utf8JsonWriter json, PhraseLevels levels, PhraseUnit unit, Words words)
+    {
+        json.WriteStartObject();
+        json.WriteNumber("number", unit.Number);
+        json.WriteString("level", PhraseLevels.Name(unit.Level));
+        json.WriteNumber("firstBar", unit.FirstBar);
+        json.WriteNumber("lastBar", unit.LastBar);
+        json.WriteNumber("onset", unit.Span.Onset.Value);
+        json.WriteNumber("end", unit.Span.End.Value);
+        Span(json, "selectable", levels.Selectable(unit));
+        json.WriteBoolean("long", unit.IsLong);
+        if (levels.Parent(unit) is { } parent)
+        {
+            json.WriteNumber("parent", parent.Number);
+        }
+        else
+        {
+            json.WriteNull("parent");
+        }
+
+        json.WriteStartObject("start");
+        json.WriteNumber("at", unit.Span.Onset.Value);
+        Texts(json, "evidence", unit.Evidence);
+        Attribution(json, unit.Start);
+        json.WriteString("description", unit.Description);
+        json.WriteEndObject();
+        json.WriteEndObject();
     }
 
     public static void Selection(Utf8JsonWriter json, string name, MotifSelection selection, KeySignature? key)
@@ -393,7 +408,7 @@ internal static partial class Answer
         json.WriteEndObject();
     }
 
-    public static void Facts(Utf8JsonWriter json, string name, IEnumerable<MotifFact> facts)
+    public static void Facts(Utf8JsonWriter json, string name, IEnumerable<MotifFact> facts, Func<MotifFact, IReadOnlyList<TryChip>>? chips = null, Words words = default)
     {
         json.WriteStartArray(name);
         foreach (MotifFact fact in facts)
@@ -416,14 +431,42 @@ internal static partial class Answer
             }
 
             json.WriteEndArray();
+            if (chips is not null)
+            {
+                Chips(json, "tryChips", chips(fact), words);
+            }
+
             json.WriteEndObject();
         }
 
         json.WriteEndArray();
     }
 
-    public static void Understanding(Utf8JsonWriter json, InvitationContext context)
+    /// <summary>Try chips (0018, section 7): id, operation, label in the language, Keep preset and the step's parameters in the project file's shape.</summary>
+    public static void Chips(Utf8JsonWriter json, string name, IEnumerable<TryChip> chips, Words words)
     {
+        json.WriteStartArray(name);
+        foreach (TryChip chip in chips)
+        {
+            json.WriteStartObject();
+            json.WriteString("id", chip.Id);
+            json.WriteString("label", chip.LabelIn(words));
+            json.WriteString("keepPreset", chip.KeepPresetId);
+            ProjectFile.WriteStep(json, new SavedStep(chip.OperationId, chip.Parameters!));
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
+    }
+
+    /// <summary>
+    /// What was understood about the selection: the motif's analysis, the structure around it, its character and
+    /// its place among the sentences, each fact with its Try chips (0018, section 7), then the three strongest facts
+    /// for the Insights strip and the one to hear first (preparation item 9).
+    /// </summary>
+    public static void Understanding(Utf8JsonWriter json, InvitationContext context, IReadOnlyList<MotifFact> sentence, Func<MotifFact, IReadOnlyList<TryChip>> chips)
+    {
+        Words words = context.Words;
         MotifAnalysis motif = context.Motif;
         json.WriteStartObject("motif");
         Texts(json, "line", motif.Line.Select(note => note.Id));
@@ -447,7 +490,7 @@ internal static partial class Answer
             json.WriteNull("key");
         }
 
-        Facts(json, "facts", motif.Facts);
+        Facts(json, "facts", motif.Facts, chips, words);
         json.WriteEndObject();
 
         StructureAnalysis structure = context.Structure;
@@ -484,10 +527,25 @@ internal static partial class Answer
 
         json.WriteEndArray();
         Numbers(json, "newMaterialBars", structure.NewMaterialBars);
-        Facts(json, "facts", structure.Facts);
+        Facts(json, "facts", structure.Facts, chips, words);
         json.WriteEndObject();
 
-        Facts(json, "character", context.Character);
+        Facts(json, "character", context.Character, chips, words);
+        Facts(json, "sentence", sentence, chips, words);
+
+        MotifFact[] all = [.. motif.Facts, .. structure.Facts, .. context.Character, .. sentence];
+        Texts(json, "strongest", FactRanking.Strongest(all).Select(fact => fact.Id));
+        if (FactRanking.KeyObservation(all) is { } key)
+        {
+            json.WriteStartObject("keyObservation");
+            json.WriteString("id", key.Id);
+            json.WriteString("reason", FactRanking.Reason(key, words));
+            json.WriteEndObject();
+        }
+        else
+        {
+            json.WriteNull("keyObservation");
+        }
     }
 
     public static void Experiments(Utf8JsonWriter json, string name, IEnumerable<Experiment> experiments)

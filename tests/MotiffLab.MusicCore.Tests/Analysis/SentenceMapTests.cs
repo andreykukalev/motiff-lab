@@ -81,6 +81,32 @@ public class SentenceMapTests
     }
 
     [Fact]
+    public void The_player_ends_a_sentence_at_a_phrase_boundary_or_joins_across_one()
+    {
+        (Note[] notes, PhraseMap phrases) = QuestionAndAnswer();
+        SentenceMap map = SentenceMap.Suggest(phrases, notes, s_cMajor);
+        Tick boundary = phrases.Phrases[1].Span.Onset;
+
+        SentenceMap split = map.With(map.SplitAt(boundary));
+        Assert.Equal(2, split.Sentences.Count);
+        Assert.Equal([boundary], split.Edits.Added);
+        Assert.Equal("You ended it after phrase 1.", split.Sentences[0].Basis);
+        Assert.Equal(Attribution.UserEdited, split.Sentences[0].Found);
+        Assert.Equal(FactCertainty.Detected, split.Facts(split.Sentences[0])[0].Certainty);
+
+        SentenceMap joined = split.With(split.JoinWithNext(split.Sentences[0]));
+        Assert.Single(joined.Sentences);
+        Assert.Equal([boundary], joined.Edits.Removed);
+        Assert.Empty(joined.Edits.Added);
+        Assert.Equal("You joined phrase 2 to it; phrase 2 ends with the piece.", joined.Sentences[0].Basis);
+
+        // An edit at a tick that is no phrase boundary changes nothing, and reset restores the suggestion.
+        Assert.Equal(map.Edits, map.SplitAt(new Tick(Quarter)));
+        Assert.Equal(map.Sentences.Select(sentence => sentence.Basis), joined.With(PhraseEdits.None).Sentences.Select(sentence => sentence.Basis));
+        Assert.Equal(2, SentenceMap.Suggest(phrases, notes, s_cMajor, new PhraseEdits([boundary], []), Words.Russian).Sentences.Count);
+    }
+
+    [Fact]
     public void The_facts_about_a_phrase_name_its_sentence_and_its_close()
     {
         (Note[] notes, PhraseMap phrases) = QuestionAndAnswer();

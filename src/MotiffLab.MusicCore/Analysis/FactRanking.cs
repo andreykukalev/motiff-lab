@@ -28,6 +28,37 @@ public static class FactRanking
             .FirstOrDefault();
     }
 
+    /// <summary>
+    /// The strongest facts for the Insights strip (decision record 0018, section 4; preparation item 9): up to
+    /// <paramref name="count"/> facts in the order of <see cref="KeyObservation"/>, taking a fact from a lens not yet
+    /// shown before a second fact of the same lens, so the strip reads across structure, line and rhythm rather
+    /// than three facts about one thing. An interpretation is never among them. Deterministic.
+    /// </summary>
+    public static IReadOnlyList<MotifFact> Strongest(IReadOnlyList<MotifFact> facts, int count = 3)
+    {
+        ArgumentNullException.ThrowIfNull(facts);
+        ArgumentOutOfRangeException.ThrowIfNegative(count);
+        List<MotifFact> ranked = [.. facts
+            .Select((fact, index) => (fact, index))
+            .Where(entry => entry.fact.Certainty != FactCertainty.Interpretation)
+            .OrderBy(entry => entry.fact.Places.Count == 0 ? 1 : 0)
+            .ThenBy(entry => LensRank(entry.fact.Lens))
+            .ThenBy(entry => entry.fact.Certainty)
+            .ThenBy(entry => entry.index)
+            .Select(entry => entry.fact)];
+        var chosen = new List<MotifFact>();
+        var lenses = new HashSet<FactLens>();
+        while (chosen.Count < count && ranked.Count > 0)
+        {
+            MotifFact next = ranked.FirstOrDefault(fact => !lenses.Contains(fact.Lens)) ?? ranked[0];
+            chosen.Add(next);
+            lenses.Add(next.Lens);
+            ranked.Remove(next);
+        }
+
+        return chosen;
+    }
+
     /// <summary>Why a fact is shown first, from the ranking's own criteria: "It names places to show in the score, is about structure, and is detected."</summary>
     public static string Reason(MotifFact fact, Words words = default)
     {

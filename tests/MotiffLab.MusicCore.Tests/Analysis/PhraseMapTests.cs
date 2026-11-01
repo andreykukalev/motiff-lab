@@ -2,6 +2,7 @@ using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import.Midi;
 using MotiffLab.MusicCore.Import.MusicXml;
+using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Tests.Analysis;
@@ -52,7 +53,7 @@ public class PhraseMapTests
     }
 
     [Fact]
-    public void A_stretch_longer_than_a_selection_without_a_boundary_is_partial_evidence()
+    public void A_stretch_longer_than_a_phrase_usually_runs_without_a_boundary_is_partial_evidence()
     {
         // Ten bars of whole notes with a beat of rest only before bar 10.
         Note[] notes = [.. Enumerable.Range(0, 10).Select(bar => new Note
@@ -68,8 +69,9 @@ public class PhraseMapTests
         PhraseMap map = PhraseMap.Suggest(notes, MeterMap.Default, PhraseMarks.None, new Tick(10 * Bar));
 
         Assert.Equal(PhraseEvidenceLevel.Partial, map.Evidence);
-        Assert.False(map.Phrases[0].FitsSelection);
-        // The long phrase does not fit a range selection, but as a structure it is selected whole (decision record 0013).
+        Assert.True(map.Phrases[0].IsLong);
+        Assert.False(map.Phrases[1].IsLong);
+        // The long phrase is selected whole (decision records 0013 and 0018).
         Assert.Equal(map.Phrases[0].Span, map.Selectable(map.Phrases[0]));
         Assert.Equal(map.Phrases[1].Span, map.Selectable(map.Phrases[1]));
     }
@@ -193,27 +195,43 @@ public class PhraseMapTests
     [Fact]
     public void An_extended_selection_stops_at_the_most_bars_a_selection_holds()
     {
-        // Ten bars of whole notes with a beat of rest only before bar 10: phrases of bars 1–10 and bar 10.
-        Note[] notes = [.. Enumerable.Range(0, 10).Select(bar => new Note
+        // Forty bars of rising whole notes with a beat of rest only before bar 40: phrases of bars 1–39 and bar 40 (decision record 0018 took the 8-bar cap away; 32 remains).
+        Note[] notes = [.. Enumerable.Range(0, 40).Select(bar => new Note
         {
             Id = $"n{bar}",
-            Pitch = new Pitch(60),
-            Span = new TickSpan(new Tick((bar * Bar) + (bar == 9 ? 480 : 0)), bar == 8 ? Bar - 480 : Bar - (bar == 9 ? 480 : 0)),
+            Pitch = new Pitch(48 + bar),
+            Span = new TickSpan(new Tick((bar * Bar) + (bar == 39 ? 480 : 0)), bar == 38 ? Bar - 480 : Bar - (bar == 39 ? 480 : 0)),
             Velocity = 80,
             Track = 0,
             Attribution = Attribution.Imported,
         })];
-        PhraseMap map = PhraseMap.Suggest(notes, MeterMap.Default, PhraseMarks.None, new Tick(10 * Bar));
+        PhraseMap map = PhraseMap.Suggest(notes, MeterMap.Default, PhraseMarks.None, new Tick(40 * Bar));
 
         PhraseExtension? next = map.ExtendInto(TickSpan.FromBounds(Tick.Zero, new Tick(Bar)), 1);
-        Assert.Equal(TickSpan.FromBounds(Tick.Zero, new Tick(8 * Bar)), next?.Span);
+        Assert.Equal(TickSpan.FromBounds(Tick.Zero, new Tick(MotifSelection.MaxBars * Bar)), next?.Span);
         Assert.True(next?.Shortened);
         // Already as long as a selection can be: nothing more to add.
         Assert.Null(map.ExtendInto(next!.Span, 1));
 
         PhraseExtension? previous = map.ExtendInto(map.Phrases[1].Span, -1);
-        Assert.Equal(TickSpan.FromBounds(new Tick(2 * Bar), new Tick(10 * Bar)), previous?.Span);
+        Assert.Equal(TickSpan.FromBounds(new Tick((40 - MotifSelection.MaxBars) * Bar), new Tick(40 * Bar)), previous?.Span);
         Assert.True(previous?.Shortened);
+    }
+
+    [Fact]
+    public void Join_across_takes_away_the_boundaries_inside_a_span_and_split_adds_one()
+    {
+        PhraseMap map = Phrases();
+
+        PhraseMap joined = map.With(map.JoinAcross(TickSpan.FromBounds(new Tick(Bar), new Tick(5 * Bar))));
+        Assert.Equal([(0L, 5 * Bar)], Spans(joined));
+
+        PhraseMap split = map.With(map.SplitAt(new Tick(2 * Bar)));
+        Assert.Equal([(0L, 2 * Bar), (2 * Bar, 4320L), (4320L, 4 * Bar), (4 * Bar, 5 * Bar)], Spans(split));
+        Assert.Equal(Attribution.UserEdited, split.Phrases[1].Start!.Attribution);
+        // Less than a beat from a boundary in effect: the split confirms it instead.
+        Assert.Equal(Spans(map), Spans(map.With(map.SplitAt(new Tick(4320 - 240)))));
+        Assert.Equal(map.Edits, map.SplitAt(Tick.Zero));
     }
 
     [Fact]

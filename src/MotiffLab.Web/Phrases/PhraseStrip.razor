@@ -205,8 +205,8 @@
     {
         PhraseEvidenceLevel.None when Map.Edits.IsEmpty => Text["phrases.noEvidence"],
         PhraseEvidenceLevel.None => Text["phrases.yoursOnly"],
-        PhraseEvidenceLevel.Partial when Map.Phrases.FirstOrDefault(phrase => !phrase.FitsSelection) is { } longest =>
-            Text.Format("phrases.tooLong", longest.Number, longest.BarCount, MotifSelection.MaxBars),
+        PhraseEvidenceLevel.Partial when Map.Phrases.FirstOrDefault(phrase => phrase.IsLong) is { } longest =>
+            Text.Format("phrases.tooLong", longest.Number, longest.BarCount, PhraseMap.LongPhraseBars),
         _ => null,
     };
 
@@ -236,9 +236,9 @@
     private string KeptText(int kept) => kept == 0 ? "" : ", " + Text.Format("phrases.keptShort", kept);
 
     private string Title(Phrase phrase) =>
-        phrase.FitsSelection
-            ? Text.Format("phrases.starts", Describe(phrase.Start))
-            : Text.Format("phrases.startsLong", Describe(phrase.Start), phrase.BarCount, MotifSelection.MaxBars);
+        phrase.IsLong
+            ? Text.Format("phrases.startsLong", Describe(phrase.Start), phrase.BarCount, PhraseMap.LongPhraseBars)
+            : Text.Format("phrases.starts", Describe(phrase.Start));
 
     /// <summary>How the start was found, with "inferred" and its confidence when it is a reading of the notes.</summary>
     private string Describe(PhraseBoundary? start) =>
