@@ -11,10 +11,11 @@ Swift (SwiftUI)  ->  MotiffLabCore.xcframework  ->  C functions (include/motiffl
                                                     -> CoreBridge/Exports.cs  ->  src/MotiffLab.MusicCore (unchanged)
 ```
 
-- `CoreBridge/` is a class library compiled to native code with NativeAOT (`PublishAot`, and on iOS `PublishAotUsingRuntimePack`, supported since .NET 9). It exports four C functions with `[UnmanagedCallersOnly]`: `ml_version`, `ml_phrases`, `ml_benchmark` and `ml_free`. Data goes in as bytes and comes out as UTF-8 JSON, which is the shape the real facade would have (decision to come: a JSON facade over music-core and project file v12 as the contract between C# and Swift).
+- `CoreBridge/` is a class library compiled to native code with NativeAOT (`PublishAot`, and on iOS `PublishAotUsingRuntimePack`, supported since .NET 9). It exports C functions with `[UnmanagedCallersOnly]`: the facade's `ml_open`, `ml_call` and `ml_close` (decision record 0020: one JSON contract over music-core, the piece kept open in memory), and the spike's own `ml_version`, `ml_phrases`, `ml_benchmark`, `ml_mei` and `ml_free`. Data goes in as bytes and comes out as UTF-8 JSON.
 - `CoreBridge/CoreBenchmark.cs` runs the pipeline of `PlaybackLab.razor`: import, suggested phrases, analysis of every phrase (motif, structure and character facts), the Try experiments of the first phrase, the notation (MEI) of the whole piece, and a project file written and read back.
 - music-core needs no change: it has no reflection-based JSON and the NativeAOT publish gives no trim or AOT warnings (`-warnaserror`).
 - `ios/` is the SwiftUI spike app (XcodeGen): pick a piece, run, see the time of each step; `CoreSpikeTests` runs the same in the simulator.
+- `ios/CoreSpike/MusicCore.swift` wraps the C functions; `CoreSpikeTests/FacadeTests.swift` calls the facade in the simulator (open, phrases, select, understand, experiments, a variation step, notation, playback, save and reopen) and checks the same answers as the xUnit tests in `tests/MotiffLab.MusicCore.Tests/Facade`.
 - `Bench/` runs the benchmark as a console app (JIT, or NativeAOT for this computer); `native-check/` calls the native library from C; `WebBench/` runs it in the browser as the web app does today (Blazor WebAssembly, interpreted).
 - `assets/`: Für Elise as 97 bars of MusicXML (from the design kit) and the 5000-note MIDI file of the music-core tests.
 
@@ -60,7 +61,8 @@ dotnet publish spikes/ios-core/CoreBridge -c Release -r linux-x64 -o /tmp/lib
 clang -I spikes/ios-core/CoreBridge/include spikes/ios-core/native-check/main.c -L /tmp/lib -l:MotiffLabCore.so -Wl,-rpath,/tmp/lib -o /tmp/check && /tmp/check spikes/ios-core/assets/fur-elise-97-bars.musicxml
 dotnet publish spikes/ios-core/WebBench -c Release -o /tmp/web   # serve /tmp/web/wwwroot and open it
 # the score pipeline, with a Verovio built as a shared library (build-verovio.sh shows the CMake options):
-python3 spikes/ios-core/native-check/engrave.py /tmp/lib/MotiffLabCore.so <libverovio.so> <verovio>/data spikes/ios-core/assets/fur-elise-97-bars.musicxml 5
+python3 spikes/ios-core/native-check/engrave.py /tmp/lib/MotiffLabCore.so <libverovio.so> <verovio>/data spikes/ios-core/assets/fur-elise-97-bars.musicxml 5# the facade through the C functions, as the iPad app calls it:
+python3 spikes/ios-core/native-check/facade.py /tmp/lib/MotiffLabCore.so spikes/ios-core/assets/fur-elise-97-bars.musicxml
 ```
 
 ## Verovio: the score on the iPad

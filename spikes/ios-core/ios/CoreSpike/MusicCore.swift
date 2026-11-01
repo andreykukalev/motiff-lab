@@ -8,6 +8,35 @@ enum MusicCore {
         take(ml_version())
     }
 
+    // MARK: The facade (docs/decisions/0020-music-core-facade.md)
+
+    /// Opens a MIDI or MusicXML file as a new project, or a project file, and returns the
+    /// piece's number with its summary: {"piece": 1, "project": {…}, "summary": {…}}.
+    static func open(fileName: String, data: Data, request: String? = nil) -> String {
+        withOptionalCString(request) { requestPointer in
+            call(fileName, data) { name, bytes, count in
+                ml_open(name, bytes, count, requestPointer)
+            }
+        }
+    }
+
+    /// Runs one call on an open piece; piece 0 is for "version" and "catalogue".
+    static func call(piece: Int32, _ name: String, _ request: String? = nil) -> String {
+        withOptionalCString(request) { requestPointer in
+            name.withCString { namePointer in
+                take(ml_call(piece, namePointer, requestPointer))
+            }
+        }
+    }
+
+    /// Forgets an open piece; false when it was not open.
+    @discardableResult
+    static func close(piece: Int32) -> Bool {
+        ml_close(piece) != 0
+    }
+
+    // MARK: The spike's benchmarks
+
     static func benchmark(fileName: String, data: Data, iterations: Int, russian: Bool) -> String {
         call(fileName, data) { name, bytes, count in
             ml_benchmark(name, bytes, count, Int32(iterations), russian ? 1 : 0)
@@ -49,6 +78,11 @@ enum MusicCore {
                 take(body(name, raw.bindMemory(to: UInt8.self).baseAddress, Int32(raw.count)))
             }
         }
+    }
+
+    private static func withOptionalCString<T>(_ text: String?, _ body: (UnsafePointer<CChar>?) -> T) -> T {
+        guard let text else { return body(nil) }
+        return text.withCString { body($0) }
     }
 
     private static func take(_ text: UnsafeMutablePointer<CChar>?) -> String {
