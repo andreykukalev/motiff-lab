@@ -475,24 +475,31 @@ internal sealed partial class OpenPiece
         json.WriteString("chip", _chip?.Id);
     });
 
+    /// <summary>
+    /// Notation as MEI (0008): the piece, or the variation in place; and an excerpt of bars engraved on
+    /// its own, with ossias above the original bar for bar (0018, section 4; preparation item 10).
+    /// </summary>
     private string Notation(Request request)
     {
         string of = request.Text("of") ?? "piece";
         string title = request.Text("title") ?? Path.GetFileNameWithoutExtension(Piece.FileName);
         bool readable = request.Bool("readable") ?? true;
         bool heard = Transcribed.IsHeard(Piece);
+        BarRange? bars = ExcerptOf(request);
+        NotationOssia[] ossias = [.. OssiaSources(request).Select(source => Ossia(source, heard, readable))];
+        bool generated = heard || !Project.Edits.IsEmpty || bars is not null || ossias.Length > 0;
         GeneratedNotation notation;
         if (of == "piece")
         {
-            notation = heard || !Project.Edits.IsEmpty
-                ? Generate(Notes, Piece.End, title, heard, readable)
+            notation = generated
+                ? Generate(Notes, Piece.End, title, heard, readable, bars, ossias)
                 : Piece.MusicXml is { } xml ? NotationGenerator.FromMusicXml(xml, title) : NotationGenerator.FromMidi(Piece.Midi!, title);
         }
         else if (of == "variation")
         {
             Note[] notes = InPlace(Shown());
             Tick end = notes.Length == 0 ? Piece.End : notes.Max(note => note.Span.End);
-            notation = Generate(notes, end > Piece.End ? end : Piece.End, title, heard, readable);
+            notation = Generate(notes, end > Piece.End ? end : Piece.End, title, heard, readable, bars, ossias);
         }
         else
         {
@@ -502,23 +509,113 @@ internal sealed partial class OpenPiece
         return Answer.Write(json => Answer.Notation(json, notation));
     }
 
-    private GeneratedNotation Generate(IEnumerable<Note> notes, Tick end, string title, bool heard, bool readable)
+    /// <summary>The bars a request names in "bars" {first, last}, or "bars": "selection" for the selection's; null for the whole piece.</summary>
+    private BarRange? ExcerptOf(Request request)
+    {
+        if (!request.Has("bars"))
+        {
+            return null;
+        }
+
+        if (request.Element("bars") is { ValueKind: JsonValueKind.String } named)
+        {
+            if (named.GetString() != "selection")
+            {
+                throw FacadeException.BadRequest("Send \"bars\" {first, last} or \"selection\".");
+            }
+
+            MotifSelection selection = Selection ?? throw FacadeException.NoSelection();
+            return BarRange.Of(Piece.Meter, selection.Span);
+        }
+
+        Request range = request.Object("bars");
+        int first = range.Int("first") ?? throw FacadeException.BadRequest("Send \"bars\" {first, last} or \"selection\".");
+        int last = range.Int("last") ?? first;
+        int lowest = Piece.Meter.FirstBarNumber;
+        int highest = Piece.Meter.BarAt(new Tick(Math.Max(0, Piece.End.Value - 1))).Number;
+        if (first < lowest || last < first || last > highest)
+        {
+            throw FacadeException.BadRequest($"\"bars\" runs from {lowest} to {highest}, first before last.");
+        }
+
+        return new BarRange(first, last);
+    }
+
+    /// <summary>What a request asks to engrave above the original: "ossia" as one source or a list of up to two.</summary>
+    private static IReadOnlyList<string> OssiaSources(Request request)
+    {
+        if (!request.Has("ossia"))
+        {
+            return [];
+        }
+
+        IReadOnlyList<string> sources = request.Element("ossia") is { ValueKind: JsonValueKind.String } one ? [one.GetString()!] : request.Texts("ossia");
+        if (sources.Count is 0 or > MaxOssias)
+        {
+            throw FacadeException.BadRequest($"\"ossia\" names one or {MaxOssias} sources: \"variation\", \"asPlayed\" or an idea's id.");
+        }
+
+        return sources;
+    }
+
+    /// <summary>The most ossias above one excerpt: two variations side by side for comparison (0018, section 4).</summary>
+    public const int MaxOssias = 2;
+
+    /// <summary>
+    /// An ossia's notes and label: the variation heard now (only the passage it changed), the piece written as played
+    /// for a transcription, or a kept idea's variation.
+    /// </summary>
+    private NotationOssia Ossia(string source, bool heard, bool readable)
+    {
+        if (source == "variation")
+        {
+            return new NotationOssia(Words.T("Variation", "Вариация"), Shown().Notes, AsHeard: heard && readable);
+        }
+
+        if (source == "asPlayed")
+        {
+            if (!heard)
+            {
+                throw FacadeException.Unavailable(Words.T("Only notes heard in a recording can be written as played.", "Как сыграно можно записать только ноты, услышанные в записи."));
+            }
+
+            PlaybackScore played = PlaybackScore.FromPiece(Piece);
+            return new NotationOssia(Words.T("As played", "Как сыграно"), Notes, PlayedTempos: played.Tempos, Pedal: played.Pedal.Select(held => held.Span));
+        }
+
+        Observation idea = Project.Observations.FirstOrDefault(observation => observation.Id == source)
+            ?? throw FacadeException.BadRequest($"\"ossia\" is \"variation\", \"asPlayed\" or an idea's id; there is no idea \"{source}\".");
+        VariationChain? chain;
+        try
+        {
+            chain = idea.Restore(Notes, Piece.Meter);
+        }
+        catch (ProjectFileException exception)
+        {
+            throw FacadeException.Unavailable(exception.Message);
+        }
+
+        Variation variation = chain?.Result ?? throw FacadeException.Unavailable(Words.T("This idea keeps a note, not a variation.", "В этой идее только заметка, вариации нет."));
+        return new NotationOssia(idea.Name, variation.Notes, AsHeard: heard && readable);
+    }
+
+    private GeneratedNotation Generate(IEnumerable<Note> notes, Tick end, string title, bool heard, bool readable, BarRange? bars = null, IReadOnlyList<NotationOssia>? ossias = null)
     {
         IEnumerable<KeyChange> keys = heard && Piece.Keys.Count == 0 && Transcribed.KeyOf(Notes) is { } heardKey
             ? [new KeyChange(Tick.Zero, heardKey.Fifths)]
             : Piece.Keys.Select(key => new KeyChange(key.At, Math.Clamp(key.Fifths, -7, 7)));
         if (!heard)
         {
-            return NotationGenerator.Generate(notes, Piece.Meter, keys, end, title);
+            return NotationGenerator.Generate(notes, Piece.Meter, keys, end, title, bars: bars, ossias: ossias);
         }
 
         if (readable)
         {
-            return NotationGenerator.Generate(notes, Piece.Meter, keys, end, title, asHeard: true);
+            return NotationGenerator.Generate(notes, Piece.Meter, keys, end, title, asHeard: true, bars: bars, ossias: ossias);
         }
 
         PlaybackScore played = PlaybackScore.FromPiece(Piece);
-        return NotationGenerator.Generate(notes, Piece.Meter, keys, end, title, playedTempos: played.Tempos, pedal: played.Pedal.Select(held => held.Span));
+        return NotationGenerator.Generate(notes, Piece.Meter, keys, end, title, playedTempos: played.Tempos, pedal: played.Pedal.Select(held => held.Span), bars: bars, ossias: ossias);
     }
 
     private string Playback(Request request)

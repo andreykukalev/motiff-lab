@@ -9,7 +9,7 @@ namespace MotiffLab.MusicCore.Notation;
 /// the display grid, voices, spelling and, for a single-track piano part, the staff split.
 /// </summary>
 /// <param name="Mei">The score as an MEI 5 document. Each note's <c>xml:id</c> is its shared-model id; the pieces of a tied note after the first add <c>-2</c>, <c>-3</c>, ….</param>
-/// <param name="Staves">The staves, top to bottom.</param>
+/// <param name="Staves">The staves of the original, top to bottom; after any ossia's.</param>
 /// <param name="NoteCount">Notes in the input.</param>
 /// <param name="ApproximatedNoteCount">Notes whose onset or end moved to the nearest 32nd note to be written.</param>
 /// <param name="ShortenedNoteCount">Notes written shorter than they are because more than four voices on one staff would have been needed.</param>
@@ -48,6 +48,15 @@ public sealed record GeneratedNotation(
 
     /// <summary>Times the sustain pedal is written as held, each with "Ped." and "*".</summary>
     public int PedalCount { get; init; }
+
+    /// <summary>The bars written, when the notation is an excerpt (decision record 0018, section 4); null for the whole piece.</summary>
+    public BarRange? Excerpt { get; init; }
+
+    /// <summary>
+    /// The staves engraved above the original, bar for bar, top first: a variation, or the notes as played.
+    /// Their staves come before <see cref="Staves"/> in the document; the counts above are the original's.
+    /// </summary>
+    public IReadOnlyList<GeneratedOssia> Ossias { get; init; } = [];
 }
 
 /// <param name="Number">The MEI staff number, from 1 at the top.</param>

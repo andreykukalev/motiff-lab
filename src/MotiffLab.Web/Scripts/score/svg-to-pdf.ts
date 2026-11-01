@@ -112,9 +112,10 @@ export function num(value: number): string {
     return Object.is(rounded, -0) ? "0" : String(rounded);
 }
 
-type Matrix = [number, number, number, number, number, number];
+export type Matrix = [number, number, number, number, number, number];
 
-function multiply(m: Matrix, n: Matrix): Matrix {
+/** The matrix that applies n, then m. */
+export function multiply(m: Matrix, n: Matrix): Matrix {
     return [
         m[0] * n[0] + m[2] * n[1],
         m[1] * n[0] + m[3] * n[1],
