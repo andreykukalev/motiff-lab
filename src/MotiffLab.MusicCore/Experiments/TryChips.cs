@@ -49,7 +49,7 @@ public static class TryChips
     private const string Bass = "keep-bass";
     private const string Contour = "keep-contour";
 
-    /// <summary>Every chip, by id. Operations this version does not have yet (V3, V6, V8, V11) are rows without parameters.</summary>
+    /// <summary>Every chip, by id. Operations this version does not have yet (V3, V6) are rows without parameters.</summary>
     public static IReadOnlyList<TryChip> Chips { get; } =
     [
         new("v1.dotted", RhythmReshape.OperationId, new RhythmReshapeParameters(RhythmReshapeKind.Dotted) { Scope = OperationScope.Melody }, PitchOrder, "Long–short", "Долгая–короткая"),
@@ -69,8 +69,8 @@ public static class TryChips
         new("v2.repeated", AccompanimentPattern.OperationId, new AccompanimentPatternParameters(AccompanimentPatternKind.RepeatedChord, PatternUnit.Eighths), Melody, "Repeated chord in 8ths", "Повторяющийся аккорд восьмыми"),
         new("v2.arpeggioDown", AccompanimentPattern.OperationId, new AccompanimentPatternParameters(AccompanimentPatternKind.ArpeggioDown, PatternUnit.Sixteenths), Melody, "Falling arpeggio", "Нисходящее арпеджио"),
         new("v7.air", DensityAndRests.OperationId, new DensityParameters(DensityKind.MoreAir) { Scope = OperationScope.Melody }, PitchOrder, "More air", "Больше воздуха"),
-        new("v8.shift", "V8", null, PitchOrder, "Shift the accents", "Сдвинуть акценты"),
-        new("v11.passing", "V11", null, Bass, "Passing notes", "Проходящие ноты"),
+        new("v8.shift", AccentShift.OperationId, new AccentShiftParameters(AccentPattern.OffBeat), PitchOrder, "Shift the accents", "Сдвинуть акценты"),
+        new("v11.passing", PassingNotes.OperationId, new PassingNotesParameters(PassingNoteKind.Passing) { Scope = OperationScope.Melody }, Bass, "Passing notes", "Проходящие ноты"),
         new("v12.pedal", BassPattern.OperationId, new BassPatternParameters(BassPatternKind.Pedal), Melody, "Pedal bass", "Бас на педали"),
         new("v12.roots", BassPattern.OperationId, new BassPatternParameters(BassPatternKind.RootsOnly), Melody, "Roots in the bass", "Основные тоны в басу"),
         new("v3.voicing", "V3", null, Melody, "Another voicing", "Другое расположение"),
