@@ -1,3 +1,6 @@
+using Microsoft.AspNetCore.Components;
+
+using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;
@@ -20,8 +23,11 @@ public partial class PlaybackLab
 
     private (IReadOnlyList<CheckFlag>? From, string Language, IReadOnlyList<ScoreCheckFlag> Drawn)? _scoreChecks;
 
-    /// <summary>Whether the piece came with Check flags, open or resolved: a scan or a transcription.</summary>
-    private bool HasCheck => _project?.Check is { Count: > 0 };
+    /// <summary>Whether the piece came with Check flags, open or resolved: the Check layer.</summary>
+    private bool HasCheckFlags => _project?.Check is { Count: > 0 };
+
+    /// <summary>Whether the piece has a Check drawer: flags to check, or a transcription whose bars and tempo it holds.</summary>
+    private bool HasCheck => HasCheckFlags || _project?.Transcription is not null;
 
     /// <summary>The open flags by bar, in bar order.</summary>
     private IReadOnlyList<IGrouping<int, CheckFlag>> OpenCheckBars =>
@@ -135,4 +141,78 @@ public partial class PlaybackLab
     private IReadOnlyList<int> UncheckedSelectedBars => _project?.Scan is { } scan
         ? [.. SelectedScanBars.Where(bar => !scan.IsConfirmed(bar) && !(_project.Check ?? []).Any(flag => flag.Bar == bar))]
         : [];
+
+    /// <summary>
+    /// The head of the drawer for a transcription (0018 section 9, decision record 0016): the bars and tempo worked out
+    /// from the notes, turned off or on, in another signature, at twice or half the tempo, or a beat earlier or later.
+    /// The piece opens again in the new bars, with its flags worked out for them.
+    /// </summary>
+    private async Task ChangeBarsAsync(Func<Project, BarGrid?> bars, string status)
+    {
+        if (_project is not { CanChangeBars: true } project)
+        {
+            return;
+        }
+
+        BarGrid? chosen = bars(project);
+        if (Equals(chosen, project.Transcription!.Bars))
+        {
+            return;
+        }
+
+        Project changed = project.ChangeBars(chosen);
+        await Projects.SaveAsync(changed);
+        OpenedProject opened = OpenedProject.Open(changed);
+        _checkFixing = null;
+        _scoreChecks = null;
+        _marksStatus = status;
+        CurrentPiece.Open(opened.Piece, _filter, changed, opened);
+    }
+
+    private Task ToggleBarsAsync(ChangeEventArgs args)
+    {
+        if (args.Value is not true)
+        {
+            return ChangeBarsAsync(_ => null, Text["check.barsOff"]);
+        }
+
+        if (_project is not { CanChangeBars: true } project)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (project.FindBars() is not { } found)
+        {
+            _marksStatus = Text["transcribe.barsNone"];
+            return Task.CompletedTask;
+        }
+
+        return ChangeBarsAsync(_ => found, Text["check.barsOn"]);
+    }
+
+    private Task ChangeSignatureAsync(ChangeEventArgs args) =>
+        _project?.Transcription?.Bars is { } bars && BarGrid.Signatures.FirstOrDefault(signature => signature.ToString() == args.Value as string) is { Numerator: > 1 } chosen
+            ? ChangeBarsAsync(project => project.FindBars(chosen, bars.StepsPerBeat) ?? bars, Text.Format("check.barsSignature", chosen))
+            : Task.CompletedTask;
+
+    /// <summary>Twice or half the tempo: the same notes written in note values half or twice as long.</summary>
+    private Task ChangeTempoAsync(bool faster)
+    {
+        if (_project?.Transcription?.Bars is not { } bars || !CanChangeTempo(bars, faster))
+        {
+            return Task.CompletedTask;
+        }
+
+        int steps = faster ? bars.StepsPerBeat * 2 : bars.StepsPerBeat / 2;
+        return ChangeBarsAsync(project => project.FindBars(bars.Signature, steps) ?? bars, Text[faster ? "check.barsFaster" : "check.barsSlower"]);
+    }
+
+    private static bool CanChangeTempo(BarGrid bars, bool faster) =>
+        faster ? bars.StepsPerBeat * 2 <= BarGrid.MostStepsPerBeat : bars.StepsPerBeat % 2 == 0 && bars.StepsPerBeat / 2 >= BarGrid.FewestStepsPerBeat;
+
+    /// <summary>Every bar line a beat earlier or later, for a downbeat the bass misplaced.</summary>
+    private Task ShiftBarsAsync(int beats) =>
+        _project?.Transcription?.Bars is { } bars
+            ? ChangeBarsAsync(_ => bars.Shifted(beats), Text[beats < 0 ? "check.barsEarlier" : "check.barsLater"])
+            : Task.CompletedTask;
 }

@@ -2234,6 +2234,12 @@ body:has(.workspace) .site-footer {
     opacity: 0;
 }
 
+@media (prefers-reduced-motion: reduce) {
+    .workspace .bar {
+        transition: none;
+    }
+}
+
 .workspace .bar .ttl {
     font: var(--t-title);
     font-size: 17px;
@@ -4057,6 +4063,34 @@ body:has(.workspace) .site-footer {
 .workspace .check-sheet .check-fix .meta {
     margin: 0;
     font: var(--t-caption);
+}
+
+.workspace .check-sheet .check-bars {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    padding: var(--s-3);
+    border-radius: var(--r-s);
+    background: var(--surface-2);
+}
+
+.workspace .check-sheet .check-bars h3 {
+    margin: 0;
+}
+
+.workspace .check-sheet .switch-line,
+.lab.import label.consent {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    font: var(--t-label);
+    color: var(--ink);
+}
+
+.workspace .check-sheet .check-bars .field {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
 }
 
 .workspace .check-sheet .resolved .check-bar {

@@ -1,21 +1,11 @@
 // WCAG 2.2 AA on every screen, checked with axe (S1 non-functional targets), and the journey by
 // keyboard. It runs in desktop Chromium only (playwright.config.mjs): the rules read the page's
 // markup and styles, which are the same in each engine.
-import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { closePopover, openAdjust, openFurElise, openInsights, openMore, openMoreTools, openRoll, selectBar, tryExperiment } from "./steps.mjs";
+import { closePopover, openAdjust, openFurElise, openInsights, openMore, openMoreTools, openRoll, selectBar, tryExperiment, violations } from "./steps.mjs";
 
 const midi = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/Midi/Fixtures/two-hands-type1.mid", import.meta.url));
-
-const tags = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
-
-async function violations(page) {
-    // A theme just switched is still fading its colours in: the rules read the colours it ends on.
-    await page.evaluate(() => Promise.all(document.getAnimations().filter(animation => animation instanceof CSSTransition).map(animation => animation.finished.catch(() => null))));
-    const results = await new AxeBuilder({ page }).withTags(tags).analyze();
-    return results.violations.map(v => `${v.id} (${v.impact}): ${v.help}\n  ${v.nodes.slice(0, 5).map(n => n.target.join(" ")).join("\n  ")}`);
-}
 
 for (const path of ["/", "/settings", "/privacy", "/terms"]) {
     test(`page ${path}`, async ({ page }) => {
