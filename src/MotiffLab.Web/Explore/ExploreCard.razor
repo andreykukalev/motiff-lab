@@ -4,18 +4,14 @@
 @using MotiffLab.Web.Observations
 @inject UiText Text
 
-@* The Explore card (decision record 0010): the experiments music-core offers for the selection, one at a time, with its
-   alternatives, Original and Variation, Keep and Try another; and two ways in, Surprise me and I have a question.
-   It only displays the workspace state (0013) and what ExperimentCatalogue returns; the page runs the steps, plays and saves. *@
-<section class="explore" aria-label="@Text["explore.title"]">
-    <p class="eyebrow">@Text["explore.title"]</p>
-    @if (!HasSelection)
-    {
-        <p class="meta">@Text["explore.selectFirst"]</p>
-    }
-    else if (Trial is { } trial)
-    {
-        Experiment experiment = trial.Experiment;
+@* The card of the experiment being tried (decision record 0010; 0018 section 6), under the Try chip that started it in the
+   Insights stream: the idea, its alternatives, what changed, the facts it rests on, Try another and
+   Leave it; after Keep, a note in the player's own words. It only displays the workspace state (0013) and what
+   ExperimentCatalogue returns; the page runs the steps, plays and saves. *@
+@if (HasSelection && Trial is { } trial)
+{
+    Experiment experiment = trial.Experiment;
+    <section class="explore" aria-label="@experiment.Title">
         <div class="experiment">
             <h3>@experiment.Title</h3>
             <p>@experiment.Change</p>
@@ -28,23 +24,19 @@
                     {
                         int index = i;
                         bool on = index == trial.Alternative;
-                        <button class="@(on ? "on" : null)" aria-pressed="@(on ? "true" : "false")" @onclick='() => TryAsync(experiment, index, "offer")'>@experiment.Alternatives[index].Label</button>
+                        <button class="chip @(on ? "on" : null)" aria-pressed="@(on ? "true" : "false")" @onclick='() => TryAsync(experiment, index, "offer")'>@experiment.Alternatives[index].Label</button>
                     }
                 </div>
             }
-            <p class="meta">@Text.Format("explore.keeps", trial.Current.Keeps)</p>
+            <p class="caption">@Text.Format("explore.keeps", trial.Current.Keeps)</p>
             @if (Explanation is not null)
             {
                 <p class="what-changed" aria-live="polite"><strong>@Text["explore.whatChanged"]</strong> @Explanation</p>
             }
 
-            <div class="ab" role="group" aria-label="@Text["explore.hear"]">
-                <button class="@(OriginalHeard ? "on" : null)" aria-pressed="@(OriginalHeard ? "true" : "false")" @onclick="() => Hear.InvokeAsync(false)">@Text["term.original"]</button>
-                <button class="@(VariationHeard ? "on" : null)" aria-pressed="@(VariationHeard ? "true" : "false")" @onclick="() => Hear.InvokeAsync(true)">@Text["term.variation"]</button>
-            </div>
             @if (trial.Elsewhere)
             {
-                <button class="context @(AnswerLooping ? "on" : null)" aria-pressed="@(AnswerLooping ? "true" : "false")" @onclick="HearInContext"
+                <button class="chip context @(AnswerLooping ? "on" : null)" aria-pressed="@(AnswerLooping ? "true" : "false")" @onclick="HearInContext"
                         title="@Text["explore.inContextHint"]">
                     @Text["explore.inContext"]
                 </button>
@@ -55,19 +47,19 @@
                     @foreach ((ListenTo choice, string key) in s_listen)
                     {
                         bool on = ListenTo == choice;
-                        <button class="@(on ? "on" : null)" aria-pressed="@(on ? "true" : "false")" @onclick="() => ListenToChanged.InvokeAsync(choice)">@Text[key]</button>
+                        <button class="chip @(on ? "on" : null)" aria-pressed="@(on ? "true" : "false")" @onclick="() => ListenToChanged.InvokeAsync(choice)">@Text[key]</button>
                     }
                 </div>
             }
             <p class="focus"><strong>@Text["explore.atThePiano"]</strong> @experiment.ListeningFocus</p>
             @if (RestsOn(trial) is { Length: > 0 } facts)
             {
-                @* The facts the experiment cites (#25), each opening Understand with it highlighted. *@
+                @* The facts the experiment cites (#25), each ringing its places on the score. *@
                 <div class="rests-on" role="group" aria-label="@Text["explore.restsOnLabel"]">
-                    <span>@Text["explore.restsOn"]</span>
+                    <span class="caption">@Text["explore.restsOn"]</span>
                     @foreach (MotifFact fact in facts)
                     {
-                        <button class="fact-link" @onclick="() => FactChosen.InvokeAsync(fact)" title="@Text["explore.factHint"]">@fact.Text</button>
+                        <button class="link fact-link" @onclick="() => FactChosen.InvokeAsync(fact)" title="@Text["explore.factHint"]">@fact.Text</button>
                     }
                 </div>
             }
@@ -75,16 +67,12 @@
             <div class="row actions">
                 @if (trial.Kept)
                 {
-                    <span class="kept" role="status">@KeptText @Text["explore.buildOn"]</span>
+                    <span class="kept" role="status">@KeptText</span>
                 }
-                else
-                {
-                    <button class="primary" @onclick="() => Keep.InvokeAsync()">@Text["explore.keep"]</button>
-                }
-                <button @onclick="TryAnotherAsync" disabled="@(Next(trial) is null)" title="@NextText(trial)">@Text["explore.another"]</button>
+                <button class="btn" @onclick="TryAnotherAsync" disabled="@(Next(trial) is null)" title="@NextText(trial)">@Text["explore.another"]</button>
                 @if (!trial.Kept)
                 {
-                    <button @onclick="() => Leave.InvokeAsync()" title="@Text["explore.leaveHint"]">@Text["explore.leave"]</button>
+                    <button class="btn quiet" @onclick="() => Leave.InvokeAsync()" title="@Text["explore.leaveHint"]">@Text["explore.leave"]</button>
                 }
             </div>
             @if (trial.Kept && KeptId is not null)
@@ -93,54 +81,8 @@
                 <ObservationNote For="@KeptId" Note="@KeptNote" Label="@Text["explore.note"]" Saved="NoteSaved" />
             }
         </div>
-
-        Experiment[] others = [.. trial.Offers.Where(other => other.Id != experiment.Id)];
-        @if (others.Length > 0)
-        {
-            <h4>@Text["explore.otherIdeas"]</h4>
-            <div class="ideas">
-                @foreach (Experiment other in others)
-                {
-                    <button class="idea" @onclick='() => TryAsync(other, 0, "offer")'>@other.Title</button>
-                }
-            </div>
-        }
-    }
-    else if (Offers.Count > 0)
-    {
-        <div class="ideas">
-            @foreach (Experiment offer in Shown)
-            {
-                <button class="idea" @onclick='() => TryAsync(offer, 0, _topic is null ? "offer" : "question")'>
-                    <strong>@offer.Title</strong>
-                    <span>@offer.Question</span>
-                </button>
-            }
-        </div>
-    }
-    else
-    {
-        <p class="meta">@Text["explore.none"]</p>
-    }
-
-    @if (HasSelection)
-    {
-        <div class="row entry">
-            <button @onclick="() => Surprise.InvokeAsync()" disabled="@(Offers.Count == 0)" title="@Text["explore.surpriseHint"]">@Text["explore.surprise"]</button>
-            <button class="@(_asking ? "on" : null)" aria-expanded="@(_asking ? "true" : "false")" @onclick="() => _asking = !_asking">@Text["explore.question"]</button>
-        </div>
-        @if (_asking)
-        {
-            <div class="questions" role="group" aria-label="@Text["explore.questions"]">
-                @foreach (ExperimentTopic topic in Enum.GetValues<ExperimentTopic>())
-                {
-                    bool fits = Offers.Any(offer => offer.Topic == topic);
-                    <button disabled="@(!fits)" title="@(fits ? null : Text["explore.nothingForQuestion"])" @onclick="() => AskAsync(topic)">@ExperimentCatalogue.Prompt(topic, MotiffLab.MusicCore.Words.For(Text.Language))</button>
-                }
-            </div>
-        }
-    }
-</section>
+    </section>
+}
 
 @code {
     private static readonly (ListenTo Choice, string Key)[] s_listen =
@@ -150,30 +92,17 @@
         (ListenTo.Accompaniment, "explore.accompanimentAlone"),
     ];
 
-    /// <summary>Whether the question list is open.</summary>
-    private bool _asking;
-
-    /// <summary>The question picked when it has several experiments, which the list then shows alone.</summary>
-    private ExperimentTopic? _topic;
-
     /// <summary>The shared workspace state the page cascades; the card reads its selection, playback, variation and ideas.</summary>
     [CascadingParameter]
     public WorkspaceState State { get; set; } = null!;
 
     private bool HasSelection => State.Selection.HasNotes;
 
-    /// <summary>The experiments that fit, in the catalogue's order: the trial's own offers while one runs.</summary>
-    private IReadOnlyList<Experiment> Offers => State.Variation.Offers;
-
     /// <summary>The experiment being tried, or null.</summary>
     private ExploreTrial? Trial => State.Variation.Trial;
 
     /// <summary>What the variation changed, read from its diff (S1-E4).</summary>
     private string? Explanation => State.Variation.Explanation;
-
-    private bool OriginalHeard => State.Playback.OriginalHeard;
-
-    private bool VariationHeard => State.Playback.VariationHeard;
 
     /// <summary>Whether the motif and its new answer loop together.</summary>
     private bool AnswerLooping => State.Playback.AnswerLooping;
@@ -185,13 +114,6 @@
 
     [Parameter]
     public EventCallback<ExploreRequest> Try { get; set; }
-
-    /// <summary>Loops the passage: true for the variation, false for the original.</summary>
-    [Parameter]
-    public EventCallback<bool> Hear { get; set; }
-
-    [Parameter]
-    public EventCallback Keep { get; set; }
 
     [Parameter]
     public EventCallback Leave { get; set; }
@@ -209,9 +131,6 @@
     public EventCallback<string> NoteSaved { get; set; }
 
     [Parameter]
-    public EventCallback Surprise { get; set; }
-
-    [Parameter]
     public EventCallback HearInContext { get; set; }
 
     [Parameter]
@@ -221,27 +140,8 @@
     [Parameter]
     public EventCallback<MotifFact> FactChosen { get; set; }
 
-    private IEnumerable<Experiment> Shown => _topic is { } topic ? Offers.Where(offer => offer.Topic == topic) : Offers;
-
-    protected override void OnParametersSet()
-    {
-        if (_topic is { } topic && !Offers.Any(offer => offer.Topic == topic))
-        {
-            _topic = null;
-        }
-    }
-
     private Task TryAsync(Experiment experiment, int alternative, string entry) =>
         Try.InvokeAsync(new ExploreRequest(experiment, alternative, entry));
-
-    /// <summary>A question with one experiment tries it at once; with several, the list shows only those.</summary>
-    private Task AskAsync(ExperimentTopic topic)
-    {
-        Experiment[] fitting = [.. Offers.Where(offer => offer.Topic == topic)];
-        _asking = false;
-        _topic = fitting.Length > 1 ? topic : null;
-        return fitting.Length == 1 ? TryAsync(fitting[0], 0, "question") : Task.CompletedTask;
-    }
 
     /// <summary>The next alternative, or after the last one the next experiment offered.</summary>
     private Task TryAnotherAsync() => Next(Trial!) is { } next ? TryAsync(next.Experiment, next.Alternative, "another") : Task.CompletedTask;

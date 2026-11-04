@@ -1,0 +1,368 @@
+@using MotiffLab.MusicCore.Analysis
+@using MotiffLab.MusicCore.Experiments
+@using MotiffLab.Web.Explore
+@using MotiffLab.Web.Localization
+@using MotiffLab.Web.Observations
+@using MotiffLab.Web.Understand
+@inject UiText Text
+
+@* The Insights stream (decision record 0018 section 6; design/kit/docs/01-ux-concept.md, Insights): one list read top to
+   bottom in place of the Understand, Explore and Tools tabs. The facts about the selection are grouped by lens, and filter
+   chips narrow the list without switching it. A fact row has its claim, which rings its places on the score, its kind and
+   Evidence, then the Try chips of the experiments resting on it. A Try chip sounds the variation at once; the row that holds it
+   gets Keep and Adjust, the experiment's own card, and with Adjust the keep / change / operation tools inline. The ideas kept
+   for the passage sit in a strip at the top; experiments that rest on no fact shown come after the facts, then the questions.
+   The stream only displays the workspace state (0013); the page highlights, plays, tries and keeps. *@
+<div class="stream" role="region" aria-label="@Text["insights.stream"]">
+    @if (Lenses.Length > 1)
+    {
+        <div class="filters" role="group" aria-label="@Text["insights.filter"]">
+            <button class="chip @(_lens is null ? "on" : null)" aria-pressed="@(_lens is null ? "true" : "false")" @onclick="() => _lens = null">@Text["insights.all"]</button>
+            @foreach (FactLens lens in Lenses)
+            {
+                bool on = _lens == lens;
+                <button class="chip @(on ? "on" : null)" aria-pressed="@(on ? "true" : "false")" @onclick="() => _lens = on ? null : lens">@LensLabel(lens)</button>
+            }
+        </div>
+    }
+
+    @if (IdeaRows.Count > 0)
+    {
+        @* The ideas kept for the passage (0018 section 6): a strip at the very top, each chip heard and shown again. *@
+        <div class="ideas-strip" role="group" aria-label="@Text["insights.ideas"]">
+            <p class="overline">@Text.Format("insights.ideasCount", IdeaRows.Count)</p>
+            <div class="chips">
+                @foreach (ObservationRow row in IdeaRows)
+                {
+                    <button class="chip idea @(row.Heard ? "on" : null)" aria-pressed="@(row.Heard ? "true" : "false")" title="@row.Where" @onclick="() => OpenIdea.InvokeAsync(row.Observation)">@row.Observation.Name</button>
+                }
+                <button class="link" aria-expanded="@(_manage ? "true" : "false")" @onclick="() => _manage = !_manage">@Text[_manage ? "insights.ideasDone" : "insights.ideasManage"]</button>
+            </div>
+        </div>
+    }
+    @if (_manage && IdeaRows.Count > 0)
+    {
+        @Ideas
+    }
+
+    @if (Chosen is { } chosen && !Facts.Contains(chosen.Fact))
+    {
+        @* A fact about the passage an experiment was offered for, when the selection moved on (the motif's return). *@
+        <div class="highlighted" role="group" aria-label="@Text["understand.highlightedLabel"]">
+            <p aria-live="polite"><strong>@Text["understand.highlighted"]</strong> @chosen.Fact.Text</p>
+            <p class="caption">@Text["understand.offeredFor"]</p>
+            @PlaceChips(chosen.Fact)
+            <button class="link" @onclick="() => Choose.InvokeAsync(null)">@Text["understand.clear"]</button>
+        </div>
+    }
+
+    @if (TrialHome is null && Trial is not null)
+    {
+        <div class="trying">
+            <p class="overline">@Text["insights.trying"]</p>
+            @TryRow(null, [Trial.Experiment], "offer", true)
+            @TrialCard
+            @if (Adjusting)
+            {
+                @AdjustTools
+            }
+        </div>
+    }
+
+    @if (!HasSelection)
+    {
+        <p class="caption">@Text["insights.selectFirst"]</p>
+    }
+    else if (Facts.Count == 0)
+    {
+        <p class="caption">@Text["understand.nothingYet"]</p>
+    }
+
+    @if (Key is { } key && Shows(key))
+    {
+        <section class="lens-group key" aria-labelledby="key-observation-heading">
+            <h3 class="overline" id="key-observation-heading">@Text["understand.keyObservation"]</h3>
+            @FactRow(key, KeyTries(key), State.Facts.KeyReason)
+        </section>
+    }
+
+    @foreach (FactLens lens in Lenses.Where(lens => _lens is null || _lens == lens))
+    {
+        MotifFact[] facts = [.. Facts.Where(fact => fact.Lens == lens && fact != Key)];
+        if (facts.Length == 0)
+        {
+            continue;
+        }
+
+        <section class="lens-group" aria-label="@LensLabel(lens)">
+            <h3 class="overline">@Text.Format("insights.lensCount", LensLabel(lens), Text.Count("understand.facts", facts.Length))</h3>
+            @foreach (MotifFact fact in facts)
+            {
+                @FactRow(fact, ExperimentCatalogue.RestingOn(FactOffers, fact.Id), null)
+            }
+        </section>
+    }
+
+    @if (HasSelection && Unhomed.Length > 0)
+    {
+        <section class="lens-group more" aria-labelledby="more-to-try-heading">
+            <h3 class="overline" id="more-to-try-heading">@Text["insights.moreToTry"]</h3>
+            @TryRow(null, Unhomed, "offer", false)
+        </section>
+    }
+
+    @if (HasSelection)
+    {
+        @* I have a question (0018 section 6): the questions the catalogue answers; the assistant's input joins them with AI. *@
+        <section class="ask" aria-label="@Text["explore.questions"]">
+            <button class="chip @(_asking ? "on" : null)" aria-expanded="@(_asking ? "true" : "false")" @onclick="() => _asking = !_asking">@Text["explore.question"]</button>
+            @if (_asking)
+            {
+                <div class="questions" role="group" aria-label="@Text["explore.questions"]">
+                    @foreach (ExperimentTopic topic in Enum.GetValues<ExperimentTopic>())
+                    {
+                        bool fits = Offers.Any(offer => offer.Topic == topic);
+                        <button class="chip" disabled="@(!fits)" title="@(fits ? null : Text["explore.nothingForQuestion"])" @onclick="() => AskAsync(topic)">@ExperimentCatalogue.Prompt(topic, MotiffLab.MusicCore.Words.For(Text.Language))</button>
+                    }
+                </div>
+            }
+            @if (_topic is { } asked)
+            {
+                @TryRow(ExperimentCatalogue.Prompt(asked, MotiffLab.MusicCore.Words.For(Text.Language)), [.. Offers.Where(offer => offer.Topic == asked)], "question", false)
+            }
+        </section>
+
+        @if (IdeaRows.Count == 0)
+        {
+            @Ideas
+        }
+
+        @* Adjust without an experiment: the mechanisms behind them, to shape a variation by hand. *@
+        <section class="adjust-own">
+            <button class="link" aria-expanded="@(Adjusting && Trial is null ? "true" : "false")" @onclick="() => AdjustingChanged.InvokeAsync(!Adjusting)" disabled="@(Trial is not null)">
+                @Text["tools.shape"]
+            </button>
+            @if (Adjusting && Trial is null)
+            {
+                @AdjustTools
+            }
+        </section>
+    }
+</div>
+
+@code {
+    /// <summary>The lens the filter chips narrow the stream to; null for all of them.</summary>
+    private FactLens? _lens;
+
+    /// <summary>The facts whose Evidence the player opened.</summary>
+    private readonly HashSet<string> _evidence = new(StringComparer.Ordinal);
+
+    private bool _asking;
+
+    /// <summary>The question picked, whose experiments the stream then lists.</summary>
+    private ExperimentTopic? _topic;
+
+    /// <summary>Whether the kept ideas are listed whole, to rename, note, export or delete.</summary>
+    private bool _manage;
+
+    [CascadingParameter]
+    public WorkspaceState State { get; set; } = null!;
+
+    /// <summary>Raised with the fact (and place) to ring on the score, or null to clear it.</summary>
+    [Parameter]
+    public EventCallback<FactChoice?> Choose { get; set; }
+
+    /// <summary>Raised with an experiment to try at once.</summary>
+    [Parameter]
+    public EventCallback<ExploreRequest> Try { get; set; }
+
+    [Parameter]
+    public EventCallback Keep { get; set; }
+
+    /// <summary>Raised with a kept idea from the strip, to hear and show it again.</summary>
+    [Parameter]
+    public EventCallback<MotiffLab.MusicCore.Projects.Observation> OpenIdea { get; set; }
+
+    /// <summary>Whether keep / change / operation are open.</summary>
+    [Parameter]
+    public bool Adjusting { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> AdjustingChanged { get; set; }
+
+    /// <summary>The card of the experiment being tried: its alternatives, what changed, Try another and Leave it.</summary>
+    [Parameter]
+    public RenderFragment? TrialCard { get; set; }
+
+    /// <summary>Keep / change / operation, shown inline under the experiment, or at the end of the stream without one.</summary>
+    [Parameter]
+    public RenderFragment? AdjustTools { get; set; }
+
+    /// <summary>The kept ideas listed whole.</summary>
+    [Parameter]
+    public RenderFragment? Ideas { get; set; }
+
+    private bool HasSelection => State.Selection.HasNotes;
+
+    private IReadOnlyList<MotifFact> Facts => State.Facts.All;
+
+    private FactChoice? Chosen => State.Facts.Chosen;
+
+    private MotifFact? Key => State.Facts.KeyObservation;
+
+    private ExploreTrial? Trial => State.Variation.Trial;
+
+    /// <summary>The experiments that fit: the trial's offers while one runs.</summary>
+    private IReadOnlyList<Experiment> Offers => State.Variation.Offers;
+
+    /// <summary>The experiments the facts link to: those offered for the same selection as the facts.</summary>
+    private IReadOnlyList<Experiment> FactOffers => State.Variation.UnderstandOffers;
+
+    /// <summary>The kept variations of the passage, for the strip.</summary>
+    private IReadOnlyList<ObservationRow> IdeaRows => [.. State.Ideas.Rows.Where(row => row.Observation.Variation is not null)];
+
+    /// <summary>The lenses that have facts, in music-core's order.</summary>
+    private FactLens[] Lenses => [.. Enum.GetValues<FactLens>().Where(lens => Facts.Any(fact => fact.Lens == lens))];
+
+    private bool Shows(MotifFact fact) => _lens is null || _lens == fact.Lens;
+
+    /// <summary>The fact shown whose row holds the experiment being tried: the first it rests on; null when no row shown does.</summary>
+    private string? TrialHome => Trial is { } trial
+        ? ShownFacts.FirstOrDefault(fact => Tries(fact).Any(experiment => experiment.Id == trial.Experiment.Id))?.Id
+        : null;
+
+    /// <summary>The facts in the order the stream shows them: the one to hear first, then by lens.</summary>
+    private IEnumerable<MotifFact> ShownFacts =>
+        (Key is { } key && Shows(key) ? [key] : Array.Empty<MotifFact>())
+            .Concat(Lenses.Where(lens => _lens is null || _lens == lens).SelectMany(lens => Facts.Where(fact => fact.Lens == lens && fact != Key)));
+
+    private IReadOnlyList<Experiment> Tries(MotifFact fact) => fact == Key ? KeyTries(fact) : ExperimentCatalogue.RestingOn(FactOffers, fact.Id);
+
+    /// <summary>The fact to hear first offers the recommended experiment before those resting on it.</summary>
+    private IReadOnlyList<Experiment> KeyTries(MotifFact key)
+    {
+        IReadOnlyList<Experiment> resting = ExperimentCatalogue.RestingOn(FactOffers, key.Id);
+        return State.Facts.Recommended is { } recommended && FactOffers.Contains(recommended) && !resting.Contains(recommended) ? [recommended, .. resting] : resting;
+    }
+
+    /// <summary>The experiments that fit but rest on none of the facts, which follow the facts.</summary>
+    private Experiment[] Unhomed => [.. Offers.Where(offer => !Facts.Any(fact => offer.FactIds.Contains(fact.Id, StringComparer.Ordinal)))];
+
+    private RenderFragment FactRow(MotifFact fact, IReadOnlyList<Experiment> tries, string? why) =>
+        @<article class="fact-row @(Chosen?.Fact == fact ? "on" : null)" aria-label="@fact.Text">
+            @{
+                bool chosen = Chosen?.Fact == fact;
+                bool evidence = _evidence.Contains(fact.Id);
+                bool home = TrialHome == fact.Id;
+            }
+            @if (fact.Places.Count > 0)
+            {
+                <button class="claim" aria-pressed="@(chosen ? "true" : "false")" title="@Text["insights.claimHint"]"
+                        @onclick="() => Choose.InvokeAsync(chosen ? null : new FactChoice(fact))">@fact.Text</button>
+            }
+            else
+            {
+                <p class="claim">@fact.Text</p>
+            }
+            <div class="caption-row">
+                <span class="tag certainty @fact.Certainty.ToString().ToLowerInvariant()">@CertaintyLabel(fact.Certainty)</span>
+                @if (fact.Places.Count > 0)
+                {
+                    <span class="caption">@Text.Count("understand.places", fact.Places.Count)</span>
+                }
+                <button class="link" aria-expanded="@(evidence ? "true" : "false")" @onclick="() => ToggleEvidence(fact.Id)">@Text["insights.evidence"]</button>
+            </div>
+            @if (evidence)
+            {
+                <p class="basis">@fact.Basis</p>
+                @if (why is not null)
+                {
+                    <p class="basis"><strong>@Text["understand.whyThisOne"]</strong> @why</p>
+                }
+            }
+            @if (chosen)
+            {
+                @PlaceChips(fact)
+            }
+            @if (tries.Count > 0)
+            {
+                @TryRow(null, tries, "fact", home)
+            }
+            @if (home)
+            {
+                @TrialCard
+                @if (Adjusting)
+                {
+                    @AdjustTools
+                }
+            }
+        </article>;
+
+    /// <summary>Try chips, the one being tried tinted; on the row that holds the trial, Keep and Adjust follow them.</summary>
+    private RenderFragment TryRow(string? label, IReadOnlyList<Experiment> tries, string entry, bool holdsTrial) =>
+        @<div class="try-row" role="group" aria-label="@(label ?? Text["insights.try"])">
+            <span class="caption">@(label ?? Text["insights.try"])</span>
+            @foreach (Experiment experiment in tries)
+            {
+                bool on = Trial?.Experiment.Id == experiment.Id;
+                bool recommended = State.Facts.Recommended?.Id == experiment.Id;
+                <button class="chip @(on ? "on" : null) @(recommended ? "recommended" : null)" aria-pressed="@(on ? "true" : "false")"
+                        title="@(recommended ? Text.Format("insights.recommended", experiment.Question) : experiment.Question)"
+                        @onclick='() => Try.InvokeAsync(new ExploreRequest(experiment, 0, entry))'>@experiment.Title</button>
+            }
+            @if (holdsTrial && Trial is { } trial)
+            {
+                <span class="sp"></span>
+                @if (!trial.Kept)
+                {
+                    <button class="link" aria-label="@Text["explore.keep"]" @onclick="() => Keep.InvokeAsync()">@Text["insights.keep"]</button>
+                }
+                <button class="link" aria-expanded="@(Adjusting ? "true" : "false")" title="@Text["insights.adjustHint"]" @onclick="() => AdjustingChanged.InvokeAsync(!Adjusting)">@Text["insights.adjust"]</button>
+            }
+        </div>;
+
+    /// <summary>The places of a chosen fact as chips; a chip rings only its place, and pressed again, all of them.</summary>
+    private RenderFragment PlaceChips(MotifFact fact) =>
+        @<div class="places" role="group" aria-label="@Text["understand.placesLabel"]">
+            @foreach (FactPlace place in fact.Places)
+            {
+                bool on = Chosen?.Place == place;
+                <button class="chip" aria-pressed="@(on ? "true" : "false")" title="@Text["understand.placeHint"]"
+                        @onclick="() => Choose.InvokeAsync(on ? new FactChoice(fact) : new FactChoice(fact, place))">@place.Label</button>
+            }
+        </div>;
+
+    protected override void OnParametersSet()
+    {
+        if (_lens is { } lens && !Facts.Any(fact => fact.Lens == lens))
+        {
+            _lens = null;
+        }
+
+        if (_topic is { } topic && !Offers.Any(offer => offer.Topic == topic))
+        {
+            _topic = null;
+        }
+    }
+
+    /// <summary>A question with one experiment tries it at once; with several, the stream lists them under it.</summary>
+    private Task AskAsync(ExperimentTopic topic)
+    {
+        Experiment[] fitting = [.. Offers.Where(offer => offer.Topic == topic)];
+        _asking = false;
+        _topic = fitting.Length > 1 ? topic : null;
+        return fitting.Length == 1 ? Try.InvokeAsync(new ExploreRequest(fitting[0], 0, "question")) : Task.CompletedTask;
+    }
+
+    private void ToggleEvidence(string id)
+    {
+        if (!_evidence.Remove(id))
+        {
+            _evidence.Add(id);
+        }
+    }
+
+    private string LensLabel(FactLens lens) => Text[$"term.lens.{lens.ToString().ToLowerInvariant()}"];
+
+    private string CertaintyLabel(FactCertainty certainty) => Text[$"term.certainty.{certainty.ToString().ToLowerInvariant()}"];
+}

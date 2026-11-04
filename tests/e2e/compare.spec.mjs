@@ -3,19 +3,19 @@
 // what the score shows, One after the other loops the two in turn, and Compare says what changed and
 // what was kept.
 import { expect, test } from "@playwright/test";
-import { openFurElise, selectBar, openInsights, chooseInMore, heardChoice, scoreChoice } from "./steps.mjs";
+import { openAdjust, openFurElise, selectBar, openInsights, chooseInMore, heardChoice, scoreChoice, tryExperiment } from "./steps.mjs";
 
 test("go back to the original, compare, and hear the two one after the other", async ({ page }) => {
     const errors = await openFurElise(page);
     await selectBar(page, 1);
-    await openInsights(page, "Explore");
+    await openInsights(page);
     const head = page.locator(".inspector-head");
     const selection = head.locator(".selection-text");
 
     // No variation yet, so nothing to compare.
     await expect(head.locator(".compare-switch")).toHaveCount(0);
 
-    await page.locator(".explore").getByRole("button", { name: /Give the melody more space/ }).click();
+    await tryExperiment(page, "Give the melody more space");
     const compare = head.getByRole("group", { name: "Compare with the original" });
     const original = compare.getByRole("button", { name: "Original", exact: true });
     const variation = compare.getByRole("button", { name: "Variation", exact: true });
@@ -30,17 +30,11 @@ test("go back to the original, compare, and hear the two one after the other", a
     await expect.poll(() => scoreChoice(page)).toBe("Generated from the notes");
     await expect(selection).toContainText("Looping; only these notes play.");
     await expect(page.locator(".explore h3")).toHaveText("Give the melody more space");
-    await expect(page.locator(".explore").getByRole("button", { name: "Original", exact: true })).toHaveAttribute("aria-pressed", "true");
 
     await variation.click();
     await expect(variation).toHaveAttribute("aria-pressed", "true");
     await expect.poll(() => heardChoice(page)).toBe("Variation");
     await expect.poll(() => scoreChoice(page)).toBe("With the variation");
-
-    // The switch is in the head, so it is there on every tab.
-    await openInsights(page, "Understand");
-    await expect(original).toBeVisible();
-    await openInsights(page, "Explore");
 
     // One after the other: the original, then the variation, the views following the one that sounds.
     const alternate = compare.getByRole("button", { name: "One after the other" });
@@ -71,14 +65,14 @@ test("go back to the original, compare, and hear the two one after the other", a
     await expect(selection).not.toContainText("then the variation");
     await expect(alternate).toHaveAttribute("aria-pressed", "false");
 
-    // Compare, under the card and in the Selection tab: what changed and what was kept, from the diff and the checks.
-    const panel = page.locator(".explore + .compare");
+    // Compare, under the stream and in Adjust: what changed and what was kept, from the diff and the checks.
+    const panel = page.locator(".stream + .compare");
     await expect(panel.getByRole("heading", { name: "What changed" })).toBeVisible();
     await expect(panel.locator("li").first()).toContainText(/of \d+ notes/);
     await expect(panel.getByRole("heading", { name: "What was kept" })).toBeVisible();
     await expect(panel.locator(".checks .kept .property").first()).not.toBeEmpty();
-    await openInsights(page, "Tools");
-    await expect(page.locator(".changed + .compare .checks .kept")).toContainText("Kept:");
+    const adjust = await openAdjust(page);
+    await expect(adjust.locator(".changed + .compare .checks .kept")).toContainText("Kept:");
 
     await page.locator(".pill").getByRole("button", { name: "Pause" }).click();
     expect(errors).toEqual([]);

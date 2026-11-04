@@ -4,7 +4,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { closePopover, openFurElise, openInsights, openMore, openRoll, selectBar } from "./steps.mjs";
+import { closePopover, openAdjust, openFurElise, openInsights, openMore, openMoreTools, openRoll, selectBar, tryExperiment } from "./steps.mjs";
 
 const midi = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/Midi/Fixtures/two-hands-type1.mid", import.meta.url));
 
@@ -34,8 +34,8 @@ test("import, its report, the opened piece and the project on the home screen", 
 
     await page.getByText("Open the piece").click();
     await selectBar(page, 1, { pickup: 0, barQuarters: 4 });
-    await openInsights(page, "Tools");
-    await page.locator("[aria-label='Correct notes'] button.section-toggle").click();
+    await openInsights(page);
+    await (await openMoreTools(page)).locator("[aria-label='Correct notes'] button.section-toggle").click();
     expect(await violations(page)).toEqual([]);
 
     await page.goto("/");
@@ -73,9 +73,9 @@ test("phrase focus: the card with its ossia, the variation chips, the focus bar 
     await openFurElise(page);
     const bracket = page.locator(".score button.bracket[aria-label]").first();
     await bracket.click();
-    await openInsights(page, "Explore");
-    await page.locator(".explore").getByRole("button", { name: /Give the melody more space/ }).click();
-    await page.locator(".explore").getByRole("button", { name: "Keep this variation" }).click();
+    await openInsights(page);
+    await tryExperiment(page, "Give the melody more space");
+    await page.locator(".stream").getByRole("button", { name: "Keep this variation" }).click();
     await page.locator(".bar").getByRole("button", { name: "Insights" }).click();
     await bracket.click();
     await expect(page.locator(".focus-card .ossia-frame").first()).toBeVisible();
@@ -87,40 +87,34 @@ test("phrase focus: the card with its ossia, the variation chips, the focus bar 
     }
 });
 
-test("playback lab with a selection, Practise, the Explore card, a variation and the note editor", async ({ page }) => {
+test("playback lab with a selection, the Insights stream, an experiment, Adjust and the note editor", async ({ page }) => {
     await openFurElise(page);
-    // A phrase picked: its bracket on the score, and Practise (the default tab) playing on.
+    // A phrase picked: its bracket on the score and the stream of its facts, each with its Evidence.
     await page.locator(".score button.bracket[aria-label]").nth(1).click();
-    await openInsights(page);
-    await page.getByRole("button", { name: "Play on to the end" }).click();
+    const stream = await openInsights(page);
+    await stream.getByRole("button", { name: "Evidence" }).first().click();
     expect(await violations(page)).toEqual([]);
-    await page.getByRole("button", { name: "Back to the phrase" }).click();
     await selectBar(page, 1);
     expect(await violations(page)).toEqual([]);
-    await openInsights(page, "Explore");
     await page.getByRole("button", { name: "I have a question" }).click();
     expect(await violations(page)).toEqual([]);
     await page.getByRole("button", { name: "Which changes keep the motif recognisable?" }).click();
     await expect(page.locator(".explore h3")).toHaveText("Answer the motif differently");
     expect(await violations(page)).toEqual([]);
     await page.getByRole("button", { name: "Leave it" }).click();
-    await openInsights(page, "Tools");
-    await page.locator(".variation button.section-toggle", { hasText: "V2 Accompaniment pattern" }).click();
-    await page.getByRole("button", { name: "Dotted" }).click();
+    const adjust = await openAdjust(page);
+    await adjust.locator(".variation button.section-toggle", { hasText: "V2 Accompaniment pattern" }).click();
+    await adjust.getByRole("button", { name: "Dotted" }).click();
     // Compare (#43): the panel next to What changed, and the original and the variation one after the other.
     await expect(page.locator(".changed + .compare")).toBeVisible();
     await page.getByRole("button", { name: "One after the other" }).click();
     await expect(page.locator(".selection-status")).toContainText("Looping the original, then the variation.");
     expect(await violations(page)).toEqual([]);
-    await openInsights(page, /^Understand/);
-    // Now, then Details with every fact (#132); both scanned.
+    // A fact chosen: its row tinted and its places ringed on the score.
+    await stream.getByRole("button", { name: /The motif recurs once/ }).click();
+    await expect(stream.locator("article.fact-row.on")).toBeVisible();
     expect(await violations(page)).toEqual([]);
-    await page.getByRole("button", { name: "Details" }).click();
-    await page.getByRole("button", { name: /The motif recurs once/ }).click();
-    await expect(page.locator(".inspector .highlighted")).toBeVisible();
-    expect(await violations(page)).toEqual([]);
-    await openInsights(page, "Tools");
-    await page.locator("[aria-label='Edit variation notes'] button.section-toggle").click();
+    await (await openMoreTools(page)).locator("[aria-label='Edit variation notes'] button.section-toggle").click();
     await page.locator(".pill").getByRole("button", { name: "Pause" }).click();
     expect(await violations(page)).toEqual([]);
 });
@@ -128,13 +122,14 @@ test("playback lab with a selection, Practise, the Explore card, a variation and
 test("kept for this phrase: a kept variation with its note, renaming, a note alone and deleting", async ({ page }) => {
     await openFurElise(page);
     await page.locator(".score button.bracket[aria-label]").first().click();
-    await openInsights(page, "Explore");
-    const card = page.locator(".explore");
+    await openInsights(page);
+    const card = page.locator(".stream .explore");
     const kept = page.locator(".observations");
-    await card.getByRole("button", { name: /Give the melody more space/ }).click();
-    await card.getByRole("button", { name: "Keep this variation" }).click();
+    await tryExperiment(page, "Give the melody more space");
+    await page.locator(".stream").getByRole("button", { name: "Keep this variation" }).click();
     await card.getByLabel("Add a note in your own words (optional)").fill("Lighter.");
     await card.getByRole("button", { name: "Save note" }).click();
+    await page.locator(".ideas-strip").getByRole("button", { name: "Manage" }).click();
     await expect(kept.getByRole("listitem")).toContainText("You hear this");
     await page.locator(".pill").getByRole("button", { name: "Pause" }).click();
     expect(await violations(page)).toEqual([]);

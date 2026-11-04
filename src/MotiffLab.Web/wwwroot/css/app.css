@@ -2851,6 +2851,13 @@ body:has(.workspace) .site-footer {
     bottom: calc(var(--drawer-h) + var(--s-3));
 }
 
+/* In portrait the Insights sheet is a bottom sheet at half the height: the pill rides above it. */
+@media (orientation: portrait) {
+    .workspace.insights-open .pill {
+        bottom: calc(50vh + var(--s-3));
+    }
+}
+
 .workspace.roll-open .score {
     --pad-bottom: calc(var(--drawer-h) + 96px);
 }
@@ -2909,7 +2916,7 @@ body:has(.workspace) .site-footer {
     flex: 1;
 }
 
-.lab.workspace .drawer .chip {
+.lab.workspace :is(.drawer, .sheet) .chip {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -2924,18 +2931,18 @@ body:has(.workspace) .site-footer {
     cursor: pointer;
 }
 
-.lab.workspace .drawer .chip.icon {
+.lab.workspace :is(.drawer, .sheet) .chip.icon {
     width: 32px;
     padding: 0;
     justify-content: center;
 }
 
-.lab.workspace .drawer .chip.on {
+.lab.workspace :is(.drawer, .sheet) .chip.on {
     background: var(--accent-tint);
     border-color: var(--accent);
 }
 
-.lab.workspace .drawer .chip:disabled {
+.lab.workspace :is(.drawer, .sheet) .chip:disabled {
     opacity: 0.5;
     cursor: default;
 }
@@ -3029,8 +3036,204 @@ body:has(.workspace) .site-footer {
 
 .workspace .sheet .inspector-head {
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 1fr auto auto;
     align-items: start;
+    gap: var(--s-2);
+}
+
+/* The selection named as the sheet's overline: "phrase 3 · bars 9–16". */
+.workspace .sheet .inspector-head .selection-text {
+    min-height: 0;
+    padding-top: var(--s-2);
+    font: var(--t-overline);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+}
+
+.workspace .sheet .inspector-head .inspector-actions,
+.workspace .sheet .inspector-head .compare-switch {
+    grid-column: 1 / -1;
+}
+
+/* The Insights stream (0018 section 6, design/kit/ds.css .fact): filter chips, the ideas strip, facts by lens with Try chips. */
+.workspace .stream {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+    margin-top: var(--s-3);
+}
+
+.workspace .stream .filters,
+.workspace .stream .chips,
+.workspace .stream .try-row,
+.workspace .stream .places,
+.workspace .stream .questions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.workspace .stream .filters {
+    padding-bottom: var(--s-3);
+    border-bottom: 1px solid var(--hairline);
+}
+
+.workspace .stream .overline {
+    margin: 0 0 var(--s-2);
+}
+
+.workspace .stream .caption,
+.workspace .sheet .sheet-hint {
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.workspace .sheet .sheet-hint {
+    margin: var(--s-5) 0 0;
+    padding-top: var(--s-3);
+    border-top: 1px solid var(--hairline);
+}
+
+/* Saved ideas are the app's composition: plum, as on the brackets and the focus card's chips. */
+.lab.workspace .stream .chip.idea {
+    background: var(--plum-tint);
+    border-color: transparent;
+    color: var(--plum);
+}
+
+.lab.workspace .stream .chip.idea.on {
+    border-color: var(--plum);
+}
+
+.workspace .stream .lens-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.workspace .stream .fact-row {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    padding: var(--s-3);
+    margin: 0 calc(-1 * var(--s-3));
+    border-radius: var(--r-s);
+    border: 1px solid transparent;
+}
+
+.workspace .stream .fact-row + .fact-row {
+    margin-top: 2px;
+}
+
+.workspace .stream .fact-row:hover {
+    background: var(--surface-2);
+    border-color: var(--hairline);
+}
+
+.workspace .stream .fact-row.on {
+    background: var(--accent-tint);
+    border-color: var(--accent);
+}
+
+.lab.workspace .stream .claim {
+    margin: 0;
+    padding: 0;
+    min-height: 0;
+    border: 0;
+    background: none;
+    font: var(--t-body);
+    color: var(--ink);
+    text-align: left;
+}
+
+.workspace .stream .caption-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2);
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.workspace .stream .tag.certainty {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 var(--s-2);
+    border-radius: var(--r-xs);
+    font: var(--t-caption);
+    font-weight: 600;
+    background: var(--hairline);
+    color: var(--ink-2);
+}
+
+.workspace .stream .tag.certainty.detected {
+    background: var(--accent-tint);
+    color: var(--accent-hover);
+}
+
+/* On the chosen row's tint, the tags sit on the surface so their text keeps its contrast. */
+.workspace .stream .fact-row.on .tag.certainty {
+    background: var(--surface);
+}
+
+.workspace .stream .basis {
+    margin: 0;
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.lab.workspace .sheet button.link {
+    font: var(--t-label);
+    color: var(--accent-hover);
+    text-decoration: none;
+    background: none;
+}
+
+.lab.workspace .stream .try-row .chip {
+    height: 24px;
+}
+
+.lab.workspace .stream .try-row .chip.recommended:not(.on) {
+    border-color: var(--accent);
+}
+
+.workspace .stream .try-row .sp {
+    flex: 1;
+}
+
+.workspace .stream .highlighted,
+.workspace .stream .trying {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+}
+
+.workspace .stream .ask,
+.workspace .stream .adjust-own {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--s-2);
+}
+
+/* The experiment's card and Adjust, inside the fact row that holds the Try chip. */
+.workspace .stream .explore .experiment {
+    padding: 0;
+    border: 0;
+    background: none;
+}
+
+.workspace .stream .explore,
+.workspace .stream .adjust {
+    margin-top: var(--s-2);
+    padding-top: var(--s-3);
+    border-top: 1px solid var(--hairline);
+}
+
+.workspace .sheet .more-tools {
+    margin-top: var(--s-5);
 }
 
 /* The pen palette under the bar, while the pen is on: four inks, the highlighter, the eraser, undo and clear. */

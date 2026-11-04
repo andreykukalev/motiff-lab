@@ -11,9 +11,9 @@ namespace MotiffLab.Web.Workspace;
 
 /// <summary>
 /// The shared workspace state (decision record 0013, section 6): what the workspace page holds behind
-/// Practise, Understand, Explore and Tools, in one shape the tabs read. The page is its only writer:
-/// it builds a fresh snapshot for each render and cascades it, and a tab asks for a change through its
-/// callbacks; so no tab can reset another's part, and switching tabs changes nothing in the state.
+/// the pill, the Insights stream and the experiment's card, in one shape they read. The page is its only
+/// writer: it builds a fresh snapshot for each render and cascades it, and a component asks for a change
+/// through its callbacks; so no component can reset another's part.
 /// The score and the roll are views of the same selection, playback and variation.
 /// </summary>
 /// <param name="Selection">The primary selection and its context in the phrase map.</param>
@@ -86,7 +86,6 @@ public enum SelectionLevel
 /// <summary>What plays, loops and is heard; the same whichever tab is open.</summary>
 /// <param name="Playing">Whether the engine is playing (or paused mid-way), rather than stopped.</param>
 /// <param name="Looping">Whether the selection loops.</param>
-/// <param name="PlayingOn">Whether playback carries on past the selection, into the piece (#126).</param>
 /// <param name="TempoPercent">The tempo, as a percentage of the piece's.</param>
 /// <param name="ListenTo">What is heard alone while the selection loops: everything, a hand, a layer.</param>
 /// <param name="ListenChoices">The choices the selection allows, with their labels.</param>
@@ -100,7 +99,6 @@ public enum SelectionLevel
 public sealed record WorkspacePlayback(
     bool Playing,
     bool Looping,
-    bool PlayingOn,
     int TempoPercent,
     ListenTo ListenTo,
     IReadOnlyList<(ListenTo Choice, string Label)> ListenChoices,

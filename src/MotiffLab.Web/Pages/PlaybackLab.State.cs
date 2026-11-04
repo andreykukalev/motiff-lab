@@ -39,7 +39,6 @@ public partial class PlaybackLab
                 new WorkspacePlayback(
                     Playing: Player.State != PlaybackState.Stopped,
                     Looping: _looping,
-                    PlayingOn: _playOnLooped is not null,
                     TempoPercent: TempoPercent,
                     ListenTo: _listenTo,
                     ListenChoices: ListenChoices,

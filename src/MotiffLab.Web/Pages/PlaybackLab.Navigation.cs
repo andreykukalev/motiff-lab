@@ -7,17 +7,10 @@ namespace MotiffLab.Web.Pages;
 
 /// <summary>
 /// Back to the wider context (#126, step 7 of docs/08-central-product-model.md): the selection run on into
-/// a neighbouring phrase to hear the transition, and the piece played on from the phrase, or from the
-/// start, with a way back to the phrase as it was. Previous and next phrase are in the phrase strip.
+/// a neighbouring phrase to hear the transition. Playing on into the piece is Play with Loop off on the pill (0018).
 /// </summary>
 public partial class PlaybackLab
 {
-    /// <summary>While the piece plays on from the phrase, whether the phrase was looping before; null otherwise.</summary>
-    private bool? _playOnLooped;
-
-    /// <summary>Whether the piece plays from its start rather than from the phrase.</summary>
-    private bool _playOnWhole;
-
     /// <summary>The selection run on into the phrase before (-1) or after (1) it, or null.</summary>
     private PhraseExtension? Extension(int direction) =>
         _phrases is { } map && _selection is { } selection ? map.ExtendInto(selection.Span, direction) : null;
@@ -35,59 +28,6 @@ public partial class PlaybackLab
             : null;
         return SelectAsync(extension.Span, note);
     }
-
-    /// <summary>
-    /// Plays on from the start of the phrase to the end of the piece, or the whole piece from its start,
-    /// with every note; the selection stays, so the roll and the score keep showing where the phrase is.
-    /// </summary>
-    private async Task PlayOnAsync(bool wholePiece)
-    {
-        if (_selection is not { } selection)
-        {
-            return;
-        }
-
-        _playOnLooped ??= Looping;
-        _playOnWhole = wholePiece;
-        if (Looping)
-        {
-            await StopLoopingAsync();
-        }
-
-        await Player.SeekAsync(wholePiece ? Tick.Zero : selection.Span.Onset);
-        if (Player.State == PlaybackState.Stopped)
-        {
-            await PlayAsync();
-        }
-    }
-
-    /// <summary>Stops playing on and goes back to the start of the phrase, looping it again when it looped before.</summary>
-    private async Task BackToPhraseAsync()
-    {
-        bool loop = _playOnLooped == true;
-        _playOnLooped = null;
-        await Player.PauseAsync();
-        if (_selection is not { } selection)
-        {
-            return;
-        }
-
-        if (loop && selection.NoteIds.Count > 0)
-        {
-            _looping = true;
-            TickSpan range = await LoopSelectionAsync(selection);
-            await Player.SeekAsync(range.Onset);
-        }
-        else
-        {
-            await Player.SeekAsync(selection.Span.Onset);
-        }
-    }
-
-    /// <summary>What plays while the piece plays on, for the selection text; null otherwise.</summary>
-    private string? PlayOnText => _playOnLooped is null
-        ? null
-        : Text[_playOnWhole ? "selection.playingWhole" : "selection.playingOn"];
 
     /// <summary>"phrases 1–2, bars 0–8" when the selection runs exactly from one phrase start to a later phrase's end; otherwise null.</summary>
     private string? SpannedPhrases(MotifSelection selection)
