@@ -4,7 +4,7 @@ Status: proposed, 2026-11-01. Andrei asked for one stable API with JSON in and o
 
 ## Context
 
-The web app calls music-core directly from Razor code: `PlaybackLab.razor` alone imports a piece, suggests phrases, selects a passage, analyses it, offers experiments, drives a variation chain, generates notation and playback scores and saves the project, with the orchestration spread over two thousand lines of UI code. The spike `spikes/ios-core` (PR #176) showed that the same C# music-core runs natively on the iPad through NativeAOT, and that Verovio engraves its MEI there in about 50 ms. The redesigned iPad app is native Swift ([[0015]] is superseded by the plan in item 25), so Swift needs a way to call music-core, and the redesigned web app needs the same orchestration without copying it from the old page.
+The web app calls music-core directly from Razor code: `PlaybackLab.razor` alone imports a piece, suggests phrases, selects a passage, analyses it, offers experiments, drives a variation chain, generates notation and playback scores and saves the project, with the orchestration spread over two thousand lines of UI code. The spike `spikes/ios-core` (PR #176) showed that the same C# music-core runs natively on the iPad through NativeAOT, and that Verovio engraves its MEI there in about 50 ms. The redesigned iPad app is native Swift ([[0015]] is superseded by [[0019]]), so Swift needs a way to call music-core, and the redesigned web app needs the same orchestration without copying it from the old page.
 
 Options weighed:
 
