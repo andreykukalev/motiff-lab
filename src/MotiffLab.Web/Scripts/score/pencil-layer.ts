@@ -5,9 +5,6 @@
 // piece (Projects/Marks.cs, project file v12): the host hands the strokes in with the key and is handed
 // them back after every change, and saves them. A piece open without a project keeps its marks on the
 // device (storage/pencil-store.ts). Marks are drawn again in their bars after every layout (pencil-marks.ts).
-//
-// The iPad app (ios/, 0015) relays the Pencil's double tap and squeeze as a "motiff-pencil" event on
-// the window: a double tap switches to the eraser and back, a squeeze shows or hides the tools.
 
 import {
     HIGHLIGHTER_SIZE,
@@ -142,7 +139,6 @@ export class PencilLayer {
         // scroll. Only touchstart listens, and not passively: a touchmove listener that is not passive makes Safari wait for
         // the page at every move of every finger, so scrolling the score would stutter whenever the page is busy.
         host.addEventListener("touchstart", this.onTouch, { passive: false });
-        window.addEventListener("motiff-pencil", this.onNativePencil);
         window.addEventListener("pagehide", this.onPageHide);
     }
 
@@ -294,7 +290,6 @@ export class PencilLayer {
         this.host.removeEventListener("pointerup", this.onPointerUp);
         this.host.removeEventListener("pointercancel", this.onPointerCancel);
         this.host.removeEventListener("touchstart", this.onTouch);
-        window.removeEventListener("motiff-pencil", this.onNativePencil);
         window.removeEventListener("pagehide", this.onPageHide);
         this.svg.remove();
     }
@@ -547,18 +542,6 @@ export class PencilLayer {
                 event.preventDefault();
                 return;
             }
-        }
-    };
-
-    private readonly onNativePencil = (event: Event): void => {
-        if (this.key === null || !this.host.isConnected) {
-            return;
-        }
-        const action = (event as CustomEvent<{ action?: string }>).detail?.action;
-        if (action === "switch-eraser") {
-            this.setTool(this.tool === "eraser" ? this.toolBeforeEraser : "eraser", null);
-        } else if (action === "toggle-tools") {
-            this.setOn(!this.on);
         }
     };
 

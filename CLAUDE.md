@@ -12,7 +12,7 @@ See `docs/decisions/0001-stack.md` (stack), `0002-canonical-time.md` (musical ti
 - `tests/MotiffLab.MusicCore.Tests` — xUnit tests for music-core.
 - `tests/web` — Node tests for the TypeScript layer, run on the compiled output.
 - `services/omr` — the scan server for sheet music recognition and transcription: homr (AGPL-3.0, unmodified) and Basic Pitch (Apache-2.0) behind a small Python HTTP service, run by the player in Docker on their own computer (`docs/decisions/0011-sheet-music-recognition.md`) or hosted in Azure Container Apps (`0014`, deployed by the `Scan server` workflow, not CI). Its unit tests run with `python -m pytest` in that folder.
-- `ios` — the iPad app (`0015`): a Swift shell around the deployed web app, generated with XcodeGen from `ios/project.yml` and built in Xcode on a Mac (`ios/README.md`), not in CI. Pencil marks on the score are part of the web app.
+- The iPad app is a native SwiftUI app over the same music-core (`0019`), built in Xcode on a Mac; its code arrives under `ipad/`. The Swift shell around the web app (`0015`) was removed on 2026-11-04 (Andrei).
 - `design/kit` — the design kit of the redesign (0018): `tokens.css` is the source of truth for every colour, type style, size and shadow; `ds.css`, `icons.js`, `score.js`, the Verovio options, the eleven screens. Redesign PRs take their values from here and define no literal colour or size of their own.
 - `tests/e2e` — Playwright tests of the published app: the core journey in Chromium, Firefox and WebKit (desktop and tablet), offline, and WCAG 2.2 AA with axe.
 
