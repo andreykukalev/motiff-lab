@@ -89,7 +89,7 @@
                            BracketPicked="OnBracketPickedAsync" PencilChanged="OnPenChanged" TitleRead="OnTitleRead"
                            Selection="_selection?.Span" BarsChosen="OnScoreBarsChosenAsync" Menu="@(MenuShown ? SelectionMenu : null)"
                            Bookmarks="ScoreBookmarks" BookmarkPicked="OnBookmarkPickedAsync" Notes="ScoreNotes" MarkHighlights="ScoreHighlights" HiddenLayers="HiddenLayers"
-                           NoteMarkerPicked="OpenNoteAsync" LayersRequested="OpenLayers" />
+                           NoteMarkerPicked="OpenNoteAsync" LayersRequested="OpenLayers" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync" />
             }
             else
             {
@@ -162,7 +162,7 @@
                     @* The layers of marks (0018 section 5): each hidden for a clean page, or all at once; kept with the piece. *@
                     <div class="popover layers-popover" role="dialog" aria-label="@Text["layers.title"]" data-keeps-selection>
                         <p class="overline">@Text["layers.title"]</p>
-                        @foreach (string layer in s_layers)
+                        @foreach (string layer in PieceLayers)
                         {
                             <label class="switch-row">
                                 <span>@LayerName(layer)</span>
@@ -177,6 +177,12 @@
                     <div class="popover more-popover" role="dialog" aria-label="@Text["bar.more"]" data-keeps-selection>
                         <button class="btn quiet" aria-expanded="@(_contentsOpen ? "true" : "false")" @onclick="ToggleContentsAsync"><Icon Name="bookmark" /> @Text["bar.contents"]</button>
                         <button class="btn quiet" @onclick="OpenLayers"><Icon Name="layers" /> @Text["layers.title"]</button>
+                        @if (HasCheck)
+                        {
+                            <button class="btn quiet" aria-expanded="@(_checkOpen ? "true" : "false")" @onclick="ToggleCheck">
+                                <Icon Name="check" /> @(OpenCheckBars.Count > 0 ? Text.Count("check.toReview", OpenCheckBars.Count) : Text["check.title"])
+                            </button>
+                        }
                         @if (_scoreView is not null)
                         {
                             <p class="overline">@Text["score.layout"]</p>
@@ -292,6 +298,11 @@
                 @ContentsDrawer
             }
 
+            @if (_checkOpen && HasCheck)
+            {
+                @CheckDrawer
+            }
+
             @if (_insightsOpen)
             {
                 @* The Insights sheet (0018 section 6) over the right of the score: one stream of facts, Try chips and ideas for the selection. *@
@@ -317,7 +328,7 @@
                     <ComparePanel />
                 }
 
-                @* Until the Check drawer and the roll take them over (0018 sections 4 and 8): the scan check, the hands, corrections and a second file. *@
+                @* Until the roll takes them over (0018 section 4): the hands, corrections and a second file. The scan's check is in the Check drawer. *@
                 <section class="more-tools" aria-label="@MoreToolsLabel">
                     <button class="section-toggle" aria-expanded="@(_showMoreTools ? "true" : "false")" @onclick="() => _showMoreTools = !_showMoreTools">
                         <span class="caret" aria-hidden="true">@(_showMoreTools ? "▾" : "▸")</span>
@@ -325,12 +336,6 @@
                     </button>
                     @if (_showMoreTools)
                     {
-                        @if (_scanCheck is not null && _project?.Scan is { } scan)
-                            {
-                                <ScanCheckPanel Check="_scanCheck" Scan="scan" SelectedBars="SelectedScanBars" Show="ShowScanBarAsync" Correct="CorrectScanBarAsync"
-                                                Confirm="ConfirmScanBarsAsync" Unconfirm="UnconfirmScanBarAsync" />
-                            }
-
                         @if (_selection is { NoteIds.Count: > 0 } chosen)
                             {
                                 @* S1-E7, S1-E9: edit single notes of the variation; each edit is a step, and the Keep chips are checked again after it. *@
@@ -399,69 +404,7 @@
                                 </button>
                                 @if (_showCorrections)
                                 {
-                                    <p class="meta">@Text["correct.hint"]</p>
-                                    <div class="row">
-                                        <button @onclick="UndoCorrectionAsync" disabled="@_edits.IsEmpty" title="@Text["correct.undoHint"]">@Text["correct.undo"]</button>
-                                        <span class="meta">@Text.Count("correct.inLog", _edits.Edits.Count)</span>
-                                    </div>
-                                    @if (_selection is { NoteIds.Count: > 0 } picked)
-                                    {
-                                        <table class="notes-table">
-                                            <thead>
-                                                <tr><th scope="col">@Text["notes.note"]</th><th scope="col">@Text["notes.where"]</th><th scope="col">@Text["notes.length"]</th><th scope="col">@Text["notes.velocity"]</th><th scope="col"></th></tr>
-                                            </thead>
-                                            <tbody>
-                                                @foreach (Note note in CorrectableNotes(picked))
-                                                {
-                                                    bool edited = note.Attribution.Provenance == Provenance.UserEdited;
-                                                    <tr class="@(edited ? "edited" : null)">
-                                                        <td>
-                                                            <button title="@Text["notes.lower"]" @onclick="() => CorrectAsync(note, pitch: -1)">▼</button>
-                                                            @note.Pitch
-                                                            <button title="@Text["notes.higher"]" @onclick="() => CorrectAsync(note, pitch: 1)">▲</button>
-                                                        </td>
-                                                        <td>
-                                                            <button title="@Text["notes.earlier"]" disabled="@(note.Span.Onset.Value < SixteenthTicks)" @onclick="() => CorrectAsync(note, onset: -SixteenthTicks)">◀</button>
-                                                            @NotePosition(note)
-                                                            <button title="@Text["notes.later"]" @onclick="() => CorrectAsync(note, onset: SixteenthTicks)">▶</button>
-                                                        </td>
-                                                        <td>
-                                                            <button title="@Text["notes.shorter"]" disabled="@(note.Span.Duration <= SixteenthTicks)" @onclick="() => CorrectAsync(note, length: -SixteenthTicks)">−</button>
-                                                            @VariationFacts.Length(note.Span.Duration, Words)
-                                                            <button title="@Text["notes.longer"]" @onclick="() => CorrectAsync(note, length: SixteenthTicks)">+</button>
-                                                        </td>
-                                                        <td>
-                                                            <button title="@Text["notes.softer"]" disabled="@(note.Velocity <= Note.MinVelocity)" @onclick="() => CorrectAsync(note, velocity: -10)">−</button>
-                                                            @note.Velocity
-                                                            <button title="@Text["notes.louder"]" disabled="@(note.Velocity >= Note.MaxVelocity)" @onclick="() => CorrectAsync(note, velocity: 10)">+</button>
-                                                        </td>
-                                                        <td>
-                                                            <button title="@Text["notes.removeFromPieceHint"]" @onclick="() => RemoveNoteAsync(note)">@Text["notes.remove"]</button>
-                                                            @if (edited)
-                                                            {
-                                                                <button title="@Text["notes.revertHint"]" @onclick="() => RevertNoteAsync(note)">@Text["notes.revert"]</button>
-                                                                <span class="kind">@Text["notes.editedByYou"]</span>
-                                                            }
-                                                        </td>
-                                                    </tr>
-                                                }
-                                            </tbody>
-                                        </table>
-                                    }
-                                    else
-                                    {
-                                        <p class="meta">@Text["correct.selectFirst"]</p>
-                                    }
-                                    @if (RemovedNotes.Count > 0)
-                                    {
-                                        <p class="meta">@Text.Format("correct.removed", string.Join(", ", RemovedNotes.Select(note => Text.Format("correct.noteAt", note.Pitch, NotePosition(note)))))</p>
-                                        <div class="row">
-                                            @foreach (Note note in RemovedNotes)
-                                            {
-                                                <button @onclick="() => RevertNoteAsync(note)">@Text.Format("correct.revertAt", note.Pitch, NotePosition(note))</button>
-                                            }
-                                        </div>
-                                    }
+                                    @NoteCorrections
                                 }
                             </div>
 
@@ -864,6 +807,141 @@
     </div>;
 
     /// <summary>The card of the experiment being tried, which the Insights stream shows under its Try chip.</summary>
+    /// <summary>
+    /// Correct the imported notes (S1-I7): the selected notes, each one a step in the project's edit log, and the notes taken
+    /// out, to put back. In the Insights sheet's More tools for any piece, and under Fix notes in the Check drawer.
+    /// </summary>
+    private RenderFragment NoteCorrections => @<text>
+    <p class="meta">@Text["correct.hint"]</p>
+    <div class="row">
+        <button @onclick="UndoCorrectionAsync" disabled="@_edits.IsEmpty" title="@Text["correct.undoHint"]">@Text["correct.undo"]</button>
+        <span class="meta">@Text.Count("correct.inLog", _edits.Edits.Count)</span>
+    </div>
+    @if (_selection is { NoteIds.Count: > 0 } picked)
+    {
+        <table class="notes-table">
+            <thead>
+                <tr><th scope="col">@Text["notes.note"]</th><th scope="col">@Text["notes.where"]</th><th scope="col">@Text["notes.length"]</th><th scope="col">@Text["notes.velocity"]</th><th scope="col"></th></tr>
+            </thead>
+            <tbody>
+                @foreach (Note note in CorrectableNotes(picked))
+                {
+                    bool edited = note.Attribution.Provenance == Provenance.UserEdited;
+                    <tr class="@(edited ? "edited" : null)">
+                        <td>
+                            <button title="@Text["notes.lower"]" @onclick="() => CorrectAsync(note, pitch: -1)">▼</button>
+                            @note.Pitch
+                            <button title="@Text["notes.higher"]" @onclick="() => CorrectAsync(note, pitch: 1)">▲</button>
+                        </td>
+                        <td>
+                            <button title="@Text["notes.earlier"]" disabled="@(note.Span.Onset.Value < SixteenthTicks)" @onclick="() => CorrectAsync(note, onset: -SixteenthTicks)">◀</button>
+                            @NotePosition(note)
+                            <button title="@Text["notes.later"]" @onclick="() => CorrectAsync(note, onset: SixteenthTicks)">▶</button>
+                        </td>
+                        <td>
+                            <button title="@Text["notes.shorter"]" disabled="@(note.Span.Duration <= SixteenthTicks)" @onclick="() => CorrectAsync(note, length: -SixteenthTicks)">−</button>
+                            @VariationFacts.Length(note.Span.Duration, Words)
+                            <button title="@Text["notes.longer"]" @onclick="() => CorrectAsync(note, length: SixteenthTicks)">+</button>
+                        </td>
+                        <td>
+                            <button title="@Text["notes.softer"]" disabled="@(note.Velocity <= Note.MinVelocity)" @onclick="() => CorrectAsync(note, velocity: -10)">−</button>
+                            @note.Velocity
+                            <button title="@Text["notes.louder"]" disabled="@(note.Velocity >= Note.MaxVelocity)" @onclick="() => CorrectAsync(note, velocity: 10)">+</button>
+                        </td>
+                        <td>
+                            <button title="@Text["notes.removeFromPieceHint"]" @onclick="() => RemoveNoteAsync(note)">@Text["notes.remove"]</button>
+                            @if (edited)
+                            {
+                                <button title="@Text["notes.revertHint"]" @onclick="() => RevertNoteAsync(note)">@Text["notes.revert"]</button>
+                                <span class="kind">@Text["notes.editedByYou"]</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <p class="meta">@Text["correct.selectFirst"]</p>
+    }
+    @if (RemovedNotes.Count > 0)
+    {
+        <p class="meta">@Text.Format("correct.removed", string.Join(", ", RemovedNotes.Select(note => Text.Format("correct.noteAt", note.Pitch, NotePosition(note)))))</p>
+        <div class="row">
+            @foreach (Note note in RemovedNotes)
+            {
+                <button @onclick="() => RevertNoteAsync(note)">@Text.Format("correct.revertAt", note.Pitch, NotePosition(note))</button>
+            }
+        </div>
+    }
+</text>;
+
+    /// <summary>
+    /// The Check drawer (0018 section 9): where the doubts come from, the bars still to check with their reasons and Show,
+    /// Fix notes and Looks right, then the bars resolved, to check again. Over the right of the page, as Insights.
+    /// </summary>
+    private RenderFragment CheckDrawer => @<aside class="sheet inspector check-sheet" aria-labelledby="check-title" data-keeps-selection>
+    <header class="check-head">
+        <div>
+            <p class="overline">@Text["check.title"]</p>
+            <h2 id="check-title">@(OpenCheckBars.Count > 0 ? Text.Count("check.toReview", OpenCheckBars.Count) : Text["check.allDone"])</h2>
+        </div>
+        <button class="btn icon" aria-label="@Text["check.close"]" title="@Text["check.close"]" @onclick="ToggleCheck"><Icon Name="close" /></button>
+    </header>
+    <p class="caption">@CheckSourceLine @Text[_project?.Scan is not null ? "check.howScan" : "check.howRecording"]</p>
+    @if (OpenCheckBars.Count == 0)
+    {
+        <p class="caption">@Text["check.allDoneHint"]</p>
+    }
+    <ul class="check-list">
+        @foreach (IGrouping<int, CheckFlag> bar in OpenCheckBars)
+        {
+            bool fixing = _checkFixing == bar.Key;
+            bool selected = SelectedCheckBar == bar.Key;
+            <li class="check-entry @(selected ? "on" : null)">
+                <p class="check-bar"><span class="flag-square" aria-hidden="true">?</span> <strong>@Text.Format("check.bar", bar.Key)</strong> <span class="tag warn">@ReasonNames(bar)</span></p>
+                @foreach (CheckReason reason in bar.Select(flag => flag.Reason).Distinct())
+                {
+                    <p class="caption">@CheckFlag.Explain(reason, Words)</p>
+                }
+                <div class="row">
+                    <button class="btn secondary compact" @onclick="() => ShowCheckBarAsync(bar.Key)">@Text["scanCheck.show"]</button>
+                    <button class="btn quiet compact @(fixing ? "on" : null)" aria-expanded="@(fixing ? "true" : "false")" @onclick="() => FixCheckBarAsync(bar.Key)">@Text["check.fix"]</button>
+                    <button class="btn primary compact" @onclick="() => ResolveCheckAsync(bar.Key, true)">@Text["scanCheck.looksRight"]</button>
+                </div>
+                @if (fixing)
+                {
+                    <div class="check-fix corrections" aria-label="@Text["correct.label"]">
+                        @NoteCorrections
+                    </div>
+                }
+            </li>
+        }
+    </ul>
+    @if (UncheckedSelectedBars is { Count: > 0 } others)
+    {
+        @* A scan's other bars: confirmed once the player compared them with the page (0011). *@
+        <button class="btn quiet" @onclick="() => ConfirmScanBarsAsync(others)">@(others.Count == 1 ? Text.Format("scanCheck.barRight", others[0]) : Text.Format("scanCheck.barsRight", others[0], others[^1]))</button>
+    }
+    @if (ResolvedCheckBars.Count > 0)
+    {
+        <p class="overline">@Text["check.resolvedHeading"]</p>
+        <ul class="check-list resolved">
+            @foreach (IGrouping<int, CheckFlag> bar in ResolvedCheckBars)
+            {
+                <li class="check-entry">
+                    <p class="check-bar"><Icon Name="check" /> <strong>@Text.Format("check.bar", bar.Key)</strong> <span class="caption">@ReasonNames(bar)</span></p>
+                    <div class="row">
+                        <button class="btn quiet compact" @onclick="() => ShowCheckBarAsync(bar.Key)">@Text["scanCheck.show"]</button>
+                        <button class="btn quiet compact" title="@Text["scanCheck.againHint"]" @onclick="() => ResolveCheckAsync(bar.Key, false)">@Text["scanCheck.again"]</button>
+                    </div>
+                </li>
+            }
+        </ul>
+    }
+</aside>;
+
     private RenderFragment TrialCard => @<ExploreCard Try="TryExperimentAsync" Leave="LeaveExperimentAsync" HearInContext="HearAnswerAsync"
                                                     ListenToChanged="SetListenToAsync" FactChosen="ShowFactAsync" NoteSaved="SaveKeptNoteAsync" />;
 
@@ -1326,7 +1404,7 @@
     /// <summary>Whether the Tools tab shows the second file and the tracks.</summary>
     private bool _showSecondFile;
 
-    private string MoreToolsLabel => _scanCheck is null ? Text["insights.moreTools"] : Text["insights.moreToolsScan"];
+    private string MoreToolsLabel => Text["insights.moreTools"];
 
     /// <summary>Adjust on a Try chip, or Shape a variation yourself at the end of the stream.</summary>
     private void SetAdjusting(bool adjusting) => _showOperations = adjusting;

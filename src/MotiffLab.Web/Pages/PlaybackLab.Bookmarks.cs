@@ -332,6 +332,7 @@ public partial class PlaybackLab
         if (_contentsOpen)
         {
             _insightsOpen = false;
+            _checkOpen = false;
             if (_contentsTab == ContentsTab.Pages)
             {
                 await LoadPagesAsync();

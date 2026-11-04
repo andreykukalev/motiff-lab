@@ -257,6 +257,50 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
         _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, "Unknown check reason."),
     };
 
+    /// <summary>The reason in a few words, for the flag on the score and the Check drawer: "Bar too long", «Руки угаданы».</summary>
+    public static string NameOf(CheckReason reason, Words words)
+    {
+        return reason switch
+        {
+            CheckReason.BarTooLong => words.T("Bar too long", "Такт длиннее размера"),
+            CheckReason.BarTooShort => words.T("Bar too short", "Такт короче размера"),
+            CheckReason.StavesDiffer => words.T("Hands differ in length", "Руки разной длины"),
+            CheckReason.OutOfPianoRange => words.T("Note beyond the piano", "Нота вне диапазона фортепиано"),
+            CheckReason.GraceNotes => words.T("Grace notes", "Форшлаги"),
+            CheckReason.PartSeam => words.T("Parts joined here", "Стык частей записи"),
+            CheckReason.TempoUncertain => words.T("Tempo fits poorly", "Темп плохо ложится на такт"),
+            CheckReason.DenseCluster => words.T("Crowded notes", "Скопление нот"),
+            CheckReason.HandsGuessed => words.T("Hands guessed", "Руки угаданы"),
+            _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, "Unknown Check reason."),
+        };
+    }
+
+    /// <summary>What the reason means for the bar, in plain words for the player: what probably went wrong and what to look at.</summary>
+    public static string Explain(CheckReason reason, Words words)
+    {
+        return reason switch
+        {
+            CheckReason.BarTooLong => ScanBar.Describe(ScanFlag.BarTooLong, words),
+            CheckReason.BarTooShort => ScanBar.Describe(ScanFlag.BarTooShort, words),
+            CheckReason.StavesDiffer => ScanBar.Describe(ScanFlag.StavesDiffer, words),
+            CheckReason.OutOfPianoRange => ScanBar.Describe(ScanFlag.OutOfPianoRange, words),
+            CheckReason.GraceNotes => ScanBar.Describe(ScanFlag.GraceNotes, words),
+            CheckReason.PartSeam => words.T(
+                "Two parts of the recording were heard separately and joined in this bar: a note may be doubled or lost.",
+                "Две части записи распознавались отдельно и стыкуются в этом такте: нота может удвоиться или потеряться."),
+            CheckReason.TempoUncertain => words.T(
+                "Most notes start between the beats, so the tempo worked out from the playing may not fit this bar.",
+                "Большинство нот начинается между долями, поэтому темп, выведенный из игры, может не подходить этому такту."),
+            CheckReason.DenseCluster => words.T(
+                "Many notes start close together, where a transcription often hears notes that were not played.",
+                "Много нот начинается почти одновременно: в таких местах расшифровка часто слышит лишние ноты."),
+            CheckReason.HandsGuessed => words.T(
+                "Which hand plays these notes was guessed from their pitch alone.",
+                "Какой рукой играются эти ноты, угадано только по высоте."),
+            _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, "Unknown Check reason."),
+        };
+    }
+
     private static CheckReason Of(ScanFlag flag) => flag switch
     {
         ScanFlag.BarTooLong => CheckReason.BarTooLong,

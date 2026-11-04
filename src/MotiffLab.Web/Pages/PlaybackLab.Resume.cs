@@ -70,8 +70,9 @@ public partial class PlaybackLab
         }
 
         _resumeId = point.Id;
-        _showMoreTools = _scanCheck is not null;
-        _insightsOpen |= _scanCheck is not null;
+        // A scan or a transcription with bars still to check opens with the Check drawer beside them (0018 section 9).
+        _checkOpen = project.OpenChecks.Count > 0;
+        _insightsOpen &= !_checkOpen;
 
         if (point.Passage is { } passage && _selection?.Span != passage.Span)
         {

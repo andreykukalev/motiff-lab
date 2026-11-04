@@ -25,3 +25,8 @@ public sealed record ScoreMarginNote(string Id, long Tick, int Number, string La
 /// <summary>A highlight the score draws as a translucent band behind the staves of its bars.</summary>
 /// <param name="Ink">Its ink as a class: "amber", "carmine", "forest", "ochre" or "graphite".</param>
 public sealed record ScoreHighlightMark(string Id, long Start, long End, string Ink);
+/// <summary>A bar Check asks about (0018 section 9): a small amber flag above the top right of the bar, gone once resolved.</summary>
+/// <param name="Bar">The bar's number, as the workspace shows it.</param>
+/// <param name="Tick">Where the bar starts.</param>
+/// <param name="Label">What a screen reader says for the flag: the bar and its reasons.</param>
+public sealed record ScoreCheckFlag(int Bar, long Tick, string Label);

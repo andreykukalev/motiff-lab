@@ -16,6 +16,8 @@ const types = {
     ".webmanifest": "application/manifest+json",
     ".wasm": "application/wasm",
     ".png": "image/png",
+    ".svg": "image/svg+xml",
+    ".woff2": "font/woff2",
     ".mp3": "audio/mpeg",
     ".txt": "text/plain",
     ".map": "application/json",
