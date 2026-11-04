@@ -189,6 +189,7 @@
                     <div class="popover more-popover" role="dialog" aria-label="@Text["bar.more"]" data-keeps-selection>
                         <button class="btn quiet" aria-expanded="@(_contentsOpen ? "true" : "false")" @onclick="ToggleContentsAsync"><Icon Name="bookmark" /> @Text["bar.contents"]</button>
                         <button class="btn quiet" @onclick="OpenLayers"><Icon Name="layers" /> @Text["layers.title"]</button>
+                        <button class="btn quiet" aria-haspopup="dialog" @onclick="OpenDna"><Icon Name="phrases" /> @Text["dna.title"]</button>
                         @if (HasCheck)
                         {
                             <button class="btn quiet" aria-expanded="@(_checkOpen ? "true" : "false")" @onclick="ToggleCheck">
@@ -313,6 +314,12 @@
             @if (_checkOpen && HasCheck)
             {
                 @CheckDrawer
+            }
+
+            @if (_dna is { } dna)
+            {
+                <MotiffLab.Web.Dna.PieceDnaMap Dna="dna" Meter="_meter!" Title="@BarTitle" Words="Words" PlayingAt="@(_dnaPlaying && Player.State != PlaybackState.Stopped ? Player.Position : null)"
+                                               Closed="CloseDnaAsync" Hear="HearDnaAsync" ShowInScore="ShowDnaInScoreAsync" PlayMap="PlayDnaMapAsync" />
             }
 
             @if (_settingsOpen)

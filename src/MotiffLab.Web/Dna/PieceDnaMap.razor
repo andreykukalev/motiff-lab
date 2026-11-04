@@ -1,0 +1,278 @@
+@using MotiffLab.MusicCore
+@using MotiffLab.MusicCore.Analysis
+@using MotiffLab.MusicCore.Time
+@inject MotiffLab.Web.Localization.UiText Text
+
+@* Piece DNA (0018 section 11; design/kit/docs/01-ux-concept.md, "Piece DNA"; design/kit/screens/s11_piece_dna.png): the
+   third place, a full-screen map of the whole piece read top to bottom: the form strip, a lane per idea with a mark at
+   every place it is heard, the key lane and the bars that bring new material, then a card per idea. A lane the engine
+   does not fill yet says so in place. A mark plays its passage; a second tap opens the score there. Leaving returns to
+   the score exactly as it was. *@
+<section class="dna" role="dialog" aria-modal="true" aria-labelledby="dna-title" tabindex="-1" @ref="_element" @onkeydown="OnKey">
+    <header class="dna-bar">
+        <button class="act" aria-label="@Text["dna.back"]" title="@Text["dna.back"]" @onclick="() => Closed.InvokeAsync()"><Icon Name="back" Size="IconSize.Large" /></button>
+        <h2 id="dna-title" class="ttl">@Title</h2>
+        <span class="sub">@Text["dna.title"]</span>
+        <span class="sp"></span>
+        <span class="counts">@Counts</span>
+    </header>
+
+    @if (Dna.Status == DnaStatus.NotYet && Dna.NewMaterialBars.Count == 0 && Dna.Keys.Count == 0)
+    {
+        <p class="dna-empty">@Text["dna.empty"]</p>
+    }
+    else
+    {
+        <div class="dna-map">
+            @if (PlayingAt is { } at && X(at) is { } playhead)
+            {
+                <span class="dna-playhead" style="@($"--x: {playhead}")" aria-hidden="true"></span>
+            }
+
+            <div class="dna-row form">
+                <span class="lane-name overline">@Text["dna.form"]</span>
+                <div class="lane-track">
+                    @if (Dna.Form.Count == 0)
+                    {
+                        <p class="lane-empty">@Text["dna.formEmpty"]</p>
+                    }
+                    else
+                    {
+                        @foreach (DnaSection section in Dna.Form)
+                        {
+                            <button class="dna-sec" style="@Place(section.Span)" aria-label="@($"{section.Label}, {Bars(section.FirstBar, section.LastBar)}")"
+                                    @onclick="() => TapAsync(section.Span)">@section.Label</button>
+                        }
+                    }
+                </div>
+            </div>
+
+            <div class="dna-row axis" aria-hidden="true">
+                <span></span>
+                <div class="lane-track">
+                    @foreach (int bar in AxisBars)
+                    {
+                        <span class="bar-no" style="@($"--x: {X(Meter.GetBar(bar).Span.Onset) ?? "0"}")">@bar</span>
+                    }
+                </div>
+            </div>
+
+            <p class="overline lanes-title">@Text["dna.ideasTitle"]</p>
+            @if (Dna.Ideas.Count == 0)
+            {
+                <p class="lane-empty ideas-empty">@Text["dna.ideasEmpty"]</p>
+            }
+            @foreach (DnaIdea idea in Dna.Ideas)
+            {
+                <div class="dna-row idea" role="group" aria-label="@idea.Title">
+                    <span class="lane-name">@idea.Title</span>
+                    <div class="lane-track">
+                        @foreach (IdeaOccurrence occurrence in idea.Occurrences)
+                        {
+                            bool on = _heard == occurrence.Span;
+                            <button class="mk-hit @(on ? "on" : null)" style="@($"--x: {X(occurrence.Span.Onset) ?? "0"}")" aria-label="@MarkName(occurrence)" title="@Text["dna.markHint"]"
+                                    aria-pressed="@(on ? "true" : "false")" @onclick="() => TapAsync(occurrence.Span)">
+                                <span class="mk @MarkClass(occurrence.Kind)" aria-hidden="true"></span>
+                            </button>
+                        }
+                    </div>
+                </div>
+            }
+
+            <div class="dna-row key">
+                <span class="lane-name overline">@Text["dna.key"]</span>
+                <div class="lane-track">
+                    @if (Dna.Keys.Count == 0)
+                    {
+                        <p class="lane-empty">@Text["dna.keyEmpty"]</p>
+                    }
+                    @foreach (DnaKey key in Dna.Keys)
+                    {
+                        <span class="key-block @(key.Key.Mode == KeyMode.Minor ? "minor" : null)" style="@Place(key.Span)">@KeyName(key)</span>
+                    }
+                </div>
+            </div>
+
+            <div class="dna-row new">
+                <span class="lane-name overline">@Text["dna.newMaterial"]</span>
+                <div class="lane-track">
+                    @foreach (int bar in Dna.NewMaterialBars)
+                    {
+                        <span class="new-bar" style="@Place(Meter.GetBar(bar).Span)" aria-hidden="true"></span>
+                    }
+                    <span class="visually-hidden">@Text.Format("dna.newMaterialSummary", string.Join(", ", Dna.NewMaterialBars))</span>
+                </div>
+            </div>
+
+            @if (Dna.Ideas.Count > 0)
+            {
+                <p class="dna-legend caption" aria-hidden="true">
+                    <span class="mk" ></span> @Text["dna.legendExact"] · <span class="mk o"></span> @Text["dna.legendTransposed"]
+                </p>
+            }
+        </div>
+
+        @if (Dna.Ideas.Count > 0)
+        {
+            <div class="dna-cards">
+                @foreach (DnaIdea idea in Dna.Ideas)
+                {
+                    <article class="dna-card" aria-labelledby="@($"{idea.Id}-title")">
+                        <h3 id="@($"{idea.Id}-title")" class="ttl">@idea.Title</h3>
+                        <p class="caption">@idea.Summary</p>
+                        <div class="row">
+                            <button class="btn secondary compact" @onclick="() => HearIdeaAsync(idea.Span)"><Icon Name="play" /> @Text["dna.hear"]</button>
+                            <button class="btn quiet compact" @onclick="() => ShowInScore.InvokeAsync(idea.Span)">@Text["dna.inScore"]</button>
+                            <span class="sp"></span>
+                            <span class="caption times">@Text.Format("dna.times", idea.Occurrences.Count)</span>
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+
+        <div class="dna-actions">
+            <button class="btn primary" @onclick="() => PlayMap.InvokeAsync()"><Icon Name="@(PlayingAt is null ? "play" : "pause")" /> @(PlayingAt is null ? Text["dna.playMap"] : Text["dna.stop"])</button>
+        </div>
+    }
+</section>
+
+@code {
+    private ElementReference _element;
+    private bool _focused;
+
+    /// <summary>The passage of the mark tapped last, which a second tap opens in the score.</summary>
+    private TickSpan? _heard;
+
+    [Parameter, EditorRequired]
+    public PieceDna Dna { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public MeterMap Meter { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    [Parameter]
+    public Words Words { get; set; }
+
+    /// <summary>Where playback is while it runs, for the playhead across the lanes; null when stopped.</summary>
+    [Parameter]
+    public Tick? PlayingAt { get; set; }
+
+    [Parameter]
+    public EventCallback Closed { get; set; }
+
+    /// <summary>Plays a passage of the map.</summary>
+    [Parameter]
+    public EventCallback<TickSpan> Hear { get; set; }
+
+    /// <summary>Leaves for the score, with the passage selected.</summary>
+    [Parameter]
+    public EventCallback<TickSpan> ShowInScore { get; set; }
+
+    /// <summary>Plays the piece from the start with the map following, or stops it.</summary>
+    [Parameter]
+    public EventCallback PlayMap { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focused)
+        {
+            _focused = true;
+            try
+            {
+                await _element.FocusAsync();
+            }
+            catch (InvalidOperationException)
+            {
+            }
+        }
+    }
+
+    private Task OnKey(KeyboardEventArgs args) => args.Key == "Escape" ? Closed.InvokeAsync() : Task.CompletedTask;
+
+    private Tick Start => Meter.GetBar(Dna.FirstBar).Span.Onset;
+
+    private Tick End => Meter.GetBar(Dna.LastBar).Span.End;
+
+    /// <summary>A position on the map as a share of its width, written for CSS; null outside the piece.</summary>
+    private string? X(Tick tick)
+    {
+        long length = End.Value - Start.Value;
+        if (length <= 0 || tick < Start || tick > End)
+        {
+            return null;
+        }
+
+        return ((double)(tick.Value - Start.Value) / length).ToString("0.####", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private string Place(TickSpan span)
+    {
+        string left = X(span.Onset < Start ? Start : span.Onset) ?? "0";
+        string right = X(span.End > End ? End : span.End) ?? "1";
+        return $"--x: {left}; --x2: {right}";
+    }
+
+    /// <summary>The bar numbers under the form strip: the first bar, then about ten more.</summary>
+    private IEnumerable<int> AxisBars
+    {
+        get
+        {
+            int count = Dna.LastBar - Dna.FirstBar + 1;
+            int step = Math.Max(1, (int)Math.Ceiling(count / 10.0));
+            for (int bar = Dna.FirstBar; bar <= Dna.LastBar; bar += step)
+            {
+                yield return bar;
+            }
+        }
+    }
+
+    /// <summary>"8 bars · 1 idea · A minor".</summary>
+    private string Counts => string.Join(" · ", new[]
+    {
+        Text.Count("dna.bars", Dna.LastBar - Dna.FirstBar + 1),
+        Dna.Ideas.Count > 0 ? Text.Count("dna.ideas", Dna.Ideas.Count) : null,
+        Dna.Keys.Count > 0 ? KeyName(Dna.Keys[0]) : null,
+    }.Where(part => part is not null));
+
+    private string KeyName(DnaKey key) => key.ModeInferred ? Text.Format("dna.keyAssumed", key.Key.NameIn(Words)) : key.Key.NameIn(Words);
+
+    private string Bars(int first, int last) => first == last ? Text.Format("dna.bar", first) : Text.Format("dna.barsRange", first, last);
+
+    private static string? MarkClass(OccurrenceKind kind) => kind switch
+    {
+        OccurrenceKind.Transposed or OccurrenceKind.Varied => "o",
+        OccurrenceKind.Inverted => "v",
+        _ => null,
+    };
+
+    private string MarkName(IdeaOccurrence occurrence) => Text.Format(occurrence.Kind switch
+    {
+        OccurrenceKind.Original => "dna.mark.original",
+        OccurrenceKind.Exact => "dna.mark.exact",
+        OccurrenceKind.Transposed => "dna.mark.transposed",
+        OccurrenceKind.Varied => "dna.mark.varied",
+        _ => "dna.mark.inverted",
+    }, Bars(occurrence.FirstBar, occurrence.LastBar));
+
+    /// <summary>The first tap plays the passage; a second tap on the same one opens the score there.</summary>
+    private async Task TapAsync(TickSpan span)
+    {
+        if (_heard == span)
+        {
+            await ShowInScore.InvokeAsync(span);
+            return;
+        }
+
+        _heard = span;
+        await Hear.InvokeAsync(span);
+    }
+
+    private Task HearIdeaAsync(TickSpan span)
+    {
+        _heard = span;
+        return Hear.InvokeAsync(span);
+    }
+}

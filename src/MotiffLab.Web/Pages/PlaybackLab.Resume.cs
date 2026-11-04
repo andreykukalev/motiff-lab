@@ -98,7 +98,12 @@ public partial class PlaybackLab
             }
         }
 
-        if (fresh || idea is { Length: > 0 })
+        if (View == "dna")
+        {
+            OpenDna();
+        }
+
+        if (fresh || idea is { Length: > 0 } || View is { Length: > 0 })
         {
             // The address names the resume point and no longer asks for the idea, so a reload comes back here as it is.
             Navigation.NavigateTo(MotiffLab.Web.Import.CurrentPiece.WorkspaceUrl(_project!, point.Id), replace: true);

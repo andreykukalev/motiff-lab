@@ -294,8 +294,8 @@ public partial class Home
         return _menu is null && _sheet == Sheet.None ? ResumeAsync(summary.Id, null) : Task.CompletedTask;
     }
 
-    /// <summary>Opens the piece at a resume point: the one named, else the latest, else a new one.</summary>
-    private async Task ResumeAsync(string id, string? resumeId)
+    /// <summary>Opens the piece at a resume point: the one named, else the latest, else a new one; with Piece DNA over it when asked.</summary>
+    private async Task ResumeAsync(string id, string? resumeId, bool dna = false)
     {
         if (_opening)
         {
@@ -314,7 +314,7 @@ public partial class Home
 
             Project project = CurrentPiece.Project!;
             string? point = resumeId ?? project.RecentResumePoints.FirstOrDefault()?.Id;
-            Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(project, point));
+            Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(project, point) + (dna ? "&view=dna" : ""));
         }
         catch (ProjectFileException exception)
         {
