@@ -37,7 +37,7 @@ A `Local.xcconfig` from the old shell (`ios/Config/Local.xcconfig`) can be moved
 
 ## Checks
 
-- The `iPad` workflow (`.github/workflows/ipad.yml`) builds both frameworks, checks the core's C functions on macOS, runs the Swift tests in the iPad simulator and builds for a real iPad, on every pull request that touches this folder, music-core, the tokens, the words or the example. It is not part of CI's five minutes. Swift written in a cloud session is first compiled there.
+- The `iPad` workflow (`.github/workflows/ipad.yml`) builds both frameworks, checks the core's C functions on macOS, runs the Swift tests in the iPad simulator and builds for a real iPad, only when asked: on a pull request with the label `ipad-tests`, by hand from the Actions tab (Run workflow on main, which also refreshes the Verovio cache), and for an `ipad-v*` release tag. The build for a real iPad is skipped on pull requests. It is not part of CI's five minutes. Swift written in a cloud session is first compiled there.
 - On Linux: `dotnet publish ipad/Core -c Release -r linux-x64 -o /tmp/core && python3 ipad/Core/check.py /tmp/core/MotiffLabCore.so`.
 
 ## Releases

@@ -1,45 +1,32 @@
 # The iPad app (decision record 0019): builds music-core with NativeAOT and Verovio from source as frameworks,
 # generates the Xcode project, runs the Swift tests in the iPad simulator and builds for a real iPad (unsigned).
-# Not part of CI and its five minutes: it runs on pull requests that touch the iPad app, music-core or this
-# workflow, and by hand. Releases are built by Andrei in Xcode from ipad-v* tags.
+# macOS runners are scarce and slow, so it never runs by itself: only on a pull request with the label `ipad-tests`,
+# by hand from the Actions tab (on main, which also refreshes the Verovio cache every pull request reads), and for an
+# iPad release tag (ipad-v*). Not part of CI and its five minutes. Releases are built by Andrei in Xcode.
 name: iPad
 
 on:
   workflow_dispatch:
-  # On main too, so the Verovio build is cached where every pull request can read it.
   push:
-    branches: [main]
-    paths:
-      - ipad/**
-      - src/MotiffLab.MusicCore/**
-      - design/kit/tokens.css
-      - design/kit/elise.musicxml
-      - src/MotiffLab.Web/wwwroot/i18n/**
-      - src/MotiffLab.Web/wwwroot/audio/piano/**
-      - src/MotiffLab.Web/Scripts/score/**
-      - global.json
-      - .github/workflows/ipad.yml
+    tags: ['ipad-v*']
   pull_request:
-    paths:
-      - ipad/**
-      - src/MotiffLab.MusicCore/**
-      - design/kit/tokens.css
-      - design/kit/elise.musicxml
-      - src/MotiffLab.Web/wwwroot/i18n/**
-      - src/MotiffLab.Web/wwwroot/audio/piano/**
-      - src/MotiffLab.Web/Scripts/score/**
-      - global.json
-      - .github/workflows/ipad.yml
+    types: [opened, synchronize, reopened, labeled]
 
 permissions:
   contents: read
 
+# A pull request without the label gets a group of its own, so pushing to it does not cancel a run under way.
 concurrency:
-  group: ipad-${{ github.ref }}
+  group: ipad-${{ github.ref }}${{ (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'ipad-tests') || github.event.action == 'labeled' && github.event.label.name != 'ipad-tests') && format('-{0}', github.run_id) || '' }}
   cancel-in-progress: true
 
 jobs:
   ipad:
+    # A pull request runs it only with the label ipad-tests; of labels, only adding that one starts a run.
+    if: >-
+      github.event_name != 'pull_request' ||
+      (contains(github.event.pull_request.labels.*.name, 'ipad-tests') &&
+      (github.event.action != 'labeled' || github.event.label.name == 'ipad-tests'))
     runs-on: macos-15
     timeout-minutes: 60
     steps:
@@ -54,6 +41,18 @@ jobs:
           brew install xcodegen
           xcodebuild -version
           dotnet --version
+
+      # The simulator boots while the frameworks build, instead of inside the test step.
+      - name: Start the iPad simulator
+        run: |
+          id=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          devices = [d for runtime, ds in json.load(sys.stdin)["devices"].items() if "iOS" in runtime for d in ds]
+          ipads = [d for d in devices if d["name"].startswith("iPad Pro")] or [d for d in devices if d["name"].startswith("iPad")]
+          print(ipads[-1]["udid"])')
+          echo "Simulator: $(xcrun simctl list devices | grep "$id")"
+          echo "SIMULATOR=$id" >> "$GITHUB_ENV"
+          xcrun simctl boot "$id" || true
 
       - name: Build MotiffLabCore.xcframework
         run: ipad/Core/build.sh | tee core.log
@@ -99,25 +98,30 @@ jobs:
           xcodebuild -list -project MotiffLab.xcodeproj 2>&1 | tee list.log
           if grep -q "member of multiple groups" list.log; then echo "::error::The generated project puts a file in two groups"; exit 1; fi
 
+      # The Swift packages (MSAL) are fetched once per project.yml, not on every run.
+      - uses: actions/cache@v4
+        with:
+          path: ipad/build/packages
+          key: ipad-packages-${{ hashFiles('ipad/App/project.yml') }}
+
       - name: Test in the iPad simulator
         working-directory: ipad/App
         run: |
-          id=$(xcrun simctl list devices available -j | python3 -c '
-          import json, sys
-          devices = [d for runtime, ds in json.load(sys.stdin)["devices"].items() if "iOS" in runtime for d in ds]
-          ipads = [d for d in devices if d["name"].startswith("iPad Pro")] or [d for d in devices if d["name"].startswith("iPad")]
-          print(ipads[-1]["udid"])')
-          echo "Simulator: $(xcrun simctl list devices | grep "$id")"
+          xcrun simctl bootstatus "$SIMULATOR" -b > /dev/null
           set -o pipefail
-          xcodebuild test -project MotiffLab.xcodeproj -scheme MotiffLab -destination "id=$id" CODE_SIGNING_ALLOWED=NO | tee test.log | grep -E "Test Case|error:|OPEN-AND-ENGRAVE|MSAL-CLIENT|\*\* TEST" || true
+          xcodebuild test -project MotiffLab.xcodeproj -scheme MotiffLab -destination "id=$SIMULATOR" \
+            -clonedSourcePackagesDirPath ../build/packages CODE_SIGNING_ALLOWED=NO | tee test.log | grep -E "Test Case|error:|OPEN-AND-ENGRAVE|MSAL-CLIENT|\*\* TEST" || true
           grep -q "\*\* TEST SUCCEEDED \*\*" test.log
 
+      # On main and by hand: a pull request's Swift is already compiled by the tests.
       - name: Build for a real iPad (unsigned)
+        if: github.event_name != 'pull_request'
         working-directory: ipad/App
         run: |
           set -o pipefail
           xcodebuild build -project MotiffLab.xcodeproj -scheme MotiffLab -configuration Release \
-            -destination generic/platform=iOS -derivedDataPath build CODE_SIGNING_ALLOWED=NO | tail -5
+            -destination generic/platform=iOS -derivedDataPath build -clonedSourcePackagesDirPath ../build/packages \
+            CODE_SIGNING_ALLOWED=NO | tail -5
           app=$(find build -name MotiffLab.app -path '*iphoneos*' | head -1)
           echo "APP_SIZE=$(du -sh "$app" | cut -f1)" >> "$GITHUB_ENV"
 
@@ -130,7 +134,7 @@ jobs:
             echo '```'
             grep -E '^ios|^iossim' core.log || true
             grep -E '^verovio' verovio.log 2>/dev/null || echo "verovio: from the cache"
-            echo "Device app (Release, unsigned): ${APP_SIZE:-not built}"
+            echo "Device app (Release, unsigned): ${APP_SIZE:-not built (pull request)}"
             grep -h 'OPEN-AND-ENGRAVE' ipad/App/test.log 2>/dev/null || true
             grep -hE "Executed [0-9]+ tests" ipad/App/test.log 2>/dev/null | tail -1 || true
             echo '```'
