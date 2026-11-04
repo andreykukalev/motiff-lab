@@ -1,5 +1,6 @@
-// Signing in (decision record 0014): in a build with sign-in, Sign in and Create an account leave for the External ID
-// pages in the app's language, and Create an account opens the sign-up form. The build under test has no sign-in, so
+// Signing in (decision record 0014): in a build with sign-in, Sign in and Create an account, in the account sheet behind
+// the header's Sign in (0018 section 9), leave for the External ID pages in the app's language, and Create an account
+// opens the sign-up form. The build under test has no sign-in, so
 // the test gives the app sign-in settings and plays the sign-in tenant: it answers MSAL's metadata request and stops
 // at the sign-in page, where the test reads the address the app sent the player to.
 import { expect, test } from "@playwright/test";
@@ -54,8 +55,14 @@ test("Sign in opens the sign-in page in the app's language", async ({ page }) =>
     const errors = [];
     page.on("console", message => { if (message.type() === "error") errors.push(message.text()); });
     await page.goto("/");
-    await page.getByRole("button", { name: "Русский" }).click();
-    await page.getByRole("button", { name: "Войти" }).first().click();
+    const head = page.locator(".lib-head");
+    await head.getByRole("button", { name: "Settings" }).click();
+    const settings = page.getByRole("dialog", { name: "Settings" });
+    await settings.getByRole("tab", { name: "Appearance" }).click();
+    await settings.getByRole("radio", { name: "Русский" }).click();
+    await page.getByRole("dialog", { name: "Настройки" }).press("Escape");
+    await head.getByRole("button", { name: "Войти" }).click();
+    await page.getByRole("dialog", { name: "Ваша учётная запись" }).getByRole("button", { name: "Войти" }).click();
 
     await expect(page).toHaveTitle("Sign in");
     expect(errors.filter(text => text.includes("Unhandled"))).toEqual([]);
@@ -76,12 +83,18 @@ test("Create an account opens the sign-up form", async ({ page }) => {
     expect(query.get("ui_locales")).toBe("en-US");
 });
 
-test("with sign-in, the header holds the language and Sign in, and the account page only the account", async ({ page }) => {
+test("with sign-in, Sign in in the header opens the account sheet, and the account page holds only the account", async ({ page }) => {
     await signInTenant(page);
     await page.goto("/");
-    await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "English" })).toHaveAttribute("aria-pressed", "true");
-    await expect(page.getByRole("link", { name: "Settings" })).toHaveCount(0);
+    const head = page.locator(".lib-head");
+    await expect(head.getByRole("button", { name: "English" })).toHaveCount(0);
+    await head.getByRole("button", { name: "Sign in" }).click();
+    const sheet = page.getByRole("dialog", { name: "Your account" });
+    await expect(sheet.getByRole("button", { name: "Create an account" })).toBeVisible();
+    await expect(sheet.getByRole("link", { name: "Privacy" })).toBeVisible();
+    await expect(sheet.locator("#scan")).toHaveCount(0);
+    await sheet.press("Escape");
+    await expect(sheet).toHaveCount(0);
 
     // Scanning uses Motiff Lab's server: nothing to set, and its screen asks only to sign in.
     await page.goto("/settings");

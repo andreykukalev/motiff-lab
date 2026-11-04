@@ -115,7 +115,6 @@
   "settings.createAccount": "Создать учётную запись",
   "settings.signInHow": "Без пароля: каждый раз на почту приходит код.",
   "settings.signedIn": "Вы вошли",
-  "account.nav": "Учётная запись и настройки",
   "account.open": "Ваша учётная запись: {0}",
   "settings.scanTitle": "Распознавание нот",
   "settings.scanWhat": "Motiff Lab читает ноты с PDF или фото и записывает ноты, которые слышит в аудио- или видеозаписи. Перед каждой отправкой приложение спрашивает разрешения.",
@@ -1159,10 +1158,13 @@
   "settings.rollColour.track": "Дорожки",
   "settings.rollColour.voice": "Голоса",
   "settings.theme": "Тема",
-  "settings.accountWhere": "Вход, сохранение в облаке и сервер распознавания — на странице аккаунта.",
-  "settings.accountLink": "Открыть страницу аккаунта",
   "settings.thisPiece": "У этой пьесы свои: {0}.",
   "settings.clearPiece": "Применить эти настройки к пьесе",
   "settings.shown": "видно",
-  "settings.hidden": "скрыто"
+  "settings.hidden": "скрыто",
+
+  "firstRun.title": "Выберите, с чего начать",
+  "firstRun.what": "Каждый вариант задаёт, что партитура показывает вокруг нот. Начните с одного: у каждого элемента остаётся свой переключатель.",
+  "firstRun.continue": "Продолжить",
+  "firstRun.later": "Это можно изменить в любой момент в Настройках."
 }

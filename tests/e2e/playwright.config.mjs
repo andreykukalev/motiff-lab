@@ -20,6 +20,8 @@ export default defineConfig({
     use: {
         baseURL: `http://localhost:${port}`,
         trace: "retain-on-failure",
+        // A preset already chosen, so the first-run screen (0018 section 10) does not stand before the library; first-run.spec clears it.
+        storageState: { cookies: [], origins: [{ origin: `http://localhost:${port}`, localStorage: [{ name: "motiff-lab:settings.presetChosen", value: "on" }] }] },
     },
     webServer: {
         command: `node serve.mjs "${publish}" ${port}`,

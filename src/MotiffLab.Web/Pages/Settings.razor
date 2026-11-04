@@ -1,226 +1,25 @@
 @page "/settings"
-@implements IDisposable
-@inject MotiffLab.Web.Import.ScanService Scans
 @inject MotiffLab.Web.Localization.UiText Text
 @inject MotiffLab.Web.Account.CloudAccount Account
-@inject MotiffLab.Web.Account.OnlineProjects Online
-@inject MotiffLab.Web.Projects.ProjectStore Projects
+@implements IDisposable
 
 <PageTitle>@Text[Title] · Motiff Lab</PageTitle>
 
-@* The player's own page (0014), reached from the account at the top right: signing in, or who is signed in, saving online
-   and erasing it. Scanning uses Motiff Lab's server with nothing to set, the language is in the header, and analytics consent
-   is on the privacy notice (#64, #65). A build without sign-in or a hosted server (running the app locally) shows the
-   address of the player's own scan server here instead. AI assistance joins this page when it arrives. *@
+@* The account page (0014): the account panel on a page of its own, for the links that lead to it (the scan and recording
+   screens, the privacy notice, the return from signing in). In the library the same panel opens as a sheet behind the
+   avatar, and in Settings it is the Account section. *@
 <main class="lab settings">
     <nav class="crumbs" aria-label="@Text["nav.label"]"><a href="">‹ @Text["nav.library"]</a></nav>
     <h1>@Text[Title]</h1>
-
-    @if (Account.IsAvailable)
-    {
-        @* The account first, as in most apps (0014): sign in or create an account; once signed in, who it is, saving
-           online (a choice that stays off until the player turns it on; the device stays the working copy) and erasure. *@
-        <section id="account" class="card account" aria-labelledby="account-heading">
-            @if (_player is null)
-            {
-                <h2 id="account-heading">@Text["settings.accountTitle"]</h2>
-                <p>@Text["settings.accountWhy"]</p>
-                <div class="row">
-                    <button class="primary" @onclick="() => Account.SignIn()">@Text["settings.signIn"]</button>
-                    <button @onclick="() => Account.SignIn(create: true)">@Text["settings.createAccount"]</button>
-                </div>
-                <p class="meta">@Text["settings.signInHow"] <a href="privacy#online">@Text["settings.onlineWhatIsKept"]</a></p>
-            }
-            else
-            {
-                <h2 id="account-heading" class="visually-hidden">@Text["account.title"]</h2>
-                <div class="account-head">
-                    <span class="avatar" aria-hidden="true">@MotiffLab.Web.Account.AccountButton.Initial(_player)</span>
-                    <p class="who"><strong>@_player</strong><span class="meta">@Text["settings.signedIn"]</span></p>
-                    <button @onclick="Account.SignOut">@Text["settings.signOut"]</button>
-                </div>
-                @* The plan (0018 section 12, preparation item 14): what runs on the device is free, what needs the cloud is Pro.
-                   Testers switch between Pro and no Pro to try both; the servers trust that choice only from a tester. *@
-                <p id="plan" class="meta">@Text["settings.plan"]: <strong>@PlanName</strong></p>
-                @if (_plan?.IsTester == true)
-                {
-                    <div class="switch-row">
-                        <label for="test-plan">@Text["settings.testPlan"]</label>
-                        <select id="test-plan" value="@(_choice is { } choice ? MotiffLab.MusicCore.Accounts.Plans.Id(choice) : "")" @onchange="ChoosePlanAsync" aria-describedby="test-plan-hint">
-                            <option value="">@Text["settings.testPlanAccount"]</option>
-                            <option value="pro">@Text["settings.testPlanPro"]</option>
-                            <option value="free">@Text["settings.testPlanFree"]</option>
-                        </select>
-                    </div>
-                    <p id="test-plan-hint" class="meta">@Text["settings.testPlanHint"]</p>
-                }
-                <div class="switch-row">
-                    <label for="save-online">@Text["settings.saveOnline"]</label>
-                    <input id="save-online" type="checkbox" class="switch" checked="@_online" disabled="@(!_online && !CanSaveOnline)" @onchange="ToggleOnlineAsync" aria-describedby="online-status" />
-                </div>
-                <p id="online-status" class="meta" role="status">@(Online.Status ?? (_online ? Text["settings.onlineOn"] : CanSaveOnline ? Text["settings.onlineOff"] : Text["settings.onlineNeedsPro"]))</p>
-                <p class="meta"><a href="privacy#online">@Text["settings.onlineWhatIsKept"]</a></p>
-                <div class="row danger">
-                    @if (_confirmDeleteOnline)
-                    {
-                        <button class="destructive" @onclick="DeleteOnlineAsync">@Text["settings.deleteOnlineForGood"]</button>
-                        <button @onclick="() => _confirmDeleteOnline = false">@Text["home.keep"]</button>
-                    }
-                    else
-                    {
-                        <button class="link destructive" @onclick="() => _confirmDeleteOnline = true">@Text["settings.deleteOnline"]</button>
-                    }
-                </div>
-                @if (_onlineMessage is not null)
-                {
-                    <p class="meta" role="status">@_onlineMessage</p>
-                }
-            }
-        </section>
-    }
-
-    @* Scanning and transcription (0011, 0014) use Motiff Lab's server wherever the build has one, with nothing to set. A build
-       without it (running the app locally) takes the address of the player's own server here. *@
-    @if (Scans.HostedAddress is null)
-    {
-        <section id="scan" class="card" aria-labelledby="scan-heading">
-            <h2 id="scan-heading">@Text["settings.scanTitle"]</h2>
-            <p class="meta">@Text["settings.scanWhat"]</p>
-            <div class="own-server">
-                <div class="row">
-                    <label>
-                        @Text["settings.scanAddress"]
-                        <input type="url" @bind="_address" placeholder="@MotiffLab.Web.Import.ScanService.SuggestedAddress" aria-describedby="scan-status" />
-                    </label>
-                    <button @onclick="SaveAddressAsync">@Text["settings.scanSave"]</button>
-                    @if (Scans.Address is not null)
-                    {
-                        <button @onclick="TurnScanningOffAsync">@Text["settings.scanTurnOff"]</button>
-                    }
-                </div>
-                <button class="disclosure" aria-expanded="@(_showHowToRun ? "true" : "false")" aria-controls="how-to-run" @onclick="() => _showHowToRun = !_showHowToRun">@Text["settings.scanHowToRun"]</button>
-                @if (_showHowToRun)
-                {
-                    <div id="how-to-run">
-                        <pre class="command"><code>docker build -t motiff-omr services/omr
-docker run --rm -p 8765:8000 motiff-omr</code></pre>
-                        <p class="meta">@Text["settings.scanDocker"] <a href="https://github.com/andreykukalev/motiff-lab/tree/main/services/omr">@Text["settings.scanMore"]</a>.</p>
-                    </div>
-                }
-            </div>
-            <p id="scan-status" class="meta" role="status">@(_scanStatus ?? ScanStatus())</p>
-            @if (Scans.Address is not null && !Scans.IsLocal)
-            {
-                <p class="notice">@Text["settings.scanElsewhere"]</p>
-            }
-        </section>
-    }
+    <MotiffLab.Web.Account.AccountPanel />
 </main>
 
 @code {
     private string Title => Account.IsAvailable ? "account.title" : "settings.title";
 
-    private string? _address;
-    private string? _scanStatus;
-    private string? _player;
-    private bool _online;
-    private bool _confirmDeleteOnline;
-    private string? _onlineMessage;
-    private bool _showHowToRun;
-    private MotiffLab.Web.Account.AccountPlan? _plan;
-    private MotiffLab.MusicCore.Accounts.Plan? _choice;
+    protected override void OnInitialized() => Text.Changed += OnChanged;
 
-
-    private bool CanSaveOnline => _plan?.Allows(MotiffLab.MusicCore.Accounts.ProFeature.SaveOnline) == true;
-
-    private string PlanName => _plan is null ? Text["settings.planUnknown"] : _plan.IsPro ? Text["settings.planPro"] : Text["settings.planFree"];
-
-    protected override async Task OnInitializedAsync()
-    {
-        Text.Changed += OnChanged;
-        Online.Changed += OnChanged;
-        _player = await Account.PlayerAsync();
-        _online = _player is not null && await Online.IsOnAsync();
-        if (_player is not null)
-        {
-            _plan = await Account.PlanAsync();
-            _choice = await Account.PlanChoiceAsync();
-        }
-
-
-        await Scans.LoadAsync();
-        _address = Scans.Address?.ToString() ?? MotiffLab.Web.Import.ScanService.SuggestedAddress;
-    }
-
-    private string ScanStatus() =>
-        Scans.Address is { } address ? Text.Format("settings.scanStatusUses", address) : Text["settings.scanStatusOff"];
-
-    private async Task SaveAddressAsync()
-    {
-        if (MotiffLab.Web.Import.ScanService.Parse(_address) is not { } address)
-        {
-            _scanStatus = Text["settings.scanBadAddress"];
-            return;
-        }
-
-        await Scans.SetAddressAsync(address);
-        _scanStatus = Text["settings.scanChecking"];
-        StateHasChanged();
-        (string? engine, string? problem) = await Scans.CheckAsync();
-        _scanStatus = engine is not null ? Text.Format("settings.scanConnected", engine) : Text.Format("settings.scanSavedBut", problem!);
-    }
-
-    /// <summary>Turning saving online on sends the projects already on this device, so they are all online.</summary>
-    private async Task ToggleOnlineAsync(ChangeEventArgs args)
-    {
-        _online = args.Value is true;
-        _onlineMessage = null;
-        await Online.SetOnAsync(_online);
-        if (_online)
-        {
-            foreach (MotiffLab.MusicCore.Projects.ProjectSummary summary in await Projects.ListAsync())
-            {
-                try
-                {
-                    if (await Projects.LoadAsync(summary.Id) is { } project)
-                    {
-                        await Online.QueueAsync(project);
-                    }
-                }
-                catch (MotiffLab.MusicCore.Projects.ProjectFileException)
-                {
-                    // A damaged project stays on this device; Home says so when it is opened.
-                }
-            }
-        }
-    }
-
-    private async Task ChoosePlanAsync(ChangeEventArgs args)
-    {
-        _choice = MotiffLab.MusicCore.Accounts.Plans.Parse(args.Value as string);
-        await Account.SetPlanChoiceAsync(_choice);
-        _plan = await Account.PlanAsync();
-    }
-
-    private async Task DeleteOnlineAsync()
-    {
-        _confirmDeleteOnline = false;
-        _onlineMessage = await Online.DeleteEverythingAsync();
-        _online = await Online.IsOnAsync();
-    }
-
-    private async Task TurnScanningOffAsync()
-    {
-        await Scans.SetAddressAsync(null);
-        _scanStatus = null;
-    }
-
-    public void Dispose()
-    {
-        Text.Changed -= OnChanged;
-        Online.Changed -= OnChanged;
-    }
+    public void Dispose() => Text.Changed -= OnChanged;
 
     private void OnChanged() => _ = InvokeAsync(StateHasChanged);
-
 }

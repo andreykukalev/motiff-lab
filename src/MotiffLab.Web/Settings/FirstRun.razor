@@ -1,0 +1,66 @@
+@using MotiffLab.MusicCore.Settings
+@inject DeviceSettings Store
+@inject MotiffLab.Web.Localization.UiText Text
+@implements IDisposable
+
+@* The first run (0018 section 10; design/kit/docs/01-ux-concept.md, "Settings"): before the library, one screen asks once
+   for a preset, three cards with a name and a one-line description each, and Continue. The language is chosen here too,
+   since everything that follows is in it. Both are changed any time in Settings, and this screen never asks again. *@
+<main class="lab first-run">
+    <div class="first-run-body">
+        <p class="wordmark" aria-hidden="true">Motiff Lab</p>
+        <h1 id="first-run-title">@Text["firstRun.title"]</h1>
+        <p class="lead">@Text["firstRun.what"]</p>
+
+        <fieldset class="preset-cards">
+            <legend class="visually-hidden">@Text["firstRun.title"]</legend>
+            @foreach (Preset preset in s_presets)
+            {
+                string id = "first-run-" + Name(preset);
+                <label class="preset-card @(_choice == preset ? "on" : null)" for="@id">
+                    <input type="radio" id="@id" name="first-run-preset" checked="@(_choice == preset)" @onchange="() => _choice = preset" aria-describedby="@(id)-hint" />
+                    <span class="name">@Text[$"settings.preset.{Name(preset)}"]</span>
+                    <span class="caption" id="@(id)-hint">@Text[$"settings.presetHint.{Name(preset)}"]</span>
+                </label>
+            }
+        </fieldset>
+
+        <div class="first-run-foot">
+            <div class="seg" role="radiogroup" aria-label="@Text["settings.language"]">
+                @foreach ((string tag, string name) in MotiffLab.Web.Localization.UiText.Languages)
+                {
+                    bool chosen = Text.Language == tag;
+                    <button role="radio" lang="@tag" class="@(chosen ? "on" : null)" aria-checked="@(chosen ? "true" : "false")" @onclick="() => Text.SetLanguageAsync(tag)">@name</button>
+                }
+            </div>
+            <button class="btn primary continue" @onclick="ContinueAsync" disabled="@_saving">@Text["firstRun.continue"]</button>
+        </div>
+        <p class="caption">@Text["firstRun.later"]</p>
+    </div>
+</main>
+
+@code {
+    private static readonly Preset[] s_presets = [Preset.Learning, Preset.Practising, Preset.Clean];
+
+    private Preset _choice = SettingsState.Default.Preset;
+    private bool _saving;
+
+    /// <summary>Called once the preset is kept; the library follows.</summary>
+    [Parameter]
+    public EventCallback Done { get; set; }
+
+    protected override void OnInitialized() => Text.Changed += OnChanged;
+
+    public void Dispose() => Text.Changed -= OnChanged;
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private static string Name(Preset preset) => preset.ToString().ToLowerInvariant();
+
+    private async Task ContinueAsync()
+    {
+        _saving = true;
+        await Store.ApplyPresetAsync(_choice);
+        await Done.InvokeAsync();
+    }
+}
