@@ -5,6 +5,8 @@ struct OpenPiece: Identifiable, Sendable {
     let id: Int32
     let title: String
     let pages: [String]
+    /// Verovio's timemap for the pages, as JSON: where each bar starts, for the marks (Web/score.js).
+    let timemap: String
     /// The project file in Documents that the piece is saved to (ProjectFiles).
     var file: URL?
 
@@ -19,9 +21,9 @@ struct OpenPiece: Identifiable, Sendable {
                 return .failure(EngraveError(message: opened["message"] as? String ?? "This file could not be opened."))
             }
             let title = given ?? ProjectFiles.title(of: fileName)
-            switch Engraver.pages(piece: piece, title: title) {
-            case .success(let pages):
-                return .success(OpenPiece(id: piece, title: title, pages: pages))
+            switch Engraver.engrave(piece: piece, title: title) {
+            case .success(let engraving):
+                return .success(OpenPiece(id: piece, title: title, pages: engraving.pages, timemap: engraving.timemap))
             case .failure(let error):
                 MusicCore.close(piece: piece)
                 return .failure(error)
