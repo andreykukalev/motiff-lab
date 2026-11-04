@@ -33,6 +33,7 @@
                     </div>
                 }
             </div>
+            <button class="btn quiet" aria-haspopup="dialog" @onclick="() => _settingsOpen = true">@Text["settings.title"]</button>
             <MotiffLab.Web.Account.AccountButton />
         </div>
     </header>
@@ -279,5 +280,9 @@
                 <button class="btn primary" @onclick="() => OpenFreshAsync(project.Id, _newName)" disabled="@_opening">@Text["library.startNew"]</button>
             </div>
         </section>
+    }
+    @if (_settingsOpen)
+    {
+        <SettingsSheet Closed="() => _settingsOpen = false" />
     }
 </main>

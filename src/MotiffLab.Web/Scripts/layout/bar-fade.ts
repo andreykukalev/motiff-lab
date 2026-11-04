@@ -21,7 +21,7 @@ export class BarFade {
     constructor(
         private readonly workspace: HTMLElement,
         private readonly bar: HTMLElement,
-        private readonly delay = FADE_AFTER_MS,
+        private delay = FADE_AFTER_MS,
     ) {
         for (const type of ["pointerdown", "pointermove", "keydown", "wheel", "touchstart"]) {
             document.addEventListener(type, this.wake, { passive: true });
@@ -29,6 +29,14 @@ export class BarFade {
         bar.addEventListener("pointerenter", this.enter);
         bar.addEventListener("pointerleave", this.leave);
         this.wake();
+    }
+
+    /** The fade after another delay (the setting "guidance.barFade": 1 or 2 seconds), counted from now. */
+    setDelay(milliseconds: number): void {
+        if (Number.isFinite(milliseconds) && milliseconds > 0 && milliseconds !== this.delay) {
+            this.delay = milliseconds;
+            this.wake();
+        }
     }
 
     dispose(): void {
@@ -84,6 +92,6 @@ function keyboardFocusIn(element: HTMLElement): boolean {
 }
 
 /** Entry point for Blazor. */
-export function attach(workspace: HTMLElement, bar: HTMLElement): BarFade {
-    return new BarFade(workspace, bar);
+export function attach(workspace: HTMLElement, bar: HTMLElement, delay = FADE_AFTER_MS): BarFade {
+    return new BarFade(workspace, bar, delay);
 }

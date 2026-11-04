@@ -78,6 +78,9 @@ public partial class Home
 
     private Sheet _sheet;
     private ElementReference _sheetElement;
+
+    /// <summary>Whether the Settings sheet is open over the library (0018 section 10).</summary>
+    private bool _settingsOpen;
     private bool _focusSheet;
 
     private Project? _resumeProject;
