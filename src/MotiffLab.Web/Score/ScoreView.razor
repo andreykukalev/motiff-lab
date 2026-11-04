@@ -69,6 +69,7 @@ else if (_loading && !HoldHeight)
     private TickSpan? _shownSelection;
     private bool _selectionShown;
     private IReadOnlyList<ScorePhrase>? _shownPhrases;
+    private IReadOnlyList<ScoreBookmark>? _shownBookmarks;
     private IReadOnlyList<HighlightPlace>? _shownHighlight;
     private bool _shownHold;
     private bool _paged = true;
@@ -101,6 +102,14 @@ else if (_loading && !HoldHeight)
     /// <summary>Where phrases start, marked above the staves (#18); null or empty marks none.</summary>
     [Parameter]
     public IReadOnlyList<ScorePhrase>? Phrases { get; set; }
+
+    /// <summary>The bookmarks, drawn above the phrase brackets (0018 section 5); null or empty draws none.</summary>
+    [Parameter]
+    public IReadOnlyList<ScoreBookmark>? Bookmarks { get; set; }
+
+    /// <summary>Raised with a bookmark's id when its bracket is tapped.</summary>
+    [Parameter]
+    public EventCallback<string> BookmarkPicked { get; set; }
 
     /// <summary>The places of the fact chosen on the Understand tab (#25), highlighted; null or empty highlights none.</summary>
     [Parameter]
@@ -231,6 +240,11 @@ else if (_loading && !HoldHeight)
                 await ShowPhrasesAsync(_view);
             }
 
+            if (!ReferenceEquals(Bookmarks, _shownBookmarks))
+            {
+                await ShowBookmarksAsync(_view);
+            }
+
             if (Selection != _shownSelection || !_selectionShown)
             {
                 await ShowSelectionAsync(_view);
@@ -253,6 +267,7 @@ else if (_loading && !HoldHeight)
             await _view.InvokeVoidAsync("follow", Player.Engine);
             await ShowRangeAsync(_view);
             await ShowPhrasesAsync(_view);
+            await ShowBookmarksAsync(_view);
             await ShowSelectionAsync(_view);
             await ShowHighlightAsync(_view);
             _error = null;
@@ -277,6 +292,12 @@ else if (_loading && !HoldHeight)
         _shownPhrases = Phrases;
         // Cast, so the array goes across as one argument rather than as the argument list.
         await view.InvokeVoidAsync("setPhrases", (object)(Phrases ?? []).ToArray());
+    }
+
+    private async Task ShowBookmarksAsync(IJSObjectReference view)
+    {
+        _shownBookmarks = Bookmarks;
+        await view.InvokeVoidAsync("setBookmarks", (object)(Bookmarks ?? []).ToArray());
     }
 
     private async Task ShowSelectionAsync(IJSObjectReference view)
@@ -402,6 +423,23 @@ else if (_loading && !HoldHeight)
     /// <summary>Called by the script when the pages under the top of the view change.</summary>
     [JSInvokable]
     public Task OnPagesShown(int first, int last, int count) => PagesShown.InvokeAsync((first, last, count));
+
+    /// <summary>Called by the script when a bookmark's bracket is tapped.</summary>
+    [JSInvokable]
+    public Task OnBookmarkClicked(string id) => BookmarkPicked.InvokeAsync(id);
+
+    /// <summary>The pages with their pictures and the stretch of the piece on each, for the Contents drawer; none in the strip.</summary>
+    public async Task<IReadOnlyList<PageOutline>> PageOutlineAsync() =>
+        _view is null ? [] : await _view.InvokeAsync<PageOutline[]>("pageOutline");
+
+    /// <summary>Scrolls to the top of a page, from 1.</summary>
+    public async Task ShowPageAsync(int page)
+    {
+        if (_view is not null)
+        {
+            await _view.InvokeVoidAsync("showPage", page);
+        }
+    }
 
     /// <summary>Called by the script when a phrase's bracket is tapped.</summary>
     [JSInvokable]

@@ -87,7 +87,8 @@
                 <ScoreView @ref="_scoreView" Source="shown" Range="ShownRange" Phrases="ScorePhrases" Highlight="_highlight?.Places" HoldHeight="false" PencilKey="ShownPencilKey" Ink="@ShownInk"
                            MarksChanged="OnPencilMarksChangedAsync" Title="@ScoreTitle.Of(_title)" BarPicked="OnScoreBarPickedAsync" PagesShown="OnPagesShown"
                            BracketPicked="OnBracketPickedAsync" PencilChanged="OnPenChanged" TitleRead="OnTitleRead"
-                           Selection="_selection?.Span" BarsChosen="OnScoreBarsChosenAsync" Menu="@(MenuShown ? SelectionMenu : null)" />
+                           Selection="_selection?.Span" BarsChosen="OnScoreBarsChosenAsync" Menu="@(MenuShown ? SelectionMenu : null)"
+                           Bookmarks="ScoreBookmarks" BookmarkPicked="OnBookmarkPickedAsync" />
             }
             else
             {
@@ -103,7 +104,9 @@
                 else
                 {
                     <a class="act" href="@BackUrl" aria-label="@BackLabel" title="@BackLabel"><Icon Name="back" Size="IconSize.Large" /></a>
-                    <span class="ttl" title="@SessionLine">@BarTitle</span>
+                    @* The piece's title opens its Contents, the way a reader opens a book at its contents (0018 section 5). *@
+                    <button class="ttl @(_contentsOpen ? "on" : null)" title="@SessionLine" aria-label="@Text.Format("contents.open", BarTitle)" aria-expanded="@(_contentsOpen ? "true" : "false")"
+                            @onclick="ToggleContentsAsync">@BarTitle</button>
                     @if (PageText is { } pages)
                     {
                         <span class="pg" aria-live="off">@pages</span>
@@ -157,6 +160,7 @@
                 case Popover.More:
                     @* The overflow: the layout and the PDF, which notation and what is heard, another piece, and the credits. *@
                     <div class="popover more-popover" role="dialog" aria-label="@Text["bar.more"]" data-keeps-selection>
+                        <button class="btn quiet" aria-expanded="@(_contentsOpen ? "true" : "false")" @onclick="ToggleContentsAsync"><Icon Name="bookmark" /> @Text["bar.contents"]</button>
                         @if (_scoreView is not null)
                         {
                             <p class="overline">@Text["score.layout"]</p>
@@ -265,6 +269,11 @@
                                Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible" Highlight="_highlight?.Places"
                                RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync" />
                 </section>
+            }
+
+            @if (_contentsOpen)
+            {
+                @ContentsDrawer
             }
 
             @if (_insightsOpen)
@@ -547,47 +556,194 @@
                 </div>
             }
 
-            @* The selection in words for screen readers, wherever the sheet is (WCAG 4.1.3). *@
+            @* The selection in words for screen readers, wherever the sheet is (WCAG 4.1.3), and what the last change to the bookmarks did. *@
             <p class="visually-hidden selection-status" aria-live="polite">@SelectionText</p>
+            <p class="visually-hidden bookmark-status" aria-live="polite">@_bookmarkStatus</p>
         }
     </main>
 </CascadingValue>
 
 @code {
     /// <summary>
-    /// The contextual menu's items (0018 section 3; design/kit/ds.css .menu): Loop and Focus, then the piano roll and Insights,
-    /// then the overflow with the phrase edits that apply. Note, Bookmark and Highlight join it with annotations.
+    /// The contextual menu's items (0018 section 3; design/kit/ds.css .menu): Loop, Focus and Bookmark (section 5), then the piano
+    /// roll and Insights, then the overflow with the phrase edits that apply. Note and Highlight join it with annotations. While a
+    /// new bookmark is being made, the menu holds its card instead.
     /// </summary>
     private RenderFragment SelectionMenu => @<div class="menu">
-        <button class="it @(Looping ? "on" : null)" aria-pressed="@(Looping ? "true" : "false")" @onclick="ToggleLoopSelectionAsync"><Icon Name="loop" /> @Text["focus.loop"]</button>
-        <button class="it" title="@Text["focus.enterHint"]" @onclick="MenuFocus"><Icon Name="search" /> @Text["focus.enter"]</button>
-        <span class="div" aria-hidden="true"></span>
-        <button class="it @(_rollOpen ? "on" : null)" aria-pressed="@(_rollOpen ? "true" : "false")" @onclick="MenuRoll"><Icon Name="roll" /> @Text["bar.roll"]</button>
-        <button class="it @(_insightsOpen ? "on" : null)" aria-pressed="@(_insightsOpen ? "true" : "false")" @onclick="MenuInsights"><Icon Name="insight" /> @Text["bar.insights"]</button>
-        @if (CanMakeUnit || CanMerge || SplitPoint is not null)
+        @if (_bookmarkDraft is { Id: null } draft)
         {
+            @BookmarkCard(draft)
+        }
+        else
+        {
+            <button class="it @(Looping ? "on" : null)" aria-pressed="@(Looping ? "true" : "false")" @onclick="ToggleLoopSelectionAsync"><Icon Name="loop" /> @Text["focus.loop"]</button>
+            <button class="it" title="@Text["focus.enterHint"]" @onclick="MenuFocus"><Icon Name="search" /> @Text["focus.enter"]</button>
+            <button class="it" title="B" @onclick="StartBookmark"><Icon Name="bookmark" /> @Text["menu.bookmark"]</button>
             <span class="div" aria-hidden="true"></span>
-            <button class="it icon @(MenuMoreOpen ? "on" : null)" aria-expanded="@(MenuMoreOpen ? "true" : "false")" aria-label="@Text["menu.more"]" title="@Text["menu.more"]"
-                    @onclick="ToggleMenuMore"><Icon Name="more" /></button>
-            @if (MenuMoreOpen)
+            <button class="it @(_rollOpen ? "on" : null)" aria-pressed="@(_rollOpen ? "true" : "false")" @onclick="MenuRoll"><Icon Name="roll" /> @Text["bar.roll"]</button>
+            <button class="it @(_insightsOpen ? "on" : null)" aria-pressed="@(_insightsOpen ? "true" : "false")" @onclick="MenuInsights"><Icon Name="insight" /> @Text["bar.insights"]</button>
+            @if (CanMakeUnit || CanMerge || SplitPoint is not null)
             {
-                <div class="menu-more" role="group" aria-label="@Text["menu.more"]">
-                    @if (CanMakeUnit)
-                    {
-                        <button class="it" @onclick="MakeUnitAsync">@MakeLabel</button>
-                    }
-                    @if (CanMerge)
-                    {
-                        <button class="it" @onclick="MergeWithNextAsync">@MergeLabel</button>
-                    }
-                    @if (SplitPoint is not null)
-                    {
-                        <button class="it" title="@Text.Format("menu.splitHint", SplitBar)" @onclick="SplitHereAsync">@Text["menu.split"]</button>
-                    }
-                </div>
+                <span class="div" aria-hidden="true"></span>
+                <button class="it icon @(MenuMoreOpen ? "on" : null)" aria-expanded="@(MenuMoreOpen ? "true" : "false")" aria-label="@Text["menu.more"]" title="@Text["menu.more"]"
+                        @onclick="ToggleMenuMore"><Icon Name="more" /></button>
+                @if (MenuMoreOpen)
+                {
+                    <div class="menu-more" role="group" aria-label="@Text["menu.more"]">
+                        @if (CanMakeUnit)
+                        {
+                            <button class="it" @onclick="MakeUnitAsync">@MakeLabel</button>
+                        }
+                        @if (CanMerge)
+                        {
+                            <button class="it" @onclick="MergeWithNextAsync">@MergeLabel</button>
+                        }
+                        @if (SplitPoint is not null)
+                        {
+                            <button class="it" title="@Text.Format("menu.splitHint", SplitBar)" @onclick="SplitHereAsync">@Text["menu.split"]</button>
+                        }
+                    </div>
+                }
             }
         }
     </div>;
+
+    /// <summary>
+    /// The bookmark card (0018 section 5): the title, pre-filled with the bars, the category chips in their inks, and
+    /// Done; over the selection for a new bookmark, in the drawer for one being changed.
+    /// </summary>
+    private RenderFragment BookmarkCard(BookmarkDraft draft) => @<div class="bookmark-card" role="group" aria-label="@(draft.Id is null ? Text["bookmark.new"] : Text["bookmark.edit"])">
+        <label class="field">
+            <span class="overline">@Text["bookmark.title"]</span>
+            <input type="text" value="@draft.Title" @oninput="SetDraftTitle" @onkeydown="OnDraftKeyAsync" @ref="_draftTitle" />
+        </label>
+        <div class="cats" role="radiogroup" aria-label="@Text["bookmark.category"]">
+            @foreach (BookmarkCategory category in Categories)
+            {
+                bool chosen = category.Id == draft.CategoryId;
+                <button role="radio" class="chip cat-chip @InkClass(category.Ink) @(chosen ? "on" : null)" aria-checked="@(chosen ? "true" : "false")"
+                        @onclick="() => SetDraftCategory(category.Id)"><span class="d" aria-hidden="true"></span>@CategoryName(category)</button>
+            }
+        </div>
+        <div class="row">
+            @if (draft.Id is { } id)
+            {
+                <button class="btn quiet danger" @onclick="() => DeleteBookmarkAsync(id)"><Icon Name="trash" /> @Text["bookmark.delete"]</button>
+            }
+            <span class="sp"></span>
+            <button class="btn quiet" @onclick="CancelBookmark">@Text["bookmark.cancel"]</button>
+            <button class="btn primary" @onclick="SaveBookmarkAsync">@Text["bookmark.done"]</button>
+        </div>
+    </div>;
+
+    /// <summary>
+    /// The Contents drawer (0018 section 5) over the left of the page, a bottom sheet in portrait: the player's bookmarks
+    /// by category, to search, sort, fold, go to, change or delete, and the pages with their phrases and bookmark ticks.
+    /// </summary>
+    private RenderFragment ContentsDrawer => @<aside class="sheet left contents" aria-label="@Text["bar.contents"]" data-keeps-selection>
+        <div class="contents-head">
+            <div class="seg" role="tablist" aria-label="@Text["contents.tabs"]">
+                <button role="tab" class="@(_contentsTab == ContentsTab.Contents ? "on" : null)" aria-selected="@(_contentsTab == ContentsTab.Contents ? "true" : "false")"
+                        @onclick="() => ShowContentsTabAsync(ContentsTab.Contents)">@Text["contents.tabContents"]</button>
+                <button role="tab" class="@(_contentsTab == ContentsTab.Pages ? "on" : null)" aria-selected="@(_contentsTab == ContentsTab.Pages ? "true" : "false")"
+                        @onclick="() => ShowContentsTabAsync(ContentsTab.Pages)">@Text["contents.tabPages"]</button>
+            </div>
+            <button class="btn quiet icon" aria-label="@Text["drawer.close"]" title="@Text["drawer.close"]" @onclick="ToggleContentsAsync"><Icon Name="close" /></button>
+        </div>
+        @if (_contentsTab == ContentsTab.Contents)
+        {
+            <div class="contents-tools">
+                <input type="search" class="search" placeholder="@Text["contents.search"]" aria-label="@Text["contents.search"]" value="@_contentsSearch" @oninput="SetContentsSearch" />
+                <div class="seg" role="radiogroup" aria-label="@Text["contents.order"]">
+                    <button role="radio" class="@(_contentsMyOrder ? null : "on")" aria-checked="@(_contentsMyOrder ? "false" : "true")" @onclick="() => _contentsMyOrder = false">@Text["contents.scoreOrder"]</button>
+                    <button role="radio" class="@(_contentsMyOrder ? "on" : null)" aria-checked="@(_contentsMyOrder ? "true" : "false")" @onclick="() => _contentsMyOrder = true">@Text["contents.myOrder"]</button>
+                </div>
+            </div>
+            @if (Bookmarks.Count == 0)
+            {
+                <div class="contents-empty">
+                    <p class="meta">@Text["contents.empty"]</p>
+                    @if (CanAddStructure)
+                    {
+                        <button class="btn secondary" title="@Text["contents.addStructureHint"]" @onclick="AddStructureBookmarksAsync">@Text["contents.addStructure"]</button>
+                        <p class="caption">@Text["contents.addStructureHint"]</p>
+                    }
+                </div>
+            }
+            else if (ContentsGroups is { Count: 0 })
+            {
+                <p class="meta contents-empty">@Text["contents.noMatch"]</p>
+            }
+            else
+            {
+                @foreach ((BookmarkCategory category, IReadOnlyList<Bookmark> entries) in ContentsGroups)
+                {
+                    bool folded = _foldedCategories.Contains(category.Id);
+                    <section class="contents-group" aria-label="@CategoryName(category)">
+                        <button class="cat @InkClass(category.Ink)" aria-expanded="@(folded ? "false" : "true")" title="@Text.Format("contents.fold", CategoryName(category))"
+                                @onclick="() => ToggleFold(category.Id)">
+                            <span class="d" aria-hidden="true"></span>@Text.Format("contents.category", CategoryName(category), entries.Count)
+                        </button>
+                        @if (!folded)
+                        {
+                            <ul class="entries">
+                                @foreach (Bookmark bookmark in entries)
+                                {
+                                    <li>
+                                        @if (_bookmarkDraft is { Id: { } editing } draft && editing == bookmark.Id)
+                                        {
+                                            @BookmarkCard(draft)
+                                        }
+                                        else
+                                        {
+                                            bool on = IsShown(bookmark);
+                                            <div class="entry @(on ? "on" : null)">
+                                                <button class="go" aria-current="@(on ? "true" : null)" title="@Text["contents.entryHint"]" @onclick="() => GoToBookmarkAsync(bookmark)">
+                                                    <span class="t">@bookmark.Title</span>
+                                                    <span class="c">@BarsOf(bookmark.Span)@(IdeasIn(bookmark) is { } ideas ? $" · {ideas}" : null)</span>
+                                                </button>
+                                                <button class="btn quiet icon" aria-label="@Text.Format("bookmark.editOne", bookmark.Title)" title="@Text["bookmark.edit"]" @onclick="() => EditBookmark(bookmark)"><Icon Name="pen" /></button>
+                                            </div>
+                                        }
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    </section>
+                }
+                @if (CanAddStructure)
+                {
+                    <button class="btn quiet" title="@Text["contents.addStructureHint"]" @onclick="AddStructureBookmarksAsync">@Text["contents.addStructure"]</button>
+                }
+            }
+        }
+        else if (_pageOutline.Count == 0)
+        {
+            <p class="meta contents-empty">@Text["contents.pagesStrip"]</p>
+        }
+        else
+        {
+            <ol class="pages-grid">
+                @foreach (PageOutline sheet in _pageOutline)
+                {
+                    <li>
+                        <button class="page-thumb @(PageInView(sheet) ? "on" : null)" aria-label="@Text.Format("contents.pageLabel", sheet.Page)" aria-current="@(PageInView(sheet) ? "page" : null)"
+                                @onclick="() => ShowPageAsync(sheet.Page)">
+                            <span class="th"><img src="@sheet.Url" alt="" />
+                                <span class="ticks" aria-hidden="true">
+                                    @foreach (Bookmark bookmark in BookmarksOn(sheet))
+                                    {
+                                        <span class="tick @InkClass(CategoryOf(bookmark).Ink)" title="@bookmark.Title"></span>
+                                    }
+                                </span>
+                            </span>
+                            <span class="caption">@Text.Format("contents.page", sheet.Page)@(PhrasesOn(sheet) is { } phrases ? $" · {phrases}" : null)</span>
+                        </button>
+                    </li>
+                }
+            </ol>
+        }
+    </aside>;
 
     /// <summary>The card of the experiment being tried, which the Insights stream shows under its Try chip.</summary>
     private RenderFragment TrialCard => @<ExploreCard Try="TryExperimentAsync" Leave="LeaveExperimentAsync" HearInContext="HearAnswerAsync"
@@ -1195,6 +1351,7 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        await FocusDraftAsync();
         if (firstRender)
         {
             await ReadLayoutPreferencesAsync();
@@ -1819,6 +1976,12 @@
 
     private async Task SelectAsync(TickSpan span, string? note)
     {
+        // A new bookmark's card belongs to the selection it was opened over.
+        if (_bookmarkDraft is { Id: null })
+        {
+            _bookmarkDraft = null;
+        }
+
         _selection = MotifSelector.Select(_notes!, _meter!, span, _filter, SelectionCap(span));
         Analyze(_selection);
         _highlight = null;
@@ -1890,6 +2053,12 @@
     private async Task ChangePhrasesAsync(LevelEdits edits, TickSpan? around)
     {
         SuggestPhrases(edits);
+        // A bookmark made from a phrase follows it through the merge or the split (0018 section 5).
+        if ((_project ?? _session) is { Bookmarks.Count: > 0 })
+        {
+            Change(project => project.FollowPhrases(_phrases!.Phrases.Select(phrase => phrase.Span)));
+        }
+
         if (around is { } span)
         {
             await SelectAsync(_levels!.Selectable(_levels.Map(span, _level)), note: null);
@@ -1912,6 +2081,7 @@
         }
 
         _selection = null;
+        _bookmarkDraft = _bookmarkDraft is { Id: null } ? null : _bookmarkDraft;
         // Nothing to lift: focus goes with the selection.
         _focus = false;
         _focusSpan = null;

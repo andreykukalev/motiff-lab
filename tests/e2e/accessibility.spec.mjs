@@ -69,6 +69,27 @@ test("the score page: the bar, its popovers, the pill and its tempo, the roll dr
     }
 });
 
+test("bookmarks: the card over the selection, the brackets on the score, the Contents drawer and its Pages, in both themes", async ({ page }) => {
+    await openFurElise(page);
+    await selectBar(page, 2);
+    await page.locator(".ctx").getByRole("button", { name: "Bookmark" }).click();
+    for (const theme of ["daylight", "night"]) {
+        await page.evaluate(name => document.documentElement.setAttribute("data-theme", name), theme);
+        expect(await violations(page)).toEqual([]);
+    }
+    await page.locator(".bookmark-card").getByRole("button", { name: "Done" }).click();
+    await page.locator(".bar").getByRole("button", { name: /open the contents/ }).click();
+    await page.locator(".sheet.contents").getByRole("button", { name: "Add Structure bookmarks" }).click();
+    for (const theme of ["daylight", "night"]) {
+        await page.evaluate(name => document.documentElement.setAttribute("data-theme", name), theme);
+        expect(await violations(page)).toEqual([]);
+        await page.locator(".sheet.contents").getByRole("tab", { name: "Pages" }).click();
+        await expect(page.locator(".sheet.contents .page-thumb").first()).toBeVisible();
+        expect(await violations(page)).toEqual([]);
+        await page.locator(".sheet.contents").getByRole("tab", { name: "Contents" }).click();
+    }
+});
+
 test("phrase focus: the card with its ossia, the variation chips, the focus bar and Lead-in, in both themes", async ({ page }) => {
     await openFurElise(page);
     const bracket = page.locator(".score button.bracket[aria-label]").first();

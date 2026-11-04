@@ -1,3 +1,4 @@
+using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Motifs;
@@ -39,6 +40,22 @@ public class MarksAndBookmarksTests
 
         // A phrase list that does not reach the bookmark leaves it alone.
         Assert.Equal(afterSplit.Bookmarks, afterSplit.FollowPhrases([phrase2]).Bookmarks);
+    }
+
+    [Fact]
+    public void Structure_bookmarks_name_each_sentence_once_in_the_language()
+    {
+        ImportedPiece piece = Piece();
+        Sentence first = new(1, Bars(piece, 0, 1), 0, 1, [new Phrase(1, Bars(piece, 0, 1), 0, 1, null)], Attribution.Detected(0.6), "");
+        Sentence second = new(2, Bars(piece, 2, 2), 2, 2, [new Phrase(2, Bars(piece, 2, 2), 2, 2, null)], Attribution.Detected(0.6), "");
+        Project project = Fresh()
+            .AddBookmark(new Bookmark("b_0001", "Mine", BookmarkCategory.PractiseId, Bars(piece, 0, 1), false, s_now))
+            .AddStructureBookmarks([first, second], Words.English, s_now);
+
+        Assert.Equal(["Mine", "Sentence A, bars 0–1", "Sentence B, bar 2"], project.Bookmarks.Select(bookmark => bookmark.Title));
+        Assert.All(project.Bookmarks.Skip(1), bookmark => Assert.Equal(BookmarkCategory.StructureId, bookmark.CategoryId));
+        Assert.Equal(project.Bookmarks, project.AddStructureBookmarks([first, second], Words.English, s_now).Bookmarks);
+        Assert.Equal("Предложение A, такты 0–1", Fresh().AddStructureBookmarks([first], Words.Russian, s_now).Bookmarks[0].Title);
     }
 
     [Fact]

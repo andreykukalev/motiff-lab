@@ -74,6 +74,8 @@ public partial class PlaybackLab : IAsyncDisposable
     {
         _rollOpen ? "roll-open" : null,
         _insightsOpen ? "insights-open" : null,
+        _contentsOpen ? "contents-open" : null,
+        _bookmarkDraft is { Id: null } ? "bookmarking" : null,
         Focused ? "focused" : null,
         _popover != Popover.None ? "popover-open" : null,
     }.Where(name => name is not null));
@@ -286,6 +288,7 @@ public partial class PlaybackLab : IAsyncDisposable
     private void ToggleInsights()
     {
         _insightsOpen = !_insightsOpen;
+        _contentsOpen &= !_insightsOpen;
         _popover = Popover.None;
     }
 
