@@ -1284,16 +1284,8 @@ h1, h2, .app-title strong {
     right: 5%;
 }
 
-/* Notes outside the range that plays for the selection go faint, as on the roll. A paler ink rather than opacity:
-   Safari draws every translucent group on its own layer, and with most of a long piece faint, scrolling stuttered. */
-.score g.note.outside {
-    fill: color-mix(in srgb, var(--notation) 30%, var(--paper));
-    stroke: color-mix(in srgb, var(--notation) 30%, var(--paper));
-    color: color-mix(in srgb, var(--notation) 30%, var(--paper));
-}
-
 /* The places of the fact chosen on Understand (#25): blue and at full strength, with a solid box round each notehead or rest,
-   so they differ from playing (colour only) and outside (faint) by more than colour. The playing colour still shows over them. */
+   so they differ from playing (colour only) by more than colour. The playing colour still shows over them. */
 .score g.note.highlight, .score g.rest.highlight {
     fill: var(--accent);
     stroke: var(--accent);
@@ -3104,4 +3096,159 @@ body:has(.workspace) .site-footer {
     box-shadow: none;
     outline: 2px dotted var(--accent);
     outline-offset: 3px;
+}
+
+/* The selection (0018 section 3, design/kit/ds.css .band, .handle): a cobalt band over the selected bars on each
+   system, and round handles on the first and last barline that drag the edges. The score is not text to select. */
+.lab.workspace .score {
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.score .sel-band {
+    position: absolute;
+    box-sizing: border-box;
+    background: var(--accent-tint);
+    border: 1.5px solid var(--accent);
+    border-radius: 3px;
+    pointer-events: none;
+}
+
+.lab .score button.sel-handle {
+    position: absolute;
+    z-index: 2;
+    width: 14px;
+    height: 14px;
+    min-height: 0;
+    padding: 0;
+    box-sizing: border-box;
+    border-radius: 50%;
+    background: var(--surface-2);
+    border: 2px solid var(--accent);
+    transform: translate(-50%, -50%);
+    cursor: ew-resize;
+    touch-action: none;
+}
+
+/* A finger's worth to grab (WCAG 2.5.8). */
+.lab .score button.sel-handle::before {
+    content: "";
+    position: absolute;
+    inset: -15px;
+    border-radius: 50%;
+}
+
+.lab .score button.sel-handle.dragging, .lab .score button.sel-handle:hover {
+    background: var(--accent);
+}
+
+.lab .score button.sel-handle:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+/* The contextual menu (design/kit/ds.css .menu): a pill above the selection with a pointer to it; the script places it. */
+.workspace .ctx {
+    position: fixed;
+    z-index: 5;
+}
+
+.workspace .ctx[hidden], .workspace .ctx:not(:has(.menu)) {
+    display: none;
+}
+
+.workspace .ctx .menu {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: var(--h-touch);
+    padding: 0 var(--s-1);
+    box-sizing: border-box;
+    border-radius: var(--r-pill);
+    background: var(--surface-2);
+    border: 1px solid var(--hairline);
+    box-shadow: var(--shadow-menu);
+    font: var(--t-label);
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+.workspace .ctx .menu::after {
+    content: "";
+    position: absolute;
+    left: var(--pointer, 50%);
+    bottom: -7px;
+    width: 12px;
+    height: 12px;
+    background: var(--surface-2);
+    border-right: 1px solid var(--hairline);
+    border-bottom: 1px solid var(--hairline);
+    transform: translateX(-50%) rotate(45deg);
+}
+
+.workspace .ctx[data-below="true"] .menu::after {
+    bottom: auto;
+    top: -7px;
+    transform: translateX(-50%) rotate(-135deg);
+}
+
+.lab.workspace .ctx .it {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 36px;
+    min-height: 0;
+    padding: 0 var(--s-3);
+    border: 0;
+    border-radius: var(--r-pill);
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    cursor: pointer;
+}
+
+.lab.workspace .ctx .it.icon {
+    width: 36px;
+    padding: 0;
+    justify-content: center;
+}
+
+@media (hover: hover) {
+    .lab.workspace .ctx .it:hover {
+        background: var(--accent-tint);
+    }
+}
+
+.lab.workspace .ctx .it.on {
+    background: var(--accent-tint);
+    color: var(--accent-hover);
+    font-weight: 600;
+}
+
+.workspace .ctx .div {
+    width: 1px;
+    height: 20px;
+    margin: 0 2px;
+    background: var(--hairline);
+}
+
+/* The menu's overflow: the rarer actions on the passage, in a small list under the menu. */
+.workspace .ctx .menu-more {
+    position: absolute;
+    top: calc(100% + var(--s-2));
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: var(--s-1);
+    border-radius: var(--r-m);
+    background: var(--surface-2);
+    border: 1px solid var(--hairline);
+    box-shadow: var(--shadow-menu);
+}
+
+.lab.workspace .ctx .menu-more .it {
+    justify-content: flex-start;
+    border-radius: var(--r-s);
 }

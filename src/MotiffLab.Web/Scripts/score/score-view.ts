@@ -10,6 +10,7 @@
 
 import type { BarFrame } from "./pencil-marks.js";
 import { PencilLayer, type PencilState } from "./pencil-layer.js";
+import { type ScoreSelection, SelectionLayer } from "./selection-layer.js";
 import { ScoreTimeline, highlightedIds, type HighlightPlace, type TimemapEntry } from "./score-timeline.js";
 import { A4_HEIGHT, A4_WIDTH, buildPdf, crop, inkBounds, type InkLayer, type PdfPage } from "./pdf-document.js";
 import { hasText, svgToPdfOperators, textOnlySvg } from "./svg-to-pdf.js";
@@ -79,7 +80,7 @@ const FOLLOW_PAUSE_MS = 4000;
 /** The keys that scroll the score when it has focus. */
 const SCROLL_KEYS = new Set(["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"]);
 
-/** Notes outside the range that plays for the selection, drawn faint as on the piano roll. */
+/** Notes outside the range that plays for the selection (no longer drawn faint: the band shows the selection, 0018 section 3). */
 const OUTSIDE_CLASS = "outside";
 
 /** A phrase's pencil bracket above the top staff (0018 section 3, design/kit/ds.css), placed over the engraving. */
@@ -162,6 +163,7 @@ export class ScoreView {
     private relayoutTimer = 0;
     private disposed = false;
     private readonly pencil: PencilLayer;
+    private readonly selection: SelectionLayer;
     /** A4 pages (0017), or one strip the width of the view. */
     private paged = true;
     /** What was loaded, so a change of layout can engrave it again. */
@@ -181,6 +183,11 @@ export class ScoreView {
             tap: (target, extend) => this.pick(target, extend),
             changed: (state: PencilState) => void this.dotnet.invokeMethodAsync("OnPencilChanged", state),
             marksChanged: (text: string) => void this.dotnet.invokeMethodAsync("OnPencilMarksChanged", text),
+        });
+        this.selection = new SelectionLayer(host, {
+            geometry: () => this.geometry(),
+            penOn: () => this.pencil.state().on,
+            chosen: (first, last, byHandle) => void this.dotnet.invokeMethodAsync("OnScoreBarsChosen", first, last, byHandle),
         });
         this.host.classList.toggle("paged", this.paged);
         this.host.addEventListener("click", this.onClick);
@@ -293,8 +300,8 @@ export class ScoreView {
     }
 
     /**
-     * Shows the range that plays for the selection: notes that start outside [start, end) go faint,
-     * and the first note in it is scrolled into view. Null shows every note at full strength.
+     * Takes the range that plays for the selection: notes that start outside [start, end) are marked as
+     * outside, and the first note in it is scrolled into view. Null marks none.
      */
     setRange(start: number | null, end: number | null): void {
         this.range = start === null || end === null ? null : { start, end };
@@ -314,6 +321,16 @@ export class ScoreView {
     }
 
     /** Draws the phrases' brackets above the top staff; an empty list draws none. */
+    /** Shows the selection as a band with handles over its bars (0018 section 3); null shows none. */
+    setSelection(selection: ScoreSelection | null): void {
+        this.selection.setSelection(selection);
+    }
+
+    /** The contextual menu Blazor draws for the selection, placed over the band as the score scrolls. */
+    setMenu(menu: HTMLElement | null): void {
+        this.selection.setMenu(menu);
+    }
+
     setPhrases(phrases: ScorePhrase[]): void {
         this.phrases = phrases;
         this.placePhrases();
@@ -388,6 +405,7 @@ export class ScoreView {
     dispose(): void {
         this.disposed = true;
         this.pencil.dispose();
+        this.selection.dispose();
         cancelAnimationFrame(this.frame);
         clearTimeout(this.relayoutTimer);
         this.resizeObserver.disconnect();
@@ -455,6 +473,7 @@ export class ScoreView {
 
         this.applyRange(false);
         this.placePhrases();
+        this.selection.place();
         this.applyHighlight(false);
 
         // The new SVG has no marks; put back the ones that were showing.
@@ -505,7 +524,10 @@ export class ScoreView {
 
     private readonly onScroll = (): void => {
         cancelAnimationFrame(this.scrollFrame);
-        this.scrollFrame = requestAnimationFrame(() => this.reportPages());
+        this.scrollFrame = requestAnimationFrame(() => {
+            this.reportPages();
+            this.selection.placeMenu();
+        });
     };
 
     private readonly onKeyDown = (event: KeyboardEvent): void => {
@@ -664,6 +686,7 @@ export class ScoreView {
                 this.laidOutWidth = this.host.clientWidth;
                 this.laidOutHeight = this.host.clientHeight;
                 this.placePhrases();
+                this.selection.place();
                 this.applyHighlight(false);
                 this.pencil.relayout();
                 this.reportPages();
@@ -748,7 +771,10 @@ export class ScoreView {
             void this.dotnet.invokeMethodAsync("OnBracketClicked", Number(bracket.dataset.phrase));
             return;
         }
-        // A press the pencil layer took is handled there: a tap comes back through pick.
+        // A press the pencil layer took is handled there: a tap comes back through pick. A drag across bars has chosen them already.
+        if (this.selection.swallowsClick()) {
+            return;
+        }
         if (event.target instanceof Element && !this.pencil.swallowsClick()) {
             this.pick(event.target, event.shiftKey);
         }

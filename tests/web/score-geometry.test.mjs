@@ -143,6 +143,27 @@ test("a passage across a system break has a run on each system, a bracket over i
     assert.deepEqual(geometry.runs(lastBar.end, lastBar.end), []);
 });
 
+test("a point on the score finds its bar, and a handle let go finds the nearest barline", async () => {
+    const { pages, timeline } = await engrave({ ...A4_LAYOUT });
+    const geometry = new ScoreGeometry(pages, stacked(pages, 800), (id) => timeline.measureOnset(id));
+    const system = geometry.systems[1];
+    const bars = system.bars.map((index) => geometry.bars[index]);
+    const second = bars[1];
+    const middle = (second.top + second.bottom) / 2;
+
+    // Inside a bar, and above its system: the same bar.
+    assert.equal(geometry.barNear(second.left + 3, middle), second);
+    assert.equal(geometry.barNear(second.left + 3, system.top - 6), second);
+    // Beside the system: its first or last bar.
+    assert.equal(geometry.barNear(system.left - 50, middle), bars[0]);
+    assert.equal(geometry.barNear(system.right + 50, middle), bars.at(-1));
+
+    // A start let go just left of the second bar's left barline goes to the second bar; an end just right of the first bar's right barline, to the first.
+    assert.equal(geometry.edgeNear(second.left - 4, middle, "start"), second);
+    assert.equal(geometry.edgeNear(bars[0].right + 4, middle, "end"), bars[0]);
+    assert.equal(new ScoreGeometry([], [], () => 0).barNear(0, 0), undefined);
+});
+
 test("rings, flags and the pencil's frames come from the same boxes", async () => {
     const { pages, timeline } = await engrave({ ...A4_LAYOUT });
     const geometry = new ScoreGeometry(pages, stacked(pages, 800), (id) => timeline.measureOnset(id));

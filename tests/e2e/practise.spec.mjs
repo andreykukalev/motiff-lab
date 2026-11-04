@@ -57,7 +57,7 @@ test("the workspace reads in Russian when the app is in Russian (#134)", async (
     await selectBar(page, 1);
 
     await expect(page.locator(".selection-status")).toHaveText("Выделено: такт 1: 6 нот.");
-    await expect(page.getByRole("button", { name: "Цикл" })).toBeVisible();
+    await expect(page.locator(".pill").getByRole("button", { name: "Цикл" })).toBeVisible();
     await openInsights(page, "Поиграть");
     await expect(page.locator(".practise")).toContainText("Повторять фразу");
     await expect(page.locator(".roll-tools")).toContainText("Цвет по");
