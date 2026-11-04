@@ -41,6 +41,12 @@ final class Engraver {
 
     var log: String { String(cString: vrvToolkit_getLog(toolkit)) }
 
+    /// When each engraved note and rest sounds and where each measure starts, in quarter notes: the timemap the web
+    /// app's score timeline reads (Scripts/score/score-timeline.ts), as JSON.
+    func timemap() -> String {
+        #"{"includeRests": true, "includeMeasures": true}"#.withCString { String(cString: vrvToolkit_renderToTimemap(toolkit, $0)) }
+    }
+
     /// The web app's A4 page (Scripts/score/score-page.ts, decision record 0017) in Leland, the redesign's music font.
     static let a4Leland = """
     {"scale": 100, "pageWidth": 2100, "pageHeight": 2970, "pageMarginLeft": 150, "pageMarginRight": 150,
@@ -48,9 +54,9 @@ final class Engraver {
      "breaks": "auto", "header": "auto", "footer": "none", "svgViewBox": true, "font": "Leland"}
     """
 
-    /// The pages of a piece's notation as SVG: music-core writes the MEI (`notation`), Verovio lays it out on A4
-    /// pages. Call it through `MusicCore.run`.
-    static func pages(piece: Int32, title: String) -> Result<[String], EngraveError> {
+    /// The pages of a piece's notation as SVG with Verovio's timemap: music-core writes the MEI (`notation`), Verovio
+    /// lays it out on A4 pages. Call it through `MusicCore.run`.
+    static func engrave(piece: Int32, title: String) -> Result<Engraving, EngraveError> {
         let request = "{\"title\": \(jsonString(title))}"
         guard let answer = facadeObject(MusicCore.call(piece: piece, "notation", request)) else {
             return .failure(EngraveError(message: "music-core gave no notation."))
@@ -63,13 +69,20 @@ final class Engraver {
         guard engraver.load(mei) else {
             return .failure(EngraveError(message: "Verovio could not lay out the notation: \(engraver.log)"))
         }
-        return .success((1...max(engraver.pageCount, 1)).map { engraver.svg(page: $0) })
+        let pages = (1...max(engraver.pageCount, 1)).map { engraver.svg(page: $0) }
+        return .success(Engraving(pages: pages, timemap: engraver.timemap()))
     }
 
     private static func jsonString(_ text: String) -> String {
         let data = (try? JSONSerialization.data(withJSONObject: [text])) ?? Data("[\"\"]".utf8)
         return String(decoding: data, as: UTF8.self).dropFirst().dropLast().description
     }
+}
+
+/// A piece laid out: its pages as SVG and Verovio's timemap as JSON.
+struct Engraving: Sendable {
+    let pages: [String]
+    let timemap: String
 }
 
 struct EngraveError: Error, Sendable {

@@ -31,6 +31,14 @@ targets:
       - path: ../../src/MotiffLab.Web/wwwroot/i18n
         type: folder
         buildPhase: resources
+      # The score page and the web app's score modules (Scripts/score, compiled to wwwroot/js/score by
+      # `dotnet build src/MotiffLab.Web`): the same geometry and pencil marks as the web (0019 section 1.4).
+      - path: Web
+        type: folder
+        buildPhase: resources
+      - path: ../../src/MotiffLab.Web/wwwroot/js/score
+        type: folder
+        buildPhase: resources
       # The piano the web app plays (tools/piano): 30 MP3 samples and piano.json.
       - path: ../../src/MotiffLab.Web/wwwroot/audio/piano
         type: folder

@@ -1,22 +1,26 @@
 import SwiftUI
 import WebKit
 
-/// A piece's score on A4 pages, one under another (0017, 0018 section 2): Verovio's SVG in one web view, as in the web
-/// app, so the same score modules can draw the overlays later (0019). The page colours come from the design kit's
-/// tokens (design/kit/tokens.css, copied into the app), in Daylight or Night stand with the iPad's appearance.
+/// A piece's score on A4 pages, one under another (0017, 0018 section 2), with the pencil marks on it (0019 section
+/// 2.2): Verovio's SVG in one web view that runs the web app's score modules (ScoreController, Web/score.js). The page
+/// colours come from the design kit's tokens, in Daylight or Night stand with the iPad's appearance.
 struct ScoreScreen: View {
     let piece: OpenPiece
     private let text = UIText.current
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var player = Player()
+    @StateObject private var score = ScoreController()
 
     var body: some View {
-        ScoreWebView(pages: piece.pages, dark: colorScheme == .dark)
+        ScoreWebView(score: score, piece: piece, dark: colorScheme == .dark)
             .ignoresSafeArea(edges: .bottom)
             .safeAreaInset(edge: .bottom) { TransportBar(player: player, text: text) }
             .navigationTitle(piece.title)
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItemGroup(placement: .topBarTrailing) { PencilTools(score: score, text: text) }
+            }
             .task { await player.load(piece: piece.id) }
             .onDisappear {
                 player.shutdown()
@@ -32,6 +36,73 @@ struct ScoreScreen: View {
         guard let file = piece.file else { return }
         let id = piece.id
         Task { try? await ProjectFiles.save(piece: id, to: file) }
+    }
+}
+
+struct ScoreWebView: UIViewRepresentable {
+    @ObservedObject var score: ScoreController
+    let piece: OpenPiece
+    let dark: Bool
+
+    /// A web view made at launch, so the first score does not wait for WebKit's process to start (0019).
+    @MainActor private static var warm: WKWebView?
+
+    @MainActor static func prewarm() {
+        guard warm == nil else { return }
+        let view = WKWebView(frame: .zero, configuration: WKWebViewConfiguration())
+        view.loadHTMLString("<!doctype html><title></title>", baseURL: nil)
+        warm = view
+    }
+
+    func makeUIView(context: Context) -> WKWebView {
+        score.webView
+    }
+
+    func updateUIView(_ view: WKWebView, context: Context) {
+        score.show(piece, dark: dark)
+    }
+}
+
+/// The Pencil's tools, as in the web app (pencil.*): the four inks, the highlighter, the eraser, and Undo. The Pencil
+/// writes with the chosen one; a double tap on it switches as the iPad's settings say.
+struct PencilTools: View {
+    @ObservedObject var score: ScoreController
+    let text: UIText
+
+    var body: some View {
+        HStack(spacing: 14) {
+            ForEach(ScoreController.Ink.allCases, id: \.self) { ink in
+                Button {
+                    score.tool = .pen(ink)
+                } label: {
+                    Image(systemName: score.tool == .pen(ink) ? "largecircle.fill.circle" : "circle.fill")
+                        .foregroundStyle(Color(uiColor: ink.color))
+                }
+                .accessibilityLabel(text[ink.labelKey])
+                .accessibilityAddTraits(score.tool == .pen(ink) ? .isSelected : [])
+            }
+            tool(.highlighter, symbol: "highlighter", label: "pencil.highlighter")
+            tool(.eraser, symbol: "eraser", label: "pencil.eraser")
+            Button {
+                score.undo()
+            } label: {
+                Image(systemName: "arrow.uturn.backward")
+            }
+            .disabled(!score.canUndo)
+            .accessibilityLabel(text["pencil.undo"])
+        }
+    }
+
+    private func tool(_ tool: ScoreController.Tool, symbol: String, label: String) -> some View {
+        Button {
+            score.tool = tool
+        } label: {
+            Image(systemName: symbol)
+                .padding(4)
+                .background(score.tool == tool ? Color.accentColor.opacity(0.2) : .clear, in: Circle())
+        }
+        .accessibilityLabel(text[label])
+        .accessibilityAddTraits(score.tool == tool ? .isSelected : [])
     }
 }
 
@@ -89,56 +160,5 @@ struct TransportBar: View {
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
         .background(.bar)
-    }
-}
-
-struct ScoreWebView: UIViewRepresentable {
-    let pages: [String]
-    let dark: Bool
-
-    /// The web view made at launch, so the first score does not wait for WebKit's process (0019).
-    @MainActor private static var warm: WKWebView?
-
-    @MainActor static func prewarm() {
-        guard warm == nil else { return }
-        let view = WKWebView(frame: .zero, configuration: WKWebViewConfiguration())
-        view.loadHTMLString("<!doctype html><title></title>", baseURL: nil)
-        warm = view
-    }
-
-    func makeCoordinator() -> Coordinator { Coordinator() }
-
-    func makeUIView(context: Context) -> WKWebView {
-        let view = Self.warm ?? WKWebView(frame: .zero, configuration: WKWebViewConfiguration())
-        Self.warm = nil
-        view.isOpaque = false
-        view.backgroundColor = .clear
-        return view
-    }
-
-    func updateUIView(_ view: WKWebView, context: Context) {
-        let coordinator = context.coordinator
-        // SwiftUI calls this on every change; load the pages only when they or the theme are new.
-        guard coordinator.loaded != pages || coordinator.dark != dark else { return }
-        coordinator.loaded = pages
-        coordinator.dark = dark
-        let body = pages.map { "<div class=\"page\">\($0)</div>" }.joined()
-        let html = """
-        <!doctype html><html\(dark ? " data-theme=\"dark\"" : "")><head>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <link rel="stylesheet" href="tokens.css">
-        <style>
-          body { margin: 0; padding: var(--s-4); background: var(--desk); }
-          .page { background: var(--paper); color: var(--notation); margin: 0 auto var(--s-4);
-                  box-shadow: var(--shadow-paper); }
-          .page svg { display: block; width: 100%; height: auto; }
-        </style></head><body>\(body)</body></html>
-        """
-        view.loadHTMLString(html, baseURL: Bundle.main.resourceURL)
-    }
-
-    final class Coordinator {
-        var loaded: [String] = []
-        var dark = false
     }
 }

@@ -1,0 +1,12 @@
+/* Colours and sizes come from the design kit (design/kit/tokens.css, copied into the app). */
+body { margin: 0; padding: var(--s-4); background: var(--desk); position: relative; -webkit-user-select: none; user-select: none; }
+.page { background: var(--paper); color: var(--notation); margin: 0 auto var(--s-4); box-shadow: var(--shadow-paper); }
+.page svg { display: block; width: 100%; height: auto; }
+
+/* The pencil marks over the pages, in the document's pixels; the score scrolls with them. */
+#ink { position: absolute; top: 0; left: 0; overflow: visible; pointer-events: none; }
+.mark.pen.graphite { fill: var(--ink-graphite); }
+.mark.pen.carmine { fill: var(--ink-carmine); }
+.mark.pen.forest { fill: var(--ink-forest); }
+.mark.pen.ochre { fill: var(--ink-ochre); }
+.mark.highlighter { fill: var(--amber); opacity: 0.38; mix-blend-mode: multiply; }

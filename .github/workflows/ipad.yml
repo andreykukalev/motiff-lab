@@ -6,6 +6,19 @@ name: iPad
 
 on:
   workflow_dispatch:
+  # On main too, so the Verovio build is cached where every pull request can read it.
+  push:
+    branches: [main]
+    paths:
+      - ipad/**
+      - src/MotiffLab.MusicCore/**
+      - design/kit/tokens.css
+      - design/kit/elise.musicxml
+      - src/MotiffLab.Web/wwwroot/i18n/**
+      - src/MotiffLab.Web/wwwroot/audio/piano/**
+      - src/MotiffLab.Web/Scripts/score/**
+      - global.json
+      - .github/workflows/ipad.yml
   pull_request:
     paths:
       - ipad/**
@@ -14,6 +27,7 @@ on:
       - design/kit/elise.musicxml
       - src/MotiffLab.Web/wwwroot/i18n/**
       - src/MotiffLab.Web/wwwroot/audio/piano/**
+      - src/MotiffLab.Web/Scripts/score/**
       - global.json
       - .github/workflows/ipad.yml
 
@@ -71,6 +85,11 @@ jobs:
             ipad/build/Verovio.xcframework
             ipad/build/verovio-data
           key: ${{ steps.verovio.outputs.cache-primary-key }}
+
+      # The score's scripts are the web app's (Scripts/score, compiled to wwwroot/js/score): the iPad's web view runs
+      # the same score geometry and pencil marks (0019 section 1.4).
+      - name: Compile the web app's score scripts
+        run: dotnet build src/MotiffLab.Web -c Release -warnaserror | tail -3
 
       - name: Generate the Xcode project
         working-directory: ipad/App
