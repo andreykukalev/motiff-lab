@@ -37,8 +37,11 @@ public sealed record ExperimentStep(string OperationId, OperationParameters Para
 /// <param name="Steps">The recipe, applied in order; at least one step.</param>
 public sealed record ExperimentAlternative(string Label, string Keeps, IReadOnlyList<ExperimentStep> Steps)
 {
+    /// <summary>The Keep preset this way runs with, when it is not the experiment's (a fact's Try button, whose ways are Try chips).</summary>
+    public string? KeepPresetId { get; init; }
+
     public bool Equals(ExperimentAlternative? other) =>
-        other is not null && Label == other.Label && Keeps == other.Keeps && Steps.SequenceEqual(other.Steps);
+        other is not null && Label == other.Label && Keeps == other.Keeps && KeepPresetId == other.KeepPresetId && Steps.SequenceEqual(other.Steps);
 
     public override int GetHashCode() => HashCode.Combine(Label, Keeps, Steps.Count);
 }
@@ -211,7 +214,8 @@ public static class ExperimentCatalogue
         ArgumentNullException.ThrowIfNull(experiment);
         ArgumentOutOfRangeException.ThrowIfNegative(alternative);
         ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(alternative, experiment.Alternatives.Count);
-        return TryStart(experiment.Passage.Span, experiment.Filter, experiment.KeepPresetId, experiment.Alternatives[alternative].Steps, notes, meter, key, words, out string? reason)
+        ExperimentAlternative way = experiment.Alternatives[alternative];
+        return TryStart(experiment.Passage.Span, experiment.Filter, way.KeepPresetId ?? experiment.KeepPresetId, way.Steps, notes, meter, key, words, out string? reason)
             ?? throw new InvalidOperationException(reason);
     }
 

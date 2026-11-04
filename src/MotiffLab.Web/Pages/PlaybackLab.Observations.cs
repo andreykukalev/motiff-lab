@@ -108,9 +108,18 @@ public partial class PlaybackLab
     /// Keep this variation on the Explore card: the experiment's variation becomes an observation about the
     /// selection it was offered for, named after the experiment and the alternative. The page saves it next.
     /// </summary>
+    /// <summary>
+    /// A tried variation's name: a fact's Try button names it by its way ("Passing notes"); another experiment by its
+    /// title, and the way when it has several ("Give the melody more space: Short").
+    /// </summary>
+    private static string TrialName(ExploreTrial trial) =>
+        trial.Experiment.Id.StartsWith(MotiffLab.MusicCore.Experiments.TryChips.ExperimentPrefix, StringComparison.Ordinal) ? trial.Current.Label
+        : trial.Experiment.Alternatives.Count > 1 ? $"{trial.Experiment.Title}: {trial.Current.Label}"
+        : trial.Experiment.Title;
+
     private void KeepObservation(ExploreTrial trial)
     {
-        string name = trial.Experiment.Alternatives.Count > 1 ? $"{trial.Experiment.Title}: {trial.Current.Label}" : trial.Experiment.Title;
+        string name = TrialName(trial);
         Observation observation = Observation.Create(
             NextObservationId(),
             SavedPassage.Of(trial.OfferedIn.Selection),

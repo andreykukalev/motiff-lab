@@ -342,7 +342,6 @@
                     <div class="inspector-head">
                         @* Which one sounds while the two loop one after the other is shown, not announced at every pass. *@
                         <p class="selection-text">@SelectionText<span aria-hidden="true">@SoundingText</span></p>
-                        <button class="chip surprise" title="@Text["explore.surpriseHint"]" disabled="@(CardOffers.Count == 0)" @onclick="SurpriseAsync">@Text["explore.surprise"]</button>
                         <button class="btn quiet icon" aria-label="@Text["drawer.close"]" title="@Text["drawer.close"]" @onclick="ToggleInsights"><Icon Name="close" /></button>
                         <div class="inspector-actions">
                             <button class="link" @onclick="ClearSelectionAsync" disabled="@(_selection is null)">@Text["workspace.clear"]</button>
@@ -1436,10 +1435,6 @@
     /// <summary>The last experiment tried; see <see cref="ActiveTrial"/>.</summary>
     private ExploreTrial? _trial;
 
-    /// <summary>The experiments tried since the piece was opened, which Surprise me picks last.</summary>
-    private readonly HashSet<string> _tried = new(StringComparer.Ordinal);
-    private int _surprises;
-
     /// <summary>Which layer plays while the selection loops.</summary>
     private ListenTo _listenTo = ListenTo.Everything;
 
@@ -1932,7 +1927,6 @@
         _offers = [];
         _invitationContext = null;
         _trial = null;
-        _tried.Clear();
         // A new piece has its own project, or none (#78): nothing kept about another piece shows or saves here.
         _project = null;
         _scanCheck = null;
@@ -2278,7 +2272,7 @@
         _harmony = HarmonyAnalyzer.Analyze(_notes!, _meter!, selection, _analysis.Key?.Key, Words);
         _sentenceFacts = SentenceFactsFor(selection);
         _invitationContext = new InvitationContext(_notes!, _meter!, selection, _analysis, _structure, _character, Words) { Harmony = _harmony };
-        _offers = ExperimentCatalogue.Offer(_invitationContext);
+        _offers = TryChips.Buttons(Facts, _invitationContext);
     }
 
     private async Task SelectAsync(TickSpan span, string? note)
@@ -2604,7 +2598,6 @@
         }
 
         _trial = trial;
-        _tried.Add(experiment.Id);
         await ShowAsync(chain, play: true);
         await Analytics.TrackAsync(AnalyticsEvent.ExperimentTried(experiment.Id, request.Alternative, request.Entry));
     }
@@ -2673,12 +2666,6 @@
             await ReplayAsync();
         }
     }
-
-    /// <summary>Surprise me: an experiment not tried yet, chosen by music-core from a seed that moves on each press.</summary>
-    private Task SurpriseAsync() =>
-        (ActiveTrial?.OfferedIn ?? _invitationContext) is { } context && ExperimentCatalogue.Surprise(context, _surprises++, _tried) is { } pick
-            ? TryExperimentAsync(new ExploreRequest(pick.Experiment, pick.Alternative, "surprise"))
-            : Task.CompletedTask;
 
     /// <summary>The fact chosen on the Understand tab and what the score and the roll highlight for it (#25); null for none. A new selection clears it.</summary>
     private FactHighlight? _highlight;

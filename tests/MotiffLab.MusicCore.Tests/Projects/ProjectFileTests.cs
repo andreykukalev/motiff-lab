@@ -69,6 +69,23 @@ public class ProjectFileTests
     }
 
     [Fact]
+    public void A_variation_that_counts_in_the_key_saves_its_key_and_opens_again()
+    {
+        // Passing notes count in steps of the key's scale (V11): without the key the step cannot be made on opening.
+        Project project = Worked();
+        var passing = new SavedStep(PassingNotes.OperationId, new PassingNotesParameters(PassingNoteKind.Passing) { Scope = OperationScope.Melody });
+        var key = new MusicalKey(1, KeyMode.Major);
+        project = project with { Variations = [new SavedVariation("v_0001", "m_0001", [passing], null, [KeepProperty.Bass]) { Key = key }] };
+
+        Project reread = ProjectFile.Read(ProjectFile.Write(project));
+
+        Assert.Equal(key, reread.Variations[0].Key);
+        Assert.Equal(key, OpenedProject.Open(reread).Variations[0].Chain.Context.Key);
+        Assert.Throws<ProjectFileException>(() => OpenedProject.Open(project with { Variations = [project.Variations[0] with { Key = null }] }));
+        Assert.Null(ProjectFile.Read(ProjectFile.Write(Worked())).Variations[0].Key);
+    }
+
+    [Fact]
     public void A_hand_made_variation_round_trips_with_its_edits()
     {
         Project project = Worked();

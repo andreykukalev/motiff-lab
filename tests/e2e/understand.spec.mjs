@@ -1,10 +1,10 @@
 // Facts in the Insights stream (#25; decision record 0018 section 6) in every browser project: the facts music-core finds
 // for the selection, grouped by lens and narrowed by filter chips, a fact chosen and its places ringed in the score, one
-// place at a time, a fact's Try chip trying the experiment resting on it, and the experiment followed back to its fact.
+// place at a time, a fact's Try button opening its ways, and the variation followed back to its fact.
 import { expect, test } from "@playwright/test";
-import { openFurElise, selectBar, openInsights, chooseInMore } from "./steps.mjs";
+import { openFurElise, selectBar, openInsights } from "./steps.mjs";
 
-test("understand a phrase: highlight a fact's places, try its experiment and come back", async ({ page }) => {
+test("understand a phrase: highlight a fact's places, try a way and come back", async ({ page }) => {
     const errors = await openFurElise(page);
     await selectBar(page, 1);
     const stream = await openInsights(page);
@@ -49,19 +49,18 @@ test("understand a phrase: highlight a fact's places, try its experiment and com
     await expect(fact).toHaveAttribute("aria-pressed", "false");
     await expect(highlighted).toHaveCount(0);
 
-    // The fact's Try chip tries the experiment that rests on it, at once.
-    await row.locator(".try-row").getByRole("button", { name: "Answer the motif differently" }).click();
+    // A melody fact's Try button opens its ways; a way is heard at once, on the same selection.
+    const melody = stream.locator("article.fact-row").filter({ hasText: /^6 notes in the melody/ });
+    await melody.getByRole("button", { name: "Try", exact: true }).click();
+    await melody.locator(".try-row").getByRole("button", { name: "Passing notes" }).click();
     const card = stream.locator(".explore");
-    await expect(card.locator("h3")).toHaveText("Answer the motif differently");
-    await expect(page.locator(".selection-status")).toContainText("bar 5");
+    await expect(card.locator("h3")).toHaveText("Try a variation");
+    await expect(page.locator(".selection-status")).toContainText("bar 1");
 
-    // The experiment links back to its fact, which the stream shows ringed above the facts of the new selection.
-    await card.getByRole("group", { name: "Rests on" }).getByRole("button", { name: /The motif recurs once/ }).click();
-    await expect(stream.locator(".highlighted")).toContainText("The motif recurs once");
-    await chooseInMore(page, "Which score shows", "Generated from the notes");
+    // The experiment links back to its fact, which is chosen and rings its places on the score.
+    await card.getByRole("group", { name: "Rests on" }).getByRole("button", { name: /^6 notes in the melody/ }).click();
+    await expect(melody).toHaveClass(/\bon\b/);
     await expect(highlighted.first()).toBeVisible();
-    await stream.locator(".highlighted").getByRole("button", { name: "Clear highlight" }).click();
-    await expect(highlighted).toHaveCount(0);
 
     await page.locator(".pill").getByRole("button", { name: "Pause" }).click();
     expect(errors).toEqual([]);

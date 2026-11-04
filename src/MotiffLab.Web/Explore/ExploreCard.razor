@@ -161,7 +161,7 @@
     private string NextText(ExploreTrial trial) => Next(trial) switch
     {
         { } next when next.Experiment.Id == trial.Experiment.Id => Text.Format("explore.next", next.Experiment.Alternatives[next.Alternative].Label),
-        { } next => Text.Format("explore.nextIdea", next.Experiment.Title),
+        { } next => Text.Format("explore.nextIdea", next.Experiment.Id.StartsWith(TryChips.ExperimentPrefix, StringComparison.Ordinal) ? next.Experiment.Alternatives[0].Label : next.Experiment.Title),
         _ => Text["explore.nothingElse"],
     };
 

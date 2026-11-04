@@ -2188,6 +2188,16 @@ body:has(.workspace) .site-footer {
         right: calc(380px + var(--s-3) + var(--s-4));
     }
 
+    /* The pill centres itself on what the sheet leaves of the score. */
+    .workspace.insights-open .pill {
+        left: calc(50% - (380px + var(--s-3) + var(--s-4)) / 2);
+        max-width: calc(100% - 380px - var(--s-3) - 3 * var(--s-4));
+    }
+
+    .workspace.insights-open.contents-open .pill {
+        left: calc(50% + 160px - (380px + var(--s-3) + var(--s-4)) / 2);
+    }
+
     /* And the Contents drawer the left. */
     .workspace.contents-open .bar {
         left: calc(320px + var(--s-3) + var(--s-4));
@@ -2640,7 +2650,7 @@ body:has(.workspace) .site-footer {
 
 .workspace .sheet .inspector-head {
     display: grid;
-    grid-template-columns: 1fr auto auto;
+    grid-template-columns: 1fr auto;
     align-items: start;
     gap: var(--s-2);
 }
@@ -2671,8 +2681,7 @@ body:has(.workspace) .site-footer {
 .workspace .stream .filters,
 .workspace .stream .chips,
 .workspace .stream .try-row,
-.workspace .stream .places,
-.workspace .stream .questions {
+.workspace .stream .places {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -2799,8 +2808,19 @@ body:has(.workspace) .site-footer {
     height: 24px;
 }
 
-.lab.workspace .stream .try-row .chip.recommended:not(.on) {
-    border-color: var(--accent);
+/* The fact's Try button: quiet, so the facts lead and the ways come only when asked for (Andrei, 2026-11-04). */
+.lab.workspace .stream .try-row .btn.try {
+    height: var(--h-compact);
+    padding: 0 var(--s-3);
+    color: var(--accent);
+}
+
+.lab.workspace .stream .try-row .btn.try[aria-expanded="true"] {
+    background: var(--accent-tint);
+}
+
+.lab.workspace .stream .try-row .btn.try:disabled {
+    opacity: 1;
 }
 
 .workspace .stream .try-row .sp {
@@ -2814,7 +2834,6 @@ body:has(.workspace) .site-footer {
     gap: var(--s-2);
 }
 
-.workspace .stream .ask,
 .workspace .stream .adjust-own {
     display: flex;
     flex-direction: column;

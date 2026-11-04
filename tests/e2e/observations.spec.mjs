@@ -4,7 +4,7 @@
 // has no project, so it says what is kept lasts while the page is open; an imported piece saves it with its project.
 import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { openAdjust, openFurElise, openInsights, heardChoice, tryExperiment } from "./steps.mjs";
+import { openAdjust, openFurElise, openInsights, heardChoice, tryWay } from "./steps.mjs";
 
 /** Lists the kept ideas whole from the strip at the top of the Insights stream. */
 async function manageIdeas(page) {
@@ -28,13 +28,13 @@ test("keep a variation with a note, come back to it, rename, export and delete i
     await expect(kept.getByRole("heading", { name: "Kept for phrase 1" })).toBeVisible();
     await expect(kept).toContainText("Nothing kept for this phrase yet.");
 
-    // Try an experiment and keep it: with no project, the card and the list say it lasts while the page is open.
-    await tryExperiment(page, "Give the melody more space");
-    await card.getByRole("button", { name: "Short", exact: true }).click();
+    // Try a way and keep it: with no project, the card and the list say it lasts while the page is open.
+    await tryWay(page, "Held chord");
+    await card.getByRole("button", { name: "Repeated chord in 8ths", exact: true }).click();
     await page.locator(".stream").getByRole("button", { name: "Keep this variation" }).click();
     await expect(card.getByRole("status")).toContainText("Kept until you leave the page");
     // The kept variation is a plum chip in the ideas strip; Manage lists the ideas whole.
-    await expect(page.locator(".ideas-strip").getByRole("button", { name: "Give the melody more space: Short" })).toBeVisible();
+    await expect(page.locator(".ideas-strip").getByRole("button", { name: "Repeated chord in 8ths" })).toBeVisible();
     await manageIdeas(page);
     await expect(kept).toContainText("not saved as a project");
 
@@ -43,7 +43,7 @@ test("keep a variation with a note, come back to it, rename, export and delete i
     await card.getByRole("button", { name: "Save note" }).click();
     await expect(card).toContainText("Note saved.");
 
-    const item = kept.getByRole("listitem", { name: "Give the melody more space: Short" });
+    const item = kept.getByRole("listitem", { name: "Repeated chord in 8ths" });
     await expect(item).toBeVisible();
     await expect(item).toContainText("the pickup and bars 1–4 · an experiment");
     await expect(item).toContainText("Your note: Lighter, like a dance on tiptoe.");
@@ -62,14 +62,14 @@ test("keep a variation with a note, come back to it, rename, export and delete i
     await phrases.nth(0).click();
     await expect(item).not.toContainText("You hear this");
     await item.getByRole("button", { name: "Open" }).click();
-    await expect(selection).toContainText("Opened “Give the melody more space: Short”.");
+    await expect(selection).toContainText("Opened “Repeated chord in 8ths”.");
     await expect(item).toContainText("You hear this");
     await expect.poll(() => heardChoice(page)).toBe("Variation");
     const compare = page.locator(".inspector-head").getByRole("group", { name: "Compare with the original" });
     await expect(compare.getByRole("button", { name: "Variation", exact: true })).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator(".stream + .compare")).toBeVisible();
     const adjust = await openAdjust(page);
-    await expect(adjust.locator(".steps")).toContainText("Short");
+    await expect(adjust.locator(".steps")).toContainText("Repeated chord");
 
     // Rename.
     await item.getByRole("button", { name: "Rename" }).click();
@@ -132,7 +132,7 @@ test("what is kept is saved with the project and comes back when it is opened ag
     await phrases.nth(0).click();
     await openInsights(page);
     await expect(kept).not.toContainText("not saved as a project");
-    await tryExperiment(page, "Give the melody more space");
+    await tryWay(page, "Passing notes");
     await page.locator(".stream").getByRole("button", { name: "Keep this variation" }).click();
     await expect(card.getByRole("status")).toContainText("Kept with the project.");
     // The note is saved when the field loses focus.
@@ -153,7 +153,7 @@ test("what is kept is saved with the project and comes back when it is opened ag
     await phrases.nth(0).click();
     await openInsights(page);
     await manageIdeas(page);
-    const item = kept.getByRole("listitem", { name: "Give the melody more space: Detached" });
+    const item = kept.getByRole("listitem", { name: "Passing notes" });
     await expect(item).toContainText("Your note: Airier.");
     await page.locator(".inspector-head").getByRole("button", { name: "Clear" }).click();
     await phrases.nth(0).click();

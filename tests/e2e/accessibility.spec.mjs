@@ -3,7 +3,7 @@
 // markup and styles, which are the same in each engine.
 import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { closePopover, openAdjust, openFurElise, openInsights, openMore, openMoreTools, openRoll, selectBar, tryExperiment, violations } from "./steps.mjs";
+import { closePopover, openAdjust, openFurElise, openInsights, openMore, openMoreTools, openRoll, selectBar, tryWay, violations } from "./steps.mjs";
 
 const midi = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/Midi/Fixtures/two-hands-type1.mid", import.meta.url));
 
@@ -136,7 +136,7 @@ test("phrase focus: the card with its ossia, the variation chips, the focus bar 
     const bracket = page.locator(".score button.bracket[aria-label]").first();
     await bracket.click();
     await openInsights(page);
-    await tryExperiment(page, "Give the melody more space");
+    await tryWay(page, "Held chord");
     await page.locator(".stream").getByRole("button", { name: "Keep this variation" }).click();
     await page.locator(".bar").getByRole("button", { name: "Insights" }).click();
     await bracket.click();
@@ -158,10 +158,11 @@ test("playback lab with a selection, the Insights stream, an experiment, Adjust 
     expect(await violations(page)).toEqual([]);
     await selectBar(page, 1);
     expect(await violations(page)).toEqual([]);
-    await page.getByRole("button", { name: "I have a question" }).click();
+    // A fact's Try button opened, and a way tried.
+    await stream.locator(".try-row .btn.try").first().click();
     expect(await violations(page)).toEqual([]);
-    await page.getByRole("button", { name: "Which changes keep the motif recognisable?" }).click();
-    await expect(page.locator(".explore h3")).toHaveText("Answer the motif differently");
+    await tryWay(page, "Passing notes");
+    await expect(page.locator(".explore h3")).toHaveText("Try a variation");
     expect(await violations(page)).toEqual([]);
     await page.getByRole("button", { name: "Leave it" }).click();
     const adjust = await openAdjust(page);
@@ -187,7 +188,7 @@ test("kept for this phrase: a kept variation with its note, renaming, a note alo
     await openInsights(page);
     const card = page.locator(".stream .explore");
     const kept = page.locator(".observations");
-    await tryExperiment(page, "Give the melody more space");
+    await tryWay(page, "Held chord");
     await page.locator(".stream").getByRole("button", { name: "Keep this variation" }).click();
     await card.getByLabel("Add a note in your own words (optional)").fill("Lighter.");
     await card.getByRole("button", { name: "Save note" }).click();

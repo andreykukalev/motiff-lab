@@ -3,7 +3,7 @@
 // walk the piece; a variation is engraved as an ossia above the original, with Original / Variation / Alternate in the
 // focus bar and the kept variations as chips; Lead-in on the pill.
 import { expect, test } from "@playwright/test";
-import { openFurElise, openInsights, tryExperiment } from "./steps.mjs";
+import { openFurElise, openInsights, tryWay } from "./steps.mjs";
 
 const card = page => page.locator(".focus-card");
 const bar = page => page.locator(".bar");
@@ -62,7 +62,7 @@ test("a variation is the ossia above the phrase, heard with Original, Variation 
     const bracket = page.locator(".score button.bracket[aria-label]").first();
     await bracket.click();
     await openInsights(page);
-    await tryExperiment(page, "Give the melody more space");
+    await tryWay(page, "Held chord");
     await page.locator(".stream").getByRole("button", { name: "Keep this variation" }).click();
     await bar(page).getByRole("button", { name: "Insights" }).click();
 
@@ -70,7 +70,7 @@ test("a variation is the ossia above the phrase, heard with Original, Variation 
     await expect(card(page)).toBeVisible();
     const frame = card(page).locator(".ossia-frame").first();
     await expect(frame).toBeVisible();
-    await expect(frame).toContainText(/^Ossia · Give the melody more space/);
+    await expect(frame).toContainText(/^Ossia · Held chord/);
     // The ossia's notes carry their own ids, above the original's.
     await expect(card(page).locator("g.note[id^='ossia-']").first()).toBeAttached();
 
@@ -84,7 +84,7 @@ test("a variation is the ossia above the phrase, heard with Original, Variation 
 
     const chips = page.getByRole("group", { name: "Saved variations of this phrase" });
     await expect(chips.getByRole("button")).toHaveCount(1);
-    await expect(chips.getByRole("button").first()).toContainText("Give the melody more space");
+    await expect(chips.getByRole("button").first()).toContainText("Held chord");
 
     // Lead-in, on the pill in focus only.
     const leadIn = page.locator(".pill").getByRole("button", { name: "Lead-in" });
