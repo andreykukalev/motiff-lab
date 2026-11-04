@@ -2,7 +2,7 @@
 
 Status: proposed, 2026-10-30. Andrei asked to start the iPad app, built in Xcode on his Mac, with the Apple Pencil writing on the score as in the sheet-music app he uses now.
 
-> 2026-11-01: superseded in part by the redesign ([0018](0018-redesign.md), section 14) and by 0019, still to be written: the iPad app is fully native Swift, and pencil marks move from a device store into the project file. The Swift shell described here remains until the native app replaces it.
+> 2026-11-01: superseded in part by the redesign ([0018](0018-redesign.md), section 14) and by [0019](0019-native-ipad-app.md) (2026-11-04): the iPad app is fully native Swift, and pencil marks move from a device store into the project file. The Swift shell described here remains until the native app replaces it.
 
 ## Context
 
