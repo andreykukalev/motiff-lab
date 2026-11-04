@@ -2650,6 +2650,13 @@ body:has(.workspace) .site-footer {
     overflow-y: auto;
 }
 
+/* Layers: under the Pen action, where the pen palette opens it. */
+.workspace .layers-popover {
+    top: calc(var(--s-3) + var(--h-touch) + var(--s-2));
+    right: calc(var(--s-4) + 4 * var(--h-control));
+    width: 19rem;
+}
+
 /* A long popover scrolls rather than squeezing its rows below their touch size. */
 .workspace .popover > * {
     flex-shrink: 0;
@@ -4170,4 +4177,144 @@ body:has(.workspace) .site-footer {
 .workspace .contents .page-thumb .caption {
     font: var(--t-caption);
     color: var(--ink-2);
+}
+
+.workspace .ink-amber { --mark: var(--amber); }
+
+/* Margin notes (design/kit/ds.css .marker): an amber numbered marker at the top right of the bar; a tap opens the note. */
+/* 24 px rather than the kit's 20 px: the smallest target WCAG 2.5.8 allows. */
+.lab .score button.marker {
+    position: absolute;
+    z-index: 2;
+    width: 24px;
+    height: 24px;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 50% 50% 50% 2px;
+    background: var(--amber);
+    color: var(--ink);
+    display: grid;
+    place-items: center;
+    font: 600 11px/1 var(--font-ui);
+    box-shadow: var(--shadow-menu);
+    cursor: pointer;
+}
+
+.lab .score button.marker:focus-visible {
+    outline: 2px dotted var(--accent);
+    outline-offset: 2px;
+}
+
+/* Highlights (design/kit/ds.css .hl): a translucent band in the ink behind the staves of the bars. */
+.score .hl {
+    position: absolute;
+    z-index: 0;
+    border-radius: var(--r-xs);
+    background: color-mix(in srgb, var(--mark) 22%, transparent);
+    mix-blend-mode: multiply;
+    pointer-events: none;
+}
+
+.score .hl.ink-amber {
+    background: var(--amber-tint);
+}
+
+:root[data-theme="dark"] .score .hl,
+:root[data-theme="night"] .score .hl {
+    mix-blend-mode: normal;
+}
+
+/* The layers of marks, hidden for a clean page. */
+.lab .score.hide-ink .pencil-layer,
+.lab .score.hide-notes :is(button.marker, div.hl),
+.lab .score.hide-bookmarks button.bmb,
+.lab .score.hide-analysis :is(button.bracket, .highlight-mark) {
+    display: none;
+}
+
+/* Highlight in the menu's overflow: the inks as swatches. */
+.workspace .menu-more .highlight-row,
+.workspace .contents .swatches {
+    display: flex;
+    align-items: center;
+    gap: var(--s-1);
+    padding: var(--s-1) var(--s-2);
+}
+
+.workspace .menu-more .highlight-row .caption {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: var(--s-2);
+    color: var(--ink);
+    font: var(--t-label);
+}
+
+.lab.workspace :is(.menu-more, .contents) button.swatch {
+    width: 32px;
+    height: 32px;
+    min-height: 0;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 50%;
+    background: transparent;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+}
+
+.workspace :is(.menu-more, .contents) button.swatch span {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--mark);
+}
+
+.lab.workspace :is(.menu-more, .contents) button.swatch.on {
+    border-color: var(--accent);
+    background: var(--accent-tint);
+}
+
+/* The note card: the player's words in a few lines. */
+.lab.workspace .note-card textarea {
+    min-height: 72px;
+    padding: var(--s-2) var(--s-3);
+    box-sizing: border-box;
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-s);
+    background: var(--surface);
+    color: var(--ink);
+    font: var(--t-body);
+    resize: vertical;
+}
+
+/* The Notes tab: margin notes with their numbers, highlights with their ink, the bars with ink. */
+.workspace .contents .notes-tab {
+    display: grid;
+    gap: var(--s-1);
+}
+
+.workspace .contents .notes-tab p.cat {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    margin: var(--s-2) 0 0;
+}
+
+.workspace .contents .notes-tab .num {
+    display: inline-grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    margin-right: var(--s-1);
+    border-radius: 50% 50% 50% 2px;
+    background: var(--amber);
+    color: var(--ink);
+    font: 600 11px/1 var(--font-ui);
+}
+
+.workspace .contents .notes-tab .t .d {
+    display: inline-block;
+    margin-right: var(--s-1);
 }

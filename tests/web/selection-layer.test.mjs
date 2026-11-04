@@ -34,3 +34,10 @@ test("two bars give the selection's first and last in time, whichever was presse
     assert.deepEqual(ordered(a, b), [b, a]);
     assert.deepEqual(ordered(b, a), [b, a]);
 });
+
+test("the menu keeps to the right of a drawer over the left of the window", () => {
+    const menu = { width: 300, height: 44 };
+    const place = menuPlace({ left: 100, right: 300, top: 400 }, { bottom: 700 }, menu, { width: 1180, height: 820, left: 332 });
+    assert.equal(place.left, 348);
+    assert.equal(place.pointer, 20);
+});

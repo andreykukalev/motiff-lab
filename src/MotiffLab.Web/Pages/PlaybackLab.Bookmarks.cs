@@ -19,10 +19,11 @@ namespace MotiffLab.Web.Pages;
 /// </summary>
 public partial class PlaybackLab
 {
-    /// <summary>The tabs of the Contents drawer. Notes joins them with the annotations.</summary>
+    /// <summary>The tabs of the Contents drawer: the bookmarks, the marks (notes, highlights, ink) and the pages.</summary>
     private enum ContentsTab
     {
         Contents,
+        Notes,
         Pages,
     }
 
@@ -44,8 +45,8 @@ public partial class PlaybackLab
     /// <summary>The category the last bookmark went into: the next one starts there.</summary>
     private string _lastCategory = BookmarkCategory.PractiseId;
 
-    /// <summary>What the last change to the bookmarks did, for screen readers.</summary>
-    private string? _bookmarkStatus;
+    /// <summary>What the last change to the bookmarks or the marks did, for screen readers.</summary>
+    private string? _marksStatus;
 
     /// <summary>The bookmark last gone to from the drawer or the score: a second tap on it enters focus.</summary>
     private string? _shownBookmark;
@@ -107,12 +108,24 @@ public partial class PlaybackLab
         _menuMore = false;
         if (_selection is not { } selection)
         {
-            _bookmarkStatus = Text["bookmark.noSelection"];
+            _marksStatus = Text["bookmark.noSelection"];
             return;
         }
 
         _bookmarkDraft = new BookmarkDraft(null, DefaultBookmarkTitle(selection.Span), _lastCategory);
         _focusDraft = true;
+    }
+
+    /// <summary>Whether the drawer was open at the last render: the menu moves aside when it opens or closes.</summary>
+    private bool _contentsPlaced;
+
+    private async Task PlaceMenuBesideContentsAsync()
+    {
+        if (_contentsPlaced != _contentsOpen && _scoreView is not null)
+        {
+            _contentsPlaced = _contentsOpen;
+            await _scoreView.PlaceMenuAsync();
+        }
     }
 
     private async Task FocusDraftAsync()
@@ -189,7 +202,7 @@ public partial class PlaybackLab
             }
 
             string title = string.IsNullOrWhiteSpace(draft.Title) ? old.Title : draft.Title;
-            await SaveBookmarksAsync(project => project.ChangeBookmark(id, bookmark => bookmark with { Title = title, CategoryId = draft.CategoryId }), Text.Format("bookmark.changed", title.Trim()));
+            await SaveMarksAsync(project => project.ChangeBookmark(id, bookmark => bookmark with { Title = title, CategoryId = draft.CategoryId }), Text.Format("bookmark.changed", title.Trim()));
             return;
         }
 
@@ -201,16 +214,16 @@ public partial class PlaybackLab
         _lastCategory = draft.CategoryId;
         string made = string.IsNullOrWhiteSpace(draft.Title) ? DefaultBookmarkTitle(selection.Span) : draft.Title;
         bool fromPhrase = CurrentPhrase is not null;
-        await SaveBookmarksAsync(
+        await SaveMarksAsync(
             project => project.AddBookmark(new Bookmark(project.NextBookmarkId(), made, draft.CategoryId, selection.Span, fromPhrase, DateTimeOffset.Now)),
             Text.Format("bookmark.made", made.Trim()));
     }
 
-    /// <summary>Changes the bookmarks and saves them with the project at once; without a project, they are kept for the page only.</summary>
-    private async Task SaveBookmarksAsync(Func<Project, Project> change, string status)
+    /// <summary>Changes the bookmarks or the marks and saves them with the project at once; without a project, they are kept for the page only.</summary>
+    private async Task SaveMarksAsync(Func<Project, Project> change, string status)
     {
         Change(change);
-        _bookmarkStatus = status;
+        _marksStatus = status;
         if (_project is { } project)
         {
             CurrentPiece.Saved(project);
@@ -253,7 +266,7 @@ public partial class PlaybackLab
     {
         _bookmarkDraft = null;
         return Bookmarks.FirstOrDefault(bookmark => bookmark.Id == id) is { } bookmark
-            ? SaveBookmarksAsync(project => project.RemoveBookmark(id), Text.Format("bookmark.deleted", bookmark.Title))
+            ? SaveMarksAsync(project => project.RemoveBookmark(id), Text.Format("bookmark.deleted", bookmark.Title))
             : Task.CompletedTask;
     }
 
@@ -269,8 +282,8 @@ public partial class PlaybackLab
         }
 
         int before = Bookmarks.Count;
-        await SaveBookmarksAsync(project => project.AddStructureBookmarks(map.Sentences, Words, DateTimeOffset.Now), "");
-        _bookmarkStatus = Text.Count("bookmark.structureAdded", Bookmarks.Count - before);
+        await SaveMarksAsync(project => project.AddStructureBookmarks(map.Sentences, Words, DateTimeOffset.Now), "");
+        _marksStatus = Text.Count("bookmark.structureAdded", Bookmarks.Count - before);
     }
 
     /// <summary>

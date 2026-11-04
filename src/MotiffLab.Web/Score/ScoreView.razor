@@ -27,6 +27,11 @@
         <span class="div" aria-hidden="true"></span>
         <button class="it" @onclick="UndoPencilAsync" disabled="@(!_pencilState.CanUndo)"><Icon Name="undo" Size="IconSize.Small" /> @Text["pencil.undo"]</button>
         <button class="it" @onclick="ClearPencilAsync" disabled="@(_pencilState.Marks == 0)" title="@Text["pencil.clearHint"]">@Text["pencil.clear"]</button>
+        @if (LayersRequested.HasDelegate)
+        {
+            <span class="div" aria-hidden="true"></span>
+            <button class="it" @onclick="() => LayersRequested.InvokeAsync()"><Icon Name="layers" Size="IconSize.Small" /> @Text["layers.title"]</button>
+        }
         @if (_pencilState.Hidden > 0)
         {
             <span class="caption">@Text.Format("pencil.hidden", _pencilState.Hidden)</span>
@@ -70,6 +75,9 @@ else if (_loading && !HoldHeight)
     private bool _selectionShown;
     private IReadOnlyList<ScorePhrase>? _shownPhrases;
     private IReadOnlyList<ScoreBookmark>? _shownBookmarks;
+    private IReadOnlyList<ScoreMarginNote>? _shownNotes;
+    private IReadOnlyList<ScoreHighlightMark>? _shownMarkHighlights;
+    private IReadOnlyList<string>? _shownHiddenLayers;
     private IReadOnlyList<HighlightPlace>? _shownHighlight;
     private bool _shownHold;
     private bool _paged = true;
@@ -106,6 +114,26 @@ else if (_loading && !HoldHeight)
     /// <summary>The bookmarks, drawn above the phrase brackets (0018 section 5); null or empty draws none.</summary>
     [Parameter]
     public IReadOnlyList<ScoreBookmark>? Bookmarks { get; set; }
+
+    /// <summary>The margin notes, as numbered markers beside their bars (0018 section 5); null or empty draws none.</summary>
+    [Parameter]
+    public IReadOnlyList<ScoreMarginNote>? Notes { get; set; }
+
+    /// <summary>The player's highlights, as bands behind the staves; null or empty draws none.</summary>
+    [Parameter]
+    public IReadOnlyList<ScoreHighlightMark>? MarkHighlights { get; set; }
+
+    /// <summary>The layers of marks hidden for a clean page: "ink", "notes", "bookmarks", "analysis".</summary>
+    [Parameter]
+    public IReadOnlyList<string>? HiddenLayers { get; set; }
+
+    /// <summary>Raised with a margin note's id when its marker is tapped.</summary>
+    [Parameter]
+    public EventCallback<string> NoteMarkerPicked { get; set; }
+
+    /// <summary>Raised when Layers is chosen in the pen palette.</summary>
+    [Parameter]
+    public EventCallback LayersRequested { get; set; }
 
     /// <summary>Raised with a bookmark's id when its bracket is tapped.</summary>
     [Parameter]
@@ -245,6 +273,16 @@ else if (_loading && !HoldHeight)
                 await ShowBookmarksAsync(_view);
             }
 
+            if (!ReferenceEquals(Notes, _shownNotes) || !ReferenceEquals(MarkHighlights, _shownMarkHighlights))
+            {
+                await ShowMarksAsync(_view);
+            }
+
+            if (!ReferenceEquals(HiddenLayers, _shownHiddenLayers))
+            {
+                await ShowLayersAsync(_view);
+            }
+
             if (Selection != _shownSelection || !_selectionShown)
             {
                 await ShowSelectionAsync(_view);
@@ -268,6 +306,8 @@ else if (_loading && !HoldHeight)
             await ShowRangeAsync(_view);
             await ShowPhrasesAsync(_view);
             await ShowBookmarksAsync(_view);
+            await ShowMarksAsync(_view);
+            await ShowLayersAsync(_view);
             await ShowSelectionAsync(_view);
             await ShowHighlightAsync(_view);
             _error = null;
@@ -298,6 +338,19 @@ else if (_loading && !HoldHeight)
     {
         _shownBookmarks = Bookmarks;
         await view.InvokeVoidAsync("setBookmarks", (object)(Bookmarks ?? []).ToArray());
+    }
+
+    private async Task ShowMarksAsync(IJSObjectReference view)
+    {
+        _shownNotes = Notes;
+        _shownMarkHighlights = MarkHighlights;
+        await view.InvokeVoidAsync("setMarks", (object)(Notes ?? []).ToArray(), (object)(MarkHighlights ?? []).ToArray());
+    }
+
+    private async Task ShowLayersAsync(IJSObjectReference view)
+    {
+        _shownHiddenLayers = HiddenLayers;
+        await view.InvokeVoidAsync("setHiddenLayers", (object)(HiddenLayers ?? []).ToArray());
     }
 
     private async Task ShowSelectionAsync(IJSObjectReference view)
@@ -424,6 +477,10 @@ else if (_loading && !HoldHeight)
     [JSInvokable]
     public Task OnPagesShown(int first, int last, int count) => PagesShown.InvokeAsync((first, last, count));
 
+    /// <summary>Called by the script when a margin note's marker is tapped.</summary>
+    [JSInvokable]
+    public Task OnNoteMarkerClicked(string id) => NoteMarkerPicked.InvokeAsync(id);
+
     /// <summary>Called by the script when a bookmark's bracket is tapped.</summary>
     [JSInvokable]
     public Task OnBookmarkClicked(string id) => BookmarkPicked.InvokeAsync(id);
@@ -431,6 +488,15 @@ else if (_loading && !HoldHeight)
     /// <summary>The pages with their pictures and the stretch of the piece on each, for the Contents drawer; none in the strip.</summary>
     public async Task<IReadOnlyList<PageOutline>> PageOutlineAsync() =>
         _view is null ? [] : await _view.InvokeAsync<PageOutline[]>("pageOutline");
+
+    /// <summary>Places the contextual menu again, as when a drawer opens or closes beside it.</summary>
+    public async Task PlaceMenuAsync()
+    {
+        if (_view is not null)
+        {
+            await _view.InvokeVoidAsync("placeMenu");
+        }
+    }
 
     /// <summary>Scrolls to the top of a page, from 1.</summary>
     public async Task ShowPageAsync(int page)

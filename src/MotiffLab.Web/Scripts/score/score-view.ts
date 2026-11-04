@@ -75,6 +75,14 @@ const BOOKMARK_STACK = 24;
 const BOOKMARK_TITLE = 17;
 const BOOKMARK_REACH = 120;
 
+/** A margin note's marker (design/kit/ds.css .marker) and a highlight's band behind the staves (.hl). */
+const NOTE_CLASS = "marker";
+const MARK_HIGHLIGHT_CLASS = "hl";
+
+/** The marker sits this far right of the bar's top right corner and this far above it. */
+const NOTE_OFFSET_X = 4;
+const NOTE_OFFSET_Y = 22;
+
 /** The line under the bar the page count reads at: the page under it is the page being read. */
 const READING_LINE_PX = 72;
 
@@ -107,6 +115,25 @@ export interface ScoreBookmark {
     ink: string;
     label: string;
 }
+
+/** A margin note as Blazor sends it: the bar it is about, its number beside the bar, and what a screen reader says. */
+export interface ScoreMarginNote {
+    id: string;
+    tick: number;
+    number: number;
+    label: string;
+}
+
+/** A highlight as Blazor sends it: the bars it lies in and its ink, as a class. */
+export interface ScoreHighlightMark {
+    id: string;
+    start: number;
+    end: number;
+    ink: string;
+}
+
+/** The layers of marks (0018 section 5) that can be hidden for a clean page. */
+export type MarkLayer = "ink" | "notes" | "bookmarks" | "analysis";
 
 /** A page as the Contents drawer's Pages tab shows it: its picture and the stretch of the piece on it, in ticks. */
 export interface PageOutline {
@@ -158,6 +185,8 @@ export class ScoreView {
     private holding = false;
     private phrases: ScorePhrase[] = [];
     private bookmarks: ScoreBookmark[] = [];
+    private marginNotes: ScoreMarginNote[] = [];
+    private highlights: ScoreHighlightMark[] = [];
     /** The pictures of the pages handed to the Pages tab, freed when new ones are made. */
     private thumbnails: string[] = [];
     /** The places of the chosen fact, and the engraved notes and rests that stand for them. */
@@ -351,6 +380,25 @@ export class ScoreView {
     setBookmarks(bookmarks: ScoreBookmark[]): void {
         this.bookmarks = bookmarks;
         this.placeBookmarks();
+    }
+
+    /** Draws the margin notes' markers and the highlights' bands; empty lists draw none. */
+    setMarks(notes: ScoreMarginNote[], highlights: ScoreHighlightMark[]): void {
+        this.marginNotes = notes;
+        this.highlights = highlights;
+        this.placeMarks();
+    }
+
+    /** Places the contextual menu again, as when a drawer opens beside it. */
+    placeMenu(): void {
+        this.selection.placeMenu();
+    }
+
+    /** Hides the layers named, for a clean page; the others show. */
+    setHiddenLayers(hidden: MarkLayer[]): void {
+        for (const layer of ["ink", "notes", "bookmarks", "analysis"] as const) {
+            this.host.classList.toggle(`hide-${layer}`, hidden.includes(layer));
+        }
     }
 
     /** The pages as engraved, with the stretch of the piece on each, for the Contents drawer; none in the strip. */
@@ -628,6 +676,7 @@ export class ScoreView {
 
     private placePhrases(): void {
         this.placeBookmarks();
+        this.placeMarks();
         for (const old of this.host.querySelectorAll(`:scope > .${BRACKET_CLASS}`)) {
             old.remove();
         }
@@ -670,6 +719,49 @@ export class ScoreView {
                 }
                 this.host.append(bracket);
             }
+        }
+    }
+
+    private placeMarks(): void {
+        for (const old of this.host.querySelectorAll(`:scope > .${NOTE_CLASS}, :scope > .${MARK_HIGHLIGHT_CLASS}`)) {
+            old.remove();
+        }
+        const geometry = this.marginNotes.length + this.highlights.length === 0 ? null : this.geometry();
+        if (geometry === null) {
+            return;
+        }
+        for (const highlight of this.highlights) {
+            for (const run of geometry.band(highlight.start, highlight.end, 2)) {
+                const band = document.createElement("div");
+                band.className = `${MARK_HIGHLIGHT_CLASS} ink-${highlight.ink}`;
+                band.dataset.highlight = highlight.id;
+                band.style.left = `${run.left}px`;
+                band.style.top = `${run.top}px`;
+                band.style.width = `${run.right - run.left}px`;
+                band.style.height = `${run.bottom - run.top}px`;
+                this.host.append(band);
+            }
+        }
+        // Notes on the same bar sit side by side.
+        const onBar = new Map<number, number>();
+        for (const note of this.marginNotes) {
+            const place = geometry.flag(note.tick);
+            if (place === undefined) {
+                continue;
+            }
+            const bar = geometry.barAt(note.tick)?.tick ?? note.tick;
+            const index = onBar.get(bar) ?? 0;
+            onBar.set(bar, index + 1);
+            const marker = document.createElement("button");
+            marker.type = "button";
+            marker.className = NOTE_CLASS;
+            marker.dataset.note = note.id;
+            marker.textContent = String(note.number);
+            marker.setAttribute("aria-label", note.label);
+            marker.title = note.label;
+            marker.style.left = `${place.x - NOTE_OFFSET_X - 24 - index * 28}px`;
+            marker.style.top = `${place.y - NOTE_OFFSET_Y}px`;
+            this.host.append(marker);
         }
     }
 
@@ -869,6 +961,11 @@ export class ScoreView {
     }
 
     private readonly onClick = (event: MouseEvent): void => {
+        const marker = event.target instanceof Element ? event.target.closest<HTMLElement>(`.${NOTE_CLASS}`) : null;
+        if (marker !== null) {
+            void this.dotnet.invokeMethodAsync("OnNoteMarkerClicked", marker.dataset.note);
+            return;
+        }
         const mark = event.target instanceof Element ? event.target.closest<HTMLElement>(`.${BOOKMARK_CLASS}`) : null;
         if (mark !== null) {
             void this.dotnet.invokeMethodAsync("OnBookmarkClicked", mark.dataset.bookmark);

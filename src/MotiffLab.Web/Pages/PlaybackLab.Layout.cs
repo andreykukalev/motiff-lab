@@ -36,6 +36,7 @@ public partial class PlaybackLab : IAsyncDisposable
         None,
         Phrases,
         More,
+        Layers,
     }
 
     /// <summary>The pill's small overlays: the tempo and which notes play.</summary>
@@ -75,7 +76,7 @@ public partial class PlaybackLab : IAsyncDisposable
         _rollOpen ? "roll-open" : null,
         _insightsOpen ? "insights-open" : null,
         _contentsOpen ? "contents-open" : null,
-        _bookmarkDraft is { Id: null } ? "bookmarking" : null,
+        _bookmarkDraft is { Id: null } || _noteDraft is not null ? "bookmarking" : null,
         Focused ? "focused" : null,
         _popover != Popover.None ? "popover-open" : null,
     }.Where(name => name is not null));
