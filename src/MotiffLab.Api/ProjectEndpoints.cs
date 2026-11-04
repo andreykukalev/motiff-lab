@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Text.RegularExpressions;
 
+using MotiffLab.MusicCore.Accounts;
 using MotiffLab.MusicCore.Projects;
 
 namespace MotiffLab.Api;
@@ -8,6 +9,8 @@ namespace MotiffLab.Api;
 /// <summary>
 /// The player's projects: list, read, save and delete one, and delete everything (the right to erasure).
 /// A project travels as its project file (<see cref="ProjectFile"/>), the same bytes the app autosaves and exports.
+/// Saving needs Pro (0018, section 12); reading, listing and deleting do not, so a player who leaves Pro can still take
+/// their projects home and erase them.
 /// </summary>
 internal static partial class ProjectEndpoints
 {
@@ -40,6 +43,11 @@ internal static partial class ProjectEndpoints
             if (!IsProjectId(id))
             {
                 return Problem(StatusCodes.Status400BadRequest, "A project id has letters, digits, - and _ only.");
+            }
+
+            if (!Player.Plan(http).Allows(ProFeature.SaveOnline))
+            {
+                return Problem(StatusCodes.Status403Forbidden, "Saving online is part of Pro.", "pro");
             }
 
             byte[]? file = await ReadBodyAsync(http.Request, cancel);
@@ -143,6 +151,8 @@ internal static partial class ProjectEndpoints
         return body.ToArray();
     }
 
-    private static IResult Problem(int status, string message) =>
-        Results.Json(new { message }, statusCode: status, contentType: "application/json");
+    internal static IResult Problem(int status, string message, string? code = null) =>
+        code is null
+            ? Results.Json(new { message }, statusCode: status, contentType: "application/json")
+            : Results.Json(new { message, code }, statusCode: status, contentType: "application/json");
 }

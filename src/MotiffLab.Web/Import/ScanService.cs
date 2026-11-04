@@ -161,6 +161,7 @@ public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text
             }
 
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            await account.AddPlanChoiceAsync(request);
         }
 
         try
@@ -172,6 +173,11 @@ public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text
                 string engine = response.Headers.TryGetValues("X-Engine", out IEnumerable<string>? values) ? values.First() : "unknown engine";
                 int pages = response.Headers.TryGetValues("X-Pages", out IEnumerable<string>? counts) && int.TryParse(counts.First(), out int count) ? count : 1;
                 return new ScanResult(musicXml, engine, pages, null);
+            }
+
+            if (IsHosted && response.StatusCode == HttpStatusCode.Forbidden)
+            {
+                return ScanResult.Failed(text["scan.needsPro"]);
             }
 
             string? problem = TextOf(await response.Content.ReadAsByteArrayAsync(cancellation), "message");
@@ -285,6 +291,7 @@ public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text
             }
 
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            await account.AddPlanChoiceAsync(request);
         }
 
         try
@@ -298,6 +305,11 @@ public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text
                     && double.TryParse(lengths.First(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double heard) ? heard : 0;
                 bool cut = response.Headers.TryGetValues("X-Cut", out IEnumerable<string>? cuts) && cuts.First() == "true";
                 return new TranscriptionResult(midi, engine, seconds, cut, null);
+            }
+
+            if (IsHosted && response.StatusCode == HttpStatusCode.Forbidden)
+            {
+                return TranscriptionResult.Failed(text["transcribe.needsPro"]);
             }
 
             // A scan server from before transcription has no such address.
