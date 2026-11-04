@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    music-core as a native library for the iPad app (decision records 0019 and 0020): the facade's five C functions,
+    compiled with NativeAOT. `dotnet build` (in MotiffLab.slnx, so CI compiles the exports) builds it as a normal
+    library; ./build.sh publishes it for the iPad and its simulator on a Mac. On Linux:
+      dotnet publish ipad/Core -c Release -r linux-x64 -o /tmp/core
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Library</OutputType>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsAotCompatible>true</IsAotCompatible>
+    <PublishAot>true</PublishAot>
+    <NativeLib>Shared</NativeLib>
+    <AssemblyName>MotiffLabCore</AssemblyName>
+    <RootNamespace>MotiffLab.NativeCore</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <UseSystemResourceKeys>true</UseSystemResourceKeys>
+    <IlcGenerateStackTraceData>false</IlcGenerateStackTraceData>
+  </PropertyGroup>
+
+  <!-- iOS and the iOS simulator need the runtime pack from NuGet (supported since .NET 9). -->
+  <PropertyGroup Condition="$(RuntimeIdentifier.StartsWith('ios'))">
+    <PublishAotUsingRuntimePack>true</PublishAotUsingRuntimePack>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\MotiffLab.MusicCore\MotiffLab.MusicCore.csproj" />
+  </ItemGroup>
+
+</Project>
