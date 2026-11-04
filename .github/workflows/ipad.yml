@@ -91,9 +91,13 @@ jobs:
       - name: Compile the web app's score scripts
         run: dotnet build src/MotiffLab.Web -c Release -warnaserror | tail -3
 
+      # Xcode in the IDE refuses a project that xcodebuild only warns about (a file in two groups), so the warning fails here.
       - name: Generate the Xcode project
         working-directory: ipad/App
-        run: xcodegen
+        run: |
+          xcodegen
+          xcodebuild -list -project MotiffLab.xcodeproj 2>&1 | tee list.log
+          if grep -q "member of multiple groups" list.log; then echo "::error::The generated project puts a file in two groups"; exit 1; fi
 
       - name: Test in the iPad simulator
         working-directory: ipad/App
