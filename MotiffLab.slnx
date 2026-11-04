@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/ipad/">
+    <Project Path="ipad/Core/MotiffLab.NativeCore.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/MotiffLab.Api/MotiffLab.Api.csproj" />
     <Project Path="src/MotiffLab.MusicCore/MotiffLab.MusicCore.csproj" />

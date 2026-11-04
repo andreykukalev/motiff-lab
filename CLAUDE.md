@@ -12,7 +12,7 @@ See `docs/decisions/0001-stack.md` (stack), `0002-canonical-time.md` (musical ti
 - `tests/MotiffLab.MusicCore.Tests` — xUnit tests for music-core.
 - `tests/web` — Node tests for the TypeScript layer, run on the compiled output.
 - `services/omr` — the scan server for sheet music recognition and transcription: homr (AGPL-3.0, unmodified) and Basic Pitch (Apache-2.0) behind a small Python HTTP service, run by the player in Docker on their own computer (`docs/decisions/0011-sheet-music-recognition.md`) or hosted in Azure Container Apps (`0014`, deployed by the `Scan server` workflow, not CI). Its unit tests run with `python -m pytest` in that folder.
-- The iPad app is a native SwiftUI app over the same music-core (`0019`), built in Xcode on a Mac; its code arrives under `ipad/`. The Swift shell around the web app (`0015`) was removed on 2026-11-04 (Andrei).
+- `ipad` — the native iPad app (`0019`): SwiftUI in `ipad/App` (XcodeGen, built in Xcode on a Mac), music-core as a NativeAOT framework with the facade's C functions in `ipad/Core` (in the solution, so CI compiles it), Verovio built from source in `ipad/Verovio` (`ipad/README.md`). Swift is built and tested by the `iPad` workflow on macOS runners, not in CI. The Swift shell around the web app (`0015`) was removed on 2026-11-04.
 - `design/kit` — the design kit of the redesign (0018): `tokens.css` is the source of truth for every colour, type style, size and shadow; `ds.css`, `icons.js`, `score.js`, the Verovio options, the eleven screens. Redesign PRs take their values from here and define no literal colour or size of their own.
 - `tests/e2e` — Playwright tests of the published app: the core journey in Chromium, Firefox and WebKit (desktop and tablet), offline, and WCAG 2.2 AA with axe.
 

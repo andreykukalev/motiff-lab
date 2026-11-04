@@ -486,3 +486,8 @@ src/MotiffLab.Web/wwwroot/js/
 
 # Playwright reports (tests/e2e)
 playwright-report/
+
+# The iPad app (ipad/): built frameworks, Verovio source, generated Xcode project, per-Mac signing
+ipad/build/
+ipad/App/*.xcodeproj/
+ipad/App/Config/Local.xcconfig

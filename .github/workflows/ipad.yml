@@ -1,0 +1,120 @@
+# The iPad app (decision record 0019): builds music-core with NativeAOT and Verovio from source as frameworks,
+# generates the Xcode project, runs the Swift tests in the iPad simulator and builds for a real iPad (unsigned).
+# Not part of CI and its five minutes: it runs on pull requests that touch the iPad app, music-core or this
+# workflow, and by hand. Releases are built by Andrei in Xcode from ipad-v* tags.
+name: iPad
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ipad/**
+      - src/MotiffLab.MusicCore/**
+      - design/kit/tokens.css
+      - design/kit/elise.musicxml
+      - src/MotiffLab.Web/wwwroot/i18n/**
+      - global.json
+      - .github/workflows/ipad.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ipad-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ipad:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Tools
+        run: |
+          brew install xcodegen
+          xcodebuild -version
+          dotnet --version
+
+      - name: Build MotiffLabCore.xcframework
+        run: ipad/Core/build.sh | tee core.log
+
+      # The core as a macOS library, called through its C functions as the app calls it.
+      - name: Check the core's C functions
+        run: |
+          dotnet publish ipad/Core -c Release -r osx-arm64 -o "$RUNNER_TEMP/core" -warnaserror | tail -1
+          python3 ipad/Core/check.py "$RUNNER_TEMP/core/MotiffLabCore.dylib"
+
+      # Verovio takes several minutes to compile; its build changes only with the script and the patch.
+      - uses: actions/cache/restore@v4
+        id: verovio
+        with:
+          path: |
+            ipad/build/Verovio.xcframework
+            ipad/build/verovio-data
+          key: verovio-ios-${{ hashFiles('ipad/Verovio/build.sh', 'ipad/Verovio/verovio-classic-locale.patch') }}
+
+      - name: Build Verovio.xcframework
+        if: steps.verovio.outputs.cache-hit != 'true'
+        run: ipad/Verovio/build.sh | tee verovio.log
+
+      # Saved straight after the build, so a failing test later does not throw the build away.
+      - uses: actions/cache/save@v4
+        if: steps.verovio.outputs.cache-hit != 'true'
+        with:
+          path: |
+            ipad/build/Verovio.xcframework
+            ipad/build/verovio-data
+          key: ${{ steps.verovio.outputs.cache-primary-key }}
+
+      - name: Generate the Xcode project
+        working-directory: ipad/App
+        run: xcodegen
+
+      - name: Test in the iPad simulator
+        working-directory: ipad/App
+        run: |
+          id=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          devices = [d for runtime, ds in json.load(sys.stdin)["devices"].items() if "iOS" in runtime for d in ds]
+          ipads = [d for d in devices if d["name"].startswith("iPad Pro")] or [d for d in devices if d["name"].startswith("iPad")]
+          print(ipads[-1]["udid"])')
+          echo "Simulator: $(xcrun simctl list devices | grep "$id")"
+          set -o pipefail
+          xcodebuild test -project MotiffLab.xcodeproj -scheme MotiffLab -destination "id=$id" CODE_SIGNING_ALLOWED=NO | tee test.log | grep -E "Test Case|error:|OPEN-AND-ENGRAVE|\*\* TEST" || true
+          grep -q "\*\* TEST SUCCEEDED \*\*" test.log
+
+      - name: Build for a real iPad (unsigned)
+        working-directory: ipad/App
+        run: |
+          set -o pipefail
+          xcodebuild build -project MotiffLab.xcodeproj -scheme MotiffLab -configuration Release \
+            -destination generic/platform=iOS -derivedDataPath build CODE_SIGNING_ALLOWED=NO | tail -5
+          app=$(find build -name MotiffLab.app -path '*iphoneos*' | head -1)
+          echo "APP_SIZE=$(du -sh "$app" | cut -f1)" >> "$GITHUB_ENV"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## iPad app"
+            echo
+            echo '```'
+            grep -E '^ios|^iossim' core.log || true
+            grep -E '^verovio' verovio.log 2>/dev/null || echo "verovio: from the cache"
+            echo "Device app (Release, unsigned): ${APP_SIZE:-not built}"
+            grep -h 'OPEN-AND-ENGRAVE' ipad/App/test.log 2>/dev/null || true
+            grep -hE "Executed [0-9]+ tests" ipad/App/test.log 2>/dev/null | tail -1 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: ipad-test-log
+          path: ipad/App/test.log
+          if-no-files-found: ignore

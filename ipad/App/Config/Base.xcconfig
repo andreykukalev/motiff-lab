@@ -1,0 +1,14 @@
+// Build settings for the Motiff Lab iPad app (project.yml, decision record 0019). Put yours in Local.xcconfig next to
+// this file (copy Local.xcconfig.example); it is not committed, so each Mac keeps its own signing team.
+
+// Must be unique among all apps signed by Apple. A free Apple ID signs the app for 7 days at a time.
+PRODUCT_BUNDLE_IDENTIFIER = com.andreykukalev.motifflab
+
+// The release (ipad-v<major>.<minor>.<patch> tags, 0019) and the build number.
+MARKETING_VERSION = 0.1.0
+CURRENT_PROJECT_VERSION = 1
+
+// Your Apple developer team: set it in Local.xcconfig, or pick it in Xcode under Signing & Capabilities.
+DEVELOPMENT_TEAM =
+
+#include? "Local.xcconfig"
