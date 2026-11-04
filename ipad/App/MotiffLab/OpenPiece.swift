@@ -1,10 +1,12 @@
 import Foundation
 
-/// A piece open in music-core: its number in the facade, its title and its score's pages.
+/// A piece open in music-core: its number in the facade, its title, its score's pages and its project file.
 struct OpenPiece: Identifiable, Sendable {
     let id: Int32
     let title: String
     let pages: [String]
+    /// The project file in Documents that the piece is saved to (ProjectFiles).
+    var file: URL?
 
     /// Opens the file in music-core in the interface's language and engraves it, titled by its name unless given one.
     static func open(fileName: String, data: Data, language: String, title given: String? = nil) async -> Result<OpenPiece, EngraveError> {
@@ -16,7 +18,7 @@ struct OpenPiece: Identifiable, Sendable {
             guard let piece = (opened["piece"] as? NSNumber)?.int32Value, piece > 0 else {
                 return .failure(EngraveError(message: opened["message"] as? String ?? "This file could not be opened."))
             }
-            let title = given ?? (fileName as NSString).deletingPathExtension
+            let title = given ?? ProjectFiles.title(of: fileName)
             switch Engraver.pages(piece: piece, title: title) {
             case .success(let pages):
                 return .success(OpenPiece(id: piece, title: title, pages: pages))

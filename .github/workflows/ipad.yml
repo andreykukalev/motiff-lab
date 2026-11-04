@@ -13,6 +13,7 @@ on:
       - design/kit/tokens.css
       - design/kit/elise.musicxml
       - src/MotiffLab.Web/wwwroot/i18n/**
+      - src/MotiffLab.Web/wwwroot/audio/piano/**
       - global.json
       - .github/workflows/ipad.yml
 

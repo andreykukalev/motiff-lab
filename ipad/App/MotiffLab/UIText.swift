@@ -21,6 +21,15 @@ struct UIText: Sendable {
         words[key] ?? fallback[key] ?? key
     }
 
+    /// The text for a key with its {0}, {1}, … filled in, as the web app's Text.Format does.
+    func format(_ key: String, _ values: String...) -> String {
+        var result = self[key]
+        for (index, value) in values.enumerated() {
+            result = result.replacingOccurrences(of: "{\(index)}", with: value)
+        }
+        return result
+    }
+
     private static func load(_ language: String, _ bundle: Bundle) -> [String: String] {
         guard let url = bundle.url(forResource: language, withExtension: "json", subdirectory: "i18n"),
               let data = try? Data(contentsOf: url),

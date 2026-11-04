@@ -31,6 +31,10 @@ targets:
       - path: ../../src/MotiffLab.Web/wwwroot/i18n
         type: folder
         buildPhase: resources
+      # The piano the web app plays (tools/piano): 30 MP3 samples and piano.json.
+      - path: ../../src/MotiffLab.Web/wwwroot/audio/piano
+        type: folder
+        buildPhase: resources
       # Verovio's font data and licence (ipad/Verovio/build.sh), copied into the app as a folder.
       - path: ../build/verovio-data
         type: folder
