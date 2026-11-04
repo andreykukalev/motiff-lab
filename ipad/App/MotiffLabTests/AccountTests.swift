@@ -63,6 +63,18 @@ final class AccountTests: XCTestCase {
         XCTAssertNil(defaults.string(forKey: Account.choiceKey))
     }
 
+    func testThePlayerIsNamedAsTheWebAppNamesThem() {
+        // {"name":"Андрей","emails":["a@example.com"]} as a JWT payload, base64url without padding.
+        let payload = Data(#"{"name":"Андрей","emails":["a@example.com"]}"#.utf8).base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
+        let claims = Account.tokenClaims("e30.\(payload).sig")
+        XCTAssertEqual(Account.displayName(claims, username: "unknown"), "Андрей")
+        XCTAssertEqual(Account.displayName(["emails": ["a@example.com"]], username: "unknown"), "a@example.com")
+        XCTAssertEqual(Account.displayName([:], username: "unknown"), "")
+        XCTAssertEqual(Account.displayName([:], username: "a@example.com"), "a@example.com")
+        XCTAssertTrue(Account.tokenClaims("not a token").isEmpty)
+    }
+
     func testABuildWithoutSignInShowsNoAccount() {
         XCTAssertFalse(Account(options: nil).isAvailable)
         let empty = AccountOptions(authority: "", clientId: "", apiScope: "", scanScope: "", api: "", scan: "")

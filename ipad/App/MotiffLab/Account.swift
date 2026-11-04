@@ -148,7 +148,7 @@ final class Account: ObservableObject {
     func restore() async {
         guard let application, account == nil, let first = try? application.allAccounts().first else { return }
         account = first
-        player = Self.name(of: first)
+        player = defaults.string(forKey: Self.nameKey(first)) ?? Self.name(of: first, idToken: nil)
         await refreshPlan()
     }
 
@@ -172,13 +172,16 @@ final class Account: ObservableObject {
         let locale = text.language == "ru" ? "ru-RU" : "en-US"
         parameters.extraQueryParameters = ["ui_locales": locale, "mkt": locale]
         do {
-            let signedIn = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<MSALAccount, Error>) in
+            let (signedIn, idToken) = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<(MSALAccount, String?), Error>) in
                 application.acquireToken(with: parameters) { result, error in
-                    if let result { continuation.resume(returning: result.account) } else { continuation.resume(throwing: error ?? CancellationError()) }
+                    if let result { continuation.resume(returning: (result.account, result.idToken)) } else { continuation.resume(throwing: error ?? CancellationError()) }
                 }
             }
             account = signedIn
-            player = Self.name(of: signedIn)
+            let name = Self.name(of: signedIn, idToken: idToken)
+            player = name
+            // MSAL keeps the account but not every claim, so the name shown is kept for the next launch.
+            defaults.set(name, forKey: Self.nameKey(signedIn))
             plan = nil
             await refreshPlan()
         } catch {
@@ -189,7 +192,10 @@ final class Account: ObservableObject {
 
     /// Forgets the player's tokens on this device. Their projects stay.
     func signOut() {
-        if let application, let account { try? application.remove(account) }
+        if let application, let account {
+            try? application.remove(account)
+            defaults.removeObject(forKey: Self.nameKey(account))
+        }
         account = nil
         player = nil
         plan = nil
@@ -240,9 +246,43 @@ final class Account: ObservableObject {
         if let choice { request.setValue(choice.rawValue, forHTTPHeaderField: Self.planHeader) }
     }
 
-    private static func name(of account: MSALAccount) -> String {
-        let claims = account.accountClaims ?? [:]
-        return (claims["name"] as? String) ?? (claims["email"] as? String) ?? account.username ?? ""
+    private static func nameKey(_ account: MSALAccount) -> String {
+        "ml-account-name." + (account.identifier ?? "")
+    }
+
+    /// The name to show for the player: from the sign-in's ID token, then the claims MSAL kept, as the web app chooses it.
+    private static func name(of account: MSALAccount, idToken: String?) -> String {
+        var claims = account.accountClaims ?? [:]
+        for profile in account.tenantProfiles ?? [] {
+            claims.merge(profile.claims ?? [:]) { kept, _ in kept }
+        }
+        claims.merge(tokenClaims(idToken)) { _, fromToken in fromToken }
+        return displayName(claims, username: account.username)
+    }
+
+    /// name, then email (External ID may send `emails`), then preferred_username; MSAL's "unknown" is not a name.
+    static func displayName(_ claims: [String: Any], username: String?) -> String {
+        func text(_ key: String) -> String? {
+            let value = (claims[key] as? String) ?? (claims[key] as? [String])?.first
+            return value?.trimmingCharacters(in: .whitespaces).isEmpty == false ? value : nil
+        }
+        if let name = text("name") ?? text("email") ?? text("emails") ?? text("preferred_username") { return name }
+        let given = [text("given_name"), text("family_name")].compactMap { $0 }.joined(separator: " ")
+        if !given.isEmpty { return given }
+        if let username, !username.isEmpty, username.lowercased() != "unknown" { return username }
+        return ""
+    }
+
+    /// The claims in a JWT's payload; empty when it cannot be read.
+    static func tokenClaims(_ token: String?) -> [String: Any] {
+        let parts = token?.split(separator: ".") ?? []
+        guard parts.count >= 2 else { return [:] }
+        var payload = String(parts[1]).replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        payload += String(repeating: "=", count: (4 - payload.count % 4) % 4)
+        guard let data = Data(base64Encoded: payload),
+              let claims = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return [:] }
+        return claims
     }
 
     /// The view controller on top, which presents the sign-in page.
