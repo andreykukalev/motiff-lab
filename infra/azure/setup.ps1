@@ -13,8 +13,8 @@
        and the web app's Static Web App swa-motifflab (infra/main.bicep, Free plan, West Europe), so everything Motiff Lab
        runs is in one group and CI deploys all of it as one identity;
     3. the sign-in tenant, Microsoft Entra External ID (free up to 50,000 monthly users), linked to rg-motifflab, with the
-       app registrations Motiff Lab API (scopes Projects.ReadWrite and Scan) and Motiff Lab (the web app), and a sign-up
-       and sign-in flow by email code. Google and Apple are added later, by hand (infra/README.md);
+       app registrations Motiff Lab API (scopes Projects.ReadWrite and Scan) and Motiff Lab (the web app, and the iPad app
+       on its iOS redirect), and a sign-up and sign-in flow by email code. Google and Apple are added later, by hand (infra/README.md);
     4. the repository variables the workflows read (identifiers, not secrets): AZURE_* and AZURE_SERVICES_* (both this
        group now), WEB_HOST, COSMOS_ENDPOINT, AUTH_*, SCAN_URL and API_URL;
     5. then it runs the Scan server, API and CI workflows and waits for each. GitHub makes a new package private and has no
@@ -343,6 +343,7 @@ Invoke-MotiffGraph -Token $token -Method PATCH -Path "/applications/$($web.id)" 
   }) | Out-Null
 $webSp = Get-ServicePrincipal "$($web.appId)" -Create
 Write-MotiffInfo "Signs in at $($RedirectUris -join ', ')"
+Set-MotiffIPadSignIn -Token $token -App (Invoke-MotiffGraph -Token $token -Method GET -Path "/applications/$($web.id)")
 # Players of an external tenant can't consent themselves: the tenant consents once for everyone (admin consent).
 foreach ($grant in @(
     @{ resource = $apiSp; scope = (@($Scopes | ForEach-Object { $_.value }) -join ' ') },

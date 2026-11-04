@@ -6,6 +6,8 @@ import UniformTypeIdentifiers
 /// A piece opened from a file becomes a project file here at once. Everything here runs on the device and is free.
 struct LibraryView: View {
     private let text = UIText.current
+    @EnvironmentObject private var account: Account
+    @State private var settings = false
     @State private var opening = false
     @State private var choosing = false
     @State private var piece: OpenPiece?
@@ -59,6 +61,19 @@ struct LibraryView: View {
             .disabled(opening)
             .overlay { if opening { ProgressView() } }
             .navigationTitle("Motiff Lab")
+            .toolbar {
+                if account.isAvailable {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            settings = true
+                        } label: {
+                            Image(systemName: account.player == nil ? "person.crop.circle" : "person.crop.circle.fill")
+                        }
+                        .accessibilityLabel(text["account.nav"])
+                    }
+                }
+            }
+            .sheet(isPresented: $settings) { SettingsView(account: account, text: text) }
             .navigationDestination(item: $piece) { piece in
                 ScoreScreen(piece: piece)
             }

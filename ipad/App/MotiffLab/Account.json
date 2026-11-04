@@ -1,0 +1,10 @@
+{
+  "Account": {
+    "Authority": "https://motifflab.ciamlogin.com/205b6585-e9bb-4f4b-becc-4845fe31cbaf",
+    "ClientId": "f6903897-3ecf-4840-b69b-d9bb923c2331",
+    "ApiScope": "api://c9829141-78ce-482a-a2dd-563ad5698d79/Projects.ReadWrite",
+    "ScanScope": "api://c9829141-78ce-482a-a2dd-563ad5698d79/Scan",
+    "Api": "https://ca-motifflab-api.salmonplant-06c075b3.polandcentral.azurecontainerapps.io",
+    "Scan": "https://ca-motifflab-scan.salmonplant-06c075b3.polandcentral.azurecontainerapps.io"
+  }
+}

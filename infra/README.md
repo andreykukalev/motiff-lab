@@ -12,6 +12,7 @@ Static Web Apps is only offered in a few regions, and West Europe is the only EU
 | [`bootstrap.bicep`](bootstrap.bicep) | One-time CI identity: a user-assigned managed identity with GitHub OIDC federated credentials (`main` and pull requests) and Contributor on the resource group only. |
 | [`bootstrap.sh`](bootstrap.sh) | The first setup, from when the web app lived alone in another subscription. Replaced by `azure/setup.ps1`. |
 | [`scan.bicep`](scan.bicep) | The hosted scan server (decision record [0014](../docs/decisions/0014-hosted-scan-server.md)): a Consumption-only Container Apps environment and the app, in `rg-motifflab`. Deployed by the `Scan server` workflow, not by CI. |
+| [`azure/ipad.ps1`](azure/ipad.ps1) | Lets the iPad app sign in, once: its MSAL redirect `msauth.com.andreykukalev.motifflab://auth` on the web app's registration *Motiff Lab*, with public client flows on. `setup.ps1` does the same for a new tenant. |
 | [`azure/pro.ps1`](azure/pro.ps1) | Gives a player Pro or makes them a tester: the API's app roles `Pro` and `Tester` in the sign-in tenant (0018 section 12). See [Pro and testers](#pro-and-testers). |
 | [`azure/setup.ps1`](azure/setup.ps1), [`azure/MotiffAzure.psm1`](azure/MotiffAzure.psm1) | One-time, in the subscription with `rg-shared`: the group `rg-motifflab` with its CI identity, the web app's Static Web App, Motiff Lab's database, the API's identity with access to that database only, the players' sign-in tenant, the repository variables, then the first deploys. |
 | [`api.bicep`](api.bicep) | The Motiff Lab API (`src/MotiffLab.Api`) next to the scan server, signing in to Cosmos DB as `id-motifflab-api`. Deployed by the `API` workflow once sign-in and the database are set up. |
@@ -55,7 +56,7 @@ If Windows refuses to run scripts, start it with `powershell -ExecutionPolicy By
 
 CI then builds the web app with the sign-in settings from those variables (it writes `wwwroot/appsettings.json` before publishing; the committed file stays empty, so pull request builds and local builds have no accounts unless you fill it in). Running the script again is safe: it finds what is there and adds only what is missing. `-SkipDeploy` stops before the workflows; `-Domain <name>` picks another sign-in domain if `motifflab` is taken.
 
-Google and Apple sign-in are added later, by hand, as identity providers ticked in the flow: [Google](https://learn.microsoft.com/entra/external-id/customers/how-to-google-federation-customers) needs an OAuth client in Google Cloud; [Apple](https://learn.microsoft.com/entra/external-id/customers/how-to-apple-federation-customers) needs the Apple Developer Program, and its key must be renewed every 6 months. the iOS app gets its own registration later.
+Google and Apple sign-in are added later, by hand, as identity providers ticked in the flow: [Google](https://learn.microsoft.com/entra/external-id/customers/how-to-google-federation-customers) needs an OAuth client in Google Cloud; [Apple](https://learn.microsoft.com/entra/external-id/customers/how-to-apple-federation-customers) needs the Apple Developer Program, and its key must be renewed every 6 months. The iPad app signs in with the web app's registration on its own iOS redirect, so it has the same scopes, consent and roles: run `.\infra\azure\ipad.ps1` once for a tenant set up before it.
 
 ## Pro and testers
 

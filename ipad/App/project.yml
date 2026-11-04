@@ -8,6 +8,11 @@ options:
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
+# Sign-in (0014): Microsoft's MSAL, as a binary Swift package.
+packages:
+  MSAL:
+    url: https://github.com/AzureAD/microsoft-authentication-library-for-objc
+    from: 2.17.1
 configFiles:
   Debug: Config/Base.xcconfig
   Release: Config/Base.xcconfig
@@ -54,8 +59,12 @@ targets:
       - framework: ../build/Verovio.xcframework
         embed: true
         codeSign: true
+      - package: MSAL
     settings:
       base:
+        # What GENERATE_INFOPLIST_FILE has no setting for: sign-in comes back on msauth.<bundle id>://auth, and MSAL
+        # may ask the Microsoft Authenticator app. Xcode adds the generated keys to this file.
+        INFOPLIST_FILE: Config/Info.plist
         TARGETED_DEVICE_FAMILY: "2"
         CODE_SIGN_STYLE: Automatic
         GENERATE_INFOPLIST_FILE: YES
