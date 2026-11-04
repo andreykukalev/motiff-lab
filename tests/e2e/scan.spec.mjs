@@ -2,10 +2,10 @@
 // a photo there and shows the bars to check, and the workspace opens the piece with its Check flags and drawer. The scan
 // server is played by the test: it answers with what homr read from a page of Für Elise.
 // Runs in desktop Chromium only (playwright.config.mjs), with the WCAG checks on the new screens.
-import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import { violations } from "./steps.mjs";
 
 const scanned = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/Scan/Fixtures/homr-fur-elise-page1.musicxml", import.meta.url));
 const photo = fileURLToPath(new URL("../../src/MotiffLab.Web/wwwroot/icon-192.png", import.meta.url));
@@ -13,11 +13,6 @@ const server = "http://localhost:8765";
 
 // The app's service worker would answer the page's requests before the test's stand-in server could.
 test.use({ serviceWorkers: "block" });
-
-async function violations(page) {
-    const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();
-    return results.violations.map(v => `${v.id} (${v.impact}): ${v.help}\n  ${v.nodes.slice(0, 5).map(n => n.target.join(" ")).join("\n  ")}`);
-}
 
 /** Plays the scan server; returns the uploads it received. */
 async function scanServer(page) {

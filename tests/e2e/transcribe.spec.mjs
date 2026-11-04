@@ -3,14 +3,13 @@
 // to the scan server, and opens the MIDI it hears with every note marked as detected.
 // The scan server is played by the test: it answers with what Basic Pitch heard in a synthesised melody.
 // Runs in every engine, since decoding the recording is the browser's own work.
-import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { closePopover, openMore } from "./steps.mjs";
+import { closePopover, openMore, violations } from "./steps.mjs";
 
 const fixtures = "../MotiffLab.MusicCore.Tests/Import/Transcription/Fixtures/";
 const heard = fileURLToPath(new URL(`${fixtures}basic-pitch-melody.mid`, import.meta.url));
@@ -68,11 +67,6 @@ async function transcribe(page, file) {
     await page.getByRole("button", { name: "Transcribe the stretch" }).click();
 }
 
-async function violations(page) {
-    const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();
-    return results.violations.map(v => `${v.id} (${v.impact}): ${v.help}\n  ${v.nodes.slice(0, 5).map(n => n.target.join(" ")).join("\n  ")}`);
-}
-
 test("transcription is off until Settings has a scan server", async ({ page }) => {
     await page.goto("/import/recording");
     await expect(page.getByText("Set up the scan server in Settings")).toBeVisible();
@@ -115,7 +109,7 @@ test("a recording's sound is sent as mono audio, and its notes open marked as he
     await expect(page.locator(".card.piece").first()).toContainText("From a recording");
 });
 
-test("a transcription is written in bars and a tempo worked out from its notes, which the player can change", async ({ page }) => {
+test("a transcription is written in bars and a tempo worked out from its notes, which the player changes in Check", async ({ page }) => {
     await scanServer(page, furElise);
     await page.goto("/settings");
     await page.getByRole("button", { name: "Save and check" }).click();
@@ -123,11 +117,18 @@ test("a transcription is written in bars and a tempo worked out from its notes, 
 
     await page.goto("/import/recording");
     await transcribe(page, await recording());
-    const bars = page.getByRole("region", { name: "Bars and tempo" });
-    await expect(bars.getByText("3/8 with a quarter at 72 a minute")).toBeVisible();
+    await expect(page.getByText("Written in 3/8, a quarter at 72 a minute, worked out from the notes", { exact: false })).toBeVisible();
+    await expect(page.getByText("were worked out from the notes", { exact: false })).toBeVisible();
+    expect(await violations(page)).toEqual([]);
+
+    // The report is shown once; the bars and tempo are changed in the head of the Check drawer (0018 section 9).
+    await page.getByText("Open the piece").click();
+    await expect(page).toHaveURL(/playback/);
+    const drawer = page.locator(".sheet.check-sheet");
+    const bars = drawer.getByRole("region", { name: "Bars and tempo" });
+    await expect(bars.getByText("3/8, a quarter at 72 a minute")).toBeVisible();
     await expect(bars.getByText("The piece starts with a pickup.")).toBeVisible();
     await expect(bars.getByText("The tempo follows the playing", { exact: false })).toBeVisible();
-    await expect(page.getByText("were worked out from the notes", { exact: false })).toBeVisible();
     expect(await violations(page)).toEqual([]);
 
     // The bar lines move a beat either way: a beat earlier, the pickup's two 16ths start the first bar.
@@ -138,22 +139,35 @@ test("a transcription is written in bars and a tempo worked out from its notes, 
 
     // Another time signature lays out the same notes again; twice the tempo halves the 16th.
     await bars.getByLabel("Time signature").selectOption("6/8");
-    await expect(bars.getByText("6/8 with a quarter at 72 a minute")).toBeVisible();
+    await expect(bars.getByText("6/8, a quarter at 72 a minute")).toBeVisible();
     await bars.getByRole("button", { name: "Twice the tempo" }).click();
-    await expect(bars.getByText("6/8 with a quarter at 144 a minute")).toBeVisible();
-
-    // Off, the engine's 4/4 at 120 comes back.
-    await bars.getByLabel("Write the notes in bars worked out from the playing").uncheck();
-    await expect(bars.getByText("The notes stay in the bars the engine wrote", { exact: false })).toBeVisible();
-    await expect(page.getByText("were worked out from the notes", { exact: false })).toHaveCount(0);
-    await bars.getByLabel("Write the notes in bars worked out from the playing").check();
-    await bars.getByLabel("Time signature").selectOption("3/8");
+    await expect(bars.getByText("6/8, a quarter at 144 a minute")).toBeVisible();
     await bars.getByRole("button", { name: "Half the tempo" }).click();
-    await expect(bars.getByText("3/8 with a quarter at 72 a minute")).toBeVisible();
+    await expect(bars.getByText("6/8, a quarter at 72 a minute")).toBeVisible();
+
+    // Off, the engine's 4/4 at 120 comes back; on again, the bars worked out from the notes.
+    const written = bars.getByRole("switch", { name: "Write the notes in bars worked out from the playing" });
+    await written.uncheck();
+    await expect(bars.getByText("The notes stay in the bars the engine wrote", { exact: false })).toBeVisible();
+    await written.check();
+    await expect(bars.getByText("3/8, a quarter at 72 a minute")).toBeVisible();
+
+    // The new bars are kept with the piece.
+    await page.reload();
+    await expect(bars.getByText("3/8, a quarter at 72 a minute")).toBeVisible();
+
+    // Once a bar is checked, the bars keep their place.
+    const entry = drawer.locator(".check-entry").first();
+    if (await entry.count() > 0) {
+        await entry.getByRole("button", { name: "Looks right" }).click();
+        await expect(bars.getByText("The bars stay as they are now", { exact: false })).toBeVisible();
+        await expect(bars.getByRole("button", { name: "Twice the tempo" })).toBeDisabled();
+        await drawer.locator(".resolved").getByRole("button", { name: "Check again" }).first().click();
+        await expect(bars.getByRole("button", { name: "Twice the tempo" })).toBeEnabled();
+    }
+    await drawer.getByRole("button", { name: "Close Check" }).click();
 
     // The workspace writes the notes in those bars for reading, or as played.
-    await page.getByText("Open the piece").click();
-    await expect(page).toHaveURL(/playback/);
     // The overflow says how the score is written, and switches it (0018 section 2).
     const more = await openMore(page);
     await expect(more.getByText("Written for reading", { exact: false })).toBeVisible();

@@ -885,12 +885,60 @@
     <header class="check-head">
         <div>
             <p class="overline">@Text["check.title"]</p>
-            <h2 id="check-title">@(OpenCheckBars.Count > 0 ? Text.Count("check.toReview", OpenCheckBars.Count) : Text["check.allDone"])</h2>
+            <h2 id="check-title">@(OpenCheckBars.Count > 0 ? Text.Count("check.toReview", OpenCheckBars.Count) : HasCheckFlags ? Text["check.allDone"] : Text["transcribe.barsHeading"])</h2>
         </div>
         <button class="btn icon" aria-label="@Text["check.close"]" title="@Text["check.close"]" @onclick="ToggleCheck"><Icon Name="close" /></button>
     </header>
     <p class="caption">@CheckSourceLine @Text[_project?.Scan is not null ? "check.howScan" : "check.howRecording"]</p>
-    @if (OpenCheckBars.Count == 0)
+    @if (_project is { Transcription: { } heard } project)
+    {
+        @* The bars and tempo worked out from the notes (0016), in the drawer's head for a transcription (0018 section 9). *@
+        bool canChange = project.CanChangeBars;
+        <section class="check-bars" aria-labelledby="check-bars-title">
+            <h3 id="check-bars-title" class="overline">@Text["transcribe.barsHeading"]</h3>
+            <label class="switch-line">
+                <input type="checkbox" role="switch" class="switch" checked="@(heard.Bars is not null)" disabled="@(!canChange)" @onchange="ToggleBarsAsync" />
+                <span>@Text["transcribe.barsOn"]</span>
+            </label>
+            @if (heard.Bars is { } bars)
+            {
+                <p class="check-bar">@Text.Format("check.barsLine", bars.Signature, bars.QuarterNotesPerMinute)</p>
+                @if (bars.FollowsPlaying)
+                {
+                    <p class="caption">@Text["transcribe.barsFollow"]</p>
+                }
+                @if (bars.HasPickup)
+                {
+                    <p class="caption">@Text["transcribe.barsPickup"]</p>
+                }
+                <div class="row">
+                    <label class="field">
+                        <span class="caption">@Text["transcribe.signature"]</span>
+                        <select value="@bars.Signature.ToString()" disabled="@(!canChange)" @onchange="ChangeSignatureAsync">
+                            @foreach (TimeSignature signature in BarGrid.Signatures)
+                            {
+                                <option value="@signature.ToString()">@signature</option>
+                            }
+                        </select>
+                    </label>
+                </div>
+                <div class="row">
+                    <button class="btn secondary compact" disabled="@(!canChange || !CanChangeTempo(bars, faster: true))" @onclick="() => ChangeTempoAsync(faster: true)">@Text["transcribe.faster"]</button>
+                    <button class="btn secondary compact" disabled="@(!canChange || !CanChangeTempo(bars, faster: false))" @onclick="() => ChangeTempoAsync(faster: false)">@Text["transcribe.slower"]</button>
+                </div>
+                <div class="row">
+                    <button class="btn secondary compact" disabled="@(!canChange)" @onclick="() => ShiftBarsAsync(-1)">@Text["transcribe.earlier"]</button>
+                    <button class="btn secondary compact" disabled="@(!canChange)" @onclick="() => ShiftBarsAsync(1)">@Text["transcribe.later"]</button>
+                </div>
+            }
+            else
+            {
+                <p class="caption">@Text["transcribe.barsOff"]</p>
+            }
+            <p class="caption">@Text[canChange ? "check.barsHow" : "check.barsKept"]</p>
+        </section>
+    }
+    @if (OpenCheckBars.Count == 0 && HasCheckFlags)
     {
         <p class="caption">@Text["check.allDoneHint"]</p>
     }

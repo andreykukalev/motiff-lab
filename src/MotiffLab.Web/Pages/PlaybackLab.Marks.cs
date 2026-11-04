@@ -255,7 +255,7 @@ public partial class PlaybackLab
     }
 
     /// <summary>The layers the piece has: Check only for a scan or a transcription.</summary>
-    private IEnumerable<string> PieceLayers => s_layers.Where(layer => layer != "check" || HasCheck);
+    private IEnumerable<string> PieceLayers => s_layers.Where(layer => layer != "check" || HasCheckFlags);
 
     private bool AllMarksHidden => PieceLayers.All(layer => !LayerShown(layer));
 

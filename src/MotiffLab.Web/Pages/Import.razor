@@ -62,19 +62,13 @@
             }
             else
             {
-                <p class="meta">@Text.Format(Scans.IsLocal ? "import.scanWhatHere" : "import.scanWhat", server)</p>
-                @if (Scans.IsHosted)
+                @* What leaves the device, as one short line and one switch above the file field (0018 section 9). *@
+                <p class="meta">@Text.Format(Scans.IsLocal ? "import.scanLineHere" : "import.scanLine", server)</p>
+                @if (!Scans.IsLocal)
                 {
-                    <label>
-                        <input type="checkbox" @bind="_sendElsewhere" />
-                        @Text["scan.sendHosted"]
-                    </label>
-                }
-                else if (!Scans.IsLocal)
-                {
-                    <label>
-                        <input type="checkbox" @bind="_sendElsewhere" />
-                        @Text.Format("import.scanSendElsewhere", server.Host)
+                    <label class="consent">
+                        <input type="checkbox" role="switch" class="switch" @bind="_sendElsewhere" />
+                        <span>@(Scans.IsHosted ? Text["scan.sendHosted"] : Text.Format("import.scanSendElsewhere", server.Host))</span>
                     </label>
                 }
 
@@ -109,12 +103,12 @@
             }
             else
             {
-                <p class="meta">@Text.Format("transcribe.what", listener)</p>
+                <p class="meta">@Text.Format("transcribe.line", listener)</p>
                 @if (!Scans.IsLocal)
                 {
-                    <label>
-                        <input type="checkbox" @bind="_sendSound" />
-                        @(Scans.IsHosted ? Text["transcribe.sendHosted"] : Text.Format("transcribe.sendElsewhere", listener.Host))
+                    <label class="consent">
+                        <input type="checkbox" role="switch" class="switch" @bind="_sendSound" />
+                        <span>@(Scans.IsHosted ? Text["transcribe.sendHosted"] : Text.Format("transcribe.sendElsewhere", listener.Host))</span>
                     </label>
                 }
 
@@ -230,62 +224,11 @@
                 <section class="scan-check" aria-label="@Text["transcribe.checkHeading"]">
                     <h3>@Text["transcribe.checkHeading"]</h3>
                     <p>@Text["transcribe.draft"]</p>
+                    @* Bars and tempo worked out from the notes (0016): changed, or turned off, in the head of the Check drawer (0018 section 9). *@
+                    <p>@(_bars is { } bars ? Text.Format("transcribe.barsReport", bars.Signature, bars.QuarterNotesPerMinute) : Text["transcribe.barsNone"])</p>
                     @if (_cut)
                     {
                         <p class="notice">@Text.Format("transcribe.cut", (ScanService.ServerRecordingSeconds / 60.0).ToString("0.#", Text.Culture))</p>
-                    }
-                </section>
-                @* Bars and tempo worked out from the notes (0016): an inference the player can change or turn off. *@
-                <section class="scan-check" aria-label="@Text["transcribe.barsHeading"]">
-                    <h3>@Text["transcribe.barsHeading"]</h3>
-                    @if (_bars is not { } bars)
-                    {
-                        <p>@Text["transcribe.barsNone"]</p>
-                    }
-                    else
-                    {
-                        <label>
-                            <input type="checkbox" checked="@_barsOn" @onchange="ToggleBars" /> @Text["transcribe.barsOn"]
-                        </label>
-                        @if (_barsOn)
-                        {
-                            <p>@Text.Format("transcribe.barsFound", bars.Signature, bars.QuarterNotesPerMinute)</p>
-                            @if (bars.FollowsPlaying)
-                            {
-                                <p class="meta">@Text["transcribe.barsFollow"]</p>
-                            }
-                            @if (bars.HasPickup)
-                            {
-                                <p class="meta">@Text["transcribe.barsPickup"]</p>
-                            }
-                            @if (bars.ShortBarCount > 0)
-                            {
-                                <p class="meta">@Text.Count("transcribe.shortBars", bars.ShortBarCount)</p>
-                            }
-                            <div class="row">
-                                <label>
-                                    @Text["transcribe.signature"]
-                                    <select value="@bars.Signature.ToString()" @onchange="ChangeSignature">
-                                        @foreach (TimeSignature signature in BarGrid.Signatures)
-                                        {
-                                            <option value="@signature.ToString()">@signature</option>
-                                        }
-                                    </select>
-                                </label>
-                                <button @onclick="() => ChangeTempo(faster: true)" disabled="@(bars.StepsPerBeat * 2 > BarGrid.MostStepsPerBeat)">@Text["transcribe.faster"]</button>
-                                <button @onclick="() => ChangeTempo(faster: false)" disabled="@(bars.StepsPerBeat % 2 != 0)">@Text["transcribe.slower"]</button>
-                            </div>
-                            <p class="meta">@Text["transcribe.tempoHow"]</p>
-                            <div class="row">
-                                <button @onclick="() => ShiftBars(-1)">@Text["transcribe.earlier"]</button>
-                                <button @onclick="() => ShiftBars(1)">@Text["transcribe.later"]</button>
-                            </div>
-                            <p class="meta">@Text["transcribe.shiftHow"]</p>
-                        }
-                        else
-                        {
-                            <p class="meta">@Text["transcribe.barsOff"]</p>
-                        }
                     }
                 </section>
             }
@@ -433,7 +376,6 @@
 
     /// <summary>The bars and tempo worked out from the notes (0016), as found or as the player changed them; null when none were found.</summary>
     private BarGrid? _bars;
-    private bool _barsOn;
     private InputFile? _recordingInput;
 
     /// <summary>Whether a player is signed in, which Motiff Lab's scan server needs.</summary>
@@ -751,13 +693,12 @@
         (_heard, _data, _fileName, _transcriptionEngine) = (Transcribed.Mark(piece), midi, name, result.Engine);
         (_heardSeconds, _cut, _heardRange, _requests) = (seconds, cut, range, requests);
         _bars = BarGrid.Find(piece.Midi!);
-        _barsOn = _bars is not null;
         ShowBars();
     }
 
     private void ClearTranscription()
     {
-        (_heard, _bars, _barsOn) = (null, null, false);
+        (_heard, _bars) = (null, null);
         _piece = null;
         _scan = null;
         _transcriptionEngine = null;
@@ -883,49 +824,8 @@
         return path.ToString();
     }
 
-    /// <summary>The transcription in the bars the player chose, or as the engine wrote it.</summary>
-    private void ShowBars() => _piece = _barsOn && _bars is { } bars ? bars.Apply(_heard!) : _heard;
-
-    private void ToggleBars(ChangeEventArgs args)
-    {
-        _barsOn = args.Value is true;
-        ShowBars();
-    }
-
-    private void ChangeSignature(ChangeEventArgs args)
-    {
-        if (_bars is { } bars && BarGrid.Signatures.FirstOrDefault(signature => signature.ToString() == args.Value as string) is { Numerator: > 1 } chosen)
-        {
-            _bars = BarGrid.Find(_heard!.Midi!, chosen, bars.StepsPerBeat) ?? bars;
-            ShowBars();
-        }
-    }
-
-    /// <summary>Twice or half the tempo: the same notes written in note values half or twice as long.</summary>
-    private void ChangeTempo(bool faster)
-    {
-        if (_bars is not { } bars)
-        {
-            return;
-        }
-
-        int steps = faster ? bars.StepsPerBeat * 2 : bars.StepsPerBeat / 2;
-        if (steps >= BarGrid.FewestStepsPerBeat && steps <= BarGrid.MostStepsPerBeat && (faster || bars.StepsPerBeat % 2 == 0))
-        {
-            _bars = BarGrid.Find(_heard!.Midi!, bars.Signature, steps) ?? bars;
-            ShowBars();
-        }
-    }
-
-    /// <summary>Every bar line a beat earlier or later, for a downbeat the bass misplaced.</summary>
-    private void ShiftBars(int beats)
-    {
-        if (_bars is { } bars)
-        {
-            _bars = bars.Shifted(beats);
-            ShowBars();
-        }
-    }
+    /// <summary>The transcription in the bars worked out from it, or as the engine wrote it when none fit.</summary>
+    private void ShowBars() => _piece = _bars is { } bars ? bars.Apply(_heard!) : _heard;
 
     /// <summary>The importer's tip; for a PDF, photo or recording picked as a file, the screen that reads it is linked instead.</summary>
     private string? TipFor(ImportRejection rejection) => OtherRouteFor(rejection) is null ? rejection.TipIn(MotiffLab.MusicCore.Words.For(Text.Language)) : null;
@@ -953,7 +853,7 @@
         var project = Project.Create($"p_{Guid.NewGuid():N}", piece.FileName, _data, DateTimeOffset.Now) with
         {
             Scan = _scan is null ? null : ScanOrigin.Read(_scanEngine),
-            Transcription = _transcriptionEngine is null ? null : new TranscriptionOrigin(_transcriptionEngine, _barsOn ? _bars : null) { Seams = _seams },
+            Transcription = _transcriptionEngine is null ? null : new TranscriptionOrigin(_transcriptionEngine, _bars) { Seams = _seams },
         };
         // The piece opens at a resume point (0018), so it comes back to where it was left; a scan's Check flags start open.
         if (_scan is { } check)

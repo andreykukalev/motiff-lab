@@ -142,4 +142,38 @@ public class TranscriptionCheckTests
         OpenedProject opened = OpenedProject.Open(project with { Check = null });
         Assert.Equal([(5, CheckReason.PartSeam), (8, CheckReason.PartSeam), (9, CheckReason.PartSeam)], Flags(opened.Project.Check!));
     }
+
+    [Fact]
+    public void A_transcription_takes_other_bars_until_something_is_placed_in_them_and_its_flags_follow()
+    {
+        byte[] midi = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "Transcription", "Fixtures", "transkun-fur-elise.mid"));
+        DateTimeOffset now = DateTimeOffset.Parse("2026-11-04T10:00:00Z", System.Globalization.CultureInfo.InvariantCulture);
+        Project project = Project.Create("p_heard", "transkun-fur-elise.mid", midi, now) with { Transcription = new TranscriptionOrigin("transkun 2") };
+        BarGrid found = project.FindBars()!;
+        project = project.ChangeBars(found);
+        project = project.AddResumePoint(ResumePoint.Start(project.NextResumePointId(), now).Touch(new Tick(4_800), null, true, [], 80, null, true, now));
+        Assert.True(project.CanChangeBars);
+
+        // Twice the tempo: the same notes in note values half as long, the flags worked out for those bars.
+        BarGrid faster = project.FindBars(found.Signature, found.StepsPerBeat * 2)!;
+        Project changed = project.ChangeBars(faster);
+        Assert.Equal(faster, changed.Transcription!.Bars);
+        Assert.Equal("transkun 2", changed.Transcription.Engine);
+        ImportedPiece piece = OpenedProject.Open(changed).Piece;
+        Assert.Equal(CheckFlag.FromTranscription(changed.Transcription, midi, piece), changed.Check);
+        Assert.Equal(faster.Signature, piece.Meter.SignatureAt(new Tick(480 * 16)));
+        ResumePoint point = Assert.Single(changed.ResumePoints);
+        Assert.Equal((Tick.Zero, false, false, 80), (point.At, point.Focused, point.Loop, point.TempoPercent));
+
+        // As the engine wrote it, and back.
+        Assert.Null(changed.ChangeBars(null).Transcription!.Bars);
+        Assert.Equal(found.Shifted(1), changed.ChangeBars(found.Shifted(1)).Transcription!.Bars);
+
+        // Once a bar is checked, its place is kept: the bars stay as they are.
+        Project checkedOne = changed.ResolveCheck(changed.Check![0].Bar);
+        Assert.False(checkedOne.CanChangeBars);
+        Assert.Throws<InvalidOperationException>(() => checkedOne.ChangeBars(found));
+        Assert.False(Project.Create("p_file", "transkun-fur-elise.mid", midi, now).CanChangeBars);
+        Assert.Throws<InvalidOperationException>(() => Project.Create("p_file", "transkun-fur-elise.mid", midi, now).FindBars());
+    }
 }

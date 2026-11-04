@@ -1,10 +1,23 @@
 // Shared steps for the browser tests.
+import AxeBuilder from "@axe-core/playwright";
 import { expect } from "@playwright/test";
 
 // Where the roll draws bar numbers (Scripts/roll/piano-roll.ts): above the notes, right of the pitch names.
 const GUTTER = 40;
 const HEADER = 24;
 const PIXELS_PER_QUARTER = 48;
+
+/**
+ * The WCAG 2.2 AA rules axe finds broken on the page. It is read with reduced motion, so the workspace's bar fades at
+ * once rather than half-way through the reading, and once the transitions running (a theme just switched) have ended:
+ * the rules read the colours the page ends on.
+ */
+export async function violations(page) {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.evaluate(() => Promise.all(document.getAnimations().filter(animation => animation instanceof CSSTransition).map(animation => animation.finished.catch(() => null))));
+    const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();
+    return results.violations.map(v => `${v.id} (${v.impact}): ${v.help}\n  ${v.nodes.slice(0, 5).map(n => n.target.join(" ")).join("\n  ")}`);
+}
 
 /** Opens the lab with Für Elise loaded, and fails on any script error. */
 export async function openFurElise(page) {

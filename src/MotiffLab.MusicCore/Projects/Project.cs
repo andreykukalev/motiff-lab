@@ -1,6 +1,7 @@
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
+using MotiffLab.MusicCore.Import.Midi;
 using MotiffLab.MusicCore.Import.Scan;
 using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Motifs;
@@ -299,6 +300,61 @@ public sealed record Project(
             Check = [.. (Check ?? []).Select(flag => flag.Bar == bar ? flag with { Resolved = resolved } : flag)],
             Scan = Scan is { } scan ? resolved ? scan.Confirm([bar]) : scan.Unconfirm(bar) : null,
         };
+    }
+
+    /// <summary>
+    /// Whether a transcription can still be written in other bars or at another tempo (0018, section 9: the head
+    /// of the Check drawer). Only before the player has put anything on the score: corrections, phrase changes,
+    /// marks, bookmarks, ideas, observations and checked bars are kept by their place in the bars, which would move.
+    /// </summary>
+    public bool CanChangeBars => Transcription is not null && Edits.IsEmpty && Phrases.IsEmpty && ShortPhrases.IsEmpty && Sentences.IsEmpty
+        && Marks.IsEmpty && Bookmarks.Count == 0 && Motifs.Count == 0 && Variations.Count == 0 && Observations.Count == 0
+        && !(Check ?? []).Any(flag => flag.Resolved);
+
+    /// <summary>
+    /// The bars that fit the transcription's notes best (decision record 0016), in the signature and with a beat of
+    /// as many 16ths as asked when given; null when the notes follow no beat.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The project is not a transcription.</exception>
+    public BarGrid? FindBars(TimeSignature? signature = null, int? stepsPerBeat = null)
+    {
+        if (Transcription is null)
+        {
+            throw new InvalidOperationException("Only a transcription has bars worked out from its notes.");
+        }
+
+        MidiImport heard = PieceImporter.Import(FileName, Source).Piece?.Midi
+            ?? throw new ProjectFileException("This project says it was transcribed from a recording, but its piece is not MIDI.");
+        return BarGrid.Find(heard, signature, stepsPerBeat);
+    }
+
+    /// <summary>
+    /// The transcription written in other bars, or as the engine wrote it when <paramref name="bars"/> is null. Its
+    /// Check flags are worked out again for the new bars, and its resume points go back to the start of the piece,
+    /// since every position moves.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The project is not a transcription, or <see cref="CanChangeBars"/> is false.</exception>
+    public Project ChangeBars(BarGrid? bars)
+    {
+        if (Transcription is not { } heard)
+        {
+            throw new InvalidOperationException("Only a transcription's bars can be changed.");
+        }
+
+        if (!CanChangeBars)
+        {
+            throw new InvalidOperationException("The bars cannot change once something has been placed in them.");
+        }
+
+        TranscriptionOrigin origin = new(heard.Engine, bars) { Seams = heard.Seams };
+        Project changed = this with
+        {
+            Transcription = origin,
+            Check = [],
+            ResumePoints = [.. ResumePoints.Select(point => point with { At = Tick.Zero, Passage = null, Focused = false, Loop = false })],
+        };
+        ImportedPiece piece = OpenedProject.Open(changed).Piece;
+        return changed with { Check = CheckFlag.FromTranscription(origin, Source, piece) };
     }
 
     /// <summary>
