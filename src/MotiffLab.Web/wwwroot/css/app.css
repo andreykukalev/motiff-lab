@@ -1518,6 +1518,8 @@ html, body {
 
 .pencil-tools .meta {
     font-size: 0.8rem;
+}
+
 /* The hierarchy line (Structure/HierarchyLine.razor, #133, decision record 0013 section 3): piece › sentence › phrase › bars,
    the selected level on, every other level one tap away; an inferred level is dashed blue as well as tagged. */
 .hierarchy {
