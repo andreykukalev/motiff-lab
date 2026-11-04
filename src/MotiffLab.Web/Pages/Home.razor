@@ -111,6 +111,7 @@ else if (_firstRun is false)
                                 {
                                     <div class="lib-menu" role="group" aria-label="@Text.Format("library.moreFor", title)" @onclick:stopPropagation="true">
                                         <button class="btn quiet" @onclick="() => OpenResumesAsync(summary)"><Icon Name="pages" /> @Text["library.resumePoints"]</button>
+                                        <button class="btn quiet" @onclick="() => ResumeAsync(summary.Id, null, dna: true)" disabled="@_opening"><Icon Name="phrases" /> @Text["dna.title"]</button>
                                         <button class="btn quiet" @onclick="() => ExportAsync(summary.Id)"><Icon Name="export" /> @Text["library.export"]</button>
                                         @if (_confirmDelete == summary.Id)
                                         {

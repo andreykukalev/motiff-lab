@@ -5075,3 +5075,299 @@ body:has(.library) .site-footer {
     -webkit-touch-callout: none;
     user-select: none;
 }
+
+/* Piece DNA (0018 section 11; design/kit/docs/02-design-system.md, "Piece DNA map"; design/kit/ds.css .dna-*, .lane, .mk):
+   a full-screen page on the desk with its own bar, the lanes on one bar axis, the idea cards and the actions at the
+   foot. Positions on the axis come as --x (and --x2 for a stretch), shares of the piece's length. */
+.workspace .dna {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-6);
+    overflow-y: auto;
+    padding: var(--s-3) var(--s-4) var(--s-8);
+    box-sizing: border-box;
+    background: var(--desk);
+    color: var(--ink);
+}
+
+.workspace .dna:focus {
+    outline: none;
+}
+
+.workspace .dna-bar {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    min-height: var(--h-touch);
+    padding: 0 var(--s-4) 0 var(--s-1);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    background: var(--surface);
+    box-shadow: var(--shadow-menu);
+}
+
+.lab.workspace .dna-bar .act {
+    flex: none;
+    width: var(--h-control);
+    height: var(--h-control);
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-s);
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+}
+
+.lab.workspace .dna-bar .act:hover {
+    background: var(--accent-tint);
+}
+
+.workspace .dna-bar .ttl {
+    margin: 0;
+    font: var(--t-title);
+    font-size: 20px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.workspace .dna-bar .sub, .workspace .dna-bar .counts {
+    font: var(--t-label);
+    color: var(--ink-2);
+    white-space: nowrap;
+}
+
+.workspace .dna-bar .sp, .workspace .dna-card .sp {
+    flex: 1;
+}
+
+.workspace .dna-empty, .workspace .dna .lane-empty {
+    margin: 0;
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.workspace .dna-map {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    --name: 168px;
+}
+
+.workspace .dna-row {
+    display: grid;
+    grid-template-columns: var(--name) 1fr;
+    align-items: center;
+    min-height: 40px;
+    border-bottom: 1px solid var(--hairline);
+}
+
+.workspace .dna-row.axis {
+    min-height: 20px;
+    border-bottom: 0;
+}
+
+.workspace .dna-row .lane-name {
+    padding-right: var(--s-3);
+    font: var(--t-label);
+    font-weight: 600;
+}
+
+.workspace .dna-row .lane-name.overline {
+    font: var(--t-overline);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+}
+
+.workspace .dna .lane-track {
+    position: relative;
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+}
+
+.workspace .dna .lanes-title {
+    margin: var(--s-4) 0 var(--s-1);
+    font: var(--t-overline);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+}
+
+.workspace .dna .ideas-empty {
+    max-width: 44rem;
+    padding: var(--s-2) 0 var(--s-3);
+}
+
+.workspace .dna .dna-sec, .workspace .dna .key-block, .workspace .dna .new-bar {
+    position: absolute;
+    left: calc(var(--x) * 100%);
+    width: calc((var(--x2) - var(--x)) * 100%);
+    box-sizing: border-box;
+}
+
+.lab.workspace .dna .dna-sec {
+    top: 4px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid var(--hairline-strong);
+    background: var(--accent-tint);
+    font: var(--t-heading);
+    color: var(--ink);
+    cursor: pointer;
+}
+
+.workspace .dna .bar-no {
+    position: absolute;
+    left: calc(var(--x) * 100%);
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+/* A mark is 10px; its button is the 24px a finger needs. */
+.lab.workspace .dna .mk-hit {
+    position: absolute;
+    left: calc(var(--x) * 100%);
+    width: 24px;
+    height: 24px;
+    margin-left: -12px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    cursor: pointer;
+}
+
+.lab.workspace .dna .mk-hit.on, .lab.workspace .dna .mk-hit:hover {
+    background: var(--accent-tint);
+}
+
+.workspace .dna .mk {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    box-sizing: border-box;
+    border-radius: 50%;
+    background: var(--accent);
+    vertical-align: middle;
+}
+
+.workspace .dna .mk.o {
+    background: transparent;
+    border: 1.5px solid var(--accent);
+}
+
+.workspace .dna .mk.v {
+    width: 0;
+    height: 0;
+    border-radius: 0;
+    background: transparent;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 10px solid var(--accent);
+}
+
+.workspace .dna .key-block {
+    top: 9px;
+    height: 22px;
+    padding: 0 var(--s-2);
+    overflow: hidden;
+    border-radius: var(--r-xs);
+    background: var(--accent-tint);
+    font: var(--t-caption);
+    line-height: 22px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.workspace .dna .key-block.minor {
+    background: var(--plum-tint);
+}
+
+.workspace .dna .new-bar {
+    top: 12px;
+    height: 16px;
+    border-radius: 2px;
+    background: var(--teal-tint);
+    border-left: 2px solid var(--teal);
+}
+
+.workspace .dna-legend {
+    align-self: flex-end;
+    margin: var(--s-2) 0 0;
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.workspace .dna-playhead {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc(var(--name) + var(--x) * (100% - var(--name)));
+    width: 2px;
+    background: var(--accent);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.workspace .dna-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+    gap: var(--s-4);
+}
+
+.workspace .dna-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    padding: var(--s-4);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-m);
+    background: var(--surface);
+}
+
+.workspace .dna-card .ttl {
+    margin: 0;
+    font: var(--t-title);
+    font-size: 17px;
+    letter-spacing: normal;
+    text-transform: none;
+    color: var(--ink);
+}
+
+.workspace .dna-card .caption {
+    margin: 0;
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.workspace .dna-card .row {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.workspace .dna-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-3);
+}
+
+@media (orientation: portrait), (max-width: 720px) {
+    .workspace .dna-map {
+        --name: 112px;
+    }
+}
