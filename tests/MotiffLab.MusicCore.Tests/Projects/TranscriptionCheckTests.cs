@@ -38,6 +38,21 @@ public class TranscriptionCheckTests
     private static (int Bar, CheckReason Reason)[] Flags(IReadOnlyList<CheckFlag> flags) => [.. flags.Select(flag => (flag.Bar, flag.Reason))];
 
     [Fact]
+    public void Every_reason_has_a_name_and_an_explanation_in_english_and_russian()
+    {
+        foreach (CheckReason reason in Enum.GetValues<CheckReason>())
+        {
+            string english = CheckFlag.NameOf(reason, Words.English);
+            string russian = CheckFlag.NameOf(reason, Words.Russian);
+            Assert.False(string.IsNullOrWhiteSpace(english));
+            Assert.NotEqual(english, russian);
+            Assert.Matches("[а-яА-Я]", russian);
+            Assert.EndsWith(".", CheckFlag.Explain(reason, Words.English));
+            Assert.Matches("[а-яА-Я]", CheckFlag.Explain(reason, Words.Russian));
+        }
+    }
+
+    [Fact]
     public void A_seam_flags_the_bars_of_the_notes_either_side_of_it()
     {
         (byte[] midi, ImportedPiece piece) = Heard(Melody());

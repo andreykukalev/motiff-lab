@@ -1655,25 +1655,6 @@ h1, h2, .app-title strong {
     padding-left: 0.75rem;
 }
 
-.lab .scan-check .scan-bars {
-    list-style: none;
-    padding: 0;
-    margin: 0.5rem 0 1rem;
-    display: grid;
-    gap: 0.75rem;
-}
-
-.lab .scan-check .scan-bars li {
-    display: grid;
-    gap: 0.25rem;
-    border-left: 3px solid var(--warning);
-    padding-left: 0.6rem;
-}
-
-.lab .scan-check .scan-bars li.confirmed {
-    border-left-color: var(--accent);
-}
-
 .lab .scan-check .kind {
     color: var(--accent);
 }
@@ -3931,8 +3912,155 @@ body:has(.workspace) .site-footer {
 .lab .score.hide-ink .pencil-layer,
 .lab .score.hide-notes :is(button.marker, div.hl),
 .lab .score.hide-bookmarks button.bmb,
-.lab .score.hide-analysis :is(button.bracket, .highlight-mark) {
+.lab .score.hide-analysis :is(button.bracket, .highlight-mark),
+.lab .score.hide-check button.check-flag {
     display: none;
+}
+
+/* A Check flag (design/kit/ds.css .flag, 02-design-system "Check flag"): an 18 px amber square with "?" above the top right of
+   the uncertain bar, in a 24 px target; gone when resolved. Its "?" is the notation's colour, dark on amber in both themes. */
+.lab .score button.check-flag {
+    position: absolute;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+.lab .score button.check-flag span {
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border-radius: var(--r-xs);
+    background: var(--warning-fill);
+    color: var(--notation);
+    font: 700 11px/1 var(--font-ui);
+    box-shadow: var(--shadow-menu);
+}
+
+.lab .score button.check-flag:focus-visible {
+    outline: 2px dotted var(--accent);
+    outline-offset: 1px;
+}
+
+/* The Check drawer (0018 section 9): where Insights sits, the bars to check with their reasons and actions. */
+.workspace .check-sheet {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+}
+
+.workspace .check-sheet .check-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--s-2);
+}
+
+.workspace .check-sheet .check-head h2 {
+    margin: var(--s-1) 0 0;
+    font: var(--t-title);
+    color: var(--ink);
+}
+
+.workspace .check-sheet .caption {
+    margin: 0;
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.workspace .check-sheet ul.check-list {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.workspace .check-sheet .check-entry {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    padding: var(--s-3) var(--s-2);
+    border-bottom: 1px solid var(--hairline);
+    border-radius: var(--r-s);
+}
+
+.workspace .check-sheet .check-entry.on {
+    background: var(--accent-tint);
+}
+
+.workspace .check-sheet .check-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2);
+    margin: 0;
+    font: var(--t-body);
+    color: var(--ink);
+}
+
+.workspace .check-sheet .flag-square {
+    display: inline-grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border-radius: var(--r-xs);
+    background: var(--warning-fill);
+    color: var(--notation);
+    font: 700 11px/1 var(--font-ui);
+}
+
+.workspace .check-sheet .tag {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 var(--s-2);
+    border-radius: var(--r-xs);
+    font: var(--t-caption);
+    font-weight: 600;
+}
+
+.workspace .check-sheet .tag.warn {
+    background: var(--amber-tint);
+    color: var(--ink);
+}
+
+.workspace .check-sheet .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+}
+
+.lab.workspace .check-sheet .btn.compact {
+    height: var(--h-compact);
+    padding: 0 var(--s-3);
+    font-size: 13px;
+}
+
+.workspace .check-sheet .check-fix {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    overflow-x: auto;
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.workspace .check-sheet .check-fix .meta {
+    margin: 0;
+    font: var(--t-caption);
+}
+
+.workspace .check-sheet .resolved .check-bar {
+    color: var(--ink-2);
 }
 
 /* Highlight in the menu's overflow: the inks as swatches. */
@@ -4322,7 +4450,8 @@ body:has(.library) .site-footer {
     font-weight: 600;
 }
 
-/* Plum is what the app composed (the ideas kept from it) and Pro; amber with --warning text is what Check asks about. */
+/* Plum is what the app composed (the ideas kept from it) and Pro; amber is what Check asks about. Its text is --ink, not the
+   kit's --warning: --warning on the translucent amber falls below 4.5:1 in both themes. */
 .library .tag.saved, .library .tag.pro {
     background: var(--plum-tint);
     color: var(--plum);
@@ -4330,7 +4459,7 @@ body:has(.library) .site-footer {
 
 .library .tag.warn {
     background: var(--amber-tint);
-    color: var(--warning);
+    color: var(--ink);
 }
 
 .library .card .rule {

@@ -1,5 +1,5 @@
 // Scanning printed music (decision record 0011): Settings takes the scan server's address, Import sends
-// a photo there and shows the bars to check, and the workspace opens the piece on its Scan tab. The scan
+// a photo there and shows the bars to check, and the workspace opens the piece with its Check flags and drawer. The scan
 // server is played by the test: it answers with what homr read from a page of Für Elise.
 // Runs in desktop Chromium only (playwright.config.mjs), with the WCAG checks on the new screens.
 import AxeBuilder from "@axe-core/playwright";
@@ -57,17 +57,41 @@ test("a scanned page opens with its doubtful bars to check, and checked bars sta
     expect(uploads).toHaveLength(1);
     expect(await violations(page)).toEqual([]);
 
+    // The workspace opens with the Check drawer beside the score and a flag on each doubtful bar (0018 section 9).
     await page.getByText("Open the piece").click();
-    await expect(page.locator(".sheet.insights .more-tools > button.section-toggle")).toHaveAttribute("aria-expanded", "true");
-    await expect(page.locator(".sheet.insights .more-tools > button.section-toggle")).toHaveText(/More tools · Check the scan/);
-    await expect(check).toContainText("0 bars of 32 checked");
-    await check.getByRole("button", { name: "Show" }).first().click();
+    const drawer = page.locator(".sheet.check-sheet");
+    await expect(drawer.getByRole("heading", { level: 2 })).toHaveText("7 bars to review");
+    await expect(drawer).toContainText("Read from a scan by homr 0.7.0.");
+    const flags = page.locator(".score button.check-flag");
+    await expect(flags).toHaveCount(7);
+    await expect(flags.first()).toHaveAttribute("aria-label", /^Check bar 8: /);
+    const first = drawer.locator(".check-entry").first();
+    await first.getByRole("button", { name: "Show" }).click();
     await expect(page.locator(".selection-status")).toContainText(/bars? 8/);
-    await check.getByRole("button", { name: "Looks right" }).first().click();
-    await expect(check).toContainText("1 bar of 32 checked");
+    await first.getByRole("button", { name: "Fix notes" }).click();
+    await expect(first.locator(".notes-table")).toBeVisible();
+    expect(await violations(page)).toEqual([]);
+    await first.getByRole("button", { name: "Looks right" }).click();
+    await expect(drawer.getByRole("heading", { level: 2 })).toHaveText("6 bars to review");
+    await expect(flags).toHaveCount(6);
+    await expect(drawer.locator(".resolved .check-entry")).toHaveCount(1);
     expect(await violations(page)).toEqual([]);
 
+    // A flag tapped on the score opens the drawer on its bar.
+    await drawer.getByRole("button", { name: "Close Check" }).click();
+    await expect(drawer).toHaveCount(0);
+    await flags.first().click();
+    await expect(drawer.locator(".check-entry.on")).toHaveCount(1);
+
+    // What was checked stays checked.
     await page.reload();
-    await expect(page.locator(".scan-check li.confirmed")).toHaveCount(1);
-    await expect(page.locator(".scan-check")).toContainText("1 bar of 32 checked");
+    await expect(drawer.getByRole("heading", { level: 2 })).toHaveText("6 bars to review", { timeout: 30_000 });
+    await expect(drawer.locator(".resolved .check-entry")).toHaveCount(1);
+    await drawer.locator(".resolved .check-entry").getByRole("button", { name: "Check again" }).click();
+    await expect(flags).toHaveCount(7);
+
+    // The library's card counts the bars still to check.
+    await page.goto("/");
+    await expect(page.locator(".card.piece .tag.warn")).toHaveText("Check · 7 bars to review");
+    expect(await violations(page)).toEqual([]);
 });

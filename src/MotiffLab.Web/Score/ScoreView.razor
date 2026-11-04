@@ -77,6 +77,7 @@ else if (_loading && !HoldHeight)
     private IReadOnlyList<ScoreBookmark>? _shownBookmarks;
     private IReadOnlyList<ScoreMarginNote>? _shownNotes;
     private IReadOnlyList<ScoreHighlightMark>? _shownMarkHighlights;
+    private IReadOnlyList<ScoreCheckFlag>? _shownChecks;
     private IReadOnlyList<string>? _shownHiddenLayers;
     private IReadOnlyList<HighlightPlace>? _shownHighlight;
     private bool _shownHold;
@@ -122,6 +123,14 @@ else if (_loading && !HoldHeight)
     /// <summary>The player's highlights, as bands behind the staves; null or empty draws none.</summary>
     [Parameter]
     public IReadOnlyList<ScoreHighlightMark>? MarkHighlights { get; set; }
+
+    /// <summary>The bars Check asks about (0018 section 9), each with a small amber flag; null or empty draws none.</summary>
+    [Parameter]
+    public IReadOnlyList<ScoreCheckFlag>? Checks { get; set; }
+
+    /// <summary>A Check flag was tapped: its bar's number.</summary>
+    [Parameter]
+    public EventCallback<int> CheckPicked { get; set; }
 
     /// <summary>The layers of marks hidden for a clean page: "ink", "notes", "bookmarks", "analysis".</summary>
     [Parameter]
@@ -273,7 +282,7 @@ else if (_loading && !HoldHeight)
                 await ShowBookmarksAsync(_view);
             }
 
-            if (!ReferenceEquals(Notes, _shownNotes) || !ReferenceEquals(MarkHighlights, _shownMarkHighlights))
+            if (!ReferenceEquals(Notes, _shownNotes) || !ReferenceEquals(MarkHighlights, _shownMarkHighlights) || !ReferenceEquals(Checks, _shownChecks))
             {
                 await ShowMarksAsync(_view);
             }
@@ -344,6 +353,8 @@ else if (_loading && !HoldHeight)
     {
         _shownNotes = Notes;
         _shownMarkHighlights = MarkHighlights;
+        _shownChecks = Checks;
+        await view.InvokeVoidAsync("setChecks", (object)(Checks ?? []).ToArray());
         await view.InvokeVoidAsync("setMarks", (object)(Notes ?? []).ToArray(), (object)(MarkHighlights ?? []).ToArray());
     }
 
@@ -480,6 +491,10 @@ else if (_loading && !HoldHeight)
     /// <summary>Called by the script when a margin note's marker is tapped.</summary>
     [JSInvokable]
     public Task OnNoteMarkerClicked(string id) => NoteMarkerPicked.InvokeAsync(id);
+
+    /// <summary>Called by the script when a Check flag is tapped.</summary>
+    [JSInvokable]
+    public Task OnCheckFlagClicked(int bar) => CheckPicked.InvokeAsync(bar);
 
     /// <summary>Called by the script when a bookmark's bracket is tapped.</summary>
     [JSInvokable]

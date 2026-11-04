@@ -106,7 +106,7 @@ export async function openAdjust(page) {
     return tools;
 }
 
-/** Opens More tools at the end of the sheet: the scan check, hands, corrections and a second file. */
+/** Opens More tools at the end of the sheet: hands, corrections and a second file. */
 export async function openMoreTools(page) {
     const toggle = page.locator(".sheet.insights .more-tools > button.section-toggle");
     if ((await toggle.getAttribute("aria-expanded")) !== "true") {

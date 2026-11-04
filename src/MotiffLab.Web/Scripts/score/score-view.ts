@@ -79,6 +79,9 @@ const BOOKMARK_REACH = 120;
 const NOTE_CLASS = "marker";
 const MARK_HIGHLIGHT_CLASS = "hl";
 
+/** A Check flag (design/kit/ds.css .flag): an amber square with "?", in a 24 px target, above the top right of the bar. */
+const CHECK_CLASS = "check-flag";
+
 /** The marker sits this far right of the bar's top right corner and this far above it. */
 const NOTE_OFFSET_X = 4;
 const NOTE_OFFSET_Y = 22;
@@ -133,7 +136,14 @@ export interface ScoreHighlightMark {
 }
 
 /** The layers of marks (0018 section 5) that can be hidden for a clean page. */
-export type MarkLayer = "ink" | "notes" | "bookmarks" | "analysis";
+export type MarkLayer = "ink" | "notes" | "bookmarks" | "analysis" | "check";
+
+/** A bar Check asks about, as Blazor sends it: its number, where it starts, and what a screen reader says. */
+export interface ScoreCheckFlag {
+    bar: number;
+    tick: number;
+    label: string;
+}
 
 /** A page as the Contents drawer's Pages tab shows it: its picture and the stretch of the piece on it, in ticks. */
 export interface PageOutline {
@@ -186,6 +196,7 @@ export class ScoreView {
     private phrases: ScorePhrase[] = [];
     private bookmarks: ScoreBookmark[] = [];
     private marginNotes: ScoreMarginNote[] = [];
+    private checks: ScoreCheckFlag[] = [];
     private highlights: ScoreHighlightMark[] = [];
     /** The pictures of the pages handed to the Pages tab, freed when new ones are made. */
     private thumbnails: string[] = [];
@@ -389,6 +400,12 @@ export class ScoreView {
         this.placeMarks();
     }
 
+    /** Draws the flags of the bars Check asks about; an empty list draws none. */
+    setChecks(checks: ScoreCheckFlag[]): void {
+        this.checks = checks;
+        this.placeMarks();
+    }
+
     /** Places the contextual menu again, as when a drawer opens beside it. */
     placeMenu(): void {
         this.selection.placeMenu();
@@ -396,7 +413,7 @@ export class ScoreView {
 
     /** Hides the layers named, for a clean page; the others show. */
     setHiddenLayers(hidden: MarkLayer[]): void {
-        for (const layer of ["ink", "notes", "bookmarks", "analysis"] as const) {
+        for (const layer of ["ink", "notes", "bookmarks", "analysis", "check"] as const) {
             this.host.classList.toggle(`hide-${layer}`, hidden.includes(layer));
         }
     }
@@ -751,10 +768,10 @@ export class ScoreView {
     }
 
     private placeMarks(): void {
-        for (const old of this.host.querySelectorAll(`:scope > .${NOTE_CLASS}, :scope > .${MARK_HIGHLIGHT_CLASS}`)) {
+        for (const old of this.host.querySelectorAll(`:scope > .${NOTE_CLASS}, :scope > .${MARK_HIGHLIGHT_CLASS}, :scope > .${CHECK_CLASS}`)) {
             old.remove();
         }
-        const geometry = this.marginNotes.length + this.highlights.length === 0 ? null : this.geometry();
+        const geometry = this.marginNotes.length + this.highlights.length + this.checks.length === 0 ? null : this.geometry();
         if (geometry === null) {
             return;
         }
@@ -770,8 +787,28 @@ export class ScoreView {
                 this.host.append(band);
             }
         }
-        // Notes on the same bar sit side by side.
+        // A Check flag sits at the bar's top right; notes on the same bar sit side by side to its left.
         const onBar = new Map<number, number>();
+        for (const check of this.checks) {
+            const place = geometry.flag(check.tick);
+            if (place === undefined) {
+                continue;
+            }
+            onBar.set(geometry.barAt(check.tick)?.tick ?? check.tick, 1);
+            const flag = document.createElement("button");
+            flag.type = "button";
+            flag.className = CHECK_CLASS;
+            flag.dataset.bar = String(check.bar);
+            flag.setAttribute("aria-label", check.label);
+            flag.title = check.label;
+            const square = document.createElement("span");
+            square.setAttribute("aria-hidden", "true");
+            square.textContent = "?";
+            flag.append(square);
+            flag.style.left = `${place.x - NOTE_OFFSET_X - 24}px`;
+            flag.style.top = `${place.y - NOTE_OFFSET_Y}px`;
+            this.host.append(flag);
+        }
         for (const note of this.marginNotes) {
             const place = geometry.flag(note.tick);
             if (place === undefined) {
@@ -989,6 +1026,11 @@ export class ScoreView {
     }
 
     private readonly onClick = (event: MouseEvent): void => {
+        const checkFlag = event.target instanceof Element ? event.target.closest<HTMLElement>(`.${CHECK_CLASS}`) : null;
+        if (checkFlag !== null) {
+            void this.dotnet.invokeMethodAsync("OnCheckFlagClicked", Number(checkFlag.dataset.bar));
+            return;
+        }
         const marker = event.target instanceof Element ? event.target.closest<HTMLElement>(`.${NOTE_CLASS}`) : null;
         if (marker !== null) {
             void this.dotnet.invokeMethodAsync("OnNoteMarkerClicked", marker.dataset.note);

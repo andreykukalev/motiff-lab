@@ -7,9 +7,9 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.Web.Pages;
 
 /// <summary>
-/// Check the scan (decision record 0011): a piece read from a photo or PDF opens on its own tab, which
-/// lists the bars the rules flag (on the Tools tab, 0012). Show and Correct notes select a bar, and confirming bars marks their
-/// notes as confirmed by the player; corrections go to the edit log as for any piece.
+/// Check the scan (decision record 0011): a piece read from a photo or PDF shows the notes engraved from the event model,
+/// and the bars the rules flag are Check flags (PlaybackLab.Check.cs). Confirming bars marks their notes as confirmed by the
+/// player; corrections go to the edit log as for any piece.
 /// </summary>
 public partial class PlaybackLab
 {
@@ -23,7 +23,7 @@ public partial class PlaybackLab
 
     /// <summary>
     /// Starts the check for a scanned piece: the score shows the notes engraved from the event model, since the
-    /// recognised file carries no printed accidentals or beams, and the inspector opens on Check the scan.
+    /// recognised file carries no printed accidentals or beams.
     /// </summary>
     private void StartScanCheck(ImportedPiece piece)
     {
@@ -32,30 +32,12 @@ public partial class PlaybackLab
         {
             _asWritten = null;
             _scoreChoice = ScoreChoice.Generated;
-            _showMoreTools = true;
-            _insightsOpen = true;
         }
     }
 
-    private Task ShowScanBarAsync(ScanBar bar)
-    {
-        int last = _meter!.ToPosition(new Tick(bar.Span.End.Value - 1)).Bar;
-        return SelectAsync(MotifSelector.Bars(_meter, bar.Bar, last, _score!.End), note: Text.Format("scan.compareBar", bar.Bar));
-    }
-
-    private async Task CorrectScanBarAsync(ScanBar bar)
-    {
-        await ShowScanBarAsync(bar);
-        _showCorrections = true;
-        _showMoreTools = true;
-        _insightsOpen = true;
-    }
-
+    /// <summary>Bars Check did not flag, confirmed once the player compared them with the page.</summary>
     private Task ConfirmScanBarsAsync(IReadOnlyList<int> bars) =>
         _project?.Scan is { } scan ? ChangeScanAsync(scan.Confirm(bars)) : Task.CompletedTask;
-
-    private Task UnconfirmScanBarAsync(int bar) =>
-        _project?.Scan is { } scan ? ChangeScanAsync(scan.Unconfirm(bar)) : Task.CompletedTask;
 
     /// <summary>Marks the notes again for the checked bars and saves the project, keeping corrections, selection and position.</summary>
     private async Task ChangeScanAsync(ScanOrigin scan)
