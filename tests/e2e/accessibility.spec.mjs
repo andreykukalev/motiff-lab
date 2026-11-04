@@ -11,6 +11,8 @@ const midi = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/Midi/Fix
 const tags = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 
 async function violations(page) {
+    // A theme just switched is still fading its colours in: the rules read the colours it ends on.
+    await page.evaluate(() => Promise.all(document.getAnimations().filter(animation => animation instanceof CSSTransition).map(animation => animation.finished.catch(() => null))));
     const results = await new AxeBuilder({ page }).withTags(tags).analyze();
     return results.violations.map(v => `${v.id} (${v.impact}): ${v.help}\n  ${v.nodes.slice(0, 5).map(n => n.target.join(" ")).join("\n  ")}`);
 }
@@ -88,6 +90,31 @@ test("bookmarks: the card over the selection, the brackets on the score, the Con
         expect(await violations(page)).toEqual([]);
         await page.locator(".sheet.contents").getByRole("tab", { name: "Contents" }).click();
     }
+});
+
+test("marks: the note card, a marker, the highlight swatches, the Notes tab and the layers, in both themes", async ({ page }) => {
+    await openFurElise(page);
+    await selectBar(page, 2);
+    await page.locator(".ctx").getByRole("button", { name: "Note", exact: true }).click();
+    await page.locator(".note-card").getByRole("textbox").fill("Pedal");
+    for (const theme of ["daylight", "night"]) {
+        await page.evaluate(name => document.documentElement.setAttribute("data-theme", name), theme);
+        expect(await violations(page)).toEqual([]);
+    }
+    await page.locator(".note-card").getByRole("button", { name: "Done" }).click();
+    await page.locator(".ctx").getByRole("button", { name: "More for the selection" }).click();
+    await page.locator(".ctx .menu-more").getByRole("button", { name: "Highlight in ochre" }).click();
+    await page.locator(".ctx").getByRole("button", { name: "More for the selection" }).click();
+    await page.locator(".bar").getByRole("button", { name: /open the contents/ }).click();
+    await page.locator(".sheet.contents").getByRole("tab", { name: "Notes" }).click();
+    for (const theme of ["daylight", "night"]) {
+        await page.evaluate(name => document.documentElement.setAttribute("data-theme", name), theme);
+        expect(await violations(page)).toEqual([]);
+    }
+    const more = await openMore(page);
+    await more.getByRole("button", { name: "Layers" }).click();
+    await expect(page.locator(".layers-popover")).toBeVisible();
+    expect(await violations(page)).toEqual([]);
 });
 
 test("phrase focus: the card with its ossia, the variation chips, the focus bar and Lead-in, in both themes", async ({ page }) => {

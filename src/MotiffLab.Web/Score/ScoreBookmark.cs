@@ -15,3 +15,13 @@ public sealed record ScoreBookmark(string Id, long Start, long End, string Title
 /// <param name="End">Where the last bar on the page ends, in ticks.</param>
 /// <param name="Url">The page's picture, an object URL the score keeps until it draws new ones.</param>
 public sealed record PageOutline(int Page, long Start, long End, string Url);
+
+/// <summary>A margin note the score marks with its number beside the bar it is about (decision record 0018, section 5).</summary>
+/// <param name="Tick">Where the bar it is about starts.</param>
+/// <param name="Number">Its number beside the bar, from 1 in score order.</param>
+/// <param name="Label">What a screen reader says for the marker, with the note's first words.</param>
+public sealed record ScoreMarginNote(string Id, long Tick, int Number, string Label);
+
+/// <summary>A highlight the score draws as a translucent band behind the staves of its bars.</summary>
+/// <param name="Ink">Its ink as a class: "amber", "carmine", "forest", "ochre" or "graphite".</param>
+public sealed record ScoreHighlightMark(string Id, long Start, long End, string Ink);

@@ -54,17 +54,19 @@ export function ordered(a: ScoreBar, b: ScoreBar): [ScoreBar, ScoreBar] {
 
 /**
  * Where the menu goes for a band (all in window pixels): centred over the band's first run, above its
- * bracket number, or under the band's last run when there is no room above; kept inside the window.
+ * bracket number, or under the band's last run when there is no room above; kept inside the window, and right of
+ * `window.left` when a drawer covers the left of it.
  * `pointer` is where its little arrow sits across the menu.
  */
 export function menuPlace(
     first: { left: number; right: number; top: number },
     last: { bottom: number },
     menu: { width: number; height: number },
-    window: { width: number; height: number },
+    window: { width: number; height: number; left?: number },
 ): { left: number; top: number; below: boolean; pointer: number } {
     const centre = (first.left + first.right) / 2;
-    const left = Math.max(MENU_MARGIN, Math.min(window.width - MENU_MARGIN - menu.width, centre - menu.width / 2));
+    const start = (window.left ?? 0) + MENU_MARGIN;
+    const left = Math.max(start, Math.min(window.width - MENU_MARGIN - menu.width, centre - menu.width / 2));
     const above = first.top - BRACKET_LIFT - NUMBER_HEIGHT - MENU_GAP - menu.height;
     const below = above < MENU_TOP;
     const top = below ? last.bottom + MENU_GAP : above;
@@ -179,7 +181,10 @@ export class SelectionLayer {
         // Bookmarks over the band push the menu up: it sits as far above them as above the bracket number.
         const marks = this.owner.marksTop?.(first) ?? null;
         const top = marks === null ? first.top : Math.min(first.top, marks + BRACKET_LIFT + NUMBER_HEIGHT);
-        const place = menuPlace({ left: first.left, right: first.right, top }, last, size, { width: window.innerWidth, height: window.innerHeight });
+        // A drawer over the left of the page (the Contents) keeps the menu to its right.
+        const drawers = [...document.querySelectorAll<HTMLElement>("[data-menu-clear='left']")].map((drawer) => drawer.getBoundingClientRect().right);
+        const clear = Math.max(0, ...drawers);
+        const place = menuPlace({ left: first.left, right: first.right, top }, last, size, { width: window.innerWidth, height: window.innerHeight, left: clear });
         menu.style.left = `${place.left}px`;
         menu.style.top = `${place.top}px`;
         menu.style.setProperty("--pointer", `${place.pointer}px`);

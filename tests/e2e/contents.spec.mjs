@@ -19,7 +19,7 @@ test("a bookmark made from the menu is drawn on the score and listed in the Cont
     await card(page).getByRole("button", { name: "Done" }).click();
 
     await expect(card(page)).toHaveCount(0);
-    await expect(page.locator(".bookmark-status")).toHaveText("Bookmarked: The leap");
+    await expect(page.locator(".marks-status")).toHaveText("Bookmarked: The leap");
     await expect(page.locator(".score .bmb.ink-graphite").first()).toHaveAttribute("aria-label", "Bookmark: The leap, bar 2");
     await expect(page.locator(".score .bmb .w").first()).toHaveText("The leap");
 
@@ -42,7 +42,7 @@ test("a bookmark made from the menu is drawn on the score and listed in the Cont
 test("B opens the card over the selection, Escape puts it away, and an entry can be changed and deleted", async ({ page }) => {
     const errors = await openFurElise(page);
     await page.keyboard.press("b");
-    await expect(page.locator(".bookmark-status")).toHaveText(/Select bars first/);
+    await expect(page.locator(".marks-status")).toHaveText(/Select bars first/);
 
     await selectBar(page, 3);
     await page.locator("body").press("b");
@@ -75,7 +75,7 @@ test("the form is added as Structure bookmarks, the search finds them, and Pages
     const errors = await openFurElise(page);
     await page.locator(".bar").getByRole("button", { name: /open the contents/ }).click();
     await drawer(page).getByRole("button", { name: "Add Structure bookmarks" }).click();
-    await expect(page.locator(".bookmark-status")).toContainText("Structure bookmark");
+    await expect(page.locator(".marks-status")).toContainText("Structure bookmark");
     await expect(drawer(page).locator("button.cat")).toHaveText(/^Structure · \d+$/);
     await expect(drawer(page).getByRole("button", { name: /^Sentence A, / })).toBeVisible();
     await expect(drawer(page).getByRole("button", { name: "Add Structure bookmarks" })).toHaveCount(0);

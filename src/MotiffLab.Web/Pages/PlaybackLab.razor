@@ -88,7 +88,8 @@
                            MarksChanged="OnPencilMarksChangedAsync" Title="@ScoreTitle.Of(_title)" BarPicked="OnScoreBarPickedAsync" PagesShown="OnPagesShown"
                            BracketPicked="OnBracketPickedAsync" PencilChanged="OnPenChanged" TitleRead="OnTitleRead"
                            Selection="_selection?.Span" BarsChosen="OnScoreBarsChosenAsync" Menu="@(MenuShown ? SelectionMenu : null)"
-                           Bookmarks="ScoreBookmarks" BookmarkPicked="OnBookmarkPickedAsync" />
+                           Bookmarks="ScoreBookmarks" BookmarkPicked="OnBookmarkPickedAsync" Notes="ScoreNotes" MarkHighlights="ScoreHighlights" HiddenLayers="HiddenLayers"
+                           NoteMarkerPicked="OpenNoteAsync" LayersRequested="OpenLayers" />
             }
             else
             {
@@ -157,10 +158,25 @@
                         <button class="btn quiet" @onclick="ResetLevelAsync" disabled="@(_levels is null || _levels.Edits[_level].IsEmpty)">@Text["phrases.resetLevel"]</button>
                     </div>
                     break;
+                case Popover.Layers:
+                    @* The layers of marks (0018 section 5): each hidden for a clean page, or all at once; kept with the piece. *@
+                    <div class="popover layers-popover" role="dialog" aria-label="@Text["layers.title"]" data-keeps-selection>
+                        <p class="overline">@Text["layers.title"]</p>
+                        @foreach (string layer in s_layers)
+                        {
+                            <label class="switch-row">
+                                <span>@LayerName(layer)</span>
+                                <input type="checkbox" role="switch" checked="@LayerShown(layer)" @onchange="() => ToggleLayerAsync(layer)" />
+                            </label>
+                        }
+                        <button class="btn quiet" @onclick="ToggleAllMarksAsync">@(AllMarksHidden ? Text["layers.showAll"] : Text["layers.hideAll"])</button>
+                    </div>
+                    break;
                 case Popover.More:
                     @* The overflow: the layout and the PDF, which notation and what is heard, another piece, and the credits. *@
                     <div class="popover more-popover" role="dialog" aria-label="@Text["bar.more"]" data-keeps-selection>
                         <button class="btn quiet" aria-expanded="@(_contentsOpen ? "true" : "false")" @onclick="ToggleContentsAsync"><Icon Name="bookmark" /> @Text["bar.contents"]</button>
+                        <button class="btn quiet" @onclick="OpenLayers"><Icon Name="layers" /> @Text["layers.title"]</button>
                         @if (_scoreView is not null)
                         {
                             <p class="overline">@Text["score.layout"]</p>
@@ -556,9 +572,9 @@
                 </div>
             }
 
-            @* The selection in words for screen readers, wherever the sheet is (WCAG 4.1.3), and what the last change to the bookmarks did. *@
+            @* The selection in words for screen readers, wherever the sheet is (WCAG 4.1.3), and what the last change to the marks or bookmarks did. *@
             <p class="visually-hidden selection-status" aria-live="polite">@SelectionText</p>
-            <p class="visually-hidden bookmark-status" aria-live="polite">@_bookmarkStatus</p>
+            <p class="visually-hidden marks-status" aria-live="polite">@_marksStatus</p>
         }
     </main>
 </CascadingValue>
@@ -570,7 +586,11 @@
     /// new bookmark is being made, the menu holds its card instead.
     /// </summary>
     private RenderFragment SelectionMenu => @<div class="menu">
-        @if (_bookmarkDraft is { Id: null } draft)
+        @if (_noteDraft is { } note)
+        {
+            @NoteCard(note)
+        }
+        else if (_bookmarkDraft is { Id: null } draft)
         {
             @BookmarkCard(draft)
         }
@@ -578,11 +598,13 @@
         {
             <button class="it @(Looping ? "on" : null)" aria-pressed="@(Looping ? "true" : "false")" @onclick="ToggleLoopSelectionAsync"><Icon Name="loop" /> @Text["focus.loop"]</button>
             <button class="it" title="@Text["focus.enterHint"]" @onclick="MenuFocus"><Icon Name="search" /> @Text["focus.enter"]</button>
+            <button class="it" @onclick="StartNote"><Icon Name="note" /> @Text["menu.note"]</button>
             <button class="it" title="B" @onclick="StartBookmark"><Icon Name="bookmark" /> @Text["menu.bookmark"]</button>
             <span class="div" aria-hidden="true"></span>
             <button class="it @(_rollOpen ? "on" : null)" aria-pressed="@(_rollOpen ? "true" : "false")" @onclick="MenuRoll"><Icon Name="roll" /> @Text["bar.roll"]</button>
             <button class="it @(_insightsOpen ? "on" : null)" aria-pressed="@(_insightsOpen ? "true" : "false")" @onclick="MenuInsights"><Icon Name="insight" /> @Text["bar.insights"]</button>
-            @if (CanMakeUnit || CanMerge || SplitPoint is not null)
+            @* The overflow: Highlight always, and the phrase edits that apply. *@
+            @if (_selection is not null)
             {
                 <span class="div" aria-hidden="true"></span>
                 <button class="it icon @(MenuMoreOpen ? "on" : null)" aria-expanded="@(MenuMoreOpen ? "true" : "false")" aria-label="@Text["menu.more"]" title="@Text["menu.more"]"
@@ -590,6 +612,19 @@
                 @if (MenuMoreOpen)
                 {
                     <div class="menu-more" role="group" aria-label="@Text["menu.more"]">
+                        <div class="highlight-row" role="group" aria-label="@Text["menu.highlight"]">
+                            <span class="caption"><Icon Name="highlight" Size="IconSize.Small" /> @Text["menu.highlight"]</span>
+                            @foreach (InkColour colour in s_highlightInks)
+                            {
+                                bool on = SelectedHighlight?.Colour == colour;
+                                <button class="swatch ink-@colour.ToString().ToLowerInvariant() @(on ? "on" : null)" aria-pressed="@(on ? "true" : "false")"
+                                        aria-label="@Text.Format("menu.highlightIn", InkName(colour))" title="@InkName(colour)" @onclick="() => HighlightAsync(colour)"><span aria-hidden="true"></span></button>
+                            }
+                        </div>
+                        @if (SelectedHighlight is { } highlighted)
+                        {
+                            <button class="it" @onclick="() => RemoveHighlightAsync(highlighted.Id)">@Text["menu.removeHighlight"]</button>
+                        }
                         @if (CanMakeUnit)
                         {
                             <button class="it" @onclick="MakeUnitAsync">@MakeLabel</button>
@@ -636,15 +671,34 @@
         </div>
     </div>;
 
+    /// <summary>The note card over the selection: the player's words about the bars, Done, and Delete for a note already written.</summary>
+    private RenderFragment NoteCard(NoteDraft draft) => @<div class="bookmark-card note-card" role="group" aria-label="@(draft.Id is null ? Text["margin.new"] : Text.Format("margin.about", BarsOf(draft.Span)))">
+        <label class="field">
+            <span class="overline">@Text.Format("margin.about", BarsOf(draft.Span))</span>
+            <textarea rows="3" value="@draft.Text" placeholder="@Text["margin.placeholder"]" @oninput="SetNoteText" @onkeydown="OnNoteKey" @ref="_noteText"></textarea>
+        </label>
+        <div class="row">
+            @if (draft.Id is { } id)
+            {
+                <button class="btn quiet" @onclick="() => DeleteNoteAsync(id)"><Icon Name="trash" /> @Text["bookmark.delete"]</button>
+            }
+            <span class="sp"></span>
+            <button class="btn quiet" @onclick="CancelNote">@Text["bookmark.cancel"]</button>
+            <button class="btn primary" @onclick="SaveNoteAsync">@Text["bookmark.done"]</button>
+        </div>
+    </div>;
+
     /// <summary>
     /// The Contents drawer (0018 section 5) over the left of the page, a bottom sheet in portrait: the player's bookmarks
     /// by category, to search, sort, fold, go to, change or delete, and the pages with their phrases and bookmark ticks.
     /// </summary>
-    private RenderFragment ContentsDrawer => @<aside class="sheet left contents" aria-label="@Text["bar.contents"]" data-keeps-selection>
+    private RenderFragment ContentsDrawer => @<aside class="sheet left contents" aria-label="@Text["bar.contents"]" data-keeps-selection data-menu-clear="left">
         <div class="contents-head">
             <div class="seg" role="tablist" aria-label="@Text["contents.tabs"]">
                 <button role="tab" class="@(_contentsTab == ContentsTab.Contents ? "on" : null)" aria-selected="@(_contentsTab == ContentsTab.Contents ? "true" : "false")"
                         @onclick="() => ShowContentsTabAsync(ContentsTab.Contents)">@Text["contents.tabContents"]</button>
+                <button role="tab" class="@(_contentsTab == ContentsTab.Notes ? "on" : null)" aria-selected="@(_contentsTab == ContentsTab.Notes ? "true" : "false")"
+                        @onclick="() => ShowContentsTabAsync(ContentsTab.Notes)">@Text["contents.tabNotes"]</button>
                 <button role="tab" class="@(_contentsTab == ContentsTab.Pages ? "on" : null)" aria-selected="@(_contentsTab == ContentsTab.Pages ? "true" : "false")"
                         @onclick="() => ShowContentsTabAsync(ContentsTab.Pages)">@Text["contents.tabPages"]</button>
             </div>
@@ -717,6 +771,10 @@
                 }
             }
         }
+        else if (_contentsTab == ContentsTab.Notes)
+        {
+            @NotesTab
+        }
         else if (_pageOutline.Count == 0)
         {
             <p class="meta contents-empty">@Text["contents.pagesStrip"]</p>
@@ -744,6 +802,66 @@
             </ol>
         }
     </aside>;
+
+    /// <summary>The Contents drawer's Notes tab: the margin notes, the highlights by colour and the bars with ink; a tap goes there.</summary>
+    private RenderFragment NotesTab => @<div class="notes-tab">
+        @if (!HasMarks)
+        {
+            <p class="meta contents-empty">@Text["contents.notesEmpty"]</p>
+        }
+        @if (CurrentMarks.Notes.Count > 0)
+        {
+            <p class="cat ink-amber"><span class="d" aria-hidden="true"></span>@Text.Format("contents.category", Text["contents.marginNotes"], CurrentMarks.Notes.Count)</p>
+            <ul class="entries">
+                @foreach (MarginNote note in NotesInOrder)
+                {
+                    <li class="entry">
+                        <button class="go" @onclick="() => OpenNoteAsync(note.Id)">
+                            <span class="t"><span class="num" aria-hidden="true">@NumberOf(note)</span> @FirstWords(note.Text, 80)</span>
+                            <span class="c">@BarsOf(note.Span)</span>
+                        </button>
+                    </li>
+                }
+            </ul>
+        }
+        @if (CurrentMarks.Highlights.Count > 0)
+        {
+            <p class="cat"><span class="d ink-amber" aria-hidden="true"></span>@Text.Format("contents.category", Text["contents.highlights"], CurrentMarks.Highlights.Count)</p>
+            <div class="swatches" role="group" aria-label="@Text["contents.highlightFilter"]">
+                @foreach (InkColour colour in s_highlightInks.Where(colour => CurrentMarks.Highlights.Any(highlight => highlight.Colour == colour)))
+                {
+                    bool on = _highlightFilter == colour;
+                    <button class="swatch ink-@colour.ToString().ToLowerInvariant() @(on ? "on" : null)" aria-pressed="@(on ? "true" : "false")" aria-label="@InkName(colour)" title="@InkName(colour)"
+                            @onclick="() => FilterHighlights(colour)"><span aria-hidden="true"></span></button>
+                }
+            </div>
+            <ul class="entries">
+                @foreach (Highlight highlight in HighlightsListed)
+                {
+                    <li class="entry">
+                        <button class="go" @onclick="() => GoToMarkAsync(highlight.Span)">
+                            <span class="t"><span class="d ink-@highlight.Colour.ToString().ToLowerInvariant()" aria-hidden="true"></span> @Text.Format("contents.highlightEntry", InkName(highlight.Colour))</span>
+                            <span class="c">@BarsOf(highlight.Span)</span>
+                        </button>
+                    </li>
+                }
+            </ul>
+        }
+        @if (InkRuns is { Count: > 0 } runs)
+        {
+            <p class="cat ink-graphite"><span class="d" aria-hidden="true"></span>@Text.Format("contents.category", Text["contents.ink"], CurrentMarks.Ink.Count)</p>
+            <ul class="entries">
+                @foreach (TickSpan run in runs)
+                {
+                    <li class="entry">
+                        <button class="go" @onclick="() => GoToMarkAsync(run)">
+                            <span class="t">@Text.Format("contents.inkEntry", BarsOf(run))</span>
+                        </button>
+                    </li>
+                }
+            </ul>
+        }
+    </div>;
 
     /// <summary>The card of the experiment being tried, which the Insights stream shows under its Try chip.</summary>
     private RenderFragment TrialCard => @<ExploreCard Try="TryExperimentAsync" Leave="LeaveExperimentAsync" HearInContext="HearAnswerAsync"
@@ -1352,6 +1470,8 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         await FocusDraftAsync();
+        await FocusNoteAsync();
+        await PlaceMenuBesideContentsAsync();
         if (firstRender)
         {
             await ReadLayoutPreferencesAsync();
@@ -1976,10 +2096,15 @@
 
     private async Task SelectAsync(TickSpan span, string? note)
     {
-        // A new bookmark's card belongs to the selection it was opened over.
+        // A new bookmark's card, or a note's, belongs to the selection it was opened over.
         if (_bookmarkDraft is { Id: null })
         {
             _bookmarkDraft = null;
+        }
+
+        if (_noteDraft is { } noteDraft && noteDraft.Span != span)
+        {
+            _noteDraft = null;
         }
 
         _selection = MotifSelector.Select(_notes!, _meter!, span, _filter, SelectionCap(span));
@@ -2082,6 +2207,7 @@
 
         _selection = null;
         _bookmarkDraft = _bookmarkDraft is { Id: null } ? null : _bookmarkDraft;
+        _noteDraft = null;
         // Nothing to lift: focus goes with the selection.
         _focus = false;
         _focusSpan = null;

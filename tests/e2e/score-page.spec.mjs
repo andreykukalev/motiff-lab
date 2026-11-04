@@ -137,8 +137,11 @@ test("bars dragged across on the score are selected, the handles move the edges,
     await expect(brackets).toHaveCount(2);
     await expect(selection).toContainText("Selected phrase 2");
 
-    // The last phrase, with the playhead outside it, has nothing to edit: no overflow at all.
-    await expect(menu.getByRole("button", { name: "More for the selection" })).toHaveCount(0);
+    // The last phrase, with the playhead outside it, has no phrase edits: the overflow holds only Highlight.
+    await menu.getByRole("button", { name: "More for the selection" }).click();
+    await expect(menu.getByRole("button", { name: "Highlight in amber" })).toBeVisible();
+    await expect(menu.getByRole("button", { name: /^(Make a phrase|Merge with the next phrase|Split here)$/ })).toHaveCount(0);
+    await menu.getByRole("button", { name: "More for the selection" }).click();
 
     // Split here splits the phrase where the playhead stands, a note tapped in a later bar of it.
     // (Dispatched, as the menu may stand over the bar under the band.)
