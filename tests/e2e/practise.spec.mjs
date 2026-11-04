@@ -1,51 +1,44 @@
-// Practise a phrase (#50, docs/08-central-product-model.md): play it, loop it, slow it down and hear one
-// hand while it loops; moving to the next phrase and switching to Explore and back keep the tempo and the loop.
+// Practise a phrase (#50, docs/08-central-product-model.md; 0018 section 2): the transport pill plays it, loops it, slows
+// it down and plays one hand; moving to the next phrase and opening the Insights sheet keep the tempo, the loop and the hand.
 import { expect, test } from "@playwright/test";
 import { openFurElise, selectBar, openInsights } from "./steps.mjs";
 
 test("practise a phrase: loop it, slow it down, hear one hand and move on", async ({ page }) => {
     const errors = await openFurElise(page);
-    const panel = page.locator(".practise");
+    const pill = page.locator(".pill");
     const selection = page.locator(".selection-status");
-    const tempo = panel.locator(".tempo-steps output");
+    const tempo = pill.locator(".mono");
 
-    await openInsights(page);
-    await expect(page.getByRole("tab", { name: "Practise" })).toHaveAttribute("aria-selected", "true");
-    await expect(panel).toContainText("Tap a phrase's bracket on the score");
     await page.locator(".score button.bracket[aria-label]").first().click();
     await expect(selection).toContainText("Selected phrase 1");
 
-    // The loop and the tempo, within reach.
-    const loop = panel.getByRole("button", { name: "Loop the phrase" });
+    // The loop and the tempo, within reach on the pill.
+    const loop = pill.getByRole("button", { name: "Loop", exact: true });
     await loop.click();
     await expect(loop).toHaveAttribute("aria-pressed", "true");
     await expect(selection).toContainText("Looping");
-    await panel.getByRole("button", { name: "50%" }).click();
+    await pill.getByRole("button", { name: "Tempo 100%" }).click();
+    await page.getByRole("dialog", { name: "Tempo" }).getByRole("button", { name: "50%" }).click();
     await expect(tempo).toHaveText("50%");
-    await panel.getByRole("button", { name: "Faster" }).click();
-    await expect(tempo).toHaveText("55%");
-    await expect(page.locator(".pill .mono")).toHaveText("55%");
 
     // One hand alone while the phrase loops; Für Elise marks the hands by staff.
-    await panel.getByRole("button", { name: "Left hand" }).click();
-    await expect(selection).toContainText("Looping the left hand alone.");
+    await pill.getByRole("button", { name: "Which notes play, light up and can be selected" }).click();
+    await page.getByRole("dialog", { name: "Which notes play, light up and can be selected" }).getByRole("button", { name: "Left hand" }).click();
+    await expect(pill.getByRole("button", { name: "Which notes play, light up and can be selected" })).toContainText("Left hand");
 
     // The next phrase keeps the loop, the tempo and the hand.
-    await panel.getByRole("button", { name: "Next phrase ›" }).click();
+    await page.keyboard.press("PageDown");
     await expect(selection).toContainText("Selected phrase 2");
-    await expect(selection).toContainText("Looping the left hand alone.");
-    await expect(panel.getByRole("button", { name: "Next phrase ›" })).toBeDisabled();
+    await expect(loop).toHaveAttribute("aria-pressed", "true");
+    await expect(pill.getByRole("button", { name: "Which notes play, light up and can be selected" })).toContainText("Left hand");
 
-    // Explore works on the same phrase; coming back, nothing has changed.
-    await openInsights(page, "Explore");
-    await expect(selection).toContainText("Selected phrase 2");
-    await openInsights(page, "Practise");
-    await expect(tempo).toHaveText("55%");
+    // The Insights sheet works on the same phrase; nothing in the loop changes.
+    await openInsights(page);
+    await expect(page.locator(".sheet .selection-text")).toContainText("Selected phrase 2");
+    await page.locator(".bar").getByRole("button", { name: "Insights" }).click();
+    await expect(tempo).toHaveText("50%");
     await expect(loop).toHaveAttribute("aria-pressed", "true");
 
-    await panel.getByRole("button", { name: "Play from the start" }).click();
-    await panel.getByRole("button", { name: "Pause" }).click();
-    await expect(panel.getByRole("button", { name: "Play from the start" })).toBeVisible();
     expect(errors).toEqual([]);
 });
 
@@ -58,8 +51,8 @@ test("the workspace reads in Russian when the app is in Russian (#134)", async (
 
     await expect(page.locator(".selection-status")).toHaveText("Выделено: такт 1: 6 нот.");
     await expect(page.locator(".pill").getByRole("button", { name: "Цикл" })).toBeVisible();
-    await openInsights(page, "Поиграть");
-    await expect(page.locator(".practise")).toContainText("Повторять фразу");
+    await openInsights(page);
+    await expect(page.locator(".stream").getByRole("group", { name: "Показать факты о" })).toContainText("Все");
     // The roll's head: note names on, the notes coloured by hand (0018 section 4).
     await expect(page.locator(".roll-head")).toContainText("Названия нот");
     await expect(page.locator(".roll-head")).toContainText("Цвет: руки");

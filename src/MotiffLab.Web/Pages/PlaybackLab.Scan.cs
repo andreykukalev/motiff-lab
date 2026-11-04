@@ -32,7 +32,7 @@ public partial class PlaybackLab
         {
             _asWritten = null;
             _scoreChoice = ScoreChoice.Generated;
-            _tab = InspectorTab.Tools;
+            _showMoreTools = true;
             _insightsOpen = true;
         }
     }
@@ -47,7 +47,7 @@ public partial class PlaybackLab
     {
         await ShowScanBarAsync(bar);
         _showCorrections = true;
-        _tab = InspectorTab.Tools;
+        _showMoreTools = true;
         _insightsOpen = true;
     }
 

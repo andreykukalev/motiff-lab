@@ -70,7 +70,7 @@ public partial class PlaybackLab
         }
 
         _resumeId = point.Id;
-        _tab = _scanCheck is null ? InspectorTab.Practise : InspectorTab.Tools;
+        _showMoreTools = _scanCheck is not null;
         _insightsOpen |= _scanCheck is not null;
 
         if (point.Passage is { } passage && _selection?.Span != passage.Span)
@@ -86,7 +86,6 @@ public partial class PlaybackLab
         string? idea = IdeaId;
         if (idea is { Length: > 0 } && Kept.FirstOrDefault(kept => kept.Id == idea) is { } observation)
         {
-            _tab = InspectorTab.Explore;
             _insightsOpen = true;
             if (observation.Variation is not null)
             {

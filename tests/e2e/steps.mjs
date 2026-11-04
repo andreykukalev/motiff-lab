@@ -68,15 +68,51 @@ export async function openRoll(page) {
 }
 
 /** Opens the Insights sheet from the bar (0018 section 6), if it is not open, and shows one of its tabs. */
-export async function openInsights(page, tab) {
+export async function openInsights(page) {
     const action = page.locator(".bar").getByRole("button", { name: /^(Insights|Инсайты)$/ });
     if ((await action.getAttribute("aria-pressed")) !== "true") {
         await action.click();
     }
-    await expect(page.locator(".sheet.inspector")).toBeVisible();
-    if (tab !== undefined) {
-        await page.locator(".sheet.inspector").getByRole("tab", { name: tab }).click();
+    await expect(page.locator(".sheet.insights")).toBeVisible();
+    return stream(page);
+}
+
+/** The Insights stream (0018 section 6): facts by lens, their Try chips, the experiment tried and Adjust. */
+export function stream(page) {
+    return page.locator(".sheet.insights .stream");
+}
+
+/** Tries an experiment from its Try chip in the stream, wherever the chip is: on a fact, or under More to try. */
+export async function tryExperiment(page, name) {
+    await stream(page).locator(".try-row").getByRole("button", { name, exact: true }).first().click();
+    await expect(stream(page).locator(".explore h3")).toHaveText(name);
+}
+
+/** Opens Adjust (keep / change / operation): on the experiment being tried, or Shape a variation yourself without one. */
+export async function openAdjust(page) {
+    const adjust = stream(page).locator(".try-row").getByRole("button", { name: /^(Adjust|Настроить)$/ });
+    if (await adjust.count() > 0) {
+        if ((await adjust.first().getAttribute("aria-expanded")) !== "true") {
+            await adjust.first().click();
+        }
+    } else {
+        const own = stream(page).getByRole("button", { name: /^(Shape a variation yourself|Собрать вариацию самому)$/ });
+        if ((await own.getAttribute("aria-expanded")) !== "true") {
+            await own.click();
+        }
     }
+    const tools = stream(page).locator(".adjust");
+    await expect(tools).toBeVisible();
+    return tools;
+}
+
+/** Opens More tools at the end of the sheet: the scan check, hands, corrections and a second file. */
+export async function openMoreTools(page) {
+    const toggle = page.locator(".sheet.insights .more-tools > button.section-toggle");
+    if ((await toggle.getAttribute("aria-expanded")) !== "true") {
+        await toggle.click();
+    }
+    return page.locator(".sheet.insights .more-tools");
 }
 
 /** Opens the bar's overflow (0018 section 2), if it is not open, and gives it. */

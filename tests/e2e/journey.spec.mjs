@@ -1,7 +1,7 @@
 // The core journey of Stage 1 in every browser project: open a piece, select a bar, hear it loop,
 // propose a dotted rhythm and hear it (S1-W4, S1-M1, S1-E1).
 import { expect, test } from "@playwright/test";
-import { openFurElise, selectBar, heardChoice, openInsights } from "./steps.mjs";
+import { openAdjust, openFurElise, selectBar, heardChoice, openInsights } from "./steps.mjs";
 
 /**
  * Clicks a button and measures how long until the playback engine starts, in audio time: from the
@@ -34,9 +34,10 @@ test("open a piece, loop a bar, propose and hear a variation", async ({ page }) 
     await pause.click();
 
     // Picking a reshape plays it at once (S1-W5).
-    await openInsights(page, "Tools");
-    const variation = await startTime(page, page.getByRole("button", { name: "Dotted" }));
-    await expect(page.locator(".inspector .changed p").first()).not.toBeEmpty();
+    await openInsights(page);
+    const adjust = await openAdjust(page);
+    const variation = await startTime(page, adjust.getByRole("button", { name: "Dotted" }));
+    await expect(adjust.locator(".changed p").first()).not.toBeEmpty();
     await expect.poll(() => heardChoice(page)).toBe("Variation");
     await expect(page.getByText(/Bar 1, beat [23]/)).toBeVisible();
     await pause.click();

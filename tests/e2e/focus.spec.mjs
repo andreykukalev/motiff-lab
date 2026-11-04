@@ -3,7 +3,7 @@
 // walk the piece; a variation is engraved as an ossia above the original, with Original / Variation / Alternate in the
 // focus bar and the kept variations as chips; Lead-in on the pill.
 import { expect, test } from "@playwright/test";
-import { openFurElise, openInsights } from "./steps.mjs";
+import { openFurElise, openInsights, tryExperiment } from "./steps.mjs";
 
 const card = page => page.locator(".focus-card");
 const bar = page => page.locator(".bar");
@@ -61,10 +61,9 @@ test("a variation is the ossia above the phrase, heard with Original, Variation 
     await openFurElise(page);
     const bracket = page.locator(".score button.bracket[aria-label]").first();
     await bracket.click();
-    await openInsights(page, "Explore");
-    const explore = page.locator(".explore");
-    await explore.getByRole("button", { name: /Give the melody more space/ }).click();
-    await explore.getByRole("button", { name: "Keep this variation" }).click();
+    await openInsights(page);
+    await tryExperiment(page, "Give the melody more space");
+    await page.locator(".stream").getByRole("button", { name: "Keep this variation" }).click();
     await bar(page).getByRole("button", { name: "Insights" }).click();
 
     await bracket.click();
