@@ -316,6 +316,29 @@ function place(rect: Rect, at: PagePlacement): Rect {
  * bars put in time by the timeline's measure onsets. Every overlay is drawn from here, so it sits the same
  * on A4 pages and on the strip.
  */
+/**
+ * For each system on a page, the box round the given staves of its bars, such as the ossia's above the original in
+ * phrase focus (0018 section 4); a system without them gives none. Staves are numbered as in the document, from 1.
+ */
+export function staffFrames(page: PageGeometry, staves: readonly number[]): Rect[] {
+    const wanted = new Set(staves);
+    const frames: Rect[] = [];
+    for (const system of page.systems) {
+        let frame: Rect | null = null;
+        for (const index of system.bars) {
+            for (const staff of page.bars[index].staves) {
+                if (wanted.has(staff.n)) {
+                    frame = frame === null ? { left: staff.left, top: staff.top, right: staff.right, bottom: staff.bottom } : union(frame, staff);
+                }
+            }
+        }
+        if (frame !== null) {
+            frames.push(frame);
+        }
+    }
+    return frames;
+}
+
 export class ScoreGeometry {
     readonly bars: readonly ScoreBar[];
     readonly systems: readonly ScoreSystem[];

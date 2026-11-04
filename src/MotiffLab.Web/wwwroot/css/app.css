@@ -3252,3 +3252,262 @@ body:has(.workspace) .site-footer {
     justify-content: flex-start;
     border-radius: var(--r-s);
 }
+
+/* Phrase focus (0018 section 4, design/kit/ds.css .veil, .band.focus): the page under the dim veil, the phrase lifted into a
+   card across the screen with previous and next on its edges, the kept variations as plum chips above it. The drawer, the
+   sheet and the pill stay over it; the bar becomes the focus bar. */
+.workspace .focus-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+}
+
+.lab.workspace .focus-layer .veil {
+    position: absolute;
+    inset: 0;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: var(--dim);
+    pointer-events: auto;
+    cursor: zoom-out;
+    animation: veil-in var(--t-slow) var(--ease);
+}
+
+@keyframes veil-in {
+    from {
+        opacity: 0;
+    }
+}
+
+.workspace .focus-stage {
+    position: absolute;
+    top: calc(var(--s-3) + var(--h-touch) + var(--s-5));
+    left: var(--s-4);
+    right: var(--s-4);
+    bottom: calc(52px + 2 * var(--s-4));
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--s-3);
+    transition: bottom var(--t-base) var(--ease), right var(--t-base) var(--ease);
+}
+
+.workspace.roll-open .focus-stage {
+    bottom: calc(40vh + 52px + 2 * var(--s-3));
+}
+
+@media (orientation: portrait) {
+    .workspace.roll-open .focus-stage {
+        bottom: calc(30vh + 52px + 2 * var(--s-3));
+    }
+}
+
+@media (orientation: landscape) {
+    .workspace.insights-open .focus-stage {
+        right: calc(380px + var(--s-3) + var(--s-4));
+    }
+}
+
+.workspace .focus-card {
+    position: relative;
+    min-height: 0;
+    display: flex;
+    background: var(--paper);
+    color: var(--notation);
+    border: 2px solid var(--accent);
+    border-radius: var(--r-m);
+    box-shadow: 0 0 0 6px var(--accent-tint), var(--shadow-sheet);
+    pointer-events: auto;
+    animation: card-lift var(--t-slow) var(--ease);
+}
+
+@keyframes card-lift {
+    from {
+        transform: scale(0.96);
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lab.workspace .focus-layer .veil, .workspace .focus-card {
+        animation: none;
+    }
+}
+
+.workspace .focus-card .phrase-card-score {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    max-height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* Room for the step buttons inside the card's edges. */
+    margin: 0 calc(var(--h-touch) + var(--s-2));
+}
+
+.workspace .focus-card svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    color: var(--notation);
+    fill: currentColor;
+}
+
+.workspace .focus-card svg use {
+    fill: currentColor;
+}
+
+.workspace .focus-card svg [color]:not(.playing) {
+    color: inherit !important;
+}
+
+/* The ossia's name is the overline on its frame, not Verovio's label at its left. */
+.workspace .focus-card svg g.label {
+    display: none;
+}
+
+.workspace .focus-card g.note, .workspace .focus-card g.chord {
+    cursor: pointer;
+}
+
+.workspace .focus-card g.note.playing, .workspace .focus-card g.chord.playing {
+    fill: var(--accent);
+    stroke: var(--accent);
+    color: var(--accent);
+}
+
+/* The ossia (design/kit/ds.css, Ossia panel): a 1.5 px dashed plum frame round its staves, named by an overline on it. */
+.workspace .focus-card .ossia-frame {
+    position: absolute;
+    box-sizing: border-box;
+    border: 1.5px dashed var(--plum);
+    border-radius: var(--r-xs);
+    pointer-events: none;
+}
+
+.workspace .focus-card .ossia-frame .overline {
+    position: absolute;
+    left: var(--s-3);
+    top: -8px;
+    max-width: calc(100% - 2 * var(--s-3));
+    padding: 0 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    background: var(--paper);
+    color: var(--plum);
+    font: var(--t-overline);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+/* Previous and next: 44 px round buttons inside the card's edges. */
+.lab.workspace .focus-card .step {
+    position: absolute;
+    top: 50%;
+    width: var(--h-touch);
+    height: var(--h-touch);
+    min-height: 0;
+    margin-top: calc(var(--h-touch) / -2);
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    border: 1px solid var(--hairline-strong);
+    background: var(--surface-2);
+    color: var(--ink);
+    box-shadow: var(--shadow-menu);
+    cursor: pointer;
+    z-index: 1;
+}
+
+.lab.workspace .focus-card .step.prev {
+    left: var(--s-1);
+}
+
+.lab.workspace .focus-card .step.next {
+    right: var(--s-1);
+}
+
+.lab.workspace .focus-card .step:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.lab.workspace .focus-card .step:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+/* The kept variations (design/kit/ds.css, Ossia panel): 24 px plum-tinted chips that pick the one shown. */
+.workspace .var-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    pointer-events: auto;
+    align-self: flex-start;
+    padding: var(--s-1);
+    border-radius: var(--r-pill);
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
+}
+
+.lab.workspace .var-chips .var-chip {
+    height: 24px;
+    min-height: 0;
+    padding: 0 var(--s-3);
+    border-radius: var(--r-pill);
+    border: 1px solid transparent;
+    background: var(--plum-tint);
+    color: var(--ink);
+    font: var(--t-label);
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.lab.workspace .var-chips .var-chip.on {
+    border-color: var(--plum);
+    font-weight: 600;
+}
+
+/* The focus bar: Back to page with its word, where the phrase is, then the segmented controls and the actions. */
+.lab.workspace .bar .back-to-page {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-1);
+    height: var(--h-control);
+    padding: 0 var(--s-3) 0 var(--s-1);
+    border-radius: var(--r-pill);
+    font-size: 15px;
+    cursor: pointer;
+}
+
+.lab.workspace .bar .back-to-page:hover {
+    background: var(--accent-tint);
+}
+
+.workspace .bar .crumb {
+    min-width: 0;
+    margin-left: var(--s-2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font: var(--t-label);
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+}
+
+.lab.workspace .bar.focus-bar .seg {
+    align-self: center;
+    flex: none;
+    margin-right: var(--s-2);
+}
+
+@media (max-width: 760px) {
+    .lab.workspace .bar .back-to-page span {
+        display: none;
+    }
+}

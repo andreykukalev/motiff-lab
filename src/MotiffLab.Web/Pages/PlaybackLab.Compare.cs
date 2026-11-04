@@ -127,11 +127,11 @@ public partial class PlaybackLab
     /// </summary>
     private async Task<TickSpan> AlternateAsync(MotifSelection selection)
     {
-        TickSpan original = PlayRange(selection, [Player.OriginalSource]);
+        TickSpan original = WithLead(PlayRange(selection, [Player.OriginalSource]));
         await Player.AlternateAsync(
         [
-            new LoopPass([SelectionSource], original),
-            new LoopPass([VariationSource], PlayRange(selection, [VariationSource])),
+            new LoopPass(WithLeadSource([SelectionSource]), original),
+            new LoopPass(WithLeadSource([VariationSource]), WithLead(PlayRange(selection, [VariationSource]))),
         ]);
         return original;
     }

@@ -11,12 +11,13 @@
 import type { BarFrame } from "./pencil-marks.js";
 import { PencilLayer, type PencilState } from "./pencil-layer.js";
 import { type ScoreSelection, SelectionLayer } from "./selection-layer.js";
-import { ScoreTimeline, highlightedIds, type HighlightPlace, type TimemapEntry } from "./score-timeline.js";
+import { ScoreTimeline, highlightedIds, type HighlightPlace } from "./score-timeline.js";
 import { A4_HEIGHT, A4_WIDTH, buildPdf, crop, inkBounds, type InkLayer, type PdfPage } from "./pdf-document.js";
 import { hasText, svgToPdfOperators, textOnlySvg } from "./svg-to-pdf.js";
 import { A4_LAYOUT, pdfFileName, titleBlock, withTitle } from "./score-page.js";
 import { ScoreGeometry, readPage, type PageGeometry, type PagePlacement } from "./score-geometry.js";
 import { downloadBytes } from "../storage/project-store.js";
+import { newToolkit, type VerovioToolkit } from "./verovio.js";
 
 interface DotNetObject {
     invokeMethodAsync(method: string, ...args: unknown[]): Promise<unknown>;
@@ -28,27 +29,6 @@ interface PlayerHandle {
     state(): string;
 }
 
-/** The part of Verovio's VerovioToolkit the view uses. */
-interface VerovioToolkit {
-    setOptions(options: Record<string, unknown>): void;
-    /** 1 when the data was read, 0 when not. */
-    loadData(data: string): number;
-    getPageCount(): number;
-    renderToSVG(page: number): string;
-    renderToTimemap(options?: Record<string, unknown>): TimemapEntry[];
-    redoLayout(options?: Record<string, unknown>): void;
-    /** The MIDI values of an engraved note, its key among them; empty for a rest. */
-    getMIDIValuesForElement(id: string): { pitch?: number };
-    getLog(): string;
-    /** Frees the toolkit's memory; it cannot be used after. */
-    destroy?(): void;
-}
-
-interface VerovioWrapper {
-    VerovioToolkit: new (module: unknown) => VerovioToolkit;
-    enableLogToBuffer(value: boolean, module: unknown): void;
-}
-
 /** What Blazor gets back from a load. */
 export interface ScoreLoadResult {
     pages: number;
@@ -56,8 +36,6 @@ export interface ScoreLoadResult {
     /** The title the first page is headed with, for the bar; null in the strip or when the score has none. */
     title: string | null;
 }
-
-const VEROVIO_BASE = new URL("../../lib/verovio/", import.meta.url);
 
 /** The resolution of the text drawn over a PDF page's vectors: print quality. */
 const PDF_TEXT_DPI = 300;
@@ -108,28 +86,11 @@ export interface ScorePhrase {
     label: string;
 }
 
-let verovio: Promise<{ module: unknown; wrapper: VerovioWrapper }> | null = null;
+/** The toolkit the score view engraves with, made once: the phrase card and the PDF make their own (verovio.ts). */
 let toolkit: Promise<VerovioToolkit> | null = null;
 
-function loadVerovio(): Promise<{ module: unknown; wrapper: VerovioWrapper }> {
-    verovio ??= (async () => {
-        const [factory, wrapper] = await Promise.all([
-            import(new URL("verovio-module.mjs", VEROVIO_BASE).href) as Promise<{ default: () => Promise<unknown> }>,
-            import(new URL("verovio.mjs", VEROVIO_BASE).href) as Promise<VerovioWrapper>,
-        ]);
-        const module = await factory.default();
-        wrapper.enableLogToBuffer(true, module);
-        return { module, wrapper };
-    })();
-    // A failed download can be retried on the next load.
-    verovio.catch(() => {
-        verovio = null;
-    });
-    return verovio;
-}
-
 function loadToolkit(): Promise<VerovioToolkit> {
-    toolkit ??= loadVerovio().then(({ module, wrapper }) => new wrapper.VerovioToolkit(module));
+    toolkit ??= newToolkit();
     toolkit.catch(() => {
         toolkit = null;
     });
@@ -263,9 +224,8 @@ export class ScoreView {
         if (data === null) {
             throw new Error("There is no score to export.");
         }
-        const { module, wrapper } = await loadVerovio();
         // A toolkit of its own, so the score on screen keeps its layout and ids.
-        const engraver = new wrapper.VerovioToolkit(module);
+        const engraver = await newToolkit();
         const svgs: string[] = [];
         try {
             engraver.setOptions({ ...A4_LAYOUT });
@@ -320,7 +280,6 @@ export class ScoreView {
         }
     }
 
-    /** Draws the phrases' brackets above the top staff; an empty list draws none. */
     /** Shows the selection as a band with handles over its bars (0018 section 3); null shows none. */
     setSelection(selection: ScoreSelection | null): void {
         this.selection.setSelection(selection);
@@ -331,6 +290,7 @@ export class ScoreView {
         this.selection.setMenu(menu);
     }
 
+    /** Draws the phrases' brackets above the top staff; an empty list draws none. */
     setPhrases(phrases: ScorePhrase[]): void {
         this.phrases = phrases;
         this.placePhrases();

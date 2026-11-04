@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 test("Try Für Elise opens the example in one tap", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("link", { name: /Try Für Elise/ }).click();
-    await expect(page.getByText("Für Elise (Beethoven, opening)")).toBeVisible();
+    await expect(page.locator(".bar .ttl")).toHaveText("Für Elise (Beethoven, opening)");
 });
 
 test("each way in has its own screen, whose picker takes only what it reads", async ({ page }) => {

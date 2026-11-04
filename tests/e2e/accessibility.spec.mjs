@@ -55,7 +55,8 @@ test("the score page: the bar, its popovers, the pill and its tempo, the roll dr
         await openMore(page);
         expect(await violations(page)).toEqual([]);
         await closePopover(page);
-        await page.locator(".score button.bracket[aria-label]").first().click();
+        // A phrase not selected yet: a second tap on the selected one would lift it into focus.
+        await page.locator(".score button.bracket[aria-label][aria-pressed='false']").first().click();
         await page.locator(".pill").getByRole("button", { name: /^Tempo/ }).click();
         expect(await violations(page)).toEqual([]);
         await page.locator(".pill").getByRole("button", { name: /^Tempo/ }).click();
@@ -65,6 +66,24 @@ test("the score page: the bar, its popovers, the pill and its tempo, the roll dr
         expect(await violations(page)).toEqual([]);
         await page.locator(".bar").getByRole("button", { name: "Pen", exact: true }).click();
         await page.locator(".bar").getByRole("button", { name: "Piano roll" }).click();
+    }
+});
+
+test("phrase focus: the card with its ossia, the variation chips, the focus bar and Lead-in, in both themes", async ({ page }) => {
+    await openFurElise(page);
+    const bracket = page.locator(".score button.bracket[aria-label]").first();
+    await bracket.click();
+    await openInsights(page, "Explore");
+    await page.locator(".explore").getByRole("button", { name: /Give the melody more space/ }).click();
+    await page.locator(".explore").getByRole("button", { name: "Keep this variation" }).click();
+    await page.locator(".bar").getByRole("button", { name: "Insights" }).click();
+    await bracket.click();
+    await expect(page.locator(".focus-card .ossia-frame").first()).toBeVisible();
+    await page.locator(".pill").getByRole("button", { name: "Lead-in" }).click();
+    await page.locator(".pill").getByRole("button", { name: "Pause" }).click();
+    for (const theme of ["daylight", "night"]) {
+        await page.evaluate(name => document.documentElement.setAttribute("data-theme", name), theme);
+        expect(await violations(page)).toEqual([]);
     }
 });
 
@@ -137,7 +156,7 @@ test("the journey by keyboard: open a piece, select bars, loop them", async ({ p
     await expect(load).toBeEnabled({ timeout: 30_000 });
     await load.focus();
     await page.keyboard.press("Enter");
-    await expect(page.getByText("Für Elise (Beethoven, opening)")).toBeVisible();
+    await expect(page.locator(".bar .ttl")).toHaveText("Für Elise (Beethoven, opening)");
 
     // The roll from the bar by keyboard; then ] selects the first bar (the pickup), then the next; Shift+] extends by a bar; Space loops it.
     await page.locator(".bar").getByRole("button", { name: "Piano roll" }).focus();

@@ -1,31 +1,42 @@
 // Previous and next phrase from the keyboard (#126): Page Up and Page Down anywhere on the page, which
-// is also what Bluetooth page-turner pedals send, so a player at the piano can step with a foot.
-// Keys typed into a field, or pressed with a modifier, are left alone.
+// is also what Bluetooth page-turner pedals send, so a player at the piano can step with a foot. Escape
+// leaves phrase focus (0018 section 4). Keys typed into a field, or pressed with a modifier, are left alone.
 
-/** The .NET side: PhraseStrip.StepAsync, -1 for the previous phrase and 1 for the next. */
+/** The .NET side: PlaybackLab.StepAsync, -1 for the previous phrase and 1 for the next, and LeaveFocusAsync. */
 export interface StepTarget {
     invokeMethodAsync(method: "StepAsync", direction: number): Promise<void>;
+    invokeMethodAsync(method: "LeaveFocusAsync"): Promise<void>;
 }
 
-/** -1, 1, or null when the key is not a phrase step or belongs to what has the focus. */
-export function stepFor(event: Pick<KeyboardEvent, "key" | "altKey" | "ctrlKey" | "metaKey" | "shiftKey" | "target">): -1 | 1 | null {
+type KeyPress = Pick<KeyboardEvent, "key" | "altKey" | "ctrlKey" | "metaKey" | "shiftKey" | "target">;
+
+/** Whether a key belongs to what has the focus: a field, or a key pressed with a modifier. */
+function ownedElsewhere(event: KeyPress): boolean {
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
-        return null;
-    }
-    const direction = event.key === "PageUp" ? -1 : event.key === "PageDown" ? 1 : null;
-    if (direction === null) {
-        return null;
+        return true;
     }
     const target = event.target as { tagName?: string; isContentEditable?: boolean } | null;
     const tag = target?.tagName?.toUpperCase();
-    if (target?.isContentEditable || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
-        return null;
-    }
-    return direction;
+    return target?.isContentEditable === true || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+}
+
+/** Whether the key leaves phrase focus: Escape, not typed into a field. */
+export function leavesFocus(event: KeyPress): boolean {
+    return event.key === "Escape" && !ownedElsewhere(event);
+}
+
+/** -1, 1, or null when the key is not a phrase step or belongs to what has the focus. */
+export function stepFor(event: KeyPress): -1 | 1 | null {
+    const direction = event.key === "PageUp" ? -1 : event.key === "PageDown" ? 1 : null;
+    return direction === null || ownedElsewhere(event) ? null : direction;
 }
 
 export class PhraseKeys {
     private readonly onKeyDown = (event: KeyboardEvent): void => {
+        if (leavesFocus(event)) {
+            void this.target.invokeMethodAsync("LeaveFocusAsync");
+            return;
+        }
         const direction = stepFor(event);
         if (direction === null) {
             return;

@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { stepFor } from "../../src/MotiffLab.Web/wwwroot/js/phrases/phrase-keys.js";
+import { leavesFocus, stepFor } from "../../src/MotiffLab.Web/wwwroot/js/phrases/phrase-keys.js";
 
 const key = (name, extra = {}) => ({ key: name, altKey: false, ctrlKey: false, metaKey: false, shiftKey: false, target: { tagName: "BODY" }, ...extra });
 
@@ -23,4 +23,12 @@ test("keys with a modifier or typed into a field are left alone", () => {
     }
     assert.equal(stepFor(key("PageUp", { target: { tagName: "DIV", isContentEditable: true } })), null);
     assert.equal(stepFor(key("PageUp", { target: null })), -1);
+});
+
+test("Escape leaves phrase focus, unless it is typed into a field or pressed with a modifier", () => {
+    assert.equal(leavesFocus(key("Escape")), true);
+    assert.equal(leavesFocus(key("PageDown")), false);
+    assert.equal(leavesFocus(key("Escape", { shiftKey: true })), false);
+    assert.equal(leavesFocus(key("Escape", { target: { tagName: "INPUT" } })), false);
+    assert.equal(stepFor(key("Escape")), null);
 });
