@@ -37,7 +37,7 @@ A `Local.xcconfig` from the old shell (`ios/Config/Local.xcconfig`) can be moved
 
 ## Checks
 
-- The `iPad` workflow (`.github/workflows/ipad.yml`) builds both frameworks, checks the core's C functions on macOS, runs the Swift tests in the iPad simulator and builds for a real iPad, on every pull request that touches this folder, music-core, the tokens, the words or the example. It is not part of CI's five minutes. Swift written in a cloud session is first compiled there.
+- The `iPad` workflow (`.github/workflows/ipad.yml`) builds both frameworks, checks the core's C functions on macOS, runs the Swift tests in the iPad simulator and builds for a real iPad, on a pull request that changes this folder (apart from its notes) or the workflow, or that has the label `ipad-tests`, and after every merge to main that touches anything the app uses (music-core, the tokens, the words, the web's score scripts, the example). The build for a real iPad runs on main only. It is not part of CI's five minutes. Swift written in a cloud session is first compiled there.
 - On Linux: `dotnet publish ipad/Core -c Release -r linux-x64 -o /tmp/core && python3 ipad/Core/check.py /tmp/core/MotiffLabCore.so`.
 
 ## Releases
