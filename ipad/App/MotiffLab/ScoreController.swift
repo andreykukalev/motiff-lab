@@ -70,7 +70,16 @@ final class ScoreController: NSObject, ObservableObject {
         // so a finger still reaches the web view and scrolls the score.
         canvas.backgroundColor = .clear
         canvas.isOpaque = false
+        #if targetEnvironment(simulator)
+        // The simulator has no Pencil and its mouse is a finger: there the mouse writes, and two fingers on the
+        // trackpad (or the wheel) scroll the score.
+        canvas.drawingPolicy = .anyInput
+        webView.scrollView.panGestureRecognizer.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.indirectPointer.rawValue)]
+        #else
         canvas.drawingPolicy = .pencilOnly
+        // The Pencil only writes: the score scrolls under a finger, a mouse or a trackpad, never under the Pencil.
+        webView.scrollView.panGestureRecognizer.allowedTouchTypes = [UITouch.TouchType.direct, .indirectPointer].map { NSNumber(value: $0.rawValue) }
+        #endif
         canvas.isScrollEnabled = false
         canvas.delegate = self
         canvas.frame = webView.bounds
