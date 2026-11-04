@@ -133,6 +133,7 @@
 
         <div class="dna-actions">
             <button class="btn primary" @onclick="() => PlayMap.InvokeAsync()"><Icon Name="@(PlayingAt is null ? "play" : "pause")" /> @(PlayingAt is null ? Text["dna.playMap"] : Text["dna.stop"])</button>
+            <button class="btn secondary" @onclick="() => Ask.InvokeAsync()"><Icon Name="insight" /> @Text["ask.aboutPiece"]</button>
         </div>
     }
 </section>
@@ -174,6 +175,10 @@
     /// <summary>Plays the piece from the start with the map following, or stops it.</summary>
     [Parameter]
     public EventCallback PlayMap { get; set; }
+
+    /// <summary>Ask about the piece: the assistant with whole-piece scope and the map as context.</summary>
+    [Parameter]
+    public EventCallback Ask { get; set; }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

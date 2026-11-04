@@ -427,6 +427,7 @@ public partial class PlaybackLab : IAsyncDisposable
     private void ToggleInsights()
     {
         _insightsOpen = !_insightsOpen;
+        _asking = false;
         _contentsOpen &= !_insightsOpen;
         _checkOpen &= !_insightsOpen;
         _popover = Popover.None;

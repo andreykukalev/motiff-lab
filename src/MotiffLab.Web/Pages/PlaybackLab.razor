@@ -190,6 +190,7 @@
                         <button class="btn quiet" aria-expanded="@(_contentsOpen ? "true" : "false")" @onclick="ToggleContentsAsync"><Icon Name="bookmark" /> @Text["bar.contents"]</button>
                         <button class="btn quiet" @onclick="OpenLayers"><Icon Name="layers" /> @Text["layers.title"]</button>
                         <button class="btn quiet" aria-haspopup="dialog" @onclick="OpenDna"><Icon Name="phrases" /> @Text["dna.title"]</button>
+                        <button class="btn quiet" @onclick="AskAboutPiece"><Icon Name="insight" /> @Text["ask.aboutPiece"]</button>
                         @if (HasCheck)
                         {
                             <button class="btn quiet" aria-expanded="@(_checkOpen ? "true" : "false")" @onclick="ToggleCheck">
@@ -319,7 +320,7 @@
             @if (_dna is { } dna)
             {
                 <MotiffLab.Web.Dna.PieceDnaMap Dna="dna" Meter="_meter!" Title="@BarTitle" Words="Words" PlayingAt="@(_dnaPlaying && Player.State != PlaybackState.Stopped ? Player.Position : null)"
-                                               Closed="CloseDnaAsync" Hear="HearDnaAsync" ShowInScore="ShowDnaInScoreAsync" PlayMap="PlayDnaMapAsync" />
+                                               Closed="CloseDnaAsync" Hear="HearDnaAsync" ShowInScore="ShowDnaInScoreAsync" PlayMap="PlayDnaMapAsync" Ask="AskFromDnaAsync" />
             }
 
             @if (_settingsOpen)
@@ -331,6 +332,13 @@
             {
                 @* The Insights sheet (0018 section 6) over the right of the score: one stream of facts, Try chips and ideas for the selection. *@
                 <aside class="sheet inspector insights" aria-label="@Text["bar.insights"]" data-keeps-selection>
+                @if (_asking)
+                {
+                    <AssistantPanel SelectionLabel="@AskSelectionLabel" WholePiece="@(_askWholePiece || _selection is null)" WholePieceChanged="SetAskWholePiece"
+                                    Knows="AskKnows" Back="LeaveAsk" Closed="ToggleInsights" />
+                }
+                else
+                {
                     <div class="inspector-head">
                         @* Which one sounds while the two loop one after the other is shown, not announced at every pass. *@
                         <p class="selection-text">@SelectionText<span aria-hidden="true">@SoundingText</span></p>
@@ -345,7 +353,7 @@
                         }
                     </div>
 
-                <InsightsStream Choose="ChooseFactAsync" Try="TryExperimentAsync" Keep="KeepExperimentAsync" OpenIdea="ShowKeptVariationAsync"
+                <InsightsStream Choose="ChooseFactAsync" Try="TryExperimentAsync" Keep="KeepExperimentAsync" Ask="MenuAsk" OpenIdea="ShowKeptVariationAsync"
                                 Adjusting="_showOperations" AdjustingChanged="SetAdjusting" TrialCard="TrialCard" AdjustTools="ShapeTools" Ideas="IdeasList" />
                 @if (_variation is not null && _selection is { NoteIds.Count: > 0 })
                 {
@@ -478,6 +486,7 @@
                     }
                 </section>
                 <p class="caption sheet-hint">@Text["insights.hint"]</p>
+                }
                 </aside>
             }
 
@@ -592,7 +601,8 @@
             <button class="it" title="B" @onclick="StartBookmark"><Icon Name="bookmark" /> @Text["menu.bookmark"]</button>
             <span class="div" aria-hidden="true"></span>
             <button class="it @(_rollOpen ? "on" : null)" aria-pressed="@(_rollOpen ? "true" : "false")" @onclick="MenuRoll"><Icon Name="roll" /> @Text["bar.roll"]</button>
-            <button class="it @(_insightsOpen ? "on" : null)" aria-pressed="@(_insightsOpen ? "true" : "false")" @onclick="MenuInsights"><Icon Name="insight" /> @Text["bar.insights"]</button>
+            <button class="it @(_insightsOpen && !_asking ? "on" : null)" aria-pressed="@(_insightsOpen && !_asking ? "true" : "false")" @onclick="MenuInsights"><Icon Name="insight" /> @Text["bar.insights"]</button>
+            <button class="it ask @(_insightsOpen && _asking ? "on" : null)" aria-pressed="@(_insightsOpen && _asking ? "true" : "false")" title="?" @onclick="MenuAsk">@Text["ask.menu"]</button>
             @* The overflow: Highlight always, and the phrase edits that apply. *@
             @if (_selection is not null)
             {
@@ -1200,6 +1210,7 @@
                 <button role="radio" class="@(alternate ? "on" : null)" aria-checked="@(alternate ? "true" : "false")" title="@Text["compare.alternateHint"]" @onclick="StartOneAfterTheOtherAsync">@Text["focus.alternate"]</button>
             </div>
         }
+        <button class="btn quiet ask @(_insightsOpen && _asking ? "on" : null)" aria-pressed="@(_insightsOpen && _asking ? "true" : "false")" title="?" @onclick="MenuAsk">@Text["ask.menu"]</button>
         <button class="act @(_rollOpen ? "on" : null)" aria-pressed="@(_rollOpen ? "true" : "false")" aria-label="@Text["bar.roll"]" title="@Text["bar.roll"]"
                 @onclick="ToggleRoll"><Icon Name="roll" Size="IconSize.Large" /></button>
         <button class="act @(_insightsOpen ? "on" : null)" aria-pressed="@(_insightsOpen ? "true" : "false")" aria-label="@Text["bar.insights"]" title="@Text["bar.insights"]"
