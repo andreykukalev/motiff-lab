@@ -20,13 +20,11 @@
 @using MotiffLab.Web.Import
 @using MotiffLab.Web.Localization
 @using MotiffLab.Web.Observations
-@using MotiffLab.Web.Phrases
 @using MotiffLab.Web.Playback
 @using MotiffLab.Web.Practise
 @using MotiffLab.Web.Projects
 @using MotiffLab.Web.Roll
 @using MotiffLab.Web.Score
-@using MotiffLab.Web.Structure
 @using MotiffLab.Web.Understand
 @implements IDisposable
 @inject IJSRuntime JS
@@ -40,177 +38,210 @@
 
 <PageTitle>@(_title ?? Text["workspace.title"]) · Motiff Lab</PageTitle>
 
-@* The workspace (0012, docs/ui-conventions.md): the piece is the context, the session is the task, and the selected passage is the
-   unit of work. A header with the piece and the session, the score as the primary view with the piano roll under it, an inspector
-   for the passage on the right (Practise, Understand and Explore share the selection; Tools holds the mechanisms), and the
-   transport along the bottom. It also covers S1-W2 to S1-W7, S1-M1, S1-M2, S1-M5, S1-A1 and S1-A2. Files stay on the device. *@
-@* The shared workspace state (decision record 0013): one snapshot per render, which the tabs read; the page is its only writer. *@
+@* The score page (decision record 0018, sections 1 and 2): the score is the whole screen, one continuously scrolling document of
+   A4 pages, with nothing docked. A floating bar carries the title, the page under the top of the view and five actions (Phrases,
+   Pen, Piano roll, Insights, Play) and fades while the player reads; the transport pill appears with a selection or playback;
+   the piano roll is a drawer and the Insights sheet slides over the right. The phrases are brackets on the score at the level
+   the player chose. It also covers S1-W2 to S1-W7, S1-M1, S1-M2, S1-M5, S1-A1 and S1-A2. Files stay on the device. *@
+@* The shared workspace state (decision record 0013): one snapshot per render, which the sheet reads; the page is its only writer. *@
 <CascadingValue Value="State">
-    <main class="lab app @(_focus ? "focus" : null)" @ref="_main">
-        <header class="app-header">
-            <a class="back" href="@BackUrl">‹ @BackLabel</a>
-            <div class="app-title">
-                <strong>@(_title ?? Text["workspace.title"])</strong>
-                <span class="meta">@SessionLine</span>
-            </div>
-            <div class="app-actions">
-                @if (_score is null)
+    <main class="lab app workspace @WorkspaceClass" @ref="_main">
+        @if (_score is null || _meter is null)
+        {
+            @* No piece yet: what to open. The library (0018 section 8) replaces this in a later step. *@
+            <div class="workspace-start">
+                <a class="btn quiet back" href="@BackUrl"><Icon Name="back" /> @BackLabel</a>
+                <h1>@Text["workspace.title"]</h1>
+                @if (Player.Error is not null)
                 {
-                    <button @onclick="LoadFurEliseAsync" disabled="@(!Player.IsReady)" title="@Text["workspace.furEliseHint"]">Für Elise</button>
-                    <label class="file">
+                    <p class="error">@Player.Error</p>
+                }
+                else if (!Player.IsReady)
+                {
+                    <p class="meta">@Text["workspace.loadingPiano"]</p>
+                }
+                @if (_message is not null)
+                {
+                    <p class="error">@_message</p>
+                    <p class="meta">@_tip</p>
+                }
+                else if (Player.IsReady)
+                {
+                    <p class="meta empty-hint">@Text["workspace.emptyHint"]</p>
+                }
+                <div class="row">
+                    <button class="btn primary" @onclick="LoadFurEliseAsync" disabled="@(!Player.IsReady)" title="@Text["workspace.furEliseHint"]">Für Elise</button>
+                    <label class="file btn secondary">
                         @Text["workspace.openFile"]
                         <InputFile OnChange="OpenFileAsync" accept="@PieceImporter.AcceptedExtensions" disabled="@(!Player.IsReady)" />
                     </label>
-                    <a class="button" href="import">@Text["workspace.importWithReport"]</a>
-                }
-                else
-                {
-                    <details class="open-another">
-                        <summary>@Text["workspace.openAnother"]</summary>
-                        <div class="row">
-                            <button @onclick="LoadFurEliseAsync" disabled="@(!Player.IsReady)" title="@Text["workspace.furEliseHint"]">Für Elise</button>
-                            <label class="file">
-                                @Text["workspace.openFile"]
-                                <InputFile OnChange="OpenFileAsync" accept="@PieceImporter.AcceptedExtensions" disabled="@(!Player.IsReady)" />
-                            </label>
-                            <a class="button" href="import">@Text["workspace.importWithReport"]</a>
-                        </div>
-                    </details>
-                }
+                    <a class="btn secondary" href="import">@Text["workspace.importWithReport"]</a>
+                </div>
             </div>
-            @if (_score is not null && _meter is not null)
+        }
+        else
+        {
+            @if (ShownScore is { } shown)
             {
-                @* Which notes play and light up (S1-M2), what is heard, and which score shows. *@
-                <div class="app-view" role="group" aria-label="@Text["workspace.view"]">
-                    @ViewSwitch
-                    <button class="focus-button" @onclick="EnterFocusAsync" title="@Text["focus.hint"]">@Text["focus.enter"]</button>
-                    <label class="pick">
-                        <span>@Text["workspace.notes"]</span>
-                        <select @onchange="SetFilterAsync" aria-label="@Text["workspace.notesLabel"]">
-                            @for (int i = 0; i < _filters.Length; i++)
+                @* Clicks on the page outside the score and the overlays clear the selection, except inside panels marked data-keeps-selection (docs/ui-conventions.md). *@
+                <ScoreView @ref="_scoreView" Source="shown" Range="ShownRange" Phrases="ScorePhrases" Highlight="_highlight?.Places" HoldHeight="false" PencilKey="ShownPencilKey" Ink="@ShownInk"
+                           MarksChanged="OnPencilMarksChangedAsync" Title="@ScoreTitle.Of(_title)" BarPicked="OnScoreBarPickedAsync" PagesShown="OnPagesShown"
+                           BracketPicked="OnBracketPickedAsync" PencilChanged="OnPenChanged" TitleRead="OnTitleRead" />
+            }
+            else
+            {
+                <p class="workspace-notice meta">@Text["score.none"]</p>
+            }
+
+            @* The bar (0018 section 2, design/kit/ds.css .bar): back, the title, the page under the top of the view, the five actions and the overflow. *@
+            <header class="bar" data-keeps-selection @ref="_bar">
+                <a class="act" href="@BackUrl" aria-label="@BackLabel" title="@BackLabel"><Icon Name="back" Size="IconSize.Large" /></a>
+                <span class="ttl" title="@SessionLine">@BarTitle</span>
+                @if (PageText is { } pages)
+                {
+                    <span class="pg" aria-live="off">@pages</span>
+                }
+                <span class="sp"></span>
+                <button class="act @(_popover == Popover.Phrases ? "on" : null)" aria-expanded="@(_popover == Popover.Phrases ? "true" : "false")" aria-label="@Text["bar.phrases"]" title="@Text["bar.phrases"]"
+                        @onclick="() => TogglePopover(Popover.Phrases)"><Icon Name="phrases" Size="IconSize.Large" /></button>
+                @if (_scoreView?.CanDraw == true)
+                {
+                    <button class="act @(_penOn ? "on" : null)" aria-pressed="@(_penOn ? "true" : "false")" aria-label="@Text["bar.pen"]" title="@Text["pencil.hint"]"
+                            @onclick="TogglePenAsync"><Icon Name="pen" Size="IconSize.Large" /></button>
+                }
+                <button class="act @(_rollOpen ? "on" : null)" aria-pressed="@(_rollOpen ? "true" : "false")" aria-label="@Text["bar.roll"]" title="@Text["bar.roll"]"
+                        @onclick="ToggleRoll"><Icon Name="roll" Size="IconSize.Large" /></button>
+                <button class="act @(_insightsOpen ? "on" : null)" aria-pressed="@(_insightsOpen ? "true" : "false")" aria-label="@Text["bar.insights"]" title="@Text["bar.insights"]"
+                        @onclick="ToggleInsights"><Icon Name="insight" Size="IconSize.Large" /></button>
+                <button class="act" @onclick="TogglePlayAsync" aria-label="@(Player.State == PlaybackState.Stopped ? Text["transport.play"] : Text["transport.pause"])">
+                    <Icon Name="@(Player.State != PlaybackState.Stopped ? "pause" : "play")" Size="IconSize.Large" />
+                </button>
+                <button class="act @(_popover == Popover.More ? "on" : null)" aria-expanded="@(_popover == Popover.More ? "true" : "false")" aria-label="@Text["bar.more"]" title="@Text["bar.more"]"
+                        @onclick="() => TogglePopover(Popover.More)"><Icon Name="more" Size="IconSize.Large" /></button>
+            </header>
+
+            @if (_popover != Popover.None)
+            {
+                @* A tap anywhere else puts the popover away. *@
+                <button class="scrim" aria-label="@Text["bar.close"]" tabindex="-1" @onclick="ClosePopover" data-keeps-selection></button>
+            }
+            @switch (_popover)
+            {
+                case Popover.Phrases:
+                    @* The Phrases popover (0018 section 3): the level, the brackets on or off, and Reset to detected. It never lists the phrases. *@
+                    <div class="popover phrases-popover" role="dialog" aria-label="@Text["bar.phrases"]" data-keeps-selection>
+                        <p class="overline">@Text["phrases.levelTitle"]</p>
+                        <div class="seg" role="radiogroup" aria-label="@Text["phrases.levelTitle"]">
+                            @foreach (PhraseLevel level in PhraseLevels.All)
                             {
-                                <option value="@i" selected="@(_filters[i] == _filter)">@FilterLabel(_filters[i])</option>
+                                <button role="radio" class="@(_level == level ? "on" : null)" aria-checked="@(_level == level ? "true" : "false")"
+                                        @onclick="() => SetLevelAsync(level)">@LevelName(level)</button>
                             }
-                            @foreach (string category in s_coreCategories)
-                            {
-                                <option disabled>@Text.Format("workspace.needsAnalysis", Text[category])</option>
-                            }
-                        </select>
-                    </label>
-                    <label class="pick">
-                        <span>@Text["workspace.hear"]</span>
-                        <select @onchange="HearChosenAsync" aria-label="@Text["workspace.hearLabel"]">
-                            @for (int i = 0; i < Sources.Length; i++)
-                            {
-                                <option value="@i" selected="@HearShown(Sources[i].Ids)">@Text[Sources[i].Key]</option>
-                            }
-                        </select>
-                    </label>
-                    <label class="pick">
-                        <span>@Text["workspace.score"]</span>
-                        @* The select's value, not each option's selected attribute: Firefox can fall back to the first option when the options and their selected attributes change in one render. *@
-                        <select @onchange="SetScoreChoice" aria-label="@Text["workspace.scoreLabel"]" value="@ShownChoice.ToString()" disabled="@(!ShowScore)">
-                            @foreach ((ScoreChoice choice, string key) in ScoreChoices)
-                            {
-                                <option value="@choice">@Text[key]</option>
-                            }
-                        </select>
-                    </label>
+                        </div>
+                        <p class="caption">@LevelCount</p>
+                        <label class="switch-row">
+                            <span>@Text["phrases.showBrackets"]</span>
+                            <input type="checkbox" role="switch" checked="@_showBrackets" @onchange="ToggleBracketsAsync" />
+                        </label>
+                        <button class="btn quiet" @onclick="ResetLevelAsync" disabled="@(_levels is null || _levels.Edits[_level].IsEmpty)">@Text["phrases.resetLevel"]</button>
+                    </div>
+                    break;
+                case Popover.More:
+                    @* The overflow: the layout and the PDF, which notation and what is heard, another piece, and the credits. *@
+                    <div class="popover more-popover" role="dialog" aria-label="@Text["bar.more"]" data-keeps-selection>
+                        @if (_scoreView is not null)
+                        {
+                            <p class="overline">@Text["score.layout"]</p>
+                            <div class="seg" role="radiogroup" aria-label="@Text["score.layout"]">
+                                <button role="radio" class="@(_scoreView.Paged ? "on" : null)" aria-checked="@(_scoreView.Paged ? "true" : "false")" title="@Text["score.pagesHint"]" @onclick="() => SetPagedAsync(true)">@Text["score.pages"]</button>
+                                <button role="radio" class="@(_scoreView.Paged ? null : "on")" aria-checked="@(_scoreView.Paged ? "false" : "true")" title="@Text["score.stripHint"]" @onclick="() => SetPagedAsync(false)">@Text["score.strip"]</button>
+                            </div>
+                            <button class="btn quiet" @onclick="ExportPdfAsync" disabled="@_scoreView.Exporting" title="@Text["score.pdfHint"]">
+                                <Icon Name="export" /> @(_scoreView.Exporting ? Text["score.pdfMaking"] : Text["score.pdf"])
+                            </button>
+                        }
+                        <label class="pick">
+                            <span class="overline">@Text["workspace.score"]</span>
+                            @* The select's value, not each option's selected attribute: Firefox can fall back to the first option when the options and their selected attributes change in one render. *@
+                            <select @onchange="SetScoreChoice" aria-label="@Text["workspace.scoreLabel"]" value="@ShownChoice.ToString()">
+                                @foreach ((ScoreChoice choice, string key) in ScoreChoices)
+                                {
+                                    <option value="@choice">@Text[key]</option>
+                                }
+                            </select>
+                        </label>
+                        @if (ShownScore is { } shownScore)
+                        {
+                            <p class="caption score-note">@ScoreNote(shownScore)</p>
+                        }
+                        @if (_heard && ShownScore?.Generated is not null)
+                        {
+                            @* Notes heard in a recording (0016): written for reading, or as close to the playing as notation goes. *@
+                            <div class="seg" role="radiogroup" aria-label="@Text["score.heardMode"]">
+                                <button role="radio" class="@(_readable ? "on" : null)" aria-checked="@(_readable ? "true" : "false")" @onclick="() => SetReadable(true)">@Text["score.readable"]</button>
+                                <button role="radio" class="@(_readable ? null : "on")" aria-checked="@(_readable ? "false" : "true")" @onclick="() => SetReadable(false)">@Text["score.asPlayed"]</button>
+                            </div>
+                        }
+                        <label class="pick">
+                            <span class="overline">@Text["workspace.hear"]</span>
+                            <select @onchange="HearChosenAsync" aria-label="@Text["workspace.hearLabel"]">
+                                @for (int i = 0; i < Sources.Length; i++)
+                                {
+                                    <option value="@i" selected="@HearShown(Sources[i].Ids)">@Text[Sources[i].Key]</option>
+                                }
+                            </select>
+                        </label>
+                        <hr />
+                        <p class="overline">@Text["workspace.openAnother"]</p>
+                        <button class="btn quiet" @onclick="LoadFurEliseAsync" disabled="@(!Player.IsReady)" title="@Text["workspace.furEliseHint"]">Für Elise</button>
+                        <label class="file btn quiet">
+                            @Text["workspace.openFile"]
+                            <InputFile OnChange="OpenFileAsync" accept="@PieceImporter.AcceptedExtensions" disabled="@(!Player.IsReady)" />
+                        </label>
+                        <a class="btn quiet" href="import">@Text["workspace.importWithReport"]</a>
+                        <a class="btn quiet" href="settings">@Text["settings.title"]</a>
+                        <p class="caption"><a href="privacy">@Text["footer.privacy"]</a> · <a href="terms">@Text["footer.terms"]</a></p>
+                        <p class="credit caption">
+                            @Text["credit.piano"] <a href="https://archive.org/details/SalamanderGrandPianoV3">Salamander Grand Piano V3</a> @Text["credit.by"] Alexander Holm,
+                            <a href="https://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a>, @Text["credit.shortened"]
+                            @Text["credit.engraving"] <a href="https://www.verovio.org">Verovio</a> 6.3.0,
+                            <a href="lib/verovio/COPYING.LESSER.txt">LGPL 3.0</a>, <a href="https://github.com/rism-digital/verovio/tree/version-6.3.0">@Text["credit.source"]</a>.
+                        </p>
+                    </div>
+                    break;
+            }
+
+            @if (Player.Error is not null || _message is not null)
+            {
+                <div class="workspace-notice" role="alert">
+                    <p class="error">@(Player.Error ?? _message)</p>
+                    @if (Player.Error is null && _tip is not null)
+                    {
+                        <p class="meta">@_tip</p>
+                    }
                 </div>
             }
-        </header>
 
-        @if (Player.Error is not null)
-        {
-            <p class="error">@Player.Error</p>
-        }
-        else if (!Player.IsReady)
-        {
-            <p class="meta">@Text["workspace.loadingPiano"]</p>
-        }
-        @if (_message is not null)
-        {
-            <p class="error">@_message</p>
-            <p class="meta">@_tip</p>
-        }
-        @if (_score is null && Player.IsReady && _message is null)
-        {
-            <p class="meta empty-hint">@Text["workspace.emptyHint"]</p>
-        }
-
-        @if (_focus && _score is not null && _meter is not null)
-        {
-            @* Focus mode (0012): what playing at the instrument needs, and a way back; the header and the inspector are hidden by CSS. *@
-            <div class="focus-bar" role="toolbar" aria-label="@Text["focus.label"]" data-keeps-selection>
-                <button class="exit" @onclick="LeaveFocusAsync">‹ @Text["focus.exit"]</button>
-                <span class="phrase" aria-live="polite">@SelectionText</span>
-                <div class="steps" role="group" aria-label="@Text["workspace.phrases"]">
-                    <button @onclick="() => StepPhraseAsync(-1)" disabled="@(!CanStep(-1))" aria-label="@StepLabel(-1)" title="@StepLabel(-1)">‹</button>
-                    <button @onclick="() => StepPhraseAsync(1)" disabled="@(!CanStep(1))" aria-label="@StepLabel(1)" title="@StepLabel(1)">›</button>
-                </div>
-                <button class="@(Looping ? "on" : null)" aria-pressed="@(Looping ? "true" : "false")" @onclick="ToggleLoopSelectionAsync" disabled="@(_selection is not { NoteIds.Count: > 0 })">
-                    @(Looping ? Text["focus.looping"] : Text["focus.loop"])
-                </button>
-                @if (_variation is not null && _selection is { NoteIds.Count: > 0 })
-                {
-                    <CompareSwitch Choose="CompareAsync" OneAfterTheOther="ToggleOneAfterTheOtherAsync" />
-                }
-                @ViewSwitch
-            </div>
-        }
-
-        @if (_score is not null && _meter is not null)
-        {
-            <div class="app-body">
-                @* The score first, as the primary view (0012); the roll under it, scrolling within its own panel. *@
-                <section class="canvas" aria-label="@Text["workspace.canvas"]" @ref="_canvas">
-                    @if (_phrases is not null)
-                    {
-                        <HierarchyLine Picked="PickSpanAsync" />
-                        <PhraseStrip Picked="PickPhraseAsync" SentencePicked="PickSentenceAsync" Make="MakePhraseAsync" Join="JoinPhraseAsync" Reset="ResetPhrasesAsync"
-                                     CanExtendBack="@(Extension(-1) is not null)" CanExtendOn="@(Extension(1) is not null)"
-                                     Extend="ExtendSelectionAsync" KeptCount="KeptCount" />
-                    }
-                    @if (ShowScore && ShownScore is { } shown)
-                    {
-                        @* Clicks on the page outside the roll clear the selection, except inside panels marked data-keeps-selection (docs/ui-conventions.md). *@
-                        <div class="score-panel" data-keeps-selection>
-                            @if (_heard && shown.Generated is not null)
-                            {
-                                @* Notes heard in a recording (0016): written for reading, or as close to the playing as notation goes. *@
-                                <div class="row" role="radiogroup" aria-label="@Text["score.heardMode"]">
-                                    <label><input type="radio" name="heard-mode" checked="@_readable" @onchange="() => SetReadable(true)" /> @Text["score.readable"]</label>
-                                    <label><input type="radio" name="heard-mode" checked="@(!_readable)" @onchange="() => SetReadable(false)" /> @Text["score.asPlayed"]</label>
-                                </div>
-                            }
-                            <ScoreView Source="shown" Range="ShownRange" Phrases="ScorePhrases" Highlight="_highlight?.Places" HoldHeight="_alternating" PencilKey="ShownPencilKey" Ink="@ShownInk" MarksChanged="OnPencilMarksChangedAsync" Title="@ScoreTitle.Of(_title)" BarPicked="OnScoreBarPickedAsync" />
-                            <p class="meta">@ScoreNote(shown)</p>
-                        </div>
-                        @if (ShowRoll)
-                        {
-                            @* The divider between the two views: dragged, or moved with the arrow keys, Home and End (WCAG 2.1.1). *@
-                            <div class="divider" role="separator" aria-orientation="horizontal" aria-label="@Text["divider.label"]" title="@Text["divider.hint"]"
-                                 tabindex="0" aria-valuemin="20" aria-valuemax="80" aria-valuenow="@((int)Math.Round(_split * 100))" @ref="_handle" data-keeps-selection></div>
-                        }
-                    }
-                    @if (ShowRoll)
-                    {
-                        <div class="roll-panel">
-                            <PianoRoll Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases"
-                                       Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible" Highlight="_highlight?.Places"
-                                       RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync" />
-                        </div>
-                    }
+            @if (_rollOpen)
+            {
+                @* The piano roll as a drawer (0018 section 4): it slides up over the score and leaves the selection as it is. *@
+                <section class="drawer roll-drawer" aria-label="@Text["bar.roll"]" data-fill="true" data-keeps-selection>
+                    <button class="grab" aria-label="@Text["drawer.close"]" title="@Text["drawer.close"]" @onclick="ToggleRoll"></button>
+                    <PianoRoll Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases"
+                               Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible" Highlight="_highlight?.Places"
+                               RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync" />
                 </section>
+            }
 
-                <aside class="inspector" aria-label="@Text["workspace.inspector"]" data-keeps-selection>
+            @if (_insightsOpen)
+            {
+                @* The Insights sheet (0018 section 6) over the right of the score; it holds the panels of the current build until the stream replaces them. *@
+                <aside class="sheet inspector" aria-label="@Text["bar.insights"]" data-keeps-selection>
                     <div class="inspector-head">
                         @* Which one sounds while the two loop one after the other is shown, not announced at every pass. *@
-                        <p class="selection-text" aria-live="polite">@SelectionText<span aria-hidden="true">@SoundingText</span></p>
+                        <p class="selection-text">@SelectionText<span aria-hidden="true">@SoundingText</span></p>
+                        <button class="btn quiet icon" aria-label="@Text["drawer.close"]" title="@Text["drawer.close"]" @onclick="ToggleInsights"><Icon Name="close" /></button>
                         <div class="inspector-actions">
-                            <button class="@(Looping ? "on" : "primary")" @onclick="ToggleLoopSelectionAsync" disabled="@(_selection is not { NoteIds.Count: > 0 })">
-                                @(Looping ? Text["focus.looping"] : Text["focus.loop"])
-                            </button>
                             <button @onclick="ClearSelectionAsync" disabled="@(_selection is null)">@Text["workspace.clear"]</button>
                         </div>
                         @if (_variation is not null && _selection is { NoteIds.Count: > 0 })
@@ -219,389 +250,425 @@
                         }
                     </div>
 
-                    @* Three ways of working on the same passage, then the mechanisms (0012): switching keeps the selection, the tempo and the loop. *@
-                    <div class="tabs" role="tablist" aria-label="@Text["workspace.inspector"]">
-                        @foreach ((InspectorTab tab, string label) in InspectorTabs)
-                        {
-                            <button role="tab" class="tab" aria-selected="@(_tab == tab ? "true" : "false")" @onclick="() => _tab = tab">@label</button>
-                        }
-                    </div>
+                @* Three ways of working on the same passage, then the mechanisms (0012): switching keeps the selection, the tempo and the loop. *@
+                <div class="tabs" role="tablist" aria-label="@Text["workspace.inspector"]">
+                    @foreach ((InspectorTab tab, string label) in InspectorTabs)
+                    {
+                        <button role="tab" class="tab" aria-selected="@(_tab == tab ? "true" : "false")" @onclick="() => _tab = tab">@label</button>
+                    }
+                </div>
 
-                    <div class="tab-panel" role="tabpanel" aria-label="@_tab">
-                        @switch (_tab)
-                        {
-                            case InspectorTab.Practise:
-                                <PractisePanel PlayPressed="PractisePlayAsync" LoopPressed="ToggleLoopSelectionAsync" Step="StepPhraseAsync"
-                                               TempoChanged="SetTempoPercentAsync" ListenToChanged="PractiseListenToAsync"
-                                               PlayOn="PlayOnAsync" Back="BackToPhraseAsync" />
-                                break;
-                            case InspectorTab.Understand:
-                                @if (Facts.Count == 0)
+                <div class="tab-panel" role="tabpanel" aria-label="@_tab">
+                    @switch (_tab)
+                    {
+                        case InspectorTab.Practise:
+                            <PractisePanel PlayPressed="PractisePlayAsync" LoopPressed="ToggleLoopSelectionAsync" Step="StepPhraseAsync"
+                                           TempoChanged="SetTempoPercentAsync" ListenToChanged="PractiseListenToAsync"
+                                           PlayOn="PlayOnAsync" Back="BackToPhraseAsync" />
+                            break;
+                        case InspectorTab.Understand:
+                            @if (Facts.Count == 0)
+                            {
+                                <p class="meta">@Text["understand.nothingYet"]</p>
+                            }
+                            <UnderstandPanel Choose="ChooseFactAsync" Try="TryFromFactAsync" />
+                            @if (Facts.Count > 0)
+                            {
+                                @* Understanding leads to experimenting on the same passage (0012). *@
+                                <div class="row handoff">
+                                    <button @onclick="() => _tab = InspectorTab.Explore" title="@Text["workspace.toExploreHint"]">@Text["workspace.toExplore"] ›</button>
+                                </div>
+                            }
+                            break;
+                        case InspectorTab.Explore:
+                            <ExploreCard Try="TryExperimentAsync" Hear="CompareAsync" Keep="KeepExperimentAsync" Leave="LeaveExperimentAsync"
+                                         Surprise="SurpriseAsync" HearInContext="HearAnswerAsync" ListenToChanged="SetListenToAsync" FactChosen="ShowFactAsync"
+                                         NoteSaved="SaveKeptNoteAsync" />
+                            @if (_variation is not null && _selection is { NoteIds.Count: > 0 })
+                            {
+                                <ComparePanel />
+                            }
+                            @if (_selection is not null)
+                            {
+                                @* Kept for this phrase (#78): what the player kept about the phrase, to open, rename, export or delete. *@
+                                <ObservationList Heading="@ListedHeading" Rows="KeptRows" SessionOnly="KeptForSessionOnly" CanKeepHeard="CanKeepHeard" CanWrite="true"
+                                                 Status="@ObservationStatus" Open="OpenObservationAsync" Rename="RenameObservationAsync" Note="NoteObservationAsync"
+                                                 Export="ExportObservationAsync" Delete="DeleteObservationAsync" KeepHeard="KeepHeardAsync" Write="WriteNoteAsync" />
+                            }
+                            break;
+                        default:
+                            @if (_scanCheck is not null && _project?.Scan is { } scan)
+                            {
+                                <ScanCheckPanel Check="_scanCheck" Scan="scan" SelectedBars="SelectedScanBars" Show="ShowScanBarAsync" Correct="CorrectScanBarAsync"
+                                                Confirm="ConfirmScanBarsAsync" Unconfirm="UnconfirmScanBarAsync" />
+                            }
+
+                            @* The mechanisms behind the experiments (S1-E1 to S1-E5): Keep, the catalogue's operations and the steps, for shaping a variation by hand. *@
+                            <div class="corrections shape" aria-label="@Text["tools.shape"]">
+                                <button class="section-toggle" aria-expanded="@(_showOperations ? "true" : "false")" @onclick="() => _showOperations = !_showOperations">
+                                    <span class="caret" aria-hidden="true">@(_showOperations ? "▾" : "▸")</span>
+                                    @Text["tools.shape"]
+                                </button>
+                                @if (_showOperations && _selection is { NoteIds.Count: > 0 })
                                 {
-                                    <p class="meta">@Text["understand.nothingYet"]</p>
-                                }
-                                <UnderstandPanel Choose="ChooseFactAsync" Try="TryFromFactAsync" />
-                                @if (Facts.Count > 0)
-                                {
-                                    @* Understanding leads to experimenting on the same passage (0012). *@
-                                    <div class="row handoff">
-                                        <button @onclick="() => _tab = InspectorTab.Explore" title="@Text["workspace.toExploreHint"]">@Text["workspace.toExplore"] ›</button>
+                                    <p class="meta">@Text["tools.shapeHint"]</p>
+                                    <div class="group">
+                                        <h3>@Text["tools.keep"]</h3>
+                                        <select class="preset" @onchange="ApplyPresetChosenAsync" aria-label="@Text["tools.keepPreset"]" title="@(CurrentPreset is { } current ? PresetHint(current) : Text["tools.ownChoiceHint"])">
+                                            @if (CurrentPreset is null)
+                                            {
+                                                <option selected>@Text["tools.ownChoice"]</option>
+                                            }
+                                            @foreach (KeepPreset preset in KeepTable.Presets)
+                                            {
+                                                <option value="@preset.Id" selected="@(_keep.SetEquals(preset.Keep))">@preset.LabelIn(Words)</option>
+                                            }
+                                        </select>
+                                        <div class="keep" role="group" aria-label="@Text["tools.whatToKeep"]" title="@Text["tools.whatToKeepHint"]">
+                                            @foreach (KeepProperty property in Enum.GetValues<KeepProperty>())
+                                            {
+                                                <button class="@KeepClass(property)" aria-pressed="@(_keep.Contains(property) ? "true" : "false")" title="@KeepStatusText(property)" @onclick="() => ToggleKeepAsync(property)">
+                                                    @KeepLabel(property)
+                                                </button>
+                                            }
+                                        </div>
                                     </div>
-                                }
-                                break;
-                            case InspectorTab.Explore:
-                                <ExploreCard Try="TryExperimentAsync" Hear="CompareAsync" Keep="KeepExperimentAsync" Leave="LeaveExperimentAsync"
-                                             Surprise="SurpriseAsync" HearInContext="HearAnswerAsync" ListenToChanged="SetListenToAsync" FactChosen="ShowFactAsync"
-                                             NoteSaved="SaveKeptNoteAsync" />
-                                @if (_variation is not null && _selection is { NoteIds.Count: > 0 })
-                                {
-                                    <ComparePanel />
-                                }
-                                @if (_selection is not null)
-                                {
-                                    @* Kept for this phrase (#78): what the player kept about the phrase, to open, rename, export or delete. *@
-                                    <ObservationList Heading="@ListedHeading" Rows="KeptRows" SessionOnly="KeptForSessionOnly" CanKeepHeard="CanKeepHeard" CanWrite="true"
-                                                     Status="@ObservationStatus" Open="OpenObservationAsync" Rename="RenameObservationAsync" Note="NoteObservationAsync"
-                                                     Export="ExportObservationAsync" Delete="DeleteObservationAsync" KeepHeard="KeepHeardAsync" Write="WriteNoteAsync" />
-                                }
-                                break;
-                            default:
-                                @if (_scanCheck is not null && _project?.Scan is { } scan)
-                                {
-                                    <ScanCheckPanel Check="_scanCheck" Scan="scan" SelectedBars="SelectedScanBars" Show="ShowScanBarAsync" Correct="CorrectScanBarAsync"
-                                                    Confirm="ConfirmScanBarsAsync" Unconfirm="UnconfirmScanBarAsync" />
-                                }
 
-                                @* The mechanisms behind the experiments (S1-E1 to S1-E5): Keep, the catalogue's operations and the steps, for shaping a variation by hand. *@
-                                <div class="corrections shape" aria-label="@Text["tools.shape"]">
-                                    <button class="section-toggle" aria-expanded="@(_showOperations ? "true" : "false")" @onclick="() => _showOperations = !_showOperations">
-                                        <span class="caret" aria-hidden="true">@(_showOperations ? "▾" : "▸")</span>
-                                        @Text["tools.shape"]
-                                    </button>
-                                    @if (_showOperations && _selection is { NoteIds.Count: > 0 })
-                                    {
-                                        <p class="meta">@Text["tools.shapeHint"]</p>
-                                        <div class="group">
-                                            <h3>@Text["tools.keep"]</h3>
-                                            <select class="preset" @onchange="ApplyPresetChosenAsync" aria-label="@Text["tools.keepPreset"]" title="@(CurrentPreset is { } current ? PresetHint(current) : Text["tools.ownChoiceHint"])">
-                                                @if (CurrentPreset is null)
+                                    <div class="group">
+                                        <label class="pick scope" title="@Text["tools.scopeHint"]">
+                                            <span>@Text["tools.change"]</span>
+                                            <select @onchange="SetScope" aria-label="@Text["tools.scopeLabel"]">
+                                                @foreach ((OperationScope scope, string key) in s_scopes)
                                                 {
-                                                    <option selected>@Text["tools.ownChoice"]</option>
-                                                }
-                                                @foreach (KeepPreset preset in KeepTable.Presets)
-                                                {
-                                                    <option value="@preset.Id" selected="@(_keep.SetEquals(preset.Keep))">@preset.LabelIn(Words)</option>
+                                                    <option value="@scope" selected="@(_scope == scope)">@Text[key]</option>
                                                 }
                                             </select>
-                                            <div class="keep" role="group" aria-label="@Text["tools.whatToKeep"]" title="@Text["tools.whatToKeepHint"]">
-                                                @foreach (KeepProperty property in Enum.GetValues<KeepProperty>())
-                                                {
-                                                    <button class="@KeepClass(property)" aria-pressed="@(_keep.Contains(property) ? "true" : "false")" title="@KeepStatusText(property)" @onclick="() => ToggleKeepAsync(property)">
-                                                        @KeepLabel(property)
-                                                    </button>
-                                                }
-                                            </div>
-                                        </div>
+                                        </label>
+                                    </div>
 
-                                        <div class="group">
-                                            <label class="pick scope" title="@Text["tools.scopeHint"]">
-                                                <span>@Text["tools.change"]</span>
-                                                <select @onchange="SetScope" aria-label="@Text["tools.scopeLabel"]">
-                                                    @foreach ((OperationScope scope, string key) in s_scopes)
-                                                    {
-                                                        <option value="@scope" selected="@(_scope == scope)">@Text[key]</option>
-                                                    }
-                                                </select>
-                                            </label>
-                                        </div>
-
-                                        @foreach (OperationGroup group in s_operations)
-                                        {
-                                            string id = group.Operation.Id;
-                                            bool open = _openGroups.Contains(id);
-                                            <div class="group variation" role="group" aria-label="@OperationTitle(group.Operation)">
-                                                <button class="section-toggle" aria-expanded="@(open ? "true" : "false")" @onclick="() => ToggleGroup(id)">
-                                                    <span class="caret" aria-hidden="true">@(open ? "▾" : "▸")</span>
-                                                    @id @OperationTitle(group.Operation)
-                                                    @if (_chain?.Pending?.Operation.Id == id)
-                                                    {
-                                                        <span class="kind">@Text["tools.trying"]</span>
-                                                    }
-                                                </button>
-                                                @if (open)
-                                                {
-                                                    @if (group.Operation.DisabledReason(_keep, Words) is { } disabled)
-                                                    {
-                                                        <p class="meta">@disabled</p>
-                                                    }
-                                                    else if (_scope != OperationScope.All && !group.Operation.Supports(_scope))
-                                                    {
-                                                        <p class="meta">@Text["tools.wholeSelection"]</p>
-                                                    }
-                                                    <div class="choices" role="group" aria-label="@Text[$"op.{group.Operation.Id}.question"]">
-                                                        @foreach (OperationChoice choice in group.Choices)
-                                                        {
-                                                            OperationParameters parameters = Scoped(group, choice);
-                                                            string? reason = OperationUnavailable(group, parameters);
-                                                            bool trying = _chain?.Pending?.Parameters == parameters;
-                                                            <button class="@(trying ? "on" : null)" aria-pressed="@(trying ? "true" : "false")"
-                                                                    disabled="@(reason is not null)" title="@(reason ?? Text[$"op.{choice.Key}.hint"])" @onclick="() => ProposeAsync(group, parameters)">
-                                                                @ChoiceLabel(choice)
-                                                            </button>
-                                                        }
-                                                    </div>
-                                                }
-                                            </div>
-                                        }
-
-                                        <div class="group">
-                                            @if (StepsText is { } steps)
-                                            {
-                                                <p class="steps" aria-live="polite">@steps</p>
-                                            }
-                                            <div class="step-buttons" role="group" aria-label="@Text["tools.steps"]">
-                                                <button class="primary" @onclick="AcceptStepAsync" disabled="@(_chain?.AcceptDisabledReason is not null)" title="@(_chain?.AcceptDisabledReason ?? Text["tools.acceptHint"])">@Text["tools.accept"]</button>
-                                                <button @onclick="RejectStepAsync" disabled="@(_chain?.Pending is null)" title="@Text["tools.rejectHint"]">@Text["tools.reject"]</button>
-                                                <button @onclick="UndoStepAsync" disabled="@(_chain?.CanUndo != true)" title="@Text["tools.undoHint"]">@Text["tools.undo"]</button>
-                                                <button @onclick="RedoStepAsync" disabled="@(_chain?.CanRedo != true)" title="@Text["tools.redoHint"]">@Text["tools.redo"]</button>
-                                            </div>
-                                        </div>
-
-                                        <div class="changed" aria-live="polite">
-                                            <h3>@Text["tools.whatChanged"]</h3>
-                                            <p>@(ExplanationText ?? Text["tools.pickChange"])</p>
-                                            @foreach (string flag in _variation?.Flags ?? [])
-                                            {
-                                                <p class="meta">@Text.Format("tools.check", flag)</p>
-                                            }
-                                        </div>
-                                        @if (_variation is not null)
-                                        {
-                                            <ComparePanel ShowFlags="false" />
-                                        }
-
-                                        <div class="group">
-                                            <div class="row">
-                                                <button @onclick="() => AuditionAsync(variation: false)">@Text["tools.hearOriginal"]</button>
-                                                <button @onclick="() => AuditionAsync(variation: true)" disabled="@(_variation is null)">@Text["tools.hearVariation"]</button>
-                                                <button @onclick="RemoveVariationAsync" disabled="@(_variation is null)">@Text["tools.removeVariation"]</button>
-                                            </div>
-                                            <div class="row">
-                                                <button @onclick="() => ExportMidiAsync(variation: false)" title="@Text["tools.exportMotifHint"]">@Text["tools.exportMotif"]</button>
-                                                <button @onclick="() => ExportMidiAsync(variation: true)" disabled="@(_variation is null)" title="@Text["tools.exportVariationHint"]">@Text["tools.exportVariation"]</button>
-                                            </div>
-                                        </div>
-                                    }
-                                    else if (_showOperations)
+                                    @foreach (OperationGroup group in s_operations)
                                     {
-                                        <p class="meta">@Text["tools.selectFirst"]</p>
-                                    }
-                                </div>
-
-                                @if (_selection is { NoteIds.Count: > 0 } chosen)
-                                {
-                                    @* S1-E7, S1-E9: edit single notes of the variation; each edit is a step, and the Keep chips are checked again after it. *@
-                                    <div class="corrections" aria-label="@Text["edit.label"]">
-                                        <button class="section-toggle" aria-expanded="@(_showHandEdits ? "true" : "false")" @onclick="() => _showHandEdits = !_showHandEdits">
-                                            <span class="caret" aria-hidden="true">@(_showHandEdits ? "▾" : "▸")</span>
-                                            @Text.Format("edit.toggle", Text.Count("edit.edits", HandEditCount))
-                                        </button>
-                                        @if (_showHandEdits)
-                                        {
-                                            <p class="meta">@Text["edit.hint"]</p>
-                                            <table class="notes-table">
-                                                <thead>
-                                                    <tr><th scope="col">@Text["notes.note"]</th><th scope="col">@Text["notes.where"]</th><th scope="col">@Text["notes.length"]</th><th scope="col">@Text["notes.velocity"]</th><th scope="col"></th></tr>
-                                                </thead>
-                                                <tbody>
-                                                    @foreach (Note note in HeardNotes(chosen))
-                                                    {
-                                                        bool edited = note.Attribution.Provenance == Provenance.UserEdited;
-                                                        <tr class="@(edited ? "edited" : null)">
-                                                            <td>
-                                                                <button title="@Text["notes.lower"]" @onclick="() => EditNoteAsync(note, pitch: -1)">▼</button>
-                                                                @note.Pitch
-                                                                <button title="@Text["notes.higher"]" @onclick="() => EditNoteAsync(note, pitch: 1)">▲</button>
-                                                            </td>
-                                                            <td>
-                                                                <button title="@Text["notes.earlier"]" disabled="@(note.Span.Onset.Value - SixteenthTicks < chosen.Span.Onset.Value)" @onclick="() => EditNoteAsync(note, onset: -SixteenthTicks)">◀</button>
-                                                                @NotePosition(note)
-                                                                <button title="@Text["notes.later"]" @onclick="() => EditNoteAsync(note, onset: SixteenthTicks)">▶</button>
-                                                            </td>
-                                                            <td>
-                                                                <button title="@Text["notes.shorter"]" disabled="@(note.Span.Duration <= SixteenthTicks)" @onclick="() => EditNoteAsync(note, length: -SixteenthTicks)">−</button>
-                                                                @VariationFacts.Length(note.Span.Duration, Words)
-                                                                <button title="@Text["notes.longer"]" @onclick="() => EditNoteAsync(note, length: SixteenthTicks)">+</button>
-                                                            </td>
-                                                            <td>
-                                                                <button title="@Text["notes.softer"]" disabled="@(note.Velocity <= Note.MinVelocity)" @onclick="() => EditNoteAsync(note, velocity: -10)">−</button>
-                                                                @note.Velocity
-                                                                <button title="@Text["notes.louder"]" disabled="@(note.Velocity >= Note.MaxVelocity)" @onclick="() => EditNoteAsync(note, velocity: 10)">+</button>
-                                                            </td>
-                                                            <td>
-                                                                <button title="@Text["notes.addAfterHint"]" @onclick="() => AddNoteAfterAsync(note)">@Text["notes.addAfter"]</button>
-                                                                <button title="@Text["notes.removeFromVariationHint"]" @onclick="() => RemoveVariationNoteAsync(note)">@Text["notes.remove"]</button>
-                                                                @if (edited)
-                                                                {
-                                                                    <span class="kind">@Text["notes.editedByYou"]</span>
-                                                                }
-                                                            </td>
-                                                        </tr>
-                                                    }
-                                                </tbody>
-                                            </table>
-                                            @if (_handEditNote is not null)
+                                        string id = group.Operation.Id;
+                                        bool open = _openGroups.Contains(id);
+                                        <div class="group variation" role="group" aria-label="@OperationTitle(group.Operation)">
+                                            <button class="section-toggle" aria-expanded="@(open ? "true" : "false")" @onclick="() => ToggleGroup(id)">
+                                                <span class="caret" aria-hidden="true">@(open ? "▾" : "▸")</span>
+                                                @id @OperationTitle(group.Operation)
+                                                @if (_chain?.Pending?.Operation.Id == id)
+                                                {
+                                                    <span class="kind">@Text["tools.trying"]</span>
+                                                }
+                                            </button>
+                                            @if (open)
                                             {
-                                                <p class="meta" aria-live="polite">@_handEditNote</p>
+                                                @if (group.Operation.DisabledReason(_keep, Words) is { } disabled)
+                                                {
+                                                    <p class="meta">@disabled</p>
+                                                }
+                                                else if (_scope != OperationScope.All && !group.Operation.Supports(_scope))
+                                                {
+                                                    <p class="meta">@Text["tools.wholeSelection"]</p>
+                                                }
+                                                <div class="choices" role="group" aria-label="@Text[$"op.{group.Operation.Id}.question"]">
+                                                    @foreach (OperationChoice choice in group.Choices)
+                                                    {
+                                                        OperationParameters parameters = Scoped(group, choice);
+                                                        string? reason = OperationUnavailable(group, parameters);
+                                                        bool trying = _chain?.Pending?.Parameters == parameters;
+                                                        <button class="@(trying ? "on" : null)" aria-pressed="@(trying ? "true" : "false")"
+                                                                disabled="@(reason is not null)" title="@(reason ?? Text[$"op.{choice.Key}.hint"])" @onclick="() => ProposeAsync(group, parameters)">
+                                                            @ChoiceLabel(choice)
+                                                        </button>
+                                                    }
+                                                </div>
                                             }
+                                        </div>
+                                    }
+
+                                    <div class="group">
+                                        @if (StepsText is { } steps)
+                                        {
+                                            <p class="steps" aria-live="polite">@steps</p>
+                                        }
+                                        <div class="step-buttons" role="group" aria-label="@Text["tools.steps"]">
+                                            <button class="primary" @onclick="AcceptStepAsync" disabled="@(_chain?.AcceptDisabledReason is not null)" title="@(_chain?.AcceptDisabledReason ?? Text["tools.acceptHint"])">@Text["tools.accept"]</button>
+                                            <button @onclick="RejectStepAsync" disabled="@(_chain?.Pending is null)" title="@Text["tools.rejectHint"]">@Text["tools.reject"]</button>
+                                            <button @onclick="UndoStepAsync" disabled="@(_chain?.CanUndo != true)" title="@Text["tools.undoHint"]">@Text["tools.undo"]</button>
+                                            <button @onclick="RedoStepAsync" disabled="@(_chain?.CanRedo != true)" title="@Text["tools.redoHint"]">@Text["tools.redo"]</button>
+                                        </div>
+                                    </div>
+
+                                    <div class="changed" aria-live="polite">
+                                        <h3>@Text["tools.whatChanged"]</h3>
+                                        <p>@(ExplanationText ?? Text["tools.pickChange"])</p>
+                                        @foreach (string flag in _variation?.Flags ?? [])
+                                        {
+                                            <p class="meta">@Text.Format("tools.check", flag)</p>
                                         }
                                     </div>
-                                }
-
-                                @* S1-I7: correct or remove imported notes. Every correction goes to the project's edit log; the imported notes stay as they were. *@
-                                <div class="corrections" aria-label="@Text["correct.label"]">
-                                    <button class="section-toggle" aria-expanded="@(_showCorrections ? "true" : "false")" @onclick="() => _showCorrections = !_showCorrections">
-                                        <span class="caret" aria-hidden="true">@(_showCorrections ? "▾" : "▸")</span>
-                                        @Text.Format("correct.toggle", Text.Count("correct.corrected", _edits.EditedIds.Count()))
-                                    </button>
-                                    @if (_showCorrections)
+                                    @if (_variation is not null)
                                     {
-                                        <p class="meta">@Text["correct.hint"]</p>
+                                        <ComparePanel ShowFlags="false" />
+                                    }
+
+                                    <div class="group">
                                         <div class="row">
-                                            <button @onclick="UndoCorrectionAsync" disabled="@_edits.IsEmpty" title="@Text["correct.undoHint"]">@Text["correct.undo"]</button>
-                                            <span class="meta">@Text.Count("correct.inLog", _edits.Edits.Count)</span>
+                                            <button @onclick="() => AuditionAsync(variation: false)">@Text["tools.hearOriginal"]</button>
+                                            <button @onclick="() => AuditionAsync(variation: true)" disabled="@(_variation is null)">@Text["tools.hearVariation"]</button>
+                                            <button @onclick="RemoveVariationAsync" disabled="@(_variation is null)">@Text["tools.removeVariation"]</button>
                                         </div>
-                                        @if (_selection is { NoteIds.Count: > 0 } picked)
+                                        <div class="row">
+                                            <button @onclick="() => ExportMidiAsync(variation: false)" title="@Text["tools.exportMotifHint"]">@Text["tools.exportMotif"]</button>
+                                            <button @onclick="() => ExportMidiAsync(variation: true)" disabled="@(_variation is null)" title="@Text["tools.exportVariationHint"]">@Text["tools.exportVariation"]</button>
+                                        </div>
+                                    </div>
+                                }
+                                else if (_showOperations)
+                                {
+                                    <p class="meta">@Text["tools.selectFirst"]</p>
+                                }
+                            </div>
+
+                            @if (_selection is { NoteIds.Count: > 0 } chosen)
+                            {
+                                @* S1-E7, S1-E9: edit single notes of the variation; each edit is a step, and the Keep chips are checked again after it. *@
+                                <div class="corrections" aria-label="@Text["edit.label"]">
+                                    <button class="section-toggle" aria-expanded="@(_showHandEdits ? "true" : "false")" @onclick="() => _showHandEdits = !_showHandEdits">
+                                        <span class="caret" aria-hidden="true">@(_showHandEdits ? "▾" : "▸")</span>
+                                        @Text.Format("edit.toggle", Text.Count("edit.edits", HandEditCount))
+                                    </button>
+                                    @if (_showHandEdits)
+                                    {
+                                        <p class="meta">@Text["edit.hint"]</p>
+                                        <table class="notes-table">
+                                            <thead>
+                                                <tr><th scope="col">@Text["notes.note"]</th><th scope="col">@Text["notes.where"]</th><th scope="col">@Text["notes.length"]</th><th scope="col">@Text["notes.velocity"]</th><th scope="col"></th></tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (Note note in HeardNotes(chosen))
+                                                {
+                                                    bool edited = note.Attribution.Provenance == Provenance.UserEdited;
+                                                    <tr class="@(edited ? "edited" : null)">
+                                                        <td>
+                                                            <button title="@Text["notes.lower"]" @onclick="() => EditNoteAsync(note, pitch: -1)">▼</button>
+                                                            @note.Pitch
+                                                            <button title="@Text["notes.higher"]" @onclick="() => EditNoteAsync(note, pitch: 1)">▲</button>
+                                                        </td>
+                                                        <td>
+                                                            <button title="@Text["notes.earlier"]" disabled="@(note.Span.Onset.Value - SixteenthTicks < chosen.Span.Onset.Value)" @onclick="() => EditNoteAsync(note, onset: -SixteenthTicks)">◀</button>
+                                                            @NotePosition(note)
+                                                            <button title="@Text["notes.later"]" @onclick="() => EditNoteAsync(note, onset: SixteenthTicks)">▶</button>
+                                                        </td>
+                                                        <td>
+                                                            <button title="@Text["notes.shorter"]" disabled="@(note.Span.Duration <= SixteenthTicks)" @onclick="() => EditNoteAsync(note, length: -SixteenthTicks)">−</button>
+                                                            @VariationFacts.Length(note.Span.Duration, Words)
+                                                            <button title="@Text["notes.longer"]" @onclick="() => EditNoteAsync(note, length: SixteenthTicks)">+</button>
+                                                        </td>
+                                                        <td>
+                                                            <button title="@Text["notes.softer"]" disabled="@(note.Velocity <= Note.MinVelocity)" @onclick="() => EditNoteAsync(note, velocity: -10)">−</button>
+                                                            @note.Velocity
+                                                            <button title="@Text["notes.louder"]" disabled="@(note.Velocity >= Note.MaxVelocity)" @onclick="() => EditNoteAsync(note, velocity: 10)">+</button>
+                                                        </td>
+                                                        <td>
+                                                            <button title="@Text["notes.addAfterHint"]" @onclick="() => AddNoteAfterAsync(note)">@Text["notes.addAfter"]</button>
+                                                            <button title="@Text["notes.removeFromVariationHint"]" @onclick="() => RemoveVariationNoteAsync(note)">@Text["notes.remove"]</button>
+                                                            @if (edited)
+                                                            {
+                                                                <span class="kind">@Text["notes.editedByYou"]</span>
+                                                            }
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                        @if (_handEditNote is not null)
                                         {
-                                            <table class="notes-table">
-                                                <thead>
-                                                    <tr><th scope="col">@Text["notes.note"]</th><th scope="col">@Text["notes.where"]</th><th scope="col">@Text["notes.length"]</th><th scope="col">@Text["notes.velocity"]</th><th scope="col"></th></tr>
-                                                </thead>
-                                                <tbody>
-                                                    @foreach (Note note in CorrectableNotes(picked))
-                                                    {
-                                                        bool edited = note.Attribution.Provenance == Provenance.UserEdited;
-                                                        <tr class="@(edited ? "edited" : null)">
-                                                            <td>
-                                                                <button title="@Text["notes.lower"]" @onclick="() => CorrectAsync(note, pitch: -1)">▼</button>
-                                                                @note.Pitch
-                                                                <button title="@Text["notes.higher"]" @onclick="() => CorrectAsync(note, pitch: 1)">▲</button>
-                                                            </td>
-                                                            <td>
-                                                                <button title="@Text["notes.earlier"]" disabled="@(note.Span.Onset.Value < SixteenthTicks)" @onclick="() => CorrectAsync(note, onset: -SixteenthTicks)">◀</button>
-                                                                @NotePosition(note)
-                                                                <button title="@Text["notes.later"]" @onclick="() => CorrectAsync(note, onset: SixteenthTicks)">▶</button>
-                                                            </td>
-                                                            <td>
-                                                                <button title="@Text["notes.shorter"]" disabled="@(note.Span.Duration <= SixteenthTicks)" @onclick="() => CorrectAsync(note, length: -SixteenthTicks)">−</button>
-                                                                @VariationFacts.Length(note.Span.Duration, Words)
-                                                                <button title="@Text["notes.longer"]" @onclick="() => CorrectAsync(note, length: SixteenthTicks)">+</button>
-                                                            </td>
-                                                            <td>
-                                                                <button title="@Text["notes.softer"]" disabled="@(note.Velocity <= Note.MinVelocity)" @onclick="() => CorrectAsync(note, velocity: -10)">−</button>
-                                                                @note.Velocity
-                                                                <button title="@Text["notes.louder"]" disabled="@(note.Velocity >= Note.MaxVelocity)" @onclick="() => CorrectAsync(note, velocity: 10)">+</button>
-                                                            </td>
-                                                            <td>
-                                                                <button title="@Text["notes.removeFromPieceHint"]" @onclick="() => RemoveNoteAsync(note)">@Text["notes.remove"]</button>
-                                                                @if (edited)
-                                                                {
-                                                                    <button title="@Text["notes.revertHint"]" @onclick="() => RevertNoteAsync(note)">@Text["notes.revert"]</button>
-                                                                    <span class="kind">@Text["notes.editedByYou"]</span>
-                                                                }
-                                                            </td>
-                                                        </tr>
-                                                    }
-                                                </tbody>
-                                            </table>
+                                            <p class="meta" aria-live="polite">@_handEditNote</p>
+                                        }
+                                    }
+                                </div>
+                            }
+
+                            @* S1-I7: correct or remove imported notes. Every correction goes to the project's edit log; the imported notes stay as they were. *@
+                            <div class="corrections" aria-label="@Text["correct.label"]">
+                                <button class="section-toggle" aria-expanded="@(_showCorrections ? "true" : "false")" @onclick="() => _showCorrections = !_showCorrections">
+                                    <span class="caret" aria-hidden="true">@(_showCorrections ? "▾" : "▸")</span>
+                                    @Text.Format("correct.toggle", Text.Count("correct.corrected", _edits.EditedIds.Count()))
+                                </button>
+                                @if (_showCorrections)
+                                {
+                                    <p class="meta">@Text["correct.hint"]</p>
+                                    <div class="row">
+                                        <button @onclick="UndoCorrectionAsync" disabled="@_edits.IsEmpty" title="@Text["correct.undoHint"]">@Text["correct.undo"]</button>
+                                        <span class="meta">@Text.Count("correct.inLog", _edits.Edits.Count)</span>
+                                    </div>
+                                    @if (_selection is { NoteIds.Count: > 0 } picked)
+                                    {
+                                        <table class="notes-table">
+                                            <thead>
+                                                <tr><th scope="col">@Text["notes.note"]</th><th scope="col">@Text["notes.where"]</th><th scope="col">@Text["notes.length"]</th><th scope="col">@Text["notes.velocity"]</th><th scope="col"></th></tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (Note note in CorrectableNotes(picked))
+                                                {
+                                                    bool edited = note.Attribution.Provenance == Provenance.UserEdited;
+                                                    <tr class="@(edited ? "edited" : null)">
+                                                        <td>
+                                                            <button title="@Text["notes.lower"]" @onclick="() => CorrectAsync(note, pitch: -1)">▼</button>
+                                                            @note.Pitch
+                                                            <button title="@Text["notes.higher"]" @onclick="() => CorrectAsync(note, pitch: 1)">▲</button>
+                                                        </td>
+                                                        <td>
+                                                            <button title="@Text["notes.earlier"]" disabled="@(note.Span.Onset.Value < SixteenthTicks)" @onclick="() => CorrectAsync(note, onset: -SixteenthTicks)">◀</button>
+                                                            @NotePosition(note)
+                                                            <button title="@Text["notes.later"]" @onclick="() => CorrectAsync(note, onset: SixteenthTicks)">▶</button>
+                                                        </td>
+                                                        <td>
+                                                            <button title="@Text["notes.shorter"]" disabled="@(note.Span.Duration <= SixteenthTicks)" @onclick="() => CorrectAsync(note, length: -SixteenthTicks)">−</button>
+                                                            @VariationFacts.Length(note.Span.Duration, Words)
+                                                            <button title="@Text["notes.longer"]" @onclick="() => CorrectAsync(note, length: SixteenthTicks)">+</button>
+                                                        </td>
+                                                        <td>
+                                                            <button title="@Text["notes.softer"]" disabled="@(note.Velocity <= Note.MinVelocity)" @onclick="() => CorrectAsync(note, velocity: -10)">−</button>
+                                                            @note.Velocity
+                                                            <button title="@Text["notes.louder"]" disabled="@(note.Velocity >= Note.MaxVelocity)" @onclick="() => CorrectAsync(note, velocity: 10)">+</button>
+                                                        </td>
+                                                        <td>
+                                                            <button title="@Text["notes.removeFromPieceHint"]" @onclick="() => RemoveNoteAsync(note)">@Text["notes.remove"]</button>
+                                                            @if (edited)
+                                                            {
+                                                                <button title="@Text["notes.revertHint"]" @onclick="() => RevertNoteAsync(note)">@Text["notes.revert"]</button>
+                                                                <span class="kind">@Text["notes.editedByYou"]</span>
+                                                            }
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    }
+                                    else
+                                    {
+                                        <p class="meta">@Text["correct.selectFirst"]</p>
+                                    }
+                                    @if (RemovedNotes.Count > 0)
+                                    {
+                                        <p class="meta">@Text.Format("correct.removed", string.Join(", ", RemovedNotes.Select(note => Text.Format("correct.noteAt", note.Pitch, NotePosition(note)))))</p>
+                                        <div class="row">
+                                            @foreach (Note note in RemovedNotes)
+                                            {
+                                                <button @onclick="() => RevertNoteAsync(note)">@Text.Format("correct.revertAt", note.Pitch, NotePosition(note))</button>
+                                            }
+                                        </div>
+                                    }
+                                }
+                            </div>
+
+                            @* A second file as the variation (S1-W5): it plays on this piece's timeline, so A/B keeps the position. *@
+                            <div class="corrections" aria-label="@Text["second.label"]">
+                                <button class="section-toggle" aria-expanded="@(_showSecondFile ? "true" : "false")" @onclick="() => _showSecondFile = !_showSecondFile">
+                                    <span class="caret" aria-hidden="true">@(_showSecondFile ? "▾" : "▸")</span>
+                                    @Text["second.toggle"]
+                                </button>
+                                @if (_showSecondFile)
+                                {
+                                    <section class="row">
+                                        <label class="file">
+                                            @Text["second.open"]
+                                            <InputFile OnChange="OpenSecondFileAsync" accept="@PieceImporter.AcceptedExtensions" />
+                                        </label>
+                                        @if (_secondTitle is not null)
+                                        {
+                                            <span class="meta">@_secondTitle</span>
+                                            <button @onclick="RemoveSecondFileAsync">@Text["notes.remove"]</button>
                                         }
                                         else
                                         {
-                                            <p class="meta">@Text["correct.selectFirst"]</p>
+                                            <span class="meta">@Text["second.hint"]</span>
                                         }
-                                        @if (RemovedNotes.Count > 0)
-                                        {
-                                            <p class="meta">@Text.Format("correct.removed", string.Join(", ", RemovedNotes.Select(note => Text.Format("correct.noteAt", note.Pitch, NotePosition(note)))))</p>
-                                            <div class="row">
-                                                @foreach (Note note in RemovedNotes)
-                                                {
-                                                    <button @onclick="() => RevertNoteAsync(note)">@Text.Format("correct.revertAt", note.Pitch, NotePosition(note))</button>
-                                                }
-                                            </div>
-                                        }
-                                    }
-                                </div>
-
-                                @* A second file as the variation (S1-W5): it plays on this piece's timeline, so A/B keeps the position. *@
-                                <div class="corrections" aria-label="@Text["second.label"]">
-                                    <button class="section-toggle" aria-expanded="@(_showSecondFile ? "true" : "false")" @onclick="() => _showSecondFile = !_showSecondFile">
-                                        <span class="caret" aria-hidden="true">@(_showSecondFile ? "▾" : "▸")</span>
-                                        @Text["second.toggle"]
-                                    </button>
-                                    @if (_showSecondFile)
+                                    </section>
+                                    @if (_secondMessage is not null)
                                     {
-                                        <section class="row">
-                                            <label class="file">
-                                                @Text["second.open"]
-                                                <InputFile OnChange="OpenSecondFileAsync" accept="@PieceImporter.AcceptedExtensions" />
-                                            </label>
-                                            @if (_secondTitle is not null)
-                                            {
-                                                <span class="meta">@_secondTitle</span>
-                                                <button @onclick="RemoveSecondFileAsync">@Text["notes.remove"]</button>
-                                            }
-                                            else
-                                            {
-                                                <span class="meta">@Text["second.hint"]</span>
-                                            }
-                                        </section>
-                                        @if (_secondMessage is not null)
-                                        {
-                                            <p class="error">@_secondMessage</p>
-                                            <p class="meta">@_secondTip</p>
-                                        }
-                                        @foreach (string difference in _secondDifferences)
-                                        {
-                                            <p class="meta">@Text.Format("second.difference", difference)</p>
-                                        }
+                                        <p class="error">@_secondMessage</p>
+                                        <p class="meta">@_secondTip</p>
+                                    }
+                                    @foreach (string difference in _secondDifferences)
+                                    {
+                                        <p class="meta">@Text.Format("second.difference", difference)</p>
+                                    }
 
-                                        <section class="row tracks">
-                                            @foreach (int track in _tracks)
-                                            {
-                                                <span class="track">@Text.Format("second.track", track + 1)</span>
-                                                <button class="@(Player.Muted.Contains(track) ? "on" : null)" @onclick="() => ToggleTrackAsync(track, solo: false)">@Text["second.mute"]</button>
-                                                <button class="@(Player.Soloed.Contains(track) ? "on" : null)" @onclick="() => ToggleTrackAsync(track, solo: true)">@Text["second.solo"]</button>
-                                            }
-                                        </section>
+                                    <section class="row tracks">
+                                        @foreach (int track in _tracks)
+                                        {
+                                            <span class="track">@Text.Format("second.track", track + 1)</span>
+                                            <button class="@(Player.Muted.Contains(track) ? "on" : null)" @onclick="() => ToggleTrackAsync(track, solo: false)">@Text["second.mute"]</button>
+                                            <button class="@(Player.Soloed.Contains(track) ? "on" : null)" @onclick="() => ToggleTrackAsync(track, solo: true)">@Text["second.solo"]</button>
+                                        }
+                                    </section>
+                                }
+                            </div>
+                            break;
+                    }
+                </div>
+                </aside>
+            }
+
+            @if (PillShown)
+            {
+                @* The transport pill (0018 section 2, design/kit/ds.css .pill): with a selection or while playing. *@
+                <div class="pill" role="toolbar" aria-label="@Text["transport.label"]" data-keeps-selection>
+                    <button class="play" @onclick="TogglePlayAsync" aria-label="@(Player.State == PlaybackState.Stopped ? Text["transport.play"] : Text["transport.pause"])">
+                        <Icon Name="@(Player.State != PlaybackState.Stopped ? "pause" : "playf")" />
+                    </button>
+                    @if (_selection is { NoteIds.Count: > 0 })
+                    {
+                        <button class="it @(Looping ? "on" : null)" aria-pressed="@(Looping ? "true" : "false")" @onclick="ToggleLoopSelectionAsync"><Icon Name="loop" /> @Text["focus.loop"]</button>
+                    }
+                    <button class="it @(_pillMenu == PillMenu.Tempo ? "on" : null)" aria-expanded="@(_pillMenu == PillMenu.Tempo ? "true" : "false")" aria-label="@Text.Format("pill.tempoLabel", TempoPercent)"
+                            @onclick="() => TogglePillMenu(PillMenu.Tempo)"><Icon Name="tempo" /> <span class="mono">@TempoPercent%</span></button>
+                    @if (_filters.Length > 1)
+                    {
+                        <button class="it @(_filter != SelectionFilter.All ? "on" : null)" aria-expanded="@(_pillMenu == PillMenu.Hands ? "true" : "false")" aria-label="@Text["workspace.notesLabel"]"
+                                @onclick="() => TogglePillMenu(PillMenu.Hands)"><Icon Name="hands" /> @FilterLabel(_filter)</button>
+                    }
+                    <span class="div" aria-hidden="true"></span>
+                    @* Where playback is, for a screen reader: the score shows it with the notes being heard. *@
+                    <span class="visually-hidden state" role="status">@StateText</span>
+                    <span class="visually-hidden position" aria-live="off">@PositionText</span>
+                    <button class="it @(Player.Metronome ? "on" : null)" aria-pressed="@(Player.Metronome ? "true" : "false")" @onclick="ToggleMetronomeAsync"><Icon Name="metronome" /> @Text["transport.metronome"]</button>
+                    <button class="it @(Player.CountIn ? "on" : null)" aria-pressed="@(Player.CountIn ? "true" : "false")" @onclick="ToggleCountInAsync"><Icon Name="count" /> @Text["transport.countIn"]</button>
+                    @switch (_pillMenu)
+                    {
+                        case PillMenu.Tempo:
+                            <div class="popover pill-popover" role="dialog" aria-label="@Text["transport.tempo"]">
+                                <div class="seg" role="group" aria-label="@Text["transport.tempo"]">
+                                    @foreach (int percent in s_tempoSteps)
+                                    {
+                                        <button class="@(TempoPercent == percent ? "on" : null)" aria-pressed="@(TempoPercent == percent ? "true" : "false")" @onclick="() => SetTempoPercentAsync(percent)">@percent%</button>
                                     }
                                 </div>
-                                break;
-                        }
-                    </div>
-                </aside>
-            </div>
+                                <label class="tempo">
+                                    <span class="visually-hidden">@Text["transport.tempo"]</span>
+                                    <input type="range" min="25" max="150" step="5" value="@TempoPercent" @oninput="SetTempoAsync" />
+                                </label>
+                            </div>
+                            break;
+                        case PillMenu.Hands:
+                            <div class="popover pill-popover" role="dialog" aria-label="@Text["workspace.notesLabel"]">
+                                @for (int i = 0; i < _filters.Length; i++)
+                                {
+                                    int index = i;
+                                    bool chosen = _filters[i] == _filter;
+                                    <button class="btn quiet @(chosen ? "on" : null)" aria-pressed="@(chosen ? "true" : "false")" @onclick="() => ChooseFilterAsync(index)">@FilterLabel(_filters[i])</button>
+                                }
+                            </div>
+                            break;
+                    }
+                </div>
+            }
 
-            <footer class="transport-bar" aria-label="@Text["transport.label"]">
-                <button class="play" @onclick="TogglePlayAsync" aria-label="@(Player.State == PlaybackState.Stopped ? Text["transport.play"] : Text["transport.pause"])">
-                    <Icon Name="@(Player.State != PlaybackState.Stopped ? "pause" : "playf")" />
-                </button>
-                <button @onclick="StopAsync">@Text["transport.stop"]</button>
-                <input class="seek" type="range" min="0" max="@_score.End.Value" step="1" value="@Player.Position.Value"
-                       @onchange="SeekAsync" aria-label="@Text["transport.position"]" />
-                <span class="position" aria-live="off">@PositionText</span>
-                <span class="meta state">@StateText</span>
-                <label class="tempo">@Text["transport.tempo"] <input type="range" min="25" max="150" step="5" value="@TempoPercent" @oninput="SetTempoAsync" /> <span class="mono">@TempoPercent%</span></label>
-                <label><input type="checkbox" checked="@Player.Metronome" @onchange="ToggleMetronomeAsync" /> @Text["transport.metronome"]</label>
-                <label><input type="checkbox" checked="@Player.CountIn" @onchange="ToggleCountInAsync" /> @Text["transport.countIn"]</label>
-            </footer>
+            @* The selection in words for screen readers, wherever the sheet is (WCAG 4.1.3). *@
+            <p class="visually-hidden selection-status" aria-live="polite">@SelectionText</p>
         }
-
-        <p class="credit">
-            @Text["credit.piano"] <a href="https://archive.org/details/SalamanderGrandPianoV3">Salamander Grand Piano V3</a> @Text["credit.by"] Alexander Holm,
-            <a href="https://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a>, @Text["credit.shortened"]
-            @Text["credit.engraving"] <a href="https://www.verovio.org">Verovio</a> 6.3.0,
-            <a href="lib/verovio/COPYING.LESSER.txt">LGPL 3.0</a>, <a href="https://github.com/rism-digital/verovio/tree/version-6.3.0">@Text["credit.source"]</a>.
-        </p>
     </main>
 </CascadingValue>
 
@@ -927,14 +994,6 @@
         }
     }
 
-    /// <summary>Score, Piano roll or Both (0012), in the header and on the Focus bar.</summary>
-    private RenderFragment ViewSwitch => @<div class="view-switch" role="group" aria-label="@Text["workspace.canvas"]">
-        @foreach ((ViewMode mode, string label) in ViewModes)
-        {
-            <button class="@(_view == mode ? "on" : null)" aria-pressed="@(_view == mode ? "true" : "false")" @onclick="() => SetViewAsync(mode)">@label</button>
-        }
-    </div>;
-
     private enum ScoreChoice
     {
         AsWritten,
@@ -1108,10 +1167,10 @@
 
             _project = CurrentPiece.Project;
             StartScanCheck(piece);
-            if (_project is { Phrases.IsEmpty: false } phrased)
+            _level = ProjectLevel;
+            if (_project is { PhraseLevels.IsEmpty: false } phrased)
             {
-                _phrases = _phrases!.With(phrased.Phrases);
-                SuggestSentences();
+                SuggestPhrases(phrased.PhraseLevels);
             }
 
             if (_project is { Edits.IsEmpty: false } corrected)
@@ -1310,8 +1369,9 @@
         _title = title;
         _tracks = piece.Notes.Select(note => note.Track).Distinct().Order().ToArray();
         _lastBar = MotifSelector.LastBar(_meter, _score.End);
-        _phrases = PhraseMap.Suggest(piece.Notes, _meter, _phraseMarks, _score.End);
-        SuggestSentences();
+        _levels = null;
+        _level = DefaultLevel;
+        SuggestPhrases(LevelEdits.None);
         _filters = Filters(piece.Notes, _tracks);
         _filter = SelectionFilter.All;
         _keptIds = null;
@@ -1770,36 +1830,6 @@
     /// <summary>The phrase the selection stands for, or null when the selection is another range (#18).</summary>
     private Phrase? CurrentPhrase => _selection is { } selection ? _phrases?.Matching(selection.Span) : null;
 
-    /// <summary>
-    /// The phrase starts the score marks, with how each was found, the selected phrase's marked as current (#126).
-    /// The first phrase starts with the piece and is marked only while it is selected.
-    /// </summary>
-    private IReadOnlyList<ScorePhrase>? ScorePhrases
-    {
-        get
-        {
-            if (_phrases is null)
-            {
-                return null;
-            }
-
-            int? current = CurrentPhrase?.Number;
-            if (!ReferenceEquals(_phrases, _scorePhrasesFor) || current != _scorePhrasesCurrent)
-            {
-                _scorePhrasesFor = _phrases;
-                _scorePhrasesCurrent = current;
-                _scorePhrases = [.. _phrases.Phrases.Where(phrase => phrase.Start is not null || phrase.Number == current)
-                    .Select(phrase => new ScorePhrase(phrase.Span.Onset.Value, Text.Format("phrase.label", phrase.Number), PhraseStrip.KindClass(phrase.Start), phrase.Number == current))];
-            }
-
-            return _scorePhrases;
-        }
-    }
-
-    private PhraseMap? _scorePhrasesFor;
-    private int? _scorePhrasesCurrent;
-    private IReadOnlyList<ScorePhrase>? _scorePhrases;
-
     /// <summary>Selects a phrase as the working context (#18): Explore and the facts read it. A phrase longer than a selection is selected up to 8 bars.</summary>
     private Task PickPhraseAsync(Phrase phrase)
     {
@@ -1813,29 +1843,16 @@
         return SelectAsync(span, note);
     }
 
-    /// <summary>Makes the selected range one phrase (moving or splitting boundaries), then selects that phrase.</summary>
-    private Task MakePhraseAsync() =>
-        _phrases is { } map && _selection is { } selection ? ChangePhrasesAsync(map.MakePhrase(selection.Span), selection.Span) : Task.CompletedTask;
-
-    /// <summary>Joins the phrase with the next one, then selects the joined phrase.</summary>
-    private Task JoinPhraseAsync(Phrase phrase) =>
-        _phrases is { } map ? ChangePhrasesAsync(map.JoinWithNext(phrase), phrase.Span) : Task.CompletedTask;
-
-    /// <summary>Drops the player's boundaries; the selection stays as it is.</summary>
-    private Task ResetPhrasesAsync() =>
-        _phrases is not null ? ChangePhrasesAsync(PhraseEdits.None, around: null) : Task.CompletedTask;
-
     /// <summary>
-    /// Puts the player's phrase edits in effect and saves them with the project. With <paramref name="around"/>,
-    /// the phrase that now covers most of it is selected; otherwise the selection stays and its facts are read again.
+    /// Puts the player's edits at every level in effect and saves them with the project. With <paramref name="around"/>,
+    /// the unit of the level shown that now holds its start is selected; otherwise the selection stays and its facts are read again.
     /// </summary>
-    private async Task ChangePhrasesAsync(PhraseEdits edits, TickSpan? around)
+    private async Task ChangePhrasesAsync(LevelEdits edits, TickSpan? around)
     {
-        _phrases = _phrases!.With(edits);
-        SuggestSentences();
+        SuggestPhrases(edits);
         if (around is { } span)
         {
-            await PickPhraseAsync(_phrases.Covering(span));
+            await SelectAsync(_levels!.Selectable(_levels.Map(span, _level)), note: null);
         }
         else if (_selection is { } selection)
         {
@@ -1993,8 +2010,7 @@
 
         _score = PlaybackScore.Create(_notes, _score!.Tempos, _meter!, _score.End, _score.Pedal);
         _lastBar = MotifSelector.LastBar(_meter!, _score.End);
-        _phrases = PhraseMap.Suggest(_notes, _meter!, _phraseMarks, _score.End, _phrases?.Edits);
-        SuggestSentences();
+        SuggestPhrases();
         _generated = ScoreSource.FromNotes(Notation(_notes, _score.End));
         if (!edits.IsEmpty && _scoreChoice == ScoreChoice.AsWritten)
         {
@@ -2493,7 +2509,7 @@
             }
         }
 
-        _project = TouchResumePoint(_project with { Motifs = motifs, Variations = variations, Edits = _edits, Phrases = _phrases?.Edits ?? PhraseEdits.None });
+        _project = TouchResumePoint((_project with { Motifs = motifs, Variations = variations, Edits = _edits }).WithPhraseLevels(_levels?.Edits ?? LevelEdits.None));
         CurrentPiece.Saved(_project);
         await Projects.SaveAsync(_project);
     }

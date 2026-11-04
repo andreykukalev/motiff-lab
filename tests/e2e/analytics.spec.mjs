@@ -1,7 +1,7 @@
 // Anonymous analytics with consent (#64): nothing is recorded until the player turns them on, the
 // events hold no titles or file names, and turning them off forgets the device's ID and the events.
 import { expect, test } from "@playwright/test";
-import { openFurElise, selectBar } from "./steps.mjs";
+import { openFurElise, openInsights, openMore, selectBar } from "./steps.mjs";
 
 test("analytics record nothing until turned on, never the piece, and forget everything when turned off", async ({ page }) => {
     await openFurElise(page);
@@ -16,14 +16,14 @@ test("analytics record nothing until turned on, never the piece, and forget ever
     // A new load of the app reads the choice back from this browser.
     await openFurElise(page);
     await selectBar(page, 1);
-    await page.getByRole("tab", { name: "Explore" }).click();
+    await openInsights(page, "Explore");
     await page.getByRole("button", { name: /Give the melody more space/ }).click();
     await page.getByRole("button", { name: "Keep this variation" }).click();
-    await page.getByRole("tab", { name: "Tools", exact: true }).click();
+    await openInsights(page, "Tools");
     await page.getByRole("button", { name: "Dotted" }).click();
 
-    // The choice is on the privacy notice, linked from every page's footer, within the same load of the app.
-    await page.getByRole("link", { name: "Privacy" }).click();
+    // The choice is on the privacy notice, linked from the overflow, within the same load of the app.
+    await (await openMore(page)).getByRole("link", { name: "Privacy" }).click();
     await expect(page.locator(".events")).toContainText("app_opened");
     const events = page.locator(".events li");
     await expect(events.first()).toBeVisible();

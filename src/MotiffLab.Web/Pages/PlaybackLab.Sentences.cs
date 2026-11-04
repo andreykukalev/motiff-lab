@@ -40,10 +40,6 @@ public partial class PlaybackLab
     /// <summary>Whether ‹ or › leads somewhere at the selected level.</summary>
     private bool CanStep(int direction) => CurrentSentence is not null ? SentenceTarget(direction) is not null : StepTarget(direction) is not null;
 
-    /// <summary>Suggests the sentences over the current phrases and notes; nothing without a phrase map.</summary>
-    private void SuggestSentences() =>
-        _sentences = _phrases is { } map && _notes is { } notes ? SentenceMap.Suggest(map, notes, KeySignature.InForce(_keys, Tick.Zero), Words) : null;
-
     /// <summary>The most bars a selection of <paramref name="span"/> may hold: a structure the maps know is selected whole (0013).</summary>
     private int SelectionCap(TickSpan span) =>
         _sentences?.Matching(span) is not null || _phrases?.Phrases.Any(phrase => phrase.Span == span) == true ? MotifSelection.MaxStructureBars : MotifSelection.MaxBars;

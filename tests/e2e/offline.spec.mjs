@@ -15,7 +15,7 @@ test("the journey works offline after the app has loaded", async ({ page, contex
     const errors = await openFurElise(page);
     await selectBar(page, 2);
     await page.getByRole("button", { name: "Loop", exact: true }).click();
-    await page.locator(".transport-bar").getByRole("button", { name: "Play" }).click();
-    await expect(page.getByText("Playing", { exact: true })).toBeVisible();
+    await page.locator(".pill").getByRole("button", { name: "Play", exact: true }).click();
+    await expect(page.locator(".pill").getByRole("button", { name: "Pause", exact: true })).toBeVisible();
     expect(errors).toEqual([]);
 });

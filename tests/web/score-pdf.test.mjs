@@ -175,7 +175,7 @@ test("Verovio's A4 pages become PDF pages of vector notation", async () => {
     assert.ok(count >= 2, `40 bars of two staves fill more than a page (${count})`);
     const svgs = Array.from({ length: count }, (_, index) => engraver.renderToSVG(index + 1));
     // The title heads the first page, the page number the next.
-    assert.match(svgs[0], /^<svg viewBox="0 0 2100 2970"/);
+    assert.match(svgs[0], /^<svg viewBox="0 0 1050 1485"/);
     assert.match(svgs[0], /class="pgHead[^"]*"[\s\S]*Зимние истории/);
     assert.match(svgs[1], /class="pgHead[^"]*"[\s\S]*<title class="labelAttr">page<\/title>[\s\S]*>2<\/tspan>/);
     assert.ok(svgs.every(hasText));

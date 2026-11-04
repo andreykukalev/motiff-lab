@@ -9,46 +9,30 @@
 @inject Preferences Preferences
 @inject UiText Text
 
-<div class="score-tools" data-keeps-selection>
-    @* The layout and the PDF (0017): A4 pages as the score prints, or one strip the width of the view. *@
-    <div class="score-layout" role="toolbar" aria-label="@Text["score.layout"]">
-        <button class="@(_paged ? "on" : null)" aria-pressed="@(_paged ? "true" : "false")" title="@Text["score.pagesHint"]"
-                @onclick="() => SetPagedAsync(true)">@Text["score.pages"]</button>
-        <button class="@(_paged ? null : "on")" aria-pressed="@(_paged ? "false" : "true")" title="@Text["score.stripHint"]"
-                @onclick="() => SetPagedAsync(false)">@Text["score.strip"]</button>
-        <button @onclick="ExportPdfAsync" disabled="@(_exporting || _shown is null || _loading)" title="@Text["score.pdfHint"]">
-            @(_exporting ? Text["score.pdfMaking"] : Text["score.pdf"])
-        </button>
+@if (PencilKey is not null && _pencilState.On)
+{
+    @* The pen palette (0015, 0018 section 5) under the bar's Pen action: four inks, the highlighter and the eraser, undo and clear. *@
+    <div class="pen-palette" role="toolbar" aria-label="@Text["pencil.label"]" data-keeps-selection>
+        @foreach ((string colour, string key) in s_penColours)
+        {
+            bool chosen = _pencilState.Tool == PenTool && _pencilState.Colour == colour;
+            <button class="ink-swatch @colour @(chosen ? "on" : null)" aria-pressed="@(chosen ? "true" : "false")" aria-label="@Text[key]" title="@Text[key]"
+                    @onclick="() => ChooseAsync(PenTool, colour)"><span aria-hidden="true"></span></button>
+        }
+        <span class="div" aria-hidden="true"></span>
+        <button class="it @(_pencilState.Tool == HighlighterTool ? "on" : null)" aria-pressed="@(_pencilState.Tool == HighlighterTool ? "true" : "false")"
+                @onclick="() => ChooseAsync(HighlighterTool, null)"><Icon Name="highlight" Size="IconSize.Small" /> @Text["pencil.highlighter"]</button>
+        <button class="it @(_pencilState.Tool == EraserTool ? "on" : null)" aria-pressed="@(_pencilState.Tool == EraserTool ? "true" : "false")"
+                @onclick="() => ChooseAsync(EraserTool, null)">@Text["pencil.eraser"]</button>
+        <span class="div" aria-hidden="true"></span>
+        <button class="it" @onclick="UndoPencilAsync" disabled="@(!_pencilState.CanUndo)"><Icon Name="undo" Size="IconSize.Small" /> @Text["pencil.undo"]</button>
+        <button class="it" @onclick="ClearPencilAsync" disabled="@(_pencilState.Marks == 0)" title="@Text["pencil.clearHint"]">@Text["pencil.clear"]</button>
+        @if (_pencilState.Hidden > 0)
+        {
+            <span class="caption">@Text.Format("pencil.hidden", _pencilState.Hidden)</span>
+        }
     </div>
-    @if (PencilKey is not null)
-    {
-        @* Pencil marks (0015): the Apple Pencil writes on the score at any time; these tools choose the pen, the highlighter or the eraser. *@
-        <div class="pencil-tools" role="toolbar" aria-label="@Text["pencil.label"]">
-            <button class="pencil-toggle @(_pencilState.On ? "on" : null)" aria-pressed="@(_pencilState.On ? "true" : "false")" title="@Text["pencil.hint"]"
-                    @onclick="TogglePencilAsync">✎ @Text["pencil.toggle"]</button>
-            @if (_pencilState.On)
-            {
-                @foreach ((string colour, string key) in s_penColours)
-                {
-                    bool chosen = _pencilState.Tool == PenTool && _pencilState.Colour == colour;
-                    <button class="pencil-pen @colour @(chosen ? "on" : null)" aria-pressed="@(chosen ? "true" : "false")" aria-label="@Text[key]" title="@Text[key]"
-                            @onclick="() => ChooseAsync(PenTool, colour)"><span aria-hidden="true"></span></button>
-                }
-                <button class="@(_pencilState.Tool == HighlighterTool ? "on" : null)" aria-pressed="@(_pencilState.Tool == HighlighterTool ? "true" : "false")"
-                        @onclick="() => ChooseAsync(HighlighterTool, null)">@Text["pencil.highlighter"]</button>
-                <button class="@(_pencilState.Tool == EraserTool ? "on" : null)" aria-pressed="@(_pencilState.Tool == EraserTool ? "true" : "false")"
-                        @onclick="() => ChooseAsync(EraserTool, null)">@Text["pencil.eraser"]</button>
-                <button @onclick="UndoPencilAsync" disabled="@(!_pencilState.CanUndo)">@Text["pencil.undo"]</button>
-                <button @onclick="ClearPencilAsync" disabled="@(_pencilState.Marks == 0)" title="@Text["pencil.clearHint"]">@Text["pencil.clear"]</button>
-                <span class="meta">@Text["pencil.how"]</span>
-            }
-            @if (_pencilState.Hidden > 0)
-            {
-                <span class="meta">@Text.Format("pencil.hidden", _pencilState.Hidden)</span>
-            }
-        </div>
-    }
-</div>
+}
 @if (_pdfError is not null)
 {
     <p class="error" role="alert">@_pdfError</p>
@@ -135,6 +119,34 @@ else if (_loading && !HoldHeight)
     [Parameter]
     public string? Title { get; set; }
 
+    /// <summary>The pages under the top of the view as the player scrolls, for the bar's "p. 2 of 4": first, last and how many; all 0 in the strip.</summary>
+    [Parameter]
+    public EventCallback<(int First, int Last, int Count)> PagesShown { get; set; }
+
+    /// <summary>Raised after each engraving with the title the first page is headed with; null when it has none or in the strip.</summary>
+    [Parameter]
+    public EventCallback<string?> TitleRead { get; set; }
+
+    /// <summary>Raised when the player taps a phrase's bracket, with the number <see cref="ScorePhrase"/> gave it.</summary>
+    [Parameter]
+    public EventCallback<int> BracketPicked { get; set; }
+
+    /// <summary>Raised when the pen is turned on or off, or a mark is made, so the bar shows Pen as active (0018 section 5).</summary>
+    [Parameter]
+    public EventCallback<PencilState> PencilChanged { get; set; }
+
+    /// <summary>Whether the score is laid out as A4 pages (the default) rather than one strip.</summary>
+    public bool Paged => _paged;
+
+    /// <summary>Whether a PDF is being made.</summary>
+    public bool Exporting => _exporting;
+
+    /// <summary>Whether the pen draws with a finger (the pencil always draws).</summary>
+    public bool PenOn => _pencilState.On;
+
+    /// <summary>Whether the score can be drawn on: a piece whose marks are kept.</summary>
+    public bool CanDraw => PencilKey is not null;
+
     /// <summary>The four inks of the design kit (0018), in the project file's names (Projects/Marks.cs).</summary>
     private static readonly (string Colour, string Key)[] s_penColours =
     [
@@ -213,7 +225,8 @@ else if (_loading && !HoldHeight)
         _shown = source;
         try
         {
-            await _view.InvokeAsync<ScoreLoadResult>("load", source.Data, Title);
+            ScoreLoadResult loaded = await _view.InvokeAsync<ScoreLoadResult>("load", source.Data, Title);
+            await TitleRead.InvokeAsync(loaded.Title);
             await _view.InvokeVoidAsync("follow", Player.Engine);
             await ShowRangeAsync(_view);
             await ShowPhrasesAsync(_view);
@@ -256,7 +269,17 @@ else if (_loading && !HoldHeight)
     [JSInvokable]
     public Task OnScoreNoteClicked(double tick) => Player.SeekAsync(new Tick(Math.Max(0, (long)Math.Round(tick))));
 
-    private async Task SetPagedAsync(bool paged)
+    /// <summary>Scrolls one page on (1) or back (-1), as the arrow keys do.</summary>
+    public async Task StepPageAsync(int direction)
+    {
+        if (_view is not null)
+        {
+            await _view.InvokeVoidAsync("stepPage", direction);
+        }
+    }
+
+    /// <summary>Lays the score out as A4 pages or as one strip, and keeps the choice on the device.</summary>
+    public async Task SetPagedAsync(bool paged)
     {
         if (paged == _paged || _view is null)
         {
@@ -276,7 +299,7 @@ else if (_loading && !HoldHeight)
     }
 
     /// <summary>Engraves the score on A4 pages and hands the player the PDF to save; on the iPad it goes through Files.</summary>
-    private async Task ExportPdfAsync()
+    public async Task ExportPdfAsync()
     {
         if (_view is null || _exporting)
         {
@@ -303,7 +326,8 @@ else if (_loading && !HoldHeight)
     private const string HighlighterTool = "highlighter";
     private const string EraserTool = "eraser";
 
-    private Task TogglePencilAsync() => PencilAsync("setOn", !_pencilState.On);
+    /// <summary>Turns the pen on or off: on, one finger draws and two scroll (0018 section 5).</summary>
+    public Task TogglePencilAsync() => PencilAsync("setOn", !_pencilState.On);
 
     /// <summary>The pen in a colour, the highlighter or the eraser; null keeps the colour the script picks.</summary>
     private Task ChooseAsync(string tool, string? colour) => PencilAsync("setTool", tool, colour);
@@ -329,6 +353,7 @@ else if (_loading && !HoldHeight)
         {
             _pencilState = state;
             StateHasChanged();
+            _ = PencilChanged.InvokeAsync(state);
         }
     }
 
@@ -339,6 +364,14 @@ else if (_loading && !HoldHeight)
         _shownInk = ink;
         return MarksChanged.InvokeAsync(ink);
     }
+
+    /// <summary>Called by the script when the pages under the top of the view change.</summary>
+    [JSInvokable]
+    public Task OnPagesShown(int first, int last, int count) => PagesShown.InvokeAsync((first, last, count));
+
+    /// <summary>Called by the script when a phrase's bracket is tapped.</summary>
+    [JSInvokable]
+    public Task OnBracketClicked(int number) => BracketPicked.InvokeAsync(number);
 
     /// <summary>Called by the script when a bar is clicked away from its notes.</summary>
     [JSInvokable]
@@ -372,7 +405,7 @@ else if (_loading && !HoldHeight)
         _self?.Dispose();
     }
 
-    private sealed record ScoreLoadResult(int Pages, int Notes);
+    private sealed record ScoreLoadResult(int Pages, int Notes, string? Title);
 
     /// <summary>What the pencil tools show, as the script reports it (Scripts/score/pencil-layer.ts).</summary>
     public sealed record PencilState(bool On, string Tool, string Colour, int Marks, int Hidden, bool CanUndo);

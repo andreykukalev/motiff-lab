@@ -33,14 +33,15 @@ test("the Pencil writes on the score, a tap picks a bar, and the marks stay with
     const score = page.locator("div.score");
     const marks = score.locator(".pencil-mark");
     const tools = page.getByRole("toolbar", { name: "Pencil marks" });
-    const toggle = tools.getByRole("button", { name: "Pencil", exact: false }).first();
+    // The bar's Pen action turns the palette on and off (0018 section 2); the palette shows while it is on.
+    const toggle = page.locator(".bar").getByRole("button", { name: "Pen", exact: true });
     await expect(score.locator("g.measure").nth(3)).toBeVisible();
     await expect(toggle).toHaveAttribute("aria-pressed", "false");
     // The score is laid out again once the workspace has its size; let that settle.
     await page.waitForTimeout(800);
     const cdp = await page.context().newCDPSession(page);
 
-    // A line written with the pen above bar 3's staff: drawn, and the tools come up; nothing is selected.
+    // A line written with the pen above bar 3's staff: drawn, and the palette comes up; nothing is selected.
     const bar3 = score.locator("g.measure").nth(3);
     await bar3.scrollIntoViewIfNeeded();
     let box = await bar3.boundingBox();
@@ -48,7 +49,7 @@ test("the Pencil writes on the score, a tap picks a bar, and the marks stay with
     await expect(marks).toHaveCount(1);
     await expect(toggle).toHaveAttribute("aria-pressed", "true");
     await expect(tools.getByRole("button", { name: "Undo" })).toBeEnabled();
-    await expect(page.locator(".inspector .selection-text")).not.toContainText("Selected");
+    await expect(page.locator(".selection-status")).not.toContainText("Selected");
 
     // A tap with the pen on a staff line, away from the notes, selects that bar, as a click does.
     const line = score.locator("g.measure").nth(2).locator("g.staff > path").first();
@@ -56,7 +57,7 @@ test("the Pencil writes on the score, a tap picks a bar, and the marks stay with
     const tap = { x: lineBox.x + lineBox.width * 0.9, y: lineBox.y + lineBox.height / 2 };
     await pen(cdp, "mousePressed", tap.x, tap.y);
     await pen(cdp, "mouseReleased", tap.x, tap.y);
-    await expect(page.locator(".inspector .selection-text")).toContainText("Selected bar 2");
+    await expect(page.locator(".selection-status")).toContainText("Selected bar 2");
     await expect(marks).toHaveCount(1);
 
     // With the tools on, the mouse writes too, in the colour chosen: here over bar 4.

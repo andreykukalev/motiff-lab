@@ -1,117 +1,354 @@
-using System.Globalization;
-
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 
+using MotiffLab.MusicCore.Analysis;
+using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Motifs;
+using MotiffLab.MusicCore.Projects;
+using MotiffLab.MusicCore.Settings;
 using MotiffLab.MusicCore.Time;
+using MotiffLab.Web.Playback;
 using MotiffLab.Web.Roll;
+using MotiffLab.Web.Score;
 
 namespace MotiffLab.Web.Pages;
 
 /// <summary>
-/// How the workspace is laid out (0012, batch 2): the score, the roll or both, with a divider between
-/// them that the player drags or moves by keyboard; and Focus mode, which leaves the phrase, the loop
-/// and the transport on the screen for playing at the instrument. The view and the divider are kept
-/// on the device as preferences; Focus is not, so a reload comes back to the full workspace.
-/// <c>Scripts/layout/workspace-layout.ts</c> measures and drags; the page owns every choice.
+/// The score page (decision record 0018, sections 1 to 3): the score fills the screen and everything else
+/// floats over it. The bar with its page count and five actions, which fades while the player reads
+/// (<c>Scripts/layout/bar-fade.ts</c>); the Phrases popover with the level (Short, Phrases, Sentences),
+/// the brackets on or off and Reset to detected; the piano roll drawer and the Insights sheet, which leave
+/// the selection as it is; and the transport pill, shown with a selection or while playing. The phrases
+/// are read at three levels from one analysis (<see cref="PhraseLevels"/>); the level is kept with the
+/// piece as its "phrases.granularity" setting, and the edits of every level with the project.
 /// </summary>
 public partial class PlaybackLab : IAsyncDisposable
 {
-    private const string ViewKey = "ml-view";
-    private const string SplitKey = "ml-split";
-    private const double DefaultSplit = 0.6;
+    /// <summary>The device preference for showing the phrase brackets (the setting "guidance.brackets").</summary>
+    private const string BracketsPreference = "guidance.brackets";
 
-    /// <summary>Which of the two views of the piece the canvas shows.</summary>
-    private enum ViewMode
+    /// <summary>The tempo steps the pill offers, as a share of the written tempo.</summary>
+    private static readonly int[] s_tempoSteps = [50, 60, 75, 90, 100];
+
+    /// <summary>The bar's small overlays; one at a time.</summary>
+    private enum Popover
     {
-        Score,
-        Roll,
-        Both,
+        None,
+        Phrases,
+        More,
     }
 
-    private ViewMode _view = ViewMode.Both;
+    /// <summary>The pill's small overlays: the tempo and which notes play.</summary>
+    private enum PillMenu
+    {
+        None,
+        Tempo,
+        Hands,
+    }
 
-    /// <summary>The share of the canvas the score takes while both views show, a fifth to four fifths.</summary>
-    private double _split = DefaultSplit;
+    /// <summary>The piece at the three levels; its <see cref="PhraseLevels.Phrases"/> and <see cref="PhraseLevels.Sentences"/> are <see cref="_phrases"/> and <see cref="_sentences"/>.</summary>
+    private PhraseLevels? _levels;
 
-    private bool _focus;
-    private bool _fullscreen;
+    /// <summary>The level the brackets show and a tap selects at.</summary>
+    private PhraseLevel _level = PhraseLevel.Phrase;
 
+    private bool _showBrackets = true;
+    private Popover _popover;
+    private PillMenu _pillMenu;
+    private bool _rollOpen;
+    private bool _insightsOpen;
+    private bool _penOn;
+    private (int First, int Last, int Count) _pages;
+
+    private ScoreView? _scoreView;
     private ElementReference _main;
-    private ElementReference _canvas;
-    private ElementReference _handle;
-    private IJSObjectReference? _layoutModule;
-    private IJSObjectReference? _layout;
+    private ElementReference _bar;
+    private IJSObjectReference? _chromeModule;
+    private IJSObjectReference? _barFade;
+    private IJSObjectReference? _phraseKeys;
     private DotNetObjectReference<PlaybackLab>? _self;
-    private (ViewMode View, bool Focus, bool Divider)? _attached;
+    private bool _attaching;
 
-    private bool ShowScore => _view != ViewMode.Roll;
-
-    private bool ShowRoll => _view != ViewMode.Score;
-
-    /// <summary>Whether the divider is on the canvas: both views, and a score to show.</summary>
-    private bool ShowDivider => _view == ViewMode.Both && ShownScore is not null;
-
-    private (ViewMode Mode, string Label)[] ViewModes =>
-    [
-        (ViewMode.Score, Text["view.score"]),
-        (ViewMode.Roll, Text["view.roll"]),
-        (ViewMode.Both, Text["view.both"]),
-    ];
-
-    /// <summary>Reads the view and the divider the player left on this device; nothing read keeps the defaults.</summary>
-    private async Task ReadLayoutPreferencesAsync()
+    private string WorkspaceClass => string.Join(' ', new[]
     {
-        if (Enum.TryParse(await Preferences.GetAsync(ViewKey), ignoreCase: false, out ViewMode view))
+        _rollOpen ? "roll-open" : null,
+        _insightsOpen ? "insights-open" : null,
+        _popover != Popover.None ? "popover-open" : null,
+    }.Where(name => name is not null));
+
+    /// <summary>The pill shows with a selection or while playback runs (the setting "guidance.transportPill", 0018 section 10).</summary>
+    private bool PillShown => _selection is not null || Player.State != PlaybackState.Stopped || _pillMenu != PillMenu.None;
+
+    /// <summary>"p. 2 of 4", or "pp. 1–2 of 4" with two pages to a row; null in the strip or before the score is engraved.</summary>
+    private string? PageText => _pages switch
+    {
+        (0, _, _) or (_, _, 0) => null,
+        var (first, last, count) when first == last => Text.Format("bar.page", first, count),
+        var (first, last, count) => Text.Format("bar.pages", first, last, count),
+    };
+
+    /// <summary>Reads the brackets choice the player left on this device.</summary>
+    private async Task ReadLayoutPreferencesAsync() =>
+        _showBrackets = await Preferences.GetAsync(BracketsPreference) != Setting.Off;
+
+    /// <summary>
+    /// Reads the piece at the three levels with the player's edits, and the level the piece is shown at: the
+    /// project's own choice, or the setting's default.
+    /// </summary>
+    private void SuggestPhrases(LevelEdits? edits = null)
+    {
+        _levels = PhraseLevels.Suggest(_notes!, _meter!, _phraseMarks, _score!.End, KeySignature.InForce(_keys, Tick.Zero), Words, edits ?? _levels?.Edits);
+        _phrases = _levels.Phrases;
+        _sentences = _levels.Sentences;
+    }
+
+    /// <summary>The level the project keeps for the piece, or the setting's default.</summary>
+    private PhraseLevel ProjectLevel => PhraseLevels.Parse(_project?.SettingOverrides.GetValueOrDefault(GranularitySetting)) ?? DefaultLevel;
+
+    /// <summary>The level a piece opens at until the player chooses one: the setting's default, Phrases.</summary>
+    private static PhraseLevel DefaultLevel => PhraseLevels.Parse(SettingsCatalogue.Get(GranularitySetting).Default) ?? PhraseLevel.Phrase;
+
+    private const string GranularitySetting = "phrases.granularity";
+
+    private string LevelName(PhraseLevel level) => Text[level switch
+    {
+        PhraseLevel.Short => "phrases.levelShort",
+        PhraseLevel.Sentence => "phrases.levelSentences",
+        _ => "phrases.levelPhrases",
+    }];
+
+    /// <summary>"Short phrase", "Phrase" or "Sentence" in the player's language, as a bracket is named.</summary>
+    private string UnitName(PhraseLevel level)
+    {
+        string name = PhraseLevels.Describe(level, Words);
+        return name.Length == 0 ? name : char.ToUpper(name[0], Text.Culture) + name[1..];
+    }
+
+    /// <summary>How many units the piece has at the level shown, as the popover says it.</summary>
+    private string LevelCount => _levels is null ? "" : Text.Count(_level switch
+    {
+        PhraseLevel.Short => "phrases.countShort",
+        PhraseLevel.Sentence => "phrases.countSentences",
+        _ => "phrases.countPhrases",
+    }, _levels.Units(_level).Count);
+
+    /// <summary>The unit of the level shown that the selection is, exactly; null for another range or nothing.</summary>
+    private PhraseUnit? CurrentUnit => _selection is { } selection ? _levels?.Matching(_level, selection.Span) : null;
+
+    /// <summary>The brackets of the level shown, the selected one in the accent and a dot on those the player kept ideas from.</summary>
+    private IReadOnlyList<ScorePhrase>? ScorePhrases
+    {
+        get
         {
-            _view = view;
+            if (_levels is null || !_showBrackets)
+            {
+                return null;
+            }
+
+            PhraseUnit? current = CurrentUnit;
+            IReadOnlyList<Observation> kept = Kept;
+            if (!ReferenceEquals(_levels, _scorePhrasesFor) || _level != _scorePhrasesLevel || current != _scorePhrasesCurrent || !ReferenceEquals(kept, _scorePhrasesKept))
+            {
+                (_scorePhrasesFor, _scorePhrasesLevel, _scorePhrasesCurrent, _scorePhrasesKept) = (_levels, _level, current, kept);
+                _scorePhrases = [.. _levels.Units(_level).Select(unit =>
+                {
+                    int ideas = kept.Count(observation => observation.IsAbout(unit.Span));
+                    string label = Text.Format("phrases.bracketLabel", UnitName(unit.Level), unit.Number, Bars(unit));
+                    return new ScorePhrase(
+                        unit.Span.Onset.Value,
+                        unit.Span.End.Value,
+                        unit.Number,
+                        KindClass(unit),
+                        unit == current,
+                        ideas > 0,
+                        ideas == 0 ? label : label + ", " + Text.Format("phrases.keptShort", ideas));
+                })];
+            }
+
+            return _scorePhrases;
+        }
+    }
+
+    private PhraseLevels? _scorePhrasesFor;
+    private PhraseLevel _scorePhrasesLevel;
+    private PhraseUnit? _scorePhrasesCurrent;
+    private IReadOnlyList<Observation>? _scorePhrasesKept;
+    private IReadOnlyList<ScorePhrase>? _scorePhrases;
+
+    /// <summary>How a unit's start was found, as the bracket's class: the start of the piece, the player's own, inferred, or imported from the file.</summary>
+    private static string KindClass(PhraseUnit unit) => unit.Number == 1 ? "start" : unit.Start.Provenance switch
+    {
+        Provenance.UserEdited or Provenance.UserConfirmed => "yours",
+        Provenance.Inferred or Provenance.Detected => "inferred",
+        _ => "imported",
+    };
+
+    private string Bars(PhraseUnit unit) =>
+        unit.FirstBar == unit.LastBar ? Text.Format("bars.one", unit.FirstBar) : Text.Format("bars.range", unit.FirstBar, unit.LastBar);
+
+    /// <summary>A tap on a bracket selects its unit; a tap on the selected one will lift it into focus (0018 section 4).</summary>
+    private Task OnBracketPickedAsync(int number)
+    {
+        _popover = Popover.None;
+        if (_levels is null || number < 1 || number > _levels.Units(_level).Count)
+        {
+            return Task.CompletedTask;
         }
 
-        if (double.TryParse(await Preferences.GetAsync(SplitKey), NumberStyles.Float, CultureInfo.InvariantCulture, out double split))
+        PhraseUnit unit = _levels.Units(_level)[number - 1];
+        if (unit == CurrentUnit)
         {
-            _split = Math.Clamp(split, 0.2, 0.8);
+            return Task.CompletedTask;
+        }
+
+        TickSpan span = _levels.Selectable(unit);
+        string? note = span == unit.Span ? null : Text.Format("selection.unitCapped", UnitName(unit.Level), unit.Number, unit.BarCount, MotifSelection.MaxStructureBars, _meter!.BarAt(new Tick(span.End.Value - 1)).Number);
+        return SelectAsync(span, note);
+    }
+
+    /// <summary>
+    /// Shows the piece at another level: the brackets are drawn again and renumbered, and the selection moves to
+    /// the unit that is it, encloses it or holds its start (0018 section 3). The level is kept with the piece.
+    /// </summary>
+    private async Task SetLevelAsync(PhraseLevel level)
+    {
+        if (level == _level || _levels is null)
+        {
+            return;
+        }
+
+        _level = level;
+        if (_project is not null)
+        {
+            _project = _project.OverrideSetting(GranularitySetting, PhraseLevels.SettingValue(level));
+        }
+
+        if (_selection is { } selection)
+        {
+            PhraseUnit unit = _levels.Map(selection.Span, level);
+            await SelectAsync(_levels.Selectable(unit), note: null);
+        }
+        else
+        {
+            await SaveProjectAsync();
         }
     }
 
-    private Task SetViewAsync(ViewMode mode)
+    /// <summary>The level's own edits go; the other levels keep theirs.</summary>
+    private Task ResetLevelAsync() =>
+        _levels is { } levels ? ChangePhrasesAsync(levels.Reset(_level), around: null) : Task.CompletedTask;
+
+    private async Task ToggleBracketsAsync()
     {
-        _view = mode;
-        return Preferences.SetAsync(ViewKey, mode.ToString());
+        _showBrackets = !_showBrackets;
+        await Preferences.SetAsync(BracketsPreference, _showBrackets ? Setting.On : Setting.Off);
     }
 
-    /// <summary>Focus mode: the header, the inspector and the phrase tools go, and the browser is asked for the whole screen.</summary>
-    private async Task EnterFocusAsync()
+    private void TogglePopover(Popover popover)
     {
-        _focus = true;
-        _fullscreen = await InvokeLayoutAsync<bool>("enterFullscreen");
+        _popover = _popover == popover ? Popover.None : popover;
+        _pillMenu = PillMenu.None;
     }
 
-    private async Task LeaveFocusAsync()
+    private void ClosePopover()
     {
-        _focus = false;
-        if (_fullscreen)
+        _popover = Popover.None;
+        _pillMenu = PillMenu.None;
+    }
+
+    private void TogglePillMenu(PillMenu menu)
+    {
+        _pillMenu = _pillMenu == menu ? PillMenu.None : menu;
+        _popover = Popover.None;
+    }
+
+    private void ToggleRoll()
+    {
+        _rollOpen = !_rollOpen;
+        _popover = Popover.None;
+    }
+
+    private void ToggleInsights()
+    {
+        _insightsOpen = !_insightsOpen;
+        _popover = Popover.None;
+    }
+
+    private async Task TogglePenAsync()
+    {
+        _popover = Popover.None;
+        if (_scoreView is not null)
         {
-            _fullscreen = false;
-            await InvokeLayoutAsync<object?>("exitFullscreen");
+            await _scoreView.TogglePencilAsync();
         }
     }
 
-    /// <summary>Called by the layout script when the player lets the divider go or moves it by keyboard.</summary>
+    private void OnPenChanged(ScoreView.PencilState state) => _penOn = state.On;
+
+    private void OnPagesShown((int First, int Last, int Count) pages) => _pages = pages;
+
+    /// <summary>The title the score's first page is headed with, when it has one.</summary>
+    private string? _engravedTitle;
+
+    /// <summary>The piece's name in the bar: as its score is headed, or its file's name without the extension.</summary>
+    private string BarTitle => _engravedTitle ?? ScoreTitle.Of(_title) ?? Text["workspace.title"];
+
+    private void OnTitleRead(string? title) => _engravedTitle = string.IsNullOrWhiteSpace(title) ? null : title;
+
+    private async Task SetPagedAsync(bool paged)
+    {
+        if (_scoreView is not null)
+        {
+            await _scoreView.SetPagedAsync(paged);
+        }
+    }
+
+    private async Task ExportPdfAsync()
+    {
+        if (_scoreView is not null)
+        {
+            await _scoreView.ExportPdfAsync();
+        }
+    }
+
+    /// <summary>Limits what plays and lights up to the chosen notes (S1-M2), from the pill.</summary>
+    private Task ChooseFilterAsync(int index)
+    {
+        _pillMenu = PillMenu.None;
+        return SetFilterAsync(new ChangeEventArgs { Value = index.ToString(System.Globalization.CultureInfo.InvariantCulture) });
+    }
+
+    /// <summary>
+    /// Page Up and Page Down, and the page-turner pedals that send them (#126): the next or previous phrase at the
+    /// level shown; with nothing selected, Page Down starts at the first. The arrow keys move by page (score-view.ts).
+    /// </summary>
     [JSInvokable]
-    public Task OnSplitChanged(double share)
+    public async Task StepAsync(int direction)
     {
-        _split = Math.Clamp(share, 0.2, 0.8);
-        return Preferences.SetAsync(SplitKey, _split.ToString("0.00", CultureInfo.InvariantCulture));
+        await StepUnitAsync(direction);
+        StateHasChanged();
+    }
+
+    /// <summary>The unit before or after the selection at the level shown; the first when nothing is selected.</summary>
+    private Task StepUnitAsync(int direction)
+    {
+        if (_levels is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        IReadOnlyList<PhraseUnit> units = _levels.Units(_level);
+        int index = _selection is { } selection
+            ? (CurrentUnit ?? _levels.At(_level, selection.Span.Onset)).Number - 1 + Math.Sign(direction)
+            : direction > 0 ? 0 : -1;
+        return index >= 0 && index < units.Count ? SelectAsync(_levels.Selectable(units[index]), note: null) : Task.CompletedTask;
     }
 
     /// <summary>A click on a bar in the score selects it, and a Shift-click extends the selection to it, as on the roll (S1-M1).</summary>
     private Task OnScoreBarPickedAsync((Tick Start, bool Extend) bar) =>
         OnRangePickedAsync(new RollRange(bar.Start, bar.Start, true, bar.Extend));
 
-    /// <summary>
-    /// Attaches the layout script to the canvas once it is on the page, and again when the view or Focus
-    /// changes, since the divider and the Focus bar come and go with them.
-    /// </summary>
+    /// <summary>Starts the bar's fade and the page-turner keys once the score page is showing; stops them when it goes.</summary>
     private async Task SyncLayoutAsync()
     {
         if (_score is null)
@@ -120,36 +357,45 @@ public partial class PlaybackLab : IAsyncDisposable
             return;
         }
 
-        (ViewMode, bool, bool) key = (_view, _focus, ShowDivider);
-        if (_attached == key)
+        // The bar is on the page from the render after the piece arrives. Renders can come while this awaits, so it starts once.
+        if (_attaching || _barFade is not null || string.IsNullOrEmpty(_bar.Id))
         {
             return;
         }
 
-        await DetachLayoutAsync();
+        _attaching = true;
         try
         {
             _self ??= DotNetObjectReference.Create(this);
-            _layoutModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/layout/workspace-layout.js");
-            _layout = await _layoutModule.InvokeAsync<IJSObjectReference>("attach", _main, _canvas, ShowDivider ? _handle : null, _self, _split);
-            _attached = key;
+            _chromeModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/layout/bar-fade.js");
+            _barFade = await _chromeModule.InvokeAsync<IJSObjectReference>("attach", _main, _bar);
+            IJSObjectReference keys = await JS.InvokeAsync<IJSObjectReference>("import", "./js/phrases/phrase-keys.js");
+            _phraseKeys = await keys.InvokeAsync<IJSObjectReference>("listen", _self);
+            await keys.DisposeAsync();
         }
         catch (JSException)
         {
-            // Without the script the canvas keeps its own heights; the page still works.
+            // Without the script the bar stays as it is; the page still works.
+        }
+        finally
+        {
+            _attaching = false;
         }
     }
 
     private async Task DetachLayoutAsync()
     {
-        _attached = null;
-        if (_layout is { } layout)
+        foreach (IJSObjectReference? part in new[] { _barFade, _phraseKeys })
         {
-            _layout = null;
+            if (part is null)
+            {
+                continue;
+            }
+
             try
             {
-                await layout.InvokeVoidAsync("dispose");
-                await layout.DisposeAsync();
+                await part.InvokeVoidAsync("dispose");
+                await part.DisposeAsync();
             }
             catch (JSException)
             {
@@ -158,19 +404,8 @@ public partial class PlaybackLab : IAsyncDisposable
             {
             }
         }
-    }
 
-    private async Task<T?> InvokeLayoutAsync<T>(string function)
-    {
-        try
-        {
-            _layoutModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/layout/workspace-layout.js");
-            return await _layoutModule.InvokeAsync<T>(function);
-        }
-        catch (JSException)
-        {
-            return default;
-        }
+        (_barFade, _phraseKeys) = (null, null);
     }
 
     public async ValueTask DisposeAsync()
@@ -178,9 +413,9 @@ public partial class PlaybackLab : IAsyncDisposable
         try
         {
             await DetachLayoutAsync();
-            if (_layoutModule is not null)
+            if (_chromeModule is not null)
             {
-                await _layoutModule.DisposeAsync();
+                await _chromeModule.DisposeAsync();
             }
         }
         catch (JSDisconnectedException)

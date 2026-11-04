@@ -33,6 +33,7 @@ public partial class PlaybackLab
             _asWritten = null;
             _scoreChoice = ScoreChoice.Generated;
             _tab = InspectorTab.Tools;
+            _insightsOpen = true;
         }
     }
 
@@ -47,6 +48,7 @@ public partial class PlaybackLab
         await ShowScanBarAsync(bar);
         _showCorrections = true;
         _tab = InspectorTab.Tools;
+        _insightsOpen = true;
     }
 
     private Task ConfirmScanBarsAsync(IReadOnlyList<int> bars) =>

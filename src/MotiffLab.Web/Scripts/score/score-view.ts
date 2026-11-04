@@ -2,7 +2,10 @@
 // marks the notes being heard, scrolls with playback and moves playback to a clicked note, and
 // highlights the places a chosen fact names (#25). A click on a bar selects it (0012). The player's
 // pencil marks are drawn over it (pencil-layer.ts, 0015). The score is laid out as A4 pages or as one
-// strip the width of the view, and exported as an A4 PDF (decision record 0017).
+// strip the width of the view, and exported as an A4 PDF (decision record 0017). In the redesign (0018)
+// the A4 pages are one continuously scrolling document, two to a row in landscape, with the title set
+// by the app on the first page, the pages under the top of the view reported for the bar, and the
+// phrases drawn as pencil brackets above the top staff that select their phrase when tapped.
 // Blazor imports this module through JS interop. Verovio loads on first use.
 
 import type { BarFrame } from "./pencil-marks.js";
@@ -10,7 +13,7 @@ import { PencilLayer, type PencilState } from "./pencil-layer.js";
 import { ScoreTimeline, highlightedIds, type HighlightPlace, type TimemapEntry } from "./score-timeline.js";
 import { A4_HEIGHT, A4_WIDTH, buildPdf, crop, inkBounds, type InkLayer, type PdfPage } from "./pdf-document.js";
 import { hasText, svgToPdfOperators, textOnlySvg } from "./svg-to-pdf.js";
-import { A4_LAYOUT, pdfFileName, withTitle } from "./score-page.js";
+import { A4_LAYOUT, pdfFileName, titleBlock, withTitle } from "./score-page.js";
 import { ScoreGeometry, readPage, type PageGeometry, type PagePlacement } from "./score-geometry.js";
 import { downloadBytes } from "../storage/project-store.js";
 
@@ -49,6 +52,8 @@ interface VerovioWrapper {
 export interface ScoreLoadResult {
     pages: number;
     notes: number;
+    /** The title the first page is headed with, for the bar; null in the strip or when the score has none. */
+    title: string | null;
 }
 
 const VEROVIO_BASE = new URL("../../lib/verovio/", import.meta.url);
@@ -77,20 +82,29 @@ const SCROLL_KEYS = new Set(["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home
 /** Notes outside the range that plays for the selection, drawn faint as on the piano roll. */
 const OUTSIDE_CLASS = "outside";
 
-/** A mark above the staves where a phrase starts (#18), placed over the engraving. */
-const PHRASE_MARK_CLASS = "phrase-mark";
+/** A phrase's pencil bracket above the top staff (0018 section 3, design/kit/ds.css), placed over the engraving. */
+const BRACKET_CLASS = "bracket";
+
+/** The line under the bar the page count reads at: the page under it is the page being read. */
+const READING_LINE_PX = 72;
 
 /** The notes and rests of the places a chosen fact names (#25): blue, with a box around each, so they differ from playing and outside by more than colour. */
 const HIGHLIGHT_CLASS = "highlight";
 const HIGHLIGHT_MARK_CLASS = "highlight-mark";
 
-/** A phrase start as Blazor sends it: where, the mark's text, and how it was found (imported, inferred or yours). */
+/** A phrase as Blazor sends it for its bracket: where it starts and ends, its number at the level shown, and how its start was found. */
 export interface ScorePhrase {
-    tick: number;
-    label: string;
+    start: number;
+    end: number;
+    number: number;
+    /** "start", "imported", "inferred" or "yours", as a class. */
     kind: string;
-    /** The selected phrase, marked so the player sees where it sits in the piece. */
+    /** The selected phrase: its bracket is drawn in the accent. */
     current: boolean;
+    /** Whether the player kept ideas from it: a plum dot at the bracket's right end. */
+    ideas: boolean;
+    /** What a screen reader says for the bracket. */
+    label: string;
 }
 
 let verovio: Promise<{ module: unknown; wrapper: VerovioWrapper }> | null = null;
@@ -140,6 +154,8 @@ export class ScoreView {
     /** The MIDI key of each engraved note asked about since the last load; undefined for a rest or when Verovio has none. */
     private pitches = new Map<string, number | undefined>();
     private laidOutWidth = 0;
+    /** A4 pages are fitted to the view's height in landscape, so a change of height moves the marks over them too. */
+    private laidOutHeight = 0;
     /** When the player last scrolled the score by hand, from performance.now(). */
     private scrolledByHand = -Infinity;
     private frame = 0;
@@ -153,6 +169,9 @@ export class ScoreView {
     /** The pages as engraved, and their geometry once read (score-geometry.ts): read again after every layout. */
     private pageSvgs: string[] = [];
     private pageGeometry: PageGeometry[] | null = null;
+    /** The pages under the reading line as last reported, so the bar hears only of a change. */
+    private pagesShown = "";
+    private scrollFrame = 0;
 
     constructor(host: HTMLElement, dotnet: DotNetObject) {
         this.host = host;
@@ -169,6 +188,8 @@ export class ScoreView {
         this.host.addEventListener("wheel", this.onScrollByHand, { passive: true });
         this.host.addEventListener("touchmove", this.onScrollByHand, { passive: true });
         this.host.addEventListener("keydown", this.onScrollByHand);
+        this.host.addEventListener("keydown", this.onKeyDown);
+        this.host.addEventListener("scroll", this.onScroll, { passive: true });
         this.resizeObserver = new ResizeObserver(() => this.scheduleRelayout());
         this.resizeObserver.observe(host);
     }
@@ -180,7 +201,7 @@ export class ScoreView {
     async load(data: string, title?: string | null): Promise<ScoreLoadResult> {
         const engraver = await loadToolkit();
         if (this.disposed) {
-            return { pages: 0, notes: 0 };
+            return { pages: 0, notes: 0, title: null };
         }
 
         const titled = withTitle(data, title);
@@ -196,7 +217,8 @@ export class ScoreView {
         this.highlighted = new Set();
         this.timeline = ScoreTimeline.fromTimemap(engraver.renderToTimemap({ includeRests: true, includeMeasures: true }));
         this.render();
-        return { pages: engraver.getPageCount(), notes: this.timeline.spans.length };
+        const heading = this.pageSvgs.length > 0 ? titleBlock(this.pageSvgs[0]) : null;
+        return { pages: engraver.getPageCount(), notes: this.timeline.spans.length, title: heading?.title || null };
     }
 
     /**
@@ -291,10 +313,32 @@ export class ScoreView {
         }
     }
 
-    /** Marks where phrases start: a line and a label at the first engraved note at or after each start. */
+    /** Draws the phrases' brackets above the top staff; an empty list draws none. */
     setPhrases(phrases: ScorePhrase[]): void {
         this.phrases = phrases;
         this.placePhrases();
+    }
+
+    /**
+     * Scrolls exactly one page (one row of pages in landscape) on, or back with -1, within the same
+     * continuous document (0018 section 2); in the strip, by most of the view's height.
+     */
+    stepPage(direction: number): void {
+        const host = this.host;
+        const step = Math.sign(direction) || 1;
+        if (!this.paged) {
+            host.scrollBy({ top: step * host.clientHeight * 0.85, behavior: "smooth" });
+            return;
+        }
+        const tops = [...new Set(this.pageElements().map((page) => Math.round(page.offsetTop)))].sort((a, b) => a - b);
+        const now = host.scrollTop;
+        const gap = tops.length > 0 ? Math.max(0, tops[0]) : 0;
+        const current = tops.filter((top) => top - gap <= now + 2).length - 1;
+        const target = tops[Math.min(tops.length - 1, Math.max(0, current + step))];
+        if (target !== undefined) {
+            this.scrolledByHand = performance.now();
+            host.scrollTo({ top: Math.max(0, target - gap), behavior: "smooth" });
+        }
     }
 
     /**
@@ -351,11 +395,15 @@ export class ScoreView {
         this.host.removeEventListener("wheel", this.onScrollByHand);
         this.host.removeEventListener("touchmove", this.onScrollByHand);
         this.host.removeEventListener("keydown", this.onScrollByHand);
+        this.host.removeEventListener("keydown", this.onKeyDown);
+        this.host.removeEventListener("scroll", this.onScroll);
+        cancelAnimationFrame(this.scrollFrame);
         this.host.replaceChildren();
     }
 
     private layoutOptions(): Record<string, unknown> {
         this.laidOutWidth = this.host.clientWidth;
+        this.laidOutHeight = this.host.clientHeight;
         if (this.paged) {
             return { ...A4_LAYOUT };
         }
@@ -390,9 +438,17 @@ export class ScoreView {
             const svg = engraver.renderToSVG(page);
             this.pageSvgs.push(svg);
             container.innerHTML = svg;
+            if (this.paged) {
+                container.dataset.page = String(page);
+                const heading = page === 1 ? titleBlock(svg) : null;
+                if (heading !== null) {
+                    container.append(titleElement(heading.title, heading.lines));
+                }
+            }
             pages.push(container);
         }
         this.host.replaceChildren(...pages);
+        this.pagesShown = "";
         if (this.holding) {
             this.keepHeight();
         }
@@ -408,7 +464,61 @@ export class ScoreView {
         this.mark(marked, false);
 
         this.pencil.relayout();
+        this.reportPages();
     }
+
+    private pageElements(): HTMLElement[] {
+        return [...this.host.querySelectorAll<HTMLElement>(":scope > .score-page")];
+    }
+
+    /** Tells the bar which pages are under the reading line ("p. 2 of 4", or "pp. 1–2 of 4" with two to a row). */
+    private reportPages(): void {
+        if (!this.paged) {
+            if (this.pagesShown !== "strip") {
+                this.pagesShown = "strip";
+                void this.dotnet.invokeMethodAsync("OnPagesShown", 0, 0, 0);
+            }
+            return;
+        }
+        const pages = this.pageElements();
+        if (pages.length === 0) {
+            return;
+        }
+        const line = this.host.getBoundingClientRect().top + READING_LINE_PX;
+        let shown = pages.filter((page) => {
+            const box = page.getBoundingClientRect();
+            return box.top <= line && box.bottom > line;
+        });
+        if (shown.length === 0) {
+            // Between two rows: the next row down is the one being read.
+            const next = pages.find((page) => page.getBoundingClientRect().top > line) ?? pages[pages.length - 1];
+            const top = next.getBoundingClientRect().top;
+            shown = pages.filter((page) => Math.abs(page.getBoundingClientRect().top - top) < 2);
+        }
+        const numbers = shown.map((page) => Number(page.dataset.page)).filter((number) => number > 0);
+        const key = `${Math.min(...numbers)}-${Math.max(...numbers)}-${pages.length}`;
+        if (numbers.length > 0 && key !== this.pagesShown) {
+            this.pagesShown = key;
+            void this.dotnet.invokeMethodAsync("OnPagesShown", Math.min(...numbers), Math.max(...numbers), pages.length);
+        }
+    }
+
+    private readonly onScroll = (): void => {
+        cancelAnimationFrame(this.scrollFrame);
+        this.scrollFrame = requestAnimationFrame(() => this.reportPages());
+    };
+
+    private readonly onKeyDown = (event: KeyboardEvent): void => {
+        if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.target !== this.host) {
+            return;
+        }
+        // The arrow keys move exactly one page (0018 section 2); Page Up and Page Down step phrases (phrase-keys.ts).
+        const step = event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
+        if (step !== 0) {
+            event.preventDefault();
+            this.stepPage(step);
+        }
+    };
 
     /**
      * Where each engraved bar sits, in the score's content pixels, for the pencil marks: its box, and its
@@ -443,34 +553,48 @@ export class ScoreView {
     }
 
     private placePhrases(): void {
-        for (const old of this.host.querySelectorAll(`.${PHRASE_MARK_CLASS}`)) {
+        for (const old of this.host.querySelectorAll(`:scope > .${BRACKET_CLASS}`)) {
             old.remove();
         }
-        const timeline = this.timeline;
-        if (timeline === null || this.phrases.length === 0) {
+        if (this.phrases.length === 0) {
             return;
         }
-        const view = this.host.getBoundingClientRect();
+        const geometry = this.geometry();
+        if (geometry === null) {
+            return;
+        }
         for (const phrase of this.phrases) {
-            const span = timeline.spans.find((candidate) => candidate.onset >= phrase.tick);
-            const note = span === undefined ? null : this.element(span.id);
-            if (note === null) {
-                continue;
+            for (const run of geometry.bracket(phrase.start, phrase.end)) {
+                const bracket = document.createElement("button");
+                bracket.type = "button";
+                bracket.className = `${BRACKET_CLASS} ${phrase.kind}`;
+                bracket.classList.toggle("on", phrase.current);
+                bracket.classList.toggle("from", !run.first);
+                bracket.classList.toggle("on-to", !run.last);
+                bracket.dataset.phrase = String(phrase.number);
+                bracket.style.left = `${run.left}px`;
+                bracket.style.top = `${run.top}px`;
+                bracket.style.width = `${Math.max(4, run.right - run.left)}px`;
+                if (run.first) {
+                    bracket.setAttribute("aria-label", phrase.label);
+                    bracket.setAttribute("aria-pressed", phrase.current ? "true" : "false");
+                    const number = document.createElement("span");
+                    number.className = "n";
+                    number.setAttribute("aria-hidden", "true");
+                    number.textContent = String(phrase.number);
+                    bracket.append(number);
+                } else {
+                    // The rest of a phrase that runs on to the next system is the same target, said once.
+                    bracket.tabIndex = -1;
+                    bracket.setAttribute("aria-hidden", "true");
+                }
+                if (run.last && phrase.ideas) {
+                    const dot = document.createElement("span");
+                    dot.className = "dot";
+                    bracket.append(dot);
+                }
+                this.host.append(bracket);
             }
-            const system = note.closest("g.system") ?? note;
-            const box = note.getBoundingClientRect();
-            const around = system.getBoundingClientRect();
-            const mark = document.createElement("span");
-            mark.className = `${PHRASE_MARK_CLASS} ${phrase.kind}`;
-            mark.classList.toggle("current", phrase.current);
-            mark.setAttribute("aria-hidden", "true");
-            const label = document.createElement("span");
-            label.textContent = phrase.label;
-            mark.append(label);
-            mark.style.left = `${box.left - view.left + this.host.scrollLeft - 4}px`;
-            mark.style.top = `${around.top - view.top + this.host.scrollTop}px`;
-            mark.style.height = `${around.height}px`;
-            this.host.append(mark);
         }
     }
 
@@ -528,7 +652,9 @@ export class ScoreView {
     }
 
     private scheduleRelayout(): void {
-        if (this.engraver === null || Math.abs(this.host.clientWidth - this.laidOutWidth) < RELAYOUT_THRESHOLD_PX) {
+        const wider = Math.abs(this.host.clientWidth - this.laidOutWidth) >= RELAYOUT_THRESHOLD_PX;
+        const taller = this.paged && Math.abs(this.host.clientHeight - this.laidOutHeight) >= RELAYOUT_THRESHOLD_PX;
+        if (this.engraver === null || (!wider && !taller)) {
             return;
         }
         clearTimeout(this.relayoutTimer);
@@ -536,9 +662,11 @@ export class ScoreView {
             if (this.paged && this.engraver !== null && !this.disposed) {
                 // A4 pages keep their layout and only scale with the view: the marks over them move with it.
                 this.laidOutWidth = this.host.clientWidth;
+                this.laidOutHeight = this.host.clientHeight;
                 this.placePhrases();
                 this.applyHighlight(false);
                 this.pencil.relayout();
+                this.reportPages();
             } else if (this.engraver !== null && !this.disposed) {
                 this.engraver.setOptions(this.layoutOptions());
                 this.engraver.redoLayout();
@@ -597,8 +725,9 @@ export class ScoreView {
         }
         const view = this.host.getBoundingClientRect();
         const box = target.getBoundingClientRect();
-        if (box.top < view.top || box.bottom > view.bottom) {
-            this.host.scrollTo({ top: this.host.scrollTop + box.top - view.top - 8, behavior: "smooth" });
+        // The bar floats over the top of the view, so the system goes below it.
+        if (box.top < view.top + READING_LINE_PX - 16 || box.bottom > view.bottom) {
+            this.host.scrollTo({ top: this.host.scrollTop + box.top - view.top - READING_LINE_PX, behavior: "smooth" });
         }
     }
 
@@ -614,6 +743,11 @@ export class ScoreView {
     }
 
     private readonly onClick = (event: MouseEvent): void => {
+        const bracket = event.target instanceof Element ? event.target.closest<HTMLElement>(`.${BRACKET_CLASS}`) : null;
+        if (bracket !== null) {
+            void this.dotnet.invokeMethodAsync("OnBracketClicked", Number(bracket.dataset.phrase));
+            return;
+        }
         // A press the pencil layer took is handled there: a tap comes back through pick.
         if (event.target instanceof Element && !this.pencil.swallowsClick()) {
             this.pick(event.target, event.shiftKey);
@@ -641,6 +775,26 @@ export class ScoreView {
             void this.dotnet.invokeMethodAsync("OnScoreBarClicked", start, extend);
         }
     }
+}
+
+/** The title block on the first page, in the app's serif rather than Verovio's header (0018 section 2). */
+function titleElement(title: string, lines: string[]): HTMLElement {
+    const block = document.createElement("div");
+    block.className = "title-block";
+    block.setAttribute("aria-hidden", "true");
+    if (title !== "") {
+        const name = document.createElement("p");
+        name.className = "name";
+        name.textContent = title;
+        block.append(name);
+    }
+    if (lines.length > 0) {
+        const more = document.createElement("p");
+        more.className = "more";
+        more.textContent = lines.join(" · ");
+        block.append(more);
+    }
+    return block;
 }
 
 /**

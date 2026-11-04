@@ -41,12 +41,83 @@ export async function openFurElise(page) {
  * bars of 3/8; other pieces give their pickup and bar length in quarters.
  */
 export async function selectBar(page, bar, { pickup = 0.5, barQuarters = 1.5 } = {}) {
+    await openRoll(page);
     const roll = page.locator(".roll");
-    await expect(roll).toBeVisible();
-    // On a tablet the inspector stacks under the canvas, so a tab clicked there can scroll the roll away.
-    await roll.scrollIntoViewIfNeeded();
     const box = await roll.boundingBox();
     const quarters = pickup + (bar - 1) * barQuarters + 0.4;
     await page.mouse.click(box.x + GUTTER + quarters * PIXELS_PER_QUARTER, box.y + HEADER / 2);
-    await expect(page.locator(".inspector .selection-text")).toContainText(new RegExp(`(bar|такт) ${bar}(?!\\d)`, "i"));
+    await expect(page.locator(".selection-status")).toContainText(new RegExp(`(bar|такт) ${bar}(?!\\d)`, "i"));
+}
+
+/** Opens the piano roll drawer from the bar (0018 section 4), if it is not open. */
+export async function openRoll(page) {
+    const action = page.locator(".bar").getByRole("button", { name: /^(Piano roll|Фортепианный ролл)$/ });
+    if ((await action.getAttribute("aria-pressed")) !== "true") {
+        await action.click();
+    }
+    const roll = page.locator(".roll");
+    await expect(roll).toBeVisible();
+    // The drawer slides up; clicks land where it comes to rest.
+    let last = null;
+    await expect.poll(async () => {
+        const box = await roll.boundingBox();
+        const still = last !== null && box !== null && box.y === last.y && box.height === last.height;
+        last = box;
+        return still;
+    }, { intervals: [100] }).toBe(true);
+}
+
+/** Opens the Insights sheet from the bar (0018 section 6), if it is not open, and shows one of its tabs. */
+export async function openInsights(page, tab) {
+    const action = page.locator(".bar").getByRole("button", { name: /^(Insights|Инсайты)$/ });
+    if ((await action.getAttribute("aria-pressed")) !== "true") {
+        await action.click();
+    }
+    await expect(page.locator(".sheet.inspector")).toBeVisible();
+    if (tab !== undefined) {
+        await page.locator(".sheet.inspector").getByRole("tab", { name: tab }).click();
+    }
+}
+
+/** Opens the bar's overflow (0018 section 2), if it is not open, and gives it. */
+export async function openMore(page) {
+    const action = page.locator(".bar").getByRole("button", { name: /^(More|Ещё)$/ });
+    if ((await action.getAttribute("aria-expanded")) !== "true") {
+        await action.click();
+    }
+    const more = page.locator(".more-popover");
+    await expect(more).toBeVisible();
+    return more;
+}
+
+/** Puts an open popover away with a tap beside it. */
+export async function closePopover(page) {
+    const scrim = page.locator("button.scrim");
+    if ((await scrim.count()) > 0) {
+        await scrim.click({ position: { x: 4, y: 300 } });
+    }
+    await expect(scrim).toHaveCount(0);
+}
+
+/** What the overflow's "What is heard" list shows, read with the overflow open and put away again. */
+export async function heardChoice(page) {
+    const more = await openMore(page);
+    const text = await more.locator("select[aria-label='What is heard'] option:checked").textContent();
+    await closePopover(page);
+    return text;
+}
+
+/** What the overflow's "Which score shows" list shows. */
+export async function scoreChoice(page) {
+    const more = await openMore(page);
+    const text = await more.locator("select[aria-label='Which score shows'] option:checked").textContent();
+    await closePopover(page);
+    return text;
+}
+
+/** Chooses in one of the overflow's lists ("What is heard", "Which score shows") by the option's label. */
+export async function chooseInMore(page, list, label) {
+    const more = await openMore(page);
+    await more.locator(`select[aria-label='${list}']`).selectOption({ label });
+    await closePopover(page);
 }

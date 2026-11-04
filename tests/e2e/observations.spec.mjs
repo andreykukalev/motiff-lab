@@ -4,20 +4,19 @@
 // has no project, so it says what is kept lasts while the page is open; an imported piece saves it with its project.
 import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { openFurElise } from "./steps.mjs";
+import { openFurElise, openInsights, heardChoice } from "./steps.mjs";
 
 const minuet = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/MusicXml/Fixtures/importer-grand-staff.musicxml", import.meta.url));
 
 test("keep a variation with a note, come back to it, rename, export and delete it", async ({ page }) => {
     const errors = await openFurElise(page);
-    const phrases = page.locator(".phrases button.phrase");
-    const selection = page.locator(".inspector .selection-text");
-    const heard = page.locator("select[aria-label='What is heard'] option:checked");
+    const phrases = page.locator(".score button.bracket[aria-label]");
+    const selection = page.locator(".selection-status");
     const card = page.locator(".explore");
     const kept = page.locator(".observations");
 
     await phrases.nth(0).click();
-    await page.getByRole("tab", { name: "Explore" }).click();
+    await openInsights(page, "Explore");
     await expect(kept.getByRole("heading", { name: "Kept for phrase 1" })).toBeVisible();
     await expect(kept).toContainText("Nothing kept for this phrase yet.");
 
@@ -54,13 +53,13 @@ test("keep a variation with a note, come back to it, rename, export and delete i
     await item.getByRole("button", { name: "Open" }).click();
     await expect(selection).toContainText("Opened “Give the melody more space: Short”.");
     await expect(item).toContainText("You hear this");
-    await expect(heard).toHaveText("Variation");
+    await expect.poll(() => heardChoice(page)).toBe("Variation");
     const compare = page.locator(".inspector-head").getByRole("group", { name: "Compare with the original" });
     await expect(compare.getByRole("button", { name: "Variation", exact: true })).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator(".explore + .compare")).toBeVisible();
-    await page.getByRole("tab", { name: "Tools", exact: true }).click();
+    await openInsights(page, "Tools");
     await expect(page.locator(".inspector .steps")).toContainText("Short");
-    await page.getByRole("tab", { name: "Explore" }).click();
+    await openInsights(page, "Explore");
 
     // Rename.
     await item.getByRole("button", { name: "Rename" }).click();
@@ -106,7 +105,7 @@ test("keep a variation with a note, come back to it, rename, export and delete i
     await expect(kept).toContainText("Deleted “Tiptoe”.");
     await expect(phrases.nth(0)).toHaveAccessibleName(/, 1 kept$/);
 
-    await page.locator(".transport-bar").getByRole("button", { name: "Pause" }).click();
+    await page.locator(".pill").getByRole("button", { name: "Pause" }).click();
     expect(errors).toEqual([]);
 });
 
@@ -116,12 +115,12 @@ test("what is kept is saved with the project and comes back when it is opened ag
     await page.goto("/import");
     await page.setInputFiles("input[type=file]", minuet);
     await page.getByText("Open the piece").click();
-    const phrases = page.locator(".phrases button.phrase");
+    const phrases = page.locator(".score button.bracket[aria-label]");
     const kept = page.locator(".observations");
     const card = page.locator(".explore");
 
     await phrases.nth(0).click();
-    await page.getByRole("tab", { name: "Explore" }).click();
+    await openInsights(page, "Explore");
     await expect(kept).not.toContainText("not saved as a project");
     await card.getByRole("button", { name: /Give the melody more space/ }).click();
     await card.getByRole("button", { name: "Keep this variation" }).click();
@@ -131,7 +130,7 @@ test("what is kept is saved with the project and comes back when it is opened ag
     await card.getByLabel("Add a note in your own words (optional)").blur();
     await expect(card).toContainText("Note saved.");
     await expect(kept.getByRole("listitem")).toContainText("Your note: Airier.");
-    await page.locator(".transport-bar").getByRole("button", { name: "Pause" }).click();
+    await page.locator(".pill").getByRole("button", { name: "Pause" }).click();
 
     // The project page lists the idea in its library (0012), and continuing from the resume point comes back to the phrase.
     await page.goto("/");
@@ -140,10 +139,10 @@ test("what is kept is saved with the project and comes back when it is opened ag
     await expect(idea).toContainText("Your note: Airier.");
     await expect(page.locator(".session-card")).toHaveCount(1);
     await page.locator(".session-card").getByRole("button", { name: "Continue" }).click();
-    await expect(page.locator(".inspector .selection-text")).toContainText("Selected phrase 1");
+    await expect(page.locator(".selection-status")).toContainText("Selected phrase 1");
     await expect(phrases.nth(0)).toHaveAccessibleName(/, 1 kept$/);
     await phrases.nth(0).click();
-    await page.getByRole("tab", { name: "Explore" }).click();
+    await openInsights(page, "Explore");
     const item = kept.getByRole("listitem", { name: "Give the melody more space: Detached" });
     await expect(item).toContainText("Your note: Airier.");
     await page.locator(".inspector-head").getByRole("button", { name: "Clear" }).click();
@@ -151,6 +150,6 @@ test("what is kept is saved with the project and comes back when it is opened ag
     await item.getByRole("button", { name: "Open" }).click();
     await expect(item).toContainText("You hear this");
     await expect(page.locator(".inspector-head .compare-switch")).toBeVisible();
-    await page.locator(".transport-bar").getByRole("button", { name: "Pause" }).click();
+    await page.locator(".pill").getByRole("button", { name: "Pause" }).click();
     expect(errors).toEqual([]);
 });
