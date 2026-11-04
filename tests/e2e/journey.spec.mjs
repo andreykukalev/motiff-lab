@@ -1,7 +1,7 @@
 // The core journey of Stage 1 in every browser project: open a piece, select a bar, hear it loop,
 // propose a dotted rhythm and hear it (S1-W4, S1-M1, S1-E1).
 import { expect, test } from "@playwright/test";
-import { openFurElise, selectBar } from "./steps.mjs";
+import { openFurElise, selectBar, heardChoice, openInsights } from "./steps.mjs";
 
 /**
  * Clicks a button and measures how long until the playback engine starts, in audio time: from the
@@ -26,18 +26,18 @@ async function startTime(page, button) {
 test("open a piece, loop a bar, propose and hear a variation", async ({ page }) => {
     const errors = await openFurElise(page);
     await selectBar(page, 1);
-    const play = page.locator(".transport-bar").getByRole("button", { name: "Play" });
-    const pause = page.locator(".transport-bar").getByRole("button", { name: "Pause" });
+    const play = page.locator(".pill").getByRole("button", { name: "Play", exact: true });
+    const pause = page.locator(".pill").getByRole("button", { name: "Pause", exact: true });
 
     await page.getByRole("button", { name: "Loop", exact: true }).click();
     const original = await startTime(page, play);
     await pause.click();
 
     // Picking a reshape plays it at once (S1-W5).
-    await page.getByRole("tab", { name: "Tools", exact: true }).click();
+    await openInsights(page, "Tools");
     const variation = await startTime(page, page.getByRole("button", { name: "Dotted" }));
     await expect(page.locator(".inspector .changed p").first()).not.toBeEmpty();
-    await expect(page.locator("select[aria-label='What is heard'] option:checked")).toHaveText("Variation");
+    await expect.poll(() => heardChoice(page)).toBe("Variation");
     await expect(page.getByText(/Bar 1, beat [23]/)).toBeVisible();
     await pause.click();
 

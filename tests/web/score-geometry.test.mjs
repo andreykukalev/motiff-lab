@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import { BRACKET_LIFT, RING_GROWTH, ScoreGeometry, readPage } from "../../src/MotiffLab.Web/wwwroot/js/score/score-geometry.js";
-import { A4_LAYOUT } from "../../src/MotiffLab.Web/wwwroot/js/score/score-page.js";
+import { A4_LAYOUT, titleBlock } from "../../src/MotiffLab.Web/wwwroot/js/score/score-page.js";
 import { ScoreTimeline } from "../../src/MotiffLab.Web/wwwroot/js/score/score-timeline.js";
 import createVerovioModule from "../../src/MotiffLab.Web/wwwroot/lib/verovio/verovio-module.mjs";
 import { VerovioToolkit } from "../../src/MotiffLab.Web/wwwroot/lib/verovio/verovio.mjs";
@@ -62,15 +62,16 @@ test("a page is read in its own units: bars, their two staves and the notes on t
     const first = pages[0];
 
     assert.equal(first.number, 1);
-    assert.equal(first.width, 2100);
-    assert.equal(first.height, 2970);
+    // At scale 50 the view box is the A4 page in fifths of a millimetre.
+    assert.equal(first.width, 1050);
+    assert.equal(first.height, 1485);
     assert.ok(first.systems.length >= 4);
     assert.ok(first.bars.length >= 10);
     for (const bar of first.bars) {
         assert.equal(bar.staves.length, 2);
-        // Staves 7.2 mm high: four spaces of 1.8 mm, in tenths of a millimetre.
-        assert.ok(Math.abs(bar.staves[0].space - 18) < 0.5, `space ${bar.staves[0].space}`);
-        assert.ok(bar.left >= 150 - 1 && bar.right <= 2100 - 150 + 1);
+        // Staves 7.2 mm high: four spaces of 1.8 mm, in fifths of a millimetre.
+        assert.ok(Math.abs(bar.staves[0].space - 9) < 0.5, `space ${bar.staves[0].space}`);
+        assert.ok(bar.left >= 75 - 1 && bar.right <= 1050 - 75 + 1);
         assert.ok(bar.staves[0].bottom < bar.staves[1].top);
         assert.equal(bar.top, bar.staves[0].top);
         assert.equal(bar.bottom, bar.staves[1].bottom);
@@ -237,4 +238,13 @@ test("an ossia above an excerpt is smaller and its bars line up with the origina
     assert.equal(geometry.note("ossia-a").staff, 1);
     assert.equal(geometry.note("a").staff, 2);
     assert.ok(geometry.note("ossia-a").cx < geometry.note("b").cx);
+});
+
+test("the title block is read from Verovio's header alone, not from what follows it on the page", () => {
+    const svg = '<svg><g class="page-margin"><g id="h1" class="pgHead">'
+        + '<g class="rend"><title class="labelAttr">title</title>\n  <text><tspan>Waltz&#160;sketch</tspan></text></g>'
+        + '<g class="rend"><title class="labelAttr">composer</title><text><tspan>A. N. Other</tspan></text></g>'
+        + '</g><g class="system"><style>@font-face { font-family: Leland }</style><text>9</text></g></g></svg>';
+    assert.deepEqual(titleBlock(svg), { title: "Waltz sketch", lines: ["A. N. Other"] });
+    assert.equal(titleBlock("<svg><g class=\"system\"></g></svg>"), null);
 });

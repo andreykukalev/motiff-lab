@@ -61,7 +61,7 @@ test("a scanned page opens with its doubtful bars to check, and checked bars sta
     await expect(page.getByRole("tab", { name: "Tools · Scan" })).toHaveAttribute("aria-selected", "true");
     await expect(check).toContainText("0 bars of 32 checked");
     await check.getByRole("button", { name: "Show" }).first().click();
-    await expect(page.locator(".inspector .selection-text")).toContainText(/bars? 8/);
+    await expect(page.locator(".selection-status")).toContainText(/bars? 8/);
     await check.getByRole("button", { name: "Looks right" }).first().click();
     await expect(check).toContainText("1 bar of 32 checked");
     expect(await violations(page)).toEqual([]);

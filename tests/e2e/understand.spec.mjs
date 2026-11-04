@@ -2,13 +2,13 @@
 // a fact chosen and its places highlighted in the score, one place at a time, a fact followed to the
 // experiment resting on it, and the experiment followed back to its fact.
 import { expect, test } from "@playwright/test";
-import { openFurElise, selectBar } from "./steps.mjs";
+import { openFurElise, selectBar, openInsights, chooseInMore } from "./steps.mjs";
 
 test("understand a phrase: highlight a fact's places, try its experiment and come back", async ({ page }) => {
     const errors = await openFurElise(page);
     await selectBar(page, 1);
+    await openInsights(page, "Understand");
     const tab = page.getByRole("tab", { name: "Understand" });
-    await tab.click();
     const panel = page.locator(".tab-panel");
     const highlighted = page.locator(".score .highlight");
 
@@ -35,7 +35,7 @@ test("understand a phrase: highlight a fact's places, try its experiment and com
     const place = panel.getByRole("group", { name: "Places" }).getByRole("button", { name: "exactly in bar 5" });
     await place.click();
     await expect(place).toHaveAttribute("aria-pressed", "true");
-    await expect(page.locator(".transport-bar .position")).toHaveText("Bar 5, beat 1");
+    await expect(page.locator(".pill .position")).toHaveText("Bar 5, beat 1");
 
     // Chosen again, the highlight clears.
     await fact.click();
@@ -48,19 +48,19 @@ test("understand a phrase: highlight a fact's places, try its experiment and com
     await expect(page.getByRole("tab", { name: "Explore" })).toHaveAttribute("aria-selected", "true");
     const card = page.locator(".explore");
     await expect(card.locator("h3")).toHaveText("Answer the motif differently");
-    await expect(page.locator(".inspector .selection-text")).toContainText("bar 5");
+    await expect(page.locator(".selection-status")).toContainText("bar 5");
 
     // The experiment links back to its fact, which Understand shows highlighted above either view.
     await card.getByRole("group", { name: "Rests on" }).getByRole("button", { name: /The motif recurs once/ }).click();
     await expect(tab).toHaveAttribute("aria-selected", "true");
     await expect(page.locator(".inspector .highlighted")).toContainText("The motif recurs once");
     await expect(panel.getByRole("button", { name: "Now", exact: true })).toHaveAttribute("aria-pressed", "true");
-    await page.locator("select[aria-label='Which score shows']").selectOption({ label: "Generated from the notes" });
+    await chooseInMore(page, "Which score shows", "Generated from the notes");
     await expect(highlighted.first()).toBeVisible();
     await page.locator(".inspector .highlighted").getByRole("button", { name: "Clear highlight" }).click();
     await expect(highlighted).toHaveCount(0);
 
-    await page.locator(".transport-bar").getByRole("button", { name: "Pause" }).click();
+    await page.locator(".pill").getByRole("button", { name: "Pause" }).click();
     expect(errors).toEqual([]);
 });
 
@@ -70,7 +70,7 @@ test("the facts read in Russian when the app is in Russian (#134)", async ({ pag
     page.on("pageerror", error => errors.push(String(error)));
     await page.goto("/playback?start=fur-elise");
     await selectBar(page, 1);
-    await page.getByRole("tab", { name: "Понять" }).click();
+    await openInsights(page, "Понять");
     const panel = page.locator(".tab-panel");
     await panel.getByRole("button", { name: "Подробно" }).click();
 

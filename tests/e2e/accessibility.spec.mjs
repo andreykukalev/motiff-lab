@@ -4,7 +4,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { openFurElise, selectBar } from "./steps.mjs";
+import { closePopover, openFurElise, openInsights, openMore, openRoll, selectBar } from "./steps.mjs";
 
 const midi = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/Midi/Fixtures/two-hands-type1.mid", import.meta.url));
 
@@ -34,7 +34,7 @@ test("import, its report, the opened piece and the project on the home screen", 
 
     await page.getByText("Open the piece").click();
     await selectBar(page, 1, { pickup: 0, barQuarters: 4 });
-    await page.getByRole("tab", { name: "Tools", exact: true }).click();
+    await openInsights(page, "Tools");
     await page.locator("[aria-label='Correct notes'] button.section-toggle").click();
     expect(await violations(page)).toEqual([]);
 
@@ -43,47 +43,73 @@ test("import, its report, the opened piece and the project on the home screen", 
     expect(await violations(page)).toEqual([]);
 });
 
+test("the score page: the bar, its popovers, the pill and its tempo, the roll drawer, the Pen palette, in both themes", async ({ page }) => {
+    await openFurElise(page);
+    for (const theme of ["daylight", "night"]) {
+        await page.evaluate(name => document.documentElement.setAttribute("data-theme", name), theme);
+        expect(await violations(page)).toEqual([]);
+        await page.locator(".bar").getByRole("button", { name: "Phrases" }).click();
+        await expect(page.locator(".phrases-popover")).toBeVisible();
+        expect(await violations(page)).toEqual([]);
+        await closePopover(page);
+        await openMore(page);
+        expect(await violations(page)).toEqual([]);
+        await closePopover(page);
+        await page.locator(".score button.bracket[aria-label]").first().click();
+        await page.locator(".pill").getByRole("button", { name: /^Tempo/ }).click();
+        expect(await violations(page)).toEqual([]);
+        await page.locator(".pill").getByRole("button", { name: /^Tempo/ }).click();
+        await openRoll(page);
+        await page.locator(".bar").getByRole("button", { name: "Pen", exact: true }).click();
+        await expect(page.getByRole("toolbar", { name: "Pencil marks" })).toBeVisible();
+        expect(await violations(page)).toEqual([]);
+        await page.locator(".bar").getByRole("button", { name: "Pen", exact: true }).click();
+        await page.locator(".bar").getByRole("button", { name: "Piano roll" }).click();
+    }
+});
+
 test("playback lab with a selection, Practise, the Explore card, a variation and the note editor", async ({ page }) => {
     await openFurElise(page);
-    // A phrase picked: the strip, its current mark in the score, and Practise (the default tab) playing on.
-    await page.locator(".phrases button.phrase").nth(1).click();
+    // A phrase picked: its bracket on the score, and Practise (the default tab) playing on.
+    await page.locator(".score button.bracket[aria-label]").nth(1).click();
+    await openInsights(page);
     await page.getByRole("button", { name: "Play on to the end" }).click();
     expect(await violations(page)).toEqual([]);
     await page.getByRole("button", { name: "Back to the phrase" }).click();
     await selectBar(page, 1);
     expect(await violations(page)).toEqual([]);
-    await page.getByRole("tab", { name: "Explore" }).click();
+    await openInsights(page, "Explore");
     await page.getByRole("button", { name: "I have a question" }).click();
     expect(await violations(page)).toEqual([]);
     await page.getByRole("button", { name: "Which changes keep the motif recognisable?" }).click();
     await expect(page.locator(".explore h3")).toHaveText("Answer the motif differently");
     expect(await violations(page)).toEqual([]);
     await page.getByRole("button", { name: "Leave it" }).click();
-    await page.getByRole("tab", { name: "Tools", exact: true }).click();
+    await openInsights(page, "Tools");
     await page.locator(".variation button.section-toggle", { hasText: "V2 Accompaniment pattern" }).click();
     await page.getByRole("button", { name: "Dotted" }).click();
     // Compare (#43): the panel next to What changed, and the original and the variation one after the other.
     await expect(page.locator(".changed + .compare")).toBeVisible();
     await page.getByRole("button", { name: "One after the other" }).click();
-    await expect(page.locator(".inspector .selection-text")).toContainText("Looping the original, then the variation.");
+    await expect(page.locator(".selection-status")).toContainText("Looping the original, then the variation.");
     expect(await violations(page)).toEqual([]);
-    await page.getByRole("tab", { name: /^Understand/ }).click();
+    await openInsights(page, /^Understand/);
     // Now, then Details with every fact (#132); both scanned.
     expect(await violations(page)).toEqual([]);
     await page.getByRole("button", { name: "Details" }).click();
     await page.getByRole("button", { name: /The motif recurs once/ }).click();
     await expect(page.locator(".inspector .highlighted")).toBeVisible();
     expect(await violations(page)).toEqual([]);
-    await page.getByRole("tab", { name: "Tools", exact: true }).click();
+    await openInsights(page, "Tools");
     await page.locator("[aria-label='Edit variation notes'] button.section-toggle").click();
-    await page.locator(".transport-bar").getByRole("button", { name: "Pause" }).click();
+    await page.locator(".pill").getByRole("button", { name: "Pause" }).click();
     expect(await violations(page)).toEqual([]);
 });
 
 test("kept for this phrase: a kept variation with its note, renaming, a note alone and deleting", async ({ page }) => {
     await openFurElise(page);
-    await page.locator(".phrases button.phrase").first().click();
-    await page.getByRole("tab", { name: "Explore" }).click();
+    await page.locator(".score button.bracket[aria-label]").first().click();
+    await openInsights(page, "Explore");
     const card = page.locator(".explore");
     const kept = page.locator(".observations");
     await card.getByRole("button", { name: /Give the melody more space/ }).click();
@@ -91,7 +117,7 @@ test("kept for this phrase: a kept variation with its note, renaming, a note alo
     await card.getByLabel("Add a note in your own words (optional)").fill("Lighter.");
     await card.getByRole("button", { name: "Save note" }).click();
     await expect(kept.getByRole("listitem")).toContainText("You hear this");
-    await page.locator(".transport-bar").getByRole("button", { name: "Pause" }).click();
+    await page.locator(".pill").getByRole("button", { name: "Pause" }).click();
     expect(await violations(page)).toEqual([]);
 
     const item = kept.getByRole("listitem").first();
@@ -113,12 +139,14 @@ test("the journey by keyboard: open a piece, select bars, loop them", async ({ p
     await page.keyboard.press("Enter");
     await expect(page.getByText("Für Elise (Beethoven, opening)")).toBeVisible();
 
-    // ] selects the first bar (the pickup), then the next; Shift+] extends by a bar; Space loops it.
+    // The roll from the bar by keyboard; then ] selects the first bar (the pickup), then the next; Shift+] extends by a bar; Space loops it.
+    await page.locator(".bar").getByRole("button", { name: "Piano roll" }).focus();
+    await page.keyboard.press("Enter");
     await page.getByRole("application").focus();
     await page.keyboard.press("BracketRight");
     await page.keyboard.press("BracketRight");
     await page.keyboard.press("Shift+BracketRight");
-    await expect(page.locator(".inspector .selection-text")).toContainText("bars 1–2");
+    await expect(page.locator(".selection-status")).toContainText("bars 1–2");
     await page.keyboard.press("Space");
-    await expect(page.getByText("Playing", { exact: true })).toBeVisible();
+    await expect(page.locator(".pill .state")).toHaveText("Playing");
 });

@@ -10,6 +10,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { closePopover, openMore } from "./steps.mjs";
+
 const fixtures = "../MotiffLab.MusicCore.Tests/Import/Transcription/Fixtures/";
 const heard = fileURLToPath(new URL(`${fixtures}basic-pitch-melody.mid`, import.meta.url));
 const furElise = fileURLToPath(new URL(`${fixtures}transkun-fur-elise.mid`, import.meta.url));
@@ -152,13 +154,16 @@ test("a transcription is written in bars and a tempo worked out from its notes, 
     // The workspace writes the notes in those bars for reading, or as played.
     await page.getByText("Open the piece").click();
     await expect(page).toHaveURL(/playback/);
-    await expect(page.getByText("Written for reading", { exact: false })).toBeVisible();
-    await expect(page.getByText("The key signature (A minor) is worked out from the notes.", { exact: false })).toBeVisible();
-    await page.getByRole("radio", { name: "As played" }).check();
-    await expect(page.getByText("Written as played", { exact: false })).toBeVisible();
+    // The overflow says how the score is written, and switches it (0018 section 2).
+    const more = await openMore(page);
+    await expect(more.getByText("Written for reading", { exact: false })).toBeVisible();
+    await expect(more.getByText("The key signature (A minor) is worked out from the notes.", { exact: false })).toBeVisible();
+    await more.getByRole("radio", { name: "As played" }).click();
+    await expect(more.getByText("Written as played", { exact: false })).toBeVisible();
     expect(await violations(page)).toEqual([]);
-    await page.getByRole("radio", { name: "For reading" }).check();
-    await expect(page.getByText("Written for reading", { exact: false })).toBeVisible();
+    await more.getByRole("radio", { name: "For reading" }).click();
+    await expect(more.getByText("Written for reading", { exact: false })).toBeVisible();
+    await closePopover(page);
     await page.goto("/");
     await page.getByRole("link", { name: "Take 1 at the piano.mid" }).first().click();
     await expect(page.getByText("heard in a recording")).toBeVisible();
