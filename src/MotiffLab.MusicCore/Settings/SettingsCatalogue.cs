@@ -41,6 +41,8 @@ public static class SettingsCatalogue
         Switch("playback.countIn", SettingSection.Playback, null, SettingScope.Device),
 
         Switch("roll.followPlayback", SettingSection.PianoRoll, null, SettingScope.Device, on: true),
+        Switch("roll.noteNames", SettingSection.PianoRoll, null, SettingScope.Device, on: true),
+        Choice("roll.colour", SettingSection.PianoRoll, ["hand", "track", "voice"], "hand", null, SettingScope.Device),
 
         Choice("assistant.answers", SettingSection.Assistant, ["onRequest", "offered"], "onRequest", new("offered", "onRequest", "onRequest"), SettingScope.Account),
 

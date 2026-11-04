@@ -1046,5 +1046,15 @@
   "focus.reading": "Reading",
   "focus.leadIn": "Lead-in",
   "focus.leadInHint": "Play starts a bar early and ends a bar late, to hear the phrase in its place.",
-  "focus.enterHint": "Lift the phrase into a card across the screen, the page dimmed behind it."
+  "focus.enterHint": "Lift the phrase into a card across the screen, the page dimmed behind it.",
+  "roll.noteNames": "Note names",
+  "roll.colour.hand": "Colour: hands",
+  "roll.colour.track": "Colour: tracks",
+  "roll.colour.voice": "Colour: voices",
+  "roll.colourHint": "Colour the notes by the next grouping that tells them apart",
+  "roll.more": "Piano roll options",
+  "roll.zoom": "Zoom",
+  "drawer.resize": "Drag to make the piano roll taller or shorter; tap to put it away",
+  "roll.heading": "Piano roll",
+  "roll.headingBars": "Piano roll · {0}"
 }

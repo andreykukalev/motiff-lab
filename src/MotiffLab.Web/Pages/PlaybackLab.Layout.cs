@@ -66,6 +66,7 @@ public partial class PlaybackLab : IAsyncDisposable
     private IJSObjectReference? _chromeModule;
     private IJSObjectReference? _barFade;
     private IJSObjectReference? _phraseKeys;
+    private IJSObjectReference? _drawerResize;
     private DotNetObjectReference<PlaybackLab>? _self;
     private bool _attaching;
 
@@ -265,6 +266,17 @@ public partial class PlaybackLab : IAsyncDisposable
         _popover = Popover.None;
     }
 
+    /// <summary>The roll drawer dragged nearly away by its handle (Scripts/layout/drawer-resize.ts).</summary>
+    [JSInvokable]
+    public void OnDrawerClosed()
+    {
+        _rollOpen = false;
+        StateHasChanged();
+    }
+
+    /// <summary>What heads the roll drawer: the bars it shows the selection of, or just its name.</summary>
+    private string RollHeading => _selection is { } selection ? Text.Format("roll.headingBars", BarsOf(selection.Span)) : Text["roll.heading"];
+
     private void ToggleRoll()
     {
         _rollOpen = !_rollOpen;
@@ -386,6 +398,9 @@ public partial class PlaybackLab : IAsyncDisposable
             IJSObjectReference keys = await JS.InvokeAsync<IJSObjectReference>("import", "./js/phrases/phrase-keys.js");
             _phraseKeys = await keys.InvokeAsync<IJSObjectReference>("listen", _self);
             await keys.DisposeAsync();
+            IJSObjectReference drawer = await JS.InvokeAsync<IJSObjectReference>("import", "./js/layout/drawer-resize.js");
+            _drawerResize = await drawer.InvokeAsync<IJSObjectReference>("attach", _main, _self);
+            await drawer.DisposeAsync();
         }
         catch (JSException)
         {
@@ -399,7 +414,7 @@ public partial class PlaybackLab : IAsyncDisposable
 
     private async Task DetachLayoutAsync()
     {
-        foreach (IJSObjectReference? part in new[] { _barFade, _phraseKeys })
+        foreach (IJSObjectReference? part in new[] { _barFade, _phraseKeys, _drawerResize })
         {
             if (part is null)
             {
@@ -419,7 +434,7 @@ public partial class PlaybackLab : IAsyncDisposable
             }
         }
 
-        (_barFade, _phraseKeys) = (null, null);
+        (_barFade, _phraseKeys, _drawerResize) = (null, null, null);
     }
 
     public async ValueTask DisposeAsync()
