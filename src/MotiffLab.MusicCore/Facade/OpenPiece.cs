@@ -143,7 +143,7 @@ internal sealed partial class OpenPiece
         "notation" => Notation(request),
         "playback" => Playback(request),
         "project.save" => Save(request),
-        "dna" => Answer.Write(json => json.WriteString("status", "notYet")),
+        "dna" => Answer.Write(json => Answer.Dna(json, PieceDna.Build(Notes, Piece.Meter, Piece.Keys, Piece.End, Selection, Selection is null ? null : Understood().Structure, Words), Words)),
         _ => CallOnProject(name, request),
     };
 
