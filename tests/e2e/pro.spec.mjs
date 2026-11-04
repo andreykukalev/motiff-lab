@@ -3,6 +3,7 @@
 // Motiff-Plan header, and without Pro saving online and the hosted scan server are offered no further. The build under
 // test has no sign-in, so the test gives it sign-in settings, plays MSAL's script as a signed-in player, and plays the API.
 import { expect, test } from "@playwright/test";
+import { openFurElise, selectBar } from "./steps.mjs";
 
 const api = "https://api.example.test";
 const scan = "https://scan.example.test";
@@ -100,4 +101,23 @@ test("a tester switches between Pro and no Pro, and the choice goes to the API",
     await page.goto("import/scan");
     await expect(page.getByLabel("Choose a PDF or photo of printed music to scan")).toHaveCount(1);
     await expect(page.getByText("Scanning runs on Motiff Lab's server and is part of Pro.")).toHaveCount(0);
+});
+
+test("the assistant offers Pro to a free player and, in Pro, says the conversation is coming", async ({ page }) => {
+    await signedIn(page, { tester: true, own: "free" });
+    await openFurElise(page);
+    await selectBar(page, 2);
+    await page.locator(".ctx .menu").getByRole("button", { name: "Ask", exact: true }).click();
+    const ask = page.locator(".sheet.insights .assistant");
+    await expect(ask.locator(".pro-offer")).toContainText("so it is part of Pro. Nothing has been sent.");
+    await expect(ask.locator(".pro-offer").getByRole("link", { name: "Your plan" })).toHaveAttribute("href", "settings#plan");
+
+    await page.goto("settings");
+    await page.getByLabel("Testing").selectOption("pro");
+    await expect(page.locator("#plan")).toContainText("Pro");
+    await openFurElise(page);
+    await selectBar(page, 2);
+    await page.locator(".ctx .menu").getByRole("button", { name: "Ask", exact: true }).click();
+    await expect(ask.locator(".conversation")).toHaveText("The conversation is coming to Pro soon. Nothing is sent yet.");
+    await expect(ask.locator(".pro-offer")).toHaveCount(0);
 });

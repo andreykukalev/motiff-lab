@@ -148,6 +148,9 @@
             }
         </section>
     }
+
+    @* The assistant's input closes the stream (0018 section 7): it asks about whatever is selected, or the whole piece. *@
+    <button class="ask-field" @onclick="() => Ask.InvokeAsync()"><span>@Text["ask.placeholder"]</span><Icon Name="mic" /></button>
 </div>
 
 @code {
@@ -178,6 +181,10 @@
 
     [Parameter]
     public EventCallback Keep { get; set; }
+
+    /// <summary>Raised from the input at the foot of the stream, to open the assistant on the selection.</summary>
+    [Parameter]
+    public EventCallback Ask { get; set; }
 
     /// <summary>Raised with a kept idea from the strip, to hear and show it again.</summary>
     [Parameter]

@@ -5371,3 +5371,144 @@ body:has(.library) .site-footer {
         --name: 112px;
     }
 }
+
+/* The assistant (0018 section 7; design/kit/screens/s9_assistant.png): the last voice in the Insights sheet. Its input closes
+   the stream; inside, the scope chips, the fold of what it knows, the place the conversation would be and the input. The
+   offer is plum, the colour of Pro. */
+.workspace .stream .ask-field,
+.workspace .assistant .ask-input {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    min-height: var(--h-touch);
+    padding: 0 var(--s-2) 0 var(--s-4);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-pill);
+    background: var(--surface);
+    color: var(--ink-2);
+    font: var(--t-body);
+}
+
+.workspace .stream .ask-field {
+    width: 100%;
+    cursor: text;
+    text-align: start;
+}
+
+.workspace .stream .ask-field span,
+.workspace .assistant .ask-input input {
+    flex: 1;
+    min-width: 0;
+}
+
+.workspace .stream .ask-field:hover {
+    border-color: var(--accent);
+}
+
+.workspace .assistant {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+    min-height: 100%;
+}
+
+.workspace .assistant .ask-head {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.workspace .assistant .ask-head h2 {
+    margin: 0;
+    color: var(--ink-2);
+}
+
+.workspace .assistant .ask-head .sp {
+    flex: 1;
+}
+
+.workspace .assistant .scope-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+}
+
+.workspace .assistant .knows summary {
+    font: var(--t-caption);
+    color: var(--ink-2);
+    cursor: pointer;
+}
+
+.workspace .assistant .knows ul {
+    margin: var(--s-2) 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.workspace .assistant .knows li {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    min-height: var(--h-control);
+    font: var(--t-body);
+}
+
+.workspace .assistant .knows input {
+    accent-color: var(--accent);
+}
+
+.workspace .assistant .knows .caption {
+    margin: var(--s-1) 0 0;
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.workspace .assistant .conversation {
+    flex: 1;
+}
+
+.workspace .assistant .conversation p {
+    margin: 0;
+    padding: var(--s-3) var(--s-4);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-m);
+    background: var(--surface-2);
+    font: var(--t-body);
+}
+
+.workspace .assistant .conversation .caption {
+    color: var(--ink-2);
+}
+
+.workspace .assistant .pro-offer {
+    color: var(--ink);
+}
+
+.workspace .assistant .pro-offer .tag.pro {
+    padding: 0 var(--s-2);
+    border-radius: var(--r-xs);
+    background: var(--plum-tint);
+    color: var(--plum);
+    font: var(--t-caption);
+    font-weight: 600;
+}
+
+.workspace .assistant .pro-offer a {
+    color: var(--plum);
+}
+
+.workspace .assistant .ask-input {
+    position: sticky;
+    bottom: 0;
+}
+
+.workspace .assistant .ask-input input {
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    font: var(--t-body);
+}
+
+.workspace .assistant .ask-input input::placeholder {
+    color: var(--ink-2);
+}

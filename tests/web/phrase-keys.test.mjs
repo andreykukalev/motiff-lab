@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { bookmarks, leavesFocus, stepFor } from "../../src/MotiffLab.Web/wwwroot/js/phrases/phrase-keys.js";
+import { asks, bookmarks, leavesFocus, stepFor } from "../../src/MotiffLab.Web/wwwroot/js/phrases/phrase-keys.js";
 
 const key = (name, extra = {}) => ({ key: name, altKey: false, ctrlKey: false, metaKey: false, shiftKey: false, target: { tagName: "BODY" }, ...extra });
 
@@ -39,4 +39,12 @@ test("B bookmarks the selection, unless it is typed into a field or pressed with
     assert.equal(bookmarks(key("b", { ctrlKey: true })), false);
     assert.equal(bookmarks(key("b", { target: { tagName: "INPUT" } })), false);
     assert.equal(stepFor(key("b")), null);
+});
+
+test("? asks the assistant, with Shift or without, unless it is typed into a field or pressed with another modifier", () => {
+    assert.equal(asks(key("?")), true);
+    assert.equal(asks(key("?", { shiftKey: true })), true);
+    assert.equal(asks(key("/")), false);
+    assert.equal(asks(key("?", { ctrlKey: true })), false);
+    assert.equal(asks(key("?", { target: { tagName: "TEXTAREA" } })), false);
 });

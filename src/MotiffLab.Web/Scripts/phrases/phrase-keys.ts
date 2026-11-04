@@ -1,19 +1,19 @@
 // Previous and next phrase from the keyboard (#126): Page Up and Page Down anywhere on the page, which
 // is also what Bluetooth page-turner pedals send, so a player at the piano can step with a foot. Escape
-// leaves phrase focus (0018 section 4); B bookmarks the selection (section 5). Keys typed into a field, or
-// pressed with a modifier, are left alone.
+// leaves phrase focus (0018 section 4); B bookmarks the selection (section 5); ? asks the assistant (section 7). Keys typed
+// into a field, or pressed with a modifier, are left alone (Shift aside for ?, which most layouts type with it).
 
-/** The .NET side: PlaybackLab.StepAsync, -1 for the previous phrase and 1 for the next, LeaveFocusAsync and BookmarkFromKey. */
+/** The .NET side: PlaybackLab.StepAsync, -1 for the previous phrase and 1 for the next, LeaveFocusAsync, BookmarkFromKey and AskFromKey. */
 export interface StepTarget {
     invokeMethodAsync(method: "StepAsync", direction: number): Promise<void>;
-    invokeMethodAsync(method: "LeaveFocusAsync" | "BookmarkFromKey"): Promise<void>;
+    invokeMethodAsync(method: "LeaveFocusAsync" | "BookmarkFromKey" | "AskFromKey"): Promise<void>;
 }
 
 type KeyPress = Pick<KeyboardEvent, "key" | "altKey" | "ctrlKey" | "metaKey" | "shiftKey" | "target">;
 
-/** Whether a key belongs to what has the focus: a field, or a key pressed with a modifier. */
-function ownedElsewhere(event: KeyPress): boolean {
-    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+/** Whether a key belongs to what has the focus: a field, or a key pressed with a modifier (Shift too unless it is allowed). */
+function ownedElsewhere(event: KeyPress, shiftAllowed = false): boolean {
+    if (event.altKey || event.ctrlKey || event.metaKey || (event.shiftKey && !shiftAllowed)) {
         return true;
     }
     const target = event.target as { tagName?: string; isContentEditable?: boolean } | null;
@@ -31,6 +31,11 @@ export function bookmarks(event: KeyPress): boolean {
     return (event.key === "b" || event.key === "B") && !ownedElsewhere(event);
 }
 
+/** Whether the key asks the assistant: ?, typed with Shift or without, not into a field. */
+export function asks(event: KeyPress): boolean {
+    return event.key === "?" && !ownedElsewhere(event, true);
+}
+
 /** -1, 1, or null when the key is not a phrase step or belongs to what has the focus. */
 export function stepFor(event: KeyPress): -1 | 1 | null {
     const direction = event.key === "PageUp" ? -1 : event.key === "PageDown" ? 1 : null;
@@ -45,6 +50,11 @@ export class PhraseKeys {
         }
         if (bookmarks(event)) {
             void this.target.invokeMethodAsync("BookmarkFromKey");
+            return;
+        }
+        if (asks(event)) {
+            event.preventDefault();
+            void this.target.invokeMethodAsync("AskFromKey");
             return;
         }
         const direction = stepFor(event);

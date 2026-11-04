@@ -1,0 +1,114 @@
+@using MotiffLab.MusicCore.Accounts
+@inject MotiffLab.Web.Account.CloudAccount Account
+@inject MotiffLab.Web.Localization.UiText Text
+
+@* The assistant (0018 section 7; design/kit/docs/01-ux-concept.md, "AI Assistant"; design/kit/screens/s9_assistant.png): the
+   last voice in the Insights stream, in the same sheet. Its scope chips say what it looks at (the phrase or selection, or the
+   whole piece), and the fold "What it knows" lists the context it would be given, each item removable before asking. It
+   needs an AI model, so it is Pro in full: in the free tier the place where the conversation would be holds a one-line plum
+   offer, and nothing is sent anywhere. The conversation itself is not built yet, so in Pro that place says so, and nothing is
+   sent either. *@
+<section class="assistant" aria-labelledby="ask-title">
+    <div class="ask-head">
+        <button class="btn quiet icon" aria-label="@Text["ask.back"]" title="@Text["ask.back"]" @onclick="() => Back.InvokeAsync()"><Icon Name="back" /></button>
+        <h2 id="ask-title" class="overline">@Text["ask.title"]</h2>
+        <span class="sp"></span>
+        <button class="btn quiet icon" aria-label="@Text["drawer.close"]" title="@Text["drawer.close"]" @onclick="() => Closed.InvokeAsync()"><Icon Name="close" /></button>
+    </div>
+
+    <div class="scope-chips" role="radiogroup" aria-label="@Text["ask.scope"]">
+        @if (SelectionLabel is { } selection)
+        {
+            bool on = !WholePiece;
+            <button role="radio" class="chip @(on ? "on" : null)" aria-checked="@(on ? "true" : "false")" @onclick="() => WholePieceChanged.InvokeAsync(false)">@selection</button>
+        }
+        <button role="radio" class="chip @(WholePiece ? "on" : null)" aria-checked="@(WholePiece ? "true" : "false")" @onclick="() => WholePieceChanged.InvokeAsync(true)">@Text["ask.wholePiece"]</button>
+    </div>
+
+    @if (Knows.Count > 0)
+    {
+        <details class="knows">
+            <summary>@Text.Format("ask.knows", Text.Count("ask.items", Knows.Count - _removed.Count))</summary>
+            <ul>
+                @for (int index = 0; index < Knows.Count; index++)
+                {
+                    int item = index;
+                    string id = $"ask-knows-{item}";
+                    <li>
+                        <input type="checkbox" id="@id" checked="@(!_removed.Contains(Knows[item]))" @onchange="() => Toggle(Knows[item])" />
+                        <label for="@id">@Knows[item]</label>
+                    </li>
+                }
+            </ul>
+            <p class="caption">@Text["ask.knowsHint"]</p>
+        </details>
+    }
+
+    <div class="conversation" role="status">
+        @if (_allowed is true)
+        {
+            <p class="caption">@Text["ask.notYet"]</p>
+        }
+        else if (_allowed is false)
+        {
+            <p class="pro-offer">
+                <span class="tag pro">@Text["ask.pro"]</span> @Text["ask.offer"]
+                @if (Account.IsAvailable)
+                {
+                    <a href="@(_signedIn ? "settings#plan" : "settings")">@Text[_signedIn ? "ask.offerPlan" : "ask.offerSignIn"]</a>
+                }
+            </p>
+        }
+    </div>
+
+    <div class="ask-input">
+        <input type="text" disabled aria-label="@Text["ask.placeholder"]" placeholder="@Text["ask.placeholder"]" />
+        <button class="btn quiet icon" disabled aria-label="@Text["ask.speak"]" title="@Text["ask.speak"]"><Icon Name="mic" /></button>
+    </div>
+</section>
+
+@code {
+    /// <summary>The context items the player took out before asking.</summary>
+    private readonly HashSet<string> _removed = new(StringComparer.Ordinal);
+
+    /// <summary>Whether the plan includes the assistant; null until the account has answered.</summary>
+    private bool? _allowed;
+
+    private bool _signedIn;
+
+    /// <summary>"This phrase · 9–16" or "This selection · 9–16"; null with nothing selected, when only the whole piece is offered.</summary>
+    [Parameter]
+    public string? SelectionLabel { get; set; }
+
+    /// <summary>Whether the assistant looks at the whole piece rather than the selection.</summary>
+    [Parameter]
+    public bool WholePiece { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> WholePieceChanged { get; set; }
+
+    /// <summary>What it would be given: the piece, the passage, what is being practised, what was kept, the level.</summary>
+    [Parameter]
+    public IReadOnlyList<string> Knows { get; set; } = [];
+
+    /// <summary>Back to the Insights stream.</summary>
+    [Parameter]
+    public EventCallback Back { get; set; }
+
+    [Parameter]
+    public EventCallback Closed { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _signedIn = Account.IsAvailable && await Account.PlayerAsync() is not null;
+        _allowed = _signedIn && await Account.AllowsAsync(ProFeature.Assistant);
+    }
+
+    private void Toggle(string item)
+    {
+        if (!_removed.Remove(item))
+        {
+            _removed.Add(item);
+        }
+    }
+}
