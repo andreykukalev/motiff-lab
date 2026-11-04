@@ -4,11 +4,24 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#15191F" />
+    <meta name="theme-color" content="#E8E3D9" />
     <title>Motiff Lab</title>
     <base href="/" />
     <link rel="preload" id="webassembly" />
+    <!-- The design kit's tokens (design/kit/tokens.css, 0018), then the app's styles built on them. -->
+    <link rel="stylesheet" href="css/tokens.css" />
     <link rel="stylesheet" href="css/app.css" />
+    <script>
+        // The theme before the first frame (Scripts/layout/theme.ts does the same once the app runs): the stored
+        // choice of appearance.theme, else the device's light or dark appearance.
+        (function () {
+            var root = document.documentElement, choice = null;
+            try { choice = localStorage.getItem("motiff-lab:appearance.theme"); } catch (e) { }
+            var dark = choice === "night" || choice === "slate" || (choice !== "daylight" && window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
+            root.setAttribute("data-theme", dark ? "dark" : "light");
+            if (choice === "slate") { root.setAttribute("data-page", "slate"); }
+        })();
+    </script>
     <!-- If you add any scoped CSS files, uncomment the following to load them
     <link href="MotiffLab.Web.styles.css" rel="stylesheet" /> -->
     <link href="manifest.webmanifest" rel="manifest" />

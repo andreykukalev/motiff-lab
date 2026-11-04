@@ -5,6 +5,7 @@
 @inject MotiffLab.Web.Account.CloudAccount Account
 @inject MotiffLab.Web.Account.OnlineProjects Online
 @inject MotiffLab.Web.Projects.ProjectStore Projects
+@inject IJSRuntime JS
 
 <PageTitle>@Text[Title] · Motiff Lab</PageTitle>
 
@@ -79,6 +80,18 @@
         </section>
     }
 
+    @* The theme (0018 section 13): Daylight, Night stand, Night stand with the Slate page, or as the device has it. It stays on the device. *@
+    <section id="appearance" class="card" aria-labelledby="appearance-heading">
+        <h2 id="appearance-heading">@Text["settings.appearance"]</h2>
+        <div class="seg" role="radiogroup" aria-labelledby="appearance-heading" aria-describedby="theme-hint">
+            @foreach (string choice in s_themes)
+            {
+                <button role="radio" class="@(_theme == choice ? "on" : null)" aria-checked="@(_theme == choice ? "true" : "false")" @onclick="() => ChooseThemeAsync(choice)">@Text[$"settings.theme.{choice}"]</button>
+            }
+        </div>
+        <p id="theme-hint" class="meta">@Text["settings.themeHint"]</p>
+    </section>
+
     @* Scanning and transcription (0011, 0014) use Motiff Lab's server wherever the build has one, with nothing to set. A build
        without it (running the app locally) takes the address of the player's own server here. *@
     @if (Scans.HostedAddress is null)
@@ -130,6 +143,10 @@ docker run --rm -p 8765:8000 motiff-omr</code></pre>
     private MotiffLab.Web.Account.AccountPlan? _plan;
     private MotiffLab.MusicCore.Accounts.Plan? _choice;
 
+    /// <summary>The choices of the setting appearance.theme, in music-core's order.</summary>
+    private static readonly IReadOnlyList<string> s_themes = MotiffLab.MusicCore.Settings.SettingsCatalogue.Get("appearance.theme").Choices;
+    private string _theme = "auto";
+
     private bool CanSaveOnline => _plan?.Allows(MotiffLab.MusicCore.Accounts.ProFeature.SaveOnline) == true;
 
     private string PlanName => _plan is null ? Text["settings.planUnknown"] : _plan.IsPro ? Text["settings.planPro"] : Text["settings.planFree"];
@@ -145,6 +162,8 @@ docker run --rm -p 8765:8000 motiff-omr</code></pre>
             _plan = await Account.PlanAsync();
             _choice = await Account.PlanChoiceAsync();
         }
+
+        _theme = await ThemeAsync("themeChoice");
 
         await Scans.LoadAsync();
         _address = Scans.Address?.ToString() ?? MotiffLab.Web.Import.ScanService.SuggestedAddress;
@@ -205,6 +224,21 @@ docker run --rm -p 8765:8000 motiff-omr</code></pre>
         _confirmDeleteOnline = false;
         _onlineMessage = await Online.DeleteEverythingAsync();
         _online = await Online.IsOnAsync();
+    }
+
+    private async Task ChooseThemeAsync(string choice) => _theme = await ThemeAsync("applyTheme", choice);
+
+    private async Task<string> ThemeAsync(string function, params object?[] arguments)
+    {
+        try
+        {
+            await using IJSObjectReference module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/layout/theme.js");
+            return await module.InvokeAsync<string>(function, arguments);
+        }
+        catch (JSException)
+        {
+            return _theme;
+        }
     }
 
     private async Task TurnScanningOffAsync()

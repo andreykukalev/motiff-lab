@@ -28,6 +28,16 @@
         // The layout stays across pages, so this counts loads of the app, not pages (#64).
         if (firstRender)
         {
+            // The theme follows the device from now on when the player chose Auto (index.html set the first frame).
+            try
+            {
+                await using IJSObjectReference theme = await JS.InvokeAsync<IJSObjectReference>("import", "./js/layout/theme.js");
+                await theme.InvokeAsync<string>("applyStoredTheme");
+            }
+            catch (JSException)
+            {
+            }
+
             await Analytics.TrackAsync(AnalyticsEvent.AppOpened());
         }
 

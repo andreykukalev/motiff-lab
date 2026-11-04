@@ -44,7 +44,7 @@ public static class SettingsCatalogue
 
         Choice("assistant.answers", SettingSection.Assistant, ["onRequest", "offered"], "onRequest", new("offered", "onRequest", "onRequest"), SettingScope.Account),
 
-        Choice("appearance.theme", SettingSection.Appearance, ["daylight", "night", "slate"], "daylight", null, SettingScope.Device),
+        Choice("appearance.theme", SettingSection.Appearance, ["auto", "daylight", "night", "slate"], "auto", null, SettingScope.Device),
         Choice("appearance.language", SettingSection.Appearance, ["en", "ru"], "en", null, SettingScope.Device),
 
         Switch("account.saveOnline", SettingSection.Account, null, SettingScope.Device),

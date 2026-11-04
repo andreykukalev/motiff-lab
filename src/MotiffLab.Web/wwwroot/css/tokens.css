@@ -1,0 +1,106 @@
+/* Motiff Lab — design tokens (v1, 2026-10-31) */
+@font-face { font-family: "Source Sans 3"; font-weight: 400; src: url("fonts/source-sans-3-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Source Sans 3"; font-weight: 500; src: url("fonts/source-sans-3-latin-500-normal.woff2") format("woff2"); }
+@font-face { font-family: "Source Sans 3"; font-weight: 600; src: url("fonts/source-sans-3-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "Source Serif 4"; font-weight: 400; src: url("fonts/source-serif-4-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Source Serif 4"; font-weight: 500; src: url("fonts/source-serif-4-latin-500-normal.woff2") format("woff2"); }
+@font-face { font-family: "Source Serif 4"; font-weight: 600; src: url("fonts/source-serif-4-latin-600-normal.woff2") format("woff2"); }
+
+:root {
+  /* surfaces */
+  --desk: #E8E3D9;
+  --surface: #F7F4ED;
+  --surface-2: #FFFFFF;
+  --paper: #FCF9F2;
+  --notation: #16130F;
+  /* text */
+  --ink: #1F1C18;
+  --ink-2: #5E584E;
+  --ink-3: #8F887B;
+  --hairline: rgba(31,28,24,.12);
+  --hairline-strong: rgba(31,28,24,.24);
+  /* accent: cobalt, the blue pencil */
+  --accent: #2F5BD6;
+  --accent-hover: #2850C0;
+  --accent-tint: rgba(47,91,214,.14);
+  --accent-tint-strong: rgba(47,91,214,.28);
+  --on-accent: #FFFFFF;
+  /* secondary hues */
+  --plum: #7B3F9E;         --plum-tint: rgba(123,63,158,.12);
+  --amber: #F0B429;        --amber-tint: rgba(240,180,41,.38);
+  --teal: #1F8A8A;         --teal-tint: rgba(31,138,138,.18);
+  /* semantic */
+  --success: #2E7D4F;
+  --warning: #965D04;
+  --warning-fill: #F0B429;
+  --danger: #C8352B;
+  /* user ink */
+  --ink-graphite: #3B3733;
+  --ink-carmine: #C8352B;
+  --ink-forest: #2E7D4F;
+  --ink-ochre: #9C6A0C;
+  /* overlays and elevation */
+  --dim: rgba(31,28,24,.42);
+  --shadow-paper: 0 1px 2px rgba(31,28,24,.10), 0 12px 32px rgba(31,28,24,.10);
+  --shadow-sheet: 0 1px 2px rgba(31,28,24,.08), 0 12px 40px rgba(31,28,24,.20);
+  --shadow-pill: 0 6px 20px rgba(31,28,24,.18);
+  --shadow-menu: 0 4px 16px rgba(31,28,24,.16);
+  --focus-ring: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
+  /* type */
+  --font-ui: "Source Sans 3", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --font-display: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --t-display: 500 28px/32px var(--font-display);
+  --t-title: 500 20px/26px var(--font-display);
+  --t-heading: 600 16px/22px var(--font-ui);
+  --t-body: 400 15px/22px var(--font-ui);
+  --t-body-strong: 600 15px/22px var(--font-ui);
+  --t-label: 500 13px/18px var(--font-ui);
+  --t-caption: 400 12px/16px var(--font-ui);
+  --t-overline: 600 11px/14px var(--font-ui);
+  /* space, radius, size */
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 20px; --s-6: 24px; --s-8: 32px; --s-10: 40px; --s-12: 48px;
+  --r-xs: 4px; --r-s: 8px; --r-m: 12px; --r-l: 16px; --r-pill: 999px;
+  --h-compact: 32px; --h-control: 40px; --h-touch: 44px;
+  --icon-s: 16px; --icon-m: 20px; --icon-l: 24px;
+  --stroke-icon: 1.5px;
+  /* motion */
+  --t-fast: 120ms; --t-base: 200ms; --t-slow: 320ms;
+  --ease: cubic-bezier(.2,.8,.2,1);
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --desk: #141311;
+  --surface: #1F1D19;
+  --surface-2: #2A2723;
+  --paper: #E7E0D1;            /* dimmed cream, default */
+  --notation: #16130F;
+  --ink: #EEE9DF;
+  --ink-2: #A9A295;
+  --ink-3: #78715F;
+  --hairline: rgba(238,233,223,.12);
+  --hairline-strong: rgba(238,233,223,.24);
+  --accent: #7D9CFF;
+  --accent-hover: #94AEFF;
+  --accent-tint: rgba(125,156,255,.20);
+  --accent-tint-strong: rgba(125,156,255,.34);
+  --on-accent: #10131F;
+  --plum: #B98CD8;  --plum-tint: rgba(185,140,216,.18);
+  --amber: #F3C14E; --amber-tint: rgba(243,193,78,.38);
+  --teal: #4FBFB4;  --teal-tint: rgba(79,191,180,.22);
+  --success: #5CBB7D;
+  --warning: #F3C14E;
+  --warning-fill: #F3C14E;
+  --danger: #F07C70;
+  --ink-graphite: #3B3733;
+  --ink-carmine: #C8352B;
+  --ink-forest: #2E7D4F;
+  --ink-ochre: #9C6A0C;
+  --dim: rgba(20,19,17,.55);
+  --shadow-paper: 0 1px 2px rgba(0,0,0,.30), 0 12px 32px rgba(0,0,0,.35);
+  --shadow-sheet: 0 1px 2px rgba(0,0,0,.30), 0 12px 40px rgba(0,0,0,.45);
+  --shadow-pill: 0 6px 20px rgba(0,0,0,.40);
+  --shadow-menu: 0 4px 16px rgba(0,0,0,.40);
+  color-scheme: dark;
+}
+[data-theme="dark"][data-page="slate"] { --paper: #24221E; --notation: #EDE6D7; }
