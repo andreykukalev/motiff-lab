@@ -581,6 +581,84 @@ internal static partial class Answer
         json.WriteEndObject();
     }
 
+    /// <summary>
+    /// Piece DNA (0018 section 11): every lane with its status (<c>notYet</c>, <c>partial</c>, <c>ready</c>), so the
+    /// screen shows an empty state for a lane not analysed yet.
+    /// </summary>
+    public static void Dna(Utf8JsonWriter json, PieceDna dna, Words words)
+    {
+        json.WriteString("status", Name(dna.Status));
+        json.WriteNumber("firstBar", dna.FirstBar);
+        json.WriteNumber("lastBar", dna.LastBar);
+
+        json.WriteStartObject("form");
+        json.WriteString("status", Name(dna.FormStatus));
+        json.WriteStartArray("sections");
+        foreach (DnaSection section in dna.Form)
+        {
+            json.WriteStartObject();
+            json.WriteString("id", section.Id);
+            json.WriteString("label", section.Label);
+            Passage(json, "passage", section.Span, section.FirstBar, section.LastBar);
+            Texts(json, "sharesWith", section.SharesWith);
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
+        json.WriteEndObject();
+
+        json.WriteStartObject("ideas");
+        json.WriteString("status", Name(dna.IdeasStatus));
+        json.WriteStartArray("items");
+        foreach (DnaIdea idea in dna.Ideas)
+        {
+            json.WriteStartObject();
+            json.WriteString("id", idea.Id);
+            json.WriteBoolean("fromSelection", idea.FromSelection);
+            json.WriteString("title", idea.Title);
+            json.WriteString("summary", idea.Summary);
+            Passage(json, "passage", idea.Span, idea.FirstBar, idea.LastBar);
+            Texts(json, "noteIds", idea.NoteIds);
+            json.WriteStartArray("occurrences");
+            foreach (IdeaOccurrence occurrence in idea.Occurrences)
+            {
+                json.WriteStartObject();
+                json.WriteString("kind", Name(occurrence.Kind));
+                Passage(json, "passage", occurrence.Span, occurrence.FirstBar, occurrence.LastBar);
+                json.WriteNumber("transposition", occurrence.Transposition);
+                Texts(json, "noteIds", occurrence.NoteIds);
+                json.WriteEndObject();
+            }
+
+            json.WriteEndArray();
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
+        json.WriteEndObject();
+
+        json.WriteStartObject("keys");
+        json.WriteString("status", Name(dna.KeysStatus));
+        json.WriteStartArray("spans");
+        foreach (DnaKey key in dna.Keys)
+        {
+            json.WriteStartObject();
+            MusicalKey(json, "key", key.Key);
+            json.WriteString("label", key.Key.NameIn(words));
+            json.WriteBoolean("modeInferred", key.ModeInferred);
+            Passage(json, "passage", key.Span, key.FirstBar, key.LastBar);
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
+        json.WriteEndObject();
+
+        json.WriteStartObject("newMaterial");
+        json.WriteString("status", Name(dna.NewMaterialStatus));
+        Numbers(json, "bars", dna.NewMaterialBars);
+        json.WriteEndObject();
+    }
+
     public static void Experiments(Utf8JsonWriter json, string name, IEnumerable<Experiment> experiments)
     {
         json.WriteStartArray(name);

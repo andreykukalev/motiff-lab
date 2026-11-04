@@ -117,6 +117,17 @@ public static class StructureAnalyzer
         return new StructureAnalysis(recurrences, spans, newBars, facts);
     }
 
+    /// <summary>
+    /// Bars of the whole piece whose line (the highest note at each onset) repeats no earlier bar, exactly or
+    /// transposed: the new material lane of Piece DNA.
+    /// </summary>
+    public static IReadOnlyList<int> NewMaterialBars(IEnumerable<Note> notes, MeterMap meter)
+    {
+        ArgumentNullException.ThrowIfNull(notes);
+        ArgumentNullException.ThrowIfNull(meter);
+        return NewMaterial(Line(notes), meter);
+    }
+
     /// <summary>The highest note at each onset, in time order.</summary>
     private static Note[] Line(IEnumerable<Note> notes) =>
         [.. notes

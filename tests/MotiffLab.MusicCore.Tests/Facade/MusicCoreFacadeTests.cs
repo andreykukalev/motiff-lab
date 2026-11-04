@@ -686,11 +686,62 @@ public class MusicCoreFacadeTests
     }
 
     [Fact]
-    public void PieceDnaIsAPlaceholder()
+    public void PieceDnaGivesEveryLaneWithHowFarItIsFilled()
     {
         (MusicCoreFacade facade, _) = Open();
 
-        Assert.Equal("notYet", Call(facade, "dna").GetProperty("status").GetString());
+        JsonElement dna = Call(facade, "dna");
+
+        Assert.Equal("partial", dna.GetProperty("status").GetString());
+        int firstBar = dna.GetProperty("firstBar").GetInt32();
+        int lastBar = dna.GetProperty("lastBar").GetInt32();
+        Assert.True(lastBar > firstBar, $"{firstBar}–{lastBar}");
+
+        // The form of the whole piece is not analysed yet, and without a selection there is no idea.
+        Assert.Equal("notYet", dna.GetProperty("form").GetProperty("status").GetString());
+        Assert.Empty(dna.GetProperty("form").GetProperty("sections").EnumerateArray());
+        Assert.Equal("notYet", dna.GetProperty("ideas").GetProperty("status").GetString());
+        Assert.Empty(dna.GetProperty("ideas").GetProperty("items").EnumerateArray());
+
+        // The key lane from the file's key signature: A minor, no sharps or flats, covering the piece.
+        JsonElement keys = dna.GetProperty("keys");
+        Assert.Equal("partial", keys.GetProperty("status").GetString());
+        JsonElement first = keys.GetProperty("spans")[0];
+        Assert.Equal(0, first.GetProperty("key").GetProperty("fifths").GetInt32());
+        Assert.Equal("minor", first.GetProperty("key").GetProperty("mode").GetString());
+        Assert.Equal(firstBar, first.GetProperty("passage").GetProperty("firstBar").GetInt32());
+        Assert.Equal(lastBar, keys.GetProperty("spans")[keys.GetProperty("spans").GetArrayLength() - 1].GetProperty("passage").GetProperty("lastBar").GetInt32());
+
+        // New material: bars whose line repeats no earlier bar; the motif's repeat is not new.
+        JsonElement newMaterial = dna.GetProperty("newMaterial");
+        Assert.Equal("ready", newMaterial.GetProperty("status").GetString());
+        int[] bars = [.. newMaterial.GetProperty("bars").EnumerateArray().Select(bar => bar.GetInt32())];
+        Assert.NotEmpty(bars);
+        Assert.Equal(bars.Order(), bars);
+        Assert.All(bars, bar => Assert.InRange(bar, firstBar, lastBar));
+        Assert.True(bars.Length < lastBar - firstBar + 1, $"{bars.Length} new bars of {lastBar - firstBar + 1}");
+    }
+
+    [Fact]
+    public void PieceDnaTakesTheSelectionAsItsIdeaWithItsRepeats()
+    {
+        (MusicCoreFacade facade, _) = Open("""{"language": "ru"}""");
+        Call(facade, "select", """{"bars": {"first": 1, "last": 2}}""");
+
+        JsonElement ideas = Call(facade, "dna").GetProperty("ideas");
+
+        Assert.Equal("partial", ideas.GetProperty("status").GetString());
+        JsonElement idea = Assert.Single(ideas.GetProperty("items").EnumerateArray());
+        Assert.Equal("idea_1", idea.GetProperty("id").GetString());
+        Assert.True(idea.GetProperty("fromSelection").GetBoolean());
+        Assert.StartsWith("Ваше выделение, такты 1–2", idea.GetProperty("title").GetString());
+        Assert.StartsWith("Звучит ещё", idea.GetProperty("summary").GetString());
+
+        JsonElement[] occurrences = [.. idea.GetProperty("occurrences").EnumerateArray()];
+        Assert.Single(occurrences, occurrence => occurrence.GetProperty("kind").GetString() == "original");
+        Assert.Contains(occurrences, occurrence => occurrence.GetProperty("kind").GetString() == "exact" && occurrence.GetProperty("transposition").GetInt32() == 0);
+        long[] onsets = [.. occurrences.Select(occurrence => occurrence.GetProperty("passage").GetProperty("onset").GetInt64())];
+        Assert.Equal(onsets.Order(), onsets);
     }
 
     [Fact]
