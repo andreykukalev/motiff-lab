@@ -1,0 +1,46 @@
+@using MotiffLab.MusicCore.Settings
+@inject DeviceSettings Store
+@implements IDisposable
+
+@* One setting as a row of its choices (0018 section 10), the same in the Settings sheet and in an element's own popover. *@
+<div class="set-row">
+    <span id="@LabelId" class="label">@Label</span>
+    <div class="seg" role="radiogroup" aria-labelledby="@LabelId" aria-describedby="@(Hint is null ? null : LabelId + "-hint")">
+        @foreach (string choice in SettingsCatalogue.Get(Id).Choices)
+        {
+            bool chosen = Store[Id] == choice;
+            <button role="radio" class="@(chosen ? "on" : null)" aria-checked="@(chosen ? "true" : "false")" @onclick="() => Store.SetAsync(Id, choice)">@Name(choice)</button>
+        }
+    </div>
+    @if (Hint is not null)
+    {
+        <p id="@(LabelId)-hint" class="caption row-hint">@Hint</p>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Id { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = "";
+
+    /// <summary>A choice's name in the player's language.</summary>
+    [Parameter, EditorRequired]
+    public Func<string, string> Name { get; set; } = choice => choice;
+
+    [Parameter]
+    public string? Hint { get; set; }
+
+    /// <summary>Prefixes the label's id, so the sheet and a popover never share one.</summary>
+    [Parameter]
+    public string Prefix { get; set; } = "set";
+
+    private string LabelId => $"{Prefix}-{Id.Replace('.', '-')}";
+
+    protected override void OnInitialized() => Store.Changed += OnChanged;
+
+    public void Dispose() => Store.Changed -= OnChanged;
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+}

@@ -1150,5 +1150,12 @@
   "firstRun.title": "Choose how to begin",
   "firstRun.what": "Each way sets what the score shows around the music. Start with one; every element keeps its own switch.",
   "firstRun.continue": "Continue",
-  "firstRun.later": "You can change this any time in Settings."
+  "firstRun.later": "You can change this any time in Settings.",
+
+  "settings.scope": "Where it applies",
+  "settings.scopePiece": "This piece",
+  "settings.scopeEverywhere": "Everywhere",
+  "settings.all": "All settings",
+  "settings.pillSettings": "Transport pill settings",
+  "settings.rollSettings": "Piano roll settings"
 }
