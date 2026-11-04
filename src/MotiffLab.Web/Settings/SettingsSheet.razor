@@ -37,26 +37,26 @@
                     }
                 </div>
                 <p class="caption preset-hint" role="status">@(Store.State.Preset == Preset.Custom ? Text["settings.presetHint.custom"] : PresetHint(Store.State.Preset))</p>
-                @SwitchRow("guidance.brackets", Text["settings.brackets"])
-                @SwitchRow("guidance.transportPill", Text["settings.pillWithSelection"], on: "selection", off: "playing", hint: Text["settings.pillWithSelectionHint"])
-                @ChoiceRow("guidance.barFade", Text["settings.barFade"], choice => Text[$"settings.barFade.{choice}"])
+                <SettingSwitch Id="guidance.brackets" Label="@Text["settings.brackets"]" />
+                <SettingSwitch Id="guidance.transportPill" Label="@Text["settings.pillWithSelection"]" On="selection" Off="playing" Hint="@Text["settings.pillWithSelectionHint"]" />
+                <SettingChoice Id="guidance.barFade" Label="@Text["settings.barFade"]" Name="@(choice => Text[$"settings.barFade.{choice}"])" />
                 break;
 
             case SheetSection.Score:
-                @ChoiceRow("phrases.granularity", Text["settings.granularity"], choice => Text[choice switch { "short" => "phrases.levelShort", "sentences" => "phrases.levelSentences", _ => "phrases.levelPhrases" }], Text["settings.granularityHint"])
+                <SettingChoice Id="phrases.granularity" Label="@Text["settings.granularity"]" Name="@(choice => Text[GranularityName(choice)])" Hint="@Text["settings.granularityHint"]" />
                 break;
 
             case SheetSection.Layers:
                 <p class="caption">@Text["settings.layersHow"]</p>
                 @foreach (string layer in s_layers)
                 {
-                    @SwitchRow($"layers.{layer}", Text[$"layers.{layer}"])
+                    <SettingSwitch Id="@($"layers.{layer}")" Label="@Text[$"layers.{layer}"]" />
                 }
                 break;
 
             case SheetSection.Roll:
-                @SwitchRow("roll.noteNames", Text["roll.noteNames"])
-                @ChoiceRow("roll.colour", Text["roll.colourBy"], choice => Text[$"settings.rollColour.{choice}"])
+                <SettingSwitch Id="roll.noteNames" Label="@Text["roll.noteNames"]" />
+                <SettingChoice Id="roll.colour" Label="@Text["roll.colourBy"]" Name="@(choice => Text[$"settings.rollColour.{choice}"])" />
                 break;
 
             case SheetSection.Appearance:
@@ -134,8 +134,17 @@
     [Parameter]
     public EventCallback Closed { get; set; }
 
+    /// <summary>The section the sheet opens at, by name ("guidance", "score", "layers", "roll"): an element's popover leads to its own rows.</summary>
+    [Parameter]
+    public string? Section { get; set; }
+
     protected override async Task OnInitializedAsync()
     {
+        if (Enum.TryParse(Section, ignoreCase: true, out SheetSection section))
+        {
+            _section = section;
+        }
+
         Store.Changed += OnChanged;
         Text.Changed += OnChanged;
         await Store.LoadAsync();
@@ -192,40 +201,6 @@
         }
     }
 
-    private RenderFragment SwitchRow(string id, string label, string on = Setting.On, string off = Setting.Off, string? hint = null) => __builder =>
-    {
-        bool isOn = Store[id] == on;
-        string inputId = "set-" + id.Replace('.', '-');
-        <div class="set-row">
-            <label for="@inputId">@label</label>
-            <input id="@inputId" type="checkbox" role="switch" class="switch" checked="@isOn" aria-describedby="@(hint is null ? null : inputId + "-hint")"
-                   @onchange="args => Store.SetAsync(id, args.Value is true ? on : off)" />
-            @if (hint is not null)
-            {
-                <p id="@(inputId)-hint" class="caption row-hint">@hint</p>
-            }
-        </div>
-    };
-
-    private RenderFragment ChoiceRow(string id, string label, Func<string, string> name, string? hint = null) => __builder =>
-    {
-        string labelId = "set-" + id.Replace('.', '-');
-        <div class="set-row">
-            <span id="@labelId" class="label">@label</span>
-            <div class="seg" role="radiogroup" aria-labelledby="@labelId" aria-describedby="@(hint is null ? null : labelId + "-hint")">
-                @foreach (string choice in SettingsCatalogue.Get(id).Choices)
-                {
-                    bool chosen = Store[id] == choice;
-                    <button role="radio" class="@(chosen ? "on" : null)" aria-checked="@(chosen ? "true" : "false")" @onclick="() => Store.SetAsync(id, choice)">@name(choice)</button>
-                }
-            </div>
-            @if (hint is not null)
-            {
-                <p id="@(labelId)-hint" class="caption row-hint">@hint</p>
-            }
-        </div>
-    };
-
     private string SectionName(SheetSection section) => Text[section switch
     {
         SheetSection.Guidance => "settings.section.guidance",
@@ -236,6 +211,13 @@
         _ => "settings.section.account",
     }];
 
+    private static string GranularityName(string choice) => choice switch
+    {
+        "short" => "phrases.levelShort",
+        "sentences" => "phrases.levelSentences",
+        _ => "phrases.levelPhrases",
+    };
+
     private string PresetName(Preset preset) => Text[$"settings.preset.{preset.ToString().ToLowerInvariant()}"];
 
     private string PresetHint(Preset preset) => Text[$"settings.presetHint.{preset.ToString().ToLowerInvariant()}"];
@@ -243,7 +225,7 @@
     /// <summary>"Phrases: Short" or "Bookmarks: hidden".</summary>
     private string OverrideName(string id, string value) => id switch
     {
-        "phrases.granularity" => $"{Text["phrases.levelTitle"]}: {Text[value switch { "short" => "phrases.levelShort", "sentences" => "phrases.levelSentences", _ => "phrases.levelPhrases" }]}",
+        "phrases.granularity" => $"{Text["phrases.levelTitle"]}: {Text[GranularityName(value)]}",
         _ when id.StartsWith("layers.", StringComparison.Ordinal) => $"{Text[id]}: {Text[value == Setting.Off ? "settings.hidden" : "settings.shown"]}",
         _ => id,
     };

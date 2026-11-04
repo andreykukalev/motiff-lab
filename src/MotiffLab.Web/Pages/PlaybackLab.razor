@@ -115,14 +115,14 @@
                     }
                     <span class="sp"></span>
                     <button class="act @(_popover == Popover.Phrases ? "on" : null)" aria-expanded="@(_popover == Popover.Phrases ? "true" : "false")" aria-label="@Text["bar.phrases"]" title="@Text["bar.phrases"]"
-                            @onclick="() => TogglePopover(Popover.Phrases)"><Icon Name="phrases" Size="IconSize.Large" /></button>
+                            data-long-press="phrases" @onclick="() => TogglePopover(Popover.Phrases)"><Icon Name="phrases" Size="IconSize.Large" /></button>
                     @if (_scoreView?.CanDraw == true)
                     {
                         <button class="act @(_penOn ? "on" : null)" aria-pressed="@(_penOn ? "true" : "false")" aria-label="@Text["bar.pen"]" title="@Text["pencil.hint"]"
                                 @onclick="TogglePenAsync"><Icon Name="pen" Size="IconSize.Large" /></button>
                     }
                     <button class="act @(_rollOpen ? "on" : null)" aria-pressed="@(_rollOpen ? "true" : "false")" aria-label="@Text["bar.roll"]" title="@Text["bar.roll"]"
-                            @onclick="ToggleRoll"><Icon Name="roll" Size="IconSize.Large" /></button>
+                            data-long-press="roll" @onclick="ToggleRoll"><Icon Name="roll" Size="IconSize.Large" /></button>
                     <button class="act @(_insightsOpen ? "on" : null)" aria-pressed="@(_insightsOpen ? "true" : "false")" aria-label="@Text["bar.insights"]" title="@Text["bar.insights"]"
                             @onclick="ToggleInsights"><Icon Name="insight" Size="IconSize.Large" /></button>
                     <button class="act" @onclick="TogglePlayAsync" aria-label="@(Player.State == PlaybackState.Stopped ? Text["transport.play"] : Text["transport.pause"])">
@@ -133,7 +133,7 @@
                 }
             </header>
 
-            @if (_popover != Popover.None)
+            @if (_popover != Popover.None || _pillMenu == PillMenu.Settings)
             {
                 @* A tap anywhere else puts the popover away. *@
                 <button class="scrim" aria-label="@Text["bar.close"]" tabindex="-1" @onclick="ClosePopover" data-keeps-selection></button>
@@ -157,6 +157,7 @@
                             <input type="checkbox" role="switch" checked="@_showBrackets" @onchange="ToggleBracketsAsync" />
                         </label>
                         <button class="btn quiet" @onclick="ResetLevelAsync" disabled="@(_levels is null || _levels.Edits[_level].IsEmpty)">@Text["phrases.resetLevel"]</button>
+                        @PopoverScope([GranularitySetting], "score")
                     </div>
                     break;
                 case Popover.Layers:
@@ -171,6 +172,16 @@
                             </label>
                         }
                         <button class="btn quiet" @onclick="ToggleAllMarksAsync">@(AllMarksHidden ? Text["layers.showAll"] : Text["layers.hideAll"])</button>
+                        @PopoverScope(LayerIds, "layers")
+                    </div>
+                    break;
+                case Popover.Roll:
+                    @* The piano roll's own settings (0018 section 10), from a long press on its action or its handle. *@
+                    <div class="popover roll-popover" role="dialog" aria-label="@Text["settings.rollSettings"]" data-keeps-selection>
+                        <p class="overline">@Text["bar.roll"]</p>
+                        <SettingSwitch Id="roll.noteNames" Label="@Text["roll.noteNames"]" Prefix="pop" />
+                        <SettingChoice Id="roll.colour" Label="@Text["roll.colourBy"]" Name="@(choice => Text[$"settings.rollColour.{choice}"])" Prefix="pop" />
+                        @PopoverScope([], "roll")
                     </div>
                     break;
                 case Popover.More:
@@ -287,7 +298,7 @@
             {
                 @* The piano roll as a drawer (0018 section 4): it slides up over the score and leaves the selection as it is. *@
                 <section class="drawer roll-drawer" aria-label="@Text["bar.roll"]" data-fill="true" data-keeps-selection>
-                    <button class="grab" aria-label="@Text["drawer.resize"]" title="@Text["drawer.resize"]" @onclick="ToggleRoll"></button>
+                    <button class="grab" aria-label="@Text["drawer.resize"]" title="@Text["drawer.resize"]" data-long-press="roll" @onclick="ToggleRoll"></button>
                     <PianoRoll Heading="@RollHeading" Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases"
                                Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible" Highlight="_highlight?.Places"
                                RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync" />
@@ -306,7 +317,7 @@
 
             @if (_settingsOpen)
             {
-                <SettingsSheet PieceOverrides="_project?.SettingOverrides" ClearPieceOverrides="ClearPieceSettingsAsync" Closed="CloseSettings" />
+                <SettingsSheet Section="@_settingsSection" PieceOverrides="_project?.SettingOverrides" ClearPieceOverrides="ClearPieceSettingsAsync" Closed="CloseSettings" />
             }
 
             @if (_insightsOpen)
@@ -466,7 +477,7 @@
             @if (PillShown)
             {
                 @* The transport pill (0018 section 2, design/kit/ds.css .pill): with a selection or while playing. *@
-                <div class="pill" role="toolbar" aria-label="@Text["transport.label"]" data-keeps-selection>
+                <div class="pill @(_pillMenu == PillMenu.Settings ? "settings-open" : null)" role="toolbar" aria-label="@Text["transport.label"]" data-keeps-selection data-long-press="pill">
                     <button class="play" @onclick="TogglePlayAsync" aria-label="@(Player.State == PlaybackState.Stopped ? Text["transport.play"] : Text["transport.pause"])">
                         <Icon Name="@(Player.State != PlaybackState.Stopped ? "pause" : "playf")" />
                     </button>
@@ -507,6 +518,13 @@
                                 </label>
                             </div>
                             break;
+                        case PillMenu.Settings:
+                            @* The pill's own settings (0018 section 10), from a long press on it. *@
+                            <div class="popover pill-popover" role="dialog" aria-label="@Text["settings.pillSettings"]">
+                                <SettingSwitch Id="guidance.transportPill" Label="@Text["settings.pillWithSelection"]" On="selection" Off="playing" Hint="@Text["settings.pillWithSelectionHint"]" Prefix="pop" />
+                                @PopoverScope([], "guidance")
+                            </div>
+                            break;
                         case PillMenu.Hands:
                             <div class="popover pill-popover" role="dialog" aria-label="@Text["workspace.notesLabel"]">
                                 @for (int i = 0; i < _filters.Length; i++)
@@ -534,6 +552,22 @@
     /// roll and Insights, then the overflow with the phrase edits that apply. Note and Highlight join it with annotations. While a
     /// new bookmark is being made, the menu holds its card instead.
     /// </summary>
+    /// <summary>
+    /// The foot of an element's popover (0018 section 10): This piece · Everywhere where its settings can be the
+    /// piece's own, and the way to the same rows in the Settings sheet.
+    /// </summary>
+    private RenderFragment PopoverScope(IReadOnlyList<string> ids, string section) => @<div class="scope">
+        @if (ids.Count > 0 && _project is not null)
+        {
+            bool piece = PieceScoped(ids);
+            <div class="seg" role="radiogroup" aria-label="@Text["settings.scope"]">
+                <button role="radio" class="@(piece ? "on" : null)" aria-checked="@(piece ? "true" : "false")" @onclick="() => SetScopeAsync(ids, true)">@Text["settings.scopePiece"]</button>
+                <button role="radio" class="@(piece ? null : "on")" aria-checked="@(piece ? "false" : "true")" @onclick="() => SetScopeAsync(ids, false)">@Text["settings.scopeEverywhere"]</button>
+            </div>
+        }
+        <button class="btn quiet all-settings" aria-haspopup="dialog" @onclick="() => OpenSettings(section)">@Text["settings.all"]</button>
+    </div>;
+
     private RenderFragment SelectionMenu => @<div class="menu">
         @if (_noteDraft is { } note)
         {

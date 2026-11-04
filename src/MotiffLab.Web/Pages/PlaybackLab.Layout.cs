@@ -37,6 +37,9 @@ public partial class PlaybackLab : IAsyncDisposable
         Phrases,
         More,
         Layers,
+
+        /// <summary>The piano roll's own settings, from a long press on its action or its handle.</summary>
+        Roll,
     }
 
     /// <summary>The pill's small overlays: the tempo and which notes play.</summary>
@@ -45,6 +48,9 @@ public partial class PlaybackLab : IAsyncDisposable
         None,
         Tempo,
         Hands,
+
+        /// <summary>The pill's own settings, from a long press on it.</summary>
+        Settings,
     }
 
     /// <summary>The piece at the three levels; its <see cref="PhraseLevels.Phrases"/> and <see cref="PhraseLevels.Sentences"/> are <see cref="_phrases"/> and <see cref="_sentences"/>.</summary>
@@ -68,6 +74,7 @@ public partial class PlaybackLab : IAsyncDisposable
     private IJSObjectReference? _barFade;
     private IJSObjectReference? _phraseKeys;
     private IJSObjectReference? _drawerResize;
+    private IJSObjectReference? _longPress;
     private DotNetObjectReference<PlaybackLab>? _self;
     private bool _attaching;
 
@@ -128,10 +135,74 @@ public partial class PlaybackLab : IAsyncDisposable
 
     private bool _settingsOpen;
 
-    private void OpenSettings()
+    /// <summary>The section the Settings sheet opens at: an element's popover leads to its own rows.</summary>
+    private string? _settingsSection;
+
+    private void OpenSettings() => OpenSettings(null);
+
+    private void OpenSettings(string? section)
     {
+        _settingsSection = section;
         _settingsOpen = true;
         _popover = Popover.None;
+        _pillMenu = PillMenu.None;
+    }
+
+    /// <summary>
+    /// A long press on an element (Scripts/layout/long-press.ts, 0018 section 10) opens its own settings: the pill's,
+    /// the Phrases popover from its action, the piano roll's from its action or its handle.
+    /// </summary>
+    [JSInvokable]
+    public Task OnLongPress(string name)
+    {
+        switch (name)
+        {
+            case "pill":
+                _popover = Popover.None;
+                _pillMenu = PillMenu.Settings;
+                break;
+            case "phrases":
+                _pillMenu = PillMenu.None;
+                _popover = Popover.Phrases;
+                break;
+            case "roll":
+                _pillMenu = PillMenu.None;
+                _popover = Popover.Roll;
+                break;
+            default:
+                return Task.CompletedTask;
+        }
+
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Whether the piece keeps its own value for any of these settings, so the popover's scope reads This piece.</summary>
+    private bool PieceScoped(IEnumerable<string> ids) => _project is { } project && ids.Any(project.SettingOverrides.ContainsKey);
+
+    /// <summary>
+    /// The scope of a popover's settings (0018 section 10): This piece keeps the values shown with the piece; Everywhere
+    /// lets the piece follow the Settings sheet again, and later changes made here go there.
+    /// </summary>
+    private async Task SetScopeAsync(IReadOnlyList<string> ids, bool piece)
+    {
+        if (_project is not { } project || PieceScoped(ids) == piece)
+        {
+            return;
+        }
+
+        foreach (string id in ids)
+        {
+            project = project.OverrideSetting(id, piece ? project.SettingOverrides.GetValueOrDefault(id) ?? SettingsStore[id] : null);
+        }
+
+        _project = project;
+        CurrentPiece.Saved(project);
+        await Projects.SaveAsync(project);
+        if (_levels is not null)
+        {
+            _level = ProjectLevel;
+        }
     }
 
     private void CloseSettings() => _settingsOpen = false;
@@ -287,9 +358,14 @@ public partial class PlaybackLab : IAsyncDisposable
         }
 
         _level = level;
-        if (_project is not null)
+        if (_project is not null && PieceScoped([GranularitySetting]))
         {
             _project = _project.OverrideSetting(GranularitySetting, PhraseLevels.SettingValue(level));
+        }
+        else if (_project is not null)
+        {
+            // Everywhere: the Settings sheet's level changes, and every piece without its own follows it.
+            await SettingsStore.SetAsync(GranularitySetting, PhraseLevels.SettingValue(level));
         }
 
         if (_selection is { } selection)
@@ -506,6 +582,9 @@ public partial class PlaybackLab : IAsyncDisposable
             IJSObjectReference drawer = await JS.InvokeAsync<IJSObjectReference>("import", "./js/layout/drawer-resize.js");
             _drawerResize = await drawer.InvokeAsync<IJSObjectReference>("attach", _main, _self);
             await drawer.DisposeAsync();
+            IJSObjectReference press = await JS.InvokeAsync<IJSObjectReference>("import", "./js/layout/long-press.js");
+            _longPress = await press.InvokeAsync<IJSObjectReference>("attach", _main, _self);
+            await press.DisposeAsync();
         }
         catch (JSException)
         {
@@ -519,7 +598,7 @@ public partial class PlaybackLab : IAsyncDisposable
 
     private async Task DetachLayoutAsync()
     {
-        foreach (IJSObjectReference? part in new[] { _barFade, _phraseKeys, _drawerResize })
+        foreach (IJSObjectReference? part in new[] { _barFade, _phraseKeys, _drawerResize, _longPress })
         {
             if (part is null)
             {
@@ -539,7 +618,7 @@ public partial class PlaybackLab : IAsyncDisposable
             }
         }
 
-        (_barFade, _phraseKeys, _drawerResize) = (null, null, null);
+        (_barFade, _phraseKeys, _drawerResize, _longPress) = (null, null, null, null);
     }
 
     public async ValueTask DisposeAsync()

@@ -276,6 +276,17 @@ public partial class PlaybackLab
             return;
         }
 
+        if (!PieceScoped(LayerIds))
+        {
+            // Everywhere: the Settings sheet's layers change, and every piece without its own follows them.
+            foreach (string layer in layers)
+            {
+                await SettingsStore.SetAsync($"layers.{layer}", shown);
+            }
+
+            return;
+        }
+
         Project project = _project;
         foreach (string layer in layers)
         {
@@ -286,6 +297,9 @@ public partial class PlaybackLab
     }
 
     private string LayerName(string layer) => Text[$"layers.{layer}"];
+
+    /// <summary>The settings of the layers the piece has, for the Layers popover's scope.</summary>
+    private IReadOnlyList<string> LayerIds => [.. PieceLayers.Select(layer => $"layers.{layer}")];
 
     private void OpenLayers()
     {

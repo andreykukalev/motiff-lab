@@ -1,0 +1,43 @@
+@inject DeviceSettings Store
+@implements IDisposable
+
+@* One setting as a switch (0018 section 10), the same in the Settings sheet and in an element's own popover: on is the
+   setting's On value, or the choice given for it ("selection" for the pill), off the other. *@
+<div class="set-row">
+    <label for="@InputId">@Label</label>
+    <input id="@InputId" type="checkbox" role="switch" class="switch" checked="@(Store[Id] == On)" aria-describedby="@(Hint is null ? null : InputId + "-hint")"
+           @onchange="args => Store.SetAsync(Id, args.Value is true ? On : Off)" />
+    @if (Hint is not null)
+    {
+        <p id="@(InputId)-hint" class="caption row-hint">@Hint</p>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Id { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = "";
+
+    [Parameter]
+    public string On { get; set; } = MotiffLab.MusicCore.Settings.Setting.On;
+
+    [Parameter]
+    public string Off { get; set; } = MotiffLab.MusicCore.Settings.Setting.Off;
+
+    [Parameter]
+    public string? Hint { get; set; }
+
+    /// <summary>Prefixes the input's id, so the sheet and a popover never share one.</summary>
+    [Parameter]
+    public string Prefix { get; set; } = "set";
+
+    private string InputId => $"{Prefix}-{Id.Replace('.', '-')}";
+
+    protected override void OnInitialized() => Store.Changed += OnChanged;
+
+    public void Dispose() => Store.Changed -= OnChanged;
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+}
