@@ -223,6 +223,7 @@ public sealed class OnlineProjects(CloudAccount account, Preferences preferences
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         }
 
+        await account.AddPlanChoiceAsync(request);
         return request;
     }
 
@@ -239,7 +240,8 @@ public sealed class OnlineProjects(CloudAccount account, Preferences preferences
 
     private static string Problem(HttpStatusCode status) => status switch
     {
-        HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => SignInFirst,
+        HttpStatusCode.Unauthorized => SignInFirst,
+        HttpStatusCode.Forbidden => "online.needsPro",
         HttpStatusCode.RequestEntityTooLarge => "online.tooLarge",
         HttpStatusCode.NotFound => "online.notFound",
         _ => "online.problem",

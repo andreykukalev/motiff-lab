@@ -1,6 +1,6 @@
 #Requires -Version 5.1
 <#
-  Helpers for infra/azure/setup.ps1.
+  Helpers for infra/azure/setup.ps1 and infra/azure/pro.ps1.
   - Azure is reached through the Azure CLI (az), signed in as you; Microsoft Graph with a token az gets for the sign-in
     tenant; GitHub through the GitHub CLI (gh). Nothing here is a secret: the script writes identifiers only.
   - Runs on Windows PowerShell 5.1 and PowerShell 7: no 7-only syntax or parameters.
@@ -144,7 +144,7 @@ function Invoke-MotiffGraph {
   #>
   param(
     [Parameter(Mandatory)][string]$Token,
-    [Parameter(Mandatory)][ValidateSet('GET', 'POST', 'PATCH')][string]$Method,
+    [Parameter(Mandatory)][ValidateSet('GET', 'POST', 'PATCH', 'DELETE')][string]$Method,
     [Parameter(Mandatory)][string]$Path,
     [object]$Body,
     [switch]$AllowForbidden

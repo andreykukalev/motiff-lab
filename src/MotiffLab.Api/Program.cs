@@ -9,6 +9,7 @@ using MotiffLab.Api;
 
 // The Motiff Lab API (decision record 0014): a signed-in player's projects, with their sessions and sources,
 // saved in Cosmos DB. Players sign in through Microsoft Entra External ID; every document is the player's own.
+// Saving online is Pro (0018, section 12): the account's plan is an app role in the token (MotiffLab.MusicCore.Accounts.Plans).
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 IConfiguration config = builder.Configuration;
 
@@ -50,6 +51,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapGet("/health", () => Results.Ok(new { service = "motiff-lab-api" }));
 app.MapProjects();
+app.MapAccount();
 app.Run();
 
 // The web app, and its pull request previews by pattern; a native app sends no origin.

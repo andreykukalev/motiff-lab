@@ -12,6 +12,7 @@ Static Web Apps is only offered in a few regions, and West Europe is the only EU
 | [`bootstrap.bicep`](bootstrap.bicep) | One-time CI identity: a user-assigned managed identity with GitHub OIDC federated credentials (`main` and pull requests) and Contributor on the resource group only. |
 | [`bootstrap.sh`](bootstrap.sh) | The first setup, from when the web app lived alone in another subscription. Replaced by `azure/setup.ps1`. |
 | [`scan.bicep`](scan.bicep) | The hosted scan server (decision record [0014](../docs/decisions/0014-hosted-scan-server.md)): a Consumption-only Container Apps environment and the app, in `rg-motifflab`. Deployed by the `Scan server` workflow, not by CI. |
+| [`azure/pro.ps1`](azure/pro.ps1) | Gives a player Pro or makes them a tester: the API's app roles `Pro` and `Tester` in the sign-in tenant (0018 section 12). See [Pro and testers](#pro-and-testers). |
 | [`azure/setup.ps1`](azure/setup.ps1), [`azure/MotiffAzure.psm1`](azure/MotiffAzure.psm1) | One-time, in the subscription with `rg-shared`: the group `rg-motifflab` with its CI identity, the web app's Static Web App, Motiff Lab's database, the API's identity with access to that database only, the players' sign-in tenant, the repository variables, then the first deploys. |
 | [`api.bicep`](api.bicep) | The Motiff Lab API (`src/MotiffLab.Api`) next to the scan server, signing in to Cosmos DB as `id-motifflab-api`. Deployed by the `API` workflow once sign-in and the database are set up. |
 
@@ -55,6 +56,17 @@ If Windows refuses to run scripts, start it with `powershell -ExecutionPolicy By
 CI then builds the web app with the sign-in settings from those variables (it writes `wwwroot/appsettings.json` before publishing; the committed file stays empty, so pull request builds and local builds have no accounts unless you fill it in). Running the script again is safe: it finds what is there and adds only what is missing. `-SkipDeploy` stops before the workflows; `-Domain <name>` picks another sign-in domain if `motifflab` is taken.
 
 Google and Apple sign-in are added later, by hand, as identity providers ticked in the flow: [Google](https://learn.microsoft.com/entra/external-id/customers/how-to-google-federation-customers) needs an OAuth client in Google Cloud; [Apple](https://learn.microsoft.com/entra/external-id/customers/how-to-apple-federation-customers) needs the Apple Developer Program, and its key must be renewed every 6 months. the iOS app gets its own registration later.
+
+## Pro and testers
+
+What runs on the device is free; scanning and transcription on Motiff Lab's server, saving online and the assistant are Pro ([0018](../docs/decisions/0018-redesign.md), section 12). A player's plan is an app role of *Motiff Lab API* in the sign-in tenant, so it travels in their access token and the API and the scan server check it on every request without a database (`MotiffLab.MusicCore.Accounts.Plans`, `services/omr/app/auth.py`): `Pro` allows those features; `Tester` may also switch between Pro and no Pro in Settings to test both, sent as the `Motiff-Plan` header, which the servers trust only from a tester. Reading, listing and erasing projects saved online need no Pro, so a player who leaves Pro keeps their data. Until payment exists, Pro is given with:
+
+```powershell
+.\infra\azure\pro.ps1 -Email you@example.com -Pro -Tester   # adds the two roles the first time, then assigns them
+.\infra\azure\pro.ps1 -List
+```
+
+The player must have signed in once. The role reaches them at their next sign-in (or within an hour). `-Remove` takes a role away.
 
 ## Changes later
 

@@ -56,6 +56,10 @@
             {
                 <MotiffLab.Web.Account.SignInPrompt Text="@Text["scan.signInPrompt"]" />
             }
+            else if (Scans.IsHosted && !_scanPro)
+            {
+                <p class="meta">@Text["scan.proPrompt"]</p>
+            }
             else
             {
                 <p class="meta">@Text.Format(Scans.IsLocal ? "import.scanWhatHere" : "import.scanWhat", server)</p>
@@ -98,6 +102,10 @@
             else if (Scans.IsHosted && !_signedIn)
             {
                 <MotiffLab.Web.Account.SignInPrompt Text="@Text["transcribe.signInPrompt"]" />
+            }
+            else if (Scans.IsHosted && !_transcribePro)
+            {
+                <p class="meta">@Text["transcribe.proPrompt"]</p>
             }
             else
             {
@@ -430,6 +438,8 @@
 
     /// <summary>Whether a player is signed in, which Motiff Lab's scan server needs.</summary>
     private bool _signedIn;
+    private bool _scanPro;
+    private bool _transcribePro;
 
     /// <summary>The way in this screen is for, from its address.</summary>
     private enum ImportRoute
@@ -473,6 +483,9 @@
     {
         await Scans.LoadAsync();
         _signedIn = await Account.PlayerAsync() is not null;
+        // Scanning and transcription on Motiff Lab's server are one Pro feature each (0018 section 12); the server checks it too.
+        _scanPro = _signedIn && await Account.AllowsAsync(MotiffLab.MusicCore.Accounts.ProFeature.Scan);
+        _transcribePro = _signedIn && await Account.AllowsAsync(MotiffLab.MusicCore.Accounts.ProFeature.Transcribe);
     }
 
     protected override void OnParametersSet()

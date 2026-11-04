@@ -39,11 +39,26 @@
                     <p class="who"><strong>@_player</strong><span class="meta">@Text["settings.signedIn"]</span></p>
                     <button @onclick="Account.SignOut">@Text["settings.signOut"]</button>
                 </div>
+                @* The plan (0018 section 12, preparation item 14): what runs on the device is free, what needs the cloud is Pro.
+                   Testers switch between Pro and no Pro to try both; the servers trust that choice only from a tester. *@
+                <p id="plan" class="meta">@Text["settings.plan"]: <strong>@PlanName</strong></p>
+                @if (_plan?.IsTester == true)
+                {
+                    <div class="switch-row">
+                        <label for="test-plan">@Text["settings.testPlan"]</label>
+                        <select id="test-plan" value="@(_choice is { } choice ? MotiffLab.MusicCore.Accounts.Plans.Id(choice) : "")" @onchange="ChoosePlanAsync" aria-describedby="test-plan-hint">
+                            <option value="">@Text["settings.testPlanAccount"]</option>
+                            <option value="pro">@Text["settings.testPlanPro"]</option>
+                            <option value="free">@Text["settings.testPlanFree"]</option>
+                        </select>
+                    </div>
+                    <p id="test-plan-hint" class="meta">@Text["settings.testPlanHint"]</p>
+                }
                 <div class="switch-row">
                     <label for="save-online">@Text["settings.saveOnline"]</label>
-                    <input id="save-online" type="checkbox" class="switch" checked="@_online" @onchange="ToggleOnlineAsync" aria-describedby="online-status" />
+                    <input id="save-online" type="checkbox" class="switch" checked="@_online" disabled="@(!_online && !CanSaveOnline)" @onchange="ToggleOnlineAsync" aria-describedby="online-status" />
                 </div>
-                <p id="online-status" class="meta" role="status">@(Online.Status ?? (_online ? Text["settings.onlineOn"] : Text["settings.onlineOff"]))</p>
+                <p id="online-status" class="meta" role="status">@(Online.Status ?? (_online ? Text["settings.onlineOn"] : CanSaveOnline ? Text["settings.onlineOff"] : Text["settings.onlineNeedsPro"]))</p>
                 <p class="meta"><a href="privacy#online">@Text["settings.onlineWhatIsKept"]</a></p>
                 <div class="row danger">
                     @if (_confirmDeleteOnline)
@@ -112,6 +127,12 @@ docker run --rm -p 8765:8000 motiff-omr</code></pre>
     private bool _confirmDeleteOnline;
     private string? _onlineMessage;
     private bool _showHowToRun;
+    private MotiffLab.Web.Account.AccountPlan? _plan;
+    private MotiffLab.MusicCore.Accounts.Plan? _choice;
+
+    private bool CanSaveOnline => _plan?.Allows(MotiffLab.MusicCore.Accounts.ProFeature.SaveOnline) == true;
+
+    private string PlanName => _plan is null ? Text["settings.planUnknown"] : _plan.IsPro ? Text["settings.planPro"] : Text["settings.planFree"];
 
     protected override async Task OnInitializedAsync()
     {
@@ -119,6 +140,12 @@ docker run --rm -p 8765:8000 motiff-omr</code></pre>
         Online.Changed += OnChanged;
         _player = await Account.PlayerAsync();
         _online = _player is not null && await Online.IsOnAsync();
+        if (_player is not null)
+        {
+            _plan = await Account.PlanAsync();
+            _choice = await Account.PlanChoiceAsync();
+        }
+
         await Scans.LoadAsync();
         _address = Scans.Address?.ToString() ?? MotiffLab.Web.Import.ScanService.SuggestedAddress;
     }
@@ -164,6 +191,13 @@ docker run --rm -p 8765:8000 motiff-omr</code></pre>
                 }
             }
         }
+    }
+
+    private async Task ChoosePlanAsync(ChangeEventArgs args)
+    {
+        _choice = MotiffLab.MusicCore.Accounts.Plans.Parse(args.Value as string);
+        await Account.SetPlanChoiceAsync(_choice);
+        _plan = await Account.PlanAsync();
     }
 
     private async Task DeleteOnlineAsync()

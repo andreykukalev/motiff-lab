@@ -38,6 +38,49 @@ public sealed class ProjectApiTests : IClassFixture<ProjectApiTests.Api>
     }
 
     [Fact]
+    public async Task Saving_online_needs_Pro_but_reading_and_erasing_do_not()
+    {
+        string player = Player();
+        await Client(player).PutAsync("/projects/p_kept", Json(File("p_kept")));
+
+        HttpClient free = Client(player, roles: []);
+        HttpResponseMessage refused = await free.PutAsync("/projects/p_kept", Json(File("p_kept")));
+        Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
+        Assert.Contains("\"code\":\"pro\"", await refused.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+
+        Assert.Single((await free.GetFromJsonAsync<Summary[]>("/projects"))!);
+        Assert.Equal(HttpStatusCode.OK, (await free.GetAsync("/projects/p_kept")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await free.DeleteAsync("/me")).StatusCode);
+    }
+
+    [Theory]
+    [InlineData(new string[0], null, HttpStatusCode.Forbidden)]
+    [InlineData(new string[0], "pro", HttpStatusCode.Forbidden)]
+    [InlineData(new[] { "Tester" }, null, HttpStatusCode.Forbidden)]
+    [InlineData(new[] { "Tester" }, "pro", HttpStatusCode.NoContent)]
+    [InlineData(new[] { "Tester", "Pro" }, "free", HttpStatusCode.Forbidden)]
+    [InlineData(new[] { "Pro" }, "free", HttpStatusCode.NoContent)]
+    public async Task Only_a_tester_may_choose_the_plan(string[] roles, string? choice, HttpStatusCode expected)
+    {
+        HttpResponseMessage response = await Client(Player(), roles: roles, choice: choice).PutAsync("/projects/p_test", Json(File("p_test")));
+        Assert.Equal(expected, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task The_account_tells_the_app_what_its_plan_allows()
+    {
+        Account pro = (await Client(Player()).GetFromJsonAsync<Account>("/account"))!;
+        Assert.Equal(("pro", false, null), (pro.Plan, pro.Tester, pro.Chosen));
+        Assert.True(pro.Features["scan"] && pro.Features["transcribe"] && pro.Features["saveOnline"] && pro.Features["assistant"]);
+
+        Account testing = (await Client(Player(), roles: ["Tester", "Pro"], choice: "free").GetFromJsonAsync<Account>("/account"))!;
+        Assert.Equal(("free", true, "free"), (testing.Plan, testing.Tester, testing.Chosen));
+        Assert.DoesNotContain(true, testing.Features.Values);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, (await _api.CreateClient().GetAsync("/account")).StatusCode);
+    }
+
+    [Fact]
     public async Task A_saved_project_comes_back_as_the_same_bytes_and_is_listed()
     {
         string player = Player();
@@ -153,12 +196,19 @@ public sealed class ProjectApiTests : IClassFixture<ProjectApiTests.Api>
         return content;
     }
 
-    private HttpClient Client(string player, string scope = "Projects.ReadWrite")
+    private HttpClient Client(string player, string scope = "Projects.ReadWrite", string[]? roles = null, string? choice = null)
     {
         HttpClient client = _api.CreateClient();
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Api.Token(player, scope));
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Api.Token(player, scope, roles ?? ["Pro"]));
+        if (choice is not null)
+        {
+            client.DefaultRequestHeaders.Add("Motiff-Plan", choice);
+        }
+
         return client;
     }
+
+    private sealed record Account(string Plan, bool Tester, string? Chosen, Dictionary<string, bool> Features);
 
     private sealed record Summary(string Id, string FileName, int MotifCount, int ResumeCount);
 
@@ -169,11 +219,11 @@ public sealed class ProjectApiTests : IClassFixture<ProjectApiTests.Api>
         private const string Audience = "api-client-id";
         private static readonly SymmetricSecurityKey s_key = new(RandomNumberGenerator.GetBytes(32));
 
-        public static string Token(string player, string scope) => new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
+        public static string Token(string player, string scope, string[] roles) => new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
         {
             Issuer = Issuer,
             Audience = Audience,
-            Claims = new Dictionary<string, object> { ["oid"] = player, ["scp"] = scope },
+            Claims = new Dictionary<string, object> { ["oid"] = player, ["scp"] = scope, ["roles"] = roles },
             Expires = DateTime.UtcNow.AddMinutes(5),
             SigningCredentials = new SigningCredentials(s_key, SecurityAlgorithms.HmacSha256),
         });

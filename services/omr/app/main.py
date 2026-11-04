@@ -41,8 +41,8 @@ MUSICXML_TYPE = "application/vnd.recordare.musicxml+xml"
 MIDI_TYPE = "audio/midi"
 
 
-def _verifier_from_environment() -> Callable[[str | None], None] | None:
-    """Hosted (0014), a page is read only for a signed-in player; on the player's own computer, for anyone."""
+def _verifier_from_environment() -> Callable[[str | None, str | None], None] | None:
+    """Hosted (0014), a page is read only for a signed-in Pro player; on the player's own computer, for anyone."""
     authority, audience = os.environ.get("AUTH_AUTHORITY"), os.environ.get("AUTH_AUDIENCE")
     return auth.TokenVerifier(authority, audience).verify if authority and audience else None
 
@@ -52,7 +52,7 @@ def create_app(
     transcribe_recording: Callable[[Path, int], transcribe.Transcription] = transcribe.transcribe,
     allowed_origins: list[str] = ALLOWED_ORIGINS,
     allowed_origin_regex: str | None = ALLOWED_ORIGIN_REGEX,
-    verify: Callable[[str | None], None] | None = _verifier_from_environment(),
+    verify: Callable[[str | None, str | None], None] | None = _verifier_from_environment(),
 ) -> FastAPI:
     app = FastAPI(title="Motiff Lab sheet music recognition", docs_url=None, redoc_url=None, openapi_url=None)
     app.add_middleware(
@@ -93,13 +93,15 @@ def create_app(
         }
 
     async def refused(request: Request) -> Response | None:
-        """401 when the hosted server is asked without a valid sign-in; None when it may go on."""
+        """401 without a valid sign-in, 403 without Pro, on the hosted server; None when it may go on."""
         if verify is None:
             return None
         try:
-            await run_in_threadpool(verify, request.headers.get("authorization"))
+            await run_in_threadpool(verify, request.headers.get("authorization"), request.headers.get(auth.PLAN_HEADER))
         except auth.AuthError as error:
             return _problem(401, str(error))
+        except auth.NotProError as error:
+            return _problem(403, str(error), code="pro")
         return None
 
     @app.post("/recognise")
@@ -184,8 +186,9 @@ def _copy(source, target, limit: int) -> int:  # type: ignore[no-untyped-def]
     return copied
 
 
-def _problem(status: int, message: str) -> JSONResponse:
-    return JSONResponse(status_code=status, content={"message": message}, headers={"Cache-Control": "no-store"})
+def _problem(status: int, message: str, code: str | None = None) -> JSONResponse:
+    content = {"message": message} if code is None else {"message": message, "code": code}
+    return JSONResponse(status_code=status, content=content, headers={"Cache-Control": "no-store"})
 
 
 app = create_app()
