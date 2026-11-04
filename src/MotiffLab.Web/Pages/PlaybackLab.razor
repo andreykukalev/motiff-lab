@@ -260,8 +260,8 @@
             {
                 @* The piano roll as a drawer (0018 section 4): it slides up over the score and leaves the selection as it is. *@
                 <section class="drawer roll-drawer" aria-label="@Text["bar.roll"]" data-fill="true" data-keeps-selection>
-                    <button class="grab" aria-label="@Text["drawer.close"]" title="@Text["drawer.close"]" @onclick="ToggleRoll"></button>
-                    <PianoRoll Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases"
+                    <button class="grab" aria-label="@Text["drawer.resize"]" title="@Text["drawer.resize"]" @onclick="ToggleRoll"></button>
+                    <PianoRoll Heading="@RollHeading" Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases"
                                Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible" Highlight="_highlight?.Places"
                                RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync" />
                 </section>

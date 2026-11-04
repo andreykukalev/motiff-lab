@@ -60,8 +60,10 @@ test("the workspace reads in Russian when the app is in Russian (#134)", async (
     await expect(page.locator(".pill").getByRole("button", { name: "Цикл" })).toBeVisible();
     await openInsights(page, "Поиграть");
     await expect(page.locator(".practise")).toContainText("Повторять фразу");
-    await expect(page.locator(".roll-tools")).toContainText("Цвет по");
-    await expect(page.locator(".roll-legend")).toContainText("Дорожка 1");
+    // The roll's head: note names on, the notes coloured by hand (0018 section 4).
+    await expect(page.locator(".roll-head")).toContainText("Названия нот");
+    await expect(page.locator(".roll-head")).toContainText("Цвет: руки");
+    await expect(page.locator(".roll-legend")).toContainText("Правая рука");
     await expect(page.locator(".roll-legend")).toContainText("Л, П: рука из файла");
     await expect(page.getByRole("application", { name: /^Пиано-ролл/ })).toBeVisible();
     expect(errors).toEqual([]);

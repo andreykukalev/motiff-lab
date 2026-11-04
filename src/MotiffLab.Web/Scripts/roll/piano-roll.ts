@@ -60,6 +60,8 @@ const ROLL_HEIGHT = 360;
 const MIN_ROLL_HEIGHT = 160;
 const MIN_ROW = 5;
 const MAX_ROW = 14;
+/** The fewest semitones the rows show when they fit a selection. */
+const MIN_PITCH_SPAN = 12;
 const KEYBOARD_HEIGHT = 64;
 
 /** While playing, the view pages on when the playhead passes this share of its width. */
@@ -181,6 +183,9 @@ export class PianoRoll {
     private readonly patterns = new Map<PatternKind, CanvasPattern | null>();
     private model: RollModel | null = null;
     private colourBy: ColourBy = "track";
+    private noteNames = true;
+    /** The lowest and highest pitch of the selection's notes, which the rows fit; null for the piece's. */
+    private motifPitches: { lowest: number; highest: number } | null = null;
     private laneIndex = new Map<number, number>();
     private zoom = DEFAULT_ZOOM;
     private scroll = 0;
@@ -273,6 +278,7 @@ export class PianoRoll {
         this.selected = new Set();
         this.focusIndex = undefined;
         this.motif = null;
+        this.motifPitches = null;
         this.playRange = null;
         this.filtered = null;
         this.variation = null;
@@ -281,6 +287,12 @@ export class PianoRoll {
         this.press = null;
         this.scroll = 0;
         this.updateLanes();
+    }
+
+    /** Writes each note's name inside it, where it fits (0018 section 4: on by default). */
+    setNoteNames(on: boolean): void {
+        this.noteNames = on;
+        this.invalidate();
     }
 
     setColourBy(by: ColourBy): void {
@@ -320,6 +332,8 @@ export class PianoRoll {
         const notes = new Set(ids.map((id) => model.indexOf(id)).filter((index): index is number => index !== undefined));
         const moved = this.motif === null || this.motif.start !== start;
         this.motif = { start, end, notes, alone };
+        const pitches = [...notes].map((index) => model.notes[index].pitch);
+        this.motifPitches = pitches.length === 0 ? null : { lowest: Math.min(...pitches), highest: Math.max(...pitches) };
         this.drag = null;
         // A selection made elsewhere (a phrase chip, the score) scrolls into view, as the score does (0012).
         if (moved) {
@@ -330,6 +344,7 @@ export class PianoRoll {
 
     clearMotif(): void {
         this.motif = null;
+        this.motifPitches = null;
         this.drag = null;
         this.invalidate();
     }
@@ -543,11 +558,18 @@ export class PianoRoll {
         }
     }
 
-    /** Rows from one below the lowest note to one above the highest. */
+    /**
+     * Rows from one below the lowest note to one above the highest: of the selection when there is one, so the drawer shows
+     * the selected phrase large enough for note names (0018 section 4), at least an octave; else of the piece.
+     */
     private pitchRange(): { low: number; high: number; row: number } {
         const model = this.model;
-        const low = Math.max(0, (model?.lowest ?? 60) - 1);
-        const high = Math.min(127, (model?.highest ?? 72) + 1);
+        const span = this.motifPitches ?? { lowest: model?.lowest ?? 60, highest: model?.highest ?? 72 };
+        const middle = (span.lowest + span.highest) / 2;
+        const lowest = Math.min(span.lowest, Math.floor(middle - MIN_PITCH_SPAN / 2));
+        const highest = Math.max(span.highest, Math.ceil(middle + MIN_PITCH_SPAN / 2));
+        const low = Math.max(0, lowest - 1);
+        const high = Math.min(127, highest + 1);
         const row = Math.min(MAX_ROW, Math.max(MIN_ROW, Math.floor(this.rollHeight() / (high - low + 1))));
         return { low, high, row };
     }
@@ -761,11 +783,15 @@ export class PianoRoll {
                 context.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
                 context.setLineDash([]);
             }
-            if (note.hand !== HAND_NONE && row >= 10 && w >= 18) {
+            // The note's name inside it (0018 section 4, on by default), with the hand's letter where the hand was only inferred;
+            // without names, the hand's letter alone.
+            const hand = note.hand === HAND_NONE ? "" : `${note.hand === HAND_LEFT ? this.labels.leftLetter : this.labels.rightLetter}${note.handInferred ? "?" : ""}`;
+            const text = this.noteNames ? (note.handInferred ? `${pitchName(note.pitch)} ${hand}` : pitchName(note.pitch)) : hand;
+            if (text !== "" && row >= 10 && w >= (this.noteNames ? 22 : 18)) {
                 context.fillStyle = ON_NOTE;
                 context.font = "bold 9px \"Source Sans 3\", system-ui, sans-serif";
                 context.textAlign = "left";
-                context.fillText(`${note.hand === HAND_LEFT ? this.labels.leftLetter : this.labels.rightLetter}${note.handInferred ? "?" : ""}`, x + 3, y + h / 2);
+                context.fillText(text, x + 3, y + h / 2, w - 4);
             }
             // Selected notes get a thick light outline with a dark edge, readable on every lane colour.
             if (this.selected.has(index)) {

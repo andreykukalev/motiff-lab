@@ -2,6 +2,7 @@
 @using MotiffLab.MusicCore.Events
 @using MotiffLab.MusicCore.Motifs
 @using MotiffLab.MusicCore.Playback
+@using MotiffLab.MusicCore.Settings
 @using MotiffLab.MusicCore.Time
 @using MotiffLab.MusicCore.Variations
 @using MotiffLab.Web.Playback
@@ -9,23 +10,47 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject Player Player
+@inject MotiffLab.Web.Projects.Preferences Preferences
 @inject MotiffLab.Web.Localization.UiText Text
 
 @* Drawn on canvas in Scripts/roll (S1-W2, S1-W3, S1-M1); the host's children belong to the script. *@
-<div class="row roll-tools">
-    <span>@Text["roll.colourBy"]</span>
-    @foreach (string mode in s_colourModes)
+<div class="roll-head">
+    @if (Heading is not null)
     {
-        int lanes = LaneCount(mode);
-        <label class="@(lanes < 2 ? "unavailable" : null)" title="@(lanes < 2 ? OneLaneText(mode) : null)">
-            <input type="radio" name="roll-colour" checked="@(_colourBy == mode)" disabled="@(lanes < 2)" @onchange="() => SetColourByAsync(mode)" /> @Text[$"roll.mode.{mode}"]
-        </label>
+        <p class="overline">@Heading</p>
     }
-    <button @onclick="() => ZoomAsync(1 / ZoomStep)" aria-label="@Text["roll.zoomOut"]">−</button>
-    <button @onclick="() => ZoomAsync(ZoomStep)" aria-label="@Text["roll.zoomIn"]">+</button>
-    @if (s_colourModes.Any(mode => LaneCount(mode) < 2) && Notes is { Count: > 0 })
+    <span class="sp"></span>
+    <button class="chip @(_noteNames ? "on" : null)" aria-pressed="@(_noteNames ? "true" : "false")" @onclick="ToggleNoteNamesAsync">
+        <span class="dot" aria-hidden="true"></span> @Text["roll.noteNames"]
+    </button>
+    @* The colour scheme in one tap: the next grouping that tells notes apart; the overflow lists all three. *@
+    <button class="chip" title="@Text["roll.colourHint"]" @onclick="NextColourAsync" disabled="@(AvailableModes.Count() < 2)">@Text[$"roll.colour.{_colourBy}"]</button>
+    <button class="chip icon @(_menuOpen ? "on" : null)" aria-expanded="@(_menuOpen ? "true" : "false")" aria-label="@Text["roll.more"]" title="@Text["roll.more"]"
+            @onclick="() => _menuOpen = !_menuOpen"><Icon Name="more" /></button>
+    @if (_menuOpen)
     {
-        <span class="meta">@string.Join(" ", s_colourModes.Where(mode => LaneCount(mode) < 2).Select(OneLaneText))</span>
+        @* The roll's own small overflow (0018 section 4): colour by track, voice or hand, and the zoom. *@
+        <div class="roll-menu" role="group" aria-label="@Text["roll.more"]">
+            <p class="overline">@Text["roll.colourBy"]</p>
+            <div class="roll-tools">
+                @foreach (string mode in s_colourModes)
+                {
+                    int lanes = LaneCount(mode);
+                    <label class="@(lanes < 2 ? "unavailable" : null)" title="@(lanes < 2 ? OneLaneText(mode) : null)">
+                        <input type="radio" name="roll-colour" checked="@(_colourBy == mode)" disabled="@(lanes < 2)" @onchange="() => SetColourByAsync(mode)" /> @Text[$"roll.mode.{mode}"]
+                    </label>
+                }
+            </div>
+            @if (s_colourModes.Any(mode => LaneCount(mode) < 2) && Notes is { Count: > 0 })
+            {
+                <p class="caption">@string.Join(" ", s_colourModes.Where(mode => LaneCount(mode) < 2).Select(OneLaneText))</p>
+            }
+            <p class="overline">@Text["roll.zoom"]</p>
+            <div class="roll-tools">
+                <button class="chip icon" @onclick="() => ZoomAsync(1 / ZoomStep)" aria-label="@Text["roll.zoomOut"]" title="@Text["roll.zoomOut"]">−</button>
+                <button class="chip icon" @onclick="() => ZoomAsync(ZoomStep)" aria-label="@Text["roll.zoomIn"]" title="@Text["roll.zoomIn"]">+</button>
+            </div>
+        </div>
     }
 </div>
 <div class="roll" @ref="_host"></div>
@@ -40,9 +65,22 @@
     private DotNetObjectReference<PianoRoll>? _self;
     private IReadOnlyList<Note>? _shown;
     private Dictionary<string, Note> _byId = [];
-    private static readonly string[] s_colourModes = ["track", "voice", "hand"];
+    private static readonly string[] s_colourModes = ["hand", "track", "voice"];
 
-    private string _colourBy = "track";
+    private string _colourBy = "hand";
+    private bool _noteNames = true;
+    private bool _menuOpen;
+
+    /// <summary>The device settings for the roll's note names and colour scheme (SettingsCatalogue, 0018 section 10).</summary>
+    private const string NoteNamesSetting = "roll.noteNames";
+    private const string ColourSetting = "roll.colour";
+
+    /// <summary>The colour scheme the player chose last, kept on the device; the setting's default is hands.</summary>
+    private string _preferredColour = SettingsCatalogue.Get(ColourSetting).Default;
+
+    /// <summary>What heads the drawer: "Piano roll · bars 9–16".</summary>
+    [Parameter]
+    public string? Heading { get; set; }
     private Dictionary<string, int> _laneCounts = [];
     private IReadOnlyCollection<string>? _shownKept;
     private Variation? _shownVariation;
@@ -129,6 +167,13 @@
             _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/roll/piano-roll.js");
             _view = await _module.InvokeAsync<IJSObjectReference>("createPianoRoll", _host, _self, Labels());
             _labelsLanguage = Text.Language;
+            _noteNames = await Preferences.GetAsync(NoteNamesSetting) != Setting.Off;
+            if (await Preferences.GetAsync(ColourSetting) is { } colour && s_colourModes.Contains(colour))
+            {
+                _preferredColour = colour;
+            }
+
+            await _view.InvokeVoidAsync("setNoteNames", _noteNames);
         }
         else if (_view is not null && _labelsLanguage != Text.Language)
         {
@@ -159,9 +204,8 @@
                 ["voice"] = Notes.Any(note => note.Voice is not null) ? Notes.Select(note => (note.Track, note.Voice)).Distinct().Count() : 1,
                 ["hand"] = Notes.Select(note => note.Hand?.Value).Distinct().Count(),
             };
-            // Start with the grouping that tells notes apart: tracks, else hands, else voices.
-            _colourBy = s_colourModes.OrderBy(mode => mode switch { "track" => 0, "hand" => 1, _ => 2 })
-                .FirstOrDefault(mode => LaneCount(mode) > 1) ?? "track";
+            // Start with the player's grouping (hands unless they chose another) when it tells notes apart, else hands, tracks, voices.
+            _colourBy = AvailableModes.OrderBy(mode => mode == _preferredColour ? 0 : Array.IndexOf(s_colourModes, mode) + 1).FirstOrDefault() ?? _preferredColour;
             await _view.InvokeVoidAsync("load", PianoRollPayload.Create(Notes, Score));
             await _view.InvokeVoidAsync("setColourBy", _colourBy);
             await _view.InvokeVoidAsync("follow", Player.Engine);
@@ -312,9 +356,31 @@
     private async Task SetColourByAsync(string by)
     {
         _colourBy = by;
+        _preferredColour = by;
+        await Preferences.SetAsync(ColourSetting, by);
         if (_view is not null)
         {
             await _view.InvokeVoidAsync("setColourBy", by);
+        }
+    }
+
+    /// <summary>The groupings that tell this piece's notes apart.</summary>
+    private IEnumerable<string> AvailableModes => s_colourModes.Where(mode => LaneCount(mode) > 1);
+
+    /// <summary>The colour chip: the next grouping that tells notes apart.</summary>
+    private Task NextColourAsync()
+    {
+        string[] modes = [.. AvailableModes];
+        return modes.Length < 2 ? Task.CompletedTask : SetColourByAsync(modes[(Array.IndexOf(modes, _colourBy) + 1) % modes.Length]);
+    }
+
+    private async Task ToggleNoteNamesAsync()
+    {
+        _noteNames = !_noteNames;
+        await Preferences.SetAsync(NoteNamesSetting, _noteNames ? Setting.On : Setting.Off);
+        if (_view is not null)
+        {
+            await _view.InvokeVoidAsync("setNoteNames", _noteNames);
         }
     }
 

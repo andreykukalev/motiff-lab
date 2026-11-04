@@ -2817,13 +2817,24 @@ body:has(.workspace) .site-footer {
 }
 
 /* The piano roll drawer: up from the bottom, 40% of the height in landscape and 30% in portrait. The pill rides above it. */
+/* The drawer's height: 40% of the screen in landscape and 30% in portrait, or as the player dragged it (drawer-resize.ts). */
+.workspace {
+    --drawer-h: 40vh;
+}
+
+@media (orientation: portrait) {
+    .workspace {
+        --drawer-h: 30vh;
+    }
+}
+
 .workspace .drawer {
     position: absolute;
     z-index: 2;
     left: var(--s-3);
     right: var(--s-3);
     bottom: 0;
-    height: 40vh;
+    height: var(--drawer-h);
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
@@ -2836,24 +2847,12 @@ body:has(.workspace) .site-footer {
     animation: rise var(--t-base) var(--ease);
 }
 
-@media (orientation: portrait) {
-    .workspace .drawer {
-        height: 30vh;
-    }
-}
-
 .workspace.roll-open .pill {
-    bottom: calc(40vh + var(--s-3));
-}
-
-@media (orientation: portrait) {
-    .workspace.roll-open .pill {
-        bottom: calc(30vh + var(--s-3));
-    }
+    bottom: calc(var(--drawer-h) + var(--s-3));
 }
 
 .workspace.roll-open .score {
-    --pad-bottom: calc(40vh + 96px);
+    --pad-bottom: calc(var(--drawer-h) + 96px);
 }
 
 .lab.workspace .drawer .grab {
@@ -2867,7 +2866,13 @@ body:has(.workspace) .site-footer {
     border: 0;
     min-height: 0;
     background: transparent;
-    cursor: pointer;
+    cursor: ns-resize;
+    touch-action: none;
+}
+
+.lab.workspace .drawer .grab:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
 }
 
 .lab.workspace .drawer .grab::after {
@@ -2886,8 +2891,91 @@ body:has(.workspace) .site-footer {
     min-height: 0;
 }
 
-.workspace .drawer .roll-tools {
+/* The roll's head (design/kit screens s4): its overline, Note names, the colour scheme and the roll's own overflow. */
+.workspace .drawer .roll-head {
+    position: relative;
     flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    margin-bottom: var(--s-2);
+}
+
+.workspace .drawer .roll-head .overline {
+    margin: 0;
+}
+
+.workspace .drawer .roll-head .sp {
+    flex: 1;
+}
+
+.lab.workspace .drawer .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    min-height: 0;
+    padding: 0 var(--s-3);
+    border-radius: var(--r-pill);
+    border: 1px solid var(--hairline-strong);
+    background: var(--surface-2);
+    color: var(--ink);
+    font: var(--t-label);
+    cursor: pointer;
+}
+
+.lab.workspace .drawer .chip.icon {
+    width: 32px;
+    padding: 0;
+    justify-content: center;
+}
+
+.lab.workspace .drawer .chip.on {
+    background: var(--accent-tint);
+    border-color: var(--accent);
+}
+
+.lab.workspace .drawer .chip:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.workspace .drawer .chip .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--ink-3);
+}
+
+.workspace .drawer .chip.on .dot {
+    background: var(--ink);
+}
+
+.workspace .drawer .roll-menu {
+    position: absolute;
+    z-index: 3;
+    top: calc(100% + var(--s-1));
+    right: 0;
+    min-width: 15rem;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    padding: var(--s-3);
+    border-radius: var(--r-m);
+    background: var(--surface-2);
+    border: 1px solid var(--hairline);
+    box-shadow: var(--shadow-menu);
+}
+
+.workspace .drawer .roll-menu .overline, .workspace .drawer .roll-menu .caption {
+    margin: 0;
+}
+
+.workspace .drawer .roll-tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-3);
     font: var(--t-label);
 }
 
@@ -3296,13 +3384,7 @@ body:has(.workspace) .site-footer {
 }
 
 .workspace.roll-open .focus-stage {
-    bottom: calc(40vh + 52px + 2 * var(--s-3));
-}
-
-@media (orientation: portrait) {
-    .workspace.roll-open .focus-stage {
-        bottom: calc(30vh + 52px + 2 * var(--s-3));
-    }
+    bottom: calc(var(--drawer-h) + 52px + 2 * var(--s-3));
 }
 
 @media (orientation: landscape) {
