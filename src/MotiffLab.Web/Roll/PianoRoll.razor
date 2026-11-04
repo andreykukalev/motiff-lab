@@ -10,7 +10,7 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject Player Player
-@inject MotiffLab.Web.Projects.Preferences Preferences
+@inject MotiffLab.Web.Settings.DeviceSettings SettingsStore
 @inject MotiffLab.Web.Localization.UiText Text
 
 @* Drawn on canvas in Scripts/roll (S1-W2, S1-W3, S1-M1); the host's children belong to the script. *@
@@ -167,11 +167,10 @@
             _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/roll/piano-roll.js");
             _view = await _module.InvokeAsync<IJSObjectReference>("createPianoRoll", _host, _self, Labels());
             _labelsLanguage = Text.Language;
-            _noteNames = await Preferences.GetAsync(NoteNamesSetting) != Setting.Off;
-            if (await Preferences.GetAsync(ColourSetting) is { } colour && s_colourModes.Contains(colour))
-            {
-                _preferredColour = colour;
-            }
+            await SettingsStore.LoadAsync();
+            SettingsStore.Changed += OnSettingsChanged;
+            _noteNames = SettingsStore.IsOn(NoteNamesSetting);
+            _preferredColour = SettingsStore[ColourSetting];
 
             await _view.InvokeVoidAsync("setNoteNames", _noteNames);
         }
@@ -357,7 +356,7 @@
     {
         _colourBy = by;
         _preferredColour = by;
-        await Preferences.SetAsync(ColourSetting, by);
+        await SettingsStore.SetAsync(ColourSetting, by);
         if (_view is not null)
         {
             await _view.InvokeVoidAsync("setColourBy", by);
@@ -377,7 +376,7 @@
     private async Task ToggleNoteNamesAsync()
     {
         _noteNames = !_noteNames;
-        await Preferences.SetAsync(NoteNamesSetting, _noteNames ? Setting.On : Setting.Off);
+        await SettingsStore.SetAsync(NoteNamesSetting, _noteNames);
         if (_view is not null)
         {
             await _view.InvokeVoidAsync("setNoteNames", _noteNames);
@@ -434,8 +433,38 @@
         }
     }
 
+    /// <summary>The note names or the colour changed in the Settings sheet: the roll shows them at once.</summary>
+    private void OnSettingsChanged() => _ = InvokeAsync(async () =>
+    {
+        bool names = SettingsStore.IsOn(NoteNamesSetting);
+        string colour = SettingsStore[ColourSetting];
+        if (_view is null)
+        {
+            return;
+        }
+
+        if (names != _noteNames)
+        {
+            _noteNames = names;
+            await _view.InvokeVoidAsync("setNoteNames", names);
+        }
+
+        if (colour != _preferredColour)
+        {
+            _preferredColour = colour;
+            if (AvailableModes.Contains(colour))
+            {
+                _colourBy = colour;
+                await _view.InvokeVoidAsync("setColourBy", colour);
+            }
+        }
+
+        StateHasChanged();
+    });
+
     public async ValueTask DisposeAsync()
     {
+        SettingsStore.Changed -= OnSettingsChanged;
         try
         {
             if (_view is not null)

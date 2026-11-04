@@ -78,11 +78,11 @@ public partial class PlaybackLab : IAsyncDisposable
         _contentsOpen ? "contents-open" : null,
         _bookmarkDraft is { Id: null } || _noteDraft is not null ? "bookmarking" : null,
         Focused ? "focused" : null,
-        _popover != Popover.None ? "popover-open" : null,
+        _popover != Popover.None || _settingsOpen ? "popover-open" : null,
     }.Where(name => name is not null));
 
-    /// <summary>The pill shows with a selection or while playback runs (the setting "guidance.transportPill", 0018 section 10).</summary>
-    private bool PillShown => _selection is not null || Player.State != PlaybackState.Stopped || _pillMenu != PillMenu.None;
+    /// <summary>The pill shows with a selection or while playback runs, or only while it runs (the setting "guidance.transportPill", 0018 section 10).</summary>
+    private bool PillShown => (_selection is not null && SettingsStore["guidance.transportPill"] != "playing") || Player.State != PlaybackState.Stopped || _pillMenu != PillMenu.None;
 
     /// <summary>"p. 2 of 4", or "pp. 1–2 of 4" with two pages to a row; null in the strip or before the score is engraved.</summary>
     private string? PageText => _pages switch
@@ -92,9 +92,71 @@ public partial class PlaybackLab : IAsyncDisposable
         var (first, last, count) => Text.Format("bar.pages", first, last, count),
     };
 
-    /// <summary>Reads the brackets choice the player left on this device.</summary>
-    private async Task ReadLayoutPreferencesAsync() =>
-        _showBrackets = await Preferences.GetAsync(BracketsPreference) != Setting.Off;
+    /// <summary>Reads the player's settings on this device: whether the brackets show, and the rest as the page asks for them.</summary>
+    private async Task ReadLayoutPreferencesAsync()
+    {
+        await SettingsStore.LoadAsync();
+        _showBrackets = SettingsStore.IsOn(BracketsPreference);
+    }
+
+    /// <summary>A setting changed, in the Settings sheet over the score or by a control on the page: the score shows it at once.</summary>
+    private void OnSettingsChanged() => _ = InvokeAsync(async () =>
+    {
+        _showBrackets = SettingsStore.IsOn(BracketsPreference);
+        // A piece without its own level opens at the setting's.
+        if (_levels is not null && _project?.SettingOverrides.ContainsKey(GranularitySetting) != true)
+        {
+            _level = ProjectLevel;
+        }
+
+        if (_barFade is not null)
+        {
+            try
+            {
+                await _barFade.InvokeVoidAsync("setDelay", BarFadeMilliseconds);
+            }
+            catch (JSException)
+            {
+            }
+        }
+
+        StateHasChanged();
+    });
+
+    /// <summary>How long the bar stays after the last touch (the setting "guidance.barFade", in seconds).</summary>
+    private int BarFadeMilliseconds => int.TryParse(SettingsStore["guidance.barFade"], out int seconds) ? seconds * 1000 : 2000;
+
+    private bool _settingsOpen;
+
+    private void OpenSettings()
+    {
+        _settingsOpen = true;
+        _popover = Popover.None;
+    }
+
+    private void CloseSettings() => _settingsOpen = false;
+
+    /// <summary>The piece's own choices go (0018 section 10): the settings of the sheet hold for it too.</summary>
+    private async Task ClearPieceSettingsAsync()
+    {
+        if (_project is not { SettingOverrides.Count: > 0 } project)
+        {
+            return;
+        }
+
+        foreach (string id in project.SettingOverrides.Keys.ToList())
+        {
+            project = project.OverrideSetting(id, null);
+        }
+
+        _project = project;
+        CurrentPiece.Saved(project);
+        await Projects.SaveAsync(project);
+        if (_levels is not null)
+        {
+            _level = ProjectLevel;
+        }
+    }
 
     /// <summary>
     /// Reads the piece at the three levels with the player's edits, and the level the piece is shown at: the
@@ -110,8 +172,8 @@ public partial class PlaybackLab : IAsyncDisposable
     /// <summary>The level the project keeps for the piece, or the setting's default.</summary>
     private PhraseLevel ProjectLevel => PhraseLevels.Parse(_project?.SettingOverrides.GetValueOrDefault(GranularitySetting)) ?? DefaultLevel;
 
-    /// <summary>The level a piece opens at until the player chooses one: the setting's default, Phrases.</summary>
-    private static PhraseLevel DefaultLevel => PhraseLevels.Parse(SettingsCatalogue.Get(GranularitySetting).Default) ?? PhraseLevel.Phrase;
+    /// <summary>The level a piece opens at until the player chooses one for it: the setting, Phrases unless changed.</summary>
+    private PhraseLevel DefaultLevel => PhraseLevels.Parse(SettingsStore[GranularitySetting]) ?? PhraseLevel.Phrase;
 
     private const string GranularitySetting = "phrases.granularity";
 
@@ -248,7 +310,7 @@ public partial class PlaybackLab : IAsyncDisposable
     private async Task ToggleBracketsAsync()
     {
         _showBrackets = !_showBrackets;
-        await Preferences.SetAsync(BracketsPreference, _showBrackets ? Setting.On : Setting.Off);
+        await SettingsStore.SetAsync(BracketsPreference, _showBrackets);
     }
 
     private void TogglePopover(Popover popover)
@@ -437,7 +499,7 @@ public partial class PlaybackLab : IAsyncDisposable
         {
             _self ??= DotNetObjectReference.Create(this);
             _chromeModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/layout/bar-fade.js");
-            _barFade = await _chromeModule.InvokeAsync<IJSObjectReference>("attach", _main, _bar);
+            _barFade = await _chromeModule.InvokeAsync<IJSObjectReference>("attach", _main, _bar, BarFadeMilliseconds);
             IJSObjectReference keys = await JS.InvokeAsync<IJSObjectReference>("import", "./js/phrases/phrase-keys.js");
             _phraseKeys = await keys.InvokeAsync<IJSObjectReference>("listen", _self);
             await keys.DisposeAsync();

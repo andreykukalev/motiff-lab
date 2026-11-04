@@ -1,0 +1,266 @@
+@using MotiffLab.MusicCore.Settings
+@inject DeviceSettings Store
+@inject MotiffLab.Web.Localization.UiText Text
+@inject IJSRuntime JS
+@implements IDisposable
+
+@* The global Settings sheet (0018 section 10; design/kit/docs/01-ux-concept.md, "Settings"): over the page it was opened
+   from, so a change shows on the score behind it at once. The sections on the left, or as a row on top in portrait; the
+   three presets first, then a switch for each element they set; the piece's own choices listed, to clear in one tap.
+   Only the settings this build acts on are shown: the others join the sheet with the features they switch. *@
+<div class="settings-scrim" @onclick="CloseAsync"></div>
+<section class="settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-sheet-title" tabindex="-1" @ref="_element" @onkeydown="OnKey">
+    <nav class="settings-nav" aria-labelledby="settings-sheet-title">
+        <h2 id="settings-sheet-title">@Text["settings.title"]</h2>
+        <div class="settings-tabs" role="tablist" aria-orientation="vertical">
+            @foreach (SheetSection section in Enum.GetValues<SheetSection>())
+            {
+                bool on = _section == section;
+                <button role="tab" id="settings-tab-@section" class="@(on ? "on" : null)" aria-selected="@(on ? "true" : "false")" aria-controls="settings-pane"
+                        tabindex="@(on ? 0 : -1)" @ref="_tabs[section]" @onclick="() => _section = section" @onkeydown="args => OnTabKey(args, section)">@SectionName(section)</button>
+            }
+        </div>
+    </nav>
+    <div id="settings-pane" class="settings-pane" role="tabpanel" aria-labelledby="settings-tab-@_section">
+        <header class="settings-head">
+            <p class="overline">@SectionName(_section)</p>
+            <button class="btn icon" aria-label="@Text["settings.close"]" title="@Text["settings.close"]" @onclick="CloseAsync"><Icon Name="close" /></button>
+        </header>
+        @switch (_section)
+        {
+            case SheetSection.Guidance:
+                <div class="seg presets" role="radiogroup" aria-label="@Text["settings.presetLabel"]">
+                    @foreach (Preset preset in s_presets)
+                    {
+                        bool chosen = Store.State.Preset == preset;
+                        <button role="radio" class="@(chosen ? "on" : null)" aria-checked="@(chosen ? "true" : "false")" @onclick="() => Store.ApplyPresetAsync(preset)">@PresetName(preset)</button>
+                    }
+                </div>
+                <p class="caption preset-hint" role="status">@(Store.State.Preset == Preset.Custom ? Text["settings.presetHint.custom"] : PresetHint(Store.State.Preset))</p>
+                @SwitchRow("guidance.brackets", Text["settings.brackets"])
+                @SwitchRow("guidance.transportPill", Text["settings.pillWithSelection"], on: "selection", off: "playing", hint: Text["settings.pillWithSelectionHint"])
+                @ChoiceRow("guidance.barFade", Text["settings.barFade"], choice => Text[$"settings.barFade.{choice}"])
+                break;
+
+            case SheetSection.Score:
+                @ChoiceRow("phrases.granularity", Text["settings.granularity"], choice => Text[choice switch { "short" => "phrases.levelShort", "sentences" => "phrases.levelSentences", _ => "phrases.levelPhrases" }], Text["settings.granularityHint"])
+                break;
+
+            case SheetSection.Layers:
+                <p class="caption">@Text["settings.layersHow"]</p>
+                @foreach (string layer in s_layers)
+                {
+                    @SwitchRow($"layers.{layer}", Text[$"layers.{layer}"])
+                }
+                break;
+
+            case SheetSection.Roll:
+                @SwitchRow("roll.noteNames", Text["roll.noteNames"])
+                @ChoiceRow("roll.colour", Text["roll.colourBy"], choice => Text[$"settings.rollColour.{choice}"])
+                break;
+
+            case SheetSection.Appearance:
+                <div class="set-row column">
+                    <span id="set-theme" class="label">@Text["settings.theme"]</span>
+                    <div class="seg" role="radiogroup" aria-labelledby="set-theme" aria-describedby="set-theme-hint">
+                        @foreach (string choice in s_themes)
+                        {
+                            bool chosen = _theme == choice;
+                            <button role="radio" class="@(chosen ? "on" : null)" aria-checked="@(chosen ? "true" : "false")" @onclick="() => ChooseThemeAsync(choice)">@Text[$"settings.theme.{choice}"]</button>
+                        }
+                    </div>
+                    <p id="set-theme-hint" class="caption">@Text["settings.themeHint"]</p>
+                </div>
+                <div class="set-row">
+                    <span id="set-language" class="label">@Text["settings.language"]</span>
+                    <div class="seg" role="radiogroup" aria-labelledby="set-language">
+                        @foreach ((string tag, string name) in MotiffLab.Web.Localization.UiText.Languages)
+                        {
+                            bool chosen = Text.Language == tag;
+                            <button role="radio" lang="@tag" class="@(chosen ? "on" : null)" aria-checked="@(chosen ? "true" : "false")" @onclick="() => Text.SetLanguageAsync(tag)">@name</button>
+                        }
+                    </div>
+                </div>
+                break;
+
+            case SheetSection.Account:
+                <p class="caption">@Text["settings.accountWhere"]</p>
+                <a class="btn secondary" href="settings">@Text["settings.accountLink"]</a>
+                break;
+        }
+
+        @if (PieceOverrides is { Count: > 0 } overrides)
+        {
+            @* The piece's own choices, made from the score (0018 section 10): listed here and cleared in one tap. *@
+            <footer class="piece-overrides">
+                <p class="caption">@Text.Format("settings.thisPiece", string.Join(", ", overrides.Select(pair => OverrideName(pair.Key, pair.Value))))</p>
+                <button class="btn quiet compact" @onclick="ClearPieceOverrides">@Text["settings.clearPiece"]</button>
+            </footer>
+        }
+    </div>
+</section>
+
+@code {
+    private enum SheetSection
+    {
+        Guidance,
+        Score,
+        Layers,
+        Roll,
+        Appearance,
+        Account,
+    }
+
+    private static readonly Preset[] s_presets = [Preset.Learning, Preset.Practising, Preset.Clean];
+    private static readonly string[] s_layers = ["ink", "notes", "bookmarks", "analysis", "check"];
+    private static readonly IReadOnlyList<string> s_themes = SettingsCatalogue.Get("appearance.theme").Choices;
+
+    private SheetSection _section = SheetSection.Guidance;
+    private ElementReference _element;
+    private string _theme = "auto";
+    private bool _focused;
+    private readonly Dictionary<SheetSection, ElementReference> _tabs = [];
+
+    /// <summary>A section reached with the arrow keys, whose tab takes the focus once drawn.</summary>
+    private SheetSection? _focusTab;
+
+    /// <summary>The settings the open piece overrides, by id; null or empty outside a piece.</summary>
+    [Parameter]
+    public IReadOnlyDictionary<string, string>? PieceOverrides { get; set; }
+
+    /// <summary>Clears the piece's own choices, so the sheet's settings hold for it too.</summary>
+    [Parameter]
+    public EventCallback ClearPieceOverrides { get; set; }
+
+    [Parameter]
+    public EventCallback Closed { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Store.Changed += OnChanged;
+        Text.Changed += OnChanged;
+        await Store.LoadAsync();
+        _theme = await ThemeAsync("themeChoice");
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusTab is { } tab && _tabs.TryGetValue(tab, out ElementReference element))
+        {
+            _focusTab = null;
+            await element.FocusAsync();
+        }
+
+        if (!_focused)
+        {
+            _focused = true;
+            try
+            {
+                await _element.FocusAsync();
+            }
+            catch (InvalidOperationException)
+            {
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        Store.Changed -= OnChanged;
+        Text.Changed -= OnChanged;
+    }
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private Task CloseAsync() => Closed.InvokeAsync();
+
+    private Task OnKey(KeyboardEventArgs args) => args.Key == "Escape" ? CloseAsync() : Task.CompletedTask;
+
+    /// <summary>Up and down (or left and right) walk the sections, as in any list of tabs.</summary>
+    private void OnTabKey(KeyboardEventArgs args, SheetSection section)
+    {
+        SheetSection[] all = Enum.GetValues<SheetSection>();
+        int step = args.Key switch
+        {
+            "ArrowDown" or "ArrowRight" => 1,
+            "ArrowUp" or "ArrowLeft" => -1,
+            _ => 0,
+        };
+        if (step != 0)
+        {
+            _section = all[(Array.IndexOf(all, section) + step + all.Length) % all.Length];
+            _focusTab = _section;
+        }
+    }
+
+    private RenderFragment SwitchRow(string id, string label, string on = Setting.On, string off = Setting.Off, string? hint = null) => __builder =>
+    {
+        bool isOn = Store[id] == on;
+        string inputId = "set-" + id.Replace('.', '-');
+        <div class="set-row">
+            <label for="@inputId">@label</label>
+            <input id="@inputId" type="checkbox" role="switch" class="switch" checked="@isOn" aria-describedby="@(hint is null ? null : inputId + "-hint")"
+                   @onchange="args => Store.SetAsync(id, args.Value is true ? on : off)" />
+            @if (hint is not null)
+            {
+                <p id="@(inputId)-hint" class="caption row-hint">@hint</p>
+            }
+        </div>
+    };
+
+    private RenderFragment ChoiceRow(string id, string label, Func<string, string> name, string? hint = null) => __builder =>
+    {
+        string labelId = "set-" + id.Replace('.', '-');
+        <div class="set-row">
+            <span id="@labelId" class="label">@label</span>
+            <div class="seg" role="radiogroup" aria-labelledby="@labelId" aria-describedby="@(hint is null ? null : labelId + "-hint")">
+                @foreach (string choice in SettingsCatalogue.Get(id).Choices)
+                {
+                    bool chosen = Store[id] == choice;
+                    <button role="radio" class="@(chosen ? "on" : null)" aria-checked="@(chosen ? "true" : "false")" @onclick="() => Store.SetAsync(id, choice)">@name(choice)</button>
+                }
+            </div>
+            @if (hint is not null)
+            {
+                <p id="@(labelId)-hint" class="caption row-hint">@hint</p>
+            }
+        </div>
+    };
+
+    private string SectionName(SheetSection section) => Text[section switch
+    {
+        SheetSection.Guidance => "settings.section.guidance",
+        SheetSection.Score => "settings.section.score",
+        SheetSection.Layers => "settings.section.layers",
+        SheetSection.Roll => "settings.section.roll",
+        SheetSection.Appearance => "settings.appearance",
+        _ => "settings.section.account",
+    }];
+
+    private string PresetName(Preset preset) => Text[$"settings.preset.{preset.ToString().ToLowerInvariant()}"];
+
+    private string PresetHint(Preset preset) => Text[$"settings.presetHint.{preset.ToString().ToLowerInvariant()}"];
+
+    /// <summary>"Phrases: Short" or "Bookmarks: hidden".</summary>
+    private string OverrideName(string id, string value) => id switch
+    {
+        "phrases.granularity" => $"{Text["phrases.levelTitle"]}: {Text[value switch { "short" => "phrases.levelShort", "sentences" => "phrases.levelSentences", _ => "phrases.levelPhrases" }]}",
+        _ when id.StartsWith("layers.", StringComparison.Ordinal) => $"{Text[id]}: {Text[value == Setting.Off ? "settings.hidden" : "settings.shown"]}",
+        _ => id,
+    };
+
+    private async Task ChooseThemeAsync(string choice) => _theme = await ThemeAsync("applyTheme", choice);
+
+    private async Task<string> ThemeAsync(string function, params object?[] arguments)
+    {
+        try
+        {
+            await using IJSObjectReference module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/layout/theme.js");
+            return await module.InvokeAsync<string>(function, arguments);
+        }
+        catch (JSException)
+        {
+            return _theme;
+        }
+    }
+}

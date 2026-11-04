@@ -30,6 +30,7 @@
 @inject IJSRuntime JS
 @inject Player Player
 @inject Preferences Preferences
+@inject DeviceSettings SettingsStore
 @inject CurrentPiece CurrentPiece
 @inject ProjectStore Projects
 @inject NavigationManager Navigation
@@ -233,7 +234,7 @@
                             <InputFile OnChange="OpenFileAsync" accept="@PieceImporter.AcceptedExtensions" disabled="@(!Player.IsReady)" />
                         </label>
                         <a class="btn quiet" href="import">@Text["workspace.importWithReport"]</a>
-                        <a class="btn quiet" href="settings">@Text["settings.title"]</a>
+                        <button class="btn quiet" aria-haspopup="dialog" @onclick="OpenSettings">@Text["settings.title"]</button>
                         <p class="caption"><a href="privacy">@Text["footer.privacy"]</a> · <a href="terms">@Text["footer.terms"]</a></p>
                         <p class="credit caption">
                             @Text["credit.piano"] <a href="https://archive.org/details/SalamanderGrandPianoV3">Salamander Grand Piano V3</a> @Text["credit.by"] Alexander Holm,
@@ -301,6 +302,11 @@
             @if (_checkOpen && HasCheck)
             {
                 @CheckDrawer
+            }
+
+            @if (_settingsOpen)
+            {
+                <SettingsSheet PieceOverrides="_project?.SettingOverrides" ClearPieceOverrides="ClearPieceSettingsAsync" Closed="CloseSettings" />
             }
 
             @if (_insightsOpen)
@@ -1591,6 +1597,7 @@
     {
         Player.Changed += OnPlayerChanged;
         Text.Changed += OnLanguageChanged;
+        SettingsStore.Changed += OnSettingsChanged;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -1680,6 +1687,7 @@
     {
         Player.Changed -= OnPlayerChanged;
         Text.Changed -= OnLanguageChanged;
+        SettingsStore.Changed -= OnSettingsChanged;
     }
 
     private void OnPlayerChanged() => _ = InvokeAsync(StateHasChanged);

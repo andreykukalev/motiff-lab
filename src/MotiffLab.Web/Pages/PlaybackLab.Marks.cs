@@ -235,7 +235,7 @@ public partial class PlaybackLab
             return value != Setting.Off;
         }
 
-        return _project is null && _sessionLayers.TryGetValue(layer, out bool shown) ? shown : SettingsCatalogue.Get(id).Default != Setting.Off;
+        return _project is null && _sessionLayers.TryGetValue(layer, out bool shown) ? shown : SettingsStore[id] != Setting.Off;
     }
 
     /// <summary>The layers hidden, for the score; the same list until the choice changes.</summary>
