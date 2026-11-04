@@ -105,7 +105,7 @@ final class Account: ObservableObject {
     @Published var problem: String?
 
     let options: AccountOptions?
-    private let application: MSALPublicClientApplication?
+    private var made: MSALPublicClientApplication?
     private let defaults: UserDefaults
     private let session: URLSession
     private let text: UIText
@@ -116,19 +116,32 @@ final class Account: ObservableObject {
         self.defaults = defaults
         self.session = session
         self.text = text
-        application = options.flatMap(Self.application)
         choice = defaults.string(forKey: Self.choiceKey).flatMap(Plan.init(rawValue:))
     }
 
     /// False in a build without sign-in.
-    var isAvailable: Bool { application != nil }
+    var isAvailable: Bool { options != nil }
 
-    private static func application(_ options: AccountOptions) -> MSALPublicClientApplication? {
-        guard let url = URL(string: options.authority), let authority = try? MSALCIAMAuthority(url: url) else { return nil }
-        let configuration = MSALPublicClientApplicationConfig(clientId: options.clientId, redirectUri: AccountOptions.redirect(), authority: authority)
+    /// MSAL for the tenant, made when first needed, so a failure shows on the sign-in button rather than hiding the
+    /// account. Its token cache is in the keychain, which an unsigned build (the iPad workflow's simulator) may not have.
+    func client() throws -> MSALPublicClientApplication {
+        if let made { return made }
+        guard let options else { throw CancellationError() }
+        let configuration = MSALPublicClientApplicationConfig(
+            clientId: options.clientId, redirectUri: AccountOptions.redirect(), authority: try Self.authority(options))
         // The app's own keychain group, so signing needs no keychain-sharing capability.
         if let bundle = Bundle.main.bundleIdentifier { configuration.cacheConfig.keychainSharingGroup = bundle }
-        return try? MSALPublicClientApplication(configuration: configuration)
+        let application = try MSALPublicClientApplication(configuration: configuration)
+        made = application
+        return application
+    }
+
+    private var application: MSALPublicClientApplication? { try? client() }
+
+    /// The tenant as MSAL sees it: an External ID (CIAM) authority.
+    nonisolated static func authority(_ options: AccountOptions) throws -> MSALAuthority {
+        guard let url = URL(string: options.authority) else { throw URLError(.badURL) }
+        return try MSALCIAMAuthority(url: url)
     }
 
     /// The player signed in last time, if any, and their plan. Asks nothing.
@@ -141,7 +154,14 @@ final class Account: ObservableObject {
 
     /// Opens External ID's sign-in page in the app's language, or its sign-up form for a new player.
     func signIn(create: Bool = false) async {
-        guard let application, let options, let presenter = Self.presenter() else { return }
+        guard let options, let presenter = Self.presenter() else { return }
+        let application: MSALPublicClientApplication
+        do {
+            application = try client()
+        } catch {
+            problem = "\(text["account.signInFailed"]) (\(error.localizedDescription))"
+            return
+        }
         busy = true
         defer { busy = false }
         problem = nil

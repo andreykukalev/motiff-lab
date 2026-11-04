@@ -105,7 +105,7 @@ jobs:
           print(ipads[-1]["udid"])')
           echo "Simulator: $(xcrun simctl list devices | grep "$id")"
           set -o pipefail
-          xcodebuild test -project MotiffLab.xcodeproj -scheme MotiffLab -destination "id=$id" CODE_SIGNING_ALLOWED=NO | tee test.log | grep -E "Test Case|error:|OPEN-AND-ENGRAVE|\*\* TEST" || true
+          xcodebuild test -project MotiffLab.xcodeproj -scheme MotiffLab -destination "id=$id" CODE_SIGNING_ALLOWED=NO | tee test.log | grep -E "Test Case|error:|OPEN-AND-ENGRAVE|MSAL-CLIENT|\*\* TEST" || true
           grep -q "\*\* TEST SUCCEEDED \*\*" test.log
 
       - name: Build for a real iPad (unsigned)

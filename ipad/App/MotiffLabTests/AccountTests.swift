@@ -11,7 +11,15 @@ final class AccountTests: XCTestCase {
         XCTAssertTrue(options.apiScope.hasSuffix("/Projects.ReadWrite"))
         XCTAssertTrue(options.scanScope.hasSuffix("/Scan"))
         XCTAssertEqual(URL(string: options.api)?.scheme, "https")
-        XCTAssertTrue(Account(options: options).isAvailable, "MSAL takes the External ID authority")
+        XCTAssertNoThrow(try Account.authority(options), "MSAL takes the External ID authority")
+        XCTAssertTrue(Account(options: options).isAvailable)
+        // MSAL keeps its tokens in the keychain, which an unsigned simulator build cannot use: shown, not checked.
+        do {
+            _ = try Account(options: options).client()
+            print("MSAL-CLIENT ready")
+        } catch {
+            print("MSAL-CLIENT \(error)")
+        }
     }
 
     func testSignInComesBackOnTheRegisteredRedirect() throws {
