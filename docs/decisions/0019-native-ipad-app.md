@@ -41,9 +41,9 @@ Options weighed for the app around them:
 ### 3. Building, checking and releasing (items 15 and 24)
 
 1. **The web site is the development environment**: every merge to main deploys it (0014) and every feature is tried there first. **The iPad app is production**: it gets releases, built in Xcode by Andrei from a tagged commit, not single features.
-2. **Releases are tags.** `ipad-v<major>.<minor>.<patch>` names a commit of main; the app's `MARKETING_VERSION` is that number and `CURRENT_PROJECT_VERSION` counts builds. A release note lists the redesigned screens and features in it. Signing stays in the Mac's `Local.xcconfig`: a free Apple ID signs for 7 days at a time; TestFlight and the App Store need the paid Apple Developer Program, which Andrei decides when the first release is ready.
+2. **Releases are tags** (from the first native release). `ipad-v<major>.<minor>.<patch>` names a commit of main; the app's `MARKETING_VERSION` is that number and `CURRENT_PROJECT_VERSION` counts builds. A release note lists the redesigned screens and features in it. Signing stays in the Mac's `Local.xcconfig`: a free Apple ID signs for 7 days at a time; TestFlight and the App Store need the paid Apple Developer Program, which Andrei decides when the first release is ready.
 3. **Swift is built and tested on GitHub's macOS runners**, in its own workflow, not in CI: it builds both frameworks (cached by the music-core and Verovio sources they come from), generates the project with XcodeGen, runs the Swift tests in the iPad simulator and builds for a device without signing. It runs on pull requests that touch the iPad app, music-core or the facade, and when asked. The repository is public, so the macOS minutes are free; the five-minute limit of CI does not apply to it. The cloud sessions that write the code cannot compile Swift, so this workflow is where Swift is first checked; a run on Andrei's iPad is the last check before a release.
-4. **The Swift shell of 0015 stays in `ios/` until the first native release replaces it**, then it is deleted together with its configuration. Until then it opens the web site; what it shows while the redesign lands on main is Andrei's choice (open question below).
+4. **The Swift shell of 0015 stays in `ios/` until the first native release replaces it**, then it is deleted together with its configuration. Until then it opens the web site from main, so the redesign shows on the iPad as it lands, as everywhere else: no copy of the old site is kept (Andrei, 2026-11-04).
 
 ### 4. Where it lives
 
@@ -58,10 +58,6 @@ The spike (`spikes/ios-core`, PR #176) moves into these folders and is closed.
 ### 5. What stays in the web app only
 
 Nothing is meant to stay web only: both apps get every screen of the redesign, web first. Until a screen is native, the web app is where it is used. The web keeps what only a browser needs: the service worker and offline start, the PWA manifest and Web MIDI (Stage 2). The PDF writer (`Scripts/score/pdf-document.ts`) runs in the score's web view on the iPad too, and the share sheet offers its file.
-
-## Open question
-
-**What the iPad shows while the redesign lands on main.** The shell opens the site, so half-done redesigned screens would reach the iPad Andrei plays at. The options: a second, release copy of the site deployed from the `ipad-v*` tags (a named Static Web Apps environment with its own stable address, which the sign-in redirects and the services' allowed origins then name; projects saved only on the iPad move once, online or by export); keeping the shell on main; or the published web app inside the shell's bundle. Recommended: the release copy, because it needs no new code in a shell that is about to be replaced.
 
 ## Consequences
 
