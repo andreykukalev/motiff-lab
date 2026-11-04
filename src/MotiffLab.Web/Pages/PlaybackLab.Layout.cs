@@ -304,7 +304,45 @@ public partial class PlaybackLab : IAsyncDisposable
 
     private void OnPenChanged(ScoreView.PencilState state) => _penOn = state.On;
 
-    private void OnPagesShown((int First, int Last, int Count) pages) => _pages = pages;
+    private async Task OnPagesShown((int First, int Last, int Count) pages)
+    {
+        _pages = pages;
+        await SaveCoverAsync();
+    }
+
+    /// <summary>The project, phrases and pages the library's cover was last saved for.</summary>
+    private string? _coverKey;
+
+    /// <summary>
+    /// Keeps the piece's cover for its card in the library (0018 section 9) once the whole score shows as pages: the first
+    /// page, with where the pages, the phrases and the bars start, so the card can place its resume point without opening it.
+    /// </summary>
+    private async Task SaveCoverAsync()
+    {
+        if (_project is not { } project || _scoreView is null || _levels is null || _meter is null || _score is null || Focused || _pages.Count == 0)
+        {
+            return;
+        }
+
+        IReadOnlyList<PhraseUnit> phrases = _levels.Units(PhraseLevel.Phrase);
+        string key = $"{project.Id}:{_pages.Count}:{string.Join(',', phrases.Select(unit => unit.Span.Onset.Value))}";
+        if (key == _coverKey)
+        {
+            return;
+        }
+
+        _coverKey = key;
+        bool saved = await _scoreView.SaveCoverAsync(
+            project.Id,
+            phrases.Select(unit => unit.Span.Onset.Value),
+            _meter.BarsBefore(_score.End).Select(bar => bar.Span.Onset.Value),
+            _meter.FirstBarNumber);
+        if (!saved)
+        {
+            // Not engraved yet: the next render tries again.
+            _coverKey = null;
+        }
+    }
 
     /// <summary>The title the score's first page is headed with, when it has one.</summary>
     private string? _engravedTitle;

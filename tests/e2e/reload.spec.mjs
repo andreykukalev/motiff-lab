@@ -1,6 +1,6 @@
 // A reload keeps the open piece (S1-P1): the workspace's address names the project, which is saved on the
 // device, whether the file came through the import screen or the workspace's own Open file. The address names
-// the session too (0012), so the work has a context to come back to from the project page.
+// the resume point too (0018), so the work has a context to come back to from the library.
 import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 
@@ -42,7 +42,7 @@ test("a file opened in the workspace is saved as a project and survives a reload
     await expect(title(page)).toHaveText("Waltz sketch", { timeout: 30_000 });
 
     await page.goto("/");
-    await expect(page.getByRole("link", { name: "importer-grand-staff.musicxml" })).toBeVisible();
+    await expect(page.locator(".card.piece").getByRole("heading", { name: "Waltz sketch" })).toBeVisible();
     expect(errors).toEqual([]);
 });
 

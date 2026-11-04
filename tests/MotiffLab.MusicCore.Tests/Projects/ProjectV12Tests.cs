@@ -72,6 +72,28 @@ public class ProjectV12Tests
     }
 
     [Fact]
+    public void The_library_card_reads_the_latest_resume_point_the_open_checks_and_the_origin_from_the_summary()
+    {
+        ImportedPiece piece = Piece();
+        TickSpan bar3 = Bars(piece, 3, 3);
+        IReadOnlyList<CheckFlag> check =
+        [
+            new CheckFlag(2, CheckSource.Transcription, CheckReason.TempoUncertain, false),
+            new CheckFlag(2, CheckSource.Transcription, CheckReason.HandsGuessed, false),
+            new CheckFlag(4, CheckSource.Transcription, CheckReason.HandsGuessed, true),
+        ];
+        Project project = Worked().AddResumePoint(ResumePoint.Start("r_0002", s_now.AddMinutes(1))) with { Check = check };
+
+        ProjectSummary summary = project.Summary;
+
+        Assert.Equal(PieceOrigin.File, summary.Origin);
+        Assert.Equal(1, summary.CheckBars);
+        // r_0001 was touched five minutes in, after r_0002 was started.
+        Assert.Equal(new ResumeSummary("r_0001", "Left hand", bar3.Onset.Value, bar3.Onset.Value, bar3.End.Value, s_now.AddMinutes(5)), summary.Latest);
+        Assert.Null(Project.Create("p_new", "minuet.musicxml", s_source, s_created).Summary.Latest);
+    }
+
+    [Fact]
     public void The_fact_an_idea_came_from_is_kept()
     {
         ImportedPiece piece = Piece();

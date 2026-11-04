@@ -69,7 +69,14 @@ public sealed record Project(
         new(id, fileName, source, now, now, [], []);
 
     /// <summary>The row on the projects screen (N1).</summary>
-    public ProjectSummary Summary => new(Id, FileName, Motifs.Count, Variations.Count, LastOpened, ResumePoints.Count, Observations.Count);
+    public ProjectSummary Summary => new(Id, FileName, Motifs.Count, Variations.Count, LastOpened, ResumePoints.Count, Observations.Count)
+    {
+        Origin = Scan is not null ? PieceOrigin.Scan : Transcription is not null ? PieceOrigin.Recording : PieceOrigin.File,
+        CheckBars = OpenChecks.Select(flag => flag.Bar).Distinct().Count(),
+        Latest = RecentResumePoints.FirstOrDefault() is { } latest
+            ? new ResumeSummary(latest.Id, latest.Name, latest.At.Value, latest.Passage?.Span.Onset.Value, latest.Passage?.Span.End.Value, latest.LastActive)
+            : null,
+    };
 
     /// <summary>The marks the player made on the piece (0018, section 5): ink, margin notes, highlights and fingering.</summary>
     public Marks Marks { get; init; } = Marks.Empty;
@@ -386,8 +393,32 @@ public sealed record Project(
         Observations.FirstOrDefault(observation => observation.Id == id) ?? throw new KeyNotFoundException($"The project keeps no observation {id}.");
 }
 
-/// <summary>A project's row on the projects screen (N1): the piece, its resume points and ideas, and when it was last opened.</summary>
-public sealed record ProjectSummary(string Id, string FileName, int MotifCount, int VariationCount, DateTimeOffset LastOpened, int ResumeCount = 0, int IdeaCount = 0);
+/// <summary>
+/// A project's card in the library (0018, section 9): the piece, its resume points and ideas, when it was last opened,
+/// where it came from, how many bars Check still asks about, and the latest resume point, without loading the project.
+/// </summary>
+public sealed record ProjectSummary(string Id, string FileName, int MotifCount, int VariationCount, DateTimeOffset LastOpened, int ResumeCount = 0, int IdeaCount = 0)
+{
+    /// <summary>A file, a scan or a recording; summaries saved before it was kept read as a file.</summary>
+    public PieceOrigin Origin { get; init; }
+
+    /// <summary>The bars with Check flags not yet resolved.</summary>
+    public int CheckBars { get; init; }
+
+    /// <summary>The resume point worked at last, or null when there is none (or the summary was saved before it was kept).</summary>
+    public ResumeSummary? Latest { get; init; }
+}
+
+/// <summary>Where a piece came from: a file opened on the device, a page scanned (0011) or a recording heard (0014).</summary>
+public enum PieceOrigin
+{
+    File,
+    Scan,
+    Recording,
+}
+
+/// <summary>A resume point as its piece's card shows it: its name, the position and passage in ticks, and when it was last active.</summary>
+public sealed record ResumeSummary(string Id, string? Name, long At, long? From, long? To, DateTimeOffset LastActive);
 
 /// <summary>A motif as saved: what the player picked, from which the motif is rebuilt on open.</summary>
 /// <param name="NoteIds">The selected notes, checked against the source when the project opens.</param>

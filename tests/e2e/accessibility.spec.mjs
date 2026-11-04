@@ -41,8 +41,32 @@ test("import, its report, the opened piece and the project on the home screen", 
     expect(await violations(page)).toEqual([]);
 
     await page.goto("/");
-    await expect(page.getByText("two-hands-type1.mid")).toBeVisible();
+    await expect(page.locator(".card.piece")).toHaveCount(1);
     expect(await violations(page)).toEqual([]);
+});
+
+test("the library: a card, its menu, its resume points, and Add piece, in both themes", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Add piece" }).click();
+    await page.getByLabel("Choose a MIDI or MusicXML file").setInputFiles(midi);
+    await expect(page.locator(".score .score-page").first()).toBeVisible();
+    await page.locator(".bar").getByRole("link", { name: "Library" }).click();
+    const card = page.locator(".card.piece");
+    await expect(card.locator(".thumb img")).toBeVisible();
+    for (const theme of ["daylight", "night"]) {
+        await page.evaluate(name => document.documentElement.setAttribute("data-theme", name), theme);
+        expect(await violations(page)).toEqual([]);
+        await card.getByRole("button", { name: /^More for / }).click();
+        expect(await violations(page)).toEqual([]);
+        await card.getByRole("button", { name: "Resume points" }).click();
+        await expect(page.getByRole("dialog")).toBeVisible();
+        expect(await violations(page)).toEqual([]);
+        await page.getByRole("dialog").getByRole("button", { name: "Close" }).click();
+        await page.locator(".lib-head").getByRole("button", { name: "Add piece" }).click();
+        await expect(page.getByRole("dialog", { name: "Add a piece" })).toBeVisible();
+        expect(await violations(page)).toEqual([]);
+        await page.keyboard.press("Escape");
+    }
 });
 
 test("the score page: the bar, its popovers, the pill and its tempo, the roll drawer, the Pen palette, in both themes", async ({ page }) => {

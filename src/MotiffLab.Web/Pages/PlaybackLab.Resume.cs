@@ -18,7 +18,7 @@ public partial class PlaybackLab
     [SupplyParameterFromQuery(Name = "resume")]
     public string? ResumeId { get; set; }
 
-    /// <summary>An idea to open on arrival ("&amp;idea=o_…"), from the project page's library.</summary>
+    /// <summary>An idea to open on arrival ("&amp;idea=o_…").</summary>
     [SupplyParameterFromQuery(Name = "idea")]
     public string? IdeaId { get; set; }
 
@@ -27,10 +27,10 @@ public partial class PlaybackLab
 
     private ResumePoint? CurrentResumePoint => _resumeId is { } id ? _project?.FindResumePoint(id) : null;
 
-    /// <summary>Where ‹ leads: the project page, which lists the resume points and ideas, or the projects.</summary>
-    private string BackUrl => _project is { } project ? ProjectPage.Url(project.Id) : "";
+    /// <summary>Where ‹ leads: the library, which resumes each piece where it was left (0018 section 9).</summary>
+    private const string BackUrl = "";
 
-    private string BackLabel => _project is null ? Text["nav.projects"] : Text["nav.project"];
+    private string BackLabel => Text["nav.library"];
 
     /// <summary>The second line of the header: the resume point's name, or that the piece is not saved.</summary>
     private string SessionLine

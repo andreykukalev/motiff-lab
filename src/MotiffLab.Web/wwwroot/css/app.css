@@ -1685,11 +1685,6 @@ h1, h2, .app-title strong {
     border-radius: 0.4rem;
 }
 
-/* Projects screen (Pages/Home.razor, N1). */
-.projects .tagline {
-    color: var(--accent);
-}
-
 .lab a.button {
     display: inline-flex;
     align-items: center;
@@ -1715,34 +1710,6 @@ h1, h2, .app-title strong {
     color: var(--accent);
     text-decoration: underline;
     text-align: left;
-}
-
-.projects .warning {
-    border-left: 3px solid var(--amber);
-    padding-left: 0.75rem;
-}
-
-.projects .project-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 1rem 0;
-}
-
-.projects .project-table th, .projects .project-table td {
-    text-align: left;
-    padding: 0.4rem 1rem 0.4rem 0;
-    border-bottom: 1px solid var(--hairline);
-}
-
-.projects .project-table th {
-    color: var(--ink-2);
-    font-weight: normal;
-}
-
-.projects .actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
 }
 
 .visually-hidden {
@@ -2132,274 +2099,9 @@ h1, h2, .app-title strong {
     grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
 }
 
-.lab .project-card, .lab .session-card, .lab .idea-card {
-    background: var(--surface);
-    border: 1px solid var(--hairline);
-    border-radius: 0.9rem;
-    padding: 0.8rem 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-}
-
-.lab .project-card .project-name {
-    font-size: 1.1rem;
-    font-weight: 600;
-    text-decoration: none;
-    overflow-wrap: anywhere;
-}
-
-.lab .project-card p, .lab .session-card p, .lab .idea-card p {
-    margin: 0;
-}
-
-.lab .project-card .actions, .lab .session-card .actions, .lab .idea-card .actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-top: 0.4rem;
-}
-
 /* The heading each page focuses on arrival (App.razor) is for screen readers; it is not a control, so it draws no ring. */
 h1:focus {
     outline: none;
-}
-
-/* Projects (Pages/Home.razor): a reading width, the routes in as tiles at least 44px to touch, then the pieces. */
-.lab.home-screen {
-    max-width: 72rem;
-}
-
-body:has(.home-screen) .site-footer {
-    max-width: 72rem;
-}
-
-.home-screen .brand h1 {
-    margin-bottom: 0;
-}
-
-.home-screen .brand .tagline {
-    margin: 0.2rem 0 0;
-}
-
-.home-screen .lead {
-    max-width: 44rem;
-    font-size: 1.05rem;
-    line-height: 1.5;
-}
-
-.home-screen section {
-    margin-top: 1.75rem;
-}
-
-.home-screen .start-tiles {
-    list-style: none;
-    padding: 0;
-    margin: 0.5rem 0 0;
-    display: grid;
-    gap: 0.75rem;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-@media (min-width: 64rem) {
-    .home-screen .start-tiles {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
-}
-
-@media (max-width: 32rem) {
-    .home-screen .start-tiles {
-        grid-template-columns: 1fr;
-    }
-}
-
-.home-screen .start-tiles li {
-    display: flex;
-}
-
-.lab .start-tile {
-    flex: 1;
-    display: grid;
-    grid-template-columns: 2.5rem 1fr;
-    grid-auto-rows: min-content;
-    column-gap: 0.75rem;
-    row-gap: 0.2rem;
-    align-content: start;
-    min-height: 5.5rem;
-    box-sizing: border-box;
-    padding: 1rem;
-    background: var(--surface);
-    border: 1px solid var(--hairline);
-    border-radius: 0.9rem;
-    color: var(--ink);
-    text-decoration: none;
-    -webkit-tap-highlight-color: transparent;
-}
-
-.lab .start-tile:hover {
-    border-color: var(--ink-2);
-}
-
-.lab .start-tile:active {
-    background: var(--surface-2);
-}
-
-.lab .start-tile:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-}
-
-.lab .start-tile svg {
-    grid-row: 1 / span 3;
-    width: 2.5rem;
-    height: 2.5rem;
-    padding: 0.45rem;
-    box-sizing: border-box;
-    border-radius: 0.6rem;
-    background: var(--surface-2);
-    color: var(--accent);
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 1.8;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-}
-
-.lab .start-tile.demo svg {
-    background: var(--accent);
-    color: var(--on-accent);
-    fill: currentColor;
-}
-
-.lab .start-tile strong {
-    font-size: 1.02rem;
-}
-
-.lab .start-tile .hint {
-    color: var(--ink-2);
-    font-size: 0.9rem;
-}
-
-.lab .start-tile .needs {
-    color: var(--warning);
-    font-size: 0.85rem;
-}
-
-.home-screen .restore {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.5rem 0.75rem;
-    margin: 0.9rem 0 0;
-}
-
-.home-screen .restore .file {
-    min-height: 2.75rem;
-}
-
-.home-screen .steps {
-    margin: 0.5rem 0 0;
-    padding-left: 1.4rem;
-    line-height: 1.6;
-}
-
-.home-screen .project-card .actions a.button, .home-screen .project-card .actions button {
-    min-height: 2.75rem;
-}
-
-.lab.project .crumbs a {
-    text-decoration: none;
-    font-weight: 500;
-}
-
-.lab.project .project-head h1 {
-    overflow-wrap: anywhere;
-}
-
-.lab.project section {
-    margin-top: 1.5rem;
-}
-
-.lab.project .intents {
-    display: grid;
-    gap: 0.6rem;
-    grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
-    margin: 0.75rem 0;
-}
-
-.lab.project button.intent {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.25rem;
-    text-align: left;
-    padding: 0.8rem 1rem;
-    min-height: 4.5rem;
-    border-color: var(--accent);
-}
-
-.lab.project button.intent.open {
-    border-color: var(--hairline-strong);
-}
-
-.lab.project button.intent strong {
-    font-size: 1.05rem;
-}
-
-.lab.project button.intent span {
-    color: var(--ink-2);
-    font-size: 0.9rem;
-}
-
-.lab.project label.task {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.4rem 0.75rem;
-    color: var(--ink-2);
-    font-size: 0.9rem;
-}
-
-.lab.project label.task input {
-    flex: 1 1 18rem;
-    box-sizing: border-box;
-    background: var(--desk);
-    color: var(--ink);
-    border: 1px solid var(--hairline-strong);
-    border-radius: 0.6rem;
-    padding: 0.45rem 0.7rem;
-    font: inherit;
-    min-height: 2.5rem;
-}
-
-.lab.project label.task input:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
-}
-
-.lab .session-card .intent-tag {
-    display: inline-block;
-    border: 1.5px solid var(--accent);
-    color: var(--accent);
-    border-radius: 1.1rem;
-    padding: 0 0.6rem;
-    font-size: 0.8rem;
-    margin-right: 0.4rem;
-}
-
-.lab .session-card.open .intent-tag {
-    border-color: var(--ink-2);
-    color: var(--ink-2);
-}
-
-.lab .idea-card .note {
-    white-space: pre-wrap;
-    border-left: 2px solid var(--ink-2);
-    padding-left: 0.5rem;
-}
-
-.lab .idea-card .label {
-    color: var(--ink-2);
 }
 
 @media (min-width: 64rem) {
@@ -4317,4 +4019,604 @@ body:has(.workspace) .site-footer {
 .workspace .contents .notes-tab .t .d {
     display: inline-block;
     margin-right: var(--s-1);
+}
+
+/* ---------------------------------------------------------------------------------------------------------------------
+   The library (decision record 0018 section 9; design/kit/screens/s1_library.png, ds.css .card): the wordmark, Add piece,
+   the overflow and the account; the pieces as cards with their first page, three across in landscape and two in portrait;
+   the dashed Add a piece card; Add piece and a piece's resume points as sheets over the shelf.
+   --------------------------------------------------------------------------------------------------------------------- */
+.lab.library {
+    position: relative;
+    max-width: 1280px;
+    padding: var(--s-10) var(--s-10) var(--s-8);
+}
+
+body:has(.library) {
+    background: var(--desk);
+}
+
+body:has(.library) .site-footer {
+    max-width: 1280px;
+    padding: 0 var(--s-10) var(--s-8);
+}
+
+.library .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-2);
+    min-height: 0;
+    height: var(--h-control);
+    padding: 0 var(--s-4);
+    border: 1px solid transparent;
+    border-radius: var(--r-s);
+    background: transparent;
+    color: var(--ink);
+    font: var(--t-label);
+    font-size: 15px;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+}
+
+.library .btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
+}
+
+.library .btn.primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+}
+
+.library .btn.secondary {
+    background: var(--surface-2);
+    border-color: var(--hairline-strong);
+}
+
+.library .btn.secondary:hover:not(:disabled) {
+    background: var(--surface);
+    border-color: var(--ink-3);
+}
+
+.library .btn.quiet {
+    color: var(--ink-2);
+}
+
+.library .btn.quiet:hover:not(:disabled) {
+    background: var(--accent-tint);
+    color: var(--ink);
+}
+
+.library .btn.danger {
+    color: var(--danger);
+}
+
+.library .btn.icon {
+    width: var(--h-control);
+    padding: 0;
+}
+
+.library .btn:focus-visible, .library button:focus-visible, .library a:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.library .overline {
+    margin: var(--s-8) 0 var(--s-3);
+    font: var(--t-overline);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+}
+
+.library .meta, .library .caption {
+    margin: 0;
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.library .lead {
+    max-width: 40rem;
+    margin: var(--s-6) 0 0;
+    font: var(--t-body);
+    color: var(--ink-2);
+}
+
+.library .lib-note {
+    margin: var(--s-4) 0 0;
+    padding: var(--s-3) var(--s-4);
+    border-radius: var(--r-s);
+    background: var(--surface);
+    font: var(--t-body);
+}
+
+.library .lib-note.warning {
+    border-left: 3px solid var(--amber);
+}
+
+/* The header: "Motiff Lab" in the serif with the italic tagline, then Add piece, ••• and the account. */
+.library .lib-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-4);
+}
+
+.library .brand {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--s-2) var(--s-5);
+}
+
+.library h1.wordmark {
+    margin: 0;
+    font: var(--t-display);
+    font-size: 40px;
+    line-height: 48px;
+    color: var(--ink);
+}
+
+.library .tagline {
+    margin: 0;
+    font: italic 400 20px/26px var(--font-display);
+    color: var(--ink-2);
+}
+
+.library .lib-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+}
+
+.library .lib-actions .add-piece {
+    height: var(--h-touch);
+    padding: 0 var(--s-5);
+    font-size: 17px;
+}
+
+.library .lib-more-wrap, .library .card-more {
+    position: relative;
+}
+
+.library .lib-menu {
+    position: absolute;
+    top: calc(100% + var(--s-1));
+    right: 0;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+    min-width: 240px;
+    padding: var(--s-2);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-m);
+    background: var(--surface-2);
+    box-shadow: var(--shadow-menu);
+}
+
+.library .lib-menu .btn {
+    justify-content: flex-start;
+}
+
+.library .lib-menu .caption {
+    padding: 0 var(--s-4) var(--s-2);
+}
+
+.library .file input {
+    display: none;
+}
+
+/* The shelf: three cards across on an 11" iPad in landscape, two in portrait, one on a phone. */
+.library ul.lib-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+    gap: var(--s-6);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.library .card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    min-width: 0;
+    padding: var(--s-6);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-l);
+    background: var(--surface);
+    transition: box-shadow var(--t-base) var(--ease), border-color var(--t-base) var(--ease);
+}
+
+.library .card.piece {
+    cursor: pointer;
+    -webkit-touch-callout: none;
+    user-select: none;
+}
+
+.library .card.piece:hover, .library .card.piece.menu-open {
+    border-color: var(--hairline-strong);
+    box-shadow: var(--shadow-menu);
+}
+
+.library .card .top {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: start;
+    gap: var(--s-5);
+    margin-bottom: var(--s-3);
+}
+
+/* The first page, as engraved, on paper; a blank page until the piece has been shown once. */
+.library .card button.thumb {
+    display: block;
+    width: 84px;
+    height: 118px;
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid var(--hairline);
+    border-radius: 3px;
+    background: var(--paper);
+    box-shadow: var(--shadow-paper);
+    cursor: pointer;
+}
+
+.library .card .thumb img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.library .card .thumb .blank {
+    display: block;
+    height: 100%;
+    margin: 22px 10px 0;
+    background: repeating-linear-gradient(to bottom, var(--hairline) 0 1px, transparent 1px 5px) top / 100% 21px no-repeat,
+        repeating-linear-gradient(to bottom, var(--hairline) 0 1px, transparent 1px 5px) 0 34px / 100% 21px no-repeat,
+        repeating-linear-gradient(to bottom, var(--hairline) 0 1px, transparent 1px 5px) 0 68px / 100% 21px no-repeat;
+}
+
+.library .card .what {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    min-width: 0;
+}
+
+.library .card .ttl {
+    margin: 0;
+    text-transform: none;
+    letter-spacing: 0;
+    font: var(--t-title);
+    font-size: 24px;
+    line-height: 30px;
+    color: var(--ink);
+    overflow-wrap: anywhere;
+}
+
+.library .card .meta {
+    font: var(--t-body);
+    font-size: 15px;
+}
+
+.library .card .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    margin: var(--s-1) 0 0;
+}
+
+.library .tag {
+    display: inline-flex;
+    align-items: center;
+    height: 26px;
+    padding: 0 var(--s-2);
+    border-radius: var(--r-xs);
+    font: var(--t-caption);
+    font-weight: 600;
+}
+
+/* Plum is what the app composed (the ideas kept from it) and Pro; amber with --warning text is what Check asks about. */
+.library .tag.saved, .library .tag.pro {
+    background: var(--plum-tint);
+    color: var(--plum);
+}
+
+.library .tag.warn {
+    background: var(--amber-tint);
+    color: var(--warning);
+}
+
+.library .card .rule {
+    height: 1px;
+    margin: var(--s-2) 0 var(--s-2);
+    background: var(--hairline);
+}
+
+.library .card .overline {
+    margin: 0;
+}
+
+.library .card .resume-name {
+    margin: 0;
+    font: var(--t-body);
+    font-size: 18px;
+    color: var(--ink);
+}
+
+.library .card .row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-3);
+    margin-top: var(--s-3);
+}
+
+/* Add a piece: a dashed card with the routes, and the demo piece. */
+.library .card.add {
+    align-items: center;
+    justify-content: center;
+    min-height: 320px;
+    border-style: dashed;
+    border-color: var(--hairline-strong);
+    text-align: center;
+}
+
+.library .card.add button.add-round {
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 64px;
+    min-height: 0;
+    margin-bottom: var(--s-3);
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--accent-tint);
+    color: var(--accent);
+}
+
+.library .card.add .ttl {
+    font: var(--t-heading);
+    font-size: 20px;
+}
+
+.library .card.add .routes {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+    margin: var(--s-2) 0 var(--s-4);
+    padding: 0;
+    list-style: none;
+    font: var(--t-body);
+    font-size: 15px;
+    color: var(--ink-2);
+}
+
+.library .card.add a.demo {
+    font: var(--t-body);
+    font-size: 15px;
+    color: var(--ink-2);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+/* A tap outside the open menu puts it away; behind a sheet, the shelf dims. */
+.library .lib-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 2;
+    background: var(--dim);
+}
+
+.library .lib-scrim.clear {
+    background: transparent;
+}
+
+.library .lib-sheet {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    z-index: 4;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+    width: min(480px, calc(100vw - 2 * var(--s-4)));
+    max-height: calc(100vh - 2 * var(--s-6));
+    overflow-y: auto;
+    padding: var(--s-6);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-l);
+    background: var(--surface-2);
+    box-shadow: var(--shadow-sheet);
+    transform: translate(-50%, -50%);
+}
+
+.library .lib-sheet:focus {
+    outline: none;
+}
+
+.library .lib-sheet .hd {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--s-3);
+}
+
+.library .lib-sheet .hd .ttl {
+    margin: 0;
+    font: var(--t-title);
+    font-size: 22px;
+}
+
+.library .lib-sheet .hd .overline {
+    margin: 0 0 var(--s-1);
+}
+
+.library .routes-list, .library .resume-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.library .route {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: var(--s-4);
+    min-height: var(--h-touch);
+    padding: var(--s-3) var(--s-4);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-m);
+    background: var(--surface);
+    color: var(--ink);
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.library .route:hover, .library .route:focus-within {
+    border-color: var(--hairline-strong);
+    background: var(--surface-2);
+}
+
+.library .route.busy {
+    cursor: progress;
+}
+
+.library .route .ic {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--accent-tint);
+    color: var(--accent);
+}
+
+.library .route .txt {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.library .route strong {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    font: var(--t-body-strong);
+}
+
+.library .route input[type=file] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+}
+
+.library .route-problem {
+    margin: var(--s-2) var(--s-1) 0;
+    font: var(--t-caption);
+    color: var(--danger);
+}
+
+.library .lib-sheet a.demo {
+    align-self: flex-start;
+}
+
+.library .resume-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+    padding: var(--s-3) 0;
+    border-bottom: 1px solid var(--hairline);
+}
+
+.library .resume-item .row, .library .start-new {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.library .lib-sheet label.name {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+}
+
+.library .start-new label.name {
+    flex: 1 1 14rem;
+}
+
+.library .lib-sheet input[type=text] {
+    height: var(--h-control);
+    padding: 0 var(--s-3);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-s);
+    background: var(--surface);
+    color: var(--ink);
+    font: var(--t-body);
+}
+
+.library .resume-item input[type=text] {
+    border-color: transparent;
+    background: transparent;
+    font: var(--t-body-strong);
+    padding: 0 var(--s-2);
+    margin-left: calc(-1 * var(--s-2));
+}
+
+.library .resume-item input[type=text]:hover, .library .lib-sheet input[type=text]:focus {
+    border-color: var(--hairline-strong);
+    background: var(--surface);
+}
+
+.library .lib-sheet input[type=text]:focus {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.library .start-new {
+    align-items: flex-end;
+}
+
+/* In portrait the tagline gives way, so the wordmark and the actions share one line. */
+@media (max-width: 960px) {
+    .library .tagline {
+        display: none;
+    }
+}
+
+/* Phones: the header wraps, the gutters narrow; Add piece and the resume points rise from the bottom. */
+@media (max-width: 760px) {
+    .lab.library {
+        padding: var(--s-6) var(--s-4);
+    }
+
+    body:has(.library) .site-footer {
+        padding: 0 var(--s-4) var(--s-6);
+    }
+
+    .library h1.wordmark {
+        font-size: 32px;
+        line-height: 38px;
+    }
+
+    .library .lib-sheet {
+        top: auto;
+        bottom: 0;
+        width: 100%;
+        max-height: 85vh;
+        border-radius: var(--r-l) var(--r-l) 0 0;
+        transform: translateX(-50%);
+    }
 }

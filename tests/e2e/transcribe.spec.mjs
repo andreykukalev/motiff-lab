@@ -111,8 +111,8 @@ test("a recording's sound is sent as mono audio, and its notes open marked as he
     await page.getByText("Open the piece").click();
     await expect(page).toHaveURL(/playback/);
     await page.goto("/");
-    await page.getByRole("link", { name: "Take 1 at the piano.mid" }).first().click();
-    await expect(page.getByText("heard in a recording")).toBeVisible();
+    // The library's card says where the piece came from (0018 section 9).
+    await expect(page.locator(".card.piece").first()).toContainText("From a recording");
 });
 
 test("a transcription is written in bars and a tempo worked out from its notes, which the player can change", async ({ page }) => {
@@ -165,8 +165,8 @@ test("a transcription is written in bars and a tempo worked out from its notes, 
     await expect(more.getByText("Written for reading", { exact: false })).toBeVisible();
     await closePopover(page);
     await page.goto("/");
-    await page.getByRole("link", { name: "Take 1 at the piano.mid" }).first().click();
-    await expect(page.getByText("heard in a recording")).toBeVisible();
+    // The library's card says where the piece came from (0018 section 9).
+    await expect(page.locator(".card.piece").first()).toContainText("From a recording");
 });
 
 test("a recording longer than two minutes is heard in overlapping parts and its notes are joined", async ({ page }) => {

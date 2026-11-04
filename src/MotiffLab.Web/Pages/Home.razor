@@ -1,283 +1,283 @@
 @page "/"
 @using MotiffLab.MusicCore.Projects
 @using MotiffLab.Web.Import
-@using MotiffLab.Web.Localization
 @using MotiffLab.Web.Projects
-@implements IDisposable
-@inject ProjectStore Projects
-@inject NavigationManager Navigation
-@inject UiText Text
-@inject MotiffLab.Web.Account.OnlineProjects Online
-@inject MotiffLab.Web.Account.CloudAccount Account
-@inject ScanService Scans
+@using MotiffLab.Web.Score
+@implements IAsyncDisposable
 
 <PageTitle>Motiff Lab</PageTitle>
 
-@* N1 · Projects (S1-P1, 0012): a project is a piece and everything the player made around it. Opening one goes to its page,
-   with its sessions and ideas; export and re-import as one file for backup (AC-S1-20). The screen also starts a new piece
-   by each route in (a file, a scan, a recording, Für Elise). *@
-<main class="lab projects home-screen">
-    <header class="page-header">
+@* The library (0018 section 9, design/kit/screens/s1_library.png): the screen outside the piece, a shelf of cards, each
+   resumed where it was left with one tap. One Add piece action holds the routes in; the overflow imports a project
+   file; long-press on a card (or its •••) lists its resume points to resume, name or remove. The home page, the project
+   page and the session list of earlier builds collapse into it. *@
+<main class="lab library">
+    <header class="lib-head">
         <div class="brand">
-            <h1>Motiff Lab</h1>
+            <h1 class="wordmark">Motiff Lab</h1>
             <p class="tagline">@Text["home.tagline"]</p>
         </div>
-        <MotiffLab.Web.Account.AccountButton />
+        <div class="lib-actions">
+            <button class="btn primary add-piece" @onclick="OpenAddPiece" aria-haspopup="dialog"><Icon Name="plus" /> @Text["library.addPiece"]</button>
+            <div class="lib-more-wrap">
+                <button class="btn icon" aria-label="@Text["library.more"]" title="@Text["library.more"]" aria-expanded="@(_menu == LibraryMenu ? "true" : "false")"
+                        @onclick="() => ToggleMenu(LibraryMenu)"><Icon Name="more" /></button>
+                @if (_menu == LibraryMenu)
+                {
+                    <div class="lib-menu" role="group" aria-label="@Text["library.more"]">
+                        <label class="btn quiet file">
+                            <Icon Name="file" /> @Text["home.importProject"]
+                            <InputFile OnChange="ImportProjectAsync" accept=".json" />
+                        </label>
+                        <p class="caption">@Text["home.importProjectHint"]</p>
+                    </div>
+                }
+            </div>
+            <MotiffLab.Web.Account.AccountButton />
+        </div>
     </header>
-
-    @if (_summaries is { Count: 0 })
-    {
-        <p class="lead">@Text["home.emptyWhat"]</p>
-    }
 
     @if (_message is not null)
     {
-        <p class="error" role="alert">@_message</p>
+        <p class="lib-note error" role="alert">@_message</p>
     }
 
     @if (_nearlyFull)
     {
-        <p class="warning" role="status">@Text["home.nearlyFull"]</p>
+        <p class="lib-note warning" role="status">@Text["home.nearlyFull"]</p>
     }
-
-    @* The routes in, as large tiles a finger finds on an iPad at the piano. Scanning and transcription say here when they
-       need a server or a sign-in first; their screens have the details. *@
-    <section class="start-new" aria-labelledby="start-heading">
-        <h2 id="start-heading">@Text["home.startHeading"]</h2>
-        <ul class="start-tiles">
-            <li>
-                <a class="start-tile" href="import">
-                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3h8l4 4v14H6z M14 3v4h4 M10 17V11l5-1v6 M10 17a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z M15 16a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z" /></svg>
-                    <strong>@Text["home.fromFile"]</strong>
-                    <span class="hint">@Text["home.fromFileHint"]</span>
-                </a>
-            </li>
-            <li>
-                <a class="start-tile" href="import/scan">
-                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 8V4h4 M16 4h4v4 M20 16v4h-4 M8 20H4v-4 M7 9h10 M7 12h10 M7 15h10" /></svg>
-                    <strong>@Text["home.fromScan"]</strong>
-                    <span class="hint">@Text["home.fromScanHint"]</span>
-                    @if (_serverNote is not null)
-                    {
-                        <span class="needs">@_serverNote</span>
-                    }
-                </a>
-            </li>
-            <li>
-                <a class="start-tile" href="import/recording">
-                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 12h2 M7 8v8 M11 5v14 M15 9v6 M19 11v2 M21 12h0" /></svg>
-                    <strong>@Text["home.fromRecording"]</strong>
-                    <span class="hint">@Text["home.fromRecordingHint"]</span>
-                    @if (_serverNote is not null)
-                    {
-                        <span class="needs">@_serverNote</span>
-                    }
-                </a>
-            </li>
-            <li>
-                <a class="start-tile demo" href="playback?start=fur-elise">
-                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5v14l11-7z" /></svg>
-                    <strong>@Text["home.tryFurElise"]</strong>
-                    <span class="hint">@Text["home.furEliseHint"]</span>
-                </a>
-            </li>
-        </ul>
-        <p class="restore">
-            <label class="file">
-                @Text["home.importProject"]
-                <InputFile OnChange="ImportProjectAsync" accept=".json" />
-            </label>
-            <span class="meta">@Text["home.importProjectHint"]</span>
-        </p>
-    </section>
 
     @if (_summaries is null)
     {
         <p class="meta">@Text["home.loading"]</p>
     }
-    else if (_summaries.Count == 0)
-    {
-        <section class="how" aria-labelledby="how-heading">
-            <h2 id="how-heading">@Text["home.howHeading"]</h2>
-            <ol class="steps">
-                <li>@Text["home.step1"]</li>
-                <li>@Text["home.step2"]</li>
-                <li>@Text["home.step3"]</li>
-            </ol>
-        </section>
-    }
     else
     {
-        <section aria-labelledby="projects-heading">
-            <h2 id="projects-heading">@Text["home.projects"]</h2>
-            <ul class="project-list">
-                @foreach (ProjectSummary summary in _summaries)
-                {
-                    <li class="project-card">
-                        <a class="project-name" href="@ProjectPage.Url(summary.Id)">@summary.FileName</a>
-                        <p class="meta">
-                            @Text.Format("home.counts", summary.ResumeCount, summary.IdeaCount)
-                            · @Text.Format("home.lastOpened", summary.LastOpened.ToLocalTime().ToString("g", Text.Culture))
-                        </p>
-                        <div class="actions">
-                            <a class="button primary" href="@ProjectPage.Url(summary.Id)">@Text["home.open"]</a>
-                            <button @onclick="() => ExportAsync(summary.Id)">@Text["home.export"]</button>
-                            @if (_confirmDelete == summary.Id)
+        @if (_summaries.Count == 0)
+        {
+            <p class="lead">@Text["home.emptyWhat"]</p>
+        }
+
+        <h2 class="overline">@Text["home.projects"]</h2>
+        <ul class="lib-grid">
+            @foreach (ProjectSummary summary in _summaries)
+            {
+                PieceCover? cover = _covers.GetValueOrDefault(summary.Id);
+                string title = TitleOf(summary, cover);
+                string headingId = $"piece-{summary.Id}";
+                <li class="card piece @(_menu == summary.Id ? "menu-open" : null)" aria-labelledby="@headingId"
+                    @onclick="() => CardClickedAsync(summary)" @oncontextmenu="() => OpenResumesAsync(summary)" @oncontextmenu:preventDefault="true"
+                    @onpointerdown="() => PressStart(summary)" @onpointerup="PressEnd" @onpointerleave="PressEnd" @onpointercancel="PressEnd">
+                    <div class="top">
+                        <button class="thumb" aria-label="@Text.Format("library.openPage1", title)" @onclick="() => OpenFreshAsync(summary.Id, null)" @onclick:stopPropagation="true" disabled="@_opening">
+                            @if (cover is not null)
                             {
-                                <button class="on" @onclick="() => DeleteAsync(summary.Id)">@Text["home.deleteForGood"]</button>
-                                <button @onclick="() => _confirmDelete = null">@Text["home.keep"]</button>
+                                <img src="@cover.Url" alt="" />
                             }
                             else
                             {
-                                <button @onclick="() => _confirmDelete = summary.Id">@Text["home.delete"]</button>
+                                <span class="blank" aria-hidden="true"></span>
+                            }
+                        </button>
+                        <div class="what">
+                            <h3 class="ttl" id="@headingId">@title</h3>
+                            <p class="meta">@MetaLine(summary, cover)</p>
+                            @if (summary.IdeaCount > 0 || summary.CheckBars > 0)
+                            {
+                                <p class="tags">
+                                    @if (summary.IdeaCount > 0)
+                                    {
+                                        <span class="tag saved">@Text.Count("library.ideas", summary.IdeaCount)</span>
+                                    }
+                                    @if (summary.CheckBars > 0)
+                                    {
+                                        <span class="tag warn">@Text.Count("library.check", summary.CheckBars)</span>
+                                    }
+                                </p>
                             }
                         </div>
-                    </li>
-                }
-            </ul>
-        </section>
+                        <div class="card-more">
+                            <button class="btn icon" aria-label="@Text.Format("library.moreFor", title)" title="@Text["library.more"]" aria-expanded="@(_menu == summary.Id ? "true" : "false")"
+                                    @onclick="() => ToggleMenu(summary.Id)" @onclick:stopPropagation="true"><Icon Name="more" /></button>
+                            @if (_menu == summary.Id)
+                            {
+                                <div class="lib-menu" role="group" aria-label="@Text.Format("library.moreFor", title)" @onclick:stopPropagation="true">
+                                    <button class="btn quiet" @onclick="() => OpenResumesAsync(summary)"><Icon Name="pages" /> @Text["library.resumePoints"]</button>
+                                    <button class="btn quiet" @onclick="() => ExportAsync(summary.Id)"><Icon Name="export" /> @Text["library.export"]</button>
+                                    @if (_confirmDelete == summary.Id)
+                                    {
+                                        <button class="btn quiet danger" @onclick="() => DeleteAsync(summary.Id)"><Icon Name="trash" /> @Text["home.deleteForGood"]</button>
+                                        <button class="btn quiet" @onclick="() => _confirmDelete = null">@Text["home.keep"]</button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn quiet" @onclick="() => _confirmDelete = summary.Id"><Icon Name="trash" /> @Text["home.delete"]</button>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                    <div class="rule"></div>
+                    <p class="overline">@Text["library.recentWork"]</p>
+                    @if (summary.Latest is { } latest)
+                    {
+                        <p class="resume-name">@ResumeName(latest, cover)</p>
+                        <p class="meta">@ResumeLine(latest, cover)</p>
+                    }
+                    else
+                    {
+                        <p class="resume-name">@Text["library.notOpened"]</p>
+                    }
+                    <div class="row">
+                        <button class="btn secondary resume" @onclick="() => ResumeAsync(summary.Id, null)" @onclick:stopPropagation="true" disabled="@_opening"
+                                aria-label="@Text.Format("library.resumeLabel", title)"><Icon Name="play" /> @Text["library.resume"]</button>
+                        <button class="btn quiet" @onclick="() => OpenFreshAsync(summary.Id, null)" @onclick:stopPropagation="true" disabled="@_opening">@Text["library.page1"]</button>
+                    </div>
+                </li>
+            }
+            <li class="card add">
+                <button class="add-round" @onclick="OpenAddPiece" aria-haspopup="dialog" aria-labelledby="add-card-title"><Icon Name="plus" Size="IconSize.Large" /></button>
+                <h3 class="ttl" id="add-card-title">@Text["library.addAPiece"]</h3>
+                <ul class="routes">
+                    <li>@Text["library.routeFile"]</li>
+                    <li>@Text["library.routeScan"]</li>
+                    <li>@Text["library.routeRecording"]</li>
+                </ul>
+                <a class="demo" href="playback?start=fur-elise">@Text["library.tryDemo"]</a>
+            </li>
+        </ul>
     }
 
     @if (_onlineOnly is { Count: > 0 })
     {
         @* Saved online from another device (0014): fetched only when the player asks for it. *@
-        <section aria-labelledby="online-only-heading">
-            <h2 id="online-only-heading">@Text["home.onlineOnly"]</h2>
-            <ul class="project-list">
-                @foreach (ProjectSummary summary in _onlineOnly)
-                {
-                    <li class="project-card">
-                        <span class="project-name">@summary.FileName</span>
-                        <p class="meta">
-                            @Text.Format("home.counts", summary.ResumeCount, summary.IdeaCount)
-                            · @Text.Format("home.lastOpened", summary.LastOpened.ToLocalTime().ToString("g", Text.Culture))
-                        </p>
-                        <div class="actions">
-                            <button class="primary" @onclick="() => GetHereAsync(summary.Id)">@Text["home.getHere"]</button>
-                        </div>
-                    </li>
-                }
+        <h2 class="overline">@Text["home.onlineOnly"]</h2>
+        <ul class="lib-grid online">
+            @foreach (ProjectSummary summary in _onlineOnly)
+            {
+                <li class="card piece">
+                    <h3 class="ttl">@ScoreTitle.Of(summary.FileName)</h3>
+                    <p class="meta">@Text.Format("home.lastOpened", summary.LastOpened.ToLocalTime().ToString("g", Text.Culture))</p>
+                    <div class="row">
+                        <button class="btn secondary" @onclick="() => GetHereAsync(summary.Id)">@Text["home.getHere"]</button>
+                    </div>
+                </li>
+            }
+        </ul>
+    }
+
+    @if (_menu is not null)
+    {
+        <div class="lib-scrim clear" @onclick="() => ToggleMenu(null)"></div>
+    }
+
+    @if (_sheet != Sheet.None)
+    {
+        <div class="lib-scrim" @onclick="CloseSheet"></div>
+    }
+
+    @if (_sheet == Sheet.AddPiece)
+    {
+        @* Add piece (0018 section 9): the routes in one sheet. Opening a file runs on the device and is free; scanning a page
+           and transcribing a recording run on the server and are Pro. *@
+        <section class="lib-sheet add-sheet" role="dialog" aria-modal="true" aria-labelledby="add-title" tabindex="-1" @ref="_sheetElement" @onkeydown="OnSheetKey">
+            <header class="hd">
+                <h2 class="ttl" id="add-title">@Text["library.addAPiece"]</h2>
+                <button class="btn icon" aria-label="@Text["library.close"]" title="@Text["library.close"]" @onclick="CloseSheet"><Icon Name="close" /></button>
+            </header>
+            <ul class="routes-list">
+                <li>
+                    <label class="route @(_reading ? "busy" : null)">
+                        <span class="ic"><Icon Name="file" /></span>
+                        <span class="txt">
+                            <strong>@Text["library.openFile"]</strong>
+                            <span class="caption">@(_reading ? Text["import.reading"] : Text["library.openFileHint"])</span>
+                        </span>
+                        <InputFile OnChange="OpenFileAsync" accept="@MotiffLab.MusicCore.Import.PieceImporter.AcceptedExtensions" disabled="@_reading" aria-label="@Text["import.fileChoose"]" />
+                    </label>
+                    @if (_rejection is not null)
+                    {
+                        <p class="route-problem" role="alert">@_rejection</p>
+                        @if (_otherRoute is { } other)
+                        {
+                            <p class="caption"><a href="@other.Href">@Text[other.Label]</a></p>
+                        }
+                    }
+                </li>
+                <li>
+                    <a class="route" href="import/scan">
+                        <span class="ic"><Icon Name="camera" /></span>
+                        <span class="txt">
+                            <strong>@Text["library.scanPage"] @if (UsesOurServer) { <span class="tag pro">Pro</span> }</strong>
+                            <span class="caption">@(_serverNote ?? Text["library.scanPageHint"])</span>
+                        </span>
+                    </a>
+                </li>
+                <li>
+                    <a class="route" href="import/recording">
+                        <span class="ic"><Icon Name="mic" /></span>
+                        <span class="txt">
+                            <strong>@Text["library.fromRecording"] @if (UsesOurServer) { <span class="tag pro">Pro</span> }</strong>
+                            <span class="caption">@(_serverNote ?? Text["library.fromRecordingHint"])</span>
+                        </span>
+                    </a>
+                </li>
             </ul>
+            <p class="caption privacy-line">@Text["library.whatLeaves"]</p>
+            <a class="btn quiet demo" href="playback?start=fur-elise"><Icon Name="play" /> @Text["library.demo"]</a>
         </section>
     }
-
-</main>
-
-@code {
-    private IReadOnlyList<ProjectSummary>? _summaries;
-    private bool _nearlyFull;
-    private string? _message;
-    private string? _confirmDelete;
-    private IReadOnlyList<ProjectSummary>? _onlineOnly;
-    private string? _player;
-
-    /// <summary>What scanning and transcription need before they work here, or null when they are ready.</summary>
-    private string? _serverNote;
-
-    protected override void OnInitialized() => Text.Changed += OnChanged;
-
-    public void Dispose() => Text.Changed -= OnChanged;
-
-    private void OnChanged()
+    else if (_sheet == Sheet.Resumes && _resumeProject is { } project)
     {
-        _serverNote = ServerNote();
-        _ = InvokeAsync(StateHasChanged);
-    }
-
-    protected override async Task OnInitializedAsync()
-    {
-        await Scans.LoadAsync();
-        _player = await Account.PlayerAsync();
-        _serverNote = ServerNote();
-    }
-
-    /// <summary>The same states the import screen explains: no server set, Motiff Lab's server turned off, or not signed in for it.</summary>
-    private string? ServerNote() => Scans.Address is null
-        ? Text[Scans.HostedAddress is null ? "home.needsServer" : "home.scanTurnedOff"]
-        : Scans.IsHosted && _player is null ? Text["home.needsSignIn"] : null;
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            await RefreshAsync();
-            StateHasChanged();
-        }
-    }
-
-    private async Task RefreshAsync()
-    {
-        _summaries = await Projects.ListAsync();
-        _nearlyFull = await Projects.IsNearlyFullAsync();
-        _onlineOnly = null;
-        if (await Online.IsOnAsync())
-        {
-            // Offline or signed out, the list is just left out: this screen is about the projects here.
-            (IReadOnlyList<ProjectSummary>? online, _) = await Online.ListAsync();
-            HashSet<string> here = [.. _summaries.Select(summary => summary.Id)];
-            _onlineOnly = online?.Where(summary => !here.Contains(summary.Id)).ToList();
-        }
-    }
-
-    private async Task GetHereAsync(string id)
-    {
-        _message = null;
-        (Project? project, string? problem) = await Online.DownloadAsync(id);
-        if (project is null)
-        {
-            _message = problem;
-            return;
-        }
-
-        await Projects.SaveHereAsync(project);
-        await RefreshAsync();
-    }
-
-    private async Task ExportAsync(string id)
-    {
-        _message = null;
-        try
-        {
-            if (await Projects.LoadAsync(id) is { } project)
+        @* The resume points of one piece (0018 section 9): resume any, name it, or remove it; or start a new one from page 1, named
+           by the player's words when they give any. *@
+        <section class="lib-sheet resume-sheet" role="dialog" aria-modal="true" aria-labelledby="resume-title" tabindex="-1" @ref="_sheetElement" @onkeydown="OnSheetKey">
+            <header class="hd">
+                <div>
+                    <p class="overline">@Text["library.resumePoints"]</p>
+                    <h2 class="ttl" id="resume-title">@_resumeTitle</h2>
+                </div>
+                <button class="btn icon" aria-label="@Text["library.close"]" title="@Text["library.close"]" @onclick="CloseSheet"><Icon Name="close" /></button>
+            </header>
+            @if (project.ResumePoints.Count == 0)
             {
-                await Projects.ExportAsync(project);
+                <p class="meta">@Text["project.noSessions"]</p>
             }
-        }
-        catch (ProjectFileException exception)
-        {
-            _message = exception.Message;
-        }
+            else
+            {
+                <ul class="resume-list">
+                    @foreach (ResumePoint point in project.RecentResumePoints)
+                    {
+                        <li class="resume-item">
+                            <label class="name">
+                                <span class="visually-hidden">@Text["library.nameLabel"]</span>
+                                <input type="text" maxlength="120" value="@point.Name" placeholder="@PointFallbackName(point)"
+                                       @onchange="change => RenameAsync(point, change.Value as string)" />
+                            </label>
+                            <p class="meta">@PointLine(point)</p>
+                            <div class="row">
+                                <button class="btn secondary" @onclick="() => ResumeAsync(project.Id, point.Id)" disabled="@_opening"><Icon Name="play" /> @Text["library.resume"]</button>
+                                @if (_confirmRemove == point.Id)
+                                {
+                                    <button class="btn quiet danger" @onclick="() => RemoveAsync(point)">@Text["project.endForGood"]</button>
+                                    <button class="btn quiet" @onclick="() => _confirmRemove = null">@Text["home.keep"]</button>
+                                }
+                                else
+                                {
+                                    <button class="btn quiet" @onclick="() => _confirmRemove = point.Id" title="@Text["project.endHint"]">@Text["project.end"]</button>
+                                }
+                            </div>
+                        </li>
+                    }
+                </ul>
+            }
+            <div class="start-new">
+                <label class="name">
+                    <span class="caption">@Text["project.taskLabel"]</span>
+                    <input type="text" maxlength="120" @bind="_newName" @bind:event="oninput" placeholder="@Text["project.taskPlaceholder"]" />
+                </label>
+                <button class="btn primary" @onclick="() => OpenFreshAsync(project.Id, _newName)" disabled="@_opening">@Text["library.startNew"]</button>
+            </div>
+        </section>
     }
-
-    private async Task DeleteAsync(string id)
-    {
-        _confirmDelete = null;
-        await Projects.DeleteAsync(id);
-        await RefreshAsync();
-    }
-
-    /// <summary>Re-imports an exported project (AC-S1-20). It replaces a saved project with the same id.</summary>
-    private async Task ImportProjectAsync(InputFileChangeEventArgs args)
-    {
-        _message = null;
-        try
-        {
-            // A project holds a source of at most 50 MB, which base64 and the JSON around it grow by about a third.
-            await using Stream stream = args.File.OpenReadStream(70 * 1024 * 1024);
-            using var memory = new MemoryStream();
-            await stream.CopyToAsync(memory);
-            Project project = ProjectFile.Read(memory.ToArray());
-            OpenedProject.Open(project);
-            await Projects.SaveAsync(project);
-            await RefreshAsync();
-        }
-        catch (ProjectFileException exception)
-        {
-            _message = $"{args.File.Name}: {exception.Message}";
-        }
-        catch (IOException)
-        {
-            _message = Text.Format("home.tooLarge", args.File.Name);
-        }
-    }
-}
+</main>
