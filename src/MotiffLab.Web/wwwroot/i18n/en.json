@@ -1017,5 +1017,18 @@
   "phrases.bracketLabel": "{0} {1}, {2}",
   "selection.unitCapped": "{0} {1} runs {2} bars; a selection holds at most {3}, so it ends at bar {4}.",
   "pill.tempoLabel": "Tempo {0}%",
-  "score.none": "There is no score to show for these notes."
+  "score.none": "There is no score to show for these notes.",
+
+  "menu.label": "Selection",
+  "menu.more": "More for the selection",
+  "menu.makeShort": "Make a short phrase",
+  "menu.makePhrase": "Make a phrase",
+  "menu.makeSentence": "Make a sentence",
+  "menu.mergeShort": "Merge with the next short phrase",
+  "menu.mergePhrase": "Merge with the next phrase",
+  "menu.mergeSentence": "Merge with the next sentence",
+  "menu.split": "Split here",
+  "menu.splitHint": "Split at bar {0}, where the playhead is.",
+  "selection.handleStart": "Start of the selection: drag it to a barline, or move it a bar with the arrow keys",
+  "selection.handleEnd": "End of the selection: drag it to a barline, or move it a bar with the arrow keys"
 }

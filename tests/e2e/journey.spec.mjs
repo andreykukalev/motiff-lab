@@ -29,7 +29,7 @@ test("open a piece, loop a bar, propose and hear a variation", async ({ page }) 
     const play = page.locator(".pill").getByRole("button", { name: "Play", exact: true });
     const pause = page.locator(".pill").getByRole("button", { name: "Pause", exact: true });
 
-    await page.getByRole("button", { name: "Loop", exact: true }).click();
+    await page.locator(".pill").getByRole("button", { name: "Loop", exact: true }).click();
     const original = await startTime(page, play);
     await pause.click();
 

@@ -86,7 +86,8 @@
                 @* Clicks on the page outside the score and the overlays clear the selection, except inside panels marked data-keeps-selection (docs/ui-conventions.md). *@
                 <ScoreView @ref="_scoreView" Source="shown" Range="ShownRange" Phrases="ScorePhrases" Highlight="_highlight?.Places" HoldHeight="false" PencilKey="ShownPencilKey" Ink="@ShownInk"
                            MarksChanged="OnPencilMarksChangedAsync" Title="@ScoreTitle.Of(_title)" BarPicked="OnScoreBarPickedAsync" PagesShown="OnPagesShown"
-                           BracketPicked="OnBracketPickedAsync" PencilChanged="OnPenChanged" TitleRead="OnTitleRead" />
+                           BracketPicked="OnBracketPickedAsync" PencilChanged="OnPenChanged" TitleRead="OnTitleRead"
+                           Selection="_selection?.Span" BarsChosen="OnScoreBarsChosenAsync" Menu="@(MenuShown ? SelectionMenu : null)" />
             }
             else
             {
@@ -673,6 +674,40 @@
 </CascadingValue>
 
 @code {
+    /// <summary>
+    /// The contextual menu's items (0018 section 3; design/kit/ds.css .menu): Loop, then the piano roll and Insights,
+    /// then the overflow with the phrase edits that apply. Focus, Note, Bookmark and Highlight join it with phrase focus and annotations.
+    /// </summary>
+    private RenderFragment SelectionMenu => @<div class="menu">
+        <button class="it @(Looping ? "on" : null)" aria-pressed="@(Looping ? "true" : "false")" @onclick="ToggleLoopSelectionAsync"><Icon Name="loop" /> @Text["focus.loop"]</button>
+        <span class="div" aria-hidden="true"></span>
+        <button class="it @(_rollOpen ? "on" : null)" aria-pressed="@(_rollOpen ? "true" : "false")" @onclick="MenuRoll"><Icon Name="roll" /> @Text["bar.roll"]</button>
+        <button class="it @(_insightsOpen ? "on" : null)" aria-pressed="@(_insightsOpen ? "true" : "false")" @onclick="MenuInsights"><Icon Name="insight" /> @Text["bar.insights"]</button>
+        @if (CanMakeUnit || CanMerge || SplitPoint is not null)
+        {
+            <span class="div" aria-hidden="true"></span>
+            <button class="it icon @(MenuMoreOpen ? "on" : null)" aria-expanded="@(MenuMoreOpen ? "true" : "false")" aria-label="@Text["menu.more"]" title="@Text["menu.more"]"
+                    @onclick="ToggleMenuMore"><Icon Name="more" /></button>
+            @if (MenuMoreOpen)
+            {
+                <div class="menu-more" role="group" aria-label="@Text["menu.more"]">
+                    @if (CanMakeUnit)
+                    {
+                        <button class="it" @onclick="MakeUnitAsync">@MakeLabel</button>
+                    }
+                    @if (CanMerge)
+                    {
+                        <button class="it" @onclick="MergeWithNextAsync">@MergeLabel</button>
+                    }
+                    @if (SplitPoint is not null)
+                    {
+                        <button class="it" title="@Text.Format("menu.splitHint", SplitBar)" @onclick="SplitHereAsync">@Text["menu.split"]</button>
+                    }
+                </div>
+            }
+        }
+    </div>;
+
     private const string VariationSource = "variation";
 
     /// <summary>The selected notes alone, played while the selection loops.</summary>

@@ -453,6 +453,51 @@ export class ScoreGeometry {
         return this.runs(start, end, staves).map((run) => ({ ...run, top: run.top - padding, bottom: run.bottom + padding }));
     }
 
+    /**
+     * The bar under a point, as a drag across the score picks it: on the system nearest the point, the bar
+     * that holds it across, or the nearest one when the point is beside the system.
+     */
+    barNear(x: number, y: number): ScoreBar | undefined {
+        const bars = this.systemNear(x, y);
+        if (bars.length === 0) {
+            return undefined;
+        }
+        return bars.find((bar) => x >= bar.left && x < bar.right) ?? (x < bars[0].left ? bars[0] : bars[bars.length - 1]);
+    }
+
+    /**
+     * The bar a selection's edge goes to when its handle is let go at a point: on the system nearest the point,
+     * the bar whose left barline (for the start) or right barline (for the end) is nearest across.
+     */
+    edgeNear(x: number, y: number, edge: "start" | "end"): ScoreBar | undefined {
+        let best: ScoreBar | undefined;
+        let distance = Infinity;
+        for (const bar of this.systemNear(x, y)) {
+            const away = Math.abs(x - (edge === "start" ? bar.left : bar.right));
+            if (away < distance) {
+                distance = away;
+                best = bar;
+            }
+        }
+        return best;
+    }
+
+    /** The bars, left to right, of the system nearest a point; none when nothing is engraved. */
+    private systemNear(x: number, y: number): ScoreBar[] {
+        let nearest: ScoreSystem | undefined;
+        let distance = Infinity;
+        for (const system of this.systems) {
+            const across = x < system.left ? system.left - x : x > system.right ? x - system.right : 0;
+            const down = y < system.top ? system.top - y : y > system.bottom ? y - system.bottom : 0;
+            const away = Math.hypot(across, down);
+            if (away < distance) {
+                distance = away;
+                nearest = system;
+            }
+        }
+        return nearest === undefined ? [] : nearest.bars.map((index) => this.bars[index]);
+    }
+
     /** The engraved note with an element id, if it is on a page. */
     note(id: string): ScoreNote | undefined {
         return this.noteIndex.get(id);

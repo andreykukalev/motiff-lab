@@ -132,8 +132,8 @@ public partial class PlaybackLab : IAsyncDisposable
         _ => "phrases.countPhrases",
     }, _levels.Units(_level).Count);
 
-    /// <summary>The unit of the level shown that the selection is, exactly; null for another range or nothing.</summary>
-    private PhraseUnit? CurrentUnit => _selection is { } selection ? _levels?.Matching(_level, selection.Span) : null;
+    /// <summary>The unit of the level shown that the selection is (<see cref="SelectedUnit"/>): its bracket is drawn in the accent.</summary>
+    private PhraseUnit? CurrentUnit => SelectedUnit;
 
     /// <summary>The brackets of the level shown, the selected one in the accent and a dot on those the player kept ideas from.</summary>
     private IReadOnlyList<ScorePhrase>? ScorePhrases

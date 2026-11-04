@@ -90,3 +90,74 @@ test("the bar fades while the player reads and comes back with the next touch", 
     await expect(bar).not.toHaveClass(/faded/);
     expect(errors).toEqual([]);
 });
+
+test("bars dragged across on the score are selected, the handles move the edges, and the menu over them edits phrases", async ({ page }) => {
+    const errors = await openFurElise(page);
+    const bars = page.locator("div.score g.measure");
+    const selection = page.locator(".selection-status");
+    const menu = page.getByRole("toolbar", { name: "Selection" });
+    const brackets = page.locator(".score button.bracket[aria-label]");
+    await expect(menu).toBeHidden();
+
+    // A drag with the mouse from bar 1 to bar 3 selects them, banded, with the menu above.
+    const from = await bars.nth(1).boundingBox();
+    const to = await bars.nth(3).boundingBox();
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 8 });
+    await page.mouse.up();
+    await expect(selection).toContainText("Selected bars 1–3");
+    await expect(page.locator(".score .sel-band").first()).toBeVisible();
+    await expect(menu).toBeVisible();
+    await expect(menu.getByRole("button", { name: "Loop" })).toBeVisible();
+
+    // The end handle moves a bar on with the arrow keys; the start handle drags to a barline.
+    await page.getByRole("button", { name: /^End of the selection/ }).focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(selection).toContainText("Selected bars 1–4");
+    const start = await page.getByRole("button", { name: /^Start of the selection/ }).boundingBox();
+    const bar2 = await bars.nth(2).boundingBox();
+    await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(bar2.x + 2, start.y + start.height / 2, { steps: 6 });
+    await page.mouse.up();
+    await expect(selection).toContainText("Selected bars 2–4");
+
+    // The overflow holds what applies: the range is not a phrase, so Make a phrase, and nothing else.
+    await menu.getByRole("button", { name: "More for the selection" }).click();
+    await expect(menu.getByRole("button", { name: "Merge with the next phrase" })).toHaveCount(0);
+    await menu.getByRole("button", { name: "Make a phrase" }).click();
+    await expect(brackets).toHaveCount(3);
+    await expect(brackets.nth(1)).toHaveAttribute("aria-pressed", "true");
+    await expect(selection).toContainText("Selected phrase 2");
+
+    // Merge with the next phrase takes the boundary after it away.
+    await menu.getByRole("button", { name: "More for the selection" }).click();
+    await menu.getByRole("button", { name: "Merge with the next phrase" }).click();
+    await expect(brackets).toHaveCount(2);
+    await expect(selection).toContainText("Selected phrase 2");
+
+    // The last phrase, with the playhead outside it, has nothing to edit: no overflow at all.
+    await expect(menu.getByRole("button", { name: "More for the selection" })).toHaveCount(0);
+
+    // Split here splits the phrase where the playhead stands, a note tapped in a later bar of it.
+    // (Dispatched, as the menu may stand over the bar under the band.)
+    await bars.nth(5).locator("g.note").first().dispatchEvent("click");
+    await menu.getByRole("button", { name: "More for the selection" }).click();
+    await menu.getByRole("button", { name: "Split here" }).click();
+    await expect(brackets).toHaveCount(3);
+    await expect(selection).toContainText("Selected phrase 2");
+
+    // Reset to detected brings the suggested phrases back.
+    await page.locator(".bar").getByRole("button", { name: "Phrases" }).click();
+    await page.getByRole("dialog", { name: "Phrases" }).getByRole("button", { name: "Reset to detected" }).click();
+    await expect(brackets).toHaveCount(2);
+    await closePopover(page);
+
+    // With the pen on, the menu goes away and the mouse writes rather than selects.
+    await page.locator(".bar").getByRole("button", { name: "Pen", exact: true }).click();
+    await expect(menu).toBeHidden();
+    await page.locator(".bar").getByRole("button", { name: "Pen", exact: true }).click();
+    await expect(menu).toBeVisible();
+    expect(errors).toEqual([]);
+});

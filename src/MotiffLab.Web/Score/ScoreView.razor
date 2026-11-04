@@ -41,6 +41,8 @@
 @* Engraved by Verovio in Scripts/score (decision record 0008); the host's children belong to the script. *@
 @* Focusable, so the score can be scrolled by keyboard within its panel. *@
 <div class="score" @ref="_host" role="figure" aria-label="@Text["workspace.score"]" tabindex="0"></div>
+@* The contextual menu over the selection (0018 section 3): drawn here, placed over the band by the script as the score scrolls. *@
+<div class="ctx" @ref="_menu" role="toolbar" aria-label="@Text["menu.label"]" data-keeps-selection hidden>@Menu</div>
 @if (_error is not null)
 {
     <p class="error">@_error</p>
@@ -63,12 +65,27 @@ else if (_loading && !HoldHeight)
     private bool _loading;
     private string? _error;
     private TickSpan? _shownRange;
+    private ElementReference _menu;
+    private TickSpan? _shownSelection;
+    private bool _selectionShown;
     private IReadOnlyList<ScorePhrase>? _shownPhrases;
     private IReadOnlyList<HighlightPlace>? _shownHighlight;
     private bool _shownHold;
     private bool _paged = true;
     private bool _exporting;
     private string? _pdfError;
+
+    /// <summary>The selection, drawn as a band with handles over its bars (0018 section 3); null draws none.</summary>
+    [Parameter]
+    public TickSpan? Selection { get; set; }
+
+    /// <summary>The contextual menu's items, shown above the selection; null shows no menu.</summary>
+    [Parameter]
+    public RenderFragment? Menu { get; set; }
+
+    /// <summary>Raised when bars are chosen on the score: a drag across them, or a handle moved (where the first and the last bar start).</summary>
+    [Parameter]
+    public EventCallback<(Tick First, Tick Last, bool ByHandle)> BarsChosen { get; set; }
 
     /// <summary>The device preference for the layout: "pages" or "strip".</summary>
     private const string LayoutPreference = "ml-score-layout";
@@ -77,7 +94,7 @@ else if (_loading && !HoldHeight)
     [Parameter, EditorRequired]
     public ScoreSource? Source { get; set; }
 
-    /// <summary>The range that plays for the selection; notes outside it are drawn faint. Null shows all at full strength.</summary>
+    /// <summary>The range that plays for the selection: notes outside it are marked as such, and the first note in it is scrolled into view. The band shows the selection itself.</summary>
     [Parameter]
     public TickSpan? Range { get; set; }
 
@@ -169,6 +186,7 @@ else if (_loading && !HoldHeight)
             _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/score/score-view.js");
             _view = await _module.InvokeAsync<IJSObjectReference>("createScoreView", _host, _self);
             _pencil = await _view.InvokeAsync<IJSObjectReference>("pencilLayer");
+            await _view.InvokeVoidAsync("setMenu", _menu);
             if (await Preferences.GetAsync(LayoutPreference) == "strip")
             {
                 _paged = false;
@@ -213,6 +231,11 @@ else if (_loading && !HoldHeight)
                 await ShowPhrasesAsync(_view);
             }
 
+            if (Selection != _shownSelection || !_selectionShown)
+            {
+                await ShowSelectionAsync(_view);
+            }
+
             if (!ReferenceEquals(Highlight, _shownHighlight))
             {
                 await ShowHighlightAsync(_view);
@@ -230,6 +253,7 @@ else if (_loading && !HoldHeight)
             await _view.InvokeVoidAsync("follow", Player.Engine);
             await ShowRangeAsync(_view);
             await ShowPhrasesAsync(_view);
+            await ShowSelectionAsync(_view);
             await ShowHighlightAsync(_view);
             _error = null;
         }
@@ -253,6 +277,16 @@ else if (_loading && !HoldHeight)
         _shownPhrases = Phrases;
         // Cast, so the array goes across as one argument rather than as the argument list.
         await view.InvokeVoidAsync("setPhrases", (object)(Phrases ?? []).ToArray());
+    }
+
+    private async Task ShowSelectionAsync(IJSObjectReference view)
+    {
+        _shownSelection = Selection;
+        _selectionShown = true;
+        object? selection = Selection is { } span
+            ? new { start = span.Onset.Value, end = span.End.Value, startLabel = Text["selection.handleStart"], endLabel = Text["selection.handleEnd"] }
+            : null;
+        await view.InvokeVoidAsync("setSelection", selection);
     }
 
     private async Task ShowHighlightAsync(IJSObjectReference view)
@@ -372,6 +406,11 @@ else if (_loading && !HoldHeight)
     /// <summary>Called by the script when a phrase's bracket is tapped.</summary>
     [JSInvokable]
     public Task OnBracketClicked(int number) => BracketPicked.InvokeAsync(number);
+
+    /// <summary>Called by the script when bars are chosen by a drag or a handle.</summary>
+    [JSInvokable]
+    public Task OnScoreBarsChosen(double first, double last, bool byHandle) =>
+        BarsChosen.InvokeAsync((new Tick(Math.Max(0, (long)Math.Round(first))), new Tick(Math.Max(0, (long)Math.Round(last))), byHandle));
 
     /// <summary>Called by the script when a bar is clicked away from its notes.</summary>
     [JSInvokable]
