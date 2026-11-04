@@ -64,6 +64,17 @@ const OUTSIDE_CLASS = "outside";
 /** A phrase's pencil bracket above the top staff (0018 section 3, design/kit/ds.css), placed over the engraving. */
 const BRACKET_CLASS = "bracket";
 
+/** A bookmark's bracket in its category's ink, above the phrase brackets with its title in italic (0018 section 5, design/kit/ds.css .bmb). */
+const BOOKMARK_CLASS = "bmb";
+
+/** Bookmarks sit this far above the top staff, over the phrase brackets and their numbers; overlapping ones stack by the next amount. */
+const BOOKMARK_LIFT = 40;
+const BOOKMARK_STACK = 24;
+
+/** A bookmark's title rises this far above its bracket; marks further above a band than the reach belong to the system above. */
+const BOOKMARK_TITLE = 17;
+const BOOKMARK_REACH = 120;
+
 /** The line under the bar the page count reads at: the page under it is the page being read. */
 const READING_LINE_PX = 72;
 
@@ -84,6 +95,42 @@ export interface ScorePhrase {
     ideas: boolean;
     /** What a screen reader says for the bracket. */
     label: string;
+}
+
+/** A bookmark as Blazor sends it: where it starts and ends, its title, its category's ink, and what a screen reader says. */
+export interface ScoreBookmark {
+    id: string;
+    start: number;
+    end: number;
+    title: string;
+    /** "graphite", "carmine", "forest" or "ochre", as a class. */
+    ink: string;
+    label: string;
+}
+
+/** A page as the Contents drawer's Pages tab shows it: its picture and the stretch of the piece on it, in ticks. */
+export interface PageOutline {
+    page: number;
+    start: number;
+    end: number;
+    url: string;
+}
+
+/** The levels of overlapping bookmarks, from 0 under the others: each takes the lowest level free where it starts. */
+export function bookmarkLevels(bookmarks: readonly { start: number; end: number }[]): number[] {
+    const order = bookmarks.map((bookmark, index) => ({ ...bookmark, index })).sort((a, b) => a.start - b.start || b.end - a.end);
+    const ends: number[] = [];
+    const levels = new Array<number>(bookmarks.length).fill(0);
+    for (const bookmark of order) {
+        let level = ends.findIndex((end) => end <= bookmark.start);
+        if (level < 0) {
+            level = ends.length;
+            ends.push(0);
+        }
+        ends[level] = bookmark.end;
+        levels[bookmark.index] = level;
+    }
+    return levels;
 }
 
 /** The toolkit the score view engraves with, made once: the phrase card and the PDF make their own (verovio.ts). */
@@ -110,6 +157,9 @@ export class ScoreView {
     private range: { start: number; end: number } | null = null;
     private holding = false;
     private phrases: ScorePhrase[] = [];
+    private bookmarks: ScoreBookmark[] = [];
+    /** The pictures of the pages handed to the Pages tab, freed when new ones are made. */
+    private thumbnails: string[] = [];
     /** The places of the chosen fact, and the engraved notes and rests that stand for them. */
     private highlight: HighlightPlace[] = [];
     private highlighted = new Set<string>();
@@ -149,6 +199,7 @@ export class ScoreView {
             geometry: () => this.geometry(),
             penOn: () => this.pencil.state().on,
             chosen: (first, last, byHandle) => void this.dotnet.invokeMethodAsync("OnScoreBarsChosen", first, last, byHandle),
+            marksTop: (band) => this.bookmarksTop(band),
         });
         this.host.classList.toggle("paged", this.paged);
         this.host.addEventListener("click", this.onClick);
@@ -296,6 +347,44 @@ export class ScoreView {
         this.placePhrases();
     }
 
+    /** Draws the bookmarks' brackets above the phrase brackets; an empty list draws none. */
+    setBookmarks(bookmarks: ScoreBookmark[]): void {
+        this.bookmarks = bookmarks;
+        this.placeBookmarks();
+    }
+
+    /** The pages as engraved, with the stretch of the piece on each, for the Contents drawer; none in the strip. */
+    pageOutline(): PageOutline[] {
+        const geometry = this.geometry();
+        for (const url of this.thumbnails) {
+            URL.revokeObjectURL(url);
+        }
+        this.thumbnails = [];
+        if (geometry === null || !this.paged) {
+            return [];
+        }
+        const pages: PageOutline[] = [];
+        this.pageSvgs.forEach((svg, index) => {
+            const bars = geometry.bars.filter((bar) => bar.page === index + 1);
+            if (bars.length === 0) {
+                return;
+            }
+            const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+            this.thumbnails.push(url);
+            pages.push({ page: index + 1, start: Math.min(...bars.map((bar) => bar.tick)), end: Math.max(...bars.map((bar) => (Number.isFinite(bar.end) ? bar.end : Number.MAX_SAFE_INTEGER))), url });
+        });
+        return pages;
+    }
+
+    /** Scrolls to the top of a page, from 1. */
+    showPage(page: number): void {
+        const element = this.pageElements().find((candidate) => candidate.dataset.page === String(page));
+        if (element !== undefined) {
+            this.scrolledByHand = performance.now();
+            this.host.scrollTo({ top: Math.max(0, element.offsetTop - this.pageElements()[0].offsetTop), behavior: "smooth" });
+        }
+    }
+
     /**
      * Scrolls exactly one page (one row of pages in landscape) on, or back with -1, within the same
      * continuous document (0018 section 2); in the strip, by most of the view's height.
@@ -376,6 +465,9 @@ export class ScoreView {
         this.host.removeEventListener("keydown", this.onKeyDown);
         this.host.removeEventListener("scroll", this.onScroll);
         cancelAnimationFrame(this.scrollFrame);
+        for (const url of this.thumbnails) {
+            URL.revokeObjectURL(url);
+        }
         this.host.replaceChildren();
     }
 
@@ -535,6 +627,7 @@ export class ScoreView {
     }
 
     private placePhrases(): void {
+        this.placeBookmarks();
         for (const old of this.host.querySelectorAll(`:scope > .${BRACKET_CLASS}`)) {
             old.remove();
         }
@@ -578,6 +671,56 @@ export class ScoreView {
                 this.host.append(bracket);
             }
         }
+    }
+
+    /** The top of the bookmark titles over a band's first run, in window pixels; null when none is there. */
+    private bookmarksTop(band: { left: number; right: number; top: number }): number | null {
+        let top: number | null = null;
+        for (const mark of this.host.querySelectorAll<HTMLElement>(`:scope > .${BOOKMARK_CLASS}`)) {
+            const box = mark.getBoundingClientRect();
+            const over = box.right > band.left && box.left < band.right && box.bottom <= band.top + 1 && band.top - box.top <= BOOKMARK_REACH;
+            if (over) {
+                top = Math.min(top ?? box.top, box.top - BOOKMARK_TITLE);
+            }
+        }
+        return top;
+    }
+
+    private placeBookmarks(): void {
+        for (const old of this.host.querySelectorAll(`:scope > .${BOOKMARK_CLASS}`)) {
+            old.remove();
+        }
+        const geometry = this.bookmarks.length === 0 ? null : this.geometry();
+        if (geometry === null) {
+            return;
+        }
+        const levels = bookmarkLevels(this.bookmarks);
+        this.bookmarks.forEach((bookmark, index) => {
+            for (const run of geometry.bracket(bookmark.start, bookmark.end, BOOKMARK_LIFT + levels[index] * BOOKMARK_STACK)) {
+                const mark = document.createElement("button");
+                mark.type = "button";
+                mark.className = `${BOOKMARK_CLASS} ink-${bookmark.ink}`;
+                mark.classList.toggle("from", !run.first);
+                mark.classList.toggle("on-to", !run.last);
+                mark.dataset.bookmark = bookmark.id;
+                mark.style.left = `${run.left}px`;
+                mark.style.top = `${run.top}px`;
+                mark.style.width = `${Math.max(4, run.right - run.left)}px`;
+                if (run.first) {
+                    mark.setAttribute("aria-label", bookmark.label);
+                    const title = document.createElement("span");
+                    title.className = "w";
+                    title.setAttribute("aria-hidden", "true");
+                    title.textContent = bookmark.title;
+                    mark.append(title);
+                } else {
+                    mark.tabIndex = -1;
+                    mark.setAttribute("aria-hidden", "true");
+                }
+                this.host.append(mark);
+            }
+        });
+        this.selection.placeMenu();
     }
 
     private applyHighlight(scroll: boolean): void {
@@ -726,6 +869,11 @@ export class ScoreView {
     }
 
     private readonly onClick = (event: MouseEvent): void => {
+        const mark = event.target instanceof Element ? event.target.closest<HTMLElement>(`.${BOOKMARK_CLASS}`) : null;
+        if (mark !== null) {
+            void this.dotnet.invokeMethodAsync("OnBookmarkClicked", mark.dataset.bookmark);
+            return;
+        }
         const bracket = event.target instanceof Element ? event.target.closest<HTMLElement>(`.${BRACKET_CLASS}`) : null;
         if (bracket !== null) {
             void this.dotnet.invokeMethodAsync("OnBracketClicked", Number(bracket.dataset.phrase));

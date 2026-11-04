@@ -154,6 +154,32 @@ public sealed record Project(
         return this with { Bookmarks = [.. Bookmarks.Select(bookmark => bookmark.Follow(spans))] };
     }
 
+    /// <summary>
+    /// The project with the detected form written into the Structure category (0018, section 5: "Structure for
+    /// free"): one bookmark per sentence, "Sentence A, bars 1–8", after the player's own. A sentence already
+    /// bookmarked in Structure over the same bars is left as it is, so a second call adds nothing.
+    /// </summary>
+    public Project AddStructureBookmarks(IEnumerable<Sentence> sentences, Words words, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(sentences);
+        Project project = this;
+        foreach (Sentence sentence in sentences)
+        {
+            if (project.Bookmarks.Any(bookmark => bookmark.CategoryId == BookmarkCategory.StructureId && bookmark.Span == sentence.Span))
+            {
+                continue;
+            }
+
+            string bars = sentence.FirstBar == sentence.LastBar
+                ? words.T($"bar {sentence.FirstBar}", $"такт {sentence.FirstBar}")
+                : words.T($"bars {sentence.FirstBar}–{sentence.LastBar}", $"такты {sentence.FirstBar}–{sentence.LastBar}");
+            string title = words.T($"Sentence {sentence.Letter}, {bars}", $"Предложение {sentence.Letter}, {bars}");
+            project = project.AddBookmark(new Bookmark(project.NextBookmarkId(), title, BookmarkCategory.StructureId, sentence.Span, FromPhrase: false, now));
+        }
+
+        return project;
+    }
+
     /// <summary>The project with a category of the player's own after the others.</summary>
     /// <exception cref="ArgumentException">A category with the same id is already there.</exception>
     public Project AddCategory(BookmarkCategory category)

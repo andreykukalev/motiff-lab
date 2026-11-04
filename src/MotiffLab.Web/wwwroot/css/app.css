@@ -2599,6 +2599,15 @@ body:has(.workspace) .site-footer {
     .workspace.insights-open .bar {
         right: calc(380px + var(--s-3) + var(--s-4));
     }
+
+    /* And the Contents drawer the left. */
+    .workspace.contents-open .bar {
+        left: calc(320px + var(--s-3) + var(--s-4));
+    }
+
+    .workspace.contents-open .pill {
+        left: calc(50% + 160px);
+    }
 }
 
 /* A tap anywhere outside a popover puts it away. */
@@ -3795,4 +3804,370 @@ body:has(.workspace) .site-footer {
     .lab.workspace .bar .back-to-page span {
         display: none;
     }
+}
+
+/* The piece's title in the bar opens the Contents drawer (0018 section 5). */
+.lab.workspace .bar button.ttl {
+    min-height: 0;
+    height: 36px;
+    padding: 0 var(--s-2);
+    border: 0;
+    border-radius: var(--r-s);
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+}
+
+@media (hover: hover) {
+    .lab.workspace .bar button.ttl:hover {
+        background: var(--accent-tint);
+    }
+}
+
+.lab.workspace .bar button.ttl.on {
+    background: var(--accent-tint);
+}
+
+/* The four inks are the four category colours of bookmarks (design/kit/docs/02-design-system.md). */
+.workspace .ink-carmine { --mark: var(--ink-carmine); }
+.workspace .ink-forest { --mark: var(--ink-forest); }
+.workspace .ink-graphite { --mark: var(--ink-graphite); }
+.workspace .ink-ochre { --mark: var(--ink-ochre); }
+
+/* Bookmarks on the score (design/kit/ds.css .bmb): a bracket in the category's ink above the phrase brackets, the title
+   in italic serif at its left end; overlapping ones stack. Each is a button with a hit area over its title and line. */
+.lab .score button.bmb {
+    position: absolute;
+    z-index: 1;
+    height: 10px;
+    min-height: 0;
+    padding: 0;
+    box-sizing: border-box;
+    background: transparent;
+    border: 1.25px solid var(--mark, var(--ink-carmine));
+    border-bottom: 0;
+    border-radius: 2px 2px 0 0;
+    cursor: pointer;
+}
+
+.lab .score button.bmb::before {
+    content: "";
+    position: absolute;
+    inset: -17px -2px -3px;
+}
+
+.lab .score button.bmb.from {
+    border-left: 0;
+    border-top-left-radius: 0;
+}
+
+.lab .score button.bmb.on-to {
+    border-right: 0;
+    border-top-right-radius: 0;
+}
+
+.score .bmb .w {
+    position: absolute;
+    left: 0;
+    top: -17px;
+    font: italic 500 12px/14px var(--font-display);
+    color: var(--mark, var(--ink-carmine));
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.lab .score button.bmb:focus-visible {
+    box-shadow: none;
+    outline: 2px dotted var(--accent);
+    outline-offset: 3px;
+}
+
+/* While a new bookmark is named, the card has the screen's lower half to itself: the pill steps aside. */
+.workspace.bookmarking .pill {
+    visibility: hidden;
+}
+
+/* The bookmark card: over the selection in place of the menu's items, or in the drawer for a bookmark being changed. */
+.workspace .ctx .menu:has(.bookmark-card) {
+    height: auto;
+    padding: var(--s-3) var(--s-4);
+    border-radius: var(--r-l);
+    white-space: normal;
+}
+
+.workspace .bookmark-card {
+    display: grid;
+    gap: var(--s-3);
+    width: 300px;
+    max-width: calc(100vw - 2 * var(--s-6));
+}
+
+.workspace .contents .bookmark-card {
+    width: auto;
+    padding: var(--s-3);
+    border-radius: var(--r-m);
+    background: var(--surface-2);
+    border: 1px solid var(--hairline);
+}
+
+.workspace .bookmark-card .field {
+    display: grid;
+    gap: var(--s-1);
+}
+
+.workspace .bookmark-card .overline,
+.workspace .contents .cat {
+    font: var(--t-overline);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+}
+
+.lab.workspace .bookmark-card input,
+.lab.workspace .contents input.search {
+    height: var(--h-control);
+    min-height: 0;
+    padding: 0 var(--s-3);
+    box-sizing: border-box;
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-s);
+    background: var(--surface);
+    color: var(--ink);
+    font: var(--t-body);
+}
+
+.workspace .bookmark-card .cats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+}
+
+.lab.workspace .bookmark-card .cat-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    min-height: 0;
+    padding: 0 var(--s-3);
+    border-radius: var(--r-pill);
+    border: 1px solid var(--hairline-strong);
+    background: var(--surface-2);
+    color: var(--ink);
+    font: var(--t-label);
+    cursor: pointer;
+}
+
+.lab.workspace .bookmark-card .cat-chip.on {
+    background: var(--accent-tint);
+    border-color: var(--accent);
+}
+
+.workspace :is(.bookmark-card, .contents) .d {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--mark);
+    flex: none;
+}
+
+.workspace .bookmark-card .row {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.workspace .bookmark-card .row .sp {
+    flex: 1;
+}
+
+/* The Contents drawer (0018 section 5, design/kit/ds.css .sheet.left, .entry, .cat): 320 px over the left of the page in
+   landscape, a bottom sheet at half the height in portrait. */
+.lab.app.workspace .sheet.contents {
+    position: absolute;
+    z-index: 3;
+    top: var(--s-3);
+    left: var(--s-3);
+    bottom: var(--s-3);
+    width: 320px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+    padding: var(--s-4) var(--s-5);
+    overflow-y: auto;
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-l);
+    box-shadow: var(--shadow-sheet);
+    animation: rise var(--t-base) var(--ease);
+}
+
+@media (orientation: portrait) {
+    .lab.app.workspace .sheet.contents {
+        top: auto;
+        right: var(--s-3);
+        width: auto;
+        height: 50vh;
+        bottom: 0;
+        border-radius: var(--r-l) var(--r-l) 0 0;
+    }
+
+    .workspace.contents-open .pill {
+        bottom: calc(50vh + var(--s-3));
+    }
+}
+
+.workspace .contents .contents-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-2);
+}
+
+.workspace .contents .contents-tools {
+    display: grid;
+    gap: var(--s-2);
+}
+
+.workspace .contents .contents-empty {
+    display: grid;
+    gap: var(--s-3);
+    justify-items: start;
+}
+
+.lab.workspace .contents button.cat {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    width: 100%;
+    height: 32px;
+    min-height: 0;
+    margin: var(--s-2) 0 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+}
+
+.lab.workspace .contents button.cat[aria-expanded="false"] {
+    color: var(--ink-3);
+}
+
+.workspace .contents .entries {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 2px;
+}
+
+.workspace .contents .entry {
+    display: flex;
+    align-items: center;
+    gap: var(--s-1);
+    border-radius: var(--r-s);
+}
+
+.workspace .contents .entry.on {
+    background: var(--accent-tint);
+    box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.lab.workspace .contents .entry button.go {
+    flex: 1;
+    display: grid;
+    gap: 2px;
+    min-height: var(--h-touch);
+    min-width: 0;
+    padding: var(--s-2) var(--s-3);
+    border: 0;
+    border-radius: var(--r-s);
+    background: transparent;
+    color: var(--ink);
+    text-align: left;
+    cursor: pointer;
+}
+
+@media (hover: hover) {
+    .lab.workspace .contents .entry:not(.on) button.go:hover {
+        background: var(--accent-tint);
+    }
+}
+
+.workspace .contents .entry .t {
+    font: var(--t-body);
+}
+
+.workspace .contents .entry .c {
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+/* The Pages tab: the pages as thumbnails on paper, with the phrases that start on each and a tick per bookmark. */
+.workspace .contents .pages-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+    gap: var(--s-4) var(--s-3);
+}
+
+.lab.workspace .contents .page-thumb {
+    display: grid;
+    gap: var(--s-1);
+    justify-items: center;
+    width: 100%;
+    min-height: 0;
+    padding: var(--s-1);
+    border: 0;
+    border-radius: var(--r-s);
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+}
+
+.workspace .contents .page-thumb .th {
+    position: relative;
+    display: block;
+    width: 100%;
+    aspect-ratio: 210 / 297;
+    background: var(--paper);
+    border: 1px solid var(--hairline);
+    border-radius: 3px;
+    box-shadow: var(--shadow-paper);
+    overflow: hidden;
+}
+
+.workspace .contents .page-thumb .th img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.workspace .contents .page-thumb.on .th {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+.workspace .contents .page-thumb .ticks {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    display: flex;
+    gap: 3px;
+}
+
+.workspace .contents .page-thumb .tick {
+    width: 4px;
+    height: 12px;
+    border-radius: 1px;
+    background: var(--mark);
+}
+
+.workspace .contents .page-thumb .caption {
+    font: var(--t-caption);
+    color: var(--ink-2);
 }

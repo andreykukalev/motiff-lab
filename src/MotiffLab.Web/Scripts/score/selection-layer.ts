@@ -35,6 +35,8 @@ export interface SelectionHost {
     penOn(): boolean;
     /** Bars chosen by a drag across the score, or by moving a handle: where the first and the last bar start. */
     chosen(first: number, last: number, byHandle: boolean): void;
+    /** The top of the marks drawn just above a band's first run (the bookmarks), in window pixels, for the menu to clear; null for none. */
+    marksTop?(band: { left: number; right: number; top: number }): number | null;
 }
 
 /** The selection as Blazor gives it: its span in ticks and what a screen reader says for each handle. */
@@ -174,7 +176,10 @@ export class SelectionLayer {
         }
         menu.hidden = false;
         const size = menu.getBoundingClientRect();
-        const place = menuPlace(first, last, size, { width: window.innerWidth, height: window.innerHeight });
+        // Bookmarks over the band push the menu up: it sits as far above them as above the bracket number.
+        const marks = this.owner.marksTop?.(first) ?? null;
+        const top = marks === null ? first.top : Math.min(first.top, marks + BRACKET_LIFT + NUMBER_HEIGHT);
+        const place = menuPlace({ left: first.left, right: first.right, top }, last, size, { width: window.innerWidth, height: window.innerHeight });
         menu.style.left = `${place.left}px`;
         menu.style.top = `${place.top}px`;
         menu.style.setProperty("--pointer", `${place.pointer}px`);

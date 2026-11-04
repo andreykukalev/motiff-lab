@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { leavesFocus, stepFor } from "../../src/MotiffLab.Web/wwwroot/js/phrases/phrase-keys.js";
+import { bookmarks, leavesFocus, stepFor } from "../../src/MotiffLab.Web/wwwroot/js/phrases/phrase-keys.js";
 
 const key = (name, extra = {}) => ({ key: name, altKey: false, ctrlKey: false, metaKey: false, shiftKey: false, target: { tagName: "BODY" }, ...extra });
 
@@ -31,4 +31,12 @@ test("Escape leaves phrase focus, unless it is typed into a field or pressed wit
     assert.equal(leavesFocus(key("Escape", { shiftKey: true })), false);
     assert.equal(leavesFocus(key("Escape", { target: { tagName: "INPUT" } })), false);
     assert.equal(stepFor(key("Escape")), null);
+});
+
+test("B bookmarks the selection, unless it is typed into a field or pressed with a modifier", () => {
+    assert.equal(bookmarks(key("b")), true);
+    assert.equal(bookmarks(key("n")), false);
+    assert.equal(bookmarks(key("b", { ctrlKey: true })), false);
+    assert.equal(bookmarks(key("b", { target: { tagName: "INPUT" } })), false);
+    assert.equal(stepFor(key("b")), null);
 });
