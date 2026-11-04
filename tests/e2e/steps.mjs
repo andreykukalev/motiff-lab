@@ -32,7 +32,7 @@ export async function openFurElise(page) {
     const load = page.getByRole("button", { name: "Für Elise" });
     await expect(load).toBeEnabled({ timeout: 30_000 });
     await load.click();
-    await expect(page.getByText("Für Elise (Beethoven, opening)")).toBeVisible();
+    await expect(page.locator(".bar .ttl")).toHaveText("Für Elise (Beethoven, opening)");
     return errors;
 }
 

@@ -95,30 +95,37 @@
             }
 
             @* The bar (0018 section 2, design/kit/ds.css .bar): back, the title, the page under the top of the view, the five actions and the overflow. *@
-            <header class="bar" data-keeps-selection @ref="_bar">
-                <a class="act" href="@BackUrl" aria-label="@BackLabel" title="@BackLabel"><Icon Name="back" Size="IconSize.Large" /></a>
-                <span class="ttl" title="@SessionLine">@BarTitle</span>
-                @if (PageText is { } pages)
+            <header class="bar @(Focused ? "focus-bar" : null)" data-keeps-selection @ref="_bar">
+                @if (Focused)
                 {
-                    <span class="pg" aria-live="off">@pages</span>
+                    @FocusBar
                 }
-                <span class="sp"></span>
-                <button class="act @(_popover == Popover.Phrases ? "on" : null)" aria-expanded="@(_popover == Popover.Phrases ? "true" : "false")" aria-label="@Text["bar.phrases"]" title="@Text["bar.phrases"]"
-                        @onclick="() => TogglePopover(Popover.Phrases)"><Icon Name="phrases" Size="IconSize.Large" /></button>
-                @if (_scoreView?.CanDraw == true)
+                else
                 {
-                    <button class="act @(_penOn ? "on" : null)" aria-pressed="@(_penOn ? "true" : "false")" aria-label="@Text["bar.pen"]" title="@Text["pencil.hint"]"
-                            @onclick="TogglePenAsync"><Icon Name="pen" Size="IconSize.Large" /></button>
+                    <a class="act" href="@BackUrl" aria-label="@BackLabel" title="@BackLabel"><Icon Name="back" Size="IconSize.Large" /></a>
+                    <span class="ttl" title="@SessionLine">@BarTitle</span>
+                    @if (PageText is { } pages)
+                    {
+                        <span class="pg" aria-live="off">@pages</span>
+                    }
+                    <span class="sp"></span>
+                    <button class="act @(_popover == Popover.Phrases ? "on" : null)" aria-expanded="@(_popover == Popover.Phrases ? "true" : "false")" aria-label="@Text["bar.phrases"]" title="@Text["bar.phrases"]"
+                            @onclick="() => TogglePopover(Popover.Phrases)"><Icon Name="phrases" Size="IconSize.Large" /></button>
+                    @if (_scoreView?.CanDraw == true)
+                    {
+                        <button class="act @(_penOn ? "on" : null)" aria-pressed="@(_penOn ? "true" : "false")" aria-label="@Text["bar.pen"]" title="@Text["pencil.hint"]"
+                                @onclick="TogglePenAsync"><Icon Name="pen" Size="IconSize.Large" /></button>
+                    }
+                    <button class="act @(_rollOpen ? "on" : null)" aria-pressed="@(_rollOpen ? "true" : "false")" aria-label="@Text["bar.roll"]" title="@Text["bar.roll"]"
+                            @onclick="ToggleRoll"><Icon Name="roll" Size="IconSize.Large" /></button>
+                    <button class="act @(_insightsOpen ? "on" : null)" aria-pressed="@(_insightsOpen ? "true" : "false")" aria-label="@Text["bar.insights"]" title="@Text["bar.insights"]"
+                            @onclick="ToggleInsights"><Icon Name="insight" Size="IconSize.Large" /></button>
+                    <button class="act" @onclick="TogglePlayAsync" aria-label="@(Player.State == PlaybackState.Stopped ? Text["transport.play"] : Text["transport.pause"])">
+                        <Icon Name="@(Player.State != PlaybackState.Stopped ? "pause" : "play")" Size="IconSize.Large" />
+                    </button>
+                    <button class="act @(_popover == Popover.More ? "on" : null)" aria-expanded="@(_popover == Popover.More ? "true" : "false")" aria-label="@Text["bar.more"]" title="@Text["bar.more"]"
+                            @onclick="() => TogglePopover(Popover.More)"><Icon Name="more" Size="IconSize.Large" /></button>
                 }
-                <button class="act @(_rollOpen ? "on" : null)" aria-pressed="@(_rollOpen ? "true" : "false")" aria-label="@Text["bar.roll"]" title="@Text["bar.roll"]"
-                        @onclick="ToggleRoll"><Icon Name="roll" Size="IconSize.Large" /></button>
-                <button class="act @(_insightsOpen ? "on" : null)" aria-pressed="@(_insightsOpen ? "true" : "false")" aria-label="@Text["bar.insights"]" title="@Text["bar.insights"]"
-                        @onclick="ToggleInsights"><Icon Name="insight" Size="IconSize.Large" /></button>
-                <button class="act" @onclick="TogglePlayAsync" aria-label="@(Player.State == PlaybackState.Stopped ? Text["transport.play"] : Text["transport.pause"])">
-                    <Icon Name="@(Player.State != PlaybackState.Stopped ? "pause" : "play")" Size="IconSize.Large" />
-                </button>
-                <button class="act @(_popover == Popover.More ? "on" : null)" aria-expanded="@(_popover == Popover.More ? "true" : "false")" aria-label="@Text["bar.more"]" title="@Text["bar.more"]"
-                        @onclick="() => TogglePopover(Popover.More)"><Icon Name="more" Size="IconSize.Large" /></button>
             </header>
 
             @if (_popover != Popover.None)
@@ -220,6 +227,32 @@
                     {
                         <p class="meta">@_tip</p>
                     }
+                </div>
+            }
+
+            @if (Focused && FocusCard is { } card)
+            {
+                @* Phrase focus (0018 section 4): the page dimmed behind the phrase lifted into a card; a tap on the page goes back to it. *@
+                <div class="focus-layer" data-keeps-selection>
+                    <button class="veil" aria-label="@Text["focus.back"]" tabindex="-1" @onclick="LeaveFocusAsync"></button>
+                    <div class="focus-stage">
+                        @if (FocusVariations is { Count: > 0 } variations)
+                        {
+                            @* The variations kept for the phrase: a chip picks the one heard and shown as the ossia. *@
+                            <div class="var-chips" role="group" aria-label="@Text["focus.variations"]">
+                                @foreach (Observation kept in variations)
+                                {
+                                    bool heard = kept.Id == HeardKeptId;
+                                    <button class="var-chip @(heard ? "on" : null)" aria-pressed="@(heard ? "true" : "false")" @onclick="() => ShowKeptVariationAsync(kept)">@kept.Name</button>
+                                }
+                            </div>
+                        }
+                        <section class="focus-card" aria-label="@Text.Format("focus.cardLabel", FocusPosition)">
+                            <button class="step prev" aria-label="@Text["focus.previous"]" title="@Text["focus.previous"]" disabled="@(!CanStepBack)" @onclick="() => StepUnitAsync(-1)"><Icon Name="back" Size="IconSize.Large" /></button>
+                            <PhraseCard Source="card" Sounding="@FocusSounding" />
+                            <button class="step next" aria-label="@Text["focus.next"]" title="@Text["focus.next"]" disabled="@(!CanStepOn)" @onclick="() => StepUnitAsync(1)"><Icon Name="fwd" Size="IconSize.Large" /></button>
+                        </section>
+                    </div>
                 </div>
             }
 
@@ -624,6 +657,10 @@
                     {
                         <button class="it @(Looping ? "on" : null)" aria-pressed="@(Looping ? "true" : "false")" @onclick="ToggleLoopSelectionAsync"><Icon Name="loop" /> @Text["focus.loop"]</button>
                     }
+                    @if (Focused)
+                    {
+                        <button class="it @(_leadIn ? "on" : null)" aria-pressed="@(_leadIn ? "true" : "false")" title="@Text["focus.leadInHint"]" @onclick="ToggleLeadInAsync"><Icon Name="leadin" /> @Text["focus.leadIn"]</button>
+                    }
                     <button class="it @(_pillMenu == PillMenu.Tempo ? "on" : null)" aria-expanded="@(_pillMenu == PillMenu.Tempo ? "true" : "false")" aria-label="@Text.Format("pill.tempoLabel", TempoPercent)"
                             @onclick="() => TogglePillMenu(PillMenu.Tempo)"><Icon Name="tempo" /> <span class="mono">@TempoPercent%</span></button>
                     @if (_filters.Length > 1)
@@ -675,11 +712,12 @@
 
 @code {
     /// <summary>
-    /// The contextual menu's items (0018 section 3; design/kit/ds.css .menu): Loop, then the piano roll and Insights,
-    /// then the overflow with the phrase edits that apply. Focus, Note, Bookmark and Highlight join it with phrase focus and annotations.
+    /// The contextual menu's items (0018 section 3; design/kit/ds.css .menu): Loop and Focus, then the piano roll and Insights,
+    /// then the overflow with the phrase edits that apply. Note, Bookmark and Highlight join it with annotations.
     /// </summary>
     private RenderFragment SelectionMenu => @<div class="menu">
         <button class="it @(Looping ? "on" : null)" aria-pressed="@(Looping ? "true" : "false")" @onclick="ToggleLoopSelectionAsync"><Icon Name="loop" /> @Text["focus.loop"]</button>
+        <button class="it" title="@Text["focus.enterHint"]" @onclick="MenuFocus"><Icon Name="search" /> @Text["focus.enter"]</button>
         <span class="div" aria-hidden="true"></span>
         <button class="it @(_rollOpen ? "on" : null)" aria-pressed="@(_rollOpen ? "true" : "false")" @onclick="MenuRoll"><Icon Name="roll" /> @Text["bar.roll"]</button>
         <button class="it @(_insightsOpen ? "on" : null)" aria-pressed="@(_insightsOpen ? "true" : "false")" @onclick="MenuInsights"><Icon Name="insight" /> @Text["bar.insights"]</button>
@@ -707,6 +745,40 @@
             }
         }
     </div>;
+
+    /// <summary>
+    /// The focus bar (0018 section 4): Back to the page, where the phrase is, Reading / As played for a transcription,
+    /// Original / Variation / Alternate when the phrase has a variation, then the piano roll, Insights and Play.
+    /// </summary>
+    private RenderFragment FocusBar => @<text>
+        <button class="back-to-page" title="@Text["focus.backHint"]" @onclick="LeaveFocusAsync"><Icon Name="back" Size="IconSize.Large" /> <span>@Text["focus.back"]</span></button>
+        <span class="crumb">@FocusPosition</span>
+        <span class="sp"></span>
+        @if (_heard)
+        {
+            <div class="seg" role="radiogroup" aria-label="@Text["focus.notation"]">
+                <button role="radio" class="@(_readable ? "on" : null)" aria-checked="@(_readable ? "true" : "false")" @onclick="() => SetReadable(true)">@Text["focus.reading"]</button>
+                <button role="radio" class="@(_readable ? null : "on")" aria-checked="@(_readable ? "false" : "true")" @onclick="() => SetReadable(false)">@Text["score.asPlayed"]</button>
+            </div>
+        }
+        @if (FocusHasVariation)
+        {
+            bool alternate = _alternating;
+            bool variation = !alternate && VariationChosen;
+            <div class="seg" role="radiogroup" aria-label="@Text["focus.listen"]">
+                <button role="radio" class="@(!alternate && !variation ? "on" : null)" aria-checked="@(!alternate && !variation ? "true" : "false")" title="@Text["compare.originalHint"]" @onclick="() => CompareAsync(false)">@Text["focus.original"]</button>
+                <button role="radio" class="@(variation ? "on" : null)" aria-checked="@(variation ? "true" : "false")" title="@Text["compare.variationHint"]" @onclick="() => CompareAsync(true)">@Text["focus.variation"]</button>
+                <button role="radio" class="@(alternate ? "on" : null)" aria-checked="@(alternate ? "true" : "false")" title="@Text["compare.alternateHint"]" @onclick="StartOneAfterTheOtherAsync">@Text["focus.alternate"]</button>
+            </div>
+        }
+        <button class="act @(_rollOpen ? "on" : null)" aria-pressed="@(_rollOpen ? "true" : "false")" aria-label="@Text["bar.roll"]" title="@Text["bar.roll"]"
+                @onclick="ToggleRoll"><Icon Name="roll" Size="IconSize.Large" /></button>
+        <button class="act @(_insightsOpen ? "on" : null)" aria-pressed="@(_insightsOpen ? "true" : "false")" aria-label="@Text["bar.insights"]" title="@Text["bar.insights"]"
+                @onclick="ToggleInsights"><Icon Name="insight" Size="IconSize.Large" /></button>
+        <button class="act" @onclick="TogglePlayAsync" aria-label="@(Player.State == PlaybackState.Stopped ? Text["transport.play"] : Text["transport.pause"])">
+            <Icon Name="@(Player.State != PlaybackState.Stopped ? "pause" : "play")" Size="IconSize.Large" />
+        </button>
+    </text>;
 
     private const string VariationSource = "variation";
 
@@ -1411,6 +1483,8 @@
         _filter = SelectionFilter.All;
         _keptIds = null;
         _selection = null;
+        _focus = false;
+        _focusSpan = null;
         _highlight = null;
         _analysis = null;
         _structure = null;
@@ -1907,6 +1981,9 @@
         }
 
         _selection = null;
+        // Nothing to lift: focus goes with the selection.
+        _focus = false;
+        _focusSpan = null;
         _highlight = null;
         _analysis = null;
         _structure = null;
@@ -2655,6 +2732,7 @@
         _answerLoop = null;
         var ids = selection.NoteIds.ToHashSet(StringComparer.Ordinal);
         await Player.SetSourceAsync(SelectionSource, _score!.WithNotes(Voiced([.. _notes!.Where(note => ids.Contains(note.Id))])));
+        await SetLeadSourceAsync(selection);
         // One after the other (#43) keeps alternating as the selection, its notes or the variation change.
         _alternating = _alternating && _variation is { Notes.Count: > 0 };
         if (_alternating)
@@ -2662,8 +2740,9 @@
             return await AlternateAsync(selection);
         }
 
-        await Player.SelectSourcesAsync([.. _hear.Select(id => id == Player.OriginalSource ? SelectionSource : id)]);
-        TickSpan range = PlayRange(selection);
+        await Player.SelectSourcesAsync(WithLeadSource(_hear.Select(id => id == Player.OriginalSource ? SelectionSource : id)));
+        // In focus, Lead-in takes in the bar before and the bar after.
+        TickSpan range = WithLead(PlayRange(selection));
         await Player.SetLoopAsync(range);
         if (!range.Contains(Player.Position))
         {

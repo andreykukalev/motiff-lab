@@ -73,6 +73,7 @@ public partial class PlaybackLab : IAsyncDisposable
     {
         _rollOpen ? "roll-open" : null,
         _insightsOpen ? "insights-open" : null,
+        Focused ? "focused" : null,
         _popover != Popover.None ? "popover-open" : null,
     }.Where(name => name is not null));
 
@@ -186,7 +187,7 @@ public partial class PlaybackLab : IAsyncDisposable
     private string Bars(PhraseUnit unit) =>
         unit.FirstBar == unit.LastBar ? Text.Format("bars.one", unit.FirstBar) : Text.Format("bars.range", unit.FirstBar, unit.LastBar);
 
-    /// <summary>A tap on a bracket selects its unit; a tap on the selected one will lift it into focus (0018 section 4).</summary>
+    /// <summary>A tap on a bracket selects its unit; a tap on the selected one lifts it into focus (0018 section 4).</summary>
     private Task OnBracketPickedAsync(int number)
     {
         _popover = Popover.None;
@@ -198,6 +199,8 @@ public partial class PlaybackLab : IAsyncDisposable
         PhraseUnit unit = _levels.Units(_level)[number - 1];
         if (unit == CurrentUnit)
         {
+            // The second tap lifts the phrase into focus.
+            EnterFocus();
             return Task.CompletedTask;
         }
 
@@ -329,19 +332,30 @@ public partial class PlaybackLab : IAsyncDisposable
         StateHasChanged();
     }
 
-    /// <summary>The unit before or after the selection at the level shown; the first when nothing is selected.</summary>
-    private Task StepUnitAsync(int direction)
+    /// <summary>
+    /// The unit before or after the selection at the level shown; the first when nothing is selected. In focus, the one
+    /// before or after the phrase in focus, and the card moves to it.
+    /// </summary>
+    private async Task StepUnitAsync(int direction)
     {
         if (_levels is null)
         {
-            return Task.CompletedTask;
+            return;
         }
 
         IReadOnlyList<PhraseUnit> units = _levels.Units(_level);
-        int index = _selection is { } selection
-            ? (CurrentUnit ?? _levels.At(_level, selection.Span.Onset)).Number - 1 + Math.Sign(direction)
-            : direction > 0 ? 0 : -1;
-        return index >= 0 && index < units.Count ? SelectAsync(_levels.Selectable(units[index]), note: null) : Task.CompletedTask;
+        PhraseUnit? from = Focused ? FocusUnit : _selection is { } selection ? CurrentUnit ?? _levels.At(_level, selection.Span.Onset) : null;
+        int index = from is not null ? from.Number - 1 + Math.Sign(direction) : direction > 0 ? 0 : -1;
+        if (index < 0 || index >= units.Count)
+        {
+            return;
+        }
+
+        await SelectAsync(_levels.Selectable(units[index]), note: null);
+        if (_focus)
+        {
+            _focusSpan = _selection?.Span;
+        }
     }
 
     /// <summary>A click on a bar in the score selects it, and a Shift-click extends the selection to it, as on the roll (S1-M1).</summary>

@@ -1030,5 +1030,21 @@
   "menu.split": "Split here",
   "menu.splitHint": "Split at bar {0}, where the playhead is.",
   "selection.handleStart": "Start of the selection: drag it to a barline, or move it a bar with the arrow keys",
-  "selection.handleEnd": "End of the selection: drag it to a barline, or move it a bar with the arrow keys"
+  "selection.handleEnd": "End of the selection: drag it to a barline, or move it a bar with the arrow keys",
+  "focus.back": "Back to page",
+  "focus.backHint": "Back to the page, where the phrase is (Escape)",
+  "focus.position": "{0} · {1} {2} of {3}",
+  "focus.cardLabel": "In focus: {0}",
+  "focus.ossia": "Ossia · {0}",
+  "focus.variationName": "Variation",
+  "focus.variations": "Saved variations of this phrase",
+  "focus.listen": "What you hear",
+  "focus.original": "Original",
+  "focus.variation": "Variation",
+  "focus.alternate": "Alternate",
+  "focus.notation": "How the notes are written",
+  "focus.reading": "Reading",
+  "focus.leadIn": "Lead-in",
+  "focus.leadInHint": "Play starts a bar early and ends a bar late, to hear the phrase in its place.",
+  "focus.enterHint": "Lift the phrase into a card across the screen, the page dimmed behind it."
 }
