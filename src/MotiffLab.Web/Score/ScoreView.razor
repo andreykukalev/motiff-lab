@@ -489,6 +489,10 @@ else if (_loading && !HoldHeight)
     public async Task<IReadOnlyList<PageOutline>> PageOutlineAsync() =>
         _view is null ? [] : await _view.InvokeAsync<PageOutline[]>("pageOutline");
 
+    /// <summary>Keeps the piece's cover for the library: the first page with where its pages, phrases and bars start. False in the strip.</summary>
+    public async Task<bool> SaveCoverAsync(string projectId, IEnumerable<long> phraseStarts, IEnumerable<long> barStarts, int firstBar) =>
+        _view is not null && await _view.InvokeAsync<bool>("saveCover", projectId, phraseStarts.ToArray(), barStarts.ToArray(), firstBar);
+
     /// <summary>Places the contextual menu again, as when a drawer opens or closes beside it.</summary>
     public async Task PlaceMenuAsync()
     {

@@ -16,7 +16,7 @@ import { A4_HEIGHT, A4_WIDTH, buildPdf, crop, inkBounds, type InkLayer, type Pdf
 import { hasText, svgToPdfOperators, textOnlySvg } from "./svg-to-pdf.js";
 import { A4_LAYOUT, pdfFileName, titleBlock, withTitle } from "./score-page.js";
 import { ScoreGeometry, readPage, type PageGeometry, type PagePlacement } from "./score-geometry.js";
-import { downloadBytes } from "../storage/project-store.js";
+import { downloadBytes, saveCover } from "../storage/project-store.js";
 import { newToolkit, type VerovioToolkit } from "./verovio.js";
 
 interface DotNetObject {
@@ -422,6 +422,34 @@ export class ScoreView {
             pages.push({ page: index + 1, start: Math.min(...bars.map((bar) => bar.tick)), end: Math.max(...bars.map((bar) => (Number.isFinite(bar.end) ? bar.end : Number.MAX_SAFE_INTEGER))), url });
         });
         return pages;
+    }
+
+    /**
+     * Keeps the piece's cover for the library (0018 section 9): the first page as engraved, its title block, and where
+     * each page starts, with the phrases and bars Blazor names. Nothing is kept in the strip, which has no pages.
+     */
+    async saveCover(id: string, phraseStarts: number[], barStarts: number[], firstBar: number): Promise<boolean> {
+        const geometry = this.geometry();
+        if (geometry === null || !this.paged || this.pageSvgs.length === 0) {
+            return false;
+        }
+        const pageStarts = this.pageSvgs.map((_, index) => {
+            const ticks = geometry.bars.filter((bar) => bar.page === index + 1).map((bar) => bar.tick);
+            return ticks.length > 0 ? Math.min(...ticks) : Number.MAX_SAFE_INTEGER;
+        });
+        const heading = titleBlock(this.pageSvgs[0]);
+        await saveCover({
+            id,
+            svg: this.pageSvgs[0],
+            title: heading?.title || null,
+            lines: heading?.lines ?? [],
+            pages: this.pageSvgs.length,
+            pageStarts,
+            phraseStarts,
+            barStarts,
+            firstBar,
+        });
+        return true;
     }
 
     /** Scrolls to the top of a page, from 1. */

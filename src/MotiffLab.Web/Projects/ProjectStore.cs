@@ -35,7 +35,12 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
             "saveProject",
             project.Id,
             Encoding.UTF8.GetString(ProjectFile.Write(project)),
-            new StoredSummary(summary.Id, summary.FileName, summary.MotifCount, summary.VariationCount, Iso(summary.LastOpened), summary.ResumeCount, summary.IdeaCount));
+            new StoredSummary(summary.Id, summary.FileName, summary.MotifCount, summary.VariationCount, Iso(summary.LastOpened), summary.ResumeCount, summary.IdeaCount)
+            {
+                Origin = summary.Origin.ToString(),
+                CheckBars = summary.CheckBars,
+                Latest = summary.Latest is { } latest ? new StoredResume(latest.Id, latest.Name, latest.At, latest.From, latest.To, Iso(latest.LastActive)) : null,
+            });
     }
 
     /// <summary>The saved project, or null when there is none. Throws <see cref="ProjectFileException"/> when it is damaged.</summary>
@@ -56,9 +61,31 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
             row.FileName,
             row.MotifCount,
             row.VariationCount,
-            DateTimeOffset.Parse(row.LastOpened, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
+            Time(row.LastOpened),
             row.ResumeCount,
-            row.IdeaCount))];
+            row.IdeaCount)
+        {
+            Origin = Enum.TryParse(row.Origin, out PieceOrigin origin) ? origin : PieceOrigin.File,
+            CheckBars = row.CheckBars,
+            Latest = row.Latest is { } latest ? new ResumeSummary(latest.Id, latest.Name, latest.At, latest.From, latest.To, Time(latest.LastActive)) : null,
+        })];
+    }
+
+    /// <summary>The covers saved, by project; each page is an image address that holds until the next listing.</summary>
+    public async Task<IReadOnlyDictionary<string, PieceCover>> CoversAsync()
+    {
+        IJSObjectReference module = await ModuleAsync();
+        PieceCover[] rows = await module.InvokeAsync<PieceCover[]>("listCovers");
+        return rows.ToDictionary(row => row.Id);
+    }
+
+    /// <summary>Lets go of the covers' image addresses, when the library closes.</summary>
+    public async Task ReleaseCoversAsync()
+    {
+        if (_module is not null)
+        {
+            await _module.InvokeVoidAsync("releaseCovers");
+        }
     }
 
     public async Task DeleteAsync(string id)
@@ -114,8 +141,19 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
     private async Task<IJSObjectReference> ModuleAsync() =>
         _module ??= await js.InvokeAsync<IJSObjectReference>("import", "./js/storage/project-store.js");
 
+    private static DateTimeOffset Time(string iso) => DateTimeOffset.Parse(iso, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
+
     /// <summary>A summary row as stored; rows saved before resume points existed have no counts of them, so they read as 0.</summary>
-    private sealed record StoredSummary(string Id, string FileName, int MotifCount, int VariationCount, string LastOpened, int ResumeCount = 0, int IdeaCount = 0);
+    private sealed record StoredSummary(string Id, string FileName, int MotifCount, int VariationCount, string LastOpened, int ResumeCount = 0, int IdeaCount = 0)
+    {
+        public string? Origin { get; init; }
+
+        public int CheckBars { get; init; }
+
+        public StoredResume? Latest { get; init; }
+    }
+
+    private sealed record StoredResume(string Id, string? Name, long At, long? From, long? To, string LastActive);
 
     private sealed record StorageUse(double Usage, double Quota, bool NearlyFull);
 }

@@ -1,13 +1,15 @@
 // Projects saved on the device (S1-P1): a small IndexedDB wrapper. Each project is stored as its
-// project file (ProjectFile.cs) next to a summary row for the projects screen (N1), so listing never
-// loads the source files. Nothing here leaves the device.
+// project file (ProjectFile.cs) next to a summary row for the library (0018 section 9), so listing never
+// loads the source files, and a cover: the first page as engraved, with where its pages, phrases and bars
+// start, saved when the score was last shown. Nothing here leaves the device.
 
 export { deleteMarks } from "./pencil-store.js";
 
 const DATABASE = "motiff-lab";
-const VERSION = 1;
+const VERSION = 2;
 const PROJECTS = "projects";
 const SUMMARIES = "summaries";
+const COVERS = "covers";
 
 /** Above this share of the browser's quota the projects screen suggests exporting projects. */
 export const NEARLY_FULL = 0.8;
@@ -22,7 +24,33 @@ export interface ProjectSummary {
     /** Work sessions and kept ideas (0012); rows saved by earlier versions have neither. */
     resumeCount?: number;
     ideaCount?: number;
+    /** Where the piece came from, the bars Check asks about and the latest resume point (0018); rows saved earlier have none. */
+    origin?: string;
+    checkBars?: number;
+    latest?: { id: string; name: string | null; at: number; from: number | null; to: number | null; lastActive: string } | null;
 }
+
+/**
+ * A piece's cover in the library (0018 section 9), as the score view saves it: the first page's SVG, the title
+ * and lines it is headed with, the number of pages, and the ticks where each page, phrase and bar starts, so
+ * the card can say "p. 2 · phrase 5" for any resume point without opening the piece.
+ */
+export interface Cover {
+    id: string;
+    svg: string;
+    title: string | null;
+    lines: string[];
+    pages: number;
+    pageStarts: number[];
+    phraseStarts: number[];
+    barStarts: number[];
+    firstBar: number;
+}
+
+/** A cover as the library reads it: the page as an image address in place of its SVG. */
+export type CoverRow = Omit<Cover, "svg"> & { url: string };
+
+let coverUrls: string[] = [];
 
 export interface StorageUse {
     usage: number;
@@ -53,6 +81,9 @@ function open(): Promise<IDBDatabase> {
             }
             if (!db.objectStoreNames.contains(SUMMARIES)) {
                 db.createObjectStore(SUMMARIES, { keyPath: "id" });
+            }
+            if (!db.objectStoreNames.contains(COVERS)) {
+                db.createObjectStore(COVERS, { keyPath: "id" });
             }
         };
         request.onsuccess = () => resolve(request.result);
@@ -103,10 +134,39 @@ export async function listProjects(): Promise<ProjectSummary[]> {
 
 export async function deleteProject(id: string): Promise<void> {
     const db = await open();
-    const transaction = db.transaction([PROJECTS, SUMMARIES], "readwrite");
+    const transaction = db.transaction([PROJECTS, SUMMARIES, COVERS], "readwrite");
     transaction.objectStore(PROJECTS).delete(id);
     transaction.objectStore(SUMMARIES).delete(id);
+    transaction.objectStore(COVERS).delete(id);
     await done(transaction);
+}
+
+/** Keeps a piece's cover, replacing the one saved before. */
+export async function saveCover(cover: Cover): Promise<void> {
+    const db = await open();
+    const transaction = db.transaction(COVERS, "readwrite");
+    transaction.objectStore(COVERS).put(cover);
+    await done(transaction);
+}
+
+/** The covers saved, each page as an image address valid until the next call. */
+export async function listCovers(): Promise<CoverRow[]> {
+    const db = await open();
+    const covers = (await result(db.transaction(COVERS).objectStore(COVERS).getAll())) as Cover[];
+    releaseCovers();
+    return covers.map(({ svg, ...cover }) => {
+        const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+        coverUrls.push(url);
+        return { ...cover, url };
+    });
+}
+
+/** Lets go of the image addresses the last listing made. */
+export function releaseCovers(): void {
+    for (const url of coverUrls) {
+        URL.revokeObjectURL(url);
+    }
+    coverUrls = [];
 }
 
 /** How much of the browser's storage this site uses, or null when the browser does not say. */

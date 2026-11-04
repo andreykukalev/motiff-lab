@@ -143,13 +143,11 @@ test("what is kept is saved with the project and comes back when it is opened ag
     await expect(kept.getByRole("listitem")).toContainText("Your note: Airier.");
     await page.locator(".pill").getByRole("button", { name: "Pause" }).click();
 
-    // The project page lists the idea in its library (0012), and continuing from the resume point comes back to the phrase.
+    // The library resumes the piece where it was left (0018 section 9): the card counts the idea, and Resume comes back to the phrase.
     await page.goto("/");
-    await page.getByRole("link", { name: "importer-grand-staff.musicxml" }).click();
-    const idea = page.locator(".idea-card").filter({ hasText: "Give the melody more space: Detached" });
-    await expect(idea).toContainText("Your note: Airier.");
-    await expect(page.locator(".session-card")).toHaveCount(1);
-    await page.locator(".session-card").getByRole("button", { name: "Continue" }).click();
+    const piece = page.locator(".card.piece").filter({ has: page.getByRole("heading", { name: "Waltz sketch" }) });
+    await expect(piece.locator(".tag.saved")).toHaveText("1 idea");
+    await piece.getByRole("button", { name: "Resume Waltz sketch" }).click();
     await expect(page.locator(".selection-status")).toContainText("Selected phrase 1");
     await expect(phrases.nth(0)).toHaveAccessibleName(/, 1 kept$/);
     await phrases.nth(0).click();
