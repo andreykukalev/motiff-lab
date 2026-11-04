@@ -80,7 +80,7 @@ public partial class PlaybackLab
     /// <summary>The name of the variation heard: a kept one's, the experiment's, or "Variation".</summary>
     private string VariationName =>
         HeardKeptId is { } id && Kept.FirstOrDefault(observation => observation.Id == id) is { } kept ? kept.Name
-        : ActiveTrial is { } trial ? trial.Experiment.Title
+        : ActiveTrial is { } trial ? TrialName(trial)
         : Text["focus.variationName"];
 
     /// <summary>What the card lights up as it sounds: the original's staves, the ossia's, or both.</summary>

@@ -15,7 +15,7 @@ Ticks are integers at 480 per quarter ([0002](decisions/0002-canonical-time.md))
   "source": "<base64>",         // the imported file, MIDI or MusicXML, as it was
   "createdAt": "…", "lastOpened": "…",
   "motifs": [ … ],              // the working selection (version 1)
-  "variations": [ … ],          // chains of steps on a motif (version 2)
+  "variations": [ … ],          // chains of steps on a motif (version 2); an optional "key" { "fifths", "mode" } the steps read, as on a kept variation (read as none when absent)
   "observations": [ … ],        // ideas (version 6; factId since 12)
   "edits": [ … ],               // note corrections (version 3)
   "phrases": { "added": [ticks], "removed": [ticks],   // the player's phrase boundaries (version 5)

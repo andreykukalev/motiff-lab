@@ -3,7 +3,7 @@
 // what the score shows, One after the other loops the two in turn, and Compare says what changed and
 // what was kept.
 import { expect, test } from "@playwright/test";
-import { openAdjust, openFurElise, selectBar, openInsights, chooseInMore, heardChoice, scoreChoice, tryExperiment } from "./steps.mjs";
+import { openAdjust, openFurElise, selectBar, openInsights, chooseInMore, heardChoice, scoreChoice, tryWay } from "./steps.mjs";
 
 test("go back to the original, compare, and hear the two one after the other", async ({ page }) => {
     const errors = await openFurElise(page);
@@ -15,7 +15,7 @@ test("go back to the original, compare, and hear the two one after the other", a
     // No variation yet, so nothing to compare.
     await expect(head.locator(".compare-switch")).toHaveCount(0);
 
-    await tryExperiment(page, "Give the melody more space");
+    await tryWay(page, "Passing notes");
     const compare = head.getByRole("group", { name: "Compare with the original" });
     const original = compare.getByRole("button", { name: "Original", exact: true });
     const variation = compare.getByRole("button", { name: "Variation", exact: true });
@@ -29,7 +29,7 @@ test("go back to the original, compare, and hear the two one after the other", a
     await expect.poll(() => heardChoice(page)).toBe("Original");
     await expect.poll(() => scoreChoice(page)).toBe("Generated from the notes");
     await expect(selection).toContainText("Looping; only these notes play.");
-    await expect(page.locator(".explore h3")).toHaveText("Give the melody more space");
+    await expect(page.locator(".explore h3")).toHaveText("Try a variation");
 
     await variation.click();
     await expect(variation).toHaveAttribute("aria-pressed", "true");

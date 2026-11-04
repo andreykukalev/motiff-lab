@@ -95,10 +95,24 @@ export function stream(page) {
     return page.locator(".sheet.insights .stream");
 }
 
-/** Tries an experiment from its Try chip in the stream, wherever the chip is: on a fact, or under More to try. */
-export async function tryExperiment(page, name) {
-    await stream(page).locator(".try-row").getByRole("button", { name, exact: true }).first().click();
-    await expect(stream(page).locator(".explore h3")).toHaveText(name);
+/**
+ * Tries a way from a fact's Try button (Andrei, 2026-11-04): opens the Try buttons until the way shows, taps it, and
+ * waits for the experiment's card with that way chosen.
+ */
+export async function tryWay(page, name) {
+    const ways = stream(page).locator(".try-row").getByRole("button", { name, exact: true });
+    const closed = stream(page).locator('.try-row .btn.try[aria-expanded="false"]');
+    while ((await ways.count()) === 0 && (await closed.count()) > 0) {
+        await closed.first().click();
+    }
+    await ways.first().click();
+    const card = stream(page).locator(".explore");
+    await expect(card).toBeVisible();
+    const chosen = card.locator(".choices button[aria-pressed=true]");
+    if ((await chosen.count()) > 0) {
+        await expect(chosen).toHaveText(name);
+    }
+    return card;
 }
 
 /** Opens Adjust (keep / change / operation): on the experiment being tried, or Shape a variation yourself without one. */

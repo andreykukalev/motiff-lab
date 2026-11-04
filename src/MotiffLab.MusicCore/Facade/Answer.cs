@@ -681,6 +681,11 @@ internal static partial class Answer
                 json.WriteStartObject();
                 json.WriteString("label", alternative.Label);
                 json.WriteString("keeps", alternative.Keeps);
+                if (alternative.KeepPresetId is { } preset)
+                {
+                    json.WriteString("keepPreset", preset);
+                }
+
                 json.WriteStartArray("steps");
                 foreach (ExperimentStep step in alternative.Steps)
                 {

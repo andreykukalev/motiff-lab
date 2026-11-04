@@ -1,7 +1,7 @@
 // Anonymous analytics with consent (#64): nothing is recorded until the player turns them on, the
 // events hold no titles or file names, and turning them off forgets the device's ID and the events.
 import { expect, test } from "@playwright/test";
-import { openAdjust, openFurElise, openInsights, openMore, selectBar, tryExperiment } from "./steps.mjs";
+import { openAdjust, openFurElise, openInsights, openMore, selectBar, tryWay } from "./steps.mjs";
 
 test("analytics record nothing until turned on, never the piece, and forget everything when turned off", async ({ page }) => {
     await openFurElise(page);
@@ -17,7 +17,7 @@ test("analytics record nothing until turned on, never the piece, and forget ever
     await openFurElise(page);
     await selectBar(page, 1);
     await openInsights(page);
-    await tryExperiment(page, "Give the melody more space");
+    await tryWay(page, "Passing notes");
     await page.getByRole("button", { name: "Keep this variation" }).click();
     await (await openAdjust(page)).getByRole("button", { name: "Dotted" }).click();
 
@@ -31,8 +31,8 @@ test("analytics record nothing until turned on, never the piece, and forget ever
     expect(text).toContain("motif_selected bars: 1");
     expect(text).toContain("variation_proposed op: V1, kind: dotted");
     expect(text).toContain("playback_started hear: variation");
-    expect(text).toContain("experiment_tried experiment: melody.space, alternative: 0, entry: fact");
-    expect(text).toContain("experiment_kept experiment: melody.space, alternative: 0");
+    expect(text).toMatch(/experiment_tried experiment: try\.melody\.[a-z]+, alternative: 0, entry: fact/);
+    expect(text).toMatch(/experiment_kept experiment: try\.melody\.[a-z]+, alternative: 0/);
     expect(text).not.toContain("Beethoven");
     expect(await page.evaluate(() => localStorage.getItem("motifflab.analytics.device"))).toMatch(/^[0-9a-f]{32}$/);
 

@@ -518,10 +518,19 @@ public sealed record SavedVariation(
     SavedStep? Pending,
     IReadOnlyList<KeepProperty> Keep)
 {
+    /// <summary>
+    /// The key the steps read, when the chain had one, so a step that counts in the key's scale (passing notes) can be
+    /// made again on opening; null for a file that has none, which opens as before.
+    /// </summary>
+    public MusicalKey? Key { get; init; }
+
     public static SavedVariation Create(string id, string motifId, VariationChain chain)
     {
         ArgumentNullException.ThrowIfNull(chain);
-        return new(id, motifId, [.. chain.Steps.Select(SavedStep.From)], chain.Pending is { } pending ? SavedStep.From(pending) : null, [.. chain.Context.Keep.Distinct().Order()]);
+        return new(id, motifId, [.. chain.Steps.Select(SavedStep.From)], chain.Pending is { } pending ? SavedStep.From(pending) : null, [.. chain.Context.Keep.Distinct().Order()])
+        {
+            Key = chain.Context.Key,
+        };
     }
 }
 
@@ -612,7 +621,7 @@ public sealed record OpenedProject(
                 ?? throw new ProjectFileException($"A variation refers to a motif ({saved.MotifId}) that is not in the project.");
             VariationChain chain = VariationChain.Start(
                 VariationFacts.MotifNotes(notes, motif.Selection),
-                VariationContext.For(motif.Selection, saved.Keep.ToHashSet()));
+                VariationContext.For(motif.Selection, saved.Keep.ToHashSet(), key: saved.Key));
             foreach (SavedStep step in saved.Steps)
             {
                 chain = Propose(chain, step).Accept();

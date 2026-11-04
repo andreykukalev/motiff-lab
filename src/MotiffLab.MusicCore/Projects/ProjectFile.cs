@@ -86,6 +86,7 @@ public static class ProjectFile
                 json.WriteString("id", variation.Id);
                 json.WriteString("motifId", variation.MotifId);
                 WriteChain(json, variation.Steps, variation.Pending, variation.Keep);
+                WriteKey(json, variation.Key);
                 json.WriteEndObject();
             }
 
@@ -1056,13 +1057,7 @@ public static class ProjectFile
             WriteRange(json, variation.Passage.Span, variation.Passage.Filter);
             WriteNoteIds(json, variation.NoteIds);
             WriteChain(json, variation.Steps, variation.Pending, variation.Keep);
-            if (variation.Key is { } key)
-            {
-                json.WriteStartObject("key");
-                json.WriteNumber("fifths", key.Fifths);
-                json.WriteString("mode", key.Mode.ToString());
-                json.WriteEndObject();
-            }
+            WriteKey(json, variation.Key);
 
             json.WriteEndObject();
         }
@@ -1115,15 +1110,31 @@ public static class ProjectFile
             throw Damaged("kept variation steps");
         }
 
-        MusicalKey? key = null;
-        if (variation.TryGetProperty("key", out _))
+        return new KeptVariation(new SavedPassage(span, filter), noteIds, steps, pending, ReadKeep(variation), ReadKey(variation, "kept variation key"));
+    }
+
+    /// <summary>The key a chain's steps read, as an optional "key" object with "fifths" and "mode".</summary>
+    private static void WriteKey(Utf8JsonWriter json, MusicalKey? key)
+    {
+        if (key is { } known)
         {
-            JsonElement reading = Property(variation, "key", JsonValueKind.Object);
-            int fifths = Integer(reading, "fifths");
-            key = fifths is >= -7 and <= 7 ? new MusicalKey(fifths, Name<KeyMode>(reading, "mode")) : throw Damaged("kept variation key");
+            json.WriteStartObject("key");
+            json.WriteNumber("fifths", known.Fifths);
+            json.WriteString("mode", known.Mode.ToString());
+            json.WriteEndObject();
+        }
+    }
+
+    private static MusicalKey? ReadKey(JsonElement variation, string what)
+    {
+        if (!variation.TryGetProperty("key", out _))
+        {
+            return null;
         }
 
-        return new KeptVariation(new SavedPassage(span, filter), noteIds, steps, pending, ReadKeep(variation), key);
+        JsonElement reading = Property(variation, "key", JsonValueKind.Object);
+        int fifths = Integer(reading, "fifths");
+        return fifths is >= -7 and <= 7 ? new MusicalKey(fifths, Name<KeyMode>(reading, "mode")) : throw Damaged(what);
     }
 
     private static void WriteValues(Utf8JsonWriter json, string name, NoteValues values)
@@ -1281,7 +1292,10 @@ public static class ProjectFile
             Text(variation, "motifId"),
             steps,
             pending,
-            keep);
+            keep)
+        {
+            Key = ReadKey(variation, "variation key"),
+        };
     }
 
     /// <summary>One variation step as the file reads it: an object with "operation" and "parameters".</summary>

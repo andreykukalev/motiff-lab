@@ -9,10 +9,10 @@
 @* The Insights stream (decision record 0018 section 6; design/kit/docs/01-ux-concept.md, Insights): one list read top to
    bottom in place of the Understand, Explore and Tools tabs. The facts about the selection are grouped by lens, and filter
    chips narrow the list without switching it. A fact row has its claim, which rings its places on the score, its kind and
-   Evidence, then the Try chips of the experiments resting on it. A Try chip sounds the variation at once; the row that holds it
-   gets Keep and Adjust, the experiment's own card, and with Adjust the keep / change / operation tools inline. The ideas kept
-   for the passage sit in a strip at the top; experiments that rest on no fact shown come after the facts, then the questions.
-   The stream only displays the workspace state (0013); the page highlights, plays, tries and keeps. *@
+   Evidence, then one quiet Try button (Andrei, 2026-11-04) that opens the two or three ways music-core offers for it. A way
+   sounds the variation at once; the row that holds it gets Keep and Adjust, the experiment's own card, and with Adjust the
+   keep / change / operation tools inline. The ideas kept for the passage sit in a strip at the top; the assistant's input
+   closes the stream. The stream only displays the workspace state (0013); the page highlights, plays, tries and keeps. *@
 <div class="stream" role="region" aria-label="@Text["insights.stream"]">
     @if (Lenses.Length > 1)
     {
@@ -60,7 +60,7 @@
     {
         <div class="trying">
             <p class="overline">@Text["insights.trying"]</p>
-            @TryRow(null, [Trial.Experiment], "offer", true)
+            @TryButton(Trial.Experiment, true)
             @TrialCard
             @if (Adjusting)
             {
@@ -82,7 +82,7 @@
     {
         <section class="lens-group key" aria-labelledby="key-observation-heading">
             <h3 class="overline" id="key-observation-heading">@Text["understand.keyObservation"]</h3>
-            @FactRow(key, KeyTries(key), State.Facts.KeyReason)
+            @FactRow(key, Tries(key), State.Facts.KeyReason)
         </section>
     }
 
@@ -98,40 +98,13 @@
             <h3 class="overline">@Text.Format("insights.lensCount", LensLabel(lens), Text.Count("understand.facts", facts.Length))</h3>
             @foreach (MotifFact fact in facts)
             {
-                @FactRow(fact, ExperimentCatalogue.RestingOn(FactOffers, fact.Id), null)
+                @FactRow(fact, Tries(fact), null)
             }
-        </section>
-    }
-
-    @if (HasSelection && Unhomed.Length > 0)
-    {
-        <section class="lens-group more" aria-labelledby="more-to-try-heading">
-            <h3 class="overline" id="more-to-try-heading">@Text["insights.moreToTry"]</h3>
-            @TryRow(null, Unhomed, "offer", false)
         </section>
     }
 
     @if (HasSelection)
     {
-        @* I have a question (0018 section 6): the questions the catalogue answers; the assistant's input joins them with AI. *@
-        <section class="ask" aria-label="@Text["explore.questions"]">
-            <button class="chip @(_asking ? "on" : null)" aria-expanded="@(_asking ? "true" : "false")" @onclick="() => _asking = !_asking">@Text["explore.question"]</button>
-            @if (_asking)
-            {
-                <div class="questions" role="group" aria-label="@Text["explore.questions"]">
-                    @foreach (ExperimentTopic topic in Enum.GetValues<ExperimentTopic>())
-                    {
-                        bool fits = Offers.Any(offer => offer.Topic == topic);
-                        <button class="chip" disabled="@(!fits)" title="@(fits ? null : Text["explore.nothingForQuestion"])" @onclick="() => AskAsync(topic)">@ExperimentCatalogue.Prompt(topic, MotiffLab.MusicCore.Words.For(Text.Language))</button>
-                    }
-                </div>
-            }
-            @if (_topic is { } asked)
-            {
-                @TryRow(ExperimentCatalogue.Prompt(asked, MotiffLab.MusicCore.Words.For(Text.Language)), [.. Offers.Where(offer => offer.Topic == asked)], "question", false)
-            }
-        </section>
-
         @if (IdeaRows.Count == 0)
         {
             @Ideas
@@ -160,10 +133,8 @@
     /// <summary>The facts whose Evidence the player opened.</summary>
     private readonly HashSet<string> _evidence = new(StringComparer.Ordinal);
 
-    private bool _asking;
-
-    /// <summary>The question picked, whose experiments the stream then lists.</summary>
-    private ExperimentTopic? _topic;
+    /// <summary>The Try buttons opened, by experiment id, whose ways the stream lists.</summary>
+    private readonly HashSet<string> _open = new(StringComparer.Ordinal);
 
     /// <summary>Whether the kept ideas are listed whole, to rename, note, export or delete.</summary>
     private bool _manage;
@@ -219,8 +190,6 @@
 
     private ExploreTrial? Trial => State.Variation.Trial;
 
-    /// <summary>The experiments that fit: the trial's offers while one runs.</summary>
-    private IReadOnlyList<Experiment> Offers => State.Variation.Offers;
 
     /// <summary>The experiments the facts link to: those offered for the same selection as the facts.</summary>
     private IReadOnlyList<Experiment> FactOffers => State.Variation.UnderstandOffers;
@@ -243,17 +212,8 @@
         (Key is { } key && Shows(key) ? [key] : Array.Empty<MotifFact>())
             .Concat(Lenses.Where(lens => _lens is null || _lens == lens).SelectMany(lens => Facts.Where(fact => fact.Lens == lens && fact != Key)));
 
-    private IReadOnlyList<Experiment> Tries(MotifFact fact) => fact == Key ? KeyTries(fact) : ExperimentCatalogue.RestingOn(FactOffers, fact.Id);
-
-    /// <summary>The fact to hear first offers the recommended experiment before those resting on it.</summary>
-    private IReadOnlyList<Experiment> KeyTries(MotifFact key)
-    {
-        IReadOnlyList<Experiment> resting = ExperimentCatalogue.RestingOn(FactOffers, key.Id);
-        return State.Facts.Recommended is { } recommended && FactOffers.Contains(recommended) && !resting.Contains(recommended) ? [recommended, .. resting] : resting;
-    }
-
-    /// <summary>The experiments that fit but rest on none of the facts, which follow the facts.</summary>
-    private Experiment[] Unhomed => [.. Offers.Where(offer => !Facts.Any(fact => offer.FactIds.Contains(fact.Id, StringComparer.Ordinal)))];
+    /// <summary>The fact's Try button: the experiment music-core built for its kind, if any.</summary>
+    private IReadOnlyList<Experiment> Tries(MotifFact fact) => ExperimentCatalogue.RestingOn(FactOffers, fact.Id);
 
     private RenderFragment FactRow(MotifFact fact, IReadOnlyList<Experiment> tries, string? why) =>
         @<article class="fact-row @(Chosen?.Fact == fact ? "on" : null)" aria-label="@fact.Text">
@@ -293,7 +253,7 @@
             }
             @if (tries.Count > 0)
             {
-                @TryRow(null, tries, "fact", home)
+                @TryButton(tries[0], home)
             }
             @if (home)
             {
@@ -305,17 +265,25 @@
             }
         </article>;
 
-    /// <summary>Try chips, the one being tried tinted; on the row that holds the trial, Keep and Adjust follow them.</summary>
-    private RenderFragment TryRow(string? label, IReadOnlyList<Experiment> tries, string entry, bool holdsTrial) =>
-        @<div class="try-row" role="group" aria-label="@(label ?? Text["insights.try"])">
-            <span class="caption">@(label ?? Text["insights.try"])</span>
-            @foreach (Experiment experiment in tries)
+    /// <summary>
+    /// A fact's Try button (Andrei, 2026-11-04): one quiet button that opens the two or three ways music-core offers for
+    /// the fact (<see cref="TryChips"/>); a way sounds at once. On the row that holds the trial, the card lists the ways,
+    /// and Keep and Adjust follow the button.
+    /// </summary>
+    private RenderFragment TryButton(Experiment experiment, bool holdsTrial) =>
+        @<div class="try-row" role="group" aria-label="@Text["insights.try"]">
+            @{
+                bool open = holdsTrial || _open.Contains(experiment.Id);
+            }
+            <button class="btn quiet compact try" aria-expanded="@(open ? "true" : "false")" disabled="@holdsTrial" @onclick="() => ToggleOpen(experiment.Id)">@Text["insights.try"]</button>
+            @if (open && !holdsTrial)
             {
-                bool on = Trial?.Experiment.Id == experiment.Id;
-                bool recommended = State.Facts.Recommended?.Id == experiment.Id;
-                <button class="chip @(on ? "on" : null) @(recommended ? "recommended" : null)" aria-pressed="@(on ? "true" : "false")"
-                        title="@(recommended ? Text.Format("insights.recommended", experiment.Question) : experiment.Question)"
-                        @onclick='() => Try.InvokeAsync(new ExploreRequest(experiment, 0, entry))'>@experiment.Title</button>
+                @for (int i = 0; i < experiment.Alternatives.Count; i++)
+                {
+                    int index = i;
+                    <button class="chip" title="@Text.Format("explore.keeps", experiment.Alternatives[index].Keeps)"
+                            @onclick='() => Try.InvokeAsync(new ExploreRequest(experiment, index, "fact"))'>@experiment.Alternatives[index].Label</button>
+                }
             }
             @if (holdsTrial && Trial is { } trial)
             {
@@ -346,19 +314,14 @@
             _lens = null;
         }
 
-        if (_topic is { } topic && !Offers.Any(offer => offer.Topic == topic))
-        {
-            _topic = null;
-        }
     }
 
-    /// <summary>A question with one experiment tries it at once; with several, the stream lists them under it.</summary>
-    private Task AskAsync(ExperimentTopic topic)
+    private void ToggleOpen(string id)
     {
-        Experiment[] fitting = [.. Offers.Where(offer => offer.Topic == topic)];
-        _asking = false;
-        _topic = fitting.Length > 1 ? topic : null;
-        return fitting.Length == 1 ? Try.InvokeAsync(new ExploreRequest(fitting[0], 0, "question")) : Task.CompletedTask;
+        if (!_open.Remove(id))
+        {
+            _open.Add(id);
+        }
     }
 
     private void ToggleEvidence(string id)

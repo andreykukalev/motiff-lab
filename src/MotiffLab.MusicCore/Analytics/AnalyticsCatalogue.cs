@@ -80,13 +80,13 @@ public static class AnalyticsCatalogue
         ["midi_exported"] = [new FlagProperty("variation"), new CountProperty("steps", 0, VariationChain.MaxSteps)],
         ["experiment_tried"] =
         [
-            new ChoiceProperty("experiment", ExperimentCatalogue.Ids),
+            new ChoiceProperty("experiment", [.. ExperimentCatalogue.Ids, .. TryChips.ExperimentIds]),
             new CountProperty("alternative", 0, ExperimentCatalogue.MaxAlternatives - 1),
             new ChoiceProperty("entry", ["offer", "question", "surprise", "another", "fact"]),
         ],
         ["experiment_kept"] =
         [
-            new ChoiceProperty("experiment", ExperimentCatalogue.Ids),
+            new ChoiceProperty("experiment", [.. ExperimentCatalogue.Ids, .. TryChips.ExperimentIds]),
             new CountProperty("alternative", 0, ExperimentCatalogue.MaxAlternatives - 1),
         ],
     };

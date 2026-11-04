@@ -1,22 +1,32 @@
-// Experiments in the Insights stream (decision records 0010 and 0018 section 6) in every browser project: the Try chips
-// music-core offers for a phrase, tried, heard against the original, kept and left; a question that changes the motif's
-// return; the accompaniment re-patterned while the melody plays alone; and Adjust with the catalogue's operations.
+// Trying variations in the Insights stream (decision records 0010 and 0018 section 6; Andrei, 2026-11-04) in every browser
+// project: a fact's one quiet Try button opens the two or three ways music-core offers for it; a way is heard at once
+// against the original, kept and left; the accompaniment re-patterned while the melody plays alone; and Adjust with the
+// catalogue's operations.
 import { expect, test } from "@playwright/test";
-import { openAdjust, openFurElise, selectBar, openInsights, heardChoice, tryExperiment } from "./steps.mjs";
+import { openAdjust, openFurElise, selectBar, openInsights, heardChoice, tryWay } from "./steps.mjs";
 
-test("explore a phrase: try an experiment, keep it, answer the motif and leave", async ({ page }) => {
+test("a fact's Try button opens its ways; one is heard, kept, another tried and left", async ({ page }) => {
     const errors = await openFurElise(page);
-    await selectBar(page, 1);
+    await selectBar(page, 2);
     const stream = await openInsights(page);
     const card = stream.locator(".explore");
     const selection = page.locator(".selection-status");
     const compare = page.locator(".inspector-head").getByRole("group", { name: "Compare with the original" });
 
-    // Bar 1 offers space, groove and an answer as Try chips; trying one plays its variation at once.
-    await expect(stream.locator(".try-row").getByRole("button", { name: "Same notes, different groove" }).first()).toBeVisible();
-    await tryExperiment(page, "Give the melody more space");
-    await expect(stream.locator(".try-row button[aria-pressed=true]").first()).toHaveText("Give the melody more space");
-    await expect(card.locator(".passage")).toHaveText("Selected phrase · bar 1");
+    // The ways stay folded until the fact's Try button is pressed; each way is offered once in the stream.
+    await expect(stream.locator(".try-row .chip")).toHaveCount(0);
+    const density = stream.locator(".fact-row").filter({ hasText: /^Density/ });
+    await density.getByRole("button", { name: "Try", exact: true }).click();
+    await expect(density.locator(".try-row .chip")).toHaveText(["Held chord", "Repeated chord in 8ths"]);
+    await expect(stream.locator(".try-row").getByRole("button", { name: "Held chord", exact: true })).toHaveCount(1);
+    // The rhythm and contour reshapes are not offered any more.
+    await expect(stream.getByRole("button", { name: "Long–short" })).toHaveCount(0);
+
+    await tryWay(page, "Held chord");
+    await expect(card.locator("h3")).toHaveText("Try a variation");
+    await expect(card.locator(".passage")).toHaveText("Selected phrase · bar 2");
+    await expect(card.locator(".choices button")).toHaveText(["Held chord", "Repeated chord in 8ths"]);
+    await expect(card.locator(".caption").first()).toHaveText("Keeps the melody.");
     await expect.poll(() => heardChoice(page)).toBe("Variation");
     await expect(compare.getByRole("button", { name: "Variation", exact: true })).toHaveAttribute("aria-pressed", "true");
     await compare.getByRole("button", { name: "Original", exact: true }).click();
@@ -26,25 +36,14 @@ test("explore a phrase: try an experiment, keep it, answer the motif and leave",
     // Für Elise has no project, so the card says the variation is kept while the page is open (#78).
     await expect(card.getByRole("status")).toContainText("Kept until you leave the page");
     await card.getByRole("button", { name: "Try another" }).click();
-    await expect(card.locator("h3")).toHaveText("Same notes, different groove");
+    await expect(card.locator(".choices button[aria-pressed=true]")).toHaveText("Repeated chord in 8ths");
 
-    // A question about the motif changes its return in bar 5, and hears the motif and the answer together.
-    await stream.getByRole("button", { name: "I have a question" }).click();
-    await stream.getByRole("button", { name: "Which changes keep the motif recognisable?" }).click();
-    await expect(card.locator("h3")).toHaveText("Answer the motif differently");
-    await expect(card.locator(".passage")).toHaveText("The motif's return · bar 5");
-    await expect(selection).toContainText("bar 5");
-    await card.getByRole("button", { name: "Upside down" }).click();
-    await card.getByRole("button", { name: "Hear the motif, then the answer" }).click();
-    await expect(selection).toContainText("Looping the motif and its new answer.");
-    await expect.poll(() => heardChoice(page)).toBe("The piece with the variation");
-
-    // Leave it puts back the selection and the variation that was kept.
+    // Leave it puts back the variation that was kept.
     await card.getByRole("button", { name: "Leave it" }).click();
-    await expect(selection).toContainText("bar 1");
+    await expect(selection).toContainText("bar 2");
     await expect(card).toHaveCount(0);
     const adjust = await openAdjust(page);
-    await expect(adjust.locator(".steps")).toContainText("Detached (the melody)");
+    await expect(adjust.locator(".steps")).toContainText("Held chord");
     await page.locator(".pill").getByRole("button", { name: "Pause" }).click();
     expect(errors).toEqual([]);
 });
@@ -52,10 +51,8 @@ test("explore a phrase: try an experiment, keep it, answer the motif and leave",
 test("change the accompaniment and hear the melody alone", async ({ page }) => {
     const errors = await openFurElise(page);
     await selectBar(page, 2);
-    const stream = await openInsights(page);
-    const card = stream.locator(".explore");
-    await tryExperiment(page, "Keep the melody, change the accompaniment");
-    await card.getByRole("button", { name: "Held chord", exact: true }).click();
+    await openInsights(page);
+    const card = await tryWay(page, "Held chord");
     await expect(card.locator(".what-changed")).toContainText("the accompaniment keeps its pitches");
     await card.getByRole("button", { name: "Melody alone" }).click();
     await expect(page.locator(".selection-status")).toContainText("Looping the melody alone.");
@@ -63,18 +60,18 @@ test("change the accompaniment and hear the melody alone", async ({ page }) => {
     expect(errors).toEqual([]);
 });
 
-test("the experiments and what changed read in Russian when the app is in Russian (#134)", async ({ page }) => {
+test("the Try button, its ways and what changed read in Russian when the app is in Russian (#134)", async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem("motiff-lab:ml-language", "ru"));
     const errors = [];
     page.on("pageerror", error => errors.push(String(error)));
     await page.goto("/playback?start=fur-elise");
-    await selectBar(page, 1);
+    await selectBar(page, 2);
     const stream = await openInsights(page);
-    const card = stream.locator(".explore");
 
-    await expect(stream.locator(".try-row").getByRole("button", { name: "Те же ноты, другой ритм" }).first()).toBeVisible();
-    await tryExperiment(page, "Дать мелодии больше воздуха");
-    await expect(card.locator(".passage")).toHaveText("Выделенная фраза · такт 1");
+    await expect(stream.locator(".try-row").getByRole("button", { name: "Попробовать", exact: true }).first()).toBeVisible();
+    const card = await tryWay(page, "Выдержанный аккорд");
+    await expect(card.locator("h3")).toHaveText("Попробовать вариацию");
+    await expect(card.locator(".passage")).toHaveText("Выделенная фраза · такт 2");
     await expect(card.locator(".what-changed")).toContainText("Что изменилось:");
     await expect(card.locator(".what-changed")).not.toContainText(/\b(notes?|bar|beat|changed)\b/);
     await stream.getByRole("button", { name: "Оставить эту вариацию" }).click();
