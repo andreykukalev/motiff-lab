@@ -30,6 +30,7 @@ public partial class Home
         None,
         AddPiece,
         Resumes,
+        Account,
     }
 
     /// <summary>The menu id of the library's own overflow; a card's menu is named by its project id.</summary>
@@ -62,6 +63,9 @@ public partial class Home
     [Inject]
     private UsageAnalytics Analytics { get; set; } = default!;
 
+    [Inject]
+    private MotiffLab.Web.Settings.DeviceSettings SettingsStore { get; set; } = default!;
+
     private IReadOnlyList<ProjectSummary>? _summaries;
     private IReadOnlyDictionary<string, PieceCover> _covers = new Dictionary<string, PieceCover>();
     private IReadOnlyList<ProjectSummary>? _onlineOnly;
@@ -81,6 +85,9 @@ public partial class Home
 
     /// <summary>Whether the Settings sheet is open over the library (0018 section 10).</summary>
     private bool _settingsOpen;
+
+    /// <summary>Whether this is the first run, which asks for a preset before the library; null until the settings are read.</summary>
+    private bool? _firstRun;
     private bool _focusSheet;
 
     private Project? _resumeProject;
@@ -123,6 +130,8 @@ public partial class Home
 
     protected override async Task OnInitializedAsync()
     {
+        await SettingsStore.LoadAsync();
+        _firstRun = !SettingsStore.PresetChosen;
         await Scans.LoadAsync();
         _player = await Account.PlayerAsync();
         _serverNote = ServerNote();
@@ -386,6 +395,13 @@ public partial class Home
         {
             _message = exception.Message;
         }
+    }
+
+    private void OpenAccount()
+    {
+        _menu = null;
+        _sheet = Sheet.Account;
+        _focusSheet = true;
     }
 
     private void CloseSheet()

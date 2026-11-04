@@ -115,7 +115,6 @@
   "settings.createAccount": "Create an account",
   "settings.signInHow": "No password: each time, a code comes to your email.",
   "settings.signedIn": "Signed in",
-  "account.nav": "Account and settings",
   "account.open": "Your account: {0}",
   "settings.scanTitle": "Scanning and transcription",
   "settings.scanWhat": "Motiff Lab reads the notes from a PDF or photo of printed music, and writes down the notes it hears in an audio or video recording. It asks before each send.",
@@ -1143,10 +1142,13 @@
   "settings.rollColour.track": "Tracks",
   "settings.rollColour.voice": "Voices",
   "settings.theme": "Theme",
-  "settings.accountWhere": "Signing in, saving online and the scan server are on the account page.",
-  "settings.accountLink": "Open the account page",
   "settings.thisPiece": "This piece has its own: {0}.",
   "settings.clearPiece": "Use these settings for this piece",
   "settings.shown": "shown",
-  "settings.hidden": "hidden"
+  "settings.hidden": "hidden",
+
+  "firstRun.title": "Choose how to begin",
+  "firstRun.what": "Each way sets what the score shows around the music. Start with one; every element keeps its own switch.",
+  "firstRun.continue": "Continue",
+  "firstRun.later": "You can change this any time in Settings."
 }
