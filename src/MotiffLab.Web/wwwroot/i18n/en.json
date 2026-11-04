@@ -134,6 +134,12 @@
   "tools.shape": "Shape a variation yourself",
   "tools.shapeHint": "The mechanisms behind the experiments: choose what to keep, then one change at a time. The original notes are never changed.",
 
+  "settings.appearance": "Appearance",
+  "settings.theme.auto": "Auto",
+  "settings.theme.daylight": "Daylight",
+  "settings.theme.night": "Night stand",
+  "settings.theme.slate": "Night stand, slate page",
+  "settings.themeHint": "Auto follows your device's light or dark appearance. The slate page shows light notes on a dark page, for a dark room.",
   "settings.language": "Language",
 
   "home.onlineOnly": "Saved online, not on this device",

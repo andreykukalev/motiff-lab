@@ -1,20 +1,20 @@
 .valid.modified:not([type=checkbox]) {
-    outline: 1px solid #26b050;
+    outline: 1px solid var(--success);
 }
 
 .invalid {
-    outline: 1px solid red;
+    outline: 1px solid var(--danger);
 }
 
 .validation-message {
-    color: red;
+    color: var(--danger);
 }
 
 #blazor-error-ui {
     color-scheme: light only;
-    background: lightyellow;
+    background: var(--amber-tint);
     bottom: 0;
-    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--shadow-menu);
     box-sizing: border-box;
     display: none;
     left: 0;
@@ -32,9 +32,9 @@
     }
 
 .blazor-error-boundary {
-    background: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTYiIGhlaWdodD0iNDkiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIG92ZXJmbG93PSJoaWRkZW4iPjxkZWZzPjxjbGlwUGF0aCBpZD0iY2xpcDAiPjxyZWN0IHg9IjIzNSIgeT0iNTEiIHdpZHRoPSI1NiIgaGVpZ2h0PSI0OSIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCNjbGlwMCkiIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yMzUgLTUxKSI+PHBhdGggZD0iTTI2My41MDYgNTFDMjY0LjcxNyA1MSAyNjUuODEzIDUxLjQ4MzcgMjY2LjYwNiA1Mi4yNjU4TDI2Ny4wNTIgNTIuNzk4NyAyNjcuNTM5IDUzLjYyODMgMjkwLjE4NSA5Mi4xODMxIDI5MC41NDUgOTIuNzk1IDI5MC42NTYgOTIuOTk2QzI5MC44NzcgOTMuNTEzIDI5MSA5NC4wODE1IDI5MSA5NC42NzgyIDI5MSA5Ny4wNjUxIDI4OS4wMzggOTkgMjg2LjYxNyA5OUwyNDAuMzgzIDk5QzIzNy45NjMgOTkgMjM2IDk3LjA2NTEgMjM2IDk0LjY3ODIgMjM2IDk0LjM3OTkgMjM2LjAzMSA5NC4wODg2IDIzNi4wODkgOTMuODA3MkwyMzYuMzM4IDkzLjAxNjIgMjM2Ljg1OCA5Mi4xMzE0IDI1OS40NzMgNTMuNjI5NCAyNTkuOTYxIDUyLjc5ODUgMjYwLjQwNyA1Mi4yNjU4QzI2MS4yIDUxLjQ4MzcgMjYyLjI5NiA1MSAyNjMuNTA2IDUxWk0yNjMuNTg2IDY2LjAxODNDMjYwLjczNyA2Ni4wMTgzIDI1OS4zMTMgNjcuMTI0NSAyNTkuMzEzIDY5LjMzNyAyNTkuMzEzIDY5LjYxMDIgMjU5LjMzMiA2OS44NjA4IDI1OS4zNzEgNzAuMDg4N0wyNjEuNzk1IDg0LjAxNjEgMjY1LjM4IDg0LjAxNjEgMjY3LjgyMSA2OS43NDc1QzI2Ny44NiA2OS43MzA5IDI2Ny44NzkgNjkuNTg3NyAyNjcuODc5IDY5LjMxNzkgMjY3Ljg3OSA2Ny4xMTgyIDI2Ni40NDggNjYuMDE4MyAyNjMuNTg2IDY2LjAxODNaTTI2My41NzYgODYuMDU0N0MyNjEuMDQ5IDg2LjA1NDcgMjU5Ljc4NiA4Ny4zMDA1IDI1OS43ODYgODkuNzkyMSAyNTkuNzg2IDkyLjI4MzcgMjYxLjA0OSA5My41Mjk1IDI2My41NzYgOTMuNTI5NSAyNjYuMTE2IDkzLjUyOTUgMjY3LjM4NyA5Mi4yODM3IDI2Ny4zODcgODkuNzkyMSAyNjcuMzg3IDg3LjMwMDUgMjY2LjExNiA4Ni4wNTQ3IDI2My41NzYgODYuMDU0N1oiIGZpbGw9IiNGRkU1MDAiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjwvZz48L3N2Zz4=) no-repeat 1rem/1.8rem, #b32121;
+    background: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTYiIGhlaWdodD0iNDkiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIG92ZXJmbG93PSJoaWRkZW4iPjxkZWZzPjxjbGlwUGF0aCBpZD0iY2xpcDAiPjxyZWN0IHg9IjIzNSIgeT0iNTEiIHdpZHRoPSI1NiIgaGVpZ2h0PSI0OSIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCNjbGlwMCkiIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yMzUgLTUxKSI+PHBhdGggZD0iTTI2My41MDYgNTFDMjY0LjcxNyA1MSAyNjUuODEzIDUxLjQ4MzcgMjY2LjYwNiA1Mi4yNjU4TDI2Ny4wNTIgNTIuNzk4NyAyNjcuNTM5IDUzLjYyODMgMjkwLjE4NSA5Mi4xODMxIDI5MC41NDUgOTIuNzk1IDI5MC42NTYgOTIuOTk2QzI5MC44NzcgOTMuNTEzIDI5MSA5NC4wODE1IDI5MSA5NC42NzgyIDI5MSA5Ny4wNjUxIDI4OS4wMzggOTkgMjg2LjYxNyA5OUwyNDAuMzgzIDk5QzIzNy45NjMgOTkgMjM2IDk3LjA2NTEgMjM2IDk0LjY3ODIgMjM2IDk0LjM3OTkgMjM2LjAzMSA5NC4wODg2IDIzNi4wODkgOTMuODA3MkwyMzYuMzM4IDkzLjAxNjIgMjM2Ljg1OCA5Mi4xMzE0IDI1OS40NzMgNTMuNjI5NCAyNTkuOTYxIDUyLjc5ODUgMjYwLjQwNyA1Mi4yNjU4QzI2MS4yIDUxLjQ4MzcgMjYyLjI5NiA1MSAyNjMuNTA2IDUxWk0yNjMuNTg2IDY2LjAxODNDMjYwLjczNyA2Ni4wMTgzIDI1OS4zMTMgNjcuMTI0NSAyNTkuMzEzIDY5LjMzNyAyNTkuMzEzIDY5LjYxMDIgMjU5LjMzMiA2OS44NjA4IDI1OS4zNzEgNzAuMDg4N0wyNjEuNzk1IDg0LjAxNjEgMjY1LjM4IDg0LjAxNjEgMjY3LjgyMSA2OS43NDc1QzI2Ny44NiA2OS43MzA5IDI2Ny44NzkgNjkuNTg3NyAyNjcuODc5IDY5LjMxNzkgMjY3Ljg3OSA2Ny4xMTgyIDI2Ni40NDggNjYuMDE4MyAyNjMuNTg2IDY2LjAxODNaTTI2My41NzYgODYuMDU0N0MyNjEuMDQ5IDg2LjA1NDcgMjU5Ljc4NiA4Ny4zMDA1IDI1OS43ODYgODkuNzkyMSAyNTkuNzg2IDkyLjI4MzcgMjYxLjA0OSA5My41Mjk1IDI2My41NzYgOTMuNTI5NSAyNjYuMTE2IDkzLjUyOTUgMjY3LjM4NyA5Mi4yODM3IDI2Ny4zODcgODkuNzkyMSAyNjcuMzg3IDg3LjMwMDUgMjY2LjExNiA4Ni4wNTQ3IDI2My41NzYgODYuMDU0N1oiIGZpbGw9IiNGRkU1MDAiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjwvZz48L3N2Zz4=) no-repeat 1rem/1.8rem, var(--danger);
     padding: 1rem 1rem 1rem 3.7rem;
-    color: white;
+    color: var(--on-accent);
 }
 
     .blazor-error-boundary::after {
@@ -52,14 +52,14 @@
 
     .loading-progress circle {
         fill: none;
-        stroke: #e0e0e0;
+        stroke: var(--hairline-strong);
         stroke-width: 0.6rem;
         transform-origin: 50% 50%;
         transform: rotate(-90deg);
     }
 
         .loading-progress circle:last-child {
-            stroke: #1b6ec2;
+            stroke: var(--accent);
             stroke-dasharray: calc(3.141 * var(--blazor-load-percentage, 0%) * 0.8), 500%;
             transition: stroke-dasharray 0.05s ease-in-out;
         }
@@ -76,7 +76,7 @@
     }
 
 code {
-    color: #c02d76;
+    color: var(--plum);
 }
 
 .form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
@@ -87,20 +87,83 @@ code {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
-/* Brand tokens from docs/02-brand-identity.md (dark workspace first). */
+
+/* The redesign (0018): every colour, font, size and shadow is a token of tokens.css (design/kit), loaded before this file. */
 :root {
-    --ml-charcoal: #15191F;
-    --ml-lime: #C8F169;
-    --ml-white: #F4F5F2;
-    --ml-gray: #B8C0CB;
-    color-scheme: dark;
+    --ml-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 
 html, body {
     margin: 0;
-    background: var(--ml-charcoal);
-    color: var(--ml-white);
-    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--desk);
+    color: var(--ink);
+    font: var(--t-body);
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, .app-title strong {
+    font-family: var(--font-display);
+    font-weight: 500;
+}
+
+/* Icons (design/kit/ds.css, Design/Icon.razor): 20 px grid, 1.5 px stroke, round caps and joins, the colour of their text. */
+.ic {
+    width: var(--icon-m);
+    height: var(--icon-m);
+    stroke: currentColor;
+    stroke-width: var(--stroke-icon);
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex: none;
+    vertical-align: middle;
+}
+
+.ic.l {
+    width: var(--icon-l);
+    height: var(--icon-l);
+    stroke-width: 1.75px;
+}
+
+.ic.s {
+    width: var(--icon-s);
+    height: var(--icon-s);
+}
+
+/* The segmented control (design/kit/ds.css): a pill of choices, the chosen one tinted. */
+.seg {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    padding: 2px;
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+}
+
+.seg > button,
+.lab .seg > button {
+    min-height: var(--h-compact);
+    padding: 0 var(--s-3);
+    border: 0;
+    border-radius: var(--r-pill);
+    background: transparent;
+    font: var(--t-label);
+    color: var(--ink-2);
+    cursor: pointer;
+}
+
+.seg > button.on,
+.lab .seg > button.on {
+    background: var(--accent-tint-strong);
+    color: var(--ink);
+    font-weight: 600;
+}
+
+:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
 }
 
 .home {
@@ -110,35 +173,21 @@ html, body {
 }
 
 .home .tagline {
-    color: var(--ml-lime);
+    color: var(--accent);
 }
 
 .home .meta {
-    color: var(--ml-gray);
+    color: var(--ink-2);
 }
 
 .home code {
-    color: var(--ml-lime);
+    color: var(--accent);
 }
 
 .home a, .lab a {
-    color: var(--ml-lime);
+    color: var(--accent);
 }
 
-/* Shared screens (Pages/*.razor) and the playback workspace (Pages/PlaybackLab.razor), after the iPad mockups:
-   charcoal ground, raised panels, lime for what is on, blue for inferred, amber for uncertain. */
-:root {
-    --ml-panel: #181D24;
-    --ml-surface: #1E242C;
-    --ml-raised: #2A313B;
-    --ml-line: #2A313B;
-    --ml-border: #3A424D;
-    --ml-inferred: #7CC4FA;
-    --ml-uncertain: #F2C14E;
-    /* The places of a fact chosen on Understand (#25): the information blue, always with a solid line or box. */
-    --ml-highlight: #7CC4FA;
-    --ml-mono: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
-}
 
 .lab {
     max-width: 112rem;
@@ -158,7 +207,7 @@ html, body {
 .lab h3 {
     font-size: 0.75rem;
     font-weight: 600;
-    color: var(--ml-gray);
+    color: var(--ink-2);
     text-transform: uppercase;
     letter-spacing: 0.06em;
     margin: 0 0 0.5rem;
@@ -170,7 +219,7 @@ html, body {
 }
 
 .lab .meta, .lab .credit {
-    color: var(--ml-gray);
+    color: var(--ink-2);
 }
 
 .lab .credit {
@@ -179,7 +228,7 @@ html, body {
 }
 
 .lab .error {
-    color: #ff8a80;
+    color: var(--danger);
 }
 
 .lab .row {
@@ -192,8 +241,8 @@ html, body {
 
 .lab button, .lab .file, .lab select {
     background: transparent;
-    color: var(--ml-white);
-    border: 1px solid var(--ml-border);
+    color: var(--ink);
+    border: 1px solid var(--hairline-strong);
     border-radius: 0.6rem;
     min-height: 2.25rem;
     padding: 0.3rem 0.8rem;
@@ -209,17 +258,17 @@ html, body {
 }
 
 .lab select {
-    background: var(--ml-surface);
+    background: var(--surface);
 }
 
 .lab button:hover:not(:disabled), .lab .file:hover {
-    border-color: var(--ml-gray);
+    border-color: var(--ink-2);
 }
 
 .lab button.primary, .lab button.on {
-    background: var(--ml-lime);
-    border-color: var(--ml-lime);
-    color: var(--ml-charcoal);
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
     font-weight: 600;
 }
 
@@ -237,7 +286,7 @@ html, body {
 }
 
 .lab input[type=range], .lab input[type=checkbox] {
-    accent-color: var(--ml-lime);
+    accent-color: var(--accent);
 }
 
 .lab .track {
@@ -256,7 +305,7 @@ html, body {
     align-items: center;
     gap: 0.5rem 1rem;
     padding: 0.6rem 1.25rem;
-    border-bottom: 1px solid var(--ml-line);
+    border-bottom: 1px solid var(--hairline);
 }
 
 .app-header .back {
@@ -291,7 +340,7 @@ html, body {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
-    color: var(--ml-gray);
+    color: var(--ink-2);
     font-size: 0.85rem;
 }
 
@@ -332,19 +381,19 @@ html, body {
 
 .app details.more {
     margin-top: 1rem;
-    border-top: 1px solid var(--ml-line);
+    border-top: 1px solid var(--hairline);
     padding-top: 0.5rem;
 }
 
 .app details.more summary {
     cursor: pointer;
-    color: var(--ml-gray);
+    color: var(--ink-2);
 }
 
 /* The inspector: the selection and its loop on top, then the tabs. It stays in view as the canvas scrolls. */
 .app .inspector {
-    background: var(--ml-panel);
-    border-left: 1px solid var(--ml-line);
+    background: var(--surface);
+    border-left: 1px solid var(--hairline);
     padding: 0.9rem 1rem 1rem;
     min-width: 0;
     box-sizing: border-box;
@@ -389,12 +438,12 @@ html, body {
 .lab .inspector button.tab {
     flex: 1;
     border: none;
-    color: var(--ml-gray);
+    color: var(--ink-2);
 }
 
 .lab .inspector button.tab[aria-selected=true] {
-    background: var(--ml-raised);
-    color: var(--ml-white);
+    background: var(--surface-2);
+    color: var(--ink);
     font-weight: 600;
 }
 
@@ -412,8 +461,8 @@ html, body {
 .lab .inspector select.preset {
     width: 100%;
     margin-bottom: 0.5rem;
-    border-color: var(--ml-lime);
-    background: rgba(200, 241, 105, 0.12);
+    border-color: var(--accent);
+    background: var(--accent-tint);
 }
 
 .app-header select {
@@ -430,7 +479,7 @@ html, body {
 .inspector .steps {
     font-family: var(--ml-mono);
     font-size: 0.8rem;
-    color: var(--ml-lime);
+    color: var(--accent);
     margin: 0.25rem 0 0.5rem;
 }
 
@@ -445,7 +494,7 @@ html, body {
 }
 
 .inspector .changed {
-    background: var(--ml-surface);
+    background: var(--surface);
     border-radius: 0.75rem;
     padding: 0.75rem 0.9rem;
     margin-bottom: 1.1rem;
@@ -478,11 +527,11 @@ html, body {
 .lab .inspector .variation .caret {
     display: inline-block;
     width: 1em;
-    color: var(--ml-gray);
+    color: var(--ink-2);
 }
 
 .lab .inspector .variation .kind {
-    color: var(--ml-lime);
+    color: var(--accent);
     font-weight: normal;
     font-size: 0.8rem;
     margin-left: 0.4rem;
@@ -509,7 +558,7 @@ html, body {
 
 /* Practise (Practise/PractisePanel.razor): play, loop and tempo large enough to reach with the iPad on the music stand (#50). */
 .practise .eyebrow {
-    color: var(--ml-lime);
+    color: var(--accent);
     font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
@@ -559,7 +608,7 @@ html, body {
 
 /* The Explore card (Explore/ExploreCard.razor): one experiment at a time, as in the mockup. */
 .explore .eyebrow {
-    color: var(--ml-lime);
+    color: var(--accent);
     font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
@@ -568,8 +617,8 @@ html, body {
 }
 
 .explore .experiment {
-    background: var(--ml-surface);
-    border: 1px solid var(--ml-line);
+    background: var(--surface);
+    border: 1px solid var(--hairline);
     border-radius: 0.9rem;
     padding: 0.9rem 1rem;
     line-height: 1.5;
@@ -580,7 +629,7 @@ html, body {
     margin: 0 0 0.35rem;
     text-transform: none;
     letter-spacing: 0;
-    color: var(--ml-white);
+    color: var(--ink);
 }
 
 .explore .experiment p {
@@ -597,11 +646,11 @@ html, body {
 
 .explore .passage {
     display: inline-block;
-    border: 1px solid var(--ml-border);
+    border: 1px solid var(--hairline-strong);
     border-radius: 1.1rem;
     padding: 0.1rem 0.7rem;
     font-size: 0.85rem;
-    color: var(--ml-gray);
+    color: var(--ink-2);
 }
 
 .explore .choices, .explore .ab, .explore .listen, .explore .ideas, .explore .questions {
@@ -621,7 +670,7 @@ html, body {
 }
 
 .explore .focus {
-    border-left: 3px solid var(--ml-lime);
+    border-left: 3px solid var(--accent);
     padding-left: 0.6rem;
 }
 
@@ -636,25 +685,25 @@ html, body {
 }
 
 .explore .rests-on > span {
-    color: var(--ml-gray);
+    color: var(--ink-2);
 }
 
 .lab .explore button.fact-link {
     min-height: 1.5rem;
     padding: 0.1rem 0.6rem;
-    border-color: var(--ml-highlight);
+    border-color: var(--accent);
     text-align: left;
     font-size: 0.85rem;
 }
 
 .explore .kept {
-    color: var(--ml-lime);
+    color: var(--accent);
     font-weight: 600;
 }
 
 .explore h4 {
     font-size: 0.85rem;
-    color: var(--ml-gray);
+    color: var(--ink-2);
     margin: 1rem 0 0.25rem;
     font-weight: 600;
 }
@@ -672,7 +721,7 @@ html, body {
 }
 
 .explore button.idea span {
-    color: var(--ml-gray);
+    color: var(--ink-2);
     font-size: 0.85rem;
 }
 
@@ -696,8 +745,8 @@ html, body {
     align-items: center;
     gap: 0.5rem 0.9rem;
     padding: 0.6rem 1.25rem;
-    background: var(--ml-surface);
-    border-top: 1px solid var(--ml-line);
+    background: var(--surface);
+    border-top: 1px solid var(--hairline);
 }
 
 .lab .transport-bar button.play {
@@ -708,9 +757,9 @@ html, body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: var(--ml-lime);
-    border-color: var(--ml-lime);
-    color: var(--ml-charcoal);
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
 }
 
 .transport-bar .seek {
@@ -747,7 +796,7 @@ html, body {
 }
 
 .lab .facts .lens-group {
-    background: var(--ml-charcoal);
+    background: var(--desk);
     border-radius: 0.75rem;
 }
 
@@ -762,12 +811,12 @@ html, body {
 }
 
 .lab .facts button.lens-toggle:hover .lens {
-    color: var(--ml-lime);
+    color: var(--accent);
 }
 
 .lab .facts .caret {
     width: 1em;
-    color: var(--ml-gray);
+    color: var(--ink-2);
 }
 
 .lab .facts .lens {
@@ -776,7 +825,7 @@ html, body {
 }
 
 .lab .facts .count {
-    color: var(--ml-gray);
+    color: var(--ink-2);
     font-family: var(--ml-mono);
     font-size: 0.75rem;
 }
@@ -792,7 +841,7 @@ html, body {
     gap: 0.6rem;
     align-items: flex-start;
     padding: 0.45rem 0;
-    border-top: 1px solid var(--ml-line);
+    border-top: 1px solid var(--hairline);
     font-size: 0.9rem;
     line-height: 1.35;
 }
@@ -805,7 +854,7 @@ html, body {
 }
 
 .lab .facts .basis {
-    color: var(--ml-gray);
+    color: var(--ink-2);
     font-size: 0.8rem;
 }
 
@@ -814,7 +863,7 @@ html, body {
     border: none;
     min-height: 0;
     padding: 0 0.2rem;
-    color: var(--ml-inferred);
+    color: var(--ink-2);
     font-size: 0.8rem;
 }
 
@@ -823,22 +872,22 @@ html, body {
     flex: none;
     font-size: 0.72rem;
     font-weight: 600;
-    border: 1.5px solid var(--ml-gray);
+    border: 1.5px solid var(--ink-2);
     border-radius: 0.7rem;
     padding: 0.05rem 0.5rem;
-    color: var(--ml-gray);
+    color: var(--ink-2);
 }
 
 .lab .facts .certainty.inferred {
     border-style: dashed;
-    border-color: var(--ml-inferred);
-    color: var(--ml-inferred);
+    border-color: var(--ink-2);
+    color: var(--ink-2);
 }
 
 .lab .facts .certainty.uncertain {
     border-style: dotted;
-    border-color: var(--ml-uncertain);
-    color: var(--ml-uncertain);
+    border-color: var(--warning);
+    color: var(--warning);
 }
 
 /* An interpretation (0013 section 9): a reading that rests on other facts, double-ruled so it reads as a different kind, not a surer one. */
@@ -872,7 +921,7 @@ html, body {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: var(--ml-gray);
+    color: var(--ink-2);
 }
 
 .lab .facts.now .fact-row {
@@ -898,7 +947,7 @@ html, body {
 .lab .facts.now p.basis {
     margin: 0.2rem 0;
     font-size: 0.85rem;
-    color: var(--ml-gray);
+    color: var(--ink-2);
 }
 
 .lab .facts.now .recommended .text {
@@ -908,7 +957,7 @@ html, body {
 /* Understand (#25, Understand/UnderstandPanel.razor): a fact with places is a toggle that highlights them in the score and on the roll,
    its places are chips, and it links to the experiments resting on it. The chosen fact has a solid blue edge, never dashed like inferred. */
 .lab .facts li.chosen {
-    box-shadow: inset 3px 0 0 var(--ml-highlight);
+    box-shadow: inset 3px 0 0 var(--accent);
     padding-left: 0.5rem;
 }
 
@@ -927,7 +976,7 @@ html, body {
 .lab .facts button.fact-text .where {
     margin-left: 0.3em;
     white-space: nowrap;
-    color: var(--ml-gray);
+    color: var(--ink-2);
     font-size: 0.8rem;
     font-weight: normal;
     text-decoration: underline;
@@ -942,15 +991,15 @@ html, body {
 
 .lab .places button.chip {
     min-height: 1.5rem;
-    border: 1.5px solid var(--ml-highlight);
+    border: 1.5px solid var(--accent);
     border-radius: 1.1rem;
     padding: 0.05rem 0.6rem;
     font-size: 0.8rem;
 }
 
 .lab .places button.chip[aria-pressed=true] {
-    background: var(--ml-highlight);
-    color: var(--ml-charcoal);
+    background: var(--accent);
+    color: var(--on-accent);
     font-weight: 600;
 }
 
@@ -958,13 +1007,13 @@ html, body {
     align-self: flex-start;
     min-height: 1.5rem;
     padding: 0.05rem 0.6rem;
-    border-color: var(--ml-lime);
-    color: var(--ml-lime);
+    border-color: var(--accent);
+    color: var(--accent);
     font-size: 0.8rem;
 }
 
 .lab .highlighted {
-    border: 1.5px solid var(--ml-highlight);
+    border: 1.5px solid var(--accent);
     border-radius: 0.75rem;
     padding: 0.5rem 0.8rem;
     margin-bottom: 0.5rem;
@@ -978,7 +1027,7 @@ html, body {
 /* Note corrections (S1-I7) and hand edits (S1-E7): a collapsible table of notes with nudge buttons; edited rows are marked by a label as well as the lime edge. */
 .lab .corrections {
     margin-top: 0.75rem;
-    border-top: 1px solid var(--ml-line);
+    border-top: 1px solid var(--hairline);
     overflow-x: auto;
 }
 
@@ -993,7 +1042,7 @@ html, body {
 .lab .corrections .caret {
     display: inline-block;
     width: 1em;
-    color: var(--ml-gray);
+    color: var(--ink-2);
 }
 
 .lab .notes-table {
@@ -1008,7 +1057,7 @@ html, body {
 }
 
 .lab .notes-table th {
-    color: var(--ml-gray);
+    color: var(--ink-2);
     font-weight: normal;
 }
 
@@ -1018,12 +1067,12 @@ html, body {
 }
 
 .lab .notes-table tr.edited td:first-child {
-    box-shadow: inset 3px 0 0 var(--ml-lime);
+    box-shadow: inset 3px 0 0 var(--accent);
     padding-left: 0.5rem;
 }
 
 .lab .notes-table .kind {
-    color: var(--ml-gray);
+    color: var(--ink-2);
     font-size: 0.85rem;
 }
 
@@ -1032,20 +1081,20 @@ html, body {
     border-radius: 1.1rem;
     border-width: 1.5px;
     padding: 0.1rem 0.7rem;
-    color: var(--ml-gray);
+    color: var(--ink-2);
     font-size: 0.85rem;
 }
 
 .lab .keep button.chip[aria-pressed=true] {
-    color: var(--ml-white);
-    border-color: var(--ml-white);
+    color: var(--ink);
+    border-color: var(--ink);
     font-weight: 600;
 }
 
 .lab .keep button.chip.kept {
-    border-color: var(--ml-lime);
-    color: var(--ml-lime);
-    background: rgba(200, 241, 105, 0.12);
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-tint);
 }
 
 .lab .keep button.chip.broken {
@@ -1080,15 +1129,15 @@ html, body {
 
 /* The one sounding while the two loop one after the other: lime outline, as against the lime fill of a choice. */
 .lab .compare-switch button.sounding {
-    border-color: var(--ml-lime);
-    color: var(--ml-lime);
-    background: rgba(200, 241, 105, 0.12);
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-tint);
     font-weight: 600;
 }
 
 /* What changed and what was kept (Compare/ComparePanel.razor), from the diff and the Keep checks. */
 .inspector .compare {
-    background: var(--ml-surface);
+    background: var(--surface);
     border-radius: 0.75rem;
     padding: 0.75rem 0.9rem;
     margin: 0.9rem 0 1.1rem;
@@ -1121,12 +1170,12 @@ html, body {
 }
 
 .inspector .compare .label {
-    color: var(--ml-gray);
+    color: var(--ink-2);
 }
 
 .inspector .compare .property {
     display: inline-block;
-    border: 1.5px solid var(--ml-border);
+    border: 1.5px solid var(--hairline-strong);
     border-radius: 1.1rem;
     padding: 0 0.6rem;
     margin: 0.15rem 0 0.15rem 0.3rem;
@@ -1134,8 +1183,8 @@ html, body {
 }
 
 .inspector .compare .kept .property {
-    border-color: var(--ml-lime);
-    color: var(--ml-lime);
+    border-color: var(--accent);
+    color: var(--accent);
 }
 
 .inspector .compare .broken .property {
@@ -1144,7 +1193,7 @@ html, body {
 
 .inspector .compare .unchecked .property {
     border-style: dotted;
-    color: var(--ml-gray);
+    color: var(--ink-2);
 }
 
 /* Kept for this phrase (Observations/ObservationList.razor, #78) and the note in the player's words (ObservationNote.razor).
@@ -1165,15 +1214,15 @@ html, body {
 }
 
 .inspector .observations li {
-    background: var(--ml-surface);
-    border: 1px solid var(--ml-line);
-    border-left: 3px solid var(--ml-border);
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-left: 3px solid var(--hairline-strong);
     border-radius: 0.75rem;
     padding: 0.6rem 0.8rem;
 }
 
 .inspector .observations li.heard {
-    border-left-color: var(--ml-lime);
+    border-left-color: var(--accent);
 }
 
 .inspector .observations p {
@@ -1193,18 +1242,18 @@ html, body {
 }
 
 .inspector .observations .heard-now {
-    color: var(--ml-lime);
+    color: var(--accent);
     font-size: 0.8rem;
 }
 
 .inspector .observations .note {
     white-space: pre-wrap;
-    border-left: 2px solid var(--ml-gray);
+    border-left: 2px solid var(--ink-2);
     padding-left: 0.5rem;
 }
 
 .inspector .observations .label {
-    color: var(--ml-gray);
+    color: var(--ink-2);
 }
 
 .inspector .observations .row {
@@ -1212,8 +1261,8 @@ html, body {
 }
 
 .lab .observations button.danger {
-    border-color: #ff8a80;
-    color: #ff8a80;
+    border-color: var(--danger);
+    color: var(--danger);
 }
 
 .inspector .observations .rename {
@@ -1231,15 +1280,15 @@ html, body {
 .observation-note label {
     display: block;
     font-size: 0.85rem;
-    color: var(--ml-gray);
+    color: var(--ink-2);
     margin-bottom: 0.25rem;
 }
 
 .lab .observation-note textarea, .lab .observations input[type=text] {
     box-sizing: border-box;
-    background: var(--ml-charcoal);
-    color: var(--ml-white);
-    border: 1px solid var(--ml-border);
+    background: var(--desk);
+    color: var(--ink);
+    border: 1px solid var(--hairline-strong);
     border-radius: 0.6rem;
     padding: 0.4rem 0.6rem;
     font: inherit;
@@ -1258,7 +1307,7 @@ html, body {
 }
 
 .lab .observation-note textarea:focus-visible, .lab .observations input[type=text]:focus-visible {
-    outline: 2px solid var(--ml-lime);
+    outline: 2px solid var(--accent);
     outline-offset: 1px;
 }
 
@@ -1275,20 +1324,13 @@ html, body {
 
 /* Score view (Score/ScoreView.razor, Scripts/score): ink on paper, as in the mockups; the notes being heard in a dark lime that reads on paper. */
 .score {
-    --ml-score-ink: #15191F;
-    --ml-score-playing: #4D7A00;
-    --ml-score-inferred: #1F5F96;
-    /* Information blue on paper (docs/02-brand-identity.md, 4.8 : 1 on white). */
-    --ml-score-highlight: #1F6FB2;
-    /* The ink at 30% on paper. */
-    --ml-score-faint: #B9BABC;
     position: relative;
     max-height: 70vh;
     overflow-y: auto;
     /* Scrolling past either end does not move the page under the score. */
     overscroll-behavior: contain;
-    background: var(--ml-white);
-    color: var(--ml-score-ink);
+    background: var(--paper);
+    color: var(--notation);
     border-radius: 0.5rem;
     margin: 0.5rem 0;
 }
@@ -1301,9 +1343,19 @@ html, body {
     display: block;
     width: 100%;
     height: auto;
-    /* Verovio sets color="black" on its SVG and leaves glyph fills to the default; CSS overrides both. */
-    color: var(--ml-score-ink);
+    /* Verovio sets color="black" on its SVG and leaves glyph fills to the default; CSS overrides both, so the notation
+       follows --notation and the Slate page works (design/kit HANDOFF section 8). */
+    color: var(--notation);
     fill: currentColor;
+}
+
+.score svg use {
+    fill: currentColor;
+}
+
+/* A colour written into the file gives way to the page's: such an element takes its parent's colour, unless the app marks it. */
+.score svg [color]:not(.playing):not(.highlight):not(.outside) {
+    color: inherit !important;
 }
 
 .score g.note, .score g.chord {
@@ -1313,16 +1365,16 @@ html, body {
 /* A4 pages (0017): each page a sheet of paper on a darker desk, scaled to the view's width up to about
    the size of a printed page; the gap between sheets shows where a page turns. */
 .score.paged {
-    background: var(--ml-raised);
+    background: var(--surface-2);
     padding: 0.75rem;
 }
 
 .score.paged .score-page {
-    background: var(--ml-white);
+    background: var(--paper);
     max-width: 52rem;
     margin: 0 auto 0.75rem;
     border-radius: 2px;
-    box-shadow: 0 1px 4px rgb(0 0 0 / 35%);
+    box-shadow: var(--shadow-paper);
 }
 
 .score.paged .score-page:last-of-type {
@@ -1352,39 +1404,39 @@ html, body {
 /* Notes outside the range that plays for the selection go faint, as on the roll. A paler ink rather than opacity:
    Safari draws every translucent group on its own layer, and with most of a long piece faint, scrolling stuttered. */
 .score g.note.outside {
-    fill: var(--ml-score-faint);
-    stroke: var(--ml-score-faint);
-    color: var(--ml-score-faint);
+    fill: color-mix(in srgb, var(--notation) 30%, var(--paper));
+    stroke: color-mix(in srgb, var(--notation) 30%, var(--paper));
+    color: color-mix(in srgb, var(--notation) 30%, var(--paper));
 }
 
 /* The places of the fact chosen on Understand (#25): blue and at full strength, with a solid box round each notehead or rest,
    so they differ from playing (colour only) and outside (faint) by more than colour. The playing colour still shows over them. */
 .score g.note.highlight, .score g.rest.highlight {
-    fill: var(--ml-score-highlight);
-    stroke: var(--ml-score-highlight);
-    color: var(--ml-score-highlight);
+    fill: var(--accent);
+    stroke: var(--accent);
+    color: var(--accent);
 }
 
 .score .highlight-mark {
     position: absolute;
     box-sizing: border-box;
     pointer-events: none;
-    border: 2px solid var(--ml-score-highlight);
+    border: 2px solid var(--accent);
     border-radius: 0.3rem;
 }
 
 .score g.note.playing, .score g.chord.playing {
-    fill: var(--ml-score-playing);
-    stroke: var(--ml-score-playing);
-    color: var(--ml-score-playing);
+    fill: var(--accent);
+    stroke: var(--accent);
+    color: var(--accent);
 }
 
 /* Phrase starts in the score (#18): a line through the system with its label above; dashed and blue where inferred. */
 .score .phrase-mark {
     position: absolute;
     pointer-events: none;
-    border-left: 2px solid var(--ml-score-ink);
-    color: var(--ml-score-ink);
+    border-left: 2px solid var(--notation);
+    color: var(--notation);
 }
 
 .score .phrase-mark span {
@@ -1393,7 +1445,7 @@ html, body {
     left: -2px;
     padding: 0.05rem 0.3rem;
     border-radius: 0.3rem;
-    background: var(--ml-white);
+    background: var(--paper);
     border: 1px solid currentColor;
     font-size: 0.7rem;
     font-weight: 600;
@@ -1403,8 +1455,8 @@ html, body {
 
 .score .phrase-mark.inferred {
     border-left-style: dashed;
-    border-left-color: var(--ml-score-inferred);
-    color: var(--ml-score-inferred);
+    border-left-color: var(--ink-2);
+    color: var(--ink-2);
 }
 
 /* The selected phrase's mark (#126): the label in reverse, so the player sees where the phrase sits in the piece. */
@@ -1413,14 +1465,14 @@ html, body {
 }
 
 .score .phrase-mark.current span {
-    background: var(--ml-score-ink);
-    border-color: var(--ml-score-ink);
-    color: #FFFFFF;
+    background: var(--notation);
+    border-color: var(--notation);
+    color: var(--paper);
 }
 
 .score .phrase-mark.inferred.current span {
-    background: var(--ml-score-inferred);
-    border-color: var(--ml-score-inferred);
+    background: var(--ink-2);
+    border-color: var(--ink-2);
 }
 
 /* Pencil marks (Score/ScoreView.razor, Scripts/score/pencil-layer.ts, 0015): the player's own writing over the engraving,
@@ -1446,23 +1498,23 @@ html, body {
 
 /* The four inks and the highlighter's amber of the design kit (0018, design/kit/tokens.css). */
 .score .pencil-mark.pen.graphite {
-    fill: #3B3733;
+    fill: var(--ink-graphite);
 }
 
 .score .pencil-mark.pen.carmine {
-    fill: #C8352B;
+    fill: var(--ink-carmine);
 }
 
 .score .pencil-mark.pen.forest {
-    fill: #2E7D4F;
+    fill: var(--ink-forest);
 }
 
 .score .pencil-mark.pen.ochre {
-    fill: #9C6A0C;
+    fill: var(--ink-ochre);
 }
 
 .score .pencil-mark.highlighter {
-    fill: #F0B429;
+    fill: var(--amber);
     opacity: 0.38;
     mix-blend-mode: multiply;
 }
@@ -1493,27 +1545,27 @@ html, body {
     width: 1.1rem;
     height: 1.1rem;
     border-radius: 50%;
-    border: 2px solid var(--ml-white);
+    border: 2px solid var(--ink);
 }
 
 .pencil-tools .pencil-pen.graphite span {
-    background: #3B3733;
+    background: var(--ink-graphite);
 }
 
 .pencil-tools .pencil-pen.carmine span {
-    background: #C8352B;
+    background: var(--ink-carmine);
 }
 
 .pencil-tools .pencil-pen.forest span {
-    background: #2E7D4F;
+    background: var(--ink-forest);
 }
 
 .pencil-tools .pencil-pen.ochre span {
-    background: #9C6A0C;
+    background: var(--ink-ochre);
 }
 
 .lab .pencil-tools button.pencil-pen.on span {
-    border-color: var(--ml-charcoal);
+    border-color: var(--accent);
 }
 
 .pencil-tools .meta {
@@ -1532,7 +1584,7 @@ html, body {
 }
 
 .hierarchy .sep {
-    color: var(--ml-gray);
+    color: var(--ink-2);
 }
 
 .hierarchy .crumb {
@@ -1543,37 +1595,37 @@ html, body {
     padding: 0.1rem 0.6rem;
     border: 1.5px solid transparent;
     border-radius: 1rem;
-    color: var(--ml-white);
+    color: var(--ink);
 }
 
 .hierarchy span.crumb.piece {
     padding-left: 0;
-    color: var(--ml-gray);
+    color: var(--ink-2);
 }
 
 .hierarchy button.crumb {
-    border-color: var(--ml-gray);
+    border-color: var(--ink-2);
 }
 
 .hierarchy button.crumb.inferred {
     border-style: dashed;
-    border-color: var(--ml-inferred);
+    border-color: var(--ink-2);
 }
 
 .hierarchy .crumb.on {
-    background: var(--ml-lime);
-    border-color: var(--ml-lime);
-    color: var(--ml-charcoal);
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
     font-weight: 600;
 }
 
 .hierarchy .crumb .how {
     font-size: 0.72rem;
-    color: var(--ml-inferred);
+    color: var(--ink-2);
 }
 
 .hierarchy .crumb.on .how {
-    color: var(--ml-charcoal);
+    color: var(--on-accent);
 }
 
 /* The phrase strip (Phrases/PhraseStrip.razor, #18): the piece as phrases to pick, each saying how its start was found.
@@ -1608,28 +1660,28 @@ html, body {
 
 .phrases button.sentence .how {
     font-size: 0.72rem;
-    color: var(--ml-gray);
+    color: var(--ink-2);
 }
 
 .phrases button.sentence.inferred {
     border-style: dashed;
-    border-color: var(--ml-inferred);
+    border-color: var(--ink-2);
 }
 
 .phrases button.sentence.inferred .how {
-    color: var(--ml-inferred);
+    color: var(--ink-2);
 }
 
 .phrases button.sentence.on .how {
-    color: var(--ml-charcoal);
+    color: var(--on-accent);
 }
 
 .phrases button.sentence.around {
-    box-shadow: inset 0 -3px 0 var(--ml-lime);
+    box-shadow: inset 0 -3px 0 var(--accent);
 }
 
 .phrases button.phrase.child {
-    outline: 2px dashed var(--ml-lime);
+    outline: 2px dashed var(--accent);
     outline-offset: 2px;
 }
 
@@ -1655,21 +1707,21 @@ html, body {
 
 .phrases button.phrase .how {
     font-size: 0.72rem;
-    color: var(--ml-gray);
+    color: var(--ink-2);
 }
 
 .phrases button.phrase.inferred {
     border-style: dashed;
-    border-color: var(--ml-inferred);
+    border-color: var(--ink-2);
 }
 
 .phrases button.phrase.inferred .how {
-    color: var(--ml-inferred);
+    color: var(--ink-2);
 }
 
 /* The phrase being worked on is lime like any control that is on; its tag stays readable on lime. */
 .phrases button.phrase.on .how {
-    color: var(--ml-charcoal);
+    color: var(--on-accent);
 }
 
 .phrases .phrase-actions, .phrases .phrase-extend {
@@ -1709,7 +1761,7 @@ html, body {
 }
 
 .roll .roll-notes:focus-visible {
-    outline: 2px solid var(--ml-lime);
+    outline: 2px solid var(--accent);
     outline-offset: 2px;
 }
 
@@ -1727,7 +1779,7 @@ html, body {
     flex-wrap: wrap;
     gap: 0.4rem 1rem;
     margin-top: 0.5rem;
-    color: var(--ml-gray);
+    color: var(--ink-2);
     font-size: 0.85rem;
 }
 
@@ -1745,15 +1797,15 @@ html, body {
     justify-content: center;
     min-height: 8rem;
     margin: 1rem 0;
-    border: 2px dashed var(--ml-gray);
+    border: 2px dashed var(--ink-2);
     border-radius: 0.6rem;
-    color: var(--ml-gray);
+    color: var(--ink-2);
     cursor: pointer;
 }
 
 .import .dropzone:hover, .import .dropzone:focus-within {
-    border-color: var(--ml-lime);
-    color: var(--ml-white);
+    border-color: var(--accent);
+    color: var(--ink);
 }
 
 .import .dropzone.busy {
@@ -1785,23 +1837,23 @@ html, body {
 }
 
 .import .tracks-table th {
-    color: var(--ml-gray);
+    color: var(--ink-2);
     font-weight: normal;
 }
 
 .import .notice {
-    border-left: 3px solid var(--ml-lime);
+    border-left: 3px solid var(--accent);
     padding-left: 0.75rem;
 }
 
 .import .warnings .kind {
-    color: var(--ml-gray);
+    color: var(--ink-2);
     min-width: 5rem;
     display: inline-block;
 }
 
 .import .start {
-    border-left: 3px solid var(--ml-lime);
+    border-left: 3px solid var(--accent);
     padding-left: 0.75rem;
 }
 
@@ -1818,9 +1870,9 @@ html, body {
 .import .recording-range {
     margin: 1rem 0 1.5rem;
     padding: 1rem;
-    border: 1px solid var(--ml-border);
+    border: 1px solid var(--hairline-strong);
     border-radius: 0.6rem;
-    background: var(--ml-surface);
+    background: var(--surface);
 }
 
 /* The selection editor: a strip with the play position's knob, the shape with the selection window over it,
@@ -1842,7 +1894,7 @@ html, body {
     position: relative;
     height: 1.75rem;
     border-radius: 0.3rem 0.3rem 0 0;
-    background: var(--ml-raised);
+    background: var(--surface-2);
     cursor: ew-resize;
 }
 
@@ -1854,14 +1906,14 @@ html, body {
     height: 1.35rem;
     margin-left: -0.55rem;
     border-radius: 0.3rem;
-    background: var(--ml-white);
+    background: var(--paper);
     pointer-events: none;
 }
 
 .import .wave-editor .wave {
     position: relative;
     height: 7rem;
-    background: var(--ml-panel);
+    background: var(--surface);
     border-radius: 0 0 0.3rem 0.3rem;
     cursor: pointer;
 }
@@ -1873,7 +1925,7 @@ html, body {
 }
 
 .import .wave-editor .waveform path {
-    stroke: var(--ml-gray);
+    stroke: var(--ink-2);
     stroke-width: 0.6;
     fill: none;
 }
@@ -1882,7 +1934,7 @@ html, body {
     position: absolute;
     top: 0;
     bottom: 0;
-    background: var(--ml-charcoal);
+    background: var(--desk);
     opacity: 0.65;
     pointer-events: none;
 }
@@ -1891,9 +1943,9 @@ html, body {
     position: absolute;
     top: 0;
     bottom: 0;
-    border-top: 3px solid var(--ml-lime);
-    border-bottom: 3px solid var(--ml-lime);
-    background: color-mix(in srgb, var(--ml-lime) 12%, transparent);
+    border-top: 3px solid var(--accent);
+    border-bottom: 3px solid var(--accent);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
     cursor: grab;
     box-sizing: border-box;
 }
@@ -1903,7 +1955,7 @@ html, body {
     top: -3px;
     bottom: -3px;
     width: 1.4rem;
-    background: var(--ml-lime);
+    background: var(--accent);
     cursor: ew-resize;
 }
 
@@ -1925,8 +1977,8 @@ html, body {
     width: 0.25rem;
     height: 1.6rem;
     margin: -0.8rem 0 0 -0.125rem;
-    border-left: 2px solid var(--ml-charcoal);
-    border-right: 2px solid var(--ml-charcoal);
+    border-left: 2px solid var(--surface);
+    border-right: 2px solid var(--surface);
     box-sizing: border-box;
 }
 
@@ -1941,7 +1993,7 @@ html, body {
 }
 
 .import .wave-editor .handle:focus-visible {
-    outline: 3px solid var(--ml-white);
+    outline: 3px solid var(--ink);
     outline-offset: 1px;
 }
 
@@ -1952,7 +2004,7 @@ html, body {
     left: 0;
     width: 2px;
     margin-left: -1px;
-    background: var(--ml-white);
+    background: var(--paper);
     pointer-events: none;
 }
 
@@ -1963,13 +2015,13 @@ html, body {
     gap: 0.25rem 0.75rem;
     margin: 0.25rem 1.4rem 0.75rem;
     font-size: 0.9rem;
-    color: var(--ml-gray);
+    color: var(--ink-2);
 }
 
 .import .wave-times strong {
     font-family: var(--ml-mono);
     font-weight: normal;
-    color: var(--ml-white);
+    color: var(--ink);
 }
 
 .import .recording-range .transport {
@@ -1984,7 +2036,7 @@ html, body {
 }
 
 .import .recording-range .estimate {
-    border-left: 3px solid var(--ml-lime);
+    border-left: 3px solid var(--accent);
     padding-left: 0.75rem;
 }
 
@@ -1996,7 +2048,7 @@ html, body {
 
 
 .import .scan-check {
-    border-left: 3px solid var(--ml-inferred);
+    border-left: 3px solid var(--ink-2);
     padding-left: 0.75rem;
 }
 
@@ -2011,28 +2063,28 @@ html, body {
 .lab .scan-check .scan-bars li {
     display: grid;
     gap: 0.25rem;
-    border-left: 3px solid var(--ml-uncertain);
+    border-left: 3px solid var(--warning);
     padding-left: 0.6rem;
 }
 
 .lab .scan-check .scan-bars li.confirmed {
-    border-left-color: var(--ml-lime);
+    border-left-color: var(--accent);
 }
 
 .lab .scan-check .kind {
-    color: var(--ml-lime);
+    color: var(--accent);
 }
 
 .lab.settings pre.command {
     overflow-x: auto;
     padding: 0.6rem 0.8rem;
-    background: var(--ml-surface);
+    background: var(--surface);
     border-radius: 0.4rem;
 }
 
 /* Projects screen (Pages/Home.razor, N1). */
 .projects .tagline {
-    color: var(--ml-lime);
+    color: var(--accent);
 }
 
 .lab a.button {
@@ -2041,29 +2093,29 @@ html, body {
     box-sizing: border-box;
     min-height: 2.25rem;
     font-size: 0.9rem;
-    border: 1px solid var(--ml-border);
+    border: 1px solid var(--hairline-strong);
     border-radius: 0.6rem;
     padding: 0.35rem 0.8rem;
     text-decoration: none;
 }
 
 .lab a.button.primary {
-    background: var(--ml-lime);
-    border-color: var(--ml-lime);
-    color: var(--ml-charcoal);
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
 }
 
 .lab button.link {
     border: none;
     min-height: 0;
     padding: 0;
-    color: var(--ml-lime);
+    color: var(--accent);
     text-decoration: underline;
     text-align: left;
 }
 
 .projects .warning {
-    border-left: 3px solid #ffd166;
+    border-left: 3px solid var(--amber);
     padding-left: 0.75rem;
 }
 
@@ -2076,11 +2128,11 @@ html, body {
 .projects .project-table th, .projects .project-table td {
     text-align: left;
     padding: 0.4rem 1rem 0.4rem 0;
-    border-bottom: 1px solid #2A313B;
+    border-bottom: 1px solid var(--hairline);
 }
 
 .projects .project-table th {
-    color: var(--ml-gray);
+    color: var(--ink-2);
     font-weight: normal;
 }
 
@@ -2105,7 +2157,7 @@ html, body {
 }
 
 .score:focus-visible {
-    outline: 2px solid var(--ml-lime);
+    outline: 2px solid var(--accent);
     outline-offset: 2px;
 }
 
@@ -2114,11 +2166,11 @@ html, body {
     max-width: 112rem;
     margin: 0 auto;
     padding: 0 1.5rem 1.5rem;
-    color: var(--ml-gray);
+    color: var(--ink-2);
 }
 
 .site-footer a {
-    color: var(--ml-lime);
+    color: var(--accent);
 }
 
 /* Settings, privacy notice and terms of use: text set for reading. */
@@ -2127,7 +2179,7 @@ html, body {
 }
 
 .lab.document code, .lab.settings code {
-    color: var(--ml-lime);
+    color: var(--accent);
 }
 
 .lab.document h2, .lab.settings h2 {
@@ -2143,7 +2195,7 @@ html, body {
     text-align: left;
     vertical-align: top;
     padding: 0.35rem 0.75rem 0.35rem 0;
-    border-bottom: 1px solid #343C47;
+    border-bottom: 1px solid var(--hairline);
 }
 
 .lab.settings .events {
@@ -2159,8 +2211,8 @@ html, body {
 }
 
 .lab.settings .card {
-    background: var(--ml-panel);
-    border: 1px solid var(--ml-line);
+    background: var(--surface);
+    border: 1px solid var(--hairline);
     border-radius: 0.9rem;
     padding: 1rem 1.25rem;
     margin: 1rem 0;
@@ -2188,8 +2240,8 @@ html, body {
     width: 2.75rem;
     height: 2.75rem;
     border-radius: 50%;
-    background: var(--ml-lime);
-    color: var(--ml-charcoal);
+    background: var(--accent);
+    color: var(--on-accent);
     font-weight: 700;
     font-size: 1.1rem;
     text-decoration: none;
@@ -2214,7 +2266,7 @@ html, body {
     gap: 1rem;
     min-height: 2.75rem;
     margin-top: 1rem;
-    border-top: 1px solid var(--ml-line);
+    border-top: 1px solid var(--hairline);
     padding-top: 0.75rem;
 }
 
@@ -2230,8 +2282,8 @@ html, body {
     height: 2rem;
     margin: 0;
     border-radius: 1rem;
-    background: var(--ml-raised);
-    border: 1px solid var(--ml-border);
+    background: var(--surface-2);
+    border: 1px solid var(--hairline-strong);
     cursor: pointer;
     transition: background 0.15s;
 }
@@ -2244,22 +2296,22 @@ html, body {
     width: 1.5rem;
     height: 1.5rem;
     border-radius: 50%;
-    background: var(--ml-white);
+    background: var(--paper);
     transition: transform 0.15s;
 }
 
 .lab input[type=checkbox].switch:checked {
-    background: var(--ml-lime);
-    border-color: var(--ml-lime);
+    background: var(--accent);
+    border-color: var(--accent);
 }
 
 .lab input[type=checkbox].switch:checked::before {
     transform: translateX(1.25rem);
-    background: var(--ml-charcoal);
+    background: var(--desk);
 }
 
 .lab input[type=checkbox].switch:focus-visible, .lab.settings .choice:has(input:focus-visible) {
-    outline: 2px solid var(--ml-lime);
+    outline: 2px solid var(--accent);
     outline-offset: 2px;
 }
 
@@ -2268,11 +2320,11 @@ html, body {
 }
 
 .lab button.destructive {
-    color: #ff8a80;
+    color: var(--danger);
 }
 
 .lab button.destructive:not(.link) {
-    border-color: #ff8a80;
+    border-color: var(--danger);
 }
 
 .lab.settings .choices {
@@ -2288,21 +2340,21 @@ html, body {
     min-height: 2.75rem;
     box-sizing: border-box;
     padding: 0.7rem 0.9rem;
-    border: 1px solid var(--ml-border);
+    border: 1px solid var(--hairline-strong);
     border-radius: 0.7rem;
     cursor: pointer;
 }
 
 .lab.settings .choice.on {
-    border-color: var(--ml-lime);
-    background: var(--ml-surface);
+    border-color: var(--accent);
+    background: var(--surface);
 }
 
 .lab.settings .choice input {
     width: 1.25rem;
     height: 1.25rem;
     margin: 0.1rem 0 0;
-    accent-color: var(--ml-lime);
+    accent-color: var(--accent);
     flex: none;
 }
 
@@ -2316,15 +2368,15 @@ html, body {
     display: inline-block;
     margin-left: 0.35rem;
     padding: 0 0.45rem;
-    border: 1px solid var(--ml-lime);
+    border: 1px solid var(--accent);
     border-radius: 0.6rem;
-    color: var(--ml-lime);
+    color: var(--accent);
     font-size: 0.75rem;
     vertical-align: 0.1em;
 }
 
 .lab.settings .notice {
-    border-left: 3px solid var(--ml-lime);
+    border-left: 3px solid var(--accent);
     padding-left: 0.75rem;
 }
 
@@ -2340,9 +2392,9 @@ html, body {
     min-height: 2.75rem;
     padding: 0.4rem 0.7rem;
     font: inherit;
-    color: var(--ml-white);
-    background: var(--ml-surface);
-    border: 1px solid var(--ml-border);
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--hairline-strong);
     border-radius: 0.6rem;
 }
 
@@ -2353,7 +2405,7 @@ html, body {
 .lab.settings button.disclosure {
     border: none;
     padding-left: 0;
-    color: var(--ml-lime);
+    color: var(--accent);
 }
 
 .lab.settings button.disclosure::before {
@@ -2366,7 +2418,7 @@ html, body {
 
 .lab.settings .segmented {
     display: inline-flex;
-    border: 1px solid var(--ml-border);
+    border: 1px solid var(--hairline-strong);
     border-radius: 0.7rem;
     padding: 0.2rem;
     gap: 0.2rem;
@@ -2399,15 +2451,15 @@ html, body {
     width: 2.75rem;
     height: 2.75rem;
     border-radius: 50%;
-    color: var(--ml-white);
+    color: var(--ink);
 }
 
 .lab .account-nav .settings-link:hover {
-    background: var(--ml-raised);
+    background: var(--surface-2);
 }
 
 .lab .sign-in-prompt {
-    color: var(--ml-gray);
+    color: var(--ink-2);
 }
 
 /* Inline, so the line keeps its height; the padding still widens what a finger can hit. */
@@ -2420,7 +2472,7 @@ html, body {
 
 .lab .account-nav .languages {
     display: inline-flex;
-    border: 1px solid var(--ml-border);
+    border: 1px solid var(--hairline-strong);
     border-radius: 0.6rem;
     overflow: hidden;
 }
@@ -2432,12 +2484,12 @@ html, body {
     min-height: 2.75rem;
     padding: 0 0.6rem;
     font-size: 0.85rem;
-    color: var(--ml-gray);
+    color: var(--ink-2);
 }
 
 .lab .account-nav .languages button.on {
-    background: var(--ml-raised);
-    color: var(--ml-white);
+    background: var(--surface-2);
+    color: var(--ink);
     font-weight: 600;
 }
 
@@ -2454,7 +2506,7 @@ body:has(.transport-bar) .site-footer {
 
 .app-header details.open-another summary {
     cursor: pointer;
-    color: var(--ml-gray);
+    color: var(--ink-2);
     font-size: 0.9rem;
     list-style: none;
 }
@@ -2485,8 +2537,8 @@ body:has(.transport-bar) .site-footer {
 
 .lab .inspector .handoff button {
     width: 100%;
-    border-color: var(--ml-lime);
-    color: var(--ml-lime);
+    border-color: var(--accent);
+    color: var(--accent);
     min-height: 2.75rem;
 }
 
@@ -2506,7 +2558,7 @@ body:has(.transport-bar) .site-footer {
     border: none;
     padding: 0.2rem 0;
     min-height: 0;
-    color: var(--ml-gray);
+    color: var(--ink-2);
     font-size: 0.85rem;
 }
 
@@ -2530,8 +2582,8 @@ body:has(.transport-bar) .site-footer {
 }
 
 .lab .project-card, .lab .session-card, .lab .idea-card {
-    background: var(--ml-surface);
-    border: 1px solid var(--ml-line);
+    background: var(--surface);
+    border: 1px solid var(--hairline);
     border-radius: 0.9rem;
     padding: 0.8rem 1rem;
     display: flex;
@@ -2625,24 +2677,24 @@ body:has(.home-screen) .site-footer {
     min-height: 5.5rem;
     box-sizing: border-box;
     padding: 1rem;
-    background: var(--ml-surface);
-    border: 1px solid var(--ml-line);
+    background: var(--surface);
+    border: 1px solid var(--hairline);
     border-radius: 0.9rem;
-    color: var(--ml-white);
+    color: var(--ink);
     text-decoration: none;
     -webkit-tap-highlight-color: transparent;
 }
 
 .lab .start-tile:hover {
-    border-color: var(--ml-gray);
+    border-color: var(--ink-2);
 }
 
 .lab .start-tile:active {
-    background: var(--ml-raised);
+    background: var(--surface-2);
 }
 
 .lab .start-tile:focus-visible {
-    outline: 2px solid var(--ml-lime);
+    outline: 2px solid var(--accent);
     outline-offset: 2px;
 }
 
@@ -2653,8 +2705,8 @@ body:has(.home-screen) .site-footer {
     padding: 0.45rem;
     box-sizing: border-box;
     border-radius: 0.6rem;
-    background: var(--ml-raised);
-    color: var(--ml-lime);
+    background: var(--surface-2);
+    color: var(--accent);
     fill: none;
     stroke: currentColor;
     stroke-width: 1.8;
@@ -2663,8 +2715,8 @@ body:has(.home-screen) .site-footer {
 }
 
 .lab .start-tile.demo svg {
-    background: var(--ml-lime);
-    color: var(--ml-charcoal);
+    background: var(--accent);
+    color: var(--on-accent);
     fill: currentColor;
 }
 
@@ -2673,12 +2725,12 @@ body:has(.home-screen) .site-footer {
 }
 
 .lab .start-tile .hint {
-    color: var(--ml-gray);
+    color: var(--ink-2);
     font-size: 0.9rem;
 }
 
 .lab .start-tile .needs {
-    color: var(--ml-uncertain);
+    color: var(--warning);
     font-size: 0.85rem;
 }
 
@@ -2732,11 +2784,11 @@ body:has(.home-screen) .site-footer {
     text-align: left;
     padding: 0.8rem 1rem;
     min-height: 4.5rem;
-    border-color: var(--ml-lime);
+    border-color: var(--accent);
 }
 
 .lab.project button.intent.open {
-    border-color: var(--ml-border);
+    border-color: var(--hairline-strong);
 }
 
 .lab.project button.intent strong {
@@ -2744,7 +2796,7 @@ body:has(.home-screen) .site-footer {
 }
 
 .lab.project button.intent span {
-    color: var(--ml-gray);
+    color: var(--ink-2);
     font-size: 0.9rem;
 }
 
@@ -2753,16 +2805,16 @@ body:has(.home-screen) .site-footer {
     flex-wrap: wrap;
     align-items: center;
     gap: 0.4rem 0.75rem;
-    color: var(--ml-gray);
+    color: var(--ink-2);
     font-size: 0.9rem;
 }
 
 .lab.project label.task input {
     flex: 1 1 18rem;
     box-sizing: border-box;
-    background: var(--ml-charcoal);
-    color: var(--ml-white);
-    border: 1px solid var(--ml-border);
+    background: var(--desk);
+    color: var(--ink);
+    border: 1px solid var(--hairline-strong);
     border-radius: 0.6rem;
     padding: 0.45rem 0.7rem;
     font: inherit;
@@ -2770,14 +2822,14 @@ body:has(.home-screen) .site-footer {
 }
 
 .lab.project label.task input:focus-visible {
-    outline: 2px solid var(--ml-lime);
+    outline: 2px solid var(--accent);
     outline-offset: 1px;
 }
 
 .lab .session-card .intent-tag {
     display: inline-block;
-    border: 1.5px solid var(--ml-lime);
-    color: var(--ml-lime);
+    border: 1.5px solid var(--accent);
+    color: var(--accent);
     border-radius: 1.1rem;
     padding: 0 0.6rem;
     font-size: 0.8rem;
@@ -2785,18 +2837,18 @@ body:has(.home-screen) .site-footer {
 }
 
 .lab .session-card.open .intent-tag {
-    border-color: var(--ml-gray);
-    color: var(--ml-gray);
+    border-color: var(--ink-2);
+    color: var(--ink-2);
 }
 
 .lab .idea-card .note {
     white-space: pre-wrap;
-    border-left: 2px solid var(--ml-gray);
+    border-left: 2px solid var(--ink-2);
     padding-left: 0.5rem;
 }
 
 .lab .idea-card .label {
-    color: var(--ml-gray);
+    color: var(--ink-2);
 }
 
 /* The canvas as the workspace (0012, batch 2): Score, Piano roll or Both, a divider between the two, and Focus mode.
@@ -2804,7 +2856,7 @@ body:has(.home-screen) .site-footer {
    (header, Focus bar, transport) into --ml-chrome, so the canvas fills the window and the two views share it by --ml-split. */
 .app-header .view-switch, .focus-bar .view-switch {
     display: inline-flex;
-    border: 1px solid var(--ml-border);
+    border: 1px solid var(--hairline-strong);
     border-radius: 0.6rem;
     overflow: hidden;
 }
@@ -2816,12 +2868,12 @@ body:has(.home-screen) .site-footer {
 }
 
 .lab .view-switch button + button {
-    border-left: 1px solid var(--ml-border);
+    border-left: 1px solid var(--hairline-strong);
 }
 
 .lab .view-switch button.on {
-    background: var(--ml-raised);
-    color: var(--ml-white);
+    background: var(--surface-2);
+    color: var(--ink);
 }
 
 .app .canvas[data-fill="true"] {
@@ -2908,15 +2960,15 @@ body:has(.home-screen) .site-footer {
     height: 0.25rem;
     transform: translate(-50%, -50%);
     border-radius: 0.125rem;
-    background: var(--ml-border);
+    background: var(--hairline-strong);
 }
 
 .app .divider:hover::before, .app .divider.dragging::before, .app .divider:focus-visible::before {
-    background: var(--ml-lime);
+    background: var(--accent);
 }
 
 .app .divider:focus-visible {
-    outline: 2px solid var(--ml-lime);
+    outline: 2px solid var(--accent);
     outline-offset: -2px;
 }
 
@@ -2948,8 +3000,8 @@ body:has(main.focus) .site-footer {
     align-items: center;
     gap: 0.5rem 0.9rem;
     padding: 0.5rem 1.25rem;
-    border-bottom: 1px solid var(--ml-line);
-    background: var(--ml-panel);
+    border-bottom: 1px solid var(--hairline);
+    background: var(--surface);
 }
 
 .focus-bar .phrase {
@@ -2986,4 +3038,9 @@ body:has(main.focus) .site-footer {
     .app.focus .transport-bar .state, .app.focus .transport-bar label:not(.tempo) {
         display: none;
     }
+}
+
+/* A heading the app moves focus to after a navigation is not a control: no ring. */
+[tabindex="-1"]:focus {
+    box-shadow: none;
 }

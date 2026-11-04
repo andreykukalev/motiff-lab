@@ -13,8 +13,20 @@ See `docs/decisions/0001-stack.md` (stack), `0002-canonical-time.md` (musical ti
 - `tests/web` — Node tests for the TypeScript layer, run on the compiled output.
 - `services/omr` — the scan server for sheet music recognition and transcription: homr (AGPL-3.0, unmodified) and Basic Pitch (Apache-2.0) behind a small Python HTTP service, run by the player in Docker on their own computer (`docs/decisions/0011-sheet-music-recognition.md`) or hosted in Azure Container Apps (`0014`, deployed by the `Scan server` workflow, not CI). Its unit tests run with `python -m pytest` in that folder.
 - `ipad` — the native iPad app (`0019`): SwiftUI in `ipad/App` (XcodeGen, built in Xcode on a Mac), music-core as a NativeAOT framework with the facade's C functions in `ipad/Core` (in the solution, so CI compiles it), Verovio built from source in `ipad/Verovio` (`ipad/README.md`). Swift is built and tested by the `iPad` workflow on macOS runners, not in CI. The Swift shell around the web app (`0015`) was removed on 2026-11-04.
-- `design/kit` — the design kit of the redesign (0018): `tokens.css` is the source of truth for every colour, type style, size and shadow; `ds.css`, `icons.js`, `score.js`, the Verovio options, the eleven screens. Redesign PRs take their values from here and define no literal colour or size of their own.
+- `design/kit` — the design kit of the redesign (0018): `tokens.css` is the source of truth for every colour, type style, size and shadow; `ds.css`, `icons.js`, `score.js`, the Verovio options, the eleven screens. Redesign PRs take their values from here and define no literal colour or size of their own. The web app serves a copy of `tokens.css` and the fonts in `wwwroot/css`; `node tools/icons/build.mjs` writes the icon set for both apps (`wwwroot/img/icons.svg`, `ipad/App/MotiffLab/Icons.xcassets`), drawn in Razor with `<Icon Name="…" />`.
 - `tests/e2e` — Playwright tests of the published app: the core journey in Chromium, Firefox and WebKit (desktop and tablet), offline, and WCAG 2.2 AA with axe.
+
+## Redesign
+
+The UI is being rebuilt to the UX concept and design system of 0018, in the web app and in the native iPad app, replacing the old screens directly:
+
+- Read `design/kit/HANDOFF.md` before any UI work. It says which source wins, what was decided and why, and what in the mockups is invented.
+- Source of truth, highest first: `design/kit/docs/01-ux-concept.md` and `design/kit/docs/02-design-system.md` (text) → `design/kit/tokens.css` (values) → `design/kit/ds.css` (components and score marks) → `design/kit/screens/*.png` (look) → `design/kit/docs/wireframes/*.png` (structure only, partly stale).
+- Never hard-code a colour, radius, shadow, font or timing: use a token from `tokens.css`. A canvas reads them with `Scripts/layout/tokens.ts`.
+- Do not port the mockup HTML (`s*.html`): it is absolutely positioned picture code. Port tokens, `ds.css` rules, icons and the Verovio options.
+- Non-negotiables: the score is the whole screen and nothing is docked; one continuously scrolling document of A4 pages (no page jumps); the score is the selection surface (no phrase list or strip); one Insights stream (no Understand / Explore / Build tabs); works on any iPad without a stylus; one accent (cobalt = pointing and selection only; plum = what the app composed and Pro; amber = what the player marked); Russian and English for the interface and all generated content; on the device = free, cloud or AI = Pro.
+- The demo score (`elise.musicxml`), `phraseRanges()`, facts, counts and all on-screen texts in the renders are illustrative, not data.
+- When a picture disagrees with the documents' text, the text wins; the known stale spots are listed in `HANDOFF.md` section 7. Ask Andrei about anything listed there as open rather than deciding it silently.
 
 ## Commands
 

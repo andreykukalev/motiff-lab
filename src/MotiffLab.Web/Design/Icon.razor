@@ -1,0 +1,23 @@
+@* One icon of the kit's set (0018 section 13, design/kit/icons.js, drawn from wwwroot/img/icons.svg): a line icon on the 20 px
+   grid that takes the colour of its text. Decorative, so hidden from assistive technology: the control it sits in carries the word. *@
+<svg class="ic @SizeClass @Class" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><use href="img/icons.svg#ic-@Name" /></svg>
+
+@code {
+    /// <summary>The icon's name in the kit, such as "play" or "phrases".</summary>
+    [Parameter, EditorRequired]
+    public string Name { get; set; } = "";
+
+    /// <summary>16 px in captions and chips, 20 px in buttons, menus and the pill, 24 px in the bar.</summary>
+    [Parameter]
+    public IconSize Size { get; set; } = IconSize.Medium;
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    private string? SizeClass => Size switch
+    {
+        IconSize.Small => "s",
+        IconSize.Large => "l",
+        _ => null,
+    };
+}

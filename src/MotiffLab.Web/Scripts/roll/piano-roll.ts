@@ -17,6 +17,8 @@ import {
     type RollLabels,
     type RollPayload,
 } from "./roll-model.js";
+import { THEME_CHANGED } from "../layout/theme.js";
+import { mix, token, withAlpha } from "../layout/tokens.js";
 
 interface DotNetObject {
     invokeMethodAsync(method: string, ...args: unknown[]): Promise<unknown>;
@@ -82,42 +84,87 @@ const KEEPS_SELECTION = "button, input, select, textarea, label, a, summary, [ro
  */
 const SPACE_OWNERS = "input:not([type=range]), select, textarea, [contenteditable]";
 
-// Brand surface and ink (docs/02-brand-identity.md), and lane colours that hold 3:1 against the surface.
-const SURFACE = "#1E242C";
-const SURFACE_DARK = "#191E25";
-const INK = "#F4F5F2";
-const MUTED = "#B8C0CB";
-const CHARCOAL = "#15191F";
-const ACCENT = "#C8F169";
-const BAR_LINE = "#8A93A0";
-const BEAT_LINE = "#343C47";
-const SELECTION_BAND = "rgba(200, 241, 105, 0.14)";
-const SELECTION_HEADER = "rgba(200, 241, 105, 0.45)";
+// The roll's colours are the design kit's tokens (0018), read when it draws so it follows the theme. The right hand is
+// cobalt and the left teal, the hand colours of the kit; other lanes take the plum and the user inks.
+let SURFACE = "";
+let SURFACE_DARK = "";
+let INK = "";
+let MUTED = "";
+/** A halo round outlines drawn on the notes, so they read on every lane colour. */
+let CHARCOAL = "";
+/** Letters and dots on a note or a lit key. */
+let ON_NOTE = "";
+let ACCENT = "";
+let BAR_LINE = "";
+let BEAT_LINE = "";
+let SELECTION_BAND = "";
+let SELECTION_HEADER = "";
+let KEY_WHITE = "";
+let KEY_BLACK = "";
 /** Notes outside the selected motif are drawn faint, so the motif stands out. */
 const OUTSIDE_ALPHA = 0.3;
 /** The range that plays, marked on the bar numbers, with a band where it runs past the selection. */
-const PLAY_RANGE = INK;
-const PLAY_RANGE_EXTENSION = "rgba(244, 245, 242, 0.08)";
+let PLAY_RANGE = "";
+let PLAY_RANGE_EXTENSION = "";
 /** Motif notes behind a variation are drawn this faint, so the variation's outlines read on top of them. */
 const BEHIND_VARIATION_ALPHA = 0.4;
-const VARIATION_FILL = "rgba(244, 245, 242, 0.28)";
-/** Phrase starts (#18): a flag on the bar numbers and a faint line down the roll, dashed and blue where inferred. */
-const PHRASE_MARK = INK;
-const PHRASE_INFERRED = "#7CC4FA";
+let VARIATION_FILL = "";
+/** Phrase starts (#18): a flag on the bar numbers and a faint line down the roll, dashed where inferred. */
+let PHRASE_MARK = "";
+let PHRASE_INFERRED = "";
 const PHRASE_LINE_ALPHA = 0.35;
 /** How a phrase start was found, as setPhrases sends it. */
 const PHRASE_INFERRED_KIND = 1;
-const VARIATION_FILL_SOUNDING = "rgba(244, 245, 242, 0.75)";
+let VARIATION_FILL_SOUNDING = "";
 /**
- * The places of a fact chosen on Understand (#25): a solid blue box round each of their notes, a faint
- * band over each place and a blue underline along the bottom, so they differ from the selection
- * (lime), the variation (white) and inferred marks (dashed) by line as well as colour.
+ * The places of a fact chosen on Understand (#25): a solid cobalt box round each of their notes, a faint
+ * band over each place and an underline along the bottom, so they differ from the selection, the
+ * variation (plum) and inferred marks (dashed) by line as well as colour.
  */
-const HIGHLIGHT = "#7CC4FA";
-const HIGHLIGHT_BAND = "rgba(124, 196, 250, 0.12)";
+let HIGHLIGHT = "";
+let HIGHLIGHT_BAND = "";
 const HIGHLIGHT_UNDERLINE = 4;
-const VARIATION_LINK = "rgba(244, 245, 242, 0.45)";
-const LANE_COLOURS = ["#C8F169", "#6EC6FF", "#FF9E80", "#C5A3FF", "#F2D16B", "#5FE0C1"];
+let VARIATION_LINK = "";
+let PATTERN_INK = "";
+let LANE_COLOURS: string[] = [];
+/** The tokens the palette was last read from, so patterns are made again when the theme changes. */
+let paletteKey = "";
+
+/** Reads the palette from the tokens; true when it changed since the last read. */
+function readPalette(element: Element): boolean {
+    const t = (name: string): string => token(name, element);
+    const key = ["surface", "ink", "accent", "teal", "plum", "notation", "paper"].map(t).join("|");
+    if (key === paletteKey) {
+        return false;
+    }
+    paletteKey = key;
+    SURFACE = t("surface");
+    INK = t("ink");
+    SURFACE_DARK = mix(SURFACE, INK, 0.04);
+    MUTED = t("ink-2");
+    CHARCOAL = t("surface-2");
+    ON_NOTE = t("on-accent");
+    ACCENT = t("accent");
+    BAR_LINE = mix(SURFACE, INK, 0.3);
+    BEAT_LINE = mix(SURFACE, INK, 0.12);
+    SELECTION_BAND = t("accent-tint");
+    SELECTION_HEADER = withAlpha(ACCENT, 0.45);
+    KEY_WHITE = t("paper");
+    KEY_BLACK = t("notation");
+    PLAY_RANGE = INK;
+    PLAY_RANGE_EXTENSION = withAlpha(INK, 0.08);
+    const plum = t("plum");
+    VARIATION_FILL = withAlpha(plum, 0.28);
+    VARIATION_FILL_SOUNDING = withAlpha(plum, 0.75);
+    VARIATION_LINK = withAlpha(plum, 0.45);
+    PHRASE_MARK = INK;
+    PHRASE_INFERRED = MUTED;
+    HIGHLIGHT = ACCENT;
+    HIGHLIGHT_BAND = withAlpha(ACCENT, 0.12);
+    PATTERN_INK = withAlpha(ON_NOTE, 0.6);
+    LANE_COLOURS = [ACCENT, t("teal"), plum, t("ink-carmine"), t("ink-ochre"), t("ink-forest")];
+    return true;
+}
 
 /** Patterns go with colours so that lanes differ by more than colour (WCAG 2.2 AA, 1.4.1). */
 type PatternKind = "solid" | "rising" | "falling" | "horizontal" | "vertical" | "dots";
@@ -214,6 +261,7 @@ export class PianoRoll {
         document.addEventListener("pointerdown", this.onDocumentPointerDown);
         document.addEventListener("pointerup", this.onDocumentPointerUp);
         document.addEventListener("keydown", this.onDocumentKeyDown);
+        document.addEventListener(THEME_CHANGED, this.onThemeChanged);
         this.resizeObserver = new ResizeObserver(() => this.invalidate());
         this.resizeObserver.observe(host);
         this.frame = requestAnimationFrame(this.tick);
@@ -395,6 +443,7 @@ export class PianoRoll {
         document.removeEventListener("pointerdown", this.onDocumentPointerDown);
         document.removeEventListener("pointerup", this.onDocumentPointerUp);
         document.removeEventListener("keydown", this.onDocumentKeyDown);
+        document.removeEventListener(THEME_CHANGED, this.onThemeChanged);
         this.host.replaceChildren();
     }
 
@@ -521,6 +570,9 @@ export class PianoRoll {
         if (width === 0) {
             return;
         }
+        if (readPalette(this.host)) {
+            this.patterns.clear();
+        }
         const { low, high, row } = this.pitchRange();
         this.drawRoll(width, HEADER + (high - low + 1) * row, low, high, row);
         this.drawKeyboard(width);
@@ -547,7 +599,7 @@ export class PianoRoll {
                 context.fillRect(GUTTER, y + row - 1, width - GUTTER, 1);
                 if (row >= 7) {
                     context.fillStyle = MUTED;
-                    context.font = "10px system-ui, sans-serif";
+                    context.font = "10px \"Source Sans 3\", system-ui, sans-serif";
                     context.textBaseline = "middle";
                     context.textAlign = "left";
                     context.fillText(pitchName(pitch), 4, y + row / 2);
@@ -563,7 +615,7 @@ export class PianoRoll {
 
         // Beat lines faint, bar lines strong and numbered.
         let lastLabel = -Infinity;
-        context.font = "11px system-ui, sans-serif";
+        context.font = "11px \"Source Sans 3\", system-ui, sans-serif";
         context.textBaseline = "middle";
         context.textAlign = "left";
         for (const line of model.grid(from, to)) {
@@ -710,8 +762,8 @@ export class PianoRoll {
                 context.setLineDash([]);
             }
             if (note.hand !== HAND_NONE && row >= 10 && w >= 18) {
-                context.fillStyle = CHARCOAL;
-                context.font = "bold 9px system-ui, sans-serif";
+                context.fillStyle = ON_NOTE;
+                context.font = "bold 9px \"Source Sans 3\", system-ui, sans-serif";
                 context.textAlign = "left";
                 context.fillText(`${note.hand === HAND_LEFT ? this.labels.leftLetter : this.labels.rightLetter}${note.handInferred ? "?" : ""}`, x + 3, y + h / 2);
             }
@@ -826,7 +878,7 @@ export class PianoRoll {
             const h = black ? blackHeight : KEYBOARD_HEIGHT;
             const lane = lit.get(pitch);
             const byHand = struck.has(pitch);
-            context.fillStyle = byHand ? MUTED : lane !== undefined ? LANE_COLOURS[lane % LANE_COLOURS.length] : black ? CHARCOAL : INK;
+            context.fillStyle = byHand ? MUTED : lane !== undefined ? LANE_COLOURS[lane % LANE_COLOURS.length] : black ? KEY_BLACK : KEY_WHITE;
             context.fillRect(x + 0.5, 0, w - 1, h);
             if (!black) {
                 context.fillStyle = BAR_LINE;
@@ -835,7 +887,7 @@ export class PianoRoll {
             // A dot as well as the colour, so a lit key reads without colour vision.
             if (lane !== undefined || byHand) {
                 const radius = Math.max(2, Math.min(w * 0.28, 5));
-                context.fillStyle = CHARCOAL;
+                context.fillStyle = ON_NOTE;
                 context.beginPath();
                 context.arc(x + w / 2, h - radius - 4, radius, 0, Math.PI * 2);
                 context.fill();
@@ -856,7 +908,7 @@ export class PianoRoll {
         const middleC = positions.get(60);
         if (middleC !== undefined && whiteWidth >= 8) {
             context.fillStyle = MUTED;
-            context.font = "9px system-ui, sans-serif";
+            context.font = "9px \"Source Sans 3\", system-ui, sans-serif";
             context.textAlign = "center";
             context.textBaseline = "alphabetic";
             context.fillText("C4", middleC + whiteWidth / 2, KEYBOARD_HEIGHT - 2);
@@ -873,7 +925,16 @@ export class PianoRoll {
         return this.patterns.get(kind) ?? null;
     }
 
+    /** A new theme: the roll and its legend are drawn again in its colours. */
+    private readonly onThemeChanged = (): void => {
+        this.renderLegend();
+        this.invalidate();
+    };
+
     private renderLegend(): void {
+        if (readPalette(this.host)) {
+            this.patterns.clear();
+        }
         const model = this.model;
         const items: HTMLElement[] = [];
         for (const lane of model?.lanes(this.colourBy, this.labels) ?? []) {
@@ -1277,8 +1338,8 @@ function patternTile(kind: PatternKind): HTMLCanvasElement {
     tile.width = size;
     tile.height = size;
     const context = tile.getContext("2d")!;
-    context.strokeStyle = "rgba(21, 25, 31, 0.6)";
-    context.fillStyle = "rgba(21, 25, 31, 0.6)";
+    context.strokeStyle = PATTERN_INK;
+    context.fillStyle = PATTERN_INK;
     context.lineWidth = 1.5;
     context.beginPath();
     switch (kind) {
