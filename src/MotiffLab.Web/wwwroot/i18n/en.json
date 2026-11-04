@@ -856,6 +856,7 @@
   "roll.provenance.UserEdited": "useredited",
   "roll.selectedNote": "Selected: {0}.",
   "common.cancel": "Cancel",
+  "common.done": "Done",
   "obs.sessionOnly": "This piece is not saved as a project, so what you keep here goes when you leave the page. A file you open or import is saved on this device with what you keep.",
   "obs.empty": "Nothing kept for this phrase yet. Keep a variation you want to come back to, or write a note about the phrase.",
   "obs.name": "Name",

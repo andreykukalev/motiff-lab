@@ -185,3 +185,21 @@ function Get-MotiffGraphList {
   }
   return $items
 }
+
+# The iPad app's redirect (ipad/App, AccountOptions.redirect): MSAL's msauth.<bundle id>://auth.
+$script:IPadRedirectUri = 'msauth.com.andreykukalev.motifflab://auth'
+
+function Set-MotiffIPadSignIn {
+  <#
+    Lets the iPad app sign in with the web app's registration (decision record 0019): its MSAL redirect on the registration's
+    iOS platform, and public client flows on. The web app's own redirects are left as they are. Safe to run again.
+  #>
+  param([Parameter(Mandatory)][string]$Token, [Parameter(Mandatory)][object]$App)
+  $uris = @(@(Get-MotiffField (Get-MotiffField $App 'publicClient') 'redirectUris') | Where-Object { $_ })
+  if ($uris -notcontains $script:IPadRedirectUri) { $uris += $script:IPadRedirectUri }
+  Invoke-MotiffGraph -Token $Token -Method PATCH -Path "/applications/$($App.id)" -Body ([ordered]@{
+      publicClient           = @{ redirectUris = @($uris) }
+      isFallbackPublicClient = $true
+    }) | Out-Null
+  Write-MotiffInfo "The iPad app signs in at $($script:IPadRedirectUri)"
+}
