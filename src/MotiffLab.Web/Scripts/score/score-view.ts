@@ -92,6 +92,8 @@ const PERFORMANCE_MAX_WIDTH = 180;
 /** Printed notes the performance did not play: tinted in the warning text colour, in place. */
 const UNHEARD_CLASS = "not-heard";
 const VERSION_ADDED_CLASS = "version-added";
+/** On the comparison layer, a note likely to be an artefact of a recording's hearing, shown when asked for (0022). */
+const VERSION_ARTEFACT_CLASS = "version-artefact";
 
 /** The marker sits this far right of the bar's top right corner and this far above it. */
 const NOTE_OFFSET_X = 4;
@@ -213,6 +215,7 @@ export class ScoreView {
     private unheardPlaces: HighlightPlace[] = [];
     private unheard = new Set<string>();
     private versionAdded: string[] = [];
+    private versionArtefacts: string[] = [];
     private highlights: ScoreHighlightMark[] = [];
     /** The pictures of the pages handed to the Pages tab, freed when new ones are made. */
     private thumbnails: string[] = [];
@@ -427,13 +430,14 @@ export class ScoreView {
 
     /**
      * Draws the markers of the bars a performance plays differently and tints the printed notes it did not play
-     * (decision record 0022, section 4), and in the comparison layer shows plum the notes another version adds;
-     * empty lists draw none.
+     * (decision record 0022, section 4), and in the comparison layer shows plum the notes another version adds and grey
+     * the likely artefacts of a recording's hearing; empty lists draw none.
      */
-    setPerformance(markers: ScorePerformanceMarker[], unheard: HighlightPlace[], added: string[] = []): void {
+    setPerformance(markers: ScorePerformanceMarker[], unheard: HighlightPlace[], added: string[] = [], artefacts: string[] = []): void {
         this.performanceMarkers = markers;
         this.unheardPlaces = unheard;
         this.versionAdded = added;
+        this.versionArtefacts = artefacts;
         this.placeMarks();
         this.applyUnheard();
     }
@@ -1050,6 +1054,12 @@ export class ScoreView {
         }
         for (const id of this.versionAdded) {
             this.element(id)?.classList.add(VERSION_ADDED_CLASS);
+        }
+        for (const old of this.host.querySelectorAll(`.${VERSION_ARTEFACT_CLASS}`)) {
+            old.classList.remove(VERSION_ARTEFACT_CLASS);
+        }
+        for (const id of this.versionArtefacts) {
+            this.element(id)?.classList.add(VERSION_ARTEFACT_CLASS);
         }
     }
 

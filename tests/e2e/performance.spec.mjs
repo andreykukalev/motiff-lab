@@ -198,5 +198,18 @@ test("a recording is added as another version: its sound is heard on the scan se
     // Only the sound went, not the file under its name.
     expect(uploads[0].includes(Buffer.from("Take 1"))).toBe(false);
     await expect(drawer.getByLabel("Name")).toHaveValue("Take 1 at the piano");
+
+    // On the comparison layer, the notes Transkun likely heard wrongly are left out, counted, and shown grey when asked.
+    await (await openMore(page)).getByRole("button", { name: "Layers" }).click();
+    const layers = page.locator(".layers-popover");
+    await layers.getByRole("switch", { name: "Other version above the staves" }).click();
+    const artefacts = layers.getByRole("switch", { name: /^Likely artefacts of the hearing \(\d+\)$/ });
+    await expect(artefacts).not.toBeChecked();
+    const count = Number((await artefacts.locator("xpath=..").innerText()).match(/\((\d+)\)/)[1]);
+    expect(count).toBeGreaterThan(0);
+    await expect(page.locator(".score g.note.version-artefact")).toHaveCount(0);
+    await artefacts.click();
+    await expect(page.locator(".score g.note.version-artefact")).toHaveCount(count);
+    expect(await violations(page)).toEqual([]);
     expect(errors).toEqual([]);
 });

@@ -57,6 +57,7 @@ else if (_loading && !HoldHeight)
     private IReadOnlyList<ScorePerformanceMarker>? _shownPerformance;
     private IReadOnlyList<HighlightPlace>? _shownUnheard;
     private IReadOnlyList<string>? _shownVersionAdded;
+    private IReadOnlyList<string>? _shownVersionArtefacts;
     private IReadOnlyList<string>? _shownHiddenLayers;
     private IReadOnlyList<HighlightPlace>? _shownHighlight;
     private IReadOnlyList<HighlightPlace>? _shownPointed;
@@ -123,6 +124,10 @@ else if (_loading && !HoldHeight)
     /// <summary>In the comparison layer above the systems, the ids of the notes another version adds, shown plum (0022, section 4).</summary>
     [Parameter]
     public IReadOnlyList<string>? VersionAdded { get; set; }
+
+    /// <summary>In the comparison layer, the ids of the notes likely to be artefacts of a recording's hearing, shown grey when asked for.</summary>
+    [Parameter]
+    public IReadOnlyList<string>? VersionArtefacts { get; set; }
 
     /// <summary>A performance's marker was tapped: its bar's number.</summary>
     [Parameter]
@@ -282,7 +287,8 @@ else if (_loading && !HoldHeight)
                 await ShowMarksAsync(_view);
             }
 
-            if (!ReferenceEquals(PerformanceMarkers, _shownPerformance) || !ReferenceEquals(Unheard, _shownUnheard) || !ReferenceEquals(VersionAdded, _shownVersionAdded))
+            if (!ReferenceEquals(PerformanceMarkers, _shownPerformance) || !ReferenceEquals(Unheard, _shownUnheard) || !ReferenceEquals(VersionAdded, _shownVersionAdded)
+                || !ReferenceEquals(VersionArtefacts, _shownVersionArtefacts))
             {
                 await ShowPerformanceAsync(_view);
             }
@@ -342,7 +348,9 @@ else if (_loading && !HoldHeight)
         _shownPerformance = PerformanceMarkers;
         _shownUnheard = Unheard;
         _shownVersionAdded = VersionAdded;
-        await view.InvokeVoidAsync("setPerformance", (object)(PerformanceMarkers ?? []).ToArray(), (object)(Unheard ?? []).ToArray(), (object)(VersionAdded ?? []).ToArray());
+        _shownVersionArtefacts = VersionArtefacts;
+        await view.InvokeVoidAsync(
+            "setPerformance", (object)(PerformanceMarkers ?? []).ToArray(), (object)(Unheard ?? []).ToArray(), (object)(VersionAdded ?? []).ToArray(), (object)(VersionArtefacts ?? []).ToArray());
     }
 
     private async Task ShowRangeAsync(IJSObjectReference view)

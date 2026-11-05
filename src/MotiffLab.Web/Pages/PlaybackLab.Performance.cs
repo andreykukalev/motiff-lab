@@ -111,9 +111,10 @@ public partial class PlaybackLab
         }
     }
 
-    private (SavedPerformance Of, PerformanceComparison Comparison, PerformanceLayerNotes Layer)? _versionNotes;
+    /// <summary>The shown version's layer as worked out (artefacts included), and its notes without the likely artefacts.</summary>
+    private (SavedPerformance Of, PerformanceComparison Comparison, PerformanceLayerNotes Layer, IReadOnlyList<Note> Heard)? _versionNotes;
 
-    private (PerformanceLayerNotes Layer, IReadOnlyList<Note> Notes, bool Readable, ScoreSource Score, IReadOnlyList<string> Added)? _versionLayer;
+    private (PerformanceLayerNotes Layer, IReadOnlyList<Note> Notes, bool Readable, bool Artefacts, ScoreSource Score, IReadOnlyList<string> Added, IReadOnlyList<string> ArtefactIds)? _versionLayer;
 
     /// <summary>
     /// The shown version in the score's time (0022, section 4): what agrees as printed, what it adds on the grid, bars that
@@ -133,11 +134,11 @@ public partial class PlaybackLab
             {
                 PerformanceLayerNotes layer = PerformanceLayer.Of(comparison, performance.Notes(), PrintedNotes, _meter);
                 HashSet<string> artefacts = [.. layer.Artefacts];
-                cached = (performance, comparison, layer with { Notes = [.. layer.Notes.Where(note => !artefacts.Contains(note.Id))] });
+                cached = (performance, comparison, layer, [.. layer.Notes.Where(note => !artefacts.Contains(note.Id))]);
                 _versionNotes = cached;
             }
 
-            return cached.Layer.Notes;
+            return cached.Heard;
         }
     }
 
@@ -156,14 +157,21 @@ public partial class PlaybackLab
                 return null;
             }
 
-            if (_versionLayer is { } cached && ReferenceEquals(cached.Layer, version.Layer) && ReferenceEquals(cached.Notes, notes) && cached.Readable == _readable)
+            // Likely artefacts of a recording's hearing stay out unless asked for, in grey (0022, section 4).
+            bool artefacts = LayerShown("artefacts") && version.Layer.Artefacts.Count > 0;
+            if (_versionLayer is { } cached && ReferenceEquals(cached.Layer, version.Layer) && ReferenceEquals(cached.Notes, notes) && cached.Readable == _readable
+                && cached.Artefacts == artefacts)
             {
                 return cached.Score;
             }
 
-            ScoreSource score = ScoreSource.FromNotes(Notation(notes, _score.End, [new NotationOssia(performance.Name, versionNotes, AsHeard: true)]));
+            IReadOnlyList<Note> shown = artefacts ? version.Layer.Notes : versionNotes;
+            ScoreSource score = ScoreSource.FromNotes(Notation(notes, _score.End, [new NotationOssia(performance.Name, shown, AsHeard: true)]));
             string prefix = NotationGenerator.OssiaIdPrefix(0);
-            _versionLayer = (version.Layer, notes, _readable, score, [.. version.Layer.Added.Select(id => prefix + id)]);
+            HashSet<string> artefactIds = [.. version.Layer.Artefacts];
+            _versionLayer = (version.Layer, notes, _readable, artefacts, score,
+                [.. version.Layer.Added.Where(id => !artefactIds.Contains(id)).Select(id => prefix + id)],
+                artefacts ? [.. version.Layer.Artefacts.Select(id => prefix + id)] : []);
             return score;
         }
     }
@@ -259,6 +267,12 @@ public partial class PlaybackLab
 
     /// <summary>The notes the other version adds, plum in its layer; null while the layer is off.</summary>
     private IReadOnlyList<string>? ScoreVersionAdded => VersionScore is null ? null : _versionLayer?.Added;
+
+    /// <summary>The likely artefacts on the layer's staves, in grey, when they are shown.</summary>
+    private IReadOnlyList<string>? ScoreVersionArtefacts => VersionScore is null ? null : _versionLayer?.ArtefactIds;
+
+    /// <summary>How many notes of the shown version are likely artefacts of a recording's hearing; 0 when none is shown.</summary>
+    private int VersionArtefactCount => VersionNotes is not null && _versionNotes is { } version ? version.Layer.Artefacts.Count : 0;
 
     private IReadOnlyList<ScorePerformanceMarker>? ScorePerformanceMarkers => PerformanceMarks?.Markers;
 

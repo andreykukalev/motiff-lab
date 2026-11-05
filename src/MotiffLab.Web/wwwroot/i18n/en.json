@@ -1322,6 +1322,8 @@
   "library.openFileHintHere": "MIDI or MusicXML, or a Motiff Lab project file, read on this device",
   "pdf.versionFirst": "To add another version, the notes have to be read from this PDF first. They open as a separate piece in your library, and this PDF stays exactly as it is.",
   "layers.version": "Other version above the staves",
+  "layers.artefacts": "Likely artefacts in a recording's version",
+  "layers.artefactsCount": "Likely artefacts of the hearing ({0})",
   "focus.version": "As in {0}",
   "performance.takenBars": "Bars {0} are now as in {1}.",
   "performance.restoredBars": "Bars {0} are back as they were."

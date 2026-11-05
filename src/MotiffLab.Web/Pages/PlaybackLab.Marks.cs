@@ -22,7 +22,7 @@ public partial class PlaybackLab
     private sealed record NoteDraft(string? Id, TickSpan Span, string Text);
 
     /// <summary>The layers of marks, as the settings "layers.ink" and the rest name them.</summary>
-    private static readonly string[] s_layers = ["ink", "notes", "bookmarks", "analysis", "check", "version"];
+    private static readonly string[] s_layers = ["ink", "notes", "bookmarks", "analysis", "check", "version", "artefacts"];
 
     /// <summary>The inks a highlight is laid in: the amber highlighter first, then the pencil inks.</summary>
     private static readonly InkColour[] s_highlightInks = [InkColour.Amber, InkColour.Carmine, InkColour.Forest, InkColour.Ochre];
@@ -255,10 +255,17 @@ public partial class PlaybackLab
     }
 
     /// <summary>The layers the piece has: Check only for a scan or a transcription, the other version only when it has one (0022).</summary>
-    private IEnumerable<string> PieceLayers => s_layers.Where(layer => (layer != "check" || HasCheckFlags) && (layer != "version" || HasPerformances));
+    private IEnumerable<string> PieceLayers => s_layers.Where(layer => layer switch
+    {
+        "check" => HasCheckFlags,
+        "version" => HasPerformances,
+        // A line under the other version's layer, while it shows, that counts the likely artefacts and shows them.
+        "artefacts" => HasPerformances && LayerShown("version") && VersionArtefactCount > 0,
+        _ => true,
+    });
 
-    /// <summary>The layers of marks, which Hide all marks hides and shows: not the other version, which redraws the score.</summary>
-    private IEnumerable<string> MarkLayers => PieceLayers.Where(layer => layer != "version");
+    /// <summary>The layers of marks, which Hide all marks hides and shows: not the other version or its artefacts, which redraw the score.</summary>
+    private IEnumerable<string> MarkLayers => PieceLayers.Where(layer => layer is not ("version" or "artefacts"));
 
     private bool AllMarksHidden => MarkLayers.All(layer => !LayerShown(layer));
 
@@ -299,7 +306,9 @@ public partial class PlaybackLab
         await SaveMarksAsync(_ => project, "");
     }
 
-    private string LayerName(string layer) => Text[$"layers.{layer}"];
+    private string LayerName(string layer) => layer == "artefacts"
+        ? Text.Format("layers.artefactsCount", VersionArtefactCount)
+        : Text[$"layers.{layer}"];
 
     /// <summary>The settings of the layers the piece has, for the Layers popover's scope.</summary>
     private IReadOnlyList<string> LayerIds => [.. PieceLayers.Select(layer => $"layers.{layer}")];
