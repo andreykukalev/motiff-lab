@@ -1,11 +1,13 @@
 @using MotiffLab.MusicCore.Analysis
 @using MotiffLab.MusicCore.Events
 @using MotiffLab.MusicCore.Motifs
+@using MotiffLab.MusicCore.Notation
 @using MotiffLab.MusicCore.Playback
 @using MotiffLab.MusicCore.Settings
 @using MotiffLab.MusicCore.Time
 @using MotiffLab.MusicCore.Variations
 @using MotiffLab.Web.Playback
+@using MotiffLab.Web.Score
 @using MotiffLab.Web.Understand
 @implements IAsyncDisposable
 @inject IJSRuntime JS
@@ -91,6 +93,13 @@
     private IReadOnlyList<string> _selected = [];
     private MotifSelection? _shownMotif;
     private bool _shownAlone;
+    private IReadOnlyList<KeyChange>? _shownKeys;
+    private (NoteNaming Naming, string Language)? _shownNaming;
+    private IReadOnlyList<ScoreCheckFlag>? _shownChecks;
+    private NotePoint? _shownPoint;
+
+    /// <summary>Each note's name spelled for its key, by id, as the roll writes it.</summary>
+    private Dictionary<string, string> _spelled = [];
 
     /// <summary>The notes to draw. The view loads them again only when a different list is given.</summary>
     [Parameter, EditorRequired]
@@ -159,6 +168,22 @@
     [Parameter]
     public EventCallback<IReadOnlyList<string>> SelectionChanged { get; set; }
 
+    /// <summary>The key signatures, from where each starts, that the roll spells its names for, as the score does; empty for C major.</summary>
+    [Parameter]
+    public IReadOnlyList<KeyChange>? Keys { get; set; }
+
+    /// <summary>The bars Check flags (0018 section 9), drawn on the roll's bar numbers as on the score.</summary>
+    [Parameter]
+    public IReadOnlyList<ScoreCheckFlag>? Checks { get; set; }
+
+    /// <summary>Raised with the bar number when the player taps a Check flag on the roll.</summary>
+    [Parameter]
+    public EventCallback<int> CheckPicked { get; set; }
+
+    /// <summary>A note pointed at elsewhere, such as on the score: the roll selects the note at that tick and key and shows it. A new value points again.</summary>
+    [Parameter]
+    public NotePoint? Point { get; set; }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -196,6 +221,9 @@
             _shownPlayRange = null;
             _shownPhrases = null;
             _shownHighlight = null;
+            _shownKeys = null;
+            _shownNaming = null;
+            _shownChecks = null;
             _laneCounts = new()
             {
                 ["track"] = Notes.Select(note => note.Track).Distinct().Count(),
@@ -290,6 +318,28 @@
             await view.InvokeVoidAsync("setHighlight", spans, ids);
         }
 
+        NoteNaming naming = NoteNames.For(SettingsStore[NoteNames.Setting], MotiffLab.MusicCore.Words.For(Text.Language));
+        if (!ReferenceEquals(Keys, _shownKeys) || _shownNaming != (naming, Text.Language))
+        {
+            _shownKeys = Keys;
+            _shownNaming = (naming, Text.Language);
+            RollNames names = PianoRollPayload.Names(Notes!, Keys ?? [], naming);
+            _spelled = Notes!.Select((note, index) => (note.Id, Name: names.Notes[index])).ToDictionary(pair => pair.Id, pair => pair.Name, StringComparer.Ordinal);
+            await view.InvokeVoidAsync("setNames", names.Notes, names.KeyTicks, names.Rows);
+        }
+
+        if (!ReferenceEquals(Checks, _shownChecks))
+        {
+            _shownChecks = Checks;
+            await view.InvokeVoidAsync("setChecks", (object)(Checks ?? []).Select(check => new { tick = check.Tick, bar = check.Bar, label = check.Label }).ToArray());
+        }
+
+        if (Point is { } point && point != _shownPoint)
+        {
+            _shownPoint = point;
+            await view.InvokeVoidAsync("pointAt", point.Tick, point.Pitch);
+        }
+
         if ((OriginalAudible, VariationAudible) != _shownAudible)
         {
             _shownAudible = (OriginalAudible, VariationAudible);
@@ -305,7 +355,7 @@
     private Dictionary<string, string> Labels() => new[]
     {
         "track", "trackVoice", "noVoice", "rightHand", "leftHand", "noHand", "rightLetter", "leftLetter", "rollAria", "scrollAria", "keysAria",
-        "legendHint", "legendVariation", "legendHighlight", "legendInferred", "legendHands", "legendHandsInferred",
+        "legendHint", "legendVariation", "legendHighlight", "legendInferred", "legendHands", "legendHandsInferred", "legendCheck",
     }.ToDictionary(name => name, name => Text[$"roll.js.{name}"]);
 
     /// <summary>Why a grouping is off for this piece, so the control never looks like it does nothing.</summary>
@@ -342,6 +392,10 @@
     /// <summary>Called by the script when Space is pressed outside a control.</summary>
     [JSInvokable]
     public Task OnRollSpace() => PlayPausePressed.InvokeAsync();
+
+    /// <summary>Called by the script when a Check flag on the bar numbers is tapped.</summary>
+    [JSInvokable]
+    public Task OnRollCheckPicked(int bar) => CheckPicked.InvokeAsync(bar);
 
     /// <summary>Called by the script when the selection changes.</summary>
     [JSInvokable]
@@ -412,7 +466,7 @@
             }
 
             MetricPosition position = Meter.ToPosition(note.Span.Onset);
-            var parts = new List<string> { Text.Format("roll.at", note.Pitch, position.Bar, position.Beat), Text.Format("roll.track", note.Track + 1) };
+            var parts = new List<string> { Text.Format("roll.at", _spelled.GetValueOrDefault(note.Id) ?? note.Pitch.ToString(), position.Bar, position.Beat), Text.Format("roll.track", note.Track + 1) };
             if (note.Voice is int voice)
             {
                 parts.Add(Text.Format("roll.voice", voice));

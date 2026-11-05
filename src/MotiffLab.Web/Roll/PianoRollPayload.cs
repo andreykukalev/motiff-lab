@@ -1,4 +1,5 @@
 using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Notation;
 using MotiffLab.MusicCore.Playback;
 using MotiffLab.MusicCore.Time;
 
@@ -54,6 +55,38 @@ internal static class PianoRollPayload
         return new RollPayload(ids, packed, bars, score.End.Value);
     }
 
+    /// <summary>
+    /// The names the roll writes (0018 section 4), spelled as the score spells them: each note's for the key signature in
+    /// force where it starts, and every row's for each key signature, so the rows read in the key of the place in view.
+    /// Before the first key signature, and in a piece without any, notes are spelled for the first one or C major.
+    /// </summary>
+    public static RollNames Names(IReadOnlyList<Note> notes, IReadOnlyList<KeyChange> keys, NoteNaming naming)
+    {
+        KeyChange[] ordered = [.. keys.OrderBy(key => key.At)];
+        int FifthsAt(Tick at)
+        {
+            int fifths = ordered.Length == 0 ? 0 : ordered[0].Fifths;
+            foreach (KeyChange key in ordered)
+            {
+                if (key.At > at)
+                {
+                    break;
+                }
+
+                fifths = key.Fifths;
+            }
+
+            return fifths;
+        }
+
+        string[] noteNames = [.. notes.Select(note => NoteNames.Name(note.Pitch.MidiNumber, FifthsAt(note.Span.Onset), naming))];
+        KeyChange[] rows = ordered.Length == 0 ? [new KeyChange(Tick.Zero, 0)] : ordered;
+        return new RollNames(
+            noteNames,
+            [.. rows.Select(key => key.At.Value)],
+            [.. rows.Select(key => Enumerable.Range(0, Pitch.MaxMidiNumber + 1).Select(pitch => NoteNames.Name(pitch, key.Fifths, naming)).ToArray())]);
+    }
+
     /// <summary>Imported and player-confirmed values are facts; detected and inferred ones are marked (decision record 0004).</summary>
     public static bool IsCertain(Attribution attribution) =>
         attribution.Provenance is Provenance.Imported or Provenance.UserConfirmed or Provenance.UserEdited;
@@ -61,9 +94,19 @@ internal static class PianoRollPayload
 
 internal sealed record RollPayload(string[] Ids, long[] Notes, long[] Bars, long End);
 
+/// <summary>The names the roll writes: one per note, and per key signature (from its tick) one per row, MIDI 0 to 127.</summary>
+internal sealed record RollNames(string[] Notes, long[] KeyTicks, string[][] Rows);
+
 /// <summary>
 /// A drag across the roll, from where it started to where it ended; a click on a bar number when it
 /// barely moved. <paramref name="Extend"/> marks a Shift-click on a bar number, which extends the
 /// selection to that bar.
 /// </summary>
 public readonly record struct RollRange(Tick Anchor, Tick Current, bool IsClick, bool Extend = false);
+/// <summary>A note pointed at on the score (0018 section 4): when it starts and its key. Each one is a new point, so pointing at the same note again shows it again.</summary>
+public sealed class NotePoint(long tick, int pitch)
+{
+    public long Tick { get; } = tick;
+
+    public int Pitch { get; } = pitch;
+}

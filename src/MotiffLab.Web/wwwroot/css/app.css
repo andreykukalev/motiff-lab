@@ -1292,6 +1292,18 @@ h1, h2, .app-title strong {
     color: var(--accent);
 }
 
+/* A note pointed at on the piano roll (0018 section 4): cobalt, as pointing is, with a ring so it reads without colour. */
+.score g.note.pointed {
+    fill: var(--accent);
+    stroke: var(--accent);
+    color: var(--accent);
+}
+
+.score g.note.pointed g.notehead use, .score g.note.pointed g.notehead path {
+    stroke: var(--accent);
+    stroke-width: 40px;
+}
+
 .score .highlight-mark {
     position: absolute;
     box-sizing: border-box;

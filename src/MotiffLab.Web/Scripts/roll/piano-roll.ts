@@ -9,8 +9,11 @@ import {
     HAND_NONE,
     HIGHEST_KEY,
     LOWEST_KEY,
+    LabelLines,
     RollModel,
     isBlackKey,
+    keyIndexAt,
+    labelPlace,
     laneKey,
     pitchName,
     type ColourBy,
@@ -52,13 +55,21 @@ const DEFAULT_ZOOM = 48;
 const MIN_ZOOM = 6;
 const MAX_ZOOM = 480;
 
-const GUTTER = 40;
+/** The keyboard down the left (0018 section 4): a key per row with its name and octave. */
+const GUTTER = 52;
+/** The smallest row that holds every row's name in the keyboard; below it only the Cs are named. */
+const ROW_FOR_EVERY_NAME = 9;
+const NOTE_FONT = "bold 9px \"Source Sans 3\", system-ui, sans-serif";
+/** A Check flag on the bar numbers: an amber square with "?" (design/kit/ds.css .flag), and the target round it. */
+const CHECK_FLAG = 14;
+const CHECK_TARGET = 22;
 // Tall enough to press and drag on for a bar selection (WCAG 2.2 target size, 2.5.8).
 const HEADER = 24;
 const ROLL_HEIGHT = 360;
 /** The notes area never gets shorter than this when the roll fills its panel (0012). */
 const MIN_ROLL_HEIGHT = 160;
-const MIN_ROW = 5;
+/** Rows never get shorter than this, so every row's name reads (0018 section 4); more rows than fit scroll up and down. */
+const MIN_ROW = 10;
 const MAX_ROW = 14;
 /** The fewest semitones the rows show when they fit a selection. */
 const MIN_PITCH_SPAN = 12;
@@ -76,9 +87,10 @@ const CLICK_SLOP = 4;
 
 /**
  * A click outside the roll clears the selection unless it lands on a control or inside an element
- * marked data-keeps-selection, such as the panels that show or act on the selection.
+ * marked data-keeps-selection, such as the panels that show or act on the selection. The score keeps it too: a tap on a note
+ * there points at that note here, and the score clears its own selection (0018 section 3).
  */
-const KEEPS_SELECTION = "button, input, select, textarea, label, a, summary, [role=button], [data-keeps-selection]";
+const KEEPS_SELECTION = "button, input, select, textarea, label, a, summary, [role=button], [data-keeps-selection], .score";
 
 /**
  * Space plays and pauses from anywhere on the page, buttons and sliders included (Enter still
@@ -103,6 +115,7 @@ let SELECTION_BAND = "";
 let SELECTION_HEADER = "";
 let KEY_WHITE = "";
 let KEY_BLACK = "";
+let CHECK_FILL = "";
 /** Notes outside the selected motif are drawn faint, so the motif stands out. */
 const OUTSIDE_ALPHA = 0.3;
 /** The range that plays, marked on the bar numbers, with a band where it runs past the selection. */
@@ -153,6 +166,7 @@ function readPalette(element: Element): boolean {
     SELECTION_HEADER = withAlpha(ACCENT, 0.45);
     KEY_WHITE = t("paper");
     KEY_BLACK = t("notation");
+    CHECK_FILL = t("warning-fill");
     PLAY_RANGE = INK;
     PLAY_RANGE_EXTENSION = withAlpha(INK, 0.08);
     const plum = t("plum");
@@ -184,6 +198,13 @@ export class PianoRoll {
     private model: RollModel | null = null;
     private colourBy: ColourBy = "track";
     private noteNames = true;
+    /** Each note's name spelled for its key by music-core (setNames), by note index; null until sent, when the names are unspelled. */
+    private spelled: string[] | null = null;
+    /** Where each key signature starts, and the row names spelled for it, MIDI 0 to 127. */
+    private keyTicks: number[] = [];
+    private rowNames: string[][] = [];
+    /** The bars Check flags, drawn on the bar numbers. */
+    private checks: { tick: number; bar: number; label: string }[] = [];
     /** The lowest and highest pitch of the selection's notes, which the rows fit; null for the piece's. */
     private motifPitches: { lowest: number; highest: number } | null = null;
     private laneIndex = new Map<number, number>();
@@ -216,7 +237,9 @@ export class PianoRoll {
     /** Key x positions from the last keyboard draw, for finding the key under the pointer. */
     private keyLayout: { positions: Map<number, number>; whiteWidth: number; blackWidth: number; blackHeight: number } | null = null;
     /** A press on the notes area that becomes a click on a note or the grid, or a range drag once it moves. */
-    private press: { pointer: number; x: number; tick: number; pitch: number; add: boolean; sounding: number | null } | null = null;
+    private press: { pointer: number; x: number; y: number; tick: number; pitch: number; add: boolean; sounding: number | null; top: number | null } | null = null;
+    /** The highest row shown when the rows do not all fit, moved by a vertical scroll or a drag down the keyboard; null shows the top of the notes. */
+    private pitchTop: number | null = null;
     /** Where a press outside the roll started, so that a drag (such as selecting text) is not a click. */
     private outsidePress: { x: number; y: number; target: Element } | null = null;
     private player: PlayerHandle | null = null;
@@ -283,10 +306,48 @@ export class PianoRoll {
         this.filtered = null;
         this.variation = null;
         this.highlight = null;
+        this.spelled = null;
         this.drag = null;
         this.press = null;
         this.scroll = 0;
         this.updateLanes();
+    }
+
+    /**
+     * The names to write, spelled by music-core for the key as the score spells them (0018 section 4): one per note in load
+     * order, and per key signature (from where it starts) one per row, MIDI 0 to 127, in the player's naming (C4 or до¹).
+     */
+    setNames(notes: string[], keyTicks: number[], rows: string[][]): void {
+        this.spelled = notes.length === (this.model?.notes.length ?? -1) ? notes : null;
+        this.keyTicks = keyTicks;
+        this.rowNames = rows;
+        this.invalidate();
+    }
+
+    /** The bars Check flags (0018 section 9): an amber "?" on each bar's number, which opens Check at that bar. */
+    setChecks(checks: { tick: number; bar: number; label: string }[]): void {
+        this.checks = checks;
+        this.renderLegend();
+        this.invalidate();
+    }
+
+    /**
+     * Shows a note pointed at elsewhere, such as on the score: selects the note at that tick and key, brings it into view and
+     * writes its name over it. A tick with no such note changes nothing.
+     */
+    pointAt(tick: number, pitch: number): void {
+        const model = this.model;
+        const index = model?.noteAt(tick, pitch);
+        if (model === null || index === undefined) {
+            return;
+        }
+        this.keepInView(model.notes[index].onset);
+        // A note on a row out of view brings its row into the middle of the rows shown.
+        const { low, high } = this.pitchRange();
+        if (pitch < low || pitch > high) {
+            this.pitchTop = pitch + Math.floor((high - low) / 2);
+        }
+        this.selectIndex(index, false);
     }
 
     /** Writes each note's name inside it, where it fits (0018 section 4: on by default). */
@@ -338,6 +399,7 @@ export class PianoRoll {
         // A selection made elsewhere (a phrase chip, the score) scrolls into view, as the score does (0012).
         if (moved) {
             this.keepInView(start);
+            this.pitchTop = null;
         }
         this.invalidate();
     }
@@ -562,7 +624,7 @@ export class PianoRoll {
      * Rows from one below the lowest note to one above the highest: of the selection when there is one, so the drawer shows
      * the selected phrase large enough for note names (0018 section 4), at least an octave; else of the piece.
      */
-    private pitchRange(): { low: number; high: number; row: number } {
+    private pitchRange(): { low: number; high: number; row: number; above: boolean; below: boolean } {
         const model = this.model;
         const span = this.motifPitches ?? { lowest: model?.lowest ?? 60, highest: model?.highest ?? 72 };
         const middle = (span.lowest + span.highest) / 2;
@@ -570,8 +632,25 @@ export class PianoRoll {
         const highest = Math.max(span.highest, Math.ceil(middle + MIN_PITCH_SPAN / 2));
         const low = Math.max(0, lowest - 1);
         const high = Math.min(127, highest + 1);
-        const row = Math.min(MAX_ROW, Math.max(MIN_ROW, Math.floor(this.rollHeight() / (high - low + 1))));
-        return { low, high, row };
+        const height = this.rollHeight();
+        const fit = Math.floor(height / (high - low + 1));
+        if (fit >= MIN_ROW) {
+            return { low, high, row: Math.min(MAX_ROW, fit), above: false, below: false };
+        }
+        // More rows than fit: a window of them, from the top of the notes (where the tune usually is) until scrolled.
+        const visible = Math.max(1, Math.floor(height / MIN_ROW));
+        const top = Math.min(high, Math.max(low + visible - 1, this.pitchTop ?? high));
+        return { low: top - visible + 1, high: top, row: MIN_ROW, above: top < high, below: top - visible + 1 > low };
+    }
+
+    /** Scrolls the rows by whole rows, up for a positive count, when they do not all fit. */
+    private scrollPitch(rows: number, from?: number): void {
+        const range = this.pitchRange();
+        if (!range.above && !range.below) {
+            return;
+        }
+        this.pitchTop = (from ?? range.high) + rows;
+        this.invalidate();
     }
 
     /**
@@ -619,13 +698,6 @@ export class PianoRoll {
             if (pitch % 12 === 0) {
                 context.fillStyle = BEAT_LINE;
                 context.fillRect(GUTTER, y + row - 1, width - GUTTER, 1);
-                if (row >= 7) {
-                    context.fillStyle = MUTED;
-                    context.font = "10px \"Source Sans 3\", system-ui, sans-serif";
-                    context.textBaseline = "middle";
-                    context.textAlign = "left";
-                    context.fillText(pitchName(pitch), 4, y + row / 2);
-                }
             }
         }
         if (model === null) {
@@ -750,6 +822,8 @@ export class PianoRoll {
         context.rect(GUTTER, HEADER, width - GUTTER, height - HEADER);
         context.clip();
         const sounding = new Set(this.soundingNow(model));
+        const lines = new LabelLines();
+        const chosen: { x: number; y: number; text: string }[] = [];
         for (const index of model.inRange(from, to)) {
             const note = model.notes[index];
             if (note.pitch < low || note.pitch > high) {
@@ -783,15 +857,32 @@ export class PianoRoll {
                 context.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
                 context.setLineDash([]);
             }
-            // The note's name inside it (0018 section 4, on by default), with the hand's letter where the hand was only inferred;
-            // without names, the hand's letter alone.
+            // The note's name (0018 section 4, on by default), spelled for the key: inside it where it fits, else just above it where
+            // the rows leave room and no other name is there, with the hand's letter where the hand was only inferred; without names,
+            // the hand's letter alone. A chosen note always shows its name, in a tag drawn over everything below.
             const hand = note.hand === HAND_NONE ? "" : `${note.hand === HAND_LEFT ? this.labels.leftLetter : this.labels.rightLetter}${note.handInferred ? "?" : ""}`;
-            const text = this.noteNames ? (note.handInferred ? `${pitchName(note.pitch)} ${hand}` : pitchName(note.pitch)) : hand;
-            if (text !== "" && row >= 10 && w >= (this.noteNames ? 22 : 18)) {
-                context.fillStyle = ON_NOTE;
-                context.font = "bold 9px \"Source Sans 3\", system-ui, sans-serif";
-                context.textAlign = "left";
-                context.fillText(text, x + 3, y + h / 2, w - 4);
+            const name = this.nameOf(index);
+            const text = this.noteNames ? (note.handInferred ? `${name} ${hand}` : name) : hand;
+            if (this.selected.has(index)) {
+                chosen.push({ x, y, text: name });
+            } else if (text !== "") {
+                context.font = NOTE_FONT;
+                const textWidth = context.measureText(text).width;
+                const place = labelPlace(w, textWidth, row);
+                if (place === "inside") {
+                    context.fillStyle = ON_NOTE;
+                    context.textAlign = "left";
+                    context.textBaseline = "middle";
+                    context.fillText(text, x + 3, y + h / 2, w - 4);
+                } else if (place === "above" && this.noteNames && lines.take(note.pitch + 1, x - 1, x + textWidth + 2)) {
+                    context.textAlign = "left";
+                    context.textBaseline = "bottom";
+                    context.lineWidth = 3;
+                    context.strokeStyle = SURFACE;
+                    context.strokeText(text, x, y);
+                    context.fillStyle = INK;
+                    context.fillText(text, x, y);
+                }
             }
             // Selected notes get a thick light outline with a dark edge, readable on every lane colour.
             if (this.selected.has(index)) {
@@ -815,12 +906,125 @@ export class PianoRoll {
         this.drawVariation(context, from, to, high, low, row);
         context.restore();
 
+        // The chosen notes' names, in a tag above each, over the notes round them.
+        context.font = NOTE_FONT;
+        context.textAlign = "left";
+        context.textBaseline = "middle";
+        for (const tag of chosen) {
+            const tagWidth = context.measureText(tag.text).width + 8;
+            const left = Math.min(Math.max(GUTTER + 1, tag.x - 1), width - tagWidth - 1);
+            const top = Math.max(HEADER + 1, tag.y - 17);
+            context.fillStyle = INK;
+            context.beginPath();
+            context.roundRect(left, top, tagWidth, 14, 3);
+            context.fill();
+            context.fillStyle = SURFACE;
+            context.fillText(tag.text, left + 4, top + 7.5);
+        }
+
+        this.drawChecks(context, model, from, to, width);
+        const { above, below } = this.pitchRange();
+        this.drawGutter(context, model, low, high, row, sounding, above, below);
+
         // Playhead.
         const playhead = this.xOf(this.tickNow);
         if (playhead >= GUTTER && playhead <= width) {
             context.fillStyle = ACCENT;
             context.fillRect(Math.round(playhead) - 1, 0, 2, height);
         }
+    }
+
+    /** A note's name spelled for its key, or its unspelled name before music-core sent the names. */
+    private nameOf(index: number): string {
+        return this.spelled?.[index] ?? pitchName(this.model?.notes[index].pitch ?? 60);
+    }
+
+    /** A row's name spelled for the key in force at the left of the view (0018 section 4). */
+    private rowName(pitch: number): string {
+        return this.rowNames[keyIndexAt(this.keyTicks, this.scroll)]?.[pitch] ?? pitchName(pitch);
+    }
+
+    /**
+     * The keyboard down the left (0018 section 4): a key per row, white or black, with its name and octave on it when the rows
+     * are tall enough and on each C when not; a key lights in its lane's colour while a note on it sounds, and shows the pointing
+     * colour while a chosen note is on it.
+     */
+    private drawGutter(context: CanvasRenderingContext2D, model: RollModel, low: number, high: number, row: number, sounding: Set<number>, above: boolean, below: boolean): void {
+        const lit = new Map<number, number>();
+        for (const index of sounding) {
+            const note = model.notes[index];
+            lit.set(note.pitch, this.laneIndex.get(laneKey(note, this.colourBy)) ?? 0);
+        }
+        const chosen = new Set([...this.selected].map((index) => model.notes[index]?.pitch));
+        context.fillStyle = SURFACE;
+        context.fillRect(0, HEADER, GUTTER, (high - low + 1) * row);
+        const every = row >= ROW_FOR_EVERY_NAME;
+        context.font = `${Math.min(11, Math.max(8, row - 3))}px "Source Sans 3", system-ui, sans-serif`;
+        context.textAlign = "left";
+        context.textBaseline = "middle";
+        for (let pitch = low; pitch <= high; pitch++) {
+            const y = HEADER + (high - pitch) * row;
+            const black = isBlackKey(pitch);
+            const lane = lit.get(pitch);
+            const pointed = chosen.has(pitch);
+            context.fillStyle = lane !== undefined ? LANE_COLOURS[lane % LANE_COLOURS.length] : pointed ? SELECTION_BAND : black ? KEY_BLACK : KEY_WHITE;
+            context.fillRect(0, y, GUTTER - 3, row);
+            context.fillStyle = BAR_LINE;
+            context.fillRect(0, y + row - 1, GUTTER - 3, pitch % 12 === 0 || pitch % 12 === 5 ? 1 : 0);
+            if (every || pitch % 12 === 0) {
+                context.fillStyle = lane !== undefined ? ON_NOTE : pointed ? ACCENT : black ? KEY_WHITE : INK;
+                context.fillText(this.rowName(pitch), 4, y + row / 2, GUTTER - 9);
+            }
+        }
+        context.fillStyle = BAR_LINE;
+        context.fillRect(GUTTER - 3, HEADER, 1, (high - low + 1) * row);
+        // A small arrow at the right of the keyboard where rows go on above or below the view.
+        context.fillStyle = MUTED;
+        const arrow = (tipY: number, direction: 1 | -1): void => {
+            context.beginPath();
+            context.moveTo(GUTTER - 9, tipY);
+            context.lineTo(GUTTER - 13, tipY + 5 * direction);
+            context.lineTo(GUTTER - 5, tipY + 5 * direction);
+            context.closePath();
+            context.fill();
+        };
+        if (above) {
+            arrow(HEADER + 2, 1);
+        }
+        if (below) {
+            arrow(HEADER + (high - low + 1) * row - 2, -1);
+        }
+    }
+
+    /** The bars Check flags on the bar numbers: an amber square with "?" at the right of each flagged bar's number cell. */
+    private drawChecks(context: CanvasRenderingContext2D, model: RollModel, from: number, to: number, width: number): void {
+        context.font = "bold 10px \"Source Sans 3\", system-ui, sans-serif";
+        context.textAlign = "center";
+        context.textBaseline = "middle";
+        for (const flag of this.checkPlaces(model, from, to, width)) {
+            context.fillStyle = CHECK_FILL;
+            context.beginPath();
+            context.roundRect(flag.x, (HEADER - CHECK_FLAG) / 2, CHECK_FLAG, CHECK_FLAG, 2);
+            context.fill();
+            context.fillStyle = KEY_BLACK;
+            context.fillText("?", flag.x + CHECK_FLAG / 2, HEADER / 2 + 0.5);
+        }
+    }
+
+    /** Where each Check flag in view is drawn: just inside the end of its bar on the bar numbers. */
+    private checkPlaces(model: RollModel, from: number, to: number, width: number): { x: number; bar: number }[] {
+        const places: { x: number; bar: number }[] = [];
+        for (const flag of this.checks) {
+            const end = model.bars.find((bar) => bar.onset === flag.tick)?.end ?? flag.tick;
+            if (end < from || flag.tick > to) {
+                continue;
+            }
+            const x = Math.min(this.xOf(end), width) - CHECK_FLAG - 3;
+            if (x >= GUTTER) {
+                places.push({ x, bar: flag.bar });
+            }
+        }
+        return places;
     }
 
     /** The variation as outlines where its notes land, each linked to the motif note it came from when it moved. */
@@ -937,7 +1141,7 @@ export class PianoRoll {
             context.font = "9px \"Source Sans 3\", system-ui, sans-serif";
             context.textAlign = "center";
             context.textBaseline = "alphabetic";
-            context.fillText("C4", middleC + whiteWidth / 2, KEYBOARD_HEIGHT - 2);
+            context.fillText(this.rowName(60), middleC + whiteWidth / 2, KEYBOARD_HEIGHT - 2);
         }
     }
 
@@ -975,6 +1179,9 @@ export class PianoRoll {
         }
         if (this.highlight !== null) {
             items.push(legendItem(highlightSwatch(), this.labels.legendHighlight));
+        }
+        if (this.checks.length > 0) {
+            items.push(legendItem(checkSwatch(), this.labels.legendCheck));
         }
         if (model?.notes.some((note) => note.noteInferred || note.handInferred)) {
             items.push(legendItem(swatch(SURFACE, "solid", true), this.labels.legendInferred));
@@ -1024,7 +1231,7 @@ export class PianoRoll {
         if (x < GUTTER) {
             // The pitch names play their row's key, as the keyboard does.
             if (y >= HEADER) {
-                this.press = { pointer: event.pointerId, x, tick: -1, pitch, add: false, sounding: this.strike(pitch) };
+                this.press = { pointer: event.pointerId, x, y, tick: -1, pitch, add: false, sounding: this.strike(pitch), top: null };
             }
             return;
         }
@@ -1038,6 +1245,14 @@ export class PianoRoll {
             return;
         }
         if (y < HEADER) {
+            // A Check flag opens Check at its bar.
+            const width = this.host.clientWidth;
+            const flag = this.checkPlaces(model, this.scroll, this.scroll + this.visibleTicks(), width)
+                .find((place) => Math.abs(x - (place.x + CHECK_FLAG / 2)) <= CHECK_TARGET / 2);
+            if (flag !== undefined) {
+                void this.dotnet.invokeMethodAsync("OnRollCheckPicked", flag.bar);
+                return;
+            }
             // Shift-click on a bar number extends the selection to that bar.
             if (event.shiftKey && this.motif !== null) {
                 void this.dotnet.invokeMethodAsync("OnRollRange", Math.round(tick), Math.round(tick), true, true);
@@ -1050,7 +1265,7 @@ export class PianoRoll {
         // A note sounds as soon as it is pressed, over playback too.
         const index = model.noteAt(tick, pitch);
         const sounding = index !== undefined ? this.strike(model.notes[index].pitch) : null;
-        this.press = { pointer: event.pointerId, x, tick, pitch, add: event.shiftKey || event.ctrlKey || event.metaKey, sounding };
+        this.press = { pointer: event.pointerId, x, y, tick, pitch, add: event.shiftKey || event.ctrlKey || event.metaKey, sounding, top: null };
     };
 
     private readonly onPointerMove = (event: PointerEvent): void => {
@@ -1059,9 +1274,17 @@ export class PianoRoll {
         const press = this.press;
         if (press !== null && event.pointerId === press.pointer) {
             if (press.tick < 0) {
-                // Dragging down the pitch names plays each key in turn.
-                const { high, row } = this.pitchRange();
-                const pitch = high - Math.floor((event.clientY - box.top - HEADER) / row);
+                // Dragging down the keyboard scrolls the rows when they do not all fit (any iPad, no wheel); else it plays each key in turn.
+                const { high, row, above, below } = this.pitchRange();
+                const y = event.clientY - box.top;
+                if (press.top !== null || ((above || below) && Math.abs(y - press.y) >= CLICK_SLOP)) {
+                    this.release(press.sounding);
+                    press.sounding = null;
+                    press.top ??= high;
+                    this.scrollPitch(Math.round((y - press.y) / row), press.top);
+                    return;
+                }
+                const pitch = high - Math.floor((y - HEADER) / row);
                 if (pitch !== press.pitch) {
                     this.release(press.sounding);
                     press.pitch = pitch;
@@ -1327,6 +1550,13 @@ export class PianoRoll {
         if (event.ctrlKey) {
             const box = this.roll.getBoundingClientRect();
             this.zoomBy(event.deltaY < 0 ? 1.25 : 0.8, Math.max(0, event.clientX - box.left - GUTTER));
+        } else if (!event.shiftKey && Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
+            // A vertical scroll moves through the rows when they do not all fit; else it is left to the page.
+            const { above, below, row } = this.pitchRange();
+            if ((event.deltaY < 0 && !above) || (event.deltaY > 0 && !below)) {
+                return;
+            }
+            this.scrollPitch(-Math.sign(event.deltaY) * Math.max(1, Math.round(Math.abs(event.deltaY) / row)));
         } else {
             const delta = event.shiftKey ? event.deltaY : event.deltaX;
             if (delta === 0) {
@@ -1448,6 +1678,22 @@ function highlightSwatch(): HTMLCanvasElement {
     context.strokeRect(1, 1, 26, 7);
     context.fillStyle = HIGHLIGHT;
     context.fillRect(0, 10, 28, 2);
+    return canvas;
+}
+
+function checkSwatch(): HTMLCanvasElement {
+    const canvas = swatch(SURFACE, "solid", false);
+    const context = canvas.getContext("2d")!;
+    context.clearRect(0, 0, 28, 12);
+    context.fillStyle = CHECK_FILL;
+    context.beginPath();
+    context.roundRect(8, 0, 12, 12, 2);
+    context.fill();
+    context.fillStyle = KEY_BLACK;
+    context.font = "bold 9px \"Source Sans 3\", system-ui, sans-serif";
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.fillText("?", 14, 6.5);
     return canvas;
 }
 

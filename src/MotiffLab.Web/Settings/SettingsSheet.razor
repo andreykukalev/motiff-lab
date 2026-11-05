@@ -56,6 +56,7 @@
 
             case SheetSection.Roll:
                 <SettingSwitch Id="roll.noteNames" Label="@Text["roll.noteNames"]" />
+                <SettingChoice Id="notes.naming" Label="@Text["settings.noteNaming"]" Name="@(choice => Text[$"settings.noteNaming.{choice}"])" />
                 <SettingChoice Id="roll.colour" Label="@Text["roll.colourBy"]" Name="@(choice => Text[$"settings.rollColour.{choice}"])" />
                 break;
 

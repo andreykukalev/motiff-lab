@@ -828,7 +828,7 @@
   "roll.js.rollAria": "Piano roll. Drag anywhere across the roll to select a range, drag an edge of the selection to move it, click a bar number to select that bar, Shift-click a bar number to extend the selection to it. Click a note to hear and select it, Shift-click to add to the selection; click the pitch names or the keyboard to hear a key. Click an empty place or press Escape to clear the selection. Space plays the selection on a loop, or the piece, and pauses. Right and left square brackets select the next or previous bar, with Shift they extend the selection by it. Arrow keys move the note selection, plus and minus zoom.",
   "roll.js.scrollAria": "Scroll the piano roll",
   "roll.js.keysAria": "Keyboard: the keys of the notes being heard are lit and marked with a dot. Click or drag across the keys to play them, also while the piece plays.",
-  "roll.js.legendHint": "Drag across the roll to select · drag its edges to adjust · click an empty place to clear · click a note or key to hear it",
+  "roll.js.legendHint": "Drag across the roll to select · drag its edges to adjust · click an empty place to clear · click a note to hear it, see its name and find it in the score · drag the keys up or down to see other notes",
   "roll.js.legendVariation": "Outlined: the variation, linked to the notes it moved from",
   "roll.js.legendHighlight": "Blue box and underline: the places of the fact chosen on Understand",
   "roll.js.legendInferred": "Dashed outline: inferred, not in the file",
@@ -1218,5 +1218,10 @@
   "ask.offer": "The assistant answers with an AI model in the cloud, so it is part of Pro. Nothing has been sent.",
   "ask.offerPlan": "Your plan",
   "ask.offerSignIn": "Sign in",
-  "ask.notYet": "The conversation is coming to Pro soon. Nothing is sent yet."
+  "ask.notYet": "The conversation is coming to Pro soon. Nothing is sent yet.",
+  "settings.noteNaming": "Note names as",
+  "settings.noteNaming.auto": "By language",
+  "settings.noteNaming.letters": "Letters (C4)",
+  "settings.noteNaming.syllables": "Syllables (до¹)",
+  "roll.js.legendCheck": "A bar to check: tap its ?"
 }

@@ -42,6 +42,7 @@ public static class SettingsCatalogue
 
         Switch("roll.followPlayback", SettingSection.PianoRoll, null, SettingScope.Device, on: true),
         Switch("roll.noteNames", SettingSection.PianoRoll, null, SettingScope.Device, on: true),
+        Choice("notes.naming", SettingSection.PianoRoll, ["auto", "letters", "syllables"], "auto", null, SettingScope.Device),
         Choice("roll.colour", SettingSection.PianoRoll, ["hand", "track", "voice"], "hand", null, SettingScope.Device),
 
         Choice("assistant.answers", SettingSection.Assistant, ["onRequest", "offered"], "onRequest", new("offered", "onRequest", "onRequest"), SettingScope.Account),
