@@ -35,6 +35,10 @@ targets:
         buildPhase: resources
       - path: ../../design/kit/tokens.css
         buildPhase: resources
+      # The kit's faces, Source Sans 3 and Source Serif 4 (SIL Open Font License), registered at launch.
+      - path: ../../design/kit/fonts
+        type: folder
+        buildPhase: resources
       - path: ../../src/MotiffLab.Web/wwwroot/i18n
         type: folder
         buildPhase: resources

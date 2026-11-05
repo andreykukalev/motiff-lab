@@ -288,31 +288,3 @@ final class BundleSchemeHandler: NSObject, WKURLSchemeHandler {
 
     func webView(_ webView: WKWebView, stop task: WKURLSchemeTask) {}
 }
-
-/// The design kit's colours (design/kit/tokens.css, copied into the app), so Swift defines none of its own (0018).
-enum DesignTokens {
-    private static let light: [String: String] = {
-        guard let url = Bundle.main.url(forResource: "tokens", withExtension: "css"),
-              let css = try? String(contentsOf: url, encoding: .utf8) else { return [:] }
-        // The first block is Daylight; the first value of each name wins.
-        var values: [String: String] = [:]
-        let pattern = try! NSRegularExpression(pattern: #"--([a-z0-9-]+):\s*(#[0-9A-Fa-f]{6})"#)
-        for match in pattern.matches(in: css, range: NSRange(css.startIndex..., in: css)) {
-            guard let name = Range(match.range(at: 1), in: css), let value = Range(match.range(at: 2), in: css) else { continue }
-            let key = String(css[name])
-            if values[key] == nil { values[key] = String(css[value]) }
-        }
-        return values
-    }()
-
-    /// A token's colour, such as "ink-carmine" or "amber"; grey when the token is missing, so a gap shows.
-    static func color(_ name: String) -> UIColor {
-        guard let hex = light[name], let value = UInt32(hex.dropFirst(), radix: 16) else { return .systemGray }
-        return UIColor(
-            red: CGFloat((value >> 16) & 0xFF) / 255,
-            green: CGFloat((value >> 8) & 0xFF) / 255,
-            blue: CGFloat(value & 0xFF) / 255,
-            alpha: 1
-        )
-    }
-}

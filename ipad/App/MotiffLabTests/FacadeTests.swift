@@ -79,6 +79,15 @@ final class FacadeTests: XCTestCase {
         XCTAssertEqual(reopened["hasVariation"] as? Bool, true)
     }
 
+    func testALibraryCardReadsAProjectFileWithoutOpeningIt() throws {
+        let file = MusicCore.call(piece: piece, "project.save")
+        let body = try JSONSerialization.data(withJSONObject: ["file": file])
+        let summary = try XCTUnwrap(PieceSummary(answer: MusicCore.call(piece: 0, "project.summary", String(decoding: body, as: UTF8.self))))
+        XCTAssertTrue(summary.hasNotes)
+        XCTAssertEqual(summary.origin, "imported")
+        XCTAssertEqual(summary.checkBars, 0)
+    }
+
     func testErrorsComeBackAsCodes() throws {
         XCTAssertEqual(try call("dance", expectError: true)["error"] as? String, "unknownCall")
         XCTAssertEqual(try object(MusicCore.call(piece: 99, "piece"))["error"] as? String, "noPiece")

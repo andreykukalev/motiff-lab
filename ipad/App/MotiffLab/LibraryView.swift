@@ -1,18 +1,21 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The first screen until the redesign's library replaces it (0018 section 9): the player's pieces, which are project
-/// files in the app's Documents (0019 section 2.3), and opening a MIDI or MusicXML file from Files, or the example.
-/// A piece opened from a file becomes a project file here at once. Everything here runs on the device and is free.
+/// The library (0018 section 9, design/kit/screens/s1_library.png): the screen outside the piece, a shelf of cards, each
+/// resumed with one tap. The pieces are project files in the app's Documents (0019 section 2.3); what a card says comes
+/// from music-core (`project.summary`) without opening the piece. One Add piece action holds the ways in; the overflow
+/// imports a project file. Everything here runs on the device and is free.
 struct LibraryView: View {
     private let text = UIText.current
     @EnvironmentObject private var account: Account
     @State private var settings = false
+    @State private var adding = false
     @State private var opening = false
     @State private var choosing = false
     @State private var piece: OpenPiece?
     @State private var problem: String?
     @State private var projects: [ProjectFiles.Entry] = []
+    @State private var summaries: [URL: PieceSummary] = [:]
 
     /// MIDI, MusicXML (plain and compressed) and Motiff Lab project files.
     static let openable: [UTType] = [
@@ -25,74 +28,128 @@ struct LibraryView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                Section {
-                    Button {
-                        choosing = true
-                    } label: {
-                        Label { row(text["home.fromFile"], text["home.fromFileHint"]) } icon: { Image(systemName: "doc") }
-                    }
-                    Button {
-                        Task { await openExample() }
-                    } label: {
-                        Label { row(text["home.tryFurElise"], text["home.furEliseHint"]) } icon: { Image(systemName: "music.note") }
-                    }
-                } header: {
-                    Text(text["home.startHeading"])
-                } footer: {
+            ScrollView {
+                VStack(alignment: .leading, spacing: CGFloat.ds("s-6")) {
+                    header
                     if let problem {
-                        Text(problem).foregroundStyle(.red)
+                        Text(problem)
+                            .dsType(.label)
+                            .foregroundStyle(Color.ds("danger"))
+                            .accessibilityAddTraits(.isStaticText)
                     }
-                }
-
-                if !projects.isEmpty {
-                    Section(text["home.projects"]) {
-                        ForEach(projects) { project in
-                            Button {
-                                Task { await openProject(project.url) }
-                            } label: {
-                                row(project.title, text.format("home.lastOpened", project.modified.formatted(date: .abbreviated, time: .shortened)))
+                    if projects.isEmpty {
+                        Text(text["home.emptyWhat"])
+                            .dsType(.body)
+                            .foregroundStyle(Color.ds("ink-2"))
+                            .frame(maxWidth: 560, alignment: .leading)
+                    }
+                    Text(text["home.projects"])
+                        .overline()
+                        .accessibilityAddTraits(.isHeader)
+                    LazyVGrid(
+                        columns: [GridItem(.adaptive(minimum: 320), spacing: CGFloat.ds("s-6"), alignment: .top)],
+                        alignment: .leading,
+                        spacing: CGFloat.ds("s-6")
+                    ) {
+                        ForEach(projects) { entry in
+                            PieceCard(entry: entry, summary: summaries[entry.url], text: text) {
+                                Task { await openProject(entry.url) }
+                            } delete: {
+                                delete(entry)
                             }
                         }
-                        .onDelete(perform: delete)
+                        AddCard(text: text) { adding = true }
                     }
                 }
+                .padding(.horizontal, CGFloat.ds("s-12"))
+                .padding(.vertical, CGFloat.ds("s-10"))
             }
+            .background(Color.ds("desk").ignoresSafeArea())
             .disabled(opening)
             .overlay { if opening { ProgressView() } }
-            .navigationTitle("Motiff Lab")
-            .toolbar {
-                if account.isAvailable {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            settings = true
-                        } label: {
-                            Image(systemName: account.player == nil ? "person.crop.circle" : "person.crop.circle.fill")
-                        }
-                        .accessibilityLabel(text["account.nav"])
-                    }
+            .toolbar(.hidden, for: .navigationBar)
+            .sheet(isPresented: $settings) { SettingsView(account: account, text: text) }
+            .sheet(isPresented: $adding) {
+                AddPieceSheet(text: text) { result in
+                    adding = false
+                    Task { await open(result) }
+                } demo: {
+                    adding = false
+                    Task { await openExample() }
                 }
             }
-            .sheet(isPresented: $settings) { SettingsView(account: account, text: text) }
             .navigationDestination(item: $piece) { piece in
                 ScoreScreen(piece: piece)
             }
             .fileImporter(isPresented: $choosing, allowedContentTypes: Self.openable) { result in
                 Task { await open(result) }
             }
-            .onAppear { projects = ProjectFiles.list() }
+            .task { await reload() }
             .onChange(of: piece == nil) { _, closed in
                 // Back from a score: its project was saved as the screen closed.
-                if closed { projects = ProjectFiles.list() }
+                if closed { Task { await reload() } }
             }
         }
     }
 
-    private func row(_ title: String, _ hint: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(title)
-            Text(hint).font(.footnote).foregroundStyle(.secondary)
+    /// The wordmark and tagline, Add piece, the overflow and the account.
+    private var header: some View {
+        HStack(alignment: .center, spacing: CGFloat.ds("s-4")) {
+            HStack(alignment: .firstTextBaseline, spacing: CGFloat.ds("s-4")) {
+                Text("Motiff Lab")
+                    .dsType(.display)
+                    .foregroundStyle(Color.ds("ink"))
+                    .accessibilityAddTraits(.isHeader)
+                Text(text["home.tagline"])
+                    .font(Font.custom("Source Serif 4", size: 17, relativeTo: .body).italic())
+                    .foregroundStyle(Color.ds("ink-2"))
+            }
+            Spacer(minLength: CGFloat.ds("s-4"))
+            Button {
+                adding = true
+            } label: {
+                HStack(spacing: CGFloat.ds("s-2")) {
+                    Icon(name: "plus")
+                    Text(text["library.addPiece"])
+                }
+            }
+            .buttonStyle(DSButtonStyle(kind: .primary))
+            Menu {
+                Button {
+                    choosing = true
+                } label: {
+                    Text(text["home.importProject"])
+                }
+            } label: {
+                Icon(name: "more", size: CGFloat.ds("icon-l"))
+                    .foregroundStyle(Color.ds("ink-2"))
+                    .frame(width: CGFloat.ds("h-touch"), height: CGFloat.ds("h-touch"))
+            }
+            .accessibilityLabel(text["library.more"])
+            if account.isAvailable {
+                Button {
+                    settings = true
+                } label: {
+                    Icon(name: "user", size: CGFloat.ds("icon-l"))
+                        .foregroundStyle(Color.ds("accent"))
+                        .frame(width: CGFloat.ds("h-touch"), height: CGFloat.ds("h-touch"))
+                        .background(Color.ds("accent-tint"), in: Circle())
+                }
+                .accessibilityLabel(text["account.title"])
+            }
         }
+    }
+
+    /// The projects in Documents, and what music-core reads from each.
+    private func reload() async {
+        projects = ProjectFiles.list()
+        var read: [URL: PieceSummary] = [:]
+        for entry in projects {
+            if let summary = await PieceSummary.read(entry.url) {
+                read[entry.url] = summary
+            }
+        }
+        summaries = read
     }
 
     private func openExample() async {
@@ -157,18 +214,244 @@ struct LibraryView: View {
                     problem = (error as? ProjectError)?.message ?? error.localizedDescription
                 }
             }
-            projects = ProjectFiles.list()
+            await reload()
             piece = opened
         case .failure(let error):
             problem = error.message
         }
     }
 
-    private func delete(_ offsets: IndexSet) {
-        for index in offsets {
-            try? FileManager.default.removeItem(at: projects[index].url)
+    private func delete(_ entry: ProjectFiles.Entry) {
+        try? FileManager.default.removeItem(at: entry.url)
+        projects.removeAll { $0.url == entry.url }
+        summaries[entry.url] = nil
+    }
+}
+
+/// What a library card says of a piece, read by music-core from its project file (`project.summary`, facade contract 4).
+struct PieceSummary: Equatable, Sendable {
+    /// "imported", "scanned" or "transcribed".
+    var origin: String
+    var hasNotes: Bool
+    var ideas: Int
+    var checkBars: Int
+    /// The resume point worked from last, by its name when it has one.
+    var latest: Latest?
+
+    struct Latest: Equatable, Sendable {
+        var name: String?
+    }
+
+    /// The summary in a facade answer: {"project": {…}}.
+    init?(answer: String) {
+        guard let project = facadeObject(answer)?["project"] as? [String: Any] else { return nil }
+        origin = project["origin"] as? String ?? "imported"
+        hasNotes = project["hasNotes"] as? Bool ?? true
+        ideas = (project["ideas"] as? NSNumber)?.intValue ?? 0
+        checkBars = (project["checkBars"] as? NSNumber)?.intValue ?? 0
+        latest = (project["latest"] as? [String: Any]).map { Latest(name: $0["name"] as? String) }
+    }
+
+    /// Reads a project file's summary through music-core; nil when the file cannot be read.
+    static func read(_ url: URL) async -> PieceSummary? {
+        guard let data = try? Data(contentsOf: url), let file = String(data: data, encoding: .utf8),
+              let body = try? JSONSerialization.data(withJSONObject: ["file": file]),
+              let request = String(data: body, encoding: .utf8) else { return nil }
+        let answer = await MusicCore.run { MusicCore.call(piece: 0, "project.summary", request) }
+        return PieceSummary(answer: answer)
+    }
+}
+
+/// A piece on the shelf (ds.css `.card`): its page, title and what kind of piece it is, the ideas kept and bars to check,
+/// and where work on it stopped, with Resume. A long press offers Delete, which asks once more.
+struct PieceCard: View {
+    let entry: ProjectFiles.Entry
+    let summary: PieceSummary?
+    let text: UIText
+    let open: () -> Void
+    let delete: () -> Void
+    @State private var confirming = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
+            HStack(alignment: .top, spacing: CGFloat.ds("s-4")) {
+                Button(action: open) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.ds("paper"))
+                        .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(Color.ds("hairline")))
+                        .frame(width: 84, height: 118)
+                        .shadow(color: Color.ds("hairline"), radius: 1, y: 1)
+                }
+                .buttonStyle(.plain)
+                .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+                    Text(entry.title)
+                        .font(Font.custom("Source Serif 4", size: 19, relativeTo: .title3).weight(.medium))
+                        .foregroundStyle(Color.ds("ink"))
+                        .accessibilityAddTraits(.isHeader)
+                    Text(meta)
+                        .dsType(.label)
+                        .foregroundStyle(Color.ds("ink-2"))
+                    if let summary, summary.ideas > 0 || summary.checkBars > 0 {
+                        HStack(spacing: CGFloat.ds("s-2")) {
+                            if summary.ideas > 0 { Tag(text: text.count("library.ideas", summary.ideas), kind: .saved) }
+                            if summary.checkBars > 0 { Tag(text: text.count("library.check", summary.checkBars), kind: .warn) }
+                        }
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            Rectangle().fill(Color.ds("hairline")).frame(height: 1)
+            Text(text["library.recentWork"]).overline()
+            Text(resumeName)
+                .dsType(.body)
+                .foregroundStyle(Color.ds("ink"))
+            Text(text.format("home.lastOpened", entry.modified.formatted(.relative(presentation: .named).locale(Locale(identifier: text.language)))))
+                .dsType(.label)
+                .foregroundStyle(Color.ds("ink-2"))
+            Button(action: open) {
+                HStack(spacing: CGFloat.ds("s-2")) {
+                    Icon(name: "play")
+                    Text(text["library.resume"])
+                }
+            }
+            .buttonStyle(DSButtonStyle(kind: .secondary))
+            .accessibilityLabel(text.format("library.resumeLabel", entry.title))
         }
-        projects = ProjectFiles.list()
+        .padding(CGFloat.ds("s-4"))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
+        .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
+        .contextMenu {
+            Button(role: .destructive) {
+                confirming = true
+            } label: {
+                Text(text["home.delete"])
+            }
+        }
+        .confirmationDialog(text["home.deleteForGood"], isPresented: $confirming, titleVisibility: .hidden) {
+            Button(text["home.deleteForGood"], role: .destructive, action: delete)
+            Button(text["home.keep"], role: .cancel) {}
+        }
+    }
+
+    /// What kind of piece: scanned, from a recording or a PDF; nothing more for a file the player opened.
+    private var meta: String {
+        guard let summary else { return " " }
+        if !summary.hasNotes { return text["library.pdf"] }
+        return switch summary.origin {
+        case "scanned": text["library.scanned"]
+        case "transcribed": text["library.recorded"]
+        default: text["library.openFile"]
+        }
+    }
+
+    private var resumeName: String {
+        guard let summary else { return text["library.notOpened"] }
+        if !summary.hasNotes { return text["library.pdfAsIs"] }
+        guard let latest = summary.latest else { return text["library.notOpened"] }
+        return latest.name ?? text["library.page1"]
+    }
+}
+
+/// The last card on the shelf (ds.css `.card.add`): the ways in, and the demo piece.
+struct AddCard: View {
+    let text: UIText
+    let add: () -> Void
+
+    var body: some View {
+        Button(action: add) {
+            VStack(spacing: CGFloat.ds("s-3")) {
+                Icon(name: "plus", size: CGFloat.ds("icon-l"))
+                    .foregroundStyle(Color.ds("accent"))
+                    .frame(width: 56, height: 56)
+                    .background(Color.ds("accent-tint"), in: Circle())
+                Text(text["library.addAPiece"])
+                    .dsType(.heading)
+                    .foregroundStyle(Color.ds("ink"))
+                Text(text["library.openFileHintHere"])
+                    .dsType(.label)
+                    .foregroundStyle(Color.ds("ink-2"))
+                    .multilineTextAlignment(.center)
+                Text(text["library.tryDemo"])
+                    .dsType(.label)
+                    .foregroundStyle(Color.ds("ink-2"))
+            }
+            .padding(CGFloat.ds("s-6"))
+            .frame(maxWidth: .infinity, minHeight: 280)
+            .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
+            .overlay(
+                RoundedRectangle(cornerRadius: CGFloat.ds("r-m"))
+                    .strokeBorder(Color.ds("hairline-strong"), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(text["library.addAPiece"])
+    }
+}
+
+/// Add piece (0018 section 9): opening a file runs on the device and is free. Scanning a page and hearing a recording come
+/// to the iPad in a later step; until then they are on the web app.
+struct AddPieceSheet: View {
+    let text: UIText
+    let picked: (Result<URL, Error>) -> Void
+    let demo: () -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var choosing = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: CGFloat.ds("s-4")) {
+            HStack {
+                Text(text["library.addAPiece"])
+                    .dsType(.title)
+                    .foregroundStyle(Color.ds("ink"))
+                    .accessibilityAddTraits(.isHeader)
+                Spacer()
+                Button {
+                    dismiss()
+                } label: {
+                    Icon(name: "close")
+                        .foregroundStyle(Color.ds("ink-2"))
+                        .frame(width: CGFloat.ds("h-touch"), height: CGFloat.ds("h-touch"))
+                }
+                .accessibilityLabel(text["library.close"])
+            }
+            Button {
+                choosing = true
+            } label: {
+                HStack(alignment: .top, spacing: CGFloat.ds("s-3")) {
+                    Icon(name: "file", size: CGFloat.ds("icon-l"))
+                        .foregroundStyle(Color.ds("accent"))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(text["library.openFile"])
+                            .dsType(.bodyStrong)
+                            .foregroundStyle(Color.ds("ink"))
+                        Text(text["library.openFileHintHere"])
+                            .dsType(.caption)
+                            .foregroundStyle(Color.ds("ink-2"))
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(CGFloat.ds("s-4"))
+                .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
+                .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
+            }
+            .buttonStyle(.plain)
+            Button(action: demo) {
+                HStack(spacing: CGFloat.ds("s-2")) {
+                    Icon(name: "play")
+                    Text(text["library.demo"])
+                }
+            }
+            .buttonStyle(DSButtonStyle(kind: .quiet))
+            Spacer(minLength: 0)
+        }
+        .padding(CGFloat.ds("s-6"))
+        .background(Color.ds("surface").ignoresSafeArea())
+        .presentationDetents([.medium])
+        .fileImporter(isPresented: $choosing, allowedContentTypes: LibraryView.openable) { result in
+            picked(result)
+        }
     }
 }
 

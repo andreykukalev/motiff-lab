@@ -635,6 +635,25 @@ public class MusicCoreFacadeTests
     }
 
     [Fact]
+    public void A_project_files_summary_is_read_without_opening_the_piece()
+    {
+        var facade = new MusicCoreFacade();
+        Json(facade.Open(FurElise, Fixture(FurElise), """{"id": "p_lib", "now": "2026-11-05T10:00:00Z"}"""));
+        Call(facade, "resume.save", """{"name": "Coda"}""");
+        string file = facade.Call(1, "project.save");
+        string request = JsonSerializer.Serialize(new { file });
+
+        JsonElement project = Json(new MusicCoreFacade().Call(0, "project.summary", request)).GetProperty("project");
+
+        Assert.Equal("p_lib", project.GetProperty("id").GetString());
+        Assert.True(project.GetProperty("hasNotes").GetBoolean());
+        Assert.False(project.GetProperty("document").GetBoolean());
+        Assert.Equal(0, project.GetProperty("checkBars").GetInt32());
+        Assert.Equal("Coda", project.GetProperty("latest").GetProperty("name").GetString());
+        Assert.Equal("badRequest", Json(facade.Call(0, "project.summary", """{"file": "{}"}""")).GetProperty("error").GetString());
+    }
+
+    [Fact]
     public void SettingsHaveACatalogueAPresetAndPerPieceOverrides()
     {
         var facade = new MusicCoreFacade();
