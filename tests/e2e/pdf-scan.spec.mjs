@@ -1,5 +1,6 @@
 // A PDF piece recognised (0023; Andrei, 2026-11-05): Read the notes sends the kept PDF to the scan server, and the notes
-// open as a separate piece with their bars to check, while the PDF piece stays exactly as it was. Add a version on a PDF
+// open as a separate piece with their bars to check, while the PDF piece stays exactly as it was; PDF | Notes switches
+// between the two at the same place. Add a version on a PDF
 // (0022) reads the notes first in the same way and opens Other versions on the new piece. The scan server is played by the
 // test, answering with what homr read from Für Elise. Runs in desktop Chromium only (playwright.config.mjs).
 import { expect, test } from "@playwright/test";
@@ -40,7 +41,7 @@ async function addPdf(page, file) {
     return new URL(page.url()).searchParams.get("project");
 }
 
-test("a PDF's notes are read from its pages into a separate piece, and the PDF piece stays as it was", async ({ page }) => {
+test("a PDF's notes are read into a separate piece, the PDF piece stays as it was, and PDF | Notes links them", async ({ page }) => {
     const errors = [];
     page.on("pageerror", (error) => errors.push(String(error)));
     const file = pdf(3);
@@ -58,7 +59,7 @@ test("a PDF's notes are read from its pages into a separate piece, and the PDF p
     expect(await violations(page)).toEqual([]);
     await panel.getByRole("button", { name: "Read the notes" }).click();
 
-    // The notes open as a new piece with the bars to check; it is not the PDF piece, so there is no PDF | Notes.
+    // The notes open as a new piece with the bars to check, and PDF | Notes links it to the PDF piece.
     await expect(page).toHaveURL(/\/playback\?project=p_[0-9a-f]+&resume=r_[0-9a-z_]+&at=0$/);
     const notesId = new URL(page.url()).searchParams.get("project");
     expect(notesId).not.toBe(pdfId);
@@ -67,20 +68,31 @@ test("a PDF's notes are read from its pages into a separate piece, and the PDF p
     await expect(page.locator(".sheet.check-sheet").getByRole("heading", { level: 2 })).toHaveText("7 bars to review");
     await expect(page.locator(".score .score-page svg").first()).toBeVisible();
     await expect(bar.locator(".ttl")).toHaveText("Elise");
-    await expect(bar.getByRole("radiogroup", { name: "View" })).toHaveCount(0);
+    const views = bar.getByRole("radiogroup", { name: "View" });
+    await expect(views.getByRole("radio", { name: "Notes" })).toHaveAttribute("aria-checked", "true");
     expect(await violations(page)).toEqual([]);
 
-    // The library holds both, and the PDF piece is as it was: still only pages, and Read the notes is still offered.
-    await bar.getByRole("link", { name: "Library" }).click();
-    await expect(page.locator(".lib-grid .card.piece", { hasText: "Elise" })).toHaveCount(2);
-    await page.goto(`/pdf?project=${pdfId}`);
+    // PDF goes to the PDF piece, which is as it was: its pages, Download hands back the PDF, and no Read the notes now.
+    await views.getByRole("radio", { name: "PDF" }).click();
+    await expect(page).toHaveURL(new RegExp(`/pdf\\?project=${pdfId}&page=1$`));
     await expect(page.locator(".pdf-view .score-page.pdf-page").first().locator("canvas")).toHaveCount(1);
-    await expect(bar.locator(".pdf-tag")).toHaveText("PDF");
+    await expect(views.getByRole("radio", { name: "PDF" })).toHaveAttribute("aria-checked", "true");
     await bar.getByRole("button", { name: "More" }).click();
     const more = page.getByRole("dialog", { name: "More" });
-    await expect(more.getByRole("button", { name: "Read the notes" })).toHaveCount(1);
+    await expect(more.getByRole("button", { name: "Read the notes" })).toHaveCount(0);
     const [download] = await Promise.all([page.waitForEvent("download"), more.getByRole("button", { name: "Download the PDF" }).click()]);
     expect(download.suggestedFilename()).toBe("Elise.pdf");
+    expect(await violations(page)).toEqual([]);
+
+    // From page 3 of the PDF, the notes open where the scan's page 3 starts: two thirds through the bars.
+    await page.locator(".pdf-view").evaluate((view) => view.scrollTo({ top: view.scrollHeight }));
+    await expect(bar.locator(".pg")).toHaveText("p. 3 of 3");
+    await views.getByRole("radio", { name: "Notes" }).click();
+    await expect(page).toHaveURL(new RegExp(`/playback\\?project=${notesId}&.*at=([1-9]\\d*)$`));
+
+    // The library holds both pieces.
+    await page.goto("/");
+    await expect(page.locator(".lib-grid .card.piece", { hasText: "Elise" })).toHaveCount(2);
     await expect(page.locator("#blazor-error-ui")).toBeHidden();
     expect(errors).toEqual([]);
 });

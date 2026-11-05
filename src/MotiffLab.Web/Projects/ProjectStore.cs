@@ -46,6 +46,7 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
             {
                 Origin = summary.Origin.ToString(),
                 CheckBars = summary.CheckBars,
+                ReadFrom = summary.ReadFrom,
                 Latest = summary.Latest is { } latest ? new StoredResume(latest.Id, latest.Name, latest.At, latest.From, latest.To, Iso(latest.LastActive)) : null,
             });
     }
@@ -74,9 +75,14 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
         {
             Origin = Enum.TryParse(row.Origin, out PieceOrigin origin) ? origin : PieceOrigin.File,
             CheckBars = row.CheckBars,
+            ReadFrom = row.ReadFrom,
             Latest = row.Latest is { } latest ? new ResumeSummary(latest.Id, latest.Name, latest.At, latest.From, latest.To, Time(latest.LastActive)) : null,
         })];
     }
+
+    /// <summary>The notes read from a PDF piece (0023), the ones opened last when it was read more than once; null when there are none.</summary>
+    public async Task<ProjectSummary?> NotesReadFromAsync(string pdfId) =>
+        (await ListAsync()).Where(summary => summary.ReadFrom == pdfId).OrderByDescending(summary => summary.LastOpened).FirstOrDefault();
 
     /// <summary>The covers saved, by project; each page is an image address that holds until the next listing.</summary>
     public async Task<IReadOnlyDictionary<string, PieceCover>> CoversAsync()
@@ -158,6 +164,8 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
         public int CheckBars { get; init; }
 
         public StoredResume? Latest { get; init; }
+
+        public string? ReadFrom { get; init; }
     }
 
     private sealed record StoredResume(string Id, string? Name, long At, long? From, long? To, string LastActive);

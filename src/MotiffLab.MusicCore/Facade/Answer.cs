@@ -330,6 +330,12 @@ internal static partial class Answer
         json.WriteNumber("checkBars", project.Summary.CheckBars);
         json.WriteBoolean("hasNotes", project.HasNotes);
         json.WriteBoolean("document", project.Document is not null);
+        // Within contract 4 (2026-11-05): notes read from a PDF piece name it, for PDF | Notes.
+        if (project.ReadFrom is { } readFrom)
+        {
+            json.WriteString("readFrom", readFrom.ProjectId);
+        }
+
         if (project.RecentResumePoints.FirstOrDefault() is { } latest)
         {
             json.WriteStartObject("latest");

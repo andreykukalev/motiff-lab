@@ -467,19 +467,21 @@ public partial class PlaybackLab : IAsyncDisposable
     private long? _shownAt;
 
     /// <summary>
-    /// The "PDF" view of a recognised PDF (0023), at the page the scan read the bar at the top of this page from: the link
+    /// The "PDF" view of the PDF these notes were read from (0023), at the page the scan read the bar at the top of this page from: the link
     /// is rough, by the pages the scan read.
     /// </summary>
     private async Task ShowPdfAsync()
     {
-        if (_project is not { Document: not null } project)
+        if (_project is not { } project || (project.Document is null && project.ReadFrom is null))
         {
             return;
         }
 
+        // Notes read from a PDF since 2026-11-05 are a piece of their own, linked to the PDF piece; before, the PDF was in this project.
         long? tick = _scoreView is null || _pages.First < 1 ? null : await _scoreView.FirstTickOnAsync(_pages.First);
-        int page = project.DocumentPages?.PageOf(new Tick(tick ?? 0)) ?? 1;
-        Navigation.NavigateTo($"pdf?project={Uri.EscapeDataString(project.Id)}&page={page}");
+        int page = (project.ReadFrom?.Pages ?? project.DocumentPages)?.PageOf(new Tick(tick ?? 0)) ?? 1;
+        string pdf = project.ReadFrom?.ProjectId ?? project.Id;
+        Navigation.NavigateTo($"pdf?project={Uri.EscapeDataString(pdf)}&page={page}");
     }
 
     /// <summary>The project, phrases and pages the library's cover was last saved for.</summary>
