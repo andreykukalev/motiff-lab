@@ -94,7 +94,7 @@ test("the official score in MusicXML is added over notes from a performance", as
     expect(errors).toEqual([]);
 });
 
-test("in focus, the other version stands above the phrase, and its bars are taken into the score at once", async ({ page }) => {
+test("in focus, the other version stands above the phrase, is heard, and its bars are taken into the score at once", async ({ page }) => {
     const errors = [];
     page.on("pageerror", error => errors.push(String(error)));
     await page.goto("/");
@@ -113,6 +113,12 @@ test("in focus, the other version stands above the phrase, and its bars are take
     await page.locator(".ctx .menu").getByRole("button", { name: "Focus" }).click();
     await expect(page.locator(".focus-card")).toContainText("As in fur-elise-cover");
     const focusBar = page.locator(".bar.focus-bar");
+    // The phrase is heard as in the notes, as in the version, or one after the other.
+    const listen = focusBar.getByRole("radiogroup", { name: "What you hear" });
+    for (const choice of ["Version", "Alternate", "Notes"]) {
+        await listen.getByRole("radio", { name: choice }).click();
+        await expect(listen.getByRole("radio", { name: choice })).toHaveAttribute("aria-checked", "true");
+    }
     await focusBar.getByRole("button", { name: "Take into the score" }).click();
     await expect(focusBar.getByRole("button", { name: "Restore these notes" })).toBeVisible();
     await expect(focusBar.getByRole("button", { name: "Take into the score" })).toHaveCount(0);

@@ -48,6 +48,7 @@ public partial class PlaybackLab
     /// <summary>Which one sounds, for the selection text.</summary>
     private string? SoundingText => SoundingVariation switch
     {
+        true when _variation is null && ShownPerformance is { } version => " " + Text.Format("compare.nowVersion", version.Name),
         true => " " + Text["compare.nowVariation"],
         false => " " + Text["compare.nowOriginal"],
         null => null,
@@ -106,7 +107,7 @@ public partial class PlaybackLab
 
     private async Task StartOneAfterTheOtherAsync()
     {
-        if (_selection is not { NoteIds.Count: > 0 } selection || _variation is not { Notes.Count: > 0 })
+        if (_selection is not { NoteIds.Count: > 0 } selection || !CanAlternate(selection))
         {
             return;
         }
@@ -128,13 +129,19 @@ public partial class PlaybackLab
     private async Task<TickSpan> AlternateAsync(MotifSelection selection)
     {
         TickSpan original = WithLead(PlayRange(selection, [Player.OriginalSource]));
+        // With no variation, the other version in focus (0022, section 5) is the second pass.
+        string other = _variation is { Notes.Count: > 0 } ? VariationSource : VersionSource;
         await Player.AlternateAsync(
         [
             new LoopPass(WithLeadSource([SelectionSource]), original),
-            new LoopPass(WithLeadSource([VariationSource]), WithLead(PlayRange(selection, [VariationSource]))),
+            new LoopPass(WithLeadSource([other]), WithLead(PlayRange(selection, [other]))),
         ]);
         return original;
     }
+
+    /// <summary>Whether there is a second pass to alternate with: the variation, or in focus the other version's notes there.</summary>
+    private bool CanAlternate(MotifSelection selection) =>
+        _variation is { Notes.Count: > 0 } || (Focused && VersionNotesIn(selection.Span).Count > 0);
 
     /// <summary>An audition is a choice of its own: the two stop alternating, and after Original the variation brings its score back.</summary>
     private void Auditioned(bool variation)

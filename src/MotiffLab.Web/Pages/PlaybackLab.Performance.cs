@@ -10,6 +10,7 @@ using MotiffLab.MusicCore.Notation;
 using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;
+using MotiffLab.Web.Playback;
 using MotiffLab.Web.Score;
 using MotiffLab.Web.Understand;
 
@@ -176,6 +177,41 @@ public partial class PlaybackLab
     private IReadOnlyList<int> FocusTakenBars => FocusSpan is { } span && _meter is not null && ShownPerformance is { } performance
         ? [.. performance.Taken.Select(taken => taken.Bar).Where(bar => BarRange.Of(_meter, span).Contains(bar)).Order()]
         : [];
+
+    /// <summary>The engine source for the shown version's notes in the selection, heard in focus (0022, section 5).</summary>
+    private const string VersionSource = "version";
+
+    /// <summary>Whether the player chose to hear the other version in focus.</summary>
+    private bool VersionChosen => _hear.Contains(VersionSource);
+
+    /// <summary>Whether the phrase in focus has another version to hear, with no variation open: Notes / Version / Alternate shows then.</summary>
+    private bool FocusHasVersion => !FocusHasVariation && FocusSpan is { } span && VersionNotesIn(span).Count > 0;
+
+    /// <summary>The shown version's notes that start in a span, in the score's time; none when no version is shown.</summary>
+    private IReadOnlyList<Note> VersionNotesIn(TickSpan span) =>
+        VersionNotes is { } notes ? [.. notes.Where(note => span.Contains(note.Span.Onset))] : [];
+
+    /// <summary>
+    /// Notes or Version in focus: loops the phrase as in the score, or as in the other version, from where the loop is or
+    /// from the phrase's start.
+    /// </summary>
+    private async Task HearVersionAsync(bool version)
+    {
+        if (_selection is not { NoteIds.Count: > 0 } selection)
+        {
+            return;
+        }
+
+        _hear = version ? [VersionSource] : [Player.OriginalSource];
+        _alternating = false;
+        _looping = true;
+        TickSpan range = await LoopSelectionAsync(selection);
+        if (Player.State == PlaybackState.Stopped)
+        {
+            await Player.SeekAsync(range.Onset);
+            await PlayAsync();
+        }
+    }
 
     /// <summary>Take into the score, in focus: every bar of the phrase the version has otherwise, at once.</summary>
     private async Task TakeFocusBarsAsync()

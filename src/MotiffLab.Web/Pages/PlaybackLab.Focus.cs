@@ -90,7 +90,7 @@ public partial class PlaybackLab
         true => "variation",
         false => "original",
         null when VariationChosen && (_hear.Contains(Player.OriginalSource) || _hear.Contains(InPlaceSource)) => "both",
-        null when VariationChosen => "variation",
+        null when VariationChosen || VersionChosen => "variation",
         _ => "original",
     };
 
@@ -161,7 +161,15 @@ public partial class PlaybackLab
         _focusSpan = null;
         _focusCard = null;
         _focusCardKey = null;
-        if (_leadIn && Looping && _selection is { NoteIds.Count: > 0 } selection && _answerLoop is null)
+        // The other version is heard only in focus: the page goes back to the notes.
+        bool versionHeard = VersionChosen || (_alternating && _variation is not { Notes.Count: > 0 });
+        if (versionHeard)
+        {
+            _alternating = false;
+            _hear = [Player.OriginalSource];
+        }
+
+        if ((versionHeard || _leadIn) && Looping && _selection is { NoteIds.Count: > 0 } selection && _answerLoop is null)
         {
             await LoopSelectionAsync(selection);
         }
