@@ -1,0 +1,310 @@
+// A PDF read as it is (decision record 0023): its pages on the desk as sheets of paper, one continuously scrolling
+// document like the score's A4 pages (0018 section 2), drawn by pdf.js only when they come near the view. pdf.js is
+// loaded on first use from lib/pdfjs, which the service worker keeps once fetched, so a PDF opens offline after that.
+
+import { saveCover } from "../storage/project-store.js";
+
+interface DotNetRef {
+    invokeMethodAsync(method: string, ...args: unknown[]): Promise<unknown>;
+}
+
+/** The part of pdf.js the reader uses. */
+interface PdfViewport {
+    width: number;
+    height: number;
+}
+
+interface PdfRenderTask {
+    promise: Promise<void>;
+    cancel(): void;
+}
+
+interface PdfPage {
+    getViewport(options: { scale: number }): PdfViewport;
+    render(options: { canvas: HTMLCanvasElement; viewport: PdfViewport }): PdfRenderTask;
+}
+
+interface PdfDocumentProxy {
+    numPages: number;
+    getPage(number: number): Promise<PdfPage>;
+    destroy(): Promise<void>;
+}
+
+interface PdfJs {
+    GlobalWorkerOptions: { workerSrc: string };
+    getDocument(options: Record<string, unknown>): { promise: Promise<PdfDocumentProxy> };
+}
+
+const PDFJS_BASE = new URL("../../lib/pdfjs/", import.meta.url);
+
+/** How far beyond the view a page is drawn before it scrolls in, as a share of the view's height. */
+const DRAW_AHEAD = "150% 0px";
+
+/** The line under the bar that counts as where the player is reading, as on the score. */
+const READING_LINE_PX = 72;
+
+/** The cover's width in pixels: enough for a library card at twice the density. */
+const COVER_WIDTH = 360;
+
+let pdfjs: Promise<PdfJs> | null = null;
+
+function loadPdfJs(): Promise<PdfJs> {
+    pdfjs ??= (async () => {
+        const module = (await import(new URL("pdf.min.mjs", PDFJS_BASE).href)) as PdfJs;
+        module.GlobalWorkerOptions.workerSrc = new URL("pdf.worker.min.mjs", PDFJS_BASE).href;
+        return module;
+    })();
+    // A failed download can be retried on the next open.
+    pdfjs.catch(() => {
+        pdfjs = null;
+    });
+    return pdfjs;
+}
+
+/** One page: its sheet on the desk, its size at scale 1, and the width it was last drawn at (0 for not drawn). */
+interface PageSheet {
+    number: number;
+    element: HTMLElement;
+    width: number;
+    height: number;
+    drawnAt: number;
+    task: PdfRenderTask | null;
+}
+
+export class PdfView {
+    private document: PdfDocumentProxy | null = null;
+    private pages: PageSheet[] = [];
+    private readonly near = new Set<PageSheet>();
+    private observer: IntersectionObserver | null = null;
+    private resize: ResizeObserver | null = null;
+    private scrollFrame = 0;
+    private resizeTimer = 0;
+    private shown = "";
+
+    constructor(private readonly host: HTMLElement, private readonly dotnet: DotNetRef) {
+        host.addEventListener("scroll", this.onScroll, { passive: true });
+    }
+
+    /** Opens the PDF and lays out a sheet for each page, scrolled to the page given; the number of pages, or 0 when it cannot be read. */
+    async open(data: Uint8Array, startPage: number): Promise<number> {
+        this.close();
+        let document: PdfDocumentProxy;
+        try {
+            const pdf = await loadPdfJs();
+            document = await pdf.getDocument({
+                data,
+                wasmUrl: new URL("wasm/", PDFJS_BASE).href,
+                standardFontDataUrl: new URL("standard_fonts/", PDFJS_BASE).href,
+                isEvalSupported: false,
+                enableXfa: false,
+            }).promise;
+        } catch (error) {
+            console.warn("The PDF could not be read.", error);
+            return 0;
+        }
+
+        this.document = document;
+        // Every page's size first, so the document scrolls at its full length before any page is drawn.
+        const sizes = await Promise.all(
+            Array.from({ length: document.numPages }, async (_, index) => {
+                const viewport = (await document.getPage(index + 1)).getViewport({ scale: 1 });
+                return { width: viewport.width, height: viewport.height };
+            }),
+        );
+        if (this.document !== document) {
+            return 0;
+        }
+
+        this.host.classList.add("paged");
+        this.pages = sizes.map((size, index) => {
+            const element = this.host.ownerDocument.createElement("div");
+            element.className = "score-page pdf-page";
+            element.dataset.page = String(index + 1);
+            element.style.setProperty("--ratio", `${size.width} / ${size.height}`);
+            element.setAttribute("role", "img");
+            this.host.append(element);
+            return { number: index + 1, element, width: size.width, height: size.height, drawnAt: 0, task: null };
+        });
+
+        this.observer = new IntersectionObserver(this.onNear, { root: this.host, rootMargin: DRAW_AHEAD });
+        for (const page of this.pages) {
+            this.observer.observe(page.element);
+        }
+        this.resize = new ResizeObserver(this.onResize);
+        this.resize.observe(this.host);
+
+        this.showPage(startPage);
+        this.reportPages();
+        return document.numPages;
+    }
+
+    /** Names each page for a screen reader ("Page 2 of 5"), in the interface's language. */
+    labelPages(label: string): void {
+        for (const page of this.pages) {
+            page.element.setAttribute("aria-label", label.replace("{0}", String(page.number)).replace("{1}", String(this.pages.length)));
+        }
+    }
+
+    /** Scrolls a page's top to under the bar. */
+    showPage(number: number): void {
+        const page = this.pages[Math.min(Math.max(number, 1), this.pages.length) - 1];
+        if (!page) {
+            return;
+        }
+        const top = page.element.offsetTop - parseFloat(getComputedStyle(this.host).paddingTop || "0");
+        this.host.scrollTo({ top: Math.max(0, top), behavior: "instant" });
+    }
+
+    /** Keeps page 1 as the piece's cover in the library, as the score keeps its first page. */
+    async saveCover(id: string, title: string | null): Promise<boolean> {
+        const first = this.pages[0];
+        if (!this.document || !first) {
+            return false;
+        }
+        try {
+            const page = await this.document.getPage(1);
+            const viewport = page.getViewport({ scale: COVER_WIDTH / first.width });
+            const canvas = this.host.ownerDocument.createElement("canvas");
+            canvas.width = Math.round(viewport.width);
+            canvas.height = Math.round(viewport.height);
+            await page.render({ canvas, viewport }).promise;
+            const png = canvas.toDataURL("image/png");
+            const svg =
+                `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${canvas.width} ${canvas.height}">` +
+                `<image width="${canvas.width}" height="${canvas.height}" href="${png}" xlink:href="${png}"/></svg>`;
+            await saveCover({ id, svg, title, lines: [], pages: this.pages.length, pageStarts: [], phraseStarts: [], barStarts: [], firstBar: 1 });
+            return true;
+        } catch (error) {
+            console.warn("The PDF's cover could not be kept.", error);
+            return false;
+        }
+    }
+
+    /** Lets go of the document and its sheets. */
+    close(): void {
+        this.observer?.disconnect();
+        this.resize?.disconnect();
+        this.observer = null;
+        this.resize = null;
+        window.clearTimeout(this.resizeTimer);
+        for (const page of this.pages) {
+            page.task?.cancel();
+            page.element.remove();
+        }
+        this.pages = [];
+        this.near.clear();
+        this.shown = "";
+        this.host.classList.remove("paged");
+        void this.document?.destroy();
+        this.document = null;
+    }
+
+    dispose(): void {
+        this.close();
+        this.host.removeEventListener("scroll", this.onScroll);
+        cancelAnimationFrame(this.scrollFrame);
+    }
+
+    private readonly onNear = (entries: IntersectionObserverEntry[]): void => {
+        for (const entry of entries) {
+            const page = this.pages.find((sheet) => sheet.element === entry.target);
+            if (!page) {
+                continue;
+            }
+            if (entry.isIntersecting) {
+                this.near.add(page);
+                void this.draw(page);
+            } else {
+                this.near.delete(page);
+                this.forget(page);
+            }
+        }
+    };
+
+    private readonly onResize = (): void => {
+        window.clearTimeout(this.resizeTimer);
+        this.resizeTimer = window.setTimeout(() => {
+            for (const page of this.near) {
+                void this.draw(page);
+            }
+            this.reportPages();
+        }, 150);
+    };
+
+    private readonly onScroll = (): void => {
+        cancelAnimationFrame(this.scrollFrame);
+        this.scrollFrame = requestAnimationFrame(() => this.reportPages());
+    };
+
+    /** Draws a page at its sheet's width on this screen, unless it is drawn at that width already. */
+    private async draw(page: PageSheet): Promise<void> {
+        const document = this.document;
+        const width = Math.round(page.element.clientWidth * (window.devicePixelRatio || 1));
+        if (!document || width === 0 || page.drawnAt === width) {
+            return;
+        }
+        page.task?.cancel();
+        page.drawnAt = width;
+        try {
+            const pdfPage = await document.getPage(page.number);
+            const viewport = pdfPage.getViewport({ scale: width / page.width });
+            const canvas = this.host.ownerDocument.createElement("canvas");
+            canvas.width = Math.round(viewport.width);
+            canvas.height = Math.round(viewport.height);
+            canvas.setAttribute("aria-hidden", "true");
+            const task = pdfPage.render({ canvas, viewport });
+            page.task = task;
+            await task.promise;
+            if (page.task !== task || this.document !== document) {
+                return;
+            }
+            page.task = null;
+            page.element.querySelector("canvas")?.remove();
+            page.element.append(canvas);
+        } catch (error) {
+            if ((error as { name?: string })?.name !== "RenderingCancelledException") {
+                console.warn(`Page ${page.number} of the PDF could not be drawn.`, error);
+            }
+            if (page.drawnAt === width) {
+                page.drawnAt = 0;
+            }
+        }
+    }
+
+    /** A page far from the view gives up its drawing, so a long book does not hold every page in memory. */
+    private forget(page: PageSheet): void {
+        page.task?.cancel();
+        page.task = null;
+        page.drawnAt = 0;
+        page.element.querySelector("canvas")?.remove();
+    }
+
+    /** Tells the bar which pages are under the reading line ("p. 2 of 4", or "pp. 1–2 of 4" with two to a row). */
+    private reportPages(): void {
+        if (this.pages.length === 0) {
+            return;
+        }
+        const line = this.host.getBoundingClientRect().top + READING_LINE_PX;
+        let shown = this.pages.filter((page) => {
+            const box = page.element.getBoundingClientRect();
+            return box.top <= line && box.bottom > line;
+        });
+        if (shown.length === 0) {
+            const next = this.pages.find((page) => page.element.getBoundingClientRect().top > line) ?? this.pages[this.pages.length - 1];
+            const top = next.element.getBoundingClientRect().top;
+            shown = this.pages.filter((page) => Math.abs(page.element.getBoundingClientRect().top - top) < 2);
+        }
+        const numbers = shown.map((page) => page.number);
+        const first = Math.min(...numbers);
+        const last = Math.max(...numbers);
+        const key = `${first}-${last}-${this.pages.length}`;
+        if (key !== this.shown) {
+            this.shown = key;
+            void this.dotnet.invokeMethodAsync("OnPagesShown", first, last, this.pages.length);
+        }
+    }
+}
+
+export function createPdfView(host: HTMLElement, dotnet: DotNetRef): PdfView {
+    return new PdfView(host, dotnet);
+}

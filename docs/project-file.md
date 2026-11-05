@@ -12,7 +12,8 @@ Ticks are integers at 480 per quarter ([0002](decisions/0002-canonical-time.md))
   "version": 13,
   "id": "p_…",                 // the project's id
   "fileName": "minuet.musicxml",
-  "source": "<base64>",         // the imported file, MIDI or MusicXML, as it was
+  "source": "<base64>",         // the imported file, MIDI or MusicXML, as it was; empty for a PDF read as it is
+  "document": "<base64>",       // only a piece added as a PDF (version 13, 0023): the PDF byte for byte
   "createdAt": "…", "lastOpened": "…",
   "motifs": [ … ],              // the working selection (version 1)
   "variations": [ … ],          // chains of steps on a motif (version 2); an optional "key" { "fifths", "mode" } the steps read, as on a kept variation (read as none when absent)
@@ -176,6 +177,8 @@ Only the per-piece overrides live in the file (prep item 5); the catalogue (`Mot
 ```
 
 Settings have three scopes. **Device** settings (layout, note names, pencil-only, pen ink, metronome, count-in, follow playback, theme, language, save online, analytics) stay on the device as one document, `{"version": 1, "values": {…}}`, written and read by `SettingsState`; the free tier has no cloud account, so they never leave it. **Account** settings (level, guidance, assistant answers) follow the player once there is an account; until then they are on the device too. **Piece** settings (phrase granularity, the layers) can be overridden per piece, here. The presets Learning, Practising and Clean set the governed settings together; a value that deviates from every preset shows as Custom.
+
+A piece added as a PDF to read as it is ([0023](decisions/0023-pdf-pieces.md)) keeps the PDF in `document`, exactly as the player picked it, and has an empty `source` until its notes are recognised: such a project has no notes to open, so the apps show it in their PDF view. `document` must start with `%PDF-`; a project with neither a `source` nor a `document` is damaged. The web app keeps such a project on the device only, never online: a PDF can run to tens of megabytes.
 
 ## Opening an older file
 

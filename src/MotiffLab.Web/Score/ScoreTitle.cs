@@ -3,7 +3,7 @@ namespace MotiffLab.Web.Score;
 /// <summary>The name that heads a score's first page and names its PDF (decision record 0017).</summary>
 public static class ScoreTitle
 {
-    private static readonly string[] s_extensions = [".mid", ".midi", ".kar", ".musicxml", ".xml", ".mxl", ".json", ".motiff"];
+    private static readonly string[] s_extensions = [".mid", ".midi", ".kar", ".musicxml", ".xml", ".mxl", ".json", ".motiff", ".pdf"];
 
     /// <summary>A piece's file name without the extensions of the files it comes from: "Für Elise.mid" heads its page as "Für Elise".</summary>
     public static string? Of(string? fileName)

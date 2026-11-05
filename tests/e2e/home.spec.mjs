@@ -27,10 +27,10 @@ test("Add piece opens a file on the device straight into the score, and leads to
 
     // A file the importer cannot read is said so in the sheet, which stays open.
     await page.getByRole("button", { name: "Add piece" }).click();
-    await sheet.getByLabel("Choose a MIDI or MusicXML file").setInputFiles({ name: "notes.mid", mimeType: "audio/midi", buffer: Buffer.from("not a midi file") });
+    await sheet.getByLabel("Choose a MIDI, MusicXML or PDF file").setInputFiles({ name: "notes.mid", mimeType: "audio/midi", buffer: Buffer.from("not a midi file") });
     await expect(sheet.getByRole("alert")).toContainText("notes.mid");
 
-    await sheet.getByLabel("Choose a MIDI or MusicXML file").setInputFiles(minuet);
+    await sheet.getByLabel("Choose a MIDI, MusicXML or PDF file").setInputFiles(minuet);
     await expect(page).toHaveURL(/\/playback\?project=p_[0-9a-f]+&resume=r_0001$/);
     await expect(page.locator(".bar .ttl")).toHaveText("Waltz sketch");
     expect(errors).toEqual([]);
@@ -41,7 +41,7 @@ test("a card resumes the piece where it was left, opens page 1 afresh, and lists
     page.on("pageerror", error => errors.push(String(error)));
     await page.goto("/");
     await page.getByRole("button", { name: "Add piece" }).click();
-    await page.getByLabel("Choose a MIDI or MusicXML file").setInputFiles(minuet);
+    await page.getByLabel("Choose a MIDI, MusicXML or PDF file").setInputFiles(minuet);
     const phrases = page.locator(".score button.bracket[aria-label]");
     await phrases.nth(0).click();
     await expect(page.locator(".selection-status")).toContainText("Selected phrase 1");

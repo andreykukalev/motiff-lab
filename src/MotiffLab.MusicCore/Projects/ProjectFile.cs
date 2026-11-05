@@ -3,6 +3,7 @@ using System.Text.Json;
 
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Performance;
@@ -64,6 +65,10 @@ public static class ProjectFile
             json.WriteString("createdAt", project.CreatedAt.ToString("O", CultureInfo.InvariantCulture));
             json.WriteString("lastOpened", project.LastOpened.ToString("O", CultureInfo.InvariantCulture));
             json.WriteBase64String("source", project.Source);
+            if (project.Document is { } document)
+            {
+                json.WriteBase64String("document", document);
+            }
 
             json.WriteStartArray("motifs");
             foreach (SavedMotif motif in project.Motifs)
@@ -388,11 +393,34 @@ public static class ProjectFile
             }
 
             byte[] source;
+            byte[]? pdf = null;
             try
             {
                 source = Property(root, "source", JsonValueKind.String).GetBytesFromBase64();
             }
             catch (FormatException)
+            {
+                throw Damaged("source");
+            }
+
+            if (root.TryGetProperty("document", out JsonElement documentElement))
+            {
+                try
+                {
+                    pdf = documentElement.ValueKind == JsonValueKind.String ? documentElement.GetBytesFromBase64() : throw Damaged("document");
+                }
+                catch (FormatException)
+                {
+                    throw Damaged("document");
+                }
+
+                if (!PdfDocument.IsPdf(pdf))
+                {
+                    throw Damaged("document");
+                }
+            }
+
+            if (source.Length == 0 && pdf is null)
             {
                 throw Damaged("source");
             }
@@ -466,6 +494,7 @@ public static class ProjectFile
                 Check = check,
                 SettingOverrides = overrides,
                 Performances = performances,
+                Document = pdf,
             };
         }
     }

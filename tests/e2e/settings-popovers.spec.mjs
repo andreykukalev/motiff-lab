@@ -13,7 +13,7 @@ async function openSavedPiece(page) {
     page.on("pageerror", error => errors.push(String(error)));
     await page.goto("/");
     await page.getByRole("button", { name: "Add piece" }).click();
-    await page.getByRole("dialog", { name: "Add a piece" }).getByLabel("Choose a MIDI or MusicXML file").setInputFiles(minuet);
+    await page.getByRole("dialog", { name: "Add a piece" }).getByLabel("Choose a MIDI, MusicXML or PDF file").setInputFiles(minuet);
     await expect(page.locator(".bar .ttl")).toHaveText("Waltz sketch");
     return errors;
 }

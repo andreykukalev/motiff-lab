@@ -41,7 +41,7 @@ test("from the overflow, the map shows where the selection returns, and a mark l
 test("from the library card, in Russian, with no selection: the ideas lane says how to fill it, and Escape returns", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "Add piece" }).click();
-    await page.getByRole("dialog", { name: "Add a piece" }).getByLabel("Choose a MIDI or MusicXML file").setInputFiles(minuet);
+    await page.getByRole("dialog", { name: "Add a piece" }).getByLabel("Choose a MIDI, MusicXML or PDF file").setInputFiles(minuet);
     await expect(page.locator(".bar .ttl")).toHaveText("Waltz sketch");
     await page.evaluate(() => localStorage.setItem("motiff-lab:ml-language", "ru"));
     await page.goto("/");

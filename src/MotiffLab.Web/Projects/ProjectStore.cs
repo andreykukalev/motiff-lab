@@ -19,10 +19,17 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
 {
     private IJSObjectReference? _module;
 
+    /// <summary>
+    /// Saves on this device, and online when saving online is on. A PDF read as it is (0023) stays on the device: it can run
+    /// to tens of megabytes, more than an online copy holds.
+    /// </summary>
     public async Task SaveAsync(Project project)
     {
         await SaveHereAsync(project);
-        await online.QueueAsync(project);
+        if (project.HasNotes)
+        {
+            await online.QueueAsync(project);
+        }
     }
 
     /// <summary>Saves on this device only, as for a project just fetched from its online copy.</summary>

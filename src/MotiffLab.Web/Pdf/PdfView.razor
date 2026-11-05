@@ -1,0 +1,97 @@
+@* A PDF read as it is (decision record 0023): its pages as sheets on the desk in one scrolling document, drawn by pdf.js
+   in Scripts/pdf as they come near the view. It shows the pages and reports which are under the bar; nothing on them is
+   music the app knows. *@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject MotiffLab.Web.Localization.UiText Text
+
+@* Focusable, so the keyboard scrolls the pages. *@
+<div class="score pdf-view" @ref="_host" tabindex="0" role="region" aria-label="@Label"></div>
+
+@code {
+    private ElementReference _host;
+    private IJSObjectReference? _module;
+    private IJSObjectReference? _view;
+    private DotNetObjectReference<PdfView>? _self;
+    private byte[]? _shown;
+
+    /// <summary>The PDF's bytes, exactly as the player added it.</summary>
+    [Parameter, EditorRequired]
+    public byte[] Document { get; set; } = [];
+
+    /// <summary>The name a screen reader gives the pages: the piece's title.</summary>
+    [Parameter]
+    public string? Label { get; set; }
+
+    /// <summary>The page to open at, from 1.</summary>
+    [Parameter]
+    public int StartPage { get; set; } = 1;
+
+    /// <summary>The pages under the bar and how many there are, as the score reports them.</summary>
+    [Parameter]
+    public EventCallback<(int First, int Last, int Count)> PagesShown { get; set; }
+
+    /// <summary>Called once the PDF is open with its number of pages, or 0 when it could not be read.</summary>
+    [Parameter]
+    public EventCallback<int> Opened { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _self = DotNetObjectReference.Create(this);
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/pdf/pdf-view.js");
+            _view = await _module.InvokeAsync<IJSObjectReference>("createPdfView", _host, _self);
+        }
+
+        if (_view is not null && !ReferenceEquals(_shown, Document))
+        {
+            _shown = Document;
+            int pages = await _view.InvokeAsync<int>("open", Document, StartPage);
+            if (pages > 0)
+            {
+                await _view.InvokeVoidAsync("labelPages", Text["pdf.pageLabel"]);
+            }
+
+            await Opened.InvokeAsync(pages);
+        }
+    }
+
+    /// <summary>Scrolls a page's top to under the bar.</summary>
+    public async Task ShowPageAsync(int page)
+    {
+        if (_view is not null)
+        {
+            await _view.InvokeVoidAsync("showPage", page);
+        }
+    }
+
+    /// <summary>Keeps page 1 as the piece's cover in the library; false when it could not be drawn.</summary>
+    public async Task<bool> SaveCoverAsync(string projectId, string? title) =>
+        _view is not null && await _view.InvokeAsync<bool>("saveCover", projectId, title);
+
+    [JSInvokable]
+    public Task OnPagesShown(int first, int last, int count) => PagesShown.InvokeAsync((first, last, count));
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_view is not null)
+            {
+                await _view.InvokeVoidAsync("dispose");
+                await _view.DisposeAsync();
+            }
+
+            if (_module is not null)
+            {
+                await _module.DisposeAsync();
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+
+        _self?.Dispose();
+    }
+}
