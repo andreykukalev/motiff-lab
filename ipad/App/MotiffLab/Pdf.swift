@@ -33,7 +33,7 @@ final class PdfController: NSObject, ObservableObject {
             applyTool()
         }
     }
-    @Published private(set) var canUndo = false
+    @Published var canUndo = false
     /// The strokes on the pages, as music-core answered the last call.
     @Published private(set) var strokes: [DocumentStroke] = []
 
