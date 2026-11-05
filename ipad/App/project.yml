@@ -72,6 +72,9 @@ targets:
         # may ask the Microsoft Authenticator app. Xcode adds the generated keys to this file.
         INFOPLIST_FILE: Config/Info.plist
         TARGETED_DEVICE_FAMILY: "2"
+        # The asset catalog holds the kit's icons only; the app has no icon of its own yet, and XcodeGen's preset would
+        # otherwise ask the catalog for an "AppIcon" set.
+        ASSETCATALOG_COMPILER_APPICON_NAME: ""
         CODE_SIGN_STYLE: Automatic
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Motiff Lab
