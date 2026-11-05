@@ -2290,6 +2290,11 @@ body:has(.workspace) .site-footer {
     opacity: 0;
 }
 
+/* The focus bar stays while focus is open: it holds the way back, where the phrase is and what is heard (0018 section 4). */
+.workspace .bar.focus-bar.faded {
+    opacity: 1;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .workspace .bar {
         transition: none;
@@ -3609,6 +3614,21 @@ body:has(.workspace) .site-footer {
 .lab.workspace .var-chips .var-chip.on {
     border-color: var(--plum);
     font-weight: 600;
+}
+
+/* In the focus card the chips are a row along its top, over the ossia, between the step buttons. */
+.workspace .focus-card > .var-chips {
+    position: absolute;
+    z-index: 1;
+    top: var(--s-2);
+    left: calc(var(--h-touch) + var(--s-2));
+    right: calc(var(--h-touch) + var(--s-2));
+    padding: 0;
+    background: none;
+}
+
+.workspace .focus-card.has-chips .phrase-card-score {
+    margin-top: calc(24px + 2 * var(--s-2));
 }
 
 /* The focus bar: Back to page with its word, where the phrase is, then the segmented controls and the actions. */
