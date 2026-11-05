@@ -25,6 +25,14 @@ final class DesignTests: XCTestCase {
         XCTAssertNil(DesignTokens.parseColor("var(--ink)"))
     }
 
+    func testShadowsAreReadFromTheTokens() throws {
+        let layer = try XCTUnwrap(DesignTokens.shadowLayer("0 6px 20px rgba(31,28,24,.18)"))
+        XCTAssertEqual(layer.y, 6)
+        XCTAssertEqual(layer.blur, 20)
+        XCTAssertNotNil(DesignTokens.shadowLayer(DesignTokens.stands.light["shadow-paper"]), "the first of two layers")
+        XCTAssertEqual(DesignTokens.shadow("shadow-pill").radius, 10)
+    }
+
     func testTypeAndSizesComeFromTheTokens() {
         XCTAssertEqual(DSType.label.token, TypeToken(weight: 500, size: 13, lineHeight: 18, display: false))
         XCTAssertTrue(DSType.display.token.display)

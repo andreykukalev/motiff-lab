@@ -70,6 +70,27 @@ enum DesignTokens {
         return CGFloat(value)
     }
 
+    /// A shadow token's first layer, such as "shadow-pill": "0 6px 20px rgba(31,28,24,.18)", in the stand the iPad's
+    /// appearance asks for. SwiftUI's radius is about half the CSS blur.
+    static func shadow(_ name: String) -> (color: Color, radius: CGFloat, x: CGFloat, y: CGFloat) {
+        let light = shadowLayer(stands.light[name])
+        let dark = shadowLayer(stands.dark[name]) ?? light
+        guard let light, let dark else { return (.clear, 0, 0, 0) }
+        let color = UIColor { traits in traits.userInterfaceStyle == .dark ? dark.color : light.color }
+        return (Color(uiColor: color), light.blur / 2, light.x, light.y)
+    }
+
+    static func shadowLayer(_ text: String?) -> (x: CGFloat, y: CGFloat, blur: CGFloat, color: UIColor)? {
+        guard let text else { return nil }
+        let pattern = try! NSRegularExpression(pattern: #"^\s*(-?[\d.]+)(?:px)?\s+(-?[\d.]+)(?:px)?\s+([\d.]+)(?:px)?\s+(rgba\([^)]*\)|#[0-9A-Fa-f]{6})"#)
+        guard let match = pattern.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+              let x = Range(match.range(at: 1), in: text).flatMap({ Double(text[$0]) }),
+              let y = Range(match.range(at: 2), in: text).flatMap({ Double(text[$0]) }),
+              let blur = Range(match.range(at: 3), in: text).flatMap({ Double(text[$0]) }),
+              let color = Range(match.range(at: 4), in: text).flatMap({ parseColor(String(text[$0])) }) else { return nil }
+        return (CGFloat(x), CGFloat(y), CGFloat(blur), color)
+    }
+
     /// A type token, such as "t-label": "500 13px/18px var(--font-ui)".
     static func type(_ name: String) -> TypeToken {
         TypeToken.parse(stands.light[name] ?? "")
@@ -168,6 +189,12 @@ extension View {
         return font(token.font).lineSpacing(Swift.max(0, token.lineHeight - token.size))
     }
 
+    /// One of the kit's shadows, such as `.dsShadow("shadow-pill")`.
+    func dsShadow(_ name: String) -> some View {
+        let shadow = DesignTokens.shadow(name)
+        return self.shadow(color: shadow.color, radius: shadow.radius, x: shadow.x, y: shadow.y)
+    }
+
     /// The kit's overline: small capitals, spaced, in the third ink.
     func overline() -> some View {
         dsType(.overline).textCase(.uppercase).tracking(0.66).foregroundStyle(Color.ds("ink-3"))
@@ -228,6 +255,38 @@ struct DSButtonStyle: ButtonStyle {
         case .secondary: pressed ? .ds("surface") : .ds("surface-2")
         case .quiet, .danger: pressed ? .ds("accent-tint") : .clear
         }
+    }
+}
+
+/// An item of the pill or a palette (ds.css `.pill .it`): quiet ink, and the accent's tint while it is on.
+struct DSItemStyle: ButtonStyle {
+    var on = false
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(DesignTokens.font(weight: on ? 600 : 500, size: 13, relativeTo: .callout))
+            .foregroundStyle(on ? Color.ds("accent") : Color.ds("ink-2"))
+            .padding(.horizontal, CGFloat.ds("s-3"))
+            .frame(minHeight: 36)
+            .background(on || configuration.isPressed ? Color.ds("accent-tint") : .clear, in: Capsule())
+            .opacity(isEnabled ? 1 : 0.38)
+            .contentShape(Capsule())
+    }
+}
+
+/// The floating surfaces over the score (ds.css `.bar`, `.pill`): the surface a little see-through over a blur, a hairline
+/// and the kit's shadow.
+struct FloatingSurface: ViewModifier {
+    var shadow = "shadow-menu"
+    var opacity = 0.86
+
+    func body(content: Content) -> some View {
+        content
+            .background(Color.ds("surface").opacity(opacity), in: Capsule())
+            .background(.ultraThinMaterial, in: Capsule())
+            .overlay(Capsule().strokeBorder(Color.ds("hairline")))
+            .dsShadow(shadow)
     }
 }
 
