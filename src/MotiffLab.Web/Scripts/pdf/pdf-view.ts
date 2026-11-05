@@ -29,12 +29,17 @@ interface PdfPage {
 interface PdfDocumentProxy {
     numPages: number;
     getPage(number: number): Promise<PdfPage>;
+}
+
+/** What getDocument returns: the document to come, and the way to let go of it (pdf.js 6 has no destroy on the document). */
+interface PdfLoadingTask {
+    promise: Promise<PdfDocumentProxy>;
     destroy(): Promise<void>;
 }
 
 interface PdfJs {
     GlobalWorkerOptions: { workerSrc: string };
-    getDocument(options: Record<string, unknown>): { promise: Promise<PdfDocumentProxy> };
+    getDocument(options: Record<string, unknown>): PdfLoadingTask;
 }
 
 const PDFJS_BASE = new URL("../../lib/pdfjs/", import.meta.url);
@@ -81,6 +86,7 @@ interface PageSheet {
 
 export class PdfView {
     private document: PdfDocumentProxy | null = null;
+    private loading: PdfLoadingTask | null = null;
     private pages: PageSheet[] = [];
     private readonly near = new Set<PageSheet>();
     private observer: IntersectionObserver | null = null;
@@ -123,13 +129,15 @@ export class PdfView {
         let document: PdfDocumentProxy;
         try {
             const pdf = await loadPdfJs();
-            document = await pdf.getDocument({
+            const loading = pdf.getDocument({
                 data,
                 wasmUrl: new URL("wasm/", PDFJS_BASE).href,
                 standardFontDataUrl: new URL("standard_fonts/", PDFJS_BASE).href,
                 isEvalSupported: false,
                 enableXfa: false,
-            }).promise;
+            });
+            this.loading = loading;
+            document = await loading.promise;
         } catch (error) {
             console.warn("The PDF could not be read.", error);
             return 0;
@@ -229,7 +237,8 @@ export class PdfView {
         this.near.clear();
         this.shown = "";
         this.host.classList.remove("paged");
-        void this.document?.destroy();
+        this.loading?.destroy().catch(() => undefined);
+        this.loading = null;
         this.document = null;
     }
 

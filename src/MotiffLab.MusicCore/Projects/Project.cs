@@ -74,6 +74,9 @@ public sealed record Project(
     /// <summary>The player's ink and bookmarks on the PDF's pages (0023), kept apart from the marks on the notes.</summary>
     public DocumentMarks DocumentMarks { get; init; } = DocumentMarks.Empty;
 
+    /// <summary>For a PDF whose notes were recognised, where each of its pages starts in the notes (0023); null otherwise.</summary>
+    public PageMap? DocumentPages { get; init; }
+
     /// <summary>Whether the piece has notes: a source to import. A PDF added as it is has none until it is recognised.</summary>
     public bool HasNotes => Source.Length > 0;
 
@@ -93,6 +96,37 @@ public sealed record Project(
 
         return new(id, fileName, [], now, now, [], []) { Document = pdf };
     }
+
+    /// <summary>
+    /// The PDF piece with the notes the scan read from its pages (0011, 0023): the MusicXML becomes its source, named after
+    /// the PDF, and the PDF, its marks and its bookmarks stay as they were, for the "PDF" view beside the "Notes" one.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The piece is not a PDF without notes.</exception>
+    public Project Recognised(byte[] musicXml, string engine, PageMap pages)
+    {
+        ArgumentNullException.ThrowIfNull(musicXml);
+        ArgumentNullException.ThrowIfNull(pages);
+        if (Document is null || HasNotes)
+        {
+            throw new InvalidOperationException("Only a PDF with no notes yet is recognised.");
+        }
+
+        if (musicXml.Length == 0)
+        {
+            throw new ArgumentException("The scan read no notes.", nameof(musicXml));
+        }
+
+        return this with
+        {
+            FileName = Path.ChangeExtension(FileName, ".musicxml"),
+            Source = musicXml,
+            Scan = ScanOrigin.Read(engine),
+            DocumentPages = pages,
+        };
+    }
+
+    /// <summary>The PDF's file name, as the player added it.</summary>
+    public string DocumentFileName => Path.ChangeExtension(FileName, PdfDocument.Extension);
 
     /// <summary>The row on the projects screen (N1).</summary>
     public ProjectSummary Summary => new(Id, FileName, Motifs.Count, Variations.Count, LastOpened, ResumePoints.Count, Observations.Count)

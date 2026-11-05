@@ -510,6 +510,19 @@ else if (_loading && !HoldHeight)
         }
     }
 
+    /// <summary>Where the first bar on a page starts, from 1; null in the strip or before the score is engraved.</summary>
+    public async Task<long?> FirstTickOnAsync(int page) =>
+        _view is null ? null : await _view.InvokeAsync<long?>("firstTickOn", page);
+
+    /// <summary>Scrolls to the top of the page a place in the piece is on.</summary>
+    public async Task ShowTickAsync(long tick)
+    {
+        if (_view is not null)
+        {
+            await _view.InvokeVoidAsync("showTick", tick);
+        }
+    }
+
     /// <summary>Called by the script when a phrase's bracket is tapped.</summary>
     [JSInvokable]
     public Task OnBracketClicked(int number) => BracketPicked.InvokeAsync(number);

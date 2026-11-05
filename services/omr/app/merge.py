@@ -4,7 +4,8 @@ homr writes one partwise score per page, each with its own part list and attribu
 piano piece have the same parts, so the measures of page 2 follow those of page 1 in each part, and
 measure numbers run on. Each page's first measure keeps its attributes (divisions, key, time,
 clefs), which MusicXML allows mid-part, so durations stay right even when pages use different
-divisions.
+divisions. The first measure of each page after the first starts with <print new-page="yes"/>, so the app
+can tell which bars were on which page of the PDF (decision record 0023).
 """
 
 from __future__ import annotations
@@ -39,6 +40,8 @@ def merge(pages: list[bytes]) -> bytes:
             measures = page_part.findall("measure")
             for offset, measure in enumerate(measures, 1):
                 measure.set("number", str(number + offset))
+                if offset == 1:
+                    _start_page(measure)
                 part.append(measure)
             added = max(added, len(measures))
         number += added
@@ -46,6 +49,15 @@ def merge(pages: list[bytes]) -> bytes:
     if len(scores) == 1:
         return pages[0]
     return b'<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n' + ET.tostring(first, encoding="utf-8")
+
+
+def _start_page(measure: ET.Element) -> None:
+    """Marks the measure as the first on a new page, keeping any layout homr gave it."""
+    printed = measure.find("print")
+    if printed is None:
+        printed = ET.Element("print")
+        measure.insert(0, printed)
+    printed.set("new-page", "yes")
 
 
 def _parse(page: bytes, number: int) -> ET.Element:
