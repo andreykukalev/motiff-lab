@@ -6,9 +6,11 @@ using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Midi;
 using MotiffLab.MusicCore.Import.Scan;
 using MotiffLab.MusicCore.Motifs;
+using MotiffLab.MusicCore.Notation;
 using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;
+using MotiffLab.Web.Playback;
 using MotiffLab.Web.Score;
 using MotiffLab.Web.Understand;
 
@@ -108,6 +110,155 @@ public partial class PlaybackLab
             return (markers, unheard);
         }
     }
+
+    private (SavedPerformance Of, PerformanceComparison Comparison, PerformanceLayerNotes Layer)? _versionNotes;
+
+    private (PerformanceLayerNotes Layer, IReadOnlyList<Note> Notes, bool Readable, ScoreSource Score, IReadOnlyList<string> Added)? _versionLayer;
+
+    /// <summary>
+    /// The shown version in the score's time (0022, section 4): what agrees as printed, what it adds on the grid, bars that
+    /// do not line up empty, likely artefacts of a recording's hearing left out. Worked out again only when the version or
+    /// its comparison change.
+    /// </summary>
+    private IReadOnlyList<Note>? VersionNotes
+    {
+        get
+        {
+            if (ShownPerformance is not { } performance || ShownComparison is not { } comparison || _meter is null)
+            {
+                return null;
+            }
+
+            if (_versionNotes is not { } cached || !ReferenceEquals(cached.Of, performance) || !ReferenceEquals(cached.Comparison, comparison))
+            {
+                PerformanceLayerNotes layer = PerformanceLayer.Of(comparison, performance.Notes(), PrintedNotes, _meter);
+                HashSet<string> artefacts = [.. layer.Artefacts];
+                cached = (performance, comparison, layer with { Notes = [.. layer.Notes.Where(note => !artefacts.Contains(note.Id))] });
+                _versionNotes = cached;
+            }
+
+            return cached.Layer.Notes;
+        }
+    }
+
+    /// <summary>
+    /// The score with the other version on small staves above every system (0022, section 4), when its layer is on: what
+    /// agrees is written as printed and what the version adds is plum. Engraved again only when the version, the notes or
+    /// the writing change.
+    /// </summary>
+    private ScoreSource? VersionScore
+    {
+        get
+        {
+            if (!LayerShown("version") || ShownPerformance is not { } performance || VersionNotes is not { } versionNotes
+                || _notes is not { } notes || _score is null || _versionNotes is not { } version)
+            {
+                return null;
+            }
+
+            if (_versionLayer is { } cached && ReferenceEquals(cached.Layer, version.Layer) && ReferenceEquals(cached.Notes, notes) && cached.Readable == _readable)
+            {
+                return cached.Score;
+            }
+
+            ScoreSource score = ScoreSource.FromNotes(Notation(notes, _score.End, [new NotationOssia(performance.Name, versionNotes, AsHeard: true)]));
+            string prefix = NotationGenerator.OssiaIdPrefix(0);
+            _versionLayer = (version.Layer, notes, _readable, score, [.. version.Layer.Added.Select(id => prefix + id)]);
+            return score;
+        }
+    }
+
+    /// <summary>The bars of the phrase in focus the shown version has otherwise and that can be taken: not dismissed or taken.</summary>
+    private IReadOnlyList<BarComparison> FocusVersionBars => FocusSpan is { } span && _meter is not null
+        ? [.. DifferingBars.Where(bar => BarRange.Of(_meter, span).Contains(bar.Bar))]
+        : [];
+
+    /// <summary>The bars of the phrase in focus taken from the shown version.</summary>
+    private IReadOnlyList<int> FocusTakenBars => FocusSpan is { } span && _meter is not null && ShownPerformance is { } performance
+        ? [.. performance.Taken.Select(taken => taken.Bar).Where(bar => BarRange.Of(_meter, span).Contains(bar)).Order()]
+        : [];
+
+    /// <summary>The engine source for the shown version's notes in the selection, heard in focus (0022, section 5).</summary>
+    private const string VersionSource = "version";
+
+    /// <summary>Whether the player chose to hear the other version in focus.</summary>
+    private bool VersionChosen => _hear.Contains(VersionSource);
+
+    /// <summary>Whether the phrase in focus has another version to hear, with no variation open: Notes / Version / Alternate shows then.</summary>
+    private bool FocusHasVersion => !FocusHasVariation && FocusSpan is { } span && VersionNotesIn(span).Count > 0;
+
+    /// <summary>The shown version's notes that start in a span, in the score's time; none when no version is shown.</summary>
+    private IReadOnlyList<Note> VersionNotesIn(TickSpan span) =>
+        VersionNotes is { } notes ? [.. notes.Where(note => span.Contains(note.Span.Onset))] : [];
+
+    /// <summary>
+    /// Notes or Version in focus: loops the phrase as in the score, or as in the other version, from where the loop is or
+    /// from the phrase's start.
+    /// </summary>
+    private async Task HearVersionAsync(bool version)
+    {
+        if (_selection is not { NoteIds.Count: > 0 } selection)
+        {
+            return;
+        }
+
+        _hear = version ? [VersionSource] : [Player.OriginalSource];
+        _alternating = false;
+        _looping = true;
+        TickSpan range = await LoopSelectionAsync(selection);
+        if (Player.State == PlaybackState.Stopped)
+        {
+            await Player.SeekAsync(range.Onset);
+            await PlayAsync();
+        }
+    }
+
+    /// <summary>Take into the score, in focus: every bar of the phrase the version has otherwise, at once.</summary>
+    private async Task TakeFocusBarsAsync()
+    {
+        if (_project is not { } project || ShownPerformance is not { } performance || ShownComparison is not { } comparison || _meter is null)
+        {
+            return;
+        }
+
+        List<TakenBar> taken = [];
+        foreach (BarComparison bar in FocusVersionBars)
+        {
+            try
+            {
+                taken.Add(PerformanceTake.Take(performance.Id, bar, performance.Notes(), comparison.Alignment, _meter, PrintedNotes));
+            }
+            catch (ArgumentException)
+            {
+                // A bar that does not line up has nothing to take; the others still are.
+            }
+        }
+
+        if (taken.Count == 0)
+        {
+            return;
+        }
+
+        _project = project.ChangePerformance(performance.Id, kept => kept.TakeBars(taken));
+        _performanceStatus = Text.Format("performance.takenBars", string.Join(", ", taken.Select(bar => bar.Bar)), performance.Name);
+        await ApplyEditsAsync(_edits);
+    }
+
+    /// <summary>Restore these notes, in focus: the bars of the phrase taken from the version come back as they were.</summary>
+    private async Task RestoreFocusBarsAsync()
+    {
+        if (_project is not { } project || ShownPerformance is not { } performance || FocusTakenBars is not { Count: > 0 } bars)
+        {
+            return;
+        }
+
+        _project = project.ChangePerformance(performance.Id, kept => kept.Restore(bars));
+        _performanceStatus = Text.Format("performance.restoredBars", string.Join(", ", bars));
+        await ApplyEditsAsync(_edits);
+    }
+
+    /// <summary>The notes the other version adds, plum in its layer; null while the layer is off.</summary>
+    private IReadOnlyList<string>? ScoreVersionAdded => VersionScore is null ? null : _versionLayer?.Added;
 
     private IReadOnlyList<ScorePerformanceMarker>? ScorePerformanceMarkers => PerformanceMarks?.Markers;
 

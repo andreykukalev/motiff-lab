@@ -690,6 +690,10 @@
   "selection.phrasesBars": "phrases {0}–{1}, bars {2}–{3}",
   "compare.nowVariation": "Now the variation.",
   "compare.nowOriginal": "Now the original.",
+  "compare.alternateVersionHint": "Loops the phrase as in the score, then as in {0}, then again.",
+  "compare.versionHint": "Hear the phrase as in {0}.",
+  "compare.notesHint": "Hear the phrase as in the score.",
+  "compare.nowVersion": "Now as in {0}.",
   "kept.forPhrase": "Kept for phrase {0}",
   "kept.forThisPhrase": "Kept for this phrase",
   "kept.kept": "Kept “{0}”.",
@@ -927,6 +931,8 @@
   "focus.original": "Original",
   "focus.variation": "Variation",
   "focus.alternate": "Alternate",
+  "focus.versionHear": "Version",
+  "focus.notes": "Notes",
   "focus.notation": "How the notes are written",
   "focus.reading": "Reading",
   "focus.leadIn": "Lead-in",
@@ -1309,5 +1315,9 @@
   "pdf.viewPdf": "PDF",
   "pdf.viewNotes": "Notes",
   "library.openFileHintHere": "MIDI, MusicXML or PDF, or a Motiff Lab project file, read on this device",
-  "pdf.versionFirst": "To add another version, the notes have to be read from this PDF first. They open as a separate piece in your library, and this PDF stays exactly as it is."
+  "pdf.versionFirst": "To add another version, the notes have to be read from this PDF first. They open as a separate piece in your library, and this PDF stays exactly as it is.",
+  "layers.version": "Other version above the staves",
+  "focus.version": "As in {0}",
+  "performance.takenBars": "Bars {0} are now as in {1}.",
+  "performance.restoredBars": "Bars {0} are back as they were."
 }

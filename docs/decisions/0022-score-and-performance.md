@@ -54,11 +54,13 @@ Chosen by Andrei on 2026-11-05.
 
 - **Markers above bars**, always shown when the piece has a performance: a small plum label above a bar that differs, with its kind and count ("+3 · filling", "bass: G instead of D"). Printed notes that were not heard are tinted `--warning` in place. Likely artefacts are hidden by default; a line in the layer's popover counts them and shows them.
 - A tap on a marker selects the bar; the contextual menu offers **Compare**, **Listen to the performer**, **Take into the score** and **Not a difference** (which removes the marker and is kept).
-- **The comparison layer**, "Performance" in the Pen menu's layers: small staves above every system with what the recording plays, bar for bar, for the whole piece, as the ossia of 0021. Only what is not printed is coloured, so the eye goes to the differences. While the layer is on, the bar-to-page map follows the taller systems. The same view exports to PDF (0017).
+- **The comparison layer**, "Other version above the staves" in the layers (`layers.version`, off until asked for; built 2026-11-05 as `PerformanceLayer`; the design kit's "Performance" layer is the transcription's playing marks, a different thing): small staves above every system with what the recording plays, bar for bar, for the whole piece, as the ossia of 0021. Only what is not printed is coloured, so the eye goes to the differences. While the layer is on, the bar-to-page map follows the taller systems. The same view exports to PDF (0017).
 
 Plum and amber keep their meaning in the design system: the ossia is already plum ("not the original, an alternative"), and "printed but not heard" is a reason to check, like the Check flags, so it takes the amber text colour, never the amber fill of the player's own marks.
 
 ### 5. In phrase focus: hear, compare, take
+
+Built first on 2026-11-05: without a variation in play, the card shows the shown version's bars of the phrase as the ossia, named "As in «name»", and the focus bar offers Take into the score for every bar of the phrase the version has otherwise and Restore these notes for the bars taken. The focus bar then also offers Notes / Version / Alternate: the phrase as in the score, as in the version (its notes in the score's time, artefacts left out), or one after the other; leaving focus goes back to the notes.
 
 - The focused phrase shows the ossia "As <name> plays it" above the original, in the plum dashed frame of variations.
 - **Notes · Performer · Alternate** chooses what is heard. *Performer* plays the recording itself from the bar, through the time map, not a synthesis of the notes heard; loop and 50–100 % tempo (pitch kept) work as for the score. *Alternate* plays the printed phrase, then the recording.

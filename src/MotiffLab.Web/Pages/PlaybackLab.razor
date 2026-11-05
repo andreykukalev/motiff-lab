@@ -92,7 +92,7 @@
                            Selection="_selection?.Span" BarsChosen="OnScoreBarsChosenAsync" Menu="@(MenuShown ? SelectionMenu : null)"
                            Bookmarks="ScoreBookmarks" BookmarkPicked="OnBookmarkPickedAsync" Notes="ScoreNotes" MarkHighlights="ScoreHighlights" HiddenLayers="HiddenLayers"
                            NoteMarkerPicked="OpenNoteAsync" LayersRequested="OpenLayers" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync"
-                           PerformanceMarkers="ScorePerformanceMarkers" Unheard="ScoreUnheard" PerformancePicked="OnPerformancePickedAsync"
+                           PerformanceMarkers="ScorePerformanceMarkers" Unheard="ScoreUnheard" VersionAdded="ScoreVersionAdded" PerformancePicked="OnPerformancePickedAsync"
                            Pointed="_pointed" NotePicked="OnScoreNotePicked" />
             }
             else
@@ -116,7 +116,7 @@
                     {
                         <span class="pg" aria-live="off">@pages</span>
                     }
-                    @if (_project?.Document is not null)
+                    @if (_project is { Document: not null } or { ReadFrom: not null })
                     {
                         <MotiffLab.Web.Pdf.ViewSwitch OnPdf="false" Switch="_ => ShowPdfAsync()" />
                     }
@@ -1329,6 +1329,29 @@
                 <button role="radio" class="@(alternate ? "on" : null)" aria-checked="@(alternate ? "true" : "false")" title="@Text["compare.alternateHint"]" @onclick="StartOneAfterTheOtherAsync">@Text["focus.alternate"]</button>
             </div>
         }
+        @if (FocusHasVersion)
+        {
+            bool alternate = _alternating;
+            bool version = !alternate && VersionChosen;
+            string name = ShownPerformance!.Name;
+            <div class="seg" role="radiogroup" aria-label="@Text["focus.listen"]">
+                <button role="radio" class="@(!alternate && !version ? "on" : null)" aria-checked="@(!alternate && !version ? "true" : "false")" title="@Text["compare.notesHint"]" @onclick="() => HearVersionAsync(false)">@Text["focus.notes"]</button>
+                <button role="radio" class="@(version ? "on" : null)" aria-checked="@(version ? "true" : "false")" title="@Text.Format("compare.versionHint", name)" @onclick="() => HearVersionAsync(true)">@Text["focus.versionHear"]</button>
+                <button role="radio" class="@(alternate ? "on" : null)" aria-checked="@(alternate ? "true" : "false")" title="@Text.Format("compare.alternateVersionHint", name)" @onclick="StartOneAfterTheOtherAsync">@Text["focus.alternate"]</button>
+            </div>
+        }
+        @if (!FocusHasVariation && ShownPerformance is not null)
+        {
+            @* Another version above the phrase (0022, section 5): its bars that differ are taken into the score at once, or brought back. *@
+            @if (FocusVersionBars.Count > 0)
+            {
+                <button class="btn quiet" @onclick="TakeFocusBarsAsync">@Text["performance.take"]</button>
+            }
+            @if (FocusTakenBars.Count > 0)
+            {
+                <button class="btn quiet" @onclick="RestoreFocusBarsAsync">@Text["performance.restore"]</button>
+            }
+        }
         <button class="btn quiet ask @(_insightsOpen && _asking ? "on" : null)" aria-pressed="@(_insightsOpen && _asking ? "true" : "false")" title="?" @onclick="MenuAsk">@Text["ask.menu"]</button>
         <button class="act @(_rollOpen ? "on" : null)" aria-pressed="@(_rollOpen ? "true" : "false")" aria-label="@Text["bar.roll"]" title="@Text["bar.roll"]"
                 @onclick="ToggleRoll"><Icon Name="roll" Size="IconSize.Large" /></button>
@@ -1676,9 +1699,11 @@
         _ => ScoreChoice.Generated,
     };
 
+    /// <summary>The score shown: with the other version above every system when its layer is on (0022), except over a variation.</summary>
     private ScoreSource? ShownScore => ShownChoice switch
     {
         ScoreChoice.Variation => _variationScore,
+        _ when VersionScore is { } withVersion => withVersion,
         ScoreChoice.AsWritten => _asWritten,
         _ => _generated,
     };
@@ -2077,13 +2102,13 @@
         : _keys.Select(key => new KeyChange(key.At, Math.Clamp(key.Fifths, -7, 7)));
 
     /// <summary>The piece's notes engraved, in the mode the player chose for notes heard in a recording.</summary>
-    private GeneratedNotation Notation(IEnumerable<Note> notes, Tick end) =>
-        _heard ? HeardNotation(notes, _meter!, NotationKeys(), end, ScoreTitle.Of(_title), _score!) : NotationGenerator.Generate(notes, _meter!, NotationKeys(), end, ScoreTitle.Of(_title));
+    private GeneratedNotation Notation(IEnumerable<Note> notes, Tick end, IReadOnlyList<NotationOssia>? ossias = null) =>
+        _heard ? HeardNotation(notes, _meter!, NotationKeys(), end, ScoreTitle.Of(_title), _score!, ossias) : NotationGenerator.Generate(notes, _meter!, NotationKeys(), end, ScoreTitle.Of(_title), ossias: ossias);
 
-    private GeneratedNotation HeardNotation(IEnumerable<Note> notes, MeterMap meter, IEnumerable<KeyChange> keys, Tick end, string? title, PlaybackScore played) =>
+    private GeneratedNotation HeardNotation(IEnumerable<Note> notes, MeterMap meter, IEnumerable<KeyChange> keys, Tick end, string? title, PlaybackScore played, IReadOnlyList<NotationOssia>? ossias = null) =>
         _readable
-            ? NotationGenerator.Generate(notes, meter, keys, end, title, asHeard: true)
-            : NotationGenerator.Generate(notes, meter, keys, end, title, playedTempos: played.Tempos, pedal: played.Pedal.Select(held => held.Span));
+            ? NotationGenerator.Generate(notes, meter, keys, end, title, asHeard: true, ossias: ossias)
+            : NotationGenerator.Generate(notes, meter, keys, end, title, playedTempos: played.Tempos, pedal: played.Pedal.Select(held => held.Span), ossias: ossias);
 
     /// <summary>Notes heard in a recording, written for reading or as played.</summary>
     private void SetReadable(bool readable)
@@ -3254,7 +3279,17 @@
         await Player.SetSourceAsync(SelectionSource, _score!.WithNotes(Voiced([.. _notes!.Where(note => ids.Contains(note.Id))])));
         await SetLeadSourceAsync(selection);
         // One after the other (#43) keeps alternating as the selection, its notes or the variation change.
-        _alternating = _alternating && _variation is { Notes.Count: > 0 };
+        _alternating = _alternating && CanAlternate(selection);
+        // The other version is heard only in focus, while it is shown (0022, section 5).
+        if (VersionChosen && !(Focused && VersionNotesIn(selection.Span).Count > 0))
+        {
+            _hear = [Player.OriginalSource];
+        }
+
+        if (VersionChosen || (_alternating && _variation is not { Notes.Count: > 0 }))
+        {
+            await Player.SetSourceAsync(VersionSource, _score.WithNotes(Voiced(VersionNotesIn(selection.Span))));
+        }
         if (_alternating)
         {
             return await AlternateAsync(selection);

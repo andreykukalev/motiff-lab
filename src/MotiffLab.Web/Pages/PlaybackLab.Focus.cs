@@ -1,6 +1,7 @@
 using Microsoft.JSInterop;
 
 using MotiffLab.MusicCore.Analysis;
+using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Notation;
 using MotiffLab.MusicCore.Projects;
@@ -89,7 +90,7 @@ public partial class PlaybackLab
         true => "variation",
         false => "original",
         null when VariationChosen && (_hear.Contains(Player.OriginalSource) || _hear.Contains(InPlaceSource)) => "both",
-        null when VariationChosen => "variation",
+        null when VariationChosen || VersionChosen => "variation",
         _ => "original",
     };
 
@@ -107,15 +108,19 @@ public partial class PlaybackLab
             }
 
             Variation? variation = _variation is { Notes.Count: > 0 } heard && heard.Notes.Any(note => note.Span.Overlaps(span)) ? heard : null;
-            string? name = variation is null ? null : VariationName;
-            var key = (span, _notes, variation, _readable, name, Text.Culture.Name);
+            // Without a variation, another version of the piece stands above as the performer has it (0022, section 5).
+            IReadOnlyList<Note>? version = variation is null ? VersionNotes : null;
+            string? name = variation is not null ? VariationName : version is not null ? Text.Format("focus.version", ShownPerformance!.Name) : null;
+            var key = (span, _notes, variation, version, _readable, name, Text.Culture.Name);
             if (_focusCard is not null && Equals(key, _focusCardKey))
             {
                 return _focusCard;
             }
 
             // The card names the ossia in its overline: Verovio's label at its left would only push the staves right.
-            NotationOssia[] ossias = variation is null ? [] : [new NotationOssia("", variation.Notes, AsHeard: _heard && _readable)];
+            NotationOssia[] ossias = variation is not null ? [new NotationOssia("", variation.Notes, AsHeard: _heard && _readable)]
+                : version is not null ? [new NotationOssia("", version, AsHeard: true)]
+                : [];
             Tick end = variation is null ? _score!.End : new Tick(Math.Max(_score!.End.Value, variation.Notes.Max(note => note.Span.End.Value)));
             BarRange bars = BarRange.Of(_meter!, span);
             GeneratedNotation notation = !_heard
@@ -123,7 +128,7 @@ public partial class PlaybackLab
                 : _readable
                     ? NotationGenerator.Generate(_notes, _meter!, NotationKeys(), end, asHeard: true, bars: bars, ossias: ossias)
                     : NotationGenerator.Generate(_notes, _meter!, NotationKeys(), end, playedTempos: _score.Tempos, pedal: _score.Pedal.Select(held => held.Span), bars: bars, ossias: ossias);
-            _focusCard = PhraseCardSource.From(notation, _meter!.GetBar(bars.FirstBar).Span.Onset, _ => Text.Format("focus.ossia", name!));
+            _focusCard = PhraseCardSource.From(notation, _meter!.GetBar(bars.FirstBar).Span.Onset, _ => variation is not null ? Text.Format("focus.ossia", name!) : name!);
             _focusCardKey = key;
             return _focusCard;
         }
@@ -156,7 +161,15 @@ public partial class PlaybackLab
         _focusSpan = null;
         _focusCard = null;
         _focusCardKey = null;
-        if (_leadIn && Looping && _selection is { NoteIds.Count: > 0 } selection && _answerLoop is null)
+        // The other version is heard only in focus: the page goes back to the notes.
+        bool versionHeard = VersionChosen || (_alternating && _variation is not { Notes.Count: > 0 });
+        if (versionHeard)
+        {
+            _alternating = false;
+            _hear = [Player.OriginalSource];
+        }
+
+        if ((versionHeard || _leadIn) && Looping && _selection is { NoteIds.Count: > 0 } selection && _answerLoop is null)
         {
             await LoopSelectionAsync(selection);
         }

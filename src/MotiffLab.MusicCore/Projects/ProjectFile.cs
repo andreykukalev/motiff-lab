@@ -86,6 +86,20 @@ public static class ProjectFile
                 json.WriteEndArray();
             }
 
+            if (project.ReadFrom is { } readFrom)
+            {
+                json.WriteStartObject("readFrom");
+                json.WriteString("project", readFrom.ProjectId);
+                json.WriteStartArray("pages");
+                foreach (Tick start in readFrom.Pages.Starts)
+                {
+                    json.WriteNumberValue(start.Value);
+                }
+
+                json.WriteEndArray();
+                json.WriteEndObject();
+            }
+
             json.WriteStartArray("motifs");
             foreach (SavedMotif motif in project.Motifs)
             {
@@ -447,6 +461,9 @@ public static class ProjectFile
             PageMap? documentPages = root.TryGetProperty("documentPages", out JsonElement pagesElement)
                 ? ReadDocumentPages(pagesElement, pdf, source)
                 : null;
+            ReadFromPdf? readFrom = root.TryGetProperty("readFrom", out JsonElement readFromElement)
+                ? ReadReadFrom(readFromElement, source)
+                : null;
 
             var motifs = Property(root, "motifs", JsonValueKind.Array).EnumerateArray().Select(ReadMotif).ToList();
             var variations = Property(root, "variations", JsonValueKind.Array).EnumerateArray().Select(variation => ReadVariation(variation, version)).ToList();
@@ -520,6 +537,7 @@ public static class ProjectFile
                 Document = pdf,
                 DocumentMarks = documentMarks,
                 DocumentPages = documentPages,
+                ReadFrom = readFrom,
             };
         }
     }
@@ -626,22 +644,38 @@ public static class ProjectFile
     }
 
     /// <summary>Where each page of a recognised PDF starts in its notes (0023): ticks from page 1, which starts at 0.</summary>
-    private static PageMap ReadDocumentPages(JsonElement pages, byte[]? pdf, byte[] source)
+    private static PageMap ReadDocumentPages(JsonElement pages, byte[]? pdf, byte[] source) =>
+        pdf is null || source.Length == 0 ? throw Damaged("documentPages") : ReadPageMap(pages, "documentPages");
+
+    /// <summary>The PDF piece notes were read from (0023): {"project": id, "pages": [ticks, …]}; only a piece with notes.</summary>
+    private static ReadFromPdf ReadReadFrom(JsonElement element, byte[] source)
     {
-        if (pdf is null || source.Length == 0 || pages.ValueKind != JsonValueKind.Array)
+        if (source.Length == 0 || element.ValueKind != JsonValueKind.Object
+            || !element.TryGetProperty("project", out JsonElement id) || id.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(id.GetString())
+            || !element.TryGetProperty("pages", out JsonElement pages))
         {
-            throw Damaged("documentPages");
+            throw Damaged("readFrom");
+        }
+
+        return new ReadFromPdf(id.GetString()!, ReadPageMap(pages, "readFrom"));
+    }
+
+    private static PageMap ReadPageMap(JsonElement pages, string field)
+    {
+        if (pages.ValueKind != JsonValueKind.Array)
+        {
+            throw Damaged(field);
         }
 
         try
         {
             return new PageMap([.. pages.EnumerateArray().Select(start => start.ValueKind == JsonValueKind.Number && start.TryGetInt64(out long value) && value >= 0
                 ? new Tick(value)
-                : throw Damaged("documentPages"))]);
+                : throw Damaged(field))]);
         }
         catch (ArgumentException)
         {
-            throw Damaged("documentPages");
+            throw Damaged(field);
         }
     }
 

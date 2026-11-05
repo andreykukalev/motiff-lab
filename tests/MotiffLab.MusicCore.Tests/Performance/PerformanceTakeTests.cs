@@ -1,5 +1,6 @@
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Export;
+using MotiffLab.MusicCore.Notation;
 using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;
@@ -135,5 +136,43 @@ public class PerformanceTakeTests
         Assert.Empty(removed.Performances);
         Assert.Empty(removed.OpenChecks);
         Assert.Throws<KeyNotFoundException>(() => removed.RemovePerformance("perf_1"));
+    }
+
+    [Fact]
+    public void The_layer_writes_what_agrees_as_printed_and_what_the_version_adds_on_the_grid()
+    {
+        (PerformanceComparison comparison, List<PlayedNote> played) = Compare();
+
+        PerformanceLayerNotes layer = PerformanceLayer.Of(comparison, played, Score(), MeterMap.Default);
+
+        Assert.Equal(["v-f1", "v-f2", "v-f3", "v-f4"], layer.Added);
+        Assert.Empty(layer.Artefacts);
+        Assert.Equal(comparison.MatchedCount + 4, layer.Notes.Count);
+        Assert.DoesNotContain(layer.Notes, note => note.Id == "v-p_rh06");
+        Note same = Assert.Single(layer.Notes, note => note.Id == "v-p_rh00");
+        Assert.Equal(Score()[0].Span, same.Span);
+        Assert.Equal(Provenance.Inferred, same.Attribution.Provenance);
+        Note f1 = Assert.Single(layer.Notes, note => note.Id == "v-f1");
+        Assert.Equal(new Tick(Bar + (2 * Quarter)), f1.Span.Onset);
+        Assert.Equal(Hand.Right, f1.Hand!.Value);
+        Assert.Equal(layer.Notes, PerformanceLayer.Of(comparison, played, Score(), MeterMap.Default).Notes);
+
+        // Engraved above the print over the whole piece, as an ossia (0021).
+        GeneratedNotation notation = NotationGenerator.Generate(Score(), MeterMap.Default, [], new Tick(4 * Bar), ossias: [new NotationOssia("Live", layer.Notes)]);
+        Assert.Contains("ossia-v-f1", notation.Mei, StringComparison.Ordinal);
+        Assert.Equal(layer.Notes.Count, Assert.Single(notation.Ossias).NoteCount);
+    }
+
+    [Fact]
+    public void Bars_that_do_not_line_up_stay_empty_in_the_layer()
+    {
+        (PerformanceComparison comparison, List<PlayedNote> played) = Compare();
+        PerformanceComparison cut = comparison with { Bars = [.. comparison.Bars.Select(bar => bar.Bar == 2 ? bar with { Aligned = false } : bar)] };
+
+        PerformanceLayerNotes layer = PerformanceLayer.Of(cut, played, Score(), MeterMap.Default);
+
+        TickSpan bar2 = MeterMap.Default.GetBar(2).Span;
+        Assert.DoesNotContain(layer.Notes, note => bar2.Contains(note.Span.Onset));
+        Assert.Empty(layer.Added);
     }
 }

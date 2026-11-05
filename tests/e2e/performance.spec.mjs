@@ -5,7 +5,7 @@
 // in MusicXML can be added over the cover opened as the piece.
 import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { violations } from "./steps.mjs";
+import { closePopover, openMore, violations } from "./steps.mjs";
 
 const score = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Experiments/Fixtures/fur-elise-original.musicxml", import.meta.url));
 const cover = fileURLToPath(new URL("fixtures/fur-elise-cover.mid", import.meta.url));
@@ -30,6 +30,23 @@ test("a MIDI performance marks the bars it plays differently, and a bar is taken
     await expect(markers.nth(1)).toHaveAccessibleName("Bar 7 in fur-elise-cover: −3 · simplified");
     await expect(page.locator(".score g.note.not-heard")).toHaveCount(3);
     expect(await violations(page)).toEqual([]);
+
+    // The comparison layer: the cover on small staves above every system, the three notes it adds in plum.
+    await (await openMore(page)).getByRole("button", { name: "Layers" }).click();
+    const versionLayer = page.locator(".layers-popover").getByRole("switch", { name: "Other version above the staves" });
+    await expect(versionLayer).not.toBeChecked();
+    await versionLayer.click();
+    await expect(page.locator(".score g.note.version-added")).toHaveCount(3);
+    await expect(page.locator(".score .score-page svg").first()).toContainText("fur-elise-cover");
+    await expect(markers).toHaveText(["+3 · added notes", "−3 · simplified"]);
+    await closePopover(page);
+    expect(await violations(page)).toEqual([]);
+    await (await openMore(page)).getByRole("button", { name: "Layers" }).click();
+    await versionLayer.click();
+    await expect(page.locator(".score g.note.version-added")).toHaveCount(0);
+    await closePopover(page);
+    await page.locator(".bar").getByRole("button", { name: "More" }).click();
+    await page.locator(".more-popover").getByRole("button", { name: "Other versions" }).click();
 
     // A marker selects its bar in the drawer.
     await markers.nth(1).click();
@@ -74,5 +91,42 @@ test("the official score in MusicXML is added over notes from a performance", as
     // The mirror of the first test: what the cover added is now left out of the score, and the left hand it left out is added.
     await expect(page.locator(".score button.perf-marker")).toHaveText(["−3 · simplified", "+3 · added notes"]);
     await expect(drawer.getByLabel("Name")).toHaveValue("fur-elise-original");
+    expect(errors).toEqual([]);
+});
+
+test("in focus, the other version stands above the phrase, is heard, and its bars are taken into the score at once", async ({ page }) => {
+    const errors = [];
+    page.on("pageerror", error => errors.push(String(error)));
+    await page.goto("/");
+    await page.getByRole("button", { name: "Add piece" }).click();
+    await page.getByLabel("Choose a MIDI, MusicXML or PDF file").setInputFiles(score);
+    await expect(page).toHaveURL(/\/playback\?project=p_[0-9a-f]+/);
+    await (await openMore(page)).getByRole("button", { name: "Add a version" }).click();
+    const drawer = page.locator(".perf-sheet");
+    await drawer.locator("input[type=file]").setInputFiles(cover);
+    await expect(drawer.getByRole("status")).toContainText("Lined up:");
+    const markers = page.locator(".score button.perf-marker");
+
+    // Bar 5 picked from its marker, then lifted into focus: the cover's bar stands above it.
+    await markers.first().click();
+    await expect(page.locator(".selection-status")).toContainText("bar 5");
+    await page.locator(".ctx .menu").getByRole("button", { name: "Focus" }).click();
+    await expect(page.locator(".focus-card")).toContainText("As in fur-elise-cover");
+    const focusBar = page.locator(".bar.focus-bar");
+    // The phrase is heard as in the notes, as in the version, or one after the other.
+    const listen = focusBar.getByRole("radiogroup", { name: "What you hear" });
+    for (const choice of ["Version", "Alternate", "Notes"]) {
+        await listen.getByRole("radio", { name: choice }).click();
+        await expect(listen.getByRole("radio", { name: choice })).toHaveAttribute("aria-checked", "true");
+    }
+    await focusBar.getByRole("button", { name: "Take into the score" }).click();
+    await expect(focusBar.getByRole("button", { name: "Restore these notes" })).toBeVisible();
+    await expect(focusBar.getByRole("button", { name: "Take into the score" })).toHaveCount(0);
+    expect(await violations(page)).toEqual([]);
+
+    await focusBar.getByRole("button", { name: "Restore these notes" }).click();
+    await expect(focusBar.getByRole("button", { name: "Take into the score" })).toBeVisible();
+    await focusBar.getByRole("button", { name: "Back to page" }).click();
+    await expect(markers).toHaveText(["+3 · added notes", "−3 · simplified"]);
     expect(errors).toEqual([]);
 });
