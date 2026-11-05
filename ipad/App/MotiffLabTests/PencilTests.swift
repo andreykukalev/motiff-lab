@@ -406,6 +406,25 @@ final class PencilTests: XCTestCase {
         XCTAssertEqual(cleared?.intValue, 0, "nothing is marked once stopped")
     }
 
+    func testTheNotesPagesLeadToAndFromThePdfsPages() async throws {
+        let view = try await scorePage()
+        let example = try XCTUnwrap(OpenPiece.example)
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        defer { _ = MusicCore.close(piece: piece.id) }
+        let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
+        _ = try await call(view, "show", ["pages": piece.pages, "timemap": timemap, "dark": false])
+
+        // Where the notes on a page start, for PDF from Notes; a place in the piece brings its page up, for Notes from PDF.
+        let first = try await call(view, "firstTickOn", ["page": 1]) as? NSNumber
+        XCTAssertEqual(first?.doubleValue, 0)
+        let second = try XCTUnwrap(try await call(view, "firstTickOn", ["page": 2]) as? NSNumber)
+        XCTAssertGreaterThan(second.doubleValue, 0)
+        let none = try await call(view, "firstTickOn", ["page": 99])
+        XCTAssertTrue(none == nil || none is NSNull, "a page the score does not have starts nowhere")
+        let shown = try await call(view, "showTick", ["tick": second.doubleValue + 1]) as? Bool
+        XCTAssertEqual(shown, true)
+    }
+
     func testTheInksAreTheDesignKits() {
         XCTAssertNotEqual(DesignTokens.color("ink-carmine"), .systemGray)
         XCTAssertNotEqual(DesignTokens.color("amber"), .systemGray)

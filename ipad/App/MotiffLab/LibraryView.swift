@@ -80,11 +80,14 @@ struct LibraryView: View {
                 }
             }
             .navigationDestination(item: $piece) { piece in
-                if piece.isDocument {
-                    PdfScreen(piece: piece)
-                } else {
-                    ScoreScreen(piece: piece)
+                Group {
+                    if piece.isDocument {
+                        PdfScreen(piece: piece) { landing in await switchView(from: piece, to: landing) }
+                    } else {
+                        ScoreScreen(piece: piece) { landing in await switchView(from: piece, to: landing) }
+                    }
                 }
+                .id(piece.id)
             }
             .fileImporter(isPresented: $choosing, allowedContentTypes: Self.openable) { result in
                 Task { await open(result) }
@@ -175,6 +178,20 @@ struct LibraryView: View {
         }
     }
 
+    /// PDF | Notes (0023): the piece's other view replaces it, at the page or place given. The screen has saved the piece.
+    private func switchView(from current: OpenPiece, to landing: Landing) async {
+        guard let other = current.other else { return }
+        do {
+            let data = try Data(contentsOf: other.file)
+            let language = text.language
+            await show(file: other.file, landing: landing) {
+                await OpenPiece.open(fileName: other.file.lastPathComponent, data: data, language: language)
+            }
+        } catch {
+            problem = error.localizedDescription
+        }
+    }
+
     private func open(_ result: Result<URL, Error>) async {
         switch result {
         case .failure(let error):
@@ -199,7 +216,7 @@ struct LibraryView: View {
     }
 
     /// Opens a piece and shows its score: saved to its own project file, or as a new one in Documents.
-    private func show(file: URL? = nil, saveAs title: String? = nil, _ opener: () async -> Result<OpenPiece, EngraveError>) async {
+    private func show(file: URL? = nil, saveAs title: String? = nil, landing: Landing? = nil, _ opener: () async -> Result<OpenPiece, EngraveError>) async {
         opening = true
         defer { opening = false }
         problem = nil
@@ -220,6 +237,8 @@ struct LibraryView: View {
                 }
             }
             await reload()
+            if let saved = opened.file { opened.other = OtherView.of(saved, in: summaries) }
+            opened.landing = landing
             piece = opened
         case .failure(let error):
             problem = error.message
@@ -242,6 +261,12 @@ struct PieceSummary: Equatable, Sendable {
     var checkBars: Int
     /// The resume point worked from last, by its name when it has one.
     var latest: Latest?
+    /// The project's id, and when it was last opened (ISO 8601, as music-core writes it).
+    var id: String?
+    var lastOpened = ""
+    /// For notes read from a PDF piece: that piece's id, and where each of its pages starts in the notes (PDF | Notes, 0023).
+    var readFrom: String?
+    var readFromPages: [Double] = []
 
     struct Latest: Equatable, Sendable {
         var name: String?
@@ -255,6 +280,10 @@ struct PieceSummary: Equatable, Sendable {
         ideas = (project["ideas"] as? NSNumber)?.intValue ?? 0
         checkBars = (project["checkBars"] as? NSNumber)?.intValue ?? 0
         latest = (project["latest"] as? [String: Any]).map { Latest(name: $0["name"] as? String) }
+        id = project["id"] as? String
+        lastOpened = project["lastOpened"] as? String ?? ""
+        readFrom = project["readFrom"] as? String
+        readFromPages = (project["readFromPages"] as? [NSNumber] ?? []).map(\.doubleValue)
     }
 
     /// Reads a project file's summary through music-core; nil when the file cannot be read.

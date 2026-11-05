@@ -11,6 +11,9 @@ struct OpenPiece: Identifiable, Sendable {
     var file: URL?
     /// A PDF piece (0023): the pages as added and no notes, shown by PdfScreen; nothing is engraved.
     var isDocument = false
+    /// The piece's other view, PDF or notes, when the library holds one (PDF | Notes, 0023), and where this view opens.
+    var other: OtherView?
+    var landing: Landing?
 
     /// Opens the file in music-core in the interface's language and engraves it, titled by its name unless given one; a PDF,
     /// or a PDF piece's project file, opens as a PDF piece with nothing to engrave.
