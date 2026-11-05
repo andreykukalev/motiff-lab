@@ -483,6 +483,28 @@ final class FacadeTests: XCTestCase {
         XCTAssertEqual(scan.address(hosted: hosted), hosted)
     }
 
+    func testANoteOfABarIsCorrectedAndPutBackAsImported() throws {
+        // Fix notes in Check (S1-I7): a correction is a step in the piece's edit log; Revert puts the imported note back.
+        let bar = try XCTUnwrap(NoteCorrections(answer: MusicCore.call(piece: piece, "corrections", #"{"bar": 1}"#)))
+        XCTAssertEqual(bar.bar, 1)
+        XCTAssertEqual(bar.count, 0)
+        let note = try XCTUnwrap(bar.notes.first)
+        XCTAssertEqual(note.place.bar, 1)
+        XCTAssertEqual(note.place.text(UIText(language: "en")).prefix(6), "bar 1,")
+        let higher = try XCTUnwrap(NoteCorrections(answer: MusicCore.call(piece: piece, "corrections.change", #"{"bar": 1, "id": "\#(note.id)", "pitch": 1}"#)))
+        let changed = try XCTUnwrap(higher.notes.first { $0.id == note.id })
+        XCTAssertEqual(changed.pitch, note.pitch + 1)
+        XCTAssertTrue(changed.edited)
+        XCTAssertEqual(higher.count, 1)
+        let removed = try XCTUnwrap(NoteCorrections(answer: MusicCore.call(piece: piece, "corrections.remove", #"{"bar": 1, "id": "\#(note.id)"}"#)))
+        XCTAssertEqual(removed.removed.map(\.id), [note.id])
+        XCTAssertFalse(removed.notes.contains { $0.id == note.id })
+        let back = try XCTUnwrap(NoteCorrections(answer: MusicCore.call(piece: piece, "corrections.revert", #"{"bar": 1, "id": "\#(note.id)"}"#)))
+        XCTAssertEqual(back.count, 0)
+        XCTAssertEqual(back.notes.first { $0.id == note.id }?.pitch, note.pitch)
+        XCTAssertEqual(try call("corrections.undo", #"{"bar": 1}"#, expectError: true)["error"] as? String, "unavailable")
+    }
+
     func testErrorsComeBackAsCodes() throws {
         XCTAssertEqual(try call("dance", expectError: true)["error"] as? String, "unknownCall")
         XCTAssertEqual(try object(MusicCore.call(piece: 99, "piece"))["error"] as? String, "noPiece")
