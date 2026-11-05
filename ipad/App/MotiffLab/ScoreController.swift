@@ -79,6 +79,23 @@ final class ScoreController: NSObject, ObservableObject {
         var range: Range<Double>
     }
     @Published private(set) var markCount = 0
+    /// The margin notes, highlights and inked bars, as music-core answered the last mark call.
+    @Published private(set) var marks = MarksShelf()
+    /// The note being written over the selection, or opened from its marker or the Notes tab; nil while none is.
+    @Published var noteDraft: NoteDraft?
+    /// The layers of marks hidden on the page (0018 section 5), kept with the piece as `layers.*` settings.
+    @Published private(set) var hiddenLayers: Set<String> = []
+    static let layers = ["ink", "notes", "bookmarks", "analysis"]
+
+    /// A margin note being written: a new one (no id) or one already kept, over its bars.
+    struct NoteDraft: Equatable {
+        var id: String?
+        var onset: Double
+        var end: Double
+        var firstBar: Int
+        var lastBar: Int
+        var text: String
+    }
     @Published private(set) var canUndo = false
     @Published private(set) var problem: String?
     /// The pages under the reading line, for the bar: "p. 2 of 4", or "pp. 1–2 of 4" with two to a row.
@@ -193,6 +210,9 @@ final class ScoreController: NSObject, ObservableObject {
         }
         if let bookmark = message["bookmark"] as? String {
             goToBookmark(bookmark)
+        }
+        if let note = message["noteMarker"] as? String {
+            openNote(note)
         }
         if let note = number(message["note"]) {
             noteTapped?(note)
@@ -361,6 +381,108 @@ final class ScoreController: NSObject, ObservableObject {
     func showPage(_ page: Int) {
         guard shown else { return }
         Task { _ = try? await webView.callAsyncJavaScript("return motiff.showPage(data)", arguments: ["data": ["page": page]], contentWorld: .page) }
+    }
+
+    // MARK: - Margin notes, highlights and layers
+
+    /// Starts a note over the selection.
+    func startNote() {
+        guard let selection else { return }
+        noteDraft = NoteDraft(id: nil, onset: selection.onset, end: selection.end, firstBar: selection.firstBar, lastBar: selection.lastBar, text: "")
+    }
+
+    /// Opens a note to read or change: its bars are selected and the card shows its words.
+    func openNote(_ id: String) {
+        guard let note = marks.notes.first(where: { $0.id == id }) else { return }
+        let draft = NoteDraft(id: id, onset: note.onset, end: note.end, firstBar: note.firstBar, lastBar: note.lastBar, text: note.text)
+        Task {
+            if selection?.onset != note.onset || selection?.end != note.end {
+                await select(note.onset, note.end)
+                _ = try? await webView.callAsyncJavaScript("return motiff.reveal(data)", arguments: ["data": ["start": note.onset]], contentWorld: .page)
+            }
+            noteDraft = draft
+        }
+    }
+
+    /// Done on the note card: a new note is kept when it has words; a kept one changes, or goes when emptied.
+    func saveNote() {
+        guard let draft = noteDraft, let piece else { return }
+        noteDraft = nil
+        let words = draft.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        Task {
+            if let id = draft.id {
+                if words.isEmpty {
+                    await change(piece.id, "note.remove", ["id": id])
+                } else {
+                    await change(piece.id, "note.change", ["id": id, "text": words])
+                }
+            } else if !words.isEmpty {
+                let span = ["onset": Int(draft.onset), "end": Int(draft.end)]
+                await change(piece.id, "note.add", ["span": span, "text": words, "now": ISO8601DateFormatter().string(from: Date())])
+            }
+        }
+    }
+
+    func deleteNote(_ id: String) {
+        guard let piece else { return }
+        noteDraft = nil
+        Task { await change(piece.id, "note.remove", ["id": id]) }
+    }
+
+    /// The highlight laid exactly over the selection, the newest when there are more.
+    var selectedHighlight: HighlightMark? {
+        guard let selection else { return nil }
+        return marks.highlights.last { $0.onset == selection.onset && $0.end == selection.end }
+    }
+
+    /// Lays the selection in an ink; the highlight already over it gives way to the new one.
+    func highlightSelection(_ ink: String) {
+        guard let piece, let selection else { return }
+        let existing = selectedHighlight
+        guard existing?.colour != ink else { return }
+        Task {
+            if let existing { await change(piece.id, "highlight.remove", ["id": existing.id]) }
+            await change(piece.id, "highlight.add", ["span": ["onset": Int(selection.onset), "end": Int(selection.end)], "colour": ink])
+        }
+    }
+
+    func removeHighlight(_ id: String) {
+        guard let piece else { return }
+        Task { await change(piece.id, "highlight.remove", ["id": id]) }
+    }
+
+    /// Shows or hides layers of marks, kept with the piece.
+    func showLayers(_ layers: [String], _ on: Bool) {
+        guard let piece else { return }
+        if on { hiddenLayers.subtract(layers) } else { hiddenLayers.formUnion(layers) }
+        let id = piece.id
+        Task {
+            for layer in layers {
+                let request = Self.json(["id": "layers.\(layer)", "value": on ? "on" : "off"]) ?? "{}"
+                _ = await MusicCore.run { MusicCore.call(piece: id, "settings.override", request) }
+            }
+            await applyLayers()
+        }
+    }
+
+    /// The layers hidden for this piece: its own choice, else the catalogue's default.
+    private func loadLayers(_ piece: OpenPiece) async {
+        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "settings") }
+        guard let object = facadeObject(answer) else { return }
+        let overrides = object["overrides"] as? [String: String] ?? [:]
+        var defaults: [String: String] = [:]
+        for entry in object["settings"] as? [[String: Any]] ?? [] {
+            if let id = entry["id"] as? String, let value = entry["default"] as? String { defaults[id] = value }
+        }
+        hiddenLayers = Set(Self.layers.filter { layer in
+            let id = "layers.\(layer)"
+            return (overrides[id] ?? defaults[id]) == "off"
+        })
+    }
+
+    private func applyLayers() async {
+        guard shown else { return }
+        _ = try? await webView.callAsyncJavaScript("return motiff.layers(data)", arguments: ["data": ["hidden": Array(hiddenLayers)]], contentWorld: .page)
     }
 
     // MARK: - Phrase focus
@@ -554,6 +676,8 @@ final class ScoreController: NSObject, ObservableObject {
             await draw(marks)
             await loadPhrases(piece)
             await drawBookmarks()
+            await loadLayers(piece)
+            await applyLayers()
             if !ringed.isEmpty { await showRings(scroll: false) }
         } catch {
             problem = error.localizedDescription
@@ -569,7 +693,15 @@ final class ScoreController: NSObject, ObservableObject {
         }
         let ink = object["ink"] as? [Any] ?? []
         markCount = ink.count
+        let shelf = MarksShelf(object: object)
+        marks = shelf
         _ = try? await webView.callAsyncJavaScript("return motiff.draw(data)", arguments: ["data": ["marks": ink]], contentWorld: .page)
+        let notes: [[String: Any]] = shelf.notes.map { note in
+            let label = text.format("margin.markerLabel", String(shelf.number(of: note)), barsText(note.firstBar, note.lastBar, text), MarksShelf.firstWords(note.text))
+            return ["id": note.id, "tick": note.onset, "number": shelf.number(of: note), "label": label]
+        }
+        let highlights: [[String: Any]] = shelf.highlights.map { ["id": $0.id, "start": $0.onset, "end": $0.end, "ink": $0.colour] }
+        _ = try? await webView.callAsyncJavaScript("return motiff.notes(data)", arguments: ["data": ["notes": notes, "highlights": highlights]], contentWorld: .page)
     }
 
     private func change(_ piece: Int32, _ call: String, _ request: [String: Any]) async {

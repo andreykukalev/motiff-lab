@@ -21,6 +21,7 @@ internal static partial class Answer
             json.WriteString("colour", Name(stroke.Colour));
             json.WriteNumber("size", stroke.Size);
             json.WriteNumber("bar", stroke.Bar.Value);
+            json.WriteNumber("barNumber", meter.BarAt(stroke.Bar).Number);
             json.WriteNumber("u", stroke.U);
             json.WriteNumber("v", stroke.V);
             json.WriteStartArray("points");

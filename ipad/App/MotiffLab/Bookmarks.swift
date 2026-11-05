@@ -85,7 +85,7 @@ struct BookmarkShelf: Equatable, Sendable {
 @MainActor
 final class ContentsController: ObservableObject {
     enum Tab: Hashable {
-        case contents, pages
+        case contents, notes, pages
     }
 
     /// The bookmark being made from the menu (`id` nil) or changed in the drawer.
@@ -277,8 +277,8 @@ struct BookmarkCard: View {
 
 /// The Contents drawer (0018 section 5, design/kit/ds.css `.sheet.left`, `.entry`): over the left of the page in
 /// landscape and from the bottom in portrait. Contents lists the player's bookmarks by category, to search, sort, fold, go
-/// to, change or delete; Pages shows the pages with the phrases that start on each and a tick for each bookmark. The
-/// Notes tab comes with the margin notes and highlights.
+/// to, change or delete; Notes lists the margin notes, the highlights and the bars with ink; Pages shows the pages with the
+/// phrases that start on each and a tick for each bookmark.
 struct ContentsDrawer: View {
     @ObservedObject var contents: ContentsController
     @ObservedObject var score: ScoreController
@@ -289,7 +289,11 @@ struct ContentsDrawer: View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
             HStack(spacing: CGFloat.ds("s-2")) {
                 SegmentedChoice(
-                    options: [(ContentsController.Tab.contents, text["contents.tabContents"]), (ContentsController.Tab.pages, text["contents.tabPages"])],
+                    options: [
+                        (ContentsController.Tab.contents, text["contents.tabContents"]),
+                        (ContentsController.Tab.notes, text["contents.tabNotes"]),
+                        (ContentsController.Tab.pages, text["contents.tabPages"]),
+                    ],
                     chosen: contents.tab,
                     label: text["contents.tabs"]
                 ) { contents.tab = $0 }
@@ -303,6 +307,8 @@ struct ContentsDrawer: View {
             switch contents.tab {
             case .contents:
                 ContentsList(contents: contents, score: score, text: text, close: close)
+            case .notes:
+                NotesList(score: score, text: text)
             case .pages:
                 PagesGrid(contents: contents, score: score, text: text)
             }
