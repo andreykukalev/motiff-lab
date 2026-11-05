@@ -195,7 +195,7 @@ final class PencilTests: XCTestCase {
         XCTAssertEqual((roll["ids"] as? [Any])?.count, (roll["notes"] as? [Any]).map { $0.count / 7 })
 
         let loaded = try await view.callAsyncJavaScript(
-            "return roll.load(data)", arguments: ["data": ["roll": roll, "labels": [String: String](), "noteNames": true, "dark": false]], contentWorld: .page
+            "return roll.load(data)", arguments: ["data": ["roll": roll, "labels": RollController.labels(UIText(language: "en")), "noteNames": true, "dark": false]], contentWorld: .page
         )
         let shown = try XCTUnwrap(loaded as? [String: Any])
         XCTAssertEqual(shown["colourBy"] as? String, "hand", "Für Elise has two hands")

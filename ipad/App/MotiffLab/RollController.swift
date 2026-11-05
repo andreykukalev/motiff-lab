@@ -111,7 +111,7 @@ final class RollController: NSObject, ObservableObject {
             problem = facadeObject(answer)?["message"] as? String ?? "music-core gave no piano roll."
             return
         }
-        let request: [String: Any] = ["roll": roll, "labels": labels, "noteNames": noteNames, "dark": dark]
+        let request: [String: Any] = ["roll": roll, "labels": Self.labels(text), "noteNames": noteNames, "dark": dark]
         do {
             let shown = try await webView.callAsyncJavaScript("return roll.load(data)", arguments: ["data": request], contentWorld: .page) as? [String: Any]
             colourBy = shown?["colourBy"] as? String ?? "hand"
@@ -126,7 +126,7 @@ final class RollController: NSObject, ObservableObject {
     }
 
     /// The roll's own words, from the web app's string files (`roll.js.*`), as the web app passes them.
-    private var labels: [String: String] {
+    static func labels(_ text: UIText) -> [String: String] {
         let names = [
             "track", "trackVoice", "noVoice", "rightHand", "leftHand", "noHand", "rightLetter", "leftLetter", "rollAria", "scrollAria", "keysAria",
             "legendHint", "legendVariation", "legendHighlight", "legendInferred", "legendHands", "legendHandsInferred", "legendCheck",
