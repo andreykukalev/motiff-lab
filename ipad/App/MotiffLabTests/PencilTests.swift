@@ -161,13 +161,11 @@ final class PencilTests: XCTestCase {
         let last = second.lastBar
         let engraved = await MusicCore.run { Engraver.engraveCard(piece: id, firstBar: first, lastBar: last, options: layout) }
         let card = try engraved.get()
-        // Verovio may break a phrase onto more than one page of the card's layout; the card shows them one under another.
-        XCTAssertGreaterThanOrEqual(card.pages.count, 1)
-        print("CARD-PAGES \(card.pages.count) \(card.pages.map(\.count)) \(layout)")
+        XCTAssertEqual(card.pages.count, 1, "one page as tall as the phrase needs")
         let cardMap = try JSONSerialization.jsonObject(with: Data(card.timemap.utf8))
         let notes = try await call(view, "card", ["pages": card.pages, "timemap": cardMap, "start": second.onset]) as? NSNumber
         XCTAssertGreaterThan(notes?.intValue ?? 0, 0)
-        let onCard = try await view.evaluateJavaScript("document.querySelectorAll('#focus .card-score svg').length") as? NSNumber
+        let onCard = try await view.evaluateJavaScript("document.querySelectorAll('#focus .card-score > .card-page > svg').length") as? NSNumber
         XCTAssertEqual(onCard?.intValue, card.pages.count)
         let veiled = try await view.evaluateJavaScript("document.getElementById('focus').hidden") as? Bool
         XCTAssertEqual(veiled, false)
