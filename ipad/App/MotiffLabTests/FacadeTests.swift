@@ -122,6 +122,30 @@ final class FacadeTests: XCTestCase {
         _ = try call("variation", expectError: true)
     }
 
+    func testBookmarksAreMadeChangedAndFiledAsStructure() throws {
+        let made = try XCTUnwrap(BookmarkShelf(answer: MusicCore.call(piece: piece, "bookmark.add", #"{"bars": {"first": 4, "last": 8}, "title": "Тема", "category": "teacher", "now": "2026-11-05T06:00:00Z"}"#)))
+        XCTAssertEqual(made.categories.map(\.id), ["practise", "performance", "structure", "teacher"])
+        let bookmark = try XCTUnwrap(made.bookmarks.first)
+        XCTAssertEqual(bookmark.title, "Тема")
+        XCTAssertEqual([bookmark.firstBar, bookmark.lastBar], [4, 8])
+        XCTAssertEqual(made.category(of: bookmark)?.id, "teacher")
+
+        let changed = try XCTUnwrap(BookmarkShelf(answer: MusicCore.call(piece: piece, "bookmark.change", "{\"id\": \"\(bookmark.id)\", \"category\": \"practise\"}")))
+        XCTAssertEqual(changed.bookmarks.first?.category, "practise")
+        XCTAssertEqual(changed.bookmarks.first?.title, "Тема")
+
+        // The form music-core found, filed as Structure bookmarks once, named in the piece's language.
+        let filed = try XCTUnwrap(BookmarkShelf(answer: MusicCore.call(piece: piece, "bookmark.structure")))
+        XCTAssertGreaterThan(filed.bookmarks.count, 1)
+        XCTAssertTrue(filed.bookmarks.dropFirst().allSatisfy { $0.category == BookmarkShelf.structure })
+        XCTAssertTrue(filed.bookmarks.last?.title.hasPrefix("Предложение") ?? false)
+        XCTAssertEqual(try XCTUnwrap(BookmarkShelf(answer: MusicCore.call(piece: piece, "bookmark.structure"))).bookmarks.count, filed.bookmarks.count)
+        XCTAssertLessThanOrEqual(filed.inScoreOrder.first?.onset ?? .infinity, bookmark.onset)
+
+        let removed = try XCTUnwrap(BookmarkShelf(answer: MusicCore.call(piece: piece, "bookmark.remove", "{\"id\": \"\(bookmark.id)\"}")))
+        XCTAssertEqual(removed.bookmarks.count, filed.bookmarks.count - 1)
+    }
+
     func testVariationNotationPlaybackAndSave() throws {
         _ = try call("select", #"{"bars": {"first": 1, "last": 2}}"#)
         let proposed = try call("variation.propose", #"{"operation": "V1", "parameters": {"kind": "HalfTime", "eighths": 1}}"#)

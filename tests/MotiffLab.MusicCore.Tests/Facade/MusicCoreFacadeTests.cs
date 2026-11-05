@@ -601,6 +601,22 @@ public class MusicCoreFacadeTests
     }
 
     [Fact]
+    public void TheDetectedSentencesBecomeStructureBookmarksOnce()
+    {
+        (MusicCoreFacade facade, _) = Open();
+        int sentences = Call(facade, "phrases", """{"level": "sentence"}""").GetProperty("units").GetArrayLength();
+        Assert.True(sentences > 0);
+
+        JsonElement added = Call(facade, "bookmark.structure", """{"now": "2026-11-05T10:00:00Z"}""");
+        JsonElement[] bookmarks = [.. added.GetProperty("bookmarks").EnumerateArray()];
+        Assert.Equal(sentences, bookmarks.Length);
+        Assert.All(bookmarks, bookmark => Assert.Equal("structure", bookmark.GetProperty("category").GetString()));
+        Assert.StartsWith("Sentence A, bars 0–", bookmarks[0].GetProperty("title").GetString());
+
+        Assert.Equal(sentences, Call(facade, "bookmark.structure").GetProperty("bookmarks").GetArrayLength());
+    }
+
+    [Fact]
     public void ResumePointsSaveWhereThePlayerIsAndComeBackMostRecentFirst()
     {
         (MusicCoreFacade facade, JsonElement opened) = Open();

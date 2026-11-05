@@ -8,8 +8,9 @@ import WebKit
 /// play, the tempo, the metronome and the count-in. Colours come from the design kit's tokens, Daylight or Night with
 /// the iPad's appearance. In phrase focus (0018 section 4) the selection lifts into a card across the screen with the
 /// page dimmed behind it, previous and next on the card's edges, and the bar becomes the focus bar. The piano roll opens
-/// in a drawer from the bottom (section 4), and Insights in a sheet over the right third in landscape or the lower half
-/// in portrait (section 6); one of the two at a time.
+/// in a drawer from the bottom (section 4), Insights in a sheet over the right third in landscape or the lower half in
+/// portrait (section 6), and the Contents, the player's bookmarks and the pages, in a drawer over the left of the page in
+/// landscape or the lower half in portrait (section 5); one of the three at a time.
 struct ScoreScreen: View {
     let piece: OpenPiece
     private let text = UIText.current
@@ -25,16 +26,22 @@ struct ScoreScreen: View {
     @State private var rollOpen = false
     /// The Insights sheet (0018 section 6), from the bar or the selection menu.
     @State private var insightsOpen = false
+    @StateObject private var contents = ContentsController()
+    /// The Contents drawer (0018 section 5), from the piece's title in the bar.
+    @State private var contentsOpen = false
 
     /// The Insights sheet's width beside the score in landscape (ds.css `.sheet`).
     static let sheetWidth: CGFloat = 380
+    /// The Contents drawer's width over the left of the page in landscape (ds.css `.sheet.left`).
+    static let contentsWidth: CGFloat = 320
 
     var body: some View {
         GeometryReader { screen in
             let landscape = screen.size.width > screen.size.height
             page(
                 drawer: rollOpen ? drawerHeight(screen.size) : 0,
-                sheet: insightsOpen ? (landscape ? .side : .bottom(screen.size.height / 2)) : .none
+                sheet: insightsOpen ? (landscape ? .side : .bottom(screen.size.height / 2)) : .none,
+                contentsPlace: contentsOpen ? (landscape ? .side : .bottom(screen.size.height / 2)) : .none
             )
         }
     }
@@ -61,12 +68,40 @@ struct ScoreScreen: View {
         (size.width > size.height ? 0.4 : 0.3) * size.height
     }
 
-    private func page(drawer: CGFloat, sheet: SheetPlace) -> some View {
+    /// The Contents drawer where it goes: over the left of the page in landscape, from the bottom in portrait.
+    @ViewBuilder private func contentsDrawer(_ place: SheetPlace) -> some View {
+        switch place {
+        case .none:
+            EmptyView()
+        case .side:
+            ContentsDrawer(contents: contents, score: score, text: text) { contentsOpen = false }
+                .clipShape(RoundedRectangle(cornerRadius: CGFloat.ds("r-l")))
+                .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-l")).strokeBorder(Color.ds("hairline")))
+                .dsShadow("shadow-sheet")
+                .frame(width: Self.contentsWidth)
+                .padding(.top, CGFloat.ds("s-3") + CGFloat.ds("h-touch") + CGFloat.ds("s-2"))
+                .padding([.leading, .bottom], CGFloat.ds("s-3"))
+                .transition(.move(edge: .leading).combined(with: .opacity))
+        case .bottom(let height):
+            VStack {
+                Spacer(minLength: 0)
+                ContentsDrawer(contents: contents, score: score, text: text) { contentsOpen = false }
+                    .clipShape(UnevenRoundedRectangle(topLeadingRadius: CGFloat.ds("r-l"), topTrailingRadius: CGFloat.ds("r-l")))
+                    .dsShadow("shadow-sheet")
+                    .frame(height: height)
+                    .padding(.horizontal, CGFloat.ds("s-3"))
+            }
+            .transition(.move(edge: .bottom))
+            .ignoresSafeArea(edges: .bottom)
+        }
+    }
+
+    private func page(drawer: CGFloat, sheet: SheetPlace, contentsPlace: SheetPlace) -> some View {
         ScoreWebView(score: score, piece: piece, dark: colorScheme == .dark)
             .overlay(alignment: .topLeading) {
                 // The menu over the selection, where the page places it (the web app's menuPlace).
                 if score.selection != nil, !score.focused, let place = score.menuPlace {
-                    SelectionMenu(score: score, player: player, text: text, rollOpen: $rollOpen, insightsOpen: $insightsOpen)
+                    SelectionMenu(score: score, player: player, contents: contents, text: text, rollOpen: $rollOpen, insightsOpen: $insightsOpen)
                         .offset(x: place.x, y: place.y)
                 }
             }
@@ -82,7 +117,7 @@ struct ScoreScreen: View {
                     if score.focused {
                         FocusBar(score: score, player: player, variationRange: variationRange, text: text)
                     } else {
-                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, more: $more, rollOpen: $rollOpen, insightsOpen: $insightsOpen) { dismiss() }
+                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, more: $more, rollOpen: $rollOpen, insightsOpen: $insightsOpen, contentsOpen: $contentsOpen) { dismiss() }
                     }
                     if score.penOn && !score.focused {
                         PenPalette(score: score, text: text)
@@ -126,14 +161,19 @@ struct ScoreScreen: View {
                         .ignoresSafeArea(edges: .bottom)
                 }
             }
+            .overlay(alignment: .topLeading) { contentsDrawer(contentsPlace) }
             .overlay(alignment: .bottom) {
-                // The pill rides above the drawer or the sheet from the bottom, and beside the sheet on the right.
+                // The pill rides above whatever comes up from the bottom, and beside a sheet or a drawer at the side.
+                let bottom = max(drawer, sheet.bottomHeight, contentsPlace.bottomHeight)
                 Pill(player: player, score: score, text: text)
-                    .padding(.bottom, rollOpen ? drawer + CGFloat.ds("s-3") : sheet.bottomHeight > 0 ? sheet.bottomHeight + CGFloat.ds("s-3") : CGFloat.ds("s-4"))
+                    .padding(.bottom, bottom > 0 ? bottom + CGFloat.ds("s-3") : CGFloat.ds("s-4"))
                     .padding(.trailing, sheet == .side ? Self.sheetWidth + CGFloat.ds("s-3") : 0)
+                    .padding(.leading, contentsPlace == .side ? Self.contentsWidth + CGFloat.ds("s-3") : 0)
             }
             .animation(.easeOut(duration: 0.2), value: rollOpen)
             .animation(.easeOut(duration: 0.2), value: insightsOpen)
+            .animation(.easeOut(duration: 0.2), value: contentsOpen)
+            .ignoresSafeArea(.keyboard)
             .toolbar(.hidden, for: .navigationBar)
             .task {
                 let heard = player
@@ -164,14 +204,35 @@ struct ScoreScreen: View {
                 roll.barsPicked = { [weak shown] first, last, extend in shown?.selectBars(first, last, extend: extend) }
                 roll.cleared = { [weak shown] in shown?.clearSelection() }
                 roll.spacePressed = { [weak heard] in heard?.toggle() }
+                // The bookmarks are drawn as brackets on the score, and again whenever they change.
+                contents.changed = { [weak shown] shelf in shown?.showBookmarks(shelf) }
+                await contents.load(piece: piece.id)
                 await player.load(piece: piece.id)
             }
-            .onChange(of: max(drawer, sheet.bottomHeight)) { _, height in
+            .onChange(of: max(drawer, sheet.bottomHeight, contentsPlace.bottomHeight)) { _, height in
                 // Room under the last page for whatever covers the bottom of the score.
                 score.insetBottom(height)
             }
+            .onChange(of: contentsPlace == .side) { _, side in
+                // The selection menu keeps to the right of the drawer over the left of the page.
+                score.clearLeft(side ? Self.contentsWidth + CGFloat.ds("s-3") : 0)
+            }
+            .onChange(of: contentsOpen) { _, open in
+                if open {
+                    rollOpen = false
+                    insightsOpen = false
+                } else if contents.draft?.id != nil {
+                    // A bookmark being changed in the drawer goes with it; one being made over the selection stays.
+                    contents.cancel()
+                }
+            }
+            .onChange(of: score.focused) { _, focused in
+                // Focus covers the page: the drawer goes, and comes back when the player opens it again.
+                if focused { contentsOpen = false }
+            }
             .onChange(of: rollOpen) { _, open in
                 if open {
+                    contentsOpen = false
                     insightsOpen = false
                     roll.show(piece, dark: colorScheme == .dark)
                     roll.showSelection(score.selection, loop: player.loop)
@@ -180,6 +241,7 @@ struct ScoreScreen: View {
             .onChange(of: insightsOpen) { _, open in
                 if open {
                     rollOpen = false
+                    contentsOpen = false
                     Task { await insights.load(piece: piece.id, selection: score.selection) }
                 } else {
                     // The rings go with the sheet.
@@ -202,6 +264,8 @@ struct ScoreScreen: View {
             }
             .onChange(of: score.selection) { _, selection in
                 roll.showSelection(selection, loop: player.loop)
+                // A bookmark being made belongs to the selection it was started on.
+                if let draft = contents.draft, draft.id == nil { contents.cancel() }
                 // The stream follows the selection while it is open; a variation tried belongs to the passage it was
                 // tried on, so it is left either way.
                 if insightsOpen {
@@ -247,8 +311,9 @@ struct ScoreScreen: View {
     }
 }
 
-/// The bar over the score (ds.css `.bar`): back to the library, the title and the pages in view, then Phrases, Pen, the
-/// piano roll, Insights, Play and More, in the web app's order. Contents comes with its own step.
+/// The bar over the score (ds.css `.bar`): back to the library, the title, which opens the Contents the way a reader opens
+/// a book at its contents, and the pages in view, then Phrases, Pen, the piano roll, Insights, Play and More, in the web
+/// app's order.
 struct ScoreBar: View {
     let title: String
     let pages: ScoreController.PagesInView
@@ -258,6 +323,7 @@ struct ScoreBar: View {
     @Binding var more: Bool
     @Binding var rollOpen: Bool
     @Binding var insightsOpen: Bool
+    @Binding var contentsOpen: Bool
     let back: () -> Void
     @State private var phrasesOpen = false
 
@@ -269,11 +335,19 @@ struct ScoreBar: View {
             }
             .buttonStyle(BarActionStyle())
             .accessibilityLabel(text["nav.library"])
-            Text(title)
-                .font(DesignTokens.font(display: true, weight: 500, size: 17, relativeTo: .headline))
-                .foregroundStyle(Color.ds("ink"))
-                .lineLimit(1)
-                .accessibilityAddTraits(.isHeader)
+            Button {
+                contentsOpen.toggle()
+            } label: {
+                Text(title)
+                    .font(DesignTokens.font(display: true, weight: 500, size: 17, relativeTo: .headline))
+                    .foregroundStyle(contentsOpen ? Color.ds("accent") : Color.ds("ink"))
+                    .lineLimit(1)
+                    .padding(.horizontal, CGFloat.ds("s-2"))
+                    .frame(height: 40)
+            }
+            .buttonStyle(BarActionStyle(on: contentsOpen))
+            .accessibilityLabel(text.format("contents.open", title))
+            .accessibilityAddTraits(contentsOpen ? [.isHeader, .isSelected] : .isHeader)
             if let pageText {
                 Text(pageText)
                     .dsType(.label)
@@ -463,16 +537,51 @@ struct LoopButton: View {
 }
 
 /// The menu over the selection (ds.css `.menu`, 0018 section 3): the actions a musician takes on a passage. It holds only
-/// what applies and what the iPad has so far: Loop and Focus, then the piano roll and Insights (none for a passage
-/// without notes); Note and Bookmark come with their own steps.
+/// what applies and what the iPad has so far: Loop, Focus and Bookmark, then the piano roll and Insights (none for a
+/// passage without notes); Note comes with its own step. Bookmark turns the menu into the bookmark card, as on the web.
 struct SelectionMenu: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var player: Player
+    @ObservedObject var contents: ContentsController
     let text: UIText
     @Binding var rollOpen: Bool
     @Binding var insightsOpen: Bool
 
     var body: some View {
+        Group {
+            if let draft = contents.draft, draft.id == nil {
+                BookmarkCard(contents: contents, text: text) {
+                    let selection = score.selection
+                    let title = score.bookmarkTitle
+                    Task { await contents.save(over: selection, defaultTitle: title) }
+                }
+                .frame(width: 300)
+                .padding(.vertical, CGFloat.ds("s-3"))
+                .padding(.horizontal, CGFloat.ds("s-4"))
+                .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-l")))
+                .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-l")).strokeBorder(Color.ds("hairline")))
+            } else {
+                actions
+                    .padding(.horizontal, CGFloat.ds("s-2"))
+                    .padding(.vertical, CGFloat.ds("s-1"))
+                    .background(Color.ds("surface-2"), in: Capsule())
+                    .overlay(Capsule().strokeBorder(Color.ds("hairline")))
+            }
+        }
+        .dsShadow("shadow-menu")
+        .fixedSize()
+        .background {
+            GeometryReader { proxy in
+                Color.clear
+                    .onAppear { score.menuSize(proxy.size) }
+                    .onChange(of: proxy.size) { _, size in score.menuSize(size) }
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(text["menu.label"])
+    }
+
+    private var actions: some View {
         HStack(spacing: CGFloat.ds("s-1")) {
             LoopButton(score: score, player: player, text: text)
             if !score.penOn {
@@ -487,27 +596,13 @@ struct SelectionMenu: View {
                 .buttonStyle(DSItemStyle())
                 .accessibilityHint(text["focus.enterHint"])
             }
+            item("bookmark", text["menu.bookmark"], on: false) { contents.start(title: score.bookmarkTitle) }
             Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
             item("roll", text["bar.roll"], on: rollOpen) { rollOpen.toggle() }
             if !(score.selection?.noteIds.isEmpty ?? true) {
                 item("insight", text["bar.insights"], on: insightsOpen) { insightsOpen.toggle() }
             }
         }
-        .padding(.horizontal, CGFloat.ds("s-2"))
-        .padding(.vertical, CGFloat.ds("s-1"))
-        .background(Color.ds("surface-2"), in: Capsule())
-        .overlay(Capsule().strokeBorder(Color.ds("hairline")))
-        .dsShadow("shadow-menu")
-        .fixedSize()
-        .background {
-            GeometryReader { proxy in
-                Color.clear
-                    .onAppear { score.menuSize(proxy.size) }
-                    .onChange(of: proxy.size) { _, size in score.menuSize(size) }
-            }
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(text["menu.label"])
     }
 
     private func item(_ icon: String, _ label: String, on: Bool, action: @escaping () -> Void) -> some View {
