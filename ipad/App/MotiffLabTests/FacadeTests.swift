@@ -210,6 +210,37 @@ final class FacadeTests: XCTestCase {
         XCTAssertEqual(again.openBars.map(\.bar), [6])
     }
 
+    func testAnotherVersionIsComparedBarByBarDismissedRenamedAndRemoved() throws {
+        // The piece's own MusicXML as another version, as an official score would be: every note finds its pair.
+        let example = try XCTUnwrap(OpenPiece.example)
+        let request = try XCTUnwrap(String(data: JSONSerialization.data(withJSONObject: [
+            "name": "Official", "file": example.data.base64EncodedString(), "fileName": example.fileName,
+        ]), encoding: .utf8))
+        var shelf = VersionShelf()
+        XCTAssertTrue(shelf.read(performance: MusicCore.call(piece: piece, "performance.add", request)))
+        XCTAssertEqual(shelf.shown?.name, "Official")
+        XCTAssertGreaterThan(shelf.printed, 0)
+        XCTAssertEqual(shelf.matched, shelf.printed)
+        XCTAssertFalse(shelf.bars.isEmpty)
+        XCTAssertTrue(shelf.differing.isEmpty)
+        let bar5 = try XCTUnwrap(shelf.bars.first { $0.bar == 5 })
+        let selected = try XCTUnwrap(ScoreSelection(answer: MusicCore.call(piece: piece, "select", #"{"bars": {"first": 5, "last": 5}}"#)))
+        XCTAssertEqual(bar5.span, selected.onset..<selected.end)
+
+        let id = try XCTUnwrap(shelf.shownId)
+        XCTAssertTrue(shelf.read(performance: MusicCore.call(piece: piece, "performance.dismiss", #"{"id": "\#(id)", "bar": 5}"#)))
+        XCTAssertEqual(shelf.dismissed.map(\.bar), [5])
+        XCTAssertTrue(shelf.read(performance: MusicCore.call(piece: piece, "performance.rename", #"{"id": "\#(id)", "name": "Urtext"}"#)))
+        shelf.read(list: MusicCore.call(piece: piece, "performances"))
+        XCTAssertEqual(shelf.entries.map(\.name), ["Urtext"])
+
+        shelf.read(list: MusicCore.call(piece: piece, "performance.remove", #"{"id": "\#(id)"}"#))
+        XCTAssertTrue(shelf.entries.isEmpty)
+        XCTAssertNil(shelf.shown)
+        XCTAssertTrue(shelf.bars.isEmpty)
+        XCTAssertFalse(shelf.read(performance: MusicCore.call(piece: piece, "performance", #"{"id": "\#(id)"}"#)))
+    }
+
     @MainActor
     func testDeviceSettingsApplyPresetsKeepValuesAndYieldToThePiece() async throws {
         let store = try XCTUnwrap(UserDefaults(suiteName: "motiff-settings-test"))

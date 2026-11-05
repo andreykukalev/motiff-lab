@@ -63,6 +63,12 @@ final class RollController: NSObject, ObservableObject {
         if pageReady { Task { await load() } }
     }
 
+    /// The piece's notes changed (bars of another version taken into the score or restored, 0022): the roll loads them again.
+    func notesChanged() {
+        guard loaded else { return }
+        Task { await load() }
+    }
+
     /// Where the player is: the roll marks the keys sounding and keeps the playhead in view.
     func position(_ tick: Double, playing: Bool) {
         guard loaded else { return }

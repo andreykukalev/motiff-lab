@@ -147,6 +147,15 @@ final class Player: ObservableObject {
     private static let pieceSource = "piece"
     private static let variationSource = "variation"
 
+    /// The piece's notes again after they changed, as when bars of another version are taken into the score or restored
+    /// (0022): the timeline and the notes are sent anew, and whatever plays or loops carries on.
+    func reload(piece: Int32) async {
+        let answer = await MusicCore.run { MusicCore.call(piece: piece, "playback") }
+        guard let score = PlaybackScore.read(answer) else { return }
+        send(.timeline(score.timeline))
+        send(.source(id: Self.pieceSource, notes: score.notes))
+    }
+
     /// Stops the sound and the audio engine; the screen calls this when it closes.
     func shutdown() {
         polling?.cancel()

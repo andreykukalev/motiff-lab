@@ -890,6 +890,8 @@ public class MusicCoreFacadeTests
         Assert.Equal(printed, added.GetProperty("matched").GetInt32());
         JsonElement different = Assert.Single(added.GetProperty("bars").EnumerateArray(), bar => bar.GetProperty("kind").GetString() != "none");
         Assert.Equal(5, different.GetProperty("bar").GetInt32());
+        Assert.Equal(bar5.Onset.Value, different.GetProperty("span").GetProperty("onset").GetInt64());
+        Assert.Equal(bar5.End.Value, different.GetProperty("span").GetProperty("end").GetInt64());
         Assert.Equal("addedNotes", different.GetProperty("kind").GetString());
         Assert.Equal("+3 · added notes", different.GetProperty("marker").GetString());
         Assert.Equal(3, different.GetProperty("played").GetArrayLength());

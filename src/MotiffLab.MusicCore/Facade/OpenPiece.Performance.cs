@@ -43,7 +43,7 @@ internal sealed partial class OpenPiece
     private string PerformanceAnswer(SavedPerformance performance)
     {
         PerformanceComparison comparison = Compare(performance);
-        return Answer.Write(json => Answer.Performance(json, performance, comparison, Printed.Count, Words));
+        return Answer.Write(json => Answer.Performance(json, performance, comparison, Printed.Count, Words, Piece.Meter));
     }
 
     /// <summary>

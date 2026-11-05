@@ -2,6 +2,7 @@ using System.Text.Json;
 
 using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Projects;
+using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Facade;
 
@@ -23,10 +24,10 @@ internal static partial class Answer
     }
 
     /// <summary>
-    /// One performance compared with the piece, bar by bar: whether the bar lines up, its kind, the marker text,
-    /// the confidence in percent, whether the player dismissed it or took it, and the notes on each side.
+    /// One performance compared with the piece, bar by bar: where the bar is, whether it lines up, its kind, the marker
+    /// text, the confidence in percent, whether the player dismissed it or took it, and the notes on each side.
     /// </summary>
-    public static void Performance(Utf8JsonWriter json, SavedPerformance performance, PerformanceComparison comparison, int printed, Words words)
+    public static void Performance(Utf8JsonWriter json, SavedPerformance performance, PerformanceComparison comparison, int printed, Words words, MeterMap meter)
     {
         json.WriteStartObject("performance");
         PerformanceHead(json, performance);
@@ -39,6 +40,7 @@ internal static partial class Answer
         {
             json.WriteStartObject();
             json.WriteNumber("bar", bar.Bar);
+            Span(json, "span", meter.GetBar(bar.Bar).Span);
             json.WriteBoolean("aligned", bar.Aligned);
             json.WriteString("kind", Name(bar.Difference));
             json.WriteString("marker", bar.Marker(words));
