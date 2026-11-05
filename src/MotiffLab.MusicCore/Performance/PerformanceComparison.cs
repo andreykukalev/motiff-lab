@@ -62,7 +62,34 @@ public sealed record BarComparison(
     IReadOnlyList<string> PrintedNotHeard,
     IReadOnlyList<string> ProbablyNotHeard,
     IReadOnlyList<PlacedNote> PlayedNotPrinted,
-    IReadOnlyList<PlacedNote> LikelyArtefacts);
+    IReadOnlyList<PlacedNote> LikelyArtefacts)
+{
+    /// <summary>The kind in a word or two, for the marker above the bar: «добавлены ноты», "different bass".</summary>
+    public static string NameOf(BarDifference difference, Words words) => difference switch
+    {
+        BarDifference.None => words.T("as printed", "как в нотах"),
+        BarDifference.AddedNotes => words.T("added notes", "добавлены ноты"),
+        BarDifference.DifferentBass => words.T("different bass", "другой бас"),
+        BarDifference.Ornament => words.T("ornament", "украшение"),
+        BarDifference.Simplified => words.T("simplified", "упрощено"),
+        BarDifference.Octave => words.T("octave", "октава"),
+        BarDifference.Rhythm => words.T("rhythm", "ритм"),
+        BarDifference.Other => words.T("played differently", "иначе"),
+        _ => throw new ArgumentOutOfRangeException(nameof(difference), difference, "Unknown difference."),
+    };
+
+    /// <summary>
+    /// The marker above the bar (0022, section 4): the kind, after the count of notes added or left out where
+    /// that is the point: "+3 · added notes", «−2 · упрощено», "different bass". Empty for a bar played as printed.
+    /// </summary>
+    public string Marker(Words words) => Difference switch
+    {
+        BarDifference.None => "",
+        BarDifference.AddedNotes or BarDifference.Ornament => $"+{PlayedNotPrinted.Count} · {NameOf(Difference, words)}",
+        BarDifference.Simplified => $"−{PrintedNotHeard.Count} · {NameOf(Difference, words)}",
+        _ => NameOf(Difference, words),
+    };
+}
 
 /// <summary>
 /// The print and a performance compared bar by bar (decision record 0022, section 3). Pure and

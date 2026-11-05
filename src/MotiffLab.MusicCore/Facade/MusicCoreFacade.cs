@@ -18,6 +18,8 @@ namespace MotiffLab.MusicCore.Facade;
 public sealed class MusicCoreFacade
 {
     /// <summary>
+    /// 4 brings performances (0022) and project file version 13: performances, performance (the comparison bar by bar with
+    /// its markers), performance.add, .rename, .dismiss, .take, .restore and .remove; a Check flag's source can be performance.
     /// 3 brings the three phrase levels (0018, section 3; preparation items 7–9): the phrases answer names the level shown and
     /// the units of a level with their parent, "long" replaces "fitsSelection", the levels are short, phrase and sentence,
     /// phrases.level and phrases.edit take a level and split, understand ranks the facts and offers Try chips, and try sounds a chip.
@@ -27,7 +29,7 @@ public sealed class MusicCoreFacade
     /// 1 was the first contract: open and save, piece, phrases with their edits, select, understand,
     /// experiments, the variation chain, notation, playback, the catalogue and the Piece DNA placeholder.
     /// </summary>
-    public const int Contract = 3;
+    public const int Contract = 4;
 
     private readonly Dictionary<int, OpenPiece> _pieces = [];
     private int _next = 1;
@@ -118,7 +120,7 @@ public sealed class MusicCoreFacade
     });
 
     private static bool IsPieceCall(string name) =>
-        name is "piece" or "phrases" or "select" or "understand" or "experiments" or "try" or "notation" or "playback" or "dna" or "marks" or "bookmarks" or "resume" or "ideas" or "check"
+        name is "piece" or "phrases" or "select" or "understand" or "experiments" or "try" or "notation" or "playback" or "dna" or "marks" or "bookmarks" or "resume" or "ideas" or "check" or "performances" or "performance"
         || (name.Contains('.') && !name.StartsWith("settings.", StringComparison.Ordinal));
 
     /// <summary>A project file by its extension, or by its first bytes: a JSON object naming the format.</summary>

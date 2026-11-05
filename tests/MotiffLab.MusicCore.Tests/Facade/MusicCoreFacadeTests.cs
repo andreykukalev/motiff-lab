@@ -1,8 +1,12 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
+using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Export;
 using MotiffLab.MusicCore.Facade;
+using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Projects;
+using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Tests.Facade;
 
@@ -776,5 +780,55 @@ public class MusicCoreFacadeTests
         Assert.False(facade.Close(1));
         Assert.Equal(0, facade.Count);
         Assert.Equal("noPiece", Error(facade, 1, "piece"));
+    }
+
+    [Fact]
+    public void A_performance_is_compared_taken_into_the_score_kept_and_restored()
+    {
+        (MusicCoreFacade facade, _) = Open("""{"id": "p_fur"}""");
+        ImportedPiece piece = PieceImporter.Import(FurElise, Fixture(FurElise)).Piece!;
+        TickSpan bar5 = piece.Meter.GetBar(5).Span;
+        Note[] melody = [.. piece.Notes.Where(note => bar5.Contains(note.Span.Onset)).OrderByDescending(note => note.Pitch.MidiNumber).Take(3)];
+        Note[] played = [.. piece.Notes, .. melody.Select((note, i) => note with { Id = $"x{i}", Pitch = new Pitch(note.Pitch.MidiNumber + (i * 7) - 3) })];
+        string midi = Convert.ToBase64String(MidiExporter.Export(played, [], piece.Meter, "performance"));
+        int printed = Call(facade, "piece").GetProperty("noteCount").GetInt32();
+
+        JsonElement added = Call(facade, "performance.add", $$$"""{"name": "Live", "midi": "{{{midi}}}"}""").GetProperty("performance");
+        Assert.Equal("perf_1", added.GetProperty("id").GetString());
+        Assert.Equal("midi", added.GetProperty("source").GetString());
+        Assert.Equal(printed, added.GetProperty("printed").GetInt32());
+        Assert.Equal(printed, added.GetProperty("matched").GetInt32());
+        JsonElement different = Assert.Single(added.GetProperty("bars").EnumerateArray(), bar => bar.GetProperty("kind").GetString() != "none");
+        Assert.Equal(5, different.GetProperty("bar").GetInt32());
+        Assert.Equal("addedNotes", different.GetProperty("kind").GetString());
+        Assert.Equal("+3 · added notes", different.GetProperty("marker").GetString());
+        Assert.Equal(3, different.GetProperty("played").GetArrayLength());
+
+        JsonElement taken = Call(facade, "performance.take", """{"id": "perf_1", "bars": [5]}""").GetProperty("performance");
+        Assert.Equal(1, taken.GetProperty("takenBars").GetInt32());
+        Assert.Equal(printed + 3, Call(facade, "piece").GetProperty("noteCount").GetInt32());
+        Assert.Equal("badRequest", Error(facade, 1, "performance.take", """{"id": "perf_1", "bars": [999]}"""));
+        Assert.Equal("notFound", Error(facade, 1, "performance.take", """{"id": "perf_9", "bars": [5]}"""));
+
+        // The performance and the taken bar come back with the project file.
+        string saved = facade.Call(1, "project.save", """{"now": "2026-11-05T12:00:00Z"}""");
+        Assert.Equal(13, Json(saved).GetProperty("version").GetInt32());
+        var again = new MusicCoreFacade();
+        again.Open("fur-elise" + ProjectFile.Extension, System.Text.Encoding.UTF8.GetBytes(saved));
+        Assert.Equal(printed + 3, Call(again, "piece").GetProperty("noteCount").GetInt32());
+        Assert.Equal("Live", Assert.Single(Call(again, "performances").GetProperty("performances").EnumerateArray()).GetProperty("name").GetString());
+        Assert.Equal(saved, again.Call(1, "project.save", """{"now": "2026-11-05T12:00:00Z"}"""));
+
+        JsonElement restored = Call(again, "performance.restore", """{"id": "perf_1", "bars": [5]}""").GetProperty("performance");
+        Assert.Equal(0, restored.GetProperty("takenBars").GetInt32());
+        Assert.Equal(printed, Call(again, "piece").GetProperty("noteCount").GetInt32());
+
+        JsonElement dismissed = Call(again, "performance.dismiss", """{"id": "perf_1", "bar": 5}""").GetProperty("performance");
+        Assert.True(dismissed.GetProperty("bars").EnumerateArray().Single(bar => bar.GetProperty("bar").GetInt32() == 5).GetProperty("dismissed").GetBoolean());
+        Assert.Equal("Concert", Call(again, "performance.rename", """{"id": "perf_1", "name": " Concert "}""").GetProperty("performance").GetProperty("name").GetString());
+
+        Assert.Empty(Call(again, "performance.remove", """{"id": "perf_1"}""").GetProperty("performances").EnumerateArray());
+        Assert.Equal("badRequest", Error(again, 1, "performance.add", """{"name": "Bad", "midi": "not base64!"}"""));
+        Assert.Equal("badRequest", Error(again, 1, "performance.add", """{"name": "Bad", "midi": "AAAA"}"""));
     }
 }
