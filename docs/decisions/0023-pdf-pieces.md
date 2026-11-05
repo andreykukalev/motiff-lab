@@ -19,7 +19,9 @@ Until now a PDF could only be scanned (0011, 0014): the notes the scan server re
 
 - **A metronome of its own.** The PDF has no notes to play, so the view has a metronome in a pill at the bottom, like the score's transport: start and stop, slower and faster by 4, the tempo tapped in time on its number, 2, 3, 4 or 6 beats to the bar (the first clicks higher) and a dot for each beat. It uses the playback engine's click and schedules it on the audio clock (`Scripts/metronome/metronome.ts`). It runs on the device and is free; the tempo and beats are kept per piece on the device.
 
+- **Read the notes from the kept PDF.** The PDF view's overflow offers Read the notes (Pro on Motiff Lab's server, free on the player's own, as scanning is, 0011, 0014): the panel says where the PDF goes, with the same switch as Scan printed music, and sends the kept PDF as it is. The MusicXML the scan server returns becomes the piece's `source` (`Project.Recognised`), its doubtful bars become Check flags, and the "Notes" view opens with the Check drawer. The PDF, its marks and bookmarks stay as they were.
+- **Two views, one piece.** A recognised PDF has PDF | Notes in the bar of both views, the score's segmented control. The link between them is rough by design: the scan server marks the first measure of each page after the first with `<print new-page="yes"/>` (services/omr `merge.py`), music-core keeps where each page starts (`PageMap`, `documentPages` in the project file) and shares the bars evenly when there are no marks. From the PDF, the Notes view opens at the score page holding the bar the page under the bar starts with; from the notes, the PDF opens at the page the first bar of the score page under the bar was read from. The library opens a recognised piece in its Notes view, at its resume point.
+
 ## Later steps
 
-1. Recognise: the scan reads the kept PDF, the notes become the piece's `source`, and the bar switches between the "PDF" and "Notes" views, with a rough page-to-bar map from the scan's pages.
-2. The iPad app's PDF view (PDFKit) over the same project file.
+1. The iPad app's PDF view (PDFKit) over the same project file.

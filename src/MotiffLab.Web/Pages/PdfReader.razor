@@ -1,5 +1,10 @@
 @page "/pdf"
+@using MotiffLab.MusicCore
+@using MotiffLab.MusicCore.Import
+@using MotiffLab.MusicCore.Import.Scan
+@using MotiffLab.MusicCore.Motifs
 @using MotiffLab.MusicCore.Projects
+@using MotiffLab.MusicCore.Time
 @using MotiffLab.Web.Import
 @using MotiffLab.Web.Localization
 @using MotiffLab.Web.Pdf
@@ -9,6 +14,7 @@
 @inject ProjectStore Projects
 @inject Preferences Preferences
 @inject NavigationManager Navigation
+@inject ScanService Scans
 @inject UiText Text
 
 <PageTitle>@(Title ?? Text["pdf.title"]) · Motiff Lab</PageTitle>
@@ -39,7 +45,14 @@
         {
             <span class="pg" aria-live="off">@pages</span>
         }
-        <span class="tag pdf-tag">PDF</span>
+        @if (_project?.HasNotes == true)
+        {
+            <ViewSwitch OnPdf="true" Switch="_ => ShowNotes()" />
+        }
+        else
+        {
+            <span class="tag pdf-tag">PDF</span>
+        }
         <span class="sp"></span>
         @if (_project is not null)
         {
@@ -67,10 +80,20 @@
     @if (_popover == Popover.More)
     {
         <div class="popover more-popover" role="dialog" aria-label="@Text["bar.more"]">
+            @if (_project?.HasNotes == false)
+            {
+                <button class="btn quiet" @onclick="() => _popover = Popover.Recognise" disabled="@(_pages.Count == 0)">
+                    <Icon Name="camera" /> @Text["pdf.readNotes"] @if (Scans.IsHosted) { <span class="tag pro">Pro</span> }
+                </button>
+            }
             <button class="btn quiet" @onclick="DownloadAsync" disabled="@(_project?.Document is null)"><Icon Name="export" /> @Text["pdf.download"]</button>
-            <p class="caption">@Text["pdf.asIs"]</p>
+            <p class="caption">@Text[_project?.HasNotes == true ? "pdf.asIsRead" : "pdf.asIs"]</p>
             <p class="caption">@Text["pdf.onDevice"]</p>
         </div>
+    }
+    else if (_popover == Popover.Recognise && _project is { Document: { } pdf } toRead)
+    {
+        <RecognisePanel Document="pdf" FileName="@toRead.DocumentFileName" Read="ReadNotesAsync" />
     }
     else if (_popover == Popover.Contents && _project is { } project)
     {
@@ -124,6 +147,7 @@
         None,
         More,
         Contents,
+        Recognise,
     }
 
     /// <summary>The key the pencil layer keeps the pages' marks under; the project holds them (0023).</summary>
@@ -170,8 +194,8 @@
                 return;
             }
 
-            // A piece with notes opens in the workspace.
-            if (project.HasNotes)
+            // A piece with no PDF opens in the workspace.
+            if (project.Document is null)
             {
                 Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(project), replace: true);
                 return;
@@ -218,7 +242,7 @@
         _popover = Popover.None;
         if (_project is { Document: { } document } project)
         {
-            await Projects.DownloadAsync(project.FileName, document, "application/pdf");
+            await Projects.DownloadAsync(project.DocumentFileName, document, "application/pdf");
         }
     }
 
@@ -235,6 +259,52 @@
         Show(project);
         await Projects.SaveAsync(project);
         CurrentPiece.Saved(project);
+    }
+
+    /// <summary>
+    /// Makes the notes the scan read the piece's (0011, 0023): its Check flags start open, a resume point is set where the
+    /// page under the bar starts, and the "Notes" view opens there. Returns why the notes cannot be used, if they cannot.
+    /// </summary>
+    private async Task<string?> ReadNotesAsync(ScanResult result)
+    {
+        if (_project is not { } project || result.MusicXml is not { } musicXml)
+        {
+            return result.Problem;
+        }
+
+        string name = Path.ChangeExtension(project.FileName, ".musicxml");
+        PieceImportResult imported = PieceImporter.Import(name, musicXml);
+        if (imported.Piece is not { } piece)
+        {
+            return imported.Rejection?.Text(Words.For(Text.Language)) ?? Text["pdf.readNone"];
+        }
+
+        ScanCheck check = ScanCheck.Of(piece);
+        PageMap pages = PageMap.Of(piece, Math.Max(1, _pages.Count));
+        Project read = project.Recognised(musicXml, result.Engine, pages);
+        read = read with { Check = CheckFlag.FromScan(check, []) };
+        ResumePoint point = ResumePoint.Start(read.NextResumePointId(), DateTimeOffset.Now);
+        read = read.AddResumePoint(point);
+        await Projects.SaveAsync(read);
+        CurrentPiece.Open(check.Mark(piece, []), SelectionFilter.All, read);
+        _popover = Popover.None;
+        Navigation.NavigateTo(NotesUrl(read, point.Id));
+        return null;
+    }
+
+    /// <summary>The "Notes" view at the resume point, scrolled to where the page under the bar starts.</summary>
+    private string NotesUrl(Project project, string? resumeId)
+    {
+        Tick at = project.DocumentPages?.StartOf(Math.Max(1, _pages.First)) ?? Tick.Zero;
+        return CurrentPiece.WorkspaceUrl(project, resumeId) + $"&at={at.Value}";
+    }
+
+    private void ShowNotes()
+    {
+        if (_project is { HasNotes: true } project)
+        {
+            Navigation.NavigateTo(NotesUrl(project, project.RecentResumePoints.FirstOrDefault()?.Id));
+        }
     }
 
     private void Toggle(Popover popover) => _popover = _popover == popover ? Popover.None : popover;

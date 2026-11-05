@@ -1,6 +1,7 @@
 using System.Text;
 
 using MotiffLab.MusicCore.Import;
+using MotiffLab.MusicCore.Import.Scan;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;
 
@@ -131,5 +132,81 @@ public class PdfPieceTests
         Project project = Project.CreateDocument("p_pdf", "a.pdf", s_pdf, s_now) with { DocumentMarks = DocumentMarks.Empty.AddBookmark(2, null, s_now) };
         string json = Encoding.UTF8.GetString(ProjectFile.Write(project));
         Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Encoding.UTF8.GetBytes(json.Replace("\"page\": 2", "\"page\": 0", StringComparison.Ordinal))));
+    }
+
+    private static byte[] Scanned() =>
+        File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "Scan", "Fixtures", "homr-fur-elise-page1.musicxml"));
+
+    private static ImportedPiece Piece(byte[] musicXml) => PieceImporter.Import("a.musicxml", musicXml).Piece!;
+
+    [Fact]
+    public void Recognised_notes_become_the_source_and_the_pdf_and_its_marks_stay()
+    {
+        DocumentMarks marks = DocumentMarks.Empty.AddBookmark(2, "Trio", s_now);
+        Project pdf = Project.CreateDocument("p_pdf", "Nocturne.pdf", s_pdf, s_now) with { DocumentMarks = marks };
+        byte[] musicXml = Scanned();
+        PageMap pages = PageMap.Of(Piece(musicXml), 2);
+
+        Project recognised = pdf.Recognised(musicXml, "homr 0.7.0", pages);
+
+        Assert.True(recognised.HasNotes);
+        Assert.Equal("Nocturne.musicxml", recognised.FileName);
+        Assert.Equal("Nocturne.pdf", recognised.DocumentFileName);
+        Assert.Equal(PieceOrigin.Scan, recognised.Summary.Origin);
+        Assert.Equal("homr 0.7.0", recognised.Scan!.Engine);
+        Assert.Same(s_pdf, recognised.Document);
+        Assert.Equal(marks, recognised.DocumentMarks);
+        Assert.NotEmpty(OpenedProject.Open(recognised).Piece.Notes);
+        Assert.Throws<InvalidOperationException>(() => recognised.Recognised(musicXml, "homr 0.7.0", pages));
+        Assert.Throws<InvalidOperationException>(() => Project.Create("p", "a.mid", [1, 2, 3], s_now).Recognised(musicXml, "homr", pages));
+
+        Project read = ProjectFile.Read(ProjectFile.Write(recognised));
+        Assert.Equal(pages, read.DocumentPages);
+        Assert.Equal(s_pdf, read.Document);
+        Assert.Equal(musicXml, read.Source);
+    }
+
+    [Fact]
+    public void Pages_start_where_the_scan_marked_them_or_else_share_the_bars_evenly()
+    {
+        byte[] plain = Scanned();
+        ImportedPiece piece = Piece(plain);
+        IReadOnlyList<Tick> bars = [.. piece.MusicXml!.Measures.Select(measure => measure.Span.Onset)];
+
+        // No marks: 32 bars over 2 pages, 16 to a page.
+        PageMap even = PageMap.Of(piece, 2);
+        Assert.Equal([Tick.Zero, bars[16]], even.Starts);
+        Assert.Equal(1, even.PageOf(bars[15]));
+        Assert.Equal(2, even.PageOf(bars[16]));
+        Assert.Equal(bars[16], even.StartOf(2));
+        Assert.Equal(bars[16], even.StartOf(9));
+        Assert.Single(PageMap.Of(piece, 1).Starts);
+
+        // The scan server marks the first bar of page 2 (services/omr/app/merge.py).
+        string text = Encoding.UTF8.GetString(plain);
+        int at = text.IndexOf("<measure number=\"10\">", StringComparison.Ordinal);
+        int end = text.IndexOf('>', at) + 1;
+        byte[] marked = Encoding.UTF8.GetBytes(text.Insert(end, "<print new-page=\"yes\"/>"));
+        PageMap map = PageMap.Of(Piece(marked), 2);
+        Assert.Equal([Tick.Zero, bars[9]], map.Starts);
+
+        // Marks that do not match the PDF's pages are not trusted.
+        Assert.Equal(3, PageMap.Of(Piece(marked), 3).Pages);
+        Assert.Equal(bars[10], PageMap.Of(Piece(marked), 3).StartOf(2));
+    }
+
+    [Fact]
+    public void A_page_map_starts_at_the_beginning_and_runs_forward_and_a_damaged_one_is_refused()
+    {
+        Assert.Throws<ArgumentException>(() => new PageMap([]));
+        Assert.Throws<ArgumentException>(() => new PageMap([new Tick(480)]));
+        Assert.Throws<ArgumentException>(() => new PageMap([Tick.Zero, new Tick(960), new Tick(960)]));
+
+        byte[] musicXml = Scanned();
+        Project recognised = Project.CreateDocument("p_pdf", "a.pdf", s_pdf, s_now).Recognised(musicXml, "homr 0.7.0", new PageMap([Tick.Zero, new Tick(15360)]));
+        string json = Encoding.UTF8.GetString(ProjectFile.Write(recognised));
+        Assert.Contains("\"documentPages\"", json, StringComparison.Ordinal);
+        Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Encoding.UTF8.GetBytes(json.Replace("15360", "-1", StringComparison.Ordinal))));
+        Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Encoding.UTF8.GetBytes(json.Replace("15360", "0", StringComparison.Ordinal))));
     }
 }

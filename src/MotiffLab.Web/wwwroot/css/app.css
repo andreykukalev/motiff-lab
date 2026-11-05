@@ -2368,6 +2368,34 @@ body:has(.workspace) .site-footer {
     color: var(--ink);
 }
 
+/* PDF | Notes in the bar of a recognised PDF (0023): the segmented control, after the page. */
+.lab.workspace .bar .view-switch {
+    flex: none;
+    flex-wrap: nowrap;
+    align-self: center;
+    align-items: center;
+    margin-left: var(--s-2);
+}
+
+/* Read the notes, from the overflow of a PDF not yet recognised. */
+.workspace .recognise-popover {
+    top: calc(var(--s-3) + var(--h-touch) + var(--s-2));
+    right: var(--s-4);
+    width: min(22rem, calc(100% - 2 * var(--s-4)));
+}
+
+.recognise-popover label.consent {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    font: var(--t-label);
+    color: var(--ink);
+}
+
+.recognise-popover .problem {
+    color: var(--danger);
+}
+
 .workspace .phrases-popover {
     top: calc(var(--s-3) + var(--h-touch) + var(--s-2));
     right: calc(var(--s-4) + 5 * var(--h-control));

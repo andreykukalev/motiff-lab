@@ -483,6 +483,26 @@ export class ScoreView {
         }
     }
 
+    /** Where the first bar on a page starts, in ticks; null in the strip or for a page with no bars. */
+    firstTickOn(page: number): number | null {
+        const geometry = this.geometry();
+        const ticks = geometry === null || !this.paged ? [] : geometry.bars.filter((bar) => bar.page === page).map((bar) => bar.tick);
+        return ticks.length > 0 ? Math.min(...ticks) : null;
+    }
+
+    /** Scrolls to the top of the page a place in the piece is on, as the PDF view's pages lead to the notes (0023). */
+    showTick(tick: number): void {
+        const geometry = this.geometry();
+        if (geometry === null || !this.paged) {
+            return;
+        }
+        const before = geometry.bars.filter((bar) => bar.tick <= tick);
+        const bar = before.length > 0 ? before.reduce((latest, candidate) => (candidate.tick > latest.tick ? candidate : latest)) : geometry.bars[0];
+        if (bar !== undefined) {
+            this.showPage(bar.page);
+        }
+    }
+
     /**
      * Scrolls exactly one page (one row of pages in landscape) on, or back with -1, within the same
      * continuous document (0018 section 2); in the strip, by most of the view's height.

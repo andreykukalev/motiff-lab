@@ -1254,5 +1254,18 @@
   "metronome.beatsLabel": "{0} beats to the bar: change",
   "metronome.beatsShort": "beats",
   "metronome.beatsHint": "Beats to the bar: the first clicks higher",
-  "metronome.close": "Put the metronome away"
+  "metronome.close": "Put the metronome away",
+  "pdf.readNotes": "Read the notes",
+  "pdf.readChecking": "Checking the scan server…",
+  "pdf.readLine": "This PDF, up to 8 pages, goes to the scan server at {0}, which deletes it once read. It stays here as it is.",
+  "pdf.readLineHere": "This PDF, up to 8 pages, goes to the scan server at {0} on this computer, which deletes it once read. It stays here as it is.",
+  "pdf.sendHosted": "Send the PDF to Motiff Lab's scan server, which deletes it once read",
+  "pdf.sendElsewhere": "Send the PDF to {0}, which is another computer",
+  "pdf.readSend": "Read the notes",
+  "pdf.readKeeps": "The notes open in a Notes view beside the pages, with the bars to check. Your marks on the pages stay with the PDF.",
+  "pdf.readNone": "The scan server read no notes from this PDF.",
+  "pdf.asIsRead": "The pages as you added them. The Notes view has the notes read from them, with marks of its own.",
+  "pdf.views": "View",
+  "pdf.viewPdf": "PDF",
+  "pdf.viewNotes": "Notes"
 }
