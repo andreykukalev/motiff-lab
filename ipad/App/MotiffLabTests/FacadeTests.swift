@@ -43,6 +43,25 @@ final class FacadeTests: XCTestCase {
         XCTAssertTrue(levels.allSatisfy { $0["available"] as? Bool == true })
     }
 
+    func testTheBracketsAndTheSelectionAreReadFromMusicCore() throws {
+        let shown = try XCTUnwrap(PhraseLevelsShown(answer: MusicCore.call(piece: piece, "phrases")))
+        XCTAssertEqual(shown.level, "phrase")
+        XCTAssertEqual(shown.counts["phrase"], shown.units.count)
+        let first = try XCTUnwrap(shown.units.first)
+        XCTAssertEqual(first.kind, "start")
+        XCTAssertEqual(first.name, "фраза", "a unit is named in the piece's language")
+        XCTAssertLessThan(first.onset, first.end)
+
+        let request = "{\"span\": {\"onset\": \(Int(first.selectableOnset)), \"end\": \(Int(first.selectableEnd))}}"
+        let selected = try XCTUnwrap(ScoreSelection(answer: MusicCore.call(piece: piece, "select", request)))
+        XCTAssertEqual(selected.onset, first.selectableOnset)
+        XCTAssertEqual(selected.firstBar, first.firstBar)
+
+        let sentences = try XCTUnwrap(PhraseLevelsShown(answer: MusicCore.call(piece: piece, "phrases.level", #"{"level": "sentence"}"#)))
+        XCTAssertEqual(sentences.level, "sentence")
+        XCTAssertLessThanOrEqual(sentences.units.count, shown.units.count)
+    }
+
     func testSelectAndUnderstandInRussian() throws {
         let selected = try call("select", #"{"bars": {"first": 1, "last": 2}, "filter": {"hand": "right"}}"#)
         let selection = try XCTUnwrap(selected["selection"] as? [String: Any])

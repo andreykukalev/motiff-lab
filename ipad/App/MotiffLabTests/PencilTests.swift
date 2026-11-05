@@ -114,6 +114,32 @@ final class PencilTests: XCTestCase {
         XCTAssertEqual(numbered, String(piece.pages.count))
     }
 
+    func testBracketsAndTheSelectionBandAreDrawnOverTheBars() async throws {
+        let view = try await scorePage()
+        let example = try XCTUnwrap(OpenPiece.example)
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        defer { _ = MusicCore.close(piece: piece.id) }
+        let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
+        _ = try await call(view, "show", ["pages": piece.pages, "timemap": timemap, "dark": false])
+
+        let shown = try XCTUnwrap(PhraseLevelsShown(answer: MusicCore.call(piece: piece.id, "phrases")))
+        let units = shown.units.map { ["start": $0.onset, "end": $0.end, "number": $0.number, "kind": $0.kind, "current": $0.number == 2, "label": $0.name] as [String: Any] }
+        let drawn = try await call(view, "phrases", ["units": units]) as? NSNumber
+        XCTAssertEqual(drawn?.intValue, shown.units.count)
+        let brackets = try await view.evaluateJavaScript("document.querySelectorAll('body > .bracket').length") as? NSNumber
+        XCTAssertGreaterThanOrEqual(brackets?.intValue ?? 0, shown.units.count, "a bracket on every system its phrase touches")
+        let current = try await view.evaluateJavaScript("document.querySelector('body > .bracket.on').dataset.phrase") as? String
+        XCTAssertEqual(current, "2")
+
+        let second = try XCTUnwrap(shown.unit(2))
+        let bands = try await call(view, "select", ["start": second.onset, "end": second.end, "startLabel": "start", "endLabel": "end"]) as? NSNumber
+        XCTAssertGreaterThanOrEqual(bands?.intValue ?? 0, 1)
+        let handles = try await view.evaluateJavaScript("document.querySelectorAll('body > .sel-handle').length") as? NSNumber
+        XCTAssertEqual(handles?.intValue, 2)
+        let cleared = try await call(view, "select", NSNull()) as? NSNumber
+        XCTAssertEqual(cleared?.intValue, 0)
+    }
+
     func testTheInksAreTheDesignKits() {
         XCTAssertNotEqual(DesignTokens.color("ink-carmine"), .systemGray)
         XCTAssertNotEqual(DesignTokens.color("amber"), .systemGray)

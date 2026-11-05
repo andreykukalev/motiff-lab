@@ -19,6 +19,13 @@ struct ScoreScreen: View {
 
     var body: some View {
         ScoreWebView(score: score, piece: piece, dark: colorScheme == .dark)
+            .overlay(alignment: .topLeading) {
+                // The menu over the selection, where the page places it (the web app's menuPlace).
+                if score.selection != nil, let place = score.menuPlace {
+                    SelectionMenu(score: score, player: player, text: text)
+                        .offset(x: place.x, y: place.y)
+                }
+            }
             .ignoresSafeArea(edges: .bottom)
             .background(Color.ds("desk").ignoresSafeArea())
             .overlay(alignment: .top) {
@@ -34,11 +41,19 @@ struct ScoreScreen: View {
                 .animation(.easeOut(duration: 0.16), value: score.penOn)
             }
             .overlay(alignment: .bottom) {
-                Pill(player: player, text: text)
+                Pill(player: player, score: score, text: text)
                     .padding(.bottom, CGFloat.ds("s-4"))
             }
             .toolbar(.hidden, for: .navigationBar)
-            .task { await player.load(piece: piece.id) }
+            .task {
+                let heard = player
+                score.noteTapped = { [weak heard] tick in heard?.play(from: tick) }
+                await player.load(piece: piece.id)
+            }
+            .onChange(of: score.selection) { _, selection in
+                // A loop follows the selection: a new one stops the old loop, as on the web.
+                if let loop = player.loop, selection.map({ $0.onset..<$0.end }) != loop { player.setLoop(nil) }
+            }
             .onDisappear {
                 player.shutdown()
                 save()
@@ -66,6 +81,7 @@ struct ScoreBar: View {
     @ObservedObject var score: ScoreController
     @Binding var more: Bool
     let back: () -> Void
+    @State private var phrasesOpen = false
 
     var body: some View {
         HStack(spacing: CGFloat.ds("s-2")) {
@@ -88,6 +104,14 @@ struct ScoreBar: View {
                     .padding(.leading, CGFloat.ds("s-2"))
             }
             Spacer(minLength: CGFloat.ds("s-2"))
+            Button {
+                phrasesOpen.toggle()
+            } label: {
+                Icon(name: "phrases", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+            }
+            .buttonStyle(BarActionStyle(on: phrasesOpen))
+            .accessibilityLabel(text["bar.phrases"])
+            .popover(isPresented: $phrasesOpen) { PhrasesPanel(score: score, text: text) }
             Button {
                 score.penOn.toggle()
             } label: {
@@ -145,6 +169,7 @@ struct BarActionStyle: ButtonStyle {
 /// The pill (ds.css `.pill`): play, the tempo, the metronome and the count-in, floating at the bottom of the score.
 struct Pill: View {
     @ObservedObject var player: Player
+    @ObservedObject var score: ScoreController
     let text: UIText
 
     var body: some View {
@@ -159,6 +184,9 @@ struct Pill: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(player.state == .stopped ? text["transport.play"] : text["transport.pause"])
+            if score.selection != nil {
+                LoopButton(score: score, player: player, text: text)
+            }
             Menu {
                 Picker(text["transport.tempo"], selection: $player.tempoPercent) {
                     ForEach(Player.tempoChoices, id: \.self) { Text("\($0)%").tag($0) }
@@ -201,6 +229,94 @@ struct Pill: View {
         .modifier(FloatingSurface(shadow: "shadow-pill", opacity: 0.92))
         .accessibilityElement(children: .contain)
         .accessibilityLabel(text["transport.label"])
+    }
+}
+
+/// Loop, in the pill and in the selection menu: the selection loops, or stops looping (0018 section 7).
+struct LoopButton: View {
+    @ObservedObject var score: ScoreController
+    @ObservedObject var player: Player
+    let text: UIText
+
+    var body: some View {
+        let range = score.selection.map { $0.onset..<$0.end }
+        let looping = range != nil && player.loop == range
+        Button {
+            player.setLoop(looping ? nil : range)
+        } label: {
+            HStack(spacing: 6) {
+                Icon(name: "loop")
+                Text(text["focus.loop"])
+            }
+        }
+        .buttonStyle(DSItemStyle(on: looping))
+        .disabled(!player.ready)
+        .accessibilityAddTraits(looping ? .isSelected : [])
+    }
+}
+
+/// The menu over the selection (ds.css `.menu`, 0018 section 3): the actions a musician takes on a passage. It holds only
+/// what applies and what the iPad has so far: Loop now; Focus, Note, Bookmark, the piano roll and Insights come with
+/// their own steps.
+struct SelectionMenu: View {
+    @ObservedObject var score: ScoreController
+    @ObservedObject var player: Player
+    let text: UIText
+
+    var body: some View {
+        HStack(spacing: CGFloat.ds("s-1")) {
+            LoopButton(score: score, player: player, text: text)
+        }
+        .padding(.horizontal, CGFloat.ds("s-2"))
+        .padding(.vertical, CGFloat.ds("s-1"))
+        .background(Color.ds("surface-2"), in: Capsule())
+        .overlay(Capsule().strokeBorder(Color.ds("hairline")))
+        .dsShadow("shadow-menu")
+        .fixedSize()
+        .background {
+            GeometryReader { proxy in
+                Color.clear
+                    .onAppear { score.menuSize(proxy.size) }
+                    .onChange(of: proxy.size) { _, size in score.menuSize(size) }
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(text["menu.label"])
+    }
+}
+
+/// Phrases, from the bar (0018 section 3): the level the brackets show, Short, Phrases or Sentences, and how many units
+/// the piece has at it. It never lists the phrases.
+struct PhrasesPanel: View {
+    @ObservedObject var score: ScoreController
+    let text: UIText
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
+            Text(text["phrases.levelTitle"]).overline()
+            Picker(text["phrases.levelTitle"], selection: Binding(get: { score.phrases?.level ?? "phrase" }, set: { score.showLevel($0) })) {
+                Text(text["phrases.levelShort"]).tag("short")
+                Text(text["phrases.levelPhrases"]).tag("phrase")
+                Text(text["phrases.levelSentences"]).tag("sentence")
+            }
+            .pickerStyle(.segmented)
+            if let phrases = score.phrases {
+                Text(text.count(countKey(phrases.level), phrases.counts[phrases.level] ?? phrases.units.count))
+                    .dsType(.caption)
+                    .foregroundStyle(Color.ds("ink-2"))
+            }
+        }
+        .padding(CGFloat.ds("s-4"))
+        .frame(width: 320, alignment: .leading)
+        .presentationCompactAdaptation(.popover)
+    }
+
+    private func countKey(_ level: String) -> String {
+        switch level {
+        case "short": "phrases.countShort"
+        case "sentence": "phrases.countSentences"
+        default: "phrases.countPhrases"
+        }
     }
 }
 

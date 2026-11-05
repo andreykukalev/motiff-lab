@@ -43,8 +43,20 @@ final class ScoreController: NSObject, ObservableObject {
     /// The bar's Pen (0018 section 5): while it is on, a finger writes too and two fingers scroll, so the score takes
     /// marks on any iPad, with or without a Pencil. The Pencil always writes.
     @Published var penOn = false {
-        didSet { applyInput() }
+        didSet {
+            applyInput()
+            if shown { Task { _ = try? await webView.callAsyncJavaScript("return motiff.pen(on)", arguments: ["on": penOn], contentWorld: .page) } }
+        }
     }
+    /// The phrases at the level shown, drawn as brackets on the score (0018 section 3).
+    @Published private(set) var phrases: PhraseLevelsShown?
+    /// The passage selected on the score: a bracket tapped, a bar tapped, or bars chosen by a long press and a drag.
+    @Published private(set) var selection: ScoreSelection?
+    /// Where the selection menu's top left corner goes in the score's view, as the web app places its menu; nil while
+    /// nothing is selected or a drag is on.
+    @Published private(set) var menuPlace: CGPoint?
+    /// A note tapped on the score: the player plays from it.
+    var noteTapped: (@MainActor (Double) -> Void)?
     @Published private(set) var markCount = 0
     @Published private(set) var canUndo = false
     @Published private(set) var problem: String?
@@ -65,6 +77,7 @@ final class ScoreController: NSObject, ObservableObject {
     private var shown = false
     private var clearing = false
     private var previousTool = Tool.eraser
+    private let text = UIText.current
     /// Pixels between two staff lines on screen, for the width of the live stroke.
     private var staffSpace: CGFloat = 8
     /// The strokes added here, newest last, for Undo.
@@ -115,9 +128,111 @@ final class ScoreController: NSObject, ObservableObject {
 
     // MARK: - The page
 
-    fileprivate func pagesDidChange(_ report: [String: Any]) {
-        func number(_ key: String) -> Int { (report[key] as? NSNumber)?.intValue ?? 0 }
-        pages = PagesInView(first: number("first"), last: number("last"), count: number("count"))
+    /// What the page reports: the pages in view, where the menu goes, and what the player did on the score.
+    fileprivate func received(_ message: [String: Any]) {
+        func number(_ value: Any?) -> Double? { (value as? NSNumber)?.doubleValue }
+        if let report = message["pages"] as? [String: Any] {
+            pages = PagesInView(first: Int(number(report["first"]) ?? 0), last: Int(number(report["last"]) ?? 0), count: Int(number(report["count"]) ?? 0))
+        }
+        if message.keys.contains("menu") {
+            let place = message["menu"] as? [String: Any]
+            menuPlace = place.flatMap { place in number(place["left"]).map { CGPoint(x: $0, y: number(place["top"]) ?? 0) } }
+        }
+        if let chosen = message["chosen"] as? [String: Any], let start = number(chosen["start"]), let end = number(chosen["end"]) {
+            Task { await select(start, end) }
+        }
+        if let bar = message["bar"] as? [String: Any], let start = number(bar["start"]), let end = number(bar["end"]) {
+            Task { await select(start, end) }
+        }
+        if let bracket = number(message["bracket"]) {
+            selectPhrase(Int(bracket))
+        }
+        if let note = number(message["note"]) {
+            noteTapped?(note)
+        }
+        if message["blank"] != nil {
+            clearSelection()
+        }
+    }
+
+    // MARK: - Phrases and the selection
+
+    /// Shows another level: the brackets are drawn again, and the selection moves to the unit that is, encloses or starts
+    /// it at the new level.
+    func showLevel(_ level: String) {
+        guard let piece, level != phrases?.level else { return }
+        let request = "{\"level\": \"\(level)\"}"
+        Task {
+            let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "phrases.level", request) }
+            if let shown = PhraseLevelsShown(answer: answer) { phrases = shown }
+            if selection != nil, let moved = ScoreSelection(answer: answer) { selection = moved }
+            await showSelection()
+        }
+    }
+
+    /// A bracket tapped: its unit is selected.
+    func selectPhrase(_ number: Int) {
+        guard let unit = phrases?.unit(number) else { return }
+        Task { await select(unit.selectableOnset, unit.selectableEnd) }
+    }
+
+    /// Selects a passage through music-core, which keeps it within what a selection may hold.
+    func select(_ start: Double, _ end: Double) async {
+        guard let piece else { return }
+        let request = "{\"span\": {\"onset\": \(Int(start)), \"end\": \(Int(end))}}"
+        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "select", request) }
+        guard let chosen = ScoreSelection(answer: answer) else {
+            problem = facadeObject(answer)?["message"] as? String
+            return
+        }
+        selection = chosen
+        await showSelection()
+    }
+
+    func clearSelection() {
+        guard selection != nil else { return }
+        selection = nil
+        Task { await showSelection() }
+    }
+
+    /// The size of the selection menu, for the page to place it over the band.
+    func menuSize(_ size: CGSize) {
+        guard shown, size.width > 0 else { return }
+        Task {
+            _ = try? await webView.callAsyncJavaScript(
+                "return motiff.menuSize(data)", arguments: ["data": ["width": size.width, "height": size.height]], contentWorld: .page
+            )
+        }
+    }
+
+    private func loadPhrases(_ piece: OpenPiece) async {
+        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "phrases") }
+        phrases = PhraseLevelsShown(answer: answer)
+        await showSelection()
+    }
+
+    /// Draws the brackets, the selected one in the accent, and the band over the selection.
+    private func showSelection() async {
+        guard shown else { return }
+        let units: [[String: Any]] = (phrases?.units ?? []).map { unit in
+            let current = selection.map { $0.onset == unit.selectableOnset && $0.end == unit.selectableEnd } ?? false
+            return ["start": unit.onset, "end": unit.end, "number": unit.number, "kind": unit.kind, "current": current, "label": label(of: unit)]
+        }
+        _ = try? await webView.callAsyncJavaScript("return motiff.phrases(data)", arguments: ["data": ["units": units]], contentWorld: .page)
+        var band: Any = NSNull()
+        if let selection {
+            band = ["start": selection.onset, "end": selection.end, "startLabel": text["selection.handleStart"], "endLabel": text["selection.handleEnd"]] as [String: Any]
+        }
+        _ = try? await webView.callAsyncJavaScript("return motiff.select(data)", arguments: ["data": band], contentWorld: .page)
+    }
+
+    /// What a screen reader says for a bracket: "Phrase 3, bars 9–12".
+    private func label(of unit: PhraseUnit) -> String {
+        let name = unit.name.prefix(1).uppercased() + unit.name.dropFirst()
+        let bars = unit.firstBar == unit.lastBar
+            ? text.format("bars.one", String(unit.firstBar))
+            : text.format("bars.range", String(unit.firstBar), String(unit.lastBar))
+        return text.format("phrases.bracketLabel", name, String(unit.number), bars)
     }
 
     fileprivate func pageDidLoad() {
@@ -139,8 +254,10 @@ final class ScoreController: NSObject, ObservableObject {
                 applyTool()
             }
             shown = true
+            _ = try? await webView.callAsyncJavaScript("return motiff.pen(on)", arguments: ["on": penOn], contentWorld: .page)
             let marks = await MusicCore.run { MusicCore.call(piece: piece.id, "marks") }
             await draw(marks)
+            await loadPhrases(piece)
         } catch {
             problem = error.localizedDescription
         }
@@ -275,8 +392,8 @@ private final class MessageRelay: NSObject, WKScriptMessageHandler {
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         if message.body as? String == "ready" {
             MainActor.assumeIsolated { controller?.pageDidLoad() }
-        } else if let pages = (message.body as? [String: Any])?["pages"] as? [String: Any] {
-            MainActor.assumeIsolated { controller?.pagesDidChange(pages) }
+        } else if let body = message.body as? [String: Any] {
+            MainActor.assumeIsolated { controller?.received(body) }
         }
     }
 }
