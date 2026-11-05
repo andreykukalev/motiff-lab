@@ -357,9 +357,9 @@ final class PencilTests: XCTestCase {
         let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
         _ = try await call(view, "show", ["pages": piece.pages, "timemap": timemap, "dark": false])
 
-        // Bar 40, on the second page: its notes turn cobalt and the page follows them down. The smooth scroll itself is
-        // animated by WebKit's UI process, which a test window does not drive, so the test checks where it scrolls to.
-        let bar = try XCTUnwrap(ScoreSelection(answer: MusicCore.call(piece: piece.id, "select", #"{"bars": {"first": 40, "last": 40}}"#)))
+        // Bar 80, past the first page: its notes turn cobalt and the page follows them down (a system already in view
+        // stays where it is, as on the web). The smooth scroll itself is animated by WebKit's UI process, which a test window does not drive, so the test checks where it scrolls to.
+        let bar = try XCTUnwrap(ScoreSelection(answer: MusicCore.call(piece: piece.id, "select", #"{"bars": {"first": 80, "last": 80}}"#)))
         let followed = try await call(view, "playing", ["tick": bar.onset + 1, "playing": true, "follow": true]) as? NSNumber
         let marked = try await view.evaluateJavaScript("document.querySelectorAll('#pages .playing').length") as? NSNumber
         XCTAssertGreaterThan(marked?.intValue ?? 0, 0, "the notes sounding are marked")
@@ -367,7 +367,7 @@ final class PencilTests: XCTestCase {
         XCTAssertNotNil(colour)
         let pageHeight = try await view.evaluateJavaScript("document.querySelector('#pages > .page').getBoundingClientRect().height") as? NSNumber
         let seen = try await view.evaluateJavaScript("JSON.stringify({ height: innerHeight, y: scrollY, playing: [...document.querySelectorAll('#pages .playing')].map((e) => `${e.id} ${e.tagName} ${Math.round(e.getBoundingClientRect().top)}`) })") as? String
-        XCTAssertGreaterThan(followed?.doubleValue ?? 0, pageHeight?.doubleValue ?? .infinity, "the page follows the music to the second page: \(seen ?? "")")
+        XCTAssertGreaterThan(followed?.doubleValue ?? 0, pageHeight?.doubleValue ?? .infinity, "the page follows the music past the first page: \(seen ?? "")")
         // A scroll by hand wins: the next notes are marked but the page stays where the player put it.
         _ = try await view.evaluateJavaScript("window.dispatchEvent(new Event('wheel')); 0")
         let later = try await call(view, "playing", ["tick": bar.onset + 960 * 4, "playing": true, "follow": false])
