@@ -81,6 +81,50 @@ export function pitchName(pitch: number): string {
     return `${NAMES[((pitch % 12) + 12) % 12]}${Math.floor(pitch / 12) - 1}`;
 }
 
+/** Where a note's name goes (0018 section 4): inside the note when it fits, else above it when the rows leave room, else only when the note is chosen. */
+export type LabelPlace = "inside" | "above" | "none";
+
+/** The smallest row that holds a name inside its note, and the smallest that leaves room for one above. */
+export const ROW_FOR_INSIDE = 10;
+export const ROW_FOR_ABOVE = 7;
+
+export function labelPlace(noteWidth: number, textWidth: number, row: number): LabelPlace {
+    if (row >= ROW_FOR_INSIDE && noteWidth >= textWidth + 5) {
+        return "inside";
+    }
+    return row >= ROW_FOR_ABOVE ? "above" : "none";
+}
+
+/** Which key signature is in force at a tick: the index of the last that starts at or before it, the first before any. */
+export function keyIndexAt(keyTicks: readonly number[], tick: number): number {
+    let index = 0;
+    for (let at = 0; at < keyTicks.length; at++) {
+        if (keyTicks[at] <= tick) {
+            index = at;
+        }
+    }
+    return index;
+}
+
+/**
+ * Names placed above notes, kept from running into each other: each one takes the stretch it is drawn in on its line, and a
+ * name that would overlap one already drawn on that line is left out (the chosen note still shows its own).
+ */
+export class LabelLines {
+    private readonly lines = new Map<number, { left: number; right: number }[]>();
+
+    /** Takes the stretch [left, right) on a line when it is free; false when a name already drawn there overlaps it. */
+    take(line: number, left: number, right: number): boolean {
+        const taken = this.lines.get(line) ?? [];
+        if (taken.some((span) => left < span.right && right > span.left)) {
+            return false;
+        }
+        taken.push({ left, right });
+        this.lines.set(line, taken);
+        return true;
+    }
+}
+
 export function laneKey(note: RollNote, by: ColourBy): number {
     switch (by) {
         case "track":
@@ -112,6 +156,7 @@ export interface RollLabels {
     legendInferred: string;
     legendHands: string;
     legendHandsInferred: string;
+    legendCheck: string;
 }
 
 export const ENGLISH_ROLL_LABELS: RollLabels = {
@@ -127,12 +172,13 @@ export const ENGLISH_ROLL_LABELS: RollLabels = {
         "Piano roll. Drag anywhere across the roll to select a range, drag an edge of the selection to move it, click a bar number to select that bar, Shift-click a bar number to extend the selection to it. Click a note to hear and select it, Shift-click to add to the selection; click the pitch names or the keyboard to hear a key. Click an empty place or press Escape to clear the selection. Space plays the selection on a loop, or the piece, and pauses. Right and left square brackets select the next or previous bar, with Shift they extend the selection by it. Arrow keys move the note selection, plus and minus zoom.",
     scrollAria: "Scroll the piano roll",
     keysAria: "Keyboard: the keys of the notes being heard are lit and marked with a dot. Click or drag across the keys to play them, also while the piece plays.",
-    legendHint: "Drag across the roll to select · drag its edges to adjust · click an empty place to clear · click a note or key to hear it",
+    legendHint: "Drag across the roll to select · drag its edges to adjust · click an empty place to clear · click a note to hear it, see its name and find it in the score · drag the keys up or down to see other notes",
     legendVariation: "Outlined: the variation, linked to the notes it moved from",
     legendHighlight: "Blue box and underline: the places of the fact chosen on Understand",
     legendInferred: "Dashed outline: inferred, not in the file",
     legendHands: "L, R: hand from the file",
     legendHandsInferred: "L, R: hand from the file · L?, R?: hand inferred",
+    legendCheck: "A bar to check: tap its ?",
 };
 
 /** A label with its "{0}", "{1}" filled in. */

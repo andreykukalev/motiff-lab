@@ -90,7 +90,8 @@
                            BracketPicked="OnBracketPickedAsync" PencilChanged="OnPenChanged" TitleRead="OnTitleRead"
                            Selection="_selection?.Span" BarsChosen="OnScoreBarsChosenAsync" Menu="@(MenuShown ? SelectionMenu : null)"
                            Bookmarks="ScoreBookmarks" BookmarkPicked="OnBookmarkPickedAsync" Notes="ScoreNotes" MarkHighlights="ScoreHighlights" HiddenLayers="HiddenLayers"
-                           NoteMarkerPicked="OpenNoteAsync" LayersRequested="OpenLayers" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync" />
+                           NoteMarkerPicked="OpenNoteAsync" LayersRequested="OpenLayers" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync"
+                           Pointed="_pointed" NotePicked="OnScoreNotePicked" />
             }
             else
             {
@@ -303,7 +304,8 @@
                     <button class="grab" aria-label="@Text["drawer.resize"]" title="@Text["drawer.resize"]" data-long-press="roll" @onclick="ToggleRoll"></button>
                     <PianoRoll Heading="@RollHeading" Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases"
                                Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible" Highlight="_highlight?.Places"
-                               RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync" />
+                               RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync"
+                               SelectionChanged="OnRollNotesChosen" Keys="RollKeys" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync" Point="_rollPoint" />
                 </section>
             }
 

@@ -92,6 +92,8 @@ const READING_LINE_PX = 72;
 /** The notes and rests of the places a chosen fact names (#25): blue, with a box around each, so they differ from playing and outside by more than colour. */
 const HIGHLIGHT_CLASS = "highlight";
 const HIGHLIGHT_MARK_CLASS = "highlight-mark";
+/** A note pointed at on the piano roll (0018 section 4): cobalt, as pointing is. */
+const POINTED_CLASS = "pointed";
 
 /** A phrase as Blazor sends it for its bracket: where it starts and ends, its number at the level shown, and how its start was found. */
 export interface ScorePhrase {
@@ -203,6 +205,9 @@ export class ScoreView {
     /** The places of the chosen fact, and the engraved notes and rests that stand for them. */
     private highlight: HighlightPlace[] = [];
     private highlighted = new Set<string>();
+    /** The notes pointed at on the piano roll, and the engraved notes that stand for them. */
+    private pointedPlaces: HighlightPlace[] = [];
+    private pointed = new Set<string>();
     /** The MIDI key of each engraved note asked about since the last load; undefined for a rest or when Verovio has none. */
     private pitches = new Map<string, number | undefined>();
     private laidOutWidth = 0;
@@ -510,6 +515,15 @@ export class ScoreView {
     }
 
     /**
+     * Shows the notes pointed at on the piano roll (0018 section 4) in cobalt, and brings the first into view when it is
+     * out of sight and the piece is not playing. An empty list clears them.
+     */
+    setPointed(places: HighlightPlace[]): void {
+        this.pointedPlaces = places;
+        this.applyPointed(true);
+    }
+
+    /**
      * Where every page, system, bar and note sits now, in the score's content pixels, and the boxes overlays
      * are drawn from (score-geometry.ts, 0018 preparation item 11); null before a score is engraved.
      */
@@ -620,6 +634,7 @@ export class ScoreView {
         this.placePhrases();
         this.selection.place();
         this.applyHighlight(false);
+        this.applyPointed(false);
 
         // The new SVG has no marks; put back the ones that were showing.
         const marked = [...this.marked];
@@ -915,6 +930,23 @@ export class ScoreView {
         }
     }
 
+    private applyPointed(scroll: boolean): void {
+        for (const id of this.pointed) {
+            this.element(id)?.classList.remove(POINTED_CLASS);
+        }
+        const timeline = this.timeline;
+        this.pointed = timeline === null || this.pointedPlaces.length === 0 ? new Set() : highlightedIds(timeline, this.pointedPlaces, (id) => this.pitchOf(id));
+        let first: Element | null = null;
+        for (const id of this.pointed) {
+            const element = this.element(id);
+            element?.classList.add(POINTED_CLASS);
+            first ??= element;
+        }
+        if (scroll && first !== null && this.player?.state() !== "playing") {
+            this.scrollIntoView(first);
+        }
+    }
+
     private pitchOf(id: string): number | undefined {
         const engraver = this.engraver;
         if (engraver === null) {
@@ -1066,7 +1098,9 @@ export class ScoreView {
         const note = hit?.matches("g.chord") ? hit.querySelector("g.note") : hit;
         const onset = note?.id ? timeline.onsetOf(note.id) : undefined;
         if (onset !== undefined) {
-            void this.dotnet.invokeMethodAsync("OnScoreNoteClicked", onset);
+            // A chord's stem gives no key, so the roll is told only where the chord starts.
+            const pitch = hit?.matches("g.note") && note?.id ? this.pitchOf(note.id) : undefined;
+            void this.dotnet.invokeMethodAsync("OnScoreNoteClicked", onset, pitch ?? -1);
             return;
         }
         // A click on a bar away from its notes selects that bar, as on the roll's bar numbers (0012); Shift extends to it.

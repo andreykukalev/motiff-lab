@@ -412,6 +412,7 @@ public partial class PlaybackLab : IAsyncDisposable
     public void OnDrawerClosed()
     {
         _rollOpen = false;
+        _pointed = null;
         StateHasChanged();
     }
 
@@ -421,6 +422,7 @@ public partial class PlaybackLab : IAsyncDisposable
     private void ToggleRoll()
     {
         _rollOpen = !_rollOpen;
+        _pointed = null;
         _popover = Popover.None;
     }
 

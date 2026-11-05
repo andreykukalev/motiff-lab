@@ -5,7 +5,7 @@
 import { expect, test } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { violations } from "./steps.mjs";
+import { openRoll, violations } from "./steps.mjs";
 
 const scanned = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/Scan/Fixtures/homr-fur-elise-page1.musicxml", import.meta.url));
 const photo = fileURLToPath(new URL("../../src/MotiffLab.Web/wwwroot/icon-192.png", import.meta.url));
@@ -84,6 +84,10 @@ test("a scanned page opens with its doubtful bars to check, and checked bars sta
     await expect(drawer.locator(".resolved .check-entry")).toHaveCount(1);
     await drawer.locator(".resolved .check-entry").getByRole("button", { name: "Check again" }).click();
     await expect(flags).toHaveCount(7);
+
+    // The piano roll carries the same flags on its bar numbers, and says so in its legend.
+    await openRoll(page);
+    await expect(page.locator(".roll .roll-legend")).toContainText("A bar to check: tap its ?");
 
     // The library's card counts the bars still to check.
     await page.goto("/");

@@ -15,6 +15,9 @@ import {
     fill,
     isBlackKey,
     pitchName,
+    labelPlace,
+    keyIndexAt,
+    LabelLines,
 } from "../../src/MotiffLab.Web/wwwroot/js/roll/roll-model.js";
 
 /** Notes as [id, onset, duration, pitch, track, voice, hand, flags], in any order. */
@@ -166,4 +169,27 @@ test("pitch names and black keys follow music-core's spelling, middle C as C4", 
     assert.equal(pitchName(21), "A0");
     assert.equal(pitchName(70), "A♯4");
     assert.deepEqual([60, 61, 62, 63, 64, 65, 66].map(isBlackKey), [false, true, false, true, false, false, true]);
+});
+
+test("a note's name goes inside it when it fits, else above it when the rows leave room, else only when chosen", () => {
+    assert.equal(labelPlace(40, 20, 12), "inside");
+    assert.equal(labelPlace(20, 20, 12), "above");
+    assert.equal(labelPlace(40, 20, 8), "above");
+    assert.equal(labelPlace(40, 20, 6), "none");
+});
+
+test("the rows are named for the key signature in force at a tick, the first before any", () => {
+    assert.equal(keyIndexAt([0, 1920], 0), 0);
+    assert.equal(keyIndexAt([0, 1920], 1919), 0);
+    assert.equal(keyIndexAt([0, 1920], 1920), 1);
+    assert.equal(keyIndexAt([960], 0), 0);
+    assert.equal(keyIndexAt([], 100), 0);
+});
+
+test("names above notes never run into each other on a line", () => {
+    const lines = new LabelLines();
+    assert.equal(lines.take(61, 10, 30), true);
+    assert.equal(lines.take(61, 25, 45), false);
+    assert.equal(lines.take(62, 25, 45), true);
+    assert.equal(lines.take(61, 30, 50), true);
 });
