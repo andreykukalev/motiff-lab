@@ -147,7 +147,8 @@ public class PdfPieceTests
         byte[] before = ProjectFile.Write(pdf);
         byte[] musicXml = Scanned();
 
-        Project notes = Project.ReadFromDocument("p_notes", pdf, musicXml, "homr 0.7.0", s_now);
+        PageMap pages = PageMap.Of(Piece(musicXml), 2);
+        Project notes = Project.ReadFromDocument("p_notes", pdf, musicXml, "homr 0.7.0", pages, s_now);
 
         Assert.Equal("p_notes", notes.Id);
         Assert.True(notes.HasNotes);
@@ -159,9 +160,22 @@ public class PdfPieceTests
         Assert.NotEmpty(OpenedProject.Open(notes).Piece.Notes);
         Assert.Equal(before, ProjectFile.Write(pdf));
         Assert.False(pdf.HasNotes);
-        Assert.Throws<InvalidOperationException>(() => Project.ReadFromDocument("p", Project.Create("p_mid", "a.mid", [1, 2, 3], s_now), musicXml, "homr", s_now));
-        Assert.Throws<ArgumentException>(() => Project.ReadFromDocument("p", pdf, [], "homr", s_now));
-        Assert.Equal(musicXml, ProjectFile.Read(ProjectFile.Write(notes)).Source);
+        Assert.Throws<InvalidOperationException>(() => Project.ReadFromDocument("p", Project.Create("p_mid", "a.mid", [1, 2, 3], s_now), musicXml, "homr", pages, s_now));
+        Assert.Throws<ArgumentException>(() => Project.ReadFromDocument("p", pdf, [], "homr", pages, s_now));
+
+        // The notes remember the PDF piece and where its pages start, for PDF | Notes; the PDF piece is found from them.
+        Assert.Equal(new ReadFromPdf("p_pdf", pages), notes.ReadFrom);
+        Assert.Equal("p_pdf", notes.Summary.ReadFrom);
+        Assert.Null(pdf.Summary.ReadFrom);
+        Project read = ProjectFile.Read(ProjectFile.Write(notes));
+        Assert.Equal(musicXml, read.Source);
+        Assert.Equal(notes.ReadFrom, read.ReadFrom);
+        Assert.Equal(ProjectFile.Write(notes), ProjectFile.Write(read));
+
+        string json = Encoding.UTF8.GetString(ProjectFile.Write(notes));
+        Assert.Contains("\"readFrom\":{\"project\":\"p_pdf\",\"pages\":[0,", json.Replace(" ", "", StringComparison.Ordinal).Replace("\n", "", StringComparison.Ordinal), StringComparison.Ordinal);
+        Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Encoding.UTF8.GetBytes(json.Replace("\"p_pdf\"", "\"\"", StringComparison.Ordinal))));
+        Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Encoding.UTF8.GetBytes(json.Replace("\"pages\"", "\"pagez\"", StringComparison.Ordinal))));
     }
 
     [Fact]

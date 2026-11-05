@@ -116,7 +116,7 @@
                     {
                         <span class="pg" aria-live="off">@pages</span>
                     }
-                    @if (_project?.Document is not null)
+                    @if (_project is { Document: not null } or { ReadFrom: not null })
                     {
                         <MotiffLab.Web.Pdf.ViewSwitch OnPdf="false" Switch="_ => ShowPdfAsync()" />
                     }

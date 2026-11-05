@@ -80,6 +80,9 @@ public sealed record Project(
     /// </summary>
     public PageMap? DocumentPages { get; init; }
 
+    /// <summary>For notes read from a PDF piece, that piece and where its pages start in these notes (0023); null otherwise.</summary>
+    public ReadFromPdf? ReadFrom { get; init; }
+
     /// <summary>Whether the piece has notes: a source to import. A PDF added as it is has none until it is recognised.</summary>
     public bool HasNotes => Source.Length > 0;
 
@@ -103,13 +106,15 @@ public sealed record Project(
     /// <summary>
     /// A new piece from the notes the scan read from a PDF piece's pages (0011, 0023): the MusicXML is its source, named
     /// after the PDF. Recognising a PDF always makes a separate piece, and the PDF piece, its marks and its bookmarks stay
-    /// exactly as they were (Andrei, 2026-11-05).
+    /// exactly as they were (Andrei, 2026-11-05). The new piece remembers the PDF piece and where each page starts in it,
+    /// so the two can be switched between at the same place.
     /// </summary>
     /// <exception cref="InvalidOperationException">The piece is not a PDF.</exception>
-    public static Project ReadFromDocument(string id, Project pdf, byte[] musicXml, string engine, DateTimeOffset now)
+    public static Project ReadFromDocument(string id, Project pdf, byte[] musicXml, string engine, PageMap pages, DateTimeOffset now)
     {
         ArgumentNullException.ThrowIfNull(pdf);
         ArgumentNullException.ThrowIfNull(musicXml);
+        ArgumentNullException.ThrowIfNull(pages);
         if (pdf.Document is null)
         {
             throw new InvalidOperationException("Only a PDF piece is recognised.");
@@ -120,7 +125,11 @@ public sealed record Project(
             throw new ArgumentException("The scan read no notes.", nameof(musicXml));
         }
 
-        return Create(id, Path.ChangeExtension(pdf.FileName, ".musicxml"), musicXml, now) with { Scan = ScanOrigin.Read(engine) };
+        return Create(id, Path.ChangeExtension(pdf.FileName, ".musicxml"), musicXml, now) with
+        {
+            Scan = ScanOrigin.Read(engine),
+            ReadFrom = new ReadFromPdf(pdf.Id, pages),
+        };
     }
 
     /// <summary>The PDF's file name, as the player added it.</summary>
@@ -131,6 +140,7 @@ public sealed record Project(
     {
         Origin = !HasNotes ? PieceOrigin.Pdf : Scan is not null ? PieceOrigin.Scan : Transcription is not null ? PieceOrigin.Recording : PieceOrigin.File,
         CheckBars = OpenChecks.Select(flag => flag.Bar).Distinct().Count(),
+        ReadFrom = ReadFrom?.ProjectId,
         Latest = RecentResumePoints.FirstOrDefault() is { } latest
             ? new ResumeSummary(latest.Id, latest.Name, latest.At.Value, latest.Passage?.Span.Onset.Value, latest.Passage?.Span.End.Value, latest.LastActive)
             : null,
@@ -576,6 +586,9 @@ public sealed record ProjectSummary(string Id, string FileName, int MotifCount, 
 
     /// <summary>The resume point worked at last, or null when there is none (or the summary was saved before it was kept).</summary>
     public ResumeSummary? Latest { get; init; }
+
+    /// <summary>For notes read from a PDF piece, that piece's id (0023), so the PDF view finds its notes; null otherwise.</summary>
+    public string? ReadFrom { get; init; }
 }
 
 /// <summary>Where a piece came from: a file opened on the device, a page scanned (0011) or a recording heard (0014).</summary>
