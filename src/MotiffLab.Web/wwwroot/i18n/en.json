@@ -1298,11 +1298,12 @@
   "pdf.sendHosted": "Send the PDF to Motiff Lab's scan server, which deletes it once read",
   "pdf.sendElsewhere": "Send the PDF to {0}, which is another computer",
   "pdf.readSend": "Read the notes",
-  "pdf.readKeeps": "The notes open in a Notes view beside the pages, with the bars to check. Your marks on the pages stay with the PDF.",
+  "pdf.readKeeps": "The notes open as a separate piece in your library, with the bars to check. This PDF and your marks on it stay exactly as they are.",
   "pdf.readNone": "The scan server read no notes from this PDF.",
   "pdf.asIsRead": "The pages as you added them. The Notes view has the notes read from them, with marks of its own.",
   "pdf.views": "View",
   "pdf.viewPdf": "PDF",
   "pdf.viewNotes": "Notes",
-  "library.openFileHintHere": "MIDI or MusicXML, or a Motiff Lab project file, read on this device"
+  "library.openFileHintHere": "MIDI or MusicXML, or a Motiff Lab project file, read on this device",
+  "pdf.versionFirst": "To add another version, the notes have to be read from this PDF first. They open as a separate piece in your library, and this PDF stays exactly as it is."
 }

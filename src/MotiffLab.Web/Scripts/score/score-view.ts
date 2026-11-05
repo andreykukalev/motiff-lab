@@ -85,6 +85,7 @@ const CHECK_CLASS = "check-flag";
 /** A bar a performance plays differently (decision record 0022, section 4): a small plum label above the bar's top left. */
 const PERFORMANCE_CLASS = "perf-marker";
 const PERFORMANCE_HEIGHT = 20;
+const PERFORMANCE_TARGET = 24;
 const PERFORMANCE_MIN_WIDTH = 36;
 const PERFORMANCE_MAX_WIDTH = 180;
 
@@ -150,6 +151,13 @@ export interface ScoreHighlightMark {
 export type MarkLayer = "ink" | "notes" | "bookmarks" | "analysis" | "check";
 
 /** A bar a performance plays differently, as Blazor sends it: its number, where it starts, the label's text, and what a screen reader says. */
+/** Where a Check flag or a margin note sits, so a performance's marker stops before it. */
+interface FlagPlace {
+    left: number;
+    top: number;
+    system: number;
+}
+
 export interface ScorePerformanceMarker {
     bar: number;
     tick: number;
@@ -826,23 +834,50 @@ export class ScoreView {
         if (geometry === null) {
             return;
         }
+        // A Check flag sits at the bar's top right; notes on the same bar sit side by side to its left.
+        const onBar = new Map<number, number>();
+        const flagAt = (tick: number, first: boolean): FlagPlace | undefined => {
+            const place = geometry.flag(tick);
+            if (place === undefined) {
+                return undefined;
+            }
+            const bar = geometry.barAt(tick);
+            const key = bar?.tick ?? tick;
+            const index = first ? 0 : (onBar.get(key) ?? 0);
+            onBar.set(key, first ? 1 : index + 1);
+            return { left: place.x - NOTE_OFFSET_X - 24 - index * 28, top: place.y - NOTE_OFFSET_Y, system: bar?.system ?? -1 };
+        };
+        const checkPlaces = this.checks.map((check) => flagAt(check.tick, true));
+        const notePlaces = this.marginNotes.map((note) => flagAt(note.tick, false));
+        const flags = [...checkPlaces, ...notePlaces].filter((place): place is FlagPlace => place !== undefined);
         // A performance's marker sits above the bar's top left, over the phrase bracket; it may run on over the next
-        // bar, up to the next marker on the same system.
+        // bar, up to the next marker, Check flag or note on the same system.
         const placed = this.performanceMarkers
             .map((marker) => ({ marker, bar: geometry.barAt(marker.tick) }))
             .filter((entry): entry is { marker: ScorePerformanceMarker; bar: ScoreBar } => entry.bar !== undefined);
         placed.forEach(({ marker, bar }, index) => {
             const next = placed[index + 1];
-            const room = next !== undefined && next.bar.system === bar.system ? next.bar.left - bar.left - NOTE_OFFSET_X * 2 : PERFORMANCE_MAX_WIDTH;
+            let room = next !== undefined && next.bar.system === bar.system ? next.bar.left - bar.left - NOTE_OFFSET_X * 2 : PERFORMANCE_MAX_WIDTH;
+            // Too little room before the next flag (a narrow bar with its own flag): the marker goes up, above the flags.
+            const ahead = flags.filter((flag) => flag.system === bar.system && flag.left > bar.left && flag.left - bar.left - NOTE_OFFSET_X * 2 < room);
+            const flagRoom = Math.min(...ahead.map((flag) => flag.left - bar.left - NOTE_OFFSET_X * 2));
+            const lifted = ahead.length > 0 && flagRoom < PERFORMANCE_MIN_WIDTH;
+            if (ahead.length > 0 && !lifted) {
+                room = flagRoom;
+            }
+            const top = (bar.staves[0]?.top ?? bar.top) - BRACKET_LIFT - PERFORMANCE_HEIGHT - NOTE_OFFSET_X - (PERFORMANCE_TARGET - PERFORMANCE_HEIGHT) / 2;
             const label = document.createElement("button");
             label.type = "button";
             label.className = PERFORMANCE_CLASS;
             label.dataset.bar = String(marker.bar);
-            label.textContent = marker.text;
+            // A 24 px target around the 20 px plum label, so markers side by side are each easy to tap.
+            const text = document.createElement("span");
+            text.textContent = marker.text;
+            label.append(text);
             label.setAttribute("aria-label", marker.label);
             label.title = marker.label;
             label.style.left = `${bar.left + NOTE_OFFSET_X}px`;
-            label.style.top = `${(bar.staves[0]?.top ?? bar.top) - BRACKET_LIFT - PERFORMANCE_HEIGHT - NOTE_OFFSET_X}px`;
+            label.style.top = `${lifted ? Math.min(top, Math.min(...ahead.map((flag) => flag.top)) - PERFORMANCE_TARGET - 2) : top}px`;
             label.style.maxWidth = `${Math.max(PERFORMANCE_MIN_WIDTH, Math.min(PERFORMANCE_MAX_WIDTH, room))}px`;
             this.host.append(label);
         });
@@ -858,14 +893,11 @@ export class ScoreView {
                 this.host.append(band);
             }
         }
-        // A Check flag sits at the bar's top right; notes on the same bar sit side by side to its left.
-        const onBar = new Map<number, number>();
-        for (const check of this.checks) {
-            const place = geometry.flag(check.tick);
+        this.checks.forEach((check, index) => {
+            const place = checkPlaces[index];
             if (place === undefined) {
-                continue;
+                return;
             }
-            onBar.set(geometry.barAt(check.tick)?.tick ?? check.tick, 1);
             const flag = document.createElement("button");
             flag.type = "button";
             flag.className = CHECK_CLASS;
@@ -876,18 +908,15 @@ export class ScoreView {
             square.setAttribute("aria-hidden", "true");
             square.textContent = "?";
             flag.append(square);
-            flag.style.left = `${place.x - NOTE_OFFSET_X - 24}px`;
-            flag.style.top = `${place.y - NOTE_OFFSET_Y}px`;
+            flag.style.left = `${place.left}px`;
+            flag.style.top = `${place.top}px`;
             this.host.append(flag);
-        }
-        for (const note of this.marginNotes) {
-            const place = geometry.flag(note.tick);
+        });
+        this.marginNotes.forEach((note, index) => {
+            const place = notePlaces[index];
             if (place === undefined) {
-                continue;
+                return;
             }
-            const bar = geometry.barAt(note.tick)?.tick ?? note.tick;
-            const index = onBar.get(bar) ?? 0;
-            onBar.set(bar, index + 1);
             const marker = document.createElement("button");
             marker.type = "button";
             marker.className = NOTE_CLASS;
@@ -895,10 +924,10 @@ export class ScoreView {
             marker.textContent = String(note.number);
             marker.setAttribute("aria-label", note.label);
             marker.title = note.label;
-            marker.style.left = `${place.x - NOTE_OFFSET_X - 24 - index * 28}px`;
-            marker.style.top = `${place.y - NOTE_OFFSET_Y}px`;
+            marker.style.left = `${place.left}px`;
+            marker.style.top = `${place.top}px`;
             this.host.append(marker);
-        }
+        });
     }
 
     /** The top of the bookmark titles over a band's first run, in window pixels; null when none is there. */

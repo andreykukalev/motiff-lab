@@ -20,7 +20,8 @@
 <PageTitle>@(Title ?? Text["pdf.title"]) · Motiff Lab</PageTitle>
 
 @* The "PDF" view of a piece (decision record 0023; Andrei, 2026-11-04): the printed pages exactly as the player added them,
-   for reading. Nothing here plays, and nothing on the pages is chosen: the notes come only when the piece is recognised.
+   for reading. Nothing here plays, and nothing on the pages is chosen: the notes come only when they are read, as a
+   separate piece, and this one never changes (Andrei, 2026-11-05).
    The bar is the score's (0018 section 2): back, the title, the page under the bar, and the overflow. *@
 <main class="lab app workspace pdf-reader">
     @if (_project?.Document is { } document)
@@ -86,6 +87,10 @@
                     <Icon Name="camera" /> @Text["pdf.readNotes"] @if (Scans.IsHosted) { <span class="tag pro">Pro</span> }
                 </button>
             }
+            @* Another version is compared with notes (0022), so a PDF needs its notes read first; they become a separate piece. *@
+            <button class="btn quiet" @onclick="AddVersion" disabled="@(_project is null || (_project.HasNotes == false && _pages.Count == 0))">
+                <Icon Name="mic" /> @Text["performance.add"] @if (_project?.HasNotes == false && Scans.IsHosted) { <span class="tag pro">Pro</span> }
+            </button>
             <button class="btn quiet" @onclick="DownloadAsync" disabled="@(_project?.Document is null)"><Icon Name="export" /> @Text["pdf.download"]</button>
             <p class="caption">@Text[_project?.HasNotes == true ? "pdf.asIsRead" : "pdf.asIs"]</p>
             <p class="caption">@Text["pdf.onDevice"]</p>
@@ -93,7 +98,12 @@
     }
     else if (_popover == Popover.Recognise && _project is { Document: { } pdf } toRead)
     {
-        <RecognisePanel Document="pdf" FileName="@toRead.DocumentFileName" Read="ReadNotesAsync" />
+        <RecognisePanel Document="pdf" FileName="@toRead.DocumentFileName" Read="result => ReadNotesAsync(result, forVersion: false)" />
+    }
+    else if (_popover == Popover.Version && _project is { Document: { } versionPdf } forVersion)
+    {
+        <RecognisePanel Document="versionPdf" FileName="@forVersion.DocumentFileName" Heading="@Text["performance.add"]" Intro="@Text["pdf.versionFirst"]"
+                        Read="result => ReadNotesAsync(result, forVersion: true)" />
     }
     else if (_popover == Popover.Contents && _project is { } project)
     {
@@ -148,6 +158,7 @@
         More,
         Contents,
         Recognise,
+        Version,
     }
 
     /// <summary>The key the pencil layer keeps the pages' marks under; the project holds them (0023).</summary>
@@ -262,10 +273,11 @@
     }
 
     /// <summary>
-    /// Makes the notes the scan read the piece's (0011, 0023): its Check flags start open, a resume point is set where the
-    /// page under the bar starts, and the "Notes" view opens there. Returns why the notes cannot be used, if they cannot.
+    /// Makes the notes the scan read a separate piece (0011, 0023; Andrei, 2026-11-05): this PDF piece stays exactly as it
+    /// is. The new piece's Check flags start open, a resume point is set, and it opens where the page under the bar starts,
+    /// or with Other versions open when the notes were read to add a version (0022). Returns why the notes cannot be used.
     /// </summary>
-    private async Task<string?> ReadNotesAsync(ScanResult result)
+    private async Task<string?> ReadNotesAsync(ScanResult result, bool forVersion)
     {
         if (_project is not { } project || result.MusicXml is not { } musicXml)
         {
@@ -280,16 +292,31 @@
         }
 
         ScanCheck check = ScanCheck.Of(piece);
-        PageMap pages = PageMap.Of(piece, Math.Max(1, _pages.Count));
-        Project read = project.Recognised(musicXml, result.Engine, pages);
-        read = read with { Check = CheckFlag.FromScan(check, []) };
+        Project read = Project.ReadFromDocument($"p_{Guid.NewGuid():N}", project, musicXml, result.Engine, DateTimeOffset.Now) with
+        {
+            Check = CheckFlag.FromScan(check, []),
+        };
         ResumePoint point = ResumePoint.Start(read.NextResumePointId(), DateTimeOffset.Now);
         read = read.AddResumePoint(point);
         await Projects.SaveAsync(read);
         CurrentPiece.Open(check.Mark(piece, []), SelectionFilter.All, read);
         _popover = Popover.None;
-        Navigation.NavigateTo(NotesUrl(read, point.Id));
+        string url = CurrentPiece.WorkspaceUrl(read, point.Id);
+        Tick at = PageMap.Of(piece, Math.Max(1, _pages.Count)).StartOf(Math.Max(1, _pages.First));
+        Navigation.NavigateTo(forVersion ? url + "&view=versions" : url + $"&at={at.Value}");
         return null;
+    }
+
+    /// <summary>Adds another version: from the Notes view of a PDF read before into the same piece, else after reading the notes.</summary>
+    private void AddVersion()
+    {
+        if (_project is { HasNotes: true } project)
+        {
+            Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(project, project.RecentResumePoints.FirstOrDefault()?.Id) + "&view=versions");
+            return;
+        }
+
+        _popover = Popover.Version;
     }
 
     /// <summary>The "Notes" view at the resume point, scrolled to where the page under the bar starts.</summary>

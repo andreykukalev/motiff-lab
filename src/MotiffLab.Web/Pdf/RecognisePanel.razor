@@ -4,10 +4,14 @@
 @inject MotiffLab.Web.Localization.UiText Text
 
 @* Read the notes from a PDF piece (0011, 0023): the kept PDF goes to the scan server, as on Scan printed music, and the
-   notes it reads become the piece's "Notes" view beside the pages. What leaves the device is one line and one switch, as
-   there; on Motiff Lab's server it needs an account and Pro. *@
-<div class="popover recognise-popover" role="dialog" aria-label="@Text["pdf.readNotes"]">
-    <p class="overline">@Text["pdf.readNotes"]</p>
+   notes it reads become a separate piece; the PDF piece stays as it is (Andrei, 2026-11-05). What leaves the device is
+   one line and one switch, as there; on Motiff Lab's server it needs an account and Pro, offered here. *@
+<div class="popover recognise-popover" role="dialog" aria-label="@(Heading ?? Text["pdf.readNotes"])">
+    <p class="overline">@(Heading ?? Text["pdf.readNotes"])</p>
+    @if (Intro is not null)
+    {
+        <p class="caption">@Intro</p>
+    }
     @if (!_ready)
     {
         <p class="caption">@Text["pdf.readChecking"]</p>
@@ -29,7 +33,13 @@
     }
     else if (Scans.IsHosted && !_pro)
     {
-        <p class="caption">@Text["scan.proPrompt"]</p>
+        <p class="pro-offer">
+            <span class="tag pro">Pro</span> @Text["scan.proPrompt"]
+            @if (Account.IsAvailable)
+            {
+                <a href="settings#plan">@Text["ask.offerPlan"]</a>
+            }
+        </p>
     }
     else
     {
@@ -66,11 +76,19 @@
     [Parameter, EditorRequired]
     public byte[] Document { get; set; } = [];
 
+    /// <summary>The panel's heading, when it is opened for something that needs the notes first; else Read the notes.</summary>
+    [Parameter]
+    public string? Heading { get; set; }
+
+    /// <summary>Why the notes are read, said above the rest.</summary>
+    [Parameter]
+    public string? Intro { get; set; }
+
     /// <summary>The PDF's file name, sent with it.</summary>
     [Parameter, EditorRequired]
     public string FileName { get; set; } = "";
 
-    /// <summary>Takes what the scan server read; returns why the notes cannot be used, or null once they are the piece's.</summary>
+    /// <summary>Takes what the scan server read; returns why the notes cannot be used, or null once they are a piece.</summary>
     [Parameter, EditorRequired]
     public Func<ScanResult, Task<string?>> Read { get; set; } = default!;
 
