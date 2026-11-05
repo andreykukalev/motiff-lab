@@ -331,10 +331,18 @@ internal static partial class Answer
         json.WriteNumber("checkBars", project.Summary.CheckBars);
         json.WriteBoolean("hasNotes", project.HasNotes);
         json.WriteBoolean("document", project.Document is not null);
-        // Within contract 4 (2026-11-05): notes read from a PDF piece name it, for PDF | Notes.
+        // Within contract 4 (2026-11-05): notes read from a PDF piece name it, and where each of its pages starts in the
+        // notes, in ticks, for PDF | Notes.
         if (project.ReadFrom is { } readFrom)
         {
             json.WriteString("readFrom", readFrom.ProjectId);
+            json.WriteStartArray("readFromPages");
+            foreach (Tick start in readFrom.Pages.Starts)
+            {
+                json.WriteNumberValue(start.Value);
+            }
+
+            json.WriteEndArray();
         }
 
         if (project.RecentResumePoints.FirstOrDefault() is { } latest)

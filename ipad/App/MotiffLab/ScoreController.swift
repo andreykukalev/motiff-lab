@@ -455,6 +455,13 @@ final class ScoreController: NSObject, ObservableObject {
         }
     }
 
+    /// Where the notes on a page (from 1) start, for PDF | Notes (0023); nil before the score is shown.
+    func firstTick(onPage page: Int) async -> Double? {
+        guard shown, page > 0 else { return nil }
+        let tick = try? await webView.callAsyncJavaScript("return motiff.firstTickOn(data)", arguments: ["data": ["page": page]], contentWorld: .page)
+        return (tick as? NSNumber)?.doubleValue
+    }
+
     /// Brings a page to the top of the view, under the bar.
     func showPage(_ page: Int) {
         guard shown else { return }
@@ -796,7 +803,8 @@ final class ScoreController: NSObject, ObservableObject {
         let engraved = await MusicCore.run { Engraver.engrave(piece: id, title: title, version: layer.version, artefacts: layer.artefacts) }
         switch engraved {
         case .success(let engraving):
-            self.piece = OpenPiece(id: id, title: title, pages: engraving.pages, timemap: engraving.timemap, file: piece.file)
+            // Its other view stays; where it opened does not, so the page stays where the player is.
+            self.piece = OpenPiece(id: id, title: title, pages: engraving.pages, timemap: engraving.timemap, file: piece.file, other: piece.other)
             layerEngraved = layer
             layerAdded = engraving.ossias.first?.added ?? []
             layerArtefacts = engraving.ossias.first?.artefacts ?? []
@@ -1062,6 +1070,10 @@ final class ScoreController: NSObject, ObservableObject {
                 applyTool()
             }
             shown = true
+            if let tick = piece.landing?.tick {
+                // From the PDF's page in PDF | Notes (0023): the page of the notes where it starts.
+                _ = try? await webView.callAsyncJavaScript("return motiff.showTick(data)", arguments: ["data": ["tick": tick]], contentWorld: .page)
+            }
             _ = try? await webView.callAsyncJavaScript("return motiff.pen(on)", arguments: ["on": penOn], contentWorld: .page)
             let marks = await MusicCore.run { MusicCore.call(piece: piece.id, "marks") }
             await draw(marks)

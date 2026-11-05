@@ -54,7 +54,8 @@ final class PdfController: NSObject, ObservableObject {
     /// The page the player was last on in this PDF, kept on the device as the web app keeps it (`pdf.page.<id>`).
     static func pageKey(_ id: String) -> String { "motiff.pdf.page.\(id)" }
 
-    func load(piece: Int32, text: UIText) async {
+    /// Loads the PDF piece's pages and marks; it opens at `page` when given (from PDF | Notes), else where the player left it.
+    func load(piece: Int32, text: UIText, page: Int? = nil) async {
         self.piece = piece
         let answers = await MusicCore.run { (MusicCore.call(piece: piece, "document"), MusicCore.call(piece: piece, "project")) }
         guard let object = facadeObject(answers.0), object["error"] == nil,
@@ -68,6 +69,7 @@ final class PdfController: NSObject, ObservableObject {
             let kept = UserDefaults.standard.integer(forKey: Self.pageKey(projectId))
             startPage = kept > 0 ? min(kept, read.pageCount) : 1
         }
+        if let page, page > 0 { startPage = min(page, read.pageCount) }
         bookmarks = Self.bookmarks(object["marks"])
         strokes = DocumentStroke.list(object["marks"])
         let name = object["fileName"] as? String ?? "score.pdf"
@@ -276,6 +278,8 @@ struct PdfPages: UIViewRepresentable {
 /// the score, and the metronome's pill floats at the bottom where the score's transport does. No notes play here.
 struct PdfScreen: View {
     let piece: OpenPiece
+    /// Opens the piece's other view in its place, for PDF | Notes (0023); nil where the library has none.
+    var switchView: ((Landing) async -> Void)? = nil
     private let text = UIText.current
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
@@ -334,7 +338,7 @@ struct PdfScreen: View {
         }
         .toolbar(.hidden, for: .navigationBar)
         .task {
-            await pdf.load(piece: piece.id, text: text)
+            await pdf.load(piece: piece.id, text: text, page: piece.landing?.page)
             if let id = pdf.projectId { metronome.load(piece: id) }
         }
         .onDisappear {
@@ -381,7 +385,11 @@ struct PdfScreen: View {
                     .lineLimit(1)
                     .padding(.leading, CGFloat.ds("s-2"))
             }
-            Tag(text: text["pdf.title"], kind: .assumed)
+            if switchView != nil, piece.other != nil {
+                PdfNotesSwitch(onPdf: true, text: text) { Task { await showNotes() } }
+            } else {
+                Tag(text: text["pdf.title"], kind: .assumed)
+            }
             Spacer(minLength: CGFloat.ds("s-2"))
             Button {
                 Task { await pdf.toggleBookmark() }
@@ -436,6 +444,15 @@ struct PdfScreen: View {
         guard let file = piece.file else { return }
         let id = piece.id
         Task { try? await ProjectFiles.save(piece: id, to: file) }
+    }
+
+    /// The notes read from the PDF, where the page under the bar starts in them, once the piece is saved (the web app's
+    /// `ShowNotesAsync`).
+    private func showNotes() async {
+        guard let other = piece.other, let switchView else { return }
+        metronome.stop()
+        if let file = piece.file { try? await ProjectFiles.save(piece: piece.id, to: file) }
+        await switchView(.tick(other.pages.start(of: max(1, pdf.page))))
     }
 }
 
