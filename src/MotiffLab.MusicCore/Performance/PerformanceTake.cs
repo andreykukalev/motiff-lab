@@ -63,12 +63,8 @@ public static class PerformanceTake
         List<TakenNote> added = [];
         foreach (PlacedNote note in bar.PlayedNotPrinted.Where(note => !skip.Contains(note.Id)))
         {
-            PlayedNote heard = byId[note.Id];
-            long onset = Math.Clamp(Snap(note.At.Value, span.Onset.Value), span.Onset.Value, span.End.Value - Grid);
-            long end = Math.Max(onset + Grid, Snap(alignment.TickAt(heard.Onset + heard.Duration).Value, span.Onset.Value));
-            Note? nearest = printed.OrderBy(other => Math.Abs(other.Pitch.MidiNumber - note.Pitch.MidiNumber)).ThenBy(other => other.Id, StringComparer.Ordinal).FirstOrDefault();
-            Hand? hand = nearest?.Hand?.Value ?? (note.Pitch.MidiNumber < 60 ? Hand.Left : Hand.Right);
-            added.Add(new TakenNote($"{IdPrefix}{performanceId}-{note.Id}", note.Pitch, TickSpan.FromBounds(new Tick(onset), new Tick(end)), note.Velocity, nearest?.Track ?? 0, hand));
+            (TickSpan place, int track, Hand hand) = Place(note, byId[note.Id], span, alignment, printed);
+            added.Add(new TakenNote($"{IdPrefix}{performanceId}-{note.Id}", note.Pitch, place, note.Velocity, track, hand));
         }
 
         return new TakenBar(
@@ -109,6 +105,20 @@ public static class PerformanceTake
                 Attribution = Attribution.UserEdited,
             });
         return [.. notes.Where(note => !removed.Contains(note.Id)), .. added];
+    }
+
+    /// <summary>
+    /// Where a played note not printed is written in its bar: its onset on the 16th grid inside the bar, its end
+    /// through the alignment on the same grid, at least a 16th long; its staff and hand those of the printed
+    /// note nearest in pitch, or by register when the bar has none.
+    /// </summary>
+    internal static (TickSpan Span, int Track, Hand Hand) Place(PlacedNote note, PlayedNote heard, TickSpan bar, PerformanceAlignment alignment, IReadOnlyList<Note> printed)
+    {
+        long onset = Math.Clamp(Snap(note.At.Value, bar.Onset.Value), bar.Onset.Value, bar.End.Value - Grid);
+        long end = Math.Max(onset + Grid, Snap(alignment.TickAt(heard.Onset + heard.Duration).Value, bar.Onset.Value));
+        Note? nearest = printed.OrderBy(other => Math.Abs(other.Pitch.MidiNumber - note.Pitch.MidiNumber)).ThenBy(other => other.Id, StringComparer.Ordinal).FirstOrDefault();
+        Hand hand = nearest?.Hand?.Value ?? (note.Pitch.MidiNumber < 60 ? Hand.Left : Hand.Right);
+        return (TickSpan.FromBounds(new Tick(onset), new Tick(end)), nearest?.Track ?? 0, hand);
     }
 
     /// <summary>A tick moved to the nearest 16th from the bar line, halves away from it; integers only.</summary>

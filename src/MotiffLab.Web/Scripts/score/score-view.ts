@@ -91,6 +91,7 @@ const PERFORMANCE_MAX_WIDTH = 180;
 
 /** Printed notes the performance did not play: tinted in the warning text colour, in place. */
 const UNHEARD_CLASS = "not-heard";
+const VERSION_ADDED_CLASS = "version-added";
 
 /** The marker sits this far right of the bar's top right corner and this far above it. */
 const NOTE_OFFSET_X = 4;
@@ -211,6 +212,7 @@ export class ScoreView {
     /** The printed notes the performance did not play, and the engraved notes that stand for them. */
     private unheardPlaces: HighlightPlace[] = [];
     private unheard = new Set<string>();
+    private versionAdded: string[] = [];
     private highlights: ScoreHighlightMark[] = [];
     /** The pictures of the pages handed to the Pages tab, freed when new ones are made. */
     private thumbnails: string[] = [];
@@ -425,11 +427,13 @@ export class ScoreView {
 
     /**
      * Draws the markers of the bars a performance plays differently and tints the printed notes it did not play
-     * (decision record 0022, section 4); empty lists draw none.
+     * (decision record 0022, section 4), and in the comparison layer shows plum the notes another version adds;
+     * empty lists draw none.
      */
-    setPerformance(markers: ScorePerformanceMarker[], unheard: HighlightPlace[]): void {
+    setPerformance(markers: ScorePerformanceMarker[], unheard: HighlightPlace[], added: string[] = []): void {
         this.performanceMarkers = markers;
         this.unheardPlaces = unheard;
+        this.versionAdded = added;
         this.placeMarks();
         this.applyUnheard();
     }
@@ -1040,6 +1044,12 @@ export class ScoreView {
         this.unheard = timeline === null || this.unheardPlaces.length === 0 ? new Set() : highlightedIds(timeline, this.unheardPlaces, (id) => this.pitchOf(id));
         for (const id of this.unheard) {
             this.element(id)?.classList.add(UNHEARD_CLASS);
+        }
+        for (const old of this.host.querySelectorAll(`.${VERSION_ADDED_CLASS}`)) {
+            old.classList.remove(VERSION_ADDED_CLASS);
+        }
+        for (const id of this.versionAdded) {
+            this.element(id)?.classList.add(VERSION_ADDED_CLASS);
         }
     }
 
