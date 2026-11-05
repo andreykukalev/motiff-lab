@@ -36,6 +36,8 @@ public static class SettingsCatalogue
         Switch("layers.performance", SettingSection.MarksAndLayers, Governs(true, true, false), SettingScope.Piece),
         // The comparison layer (0022, section 4): another version on small staves above every system; off until asked for.
         Switch("layers.version", SettingSection.MarksAndLayers, null, SettingScope.Piece),
+        // On that layer, the notes likely to be artefacts of a recording's hearing, in grey; hidden until asked for.
+        Switch("layers.artefacts", SettingSection.MarksAndLayers, null, SettingScope.Piece),
         Switch("pen.pencilOnly", SettingSection.MarksAndLayers, null, SettingScope.Device, on: true),
         Choice("pen.ink", SettingSection.MarksAndLayers, ["graphite", "carmine", "forest", "ochre"], "graphite", null, SettingScope.Device),
 

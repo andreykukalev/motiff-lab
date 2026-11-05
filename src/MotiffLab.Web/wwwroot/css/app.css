@@ -1422,6 +1422,13 @@ h1, h2, .app-title strong {
     color: var(--plum);
 }
 
+/* A note on that layer likely to be an artefact of a recording's hearing (0022), shown only when asked for: grey. */
+.score g.note.version-artefact {
+    fill: var(--ink-3);
+    stroke: var(--ink-3);
+    color: var(--ink-3);
+}
+
 /* The places of the fact chosen on Understand (#25): blue and at full strength, with a solid box round each notehead or rest,
    so they differ from playing (colour only) by more than colour. The playing colour still shows over them. */
 .score g.note.highlight, .score g.rest.highlight {

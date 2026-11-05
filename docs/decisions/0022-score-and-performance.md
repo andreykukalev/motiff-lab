@@ -52,7 +52,7 @@ The differences of a bar are summed up in one short kind, inferred and labelled 
 
 Chosen by Andrei on 2026-11-05.
 
-- **Markers above bars**, always shown when the piece has a performance: a small plum label above a bar that differs, with its kind and count ("+3 · filling", "bass: G instead of D"). Printed notes that were not heard are tinted `--warning` in place. Likely artefacts are hidden by default; a line in the layer's popover counts them and shows them.
+- **Markers above bars**, always shown when the piece has a performance: a small plum label above a bar that differs, with its kind and count ("+3 · filling", "bass: G instead of D"). Printed notes that were not heard are tinted `--warning` in place. Likely artefacts are hidden by default; a line in the layer's popover counts them and shows them (built 2026-11-05 as `layers.artefacts`, under the comparison layer while it shows, the notes in `--ink-3` grey).
 - A tap on a marker selects the bar; the contextual menu offers **Compare**, **Listen to the performer**, **Take into the score** and **Not a difference** (which removes the marker and is kept).
 - **The comparison layer**, "Other version above the staves" in the layers (`layers.version`, off until asked for; built 2026-11-05 as `PerformanceLayer`; the design kit's "Performance" layer is the transcription's playing marks, a different thing): small staves above every system with what the recording plays, bar for bar, for the whole piece, as the ossia of 0021. Only what is not printed is coloured, so the eye goes to the differences. While the layer is on, the bar-to-page map follows the taller systems. The same view exports to PDF (0017).
 
