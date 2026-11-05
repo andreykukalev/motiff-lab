@@ -118,6 +118,7 @@ public class MusicCoreFacadeTests
         Assert.True(found.Length > 1);
         Assert.Equal(found.Length, phrases.GetProperty("levels")[1].GetProperty("count").GetInt32());
         Assert.Equal("phrase", found[0].GetProperty("level").GetString());
+        Assert.Equal("phrase", found[0].GetProperty("name").GetString());
         foreach (string field in new[] { "number", "firstBar", "lastBar", "onset", "end", "selectable", "long", "parent", "start" })
         {
             Assert.True(found[0].TryGetProperty(field, out _), field);

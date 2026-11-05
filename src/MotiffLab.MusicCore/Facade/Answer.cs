@@ -392,6 +392,7 @@ internal static partial class Answer
         json.WriteStartObject();
         json.WriteNumber("number", unit.Number);
         json.WriteString("level", PhraseLevels.Name(unit.Level));
+        json.WriteString("name", PhraseLevels.Describe(unit.Level, words));
         json.WriteNumber("firstBar", unit.FirstBar);
         json.WriteNumber("lastBar", unit.LastBar);
         json.WriteNumber("onset", unit.Span.Onset.Value);

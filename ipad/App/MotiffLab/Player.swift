@@ -67,6 +67,27 @@ final class Player: ObservableObject {
         send(.seek(0))
     }
 
+    /// Plays from a place in the piece, as a note tapped on the score asks: moves there, and starts if it was still.
+    func play(from tick: Double) {
+        send(.seek(tick))
+        if state == .stopped { send(.play) }
+    }
+
+    /// The passage that loops, in ticks; nil when nothing loops.
+    @Published private(set) var loop: Range<Double>?
+
+    /// Loops a passage and plays it from its start, or stops looping (0018 section 7: a selection loops the selection).
+    func setLoop(_ range: Range<Double>?) {
+        loop = range
+        guard let range else {
+            send(.loopOff)
+            return
+        }
+        send(.loop(start: range.lowerBound, end: range.upperBound))
+        if !range.contains(tick) { send(.seek(range.lowerBound)) }
+        if state == .stopped { send(.play) }
+    }
+
     /// Stops the sound and the audio engine; the screen calls this when it closes.
     func shutdown() {
         polling?.cancel()

@@ -33,3 +33,23 @@ body { margin: 0; padding: var(--pad-top) var(--s-4) var(--pad-bottom); backgrou
 .mark.pen.forest { fill: var(--ink-forest); }
 .mark.pen.ochre { fill: var(--ink-ochre); }
 .mark.highlighter { fill: var(--amber); opacity: 0.38; mix-blend-mode: multiply; }
+
+/* Phrase brackets (0018 section 3, as the web app's app.css draws them): pencil over the top staff, numbered at the left
+   end, the selected one in the accent. Each is a button with a hit area taller than its line. */
+body { -webkit-touch-callout: none; }
+button.bracket { position: absolute; z-index: 1; height: 9px; min-height: 0; padding: 0; box-sizing: border-box; background: transparent; border: 1.25px solid var(--ink-graphite); border-bottom: 0; border-radius: 2px 2px 0 0; opacity: 0.75; }
+button.bracket::before { content: ""; position: absolute; inset: -16px -2px -3px; }
+button.bracket.on { opacity: 1; border-width: 1.5px; border-bottom: 0; border-color: var(--accent); }
+button.bracket.from { border-left: 0; border-top-left-radius: 0; }
+button.bracket.on-to { border-right: 0; border-top-right-radius: 0; }
+.bracket .n { position: absolute; left: -2px; top: -16px; font: 600 11px/14px var(--font-ui); color: var(--ink-graphite); }
+.bracket.on .n { color: var(--accent); }
+
+/* The selection: a cobalt band over the selected bars on each system, and round handles on the first and last barline. */
+.sel-band { position: absolute; box-sizing: border-box; background: var(--accent-tint); border: 1.5px solid var(--accent); border-radius: 3px; pointer-events: none; }
+button.sel-handle { position: absolute; z-index: 2; width: 14px; height: 14px; min-height: 0; padding: 0; box-sizing: border-box; border-radius: 50%; background: var(--surface-2); border: 2px solid var(--accent); transform: translate(-50%, -50%); touch-action: none; }
+button.sel-handle::before { content: ""; position: absolute; inset: -15px; border-radius: 50%; }
+button.sel-handle.dragging { background: var(--accent); }
+
+/* Where Swift draws the selection menu: the selection layer places this invisible box as it places the web app's menu. */
+#menu-place { position: fixed; visibility: hidden; pointer-events: none; }
