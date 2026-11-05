@@ -658,7 +658,8 @@ for (const name of ["touchmove", "wheel"]) {
 /**
  * Marks the notes sounding at `tick` on the page, or on the card in focus, as the web app's score view does; while
  * `playing`, the page keeps the system with them below the bar. Called about thirty times a second from Swift with the
- * player's position; `follow` true (a new Play) follows again at once after a scroll by hand.
+ * player's position; `follow` true (a new Play) follows again at once after a scroll by hand. Returns the top the page
+ * scrolls to when it follows, or null.
  */
 function playing({ tick, playing, follow }) {
     if (follow) {
@@ -668,14 +669,15 @@ function playing({ tick, playing, follow }) {
     const onCard = playing && state.focus && card.timeline ? card.timeline.soundingAt(tick - (card.offset ?? 0)) : [];
     const key = `${onPage.join(" ")}|${onCard.join(" ")}`;
     if (key === sounding.key) {
-        return;
+        return null;
     }
     sounding.key = key;
     sounding.page = mark(sounding.page, onPage, (id) => document.querySelector(`#pages [id="${CSS.escape(id)}"]`));
     sounding.card = mark(sounding.card, onCard, (id) => cardScore.querySelector(`[id="${CSS.escape(id)}"]`));
     if (playing && !state.focus && onPage.length > 0 && performance.now() - sounding.byHand >= FOLLOW_PAUSE_MS) {
-        keepInView(document.querySelector(`#pages [id="${CSS.escape(onPage[0])}"]`));
+        return keepInView(document.querySelector(`#pages [id="${CSS.escape(onPage[0])}"]`));
     }
+    return null;
 }
 
 /** The ids marked now: those no longer sounding lose the class, the new ones take it. */
@@ -694,16 +696,19 @@ function mark(before, ids, find) {
     return next;
 }
 
-/** Keeps the system (line of staves) with the sounding notes in view, below the reading line under the bar. */
+/** Keeps the system (line of staves) with the sounding notes in view, below the reading line under the bar; the top scrolled to, or null. */
 function keepInView(note) {
     const target = note?.closest("g.system") ?? note;
     if (!target) {
-        return;
+        return null;
     }
     const box = target.getBoundingClientRect();
-    if (box.top < READING_LINE_PX - 16 || box.bottom > window.innerHeight) {
-        window.scrollTo({ top: window.scrollY + box.top - READING_LINE_PX, behavior: "smooth" });
+    if (box.top >= READING_LINE_PX - 16 && box.bottom <= window.innerHeight) {
+        return null;
     }
+    const top = Math.max(0, window.scrollY + box.top - READING_LINE_PX);
+    window.scrollTo({ top, behavior: "smooth" });
+    return top;
 }
 
 /** A passage with the bar before it and the bar after it, within the piece: what Lead-in plays (0018 section 4). */

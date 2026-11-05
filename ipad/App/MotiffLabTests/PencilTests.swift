@@ -357,16 +357,20 @@ final class PencilTests: XCTestCase {
         let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
         _ = try await call(view, "show", ["pages": piece.pages, "timemap": timemap, "dark": false])
 
-        // Bar 40, well down the pages: its notes turn cobalt and the page scrolls to them.
+        // Bar 40, on the second page: its notes turn cobalt and the page follows them down. The smooth scroll itself is
+        // animated by WebKit's UI process, which a test window does not drive, so the test checks where it scrolls to.
         let bar = try XCTUnwrap(ScoreSelection(answer: MusicCore.call(piece: piece.id, "select", #"{"bars": {"first": 40, "last": 40}}"#)))
-        _ = try await call(view, "playing", ["tick": bar.onset + 1, "playing": true, "follow": true])
+        let followed = try await call(view, "playing", ["tick": bar.onset + 1, "playing": true, "follow": true]) as? NSNumber
         let marked = try await view.evaluateJavaScript("document.querySelectorAll('#pages .playing').length") as? NSNumber
         XCTAssertGreaterThan(marked?.intValue ?? 0, 0, "the notes sounding are marked")
         let colour = try await view.evaluateJavaScript("getComputedStyle(document.querySelector('#pages .playing')).fill") as? String
         XCTAssertNotNil(colour)
-        try await Task.sleep(nanoseconds: 800_000_000)
-        let scrolled = try await view.evaluateJavaScript("window.scrollY") as? NSNumber
-        XCTAssertGreaterThan(scrolled?.doubleValue ?? 0, 0, "the page follows the music")
+        let pageHeight = try await view.evaluateJavaScript("document.querySelector('#pages > .page').getBoundingClientRect().height") as? NSNumber
+        XCTAssertGreaterThan(followed?.doubleValue ?? 0, pageHeight?.doubleValue ?? .infinity, "the page follows the music to the second page")
+        // A scroll by hand wins: the next notes are marked but the page stays where the player put it.
+        _ = try await view.evaluateJavaScript("window.dispatchEvent(new Event('wheel')); 0")
+        let later = try await call(view, "playing", ["tick": bar.onset + 960 * 4, "playing": true, "follow": false])
+        XCTAssertTrue(later is NSNull || later == nil, "a scroll by hand is not undone")
 
         _ = try await call(view, "playing", ["tick": bar.onset + 1, "playing": false])
         let cleared = try await view.evaluateJavaScript("document.querySelectorAll('#pages .playing').length") as? NSNumber
