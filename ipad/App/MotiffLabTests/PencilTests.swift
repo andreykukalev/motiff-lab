@@ -28,7 +28,8 @@ final class PencilTests: XCTestCase {
         window.isHidden = false
         self.window = window
         view.load(URLRequest(url: BundleSchemeHandler.url(path)))
-        for _ in 0..<100 {
+        // The first web view of a run can take a while on a CI runner, as WebKit starts its processes.
+        for _ in 0..<300 {
             if (try? await view.evaluateJavaScript("typeof \(ready)")) as? String == "object" {
                 return view
             }
@@ -346,6 +347,35 @@ final class PencilTests: XCTestCase {
         _ = try await call(view, "checks", ["flags": [[String: Any]]()])
         let gone = try await view.evaluateJavaScript("document.querySelectorAll('body > .check-flag').length") as? NSNumber
         XCTAssertEqual(gone?.intValue, 0)
+    }
+
+    func testTheNotesSoundingAreMarkedWhilePlayingAndThePageFollows() async throws {
+        let view = try await scorePage()
+        let example = try XCTUnwrap(OpenPiece.example)
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        defer { _ = MusicCore.close(piece: piece.id) }
+        let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
+        _ = try await call(view, "show", ["pages": piece.pages, "timemap": timemap, "dark": false])
+
+        // Bar 80, past the first page: its notes turn cobalt and the page follows them down (a system already in view
+        // stays where it is, as on the web). The scroll is smooth, so the test checks where it goes, not where it is yet.
+        let bar = try XCTUnwrap(ScoreSelection(answer: MusicCore.call(piece: piece.id, "select", #"{"bars": {"first": 80, "last": 80}}"#)))
+        let followed = try await call(view, "playing", ["tick": bar.onset + 1, "playing": true, "follow": true]) as? NSNumber
+        let marked = try await view.evaluateJavaScript("document.querySelectorAll('#pages .playing').length") as? NSNumber
+        XCTAssertGreaterThan(marked?.intValue ?? 0, 0, "the notes sounding are marked")
+        let colour = try await view.evaluateJavaScript("getComputedStyle(document.querySelector('#pages .playing')).fill") as? String
+        XCTAssertNotNil(colour)
+        let pageHeight = try await view.evaluateJavaScript("document.querySelector('#pages > .page').getBoundingClientRect().height") as? NSNumber
+        let seen = try await view.evaluateJavaScript("JSON.stringify({ height: innerHeight, y: scrollY, playing: [...document.querySelectorAll('#pages .playing')].map((e) => `${e.id} ${e.tagName} ${Math.round(e.getBoundingClientRect().top)}`) })") as? String
+        XCTAssertGreaterThan(followed?.doubleValue ?? 0, pageHeight?.doubleValue ?? .infinity, "the page follows the music past the first page: \(seen ?? "")")
+        // A scroll by hand wins: the next notes are marked but the page stays where the player put it.
+        _ = try await view.evaluateJavaScript("window.dispatchEvent(new Event('wheel')); 0")
+        let later = try await call(view, "playing", ["tick": bar.onset + 960 * 4, "playing": true, "follow": false])
+        XCTAssertTrue(later is NSNull || later == nil, "a scroll by hand is not undone")
+
+        _ = try await call(view, "playing", ["tick": bar.onset + 1, "playing": false])
+        let cleared = try await view.evaluateJavaScript("document.querySelectorAll('#pages .playing').length") as? NSNumber
+        XCTAssertEqual(cleared?.intValue, 0, "nothing is marked once stopped")
     }
 
     func testTheInksAreTheDesignKits() {

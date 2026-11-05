@@ -109,7 +109,9 @@ button.sel-handle.dragging { background: var(--accent); }
 #focus .card-score { position: relative; flex: 1; min-width: 0; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; margin: 0 calc(var(--h-touch) + var(--s-2)); min-height: 120px; }
 #focus .card-score svg { display: block; width: 100%; height: auto; color: var(--notation); fill: currentColor; }
 #focus .card-score svg use { fill: currentColor; }
-#focus .card-score svg [color] { color: inherit !important; }
+#focus .card-score svg [color]:not(.playing) { color: inherit !important; }
+/* The notes sounding while the piece plays (the web app's g.note.playing): cobalt, on the page and on the card. */
+.page :is(g.note, g.chord).playing, #focus .card-score :is(g.note, g.chord).playing { fill: var(--accent); stroke: var(--accent); color: var(--accent); }
 #focus .card-score svg g.label { display: none; }
 /* The ossia (ds.css Ossia panel, the web app's .ossia-frame): a dashed plum frame round its staves, named by an overline. */
 #focus .ossia-frame { position: absolute; box-sizing: border-box; border: 1.5px dashed var(--plum); border-radius: var(--r-xs); pointer-events: none; }

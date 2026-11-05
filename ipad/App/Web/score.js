@@ -27,6 +27,10 @@
 // ink behind the staves (`notes`), as the web app's score view draws them; a tap on a marker gives the note to Swift.
 // The bars a scan or a transcription is unsure of carry an amber "?" at their top right (`checks`), the notes on the same
 // bar to its left; a tap gives the bar to Swift. Each layer of marks can be hidden for a clean page (`layers`).
+//
+// While the piece plays, the notes sounding turn cobalt on the page and on the card in focus (`playing`), and the page
+// follows: the system playing is kept below the bar, so the next one shows beneath it (0018 section 7). A scroll by
+// hand wins for a few seconds, as on the web, and the next Play follows again.
 import { cardLayout } from "../score/phrase-card.js";
 import { ScoreGeometry, bookmarkLevels, readPage, staffFrames } from "../score/score-geometry.js";
 import { SelectionLayer } from "../score/selection-layer.js";
@@ -56,6 +60,9 @@ const NOTE_OFFSET_Y = 22;
 /** The layers of marks that can be hidden: the pencil, notes and highlights, bookmarks, the analysis (brackets, rings) and Check. */
 const LAYERS = ["ink", "notes", "bookmarks", "analysis", "check"];
 
+/** After the player scrolls by hand, playback leaves the page where they put it for this long before following again (score-view.ts). */
+const FOLLOW_PAUSE_MS = 4000;
+
 const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], phrases: [], bookmarks: [], notes: [], highlights: [], checks: [], pen: false, focus: false, ringed: new Set() };
 let nextId = 0;
 
@@ -67,6 +74,8 @@ function show({ pages, timemap, dark }) {
     }
     reported = "";
     state.ringed = new Set();
+    sounding.page = new Set();
+    sounding.key = "";
     const host = document.getElementById("pages");
     host.innerHTML = pages.map((svg, index) => `<div class="page" data-page="${index + 1}">${svg}</div>`).join("");
     state.svgs = pages;
@@ -575,6 +584,8 @@ function focus({ open, label, back }) {
  * that holds `start`. Returns how many notes it engraved.
  */
 function showCard({ pages, timemap, start, ossias }) {
+    sounding.card = new Set();
+    sounding.key = "";
     cardScore.innerHTML = (pages ?? []).map((svg) => `<div class="card-page">${svg}</div>`).join("");
     card.timeline = ScoreTimeline.fromTimemap(timemap ?? []);
     card.offset = state.geometry?.barAt(start)?.tick ?? start;
@@ -634,6 +645,70 @@ function reportCardWidth() {
     }
     card.width = cardScore.clientWidth;
     post({ cardLayout: cardLayout(card.width) });
+}
+
+/** The notes sounding now, marked on the page or on the card, and when they last changed. */
+const sounding = { page: new Set(), card: new Set(), key: "", byHand: -Infinity };
+
+/** A touch or the wheel moving the page is the player's own scroll: playback leaves the page alone for a while. */
+for (const name of ["touchmove", "wheel"]) {
+    window.addEventListener(name, () => { sounding.byHand = performance.now(); }, { passive: true });
+}
+
+/**
+ * Marks the notes sounding at `tick` on the page, or on the card in focus, as the web app's score view does; while
+ * `playing`, the page keeps the system with them below the bar. Called about thirty times a second from Swift with the
+ * player's position; `follow` true (a new Play) follows again at once after a scroll by hand. Returns the top the page
+ * scrolls to when it follows, or null.
+ */
+function playing({ tick, playing, follow }) {
+    if (follow) {
+        sounding.byHand = -Infinity;
+    }
+    const onPage = playing && state.timeline !== null ? state.timeline.soundingAt(tick) : [];
+    const onCard = playing && state.focus && card.timeline ? card.timeline.soundingAt(tick - (card.offset ?? 0)) : [];
+    const key = `${onPage.join(" ")}|${onCard.join(" ")}`;
+    if (key === sounding.key) {
+        return null;
+    }
+    sounding.key = key;
+    sounding.page = mark(sounding.page, onPage, (id) => document.querySelector(`#pages [id="${CSS.escape(id)}"]`));
+    sounding.card = mark(sounding.card, onCard, (id) => cardScore.querySelector(`[id="${CSS.escape(id)}"]`));
+    if (playing && !state.focus && onPage.length > 0 && performance.now() - sounding.byHand >= FOLLOW_PAUSE_MS) {
+        return keepInView(document.querySelector("#pages .playing"));
+    }
+    return null;
+}
+
+/** The ids marked now: those no longer sounding lose the class, the new ones take it. */
+function mark(before, ids, find) {
+    const next = new Set(ids);
+    for (const id of before) {
+        if (!next.has(id)) {
+            find(id)?.classList.remove("playing");
+        }
+    }
+    for (const id of next) {
+        if (!before.has(id)) {
+            find(id)?.classList.add("playing");
+        }
+    }
+    return next;
+}
+
+/** Keeps the system (line of staves) with the sounding notes in view, below the reading line under the bar; the top scrolled to, or null. */
+function keepInView(note) {
+    const target = note?.closest("g.system") ?? note;
+    if (!target) {
+        return null;
+    }
+    const box = target.getBoundingClientRect();
+    if (box.top >= READING_LINE_PX - 16 && box.bottom <= window.innerHeight) {
+        return null;
+    }
+    const top = Math.max(0, window.scrollY + box.top - READING_LINE_PX);
+    window.scrollTo({ top, behavior: "smooth" });
+    return top;
 }
 
 /** A passage with the bar before it and the bar after it, within the piece: what Lead-in plays (0018 section 4). */
@@ -801,5 +876,5 @@ function frames() {
     return state.frames;
 }
 
-window.motiff = { show, layout, anchor, erase, draw, frames, inView, phrases, select, menuSize, pen, focus, card: showCard, lead, inset, highlight, bookmarks, clearLeft, outline, showPage, reveal, notes, checks, layers };
+window.motiff = { show, layout, anchor, erase, draw, frames, inView, phrases, select, menuSize, pen, focus, card: showCard, lead, inset, highlight, bookmarks, clearLeft, outline, showPage, reveal, notes, checks, layers, playing };
 window.webkit?.messageHandlers?.score?.postMessage("ready");

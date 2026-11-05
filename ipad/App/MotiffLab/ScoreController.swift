@@ -709,6 +709,15 @@ final class ScoreController: NSObject, ObservableObject {
         _ = try? await webView.callAsyncJavaScript("return motiff.highlight(data)", arguments: ["data": data], contentWorld: .page)
     }
 
+    /// Where the player is (0018 section 7): the notes sounding at the tick turn cobalt on the page, or on the card in focus,
+    /// and while playing the page keeps the system with them below the bar. `follow` (a new Play) follows again at once
+    /// after the player scrolled by hand. Called with each position the player reports, about thirty times a second.
+    func playhead(_ tick: Double, playing: Bool, follow: Bool = false) {
+        guard shown else { return }
+        let data: [String: Any] = ["tick": tick, "playing": playing, "follow": follow]
+        webView.callAsyncJavaScript("return motiff.playing(data)", arguments: ["data": data], in: nil, in: .page, completionHandler: nil)
+    }
+
     /// Room under the last page for the drawer over the bottom of the score, so the end of the piece can still be read.
     func insetBottom(_ height: CGFloat) {
         guard shown else { return }
