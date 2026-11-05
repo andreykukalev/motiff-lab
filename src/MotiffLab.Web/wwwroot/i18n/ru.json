@@ -1290,5 +1290,6 @@
   "pdf.asIsRead": "Страницы такими, какими вы их добавили. В виде «Ноты» — ноты, распознанные с них, со своими пометками.",
   "pdf.views": "Вид",
   "pdf.viewPdf": "PDF",
-  "pdf.viewNotes": "Ноты"
+  "pdf.viewNotes": "Ноты",
+  "library.openFileHintHere": "MIDI или MusicXML либо файл проекта Motiff Lab, читается на этом устройстве"
 }

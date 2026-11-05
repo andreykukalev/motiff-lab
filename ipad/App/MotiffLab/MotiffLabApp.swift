@@ -8,6 +8,11 @@ import UIKit
 struct MotiffLabApp: App {
     @StateObject private var account = Account()
 
+    init() {
+        // The design kit's faces, before the first screen draws (0018 section 13).
+        DesignTokens.registerFonts()
+    }
+
     var body: some Scene {
         WindowGroup {
             LibraryView()

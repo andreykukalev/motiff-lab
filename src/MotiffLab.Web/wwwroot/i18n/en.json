@@ -1267,5 +1267,6 @@
   "pdf.asIsRead": "The pages as you added them. The Notes view has the notes read from them, with marks of its own.",
   "pdf.views": "View",
   "pdf.viewPdf": "PDF",
-  "pdf.viewNotes": "Notes"
+  "pdf.viewNotes": "Notes",
+  "library.openFileHintHere": "MIDI or MusicXML, or a Motiff Lab project file, read on this device"
 }

@@ -91,6 +91,7 @@ public sealed class MusicCoreFacade
                     "catalogue" => Answer.Write(json => Answer.Catalogue(json, Words.For(fields.Text("language")))),
                     "settings" => Answer.Write(json => Answer.SettingsCatalogue(json)),
                     "settings.state" => OpenPiece.SettingsState(fields),
+                    "project.summary" => ProjectSummary(fields),
                     _ when _pieces.Count == 0 && IsPieceCall(name) => throw new FacadeException("noPiece", "Open a piece first."),
                     _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\" without a piece."),
                 };
@@ -107,6 +108,17 @@ public sealed class MusicCoreFacade
         {
             return Failure(exception);
         }
+    }
+
+    /// <summary>
+    /// What a library card shows of a project file without opening the piece (within contract 4): {"project": {…}} as an
+    /// open piece's summary has it. The request's "file" is the project file's text.
+    /// </summary>
+    private static string ProjectSummary(Request fields)
+    {
+        string file = fields.Required("file");
+        Project project = ProjectFile.Read(Encoding.UTF8.GetBytes(file));
+        return Answer.Write(json => Answer.Project(json, "project", project));
     }
 
     /// <summary>Forgets an open piece; false when it was not open.</summary>
