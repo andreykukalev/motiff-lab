@@ -12,10 +12,13 @@
 // Phrase focus (0018 section 4) lifts the selection into a card across the screen with the page dimmed behind it
 // (`focus`, `card`): Swift engraves the phrase's bars with Verovio at the card's width, with the web app's own card
 // layout (Scripts/score/phrase-card.ts), and the page shows the SVG. A tap on the dimmed page goes back to it.
+//
+// A fact chosen in the Insights stream (0018 section 6) rings its places on the score (`highlight`), as the web app's
+// score view does: the notes turn cobalt with a box round each notehead, and the first comes into view.
 import { cardLayout } from "../score/phrase-card.js";
 import { ScoreGeometry, readPage } from "../score/score-geometry.js";
 import { SelectionLayer } from "../score/selection-layer.js";
-import { ScoreTimeline } from "../score/score-timeline.js";
+import { ScoreTimeline, highlightedIds } from "../score/score-timeline.js";
 import { HIGHLIGHTER_SIZE, PEN_SIZE, anchorMark, framesByTick, outlinePath, placeMark, touches } from "../score/pencil-marks.js";
 
 const SVG = "http://www.w3.org/2000/svg";
@@ -26,7 +29,7 @@ const ERASER_REACH = 10;
 /** The reading line, this far below the top of the view: the pages it crosses are the ones the bar names, as on the web. */
 const READING_LINE_PX = 72;
 
-const state = { pages: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], phrases: [], pen: false, focus: false };
+const state = { pages: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], phrases: [], pen: false, focus: false, ringed: new Set() };
 let nextId = 0;
 
 /** Shows the pages and reads where their bars are; `timemap` is Verovio's, with measures and rests. */
@@ -36,6 +39,7 @@ function show({ pages, timemap, dark }) {
         document.documentElement.setAttribute("data-theme", "dark");
     }
     reported = "";
+    state.ringed = new Set();
     const host = document.getElementById("pages");
     host.innerHTML = pages.map((svg, index) => `<div class="page" data-page="${index + 1}">${svg}</div>`).join("");
     state.pages = pages.map((svg, index) => readPage(svg, index + 1));
@@ -67,6 +71,7 @@ function layout() {
     state.byTick = framesByTick(state.frames);
     redraw();
     placePhrases();
+    placeRings();
     selection.place();
     reportPages();
     return { bars: state.frames.length, space: state.frames[0]?.space ?? 0 };
@@ -376,6 +381,77 @@ function lead({ start, end }) {
     return { start: before ?? start, end: after ?? end };
 }
 
+/**
+ * The places of a fact chosen in the Insights stream, each { onset, end, noteIds }, as music-core gives them: their
+ * engraved notes turn cobalt with a box round each notehead, and with `scroll` the first is brought into view. A place
+ * without notes, such as a phrase or a silence, rings every note and rest in its stretch of time. Engraved ids are
+ * music-core's, a tied note's later pieces with "-2", "-3", … (GeneratedNotation). Empty places clear the rings.
+ * Returns how many notes are ringed.
+ */
+function highlight({ places, scroll }) {
+    for (const id of state.ringed) {
+        document.getElementById(id)?.classList.remove("highlight");
+    }
+    const timeline = state.timeline;
+    const chosen = places ?? [];
+    const ringed = new Set();
+    if (timeline !== null && chosen.length > 0) {
+        const ids = new Set(chosen.flatMap((place) => place.noteIds ?? []));
+        const stretches = chosen.filter((place) => (place.noteIds ?? []).length === 0).map((place) => ({ start: place.onset, end: place.end, notes: [] }));
+        for (const id of highlightedIds(timeline, stretches, () => undefined)) {
+            ringed.add(id);
+        }
+        for (const span of timeline.spans) {
+            if (ids.has(span.id) || ids.has(span.id.replace(/-\d+$/, ""))) {
+                ringed.add(span.id);
+            }
+        }
+    }
+    state.ringed = ringed;
+    for (const id of ringed) {
+        document.getElementById(id)?.classList.add("highlight");
+    }
+    placeRings();
+    if (scroll) {
+        const first = document.querySelector("body > .ring");
+        const box = first?.getBoundingClientRect();
+        if (box && (box.top < 0 || box.bottom > window.innerHeight)) {
+            window.scrollTo({ top: window.scrollY + box.top - window.innerHeight / 3, behavior: "smooth" });
+        }
+    }
+    return ringed.size;
+}
+
+/** The boxes round the ringed noteheads, in the document's pixels, in reading order; again whenever the pages move. */
+function placeRings() {
+    for (const old of document.querySelectorAll("body > .ring")) {
+        old.remove();
+    }
+    const boxes = [];
+    for (const id of state.ringed) {
+        const element = document.getElementById(id);
+        if (element === null || element.closest("#focus")) {
+            continue;
+        }
+        // The box goes round the notehead, not the stem, so neighbouring notes keep their own boxes.
+        const box = (element.querySelector("g.notehead") ?? element).getBoundingClientRect();
+        if (box.width > 0) {
+            boxes.push(box);
+        }
+    }
+    boxes.sort((a, b) => a.top - b.top || a.left - b.left);
+    for (const box of boxes) {
+        const ring = document.createElement("span");
+        ring.className = "ring";
+        ring.setAttribute("aria-hidden", "true");
+        ring.style.left = `${box.left + window.scrollX - 3}px`;
+        ring.style.top = `${box.top + window.scrollY - 3}px`;
+        ring.style.width = `${box.width + 6}px`;
+        ring.style.height = `${box.height + 6}px`;
+        document.body.append(ring);
+    }
+}
+
 /** Room under the last page for a drawer over the bottom of the screen, in pixels, so the end of the piece can be read. */
 function inset({ bottom }) {
     document.body.style.paddingBottom = bottom > 0 ? `calc(var(--pad-bottom) + ${bottom}px)` : "";
@@ -387,5 +463,5 @@ function frames() {
     return state.frames;
 }
 
-window.motiff = { show, layout, anchor, erase, draw, frames, inView, phrases, select, menuSize, pen, focus, card: showCard, lead, inset };
+window.motiff = { show, layout, anchor, erase, draw, frames, inView, phrases, select, menuSize, pen, focus, card: showCard, lead, inset, highlight };
 window.webkit?.messageHandlers?.score?.postMessage("ready");

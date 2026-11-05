@@ -275,6 +275,25 @@ struct DSItemStyle: ButtonStyle {
     }
 }
 
+/// A chip (ds.css `.chip`): a filter, a place, a way to try; the accent's tint and border while it is on.
+struct DSChipStyle: ButtonStyle {
+    var on = false
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .dsType(.label)
+            .foregroundStyle(Color.ds("ink"))
+            .lineLimit(1)
+            .padding(.horizontal, CGFloat.ds("s-3"))
+            .frame(minHeight: 28)
+            .background(on || configuration.isPressed ? Color.ds("accent-tint") : Color.ds("surface-2"), in: Capsule())
+            .overlay(Capsule().strokeBorder(on ? Color.ds("accent") : Color.ds("hairline-strong")))
+            .opacity(isEnabled ? 1 : 0.38)
+            .contentShape(Capsule())
+    }
+}
+
 /// The floating surfaces over the score (ds.css `.bar`, `.pill`): the surface a little see-through over a blur, a hairline
 /// and the kit's shadow.
 struct FloatingSurface: ViewModifier {

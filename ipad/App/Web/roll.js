@@ -129,9 +129,15 @@ function selection({ selected, loop }) {
     }
 }
 
+/** The places of the fact chosen in Insights, each { onset, end, noteIds }, lit as the web app's roll lights them; none clears them. */
+function highlight({ places }) {
+    const chosen = places ?? [];
+    view.setHighlight(chosen.flatMap((place) => [place.onset, place.end]), [...new Set(chosen.flatMap((place) => place.noteIds ?? []))]);
+}
+
 function noteNames(on) {
     view.setNoteNames(Boolean(on));
 }
 
-window.roll = { load, nextColour, theme, position, selection, noteNames };
+window.roll = { load, nextColour, theme, position, selection, noteNames, highlight };
 post("ready");

@@ -203,6 +203,42 @@ final class PencilTests: XCTestCase {
         XCTAssertEqual(canvases?.intValue, 2, "the notes and the keyboard")
         let colour = try await view.callAsyncJavaScript("return roll.nextColour()", contentWorld: .page) as? String
         XCTAssertNotNil(colour)
+
+        // The places of a fact chosen in Insights light on the roll too.
+        let place: [String: Any] = ["onset": 0, "end": 1440, "noteIds": Array((roll["ids"] as? [String] ?? []).prefix(4))]
+        _ = try await view.callAsyncJavaScript("return roll.highlight(data)", arguments: ["data": ["places": [place]]], contentWorld: .page)
+        _ = try await view.callAsyncJavaScript("return roll.highlight(data)", arguments: ["data": ["places": [Any]()]], contentWorld: .page)
+    }
+
+    func testAFactRingsItsPlacesOnTheScore() async throws {
+        let view = try await scorePage()
+        let example = try XCTUnwrap(OpenPiece.example)
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        defer { _ = MusicCore.close(piece: piece.id) }
+        let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
+        _ = try await call(view, "show", ["pages": piece.pages, "timemap": timemap, "dark": false])
+        let second = try XCTUnwrap(PhraseLevelsShown(answer: MusicCore.call(piece: piece.id, "phrases")).unit(2))
+        _ = try XCTUnwrap(ScoreSelection(answer: MusicCore.call(piece: piece.id, "select", "{\"span\": {\"onset\": \(Int(second.selectableOnset)), \"end\": \(Int(second.selectableEnd))}}")))
+        let understanding = try XCTUnwrap(Understanding(answer: MusicCore.call(piece: piece.id, "understand")))
+
+        // The motif's returns: every engraved note of every place is ringed, each with its box.
+        let returns = try XCTUnwrap(understanding.facts.first { $0.id == "structure.recurrences" })
+        let places = returns.places.map { ["onset": $0.onset, "end": $0.end, "noteIds": $0.noteIds] as [String: Any] }
+        let ringed = try await call(view, "highlight", ["places": places, "scroll": true]) as? NSNumber
+        XCTAssertGreaterThanOrEqual(ringed?.intValue ?? 0, Set(returns.places.flatMap(\.noteIds)).count)
+        let boxes = try await view.evaluateJavaScript("document.querySelectorAll('body > .ring').length") as? NSNumber
+        XCTAssertEqual(boxes?.intValue, ringed?.intValue)
+
+        // A place without notes, such as a phrase, rings every note in its stretch of time.
+        let phrases = try XCTUnwrap(understanding.facts.first { $0.places.contains { $0.noteIds.isEmpty } })
+        let stretch = try XCTUnwrap(phrases.places.first { $0.noteIds.isEmpty })
+        let timed = try await call(view, "highlight", ["places": [["onset": stretch.onset, "end": stretch.end, "noteIds": [String]()]], "scroll": false]) as? NSNumber
+        XCTAssertGreaterThan(timed?.intValue ?? 0, 0)
+
+        let cleared = try await call(view, "highlight", ["places": [Any](), "scroll": false]) as? NSNumber
+        XCTAssertEqual(cleared?.intValue, 0)
+        let left = try await view.evaluateJavaScript("document.querySelectorAll('body > .ring, .highlight').length") as? NSNumber
+        XCTAssertEqual(left?.intValue, 0)
     }
 
     func testTheInksAreTheDesignKits() {
