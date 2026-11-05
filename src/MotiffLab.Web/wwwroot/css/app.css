@@ -2301,7 +2301,8 @@ body:has(.workspace) .site-footer {
     }
 }
 
-.workspace .bar .ttl {
+/* The piece's name in the serif, as on its cover (design/kit/ds.css .bar .ttl); it opens the Contents, so it hovers like a button. */
+.workspace .bar .ttl, .lab.workspace .bar button.ttl {
     font: var(--t-title);
     font-size: 17px;
     margin-left: var(--s-1);
@@ -3215,6 +3216,16 @@ body:has(.workspace) .site-footer {
 .lab .score button.bracket.on-to {
     border-right: 0;
     border-top-right-radius: 0;
+}
+
+/* On the Slate page the graphite pencil is all but lost on the dark paper: the brackets and their numbers take the page's
+   own ink at the same weight. */
+[data-theme="dark"][data-page="slate"] .lab .score button.bracket:not(.on) {
+    border-color: var(--notation);
+}
+
+[data-theme="dark"][data-page="slate"] .score .bracket:not(.on) .n {
+    color: var(--notation);
 }
 
 .score .bracket .n {
