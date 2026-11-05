@@ -44,6 +44,49 @@ public class MusicCoreFacadeTests
     }
 
     [Fact]
+    public void Corrections_change_take_out_put_back_and_undo_the_notes_of_a_bar_and_are_kept_with_the_project()
+    {
+        (MusicCoreFacade facade, _) = Open("""{"id": "p_fur"}""");
+        JsonElement bar = Call(facade, "corrections", """{"bar": 1}""");
+        Assert.Equal(1, bar.GetProperty("bar").GetInt32());
+        Assert.Equal(0, bar.GetProperty("count").GetInt32());
+        JsonElement first = bar.GetProperty("notes")[0];
+        string id = first.GetProperty("id").GetString()!;
+        int pitch = first.GetProperty("pitch").GetInt32();
+        Assert.False(first.GetProperty("edited").GetBoolean());
+        Assert.Equal(1, first.GetProperty("atBar").GetInt32());
+
+        JsonElement higher = Call(facade, "corrections.change", $$"""{"bar": 1, "id": "{{id}}", "pitch": 1}""");
+        JsonElement changed = higher.GetProperty("notes").EnumerateArray().Single(note => note.GetProperty("id").GetString() == id);
+        Assert.Equal(pitch + 1, changed.GetProperty("pitch").GetInt32());
+        Assert.True(changed.GetProperty("edited").GetBoolean());
+        Assert.Equal(1, higher.GetProperty("count").GetInt32());
+        Assert.Contains(Call(facade, "piece").GetProperty("notes").EnumerateArray(), note => note.GetProperty("id").GetString() == id && note.GetProperty("pitch").GetInt32() == pitch + 1);
+        Assert.Contains("<mei", Call(facade, "notation").GetProperty("mei").GetString());
+
+        JsonElement removed = Call(facade, "corrections.remove", $$"""{"bar": 1, "id": "{{id}}"}""");
+        Assert.DoesNotContain(removed.GetProperty("notes").EnumerateArray(), note => note.GetProperty("id").GetString() == id);
+        Assert.Equal(id, removed.GetProperty("removed")[0].GetProperty("id").GetString());
+        Assert.Equal(2, removed.GetProperty("count").GetInt32());
+
+        // Saved and opened again, the corrections are there.
+        string saved = Call(facade, "project.save").GetRawText();
+        var again = new MusicCoreFacade();
+        Assert.False(Json(again.Open("fur.motiff.json", System.Text.Encoding.UTF8.GetBytes(saved))).TryGetProperty("error", out _));
+        Assert.Equal(2, Json(again.Call(1, "corrections", """{"bar": 1}""")).GetProperty("count").GetInt32());
+
+        Assert.Equal(1, Call(facade, "corrections.undo", """{"bar": 1}""").GetProperty("count").GetInt32());
+        JsonElement back = Call(facade, "corrections.revert", $$"""{"bar": 1, "id": "{{id}}"}""");
+        Assert.Equal(0, back.GetProperty("count").GetInt32());
+        Assert.Equal(pitch, back.GetProperty("notes").EnumerateArray().Single(note => note.GetProperty("id").GetString() == id).GetProperty("pitch").GetInt32());
+
+        Assert.Equal("unavailable", Error(facade, 1, "corrections.undo", """{"bar": 1}"""));
+        Assert.Equal("badRequest", Error(facade, 1, "corrections", """{"bar": 999}"""));
+        Assert.Equal("notFound", Error(facade, 1, "corrections.change", """{"bar": 1, "id": "n_none", "pitch": 1}"""));
+        Assert.Equal("unavailable", Error(facade, 1, "corrections.remove", """{"bar": 1, "id": "perf-1"}"""));
+    }
+
+    [Fact]
     public void VersionNamesTheContractAndTheProjectFile()
     {
         JsonElement version = Json(new MusicCoreFacade().Call(0, "version"));
@@ -1015,5 +1058,33 @@ public class MusicCoreFacadeTests
         Assert.Equal(pdf, Json(again.Call(1, "document")).GetProperty("pdf").GetBytesFromBase64());
 
         Assert.Equal("import", Json(new MusicCoreFacade().Open("Nocturne.pdf", "not a pdf"u8.ToArray())).GetProperty("error").GetString());
+    }
+
+    [Fact]
+    public void Notes_a_scan_read_from_a_pdf_piece_become_a_project_of_their_own_that_names_it()
+    {
+        var facade = new MusicCoreFacade();
+        byte[] pdf = System.Text.Encoding.ASCII.GetBytes("%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\n%%EOF\n");
+        Json(facade.Open("Nocturne.pdf", pdf, """{"id": "p_pdf", "now": "2026-11-05T10:00:00Z"}"""));
+        string before = facade.Call(1, "project.save", """{"now": "2026-11-05T10:00:00Z"}""");
+        string request = JsonSerializer.Serialize(new { musicXml = Convert.ToBase64String(Fixture(FurElise)), engine = "homr 0.7.0", pages = 3, id = "p_notes", now = "2026-11-05T12:00:00Z" });
+
+        JsonElement read = Call(facade, "document.read", request);
+
+        JsonElement project = read.GetProperty("project");
+        Assert.Equal("p_notes", project.GetProperty("id").GetString());
+        Assert.Equal("scanned", project.GetProperty("origin").GetString());
+        Assert.True(project.GetProperty("hasNotes").GetBoolean());
+        Assert.Equal("p_pdf", project.GetProperty("readFrom").GetString());
+        Assert.Equal(3, project.GetProperty("readFromPages").GetArrayLength());
+        Assert.Equal(0, project.GetProperty("readFromPages")[0].GetInt64());
+        Assert.Equal(1, project.GetProperty("resumePoints").GetInt32());
+        JsonElement notes = Json(new MusicCoreFacade().Open("Nocturne.motiff.json", System.Text.Encoding.UTF8.GetBytes(read.GetProperty("file").GetString()!)));
+        Assert.True(notes.GetProperty("piece").GetInt32() > 0, notes.ToString());
+        Assert.False(notes.TryGetProperty("document", out _), "the notes are an ordinary piece");
+        Assert.Equal(before, facade.Call(1, "project.save", """{"now": "2026-11-05T10:00:00Z"}"""));
+
+        Assert.Equal("import", Error(facade, 1, "document.read", """{"musicXml": "AAAA", "engine": "homr"}"""));
+        Assert.Equal("badRequest", Error(facade, 1, "document.read", """{"musicXml": "not base64!"}"""));
     }
 }

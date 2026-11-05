@@ -24,6 +24,9 @@ final class PdfController: NSObject, ObservableObject {
     @Published var problem: String?
     /// The PDF written to a temporary file under its own name, for Download the PDF (the share sheet).
     @Published private(set) var shareable: URL?
+    /// The PDF exactly as the player added it, and its file name, for Read the notes.
+    private(set) var original: Data?
+    private(set) var fileName = "score.pdf"
 
     /// The bar's Pen: while it is on, a finger writes too and two fingers scroll. The Pencil always writes.
     @Published var penOn = false { didSet { applyInput() } }
@@ -73,6 +76,8 @@ final class PdfController: NSObject, ObservableObject {
         bookmarks = Self.bookmarks(object["marks"])
         strokes = DocumentStroke.list(object["marks"])
         let name = object["fileName"] as? String ?? "score.pdf"
+        original = data
+        fileName = name.isEmpty ? "score.pdf" : name
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(name.isEmpty ? "score.pdf" : name)
         if (try? data.write(to: url, options: .atomic)) != nil { shareable = url }
         pageCount = read.pageCount
@@ -280,6 +285,13 @@ struct PdfScreen: View {
     let piece: OpenPiece
     /// Opens the piece's other view in its place, for PDF | Notes (0023); nil where the library has none.
     var switchView: ((Landing) async -> Void)? = nil
+    /// Opens a project file just written, at a place, in this piece's place: the notes read from the PDF.
+    var openRead: ((URL, Landing) async -> Void)? = nil
+    @EnvironmentObject private var account: Account
+    @ObservedObject private var scan = ScanServer.shared
+    @State private var readingOpen = false
+    @State private var settingsOpen = false
+    @State private var settingsNext = false
     private let text = UIText.current
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
@@ -337,6 +349,29 @@ struct PdfScreen: View {
             .animation(.easeOut(duration: 0.2), value: metronomeOpen)
         }
         .toolbar(.hidden, for: .navigationBar)
+        .sheet(isPresented: $readingOpen, onDismiss: {
+            if settingsNext {
+                settingsNext = false
+                settingsOpen = true
+            }
+        }) {
+            ReadNotesPanel(
+                address: scanAddress,
+                hosted: scanAddress != nil && scanAddress == ScanServer.hosted(account),
+                signedIn: account.player != nil,
+                pro: account.allows(.scan),
+                text: text,
+                settings: {
+                    settingsNext = true
+                    readingOpen = false
+                },
+                read: readNotes
+            )
+            .presentationDetents([.medium])
+        }
+        .sheet(isPresented: $settingsOpen) {
+            SettingsSheet(settings: DeviceSettings.shared, account: account, text: text, section: .account)
+        }
         .task {
             await pdf.load(piece: piece.id, text: text, page: piece.landing?.page)
             if let id = pdf.projectId { metronome.load(piece: id) }
@@ -425,7 +460,9 @@ struct PdfScreen: View {
             }
             .buttonStyle(BarActionStyle(on: more))
             .accessibilityLabel(text["bar.more"])
-            .popover(isPresented: $more) { PdfMore(pdf: pdf, text: text) }
+            .popover(isPresented: $more) {
+                PdfMore(pdf: pdf, text: text, hosted: scanAddress != nil && scanAddress == ScanServer.hosted(account), readNotes: readNotesAction)
+            }
         }
         .padding(.horizontal, CGFloat.ds("s-2"))
         .frame(height: CGFloat.ds("h-touch"))
@@ -444,6 +481,55 @@ struct PdfScreen: View {
         guard let file = piece.file else { return }
         let id = piece.id
         Task { try? await ProjectFiles.save(piece: id, to: file) }
+    }
+
+    /// More's Read the notes, while none have been read from this PDF on this device.
+    private var readNotesAction: (() -> Void)? {
+        guard openRead != nil, piece.other == nil else { return nil }
+        return {
+            more = false
+            readingOpen = true
+        }
+    }
+
+    /// The scan server the PDF would go to: the player's own, or Motiff Lab's in a build with sign-in.
+    private var scanAddress: URL? { scan.address(hosted: ScanServer.hosted(account)) }
+
+    /// Sends the PDF to the scan server and makes the notes it read a piece of their own, which opens in this one's place
+    /// where the page under the bar starts (the web app's `ReadNotesAsync`). Answers why not, or nil once they open.
+    private func readNotes() async -> String? {
+        guard let address = scanAddress, let openRead, let data = pdf.original else { return text["pdf.readNone"] }
+        let result: ScanResult
+        switch await ScanServer.recognise(fileName: pdf.fileName, data: data, address: address, account: account) {
+        case .failure(let problem): return problem.text(text)
+        case .success(let read): result = read
+        }
+        let request: [String: Any] = [
+            "musicXml": result.musicXml.base64EncodedString(),
+            "engine": result.engine,
+            "pages": max(1, pdf.pageCount),
+            "language": text.language,
+            "now": ISO8601DateFormatter().string(from: Date()),
+        ]
+        guard let body = try? JSONSerialization.data(withJSONObject: request) else { return text["pdf.readNone"] }
+        let json = String(decoding: body, as: UTF8.self)
+        let id = piece.id
+        let answer = await MusicCore.run { MusicCore.call(piece: id, "document.read", json) }
+        guard let object = facadeObject(answer) else { return text["pdf.readNone"] }
+        if object["error"] != nil { return object["message"] as? String ?? text["pdf.readNone"] }
+        guard let file = object["file"] as? String else { return text["pdf.readNone"] }
+        let starts = ((object["project"] as? [String: Any])?["readFromPages"] as? [NSNumber] ?? []).map(\.doubleValue)
+        let url = ProjectFiles.newURL(for: "\(piece.title) — \(text["pdf.viewNotes"])")
+        do {
+            try Data(file.utf8).write(to: url, options: .atomic)
+        } catch {
+            return error.localizedDescription
+        }
+        metronome.stop()
+        if let saved = piece.file { try? await ProjectFiles.save(piece: id, to: saved) }
+        readingOpen = false
+        await openRead(url, .tick(PageMap(starts: starts).start(of: max(1, pdf.page))))
+        return nil
     }
 
     /// The notes read from the PDF, where the page under the bar starts in them, once the piece is saved (the web app's
@@ -534,9 +620,24 @@ struct PdfBookmarkRow: View {
 struct PdfMore: View {
     @ObservedObject var pdf: PdfController
     let text: UIText
+    /// Whether reading the notes goes to Motiff Lab's server, which is Pro.
+    var hosted = false
+    /// Read the notes, while none have been read from this PDF.
+    var readNotes: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
+            if let readNotes {
+                Button(action: readNotes) {
+                    HStack(spacing: CGFloat.ds("s-2")) {
+                        Icon(name: "camera")
+                        Text(text["pdf.readNotes"])
+                        if hosted { Tag(text: "Pro", kind: .saved) }
+                    }
+                }
+                .buttonStyle(DSButtonStyle(kind: .quiet))
+                .disabled(pdf.original == nil)
+            }
             if let url = pdf.shareable {
                 ShareLink(item: url) {
                     HStack(spacing: CGFloat.ds("s-2")) {
