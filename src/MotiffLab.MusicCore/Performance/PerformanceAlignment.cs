@@ -203,7 +203,11 @@ public sealed class PerformanceAlignment
         return [.. groups.Select(group => (group.At, group.Pitches.Order().ToArray()))];
     }
 
-    /// <summary>The matched pairs of a global alignment with gaps, in order. Ties prefer a match, then skipping a printed group.</summary>
+    /// <summary>
+    /// The matched pairs of a global alignment with gaps, in order. Ties prefer leaving a played group out, then
+    /// a match: traced back from the end, the score then sits as early in the performance as it fits, so a scanned
+    /// first page lines up with the start of a recording of the whole piece, not with a later repeat of its music.
+    /// </summary>
     private static List<(int I, int J)> AlignGroups(List<(long At, int[] Pitches)> printed, List<(long At, int[] Pitches)> heard)
     {
         int n = printed.Count, m = heard.Count;
@@ -234,7 +238,7 @@ public sealed class PerformanceAlignment
                     step = 1;
                 }
 
-                if (skipHeard < best)
+                if (skipHeard <= best)
                 {
                     best = skipHeard;
                     step = 2;
