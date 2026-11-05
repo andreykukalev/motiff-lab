@@ -71,6 +71,9 @@ public sealed record Project(
     /// </summary>
     public byte[]? Document { get; init; }
 
+    /// <summary>The player's ink and bookmarks on the PDF's pages (0023), kept apart from the marks on the notes.</summary>
+    public DocumentMarks DocumentMarks { get; init; } = DocumentMarks.Empty;
+
     /// <summary>Whether the piece has notes: a source to import. A PDF added as it is has none until it is recognised.</summary>
     public bool HasNotes => Source.Length > 0;
 

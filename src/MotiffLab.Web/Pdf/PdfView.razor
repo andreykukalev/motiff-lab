@@ -3,8 +3,13 @@
    music the app knows. *@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
+@using MotiffLab.Web.Score
 @inject MotiffLab.Web.Localization.UiText Text
 
+@if (_pencilState.On)
+{
+    <PenPalette State="_pencilState" Act="PencilAsync" />
+}
 @* Focusable, so the keyboard scrolls the pages. *@
 <div class="score pdf-view" @ref="_host" tabindex="0" role="region" aria-label="@Label"></div>
 
@@ -14,6 +19,11 @@
     private IJSObjectReference? _view;
     private DotNetObjectReference<PdfView>? _self;
     private byte[]? _shown;
+    private IJSObjectReference? _pencil;
+    private string? _shownPencilKey;
+    private string? _shownInk;
+    private IReadOnlyList<int>? _shownBookmarks;
+    private ScoreView.PencilState _pencilState = new(false, "pen", "graphite", 0, 0, false);
 
     /// <summary>The PDF's bytes, exactly as the player added it.</summary>
     [Parameter, EditorRequired]
@@ -31,6 +41,29 @@
     [Parameter]
     public EventCallback<(int First, int Last, int Count)> PagesShown { get; set; }
 
+    /// <summary>Which piece's pencil marks the pages carry (0023); null for none.</summary>
+    [Parameter]
+    public string? PencilKey { get; set; }
+
+    /// <summary>The strokes the project keeps on the pages, as ProjectFile.WriteInk writes them; empty for none.</summary>
+    [Parameter]
+    public string Ink { get; set; } = "";
+
+    /// <summary>The strokes after the player wrote or erased, for the project to keep.</summary>
+    [Parameter]
+    public EventCallback<string> MarksChanged { get; set; }
+
+    /// <summary>The pen's tools and marks, whenever they change.</summary>
+    [Parameter]
+    public EventCallback<ScoreView.PencilState> PencilChanged { get; set; }
+
+    /// <summary>The pages the player bookmarked, which carry a ribbon in their corner.</summary>
+    [Parameter]
+    public IReadOnlyList<int> Bookmarks { get; set; } = [];
+
+    /// <summary>Whether the pen draws with a finger or the mouse (the Pencil always draws).</summary>
+    public bool PenOn => _pencilState.On;
+
     /// <summary>Called once the PDF is open with its number of pages, or 0 when it could not be read.</summary>
     [Parameter]
     public EventCallback<int> Opened { get; set; }
@@ -42,6 +75,24 @@
             _self = DotNetObjectReference.Create(this);
             _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/pdf/pdf-view.js");
             _view = await _module.InvokeAsync<IJSObjectReference>("createPdfView", _host, _self);
+            _pencil = await _view.InvokeAsync<IJSObjectReference>("pencilLayer");
+        }
+
+        if (_view is not null && !ReferenceEquals(Bookmarks, _shownBookmarks))
+        {
+            _shownBookmarks = Bookmarks;
+            await _view.InvokeVoidAsync("setBookmarks", (object)Bookmarks.ToArray());
+        }
+
+        if (_pencil is not null && PencilKey != _shownPencilKey)
+        {
+            (_shownPencilKey, _shownInk) = (PencilKey, Ink);
+            await _pencil.InvokeVoidAsync("setKey", PencilKey, Ink);
+        }
+        else if (_pencil is not null && Ink != _shownInk)
+        {
+            _shownInk = Ink;
+            await _pencil.InvokeVoidAsync("setInk", Ink);
         }
 
         if (_view is not null && !ReferenceEquals(_shown, Document))
@@ -69,6 +120,35 @@
     /// <summary>Keeps page 1 as the piece's cover in the library; false when it could not be drawn.</summary>
     public async Task<bool> SaveCoverAsync(string projectId, string? title) =>
         _view is not null && await _view.InvokeAsync<bool>("saveCover", projectId, title);
+
+    /// <summary>Turns the pen on or off: on, one finger or the mouse draws and two fingers scroll.</summary>
+    public Task TogglePencilAsync() => PencilAsync("setOn", [!_pencilState.On]);
+
+    private async Task PencilAsync(string method, object?[] args)
+    {
+        if (_pencil is not null)
+        {
+            await _pencil.InvokeVoidAsync(method, args);
+        }
+    }
+
+    [JSInvokable]
+    public void OnPencilChanged(ScoreView.PencilState state)
+    {
+        if (state != _pencilState)
+        {
+            _pencilState = state;
+            StateHasChanged();
+            _ = PencilChanged.InvokeAsync(state);
+        }
+    }
+
+    [JSInvokable]
+    public Task OnPencilMarksChanged(string ink)
+    {
+        _shownInk = ink;
+        return MarksChanged.InvokeAsync(ink);
+    }
 
     [JSInvokable]
     public Task OnPagesShown(int first, int last, int count) => PagesShown.InvokeAsync((first, last, count));

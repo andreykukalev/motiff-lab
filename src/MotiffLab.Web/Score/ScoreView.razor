@@ -12,32 +12,7 @@
 
 @if (PencilKey is not null && _pencilState.On)
 {
-    @* The pen palette (0015, 0018 section 5) under the bar's Pen action: four inks, the highlighter and the eraser, undo and clear. *@
-    <div class="pen-palette" role="toolbar" aria-label="@Text["pencil.label"]" data-keeps-selection>
-        @foreach ((string colour, string key) in s_penColours)
-        {
-            bool chosen = _pencilState.Tool == PenTool && _pencilState.Colour == colour;
-            <button class="ink-swatch @colour @(chosen ? "on" : null)" aria-pressed="@(chosen ? "true" : "false")" aria-label="@Text[key]" title="@Text[key]"
-                    @onclick="() => ChooseAsync(PenTool, colour)"><span aria-hidden="true"></span></button>
-        }
-        <span class="div" aria-hidden="true"></span>
-        <button class="it @(_pencilState.Tool == HighlighterTool ? "on" : null)" aria-pressed="@(_pencilState.Tool == HighlighterTool ? "true" : "false")"
-                @onclick="() => ChooseAsync(HighlighterTool, null)"><Icon Name="highlight" Size="IconSize.Small" /> @Text["pencil.highlighter"]</button>
-        <button class="it @(_pencilState.Tool == EraserTool ? "on" : null)" aria-pressed="@(_pencilState.Tool == EraserTool ? "true" : "false")"
-                @onclick="() => ChooseAsync(EraserTool, null)">@Text["pencil.eraser"]</button>
-        <span class="div" aria-hidden="true"></span>
-        <button class="it" @onclick="UndoPencilAsync" disabled="@(!_pencilState.CanUndo)"><Icon Name="undo" Size="IconSize.Small" /> @Text["pencil.undo"]</button>
-        <button class="it" @onclick="ClearPencilAsync" disabled="@(_pencilState.Marks == 0)" title="@Text["pencil.clearHint"]">@Text["pencil.clear"]</button>
-        @if (LayersRequested.HasDelegate)
-        {
-            <span class="div" aria-hidden="true"></span>
-            <button class="it" @onclick="() => LayersRequested.InvokeAsync()"><Icon Name="layers" Size="IconSize.Small" /> @Text["layers.title"]</button>
-        }
-        @if (_pencilState.Hidden > 0)
-        {
-            <span class="caption">@Text.Format("pencil.hidden", _pencilState.Hidden)</span>
-        }
-    </div>
+    <PenPalette State="_pencilState" Act="PencilAsync" LayersRequested="LayersRequested" />
 }
 @if (_pdfError is not null)
 {
@@ -219,15 +194,6 @@ else if (_loading && !HoldHeight)
 
     /// <summary>Whether the score can be drawn on: a piece whose marks are kept.</summary>
     public bool CanDraw => PencilKey is not null;
-
-    /// <summary>The four inks of the design kit (0018), in the project file's names (Projects/Marks.cs).</summary>
-    private static readonly (string Colour, string Key)[] s_penColours =
-    [
-        ("graphite", "pencil.penGraphite"),
-        ("carmine", "pencil.penCarmine"),
-        ("forest", "pencil.penForest"),
-        ("ochre", "pencil.penOchre"),
-    ];
 
     protected override void OnParametersSet()
     {
@@ -471,20 +437,8 @@ else if (_loading && !HoldHeight)
         }
     }
 
-    private const string PenTool = "pen";
-    private const string HighlighterTool = "highlighter";
-    private const string EraserTool = "eraser";
-
     /// <summary>Turns the pen on or off: on, one finger draws and two scroll (0018 section 5).</summary>
     public Task TogglePencilAsync() => PencilAsync("setOn", !_pencilState.On);
-
-    /// <summary>The pen in a colour, the highlighter or the eraser; null keeps the colour the script picks.</summary>
-    private Task ChooseAsync(string tool, string? colour) => PencilAsync("setTool", tool, colour);
-
-    private Task UndoPencilAsync() => PencilAsync("undoLast");
-
-    /// <summary>Takes away every mark on the piece; Undo brings them back, so nothing asks first.</summary>
-    private Task ClearPencilAsync() => PencilAsync("clear");
 
     private async Task PencilAsync(string method, params object?[] args)
     {
