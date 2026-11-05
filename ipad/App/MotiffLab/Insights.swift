@@ -276,7 +276,7 @@ struct InsightsSheet: View {
             .padding(.leading, CGFloat.ds("s-6"))
             .padding(.trailing, CGFloat.ds("s-4"))
             .padding(.top, CGFloat.ds("s-4"))
-            if player.hasVariation, let range {
+            if player.hasVariation, !player.secondIsVersion, let range {
                 HearingSwitch(player: player, range: range, text: text)
                     .padding(.leading, CGFloat.ds("s-6"))
                     .padding(.top, CGFloat.ds("s-2"))
@@ -584,12 +584,20 @@ struct HearingSwitch: View {
     @ObservedObject var player: Player
     let range: Range<Double>
     let text: UIText
+    /// Another version's name when it stands in the variation's place (0022, section 5): Notes / Version / Alternate.
+    var version: String?
 
     var body: some View {
         HStack(spacing: 0) {
-            option(.original, "focus.original", hint: "compare.originalHint")
-            option(.variation, "focus.variation", hint: "compare.variationHint")
-            option(.alternate, "focus.alternate", hint: "compare.alternateHint")
+            if let version {
+                option(.original, "focus.notes", hint: text["compare.notesHint"])
+                option(.variation, "focus.versionHear", hint: text.format("compare.versionHint", version))
+                option(.alternate, "focus.alternate", hint: text.format("compare.alternateVersionHint", version))
+            } else {
+                option(.original, "focus.original", hint: text["compare.originalHint"])
+                option(.variation, "focus.variation", hint: text["compare.variationHint"])
+                option(.alternate, "focus.alternate", hint: text["compare.alternateHint"])
+            }
         }
         .padding(2)
         .frame(height: CGFloat.ds("h-compact"))
@@ -614,7 +622,7 @@ struct HearingSwitch: View {
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .accessibilityHint(text[hint])
+        .accessibilityHint(hint)
         .accessibilityAddTraits(on ? .isSelected : [])
     }
 }

@@ -78,6 +78,10 @@ button.check-flag span { display: grid; place-items: center; width: 18px; height
 button.perf-marker { position: absolute; z-index: 2; display: block; height: 24px; min-height: 0; padding: 2px 0; border: 0; background: transparent; }
 button.perf-marker span { display: block; height: 20px; padding: 0 var(--s-2); border-radius: var(--r-xs); background: var(--plum-tint); color: var(--plum); font: var(--t-overline); line-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .page g.note.not-heard { fill: var(--warning); stroke: var(--warning); color: var(--warning); }
+/* On the comparison layer, and above the phrase in focus, a note the version adds is plum, and a likely artefact of a
+   recording's hearing grey (0022, the web app's .version-added and .version-artefact). */
+g.note.version-added { fill: var(--plum); stroke: var(--plum); color: var(--plum); }
+g.note.version-artefact { fill: var(--ink-3); stroke: var(--ink-3); color: var(--ink-3); }
 
 /* The layers of marks, hidden for a clean page (0018 section 5). */
 body.hide-ink #ink,

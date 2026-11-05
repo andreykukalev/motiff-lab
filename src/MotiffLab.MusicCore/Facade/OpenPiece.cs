@@ -9,6 +9,7 @@ using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Invitations;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Notation;
+using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Playback;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Settings;
@@ -484,7 +485,8 @@ internal sealed partial class OpenPiece
 
     /// <summary>
     /// Notation as MEI (0008): the piece, or the variation in place; and an excerpt of bars engraved on
-    /// its own, with ossias above the original bar for bar (0018, section 4; preparation item 10).
+    /// its own, with ossias above the original bar for bar (0018, section 4; preparation item 10). An ossia may be
+    /// another version by its id, as the comparison layer over the whole piece or above an excerpt (0022, sections 4 and 5).
     /// </summary>
     private string Notation(Request request)
     {
@@ -493,7 +495,13 @@ internal sealed partial class OpenPiece
         bool readable = request.Bool("readable") ?? true;
         bool heard = Transcribed.IsHeard(Piece);
         BarRange? bars = ExcerptOf(request);
-        NotationOssia[] ossias = [.. OssiaSources(request).Select(source => Ossia(source, heard, readable))];
+        // Another version above (0022, section 4) is engraved as the comparison layer has it, likely artefacts only when asked.
+        bool artefacts = request.Bool("artefacts") ?? false;
+        SavedPerformance?[] versions = [.. OssiaSources(request).Select(Project.FindPerformance)];
+        PerformanceLayerNotes?[] layers = [.. versions.Select(version => version is null ? null : VersionLayer(version, artefacts))];
+        NotationOssia[] ossias = [.. OssiaSources(request).Select((source, index) => layers[index] is { } layer
+            ? new NotationOssia(versions[index]!.Name, layer.Notes, AsHeard: true)
+            : Ossia(source, heard, readable))];
         bool generated = heard || Project.ChangesNotes || bars is not null || ossias.Length > 0;
         GeneratedNotation notation;
         if (of == "piece")
@@ -513,7 +521,7 @@ internal sealed partial class OpenPiece
             throw FacadeException.BadRequest("\"of\" is \"piece\" or \"variation\".");
         }
 
-        return Answer.Write(json => Answer.Notation(json, notation));
+        return Answer.Write(json => Answer.Notation(json, notation, layers));
     }
 
     /// <summary>The bars a request names in "bars" {first, last}, or "bars": "selection" for the selection's; null for the whole piece.</summary>
@@ -559,7 +567,7 @@ internal sealed partial class OpenPiece
         IReadOnlyList<string> sources = request.Element("ossia") is { ValueKind: JsonValueKind.String } one ? [one.GetString()!] : request.Texts("ossia");
         if (sources.Count is 0 or > MaxOssias)
         {
-            throw FacadeException.BadRequest($"\"ossia\" names one or {MaxOssias} sources: \"variation\", \"asPlayed\" or an idea's id.");
+            throw FacadeException.BadRequest($"\"ossia\" names one or {MaxOssias} sources: \"variation\", \"asPlayed\", an idea's id or another version's id.");
         }
 
         return sources;
@@ -591,7 +599,7 @@ internal sealed partial class OpenPiece
         }
 
         Observation idea = Project.Observations.FirstOrDefault(observation => observation.Id == source)
-            ?? throw FacadeException.BadRequest($"\"ossia\" is \"variation\", \"asPlayed\" or an idea's id; there is no idea \"{source}\".");
+            ?? throw FacadeException.BadRequest($"\"ossia\" is \"variation\", \"asPlayed\", an idea's id or another version's id; there is no idea or version \"{source}\".");
         VariationChain? chain;
         try
         {
@@ -661,7 +669,8 @@ internal sealed partial class OpenPiece
             "piece" => score,
             "heard" => score.WithNotes((Chain ?? throw FacadeException.NoVariation()).Heard),
             "inPlace" => score.WithNotes(InPlace(Shown())),
-            _ => throw FacadeException.BadRequest("\"of\" is \"piece\", \"heard\" or \"inPlace\"."),
+            "version" => score.WithNotes(VersionLayer(Performance(request), artefacts: false).Notes),
+            _ => throw FacadeException.BadRequest("\"of\" is \"piece\", \"heard\", \"inPlace\" or \"version\"."),
         };
         return Answer.Write(json => Answer.Playback(json, score));
     }

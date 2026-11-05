@@ -18,6 +18,8 @@ struct VersionBar: Identifiable, Equatable, Sendable {
     var notHeard: [String]
     /// How many notes the version has that these notes do not.
     var played: Int
+    /// How many of its notes are likely artefacts of a recording's hearing.
+    var artefacts = 0
 
     var id: Int { bar }
     var differs: Bool { aligned && kind != "none" }
@@ -47,6 +49,8 @@ struct VersionShelf: Equatable, Sendable {
     var taken: [VersionBar] { bars.filter(\.taken) }
     var dismissed: [VersionBar] { bars.filter(\.dismissed) }
     var alignedCount: Int { bars.filter(\.aligned).count }
+    /// The likely artefacts on the comparison layer, which writes only the bars that line up.
+    var artefactCount: Int { bars.filter(\.aligned).reduce(0) { $0 + $1.artefacts } }
 
     /// Reads `performances`; the version shown stays shown while it is there.
     mutating func read(list answer: String) {
@@ -78,7 +82,8 @@ struct VersionShelf: Equatable, Sendable {
                 bar: Int(number), span: span, aligned: bar["aligned"] as? Bool ?? false, kind: bar["kind"] as? String ?? "none",
                 marker: bar["marker"] as? String ?? "", confidence: (bar["confidence"] as? NSNumber)?.intValue ?? 0,
                 dismissed: bar["dismissed"] as? Bool ?? false, taken: bar["taken"] as? Bool ?? false,
-                notHeard: bar["notHeard"] as? [String] ?? [], played: (bar["played"] as? [Any])?.count ?? 0
+                notHeard: bar["notHeard"] as? [String] ?? [], played: (bar["played"] as? [Any])?.count ?? 0,
+                artefacts: (bar["artefacts"] as? [Any])?.count ?? 0
             )
         }
         return true

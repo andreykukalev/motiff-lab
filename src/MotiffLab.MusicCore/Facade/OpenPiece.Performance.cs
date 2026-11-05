@@ -40,6 +40,19 @@ internal sealed partial class OpenPiece
     private PerformanceComparison Compare(SavedPerformance performance) =>
         PerformanceComparison.Compare(Printed, Piece.Meter, performance.Notes(), performance.Alignment());
 
+    /// <summary>
+    /// The version in the score's time for the comparison layer (0022, section 4): what agrees as printed, what it adds
+    /// on the grid, bars that do not line up empty. Its likely artefacts are left out unless asked for; the ids of the
+    /// notes it adds never include them.
+    /// </summary>
+    private PerformanceLayerNotes VersionLayer(SavedPerformance performance, bool artefacts)
+    {
+        PerformanceLayerNotes layer = PerformanceLayer.Of(Compare(performance), performance.Notes(), Printed, Piece.Meter);
+        HashSet<string> likely = [.. layer.Artefacts];
+        IReadOnlyList<string> added = [.. layer.Added.Where(id => !likely.Contains(id))];
+        return artefacts ? layer with { Added = added } : new([.. layer.Notes.Where(note => !likely.Contains(note.Id))], added, []);
+    }
+
     private string PerformanceAnswer(SavedPerformance performance)
     {
         PerformanceComparison comparison = Compare(performance);

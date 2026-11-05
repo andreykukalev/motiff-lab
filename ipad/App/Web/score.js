@@ -30,7 +30,9 @@
 //
 // Another version of the piece (0022) marks the bars it has otherwise with a plum label above the bar's top left, over the
 // phrase bracket and before any Check flag or note on the bar, and tints the printed notes it does not have
-// (`performance`), as the web app's score view does; a tap on a label gives its bar to Swift.
+// (`performance`), as the web app's score view does; a tap on a label gives its bar to Swift. With its comparison layer
+// engraved above every system, the notes it adds are plum and its likely artefacts grey, and so above the phrase on the
+// card in focus.
 //
 // While the piece plays, the notes sounding turn cobalt on the page and on the card in focus (`playing`), and the page
 // follows: the system playing is kept below the bar, so the next one shows beneath it (0018 section 7). A scroll by
@@ -73,7 +75,7 @@ const LAYERS = ["ink", "notes", "bookmarks", "analysis", "check"];
 /** After the player scrolls by hand, playback leaves the page where they put it for this long before following again (score-view.ts). */
 const FOLLOW_PAUSE_MS = 4000;
 
-const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], phrases: [], bookmarks: [], notes: [], highlights: [], checks: [], performance: [], unheard: new Set(), pen: false, focus: false, ringed: new Set() };
+const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], phrases: [], bookmarks: [], notes: [], highlights: [], checks: [], performance: [], unheard: new Set(), added: new Set(), artefacts: new Set(), pen: false, focus: false, ringed: new Set() };
 let nextId = 0;
 
 /** Shows the pages and reads where their bars are; `timemap` is Verovio's, with measures and rests. */
@@ -293,26 +295,38 @@ function checks({ flags }) {
  * the printed notes it does not have, tinted in place (0022, section 4); empty lists draw none. Given to Swift as
  * `performance`; named otherwise here, where `performance` is the clock.
  */
-function showVersion({ markers, unheard }) {
+function showVersion({ markers, unheard, added, artefacts }) {
     state.performance = markers ?? [];
     state.unheard = new Set(unheard ?? []);
+    state.added = new Set(added ?? []);
+    state.artefacts = new Set(artefacts ?? []);
     placeNotes();
     tintUnheard();
     return document.querySelectorAll("body > .perf-marker").length;
 }
 
-/** The printed notes the other version does not have, in the warning colour, wherever the page draws them. */
+/**
+ * The printed notes the other version does not have in the warning colour, and on its layer the notes it adds in plum and
+ * its likely artefacts in grey, wherever the page draws them.
+ */
 function tintUnheard() {
-    for (const old of document.querySelectorAll(".not-heard")) {
-        old.classList.remove("not-heard");
+    const host = document.getElementById("pages");
+    tint(host, state.timeline, state.unheard, "not-heard");
+    tint(host, state.timeline, state.added, "version-added");
+    tint(host, state.timeline, state.artefacts, "version-artefact");
+}
+
+/** Gives the notes engraved in `root` with these ids, or a later piece of one tied over ("…-2"), the class; none lose it. */
+function tint(root, timeline, ids, name) {
+    for (const old of root.querySelectorAll(`.${name}`)) {
+        old.classList.remove(name);
     }
-    const timeline = state.timeline;
-    if (timeline === null || state.unheard.size === 0) {
+    if (timeline === null || ids.size === 0) {
         return;
     }
     for (const span of timeline.spans) {
-        if (state.unheard.has(span.id) || state.unheard.has(span.id.replace(/-\d+$/, ""))) {
-            document.getElementById(span.id)?.classList.add("not-heard");
+        if (ids.has(span.id) || ids.has(span.id.replace(/-\d+$/, ""))) {
+            root.querySelector(`#${CSS.escape(span.id)}`)?.classList.add(name);
         }
     }
 }
@@ -677,6 +691,7 @@ function showCard({ pages, timemap, start, ossias }) {
     card.pages = (pages ?? []).map((svg, index) => readPage(svg, index + 1));
     card.ossias = ossias ?? [];
     placeOssias();
+    tint(cardScore, card.timeline, new Set(card.ossias.flatMap((ossia) => ossia.added ?? [])), "version-added");
     return card.timeline.spans.length;
 }
 

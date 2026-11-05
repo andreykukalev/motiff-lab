@@ -274,6 +274,8 @@ struct ScoreScreen: View {
         insights.variationLeft = { [weak heard, weak shown] in
             heard?.setVariation(nil)
             shown?.ossia = nil
+            // In focus, another version takes the variation's place again.
+            if let version = shown?.focusVersion, version.sounds { heard?.setVariation(version.notes, version: true) }
         }
         roll.barsPicked = { [weak shown] first, last, extend in shown?.selectBars(first, last, extend: extend) }
         roll.cleared = { [weak shown] in shown?.clearSelection() }
@@ -366,6 +368,15 @@ struct ScoreScreen: View {
     /// What follows the selection, the player and the fact chosen.
     private func following(_ content: some View) -> some View {
         content
+            .onChange(of: score.focusVersion) { _, version in
+                // In focus with no way tried, the other version is there to hear in the variation's place (0022, section 5).
+                guard insights.trial == nil else { return }
+                if let version, version.sounds {
+                    player.setVariation(version.notes, version: true)
+                } else if player.secondIsVersion {
+                    player.setVariation(nil)
+                }
+            }
             .onChange(of: insights.chosen) { _, chosen in
                 let places = chosen?.places ?? []
                 score.highlight(places, scroll: player.state != .playing)
@@ -768,7 +779,8 @@ struct SelectionMenu: View {
 
 /// The focus bar (0018 section 4, the web app's focus bar): Back to the page with its word, where the phrase is, and Play.
 /// Escape on a keyboard goes back too. While a variation is tried, Original / Variation / Alternate choose what sounds;
-/// Reading / As played comes with transcriptions on the iPad.
+/// with another version over the phrase and no variation, Notes / Version / Alternate, and Take into the score or
+/// Restore these notes for the phrase's bars (0022, section 5). Reading / As played comes with transcriptions on the iPad.
 struct FocusBar: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var player: Player
@@ -799,7 +811,17 @@ struct FocusBar: View {
                 .truncationMode(.tail)
             Spacer(minLength: CGFloat.ds("s-2"))
             if player.hasVariation, let variationRange {
-                HearingSwitch(player: player, range: variationRange, text: text)
+                HearingSwitch(player: player, range: variationRange, text: text, version: player.secondIsVersion ? score.focusVersion?.name : nil)
+            }
+            if let version = score.focusVersion, !player.hasVariation || player.secondIsVersion {
+                if !version.differing.isEmpty {
+                    Button(text["performance.take"]) { score.takeFocusBars() }
+                        .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
+                }
+                if !version.taken.isEmpty {
+                    Button(text["performance.restore"]) { score.restoreFocusBars() }
+                        .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
+                }
             }
             Button {
                 player.toggle()

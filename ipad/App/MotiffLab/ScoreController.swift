@@ -87,7 +87,8 @@ final class ScoreController: NSObject, ObservableObject {
     @Published private(set) var hiddenLayers: Set<String> = []
     /// The piece's own settings, by id, as the project keeps them: the Settings sheet lists them, to clear in one tap.
     @Published private(set) var pieceOverrides: [String: String] = [:]
-    static let layers = ["ink", "notes", "bookmarks", "analysis", "check"]
+    /// The layers of marks, then another version's comparison layer and its likely artefacts (0022, section 4).
+    static let layers = ["ink", "notes", "bookmarks", "analysis", "check", "version", "artefacts"]
     /// The bars a scan or a transcription is unsure of (0018 section 9), as music-core answered the last Check call.
     @Published private(set) var check = CheckShelf()
     /// A Check flag tapped on the score: the screen opens the Check drawer on its bar.
@@ -100,10 +101,49 @@ final class ScoreController: NSObject, ObservableObject {
     var versionPicked: (@MainActor (Int) -> Void)?
     /// The piece's notes changed (bars of another version taken or restored): the player and the roll load them again.
     var notesChanged: (@MainActor () -> Void)?
+    /// The version shown, for the phrase in focus with no variation open: what Version plays, its name, and the bars of
+    /// the phrase it has otherwise or that were taken from it (0022, section 5); nil out of focus or without a version.
+    @Published private(set) var focusVersion: FocusVersion?
 
-    /// The layers this piece has: Check only for a piece with flags.
+    struct FocusVersion: Equatable {
+        var id: String
+        var name: String
+        /// The version's notes over the whole piece in the score's time, for the player's second source.
+        var notes: [PlaybackNote]
+        /// Whether any of them start in the phrase: only then can it be heard there.
+        var sounds: Bool
+        var differing: [Int]
+        var taken: [Int]
+    }
+
+    /// What the page's engraving holds above the systems: the version's comparison layer and whether with its artefacts.
+    private struct LayerEngraved: Equatable {
+        var version: String?
+        var artefacts = false
+    }
+    private var layerEngraved = LayerEngraved()
+    /// The engraved ids of the notes the layer's version adds, and of its likely artefacts, to tint on the page.
+    private var layerAdded: [String] = []
+    private var layerArtefacts: [String] = []
+    /// The version's notes as music-core gives them to play (`playback` of `version`), for the version they are of.
+    private var versionPlayback: (id: String, notes: [PlaybackNote])?
+
+    /// The layers this piece has: Check only for a piece with flags, the comparison layer with a version shown, and its
+    /// likely artefacts while that layer is on and the version has some.
     var pieceLayers: [String] {
-        Self.layers.filter { $0 != "check" || check.hasFlags }
+        Self.layers.filter { layer in
+            switch layer {
+            case "check": check.hasFlags
+            case "version": versions.shown != nil
+            case "artefacts": versions.shown != nil && !hiddenLayers.contains("version") && versions.artefactCount > 0
+            default: true
+            }
+        }
+    }
+
+    /// What a layer is called in the list: the artefacts with their count.
+    func layerName(_ layer: String) -> String {
+        layer == "artefacts" ? text.format("layers.artefactsCount", String(versions.artefactCount)) : text["layers.\(layer)"]
     }
 
     /// A margin note being written: a new one (no id) or one already kept, over its bars.
@@ -195,8 +235,14 @@ final class ScoreController: NSObject, ObservableObject {
     /// Shows a piece's pages and its marks; again when the appearance changes.
     func show(_ piece: OpenPiece, dark: Bool) {
         guard self.piece?.id != piece.id || self.dark != dark || !shown else { return }
-        // The same piece keeps the pages engraved here after its notes changed (bars of another version taken).
-        if self.piece?.id != piece.id { self.piece = piece }
+        // The same piece keeps the pages engraved here after its notes changed or its comparison layer came on.
+        if self.piece?.id != piece.id {
+            self.piece = piece
+            versions = VersionShelf()
+            versionStatus = nil
+            layerEngraved = LayerEngraved()
+            versionPlayback = nil
+        }
         self.dark = dark
         if pageReady { Task { await render() } }
     }
@@ -312,7 +358,10 @@ final class ScoreController: NSObject, ObservableObject {
         selection = chosen
         await showSelection()
         await updatePlayRange()
-        if focused { await engraveCard() }
+        if focused {
+            await engraveCard()
+            await updateFocusVersion()
+        }
     }
 
     func clearSelection() {
@@ -492,6 +541,7 @@ final class ScoreController: NSObject, ObservableObject {
                 _ = await MusicCore.run { MusicCore.call(piece: id, "settings.override", request) }
             }
             await applyLayers()
+            await applyVersionLayer()
         }
     }
 
@@ -543,6 +593,7 @@ final class ScoreController: NSObject, ObservableObject {
         Task {
             await applyLayers()
             await applyLevel()
+            await applyVersionLayer()
         }
     }
 
@@ -718,18 +769,39 @@ final class ScoreController: NSObject, ObservableObject {
         await drawVersions()
     }
 
-    /// The notes changed (bars taken or restored): the score is engraved again and drawn with its marks, and the player
-    /// and the roll take the new notes.
+    /// The notes changed (bars taken or restored): the player and the roll take the new notes, and the score is engraved
+    /// again and drawn with its marks.
     private func notesDidChange() async {
+        versionPlayback = nil
+        notesChanged?()
+        await engraveScore()
+    }
+
+    /// The comparison layer as the layers ask (0022, section 4): the version shown on small staves above every system
+    /// while its layer is on, its likely artefacts too while theirs is; the score is engraved again when that changes.
+    private func applyVersionLayer() async {
+        let version = hiddenLayers.contains("version") ? nil : versions.shownId
+        let wanted = LayerEngraved(version: version, artefacts: version != nil && !hiddenLayers.contains("artefacts"))
+        guard wanted != layerEngraved else { return }
+        await engraveScore()
+    }
+
+    /// Engraves the score again, with the comparison layer when it is on, and draws it with its marks.
+    private func engraveScore() async {
         guard let piece else { return }
         let id = piece.id
         let title = piece.title
-        let engraved = await MusicCore.run { Engraver.engrave(piece: id, title: title) }
+        let version = hiddenLayers.contains("version") ? nil : versions.shownId
+        let layer = LayerEngraved(version: version, artefacts: version != nil && !hiddenLayers.contains("artefacts"))
+        let engraved = await MusicCore.run { Engraver.engrave(piece: id, title: title, version: layer.version, artefacts: layer.artefacts) }
         switch engraved {
         case .success(let engraving):
             self.piece = OpenPiece(id: id, title: title, pages: engraving.pages, timemap: engraving.timemap, file: piece.file)
-            notesChanged?()
+            layerEngraved = layer
+            layerAdded = engraving.ossias.first?.added ?? []
+            layerArtefacts = engraving.ossias.first?.artefacts ?? []
             await render()
+            if focused { await engraveCard() }
         case .failure(let error):
             problem = error.message
         }
@@ -744,8 +816,49 @@ final class ScoreController: NSObject, ObservableObject {
             guard let span = bar.span else { return nil }
             return ["bar": bar.bar, "tick": span.lowerBound, "text": bar.marker, "label": text.format("performance.markerLabel", String(bar.bar), name, bar.marker)]
         }
-        let data: [String: Any] = ["markers": markers, "unheard": differing.flatMap(\.notHeard)]
+        let layered = layerEngraved.version != nil && layerEngraved.version == versions.shownId
+        let data: [String: Any] = [
+            "markers": markers, "unheard": differing.flatMap(\.notHeard),
+            "added": layered ? layerAdded : [], "artefacts": layered ? layerArtefacts : [],
+        ]
         _ = try? await webView.callAsyncJavaScript("return motiff.performance(data)", arguments: ["data": data], contentWorld: .page)
+        await updateFocusVersion()
+        await applyVersionLayer()
+    }
+
+    /// Take into the score in focus: every bar of the phrase the version has otherwise, at once.
+    func takeFocusBars() {
+        guard let focusVersion, !focusVersion.differing.isEmpty else { return }
+        let bars = focusVersion.differing
+        changeVersion("performance.take", ["bars": bars], status: text.format("performance.takenBars", bars.map(String.init).joined(separator: ", "), focusVersion.name), notes: true)
+    }
+
+    /// Restore these notes in focus: every bar of the phrase taken from the version comes back as it was.
+    func restoreFocusBars() {
+        guard let focusVersion, !focusVersion.taken.isEmpty else { return }
+        let bars = focusVersion.taken
+        changeVersion("performance.restore", ["bars": bars], status: text.format("performance.restoredBars", bars.map(String.init).joined(separator: ", ")), notes: true)
+    }
+
+    /// The version for the phrase in focus: its notes to hear, and the bars to take or restore.
+    private func updateFocusVersion() async {
+        guard focused, let piece, let selection, let shown = versions.shown else {
+            focusVersion = nil
+            return
+        }
+        if versionPlayback?.id != shown.id {
+            let request = Self.json(["of": "version", "id": shown.id]) ?? "{}"
+            let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "playback", request) }
+            versionPlayback = (shown.id, PlaybackScore.read(answer)?.notes ?? [])
+        }
+        guard focused, self.selection == selection, versions.shownId == shown.id, let notes = versionPlayback?.notes else { return }
+        let bars = selection.firstBar...selection.lastBar
+        focusVersion = FocusVersion(
+            id: shown.id, name: shown.name, notes: notes,
+            sounds: notes.contains { $0.onset >= selection.onset && $0.onset < selection.end },
+            differing: versions.differing.map(\.bar).filter { bars.contains($0) },
+            taken: versions.taken.map(\.bar).filter { bars.contains($0) }
+        )
     }
 
     // MARK: - Phrase focus
@@ -762,6 +875,7 @@ final class ScoreController: NSObject, ObservableObject {
             if let options = answer?["options"] as? [String: Any] { cardOptions = Self.json(options) }
             await updatePlayRange()
             await engraveCard()
+            await updateFocusVersion()
         }
     }
 
@@ -769,6 +883,7 @@ final class ScoreController: NSObject, ObservableObject {
     func leaveFocus() {
         guard focused else { return }
         focused = false
+        focusVersion = nil
         setPageStill(false)
         Task {
             _ = try? await webView.callAsyncJavaScript("return motiff.focus(data)", arguments: ["data": ["open": false]], contentWorld: .page)
@@ -813,14 +928,18 @@ final class ScoreController: NSObject, ObservableObject {
         let id = piece.id
         let name = ossia
         let withOssia = name != nil
-        let engraved = await MusicCore.run { Engraver.engraveCard(piece: id, firstBar: first, lastBar: last, options: options, ossia: withOssia) }
-        // Stepped on, left or the variation changed while it engraved: the newer call shows its own.
-        guard focused, self.selection == selection, ossia == name else { return }
+        // Without a variation, another version of the piece stands above as the performer has it (0022, section 5).
+        let version = withOssia ? nil : versions.shown
+        let engraved = await MusicCore.run {
+            Engraver.engraveCard(piece: id, firstBar: first, lastBar: last, options: options, ossia: withOssia, version: version?.id)
+        }
+        // Stepped on, left, or the variation or the version changed while it engraved: the newer call shows its own.
+        guard focused, self.selection == selection, ossia == name, withOssia || versions.shown == version else { return }
         switch engraved {
         case .success(let card):
             let timemap = (try? JSONSerialization.jsonObject(with: Data(card.timemap.utf8))) ?? []
-            let label = name.map { text.format("focus.ossia", $0) } ?? ""
-            let ossias = card.ossias.map { ["staves": $0.staves, "prefix": $0.prefix, "label": label] as [String: Any] }
+            let label = name.map { text.format("focus.ossia", $0) } ?? version.map { text.format("focus.version", $0.name) } ?? ""
+            let ossias = card.ossias.map { ["staves": $0.staves, "prefix": $0.prefix, "label": label, "added": $0.added] as [String: Any] }
             _ = try? await webView.callAsyncJavaScript(
                 "return motiff.card(data)", arguments: ["data": ["pages": card.pages, "timemap": timemap, "start": selection.onset, "ossias": ossias]], contentWorld: .page
             )
@@ -949,10 +1068,10 @@ final class ScoreController: NSObject, ObservableObject {
             await loadPhrases(piece)
             await drawBookmarks()
             await loadCheck(piece)
-            await loadVersions(piece)
             await loadPieceSettings(piece)
             await applyLayers()
             await applyLevel()
+            await loadVersions(piece)
             if !ringed.isEmpty { await showRings(scroll: false) }
         } catch {
             problem = error.localizedDescription
