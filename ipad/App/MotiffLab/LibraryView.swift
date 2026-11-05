@@ -101,7 +101,7 @@ struct LibraryView: View {
                     .foregroundStyle(Color.ds("ink"))
                     .accessibilityAddTraits(.isHeader)
                 Text(text["home.tagline"])
-                    .font(Font.custom("Source Serif 4", size: 17, relativeTo: .body).italic())
+                    .font(DesignTokens.font(display: true, weight: 400, size: 17).italic())
                     .foregroundStyle(Color.ds("ink-2"))
             }
             Spacer(minLength: CGFloat.ds("s-4"))
@@ -286,7 +286,7 @@ struct PieceCard: View {
                 .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
                     Text(entry.title)
-                        .font(Font.custom("Source Serif 4", size: 19, relativeTo: .title3).weight(.medium))
+                        .font(DesignTokens.font(display: true, weight: 500, size: 19, relativeTo: .title3))
                         .foregroundStyle(Color.ds("ink"))
                         .accessibilityAddTraits(.isHeader)
                     Text(meta)

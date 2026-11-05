@@ -76,10 +76,40 @@ enum DesignTokens {
     }
 
     /// Registers the kit's fonts (Source Sans 3 and Source Serif 4) for the app, once, before the first screen.
-    static func registerFonts(bundle: Bundle = .main) {
+    static func registerFonts() {
+        _ = faces
+    }
+
+    /// The kit's faces by PostScript name, keyed "sans-500" or "serif-400" from their file names
+    /// (`source-sans-3-latin-500-normal.woff2`). The files name their family oddly (Source Sans 3 comes as
+    /// "Source Sans 3 ExtraLight", cut from the variable font), so the app asks for a face by its exact name.
+    static let faces: [String: String] = register(bundle: .main)
+
+    static func register(bundle: Bundle) -> [String: String] {
         let urls = bundle.urls(forResourcesWithExtension: "woff2", subdirectory: "fonts") ?? []
-        guard !urls.isEmpty else { return }
+        guard !urls.isEmpty else { return [:] }
         CTFontManagerRegisterFontURLs(urls as CFArray, .process, true, nil)
+        var found: [String: String] = [:]
+        for url in urls {
+            let file = url.deletingPathExtension().lastPathComponent
+            guard let weight = file.split(separator: "-").compactMap({ Int($0) }).first(where: { $0 >= 100 }),
+                  let descriptors = CTFontManagerCreateFontDescriptorsFromURL(url as CFURL) as? [CTFontDescriptor],
+                  let descriptor = descriptors.first,
+                  let name = CTFontDescriptorCopyAttribute(descriptor, kCTFontNameAttribute) as? String else { continue }
+            found["\(file.hasPrefix("source-serif") ? "serif" : "sans")-\(weight)"] = name
+        }
+        return found
+    }
+
+    /// One of the kit's faces at a size that grows with the reader's text size; the system face when the kit's is missing.
+    /// The kit has 400, 500 and 600: a weight in between takes the nearest, and anything bolder takes 600.
+    static func font(display: Bool = false, weight: Int, size: CGFloat, relativeTo style: Font.TextStyle = .body) -> Font {
+        let cut = weight < 450 ? 400 : weight < 550 ? 500 : 600
+        if let name = faces["\(display ? "serif" : "sans")-\(cut)"] {
+            return Font.custom(name, size: size, relativeTo: style)
+        }
+        let fallback: Font.Weight = cut == 400 ? .regular : cut == 500 ? .medium : .semibold
+        return Font.system(size: size, weight: fallback, design: display ? Font.Design.serif : Font.Design.default)
     }
 }
 
@@ -103,20 +133,9 @@ struct TypeToken: Equatable, Sendable {
         return TypeToken(weight: weight, size: size, lineHeight: line, display: text.contains("--font-display"))
     }
 
-    var family: String { display ? "Source Serif 4" : "Source Sans 3" }
-
-    var fontWeight: Font.Weight {
-        switch weight {
-        case ..<450: .regular
-        case ..<550: .medium
-        case ..<650: .semibold
-        default: .bold
-        }
-    }
-
     /// The face at the token's size, growing with the reader's text size.
     var font: Font {
-        Font.custom(family, size: size, relativeTo: display ? .title : .body).weight(fontWeight)
+        DesignTokens.font(display: display, weight: weight, size: size, relativeTo: display ? .title : .body)
     }
 }
 
@@ -180,7 +199,7 @@ struct DSButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(Font.custom("Source Sans 3", size: compact ? 13 : 15, relativeTo: .body).weight(.medium))
+            .font(DesignTokens.font(weight: 500, size: compact ? 13 : 15))
             .foregroundStyle(foreground)
             .padding(.horizontal, compact ? CGFloat.ds("s-3") : CGFloat.ds("s-4"))
             .frame(minHeight: compact ? CGFloat.ds("h-compact") : CGFloat.ds("h-control"))
@@ -221,7 +240,7 @@ struct Tag: View {
 
     var body: some View {
         Text(text)
-            .font(Font.custom("Source Sans 3", size: 12, relativeTo: .caption).weight(.semibold))
+            .font(DesignTokens.font(weight: 600, size: 12, relativeTo: .caption))
             .foregroundStyle(foreground)
             .padding(.horizontal, CGFloat.ds("s-2"))
             .frame(minHeight: 22)

@@ -35,8 +35,11 @@ final class DesignTests: XCTestCase {
 
     func testTheKitsFacesAreRegistered() {
         DesignTokens.registerFonts()
-        XCTAssertTrue(UIFont.familyNames.contains("Source Sans 3"), "\(UIFont.familyNames)")
-        XCTAssertTrue(UIFont.familyNames.contains("Source Serif 4"))
+        for face in ["sans-400", "sans-500", "sans-600", "serif-400", "serif-500", "serif-600"] {
+            let name = DesignTokens.faces[face] ?? ""
+            XCTAssertNotNil(UIFont(name: name, size: 15), "\(face) is not registered: \(DesignTokens.faces)")
+        }
+        XCTAssertEqual(DesignTokens.faces["serif-500"], "SourceSerif4-Medium")
     }
 
     func testCountsTakeTheLanguagesPluralForms() {
