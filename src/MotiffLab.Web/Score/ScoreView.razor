@@ -79,6 +79,8 @@ else if (_loading && !HoldHeight)
     private IReadOnlyList<ScoreMarginNote>? _shownNotes;
     private IReadOnlyList<ScoreHighlightMark>? _shownMarkHighlights;
     private IReadOnlyList<ScoreCheckFlag>? _shownChecks;
+    private IReadOnlyList<ScorePerformanceMarker>? _shownPerformance;
+    private IReadOnlyList<HighlightPlace>? _shownUnheard;
     private IReadOnlyList<string>? _shownHiddenLayers;
     private IReadOnlyList<HighlightPlace>? _shownHighlight;
     private IReadOnlyList<HighlightPlace>? _shownPointed;
@@ -133,6 +135,18 @@ else if (_loading && !HoldHeight)
     /// <summary>A Check flag was tapped: its bar's number.</summary>
     [Parameter]
     public EventCallback<int> CheckPicked { get; set; }
+
+    /// <summary>The bars a performance plays differently (decision record 0022, section 4), each with a plum label; null or empty draws none.</summary>
+    [Parameter]
+    public IReadOnlyList<ScorePerformanceMarker>? PerformanceMarkers { get; set; }
+
+    /// <summary>The printed notes the performance did not play, tinted in place; null or empty tints none.</summary>
+    [Parameter]
+    public IReadOnlyList<HighlightPlace>? Unheard { get; set; }
+
+    /// <summary>A performance's marker was tapped: its bar's number.</summary>
+    [Parameter]
+    public EventCallback<int> PerformancePicked { get; set; }
 
     /// <summary>The layers of marks hidden for a clean page: "ink", "notes", "bookmarks", "analysis".</summary>
     [Parameter]
@@ -297,6 +311,11 @@ else if (_loading && !HoldHeight)
                 await ShowMarksAsync(_view);
             }
 
+            if (!ReferenceEquals(PerformanceMarkers, _shownPerformance) || !ReferenceEquals(Unheard, _shownUnheard))
+            {
+                await ShowPerformanceAsync(_view);
+            }
+
             if (!ReferenceEquals(HiddenLayers, _shownHiddenLayers))
             {
                 await ShowLayersAsync(_view);
@@ -335,6 +354,7 @@ else if (_loading && !HoldHeight)
             await ShowSelectionAsync(_view);
             await ShowHighlightAsync(_view);
             await ShowPointedAsync(_view);
+            await ShowPerformanceAsync(_view);
             _error = null;
         }
         catch (JSException exception)
@@ -344,6 +364,13 @@ else if (_loading && !HoldHeight)
 
         _loading = false;
         StateHasChanged();
+    }
+
+    private async Task ShowPerformanceAsync(IJSObjectReference view)
+    {
+        _shownPerformance = PerformanceMarkers;
+        _shownUnheard = Unheard;
+        await view.InvokeVoidAsync("setPerformance", (object)(PerformanceMarkers ?? []).ToArray(), (object)(Unheard ?? []).ToArray());
     }
 
     private async Task ShowRangeAsync(IJSObjectReference view)
@@ -521,6 +548,10 @@ else if (_loading && !HoldHeight)
     /// <summary>Called by the script when a margin note's marker is tapped.</summary>
     [JSInvokable]
     public Task OnNoteMarkerClicked(string id) => NoteMarkerPicked.InvokeAsync(id);
+
+    /// <summary>Called by the script when a performance's marker is tapped.</summary>
+    [JSInvokable]
+    public Task OnPerformanceMarkerClicked(int bar) => PerformancePicked.InvokeAsync(bar);
 
     /// <summary>Called by the script when a Check flag is tapped.</summary>
     [JSInvokable]

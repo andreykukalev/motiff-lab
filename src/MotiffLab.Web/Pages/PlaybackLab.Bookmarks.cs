@@ -333,6 +333,7 @@ public partial class PlaybackLab
         {
             _insightsOpen = false;
             _checkOpen = false;
+            _performanceOpen = false;
             if (_contentsTab == ContentsTab.Pages)
             {
                 await LoadPagesAsync();

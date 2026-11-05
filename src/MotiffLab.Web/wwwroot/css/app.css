@@ -1321,6 +1321,14 @@ h1, h2, .app-title strong {
     right: 5%;
 }
 
+/* A printed note the performance did not play (decision record 0022, section 4): the warning text colour, as a reason to
+   check, never the amber fill of the player's own marks. Playing, a fact's places and pointing still show over it. */
+.score g.note.not-heard {
+    fill: var(--warning);
+    stroke: var(--warning);
+    color: var(--warning);
+}
+
 /* The places of the fact chosen on Understand (#25): blue and at full strength, with a solid box round each notehead or rest,
    so they differ from playing (colour only) by more than colour. The playing colour still shows over them. */
 .score g.note.highlight, .score g.rest.highlight {
@@ -3921,6 +3929,63 @@ body:has(.workspace) .site-footer {
 .lab .score button.check-flag:focus-visible {
     outline: 2px dotted var(--accent);
     outline-offset: 1px;
+}
+
+/* A bar a performance plays differently (decision record 0022, section 4): a small plum label above the bar's top left, what
+   the app found rather than what the player marked; a tap selects the bar and opens the Performance drawer on it. */
+.lab .score button.perf-marker {
+    position: absolute;
+    z-index: 2;
+    height: 20px;
+    min-height: 0;
+    padding: 0 var(--s-2);
+    border: 0;
+    border-radius: var(--r-xs);
+    background: var(--plum-tint);
+    color: var(--plum);
+    font: var(--t-overline);
+    line-height: 20px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+}
+
+.lab .score button.perf-marker:focus-visible {
+    outline: 2px dotted var(--accent);
+    outline-offset: 1px;
+}
+
+.workspace .perf-sheet .var-chips {
+    align-self: stretch;
+    background: transparent;
+    padding: 0;
+}
+
+.workspace .perf-sheet .field {
+    display: grid;
+    gap: var(--s-1);
+}
+
+.workspace .perf-sheet .field input {
+    box-sizing: border-box;
+    min-height: var(--h-control);
+    padding: 0 var(--s-3);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-s);
+    background: var(--desk);
+    color: var(--ink);
+    font: var(--t-body);
+}
+
+.workspace .perf-sheet .field input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+.workspace .perf-sheet .tag.plum {
+    background: var(--plum-tint);
+    color: var(--plum);
 }
 
 /* The Check drawer (0018 section 9): where Insights sits, the bars to check with their reasons and actions. */
