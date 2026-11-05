@@ -1,4 +1,4 @@
-import Foundation
+import SwiftUI
 
 /// What a scan server read from a PDF: the MusicXML, the engine that read it and how many pages it read.
 struct ScanResult: Sendable {
@@ -276,7 +276,7 @@ struct ReadNotesPanel: View {
             }
         }
         .padding(CGFloat.ds("s-4"))
-        .frame(width: 360, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.ds("surface"))
     }
 
