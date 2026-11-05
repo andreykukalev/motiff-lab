@@ -33,6 +33,8 @@ struct ScoreScreen: View {
     @State private var contentsOpen = false
     /// The Check drawer (0018 section 9), from More or a flag on the score; where Insights goes, and one of the two.
     @State private var checkOpen = false
+    /// Other versions (0022), from More or a version's label on the score: where Check goes, and one of them at a time.
+    @State private var versionsOpen = false
     /// The Settings sheet (0018 section 10), from More: over the score, which follows each change at once.
     @State private var settingsOpen = false
 
@@ -46,7 +48,7 @@ struct ScoreScreen: View {
             let landscape = screen.size.width > screen.size.height
             page(
                 drawer: rollOpen ? drawerHeight(screen.size) : 0,
-                sheet: insightsOpen || checkOpen ? (landscape ? .side : .bottom(screen.size.height / 2)) : .none,
+                sheet: insightsOpen || checkOpen || versionsOpen ? (landscape ? .side : .bottom(screen.size.height / 2)) : .none,
                 contentsPlace: contentsOpen ? (landscape ? .side : .bottom(screen.size.height / 2)) : .none
             )
         }
@@ -78,9 +80,11 @@ struct ScoreScreen: View {
         (score.selection != nil && settings["guidance.transportPill"] != "playing") || player.state != .stopped
     }
 
-    /// What the sheet over the right holds: Check, or Insights.
+    /// What the sheet over the right holds: Check, Other versions, or Insights.
     @ViewBuilder private func sheetContent() -> some View {
-        if checkOpen {
+        if versionsOpen {
+            VersionsDrawer(score: score, text: text) { versionsOpen = false }
+        } else if checkOpen {
             CheckDrawer(score: score, text: text) { checkOpen = false }
         } else {
             InsightsSheet(insights: insights, score: score, player: player, range: variationRange, text: text) { insightsOpen = false }
@@ -148,7 +152,7 @@ struct ScoreScreen: View {
                     if score.focused {
                         FocusBar(score: score, player: player, variationRange: variationRange, text: text)
                     } else {
-                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, more: $more, rollOpen: $rollOpen, insightsOpen: $insightsOpen, contentsOpen: $contentsOpen, checkOpen: $checkOpen, settingsOpen: $settingsOpen) { dismiss() }
+                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, more: $more, rollOpen: $rollOpen, insightsOpen: $insightsOpen, contentsOpen: $contentsOpen, checkOpen: $checkOpen, versionsOpen: $versionsOpen, settingsOpen: $settingsOpen) { dismiss() }
                     }
                     if score.penOn && !score.focused {
                         PenPalette(score: score, text: text)
@@ -247,6 +251,15 @@ struct ScoreScreen: View {
         // A flag tapped on the score opens Check on its bar.
         let checking = $checkOpen
         score.checkPicked = { _ in checking.wrappedValue = true }
+        // A version's label tapped on the score opens Other versions; bars taken or restored change what plays.
+        let comparing = $versionsOpen
+        score.versionPicked = { _ in comparing.wrappedValue = true }
+        let id = piece.id
+        let rolled = roll
+        score.notesChanged = { [weak heard, weak rolled] in
+            rolled?.notesChanged()
+            Task { await heard?.reload(piece: id) }
+        }
         insights.placeChosen = { [weak heard] tick in heard?.seek(to: tick) }
         // A way tried sounds at once, looping the selection to the variation's end, and the card in focus shows
         // it as the ossia; left, the original sounds again (0018 section 6).
@@ -315,7 +328,7 @@ struct ScoreScreen: View {
             }
     }
 
-    /// Check takes the place of the other drawers and sheets, and goes when one of them opens. The Settings sheet comes
+    /// Check and Other versions take the place of the other drawers and sheets, and go when one of them opens. The Settings sheet comes
     /// over the score, and the score and the roll follow each change at once.
     private func checking(_ content: some View) -> some View {
         content
@@ -331,10 +344,22 @@ struct ScoreScreen: View {
                     insightsOpen = false
                     rollOpen = false
                     contentsOpen = false
+                    versionsOpen = false
+                }
+            }
+            .onChange(of: versionsOpen) { _, open in
+                if open {
+                    insightsOpen = false
+                    rollOpen = false
+                    contentsOpen = false
+                    checkOpen = false
                 }
             }
             .onChange(of: insightsOpen || rollOpen || contentsOpen || score.focused) { _, other in
-                if other { checkOpen = false }
+                if other {
+                    checkOpen = false
+                    versionsOpen = false
+                }
             }
     }
 
@@ -407,6 +432,7 @@ struct ScoreBar: View {
     @Binding var insightsOpen: Bool
     @Binding var contentsOpen: Bool
     @Binding var checkOpen: Bool
+    @Binding var versionsOpen: Bool
     @Binding var settingsOpen: Bool
     let back: () -> Void
     @State private var phrasesOpen = false
@@ -491,6 +517,9 @@ struct ScoreBar: View {
                 MorePanel(score: score, text: text, problem: player.problem ?? score.problem) {
                     more = false
                     checkOpen = true
+                } openVersions: {
+                    more = false
+                    versionsOpen = true
                 } openSettings: {
                     more = false
                     settingsOpen = true
@@ -936,7 +965,7 @@ struct PenPalette: View {
     }
 }
 
-/// More, from the bar: Check for a piece with flags, the layers of marks, what the app owes the piano and the engraving (CC BY 3.0 asks for the piano's
+/// More, from the bar: Check for a piece with flags, Other versions, the layers of marks, what the app owes the piano and the engraving (CC BY 3.0 asks for the piano's
 /// credit wherever it plays), and what went wrong, if anything did. The layout, the PDF and the other tools come with later
 /// steps.
 struct MorePanel: View {
@@ -944,6 +973,7 @@ struct MorePanel: View {
     let text: UIText
     let problem: String?
     let openCheck: () -> Void
+    let openVersions: () -> Void
     let openSettings: () -> Void
 
     var body: some View {
@@ -963,6 +993,15 @@ struct MorePanel: View {
                 .buttonStyle(DSButtonStyle(kind: .quiet))
                 Rectangle().fill(Color.ds("hairline")).frame(height: 1)
             }
+            // Another version of the piece compared with these notes (0022): a cover's MIDI or an official score.
+            Button(action: openVersions) {
+                HStack(spacing: CGFloat.ds("s-2")) {
+                    Icon(name: "mic")
+                    Text(score.versions.entries.isEmpty ? text["performance.add"] : text["performance.title"])
+                }
+            }
+            .buttonStyle(DSButtonStyle(kind: .quiet))
+            Rectangle().fill(Color.ds("hairline")).frame(height: 1)
             LayersList(score: score, text: text)
             Rectangle().fill(Color.ds("hairline")).frame(height: 1)
             Button(action: openSettings) {

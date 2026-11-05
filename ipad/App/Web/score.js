@@ -28,11 +28,15 @@
 // The bars a scan or a transcription is unsure of carry an amber "?" at their top right (`checks`), the notes on the same
 // bar to its left; a tap gives the bar to Swift. Each layer of marks can be hidden for a clean page (`layers`).
 //
+// Another version of the piece (0022) marks the bars it has otherwise with a plum label above the bar's top left, over the
+// phrase bracket and before any Check flag or note on the bar, and tints the printed notes it does not have
+// (`performance`), as the web app's score view does; a tap on a label gives its bar to Swift.
+//
 // While the piece plays, the notes sounding turn cobalt on the page and on the card in focus (`playing`), and the page
 // follows: the system playing is kept below the bar, so the next one shows beneath it (0018 section 7). A scroll by
 // hand wins for a few seconds, as on the web, and the next Play follows again.
 import { cardLayout } from "../score/phrase-card.js";
-import { ScoreGeometry, bookmarkLevels, readPage, staffFrames } from "../score/score-geometry.js";
+import { BRACKET_LIFT, ScoreGeometry, bookmarkLevels, readPage, staffFrames } from "../score/score-geometry.js";
 import { SelectionLayer } from "../score/selection-layer.js";
 import { ScoreTimeline, highlightedIds } from "../score/score-timeline.js";
 import { HIGHLIGHTER_SIZE, PEN_SIZE, anchorMark, framesByTick, outlinePath, placeMark, touches } from "../score/pencil-marks.js";
@@ -57,13 +61,19 @@ const BOOKMARK_REACH = 120;
 const NOTE_OFFSET_X = 4;
 const NOTE_OFFSET_Y = 22;
 
+/** Another version's label: 20 px of plum in a 24 px target, at least wide enough for a count and at most this wide. */
+const PERFORMANCE_HEIGHT = 20;
+const PERFORMANCE_TARGET = 24;
+const PERFORMANCE_MIN_WIDTH = 36;
+const PERFORMANCE_MAX_WIDTH = 180;
+
 /** The layers of marks that can be hidden: the pencil, notes and highlights, bookmarks, the analysis (brackets, rings) and Check. */
 const LAYERS = ["ink", "notes", "bookmarks", "analysis", "check"];
 
 /** After the player scrolls by hand, playback leaves the page where they put it for this long before following again (score-view.ts). */
 const FOLLOW_PAUSE_MS = 4000;
 
-const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], phrases: [], bookmarks: [], notes: [], highlights: [], checks: [], pen: false, focus: false, ringed: new Set() };
+const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], phrases: [], bookmarks: [], notes: [], highlights: [], checks: [], performance: [], unheard: new Set(), pen: false, focus: false, ringed: new Set() };
 let nextId = 0;
 
 /** Shows the pages and reads where their bars are; `timemap` is Verovio's, with measures and rests. */
@@ -81,6 +91,7 @@ function show({ pages, timemap, dark }) {
     state.svgs = pages;
     state.pages = pages.map((svg, index) => readPage(svg, index + 1));
     state.timeline = ScoreTimeline.fromTimemap(timemap);
+    tintUnheard();
     return layout();
 }
 
@@ -277,8 +288,36 @@ function checks({ flags }) {
     return document.querySelectorAll("body > .check-flag").length;
 }
 
+/**
+ * The bars another version has otherwise, each { bar, tick, text, label }, as plum labels above the bars, and the ids of
+ * the printed notes it does not have, tinted in place (0022, section 4); empty lists draw none.
+ */
+function performance({ markers, unheard }) {
+    state.performance = markers ?? [];
+    state.unheard = new Set(unheard ?? []);
+    placeNotes();
+    tintUnheard();
+    return document.querySelectorAll("body > .perf-marker").length;
+}
+
+/** The printed notes the other version does not have, in the warning colour, wherever the page draws them. */
+function tintUnheard() {
+    for (const old of document.querySelectorAll(".not-heard")) {
+        old.classList.remove("not-heard");
+    }
+    const timeline = state.timeline;
+    if (timeline === null || state.unheard.size === 0) {
+        return;
+    }
+    for (const span of timeline.spans) {
+        if (state.unheard.has(span.id) || state.unheard.has(span.id.replace(/-\d+$/, ""))) {
+            document.getElementById(span.id)?.classList.add("not-heard");
+        }
+    }
+}
+
 function placeNotes() {
-    for (const old of document.querySelectorAll("body > .marker, body > .hl, body > .check-flag")) {
+    for (const old of document.querySelectorAll("body > .marker, body > .hl, body > .check-flag, body > .perf-marker")) {
         old.remove();
     }
     const geometry = state.geometry;
@@ -319,6 +358,13 @@ function placeNotes() {
         flag.style.top = `${place.y - NOTE_OFFSET_Y}px`;
         document.body.append(flag);
     }
+    const flags = [];
+    for (const check of state.checks) {
+        const place = geometry.flag(check.tick);
+        if (place !== undefined) {
+            flags.push({ left: place.x - NOTE_OFFSET_X - 24, top: place.y - NOTE_OFFSET_Y, system: geometry.barAt(check.tick)?.system ?? -1 });
+        }
+    }
     for (const note of state.notes) {
         const place = geometry.flag(note.tick);
         if (place === undefined) {
@@ -336,7 +382,40 @@ function placeNotes() {
         marker.style.left = `${place.x - NOTE_OFFSET_X - 24 - index * 28}px`;
         marker.style.top = `${place.y - NOTE_OFFSET_Y}px`;
         document.body.append(marker);
+        flags.push({ left: place.x - NOTE_OFFSET_X - 24 - index * 28, top: place.y - NOTE_OFFSET_Y, system: geometry.barAt(note.tick)?.system ?? -1 });
     }
+    placePerformance(geometry, flags);
+}
+
+/**
+ * Another version's labels above the bars' top left, over the phrase bracket: one may run on over the next bar, up to the
+ * next label, Check flag or note on the same system, and goes up above the flags when a narrow bar leaves it too little room.
+ */
+function placePerformance(geometry, flags) {
+    const placed = state.performance.map((marker) => ({ marker, bar: geometry.barAt(marker.tick) })).filter((entry) => entry.bar !== undefined);
+    placed.forEach(({ marker, bar }, index) => {
+        const next = placed[index + 1];
+        let room = next !== undefined && next.bar.system === bar.system ? next.bar.left - bar.left - NOTE_OFFSET_X * 2 : PERFORMANCE_MAX_WIDTH;
+        const ahead = flags.filter((flag) => flag.system === bar.system && flag.left > bar.left && flag.left - bar.left - NOTE_OFFSET_X * 2 < room);
+        const flagRoom = Math.min(...ahead.map((flag) => flag.left - bar.left - NOTE_OFFSET_X * 2));
+        const lifted = ahead.length > 0 && flagRoom < PERFORMANCE_MIN_WIDTH;
+        if (ahead.length > 0 && !lifted) {
+            room = flagRoom;
+        }
+        const top = (bar.staves[0]?.top ?? bar.top) - BRACKET_LIFT - PERFORMANCE_HEIGHT - NOTE_OFFSET_X - (PERFORMANCE_TARGET - PERFORMANCE_HEIGHT) / 2;
+        const label = document.createElement("button");
+        label.type = "button";
+        label.className = "perf-marker";
+        label.dataset.bar = String(marker.bar);
+        const text = document.createElement("span");
+        text.textContent = marker.text;
+        label.append(text);
+        label.setAttribute("aria-label", marker.label);
+        label.style.left = `${bar.left + NOTE_OFFSET_X}px`;
+        label.style.top = `${lifted ? Math.min(top, Math.min(...ahead.map((flag) => flag.top)) - PERFORMANCE_TARGET - 2) : top}px`;
+        label.style.maxWidth = `${Math.max(PERFORMANCE_MIN_WIDTH, Math.min(PERFORMANCE_MAX_WIDTH, room))}px`;
+        document.body.append(label);
+    });
 }
 
 /**
@@ -446,6 +525,11 @@ document.body.addEventListener("click", (event) => {
     const flag = target?.closest(".check-flag");
     if (flag) {
         post({ checkFlag: Number(flag.dataset.bar) });
+        return;
+    }
+    const version = target?.closest(".perf-marker");
+    if (version) {
+        post({ performanceBar: Number(version.dataset.bar) });
         return;
     }
     const marker = target?.closest(".marker");
@@ -876,5 +960,5 @@ function frames() {
     return state.frames;
 }
 
-window.motiff = { show, layout, anchor, erase, draw, frames, inView, phrases, select, menuSize, pen, focus, card: showCard, lead, inset, highlight, bookmarks, clearLeft, outline, showPage, reveal, notes, checks, layers, playing };
+window.motiff = { show, layout, anchor, erase, draw, frames, inView, phrases, select, menuSize, pen, focus, card: showCard, lead, inset, highlight, bookmarks, clearLeft, outline, showPage, reveal, notes, checks, performance, layers, playing };
 window.webkit?.messageHandlers?.score?.postMessage("ready");

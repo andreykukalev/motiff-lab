@@ -92,6 +92,14 @@ final class ScoreController: NSObject, ObservableObject {
     @Published private(set) var check = CheckShelf()
     /// A Check flag tapped on the score: the screen opens the Check drawer on its bar.
     var checkPicked: (@MainActor (Int) -> Void)?
+    /// The other versions of the piece and the one shown, compared bar by bar (0022).
+    @Published private(set) var versions = VersionShelf()
+    /// What the last thing done with a version came to: "Bar 12 is now as in Cover", or why it could not be done.
+    @Published private(set) var versionStatus: String?
+    /// A version's label tapped on the score: the screen opens Other versions on its bar.
+    var versionPicked: (@MainActor (Int) -> Void)?
+    /// The piece's notes changed (bars of another version taken or restored): the player and the roll load them again.
+    var notesChanged: (@MainActor () -> Void)?
 
     /// The layers this piece has: Check only for a piece with flags.
     var pieceLayers: [String] {
@@ -187,7 +195,8 @@ final class ScoreController: NSObject, ObservableObject {
     /// Shows a piece's pages and its marks; again when the appearance changes.
     func show(_ piece: OpenPiece, dark: Bool) {
         guard self.piece?.id != piece.id || self.dark != dark || !shown else { return }
-        self.piece = piece
+        // The same piece keeps the pages engraved here after its notes changed (bars of another version taken).
+        if self.piece?.id != piece.id { self.piece = piece }
         self.dark = dark
         if pageReady { Task { await render() } }
     }
@@ -228,6 +237,10 @@ final class ScoreController: NSObject, ObservableObject {
         if let bar = number(message["checkFlag"]) {
             showCheckBar(Int(bar))
             checkPicked?(Int(bar))
+        }
+        if let bar = number(message["performanceBar"]) {
+            showVersionBar(Int(bar))
+            versionPicked?(Int(bar))
         }
         if let note = number(message["note"]) {
             noteTapped?(note)
@@ -588,6 +601,153 @@ final class ScoreController: NSObject, ObservableObject {
         _ = try? await webView.callAsyncJavaScript("return motiff.checks(data)", arguments: ["data": ["flags": flags]], contentWorld: .page)
     }
 
+    // MARK: - Other versions
+
+    /// Shows another version: its bars compared with these notes, and markers above the bars it has otherwise.
+    func showVersion(_ id: String) {
+        guard let piece else { return }
+        versionStatus = nil
+        Task { await readVersion(piece.id, id) }
+    }
+
+    /// A MIDI or MusicXML file of the piece added as another version: music-core lines it up with these notes, keeps it
+    /// with the piece and raises the Check flags it gives a scanned piece (`performance.add`, 0022).
+    func addVersion(fileName: String, data: Data) async {
+        guard let piece else { return }
+        let name = (fileName as NSString).deletingPathExtension
+        let request = Self.json(["name": name.isEmpty ? text["performance.defaultName"] : name, "file": data.base64EncodedString(), "fileName": fileName]) ?? "{}"
+        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.add", request) }
+        guard versions.read(performance: answer) else {
+            versionStatus = facadeObject(answer)?["message"] as? String
+            return
+        }
+        versionStatus = versions.matched == 0
+            ? text["performance.noMatch"]
+            : text.format("performance.added", String(versions.matched), String(versions.printed), String(versions.bars.filter(\.differs).count))
+        versions.read(list: await MusicCore.run { MusicCore.call(piece: piece.id, "performances") })
+        await drawVersions()
+        await loadCheck(piece)
+    }
+
+    /// Show on a bar of the version: the bar is selected and comes into view.
+    func showVersionBar(_ bar: Int) {
+        guard let span = versions.bars.first(where: { $0.bar == bar })?.span else { return }
+        Task {
+            await select(span.lowerBound, span.upperBound)
+            _ = try? await webView.callAsyncJavaScript("return motiff.reveal(data)", arguments: ["data": ["start": span.lowerBound]], contentWorld: .page)
+        }
+    }
+
+    /// Not a difference, or Show again: the bar's marker goes or comes back, kept with the piece.
+    func dismissVersionBar(_ bar: Int, _ dismissed: Bool) {
+        changeVersion("performance.dismiss", ["bar": bar, "dismissed": dismissed], status: text.format(dismissed ? "performance.dismissed" : "performance.undismissed", String(bar)))
+    }
+
+    /// Take into the score: the bar's notes become the version's, and the score is engraved again.
+    func takeVersionBar(_ bar: Int) {
+        let name = versions.shown?.name ?? ""
+        changeVersion("performance.take", ["bars": [bar]], status: text.format("performance.taken", String(bar), name), notes: true)
+    }
+
+    /// Restore these notes: the bar is as it was before it was taken.
+    func restoreVersionBar(_ bar: Int) {
+        changeVersion("performance.restore", ["bars": [bar]], status: text.format("performance.restored", String(bar)), notes: true)
+    }
+
+    func renameVersion(_ name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed != versions.shown?.name else { return }
+        changeVersion("performance.rename", ["name": trimmed], status: nil)
+    }
+
+    /// Removes the version shown; bars taken from it go back to these notes.
+    func removeVersion() {
+        guard let piece, let shown = versions.shown else { return }
+        let request = Self.json(["id": shown.id]) ?? "{}"
+        Task {
+            let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.remove", request) }
+            guard let object = facadeObject(answer), object["error"] == nil else {
+                versionStatus = facadeObject(answer)?["message"] as? String
+                return
+            }
+            versions.read(list: answer)
+            versionStatus = text.format("performance.removed", shown.name)
+            if let next = versions.entries.first {
+                await readVersion(piece.id, next.id)
+            } else {
+                await drawVersions()
+            }
+            if shown.takenBars > 0 { await notesDidChange() }
+        }
+    }
+
+    private func changeVersion(_ call: String, _ fields: [String: Any], status: String?, notes: Bool = false) {
+        guard let piece, let id = versions.shownId else { return }
+        var request = fields
+        request["id"] = id
+        let body = Self.json(request) ?? "{}"
+        Task {
+            let answer = await MusicCore.run { MusicCore.call(piece: piece.id, call, body) }
+            guard versions.read(performance: answer) else {
+                versionStatus = facadeObject(answer)?["message"] as? String
+                return
+            }
+            versionStatus = status
+            if notes {
+                await notesDidChange()
+            } else {
+                await drawVersions()
+            }
+        }
+    }
+
+    /// The versions kept with the piece, and the one shown compared bar by bar.
+    private func loadVersions(_ piece: OpenPiece) async {
+        versions.read(list: await MusicCore.run { MusicCore.call(piece: piece.id, "performances") })
+        if let id = versions.shownId ?? versions.entries.first?.id {
+            await readVersion(piece.id, id)
+        } else {
+            await drawVersions()
+        }
+    }
+
+    private func readVersion(_ piece: Int32, _ id: String) async {
+        let request = Self.json(["id": id]) ?? "{}"
+        let answer = await MusicCore.run { MusicCore.call(piece: piece, "performance", request) }
+        if !versions.read(performance: answer) { versionStatus = facadeObject(answer)?["message"] as? String }
+        await drawVersions()
+    }
+
+    /// The notes changed (bars taken or restored): the score is engraved again and drawn with its marks, and the player
+    /// and the roll take the new notes.
+    private func notesDidChange() async {
+        guard let piece else { return }
+        let id = piece.id
+        let title = piece.title
+        let engraved = await MusicCore.run { Engraver.engrave(piece: id, title: title) }
+        switch engraved {
+        case .success(let engraving):
+            self.piece = OpenPiece(id: id, title: title, pages: engraving.pages, timemap: engraving.timemap, file: piece.file)
+            notesChanged?()
+            await render()
+        case .failure(let error):
+            problem = error.message
+        }
+    }
+
+    /// The bars the version has otherwise as plum labels above them, and the printed notes it does not have tinted.
+    private func drawVersions() async {
+        guard shown else { return }
+        let name = versions.shown?.name ?? ""
+        let differing = versions.differing
+        let markers: [[String: Any]] = differing.compactMap { bar in
+            guard let span = bar.span else { return nil }
+            return ["bar": bar.bar, "tick": span.lowerBound, "text": bar.marker, "label": text.format("performance.markerLabel", String(bar.bar), name, bar.marker)]
+        }
+        let data: [String: Any] = ["markers": markers, "unheard": differing.flatMap(\.notHeard)]
+        _ = try? await webView.callAsyncJavaScript("return motiff.performance(data)", arguments: ["data": data], contentWorld: .page)
+    }
+
     // MARK: - Phrase focus
 
     /// Lifts the selection into focus: the page dims, the card shows the selection's bars on their own, and the page
@@ -789,6 +949,7 @@ final class ScoreController: NSObject, ObservableObject {
             await loadPhrases(piece)
             await drawBookmarks()
             await loadCheck(piece)
+            await loadVersions(piece)
             await loadPieceSettings(piece)
             await applyLayers()
             await applyLevel()

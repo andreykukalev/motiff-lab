@@ -73,6 +73,12 @@ button.marker { position: absolute; z-index: 2; width: 24px; height: 24px; min-h
 button.check-flag { position: absolute; z-index: 2; display: grid; place-items: center; width: 24px; height: 24px; min-height: 0; padding: 0; border: 0; background: transparent; }
 button.check-flag span { display: grid; place-items: center; width: 18px; height: 18px; border-radius: var(--r-xs); background: var(--warning-fill); color: var(--notation); font: 700 11px/1 var(--font-ui); box-shadow: var(--shadow-menu); }
 
+/* Another version (0022, as the web app's .perf-marker): a 20 px plum label above the bar's top left in a 24 px target,
+   cut short with an ellipsis when the bar is narrow; the printed notes the version does not have in the warning colour. */
+button.perf-marker { position: absolute; z-index: 2; display: block; height: 24px; min-height: 0; padding: 2px 0; border: 0; background: transparent; }
+button.perf-marker span { display: block; height: 20px; padding: 0 var(--s-2); border-radius: var(--r-xs); background: var(--plum-tint); color: var(--plum); font: var(--t-overline); line-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.page g.note.not-heard { fill: var(--warning); stroke: var(--warning); color: var(--warning); }
+
 /* The layers of marks, hidden for a clean page (0018 section 5). */
 body.hide-ink #ink,
 body.hide-notes :is(button.marker, div.hl),
