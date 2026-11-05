@@ -17,8 +17,9 @@ Until now a PDF could only be scanned (0011, 0014): the notes the scan server re
 
 - **Marks on the pages are the PDF view's own.** The pen writes on the pages with the score's pencil layer and palette (four inks, the highlighter, the eraser, undo, clear): each page is one frame its strokes are kept against, by its number, in units of a hundred and twentieth of the page's width, so a stroke keeps its place and size however wide the page is drawn. The bookmark in the bar marks the page under it (a carmine tab on its edge); the title opens the Contents, which lists the bookmarked pages to go to, name or remove. Both are kept in the project as `documentMarks` (`DocumentMarks` in music-core), apart from the notes' `marks`.
 
+- **A metronome of its own.** The PDF has no notes to play, so the view has a metronome in a pill at the bottom, like the score's transport: start and stop, slower and faster by 4, the tempo tapped in time on its number, 2, 3, 4 or 6 beats to the bar (the first clicks higher) and a dot for each beat. It uses the playback engine's click and schedules it on the audio clock (`Scripts/metronome/metronome.ts`). It runs on the device and is free; the tempo and beats are kept per piece on the device.
+
 ## Later steps
 
-1. The metronome.
-2. Recognise: the scan reads the kept PDF, the notes become the piece's `source`, and the bar switches between the "PDF" and "Notes" views, with a rough page-to-bar map from the scan's pages.
-3. The iPad app's PDF view (PDFKit) over the same project file.
+1. Recognise: the scan reads the kept PDF, the notes become the piece's `source`, and the bar switches between the "PDF" and "Notes" views, with a rough page-to-bar map from the scan's pages.
+2. The iPad app's PDF view (PDFKit) over the same project file.

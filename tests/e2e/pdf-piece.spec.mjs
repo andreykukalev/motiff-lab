@@ -121,3 +121,58 @@ test("the pen writes on a PDF's pages and the bookmarks mark pages; both stay wi
     await expect(sheets.first()).not.toHaveClass(/\bbookmarked\b/);
     expect(errors).toEqual([]);
 });
+
+test("the metronome clicks at a tempo the player sets, shows the beat, and keeps the tempo for the piece", async ({ page }) => {
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(String(error)));
+    await page.goto("/");
+    await page.getByRole("button", { name: "Add piece" }).click();
+    await page.getByRole("dialog", { name: "Add a piece" }).getByLabel("Choose a MIDI, MusicXML or PDF file").setInputFiles({ name: "Waltz.pdf", mimeType: "application/pdf", buffer: pdf(1) });
+    await expect(page.locator(".pdf-view .score-page canvas")).toHaveCount(1);
+
+    await page.locator(".bar").getByRole("button", { name: "Metronome" }).click();
+    const pill = page.getByRole("toolbar", { name: "Metronome" });
+    await expect(pill).toBeVisible();
+    await expect(pill.locator(".beat")).toHaveCount(4);
+    expect(await violations(page)).toEqual([]);
+
+    // Faster twice, and three beats to the bar: a waltz.
+    await pill.getByRole("button", { name: "Faster" }).click();
+    await pill.getByRole("button", { name: "Faster" }).click();
+    await expect(pill.locator(".bpm .mono")).toHaveText("88");
+    // The beats go 4, 6, 2, 3 and round again.
+    const beats = pill.getByRole("button", { name: /beats to the bar/ });
+    await beats.click();
+    await expect(beats).toContainText("6");
+    await beats.click();
+    await beats.click();
+    await expect(pill.locator(".beat")).toHaveCount(3);
+
+    // Started, the beat moves from dot to dot; stopped, no dot is lit.
+    await pill.getByRole("button", { name: "Start the metronome" }).click();
+    await expect(pill.locator(".beat.now")).toHaveCount(1);
+    const seen = new Set();
+    for (let i = 0; i < 20 && seen.size < 2; i++) {
+        seen.add(await pill.locator(".beat").evaluateAll((dots) => dots.findIndex((dot) => dot.classList.contains("now"))));
+        await page.waitForTimeout(150);
+    }
+    expect(seen.size).toBeGreaterThan(1);
+    await pill.getByRole("button", { name: "Stop the metronome" }).click();
+    await expect(pill.locator(".beat.now")).toHaveCount(0);
+
+    // Tapping in time sets the tempo.
+    const tap = pill.getByRole("button", { name: /beats a minute/ });
+    for (let i = 0; i < 4; i++) {
+        await tap.click();
+        await page.waitForTimeout(500);
+    }
+    await expect(pill.locator(".bpm .mono")).toHaveText(/^1[01]\d$/);
+
+    // The piece keeps its tempo and beats.
+    const kept = await pill.locator(".bpm .mono").textContent();
+    await page.reload();
+    await page.locator(".bar").getByRole("button", { name: "Metronome" }).click();
+    await expect(pill.locator(".bpm .mono")).toHaveText(kept);
+    await expect(pill.locator(".beat")).toHaveCount(3);
+    expect(errors).toEqual([]);
+});

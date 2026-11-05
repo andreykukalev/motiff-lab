@@ -1312,6 +1312,37 @@ h1, h2, .app-title strong {
     min-width: 0;
 }
 
+/* The metronome's pill (0023): the transport pill's look, with a dot for each beat; the beat sounding now is filled, the first
+   of the bar a little larger. */
+.metronome-pill .bpm .unit {
+    color: var(--ink-2);
+}
+
+.metronome-pill .beats {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 var(--s-2);
+}
+
+.metronome-pill .beat {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: 1.5px solid var(--ink-2);
+    box-sizing: border-box;
+}
+
+.metronome-pill .beat.first {
+    width: 11px;
+    height: 11px;
+}
+
+.metronome-pill .beat.now {
+    background: var(--ink);
+    border-color: var(--ink);
+}
+
 /* "PDF" beside the page: what is open is the printed pages, not notes the app can play. */
 .pdf-reader .bar .pdf-tag {
     flex: none;
