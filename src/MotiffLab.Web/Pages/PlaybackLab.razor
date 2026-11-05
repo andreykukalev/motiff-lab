@@ -1329,6 +1329,18 @@
                 <button role="radio" class="@(alternate ? "on" : null)" aria-checked="@(alternate ? "true" : "false")" title="@Text["compare.alternateHint"]" @onclick="StartOneAfterTheOtherAsync">@Text["focus.alternate"]</button>
             </div>
         }
+        @if (!FocusHasVariation && ShownPerformance is not null)
+        {
+            @* Another version above the phrase (0022, section 5): its bars that differ are taken into the score at once, or brought back. *@
+            @if (FocusVersionBars.Count > 0)
+            {
+                <button class="btn quiet" @onclick="TakeFocusBarsAsync">@Text["performance.take"]</button>
+            }
+            @if (FocusTakenBars.Count > 0)
+            {
+                <button class="btn quiet" @onclick="RestoreFocusBarsAsync">@Text["performance.restore"]</button>
+            }
+        }
         <button class="btn quiet ask @(_insightsOpen && _asking ? "on" : null)" aria-pressed="@(_insightsOpen && _asking ? "true" : "false")" title="?" @onclick="MenuAsk">@Text["ask.menu"]</button>
         <button class="act @(_rollOpen ? "on" : null)" aria-pressed="@(_rollOpen ? "true" : "false")" aria-label="@Text["bar.roll"]" title="@Text["bar.roll"]"
                 @onclick="ToggleRoll"><Icon Name="roll" Size="IconSize.Large" /></button>

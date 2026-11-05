@@ -93,3 +93,34 @@ test("the official score in MusicXML is added over notes from a performance", as
     await expect(drawer.getByLabel("Name")).toHaveValue("fur-elise-original");
     expect(errors).toEqual([]);
 });
+
+test("in focus, the other version stands above the phrase, and its bars are taken into the score at once", async ({ page }) => {
+    const errors = [];
+    page.on("pageerror", error => errors.push(String(error)));
+    await page.goto("/");
+    await page.getByRole("button", { name: "Add piece" }).click();
+    await page.getByLabel("Choose a MIDI, MusicXML or PDF file").setInputFiles(score);
+    await expect(page).toHaveURL(/\/playback\?project=p_[0-9a-f]+/);
+    await (await openMore(page)).getByRole("button", { name: "Add a version" }).click();
+    const drawer = page.locator(".perf-sheet");
+    await drawer.locator("input[type=file]").setInputFiles(cover);
+    await expect(drawer.getByRole("status")).toContainText("Lined up:");
+    const markers = page.locator(".score button.perf-marker");
+
+    // Bar 5 picked from its marker, then lifted into focus: the cover's bar stands above it.
+    await markers.first().click();
+    await expect(page.locator(".selection-status")).toContainText("bar 5");
+    await page.locator(".ctx .menu").getByRole("button", { name: "Focus" }).click();
+    await expect(page.locator(".focus-card")).toContainText("As in fur-elise-cover");
+    const focusBar = page.locator(".bar.focus-bar");
+    await focusBar.getByRole("button", { name: "Take into the score" }).click();
+    await expect(focusBar.getByRole("button", { name: "Restore these notes" })).toBeVisible();
+    await expect(focusBar.getByRole("button", { name: "Take into the score" })).toHaveCount(0);
+    expect(await violations(page)).toEqual([]);
+
+    await focusBar.getByRole("button", { name: "Restore these notes" }).click();
+    await expect(focusBar.getByRole("button", { name: "Take into the score" })).toBeVisible();
+    await focusBar.getByRole("button", { name: "Back to page" }).click();
+    await expect(markers).toHaveText(["+3 · added notes", "−3 · simplified"]);
+    expect(errors).toEqual([]);
+});
