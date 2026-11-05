@@ -366,7 +366,8 @@ final class PencilTests: XCTestCase {
         let colour = try await view.evaluateJavaScript("getComputedStyle(document.querySelector('#pages .playing')).fill") as? String
         XCTAssertNotNil(colour)
         let pageHeight = try await view.evaluateJavaScript("document.querySelector('#pages > .page').getBoundingClientRect().height") as? NSNumber
-        XCTAssertGreaterThan(followed?.doubleValue ?? 0, pageHeight?.doubleValue ?? .infinity, "the page follows the music to the second page")
+        let seen = try await view.evaluateJavaScript("JSON.stringify({ height: innerHeight, y: scrollY, playing: [...document.querySelectorAll('#pages .playing')].map((e) => `${e.id} ${e.tagName} ${Math.round(e.getBoundingClientRect().top)}`) })") as? String
+        XCTAssertGreaterThan(followed?.doubleValue ?? 0, pageHeight?.doubleValue ?? .infinity, "the page follows the music to the second page: \(seen ?? "")")
         // A scroll by hand wins: the next notes are marked but the page stays where the player put it.
         _ = try await view.evaluateJavaScript("window.dispatchEvent(new Event('wheel')); 0")
         let later = try await call(view, "playing", ["tick": bar.onset + 960 * 4, "playing": true, "follow": false])

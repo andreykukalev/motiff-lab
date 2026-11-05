@@ -675,7 +675,7 @@ function playing({ tick, playing, follow }) {
     sounding.page = mark(sounding.page, onPage, (id) => document.querySelector(`#pages [id="${CSS.escape(id)}"]`));
     sounding.card = mark(sounding.card, onCard, (id) => cardScore.querySelector(`[id="${CSS.escape(id)}"]`));
     if (playing && !state.focus && onPage.length > 0 && performance.now() - sounding.byHand >= FOLLOW_PAUSE_MS) {
-        return keepInView(document.querySelector(`#pages [id="${CSS.escape(onPage[0])}"]`));
+        return keepInView(document.querySelector("#pages .playing"));
     }
     return null;
 }
