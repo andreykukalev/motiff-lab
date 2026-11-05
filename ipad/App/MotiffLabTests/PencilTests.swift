@@ -163,6 +163,7 @@ final class PencilTests: XCTestCase {
         let card = try engraved.get()
         // Verovio may break a phrase onto more than one page of the card's layout; the card shows them one under another.
         XCTAssertGreaterThanOrEqual(card.pages.count, 1)
+        print("CARD-PAGES \(card.pages.count) \(card.pages.map(\.count)) \(layout)")
         let cardMap = try JSONSerialization.jsonObject(with: Data(card.timemap.utf8))
         let notes = try await call(view, "card", ["pages": card.pages, "timemap": cardMap, "start": second.onset]) as? NSNumber
         XCTAssertGreaterThan(notes?.intValue ?? 0, 0)
