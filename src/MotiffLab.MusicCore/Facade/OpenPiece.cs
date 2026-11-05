@@ -183,14 +183,19 @@ internal sealed partial class OpenPiece
             : null;
 
     /// <summary>
-    /// Shows another level and remembers it with the piece (0018, section 3). The selection moves to the unit that
-    /// is, encloses or starts it at the new level; the answer is the phrases with the selection as it now is.
+    /// Shows another level and remembers it with the piece (0018, section 3), unless "remember" is false: the level
+    /// the player's device opens pieces in is shown without becoming the piece's own. The selection moves to the unit
+    /// that is, encloses or starts it at the new level; the answer is the phrases with the selection as it now is.
     /// </summary>
     private string ChangeLevel(Request request)
     {
         PhraseLevel level = LevelOf(request) ?? throw FacadeException.BadRequest("Send \"level\": \"short\", \"phrase\" or \"sentence\".");
         Level = level;
-        Project = Project.OverrideSetting(GranularitySetting, PhraseLevels.SettingValue(level));
+        if (request.Bool("remember") ?? true)
+        {
+            Project = Project.OverrideSetting(GranularitySetting, PhraseLevels.SettingValue(level));
+        }
+
         if (Selection is { } selection && _selectionKind == MotifSelectionKind.Range)
         {
             TickSpan mapped = Levels.Selectable(Levels.Map(selection.Span, level));

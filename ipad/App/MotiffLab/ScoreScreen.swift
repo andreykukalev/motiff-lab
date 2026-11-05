@@ -17,6 +17,8 @@ struct ScoreScreen: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var account: Account
+    @EnvironmentObject private var settings: DeviceSettings
     @StateObject private var player = Player()
     @StateObject private var score = ScoreController()
     @StateObject private var roll = RollController()
@@ -31,6 +33,8 @@ struct ScoreScreen: View {
     @State private var contentsOpen = false
     /// The Check drawer (0018 section 9), from More or a flag on the score; where Insights goes, and one of the two.
     @State private var checkOpen = false
+    /// The Settings sheet (0018 section 10), from More: over the score, which follows each change at once.
+    @State private var settingsOpen = false
 
     /// The Insights sheet's width beside the score in landscape (ds.css `.sheet`).
     static let sheetWidth: CGFloat = 380
@@ -68,6 +72,10 @@ struct ScoreScreen: View {
     /// The drawer's height: 40% of the screen in landscape and 30% in portrait, as the web app's.
     private func drawerHeight(_ size: CGSize) -> CGFloat {
         (size.width > size.height ? 0.4 : 0.3) * size.height
+    }
+
+    private var pillShown: Bool {
+        (score.selection != nil && settings["guidance.transportPill"] != "playing") || player.state != .stopped
     }
 
     /// What the sheet over the right holds: Check, or Insights.
@@ -140,7 +148,7 @@ struct ScoreScreen: View {
                     if score.focused {
                         FocusBar(score: score, player: player, variationRange: variationRange, text: text)
                     } else {
-                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, more: $more, rollOpen: $rollOpen, insightsOpen: $insightsOpen, contentsOpen: $contentsOpen, checkOpen: $checkOpen) { dismiss() }
+                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, more: $more, rollOpen: $rollOpen, insightsOpen: $insightsOpen, contentsOpen: $contentsOpen, checkOpen: $checkOpen, settingsOpen: $settingsOpen) { dismiss() }
                     }
                     if score.penOn && !score.focused {
                         PenPalette(score: score, text: text)
@@ -186,11 +194,16 @@ struct ScoreScreen: View {
             }
             .overlay(alignment: .topLeading) { contentsDrawer(contentsPlace) }
             .overlay(alignment: .bottom) {
-                // The pill rides above whatever comes up from the bottom, and beside a sheet or a drawer at the side.
-                Pill(player: player, score: score, text: text)
-                    .padding(.bottom, pillBottom)
-                    .padding(.trailing, pillTrailing)
-                    .padding(.leading, pillLeading)
+                // The pill rides above whatever comes up from the bottom, and beside a sheet or a drawer at the side. It
+                // shows with a selection or while the music plays, or only while it plays (the setting
+                // "guidance.transportPill", 0018 section 10).
+                if pillShown {
+                    Pill(player: player, score: score, text: text)
+                        .padding(.bottom, pillBottom)
+                        .padding(.trailing, pillTrailing)
+                        .padding(.leading, pillLeading)
+                        .transition(.opacity)
+                }
             }
             .animation(.easeOut(duration: 0.2), value: rollOpen)
             .animation(.easeOut(duration: 0.2), value: insightsOpen)
@@ -302,9 +315,17 @@ struct ScoreScreen: View {
             }
     }
 
-    /// Check takes the place of the other drawers and sheets, and goes when one of them opens.
+    /// Check takes the place of the other drawers and sheets, and goes when one of them opens. The Settings sheet comes
+    /// over the score, and the score and the roll follow each change at once.
     private func checking(_ content: some View) -> some View {
         content
+            .sheet(isPresented: $settingsOpen) {
+                SettingsSheet(settings: settings, account: account, text: text, pieceOverrides: score.pieceOverrides, clearPiece: { score.clearPieceOverrides() })
+            }
+            .onChange(of: settings.values) { _, _ in
+                score.settingsChanged()
+                roll.settingsChanged()
+            }
             .onChange(of: checkOpen) { _, open in
                 if open {
                     insightsOpen = false
@@ -383,6 +404,7 @@ struct ScoreBar: View {
     @Binding var insightsOpen: Bool
     @Binding var contentsOpen: Bool
     @Binding var checkOpen: Bool
+    @Binding var settingsOpen: Bool
     let back: () -> Void
     @State private var phrasesOpen = false
 
@@ -466,6 +488,9 @@ struct ScoreBar: View {
                 MorePanel(score: score, text: text, problem: player.problem ?? score.problem) {
                     more = false
                     checkOpen = true
+                } openSettings: {
+                    more = false
+                    settingsOpen = true
                 }
             }
         }
@@ -916,6 +941,7 @@ struct MorePanel: View {
     let text: UIText
     let problem: String?
     let openCheck: () -> Void
+    let openSettings: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
@@ -935,6 +961,14 @@ struct MorePanel: View {
                 Rectangle().fill(Color.ds("hairline")).frame(height: 1)
             }
             LayersList(score: score, text: text)
+            Rectangle().fill(Color.ds("hairline")).frame(height: 1)
+            Button(action: openSettings) {
+                HStack(spacing: CGFloat.ds("s-2")) {
+                    Icon(name: "dial")
+                    Text(text["settings.all"])
+                }
+            }
+            .buttonStyle(DSButtonStyle(kind: .quiet))
             Rectangle().fill(Color.ds("hairline")).frame(height: 1)
             Text(credit)
                 .dsType(.caption)

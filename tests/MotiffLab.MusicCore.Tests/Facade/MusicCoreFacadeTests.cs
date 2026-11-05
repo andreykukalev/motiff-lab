@@ -167,6 +167,10 @@ public class MusicCoreFacadeTests
         var again = new MusicCoreFacade();
         again.Open("fur-elise" + ProjectFile.Extension, System.Text.Encoding.UTF8.GetBytes(saved));
         Assert.Equal("short", Call(again, "phrases").GetProperty("level").GetString());
+
+        // The device's level is shown without becoming the piece's own.
+        Assert.Equal("sentence", Call(again, "phrases.level", """{"level": "sentence", "remember": false}""").GetProperty("level").GetString());
+        Assert.Equal("short", Call(again, "settings").GetProperty("overrides").GetProperty("phrases.granularity").GetString());
     }
 
     [Fact]

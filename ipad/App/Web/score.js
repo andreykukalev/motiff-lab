@@ -330,13 +330,20 @@ function placeNotes() {
     }
 }
 
-/** Hides the layers named, for a clean page; the others show. Returns the layers hidden. */
-function layers({ hidden }) {
+/**
+ * Hides the layers named, for a clean page, and the phrase brackets when Settings turns them off ("brackets"); the
+ * others show. With `slate`, Night stand shows light notes on a dark page. Returns what is hidden.
+ */
+function layers({ hidden, slate }) {
     const names = hidden ?? [];
-    for (const layer of LAYERS) {
+    for (const layer of [...LAYERS, "brackets"]) {
         document.body.classList.toggle(`hide-${layer}`, names.includes(layer));
     }
-    return LAYERS.filter((layer) => names.includes(layer));
+    document.documentElement.toggleAttribute("data-page", false);
+    if (slate) {
+        document.documentElement.setAttribute("data-page", "slate");
+    }
+    return [...LAYERS, "brackets"].filter((layer) => names.includes(layer));
 }
 
 /** The top of the bookmark titles over a band's first run, in window pixels, for the menu to clear; null when none is there. */

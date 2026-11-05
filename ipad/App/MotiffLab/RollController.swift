@@ -8,9 +8,12 @@ import WebKit
 /// a tap on an empty place clears the selection, Space plays or pauses.
 @MainActor
 final class RollController: NSObject, ObservableObject {
-    /// Whether each note carries its name (the web app's Note names chip).
+    /// Whether each note carries its name (the web app's Note names chip, the setting "roll.noteNames").
     @Published var noteNames = true {
-        didSet { if loaded { Task { _ = try? await webView.callAsyncJavaScript("return roll.noteNames(on)", arguments: ["on": noteNames], contentWorld: .page) } } }
+        didSet {
+            if loaded { Task { _ = try? await webView.callAsyncJavaScript("return roll.noteNames(on)", arguments: ["on": noteNames], contentWorld: .page) } }
+            if !DeviceSettings.shared.values.isEmpty { DeviceSettings.shared.set("roll.noteNames", noteNames ? "on" : "off") }
+        }
     }
     /// What the notes are coloured by: "hand", "track" or "voice".
     @Published private(set) var colourBy = "hand"
@@ -31,6 +34,8 @@ final class RollController: NSObject, ObservableObject {
     private var dark = false
     private var shownSelection: [String: Any]?
     private var shownHighlight: [[String: Any]] = []
+    /// How the notes were named when the roll was loaded: "auto", "letters" or "syllables" (the setting "notes.naming").
+    private var naming = "auto"
 
     override init() {
         let configuration = WKWebViewConfiguration()
@@ -86,6 +91,22 @@ final class RollController: NSObject, ObservableObject {
         Task { _ = try? await webView.callAsyncJavaScript("return roll.highlight(data)", arguments: ["data": data], contentWorld: .page) }
     }
 
+    /// The settings changed: the names and the colouring follow, and the roll is loaded again for another naming.
+    func settingsChanged() {
+        let settings = DeviceSettings.shared
+        let names = settings.isOn("roll.noteNames")
+        if noteNames != names { noteNames = names }
+        guard loaded else { return }
+        if settings["notes.naming"] != naming {
+            Task { await load() }
+        } else if settings["roll.colour"] != colourBy {
+            Task {
+                let chosen = try? await webView.callAsyncJavaScript("return roll.colour(by)", arguments: ["by": settings["roll.colour"]], contentWorld: .page) as? String
+                if let chosen { colourBy = chosen }
+            }
+        }
+    }
+
     /// The next colour scheme that tells the notes apart.
     func nextColour() {
         guard loaded else { return }
@@ -115,12 +136,16 @@ final class RollController: NSObject, ObservableObject {
     private func load() async {
         guard let piece else { return }
         let id = piece.id
-        let answer = await MusicCore.run { MusicCore.call(piece: id, "roll") }
+        let settings = DeviceSettings.shared
+        naming = settings["notes.naming"]
+        if !settings.values.isEmpty, noteNames != settings.isOn("roll.noteNames") { noteNames = settings.isOn("roll.noteNames") }
+        let asked = naming == "letters" || naming == "syllables" ? "{\"naming\": \"\(naming)\"}" : nil
+        let answer = await MusicCore.run { MusicCore.call(piece: id, "roll", asked) }
         guard let roll = facadeObject(answer), roll["error"] == nil else {
             problem = facadeObject(answer)?["message"] as? String ?? "music-core gave no piano roll."
             return
         }
-        let request: [String: Any] = ["roll": roll, "labels": Self.labels(text), "noteNames": noteNames, "dark": dark]
+        let request: [String: Any] = ["roll": roll, "labels": Self.labels(text), "noteNames": noteNames, "dark": dark, "colourBy": settings["roll.colour"]]
         do {
             let shown = try await webView.callAsyncJavaScript("return roll.load(data)", arguments: ["data": request], contentWorld: .page) as? [String: Any]
             colourBy = shown?["colourBy"] as? String ?? "hand"

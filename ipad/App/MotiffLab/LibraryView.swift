@@ -68,7 +68,7 @@ struct LibraryView: View {
             .disabled(opening)
             .overlay { if opening { ProgressView() } }
             .toolbar(.hidden, for: .navigationBar)
-            .sheet(isPresented: $settings) { SettingsView(account: account, text: text) }
+            .sheet(isPresented: $settings) { SettingsSheet(settings: DeviceSettings.shared, account: account, text: text) }
             .sheet(isPresented: $adding) {
                 AddPieceSheet(text: text) { result in
                     adding = false
