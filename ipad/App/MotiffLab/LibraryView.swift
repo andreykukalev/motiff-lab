@@ -17,9 +17,10 @@ struct LibraryView: View {
     @State private var projects: [ProjectFiles.Entry] = []
     @State private var summaries: [URL: PieceSummary] = [:]
 
-    /// MIDI, MusicXML (plain and compressed) and Motiff Lab project files.
+    /// MIDI, MusicXML (plain and compressed), a PDF to read as it is (0023) and Motiff Lab project files.
     static let openable: [UTType] = [
         .midi,
+        .pdf,
         UTType(filenameExtension: "musicxml") ?? .xml,
         UTType(filenameExtension: "mxl") ?? .data,
         .xml,
@@ -79,7 +80,11 @@ struct LibraryView: View {
                 }
             }
             .navigationDestination(item: $piece) { piece in
-                ScoreScreen(piece: piece)
+                if piece.isDocument {
+                    PdfScreen(piece: piece)
+                } else {
+                    ScoreScreen(piece: piece)
+                }
             }
             .fileImporter(isPresented: $choosing, allowedContentTypes: Self.openable) { result in
                 Task { await open(result) }

@@ -25,4 +25,4 @@ Until now a PDF could only be scanned (0011, 0014): the notes the scan server re
 
 ## Later steps
 
-1. The iPad app's PDF view (PDFKit) over the same project file.
+1. The iPad app's PDF view (PDFKit) over the same project file. Since 2026-11-05 it shows the pages, reopens at the page the player was on, bookmarks pages and downloads the PDF (`PdfScreen`, over the facade's `document` calls, 0020); the pen on the pages, the metronome and Read the notes come next.
