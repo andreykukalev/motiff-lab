@@ -417,7 +417,8 @@ final class PencilTests: XCTestCase {
         // Where the notes on a page start, for PDF from Notes; a place in the piece brings its page up, for Notes from PDF.
         let first = try await call(view, "firstTickOn", ["page": 1]) as? NSNumber
         XCTAssertEqual(first?.doubleValue, 0)
-        let second = try XCTUnwrap(try await call(view, "firstTickOn", ["page": 2]) as? NSNumber)
+        let onSecond = try await call(view, "firstTickOn", ["page": 2]) as? NSNumber
+        let second = try XCTUnwrap(onSecond)
         XCTAssertGreaterThan(second.doubleValue, 0)
         let none = try await call(view, "firstTickOn", ["page": 99])
         XCTAssertTrue(none == nil || none is NSNull, "a page the score does not have starts nowhere")
