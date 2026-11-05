@@ -68,6 +68,10 @@ final class ScoreController: NSObject, ObservableObject {
     }
     /// What Play and Loop take for the selection: its span, with a bar either side while leading in.
     @Published private(set) var playRange: PlayRange?
+    /// The name of the variation being tried, which the card in focus shows as an ossia above the phrase; nil for none.
+    var ossia: String? {
+        didSet { if oldValue != ossia, focused { Task { await engraveCard() } } }
+    }
 
     /// The span play takes for a selection, and the selection it was taken for.
     struct PlayRange: Equatable {
@@ -314,14 +318,18 @@ final class ScoreController: NSObject, ObservableObject {
         let first = selection.firstBar
         let last = selection.lastBar
         let id = piece.id
-        let engraved = await MusicCore.run { Engraver.engraveCard(piece: id, firstBar: first, lastBar: last, options: options) }
-        // Stepped on or left while it engraved: the newer call shows its own.
-        guard focused, self.selection == selection else { return }
+        let name = ossia
+        let withOssia = name != nil
+        let engraved = await MusicCore.run { Engraver.engraveCard(piece: id, firstBar: first, lastBar: last, options: options, ossia: withOssia) }
+        // Stepped on, left or the variation changed while it engraved: the newer call shows its own.
+        guard focused, self.selection == selection, ossia == name else { return }
         switch engraved {
         case .success(let card):
             let timemap = (try? JSONSerialization.jsonObject(with: Data(card.timemap.utf8))) ?? []
+            let label = name.map { text.format("focus.ossia", $0) } ?? ""
+            let ossias = card.ossias.map { ["staves": $0.staves, "prefix": $0.prefix, "label": label] as [String: Any] }
             _ = try? await webView.callAsyncJavaScript(
-                "return motiff.card(data)", arguments: ["data": ["pages": card.pages, "timemap": timemap, "start": selection.onset]], contentWorld: .page
+                "return motiff.card(data)", arguments: ["data": ["pages": card.pages, "timemap": timemap, "start": selection.onset, "ossias": ossias]], contentWorld: .page
             )
         case .failure(let error):
             problem = error.message

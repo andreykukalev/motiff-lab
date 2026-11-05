@@ -175,6 +175,21 @@ final class PencilTests: XCTestCase {
         let veiled = try await view.evaluateJavaScript("document.getElementById('focus').hidden") as? Bool
         XCTAssertEqual(veiled, false)
 
+        // A variation tried is engraved above the phrase as an ossia, framed and named on the card.
+        _ = MusicCore.call(piece: piece.id, "select", "{\"span\": {\"onset\": \(Int(second.selectableOnset)), \"end\": \(Int(second.selectableEnd))}}")
+        let understanding = try XCTUnwrap(Understanding(answer: MusicCore.call(piece: piece.id, "understand")))
+        let way = try XCTUnwrap(understanding.facts.first { !$0.tries.isEmpty }?.tries.first)
+        XCTAssertNil(facadeObject(MusicCore.call(piece: piece.id, "try", "{\"chip\": \"\(way.id)\"}"))?["error"])
+        let withOssia = await MusicCore.run { Engraver.engraveCard(piece: id, firstBar: first, lastBar: last, options: layout, ossia: true) }
+        let ossiaCard = try withOssia.get()
+        let ossias = ossiaCard.ossias.map { ["staves": $0.staves, "prefix": $0.prefix, "label": "Ossia · \(way.label)"] as [String: Any] }
+        XCTAssertFalse(ossias.isEmpty)
+        let ossiaMap = try JSONSerialization.jsonObject(with: Data(ossiaCard.timemap.utf8))
+        _ = try await call(view, "card", ["pages": ossiaCard.pages, "timemap": ossiaMap, "start": second.onset, "ossias": ossias])
+        let frames = try await view.evaluateJavaScript("document.querySelectorAll('#focus .ossia-frame').length") as? NSNumber
+        XCTAssertGreaterThan(frames?.intValue ?? 0, 0)
+        _ = MusicCore.call(piece: piece.id, "variation.clear")
+
         // Lead-in takes in the bar before and the bar after.
         let led = try await call(view, "lead", ["start": second.onset, "end": second.end])
         let wider = try XCTUnwrap(led as? [String: Any])

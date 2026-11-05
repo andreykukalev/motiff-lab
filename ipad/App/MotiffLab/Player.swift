@@ -84,6 +84,11 @@ final class Player: ObservableObject {
     /// Loops a passage and plays it from its start, or stops looping (0018 section 7: a selection loops the selection).
     func setLoop(_ range: Range<Double>?) {
         loop = range
+        // Alternating is a loop of its own: another loop, or none, ends it and the original sounds on.
+        if hearing == .alternate {
+            hearing = .original
+            send(.activeSources([Self.pieceSource]))
+        }
         guard let range else {
             send(.loopOff)
             return
@@ -92,6 +97,55 @@ final class Player: ObservableObject {
         if !range.contains(tick) { send(.seek(range.lowerBound)) }
         if state == .stopped { send(.play) }
     }
+
+    /// What sounds (0018 section 7, Original / Variation / Alternate): the piece, the piece with the variation being tried
+    /// in place, or the two looping one after the other.
+    enum Hearing: Equatable {
+        case original, variation, alternate
+    }
+
+    @Published private(set) var hearing = Hearing.original
+    /// Whether a variation is there to hear.
+    @Published private(set) var hasVariation = false
+
+    /// The piece with the variation in place (music-core's `playback` of `inPlace`), or nil when the variation is left:
+    /// the original sounds again, looping where it looped.
+    func setVariation(_ notes: [PlaybackNote]?) {
+        guard let notes else {
+            guard hasVariation else { return }
+            hasVariation = false
+            send(.activeSources([Self.pieceSource]))
+            send(.removeSource(Self.variationSource))
+            if hearing == .alternate, let loop { send(.loop(start: loop.lowerBound, end: loop.upperBound)) }
+            hearing = .original
+            return
+        }
+        send(.source(id: Self.variationSource, notes: notes))
+        hasVariation = true
+    }
+
+    /// Hears the original, the variation, or the two one after the other, looping `range` and playing from its start
+    /// when it was still or elsewhere.
+    func hear(_ next: Hearing, over range: Range<Double>) {
+        guard next == .original || hasVariation else { return }
+        hearing = next
+        switch next {
+        case .original:
+            send(.activeSources([Self.pieceSource]))
+            setLoop(range)
+        case .variation:
+            send(.activeSources([Self.variationSource]))
+            setLoop(range)
+        case .alternate:
+            loop = range
+            let passes = [Self.pieceSource, Self.variationSource].map { LoopPass(ids: [$0], start: range.lowerBound, end: range.upperBound) }
+            send(.alternate(passes))
+            if state == .stopped { send(.play) }
+        }
+    }
+
+    private static let pieceSource = "piece"
+    private static let variationSource = "variation"
 
     /// Stops the sound and the audio engine; the screen calls this when it closes.
     func shutdown() {

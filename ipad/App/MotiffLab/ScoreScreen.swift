@@ -50,6 +50,12 @@ struct ScoreScreen: View {
         }
     }
 
+    /// What loops while a variation is heard: what play takes for the selection, on to the variation's end.
+    private var variationRange: Range<Double>? {
+        guard let range = score.playRange?.range else { return nil }
+        return range.lowerBound..<max(range.upperBound, insights.trial?.end ?? 0)
+    }
+
     /// The drawer's height: 40% of the screen in landscape and 30% in portrait, as the web app's.
     private func drawerHeight(_ size: CGSize) -> CGFloat {
         (size.width > size.height ? 0.4 : 0.3) * size.height
@@ -74,7 +80,7 @@ struct ScoreScreen: View {
             .overlay(alignment: .top) {
                 VStack(alignment: .trailing, spacing: CGFloat.ds("s-2")) {
                     if score.focused {
-                        FocusBar(score: score, player: player, text: text)
+                        FocusBar(score: score, player: player, variationRange: variationRange, text: text)
                     } else {
                         ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, more: $more, rollOpen: $rollOpen, insightsOpen: $insightsOpen) { dismiss() }
                     }
@@ -102,7 +108,7 @@ struct ScoreScreen: View {
                 case .none:
                     EmptyView()
                 case .side:
-                    InsightsSheet(insights: insights, score: score, text: text) { insightsOpen = false }
+                    InsightsSheet(insights: insights, score: score, player: player, range: variationRange, text: text) { insightsOpen = false }
                         .clipShape(RoundedRectangle(cornerRadius: CGFloat.ds("r-l")))
                         .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-l")).strokeBorder(Color.ds("hairline")))
                         .dsShadow("shadow-sheet")
@@ -111,7 +117,7 @@ struct ScoreScreen: View {
                         .padding([.trailing, .bottom], CGFloat.ds("s-3"))
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                 case .bottom(let height):
-                    InsightsSheet(insights: insights, score: score, text: text) { insightsOpen = false }
+                    InsightsSheet(insights: insights, score: score, player: player, range: variationRange, text: text) { insightsOpen = false }
                         .clipShape(UnevenRoundedRectangle(topLeadingRadius: CGFloat.ds("r-l"), topTrailingRadius: CGFloat.ds("r-l")))
                         .dsShadow("shadow-sheet")
                         .frame(height: height)
@@ -141,6 +147,20 @@ struct ScoreScreen: View {
                     return true
                 }
                 insights.placeChosen = { [weak heard] tick in heard?.seek(to: tick) }
+                // A way tried sounds at once, looping the selection to the variation's end, and the card in focus shows
+                // it as the ossia; left, the original sounds again (0018 section 6).
+                let tried = insights
+                insights.variationReady = { [weak heard, weak shown, weak tried] notes, end in
+                    heard?.setVariation(notes)
+                    shown?.ossia = tried?.trial?.way.label
+                    if let range = shown?.playRange?.range {
+                        heard?.hear(.variation, over: range.lowerBound..<max(range.upperBound, end))
+                    }
+                }
+                insights.variationLeft = { [weak heard, weak shown] in
+                    heard?.setVariation(nil)
+                    shown?.ossia = nil
+                }
                 roll.barsPicked = { [weak shown] first, last, extend in shown?.selectBars(first, last, extend: extend) }
                 roll.cleared = { [weak shown] in shown?.clearSelection() }
                 roll.spacePressed = { [weak heard] in heard?.toggle() }
@@ -182,8 +202,13 @@ struct ScoreScreen: View {
             }
             .onChange(of: score.selection) { _, selection in
                 roll.showSelection(selection, loop: player.loop)
-                // The stream follows the selection while it is open.
-                if insightsOpen { Task { await insights.load(piece: piece.id, selection: selection) } }
+                // The stream follows the selection while it is open; a variation tried belongs to the passage it was
+                // tried on, so it is left either way.
+                if insightsOpen {
+                    Task { await insights.load(piece: piece.id, selection: selection) }
+                } else if insights.trial != nil {
+                    Task { await insights.leave() }
+                }
             }
             .onChange(of: player.loop) { _, loop in
                 roll.showSelection(score.selection, loop: loop)
@@ -200,7 +225,14 @@ struct ScoreScreen: View {
             }
             .onDisappear {
                 player.shutdown()
-                save()
+                // A variation only tried is not kept with the piece: it is left before the project file is written.
+                let file = piece.file
+                let id = piece.id
+                let tried = insights
+                Task {
+                    await tried.leave()
+                    if let file { try? await ProjectFiles.save(piece: id, to: file) }
+                }
             }
             .onChange(of: scenePhase) { _, phase in
                 // The project file is written whenever the app leaves the screen, so nothing waits for a Save button.
@@ -491,11 +523,12 @@ struct SelectionMenu: View {
 }
 
 /// The focus bar (0018 section 4, the web app's focus bar): Back to the page with its word, where the phrase is, and Play.
-/// Escape on a keyboard goes back too. Original / Variation / Alternate and Reading / As played come with variations and
-/// transcriptions on the iPad.
+/// Escape on a keyboard goes back too. While a variation is tried, Original / Variation / Alternate choose what sounds;
+/// Reading / As played comes with transcriptions on the iPad.
 struct FocusBar: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var player: Player
+    let variationRange: Range<Double>?
     let text: UIText
 
     var body: some View {
@@ -521,6 +554,9 @@ struct FocusBar: View {
                 .lineLimit(1)
                 .truncationMode(.tail)
             Spacer(minLength: CGFloat.ds("s-2"))
+            if player.hasVariation, let variationRange {
+                HearingSwitch(player: player, range: variationRange, text: text)
+            }
             Button {
                 player.toggle()
             } label: {

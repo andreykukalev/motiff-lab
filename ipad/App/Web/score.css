@@ -75,3 +75,6 @@ button.sel-handle.dragging { background: var(--accent); }
 #focus .card-score svg use { fill: currentColor; }
 #focus .card-score svg [color] { color: inherit !important; }
 #focus .card-score svg g.label { display: none; }
+/* The ossia (ds.css Ossia panel, the web app's .ossia-frame): a dashed plum frame round its staves, named by an overline. */
+#focus .ossia-frame { position: absolute; box-sizing: border-box; border: 1.5px dashed var(--plum); border-radius: var(--r-xs); pointer-events: none; }
+#focus .ossia-frame .overline { position: absolute; left: var(--s-3); top: -8px; max-width: calc(100% - 2 * var(--s-3)); padding: 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--paper); color: var(--plum); font: var(--t-overline); letter-spacing: 0.06em; text-transform: uppercase; }
