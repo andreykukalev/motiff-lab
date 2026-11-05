@@ -82,7 +82,7 @@ struct LibraryView: View {
             .navigationDestination(item: $piece) { piece in
                 Group {
                     if piece.isDocument {
-                        PdfScreen(piece: piece) { landing in await switchView(from: piece, to: landing) }
+                        PdfScreen(piece: piece, switchView: { landing in await switchView(from: piece, to: landing) }, openRead: { file, landing in await openFile(file, at: landing) })
                     } else {
                         ScoreScreen(piece: piece) { landing in await switchView(from: piece, to: landing) }
                     }
@@ -181,11 +181,16 @@ struct LibraryView: View {
     /// PDF | Notes (0023): the piece's other view replaces it, at the page or place given. The screen has saved the piece.
     private func switchView(from current: OpenPiece, to landing: Landing) async {
         guard let other = current.other else { return }
+        await openFile(other.file, at: landing)
+    }
+
+    /// Opens a project file in Documents in place of the piece shown, at a page or place.
+    private func openFile(_ file: URL, at landing: Landing) async {
         do {
-            let data = try Data(contentsOf: other.file)
+            let data = try Data(contentsOf: file)
             let language = text.language
-            await show(file: other.file, landing: landing) {
-                await OpenPiece.open(fileName: other.file.lastPathComponent, data: data, language: language)
+            await show(file: file, landing: landing) {
+                await OpenPiece.open(fileName: file.lastPathComponent, data: data, language: language)
             }
         } catch {
             problem = error.localizedDescription
