@@ -107,13 +107,17 @@ final class Player: ObservableObject {
     @Published private(set) var hearing = Hearing.original
     /// Whether a variation is there to hear.
     @Published private(set) var hasVariation = false
+    /// Whether what stands in the variation's place is another version of the piece, heard in focus (0022, section 5):
+    /// then the switch reads Notes / Version / Alternate.
+    @Published private(set) var secondIsVersion = false
 
-    /// The piece with the variation in place (music-core's `playback` of `inPlace`), or nil when the variation is left:
-    /// the original sounds again, looping where it looped.
-    func setVariation(_ notes: [PlaybackNote]?) {
+    /// The piece with the variation in place (music-core's `playback` of `inPlace`), or with `version` another version's
+    /// notes (`playback` of `version`); nil when it is left: the original sounds again, looping where it looped.
+    func setVariation(_ notes: [PlaybackNote]?, version: Bool = false) {
         guard let notes else {
             guard hasVariation else { return }
             hasVariation = false
+            secondIsVersion = false
             send(.activeSources([Self.pieceSource]))
             send(.removeSource(Self.variationSource))
             if hearing == .alternate, let loop { send(.loop(start: loop.lowerBound, end: loop.upperBound)) }
@@ -122,6 +126,7 @@ final class Player: ObservableObject {
         }
         send(.source(id: Self.variationSource, notes: notes))
         hasVariation = true
+        secondIsVersion = version
     }
 
     /// Hears the original, the variation, or the two one after the other, looping `range` and playing from its start

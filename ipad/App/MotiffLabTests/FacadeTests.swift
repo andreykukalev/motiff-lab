@@ -234,6 +234,15 @@ final class FacadeTests: XCTestCase {
         shelf.read(list: MusicCore.call(piece: piece, "performances"))
         XCTAssertEqual(shelf.entries.map(\.name), ["Urtext"])
 
+        // The comparison layer above every system, the version above the phrase in focus, and the version to hear.
+        let layered = try Engraver.engrave(piece: piece, title: "Für Elise", version: id).get()
+        XCTAssertEqual(layered.ossias.count, 1)
+        XCTAssertTrue(layered.ossias[0].added.isEmpty, "the piece's own score adds nothing")
+        let card = try Engraver.engraveCard(piece: piece, firstBar: 4, lastBar: 8, options: #"{"scale": 42, "pageWidth": 2600, "adjustPageHeight": true, "breaks": "auto"}"#, version: id).get()
+        XCTAssertEqual(card.ossias.count, 1)
+        let heard = try XCTUnwrap(PlaybackScore.read(MusicCore.call(piece: piece, "playback", #"{"of": "version", "id": "\#(id)"}"#)))
+        XCTAssertFalse(heard.notes.isEmpty)
+
         shelf.read(list: MusicCore.call(piece: piece, "performance.remove", #"{"id": "\#(id)"}"#))
         XCTAssertTrue(shelf.entries.isEmpty)
         XCTAssertNil(shelf.shown)

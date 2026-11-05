@@ -56,16 +56,20 @@ final class Engraver {
 
     /// The pages of a piece's notation as SVG with Verovio's timemap: music-core writes the MEI (`notation`), Verovio
     /// lays it out on A4 pages. Call it through `MusicCore.run`.
-    static func engrave(piece: Int32, title: String) -> Result<Engraving, EngraveError> {
-        layOut(piece: piece, request: "{\"title\": \(jsonString(title))}", options: a4Leland)
+    /// With `version`, another version's id, it stands on small staves above every system as the comparison layer (0022,
+    /// section 4), its likely artefacts too with `artefacts`.
+    static func engrave(piece: Int32, title: String, version: String? = nil, artefacts: Bool = false) -> Result<Engraving, EngraveError> {
+        let above = version.map { ", \"ossia\": \(jsonString($0)), \"artefacts\": \(artefacts)" } ?? ""
+        return layOut(piece: piece, request: "{\"title\": \(jsonString(title))\(above)}", options: a4Leland)
     }
 
     /// The bars of a phrase in focus engraved on their own (0018 section 4): music-core writes the excerpt
     /// (`notation` with `bars`, 0021) and Verovio lays it out with the card's options, which the score page gives as
     /// the web app's phrase card has them (Scripts/score/phrase-card.ts, `cardLayout`). Call it through `MusicCore.run`.
-    /// With `ossia` the variation being tried is engraved above the original, bar for bar (0021).
-    static func engraveCard(piece: Int32, firstBar: Int, lastBar: Int, options: String, ossia: Bool = false) -> Result<Engraving, EngraveError> {
-        let above = ossia ? ", \"ossia\": \"variation\"" : ""
+    /// With `ossia` the variation being tried is engraved above the original, bar for bar (0021); with `version` instead,
+    /// another version of the piece as the performer has it (0022, section 5).
+    static func engraveCard(piece: Int32, firstBar: Int, lastBar: Int, options: String, ossia: Bool = false, version: String? = nil) -> Result<Engraving, EngraveError> {
+        let above = ossia ? ", \"ossia\": \"variation\"" : version.map { ", \"ossia\": \(jsonString($0))" } ?? ""
         return layOut(piece: piece, request: "{\"bars\": {\"first\": \(firstBar), \"last\": \(lastBar)}\(above)}", options: options)
     }
 
@@ -85,7 +89,9 @@ final class Engraver {
         let ossias = (answer["ossias"] as? [[String: Any]] ?? []).map { ossia in
             Engraving.Ossia(
                 staves: (ossia["staves"] as? [[String: Any]] ?? []).compactMap { ($0["number"] as? NSNumber)?.intValue },
-                prefix: ossia["idPrefix"] as? String ?? ""
+                prefix: ossia["idPrefix"] as? String ?? "",
+                added: ossia["added"] as? [String] ?? [],
+                artefacts: ossia["artefacts"] as? [String] ?? []
             )
         }
         return .success(Engraving(pages: pages, timemap: engraver.timemap(), ossias: ossias))
@@ -103,6 +109,9 @@ struct Engraving: Sendable {
     struct Ossia: Sendable, Equatable {
         let staves: [Int]
         let prefix: String
+        /// Another version's ossia: the engraved ids of the notes it adds (plum) and of its likely artefacts (grey).
+        var added: [String] = []
+        var artefacts: [String] = []
     }
 
     let pages: [String]
