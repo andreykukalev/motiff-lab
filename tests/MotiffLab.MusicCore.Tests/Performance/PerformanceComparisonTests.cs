@@ -64,7 +64,7 @@ public class PerformanceComparisonTests
 
     /// <summary>The score played as printed, with a few milliseconds of unevenness per note.</summary>
     private static List<PlayedNote> AsPrinted(IEnumerable<Note> score) =>
-        [.. score.Select((note, i) => new PlayedNote("p_" + note.Id, note.Pitch, Time(note.Span.Onset.Value) + (((i * 7) % 5) - 2) * 4_000, 70))];
+        [.. score.Select((note, i) => new PlayedNote("p_" + note.Id, note.Pitch, Time(note.Span.Onset.Value) + (((i * 7) % 5) - 2) * 4_000, 70, Time(note.Span.End.Value) - Time(note.Span.Onset.Value) - 20_000))];
 
     /// <summary>The performance used by most tests: the score with one change per bar from bar 2 on.</summary>
     private static List<PlayedNote> Performance()
@@ -84,19 +84,19 @@ public class PerformanceComparisonTests
         List<PlayedNote> played = AsPrinted(score);
 
         // Bar 2: a quiet overtone an octave above the melody's first note.
-        played.Add(new PlayedNote("overtone", new Pitch(83), Time(BarTicks) + 10_000, 30));
+        played.Add(new PlayedNote("overtone", new Pitch(83), Time(BarTicks) + 10_000, 30, 100_000));
 
         // Bar 3: a filling figure of eighths over beats 2 and 3.
         long bar3 = 2 * BarTicks;
-        played.Add(new PlayedNote("fill1", new Pitch(81), Time(bar3 + 600), 60));
-        played.Add(new PlayedNote("fill2", new Pitch(84), Time(bar3 + 840), 60));
-        played.Add(new PlayedNote("fill3", new Pitch(81), Time(bar3 + 1080), 60));
+        played.Add(new PlayedNote("fill1", new Pitch(81), Time(bar3 + 600), 60, 100_000));
+        played.Add(new PlayedNote("fill2", new Pitch(84), Time(bar3 + 840), 60, 100_000));
+        played.Add(new PlayedNote("fill3", new Pitch(81), Time(bar3 + 1080), 60, 100_000));
 
         // Bar 8: a quick run up to the third beat's melody note, as an ornament is played.
         long bar8 = 7 * BarTicks;
-        played.Add(new PlayedNote("orn1", new Pitch(67), Time(bar8 + 900), 60));
-        played.Add(new PlayedNote("orn2", new Pitch(69), Time(bar8 + 960), 60));
-        played.Add(new PlayedNote("orn3", new Pitch(71), Time(bar8 + 1020), 60));
+        played.Add(new PlayedNote("orn1", new Pitch(67), Time(bar8 + 900), 60, 100_000));
+        played.Add(new PlayedNote("orn2", new Pitch(69), Time(bar8 + 960), 60, 100_000));
+        played.Add(new PlayedNote("orn3", new Pitch(71), Time(bar8 + 1020), 60, 100_000));
         return played;
     }
 

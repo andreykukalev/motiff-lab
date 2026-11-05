@@ -8,7 +8,7 @@ import MotiffLabCore
 /// The facade keeps its open pieces in memory and is not shared between threads, so every call runs through
 /// `MusicCore.run`, one at a time, on a thread with the 8 MB stack the .NET runtime expects, off the main thread.
 enum MusicCore {
-    /// {"contract": 3, "projectFile": 12, "runtime": "…"}
+    /// {"contract": 4, "projectFile": 13, "runtime": "…"}
     static func version() -> String {
         take(ml_version())
     }

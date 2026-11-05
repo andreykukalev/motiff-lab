@@ -20,7 +20,7 @@ public class RecordingCorrectionsTests
 
     /// <summary>Transkun's notes at the engine's 120 BPM, a tick being 500000 / 480 microseconds.</summary>
     private static List<PlayedNote> Heard() =>
-        [.. Fixture("Transcription", "transkun-fur-elise.mid").Notes.Select(note => new PlayedNote(note.Id, note.Pitch, note.Span.Onset.Value * 500_000 / 480, note.Velocity))];
+        [.. Fixture("Transcription", "transkun-fur-elise.mid").Notes.Select(note => new PlayedNote(note.Id, note.Pitch, note.Span.Onset.Value * 500_000 / 480, note.Velocity, note.Span.Duration * 500_000 / 480))];
 
     private static (PerformanceComparison Comparison, IReadOnlyList<RecordingCorrection> Corrections) Run(ImportedPiece scan, List<PlayedNote> played)
     {

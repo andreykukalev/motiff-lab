@@ -7,7 +7,8 @@ namespace MotiffLab.MusicCore.Performance;
 /// <param name="Id">The note's id in the performance, stable within it.</param>
 /// <param name="Onset">When the key was struck, in microseconds from the start of the recording.</param>
 /// <param name="Velocity">MIDI velocity, 1–127.</param>
-public sealed record PlayedNote(string Id, Pitch Pitch, long Onset, int Velocity);
+/// <param name="Duration">How long the key was held, in microseconds.</param>
+public sealed record PlayedNote(string Id, Pitch Pitch, long Onset, int Velocity, long Duration);
 
 /// <summary>A point where the score and the performance agree: this score position sounds at this time of the recording.</summary>
 public readonly record struct Anchor(Tick Score, long Microseconds);

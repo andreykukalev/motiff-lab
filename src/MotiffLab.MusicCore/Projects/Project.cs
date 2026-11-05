@@ -280,6 +280,62 @@ public sealed record Project(
     /// </summary>
     public IReadOnlyList<CheckFlag>? Check { get; init; } = [];
 
+    /// <summary>The performances compared with the piece (decision record 0022), in the order they were added.</summary>
+    public IReadOnlyList<SavedPerformance> Performances { get; init; } = [];
+
+    public SavedPerformance? FindPerformance(string id) => Performances.FirstOrDefault(performance => performance.Id == id);
+
+    /// <summary>The next free performance id: "perf_" and one more than the highest number used.</summary>
+    public string NextPerformanceId() =>
+        $"perf_{Performances.Select(performance => int.TryParse(performance.Id.AsSpan(5), out int number) ? number : 0).DefaultIfEmpty(0).Max() + 1}";
+
+    /// <exception cref="ArgumentException">A performance with the same id is already there.</exception>
+    public Project AddPerformance(SavedPerformance performance)
+    {
+        ArgumentNullException.ThrowIfNull(performance);
+        return FindPerformance(performance.Id) is not null
+            ? throw new ArgumentException($"There is already a performance {performance.Id}.", nameof(performance))
+            : this with { Performances = [.. Performances, performance] };
+    }
+
+    /// <exception cref="KeyNotFoundException">No performance has the id.</exception>
+    public Project ChangePerformance(string id, Func<SavedPerformance, SavedPerformance> change)
+    {
+        ArgumentNullException.ThrowIfNull(change);
+        SavedPerformance changed = change(FindPerformance(id) ?? throw new KeyNotFoundException($"There is no performance {id}."));
+        return changed.Id != id
+            ? throw new ArgumentException("A performance keeps its id.", nameof(change))
+            : this with { Performances = [.. Performances.Select(performance => performance.Id == id ? changed : performance)] };
+    }
+
+    /// <summary>The project without the performance, the bars taken from it and its Check flags.</summary>
+    /// <exception cref="KeyNotFoundException">No performance has the id.</exception>
+    public Project RemovePerformance(string id)
+    {
+        _ = FindPerformance(id) ?? throw new KeyNotFoundException($"There is no performance {id}.");
+        List<SavedPerformance> left = [.. Performances.Where(performance => performance.Id != id)];
+        return this with
+        {
+            Performances = left,
+            Check = left.Count == 0 ? [.. (Check ?? []).Where(flag => flag.Source != CheckSource.Performance)] : Check,
+        };
+    }
+
+    /// <summary>The project with a performance's Check flags (0022, section 6) in place of earlier ones from performances; flags the player resolved stay resolved.</summary>
+    public Project WithPerformanceChecks(IEnumerable<CheckFlag> flags)
+    {
+        ArgumentNullException.ThrowIfNull(flags);
+        List<CheckFlag> earlier = [.. (Check ?? []).Where(flag => flag.Source == CheckSource.Performance)];
+        IEnumerable<CheckFlag> fresh = flags.Select(flag => earlier.Any(old => old.Bar == flag.Bar && old.Reason == flag.Reason && old.Resolved) ? flag with { Resolved = true } : flag);
+        return this with { Check = [.. (Check ?? []).Where(flag => flag.Source != CheckSource.Performance).Concat(fresh).OrderBy(flag => flag.Bar).ThenBy(flag => flag.Reason)] };
+    }
+
+    /// <summary>The bars taken from every performance into the score.</summary>
+    public IEnumerable<Performance.TakenBar> TakenBars => Performances.SelectMany(performance => performance.Taken);
+
+    /// <summary>Whether the notes differ from the imported ones: corrections, or bars taken from a performance.</summary>
+    public bool ChangesNotes => !Edits.IsEmpty || TakenBars.Any();
+
     /// <summary>The flags the player has not resolved, in bar order.</summary>
     public IReadOnlyList<CheckFlag> OpenChecks => [.. (Check ?? []).Where(flag => !flag.Resolved).OrderBy(flag => flag.Bar)];
 
@@ -307,7 +363,7 @@ public sealed record Project(
     /// of the Check drawer). Only before the player has put anything on the score: corrections, phrase changes,
     /// marks, bookmarks, ideas, observations and checked bars are kept by their place in the bars, which would move.
     /// </summary>
-    public bool CanChangeBars => Transcription is not null && Edits.IsEmpty && Phrases.IsEmpty && ShortPhrases.IsEmpty && Sentences.IsEmpty
+    public bool CanChangeBars => Transcription is not null && Edits.IsEmpty && !TakenBars.Any() && Phrases.IsEmpty && ShortPhrases.IsEmpty && Sentences.IsEmpty
         && Marks.IsEmpty && Bookmarks.Count == 0 && Motifs.Count == 0 && Variations.Count == 0 && Observations.Count == 0
         && !(Check ?? []).Any(flag => flag.Resolved);
 
@@ -593,7 +649,7 @@ public sealed record OpenedProject(
         IReadOnlyList<Note> notes;
         try
         {
-            notes = project.Edits.Apply(piece.Notes);
+            notes = Performance.PerformanceTake.Apply(project.Edits.Apply(piece.Notes), project.TakenBars);
         }
         catch (InvalidOperationException exception)
         {

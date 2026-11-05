@@ -1,0 +1,173 @@
+using System.Text.Json;
+
+using MotiffLab.MusicCore.Analysis;
+using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Import.Midi;
+using MotiffLab.MusicCore.Import.Scan;
+using MotiffLab.MusicCore.Performance;
+using MotiffLab.MusicCore.Projects;
+using MotiffLab.MusicCore.Time;
+
+namespace MotiffLab.MusicCore.Facade;
+
+/// <summary>
+/// The calls about performances compared with the piece (decision record 0022; contract 4): add one from MIDI,
+/// compare, take bars into the score or restore the print, mark a bar "not a difference", rename and remove.
+/// The comparison is always against the printed notes with the player's corrections, never against bars
+/// already taken, so a taken bar can be restored and compared again.
+/// </summary>
+internal sealed partial class OpenPiece
+{
+    private string CallOnPerformance(string name, Request request) => name switch
+    {
+        "performances" => Answer.Write(json => Answer.Performances(json, Project)),
+        "performance" => PerformanceAnswer(Performance(request)),
+        "performance.add" => AddPerformance(request),
+        "performance.rename" => ChangePerformance(request, performance => performance with { Name = request.Required("name") }),
+        "performance.dismiss" => ChangePerformance(request, performance => performance.Dismiss(BarOf(request), request.Bool("dismissed") ?? true)),
+        "performance.take" => TakeBars(request),
+        "performance.restore" => ChangePerformance(request, performance => performance.Restore(BarsOf(request)), notesChange: true),
+        "performance.remove" => RemovePerformance(request),
+        _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\"."),
+    };
+
+    /// <summary>The printed notes with the player's corrections: what every performance is compared with.</summary>
+    private IReadOnlyList<Note> Printed => Project.Edits.Apply(Piece.Notes);
+
+    private SavedPerformance Performance(Request request) =>
+        Project.FindPerformance(request.Required("id")) ?? throw new FacadeException("notFound", $"There is no performance {request.Required("id")}.");
+
+    private PerformanceComparison Compare(SavedPerformance performance) =>
+        PerformanceComparison.Compare(Printed, Piece.Meter, performance.Notes(), performance.Alignment());
+
+    private string PerformanceAnswer(SavedPerformance performance)
+    {
+        PerformanceComparison comparison = Compare(performance);
+        return Answer.Write(json => Answer.Performance(json, performance, comparison, Printed.Count, Words));
+    }
+
+    /// <summary>
+    /// "name", "midi" (base64), "source" ("recording" or "midi", default midi), "engine" for a recording, and
+    /// "recordingStart" in milliseconds where the transcribed stretch starts. Lines the notes up with the score,
+    /// keeps the anchors, raises the Check flags the recording gives a scanned piece, and answers the comparison.
+    /// </summary>
+    private string AddPerformance(Request request)
+    {
+        byte[] midi;
+        try
+        {
+            midi = Convert.FromBase64String(request.Required("midi"));
+        }
+        catch (FormatException)
+        {
+            throw FacadeException.BadRequest("\"midi\" is a MIDI file in base64.");
+        }
+
+        IReadOnlyList<PlayedNote> played;
+        long start = (request.Long("recordingStart") ?? 0) * 1000;
+        try
+        {
+            played = PlayedNotes.FromMidi(midi, start);
+        }
+        catch (Exception exception) when (exception is MidiImportException or ArgumentException or InvalidDataException or FormatException)
+        {
+            throw FacadeException.BadRequest($"The performance is not a MIDI file Motiff Lab can read: {exception.Message}");
+        }
+
+        if (played.Count == 0)
+        {
+            throw FacadeException.BadRequest("The performance has no notes.");
+        }
+
+        PerformanceAlignment alignment = PerformanceAlignment.Align(Printed, played);
+        SavedPerformance performance = new(Project.NextPerformanceId(), request.Required("name"), request.Enum<PerformanceSource>("source") ?? PerformanceSource.Midi, midi, start, alignment.Anchors)
+        {
+            Engine = request.Text("engine"),
+        };
+
+        Project = Project.AddPerformance(performance);
+        if (Project.Scan is not null)
+        {
+            PerformanceComparison comparison = PerformanceComparison.Compare(Printed, Piece.Meter, played, alignment);
+            IReadOnlyList<RecordingCorrection> corrections = RecordingCorrections.Find(Printed, Piece.Meter, ScanCheck.Of(Piece), comparison);
+            Project = Project.WithPerformanceChecks(corrections.SelectMany(correction => correction.Flags()));
+        }
+
+        return PerformanceAnswer(performance);
+    }
+
+    /// <summary>"id", "bars" (numbers) and "leaveOut" (ids of notes on either side the player unticked).</summary>
+    private string TakeBars(Request request)
+    {
+        SavedPerformance performance = Performance(request);
+        PerformanceComparison comparison = Compare(performance);
+        IReadOnlyList<PlayedNote> played = performance.Notes();
+        IReadOnlyList<string> leaveOut = request.Texts("leaveOut");
+        List<TakenBar> taken = [];
+        foreach (int bar in BarsOf(request))
+        {
+            BarComparison compared = comparison.Bars.FirstOrDefault(kept => kept.Bar == bar) ?? throw FacadeException.BadRequest($"Bar {bar} is not in the piece.");
+            try
+            {
+                taken.Add(PerformanceTake.Take(performance.Id, compared, played, comparison.Alignment, Piece.Meter, Printed, leaveOut));
+            }
+            catch (ArgumentException exception)
+            {
+                throw FacadeException.Unavailable(exception.Message);
+            }
+        }
+
+        return ChangePerformance(request, kept => kept.TakeBars(taken), notesChange: true);
+    }
+
+    private string RemovePerformance(Request request)
+    {
+        bool hadTaken = Performance(request).Taken.Count > 0;
+        Project = Project.RemovePerformance(request.Required("id"));
+        if (hadTaken)
+        {
+            RefreshNotes();
+        }
+
+        return Answer.Write(json => Answer.Performances(json, Project));
+    }
+
+    private string ChangePerformance(Request request, Func<SavedPerformance, SavedPerformance> change, bool notesChange = false)
+    {
+        string id = Performance(request).Id;
+        try
+        {
+            Project = Project.ChangePerformance(id, change);
+        }
+        catch (ArgumentException exception)
+        {
+            throw FacadeException.BadRequest(exception.Message);
+        }
+
+        if (notesChange)
+        {
+            RefreshNotes();
+        }
+
+        return PerformanceAnswer(Project.FindPerformance(id)!);
+    }
+
+    /// <summary>The notes again after bars were taken or restored, and what was worked out from them.</summary>
+    private void RefreshNotes()
+    {
+        Notes = PerformanceTake.Apply(Printed, Project.TakenBars);
+        Levels = PhraseLevels.Suggest(Notes, Piece.Meter, Piece.MusicXml?.PhraseMarks ?? PhraseMarks.None, Piece.End, KeySignature.InForce(Piece.Keys, Tick.Zero), Words, Levels.Edits);
+        _understood = null;
+        _offered = null;
+    }
+
+    private static int BarOf(Request request) => request.Int("bar") ?? throw FacadeException.BadRequest("Send \"bar\".");
+
+    private static IReadOnlyList<int> BarsOf(Request request)
+    {
+        IReadOnlyList<JsonElement> bars = request.Elements("bars");
+        return bars.Count > 0
+            ? [.. bars.Select(bar => bar.ValueKind == JsonValueKind.Number && bar.TryGetInt32(out int number) && number >= 0 ? number : throw FacadeException.BadRequest("\"bars\" are bar numbers."))]
+            : throw FacadeException.BadRequest("Send \"bars\", the bar numbers.");
+    }
+}

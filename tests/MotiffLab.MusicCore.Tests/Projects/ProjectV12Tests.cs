@@ -58,7 +58,6 @@ public class ProjectV12Tests
 
         Project reread = ProjectFile.Read(written);
 
-        Assert.Equal(12, ProjectFile.Version);
         Assert.Equal(project.Marks, reread.Marks);
         Assert.Equal(project.Categories, reread.Categories);
         Assert.Equal(project.Bookmarks, reread.Bookmarks);
@@ -247,7 +246,7 @@ public class ProjectV12Tests
     [Fact]
     public void A_newer_file_is_still_refused()
     {
-        string json = Encoding.UTF8.GetString(ProjectFile.Write(Worked())).Replace("\"version\": 12", "\"version\": 13", StringComparison.Ordinal);
+        string json = Encoding.UTF8.GetString(ProjectFile.Write(Worked())).Replace("\"version\": 13", "\"version\": 14", StringComparison.Ordinal);
 
         ProjectFileException exception = Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Encoding.UTF8.GetBytes(json)));
 

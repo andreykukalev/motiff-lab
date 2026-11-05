@@ -51,8 +51,8 @@ internal sealed partial class OpenPiece
 
     public ImportedPiece Piece { get; }
 
-    /// <summary>The imported notes with the project's corrections applied.</summary>
-    public IReadOnlyList<Note> Notes { get; }
+    /// <summary>The imported notes with the project's corrections and the bars taken from performances applied.</summary>
+    public IReadOnlyList<Note> Notes { get; private set; }
 
     public Words Words { get; private set; }
 
@@ -488,7 +488,7 @@ internal sealed partial class OpenPiece
         bool heard = Transcribed.IsHeard(Piece);
         BarRange? bars = ExcerptOf(request);
         NotationOssia[] ossias = [.. OssiaSources(request).Select(source => Ossia(source, heard, readable))];
-        bool generated = heard || !Project.Edits.IsEmpty || bars is not null || ossias.Length > 0;
+        bool generated = heard || Project.ChangesNotes || bars is not null || ossias.Length > 0;
         GeneratedNotation notation;
         if (of == "piece")
         {
@@ -622,7 +622,7 @@ internal sealed partial class OpenPiece
     private string Playback(Request request)
     {
         PlaybackScore score = PlaybackScore.FromPiece(Piece);
-        if (!Project.Edits.IsEmpty)
+        if (Project.ChangesNotes)
         {
             score = score.WithNotes(Notes);
         }

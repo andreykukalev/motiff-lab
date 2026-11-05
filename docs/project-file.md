@@ -1,6 +1,6 @@
-# The project file (`.motiff.json`), version 12
+# The project file (`.motiff.json`), version 13
 
-The project file is what a player keeps of a piece: the imported source, the work on it, and since version 12 everything the redesign keeps with the piece ([0018](decisions/0018-redesign.md), section 7; [0020](decisions/0020-music-core-facade.md)). It is written and read by `MotiffLab.MusicCore.Projects.ProjectFile`, by hand, so the same project gives the same bytes. The web app saves it in IndexedDB and, when the player turns saving online on, sends it to the API ([0014](decisions/0014-hosted-scan-server.md)); the iPad app reads and writes the same file through the facade. A file of an earlier version always opens; the rules are at the end.
+The project file is what a player keeps of a piece: the imported source, the work on it, and since version 12 everything the redesign keeps with the piece ([0018](decisions/0018-redesign.md), section 7; [0020](decisions/0020-music-core-facade.md)), and since version 13 the performances compared with it ([0022](decisions/0022-score-and-performance.md)). It is written and read by `MotiffLab.MusicCore.Projects.ProjectFile`, by hand, so the same project gives the same bytes. The web app saves it in IndexedDB and, when the player turns saving online on, sends it to the API ([0014](decisions/0014-hosted-scan-server.md)); the iPad app reads and writes the same file through the facade. A file of an earlier version always opens; the rules are at the end.
 
 Ticks are integers at 480 per quarter ([0002](decisions/0002-canonical-time.md)). A span is `onset` and `duration` in ticks. Times are ISO 8601 with offset. Enum values in the file are the C# names (`Carmine`, `PianoRoll`); the facade answers them in lower camel case.
 
@@ -9,7 +9,7 @@ Ticks are integers at 480 per quarter ([0002](decisions/0002-canonical-time.md))
 ```jsonc
 {
   "format": "motiff-lab-project",
-  "version": 12,
+  "version": 13,
   "id": "p_…",                 // the project's id
   "fileName": "minuet.musicxml",
   "source": "<base64>",         // the imported file, MIDI or MusicXML, as it was
@@ -25,6 +25,7 @@ Ticks are integers at 480 per quarter ([0002](decisions/0002-canonical-time.md))
   "bookmarks": { … },           // version 12
   "resumePoints": [ … ],        // version 12; replaces "sessions" (versions 8–11)
   "check": [ … ] | null,        // version 12
+  "performances": [ … ],        // version 13
   "settings": { … },            // version 12
   "scan": { … },                // only a scanned piece (version 7)
   "transcription": { … }        // only a transcribed piece (version 9; bars since 10; seams in 12)
@@ -124,13 +125,14 @@ Any number of ideas can sit on one phrase. Which phrase an idea belongs to after
 
 ## Check (`check`)
 
-What the scan server or the transcription left for the player to look at, as data, in one format for both (prep item 6).
+What the scan server, the transcription or a performance left for the player to look at, as data, in one format for all three (prep item 6).
 
 ```jsonc
 "check": [
-  { "bar": 12, "source": "Scan" | "Transcription",
+  { "bar": 12, "source": "Scan" | "Transcription" | "Performance",
     "reason": "BarTooLong" | "BarTooShort" | "StavesDiffer" | "OutOfPianoRange" | "GraceNotes"   // scan
-            | "PartSeam" | "TempoUncertain" | "DenseCluster" | "HandsGuessed",                    // transcription
+            | "PartSeam" | "TempoUncertain" | "DenseCluster" | "HandsGuessed"                     // transcription
+            | "RecordingOctave" | "RecordingBarLength",                                           // a performance (version 13)
     "resolved": false }
 ]
 ```
@@ -138,6 +140,32 @@ What the scan server or the transcription left for the player to look at, as dat
 `null` only in a file written for a project that was never opened since it was read from an older version; opening such a project works the flags out from the piece (`CheckFlag.FromScan`, or `CheckFlag.FromTranscription` for a transcription) and marks the bars the player had confirmed as resolved.
 
 A transcription's flags (prep item 12) are worked out from the notes the engine heard and the bars worked out for them: `PartSeam` for the bars on either side of a seam; `TempoUncertain` for a bar where at least half of four or more onsets sit more than 30 ticks off both the 16th and the triplet-8th grids; `DenseCluster` for a bar with four onsets within a 16th or a chord of three or more notes a second apart; `HandsGuessed` for a bar with two or more notes whose hand was guessed with confidence below 0.6. A reason other than `PartSeam` that would flag more than a quarter of the bars is left out, since it then says more about the recording than about a bar. Resolving a flag on a scanned piece also confirms the bar in `scan.confirmedBars`, so older readers see the same thing.
+
+A performance added to a scanned piece raises its own flags (source `Performance`, [0022](decisions/0022-score-and-performance.md), section 6): `RecordingOctave` where at least three quarters of a hand's notes are played 12 semitones from the scan for two bars or more, and `RecordingBarLength` where the scan flagged a bar too long or too short and the performance measures it at the meter's length at the neighbouring bars' tempo. Removing the last performance drops them.
+
+## Performances (`performances`)
+
+A performance compared with the piece (version 13, [0022](decisions/0022-score-and-performance.md), section 8): its notes as MIDI, the anchors that line it up with the score, the bars the player said are not a difference, and the bars taken into the score. The recording's sound is never in the file; it stays on the device.
+
+```jsonc
+"performances": [
+  { "id": "perf_1", "name": "Live at the National Gallery",
+    "source": "Recording" | "Midi",
+    "engine": "transkun 2.0.1",          // only a recording
+    "midi": "<base64>",                  // the engine's MIDI or the player's file, as it was
+    "recordingStart": 0,                 // microseconds into the recording where the transcribed stretch starts
+    "anchors": [[0, 0], [1440, 1500000]],   // [score tick, microseconds], both strictly increasing
+    "dismissed": [7],                    // bars marked "not a difference"
+    "taken": [
+      { "bar": 5,
+        "removed": ["n_0031"],           // printed notes the performance does not play
+        "added": [ { "id": "perf-perf_1-n_0042", "pitch": 79, "onset": 4560, "duration": 120,
+                     "velocity": 64, "track": 0, "hand": "Right" } ] }   // hand absent when unknown
+    ] }
+]
+```
+
+The score a project opens with is the imported notes, then the edits, then the taken bars: removed ids are left out (an id that is no longer there is ignored) and added notes come in marked user-edited. Bars cannot be changed while bars are taken. The array is empty when there are no performances, and a file before version 13 reads as none.
 
 ## Settings (`settings`)
 
@@ -157,6 +185,7 @@ Every version since 1 opens (`ProjectFile.Read`). The rules for the versions bef
 | --- | --- |
 | 8–11 | Each session becomes a resume point with the same number (`s_0001` → `r_0001`), named by the session's task, at its passage, with the session's `lastActive`; its intent is dropped. |
 | 6–11 | Observations lose `sessionId`; `factId` is absent. |
+| < 13 | No performances; no `Performance` flags. |
 | 12 without `transcription.seams` | The recording went in one part, or was transcribed before seams were kept: no `PartSeam` flags. |
 | < 12 | No marks, bookmarks (the four built-in categories only) or overrides. `check` is null until the project is opened, then worked out from the piece and the scan's confirmed bars. |
 | 12 without `phrases.short` / `phrases.sentences` | Written before the three phrase levels ([0018](decisions/0018-redesign.md), section 3): the Short and Sentence levels have no edits, so the engine suggests them. The level shown is the override `phrases.granularity`, as before. |

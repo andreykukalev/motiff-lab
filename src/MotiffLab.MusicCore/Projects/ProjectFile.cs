@@ -5,6 +5,7 @@ using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Motifs;
+using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Settings;
 using MotiffLab.MusicCore.Time;
 using MotiffLab.MusicCore.Variations;
@@ -37,13 +38,13 @@ public static class ProjectFile
     /// 4 saves the melody operations (V4, V9, V10), Accompaniment pattern (V2), Articulation (V13)
     /// and each step's scope; 3 adds
     /// the edit log of note corrections; 2 saves each variation as a chain of steps. Files of earlier
-    /// versions still open: before 12 there are no marks, bookmarks or overrides, the sessions open as resume points named by
+    /// versions still open: before 13 there are no performances, before 12 there are no marks, bookmarks or overrides, the sessions open as resume points named by
     /// their task, the ideas lose their session, and the Check flags are worked out when the project opens, resolved where
     /// the player confirmed a scanned bar; the bars of version 10 keep one tempo, versions before 10 keep a transcription's bars as the engine wrote them, versions before 9 were never transcribed, versions before 8 have no sessions, versions before 7 were never scanned, versions before 6 have no observations, steps of versions before 4
     /// change the whole selection, versions 1 and 2 have no corrections, and version 1 holds one
     /// step per variation.
     /// </summary>
-    public const int Version = 12;
+    public const int Version = 13;
 
     /// <summary>The extension an exported project gets.</summary>
     public const string Extension = ".motiff.json";
@@ -265,6 +266,14 @@ public static class ProjectFile
                 json.WriteNull("check");
             }
 
+            json.WriteStartArray("performances");
+            foreach (SavedPerformance performance in project.Performances)
+            {
+                WritePerformance(json, performance);
+            }
+
+            json.WriteEndArray();
+
             json.WriteStartObject("settings");
             foreach ((string id, string value) in project.SettingOverrides.OrderBy(pair => pair.Key, StringComparer.Ordinal))
             {
@@ -424,6 +433,14 @@ public static class ProjectFile
                 ? ReadBookmarks(Property(root, "bookmarks", JsonValueKind.Object))
                 : (BookmarkCategory.BuiltIn, []);
             IReadOnlyList<CheckFlag>? check = version >= 12 ? ReadCheck(root) : null;
+            List<SavedPerformance> performances = version >= 13
+                ? [.. Property(root, "performances", JsonValueKind.Array).EnumerateArray().Select(ReadPerformance)]
+                : [];
+            if (performances.Select(static performance => performance.Id).Distinct(StringComparer.Ordinal).Count() != performances.Count)
+            {
+                throw Damaged("performances");
+            }
+
             IReadOnlyDictionary<string, string> overrides = version >= 12 ? ReadSettings(Property(root, "settings", JsonValueKind.Object)) : new Dictionary<string, string>(StringComparer.Ordinal);
 
             return new Project(
@@ -448,6 +465,7 @@ public static class ProjectFile
                 Bookmarks = bookmarks,
                 Check = check,
                 SettingOverrides = overrides,
+                Performances = performances,
             };
         }
     }
@@ -738,6 +756,120 @@ public static class ProjectFile
         }
 
         return flags;
+    }
+
+    private static void WritePerformance(Utf8JsonWriter json, SavedPerformance performance)
+    {
+        json.WriteStartObject();
+        json.WriteString("id", performance.Id);
+        json.WriteString("name", performance.Name);
+        json.WriteString("source", performance.Source.ToString());
+        if (performance.Engine is { } engine)
+        {
+            json.WriteString("engine", engine);
+        }
+
+        json.WriteBase64String("midi", performance.Midi);
+        json.WriteNumber("recordingStart", performance.RecordingStart);
+        json.WriteStartArray("anchors");
+        foreach (Anchor anchor in performance.Anchors)
+        {
+            json.WriteStartArray();
+            json.WriteNumberValue(anchor.Score.Value);
+            json.WriteNumberValue(anchor.Microseconds);
+            json.WriteEndArray();
+        }
+
+        json.WriteEndArray();
+        json.WriteStartArray("dismissed");
+        foreach (int bar in performance.Dismissed)
+        {
+            json.WriteNumberValue(bar);
+        }
+
+        json.WriteEndArray();
+        json.WriteStartArray("taken");
+        foreach (TakenBar bar in performance.Taken)
+        {
+            json.WriteStartObject();
+            json.WriteNumber("bar", bar.Bar);
+            json.WriteStartArray("removed");
+            foreach (string id in bar.Removed)
+            {
+                json.WriteStringValue(id);
+            }
+
+            json.WriteEndArray();
+            json.WriteStartArray("added");
+            foreach (TakenNote note in bar.Added)
+            {
+                json.WriteStartObject();
+                json.WriteString("id", note.Id);
+                json.WriteNumber("pitch", note.Pitch.MidiNumber);
+                WriteSpan(json, note.Span);
+                json.WriteNumber("velocity", note.Velocity);
+                json.WriteNumber("track", note.Track);
+                if (note.Hand is { } hand)
+                {
+                    json.WriteString("hand", hand.ToString());
+                }
+
+                json.WriteEndObject();
+            }
+
+            json.WriteEndArray();
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
+        json.WriteEndObject();
+    }
+
+    private static SavedPerformance ReadPerformance(JsonElement performance)
+    {
+        Expect(performance, JsonValueKind.Object, "performances");
+        try
+        {
+            byte[] midi = Property(performance, "midi", JsonValueKind.String).GetBytesFromBase64();
+            List<Anchor> anchors = [.. Property(performance, "anchors", JsonValueKind.Array).EnumerateArray().Select(anchor =>
+                anchor.ValueKind == JsonValueKind.Array && anchor.GetArrayLength() == 2 && anchor[0].TryGetInt64(out long tick) && tick >= 0 && anchor[1].TryGetInt64(out long micros)
+                    ? new Anchor(new Tick(tick), micros)
+                    : throw Damaged("performance anchors"))];
+            List<int> dismissed = [.. Property(performance, "dismissed", JsonValueKind.Array).EnumerateArray().Select(bar => bar.TryGetInt32(out int number) && number >= 0 ? number : throw Damaged("performance"))];
+            List<TakenBar> taken = [.. Property(performance, "taken", JsonValueKind.Array).EnumerateArray().Select(bar =>
+            {
+                Expect(bar, JsonValueKind.Object, "performance");
+                return new TakenBar(
+                    Integer(bar, "bar"),
+                    [.. Property(bar, "removed", JsonValueKind.Array).EnumerateArray().Select(id => id.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(id.GetString()) ? id.GetString()! : throw Damaged("performance"))],
+                    [.. Property(bar, "added", JsonValueKind.Array).EnumerateArray().Select(note =>
+                    {
+                        Expect(note, JsonValueKind.Object, "performance");
+                        int pitch = Integer(note, "pitch");
+                        Hand? hand = note.TryGetProperty("hand", out _) ? Name<Hand>(note, "hand") : null;
+                        string id = Text(note, "id");
+                        return pitch is >= 0 and <= Pitch.MaxMidiNumber && PerformanceTake.IsTaken(id)
+                            ? new TakenNote(id, new Pitch(pitch), ReadSpan(note, "performance"), Integer(note, "velocity"), Integer(note, "track"), hand)
+                            : throw Damaged("performance");
+                    })]);
+            })];
+            return new SavedPerformance(
+                Text(performance, "id"),
+                Text(performance, "name"),
+                Name<PerformanceSource>(performance, "source"),
+                midi,
+                Long(performance, "recordingStart"),
+                PerformanceAlignment.FromAnchors(anchors).Anchors)
+            {
+                Engine = performance.TryGetProperty("engine", out _) ? Text(performance, "engine") : null,
+                Dismissed = dismissed,
+                Taken = taken,
+            };
+        }
+        catch (Exception exception) when (exception is FormatException or ArgumentException)
+        {
+            throw Damaged("performance");
+        }
     }
 
     private static IReadOnlyDictionary<string, string> ReadSettings(JsonElement settings)
