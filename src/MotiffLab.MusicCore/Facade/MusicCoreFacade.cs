@@ -91,6 +91,7 @@ public sealed class MusicCoreFacade
                     "catalogue" => Answer.Write(json => Answer.Catalogue(json, Words.For(fields.Text("language")))),
                     "settings" => Answer.Write(json => Answer.SettingsCatalogue(json)),
                     "settings.state" => OpenPiece.SettingsState(fields),
+                    "project.summary" => ProjectSummary(fields),
                     _ when _pieces.Count == 0 && IsPieceCall(name) => throw new FacadeException("noPiece", "Open a piece first."),
                     _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\" without a piece."),
                 };
@@ -109,6 +110,17 @@ public sealed class MusicCoreFacade
         }
     }
 
+    /// <summary>
+    /// What a library card shows of a project file without opening the piece (within contract 4): {"project": {…}} as an
+    /// open piece's summary has it. The request's "file" is the project file's text.
+    /// </summary>
+    private static string ProjectSummary(Request fields)
+    {
+        string file = fields.Required("file");
+        Project project = ProjectFile.Read(Encoding.UTF8.GetBytes(file));
+        return Answer.Write(json => Answer.Project(json, "project", project));
+    }
+
     /// <summary>Forgets an open piece; false when it was not open.</summary>
     public bool Close(int piece) => _pieces.Remove(piece);
 
@@ -120,7 +132,7 @@ public sealed class MusicCoreFacade
     });
 
     private static bool IsPieceCall(string name) =>
-        name is "piece" or "phrases" or "select" or "understand" or "experiments" or "try" or "notation" or "playback" or "dna" or "marks" or "bookmarks" or "resume" or "ideas" or "check" or "performances" or "performance"
+        name is "piece" or "phrases" or "select" or "understand" or "experiments" or "try" or "notation" or "playback" or "roll" or "dna" or "marks" or "bookmarks" or "resume" or "ideas" or "check" or "performances" or "performance"
         || (name.Contains('.') && !name.StartsWith("settings.", StringComparison.Ordinal));
 
     /// <summary>A project file by its extension, or by its first bytes: a JSON object naming the format.</summary>

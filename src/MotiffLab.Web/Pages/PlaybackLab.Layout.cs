@@ -450,7 +450,36 @@ public partial class PlaybackLab : IAsyncDisposable
     private async Task OnPagesShown((int First, int Last, int Count) pages)
     {
         _pages = pages;
+        if (At is { } at && at != _shownAt && pages.Count > 0 && _scoreView is not null)
+        {
+            _shownAt = at;
+            await _scoreView.ShowTickAsync(at);
+        }
+
         await SaveCoverAsync();
+    }
+
+    /// <summary>Where in the piece to show on arrival, in ticks, as the "PDF" view's page leads here (0023).</summary>
+    [SupplyParameterFromQuery(Name = "at")]
+    public long? At { get; set; }
+
+    /// <summary>The place last shown for <see cref="At"/>, so it is shown once.</summary>
+    private long? _shownAt;
+
+    /// <summary>
+    /// The "PDF" view of a recognised PDF (0023), at the page the scan read the bar at the top of this page from: the link
+    /// is rough, by the pages the scan read.
+    /// </summary>
+    private async Task ShowPdfAsync()
+    {
+        if (_project is not { Document: not null } project)
+        {
+            return;
+        }
+
+        long? tick = _scoreView is null || _pages.First < 1 ? null : await _scoreView.FirstTickOnAsync(_pages.First);
+        int page = project.DocumentPages?.PageOf(new Tick(tick ?? 0)) ?? 1;
+        Navigation.NavigateTo($"pdf?project={Uri.EscapeDataString(project.Id)}&page={page}");
     }
 
     /// <summary>The project, phrases and pages the library's cover was last saved for.</summary>

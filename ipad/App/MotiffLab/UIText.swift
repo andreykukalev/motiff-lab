@@ -30,6 +30,21 @@ struct UIText: Sendable {
         return result
     }
 
+    /// The text for a count, in the plural form the language takes: "library.ideas.one" or ".many" in English, and
+    /// ".one", ".few" or ".many" in Russian, as the web app's Text.Count does.
+    func count(_ key: String, _ number: Int) -> String {
+        format("\(key).\(Self.pluralForm(language, number))", String(number))
+    }
+
+    static func pluralForm(_ language: String, _ count: Int) -> String {
+        guard language == "ru" else { return count == 1 ? "one" : "many" }
+        let tens = count % 100
+        let units = count % 10
+        if units == 1 && tens != 11 { return "one" }
+        if (2...4).contains(units) && !(12...14).contains(tens) { return "few" }
+        return "many"
+    }
+
     private static func load(_ language: String, _ bundle: Bundle) -> [String: String] {
         guard let url = bundle.url(forResource: language, withExtension: "json", subdirectory: "i18n"),
               let data = try? Data(contentsOf: url),

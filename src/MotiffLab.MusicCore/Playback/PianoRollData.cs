@@ -1,16 +1,15 @@
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Notation;
-using MotiffLab.MusicCore.Playback;
 using MotiffLab.MusicCore.Time;
 
-namespace MotiffLab.Web.Roll;
+namespace MotiffLab.MusicCore.Playback;
 
 /// <summary>
 /// Packs a piece into the flat arrays the piano roll reads (<c>RollPayload</c> in
-/// <c>Scripts/roll/roll-model.ts</c>): per note its onset, duration, pitch, track, voice, hand and
+/// <c>Scripts/roll/roll-model.ts</c> in the web app, the same in the iPad app through the facade's <c>roll</c>): per note its onset, duration, pitch, track, voice, hand and
 /// what is inferred about it; per bar its onset, duration, beat length and number.
 /// </summary>
-internal static class PianoRollPayload
+public static class PianoRollData
 {
     public const int HandNone = 0;
     public const int HandLeft = 1;
@@ -92,21 +91,7 @@ internal static class PianoRollPayload
         attribution.Provenance is Provenance.Imported or Provenance.UserConfirmed or Provenance.UserEdited;
 }
 
-internal sealed record RollPayload(string[] Ids, long[] Notes, long[] Bars, long End);
+public sealed record RollPayload(string[] Ids, long[] Notes, long[] Bars, long End);
 
 /// <summary>The names the roll writes: one per note, and per key signature (from its tick) one per row, MIDI 0 to 127.</summary>
-internal sealed record RollNames(string[] Notes, long[] KeyTicks, string[][] Rows);
-
-/// <summary>
-/// A drag across the roll, from where it started to where it ended; a click on a bar number when it
-/// barely moved. <paramref name="Extend"/> marks a Shift-click on a bar number, which extends the
-/// selection to that bar.
-/// </summary>
-public readonly record struct RollRange(Tick Anchor, Tick Current, bool IsClick, bool Extend = false);
-/// <summary>A note pointed at on the score (0018 section 4): when it starts and its key. Each one is a new point, so pointing at the same note again shows it again.</summary>
-public sealed class NotePoint(long tick, int pitch)
-{
-    public long Tick { get; } = tick;
-
-    public int Pitch { get; } = pitch;
-}
+public sealed record RollNames(string[] Notes, long[] KeyTicks, string[][] Rows);

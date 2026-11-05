@@ -1258,6 +1258,91 @@ h1, h2, .app-title strong {
     content: none;
 }
 
+/* A bookmarked page carries a tab out of its right edge near the top, in the bookmarks' carmine ink (0018 section 5): below the
+   bar when the page's top is under it, and clear of the printed music. */
+.score-page.pdf-page.bookmarked::before {
+    content: "";
+    position: absolute;
+    z-index: 1;
+    top: 6%;
+    right: -10px;
+    width: 10px;
+    height: 32px;
+    background: var(--ink-carmine);
+    border-radius: 0 var(--r-xs) var(--r-xs) 0;
+    pointer-events: none;
+}
+
+/* The PDF's Contents: its bookmarked pages, under the title. */
+.workspace .pdf-contents {
+    top: calc(var(--s-3) + var(--h-touch) + var(--s-2));
+    left: var(--s-4);
+    width: min(24rem, calc(100% - 2 * var(--s-4)));
+    max-height: calc(100vh - 6rem);
+    overflow-y: auto;
+}
+
+.pdf-contents .pdf-bookmarks {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+}
+
+.pdf-contents .pdf-bookmarks li {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.pdf-contents .pdf-bookmarks .go {
+    flex: none;
+    color: var(--ink-carmine);
+}
+
+.pdf-contents .pdf-bookmarks .pgno {
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+}
+
+.pdf-contents .pdf-bookmarks input {
+    flex: 1;
+    min-width: 0;
+}
+
+/* The metronome's pill (0023): the transport pill's look, with a dot for each beat; the beat sounding now is filled, the first
+   of the bar a little larger. */
+.metronome-pill .bpm .unit {
+    color: var(--ink-2);
+}
+
+.metronome-pill .beats {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 var(--s-2);
+}
+
+.metronome-pill .beat {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: 1.5px solid var(--ink-2);
+    box-sizing: border-box;
+}
+
+.metronome-pill .beat.first {
+    width: 11px;
+    height: 11px;
+}
+
+.metronome-pill .beat.now {
+    background: var(--ink);
+    border-color: var(--ink);
+}
+
 /* "PDF" beside the page: what is open is the printed pages, not notes the app can play. */
 .pdf-reader .bar .pdf-tag {
     flex: none;
@@ -2289,6 +2374,34 @@ body:has(.workspace) .site-footer {
     border-radius: var(--r-m);
     box-shadow: var(--shadow-menu);
     color: var(--ink);
+}
+
+/* PDF | Notes in the bar of a recognised PDF (0023): the segmented control, after the page. */
+.lab.workspace .bar .view-switch {
+    flex: none;
+    flex-wrap: nowrap;
+    align-self: center;
+    align-items: center;
+    margin-left: var(--s-2);
+}
+
+/* Read the notes, from the overflow of a PDF not yet recognised. */
+.workspace .recognise-popover {
+    top: calc(var(--s-3) + var(--h-touch) + var(--s-2));
+    right: var(--s-4);
+    width: min(22rem, calc(100% - 2 * var(--s-4)));
+}
+
+.recognise-popover label.consent {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    font: var(--t-label);
+    color: var(--ink);
+}
+
+.recognise-popover .problem {
+    color: var(--danger);
 }
 
 .workspace .phrases-popover {

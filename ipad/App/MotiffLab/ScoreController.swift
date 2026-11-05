@@ -40,9 +40,55 @@ final class ScoreController: NSObject, ObservableObject {
             applyTool()
         }
     }
+    /// The bar's Pen (0018 section 5): while it is on, a finger writes too and two fingers scroll, so the score takes
+    /// marks on any iPad, with or without a Pencil. The Pencil always writes.
+    @Published var penOn = false {
+        didSet {
+            applyInput()
+            if shown { Task { _ = try? await webView.callAsyncJavaScript("return motiff.pen(on)", arguments: ["on": penOn], contentWorld: .page) } }
+        }
+    }
+    /// The phrases at the level shown, drawn as brackets on the score (0018 section 3).
+    @Published private(set) var phrases: PhraseLevelsShown?
+    /// The passage selected on the score: a bracket tapped, a bar tapped, or bars chosen by a long press and a drag.
+    @Published private(set) var selection: ScoreSelection?
+    /// Where the selection menu's top left corner goes in the score's view, as the web app places its menu; nil while
+    /// nothing is selected or a drag is on.
+    @Published private(set) var menuPlace: CGPoint?
+    /// A note tapped on the score or on the card in focus: the player plays from it.
+    var noteTapped: (@MainActor (Double) -> Void)?
+    /// A tap on the page away from the notes; true when the screen took it (the Insights sheet goes away and the
+    /// selection stays), false to clear the selection.
+    var blankTapped: (@MainActor () -> Bool)?
+    /// Phrase focus (0018 section 4): the selection lifted into a card across the screen, the page dimmed behind it.
+    @Published private(set) var focused = false
+    /// Lead-in, on the pill in focus: play takes in the bar before the phrase and the bar after it.
+    @Published var leadIn = false {
+        didSet { if oldValue != leadIn { Task { await updatePlayRange() } } }
+    }
+    /// What Play and Loop take for the selection: its span, with a bar either side while leading in.
+    @Published private(set) var playRange: PlayRange?
+    /// The name of the variation being tried, which the card in focus shows as an ossia above the phrase; nil for none.
+    var ossia: String? {
+        didSet { if oldValue != ossia, focused { Task { await engraveCard() } } }
+    }
+
+    /// The span play takes for a selection, and the selection it was taken for.
+    struct PlayRange: Equatable {
+        var selection: ScoreSelection
+        var range: Range<Double>
+    }
     @Published private(set) var markCount = 0
     @Published private(set) var canUndo = false
     @Published private(set) var problem: String?
+    /// The pages under the reading line, for the bar: "p. 2 of 4", or "pp. 1–2 of 4" with two to a row.
+    @Published private(set) var pages = PagesInView()
+
+    struct PagesInView: Equatable {
+        var first = 0
+        var last = 0
+        var count = 0
+    }
 
     let webView: WKWebView
     private let canvas = PKCanvasView()
@@ -52,10 +98,34 @@ final class ScoreController: NSObject, ObservableObject {
     private var shown = false
     private var clearing = false
     private var previousTool = Tool.eraser
+    private let text = UIText.current
     /// Pixels between two staff lines on screen, for the width of the live stroke.
     private var staffSpace: CGFloat = 8
     /// The strokes added here, newest last, for Undo.
     private var added: [String] = []
+    /// Verovio's options for the card at its width now, as the page gives them.
+    private var cardOptions: String?
+    /// The places ringed for the fact chosen in Insights.
+    private var ringed: [Fact.Place] = []
+    /// The bookmarks as the page draws them, and where each is, for a tap on its bracket or its entry in the Contents.
+    private var bookmarkItems: [[String: Any]] = []
+    private var bookmarkSpans: [String: Range<Double>] = [:]
+    /// The bookmark last gone to and the selection that gave: a second tap on it lifts the passage into focus.
+    @Published private(set) var shownBookmark: ShownBookmark?
+
+    struct ShownBookmark: Equatable {
+        var id: String
+        var selection: ScoreSelection
+    }
+
+    /// A page as the Contents drawer's Pages tab shows it: its stretch of the piece in ticks and its picture.
+    struct PageOutline: Identifiable {
+        var page: Int
+        var start: Double
+        var end: Double
+        var image: UIImage?
+        var id: Int { page }
+    }
 
     override init() {
         let configuration = WKWebViewConfiguration()
@@ -70,16 +140,7 @@ final class ScoreController: NSObject, ObservableObject {
         // so a finger still reaches the web view and scrolls the score.
         canvas.backgroundColor = .clear
         canvas.isOpaque = false
-        #if targetEnvironment(simulator)
-        // The simulator has no Pencil and its mouse is a finger: there the mouse writes, and two fingers on the
-        // trackpad (or the wheel) scroll the score.
-        canvas.drawingPolicy = .anyInput
-        webView.scrollView.panGestureRecognizer.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.indirectPointer.rawValue)]
-        #else
-        canvas.drawingPolicy = .pencilOnly
-        // The Pencil only writes: the score scrolls under a finger, a mouse or a trackpad, never under the Pencil.
-        webView.scrollView.panGestureRecognizer.allowedTouchTypes = [UITouch.TouchType.direct, .indirectPointer].map { NSNumber(value: $0.rawValue) }
-        #endif
+        applyInput()
         canvas.isScrollEnabled = false
         canvas.delegate = self
         canvas.frame = webView.bounds
@@ -111,6 +172,364 @@ final class ScoreController: NSObject, ObservableObject {
 
     // MARK: - The page
 
+    /// What the page reports: the pages in view, where the menu goes, and what the player did on the score.
+    fileprivate func received(_ message: [String: Any]) {
+        func number(_ value: Any?) -> Double? { (value as? NSNumber)?.doubleValue }
+        if let report = message["pages"] as? [String: Any] {
+            pages = PagesInView(first: Int(number(report["first"]) ?? 0), last: Int(number(report["last"]) ?? 0), count: Int(number(report["count"]) ?? 0))
+        }
+        if message.keys.contains("menu") {
+            let place = message["menu"] as? [String: Any]
+            menuPlace = place.flatMap { place in number(place["left"]).map { CGPoint(x: $0, y: number(place["top"]) ?? 0) } }
+        }
+        if let chosen = message["chosen"] as? [String: Any], let start = number(chosen["start"]), let end = number(chosen["end"]) {
+            Task { await select(start, end) }
+        }
+        if let bar = message["bar"] as? [String: Any], let start = number(bar["start"]), let end = number(bar["end"]) {
+            Task { await select(start, end) }
+        }
+        if let bracket = number(message["bracket"]) {
+            selectPhrase(Int(bracket))
+        }
+        if let bookmark = message["bookmark"] as? String {
+            goToBookmark(bookmark)
+        }
+        if let note = number(message["note"]) {
+            noteTapped?(note)
+        }
+        if message["blank"] != nil, blankTapped?() != true {
+            clearSelection()
+        }
+        if let note = number(message["cardNote"]) {
+            noteTapped?(note)
+        }
+        if message["leave"] != nil {
+            leaveFocus()
+        }
+        if let options = message["cardLayout"] as? [String: Any] {
+            cardOptions = Self.json(options)
+            Task { await engraveCard() }
+        }
+    }
+
+    // MARK: - Phrases and the selection
+
+    /// Shows another level: the brackets are drawn again, and the selection moves to the unit that is, encloses or starts
+    /// it at the new level.
+    func showLevel(_ level: String) {
+        guard let piece, level != phrases?.level else { return }
+        let request = "{\"level\": \"\(level)\"}"
+        Task {
+            let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "phrases.level", request) }
+            if let shown = PhraseLevelsShown(answer: answer) { phrases = shown }
+            if selection != nil, let moved = ScoreSelection(answer: answer) { selection = moved }
+            await showSelection()
+            await updatePlayRange()
+        }
+    }
+
+    /// A bracket tapped: its unit is selected; a second tap on the selected one lifts it into focus.
+    func selectPhrase(_ number: Int) {
+        guard let unit = phrases?.unit(number) else { return }
+        if let selection, selection.onset == unit.selectableOnset, selection.end == unit.selectableEnd {
+            enterFocus()
+            return
+        }
+        Task { await select(unit.selectableOnset, unit.selectableEnd) }
+    }
+
+    /// Selects a passage through music-core, which keeps it within what a selection may hold.
+    func select(_ start: Double, _ end: Double) async {
+        await select(request: "{\"span\": {\"onset\": \(Int(start)), \"end\": \(Int(end))}}")
+    }
+
+    /// Selects whole bars, as the piano roll picks them; a tap that extends takes the selection to the bar tapped.
+    func selectBars(_ first: Int, _ last: Int, extend: Bool) {
+        var from = first
+        var to = last
+        if extend, let selection {
+            if first < selection.firstBar { to = selection.lastBar } else { from = selection.firstBar }
+        }
+        Task { await select(request: "{\"bars\": {\"first\": \(from), \"last\": \(to)}}") }
+    }
+
+    private func select(request: String) async {
+        guard let piece else { return }
+        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "select", request) }
+        guard let chosen = ScoreSelection(answer: answer) else {
+            problem = facadeObject(answer)?["message"] as? String
+            return
+        }
+        selection = chosen
+        await showSelection()
+        await updatePlayRange()
+        if focused { await engraveCard() }
+    }
+
+    func clearSelection() {
+        guard selection != nil else { return }
+        // Nothing to lift: focus goes with the selection.
+        leaveFocus()
+        selection = nil
+        Task {
+            await showSelection()
+            await updatePlayRange()
+        }
+    }
+
+    // MARK: - Bookmarks and the Contents
+
+    /// Draws the bookmarks as brackets in their categories' inks above the phrase brackets (0018 section 5).
+    func showBookmarks(_ shelf: BookmarkShelf?) {
+        let bookmarks = shelf?.bookmarks ?? []
+        bookmarkSpans = Dictionary(bookmarks.map { ($0.id, $0.onset..<max($0.end, $0.onset + 1)) }, uniquingKeysWith: { first, _ in first })
+        bookmarkItems = bookmarks.map { bookmark in
+            [
+                "id": bookmark.id, "start": bookmark.onset, "end": bookmark.end, "title": bookmark.title,
+                "ink": shelf?.category(of: bookmark)?.ink ?? "graphite", "label": text.format("bookmark.label", bookmark.title, bookmark.bars(text)),
+            ] as [String: Any]
+        }
+        guard shown else { return }
+        Task { await drawBookmarks() }
+    }
+
+    private func drawBookmarks() async {
+        _ = try? await webView.callAsyncJavaScript("return motiff.bookmarks(data)", arguments: ["data": ["items": bookmarkItems]], contentWorld: .page)
+    }
+
+    /// A bookmark gone to from its bracket or its entry: the score selects it and brings it into view; gone to again with
+    /// the selection as it left it, the passage lifts into focus. True when it lifted.
+    @discardableResult
+    func goToBookmark(_ id: String) -> Bool {
+        guard let span = bookmarkSpans[id] else { return false }
+        if let shownBookmark, shownBookmark.id == id, shownBookmark.selection == selection, !penOn {
+            enterFocus()
+            return true
+        }
+        Task {
+            await select(span.lowerBound, span.upperBound)
+            if let selection { shownBookmark = ShownBookmark(id: id, selection: selection) }
+            _ = try? await webView.callAsyncJavaScript("return motiff.reveal(data)", arguments: ["data": ["start": span.lowerBound]], contentWorld: .page)
+        }
+        return false
+    }
+
+    /// Whether the selection is the bookmark last gone to: its entry in the Contents shows it.
+    func isShown(_ id: String) -> Bool {
+        shownBookmark?.id == id && shownBookmark?.selection == selection
+    }
+
+    /// The title a new bookmark starts with: "Phrase 3, bars 9–12" for a unit of the level shown, else "Bars 9–12".
+    var bookmarkTitle: String {
+        guard let selection else { return "" }
+        if let unit = phrases?.units.first(where: { $0.selectableOnset == selection.onset && $0.selectableEnd == selection.end }) {
+            return label(of: unit)
+        }
+        let bars = selection.firstBar == selection.lastBar
+            ? text.format("bars.one", String(selection.firstBar))
+            : text.format("bars.range", String(selection.firstBar), String(selection.lastBar))
+        return bars.prefix(1).uppercased() + bars.dropFirst()
+    }
+
+    /// A drawer over the left of the page this wide: the selection menu keeps to its right.
+    func clearLeft(_ width: CGFloat) {
+        guard shown else { return }
+        Task { _ = try? await webView.callAsyncJavaScript("return motiff.clearLeft(data)", arguments: ["data": ["width": Double(width)]], contentWorld: .page) }
+    }
+
+    /// The pages with their stretches of the piece and their pictures, `width` pixels wide, for the Pages tab.
+    func outline(width: CGFloat) async -> [PageOutline] {
+        guard shown,
+              let answer = try? await webView.callAsyncJavaScript("return motiff.outline(data)", arguments: ["data": ["width": Double(width)]], contentWorld: .page) as? [Any]
+        else { return [] }
+        return answer.compactMap { entry in
+            guard let page = entry as? [String: Any], let number = (page["page"] as? NSNumber)?.intValue else { return nil }
+            let image = (page["image"] as? String)
+                .flatMap { $0.split(separator: ",", maxSplits: 1).last }
+                .flatMap { Data(base64Encoded: String($0)) }
+                .flatMap { UIImage(data: $0) }
+            return PageOutline(
+                page: number,
+                start: (page["start"] as? NSNumber)?.doubleValue ?? 0,
+                end: (page["end"] as? NSNumber)?.doubleValue ?? .infinity,
+                image: image
+            )
+        }
+    }
+
+    /// Brings a page to the top of the view, under the bar.
+    func showPage(_ page: Int) {
+        guard shown else { return }
+        Task { _ = try? await webView.callAsyncJavaScript("return motiff.showPage(data)", arguments: ["data": ["page": page]], contentWorld: .page) }
+    }
+
+    // MARK: - Phrase focus
+
+    /// Lifts the selection into focus: the page dims, the card shows the selection's bars on their own, and the page
+    /// neither scrolls nor takes the Pencil until Back.
+    func enterFocus() {
+        guard shown, selection != nil, !penOn, !focused else { return }
+        focused = true
+        setPageStill(true)
+        let request: [String: Any] = ["open": true, "label": text.format("focus.cardLabel", focusPosition), "back": text["focus.back"]]
+        Task {
+            let answer = try? await webView.callAsyncJavaScript("return motiff.focus(data)", arguments: ["data": request], contentWorld: .page) as? [String: Any]
+            if let options = answer?["options"] as? [String: Any] { cardOptions = Self.json(options) }
+            await updatePlayRange()
+            await engraveCard()
+        }
+    }
+
+    /// Back to the page, with the selection as it is: Back, a tap on the dimmed page, or Escape.
+    func leaveFocus() {
+        guard focused else { return }
+        focused = false
+        setPageStill(false)
+        Task {
+            _ = try? await webView.callAsyncJavaScript("return motiff.focus(data)", arguments: ["data": ["open": false]], contentWorld: .page)
+            await updatePlayRange()
+        }
+    }
+
+    /// The unit of the level shown that the card is, or that holds its start.
+    var focusUnit: PhraseUnit? {
+        guard let selection, let units = phrases?.units else { return nil }
+        return units.first { $0.selectableOnset == selection.onset && $0.selectableEnd == selection.end }
+            ?? units.first { $0.onset <= selection.onset && selection.onset < $0.end }
+    }
+
+    var canStepBack: Bool { (focusUnit?.number ?? 1) > 1 }
+
+    var canStepOn: Bool { focusUnit.map { $0.number < (phrases?.units.count ?? 0) } ?? false }
+
+    /// Previous or next at the level shown: the card moves on to that unit.
+    func step(_ direction: Int) {
+        guard let unit = focusUnit, let next = phrases?.unit(unit.number + direction.signum()) else { return }
+        Task { await select(next.selectableOnset, next.selectableEnd) }
+    }
+
+    /// "bars 9–16 · phrase 3 of 16", or the bars alone for a passage that is not a unit.
+    var focusPosition: String {
+        guard let selection else { return "" }
+        let bars = selection.firstBar == selection.lastBar
+            ? text.format("bars.one", String(selection.firstBar))
+            : text.format("bars.range", String(selection.firstBar), String(selection.lastBar))
+        guard let units = phrases?.units,
+              let unit = units.first(where: { $0.selectableOnset == selection.onset && $0.selectableEnd == selection.end })
+        else { return bars }
+        return text.format("focus.position", bars, unit.name, String(unit.number), String(units.count))
+    }
+
+    /// Engraves the selection's bars at the card's width and shows them on the card.
+    private func engraveCard() async {
+        guard focused, let piece, let selection, let options = cardOptions else { return }
+        let first = selection.firstBar
+        let last = selection.lastBar
+        let id = piece.id
+        let name = ossia
+        let withOssia = name != nil
+        let engraved = await MusicCore.run { Engraver.engraveCard(piece: id, firstBar: first, lastBar: last, options: options, ossia: withOssia) }
+        // Stepped on, left or the variation changed while it engraved: the newer call shows its own.
+        guard focused, self.selection == selection, ossia == name else { return }
+        switch engraved {
+        case .success(let card):
+            let timemap = (try? JSONSerialization.jsonObject(with: Data(card.timemap.utf8))) ?? []
+            let label = name.map { text.format("focus.ossia", $0) } ?? ""
+            let ossias = card.ossias.map { ["staves": $0.staves, "prefix": $0.prefix, "label": label] as [String: Any] }
+            _ = try? await webView.callAsyncJavaScript(
+                "return motiff.card(data)", arguments: ["data": ["pages": card.pages, "timemap": timemap, "start": selection.onset, "ossias": ossias]], contentWorld: .page
+            )
+        case .failure(let error):
+            problem = error.message
+        }
+    }
+
+    /// What play takes for the selection now: its span, with the bar before and the bar after while leading in.
+    private func updatePlayRange() async {
+        guard let selection else {
+            playRange = nil
+            return
+        }
+        var range = selection.onset..<selection.end
+        if focused && leadIn,
+           let wider = try? await webView.callAsyncJavaScript("return motiff.lead(data)", arguments: ["data": ["start": selection.onset, "end": selection.end]], contentWorld: .page) as? [String: Any],
+           let start = (wider["start"] as? NSNumber)?.doubleValue, let end = (wider["end"] as? NSNumber)?.doubleValue, start < end {
+            range = start..<end
+        }
+        guard self.selection == selection else { return }
+        playRange = PlayRange(selection: selection, range: range)
+    }
+
+    /// In focus the page under the veil stays where it is: it does not scroll and the Pencil does not write on it.
+    private func setPageStill(_ still: Bool) {
+        webView.scrollView.isScrollEnabled = !still
+        canvas.drawingGestureRecognizer.isEnabled = !still
+    }
+
+    private static func json(_ object: [String: Any]) -> String? {
+        guard let data = try? JSONSerialization.data(withJSONObject: object) else { return nil }
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    /// Rings the places of the fact chosen in Insights (0018 section 6); none clears them. With `scroll` the first comes
+    /// into view.
+    func highlight(_ places: [Fact.Place], scroll: Bool) {
+        ringed = places
+        guard shown else { return }
+        Task { await showRings(scroll: scroll) }
+    }
+
+    private func showRings(scroll: Bool) async {
+        let data: [String: Any] = ["places": ringed.map { ["onset": $0.onset, "end": $0.end, "noteIds": $0.noteIds] as [String: Any] }, "scroll": scroll]
+        _ = try? await webView.callAsyncJavaScript("return motiff.highlight(data)", arguments: ["data": data], contentWorld: .page)
+    }
+
+    /// Room under the last page for the drawer over the bottom of the score, so the end of the piece can still be read.
+    func insetBottom(_ height: CGFloat) {
+        guard shown else { return }
+        Task { _ = try? await webView.callAsyncJavaScript("return motiff.inset(data)", arguments: ["data": ["bottom": Double(height)]], contentWorld: .page) }
+    }
+
+    /// The size of the selection menu, for the page to place it over the band.
+    func menuSize(_ size: CGSize) {
+        guard shown, size.width > 0 else { return }
+        Task {
+            _ = try? await webView.callAsyncJavaScript(
+                "return motiff.menuSize(data)", arguments: ["data": ["width": size.width, "height": size.height]], contentWorld: .page
+            )
+        }
+    }
+
+    private func loadPhrases(_ piece: OpenPiece) async {
+        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "phrases") }
+        phrases = PhraseLevelsShown(answer: answer)
+        await showSelection()
+    }
+
+    /// Draws the brackets, the selected one in the accent, and the band over the selection.
+    private func showSelection() async {
+        guard shown else { return }
+        let units: [[String: Any]] = (phrases?.units ?? []).map { unit in
+            let current = selection.map { $0.onset == unit.selectableOnset && $0.end == unit.selectableEnd } ?? false
+            return ["start": unit.onset, "end": unit.end, "number": unit.number, "kind": unit.kind, "current": current, "label": label(of: unit)]
+        }
+        _ = try? await webView.callAsyncJavaScript("return motiff.phrases(data)", arguments: ["data": ["units": units]], contentWorld: .page)
+        var band: Any = NSNull()
+        if let selection {
+            band = ["start": selection.onset, "end": selection.end, "startLabel": text["selection.handleStart"], "endLabel": text["selection.handleEnd"]] as [String: Any]
+        }
+        _ = try? await webView.callAsyncJavaScript("return motiff.select(data)", arguments: ["data": band], contentWorld: .page)
+    }
+
+    /// What a screen reader says for a bracket: "Phrase 3, bars 9–12".
+    private func label(of unit: PhraseUnit) -> String {
+        let name = unit.name.prefix(1).uppercased() + unit.name.dropFirst()
+        let bars = unit.firstBar == unit.lastBar
+            ? text.format("bars.one", String(unit.firstBar))
+            : text.format("bars.range", String(unit.firstBar), String(unit.lastBar))
+        return text.format("phrases.bracketLabel", name, String(unit.number), bars)
+    }
+
     fileprivate func pageDidLoad() {
         pageReady = true
         if piece != nil { Task { await render() } }
@@ -130,8 +549,12 @@ final class ScoreController: NSObject, ObservableObject {
                 applyTool()
             }
             shown = true
+            _ = try? await webView.callAsyncJavaScript("return motiff.pen(on)", arguments: ["on": penOn], contentWorld: .page)
             let marks = await MusicCore.run { MusicCore.call(piece: piece.id, "marks") }
             await draw(marks)
+            await loadPhrases(piece)
+            await drawBookmarks()
+            if !ringed.isEmpty { await showRings(scroll: false) }
         } catch {
             problem = error.localizedDescription
         }
@@ -198,6 +621,21 @@ final class ScoreController: NSObject, ObservableObject {
         await change(piece, "ink.add", ["strokes": [mark]])
     }
 
+    /// Who writes and who scrolls. The Pencil only writes: the score never scrolls under it.
+    private func applyInput() {
+        let pan = webView.scrollView.panGestureRecognizer
+        #if targetEnvironment(simulator)
+        // The simulator has no Pencil and its mouse is a finger: there the mouse writes, and two fingers on the
+        // trackpad (or the wheel) scroll the score.
+        canvas.drawingPolicy = .anyInput
+        pan.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.indirectPointer.rawValue)]
+        #else
+        canvas.drawingPolicy = penOn ? .anyInput : .pencilOnly
+        pan.allowedTouchTypes = [UITouch.TouchType.direct, .indirectPointer].map { NSNumber(value: $0.rawValue) }
+        pan.minimumNumberOfTouches = penOn ? 2 : 1
+        #endif
+    }
+
     /// PencilKit draws the live stroke as the tool will look: the ink's colour, the web's thickness at this zoom.
     private func applyTool() {
         let zoom = webView.scrollView.zoomScale
@@ -251,6 +689,8 @@ private final class MessageRelay: NSObject, WKScriptMessageHandler {
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         if message.body as? String == "ready" {
             MainActor.assumeIsolated { controller?.pageDidLoad() }
+        } else if let body = message.body as? [String: Any] {
+            MainActor.assumeIsolated { controller?.received(body) }
         }
     }
 }
@@ -287,32 +727,4 @@ final class BundleSchemeHandler: NSObject, WKURLSchemeHandler {
     }
 
     func webView(_ webView: WKWebView, stop task: WKURLSchemeTask) {}
-}
-
-/// The design kit's colours (design/kit/tokens.css, copied into the app), so Swift defines none of its own (0018).
-enum DesignTokens {
-    private static let light: [String: String] = {
-        guard let url = Bundle.main.url(forResource: "tokens", withExtension: "css"),
-              let css = try? String(contentsOf: url, encoding: .utf8) else { return [:] }
-        // The first block is Daylight; the first value of each name wins.
-        var values: [String: String] = [:]
-        let pattern = try! NSRegularExpression(pattern: #"--([a-z0-9-]+):\s*(#[0-9A-Fa-f]{6})"#)
-        for match in pattern.matches(in: css, range: NSRange(css.startIndex..., in: css)) {
-            guard let name = Range(match.range(at: 1), in: css), let value = Range(match.range(at: 2), in: css) else { continue }
-            let key = String(css[name])
-            if values[key] == nil { values[key] = String(css[value]) }
-        }
-        return values
-    }()
-
-    /// A token's colour, such as "ink-carmine" or "amber"; grey when the token is missing, so a gap shows.
-    static func color(_ name: String) -> UIColor {
-        guard let hex = light[name], let value = UInt32(hex.dropFirst(), radix: 16) else { return .systemGray }
-        return UIColor(
-            red: CGFloat((value >> 16) & 0xFF) / 255,
-            green: CGFloat((value >> 8) & 0xFF) / 255,
-            blue: CGFloat(value & 0xFF) / 255,
-            alpha: 1
-        )
-    }
 }

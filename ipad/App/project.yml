@@ -35,6 +35,10 @@ targets:
         buildPhase: resources
       - path: ../../design/kit/tokens.css
         buildPhase: resources
+      # The kit's faces, Source Sans 3 and Source Serif 4 (SIL Open Font License), registered at launch.
+      - path: ../../design/kit/fonts
+        type: folder
+        buildPhase: resources
       - path: ../../src/MotiffLab.Web/wwwroot/i18n
         type: folder
         buildPhase: resources
@@ -44,6 +48,17 @@ targets:
         type: folder
         buildPhase: resources
       - path: ../../src/MotiffLab.Web/wwwroot/js/score
+        type: folder
+        buildPhase: resources
+      # The piano roll in the drawer is the web app's too (Scripts/roll), with the token and theme modules it reads
+      # (Scripts/layout, Scripts/storage).
+      - path: ../../src/MotiffLab.Web/wwwroot/js/roll
+        type: folder
+        buildPhase: resources
+      - path: ../../src/MotiffLab.Web/wwwroot/js/layout
+        type: folder
+        buildPhase: resources
+      - path: ../../src/MotiffLab.Web/wwwroot/js/storage
         type: folder
         buildPhase: resources
       # The piano the web app plays (tools/piano): 30 MP3 samples and piano.json.
@@ -68,6 +83,9 @@ targets:
         # may ask the Microsoft Authenticator app. Xcode adds the generated keys to this file.
         INFOPLIST_FILE: Config/Info.plist
         TARGETED_DEVICE_FAMILY: "2"
+        # The asset catalog holds the kit's icons only; the app has no icon of its own yet, and XcodeGen's preset would
+        # otherwise ask the catalog for an "AppIcon" set.
+        ASSETCATALOG_COMPILER_APPICON_NAME: ""
         CODE_SIGN_STYLE: Automatic
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Motiff Lab

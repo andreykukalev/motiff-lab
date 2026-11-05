@@ -15,7 +15,7 @@ import { ScoreTimeline, highlightedIds, type HighlightPlace } from "./score-time
 import { A4_HEIGHT, A4_WIDTH, buildPdf, crop, inkBounds, type InkLayer, type PdfPage } from "./pdf-document.js";
 import { hasText, svgToPdfOperators, textOnlySvg } from "./svg-to-pdf.js";
 import { A4_LAYOUT, pdfFileName, titleBlock, withTitle } from "./score-page.js";
-import { BRACKET_LIFT, ScoreGeometry, readPage, type PageGeometry, type PagePlacement, type ScoreBar } from "./score-geometry.js";
+import { BRACKET_LIFT, ScoreGeometry, bookmarkLevels, readPage, type PageGeometry, type PagePlacement, type ScoreBar } from "./score-geometry.js";
 import { downloadBytes, saveCover } from "../storage/project-store.js";
 import { newToolkit, type VerovioToolkit } from "./verovio.js";
 
@@ -170,23 +170,6 @@ export interface PageOutline {
     start: number;
     end: number;
     url: string;
-}
-
-/** The levels of overlapping bookmarks, from 0 under the others: each takes the lowest level free where it starts. */
-export function bookmarkLevels(bookmarks: readonly { start: number; end: number }[]): number[] {
-    const order = bookmarks.map((bookmark, index) => ({ ...bookmark, index })).sort((a, b) => a.start - b.start || b.end - a.end);
-    const ends: number[] = [];
-    const levels = new Array<number>(bookmarks.length).fill(0);
-    for (const bookmark of order) {
-        let level = ends.findIndex((end) => end <= bookmark.start);
-        if (level < 0) {
-            level = ends.length;
-            ends.push(0);
-        }
-        ends[level] = bookmark.end;
-        levels[bookmark.index] = level;
-    }
-    return levels;
 }
 
 /** The toolkit the score view engraves with, made once: the phrase card and the PDF make their own (verovio.ts). */
@@ -512,6 +495,26 @@ export class ScoreView {
         if (element !== undefined) {
             this.scrolledByHand = performance.now();
             this.host.scrollTo({ top: Math.max(0, element.offsetTop - this.pageElements()[0].offsetTop), behavior: "smooth" });
+        }
+    }
+
+    /** Where the first bar on a page starts, in ticks; null in the strip or for a page with no bars. */
+    firstTickOn(page: number): number | null {
+        const geometry = this.geometry();
+        const ticks = geometry === null || !this.paged ? [] : geometry.bars.filter((bar) => bar.page === page).map((bar) => bar.tick);
+        return ticks.length > 0 ? Math.min(...ticks) : null;
+    }
+
+    /** Scrolls to the top of the page a place in the piece is on, as the PDF view's pages lead to the notes (0023). */
+    showTick(tick: number): void {
+        const geometry = this.geometry();
+        if (geometry === null || !this.paged) {
+            return;
+        }
+        const before = geometry.bars.filter((bar) => bar.tick <= tick);
+        const bar = before.length > 0 ? before.reduce((latest, candidate) => (candidate.tick > latest.tick ? candidate : latest)) : geometry.bars[0];
+        if (bar !== undefined) {
+            this.showPage(bar.page);
         }
     }
 

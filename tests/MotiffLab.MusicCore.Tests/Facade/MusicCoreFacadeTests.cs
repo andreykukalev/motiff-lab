@@ -118,6 +118,7 @@ public class MusicCoreFacadeTests
         Assert.True(found.Length > 1);
         Assert.Equal(found.Length, phrases.GetProperty("levels")[1].GetProperty("count").GetInt32());
         Assert.Equal("phrase", found[0].GetProperty("level").GetString());
+        Assert.Equal("phrase", found[0].GetProperty("name").GetString());
         foreach (string field in new[] { "number", "firstBar", "lastBar", "onset", "end", "selectable", "long", "parent", "start" })
         {
             Assert.True(found[0].TryGetProperty(field, out _), field);
@@ -489,6 +490,28 @@ public class MusicCoreFacadeTests
     }
 
     [Fact]
+    public void TheRollGetsTheNotesAndBarsPackedAndTheirNames()
+    {
+        (MusicCoreFacade facade, JsonElement opened) = Open();
+        int count = opened.GetProperty("summary").GetProperty("noteCount").GetInt32();
+
+        JsonElement roll = Call(facade, "roll");
+        Assert.Equal(count, roll.GetProperty("ids").GetArrayLength());
+        Assert.Equal(count * 7, roll.GetProperty("notes").GetArrayLength());
+        Assert.Equal(0, roll.GetProperty("bars").GetArrayLength() % 4);
+        Assert.True(roll.GetProperty("end").GetInt64() > 0);
+        JsonElement names = roll.GetProperty("names");
+        Assert.Equal(count, names.GetProperty("notes").GetArrayLength());
+        Assert.Equal(names.GetProperty("keyTicks").GetArrayLength(), names.GetProperty("rows").GetArrayLength());
+        Assert.Equal("C4", names.GetProperty("rows")[0][60].GetString());
+
+        Assert.Equal("до¹", Call(facade, "roll", """{"naming": "syllables"}""").GetProperty("names").GetProperty("rows")[0][60].GetString());
+        Call(facade, "language", """{"language": "ru"}""");
+        Assert.Equal("до¹", Call(facade, "roll").GetProperty("names").GetProperty("rows")[0][60].GetString());
+        Assert.Equal("C4", Call(facade, "roll", """{"naming": "letters"}""").GetProperty("names").GetProperty("rows")[0][60].GetString());
+    }
+
+    [Fact]
     public void SavingGivesTheProjectFileAndOpeningItRestoresTheWork()
     {
         (MusicCoreFacade facade, _) = Open("""{"id": "p_fur"}""");
@@ -578,6 +601,22 @@ public class MusicCoreFacadeTests
     }
 
     [Fact]
+    public void TheDetectedSentencesBecomeStructureBookmarksOnce()
+    {
+        (MusicCoreFacade facade, _) = Open();
+        int sentences = Call(facade, "phrases", """{"level": "sentence"}""").GetProperty("units").GetArrayLength();
+        Assert.True(sentences > 0);
+
+        JsonElement added = Call(facade, "bookmark.structure", """{"now": "2026-11-05T10:00:00Z"}""");
+        JsonElement[] bookmarks = [.. added.GetProperty("bookmarks").EnumerateArray()];
+        Assert.Equal(sentences, bookmarks.Length);
+        Assert.All(bookmarks, bookmark => Assert.Equal("structure", bookmark.GetProperty("category").GetString()));
+        Assert.StartsWith("Sentence A, bars 0–", bookmarks[0].GetProperty("title").GetString());
+
+        Assert.Equal(sentences, Call(facade, "bookmark.structure").GetProperty("bookmarks").GetArrayLength());
+    }
+
+    [Fact]
     public void ResumePointsSaveWhereThePlayerIsAndComeBackMostRecentFirst()
     {
         (MusicCoreFacade facade, JsonElement opened) = Open();
@@ -632,6 +671,25 @@ public class MusicCoreFacadeTests
         JsonElement saved = Json(facade.Call(1, "project.save"));
         Assert.Equal(experiment.GetProperty("factIds")[0].GetString(), saved.GetProperty("observations")[0].GetProperty("factId").GetString());
         Assert.Empty(Call(facade, "idea.remove", """{"id": "o_0001"}""").GetProperty("ideas").EnumerateArray());
+    }
+
+    [Fact]
+    public void A_project_files_summary_is_read_without_opening_the_piece()
+    {
+        var facade = new MusicCoreFacade();
+        Json(facade.Open(FurElise, Fixture(FurElise), """{"id": "p_lib", "now": "2026-11-05T10:00:00Z"}"""));
+        Call(facade, "resume.save", """{"name": "Coda"}""");
+        string file = facade.Call(1, "project.save");
+        string request = JsonSerializer.Serialize(new { file });
+
+        JsonElement project = Json(new MusicCoreFacade().Call(0, "project.summary", request)).GetProperty("project");
+
+        Assert.Equal("p_lib", project.GetProperty("id").GetString());
+        Assert.True(project.GetProperty("hasNotes").GetBoolean());
+        Assert.False(project.GetProperty("document").GetBoolean());
+        Assert.Equal(0, project.GetProperty("checkBars").GetInt32());
+        Assert.Equal("Coda", project.GetProperty("latest").GetProperty("name").GetString());
+        Assert.Equal("badRequest", Json(facade.Call(0, "project.summary", """{"file": "{}"}""")).GetProperty("error").GetString());
     }
 
     [Fact]

@@ -142,6 +142,7 @@ internal sealed partial class OpenPiece
         "variation.clear" => Clear(),
         "notation" => Notation(request),
         "playback" => Playback(request),
+        "roll" => Roll(request),
         "project.save" => Save(request),
         "dna" => Answer.Write(json => Answer.Dna(json, PieceDna.Build(Notes, Piece.Meter, Piece.Keys, Piece.End, Selection, Selection is null ? null : Understood().Structure, Words), Words)),
         _ => CallOnProject(name, request),
@@ -602,9 +603,7 @@ internal sealed partial class OpenPiece
 
     private GeneratedNotation Generate(IEnumerable<Note> notes, Tick end, string title, bool heard, bool readable, BarRange? bars = null, IReadOnlyList<NotationOssia>? ossias = null)
     {
-        IEnumerable<KeyChange> keys = heard && Piece.Keys.Count == 0 && Transcribed.KeyOf(Notes) is { } heardKey
-            ? [new KeyChange(Tick.Zero, heardKey.Fifths)]
-            : Piece.Keys.Select(key => new KeyChange(key.At, Math.Clamp(key.Fifths, -7, 7)));
+        IEnumerable<KeyChange> keys = NotationKeys(heard);
         if (!heard)
         {
             return NotationGenerator.Generate(notes, Piece.Meter, keys, end, title, bars: bars, ossias: ossias);
@@ -617,6 +616,31 @@ internal sealed partial class OpenPiece
 
         PlaybackScore played = PlaybackScore.FromPiece(Piece);
         return NotationGenerator.Generate(notes, Piece.Meter, keys, end, title, playedTempos: played.Tempos, pedal: played.Pedal.Select(held => held.Span), bars: bars, ossias: ossias);
+    }
+
+    /// <summary>The key signatures the score is written in: the piece's, or for notes heard without one the key worked out from them.</summary>
+    private IEnumerable<KeyChange> NotationKeys(bool heard) =>
+        heard && Piece.Keys.Count == 0 && Transcribed.KeyOf(Notes) is { } heardKey
+            ? [new KeyChange(Tick.Zero, heardKey.Fifths)]
+            : Piece.Keys.Select(key => new KeyChange(key.At, Math.Clamp(key.Fifths, -7, 7)));
+
+    /// <summary>
+    /// The piano roll's data (0018 section 4, within contract 4): the notes and bars packed as the roll reads them, and the
+    /// names it writes, spelled for the keys the score is written in. "naming" is "letters", "syllables" or, by default,
+    /// the piece's language's.
+    /// </summary>
+    private string Roll(Request request)
+    {
+        PlaybackScore score = PlaybackScore.FromPiece(Piece);
+        if (Project.ChangesNotes)
+        {
+            score = score.WithNotes(Notes);
+        }
+
+        NoteNaming naming = NoteNames.For(request.Text("naming"), Words);
+        RollPayload payload = PianoRollData.Create(Notes, score);
+        RollNames names = PianoRollData.Names(Notes, [.. NotationKeys(Transcribed.IsHeard(Piece))], naming);
+        return Answer.Write(json => Answer.Roll(json, payload, names));
     }
 
     private string Playback(Request request)

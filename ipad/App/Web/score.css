@@ -1,7 +1,30 @@
-/* Colours and sizes come from the design kit (design/kit/tokens.css, copied into the app). */
-body { margin: 0; padding: var(--s-4); background: var(--desk); position: relative; -webkit-user-select: none; user-select: none; }
-.page { background: var(--paper); color: var(--notation); margin: 0 auto var(--s-4); box-shadow: var(--shadow-paper); }
+/* Colours and sizes come from the design kit (design/kit/tokens.css, copied into the app). The score is the whole screen
+   (0018 section 2): A4 pages, one column of them in portrait and two to a row in landscape like an open book, under the
+   floating bar and above the pill, which Swift lays over the page. */
+:root {
+  --page-gap: var(--s-4);
+  /* The floating bar: its margin, its height and a gap; the pill and a gap below the last page. */
+  --pad-top: calc(var(--s-3) + var(--h-touch) + var(--s-4));
+  --pad-bottom: calc(52px + var(--s-4) * 2);
+}
+body { margin: 0; padding: var(--pad-top) var(--s-4) var(--pad-bottom); background: var(--desk); position: relative; -webkit-user-select: none; user-select: none; }
+#pages {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  justify-content: center;
+  gap: var(--page-gap);
+  /* Two pages fill the width, or the height under the bar, whichever is less. */
+  --page-w: min(calc((100vw - var(--s-4) * 2 - var(--page-gap)) / 2), calc((100vh - var(--pad-top) - var(--s-4)) * 210 / 297));
+}
+#pages:has(> .page:only-child) { grid-template-columns: auto; }
+@media (orientation: portrait) {
+  #pages { grid-template-columns: auto; --page-w: min(calc(100vw - var(--s-4) * 2), 60rem); }
+}
+.page { position: relative; width: var(--page-w); aspect-ratio: 210 / 297; background: var(--paper); color: var(--notation); border-radius: 2px; box-shadow: var(--shadow-paper); }
 .page svg { display: block; width: 100%; height: auto; }
+/* The page number in the lower outer corner: left on a left-hand page, right on a right-hand one. */
+.page::after { content: attr(data-page); position: absolute; bottom: 2%; left: 5%; font: var(--t-caption); color: var(--ink-3); }
+.page:nth-child(even)::after { left: auto; right: 5%; }
 
 /* The pencil marks over the pages, in the document's pixels; the score scrolls with them. */
 #ink { position: absolute; top: 0; left: 0; overflow: visible; pointer-events: none; }
@@ -10,3 +33,61 @@ body { margin: 0; padding: var(--s-4); background: var(--desk); position: relati
 .mark.pen.forest { fill: var(--ink-forest); }
 .mark.pen.ochre { fill: var(--ink-ochre); }
 .mark.highlighter { fill: var(--amber); opacity: 0.38; mix-blend-mode: multiply; }
+
+/* Phrase brackets (0018 section 3, as the web app's app.css draws them): pencil over the top staff, numbered at the left
+   end, the selected one in the accent. Each is a button with a hit area taller than its line. */
+body { -webkit-touch-callout: none; }
+button.bracket { position: absolute; z-index: 1; height: 9px; min-height: 0; padding: 0; box-sizing: border-box; background: transparent; border: 1.25px solid var(--ink-graphite); border-bottom: 0; border-radius: 2px 2px 0 0; opacity: 0.75; }
+button.bracket::before { content: ""; position: absolute; inset: -16px -2px -3px; }
+button.bracket.on { opacity: 1; border-width: 1.5px; border-bottom: 0; border-color: var(--accent); }
+button.bracket.from { border-left: 0; border-top-left-radius: 0; }
+button.bracket.on-to { border-right: 0; border-top-right-radius: 0; }
+.bracket .n { position: absolute; left: -2px; top: -16px; font: 600 11px/14px var(--font-ui); color: var(--ink-graphite); }
+.bracket.on .n { color: var(--accent); }
+
+/* Bookmarks (0018 section 5, design/kit/ds.css .bmb, as the web app's app.css draws them): a bracket in the category's ink
+   above the phrase brackets, the title in italic serif at its left end; overlapping ones stack. Each is a button with a
+   hit area over its title and line. */
+.ink-graphite { --mark: var(--ink-graphite); }
+.ink-carmine { --mark: var(--ink-carmine); }
+.ink-forest { --mark: var(--ink-forest); }
+.ink-ochre { --mark: var(--ink-ochre); }
+button.bmb { position: absolute; z-index: 1; height: 10px; min-height: 0; padding: 0; box-sizing: border-box; background: transparent; border: 1.25px solid var(--mark, var(--ink-carmine)); border-bottom: 0; border-radius: 2px 2px 0 0; }
+button.bmb::before { content: ""; position: absolute; inset: -17px -2px -3px; }
+button.bmb.from { border-left: 0; border-top-left-radius: 0; }
+button.bmb.on-to { border-right: 0; border-top-right-radius: 0; }
+.bmb .w { position: absolute; left: 0; top: -17px; font: italic 500 12px/14px var(--font-display); color: var(--mark, var(--ink-carmine)); white-space: nowrap; pointer-events: none; }
+
+/* The selection: a cobalt band over the selected bars on each system, and round handles on the first and last barline. */
+.sel-band { position: absolute; box-sizing: border-box; background: var(--accent-tint); border: 1.5px solid var(--accent); border-radius: 3px; pointer-events: none; }
+button.sel-handle { position: absolute; z-index: 2; width: 14px; height: 14px; min-height: 0; padding: 0; box-sizing: border-box; border-radius: 50%; background: var(--surface-2); border: 2px solid var(--accent); transform: translate(-50%, -50%); touch-action: none; }
+button.sel-handle::before { content: ""; position: absolute; inset: -15px; border-radius: 50%; }
+button.sel-handle.dragging { background: var(--accent); }
+
+/* The places of the fact chosen in Insights (the web app's .highlight and .highlight-mark): cobalt, with a solid box
+   round each notehead or rest, so they differ from the band by more than colour. */
+.page g.note.highlight, .page g.rest.highlight { fill: var(--accent); stroke: var(--accent); color: var(--accent); }
+.ring { position: absolute; z-index: 1; box-sizing: border-box; pointer-events: none; border: 2px solid var(--accent); border-radius: var(--r-xs); }
+
+/* Where Swift draws the selection menu: the selection layer places this invisible box as it places the web app's menu. */
+#menu-place { position: fixed; visibility: hidden; pointer-events: none; }
+
+/* Phrase focus (0018 section 4, as the web app's app.css draws it): the page under the dim veil, the phrase lifted into
+   a card across the screen between the bar and the pill. Previous and next are Swift's, on the card's edges. */
+#focus { position: fixed; inset: 0; z-index: 3; }
+#focus[hidden] { display: none; }
+#focus .veil { position: absolute; inset: 0; width: 100%; min-height: 0; padding: 0; border: 0; border-radius: 0; background: var(--dim); animation: veil-in var(--t-slow) var(--ease); }
+@keyframes veil-in { from { opacity: 0; } }
+#focus .stage { position: absolute; top: calc(var(--s-3) + var(--h-touch) + var(--s-5)); left: var(--s-4); right: var(--s-4); bottom: var(--pad-bottom); display: flex; flex-direction: column; justify-content: center; pointer-events: none; }
+#focus .card { position: relative; min-height: 0; display: flex; background: var(--paper); color: var(--notation); border: 2px solid var(--accent); border-radius: var(--r-m); box-shadow: 0 0 0 6px var(--accent-tint), var(--shadow-sheet); pointer-events: auto; animation: card-lift var(--t-slow) var(--ease); }
+@keyframes card-lift { from { transform: scale(0.96); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { #focus .veil, #focus .card { animation: none; } }
+/* Room for the step buttons inside the card's edges; a long phrase scrolls inside the card. */
+#focus .card-score { position: relative; flex: 1; min-width: 0; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; margin: 0 calc(var(--h-touch) + var(--s-2)); min-height: 120px; }
+#focus .card-score svg { display: block; width: 100%; height: auto; color: var(--notation); fill: currentColor; }
+#focus .card-score svg use { fill: currentColor; }
+#focus .card-score svg [color] { color: inherit !important; }
+#focus .card-score svg g.label { display: none; }
+/* The ossia (ds.css Ossia panel, the web app's .ossia-frame): a dashed plum frame round its staves, named by an overline. */
+#focus .ossia-frame { position: absolute; box-sizing: border-box; border: 1.5px dashed var(--plum); border-radius: var(--r-xs); pointer-events: none; }
+#focus .ossia-frame .overline { position: absolute; left: var(--s-3); top: -8px; max-width: calc(100% - 2 * var(--s-3)); padding: 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--paper); color: var(--plum); font: var(--t-overline); letter-spacing: 0.06em; text-transform: uppercase; }

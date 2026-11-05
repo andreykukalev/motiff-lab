@@ -70,6 +70,22 @@ public static class ProjectFile
                 json.WriteBase64String("document", document);
             }
 
+            if (!project.DocumentMarks.IsEmpty)
+            {
+                WriteDocumentMarks(json, project.DocumentMarks);
+            }
+
+            if (project.DocumentPages is { } pages)
+            {
+                json.WriteStartArray("documentPages");
+                foreach (Tick start in pages.Starts)
+                {
+                    json.WriteNumberValue(start.Value);
+                }
+
+                json.WriteEndArray();
+            }
+
             json.WriteStartArray("motifs");
             foreach (SavedMotif motif in project.Motifs)
             {
@@ -425,6 +441,13 @@ public static class ProjectFile
                 throw Damaged("source");
             }
 
+            DocumentMarks documentMarks = root.TryGetProperty("documentMarks", out JsonElement documentMarksElement)
+                ? ReadDocumentMarks(documentMarksElement)
+                : DocumentMarks.Empty;
+            PageMap? documentPages = root.TryGetProperty("documentPages", out JsonElement pagesElement)
+                ? ReadDocumentPages(pagesElement, pdf, source)
+                : null;
+
             var motifs = Property(root, "motifs", JsonValueKind.Array).EnumerateArray().Select(ReadMotif).ToList();
             var variations = Property(root, "variations", JsonValueKind.Array).EnumerateArray().Select(variation => ReadVariation(variation, version)).ToList();
             List<Observation> observations = version >= 6
@@ -495,6 +518,8 @@ public static class ProjectFile
                 SettingOverrides = overrides,
                 Performances = performances,
                 Document = pdf,
+                DocumentMarks = documentMarks,
+                DocumentPages = documentPages,
             };
         }
     }
@@ -597,6 +622,90 @@ public static class ProjectFile
         catch (ArgumentException)
         {
             throw Damaged("ink");
+        }
+    }
+
+    /// <summary>Where each page of a recognised PDF starts in its notes (0023): ticks from page 1, which starts at 0.</summary>
+    private static PageMap ReadDocumentPages(JsonElement pages, byte[]? pdf, byte[] source)
+    {
+        if (pdf is null || source.Length == 0 || pages.ValueKind != JsonValueKind.Array)
+        {
+            throw Damaged("documentPages");
+        }
+
+        try
+        {
+            return new PageMap([.. pages.EnumerateArray().Select(start => start.ValueKind == JsonValueKind.Number && start.TryGetInt64(out long value) && value >= 0
+                ? new Tick(value)
+                : throw Damaged("documentPages"))]);
+        }
+        catch (ArgumentException)
+        {
+            throw Damaged("documentPages");
+        }
+    }
+
+    /// <summary>The marks on a PDF's pages (0023): {"ink": [stroke, …], "bookmarks": [{"id", "page", "name"?, "createdAt"}]}.</summary>
+    private static void WriteDocumentMarks(Utf8JsonWriter json, DocumentMarks marks)
+    {
+        json.WriteStartObject("documentMarks");
+        json.WriteStartArray("ink");
+        foreach (InkStroke stroke in marks.Ink)
+        {
+            WriteStroke(json, stroke);
+        }
+
+        json.WriteEndArray();
+        json.WriteStartArray("bookmarks");
+        foreach (PageBookmark bookmark in marks.Bookmarks)
+        {
+            json.WriteStartObject();
+            json.WriteString("id", bookmark.Id);
+            json.WriteNumber("page", bookmark.Page);
+            if (bookmark.Name is { } name)
+            {
+                json.WriteString("name", name);
+            }
+
+            json.WriteString("createdAt", bookmark.CreatedAt.ToString("O", CultureInfo.InvariantCulture));
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
+        json.WriteEndObject();
+    }
+
+    private static DocumentMarks ReadDocumentMarks(JsonElement marks)
+    {
+        Expect(marks, JsonValueKind.Object, "documentMarks");
+        List<InkStroke> ink = Property(marks, "ink", JsonValueKind.Array).EnumerateArray().Select(ReadStroke).ToList();
+        List<PageBookmark> bookmarks = [];
+        foreach (JsonElement bookmark in Property(marks, "bookmarks", JsonValueKind.Array).EnumerateArray())
+        {
+            Expect(bookmark, JsonValueKind.Object, "documentMarks");
+            string? name = bookmark.TryGetProperty("name", out JsonElement nameElement)
+                ? nameElement.ValueKind == JsonValueKind.String ? nameElement.GetString() : throw Damaged("documentMarks")
+                : null;
+            try
+            {
+                bookmarks.Add(new PageBookmark(Text(bookmark, "id"), Integer(bookmark, "page"), name, Time(bookmark, "createdAt")));
+            }
+            catch (ArgumentException)
+            {
+                throw Damaged("documentMarks");
+            }
+        }
+
+        try
+        {
+            return bookmarks.Select(static bookmark => bookmark.Page).Distinct().Count() == bookmarks.Count
+                && bookmarks.Select(static bookmark => bookmark.Id).Distinct(StringComparer.Ordinal).Count() == bookmarks.Count
+                ? DocumentMarks.Empty.WithInk(ink) with { Bookmarks = [.. bookmarks.OrderBy(static bookmark => bookmark.Page)] }
+                : throw Damaged("documentMarks");
+        }
+        catch (ArgumentException)
+        {
+            throw Damaged("documentMarks");
         }
     }
 

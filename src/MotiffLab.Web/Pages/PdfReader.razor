@@ -1,5 +1,10 @@
 @page "/pdf"
+@using MotiffLab.MusicCore
+@using MotiffLab.MusicCore.Import
+@using MotiffLab.MusicCore.Import.Scan
+@using MotiffLab.MusicCore.Motifs
 @using MotiffLab.MusicCore.Projects
+@using MotiffLab.MusicCore.Time
 @using MotiffLab.Web.Import
 @using MotiffLab.Web.Localization
 @using MotiffLab.Web.Pdf
@@ -9,6 +14,7 @@
 @inject ProjectStore Projects
 @inject Preferences Preferences
 @inject NavigationManager Navigation
+@inject ScanService Scans
 @inject UiText Text
 
 <PageTitle>@(Title ?? Text["pdf.title"]) · Motiff Lab</PageTitle>
@@ -19,7 +25,8 @@
 <main class="lab app workspace pdf-reader">
     @if (_project?.Document is { } document)
     {
-        <PdfView @ref="_view" Document="document" Label="@Title" StartPage="_startPage" PagesShown="OnPagesShownAsync" Opened="OnOpenedAsync" />
+        <PdfView @ref="_view" Document="document" Label="@Title" StartPage="_startPage" PagesShown="OnPagesShownAsync" Opened="OnOpenedAsync"
+                 PencilKey="@PencilKey" Ink="@_ink" MarksChanged="OnMarksChangedAsync" PencilChanged="_ => StateHasChanged()" Bookmarks="_bookmarkedPages" />
     }
 
     @if (_message is not null)
@@ -31,24 +38,89 @@
 
     <header class="bar">
         <a class="act" href="" aria-label="@Text["nav.library"]" title="@Text["nav.library"]"><Icon Name="back" Size="IconSize.Large" /></a>
-        <span class="ttl" title="@_project?.FileName">@(Title ?? Text["pdf.title"])</span>
+        @* The title opens the Contents: the pages bookmarked, as the score's title opens its Contents (0018 section 5). *@
+        <button class="ttl @(_popover == Popover.Contents ? "on" : null)" title="@_project?.FileName" aria-label="@Text.Format("contents.open", Title ?? Text["pdf.title"])"
+                aria-expanded="@(_popover == Popover.Contents ? "true" : "false")" @onclick="() => Toggle(Popover.Contents)">@(Title ?? Text["pdf.title"])</button>
         @if (PageText is { } pages)
         {
             <span class="pg" aria-live="off">@pages</span>
         }
-        <span class="tag pdf-tag">PDF</span>
+        @if (_project?.HasNotes == true)
+        {
+            <ViewSwitch OnPdf="true" Switch="_ => ShowNotes()" />
+        }
+        else
+        {
+            <span class="tag pdf-tag">PDF</span>
+        }
         <span class="sp"></span>
-        <button class="act @(_moreOpen ? "on" : null)" aria-expanded="@(_moreOpen ? "true" : "false")" aria-label="@Text["bar.more"]" title="@Text["bar.more"]"
-                @onclick="() => _moreOpen = !_moreOpen"><Icon Name="more" Size="IconSize.Large" /></button>
+        @if (_project is not null)
+        {
+            bool marked = CurrentBookmark is not null;
+            <button class="act @(marked ? "on" : null)" aria-pressed="@(marked ? "true" : "false")" aria-label="@Text["pdf.bookmarkPage"]" title="@Text["pdf.bookmarkPage"]"
+                    @onclick="ToggleBookmarkAsync" disabled="@(_pages.Count == 0)"><Icon Name="bookmark" Size="IconSize.Large" /></button>
+            <button class="act @(_metronomeOpen ? "on" : null)" aria-pressed="@(_metronomeOpen ? "true" : "false")" aria-label="@Text["metronome.label"]" title="@Text["metronome.label"]"
+                    @onclick="() => _metronomeOpen = !_metronomeOpen"><Icon Name="metronome" Size="IconSize.Large" /></button>
+            <button class="act @(_view?.PenOn == true ? "on" : null)" aria-pressed="@(_view?.PenOn == true ? "true" : "false")" aria-label="@Text["bar.pen"]" title="@Text["pencil.hint"]"
+                    @onclick="TogglePenAsync"><Icon Name="pen" Size="IconSize.Large" /></button>
+        }
+        <button class="act @(_popover == Popover.More ? "on" : null)" aria-expanded="@(_popover == Popover.More ? "true" : "false")" aria-label="@Text["bar.more"]" title="@Text["bar.more"]"
+                @onclick="() => Toggle(Popover.More)"><Icon Name="more" Size="IconSize.Large" /></button>
     </header>
 
-    @if (_moreOpen)
+    @if (_metronomeOpen && _project is { } piece)
     {
-        <button class="scrim" aria-label="@Text["bar.close"]" tabindex="-1" @onclick="() => _moreOpen = false"></button>
+        <MetronomePill PieceId="@piece.Id" Closed="() => _metronomeOpen = false" />
+    }
+
+    @if (_popover != Popover.None)
+    {
+        <button class="scrim" aria-label="@Text["bar.close"]" tabindex="-1" @onclick="() => _popover = Popover.None"></button>
+    }
+    @if (_popover == Popover.More)
+    {
         <div class="popover more-popover" role="dialog" aria-label="@Text["bar.more"]">
+            @if (_project?.HasNotes == false)
+            {
+                <button class="btn quiet" @onclick="() => _popover = Popover.Recognise" disabled="@(_pages.Count == 0)">
+                    <Icon Name="camera" /> @Text["pdf.readNotes"] @if (Scans.IsHosted) { <span class="tag pro">Pro</span> }
+                </button>
+            }
             <button class="btn quiet" @onclick="DownloadAsync" disabled="@(_project?.Document is null)"><Icon Name="export" /> @Text["pdf.download"]</button>
-            <p class="caption">@Text["pdf.asIs"]</p>
+            <p class="caption">@Text[_project?.HasNotes == true ? "pdf.asIsRead" : "pdf.asIs"]</p>
             <p class="caption">@Text["pdf.onDevice"]</p>
+        </div>
+    }
+    else if (_popover == Popover.Recognise && _project is { Document: { } pdf } toRead)
+    {
+        <RecognisePanel Document="pdf" FileName="@toRead.DocumentFileName" Read="ReadNotesAsync" />
+    }
+    else if (_popover == Popover.Contents && _project is { } project)
+    {
+        <div class="popover pdf-contents" role="dialog" aria-label="@Text["bar.contents"]">
+            <p class="overline">@Text["pdf.bookmarks"]</p>
+            @if (project.DocumentMarks.Bookmarks.Count == 0)
+            {
+                <p class="caption">@Text["pdf.noBookmarks"]</p>
+            }
+            else
+            {
+                <ul class="pdf-bookmarks">
+                    @foreach (PageBookmark bookmark in project.DocumentMarks.Bookmarks)
+                    {
+                        string where = Text.Format("contents.page", bookmark.Page);
+                        <li>
+                            <button class="btn quiet go" @onclick="() => GoToAsync(bookmark.Page)" aria-label="@Text.Format("pdf.goTo", bookmark.Name ?? where)">
+                                <Icon Name="bookmark" /> <span class="pgno">@where</span>
+                            </button>
+                            <input type="text" value="@bookmark.Name" maxlength="@PageBookmark.MaxName" placeholder="@Text["pdf.bookmarkName"]"
+                                   aria-label="@Text.Format("pdf.bookmarkNameFor", where)" @onchange="args => RenameAsync(bookmark.Id, args.Value as string)" />
+                            <button class="btn icon" aria-label="@Text.Format("pdf.removeBookmark", where)" title="@Text["pdf.removeBookmarkHint"]"
+                                    @onclick="() => RemoveBookmarkAsync(bookmark.Id)"><Icon Name="trash" /></button>
+                        </li>
+                    }
+                </ul>
+            }
         </div>
     }
 </main>
@@ -64,7 +136,28 @@
     private PdfView? _view;
     private Project? _project;
     private string? _message;
-    private bool _moreOpen;
+    private Popover _popover;
+    private bool _metronomeOpen;
+
+    /// <summary>The strokes on the pages, as the pencil layer reads them; kept as text so it is written once per change.</summary>
+    private string _ink = "";
+
+    private enum Popover
+    {
+        None,
+        More,
+        Contents,
+        Recognise,
+    }
+
+    /// <summary>The key the pencil layer keeps the pages' marks under; the project holds them (0023).</summary>
+    private string? PencilKey => _project is { } project ? $"pdf:{project.Id}" : null;
+
+    /// <summary>The pages with a bookmark, a new list whenever they change.</summary>
+    private IReadOnlyList<int> _bookmarkedPages = [];
+
+    /// <summary>The bookmark on the page under the bar, if any.</summary>
+    private PageBookmark? CurrentBookmark => _pages.First > 0 ? _project?.DocumentMarks.BookmarkOn(_pages.First) : null;
     private int _startPage = 1;
     private (int First, int Last, int Count) _pages;
     private bool _coverSaved;
@@ -101,8 +194,8 @@
                 return;
             }
 
-            // A piece with notes opens in the workspace.
-            if (project.HasNotes)
+            // A piece with no PDF opens in the workspace.
+            if (project.Document is null)
             {
                 Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(project), replace: true);
                 return;
@@ -110,7 +203,7 @@
 
             _startPage = Page is > 0 and int asked ? asked
                 : int.TryParse(await Preferences.GetAsync(PageKey(id)), out int page) && page > 0 ? page : 1;
-            _project = project;
+            Show(project);
         }
         catch (ProjectFileException exception)
         {
@@ -146,10 +239,146 @@
     /// <summary>Hands the player the PDF back, byte for byte as they added it.</summary>
     private async Task DownloadAsync()
     {
-        _moreOpen = false;
+        _popover = Popover.None;
         if (_project is { Document: { } document } project)
         {
-            await Projects.DownloadAsync(project.FileName, document, "application/pdf");
+            await Projects.DownloadAsync(project.DocumentFileName, document, "application/pdf");
+        }
+    }
+
+    /// <summary>Shows the project and what is kept on its pages.</summary>
+    private void Show(Project project)
+    {
+        _project = project;
+        _ink = project.DocumentMarks.Ink.Count == 0 ? "" : ProjectFile.WriteInk(project.DocumentMarks.Ink);
+        _bookmarkedPages = [.. project.DocumentMarks.Bookmarks.Select(bookmark => bookmark.Page)];
+    }
+
+    private async Task SaveAsync(Project project)
+    {
+        Show(project);
+        await Projects.SaveAsync(project);
+        CurrentPiece.Saved(project);
+    }
+
+    /// <summary>
+    /// Makes the notes the scan read the piece's (0011, 0023): its Check flags start open, a resume point is set where the
+    /// page under the bar starts, and the "Notes" view opens there. Returns why the notes cannot be used, if they cannot.
+    /// </summary>
+    private async Task<string?> ReadNotesAsync(ScanResult result)
+    {
+        if (_project is not { } project || result.MusicXml is not { } musicXml)
+        {
+            return result.Problem;
+        }
+
+        string name = Path.ChangeExtension(project.FileName, ".musicxml");
+        PieceImportResult imported = PieceImporter.Import(name, musicXml);
+        if (imported.Piece is not { } piece)
+        {
+            return imported.Rejection?.Text(Words.For(Text.Language)) ?? Text["pdf.readNone"];
+        }
+
+        ScanCheck check = ScanCheck.Of(piece);
+        PageMap pages = PageMap.Of(piece, Math.Max(1, _pages.Count));
+        Project read = project.Recognised(musicXml, result.Engine, pages);
+        read = read with { Check = CheckFlag.FromScan(check, []) };
+        ResumePoint point = ResumePoint.Start(read.NextResumePointId(), DateTimeOffset.Now);
+        read = read.AddResumePoint(point);
+        await Projects.SaveAsync(read);
+        CurrentPiece.Open(check.Mark(piece, []), SelectionFilter.All, read);
+        _popover = Popover.None;
+        Navigation.NavigateTo(NotesUrl(read, point.Id));
+        return null;
+    }
+
+    /// <summary>The "Notes" view at the resume point, scrolled to where the page under the bar starts.</summary>
+    private string NotesUrl(Project project, string? resumeId)
+    {
+        Tick at = project.DocumentPages?.StartOf(Math.Max(1, _pages.First)) ?? Tick.Zero;
+        return CurrentPiece.WorkspaceUrl(project, resumeId) + $"&at={at.Value}";
+    }
+
+    private void ShowNotes()
+    {
+        if (_project is { HasNotes: true } project)
+        {
+            Navigation.NavigateTo(NotesUrl(project, project.RecentResumePoints.FirstOrDefault()?.Id));
+        }
+    }
+
+    private void Toggle(Popover popover) => _popover = _popover == popover ? Popover.None : popover;
+
+    private async Task TogglePenAsync()
+    {
+        _popover = Popover.None;
+        if (_view is not null)
+        {
+            await _view.TogglePencilAsync();
+        }
+    }
+
+    /// <summary>Keeps what the player wrote or erased on the pages.</summary>
+    private async Task OnMarksChangedAsync(string ink)
+    {
+        if (_project is not { } project)
+        {
+            return;
+        }
+
+        IReadOnlyList<InkStroke> strokes;
+        try
+        {
+            strokes = ProjectFile.ReadInk(ink);
+        }
+        catch (ProjectFileException)
+        {
+            return;
+        }
+
+        _ink = ink;
+        project = project with { DocumentMarks = project.DocumentMarks.WithInk(strokes) };
+        _project = project;
+        await Projects.SaveAsync(project);
+        CurrentPiece.Saved(project);
+    }
+
+    /// <summary>Bookmarks the page under the bar, or takes its bookmark away.</summary>
+    private async Task ToggleBookmarkAsync()
+    {
+        if (_project is not { } project || _pages.First < 1)
+        {
+            return;
+        }
+
+        DocumentMarks marks = CurrentBookmark is { } bookmark
+            ? project.DocumentMarks.RemoveBookmark(bookmark.Id)
+            : project.DocumentMarks.AddBookmark(_pages.First, null, DateTimeOffset.Now);
+        await SaveAsync(project with { DocumentMarks = marks });
+    }
+
+    private async Task RenameAsync(string id, string? name)
+    {
+        if (_project is { } project)
+        {
+            await SaveAsync(project with { DocumentMarks = project.DocumentMarks.RenameBookmark(id, name) });
+        }
+    }
+
+    private async Task RemoveBookmarkAsync(string id)
+    {
+        if (_project is { } project)
+        {
+            await SaveAsync(project with { DocumentMarks = project.DocumentMarks.RemoveBookmark(id) });
+        }
+    }
+
+    private async Task GoToAsync(int page)
+    {
+        _popover = Popover.None;
+        if (_view is not null)
+        {
+            await _view.ShowPageAsync(page);
         }
     }
 }

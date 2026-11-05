@@ -15,6 +15,11 @@ final class PencilTests: XCTestCase {
 
     /// The score page in a web view on screen, once its modules have loaded.
     private func scorePage() async throws -> WKWebView {
+        try await webPage("Web/score.html", ready: "window.motiff")
+    }
+
+    /// A page of the app's in a web view on screen, once the object it fills has appeared.
+    private func webPage(_ path: String, ready: String) async throws -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.setURLSchemeHandler(BundleSchemeHandler(), forURLScheme: BundleSchemeHandler.scheme)
         let view = WKWebView(frame: CGRect(x: 0, y: 0, width: 1024, height: 1366), configuration: configuration)
@@ -22,15 +27,15 @@ final class PencilTests: XCTestCase {
         window.addSubview(view)
         window.isHidden = false
         self.window = window
-        view.load(URLRequest(url: BundleSchemeHandler.url("Web/score.html")))
+        view.load(URLRequest(url: BundleSchemeHandler.url(path)))
         for _ in 0..<100 {
-            if (try? await view.evaluateJavaScript("typeof window.motiff")) as? String == "object" {
+            if (try? await view.evaluateJavaScript("typeof \(ready)")) as? String == "object" {
                 return view
             }
             try await Task.sleep(nanoseconds: 100_000_000)
         }
         let problem = (try? await view.evaluateJavaScript("document.documentElement.outerHTML.slice(0, 300)")) as? String
-        XCTFail("The score page did not load its modules: \(problem ?? "no page")")
+        XCTFail("The page did not load its modules: \(problem ?? "no page")")
         throw URLError(.resourceUnavailable)
     }
 
@@ -90,6 +95,195 @@ final class PencilTests: XCTestCase {
         let saved = try XCTUnwrap(facadeObject(file))
         let kept = (saved["marks"] as? [String: Any])?["ink"] as? [[String: Any]]
         XCTAssertEqual(kept?.first?["bar"] as? NSNumber, mark["bar"] as? NSNumber)
+    }
+
+    func testTheBarNamesThePagesUnderTheReadingLine() async throws {
+        let view = try await scorePage()
+        let example = try XCTUnwrap(OpenPiece.example)
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        defer { _ = MusicCore.close(piece: piece.id) }
+        let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
+        _ = try await call(view, "show", ["pages": piece.pages, "timemap": timemap, "dark": false])
+
+        // In portrait the pages are one column: the first is in view, then, scrolled to the end, the last.
+        let topView = try await call(view, "inView", [String: Any]())
+        let top = try XCTUnwrap(topView as? [String: Any])
+        XCTAssertEqual((top["first"] as? NSNumber)?.intValue, 1)
+        XCTAssertEqual((top["last"] as? NSNumber)?.intValue, 1)
+        XCTAssertEqual((top["count"] as? NSNumber)?.intValue, piece.pages.count)
+        _ = try await view.evaluateJavaScript("window.scrollTo(0, document.documentElement.scrollHeight); 0")
+        let endView = try await call(view, "inView", [String: Any]())
+        let end = try XCTUnwrap(endView as? [String: Any])
+        XCTAssertEqual((end["last"] as? NSNumber)?.intValue, piece.pages.count)
+        let numbered = try await view.evaluateJavaScript("document.querySelector('#pages > .page:last-child').dataset.page") as? String
+        XCTAssertEqual(numbered, String(piece.pages.count))
+    }
+
+    func testBracketsAndTheSelectionBandAreDrawnOverTheBars() async throws {
+        let view = try await scorePage()
+        let example = try XCTUnwrap(OpenPiece.example)
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        defer { _ = MusicCore.close(piece: piece.id) }
+        let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
+        _ = try await call(view, "show", ["pages": piece.pages, "timemap": timemap, "dark": false])
+
+        let shown = try XCTUnwrap(PhraseLevelsShown(answer: MusicCore.call(piece: piece.id, "phrases")))
+        let units = shown.units.map { ["start": $0.onset, "end": $0.end, "number": $0.number, "kind": $0.kind, "current": $0.number == 2, "label": $0.name] as [String: Any] }
+        let drawn = try await call(view, "phrases", ["units": units]) as? NSNumber
+        XCTAssertEqual(drawn?.intValue, shown.units.count)
+        let brackets = try await view.evaluateJavaScript("document.querySelectorAll('body > .bracket').length") as? NSNumber
+        XCTAssertGreaterThanOrEqual(brackets?.intValue ?? 0, shown.units.count, "a bracket on every system its phrase touches")
+        let current = try await view.evaluateJavaScript("document.querySelector('body > .bracket.on').dataset.phrase") as? String
+        XCTAssertEqual(current, "2")
+
+        let second = try XCTUnwrap(shown.unit(2))
+        let bands = try await call(view, "select", ["start": second.onset, "end": second.end, "startLabel": "start", "endLabel": "end"]) as? NSNumber
+        XCTAssertGreaterThanOrEqual(bands?.intValue ?? 0, 1)
+        let handles = try await view.evaluateJavaScript("document.querySelectorAll('body > .sel-handle').length") as? NSNumber
+        XCTAssertEqual(handles?.intValue, 2)
+        let cleared = try await call(view, "select", NSNull()) as? NSNumber
+        XCTAssertEqual(cleared?.intValue, 0)
+    }
+
+    func testFocusLiftsThePhraseIntoACardEngravedAtItsWidth() async throws {
+        let view = try await scorePage()
+        let example = try XCTUnwrap(OpenPiece.example)
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        defer { _ = MusicCore.close(piece: piece.id) }
+        let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
+        _ = try await call(view, "show", ["pages": piece.pages, "timemap": timemap, "dark": false])
+        let shown = try XCTUnwrap(PhraseLevelsShown(answer: MusicCore.call(piece: piece.id, "phrases")))
+        let second = try XCTUnwrap(shown.unit(2))
+
+        // The page gives the web app's card layout at the card's width, and the phrase's bars engrave with it.
+        let opened = try await call(view, "focus", ["open": true, "label": "In focus", "back": "Back to page"])
+        let options = try XCTUnwrap((opened as? [String: Any])?["options"] as? [String: Any])
+        XCTAssertEqual(options["font"] as? String, "Leland")
+        XCTAssertGreaterThan((options["pageWidth"] as? NSNumber)?.intValue ?? 0, 0)
+        let layout = String(decoding: try JSONSerialization.data(withJSONObject: options), as: UTF8.self)
+        let id = piece.id
+        let first = second.firstBar
+        let last = second.lastBar
+        let engraved = await MusicCore.run { Engraver.engraveCard(piece: id, firstBar: first, lastBar: last, options: layout) }
+        let card = try engraved.get()
+        XCTAssertEqual(card.pages.count, 1, "one page as tall as the phrase needs")
+        let cardMap = try JSONSerialization.jsonObject(with: Data(card.timemap.utf8))
+        let notes = try await call(view, "card", ["pages": card.pages, "timemap": cardMap, "start": second.onset]) as? NSNumber
+        XCTAssertGreaterThan(notes?.intValue ?? 0, 0)
+        let onCard = try await view.evaluateJavaScript("document.querySelectorAll('#focus .card-score > .card-page > svg').length") as? NSNumber
+        XCTAssertEqual(onCard?.intValue, card.pages.count)
+        let veiled = try await view.evaluateJavaScript("document.getElementById('focus').hidden") as? Bool
+        XCTAssertEqual(veiled, false)
+
+        // A variation tried is engraved above the phrase as an ossia, framed and named on the card.
+        _ = MusicCore.call(piece: piece.id, "select", "{\"span\": {\"onset\": \(Int(second.selectableOnset)), \"end\": \(Int(second.selectableEnd))}}")
+        let understanding = try XCTUnwrap(Understanding(answer: MusicCore.call(piece: piece.id, "understand")))
+        let way = try XCTUnwrap(understanding.facts.first { !$0.tries.isEmpty }?.tries.first)
+        XCTAssertNil(facadeObject(MusicCore.call(piece: piece.id, "try", "{\"chip\": \"\(way.id)\"}"))?["error"])
+        let withOssia = await MusicCore.run { Engraver.engraveCard(piece: id, firstBar: first, lastBar: last, options: layout, ossia: true) }
+        let ossiaCard = try withOssia.get()
+        let ossias = ossiaCard.ossias.map { ["staves": $0.staves, "prefix": $0.prefix, "label": "Ossia · \(way.label)"] as [String: Any] }
+        XCTAssertFalse(ossias.isEmpty)
+        let ossiaMap = try JSONSerialization.jsonObject(with: Data(ossiaCard.timemap.utf8))
+        _ = try await call(view, "card", ["pages": ossiaCard.pages, "timemap": ossiaMap, "start": second.onset, "ossias": ossias])
+        let frames = try await view.evaluateJavaScript("document.querySelectorAll('#focus .ossia-frame').length") as? NSNumber
+        XCTAssertGreaterThan(frames?.intValue ?? 0, 0)
+        _ = MusicCore.call(piece: piece.id, "variation.clear")
+
+        // Lead-in takes in the bar before and the bar after.
+        let led = try await call(view, "lead", ["start": second.onset, "end": second.end])
+        let wider = try XCTUnwrap(led as? [String: Any])
+        XCTAssertLessThan((wider["start"] as? NSNumber)?.doubleValue ?? .infinity, second.onset)
+        XCTAssertGreaterThan((wider["end"] as? NSNumber)?.doubleValue ?? 0, second.end)
+
+        _ = try await call(view, "focus", ["open": false])
+        let gone = try await view.evaluateJavaScript("document.getElementById('focus').hidden") as? Bool
+        XCTAssertEqual(gone, true)
+    }
+
+    func testThePianoRollDrawsMusicCoresNotesAndPicksBars() async throws {
+        let view = try await webPage("Web/roll.html", ready: "window.roll")
+        let example = try XCTUnwrap(OpenPiece.example)
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        defer { _ = MusicCore.close(piece: piece.id) }
+        let roll = try XCTUnwrap(facadeObject(MusicCore.call(piece: piece.id, "roll")))
+        XCTAssertEqual((roll["ids"] as? [Any])?.count, (roll["notes"] as? [Any]).map { $0.count / 7 })
+
+        let loaded = try await view.callAsyncJavaScript(
+            "return roll.load(data)", arguments: ["data": ["roll": roll, "labels": RollController.labels(UIText(language: "en")), "noteNames": true, "dark": false]], contentWorld: .page
+        )
+        let shown = try XCTUnwrap(loaded as? [String: Any])
+        XCTAssertEqual(shown["colourBy"] as? String, "hand", "Für Elise has two hands")
+        let canvases = try await view.evaluateJavaScript("document.querySelectorAll('#roll > canvas.roll-notes, #roll > canvas.roll-keys').length") as? NSNumber
+        XCTAssertEqual(canvases?.intValue, 2, "the notes and the keyboard")
+        let colour = try await view.callAsyncJavaScript("return roll.nextColour()", contentWorld: .page) as? String
+        XCTAssertNotNil(colour)
+
+        // The places of a fact chosen in Insights light on the roll too.
+        let place: [String: Any] = ["onset": 0, "end": 1440, "noteIds": Array((roll["ids"] as? [String] ?? []).prefix(4))]
+        _ = try await view.callAsyncJavaScript("return roll.highlight(data)", arguments: ["data": ["places": [place]]], contentWorld: .page)
+        _ = try await view.callAsyncJavaScript("return roll.highlight(data)", arguments: ["data": ["places": [Any]()]], contentWorld: .page)
+    }
+
+    func testAFactRingsItsPlacesOnTheScore() async throws {
+        let view = try await scorePage()
+        let example = try XCTUnwrap(OpenPiece.example)
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        defer { _ = MusicCore.close(piece: piece.id) }
+        let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
+        _ = try await call(view, "show", ["pages": piece.pages, "timemap": timemap, "dark": false])
+        let second = try XCTUnwrap(PhraseLevelsShown(answer: MusicCore.call(piece: piece.id, "phrases"))?.unit(2))
+        _ = try XCTUnwrap(ScoreSelection(answer: MusicCore.call(piece: piece.id, "select", "{\"span\": {\"onset\": \(Int(second.selectableOnset)), \"end\": \(Int(second.selectableEnd))}}")))
+        let understanding = try XCTUnwrap(Understanding(answer: MusicCore.call(piece: piece.id, "understand")))
+
+        // The motif's returns: every engraved note of every place is ringed, each with its box.
+        let returns = try XCTUnwrap(understanding.facts.first { $0.id == "structure.recurrences" })
+        let places = returns.places.map { ["onset": $0.onset, "end": $0.end, "noteIds": $0.noteIds] as [String: Any] }
+        let ringed = try await call(view, "highlight", ["places": places, "scroll": true]) as? NSNumber
+        XCTAssertGreaterThanOrEqual(ringed?.intValue ?? 0, Set(returns.places.flatMap(\.noteIds)).count)
+        let boxes = try await view.evaluateJavaScript("document.querySelectorAll('body > .ring').length") as? NSNumber
+        XCTAssertEqual(boxes?.intValue, ringed?.intValue)
+
+        // A place without notes, such as a phrase, rings every note in its stretch of time.
+        let phrases = try XCTUnwrap(understanding.facts.first { $0.places.contains { $0.noteIds.isEmpty } })
+        let stretch = try XCTUnwrap(phrases.places.first { $0.noteIds.isEmpty })
+        let timed = try await call(view, "highlight", ["places": [["onset": stretch.onset, "end": stretch.end, "noteIds": [String]()]], "scroll": false]) as? NSNumber
+        XCTAssertGreaterThan(timed?.intValue ?? 0, 0)
+
+        let cleared = try await call(view, "highlight", ["places": [Any](), "scroll": false]) as? NSNumber
+        XCTAssertEqual(cleared?.intValue, 0)
+        let left = try await view.evaluateJavaScript("document.querySelectorAll('body > .ring, .highlight').length") as? NSNumber
+        XCTAssertEqual(left?.intValue, 0)
+    }
+
+    func testBookmarksAreBracketsAboveThePhrasesAndThePagesHavePictures() async throws {
+        let view = try await scorePage()
+        let example = try XCTUnwrap(OpenPiece.example)
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        defer { _ = MusicCore.close(piece: piece.id) }
+        let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
+        _ = try await call(view, "show", ["pages": piece.pages, "timemap": timemap, "dark": false])
+
+        // The form found in the piece, filed as Structure bookmarks: a bracket for each, titled at its left end.
+        let shelf = try XCTUnwrap(BookmarkShelf(answer: MusicCore.call(piece: piece.id, "bookmark.structure")))
+        XCTAssertFalse(shelf.bookmarks.isEmpty)
+        let items = shelf.bookmarks.map { bookmark in
+            ["id": bookmark.id, "start": bookmark.onset, "end": bookmark.end, "title": bookmark.title, "ink": shelf.category(of: bookmark)?.ink ?? "graphite", "label": bookmark.title] as [String: Any]
+        }
+        let drawn = try await call(view, "bookmarks", ["items": items]) as? NSNumber
+        XCTAssertGreaterThanOrEqual(drawn?.intValue ?? 0, items.count)
+        let titled = try await view.evaluateJavaScript("document.querySelectorAll('body > .bmb .w').length") as? NSNumber
+        XCTAssertEqual(titled?.intValue, items.count)
+        let lifted = try await view.evaluateJavaScript("getComputedStyle(document.querySelector('body > .bmb')).borderTopStyle") as? String
+        XCTAssertEqual(lifted, "solid")
+
+        // The Pages tab: each page with its stretch of the piece and its picture.
+        let pages = try await call(view, "outline", ["width": 280]) as? [[String: Any]]
+        XCTAssertEqual(pages?.count, piece.pages.count)
+        XCTAssertTrue((pages?.first?["image"] as? String ?? "").hasPrefix("data:image/png"), "the page is drawn as a picture")
+        XCTAssertEqual((pages?.first?["start"] as? NSNumber)?.intValue, 0)
+        let shown = try await call(view, "showPage", ["page": 2]) as? Bool
+        XCTAssertEqual(shown, true)
     }
 
     func testTheInksAreTheDesignKits() {

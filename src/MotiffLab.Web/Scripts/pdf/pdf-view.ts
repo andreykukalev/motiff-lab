@@ -2,6 +2,8 @@
 // document like the score's A4 pages (0018 section 2), drawn by pdf.js only when they come near the view. pdf.js is
 // loaded on first use from lib/pdfjs, which the service worker keeps once fetched, so a PDF opens offline after that.
 
+import { PencilLayer, type PencilState } from "../score/pencil-layer.js";
+import type { BarFrame } from "../score/pencil-marks.js";
 import { saveCover } from "../storage/project-store.js";
 
 interface DotNetRef {
@@ -27,12 +29,17 @@ interface PdfPage {
 interface PdfDocumentProxy {
     numPages: number;
     getPage(number: number): Promise<PdfPage>;
+}
+
+/** What getDocument returns: the document to come, and the way to let go of it (pdf.js 6 has no destroy on the document). */
+interface PdfLoadingTask {
+    promise: Promise<PdfDocumentProxy>;
     destroy(): Promise<void>;
 }
 
 interface PdfJs {
     GlobalWorkerOptions: { workerSrc: string };
-    getDocument(options: Record<string, unknown>): { promise: Promise<PdfDocumentProxy> };
+    getDocument(options: Record<string, unknown>): PdfLoadingTask;
 }
 
 const PDFJS_BASE = new URL("../../lib/pdfjs/", import.meta.url);
@@ -42,6 +49,12 @@ const DRAW_AHEAD = "150% 0px";
 
 /** The line under the bar that counts as where the player is reading, as on the score. */
 const READING_LINE_PX = 72;
+
+/**
+ * A page's own unit for the pencil (decision record 0023): a hundred and twentieth of its width, about a printed staff space,
+ * so the pen and the highlighter are as thick on a page as on the score, and a stroke keeps its size when the page grows.
+ */
+const PAGE_SPACES = 120;
 
 /** The cover's width in pixels: enough for a library card at twice the density. */
 const COVER_WIDTH = 360;
@@ -73,6 +86,7 @@ interface PageSheet {
 
 export class PdfView {
     private document: PdfDocumentProxy | null = null;
+    private loading: PdfLoadingTask | null = null;
     private pages: PageSheet[] = [];
     private readonly near = new Set<PageSheet>();
     private observer: IntersectionObserver | null = null;
@@ -80,9 +94,33 @@ export class PdfView {
     private scrollFrame = 0;
     private resizeTimer = 0;
     private shown = "";
+    private bookmarked = new Set<number>();
+    private readonly pencil: PencilLayer;
 
     constructor(private readonly host: HTMLElement, private readonly dotnet: DotNetRef) {
         host.addEventListener("scroll", this.onScroll, { passive: true });
+        // The pencil writes on the pages as on the score: each page is one frame its strokes are kept against, by its number.
+        this.pencil = new PencilLayer(host, {
+            frames: () => this.pageFrames(),
+            tap: () => {
+                // Nothing on a PDF's page is picked.
+            },
+            changed: (state: PencilState) => void this.dotnet.invokeMethodAsync("OnPencilChanged", state),
+            marksChanged: (text: string) => void this.dotnet.invokeMethodAsync("OnPencilMarksChanged", text),
+        });
+    }
+
+    /** The pencil layer over the pages, for Blazor to set the marks and choose the tools. */
+    pencilLayer(): PencilLayer {
+        return this.pencil;
+    }
+
+    /** Marks the pages the player bookmarked with a ribbon in the corner. */
+    setBookmarks(pages: number[]): void {
+        this.bookmarked = new Set(pages);
+        for (const page of this.pages) {
+            page.element.classList.toggle("bookmarked", this.bookmarked.has(page.number));
+        }
     }
 
     /** Opens the PDF and lays out a sheet for each page, scrolled to the page given; the number of pages, or 0 when it cannot be read. */
@@ -91,13 +129,15 @@ export class PdfView {
         let document: PdfDocumentProxy;
         try {
             const pdf = await loadPdfJs();
-            document = await pdf.getDocument({
+            const loading = pdf.getDocument({
                 data,
                 wasmUrl: new URL("wasm/", PDFJS_BASE).href,
                 standardFontDataUrl: new URL("standard_fonts/", PDFJS_BASE).href,
                 isEvalSupported: false,
                 enableXfa: false,
-            }).promise;
+            });
+            this.loading = loading;
+            document = await loading.promise;
         } catch (error) {
             console.warn("The PDF could not be read.", error);
             return 0;
@@ -122,6 +162,7 @@ export class PdfView {
             element.dataset.page = String(index + 1);
             element.style.setProperty("--ratio", `${size.width} / ${size.height}`);
             element.setAttribute("role", "img");
+            element.classList.toggle("bookmarked", this.bookmarked.has(index + 1));
             this.host.append(element);
             return { number: index + 1, element, width: size.width, height: size.height, drawnAt: 0, task: null };
         });
@@ -133,6 +174,7 @@ export class PdfView {
         this.resize = new ResizeObserver(this.onResize);
         this.resize.observe(this.host);
 
+        this.pencil.relayout();
         this.showPage(startPage);
         this.reportPages();
         return document.numPages;
@@ -195,11 +237,13 @@ export class PdfView {
         this.near.clear();
         this.shown = "";
         this.host.classList.remove("paged");
-        void this.document?.destroy();
+        this.loading?.destroy().catch(() => undefined);
+        this.loading = null;
         this.document = null;
     }
 
     dispose(): void {
+        this.pencil.dispose();
         this.close();
         this.host.removeEventListener("scroll", this.onScroll);
         cancelAnimationFrame(this.scrollFrame);
@@ -227,6 +271,7 @@ export class PdfView {
             for (const page of this.near) {
                 void this.draw(page);
             }
+            this.pencil.relayout();
             this.reportPages();
         }, 150);
     };
@@ -277,6 +322,17 @@ export class PdfView {
         page.task = null;
         page.drawnAt = 0;
         page.element.querySelector("canvas")?.remove();
+    }
+
+    /** Where each page sits in the view's content pixels, as the frame its pencil strokes are kept against. */
+    private pageFrames(): BarFrame[] {
+        const view = this.host.getBoundingClientRect();
+        return this.pages.map((page) => {
+            const box = page.element.getBoundingClientRect();
+            const top = box.top - view.top + this.host.scrollTop;
+            const left = box.left - view.left + this.host.scrollLeft;
+            return { tick: page.number, left, right: left + box.width, top, bottom: top + box.height, staffTop: top, space: box.width / PAGE_SPACES };
+        });
     }
 
     /** Tells the bar which pages are under the reading line ("p. 2 of 4", or "pp. 1–2 of 4" with two to a row). */

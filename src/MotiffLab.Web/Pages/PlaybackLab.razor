@@ -116,6 +116,10 @@
                     {
                         <span class="pg" aria-live="off">@pages</span>
                     }
+                    @if (_project?.Document is not null)
+                    {
+                        <MotiffLab.Web.Pdf.ViewSwitch OnPdf="false" Switch="_ => ShowPdfAsync()" />
+                    }
                     <span class="sp"></span>
                     <button class="act @(_popover == Popover.Phrases ? "on" : null)" aria-expanded="@(_popover == Popover.Phrases ? "true" : "false")" aria-label="@Text["bar.phrases"]" title="@Text["bar.phrases"]"
                             data-long-press="phrases" @onclick="() => TogglePopover(Popover.Phrases)"><Icon Name="phrases" Size="IconSize.Large" /></button>

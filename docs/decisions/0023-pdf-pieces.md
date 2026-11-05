@@ -15,8 +15,13 @@ Until now a PDF could only be scanned (0011, 0014): the notes the scan server re
 - **Where the player was is kept on the device.** The page under the bar is remembered per piece and reopened; Page 1 in the library opens at the top. A PDF piece has no resume points, Piece DNA or ideas until it has notes.
 - **The library treats it as a piece.** Open a file accepts `.pdf` next to MIDI and MusicXML; the card shows "PDF · 3 pages" with page 1 as its cover, drawn by pdf.js.
 
+- **Marks on the pages are the PDF view's own.** The pen writes on the pages with the score's pencil layer and palette (four inks, the highlighter, the eraser, undo, clear): each page is one frame its strokes are kept against, by its number, in units of a hundred and twentieth of the page's width, so a stroke keeps its place and size however wide the page is drawn. The bookmark in the bar marks the page under it (a carmine tab on its edge); the title opens the Contents, which lists the bookmarked pages to go to, name or remove. Both are kept in the project as `documentMarks` (`DocumentMarks` in music-core), apart from the notes' `marks`.
+
+- **A metronome of its own.** The PDF has no notes to play, so the view has a metronome in a pill at the bottom, like the score's transport: start and stop, slower and faster by 4, the tempo tapped in time on its number, 2, 3, 4 or 6 beats to the bar (the first clicks higher) and a dot for each beat. It uses the playback engine's click and schedules it on the audio clock (`Scripts/metronome/metronome.ts`). It runs on the device and is free; the tempo and beats are kept per piece on the device.
+
+- **Read the notes from the kept PDF.** The PDF view's overflow offers Read the notes (Pro on Motiff Lab's server, free on the player's own, as scanning is, 0011, 0014): the panel says where the PDF goes, with the same switch as Scan printed music, and sends the kept PDF as it is. The MusicXML the scan server returns becomes the piece's `source` (`Project.Recognised`), its doubtful bars become Check flags, and the "Notes" view opens with the Check drawer. The PDF, its marks and bookmarks stay as they were.
+- **Two views, one piece.** A recognised PDF has PDF | Notes in the bar of both views, the score's segmented control. The link between them is rough by design: the scan server marks the first measure of each page after the first with `<print new-page="yes"/>` (services/omr `merge.py`), music-core keeps where each page starts (`PageMap`, `documentPages` in the project file) and shares the bars evenly when there are no marks. From the PDF, the Notes view opens at the score page holding the bar the page under the bar starts with; from the notes, the PDF opens at the page the first bar of the score page under the bar was read from. The library opens a recognised piece in its Notes view, at its resume point.
+
 ## Later steps
 
-1. Marks and bookmarks on the PDF's pages, kept in page coordinates and separate from the Notes view's marks; the metronome.
-2. Recognise: the scan reads the kept PDF, the notes become the piece's `source`, and the bar switches between the "PDF" and "Notes" views, with a rough page-to-bar map from the scan's pages.
-3. The iPad app's PDF view (PDFKit) over the same project file.
+1. The iPad app's PDF view (PDFKit) over the same project file.

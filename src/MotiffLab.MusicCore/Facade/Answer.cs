@@ -325,6 +325,29 @@ internal static partial class Answer
         json.WriteNumber("marks", project.Marks.Count);
         json.WriteNumber("bookmarks", project.Bookmarks.Count);
         json.WriteNumber("openChecks", project.OpenChecks.Count);
+        // Within contract 4, for the library's cards (0018 section 9): the bars still to check, whether the piece has notes
+        // and a PDF (0023), and the resume point worked from last.
+        json.WriteNumber("checkBars", project.Summary.CheckBars);
+        json.WriteBoolean("hasNotes", project.HasNotes);
+        json.WriteBoolean("document", project.Document is not null);
+        if (project.RecentResumePoints.FirstOrDefault() is { } latest)
+        {
+            json.WriteStartObject("latest");
+            json.WriteString("id", latest.Id);
+            if (latest.Name is { } pointName)
+            {
+                json.WriteString("name", pointName);
+            }
+
+            json.WriteNumber("at", latest.At.Value);
+            json.WriteString("lastActive", latest.LastActive.ToString("O", CultureInfo.InvariantCulture));
+            json.WriteEndObject();
+        }
+        else
+        {
+            json.WriteNull("latest");
+        }
+
         json.WriteEndObject();
     }
 
@@ -369,6 +392,7 @@ internal static partial class Answer
         json.WriteStartObject();
         json.WriteNumber("number", unit.Number);
         json.WriteString("level", PhraseLevels.Name(unit.Level));
+        json.WriteString("name", PhraseLevels.Describe(unit.Level, words));
         json.WriteNumber("firstBar", unit.FirstBar);
         json.WriteNumber("lastBar", unit.LastBar);
         json.WriteNumber("onset", unit.Span.Onset.Value);
@@ -864,6 +888,56 @@ internal static partial class Answer
         }
 
         json.WriteEndArray();
+    }
+
+    /// <summary>The piano roll's data, with the field names the roll reads (Scripts/roll/roll-model.ts, RollPayload).</summary>
+    public static void Roll(Utf8JsonWriter json, RollPayload payload, RollNames names)
+    {
+        static void Numbers(Utf8JsonWriter json, string name, long[] values)
+        {
+            json.WriteStartArray(name);
+            foreach (long value in values)
+            {
+                json.WriteNumberValue(value);
+            }
+
+            json.WriteEndArray();
+        }
+
+        static void Texts(Utf8JsonWriter json, string? name, string[] values)
+        {
+            if (name is null)
+            {
+                json.WriteStartArray();
+            }
+            else
+            {
+                json.WriteStartArray(name);
+            }
+
+            foreach (string value in values)
+            {
+                json.WriteStringValue(value);
+            }
+
+            json.WriteEndArray();
+        }
+
+        Texts(json, "ids", payload.Ids);
+        Numbers(json, "notes", payload.Notes);
+        Numbers(json, "bars", payload.Bars);
+        json.WriteNumber("end", payload.End);
+        json.WriteStartObject("names");
+        Texts(json, "notes", names.Notes);
+        Numbers(json, "keyTicks", names.KeyTicks);
+        json.WriteStartArray("rows");
+        foreach (string[] row in names.Rows)
+        {
+            Texts(json, null, row);
+        }
+
+        json.WriteEndArray();
+        json.WriteEndObject();
     }
 
     public static void Playback(Utf8JsonWriter json, PlaybackScore score)

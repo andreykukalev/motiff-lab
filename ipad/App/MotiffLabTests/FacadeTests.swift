@@ -43,6 +43,25 @@ final class FacadeTests: XCTestCase {
         XCTAssertTrue(levels.allSatisfy { $0["available"] as? Bool == true })
     }
 
+    func testTheBracketsAndTheSelectionAreReadFromMusicCore() throws {
+        let shown = try XCTUnwrap(PhraseLevelsShown(answer: MusicCore.call(piece: piece, "phrases")))
+        XCTAssertEqual(shown.level, "phrase")
+        XCTAssertEqual(shown.counts["phrase"], shown.units.count)
+        let first = try XCTUnwrap(shown.units.first)
+        XCTAssertEqual(first.kind, "start")
+        XCTAssertEqual(first.name, "фраза", "a unit is named in the piece's language")
+        XCTAssertLessThan(first.onset, first.end)
+
+        let request = "{\"span\": {\"onset\": \(Int(first.selectableOnset)), \"end\": \(Int(first.selectableEnd))}}"
+        let selected = try XCTUnwrap(ScoreSelection(answer: MusicCore.call(piece: piece, "select", request)))
+        XCTAssertEqual(selected.onset, first.selectableOnset)
+        XCTAssertEqual(selected.firstBar, first.firstBar)
+
+        let sentences = try XCTUnwrap(PhraseLevelsShown(answer: MusicCore.call(piece: piece, "phrases.level", #"{"level": "sentence"}"#)))
+        XCTAssertEqual(sentences.level, "sentence")
+        XCTAssertLessThanOrEqual(sentences.units.count, shown.units.count)
+    }
+
     func testSelectAndUnderstandInRussian() throws {
         let selected = try call("select", #"{"bars": {"first": 1, "last": 2}, "filter": {"hand": "right"}}"#)
         let selection = try XCTUnwrap(selected["selection"] as? [String: Any])
@@ -54,6 +73,77 @@ final class FacadeTests: XCTestCase {
         let facts = try XCTUnwrap(motif["facts"] as? [[String: Any]])
         XCTAssertFalse(facts.isEmpty)
         XCTAssertTrue(facts.contains { ($0["text"] as? String ?? "").unicodeScalars.contains { (0x0410...0x044F).contains($0.value) } }, "facts are in Russian")
+    }
+
+    func testInsightsListMusicCoresFactsByLens() throws {
+        _ = try call("select", #"{"bars": {"first": 4, "last": 12}}"#)
+        let understanding = try XCTUnwrap(Understanding(answer: MusicCore.call(piece: piece, "understand")))
+        XCTAssertGreaterThan(understanding.facts.count, 10)
+        XCTAssertTrue(understanding.facts.allSatisfy { Understanding.lenses.contains($0.lens) }, "every fact has a lens the stream groups")
+        XCTAssertEqual(Set(understanding.facts.map(\.id)).count, understanding.facts.count, "each fact is listed once")
+        let key = try XCTUnwrap(understanding.key, "music-core names the one to hear first")
+        XCTAssertFalse(key.places.isEmpty)
+        XCTAssertFalse(understanding.keyReason?.isEmpty ?? true)
+        XCTAssertTrue(understanding.facts.contains { !$0.tries.isEmpty }, "some facts offer a way to try")
+
+        // The stream's words are the web app's, in both languages.
+        for language in ["en", "ru"] {
+            let text = UIText(language: language)
+            for key in Understanding.lenses.map({ "term.lens.\($0)" }) + ["term.certainty.detected", "term.certainty.inferred", "insights.evidence", "insights.all", "insights.hint", "understand.keyObservation"] {
+                XCTAssertNotEqual(text[key], key, "\(language): \(key)")
+            }
+        }
+    }
+
+    func testAWayTriedSoundsInPlaceIsEngravedAsAnOssiaAndKept() throws {
+        _ = try call("select", #"{"bars": {"first": 4, "last": 12}}"#)
+        let understanding = try XCTUnwrap(Understanding(answer: MusicCore.call(piece: piece, "understand")))
+        let fact = try XCTUnwrap(understanding.facts.first { $0.lens == "harmony" && !$0.tries.isEmpty })
+        let way = try XCTUnwrap(fact.tries.first)
+
+        let tried = try call("try", "{\"chip\": \"\(way.id)\"}")
+        let result = try XCTUnwrap(tried["result"] as? [String: Any])
+        XCTAssertFalse((result["notes"] as? [Any] ?? []).isEmpty)
+        XCTAssertFalse((result["explanation"] as? String ?? "").isEmpty, "music-core says what changed")
+        let heard = try XCTUnwrap(PlaybackScore.read(MusicCore.call(piece: piece, "playback", #"{"of": "inPlace"}"#)))
+        XCTAssertFalse(heard.notes.isEmpty, "the piece with the variation in place")
+
+        let card = try Engraver.engraveCard(piece: piece, firstBar: 4, lastBar: 12, options: #"{"scale": 42, "pageWidth": 2600, "adjustPageHeight": true, "breaks": "auto"}"#, ossia: true).get()
+        let ossia = try XCTUnwrap(card.ossias.first, "the variation above the original")
+        XCTAssertFalse(ossia.staves.isEmpty)
+        XCTAssertFalse(ossia.prefix.isEmpty)
+
+        let kept = try call("idea.keep", "{\"name\": \"\(way.label)\", \"factId\": \"\(fact.id)\", \"now\": \"2026-11-05T06:00:00Z\"}")
+        let ideas = try XCTUnwrap(kept["ideas"] as? [[String: Any]])
+        XCTAssertEqual(ideas.first?["name"] as? String, way.label)
+        XCTAssertEqual(ideas.first?["factId"] as? String, fact.id)
+        XCTAssertEqual(ideas.first?["hasVariation"] as? Bool, true)
+        _ = try call("variation.clear")
+        _ = try call("variation", expectError: true)
+    }
+
+    func testBookmarksAreMadeChangedAndFiledAsStructure() throws {
+        let made = try XCTUnwrap(BookmarkShelf(answer: MusicCore.call(piece: piece, "bookmark.add", #"{"bars": {"first": 4, "last": 8}, "title": "Тема", "category": "teacher", "now": "2026-11-05T06:00:00Z"}"#)))
+        XCTAssertEqual(made.categories.map(\.id), ["practise", "performance", "structure", "teacher"])
+        let bookmark = try XCTUnwrap(made.bookmarks.first)
+        XCTAssertEqual(bookmark.title, "Тема")
+        XCTAssertEqual([bookmark.firstBar, bookmark.lastBar], [4, 8])
+        XCTAssertEqual(made.category(of: bookmark)?.id, "teacher")
+
+        let changed = try XCTUnwrap(BookmarkShelf(answer: MusicCore.call(piece: piece, "bookmark.change", "{\"id\": \"\(bookmark.id)\", \"category\": \"practise\"}")))
+        XCTAssertEqual(changed.bookmarks.first?.category, "practise")
+        XCTAssertEqual(changed.bookmarks.first?.title, "Тема")
+
+        // The form music-core found, filed as Structure bookmarks once, named in the piece's language.
+        let filed = try XCTUnwrap(BookmarkShelf(answer: MusicCore.call(piece: piece, "bookmark.structure")))
+        XCTAssertGreaterThan(filed.bookmarks.count, 1)
+        XCTAssertTrue(filed.bookmarks.dropFirst().allSatisfy { $0.category == BookmarkShelf.structure })
+        XCTAssertTrue(filed.bookmarks.last?.title.hasPrefix("Предложение") ?? false)
+        XCTAssertEqual(try XCTUnwrap(BookmarkShelf(answer: MusicCore.call(piece: piece, "bookmark.structure"))).bookmarks.count, filed.bookmarks.count)
+        XCTAssertLessThanOrEqual(filed.inScoreOrder.first?.onset ?? .infinity, bookmark.onset)
+
+        let removed = try XCTUnwrap(BookmarkShelf(answer: MusicCore.call(piece: piece, "bookmark.remove", "{\"id\": \"\(bookmark.id)\"}")))
+        XCTAssertEqual(removed.bookmarks.count, filed.bookmarks.count - 1)
     }
 
     func testVariationNotationPlaybackAndSave() throws {
@@ -77,6 +167,15 @@ final class FacadeTests: XCTestCase {
         let second = Int32(reopened["piece"] as? Int ?? 0)
         defer { MusicCore.close(piece: second) }
         XCTAssertEqual(reopened["hasVariation"] as? Bool, true)
+    }
+
+    func testALibraryCardReadsAProjectFileWithoutOpeningIt() throws {
+        let file = MusicCore.call(piece: piece, "project.save")
+        let body = try JSONSerialization.data(withJSONObject: ["file": file])
+        let summary = try XCTUnwrap(PieceSummary(answer: MusicCore.call(piece: 0, "project.summary", String(decoding: body, as: UTF8.self))))
+        XCTAssertTrue(summary.hasNotes)
+        XCTAssertEqual(summary.origin, "imported")
+        XCTAssertEqual(summary.checkBars, 0)
     }
 
     func testErrorsComeBackAsCodes() throws {

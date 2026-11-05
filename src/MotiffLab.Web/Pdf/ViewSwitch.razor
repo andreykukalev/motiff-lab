@@ -1,0 +1,20 @@
+@inject MotiffLab.Web.Localization.UiText Text
+
+@* The two views of a recognised PDF (0023; Andrei, 2026-11-04): the printed pages as they are, and the notes read from them.
+   Each keeps its own marks; switching lands on the same stretch of music, roughly, by the pages the scan read. *@
+<div class="seg view-switch" role="radiogroup" aria-label="@Text["pdf.views"]">
+    <button role="radio" class="@(OnPdf ? "on" : null)" aria-checked="@(OnPdf ? "true" : "false")" @onclick="() => Pick(true)">@Text["pdf.viewPdf"]</button>
+    <button role="radio" class="@(OnPdf ? null : "on")" aria-checked="@(OnPdf ? "false" : "true")" @onclick="() => Pick(false)">@Text["pdf.viewNotes"]</button>
+</div>
+
+@code {
+    /// <summary>True in the "PDF" view, false in the "Notes" one.</summary>
+    [Parameter]
+    public bool OnPdf { get; set; }
+
+    /// <summary>Called with true for the "PDF" view and false for the "Notes" one, when the other is picked.</summary>
+    [Parameter]
+    public EventCallback<bool> Switch { get; set; }
+
+    private Task Pick(bool pdf) => pdf == OnPdf ? Task.CompletedTask : Switch.InvokeAsync(pdf);
+}
