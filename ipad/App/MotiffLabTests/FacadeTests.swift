@@ -239,6 +239,52 @@ final class FacadeTests: XCTestCase {
         store.removePersistentDomain(forName: "motiff-settings-test")
     }
 
+    @MainActor
+    func testAPdfOpensAsItIsWithItsBookmarkedPagesKeptInTheProject() async throws {
+        // Two A4 pages drawn here, as a printed score would come.
+        let format = UIGraphicsPDFRendererFormat()
+        let data = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 595, height: 842), format: format).pdfData { context in
+            for _ in 0..<2 {
+                context.beginPage()
+                UIBezierPath(rect: CGRect(x: 60, y: 120, width: 475, height: 2)).fill()
+            }
+        }
+        let opened = try await OpenPiece.open(fileName: "Nocturne.pdf", data: data, language: "en").get()
+        XCTAssertTrue(opened.isDocument, "a PDF is read as it is, with nothing engraved")
+        XCTAssertEqual(opened.title, "Nocturne")
+        XCTAssertTrue(opened.pages.isEmpty)
+        defer { MusicCore.close(piece: opened.id) }
+        XCTAssertEqual(try object(MusicCore.call(piece: opened.id, "phrases"))["error"] as? String, "noNotes")
+
+        let pdf = PdfController()
+        await pdf.load(piece: opened.id, text: UIText(language: "en"))
+        XCTAssertNil(pdf.problem)
+        XCTAssertEqual(pdf.pageCount, 2)
+        XCTAssertEqual(pdf.document?.pageCount, 2)
+        XCTAssertEqual(pdf.shareable?.lastPathComponent, "Nocturne.pdf")
+        pdf.shown(first: 2, last: 2)
+        await pdf.toggleBookmark()
+        XCTAssertEqual(pdf.bookmarks.map(\.page), [2])
+        XCTAssertEqual(pdf.currentBookmark?.page, 2)
+        XCTAssertTrue(pdf.document?.page(at: 1)?.annotations.contains { $0 is BookmarkTab } ?? false, "a bookmarked page carries its tab")
+        await pdf.rename(try XCTUnwrap(pdf.currentBookmark), "Coda")
+
+        // The project file keeps the PDF and its bookmarks, and opens as a PDF piece again.
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("Nocturne test.motiff.json")
+        try await ProjectFiles.save(piece: opened.id, to: url)
+        let file = try Data(contentsOf: url)
+        let again = try await OpenPiece.open(fileName: url.lastPathComponent, data: file, language: "en").get()
+        defer { MusicCore.close(piece: again.id) }
+        XCTAssertTrue(again.isDocument)
+        let marks = try object(MusicCore.call(piece: again.id, "document.marks"))["marks"] as? [String: Any]
+        let bookmarks = PdfController.bookmarks(marks)
+        XCTAssertEqual(bookmarks.map(\.name), ["Coda"])
+        let read = await PieceSummary.read(url)
+        let summary = try XCTUnwrap(read)
+        XCTAssertFalse(summary.hasNotes, "the library shows it as a PDF")
+        try? FileManager.default.removeItem(at: url)
+    }
+
     func testVariationNotationPlaybackAndSave() throws {
         _ = try call("select", #"{"bars": {"first": 1, "last": 2}}"#)
         let proposed = try call("variation.propose", #"{"operation": "V1", "parameters": {"kind": "HalfTime", "eighths": 1}}"#)

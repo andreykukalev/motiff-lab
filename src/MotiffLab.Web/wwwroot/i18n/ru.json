@@ -1343,7 +1343,7 @@
   "pdf.views": "Вид",
   "pdf.viewPdf": "PDF",
   "pdf.viewNotes": "Ноты",
-  "library.openFileHintHere": "MIDI или MusicXML либо файл проекта Motiff Lab, читается на этом устройстве",
+  "library.openFileHintHere": "MIDI, MusicXML или PDF либо файл проекта Motiff Lab, читается на этом устройстве",
   "pdf.versionFirst": "Чтобы добавить другую версию, сначала нужно распознать ноты из этого PDF. Они откроются отдельной пьесой в библиотеке, а этот PDF останется точно таким, как есть.",
   "layers.version": "Другая версия над нотоносцами",
   "layers.artefacts": "Вероятные артефакты в версии из записи",

@@ -937,4 +937,42 @@ public class MusicCoreFacadeTests
         Assert.Equal("badRequest", Error(facade, 1, "performance.add", """{"name": "Bad", "file": "AAAA", "fileName": "notes.txt"}"""));
         Assert.Equal("badRequest", Error(facade, 1, "performance.add", """{"name": "Bad", "file": "AAAA"}"""));
     }
+
+    [Fact]
+    public void APdfOpensAsAPdfPieceKeepingItsPagesBookmarksAndInkAndRefusesCallsAboutNotes()
+    {
+        byte[] pdf = System.Text.Encoding.ASCII.GetBytes("%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\n%%EOF\n");
+        var facade = new MusicCoreFacade();
+        JsonElement opened = Json(facade.Open("Nocturne.pdf", pdf, """{"id": "p_pdf", "now": "2026-11-05T10:00:00Z"}"""));
+
+        Assert.Equal(1, opened.GetProperty("piece").GetInt32());
+        Assert.False(opened.GetProperty("project").GetProperty("hasNotes").GetBoolean());
+        Assert.True(opened.GetProperty("project").GetProperty("document").GetBoolean());
+        Assert.Equal("Nocturne.pdf", opened.GetProperty("document").GetProperty("fileName").GetString());
+        Assert.False(opened.TryGetProperty("summary", out _));
+        Assert.Equal(pdf, Call(facade, "document").GetProperty("pdf").GetBytesFromBase64());
+        Assert.Equal("noNotes", Error(facade, 1, "phrases"));
+
+        Call(facade, "document.bookmark.add", """{"page": 3, "now": "2026-11-05T10:01:00Z"}""");
+        JsonElement marks = Call(facade, "document.bookmark.add", """{"page": 1, "name": "Start"}""").GetProperty("marks");
+        Assert.Equal([1, 3], marks.GetProperty("bookmarks").EnumerateArray().Select(bookmark => bookmark.GetProperty("page").GetInt32()));
+        string third = marks.GetProperty("bookmarks")[1].GetProperty("id").GetString()!;
+        Call(facade, "document.bookmark.rename", $$"""{"id": "{{third}}", "name": "Coda"}""");
+        Call(facade, "document.ink.add", """{"strokes": [{"id": "s1", "tool": "pen", "colour": "carmine", "size": 2, "page": 2, "u": 0.1, "v": 4, "points": [0, 0, 0.5, 1, 1, 0.5], "pressure": 0.5}, {"id": "s2", "tool": "pen", "colour": "graphite", "size": 2, "page": 3, "u": 0.2, "v": 9, "points": [0, 0, 1, 1, 1, 0.5], "pressure": 0.5}]}""");
+        JsonElement ink = Call(facade, "document.ink.clear", """{"page": 3}""").GetProperty("marks").GetProperty("ink");
+        Assert.Equal(2, Assert.Single(ink.EnumerateArray()).GetProperty("page").GetInt32());
+        Assert.Equal("badRequest", Error(facade, 1, "document.ink.add", """{"strokes": [{"id": "s3", "tool": "pen", "colour": "carmine", "size": 2, "page": 0, "u": 0, "v": 0, "points": [0, 0, 1], "pressure": 0.5}]}"""));
+
+        string file = facade.Call(1, "project.save", """{"now": "2026-11-05T11:00:00Z"}""");
+        Assert.True(facade.Close(1));
+        var again = new MusicCoreFacade();
+        JsonElement reopened = Json(again.Open("Nocturne.motiff.json", System.Text.Encoding.UTF8.GetBytes(file)));
+        Assert.True(reopened.TryGetProperty("document", out _), reopened.ToString());
+        JsonElement kept = Json(again.Call(1, "document.marks")).GetProperty("marks");
+        Assert.Equal(["Start", "Coda"], kept.GetProperty("bookmarks").EnumerateArray().Select(bookmark => bookmark.GetProperty("name").GetString()));
+        Assert.Equal("s1", Assert.Single(kept.GetProperty("ink").EnumerateArray()).GetProperty("id").GetString());
+        Assert.Equal(pdf, Json(again.Call(1, "document")).GetProperty("pdf").GetBytesFromBase64());
+
+        Assert.Equal("import", Json(new MusicCoreFacade().Open("Nocturne.pdf", "not a pdf"u8.ToArray())).GetProperty("error").GetString());
+    }
 }

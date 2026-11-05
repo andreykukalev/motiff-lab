@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
 
+using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Projects;
 
 namespace MotiffLab.MusicCore.Facade;
@@ -32,10 +33,11 @@ public sealed class MusicCoreFacade
     public const int Contract = 4;
 
     private readonly Dictionary<int, OpenPiece> _pieces = [];
+    private readonly Dictionary<int, OpenDocument> _documents = [];
     private int _next = 1;
 
-    /// <summary>How many pieces are open.</summary>
-    public int Count => _pieces.Count;
+    /// <summary>How many pieces are open, PDF pieces with them.</summary>
+    public int Count => _pieces.Count + _documents.Count;
 
     /// <summary>The runtime the facade runs on, for the version call and for logs.</summary>
     public static string Runtime =>
@@ -45,7 +47,9 @@ public sealed class MusicCoreFacade
     /// <summary>
     /// Opens a MIDI or MusicXML file as a new project, or a project file (.motiff.json), and answers
     /// with the piece's number, its project and its summary. The request may carry "language" ("en"
-    /// or "ru"), "id" for the new project and "now" (ISO 8601) for its creation time.
+    /// or "ru"), "id" for the new project and "now" (ISO 8601) for its creation time. A PDF, or the
+    /// project file of a PDF piece, opens as a PDF piece (0023): the answer has "document" in place of
+    /// "summary", and only the document's calls work on it.
     /// </summary>
     public string Open(string fileName, ReadOnlySpan<byte> data, string? request = null)
     {
@@ -59,9 +63,22 @@ public sealed class MusicCoreFacade
                 : DateTimeOffset.UtcNow;
             byte[] bytes = data.ToArray();
             int number = _next;
+            string id = fields.Text("id") ?? string.Create(CultureInfo.InvariantCulture, $"p_{number:0000}");
+            if (IsPdf(fileName, bytes) || (IsProjectFile(fileName, bytes) && ReadDocument(bytes) is not null))
+            {
+                OpenDocument document = IsPdf(fileName, bytes) ? OpenDocument.Create(id, fileName, bytes, words, now) : OpenDocument.Open(ReadDocument(bytes)!);
+                _documents[number] = document;
+                _next++;
+                return Answer.Write(json =>
+                {
+                    json.WriteNumber("piece", number);
+                    document.Summary(json);
+                });
+            }
+
             OpenPiece piece = IsProjectFile(fileName, bytes)
                 ? OpenPiece.Open(bytes, words)
-                : OpenPiece.Import(fields.Text("id") ?? string.Create(CultureInfo.InvariantCulture, $"p_{number:0000}"), fileName, bytes, words, now);
+                : OpenPiece.Import(id, fileName, bytes, words, now);
             _pieces[number] = piece;
             _next++;
             return Answer.Write(json =>
@@ -92,9 +109,14 @@ public sealed class MusicCoreFacade
                     "settings" => Answer.Write(json => Answer.SettingsCatalogue(json)),
                     "settings.state" => OpenPiece.SettingsState(fields),
                     "project.summary" => ProjectSummary(fields),
-                    _ when _pieces.Count == 0 && IsPieceCall(name) => throw new FacadeException("noPiece", "Open a piece first."),
+                    _ when Count == 0 && IsPieceCall(name) => throw new FacadeException("noPiece", "Open a piece first."),
                     _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\" without a piece."),
                 };
+            }
+
+            if (_documents.TryGetValue(piece, out OpenDocument? document))
+            {
+                return document.Call(name, fields);
             }
 
             if (!_pieces.TryGetValue(piece, out OpenPiece? open))
@@ -122,7 +144,7 @@ public sealed class MusicCoreFacade
     }
 
     /// <summary>Forgets an open piece; false when it was not open.</summary>
-    public bool Close(int piece) => _pieces.Remove(piece);
+    public bool Close(int piece) => _pieces.Remove(piece) || _documents.Remove(piece);
 
     public static string Version() => Answer.Write(json =>
     {
@@ -134,6 +156,23 @@ public sealed class MusicCoreFacade
     private static bool IsPieceCall(string name) =>
         name is "piece" or "phrases" or "select" or "understand" or "experiments" or "try" or "notation" or "playback" or "roll" or "dna" or "marks" or "bookmarks" or "resume" or "ideas" or "check" or "performances" or "performance"
         || (name.Contains('.') && !name.StartsWith("settings.", StringComparison.Ordinal));
+
+    /// <summary>A PDF the player added to read as it is (0023): by its first bytes, or by its name with bytes that are not a project file.</summary>
+    private static bool IsPdf(string fileName, byte[] data) =>
+        PdfDocument.IsPdf(data) || (fileName.EndsWith(PdfDocument.Extension, StringComparison.OrdinalIgnoreCase) && !IsProjectFile(fileName, data));
+
+    /// <summary>The project in a project file when it is a PDF piece (a document and no notes); null for a piece with notes.</summary>
+    private static Project? ReadDocument(byte[] projectFile)
+    {
+        try
+        {
+            return ProjectFile.Read(projectFile) is { HasNotes: false, Document: not null } project ? project : null;
+        }
+        catch (ProjectFileException)
+        {
+            return null;
+        }
+    }
 
     /// <summary>A project file by its extension, or by its first bytes: a JSON object naming the format.</summary>
     private static bool IsProjectFile(string fileName, byte[] data)

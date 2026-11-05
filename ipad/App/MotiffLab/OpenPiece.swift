@@ -9,8 +9,11 @@ struct OpenPiece: Identifiable, Sendable {
     let timemap: String
     /// The project file in Documents that the piece is saved to (ProjectFiles).
     var file: URL?
+    /// A PDF piece (0023): the pages as added and no notes, shown by PdfScreen; nothing is engraved.
+    var isDocument = false
 
-    /// Opens the file in music-core in the interface's language and engraves it, titled by its name unless given one.
+    /// Opens the file in music-core in the interface's language and engraves it, titled by its name unless given one; a PDF,
+    /// or a PDF piece's project file, opens as a PDF piece with nothing to engrave.
     static func open(fileName: String, data: Data, language: String, title given: String? = nil) async -> Result<OpenPiece, EngraveError> {
         await MusicCore.run {
             let request = "{\"language\": \"\(language)\"}"
@@ -21,6 +24,9 @@ struct OpenPiece: Identifiable, Sendable {
                 return .failure(EngraveError(message: opened["message"] as? String ?? "This file could not be opened."))
             }
             let title = given ?? ProjectFiles.title(of: fileName)
+            if opened["document"] is [String: Any] {
+                return .success(OpenPiece(id: piece, title: title, pages: [], timemap: "", isDocument: true))
+            }
             switch Engraver.engrave(piece: piece, title: title) {
             case .success(let engraving):
                 return .success(OpenPiece(id: piece, title: title, pages: engraving.pages, timemap: engraving.timemap))
