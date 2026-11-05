@@ -52,7 +52,10 @@ final class ScreensUITests: XCTestCase {
 
     private func score() {
         guard wait(app.buttons["Фразы"], "score", timeout: 60) else { return }
-        guard wait(bracket(0), "phrase brackets", timeout: 30) else { return }
+        if !wait(bracket(0), "phrase brackets in the web view", timeout: 15) {
+            // What the web view shows to accessibility, for the next time the walk is tuned.
+            print("SCREEN-TREE \(tag):\n\(app.webViews.firstMatch.debugDescription.prefix(6000))")
+        }
         pause(2)
         shot("10-score")
 
@@ -63,7 +66,7 @@ final class ScreensUITests: XCTestCase {
         }
 
         // A phrase chosen on its bracket, and the menu over it.
-        if tap(bracket(1), "second bracket"), wait(button(beginning: "Фокус"), "selection menu") {
+        if choosePhrase(), wait(button(beginning: "Фокус"), "selection menu") {
             shot("13-selection-menu")
             if tap(app.buttons["Ещё для выделения"], "menu more") {
                 shot("14-selection-menu-more")
@@ -100,7 +103,7 @@ final class ScreensUITests: XCTestCase {
 
         // A bookmark over another phrase (a second tap on the chosen one would lift it into focus again).
         leaveFocus()
-        if tap(bracket(2), "bracket for a bookmark"), tap(button(beginning: "Закладка"), "bookmark") {
+        if choosePhrase(), tap(button(beginning: "Закладка"), "bookmark") {
             pause(1)
             shot("22-bookmark-card")
             tap(app.buttons["Готово"], "bookmark done")
@@ -193,7 +196,7 @@ final class ScreensUITests: XCTestCase {
 
     private func launch(_ arguments: [String]) {
         app = XCUIApplication()
-        app.launchArguments = ["-AppleLanguages", "(ru)", "-AppleLocale", "ru_RU", "-motiff.settings", "{\"appearance.theme\" = \"\(theme)\";}"] + arguments
+        app.launchArguments = ["-AppleLanguages", "(ru)", "-AppleLocale", "ru_RU", "-motiff.settings", "{\"appearance.theme\" = \"\(theme)\";}", "-ml-screens"] + arguments
         app.launch()
     }
 
@@ -204,6 +207,19 @@ final class ScreensUITests: XCTestCase {
             back.tap()
             pause(1)
         }
+    }
+
+    /// Another phrase chosen: by the app's hidden button (ScreensHook in Debug builds), which picks phrase 2, then 3, so
+    /// a second choice never lifts the first into focus.
+    private func choosePhrase() -> Bool {
+        let chooser = app.buttons["ml-screens-phrase"]
+        guard chooser.waitForExistence(timeout: 5) else {
+            miss("phrase chooser")
+            return false
+        }
+        chooser.tap()
+        pause(1.5)
+        return true
     }
 
     private func bracket(_ index: Int) -> XCUIElement {
@@ -250,15 +266,25 @@ final class ScreensUITests: XCTestCase {
     private func shot(_ name: String) {
         pause(0.6)
         let screenshot = XCUIScreen.main.screenshot()
+        let png = upright(screenshot.image)
         let attachment = XCTAttachment(screenshot: screenshot)
         attachment.name = "\(name)-\(tag)"
         attachment.lifetime = .keepAlways
         add(attachment)
         if let folder = ProcessInfo.processInfo.environment["SCREENS_DIR"], !folder.isEmpty {
             let url = URL(fileURLWithPath: folder).appendingPathComponent("\(name)-\(tag).png")
-            do { try screenshot.pngRepresentation.write(to: url) } catch { print("SCREEN-WRITE \(url.path): \(error)") }
+            do { try png.write(to: url) } catch { print("SCREEN-WRITE \(url.path): \(error)") }
         }
         print("SCREEN \(name)-\(tag)")
+    }
+
+    /// The screen comes in the device's portrait pixels; in landscape (left) it is turned so the picture reads upright.
+    private func upright(_ image: UIImage) -> Data {
+        guard tag.hasPrefix("land"), let cg = image.cgImage else { return image.pngData() ?? Data() }
+        let turned = UIImage(cgImage: cg, scale: 1, orientation: .left)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        return UIGraphicsImageRenderer(size: turned.size, format: format).pngData { _ in turned.draw(at: .zero) }
     }
 
     /// A three-page A4 PDF that looks like printed music from far away: a title, then ten systems of two staves a
@@ -283,9 +309,9 @@ final class ScreensUITests: XCTestCase {
                     cg.setStrokeColor(UIColor.black.cgColor)
                     cg.setLineWidth(0.6)
                     var system = top
-                    while system + 50 < page.height - 50 {
+                    while system + 60 < page.height - 50 {
                         for staff in 0..<2 {
-                            let y = system + CGFloat(staff) * 30
+                            let y = system + CGFloat(staff) * 38
                             for line in 0..<5 {
                                 cg.move(to: CGPoint(x: 50, y: y + CGFloat(line) * 4.5))
                                 cg.addLine(to: CGPoint(x: page.width - 50, y: y + CGFloat(line) * 4.5))
@@ -294,7 +320,7 @@ final class ScreensUITests: XCTestCase {
                         for bar in 0...4 {
                             let x = 50 + (page.width - 100) * CGFloat(bar) / 4
                             cg.move(to: CGPoint(x: x, y: system))
-                            cg.addLine(to: CGPoint(x: x, y: system + 48))
+                            cg.addLine(to: CGPoint(x: x, y: system + 56))
                         }
                         cg.strokePath()
                         cg.setFillColor(UIColor.black.cgColor)
@@ -303,7 +329,7 @@ final class ScreensUITests: XCTestCase {
                             let y = system + CGFloat((note * 5) % 9) * 2.25
                             cg.fillEllipse(in: CGRect(x: x, y: y, width: 5.5, height: 4.2))
                         }
-                        system += 70
+                        system += 84
                     }
                     let folio = NSAttributedString(string: "\(number)", attributes: [.font: UIFont.systemFont(ofSize: 10)])
                     folio.draw(at: CGPoint(x: page.width / 2, y: page.height - 34))
