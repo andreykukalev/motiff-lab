@@ -210,6 +210,35 @@ final class FacadeTests: XCTestCase {
         XCTAssertEqual(again.openBars.map(\.bar), [6])
     }
 
+    @MainActor
+    func testDeviceSettingsApplyPresetsKeepValuesAndYieldToThePiece() async throws {
+        let store = try XCTUnwrap(UserDefaults(suiteName: "motiff-settings-test"))
+        store.removePersistentDomain(forName: "motiff-settings-test")
+        let settings = DeviceSettings(store: store)
+        await settings.load()
+        XCTAssertEqual(settings.preset, "practising", "a new device starts from Practising")
+        XCTAssertEqual(settings.catalogue["phrases.granularity"]?.choices, ["short", "phrases", "sentences"])
+
+        await settings.update(["preset": "clean"])
+        XCTAssertEqual(settings.preset, "clean")
+        XCTAssertEqual(settings["layers.notes"], "off")
+        await settings.update(["set": ["id": "layers.notes", "value": "on"]])
+        XCTAssertEqual(settings.preset, "custom")
+
+        // Kept on the device: a second store reads the same values.
+        let again = DeviceSettings(store: store)
+        await again.load()
+        XCTAssertEqual(again["layers.notes"], "on")
+        XCTAssertEqual(again.preset, "custom")
+        XCTAssertNil((store.dictionary(forKey: DeviceSettings.storeKey) as? [String: String])?["appearance.language"], "the language is the iPad's")
+
+        // A piece's own choice wins for the settings a piece keeps, and only for those.
+        let resolved = again.resolved(overrides: ["layers.notes": "off", "appearance.theme": "night"])
+        XCTAssertEqual(resolved["layers.notes"], "off")
+        XCTAssertNotEqual(resolved["appearance.theme"], "night")
+        store.removePersistentDomain(forName: "motiff-settings-test")
+    }
+
     func testVariationNotationPlaybackAndSave() throws {
         _ = try call("select", #"{"bars": {"first": 1, "last": 2}}"#)
         let proposed = try call("variation.propose", #"{"operation": "V1", "parameters": {"kind": "HalfTime", "eighths": 1}}"#)

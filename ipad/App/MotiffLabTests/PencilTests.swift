@@ -338,6 +338,11 @@ final class PencilTests: XCTestCase {
         _ = try await call(view, "layers", ["hidden": ["check"]])
         let hidden = try await view.evaluateJavaScript("getComputedStyle(document.querySelector('body > .check-flag')).display") as? String
         XCTAssertEqual(hidden, "none")
+        // Settings can turn the phrase brackets off, and a slate page shows light notes on a dark page.
+        let hiddenNow = try await call(view, "layers", ["hidden": ["brackets"], "slate": true]) as? [String]
+        XCTAssertEqual(hiddenNow, ["brackets"])
+        let page = try await view.evaluateJavaScript("document.documentElement.getAttribute('data-page')") as? String
+        XCTAssertEqual(page, "slate")
         _ = try await call(view, "checks", ["flags": [[String: Any]]()])
         let gone = try await view.evaluateJavaScript("document.querySelectorAll('body > .check-flag').length") as? NSNumber
         XCTAssertEqual(gone?.intValue, 0)

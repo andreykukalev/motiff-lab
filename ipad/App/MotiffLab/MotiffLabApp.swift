@@ -7,6 +7,8 @@ import UIKit
 @main
 struct MotiffLabApp: App {
     @StateObject private var account = Account()
+    /// The player's settings on this iPad (0018 section 10): the score and the roll follow them, and so does the appearance.
+    @StateObject private var settings = DeviceSettings.shared
 
     init() {
         // The design kit's faces, before the first screen draws (0018 section 13).
@@ -17,6 +19,9 @@ struct MotiffLabApp: App {
         WindowGroup {
             LibraryView()
                 .environmentObject(account)
+                .environmentObject(settings)
+                .preferredColorScheme(settings.colorScheme)
+                .task { await settings.load() }
                 // The player signed in last time, without asking anything (0014).
                 .task { await account.restore() }
                 // Sign-in comes back on msauth.<bundle id>://auth.

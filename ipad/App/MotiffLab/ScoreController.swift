@@ -85,6 +85,8 @@ final class ScoreController: NSObject, ObservableObject {
     @Published var noteDraft: NoteDraft?
     /// The layers of marks hidden on the page (0018 section 5), kept with the piece as `layers.*` settings.
     @Published private(set) var hiddenLayers: Set<String> = []
+    /// The piece's own settings, by id, as the project keeps them: the Settings sheet lists them, to clear in one tap.
+    @Published private(set) var pieceOverrides: [String: String] = [:]
     static let layers = ["ink", "notes", "bookmarks", "analysis", "check"]
     /// The bars a scan or a transcription is unsure of (0018 section 9), as music-core answered the last Check call.
     @Published private(set) var check = CheckShelf()
@@ -252,6 +254,7 @@ final class ScoreController: NSObject, ObservableObject {
     func showLevel(_ level: String) {
         guard let piece, level != phrases?.level else { return }
         let request = "{\"level\": \"\(level)\"}"
+        pieceOverrides[Self.granularity] = level == "short" ? "short" : level == "sentence" ? "sentences" : "phrases"
         Task {
             let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "phrases.level", request) }
             if let shown = PhraseLevelsShown(answer: answer) { phrases = shown }
@@ -467,7 +470,8 @@ final class ScoreController: NSObject, ObservableObject {
     /// Shows or hides layers of marks, kept with the piece.
     func showLayers(_ layers: [String], _ on: Bool) {
         guard let piece else { return }
-        if on { hiddenLayers.subtract(layers) } else { hiddenLayers.formUnion(layers) }
+        for layer in layers { pieceOverrides["layers.\(layer)"] = on ? "on" : "off" }
+        hiddenLayers = layersHidden()
         let id = piece.id
         Task {
             for layer in layers {
@@ -478,24 +482,69 @@ final class ScoreController: NSObject, ObservableObject {
         }
     }
 
-    /// The layers hidden for this piece: its own choice, else the catalogue's default.
-    private func loadLayers(_ piece: OpenPiece) async {
+    /// The piece's own choices (`settings` on the piece): its layers and its level.
+    private func loadPieceSettings(_ piece: OpenPiece) async {
         let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "settings") }
-        guard let object = facadeObject(answer) else { return }
-        let overrides = object["overrides"] as? [String: String] ?? [:]
-        var defaults: [String: String] = [:]
-        for entry in object["settings"] as? [[String: Any]] ?? [] {
-            if let id = entry["id"] as? String, let value = entry["default"] as? String { defaults[id] = value }
-        }
-        hiddenLayers = Set(Self.layers.filter { layer in
-            let id = "layers.\(layer)"
-            return (overrides[id] ?? defaults[id]) == "off"
-        })
+        pieceOverrides = facadeObject(answer)?["overrides"] as? [String: String] ?? [:]
+        hiddenLayers = layersHidden()
     }
 
+    /// The layers hidden: the piece's own choice, else the device's (0018 section 10).
+    private func layersHidden() -> Set<String> {
+        let values = DeviceSettings.shared.resolved(overrides: pieceOverrides)
+        return Set(Self.layers.filter { values["layers.\($0)"] == "off" })
+    }
+
+    /// What the page hides: the layers hidden, and the phrase brackets when Settings turns them off.
     private func applyLayers() async {
         guard shown else { return }
-        _ = try? await webView.callAsyncJavaScript("return motiff.layers(data)", arguments: ["data": ["hidden": Array(hiddenLayers)]], contentWorld: .page)
+        var hidden = Array(hiddenLayers)
+        if DeviceSettings.shared["guidance.brackets"] == "off" { hidden.append("brackets") }
+        let slate = DeviceSettings.shared["appearance.theme"] == "slate"
+        _ = try? await webView.callAsyncJavaScript("return motiff.layers(data)", arguments: ["data": ["hidden": hidden, "slate": slate]], contentWorld: .page)
+    }
+
+    /// The level a piece opens in (the setting "phrases.granularity"), shown without becoming the piece's own; a piece that
+    /// has its own keeps it.
+    private func applyLevel() async {
+        guard let piece, pieceOverrides[Self.granularity] == nil, let shownLevel = phrases?.level else { return }
+        let level = switch DeviceSettings.shared[Self.granularity] {
+        case "short": "short"
+        case "sentences": "sentence"
+        default: "phrase"
+        }
+        guard level != shownLevel else { return }
+        let request = "{\"level\": \"\(level)\", \"remember\": false}"
+        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "phrases.level", request) }
+        if let levels = PhraseLevelsShown(answer: answer) { phrases = levels }
+        if selection != nil, let moved = ScoreSelection(answer: answer) { selection = moved }
+        await showSelection()
+        await updatePlayRange()
+    }
+
+    private static let granularity = "phrases.granularity"
+
+    /// The device's settings changed in the sheet: the page follows at once.
+    func settingsChanged() {
+        hiddenLayers = layersHidden()
+        Task {
+            await applyLayers()
+            await applyLevel()
+        }
+    }
+
+    /// "Use these settings for this piece": the piece's own choices go, and the device's hold for it too.
+    func clearPieceOverrides() {
+        guard let piece else { return }
+        let ids = Array(pieceOverrides.keys)
+        pieceOverrides = [:]
+        Task {
+            for id in ids {
+                let request = Self.json(["id": id, "value": NSNull()]) ?? "{}"
+                _ = await MusicCore.run { MusicCore.call(piece: piece.id, "settings.override", request) }
+            }
+            settingsChanged()
+        }
     }
 
     // MARK: - Check
@@ -731,8 +780,9 @@ final class ScoreController: NSObject, ObservableObject {
             await loadPhrases(piece)
             await drawBookmarks()
             await loadCheck(piece)
-            await loadLayers(piece)
+            await loadPieceSettings(piece)
             await applyLayers()
+            await applyLevel()
             if !ringed.isEmpty { await showRings(scroll: false) }
         } catch {
             problem = error.localizedDescription

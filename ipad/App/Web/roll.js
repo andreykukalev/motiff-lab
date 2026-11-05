@@ -79,7 +79,7 @@ function modesOf(payload) {
  * Shows a piece: the roll's data from music-core (`roll`), its labels in the interface's language, whether the notes
  * carry their names, and the appearance. Returns the colour scheme shown and those the piece allows.
  */
-function load({ roll, labels, noteNames, dark }) {
+function load({ roll, labels, noteNames, dark, colourBy }) {
     theme(dark);
     view.setLabels(labels);
     state.payload = { ids: roll.ids, notes: roll.notes, bars: roll.bars, end: roll.end };
@@ -87,7 +87,8 @@ function load({ roll, labels, noteNames, dark }) {
     view.setNames(roll.names.notes, roll.names.keyTicks, roll.names.rows);
     view.setNoteNames(Boolean(noteNames));
     state.modes = modesOf(state.payload);
-    state.colourBy = state.modes.includes("hand") ? "hand" : state.modes[0] ?? "hand";
+    // The colouring the player chose in Settings, when this piece tells its notes apart that way.
+    state.colourBy = state.modes.includes(colourBy) ? colourBy : state.modes.includes("hand") ? "hand" : state.modes[0] ?? "hand";
     view.setColourBy(state.colourBy);
     return { colourBy: state.colourBy, modes: state.modes };
 }
@@ -139,5 +140,14 @@ function noteNames(on) {
     view.setNoteNames(Boolean(on));
 }
 
-window.roll = { load, nextColour, theme, position, selection, noteNames, highlight };
+/** The colouring chosen in Settings, when the piece allows it; answers the colouring shown. */
+function colour(by) {
+    if (state.modes.includes(by)) {
+        state.colourBy = by;
+        view.setColourBy(by);
+    }
+    return state.colourBy;
+}
+
+window.roll = { load, nextColour, colour, theme, position, selection, noteNames, highlight };
 post("ready");

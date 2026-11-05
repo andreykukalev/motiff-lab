@@ -78,6 +78,7 @@ body.hide-ink #ink,
 body.hide-notes :is(button.marker, div.hl),
 body.hide-bookmarks button.bmb,
 body.hide-analysis :is(button.bracket, .ring),
+body.hide-brackets button.bracket,
 body.hide-check button.check-flag { display: none; }
 
 /* The selection: a cobalt band over the selected bars on each system, and round handles on the first and last barline. */

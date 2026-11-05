@@ -861,6 +861,8 @@
   "score.triplets.many": "{0} beats are written as triplets: their notes fall on thirds or sixths of the beat rather than on 16ths.",
 
   "settings.languageHint": "The interface in English or Russian. Musical facts and explanations stay in English for now.",
+  "settings.languageDevice": "The interface in Motiff Lab follows the language chosen for it in the iPad's Settings.",
+  "settings.openDeviceSettings": "Open iPad Settings",
 
   "hierarchy.label": "Levels",
   "hierarchy.hint": "Pick a sentence or a phrase below, or bars on the roll.",
