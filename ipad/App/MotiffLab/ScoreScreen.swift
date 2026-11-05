@@ -13,6 +13,8 @@ import WebKit
 /// landscape or the lower half in portrait (section 5); one of the three at a time.
 struct ScoreScreen: View {
     let piece: OpenPiece
+    /// Opens the piece's other view in its place, for PDF | Notes (0023); nil where the library has none.
+    var switchView: ((Landing) async -> Void)? = nil
     private let text = UIText.current
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
@@ -152,7 +154,7 @@ struct ScoreScreen: View {
                     if score.focused {
                         FocusBar(score: score, player: player, variationRange: variationRange, text: text)
                     } else {
-                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, more: $more, rollOpen: $rollOpen, insightsOpen: $insightsOpen, contentsOpen: $contentsOpen, checkOpen: $checkOpen, versionsOpen: $versionsOpen, settingsOpen: $settingsOpen) { dismiss() }
+                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, more: $more, rollOpen: $rollOpen, insightsOpen: $insightsOpen, contentsOpen: $contentsOpen, checkOpen: $checkOpen, versionsOpen: $versionsOpen, settingsOpen: $settingsOpen, pdf: toPdf) { dismiss() }
                     }
                     if score.penOn && !score.focused {
                         PenPalette(score: score, text: text)
@@ -416,6 +418,23 @@ struct ScoreScreen: View {
         let id = piece.id
         Task { try? await ProjectFiles.save(piece: id, to: file) }
     }
+
+    /// PDF in the bar's PDF | Notes, for notes read from a PDF piece the library holds.
+    private var toPdf: (() -> Void)? {
+        guard switchView != nil, piece.other != nil else { return nil }
+        return { Task { await showPdf() } }
+    }
+
+    /// The PDF at the page the notes at the top of the view were read from, once the piece is saved (the web app's
+    /// `ShowPdfAsync`).
+    private func showPdf() async {
+        guard let other = piece.other, let switchView else { return }
+        let tick = await score.firstTick(onPage: score.pages.first) ?? 0
+        player.shutdown()
+        await insights.leave()
+        if let file = piece.file { try? await ProjectFiles.save(piece: piece.id, to: file) }
+        await switchView(.page(other.pages.page(of: tick)))
+    }
 }
 
 /// The bar over the score (ds.css `.bar`): back to the library, the title, which opens the Contents the way a reader opens
@@ -434,6 +453,8 @@ struct ScoreBar: View {
     @Binding var checkOpen: Bool
     @Binding var versionsOpen: Bool
     @Binding var settingsOpen: Bool
+    /// PDF | Notes (0023): goes to the PDF the notes were read from; nil for notes with none.
+    let pdf: (() -> Void)?
     let back: () -> Void
     @State private var phrasesOpen = false
 
@@ -464,6 +485,9 @@ struct ScoreBar: View {
                     .foregroundStyle(Color.ds("ink-2"))
                     .lineLimit(1)
                     .padding(.leading, CGFloat.ds("s-2"))
+            }
+            if let pdf {
+                PdfNotesSwitch(onPdf: false, text: text) { pdf() }
             }
             Spacer(minLength: CGFloat.ds("s-2"))
             Button {

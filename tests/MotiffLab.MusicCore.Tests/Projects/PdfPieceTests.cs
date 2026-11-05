@@ -1,5 +1,7 @@
 using System.Text;
+using System.Text.Json;
 
+using MotiffLab.MusicCore.Facade;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Scan;
 using MotiffLab.MusicCore.Projects;
@@ -171,6 +173,13 @@ public class PdfPieceTests
         Assert.Equal(musicXml, read.Source);
         Assert.Equal(notes.ReadFrom, read.ReadFrom);
         Assert.Equal(ProjectFile.Write(notes), ProjectFile.Write(read));
+
+        // The library's card names the PDF piece and where its pages start, so the iPad app can switch without opening either.
+        string request = JsonSerializer.Serialize(new { file = Encoding.UTF8.GetString(ProjectFile.Write(notes)) });
+        using JsonDocument summary = JsonDocument.Parse(new MusicCoreFacade().Call(0, "project.summary", request));
+        JsonElement card = summary.RootElement.GetProperty("project");
+        Assert.Equal("p_pdf", card.GetProperty("readFrom").GetString());
+        Assert.Equal(pages.Starts.Select(start => start.Value), card.GetProperty("readFromPages").EnumerateArray().Select(start => start.GetInt64()));
 
         string json = Encoding.UTF8.GetString(ProjectFile.Write(notes));
         Assert.Contains("\"readFrom\":{\"project\":\"p_pdf\",\"pages\":[0,", json.Replace(" ", "", StringComparison.Ordinal).Replace("\n", "", StringComparison.Ordinal), StringComparison.Ordinal);

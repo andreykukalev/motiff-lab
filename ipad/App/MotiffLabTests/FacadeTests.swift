@@ -389,6 +389,37 @@ final class FacadeTests: XCTestCase {
         XCTAssertEqual(summary.checkBars, 0)
     }
 
+    func testAPdfAndTheNotesReadFromItFindEachOtherOnTheShelf() throws {
+        // Notes read from a PDF piece name it and where each of its pages starts in them (PDF | Notes, 0023).
+        let saved = MusicCore.call(piece: piece, "project.save")
+        let brace = try XCTUnwrap(saved.firstIndex(of: "{"))
+        let linked = saved.replacingCharacters(in: brace...brace, with: #"{"readFrom": {"project": "p_pdf", "pages": [0, 5760, 11520]}, "#)
+        let body = try JSONSerialization.data(withJSONObject: ["file": linked])
+        let notes = try XCTUnwrap(PieceSummary(answer: MusicCore.call(piece: 0, "project.summary", String(decoding: body, as: UTF8.self))))
+        XCTAssertEqual(notes.readFrom, "p_pdf")
+        XCTAssertEqual(notes.readFromPages, [0, 5760, 11520])
+        XCTAssertNotNil(notes.id)
+
+        var pdf = notes
+        pdf.id = "p_pdf"
+        pdf.hasNotes = false
+        pdf.readFrom = nil
+        pdf.readFromPages = []
+        let notesFile = URL(fileURLWithPath: "/shelf/Nocturne.motiff.json")
+        let pdfFile = URL(fileURLWithPath: "/shelf/Nocturne PDF.motiff.json")
+        let shelf = [notesFile: notes, pdfFile: pdf]
+        XCTAssertEqual(OtherView.of(notesFile, in: shelf)?.file, pdfFile, "the notes lead to the PDF they were read from")
+        let back = try XCTUnwrap(OtherView.of(pdfFile, in: shelf))
+        XCTAssertEqual(back.file, notesFile, "and the PDF to the notes read from it")
+        XCTAssertEqual(back.pages.start(of: 2), 5760)
+        XCTAssertEqual(back.pages.start(of: 9), 11520, "a page past the last starts where the last does")
+        XCTAssertEqual(back.pages.page(of: 5759), 1)
+        XCTAssertEqual(back.pages.page(of: 5760), 2)
+        XCTAssertEqual(back.pages.page(of: 99_999), 3)
+        XCTAssertNil(OtherView.of(notesFile, in: [notesFile: notes]), "no PDF on the shelf, no switch")
+        XCTAssertNil(OtherView.of(URL(fileURLWithPath: "/shelf/Other.motiff.json"), in: shelf))
+    }
+
     func testErrorsComeBackAsCodes() throws {
         XCTAssertEqual(try call("dance", expectError: true)["error"] as? String, "unknownCall")
         XCTAssertEqual(try object(MusicCore.call(piece: 99, "piece"))["error"] as? String, "noPiece")

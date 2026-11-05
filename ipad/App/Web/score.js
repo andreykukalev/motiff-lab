@@ -956,10 +956,24 @@ function reveal({ start }) {
     return true;
 }
 
+/** Where the notes on a page (from 1) start: its first bar's tick, or null. PDF | Notes leads from it to the PDF's page (0023). */
+function firstTickOn({ page }) {
+    const ticks = (state.geometry?.bars ?? []).filter((bar) => bar.page === page).map((bar) => bar.tick);
+    return ticks.length > 0 ? Math.min(...ticks) : null;
+}
+
+/** Brings the page a place in the piece is on to the top, under the bar, as the PDF's pages lead to the notes (0023). */
+function showTick({ tick }) {
+    const bars = state.geometry?.bars ?? [];
+    const before = bars.filter((bar) => bar.tick <= tick);
+    const bar = before.length > 0 ? before.reduce((latest, candidate) => (candidate.tick > latest.tick ? candidate : latest)) : bars[0];
+    return bar === undefined ? false : showPage({ page: bar.page });
+}
+
 /** Where each bar is now, in the document's pixels: for the tests. */
 function frames() {
     return state.frames;
 }
 
-window.motiff = { show, layout, anchor, erase, draw, frames, inView, phrases, select, menuSize, pen, focus, card: showCard, lead, inset, highlight, bookmarks, clearLeft, outline, showPage, reveal, notes, checks, performance: showVersion, layers, playing };
+window.motiff = { show, layout, anchor, erase, draw, frames, inView, phrases, select, menuSize, pen, focus, card: showCard, lead, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, reveal, notes, checks, performance: showVersion, layers, playing };
 window.webkit?.messageHandlers?.score?.postMessage("ready");
