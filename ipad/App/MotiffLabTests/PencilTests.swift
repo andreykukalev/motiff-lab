@@ -28,7 +28,8 @@ final class PencilTests: XCTestCase {
         window.isHidden = false
         self.window = window
         view.load(URLRequest(url: BundleSchemeHandler.url(path)))
-        for _ in 0..<100 {
+        // The first web view of a run can take a while on a CI runner, as WebKit starts its processes.
+        for _ in 0..<300 {
             if (try? await view.evaluateJavaScript("typeof \(ready)")) as? String == "object" {
                 return view
             }
@@ -346,6 +347,30 @@ final class PencilTests: XCTestCase {
         _ = try await call(view, "checks", ["flags": [[String: Any]]()])
         let gone = try await view.evaluateJavaScript("document.querySelectorAll('body > .check-flag').length") as? NSNumber
         XCTAssertEqual(gone?.intValue, 0)
+    }
+
+    func testTheNotesSoundingAreMarkedWhilePlayingAndThePageFollows() async throws {
+        let view = try await scorePage()
+        let example = try XCTUnwrap(OpenPiece.example)
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        defer { _ = MusicCore.close(piece: piece.id) }
+        let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
+        _ = try await call(view, "show", ["pages": piece.pages, "timemap": timemap, "dark": false])
+
+        // Bar 40, well down the pages: its notes turn cobalt and the page scrolls to them.
+        let bar = try XCTUnwrap(ScoreSelection(answer: MusicCore.call(piece: piece.id, "select", #"{"bars": {"first": 40, "last": 40}}"#)))
+        _ = try await call(view, "playing", ["tick": bar.onset + 1, "playing": true, "follow": true])
+        let marked = try await view.evaluateJavaScript("document.querySelectorAll('#pages .playing').length") as? NSNumber
+        XCTAssertGreaterThan(marked?.intValue ?? 0, 0, "the notes sounding are marked")
+        let colour = try await view.evaluateJavaScript("getComputedStyle(document.querySelector('#pages .playing')).fill") as? String
+        XCTAssertNotNil(colour)
+        try await Task.sleep(nanoseconds: 800_000_000)
+        let scrolled = try await view.evaluateJavaScript("window.scrollY") as? NSNumber
+        XCTAssertGreaterThan(scrolled?.doubleValue ?? 0, 0, "the page follows the music")
+
+        _ = try await call(view, "playing", ["tick": bar.onset + 1, "playing": false])
+        let cleared = try await view.evaluateJavaScript("document.querySelectorAll('#pages .playing').length") as? NSNumber
+        XCTAssertEqual(cleared?.intValue, 0, "nothing is marked once stopped")
     }
 
     func testTheInksAreTheDesignKits() {

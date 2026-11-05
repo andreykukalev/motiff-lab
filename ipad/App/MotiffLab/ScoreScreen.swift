@@ -350,9 +350,12 @@ struct ScoreScreen: View {
                 if rollOpen { roll.show(piece, dark: scheme == .dark) }
             }
             .onChange(of: player.tick) { _, tick in
+                score.playhead(tick, playing: player.state == .playing)
                 if rollOpen { roll.position(tick, playing: player.state == .playing) }
             }
-            .onChange(of: player.state) { _, state in
+            .onChange(of: player.state) { old, state in
+                // A new Play follows the music again, even after the player scrolled away by hand.
+                score.playhead(player.tick, playing: state == .playing, follow: old != .playing && state == .playing)
                 if rollOpen { roll.position(player.tick, playing: state == .playing) }
             }
             .onChange(of: score.selection) { _, selection in
