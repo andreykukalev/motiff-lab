@@ -429,6 +429,25 @@ final class FacadeTests: XCTestCase {
         XCTAssertNil(OtherView.of(URL(fileURLWithPath: "/shelf/Other.motiff.json"), in: shelf))
     }
 
+    func testARecordingIsPlannedInPartsAndItsSoundReadBack() async throws {
+        let parts = await RecordingParts.plan(600_000)
+        XCTAssertEqual(parts.count, 4, "the first 7 minutes, in parts of about two minutes")
+        XCTAssertEqual(parts.first?.sendFrom, 0)
+        XCTAssertEqual(parts.last?.sendTo, 420_000)
+
+        let tone = (0..<22_050).map { Int16(8_000 * sin(Double($0) * 2 * .pi * 440 / RecordingSound.sampleRate)) }
+        let wav = RecordingSound.wav(tone[...])
+        XCTAssertEqual(wav.count, 44 + tone.count * 2)
+        XCTAssertEqual(String(decoding: wav.prefix(4), as: UTF8.self), "RIFF")
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("tone-\(UUID().uuidString).wav")
+        try wav.write(to: url)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let sound = try XCTUnwrap(RecordingSound.read(url, most: 420_000))
+        XCTAssertEqual(Double(sound.milliseconds), 1_000, accuracy: 20)
+        XCTAssertEqual(RecordingSound.read(url, most: 500)?.milliseconds, 500)
+        XCTAssertEqual(sound.wav(from: 250, to: 750).count, 44 + 11_025 * 2)
+    }
+
     func testTheNotesAScanReadsFromAPdfBecomeAPieceThatNamesIt() throws {
         // Read the notes (0023): what the scan server reads becomes a project of its own; the PDF piece stays as it is.
         let data = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 595, height: 842), format: UIGraphicsPDFRendererFormat()).pdfData { context in

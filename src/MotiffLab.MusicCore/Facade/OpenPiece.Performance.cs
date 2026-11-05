@@ -4,6 +4,7 @@ using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import.Midi;
 using MotiffLab.MusicCore.Import.Scan;
+using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;
@@ -62,13 +63,16 @@ internal sealed partial class OpenPiece
     /// <summary>
     /// "name", and either "midi" (base64) with "source" ("recording" or "midi", default midi), "engine" for a recording
     /// and "recordingStart" in milliseconds where the transcribed stretch starts, or "file" (base64) with its "fileName",
-    /// a MIDI or MusicXML file of another version, such as the official score over notes heard in a recording. Lines the
-    /// notes up with the score, keeps the anchors, raises the Check flags the version gives a scanned piece, and answers
-    /// the comparison.
+    /// a MIDI or MusicXML file of another version, such as the official score over notes heard in a recording; or "parts",
+    /// the notes heard in a recording heard in parts ({index, midi} by <see cref="RecordingParts.Plan"/> of "milliseconds"),
+    /// joined into one recording. Lines the notes up with the score, keeps the anchors, raises the Check flags the version
+    /// gives a scanned piece, and answers the comparison.
     /// </summary>
     private string AddPerformance(Request request)
     {
-        (byte[] midi, PerformanceSource source) = request.Text("file") is { } file ? VersionOf(file, request.Required("fileName")) : (MidiOf(request), request.Enum<PerformanceSource>("source") ?? PerformanceSource.Midi);
+        (byte[] midi, PerformanceSource source) = request.Text("file") is { } file ? VersionOf(file, request.Required("fileName"))
+            : request.Has("parts") ? (JoinedParts(request), PerformanceSource.Recording)
+            : (MidiOf(request), request.Enum<PerformanceSource>("source") ?? PerformanceSource.Midi);
 
         IReadOnlyList<PlayedNote> played;
         long start = (request.Long("recordingStart") ?? 0) * 1000;
@@ -112,6 +116,45 @@ internal sealed partial class OpenPiece
         catch (FormatException)
         {
             throw FacadeException.BadRequest("\"midi\" is a MIDI file in base64.");
+        }
+    }
+
+    /// <summary>The notes heard in each part of a recording, joined on the recording's own clock as the web app joins them.</summary>
+    private static byte[] JoinedParts(Request request)
+    {
+        long milliseconds = request.Long("milliseconds") is > 0 and var length ? length : throw FacadeException.BadRequest("Send \"milliseconds\", how long the sound heard in parts is.");
+        IReadOnlyList<RecordingPart> plan = RecordingParts.Plan(milliseconds);
+        List<(RecordingPart Part, byte[] Midi)> heard = [];
+        foreach (JsonElement part in request.Elements("parts"))
+        {
+            if (part.ValueKind != JsonValueKind.Object || !part.TryGetProperty("index", out JsonElement index) || !index.TryGetInt32(out int number)
+                || number < 0 || number >= plan.Count || !part.TryGetProperty("midi", out JsonElement midi) || midi.ValueKind != JsonValueKind.String)
+            {
+                throw FacadeException.BadRequest($"\"parts\" are {{index, midi}}, index from 0 to {plan.Count - 1}, midi a MIDI file in base64.");
+            }
+
+            try
+            {
+                heard.Add((plan[number], Convert.FromBase64String(midi.GetString()!)));
+            }
+            catch (FormatException)
+            {
+                throw FacadeException.BadRequest("A part's \"midi\" is a MIDI file in base64.");
+            }
+        }
+
+        if (heard.Count == 0)
+        {
+            throw FacadeException.BadRequest("The performance has no notes.");
+        }
+
+        try
+        {
+            return plan.Count == 1 ? heard[0].Midi : RecordingParts.Join(heard);
+        }
+        catch (MidiImportException exception)
+        {
+            throw FacadeException.BadRequest($"The performance is not a MIDI file Motiff Lab can read: {exception.Message}");
         }
     }
 

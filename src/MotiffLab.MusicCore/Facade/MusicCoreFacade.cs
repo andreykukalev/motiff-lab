@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 
 using MotiffLab.MusicCore.Import;
+using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Projects;
 
 namespace MotiffLab.MusicCore.Facade;
@@ -109,6 +110,7 @@ public sealed class MusicCoreFacade
                     "settings" => Answer.Write(json => Answer.SettingsCatalogue(json)),
                     "settings.state" => OpenPiece.SettingsState(fields),
                     "project.summary" => ProjectSummary(fields),
+                    "recording.parts" => RecordingPartsOf(fields),
                     _ when Count == 0 && IsPieceCall(name) => throw new FacadeException("noPiece", "Open a piece first."),
                     _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\" without a piece."),
                 };
@@ -130,6 +132,34 @@ public sealed class MusicCoreFacade
         {
             return Failure(exception);
         }
+    }
+
+    /// <summary>
+    /// The parts a recording of "milliseconds" is heard in, its first 7 minutes (<see cref="RecordingRange.MostMilliseconds"/>):
+    /// {"milliseconds": heard, "parts": [{index, sendFrom, sendTo, keepFrom, keepTo}]} in milliseconds, so an app sends each
+    /// part's sound to the scan server and gives the notes back to `performance.add` as "parts" (0014, 0022).
+    /// </summary>
+    private static string RecordingPartsOf(Request request)
+    {
+        long milliseconds = request.Long("milliseconds") is > 0 and var length ? Math.Min(length, RecordingRange.MostMilliseconds) : throw FacadeException.BadRequest("Send \"milliseconds\", how long the recording is.");
+        IReadOnlyList<RecordingPart> parts = RecordingParts.Plan(milliseconds);
+        return Answer.Write(json =>
+        {
+            json.WriteNumber("milliseconds", milliseconds);
+            json.WriteStartArray("parts");
+            foreach (RecordingPart part in parts)
+            {
+                json.WriteStartObject();
+                json.WriteNumber("index", part.Index);
+                json.WriteNumber("sendFrom", part.SendFromMilliseconds);
+                json.WriteNumber("sendTo", part.SendToMilliseconds);
+                json.WriteNumber("keepFrom", part.KeepFromMilliseconds);
+                json.WriteNumber("keepTo", part.KeepToMilliseconds);
+                json.WriteEndObject();
+            }
+
+            json.WriteEndArray();
+        });
     }
 
     /// <summary>

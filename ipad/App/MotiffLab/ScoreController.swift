@@ -730,6 +730,31 @@ final class ScoreController: NSObject, ObservableObject {
         await loadCheck(piece)
     }
 
+    /// A recording heard by the scan server in parts, as another version (0022): music-core joins the parts' notes and
+    /// lines them up with the score. Returns why it could not be added, or nil.
+    func addRecordingVersion(name: String, engine: String, milliseconds: Int64, parts: [(index: Int, midi: Data)]) async -> String? {
+        guard let piece else { return nil }
+        let request = Self.json([
+            "name": name.isEmpty ? text["performance.defaultName"] : name,
+            "engine": engine,
+            "milliseconds": milliseconds,
+            "parts": parts.map { ["index": $0.index, "midi": $0.midi.base64EncodedString()] as [String: Any] },
+        ]) ?? "{}"
+        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.add", request) }
+        guard versions.read(performance: answer) else {
+            return facadeObject(answer)?["message"] as? String ?? text["transcribe.failed"]
+        }
+        var status = versions.matched == 0
+            ? text["performance.noMatch"]
+            : text.format("performance.added", String(versions.matched), String(versions.printed), String(versions.bars.filter(\.differs).count))
+        if milliseconds >= 420_000 { status += " " + text.format("version.recordingCut", "7") }
+        versionStatus = status
+        versions.read(list: await MusicCore.run { MusicCore.call(piece: piece.id, "performances") })
+        await drawVersions()
+        await loadCheck(piece)
+        return nil
+    }
+
     /// Show on a bar of the version: the bar is selected and comes into view.
     func showVersionBar(_ bar: Int) {
         guard let span = versions.bars.first(where: { $0.bar == bar })?.span else { return }
