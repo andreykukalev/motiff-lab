@@ -524,22 +524,12 @@
                     {
                         <button class="it @(_leadIn ? "on" : null)" aria-pressed="@(_leadIn ? "true" : "false")" title="@Text["focus.leadInHint"]" @onclick="ToggleLeadInAsync"><Icon Name="leadin" /> @Text["focus.leadIn"]</button>
                     }
-                    <button class="it @(_pillMenu == PillMenu.Tempo ? "on" : null)" aria-expanded="@(_pillMenu == PillMenu.Tempo ? "true" : "false")" aria-label="@Text.Format("pill.tempoLabel", TempoPercent)"
-                            @onclick="() => TogglePillMenu(PillMenu.Tempo)"><Icon Name="tempo" /> <span class="mono">@TempoPercent%</span></button>
-                    @if (_filters.Length > 1)
-                    {
-                        <button class="it @(_filter != SelectionFilter.All ? "on" : null)" aria-expanded="@(_pillMenu == PillMenu.Hands ? "true" : "false")" aria-label="@Text["workspace.notesLabel"]"
-                                @onclick="() => TogglePillMenu(PillMenu.Hands)"><Icon Name="hands" /> @FilterLabel(_filter)</button>
-                    }
-                    <span class="div" aria-hidden="true"></span>
-                    @* Where playback is, for a screen reader: the score shows it with the notes being heard. *@
-                    <span class="visually-hidden state" role="status">@StateText</span>
-                    <span class="visually-hidden position" aria-live="off">@PositionText</span>
-                    <button class="it @(Player.Metronome ? "on" : null)" aria-pressed="@(Player.Metronome ? "true" : "false")" @onclick="ToggleMetronomeAsync"><Icon Name="metronome" /> @Text["transport.metronome"]</button>
-                    <button class="it @(Player.CountIn ? "on" : null)" aria-pressed="@(Player.CountIn ? "true" : "false")" @onclick="ToggleCountInAsync"><Icon Name="count" /> @Text["transport.countIn"]</button>
-                    @switch (_pillMenu)
-                    {
-                        case PillMenu.Tempo:
+                    @* Tempo and Hands open their popovers over themselves, with the pointer at them (design/kit/ds.css .popover). *@
+                    <span class="anchor">
+                        <button class="it @(_pillMenu == PillMenu.Tempo ? "on" : null)" aria-expanded="@(_pillMenu == PillMenu.Tempo ? "true" : "false")" aria-label="@Text.Format("pill.tempoLabel", TempoPercent)"
+                                @onclick="() => TogglePillMenu(PillMenu.Tempo)"><Icon Name="dial" /> <span class="mono">@TempoPercent%</span></button>
+                        @if (_pillMenu == PillMenu.Tempo)
+                        {
                             <div class="popover pill-popover" role="dialog" aria-label="@Text["transport.tempo"]">
                                 <div class="seg" role="group" aria-label="@Text["transport.tempo"]">
                                     @foreach (int percent in s_tempoSteps)
@@ -552,24 +542,39 @@
                                     <input type="range" min="@MinTempo" max="@MaxTempo" step="5" value="@TempoPercent" @oninput="SetTempoAsync" />
                                 </label>
                             </div>
-                            break;
-                        case PillMenu.Settings:
-                            @* The pill's own settings (0018 section 10), from a long press on it. *@
-                            <div class="popover pill-popover" role="dialog" aria-label="@Text["settings.pillSettings"]">
-                                <SettingSwitch Id="guidance.transportPill" Label="@Text["settings.pillWithSelection"]" On="selection" Off="playing" Hint="@Text["settings.pillWithSelectionHint"]" Prefix="pop" />
-                                @PopoverScope([], "guidance")
-                            </div>
-                            break;
-                        case PillMenu.Hands:
-                            <div class="popover pill-popover" role="dialog" aria-label="@Text["workspace.notesLabel"]">
-                                @for (int i = 0; i < _filters.Length; i++)
-                                {
-                                    int index = i;
-                                    bool chosen = _filters[i] == _filter;
-                                    <button class="btn quiet @(chosen ? "on" : null)" aria-pressed="@(chosen ? "true" : "false")" @onclick="() => ChooseFilterAsync(index)">@FilterLabel(_filters[i])</button>
-                                }
-                            </div>
-                            break;
+                        }
+                    </span>
+                    @if (_filters.Length > 1)
+                    {
+                        <span class="anchor">
+                            <button class="it @(_filter != SelectionFilter.All ? "on" : null)" aria-expanded="@(_pillMenu == PillMenu.Hands ? "true" : "false")" aria-label="@Text["workspace.notesLabel"]"
+                                    @onclick="() => TogglePillMenu(PillMenu.Hands)"><Icon Name="hands" /> @FilterLabel(_filter)</button>
+                            @if (_pillMenu == PillMenu.Hands)
+                            {
+                                <div class="popover pill-popover" role="dialog" aria-label="@Text["workspace.notesLabel"]">
+                                    @for (int i = 0; i < _filters.Length; i++)
+                                    {
+                                        int index = i;
+                                        bool chosen = _filters[i] == _filter;
+                                        <button class="btn quiet @(chosen ? "on" : null)" aria-pressed="@(chosen ? "true" : "false")" @onclick="() => ChooseFilterAsync(index)">@FilterLabel(_filters[i])</button>
+                                    }
+                                </div>
+                            }
+                        </span>
+                    }
+                    <span class="div" aria-hidden="true"></span>
+                    @* Where playback is, for a screen reader: the score shows it with the notes being heard. *@
+                    <span class="visually-hidden state" role="status">@StateText</span>
+                    <span class="visually-hidden position" aria-live="off">@PositionText</span>
+                    <button class="it @(Player.Metronome ? "on" : null)" aria-pressed="@(Player.Metronome ? "true" : "false")" @onclick="ToggleMetronomeAsync"><Icon Name="metronome" /> @Text["transport.metronome"]</button>
+                    <button class="it @(Player.CountIn ? "on" : null)" aria-pressed="@(Player.CountIn ? "true" : "false")" @onclick="ToggleCountInAsync"><Icon Name="count" /> @Text["transport.countIn"]</button>
+                    @if (_pillMenu == PillMenu.Settings)
+                    {
+                        @* The pill's own settings (0018 section 10), from a long press on it: over the pill's middle. *@
+                        <div class="popover pill-popover" role="dialog" aria-label="@Text["settings.pillSettings"]">
+                            <SettingSwitch Id="guidance.transportPill" Label="@Text["settings.pillWithSelection"]" On="selection" Off="playing" Hint="@Text["settings.pillWithSelectionHint"]" Prefix="pop" />
+                            @PopoverScope([], "guidance")
+                        </div>
                     }
                 </div>
             }

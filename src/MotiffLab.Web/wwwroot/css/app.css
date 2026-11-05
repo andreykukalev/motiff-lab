@@ -2603,11 +2603,42 @@ body:has(.workspace) .site-footer {
     margin: 0 2px;
 }
 
+/* A pill popover sits over what opened it (the tempo, the hands, or the pill itself for its settings), its pointer at it. */
+.workspace .pill .anchor {
+    position: relative;
+    flex: none;
+    display: inline-flex;
+}
+
 .workspace .pill .pill-popover {
-    bottom: calc(100% + var(--s-2));
+    bottom: calc(100% + var(--s-3));
     left: 50%;
     transform: translateX(-50%);
     min-width: 14rem;
+}
+
+.workspace .pill .anchor .pill-popover {
+    /* From the button's top to the pill's edge (the pill is 52 px, the button 36 px). */
+    bottom: calc(100% + 8px + var(--s-3));
+}
+
+.workspace .pill .pill-popover::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -7px;
+    width: 12px;
+    height: 12px;
+    background: var(--surface-2);
+    border-right: 1px solid var(--hairline);
+    border-bottom: 1px solid var(--hairline);
+    transform: translateX(-50%) rotate(45deg);
+}
+
+/* The five tempo steps in one row. */
+.workspace .pill .pill-popover .seg {
+    flex-wrap: nowrap;
+    white-space: nowrap;
 }
 
 .workspace .pill .pill-popover .tempo input {
