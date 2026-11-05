@@ -102,6 +102,13 @@ public partial class PlaybackLab
         {
             OpenDna();
         }
+        else if (View == "versions" && _project is not null)
+        {
+            // Add a version, asked from the PDF view (0022, 0023): Other versions opens, in place of the Check drawer.
+            _insightsOpen = false;
+            _checkOpen = false;
+            _performanceOpen = true;
+        }
 
         if (fresh || idea is { Length: > 0 } || View is { Length: > 0 })
         {

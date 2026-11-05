@@ -74,7 +74,10 @@ public sealed record Project(
     /// <summary>The player's ink and bookmarks on the PDF's pages (0023), kept apart from the marks on the notes.</summary>
     public DocumentMarks DocumentMarks { get; init; } = DocumentMarks.Empty;
 
-    /// <summary>For a PDF whose notes were recognised, where each of its pages starts in the notes (0023); null otherwise.</summary>
+    /// <summary>
+    /// For a PDF whose notes were recognised into the same project, as before 2026-11-05, where each of its pages starts in
+    /// the notes (0023); null otherwise. A PDF recognised since then makes a separate piece (<see cref="ReadFromDocument"/>).
+    /// </summary>
     public PageMap? DocumentPages { get; init; }
 
     /// <summary>Whether the piece has notes: a source to import. A PDF added as it is has none until it is recognised.</summary>
@@ -98,17 +101,18 @@ public sealed record Project(
     }
 
     /// <summary>
-    /// The PDF piece with the notes the scan read from its pages (0011, 0023): the MusicXML becomes its source, named after
-    /// the PDF, and the PDF, its marks and its bookmarks stay as they were, for the "PDF" view beside the "Notes" one.
+    /// A new piece from the notes the scan read from a PDF piece's pages (0011, 0023): the MusicXML is its source, named
+    /// after the PDF. Recognising a PDF always makes a separate piece, and the PDF piece, its marks and its bookmarks stay
+    /// exactly as they were (Andrei, 2026-11-05).
     /// </summary>
-    /// <exception cref="InvalidOperationException">The piece is not a PDF without notes.</exception>
-    public Project Recognised(byte[] musicXml, string engine, PageMap pages)
+    /// <exception cref="InvalidOperationException">The piece is not a PDF.</exception>
+    public static Project ReadFromDocument(string id, Project pdf, byte[] musicXml, string engine, DateTimeOffset now)
     {
+        ArgumentNullException.ThrowIfNull(pdf);
         ArgumentNullException.ThrowIfNull(musicXml);
-        ArgumentNullException.ThrowIfNull(pages);
-        if (Document is null || HasNotes)
+        if (pdf.Document is null)
         {
-            throw new InvalidOperationException("Only a PDF with no notes yet is recognised.");
+            throw new InvalidOperationException("Only a PDF piece is recognised.");
         }
 
         if (musicXml.Length == 0)
@@ -116,13 +120,7 @@ public sealed record Project(
             throw new ArgumentException("The scan read no notes.", nameof(musicXml));
         }
 
-        return this with
-        {
-            FileName = Path.ChangeExtension(FileName, ".musicxml"),
-            Source = musicXml,
-            Scan = ScanOrigin.Read(engine),
-            DocumentPages = pages,
-        };
+        return Create(id, Path.ChangeExtension(pdf.FileName, ".musicxml"), musicXml, now) with { Scan = ScanOrigin.Read(engine) };
     }
 
     /// <summary>The PDF's file name, as the player added it.</summary>

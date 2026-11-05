@@ -4049,10 +4049,19 @@ body:has(.workspace) .site-footer {
 .lab .score button.perf-marker {
     position: absolute;
     z-index: 2;
-    height: 20px;
+    display: block;
+    height: 24px;
     min-height: 0;
-    padding: 0 var(--s-2);
+    padding: 2px 0;
     border: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+.lab .score button.perf-marker span {
+    display: block;
+    height: 20px;
+    padding: 0 var(--s-2);
     border-radius: var(--r-xs);
     background: var(--plum-tint);
     color: var(--plum);
@@ -4061,7 +4070,6 @@ body:has(.workspace) .site-footer {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    cursor: pointer;
 }
 
 .lab .score button.perf-marker:focus-visible {
@@ -5726,11 +5734,13 @@ body:has(.library) .site-footer {
     color: var(--ink-2);
 }
 
-.workspace .assistant .pro-offer {
+.workspace .assistant .pro-offer,
+.workspace .recognise-popover .pro-offer {
     color: var(--ink);
 }
 
-.workspace .assistant .pro-offer .tag.pro {
+.workspace .assistant .pro-offer .tag.pro,
+.workspace .recognise-popover .pro-offer .tag.pro {
     padding: 0 var(--s-2);
     border-radius: var(--r-xs);
     background: var(--plum-tint);
@@ -5739,7 +5749,8 @@ body:has(.library) .site-footer {
     font-weight: 600;
 }
 
-.workspace .assistant .pro-offer a {
+.workspace .assistant .pro-offer a,
+.workspace .recognise-popover .pro-offer a {
     color: var(--plum);
 }
 

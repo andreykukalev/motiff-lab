@@ -140,30 +140,49 @@ public class PdfPieceTests
     private static ImportedPiece Piece(byte[] musicXml) => PieceImporter.Import("a.musicxml", musicXml).Piece!;
 
     [Fact]
-    public void Recognised_notes_become_the_source_and_the_pdf_and_its_marks_stay()
+    public void Recognised_notes_become_a_separate_piece_and_the_pdf_piece_stays_as_it_was()
     {
         DocumentMarks marks = DocumentMarks.Empty.AddBookmark(2, "Trio", s_now);
         Project pdf = Project.CreateDocument("p_pdf", "Nocturne.pdf", s_pdf, s_now) with { DocumentMarks = marks };
+        byte[] before = ProjectFile.Write(pdf);
+        byte[] musicXml = Scanned();
+
+        Project notes = Project.ReadFromDocument("p_notes", pdf, musicXml, "homr 0.7.0", s_now);
+
+        Assert.Equal("p_notes", notes.Id);
+        Assert.True(notes.HasNotes);
+        Assert.Null(notes.Document);
+        Assert.Equal("Nocturne.musicxml", notes.FileName);
+        Assert.Equal(PieceOrigin.Scan, notes.Summary.Origin);
+        Assert.Equal("homr 0.7.0", notes.Scan!.Engine);
+        Assert.Equal(DocumentMarks.Empty, notes.DocumentMarks);
+        Assert.NotEmpty(OpenedProject.Open(notes).Piece.Notes);
+        Assert.Equal(before, ProjectFile.Write(pdf));
+        Assert.False(pdf.HasNotes);
+        Assert.Throws<InvalidOperationException>(() => Project.ReadFromDocument("p", Project.Create("p_mid", "a.mid", [1, 2, 3], s_now), musicXml, "homr", s_now));
+        Assert.Throws<ArgumentException>(() => Project.ReadFromDocument("p", pdf, [], "homr", s_now));
+        Assert.Equal(musicXml, ProjectFile.Read(ProjectFile.Write(notes)).Source);
+    }
+
+    [Fact]
+    public void A_pdf_recognised_into_the_same_project_before_still_opens_with_its_pages()
+    {
         byte[] musicXml = Scanned();
         PageMap pages = PageMap.Of(Piece(musicXml), 2);
-
-        Project recognised = pdf.Recognised(musicXml, "homr 0.7.0", pages);
-
-        Assert.True(recognised.HasNotes);
-        Assert.Equal("Nocturne.musicxml", recognised.FileName);
-        Assert.Equal("Nocturne.pdf", recognised.DocumentFileName);
-        Assert.Equal(PieceOrigin.Scan, recognised.Summary.Origin);
-        Assert.Equal("homr 0.7.0", recognised.Scan!.Engine);
-        Assert.Same(s_pdf, recognised.Document);
-        Assert.Equal(marks, recognised.DocumentMarks);
-        Assert.NotEmpty(OpenedProject.Open(recognised).Piece.Notes);
-        Assert.Throws<InvalidOperationException>(() => recognised.Recognised(musicXml, "homr 0.7.0", pages));
-        Assert.Throws<InvalidOperationException>(() => Project.Create("p", "a.mid", [1, 2, 3], s_now).Recognised(musicXml, "homr", pages));
+        Project recognised = Project.CreateDocument("p_pdf", "Nocturne.pdf", s_pdf, s_now) with
+        {
+            FileName = "Nocturne.musicxml",
+            Source = musicXml,
+            Scan = ScanOrigin.Read("homr 0.7.0"),
+            DocumentPages = pages,
+        };
 
         Project read = ProjectFile.Read(ProjectFile.Write(recognised));
         Assert.Equal(pages, read.DocumentPages);
         Assert.Equal(s_pdf, read.Document);
         Assert.Equal(musicXml, read.Source);
+        Assert.Equal("Nocturne.pdf", read.DocumentFileName);
+        Assert.NotEmpty(OpenedProject.Open(read).Piece.Notes);
     }
 
     [Fact]
@@ -203,7 +222,13 @@ public class PdfPieceTests
         Assert.Throws<ArgumentException>(() => new PageMap([Tick.Zero, new Tick(960), new Tick(960)]));
 
         byte[] musicXml = Scanned();
-        Project recognised = Project.CreateDocument("p_pdf", "a.pdf", s_pdf, s_now).Recognised(musicXml, "homr 0.7.0", new PageMap([Tick.Zero, new Tick(15360)]));
+        Project recognised = Project.CreateDocument("p_pdf", "a.pdf", s_pdf, s_now) with
+        {
+            FileName = "a.musicxml",
+            Source = musicXml,
+            Scan = ScanOrigin.Read("homr 0.7.0"),
+            DocumentPages = new PageMap([Tick.Zero, new Tick(15360)]),
+        };
         string json = Encoding.UTF8.GetString(ProjectFile.Write(recognised));
         Assert.Contains("\"documentPages\"", json, StringComparison.Ordinal);
         Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Encoding.UTF8.GetBytes(json.Replace("15360", "-1", StringComparison.Ordinal))));
