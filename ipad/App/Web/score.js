@@ -290,9 +290,10 @@ function checks({ flags }) {
 
 /**
  * The bars another version has otherwise, each { bar, tick, text, label }, as plum labels above the bars, and the ids of
- * the printed notes it does not have, tinted in place (0022, section 4); empty lists draw none.
+ * the printed notes it does not have, tinted in place (0022, section 4); empty lists draw none. Given to Swift as
+ * `performance`; named otherwise here, where `performance` is the clock.
  */
-function performance({ markers, unheard }) {
+function showVersion({ markers, unheard }) {
     state.performance = markers ?? [];
     state.unheard = new Set(unheard ?? []);
     placeNotes();
@@ -960,5 +961,5 @@ function frames() {
     return state.frames;
 }
 
-window.motiff = { show, layout, anchor, erase, draw, frames, inView, phrases, select, menuSize, pen, focus, card: showCard, lead, inset, highlight, bookmarks, clearLeft, outline, showPage, reveal, notes, checks, performance, layers, playing };
+window.motiff = { show, layout, anchor, erase, draw, frames, inView, phrases, select, menuSize, pen, focus, card: showCard, lead, inset, highlight, bookmarks, clearLeft, outline, showPage, reveal, notes, checks, performance: showVersion, layers, playing };
 window.webkit?.messageHandlers?.score?.postMessage("ready");

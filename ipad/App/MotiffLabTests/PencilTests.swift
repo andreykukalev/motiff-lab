@@ -349,6 +349,34 @@ final class PencilTests: XCTestCase {
         XCTAssertEqual(gone?.intValue, 0)
     }
 
+    func testAnotherVersionsLabelsSitAboveItsBarsAndItsMissingNotesAreTinted() async throws {
+        let view = try await scorePage()
+        let example = try XCTUnwrap(OpenPiece.example)
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        defer { _ = MusicCore.close(piece: piece.id) }
+        let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
+        _ = try await call(view, "show", ["pages": piece.pages, "timemap": timemap, "dark": false])
+
+        let bar = try XCTUnwrap(ScoreSelection(answer: MusicCore.call(piece: piece.id, "select", #"{"bars": {"first": 5, "last": 5}}"#)))
+        let missing = try XCTUnwrap(bar.noteIds.first)
+        let marker: [String: Any] = ["bar": 5, "tick": bar.onset, "text": "+3 · added notes", "label": "Bar 5 in Cover: +3 · added notes"]
+        let drawn = try await call(view, "performance", ["markers": [marker], "unheard": [missing]]) as? NSNumber
+        XCTAssertEqual(drawn?.intValue, 1)
+        let label = try await view.evaluateJavaScript("document.querySelector('body > .perf-marker').getAttribute('aria-label')") as? String
+        XCTAssertEqual(label, "Bar 5 in Cover: +3 · added notes")
+        let tinted = try await view.evaluateJavaScript("document.querySelectorAll('#pages .not-heard').length") as? NSNumber
+        XCTAssertGreaterThan(tinted?.intValue ?? 0, 0, "the printed note the version does not have is tinted")
+        // A Check flag on the same bar keeps its place: the label stays to its left.
+        _ = try await call(view, "checks", ["flags": [["bar": 5, "tick": bar.onset, "label": "Check bar 5"]]])
+        let labelLeft = try await view.evaluateJavaScript("parseFloat(document.querySelector('body > .perf-marker').style.left)") as? NSNumber
+        let flagLeft = try await view.evaluateJavaScript("parseFloat(document.querySelector('body > .check-flag').style.left)") as? NSNumber
+        XCTAssertLessThan(labelLeft?.doubleValue ?? .infinity, flagLeft?.doubleValue ?? 0)
+
+        _ = try await call(view, "performance", ["markers": [[String: Any]](), "unheard": [String]()])
+        let gone = try await view.evaluateJavaScript("document.querySelectorAll('body > .perf-marker, #pages .not-heard').length") as? NSNumber
+        XCTAssertEqual(gone?.intValue, 0)
+    }
+
     func testTheNotesSoundingAreMarkedWhilePlayingAndThePageFollows() async throws {
         let view = try await scorePage()
         let example = try XCTUnwrap(OpenPiece.example)
