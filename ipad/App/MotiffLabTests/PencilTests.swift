@@ -358,7 +358,7 @@ final class PencilTests: XCTestCase {
         _ = try await call(view, "show", ["pages": piece.pages, "timemap": timemap, "dark": false])
 
         // Bar 80, past the first page: its notes turn cobalt and the page follows them down (a system already in view
-        // stays where it is, as on the web). The smooth scroll itself is animated by WebKit's UI process, which a test window does not drive, so the test checks where it scrolls to.
+        // stays where it is, as on the web). The scroll is smooth, so the test checks where it goes, not where it is yet.
         let bar = try XCTUnwrap(ScoreSelection(answer: MusicCore.call(piece: piece.id, "select", #"{"bars": {"first": 80, "last": 80}}"#)))
         let followed = try await call(view, "playing", ["tick": bar.onset + 1, "playing": true, "follow": true]) as? NSNumber
         let marked = try await view.evaluateJavaScript("document.querySelectorAll('#pages .playing').length") as? NSNumber
