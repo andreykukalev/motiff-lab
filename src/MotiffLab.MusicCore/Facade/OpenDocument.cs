@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Import;
+using MotiffLab.MusicCore.Import.Scan;
 using MotiffLab.MusicCore.Projects;
 
 namespace MotiffLab.MusicCore.Facade;
@@ -61,6 +62,7 @@ internal sealed class OpenDocument
         "document.bookmark.add" => Change(marks => marks.AddBookmark(request.Int("page") ?? throw FacadeException.BadRequest("Send \"page\", from 1."), request.Text("name"), Now(request))),
         "document.bookmark.rename" => Change(marks => marks.RenameBookmark(request.Required("id"), request.Text("name"))),
         "document.bookmark.remove" => Change(marks => marks.RemoveBookmark(request.Required("id"))),
+        "document.read" => Read(request),
         _ => throw new FacadeException("noNotes", $"This piece is a PDF with no notes yet, so there is no call \"{name}\" on it. Read the notes from it first."),
     };
 
@@ -136,6 +138,55 @@ internal sealed class OpenDocument
         }
 
         return System.Text.Encoding.UTF8.GetString(ProjectFile.Write(Project));
+    }
+
+    /// <summary>
+    /// The notes a scan server read from the PDF, as a separate piece (0011, 0023; Andrei, 2026-11-05): its project file,
+    /// with the PDF piece and where each of its pages starts in the notes (<c>readFrom</c>), the scan's Check flags open
+    /// and a resume point at the start, as the web app's PDF view makes it. This PDF piece is not changed.
+    /// </summary>
+    private string Read(Request request)
+    {
+        byte[] musicXml;
+        try
+        {
+            musicXml = Convert.FromBase64String(request.Required("musicXml"));
+        }
+        catch (FormatException)
+        {
+            throw FacadeException.BadRequest("\"musicXml\" must be base64.");
+        }
+
+        Words words = Words.For(request.Text("language"));
+        string name = Path.ChangeExtension(Project.FileName, ".musicxml");
+        PieceImportResult imported = PieceImporter.Import(name, musicXml);
+        if (imported.Piece is not { } piece)
+        {
+            throw new FacadeException("import", imported.Rejection?.Text(words) ?? words.T("No notes could be read from these pages.", "На этих страницах не удалось прочитать нот."));
+        }
+
+        DateTimeOffset now = Now(request);
+        int pages = Math.Max(1, request.Int("pages") ?? 1);
+        string id = request.Text("id") is { Length: > 0 } given ? given : $"p_{Guid.NewGuid():N}";
+        Project read;
+        try
+        {
+            read = Project.ReadFromDocument(id, Project, musicXml, request.Text("engine") ?? "unknown engine", PageMap.Of(piece, pages), now) with
+            {
+                Check = CheckFlag.FromScan(ScanCheck.Of(piece), []),
+            };
+        }
+        catch (ArgumentException exception)
+        {
+            throw FacadeException.BadRequest(exception.Message);
+        }
+
+        read = read.AddResumePoint(ResumePoint.Start(read.NextResumePointId(), now));
+        return Answer.Write(json =>
+        {
+            Answer.Project(json, "project", read);
+            json.WriteString("file", System.Text.Encoding.UTF8.GetString(ProjectFile.Write(read)));
+        });
     }
 
     private static HashSet<string> Ids(IReadOnlyList<JsonElement> strokes) =>

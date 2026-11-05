@@ -977,4 +977,32 @@ public class MusicCoreFacadeTests
 
         Assert.Equal("import", Json(new MusicCoreFacade().Open("Nocturne.pdf", "not a pdf"u8.ToArray())).GetProperty("error").GetString());
     }
+
+    [Fact]
+    public void Notes_a_scan_read_from_a_pdf_piece_become_a_project_of_their_own_that_names_it()
+    {
+        var facade = new MusicCoreFacade();
+        byte[] pdf = System.Text.Encoding.ASCII.GetBytes("%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\n%%EOF\n");
+        Json(facade.Open("Nocturne.pdf", pdf, """{"id": "p_pdf", "now": "2026-11-05T10:00:00Z"}"""));
+        string before = facade.Call(1, "project.save", """{"now": "2026-11-05T10:00:00Z"}""");
+        string request = JsonSerializer.Serialize(new { musicXml = Convert.ToBase64String(Fixture(FurElise)), engine = "homr 0.7.0", pages = 3, id = "p_notes", now = "2026-11-05T12:00:00Z" });
+
+        JsonElement read = Call(facade, "document.read", request);
+
+        JsonElement project = read.GetProperty("project");
+        Assert.Equal("p_notes", project.GetProperty("id").GetString());
+        Assert.Equal("scanned", project.GetProperty("origin").GetString());
+        Assert.True(project.GetProperty("hasNotes").GetBoolean());
+        Assert.Equal("p_pdf", project.GetProperty("readFrom").GetString());
+        Assert.Equal(3, project.GetProperty("readFromPages").GetArrayLength());
+        Assert.Equal(0, project.GetProperty("readFromPages")[0].GetInt64());
+        Assert.Equal(1, project.GetProperty("resumePoints").GetInt32());
+        JsonElement notes = Json(new MusicCoreFacade().Open("Nocturne.motiff.json", System.Text.Encoding.UTF8.GetBytes(read.GetProperty("file").GetString()!)));
+        Assert.True(notes.GetProperty("piece").GetInt32() > 0, notes.ToString());
+        Assert.False(notes.TryGetProperty("document", out _), "the notes are an ordinary piece");
+        Assert.Equal(before, facade.Call(1, "project.save", """{"now": "2026-11-05T10:00:00Z"}"""));
+
+        Assert.Equal("import", Error(facade, 1, "document.read", """{"musicXml": "AAAA", "engine": "homr"}"""));
+        Assert.Equal("badRequest", Error(facade, 1, "document.read", """{"musicXml": "not base64!"}"""));
+    }
 }

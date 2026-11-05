@@ -420,6 +420,60 @@ final class FacadeTests: XCTestCase {
         XCTAssertNil(OtherView.of(URL(fileURLWithPath: "/shelf/Other.motiff.json"), in: shelf))
     }
 
+    func testTheNotesAScanReadsFromAPdfBecomeAPieceThatNamesIt() throws {
+        // Read the notes (0023): what the scan server reads becomes a project of its own; the PDF piece stays as it is.
+        let data = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 595, height: 842), format: UIGraphicsPDFRendererFormat()).pdfData { context in
+            for _ in 0..<3 { context.beginPage() }
+        }
+        let opened = try object(MusicCore.open(fileName: "Elise.pdf", data: data, request: #"{"language": "en", "id": "p_pdf"}"#))
+        let pdf = Int32(opened["piece"] as? Int ?? 0)
+        defer { MusicCore.close(piece: pdf) }
+        let before = MusicCore.call(piece: pdf, "project.save", #"{"now": "2026-11-05T12:00:00Z"}"#)
+
+        let example = try XCTUnwrap(OpenPiece.example)
+        let request: [String: Any] = ["musicXml": example.data.base64EncodedString(), "engine": "homr 0.7.0", "pages": 3,
+                                      "language": "en", "now": "2026-11-05T12:00:00Z", "id": "p_notes"]
+        let body = String(decoding: try JSONSerialization.data(withJSONObject: request), as: UTF8.self)
+        let read = try object(MusicCore.call(piece: pdf, "document.read", body))
+        XCTAssertNil(read["error"], "\(read)")
+        let project = try XCTUnwrap(read["project"] as? [String: Any])
+        XCTAssertEqual(project["readFrom"] as? String, "p_pdf")
+        XCTAssertEqual((project["readFromPages"] as? [NSNumber])?.count, 3)
+        let file = try XCTUnwrap(read["file"] as? String)
+        let notes = try XCTUnwrap(PieceSummary(answer: MusicCore.call(piece: 0, "project.summary", String(decoding: try JSONSerialization.data(withJSONObject: ["file": file]), as: UTF8.self))))
+        XCTAssertTrue(notes.hasNotes)
+        XCTAssertEqual(notes.readFrom, "p_pdf")
+        XCTAssertEqual(notes.origin, "scanned", "notes a scan read are detected, never imported")
+        XCTAssertEqual(MusicCore.call(piece: pdf, "project.save", #"{"now": "2026-11-05T12:00:00Z"}"#), before, "the PDF piece is untouched")
+        XCTAssertEqual(try object(MusicCore.call(piece: pdf, "document.read", #"{"musicXml": "not base64!"}"#))["error"] as? String, "badRequest")
+    }
+
+    @MainActor
+    func testTheScanServerIsTheAddressThePlayerGaveOrTheHostedOne() throws {
+        XCTAssertEqual(ScanServer.parse(" http://192.168.1.20:8765 ")?.absoluteString, "http://192.168.1.20:8765/")
+        XCTAssertNil(ScanServer.parse("ftp://example.com"))
+        XCTAssertNil(ScanServer.parse("http://example.com/recognise"), "an address, not a path on it")
+        XCTAssertNil(ScanServer.parse("http://me@example.com"))
+        XCTAssertNil(ScanServer.parse("example"))
+        XCTAssertTrue(ScanServer.isLocal(try XCTUnwrap(ScanServer.parse(ScanServer.suggested))))
+        XCTAssertFalse(ScanServer.isLocal(try XCTUnwrap(ScanServer.parse("http://192.168.1.20:8765"))))
+
+        let store = try XCTUnwrap(UserDefaults(suiteName: "motiff-scan-test"))
+        store.removePersistentDomain(forName: "motiff-scan-test")
+        defer { store.removePersistentDomain(forName: "motiff-scan-test") }
+        let hosted = URL(string: "https://scan.example/")
+        let scan = ScanServer(defaults: store)
+        XCTAssertEqual(scan.address(hosted: hosted), hosted, "Motiff Lab's server until the player chooses")
+        XCTAssertNil(scan.address(hosted: nil), "and off in a build without one")
+        let own = try XCTUnwrap(ScanServer.parse("http://192.168.1.20:8765"))
+        scan.choose(own)
+        XCTAssertEqual(ScanServer(defaults: store).address(hosted: hosted), own, "the player's server is kept on the device")
+        scan.choose(nil)
+        XCTAssertNil(scan.address(hosted: hosted), "turned off, nothing is sent")
+        scan.chooseHosted()
+        XCTAssertEqual(scan.address(hosted: hosted), hosted)
+    }
+
     func testErrorsComeBackAsCodes() throws {
         XCTAssertEqual(try call("dance", expectError: true)["error"] as? String, "unknownCall")
         XCTAssertEqual(try object(MusicCore.call(piece: 99, "piece"))["error"] as? String, "noPiece")

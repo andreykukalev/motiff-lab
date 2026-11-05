@@ -256,6 +256,10 @@ struct SettingsSheet: View {
             }
         case .account:
             AccountPanel(account: account, text: text)
+            if ScanServer.hosted(account) == nil {
+                // Without Motiff Lab's server, the player's own scan server (0011), as in the web app's Settings.
+                ScanPanel(scan: ScanServer.shared, text: text)
+            }
         }
     }
 
