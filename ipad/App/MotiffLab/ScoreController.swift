@@ -91,6 +91,8 @@ final class ScoreController: NSObject, ObservableObject {
     static let layers = ["ink", "notes", "bookmarks", "analysis", "check", "version", "artefacts"]
     /// The bars a scan or a transcription is unsure of (0018 section 9), as music-core answered the last Check call.
     @Published private(set) var check = CheckShelf()
+    /// Fix notes (S1-I7): the bar whose notes the Check drawer lists to correct, as music-core answers `corrections`.
+    @Published private(set) var corrections: NoteCorrections?
     /// A Check flag tapped on the score: the screen opens the Check drawer on its bar.
     var checkPicked: (@MainActor (Int) -> Void)?
     /// The other versions of the piece and the one shown, compared bar by bar (0022).
@@ -641,6 +643,47 @@ final class ScoreController: NSObject, ObservableObject {
             } else {
                 problem = facadeObject(answer)?["message"] as? String
             }
+        }
+    }
+
+    /// Fix notes on a bar: it is selected and comes into view, and its notes are listed to correct; again, the list closes.
+    func fixCheckBar(_ bar: Int) {
+        guard corrections?.bar != bar else {
+            corrections = nil
+            return
+        }
+        showCheckBar(bar)
+        correct("corrections", ["bar": bar])
+    }
+
+    /// A note of the bar a step higher or lower (semitones), earlier or later, shorter or longer (sixteenths), softer or
+    /// louder: a correction in the piece's edit log, and the score engraved again.
+    func correctNote(_ id: String, pitch: Int = 0, onset: Int = 0, length: Int = 0, velocity: Int = 0) {
+        correct("corrections.change", ["id": id, "pitch": pitch, "onset": onset, "length": length, "velocity": velocity], notes: true)
+    }
+
+    /// Takes the note out of the piece.
+    func removeNote(_ id: String) { correct("corrections.remove", ["id": id], notes: true) }
+
+    /// Puts the note back as it was imported.
+    func revertNote(_ id: String) { correct("corrections.revert", ["id": id], notes: true) }
+
+    /// Takes back the last correction.
+    func undoCorrection() { correct("corrections.undo", [:], notes: true) }
+
+    private func correct(_ call: String, _ fields: [String: Any], notes: Bool = false) {
+        guard let piece, let bar = fields["bar"] as? Int ?? corrections?.bar else { return }
+        var request = fields
+        request["bar"] = bar
+        let body = Self.json(request) ?? "{}"
+        Task {
+            let answer = await MusicCore.run { MusicCore.call(piece: piece.id, call, body) }
+            guard let read = NoteCorrections(answer: answer) else {
+                problem = facadeObject(answer)?["message"] as? String
+                return
+            }
+            corrections = read
+            if notes { await notesDidChange() }
         }
     }
 
