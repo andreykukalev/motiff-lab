@@ -1083,6 +1083,8 @@
   "check.fromRecording": "Heard in a recording by {0}.",
   "check.howScan": "Compare each flagged bar with the page: Show selects it to loop, Fix notes corrects them, and Looks right takes the flag away.",
   "check.howRecording": "Listen to each flagged bar against the recording: Show selects it to loop, Fix notes corrects them, and Looks right takes the flag away.",
+  "check.howScanShort": "Compare each flagged bar with the page: Show selects it to loop, and Looks right takes the flag away.",
+  "check.howRecordingShort": "Listen to each flagged bar against the recording: Show selects it to loop, and Looks right takes the flag away.",
   "check.showing": "Bar {0}: compare it, then fix its notes or say it looks right.",
   "check.resolved": "Bar {0} looks right",
   "check.reopened": "Bar {0} is to check again",

@@ -199,7 +199,12 @@ internal static partial class Answer
         json.WriteEndArray();
     }
 
-    public static void Check(Utf8JsonWriter json, Project project, Words words)
+    /// <summary>
+    /// The Check flags (0018 section 9) in bar order, each with its reason's short name and explanation in the piece's
+    /// language and the span of its bar (null for a bar the piece does not reach), and where the doubts come from: the
+    /// scan's or the transcription's engine.
+    /// </summary>
+    public static void Check(Utf8JsonWriter json, Project project, Words words, MeterMap meter, Tick end)
     {
         json.WriteStartArray("flags");
         foreach (CheckFlag flag in (project.Check ?? []).OrderBy(flag => flag.Bar))
@@ -208,13 +213,32 @@ internal static partial class Answer
             json.WriteNumber("bar", flag.Bar);
             json.WriteString("source", Name(flag.Source));
             json.WriteString("reason", Name(flag.Reason));
+            json.WriteString("name", CheckFlag.NameOf(flag.Reason, words));
             json.WriteString("text", flag.Describe(words));
             json.WriteBoolean("resolved", flag.Resolved);
+            if (flag.Bar >= meter.FirstBarNumber && meter.GetBar(flag.Bar).Span is { } span && span.Onset < end)
+            {
+                Span(json, "span", span);
+            }
+            else
+            {
+                json.WriteNull("span");
+            }
+
             json.WriteEndObject();
         }
 
         json.WriteEndArray();
         json.WriteNumber("open", project.OpenChecks.Count);
+        json.WriteString("origin", project.Scan is not null ? "scanned" : project.Transcription is not null ? "transcribed" : "imported");
+        if ((project.Scan?.Engine ?? project.Transcription?.Engine) is { } engine)
+        {
+            json.WriteString("engine", engine);
+        }
+        else
+        {
+            json.WriteNull("engine");
+        }
     }
 
     /// <summary>The settings catalogue (0018, section 10): every setting with its choices, default, preset values and scope.</summary>

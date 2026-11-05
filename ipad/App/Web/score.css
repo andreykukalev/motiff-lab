@@ -68,11 +68,17 @@ button.marker { position: absolute; z-index: 2; width: 24px; height: 24px; min-h
 .hl.ink-amber { background: var(--amber-tint); }
 :root[data-theme="dark"] .hl { mix-blend-mode: normal; }
 
+/* A Check flag (design/kit/ds.css .flag): an 18 px amber square with "?" above the top right of the uncertain bar, in a
+   24 px target; its "?" is the notation's colour, dark on amber in both themes. */
+button.check-flag { position: absolute; z-index: 2; display: grid; place-items: center; width: 24px; height: 24px; min-height: 0; padding: 0; border: 0; background: transparent; }
+button.check-flag span { display: grid; place-items: center; width: 18px; height: 18px; border-radius: var(--r-xs); background: var(--warning-fill); color: var(--notation); font: 700 11px/1 var(--font-ui); box-shadow: var(--shadow-menu); }
+
 /* The layers of marks, hidden for a clean page (0018 section 5). */
 body.hide-ink #ink,
 body.hide-notes :is(button.marker, div.hl),
 body.hide-bookmarks button.bmb,
-body.hide-analysis :is(button.bracket, .ring) { display: none; }
+body.hide-analysis :is(button.bracket, .ring),
+body.hide-check button.check-flag { display: none; }
 
 /* The selection: a cobalt band over the selected bars on each system, and round handles on the first and last barline. */
 .sel-band { position: absolute; box-sizing: border-box; background: var(--accent-tint); border: 1.5px solid var(--accent); border-radius: 3px; pointer-events: none; }

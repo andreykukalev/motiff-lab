@@ -319,6 +319,30 @@ final class PencilTests: XCTestCase {
         XCTAssertNotEqual(back, "none")
     }
 
+    func testCheckFlagsSitAtTheBarsTopRightBesideItsNotesAndHideAsALayer() async throws {
+        let view = try await scorePage()
+        let example = try XCTUnwrap(OpenPiece.example)
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        defer { _ = MusicCore.close(piece: piece.id) }
+        let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
+        _ = try await call(view, "show", ["pages": piece.pages, "timemap": timemap, "dark": false])
+
+        let bar = try XCTUnwrap(ScoreSelection(answer: MusicCore.call(piece: piece.id, "select", #"{"bars": {"first": 3, "last": 3}}"#)))
+        let drawn = try await call(view, "checks", ["flags": [["bar": 3, "tick": bar.onset, "label": "Check bar 3: Bar too long"]]]) as? NSNumber
+        XCTAssertEqual(drawn?.intValue, 1)
+        _ = try await call(view, "notes", ["notes": [["id": "n1", "tick": bar.onset, "number": 1, "label": "Note 1"]], "highlights": [[String: Any]]()])
+        let flagLeft = try await view.evaluateJavaScript("parseFloat(document.querySelector('body > .check-flag').style.left)") as? NSNumber
+        let noteLeft = try await view.evaluateJavaScript("parseFloat(document.querySelector('body > .marker').style.left)") as? NSNumber
+        XCTAssertLessThan(noteLeft?.doubleValue ?? .infinity, flagLeft?.doubleValue ?? 0, "the note sits to the flag's left")
+
+        _ = try await call(view, "layers", ["hidden": ["check"]])
+        let hidden = try await view.evaluateJavaScript("getComputedStyle(document.querySelector('body > .check-flag')).display") as? String
+        XCTAssertEqual(hidden, "none")
+        _ = try await call(view, "checks", ["flags": [[String: Any]]()])
+        let gone = try await view.evaluateJavaScript("document.querySelectorAll('body > .check-flag').length") as? NSNumber
+        XCTAssertEqual(gone?.intValue, 0)
+    }
+
     func testTheInksAreTheDesignKits() {
         XCTAssertNotEqual(DesignTokens.color("ink-carmine"), .systemGray)
         XCTAssertNotEqual(DesignTokens.color("amber"), .systemGray)

@@ -74,7 +74,7 @@ Request fields are optional unless marked; a tick span is `{"onset", "end"}`; a 
 | `settings` (piece 0) | – | `settings`: id, section, kind (switch / choice), choices, default, scope (device / account / piece), presets (learning, practising, clean) |
 | `settings.state` (piece 0) | `values` as stored, then `preset` or `set` {id, value}, then a piece's `overrides` | `preset` (learning / practising / clean / custom), `values` |
 | `settings` (on a piece) / `settings.override` | – / `id`, `value` (null clears; piece-scope settings only) | the catalogue with `overrides` / `overrides` |
-| `check` / `check.resolve` | – / `bar`, `resolved` (default true) | `flags` (bar, source, reason, resolved, text in the language), `open` count |
+| `check` / `check.resolve` | – / `bar`, `resolved` (default true) | `flags` (bar, source, reason, `name` (the reason's short name), resolved, text in the language, `span` of the bar or null), `open` count, `origin` (`scanned`, `transcribed`, `imported`) and `engine` (the scan's or transcription's, or null); `name`, `span`, `origin` and `engine` added within contract 4 for the iPad's Check drawer (2026-11-05) |
 
 The variation state: `keep`, `steps` (operation, parameters, explanation), `pending`, `undone` count, `canUndo`, `canRedo`, `acceptDisabledReason`, `editDisabledReason`, `current` notes, `heard` notes, `result` (operation, notes, changes before/after, added, removed, checks, properties, flags, explanation), `operations` (id, name, disabledReason under the current Keep).
 

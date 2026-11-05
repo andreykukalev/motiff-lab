@@ -85,7 +85,16 @@ final class ScoreController: NSObject, ObservableObject {
     @Published var noteDraft: NoteDraft?
     /// The layers of marks hidden on the page (0018 section 5), kept with the piece as `layers.*` settings.
     @Published private(set) var hiddenLayers: Set<String> = []
-    static let layers = ["ink", "notes", "bookmarks", "analysis"]
+    static let layers = ["ink", "notes", "bookmarks", "analysis", "check"]
+    /// The bars a scan or a transcription is unsure of (0018 section 9), as music-core answered the last Check call.
+    @Published private(set) var check = CheckShelf()
+    /// A Check flag tapped on the score: the screen opens the Check drawer on its bar.
+    var checkPicked: (@MainActor (Int) -> Void)?
+
+    /// The layers this piece has: Check only for a piece with flags.
+    var pieceLayers: [String] {
+        Self.layers.filter { $0 != "check" || check.hasFlags }
+    }
 
     /// A margin note being written: a new one (no id) or one already kept, over its bars.
     struct NoteDraft: Equatable {
@@ -213,6 +222,10 @@ final class ScoreController: NSObject, ObservableObject {
         }
         if let note = message["noteMarker"] as? String {
             openNote(note)
+        }
+        if let bar = number(message["checkFlag"]) {
+            showCheckBar(Int(bar))
+            checkPicked?(Int(bar))
         }
         if let note = number(message["note"]) {
             noteTapped?(note)
@@ -485,6 +498,47 @@ final class ScoreController: NSObject, ObservableObject {
         _ = try? await webView.callAsyncJavaScript("return motiff.layers(data)", arguments: ["data": ["hidden": Array(hiddenLayers)]], contentWorld: .page)
     }
 
+    // MARK: - Check
+
+    /// Show: the bar is selected, so it can be looped and compared with the page or the recording, and comes into view.
+    func showCheckBar(_ bar: Int) {
+        guard let span = check.flags.first(where: { $0.bar == bar && $0.span != nil })?.span else { return }
+        Task {
+            await select(span.lowerBound, span.upperBound)
+            _ = try? await webView.callAsyncJavaScript("return motiff.reveal(data)", arguments: ["data": ["start": span.lowerBound]], contentWorld: .page)
+        }
+    }
+
+    /// Looks right, or Check again: every flag on the bar resolved or open again, kept with the piece.
+    func resolveCheck(_ bar: Int, _ resolved: Bool) {
+        guard let piece else { return }
+        let request = Self.json(["bar": bar, "resolved": resolved]) ?? "{}"
+        Task {
+            let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "check.resolve", request) }
+            if let shelf = CheckShelf(answer: answer) {
+                check = shelf
+                await drawChecks()
+            } else {
+                problem = facadeObject(answer)?["message"] as? String
+            }
+        }
+    }
+
+    private func loadCheck(_ piece: OpenPiece) async {
+        check = CheckShelf(answer: await MusicCore.run { MusicCore.call(piece: piece.id, "check") }) ?? CheckShelf()
+        await drawChecks()
+    }
+
+    /// The open bars as amber flags on the score, each labelled with its reasons.
+    private func drawChecks() async {
+        guard shown else { return }
+        let flags: [[String: Any]] = check.openBars.compactMap { bar in
+            guard let span = bar.span else { return nil }
+            return ["bar": bar.bar, "tick": span.lowerBound, "label": text.format("check.flagLabel", String(bar.bar), CheckShelf.reasonNames(bar.flags, text))]
+        }
+        _ = try? await webView.callAsyncJavaScript("return motiff.checks(data)", arguments: ["data": ["flags": flags]], contentWorld: .page)
+    }
+
     // MARK: - Phrase focus
 
     /// Lifts the selection into focus: the page dims, the card shows the selection's bars on their own, and the page
@@ -676,6 +730,7 @@ final class ScoreController: NSObject, ObservableObject {
             await draw(marks)
             await loadPhrases(piece)
             await drawBookmarks()
+            await loadCheck(piece)
             await loadLayers(piece)
             await applyLayers()
             if !ringed.isEmpty { await showRings(scroll: false) }

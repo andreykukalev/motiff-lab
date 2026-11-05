@@ -25,7 +25,8 @@
 //
 // Margin notes are numbered amber markers at the top right of their first bar, and highlights translucent bands in an
 // ink behind the staves (`notes`), as the web app's score view draws them; a tap on a marker gives the note to Swift.
-// Each layer of marks can be hidden for a clean page (`layers`).
+// The bars a scan or a transcription is unsure of carry an amber "?" at their top right (`checks`), the notes on the same
+// bar to its left; a tap gives the bar to Swift. Each layer of marks can be hidden for a clean page (`layers`).
 import { cardLayout } from "../score/phrase-card.js";
 import { ScoreGeometry, bookmarkLevels, readPage, staffFrames } from "../score/score-geometry.js";
 import { SelectionLayer } from "../score/selection-layer.js";
@@ -52,10 +53,10 @@ const BOOKMARK_REACH = 120;
 const NOTE_OFFSET_X = 4;
 const NOTE_OFFSET_Y = 22;
 
-/** The layers of marks that can be hidden: the pencil, notes and highlights, bookmarks, and the analysis (brackets, rings). */
-const LAYERS = ["ink", "notes", "bookmarks", "analysis"];
+/** The layers of marks that can be hidden: the pencil, notes and highlights, bookmarks, the analysis (brackets, rings) and Check. */
+const LAYERS = ["ink", "notes", "bookmarks", "analysis", "check"];
 
-const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], phrases: [], bookmarks: [], notes: [], highlights: [], pen: false, focus: false, ringed: new Set() };
+const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], phrases: [], bookmarks: [], notes: [], highlights: [], checks: [], pen: false, focus: false, ringed: new Set() };
 let nextId = 0;
 
 /** Shows the pages and reads where their bars are; `timemap` is Verovio's, with measures and rests. */
@@ -260,8 +261,15 @@ function notes({ notes, highlights }) {
     return document.querySelectorAll("body > .marker").length + document.querySelectorAll("body > .hl").length;
 }
 
+/** The bars Check asks about, each { bar, tick, label }: an amber "?" above the bar's top right; none draws none. */
+function checks({ flags }) {
+    state.checks = flags ?? [];
+    placeNotes();
+    return document.querySelectorAll("body > .check-flag").length;
+}
+
 function placeNotes() {
-    for (const old of document.querySelectorAll("body > .marker, body > .hl")) {
+    for (const old of document.querySelectorAll("body > .marker, body > .hl, body > .check-flag")) {
         old.remove();
     }
     const geometry = state.geometry;
@@ -281,7 +289,27 @@ function placeNotes() {
             document.body.append(band);
         }
     }
+    // A Check flag sits at the bar's top right; notes on the same bar sit side by side to its left.
     const onBar = new Map();
+    for (const check of state.checks) {
+        const place = geometry.flag(check.tick);
+        if (place === undefined) {
+            continue;
+        }
+        onBar.set(geometry.barAt(check.tick)?.tick ?? check.tick, 1);
+        const flag = document.createElement("button");
+        flag.type = "button";
+        flag.className = "check-flag";
+        flag.dataset.bar = String(check.bar);
+        flag.setAttribute("aria-label", check.label);
+        const square = document.createElement("span");
+        square.setAttribute("aria-hidden", "true");
+        square.textContent = "?";
+        flag.append(square);
+        flag.style.left = `${place.x - NOTE_OFFSET_X - 24}px`;
+        flag.style.top = `${place.y - NOTE_OFFSET_Y}px`;
+        document.body.append(flag);
+    }
     for (const note of state.notes) {
         const place = geometry.flag(note.tick);
         if (place === undefined) {
@@ -397,6 +425,11 @@ function pen(on) {
 document.body.addEventListener("click", (event) => {
     const target = event.target instanceof Element ? event.target : null;
     if (target?.closest("#focus")) {
+        return;
+    }
+    const flag = target?.closest(".check-flag");
+    if (flag) {
+        post({ checkFlag: Number(flag.dataset.bar) });
         return;
     }
     const marker = target?.closest(".marker");
@@ -761,5 +794,5 @@ function frames() {
     return state.frames;
 }
 
-window.motiff = { show, layout, anchor, erase, draw, frames, inView, phrases, select, menuSize, pen, focus, card: showCard, lead, inset, highlight, bookmarks, clearLeft, outline, showPage, reveal, notes, layers };
+window.motiff = { show, layout, anchor, erase, draw, frames, inView, phrases, select, menuSize, pen, focus, card: showCard, lead, inset, highlight, bookmarks, clearLeft, outline, showPage, reveal, notes, checks, layers };
 window.webkit?.messageHandlers?.score?.postMessage("ready");
