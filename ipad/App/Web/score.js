@@ -376,10 +376,16 @@ function lead({ start, end }) {
     return { start: before ?? start, end: after ?? end };
 }
 
+/** Room under the last page for a drawer over the bottom of the screen, in pixels, so the end of the piece can be read. */
+function inset({ bottom }) {
+    document.body.style.paddingBottom = bottom > 0 ? `calc(var(--pad-bottom) + ${bottom}px)` : "";
+    return layout();
+}
+
 /** Where each bar is now, in the document's pixels: for the tests. */
 function frames() {
     return state.frames;
 }
 
-window.motiff = { show, layout, anchor, erase, draw, frames, inView, phrases, select, menuSize, pen, focus, card: showCard, lead };
+window.motiff = { show, layout, anchor, erase, draw, frames, inView, phrases, select, menuSize, pen, focus, card: showCard, lead, inset };
 window.webkit?.messageHandlers?.score?.postMessage("ready");

@@ -490,6 +490,28 @@ public class MusicCoreFacadeTests
     }
 
     [Fact]
+    public void TheRollGetsTheNotesAndBarsPackedAndTheirNames()
+    {
+        (MusicCoreFacade facade, JsonElement opened) = Open();
+        int count = opened.GetProperty("summary").GetProperty("noteCount").GetInt32();
+
+        JsonElement roll = Call(facade, "roll");
+        Assert.Equal(count, roll.GetProperty("ids").GetArrayLength());
+        Assert.Equal(count * 7, roll.GetProperty("notes").GetArrayLength());
+        Assert.Equal(0, roll.GetProperty("bars").GetArrayLength() % 4);
+        Assert.True(roll.GetProperty("end").GetInt64() > 0);
+        JsonElement names = roll.GetProperty("names");
+        Assert.Equal(count, names.GetProperty("notes").GetArrayLength());
+        Assert.Equal(names.GetProperty("keyTicks").GetArrayLength(), names.GetProperty("rows").GetArrayLength());
+        Assert.Equal("C4", names.GetProperty("rows")[0][60].GetString());
+
+        Assert.Equal("до¹", Call(facade, "roll", """{"naming": "syllables"}""").GetProperty("names").GetProperty("rows")[0][60].GetString());
+        Call(facade, "language", """{"language": "ru"}""");
+        Assert.Equal("до¹", Call(facade, "roll").GetProperty("names").GetProperty("rows")[0][60].GetString());
+        Assert.Equal("C4", Call(facade, "roll", """{"naming": "letters"}""").GetProperty("names").GetProperty("rows")[0][60].GetString());
+    }
+
+    [Fact]
     public void SavingGivesTheProjectFileAndOpeningItRestoresTheWork()
     {
         (MusicCoreFacade facade, _) = Open("""{"id": "p_fur"}""");

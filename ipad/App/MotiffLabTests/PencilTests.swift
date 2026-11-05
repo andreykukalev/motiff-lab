@@ -15,6 +15,11 @@ final class PencilTests: XCTestCase {
 
     /// The score page in a web view on screen, once its modules have loaded.
     private func scorePage() async throws -> WKWebView {
+        try await webPage("Web/score.html", ready: "window.motiff")
+    }
+
+    /// A page of the app's in a web view on screen, once the object it fills has appeared.
+    private func webPage(_ path: String, ready: String) async throws -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.setURLSchemeHandler(BundleSchemeHandler(), forURLScheme: BundleSchemeHandler.scheme)
         let view = WKWebView(frame: CGRect(x: 0, y: 0, width: 1024, height: 1366), configuration: configuration)
@@ -22,15 +27,15 @@ final class PencilTests: XCTestCase {
         window.addSubview(view)
         window.isHidden = false
         self.window = window
-        view.load(URLRequest(url: BundleSchemeHandler.url("Web/score.html")))
+        view.load(URLRequest(url: BundleSchemeHandler.url(path)))
         for _ in 0..<100 {
-            if (try? await view.evaluateJavaScript("typeof window.motiff")) as? String == "object" {
+            if (try? await view.evaluateJavaScript("typeof \(ready)")) as? String == "object" {
                 return view
             }
             try await Task.sleep(nanoseconds: 100_000_000)
         }
         let problem = (try? await view.evaluateJavaScript("document.documentElement.outerHTML.slice(0, 300)")) as? String
-        XCTFail("The score page did not load its modules: \(problem ?? "no page")")
+        XCTFail("The page did not load its modules: \(problem ?? "no page")")
         throw URLError(.resourceUnavailable)
     }
 
@@ -179,6 +184,25 @@ final class PencilTests: XCTestCase {
         _ = try await call(view, "focus", ["open": false])
         let gone = try await view.evaluateJavaScript("document.getElementById('focus').hidden") as? Bool
         XCTAssertEqual(gone, true)
+    }
+
+    func testThePianoRollDrawsMusicCoresNotesAndPicksBars() async throws {
+        let view = try await webPage("Web/roll.html", ready: "window.roll")
+        let example = try XCTUnwrap(OpenPiece.example)
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        defer { _ = MusicCore.close(piece: piece.id) }
+        let roll = try XCTUnwrap(facadeObject(MusicCore.call(piece: piece.id, "roll")))
+        XCTAssertEqual((roll["ids"] as? [Any])?.count, (roll["notes"] as? [Any]).map { $0.count / 7 })
+
+        let loaded = try await view.callAsyncJavaScript(
+            "return roll.load(data)", arguments: ["data": ["roll": roll, "labels": RollController.labels(UIText(language: "en")), "noteNames": true, "dark": false]], contentWorld: .page
+        )
+        let shown = try XCTUnwrap(loaded as? [String: Any])
+        XCTAssertEqual(shown["colourBy"] as? String, "hand", "Für Elise has two hands")
+        let canvases = try await view.evaluateJavaScript("document.querySelectorAll('#roll > canvas.roll-notes, #roll > canvas.roll-keys').length") as? NSNumber
+        XCTAssertEqual(canvases?.intValue, 2, "the notes and the keyboard")
+        let colour = try await view.callAsyncJavaScript("return roll.nextColour()", contentWorld: .page) as? String
+        XCTAssertNotNil(colour)
     }
 
     func testTheInksAreTheDesignKits() {

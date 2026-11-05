@@ -233,7 +233,7 @@
             };
             // Start with the player's grouping (hands unless they chose another) when it tells notes apart, else hands, tracks, voices.
             _colourBy = AvailableModes.OrderBy(mode => mode == _preferredColour ? 0 : Array.IndexOf(s_colourModes, mode) + 1).FirstOrDefault() ?? _preferredColour;
-            await _view.InvokeVoidAsync("load", PianoRollPayload.Create(Notes, Score));
+            await _view.InvokeVoidAsync("load", PianoRollData.Create(Notes, Score));
             await _view.InvokeVoidAsync("setColourBy", _colourBy);
             await _view.InvokeVoidAsync("follow", Player.Engine);
             await ShowMotifAsync(_view);
@@ -323,7 +323,7 @@
         {
             _shownKeys = Keys;
             _shownNaming = (naming, Text.Language);
-            RollNames names = PianoRollPayload.Names(Notes!, Keys ?? [], naming);
+            RollNames names = PianoRollData.Names(Notes!, Keys ?? [], naming);
             _spelled = Notes!.Select((note, index) => (note.Id, Name: names.Notes[index])).ToDictionary(pair => pair.Id, pair => pair.Name, StringComparer.Ordinal);
             await view.InvokeVoidAsync("setNames", names.Notes, names.KeyTicks, names.Rows);
         }
@@ -475,10 +475,10 @@
             if (note.Hand is { } hand)
             {
                 string side = hand.Value == Hand.Left ? "left" : "right";
-                parts.Add(Text[$"roll.{side}{(PianoRollPayload.IsCertain(hand.Attribution) ? "FromFile" : "Inferred")}"]);
+                parts.Add(Text[$"roll.{side}{(PianoRollData.IsCertain(hand.Attribution) ? "FromFile" : "Inferred")}"]);
             }
 
-            if (!PianoRollPayload.IsCertain(note.Attribution))
+            if (!PianoRollData.IsCertain(note.Attribution))
             {
                 parts.Add(Text.Format("roll.notStated", Text[$"roll.provenance.{note.Attribution.Provenance}"]));
             }

@@ -70,21 +70,23 @@ struct PhraseUnit: Equatable, Sendable {
     }
 }
 
-/// The passage selected on the score (facade `select`): where it starts and ends, and its bars.
+/// The passage selected on the score (facade `select`): where it starts and ends, its bars and its notes.
 struct ScoreSelection: Equatable, Sendable {
     var onset: Double
     var end: Double
     var firstBar: Int
     var lastBar: Int
+    var noteIds: [String]
 
-    init(onset: Double, end: Double, firstBar: Int, lastBar: Int) {
+    init(onset: Double, end: Double, firstBar: Int, lastBar: Int, noteIds: [String] = []) {
         self.onset = onset
         self.end = end
         self.firstBar = firstBar
         self.lastBar = lastBar
+        self.noteIds = noteIds
     }
 
-    /// The selection in a facade answer: {"selection": {onset, end, firstBar, lastBar, …}}.
+    /// The selection in a facade answer: {"selection": {onset, end, firstBar, lastBar, noteIds, …}}.
     init?(answer: String) {
         guard let selection = facadeObject(answer)?["selection"] as? [String: Any],
               let onset = (selection["onset"] as? NSNumber)?.doubleValue,
@@ -93,7 +95,8 @@ struct ScoreSelection: Equatable, Sendable {
             onset: onset,
             end: end,
             firstBar: (selection["firstBar"] as? NSNumber)?.intValue ?? 0,
-            lastBar: (selection["lastBar"] as? NSNumber)?.intValue ?? 0
+            lastBar: (selection["lastBar"] as? NSNumber)?.intValue ?? 0,
+            noteIds: selection["noteIds"] as? [String] ?? []
         )
     }
 }
