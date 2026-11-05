@@ -8,6 +8,11 @@
 // staff (`phrases`), and the web app's own selection layer (Scripts/score/selection-layer.ts) draws the band and its
 // handles and turns a long press and a drag across bars into a choice of bars. What the player does on the score goes
 // to Swift as a message: a bracket, a note or a bar tapped, bars chosen, and where the selection menu goes.
+//
+// Phrase focus (0018 section 4) lifts the selection into a card across the screen with the page dimmed behind it
+// (`focus`, `card`): Swift engraves the phrase's bars with Verovio at the card's width, with the web app's own card
+// layout (Scripts/score/phrase-card.ts), and the page shows the SVG. A tap on the dimmed page goes back to it.
+import { cardLayout } from "../score/phrase-card.js";
 import { ScoreGeometry, readPage } from "../score/score-geometry.js";
 import { SelectionLayer } from "../score/selection-layer.js";
 import { ScoreTimeline } from "../score/score-timeline.js";
@@ -21,7 +26,7 @@ const ERASER_REACH = 10;
 /** The reading line, this far below the top of the view: the pages it crosses are the ones the bar names, as on the web. */
 const READING_LINE_PX = 72;
 
-const state = { pages: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], phrases: [], pen: false };
+const state = { pages: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], phrases: [], pen: false, focus: false };
 let nextId = 0;
 
 /** Shows the pages and reads where their bars are; `timemap` is Verovio's, with measures and rests. */
@@ -184,7 +189,8 @@ function reportMenu() {
 
 const selection = new SelectionLayer(document.body, {
     geometry: () => state.geometry,
-    penOn: () => state.pen,
+    // While the Pen is on a finger writes, and in focus the page under the veil takes no choice of bars.
+    penOn: () => state.pen || state.focus,
     chosen: (first, last) => {
         const end = state.geometry?.barAt(last)?.end;
         if (end !== undefined) {
@@ -220,6 +226,9 @@ function pen(on) {
 /** A tap on the score: a bracket selects its phrase, a note plays from it, a bar away from its notes selects that bar. */
 document.body.addEventListener("click", (event) => {
     const target = event.target instanceof Element ? event.target : null;
+    if (target?.closest("#focus")) {
+        return;
+    }
     const bracket = target?.closest(".bracket");
     if (bracket) {
         post({ bracket: Number(bracket.dataset.phrase) });
@@ -293,13 +302,84 @@ function redraw() {
 let resizing = 0;
 window.addEventListener("resize", () => {
     cancelAnimationFrame(resizing);
-    resizing = requestAnimationFrame(() => layout());
+    resizing = requestAnimationFrame(() => {
+        layout();
+        reportCardWidth();
+    });
 });
+
+/** Only a change of the card's width beyond this engraves it again, as in the web app. */
+const RELAYOUT_THRESHOLD_PX = 24;
+
+const focusLayer = document.createElement("div");
+focusLayer.id = "focus";
+focusLayer.hidden = true;
+focusLayer.innerHTML = '<button type="button" class="veil" tabindex="-1"></button><div class="stage"><section class="card"><div class="card-score"></div></section></div>';
+document.body.append(focusLayer);
+const cardScore = focusLayer.querySelector(".card-score");
+const card = { timeline: null, offset: 0, width: 0 };
+
+focusLayer.querySelector(".veil").addEventListener("click", () => post({ leave: true }));
+cardScore.addEventListener("click", (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    const hit = target?.closest("g.note, g.chord");
+    const note = hit?.matches("g.chord") ? hit.querySelector("g.note") : hit;
+    const onset = note?.id ? card.timeline?.onsetOf(note.id) : undefined;
+    if (onset !== undefined) {
+        post({ cardNote: onset + card.offset });
+    }
+});
+
+/**
+ * Lifts the selection into focus, or puts it back: the page dimmed behind an empty card, which `card` fills. Returns
+ * Verovio's options for a card as wide as this one, for Swift to engrave the phrase with.
+ */
+function focus({ open, label, back }) {
+    state.focus = Boolean(open);
+    focusLayer.hidden = !state.focus;
+    if (!state.focus) {
+        cardScore.replaceChildren();
+        card.timeline = null;
+        return {};
+    }
+    focusLayer.querySelector(".veil").setAttribute("aria-label", back ?? "");
+    focusLayer.querySelector(".card").setAttribute("aria-label", label ?? "");
+    card.width = cardScore.clientWidth;
+    return { options: cardLayout(card.width) };
+}
+
+/**
+ * The phrase engraved on its own: its pages as SVG and Verovio's timemap, which starts at 0 at the start of the bar
+ * that holds `start`. Returns how many notes it engraved.
+ */
+function showCard({ pages, timemap, start }) {
+    cardScore.innerHTML = (pages ?? []).map((svg) => `<div class="card-page">${svg}</div>`).join("");
+    card.timeline = ScoreTimeline.fromTimemap(timemap ?? []);
+    card.offset = state.geometry?.barAt(start)?.tick ?? start;
+    return card.timeline.spans.length;
+}
+
+/** In focus, a new width for the card goes to Swift, which engraves it again at that width. */
+function reportCardWidth() {
+    if (!state.focus || Math.abs(cardScore.clientWidth - card.width) < RELAYOUT_THRESHOLD_PX) {
+        return;
+    }
+    card.width = cardScore.clientWidth;
+    post({ cardLayout: cardLayout(card.width) });
+}
+
+/** A passage with the bar before it and the bar after it, within the piece: what Lead-in plays (0018 section 4). */
+function lead({ start, end }) {
+    const geometry = state.geometry;
+    const before = start > 0 ? geometry?.barAt(start - 1)?.tick : undefined;
+    const after = geometry?.barAt(end)?.end;
+    return { start: before ?? start, end: after ?? end };
+}
 
 /** Where each bar is now, in the document's pixels: for the tests. */
 function frames() {
     return state.frames;
 }
 
-window.motiff = { show, layout, anchor, erase, draw, frames, inView, phrases, select, menuSize, pen };
+window.motiff = { show, layout, anchor, erase, draw, frames, inView, phrases, select, menuSize, pen, focus, card: showCard, lead };
 window.webkit?.messageHandlers?.score?.postMessage("ready");

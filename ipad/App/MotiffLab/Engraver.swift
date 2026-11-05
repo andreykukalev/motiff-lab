@@ -57,7 +57,17 @@ final class Engraver {
     /// The pages of a piece's notation as SVG with Verovio's timemap: music-core writes the MEI (`notation`), Verovio
     /// lays it out on A4 pages. Call it through `MusicCore.run`.
     static func engrave(piece: Int32, title: String) -> Result<Engraving, EngraveError> {
-        let request = "{\"title\": \(jsonString(title))}"
+        layOut(piece: piece, request: "{\"title\": \(jsonString(title))}", options: a4Leland)
+    }
+
+    /// The bars of a phrase in focus engraved on their own (0018 section 4): music-core writes the excerpt
+    /// (`notation` with `bars`, 0021) and Verovio lays it out with the card's options, which the score page gives as
+    /// the web app's phrase card has them (Scripts/score/phrase-card.ts, `cardLayout`). Call it through `MusicCore.run`.
+    static func engraveCard(piece: Int32, firstBar: Int, lastBar: Int, options: String) -> Result<Engraving, EngraveError> {
+        layOut(piece: piece, request: "{\"bars\": {\"first\": \(firstBar), \"last\": \(lastBar)}}", options: options)
+    }
+
+    private static func layOut(piece: Int32, request: String, options: String) -> Result<Engraving, EngraveError> {
         guard let answer = facadeObject(MusicCore.call(piece: piece, "notation", request)) else {
             return .failure(EngraveError(message: "music-core gave no notation."))
         }
@@ -65,7 +75,7 @@ final class Engraver {
             return .failure(EngraveError(message: answer["message"] as? String ?? "music-core gave no notation."))
         }
         let engraver = Engraver()
-        engraver.setOptions(a4Leland)
+        engraver.setOptions(options)
         guard engraver.load(mei) else {
             return .failure(EngraveError(message: "Verovio could not lay out the notation: \(engraver.log)"))
         }

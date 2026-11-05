@@ -53,3 +53,20 @@ button.sel-handle.dragging { background: var(--accent); }
 
 /* Where Swift draws the selection menu: the selection layer places this invisible box as it places the web app's menu. */
 #menu-place { position: fixed; visibility: hidden; pointer-events: none; }
+
+/* Phrase focus (0018 section 4, as the web app's app.css draws it): the page under the dim veil, the phrase lifted into
+   a card across the screen between the bar and the pill. Previous and next are Swift's, on the card's edges. */
+#focus { position: fixed; inset: 0; z-index: 3; }
+#focus[hidden] { display: none; }
+#focus .veil { position: absolute; inset: 0; width: 100%; min-height: 0; padding: 0; border: 0; border-radius: 0; background: var(--dim); animation: veil-in var(--t-slow) var(--ease); }
+@keyframes veil-in { from { opacity: 0; } }
+#focus .stage { position: absolute; top: calc(var(--s-3) + var(--h-touch) + var(--s-5)); left: var(--s-4); right: var(--s-4); bottom: var(--pad-bottom); display: flex; flex-direction: column; justify-content: center; pointer-events: none; }
+#focus .card { position: relative; min-height: 0; display: flex; background: var(--paper); color: var(--notation); border: 2px solid var(--accent); border-radius: var(--r-m); box-shadow: 0 0 0 6px var(--accent-tint), var(--shadow-sheet); pointer-events: auto; animation: card-lift var(--t-slow) var(--ease); }
+@keyframes card-lift { from { transform: scale(0.96); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { #focus .veil, #focus .card { animation: none; } }
+/* Room for the step buttons inside the card's edges; a long phrase scrolls inside the card. */
+#focus .card-score { position: relative; flex: 1; min-width: 0; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; margin: 0 calc(var(--h-touch) + var(--s-2)); min-height: 120px; }
+#focus .card-score svg { display: block; width: 100%; height: auto; color: var(--notation); fill: currentColor; }
+#focus .card-score svg use { fill: currentColor; }
+#focus .card-score svg [color] { color: inherit !important; }
+#focus .card-score svg g.label { display: none; }

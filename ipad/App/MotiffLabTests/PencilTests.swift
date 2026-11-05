@@ -140,6 +140,47 @@ final class PencilTests: XCTestCase {
         XCTAssertEqual(cleared?.intValue, 0)
     }
 
+    func testFocusLiftsThePhraseIntoACardEngravedAtItsWidth() async throws {
+        let view = try await scorePage()
+        let example = try XCTUnwrap(OpenPiece.example)
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        defer { _ = MusicCore.close(piece: piece.id) }
+        let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
+        _ = try await call(view, "show", ["pages": piece.pages, "timemap": timemap, "dark": false])
+        let shown = try XCTUnwrap(PhraseLevelsShown(answer: MusicCore.call(piece: piece.id, "phrases")))
+        let second = try XCTUnwrap(shown.unit(2))
+
+        // The page gives the web app's card layout at the card's width, and the phrase's bars engrave with it.
+        let opened = try await call(view, "focus", ["open": true, "label": "In focus", "back": "Back to page"])
+        let options = try XCTUnwrap((opened as? [String: Any])?["options"] as? [String: Any])
+        XCTAssertEqual(options["font"] as? String, "Leland")
+        XCTAssertGreaterThan((options["pageWidth"] as? NSNumber)?.intValue ?? 0, 0)
+        let layout = String(decoding: try JSONSerialization.data(withJSONObject: options), as: UTF8.self)
+        let id = piece.id
+        let first = second.firstBar
+        let last = second.lastBar
+        let engraved = await MusicCore.run { Engraver.engraveCard(piece: id, firstBar: first, lastBar: last, options: layout) }
+        let card = try engraved.get()
+        XCTAssertEqual(card.pages.count, 1, "one page as tall as the phrase needs")
+        let cardMap = try JSONSerialization.jsonObject(with: Data(card.timemap.utf8))
+        let notes = try await call(view, "card", ["pages": card.pages, "timemap": cardMap, "start": second.onset]) as? NSNumber
+        XCTAssertGreaterThan(notes?.intValue ?? 0, 0)
+        let onCard = try await view.evaluateJavaScript("document.querySelectorAll('#focus .card-score > .card-page > svg').length") as? NSNumber
+        XCTAssertEqual(onCard?.intValue, card.pages.count)
+        let veiled = try await view.evaluateJavaScript("document.getElementById('focus').hidden") as? Bool
+        XCTAssertEqual(veiled, false)
+
+        // Lead-in takes in the bar before and the bar after.
+        let led = try await call(view, "lead", ["start": second.onset, "end": second.end])
+        let wider = try XCTUnwrap(led as? [String: Any])
+        XCTAssertLessThan((wider["start"] as? NSNumber)?.doubleValue ?? .infinity, second.onset)
+        XCTAssertGreaterThan((wider["end"] as? NSNumber)?.doubleValue ?? 0, second.end)
+
+        _ = try await call(view, "focus", ["open": false])
+        let gone = try await view.evaluateJavaScript("document.getElementById('focus').hidden") as? Bool
+        XCTAssertEqual(gone, true)
+    }
+
     func testTheInksAreTheDesignKits() {
         XCTAssertNotEqual(DesignTokens.color("ink-carmine"), .systemGray)
         XCTAssertNotEqual(DesignTokens.color("amber"), .systemGray)

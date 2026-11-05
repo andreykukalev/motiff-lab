@@ -6,7 +6,8 @@ import WebKit
 /// one web view that runs the web app's score modules (ScoreController, Web/score.js). Nothing is docked: the bar floats
 /// over the top with the way back, the title, the pages in view and the actions, and the pill floats at the bottom with
 /// play, the tempo, the metronome and the count-in. Colours come from the design kit's tokens, Daylight or Night with
-/// the iPad's appearance.
+/// the iPad's appearance. In phrase focus (0018 section 4) the selection lifts into a card across the screen with the
+/// page dimmed behind it, previous and next on the card's edges, and the bar becomes the focus bar.
 struct ScoreScreen: View {
     let piece: OpenPiece
     private let text = UIText.current
@@ -21,17 +22,26 @@ struct ScoreScreen: View {
         ScoreWebView(score: score, piece: piece, dark: colorScheme == .dark)
             .overlay(alignment: .topLeading) {
                 // The menu over the selection, where the page places it (the web app's menuPlace).
-                if score.selection != nil, let place = score.menuPlace {
+                if score.selection != nil, !score.focused, let place = score.menuPlace {
                     SelectionMenu(score: score, player: player, text: text)
                         .offset(x: place.x, y: place.y)
+                }
+            }
+            .overlay {
+                if score.focused {
+                    FocusSteps(score: score, text: text)
                 }
             }
             .ignoresSafeArea(edges: .bottom)
             .background(Color.ds("desk").ignoresSafeArea())
             .overlay(alignment: .top) {
                 VStack(alignment: .trailing, spacing: CGFloat.ds("s-2")) {
-                    ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, more: $more) { dismiss() }
-                    if score.penOn {
+                    if score.focused {
+                        FocusBar(score: score, player: player, text: text)
+                    } else {
+                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, more: $more) { dismiss() }
+                    }
+                    if score.penOn && !score.focused {
                         PenPalette(score: score, text: text)
                             .transition(.opacity.combined(with: .move(edge: .top)))
                     }
@@ -39,6 +49,7 @@ struct ScoreScreen: View {
                 .padding(.horizontal, CGFloat.ds("s-4"))
                 .padding(.top, CGFloat.ds("s-3"))
                 .animation(.easeOut(duration: 0.16), value: score.penOn)
+                .animation(.easeOut(duration: 0.16), value: score.focused)
             }
             .overlay(alignment: .bottom) {
                 Pill(player: player, score: score, text: text)
@@ -50,9 +61,15 @@ struct ScoreScreen: View {
                 score.noteTapped = { [weak heard] tick in heard?.play(from: tick) }
                 await player.load(piece: piece.id)
             }
-            .onChange(of: score.selection) { _, selection in
-                // A loop follows the selection: a new one stops the old loop, as on the web.
-                if let loop = player.loop, selection.map({ $0.onset..<$0.end }) != loop { player.setLoop(nil) }
+            .onChange(of: score.playRange) { old, new in
+                // A loop follows what play takes for the selection, as on the web: Lead-in, or going back to the page
+                // with it on, loops the wider or the narrower span; a new selection stops the old loop.
+                guard let loop = player.loop, loop == old?.range else { return }
+                if let new, new.selection == old?.selection {
+                    player.setLoop(new.range)
+                } else {
+                    player.setLoop(nil)
+                }
             }
             .onDisappear {
                 player.shutdown()
@@ -187,6 +204,19 @@ struct Pill: View {
             if score.selection != nil {
                 LoopButton(score: score, player: player, text: text)
             }
+            if score.focused {
+                Button {
+                    score.leadIn.toggle()
+                } label: {
+                    HStack(spacing: 6) {
+                        Icon(name: "leadin")
+                        Text(text["focus.leadIn"])
+                    }
+                }
+                .buttonStyle(DSItemStyle(on: score.leadIn))
+                .accessibilityHint(text["focus.leadInHint"])
+                .accessibilityAddTraits(score.leadIn ? .isSelected : [])
+            }
             Menu {
                 Picker(text["transport.tempo"], selection: $player.tempoPercent) {
                     ForEach(Player.tempoChoices, id: \.self) { Text("\($0)%").tag($0) }
@@ -239,7 +269,7 @@ struct LoopButton: View {
     let text: UIText
 
     var body: some View {
-        let range = score.selection.map { $0.onset..<$0.end }
+        let range = score.playRange?.range
         let looping = range != nil && player.loop == range
         Button {
             player.setLoop(looping ? nil : range)
@@ -256,7 +286,7 @@ struct LoopButton: View {
 }
 
 /// The menu over the selection (ds.css `.menu`, 0018 section 3): the actions a musician takes on a passage. It holds only
-/// what applies and what the iPad has so far: Loop now; Focus, Note, Bookmark, the piano roll and Insights come with
+/// what applies and what the iPad has so far: Loop and Focus; Note, Bookmark, the piano roll and Insights come with
 /// their own steps.
 struct SelectionMenu: View {
     @ObservedObject var score: ScoreController
@@ -266,6 +296,18 @@ struct SelectionMenu: View {
     var body: some View {
         HStack(spacing: CGFloat.ds("s-1")) {
             LoopButton(score: score, player: player, text: text)
+            if !score.penOn {
+                Button {
+                    score.enterFocus()
+                } label: {
+                    HStack(spacing: 6) {
+                        Icon(name: "search")
+                        Text(text["focus.enter"])
+                    }
+                }
+                .buttonStyle(DSItemStyle())
+                .accessibilityHint(text["focus.enterHint"])
+            }
         }
         .padding(.horizontal, CGFloat.ds("s-2"))
         .padding(.vertical, CGFloat.ds("s-1"))
@@ -282,6 +324,87 @@ struct SelectionMenu: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(text["menu.label"])
+    }
+}
+
+/// The focus bar (0018 section 4, the web app's focus bar): Back to the page with its word, where the phrase is, and Play.
+/// Escape on a keyboard goes back too. Original / Variation / Alternate and Reading / As played come with variations and
+/// transcriptions on the iPad.
+struct FocusBar: View {
+    @ObservedObject var score: ScoreController
+    @ObservedObject var player: Player
+    let text: UIText
+
+    var body: some View {
+        HStack(spacing: CGFloat.ds("s-2")) {
+            Button {
+                score.leaveFocus()
+            } label: {
+                HStack(spacing: CGFloat.ds("s-1")) {
+                    Icon(name: "back", size: CGFloat.ds("icon-l"))
+                    Text(text["focus.back"]).dsType(.label)
+                }
+                .padding(.leading, CGFloat.ds("s-1"))
+                .padding(.trailing, CGFloat.ds("s-3"))
+                .frame(height: CGFloat.ds("h-control"))
+            }
+            .buttonStyle(BarActionStyle())
+            .keyboardShortcut(.cancelAction)
+            .help(text["focus.backHint"])
+            Text(score.focusPosition)
+                .dsType(.label)
+                .foregroundStyle(Color.ds("ink-2"))
+                .monospacedDigit()
+                .lineLimit(1)
+                .truncationMode(.tail)
+            Spacer(minLength: CGFloat.ds("s-2"))
+            Button {
+                player.toggle()
+            } label: {
+                Icon(name: player.state == .stopped ? "play" : "pause", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+            }
+            .buttonStyle(BarActionStyle())
+            .disabled(!player.ready)
+            .accessibilityLabel(player.state == .stopped ? text["transport.play"] : text["transport.pause"])
+        }
+        .padding(.horizontal, CGFloat.ds("s-2"))
+        .frame(height: CGFloat.ds("h-touch"))
+        .modifier(FloatingSurface())
+    }
+}
+
+/// Previous and next on the edges of the card in focus (the web app's `.focus-card .step`): 44 pt round buttons, centred
+/// on the card, which the page centres between the bar and the pill (Web/score.css `#focus .stage`).
+struct FocusSteps: View {
+    @ObservedObject var score: ScoreController
+    let text: UIText
+
+    var body: some View {
+        HStack {
+            step("back", text["focus.previous"], enabled: score.canStepBack) { score.step(-1) }
+            Spacer()
+            step("fwd", text["focus.next"], enabled: score.canStepOn) { score.step(1) }
+        }
+        // The stage's inset, the card's 2 pt border and the button's own inset inside it.
+        .padding(.horizontal, CGFloat.ds("s-4") + 2 + CGFloat.ds("s-1"))
+        .padding(.top, CGFloat.ds("s-3") + CGFloat.ds("h-touch") + CGFloat.ds("s-5"))
+        .padding(.bottom, 52 + CGFloat.ds("s-4") * 2)
+        .frame(maxHeight: .infinity)
+    }
+
+    private func step(_ icon: String, _ label: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Icon(name: icon, size: CGFloat.ds("icon-l"))
+                .foregroundStyle(Color.ds("ink"))
+                .frame(width: CGFloat.ds("h-touch"), height: CGFloat.ds("h-touch"))
+                .background(Color.ds("surface-2"), in: Circle())
+                .overlay(Circle().strokeBorder(Color.ds("hairline-strong")))
+                .dsShadow("shadow-menu")
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .opacity(enabled ? 1 : 0.4)
+        .accessibilityLabel(label)
     }
 }
 
