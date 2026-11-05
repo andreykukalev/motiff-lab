@@ -10,6 +10,7 @@
 @using MotiffLab.MusicCore.Import.Transcription
 @using MotiffLab.MusicCore.Motifs
 @using MotiffLab.MusicCore.Notation
+@using MotiffLab.MusicCore.Performance
 @using MotiffLab.MusicCore.Invitations
 @using MotiffLab.MusicCore.Playback
 @using MotiffLab.MusicCore.Projects
@@ -91,6 +92,7 @@
                            Selection="_selection?.Span" BarsChosen="OnScoreBarsChosenAsync" Menu="@(MenuShown ? SelectionMenu : null)"
                            Bookmarks="ScoreBookmarks" BookmarkPicked="OnBookmarkPickedAsync" Notes="ScoreNotes" MarkHighlights="ScoreHighlights" HiddenLayers="HiddenLayers"
                            NoteMarkerPicked="OpenNoteAsync" LayersRequested="OpenLayers" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync"
+                           PerformanceMarkers="ScorePerformanceMarkers" Unheard="ScoreUnheard" PerformancePicked="OnPerformancePickedAsync"
                            Pointed="_pointed" NotePicked="OnScoreNotePicked" />
             }
             else
@@ -200,6 +202,13 @@
                         {
                             <button class="btn quiet" aria-expanded="@(_checkOpen ? "true" : "false")" @onclick="ToggleCheck">
                                 <Icon Name="check" /> @(OpenCheckBars.Count > 0 ? Text.Count("check.toReview", OpenCheckBars.Count) : Text["check.title"])
+                            </button>
+                        }
+                        @if (_project is not null)
+                        {
+                            @* A performance compared with the piece (decision record 0022): added and worked with in its drawer. *@
+                            <button class="btn quiet" aria-expanded="@(_performanceOpen ? "true" : "false")" @onclick="TogglePerformance">
+                                <Icon Name="mic" /> @(HasPerformances ? Text["performance.title"] : Text["performance.add"])
                             </button>
                         }
                         @if (_scoreView is not null)
@@ -321,6 +330,11 @@
             @if (_checkOpen && HasCheck)
             {
                 @CheckDrawer
+            }
+
+            @if (_performanceOpen)
+            {
+                @PerformanceDrawer
             }
 
             @if (_dna is { } dna)
@@ -1052,6 +1066,106 @@
     }
 </aside>;
 
+    /// <summary>
+    /// The Performance drawer (decision record 0022, sections 1, 4 and 5): the performances kept with the piece, a chip for
+    /// each, how well the shown one lines up, the bars it plays differently with Show, Take into the score and Not a
+    /// difference, the bars taken with Restore the print, and the bars dismissed to show again. Over the right of the page.
+    /// </summary>
+    private RenderFragment PerformanceDrawer => @<aside class="sheet inspector check-sheet perf-sheet" aria-labelledby="perf-title" data-keeps-selection>
+    <header class="check-head">
+        <div>
+            <p class="overline">@Text["performance.title"]</p>
+            <h2 id="perf-title">@(ShownPerformance is { } heading ? heading.Name : Text["performance.add"])</h2>
+        </div>
+        <button class="btn icon" aria-label="@Text["performance.close"]" title="@Text["performance.close"]" @onclick="TogglePerformance"><Icon Name="close" /></button>
+    </header>
+    @if (_project?.Performances is { Count: > 1 } all)
+    {
+        <div class="var-chips" role="group" aria-label="@Text["performance.chips"]">
+            @foreach (SavedPerformance kept in all)
+            {
+                bool shown = kept.Id == ShownPerformance?.Id;
+                <button class="var-chip @(shown ? "on" : null)" aria-pressed="@(shown ? "true" : "false")" @onclick="() => ShowPerformanceOf(kept.Id)">@kept.Name</button>
+            }
+        </div>
+    }
+    @if (_performanceStatus is { } status)
+    {
+        <p class="caption" role="status">@status</p>
+    }
+    @if (ShownPerformance is { } performance && ShownComparison is { } comparison)
+    {
+        <p class="caption">@Text.Format("performance.summary", comparison.MatchedCount, PrintedNotes.Count, comparison.Bars.Count - UnalignedBarCount, comparison.Bars.Count)</p>
+        @if (DifferingBars is { Count: > 0 } differing)
+        {
+            <p class="overline">@Text.Count("performance.differs", differing.Count)</p>
+            <ul class="check-list">
+                @foreach (BarComparison bar in differing)
+                {
+                    bool selected = SelectedCheckBar == bar.Bar;
+                    <li class="check-entry @(selected ? "on" : null)">
+                        <p class="check-bar"><strong>@PerformanceBarLine(bar)</strong> <span class="tag plum">@bar.Marker(Words)</span></p>
+                        <p class="caption">@PerformanceCounts(bar)</p>
+                        <div class="row">
+                            <button class="btn secondary compact" @onclick="() => ShowPerformanceBarAsync(bar.Bar)">@Text["scanCheck.show"]</button>
+                            <button class="btn quiet compact" @onclick="() => DismissPerformanceBarAsync(bar.Bar, true)">@Text["performance.dismiss"]</button>
+                            <button class="btn primary compact" @onclick="() => TakePerformanceBarAsync(bar)">@Text["performance.take"]</button>
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+        else
+        {
+            <p class="caption">@Text["performance.noDifferences"]</p>
+        }
+        @if (performance.Taken.Count > 0)
+        {
+            <p class="overline">@Text["performance.takenHeading"]</p>
+            <ul class="check-list resolved">
+                @foreach (TakenBar taken in performance.Taken)
+                {
+                    <li class="check-entry">
+                        <p class="check-bar"><Icon Name="check" /> <strong>@Text.Format("check.bar", taken.Bar)</strong> <span class="caption">@Text.Format("performance.takenCounts", taken.Added.Count, taken.Removed.Count)</span></p>
+                        <div class="row">
+                            <button class="btn quiet compact" @onclick="() => ShowPerformanceBarAsync(taken.Bar)">@Text["scanCheck.show"]</button>
+                            <button class="btn quiet compact" @onclick="() => RestorePerformanceBarAsync(taken.Bar)">@Text["performance.restore"]</button>
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+        @if (performance.Dismissed.Count > 0)
+        {
+            <p class="overline">@Text["performance.dismissedHeading"]</p>
+            <ul class="check-list resolved">
+                @foreach (int dismissed in performance.Dismissed)
+                {
+                    <li class="check-entry">
+                        <p class="check-bar"><strong>@Text.Format("check.bar", dismissed)</strong></p>
+                        <div class="row">
+                            <button class="btn quiet compact" @onclick="() => ShowPerformanceBarAsync(dismissed)">@Text["scanCheck.show"]</button>
+                            <button class="btn quiet compact" @onclick="() => DismissPerformanceBarAsync(dismissed, false)">@Text["performance.undismiss"]</button>
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+        <label class="field">
+            <span class="caption">@Text["performance.name"]</span>
+            <input type="text" value="@performance.Name" @onchange="RenamePerformanceAsync" />
+        </label>
+        <div class="row">
+            <button class="btn quiet compact" @onclick="RemovePerformanceAsync">@Text[_performanceRemoving == performance.Id ? "performance.removeSure" : "performance.remove"]</button>
+        </div>
+    }
+    <p class="caption">@Text["performance.how"]</p>
+    <label class="file btn secondary">
+        @Text["performance.addMidi"]
+        <InputFile OnChange="AddPerformanceAsync" accept=".mid,.midi" />
+    </label>
+</aside>;
+
     private RenderFragment TrialCard => @<ExploreCard Try="TryExperimentAsync" Leave="LeaveExperimentAsync" HearInContext="HearAnswerAsync"
                                                     ListenToChanged="SetListenToAsync" FactChosen="ShowFactAsync" NoteSaved="SaveKeptNoteAsync" />;
 
@@ -1717,7 +1831,7 @@
                 SuggestPhrases(phrased.PhraseLevels);
             }
 
-            if (_project is { Edits.IsEmpty: false } corrected)
+            if (_project is { ChangesNotes: true } corrected)
             {
                 _restoring = true;
                 try
@@ -2451,7 +2565,7 @@
                 return [];
             }
 
-            var kept = _notes!.Select(note => note.Id).ToHashSet(StringComparer.Ordinal);
+            var kept = _edits.Apply(_imported).Select(note => note.Id).ToHashSet(StringComparer.Ordinal);
             return [.. _imported.Where(note => !kept.Contains(note.Id))];
         }
     }
@@ -2466,6 +2580,11 @@
 
     private Task CorrectAsync(Note note, int pitch = 0, long onset = 0, long length = 0, int velocity = 0)
     {
+        if (RefuseTakenNote(note))
+        {
+            return Task.CompletedTask;
+        }
+
         NoteValues values = NoteValues.Of(note);
         NoteValues after = new(
             new Pitch(Math.Clamp(note.Pitch.MidiNumber + pitch, 0, Pitch.MaxMidiNumber)),
@@ -2518,7 +2637,7 @@
         await Analytics.TrackAsync(AnalyticsEvent.NoteEdited(edit.Kind));
     }
 
-    private Task RemoveNoteAsync(Note note) => ApplyEditsAsync(_edits.Remove(_imported, note.Id));
+    private Task RemoveNoteAsync(Note note) => RefuseTakenNote(note) ? Task.CompletedTask : ApplyEditsAsync(_edits.Remove(_imported, note.Id));
 
     private Task RevertNoteAsync(Note note) => ApplyEditsAsync(_edits.Revert(note.Id));
 
@@ -2532,7 +2651,8 @@
     private async Task ApplyEditsAsync(NoteEditLog edits)
     {
         _edits = edits;
-        _notes = edits.Apply(_imported);
+        // Bars taken from a performance (decision record 0022, section 5) come after the corrections.
+        _notes = PerformanceTake.Apply(edits.Apply(_imported), _project?.TakenBars ?? []);
         if (_selection is { } current)
         {
             // Renders between the awaits below must not see a selection that names a removed note.
@@ -2543,7 +2663,7 @@
         _lastBar = MotifSelector.LastBar(_meter!, _score.End);
         SuggestPhrases();
         _generated = ScoreSource.FromNotes(Notation(_notes, _score.End));
-        if (!edits.IsEmpty && _scoreChoice == ScoreChoice.AsWritten)
+        if ((!edits.IsEmpty || _project is { ChangesNotes: true }) && _scoreChoice == ScoreChoice.AsWritten)
         {
             // The file as written does not know the corrections.
             _scoreChoice = ScoreChoice.Generated;

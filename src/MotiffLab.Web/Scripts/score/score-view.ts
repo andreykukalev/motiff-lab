@@ -15,7 +15,7 @@ import { ScoreTimeline, highlightedIds, type HighlightPlace } from "./score-time
 import { A4_HEIGHT, A4_WIDTH, buildPdf, crop, inkBounds, type InkLayer, type PdfPage } from "./pdf-document.js";
 import { hasText, svgToPdfOperators, textOnlySvg } from "./svg-to-pdf.js";
 import { A4_LAYOUT, pdfFileName, titleBlock, withTitle } from "./score-page.js";
-import { ScoreGeometry, bookmarkLevels, readPage, type PageGeometry, type PagePlacement } from "./score-geometry.js";
+import { BRACKET_LIFT, ScoreGeometry, bookmarkLevels, readPage, type PageGeometry, type PagePlacement, type ScoreBar } from "./score-geometry.js";
 import { downloadBytes, saveCover } from "../storage/project-store.js";
 import { newToolkit, type VerovioToolkit } from "./verovio.js";
 
@@ -82,6 +82,15 @@ const MARK_HIGHLIGHT_CLASS = "hl";
 /** A Check flag (design/kit/ds.css .flag): an amber square with "?", in a 24 px target, above the top right of the bar. */
 const CHECK_CLASS = "check-flag";
 
+/** A bar a performance plays differently (decision record 0022, section 4): a small plum label above the bar's top left. */
+const PERFORMANCE_CLASS = "perf-marker";
+const PERFORMANCE_HEIGHT = 20;
+const PERFORMANCE_MIN_WIDTH = 36;
+const PERFORMANCE_MAX_WIDTH = 180;
+
+/** Printed notes the performance did not play: tinted in the warning text colour, in place. */
+const UNHEARD_CLASS = "not-heard";
+
 /** The marker sits this far right of the bar's top right corner and this far above it. */
 const NOTE_OFFSET_X = 4;
 const NOTE_OFFSET_Y = 22;
@@ -140,6 +149,14 @@ export interface ScoreHighlightMark {
 /** The layers of marks (0018 section 5) that can be hidden for a clean page. */
 export type MarkLayer = "ink" | "notes" | "bookmarks" | "analysis" | "check";
 
+/** A bar a performance plays differently, as Blazor sends it: its number, where it starts, the label's text, and what a screen reader says. */
+export interface ScorePerformanceMarker {
+    bar: number;
+    tick: number;
+    text: string;
+    label: string;
+}
+
 /** A bar Check asks about, as Blazor sends it: its number, where it starts, and what a screen reader says. */
 export interface ScoreCheckFlag {
     bar: number;
@@ -182,6 +199,10 @@ export class ScoreView {
     private bookmarks: ScoreBookmark[] = [];
     private marginNotes: ScoreMarginNote[] = [];
     private checks: ScoreCheckFlag[] = [];
+    private performanceMarkers: ScorePerformanceMarker[] = [];
+    /** The printed notes the performance did not play, and the engraved notes that stand for them. */
+    private unheardPlaces: HighlightPlace[] = [];
+    private unheard = new Set<string>();
     private highlights: ScoreHighlightMark[] = [];
     /** The pictures of the pages handed to the Pages tab, freed when new ones are made. */
     private thumbnails: string[] = [];
@@ -392,6 +413,17 @@ export class ScoreView {
     setChecks(checks: ScoreCheckFlag[]): void {
         this.checks = checks;
         this.placeMarks();
+    }
+
+    /**
+     * Draws the markers of the bars a performance plays differently and tints the printed notes it did not play
+     * (decision record 0022, section 4); empty lists draw none.
+     */
+    setPerformance(markers: ScorePerformanceMarker[], unheard: HighlightPlace[]): void {
+        this.performanceMarkers = markers;
+        this.unheardPlaces = unheard;
+        this.placeMarks();
+        this.applyUnheard();
     }
 
     /** Places the contextual menu again, as when a drawer opens beside it. */
@@ -638,6 +670,7 @@ export class ScoreView {
         this.selection.place();
         this.applyHighlight(false);
         this.applyPointed(false);
+        this.applyUnheard();
 
         // The new SVG has no marks; put back the ones that were showing.
         const marked = [...this.marked];
@@ -786,13 +819,33 @@ export class ScoreView {
     }
 
     private placeMarks(): void {
-        for (const old of this.host.querySelectorAll(`:scope > .${NOTE_CLASS}, :scope > .${MARK_HIGHLIGHT_CLASS}, :scope > .${CHECK_CLASS}`)) {
+        for (const old of this.host.querySelectorAll(`:scope > .${NOTE_CLASS}, :scope > .${MARK_HIGHLIGHT_CLASS}, :scope > .${CHECK_CLASS}, :scope > .${PERFORMANCE_CLASS}`)) {
             old.remove();
         }
-        const geometry = this.marginNotes.length + this.highlights.length + this.checks.length === 0 ? null : this.geometry();
+        const geometry = this.marginNotes.length + this.highlights.length + this.checks.length + this.performanceMarkers.length === 0 ? null : this.geometry();
         if (geometry === null) {
             return;
         }
+        // A performance's marker sits above the bar's top left, over the phrase bracket; it may run on over the next
+        // bar, up to the next marker on the same system.
+        const placed = this.performanceMarkers
+            .map((marker) => ({ marker, bar: geometry.barAt(marker.tick) }))
+            .filter((entry): entry is { marker: ScorePerformanceMarker; bar: ScoreBar } => entry.bar !== undefined);
+        placed.forEach(({ marker, bar }, index) => {
+            const next = placed[index + 1];
+            const room = next !== undefined && next.bar.system === bar.system ? next.bar.left - bar.left - NOTE_OFFSET_X * 2 : PERFORMANCE_MAX_WIDTH;
+            const label = document.createElement("button");
+            label.type = "button";
+            label.className = PERFORMANCE_CLASS;
+            label.dataset.bar = String(marker.bar);
+            label.textContent = marker.text;
+            label.setAttribute("aria-label", marker.label);
+            label.title = marker.label;
+            label.style.left = `${bar.left + NOTE_OFFSET_X}px`;
+            label.style.top = `${(bar.staves[0]?.top ?? bar.top) - BRACKET_LIFT - PERFORMANCE_HEIGHT - NOTE_OFFSET_X}px`;
+            label.style.maxWidth = `${Math.max(PERFORMANCE_MIN_WIDTH, Math.min(PERFORMANCE_MAX_WIDTH, room))}px`;
+            this.host.append(label);
+        });
         for (const highlight of this.highlights) {
             for (const run of geometry.band(highlight.start, highlight.end, 2)) {
                 const band = document.createElement("div");
@@ -950,6 +1003,17 @@ export class ScoreView {
         }
     }
 
+    private applyUnheard(): void {
+        for (const id of this.unheard) {
+            this.element(id)?.classList.remove(UNHEARD_CLASS);
+        }
+        const timeline = this.timeline;
+        this.unheard = timeline === null || this.unheardPlaces.length === 0 ? new Set() : highlightedIds(timeline, this.unheardPlaces, (id) => this.pitchOf(id));
+        for (const id of this.unheard) {
+            this.element(id)?.classList.add(UNHEARD_CLASS);
+        }
+    }
+
     private pitchOf(id: string): number | undefined {
         const engraver = this.engraver;
         if (engraver === null) {
@@ -1061,6 +1125,11 @@ export class ScoreView {
     }
 
     private readonly onClick = (event: MouseEvent): void => {
+        const performanceMarker = event.target instanceof Element ? event.target.closest<HTMLElement>(`.${PERFORMANCE_CLASS}`) : null;
+        if (performanceMarker !== null) {
+            void this.dotnet.invokeMethodAsync("OnPerformanceMarkerClicked", Number(performanceMarker.dataset.bar));
+            return;
+        }
         const checkFlag = event.target instanceof Element ? event.target.closest<HTMLElement>(`.${CHECK_CLASS}`) : null;
         if (checkFlag !== null) {
             void this.dotnet.invokeMethodAsync("OnCheckFlagClicked", Number(checkFlag.dataset.bar));

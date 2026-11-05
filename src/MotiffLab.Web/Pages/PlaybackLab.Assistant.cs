@@ -26,6 +26,7 @@ public partial class PlaybackLab
         _insightsOpen = true;
         _contentsOpen = false;
         _checkOpen = false;
+        _performanceOpen = false;
         _popover = Popover.None;
         _menuMore = false;
         _asking = true;

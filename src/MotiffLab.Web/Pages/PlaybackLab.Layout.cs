@@ -81,7 +81,7 @@ public partial class PlaybackLab : IAsyncDisposable
     private string WorkspaceClass => string.Join(' ', new[]
     {
         _rollOpen ? "roll-open" : null,
-        _insightsOpen || _checkOpen ? "insights-open" : null,
+        _insightsOpen || _checkOpen || _performanceOpen ? "insights-open" : null,
         _contentsOpen ? "contents-open" : null,
         _bookmarkDraft is { Id: null } || _noteDraft is not null ? "bookmarking" : null,
         Focused ? "focused" : null,
@@ -432,6 +432,7 @@ public partial class PlaybackLab : IAsyncDisposable
         _asking = false;
         _contentsOpen &= !_insightsOpen;
         _checkOpen &= !_insightsOpen;
+        _performanceOpen &= !_insightsOpen;
         _popover = Popover.None;
     }
 

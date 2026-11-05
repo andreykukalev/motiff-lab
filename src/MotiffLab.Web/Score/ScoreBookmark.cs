@@ -30,3 +30,6 @@ public sealed record ScoreHighlightMark(string Id, long Start, long End, string 
 /// <param name="Tick">Where the bar starts.</param>
 /// <param name="Label">What a screen reader says for the flag: the bar and its reasons.</param>
 public sealed record ScoreCheckFlag(int Bar, long Tick, string Label);
+
+/// <summary>A bar a performance plays differently, for the score (decision record 0022, section 4): its number, where it starts, the label's text, and what a screen reader says.</summary>
+public sealed record ScorePerformanceMarker(int Bar, long Tick, string Text, string Label);

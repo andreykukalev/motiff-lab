@@ -79,6 +79,7 @@ public partial class PlaybackLab
     {
         _checkOpen = !_checkOpen;
         _insightsOpen &= !_checkOpen;
+        _performanceOpen &= !_checkOpen;
         _popover = Popover.None;
     }
 
@@ -87,6 +88,7 @@ public partial class PlaybackLab
     {
         _checkOpen = true;
         _insightsOpen = false;
+        _performanceOpen = false;
         await ShowCheckBarAsync(bar);
     }
 
