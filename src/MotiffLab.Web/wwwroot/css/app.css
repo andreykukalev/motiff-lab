@@ -2922,9 +2922,17 @@ body:has(.workspace) .site-footer {
     gap: var(--s-2);
 }
 
+/* The lens chips in one row with All, scrolling sideways when they do not fit (assessment item 16). */
 .workspace .stream .filters {
     padding-bottom: var(--s-3);
     border-bottom: 1px solid var(--hairline);
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.workspace .stream .filters .chip {
+    flex: none;
 }
 
 .workspace .stream .overline {
@@ -5872,4 +5880,21 @@ body:has(.library) .site-footer {
 
 .workspace .assistant .ask-input input::placeholder {
     color: var(--ink-2);
+}
+/* About this idea, on the Try card: the words behind the sound, on request (assessment items 16–20). */
+.explore .about-try summary {
+    font: var(--t-label);
+    color: var(--ink-2);
+    cursor: pointer;
+    padding: var(--s-1) 0;
+}
+
+.explore .about-try > p, .explore .about-try > .rests-on {
+    margin: var(--s-1) 0 0;
+}
+
+/* A lens's further facts, under its two or three strongest: one quiet link. */
+.workspace .stream .lens-more {
+    align-self: flex-start;
+    margin-top: var(--s-1);
 }

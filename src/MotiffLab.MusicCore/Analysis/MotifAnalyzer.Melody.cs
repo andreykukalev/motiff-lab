@@ -23,6 +23,9 @@ public static partial class MotifAnalyzer
             ? string.Join(", ", names)
             : $"{string.Join(", ", names.Take(MaxNamedIntervals))} {w.T("and", "и ещё")} {names.Length - MaxNamedIntervals}{w.T(" more", "")}";
         string text = $"{w.T("Intervals by name", "Интервалы по названию")}: {list}.";
+        string brief = w.IsRussian
+            ? $"{w.Count(intervals.Length, "", "", "интервал", "интервала", "интервалов")}, ни один размер не преобладает."
+            : $"{Count(intervals.Length, "interval", "intervals")}; no size clearly leads.";
 
         // The most common size, up or down, when one size clearly leads; its place is the notes of every interval of that size.
         IGrouping<int, int>[] sizes = [.. intervals.GroupBy(Math.Abs).OrderByDescending(group => group.Count()).ThenBy(group => group.Key)];
@@ -30,9 +33,11 @@ public static partial class MotifAnalyzer
         if (sizes[0].Count() > 1 && (sizes.Length == 1 || sizes[0].Count() > sizes[1].Count()))
         {
             string name = sizes[0].Key == 0 ? w.T("repeated note", "повтор звука") : IntervalName(sizes[0].Key, w);
-            text += w.IsRussian
-                ? $" Чаще всего: {name} ({sizes[0].Count()} из {intervals.Length})."
-                : $" Most common: {(sizes[0].Key == 0 ? "the repeated note" : WithArticle(name))} ({sizes[0].Count()} of {intervals.Length}).";
+            string common = w.IsRussian
+                ? $"Чаще всего: {name} ({sizes[0].Count()} из {intervals.Length})."
+                : $"Most common: {(sizes[0].Key == 0 ? "the repeated note" : WithArticle(name))} ({sizes[0].Count()} of {intervals.Length}).";
+            text += " " + common;
+            brief = common;
             Note[] notes = [.. Enumerable.Range(0, intervals.Length)
                 .Where(i => Math.Abs(intervals[i]) == sizes[0].Key)
                 .SelectMany(i => new[] { line[i], line[i + 1] })
@@ -43,6 +48,7 @@ public static partial class MotifAnalyzer
         return new MotifFact("melody.interval-names", FactLens.Melody, certainty, text, $"{basis} {w.T("Names go by size in semitones, not by spelling.", "Названия даны по размеру в полутонах, а не по написанию.")}")
         {
             Places = places,
+            Brief = brief,
         };
     }
 
@@ -72,6 +78,11 @@ public static partial class MotifAnalyzer
         string text = runs.Count == 0
             ? w.T("No note is repeated straight away.", "Ни одна нота не повторяется сразу.")
             : $"{w.T("Repeated straight away", "Сразу повторяются")}: {string.Join("; ", runs)}.";
+        string? brief = runs.Count == 0
+            ? null
+            : w.IsRussian
+                ? $"Сразу {Words.RussianForm(runs.Count, "повторяется", "повторяются", "повторяются")} {w.Count(runs.Count, "", "", "нота", "ноты", "нот")}."
+                : $"{Count(runs.Count, "note", "notes")} {(runs.Count == 1 ? "is" : "are")} repeated straight away.";
 
         IGrouping<int, Note>[] pitches = [.. line.GroupBy(note => note.Pitch.MidiNumber).OrderByDescending(group => group.Count()).ThenBy(group => group.Key)];
         if (pitches[0].Count() > 1 && (pitches.Length == 1 || pitches[0].Count() > pitches[1].Count()))
@@ -85,6 +96,7 @@ public static partial class MotifAnalyzer
         return new MotifFact("melody.repeated-notes", FactLens.Melody, certainty, text, basis)
         {
             Places = places,
+            Brief = brief,
         };
     }
 
@@ -126,6 +138,7 @@ public static partial class MotifAnalyzer
 
         int over = struck + held;
         string text;
+        string? brief = null;
         if (over == 0)
         {
             text = w.T(
@@ -143,6 +156,7 @@ public static partial class MotifAnalyzer
             if (w.IsRussian)
             {
                 text = $"{over} {w.OutOf(texture.Melody.Count, "", "", "ноты мелодии", "нот мелодии")} {Words.RussianForm(over, "звучит", "звучат", "звучат")} над нижними нотами: {string.Join(", ", how)}.";
+                brief = $"{over} {w.OutOf(texture.Melody.Count, "", "", "ноты мелодии", "нот мелодии")} {Words.RussianForm(over, "звучит", "звучат", "звучат")} над нижними нотами.";
                 text += shared.Count == 0
                     ? " Ни одна из них не совпадает по звуковысотному классу с нижней нотой."
                     : $" {shared.Count} {Words.RussianForm(shared.Count, "совпадает", "совпадают", "совпадают")} по звуковысотному классу с нижней нотой, поэтому {(shared.Count == 1 ? "она входит" : "они входят")} и в аккорд под ней: {list}.";
@@ -150,6 +164,7 @@ public static partial class MotifAnalyzer
             else
             {
                 text = $"{over} of {Count(texture.Melody.Count, "melody note", "melody notes")} sound over lower notes: {string.Join(", ", how)}.";
+                brief = $"{over} of {Count(texture.Melody.Count, "melody note", "melody notes")} sound over lower notes.";
                 text += shared.Count == 0
                     ? " None shares its pitch class with a lower note."
                     : $" {Count(shared.Count, "shares its pitch class", "share their pitch class")} with a lower note, so {(shared.Count == 1 ? "it is" : "they are")} also part of the chord below: {list}.";
@@ -167,6 +182,7 @@ public static partial class MotifAnalyzer
         {
             // The melody notes the text names, each with the lower notes that share its pitch class.
             Places = places,
+            Brief = brief,
         };
     }
 
@@ -197,7 +213,12 @@ public static partial class MotifAnalyzer
             ? new MotifFact("melody.phrases", FactLens.Melody, FactCertainty.Inferred, text, $"{basis} {w.T("A boundary from a rest or a return alone is a reading of the notes, not a mark in the score.", "Граница только по паузе или возврату — это прочтение нот, а не знак в нотах.")}")
             : new MotifFact("melody.phrases", FactLens.Melody, FactCertainty.Detected, text, basis);
         FactPlace[] places = [.. inside.Select(boundary => BoundaryPlace($"{w.T("phrase boundary", "граница фразы")}, {Place(meter.ToPosition(boundary.At), w)}", boundary.At, notes))];
-        return fact with { Places = atStart is null ? places : [.. places, BoundaryPlace(w.T("phrase start", "начало фразы"), first, notes)] };
+        string? brief = inside.Length == 0
+            ? null
+            : w.IsRussian
+                ? $"{w.Count(inside.Length, "", "", "граница фразы", "границы фраз", "границ фраз")} внутри мотива."
+                : $"{Count(inside.Length, "phrase boundary", "phrase boundaries")} inside the motif.";
+        return fact with { Places = atStart is null ? places : [.. places, BoundaryPlace(w.T("phrase start", "начало фразы"), first, notes)], Brief = brief };
     }
 
     /// <summary>

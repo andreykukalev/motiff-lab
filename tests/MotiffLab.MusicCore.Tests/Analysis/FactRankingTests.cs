@@ -81,4 +81,19 @@ public class FactRankingTests
         Assert.Null(FactRanking.KeyObservation([]));
         Assert.Null(FactRanking.KeyObservation([Fact("answer", FactLens.Structure, FactCertainty.Interpretation)]));
     }
+
+    [Fact]
+    public void The_stream_lists_facts_with_places_first_and_an_interpretation_last_otherwise_in_order()
+    {
+        MotifFact[] facts =
+        [
+            Fact("answer", FactLens.Structure, FactCertainty.Interpretation),
+            Fact("no-syncopation", FactLens.Rhythm, FactCertainty.Detected, places: false),
+            Fact("grid", FactLens.Rhythm, FactCertainty.Detected),
+            Fact("patterns", FactLens.Rhythm, FactCertainty.Uncertain),
+        ];
+
+        Assert.Equal(["grid", "patterns", "no-syncopation", "answer"], FactRanking.InStream(facts).Select(fact => fact.Id));
+        Assert.Empty(FactRanking.InStream([]));
+    }
 }

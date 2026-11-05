@@ -290,6 +290,9 @@ public static class StructureAnalyzer
         // Every recurrence is a place, the text's list cut or not; the motif itself is the selection.
         return new MotifFact("structure.recurrences", FactLens.Structure, certainty, text, lineBasis + rule)
         {
+            Brief = w.IsRussian
+                ? $"Мотив повторяется {w.Times(recurrences.Count)} (точно: {exactCount}, с транспозицией: {recurrences.Count - exactCount})."
+                : $"The motif recurs {w.Times(recurrences.Count)} ({exactCount} exact, {recurrences.Count - exactCount} transposed).",
             Places = [.. recurrences.Select((recurrence, i) => new FactPlace(places[i], recurrence.Span, recurrence.NoteIds))],
         };
     }
@@ -333,6 +336,9 @@ public static class StructureAnalyzer
         // Every phrase is a place, a stretch of time from its boundary to the next.
         return fact with
         {
+            Brief = w.IsRussian
+                ? $"{w.Count(spans.Count, "", "", "фраза", "фразы", "фраз")}; мотив начинается во фразе {containing + 1}."
+                : $"{Count(spans.Count, "phrase", "phrases")}; the motif starts in phrase {containing + 1}.",
             Places = [.. spans.Select((span, i) => new FactPlace($"{w.T("phrase", "фраза")} {i + 1}, {Bars(span.FirstBar, span.LastBar, w)}", span.Span, []))],
         };
     }

@@ -59,6 +59,22 @@ public static class FactRanking
         return chosen;
     }
 
+    /// <summary>
+    /// Facts in the order the Insights stream lists them under a lens (assessment items 16–20), so its first two or three
+    /// are the strongest: those that name places in the score before those that name none, such as "No syncopation";
+    /// an interpretation last, since it rests on the others; otherwise music-core's own order. Deterministic.
+    /// </summary>
+    public static IReadOnlyList<MotifFact> InStream(IReadOnlyList<MotifFact> facts)
+    {
+        ArgumentNullException.ThrowIfNull(facts);
+        return [.. facts
+            .Select((fact, index) => (fact, index))
+            .OrderBy(entry => entry.fact.Certainty == FactCertainty.Interpretation ? 1 : 0)
+            .ThenBy(entry => entry.fact.Places.Count == 0 ? 1 : 0)
+            .ThenBy(entry => entry.index)
+            .Select(entry => entry.fact)];
+    }
+
     /// <summary>Why a fact is shown first, from the ranking's own criteria: "It names places to show in the score, is about structure, and is detected."</summary>
     public static string Reason(MotifFact fact, Words words = default)
     {

@@ -45,7 +45,7 @@ public partial class RussianFactTests
         {
             foreach (MotifFact fact in Facts(piece, selection, Words.Russian))
             {
-                foreach (string text in new[] { fact.Text, fact.Basis }.Concat(fact.Places.Select(place => place.Label)))
+                foreach (string text in new[] { fact.Text, fact.Brief ?? "", fact.Basis }.Concat(fact.Places.Select(place => place.Label)))
                 {
                     foreach (Match match in LatinWord().Matches(text))
                     {
@@ -75,6 +75,25 @@ public partial class RussianFactTests
             Assert.Equal(
                 english.SelectMany(fact => fact.Places.Select(place => (place.Span, string.Join(",", place.NoteIds)))),
                 russian.SelectMany(fact => fact.Places.Select(place => (place.Span, string.Join(",", place.NoteIds)))));
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(Pieces))]
+    public void A_brief_is_one_short_line_shorter_than_its_text(string name)
+    {
+        ImportedPiece piece = Piece(name);
+        foreach (MotifSelection selection in Selections(piece))
+        {
+            foreach (Words words in new[] { Words.English, Words.Russian })
+            {
+                foreach (MotifFact fact in Facts(piece, selection, words).Where(fact => fact.Brief is not null))
+                {
+                    Assert.True(fact.Brief!.Length < fact.Text.Length, $"{fact.Id}: \"{fact.Brief}\" is not shorter than \"{fact.Text}\"");
+                    Assert.True(fact.Brief.Length <= 120, $"{fact.Id}: \"{fact.Brief}\" is longer than a line");
+                    Assert.EndsWith(".", fact.Brief, StringComparison.Ordinal);
+                }
+            }
         }
     }
 

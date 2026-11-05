@@ -142,6 +142,7 @@ public static partial class MotifAnalyzer
         bool assumed = context.TempoAssumed && first == 0;
         string start = Bpm(tempos[first].MicrosecondsPerQuarter, w);
         string text;
+        string? brief = null;
         if (changes.Count == 0)
         {
             text = w.T($"Tempo: {start} BPM throughout the motif.", $"Темп: {start} BPM на всём мотиве.");
@@ -153,6 +154,9 @@ public static partial class MotifAnalyzer
             text = w.IsRussian
                 ? $"Темп: начинается с {start} BPM и меняется {w.Times(changes.Count)}: {list}. Он меняется от {Bpm(values.Max(), w)} до {Bpm(values.Min(), w)} BPM."
                 : $"Tempo: starts at {start} BPM and changes {w.Times(changes.Count)}: {list}. It ranges from {Bpm(values.Max(), w)} to {Bpm(values.Min(), w)} BPM.";
+            brief = w.IsRussian
+                ? $"Темп меняется {w.Times(changes.Count)}, от {Bpm(values.Max(), w)} до {Bpm(values.Min(), w)} BPM."
+                : $"The tempo changes {w.Times(changes.Count)}, from {Bpm(values.Max(), w)} to {Bpm(values.Min(), w)} BPM.";
         }
 
         string basis = w.T(
@@ -167,7 +171,7 @@ public static partial class MotifAnalyzer
                 $"The file states no tempo at its start, so the default of {Bpm(PlaybackTempo.DefaultMicrosecondsPerQuarter, w)} BPM is assumed. {basis}",
                 $"В начале файла темп не указан, поэтому взят темп по умолчанию, {Bpm(PlaybackTempo.DefaultMicrosecondsPerQuarter, w)} BPM. {basis}"))
             : new MotifFact("character.tempo", FactLens.Character, FactCertainty.Detected, text, basis);
-        return fact with { Places = places };
+        return fact with { Places = places, Brief = brief };
     }
 
     /// <summary>"92 BPM at bar 3 beat 1"; "92 BPM, такт 3 доля 1".</summary>
@@ -197,6 +201,10 @@ public static partial class MotifAnalyzer
                 "Counted over the beats of the selection, from the bar lines; notes that start together count as one onset.",
                 "Посчитано по долям выделения, от тактовых черт; ноты, начинающиеся вместе, считаются одной атакой."))
         {
+            Brief = w.IsRussian
+                ? $"Плотность: {Ratio(hits.Length, beats.Count, w)} атаки на долю."
+                : $"Density: {Ratio(hits.Length, beats.Count, w)} onsets per beat.",
+
             // Every beat that holds the most onsets, with the notes that start in it.
             Places = [.. beats
                 .Where((beat, i) => counts[i] == busiest)
@@ -239,6 +247,11 @@ public static partial class MotifAnalyzer
                 $"Measured over every note of the motif; middle C is C4. The middle pitch is the median, the lower of the two middle ones for an even count. Spelled for {key.Name}.",
                 $"Измерено по всем нотам мотива; до первой октавы — это C4. Средняя высота — медиана, при чётном числе нот нижняя из двух средних. Ноты названы для тональности {key.NameIn(w)}."))
         {
+            Brief = low == high
+                ? null
+                : w.IsRussian
+                    ? $"Регистр: от {key.Spell(low)} до {key.Spell(high)}; {where}."
+                    : $"Register: {key.Spell(low)} to {key.Spell(high)}; {where}.",
             Places = low == high ? ExtremePlaces(notes, key, w) : [.. ExtremePlaces(notes, key, w), FactPlace.Of($"{w.T("middle pitch", "средняя высота")}, {key.Spell(median)}", notes.Where(note => note.Pitch.MidiNumber == median))],
         };
     }
@@ -268,6 +281,9 @@ public static partial class MotifAnalyzer
         return new MotifFact("character.velocity", FactLens.Character, FactCertainty.Detected, text, basis)
         {
             Places = places,
+            Brief = velocities[0] == velocities[^1]
+                ? null
+                : w.T($"Velocity: {velocities[0]} to {velocities[^1]}.", $"Громкость (velocity): от {velocities[0]} до {velocities[^1]}."),
         };
     }
 
@@ -319,6 +335,9 @@ public static partial class MotifAnalyzer
         return new MotifFact("character.articulation", FactLens.Character, FactCertainty.Detected, text, basis)
         {
             Places = places,
+            Brief = w.IsRussian
+                ? $"Артикуляция: в среднем ноты звучат {Percent(percents.Sum(), percents.Count)}% времени до следующей атаки."
+                : $"Articulation: notes sound for {Percent(percents.Sum(), percents.Count)}% of the time to the next onset on average.",
         };
     }
 

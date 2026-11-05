@@ -457,6 +457,11 @@ internal static partial class Answer
             json.WriteString("lens", Name(fact.Lens));
             json.WriteString("certainty", Name(fact.Certainty));
             json.WriteString("text", fact.Text);
+            if (fact.Brief is { } brief)
+            {
+                json.WriteString("brief", brief);
+            }
+
             json.WriteString("basis", fact.Basis);
             json.WriteStartArray("places");
             foreach (FactPlace place in fact.Places)

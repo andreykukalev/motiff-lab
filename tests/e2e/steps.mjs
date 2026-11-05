@@ -102,8 +102,10 @@ export function stream(page) {
 export async function tryWay(page, name) {
     const ways = stream(page).locator(".try-row").getByRole("button", { name, exact: true });
     const closed = stream(page).locator('.try-row .btn.try[aria-expanded="false"]');
-    while ((await ways.count()) === 0 && (await closed.count()) > 0) {
-        await closed.first().click();
+    // A lens shows its strongest facts and "N more"; a way may rest on one of the rest.
+    const more = stream(page).locator('.lens-more[aria-expanded="false"]');
+    while ((await ways.count()) === 0 && ((await closed.count()) > 0 || (await more.count()) > 0)) {
+        await ((await closed.count()) > 0 ? closed : more).first().click();
     }
     await ways.first().click();
     const card = stream(page).locator(".explore");
