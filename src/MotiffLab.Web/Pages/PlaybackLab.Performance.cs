@@ -15,16 +15,15 @@ using MotiffLab.Web.Understand;
 namespace MotiffLab.Web.Pages;
 
 /// <summary>
-/// A performance compared with the piece (decision record 0022, sections 1, 4 and 5): a MIDI file of a performance is
-/// added from the Performance drawer, lined up with the printed notes on the device and kept with the project. A small
-/// plum marker sits above every bar it plays differently and the printed notes it did not play are tinted; the drawer
-/// lists those bars with Show, Take into the score and Not a difference, and the bars taken with Restore the print.
+/// Another version of the piece compared with the notes open (decision record 0022, sections 1, 4 and 5): a MIDI file,
+/// such as a cover performer's, or a score in MusicXML, such as the official edition over notes heard in a recording, is
+/// added from the Versions drawer, lined up with the notes on the device and kept with the project. Which is "the notes"
+/// and which "the performance" is only which was opened first. A small plum marker sits above every bar the version has
+/// otherwise and the notes it does not have are tinted; the drawer lists those bars with Show, Take into the score and
+/// Not a difference, and the bars taken with Restore the print.
 /// </summary>
 public partial class PlaybackLab
 {
-    /// <summary>The largest performance MIDI file read: far more than any piano piece needs.</summary>
-    private const long MaxPerformanceBytes = 16 * 1024 * 1024;
-
     private bool _performanceOpen;
 
     /// <summary>The performance shown when the piece has several; null shows the first.</summary>
@@ -178,24 +177,32 @@ public partial class PlaybackLab
         }
 
         IBrowserFile file = args.File;
-        if (file.Size > MaxPerformanceBytes)
+        if (PieceImporter.CheckSize(file.Size) is { } tooLarge)
         {
-            _performanceStatus = Text["performance.tooLarge"];
+            _performanceStatus = tooLarge.Text(Words);
             return;
         }
 
-        byte[] midi;
-        await using (Stream stream = file.OpenReadStream(MaxPerformanceBytes))
+        byte[] data;
+        await using (Stream stream = file.OpenReadStream(PieceImporter.MaxFileBytes))
         {
             using var memory = new MemoryStream();
             await stream.CopyToAsync(memory);
-            midi = memory.ToArray();
+            data = memory.ToArray();
+        }
+
+        // A MIDI file as it is, or a score in MusicXML written out as MIDI: either can be the other version.
+        VersionFileResult read = VersionFile.Read(file.Name, data);
+        if (read.Rejection is { } rejection)
+        {
+            _performanceStatus = $"{rejection.Text(Words)} {rejection.TipIn(Words)}".Trim();
+            return;
         }
 
         IReadOnlyList<PlayedNote> played;
         try
         {
-            played = PlayedNotes.FromMidi(midi);
+            played = read.Midi is { } notes ? PlayedNotes.FromMidi(notes) : [];
         }
         catch (Exception exception) when (exception is MidiImportException or ArgumentException or InvalidDataException or FormatException)
         {
@@ -209,10 +216,12 @@ public partial class PlaybackLab
             return;
         }
 
+        byte[] midi = read.Midi!;
+
         IReadOnlyList<Note> printed = PrintedNotes;
         PerformanceAlignment alignment = PerformanceAlignment.Align(printed, played);
         string name = Path.GetFileNameWithoutExtension(file.Name) is { Length: > 0 } stem ? stem : Text["performance.defaultName"];
-        var performance = new SavedPerformance(project.NextPerformanceId(), name, PerformanceSource.Midi, midi, 0, alignment.Anchors);
+        var performance = new SavedPerformance(project.NextPerformanceId(), name, read.Source, midi, 0, alignment.Anchors);
         project = project.AddPerformance(performance);
         PerformanceComparison comparison = PerformanceComparison.Compare(printed, _meter, played, alignment);
         if (project.Scan is not null && CurrentPiece.Piece is { MusicXml: not null } piece)

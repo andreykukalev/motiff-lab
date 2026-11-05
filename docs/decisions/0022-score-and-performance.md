@@ -18,6 +18,8 @@ What exists: transcription with bars, tempo and key worked out from the playing 
 
 ### 1. One piece, one or more performances
 
+**Another version, not only a performance** (Andrei, 2026-11-05: "there is no split into as played and as printed"). Whatever is open is the base, and any other version of the piece can be added over it: a MIDI file, or a score in MusicXML, which is written out as MIDI through its tempo marks and kept the same way (`VersionFile`, source `Score`). So a piece opened from notes heard in a recording can take the official score over it, and the comparison shows where the two differ in the same words. The interface says "Add a version" and "Other versions"; the engine and the project file keep the name `performance`. A PDF read as it is has no notes to compare with; adding a version to it first needs its notes recognised (0023), and the PDF itself stays as it is.
+
 A performance is added to a piece in the "Notes" view (MusicXML or MIDI import, or a recognised scan). It comes from one of:
 
 - a recording of the player's own file, transcribed on the scan server (0014; Pro, since it runs on a server). Only the player's own file: no links, no YouTube (decided 2026-10-31);

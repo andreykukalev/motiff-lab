@@ -47,21 +47,15 @@ internal sealed partial class OpenPiece
     }
 
     /// <summary>
-    /// "name", "midi" (base64), "source" ("recording" or "midi", default midi), "engine" for a recording, and
-    /// "recordingStart" in milliseconds where the transcribed stretch starts. Lines the notes up with the score,
-    /// keeps the anchors, raises the Check flags the recording gives a scanned piece, and answers the comparison.
+    /// "name", and either "midi" (base64) with "source" ("recording" or "midi", default midi), "engine" for a recording
+    /// and "recordingStart" in milliseconds where the transcribed stretch starts, or "file" (base64) with its "fileName",
+    /// a MIDI or MusicXML file of another version, such as the official score over notes heard in a recording. Lines the
+    /// notes up with the score, keeps the anchors, raises the Check flags the version gives a scanned piece, and answers
+    /// the comparison.
     /// </summary>
     private string AddPerformance(Request request)
     {
-        byte[] midi;
-        try
-        {
-            midi = Convert.FromBase64String(request.Required("midi"));
-        }
-        catch (FormatException)
-        {
-            throw FacadeException.BadRequest("\"midi\" is a MIDI file in base64.");
-        }
+        (byte[] midi, PerformanceSource source) = request.Text("file") is { } file ? VersionOf(file, request.Required("fileName")) : (MidiOf(request), request.Enum<PerformanceSource>("source") ?? PerformanceSource.Midi);
 
         IReadOnlyList<PlayedNote> played;
         long start = (request.Long("recordingStart") ?? 0) * 1000;
@@ -80,7 +74,7 @@ internal sealed partial class OpenPiece
         }
 
         PerformanceAlignment alignment = PerformanceAlignment.Align(Printed, played);
-        SavedPerformance performance = new(Project.NextPerformanceId(), request.Required("name"), request.Enum<PerformanceSource>("source") ?? PerformanceSource.Midi, midi, start, alignment.Anchors)
+        SavedPerformance performance = new(Project.NextPerformanceId(), request.Required("name"), source, midi, start, alignment.Anchors)
         {
             Engine = request.Text("engine"),
         };
@@ -94,6 +88,39 @@ internal sealed partial class OpenPiece
         }
 
         return PerformanceAnswer(performance);
+    }
+
+    private static byte[] MidiOf(Request request)
+    {
+        try
+        {
+            return Convert.FromBase64String(request.Required("midi"));
+        }
+        catch (FormatException)
+        {
+            throw FacadeException.BadRequest("\"midi\" is a MIDI file in base64.");
+        }
+    }
+
+    private static (byte[] Midi, PerformanceSource Source) VersionOf(string file, string fileName)
+    {
+        byte[] data;
+        try
+        {
+            data = Convert.FromBase64String(file);
+        }
+        catch (FormatException)
+        {
+            throw FacadeException.BadRequest("\"file\" is a MIDI or MusicXML file in base64.");
+        }
+
+        VersionFileResult read = VersionFile.Read(fileName, data);
+        return read switch
+        {
+            { Rejection: { } rejection } => throw FacadeException.BadRequest($"{rejection.Message} {rejection.Tip}".Trim()),
+            { Midi: { } midi } => (midi, read.Source),
+            _ => throw FacadeException.BadRequest("The version has no notes."),
+        };
     }
 
     /// <summary>"id", "bars" (numbers) and "leaveOut" (ids of notes on either side the player unticked).</summary>

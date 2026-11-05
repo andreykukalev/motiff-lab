@@ -153,9 +153,9 @@ A performance compared with the piece (version 13, [0022](decisions/0022-score-a
 ```jsonc
 "performances": [
   { "id": "perf_1", "name": "Live at the National Gallery",
-    "source": "Recording" | "Midi",
+    "source": "Recording" | "Midi" | "Score",   // Score: a written score such as MusicXML, kept as MIDI
     "engine": "transkun 2.0.1",          // only a recording
-    "midi": "<base64>",                  // the engine's MIDI or the player's file, as it was
+    "midi": "<base64>",                  // the engine's MIDI, the player's MIDI file as it was, or a score written out as MIDI
     "recordingStart": 0,                 // microseconds into the recording where the transcribed stretch starts
     "anchors": [[0, 0], [1440, 1500000]],   // [score tick, microseconds], both strictly increasing
     "dismissed": [7],                    // bars marked "not a difference"
