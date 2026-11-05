@@ -1242,5 +1242,17 @@
   "pdf.bookmarkName": "Name (optional)",
   "pdf.bookmarkNameFor": "Name for the bookmark on {0}",
   "pdf.removeBookmark": "Remove the bookmark on {0}",
-  "pdf.removeBookmarkHint": "Remove this bookmark"
+  "pdf.removeBookmarkHint": "Remove this bookmark",
+  "metronome.label": "Metronome",
+  "metronome.start": "Start the metronome",
+  "metronome.stop": "Stop the metronome",
+  "metronome.slower": "Slower",
+  "metronome.faster": "Faster",
+  "metronome.bpm": "bpm",
+  "metronome.tempoLabel": "{0} beats a minute: tap in time to set the tempo",
+  "metronome.tapHint": "Tap in time to set the tempo",
+  "metronome.beatsLabel": "{0} beats to the bar: change",
+  "metronome.beatsShort": "beats",
+  "metronome.beatsHint": "Beats to the bar: the first clicks higher",
+  "metronome.close": "Put the metronome away"
 }

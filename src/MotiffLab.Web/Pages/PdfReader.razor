@@ -46,12 +46,19 @@
             bool marked = CurrentBookmark is not null;
             <button class="act @(marked ? "on" : null)" aria-pressed="@(marked ? "true" : "false")" aria-label="@Text["pdf.bookmarkPage"]" title="@Text["pdf.bookmarkPage"]"
                     @onclick="ToggleBookmarkAsync" disabled="@(_pages.Count == 0)"><Icon Name="bookmark" Size="IconSize.Large" /></button>
+            <button class="act @(_metronomeOpen ? "on" : null)" aria-pressed="@(_metronomeOpen ? "true" : "false")" aria-label="@Text["metronome.label"]" title="@Text["metronome.label"]"
+                    @onclick="() => _metronomeOpen = !_metronomeOpen"><Icon Name="metronome" Size="IconSize.Large" /></button>
             <button class="act @(_view?.PenOn == true ? "on" : null)" aria-pressed="@(_view?.PenOn == true ? "true" : "false")" aria-label="@Text["bar.pen"]" title="@Text["pencil.hint"]"
                     @onclick="TogglePenAsync"><Icon Name="pen" Size="IconSize.Large" /></button>
         }
         <button class="act @(_popover == Popover.More ? "on" : null)" aria-expanded="@(_popover == Popover.More ? "true" : "false")" aria-label="@Text["bar.more"]" title="@Text["bar.more"]"
                 @onclick="() => Toggle(Popover.More)"><Icon Name="more" Size="IconSize.Large" /></button>
     </header>
+
+    @if (_metronomeOpen && _project is { } piece)
+    {
+        <MetronomePill PieceId="@piece.Id" Closed="() => _metronomeOpen = false" />
+    }
 
     @if (_popover != Popover.None)
     {
@@ -107,6 +114,7 @@
     private Project? _project;
     private string? _message;
     private Popover _popover;
+    private bool _metronomeOpen;
 
     /// <summary>The strokes on the pages, as the pencil layer reads them; kept as text so it is written once per change.</summary>
     private string _ink = "";

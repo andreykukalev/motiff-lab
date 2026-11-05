@@ -1265,5 +1265,17 @@
   "pdf.bookmarkName": "Название (необязательно)",
   "pdf.bookmarkNameFor": "Название закладки на {0}",
   "pdf.removeBookmark": "Убрать закладку на {0}",
-  "pdf.removeBookmarkHint": "Убрать эту закладку"
+  "pdf.removeBookmarkHint": "Убрать эту закладку",
+  "metronome.label": "Метроном",
+  "metronome.start": "Запустить метроном",
+  "metronome.stop": "Остановить метроном",
+  "metronome.slower": "Медленнее",
+  "metronome.faster": "Быстрее",
+  "metronome.bpm": "уд/мин",
+  "metronome.tempoLabel": "{0} ударов в минуту: постучите в темп, чтобы задать его",
+  "metronome.tapHint": "Постучите в темп, чтобы задать его",
+  "metronome.beatsLabel": "{0} доли в такте: изменить",
+  "metronome.beatsShort": "доли",
+  "metronome.beatsHint": "Доли в такте: первая звучит выше",
+  "metronome.close": "Убрать метроном"
 }
