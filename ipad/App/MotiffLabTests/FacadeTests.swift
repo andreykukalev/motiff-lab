@@ -269,6 +269,20 @@ final class FacadeTests: XCTestCase {
         XCTAssertTrue(pdf.document?.page(at: 1)?.annotations.contains { $0 is BookmarkTab } ?? false, "a bookmarked page carries its tab")
         await pdf.rename(try XCTUnwrap(pdf.currentBookmark), "Coda")
 
+        // A stroke on page 2, kept in the page's own spaces, drawn with the page, and erased by a path over it.
+        let box = try XCTUnwrap(pdf.document?.page(at: 1)).bounds(for: .cropBox)
+        let line = [(CGPoint(x: 100, y: 700), 0.5), (CGPoint(x: 150, y: 690), 0.5), (CGPoint(x: 200, y: 700), 0.5)]
+        let request = try XCTUnwrap(DocumentStroke.request(id: "pk_test", tool: "pen", colour: "carmine", size: PdfController.penSize, page: 2, box: box, points: line))
+        await pdf.change("document.ink.add", ["strokes": [request]])
+        let kept = try XCTUnwrap(pdf.strokes.first)
+        XCTAssertEqual(pdf.strokes.count, 1)
+        XCTAssertEqual(kept.page, 2)
+        XCTAssertEqual(kept.u, 100 / 595, accuracy: 1e-6)
+        XCTAssertEqual(kept.path(in: box).last?.x ?? 0, 200, accuracy: 1e-6, "a stroke comes back where it was written")
+        XCTAssertTrue(pdf.document?.page(at: 1)?.annotations.contains { $0 is InkMark } ?? false)
+        XCTAssertEqual(pdf.erased(by: [CGPoint(x: 150, y: 691)], on: 2, box: box), ["pk_test"])
+        XCTAssertEqual(pdf.erased(by: [CGPoint(x: 150, y: 691)], on: 1, box: box), [], "the eraser takes only the page it is on")
+
         // The project file keeps the PDF and its bookmarks, and opens as a PDF piece again.
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("Nocturne test.motiff.json")
         try await ProjectFiles.save(piece: opened.id, to: url)
@@ -279,10 +293,37 @@ final class FacadeTests: XCTestCase {
         let marks = try object(MusicCore.call(piece: again.id, "document.marks"))["marks"] as? [String: Any]
         let bookmarks = PdfController.bookmarks(marks)
         XCTAssertEqual(bookmarks.map(\.name), ["Coda"])
+        XCTAssertEqual(DocumentStroke.list(marks).map(\.id), ["pk_test"], "the strokes are kept with the PDF")
         let read = await PieceSummary.read(url)
         let summary = try XCTUnwrap(read)
         XCTAssertFalse(summary.hasNotes, "the library shows it as a PDF")
         try? FileManager.default.removeItem(at: url)
+    }
+
+    @MainActor
+    func testTheMetronomeTakesATappedTempoAndKeepsItsTempoForThePiece() throws {
+        XCTAssertEqual(Metronome.tappedBpm([0, 500, 1000, 1500]), 120)
+        XCTAssertNil(Metronome.tappedBpm([0]), "one tap is no tempo")
+        XCTAssertNil(Metronome.tappedBpm([0, 2500]), "a long gap is a new start")
+        XCTAssertEqual(Metronome.tappedBpm([0, 100]), 240, "the tempo stays within 30 to 240")
+
+        let store = try XCTUnwrap(UserDefaults(suiteName: "motiff-metronome-test"))
+        store.removePersistentDomain(forName: "motiff-metronome-test")
+        let metronome = Metronome(store: store)
+        metronome.load(piece: "p_pdf")
+        XCTAssertEqual(metronome.bpm, 80)
+        XCTAssertEqual(metronome.beats, 4)
+        metronome.faster()
+        metronome.nextBeats()
+        XCTAssertEqual(metronome.bpm, 84)
+        XCTAssertEqual(metronome.beats, 6)
+        metronome.nextBeats()
+        XCTAssertEqual(metronome.beats, 2)
+        let again = Metronome(store: store)
+        again.load(piece: "p_pdf")
+        XCTAssertEqual(again.bpm, 84)
+        XCTAssertEqual(again.beats, 2)
+        store.removePersistentDomain(forName: "motiff-metronome-test")
     }
 
     func testVariationNotationPlaybackAndSave() throws {
