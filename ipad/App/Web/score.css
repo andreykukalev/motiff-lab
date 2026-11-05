@@ -45,6 +45,19 @@ button.bracket.on-to { border-right: 0; border-top-right-radius: 0; }
 .bracket .n { position: absolute; left: -2px; top: -16px; font: 600 11px/14px var(--font-ui); color: var(--ink-graphite); }
 .bracket.on .n { color: var(--accent); }
 
+/* Bookmarks (0018 section 5, design/kit/ds.css .bmb, as the web app's app.css draws them): a bracket in the category's ink
+   above the phrase brackets, the title in italic serif at its left end; overlapping ones stack. Each is a button with a
+   hit area over its title and line. */
+.ink-graphite { --mark: var(--ink-graphite); }
+.ink-carmine { --mark: var(--ink-carmine); }
+.ink-forest { --mark: var(--ink-forest); }
+.ink-ochre { --mark: var(--ink-ochre); }
+button.bmb { position: absolute; z-index: 1; height: 10px; min-height: 0; padding: 0; box-sizing: border-box; background: transparent; border: 1.25px solid var(--mark, var(--ink-carmine)); border-bottom: 0; border-radius: 2px 2px 0 0; }
+button.bmb::before { content: ""; position: absolute; inset: -17px -2px -3px; }
+button.bmb.from { border-left: 0; border-top-left-radius: 0; }
+button.bmb.on-to { border-right: 0; border-top-right-radius: 0; }
+.bmb .w { position: absolute; left: 0; top: -17px; font: italic 500 12px/14px var(--font-display); color: var(--mark, var(--ink-carmine)); white-space: nowrap; pointer-events: none; }
+
 /* The selection: a cobalt band over the selected bars on each system, and round handles on the first and last barline. */
 .sel-band { position: absolute; box-sizing: border-box; background: var(--accent-tint); border: 1.5px solid var(--accent); border-radius: 3px; pointer-events: none; }
 button.sel-handle { position: absolute; z-index: 2; width: 14px; height: 14px; min-height: 0; padding: 0; box-sizing: border-box; border-radius: 50%; background: var(--surface-2); border: 2px solid var(--accent); transform: translate(-50%, -50%); touch-action: none; }

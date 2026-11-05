@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { bookmarkLevels } from "../../src/MotiffLab.Web/wwwroot/js/score/score-view.js";
+import { bookmarkLevels } from "../../src/MotiffLab.Web/wwwroot/js/score/score-geometry.js";
 
 test("bookmarks that do not overlap share the lowest level", () => {
     assert.deepEqual(bookmarkLevels([{ start: 0, end: 960 }, { start: 960, end: 1920 }]), [0, 0]);

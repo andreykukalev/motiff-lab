@@ -107,6 +107,25 @@ final class ScoreController: NSObject, ObservableObject {
     private var cardOptions: String?
     /// The places ringed for the fact chosen in Insights.
     private var ringed: [Fact.Place] = []
+    /// The bookmarks as the page draws them, and where each is, for a tap on its bracket or its entry in the Contents.
+    private var bookmarkItems: [[String: Any]] = []
+    private var bookmarkSpans: [String: Range<Double>] = [:]
+    /// The bookmark last gone to and the selection that gave: a second tap on it lifts the passage into focus.
+    @Published private(set) var shownBookmark: ShownBookmark?
+
+    struct ShownBookmark: Equatable {
+        var id: String
+        var selection: ScoreSelection
+    }
+
+    /// A page as the Contents drawer's Pages tab shows it: its stretch of the piece in ticks and its picture.
+    struct PageOutline: Identifiable {
+        var page: Int
+        var start: Double
+        var end: Double
+        var image: UIImage?
+        var id: Int { page }
+    }
 
     override init() {
         let configuration = WKWebViewConfiguration()
@@ -171,6 +190,9 @@ final class ScoreController: NSObject, ObservableObject {
         }
         if let bracket = number(message["bracket"]) {
             selectPhrase(Int(bracket))
+        }
+        if let bookmark = message["bookmark"] as? String {
+            goToBookmark(bookmark)
         }
         if let note = number(message["note"]) {
             noteTapped?(note)
@@ -253,6 +275,92 @@ final class ScoreController: NSObject, ObservableObject {
             await showSelection()
             await updatePlayRange()
         }
+    }
+
+    // MARK: - Bookmarks and the Contents
+
+    /// Draws the bookmarks as brackets in their categories' inks above the phrase brackets (0018 section 5).
+    func showBookmarks(_ shelf: BookmarkShelf?) {
+        let bookmarks = shelf?.bookmarks ?? []
+        bookmarkSpans = Dictionary(bookmarks.map { ($0.id, $0.onset..<max($0.end, $0.onset + 1)) }, uniquingKeysWith: { first, _ in first })
+        bookmarkItems = bookmarks.map { bookmark in
+            [
+                "id": bookmark.id, "start": bookmark.onset, "end": bookmark.end, "title": bookmark.title,
+                "ink": shelf?.category(of: bookmark)?.ink ?? "graphite", "label": text.format("bookmark.label", bookmark.title, bookmark.bars(text)),
+            ] as [String: Any]
+        }
+        guard shown else { return }
+        Task { await drawBookmarks() }
+    }
+
+    private func drawBookmarks() async {
+        _ = try? await webView.callAsyncJavaScript("return motiff.bookmarks(data)", arguments: ["data": ["items": bookmarkItems]], contentWorld: .page)
+    }
+
+    /// A bookmark gone to from its bracket or its entry: the score selects it and brings it into view; gone to again with
+    /// the selection as it left it, the passage lifts into focus. True when it lifted.
+    @discardableResult
+    func goToBookmark(_ id: String) -> Bool {
+        guard let span = bookmarkSpans[id] else { return false }
+        if let shownBookmark, shownBookmark.id == id, shownBookmark.selection == selection, !penOn {
+            enterFocus()
+            return true
+        }
+        Task {
+            await select(span.lowerBound, span.upperBound)
+            if let selection { shownBookmark = ShownBookmark(id: id, selection: selection) }
+            _ = try? await webView.callAsyncJavaScript("return motiff.reveal(data)", arguments: ["data": ["start": span.lowerBound]], contentWorld: .page)
+        }
+        return false
+    }
+
+    /// Whether the selection is the bookmark last gone to: its entry in the Contents shows it.
+    func isShown(_ id: String) -> Bool {
+        shownBookmark?.id == id && shownBookmark?.selection == selection
+    }
+
+    /// The title a new bookmark starts with: "Phrase 3, bars 9–12" for a unit of the level shown, else "Bars 9–12".
+    var bookmarkTitle: String {
+        guard let selection else { return "" }
+        if let unit = phrases?.units.first(where: { $0.selectableOnset == selection.onset && $0.selectableEnd == selection.end }) {
+            return label(of: unit)
+        }
+        let bars = selection.firstBar == selection.lastBar
+            ? text.format("bars.one", String(selection.firstBar))
+            : text.format("bars.range", String(selection.firstBar), String(selection.lastBar))
+        return bars.prefix(1).uppercased() + bars.dropFirst()
+    }
+
+    /// A drawer over the left of the page this wide: the selection menu keeps to its right.
+    func clearLeft(_ width: CGFloat) {
+        guard shown else { return }
+        Task { _ = try? await webView.callAsyncJavaScript("return motiff.clearLeft(data)", arguments: ["data": ["width": Double(width)]], contentWorld: .page) }
+    }
+
+    /// The pages with their stretches of the piece and their pictures, `width` pixels wide, for the Pages tab.
+    func outline(width: CGFloat) async -> [PageOutline] {
+        guard shown,
+              let answer = try? await webView.callAsyncJavaScript("return motiff.outline(data)", arguments: ["data": ["width": Double(width)]], contentWorld: .page) as? [Any]
+        else { return [] }
+        return answer.compactMap { entry in
+            guard let page = entry as? [String: Any], let number = (page["page"] as? NSNumber)?.intValue else { return nil }
+            let image = (page["image"] as? String)
+                .flatMap { $0.split(separator: ",", maxSplits: 1).last }
+                .flatMap { Data(base64Encoded: String($0)) }
+                .flatMap { UIImage(data: $0) }
+            return PageOutline(
+                page: number,
+                start: (page["start"] as? NSNumber)?.doubleValue ?? 0,
+                end: (page["end"] as? NSNumber)?.doubleValue ?? .infinity,
+                image: image
+            )
+        }
+    }
+
+    /// Brings a page to the top of the view, under the bar.
+    func showPage(_ page: Int) {
+        guard shown else { return }
+        Task { _ = try? await webView.callAsyncJavaScript("return motiff.showPage(data)", arguments: ["data": ["page": page]], contentWorld: .page) }
     }
 
     // MARK: - Phrase focus
@@ -445,6 +553,7 @@ final class ScoreController: NSObject, ObservableObject {
             let marks = await MusicCore.run { MusicCore.call(piece: piece.id, "marks") }
             await draw(marks)
             await loadPhrases(piece)
+            await drawBookmarks()
             if !ringed.isEmpty { await showRings(scroll: false) }
         } catch {
             problem = error.localizedDescription

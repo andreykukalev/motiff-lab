@@ -62,6 +62,7 @@ Request fields are optional unless marked; a tick span is `{"onset", "end"}`; a 
 | `fingering.set` / `fingering.remove` | `noteId`, `finger` 1–5 / `noteId` | as `marks` |
 | `bookmarks` | – | `categories` (id, name in the language, ink, builtIn, bookmarks count), `bookmarks` in the player's order (id, title, category, span, bars, fromPhrase, ideas count, createdAt) |
 | `bookmark.add` / `.change` / `.move` / `.remove` | a place, `title` (default "bars 1–8"), `category` (default practise) / `id` and any of title, category, place / `id`, `index` / `id` | as `bookmarks` |
+| `bookmark.structure` | `now` (optional) | as `bookmarks`, with one Structure bookmark for each detected sentence ("Sentence A, bars 1–8") that is not bookmarked in Structure already (within contract 4, 2026-11-05) |
 | `category.add` / `.rename` / `.remove` | `name`, `ink` / `id`, `name` / `id` (own categories only; their bookmarks move to practise) | as `bookmarks` |
 | `resume` | – | `resumePoints`, most recent first: id, name, at, bar, passage (span, bars, filter), focused, overlays, tempoPercent, hands (`both` / `left` / `right`), loop, createdAt, lastActive |
 | `resume.save` | `id` (an existing point; none starts a new one), `name`, `at`, `passage` {span, filter}, `focused`, `overlays`, `tempoPercent` 25–150, `hands`, `loop`, `now`; fields not sent keep their values | `saved` (the point), `resumePoints` |

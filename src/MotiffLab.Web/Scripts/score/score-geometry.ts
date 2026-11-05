@@ -173,6 +173,26 @@ function union(a: Rect, b: Rect): Rect {
 }
 
 /**
+ * The levels of overlapping bookmarks, from 0 under the others: each takes the lowest level free where it starts. The web
+ * app's score view and the iPad's score page stack the bookmarks' brackets by them.
+ */
+export function bookmarkLevels(bookmarks: readonly { start: number; end: number }[]): number[] {
+    const order = bookmarks.map((bookmark, index) => ({ ...bookmark, index })).sort((a, b) => a.start - b.start || b.end - a.end);
+    const ends: number[] = [];
+    const levels = new Array<number>(bookmarks.length).fill(0);
+    for (const bookmark of order) {
+        let level = ends.findIndex((end) => end <= bookmark.start);
+        if (level < 0) {
+            level = ends.length;
+            ends.push(0);
+        }
+        ends[level] = bookmark.end;
+        levels[bookmark.index] = level;
+    }
+    return levels;
+}
+
+/**
  * Reads one engraved page (Verovio's SVG for it) in page units: the outer view box, y downwards. A bar's
  * box is its staves, from the top line of the first to the bottom line of the last; its ink adds the
  * noteheads. A note's box is its notehead's, from the glyph's origin and the staff space.

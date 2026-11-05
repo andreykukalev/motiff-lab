@@ -15,7 +15,7 @@ import { ScoreTimeline, highlightedIds, type HighlightPlace } from "./score-time
 import { A4_HEIGHT, A4_WIDTH, buildPdf, crop, inkBounds, type InkLayer, type PdfPage } from "./pdf-document.js";
 import { hasText, svgToPdfOperators, textOnlySvg } from "./svg-to-pdf.js";
 import { A4_LAYOUT, pdfFileName, titleBlock, withTitle } from "./score-page.js";
-import { ScoreGeometry, readPage, type PageGeometry, type PagePlacement } from "./score-geometry.js";
+import { ScoreGeometry, bookmarkLevels, readPage, type PageGeometry, type PagePlacement } from "./score-geometry.js";
 import { downloadBytes, saveCover } from "../storage/project-store.js";
 import { newToolkit, type VerovioToolkit } from "./verovio.js";
 
@@ -153,23 +153,6 @@ export interface PageOutline {
     start: number;
     end: number;
     url: string;
-}
-
-/** The levels of overlapping bookmarks, from 0 under the others: each takes the lowest level free where it starts. */
-export function bookmarkLevels(bookmarks: readonly { start: number; end: number }[]): number[] {
-    const order = bookmarks.map((bookmark, index) => ({ ...bookmark, index })).sort((a, b) => a.start - b.start || b.end - a.end);
-    const ends: number[] = [];
-    const levels = new Array<number>(bookmarks.length).fill(0);
-    for (const bookmark of order) {
-        let level = ends.findIndex((end) => end <= bookmark.start);
-        if (level < 0) {
-            level = ends.length;
-            ends.push(0);
-        }
-        ends[level] = bookmark.end;
-        levels[bookmark.index] = level;
-    }
-    return levels;
 }
 
 /** The toolkit the score view engraves with, made once: the phrase card and the PDF make their own (verovio.ts). */

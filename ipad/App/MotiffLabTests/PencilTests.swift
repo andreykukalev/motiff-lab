@@ -256,6 +256,36 @@ final class PencilTests: XCTestCase {
         XCTAssertEqual(left?.intValue, 0)
     }
 
+    func testBookmarksAreBracketsAboveThePhrasesAndThePagesHavePictures() async throws {
+        let view = try await scorePage()
+        let example = try XCTUnwrap(OpenPiece.example)
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        defer { _ = MusicCore.close(piece: piece.id) }
+        let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
+        _ = try await call(view, "show", ["pages": piece.pages, "timemap": timemap, "dark": false])
+
+        // The form found in the piece, filed as Structure bookmarks: a bracket for each, titled at its left end.
+        let shelf = try XCTUnwrap(BookmarkShelf(answer: MusicCore.call(piece: piece.id, "bookmark.structure")))
+        XCTAssertFalse(shelf.bookmarks.isEmpty)
+        let items = shelf.bookmarks.map { bookmark in
+            ["id": bookmark.id, "start": bookmark.onset, "end": bookmark.end, "title": bookmark.title, "ink": shelf.category(of: bookmark)?.ink ?? "graphite", "label": bookmark.title] as [String: Any]
+        }
+        let drawn = try await call(view, "bookmarks", ["items": items]) as? NSNumber
+        XCTAssertGreaterThanOrEqual(drawn?.intValue ?? 0, items.count)
+        let titled = try await view.evaluateJavaScript("document.querySelectorAll('body > .bmb .w').length") as? NSNumber
+        XCTAssertEqual(titled?.intValue, items.count)
+        let lifted = try await view.evaluateJavaScript("getComputedStyle(document.querySelector('body > .bmb')).borderTopStyle") as? String
+        XCTAssertEqual(lifted, "solid")
+
+        // The Pages tab: each page with its stretch of the piece and its picture.
+        let pages = try await call(view, "outline", ["width": 280]) as? [[String: Any]]
+        XCTAssertEqual(pages?.count, piece.pages.count)
+        XCTAssertTrue((pages?.first?["image"] as? String ?? "").hasPrefix("data:image/png"), "the page is drawn as a picture")
+        XCTAssertEqual((pages?.first?["start"] as? NSNumber)?.intValue, 0)
+        let shown = try await call(view, "showPage", ["page": 2]) as? Bool
+        XCTAssertEqual(shown, true)
+    }
+
     func testTheInksAreTheDesignKits() {
         XCTAssertNotEqual(DesignTokens.color("ink-carmine"), .systemGray)
         XCTAssertNotEqual(DesignTokens.color("amber"), .systemGray)

@@ -17,8 +17,13 @@
 //
 // A fact chosen in the Insights stream (0018 section 6) rings its places on the score (`highlight`), as the web app's
 // score view does: the notes turn cobalt with a box round each notehead, and the first comes into view.
+//
+// The player's bookmarks (0018 section 5) are brackets in their category's ink above the phrase brackets, titled in
+// italic at the left end and stacked where they overlap, as the web app's score view draws them (`bookmarks`); a tap
+// gives the bookmark to Swift. The Contents drawer's Pages tab shows the pages as small pictures (`outline`), and a
+// page or a bookmark chosen there is brought into view (`showPage`, `reveal`).
 import { cardLayout } from "../score/phrase-card.js";
-import { ScoreGeometry, readPage, staffFrames } from "../score/score-geometry.js";
+import { ScoreGeometry, bookmarkLevels, readPage, staffFrames } from "../score/score-geometry.js";
 import { SelectionLayer } from "../score/selection-layer.js";
 import { ScoreTimeline, highlightedIds } from "../score/score-timeline.js";
 import { HIGHLIGHTER_SIZE, PEN_SIZE, anchorMark, framesByTick, outlinePath, placeMark, touches } from "../score/pencil-marks.js";
@@ -31,7 +36,15 @@ const ERASER_REACH = 10;
 /** The reading line, this far below the top of the view: the pages it crosses are the ones the bar names, as on the web. */
 const READING_LINE_PX = 72;
 
-const state = { pages: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], phrases: [], pen: false, focus: false, ringed: new Set() };
+/** Bookmarks sit this far above the top staff, over the phrase brackets and their numbers, and overlapping ones stack by the next amount, as on the web. */
+const BOOKMARK_LIFT = 40;
+const BOOKMARK_STACK = 24;
+
+/** A bookmark's title rises this far above its bracket; marks further above a band than the reach belong to the system above. */
+const BOOKMARK_TITLE = 17;
+const BOOKMARK_REACH = 120;
+
+const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], phrases: [], bookmarks: [], pen: false, focus: false, ringed: new Set() };
 let nextId = 0;
 
 /** Shows the pages and reads where their bars are; `timemap` is Verovio's, with measures and rests. */
@@ -44,6 +57,7 @@ function show({ pages, timemap, dark }) {
     state.ringed = new Set();
     const host = document.getElementById("pages");
     host.innerHTML = pages.map((svg, index) => `<div class="page" data-page="${index + 1}">${svg}</div>`).join("");
+    state.svgs = pages;
     state.pages = pages.map((svg, index) => readPage(svg, index + 1));
     state.timeline = ScoreTimeline.fromTimemap(timemap);
     return layout();
@@ -73,6 +87,7 @@ function layout() {
     state.byTick = framesByTick(state.frames);
     redraw();
     placePhrases();
+    placeBookmarks();
     placeRings();
     selection.place();
     reportPages();
@@ -175,6 +190,65 @@ function placePhrases() {
 }
 
 /**
+ * The bookmarks, each { id, start, end, title, ink, label }: brackets in the category's ink ("graphite", "carmine",
+ * "forest" or "ochre") above the phrase brackets, the title in italic at the left end, overlapping ones stacked.
+ */
+function bookmarks({ items }) {
+    state.bookmarks = items ?? [];
+    placeBookmarks();
+    selection.placeMenu();
+    return document.querySelectorAll("body > .bmb").length;
+}
+
+function placeBookmarks() {
+    for (const old of document.querySelectorAll("body > .bmb")) {
+        old.remove();
+    }
+    const geometry = state.geometry;
+    if (geometry === null || state.bookmarks.length === 0) {
+        return;
+    }
+    const levels = bookmarkLevels(state.bookmarks);
+    state.bookmarks.forEach((bookmark, index) => {
+        for (const run of geometry.bracket(bookmark.start, bookmark.end, BOOKMARK_LIFT + levels[index] * BOOKMARK_STACK)) {
+            const mark = document.createElement("button");
+            mark.type = "button";
+            mark.className = `bmb ink-${bookmark.ink}`;
+            mark.classList.toggle("from", !run.first);
+            mark.classList.toggle("on-to", !run.last);
+            mark.dataset.bookmark = bookmark.id;
+            mark.style.left = `${run.left}px`;
+            mark.style.top = `${run.top}px`;
+            mark.style.width = `${Math.max(4, run.right - run.left)}px`;
+            if (run.first) {
+                mark.setAttribute("aria-label", bookmark.label);
+                const title = document.createElement("span");
+                title.className = "w";
+                title.setAttribute("aria-hidden", "true");
+                title.textContent = bookmark.title;
+                mark.append(title);
+            } else {
+                mark.tabIndex = -1;
+                mark.setAttribute("aria-hidden", "true");
+            }
+            document.body.append(mark);
+        }
+    });
+}
+
+/** The top of the bookmark titles over a band's first run, in window pixels, for the menu to clear; null when none is there. */
+function bookmarksTop(band) {
+    let top = null;
+    for (const mark of document.querySelectorAll("body > .bmb")) {
+        const box = mark.getBoundingClientRect();
+        if (box.right > band.left && box.left < band.right && box.bottom <= band.top + 1 && band.top - box.top <= BOOKMARK_REACH) {
+            top = Math.min(top ?? box.top, box.top - BOOKMARK_TITLE);
+        }
+    }
+    return top;
+}
+
+/**
  * The menu's stand-in: an invisible box the size of Swift's menu, which the selection layer places over the band as
  * it places the web app's menu. Its place goes to Swift, which draws the menu there.
  */
@@ -196,6 +270,7 @@ function reportMenu() {
 
 const selection = new SelectionLayer(document.body, {
     geometry: () => state.geometry,
+    marksTop: (band) => bookmarksTop(band),
     // While the Pen is on a finger writes, and in focus the page under the veil takes no choice of bars.
     penOn: () => state.pen || state.focus,
     chosen: (first, last) => {
@@ -211,6 +286,19 @@ selection.placeMenu = () => {
     reportMenu();
 };
 selection.setMenu(menu);
+
+/** A drawer over the left of the page (the Contents): the selection layer keeps the menu to its right, as on the web. */
+const clearing = document.createElement("div");
+clearing.dataset.menuClear = "left";
+clearing.setAttribute("aria-hidden", "true");
+clearing.style.cssText = "position: fixed; left: 0; top: 0; width: 0; height: 0; visibility: hidden; pointer-events: none;";
+document.body.append(clearing);
+
+/** How far from the left of the screen a drawer covers the page, in pixels; 0 for none. */
+function clearLeft({ width }) {
+    clearing.style.width = `${Math.max(0, width ?? 0)}px`;
+    selection.placeMenu();
+}
 
 /** The selection's span in ticks, with what a screen reader says for each handle; null for none. */
 function select(chosen) {
@@ -234,6 +322,11 @@ function pen(on) {
 document.body.addEventListener("click", (event) => {
     const target = event.target instanceof Element ? event.target : null;
     if (target?.closest("#focus")) {
+        return;
+    }
+    const bookmark = target?.closest(".bmb");
+    if (bookmark) {
+        post({ bookmark: bookmark.dataset.bookmark });
         return;
     }
     const bracket = target?.closest(".bracket");
@@ -508,10 +601,85 @@ function inset({ bottom }) {
     return layout();
 }
 
+/**
+ * The pages as the Contents drawer's Pages tab shows them: each { page, start, end, image }, its stretch of the piece in
+ * ticks and its picture as a PNG `width` pixels wide, drawn in the page's ink on its paper; a page whose picture cannot be
+ * drawn comes without one.
+ */
+async function outline({ width }) {
+    const geometry = state.geometry;
+    if (geometry === null) {
+        return [];
+    }
+    const style = getComputedStyle(document.documentElement);
+    const ink = style.getPropertyValue("--notation").trim() || "black";
+    const paper = style.getPropertyValue("--paper").trim() || "white";
+    const pages = [];
+    for (const [index, svg] of state.svgs.entries()) {
+        const bars = geometry.bars.filter((bar) => bar.page === index + 1);
+        if (bars.length === 0) {
+            continue;
+        }
+        const start = Math.min(...bars.map((bar) => bar.tick));
+        const end = Math.max(...bars.map((bar) => (Number.isFinite(bar.end) ? bar.end : Number.MAX_SAFE_INTEGER)));
+        pages.push({ page: index + 1, start, end, image: await picture(svg, width, ink, paper) });
+    }
+    return pages;
+}
+
+/** A page drawn as a PNG on its paper, as a data URL; "" when it cannot be drawn. */
+async function picture(svg, width, ink, paper) {
+    const height = Math.round((width * 297) / 210);
+    // Verovio's notation is black on the page's own scale; the picture takes the stand's ink, as the page does.
+    const inked = svg.replace(/ color="black"/, ` color="${ink}" fill="${ink}"`);
+    const url = URL.createObjectURL(new Blob([inked], { type: "image/svg+xml" }));
+    try {
+        const image = new Image();
+        image.src = url;
+        await image.decode();
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext("2d");
+        context.fillStyle = paper;
+        context.fillRect(0, 0, width, height);
+        context.drawImage(image, 0, 0, width, height);
+        return canvas.toDataURL("image/png");
+    } catch {
+        return "";
+    } finally {
+        URL.revokeObjectURL(url);
+    }
+}
+
+/** Brings a page to the top of the view, under the bar. */
+function showPage({ page }) {
+    const element = document.querySelector(`#pages > .page[data-page="${page}"]`);
+    if (element === null) {
+        return false;
+    }
+    const top = element.getBoundingClientRect().top + window.scrollY - parseFloat(getComputedStyle(document.body).paddingTop);
+    window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+    return true;
+}
+
+/** Brings the bar that holds `start` into view, a third of the way down, unless it is in view already. */
+function reveal({ start }) {
+    const bar = state.geometry?.barAt(start);
+    if (bar === undefined) {
+        return false;
+    }
+    const top = bar.top - window.scrollY;
+    if (top < READING_LINE_PX || bar.bottom - window.scrollY > window.innerHeight) {
+        window.scrollTo({ top: Math.max(0, bar.top - window.innerHeight / 3), behavior: "smooth" });
+    }
+    return true;
+}
+
 /** Where each bar is now, in the document's pixels: for the tests. */
 function frames() {
     return state.frames;
 }
 
-window.motiff = { show, layout, anchor, erase, draw, frames, inView, phrases, select, menuSize, pen, focus, card: showCard, lead, inset, highlight };
+window.motiff = { show, layout, anchor, erase, draw, frames, inView, phrases, select, menuSize, pen, focus, card: showCard, lead, inset, highlight, bookmarks, clearLeft, outline, showPage, reveal };
 window.webkit?.messageHandlers?.score?.postMessage("ready");
