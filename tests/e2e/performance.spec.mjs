@@ -5,7 +5,7 @@
 // in MusicXML can be added over the cover opened as the piece.
 import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { violations } from "./steps.mjs";
+import { closePopover, openMore, violations } from "./steps.mjs";
 
 const score = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Experiments/Fixtures/fur-elise-original.musicxml", import.meta.url));
 const cover = fileURLToPath(new URL("fixtures/fur-elise-cover.mid", import.meta.url));
@@ -30,6 +30,23 @@ test("a MIDI performance marks the bars it plays differently, and a bar is taken
     await expect(markers.nth(1)).toHaveAccessibleName("Bar 7 in fur-elise-cover: −3 · simplified");
     await expect(page.locator(".score g.note.not-heard")).toHaveCount(3);
     expect(await violations(page)).toEqual([]);
+
+    // The comparison layer: the cover on small staves above every system, the three notes it adds in plum.
+    await (await openMore(page)).getByRole("button", { name: "Layers" }).click();
+    const versionLayer = page.locator(".layers-popover").getByRole("switch", { name: "Other version above the staves" });
+    await expect(versionLayer).not.toBeChecked();
+    await versionLayer.click();
+    await expect(page.locator(".score g.note.version-added")).toHaveCount(3);
+    await expect(page.locator(".score .score-page svg").first()).toContainText("fur-elise-cover");
+    await expect(markers).toHaveText(["+3 · added notes", "−3 · simplified"]);
+    await closePopover(page);
+    expect(await violations(page)).toEqual([]);
+    await (await openMore(page)).getByRole("button", { name: "Layers" }).click();
+    await versionLayer.click();
+    await expect(page.locator(".score g.note.version-added")).toHaveCount(0);
+    await closePopover(page);
+    await page.locator(".bar").getByRole("button", { name: "More" }).click();
+    await page.locator(".more-popover").getByRole("button", { name: "Other versions" }).click();
 
     // A marker selects its bar in the drawer.
     await markers.nth(1).click();

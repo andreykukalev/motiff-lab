@@ -22,7 +22,7 @@ public partial class PlaybackLab
     private sealed record NoteDraft(string? Id, TickSpan Span, string Text);
 
     /// <summary>The layers of marks, as the settings "layers.ink" and the rest name them.</summary>
-    private static readonly string[] s_layers = ["ink", "notes", "bookmarks", "analysis", "check"];
+    private static readonly string[] s_layers = ["ink", "notes", "bookmarks", "analysis", "check", "version"];
 
     /// <summary>The inks a highlight is laid in: the amber highlighter first, then the pencil inks.</summary>
     private static readonly InkColour[] s_highlightInks = [InkColour.Amber, InkColour.Carmine, InkColour.Forest, InkColour.Ochre];
@@ -254,15 +254,18 @@ public partial class PlaybackLab
         }
     }
 
-    /// <summary>The layers the piece has: Check only for a scan or a transcription.</summary>
-    private IEnumerable<string> PieceLayers => s_layers.Where(layer => layer != "check" || HasCheckFlags);
+    /// <summary>The layers the piece has: Check only for a scan or a transcription, the other version only when it has one (0022).</summary>
+    private IEnumerable<string> PieceLayers => s_layers.Where(layer => (layer != "check" || HasCheckFlags) && (layer != "version" || HasPerformances));
 
-    private bool AllMarksHidden => PieceLayers.All(layer => !LayerShown(layer));
+    /// <summary>The layers of marks, which Hide all marks hides and shows: not the other version, which redraws the score.</summary>
+    private IEnumerable<string> MarkLayers => PieceLayers.Where(layer => layer != "version");
+
+    private bool AllMarksHidden => MarkLayers.All(layer => !LayerShown(layer));
 
     private Task ToggleLayerAsync(string layer) => SetLayersAsync([layer], !LayerShown(layer));
 
     /// <summary>Hide all marks, or show them all again.</summary>
-    private Task ToggleAllMarksAsync() => SetLayersAsync(PieceLayers, AllMarksHidden);
+    private Task ToggleAllMarksAsync() => SetLayersAsync(MarkLayers, AllMarksHidden);
 
     private async Task SetLayersAsync(IEnumerable<string> layers, bool shown)
     {

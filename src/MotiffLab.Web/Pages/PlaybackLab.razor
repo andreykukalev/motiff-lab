@@ -92,7 +92,7 @@
                            Selection="_selection?.Span" BarsChosen="OnScoreBarsChosenAsync" Menu="@(MenuShown ? SelectionMenu : null)"
                            Bookmarks="ScoreBookmarks" BookmarkPicked="OnBookmarkPickedAsync" Notes="ScoreNotes" MarkHighlights="ScoreHighlights" HiddenLayers="HiddenLayers"
                            NoteMarkerPicked="OpenNoteAsync" LayersRequested="OpenLayers" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync"
-                           PerformanceMarkers="ScorePerformanceMarkers" Unheard="ScoreUnheard" PerformancePicked="OnPerformancePickedAsync"
+                           PerformanceMarkers="ScorePerformanceMarkers" Unheard="ScoreUnheard" VersionAdded="ScoreVersionAdded" PerformancePicked="OnPerformancePickedAsync"
                            Pointed="_pointed" NotePicked="OnScoreNotePicked" />
             }
             else
@@ -1676,9 +1676,11 @@
         _ => ScoreChoice.Generated,
     };
 
+    /// <summary>The score shown: with the other version above every system when its layer is on (0022), except over a variation.</summary>
     private ScoreSource? ShownScore => ShownChoice switch
     {
         ScoreChoice.Variation => _variationScore,
+        _ when VersionScore is { } withVersion => withVersion,
         ScoreChoice.AsWritten => _asWritten,
         _ => _generated,
     };
@@ -2077,13 +2079,13 @@
         : _keys.Select(key => new KeyChange(key.At, Math.Clamp(key.Fifths, -7, 7)));
 
     /// <summary>The piece's notes engraved, in the mode the player chose for notes heard in a recording.</summary>
-    private GeneratedNotation Notation(IEnumerable<Note> notes, Tick end) =>
-        _heard ? HeardNotation(notes, _meter!, NotationKeys(), end, ScoreTitle.Of(_title), _score!) : NotationGenerator.Generate(notes, _meter!, NotationKeys(), end, ScoreTitle.Of(_title));
+    private GeneratedNotation Notation(IEnumerable<Note> notes, Tick end, IReadOnlyList<NotationOssia>? ossias = null) =>
+        _heard ? HeardNotation(notes, _meter!, NotationKeys(), end, ScoreTitle.Of(_title), _score!, ossias) : NotationGenerator.Generate(notes, _meter!, NotationKeys(), end, ScoreTitle.Of(_title), ossias: ossias);
 
-    private GeneratedNotation HeardNotation(IEnumerable<Note> notes, MeterMap meter, IEnumerable<KeyChange> keys, Tick end, string? title, PlaybackScore played) =>
+    private GeneratedNotation HeardNotation(IEnumerable<Note> notes, MeterMap meter, IEnumerable<KeyChange> keys, Tick end, string? title, PlaybackScore played, IReadOnlyList<NotationOssia>? ossias = null) =>
         _readable
-            ? NotationGenerator.Generate(notes, meter, keys, end, title, asHeard: true)
-            : NotationGenerator.Generate(notes, meter, keys, end, title, playedTempos: played.Tempos, pedal: played.Pedal.Select(held => held.Span));
+            ? NotationGenerator.Generate(notes, meter, keys, end, title, asHeard: true, ossias: ossias)
+            : NotationGenerator.Generate(notes, meter, keys, end, title, playedTempos: played.Tempos, pedal: played.Pedal.Select(held => held.Span), ossias: ossias);
 
     /// <summary>Notes heard in a recording, written for reading or as played.</summary>
     private void SetReadable(bool readable)

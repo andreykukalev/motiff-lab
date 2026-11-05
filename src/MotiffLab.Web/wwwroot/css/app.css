@@ -1414,6 +1414,14 @@ h1, h2, .app-title strong {
     color: var(--warning);
 }
 
+/* In the comparison layer, a note another version plays that these notes do not have (decision record 0022, section 4):
+   plum, what the app shows from elsewhere; what agrees stays the notation's colour, so the eye goes to the differences. */
+.score g.note.version-added {
+    fill: var(--plum);
+    stroke: var(--plum);
+    color: var(--plum);
+}
+
 /* The places of the fact chosen on Understand (#25): blue and at full strength, with a solid box round each notehead or rest,
    so they differ from playing (colour only) by more than colour. The playing colour still shows over them. */
 .score g.note.highlight, .score g.rest.highlight {

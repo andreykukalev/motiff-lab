@@ -56,6 +56,7 @@ else if (_loading && !HoldHeight)
     private IReadOnlyList<ScoreCheckFlag>? _shownChecks;
     private IReadOnlyList<ScorePerformanceMarker>? _shownPerformance;
     private IReadOnlyList<HighlightPlace>? _shownUnheard;
+    private IReadOnlyList<string>? _shownVersionAdded;
     private IReadOnlyList<string>? _shownHiddenLayers;
     private IReadOnlyList<HighlightPlace>? _shownHighlight;
     private IReadOnlyList<HighlightPlace>? _shownPointed;
@@ -118,6 +119,10 @@ else if (_loading && !HoldHeight)
     /// <summary>The printed notes the performance did not play, tinted in place; null or empty tints none.</summary>
     [Parameter]
     public IReadOnlyList<HighlightPlace>? Unheard { get; set; }
+
+    /// <summary>In the comparison layer above the systems, the ids of the notes another version adds, shown plum (0022, section 4).</summary>
+    [Parameter]
+    public IReadOnlyList<string>? VersionAdded { get; set; }
 
     /// <summary>A performance's marker was tapped: its bar's number.</summary>
     [Parameter]
@@ -277,7 +282,7 @@ else if (_loading && !HoldHeight)
                 await ShowMarksAsync(_view);
             }
 
-            if (!ReferenceEquals(PerformanceMarkers, _shownPerformance) || !ReferenceEquals(Unheard, _shownUnheard))
+            if (!ReferenceEquals(PerformanceMarkers, _shownPerformance) || !ReferenceEquals(Unheard, _shownUnheard) || !ReferenceEquals(VersionAdded, _shownVersionAdded))
             {
                 await ShowPerformanceAsync(_view);
             }
@@ -336,7 +341,8 @@ else if (_loading && !HoldHeight)
     {
         _shownPerformance = PerformanceMarkers;
         _shownUnheard = Unheard;
-        await view.InvokeVoidAsync("setPerformance", (object)(PerformanceMarkers ?? []).ToArray(), (object)(Unheard ?? []).ToArray());
+        _shownVersionAdded = VersionAdded;
+        await view.InvokeVoidAsync("setPerformance", (object)(PerformanceMarkers ?? []).ToArray(), (object)(Unheard ?? []).ToArray(), (object)(VersionAdded ?? []).ToArray());
     }
 
     private async Task ShowRangeAsync(IJSObjectReference view)

@@ -34,6 +34,8 @@ public static class SettingsCatalogue
         Switch("layers.analysis", SettingSection.MarksAndLayers, Governs(true, true, false), SettingScope.Piece),
         Switch("layers.check", SettingSection.MarksAndLayers, Governs(true, true, false), SettingScope.Piece),
         Switch("layers.performance", SettingSection.MarksAndLayers, Governs(true, true, false), SettingScope.Piece),
+        // The comparison layer (0022, section 4): another version on small staves above every system; off until asked for.
+        Switch("layers.version", SettingSection.MarksAndLayers, null, SettingScope.Piece),
         Switch("pen.pencilOnly", SettingSection.MarksAndLayers, null, SettingScope.Device, on: true),
         Choice("pen.ink", SettingSection.MarksAndLayers, ["graphite", "carmine", "forest", "ochre"], "graphite", null, SettingScope.Device),
 

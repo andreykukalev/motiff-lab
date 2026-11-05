@@ -6,6 +6,7 @@ using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Midi;
 using MotiffLab.MusicCore.Import.Scan;
 using MotiffLab.MusicCore.Motifs;
+using MotiffLab.MusicCore.Notation;
 using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;
@@ -108,6 +109,42 @@ public partial class PlaybackLab
             return (markers, unheard);
         }
     }
+
+    private (SavedPerformance Of, PerformanceComparison Comparison, IReadOnlyList<Note> Notes, bool Readable, ScoreSource Score, IReadOnlyList<string> Added)? _versionLayer;
+
+    /// <summary>
+    /// The score with the other version on small staves above every system (0022, section 4), when its layer is on: what
+    /// agrees is written as printed, what the version adds is plum, bars that do not line up are empty, and likely
+    /// artefacts of a recording's hearing are left out. Engraved again only when the version, the notes or the writing change.
+    /// </summary>
+    private ScoreSource? VersionScore
+    {
+        get
+        {
+            if (!LayerShown("version") || ShownPerformance is not { } performance || ShownComparison is not { } comparison
+                || _notes is not { } notes || _score is null || _meter is null)
+            {
+                return null;
+            }
+
+            if (_versionLayer is { } cached && ReferenceEquals(cached.Of, performance) && ReferenceEquals(cached.Comparison, comparison)
+                && ReferenceEquals(cached.Notes, notes) && cached.Readable == _readable)
+            {
+                return cached.Score;
+            }
+
+            PerformanceLayerNotes layer = PerformanceLayer.Of(comparison, performance.Notes(), PrintedNotes, _meter);
+            HashSet<string> artefacts = [.. layer.Artefacts];
+            NotationOssia above = new(performance.Name, layer.Notes.Where(note => !artefacts.Contains(note.Id)), AsHeard: true);
+            ScoreSource score = ScoreSource.FromNotes(Notation(notes, _score.End, [above]));
+            string prefix = NotationGenerator.OssiaIdPrefix(0);
+            _versionLayer = (performance, comparison, notes, _readable, score, [.. layer.Added.Select(id => prefix + id)]);
+            return score;
+        }
+    }
+
+    /// <summary>The notes the other version adds, plum in its layer; null while the layer is off.</summary>
+    private IReadOnlyList<string>? ScoreVersionAdded => VersionScore is null ? null : _versionLayer?.Added;
 
     private IReadOnlyList<ScorePerformanceMarker>? ScorePerformanceMarkers => PerformanceMarks?.Markers;
 
