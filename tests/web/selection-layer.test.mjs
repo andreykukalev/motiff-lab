@@ -41,3 +41,15 @@ test("the menu keeps to the right of a drawer over the left of the window", () =
     assert.equal(place.left, 348);
     assert.equal(place.pointer, 20);
 });
+
+test("the menu keeps left of a sheet on the right and above a drawer over the foot of the window", () => {
+    const menu = { width: 300, height: 200 };
+    const right = menuPlace({ left: 700, right: 900, top: 400 }, { bottom: 500 }, { width: 300, height: 44 }, { width: 1180, height: 820, right: 800 });
+    assert.equal(right.left, 800 - 16 - 300);
+    // A tall card under the band is lifted to end above the drawer, never above the bar's line.
+    const foot = menuPlace({ left: 100, right: 300, top: 90 }, { bottom: 300 }, menu, { width: 1180, height: 820, bottom: 500 });
+    assert.equal(foot.below, true);
+    assert.equal(foot.top, 500 - 16 - 200);
+    const low = menuPlace({ left: 100, right: 300, top: 90 }, { bottom: 300 }, menu, { width: 1180, height: 820, bottom: 200 });
+    assert.equal(low.top, 72);
+});

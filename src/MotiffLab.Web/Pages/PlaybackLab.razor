@@ -313,7 +313,7 @@
             @if (_rollOpen)
             {
                 @* The piano roll as a drawer (0018 section 4): it slides up over the score and leaves the selection as it is. *@
-                <section class="drawer roll-drawer" aria-label="@Text["bar.roll"]" data-fill="true" data-keeps-selection>
+                <section class="drawer roll-drawer" aria-label="@Text["bar.roll"]" data-fill="true" data-keeps-selection data-menu-clear="auto">
                     <button class="grab" aria-label="@Text["drawer.resize"]" title="@Text["drawer.resize"]" data-long-press="roll" @onclick="ToggleRoll"></button>
                     <PianoRoll Heading="@RollHeading" Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases"
                                Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible" Highlight="_highlight?.Places"
@@ -351,7 +351,7 @@
             @if (_insightsOpen)
             {
                 @* The Insights sheet (0018 section 6) over the right of the score: one stream of facts, Try chips and ideas for the selection. *@
-                <aside class="sheet inspector insights" aria-label="@Text["bar.insights"]" data-keeps-selection>
+                <aside class="sheet inspector insights" aria-label="@Text["bar.insights"]" data-keeps-selection data-menu-clear="auto">
                 @if (_asking)
                 {
                     <AssistantPanel SelectionLabel="@AskSelectionLabel" WholePiece="@(_askWholePiece || _selection is null)" WholePieceChanged="SetAskWholePiece"
@@ -584,7 +584,7 @@
 @code {
     /// <summary>
     /// The contextual menu's items (0018 section 3; design/kit/ds.css .menu): Loop, Focus and Bookmark (section 5), then the piano
-    /// roll and Insights, then the overflow with the phrase edits that apply. Note and Highlight join it with annotations. While a
+    /// roll and Insights, then the overflow with Ask and the phrase edits that apply. Note and Highlight join it with annotations. While a
     /// new bookmark is being made, the menu holds its card instead.
     /// </summary>
     /// <summary>
@@ -614,15 +614,15 @@
         }
         else
         {
-            <button class="it @(Looping ? "on" : null)" aria-pressed="@(Looping ? "true" : "false")" @onclick="ToggleLoopSelectionAsync"><Icon Name="loop" /> @Text["focus.loop"]</button>
-            <button class="it" title="@Text["focus.enterHint"]" @onclick="MenuFocus"><Icon Name="search" /> @Text["focus.enter"]</button>
-            <button class="it" @onclick="StartNote"><Icon Name="note" /> @Text["menu.note"]</button>
-            <button class="it" title="B" @onclick="StartBookmark"><Icon Name="bookmark" /> @Text["menu.bookmark"]</button>
+            @* Each item names itself in aria-label, so its word can give way to the icon alone in a narrow window (portrait, Split View). *@
+            <button class="it @(Looping ? "on" : null)" aria-pressed="@(Looping ? "true" : "false")" aria-label="@Text["focus.loop"]" @onclick="ToggleLoopSelectionAsync"><Icon Name="loop" /><span class="lbl">@Text["focus.loop"]</span></button>
+            <button class="it" aria-label="@Text["focus.enter"]" title="@Text["focus.enterHint"]" @onclick="MenuFocus"><Icon Name="search" /><span class="lbl">@Text["focus.enter"]</span></button>
+            <button class="it" aria-label="@Text["menu.note"]" @onclick="StartNote"><Icon Name="note" /><span class="lbl">@Text["menu.note"]</span></button>
+            <button class="it" aria-label="@Text["menu.bookmark"]" title="B" @onclick="StartBookmark"><Icon Name="bookmark" /><span class="lbl">@Text["menu.bookmark"]</span></button>
             <span class="div" aria-hidden="true"></span>
-            <button class="it @(_rollOpen ? "on" : null)" aria-pressed="@(_rollOpen ? "true" : "false")" @onclick="MenuRoll"><Icon Name="roll" /> @Text["bar.roll"]</button>
-            <button class="it @(_insightsOpen && !_asking ? "on" : null)" aria-pressed="@(_insightsOpen && !_asking ? "true" : "false")" @onclick="MenuInsights"><Icon Name="insight" /> @Text["bar.insights"]</button>
-            <button class="it ask @(_insightsOpen && _asking ? "on" : null)" aria-pressed="@(_insightsOpen && _asking ? "true" : "false")" title="?" @onclick="MenuAsk">@Text["ask.menu"]</button>
-            @* The overflow: Highlight always, and the phrase edits that apply. *@
+            <button class="it @(_rollOpen ? "on" : null)" aria-pressed="@(_rollOpen ? "true" : "false")" aria-label="@Text["bar.roll"]" @onclick="MenuRoll"><Icon Name="roll" /><span class="lbl">@Text["menu.roll"]</span></button>
+            <button class="it @(_insightsOpen && !_asking ? "on" : null)" aria-pressed="@(_insightsOpen && !_asking ? "true" : "false")" aria-label="@Text["bar.insights"]" @onclick="MenuInsights"><Icon Name="insight" /><span class="lbl">@Text["bar.insights"]</span></button>
+            @* The overflow: Ask (it opens the same sheet as Insights), Highlight always, and the phrase edits that apply. *@
             @if (_selection is not null)
             {
                 <span class="div" aria-hidden="true"></span>
@@ -631,6 +631,7 @@
                 @if (MenuMoreOpen)
                 {
                     <div class="menu-more" role="group" aria-label="@Text["menu.more"]">
+                        <button class="it ask @(_insightsOpen && _asking ? "on" : null)" aria-pressed="@(_insightsOpen && _asking ? "true" : "false")" title="?" @onclick="MenuAsk">@Text["ask.menu"]</button>
                         <div class="highlight-row" role="group" aria-label="@Text["menu.highlight"]">
                             <span class="caption"><Icon Name="highlight" Size="IconSize.Small" /> @Text["menu.highlight"]</span>
                             @foreach (InkColour colour in s_highlightInks)
@@ -957,7 +958,7 @@
     /// The Check drawer (0018 section 9): where the doubts come from, the bars still to check with their reasons and Show,
     /// Fix notes and Looks right, then the bars resolved, to check again. Over the right of the page, as Insights.
     /// </summary>
-    private RenderFragment CheckDrawer => @<aside class="sheet inspector check-sheet" aria-labelledby="check-title" data-keeps-selection>
+    private RenderFragment CheckDrawer => @<aside class="sheet inspector check-sheet" aria-labelledby="check-title" data-keeps-selection data-menu-clear="auto">
     <header class="check-head">
         <div>
             <p class="overline">@Text["check.title"]</p>
@@ -1071,7 +1072,7 @@
     /// each, how well the shown one lines up, the bars it plays differently with Show, Take into the score and Not a
     /// difference, the bars taken with Restore the print, and the bars dismissed to show again. Over the right of the page.
     /// </summary>
-    private RenderFragment PerformanceDrawer => @<aside class="sheet inspector check-sheet perf-sheet" aria-labelledby="perf-title" data-keeps-selection>
+    private RenderFragment PerformanceDrawer => @<aside class="sheet inspector check-sheet perf-sheet" aria-labelledby="perf-title" data-keeps-selection data-menu-clear="auto">
     <header class="check-head">
         <div>
             <p class="overline">@Text["performance.title"]</p>

@@ -1,4 +1,4 @@
-// The assistant's entry points (decision record 0018, section 7): Ask in the contextual menu, the input that closes the
+// The assistant's entry points (decision record 0018, section 7): Ask in the contextual menu's overflow, the input that closes the
 // Insights stream, ? on the keyboard, Ask about the piece in the overflow and in Piece DNA. Each opens the assistant in the
 // Insights sheet with its scope chips and what it knows; the build under test has no sign-in, so it is the free tier,
 // where the conversation's place holds the one-line Pro offer and nothing is sent anywhere.
@@ -9,13 +9,14 @@ function assistant(page) {
     return page.locator(".sheet.insights .assistant");
 }
 
-test("Ask from the menu looks at the selection, says what it knows, and offers Pro without sending anything", async ({ page }) => {
+test("Ask from the menu's overflow looks at the selection, says what it knows, and offers Pro without sending anything", async ({ page }) => {
     const errors = await openFurElise(page);
     const requests = [];
     page.on("request", request => requests.push(request.url()));
     await selectBar(page, 2);
 
-    await page.locator(".ctx .menu").getByRole("button", { name: "Ask", exact: true }).click();
+    await page.locator(".ctx").getByRole("button", { name: "More for the selection" }).click();
+    await page.locator(".ctx .menu-more").getByRole("button", { name: "Ask", exact: true }).click();
     const ask = assistant(page);
     await expect(ask.getByRole("heading", { name: "Ask" })).toBeVisible();
     const scope = ask.getByRole("radiogroup", { name: "What the assistant looks at" });
@@ -83,7 +84,8 @@ test("in Russian, the assistant and its offer are in Russian", async ({ page }) 
     await page.addInitScript(() => localStorage.setItem("motiff-lab:ml-language", "ru"));
     const errors = await openFurElise(page);
     await selectBar(page, 2);
-    await page.locator(".ctx .menu").getByRole("button", { name: "Спросить", exact: true }).click();
+    await page.locator(".ctx").getByRole("button", { name: "Ещё для выделения" }).click();
+    await page.locator(".ctx .menu-more").getByRole("button", { name: "Спросить", exact: true }).click();
     const ask = assistant(page);
     await expect(ask.getByRole("radio", { name: "Вся пьеса" })).toBeVisible();
     await expect(ask.locator(".knows summary")).toHaveText(/^Что он знает · \d+ пункт(а|ов)?$/);

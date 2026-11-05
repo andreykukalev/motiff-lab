@@ -3247,10 +3247,11 @@ body:has(.workspace) .site-footer {
     box-shadow: var(--focus-ring);
 }
 
-/* The contextual menu (design/kit/ds.css .menu): a pill above the selection with a pointer to it; the script places it. */
+/* The contextual menu (design/kit/ds.css .menu): a pill above the selection with a pointer to it; the script places it. It
+   belongs to the page: the drawer (z 2, later in the document), the sheets (3), the pill and the bar lie over it. */
 .workspace .ctx {
     position: fixed;
-    z-index: 5;
+    z-index: 2;
 }
 
 .workspace .ctx[hidden], .workspace .ctx:not(:has(.menu)) {
@@ -3311,6 +3312,20 @@ body:has(.workspace) .site-footer {
     width: 36px;
     padding: 0;
     justify-content: center;
+}
+
+/* With short words the menu fits an 11-inch iPad in portrait; in a narrower window (Split View, a phone) its items are their
+   icons alone, and each names itself in aria-label. */
+@media (max-width: 700px) {
+    .lab.workspace .ctx .menu > .it {
+        width: 40px;
+        padding: 0;
+        justify-content: center;
+    }
+
+    .lab.workspace .ctx .menu > .it .lbl {
+        display: none;
+    }
 }
 
 @media (hover: hover) {

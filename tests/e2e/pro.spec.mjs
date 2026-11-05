@@ -107,7 +107,8 @@ test("the assistant offers Pro to a free player and, in Pro, says the conversati
     await signedIn(page, { tester: true, own: "free" });
     await openFurElise(page);
     await selectBar(page, 2);
-    await page.locator(".ctx .menu").getByRole("button", { name: "Ask", exact: true }).click();
+    await page.locator(".ctx").getByRole("button", { name: "More for the selection" }).click();
+    await page.locator(".ctx .menu-more").getByRole("button", { name: "Ask", exact: true }).click();
     const ask = page.locator(".sheet.insights .assistant");
     await expect(ask.locator(".pro-offer")).toContainText("so it is part of Pro. Nothing has been sent.");
     await expect(ask.locator(".pro-offer").getByRole("link", { name: "Your plan" })).toHaveAttribute("href", "settings#plan");
@@ -117,7 +118,8 @@ test("the assistant offers Pro to a free player and, in Pro, says the conversati
     await expect(page.locator("#plan")).toContainText("Pro");
     await openFurElise(page);
     await selectBar(page, 2);
-    await page.locator(".ctx .menu").getByRole("button", { name: "Ask", exact: true }).click();
+    await page.locator(".ctx").getByRole("button", { name: "More for the selection" }).click();
+    await page.locator(".ctx .menu-more").getByRole("button", { name: "Ask", exact: true }).click();
     await expect(ask.locator(".conversation")).toHaveText("The conversation is coming to Pro soon. Nothing is sent yet.");
     await expect(ask.locator(".pro-offer")).toHaveCount(0);
 });
