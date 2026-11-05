@@ -92,8 +92,6 @@
                 <Icon Name="mic" /> @Text["performance.add"] @if (_project is not null && !HasNotes && Scans.IsHosted) { <span class="tag pro">Pro</span> }
             </button>
             <button class="btn quiet" @onclick="DownloadAsync" disabled="@(_project?.Document is null)"><Icon Name="export" /> @Text["pdf.download"]</button>
-            <p class="caption">@Text[HasNotes ? "pdf.asIsRead" : "pdf.asIs"]</p>
-            <p class="caption">@Text["pdf.onDevice"]</p>
         </div>
     }
     else if (_popover == Popover.Recognise && _project is { Document: { } pdf } toRead)

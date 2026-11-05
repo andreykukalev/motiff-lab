@@ -188,7 +188,7 @@ test("a recording is added as another version: its sound is heard on the scan se
     await (await openMore(page)).getByRole("button", { name: "Add a version" }).click();
     const drawer = page.locator(".perf-sheet");
     const fromRecording = drawer.getByRole("region", { name: "From a recording" });
-    await expect(fromRecording).toContainText("The scan server at http://localhost:8765/ hears the recording");
+    await expect(fromRecording).toContainText("The recording's sound, up to 7 minutes, goes to localhost and is deleted once heard.");
     expect(await violations(page)).toEqual([]);
 
     await fromRecording.getByLabel("Choose an audio or video recording to add as a version").setInputFiles(await recording());

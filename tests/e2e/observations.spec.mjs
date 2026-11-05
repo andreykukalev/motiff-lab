@@ -4,7 +4,7 @@
 // has no project, so it says what is kept lasts while the page is open; an imported piece saves it with its project.
 import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { openAdjust, openFurElise, openInsights, heardChoice, tryWay } from "./steps.mjs";
+import { clearByPage, openAdjust, openFurElise, openInsights, heardChoice, tryWay } from "./steps.mjs";
 
 /** Lists the kept ideas whole from the strip at the top of the Insights stream. */
 async function manageIdeas(page) {
@@ -55,7 +55,7 @@ test("keep a variation with a note, come back to it, rename, export and delete i
     await phrases.nth(1).click();
     await expect(kept.getByRole("heading", { name: "Kept for phrase 2" })).toBeVisible();
     await expect(kept.getByRole("listitem")).toHaveCount(0);
-    await page.locator(".inspector-head").getByRole("button", { name: "Clear" }).click();
+    await clearByPage(page);
     await expect(page.locator(".inspector-head .compare-switch")).toHaveCount(0);
 
     // Back on phrase 1, opening the kept one puts its variation back, heard at once and ready to compare.
@@ -155,7 +155,9 @@ test("what is kept is saved with the project and comes back when it is opened ag
     await manageIdeas(page);
     const item = kept.getByRole("listitem", { name: "Passing notes" });
     await expect(item).toContainText("Your note: Airier.");
-    await page.locator(".inspector-head").getByRole("button", { name: "Clear" }).click();
+    // The second tap on the phrase lifted it into focus: back to the page, then a tap on the paper puts the selection away.
+    await page.locator(".bar").getByRole("button", { name: "Back to page" }).click();
+    await clearByPage(page);
     await phrases.nth(0).click();
     await item.getByRole("button", { name: "Open" }).click();
     await expect(item).toContainText("You hear this");

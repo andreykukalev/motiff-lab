@@ -184,3 +184,12 @@ export async function scoreChoice(page) {
     await closePopover(page);
     return text;
 }
+
+/** Clears the selection the way a player does: a tap on the page where there is no music (0018 section 3). */
+export async function clearByPage(page) {
+    const sheet = page.locator(".score .score-page").first();
+    const box = await sheet.boundingBox();
+    // The page's left margin, clear of the drawers and the pill.
+    await page.mouse.click(box.x + 12, box.y + box.height * 0.3);
+    await expect(page.locator(".selection-status")).toContainText(/Nothing selected|Ничего не выделено/);
+}

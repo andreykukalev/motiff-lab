@@ -20,7 +20,7 @@ test("step between phrases and play on from one", async ({ page }) => {
     await page.keyboard.press("PageDown");
     await expect(selection).toContainText("Selected phrase 2");
     await expect(stream).toBeVisible();
-    await expect(page.locator(".sheet .selection-text")).toContainText("Selected phrase 2");
+    await expect(page.locator(".sheet .selection-text")).toHaveText("Phrase 2 · bars 4–8");
     await expect(current).toHaveAccessibleName("Phrase 2, bars 4–8");
     await page.keyboard.press("PageUp");
     await expect(selection).toContainText("Selected phrase 1");

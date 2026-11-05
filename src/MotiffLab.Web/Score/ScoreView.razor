@@ -413,6 +413,10 @@ else if (_loading && !HoldHeight)
     [Parameter]
     public EventCallback<(Tick Start, bool Extend)> BarPicked { get; set; }
 
+    /// <summary>Raised when the page is tapped where there is no music: the selection is put away (0018 section 3).</summary>
+    [Parameter]
+    public EventCallback PaperTapped { get; set; }
+
     /// <summary>Called by the script when a note is clicked: playback moves to its onset, and the piano roll shows the note.</summary>
     [JSInvokable]
     public async Task OnScoreNoteClicked(double tick, int pitch)
@@ -580,6 +584,10 @@ else if (_loading && !HoldHeight)
     /// <summary>Called by the script when a bar is clicked away from its notes.</summary>
     [JSInvokable]
     public Task OnScoreBarClicked(double tick, bool extend) => BarPicked.InvokeAsync((new Tick(Math.Max(0, (long)Math.Round(tick))), extend));
+
+    /// <summary>Called by the script when the page is tapped away from the bars and the marks.</summary>
+    [JSInvokable]
+    public Task OnScorePaperClicked() => PaperTapped.InvokeAsync();
 
     public async ValueTask DisposeAsync()
     {
