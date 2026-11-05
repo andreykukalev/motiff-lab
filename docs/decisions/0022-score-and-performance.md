@@ -60,7 +60,7 @@ Plum and amber keep their meaning in the design system: the ossia is already plu
 
 ### 5. In phrase focus: hear, compare, take
 
-Built first on 2026-11-05: without a variation in play, the card shows the shown version's bars of the phrase as the ossia, named "As in «name»", and the focus bar offers Take into the score for every bar of the phrase the version has otherwise and Restore these notes for the bars taken; hearing the performer and Alternate follow.
+Built first on 2026-11-05: without a variation in play, the card shows the shown version's bars of the phrase as the ossia, named "As in «name»", and the focus bar offers Take into the score for every bar of the phrase the version has otherwise and Restore these notes for the bars taken. The focus bar then also offers Notes / Version / Alternate: the phrase as in the score, as in the version (its notes in the score's time, artefacts left out), or one after the other; leaving focus goes back to the notes.
 
 - The focused phrase shows the ossia "As <name> plays it" above the original, in the plum dashed frame of variations.
 - **Notes · Performer · Alternate** chooses what is heard. *Performer* plays the recording itself from the bar, through the time map, not a synthesis of the notes heard; loop and 50–100 % tempo (pitch kept) work as for the score. *Alternate* plays the printed phrase, then the recording.

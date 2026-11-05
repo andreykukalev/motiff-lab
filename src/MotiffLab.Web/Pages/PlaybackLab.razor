@@ -1329,6 +1329,17 @@
                 <button role="radio" class="@(alternate ? "on" : null)" aria-checked="@(alternate ? "true" : "false")" title="@Text["compare.alternateHint"]" @onclick="StartOneAfterTheOtherAsync">@Text["focus.alternate"]</button>
             </div>
         }
+        @if (FocusHasVersion)
+        {
+            bool alternate = _alternating;
+            bool version = !alternate && VersionChosen;
+            string name = ShownPerformance!.Name;
+            <div class="seg" role="radiogroup" aria-label="@Text["focus.listen"]">
+                <button role="radio" class="@(!alternate && !version ? "on" : null)" aria-checked="@(!alternate && !version ? "true" : "false")" title="@Text["compare.notesHint"]" @onclick="() => HearVersionAsync(false)">@Text["focus.notes"]</button>
+                <button role="radio" class="@(version ? "on" : null)" aria-checked="@(version ? "true" : "false")" title="@Text.Format("compare.versionHint", name)" @onclick="() => HearVersionAsync(true)">@Text["focus.versionHear"]</button>
+                <button role="radio" class="@(alternate ? "on" : null)" aria-checked="@(alternate ? "true" : "false")" title="@Text.Format("compare.alternateVersionHint", name)" @onclick="StartOneAfterTheOtherAsync">@Text["focus.alternate"]</button>
+            </div>
+        }
         @if (!FocusHasVariation && ShownPerformance is not null)
         {
             @* Another version above the phrase (0022, section 5): its bars that differ are taken into the score at once, or brought back. *@
@@ -3268,7 +3279,17 @@
         await Player.SetSourceAsync(SelectionSource, _score!.WithNotes(Voiced([.. _notes!.Where(note => ids.Contains(note.Id))])));
         await SetLeadSourceAsync(selection);
         // One after the other (#43) keeps alternating as the selection, its notes or the variation change.
-        _alternating = _alternating && _variation is { Notes.Count: > 0 };
+        _alternating = _alternating && CanAlternate(selection);
+        // The other version is heard only in focus, while it is shown (0022, section 5).
+        if (VersionChosen && !(Focused && VersionNotesIn(selection.Span).Count > 0))
+        {
+            _hear = [Player.OriginalSource];
+        }
+
+        if (VersionChosen || (_alternating && _variation is not { Notes.Count: > 0 }))
+        {
+            await Player.SetSourceAsync(VersionSource, _score.WithNotes(Voiced(VersionNotesIn(selection.Span))));
+        }
         if (_alternating)
         {
             return await AlternateAsync(selection);
