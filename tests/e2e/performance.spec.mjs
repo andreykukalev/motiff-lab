@@ -4,11 +4,42 @@
 // added in bar 5 and the left hand of bar 7 left out (fixtures/fur-elise-cover.mid, made from the public-domain score). Which is the base is only which was opened first: the score
 // in MusicXML can be added over the cover opened as the piece.
 import { expect, test } from "@playwright/test";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { closePopover, openMore, violations } from "./steps.mjs";
 
 const score = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Experiments/Fixtures/fur-elise-original.musicxml", import.meta.url));
 const cover = fileURLToPath(new URL("fixtures/fur-elise-cover.mid", import.meta.url));
+const server = "http://localhost:8765";
+
+// The app's service worker would answer the page's requests before the test's stand-in scan server could.
+test.use({ serviceWorkers: "block" });
+
+/** A second of a 440 Hz tone as a WAV file, for the browser to take the sound out of; what is heard comes from the stand-in server. */
+async function recording() {
+    const rate = 44100;
+    const bytes = Buffer.alloc(44 + rate * 2);
+    bytes.write("RIFF", 0);
+    bytes.writeUInt32LE(36 + rate * 2, 4);
+    bytes.write("WAVEfmt ", 8);
+    bytes.writeUInt32LE(16, 16);
+    bytes.writeUInt16LE(1, 20);
+    bytes.writeUInt16LE(1, 22);
+    bytes.writeUInt32LE(rate, 24);
+    bytes.writeUInt32LE(rate * 2, 28);
+    bytes.writeUInt16LE(2, 32);
+    bytes.writeUInt16LE(16, 34);
+    bytes.write("data", 36);
+    bytes.writeUInt32LE(rate * 2, 40);
+    for (let i = 0; i < rate; i++) {
+        bytes.writeInt16LE(Math.round(Math.sin((2 * Math.PI * 440 * i) / rate) * 12000), 44 + i * 2);
+    }
+    const path = join(await mkdtemp(join(tmpdir(), "recording-")), "Take 1 at the piano.wav");
+    await writeFile(path, bytes);
+    return path;
+}
 
 test("a MIDI performance marks the bars it plays differently, and a bar is taken into the score and restored", async ({ page }) => {
     const errors = [];
@@ -128,5 +159,44 @@ test("in focus, the other version stands above the phrase, is heard, and its bar
     await expect(focusBar.getByRole("button", { name: "Take into the score" })).toBeVisible();
     await focusBar.getByRole("button", { name: "Back to page" }).click();
     await expect(markers).toHaveText(["+3 · added notes", "−3 · simplified"]);
+    expect(errors).toEqual([]);
+});
+
+test("a recording is added as another version: its sound is heard on the scan server and its notes lined up", async ({ page }) => {
+    const errors = [];
+    page.on("pageerror", error => errors.push(String(error)));
+    // The scan server is played by the test: it answers with what Transkun heard in a recording of Für Elise.
+    const heard = await readFile(fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/Transcription/Fixtures/transkun-fur-elise.mid", import.meta.url)));
+    const uploads = [];
+    const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Expose-Headers": "X-Engine, X-Pages, X-Seconds, X-Cut" };
+    await page.route(`${server}/health`, route => route.fulfill({
+        json: { engine: "homr", version: "0.7.0", maxPages: 8, transcribe: { engine: "transkun", version: "2.0.1", maxMegabytes: 200, maxSeconds: 600 } },
+        headers: cors,
+    }));
+    await page.route(`${server}/transcribe`, route => {
+        uploads.push(route.request().postDataBuffer() ?? Buffer.alloc(0));
+        return route.fulfill({ body: heard, contentType: "audio/midi", headers: { ...cors, "X-Engine": "transkun 2.0.1", "X-Seconds": "1.0", "X-Cut": "false" } });
+    });
+    await page.goto("/settings");
+    await page.getByRole("button", { name: "Save and check" }).click();
+    await expect(page.getByText("Connected: the scan server runs homr 0.7.0")).toBeVisible();
+
+    await page.goto("/");
+    await page.getByRole("button", { name: "Add piece" }).click();
+    await page.getByLabel("Choose a MIDI, MusicXML or PDF file").setInputFiles(score);
+    await expect(page).toHaveURL(/\/playback\?project=p_[0-9a-f]+/);
+    await (await openMore(page)).getByRole("button", { name: "Add a version" }).click();
+    const drawer = page.locator(".perf-sheet");
+    const fromRecording = drawer.getByRole("region", { name: "From a recording" });
+    await expect(fromRecording).toContainText("The scan server at http://localhost:8765/ hears the recording");
+    expect(await violations(page)).toEqual([]);
+
+    await fromRecording.getByLabel("Choose an audio or video recording to add as a version").setInputFiles(await recording());
+    // The whole piece was played: its opening, all that is printed here, agrees note for note.
+    await expect(drawer.getByRole("status").first()).toHaveText("Lined up: 53 of 53 notes found in the version, 0 bars differ.");
+    expect(uploads).toHaveLength(1);
+    // Only the sound went, not the file under its name.
+    expect(uploads[0].includes(Buffer.from("Take 1"))).toBe(false);
+    await expect(drawer.getByLabel("Name")).toHaveValue("Take 1 at the piano");
     expect(errors).toEqual([]);
 });

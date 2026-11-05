@@ -221,4 +221,20 @@ public class PerformanceComparisonTests
         Assert.Equal(aligned.MicrosecondsAt(new Tick(1234)), rebuilt.MicrosecondsAt(new Tick(1234)));
         Assert.Throws<ArgumentException>(() => PerformanceAlignment.FromAnchors([new Anchor(new Tick(480), 1_000), new Anchor(new Tick(480), 2_000)]));
     }
+
+    [Fact]
+    public void A_recording_of_the_whole_piece_is_compared_with_its_opening()
+    {
+        // Public-domain material: Für Elise's opening as printed, and Transkun's hearing of a recording of the whole piece.
+        // Notes played just before the opening ends, early for a bar it does not have, are counted in its last bar.
+        string fixtures = AppContext.BaseDirectory;
+        var piece = MotiffLab.MusicCore.Import.PieceImporter.Import(
+            "fur-elise-original.musicxml", File.ReadAllBytes(Path.Combine(fixtures, "Experiments", "Fixtures", "fur-elise-original.musicxml"))).Piece!;
+        IReadOnlyList<PlayedNote> played = PlayedNotes.FromMidi(File.ReadAllBytes(Path.Combine(fixtures, "Import", "Transcription", "Fixtures", "transkun-fur-elise.mid")));
+
+        PerformanceComparison comparison = PerformanceComparison.Compare(piece.Notes, piece.Meter, played, PerformanceAlignment.Align(piece.Notes, played));
+
+        Assert.Equal(piece.Notes.Count, comparison.MatchedCount);
+        Assert.Empty(comparison.Differences);
+    }
 }
