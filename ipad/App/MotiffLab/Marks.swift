@@ -195,7 +195,7 @@ struct LayersList: View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
             Text(text["layers.title"]).overline()
             ForEach(score.pieceLayers, id: \.self) { layer in
-                Toggle(text["layers.\(layer)"], isOn: Binding(get: { !score.hiddenLayers.contains(layer) }, set: { score.showLayers([layer], $0) }))
+                Toggle(score.layerName(layer), isOn: Binding(get: { !score.hiddenLayers.contains(layer) }, set: { score.showLayers([layer], $0) }))
                     .dsType(.label)
                     .foregroundStyle(Color.ds("ink"))
                     .tint(Color.ds("accent"))

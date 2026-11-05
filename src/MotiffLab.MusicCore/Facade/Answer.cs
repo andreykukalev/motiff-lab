@@ -10,6 +10,7 @@ using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Invitations;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Notation;
+using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Playback;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;
@@ -843,7 +844,7 @@ internal static partial class Answer
         json.WriteEndArray();
     }
 
-    public static void Notation(Utf8JsonWriter json, GeneratedNotation notation)
+    public static void Notation(Utf8JsonWriter json, GeneratedNotation notation, IReadOnlyList<PerformanceLayerNotes?>? versions = null)
     {
         json.WriteString("mei", notation.Mei);
         Staves(json, notation.Staves);
@@ -860,6 +861,7 @@ internal static partial class Answer
         }
 
         json.WriteStartArray("ossias");
+        int index = 0;
         foreach (GeneratedOssia ossia in notation.Ossias)
         {
             json.WriteStartObject();
@@ -867,7 +869,27 @@ internal static partial class Answer
             Staves(json, ossia.Staves);
             json.WriteNumber("noteCount", ossia.NoteCount);
             json.WriteString("idPrefix", ossia.IdPrefix);
+            // Another version's ossia: the engraved ids of the notes it adds (plum) and of its likely artefacts (grey).
+            if (versions?.ElementAtOrDefault(index) is { } version)
+            {
+                json.WriteStartArray("added");
+                foreach (string id in version.Added)
+                {
+                    json.WriteStringValue(ossia.IdPrefix + id);
+                }
+
+                json.WriteEndArray();
+                json.WriteStartArray("artefacts");
+                foreach (string id in version.Artefacts)
+                {
+                    json.WriteStringValue(ossia.IdPrefix + id);
+                }
+
+                json.WriteEndArray();
+            }
+
             json.WriteEndObject();
+            index++;
         }
 
         json.WriteEndArray();

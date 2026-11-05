@@ -896,6 +896,17 @@ public class MusicCoreFacadeTests
         Assert.Equal("+3 · added notes", different.GetProperty("marker").GetString());
         Assert.Equal(3, different.GetProperty("played").GetArrayLength());
 
+        // The comparison layer: the version above the bars, the notes it adds named for their plum, and heard on its own.
+        JsonElement layer = Call(facade, "notation", """{"bars": {"first": 5, "last": 5}, "ossia": "perf_1"}""");
+        JsonElement above = Assert.Single(layer.GetProperty("ossias").EnumerateArray());
+        Assert.Equal("Live", above.GetProperty("label").GetString());
+        Assert.Equal(3, above.GetProperty("added").GetArrayLength());
+        Assert.All(above.GetProperty("added").EnumerateArray(), id => Assert.StartsWith("ossia-v-", id.GetString(), StringComparison.Ordinal));
+        Assert.Contains(above.GetProperty("added")[0].GetString()!, layer.GetProperty("mei").GetString(), StringComparison.Ordinal);
+        Assert.Empty(above.GetProperty("artefacts").EnumerateArray());
+        Assert.Equal(printed + 3, Call(facade, "playback", """{"of": "version", "id": "perf_1"}""").GetProperty("notes").GetArrayLength());
+        Assert.Equal("badRequest", Error(facade, 1, "notation", """{"ossia": "perf_9"}"""));
+
         JsonElement taken = Call(facade, "performance.take", """{"id": "perf_1", "bars": [5]}""").GetProperty("performance");
         Assert.Equal(1, taken.GetProperty("takenBars").GetInt32());
         Assert.Equal(printed + 3, Call(facade, "piece").GetProperty("noteCount").GetInt32());
