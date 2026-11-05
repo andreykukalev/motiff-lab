@@ -34,7 +34,7 @@ test("practise a phrase: loop it, slow it down, hear one hand and move on", asyn
 
     // The Insights sheet works on the same phrase; nothing in the loop changes.
     await openInsights(page);
-    await expect(page.locator(".sheet .selection-text")).toContainText("Selected phrase 2");
+    await expect(page.locator(".sheet .selection-text")).toHaveText("Phrase 2 · bars 4–8");
     await page.locator(".bar").getByRole("button", { name: "Insights" }).click();
     await expect(tempo).toHaveText("50%");
     await expect(loop).toHaveAttribute("aria-pressed", "true");

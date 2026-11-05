@@ -3,14 +3,16 @@
 // what the score shows, One after the other loops the two in turn, and Compare says what changed and
 // what was kept.
 import { expect, test } from "@playwright/test";
-import { openAdjust, openFurElise, selectBar, openInsights, chooseInMore, heardChoice, scoreChoice, tryWay } from "./steps.mjs";
+import { openAdjust, openFurElise, selectBar, openInsights, heardChoice, scoreChoice, tryWay } from "./steps.mjs";
 
 test("go back to the original, compare, and hear the two one after the other", async ({ page }) => {
     const errors = await openFurElise(page);
     await selectBar(page, 1);
     await openInsights(page);
     const head = page.locator(".inspector-head");
+    // The heading says which one sounds; the status line says what loops.
     const selection = head.locator(".selection-text");
+    const status = page.locator(".selection-status");
 
     // No variation yet, so nothing to compare.
     await expect(head.locator(".compare-switch")).toHaveCount(0);
@@ -28,7 +30,7 @@ test("go back to the original, compare, and hear the two one after the other", a
     await expect(original).toHaveAttribute("aria-pressed", "true");
     await expect.poll(() => heardChoice(page)).toBe("Original");
     await expect.poll(() => scoreChoice(page)).toBe("Generated from the notes");
-    await expect(selection).toContainText("Looping; only these notes play.");
+    await expect(status).toContainText("Looping; only these notes play.");
     await expect(page.locator(".explore h3")).toHaveText("Try a variation");
 
     await variation.click();
@@ -40,7 +42,7 @@ test("go back to the original, compare, and hear the two one after the other", a
     const alternate = compare.getByRole("button", { name: "One after the other" });
     await alternate.click();
     await expect(alternate).toHaveAttribute("aria-pressed", "true");
-    await expect(selection).toContainText("Looping the original, then the variation.");
+    await expect(status).toContainText("Looping the original, then the variation.");
     await expect.poll(() => heardChoice(page)).toBe("The original, then the variation");
     await expect(selection).toContainText(/Now the (original|variation)\./);
     await expect(selection).toContainText("Now the variation.", { timeout: 20_000 });
@@ -53,16 +55,16 @@ test("go back to the original, compare, and hear the two one after the other", a
     // Pressed again, the selection keeps looping what Hear says.
     await alternate.click();
     await expect(alternate).toHaveAttribute("aria-pressed", "false");
-    await expect(selection).not.toContainText("then the variation");
-    await expect(selection).toContainText("Looping; only these notes play.");
+    await expect(status).not.toContainText("then the variation");
+    await expect(status).toContainText("Looping; only these notes play.");
     await expect.poll(() => heardChoice(page)).toBe("Variation");
     await expect(variation).toHaveAttribute("aria-pressed", "true");
 
-    // The Hear select offers the same, and any other choice there ends it.
-    await chooseInMore(page, "What is heard", "The original, then the variation");
-    await expect(selection).toContainText("Looping the original, then the variation.");
-    await chooseInMore(page, "What is heard", "Original");
-    await expect(selection).not.toContainText("then the variation");
+    // One after the other again, and Original ends it.
+    await alternate.click();
+    await expect(status).toContainText("Looping the original, then the variation.");
+    await original.click();
+    await expect(status).not.toContainText("then the variation");
     await expect(alternate).toHaveAttribute("aria-pressed", "false");
 
     // Compare, under the stream and in Adjust: what changed and what was kept, from the diff and the checks.

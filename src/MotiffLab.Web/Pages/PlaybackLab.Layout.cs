@@ -590,6 +590,9 @@ public partial class PlaybackLab : IAsyncDisposable
     private Task OnScoreBarPickedAsync((Tick Start, bool Extend) bar) =>
         OnRangePickedAsync(new RollRange(bar.Start, bar.Start, true, bar.Extend));
 
+    /// <summary>A tap on the page where there is no music puts the selection away (0018 section 3); the sheets stay as they are.</summary>
+    private Task OnPaperTappedAsync() => _selection is null || _penOn || Focused ? Task.CompletedTask : ClearSelectionAsync();
+
     /// <summary>Starts the bar's fade and the page-turner keys once the score page is showing; stops them when it goes.</summary>
     private async Task SyncLayoutAsync()
     {

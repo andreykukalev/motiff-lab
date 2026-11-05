@@ -112,6 +112,7 @@ else if (_firstRun is false)
                                     <div class="lib-menu" role="group" aria-label="@Text.Format("library.moreFor", title)" @onclick:stopPropagation="true">
                                         @if (summary.Origin != PieceOrigin.Pdf)
                                         {
+                                            <button class="btn quiet" @onclick="() => OpenFreshAsync(summary.Id, null)" disabled="@_opening"><Icon Name="file" /> @Text["library.page1"]</button>
                                             <button class="btn quiet" @onclick="() => OpenResumesAsync(summary)"><Icon Name="pages" /> @Text["library.resumePoints"]</button>
                                             <button class="btn quiet" @onclick="() => ResumeAsync(summary.Id, null, dna: true)" disabled="@_opening"><Icon Name="phrases" /> @Text["dna.title"]</button>
                                         }
@@ -149,7 +150,6 @@ else if (_firstRun is false)
                         <div class="row">
                             <button class="btn secondary resume" @onclick="() => ResumeAsync(summary.Id, null)" @onclick:stopPropagation="true" disabled="@_opening"
                                     aria-label="@Text.Format("library.resumeLabel", title)"><Icon Name="play" /> @Text["library.resume"]</button>
-                            <button class="btn quiet" @onclick="() => OpenFreshAsync(summary.Id, null)" @onclick:stopPropagation="true" disabled="@_opening">@Text["library.page1"]</button>
                         </div>
                     </li>
                 }

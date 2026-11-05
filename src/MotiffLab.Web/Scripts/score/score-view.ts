@@ -1229,6 +1229,9 @@ export class ScoreView {
         const start = measure?.id ? timeline.measureOnset(measure.id) : undefined;
         if (start !== undefined) {
             void this.dotnet.invokeMethodAsync("OnScoreBarClicked", start, extend);
+        } else if (measure == null && !extend) {
+            // The paper around the music: a tap there puts the selection away (0018 section 3).
+            void this.dotnet.invokeMethodAsync("OnScorePaperClicked");
         }
     }
 }

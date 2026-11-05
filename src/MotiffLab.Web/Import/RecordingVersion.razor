@@ -40,7 +40,7 @@
     }
     else
     {
-        <p class="caption">@Text.Format("version.recordingLine", server)</p>
+        <p class="caption">@Text.Format("version.recordingLine", Scans.IsHosted ? Text["version.hostedServer"] : server.Host)</p>
         @if (!Scans.IsLocal)
         {
             <label class="consent">

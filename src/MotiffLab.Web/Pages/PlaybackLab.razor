@@ -87,7 +87,7 @@
             {
                 @* Clicks on the page outside the score and the overlays clear the selection, except inside panels marked data-keeps-selection (docs/ui-conventions.md). *@
                 <ScoreView @ref="_scoreView" Source="shown" Range="ShownRange" Phrases="ScorePhrases" Highlight="_highlight?.Places" HoldHeight="false" PencilKey="ShownPencilKey" Ink="@ShownInk"
-                           MarksChanged="OnPencilMarksChangedAsync" Title="@ScoreTitle.Of(_title)" BarPicked="OnScoreBarPickedAsync" PagesShown="OnPagesShown"
+                           MarksChanged="OnPencilMarksChangedAsync" Title="@ScoreTitle.Of(_title)" BarPicked="OnScoreBarPickedAsync" PaperTapped="OnPaperTappedAsync" PagesShown="OnPagesShown"
                            BracketPicked="OnBracketPickedAsync" PencilChanged="OnPenChanged" TitleRead="OnTitleRead"
                            Selection="_selection?.Span" BarsChosen="OnScoreBarsChosenAsync" Menu="@(MenuShown ? SelectionMenu : null)"
                            Bookmarks="ScoreBookmarks" BookmarkPicked="OnBookmarkPickedAsync" Notes="ScoreNotes" MarkHighlights="ScoreHighlights" HiddenLayers="HiddenLayers"
@@ -192,7 +192,7 @@
                     </div>
                     break;
                 case Popover.More:
-                    @* The overflow: the layout and the PDF, which notation and what is heard, another piece, and the credits. *@
+                    @* The overflow: the piece's places and tools, the PDF, which notation is shown, Settings and the credits. *@
                     <div class="popover more-popover" role="dialog" aria-label="@Text["bar.more"]" data-keeps-selection>
                         <button class="btn quiet" aria-expanded="@(_contentsOpen ? "true" : "false")" @onclick="ToggleContentsAsync"><Icon Name="bookmark" /> @Text["bar.contents"]</button>
                         <button class="btn quiet" @onclick="OpenLayers"><Icon Name="layers" /> @Text["layers.title"]</button>
@@ -213,30 +213,31 @@
                         }
                         @if (_scoreView is not null)
                         {
-                            <p class="overline">@Text["score.layout"]</p>
-                            <div class="seg" role="radiogroup" aria-label="@Text["score.layout"]">
-                                <button role="radio" class="@(_scoreView.Paged ? "on" : null)" aria-checked="@(_scoreView.Paged ? "true" : "false")" title="@Text["score.pagesHint"]" @onclick="() => SetPagedAsync(true)">@Text["score.pages"]</button>
-                                <button role="radio" class="@(_scoreView.Paged ? null : "on")" aria-checked="@(_scoreView.Paged ? "false" : "true")" title="@Text["score.stripHint"]" @onclick="() => SetPagedAsync(false)">@Text["score.strip"]</button>
-                            </div>
                             <button class="btn quiet" @onclick="ExportPdfAsync" disabled="@_scoreView.Exporting" title="@Text["score.pdfHint"]">
                                 <Icon Name="export" /> @(_scoreView.Exporting ? Text["score.pdfMaking"] : Text["score.pdf"])
                             </button>
                         }
-                        <label class="pick">
-                            <span class="overline">@Text["workspace.score"]</span>
-                            @* The select's value, not each option's selected attribute: Firefox can fall back to the first option when the options and their selected attributes change in one render. *@
-                            <select @onchange="SetScoreChoice" aria-label="@Text["workspace.scoreLabel"]" value="@ShownChoice.ToString()">
-                                @foreach ((ScoreChoice choice, string key) in ScoreChoices)
-                                {
-                                    <option value="@choice">@Text[key]</option>
-                                }
-                            </select>
-                        </label>
-                        @if (ShownScore is { } shownScore)
-                        {
-                            <p class="caption score-note">@ScoreNote(shownScore)</p>
+                        @* Notation (0018 "Where every current feature goes"): which notes the page shows, when there is a choice, and one line about them on request. *@
+                        @{
+                            var choices = ScoreChoices.ToList();
+                            bool heardChoice = _heard && ShownScore?.Generated is not null;
                         }
-                        @if (_heard && ShownScore?.Generated is not null)
+                        @if (choices.Count > 1 || heardChoice)
+                        {
+                            <hr />
+                            <p class="overline" id="more-notation">@Text["score.notation"]</p>
+                        }
+                        @if (choices.Count > 1)
+                        {
+                            <div class="seg" role="radiogroup" aria-label="@Text["workspace.scoreLabel"]">
+                                @foreach ((ScoreChoice choice, string key) in choices)
+                                {
+                                    bool on = ShownChoice == choice;
+                                    <button role="radio" class="@(on ? "on" : null)" aria-checked="@(on ? "true" : "false")" @onclick="() => _scoreChoice = choice">@Text[key]</button>
+                                }
+                            </div>
+                        }
+                        @if (heardChoice)
                         {
                             @* Notes heard in a recording (0016): written for reading, or as close to the playing as notation goes. *@
                             <div class="seg" role="radiogroup" aria-label="@Text["score.heardMode"]">
@@ -244,23 +245,14 @@
                                 <button role="radio" class="@(_readable ? null : "on")" aria-checked="@(_readable ? "false" : "true")" @onclick="() => SetReadable(false)">@Text["score.asPlayed"]</button>
                             </div>
                         }
-                        <label class="pick">
-                            <span class="overline">@Text["workspace.hear"]</span>
-                            <select @onchange="HearChosenAsync" aria-label="@Text["workspace.hearLabel"]">
-                                @for (int i = 0; i < Sources.Length; i++)
-                                {
-                                    <option value="@i" selected="@HearShown(Sources[i].Ids)">@Text[Sources[i].Key]</option>
-                                }
-                            </select>
-                        </label>
+                        @if (ShownScore is { } shownScore)
+                        {
+                            <details class="about-notation">
+                                <summary>@Text["score.aboutNotation"]</summary>
+                                <p class="caption score-note">@ScoreNote(shownScore)</p>
+                            </details>
+                        }
                         <hr />
-                        <p class="overline">@Text["workspace.openAnother"]</p>
-                        <button class="btn quiet" @onclick="LoadFurEliseAsync" disabled="@(!Player.IsReady)" title="@Text["workspace.furEliseHint"]">Für Elise</button>
-                        <label class="file btn quiet">
-                            @Text["workspace.openFile"]
-                            <InputFile OnChange="OpenFileAsync" accept="@PieceImporter.AcceptedExtensions" disabled="@(!Player.IsReady)" />
-                        </label>
-                        <a class="btn quiet" href="import">@Text["workspace.importWithReport"]</a>
                         <button class="btn quiet" aria-haspopup="dialog" @onclick="OpenSettings">@Text["settings.title"]</button>
                         <p class="caption"><a href="privacy">@Text["footer.privacy"]</a> · <a href="terms">@Text["footer.terms"]</a></p>
                         <p class="credit caption">
@@ -345,7 +337,7 @@
 
             @if (_settingsOpen)
             {
-                <SettingsSheet Section="@_settingsSection" PieceOverrides="_project?.SettingOverrides" ClearPieceOverrides="ClearPieceSettingsAsync" Closed="CloseSettings" />
+                <SettingsSheet Section="@_settingsSection" PieceOverrides="_project?.SettingOverrides" ClearPieceOverrides="ClearPieceSettingsAsync" Closed="CloseSettings" LayoutChosen="SetPagedAsync" />
             }
 
             @if (_insightsOpen)
@@ -361,11 +353,9 @@
                 {
                     <div class="inspector-head">
                         @* Which one sounds while the two loop one after the other is shown, not announced at every pass. *@
-                        <p class="selection-text">@SelectionText<span aria-hidden="true">@SoundingText</span></p>
+                        @* One line: what the stream is about (the selection is announced in full by the status line below). A tap on the page clears it. *@
+                        <p class="selection-text">@InsightsHeading<span aria-hidden="true">@SoundingText</span></p>
                         <button class="btn quiet icon" aria-label="@Text["drawer.close"]" title="@Text["drawer.close"]" @onclick="ToggleInsights"><Icon Name="close" /></button>
-                        <div class="inspector-actions">
-                            <button class="link" @onclick="ClearSelectionAsync" disabled="@(_selection is null)">@Text["workspace.clear"]</button>
-                        </div>
                         @if (_variation is not null && _selection is { NoteIds.Count: > 0 })
                         {
                             <CompareSwitch Choose="CompareAsync" OneAfterTheOther="ToggleOneAfterTheOtherAsync" />
@@ -476,6 +466,13 @@
                                         {
                                             <span class="meta">@_secondTitle</span>
                                             <button @onclick="RemoveSecondFileAsync">@Text["notes.remove"]</button>
+                                            <div class="seg" role="radiogroup" aria-label="@Text["workspace.hearLabel"]">
+                                                @foreach ((string key, string[] ids) in s_withSecondFile)
+                                                {
+                                                    bool on = HearShown(ids);
+                                                    <button role="radio" class="@(on ? "on" : null)" aria-checked="@(on ? "true" : "false")" @onclick="() => HearAsync(ids)">@Text[key]</button>
+                                                }
+                                            </div>
                                         }
                                         else
                                         {
@@ -504,7 +501,6 @@
                             </div>
                     }
                 </section>
-                <p class="caption sheet-hint">@Text["insights.hint"]</p>
                 }
                 </aside>
             }
@@ -1097,7 +1093,8 @@
     }
     @if (_performanceStatus is { } status)
     {
-        <p class="caption" role="status">@status</p>
+        @* Announced; shown only until the comparison's own line says the same. *@
+        <p class="@(ShownComparison is null ? "caption" : "visually-hidden")" role="status">@status</p>
     }
     @if (ShownPerformance is { } performance && ShownComparison is { } comparison)
     {
@@ -1504,26 +1501,14 @@
     /// <summary>A second file opened as the variation (S1-W5).</summary>
     private const string SecondFileId = "second-file";
 
-    private static readonly (string Key, string[] Ids)[] s_sources =
-    [
-        ("term.original", [Player.OriginalSource]),
-        ("term.variation", [VariationSource]),
-        ("hear.both", [Player.OriginalSource, VariationSource]),
-    ];
-
     private static readonly (string Key, string[] Ids)[] s_secondFileSources =
     [
         ("hear.secondFile", [SecondFileId]),
         ("hear.originalAndSecond", [Player.OriginalSource, SecondFileId]),
     ];
 
-    /// <summary>What can be heard, each with its label's i18n key.</summary>
-    private (string Key, string[] Ids)[] Sources =>
-    [
-        .. s_sources,
-        .. _variation is null ? [] : new (string, string[])[] { ("hear.inPlace", [InPlaceSource]), ("hear.oneAfterTheOther", [OneAfterTheOther]) },
-        .. _secondTitle is null ? [] : s_secondFileSources,
-    ];
+    /// <summary>What can be heard with a second file open (S1-W5), each with its label's i18n key.</summary>
+    private static readonly (string Key, string[] Ids)[] s_withSecondFile = [("term.original", [Player.OriginalSource]), .. s_secondFileSources];
 
     private PlaybackScore? _score;
     private IReadOnlyList<Note>? _notes;
@@ -1659,17 +1644,6 @@
 
     /// <summary>Adjust on a Try chip, or Shape a variation yourself at the end of the stream.</summary>
     private void SetAdjusting(bool adjusting) => _showOperations = adjusting;
-
-    private Task HearChosenAsync(ChangeEventArgs args) =>
-        int.TryParse(args.Value?.ToString(), out int index) && index >= 0 && index < Sources.Length ? HearOrAlternateAsync(Sources[index].Ids) : Task.CompletedTask;
-
-    private void SetScoreChoice(ChangeEventArgs args)
-    {
-        if (Enum.TryParse(args.Value?.ToString(), out ScoreChoice choice))
-        {
-            _scoreChoice = choice;
-        }
-    }
 
     private enum ScoreChoice
     {
@@ -3412,9 +3386,34 @@
         }
     }
 
+    /// <summary>The Insights sheet's one-line heading: "Phrase 1 · bars 1–4", "Sentence A · bars 1–8", "Bars 5–6", or nothing selected.</summary>
+    private string InsightsHeading
+    {
+        get
+        {
+            if (_selection is not { } selection)
+            {
+                return Text["insights.none"];
+            }
+
+            if (CurrentSentence is { } sentence)
+            {
+                return Text.Format("insights.sentence", sentence.Letter, SentenceBars(sentence));
+            }
+
+            if (CurrentPhrase is { } phrase)
+            {
+                return Text.Format("insights.phrase", phrase.Number, PhraseBars(phrase));
+            }
+
+            string where = SpannedPhrases(selection) ?? Where(selection);
+            return where.Length == 0 ? where : char.ToUpper(where[0], Text.Culture) + where[1..];
+        }
+    }
+
     /// <summary>"bars 1–8": the bars a sentence spans, as the strip names them.</summary>
-    private static string SentenceBars(Sentence sentence) =>
-        sentence.FirstBar == sentence.LastBar ? $"bar {sentence.FirstBar}" : $"bars {sentence.FirstBar}–{sentence.LastBar}";
+    private string SentenceBars(Sentence sentence) =>
+        sentence.FirstBar == sentence.LastBar ? Text.Format("bars.one", sentence.FirstBar) : Text.Format("bars.range", sentence.FirstBar, sentence.LastBar);
 
     /// <summary>"bars 4–8": the bars a phrase touches, its pickup included, as the phrase strip names them.</summary>
     private string PhraseBars(Phrase phrase) =>

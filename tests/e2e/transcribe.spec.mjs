@@ -168,8 +168,9 @@ test("a transcription is written in bars and a tempo worked out from its notes, 
     await drawer.getByRole("button", { name: "Close Check" }).click();
 
     // The workspace writes the notes in those bars for reading, or as played.
-    // The overflow says how the score is written, and switches it (0018 section 2).
+    // The overflow's Notation switches how the score is written, and says how on request (0018 section 2).
     const more = await openMore(page);
+    await more.getByText("About this notation").click();
     await expect(more.getByText("Written for reading", { exact: false })).toBeVisible();
     await expect(more.getByText("The key signature (A minor) is worked out from the notes.", { exact: false })).toBeVisible();
     await more.getByRole("radio", { name: "As played" }).click();

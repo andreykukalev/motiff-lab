@@ -58,7 +58,7 @@ test("the score fills the screen, and brackets pick phrases at the level chosen"
     await bar.getByRole("button", { name: "Piano roll" }).click();
     await expect(page.locator(".roll")).toHaveCount(0);
     await openInsights(page);
-    await expect(page.locator(".sheet .selection-text")).toContainText("Selected phrase 1");
+    await expect(page.locator(".sheet .selection-text")).toHaveText("Phrase 1 · bars 0–4");
     await bar.getByRole("button", { name: "Insights" }).click();
     await expect(page.locator(".sheet")).toHaveCount(0);
     await expect(selection).toContainText("Selected phrase 1");

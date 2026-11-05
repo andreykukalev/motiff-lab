@@ -55,7 +55,8 @@ test("a card resumes the piece where it was left, opens page 1 afresh, and lists
     await expect(page.locator(".selection-status")).toContainText("Selected phrase 1");
 
     await page.goto("/");
-    await card.getByRole("button", { name: "Open page 1", exact: true }).click();
+    await card.getByRole("button", { name: "More for Waltz sketch" }).click();
+    await card.getByRole("button", { name: "From page 1", exact: true }).click();
     await expect(page).toHaveURL(/resume=r_0002$/);
 
     await page.goto("/");

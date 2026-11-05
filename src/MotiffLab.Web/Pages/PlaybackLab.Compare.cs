@@ -13,9 +13,6 @@ namespace MotiffLab.Web.Pages;
 /// </summary>
 public partial class PlaybackLab
 {
-    /// <summary>The Hear choice for the original, then the variation. Not an engine source: it starts the alternating loop.</summary>
-    private const string OneAfterTheOther = "one-after-the-other";
-
     /// <summary>Whether the original and the variation loop one after the other. Only while the selection loops.</summary>
     private bool _alternating;
 
@@ -82,11 +79,8 @@ public partial class PlaybackLab
         }
     }
 
-    /// <summary>Whether the Hear select shows this choice: the original, then the variation, while they alternate; else what the player chose.</summary>
-    private bool HearShown(string[] ids) => _alternating ? ids is [OneAfterTheOther] : _hear.SequenceEqual(ids);
-
-    /// <summary>A choice in the Hear select: sources to hear, or the original, then the variation.</summary>
-    private Task HearOrAlternateAsync(string[] ids) => ids is [OneAfterTheOther] ? StartOneAfterTheOtherAsync() : HearAsync(ids);
+    /// <summary>Whether these sources are what the player chose to hear (the second file's choice); none while the original and the variation alternate.</summary>
+    private bool HearShown(string[] ids) => !_alternating && _hear.SequenceEqual(ids);
 
     /// <summary>
     /// One after the other: loops the original phrase, then the variation, then again. Pressed again,

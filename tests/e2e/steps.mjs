@@ -162,25 +162,34 @@ export async function closePopover(page) {
     await expect(scrim).toHaveCount(0);
 }
 
-/** What the overflow's "What is heard" list shows, read with the overflow open and put away again. */
+/**
+ * What is heard, as the stream's Original | Variation | One after the other switch shows it (0018: what is heard lives
+ * with the variation, in the stream and in focus, not in the overflow).
+ */
 export async function heardChoice(page) {
-    const more = await openMore(page);
-    const text = await more.locator("select[aria-label='What is heard'] option:checked").textContent();
-    await closePopover(page);
-    return text;
+    const compare = page.locator(".compare-switch").first();
+    if ((await compare.getByRole("button", { name: "One after the other" }).getAttribute("aria-pressed")) === "true") {
+        return "The original, then the variation";
+    }
+    if ((await compare.getByRole("button", { name: "Variation", exact: true }).getAttribute("aria-pressed")) === "true") {
+        return "Variation";
+    }
+    return (await compare.getByRole("button", { name: "Original", exact: true }).getAttribute("aria-pressed")) === "true" ? "Original" : null;
 }
 
-/** What the overflow's "Which score shows" list shows. */
+/** Which score the overflow's Notation choice shows, read with the overflow open and put away again. */
 export async function scoreChoice(page) {
     const more = await openMore(page);
-    const text = await more.locator("select[aria-label='Which score shows'] option:checked").textContent();
+    const text = await more.getByRole("radiogroup", { name: "Which score shows" }).getByRole("radio", { checked: true }).textContent();
     await closePopover(page);
     return text;
 }
 
-/** Chooses in one of the overflow's lists ("What is heard", "Which score shows") by the option's label. */
-export async function chooseInMore(page, list, label) {
-    const more = await openMore(page);
-    await more.locator(`select[aria-label='${list}']`).selectOption({ label });
-    await closePopover(page);
+/** Clears the selection the way a player does: a tap on the page where there is no music (0018 section 3). */
+export async function clearByPage(page) {
+    const sheet = page.locator(".score .score-page").first();
+    const box = await sheet.boundingBox();
+    // The page's left margin, clear of the drawers and the pill.
+    await page.mouse.click(box.x + 12, box.y + box.height * 0.3);
+    await expect(page.locator(".selection-status")).toContainText(/Nothing selected|Ничего не выделено/);
 }

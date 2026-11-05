@@ -115,7 +115,7 @@ test("Add a version on a PDF reads its notes first, then opens Other versions on
     expect(new URL(page.url()).searchParams.get("project")).not.toBe(pdfId);
     const drawer = page.locator(".perf-sheet");
     await expect(drawer).toBeVisible();
-    await drawer.locator("input[type=file]").setInputFiles(cover);
+    await drawer.getByLabel("Add a MIDI or MusicXML file").setInputFiles(cover);
     await expect(drawer.getByRole("status")).toContainText("Lined up:");
     expect(await violations(page)).toEqual([]);
     expect(errors).toEqual([]);

@@ -2,6 +2,7 @@
 @inject DeviceSettings Store
 @inject MotiffLab.Web.Localization.UiText Text
 @inject IJSRuntime JS
+@inject MotiffLab.Web.Projects.Preferences Preferences
 @implements IDisposable
 
 @* The global Settings sheet (0018 section 10; design/kit/docs/01-ux-concept.md, "Settings"): over the page it was opened
@@ -44,6 +45,18 @@
 
             case SheetSection.Score:
                 <SettingChoice Id="phrases.granularity" Label="@Text["settings.granularity"]" Name="@(choice => Text[GranularityName(choice)])" Hint="@Text["settings.granularityHint"]" />
+                @* A4 pages by default; a strip the width of the view for a narrow window. Kept on the device. *@
+                <div class="set-row column">
+                    <span id="set-layout" class="label">@Text["score.layout"]</span>
+                    <div class="seg" role="radiogroup" aria-labelledby="set-layout" aria-describedby="set-layout-hint">
+                        @foreach (bool paged in s_layouts)
+                        {
+                            bool chosen = _paged == paged;
+                            <button role="radio" class="@(chosen ? "on" : null)" aria-checked="@(chosen ? "true" : "false")" @onclick="() => ChooseLayoutAsync(paged)">@Text[paged ? "score.pages" : "score.strip"]</button>
+                        }
+                    </div>
+                    <p id="set-layout-hint" class="caption">@Text[_paged ? "score.pagesHint" : "score.stripHint"]</p>
+                </div>
                 break;
 
             case SheetSection.Layers:
@@ -139,6 +152,22 @@
     [Parameter]
     public string? Section { get; set; }
 
+    /// <summary>Raised when the layout is chosen (true for A4 pages), so an open score is laid out again at once.</summary>
+    [Parameter]
+    public EventCallback<bool> LayoutChosen { get; set; }
+
+    private static readonly bool[] s_layouts = [true, false];
+
+    /// <summary>Whether the score is laid out as A4 pages (the device preference "ml-score-layout").</summary>
+    private bool _paged = true;
+
+    private async Task ChooseLayoutAsync(bool paged)
+    {
+        _paged = paged;
+        await Preferences.SetAsync(MotiffLab.Web.Score.ScoreView.LayoutPreference, paged ? "pages" : "strip");
+        await LayoutChosen.InvokeAsync(paged);
+    }
+
     protected override async Task OnInitializedAsync()
     {
         if (Enum.TryParse(Section, ignoreCase: true, out SheetSection section))
@@ -150,6 +179,7 @@
         Text.Changed += OnChanged;
         await Store.LoadAsync();
         _theme = await ThemeAsync("themeChoice");
+        _paged = await Preferences.GetAsync(MotiffLab.Web.Score.ScoreView.LayoutPreference) != "strip";
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
