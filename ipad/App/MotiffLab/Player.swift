@@ -67,6 +67,11 @@ final class Player: ObservableObject {
         send(.seek(0))
     }
 
+    /// Moves to a place in the piece without starting or stopping, as a place of a fact chosen in Insights asks.
+    func seek(to tick: Double) {
+        send(.seek(tick))
+    }
+
     /// Plays from a place in the piece, as a note tapped on the score asks: moves there, and starts if it was still.
     func play(from tick: Double) {
         send(.seek(tick))

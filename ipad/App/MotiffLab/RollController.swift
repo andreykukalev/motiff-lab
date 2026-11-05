@@ -4,7 +4,7 @@ import WebKit
 /// The piano roll in the drawer (0018 section 4): the web app's own roll (Scripts/roll/piano-roll.ts) on canvas in a web
 /// view of its own (Web/roll.html), as the score is. music-core gives its data (`roll`: the notes and bars packed as the
 /// roll reads them, and their names spelled as the score spells them). Swift tells it where the player is and what is
-/// selected; what the player does on it comes back here: bars dragged across or a bar number tapped select those bars,
+/// selected, and lights the places of the fact chosen in Insights; what the player does on it comes back here: bars dragged across or a bar number tapped select those bars,
 /// a tap on an empty place clears the selection, Space plays or pauses.
 @MainActor
 final class RollController: NSObject, ObservableObject {
@@ -30,6 +30,7 @@ final class RollController: NSObject, ObservableObject {
     private var piece: OpenPiece?
     private var dark = false
     private var shownSelection: [String: Any]?
+    private var shownHighlight: [[String: Any]] = []
 
     override init() {
         let configuration = WKWebViewConfiguration()
@@ -77,6 +78,14 @@ final class RollController: NSObject, ObservableObject {
         Task { _ = try? await webView.callAsyncJavaScript("return roll.selection(data)", arguments: ["data": data], contentWorld: .page) }
     }
 
+    /// The places of the fact chosen in Insights, lit on the roll as on the score; none clears them.
+    func highlight(_ places: [Fact.Place]) {
+        shownHighlight = places.map { ["onset": $0.onset, "end": $0.end, "noteIds": $0.noteIds] }
+        guard loaded else { return }
+        let data: [String: Any] = ["places": shownHighlight]
+        Task { _ = try? await webView.callAsyncJavaScript("return roll.highlight(data)", arguments: ["data": data], contentWorld: .page) }
+    }
+
     /// The next colour scheme that tells the notes apart.
     func nextColour() {
         guard loaded else { return }
@@ -119,6 +128,10 @@ final class RollController: NSObject, ObservableObject {
             loaded = true
             if let shownSelection {
                 _ = try? await webView.callAsyncJavaScript("return roll.selection(data)", arguments: ["data": shownSelection], contentWorld: .page)
+            }
+            if !shownHighlight.isEmpty {
+                let data: [String: Any] = ["places": shownHighlight]
+                _ = try? await webView.callAsyncJavaScript("return roll.highlight(data)", arguments: ["data": data], contentWorld: .page)
             }
         } catch {
             problem = error.localizedDescription

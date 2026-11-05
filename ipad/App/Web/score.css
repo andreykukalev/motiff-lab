@@ -51,6 +51,11 @@ button.sel-handle { position: absolute; z-index: 2; width: 14px; height: 14px; m
 button.sel-handle::before { content: ""; position: absolute; inset: -15px; border-radius: 50%; }
 button.sel-handle.dragging { background: var(--accent); }
 
+/* The places of the fact chosen in Insights (the web app's .highlight and .highlight-mark): cobalt, with a solid box
+   round each notehead or rest, so they differ from the band by more than colour. */
+.page g.note.highlight, .page g.rest.highlight { fill: var(--accent); stroke: var(--accent); color: var(--accent); }
+.ring { position: absolute; z-index: 1; box-sizing: border-box; pointer-events: none; border: 2px solid var(--accent); border-radius: var(--r-xs); }
+
 /* Where Swift draws the selection menu: the selection layer places this invisible box as it places the web app's menu. */
 #menu-place { position: fixed; visibility: hidden; pointer-events: none; }
 

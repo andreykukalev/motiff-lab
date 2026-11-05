@@ -57,6 +57,9 @@ final class ScoreController: NSObject, ObservableObject {
     @Published private(set) var menuPlace: CGPoint?
     /// A note tapped on the score or on the card in focus: the player plays from it.
     var noteTapped: (@MainActor (Double) -> Void)?
+    /// A tap on the page away from the notes; true when the screen took it (the Insights sheet goes away and the
+    /// selection stays), false to clear the selection.
+    var blankTapped: (@MainActor () -> Bool)?
     /// Phrase focus (0018 section 4): the selection lifted into a card across the screen, the page dimmed behind it.
     @Published private(set) var focused = false
     /// Lead-in, on the pill in focus: play takes in the bar before the phrase and the bar after it.
@@ -98,6 +101,8 @@ final class ScoreController: NSObject, ObservableObject {
     private var added: [String] = []
     /// Verovio's options for the card at its width now, as the page gives them.
     private var cardOptions: String?
+    /// The places ringed for the fact chosen in Insights.
+    private var ringed: [Fact.Place] = []
 
     override init() {
         let configuration = WKWebViewConfiguration()
@@ -166,7 +171,7 @@ final class ScoreController: NSObject, ObservableObject {
         if let note = number(message["note"]) {
             noteTapped?(note)
         }
-        if message["blank"] != nil {
+        if message["blank"] != nil, blankTapped?() != true {
             clearSelection()
         }
         if let note = number(message["cardNote"]) {
@@ -350,6 +355,19 @@ final class ScoreController: NSObject, ObservableObject {
         return String(decoding: data, as: UTF8.self)
     }
 
+    /// Rings the places of the fact chosen in Insights (0018 section 6); none clears them. With `scroll` the first comes
+    /// into view.
+    func highlight(_ places: [Fact.Place], scroll: Bool) {
+        ringed = places
+        guard shown else { return }
+        Task { await showRings(scroll: scroll) }
+    }
+
+    private func showRings(scroll: Bool) async {
+        let data: [String: Any] = ["places": ringed.map { ["onset": $0.onset, "end": $0.end, "noteIds": $0.noteIds] as [String: Any] }, "scroll": scroll]
+        _ = try? await webView.callAsyncJavaScript("return motiff.highlight(data)", arguments: ["data": data], contentWorld: .page)
+    }
+
     /// Room under the last page for the drawer over the bottom of the score, so the end of the piece can still be read.
     func insetBottom(_ height: CGFloat) {
         guard shown else { return }
@@ -419,6 +437,7 @@ final class ScoreController: NSObject, ObservableObject {
             let marks = await MusicCore.run { MusicCore.call(piece: piece.id, "marks") }
             await draw(marks)
             await loadPhrases(piece)
+            if !ringed.isEmpty { await showRings(scroll: false) }
         } catch {
             problem = error.localizedDescription
         }
