@@ -40,9 +40,22 @@ final class ScoreController: NSObject, ObservableObject {
             applyTool()
         }
     }
+    /// The bar's Pen (0018 section 5): while it is on, a finger writes too and two fingers scroll, so the score takes
+    /// marks on any iPad, with or without a Pencil. The Pencil always writes.
+    @Published var penOn = false {
+        didSet { applyInput() }
+    }
     @Published private(set) var markCount = 0
     @Published private(set) var canUndo = false
     @Published private(set) var problem: String?
+    /// The pages under the reading line, for the bar: "p. 2 of 4", or "pp. 1–2 of 4" with two to a row.
+    @Published private(set) var pages = PagesInView()
+
+    struct PagesInView: Equatable {
+        var first = 0
+        var last = 0
+        var count = 0
+    }
 
     let webView: WKWebView
     private let canvas = PKCanvasView()
@@ -70,16 +83,7 @@ final class ScoreController: NSObject, ObservableObject {
         // so a finger still reaches the web view and scrolls the score.
         canvas.backgroundColor = .clear
         canvas.isOpaque = false
-        #if targetEnvironment(simulator)
-        // The simulator has no Pencil and its mouse is a finger: there the mouse writes, and two fingers on the
-        // trackpad (or the wheel) scroll the score.
-        canvas.drawingPolicy = .anyInput
-        webView.scrollView.panGestureRecognizer.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.indirectPointer.rawValue)]
-        #else
-        canvas.drawingPolicy = .pencilOnly
-        // The Pencil only writes: the score scrolls under a finger, a mouse or a trackpad, never under the Pencil.
-        webView.scrollView.panGestureRecognizer.allowedTouchTypes = [UITouch.TouchType.direct, .indirectPointer].map { NSNumber(value: $0.rawValue) }
-        #endif
+        applyInput()
         canvas.isScrollEnabled = false
         canvas.delegate = self
         canvas.frame = webView.bounds
@@ -110,6 +114,11 @@ final class ScoreController: NSObject, ObservableObject {
     }
 
     // MARK: - The page
+
+    fileprivate func pagesDidChange(_ report: [String: Any]) {
+        func number(_ key: String) -> Int { (report[key] as? NSNumber)?.intValue ?? 0 }
+        pages = PagesInView(first: number("first"), last: number("last"), count: number("count"))
+    }
 
     fileprivate func pageDidLoad() {
         pageReady = true
@@ -198,6 +207,21 @@ final class ScoreController: NSObject, ObservableObject {
         await change(piece, "ink.add", ["strokes": [mark]])
     }
 
+    /// Who writes and who scrolls. The Pencil only writes: the score never scrolls under it.
+    private func applyInput() {
+        let pan = webView.scrollView.panGestureRecognizer
+        #if targetEnvironment(simulator)
+        // The simulator has no Pencil and its mouse is a finger: there the mouse writes, and two fingers on the
+        // trackpad (or the wheel) scroll the score.
+        canvas.drawingPolicy = .anyInput
+        pan.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.indirectPointer.rawValue)]
+        #else
+        canvas.drawingPolicy = penOn ? .anyInput : .pencilOnly
+        pan.allowedTouchTypes = [UITouch.TouchType.direct, .indirectPointer].map { NSNumber(value: $0.rawValue) }
+        pan.minimumNumberOfTouches = penOn ? 2 : 1
+        #endif
+    }
+
     /// PencilKit draws the live stroke as the tool will look: the ink's colour, the web's thickness at this zoom.
     private func applyTool() {
         let zoom = webView.scrollView.zoomScale
@@ -251,6 +275,8 @@ private final class MessageRelay: NSObject, WKScriptMessageHandler {
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         if message.body as? String == "ready" {
             MainActor.assumeIsolated { controller?.pageDidLoad() }
+        } else if let pages = (message.body as? [String: Any])?["pages"] as? [String: Any] {
+            MainActor.assumeIsolated { controller?.pagesDidChange(pages) }
         }
     }
 }

@@ -1,7 +1,30 @@
-/* Colours and sizes come from the design kit (design/kit/tokens.css, copied into the app). */
-body { margin: 0; padding: var(--s-4); background: var(--desk); position: relative; -webkit-user-select: none; user-select: none; }
-.page { background: var(--paper); color: var(--notation); margin: 0 auto var(--s-4); box-shadow: var(--shadow-paper); }
+/* Colours and sizes come from the design kit (design/kit/tokens.css, copied into the app). The score is the whole screen
+   (0018 section 2): A4 pages, one column of them in portrait and two to a row in landscape like an open book, under the
+   floating bar and above the pill, which Swift lays over the page. */
+:root {
+  --page-gap: var(--s-4);
+  /* The floating bar: its margin, its height and a gap; the pill and a gap below the last page. */
+  --pad-top: calc(var(--s-3) + var(--h-touch) + var(--s-4));
+  --pad-bottom: calc(52px + var(--s-4) * 2);
+}
+body { margin: 0; padding: var(--pad-top) var(--s-4) var(--pad-bottom); background: var(--desk); position: relative; -webkit-user-select: none; user-select: none; }
+#pages {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  justify-content: center;
+  gap: var(--page-gap);
+  /* Two pages fill the width, or the height under the bar, whichever is less. */
+  --page-w: min(calc((100vw - var(--s-4) * 2 - var(--page-gap)) / 2), calc((100vh - var(--pad-top) - var(--s-4)) * 210 / 297));
+}
+#pages:has(> .page:only-child) { grid-template-columns: auto; }
+@media (orientation: portrait) {
+  #pages { grid-template-columns: auto; --page-w: min(calc(100vw - var(--s-4) * 2), 60rem); }
+}
+.page { position: relative; width: var(--page-w); aspect-ratio: 210 / 297; background: var(--paper); color: var(--notation); border-radius: 2px; box-shadow: var(--shadow-paper); }
 .page svg { display: block; width: 100%; height: auto; }
+/* The page number in the lower outer corner: left on a left-hand page, right on a right-hand one. */
+.page::after { content: attr(data-page); position: absolute; bottom: 2%; left: 5%; font: var(--t-caption); color: var(--ink-3); }
+.page:nth-child(even)::after { left: auto; right: 5%; }
 
 /* The pencil marks over the pages, in the document's pixels; the score scrolls with them. */
 #ink { position: absolute; top: 0; left: 0; overflow: visible; pointer-events: none; }

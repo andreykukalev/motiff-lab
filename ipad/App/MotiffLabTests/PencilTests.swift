@@ -92,6 +92,26 @@ final class PencilTests: XCTestCase {
         XCTAssertEqual(kept?.first?["bar"] as? NSNumber, mark["bar"] as? NSNumber)
     }
 
+    func testTheBarNamesThePagesUnderTheReadingLine() async throws {
+        let view = try await scorePage()
+        let example = try XCTUnwrap(OpenPiece.example)
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        defer { _ = MusicCore.close(piece: piece.id) }
+        let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
+        _ = try await call(view, "show", ["pages": piece.pages, "timemap": timemap, "dark": false])
+
+        // In portrait the pages are one column: the first is in view, then, scrolled to the end, the last.
+        let top = try XCTUnwrap(try await call(view, "inView", [String: Any]()) as? [String: Any])
+        XCTAssertEqual((top["first"] as? NSNumber)?.intValue, 1)
+        XCTAssertEqual((top["last"] as? NSNumber)?.intValue, 1)
+        XCTAssertEqual((top["count"] as? NSNumber)?.intValue, piece.pages.count)
+        _ = try await view.evaluateJavaScript("window.scrollTo(0, document.documentElement.scrollHeight); 0")
+        let end = try XCTUnwrap(try await call(view, "inView", [String: Any]()) as? [String: Any])
+        XCTAssertEqual((end["last"] as? NSNumber)?.intValue, piece.pages.count)
+        let numbered = try await view.evaluateJavaScript("document.querySelector('#pages > .page:last-child').dataset.page") as? String
+        XCTAssertEqual(numbered, String(piece.pages.count))
+    }
+
     func testTheInksAreTheDesignKits() {
         XCTAssertNotEqual(DesignTokens.color("ink-carmine"), .systemGray)
         XCTAssertNotEqual(DesignTokens.color("amber"), .systemGray)

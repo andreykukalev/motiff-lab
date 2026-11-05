@@ -14,6 +14,8 @@ final class Player: ObservableObject {
     @Published private(set) var problem: String?
     @Published var tempoPercent = 100 { didSet { send(.rate(Double(tempoPercent) / 100)) } }
     @Published var metronome = false { didSet { send(.metronome(metronome)) } }
+    /// One bar of clicks before the music, as the web app's Count-in.
+    @Published var countIn = false { didSet { send(.countIn(countIn ? 1 : 0)) } }
 
     static let tempoChoices = [25, 50, 75, 90, 100, 110, 125, 150]
 

@@ -12,6 +12,9 @@ const SVG = "http://www.w3.org/2000/svg";
 /** The eraser takes marks within this many pixels of its path, as in the web app. */
 const ERASER_REACH = 10;
 
+/** The reading line, this far below the top of the view: the pages it crosses are the ones the bar names, as on the web. */
+const READING_LINE_PX = 72;
+
 const state = { pages: [], timeline: null, frames: [], byTick: new Map(), marks: [] };
 let nextId = 0;
 
@@ -21,8 +24,9 @@ function show({ pages, timemap, dark }) {
     if (dark) {
         document.documentElement.setAttribute("data-theme", "dark");
     }
+    reported = "";
     const host = document.getElementById("pages");
-    host.innerHTML = pages.map((svg) => `<div class="page">${svg}</div>`).join("");
+    host.innerHTML = pages.map((svg, index) => `<div class="page" data-page="${index + 1}">${svg}</div>`).join("");
     state.pages = pages.map((svg, index) => readPage(svg, index + 1));
     state.timeline = ScoreTimeline.fromTimemap(timemap);
     return layout();
@@ -50,8 +54,49 @@ function layout() {
     state.frames = geometry.barFrames();
     state.byTick = framesByTick(state.frames);
     redraw();
+    reportPages();
     return { bars: state.frames.length, space: state.frames[0]?.space ?? 0 };
 }
+
+/**
+ * The pages under the reading line: { first, last, count }, "p. 2 of 4" or, with two to a row, "pp. 1–2 of 4". Between
+ * two rows the next row down is the one being read.
+ */
+function inView() {
+    const pages = [...document.querySelectorAll("#pages > .page")];
+    if (pages.length === 0) {
+        return { first: 0, last: 0, count: 0 };
+    }
+    let shown = pages.filter((page) => {
+        const box = page.getBoundingClientRect();
+        return box.top <= READING_LINE_PX && box.bottom > READING_LINE_PX;
+    });
+    if (shown.length === 0) {
+        const next = pages.find((page) => page.getBoundingClientRect().top > READING_LINE_PX) ?? pages[pages.length - 1];
+        const top = next.getBoundingClientRect().top;
+        shown = pages.filter((page) => Math.abs(page.getBoundingClientRect().top - top) < 2);
+    }
+    const numbers = shown.map((page) => Number(page.dataset.page));
+    return { first: Math.min(...numbers), last: Math.max(...numbers), count: pages.length };
+}
+
+let reported = "";
+
+/** Tells Swift which pages the bar names, when they change. */
+function reportPages() {
+    const pages = inView();
+    const key = `${pages.first}-${pages.last}-${pages.count}`;
+    if (key !== reported) {
+        reported = key;
+        window.webkit?.messageHandlers?.score?.postMessage({ pages });
+    }
+}
+
+let scrolling = 0;
+window.addEventListener("scroll", () => {
+    cancelAnimationFrame(scrolling);
+    scrolling = requestAnimationFrame(() => reportPages());
+}, { passive: true });
 
 /**
  * Keeps a stroke, its points in the document's pixels, against the bar it starts in; an empty object when there is
@@ -112,5 +157,5 @@ function frames() {
     return state.frames;
 }
 
-window.motiff = { show, layout, anchor, erase, draw, frames };
+window.motiff = { show, layout, anchor, erase, draw, frames, inView };
 window.webkit?.messageHandlers?.score?.postMessage("ready");
