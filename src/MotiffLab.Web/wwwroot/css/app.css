@@ -2438,6 +2438,18 @@ body:has(.workspace) .site-footer {
     overflow-y: auto;
 }
 
+/* About this notation, in the overflow: one line on request (0018 rule 12). */
+.workspace .more-popover .about-notation summary {
+    font: var(--t-label);
+    color: var(--ink-2);
+    cursor: pointer;
+    padding: var(--s-1) 0;
+}
+
+.workspace .more-popover .about-notation .score-note {
+    margin: var(--s-1) 0 0;
+}
+
 /* Layers: under the Pen action, where the pen palette opens it. */
 .workspace .layers-popover {
     top: calc(var(--s-3) + var(--h-touch) + var(--s-2));

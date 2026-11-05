@@ -13,14 +13,20 @@ test("the score shows A4 pages and downloads as a PDF", async ({ page }) => {
     // The title heads the first page, set by the app from Verovio's header (0018 section 1).
     await expect(score.locator(".score-page").first().locator(".title-block")).toContainText("Für Elise");
 
-    // A strip the width of the view, then pages again, from the overflow.
+    // A strip the width of the view, then pages again, from Settings · Notes.
     const more = await openMore(page);
-    await more.getByRole("radio", { name: "Strip" }).click();
+    await more.getByRole("button", { name: "Settings" }).click();
+    const settings = page.getByRole("dialog", { name: "Settings" });
+    await settings.getByRole("tab", { name: "Score" }).click();
+    const layout = settings.getByRole("radiogroup", { name: "Score layout" });
+    await layout.getByRole("radio", { name: "Strip" }).click();
     await expect(score).not.toHaveClass(/\bpaged\b/);
     await expect(score.locator(".score-page svg").first()).not.toHaveAttribute("viewBox", "0 0 1050 1485");
-    await more.getByRole("radio", { name: "A4 pages" }).click();
+    await layout.getByRole("radio", { name: "A4 pages" }).click();
     await expect(score).toHaveClass(/\bpaged\b/);
     await expect(score.locator(".score-page svg").first()).toHaveAttribute("viewBox", "0 0 1050 1485");
+    await settings.getByRole("button", { name: "Close Settings" }).click();
+    await openMore(page);
 
     // The name is read from the link the page clicks, as some headless browsers report a name with non-ASCII letters as "download".
     await page.evaluate(() => {

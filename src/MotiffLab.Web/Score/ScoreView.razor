@@ -78,8 +78,8 @@ else if (_loading && !HoldHeight)
     [Parameter]
     public EventCallback<(Tick First, Tick Last, bool ByHandle)> BarsChosen { get; set; }
 
-    /// <summary>The device preference for the layout: "pages" or "strip".</summary>
-    private const string LayoutPreference = "ml-score-layout";
+    /// <summary>The device preference for the layout: "pages" or "strip" (Settings · Notes).</summary>
+    public const string LayoutPreference = "ml-score-layout";
 
     /// <summary>What to show. The view engraves it again only when a different instance is given.</summary>
     [Parameter, EditorRequired]
