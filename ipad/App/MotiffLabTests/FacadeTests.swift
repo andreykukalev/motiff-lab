@@ -177,6 +177,39 @@ final class FacadeTests: XCTestCase {
         XCTAssertEqual((overrides["overrides"] as? [String: Any])?["layers.ink"] as? String, "off")
     }
 
+    func testCheckListsTheBarsToReviewWithTheirReasonsAndResolvesThem() throws {
+        // A project file from a scan, with flags on bar 3 and one already checked on bar 6.
+        var file = try object(MusicCore.call(piece: piece, "project.save"))
+        let flags: [[String: Any]] = [
+            ["bar": 3, "source": "Scan", "reason": "BarTooLong", "resolved": false],
+            ["bar": 3, "source": "Scan", "reason": "GraceNotes", "resolved": false],
+            ["bar": 6, "source": "Scan", "reason": "BarTooShort", "resolved": true],
+        ]
+        let scan: [String: Any] = ["engine": "homr 0.7.0", "confirmedBars": [Int]()]
+        file["check"] = flags
+        file["scan"] = scan
+        let data = try JSONSerialization.data(withJSONObject: file)
+        let opened = try object(MusicCore.open(fileName: "elise.motiff.json", data: data, request: #"{"language": "ru"}"#))
+        let scanned = Int32(opened["piece"] as? Int ?? 0)
+        defer { MusicCore.close(piece: scanned) }
+
+        let check = try XCTUnwrap(CheckShelf(answer: MusicCore.call(piece: scanned, "check")))
+        XCTAssertEqual(check.origin, "scanned")
+        XCTAssertEqual(check.engine, "homr 0.7.0")
+        XCTAssertEqual(check.openBars.map(\.bar), [3])
+        XCTAssertEqual(check.resolvedBars.map(\.bar), [6])
+        let bar = try XCTUnwrap(check.openBars.first)
+        XCTAssertEqual(CheckShelf.reasonNames(bar.flags, UIText(language: "ru")), "Такт длиннее размера, форшлаги")
+        let selected = try XCTUnwrap(ScoreSelection(answer: MusicCore.call(piece: scanned, "select", #"{"bars": {"first": 3, "last": 3}}"#)))
+        XCTAssertEqual(bar.span, selected.onset..<selected.end)
+
+        let resolved = try XCTUnwrap(CheckShelf(answer: MusicCore.call(piece: scanned, "check.resolve", #"{"bar": 3}"#)))
+        XCTAssertEqual(resolved.open, 0)
+        XCTAssertEqual(resolved.resolvedBars.map(\.bar), [3, 6])
+        let again = try XCTUnwrap(CheckShelf(answer: MusicCore.call(piece: scanned, "check.resolve", #"{"bar": 6, "resolved": false}"#)))
+        XCTAssertEqual(again.openBars.map(\.bar), [6])
+    }
+
     func testVariationNotationPlaybackAndSave() throws {
         _ = try call("select", #"{"bars": {"first": 1, "last": 2}}"#)
         let proposed = try call("variation.propose", #"{"operation": "V1", "parameters": {"kind": "HalfTime", "eighths": 1}}"#)

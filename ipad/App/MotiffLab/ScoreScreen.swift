@@ -29,6 +29,8 @@ struct ScoreScreen: View {
     @StateObject private var contents = ContentsController()
     /// The Contents drawer (0018 section 5), from the piece's title in the bar.
     @State private var contentsOpen = false
+    /// The Check drawer (0018 section 9), from More or a flag on the score; where Insights goes, and one of the two.
+    @State private var checkOpen = false
 
     /// The Insights sheet's width beside the score in landscape (ds.css `.sheet`).
     static let sheetWidth: CGFloat = 380
@@ -40,7 +42,7 @@ struct ScoreScreen: View {
             let landscape = screen.size.width > screen.size.height
             page(
                 drawer: rollOpen ? drawerHeight(screen.size) : 0,
-                sheet: insightsOpen ? (landscape ? .side : .bottom(screen.size.height / 2)) : .none,
+                sheet: insightsOpen || checkOpen ? (landscape ? .side : .bottom(screen.size.height / 2)) : .none,
                 contentsPlace: contentsOpen ? (landscape ? .side : .bottom(screen.size.height / 2)) : .none
             )
         }
@@ -66,6 +68,15 @@ struct ScoreScreen: View {
     /// The drawer's height: 40% of the screen in landscape and 30% in portrait, as the web app's.
     private func drawerHeight(_ size: CGSize) -> CGFloat {
         (size.width > size.height ? 0.4 : 0.3) * size.height
+    }
+
+    /// What the sheet over the right holds: Check, or Insights.
+    @ViewBuilder private func sheetContent() -> some View {
+        if checkOpen {
+            CheckDrawer(score: score, text: text) { checkOpen = false }
+        } else {
+            InsightsSheet(insights: insights, score: score, player: player, range: variationRange, text: text) { insightsOpen = false }
+        }
     }
 
     /// The Contents drawer where it goes: over the left of the page in landscape, from the bottom in portrait.
@@ -100,7 +111,7 @@ struct ScoreScreen: View {
         // The chain is cut into parts so the compiler type-checks each on its own.
         let covered = max(drawer, sheet.bottomHeight, contentsPlace.bottomHeight)
         let laid = layers(drawer: drawer, sheet: sheet, contentsPlace: contentsPlace, covered: covered)
-        return following(watching(wired(laid), covered: covered, contentsSide: contentsPlace == .side))
+        return following(checking(watching(wired(laid), covered: covered, contentsSide: contentsPlace == .side)))
     }
 
     /// The score and everything that floats over it.
@@ -129,7 +140,7 @@ struct ScoreScreen: View {
                     if score.focused {
                         FocusBar(score: score, player: player, variationRange: variationRange, text: text)
                     } else {
-                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, more: $more, rollOpen: $rollOpen, insightsOpen: $insightsOpen, contentsOpen: $contentsOpen) { dismiss() }
+                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, more: $more, rollOpen: $rollOpen, insightsOpen: $insightsOpen, contentsOpen: $contentsOpen, checkOpen: $checkOpen) { dismiss() }
                     }
                     if score.penOn && !score.focused {
                         PenPalette(score: score, text: text)
@@ -155,7 +166,7 @@ struct ScoreScreen: View {
                 case .none:
                     EmptyView()
                 case .side:
-                    InsightsSheet(insights: insights, score: score, player: player, range: variationRange, text: text) { insightsOpen = false }
+                    sheetContent()
                         .clipShape(RoundedRectangle(cornerRadius: CGFloat.ds("r-l")))
                         .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-l")).strokeBorder(Color.ds("hairline")))
                         .dsShadow("shadow-sheet")
@@ -164,7 +175,7 @@ struct ScoreScreen: View {
                         .padding([.trailing, .bottom], CGFloat.ds("s-3"))
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                 case .bottom(let height):
-                    InsightsSheet(insights: insights, score: score, player: player, range: variationRange, text: text) { insightsOpen = false }
+                    sheetContent()
                         .clipShape(UnevenRoundedRectangle(topLeadingRadius: CGFloat.ds("r-l"), topTrailingRadius: CGFloat.ds("r-l")))
                         .dsShadow("shadow-sheet")
                         .frame(height: height)
@@ -220,6 +231,9 @@ struct ScoreScreen: View {
             sheetOpen.wrappedValue = false
             return true
         }
+        // A flag tapped on the score opens Check on its bar.
+        let checking = $checkOpen
+        score.checkPicked = { _ in checking.wrappedValue = true }
         insights.placeChosen = { [weak heard] tick in heard?.seek(to: tick) }
         // A way tried sounds at once, looping the selection to the variation's end, and the card in focus shows
         // it as the ossia; left, the original sounds again (0018 section 6).
@@ -288,6 +302,21 @@ struct ScoreScreen: View {
             }
     }
 
+    /// Check takes the place of the other drawers and sheets, and goes when one of them opens.
+    private func checking(_ content: some View) -> some View {
+        content
+            .onChange(of: checkOpen) { _, open in
+                if open {
+                    insightsOpen = false
+                    rollOpen = false
+                    contentsOpen = false
+                }
+            }
+            .onChange(of: insightsOpen || rollOpen || contentsOpen || score.focused) { _, other in
+                if other { checkOpen = false }
+            }
+    }
+
     /// What follows the selection, the player and the fact chosen.
     private func following(_ content: some View) -> some View {
         content
@@ -353,6 +382,7 @@ struct ScoreBar: View {
     @Binding var rollOpen: Bool
     @Binding var insightsOpen: Bool
     @Binding var contentsOpen: Bool
+    @Binding var checkOpen: Bool
     let back: () -> Void
     @State private var phrasesOpen = false
 
@@ -432,7 +462,12 @@ struct ScoreBar: View {
             }
             .buttonStyle(BarActionStyle(on: more))
             .accessibilityLabel(text["bar.more"])
-            .popover(isPresented: $more) { MorePanel(score: score, text: text, problem: player.problem ?? score.problem) }
+            .popover(isPresented: $more) {
+                MorePanel(score: score, text: text, problem: player.problem ?? score.problem) {
+                    more = false
+                    checkOpen = true
+                }
+            }
         }
         .padding(.leading, CGFloat.ds("s-2"))
         .padding(.trailing, CGFloat.ds("s-2"))
@@ -873,13 +908,14 @@ struct PenPalette: View {
     }
 }
 
-/// More, from the bar: the layers of marks, what the app owes the piano and the engraving (CC BY 3.0 asks for the piano's
+/// More, from the bar: Check for a piece with flags, the layers of marks, what the app owes the piano and the engraving (CC BY 3.0 asks for the piano's
 /// credit wherever it plays), and what went wrong, if anything did. The layout, the PDF and the other tools come with later
 /// steps.
 struct MorePanel: View {
     @ObservedObject var score: ScoreController
     let text: UIText
     let problem: String?
+    let openCheck: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
@@ -887,6 +923,16 @@ struct MorePanel: View {
                 Text(problem)
                     .dsType(.label)
                     .foregroundStyle(Color.ds("danger"))
+            }
+            if score.check.hasFlags {
+                Button(action: openCheck) {
+                    HStack(spacing: CGFloat.ds("s-2")) {
+                        Icon(name: "check")
+                        Text(score.check.open > 0 ? text.count("check.toReview", score.check.openBars.count) : text["check.title"])
+                    }
+                }
+                .buttonStyle(DSButtonStyle(kind: .quiet))
+                Rectangle().fill(Color.ds("hairline")).frame(height: 1)
             }
             LayersList(score: score, text: text)
             Rectangle().fill(Color.ds("hairline")).frame(height: 1)

@@ -56,8 +56,8 @@ internal sealed partial class OpenPiece
             Answer.Overrides(json, Project);
         }),
         "settings.override" => Change(project => project.OverrideSetting(request.Required("id"), request.Text("value")), json => Answer.Overrides(json, Project)),
-        "check" => Answer.Write(json => Answer.Check(json, Project, Words)),
-        "check.resolve" => Change(project => project.ResolveCheck(request.Int("bar") ?? throw FacadeException.BadRequest("Send \"bar\"."), request.Bool("resolved") ?? true), json => Answer.Check(json, Project, Words)),
+        "check" => Answer.Write(json => Answer.Check(json, Project, Words, Piece.Meter, Piece.End)),
+        "check.resolve" => Change(project => project.ResolveCheck(request.Int("bar") ?? throw FacadeException.BadRequest("Send \"bar\"."), request.Bool("resolved") ?? true), json => Answer.Check(json, Project, Words, Piece.Meter, Piece.End)),
         _ when name.StartsWith("performance", StringComparison.Ordinal) => CallOnPerformance(name, request),
         _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\"."),
     };

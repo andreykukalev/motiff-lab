@@ -194,15 +194,16 @@ struct LayersList: View {
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
             Text(text["layers.title"]).overline()
-            ForEach(ScoreController.layers, id: \.self) { layer in
+            ForEach(score.pieceLayers, id: \.self) { layer in
                 Toggle(text["layers.\(layer)"], isOn: Binding(get: { !score.hiddenLayers.contains(layer) }, set: { score.showLayers([layer], $0) }))
                     .dsType(.label)
                     .foregroundStyle(Color.ds("ink"))
                     .tint(Color.ds("accent"))
             }
-            let allHidden = score.hiddenLayers.count == ScoreController.layers.count
+            let layers = score.pieceLayers
+            let allHidden = layers.allSatisfy { score.hiddenLayers.contains($0) }
             Button(allHidden ? text["layers.showAll"] : text["layers.hideAll"]) {
-                score.showLayers(ScoreController.layers, allHidden)
+                score.showLayers(layers, allHidden)
             }
             .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
         }

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
 using MotiffLab.MusicCore.Events;
@@ -729,6 +730,32 @@ public class MusicCoreFacadeTests
         Assert.Empty(check.GetProperty("flags").EnumerateArray());
         Assert.Equal(0, check.GetProperty("open").GetInt32());
         Assert.Equal("badRequest", Error(facade, 1, "check.resolve", """{"bar": 1}"""));
+    }
+
+    [Fact]
+    public void CheckNamesTheReasonsGivesEachBarsSpanAndWhereTheDoubtsComeFrom()
+    {
+        (MusicCoreFacade facade, _) = Open();
+        JsonObject file = JsonNode.Parse(facade.Call(1, "project.save"))!.AsObject();
+        file["check"] = JsonNode.Parse("""[{"bar": 3, "source": "Scan", "reason": "BarTooLong", "resolved": false}, {"bar": 3, "source": "Scan", "reason": "GraceNotes", "resolved": false}, {"bar": 500, "source": "Scan", "reason": "BarTooShort", "resolved": true}]""");
+        file["scan"] = JsonNode.Parse("""{"engine": "homr 0.7.0", "confirmedBars": []}""");
+        var reopened = new MusicCoreFacade();
+        JsonElement opened = Json(reopened.Open("elise.motiff.json", System.Text.Encoding.UTF8.GetBytes(file.ToJsonString()), """{"language": "ru"}"""));
+        int piece = opened.GetProperty("piece").GetInt32();
+
+        JsonElement check = Json(reopened.Call(piece, "check"));
+        Assert.Equal("scanned", check.GetProperty("origin").GetString());
+        Assert.Equal("homr 0.7.0", check.GetProperty("engine").GetString());
+        Assert.Equal(2, check.GetProperty("open").GetInt32());
+        JsonElement first = check.GetProperty("flags")[0];
+        Assert.Equal("Такт длиннее размера", first.GetProperty("name").GetString());
+        JsonElement bar = Json(reopened.Call(piece, "select", """{"bars": {"first": 3, "last": 3}}""")).GetProperty("selection");
+        Assert.Equal(bar.GetProperty("onset").GetInt32(), first.GetProperty("span").GetProperty("onset").GetInt32());
+        Assert.Equal(bar.GetProperty("end").GetInt32(), first.GetProperty("span").GetProperty("end").GetInt32());
+        Assert.Equal(JsonValueKind.Null, check.GetProperty("flags")[2].GetProperty("span").ValueKind);
+
+        JsonElement resolved = Json(reopened.Call(piece, "check.resolve", """{"bar": 3}"""));
+        Assert.Equal(0, resolved.GetProperty("open").GetInt32());
     }
 
     [Fact]
