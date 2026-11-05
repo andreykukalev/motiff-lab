@@ -22,8 +22,11 @@ interface LongPressTarget {
 export class LongPress {
     private press: { id: number; x: number; y: number; timer: number } | null = null;
 
-    /** When a long press last fired, so the click after it and a contextmenu for the same press are ignored. */
+    /** When a long press last fired, so a contextmenu for the same press is ignored. */
     private firedAt = 0;
+
+    /** Whether a held press fired, so the click its release makes is not also a tap. A right click makes no such click. */
+    private swallowClick = false;
 
     constructor(
         private readonly root: HTMLElement,
@@ -60,6 +63,7 @@ export class LongPress {
         this.cancel();
         const timer = window.setTimeout(() => {
             this.press = null;
+            this.swallowClick = true;
             this.fire(name);
         }, HOLD_MS);
         this.press = { id: event.pointerId, x: event.clientX, y: event.clientY, timer };
@@ -92,10 +96,13 @@ export class LongPress {
 
     /** The release after a long press is not also a tap on the element. */
     private readonly onClick = (event: MouseEvent): void => {
+        if (!this.swallowClick) {
+            return;
+        }
+        this.swallowClick = false;
         if (this.recentlyFired() && this.nameOf(event.target) !== null) {
             event.preventDefault();
             event.stopPropagation();
-            this.firedAt = 0;
         }
     };
 

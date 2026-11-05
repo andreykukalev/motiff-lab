@@ -161,7 +161,7 @@
                         <p class="caption">@LevelCount</p>
                         <label class="switch-row">
                             <span>@Text["phrases.showBrackets"]</span>
-                            <input type="checkbox" role="switch" checked="@_showBrackets" @onchange="ToggleBracketsAsync" />
+                            <input type="checkbox" role="switch" class="switch" checked="@_showBrackets" @onchange="ToggleBracketsAsync" />
                         </label>
                         <button class="btn quiet" @onclick="ResetLevelAsync" disabled="@(_levels is null || _levels.Edits[_level].IsEmpty)">@Text["phrases.resetLevel"]</button>
                         @PopoverScope([GranularitySetting], "score")
@@ -175,7 +175,7 @@
                         {
                             <label class="switch-row">
                                 <span>@LayerName(layer)</span>
-                                <input type="checkbox" role="switch" checked="@LayerShown(layer)" @onchange="() => ToggleLayerAsync(layer)" />
+                                <input type="checkbox" role="switch" class="switch" checked="@LayerShown(layer)" @onchange="() => ToggleLayerAsync(layer)" />
                             </label>
                         }
                         <button class="btn quiet" @onclick="ToggleAllMarksAsync">@(AllMarksHidden ? Text["layers.showAll"] : Text["layers.hideAll"])</button>
