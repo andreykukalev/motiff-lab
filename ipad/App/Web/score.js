@@ -22,6 +22,10 @@
 // italic at the left end and stacked where they overlap, as the web app's score view draws them (`bookmarks`); a tap
 // gives the bookmark to Swift. The Contents drawer's Pages tab shows the pages as small pictures (`outline`), and a
 // page or a bookmark chosen there is brought into view (`showPage`, `reveal`).
+//
+// Margin notes are numbered amber markers at the top right of their first bar, and highlights translucent bands in an
+// ink behind the staves (`notes`), as the web app's score view draws them; a tap on a marker gives the note to Swift.
+// Each layer of marks can be hidden for a clean page (`layers`).
 import { cardLayout } from "../score/phrase-card.js";
 import { ScoreGeometry, bookmarkLevels, readPage, staffFrames } from "../score/score-geometry.js";
 import { SelectionLayer } from "../score/selection-layer.js";
@@ -44,7 +48,14 @@ const BOOKMARK_STACK = 24;
 const BOOKMARK_TITLE = 17;
 const BOOKMARK_REACH = 120;
 
-const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], phrases: [], bookmarks: [], pen: false, focus: false, ringed: new Set() };
+/** A margin note's marker sits this far right of the bar's top right corner and this far above it, as on the web. */
+const NOTE_OFFSET_X = 4;
+const NOTE_OFFSET_Y = 22;
+
+/** The layers of marks that can be hidden: the pencil, notes and highlights, bookmarks, and the analysis (brackets, rings). */
+const LAYERS = ["ink", "notes", "bookmarks", "analysis"];
+
+const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], phrases: [], bookmarks: [], notes: [], highlights: [], pen: false, focus: false, ringed: new Set() };
 let nextId = 0;
 
 /** Shows the pages and reads where their bars are; `timemap` is Verovio's, with measures and rests. */
@@ -88,6 +99,7 @@ function layout() {
     redraw();
     placePhrases();
     placeBookmarks();
+    placeNotes();
     placeRings();
     selection.place();
     reportPages();
@@ -236,6 +248,69 @@ function placeBookmarks() {
     });
 }
 
+/**
+ * The margin notes, each { id, tick, number, label }, as amber markers numbered in score order at the top right of the
+ * bar they start in, side by side on one bar; and the highlights, each { id, start, end, ink }, as bands behind the
+ * staves of their bars in "amber", "carmine", "forest" or "ochre".
+ */
+function notes({ notes, highlights }) {
+    state.notes = notes ?? [];
+    state.highlights = highlights ?? [];
+    placeNotes();
+    return document.querySelectorAll("body > .marker").length + document.querySelectorAll("body > .hl").length;
+}
+
+function placeNotes() {
+    for (const old of document.querySelectorAll("body > .marker, body > .hl")) {
+        old.remove();
+    }
+    const geometry = state.geometry;
+    if (geometry === null) {
+        return;
+    }
+    for (const highlight of state.highlights) {
+        for (const run of geometry.band(highlight.start, highlight.end, 2)) {
+            const band = document.createElement("div");
+            band.className = `hl ink-${highlight.ink}`;
+            band.dataset.highlight = highlight.id;
+            band.setAttribute("aria-hidden", "true");
+            band.style.left = `${run.left}px`;
+            band.style.top = `${run.top}px`;
+            band.style.width = `${run.right - run.left}px`;
+            band.style.height = `${run.bottom - run.top}px`;
+            document.body.append(band);
+        }
+    }
+    const onBar = new Map();
+    for (const note of state.notes) {
+        const place = geometry.flag(note.tick);
+        if (place === undefined) {
+            continue;
+        }
+        const bar = geometry.barAt(note.tick)?.tick ?? note.tick;
+        const index = onBar.get(bar) ?? 0;
+        onBar.set(bar, index + 1);
+        const marker = document.createElement("button");
+        marker.type = "button";
+        marker.className = "marker";
+        marker.dataset.note = note.id;
+        marker.textContent = String(note.number);
+        marker.setAttribute("aria-label", note.label);
+        marker.style.left = `${place.x - NOTE_OFFSET_X - 24 - index * 28}px`;
+        marker.style.top = `${place.y - NOTE_OFFSET_Y}px`;
+        document.body.append(marker);
+    }
+}
+
+/** Hides the layers named, for a clean page; the others show. Returns the layers hidden. */
+function layers({ hidden }) {
+    const names = hidden ?? [];
+    for (const layer of LAYERS) {
+        document.body.classList.toggle(`hide-${layer}`, names.includes(layer));
+    }
+    return LAYERS.filter((layer) => names.includes(layer));
+}
+
 /** The top of the bookmark titles over a band's first run, in window pixels, for the menu to clear; null when none is there. */
 function bookmarksTop(band) {
     let top = null;
@@ -322,6 +397,11 @@ function pen(on) {
 document.body.addEventListener("click", (event) => {
     const target = event.target instanceof Element ? event.target : null;
     if (target?.closest("#focus")) {
+        return;
+    }
+    const marker = target?.closest(".marker");
+    if (marker) {
+        post({ noteMarker: marker.dataset.note });
         return;
     }
     const bookmark = target?.closest(".bmb");
@@ -681,5 +761,5 @@ function frames() {
     return state.frames;
 }
 
-window.motiff = { show, layout, anchor, erase, draw, frames, inView, phrases, select, menuSize, pen, focus, card: showCard, lead, inset, highlight, bookmarks, clearLeft, outline, showPage, reveal };
+window.motiff = { show, layout, anchor, erase, draw, frames, inView, phrases, select, menuSize, pen, focus, card: showCard, lead, inset, highlight, bookmarks, clearLeft, outline, showPage, reveal, notes, layers };
 window.webkit?.messageHandlers?.score?.postMessage("ready");

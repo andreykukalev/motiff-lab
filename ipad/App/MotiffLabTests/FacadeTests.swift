@@ -146,6 +146,37 @@ final class FacadeTests: XCTestCase {
         XCTAssertEqual(removed.bookmarks.count, filed.bookmarks.count - 1)
     }
 
+    func testMarginNotesHighlightsAndLayersAreKeptWithThePiece() throws {
+        // A note on bars 4–5, written, changed and numbered in score order beside one on bar 1.
+        let first = try call("note.add", #"{"span": {"onset": 0, "end": 480}, "text": "Тихо", "now": "2026-11-05T06:00:00Z"}"#)
+        XCTAssertEqual(MarksShelf(object: first).notes.count, 1)
+        let selected = try XCTUnwrap(ScoreSelection(answer: MusicCore.call(piece: piece, "select", #"{"bars": {"first": 4, "last": 5}}"#)))
+        let onset = Int(selected.onset)
+        let end = Int(selected.end)
+        let added = MarksShelf(object: try call("note.add", "{\"span\": {\"onset\": \(onset), \"end\": \(end)}, \"text\": \"Легче большим\", \"now\": \"2026-11-05T06:01:00Z\"}"))
+        XCTAssertEqual(added.notes.map(\.text), ["Тихо", "Легче большим"])
+        let note = try XCTUnwrap(added.notes.last)
+        XCTAssertEqual([note.firstBar, note.lastBar], [4, 5])
+        XCTAssertEqual(added.number(of: note), 2)
+        let changed = MarksShelf(object: try call("note.change", "{\"id\": \"\(note.id)\", \"text\": \"Легче\"}"))
+        XCTAssertEqual(changed.notes.last?.text, "Легче")
+
+        // A highlight in carmine over the same bars, then gone.
+        let lit = MarksShelf(object: try call("highlight.add", "{\"span\": {\"onset\": \(onset), \"end\": \(end)}, \"colour\": \"carmine\"}"))
+        let highlight = try XCTUnwrap(lit.highlights.first)
+        XCTAssertEqual(highlight.colour, "carmine")
+        XCTAssertEqual([highlight.firstBar, highlight.lastBar], [4, 5])
+        XCTAssertTrue(MarksShelf(object: try call("highlight.remove", "{\"id\": \"\(highlight.id)\"}")).highlights.isEmpty)
+        XCTAssertEqual(MarksShelf(object: try call("note.remove", "{\"id\": \"\(note.id)\"}")).notes.count, 1)
+
+        // A layer hidden is kept with the piece as its own setting.
+        let catalogue = try call("settings")
+        let ids = (catalogue["settings"] as? [[String: Any]] ?? []).compactMap { $0["id"] as? String }
+        XCTAssertTrue(ScoreController.layers.allSatisfy { ids.contains("layers.\($0)") })
+        let overrides = try call("settings.override", #"{"id": "layers.ink", "value": "off"}"#)
+        XCTAssertEqual((overrides["overrides"] as? [String: Any])?["layers.ink"] as? String, "off")
+    }
+
     func testVariationNotationPlaybackAndSave() throws {
         _ = try call("select", #"{"bars": {"first": 1, "last": 2}}"#)
         let proposed = try call("variation.propose", #"{"operation": "V1", "parameters": {"kind": "HalfTime", "eighths": 1}}"#)

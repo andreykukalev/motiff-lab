@@ -58,6 +58,22 @@ button.bmb.from { border-left: 0; border-top-left-radius: 0; }
 button.bmb.on-to { border-right: 0; border-top-right-radius: 0; }
 .bmb .w { position: absolute; left: 0; top: -17px; font: italic 500 12px/14px var(--font-display); color: var(--mark, var(--ink-carmine)); white-space: nowrap; pointer-events: none; }
 
+/* Margin notes (design/kit/ds.css .marker, as the web app draws them): an amber numbered marker at the top right of the
+   bar, 24 px, the smallest target WCAG 2.5.8 allows; a tap opens the note. */
+button.marker { position: absolute; z-index: 2; width: 24px; height: 24px; min-height: 0; padding: 0; border: 0; border-radius: 50% 50% 50% 2px; background: var(--amber); color: var(--ink); display: grid; place-items: center; font: 600 11px/1 var(--font-ui); box-shadow: var(--shadow-menu); }
+
+/* Highlights (design/kit/ds.css .hl): a translucent band in the ink behind the staves of the bars. */
+.ink-amber { --mark: var(--amber); }
+.hl { position: absolute; z-index: 0; border-radius: var(--r-xs); background: color-mix(in srgb, var(--mark) 22%, transparent); mix-blend-mode: multiply; pointer-events: none; }
+.hl.ink-amber { background: var(--amber-tint); }
+:root[data-theme="dark"] .hl { mix-blend-mode: normal; }
+
+/* The layers of marks, hidden for a clean page (0018 section 5). */
+body.hide-ink #ink,
+body.hide-notes :is(button.marker, div.hl),
+body.hide-bookmarks button.bmb,
+body.hide-analysis :is(button.bracket, .ring) { display: none; }
+
 /* The selection: a cobalt band over the selected bars on each system, and round handles on the first and last barline. */
 .sel-band { position: absolute; box-sizing: border-box; background: var(--accent-tint); border: 1.5px solid var(--accent); border-radius: 3px; pointer-events: none; }
 button.sel-handle { position: absolute; z-index: 2; width: 14px; height: 14px; min-height: 0; padding: 0; box-sizing: border-box; border-radius: 50%; background: var(--surface-2); border: 2px solid var(--accent); transform: translate(-50%, -50%); touch-action: none; }

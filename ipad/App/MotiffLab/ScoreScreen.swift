@@ -307,8 +307,9 @@ struct ScoreScreen: View {
             }
             .onChange(of: score.selection) { _, selection in
                 roll.showSelection(selection, loop: player.loop)
-                // A bookmark being made belongs to the selection it was started on.
+                // A bookmark being made belongs to the selection it was started on, and so does a note.
                 if let draft = contents.draft, draft.id == nil { contents.cancel() }
+                if let note = score.noteDraft, note.onset != selection?.onset || note.end != selection?.end { score.noteDraft = nil }
                 // The stream follows the selection while it is open; a variation tried belongs to the passage it was
                 // tried on, so it is left either way.
                 if insightsOpen {
@@ -431,7 +432,7 @@ struct ScoreBar: View {
             }
             .buttonStyle(BarActionStyle(on: more))
             .accessibilityLabel(text["bar.more"])
-            .popover(isPresented: $more) { MorePanel(text: text, problem: player.problem ?? score.problem) }
+            .popover(isPresented: $more) { MorePanel(score: score, text: text, problem: player.problem ?? score.problem) }
         }
         .padding(.leading, CGFloat.ds("s-2"))
         .padding(.trailing, CGFloat.ds("s-2"))
@@ -565,8 +566,8 @@ struct LoopButton: View {
 }
 
 /// The menu over the selection (ds.css `.menu`, 0018 section 3): the actions a musician takes on a passage. It holds only
-/// what applies and what the iPad has so far: Loop, Focus and Bookmark, then the piano roll and Insights (none for a
-/// passage without notes); Note comes with its own step. Bookmark turns the menu into the bookmark card, as on the web.
+/// what applies and what the iPad has so far: Loop, Focus, Bookmark and Note, then the piano roll and Insights (none for a
+/// passage without notes), and More with Highlight. Bookmark and Note turn the menu into their cards, as on the web.
 struct SelectionMenu: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var player: Player
@@ -574,10 +575,17 @@ struct SelectionMenu: View {
     let text: UIText
     @Binding var rollOpen: Bool
     @Binding var insightsOpen: Bool
+    @State private var more = false
 
     var body: some View {
         Group {
-            if let draft = contents.draft, draft.id == nil {
+            if score.noteDraft != nil {
+                NoteCard(score: score, text: text)
+                    .frame(width: 320)
+                    .padding(CGFloat.ds("s-3"))
+                    .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-l")))
+                    .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-l")).strokeBorder(Color.ds("hairline")))
+            } else if let draft = contents.draft, draft.id == nil {
                 BookmarkCard(contents: contents, text: text) {
                     let selection = score.selection
                     let title = score.bookmarkTitle
@@ -589,11 +597,17 @@ struct SelectionMenu: View {
                 .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-l")))
                 .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-l")).strokeBorder(Color.ds("hairline")))
             } else {
-                actions
-                    .padding(.horizontal, CGFloat.ds("s-2"))
-                    .padding(.vertical, CGFloat.ds("s-1"))
-                    .background(Color.ds("surface-2"), in: Capsule())
-                    .overlay(Capsule().strokeBorder(Color.ds("hairline")))
+                VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
+                    actions
+                    if more {
+                        Rectangle().fill(Color.ds("hairline")).frame(height: 1)
+                        HighlightRow(score: score, text: text)
+                    }
+                }
+                .padding(.horizontal, CGFloat.ds("s-2"))
+                .padding(.vertical, CGFloat.ds("s-1"))
+                .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: more ? CGFloat.ds("r-l") : 26))
+                .overlay(RoundedRectangle(cornerRadius: more ? CGFloat.ds("r-l") : 26).strokeBorder(Color.ds("hairline")))
             }
         }
         .dsShadow("shadow-menu")
@@ -624,12 +638,27 @@ struct SelectionMenu: View {
                 .buttonStyle(DSItemStyle())
                 .accessibilityHint(text["focus.enterHint"])
             }
-            item("bookmark", text["menu.bookmark"], on: false) { contents.start(title: score.bookmarkTitle) }
+            item("bookmark", text["menu.bookmark"], on: false) {
+                score.noteDraft = nil
+                contents.start(title: score.bookmarkTitle)
+            }
+            item("note", text["menu.note"], on: false) {
+                contents.cancel()
+                score.startNote()
+            }
             Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
             item("roll", text["bar.roll"], on: rollOpen) { rollOpen.toggle() }
             if !(score.selection?.noteIds.isEmpty ?? true) {
                 item("insight", text["bar.insights"], on: insightsOpen) { insightsOpen.toggle() }
             }
+            Button {
+                more.toggle()
+            } label: {
+                Icon(name: "more").frame(width: 32, height: 32)
+            }
+            .buttonStyle(DSItemStyle(on: more || score.selectedHighlight != nil))
+            .accessibilityLabel(text["menu.more"])
+            .accessibilityAddTraits(more ? .isSelected : [])
         }
     }
 
@@ -766,10 +795,11 @@ struct PhrasesPanel: View {
 }
 
 /// The pen palette under the bar while the Pen is on (ds.css `.pen-palette`): the four inks, the highlighter, the eraser
-/// and Undo. The Pencil writes with the chosen one; a double tap on it switches as the iPad's settings say.
+/// Undo and the layers. The Pencil writes with the chosen one; a double tap on it switches as the iPad's settings say.
 struct PenPalette: View {
     @ObservedObject var score: ScoreController
     let text: UIText
+    @State private var layersOpen = false
 
     var body: some View {
         HStack(spacing: CGFloat.ds("s-1")) {
@@ -817,6 +847,21 @@ struct PenPalette: View {
             }
             .buttonStyle(DSItemStyle())
             .disabled(!score.canUndo)
+            Button {
+                layersOpen.toggle()
+            } label: {
+                HStack(spacing: 6) {
+                    Icon(name: "layers", size: CGFloat.ds("icon-s"))
+                    Text(text["layers.title"])
+                }
+            }
+            .buttonStyle(DSItemStyle(on: layersOpen || !score.hiddenLayers.isEmpty))
+            .popover(isPresented: $layersOpen) {
+                LayersList(score: score, text: text)
+                    .padding(CGFloat.ds("s-4"))
+                    .frame(width: 300, alignment: .leading)
+                    .presentationCompactAdaptation(.popover)
+            }
         }
         .padding(.horizontal, CGFloat.ds("s-2"))
         .padding(.vertical, CGFloat.ds("s-1"))
@@ -828,9 +873,11 @@ struct PenPalette: View {
     }
 }
 
-/// More, from the bar: for now what the app owes the piano and the engraving (CC BY 3.0 asks for the piano's credit
-/// wherever it plays), and what went wrong, if anything did. The layout, the PDF and the other tools come with later steps.
+/// More, from the bar: the layers of marks, what the app owes the piano and the engraving (CC BY 3.0 asks for the piano's
+/// credit wherever it plays), and what went wrong, if anything did. The layout, the PDF and the other tools come with later
+/// steps.
 struct MorePanel: View {
+    @ObservedObject var score: ScoreController
     let text: UIText
     let problem: String?
 
@@ -841,6 +888,8 @@ struct MorePanel: View {
                     .dsType(.label)
                     .foregroundStyle(Color.ds("danger"))
             }
+            LayersList(score: score, text: text)
+            Rectangle().fill(Color.ds("hairline")).frame(height: 1)
             Text(credit)
                 .dsType(.caption)
                 .foregroundStyle(Color.ds("ink-2"))

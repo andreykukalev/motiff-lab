@@ -286,6 +286,39 @@ final class PencilTests: XCTestCase {
         XCTAssertEqual(shown, true)
     }
 
+    func testMarginNotesAreMarkersHighlightsAreBandsAndLayersHide() async throws {
+        let view = try await scorePage()
+        let example = try XCTUnwrap(OpenPiece.example)
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        defer { _ = MusicCore.close(piece: piece.id) }
+        let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
+        _ = try await call(view, "show", ["pages": piece.pages, "timemap": timemap, "dark": false])
+
+        let bars = try XCTUnwrap(ScoreSelection(answer: MusicCore.call(piece: piece.id, "select", #"{"bars": {"first": 2, "last": 3}}"#)))
+        let onset = bars.onset
+        let end = bars.end
+        let drawn = try await call(view, "notes", [
+            "notes": [["id": "n1", "tick": onset, "number": 1, "label": "Note 1"], ["id": "n2", "tick": onset, "number": 2, "label": "Note 2"]],
+            "highlights": [["id": "h1", "start": onset, "end": end, "ink": "forest"]],
+        ]) as? NSNumber
+        XCTAssertGreaterThanOrEqual(drawn?.intValue ?? 0, 3)
+        let markers = try await view.evaluateJavaScript("[...document.querySelectorAll('body > .marker')].map(m => m.textContent + '@' + Math.round(parseFloat(m.style.left)))") as? [String]
+        XCTAssertEqual(markers?.count, 2)
+        XCTAssertEqual(markers?.map { String($0.prefix(1)) }, ["1", "2"])
+        XCTAssertNotEqual(markers?.first?.split(separator: "@").last, markers?.last?.split(separator: "@").last, "two notes on one bar sit side by side")
+        let band = try await view.evaluateJavaScript("document.querySelector('body > .hl.ink-forest') !== null") as? Bool
+        XCTAssertEqual(band, true)
+
+        // Hidden layers leave a clean page; shown again, the marks come back.
+        let hidden = try await call(view, "layers", ["hidden": ["notes", "ink"]]) as? [String]
+        XCTAssertEqual(hidden, ["ink", "notes"])
+        let gone = try await view.evaluateJavaScript("getComputedStyle(document.querySelector('body > .marker')).display") as? String
+        XCTAssertEqual(gone, "none")
+        _ = try await call(view, "layers", ["hidden": [String]()])
+        let back = try await view.evaluateJavaScript("getComputedStyle(document.querySelector('body > .marker')).display") as? String
+        XCTAssertNotEqual(back, "none")
+    }
+
     func testTheInksAreTheDesignKits() {
         XCTAssertNotEqual(DesignTokens.color("ink-carmine"), .systemGray)
         XCTAssertNotEqual(DesignTokens.color("amber"), .systemGray)

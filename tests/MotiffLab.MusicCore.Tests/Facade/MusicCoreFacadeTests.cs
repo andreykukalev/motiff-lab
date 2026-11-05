@@ -552,6 +552,7 @@ public class MusicCoreFacadeTests
 
         JsonElement inked = Call(facade, "ink.add", """{"strokes": [{"id": "s1", "tool": "pen", "colour": "carmine", "size": 2, "bar": 0, "u": 0.1, "v": 0.2, "points": [0, 0, 0.5, 1, 1, 0.5], "pressure": 0.5}]}""");
         Assert.Equal("carmine", inked.GetProperty("ink")[0].GetProperty("colour").GetString());
+        Assert.Equal(0, inked.GetProperty("ink")[0].GetProperty("barNumber").GetInt32());
         JsonElement noted = Call(facade, "note.add", """{"bars": {"first": 1, "last": 2}, "text": "Lean into the E", "now": "2026-11-01T10:00:00Z"}""");
         Assert.Equal("n_0001", noted.GetProperty("notes")[0].GetProperty("id").GetString());
         Assert.Equal(1, noted.GetProperty("notes")[0].GetProperty("bars").GetProperty("first").GetInt32());
