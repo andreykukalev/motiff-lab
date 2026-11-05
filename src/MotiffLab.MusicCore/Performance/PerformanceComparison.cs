@@ -72,7 +72,9 @@ public sealed record BarComparison(
 /// Matching is done over the whole piece, printed notes in order of onset: each takes the nearest
 /// unmatched played note of the same pitch within half a beat of it in score time. What is left is
 /// sorted into bars by its place in score time; a played note up to <see cref="EarlyTolerance"/>
-/// before a bar line counts in the next bar, as players anticipate downbeats.
+/// before a bar line counts in the next bar, as players anticipate downbeats. Notes played before the
+/// first printed note or after the last one ends (the rest of a piece whose first page was scanned) are
+/// left out.
 /// </remarks>
 public sealed record PerformanceComparison(PerformanceAlignment Alignment, IReadOnlyList<BarComparison> Bars)
 {
@@ -109,7 +111,14 @@ public sealed record PerformanceComparison(PerformanceAlignment Alignment, IRead
         ArgumentNullException.ThrowIfNull(alignment);
 
         List<Note> printed = [.. score.OrderBy(note => note.Span.Onset).ThenBy(note => note.Pitch).ThenBy(note => note.Id, StringComparer.Ordinal)];
-        List<PlacedNote> placed = [.. played
+        // A performance may run on past the printed notes (a page of a longer score) or start before them: only
+        // what is played from the first printed note to the end of the last is compared.
+        long scoreStart = printed.Count == 0 ? 0 : printed[0].Span.Onset.Value;
+        long scoreEnd = printed.Count == 0 ? 0 : printed.Max(note => note.Span.End.Value);
+        long playedFrom = alignment.MicrosecondsAt(new Tick(Math.Max(0, scoreStart - EarlyTolerance)));
+        long until = alignment.MicrosecondsAt(new Tick(scoreEnd));
+        List<PlayedNote> inScore = [.. played.Where(note => note.Onset >= playedFrom && note.Onset < until)];
+        List<PlacedNote> placed = [.. inScore
             .OrderBy(note => note.Onset).ThenBy(note => note.Pitch).ThenBy(note => note.Id, StringComparer.Ordinal)
             .Select(note => new PlacedNote(note.Id, note.Pitch, alignment.TickAt(note.Onset), note.Velocity))];
         Dictionary<string, PlayedNote> playedById = played.ToDictionary(note => note.Id, StringComparer.Ordinal);
@@ -156,9 +165,7 @@ public sealed record PerformanceComparison(PerformanceAlignment Alignment, IRead
         }
 
         // Sort into bars.
-        Tick end = new(Math.Max(
-            printed.Count == 0 ? 0 : printed.Max(note => note.Span.End.Value),
-            placed.Count == 0 ? 0 : placed.Max(note => note.At.Value) + 1));
+        Tick end = new(Math.Max(scoreEnd, placed.Count == 0 ? 0 : placed.Max(note => note.At.Value) + 1));
         List<Bar> bars = [.. meter.BarsBefore(end)];
         Dictionary<int, int> barIndex = bars.Select((bar, index) => (bar.Number, index)).ToDictionary(pair => pair.Number, pair => pair.index);
         List<Note>[] printedIn = [.. bars.Select(_ => new List<Note>())];
@@ -198,7 +205,7 @@ public sealed record PerformanceComparison(PerformanceAlignment Alignment, IRead
             List<Note> missing = [.. printedIn[b].Where(note => !matchOf.ContainsKey(note.Id))];
             List<string> notHeard = [.. missing.Where(note => note.Pitch.MidiNumber >= ReliableLowestPitch).Select(note => note.Id)];
             List<string> probablyNotHeard = [.. missing.Where(note => note.Pitch.MidiNumber < ReliableLowestPitch).Select(note => note.Id)];
-            List<PlacedNote> artefacts = [.. extraIn[b].Where(note => IsLikelyArtefact(note, playedById, played))];
+            List<PlacedNote> artefacts = [.. extraIn[b].Where(note => IsLikelyArtefact(note, playedById, inScore))];
             List<PlacedNote> extra = [.. extraIn[b].Where(note => !artefacts.Contains(note))];
 
             int from = Math.Max(0, b - 1), to = Math.Min(bars.Count - 1, b + 1);

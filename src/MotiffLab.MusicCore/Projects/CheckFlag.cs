@@ -11,6 +11,9 @@ public enum CheckSource
 {
     Scan,
     Transcription,
+
+    /// <summary>A performance compared with a recognised scan (0022, section 6).</summary>
+    Performance,
 }
 
 /// <summary>
@@ -45,6 +48,12 @@ public enum CheckReason
 
     /// <summary>The hands were guessed from the pitches alone (transcription).</summary>
     HandsGuessed,
+
+    /// <summary>A performance plays a hand's notes an octave away over two bars or more: an octave clef may be lost (performance, 0022).</summary>
+    RecordingOctave,
+
+    /// <summary>A performance plays a bar the scan read too long or short in the meter's length (performance, 0022).</summary>
+    RecordingBarLength,
 }
 
 /// <summary>
@@ -254,6 +263,12 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
         CheckReason.HandsGuessed => words.T(
             "The hands in this bar were guessed from the pitches alone.",
             "Руки в этом такте угаданы только по высоте нот."),
+        CheckReason.RecordingOctave => words.T(
+            "The recording plays these notes an octave away from the recognised ones.",
+            "Запись звучит здесь на октаву иначе, чем распознанные ноты."),
+        CheckReason.RecordingBarLength => words.T(
+            "The recording plays this bar in the length of its time signature.",
+            "Запись играет этот такт ровно по размеру."),
         _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, "Unknown check reason."),
     };
 
@@ -271,6 +286,8 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
             CheckReason.TempoUncertain => words.T("Tempo fits poorly", "Темп плохо ложится на такт"),
             CheckReason.DenseCluster => words.T("Crowded notes", "Скопление нот"),
             CheckReason.HandsGuessed => words.T("Hands guessed", "Руки угаданы"),
+            CheckReason.RecordingOctave => words.T("Recording: other octave", "Запись: другая октава"),
+            CheckReason.RecordingBarLength => words.T("Recording: other bar length", "Запись: другая длина такта"),
             _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, "Unknown Check reason."),
         };
     }
@@ -297,6 +314,12 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
             CheckReason.HandsGuessed => words.T(
                 "Which hand plays these notes was guessed from their pitch alone.",
                 "Какой рукой играются эти ноты, угадано только по высоте."),
+            CheckReason.RecordingOctave => words.T(
+                "In the recording this hand sounds an octave away for two bars or more: the scan may have lost an octave sign (8va or 8vb) or a clef. Fix from the recording moves the notes; Keep as printed leaves them.",
+                "В записи эта рука звучит на октаву иначе два такта и больше: при распознавании мог потеряться знак октавы (8va, 8vb) или ключ. «Исправить по записи» переносит ноты, «Оставить как в нотах» не трогает их."),
+            CheckReason.RecordingBarLength => words.T(
+                "The scan reads this bar longer or shorter than its time signature, while the recording plays it exactly in it: a note or rest was probably misread. Compare the bar with the page and the recording.",
+                "При распознавании такт вышел длиннее или короче размера, а в записи он играется ровно по размеру: вероятно, неверно прочитана нота или пауза. Сравните такт со страницей и с записью."),
             _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, "Unknown Check reason."),
         };
     }
