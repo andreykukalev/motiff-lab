@@ -2,11 +2,17 @@
 # generates the Xcode project, runs the Swift tests in the iPad simulator and builds for a real iPad (unsigned).
 # macOS runners are scarce and slow, so it never runs by itself: only on a pull request with the label `ipad-tests`,
 # by hand from the Actions tab (on main, which also refreshes the Verovio cache every pull request reads), and for an
-# iPad release tag (ipad-v*). Not part of CI and its five minutes. Releases are built by Andrei in Xcode.
+# iPad release tag (ipad-v*). Not part of CI and its five minutes. Releases are built by Andrei in Xcode. Run by hand with
+# "Screenshots" ticked, or for a release tag, it also photographs the app's screens for the mockups (the Screens scheme).
 name: iPad
 
 on:
   workflow_dispatch:
+    inputs:
+      screenshots:
+        description: Photograph the app's screens (Russian, landscape and portrait, light and dark)
+        type: boolean
+        default: false
   push:
     tags: ['ipad-v*']
   pull_request:
@@ -113,6 +119,27 @@ jobs:
             -clonedSourcePackagesDirPath ../build/packages CODE_SIGNING_ALLOWED=NO | tee test.log | grep -E "Test Case|error:|OPEN-AND-ENGRAVE|MSAL-CLIENT|\*\* TEST" || true
           grep -q "\*\* TEST SUCCEEDED \*\*" test.log
 
+      # The screens as a player sees them (MotiffLabScreens/ScreensUITests.swift), for the redesign's mockups. A screen the
+      # walk cannot reach is listed as SCREEN-MISS and costs that picture only.
+      - name: Photograph the screens
+        if: github.event_name == 'push' || inputs.screenshots
+        working-directory: ipad/App
+        run: |
+          mkdir -p "$RUNNER_TEMP/screens"
+          TEST_RUNNER_SCREENS_DIR="$RUNNER_TEMP/screens" xcodebuild test -project MotiffLab.xcodeproj -scheme Screens \
+            -destination "id=$SIMULATOR" -clonedSourcePackagesDirPath ../build/packages CODE_SIGNING_ALLOWED=NO \
+            > screens.log 2>&1 || echo "::warning::The screenshot walk did not finish cleanly; see screens.log"
+          grep -E "SCREEN|error:|\*\* TEST" screens.log || true
+          echo "SCREENS=$(ls "$RUNNER_TEMP/screens" | wc -l | tr -d ' ')" >> "$GITHUB_ENV"
+          cp screens.log "$RUNNER_TEMP/screens/"
+
+      - uses: actions/upload-artifact@v4
+        if: always() && (github.event_name == 'push' || inputs.screenshots)
+        with:
+          name: ipad-screens
+          path: ${{ runner.temp }}/screens
+          if-no-files-found: ignore
+
       # On main and by hand: a pull request's Swift is already compiled by the tests.
       - name: Build for a real iPad (unsigned)
         if: github.event_name != 'pull_request'
@@ -135,6 +162,7 @@ jobs:
             grep -E '^ios|^iossim' core.log || true
             grep -E '^verovio' verovio.log 2>/dev/null || echo "verovio: from the cache"
             echo "Device app (Release, unsigned): ${APP_SIZE:-not built (pull request)}"
+            echo "Screenshots: ${SCREENS:-not taken}"
             grep -h 'OPEN-AND-ENGRAVE' ipad/App/test.log 2>/dev/null || true
             grep -hE "Executed [0-9]+ tests" ipad/App/test.log 2>/dev/null | tail -1 || true
             echo '```'

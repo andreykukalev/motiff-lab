@@ -149,6 +149,17 @@ struct ScoreScreen: View {
             }
             .ignoresSafeArea(edges: .bottom)
             .background(Color.ds("desk").ignoresSafeArea())
+            #if DEBUG
+            .overlay(alignment: .bottomLeading) {
+                // The screenshot walk chooses a phrase here, as a tap on its bracket would (ScreensHook).
+                if ScreensHook.active {
+                    Button { score.selectPhrase(ScreensHook.nextPhrase()) } label: {
+                        Color.clear.frame(width: 8, height: 8).contentShape(Rectangle())
+                    }
+                    .accessibilityLabel("ml-screens-phrase")
+                }
+            }
+            #endif
             .overlay(alignment: .top) {
                 VStack(alignment: .trailing, spacing: CGFloat.ds("s-2")) {
                     if score.focused {
