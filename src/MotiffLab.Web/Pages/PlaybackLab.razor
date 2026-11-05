@@ -290,18 +290,18 @@
                 <div class="focus-layer" data-keeps-selection>
                     <button class="veil" aria-label="@Text["focus.back"]" tabindex="-1" @onclick="LeaveFocusAsync"></button>
                     <div class="focus-stage">
-                        @if (FocusVariations is { Count: > 0 } variations)
-                        {
-                            @* The variations kept for the phrase: a chip picks the one heard and shown as the ossia. *@
-                            <div class="var-chips" role="group" aria-label="@Text["focus.variations"]">
-                                @foreach (Observation kept in variations)
-                                {
-                                    bool heard = kept.Id == HeardKeptId;
-                                    <button class="var-chip @(heard ? "on" : null)" aria-pressed="@(heard ? "true" : "false")" @onclick="() => ShowKeptVariationAsync(kept)">@kept.Name</button>
-                                }
-                            </div>
-                        }
-                        <section class="focus-card" aria-label="@Text.Format("focus.cardLabel", FocusPosition)">
+                        <section class="focus-card @(FocusVariations is { Count: > 0 } ? "has-chips" : null)" aria-label="@Text.Format("focus.cardLabel", FocusPosition)">
+                            @if (FocusVariations is { Count: > 0 } variations)
+                            {
+                                @* The variations kept for the phrase, in a row in the card over the ossia: a chip picks the one heard and shown. *@
+                                <div class="var-chips" role="group" aria-label="@Text["focus.variations"]">
+                                    @foreach (Observation kept in variations)
+                                    {
+                                        bool heard = kept.Id == HeardKeptId;
+                                        <button class="var-chip @(heard ? "on" : null)" aria-pressed="@(heard ? "true" : "false")" @onclick="() => ShowKeptVariationAsync(kept)">@kept.Name</button>
+                                    }
+                                </div>
+                            }
                             <button class="step prev" aria-label="@Text["focus.previous"]" title="@Text["focus.previous"]" disabled="@(!CanStepBack)" @onclick="() => StepUnitAsync(-1)"><Icon Name="back" Size="IconSize.Large" /></button>
                             <PhraseCard Source="card" Sounding="@FocusSounding" />
                             <button class="step next" aria-label="@Text["focus.next"]" title="@Text["focus.next"]" disabled="@(!CanStepOn)" @onclick="() => StepUnitAsync(1)"><Icon Name="fwd" Size="IconSize.Large" /></button>
