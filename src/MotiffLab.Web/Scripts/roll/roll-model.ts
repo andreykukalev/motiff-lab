@@ -22,7 +22,7 @@ export const NOTE_FIELDS = 7;
 export const BAR_FIELDS = 4;
 
 /**
- * A piece packed into flat arrays by PianoRollPayload.cs. Each note is onset, duration, pitch,
+ * A piece packed into flat arrays by music-core (Playback/PianoRollData.cs). Each note is onset, duration, pitch,
  * track, voice (0 when the source has none), hand and flags; each bar is onset, duration, beat
  * length and number.
  */

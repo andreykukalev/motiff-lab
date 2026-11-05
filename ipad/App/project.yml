@@ -50,6 +50,17 @@ targets:
       - path: ../../src/MotiffLab.Web/wwwroot/js/score
         type: folder
         buildPhase: resources
+      # The piano roll in the drawer is the web app's too (Scripts/roll), with the token and theme modules it reads
+      # (Scripts/layout, Scripts/storage).
+      - path: ../../src/MotiffLab.Web/wwwroot/js/roll
+        type: folder
+        buildPhase: resources
+      - path: ../../src/MotiffLab.Web/wwwroot/js/layout
+        type: folder
+        buildPhase: resources
+      - path: ../../src/MotiffLab.Web/wwwroot/js/storage
+        type: folder
+        buildPhase: resources
       # The piano the web app plays (tools/piano): 30 MP3 samples and piano.json.
       - path: ../../src/MotiffLab.Web/wwwroot/audio/piano
         type: folder

@@ -209,8 +209,21 @@ final class ScoreController: NSObject, ObservableObject {
 
     /// Selects a passage through music-core, which keeps it within what a selection may hold.
     func select(_ start: Double, _ end: Double) async {
+        await select(request: "{\"span\": {\"onset\": \(Int(start)), \"end\": \(Int(end))}}")
+    }
+
+    /// Selects whole bars, as the piano roll picks them; a tap that extends takes the selection to the bar tapped.
+    func selectBars(_ first: Int, _ last: Int, extend: Bool) {
+        var from = first
+        var to = last
+        if extend, let selection {
+            if first < selection.firstBar { to = selection.lastBar } else { from = selection.firstBar }
+        }
+        Task { await select(request: "{\"bars\": {\"first\": \(from), \"last\": \(to)}}") }
+    }
+
+    private func select(request: String) async {
         guard let piece else { return }
-        let request = "{\"span\": {\"onset\": \(Int(start)), \"end\": \(Int(end))}}"
         let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "select", request) }
         guard let chosen = ScoreSelection(answer: answer) else {
             problem = facadeObject(answer)?["message"] as? String
@@ -335,6 +348,12 @@ final class ScoreController: NSObject, ObservableObject {
     private static func json(_ object: [String: Any]) -> String? {
         guard let data = try? JSONSerialization.data(withJSONObject: object) else { return nil }
         return String(decoding: data, as: UTF8.self)
+    }
+
+    /// Room under the last page for the drawer over the bottom of the score, so the end of the piece can still be read.
+    func insetBottom(_ height: CGFloat) {
+        guard shown else { return }
+        Task { _ = try? await webView.callAsyncJavaScript("return motiff.inset(data)", arguments: ["data": ["bottom": Double(height)]], contentWorld: .page) }
     }
 
     /// The size of the selection menu, for the page to place it over the band.

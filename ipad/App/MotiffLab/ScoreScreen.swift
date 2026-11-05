@@ -16,9 +16,23 @@ struct ScoreScreen: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var player = Player()
     @StateObject private var score = ScoreController()
+    @StateObject private var roll = RollController()
     @State private var more = false
+    /// The piano roll's drawer (0018 section 4), from the bar.
+    @State private var rollOpen = false
 
     var body: some View {
+        GeometryReader { screen in
+            page(drawer: rollOpen ? drawerHeight(screen.size) : 0)
+        }
+    }
+
+    /// The drawer's height: 40% of the screen in landscape and 30% in portrait, as the web app's.
+    private func drawerHeight(_ size: CGSize) -> CGFloat {
+        (size.width > size.height ? 0.4 : 0.3) * size.height
+    }
+
+    private func page(drawer: CGFloat) -> some View {
         ScoreWebView(score: score, piece: piece, dark: colorScheme == .dark)
             .overlay(alignment: .topLeading) {
                 // The menu over the selection, where the page places it (the web app's menuPlace).
@@ -39,7 +53,7 @@ struct ScoreScreen: View {
                     if score.focused {
                         FocusBar(score: score, player: player, text: text)
                     } else {
-                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, more: $more) { dismiss() }
+                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, more: $more, rollOpen: $rollOpen) { dismiss() }
                     }
                     if score.penOn && !score.focused {
                         PenPalette(score: score, text: text)
@@ -52,14 +66,53 @@ struct ScoreScreen: View {
                 .animation(.easeOut(duration: 0.16), value: score.focused)
             }
             .overlay(alignment: .bottom) {
-                Pill(player: player, score: score, text: text)
-                    .padding(.bottom, CGFloat.ds("s-4"))
+                if rollOpen {
+                    RollDrawer(roll: roll, score: score, text: text) { rollOpen = false }
+                        .frame(height: drawer)
+                        .padding(.horizontal, CGFloat.ds("s-3"))
+                        .transition(.move(edge: .bottom))
+                        .ignoresSafeArea(edges: .bottom)
+                }
             }
+            .overlay(alignment: .bottom) {
+                // The pill rides above the drawer.
+                Pill(player: player, score: score, text: text)
+                    .padding(.bottom, rollOpen ? drawer + CGFloat.ds("s-3") : CGFloat.ds("s-4"))
+            }
+            .animation(.easeOut(duration: 0.2), value: rollOpen)
             .toolbar(.hidden, for: .navigationBar)
             .task {
                 let heard = player
+                let shown = score
                 score.noteTapped = { [weak heard] tick in heard?.play(from: tick) }
+                roll.barsPicked = { [weak shown] first, last, extend in shown?.selectBars(first, last, extend: extend) }
+                roll.cleared = { [weak shown] in shown?.clearSelection() }
+                roll.spacePressed = { [weak heard] in heard?.toggle() }
                 await player.load(piece: piece.id)
+            }
+            .onChange(of: drawer) { _, height in
+                score.insetBottom(height)
+            }
+            .onChange(of: rollOpen) { _, open in
+                if open {
+                    roll.show(piece, dark: colorScheme == .dark)
+                    roll.showSelection(score.selection, loop: player.loop)
+                }
+            }
+            .onChange(of: colorScheme) { _, scheme in
+                if rollOpen { roll.show(piece, dark: scheme == .dark) }
+            }
+            .onChange(of: player.tick) { _, tick in
+                if rollOpen { roll.position(tick, playing: player.state == .playing) }
+            }
+            .onChange(of: player.state) { _, state in
+                if rollOpen { roll.position(player.tick, playing: state == .playing) }
+            }
+            .onChange(of: score.selection) { _, selection in
+                roll.showSelection(selection, loop: player.loop)
+            }
+            .onChange(of: player.loop) { _, loop in
+                roll.showSelection(score.selection, loop: loop)
             }
             .onChange(of: score.playRange) { old, new in
                 // A loop follows what play takes for the selection, as on the web: Lead-in, or going back to the page
@@ -88,8 +141,8 @@ struct ScoreScreen: View {
     }
 }
 
-/// The bar over the score (ds.css `.bar`): back to the library, the title and the pages in view, then Pen, Play and More.
-/// The actions the iPad does not have yet (phrases, the piano roll, Insights) come with their own steps.
+/// The bar over the score (ds.css `.bar`): back to the library, the title and the pages in view, then Phrases, the piano
+/// roll, Pen, Play and More. Insights and Contents come with their own steps.
 struct ScoreBar: View {
     let title: String
     let pages: ScoreController.PagesInView
@@ -97,6 +150,7 @@ struct ScoreBar: View {
     @ObservedObject var player: Player
     @ObservedObject var score: ScoreController
     @Binding var more: Bool
+    @Binding var rollOpen: Bool
     let back: () -> Void
     @State private var phrasesOpen = false
 
@@ -129,6 +183,14 @@ struct ScoreBar: View {
             .buttonStyle(BarActionStyle(on: phrasesOpen))
             .accessibilityLabel(text["bar.phrases"])
             .popover(isPresented: $phrasesOpen) { PhrasesPanel(score: score, text: text) }
+            Button {
+                rollOpen.toggle()
+            } label: {
+                Icon(name: "roll", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+            }
+            .buttonStyle(BarActionStyle(on: rollOpen))
+            .accessibilityLabel(text["bar.roll"])
+            .accessibilityAddTraits(rollOpen ? .isSelected : [])
             Button {
                 score.penOn.toggle()
             } label: {

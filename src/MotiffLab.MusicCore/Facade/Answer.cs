@@ -890,6 +890,56 @@ internal static partial class Answer
         json.WriteEndArray();
     }
 
+    /// <summary>The piano roll's data, with the field names the roll reads (Scripts/roll/roll-model.ts, RollPayload).</summary>
+    public static void Roll(Utf8JsonWriter json, RollPayload payload, RollNames names)
+    {
+        static void Numbers(Utf8JsonWriter json, string name, long[] values)
+        {
+            json.WriteStartArray(name);
+            foreach (long value in values)
+            {
+                json.WriteNumberValue(value);
+            }
+
+            json.WriteEndArray();
+        }
+
+        static void Texts(Utf8JsonWriter json, string? name, string[] values)
+        {
+            if (name is null)
+            {
+                json.WriteStartArray();
+            }
+            else
+            {
+                json.WriteStartArray(name);
+            }
+
+            foreach (string value in values)
+            {
+                json.WriteStringValue(value);
+            }
+
+            json.WriteEndArray();
+        }
+
+        Texts(json, "ids", payload.Ids);
+        Numbers(json, "notes", payload.Notes);
+        Numbers(json, "bars", payload.Bars);
+        json.WriteNumber("end", payload.End);
+        json.WriteStartObject("names");
+        Texts(json, "notes", names.Notes);
+        Numbers(json, "keyTicks", names.KeyTicks);
+        json.WriteStartArray("rows");
+        foreach (string[] row in names.Rows)
+        {
+            Texts(json, null, row);
+        }
+
+        json.WriteEndArray();
+        json.WriteEndObject();
+    }
+
     public static void Playback(Utf8JsonWriter json, PlaybackScore score)
     {
         json.WriteNumber("end", score.End.Value);
