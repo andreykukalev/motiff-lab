@@ -97,7 +97,19 @@ struct ScoreScreen: View {
     }
 
     private func page(drawer: CGFloat, sheet: SheetPlace, contentsPlace: SheetPlace) -> some View {
-        ScoreWebView(score: score, piece: piece, dark: colorScheme == .dark)
+        // The chain is cut into parts so the compiler type-checks each on its own.
+        let covered = max(drawer, sheet.bottomHeight, contentsPlace.bottomHeight)
+        let laid = layers(drawer: drawer, sheet: sheet, contentsPlace: contentsPlace, covered: covered)
+        return following(watching(wired(laid), covered: covered, contentsSide: contentsPlace == .side))
+    }
+
+    /// The score and everything that floats over it.
+    private func layers(drawer: CGFloat, sheet: SheetPlace, contentsPlace: SheetPlace, covered: CGFloat) -> some View {
+        let gap = CGFloat.ds("s-3")
+        let pillBottom = covered > 0 ? covered + gap : CGFloat.ds("s-4")
+        let pillTrailing: CGFloat = sheet == .side ? Self.sheetWidth + gap : 0
+        let pillLeading: CGFloat = contentsPlace == .side ? Self.contentsWidth + gap : 0
+        return ScoreWebView(score: score, piece: piece, dark: colorScheme == .dark)
             .overlay(alignment: .topLeading) {
                 // The menu over the selection, where the page places it (the web app's menuPlace).
                 if score.selection != nil, !score.focused, let place = score.menuPlace {
@@ -164,56 +176,82 @@ struct ScoreScreen: View {
             .overlay(alignment: .topLeading) { contentsDrawer(contentsPlace) }
             .overlay(alignment: .bottom) {
                 // The pill rides above whatever comes up from the bottom, and beside a sheet or a drawer at the side.
-                let bottom = max(drawer, sheet.bottomHeight, contentsPlace.bottomHeight)
                 Pill(player: player, score: score, text: text)
-                    .padding(.bottom, bottom > 0 ? bottom + CGFloat.ds("s-3") : CGFloat.ds("s-4"))
-                    .padding(.trailing, sheet == .side ? Self.sheetWidth + CGFloat.ds("s-3") : 0)
-                    .padding(.leading, contentsPlace == .side ? Self.contentsWidth + CGFloat.ds("s-3") : 0)
+                    .padding(.bottom, pillBottom)
+                    .padding(.trailing, pillTrailing)
+                    .padding(.leading, pillLeading)
             }
             .animation(.easeOut(duration: 0.2), value: rollOpen)
             .animation(.easeOut(duration: 0.2), value: insightsOpen)
             .animation(.easeOut(duration: 0.2), value: contentsOpen)
             .ignoresSafeArea(.keyboard)
+    }
+
+    /// What the screen hands its controllers when it appears, and the project file written when it goes.
+    private func wired(_ content: some View) -> some View {
+        content
             .toolbar(.hidden, for: .navigationBar)
-            .task {
-                let heard = player
-                let shown = score
-                score.noteTapped = { [weak heard] tick in heard?.play(from: tick) }
-                // With the sheet open, a tap on the page puts it away and leaves the selection as it is (0018 section 6).
-                let sheetOpen = $insightsOpen
-                score.blankTapped = {
-                    guard sheetOpen.wrappedValue else { return false }
-                    sheetOpen.wrappedValue = false
-                    return true
-                }
-                insights.placeChosen = { [weak heard] tick in heard?.seek(to: tick) }
-                // A way tried sounds at once, looping the selection to the variation's end, and the card in focus shows
-                // it as the ossia; left, the original sounds again (0018 section 6).
+            .task { await wire() }
+            .onDisappear {
+                player.shutdown()
+                // A variation only tried is not kept with the piece: it is left before the project file is written.
+                let file = piece.file
+                let id = piece.id
                 let tried = insights
-                insights.variationReady = { [weak heard, weak shown, weak tried] notes, end in
-                    heard?.setVariation(notes)
-                    shown?.ossia = tried?.trial?.way.label
-                    if let range = shown?.playRange?.range {
-                        heard?.hear(.variation, over: range.lowerBound..<max(range.upperBound, end))
-                    }
+                Task {
+                    await tried.leave()
+                    if let file { try? await ProjectFiles.save(piece: id, to: file) }
                 }
-                insights.variationLeft = { [weak heard, weak shown] in
-                    heard?.setVariation(nil)
-                    shown?.ossia = nil
-                }
-                roll.barsPicked = { [weak shown] first, last, extend in shown?.selectBars(first, last, extend: extend) }
-                roll.cleared = { [weak shown] in shown?.clearSelection() }
-                roll.spacePressed = { [weak heard] in heard?.toggle() }
-                // The bookmarks are drawn as brackets on the score, and again whenever they change.
-                contents.changed = { [weak shown] shelf in shown?.showBookmarks(shelf) }
-                await contents.load(piece: piece.id)
-                await player.load(piece: piece.id)
             }
-            .onChange(of: max(drawer, sheet.bottomHeight, contentsPlace.bottomHeight)) { _, height in
+            .onChange(of: scenePhase) { _, phase in
+                // The project file is written whenever the app leaves the screen, so nothing waits for a Save button.
+                if phase == .background { save() }
+            }
+    }
+
+    private func wire() async {
+        let heard = player
+        let shown = score
+        score.noteTapped = { [weak heard] tick in heard?.play(from: tick) }
+        // With the sheet open, a tap on the page puts it away and leaves the selection as it is (0018 section 6).
+        let sheetOpen = $insightsOpen
+        score.blankTapped = {
+            guard sheetOpen.wrappedValue else { return false }
+            sheetOpen.wrappedValue = false
+            return true
+        }
+        insights.placeChosen = { [weak heard] tick in heard?.seek(to: tick) }
+        // A way tried sounds at once, looping the selection to the variation's end, and the card in focus shows
+        // it as the ossia; left, the original sounds again (0018 section 6).
+        let tried = insights
+        insights.variationReady = { [weak heard, weak shown, weak tried] notes, end in
+            heard?.setVariation(notes)
+            shown?.ossia = tried?.trial?.way.label
+            if let range = shown?.playRange?.range {
+                heard?.hear(.variation, over: range.lowerBound..<max(range.upperBound, end))
+            }
+        }
+        insights.variationLeft = { [weak heard, weak shown] in
+            heard?.setVariation(nil)
+            shown?.ossia = nil
+        }
+        roll.barsPicked = { [weak shown] first, last, extend in shown?.selectBars(first, last, extend: extend) }
+        roll.cleared = { [weak shown] in shown?.clearSelection() }
+        roll.spacePressed = { [weak heard] in heard?.toggle() }
+        // The bookmarks are drawn as brackets on the score, and again whenever they change.
+        contents.changed = { [weak shown] shelf in shown?.showBookmarks(shelf) }
+        await contents.load(piece: piece.id)
+        await player.load(piece: piece.id)
+    }
+
+    /// The drawers and sheets: what covers the page, and one of them at a time.
+    private func watching(_ content: some View, covered: CGFloat, contentsSide: Bool) -> some View {
+        content
+            .onChange(of: covered) { _, height in
                 // Room under the last page for whatever covers the bottom of the score.
                 score.insetBottom(height)
             }
-            .onChange(of: contentsPlace == .side) { _, side in
+            .onChange(of: contentsSide) { _, side in
                 // The selection menu keeps to the right of the drawer over the left of the page.
                 score.clearLeft(side ? Self.contentsWidth + CGFloat.ds("s-3") : 0)
             }
@@ -248,6 +286,11 @@ struct ScoreScreen: View {
                     insights.clearChoice()
                 }
             }
+    }
+
+    /// What follows the selection, the player and the fact chosen.
+    private func following(_ content: some View) -> some View {
+        content
             .onChange(of: insights.chosen) { _, chosen in
                 let places = chosen?.places ?? []
                 score.highlight(places, scroll: player.state != .playing)
@@ -286,21 +329,6 @@ struct ScoreScreen: View {
                 } else {
                     player.setLoop(nil)
                 }
-            }
-            .onDisappear {
-                player.shutdown()
-                // A variation only tried is not kept with the piece: it is left before the project file is written.
-                let file = piece.file
-                let id = piece.id
-                let tried = insights
-                Task {
-                    await tried.leave()
-                    if let file { try? await ProjectFiles.save(piece: id, to: file) }
-                }
-            }
-            .onChange(of: scenePhase) { _, phase in
-                // The project file is written whenever the app leaves the screen, so nothing waits for a Save button.
-                if phase == .background { save() }
             }
     }
 
