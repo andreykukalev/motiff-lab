@@ -1,0 +1,179 @@
+@using MotiffLab.MusicCore.Import.Transcription
+@inject ScanService Scans
+@inject MotiffLab.Web.Account.CloudAccount Account
+@inject MotiffLab.Web.Localization.UiText Text
+
+@* A recording as another version (0022): its sound goes to the scan server, as on Transcribe a recording, and the notes
+   it hears are lined up with the piece's; the recording itself stays on the device. The whole recording is heard, up to
+   7 minutes. What leaves the device is one line and one switch; on Motiff Lab's server it needs an account and Pro,
+   offered here. *@
+<section class="recording-version" aria-label="@Text["version.recordingHeading"]">
+    <p class="overline">@Text["version.recordingHeading"]</p>
+    @if (!_ready)
+    {
+        <p class="caption">@Text["pdf.readChecking"]</p>
+    }
+    else if (Scans.Address is not { } server)
+    {
+        @if (Scans.HostedAddress is not null)
+        {
+            <p class="caption">@Text["scan.turnedOff"] <a href="settings#scan">@Text["scan.turnOn"]</a>.</p>
+        }
+        else
+        {
+            <p class="caption">@Text["transcribe.setUp"] <a href="settings#scan-heading">@Text["transcribe.setUpLink"]</a>.</p>
+        }
+    }
+    else if (Scans.IsHosted && !_signedIn)
+    {
+        <MotiffLab.Web.Account.SignInPrompt Text="@Text["transcribe.signInPrompt"]" />
+    }
+    else if (Scans.IsHosted && !_pro)
+    {
+        <p class="pro-offer">
+            <span class="tag pro">Pro</span> @Text["transcribe.proPrompt"]
+            @if (Account.IsAvailable)
+            {
+                <a href="settings#plan">@Text["ask.offerPlan"]</a>
+            }
+        </p>
+    }
+    else
+    {
+        <p class="caption">@Text.Format("version.recordingLine", server)</p>
+        @if (!Scans.IsLocal)
+        {
+            <label class="consent">
+                <input type="checkbox" role="switch" class="switch" @bind="_send" disabled="@_busy" />
+                <span>@(Scans.IsHosted ? Text["transcribe.sendHosted"] : Text.Format("transcribe.sendElsewhere", server.Host))</span>
+            </label>
+        }
+
+        <label class="file btn secondary @(_busy ? "busy" : null)">
+            @(_busy ? Progress : Text["version.addRecording"])
+            <InputFile @ref="_input" OnChange="PickAsync" accept="@ScanService.AcceptedRecordings" disabled="@(_busy || !(Scans.IsLocal || _send))" aria-label="@Text["version.chooseRecording"]" />
+        </label>
+    }
+
+    @if (_note is not null)
+    {
+        <p class="caption" role="status">@_note</p>
+    }
+    @if (_problem is not null)
+    {
+        <p class="caption problem" role="alert">@_problem</p>
+    }
+</section>
+
+@code {
+    private InputFile? _input;
+    private bool _ready;
+    private bool _signedIn;
+    private bool _pro;
+    private bool _send;
+    private bool _busy;
+    private bool _decoding;
+    private int _part;
+    private int _parts;
+    private string? _note;
+    private string? _problem;
+
+    /// <summary>Takes the notes heard, as MIDI, with the recording's file name; returns why they cannot be used, or null once they are a version.</summary>
+    [Parameter, EditorRequired]
+    public Func<string, byte[], Task<string?>> Heard { get; set; } = default!;
+
+    private string Progress => _decoding ? Text["transcribe.decoding"]
+        : _parts > 1 ? Text.Format("transcribe.part", _part, _parts)
+        : Text["transcribe.busy"];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Scans.LoadAsync();
+        _signedIn = await Account.PlayerAsync() is not null;
+        // Transcription on Motiff Lab's server is Pro (0018 section 12); the server checks it too.
+        _pro = _signedIn && await Account.AllowsAsync(MotiffLab.MusicCore.Accounts.ProFeature.Transcribe);
+        _ready = true;
+    }
+
+    private async Task PickAsync(InputFileChangeEventArgs args)
+    {
+        (_note, _problem) = (null, null);
+        IBrowserFile file = args.File;
+        if (file.Size == 0)
+        {
+            _problem = Text["transcribe.empty"];
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            byte[]? midi = await HearAsync(file);
+            if (midi is not null)
+            {
+                _problem = await Heard(file.Name, midi);
+            }
+        }
+        finally
+        {
+            (_busy, _decoding, _part, _parts) = (false, false, 0, 0);
+            await Scans.ForgetRecordingAsync();
+        }
+    }
+
+    /// <summary>
+    /// The notes heard in the recording: its sound taken out on this device and sent, the first 7 minutes of a longer one;
+    /// or, when this browser cannot take the sound out, the file itself when it is small enough, of which the server hears the start.
+    /// </summary>
+    private async Task<byte[]?> HearAsync(IBrowserFile file)
+    {
+        _decoding = true;
+        StateHasChanged();
+        LoadedRecording? loaded = _input?.Element is { } input ? await Scans.LoadRecordingAsync(input) : null;
+        _decoding = false;
+        StateHasChanged();
+        if (loaded is { Milliseconds: > 0 })
+        {
+            long to = Math.Min(loaded.Milliseconds, RecordingRange.MostMilliseconds);
+            if (await Scans.SoundBetweenAsync(0, to) is not { } sound)
+            {
+                _problem = Text["transcribe.failed"];
+                return null;
+            }
+
+            HeardSound heard = await Scans.HearAsync(sound, (part, parts) =>
+            {
+                (_part, _parts) = (part, parts);
+                StateHasChanged();
+            });
+            if (heard.Midi is null)
+            {
+                _problem = $"{heard.Problem} {Text["transcribe.notHeardTip"]}".Trim();
+                return null;
+            }
+
+            _note = loaded.Milliseconds > to ? Text.Format("version.recordingCut", RecordingRange.MostMilliseconds / 60_000) : null;
+            return heard.Midi;
+        }
+
+        if (file.Size > ScanService.MaxRecordingUploadBytes)
+        {
+            _problem = $"{Text["transcribe.tooLarge"]} {Text["transcribe.tooLargeTip"]}";
+            return null;
+        }
+
+        await using Stream stream = file.OpenReadStream(ScanService.MaxRecordingUploadBytes);
+        using var memory = new MemoryStream();
+        await stream.CopyToAsync(memory);
+        // The server is not told the file's name: it reads the format from the content.
+        TranscriptionResult result = await Scans.TranscribeAsync("recording", memory.ToArray());
+        if (result.Midi is null)
+        {
+            _problem = $"{result.Problem} {Text["transcribe.notHeardTip"]}".Trim();
+            return null;
+        }
+
+        _note = result.Cut ? Text.Format("version.recordingCut", (ScanService.ServerRecordingSeconds / 60.0).ToString("0.#", Text.Culture)) : null;
+        return result.Midi;
+    }
+}

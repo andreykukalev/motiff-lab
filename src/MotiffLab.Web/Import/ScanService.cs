@@ -5,6 +5,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 
+using MotiffLab.MusicCore.Import.Midi;
 using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.Web.Account;
 using MotiffLab.Web.Localization;
@@ -269,6 +270,53 @@ public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text
     private async Task<IJSObjectReference> RecordingModuleAsync() =>
         _recording ??= await js.InvokeAsync<IJSObjectReference>("import", "./js/import/recording.js");
 
+    /// <summary>
+    /// Hears the sound of a stretch on the scan server (0014): in one request, or in overlapping parts, one after another,
+    /// when it is longer than the server hears at once, with the notes joined and their times from the stretch's start.
+    /// <paramref name="progress"/> is told the part about to be sent and how many there are.
+    /// </summary>
+    public async Task<HeardSound> HearAsync(RecordingSound sound, Action<int, int>? progress = null)
+    {
+        ArgumentNullException.ThrowIfNull(sound);
+        IReadOnlyList<RecordingPart> parts = RecordingParts.Plan(Math.Max(1, sound.Milliseconds));
+        var heard = new List<(RecordingPart, byte[])>();
+        TranscriptionResult result = TranscriptionResult.Failed(text["transcribe.failed"]);
+        foreach (RecordingPart part in parts)
+        {
+            progress?.Invoke(part.Index + 1, parts.Count);
+            byte[] upload = parts.Count == 1 ? sound.Wav : sound.Part(part.SendFromMilliseconds, part.SendToMilliseconds);
+            TranscriptionResult partResult = await TranscribeAsync("recording.wav", upload);
+            if (partResult.Midi is { } partMidi)
+            {
+                result = partResult;
+                heard.Add((part, partMidi));
+            }
+            else if (partResult.NothingHeard && parts.Count > 1)
+            {
+                // A quiet stretch: the other parts still have notes.
+                result = heard.Count == 0 ? partResult : result;
+            }
+            else
+            {
+                return new HeardSound(null, partResult, parts);
+            }
+        }
+
+        if (heard.Count == 0)
+        {
+            return new HeardSound(null, result, parts);
+        }
+
+        try
+        {
+            return new HeardSound(parts.Count == 1 ? result.Midi : RecordingParts.Join(heard), result, parts);
+        }
+        catch (MidiImportException)
+        {
+            return new HeardSound(null, TranscriptionResult.Failed(text["transcribe.failed"]), parts);
+        }
+    }
+
     /// <summary>Sends a recording, or the sound taken out of it, to be transcribed; the MIDI and engine, or a plain reason there is none.</summary>
     public async Task<TranscriptionResult> TranscribeAsync(string fileName, byte[] data, CancellationToken cancellation = default)
     {
@@ -415,6 +463,13 @@ public sealed record TranscriptionResult(byte[]? Midi, string Engine, double Sec
 
     /// <summary>The server read the sound but heard no notes in it, as in a quiet stretch of a recording heard in parts.</summary>
     public bool NothingHeard { get; init; }
+}
+
+/// <summary>What the scan server heard in a stretch's sound: the joined MIDI, or none and why; the last answer with notes; the parts sent.</summary>
+public sealed record HeardSound(byte[]? Midi, TranscriptionResult Result, IReadOnlyList<RecordingPart> Parts)
+{
+    /// <summary>Why there are no notes, when there are none.</summary>
+    public string? Problem => Midi is null ? Result.Problem : null;
 }
 
 /// <summary>What the scan server sent back: the recognised MusicXML, or why there is none.</summary>

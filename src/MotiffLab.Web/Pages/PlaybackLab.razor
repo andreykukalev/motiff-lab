@@ -1164,6 +1164,7 @@
         @Text["performance.addMidi"]
         <InputFile OnChange="AddPerformanceAsync" accept="@VersionFile.AcceptedExtensions" />
     </label>
+    <MotiffLab.Web.Import.RecordingVersion Heard="AddRecordingVersionAsync" />
 </aside>;
 
     private RenderFragment TrialCard => @<ExploreCard Try="TryExperimentAsync" Leave="LeaveExperimentAsync" HearInContext="HearAnswerAsync"

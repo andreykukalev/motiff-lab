@@ -367,17 +367,52 @@ public partial class PlaybackLab
             return;
         }
 
-        byte[] midi = read.Midi!;
+        await AddVersionAsync(project, file.Name, read.Source, read.Midi!, played);
+    }
 
+    /// <summary>
+    /// A recording as another version (0022): the notes the scan server heard in it, lined up like a MIDI file's and kept as
+    /// a recording's. Its sound is not kept.
+    /// </summary>
+    private async Task<string?> AddRecordingVersionAsync(string fileName, byte[] midi)
+    {
+        _performanceStatus = null;
+        if (_project is { } project && _meter is not null)
+        {
+            IReadOnlyList<PlayedNote> played;
+            try
+            {
+                played = PlayedNotes.FromMidi(midi);
+            }
+            catch (Exception exception) when (exception is MidiImportException or ArgumentException or InvalidDataException or FormatException)
+            {
+                return Text["transcribe.failed"];
+            }
+
+            if (played.Count == 0)
+            {
+                return Text["performance.noNotes"];
+            }
+
+            await AddVersionAsync(project, fileName, PerformanceSource.Recording, midi, played);
+            StateHasChanged();
+        }
+
+        return null;
+    }
+
+    /// <summary>Lines the version's notes up with the piece's, keeps the version with the piece and shows it, saying how much agrees.</summary>
+    private async Task AddVersionAsync(Project project, string fileName, PerformanceSource source, byte[] midi, IReadOnlyList<PlayedNote> played)
+    {
         IReadOnlyList<Note> printed = PrintedNotes;
         PerformanceAlignment alignment = PerformanceAlignment.Align(printed, played);
-        string name = Path.GetFileNameWithoutExtension(file.Name) is { Length: > 0 } stem ? stem : Text["performance.defaultName"];
-        var performance = new SavedPerformance(project.NextPerformanceId(), name, read.Source, midi, 0, alignment.Anchors);
+        string name = Path.GetFileNameWithoutExtension(fileName) is { Length: > 0 } stem ? stem : Text["performance.defaultName"];
+        var performance = new SavedPerformance(project.NextPerformanceId(), name, source, midi, 0, alignment.Anchors);
         project = project.AddPerformance(performance);
-        PerformanceComparison comparison = PerformanceComparison.Compare(printed, _meter, played, alignment);
+        PerformanceComparison comparison = PerformanceComparison.Compare(printed, _meter!, played, alignment);
         if (project.Scan is not null && CurrentPiece.Piece is { MusicXml: not null } piece)
         {
-            IReadOnlyList<RecordingCorrection> corrections = RecordingCorrections.Find(printed, _meter, ScanCheck.Of(piece), comparison);
+            IReadOnlyList<RecordingCorrection> corrections = RecordingCorrections.Find(printed, _meter!, ScanCheck.Of(piece), comparison);
             project = project.WithPerformanceChecks(corrections.SelectMany(correction => correction.Flags()));
             _scoreChecks = null;
         }

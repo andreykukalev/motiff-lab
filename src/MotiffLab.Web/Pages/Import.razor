@@ -625,51 +625,18 @@
 
             // A stretch longer than the server hears at once goes in overlapping parts, one after another, and the
             // notes are joined; the notes' times start at the stretch's start.
-            IReadOnlyList<RecordingPart> parts = RecordingParts.Plan(Math.Max(1, sound.Milliseconds));
-            var heard = new List<(RecordingPart, byte[])>();
-            TranscriptionResult result = TranscriptionResult.Failed("");
-            _parts = parts.Count;
-            foreach (RecordingPart part in parts)
+            HeardSound heard = await Scans.HearAsync(sound, (part, parts) =>
             {
-                _part = part.Index + 1;
+                (_part, _parts) = (part, parts);
                 StateHasChanged();
-                byte[] upload = parts.Count == 1 ? sound.Wav : sound.Part(part.SendFromMilliseconds, part.SendToMilliseconds);
-                TranscriptionResult partResult = await Scans.TranscribeAsync("recording.wav", upload);
-                if (partResult.Midi is { } partMidi)
-                {
-                    result = partResult;
-                    heard.Add((part, partMidi));
-                }
-                else if (partResult.NothingHeard && parts.Count > 1)
-                {
-                    // A quiet stretch: the other parts still have notes.
-                    result = heard.Count == 0 ? partResult : result;
-                }
-                else
-                {
-                    _rejection = new(ImportRejectionReason.NotMusic, partResult.Problem!, Text["transcribe.notHeardTip"]);
-                    return;
-                }
-            }
-
-            if (heard.Count == 0)
+            });
+            if (heard.Midi is not { } midi)
             {
-                _rejection = new(ImportRejectionReason.NotMusic, result.Problem!, Text["transcribe.notHeardTip"]);
+                _rejection = new(ImportRejectionReason.NotMusic, heard.Problem!, Text["transcribe.notHeardTip"]);
                 return;
             }
 
-            byte[] midi;
-            try
-            {
-                midi = parts.Count == 1 ? result.Midi! : RecordingParts.Join(heard);
-            }
-            catch (MidiImportException)
-            {
-                _rejection = new(ImportRejectionReason.NotMusic, Text["transcribe.failed"], Text["transcribe.notHeardTip"]);
-                return;
-            }
-
-            Show(_recordingName, midi, result, watch.Elapsed, sound.Seconds, false, range, parts.Count, RecordingParts.Seams(parts));
+            Show(_recordingName, midi, heard.Result, watch.Elapsed, sound.Seconds, false, range, heard.Parts.Count, RecordingParts.Seams(heard.Parts));
         }
         finally
         {

@@ -206,7 +206,9 @@ public sealed record PerformanceComparison(PerformanceAlignment Alignment, IRead
         {
             if (!used[k])
             {
-                extraIn[barIndex[meter.BarAt(placed[k].At.Offset(EarlyTolerance)).Number]].Add(placed[k]);
+                // A note played just early for the next bar counts in it; there is none after the last one.
+                Tick at = new(Math.Min(placed[k].At.Value + EarlyTolerance, end.Value - 1));
+                extraIn[barIndex[meter.BarAt(at).Number]].Add(placed[k]);
             }
         }
 
