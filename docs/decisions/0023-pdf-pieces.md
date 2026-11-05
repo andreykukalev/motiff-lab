@@ -15,8 +15,10 @@ Until now a PDF could only be scanned (0011, 0014): the notes the scan server re
 - **Where the player was is kept on the device.** The page under the bar is remembered per piece and reopened; Page 1 in the library opens at the top. A PDF piece has no resume points, Piece DNA or ideas until it has notes.
 - **The library treats it as a piece.** Open a file accepts `.pdf` next to MIDI and MusicXML; the card shows "PDF · 3 pages" with page 1 as its cover, drawn by pdf.js.
 
+- **Marks on the pages are the PDF view's own.** The pen writes on the pages with the score's pencil layer and palette (four inks, the highlighter, the eraser, undo, clear): each page is one frame its strokes are kept against, by its number, in units of a hundred and twentieth of the page's width, so a stroke keeps its place and size however wide the page is drawn. The bookmark in the bar marks the page under it (a carmine tab on its edge); the title opens the Contents, which lists the bookmarked pages to go to, name or remove. Both are kept in the project as `documentMarks` (`DocumentMarks` in music-core), apart from the notes' `marks`.
+
 ## Later steps
 
-1. Marks and bookmarks on the PDF's pages, kept in page coordinates and separate from the Notes view's marks; the metronome.
+1. The metronome.
 2. Recognise: the scan reads the kept PDF, the notes become the piece's `source`, and the bar switches between the "PDF" and "Notes" views, with a rough page-to-bar map from the scan's pages.
 3. The iPad app's PDF view (PDFKit) over the same project file.

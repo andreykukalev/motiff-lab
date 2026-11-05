@@ -1,0 +1,61 @@
+@using MotiffLab.Web.Localization
+@inject UiText Text
+
+@* The pen palette (0015, 0018 section 5) under the bar's Pen action: four inks, the highlighter and the eraser, undo and clear.
+   The score and a PDF's pages (0023) share it; each hands it the state of its own pencil layer. *@
+<div class="pen-palette" role="toolbar" aria-label="@Text["pencil.label"]" data-keeps-selection>
+    @foreach ((string colour, string key) in s_penColours)
+    {
+        bool chosen = State.Tool == PenTool && State.Colour == colour;
+        <button class="ink-swatch @colour @(chosen ? "on" : null)" aria-pressed="@(chosen ? "true" : "false")" aria-label="@Text[key]" title="@Text[key]"
+                @onclick="() => Act(SetTool, [PenTool, colour])"><span aria-hidden="true"></span></button>
+    }
+    <span class="div" aria-hidden="true"></span>
+    <button class="it @(State.Tool == HighlighterTool ? "on" : null)" aria-pressed="@(State.Tool == HighlighterTool ? "true" : "false")"
+            @onclick="() => Act(SetTool, [HighlighterTool, null])"><Icon Name="highlight" Size="IconSize.Small" /> @Text["pencil.highlighter"]</button>
+    <button class="it @(State.Tool == EraserTool ? "on" : null)" aria-pressed="@(State.Tool == EraserTool ? "true" : "false")"
+            @onclick="() => Act(SetTool, [EraserTool, null])">@Text["pencil.eraser"]</button>
+    <span class="div" aria-hidden="true"></span>
+    <button class="it" @onclick="() => Act(UndoLast, [])" disabled="@(!State.CanUndo)"><Icon Name="undo" Size="IconSize.Small" /> @Text["pencil.undo"]</button>
+    @* Undo brings a cleared page back, so nothing asks first. *@
+    <button class="it" @onclick="() => Act(Clear, [])" disabled="@(State.Marks == 0)" title="@Text["pencil.clearHint"]">@Text["pencil.clear"]</button>
+    @if (LayersRequested.HasDelegate)
+    {
+        <span class="div" aria-hidden="true"></span>
+        <button class="it" @onclick="() => LayersRequested.InvokeAsync()"><Icon Name="layers" Size="IconSize.Small" /> @Text["layers.title"]</button>
+    }
+    @if (State.Hidden > 0)
+    {
+        <span class="caption">@Text.Format("pencil.hidden", State.Hidden)</span>
+    }
+</div>
+
+@code {
+    private const string PenTool = "pen";
+    private const string HighlighterTool = "highlighter";
+    private const string EraserTool = "eraser";
+    private const string SetTool = "setTool";
+    private const string UndoLast = "undoLast";
+    private const string Clear = "clear";
+
+    /// <summary>The four inks of the design kit (0018), in the project file's names (Projects/Marks.cs).</summary>
+    private static readonly (string Colour, string Key)[] s_penColours =
+    [
+        ("graphite", "pencil.penGraphite"),
+        ("carmine", "pencil.penCarmine"),
+        ("forest", "pencil.penForest"),
+        ("ochre", "pencil.penOchre"),
+    ];
+
+    /// <summary>The pencil layer's tools and marks, as its script last reported them.</summary>
+    [Parameter, EditorRequired]
+    public ScoreView.PencilState State { get; set; } = default!;
+
+    /// <summary>Calls the pencil layer: a method of Scripts/score/pencil-layer.ts and its arguments.</summary>
+    [Parameter, EditorRequired]
+    public Func<string, object?[], Task> Act { get; set; } = default!;
+
+    /// <summary>Opens the layers of marks, where the host has them.</summary>
+    [Parameter]
+    public EventCallback LayersRequested { get; set; }
+}

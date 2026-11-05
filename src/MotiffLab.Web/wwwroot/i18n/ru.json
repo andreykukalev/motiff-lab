@@ -1257,5 +1257,13 @@
   "pdf.notPdf": "Этот файл не PDF, хотя его имя кончается на .pdf.",
   "library.pdf": "PDF",
   "library.pdfAsIs": "Напечатанные страницы как есть",
-  "library.fileChoose": "Выбрать файл MIDI, MusicXML или PDF"
+  "library.fileChoose": "Выбрать файл MIDI, MusicXML или PDF",
+  "pdf.bookmarkPage": "Заложить эту страницу",
+  "pdf.bookmarks": "Заложенные страницы",
+  "pdf.noBookmarks": "Закладок пока нет. Закладка в панели отмечает страницу, на которой вы сейчас.",
+  "pdf.goTo": "Перейти: {0}",
+  "pdf.bookmarkName": "Название (необязательно)",
+  "pdf.bookmarkNameFor": "Название закладки на {0}",
+  "pdf.removeBookmark": "Убрать закладку на {0}",
+  "pdf.removeBookmarkHint": "Убрать эту закладку"
 }

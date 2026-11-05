@@ -1234,5 +1234,13 @@
   "pdf.notPdf": "This file is not a PDF, though its name ends in .pdf.",
   "library.pdf": "PDF",
   "library.pdfAsIs": "The printed pages, as they are",
-  "library.fileChoose": "Choose a MIDI, MusicXML or PDF file"
+  "library.fileChoose": "Choose a MIDI, MusicXML or PDF file",
+  "pdf.bookmarkPage": "Bookmark this page",
+  "pdf.bookmarks": "Bookmarked pages",
+  "pdf.noBookmarks": "No pages bookmarked yet. The bookmark in the bar marks the page you are on.",
+  "pdf.goTo": "Go to {0}",
+  "pdf.bookmarkName": "Name (optional)",
+  "pdf.bookmarkNameFor": "Name for the bookmark on {0}",
+  "pdf.removeBookmark": "Remove the bookmark on {0}",
+  "pdf.removeBookmarkHint": "Remove this bookmark"
 }
