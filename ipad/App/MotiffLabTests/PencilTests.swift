@@ -217,7 +217,7 @@ final class PencilTests: XCTestCase {
         defer { _ = MusicCore.close(piece: piece.id) }
         let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
         _ = try await call(view, "show", ["pages": piece.pages, "timemap": timemap, "dark": false])
-        let second = try XCTUnwrap(PhraseLevelsShown(answer: MusicCore.call(piece: piece.id, "phrases")).unit(2))
+        let second = try XCTUnwrap(PhraseLevelsShown(answer: MusicCore.call(piece: piece.id, "phrases"))?.unit(2))
         _ = try XCTUnwrap(ScoreSelection(answer: MusicCore.call(piece: piece.id, "select", "{\"span\": {\"onset\": \(Int(second.selectableOnset)), \"end\": \(Int(second.selectableEnd))}}")))
         let understanding = try XCTUnwrap(Understanding(answer: MusicCore.call(piece: piece.id, "understand")))
 
