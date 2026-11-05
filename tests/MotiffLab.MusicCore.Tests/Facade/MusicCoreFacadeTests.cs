@@ -952,6 +952,34 @@ public class MusicCoreFacadeTests
     }
 
     [Fact]
+    public void A_recording_heard_in_parts_is_joined_into_one_version()
+    {
+        (MusicCoreFacade facade, _) = Open("""{"id": "p_fur"}""");
+        ImportedPiece piece = PieceImporter.Import(FurElise, Fixture(FurElise)).Piece!;
+        string midi = Convert.ToBase64String(MidiExporter.Export(piece.Notes, [], piece.Meter, "heard"));
+
+        // Seven minutes at most, heard in parts of up to two minutes that overlap by five seconds.
+        JsonElement parts = Json(facade.Call(0, "recording.parts", """{"milliseconds": 600000}"""));
+        Assert.Equal(420_000, parts.GetProperty("milliseconds").GetInt64());
+        JsonElement[] planned = [.. parts.GetProperty("parts").EnumerateArray()];
+        Assert.Equal(4, planned.Length);
+        Assert.Equal(0, planned[0].GetProperty("sendFrom").GetInt64());
+        Assert.Equal(planned[0].GetProperty("keepTo").GetInt64() + 5_000, planned[0].GetProperty("sendTo").GetInt64());
+        Assert.Equal("badRequest", Error(facade, 0, "recording.parts", """{"milliseconds": 0}"""));
+
+        JsonElement added = Call(facade, "performance.add", $$$"""{"name": "Recital", "engine": "transkun", "milliseconds": 100000, "parts": [{"index": 0, "midi": "{{{midi}}}"}]}""").GetProperty("performance");
+        Assert.Equal("recording", added.GetProperty("source").GetString());
+        Assert.Equal("transkun", added.GetProperty("engine").GetString());
+        Assert.Equal(added.GetProperty("printed").GetInt32(), added.GetProperty("matched").GetInt32());
+
+        JsonElement joined = Call(facade, "performance.add", $$$"""{"name": "Long", "milliseconds": 300000, "parts": [{"index": 0, "midi": "{{{midi}}}"}, {"index": 2, "midi": "{{{midi}}}"}]}""").GetProperty("performance");
+        Assert.Equal("recording", joined.GetProperty("source").GetString());
+        Assert.True(joined.GetProperty("matched").GetInt32() > 0);
+        Assert.Equal("badRequest", Error(facade, 1, "performance.add", """{"name": "Bad", "milliseconds": 100000, "parts": [{"index": 3, "midi": "AAAA"}]}"""));
+        Assert.Equal("badRequest", Error(facade, 1, "performance.add", """{"name": "Bad", "milliseconds": 100000, "parts": []}"""));
+    }
+
+    [Fact]
     public void APdfOpensAsAPdfPieceKeepingItsPagesBookmarksAndInkAndRefusesCallsAboutNotes()
     {
         byte[] pdf = System.Text.Encoding.ASCII.GetBytes("%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\n%%EOF\n");

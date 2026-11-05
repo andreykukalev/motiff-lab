@@ -157,6 +157,7 @@ struct VersionsDrawer: View {
                         .fixedSize(horizontal: false, vertical: true)
                     Button(text["performance.addMidi"]) { choosing = true }
                         .buttonStyle(DSButtonStyle(kind: .secondary))
+                    RecordingVersionSection(score: score, text: text)
                 }
                 .padding(.leading, CGFloat.ds("s-6"))
                 .padding(.trailing, CGFloat.ds("s-5"))
