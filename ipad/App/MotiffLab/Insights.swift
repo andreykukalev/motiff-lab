@@ -81,7 +81,9 @@ struct Understanding: Equatable, Sendable {
 
 /// The Insights stream's state (0018 section 6, the web app's InsightsStream): what music-core understood about the
 /// selection, the lens the filter chips narrow it to, the facts whose Evidence is open, and the fact whose places are
-/// ringed on the score and lit on the roll, or one place of it.
+/// ringed on the score and lit on the roll, or one place of it. A fact's Try opens the ways music-core offers for it; a
+/// way sounds at once (facade `try`, then the piece with the variation in place, `playback` of `inPlace`), and the row
+/// that holds it can Keep it as an idea (`idea.keep`) or Leave it (`variation.clear`).
 @MainActor
 final class InsightsController: ObservableObject {
     struct Choice: Equatable {
@@ -101,19 +103,44 @@ final class InsightsController: ObservableObject {
     @Published var lens: String?
     @Published private(set) var evidence: Set<String> = []
     @Published private(set) var chosen: Choice?
+    /// The facts whose Try is open, listing their ways.
+    @Published private(set) var tryOpen: Set<String> = []
+    /// The way being tried, on the row of the fact it came from.
+    @Published private(set) var trial: Trial?
+    /// A way music-core is working out, by its id.
+    @Published private(set) var starting: String?
+
+    /// A way tried: the fact it came from, the way, what changed in music-core's words, where the variation ends, and
+    /// whether it was kept.
+    struct Trial: Equatable {
+        var factId: String
+        var way: Fact.Try
+        var explanation: String
+        var end: Double
+        var kept = false
+    }
 
     /// A place chosen on its own: playback moves to its start, as on the web.
     var placeChosen: (@MainActor (Double) -> Void)?
+    /// A way tried: the piece with the variation in place, to hear at once, and where the variation ends.
+    var variationReady: (@MainActor (_ notes: [PlaybackNote], _ end: Double) -> Void)?
+    /// The variation left: the original sounds again.
+    var variationLeft: (@MainActor () -> Void)?
 
     private var understood: ScoreSelection?
+    private var piece: Int32 = 0
 
     /// Reads the selection's facts from music-core; again only when the selection is another one.
     func load(piece: Int32, selection: ScoreSelection?) async {
+        self.piece = piece
         guard selection != understood || (selection != nil && understanding == nil && !loading) else { return }
         understood = selection
         chosen = nil
         evidence = []
+        tryOpen = []
         problem = nil
+        // A variation belongs to the passage it was tried on.
+        if trial != nil { await leave() }
         guard let selection, !selection.noteIds.isEmpty else {
             understanding = nil
             loading = false
@@ -156,6 +183,65 @@ final class InsightsController: ObservableObject {
         if evidence.contains(fact.id) { evidence.remove(fact.id) } else { evidence.insert(fact.id) }
     }
 
+    /// Try on a fact: its ways are listed, or put away.
+    func toggleTry(_ fact: Fact) {
+        if tryOpen.contains(fact.id) { tryOpen.remove(fact.id) } else { tryOpen.insert(fact.id) }
+    }
+
+    /// A way tried: music-core makes the variation, and the piece with it in place sounds at once.
+    func tryWay(_ way: Fact.Try, of fact: Fact) async {
+        guard starting == nil else { return }
+        let piece = piece
+        starting = way.id
+        defer { starting = nil }
+        problem = nil
+        let request = Self.json(["chip": way.id])
+        let answer = await MusicCore.run { MusicCore.call(piece: piece, "try", request) }
+        guard let state = facadeObject(answer), state["error"] == nil, let result = state["result"] as? [String: Any] else {
+            problem = facadeObject(answer)?["message"] as? String
+            return
+        }
+        let ends = (result["notes"] as? [[String: Any]] ?? []).compactMap { note -> Double? in
+            guard let onset = (note["onset"] as? NSNumber)?.doubleValue, let duration = (note["duration"] as? NSNumber)?.doubleValue else { return nil }
+            return onset + duration
+        }
+        let heard = await MusicCore.run { MusicCore.call(piece: piece, "playback", #"{"of": "inPlace"}"#) }
+        guard let score = PlaybackScore.read(heard) else {
+            problem = facadeObject(heard)?["message"] as? String
+            return
+        }
+        trial = Trial(factId: fact.id, way: way, explanation: result["explanation"] as? String ?? "", end: ends.max() ?? 0)
+        tryOpen.remove(fact.id)
+        variationReady?(score.notes, ends.max() ?? 0)
+    }
+
+    /// Keeps the variation being tried as an idea, named after its way and filed with its fact (`idea.keep`).
+    func keep() async {
+        guard let trial, !trial.kept else { return }
+        let piece = piece
+        let request = Self.json(["name": trial.way.label, "factId": trial.factId, "now": ISO8601DateFormatter().string(from: Date())])
+        let answer = await MusicCore.run { MusicCore.call(piece: piece, "idea.keep", request) }
+        guard let object = facadeObject(answer), object["error"] == nil else {
+            problem = facadeObject(answer)?["message"] as? String
+            return
+        }
+        self.trial?.kept = true
+    }
+
+    /// Leaves the variation: music-core forgets it, and the original sounds again.
+    func leave() async {
+        guard trial != nil else { return }
+        trial = nil
+        let piece = piece
+        _ = await MusicCore.run { MusicCore.call(piece: piece, "variation.clear") }
+        variationLeft?()
+    }
+
+    private static func json(_ object: [String: Any]) -> String {
+        guard let data = try? JSONSerialization.data(withJSONObject: object) else { return "{}" }
+        return String(decoding: data, as: UTF8.self)
+    }
+
     func shows(_ fact: Fact) -> Bool {
         lens == nil || lens == fact.lens
     }
@@ -168,6 +254,9 @@ final class InsightsController: ObservableObject {
 struct InsightsSheet: View {
     @ObservedObject var insights: InsightsController
     @ObservedObject var score: ScoreController
+    @ObservedObject var player: Player
+    /// What loops while a variation is heard: the selection, to the variation's end.
+    let range: Range<Double>?
     let text: UIText
     let close: () -> Void
 
@@ -187,6 +276,11 @@ struct InsightsSheet: View {
             .padding(.leading, CGFloat.ds("s-6"))
             .padding(.trailing, CGFloat.ds("s-4"))
             .padding(.top, CGFloat.ds("s-4"))
+            if player.hasVariation, let range {
+                HearingSwitch(player: player, range: range, text: text)
+                    .padding(.leading, CGFloat.ds("s-6"))
+                    .padding(.top, CGFloat.ds("s-2"))
+            }
             ScrollViewReader { reader in
                 ScrollView {
                     InsightsStream(insights: insights, text: text, hasSelection: !(score.selection?.noteIds.isEmpty ?? true))
@@ -245,6 +339,12 @@ struct InsightsStream: View {
                 if understanding.facts.isEmpty {
                     caption(text["understand.nothingYet"])
                 }
+                if let trial = insights.trial, !shown(understanding).contains(trial.factId) {
+                    // The fact the variation came from is filtered out: the trial stays in reach at the top.
+                    group(text["insights.trying"]) {
+                        TrialRow(insights: insights, text: text)
+                    }
+                }
                 if let key = understanding.key, insights.shows(key) {
                     group(text["understand.keyObservation"]) {
                         FactRow(fact: key, why: understanding.keyReason, insights: insights, text: text)
@@ -271,6 +371,11 @@ struct InsightsStream: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(text["insights.stream"])
+    }
+
+    /// The ids of the facts the stream shows under the lens chosen.
+    private func shown(_ understanding: Understanding) -> Set<String> {
+        Set(understanding.facts.filter { insights.shows($0) }.map(\.id))
     }
 
     private func group<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
@@ -367,12 +472,150 @@ struct FactRow: View {
                 .accessibilityElement(children: .contain)
                 .accessibilityLabel(text["understand.placesLabel"])
             }
+            if !fact.tries.isEmpty {
+                TryRow(fact: fact, insights: insights, text: text)
+            }
+            if insights.trial?.factId == fact.id {
+                TrialRow(insights: insights, text: text)
+            }
         }
         .padding(CGFloat.ds("s-3"))
         .background(chosen ? Color.ds("accent-tint") : .clear, in: RoundedRectangle(cornerRadius: CGFloat.ds("r-s")))
         .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-s")).strokeBorder(chosen ? Color.ds("accent") : .clear))
         .padding(.horizontal, -CGFloat.ds("s-3"))
         .accessibilityElement(children: .contain)
+    }
+}
+
+/// A fact's Try (Andrei, 2026-11-04): one quiet button that opens the two or three ways music-core offers for the fact;
+/// a way sounds at once. On the row that holds the variation, Keep follows the button.
+struct TryRow: View {
+    let fact: Fact
+    @ObservedObject var insights: InsightsController
+    let text: UIText
+
+    var body: some View {
+        let holds = insights.trial?.factId == fact.id
+        let open = insights.tryOpen.contains(fact.id)
+        FlowLayout(spacing: CGFloat.ds("s-2")) {
+            Button {
+                insights.toggleTry(fact)
+            } label: {
+                Text(text["insights.try"])
+                    .font(DesignTokens.font(weight: 500, size: 13))
+                    .foregroundStyle(Color.ds("accent"))
+                    .padding(.horizontal, CGFloat.ds("s-3"))
+                    .frame(minHeight: CGFloat.ds("h-compact"))
+                    .background(open || holds ? Color.ds("accent-tint") : .clear, in: RoundedRectangle(cornerRadius: CGFloat.ds("r-s")))
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(holds)
+            .accessibilityAddTraits(open ? .isSelected : [])
+            if open && !holds {
+                ForEach(fact.tries, id: \.id) { way in
+                    Button {
+                        Task { await insights.tryWay(way, of: fact) }
+                    } label: {
+                        HStack(spacing: 6) {
+                            if insights.starting == way.id { ProgressView().controlSize(.mini) }
+                            Text(way.label)
+                        }
+                    }
+                    .buttonStyle(DSChipStyle())
+                    .disabled(insights.starting != nil)
+                }
+            }
+            if holds, let trial = insights.trial, !trial.kept {
+                Button {
+                    Task { await insights.keep() }
+                } label: {
+                    Text(text["insights.keep"]).dsType(.label).foregroundStyle(Color.ds("accent-hover"))
+                }
+                .buttonStyle(.plain)
+                .frame(minHeight: CGFloat.ds("h-compact"))
+                .accessibilityLabel(text["explore.keep"])
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(text["insights.try"])
+    }
+}
+
+/// The variation being tried (the web app's experiment card, in short): its way, what changed in music-core's words,
+/// whether it is kept, and Leave it.
+struct TrialRow: View {
+    @ObservedObject var insights: InsightsController
+    let text: UIText
+
+    var body: some View {
+        if let trial = insights.trial {
+            VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+                HStack(spacing: CGFloat.ds("s-2")) {
+                    Tag(text: trial.way.label, kind: .saved)
+                    if trial.kept {
+                        Text(text["explore.keptWithProject"]).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
+                    }
+                }
+                if !trial.explanation.isEmpty {
+                    (Text(text["explore.whatChanged"]).bold() + Text(" " + trial.explanation))
+                        .dsType(.caption)
+                        .foregroundStyle(Color.ds("ink-2"))
+                }
+                Button {
+                    Task { await insights.leave() }
+                } label: {
+                    Text(text["explore.leave"]).dsType(.label).foregroundStyle(Color.ds("accent-hover"))
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint(text["explore.leaveHint"])
+            }
+            .padding(CGFloat.ds("s-3"))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-s")))
+            .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-s")).strokeBorder(Color.ds("plum"), style: StrokeStyle(lineWidth: 1.5, dash: [4, 3])))
+        }
+    }
+}
+
+/// What sounds while a variation is there (0018 section 7; ds.css `.seg`): the original, the variation, or the two
+/// looping one after the other.
+struct HearingSwitch: View {
+    @ObservedObject var player: Player
+    let range: Range<Double>
+    let text: UIText
+
+    var body: some View {
+        HStack(spacing: 0) {
+            option(.original, "focus.original", hint: "compare.originalHint")
+            option(.variation, "focus.variation", hint: "compare.variationHint")
+            option(.alternate, "focus.alternate", hint: "compare.alternateHint")
+        }
+        .padding(2)
+        .frame(height: CGFloat.ds("h-compact"))
+        .background(Color.ds("surface"), in: Capsule())
+        .overlay(Capsule().strokeBorder(Color.ds("hairline")))
+        .fixedSize()
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(text["focus.listen"])
+    }
+
+    private func option(_ hearing: Player.Hearing, _ key: String, hint: String) -> some View {
+        let on = player.hearing == hearing
+        return Button {
+            player.hear(hearing, over: range)
+        } label: {
+            Text(text[key])
+                .font(DesignTokens.font(weight: on ? 600 : 500, size: 13, relativeTo: .callout))
+                .foregroundStyle(on ? Color.ds("ink") : Color.ds("ink-2"))
+                .padding(.horizontal, CGFloat.ds("s-3"))
+                .frame(maxHeight: .infinity)
+                .background(on ? Color.ds("accent-tint-strong") : .clear, in: Capsule())
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint(text[hint])
+        .accessibilityAddTraits(on ? .isSelected : [])
     }
 }
 

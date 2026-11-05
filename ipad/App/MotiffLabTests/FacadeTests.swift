@@ -95,6 +95,33 @@ final class FacadeTests: XCTestCase {
         }
     }
 
+    func testAWayTriedSoundsInPlaceIsEngravedAsAnOssiaAndKept() throws {
+        _ = try call("select", #"{"bars": {"first": 4, "last": 12}}"#)
+        let understanding = try XCTUnwrap(Understanding(answer: MusicCore.call(piece: piece, "understand")))
+        let fact = try XCTUnwrap(understanding.facts.first { $0.lens == "harmony" && !$0.tries.isEmpty })
+        let way = try XCTUnwrap(fact.tries.first)
+
+        let tried = try call("try", "{\"chip\": \"\(way.id)\"}")
+        let result = try XCTUnwrap(tried["result"] as? [String: Any])
+        XCTAssertFalse((result["notes"] as? [Any] ?? []).isEmpty)
+        XCTAssertFalse((result["explanation"] as? String ?? "").isEmpty, "music-core says what changed")
+        let heard = try XCTUnwrap(PlaybackScore.read(MusicCore.call(piece: piece, "playback", #"{"of": "inPlace"}"#)))
+        XCTAssertFalse(heard.notes.isEmpty, "the piece with the variation in place")
+
+        let card = try Engraver.engraveCard(piece: piece, firstBar: 4, lastBar: 12, options: #"{"scale": 42, "pageWidth": 2600, "adjustPageHeight": true, "breaks": "auto"}"#, ossia: true).get()
+        let ossia = try XCTUnwrap(card.ossias.first, "the variation above the original")
+        XCTAssertFalse(ossia.staves.isEmpty)
+        XCTAssertFalse(ossia.prefix.isEmpty)
+
+        let kept = try call("idea.keep", "{\"name\": \"\(way.label)\", \"factId\": \"\(fact.id)\", \"now\": \"2026-11-05T06:00:00Z\"}")
+        let ideas = try XCTUnwrap(kept["ideas"] as? [[String: Any]])
+        XCTAssertEqual(ideas.first?["name"] as? String, way.label)
+        XCTAssertEqual(ideas.first?["factId"] as? String, fact.id)
+        XCTAssertEqual(ideas.first?["hasVariation"] as? Bool, true)
+        _ = try call("variation.clear")
+        _ = try call("variation", expectError: true)
+    }
+
     func testVariationNotationPlaybackAndSave() throws {
         _ = try call("select", #"{"bars": {"first": 1, "last": 2}}"#)
         let proposed = try call("variation.propose", #"{"operation": "V1", "parameters": {"kind": "HalfTime", "eighths": 1}}"#)

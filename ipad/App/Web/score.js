@@ -11,12 +11,14 @@
 //
 // Phrase focus (0018 section 4) lifts the selection into a card across the screen with the page dimmed behind it
 // (`focus`, `card`): Swift engraves the phrase's bars with Verovio at the card's width, with the web app's own card
-// layout (Scripts/score/phrase-card.ts), and the page shows the SVG. A tap on the dimmed page goes back to it.
+// layout (Scripts/score/phrase-card.ts), and the page shows the SVG. A tap on the dimmed page goes back to it. A
+// variation being tried is engraved above the phrase as an ossia, in the kit's dashed plum frame named by an overline,
+// as the web app's card draws it.
 //
 // A fact chosen in the Insights stream (0018 section 6) rings its places on the score (`highlight`), as the web app's
 // score view does: the notes turn cobalt with a box round each notehead, and the first comes into view.
 import { cardLayout } from "../score/phrase-card.js";
-import { ScoreGeometry, readPage } from "../score/score-geometry.js";
+import { ScoreGeometry, readPage, staffFrames } from "../score/score-geometry.js";
 import { SelectionLayer } from "../score/selection-layer.js";
 import { ScoreTimeline, highlightedIds } from "../score/score-timeline.js";
 import { HIGHLIGHTER_SIZE, PEN_SIZE, anchorMark, framesByTick, outlinePath, placeMark, touches } from "../score/pencil-marks.js";
@@ -309,6 +311,7 @@ window.addEventListener("resize", () => {
     cancelAnimationFrame(resizing);
     resizing = requestAnimationFrame(() => {
         layout();
+        placeOssias();
         reportCardWidth();
     });
 });
@@ -322,7 +325,7 @@ focusLayer.hidden = true;
 focusLayer.innerHTML = '<button type="button" class="veil" tabindex="-1"></button><div class="stage"><section class="card"><div class="card-score"></div></section></div>';
 document.body.append(focusLayer);
 const cardScore = focusLayer.querySelector(".card-score");
-const card = { timeline: null, offset: 0, width: 0 };
+const card = { timeline: null, offset: 0, width: 0, ossias: [] };
 
 focusLayer.querySelector(".veil").addEventListener("click", () => post({ leave: true }));
 cardScore.addEventListener("click", (event) => {
@@ -345,6 +348,7 @@ function focus({ open, label, back }) {
     if (!state.focus) {
         cardScore.replaceChildren();
         card.timeline = null;
+        card.ossias = [];
         return {};
     }
     focusLayer.querySelector(".veil").setAttribute("aria-label", back ?? "");
@@ -357,11 +361,57 @@ function focus({ open, label, back }) {
  * The phrase engraved on its own: its pages as SVG and Verovio's timemap, which starts at 0 at the start of the bar
  * that holds `start`. Returns how many notes it engraved.
  */
-function showCard({ pages, timemap, start }) {
+function showCard({ pages, timemap, start, ossias }) {
     cardScore.innerHTML = (pages ?? []).map((svg) => `<div class="card-page">${svg}</div>`).join("");
     card.timeline = ScoreTimeline.fromTimemap(timemap ?? []);
     card.offset = state.geometry?.barAt(start)?.tick ?? start;
+    card.pages = (pages ?? []).map((svg, index) => readPage(svg, index + 1));
+    card.ossias = ossias ?? [];
+    placeOssias();
     return card.timeline.spans.length;
+}
+
+/** Room round the ossia's staves inside its frame, in pixels, as on the web. */
+const FRAME_PAD_X = 10;
+const FRAME_PAD_Y = 8;
+
+/** Each ossia's frame round its staves on every system of the card, its name over the first (phrase-card.ts placeFrames). */
+function placeOssias() {
+    for (const old of cardScore.querySelectorAll(":scope > .ossia-frame")) {
+        old.remove();
+    }
+    const view = cardScore.getBoundingClientRect();
+    const svgs = [...cardScore.querySelectorAll(":scope > .card-page > svg")];
+    for (const ossia of card.ossias) {
+        let first = true;
+        svgs.forEach((svg, index) => {
+            const page = card.pages[index];
+            if (page === undefined) {
+                return;
+            }
+            const box = svg.getBoundingClientRect();
+            const scale = Math.min(box.width / page.width, box.height / page.height);
+            const left = box.left - view.left + cardScore.scrollLeft + (box.width - page.width * scale) / 2;
+            const top = box.top - view.top + cardScore.scrollTop + (box.height - page.height * scale) / 2;
+            for (const frame of staffFrames(page, ossia.staves)) {
+                const element = document.createElement("div");
+                element.className = "ossia-frame";
+                element.setAttribute("aria-hidden", "true");
+                element.style.left = `${left + frame.left * scale - FRAME_PAD_X}px`;
+                element.style.top = `${top + frame.top * scale - FRAME_PAD_Y}px`;
+                element.style.width = `${(frame.right - frame.left) * scale + FRAME_PAD_X * 2}px`;
+                element.style.height = `${(frame.bottom - frame.top) * scale + FRAME_PAD_Y * 2}px`;
+                if (first && ossia.label) {
+                    const name = document.createElement("span");
+                    name.className = "overline";
+                    name.textContent = ossia.label;
+                    element.append(name);
+                }
+                cardScore.append(element);
+                first = false;
+            }
+        });
+    }
 }
 
 /** In focus, a new width for the card goes to Swift, which engraves it again at that width. */
