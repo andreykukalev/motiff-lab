@@ -109,6 +109,21 @@ targets:
       base:
         GENERATE_INFOPLIST_FILE: YES
         TARGETED_DEVICE_FAMILY: "2"
+  # Screenshots of the screens for the redesign's mockups (MotiffLabScreens/ScreensUITests.swift), in a scheme of their
+  # own so the Swift tests above never wait for them: the iPad workflow runs it by hand or for a release tag.
+  MotiffLabScreens:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: MotiffLabScreens
+    dependencies:
+      - target: MotiffLab
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        TARGETED_DEVICE_FAMILY: "2"
+        PRODUCT_BUNDLE_IDENTIFIER: com.andreykukalev.motifflab.screens
+        TEST_TARGET_NAME: MotiffLab
 schemes:
   MotiffLab:
     build:
@@ -120,3 +135,12 @@ schemes:
         - MotiffLabTests
     run:
       config: Release
+  Screens:
+    build:
+      targets:
+        MotiffLab: all
+        MotiffLabScreens: [test]
+    test:
+      config: Debug
+      targets:
+        - MotiffLabScreens
