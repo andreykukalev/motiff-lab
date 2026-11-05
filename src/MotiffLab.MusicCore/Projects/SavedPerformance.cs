@@ -2,14 +2,17 @@ using MotiffLab.MusicCore.Performance;
 
 namespace MotiffLab.MusicCore.Projects;
 
-/// <summary>Where a performance's notes come from (decision record 0022, section 1).</summary>
+/// <summary>Where another version's notes come from (decision record 0022, section 1).</summary>
 public enum PerformanceSource
 {
     /// <summary>Heard in the player's own recording by transcription; the recording's sound stays on the device.</summary>
     Recording,
 
-    /// <summary>A MIDI file played in by hand, such as a cover performer's MIDI.</summary>
+    /// <summary>A MIDI file, such as a cover performer's MIDI or one played in on a digital piano.</summary>
     Midi,
+
+    /// <summary>A written score, such as an official edition in MusicXML, kept as MIDI through its tempo marks.</summary>
+    Score,
 }
 
 /// <summary>

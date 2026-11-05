@@ -889,4 +889,20 @@ public class MusicCoreFacadeTests
         Assert.Equal("badRequest", Error(again, 1, "performance.add", """{"name": "Bad", "midi": "not base64!"}"""));
         Assert.Equal("badRequest", Error(again, 1, "performance.add", """{"name": "Bad", "midi": "AAAA"}"""));
     }
+
+    [Fact]
+    public void Another_version_is_added_from_a_MusicXML_or_MIDI_file()
+    {
+        (MusicCoreFacade facade, _) = Open("""{"id": "p_fur"}""");
+        string score = Convert.ToBase64String(Fixture(FurElise));
+
+        JsonElement added = Call(facade, "performance.add", $$$"""{"name": "Official", "file": "{{{score}}}", "fileName": "{{{FurElise}}}"}""").GetProperty("performance");
+        Assert.Equal("score", added.GetProperty("source").GetString());
+        Assert.Equal(added.GetProperty("printed").GetInt32(), added.GetProperty("matched").GetInt32());
+        Assert.All(added.GetProperty("bars").EnumerateArray(), bar => Assert.Equal("none", bar.GetProperty("kind").GetString()));
+
+        Assert.Equal("badRequest", Error(facade, 1, "performance.add", """{"name": "Bad", "file": "not base64!", "fileName": "a.mid"}"""));
+        Assert.Equal("badRequest", Error(facade, 1, "performance.add", """{"name": "Bad", "file": "AAAA", "fileName": "notes.txt"}"""));
+        Assert.Equal("badRequest", Error(facade, 1, "performance.add", """{"name": "Bad", "file": "AAAA"}"""));
+    }
 }
