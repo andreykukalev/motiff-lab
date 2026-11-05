@@ -24,6 +24,8 @@ A performance is added to a piece in the "Notes" view (MusicXML or MIDI import, 
 - a project already transcribed, so a recording heard once is not sent again;
 - a MIDI file of a performance (a digital piano, a performer's MIDI): on the device and free.
 
+Every source takes one of two roles. **The notes** (as written): MusicXML, notes recognised from a printed PDF, or a MIDI file written on the grid (an export from a notation program). **The performance** (as played): notes heard in a recording, or a MIDI file played in by hand, such as the free MIDI a cover performer often shares while the score is sold (Andrei, 2026-11-05). A MIDI file can be either; the app proposes the role from its timing (`PerformanceTiming`: quantised or played) and the player confirms it. The purchased PDF itself is never changed: it stays the "PDF" view with the player's marks, and the merge lives in the "Notes" view. A performance MIDI has no recording, so *Performer* in section 5 plays its notes through the app's own sound.
+
 A piece may hold several performances (a concert and a studio take); one is shown at a time and a chip picks it, as with variations. A performance has a name the player gives ("Live at the National Gallery").
 
 ### 2. Alignment and the time map (music-core)
