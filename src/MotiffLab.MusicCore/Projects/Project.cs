@@ -65,14 +65,36 @@ public sealed record Project(
     /// <summary>Set when the source was heard in an audio or video recording by transcription (0014); null otherwise.</summary>
     public TranscriptionOrigin? Transcription { get; init; }
 
+    /// <summary>
+    /// The printed piece as the player added it, a PDF, shown exactly as it is in the "PDF" view (0023; Andrei, 2026-11-04);
+    /// null for a piece that came as notes. A piece with a document and no source has no notes yet.
+    /// </summary>
+    public byte[]? Document { get; init; }
+
+    /// <summary>Whether the piece has notes: a source to import. A PDF added as it is has none until it is recognised.</summary>
+    public bool HasNotes => Source.Length > 0;
+
     /// <summary>A new project for a file the player just imported, with nothing made from it yet.</summary>
     public static Project Create(string id, string fileName, byte[] source, DateTimeOffset now) =>
         new(id, fileName, source, now, now, [], []);
 
+    /// <summary>A new project for a PDF the player added to read as it is: the document and no notes (0023).</summary>
+    /// <exception cref="ArgumentException">The bytes are not a PDF.</exception>
+    public static Project CreateDocument(string id, string fileName, byte[] pdf, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(pdf);
+        if (!PdfDocument.IsPdf(pdf))
+        {
+            throw new ArgumentException("The file is not a PDF.", nameof(pdf));
+        }
+
+        return new(id, fileName, [], now, now, [], []) { Document = pdf };
+    }
+
     /// <summary>The row on the projects screen (N1).</summary>
     public ProjectSummary Summary => new(Id, FileName, Motifs.Count, Variations.Count, LastOpened, ResumePoints.Count, Observations.Count)
     {
-        Origin = Scan is not null ? PieceOrigin.Scan : Transcription is not null ? PieceOrigin.Recording : PieceOrigin.File,
+        Origin = !HasNotes ? PieceOrigin.Pdf : Scan is not null ? PieceOrigin.Scan : Transcription is not null ? PieceOrigin.Recording : PieceOrigin.File,
         CheckBars = OpenChecks.Select(flag => flag.Bar).Distinct().Count(),
         Latest = RecentResumePoints.FirstOrDefault() is { } latest
             ? new ResumeSummary(latest.Id, latest.Name, latest.At.Value, latest.Passage?.Span.Onset.Value, latest.Passage?.Span.End.Value, latest.LastActive)
@@ -527,6 +549,9 @@ public enum PieceOrigin
     File,
     Scan,
     Recording,
+
+    /// <summary>A PDF added to read as it is, with no notes (0023).</summary>
+    Pdf,
 }
 
 /// <summary>A resume point as its piece's card shows it: its name, the position and passage in ticks, and when it was last active.</summary>
@@ -607,6 +632,10 @@ public sealed record OpenedProject(
     public static OpenedProject Open(Project project)
     {
         ArgumentNullException.ThrowIfNull(project);
+        if (!project.HasNotes)
+        {
+            throw new ProjectFileException("This piece is a PDF read as it is: it has no notes to open.");
+        }
 
         PieceImportResult imported = PieceImporter.Import(project.FileName, project.Source);
         if (imported.Piece is not { } piece)

@@ -37,11 +37,17 @@ public sealed class CurrentPiece(ProjectStore projects)
 
     /// <summary>
     /// The workspace with the project open: "playback?project=p_…", with the resume point it works from
-    /// ("&amp;resume=r_…", 0018) and an idea to open on arrival ("&amp;idea=o_…") when given.
+    /// ("&amp;resume=r_…", 0018) and an idea to open on arrival ("&amp;idea=o_…") when given. A PDF with no notes opens
+    /// in its own view, "pdf?project=p_…" (0023), which has no resume points or ideas.
     /// </summary>
     public static string WorkspaceUrl(Project project, string? resumeId = null, string? ideaId = null)
     {
         ArgumentNullException.ThrowIfNull(project);
+        if (!project.HasNotes)
+        {
+            return $"pdf?project={Uri.EscapeDataString(project.Id)}";
+        }
+
         string url = $"playback?project={Uri.EscapeDataString(project.Id)}";
         if (resumeId is not null)
         {
@@ -58,7 +64,8 @@ public sealed class CurrentPiece(ProjectStore projects)
 
     /// <summary>
     /// Rebuilds a saved project from its source and opens it, marked as opened now. False when it is no
-    /// longer saved; throws <see cref="ProjectFileException"/> when it is damaged.
+    /// longer saved; throws <see cref="ProjectFileException"/> when it is damaged. A PDF with no notes (0023) is
+    /// only marked as opened: it has no piece to rebuild, so <see cref="Piece"/> is null after it.
     /// </summary>
     public async Task<bool> OpenSavedAsync(string id)
     {
@@ -68,6 +75,14 @@ public sealed class CurrentPiece(ProjectStore projects)
         }
 
         Project project = saved with { LastOpened = DateTimeOffset.Now };
+        if (!project.HasNotes)
+        {
+            await projects.SaveAsync(project);
+            (Piece, Project, Opened, StartWith) = (null, project, null, SelectionFilter.All);
+            Version++;
+            return true;
+        }
+
         OpenedProject opened = OpenedProject.Open(project);
         await projects.SaveAsync(project);
         Open(opened.Piece, opened.Motifs.FirstOrDefault()?.Filter ?? SelectionFilter.All, project, opened);

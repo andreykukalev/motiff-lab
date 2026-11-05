@@ -189,7 +189,12 @@ public partial class Home
         List<string> parts = [];
         if (summary.Origin != PieceOrigin.File)
         {
-            parts.Add(Text[summary.Origin == PieceOrigin.Scan ? "library.scanned" : "library.recorded"]);
+            parts.Add(Text[summary.Origin switch
+            {
+                PieceOrigin.Scan => "library.scanned",
+                PieceOrigin.Pdf => "library.pdf",
+                _ => "library.recorded",
+            }]);
         }
         else if (cover?.Lines is [var first, ..])
         {
@@ -345,6 +350,13 @@ public partial class Home
             }
 
             Project project = CurrentPiece.Project!;
+            if (!project.HasNotes)
+            {
+                // A PDF has no resume points: page 1 is where it opens afresh.
+                Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(project) + "&page=1");
+                return;
+            }
+
             ResumePoint point = ResumePoint.Start(project.NextResumePointId(), DateTimeOffset.Now, name);
             project = project.AddResumePoint(point);
             await Projects.SaveAsync(project);
@@ -373,6 +385,11 @@ public partial class Home
     /// <summary>Lists a piece's resume points: the project is read, and its piece imported again for the bars of each passage.</summary>
     private async Task OpenResumesAsync(ProjectSummary summary)
     {
+        if (summary.Origin == PieceOrigin.Pdf)
+        {
+            return;
+        }
+
         _menu = null;
         _message = null;
         _confirmRemove = null;
@@ -461,6 +478,12 @@ public partial class Home
         _rejection = null;
         _otherRoute = null;
         Words words = Words.For(Text.Language);
+        if (string.Equals(Path.GetExtension(args.File.Name), PdfDocument.Extension, StringComparison.OrdinalIgnoreCase))
+        {
+            await OpenPdfAsync(args.File, words);
+            return;
+        }
+
         ImportRejection? rejection = PieceImporter.CheckSize(args.File.Size);
         ImportedPiece? piece = null;
         byte[] data = [];
@@ -510,6 +533,44 @@ public partial class Home
         await Projects.SaveAsync(project);
         CurrentPiece.Open(piece, SelectionFilter.All, project);
         Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(project, point.Id));
+    }
+
+    /// <summary>
+    /// Adds a PDF to read as it is (0023; Andrei, 2026-11-04): kept on the device byte for byte, with no notes, and opened
+    /// in its PDF view. Reading its notes is Scan printed music's job.
+    /// </summary>
+    private async Task OpenPdfAsync(IBrowserFile file, Words words)
+    {
+        if (PdfDocument.CheckSize(file.Size) is { } tooLarge)
+        {
+            _rejection = $"{file.Name}: {tooLarge.Text(words)} {tooLarge.TipIn(words)}".Trim();
+            return;
+        }
+
+        byte[] data;
+        _reading = true;
+        StateHasChanged();
+        try
+        {
+            await using Stream stream = file.OpenReadStream(PdfDocument.MaxFileBytes);
+            using var memory = new MemoryStream();
+            await stream.CopyToAsync(memory);
+            data = memory.ToArray();
+        }
+        finally
+        {
+            _reading = false;
+        }
+
+        if (!PdfDocument.IsPdf(data))
+        {
+            _rejection = $"{file.Name}: {Text["pdf.notPdf"]}";
+            return;
+        }
+
+        Project project = Project.CreateDocument($"p_{Guid.NewGuid():N}", file.Name, data, DateTimeOffset.Now);
+        await Projects.SaveAsync(project);
+        Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(project));
     }
 
     private async Task GetHereAsync(string id)

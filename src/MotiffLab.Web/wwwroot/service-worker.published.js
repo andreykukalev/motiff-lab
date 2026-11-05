@@ -9,13 +9,18 @@ self.addEventListener('fetch', event => event.respondWith(onFetch(event)));
 const cacheNamePrefix = 'offline-cache-';
 const cacheName = `${cacheNamePrefix}${self.assetsManifest.version}`;
 const offlineAssetsInclude = [ /\.dll$/, /\.pdb$/, /\.wasm/, /\.html/, /\.js$/, /\.json$/, /\.css$/, /\.woff$/, /\.png$/, /\.jpe?g$/, /\.gif$/, /\.ico$/, /\.blat$/, /\.dat$/, /\.webmanifest$/, /\.mp3$/ ];
-const offlineAssetsExclude = [ /^service-worker\.js$/, /^lib\/verovio\// ];
+const offlineAssetsExclude = [ /^service-worker\.js$/, /^lib\/verovio\//, /^lib\/pdfjs\// ];
 
 // The score engraver (decision record 0008) is large and not every player opens a score, so it is
 // not installed with the app: it is cached the first time it loads, in a cache app updates keep.
 // Rename the cache when the files in lib/verovio change (tools/verovio/README.md).
 const verovioCache = 'verovio-6.3.0';
 const verovioPath = /\/lib\/verovio\//;
+
+// The PDF reader (decision record 0023) the same way: cached the first time a PDF piece opens.
+// Rename the cache when the files in lib/pdfjs change (tools/pdfjs/README.md).
+const pdfjsCache = 'pdfjs-6.4.299';
+const pdfjsPath = /\/lib\/pdfjs\//;
 
 // Replace with your base path if you are hosting on a subfolder. Ensure there is a trailing '/'.
 const base = "/";
@@ -39,13 +44,15 @@ async function onActivate(event) {
     // Delete unused caches
     const cacheKeys = await caches.keys();
     await Promise.all(cacheKeys
-        .filter(key => (key.startsWith(cacheNamePrefix) && key !== cacheName) || (key.startsWith('verovio-') && key !== verovioCache))
+        .filter(key => (key.startsWith(cacheNamePrefix) && key !== cacheName) || (key.startsWith('verovio-') && key !== verovioCache) || (key.startsWith('pdfjs-') && key !== pdfjsCache))
         .map(key => caches.delete(key)));
 }
 
 async function onFetch(event) {
-    if (event.request.method === 'GET' && verovioPath.test(new URL(event.request.url).pathname)) {
-        const cache = await caches.open(verovioCache);
+    const path = new URL(event.request.url).pathname;
+    const libraryCache = verovioPath.test(path) ? verovioCache : pdfjsPath.test(path) ? pdfjsCache : null;
+    if (event.request.method === 'GET' && libraryCache !== null) {
+        const cache = await caches.open(libraryCache);
         const cached = await cache.match(event.request);
         if (cached) {
             return cached;

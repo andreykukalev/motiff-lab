@@ -1,0 +1,155 @@
+@page "/pdf"
+@using MotiffLab.MusicCore.Projects
+@using MotiffLab.Web.Import
+@using MotiffLab.Web.Localization
+@using MotiffLab.Web.Pdf
+@using MotiffLab.Web.Projects
+@using MotiffLab.Web.Score
+@inject CurrentPiece CurrentPiece
+@inject ProjectStore Projects
+@inject Preferences Preferences
+@inject NavigationManager Navigation
+@inject UiText Text
+
+<PageTitle>@(Title ?? Text["pdf.title"]) · Motiff Lab</PageTitle>
+
+@* The "PDF" view of a piece (decision record 0023; Andrei, 2026-11-04): the printed pages exactly as the player added them,
+   for reading. Nothing here plays, and nothing on the pages is chosen: the notes come only when the piece is recognised.
+   The bar is the score's (0018 section 2): back, the title, the page under the bar, and the overflow. *@
+<main class="lab app workspace pdf-reader">
+    @if (_project?.Document is { } document)
+    {
+        <PdfView @ref="_view" Document="document" Label="@Title" StartPage="_startPage" PagesShown="OnPagesShownAsync" Opened="OnOpenedAsync" />
+    }
+
+    @if (_message is not null)
+    {
+        <div class="workspace-notice meta" role="alert">
+            <p>@_message</p>
+        </div>
+    }
+
+    <header class="bar">
+        <a class="act" href="" aria-label="@Text["nav.library"]" title="@Text["nav.library"]"><Icon Name="back" Size="IconSize.Large" /></a>
+        <span class="ttl" title="@_project?.FileName">@(Title ?? Text["pdf.title"])</span>
+        @if (PageText is { } pages)
+        {
+            <span class="pg" aria-live="off">@pages</span>
+        }
+        <span class="tag pdf-tag">PDF</span>
+        <span class="sp"></span>
+        <button class="act @(_moreOpen ? "on" : null)" aria-expanded="@(_moreOpen ? "true" : "false")" aria-label="@Text["bar.more"]" title="@Text["bar.more"]"
+                @onclick="() => _moreOpen = !_moreOpen"><Icon Name="more" Size="IconSize.Large" /></button>
+    </header>
+
+    @if (_moreOpen)
+    {
+        <button class="scrim" aria-label="@Text["bar.close"]" tabindex="-1" @onclick="() => _moreOpen = false"></button>
+        <div class="popover more-popover" role="dialog" aria-label="@Text["bar.more"]">
+            <button class="btn quiet" @onclick="DownloadAsync" disabled="@(_project?.Document is null)"><Icon Name="export" /> @Text["pdf.download"]</button>
+            <p class="caption">@Text["pdf.asIs"]</p>
+            <p class="caption">@Text["pdf.onDevice"]</p>
+        </div>
+    }
+</main>
+
+@code {
+    [SupplyParameterFromQuery(Name = "project")]
+    public string? ProjectId { get; set; }
+
+    /// <summary>The page to open at, as Page 1 in the library asks; else the page it was left on.</summary>
+    [SupplyParameterFromQuery(Name = "page")]
+    public int? Page { get; set; }
+
+    private PdfView? _view;
+    private Project? _project;
+    private string? _message;
+    private bool _moreOpen;
+    private int _startPage = 1;
+    private (int First, int Last, int Count) _pages;
+    private bool _coverSaved;
+
+    /// <summary>The piece's name: the file's name without its extension.</summary>
+    private string? Title => _project is { } project ? ScoreTitle.Of(project.FileName) ?? project.FileName : null;
+
+    private string? PageText => _pages switch
+    {
+        (0, _, _) or (_, _, 0) => null,
+        var (first, last, count) when first == last => Text.Format("bar.page", first, count),
+        var (first, last, count) => Text.Format("bar.pages", first, last, count),
+    };
+
+    /// <summary>The page the player was last on in this PDF, kept on this device.</summary>
+    private static string PageKey(string id) => $"pdf.page.{id}";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (ProjectId is not { Length: > 0 } id || _project?.Id == id)
+        {
+            return;
+        }
+
+        _message = null;
+        _coverSaved = false;
+        _pages = default;
+        try
+        {
+            if (!await CurrentPiece.OpenSavedAsync(id) || CurrentPiece.Project is not { } project)
+            {
+                _project = null;
+                _message = Text["workspace.projectGone"];
+                return;
+            }
+
+            // A piece with notes opens in the workspace.
+            if (project.HasNotes)
+            {
+                Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(project), replace: true);
+                return;
+            }
+
+            _startPage = Page is > 0 and int asked ? asked
+                : int.TryParse(await Preferences.GetAsync(PageKey(id)), out int page) && page > 0 ? page : 1;
+            _project = project;
+        }
+        catch (ProjectFileException exception)
+        {
+            _project = null;
+            _message = exception.Message;
+        }
+    }
+
+    private async Task OnOpenedAsync(int pages)
+    {
+        if (pages == 0)
+        {
+            _message = Text["pdf.unreadable"];
+            StateHasChanged();
+            return;
+        }
+
+        if (_project is { } project && _view is not null && !_coverSaved)
+        {
+            _coverSaved = await _view.SaveCoverAsync(project.Id, Title);
+        }
+    }
+
+    private async Task OnPagesShownAsync((int First, int Last, int Count) pages)
+    {
+        _pages = pages;
+        if (_project is { } project)
+        {
+            await Preferences.SetAsync(PageKey(project.Id), pages.First.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+    }
+
+    /// <summary>Hands the player the PDF back, byte for byte as they added it.</summary>
+    private async Task DownloadAsync()
+    {
+        _moreOpen = false;
+        if (_project is { Document: { } document } project)
+        {
+            await Projects.DownloadAsync(project.FileName, document, "application/pdf");
+        }
+    }
+}

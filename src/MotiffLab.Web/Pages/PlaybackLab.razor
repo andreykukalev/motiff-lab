@@ -1680,6 +1680,12 @@
                 {
                     (_message, _tip) = (Text["workspace.projectGone"], Text["workspace.projectGoneTip"]);
                 }
+                else if (CurrentPiece.Project is { HasNotes: false } pdf)
+                {
+                    // A PDF with no notes is read in its own view (0023).
+                    Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(pdf), replace: true);
+                    return;
+                }
             }
             catch (ProjectFileException exception)
             {

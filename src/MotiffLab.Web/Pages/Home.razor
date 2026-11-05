@@ -110,8 +110,11 @@ else if (_firstRun is false)
                                 @if (_menu == summary.Id)
                                 {
                                     <div class="lib-menu" role="group" aria-label="@Text.Format("library.moreFor", title)" @onclick:stopPropagation="true">
-                                        <button class="btn quiet" @onclick="() => OpenResumesAsync(summary)"><Icon Name="pages" /> @Text["library.resumePoints"]</button>
-                                        <button class="btn quiet" @onclick="() => ResumeAsync(summary.Id, null, dna: true)" disabled="@_opening"><Icon Name="phrases" /> @Text["dna.title"]</button>
+                                        @if (summary.Origin != PieceOrigin.Pdf)
+                                        {
+                                            <button class="btn quiet" @onclick="() => OpenResumesAsync(summary)"><Icon Name="pages" /> @Text["library.resumePoints"]</button>
+                                            <button class="btn quiet" @onclick="() => ResumeAsync(summary.Id, null, dna: true)" disabled="@_opening"><Icon Name="phrases" /> @Text["dna.title"]</button>
+                                        }
                                         <button class="btn quiet" @onclick="() => ExportAsync(summary.Id)"><Icon Name="export" /> @Text["library.export"]</button>
                                         @if (_confirmDelete == summary.Id)
                                         {
@@ -128,7 +131,13 @@ else if (_firstRun is false)
                         </div>
                         <div class="rule"></div>
                         <p class="overline">@Text["library.recentWork"]</p>
-                        @if (summary.Latest is { } latest)
+                        @if (summary.Origin == PieceOrigin.Pdf)
+                        {
+                            @* A PDF read as it is has no resume points: it opens at the page it was left on (0023). *@
+                            <p class="resume-name">@Text["library.pdfAsIs"]</p>
+                            <p class="meta">@Text.Format("home.lastOpened", Day(summary.LastOpened))</p>
+                        }
+                        else if (summary.Latest is { } latest)
                         {
                             <p class="resume-name">@ResumeName(latest, cover)</p>
                             <p class="meta">@ResumeLine(latest, cover)</p>
@@ -202,7 +211,7 @@ else if (_firstRun is false)
                                 <strong>@Text["library.openFile"]</strong>
                                 <span class="caption">@(_reading ? Text["import.reading"] : Text["library.openFileHint"])</span>
                             </span>
-                            <InputFile OnChange="OpenFileAsync" accept="@MotiffLab.MusicCore.Import.PieceImporter.AcceptedExtensions" disabled="@_reading" aria-label="@Text["import.fileChoose"]" />
+                            <InputFile OnChange="OpenFileAsync" accept="@(MotiffLab.MusicCore.Import.PieceImporter.AcceptedExtensions + "," + MotiffLab.MusicCore.Import.PdfDocument.Extension)" disabled="@_reading" aria-label="@Text["library.fileChoose"]" />
                         </label>
                         @if (_rejection is not null)
                         {

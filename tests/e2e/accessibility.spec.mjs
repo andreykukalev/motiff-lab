@@ -38,7 +38,7 @@ test("import, its report, the opened piece and the project on the home screen", 
 test("the library: a card, its menu, its resume points, and Add piece, in both themes", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "Add piece" }).click();
-    await page.getByLabel("Choose a MIDI or MusicXML file").setInputFiles(midi);
+    await page.getByLabel("Choose a MIDI, MusicXML or PDF file").setInputFiles(midi);
     await expect(page.locator(".score .score-page").first()).toBeVisible();
     await page.locator(".bar").getByRole("link", { name: "Library" }).click();
     const card = page.locator(".card.piece");
