@@ -251,6 +251,9 @@ public class MusicCoreFacadeTests
         string[] strongest = [.. understood.GetProperty("strongest").EnumerateArray().Select(id => id.GetString()!)];
         Assert.InRange(strongest.Length, 1, 3);
         Assert.Equal(strongest[0], understood.GetProperty("keyObservation").GetProperty("id").GetString());
+        string[] inStream = [.. understood.GetProperty("inStream").EnumerateArray().Select(id => id.GetString()!)];
+        Assert.Subset(inStream.ToHashSet(), strongest.ToHashSet());
+        Assert.Equal(inStream.Length, inStream.Distinct().Count());
         Assert.False(string.IsNullOrEmpty(understood.GetProperty("keyObservation").GetProperty("reason").GetString()));
         Assert.True(understood.TryGetProperty("sentence", out _));
 

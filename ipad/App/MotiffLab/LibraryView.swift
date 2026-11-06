@@ -310,7 +310,8 @@ struct PieceSummary: Equatable, Sendable {
 }
 
 /// A piece on the shelf (ds.css `.card`): its page, title and what kind of piece it is, the ideas kept and bars to check,
-/// and where work on it stopped, with Resume. A long press offers Delete, which asks once more.
+/// and where work on it stopped, with Resume, or Open for a piece not opened yet. A long press offers Delete, which asks
+/// once more.
 struct PieceCard: View {
     let entry: ProjectFiles.Entry
     let summary: PieceSummary?
@@ -349,21 +350,28 @@ struct PieceCard: View {
                 Spacer(minLength: 0)
             }
             Rectangle().fill(Color.ds("hairline")).frame(height: 1)
-            Text(text["library.recentWork"]).overline()
-            Text(resumeName)
-                .dsType(.body)
-                .foregroundStyle(Color.ds("ink"))
-            Text(text.format("home.lastOpened", entry.modified.formatted(.relative(presentation: .named).locale(Locale(identifier: text.language)))))
-                .dsType(.label)
-                .foregroundStyle(Color.ds("ink-2"))
-            Button(action: open) {
-                HStack(spacing: CGFloat.ds("s-2")) {
-                    Icon(name: "play")
-                    Text(text["library.resume"])
+            if let resumeName {
+                Text(text["library.recentWork"]).overline()
+                Text(resumeName)
+                    .dsType(.body)
+                    .foregroundStyle(Color.ds("ink"))
+                Text(text.format("home.lastOpened", entry.modified.formatted(.relative(presentation: .named).locale(Locale(identifier: text.language)))))
+                    .dsType(.label)
+                    .foregroundStyle(Color.ds("ink-2"))
+                Button(action: open) {
+                    HStack(spacing: CGFloat.ds("s-2")) {
+                        Icon(name: "play")
+                        Text(text["library.resume"])
+                    }
                 }
+                .buttonStyle(DSButtonStyle(kind: .secondary))
+                .accessibilityLabel(text.format("library.resumeLabel", entry.title))
+            } else {
+                // A piece not opened yet has no work to come back to: one Open, as on the web.
+                Button(text["home.open"], action: open)
+                    .buttonStyle(DSButtonStyle(kind: .secondary))
+                    .accessibilityLabel(text.format("library.openLabel", entry.title))
             }
-            .buttonStyle(DSButtonStyle(kind: .secondary))
-            .accessibilityLabel(text.format("library.resumeLabel", entry.title))
         }
         .padding(CGFloat.ds("s-4"))
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -393,10 +401,11 @@ struct PieceCard: View {
         }
     }
 
-    private var resumeName: String {
-        guard let summary else { return text["library.notOpened"] }
+    /// Where work on the piece stopped; nil for a piece not opened yet.
+    private var resumeName: String? {
+        guard let summary else { return nil }
         if !summary.hasNotes { return text["library.pdfAsIs"] }
-        guard let latest = summary.latest else { return text["library.notOpened"] }
+        guard let latest = summary.latest else { return nil }
         return latest.name ?? text["library.page1"]
     }
 }

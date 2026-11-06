@@ -191,3 +191,11 @@ test("Verovio's A4 pages become PDF pages of vector notation", async () => {
     const { text } = objectsOf(pdf);
     assert.match(text, new RegExp(`/Count ${count} `));
 });
+
+test("the iPad app engraves its A4 pages with the web app's Verovio options", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const swift = await readFile(new URL("../../ipad/App/MotiffLab/Engraver.swift", import.meta.url), "utf8");
+    const literal = swift.match(/static let a4Leland = """\n([\s\S]*?)\n\s*"""/);
+    assert.ok(literal, "Engraver.a4Leland is a multi-line string literal");
+    assert.deepEqual(JSON.parse(literal[1]), { ...A4_LAYOUT });
+});

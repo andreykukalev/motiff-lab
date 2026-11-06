@@ -1068,7 +1068,7 @@
   "library.resumePoints": "Точки возврата",
   "library.export": "Экспорт файла проекта",
   "library.recentWork": "Недавняя работа",
-  "library.notOpened": "Ещё не открывали",
+  "library.openLabel": "Открыть «{0}»",
   "library.resume": "Продолжить",
   "library.resumeLabel": "Продолжить «{0}»",
   "library.page1": "С первой страницы",

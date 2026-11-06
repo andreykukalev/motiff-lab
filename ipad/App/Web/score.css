@@ -54,9 +54,8 @@ button.bracket.on-to { border-right: 0; border-top-right-radius: 0; }
 .ink-ochre { --mark: var(--ink-ochre); }
 button.bmb { position: absolute; z-index: 1; height: 10px; min-height: 0; padding: 0; box-sizing: border-box; background: transparent; border: 1.25px solid var(--mark, var(--ink-carmine)); border-bottom: 0; border-radius: 2px 2px 0 0; }
 button.bmb::before { content: ""; position: absolute; inset: -17px -2px -3px; }
-button.bmb.from { border-left: 0; border-top-left-radius: 0; }
-button.bmb.on-to { border-right: 0; border-top-right-radius: 0; }
-.bmb .w { position: absolute; left: 0; top: -17px; font: italic 500 12px/14px var(--font-display); color: var(--mark, var(--ink-carmine)); white-space: nowrap; pointer-events: none; }
+/* A long title is cut with an ellipsis at the bracket's length, or a few words on a short one. */
+.bmb .w { position: absolute; left: 0; top: -17px; max-width: max(100%, 8em); overflow: hidden; text-overflow: ellipsis; font: italic 500 12px/14px var(--font-display); color: var(--mark, var(--ink-carmine)); white-space: nowrap; pointer-events: none; }
 
 /* Margin notes (design/kit/ds.css .marker, as the web app draws them): an amber numbered marker at the top right of the
    bar, 24 px, the smallest target WCAG 2.5.8 allows; a tap opens the note. */

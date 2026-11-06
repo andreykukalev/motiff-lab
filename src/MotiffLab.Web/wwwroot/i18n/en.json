@@ -1056,7 +1056,7 @@
   "library.resumePoints": "Resume points",
   "library.export": "Export project file",
   "library.recentWork": "Recent work",
-  "library.notOpened": "Not opened yet",
+  "library.openLabel": "Open {0}",
   "library.resume": "Resume",
   "library.resumeLabel": "Resume {0}",
   "library.page1": "From page 1",

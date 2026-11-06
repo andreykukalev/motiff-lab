@@ -580,6 +580,7 @@ internal static partial class Answer
 
         MotifFact[] all = [.. motif.Facts, .. structure.Facts, .. context.Character, .. context.Harmony.Facts, .. sentence];
         Texts(json, "strongest", FactRanking.Strongest(all).Select(fact => fact.Id));
+        Texts(json, "inStream", FactRanking.InStream(all).Select(fact => fact.Id));
         if (FactRanking.KeyObservation(all) is { } key)
         {
             json.WriteStartObject("keyObservation");

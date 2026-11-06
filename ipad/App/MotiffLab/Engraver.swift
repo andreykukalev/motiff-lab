@@ -47,11 +47,14 @@ final class Engraver {
         #"{"includeRests": true, "includeMeasures": true}"#.withCString { String(cString: vrvToolkit_renderToTimemap(toolkit, $0)) }
     }
 
-    /// The web app's A4 page (Scripts/score/score-page.ts, decision record 0017) in Leland, the redesign's music font.
+    /// The web app's A4 page in Leland, the redesign's music font: the same options as `A4_LAYOUT` in
+    /// Scripts/score/score-page.ts (decision record 0017, design/kit/HANDOFF.md section 8), so a piece breaks into the same
+    /// systems and pages on both, and a resume point, a page bookmark or a page count means the same page.
+    /// tests/web/score-pdf.test.mjs keeps the two equal.
     static let a4Leland = """
-    {"scale": 100, "pageWidth": 2100, "pageHeight": 2970, "pageMarginLeft": 150, "pageMarginRight": 150,
-     "pageMarginTop": 120, "pageMarginBottom": 150, "adjustPageHeight": false, "justifyVertically": true,
-     "breaks": "auto", "header": "auto", "footer": "none", "svgViewBox": true, "font": "Leland"}
+    {"font": "Leland", "scale": 50, "pageWidth": 2100, "pageHeight": 2970, "pageMarginLeft": 150, "pageMarginRight": 150,
+     "pageMarginTop": 500, "pageMarginBottom": 160, "spacingSystem": 20, "spacingStaff": 10, "adjustPageHeight": false,
+     "justifyVertically": false, "breaks": "auto", "header": "auto", "footer": "none", "svgViewBox": true}
     """
 
     /// The pages of a piece's notation as SVG with Verovio's timemap: music-core writes the MEI (`notation`), Verovio
