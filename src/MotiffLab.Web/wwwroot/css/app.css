@@ -3752,20 +3752,14 @@ body:has(.workspace) .site-footer {
     inset: -17px -2px -3px;
 }
 
-.lab .score button.bmb.from {
-    border-left: 0;
-    border-top-left-radius: 0;
-}
-
-.lab .score button.bmb.on-to {
-    border-right: 0;
-    border-top-right-radius: 0;
-}
-
+/* A long title is cut with an ellipsis at the bracket's length, or a few words on a short one (assessment item 24). */
 .score .bmb .w {
     position: absolute;
     left: 0;
     top: -17px;
+    max-width: max(100%, 8em);
+    overflow: hidden;
+    text-overflow: ellipsis;
     font: italic 500 12px/14px var(--font-display);
     color: var(--mark, var(--ink-carmine));
     white-space: nowrap;

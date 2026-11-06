@@ -39,6 +39,28 @@ test("a bookmark made from the menu is drawn on the score and listed in the Cont
     expect(errors).toEqual([]);
 });
 
+test("a bookmark across a system break keeps its hooks and its title on every system", async ({ page }) => {
+    const errors = await openFurElise(page);
+    // Phrase 2 (bars 4–8) runs from the first system onto the second.
+    await page.locator(".score button.bracket[aria-label]").nth(1).click();
+    await page.locator(".ctx").getByRole("button", { name: "Bookmark" }).click();
+    await card(page).getByRole("textbox", { name: "Title" }).fill("A long title for the answer to the opening phrase");
+    await card(page).getByRole("button", { name: "Done" }).click();
+
+    const runs = page.locator(".score .bmb");
+    const titles = page.locator(".score .bmb .w");
+    await expect(runs.first()).toHaveAttribute("aria-label", /^Bookmark: A long title/);
+    const count = await runs.count();
+    expect(count).toBeGreaterThan(1);
+    await expect(titles).toHaveCount(count);
+    for (let i = 1; i < count; i++) {
+        await expect(titles.nth(i)).toHaveText("…A long title for the answer to the opening phrase");
+    }
+    // The title is cut with an ellipsis rather than running past the bracket.
+    expect(await titles.first().evaluate(title => getComputedStyle(title).textOverflow)).toBe("ellipsis");
+    expect(errors).toEqual([]);
+});
+
 test("B opens the card over the selection, Escape puts it away, and an entry can be changed and deleted", async ({ page }) => {
     const errors = await openFurElise(page);
     await page.keyboard.press("b");

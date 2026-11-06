@@ -971,13 +971,16 @@ export class ScoreView {
                 mark.style.left = `${run.left}px`;
                 mark.style.top = `${run.top}px`;
                 mark.style.width = `${Math.max(4, run.right - run.left)}px`;
+                // Every run has its hooks and its title, as a printed edition marks a passage across a system break:
+                // the continuation's title follows "…", so it does not read as a rule under the system above.
+                const title = document.createElement("span");
+                title.className = "w";
+                title.setAttribute("aria-hidden", "true");
+                title.textContent = run.first ? bookmark.title : `…${bookmark.title}`;
+                mark.title = bookmark.title;
+                mark.append(title);
                 if (run.first) {
                     mark.setAttribute("aria-label", bookmark.label);
-                    const title = document.createElement("span");
-                    title.className = "w";
-                    title.setAttribute("aria-hidden", "true");
-                    title.textContent = bookmark.title;
-                    mark.append(title);
                 } else {
                     mark.tabIndex = -1;
                     mark.setAttribute("aria-hidden", "true");
