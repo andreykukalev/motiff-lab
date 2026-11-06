@@ -354,11 +354,10 @@ struct ContentsList: View {
                             .dsType(.label)
                             .foregroundStyle(Color.ds("ink-2"))
                         if canAddStructure {
+                            // One line and one action (the web app's Contents): what the button does is its hint.
                             Button(text["contents.addStructure"]) { Task { await contents.addStructure() } }
                                 .buttonStyle(DSButtonStyle(kind: .secondary))
-                            Text(text["contents.addStructureHint"])
-                                .dsType(.caption)
-                                .foregroundStyle(Color.ds("ink-2"))
+                                .accessibilityHint(text["contents.addStructureHint"])
                         }
                     } else if contents.groups.isEmpty {
                         Text(text["contents.noMatch"])

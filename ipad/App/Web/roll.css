@@ -1,10 +1,11 @@
 /* The piano roll in the drawer, as the web app's app.css draws it (`.roll`): the canvases fill the drawer under its head,
-   which Swift draws; the roll takes the height the scroller, the keyboard and the legend leave (data-fill). Colours come from the design kit's tokens. */
+   which Swift draws; the roll takes the height the scroller and the keyboard leave (data-fill). Colours come from the design kit's tokens. */
 html, body { height: 100%; }
 body { margin: 0; background: var(--surface); color: var(--ink); font: var(--t-body); -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .roll { position: absolute; inset: 0; display: flex; flex-direction: column; }
 .roll canvas { display: block; border-radius: 0.4rem; touch-action: none; }
 .roll .roll-scroll { width: 100%; margin: 0.25rem 0; }
 .roll .roll-keys { margin-top: 0.25rem; }
-.roll .roll-legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; margin-top: 0.25rem; color: var(--ink-2); font-size: 0.85rem; }
-.roll .roll-legend-item { display: inline-flex; align-items: center; gap: 0.4rem; }
+/* No legend and no how-to line under the drawer's roll (assessment, screen 15): the hands show by their colours on the
+   keys, as on the web, and the roll takes the height. */
+.roll .roll-legend { display: none; }

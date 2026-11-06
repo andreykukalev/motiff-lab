@@ -133,7 +133,8 @@ public sealed record WorkspaceVariation(
 /// <param name="KeyObservation">The one fact to hear first, as <see cref="FactRanking"/> ranks them (#132); null without facts.</param>
 /// <param name="KeyReason">Why that fact comes first, from the ranking's own criteria.</param>
 /// <param name="Recommended">The one experiment recommended next: the first the catalogue offers for the selection, so it can always run; null without offers.</param>
-public sealed record WorkspaceFacts(IReadOnlyList<MotifFact> All, FactChoice? Chosen, MotifFact? KeyObservation, string? KeyReason, Experiment? Recommended);
+/// <param name="Circle">The circle of fifths for the selection, from its key and chords; null when no key was read.</param>
+public sealed record WorkspaceFacts(IReadOnlyList<MotifFact> All, FactChoice? Chosen, MotifFact? KeyObservation, string? KeyReason, Experiment? Recommended, KeyCircleView? Circle = null);
 
 /// <summary>What the player kept about the selection.</summary>
 /// <param name="Rows">The observations kept for the selected phrase, with where each one comes from.</param>

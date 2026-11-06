@@ -155,6 +155,21 @@
     /// </summary>
     private const int PerLens = 3;
 
+    /// <summary>The fact whose row holds the circle of fifths, opened with On the circle; null when it is closed.</summary>
+    private string? _circleFor;
+
+    /// <summary>The facts the circle of fifths opens from: the key and the chords (Andrei, 2026-11-06).</summary>
+    private bool OpensCircle(MotifFact fact) => State.Facts.Circle is not null && fact.Id is "key" or "harmony.chords";
+
+    private void ToggleCircle(string id) => _circleFor = _circleFor == id ? null : id;
+
+    /// <summary>The place of a fact ringed on the score, when that fact is the one chosen.</summary>
+    private FactPlace? ChosenPlace(MotifFact fact) => Chosen is { } chosen && chosen.Fact == fact ? chosen.Place : null;
+
+    /// <summary>A place of the circle rung on the score under the fact that opened it; pressed again, put away.</summary>
+    private Task ShowOnScore(MotifFact fact, FactPlace place) =>
+        Choose.InvokeAsync(ChosenPlace(fact) == place ? null : new FactChoice(fact, place));
+
     /// <summary>The lenses the player opened whole with "N more".</summary>
     private readonly HashSet<FactLens> _expanded = [];
 
@@ -164,6 +179,10 @@
     /// <summary>Raised with the fact (and place) to ring on the score, or null to clear it.</summary>
     [Parameter]
     public EventCallback<FactChoice?> Choose { get; set; }
+
+    /// <summary>Raised from the circle of fifths' Hear the scale, to loop the key's scale.</summary>
+    [Parameter]
+    public EventCallback<KeyCircleView> HearScale { get; set; }
 
     /// <summary>Raised with an experiment to try at once.</summary>
     [Parameter]
@@ -275,6 +294,10 @@
                     <span class="caption">@Text.Count("understand.places", fact.Places.Count)</span>
                 }
                 <button class="link" aria-expanded="@(evidence ? "true" : "false")" @onclick="() => ToggleEvidence(fact.Id)">@Text["insights.evidence"]</button>
+                @if (OpensCircle(fact))
+                {
+                    <button class="link on-circle" aria-expanded="@(_circleFor == fact.Id ? "true" : "false")" @onclick="() => ToggleCircle(fact.Id)">@Text["insights.onCircle"]</button>
+                }
             </div>
             @if (evidence)
             {
@@ -289,9 +312,13 @@
                     <p class="basis"><strong>@Text["understand.whyThisOne"]</strong> @why</p>
                 }
             }
-            @if (chosen)
+            @if (chosen && fact.Places.Count > 0)
             {
                 @PlaceChips(fact)
+            }
+            @if (_circleFor == fact.Id && State.Facts.Circle is { } circle)
+            {
+                <KeyCircleCard Circle="circle" Chosen="ChosenPlace(fact)" Show="place => ShowOnScore(fact, place)" Hear="() => HearScale.InvokeAsync(circle)" />
             }
             @if (tries.Count > 0)
             {
@@ -357,6 +384,10 @@
         }
 
         _expanded.RemoveWhere(lens => !Facts.Any(fact => fact.Lens == lens));
+        if (_circleFor is { } circleFor && (State.Facts.Circle is null || !Facts.Any(fact => fact.Id == circleFor)))
+        {
+            _circleFor = null;
+        }
 
     }
 

@@ -4,7 +4,9 @@ import XCTest
 
 /// Opening a piece as the app does: music-core's MEI laid out by Verovio on A4 pages in Leland.
 final class ScoreTests: XCTestCase {
-    func testTheExampleOpensOnThreeA4Pages() async throws {
+    /// Four pages with the web app's A4 options (Engraver.a4Leland = A4_LAYOUT: scale 50, top margin 500, no vertical
+    /// justification); it was three with the iPad's own larger scale before the two were made equal.
+    func testTheExampleOpensOnFourA4Pages() async throws {
         let example = try XCTUnwrap(OpenPiece.example)
         let clock = ContinuousClock()
         let start = clock.now
@@ -13,7 +15,7 @@ final class ScoreTests: XCTestCase {
         let piece = try result.get()
         defer { _ = MusicCore.close(piece: piece.id) }
         XCTAssertEqual(piece.title, "Für Elise")
-        XCTAssertEqual(piece.pages.count, 3)
+        XCTAssertEqual(piece.pages.count, 4)
         XCTAssertTrue(piece.pages.allSatisfy { $0.contains("<svg") })
         print("OPEN-AND-ENGRAVE \(elapsed)")
     }

@@ -273,8 +273,11 @@ final class PencilTests: XCTestCase {
         }
         let drawn = try await call(view, "bookmarks", ["items": items]) as? NSNumber
         XCTAssertGreaterThanOrEqual(drawn?.intValue ?? 0, items.count)
+        // Every run is titled: one across a system break repeats its title after "…" on the next system.
         let titled = try await view.evaluateJavaScript("document.querySelectorAll('body > .bmb .w').length") as? NSNumber
-        XCTAssertEqual(titled?.intValue, items.count)
+        XCTAssertEqual(titled?.intValue, drawn?.intValue)
+        let continued = try await view.evaluateJavaScript("[...document.querySelectorAll('body > .bmb .w')].filter(w => w.textContent.startsWith('…')).length") as? NSNumber
+        XCTAssertEqual(continued?.intValue, (drawn?.intValue ?? 0) - items.count)
         let lifted = try await view.evaluateJavaScript("getComputedStyle(document.querySelector('body > .bmb')).borderTopStyle") as? String
         XCTAssertEqual(lifted, "solid")
 

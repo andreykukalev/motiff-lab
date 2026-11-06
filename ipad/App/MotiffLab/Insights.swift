@@ -23,6 +23,8 @@ struct Fact: Identifiable, Equatable, Sendable {
     /// "detected", "inferred", "uncertain" or "interpretation".
     var certainty: String
     var text: String
+    /// The fact in one short line for the stream when the text lists what it counts; nil when the text is already one line.
+    var brief: String?
     var basis: String
     var places: [Place]
     var tries: [Try]
@@ -33,6 +35,7 @@ struct Fact: Identifiable, Equatable, Sendable {
         lens = answer["lens"] as? String ?? "structure"
         certainty = answer["certainty"] as? String ?? "inferred"
         self.text = text
+        brief = answer["brief"] as? String
         basis = answer["basis"] as? String ?? ""
         places = (answer["places"] as? [[String: Any]] ?? []).compactMap { place in
             guard let onset = (place["onset"] as? NSNumber)?.doubleValue, let end = (place["end"] as? NSNumber)?.doubleValue else { return nil }
@@ -43,6 +46,9 @@ struct Fact: Identifiable, Equatable, Sendable {
             return Try(id: id, label: label)
         }
     }
+
+    /// What the stream shows (music-core's `MotifFact.Claim`): the brief, else the text.
+    var claim: String { brief ?? text }
 }
 
 /// What music-core understood about the selection (facade `understand`): every fact, in the order the web app lists them,
@@ -55,6 +61,9 @@ struct Understanding: Equatable, Sendable {
     var keyObservation: String?
     var keyReason: String?
     var strongest: [String]
+    /// Every fact id in the order the stream lists a lens (`FactRanking.InStream`): those naming places first,
+    /// interpretations last.
+    var inStream: [String]
 
     init?(answer: String) {
         guard let object = facadeObject(answer), object["error"] == nil else { return nil }
@@ -67,6 +76,7 @@ struct Understanding: Equatable, Sendable {
         keyObservation = key?["id"] as? String
         keyReason = key?["reason"] as? String
         strongest = object["strongest"] as? [String] ?? []
+        inStream = object["inStream"] as? [String] ?? []
     }
 
     /// The lenses that have facts, in music-core's order.
@@ -76,6 +86,15 @@ struct Understanding: Equatable, Sendable {
 
     var key: Fact? {
         keyObservation.flatMap { id in facts.first { $0.id == id } }
+    }
+
+    /// A lens's facts but the one to hear first, in music-core's stream order.
+    func facts(of lens: String) -> [Fact] {
+        let order = Dictionary(inStream.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
+        return facts.enumerated()
+            .filter { $0.element.lens == lens && $0.element.id != keyObservation }
+            .sorted { (order[$0.element.id] ?? Int.max, $0.offset) < (order[$1.element.id] ?? Int.max, $1.offset) }
+            .map(\.element)
     }
 }
 
@@ -90,9 +109,12 @@ final class InsightsController: ObservableObject {
         var fact: Fact
         /// The one place chosen, by its index; nil for all of them.
         var place: Int?
+        /// A place of the circle of fifths opened from the fact: a chord, or the notes outside the scale.
+        var custom: Fact.Place? = nil
 
         var places: [Fact.Place] {
-            place.map { [fact.places[$0]] } ?? fact.places
+            if let custom { return [custom] }
+            return place.map { [fact.places[$0]] } ?? fact.places
         }
     }
 
@@ -102,6 +124,8 @@ final class InsightsController: ObservableObject {
     /// The lens the filter chips narrow the stream to; nil for all of them.
     @Published var lens: String?
     @Published private(set) var evidence: Set<String> = []
+    /// The lenses listed whole ("N more"); the others show their first three facts.
+    @Published var expanded: Set<String> = []
     @Published private(set) var chosen: Choice?
     /// The facts whose Try is open, listing their ways.
     @Published private(set) var tryOpen: Set<String> = []
@@ -109,6 +133,10 @@ final class InsightsController: ObservableObject {
     @Published private(set) var trial: Trial?
     /// A way music-core is working out, by its id.
     @Published private(set) var starting: String?
+    /// The circle of fifths for the selection (facade `circle`), read when it is first opened.
+    @Published private(set) var circle: KeyCircle?
+    /// The fact whose row holds the circle, opened with On the circle; nil when it is closed.
+    @Published private(set) var circleFor: String?
 
     /// A way tried: the fact it came from, the way, what changed in music-core's words, where the variation ends, and
     /// whether it was kept.
@@ -126,6 +154,8 @@ final class InsightsController: ObservableObject {
     var variationReady: (@MainActor (_ notes: [PlaybackNote], _ end: Double) -> Void)?
     /// The variation left: the original sounds again.
     var variationLeft: (@MainActor () -> Void)?
+    /// Hear the scale on the circle: the scale's notes, looped where they sound.
+    var scaleReady: (@MainActor (_ notes: [PlaybackNote], _ range: Range<Double>) -> Void)?
 
     private var understood: ScoreSelection?
     private var piece: Int32 = 0
@@ -137,6 +167,9 @@ final class InsightsController: ObservableObject {
         understood = selection
         chosen = nil
         evidence = []
+        expanded = []
+        circle = nil
+        circleFor = nil
         tryOpen = []
         problem = nil
         // A variation belongs to the passage it was tried on.
@@ -177,6 +210,46 @@ final class InsightsController: ObservableObject {
 
     func clearChoice() {
         chosen = nil
+    }
+
+    /// The facts the circle of fifths opens from (the web app's InsightsStream): the key and the chords.
+    static func opensCircle(_ fact: Fact) -> Bool {
+        fact.id == "key" || fact.id == "harmony.chords"
+    }
+
+    /// On the circle: the circle opens in the fact's row, read from music-core the first time; pressed again, it closes.
+    func toggleCircle(_ fact: Fact) async {
+        if circleFor == fact.id {
+            circleFor = nil
+            return
+        }
+        circleFor = fact.id
+        guard circle == nil else { return }
+        let piece = piece
+        let selection = understood
+        let answer = await MusicCore.run { MusicCore.call(piece: piece, "circle") }
+        guard understood == selection else { return }
+        circle = KeyCircle(answer: answer)
+        if circle == nil {
+            circleFor = nil
+            problem = facadeObject(answer)?["message"] as? String
+        }
+    }
+
+    /// A chip of the circle: its notes are ringed and playback moves to them; pressed again, they are put away.
+    func chooseCirclePlace(_ place: Fact.Place, of fact: Fact) {
+        if chosen?.custom == place {
+            chosen = nil
+            return
+        }
+        chosen = Choice(fact: fact, custom: place)
+        placeChosen?(place.onset)
+    }
+
+    /// Hear the scale: the key's scale loops from the selection's start.
+    func hearScale() {
+        guard let circle, let range = circle.scaleRange else { return }
+        scaleReady?(circle.scale, range)
     }
 
     func toggleEvidence(_ fact: Fact) {
@@ -291,14 +364,6 @@ struct InsightsSheet: View {
                 }
                 .onChange(of: insights.understanding) { _, _ in reader.scrollTo("top", anchor: .top) }
             }
-            Text(text["insights.hint"])
-                .dsType(.caption)
-                .foregroundStyle(Color.ds("ink-2"))
-                .padding(.vertical, CGFloat.ds("s-3"))
-                .padding(.leading, CGFloat.ds("s-6"))
-                .padding(.trailing, CGFloat.ds("s-5"))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .overlay(alignment: .top) { Rectangle().fill(Color.ds("hairline")).frame(height: 1) }
         }
         .background(Color.ds("surface"))
         .accessibilityElement(children: .contain)
@@ -325,10 +390,12 @@ struct InsightsStream: View {
             if let understanding = insights.understanding {
                 let lenses = understanding.lensesShown
                 if lenses.count > 1 {
-                    FlowLayout(spacing: CGFloat.ds("s-2")) {
-                        chip(text["insights.all"], on: insights.lens == nil) { insights.lens = nil }
-                        ForEach(lenses, id: \.self) { lens in
-                            chip(lensLabel(lens), on: insights.lens == lens) { insights.lens = insights.lens == lens ? nil : lens }
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: CGFloat.ds("s-2")) {
+                            chip(text["insights.all"], on: insights.lens == nil) { insights.lens = nil }
+                            ForEach(lenses, id: \.self) { lens in
+                                chip(lensLabel(lens), on: insights.lens == lens) { insights.lens = insights.lens == lens ? nil : lens }
+                            }
                         }
                     }
                     .padding(.bottom, CGFloat.ds("s-3"))
@@ -351,11 +418,17 @@ struct InsightsStream: View {
                     }
                 }
                 ForEach(lenses.filter { insights.lens == nil || insights.lens == $0 }, id: \.self) { lens in
-                    let facts = understanding.facts.filter { $0.lens == lens && $0.id != understanding.keyObservation }
+                    let facts = understanding.facts(of: lens)
                     if !facts.isEmpty {
+                        let shown = visible(facts, lens: lens)
                         group(text.format("insights.lensCount", lensLabel(lens), text.count("understand.facts", facts.count))) {
-                            ForEach(facts) { fact in
+                            ForEach(shown) { fact in
                                 FactRow(fact: fact, why: nil, insights: insights, text: text)
+                            }
+                            if shown.count < facts.count {
+                                more(text.format("insights.more", String(facts.count - shown.count))) { _ = insights.expanded.insert(lens) }
+                            } else if insights.expanded.contains(lens), insights.lens != lens, facts.count > Self.perLens {
+                                more(text["insights.fewer"]) { _ = insights.expanded.remove(lens) }
                             }
                         }
                     }
@@ -371,6 +444,27 @@ struct InsightsStream: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(text["insights.stream"])
+    }
+
+    /// How many facts a lens shows before "N more" (the web app's InsightsStream).
+    static let perLens = 3
+
+    /// A lens's facts as the stream shows them: all of them when the lens is filtered to or listed whole, otherwise the
+    /// first three, with the fact chosen on the score and the one holding the trial always in reach.
+    private func visible(_ facts: [Fact], lens: String) -> [Fact] {
+        if insights.lens == lens || insights.expanded.contains(lens) || facts.count <= Self.perLens { return facts }
+        return facts.enumerated()
+            .filter { $0.offset < Self.perLens || insights.chosen?.fact == $0.element || insights.trial?.factId == $0.element.id }
+            .map(\.element)
+    }
+
+    private func more(_ label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label).dsType(.label).foregroundStyle(Color.ds("accent-hover"))
+        }
+        .buttonStyle(.plain)
+        .frame(minHeight: CGFloat.ds("h-compact"))
+        .padding(.top, CGFloat.ds("s-1"))
     }
 
     /// The ids of the facts the stream shows under the lens chosen.
@@ -417,12 +511,12 @@ struct FactRow: View {
         let evidence = insights.evidence.contains(fact.id)
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
             if fact.places.isEmpty {
-                Text(fact.text).dsType(.body).foregroundStyle(Color.ds("ink"))
+                Text(fact.claim).dsType(.body).foregroundStyle(Color.ds("ink"))
             } else {
                 Button {
                     insights.choose(fact)
                 } label: {
-                    Text(fact.text)
+                    Text(fact.claim)
                         .dsType(.body)
                         .foregroundStyle(Color.ds("ink"))
                         .multilineTextAlignment(.leading)
@@ -448,8 +542,20 @@ struct FactRow: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(evidence ? .isSelected : [])
+                if InsightsController.opensCircle(fact) {
+                    Button {
+                        Task { await insights.toggleCircle(fact) }
+                    } label: {
+                        Text(text["insights.onCircle"]).dsType(.label).foregroundStyle(Color.ds("accent-hover"))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(insights.circleFor == fact.id ? .isSelected : [])
+                }
             }
             if evidence {
+                if fact.brief != nil {
+                    Text(fact.text).dsType(.caption).foregroundStyle(Color.ds("ink"))
+                }
                 Text(fact.basis).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
                 if let why {
                     (Text(text["understand.whyThisOne"]).bold() + Text(" " + why))
@@ -457,7 +563,7 @@ struct FactRow: View {
                         .foregroundStyle(Color.ds("ink-2"))
                 }
             }
-            if chosen {
+            if chosen, insights.chosen?.custom == nil, !fact.places.isEmpty {
                 FlowLayout(spacing: CGFloat.ds("s-2")) {
                     ForEach(Array(fact.places.enumerated()), id: \.offset) { index, place in
                         let on = insights.chosen?.place == index
@@ -471,6 +577,9 @@ struct FactRow: View {
                 }
                 .accessibilityElement(children: .contain)
                 .accessibilityLabel(text["understand.placesLabel"])
+            }
+            if insights.circleFor == fact.id, let circle = insights.circle {
+                KeyCircleCard(circle: circle, fact: fact, insights: insights, text: text)
             }
             if !fact.tries.isEmpty {
                 TryRow(fact: fact, insights: insights, text: text)

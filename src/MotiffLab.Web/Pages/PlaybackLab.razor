@@ -362,7 +362,7 @@
                         }
                     </div>
 
-                <InsightsStream Choose="ChooseFactAsync" Try="TryExperimentAsync" Keep="KeepExperimentAsync" Ask="MenuAsk" OpenIdea="ShowKeptVariationAsync"
+                <InsightsStream Choose="ChooseFactAsync" HearScale="HearScaleAsync" Try="TryExperimentAsync" Keep="KeepExperimentAsync" Ask="MenuAsk" OpenIdea="ShowKeptVariationAsync"
                                 Adjusting="_showOperations" AdjustingChanged="SetAdjusting" TrialCard="TrialCard" AdjustTools="ShapeTools" Ideas="IdeasList" />
                 @if (_variation is not null && _selection is { NoteIds.Count: > 0 })
                 {
@@ -741,7 +741,6 @@
                     @if (CanAddStructure)
                     {
                         <button class="btn secondary" title="@Text["contents.addStructureHint"]" @onclick="AddStructureBookmarksAsync">@Text["contents.addStructure"]</button>
-                        <p class="caption">@Text["contents.addStructureHint"]</p>
                     }
                 </div>
             }
@@ -1520,6 +1519,8 @@
     private StructureAnalysis? _structure;
     private IReadOnlyList<MotifFact> _character = [];
     private HarmonyAnalysis _harmony = HarmonyAnalysis.None;
+    /// <summary>The circle of fifths for the selection, from its key and chords (<see cref="KeyCircle"/>).</summary>
+    private KeyCircleView? _circle;
     private CharacterContext? _characterContext;
     private PhraseMarks _phraseMarks = PhraseMarks.None;
 
@@ -2048,6 +2049,7 @@
         _structure = null;
         _character = [];
         _harmony = HarmonyAnalysis.None;
+        _circle = null;
         _sentenceFacts = [];
         _selectionNote = null;
         _looping = false;
@@ -2402,6 +2404,7 @@
         _structure = StructureAnalyzer.Analyze(_notes!, _meter!, selection, phrases, Words);
         _character = MotifAnalyzer.AnalyzeCharacter(_notes!, _meter!, selection, key, _characterContext!, Words);
         _harmony = HarmonyAnalyzer.Analyze(_notes!, _meter!, selection, _analysis.Key?.Key, Words);
+        _circle = KeyCircle.For(selection, _notes!, _meter!, _analysis.Key, _harmony, Words);
         _sentenceFacts = SentenceFactsFor(selection);
         _invitationContext = new InvitationContext(_notes!, _meter!, selection, _analysis, _structure, _character, Words) { Harmony = _harmony };
         _offers = TryChips.Buttons(Facts, _invitationContext);
@@ -2529,6 +2532,7 @@
         _structure = null;
         _character = [];
         _harmony = HarmonyAnalysis.None;
+        _circle = null;
         _sentenceFacts = [];
         _invitationContext = null;
         _offers = [];

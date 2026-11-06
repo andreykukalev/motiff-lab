@@ -125,7 +125,8 @@ struct SettingsSheet: View {
 
     var body: some View {
         GeometryReader { size in
-            if size.size.width > 600 {
+            // Landscape: the sections on the left, as in the kit (screen 32); portrait: tabs along the top.
+            if size.size.width > size.size.height, size.size.width > 600 {
                 HStack(alignment: .top, spacing: 0) {
                     navigation(vertical: true)
                         .frame(width: 200)
@@ -145,6 +146,7 @@ struct SettingsSheet: View {
             }
         }
         .background(Color.ds("surface"))
+        .modifier(PageSizedSheet())
         .task { await settings.load() }
     }
 
@@ -374,5 +376,17 @@ struct AccountPanel: View {
     private var planName: String {
         guard let plan = account.plan else { return text["settings.planUnknown"] }
         return plan.isPro ? text["settings.planPro"] : text["settings.planFree"]
+    }
+}
+
+/// A sheet the size of a page on iPadOS 18 and later, wide enough in landscape for the sections on the left; the
+/// system's form sheet before.
+private struct PageSizedSheet: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 18.0, *) {
+            content.presentationSizing(.page)
+        } else {
+            content
+        }
     }
 }

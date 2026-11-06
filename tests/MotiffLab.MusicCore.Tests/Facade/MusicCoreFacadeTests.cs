@@ -241,6 +241,23 @@ public class MusicCoreFacadeTests
     }
 
     [Fact]
+    public void CircleAnswersTheKeyOfTheSelectionOnTheCircleOfFifths()
+    {
+        (MusicCoreFacade facade, _) = Open();
+        Call(facade, "select", """{"bars": {"first": 1, "last": 2}}""");
+
+        JsonElement circle = Call(facade, "circle").GetProperty("circle");
+
+        Assert.Equal(12, circle.GetProperty("sectors").GetArrayLength());
+        Assert.InRange(circle.GetProperty("position").GetInt32(), 0, 11);
+        Assert.Equal(4, circle.GetProperty("neighbours").GetArrayLength());
+        Assert.Equal(8, circle.GetProperty("scale").GetArrayLength());
+        Assert.Equal(8, circle.GetProperty("scaleNotes").GetArrayLength());
+        Assert.InRange(circle.GetProperty("lines").GetArrayLength(), 2, 3);
+        Assert.False(string.IsNullOrEmpty(circle.GetProperty("name").GetString()));
+    }
+
+    [Fact]
     public void UnderstandRanksTheFactsAndOffersTryChipsOnlyForBuiltOperations()
     {
         (MusicCoreFacade facade, _) = Open();
@@ -251,6 +268,9 @@ public class MusicCoreFacadeTests
         string[] strongest = [.. understood.GetProperty("strongest").EnumerateArray().Select(id => id.GetString()!)];
         Assert.InRange(strongest.Length, 1, 3);
         Assert.Equal(strongest[0], understood.GetProperty("keyObservation").GetProperty("id").GetString());
+        string[] inStream = [.. understood.GetProperty("inStream").EnumerateArray().Select(id => id.GetString()!)];
+        Assert.Subset(inStream.ToHashSet(), strongest.ToHashSet());
+        Assert.Equal(inStream.Length, inStream.Distinct().Count());
         Assert.False(string.IsNullOrEmpty(understood.GetProperty("keyObservation").GetProperty("reason").GetString()));
         Assert.True(understood.TryGetProperty("sentence", out _));
 

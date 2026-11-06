@@ -50,7 +50,7 @@ public partial class PlaybackLab
                     SoundingVariation: SoundingVariation,
                     AnswerLooping: _answerLoop is not null),
                 new WorkspaceVariation(_chain, _variation, ActiveTrial, CardOffers, UnderstandOffers),
-                new WorkspaceFacts(facts, _highlight?.Choice, key, key is null ? null : FactRanking.Reason(key, Words), recommended),
+                new WorkspaceFacts(facts, _highlight?.Choice, key, key is null ? null : FactRanking.Reason(key, Words), recommended, _circle),
                 new WorkspaceIdeas(KeptRows, KeptOnCard, KeptText));
         }
     }

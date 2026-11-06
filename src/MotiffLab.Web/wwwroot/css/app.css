@@ -5895,6 +5895,110 @@ body:has(.library) .site-footer {
     margin-top: var(--s-1);
 }
 
+/* The circle of fifths in a fact's row (Insights/KeyCircleCard.razor): the major keys outside, their relative minors
+   inside, the key in cobalt (dashed when inferred), the key that fits almost as well outlined, the chords as dots. */
+.workspace .stream .key-circle {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    padding: var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-m);
+    background: var(--surface);
+}
+
+.key-circle svg {
+    display: block;
+    width: 100%;
+    max-width: 18rem;
+    margin: 0 auto;
+}
+
+.key-circle .sector {
+    fill: var(--surface-2);
+    stroke: var(--hairline-strong);
+    stroke-width: 0.6;
+}
+
+.key-circle .sector.near {
+    fill: var(--surface);
+}
+
+.key-circle .sector.key {
+    fill: var(--accent-tint-strong);
+    stroke: var(--accent);
+    stroke-width: 1.6;
+}
+
+.key-circle .sector.key.inferred {
+    stroke-dasharray: 4 3;
+}
+
+.key-circle .sector.runner-up {
+    stroke: var(--ink-2);
+    stroke-width: 1.2;
+    stroke-dasharray: 2 2;
+}
+
+.key-circle text {
+    font-family: var(--font-ui);
+    fill: var(--ink);
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none;
+}
+
+.key-circle text.major {
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.key-circle text.minor {
+    font-size: 8.5px;
+}
+
+.key-circle text.signature {
+    font-size: 7px;
+    fill: var(--ink-2);
+}
+
+.key-circle .chord circle {
+    fill: var(--ink);
+}
+
+.key-circle .chord text {
+    font-size: 8px;
+    font-weight: 600;
+    fill: var(--paper);
+}
+
+.key-circle .chord.on circle {
+    fill: var(--accent);
+}
+
+.key-circle .chord.on text {
+    fill: var(--on-accent);
+}
+
+.key-circle .caption {
+    margin: 0;
+}
+
+.key-circle .places {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+}
+
+.key-circle .circle-actions {
+    display: flex;
+}
+
+.key-circle .hear-scale {
+    gap: var(--s-2);
+    white-space: nowrap;
+}
+
 /* A screen outside the score as a sheet over the library (Design/PageSheet.razor; assessment item 9), drawn as Add a piece
    is (.library .lib-sheet): the paper dimmed behind, the sheet in the middle with its title and a close. It stays in the
    page's flow, so a long report or a waveform scrolls with the page. */

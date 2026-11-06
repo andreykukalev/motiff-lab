@@ -38,6 +38,22 @@ test("every text the app names is in English and in Russian", () => {
     assert.deepEqual(missing, [], "add these keys to wwwroot/i18n/en.json and ru.json");
 });
 
+test("every text the iPad app names is in English and in Russian, as it reads the web app's string files", () => {
+    const dir = new URL("../../ipad/App/MotiffLab/", import.meta.url);
+    const keys = new Set();
+    for (const name of readdirSync(dir).filter((file) => file.endsWith(".swift"))) {
+        const swift = readFileSync(new URL(name, dir), "utf8").replace(/^\s*\/\/\/.*$/gm, "");
+        for (const match of swift.matchAll(/\btext\[\s*"([a-zA-Z][\w.]*)"\s*\]/g)) keys.add(match[1]);
+        for (const match of swift.matchAll(/\btext\.format\(\s*"([a-zA-Z][\w.]*)"/g)) keys.add(match[1]);
+        for (const match of swift.matchAll(/\btext\.count\(\s*"([a-zA-Z][\w.]*)"/g)) {
+            for (const form of ["one", "many"]) keys.add(`${match[1]}.${form}`);
+        }
+    }
+    assert.ok(keys.size > 100, `only ${keys.size} keys found: the patterns no longer match`);
+    const missing = [...keys].filter((key) => !(key in en) || !(key in ru));
+    assert.deepEqual(missing, [], "add these keys to wwwroot/i18n/en.json and ru.json, or stop naming them in the iPad app");
+});
+
 test("Russian has the three plural forms wherever English has a counted text", () => {
     const counted = Object.keys(en).filter((key) => key.endsWith(".many")).map((key) => key.slice(0, -5));
     const missing = counted.filter((base) => ["one", "few", "many"].some((form) => !(`${base}.${form}` in ru)));

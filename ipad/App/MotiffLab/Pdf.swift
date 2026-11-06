@@ -615,8 +615,7 @@ struct PdfBookmarkRow: View {
     }
 }
 
-/// The PDF's overflow: Download the PDF (the bytes as added, through the share sheet), what the pages are and where they
-/// are kept. Read the notes comes with scanning on the iPad.
+/// The PDF's overflow: Read the notes and Download the PDF (the bytes as added, through the share sheet).
 struct PdfMore: View {
     @ObservedObject var pdf: PdfController
     let text: UIText
@@ -647,14 +646,6 @@ struct PdfMore: View {
                 }
                 .buttonStyle(DSButtonStyle(kind: .quiet))
             }
-            Text(text["pdf.asIs"])
-                .dsType(.caption)
-                .foregroundStyle(Color.ds("ink-2"))
-                .fixedSize(horizontal: false, vertical: true)
-            Text(text["pdf.onDevice"])
-                .dsType(.caption)
-                .foregroundStyle(Color.ds("ink-2"))
-                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(CGFloat.ds("s-4"))
         .frame(width: 320, alignment: .leading)
