@@ -241,6 +241,22 @@ public class MusicCoreFacadeTests
     }
 
     [Fact]
+    public void CircleAnswersTheKeyOfTheSelectionOnTheCircleOfFifths()
+    {
+        (MusicCoreFacade facade, _) = Open();
+        Call(facade, "select", """{"bars": {"first": 1, "last": 2}}""");
+
+        JsonElement circle = Call(facade, "circle").GetProperty("circle");
+
+        Assert.Equal(12, circle.GetProperty("sectors").GetArrayLength());
+        Assert.InRange(circle.GetProperty("position").GetInt32(), 0, 11);
+        Assert.Equal(4, circle.GetProperty("neighbours").GetArrayLength());
+        Assert.Equal(8, circle.GetProperty("scale").GetArrayLength());
+        Assert.InRange(circle.GetProperty("lines").GetArrayLength(), 2, 3);
+        Assert.False(string.IsNullOrEmpty(circle.GetProperty("name").GetString()));
+    }
+
+    [Fact]
     public void UnderstandRanksTheFactsAndOffersTryChipsOnlyForBuiltOperations()
     {
         (MusicCoreFacade facade, _) = Open();

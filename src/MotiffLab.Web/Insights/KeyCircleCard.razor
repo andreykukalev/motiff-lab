@@ -1,0 +1,129 @@
+@using System.Globalization
+@using MotiffLab.MusicCore.Analysis
+@using MotiffLab.Web.Localization
+@inject UiText Text
+
+@* The circle of fifths for the selection (Andrei, 2026-11-06; the independent assessment's reference card): opened in a fact's
+   row from the key or the chords, never on its own. Twelve places, the major keys outside and their relative minors inside;
+   the selection's key is the cobalt sector (dashed when it is inferred), the key that fits almost as well is outlined, and
+   the passage's chords are numbered dots on the sectors of their roots. Everything drawn comes from music-core's
+   KeyCircleView; the card only places it. Its places ring on the score, and Hear the scale loops the key's scale. *@
+<section class="key-circle" aria-label="@Text["circle.title"]">
+    <svg viewBox="-118 -118 236 236" role="img" aria-label="@Text.Format("circle.aria", Circle.Name)">
+        @foreach (CircleSector sector in Circle.Sectors)
+        {
+            bool near = Circle.Neighbours.Any(neighbour => neighbour.Position == sector.Position);
+            <g>
+                <path class="sector major @SectorClass(sector.Position, KeyMode.Major) @(near ? "near" : null)" d="@Sector(sector.Position, MiddleRadius, OuterRadius)" />
+                <path class="sector minor @SectorClass(sector.Position, KeyMode.Minor) @(near ? "near" : null)" d="@Sector(sector.Position, InnerRadius, MiddleRadius)" />
+                <text class="major" x="@X(sector.Position, 84)" y="@Y(sector.Position, 84)">@sector.Major</text>
+                <text class="minor" x="@X(sector.Position, 57)" y="@Y(sector.Position, 57)">@sector.Minor</text>
+                <text class="signature" x="@X(sector.Position, 28)" y="@Y(sector.Position, 28)">@sector.Signature</text>
+            </g>
+        }
+        @foreach ((CircleChord chord, double angle) in ChordAngles())
+        {
+            // A major chord sits just outside its sector, a minor one between the minor keys and the signatures.
+            double radius = chord.Ring == KeyMode.Major ? 108 : 43;
+            bool on = Chosen == chord.Place;
+            <g class="chord @(on ? "on" : null)">
+                <circle cx="@F(radius * Math.Sin(angle))" cy="@F(-radius * Math.Cos(angle))" r="6" />
+                <text x="@F(radius * Math.Sin(angle))" y="@F(-radius * Math.Cos(angle))">@chord.Number</text>
+            </g>
+        }
+    </svg>
+
+    @if (Circle.RunnerUpNote is { } runnerUp)
+    {
+        <p class="caption">@runnerUp</p>
+    }
+    @foreach (string line in Circle.Lines)
+    {
+        <p class="caption circle-line">@line</p>
+    }
+
+    @if (Circle.Chords.Count > 0 || Circle.Outside is not null)
+    {
+        <div class="places" role="group" aria-label="@Text["circle.show"]">
+            @foreach (CircleChord chord in Circle.Chords)
+            {
+                bool on = Chosen == chord.Place;
+                <button class="chip" aria-pressed="@(on ? "true" : "false")" title="@chord.Place.Label" @onclick="() => Show.InvokeAsync(chord.Place)">
+                    @($"{chord.Number}. {chord.Symbol}{(chord.Degree is { } degree ? $" ({degree})" : "")}")
+                </button>
+            }
+            @if (Circle.Outside is { } outside)
+            {
+                bool on = Chosen == outside;
+                <button class="chip" aria-pressed="@(on ? "true" : "false")" title="@Text["circle.showHint"]" @onclick="() => Show.InvokeAsync(outside)">@outside.Label</button>
+            }
+        </div>
+    }
+    <div class="circle-actions">
+        <button class="btn quiet compact hear-scale" @onclick="() => Hear.InvokeAsync()"><Icon Name="play" /> @Text["circle.hearScale"]</button>
+    </div>
+</section>
+
+@code {
+    private const double OuterRadius = 100;
+    private const double MiddleRadius = 66;
+    private const double InnerRadius = 36;
+
+    /// <summary>The degrees each place takes: twelve make the circle.</summary>
+    private const double Step = 360.0 / KeyCircle.Places;
+
+    [Parameter, EditorRequired]
+    public KeyCircleView Circle { get; set; } = null!;
+
+    /// <summary>The place of the circle ringed on the score, if any.</summary>
+    [Parameter]
+    public FactPlace? Chosen { get; set; }
+
+    /// <summary>Raised with a chord's place or the notes outside the scale, to ring on the score.</summary>
+    [Parameter]
+    public EventCallback<FactPlace> Show { get; set; }
+
+    [Parameter]
+    public EventCallback Hear { get; set; }
+
+    private string? SectorClass(int position, KeyMode ring)
+    {
+        if (position == Circle.Position && ring == Circle.Key.Mode)
+        {
+            return Circle.Certainty == FactCertainty.Detected ? "key" : "key inferred";
+        }
+
+        return Circle.RunnerUp is { } runnerUp && position == Circle.RunnerUpPosition && ring == runnerUp.Mode ? "runner-up" : null;
+    }
+
+    /// <summary>The chords on their sectors; several on one sector sit side by side within it.</summary>
+    private IEnumerable<(CircleChord Chord, double Angle)> ChordAngles()
+    {
+        foreach (IGrouping<(int, KeyMode), CircleChord> group in Circle.Chords.GroupBy(chord => (chord.Position, chord.Ring)))
+        {
+            CircleChord[] chords = [.. group];
+            for (int i = 0; i < chords.Length; i++)
+            {
+                double spread = chords.Length == 1 ? 0 : (i - ((chords.Length - 1) / 2.0)) * (Step * 0.8 / chords.Length);
+                yield return (chords[i], Radians((chords[i].Position * Step) + spread));
+            }
+        }
+    }
+
+    private static string Sector(int position, double inner, double outer)
+    {
+        double from = Radians((position * Step) - (Step / 2));
+        double to = Radians((position * Step) + (Step / 2));
+        return $"M{F(inner * Math.Sin(from))} {F(-inner * Math.Cos(from))} L{F(outer * Math.Sin(from))} {F(-outer * Math.Cos(from))} "
+            + $"A{F(outer)} {F(outer)} 0 0 1 {F(outer * Math.Sin(to))} {F(-outer * Math.Cos(to))} "
+            + $"L{F(inner * Math.Sin(to))} {F(-inner * Math.Cos(to))} A{F(inner)} {F(inner)} 0 0 0 {F(inner * Math.Sin(from))} {F(-inner * Math.Cos(from))} Z";
+    }
+
+    private static string X(int position, double radius) => F(radius * Math.Sin(Radians(position * Step)));
+
+    private static string Y(int position, double radius) => F(-radius * Math.Cos(Radians(position * Step)));
+
+    private static double Radians(double degrees) => degrees * Math.PI / 180;
+
+    private static string F(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
+}

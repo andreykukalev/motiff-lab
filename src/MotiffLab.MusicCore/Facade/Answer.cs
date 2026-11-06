@@ -504,6 +504,91 @@ internal static partial class Answer
     }
 
     /// <summary>
+    /// The circle of fifths for the selection (<see cref="KeyCircle"/>): the twelve places, the key with its certainty and
+    /// the key that fits almost as well, its neighbours, the chords on the sectors of their roots, the notes outside the
+    /// scale, the scale to hear and the lines that say what it shows; null when no key was read.
+    /// </summary>
+    public static void Circle(Utf8JsonWriter json, KeyCircleView? circle)
+    {
+        if (circle is null)
+        {
+            json.WriteNull("circle");
+            return;
+        }
+
+        json.WriteStartObject("circle");
+        MusicalKey(json, "key", circle.Key);
+        json.WriteString("name", circle.Name);
+        json.WriteString("certainty", Name(circle.Certainty));
+        json.WriteNumber("position", circle.Position);
+        if (circle.RunnerUp is { } runnerUp)
+        {
+            MusicalKey(json, "runnerUp", runnerUp);
+            json.WriteNumber("runnerUpPosition", circle.RunnerUpPosition ?? 0);
+            json.WriteString("runnerUpNote", circle.RunnerUpNote);
+        }
+
+        json.WriteStartArray("sectors");
+        foreach (CircleSector sector in circle.Sectors)
+        {
+            json.WriteStartObject();
+            json.WriteNumber("position", sector.Position);
+            json.WriteNumber("fifths", sector.Fifths);
+            json.WriteString("major", sector.Major);
+            json.WriteString("minor", sector.Minor);
+            json.WriteString("signature", sector.Signature);
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
+        json.WriteStartArray("neighbours");
+        foreach (CircleNeighbour neighbour in circle.Neighbours)
+        {
+            json.WriteStartObject();
+            json.WriteString("relation", Name(neighbour.Relation));
+            MusicalKey(json, "key", neighbour.Key);
+            json.WriteNumber("position", neighbour.Position);
+            json.WriteString("name", neighbour.Name);
+            json.WriteString("label", neighbour.Label);
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
+        json.WriteStartArray("chords");
+        foreach (CircleChord chord in circle.Chords)
+        {
+            json.WriteStartObject();
+            json.WriteNumber("number", chord.Number);
+            json.WriteString("symbol", chord.Symbol);
+            json.WriteString("degree", chord.Degree);
+            json.WriteNumber("position", chord.Position);
+            json.WriteString("ring", Name(chord.Ring));
+            CirclePlace(json, "place", chord.Place);
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
+        if (circle.Outside is { } outside)
+        {
+            CirclePlace(json, "outside", outside);
+        }
+
+        Numbers(json, "scale", circle.ScalePitches);
+        Texts(json, "lines", circle.Lines);
+        json.WriteEndObject();
+    }
+
+    private static void CirclePlace(Utf8JsonWriter json, string name, FactPlace place)
+    {
+        json.WriteStartObject(name);
+        json.WriteString("label", place.Label);
+        json.WriteNumber("onset", place.Span.Onset.Value);
+        json.WriteNumber("end", place.Span.End.Value);
+        Texts(json, "noteIds", place.NoteIds);
+        json.WriteEndObject();
+    }
+
+    /// <summary>
     /// What was understood about the selection: the motif's analysis, the structure around it, its character and
     /// its place among the sentences, each fact with its Try chips (0018, section 7), then the three strongest facts
     /// for the Insights strip and the one to hear first (preparation item 9).

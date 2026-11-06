@@ -128,6 +128,7 @@ internal sealed partial class OpenPiece
         "phrases.edit" => EditPhrases(request),
         "select" => Select(request),
         "understand" => Answer.Write(json => Answer.Understanding(json, Understood(), SentenceFacts(), fact => TryChips.Offer(fact.Id, Understood()))),
+        "circle" => Answer.Write(json => Answer.Circle(json, Circle(Understood()))),
         "experiments" => Answer.Write(json => Answer.Experiments(json, "experiments", Offered())),
         "experiments.start" => StartExperiment(request),
         "experiments.surprise" => Surprise(request),
@@ -326,6 +327,10 @@ internal sealed partial class OpenPiece
         Chain = null;
         return Answer.Write(json => Answer.Selection(json, "selection", selection, KeySignature.InForce(Piece.Keys, selection.Span.Onset)));
     }
+
+    /// <summary>The circle of fifths for the selection, from the key and chords music-core read for it.</summary>
+    private static KeyCircleView? Circle(InvitationContext context) =>
+        KeyCircle.For(context.Selection, context.Notes, context.Meter, context.Motif.Key, context.Harmony, context.Words);
 
     private InvitationContext Understood()
     {
