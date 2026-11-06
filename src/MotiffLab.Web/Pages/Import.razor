@@ -27,8 +27,7 @@
    Scanning (/import/scan, 0011) is one exception: a PDF or photo the player picks for it goes to the scan server they set in Settings,
    and comes back as MusicXML. Transcription (/import/recording, 0014) is the other: the sound of a recording the player picks goes to
    the same server, and comes back as MIDI. *@
-<main class="lab import">
-    <h1>@Text[Heading]</h1>
+<PageSheet Title="@Text[Heading]" Class="import" Wide="@(_route == ImportRoute.Recording || _piece is not null)">
 
     @if (_route == ImportRoute.File)
     {
@@ -312,8 +311,7 @@
         </section>
     }
 
-    <p><a href="">@Text["import.back"]</a></p>
-</main>
+</PageSheet>
 
 @code {
     private string? _fileName;

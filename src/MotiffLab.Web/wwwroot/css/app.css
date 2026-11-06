@@ -3057,8 +3057,10 @@ body:has(.workspace) .site-footer {
     color: var(--accent);
 }
 
+/* Open, on its tint: the deeper accent keeps the word at 4.5:1 even on a row tinted as chosen. */
 .lab.workspace .stream .try-row .btn.try[aria-expanded="true"] {
     background: var(--accent-tint);
+    color: var(--accent-hover);
 }
 
 .lab.workspace .stream .try-row .btn.try:disabled {
@@ -5891,4 +5893,56 @@ body:has(.library) .site-footer {
 .workspace .stream .lens-more {
     align-self: flex-start;
     margin-top: var(--s-1);
+}
+
+/* A screen outside the score as a sheet over the library (Design/PageSheet.razor; assessment item 9), drawn as Add a piece
+   is (.library .lib-sheet): the paper dimmed behind, the sheet in the middle with its title and a close. It stays in the
+   page's flow, so a long report or a waveform scrolls with the page. */
+.page-sheet-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background: var(--dim);
+}
+
+.lab.page-sheet {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+    box-sizing: border-box;
+    width: min(560px, calc(100vw - 2 * var(--s-4)));
+    max-width: none;
+    margin: var(--s-6) auto;
+    padding: var(--s-6);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-l);
+    background: var(--surface-2);
+    box-shadow: var(--shadow-sheet);
+}
+
+.lab.page-sheet.wide {
+    width: min(760px, calc(100vw - 2 * var(--s-4)));
+}
+
+.lab.page-sheet > .hd {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--s-3);
+}
+
+.lab.page-sheet > .hd .ttl {
+    margin: 0;
+    font: var(--t-title);
+    font-size: 22px;
+}
+
+.lab.page-sheet > p, .lab.page-sheet > section {
+    margin: 0;
+}
+
+.lab.page-sheet.not-found > .btn {
+    align-self: flex-start;
 }
