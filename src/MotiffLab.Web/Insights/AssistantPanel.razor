@@ -10,7 +10,10 @@
    sent either. *@
 <section class="assistant" aria-labelledby="ask-title">
     <div class="ask-head">
-        <button class="btn quiet icon" aria-label="@Text["ask.back"]" title="@Text["ask.back"]" @onclick="() => Back.InvokeAsync()"><Icon Name="back" /></button>
+        @* ‹ names where it goes: the place it was opened from (More, Piece DNA), or the Insights stream (testing item 20). *@
+        <button class="btn quiet back-to" aria-label="@(BackLabel is { } origin ? Text.Format("nav.backTo", origin) : Text["ask.back"])" @onclick="() => Back.InvokeAsync()">
+            <Icon Name="back" Size="IconSize.Small" /> @(BackLabel ?? Text["bar.insights"])
+        </button>
         <h2 id="ask-title" class="overline">@Text["ask.title"]</h2>
         <span class="sp"></span>
         <button class="btn quiet icon" aria-label="@Text["drawer.close"]" title="@Text["drawer.close"]" @onclick="() => Closed.InvokeAsync()"><Icon Name="close" /></button>
@@ -94,6 +97,10 @@
     /// <summary>Back to the Insights stream.</summary>
     [Parameter]
     public EventCallback Back { get; set; }
+
+    /// <summary>Where ‹ goes when the assistant was opened from another place, such as "More"; null for the Insights stream.</summary>
+    [Parameter]
+    public string? BackLabel { get; set; }
 
     [Parameter]
     public EventCallback Closed { get; set; }

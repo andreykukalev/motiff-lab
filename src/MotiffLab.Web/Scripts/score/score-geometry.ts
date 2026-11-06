@@ -112,6 +112,14 @@ export interface Run extends Rect {
     last: boolean;
 }
 
+/** The playhead at a moment: its x, the top and bottom of the staves it crosses, and the bar it is in. */
+export interface Playhead {
+    x: number;
+    top: number;
+    bottom: number;
+    bar: ScoreBar;
+}
+
 /** A ring round a notehead, as the design kit draws fact highlights: a circle larger than the notehead. */
 export interface Ring {
     cx: number;
@@ -322,6 +330,36 @@ export function readPage(svg: string, number: number): PageGeometry {
     return page;
 }
 
+/** The x of a tick in a bar, from its onsets and their x (see ScoreGeometry.playhead). */
+export function placeInBar(bar: Rect & { tick: number; end: number }, points: readonly { tick: number; x: number }[], tick: number): number {
+    const span = Number.isFinite(bar.end) ? bar.end - bar.tick : 0;
+    if (points.length === 0) {
+        return span > 0 ? bar.left + ((bar.right - bar.left) * (tick - bar.tick)) / span : bar.left;
+    }
+    const first = points[0];
+    const last = points[points.length - 1];
+    // Before the first onset: from where the bar's start would be at the pace of the notes after it, never left of the bar.
+    let start = bar.left;
+    if (first.tick > bar.tick && span > 0 && bar.end > first.tick) {
+        start = Math.max(bar.left, first.x - ((first.tick - bar.tick) / (bar.end - first.tick)) * (bar.right - first.x));
+    }
+    const line: { tick: number; x: number }[] = [...(first.tick > bar.tick ? [{ tick: bar.tick, x: start }] : []), ...points];
+    if (Number.isFinite(bar.end) && bar.end > last.tick) {
+        line.push({ tick: bar.end, x: bar.right });
+    }
+    if (tick <= line[0].tick) {
+        return line[0].x;
+    }
+    for (let i = 1; i < line.length; i++) {
+        const from = line[i - 1];
+        const to = line[i];
+        if (tick < to.tick) {
+            return from.x + ((to.x - from.x) * (tick - from.tick)) / (to.tick - from.tick);
+        }
+    }
+    return line[line.length - 1].x;
+}
+
 function place(rect: Rect, at: PagePlacement): Rect {
     return {
         left: at.left + rect.left * at.scale,
@@ -364,6 +402,8 @@ export class ScoreGeometry {
     readonly systems: readonly ScoreSystem[];
     readonly notes: readonly ScoreNote[];
     private readonly noteIndex: Map<string, ScoreNote>;
+    /** Each bar's onsets with their x, worked out when the playhead first enters it. */
+    private readonly points = new Map<number, { tick: number; x: number }[]>();
 
     /**
      * @param pages each page's geometry, in order.
@@ -553,6 +593,46 @@ export class ScoreGeometry {
             return undefined;
         }
         return { cx: note.cx, cy: note.cy, diameter: Math.max(note.right - note.left, note.bottom - note.top) + growth };
+    }
+
+    /**
+     * Where the playhead stands at a tick (testing item 4, 0018 "Playback"): a line across the staves of the bar that
+     * holds it, at the place the bar's notes give that moment. Between two onsets it moves evenly from one note to the
+     * next; before the bar's first note it comes from the left at the same pace, and after the last it runs on to the
+     * barline. A bar with no notes is crossed evenly. `onsetOf` gives a note's onset, from the timeline.
+     */
+    playhead(tick: number, onsetOf: (id: string) => number | undefined): Playhead | undefined {
+        const index = this.bars.findIndex((bar) => bar.tick <= tick && tick < bar.end);
+        if (index < 0) {
+            return undefined;
+        }
+        const bar = this.bars[index];
+        const top = bar.staves.length > 0 ? Math.min(...bar.staves.map((staff) => staff.top)) : bar.top;
+        const bottom = bar.staves.length > 0 ? Math.max(...bar.staves.map((staff) => staff.bottom)) : bar.bottom;
+        const points = this.timePoints(index, onsetOf);
+        return { x: placeInBar(bar, points, tick), top, bottom, bar };
+    }
+
+    /** The bar's onsets with the x of their notes (the middle of the noteheads that start together), in time order. */
+    private timePoints(index: number, onsetOf: (id: string) => number | undefined): { tick: number; x: number }[] {
+        const known = this.points.get(index);
+        if (known !== undefined) {
+            return known;
+        }
+        const byOnset = new Map<number, number[]>();
+        for (const note of this.notes) {
+            const onset = note.bar === index ? onsetOf(note.id) : undefined;
+            if (onset !== undefined) {
+                const list = byOnset.get(onset) ?? [];
+                list.push(note.cx);
+                byOnset.set(onset, list);
+            }
+        }
+        const points = [...byOnset.entries()]
+            .map(([onset, xs]) => ({ tick: onset, x: xs.reduce((sum, x) => sum + x, 0) / xs.length }))
+            .sort((a, b) => a.tick - b.tick);
+        this.points.set(index, points);
+        return points;
     }
 
     /** Where a mark on a bar goes, such as a Check flag or a margin note's marker: the top right corner of its top staff. */

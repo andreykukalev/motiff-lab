@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
-import { BRACKET_LIFT, RING_GROWTH, ScoreGeometry, readPage } from "../../src/MotiffLab.Web/wwwroot/js/score/score-geometry.js";
+import { BRACKET_LIFT, RING_GROWTH, ScoreGeometry, placeInBar, readPage } from "../../src/MotiffLab.Web/wwwroot/js/score/score-geometry.js";
 import { A4_LAYOUT, titleBlock } from "../../src/MotiffLab.Web/wwwroot/js/score/score-page.js";
 import { ScoreTimeline } from "../../src/MotiffLab.Web/wwwroot/js/score/score-timeline.js";
 import createVerovioModule from "../../src/MotiffLab.Web/wwwroot/lib/verovio/verovio-module.mjs";
@@ -268,4 +268,37 @@ test("the title block is read from Verovio's header alone, not from what follows
         + '</g><g class="system"><style>@font-face { font-family: Leland }</style><text>9</text></g></g></svg>';
     assert.deepEqual(titleBlock(svg), { title: "Waltz sketch", lines: ["A. N. Other"] });
     assert.equal(titleBlock("<svg><g class=\"system\"></g></svg>"), null);
+});
+
+test("the playhead moves from note to note in a bar and runs on to the barline after the last", () => {
+    const bar = { left: 100, right: 300, top: 0, bottom: 50, tick: 0, end: 1920 };
+    const points = [{ tick: 0, x: 120 }, { tick: 960, x: 200 }];
+    assert.equal(placeInBar(bar, points, 0), 120);
+    assert.equal(placeInBar(bar, points, 480), 160);
+    assert.equal(placeInBar(bar, points, 960), 200);
+    assert.equal(placeInBar(bar, points, 1440), 250);
+    // Before the bar's first note it comes in at the pace of the notes after it, never left of the barline.
+    assert.equal(placeInBar(bar, [{ tick: 960, x: 200 }], 0), 100);
+    assert.ok(placeInBar(bar, [{ tick: 480, x: 140 }], 240) < 140);
+    // A bar with no notes is crossed evenly.
+    assert.equal(placeInBar(bar, [], 960), 200);
+});
+
+test("the playhead of Für Elise stays in its bar, spans the system's staves and only moves on in time", async () => {
+    const { pages, timeline } = await engrave({ ...A4_LAYOUT });
+    const geometry = new ScoreGeometry(pages, stacked(pages, 800), (id) => timeline.measureOnset(id), 99_999);
+    const onsetOf = (id) => timeline.onsetOf(id);
+    for (const bar of geometry.bars.slice(0, 12)) {
+        let previous = -Infinity;
+        for (let tick = bar.tick; tick < bar.end; tick += 60) {
+            const at = geometry.playhead(tick, onsetOf);
+            assert.equal(at.bar, bar);
+            assert.ok(at.x >= bar.left - 1 && at.x <= bar.right + 1, `x ${at.x} in ${bar.left}–${bar.right}`);
+            assert.ok(at.x >= previous - 0.001, `the playhead went back at tick ${tick}`);
+            assert.equal(at.top, bar.staves[0].top);
+            assert.equal(at.bottom, bar.staves[1].bottom);
+            previous = at.x;
+        }
+    }
+    assert.equal(geometry.playhead(-1, onsetOf), undefined);
 });

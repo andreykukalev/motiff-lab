@@ -62,6 +62,7 @@ else if (_loading && !HoldHeight)
     private IReadOnlyList<HighlightPlace>? _shownHighlight;
     private IReadOnlyList<HighlightPlace>? _shownPointed;
     private bool _shownHold;
+    private bool _shownFollow = true;
     private bool _paged = true;
     private bool _exporting;
     private string? _pdfError;
@@ -195,6 +196,14 @@ else if (_loading && !HoldHeight)
     [Parameter]
     public EventCallback<(int First, int Last, int Count)> PagesShown { get; set; }
 
+    /// <summary>Whether the score scrolls to keep the playing system in view (Settings · Playback); the playhead shows either way.</summary>
+    [Parameter]
+    public bool Follow { get; set; } = true;
+
+    /// <summary>Raised when the playhead goes out of sight while playing, with where its bar starts, and with null when it is back in sight or playback stops.</summary>
+    [Parameter]
+    public EventCallback<Tick?> PlayheadAway { get; set; }
+
     /// <summary>Raised after each engraving with the title the first page is headed with; null when it has none or in the strip.</summary>
     [Parameter]
     public EventCallback<string?> TitleRead { get; set; }
@@ -257,6 +266,12 @@ else if (_loading && !HoldHeight)
         if (_view is null || Source is null)
         {
             return;
+        }
+
+        if (Follow != _shownFollow)
+        {
+            _shownFollow = Follow;
+            await _view.InvokeVoidAsync("setFollow", Follow);
         }
 
         if (HoldHeight != _shownHold)
@@ -511,6 +526,19 @@ else if (_loading && !HoldHeight)
     {
         _shownInk = ink;
         return MarksChanged.InvokeAsync(ink);
+    }
+
+    /// <summary>Called by the script when the playhead goes out of sight, with where its bar starts, and with -1 when it is back in sight or stopped.</summary>
+    [JSInvokable]
+    public Task OnPlayheadAway(double barTick) => PlayheadAway.InvokeAsync(barTick < 0 ? null : new Tick((long)Math.Round(barTick)));
+
+    /// <summary>Back to playback: the playing system is scrolled into view and the score follows it again.</summary>
+    public async Task ReturnToPlayheadAsync()
+    {
+        if (_view is not null)
+        {
+            await _view.InvokeVoidAsync("returnToPlayhead");
+        }
     }
 
     /// <summary>Called by the script when the pages under the top of the view change.</summary>

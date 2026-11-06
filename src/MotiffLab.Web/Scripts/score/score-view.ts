@@ -15,7 +15,7 @@ import { ScoreTimeline, highlightedIds, type HighlightPlace } from "./score-time
 import { A4_HEIGHT, A4_WIDTH, buildPdf, crop, inkBounds, type InkLayer, type PdfPage } from "./pdf-document.js";
 import { hasText, svgToPdfOperators, textOnlySvg } from "./svg-to-pdf.js";
 import { A4_LAYOUT, pdfFileName, titleBlock, withTitle } from "./score-page.js";
-import { BRACKET_LIFT, ScoreGeometry, bookmarkLevels, readPage, type PageGeometry, type PagePlacement, type ScoreBar } from "./score-geometry.js";
+import { BRACKET_LIFT, ScoreGeometry, bookmarkLevels, readPage, type PageGeometry, type PagePlacement, type Playhead, type ScoreBar } from "./score-geometry.js";
 import { downloadBytes, saveCover } from "../storage/project-store.js";
 import { newToolkit, type VerovioToolkit } from "./verovio.js";
 
@@ -51,6 +51,13 @@ const RELAYOUT_DELAY_MS = 200;
 const RELAYOUT_THRESHOLD_PX = 24;
 
 const PLAYING_CLASS = "playing";
+
+/** The playhead (testing item 4): a cobalt line through the staves at the moment that sounds, and a wash over its bar. */
+const PLAYHEAD_CLASS = "playhead";
+const PLAY_BAR_CLASS = "play-bar";
+
+/** The playhead counts as out of sight when it is above the bar's reading line or this close to the bottom, where the pill floats. */
+const PILL_ROOM_PX = 84;
 
 /** After the player scrolls the score by hand, playback leaves it where they put it for this long before following again. */
 const FOLLOW_PAUSE_MS = 4000;
@@ -247,6 +254,15 @@ export class ScoreView {
     /** The pages under the reading line as last reported, so the bar hears only of a change. */
     private pagesShown = "";
     private scrollFrame = 0;
+    /** The playhead's line and the wash over its bar, made when playback first starts. */
+    private playLine: HTMLElement | null = null;
+    private playWash: HTMLElement | null = null;
+    /** The geometry the playhead is placed with, kept while the layout stays the same size. */
+    private playGeometry: { key: string; geometry: ScoreGeometry | null } | null = null;
+    /** Whether the score scrolls to keep the playing system in view (Settings · Playback, playback.follow). */
+    private following = true;
+    /** Where the bar the playhead is in starts, as last told to Blazor while it was out of sight; -1 when in sight or stopped. */
+    private awayReported = -1;
 
     constructor(host: HTMLElement, dotnet: DotNetObject) {
         this.host = host;
@@ -369,6 +385,75 @@ export class ScoreView {
             this.frame = requestAnimationFrame(this.tick);
         } else {
             this.mark([], false);
+            this.placePlayhead(null);
+        }
+    }
+
+    /** Whether the score follows playback by scrolling (Settings · Playback); the playhead shows either way. */
+    setFollow(on: boolean): void {
+        this.following = on;
+    }
+
+    /** "Back to playback": scrolls the playing system under the reading line and lets the score follow again. */
+    returnToPlayhead(): void {
+        const line = this.playLine;
+        if (line === null || !line.isConnected || line.hidden) {
+            return;
+        }
+        this.scrolledByHand = 0;
+        this.host.scrollTo({ top: Math.max(0, line.offsetTop - READING_LINE_PX), behavior: "smooth" });
+    }
+
+    /** Puts the playhead and its bar's wash at a tick, or hides them for null; tells Blazor when it goes out of sight. */
+    private placePlayhead(tick: number | null): void {
+        const at = tick === null ? undefined : this.playheadAt(tick);
+        if (at === undefined) {
+            if (this.playLine !== null) {
+                this.playLine.hidden = true;
+            }
+            if (this.playWash !== null) {
+                this.playWash.hidden = true;
+            }
+            this.reportAway(-1);
+            return;
+        }
+        const line = (this.playLine ??= overlay(PLAYHEAD_CLASS));
+        const wash = (this.playWash ??= overlay(PLAY_BAR_CLASS));
+        for (const element of [wash, line]) {
+            if (element.parentElement !== this.host) {
+                this.host.append(element);
+            }
+            element.hidden = false;
+        }
+        line.style.left = `${at.x - 1}px`;
+        line.style.top = `${at.top - 6}px`;
+        line.style.height = `${at.bottom - at.top + 12}px`;
+        wash.style.left = `${at.bar.left}px`;
+        wash.style.top = `${at.top - 4}px`;
+        wash.style.width = `${at.bar.right - at.bar.left}px`;
+        wash.style.height = `${at.bottom - at.top + 8}px`;
+
+        const shownTop = this.host.scrollTop + READING_LINE_PX - 16;
+        const shownBottom = this.host.scrollTop + this.host.clientHeight - PILL_ROOM_PX;
+        this.reportAway(at.bottom < shownTop || at.top > shownBottom ? at.bar.tick : -1);
+    }
+
+    private playheadAt(tick: number): Playhead | undefined {
+        const timeline = this.timeline;
+        if (timeline === null) {
+            return undefined;
+        }
+        const key = `${this.host.scrollWidth}x${this.host.scrollHeight}x${this.pageSvgs.length}`;
+        if (this.playGeometry?.key !== key) {
+            this.playGeometry = { key, geometry: this.geometry() };
+        }
+        return this.playGeometry.geometry?.playhead(tick, (id) => timeline.onsetOf(id));
+    }
+
+    private reportAway(barTick: number): void {
+        if (barTick !== this.awayReported) {
+            this.awayReported = barTick;
+            void this.dotnet.invokeMethodAsync("OnPlayheadAway", barTick);
         }
     }
 
@@ -677,6 +762,7 @@ export class ScoreView {
         }
         this.host.replaceChildren(...pages);
         this.pagesShown = "";
+        this.playGeometry = null;
         if (this.holding) {
             this.keepHeight();
         }
@@ -1120,7 +1206,9 @@ export class ScoreView {
         }
         if (this.timeline !== null) {
             const playing = player.state() !== "stopped";
-            this.mark(this.timeline.soundingAt(player.currentTick()), playing);
+            const tick = player.currentTick();
+            this.mark(this.timeline.soundingAt(tick), playing);
+            this.placePlayhead(playing ? tick : null);
         }
         this.frame = requestAnimationFrame(this.tick);
     };
@@ -1146,7 +1234,7 @@ export class ScoreView {
         this.marked = next;
 
         // Playback does not pull the score back while the player is reading elsewhere in it.
-        if (scroll && ids.length > 0 && performance.now() - this.scrolledByHand >= FOLLOW_PAUSE_MS) {
+        if (scroll && this.following && ids.length > 0 && performance.now() - this.scrolledByHand >= FOLLOW_PAUSE_MS) {
             this.scrollIntoView(this.element(ids[0]));
         }
     }
@@ -1307,6 +1395,15 @@ async function textInk(svg: string): Promise<InkLayer | null> {
 }
 
 /** Entry point for Blazor. */
+/** An overlay over the score that takes no taps and is not read out: the playhead's line or its bar's wash. */
+function overlay(className: string): HTMLElement {
+    const element = document.createElement("span");
+    element.className = className;
+    element.setAttribute("aria-hidden", "true");
+    element.hidden = true;
+    return element;
+}
+
 export function createScoreView(host: HTMLElement, dotnet: DotNetObject): ScoreView {
     return new ScoreView(host, dotnet);
 }
