@@ -16,10 +16,13 @@ struct OpenPiece: Identifiable, Sendable {
     var landing: Landing?
 
     /// Opens the file in music-core in the interface's language and engraves it, titled by its name unless given one; a PDF,
-    /// or a PDF piece's project file, opens as a PDF piece with nothing to engrave.
-    static func open(fileName: String, data: Data, language: String, title given: String? = nil) async -> Result<OpenPiece, EngraveError> {
-        await MusicCore.run {
-            let request = "{\"language\": \"\(language)\"}"
+    /// or a PDF piece's project file, opens as a PDF piece with nothing to engrave. With `heard`, a recording heard by the
+    /// scan server, the new piece is its notes and `data` is not read (0014, 0016).
+    static func open(fileName: String, data: Data, language: String, title given: String? = nil, heard: HeardRecording? = nil) async -> Result<OpenPiece, EngraveError> {
+        var fields: [String: Any] = ["language": language]
+        if let heard { fields["transcription"] = heard.request }
+        let request = (try? JSONSerialization.data(withJSONObject: fields)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
+        return await MusicCore.run {
             guard let opened = facadeObject(MusicCore.open(fileName: fileName, data: data, request: request)) else {
                 return .failure(EngraveError(message: "music-core did not answer."))
             }

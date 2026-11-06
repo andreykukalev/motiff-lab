@@ -1018,6 +1018,29 @@ public class MusicCoreFacadeTests
     }
 
     [Fact]
+    public void A_recording_heard_in_parts_opens_as_a_new_piece_from_the_recording()
+    {
+        ImportedPiece piece = PieceImporter.Import(FurElise, Fixture(FurElise)).Piece!;
+        string midi = Convert.ToBase64String(MidiExporter.Export(piece.Notes, [], piece.Meter, "heard"));
+        var facade = new MusicCoreFacade();
+
+        string request = $$$"""{"id": "p_heard", "now": "2026-11-06T12:00:00Z", "transcription": {"engine": "transkun", "milliseconds": 300000, "parts": [{"index": 0, "midi": "{{{midi}}}"}, {"index": 2, "midi": "{{{midi}}}"}]}}""";
+        JsonElement opened = Json(facade.Open("Recital.m4a", [], request));
+        Assert.Equal(1, opened.GetProperty("piece").GetInt32());
+        Assert.Equal("transcribed", opened.GetProperty("project").GetProperty("origin").GetString());
+
+        // Saved and opened again, it is the same transcribed project: its notes heard, its seams kept.
+        Project project = ProjectFile.Read(System.Text.Encoding.UTF8.GetBytes(facade.Call(1, "project.save")));
+        Assert.Equal("transkun", project.Transcription!.Engine);
+        Assert.Equal(2, project.Transcription.Seams.Count);
+        Assert.Equal("Recital.mid", project.FileName);
+        Assert.Equal(1, Json(new MusicCoreFacade().Open("Recital.motiff.json", System.Text.Encoding.UTF8.GetBytes(facade.Call(1, "project.save")))).GetProperty("piece").GetInt32());
+
+        JsonElement failed = Json(facade.Open("Recital.m4a", [], """{"transcription": {"engine": "transkun", "milliseconds": 100000, "parts": []}}"""));
+        Assert.Equal("badRequest", failed.GetProperty("error").GetString());
+    }
+
+    [Fact]
     public void A_recording_heard_in_parts_is_joined_into_one_version()
     {
         (MusicCoreFacade facade, _) = Open("""{"id": "p_fur"}""");

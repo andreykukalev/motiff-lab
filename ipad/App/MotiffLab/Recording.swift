@@ -142,60 +142,117 @@ enum Transcriber {
     }
 }
 
-/// From a recording, in Other versions (0022; the web app's RecordingVersion): its sound read on the iPad and heard by
-/// Motiff Lab's scan server, up to 7 minutes, in parts of about two minutes; the notes heard become another version. It
-/// needs an account and Pro, offered here, and a switch to let the sound go.
-struct RecordingVersionSection: View {
-    @ObservedObject var score: ScoreController
-    @EnvironmentObject private var account: Account
-    let text: UIText
-    @State private var send = false
-    @State private var choosing = false
-    @State private var progress: String?
-    @State private var problem: String?
+/// A recording heard by Motiff Lab's scan server, part by part: what music-core needs to make notes of it, as a new piece
+/// (`open` with "transcription") or another version (`performance.add` with "parts").
+struct HeardRecording: Sendable {
+    let name: String
+    let engine: String
+    let milliseconds: Int64
+    let parts: [(index: Int, midi: Data)]
 
+    /// The longest stretch heard, from the start of the recording: 7 minutes.
+    static let most: Int64 = 420_000
+
+    /// The recording was longer than the 7 minutes heard.
+    var cut: Bool { milliseconds >= Self.most }
+
+    /// {"engine", "milliseconds", "parts": [{index, midi}]}, as the facade takes it.
+    var request: [String: Any] {
+        [
+            "engine": engine,
+            "milliseconds": milliseconds,
+            "parts": parts.map { ["index": $0.index, "midi": $0.midi.base64EncodedString()] as [String: Any] },
+        ]
+    }
+}
+
+/// Hearing a recording (0014): its sound read on the iPad, the parts music-core plans sent one after another to the scan
+/// server, and the notes heard in each kept for music-core to join.
+@MainActor
+enum RecordingHearing {
     /// The recordings the iPad can read the sound of: audio, and the sound of a video.
     static let recordings: [UTType] = [.audio, .movie]
 
+    /// The notes heard in the recording, or why there are none. `progress` tells what is happening.
+    static func hear(_ url: URL, account: Account, text: UIText, progress: (String) -> Void) async -> Result<HeardRecording, RecordingProblem> {
+        progress(text["transcribe.decoding"])
+        let lent = url.startAccessingSecurityScopedResource()
+        let most = HeardRecording.most
+        let sound = await Task.detached { RecordingSound.read(url, most: most) }.value
+        if lent { url.stopAccessingSecurityScopedResource() }
+        guard let sound, sound.milliseconds > 0 else { return .failure(RecordingProblem(text["transcribe.empty"])) }
+        let parts = await RecordingParts.plan(sound.milliseconds)
+        guard !parts.isEmpty else { return .failure(RecordingProblem(text["transcribe.failed"])) }
+        var heard: [(index: Int, midi: Data)] = []
+        var engine = "unknown engine"
+        for part in parts {
+            progress(parts.count > 1 ? text.format("transcribe.part", String(part.index + 1), String(parts.count)) : text["transcribe.busy"])
+            let wav = await Task.detached { sound.wav(from: part.sendFrom, to: part.sendTo) }.value
+            switch await Transcriber.hear(wav, account: account, text: text) {
+            case .notes(let midi, let by):
+                heard.append((part.index, midi))
+                engine = by
+            case .nothing where parts.count > 1:
+                continue
+            case .nothing:
+                return .failure(RecordingProblem(text["transcribe.failed"] + " " + text["transcribe.notHeardTip"]))
+            case .failed(let why):
+                return .failure(RecordingProblem(why))
+            }
+        }
+        guard !heard.isEmpty else { return .failure(RecordingProblem(text["transcribe.failed"] + " " + text["transcribe.notHeardTip"])) }
+        let name = url.deletingPathExtension().lastPathComponent
+        return .success(HeardRecording(name: name, engine: engine, milliseconds: sound.milliseconds, parts: heard))
+    }
+}
+
+struct RecordingProblem: Error, Sendable {
+    let message: String
+    init(_ message: String) { self.message = message }
+}
+
+/// Choosing a recording to be heard: what it needs first (Motiff Lab's scan server, an account, Pro, offered here),
+/// the switch that lets the sound go, and the button that picks the recording. Used to add a piece from a recording
+/// (the library's Add piece) and another version from one (Other versions, 0022).
+struct RecordingChooser: View {
+    @EnvironmentObject private var account: Account
+    let text: UIText
+    /// What the scan server does with the recording, said before the switch.
+    let line: String
+    let button: String
+    let hint: String
+    let progress: String?
+    let picked: (URL) -> Void
+    @State private var send = false
+    @State private var choosing = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
-            Text(text["version.recordingHeading"]).overline()
             if account.options.map({ URL(string: $0.scan)?.host == nil }) ?? true {
                 caption(text["version.recordingNoServer"])
             } else if account.player == nil {
                 caption(text["transcribe.signInPrompt"])
             } else if !account.allows(.transcribe) {
                 HStack(alignment: .firstTextBaseline, spacing: CGFloat.ds("s-2")) {
-                    Text("Pro")
-                        .font(DesignTokens.font(weight: 600, size: 12, relativeTo: .caption))
-                        .foregroundStyle(Color.ds("plum"))
-                        .padding(.horizontal, CGFloat.ds("s-2"))
-                        .background(Color.ds("plum-tint"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-xs")))
+                    ProTag()
                     caption(text["transcribe.proPrompt"])
                 }
             } else {
-                caption(text["version.recordingLineDevice"])
+                caption(line)
                 Toggle(text["transcribe.sendHosted"], isOn: $send)
                     .dsType(.label)
                     .foregroundStyle(Color.ds("ink"))
                     .tint(Color.ds("accent"))
                     .disabled(progress != nil)
-                Button(progress ?? text["version.addRecording"]) { choosing = true }
+                Button(progress ?? button) { choosing = true }
                     .buttonStyle(DSButtonStyle(kind: .secondary))
                     .disabled(!send || progress != nil)
-                    .accessibilityHint(text["version.chooseRecording"])
-            }
-            if let problem {
-                Text(problem)
-                    .dsType(.caption)
-                    .foregroundStyle(Color.ds("danger"))
-                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityHint(hint)
             }
         }
-        .padding(.top, CGFloat.ds("s-2"))
-        .fileImporter(isPresented: $choosing, allowedContentTypes: Self.recordings) { result in
+        .fileImporter(isPresented: $choosing, allowedContentTypes: RecordingHearing.recordings) { result in
             guard case .success(let url) = result else { return }
-            Task { await hear(url) }
+            picked(url)
         }
     }
 
@@ -205,50 +262,61 @@ struct RecordingVersionSection: View {
             .foregroundStyle(Color.ds("ink-2"))
             .fixedSize(horizontal: false, vertical: true)
     }
+}
 
-    /// Reads the recording's sound, plans its parts, sends each to be heard and gives the notes to music-core.
-    private func hear(_ url: URL) async {
-        problem = nil
-        progress = text["transcribe.decoding"]
-        defer { progress = nil }
-        let lent = url.startAccessingSecurityScopedResource()
-        let most = 420_000 as Int64
-        let sound = await Task.detached { RecordingSound.read(url, most: most) }.value
-        if lent { url.stopAccessingSecurityScopedResource() }
-        guard let sound, sound.milliseconds > 0 else {
-            problem = text["transcribe.empty"]
-            return
-        }
-        let parts = await RecordingParts.plan(sound.milliseconds)
-        guard !parts.isEmpty else {
-            problem = text["transcribe.failed"]
-            return
-        }
-        var heard: [(index: Int, midi: Data)] = []
-        var engine = "unknown engine"
-        for part in parts {
-            progress = parts.count > 1 ? text.format("transcribe.part", String(part.index + 1), String(parts.count)) : text["transcribe.busy"]
-            let wav = await Task.detached { sound.wav(from: part.sendFrom, to: part.sendTo) }.value
-            switch await Transcriber.hear(wav, account: account, text: text) {
-            case .notes(let midi, let by):
-                heard.append((part.index, midi))
-                engine = by
-            case .nothing where parts.count > 1:
-                continue
-            case .nothing:
-                problem = text["transcribe.failed"] + " " + text["transcribe.notHeardTip"]
-                return
-            case .failed(let why):
-                problem = why
-                return
+/// Pro, in plum (0018): what Motiff Lab's server or AI does.
+struct ProTag: View {
+    var body: some View {
+        Text("Pro")
+            .font(DesignTokens.font(weight: 600, size: 12, relativeTo: .caption))
+            .foregroundStyle(Color.ds("plum"))
+            .padding(.horizontal, CGFloat.ds("s-2"))
+            .background(Color.ds("plum-tint"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-xs")))
+    }
+}
+
+/// From a recording, in Other versions (0022; the web app's RecordingVersion): its sound read on the iPad and heard by
+/// Motiff Lab's scan server, up to 7 minutes, in parts of about two minutes; the notes heard become another version. It
+/// needs an account and Pro, offered here, and a switch to let the sound go.
+struct RecordingVersionSection: View {
+    @ObservedObject var score: ScoreController
+    @EnvironmentObject private var account: Account
+    let text: UIText
+    @State private var progress: String?
+    @State private var problem: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+            Text(text["version.recordingHeading"]).overline()
+            RecordingChooser(
+                text: text,
+                line: text["version.recordingLineDevice"],
+                button: text["version.addRecording"],
+                hint: text["version.chooseRecording"],
+                progress: progress
+            ) { url in
+                Task { await hear(url) }
+            }
+            if let problem {
+                Text(problem)
+                    .dsType(.caption)
+                    .foregroundStyle(Color.ds("danger"))
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
-        guard !heard.isEmpty else {
-            problem = text["transcribe.failed"] + " " + text["transcribe.notHeardTip"]
-            return
+        .padding(.top, CGFloat.ds("s-2"))
+    }
+
+    /// Hears the recording and gives the notes to music-core as another version.
+    private func hear(_ url: URL) async {
+        problem = nil
+        defer { progress = nil }
+        switch await RecordingHearing.hear(url, account: account, text: text, progress: { progress = $0 }) {
+        case .success(let heard):
+            problem = await score.addRecordingVersion(heard)
+        case .failure(let failure):
+            problem = failure.message
         }
-        let name = url.deletingPathExtension().lastPathComponent
-        problem = await score.addRecordingVersion(name: name, engine: engine, milliseconds: sound.milliseconds, parts: heard)
     }
 }
 

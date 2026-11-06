@@ -50,7 +50,9 @@ public sealed class MusicCoreFacade
     /// with the piece's number, its project and its summary. The request may carry "language" ("en"
     /// or "ru"), "id" for the new project and "now" (ISO 8601) for its creation time. A PDF, or the
     /// project file of a PDF piece, opens as a PDF piece (0023): the answer has "document" in place of
-    /// "summary", and only the document's calls work on it.
+    /// "summary", and only the document's calls work on it. With "transcription" ({"engine", "milliseconds", "parts"}, the
+    /// notes a recording's parts were heard as, as performance.add takes them) the data is not read: the new project is
+    /// the recording's notes, worked out as the web app works them out (0014, 0016).
     /// </summary>
     public string Open(string fileName, ReadOnlySpan<byte> data, string? request = null)
     {
@@ -65,6 +67,18 @@ public sealed class MusicCoreFacade
             byte[] bytes = data.ToArray();
             int number = _next;
             string id = fields.Text("id") ?? string.Create(CultureInfo.InvariantCulture, $"p_{number:0000}");
+            if (fields.Has("transcription"))
+            {
+                OpenPiece heard = OpenPiece.Transcribe(id, fileName, fields.Object("transcription"), words, now);
+                _pieces[number] = heard;
+                _next++;
+                return Answer.Write(json =>
+                {
+                    json.WriteNumber("piece", number);
+                    heard.Summary(json);
+                });
+            }
+
             if (IsPdf(fileName, bytes) || (IsProjectFile(fileName, bytes) && ReadDocument(bytes) is not null))
             {
                 OpenDocument document = IsPdf(fileName, bytes) ? OpenDocument.Create(id, fileName, bytes, words, now) : OpenDocument.Open(ReadDocument(bytes)!);

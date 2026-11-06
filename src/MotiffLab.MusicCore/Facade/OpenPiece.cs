@@ -86,6 +86,35 @@ internal sealed partial class OpenPiece
         return new OpenPiece(Project.Create(id, fileName, data, now), piece, piece.Notes, words);
     }
 
+    /// <summary>
+    /// A new project from a recording heard in parts (0014, 0016), as the web app makes one: the parts' notes joined
+    /// ("milliseconds", "parts" as for performance.add), marked detected, written in the bars worked out from them when
+    /// some fit, with the transcription's engine ("engine"), its seams and the Check flags it raises.
+    /// </summary>
+    public static OpenPiece Transcribe(string id, string fileName, Request heard, Words words, DateTimeOffset now)
+    {
+        byte[] midi = JoinedParts(heard);
+        string name = Path.ChangeExtension(string.IsNullOrWhiteSpace(fileName) ? "recording" : fileName, ".mid");
+        PieceImportResult result = PieceImporter.Import(name, midi);
+        if (result.Piece is not { } imported || imported.Midi is null)
+        {
+            ImportRejection? rejection = result.Rejection;
+            throw new FacadeException("import", rejection is null ? "The notes heard could not be read." : $"{rejection.Text(words)} {rejection.TipIn(words)}".Trim());
+        }
+
+        long milliseconds = heard.Long("milliseconds")!.Value;
+        IReadOnlyList<RecordingPart> plan = RecordingParts.Plan(milliseconds);
+        BarGrid? bars = BarGrid.Find(imported.Midi);
+        var origin = new TranscriptionOrigin(heard.Text("engine") ?? "unknown engine", bars)
+        {
+            Seams = plan.Count > 1 ? RecordingParts.Seams(plan) : [],
+        };
+        ImportedPiece piece = Transcribed.Mark(bars is { } grid ? grid.Apply(imported) : imported);
+        Project project = Project.Create(id, name, midi, now) with { Transcription = origin };
+        project = project with { Check = CheckFlag.FromTranscription(origin, midi, piece) };
+        return Open(ProjectFile.Write(project), words);
+    }
+
     /// <summary>A saved project, with its first motif back as the selection and that motif's variation.</summary>
     public static OpenPiece Open(byte[] projectFile, Words words)
     {
