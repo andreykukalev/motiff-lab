@@ -89,7 +89,7 @@ final class FacadeTests: XCTestCase {
         // The stream's words are the web app's, in both languages.
         for language in ["en", "ru"] {
             let text = UIText(language: language)
-            for key in Understanding.lenses.map({ "term.lens.\($0)" }) + ["term.certainty.detected", "term.certainty.inferred", "insights.evidence", "insights.all", "insights.hint", "understand.keyObservation"] {
+            for key in Understanding.lenses.map({ "term.lens.\($0)" }) + ["term.certainty.detected", "term.certainty.inferred", "insights.evidence", "insights.all", "insights.more", "insights.fewer", "understand.keyObservation"] {
                 XCTAssertNotEqual(text[key], key, "\(language): \(key)")
             }
         }
