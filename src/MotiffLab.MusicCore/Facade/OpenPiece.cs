@@ -128,7 +128,7 @@ internal sealed partial class OpenPiece
         "phrases.edit" => EditPhrases(request),
         "select" => Select(request),
         "understand" => Answer.Write(json => Answer.Understanding(json, Understood(), SentenceFacts(), fact => TryChips.Offer(fact.Id, Understood()))),
-        "circle" => Answer.Write(json => Answer.Circle(json, Circle(Understood()))),
+        "circle" => Answer.Write(json => Answer.Circle(json, Circle(Understood()), Understood().Selection.Span.Onset, Piece.End)),
         "experiments" => Answer.Write(json => Answer.Experiments(json, "experiments", Offered())),
         "experiments.start" => StartExperiment(request),
         "experiments.surprise" => Surprise(request),

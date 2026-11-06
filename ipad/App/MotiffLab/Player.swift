@@ -84,6 +84,12 @@ final class Player: ObservableObject {
     /// Loops a passage and plays it from its start, or stops looping (0018 section 7: a selection loops the selection).
     func setLoop(_ range: Range<Double>?) {
         loop = range
+        // Notes heard alone (the circle's scale) give way to the piece, or the variation, as any other loop comes.
+        if hearingAlone {
+            hearingAlone = false
+            send(.activeSources([hearing == .variation ? Self.variationSource : Self.pieceSource]))
+            send(.removeSource(Self.aloneSource))
+        }
         // Alternating is a loop of its own: another loop, or none, ends it and the original sounds on.
         if hearing == .alternate {
             hearing = .original
@@ -133,6 +139,10 @@ final class Player: ObservableObject {
     /// when it was still or elsewhere.
     func hear(_ next: Hearing, over range: Range<Double>) {
         guard next == .original || hasVariation else { return }
+        if hearingAlone {
+            hearingAlone = false
+            send(.removeSource(Self.aloneSource))
+        }
         hearing = next
         switch next {
         case .original:
@@ -151,6 +161,23 @@ final class Player: ObservableObject {
 
     private static let pieceSource = "piece"
     private static let variationSource = "variation"
+    private static let aloneSource = "alone"
+
+    /// Whether notes outside the piece are heard on their own, as the circle of fifths' scale.
+    private var hearingAlone = false
+
+    /// Hears notes on their own in place of the piece (the circle's Hear the scale), looping where they sound and playing
+    /// from their start; the next loop, or none, brings the piece back.
+    func hearAlone(_ notes: [PlaybackNote], over range: Range<Double>) {
+        setLoop(nil)
+        send(.source(id: Self.aloneSource, notes: notes))
+        send(.activeSources([Self.aloneSource]))
+        hearingAlone = true
+        loop = range
+        send(.loop(start: range.lowerBound, end: range.upperBound))
+        send(.seek(range.lowerBound))
+        if state == .stopped { send(.play) }
+    }
 
     /// The piece's notes again after they changed, as when bars of another version are taken into the score or restored
     /// (0022): the timeline and the notes are sent anew, and whatever plays or loops carries on.

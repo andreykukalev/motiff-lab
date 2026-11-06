@@ -104,6 +104,10 @@ public class KeyCircleTests
         Assert.Equal(480, notes[0].Span.Duration);
         Assert.Equal(960, notes[^1].Span.Duration);
         Assert.All(notes, note => Assert.StartsWith("circle_", note.Id, StringComparison.Ordinal));
+
+        // Near the end of the piece the scale starts early enough to end with it.
+        IReadOnlyList<MotiffLab.MusicCore.Events.Note> late = circle.ScaleNotes(new MotiffLab.MusicCore.Time.Tick(4000), new MotiffLab.MusicCore.Time.Tick(4800));
+        Assert.Equal(4800, late[^1].Span.End.Value);
     }
 
     [Fact]

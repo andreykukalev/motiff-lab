@@ -66,11 +66,18 @@ public sealed record KeyCircleView(
 {
     /// <summary>
     /// The scale as notes to hear, one beat each and the octave held for two, from <paramref name="at"/>: inferred, since
-    /// the app plays them, not the piece. Their ids start with "circle_".
+    /// the app plays them, not the piece. Their ids start with "circle_". With <paramref name="end"/>, the piece's end, they
+    /// start early enough to end with it when there is no room after <paramref name="at"/>.
     /// </summary>
-    public IReadOnlyList<Note> ScaleNotes(Tick at)
+    public IReadOnlyList<Note> ScaleNotes(Tick at, Tick? end = null)
     {
         long beat = CanonicalTime.TicksPerQuarter;
+        long length = (ScalePitches.Count + 1) * beat;
+        if (end is { } last && at.Value + length > last.Value)
+        {
+            at = new Tick(Math.Max(0, last.Value - length));
+        }
+
         return [.. ScalePitches.Select((pitch, index) => new Note
         {
             Id = $"circle_{index}",

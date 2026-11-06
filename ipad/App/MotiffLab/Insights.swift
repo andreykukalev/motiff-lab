@@ -109,9 +109,12 @@ final class InsightsController: ObservableObject {
         var fact: Fact
         /// The one place chosen, by its index; nil for all of them.
         var place: Int?
+        /// A place of the circle of fifths opened from the fact: a chord, or the notes outside the scale.
+        var custom: Fact.Place? = nil
 
         var places: [Fact.Place] {
-            place.map { [fact.places[$0]] } ?? fact.places
+            if let custom { return [custom] }
+            return place.map { [fact.places[$0]] } ?? fact.places
         }
     }
 
@@ -130,6 +133,10 @@ final class InsightsController: ObservableObject {
     @Published private(set) var trial: Trial?
     /// A way music-core is working out, by its id.
     @Published private(set) var starting: String?
+    /// The circle of fifths for the selection (facade `circle`), read when it is first opened.
+    @Published private(set) var circle: KeyCircle?
+    /// The fact whose row holds the circle, opened with On the circle; nil when it is closed.
+    @Published private(set) var circleFor: String?
 
     /// A way tried: the fact it came from, the way, what changed in music-core's words, where the variation ends, and
     /// whether it was kept.
@@ -147,6 +154,8 @@ final class InsightsController: ObservableObject {
     var variationReady: (@MainActor (_ notes: [PlaybackNote], _ end: Double) -> Void)?
     /// The variation left: the original sounds again.
     var variationLeft: (@MainActor () -> Void)?
+    /// Hear the scale on the circle: the scale's notes, looped where they sound.
+    var scaleReady: (@MainActor (_ notes: [PlaybackNote], _ range: Range<Double>) -> Void)?
 
     private var understood: ScoreSelection?
     private var piece: Int32 = 0
@@ -159,6 +168,8 @@ final class InsightsController: ObservableObject {
         chosen = nil
         evidence = []
         expanded = []
+        circle = nil
+        circleFor = nil
         tryOpen = []
         problem = nil
         // A variation belongs to the passage it was tried on.
@@ -199,6 +210,46 @@ final class InsightsController: ObservableObject {
 
     func clearChoice() {
         chosen = nil
+    }
+
+    /// The facts the circle of fifths opens from (the web app's InsightsStream): the key and the chords.
+    static func opensCircle(_ fact: Fact) -> Bool {
+        fact.id == "key" || fact.id == "harmony.chords"
+    }
+
+    /// On the circle: the circle opens in the fact's row, read from music-core the first time; pressed again, it closes.
+    func toggleCircle(_ fact: Fact) async {
+        if circleFor == fact.id {
+            circleFor = nil
+            return
+        }
+        circleFor = fact.id
+        guard circle == nil else { return }
+        let piece = piece
+        let selection = understood
+        let answer = await MusicCore.run { MusicCore.call(piece: piece, "circle") }
+        guard understood == selection else { return }
+        circle = KeyCircle(answer: answer)
+        if circle == nil {
+            circleFor = nil
+            problem = facadeObject(answer)?["message"] as? String
+        }
+    }
+
+    /// A chip of the circle: its notes are ringed and playback moves to them; pressed again, they are put away.
+    func chooseCirclePlace(_ place: Fact.Place, of fact: Fact) {
+        if chosen?.custom == place {
+            chosen = nil
+            return
+        }
+        chosen = Choice(fact: fact, custom: place)
+        placeChosen?(place.onset)
+    }
+
+    /// Hear the scale: the key's scale loops from the selection's start.
+    func hearScale() {
+        guard let circle, let range = circle.scaleRange else { return }
+        scaleReady?(circle.scale, range)
     }
 
     func toggleEvidence(_ fact: Fact) {
@@ -491,6 +542,15 @@ struct FactRow: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(evidence ? .isSelected : [])
+                if InsightsController.opensCircle(fact) {
+                    Button {
+                        Task { await insights.toggleCircle(fact) }
+                    } label: {
+                        Text(text["insights.onCircle"]).dsType(.label).foregroundStyle(Color.ds("accent-hover"))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(insights.circleFor == fact.id ? .isSelected : [])
+                }
             }
             if evidence {
                 if fact.brief != nil {
@@ -503,7 +563,7 @@ struct FactRow: View {
                         .foregroundStyle(Color.ds("ink-2"))
                 }
             }
-            if chosen {
+            if chosen, insights.chosen?.custom == nil, !fact.places.isEmpty {
                 FlowLayout(spacing: CGFloat.ds("s-2")) {
                     ForEach(Array(fact.places.enumerated()), id: \.offset) { index, place in
                         let on = insights.chosen?.place == index
@@ -517,6 +577,9 @@ struct FactRow: View {
                 }
                 .accessibilityElement(children: .contain)
                 .accessibilityLabel(text["understand.placesLabel"])
+            }
+            if insights.circleFor == fact.id, let circle = insights.circle {
+                KeyCircleCard(circle: circle, fact: fact, insights: insights, text: text)
             }
             if !fact.tries.isEmpty {
                 TryRow(fact: fact, insights: insights, text: text)

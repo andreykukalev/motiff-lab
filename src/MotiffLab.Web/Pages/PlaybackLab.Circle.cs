@@ -22,9 +22,7 @@ public partial class PlaybackLab
         }
 
         // The scale sounds where the selection starts, or ends with the piece when there is no room after it.
-        long length = circle.ScaleNotes(Tick.Zero) is { Count: > 0 } probe ? probe[^1].Span.End.Value : 0;
-        Tick at = new(Math.Max(0, Math.Min(selection.Span.Onset.Value, _score.End.Value - length)));
-        IReadOnlyList<Note> scale = circle.ScaleNotes(at);
+        IReadOnlyList<Note> scale = circle.ScaleNotes(selection.Span.Onset, _score.End);
         if (scale.Count == 0)
         {
             return;

@@ -252,6 +252,7 @@ public class MusicCoreFacadeTests
         Assert.InRange(circle.GetProperty("position").GetInt32(), 0, 11);
         Assert.Equal(4, circle.GetProperty("neighbours").GetArrayLength());
         Assert.Equal(8, circle.GetProperty("scale").GetArrayLength());
+        Assert.Equal(8, circle.GetProperty("scaleNotes").GetArrayLength());
         Assert.InRange(circle.GetProperty("lines").GetArrayLength(), 2, 3);
         Assert.False(string.IsNullOrEmpty(circle.GetProperty("name").GetString()));
     }

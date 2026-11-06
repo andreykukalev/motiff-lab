@@ -508,7 +508,7 @@ internal static partial class Answer
     /// the key that fits almost as well, its neighbours, the chords on the sectors of their roots, the notes outside the
     /// scale, the scale to hear and the lines that say what it shows; null when no key was read.
     /// </summary>
-    public static void Circle(Utf8JsonWriter json, KeyCircleView? circle)
+    public static void Circle(Utf8JsonWriter json, KeyCircleView? circle, Tick at = default, Tick? end = null)
     {
         if (circle is null)
         {
@@ -574,6 +574,17 @@ internal static partial class Answer
         }
 
         Numbers(json, "scale", circle.ScalePitches);
+        json.WriteStartArray("scaleNotes");
+        foreach (Note note in circle.ScaleNotes(at, end))
+        {
+            json.WriteStartObject();
+            json.WriteNumber("pitch", note.Pitch.MidiNumber);
+            json.WriteNumber("onset", note.Span.Onset.Value);
+            json.WriteNumber("end", note.Span.End.Value);
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
         Texts(json, "lines", circle.Lines);
         json.WriteEndObject();
     }

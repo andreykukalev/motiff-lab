@@ -274,6 +274,7 @@ struct ScoreScreen: View {
             Task { await heard?.reload(piece: id) }
         }
         insights.placeChosen = { [weak heard] tick in heard?.seek(to: tick) }
+        insights.scaleReady = { [weak heard] notes, range in heard?.hearAlone(notes, over: range) }
         // A way tried sounds at once, looping the selection to the variation's end, and the card in focus shows
         // it as the ossia; left, the original sounds again (0018 section 6).
         let tried = insights
