@@ -336,6 +336,9 @@ public class MusicCoreFacadeTests
             Assert.True(facts[0].TryGetProperty(field, out _), field);
         }
 
+        // A fact that lists what it counts carries its one-line brief for the stream.
+        Assert.Contains(facts, fact => fact.GetProperty("id").GetString() == "melody.line" && fact.TryGetProperty("brief", out JsonElement brief) && brief.GetString()!.Length > 0);
+
         Assert.True(understood.GetProperty("structure").TryGetProperty("recurrences", out _));
         Assert.True(understood.TryGetProperty("character", out _));
 

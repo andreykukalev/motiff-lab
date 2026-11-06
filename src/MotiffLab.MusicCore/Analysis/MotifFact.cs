@@ -85,12 +85,28 @@ public sealed record MotifFact(string Id, FactLens Lens, FactCertainty Certainty
     /// </summary>
     public IReadOnlyList<FactPlace> Places { get; init; } = [];
 
+    /// <summary>
+    /// The fact in one short line for the Insights stream, when <see cref="Text"/> lists what it counts (the notes, the
+    /// intervals, the onsets bar by bar): a statement that points at the notes rather than spelling them out, with the
+    /// listing kept in <see cref="Text"/> for the fact's Basis. Null when the text is already one short line. It states
+    /// nothing the text does not. A brief no shorter than the text is dropped, so a short listing reads in full.
+    /// </summary>
+    public string? Brief
+    {
+        get;
+        init => field = value is not null && value.Length < Text.Length ? value : null;
+    }
+
+    /// <summary>The line the stream shows: the brief when there is one, the text otherwise.</summary>
+    public string Claim => Brief ?? Text;
+
     public bool Equals(MotifFact? other) =>
         other is not null
         && Id == other.Id
         && Lens == other.Lens
         && Certainty == other.Certainty
         && Text == other.Text
+        && Brief == other.Brief
         && Basis == other.Basis
         && Places.SequenceEqual(other.Places);
 

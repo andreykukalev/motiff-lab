@@ -14,6 +14,18 @@ test("understand a phrase: highlight a fact's places, try a way and come back", 
     await expect(stream.locator(".lens-group.key .certainty")).toHaveCount(1);
     await expect(stream.locator(".lens-group").nth(1)).toBeVisible();
 
+    // Short statements (assessment items 16–20): a lens shows its strongest facts, the rest under "N more"; a fact that
+    // lists what it counts keeps the listing in its Evidence.
+    const rhythm = stream.locator(".lens-group").filter({ has: page.getByRole("heading", { name: /^Rhythm · / }) });
+    const rhythmFacts = rhythm.locator("article.fact-row");
+    if ((await rhythm.locator(".lens-more").count()) > 0) {
+        await expect(rhythmFacts).toHaveCount(3);
+        await rhythm.locator(".lens-more").click();
+        expect(await rhythmFacts.count()).toBeGreaterThan(3);
+        await rhythm.getByRole("button", { name: "Show fewer" }).click();
+        await expect(rhythmFacts).toHaveCount(3);
+    }
+
     // Every fact keeps its certainty and Evidence; the motif's return is a structure fact, inferred.
     const fact = stream.getByRole("button", { name: /The motif recurs once/ });
     const row = stream.locator("article.fact-row").filter({ has: page.getByRole("button", { name: /The motif recurs once/ }) });
@@ -58,6 +70,7 @@ test("understand a phrase: highlight a fact's places, try a way and come back", 
     await expect(page.locator(".selection-status")).toContainText("bar 1");
 
     // The experiment links back to its fact, which is chosen and rings its places on the score.
+    await card.getByText("About this idea").click();
     await card.getByRole("group", { name: "Rests on" }).getByRole("button", { name: /^6 notes in the melody/ }).click();
     await expect(melody).toHaveClass(/\bon\b/);
     await expect(highlighted.first()).toBeVisible();

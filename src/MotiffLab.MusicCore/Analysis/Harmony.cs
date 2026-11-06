@@ -286,6 +286,9 @@ public static class HarmonyAnalyzer
         };
     }
 
+    /// <summary>The chords a brief names by symbol, then "…".</summary>
+    private const int MaxBriefChords = 6;
+
     private static MotifFact ChordsFact(IReadOnlyList<ChordSpan> chords, MeterMap meter, MusicalKey spelling, Words w)
     {
         string[] named = [.. chords.Select(chord =>
@@ -309,8 +312,12 @@ public static class HarmonyAnalyzer
         }
 
         FactCertainty certainty = chords.Any(static chord => chord.Confidence < ClearConfidence) ? FactCertainty.Uncertain : FactCertainty.Inferred;
+        string symbols = string.Join(", ", chords.Take(MaxBriefChords).Select(chord => chord.Symbol(spelling))) + (chords.Count > MaxBriefChords ? " …" : "");
         return new MotifFact("harmony.chords", FactLens.Harmony, certainty, text, basis)
         {
+            Brief = w.IsRussian
+                ? $"{w.Count(chords.Count, "", "", "аккорд", "аккорда", "аккордов")}: {symbols}."
+                : $"{(chords.Count == 1 ? "1 chord" : $"{chords.Count} chords")}: {symbols}.",
             Places = [.. chords.Select(chord => new FactPlace($"{chord.Symbol(spelling)}, {From(chord.Span.Onset, meter, w)}", chord.Span, chord.NoteIds))],
         };
     }
@@ -326,6 +333,9 @@ public static class HarmonyAnalyzer
         string text = w.IsRussian
             ? $"Бас: {w.Count(bass.Count, "", "", "нота", "ноты", "нот")} — {line}."
             : $"The bass plays {(bass.Count == 1 ? "1 note" : $"{bass.Count} notes")}: {line}.";
+        string brief = w.IsRussian
+            ? $"Бас: {w.Count(bass.Count, "", "", "нота", "ноты", "нот")}"
+            : $"The bass plays {(bass.Count == 1 ? "1 note" : $"{bass.Count} notes")}";
         if (moves.Length > 0)
         {
             string[] kinds = [.. new[]
@@ -339,7 +349,10 @@ public static class HarmonyAnalyzer
             text += w.IsRussian
                 ? $" Из {w.Count(moves.Length, "", "", "хода", "ходов", "ходов")}: {w.Joined(kinds)}."
                 : $" Its {(moves.Length == 1 ? "move is" : $"{moves.Length} moves are")} {w.Joined(kinds)}.";
+            brief += $", {w.Joined(kinds)}";
         }
+
+        brief += ".";
 
         var places = new List<FactPlace> { FactPlace.Of(w.T("the bass line", "линия баса"), bass) };
         if (Pedal(bass) is { } held)
@@ -349,6 +362,7 @@ public static class HarmonyAnalyzer
             string pitch = spelling.Spell(held[0].Pitch.MidiNumber);
             string bars = first == last ? w.T($"bar {first}", $"такте {first}") : w.T($"bars {first}–{last}", $"тактах {first}–{last}");
             text += w.T($" It stays on {pitch} in {bars}.", $" В {bars} бас держится на {pitch}.");
+            brief += w.T($" It stays on {pitch} in {bars}.", $" В {bars} бас держится на {pitch}.");
             places.Add(FactPlace.Of(w.T($"stays on {pitch}", $"на {pitch}"), held));
         }
 
@@ -357,6 +371,7 @@ public static class HarmonyAnalyzer
             "Предположено: бас — самая низкая нота каждой атаки, среди нот левой руки, если они есть, без нот над ещё звучащей нотой баса."))
         {
             Places = places,
+            Brief = brief,
         };
     }
 
@@ -435,6 +450,11 @@ public static class HarmonyAnalyzer
             "Measured from the lowest to the highest note sounding in each chord the finder read.",
             "Измерено от самой низкой до самой высокой ноты, звучащей в каждом прочитанном аккорде."))
         {
+            Brief = spreads.Length == 1 || Size(widest) == Size(narrowest)
+                ? null
+                : w.IsRussian
+                    ? $"В широком расположении, шире октавы, — {open} {w.OutOf(spreads.Length, "", "", "аккорда", "аккордов")}."
+                    : $"{open} of {spreads.Length} chords are open, wider than an octave.",
             Places = spreads.Length == 1 || Size(widest) == Size(narrowest)
                 ? [FactPlace.Of(Named(widest), [widest.Low, widest.High])]
                 : [FactPlace.Of(Named(widest), [widest.Low, widest.High]), FactPlace.Of(Named(narrowest), [narrowest.Low, narrowest.High])],
@@ -469,6 +489,11 @@ public static class HarmonyAnalyzer
             "Inferred from the chords read from the notes: a shared note is a pitch class in both chords.",
             "Предположено по аккордам, прочитанным из нот: общий звук — звуковысотный класс, входящий в оба аккорда."))
         {
+            Brief = sharing.Length == 0
+                ? null
+                : w.IsRussian
+                    ? $"Общие звуки у соседних аккордов — в {sharing.Length} {w.OutOf(pairs.Count, "", "", "смены", "смен")}."
+                    : $"Neighbouring chords share notes at {sharing.Length} of {(pairs.Count == 1 ? "1 change" : $"{pairs.Count} changes")}.",
             Places = [.. sharing.Select(pair => new FactPlace(
                 $"{Pair(pair)}, {From(pair.To.Span.Onset, meter, w)}",
                 TickSpan.FromBounds(pair.From.Span.Onset, pair.To.Span.End),

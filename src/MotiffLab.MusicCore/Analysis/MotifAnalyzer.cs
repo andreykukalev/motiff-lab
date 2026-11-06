@@ -171,6 +171,9 @@ public static partial class MotifAnalyzer
                 w.IsRussian ? $"{lineBasis} Ноты названы для тональности {keyName}." : $"{lineBasis} Spelled for {keyName}.")
             {
                 Places = [FactPlace.Of(topNotes ? w.T("the top line", "верхний голос") : w.T("the melody", "мелодия"), line)],
+                Brief = w.IsRussian
+                    ? $"{w.Count(line.Length, "", "", "нота", "ноты", "нот")} в {lineName}."
+                    : $"{Count(line.Length, "note", "notes")} in the {lineName}.",
             },
         };
 
@@ -179,6 +182,7 @@ public static partial class MotifAnalyzer
             facts.Add(new MotifFact("melody.intervals", FactLens.Melody, lineCertainty, IntervalsText(intervals, w), $"{lineBasis} {w.T("Intervals are named by their size in semitones.", "Интервалы названы по размеру в полутонах.")}")
             {
                 Places = LeapPlaces(line, intervals, key.Key, w),
+                Brief = IntervalsSummary(intervals, w),
             });
             facts.Add(new MotifFact("melody.contour", FactLens.Melody, lineCertainty, ContourText(contour, intervals.Sum(), w), lineBasis)
             {
@@ -201,6 +205,7 @@ public static partial class MotifAnalyzer
                 .Select(note => (Note: note, Degree: Degree(note.Pitch, key.Key)))
                 .Where(entry => entry.Degree.Length > 1)
                 .Select(entry => FactPlace.Of($"{key.Key.Spell(entry.Note.Pitch.MidiNumber)}, {w.T("degree", "ступень")} {entry.Degree}", [entry.Note]))],
+            Brief = DegreesBrief(line, key.Key, keyName, w),
         });
 
         if (intervals.Length > 0)
@@ -371,11 +376,16 @@ public static partial class MotifAnalyzer
 
     private static string IntervalsText(int[] intervals, Words w)
     {
+        string list = string.Join(" ", intervals.Select(step => step > 0 ? $"+{step}" : step < 0 ? $"−{-step}" : "0"));
+        return $"{w.T("Intervals in semitones", "Интервалы в полутонах")}: {list}. {IntervalsSummary(intervals, w)}";
+    }
+
+    /// <summary>The intervals counted, without the list: "7 steps, 10 leaps. Largest leap: a major 6th down."</summary>
+    private static string IntervalsSummary(int[] intervals, Words w)
+    {
         int steps = intervals.Count(step => Math.Abs(step) is 1 or 2);
         int leaps = intervals.Count(step => Math.Abs(step) > 2);
         int repeats = intervals.Count(step => step == 0);
-        string list = string.Join(" ", intervals.Select(step => step > 0 ? $"+{step}" : step < 0 ? $"−{-step}" : "0"));
-
         var summary = new List<string>();
         if (steps > 0)
         {
@@ -392,7 +402,7 @@ public static partial class MotifAnalyzer
             summary.Add(w.Count(repeats, "repeated note", "repeated notes", "повтор звука", "повтора звука", "повторов звука"));
         }
 
-        string text = $"{w.T("Intervals in semitones", "Интервалы в полутонах")}: {list}. {Words.Capitalize(string.Join(", ", summary))}.";
+        string text = $"{Words.Capitalize(string.Join(", ", summary))}.";
         if (leaps > 0)
         {
             int largest = intervals.OrderByDescending(Math.Abs).ThenByDescending(step => step).First();
@@ -402,6 +412,17 @@ public static partial class MotifAnalyzer
         }
 
         return text;
+    }
+
+    /// <summary>How many notes of the line lie outside the scale, the notes the fact's places ring; or that none does.</summary>
+    private static string DegreesBrief(Note[] line, MusicalKey key, string keyName, Words w)
+    {
+        int outside = line.Count(note => Degree(note.Pitch, key).Length > 1);
+        return outside == 0
+            ? w.T($"Every note of the line is in the scale of {keyName}.", $"Все ноты линии — в звукоряде тональности {keyName}.")
+            : w.IsRussian
+                ? $"{Words.Capitalize(w.Count(outside, "", "", "нота", "ноты", "нот"))} вне звукоряда тональности {keyName}."
+                : $"{Count(outside, "note", "notes")} outside the scale of {keyName}.";
     }
 
     private static string ContourText(ContourStep[] contour, int netSemitones, Words w)
@@ -633,6 +654,7 @@ public static partial class MotifAnalyzer
         return new MotifFact("rhythm.grid", FactLens.Rhythm, FactCertainty.Detected, w.T($"Onsets fit {grid}. {beats} {startText}", $"Атаки укладываются в {grid}. {beats} {startText}"), w.T("Measured from the bar lines.", "Измерено от тактовых черт."))
         {
             Places = [startPlace],
+            Brief = w.T($"Onsets fit {grid}.", $"Атаки укладываются в {grid}."),
         };
     }
 

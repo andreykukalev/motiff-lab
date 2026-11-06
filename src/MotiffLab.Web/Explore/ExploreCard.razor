@@ -14,8 +14,6 @@
     <section class="explore" aria-label="@experiment.Title">
         <div class="experiment">
             <h3>@experiment.Title</h3>
-            <p>@experiment.Change</p>
-            <p class="question">@experiment.Question</p>
             <p class="passage">@Text[trial.Elsewhere ? "explore.motifReturn" : State.Selection.Level == SelectionLevel.Sentence ? "explore.selectedSentence" : "explore.selectedPhrase"] · @Bars(experiment.Passage.FirstBar, experiment.Passage.LastBar)</p>
             @if (experiment.Alternatives.Count > 1)
             {
@@ -28,7 +26,6 @@
                     }
                 </div>
             }
-            <p class="caption">@Text.Format("explore.keeps", trial.Current.Keeps)</p>
             @if (Explanation is not null)
             {
                 <p class="what-changed" aria-live="polite"><strong>@Text["explore.whatChanged"]</strong> @Explanation</p>
@@ -51,18 +48,26 @@
                     }
                 </div>
             }
-            <p class="focus"><strong>@Text["explore.atThePiano"]</strong> @experiment.ListeningFocus</p>
-            @if (RestsOn(trial) is { Length: > 0 } facts)
-            {
-                @* The facts the experiment cites (#25), each ringing its places on the score. *@
-                <div class="rests-on" role="group" aria-label="@Text["explore.restsOnLabel"]">
-                    <span class="caption">@Text["explore.restsOn"]</span>
-                    @foreach (MotifFact fact in facts)
-                    {
-                        <button class="link fact-link" @onclick="() => FactChosen.InvokeAsync(fact)" title="@Text["explore.factHint"]">@fact.Text</button>
-                    }
-                </div>
-            }
+            @* The sound comes first and the words on request (design/kit/docs/01-ux-concept.md; assessment items 16–20): the
+               idea, its question, what it keeps, what to listen for and the facts it rests on open under About this idea. *@
+            <details class="about-try">
+                <summary>@Text["explore.about"]</summary>
+                <p>@experiment.Change</p>
+                <p class="question">@experiment.Question</p>
+                <p class="caption">@Text.Format("explore.keeps", trial.Current.Keeps)</p>
+                <p class="focus"><strong>@Text["explore.atThePiano"]</strong> @experiment.ListeningFocus</p>
+                @if (RestsOn(trial) is { Length: > 0 } facts)
+                {
+                    @* The facts the experiment cites (#25), each ringing its places on the score. *@
+                    <div class="rests-on" role="group" aria-label="@Text["explore.restsOnLabel"]">
+                        <span class="caption">@Text["explore.restsOn"]</span>
+                        @foreach (MotifFact fact in facts)
+                        {
+                            <button class="link fact-link" @onclick="() => FactChosen.InvokeAsync(fact)" title="@Text["explore.factHint"]">@fact.Claim</button>
+                        }
+                    </div>
+                }
+            </details>
 
             <div class="row actions">
                 @if (trial.Kept)

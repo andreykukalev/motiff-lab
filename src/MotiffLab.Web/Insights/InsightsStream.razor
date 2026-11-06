@@ -49,7 +49,7 @@
     {
         @* A fact about the passage an experiment was offered for, when the selection moved on (the motif's return). *@
         <div class="highlighted" role="group" aria-label="@Text["understand.highlightedLabel"]">
-            <p aria-live="polite"><strong>@Text["understand.highlighted"]</strong> @chosen.Fact.Text</p>
+            <p aria-live="polite"><strong>@Text["understand.highlighted"]</strong> @chosen.Fact.Claim</p>
             <p class="caption">@Text["understand.offeredFor"]</p>
             @PlaceChips(chosen.Fact)
             <button class="link" @onclick="() => Choose.InvokeAsync(null)">@Text["understand.clear"]</button>
@@ -88,17 +88,27 @@
 
     @foreach (FactLens lens in Lenses.Where(lens => _lens is null || _lens == lens))
     {
-        MotifFact[] facts = [.. Facts.Where(fact => fact.Lens == lens && fact != Key)];
-        if (facts.Length == 0)
+        IReadOnlyList<MotifFact> facts = LensFacts(lens);
+        if (facts.Count == 0)
         {
             continue;
         }
 
+        MotifFact[] shown = Visible(lens);
+        int hidden = facts.Count - shown.Length;
         <section class="lens-group" aria-label="@LensLabel(lens)">
-            <h3 class="overline">@Text.Format("insights.lensCount", LensLabel(lens), Text.Count("understand.facts", facts.Length))</h3>
-            @foreach (MotifFact fact in facts)
+            <h3 class="overline">@Text.Format("insights.lensCount", LensLabel(lens), Text.Count("understand.facts", facts.Count))</h3>
+            @foreach (MotifFact fact in shown)
             {
                 @FactRow(fact, Tries(fact), null)
+            }
+            @if (hidden > 0)
+            {
+                <button class="link lens-more" aria-expanded="false" @onclick="() => _expanded.Add(lens)">@Text.Format("insights.more", hidden)</button>
+            }
+            else if (_expanded.Contains(lens) && _lens != lens && facts.Count > PerLens)
+            {
+                <button class="link lens-more" aria-expanded="true" @onclick="() => _expanded.Remove(lens)">@Text["insights.fewer"]</button>
             }
         </section>
     }
@@ -138,6 +148,15 @@
 
     /// <summary>Whether the kept ideas are listed whole, to rename, note, export or delete.</summary>
     private bool _manage;
+
+    /// <summary>
+    /// The facts a lens shows before "N more" (assessment items 16–20; design/kit/docs/01-ux-concept.md, Insights): short
+    /// statements that point at the notes, the strongest two or three of each lens, the rest a tap away.
+    /// </summary>
+    private const int PerLens = 3;
+
+    /// <summary>The lenses the player opened whole with "N more".</summary>
+    private readonly HashSet<FactLens> _expanded = [];
 
     [CascadingParameter]
     public WorkspaceState State { get; set; } = null!;
@@ -210,13 +229,31 @@
     /// <summary>The facts in the order the stream shows them: the one to hear first, then by lens.</summary>
     private IEnumerable<MotifFact> ShownFacts =>
         (Key is { } key && Shows(key) ? [key] : Array.Empty<MotifFact>())
-            .Concat(Lenses.Where(lens => _lens is null || _lens == lens).SelectMany(lens => Facts.Where(fact => fact.Lens == lens && fact != Key)));
+            .Concat(Lenses.Where(lens => _lens is null || _lens == lens).SelectMany(Visible));
+
+    /// <summary>A lens's facts, the one to hear first left out, in music-core's order for the stream.</summary>
+    private IReadOnlyList<MotifFact> LensFacts(FactLens lens) => FactRanking.InStream([.. Facts.Where(fact => fact.Lens == lens && fact != Key)]);
+
+    /// <summary>
+    /// The facts of a lens the stream shows: all of them when the lens is opened whole or is the one filtered to;
+    /// otherwise the first <see cref="PerLens"/>, with the fact chosen on the score and the one holding the experiment
+    /// tried, wherever they rank, so neither disappears.
+    /// </summary>
+    private MotifFact[] Visible(FactLens lens)
+    {
+        IReadOnlyList<MotifFact> facts = LensFacts(lens);
+        return _lens == lens || _expanded.Contains(lens) || facts.Count <= PerLens
+            ? [.. facts]
+            : [.. facts.Where((fact, i) => i < PerLens || Chosen?.Fact == fact || HoldsTrial(fact))];
+    }
+
+    private bool HoldsTrial(MotifFact fact) => Trial is { } trial && Tries(fact).Any(experiment => experiment.Id == trial.Experiment.Id);
 
     /// <summary>The fact's Try button: the experiment music-core built for its kind, if any.</summary>
     private IReadOnlyList<Experiment> Tries(MotifFact fact) => ExperimentCatalogue.RestingOn(FactOffers, fact.Id);
 
     private RenderFragment FactRow(MotifFact fact, IReadOnlyList<Experiment> tries, string? why) =>
-        @<article class="fact-row @(Chosen?.Fact == fact ? "on" : null)" aria-label="@fact.Text">
+        @<article class="fact-row @(Chosen?.Fact == fact ? "on" : null)" aria-label="@fact.Claim">
             @{
                 bool chosen = Chosen?.Fact == fact;
                 bool evidence = _evidence.Contains(fact.Id);
@@ -225,11 +262,11 @@
             @if (fact.Places.Count > 0)
             {
                 <button class="claim" aria-pressed="@(chosen ? "true" : "false")" title="@Text["insights.claimHint"]"
-                        @onclick="() => Choose.InvokeAsync(chosen ? null : new FactChoice(fact))">@fact.Text</button>
+                        @onclick="() => Choose.InvokeAsync(chosen ? null : new FactChoice(fact))">@fact.Claim</button>
             }
             else
             {
-                <p class="claim">@fact.Text</p>
+                <p class="claim">@fact.Claim</p>
             }
             <div class="caption-row">
                 <span class="tag certainty @fact.Certainty.ToString().ToLowerInvariant()">@CertaintyLabel(fact.Certainty)</span>
@@ -241,6 +278,11 @@
             </div>
             @if (evidence)
             {
+                @if (fact.Brief is not null)
+                {
+                    @* The listing the short line stands for: the notes, the intervals, the onsets bar by bar. *@
+                    <p class="basis detail">@fact.Text</p>
+                }
                 <p class="basis">@fact.Basis</p>
                 @if (why is not null)
                 {
@@ -313,6 +355,8 @@
         {
             _lens = null;
         }
+
+        _expanded.RemoveWhere(lens => !Facts.Any(fact => fact.Lens == lens));
 
     }
 

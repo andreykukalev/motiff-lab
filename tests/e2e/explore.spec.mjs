@@ -26,7 +26,10 @@ test("a fact's Try button opens its ways; one is heard, kept, another tried and 
     await expect(card.locator("h3")).toHaveText("Try a variation");
     await expect(card.locator(".passage")).toHaveText("Selected phrase · bar 2");
     await expect(card.locator(".choices button")).toHaveText(["Held chord", "Repeated chord in 8ths"]);
-    await expect(card.locator(".caption").first()).toHaveText("Keeps the melody.");
+    // The card sounds first; the idea and what it keeps are in About this idea.
+    await expect(card.getByText("Keeps the melody.")).toBeHidden();
+    await card.getByText("About this idea").click();
+    await expect(card.locator(".about-try .caption").first()).toHaveText("Keeps the melody.");
     await expect.poll(() => heardChoice(page)).toBe("Variation");
     await expect(compare.getByRole("button", { name: "Variation", exact: true })).toHaveAttribute("aria-pressed", "true");
     await compare.getByRole("button", { name: "Original", exact: true }).click();

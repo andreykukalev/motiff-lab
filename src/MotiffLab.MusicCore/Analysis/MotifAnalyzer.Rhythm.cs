@@ -57,23 +57,27 @@ public static partial class MotifAnalyzer
 
         string text = $"{w.T("Onsets per beat, bar by bar", "Атак на долю, по тактам")}: {perBar}.";
         IGrouping<int, int> common = counts.GroupBy(count => count).OrderByDescending(group => group.Count()).ThenByDescending(group => group.Key).First();
+        string brief = w.IsRussian ? $"Атак на долю: от {counts.Min()} до {counts.Max()}." : $"From {counts.Min()} to {counts.Max()} onsets per beat.";
         if (common.Count() == counts.Length && counts.Length > 1)
         {
-            text += w.IsRussian ? $" В каждой доле {BeatSplitRussian(common.Key)}." : $" Every beat {BeatSplit(common.Key, plural: false)}.";
+            brief = w.IsRussian ? $"В каждой доле {BeatSplitRussian(common.Key)}." : $"Every beat {BeatSplit(common.Key, plural: false)}.";
+            text += " " + brief;
         }
         else if (common.Count() * 2 > counts.Length)
         {
-            text += w.IsRussian
-                ? $" В большинстве долей {BeatSplitRussian(common.Key)} ({common.Count()} из {counts.Length})."
-                : $" Most beats {BeatSplit(common.Key, plural: true)} ({common.Count()} of {counts.Length}).";
+            brief = w.IsRussian
+                ? $"В большинстве долей {BeatSplitRussian(common.Key)} ({common.Count()} из {counts.Length})."
+                : $"Most beats {BeatSplit(common.Key, plural: true)} ({common.Count()} of {counts.Length}).";
+            text += " " + brief;
         }
 
         string basis = w.T(
             "Counted per beat of the time signature, from the bar lines; notes that start together count as one onset.",
             "Посчитано по долям размера, от тактовых черт; ноты, начинающиеся вместе, считаются одной атакой.");
-        return offGrid
+        MotifFact fact = offGrid
             ? new MotifFact("rhythm.grouping", FactLens.Rhythm, FactCertainty.Uncertain, text, basis + PerformanceBasis(w))
             : new MotifFact("rhythm.grouping", FactLens.Rhythm, FactCertainty.Detected, text, basis);
+        return counts.Length == 1 ? fact : fact with { Brief = brief };
     }
 
     private static string BeatSplit(int onsets, bool plural) => (onsets switch
@@ -112,7 +116,13 @@ public static partial class MotifAnalyzer
         MotifFact fact = offGrid
             ? new MotifFact("rhythm.syncopation", FactLens.Rhythm, FactCertainty.Uncertain, text, SyncopationBasis(w) + PerformanceBasis(w))
             : new MotifFact("rhythm.syncopation", FactLens.Rhythm, FactCertainty.Detected, text, SyncopationBasis(w));
-        return fact with { Places = found };
+        return fact with
+        {
+            Places = found,
+            Brief = found.Count == 0
+                ? w.T("No syncopation.", "Синкоп нет.")
+                : $"{Words.Capitalize(w.Count(found.Count, "syncopation", "syncopations", "синкопа", "синкопы", "синкоп"))}.",
+        };
     }
 
     /// <summary>
@@ -177,6 +187,11 @@ public static partial class MotifAnalyzer
             "Прочитано по знакам акцента в файле (> акцент, ^ сильный акцент); громкость нот не учитывается."))
         {
             Places = places,
+            Brief = accented.Count == 0
+                ? null
+                : w.IsRussian
+                    ? $"Акценты отмечены на {accented.Count} {w.OutOf(notes.Length, "", "", "ноты", "нот")}."
+                    : $"Accents marked on {accented.Count} of {Count(notes.Length, "note", "notes")}.",
         };
     }
 
@@ -266,7 +281,7 @@ public static partial class MotifAnalyzer
         MotifFact fact = offGrid
             ? new MotifFact("rhythm.patterns", FactLens.Rhythm, FactCertainty.Uncertain, text, basis + PerformanceBasis(w))
             : new MotifFact("rhythm.patterns", FactLens.Rhythm, FactCertainty.Detected, text, basis);
-        return fact with { Places = places };
+        return fact with { Places = places, Brief = sentences.Count > 1 ? sentences[0] : null };
     }
 
     /// <summary>A bar or a beat as a place: its own span, with the notes that start in it.</summary>
