@@ -3,9 +3,9 @@ using MotiffLab.MusicCore.Projects;
 namespace MotiffLab.Api;
 
 /// <summary>
-/// Where a player's projects are kept: one document per project, in the player's own partition. The project
+/// Where a player's projects and profile are kept: one document per project, in the player's own partition. The project
 /// file (with its sessions, observations and source) is stored packed; the summary is kept beside it so a list
-/// never loads the files.
+/// never loads the files. The profile (the name and photo the player chose) is one more document in the same partition.
 /// </summary>
 internal interface IProjectStore
 {
@@ -22,9 +22,18 @@ internal interface IProjectStore
     /// <summary>False when the player has no project with this id.</summary>
     Task<bool> DeleteAsync(string ownerId, string id, CancellationToken cancellationToken);
 
-    /// <summary>Deletes everything the player keeps here, and returns how many projects that was.</summary>
+    /// <summary>Deletes everything the player keeps here, their profile too, and returns how many projects that was.</summary>
     Task<int> DeleteAllAsync(string ownerId, CancellationToken cancellationToken);
+
+    /// <summary>The name and photo the player chose, or null when they have chosen none.</summary>
+    Task<StoredProfile?> GetProfileAsync(string ownerId, CancellationToken cancellationToken);
+
+    /// <summary>Keeps the player's name and photo, replacing what was kept.</summary>
+    Task PutProfileAsync(string ownerId, StoredProfile profile, CancellationToken cancellationToken);
 }
+
+/// <summary>The name a player chose to be shown, and their photo as a data URL; either may be null.</summary>
+internal sealed record StoredProfile(string? Name, string? Photo);
 
 /// <summary>A row of the player's project list.</summary>
 internal sealed record StoredSummary(

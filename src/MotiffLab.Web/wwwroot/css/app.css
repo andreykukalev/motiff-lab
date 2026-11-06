@@ -1930,7 +1930,7 @@ h1, h2, .app-title strong {
     margin-top: 0;
 }
 
-.account-panel button, .lab .sign-in-prompt button {
+.account-panel button, .account-panel .file, .lab .sign-in-prompt button {
     min-height: 2.75rem;
 }
 
@@ -1961,6 +1961,53 @@ h1, h2, .app-title strong {
     min-width: 0;
     margin: 0;
     overflow-wrap: anywhere;
+}
+
+/* The avatar shows the player's photo when their profile has one, cut to the circle. */
+.lab .avatar {
+    overflow: hidden;
+}
+
+.lab .avatar .avatar-photo {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Editing the profile (Andrei, 2026-11-06): the name, the photo beside its preview, Save and Cancel. */
+.account-panel .edit-profile {
+    align-self: flex-start;
+    margin-top: var(--s-2);
+}
+
+.account-panel .profile-edit {
+    display: grid;
+    gap: var(--s-2);
+    margin-top: var(--s-3);
+    padding-top: var(--s-3);
+    border-top: 1px solid var(--hairline);
+}
+
+.account-panel .profile-edit .field {
+    display: grid;
+    gap: var(--s-1);
+}
+
+.account-panel .profile-photo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-3);
+}
+
+.account-panel .profile-photo .choose-photo {
+    position: relative;
+    cursor: pointer;
+}
+
+.account-panel .profile-photo .choose-photo:focus-within {
+    box-shadow: var(--focus-ring);
 }
 
 .account-panel .account-head .who .meta {
@@ -2051,7 +2098,8 @@ h1, h2, .app-title strong {
     flex: 1 1 16rem;
 }
 
-.account-panel input[type=url] {
+.account-panel input[type=url],
+.account-panel .profile-edit input[type=text] {
     box-sizing: border-box;
     width: 100%;
     min-height: 2.75rem;

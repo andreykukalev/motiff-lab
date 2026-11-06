@@ -1,0 +1,19 @@
+@* The player's picture inside an avatar (0018 section 9, "Account"): the photo they chose for their profile, else the first
+   letter of their name on cobalt. *@
+@if (Photo is not null)
+{
+    <img class="avatar-photo" src="@Photo" alt="" />
+}
+else
+{
+    @AccountButton.Initial(Name)
+}
+
+@code {
+    [Parameter]
+    public string? Name { get; set; }
+
+    /// <summary>The profile's photo, a data URL, or null.</summary>
+    [Parameter]
+    public string? Photo { get; set; }
+}

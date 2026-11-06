@@ -14,6 +14,10 @@ internal sealed class CosmosProjectStore(Container container) : IProjectStore
 {
     private const string Kind = "project";
 
+    /// <summary>The profile's kind and id: not a project id (those have no dot), so no project can take its place.</summary>
+    private const string ProfileKind = "profile";
+    private const string ProfileId = "player.profile";
+
     public async Task<IReadOnlyList<StoredSummary>> ListAsync(string ownerId, CancellationToken cancellationToken)
     {
         // Every field but the file.
@@ -90,24 +94,44 @@ internal sealed class CosmosProjectStore(Container container) : IProjectStore
     public async Task<int> DeleteAllAsync(string ownerId, CancellationToken cancellationToken)
     {
         // A player's documents are few, so they are deleted one by one rather than by partition.
-        var ids = new List<string>();
+        var rows = new List<IdOnly>();
         using (FeedIterator<IdOnly> feed = container.GetItemQueryIterator<IdOnly>(
-            new QueryDefinition("SELECT c.id FROM c"),
+            new QueryDefinition("SELECT c.id, c.kind FROM c"),
             requestOptions: new QueryRequestOptions { PartitionKey = new PartitionKey(ownerId) }))
         {
             while (feed.HasMoreResults)
             {
-                ids.AddRange((await feed.ReadNextAsync(cancellationToken)).Select(row => row.Id));
+                rows.AddRange(await feed.ReadNextAsync(cancellationToken));
             }
         }
 
-        foreach (string id in ids)
+        foreach (IdOnly row in rows)
         {
-            await DeleteAsync(ownerId, id, cancellationToken);
+            await DeleteAsync(ownerId, row.Id, cancellationToken);
         }
 
-        return ids.Count;
+        return rows.Count(row => row.Kind == Kind);
     }
+
+    public async Task<StoredProfile?> GetProfileAsync(string ownerId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            ItemResponse<ProfileDocument> read = await container.ReadItemAsync<ProfileDocument>(ProfileId, new PartitionKey(ownerId), cancellationToken: cancellationToken);
+            return new StoredProfile(read.Resource.Name, read.Resource.Photo);
+        }
+        catch (CosmosException error) when (error.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+    }
+
+    public Task PutProfileAsync(string ownerId, StoredProfile profile, CancellationToken cancellationToken) =>
+        container.UpsertItemAsync(
+            new ProfileDocument(ProfileId, ownerId, ProfileKind, profile.Name, profile.Photo, DateTimeOffset.UtcNow),
+            new PartitionKey(ownerId),
+            new ItemRequestOptions { EnableContentResponseOnWrite = false },
+            cancellationToken);
 
     // Field names are camelCase through the Web serializer defaults: id, ownerId, kind, … file.
     private sealed record ProjectDocument(
@@ -123,5 +147,7 @@ internal sealed class CosmosProjectStore(Container container) : IProjectStore
         DateTimeOffset SavedAt,
         string File);
 
-    private sealed record IdOnly(string Id);
+    private sealed record ProfileDocument(string Id, string OwnerId, string Kind, string? Name, string? Photo, DateTimeOffset SavedAt);
+
+    private sealed record IdOnly(string Id, string? Kind);
 }

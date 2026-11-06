@@ -1,3 +1,4 @@
+import PhotosUI
 import SwiftUI
 
 /// The player's settings on this iPad (0018 section 10), as the web app's DeviceSettings keeps them: music-core's settings
@@ -319,6 +320,7 @@ struct SettingsSheet: View {
 struct AccountPanel: View {
     @ObservedObject var account: Account
     let text: UIText
+    @State private var editing = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-4")) {
@@ -326,10 +328,21 @@ struct AccountPanel: View {
                 Text(text["settings.accountWhy"]).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
             } else if let player = account.player {
                 Text(text["account.title"]).dsType(.label).foregroundStyle(Color.ds("ink"))
-                HStack {
-                    Text(text["settings.signedIn"]).dsType(.label).foregroundStyle(Color.ds("ink-2"))
+                HStack(spacing: CGFloat.ds("s-3")) {
+                    PlayerAvatar(name: account.shownName ?? player, image: account.profile?.image)
+                    VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
+                        Text(account.shownName ?? player).dsType(.label).foregroundStyle(Color.ds("ink"))
+                        Text(text["settings.signedIn"]).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
+                    }
                     Spacer()
-                    Text(player).dsType(.label).foregroundStyle(Color.ds("ink"))
+                }
+                .accessibilityElement(children: .combine)
+                // The profile (Andrei, 2026-11-06): the name and photo the player chose, kept with the account on any plan.
+                if editing {
+                    ProfileEditor(account: account, text: text) { editing = false }
+                } else {
+                    Button(text["profile.edit"]) { editing = true }
+                        .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
                 }
                 Button(text["settings.signOut"]) { account.signOut() }
                     .buttonStyle(DSButtonStyle(kind: .danger, compact: true))
@@ -376,6 +389,116 @@ struct AccountPanel: View {
     private var planName: String {
         guard let plan = account.plan else { return text["settings.planUnknown"] }
         return plan.isPro ? text["settings.planPro"] : text["settings.planFree"]
+    }
+}
+
+/// The player's picture (0018 section 9, "Account"): the photo they chose for their profile, else the first letter of
+/// their name on cobalt, as the web app's avatar shows it.
+struct PlayerAvatar: View {
+    let name: String
+    let image: UIImage?
+    var size: CGFloat = 44
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(uiImage: image).resizable().scaledToFill()
+            } else {
+                Text(Self.initial(name))
+                    .font(DesignTokens.font(weight: 700, size: size * 0.4))
+                    .foregroundStyle(Color.ds("on-accent"))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.ds("accent"))
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(Circle())
+        .accessibilityHidden(true)
+    }
+
+    /// The first letter or digit of the name, upper case; "?" when it has none (the web's AccountButton.Initial).
+    static func initial(_ name: String) -> String {
+        name.first(where: { $0.isLetter || $0.isNumber }).map { String($0).uppercased() } ?? "?"
+    }
+}
+
+/// Editing the profile (Andrei, 2026-11-06): the name, and a photo from the library cut to its middle square, saved with
+/// the account as the web app's account panel saves it.
+private struct ProfileEditor: View {
+    @ObservedObject var account: Account
+    let text: UIText
+    let done: () -> Void
+
+    @State private var name = ""
+    @State private var photo: String?
+    @State private var picked: PhotosPickerItem?
+    @State private var message: String?
+    @State private var saving = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+            Text(text["profile.name"]).dsType(.label).foregroundStyle(Color.ds("ink"))
+            TextField(account.player ?? "", text: $name)
+                .dsType(.body)
+                .textFieldStyle(.roundedBorder)
+                .textInputAutocapitalization(.words)
+                .submitLabel(.done)
+                .onChange(of: name) { _, value in
+                    if value.count > 60 { name = String(value.prefix(60)) }
+                }
+                .accessibilityLabel(text["profile.name"])
+            Text(text["profile.nameHint"]).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
+            HStack(spacing: CGFloat.ds("s-3")) {
+                PlayerAvatar(name: name.isEmpty ? (account.player ?? "") : name, image: PlayerProfile.image(photo))
+                PhotosPicker(selection: $picked, matching: .images) {
+                    Text(text["profile.choosePhoto"])
+                }
+                .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
+                if photo != nil {
+                    Button(text["profile.removePhoto"]) { photo = nil }
+                        .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
+                }
+            }
+            HStack(spacing: CGFloat.ds("s-2")) {
+                Button(text["profile.save"]) { Task { await save() } }
+                    .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
+                    .disabled(saving)
+                Button(text["common.cancel"], action: done)
+                    .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
+            }
+            if let message {
+                Text(message).dsType(.caption).foregroundStyle(Color.ds("danger"))
+            }
+        }
+        .onAppear {
+            name = account.profile?.name ?? ""
+            photo = account.profile?.photo
+        }
+        .onChange(of: picked) { _, item in
+            guard let item else { return }
+            Task { await choose(item) }
+        }
+    }
+
+    private func choose(_ item: PhotosPickerItem) async {
+        if let data = try? await item.loadTransferable(type: Data.self), let image = UIImage(data: data),
+           let square = PlayerProfile.squarePhoto(image) {
+            photo = square
+            message = nil
+        } else {
+            message = text["profile.photoUnreadable"]
+        }
+    }
+
+    private func save() async {
+        saving = true
+        defer { saving = false }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let problem = await account.saveProfile(name: trimmed.isEmpty ? nil : trimmed, photo: photo) {
+            message = problem
+        } else {
+            done()
+        }
     }
 }
 

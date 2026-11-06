@@ -86,6 +86,51 @@ struct AccountPlan: Equatable, Sendable {
     }
 }
 
+/// The name and photo the player chose for their profile (Andrei, 2026-11-06): the API's `/profile`, kept with the
+/// account on any plan, as the web app keeps it (Account/CloudAccount.cs). `{"name": "…" | null, "photo": "data:…" | null}`.
+struct PlayerProfile: Equatable, Sendable {
+    var name: String?
+    /// A data URL of a small square picture.
+    var photo: String?
+
+    static func read(_ data: Data) -> PlayerProfile? {
+        guard let answer = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        func text(_ key: String) -> String? {
+            guard let value = answer[key] as? String, !value.isEmpty else { return nil }
+            return value
+        }
+        return PlayerProfile(name: text("name"), photo: text("photo"))
+    }
+
+    /// The photo as a picture, or nil.
+    var image: UIImage? { Self.image(photo) }
+
+    static func image(_ photo: String?) -> UIImage? {
+        guard let photo, let comma = photo.firstIndex(of: ","),
+              let data = Data(base64Encoded: String(photo[photo.index(after: comma)...]))
+        else { return nil }
+        return UIImage(data: data)
+    }
+
+    /// The picture's middle square, 256 pixels across, as a JPEG data URL: the web app's size and quality
+    /// (Scripts/account/photo.ts), a few tens of kilobytes, so it travels inside the profile itself.
+    static func squarePhoto(_ image: UIImage, pixels: CGFloat = 256) -> String? {
+        let side = min(image.size.width, image.size.height)
+        guard side > 0 else { return nil }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        let scale = pixels / side
+        let width = image.size.width * scale
+        let height = image.size.height * scale
+        let square = UIGraphicsImageRenderer(size: CGSize(width: pixels, height: pixels), format: format).image { _ in
+            image.draw(in: CGRect(x: (pixels - width) / 2, y: (pixels - height) / 2, width: width, height: height))
+        }
+        guard let jpeg = square.jpegData(compressionQuality: 0.85) else { return nil }
+        return "data:image/jpeg;base64," + jpeg.base64EncodedString()
+    }
+}
+
 /// The player's account, when the app has sign-in: who is signed in, tokens for the API and the hosted scan server,
 /// and the plan the API answers. As in the web app (Account/CloudAccount.cs), a tester's choice of Pro or no Pro is kept
 /// on this device and sent with every request to the API and the scan server (`Motiff-Plan`), which trust it only from a
@@ -101,6 +146,8 @@ final class Account: ObservableObject {
     @Published private(set) var plan: AccountPlan?
     /// A tester's choice on this device; nil for the account's own plan.
     @Published private(set) var choice: Plan?
+    /// The name and photo the player chose; nil while signed out, before the API answers, or when it cannot be reached.
+    @Published private(set) var profile: PlayerProfile?
     @Published private(set) var busy = false
     @Published var problem: String?
 
@@ -121,6 +168,9 @@ final class Account: ObservableObject {
 
     /// False in a build without sign-in.
     var isAvailable: Bool { options != nil }
+
+    /// The name to show: the one the player chose, else the sign-in's; nil when nobody is signed in.
+    var shownName: String? { player.map { profile?.name ?? $0 } }
 
     /// MSAL for the tenant, made when first needed, so a failure shows on the sign-in button rather than hiding the
     /// account. Its token cache is in the keychain, which an unsigned build (the iPad workflow's simulator) may not have.
@@ -150,6 +200,7 @@ final class Account: ObservableObject {
         account = first
         player = defaults.string(forKey: Self.nameKey(first)) ?? Self.name(of: first, idToken: nil)
         await refreshPlan()
+        await refreshProfile()
     }
 
     /// Opens External ID's sign-in page in the app's language, or its sign-up form for a new player.
@@ -184,6 +235,7 @@ final class Account: ObservableObject {
             defaults.set(name, forKey: Self.nameKey(signedIn))
             plan = nil
             await refreshPlan()
+            await refreshProfile()
         } catch {
             if (error as NSError).domain == MSALErrorDomain, (error as NSError).code == MSALError.userCanceled.rawValue { return }
             problem = text["account.signInFailed"]
@@ -199,6 +251,7 @@ final class Account: ObservableObject {
         account = nil
         player = nil
         plan = nil
+        profile = nil
     }
 
     /// An access token for the scope without asking the player anything, or nil when there is none.
@@ -221,6 +274,34 @@ final class Account: ObservableObject {
 
     /// Whether the signed-in player may use the feature; false when signed out.
     func allows(_ feature: ProFeature) -> Bool { plan?.allows(feature) == true }
+
+    /// Asks the API for the player's profile again; it stays as it was when the API cannot be reached.
+    func refreshProfile() async {
+        guard let options, player != nil, let token = await token(options.apiScope),
+              let request = request(path: "profile", token: token)
+        else { return }
+        guard let answer = try? await session.data(for: request), (answer.1 as? HTTPURLResponse)?.statusCode == 200 else { return }
+        profile = PlayerProfile.read(answer.0)
+    }
+
+    /// Keeps the player's name and photo (nil clears either); nil when kept, else what went wrong in the player's words.
+    func saveProfile(name: String?, photo: String?) async -> String? {
+        guard let options, player != nil, let token = await token(options.apiScope),
+              var request = request(path: "profile", token: token)
+        else { return text["profile.notSaved"] }
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let body: [String: Any] = ["name": name.map { $0 as Any } ?? NSNull(), "photo": photo.map { $0 as Any } ?? NSNull()]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        guard let answer = try? await session.data(for: request), let status = (answer.1 as? HTTPURLResponse)?.statusCode else {
+            return text["profile.notSaved"]
+        }
+        guard status == 200, let saved = PlayerProfile.read(answer.0) else {
+            return text[status == 413 ? "profile.photoTooLarge" : "profile.notSaved"]
+        }
+        profile = saved
+        return nil
+    }
 
     /// Switches a tester between Pro and no Pro (nil: the account's own plan), and asks the API again.
     func choose(_ plan: Plan?) async {
