@@ -228,8 +228,10 @@ private struct CircleDrawing: View {
     }
 
     private func point(degrees: Double, _ radius: Double, _ unit: CGFloat, _ centre: CGPoint) -> CGPoint {
-        let angle = degrees * .pi / 180
-        return CGPoint(x: centre.x + radius * unit * sin(angle), y: centre.y - radius * unit * cos(angle))
+        let angle: Double = degrees * .pi / 180
+        let length = radius * Double(unit)
+        let x: Double = length * sin(angle), y: Double = length * cos(angle)
+        return CGPoint(x: centre.x + CGFloat(x), y: centre.y - CGFloat(y))
     }
 }
 
@@ -242,9 +244,11 @@ private struct SectorShape: Shape {
 
     func path(in rect: CGRect) -> Path {
         let middle = Double(position) * 30
-        let angles = stride(from: middle - 15, through: middle + 15, by: 2.5).map { $0 * .pi / 180 }
+        let angles: [Double] = stride(from: middle - 15, through: middle + 15, by: 2.5).map { $0 * .pi / 180 }
         func at(_ angle: Double, _ radius: CGFloat) -> CGPoint {
-            CGPoint(x: centre.x + radius * sin(angle), y: centre.y - radius * cos(angle))
+            let length = Double(radius)
+            let x: Double = length * sin(angle), y: Double = length * cos(angle)
+            return CGPoint(x: centre.x + CGFloat(x), y: centre.y - CGFloat(y))
         }
         var path = Path()
         path.move(to: at(angles[0], outer))
