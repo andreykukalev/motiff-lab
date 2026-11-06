@@ -1,9 +1,13 @@
 @using MotiffLab.Web.Localization
 @inject UiText Text
 
-@* The pen palette (0015, 0018 section 5) under the bar's Pen action: four inks, the highlighter and the eraser, undo and clear.
-   The score and a PDF's pages (0023) share it; each hands it the state of its own pencil layer. *@
+@* The pen palette (0015, 0018 section 5) under the bar's Pen action: the pencil and its four inks, the highlighter, the eraser,
+   the thickness of the tool that draws, undo and clear, and a cross that puts the tools away. The score and a PDF's pages (0023)
+   share it; each hands it the state of its own pencil layer. Testing (2026-11-06): the inks alone did not read as the way back
+   from the highlighter to the pencil, there was no thickness, and only the bar's Pen action closed the palette. *@
 <div class="pen-palette" role="toolbar" aria-label="@Text["pencil.label"]" data-keeps-selection>
+    <button class="it @(State.Tool == PenTool ? "on" : null)" aria-pressed="@(State.Tool == PenTool ? "true" : "false")"
+            @onclick="() => Act(SetTool, [PenTool, null])"><Icon Name="pen" Size="IconSize.Small" /> @Text["pencil.pen"]</button>
     @foreach ((string colour, string key) in s_penColours)
     {
         bool chosen = State.Tool == PenTool && State.Colour == colour;
@@ -15,6 +19,16 @@
             @onclick="() => Act(SetTool, [HighlighterTool, null])"><Icon Name="highlight" Size="IconSize.Small" /> @Text["pencil.highlighter"]</button>
     <button class="it @(State.Tool == EraserTool ? "on" : null)" aria-pressed="@(State.Tool == EraserTool ? "true" : "false")"
             @onclick="() => Act(SetTool, [EraserTool, null])">@Text["pencil.eraser"]</button>
+    <span class="div" aria-hidden="true"></span>
+    <div class="widths" role="radiogroup" aria-label="@Text["pencil.width"]">
+        @for (int i = 0; i < s_widths.Length; i++)
+        {
+            int width = i;
+            bool chosen = State.Tool != EraserTool && State.Width == width;
+            <button class="width w@(width) @(chosen ? "on" : null)" role="radio" aria-checked="@(chosen ? "true" : "false")" aria-label="@Text[s_widths[width]]" title="@Text[s_widths[width]]"
+                    @onclick="() => Act(SetWidth, [width])"><span aria-hidden="true"></span></button>
+        }
+    </div>
     <span class="div" aria-hidden="true"></span>
     <button class="it" @onclick="() => Act(UndoLast, [])" disabled="@(!State.CanUndo)"><Icon Name="undo" Size="IconSize.Small" /> @Text["pencil.undo"]</button>
     @* Undo brings a cleared page back, so nothing asks first. *@
@@ -28,6 +42,7 @@
     {
         <span class="caption">@Text.Format("pencil.hidden", State.Hidden)</span>
     }
+    <button class="close" aria-label="@Text["pencil.close"]" title="@Text["pencil.close"]" @onclick="() => Act(SetOn, [false])"><Icon Name="close" Size="IconSize.Small" /></button>
 </div>
 
 @code {
@@ -35,6 +50,11 @@
     private const string HighlighterTool = "highlighter";
     private const string EraserTool = "eraser";
     private const string SetTool = "setTool";
+    private const string SetWidth = "setWidth";
+    private const string SetOn = "setOn";
+
+    /// <summary>The three thicknesses, thin to thick (Scripts/score/pencil-marks.ts PEN_SIZES and HIGHLIGHTER_SIZES).</summary>
+    private static readonly string[] s_widths = ["pencil.widthThin", "pencil.widthMedium", "pencil.widthThick"];
     private const string UndoLast = "undoLast";
     private const string Clear = "clear";
 

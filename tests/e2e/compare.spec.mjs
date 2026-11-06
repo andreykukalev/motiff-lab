@@ -29,7 +29,7 @@ test("go back to the original, compare, and hear the two one after the other", a
     await original.click();
     await expect(original).toHaveAttribute("aria-pressed", "true");
     await expect.poll(() => heardChoice(page)).toBe("Original");
-    await expect.poll(() => scoreChoice(page)).toBe("Generated from the notes");
+    await expect.poll(() => scoreChoice(page)).toBe("As written");
     await expect(status).toContainText("Looping; only these notes play.");
     await expect(page.locator(".explore h3")).toHaveText("Try a variation");
 
@@ -50,7 +50,7 @@ test("go back to the original, compare, and hear the two one after the other", a
     await expect.poll(() => scoreChoice(page)).toBe("With the variation");
     await expect(selection).toContainText("Now the original.", { timeout: 20_000 });
     await expect(original).toHaveAttribute("aria-current", "true");
-    await expect.poll(() => scoreChoice(page)).toBe("Generated from the notes");
+    await expect.poll(() => scoreChoice(page)).toBe("As written");
 
     // Pressed again, the selection keeps looping what Hear says.
     await alternate.click();

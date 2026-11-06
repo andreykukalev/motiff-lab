@@ -154,8 +154,12 @@ final class InsightsController: ObservableObject {
     var variationReady: (@MainActor (_ notes: [PlaybackNote], _ end: Double) -> Void)?
     /// The variation left: the original sounds again.
     var variationLeft: (@MainActor () -> Void)?
-    /// Hear the scale on the circle: the scale's notes, looped where they sound.
+    /// Hear the scale on the circle: the scale's notes, played once where they sound.
     var scaleReady: (@MainActor (_ notes: [PlaybackNote], _ range: Range<Double>) -> Void)?
+    /// Stop the scale before its end.
+    var scaleStop: (@MainActor () -> Void)?
+    /// Whether the scale sounds now: its button then stops it.
+    @Published var scaleHeard = false
 
     private var understood: ScoreSelection?
     private var piece: Int32 = 0
@@ -247,7 +251,12 @@ final class InsightsController: ObservableObject {
     }
 
     /// Hear the scale: the key's scale loops from the selection's start.
+    /// Hear the scale, or stop it while it sounds (testing, 2026-11-06: it went round with no way to stop it).
     func hearScale() {
+        if scaleHeard {
+            scaleStop?()
+            return
+        }
         guard let circle, let range = circle.scaleRange else { return }
         scaleReady?(circle.scale, range)
     }

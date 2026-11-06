@@ -14,7 +14,7 @@ struct PageBookmarkEntry: Identifiable, Equatable, Sendable {
 /// music-core's `document` calls. Nothing on the pages is music the app knows, so nothing here plays or selects. The pen
 /// writes on the pages as on the score (PdfInk.swift): each stroke kept against its page, in the page's own spaces.
 @MainActor
-final class PdfController: NSObject, ObservableObject {
+final class PdfController: NSObject, ObservableObject, PenHolder {
     @Published private(set) var document: PDFDocument?
     /// The page under the bar, from 1, and the last page in view with two to a row.
     @Published private(set) var page = 0
@@ -45,6 +45,8 @@ final class PdfController: NSObject, ObservableObject {
     weak var view: PDFView?
     let canvas = PKCanvasView()
     var previousTool = ScoreController.Tool.eraser
+    @Published var penWidth = PenSizes.defaultWidth { didSet { applyTool() } }
+    @Published var highlighterWidth = PenSizes.defaultWidth { didSet { applyTool() } }
     var clearing = false
     /// The strokes added here, newest last, for Undo.
     var added: [String] = []
@@ -653,57 +655,36 @@ struct PdfMore: View {
     }
 }
 
-/// The pen's palette on a PDF (the score's PenPalette, 0023): the four inks, the highlighter, the eraser and Undo.
+/// The pen's palette on a PDF (the score's PenPalette, 0023): the pencil and its four inks, the highlighter, the eraser,
+/// the thickness, Undo and the cross.
 struct PdfPenPalette: View {
     @ObservedObject var pdf: PdfController
     let text: UIText
 
     var body: some View {
+        // The whole palette where it fits; in portrait its words give way to the icons alone.
+        ViewThatFits(in: .horizontal) {
+            palette(compact: false)
+            palette(compact: true)
+        }
+    }
+
+    private func palette(compact: Bool) -> some View {
         HStack(spacing: CGFloat.ds("s-1")) {
-            ForEach(ScoreController.Ink.allCases, id: \.self) { ink in
-                let chosen = pdf.tool == .pen(ink)
-                Button {
-                    pdf.tool = .pen(ink)
-                } label: {
-                    Circle()
-                        .fill(Color(uiColor: ink.color))
-                        .frame(width: 20, height: 20)
-                        .padding(2)
-                        .overlay(Circle().strokeBorder(chosen ? Color.ds("accent") : Color.ds("hairline-strong"), lineWidth: chosen ? 2 : 1))
-                        .frame(width: CGFloat.ds("h-touch"), height: CGFloat.ds("h-touch"))
-                        .contentShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(text[ink.labelKey])
-                .accessibilityAddTraits(chosen ? .isSelected : [])
-            }
-            Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
-            Button {
-                pdf.tool = .highlighter
-            } label: {
-                HStack(spacing: 6) {
-                    Icon(name: "highlight", size: CGFloat.ds("icon-s"))
-                    Text(text["pencil.highlighter"])
-                }
-            }
-            .buttonStyle(DSItemStyle(on: pdf.tool == .highlighter))
-            .accessibilityAddTraits(pdf.tool == .highlighter ? .isSelected : [])
-            Button(text["pencil.eraser"]) {
-                pdf.tool = .eraser
-            }
-            .buttonStyle(DSItemStyle(on: pdf.tool == .eraser))
-            .accessibilityAddTraits(pdf.tool == .eraser ? .isSelected : [])
-            Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
+            PenTools(holder: pdf, text: text, compact: compact)
+            PaletteDivider()
             Button {
                 pdf.undo()
             } label: {
                 HStack(spacing: 6) {
                     Icon(name: "undo", size: CGFloat.ds("icon-s"))
-                    Text(text["pencil.undo"])
+                    if !compact { Text(text["pencil.undo"]) }
                 }
             }
             .buttonStyle(DSItemStyle())
+            .accessibilityLabel(text["pencil.undo"])
             .disabled(!pdf.canUndo)
+            PenClose(holder: pdf, text: text)
         }
         .padding(.horizontal, CGFloat.ds("s-2"))
         .padding(.vertical, CGFloat.ds("s-1"))

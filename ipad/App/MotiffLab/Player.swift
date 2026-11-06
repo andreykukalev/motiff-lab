@@ -59,8 +59,13 @@ final class Player: ObservableObject {
     }
 
     func toggle() {
+        if state == .stopped { transportKept = true }
         send(state == .stopped ? .play : .pause)
     }
+
+    /// Whether the pill stays after playback stops (testing, 2026-11-06: it went away on pause, and Count-in and the
+    /// tempo with it); a tap on the page with nothing selected puts it away.
+    @Published var transportKept = false
 
     /// Back to the start, playing on if it was playing.
     func rewind() {
@@ -164,7 +169,8 @@ final class Player: ObservableObject {
     private static let aloneSource = "alone"
 
     /// Whether notes outside the piece are heard on their own, as the circle of fifths' scale.
-    private var hearingAlone = false
+    /// Whether notes play alone (the circle's scale), until they end or the player stops them.
+    @Published private(set) var hearingAlone = false
 
     /// Hears notes on their own in place of the piece (the circle's Hear the scale), looping where they sound and playing
     /// from their start; the next loop, or none, brings the piece back.
@@ -173,10 +179,17 @@ final class Player: ObservableObject {
         send(.source(id: Self.aloneSource, notes: notes))
         send(.activeSources([Self.aloneSource]))
         hearingAlone = true
-        loop = range
-        send(.loop(start: range.lowerBound, end: range.upperBound))
+        // Testing (2026-11-06): the scale went round with no way to stop it. It plays once and stops at its end.
+        send(.loop(start: range.lowerBound, end: range.upperBound, once: true))
         send(.seek(range.lowerBound))
         if state == .stopped { send(.play) }
+    }
+
+    /// Stops notes heard alone: the piece, or the variation, sounds again where it was.
+    func stopAlone() {
+        guard hearingAlone else { return }
+        send(.pause)
+        setLoop(nil)
     }
 
     /// The piece's notes again after they changed, as when bars of another version are taken into the score or restored
@@ -228,7 +241,10 @@ final class Player: ObservableObject {
         }
         guard let last, case .position(let position) = last.report else { return }
         if state != position.state {
+            let started = state != .stopped
             state = position.state
+            // Notes heard alone that came to their end give way to the piece.
+            if hearingAlone && started && state == .stopped { setLoop(nil) }
         }
         var now = position.tick
         if position.state == .playing && position.ticksPerSecond > 0 {

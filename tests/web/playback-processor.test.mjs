@@ -127,6 +127,25 @@ test("a loop wraps on the exact frame, with no gap", () => {
     assert.deepEqual(noteStarts(out), [0, QUARTER / 2, QUARTER, QUARTER * 1.5, QUARTER * 2, QUARTER * 2.5, QUARTER * 3]);
 });
 
+test("a loop played once stops at its end, back at its start, and plays again from there", () => {
+    const e = engine();
+    source(e, "a", [[0, 240], [240, 240], [480, 240]]);
+    e.handle({ type: "activeSources", ids: ["a"] });
+    e.handle({ type: "loop", start: 0, end: 480, once: true });
+    e.handle({ type: "play" });
+
+    const out = run(e, frames(QUARTER * 3));
+
+    // The circle's scale (testing, 2026-11-06): once through, then silence, never round again.
+    assert.deepEqual(noteStarts(out), [0, QUARTER / 2]);
+    assert.equal(e.transportState, "stopped");
+    assert.equal(e.tick, 0);
+
+    e.handle({ type: "loopOff" });
+    e.handle({ type: "play" });
+    assert.deepEqual(noteStarts(run(e, frames(QUARTER * 2))), [0, QUARTER / 2, QUARTER]);
+});
+
 test("a loop that does not start at a block boundary keeps exact time", () => {
     // Loop of 100 ticks: 5000 frames, not a multiple of 128.
     const e = engine();

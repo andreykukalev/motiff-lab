@@ -13,7 +13,7 @@ test("from the overflow, the map shows where the selection returns, and a mark l
     const more = await openMore(page);
     await more.getByRole("button", { name: "Piece DNA" }).click();
 
-    const dna = page.getByRole("dialog", { name: "Für Elise (Beethoven, opening)" });
+    const dna = page.getByRole("dialog", { name: "Für Elise" });
     await expect(dna).toBeFocused();
     await expect(dna.locator(".dna-bar")).toContainText("Piece DNA");
     await expect(dna).toContainText("The sections of the whole piece are not analysed yet.");

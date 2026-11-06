@@ -7,9 +7,10 @@
 // device (storage/pencil-store.ts). Marks are drawn again in their bars after every layout (pencil-marks.ts).
 
 import {
-    HIGHLIGHTER_SIZE,
+    DEFAULT_WIDTH,
+    HIGHLIGHTER_SIZES,
     MIN_POINT_DISTANCE,
-    PEN_SIZE,
+    PEN_SIZES,
     TAP_DISTANCE,
     anchorMark,
     framesByTick,
@@ -38,6 +39,8 @@ export interface PencilState {
     /** Marks whose bar is not in the score shown (another engraving of the piece), kept but not drawn. */
     hidden: number;
     canUndo: boolean;
+    /** The thickness chosen for the tool that draws now (the pen, or the highlighter): 0 thin, 1 medium, 2 thick. */
+    width: number;
 }
 
 /** What the layer needs from the score view. */
@@ -116,6 +119,8 @@ export class PencilLayer {
     private tool: PencilTool = "pen";
     private toolBeforeEraser: PencilTool = "pen";
     private colour: MarkColour = "graphite";
+    /** Each drawing tool keeps its own thickness. */
+    private widths = { pen: DEFAULT_WIDTH, highlighter: DEFAULT_WIDTH };
     private frames: BarFrame[] = [];
     private byTick = new Map<number, BarFrame>();
     private placed = new Map<string, { points: InkPoint[]; radius: number; path: SVGPathElement }>();
@@ -243,6 +248,16 @@ export class PencilLayer {
         this.setOn(true);
     }
 
+    /** Chooses the thickness of the tool that draws now (0 thin, 1 medium, 2 thick); the eraser hands it to the tool before it. */
+    setWidth(width: number): void {
+        const index = Math.min(Math.max(0, Math.round(width)), PEN_SIZES.length - 1);
+        if (this.tool === "eraser") {
+            this.tool = this.toolBeforeEraser;
+        }
+        this.widths[this.drawingTool()] = index;
+        this.setOn(true);
+    }
+
     /** Takes back the last mark written, erased or cleared. */
     undoLast(): void {
         const change = this.undo.pop();
@@ -295,7 +310,15 @@ export class PencilLayer {
     }
 
     state(): PencilState {
-        return { on: this.on, tool: this.tool, colour: this.colour, marks: this.marks.length, hidden: this.hidden, canUndo: this.undo.length > 0 };
+        return {
+            on: this.on,
+            tool: this.tool,
+            colour: this.colour,
+            marks: this.marks.length,
+            hidden: this.hidden,
+            canUndo: this.undo.length > 0,
+            width: this.widths[this.drawingTool()],
+        };
     }
 
     private draw(): void {
@@ -450,7 +473,7 @@ export class PencilLayer {
             id: newId(),
             tool,
             colour: this.colour,
-            size: tool === "highlighter" ? HIGHLIGHTER_SIZE : PEN_SIZE,
+            size: this.drawingSize(),
         });
         if (mark !== null) {
             this.marks = [...this.marks, mark];
@@ -497,7 +520,13 @@ export class PencilLayer {
     private drawingRadius(): number {
         const first = this.stroke?.points[0];
         const space = first === undefined ? 0 : this.nearestSpace(first);
-        return ((this.drawingTool() === "highlighter" ? HIGHLIGHTER_SIZE : PEN_SIZE) * space) / 2;
+        return (this.drawingSize() * space) / 2;
+    }
+
+    /** The thickness, in staff spaces, of the tool that draws now. */
+    private drawingSize(): number {
+        const tool = this.drawingTool();
+        return (tool === "highlighter" ? HIGHLIGHTER_SIZES : PEN_SIZES)[this.widths[tool]];
     }
 
     private nearestSpace(point: InkPoint): number {

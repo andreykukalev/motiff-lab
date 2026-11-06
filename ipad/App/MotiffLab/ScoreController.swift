@@ -11,7 +11,7 @@ import WebKit
 /// PencilKit's own drawing is cleared after every stroke, so a mark lives only in the project file and shows the
 /// same in the web app. A finger never writes: it scrolls.
 @MainActor
-final class ScoreController: NSObject, ObservableObject {
+final class ScoreController: NSObject, ObservableObject, PenHolder {
     enum Tool: Equatable {
         case pen(Ink)
         case highlighter
@@ -175,7 +175,10 @@ final class ScoreController: NSObject, ObservableObject {
     private var pageReady = false
     private var shown = false
     private var clearing = false
-    private var previousTool = Tool.eraser
+    private(set) var previousTool = Tool.eraser
+    /// The thickness of the pen and of the highlighter, each kept apart (PenSizes).
+    @Published var penWidth = PenSizes.defaultWidth { didSet { applyTool() } }
+    @Published var highlighterWidth = PenSizes.defaultWidth { didSet { applyTool() } }
     private let text = UIText.current
     /// Pixels between two staff lines on screen, for the width of the live stroke.
     private var staffSpace: CGFloat = 8
@@ -1207,15 +1210,15 @@ final class ScoreController: NSObject, ObservableObject {
                     await change(piece.id, "ink.remove", ["ids": ids])
                 }
             case .pen(let ink):
-                await add(piece.id, points, tool: "pen", colour: ink.rawValue)
+                await add(piece.id, points, tool: "pen", colour: ink.rawValue, width: penWidth)
             case .highlighter:
-                await add(piece.id, points, tool: "highlighter", colour: "amber")
+                await add(piece.id, points, tool: "highlighter", colour: "amber", width: highlighterWidth)
             }
         }
     }
 
-    private func add(_ piece: Int32, _ points: [[String: Double]], tool: String, colour: String) async {
-        let request: [String: Any] = ["points": points, "tool": tool, "colour": colour]
+    private func add(_ piece: Int32, _ points: [[String: Double]], tool: String, colour: String, width: Int) async {
+        let request: [String: Any] = ["points": points, "tool": tool, "colour": colour, "width": width]
         guard let mark = try? await webView.callAsyncJavaScript("return motiff.anchor(data)", arguments: ["data": request], contentWorld: .page) as? [String: Any],
               let id = mark["id"] as? String
         else { return }
@@ -1244,9 +1247,9 @@ final class ScoreController: NSObject, ObservableObject {
         let zoom = webView.scrollView.zoomScale
         switch tool {
         case .pen(let ink):
-            canvas.tool = PKInkingTool(.pen, color: ink.color, width: 0.16 * staffSpace * zoom * 1.6)
+            canvas.tool = PKInkingTool(.pen, color: ink.color, width: PenSizes.pen[penWidth] * staffSpace * zoom * 1.6)
         case .highlighter:
-            canvas.tool = PKInkingTool(.marker, color: DesignTokens.color("amber").withAlphaComponent(0.38), width: 1.1 * staffSpace * zoom)
+            canvas.tool = PKInkingTool(.marker, color: DesignTokens.color("amber").withAlphaComponent(0.38), width: PenSizes.highlighter[highlighterWidth] * staffSpace * zoom)
         case .eraser:
             canvas.tool = PKInkingTool(.pen, color: DesignTokens.color("ink-graphite").withAlphaComponent(0.25), width: 20)
         }

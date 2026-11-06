@@ -27,8 +27,8 @@ test("understand a phrase: highlight a fact's places, try a way and come back", 
     }
 
     // Every fact keeps its certainty and Evidence; the motif's return is a structure fact, inferred.
-    const fact = stream.getByRole("button", { name: /The motif recurs once/ });
-    const row = stream.locator("article.fact-row").filter({ has: page.getByRole("button", { name: /The motif recurs once/ }) });
+    const fact = stream.getByRole("button", { name: /The motif recurs 11 times/ });
+    const row = stream.locator("article.fact-row").filter({ has: page.getByRole("button", { name: /The motif recurs 11 times/ }) });
     await expect(row.locator(".certainty")).toHaveText("inferred");
     await row.getByRole("button", { name: "Evidence" }).click();
     await expect(row.locator(".basis").first()).not.toBeEmpty();
@@ -51,7 +51,7 @@ test("understand a phrase: highlight a fact's places, try a way and come back", 
     await expect(page.locator(".score .highlight-mark")).toHaveCount(count);
 
     // A place on its own moves playback to its start.
-    const place = row.getByRole("group", { name: "Places" }).getByRole("button", { name: "exactly in bar 5" });
+    const place = row.getByRole("group", { name: "Places" }).getByRole("button", { name: "exactly in bar 5", exact: true });
     await place.click();
     await expect(place).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator(".pill .position")).toHaveText("Bar 5, beat 1");
@@ -89,9 +89,9 @@ test("the facts read in Russian when the app is in Russian (#134)", async ({ pag
 
     await expect(stream.getByRole("group", { name: "Показать факты о" }).getByRole("button", { name: "Ритм", exact: true })).toBeVisible();
     await expect(stream.getByText("Тональность: ля минор.")).toBeVisible();
-    const fact = stream.getByRole("button", { name: /Мотив повторяется 1 раз/ });
-    await expect(stream.locator("article.fact-row").filter({ has: page.getByRole("button", { name: /Мотив повторяется 1 раз/ }) }).locator(".certainty")).toHaveText("предположено");
+    const fact = stream.getByRole("button", { name: /Мотив повторяется 11 раз/ });
+    await expect(stream.locator("article.fact-row").filter({ has: page.getByRole("button", { name: /Мотив повторяется 11 раз/ }) }).locator(".certainty")).toHaveText("предположено");
     await fact.click();
-    await expect(stream.getByRole("group", { name: "Места" }).getByRole("button", { name: "точно в такте 5" })).toBeVisible();
+    await expect(stream.getByRole("group", { name: "Места" }).getByRole("button", { name: "точно в такте 5", exact: true })).toBeVisible();
     expect(errors).toEqual([]);
 });

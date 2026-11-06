@@ -8,7 +8,7 @@ import { inflateSync } from "node:zlib";
 
 import { hasText, num, parseColour, parseSvg, parseTransform, pathOperators, svgToPdfOperators, textOnlySvg } from "../../src/MotiffLab.Web/wwwroot/js/score/svg-to-pdf.js";
 import { A4_HEIGHT, A4_WIDTH, buildPdf, crop, inkBounds, pdfText } from "../../src/MotiffLab.Web/wwwroot/js/score/pdf-document.js";
-import { A4_LAYOUT, pdfFileName, withTitle } from "../../src/MotiffLab.Web/wwwroot/js/score/score-page.js";
+import { A4_LAYOUT, A4_PDF_LAYOUT, pdfFileName, withTitle } from "../../src/MotiffLab.Web/wwwroot/js/score/score-page.js";
 import createVerovioModule from "../../src/MotiffLab.Web/wwwroot/lib/verovio/verovio-module.mjs";
 import { VerovioToolkit } from "../../src/MotiffLab.Web/wwwroot/lib/verovio/verovio.mjs";
 
@@ -190,6 +190,33 @@ test("Verovio's A4 pages become PDF pages of vector notation", async () => {
     const pdf = await buildPdf(pages, { title: "Зимние истории" });
     const { text } = objectsOf(pdf);
     assert.match(text, new RegExp(`/Count ${count} `));
+});
+
+test("the PDF's pages start their title nearer the top, and break like the screen's", async () => {
+    const bars = Array.from({ length: 40 }, (_, bar) =>
+        `<measure n="${bar + 1}"><staff n="1"><layer n="1"><note pname="c" oct="5" dur="4"/><note pname="e" oct="5" dur="4"/><note pname="g" oct="5" dur="2"/></layer></staff><staff n="2"><layer n="1"><chord dur="1"><note pname="c" oct="3"/><note pname="g" oct="3"/></chord></layer></staff></measure>`,
+    ).join("");
+    const mei = `<?xml version="1.0" encoding="UTF-8"?><mei xmlns="http://www.music-encoding.org/ns/mei" meiversion="5.1"><meiHead><fileDesc><titleStmt><title>Santiago</title></titleStmt><pubStmt/></fileDesc></meiHead><music><body><mdiv><score><scoreDef meter.count="4" meter.unit="4"><staffGrp symbol="brace" bar.thru="true"><staffDef n="1" lines="5" clef.shape="G" clef.line="2"/><staffDef n="2" lines="5" clef.shape="F" clef.line="4"/></staffGrp></scoreDef><section>${bars}</section></score></mdiv></body></music></mei>`;
+    const engrave = async (options) => {
+        const engraver = new VerovioToolkit(await createVerovioModule());
+        engraver.setOptions({ ...options });
+        assert.ok(engraver.loadData(mei));
+        const svgs = Array.from({ length: engraver.getPageCount() }, (_, index) => engraver.renderToSVG(index + 1));
+        // Where each page's first system starts, and the bars on each page.
+        // Verovio draws the music inside a group moved down by the top margin.
+        const firstSystem = (svg) =>
+            Number(svg.match(/class="page-margin" transform="translate\(\d+, (\d+)\)"/)[1]) +
+            Number(svg.match(/class="system"[\s\S]*?<path d="M\d+ (\d+)/)[1]);
+        const barsOn = (svg) => (svg.match(/class="measure"/g) ?? []).length;
+        return { count: svgs.length, top: firstSystem(svgs[0]), bars: svgs.map(barsOn) };
+    };
+    const screen = await engrave(A4_LAYOUT);
+    const paper = await engrave(A4_PDF_LAYOUT);
+    // Testing (2026-11-06): the PDF's first page began a third empty. Now its music starts 30 mm higher...
+    assert.ok(paper.top < screen.top - 100, `the music starts at ${paper.top} on paper, ${screen.top} on screen`);
+    // ...and every page holds the same bars, so a page named on screen is the same page on paper.
+    assert.equal(paper.count, screen.count);
+    assert.deepEqual(paper.bars, screen.bars);
 });
 
 test("the iPad app engraves its A4 pages with the web app's Verovio options", async () => {

@@ -10,11 +10,11 @@ test("select a sentence, understand it now and try a way", async ({ page }) => {
     const brackets = page.locator(".score button.bracket[aria-label]");
     const selection = page.locator(".selection-status");
 
-    // Für Elise's opening and its return make one sentence: one bracket at the Sentences level.
+    // Für Elise's opening and its return make its first sentence, of five, at the Sentences level.
     await page.locator(".bar").getByRole("button", { name: "Phrases" }).click();
     await page.getByRole("dialog", { name: "Phrases" }).getByRole("radio", { name: "Sentences" }).click();
     await closePopover(page);
-    await expect(brackets).toHaveCount(1);
+    await expect(brackets).toHaveCount(5);
     await expect(brackets.first()).toHaveAccessibleName("Sentence 1, bars 0–8");
 
     // Tapping it selects the sentence whole: nine bars, more than a range holds.

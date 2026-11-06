@@ -116,11 +116,12 @@ struct KeyCircleCard: View {
                 insights.hearScale()
             } label: {
                 HStack(spacing: CGFloat.ds("s-2")) {
-                    Icon(name: "play")
-                    Text(text["circle.hearScale"])
+                    Icon(name: insights.scaleHeard ? "pause" : "play")
+                    Text(text[insights.scaleHeard ? "circle.stopScale" : "circle.hearScale"])
                 }
             }
             .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
+            .accessibilityAddTraits(insights.scaleHeard ? .isSelected : [])
         }
         .padding(CGFloat.ds("s-3"))
         .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
