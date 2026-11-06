@@ -111,7 +111,7 @@ final class ScreensUITests: XCTestCase {
             shot("24-marks-on-page")
         }
 
-        // The contents drawer and its three tabs.
+        // The Contents: one sheet, its chips scrolling to the notes and the pages.
         leaveFocus()
         let title = app.buttons.matching(NSPredicate(format: "label ENDSWITH 'открыть оглавление'")).firstMatch
         if tap(title, "contents") {

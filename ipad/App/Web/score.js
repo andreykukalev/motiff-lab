@@ -34,9 +34,12 @@
 // engraved above every system, the notes it adds are plum and its likely artefacts grey, and so above the phrase on the
 // card in focus.
 //
-// While the piece plays, the notes sounding turn cobalt on the page and on the card in focus (`playing`), and the page
-// follows: the system playing is kept below the bar, so the next one shows beneath it (0018 section 7). A scroll by
-// hand wins for a few seconds, as on the web, and the next Play follows again.
+// While the piece plays, the notes sounding turn cobalt on the page and on the card in focus (`playing`), a cobalt line
+// stands at the sounding moment with a wash over its bar (testing item 4, the web app's score view), and the page
+// follows unless the player turned that off: the system playing is kept below the bar, so the next one shows beneath it
+// (0018 section 7). A scroll by hand wins for a few seconds, as on the web, and the next Play follows again. While the
+// line is out of sight, the bar it is in goes to Swift (`playheadAway`, -1 when it is back), for the chip that returns
+// to it (`returnToPlayhead`).
 import { cardLayout } from "../score/phrase-card.js";
 import { BRACKET_LIFT, ScoreGeometry, bookmarkLevels, readPage, staffFrames } from "../score/score-geometry.js";
 import { SelectionLayer } from "../score/selection-layer.js";
@@ -755,6 +758,12 @@ function reportCardWidth() {
 /** The notes sounding now, marked on the page or on the card, and when they last changed. */
 const sounding = { page: new Set(), card: new Set(), key: "", byHand: -Infinity };
 
+/** The playhead's line and its bar's wash on the page, made on first use, and the bar last reported out of sight. */
+const playhead = { line: null, wash: null, away: -1 };
+
+/** The pill's room at the bottom of the view: a playhead under it is out of sight. */
+const PILL_ROOM_PX = 84;
+
 /** A touch or the wheel moving the page is the player's own scroll: playback leaves the page alone for a while. */
 for (const name of ["touchmove", "wheel"]) {
     window.addEventListener(name, () => { sounding.byHand = performance.now(); }, { passive: true });
@@ -766,10 +775,11 @@ for (const name of ["touchmove", "wheel"]) {
  * player's position; `follow` true (a new Play) follows again at once after a scroll by hand. Returns the top the page
  * scrolls to when it follows, or null.
  */
-function playing({ tick, playing, follow }) {
+function playing({ tick, playing, follow, auto = true }) {
     if (follow) {
         sounding.byHand = -Infinity;
     }
+    placePlayhead(playing && !state.focus ? tick : null);
     const onPage = playing && state.timeline !== null ? state.timeline.soundingAt(tick) : [];
     const onCard = playing && state.focus && card.timeline ? card.timeline.soundingAt(tick - (card.offset ?? 0)) : [];
     const key = `${onPage.join(" ")}|${onCard.join(" ")}`;
@@ -779,10 +789,70 @@ function playing({ tick, playing, follow }) {
     sounding.key = key;
     sounding.page = mark(sounding.page, onPage, (id) => document.querySelector(`#pages [id="${CSS.escape(id)}"]`));
     sounding.card = mark(sounding.card, onCard, (id) => cardScore.querySelector(`[id="${CSS.escape(id)}"]`));
-    if (playing && !state.focus && onPage.length > 0 && performance.now() - sounding.byHand >= FOLLOW_PAUSE_MS) {
+    if (playing && auto && !state.focus && onPage.length > 0 && performance.now() - sounding.byHand >= FOLLOW_PAUSE_MS) {
         return keepInView(document.querySelector("#pages .playing"));
     }
     return null;
+}
+
+/** Puts the line and the wash at a tick, as the web app's score view does, or hides them for null. */
+function placePlayhead(tick) {
+    const timeline = state.timeline;
+    const at = tick === null || timeline === null ? undefined : state.geometry?.playhead(tick, (id) => timeline.onsetOf(id));
+    if (at === undefined) {
+        for (const element of [playhead.line, playhead.wash]) {
+            if (element !== null) {
+                element.hidden = true;
+            }
+        }
+        reportAway(-1);
+        return;
+    }
+    playhead.line ??= overlay("playhead");
+    playhead.wash ??= overlay("play-bar");
+    const { line, wash } = playhead;
+    for (const element of [wash, line]) {
+        if (!element.isConnected) {
+            document.body.append(element);
+        }
+        element.hidden = false;
+    }
+    line.style.left = `${at.x - 1}px`;
+    line.style.top = `${at.top - 6}px`;
+    line.style.height = `${at.bottom - at.top + 12}px`;
+    wash.style.left = `${at.bar.left}px`;
+    wash.style.top = `${at.top - 4}px`;
+    wash.style.width = `${at.bar.right - at.bar.left}px`;
+    wash.style.height = `${at.bottom - at.top + 8}px`;
+    const shownTop = window.scrollY + READING_LINE_PX - 16;
+    const shownBottom = window.scrollY + window.innerHeight - PILL_ROOM_PX;
+    reportAway(at.bottom < shownTop || at.top > shownBottom ? at.bar.tick : -1);
+}
+
+function overlay(className) {
+    const element = document.createElement("span");
+    element.className = className;
+    element.setAttribute("aria-hidden", "true");
+    element.hidden = true;
+    return element;
+}
+
+function reportAway(barTick) {
+    if (barTick !== playhead.away) {
+        playhead.away = barTick;
+        post({ playheadAway: barTick });
+    }
+}
+
+/** Back to playback: the page scrolls to the line and follows the playing again. */
+function returnToPlayhead() {
+    const line = playhead.line;
+    if (line === null || !line.isConnected || line.hidden) {
+        return false;
+    }
+    sounding.byHand = -Infinity;
+    window.scrollTo({ top: Math.max(0, line.offsetTop - READING_LINE_PX), behavior: "smooth" });
+    return true;
 }
 
 /** The ids marked now: those no longer sounding lose the class, the new ones take it. */
@@ -995,5 +1065,5 @@ function frames() {
     return state.frames;
 }
 
-window.motiff = { show, layout, anchor, erase, draw, frames, inView, phrases, select, menuSize, pen, focus, card: showCard, lead, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, reveal, notes, checks, performance: showVersion, layers, playing };
+window.motiff = { show, layout, anchor, erase, draw, frames, inView, phrases, select, menuSize, pen, focus, card: showCard, lead, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, reveal, notes, checks, performance: showVersion, layers, playing, returnToPlayhead };
 window.webkit?.messageHandlers?.score?.postMessage("ready");

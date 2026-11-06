@@ -210,7 +210,7 @@ struct LayersList: View {
     }
 }
 
-/// The Contents drawer's Notes tab: the margin notes with their numbers, the highlights filtered by colour and the runs of
+/// The Contents' notes and marks: the margin notes with their numbers, the highlights filtered by colour and the runs of
 /// bars with ink; a tap goes there and selects the bars, and a note opens to read or change.
 struct NotesList: View {
     @ObservedObject var score: ScoreController
@@ -218,61 +218,58 @@ struct NotesList: View {
     @State private var filter: String?
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 2) {
-                let marks = score.marks
-                if marks.isEmpty {
-                    Text(text["contents.notesEmpty"])
-                        .dsType(.label)
-                        .foregroundStyle(Color.ds("ink-2"))
-                }
-                if !marks.notes.isEmpty {
-                    heading(text["contents.marginNotes"], marks.notes.count, ink: "amber")
-                    ForEach(marks.notes) { note in
-                        entry(numbered: marks.number(of: note), title: MarksShelf.firstWords(note.text, 80), detail: barsText(note.firstBar, note.lastBar, text)) {
-                            score.openNote(note.id)
-                        }
-                    }
-                }
-                if !marks.highlights.isEmpty {
-                    heading(text["contents.highlights"], marks.highlights.count, ink: "amber")
-                    HStack(spacing: CGFloat.ds("s-1")) {
-                        ForEach(MarksShelf.highlightInks.filter { ink in marks.highlights.contains { $0.colour == ink } }, id: \.self) { ink in
-                            let on = filter == ink
-                            Button {
-                                filter = on ? nil : ink
-                            } label: {
-                                Circle().fill(MarksShelf.color(ink)).frame(width: 18, height: 18)
-                                    .frame(width: 32, height: 32)
-                                    .background(on ? Color.ds("accent-tint") : .clear, in: Circle())
-                                    .overlay(Circle().strokeBorder(on ? Color.ds("accent") : .clear))
-                                    .contentShape(Circle())
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel(MarksShelf.inkName(ink, text))
-                            .accessibilityAddTraits(on ? .isSelected : [])
-                        }
-                    }
-                    .accessibilityElement(children: .contain)
-                    .accessibilityLabel(text["contents.highlightFilter"])
-                    ForEach(marks.highlights.filter { filter == nil || $0.colour == filter }.sorted { $0.onset < $1.onset }) { highlight in
-                        entry(ink: highlight.colour, title: text.format("contents.highlightEntry", MarksShelf.inkName(highlight.colour, text)), detail: barsText(highlight.firstBar, highlight.lastBar, text)) {
-                            Task { await score.select(highlight.onset, highlight.end) }
-                        }
-                    }
-                }
-                if !marks.inkRuns.isEmpty {
-                    heading(text["contents.ink"], marks.inkCount, ink: "graphite")
-                    ForEach(marks.inkRuns, id: \.lowerBound) { run in
-                        entry(title: text.format("contents.inkEntry", barsText(run.lowerBound, run.upperBound, text)), detail: nil) {
-                            score.selectBars(run.lowerBound, run.upperBound, extend: false)
-                        }
+        VStack(alignment: .leading, spacing: 2) {
+            let marks = score.marks
+            if marks.isEmpty {
+                Text(text["contents.notesEmpty"])
+                    .dsType(.label)
+                    .foregroundStyle(Color.ds("ink-2"))
+            }
+            if !marks.notes.isEmpty {
+                heading(text["contents.marginNotes"], marks.notes.count, ink: "amber")
+                ForEach(marks.notes) { note in
+                    entry(numbered: marks.number(of: note), title: MarksShelf.firstWords(note.text, 80), detail: barsText(note.firstBar, note.lastBar, text)) {
+                        score.openNote(note.id)
                     }
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, CGFloat.ds("s-2"))
+            if !marks.highlights.isEmpty {
+                heading(text["contents.highlights"], marks.highlights.count, ink: "amber")
+                HStack(spacing: CGFloat.ds("s-1")) {
+                    ForEach(MarksShelf.highlightInks.filter { ink in marks.highlights.contains { $0.colour == ink } }, id: \.self) { ink in
+                        let on = filter == ink
+                        Button {
+                            filter = on ? nil : ink
+                        } label: {
+                            Circle().fill(MarksShelf.color(ink)).frame(width: 18, height: 18)
+                                .frame(width: 32, height: 32)
+                                .background(on ? Color.ds("accent-tint") : .clear, in: Circle())
+                                .overlay(Circle().strokeBorder(on ? Color.ds("accent") : .clear))
+                                .contentShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(MarksShelf.inkName(ink, text))
+                        .accessibilityAddTraits(on ? .isSelected : [])
+                    }
+                }
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel(text["contents.highlightFilter"])
+                ForEach(marks.highlights.filter { filter == nil || $0.colour == filter }.sorted { $0.onset < $1.onset }) { highlight in
+                    entry(ink: highlight.colour, title: text.format("contents.highlightEntry", MarksShelf.inkName(highlight.colour, text)), detail: barsText(highlight.firstBar, highlight.lastBar, text)) {
+                        Task { await score.select(highlight.onset, highlight.end) }
+                    }
+                }
+            }
+            if !marks.inkRuns.isEmpty {
+                heading(text["contents.ink"], marks.inkCount, ink: "graphite")
+                ForEach(marks.inkRuns, id: \.lowerBound) { run in
+                    entry(title: text.format("contents.inkEntry", barsText(run.lowerBound, run.upperBound, text)), detail: nil) {
+                        score.selectBars(run.lowerBound, run.upperBound, extend: false)
+                    }
+                }
+            }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func heading(_ name: String, _ count: Int, ink: String) -> some View {

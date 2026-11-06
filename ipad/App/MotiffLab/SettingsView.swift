@@ -118,6 +118,8 @@ struct SettingsSheet: View {
     /// The open piece's own choices, by id; empty outside a piece.
     var pieceOverrides: [String: String] = [:]
     var clearPiece: (() -> Void)?
+    /// "‹ More" when opened from More: puts the sheet away and opens More again (testing item 20); nil from elsewhere.
+    var back: (label: String, action: () -> Void)?
     @State var section = SheetSection.guidance
     @Environment(\.dismiss) private var dismiss
 
@@ -184,6 +186,10 @@ struct SettingsSheet: View {
     private var pane: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
+                if let back {
+                    BackChip(label: back.label, text: text, action: back.action)
+                        .padding(.leading, -CGFloat.ds("s-2"))
+                }
                 Text(name(section)).overline()
                 Spacer()
                 Button {
@@ -236,6 +242,7 @@ struct SettingsSheet: View {
             switchRow("guidance.transportPill", text["settings.pillWithSelection"], on: "selection", off: "playing", hint: text["settings.pillWithSelectionHint"])
         case .score:
             choiceRow("phrases.granularity", text["settings.granularity"], hint: text["settings.granularityHint"]) { text[Self.granularityKey($0)] }
+            switchRow("playback.follow", text["settings.follow"], hint: text["settings.followHint"])
         case .layers:
             Text(text["settings.layersHow"])
                 .dsType(.caption)

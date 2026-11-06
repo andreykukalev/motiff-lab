@@ -10,6 +10,13 @@ final class Player: ObservableObject {
     @Published private(set) var state = TransportState.stopped
     /// The tick being heard now, about 30 times a second while playing.
     @Published private(set) var tick = 0.0
+    /// The bars' starts and printed numbers, from music-core's playback score.
+    private(set) var barNumbers: [(start: Double, number: Int)] = []
+
+    /// The printed number of the bar that holds the tick; nil before the score is read.
+    func barNumber(at tick: Double) -> Int? {
+        barNumbers.last { $0.start <= tick }?.number ?? barNumbers.first?.number
+    }
     @Published private(set) var ready = false
     @Published private(set) var problem: String?
     @Published var tempoPercent = 100 { didSet { send(.rate(Double(tempoPercent) / 100)) } }
@@ -49,6 +56,7 @@ final class Player: ObservableObject {
             }
             renderer.send(.samples(try await piano.value))
             renderer.send(.timeline(score.timeline))
+            barNumbers = score.barNumbers
             renderer.send(.source(id: "piece", notes: score.notes))
             renderer.send(.activeSources(["piece"]))
             ready = true
@@ -197,6 +205,7 @@ final class Player: ObservableObject {
     func reload(piece: Int32) async {
         let answer = await MusicCore.run { MusicCore.call(piece: piece, "playback") }
         guard let score = PlaybackScore.read(answer) else { return }
+        barNumbers = score.barNumbers
         send(.timeline(score.timeline))
         send(.source(id: Self.pieceSource, notes: score.notes))
     }
@@ -339,6 +348,8 @@ struct PlayerError: Error {
 struct PlaybackScore: Sendable {
     var notes: [PlaybackNote]
     var timeline: PlaybackTimeline
+    /// Where each bar starts and the number it is printed with, in time order: "Back to playback · bar 12".
+    var barNumbers: [(start: Double, number: Int)] = []
 
     static func read(_ text: String) -> PlaybackScore? {
         guard let object = facadeObject(text), let end = number(object["end"]) else { return nil }
@@ -361,7 +372,11 @@ struct PlaybackScore: Sendable {
                   let beatsPerBar = number(bar["beatsPerBar"]) else { return nil }
             return .init(start: start, beatTicks: beatTicks, beatsPerBar: beatsPerBar)
         }
-        return PlaybackScore(notes: notes, timeline: PlaybackTimeline(tempos: tempos, beats: beats, bars: bars, end: end))
+        let numbers = items("bars").compactMap { bar -> (start: Double, number: Int)? in
+            guard let start = number(bar["onset"]), let printed = number(bar["number"]) else { return nil }
+            return (start, Int(printed))
+        }
+        return PlaybackScore(notes: notes, timeline: PlaybackTimeline(tempos: tempos, beats: beats, bars: bars, end: end), barNumbers: numbers)
     }
 
     private static func number(_ value: Any?) -> Double? {

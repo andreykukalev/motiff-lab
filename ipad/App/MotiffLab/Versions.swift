@@ -103,6 +103,8 @@ struct VersionsDrawer: View {
     @ObservedObject var score: ScoreController
     let text: UIText
     let close: () -> Void
+    /// "‹ More" when opened from More: closes the drawer and opens More again (testing item 20); nil from elsewhere.
+    var back: (label: String, action: () -> Void)?
     @State private var choosing = false
     @State private var name = ""
     @State private var removing = false
@@ -120,6 +122,10 @@ struct VersionsDrawer: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: CGFloat.ds("s-2")) {
                 VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
+                    if let back {
+                        BackChip(label: back.label, text: text, action: back.action)
+                            .padding(.leading, -CGFloat.ds("s-2"))
+                    }
                     Text(text["performance.title"]).overline()
                     Text(versions.shown?.name ?? text["performance.add"])
                         .dsType(.heading)
