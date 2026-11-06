@@ -196,6 +196,47 @@ public sealed class ProjectApiTests : IClassFixture<ProjectApiTests.Api>
         return content;
     }
 
+    [Fact]
+    public async Task A_player_on_any_plan_keeps_a_name_and_a_photo_until_everything_is_erased()
+    {
+        string player = Player();
+        HttpClient free = Client(player, roles: []);
+        Assert.Equal(new Profile(null, null), await free.GetFromJsonAsync<Profile>("/profile"));
+
+        string photo = "data:image/jpeg;base64," + Convert.ToBase64String([0xFF, 0xD8, 0xFF, 0xE0, 0, 16]);
+        HttpResponseMessage saved = await free.PutAsJsonAsync("/profile", new Profile("  Andrei K.  ", photo));
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        Assert.Equal(new Profile("Andrei K.", photo), await free.GetFromJsonAsync<Profile>("/profile"));
+
+        // Another player sees only their own; erasing everything takes the profile too.
+        Assert.Equal(new Profile(null, null), await Client(Player()).GetFromJsonAsync<Profile>("/profile"));
+        await free.DeleteAsync("/me");
+        Assert.Equal(new Profile(null, null), await free.GetFromJsonAsync<Profile>("/profile"));
+        Assert.Equal(HttpStatusCode.Unauthorized, (await _api.CreateClient().GetAsync("/profile")).StatusCode);
+    }
+
+    [Theory]
+    [InlineData("data:image/gif;base64,R0lGODlh", HttpStatusCode.BadRequest)]
+    [InlineData("data:image/png;base64,/9j/4AAQ", HttpStatusCode.BadRequest)]
+    [InlineData("data:image/jpeg;base64,not base64!", HttpStatusCode.BadRequest)]
+    [InlineData("https://example.com/me.jpg", HttpStatusCode.BadRequest)]
+    public async Task A_photo_is_a_small_picture_in_the_profile_itself(string photo, HttpStatusCode expected)
+    {
+        HttpResponseMessage response = await Client(Player()).PutAsJsonAsync("/profile", new Profile("A", photo));
+        Assert.Equal(expected, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_name_is_one_line_of_up_to_sixty_characters_and_a_photo_up_to_200_KB()
+    {
+        HttpClient client = Client(Player());
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsJsonAsync("/profile", new Profile(new string('a', 61), null))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsJsonAsync("/profile", new Profile("two\nlines", null))).StatusCode);
+        string large = "data:image/jpeg;base64," + Convert.ToBase64String([0xFF, 0xD8, 0xFF, .. new byte[201 * 1024]]);
+        Assert.Equal(HttpStatusCode.RequestEntityTooLarge, (await client.PutAsJsonAsync("/profile", new Profile("A", large))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.PutAsJsonAsync("/profile", new Profile(new string('a', 60), null))).StatusCode);
+    }
+
     private HttpClient Client(string player, string scope = "Projects.ReadWrite", string[]? roles = null, string? choice = null)
     {
         HttpClient client = _api.CreateClient();
@@ -209,6 +250,8 @@ public sealed class ProjectApiTests : IClassFixture<ProjectApiTests.Api>
     }
 
     private sealed record Account(string Plan, bool Tester, string? Chosen, Dictionary<string, bool> Features);
+
+    private sealed record Profile(string? Name, string? Photo);
 
     private sealed record Summary(string Id, string FileName, int MotifCount, int ResumeCount);
 

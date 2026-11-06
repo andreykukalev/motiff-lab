@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 @testable import MotiffLab
 
 /// Sign-in and the plan (0014, 0018 section 12): the web app's tenant and API, the iOS redirect the registration
@@ -72,6 +73,7 @@ final class AccountTests: XCTestCase {
         XCTAssertEqual(Account.displayName(["emails": ["a@example.com"]], username: "unknown"), "a@example.com")
         XCTAssertEqual(Account.displayName([:], username: "unknown"), "")
         XCTAssertEqual(Account.displayName([:], username: "a@example.com"), "a@example.com")
+        XCTAssertEqual(Account.displayName(["name": "unknown", "email": "a@example.com"], username: "unknown"), "a@example.com")
         XCTAssertTrue(Account.tokenClaims("not a token").isEmpty)
     }
 
@@ -79,5 +81,27 @@ final class AccountTests: XCTestCase {
         XCTAssertFalse(Account(options: nil).isAvailable)
         let empty = AccountOptions(authority: "", clientId: "", apiScope: "", scanScope: "", api: "", scan: "")
         XCTAssertFalse(empty.isConfigured)
+    }
+
+    /// The profile (Andrei, 2026-11-06): read as the API answers it, and a photo cut to a 256-pixel JPEG square as on the web.
+    func testTheProfilesPhotoIsTheMiddleSquareOfThePicture() throws {
+        let read = try XCTUnwrap(PlayerProfile.read(Data(#"{"name":"Андрей","photo":null}"#.utf8)))
+        XCTAssertEqual(read, PlayerProfile(name: "Андрей", photo: nil))
+        XCTAssertNil(read.image)
+
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let wide = UIGraphicsImageRenderer(size: CGSize(width: 600, height: 300), format: format).image { context in
+            UIColor.red.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 600, height: 300))
+        }
+        let photo = try XCTUnwrap(PlayerProfile.squarePhoto(wide))
+        XCTAssertTrue(photo.hasPrefix("data:image/jpeg;base64,"))
+        XCTAssertLessThan(photo.count, 200 * 1024 * 4 / 3, "small enough for the API")
+        let square = try XCTUnwrap(PlayerProfile(name: nil, photo: photo).image)
+        XCTAssertEqual(square.size.width * square.scale, 256)
+        XCTAssertEqual(square.size.height * square.scale, 256)
+        XCTAssertEqual(PlayerAvatar.initial("андрей"), "А")
+        XCTAssertEqual(PlayerAvatar.initial(""), "?")
     }
 }

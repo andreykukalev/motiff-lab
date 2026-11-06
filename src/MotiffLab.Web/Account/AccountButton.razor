@@ -2,7 +2,7 @@
 @inject MotiffLab.Web.Localization.UiText Text
 @implements IDisposable
 
-@* The avatar at the top right of the library (0018 section 9, "Account"): the player's initial once signed in, Sign in
+@* The avatar at the top right of the library (0018 section 9, "Account"): the player's photo or initial once signed in, Sign in
    while signed out; either opens the account sheet. The language lives in Settings. A build without sign-in has no
    account and shows nothing here: its scan server address is in Settings, under Account. *@
 @if (Account.IsAvailable && _loaded)
@@ -13,12 +13,13 @@
     }
     else
     {
-        <button class="avatar" aria-haspopup="dialog" title="@_player" aria-label="@Text.Format("account.open", _player)" @onclick="Open">@Initial(_player)</button>
+        <button class="avatar" aria-haspopup="dialog" title="@_player" aria-label="@Text.Format("account.open", _player)" @onclick="Open"><PlayerAvatar Name="_player" Photo="@_photo" /></button>
     }
 }
 
 @code {
     private string? _player;
+    private string? _photo;
     private bool _loaded;
 
     /// <summary>Opens the account sheet.</summary>
@@ -28,17 +29,36 @@
     protected override async Task OnInitializedAsync()
     {
         Text.Changed += OnChanged;
+        Account.ProfileChanged += OnProfileChanged;
         _player = await Account.PlayerAsync();
         _loaded = true;
+        await LoadProfileAsync();
+    }
+
+    /// <summary>The name and photo the player chose, once the API answers; the sign-in's name until then.</summary>
+    private async Task LoadProfileAsync()
+    {
+        _player = await Account.ShownNameAsync();
+        _photo = (await Account.ProfileAsync())?.Photo;
     }
 
     /// <summary>The first letter or digit of the player's name or email, upper case; "?" when it has none.</summary>
     public static string Initial(string? player) =>
         player?.FirstOrDefault(char.IsLetterOrDigit) is char first and not '\0' ? char.ToUpperInvariant(first).ToString() : "?";
 
-    public void Dispose() => Text.Changed -= OnChanged;
+    public void Dispose()
+    {
+        Text.Changed -= OnChanged;
+        Account.ProfileChanged -= OnProfileChanged;
+    }
 
     private Task Open() => Opened.InvokeAsync();
 
     private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private void OnProfileChanged() => _ = InvokeAsync(async () =>
+    {
+        await LoadProfileAsync();
+        StateHasChanged();
+    });
 }

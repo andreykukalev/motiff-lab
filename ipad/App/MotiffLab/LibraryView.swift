@@ -146,12 +146,17 @@ struct LibraryView: View {
                 Button {
                     settings = true
                 } label: {
-                    Icon(name: "user", size: CGFloat.ds("icon-l"))
-                        .foregroundStyle(Color.ds("accent"))
-                        .frame(width: CGFloat.ds("h-touch"), height: CGFloat.ds("h-touch"))
-                        .background(Color.ds("accent-tint"), in: Circle())
+                    // Signed in, the player's photo or initial (their profile's); signed out, the person.
+                    if let name = account.shownName {
+                        PlayerAvatar(name: name, image: account.profile?.image, size: CGFloat.ds("h-touch"))
+                    } else {
+                        Icon(name: "user", size: CGFloat.ds("icon-l"))
+                            .foregroundStyle(Color.ds("accent"))
+                            .frame(width: CGFloat.ds("h-touch"), height: CGFloat.ds("h-touch"))
+                            .background(Color.ds("accent-tint"), in: Circle())
+                    }
                 }
-                .accessibilityLabel(text["account.title"])
+                .accessibilityLabel(account.shownName.map { text.format("account.open", $0) } ?? text["account.title"])
             }
         }
     }

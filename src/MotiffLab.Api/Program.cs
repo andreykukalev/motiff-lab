@@ -52,6 +52,7 @@ app.UseAuthorization();
 app.MapGet("/health", () => Results.Ok(new { service = "motiff-lab-api" }));
 app.MapProjects();
 app.MapAccount();
+app.MapProfile();
 app.Run();
 
 // The web app, and its pull request previews by pattern; a native app sends no origin.

@@ -52,6 +52,7 @@ public sealed class CloudAccount(AccountOptions options, NavigationManager navig
 
     private readonly HttpClient _http = new();
     private AccountPlan? _plan;
+    private PlayerProfile? _profile;
     private string? _choice;
     private bool _choiceLoaded;
 
@@ -59,6 +60,9 @@ public sealed class CloudAccount(AccountOptions options, NavigationManager navig
 
     /// <summary>Raised when the plan or a tester's choice changes.</summary>
     public event Action? PlanChanged;
+
+    /// <summary>Raised when the player saves another name or photo.</summary>
+    public event Action? ProfileChanged;
 
     /// <summary>False in a build without sign-in; then every other member answers "signed out".</summary>
     public bool IsAvailable => options.IsConfigured;
@@ -77,11 +81,7 @@ public sealed class CloudAccount(AccountOptions options, NavigationManager navig
             return null;
         }
 
-        return state.User.FindFirst("name")?.Value
-            ?? state.User.FindFirst("email")?.Value
-            ?? state.User.FindFirst("preferred_username")?.Value
-            ?? state.User.Identity.Name
-            ?? "";
+        return PlayerName.Of(state.User.Claims.Select(claim => (claim.Type, claim.Value)), state.User.Identity.Name);
     }
 
     /// <summary>An access token for the scope without asking the player anything, or null when there is none.</summary>
@@ -156,6 +156,91 @@ public sealed class CloudAccount(AccountOptions options, NavigationManager navig
         return _plan;
     }
 
+    /// <summary>
+    /// The name and photo the player chose (the API's <c>/profile</c>), asked once and kept; null when nobody is signed in
+    /// or the API cannot be reached. Without a chosen name the apps show the sign-in's (<see cref="PlayerAsync"/>).
+    /// </summary>
+    public async Task<PlayerProfile?> ProfileAsync()
+    {
+        if (_profile is not null || await PlayerAsync() is null)
+        {
+            return _profile;
+        }
+
+        try
+        {
+            using HttpRequestMessage request = await ApiRequestAsync(HttpMethod.Get, "profile");
+            if (request.Headers.Authorization is null)
+            {
+                return null;
+            }
+
+            using HttpResponseMessage response = await _http.SendAsync(request);
+            if (response.IsSuccessStatusCode)
+            {
+                using JsonDocument answer = JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync());
+                _profile = PlayerProfile.Read(answer.RootElement);
+            }
+        }
+        catch (Exception error) when (error is HttpRequestException or JsonException)
+        {
+            // Unreachable for now: asked again next time, and the sign-in's name is shown meanwhile.
+        }
+
+        return _profile;
+    }
+
+    /// <summary>The name to show: the one the player chose, else the sign-in's; null when nobody is signed in.</summary>
+    public async Task<string?> ShownNameAsync() =>
+        await PlayerAsync() is { } player ? (await ProfileAsync())?.Name ?? player : null;
+
+    /// <summary>Keeps the player's name and photo (either null to clear it); null when kept, else what went wrong.</summary>
+    public async Task<string?> SaveProfileAsync(string? name, string? photo)
+    {
+        try
+        {
+            using HttpRequestMessage request = await ApiRequestAsync(HttpMethod.Put, "profile");
+            if (request.Headers.Authorization is null)
+            {
+                return text["profile.notSaved"];
+            }
+
+            request.Content = System.Net.Http.Json.JsonContent.Create(new { name, photo });
+            using HttpResponseMessage response = await _http.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return text[response.StatusCode == System.Net.HttpStatusCode.RequestEntityTooLarge ? "profile.photoTooLarge" : "profile.notSaved"];
+            }
+
+            using JsonDocument answer = JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync());
+            _profile = PlayerProfile.Read(answer.RootElement);
+            ProfileChanged?.Invoke();
+            return null;
+        }
+        catch (Exception error) when (error is HttpRequestException or JsonException)
+        {
+            return text["profile.notSaved"];
+        }
+    }
+
+    /// <summary>Forgets the kept profile, as after erasing everything online; it is asked again when next shown.</summary>
+    public void ForgetProfile()
+    {
+        _profile = null;
+        ProfileChanged?.Invoke();
+    }
+
+    private async Task<HttpRequestMessage> ApiRequestAsync(HttpMethod method, string path)
+    {
+        var request = new HttpRequestMessage(method, new Uri(new Uri(options.Api.TrimEnd('/') + "/"), path));
+        if (await TokenAsync(options.ApiScope) is { } token)
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        }
+
+        return request;
+    }
+
     /// <summary>Whether the signed-in player may use the feature; false when signed out.</summary>
     public async Task<bool> AllowsAsync(ProFeature feature) => (await PlanAsync())?.Allows(feature) == true;
 
@@ -193,6 +278,19 @@ public sealed class CloudAccount(AccountOptions options, NavigationManager navig
     }
 
     public void Dispose() => _http.Dispose();
+}
+
+/// <summary>The name and photo the player chose (<c>GET /profile</c>); the photo is a data URL of a small square picture.</summary>
+public sealed record PlayerProfile(string? Name, string? Photo)
+{
+    internal static PlayerProfile Read(JsonElement answer)
+    {
+        // An answer that is no profile (an older API, a proxy's page) is no name and no photo, never a broken panel.
+        static string? Text(JsonElement answer, string name) =>
+            answer.ValueKind == JsonValueKind.Object && answer.TryGetProperty(name, out JsonElement value) && value.ValueKind == JsonValueKind.String && value.GetString() is { Length: > 0 } text ? text : null;
+
+        return new PlayerProfile(Text(answer, "name"), Text(answer, "photo"));
+    }
 }
 
 /// <summary>What the API says the player's plan is (<c>GET /account</c>).</summary>

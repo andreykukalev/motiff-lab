@@ -4,6 +4,7 @@
 @inject CloudAccount Account
 @inject OnlineProjects Online
 @inject MotiffLab.Web.Projects.ProjectStore Projects
+@inject IJSRuntime JS
 
 @* The player's account (0014; 0018 section 9, "Account"): signing in, or who is signed in, the plan, saving online and
    erasing it. Shown in the account sheet behind the avatar in the library, in the Account section of Settings, and on the
@@ -30,10 +31,45 @@
             {
                 @Heading("account-heading", Text["account.title"], "visually-hidden")
                 <div class="account-head">
-                    <span class="avatar" aria-hidden="true">@MotiffLab.Web.Account.AccountButton.Initial(_player)</span>
-                    <p class="who"><strong>@_player</strong><span class="meta">@Text["settings.signedIn"]</span></p>
+                    <span class="avatar" aria-hidden="true"><PlayerAvatar Name="@ShownName" Photo="@_profile?.Photo" /></span>
+                    <p class="who"><strong>@ShownName</strong><span class="meta">@Text["settings.signedIn"]</span></p>
                     <button @onclick="Account.SignOut">@Text["settings.signOut"]</button>
                 </div>
+                @* The profile (Andrei, 2026-11-06): the name and photo the player chose, kept with the account on any plan and
+                   shown in place of the sign-in's name (the API's /profile). *@
+                @if (_editing)
+                {
+                    <div class="profile-edit" role="group" aria-label="@Text["profile.edit"]">
+                        <label class="field">
+                            <span>@Text["profile.name"]</span>
+                            <input type="text" maxlength="60" @bind="_name" placeholder="@_player" aria-describedby="profile-name-hint" />
+                        </label>
+                        <p id="profile-name-hint" class="meta">@Text["profile.nameHint"]</p>
+                        <div class="profile-photo">
+                            <span class="avatar" aria-hidden="true"><PlayerAvatar Name="@(string.IsNullOrWhiteSpace(_name) ? _player : _name)" Photo="@_photo" /></span>
+                            <label class="file choose-photo">
+                                @Text["profile.choosePhoto"]
+                                <InputFile accept="image/*" class="visually-hidden" OnChange="ChoosePhotoAsync" />
+                            </label>
+                            @if (_photo is not null)
+                            {
+                                <button @onclick="() => _photo = null">@Text["profile.removePhoto"]</button>
+                            }
+                        </div>
+                        <div class="row">
+                            <button class="primary" disabled="@_saving" @onclick="SaveProfileAsync">@Text["profile.save"]</button>
+                            <button @onclick="() => _editing = false">@Text["common.cancel"]</button>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <button class="link edit-profile" @onclick="EditProfile">@Text["profile.edit"]</button>
+                }
+                @if (_profileMessage is not null)
+                {
+                    <p class="meta" role="status">@_profileMessage</p>
+                }
                 @* The plan (0018 section 12, preparation item 14): what runs on the device is free, what needs the cloud is Pro.
                    Testers switch between Pro and no Pro to try both; the servers trust that choice only from a tester. *@
                 <p id="plan" class="meta">@Text["settings.plan"]: <strong>@PlanName</strong></p>
@@ -116,6 +152,12 @@
     private string? _address;
     private string? _scanStatus;
     private string? _player;
+    private PlayerProfile? _profile;
+    private bool _editing;
+    private bool _saving;
+    private string? _name;
+    private string? _photo;
+    private string? _profileMessage;
     private bool _online;
     private bool _confirmDeleteOnline;
     private string? _onlineMessage;
@@ -137,6 +179,7 @@
         {
             _plan = await Account.PlanAsync();
             _choice = await Account.PlanChoiceAsync();
+            _profile = await Account.ProfileAsync();
         }
 
         await Scans.LoadAsync();
@@ -155,6 +198,54 @@
         builder.AddContent(3, text);
         builder.CloseElement();
     };
+
+    private string? ShownName => _profile?.Name ?? _player;
+
+    private void EditProfile()
+    {
+        _name = _profile?.Name;
+        _photo = _profile?.Photo;
+        _profileMessage = null;
+        _editing = true;
+    }
+
+    /// <summary>The chosen picture's middle square, 256 pixels across (Scripts/account/photo.ts), shown until it is saved.</summary>
+    private async Task ChoosePhotoAsync(InputFileChangeEventArgs args)
+    {
+        _profileMessage = null;
+        try
+        {
+            await using Stream stream = args.File.OpenReadStream(maxAllowedSize: 30 * 1024 * 1024);
+            using var reference = new DotNetStreamReference(stream);
+            await using IJSObjectReference module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/account/photo.js");
+            string? photo = await module.InvokeAsync<string?>("squarePhoto", reference, args.File.ContentType);
+            if (photo is null)
+            {
+                _profileMessage = Text["profile.photoUnreadable"];
+            }
+            else
+            {
+                _photo = photo;
+            }
+        }
+        catch (IOException)
+        {
+            _profileMessage = Text["profile.photoTooLarge"];
+        }
+    }
+
+    private async Task SaveProfileAsync()
+    {
+        _saving = true;
+        _profileMessage = await Account.SaveProfileAsync(string.IsNullOrWhiteSpace(_name) ? null : _name.Trim(), _photo);
+        _saving = false;
+        if (_profileMessage is null)
+        {
+            _profile = await Account.ProfileAsync();
+            _editing = false;
+            _profileMessage = Text["profile.saved"];
+        }
+    }
 
     private string ScanStatus() =>
         Scans.Address is { } address ? Text.Format("settings.scanStatusUses", address) : Text["settings.scanStatusOff"];
@@ -211,6 +302,9 @@
         _confirmDeleteOnline = false;
         _onlineMessage = await Online.DeleteEverythingAsync();
         _online = await Online.IsOnAsync();
+        // Erasing everything online takes the profile too.
+        Account.ForgetProfile();
+        _profile = await Account.ProfileAsync();
     }
 
     private async Task TurnScanningOffAsync()
