@@ -63,8 +63,11 @@ test("a bookmark across a system break keeps its hooks and its title on every sy
 
 test("B opens the card over the selection, Escape puts it away, and an entry can be changed and deleted", async ({ page }) => {
     const errors = await openFurElise(page);
-    await page.keyboard.press("b");
-    await expect(page.locator(".marks-status")).toHaveText(/Select bars first/);
+    // The page takes keys once the score is drawn; under load the first press can come before, so press until it answers.
+    await expect(async () => {
+        await page.locator("body").press("b");
+        await expect(page.locator(".marks-status")).toHaveText(/Select bars first/, { timeout: 1000 });
+    }).toPass();
 
     await selectBar(page, 3);
     await page.locator("body").press("b");

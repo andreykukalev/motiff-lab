@@ -2,5 +2,7 @@
 @layout MainLayout
 @inject MotiffLab.Web.Localization.UiText Text
 
-<h3>@Text["notFound.title"]</h3>
-<p>@Text["notFound.text"]</p>
+<PageSheet Title="@Text["notFound.title"]" Class="not-found">
+    <p class="meta">@Text["notFound.text"]</p>
+    <a class="btn primary" href="">@Text["notFound.library"]</a>
+</PageSheet>

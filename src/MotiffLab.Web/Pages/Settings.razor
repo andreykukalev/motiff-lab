@@ -5,14 +5,12 @@
 
 <PageTitle>@Text[Title] · Motiff Lab</PageTitle>
 
-@* The account page (0014): the account panel on a page of its own, for the links that lead to it (the scan and recording
+@* The account page (0014): the account panel as a sheet over the library, for the links that lead to it (the scan and recording
    screens, the privacy notice, the return from signing in). In the library the same panel opens as a sheet behind the
    avatar, and in Settings it is the Account section. *@
-<main class="lab settings">
-    <nav class="crumbs" aria-label="@Text["nav.label"]"><a href="">‹ @Text["nav.library"]</a></nav>
-    <h1>@Text[Title]</h1>
+<PageSheet Title="@Text[Title]" Class="settings">
     <MotiffLab.Web.Account.AccountPanel />
-</main>
+</PageSheet>
 
 @code {
     private string Title => Account.IsAvailable ? "account.title" : "settings.title";

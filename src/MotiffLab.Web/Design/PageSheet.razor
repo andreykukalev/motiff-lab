@@ -1,0 +1,29 @@
+@inject MotiffLab.Web.Localization.UiText Text
+
+@* A screen a link leads to outside the score (scanning a page, notes from a recording, opening a file, the account, a page
+   not found) as a sheet over the library, as Add a piece is (0018 section 9; assessment item 9): the library's paper
+   dimmed behind it, the sheet with its title and a close that goes back to the library. *@
+<div class="page-sheet-scrim" aria-hidden="true"></div>
+<main class="lab page-sheet @Class @(Wide ? "wide" : null)" aria-labelledby="page-sheet-title">
+    <header class="hd">
+        <h1 class="ttl" id="page-sheet-title">@Title</h1>
+        <a class="btn icon" href="" aria-label="@Text["library.close"]" title="@Text["library.close"]"><Icon Name="close" /></a>
+    </header>
+    @ChildContent
+</main>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    /// <summary>The screen's own class, which its styles hang on: "import", "settings".</summary>
+    [Parameter]
+    public string? Class { get; set; }
+
+    /// <summary>A wider sheet, for a screen with a waveform or a report to read.</summary>
+    [Parameter]
+    public bool Wide { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

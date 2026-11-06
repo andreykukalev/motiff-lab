@@ -2,6 +2,7 @@
 // action with the routes in; the resume points of a piece listed, named and removed in a sheet.
 import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
+import { violations } from "./steps.mjs";
 
 const minuet = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/MusicXml/Fixtures/importer-grand-staff.musicxml", import.meta.url));
 
@@ -84,4 +85,27 @@ test("in Russian, the library speaks Russian", async ({ page }) => {
     await expect(page.locator(".card.add")).toContainText("Расшифровать запись");
     await add.click();
     await expect(page.getByRole("dialog", { name: "Добавить пьесу" })).toContainText("читается на этом устройстве");
+});
+
+test("the scan, recording, account and not-found screens open as sheets over the library and close back to it", async ({ page }) => {
+    const errors = [];
+    page.on("pageerror", error => errors.push(String(error)));
+    for (const [path, heading] of [["/import/scan", "Scan printed music"], ["/import/recording", "Notes from a recording"], ["/settings", "Settings"], ["/not-found", "Not found"]]) {
+        await page.goto(path);
+        const sheet = page.locator("main.page-sheet");
+        await expect(sheet.getByRole("heading", { level: 1, name: heading })).toBeVisible();
+        await expect(page.locator(".page-sheet-scrim")).toHaveCount(1);
+        expect(await violations(page)).toEqual([]);
+    }
+    await page.locator("main.page-sheet").getByRole("link", { name: "Back to the library" }).click();
+    await expect(page.getByRole("button", { name: "Add piece" }).first()).toBeVisible();
+
+    // The Pro routes in Add a piece say what to do without the word "server".
+    await page.getByRole("button", { name: "Add piece" }).first().click();
+    await expect(page.locator(".add-sheet .routes-list")).not.toContainText("server");
+
+    await page.goto("/import/scan");
+    await page.locator("main.page-sheet").getByRole("link", { name: "Close" }).click();
+    await expect(page).toHaveURL(/\/$/);
+    expect(errors).toEqual([]);
 });
