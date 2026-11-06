@@ -260,11 +260,13 @@ final class Account: ObservableObject {
         return displayName(claims, username: account.username)
     }
 
-    /// name, then email (External ID may send `emails`), then preferred_username; MSAL's "unknown" is not a name.
+    /// name, then email (External ID may send `emails`), then preferred_username, as music-core's PlayerName chooses it
+    /// for the web app; "unknown" (External ID's name for a player who gave none at sign-up, and MSAL's) is not a name.
     static func displayName(_ claims: [String: Any], username: String?) -> String {
         func text(_ key: String) -> String? {
-            let value = (claims[key] as? String) ?? (claims[key] as? [String])?.first
-            return value?.trimmingCharacters(in: .whitespaces).isEmpty == false ? value : nil
+            let value = ((claims[key] as? String) ?? (claims[key] as? [String])?.first)?.trimmingCharacters(in: .whitespaces)
+            guard let value, !value.isEmpty, value.lowercased() != "unknown" else { return nil }
+            return value
         }
         if let name = text("name") ?? text("email") ?? text("emails") ?? text("preferred_username") { return name }
         let given = [text("given_name"), text("family_name")].compactMap { $0 }.joined(separator: " ")

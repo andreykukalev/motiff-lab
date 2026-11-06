@@ -72,6 +72,7 @@ final class AccountTests: XCTestCase {
         XCTAssertEqual(Account.displayName(["emails": ["a@example.com"]], username: "unknown"), "a@example.com")
         XCTAssertEqual(Account.displayName([:], username: "unknown"), "")
         XCTAssertEqual(Account.displayName([:], username: "a@example.com"), "a@example.com")
+        XCTAssertEqual(Account.displayName(["name": "unknown", "email": "a@example.com"], username: "unknown"), "a@example.com")
         XCTAssertTrue(Account.tokenClaims("not a token").isEmpty)
     }
 

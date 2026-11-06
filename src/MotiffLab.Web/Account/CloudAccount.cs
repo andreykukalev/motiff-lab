@@ -77,11 +77,7 @@ public sealed class CloudAccount(AccountOptions options, NavigationManager navig
             return null;
         }
 
-        return state.User.FindFirst("name")?.Value
-            ?? state.User.FindFirst("email")?.Value
-            ?? state.User.FindFirst("preferred_username")?.Value
-            ?? state.User.Identity.Name
-            ?? "";
+        return PlayerName.Of(state.User.Claims.Select(claim => (claim.Type, claim.Value)), state.User.Identity.Name);
     }
 
     /// <summary>An access token for the scope without asking the player anything, or null when there is none.</summary>
