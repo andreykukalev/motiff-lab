@@ -74,10 +74,14 @@ struct LibraryView: View {
                 AddPieceSheet(text: text) { result in
                     adding = false
                     Task { await open(result) }
+                } heard: { recording in
+                    adding = false
+                    Task { await openHeard(recording) }
                 } demo: {
                     adding = false
                     Task { await openExample() }
                 }
+                .environmentObject(account)
             }
             .navigationDestination(item: $piece) { piece in
                 Group {
@@ -178,6 +182,15 @@ struct LibraryView: View {
         let language = text.language
         await show(saveAs: example.title) {
             await OpenPiece.open(fileName: example.fileName, data: example.data, language: language, title: example.title)
+        }
+    }
+
+    /// A recording heard by the scan server, as a new piece of its notes (0014, 0016), named after the recording.
+    private func openHeard(_ recording: HeardRecording) async {
+        let language = text.language
+        let title = recording.name.isEmpty ? text["library.recorded"] : recording.name
+        await show(saveAs: title) {
+            await OpenPiece.open(fileName: title + ".mid", data: Data(), language: language, title: title, heard: recording)
         }
     }
 
@@ -456,62 +469,126 @@ struct AddCard: View {
 struct AddPieceSheet: View {
     let text: UIText
     let picked: (Result<URL, Error>) -> Void
+    /// A recording heard by Motiff Lab's scan server (Pro), to open as a new piece.
+    let heard: (HeardRecording) -> Void
     let demo: () -> Void
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var account: Account
     @State private var choosing = false
+    @State private var progress: String?
+    @State private var problem: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: CGFloat.ds("s-4")) {
-            HStack {
-                Text(text["library.addAPiece"])
-                    .dsType(.title)
-                    .foregroundStyle(Color.ds("ink"))
-                    .accessibilityAddTraits(.isHeader)
-                Spacer()
-                Button {
-                    dismiss()
-                } label: {
-                    Icon(name: "close")
-                        .foregroundStyle(Color.ds("ink-2"))
-                        .frame(width: CGFloat.ds("h-touch"), height: CGFloat.ds("h-touch"))
+        ScrollView {
+            VStack(alignment: .leading, spacing: CGFloat.ds("s-4")) {
+                HStack {
+                    Text(text["library.addAPiece"])
+                        .dsType(.title)
+                        .foregroundStyle(Color.ds("ink"))
+                        .accessibilityAddTraits(.isHeader)
+                    Spacer()
+                    Button {
+                        dismiss()
+                    } label: {
+                        Icon(name: "close")
+                            .foregroundStyle(Color.ds("ink-2"))
+                            .frame(width: CGFloat.ds("h-touch"), height: CGFloat.ds("h-touch"))
+                    }
+                    .accessibilityLabel(text["library.close"])
                 }
-                .accessibilityLabel(text["library.close"])
+                Button {
+                    choosing = true
+                } label: {
+                    HStack(alignment: .top, spacing: CGFloat.ds("s-3")) {
+                        Icon(name: "file", size: CGFloat.ds("icon-l"))
+                            .foregroundStyle(Color.ds("accent"))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(text["library.openFile"])
+                                .dsType(.bodyStrong)
+                                .foregroundStyle(Color.ds("ink"))
+                            Text(text["library.openFileHintHere"])
+                                .dsType(.caption)
+                                .foregroundStyle(Color.ds("ink-2"))
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(CGFloat.ds("s-4"))
+                    .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
+                    .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
+                }
+                .buttonStyle(.plain)
+                // On the button, not the sheet: the recording's chooser below has its own, and a second file importer on a
+                // view that holds another is not shown.
+                .fileImporter(isPresented: $choosing, allowedContentTypes: LibraryView.openable) { result in
+                    picked(result)
+                }
+                if account.isAvailable {
+                    fromRecording
+                }
+                Button(action: demo) {
+                    HStack(spacing: CGFloat.ds("s-2")) {
+                        Icon(name: "play")
+                        Text(text["library.demo"])
+                    }
+                }
+                .buttonStyle(DSButtonStyle(kind: .quiet))
             }
-            Button {
-                choosing = true
-            } label: {
-                HStack(alignment: .top, spacing: CGFloat.ds("s-3")) {
-                    Icon(name: "file", size: CGFloat.ds("icon-l"))
-                        .foregroundStyle(Color.ds("accent"))
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(text["library.openFile"])
+            .padding(CGFloat.ds("s-6"))
+        }
+        .background(Color.ds("surface").ignoresSafeArea())
+        .presentationDetents([.medium, .large])
+        .interactiveDismissDisabled(progress != nil)
+    }
+
+    /// From a recording (0014): the scan server hears the sound of an audio or video file, up to its first 7 minutes, and
+    /// its notes become a new piece. Pro, as on the web; what it needs first is offered here.
+    private var fromRecording: some View {
+        VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+            HStack(alignment: .top, spacing: CGFloat.ds("s-3")) {
+                Icon(name: "mic", size: CGFloat.ds("icon-l"))
+                    .foregroundStyle(Color.ds("accent"))
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: CGFloat.ds("s-2")) {
+                        Text(text["library.fromRecording"])
                             .dsType(.bodyStrong)
                             .foregroundStyle(Color.ds("ink"))
-                        Text(text["library.openFileHintHere"])
-                            .dsType(.caption)
-                            .foregroundStyle(Color.ds("ink-2"))
+                        ProTag()
                     }
-                    Spacer(minLength: 0)
+                    Text(text["library.fromRecordingHint"])
+                        .dsType(.caption)
+                        .foregroundStyle(Color.ds("ink-2"))
                 }
-                .padding(CGFloat.ds("s-4"))
-                .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
-                .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
+                Spacer(minLength: 0)
             }
-            .buttonStyle(.plain)
-            Button(action: demo) {
-                HStack(spacing: CGFloat.ds("s-2")) {
-                    Icon(name: "play")
-                    Text(text["library.demo"])
-                }
+            RecordingChooser(
+                text: text,
+                line: text["library.fromRecordingLineDevice"],
+                button: text["library.chooseRecording"],
+                hint: text["transcribe.choose"],
+                progress: progress
+            ) { url in
+                Task { await hear(url) }
             }
-            .buttonStyle(DSButtonStyle(kind: .quiet))
-            Spacer(minLength: 0)
+            if let problem {
+                Text(problem)
+                    .dsType(.caption)
+                    .foregroundStyle(Color.ds("danger"))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
-        .padding(CGFloat.ds("s-6"))
-        .background(Color.ds("surface").ignoresSafeArea())
-        .presentationDetents([.medium])
-        .fileImporter(isPresented: $choosing, allowedContentTypes: LibraryView.openable) { result in
-            picked(result)
+        .padding(CGFloat.ds("s-4"))
+        .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
+        .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
+    }
+
+    private func hear(_ url: URL) async {
+        problem = nil
+        defer { progress = nil }
+        switch await RecordingHearing.hear(url, account: account, text: text, progress: { progress = $0 }) {
+        case .success(let recording):
+            heard(recording)
+        case .failure(let failure):
+            problem = failure.message
         }
     }
 }

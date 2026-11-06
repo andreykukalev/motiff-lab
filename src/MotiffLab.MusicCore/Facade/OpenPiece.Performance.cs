@@ -120,7 +120,7 @@ internal sealed partial class OpenPiece
     }
 
     /// <summary>The notes heard in each part of a recording, joined on the recording's own clock as the web app joins them.</summary>
-    private static byte[] JoinedParts(Request request)
+    internal static byte[] JoinedParts(Request request)
     {
         long milliseconds = request.Long("milliseconds") is > 0 and var length ? length : throw FacadeException.BadRequest("Send \"milliseconds\", how long the sound heard in parts is.");
         IReadOnlyList<RecordingPart> plan = RecordingParts.Plan(milliseconds);
