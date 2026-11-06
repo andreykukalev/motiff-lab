@@ -120,8 +120,9 @@ export class Player {
         this.post({ type: "rate", value });
     }
 
-    setLoop(start: number, end: number): void {
-        this.post({ type: "loop", start, end });
+    /** Loops a range; with `once`, plays it once and stops back at its start. */
+    setLoop(start: number, end: number, once = false): void {
+        this.post({ type: "loop", start, end, once });
     }
 
     clearLoop(): void {

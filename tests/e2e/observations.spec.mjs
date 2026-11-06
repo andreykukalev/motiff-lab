@@ -95,7 +95,7 @@ test("keep a variation with a note, come back to it, rename, export and delete i
         chunks.push(chunk);
     }
     expect(Buffer.concat(chunks).subarray(0, 4).toString("latin1")).toBe("MThd");
-    expect(await page.evaluate(() => window.__downloaded)).toBe("Für Elise (Beethoven, opening) – bars 0–4 – Tiptoe.mid");
+    expect(await page.evaluate(() => window.__downloaded)).toBe("Für Elise – bars 0–4 – Tiptoe.mid");
 
     // A note alone about the phrase.
     await kept.getByRole("button", { name: "Write a note about this phrase" }).click();

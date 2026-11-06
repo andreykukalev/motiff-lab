@@ -2300,6 +2300,13 @@ body:has(.workspace) .site-footer {
     box-shadow: var(--shadow-sheet);
 }
 
+/* A piece on its way: one line where the score will be. */
+.workspace-opening {
+    margin: 30vh auto 0;
+    text-align: center;
+    color: var(--ink-2);
+}
+
 .workspace-start h1 {
     font: var(--t-display);
     margin: var(--s-4) 0;
@@ -3231,6 +3238,61 @@ body:has(.workspace) .site-footer {
     padding: 0 var(--s-2);
 }
 
+/* The thickness of the tool that draws: three dots, thin to thick, the chosen one ringed in the accent. */
+.workspace .pen-palette .widths {
+    display: inline-flex;
+    align-items: center;
+}
+
+.lab.workspace .pen-palette .width {
+    width: var(--h-control);
+    height: var(--h-touch);
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border-radius: var(--r-pill);
+    cursor: pointer;
+}
+
+.workspace .pen-palette .width span {
+    border-radius: 50%;
+    background: var(--ink);
+}
+
+.workspace .pen-palette .width.w0 span {
+    width: 4px;
+    height: 4px;
+}
+
+.workspace .pen-palette .width.w1 span {
+    width: 8px;
+    height: 8px;
+}
+
+.workspace .pen-palette .width.w2 span {
+    width: 13px;
+    height: 13px;
+}
+
+.lab.workspace .pen-palette .width.on, .lab.workspace .pen-palette .width:hover {
+    background: var(--accent-tint);
+}
+
+/* The cross puts the tools away, as the bar's Pen action does. */
+.lab.workspace .pen-palette .close {
+    width: var(--h-touch);
+    height: var(--h-touch);
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.lab.workspace .pen-palette .close:hover {
+    background: var(--accent-tint);
+}
+
 /* Phrase brackets (0018 section 3, design/kit/ds.css .bracket): pencil over the top staff, numbered at the left end, the
    selected one in the accent, a plum dot where ideas were kept. Each is a button with a hit area taller than its line. */
 .lab .score button.bracket {
@@ -3962,6 +4024,27 @@ body:has(.workspace) .site-footer {
     align-items: center;
     justify-content: space-between;
     gap: var(--s-2);
+}
+
+/* The three tabs share the head's width on one line (testing, 2026-11-06: in Russian "Страницы" wrapped under the others). */
+.lab.workspace .contents .contents-head .seg {
+    flex: 1;
+    min-width: 0;
+    flex-wrap: nowrap;
+    align-self: center;
+}
+
+.lab.workspace .contents .contents-head .seg > button {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0 var(--s-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lab.workspace .contents .contents-tools .seg {
+    flex-wrap: nowrap;
 }
 
 .workspace .contents .contents-tools {
@@ -5460,7 +5543,7 @@ body:has(.library) .site-footer {
     width: 19rem;
 }
 
-/* Above the scrim that a tap beside the popover lands on. */
+/* With one of its popovers open (tempo, hands, its settings), above the scrim that a tap beside the popover lands on. */
 .workspace .pill.settings-open {
     z-index: 5;
 }
@@ -5955,7 +6038,9 @@ body:has(.library) .site-footer {
     background: var(--surface);
 }
 
-.key-circle svg {
+/* The circle itself; only the card's own svg, not the icons in its buttons (testing, 2026-11-06: Hear the scale's icon was
+   stretched to the card's width, pushing its words aside). */
+.key-circle > svg {
     display: block;
     width: 100%;
     max-width: 18rem;

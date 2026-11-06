@@ -65,7 +65,8 @@ enum EngineMessage: Sendable {
     case pause
     case seek(Double)
     case rate(Double)
-    case loop(start: Double, end: Double)
+    /// A loop over a range; `once` plays it through once and stops at its end, back at its start (the circle's scale).
+    case loop(start: Double, end: Double, once: Bool = false)
     case loopOff
     case alternate([LoopPass])
     case metronome(Bool)
@@ -124,6 +125,8 @@ final class PlaybackEngine {
     private var rate = 1.0
     private var loopStart = 0.0
     private var loopEnd = 0.0
+    /// The loop plays its range once and stops at its end, back at its start, rather than going round.
+    private var loopOnce = false
     private var passes: [LoopPass]?
     private var pass = -1
     private var metronome = false
@@ -189,11 +192,13 @@ final class PlaybackEngine {
         case .rate(let value):
             rate = min(Self.maxRate, max(Self.minRate, value))
             requestReport()
-        case .loop(let start, let end):
+        case .loop(let start, let end, let once):
             stopAlternating()
             setLoop(start, end)
+            loopOnce = once && hasLoop
         case .loopOff:
             stopAlternating()
+            loopOnce = false
             loopStart = 0
             loopEnd = 0
             requestReport()
@@ -301,6 +306,7 @@ final class PlaybackEngine {
         position = 0
         loopStart = 0
         loopEnd = 0
+        loopOnce = false
         relocate(chase: false)
         requestReport()
     }
@@ -405,6 +411,7 @@ final class PlaybackEngine {
             return
         }
 
+        loopOnce = false
         passes = kept
         pass = 0
         active = first.ids.filter { sources[$0] != nil }
@@ -506,7 +513,7 @@ final class PlaybackEngine {
         let overshoot = max(0, until - boundary)
         if boundary == nextTempo && boundary < stop {
             position = boundary + overshoot * (ticksPerFrame(tempo + 1) / perFrame)
-        } else if looping {
+        } else if looping && !loopOnce {
             release(at: offset + frames) { $0.sourceId != Self.liveSource }
             let alternating = passes != nil
             if let passes {

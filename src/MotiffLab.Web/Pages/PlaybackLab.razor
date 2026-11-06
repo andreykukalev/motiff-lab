@@ -48,7 +48,13 @@
 @* The shared workspace state (decision record 0013): one snapshot per render, which the sheet reads; the page is its only writer. *@
 <CascadingValue Value="State">
     <main class="lab app workspace @WorkspaceClass" @ref="_main">
-        @if (_score is null || _meter is null)
+        @if ((_score is null || _meter is null) && Opening)
+        {
+            @* A piece on its way (a reload, a link, the import screen): only a quiet line, never the start's choices, which
+               flashed for a second before the score (testing, 2026-11-06). *@
+            <p class="workspace-opening meta" role="status">@Text["workspace.opening"]</p>
+        }
+        else if (_score is null || _meter is null)
         {
             @* No piece yet: what to open. The library (0018 section 8) replaces this in a later step. *@
             <div class="workspace-start">
@@ -140,9 +146,9 @@
                 }
             </header>
 
-            @if (_popover != Popover.None || _pillMenu == PillMenu.Settings)
+            @if (_popover != Popover.None || _pillMenu != PillMenu.None)
             {
-                @* A tap anywhere else puts the popover away. *@
+                @* A tap anywhere else puts the popover away, the pill's tempo and hands popovers too. *@
                 <button class="scrim" aria-label="@Text["bar.close"]" tabindex="-1" @onclick="ClosePopover" data-keeps-selection></button>
             }
             @switch (_popover)
@@ -362,7 +368,7 @@
                         }
                     </div>
 
-                <InsightsStream Choose="ChooseFactAsync" HearScale="HearScaleAsync" Try="TryExperimentAsync" Keep="KeepExperimentAsync" Ask="MenuAsk" OpenIdea="ShowKeptVariationAsync"
+                <InsightsStream Choose="ChooseFactAsync" HearScale="HearScaleAsync" ScaleHeard="_scaleHeard" Try="TryExperimentAsync" Keep="KeepExperimentAsync" Ask="MenuAsk" OpenIdea="ShowKeptVariationAsync"
                                 Adjusting="_showOperations" AdjustingChanged="SetAdjusting" TrialCard="TrialCard" AdjustTools="ShapeTools" Ideas="IdeasList" />
                 @if (_variation is not null && _selection is { NoteIds.Count: > 0 })
                 {
@@ -508,7 +514,7 @@
             @if (PillShown)
             {
                 @* The transport pill (0018 section 2, design/kit/ds.css .pill): with a selection or while playing. *@
-                <div class="pill @(_pillMenu == PillMenu.Settings ? "settings-open" : null)" role="toolbar" aria-label="@Text["transport.label"]" data-keeps-selection data-long-press="pill">
+                <div class="pill @(_pillMenu != PillMenu.None ? "settings-open" : null)" role="toolbar" aria-label="@Text["transport.label"]" data-keeps-selection data-long-press="pill">
                     <button class="play" @onclick="TogglePlayAsync" aria-label="@(Player.State == PlaybackState.Stopped ? Text["transport.play"] : Text["transport.pause"])">
                         <Icon Name="@(Player.State != PlaybackState.Stopped ? "pause" : "playf")" />
                     </button>
@@ -563,7 +569,7 @@
                     <span class="visually-hidden state" role="status">@StateText</span>
                     <span class="visually-hidden position" aria-live="off">@PositionText</span>
                     <button class="it @(Player.Metronome ? "on" : null)" aria-pressed="@(Player.Metronome ? "true" : "false")" @onclick="ToggleMetronomeAsync"><Icon Name="metronome" /> @Text["transport.metronome"]</button>
-                    <button class="it @(Player.CountIn ? "on" : null)" aria-pressed="@(Player.CountIn ? "true" : "false")" @onclick="ToggleCountInAsync"><Icon Name="count" /> @Text["transport.countIn"]</button>
+                    <button class="it @(Player.CountIn ? "on" : null)" aria-pressed="@(Player.CountIn ? "true" : "false")" title="@Text["transport.countInHint"]" @onclick="ToggleCountInAsync"><Icon Name="count" /> @Text["transport.countIn"]</button>
                     @if (_pillMenu == PillMenu.Settings)
                     {
                         @* The pill's own settings (0018 section 10), from a long press on it: over the pill's middle. *@
@@ -1612,6 +1618,13 @@
     /// <summary>True once the project in the address was looked for, so a missing one is reported once.</summary>
     private bool _reopened;
 
+    /// <summary>
+    /// A piece is being opened and nothing has gone wrong: the project the address names not yet looked for, a piece waiting
+    /// for the piano, or the example the address asks for. The page then shows a quiet line rather than the start.
+    /// </summary>
+    private bool Opening => _message is null && Player.Error is null
+        && ((ProjectId is { Length: > 0 } && !_reopened) || CurrentPiece.Piece is not null || (Start == "fur-elise" && !_started));
+
     /// <summary>"fur-elise" when the address asks to open the example ("playback?start=fur-elise", from Projects).</summary>
     [SupplyParameterFromQuery(Name = "start")]
     public string? Start { get; set; }
@@ -1870,7 +1883,11 @@
         SettingsStore.Changed -= OnSettingsChanged;
     }
 
-    private void OnPlayerChanged() => _ = InvokeAsync(StateHasChanged);
+    private void OnPlayerChanged() => _ = InvokeAsync(async () =>
+    {
+        await FollowScaleAsync();
+        StateHasChanged();
+    });
 
     /// <summary>The facts and the variation's explanation are written in the chosen language, so a new language reads the selection again (#134).</summary>
     private void OnLanguageChanged() => _ = InvokeAsync(async () =>
@@ -1896,13 +1913,7 @@
 
     private async Task LoadFurEliseAsync()
     {
-        (PlaybackScore score, MeterMap meter, IReadOnlyList<Note> notes) = FurElise.Create();
-        GeneratedNotation notation = NotationGenerator.Generate(notes, meter, [new KeyChange(FurElise.Key.At, FurElise.Key.Fifths)], score.End, FurElise.Title);
-        _accents = null;
-        _phraseMarks = PhraseMarks.None;
-        _characterContext = new CharacterContext(score.Tempos, TempoAssumed: false, FromNotation: false);
-        (_heard, _heardKey) = (false, null);
-        await LoadAsync((score, meter, notes), FurElise.Title, notation, musicXml: null, keys: [FurElise.Key]);
+        await LoadPieceAsync(FurElise.Import(), FurElise.Title);
         // Für Elise has no project, so the address no longer names one.
         if (ProjectId is not null)
         {
@@ -1996,8 +2007,10 @@
         _project = null;
     }
 
-    private async Task LoadPieceAsync(ImportedPiece piece)
+    /// <param name="title">The piece's name, when it is not its file's (Für Elise).</param>
+    private async Task LoadPieceAsync(ImportedPiece piece, string? title = null)
     {
+        string? scoreTitle = title ?? ScoreTitle.Of(piece.FileName);
         // MIDI cannot mark accents, so a MIDI piece has no accent fact rather than "no accents".
         _accents = piece.MusicXml?.AccentMarks;
         _characterContext = CharacterContext.FromPiece(piece);
@@ -2009,15 +2022,15 @@
         {
             var score = PlaybackScore.FromMidi(midi);
             GeneratedNotation notation = _heard
-                ? HeardNotation(midi.Notes, midi.Meter, _heardKey is { } heardKey ? [new KeyChange(Tick.Zero, heardKey.Fifths)] : [], midi.End, ScoreTitle.Of(piece.FileName), score)
-                : NotationGenerator.FromMidi(midi, ScoreTitle.Of(piece.FileName));
-            await LoadAsync((score, piece.Meter, piece.Notes), piece.FileName, notation, musicXml: null, piece.Keys);
+                ? HeardNotation(midi.Notes, midi.Meter, _heardKey is { } heardKey ? [new KeyChange(Tick.Zero, heardKey.Fifths)] : [], midi.End, scoreTitle, score)
+                : NotationGenerator.FromMidi(midi, scoreTitle);
+            await LoadAsync((score, piece.Meter, piece.Notes), title ?? piece.FileName, notation, musicXml: null, piece.Keys);
             return;
         }
 
         MusicXmlImport import = piece.MusicXml!;
         using var text = new StreamReader(new MemoryStream(piece.ScoreXml!), detectEncodingFromByteOrderMarks: true);
-        await LoadAsync((PlaybackScore.FromMusicXml(import), piece.Meter, piece.Notes), piece.FileName, NotationGenerator.FromMusicXml(import, ScoreTitle.Of(piece.FileName)), await text.ReadToEndAsync(), piece.Keys);
+        await LoadAsync((PlaybackScore.FromMusicXml(import), piece.Meter, piece.Notes), title ?? piece.FileName, NotationGenerator.FromMusicXml(import, scoreTitle), await text.ReadToEndAsync(), piece.Keys);
     }
 
     private async Task LoadAsync((PlaybackScore Score, MeterMap Meter, IReadOnlyList<Note> Notes) piece, string title, GeneratedNotation notation, string? musicXml, IReadOnlyList<KeySignature> keys)
@@ -2197,6 +2210,7 @@
     /// <summary>Starts playback, and counts it for analytics when the player has turned them on (#64).</summary>
     private async Task PlayAsync()
     {
+        _pillKept = true;
         await Player.PlayAsync();
         string hear = !VariationChosen ? "original" : _hear.Length > 1 ? "both" : "variation";
         await Analytics.TrackAsync(AnalyticsEvent.PlaybackStarted(hear, TempoPercent, _looping));

@@ -68,8 +68,19 @@ export interface MarksFile {
 /** Pen thickness in staff spaces: about a pencil's line at the score's size. */
 export const PEN_SIZE = 0.16;
 
-/** The highlighter is about two staff spaces wide, enough to cover a note and its neighbours' heads. */
-export const HIGHLIGHTER_SIZE = 1.1;
+/**
+ * The highlighter is about two staff spaces wide, enough to cover a note and its neighbours' heads: a band laid over the
+ * notes, not a thick line (testing, 2026-11-06: at 1.1 it read as a fat beige pencil).
+ */
+export const HIGHLIGHTER_SIZE = 2.2;
+
+/** The thicknesses the palette offers, thin to thick, in staff spaces; the middle one is the default. */
+export const PEN_SIZES: readonly number[] = [0.1, PEN_SIZE, 0.3];
+
+export const HIGHLIGHTER_SIZES: readonly number[] = [1.4, HIGHLIGHTER_SIZE, 3.2];
+
+/** The thickness chosen by default: the middle of each list. */
+export const DEFAULT_WIDTH = 1;
 
 /** Points closer than this (pixels) to the last one kept add nothing to the line. */
 export const MIN_POINT_DISTANCE = 0.75;

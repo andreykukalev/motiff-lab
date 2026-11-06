@@ -17,7 +17,7 @@ test("a second tap on the selected bracket lifts the phrase; Back, the dimmed pa
     await bracket.click();
     await expect(card(page).locator(".phrase-card-score > .card-page > svg")).toBeVisible();
     await expect(page.locator(".workspace")).toHaveClass(/focused/);
-    await expect(bar(page).locator(".crumb")).toHaveText("the pickup and bars 1–4 · phrase 1 of 2");
+    await expect(bar(page).locator(".crumb")).toHaveText("the pickup and bars 1–4 · phrase 1 of 20");
     // The page's menu gives way to the card.
     await expect(page.locator(".ctx .menu")).toHaveCount(0);
     // The card engraves only the phrase: its notes are those of bars 1 to 4, the first bar numbered.
@@ -50,11 +50,16 @@ test("previous and next walk the phrases, and the card follows", async ({ page }
     const next = card(page).getByRole("button", { name: "Next phrase" });
     await expect(previous).toBeDisabled();
     await next.click();
-    await expect(bar(page).locator(".crumb")).toContainText("phrase 2 of 2");
+    await expect(bar(page).locator(".crumb")).toContainText("phrase 2 of 20");
     await expect(page.locator(".selection-status")).toContainText("bars 4–8");
-    await expect(next).toBeDisabled();
     await page.keyboard.press("PageUp");
-    await expect(bar(page).locator(".crumb")).toContainText("phrase 1 of 2");
+    await expect(bar(page).locator(".crumb")).toContainText("phrase 1 of 20");
+    // The last phrase of the piece has no next one.
+    for (let phrase = 2; phrase <= 20; phrase++) {
+        await page.keyboard.press("PageDown");
+        await expect(bar(page).locator(".crumb")).toContainText(`phrase ${phrase} of 20`);
+    }
+    await expect(next).toBeDisabled();
 });
 
 test("a variation is the ossia above the phrase, heard with Original, Variation or Alternate; kept ones are chips", async ({ page }) => {

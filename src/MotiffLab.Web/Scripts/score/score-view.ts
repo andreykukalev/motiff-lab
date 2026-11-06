@@ -14,7 +14,7 @@ import { type ScoreSelection, SelectionLayer } from "./selection-layer.js";
 import { ScoreTimeline, highlightedIds, type HighlightPlace } from "./score-timeline.js";
 import { A4_HEIGHT, A4_WIDTH, buildPdf, crop, inkBounds, type InkLayer, type PdfPage } from "./pdf-document.js";
 import { hasText, svgToPdfOperators, textOnlySvg } from "./svg-to-pdf.js";
-import { A4_LAYOUT, pdfFileName, titleBlock, withTitle } from "./score-page.js";
+import { A4_LAYOUT, A4_PDF_LAYOUT, pdfFileName, titleBlock, withTitle } from "./score-page.js";
 import { BRACKET_LIFT, ScoreGeometry, bookmarkLevels, readPage, type PageGeometry, type PagePlacement, type ScoreBar } from "./score-geometry.js";
 import { downloadBytes, saveCover } from "../storage/project-store.js";
 import { newToolkit, type VerovioToolkit } from "./verovio.js";
@@ -341,7 +341,7 @@ export class ScoreView {
         const engraver = await newToolkit();
         const svgs: string[] = [];
         try {
-            engraver.setOptions({ ...A4_LAYOUT });
+            engraver.setOptions({ ...A4_PDF_LAYOUT });
             if (!engraver.loadData(data)) {
                 throw new Error(`The score could not be engraved. ${engraver.getLog()}`.trim());
             }

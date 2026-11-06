@@ -115,6 +115,22 @@ final class PlaybackEngineTests: XCTestCase {
         XCTAssertEqual(noteStarts(out), [0, half, quarter, quarter + half, quarter * 2, quarter * 2 + half, quarter * 3])
     }
 
+    func testALoopPlayedOnceStopsAtItsEndBackAtItsStart() {
+        // The circle's scale (testing, 2026-11-06): once through, then still, ready to play again from its start.
+        let e = engine()
+        source(e, "a", [(480, 240), (720, 240), (960, 240)])
+        e.handle(.activeSources(["a"]))
+        e.handle(.loop(start: 480, end: 960, once: true))
+        e.handle(.seek(480))
+        e.handle(.play)
+
+        let out = e.render(frames: frames(Double(quarter * 3)))
+
+        XCTAssertEqual(noteStarts(out), [0, quarter / 2])
+        XCTAssertEqual(e.transportState, .stopped)
+        XCTAssertEqual(e.tick, 480)
+    }
+
     func testALoopNotOnABlockBoundaryKeepsExactTime() {
         // A loop of 100 ticks: 5000 frames, not a multiple of 128.
         let e = engine()
@@ -288,7 +304,7 @@ final class PianoAndProjectTests: XCTestCase {
     }
 
     func testTheExamplesPlaybackScoreComesFromMusicCore() async throws {
-        let example = try XCTUnwrap(OpenPiece.example)
+        let example = try XCTUnwrap(KitPiece.example)
         let answer = await MusicCore.run { () -> String in
             let opened = facadeObject(MusicCore.open(fileName: example.fileName, data: example.data))
             let piece = (opened?["piece"] as? NSNumber)?.int32Value ?? 0
@@ -308,7 +324,7 @@ final class PianoAndProjectTests: XCTestCase {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: folder) }
 
-        let example = try XCTUnwrap(OpenPiece.example)
+        let example = try XCTUnwrap(KitPiece.example)
         let first = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
         let url = ProjectFiles.newURL(for: "Für Elise", in: folder)
         XCTAssertEqual(url.lastPathComponent, "Für Elise.motiff.json")

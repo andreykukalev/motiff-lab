@@ -46,7 +46,7 @@ final class PencilTests: XCTestCase {
 
     func testAStrokeIsKeptAgainstItsBarSavedByMusicCoreAndDrawn() async throws {
         let view = try await scorePage()
-        let example = try XCTUnwrap(OpenPiece.example)
+        let example = try XCTUnwrap(KitPiece.example)
         let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
         defer { _ = MusicCore.close(piece: piece.id) }
 
@@ -100,7 +100,7 @@ final class PencilTests: XCTestCase {
 
     func testTheBarNamesThePagesUnderTheReadingLine() async throws {
         let view = try await scorePage()
-        let example = try XCTUnwrap(OpenPiece.example)
+        let example = try XCTUnwrap(KitPiece.example)
         let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
         defer { _ = MusicCore.close(piece: piece.id) }
         let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
@@ -122,7 +122,7 @@ final class PencilTests: XCTestCase {
 
     func testBracketsAndTheSelectionBandAreDrawnOverTheBars() async throws {
         let view = try await scorePage()
-        let example = try XCTUnwrap(OpenPiece.example)
+        let example = try XCTUnwrap(KitPiece.example)
         let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
         defer { _ = MusicCore.close(piece: piece.id) }
         let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
@@ -148,7 +148,7 @@ final class PencilTests: XCTestCase {
 
     func testFocusLiftsThePhraseIntoACardEngravedAtItsWidth() async throws {
         let view = try await scorePage()
-        let example = try XCTUnwrap(OpenPiece.example)
+        let example = try XCTUnwrap(KitPiece.example)
         let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
         defer { _ = MusicCore.close(piece: piece.id) }
         let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
@@ -204,7 +204,7 @@ final class PencilTests: XCTestCase {
 
     func testThePianoRollDrawsMusicCoresNotesAndPicksBars() async throws {
         let view = try await webPage("Web/roll.html", ready: "window.roll")
-        let example = try XCTUnwrap(OpenPiece.example)
+        let example = try XCTUnwrap(KitPiece.example)
         let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
         defer { _ = MusicCore.close(piece: piece.id) }
         let roll = try XCTUnwrap(facadeObject(MusicCore.call(piece: piece.id, "roll")))
@@ -228,7 +228,7 @@ final class PencilTests: XCTestCase {
 
     func testAFactRingsItsPlacesOnTheScore() async throws {
         let view = try await scorePage()
-        let example = try XCTUnwrap(OpenPiece.example)
+        let example = try XCTUnwrap(KitPiece.example)
         let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
         defer { _ = MusicCore.close(piece: piece.id) }
         let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
@@ -259,7 +259,7 @@ final class PencilTests: XCTestCase {
 
     func testBookmarksAreBracketsAboveThePhrasesAndThePagesHavePictures() async throws {
         let view = try await scorePage()
-        let example = try XCTUnwrap(OpenPiece.example)
+        let example = try XCTUnwrap(KitPiece.example)
         let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
         defer { _ = MusicCore.close(piece: piece.id) }
         let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
@@ -292,7 +292,7 @@ final class PencilTests: XCTestCase {
 
     func testMarginNotesAreMarkersHighlightsAreBandsAndLayersHide() async throws {
         let view = try await scorePage()
-        let example = try XCTUnwrap(OpenPiece.example)
+        let example = try XCTUnwrap(KitPiece.example)
         let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
         defer { _ = MusicCore.close(piece: piece.id) }
         let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
@@ -325,7 +325,7 @@ final class PencilTests: XCTestCase {
 
     func testCheckFlagsSitAtTheBarsTopRightBesideItsNotesAndHideAsALayer() async throws {
         let view = try await scorePage()
-        let example = try XCTUnwrap(OpenPiece.example)
+        let example = try XCTUnwrap(KitPiece.example)
         let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
         defer { _ = MusicCore.close(piece: piece.id) }
         let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
@@ -354,7 +354,7 @@ final class PencilTests: XCTestCase {
 
     func testAnotherVersionsLabelsSitAboveItsBarsAndItsMissingNotesAreTinted() async throws {
         let view = try await scorePage()
-        let example = try XCTUnwrap(OpenPiece.example)
+        let example = try XCTUnwrap(KitPiece.example)
         let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
         defer { _ = MusicCore.close(piece: piece.id) }
         let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
@@ -382,7 +382,7 @@ final class PencilTests: XCTestCase {
 
     func testTheNotesSoundingAreMarkedWhilePlayingAndThePageFollows() async throws {
         let view = try await scorePage()
-        let example = try XCTUnwrap(OpenPiece.example)
+        let example = try XCTUnwrap(KitPiece.example)
         let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
         defer { _ = MusicCore.close(piece: piece.id) }
         let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
@@ -411,7 +411,7 @@ final class PencilTests: XCTestCase {
 
     func testTheNotesPagesLeadToAndFromThePdfsPages() async throws {
         let view = try await scorePage()
-        let example = try XCTUnwrap(OpenPiece.example)
+        let example = try XCTUnwrap(KitPiece.example)
         let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
         defer { _ = MusicCore.close(piece: piece.id) }
         let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))

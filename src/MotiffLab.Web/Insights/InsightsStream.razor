@@ -180,9 +180,13 @@
     [Parameter]
     public EventCallback<FactChoice?> Choose { get; set; }
 
-    /// <summary>Raised from the circle of fifths' Hear the scale, to loop the key's scale.</summary>
+    /// <summary>Raised from the circle of fifths' Hear the scale, to play the key's scale once, or to stop it while it sounds.</summary>
     [Parameter]
     public EventCallback<KeyCircleView> HearScale { get; set; }
+
+    /// <summary>The circle's scale is sounding: its button stops it.</summary>
+    [Parameter]
+    public bool ScaleHeard { get; set; }
 
     /// <summary>Raised with an experiment to try at once.</summary>
     [Parameter]
@@ -318,7 +322,7 @@
             }
             @if (_circleFor == fact.Id && State.Facts.Circle is { } circle)
             {
-                <KeyCircleCard Circle="circle" Chosen="ChosenPlace(fact)" Show="place => ShowOnScore(fact, place)" Hear="() => HearScale.InvokeAsync(circle)" />
+                <KeyCircleCard Circle="circle" Playing="ScaleHeard" Chosen="ChosenPlace(fact)" Show="place => ShowOnScore(fact, place)" Hear="() => HearScale.InvokeAsync(circle)" />
             }
             @if (tries.Count > 0)
             {

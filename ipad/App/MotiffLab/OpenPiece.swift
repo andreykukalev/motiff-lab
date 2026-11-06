@@ -43,10 +43,10 @@ struct OpenPiece: Identifiable, Sendable {
         }
     }
 
-    /// The example piece in the app: Für Elise, 97 bars (design/kit/elise.musicxml).
+    /// The example piece in the app: Für Elise, the whole piece, the web app's own (src/MotiffLab.Web/Playback/FurElise.musicxml).
     static var example: (fileName: String, data: Data, title: String)? {
-        guard let url = Bundle.main.url(forResource: "elise", withExtension: "musicxml"),
+        guard let url = Bundle.main.url(forResource: "FurElise", withExtension: "musicxml"),
               let data = try? Data(contentsOf: url) else { return nil }
-        return ("elise.musicxml", data, "Für Elise")
+        return ("FurElise.musicxml", data, "Für Elise")
     }
 }

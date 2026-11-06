@@ -64,7 +64,7 @@ export type EngineMessage =
     | { type: "pause" }
     | { type: "seek"; tick: number }
     | { type: "rate"; value: number }
-    | { type: "loop"; start: number; end: number }
+    | { type: "loop"; start: number; end: number; once?: boolean }
     | { type: "loopOff" }
     | { type: "alternate"; passes: LoopPass[] }
     | { type: "metronome"; on: boolean }
@@ -198,6 +198,8 @@ export class Engine {
     private rate = 1;
     private loopStart = 0;
     private loopEnd = 0;
+    /** The loop plays its range once and stops at its end, back at its start (the circle's scale), rather than going round. */
+    private loopOnce = false;
     /** An alternating loop: each pass plays its sources over its range, then the next pass starts on the same frame. */
     private passes: LoopPass[] | null = null;
     private pass = -1;
@@ -284,12 +286,14 @@ export class Engine {
             case "loop":
                 this.stopAlternating();
                 this.setLoop(message.start, message.end);
+                this.loopOnce = message.once === true && this.hasLoop();
                 break;
             case "alternate":
                 this.alternate(message.passes);
                 break;
             case "loopOff":
                 this.stopAlternating();
+                this.loopOnce = false;
                 this.loopStart = 0;
                 this.loopEnd = 0;
                 this.requestReport();
@@ -405,6 +409,7 @@ export class Engine {
         this.position = 0;
         this.loopStart = 0;
         this.loopEnd = 0;
+        this.loopOnce = false;
         this.relocate(false);
         this.requestReport();
     }
@@ -537,6 +542,7 @@ export class Engine {
 
         this.passes = kept;
         this.pass = 0;
+        this.loopOnce = false;
         // The seek below releases what was sounding and strikes the first pass's notes already sounding there.
         this.active = kept[0].ids.filter((id) => this.sources.has(id));
         this.loopStart = kept[0].start;
@@ -640,7 +646,7 @@ export class Engine {
         const overshoot = Math.max(0, until - boundary);
         if (boundary === nextTempo && boundary < stop) {
             this.position = boundary + overshoot * (this.ticksPerFrame(tempo + 1) / perFrame);
-        } else if (looping) {
+        } else if (looping && !this.loopOnce) {
             this.releaseWhere((voice) => voice.sourceId !== LIVE_SOURCE, offset + frames);
             const alternating = this.passes !== null;
             if (this.passes !== null) {

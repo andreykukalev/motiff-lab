@@ -142,15 +142,18 @@ public sealed class Player(IJSRuntime js) : IAsyncDisposable
         Changed?.Invoke();
     }
 
-    /// <summary>Loops a range, such as the selected motif, or stops looping with null.</summary>
-    public async Task SetLoopAsync(TickSpan? range)
+    /// <summary>
+    /// Loops a range, such as the selected motif, or stops looping with null. With <paramref name="once"/> the range plays once
+    /// and playback stops at its end, back at its start.
+    /// </summary>
+    public async Task SetLoopAsync(TickSpan? range, bool once = false)
     {
         IJSObjectReference engine = await EngineAsync();
         Loop = range;
         EndAlternation();
         if (range is { } span)
         {
-            await engine.InvokeVoidAsync("setLoop", span.Onset.Value, span.End.Value);
+            await engine.InvokeVoidAsync("setLoop", span.Onset.Value, span.End.Value, once);
         }
         else
         {

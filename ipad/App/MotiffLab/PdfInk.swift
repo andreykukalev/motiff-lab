@@ -63,7 +63,7 @@ struct DocumentStroke: Identifiable, Equatable, Sendable {
 }
 
 /// A stroke drawn by PDFKit with its page, kept only in memory: the PDF is never written back, the strokes live in the
-/// project. The pen in its ink at its thickness, the highlighter a wide translucent amber.
+/// project. The pen in its ink at its thickness, the highlighter a wide translucent amber band.
 final class InkMark: PDFAnnotation {
     private var line: [CGPoint] = []
     private var width: CGFloat = 1
@@ -111,9 +111,8 @@ final class InkMark: PDFAnnotation {
 }
 
 extension PdfController: PKCanvasViewDelegate, UIPencilInteractionDelegate {
-    /// The pen size in the page's spaces (the web app's PEN_SIZE and HIGHLIGHTER_SIZE).
-    static let penSize = 0.16
-    static let highlighterSize = 1.1
+    /// The pen's default size in the page's spaces (the web app's PEN_SIZE); the sizes of every thickness are PenSizes.
+    static let penSize = PenSizes.pen[PenSizes.defaultWidth]
 
     /// Lays the canvas over the pages. It takes only the Pencil unless Pen is on: its drawing gesture is moved to the PDF
     /// view, so a finger still scrolls the pages.
@@ -162,9 +161,9 @@ extension PdfController: PKCanvasViewDelegate, UIPencilInteractionDelegate {
         let width = (view?.currentPage?.bounds(for: .cropBox).width ?? 595) / DocumentStroke.spacesAcross * (view?.scaleFactor ?? 1)
         switch tool {
         case .pen(let ink):
-            canvas.tool = PKInkingTool(.pen, color: ink.color, width: max(1, Self.penSize * width * 1.6))
+            canvas.tool = PKInkingTool(.pen, color: ink.color, width: max(1, PenSizes.pen[penWidth] * width * 1.6))
         case .highlighter:
-            canvas.tool = PKInkingTool(.marker, color: DesignTokens.color("amber").withAlphaComponent(0.38), width: Self.highlighterSize * width)
+            canvas.tool = PKInkingTool(.marker, color: DesignTokens.color("amber").withAlphaComponent(0.38), width: PenSizes.highlighter[highlighterWidth] * width)
         case .eraser:
             canvas.tool = PKInkingTool(.pen, color: DesignTokens.color("ink-graphite").withAlphaComponent(0.25), width: 20)
         }
@@ -190,9 +189,9 @@ extension PdfController: PKCanvasViewDelegate, UIPencilInteractionDelegate {
             canUndo = !added.isEmpty
             Task { await change("document.ink.remove", ["ids": ids]) }
         case .pen(let ink):
-            keep(onPage, tool: "pen", colour: ink.rawValue, size: Self.penSize, page: number, box: box)
+            keep(onPage, tool: "pen", colour: ink.rawValue, size: PenSizes.pen[penWidth], page: number, box: box)
         case .highlighter:
-            keep(onPage, tool: "highlighter", colour: "amber", size: Self.highlighterSize, page: number, box: box)
+            keep(onPage, tool: "highlighter", colour: "amber", size: PenSizes.highlighter[highlighterWidth], page: number, box: box)
         }
     }
 

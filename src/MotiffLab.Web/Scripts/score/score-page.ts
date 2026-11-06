@@ -29,6 +29,17 @@ export const A4_LAYOUT: Readonly<Record<string, unknown>> = {
 };
 
 /**
+ * The PDF's page: on paper no bar floats over the top margin, so the title starts 20 mm from the top rather than 50 mm
+ * (testing, 2026-11-06: the first page began with a third of it empty). The bottom margin takes the 30 mm the top gives up,
+ * so each page holds the same height of music and the PDF breaks its systems and pages as the screen does.
+ */
+export const A4_PDF_LAYOUT: Readonly<Record<string, unknown>> = {
+    ...A4_LAYOUT,
+    pageMarginTop: 200,
+    pageMarginBottom: 460,
+};
+
+/**
  * Gives a MusicXML file without a title one, so an A4 page is headed by the piece's name; a file
  * with a title, credits, or MEI (generated notation carries its title) is left as it is.
  */

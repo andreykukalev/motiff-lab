@@ -12,15 +12,15 @@ test("the score fills the screen, and brackets pick phrases at the level chosen"
     const pill = page.locator(".pill");
 
     // The page and the bar, with nothing docked: no pill, roll or sheet until asked for.
-    await expect(page.locator(".score .score-page")).toHaveCount(1);
-    await expect(bar).toContainText("Für Elise (Beethoven, opening)");
-    await expect(bar).toContainText("p. 1 of 1");
+    await expect(page.locator(".score .score-page")).toHaveCount(5);
+    await expect(bar).toContainText("Für Elise");
+    await expect(bar).toContainText(/1(–2)? of 5/);
     await expect(pill).toHaveCount(0);
     await expect(page.locator(".roll")).toHaveCount(0);
     await expect(page.locator(".sheet")).toHaveCount(0);
 
-    // Für Elise's opening is two phrases at the default level; a tap on a bracket selects its phrase and brings the pill.
-    await expect(brackets).toHaveCount(2);
+    // Für Elise is twenty phrases at the default level; a tap on a bracket selects its phrase and brings the pill.
+    await expect(brackets).toHaveCount(20);
     await expect(brackets.nth(1)).toHaveAccessibleName("Phrase 2, bars 4–8");
     await brackets.nth(1).click();
     await expect(brackets.nth(1)).toHaveAttribute("aria-pressed", "true");
@@ -36,13 +36,13 @@ test("the score fills the screen, and brackets pick phrases at the level chosen"
     await bar.getByRole("button", { name: "Phrases" }).click();
     const popover = page.getByRole("dialog", { name: "Phrases" });
     await popover.getByRole("radio", { name: "Sentences" }).click();
-    await expect(brackets).toHaveCount(1);
-    await expect(selection).toContainText("Selected sentence A");
-    await expect(popover).toContainText("1 sentence in the piece");
+    await expect(brackets).toHaveCount(5);
+    await expect(selection).toContainText("Selected sentence");
+    await expect(popover).toContainText("5 sentences in the piece");
     await popover.getByRole("radio", { name: "Short" }).click();
-    await expect.poll(() => brackets.count()).toBeGreaterThan(2);
+    await expect.poll(() => brackets.count()).toBeGreaterThan(20);
     await popover.getByRole("radio", { name: "Phrases" }).click();
-    await expect(brackets).toHaveCount(2);
+    await expect(brackets).toHaveCount(20);
     await expect(selection).toContainText("Selected phrase 1");
 
     // The brackets can be hidden for a clean page.
@@ -50,7 +50,7 @@ test("the score fills the screen, and brackets pick phrases at the level chosen"
     await show.uncheck();
     await expect(brackets).toHaveCount(0);
     await show.check();
-    await expect(brackets).toHaveCount(2);
+    await expect(brackets).toHaveCount(20);
     await closePopover(page);
 
     // The roll and the sheet come and go; the selection stays as it was.
@@ -127,20 +127,21 @@ test("bars dragged across on the score are selected, the handles move the edges,
     await menu.getByRole("button", { name: "More for the selection" }).click();
     await expect(menu.getByRole("button", { name: "Merge with the next phrase" })).toHaveCount(0);
     await menu.getByRole("button", { name: "Make a phrase" }).click();
-    await expect(brackets).toHaveCount(3);
+    await expect(brackets).toHaveCount(21);
     await expect(brackets.nth(1)).toHaveAttribute("aria-pressed", "true");
     await expect(selection).toContainText("Selected phrase 2");
 
     // Merge with the next phrase takes the boundary after it away.
     await menu.getByRole("button", { name: "More for the selection" }).click();
     await menu.getByRole("button", { name: "Merge with the next phrase" }).click();
-    await expect(brackets).toHaveCount(2);
+    await expect(brackets).toHaveCount(20);
     await expect(selection).toContainText("Selected phrase 2");
 
-    // The last phrase, with the playhead outside it, has no phrase edits: the overflow holds only Highlight.
+    // A phrase with the playhead outside it can be merged on, but not made or split.
     await menu.getByRole("button", { name: "More for the selection" }).click();
     await expect(menu.getByRole("button", { name: "Highlight in amber" })).toBeVisible();
-    await expect(menu.getByRole("button", { name: /^(Make a phrase|Merge with the next phrase|Split here)$/ })).toHaveCount(0);
+    await expect(menu.getByRole("button", { name: "Merge with the next phrase" })).toBeVisible();
+    await expect(menu.getByRole("button", { name: /^(Make a phrase|Split here)$/ })).toHaveCount(0);
     await menu.getByRole("button", { name: "More for the selection" }).click();
 
     // Split here splits the phrase where the playhead stands, a note tapped in a later bar of it.
@@ -148,13 +149,13 @@ test("bars dragged across on the score are selected, the handles move the edges,
     await bars.nth(5).locator("g.note").first().dispatchEvent("click");
     await menu.getByRole("button", { name: "More for the selection" }).click();
     await menu.getByRole("button", { name: "Split here" }).click();
-    await expect(brackets).toHaveCount(3);
+    await expect(brackets).toHaveCount(21);
     await expect(selection).toContainText("Selected phrase 2");
 
     // Reset to detected brings the suggested phrases back.
     await page.locator(".bar").getByRole("button", { name: "Phrases" }).click();
     await page.getByRole("dialog", { name: "Phrases" }).getByRole("button", { name: "Reset to detected" }).click();
-    await expect(brackets).toHaveCount(2);
+    await expect(brackets).toHaveCount(20);
     await closePopover(page);
 
     // With the pen on, the menu goes away and the mouse writes rather than selects.
