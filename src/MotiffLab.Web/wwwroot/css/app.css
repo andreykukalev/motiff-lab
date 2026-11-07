@@ -2935,6 +2935,25 @@ body:has(.workspace) .site-footer {
     flex: 1;
 }
 
+/* The note editor's head (testing item 15): the tools, Undo and Reset, then Cancel and ✓ Save; it wraps on a narrow drawer. */
+.workspace :is(.drawer, .focus-roll) .roll-head.editing {
+    flex-wrap: wrap;
+}
+
+.workspace :is(.drawer, .focus-roll) .roll-head.editing .overline {
+    color: var(--accent);
+}
+
+.workspace :is(.drawer, .focus-roll) .roll-edit-hint {
+    flex: none;
+    margin: 0 0 var(--s-2);
+}
+
+/* While the notes are edited, a press on them edits: the cursor says what it does (set by the script per note). */
+.workspace .roll .roll-notes.editing {
+    cursor: crosshair;
+}
+
 .lab.workspace :is(.drawer, .sheet, .focus-roll) .chip {
     display: inline-flex;
     align-items: center;

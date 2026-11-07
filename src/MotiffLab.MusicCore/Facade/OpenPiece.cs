@@ -749,6 +749,7 @@ internal sealed partial class OpenPiece
             Variations = variations,
             LastOpened = now ?? Project.LastOpened,
         };
-        return System.Text.Encoding.UTF8.GetString(ProjectFile.Write(Project));
+        // Corrections made in the note editor are kept only once the player saves them (testing item 15).
+        return System.Text.Encoding.UTF8.GetString(ProjectFile.Write(_draftFrom is { } saved ? Project with { Edits = saved } : Project));
     }
 }
