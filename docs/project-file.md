@@ -165,9 +165,15 @@ A performance compared with the piece (version 13, [0022](decisions/0022-score-a
         "removed": ["n_0031"],           // printed notes the performance does not play
         "added": [ { "id": "perf-perf_1-n_0042", "pitch": 79, "onset": 4560, "duration": 120,
                      "velocity": 64, "track": 0, "hand": "Right" } ] }   // hand absent when unknown
-    ] }
+    ],
+    "merge": {                           // optional (within version 14): the merge draft's choices, to open again
+      "appliedAt": "2026-11-07T12:30:00.0000000+00:00",   // null after "Undo the merge"; the choices stay
+      "bars": [ { "bar": 5, "choice": "Version" },        // Mine, Version, Own or NotADifference
+                { "bar": 7, "choice": "Own", "own": { "bar": 7, "removed": [ … ], "added": [ … ] } } ] } }   // own: the bar the player wrote, as a taken bar
 ]
 ```
+
+`merge` is written once the player applies a merge draft ([0022](decisions/0022-score-and-performance.md), section 5). Applying it sets `taken` to the bars the draft takes and adds its "not a difference" bars to `dismissed`; undoing the merge empties `taken` and sets `appliedAt` to null. A file without it opens with no saved choices, its taken bars read as "from the version" and its dismissed bars as "not a difference".
 
 The score a project opens with is the imported notes, then the edits, then the taken bars: removed ids are left out (an id that is no longer there is ignored) and added notes come in marked user-edited. Bars cannot be changed while bars are taken. The array is empty when there are no performances, and a file before version 13 reads as none.
 

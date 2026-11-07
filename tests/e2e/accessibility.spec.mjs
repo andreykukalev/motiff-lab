@@ -125,7 +125,7 @@ test("marks: the note card, a marker, the highlight swatches, the Contents' note
         expect(await violations(page)).toEqual([]);
     }
     const more = await openMore(page);
-    await more.getByRole("button", { name: "Layers" }).click();
+    await more.getByRole("button", { name: "Extra information" }).click();
     await expect(page.locator(".layers-popover")).toBeVisible();
     expect(await violations(page)).toEqual([]);
 });

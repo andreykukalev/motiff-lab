@@ -72,9 +72,11 @@ test("a scanned page opens with its doubtful bars to check, and checked bars sta
     await expect(drawer.locator(".resolved .check-entry")).toHaveCount(1);
     expect(await violations(page)).toEqual([]);
 
-    // A flag tapped on the score opens the drawer on its bar.
+    // With the drawer closed the flags are extra information (testing item 33): shown with ⓘ, and a flag opens the drawer on its bar.
     await drawer.getByRole("button", { name: "Close Check" }).click();
     await expect(drawer).toHaveCount(0);
+    await expect(flags.first()).toBeHidden();
+    await page.locator(".bar").getByRole("button", { name: "Extra information", exact: true }).click();
     await flags.first().click();
     await expect(drawer.locator(".check-entry.on")).toHaveCount(1);
 

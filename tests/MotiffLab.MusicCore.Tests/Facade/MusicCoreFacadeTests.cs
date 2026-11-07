@@ -1134,6 +1134,58 @@ public class MusicCoreFacadeTests
     }
 
     [Fact]
+    public void A_version_is_merged_through_a_draft_that_can_be_opened_again_and_undone()
+    {
+        // Testing items 32 and 34 (Andrei, 2026-11-07): every choice in a draft, nothing in the score until applied, all reversible.
+        (MusicCoreFacade facade, _) = Open("""{"id": "p_fur"}""");
+        ImportedPiece piece = PieceImporter.Import(FurElise, Fixture(FurElise)).Piece!;
+        TickSpan bar5 = piece.Meter.GetBar(5).Span;
+        Note[] melody = [.. piece.Notes.Where(note => bar5.Contains(note.Span.Onset)).OrderByDescending(note => note.Pitch.MidiNumber).Take(3)];
+        Note[] played = [.. piece.Notes, .. melody.Select((note, i) => note with { Id = $"x{i}", Pitch = new Pitch(note.Pitch.MidiNumber + (i * 7) - 3) })];
+        string midi = Convert.ToBase64String(MidiExporter.Export(played, [], piece.Meter, "performance"));
+        int printed = Call(facade, "piece").GetProperty("noteCount").GetInt32();
+        Call(facade, "performance.add", $$$"""{"name": "Live", "midi": "{{{midi}}}"}""");
+        Assert.Equal("unavailable", Error(facade, 1, "performance.merge.choose", """{"bars": [5], "choice": "version"}"""));
+
+        JsonElement draft = Call(facade, "performance.merge.open", """{"id": "perf_1", "start": "mine"}""").GetProperty("merge");
+        JsonElement row = Assert.Single(draft.GetProperty("bars").EnumerateArray());
+        Assert.Equal(5, row.GetProperty("bar").GetInt32());
+        Assert.Equal("addedNotes", row.GetProperty("group").GetString());
+        Assert.Equal("mine", row.GetProperty("choice").GetString());
+        Assert.False(draft.GetProperty("canUndo").GetBoolean());
+
+        draft = Call(facade, "performance.merge.choose", """{"bars": [5], "choice": "version"}""").GetProperty("merge");
+        Assert.Equal("version", draft.GetProperty("bars")[0].GetProperty("choice").GetString());
+        Assert.Equal(1, draft.GetProperty("taking").GetInt32());
+        Assert.Equal(printed, Call(facade, "piece").GetProperty("noteCount").GetInt32());
+        JsonElement result = Call(facade, "performance.merge.notation", """{"view": "result", "bars": {"first": 5, "last": 5}}""");
+        Assert.Equal(3, result.GetProperty("version").GetArrayLength());
+        Assert.Empty(result.GetProperty("own").EnumerateArray());
+        Assert.Equal(printed + 3, Call(facade, "performance.merge.playback", """{"view": "result"}""").GetProperty("notes").GetArrayLength());
+        Assert.Equal("mine", Call(facade, "performance.merge.undo").GetProperty("merge").GetProperty("bars")[0].GetProperty("choice").GetString());
+        Assert.Equal("version", Call(facade, "performance.merge.redo").GetProperty("merge").GetProperty("bars")[0].GetProperty("choice").GetString());
+
+        JsonElement merged = Call(facade, "performance.merge.apply", """{"at": "2026-11-07T12:30:00Z"}""").GetProperty("performance");
+        Assert.Equal(1, merged.GetProperty("takenBars").GetInt32());
+        Assert.StartsWith("2026-11-07T12:30:00", merged.GetProperty("mergedAt").GetString(), StringComparison.Ordinal);
+        Assert.Equal(printed + 3, Call(facade, "piece").GetProperty("noteCount").GetInt32());
+        Assert.Equal(JsonValueKind.Null, Call(facade, "performance.merge").GetProperty("merge").ValueKind);
+
+        // Opened again with the choices applied, and the merge undone with them kept.
+        Assert.Equal("version", Call(facade, "performance.merge.open", """{"id": "perf_1"}""").GetProperty("merge").GetProperty("bars")[0].GetProperty("choice").GetString());
+        Call(facade, "performance.merge.cancel");
+        JsonElement undone = Call(facade, "performance.merge.undoApplied", """{"id": "perf_1"}""").GetProperty("performance");
+        Assert.Equal(0, undone.GetProperty("takenBars").GetInt32());
+        Assert.True(undone.GetProperty("mergeKept").GetBoolean());
+        Assert.Equal(printed, Call(facade, "piece").GetProperty("noteCount").GetInt32());
+
+        // Removing the version can be undone while the piece is open.
+        Assert.Empty(Call(facade, "performance.remove", """{"id": "perf_1"}""").GetProperty("performances").EnumerateArray());
+        Assert.Equal("perf_1", Call(facade, "performance.putBack").GetProperty("performance").GetProperty("id").GetString());
+        Assert.Equal("unavailable", Error(facade, 1, "performance.putBack"));
+    }
+
+    [Fact]
     public void Another_version_is_added_from_a_MusicXML_or_MIDI_file()
     {
         (MusicCoreFacade facade, _) = Open("""{"id": "p_fur"}""");

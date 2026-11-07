@@ -42,6 +42,9 @@ public sealed record SavedPerformance(string Id, string Name, PerformanceSource 
     /// <summary>Bars taken into the score, in bar order.</summary>
     public IReadOnlyList<TakenBar> Taken { get; init; } = [];
 
+    /// <summary>The merge draft last applied (testing items 32 and 34), so it can be opened again; null before the first.</summary>
+    public MergeRecord? Merge { get; init; }
+
     /// <summary>The notes, at their times in the recording.</summary>
     public IReadOnlyList<PlayedNote> Notes() => PlayedNotes.FromMidi(Midi, RecordingStart);
 
@@ -73,7 +76,8 @@ public sealed record SavedPerformance(string Id, string Name, PerformanceSource 
         other is not null && Id == other.Id && Name == other.Name && Source == other.Source && Midi.AsSpan().SequenceEqual(other.Midi)
         && RecordingStart == other.RecordingStart && Anchors.SequenceEqual(other.Anchors) && Engine == other.Engine
         && Dismissed.SequenceEqual(other.Dismissed) && Taken.Count == other.Taken.Count
-        && Taken.Zip(other.Taken).All(pair => pair.First.Bar == pair.Second.Bar && pair.First.Removed.SequenceEqual(pair.Second.Removed) && pair.First.Added.SequenceEqual(pair.Second.Added));
+        && Taken.Zip(other.Taken).All(pair => pair.First.Bar == pair.Second.Bar && pair.First.Removed.SequenceEqual(pair.Second.Removed) && pair.First.Added.SequenceEqual(pair.Second.Added))
+        && Equals(Merge, other.Merge);
 
     public override int GetHashCode() => HashCode.Combine(Id, Name, Source, Midi.Length, Anchors.Count, Taken.Count);
 }

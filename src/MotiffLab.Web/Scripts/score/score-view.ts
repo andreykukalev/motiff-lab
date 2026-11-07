@@ -91,6 +91,10 @@ const CHECK_CLASS = "check-flag";
 
 /** A bar a performance plays differently (decision record 0022, section 4): a small plum label above the bar's top left. */
 const PERFORMANCE_CLASS = "perf-marker";
+/** A thin plum line under a bar taken from another version (testing item 33), with extra information on. */
+const TAKEN_CLASS = "taken-bar";
+/** How far under the bar's lowest staff the line runs, in pixels. */
+const TAKEN_GAP = 4;
 const PERFORMANCE_HEIGHT = 20;
 const PERFORMANCE_TARGET = 24;
 const PERFORMANCE_MIN_WIDTH = 36;
@@ -99,6 +103,7 @@ const PERFORMANCE_MAX_WIDTH = 180;
 /** Printed notes the performance did not play: tinted in the warning text colour, in place. */
 const UNHEARD_CLASS = "not-heard";
 const VERSION_ADDED_CLASS = "version-added";
+const OWN_NOTE_CLASS = "own-note";
 /** On the comparison layer, a note likely to be an artefact of a recording's hearing, shown when asked for (0022). */
 const VERSION_ARTEFACT_CLASS = "version-artefact";
 
@@ -218,6 +223,10 @@ export class ScoreView {
     private marginNotes: ScoreMarginNote[] = [];
     private checks: ScoreCheckFlag[] = [];
     private performanceMarkers: ScorePerformanceMarker[] = [];
+    /** Where each bar taken from another version starts, in ticks: a thin plum line goes under it. */
+    private takenBars: number[] = [];
+    /** The notes the player wrote themselves in a merge's result: amber, as everything the player marked. */
+    private ownNotes: string[] = [];
     /** The printed notes the performance did not play, and the engraved notes that stand for them. */
     private unheardPlaces: HighlightPlace[] = [];
     private unheard = new Set<string>();
@@ -518,8 +527,10 @@ export class ScoreView {
      * (decision record 0022, section 4), and in the comparison layer shows plum the notes another version adds and grey
      * the likely artefacts of a recording's hearing; empty lists draw none.
      */
-    setPerformance(markers: ScorePerformanceMarker[], unheard: HighlightPlace[], added: string[] = [], artefacts: string[] = []): void {
+    setPerformance(markers: ScorePerformanceMarker[], unheard: HighlightPlace[], added: string[] = [], artefacts: string[] = [], taken: number[] = [], own: string[] = []): void {
         this.performanceMarkers = markers;
+        this.takenBars = taken;
+        this.ownNotes = own;
         this.unheardPlaces = unheard;
         this.versionAdded = added;
         this.versionArtefacts = artefacts;
@@ -921,12 +932,26 @@ export class ScoreView {
     }
 
     private placeMarks(): void {
-        for (const old of this.host.querySelectorAll(`:scope > .${NOTE_CLASS}, :scope > .${MARK_HIGHLIGHT_CLASS}, :scope > .${CHECK_CLASS}, :scope > .${PERFORMANCE_CLASS}`)) {
+        for (const old of this.host.querySelectorAll(`:scope > .${NOTE_CLASS}, :scope > .${MARK_HIGHLIGHT_CLASS}, :scope > .${CHECK_CLASS}, :scope > .${PERFORMANCE_CLASS}, :scope > .${TAKEN_CLASS}`)) {
             old.remove();
         }
-        const geometry = this.marginNotes.length + this.highlights.length + this.checks.length + this.performanceMarkers.length === 0 ? null : this.geometry();
+        const geometry = this.marginNotes.length + this.highlights.length + this.checks.length + this.performanceMarkers.length + this.takenBars.length === 0 ? null : this.geometry();
         if (geometry === null) {
             return;
+        }
+        for (const tick of this.takenBars) {
+            const bar = geometry.barAt(tick);
+            if (bar === undefined) {
+                continue;
+            }
+            const line = document.createElement("div");
+            line.className = TAKEN_CLASS;
+            line.setAttribute("aria-hidden", "true");
+            line.dataset.bar = String(tick);
+            line.style.left = `${bar.left}px`;
+            line.style.top = `${bar.bottom + TAKEN_GAP}px`;
+            line.style.width = `${bar.right - bar.left}px`;
+            this.host.append(line);
         }
         // A Check flag sits at the bar's top right; notes on the same bar sit side by side to its left.
         const onBar = new Map<number, number>();
@@ -1150,6 +1175,12 @@ export class ScoreView {
         for (const id of this.versionArtefacts) {
             this.element(id)?.classList.add(VERSION_ARTEFACT_CLASS);
         }
+        for (const old of this.host.querySelectorAll(`.${OWN_NOTE_CLASS}`)) {
+            old.classList.remove(OWN_NOTE_CLASS);
+        }
+        for (const id of this.ownNotes) {
+            this.element(id)?.classList.add(OWN_NOTE_CLASS);
+        }
     }
 
     private pitchOf(id: string): number | undefined {
@@ -1267,7 +1298,8 @@ export class ScoreView {
     private readonly onClick = (event: MouseEvent): void => {
         const performanceMarker = event.target instanceof Element ? event.target.closest<HTMLElement>(`.${PERFORMANCE_CLASS}`) : null;
         if (performanceMarker !== null) {
-            void this.dotnet.invokeMethodAsync("OnPerformanceMarkerClicked", Number(performanceMarker.dataset.bar));
+            const box = performanceMarker.getBoundingClientRect();
+            void this.dotnet.invokeMethodAsync("OnPerformanceMarkerClicked", Number(performanceMarker.dataset.bar), box.left, box.bottom);
             return;
         }
         const checkFlag = event.target instanceof Element ? event.target.closest<HTMLElement>(`.${CHECK_CLASS}`) : null;

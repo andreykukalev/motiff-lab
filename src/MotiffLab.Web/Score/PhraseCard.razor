@@ -61,7 +61,7 @@
         try
         {
             object[] ossias = [.. source.Ossias.Select(ossia => new { staves = ossia.Staves, prefix = ossia.Prefix, label = ossia.Label })];
-            await _card.InvokeAsync<int>("load", source.Mei, source.Offset.Value, ossias);
+            await _card.InvokeAsync<int>("load", source.Mei, source.Offset.Value, ossias, source.Tints);
             _error = null;
         }
         catch (JSException exception)

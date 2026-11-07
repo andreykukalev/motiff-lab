@@ -82,6 +82,61 @@ internal static partial class Answer
         json.WriteNumber("recordingStart", performance.RecordingStart / 1000);
         json.WriteNumber("takenBars", performance.Taken.Count);
         json.WriteNumber("dismissedBars", performance.Dismissed.Count);
+        // The merge last applied (testing items 32 and 34): when, so the version page can say so; null before any or once undone.
+        if (performance.Merge is { AppliedAt: { } at })
+        {
+            json.WriteString("mergedAt", at.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
+        }
+        else
+        {
+            json.WriteNull("mergedAt");
+        }
+
+        json.WriteBoolean("mergeKept", performance.Merge is not null);
+    }
+
+    /// <summary>
+    /// The merge draft (contract 7): the version, how many bars are decided of how many, whether undo, redo and reset can
+    /// act, and each bar that can be decided with its kind, group, marker, confidence and choice (null while undecided).
+    /// </summary>
+    public static void Merge(Utf8JsonWriter json, MergeDraft draft, SavedPerformance performance, PerformanceComparison comparison, IReadOnlyList<TakenBar> taken, Words words)
+    {
+        json.WriteStartObject("merge");
+        json.WriteString("id", performance.Id);
+        json.WriteString("name", performance.Name);
+        json.WriteNumber("decided", draft.Decided);
+        json.WriteNumber("total", draft.Bars.Count);
+        json.WriteNumber("sure", PerformanceMerge.SureBars(comparison).Count);
+        json.WriteNumber("taking", taken.Count);
+        json.WriteBoolean("canUndo", draft.CanUndo);
+        json.WriteBoolean("canRedo", draft.CanRedo);
+        json.WriteBoolean("changed", draft.Changed);
+        Dictionary<int, BarComparison> byBar = comparison.Bars.ToDictionary(bar => bar.Bar);
+        json.WriteStartArray("bars");
+        foreach (int number in draft.Bars)
+        {
+            BarComparison bar = byBar[number];
+            json.WriteStartObject();
+            json.WriteNumber("bar", number);
+            json.WriteString("kind", Name(bar.Difference));
+            json.WriteString("group", Name(PerformanceMerge.GroupOf(bar.Difference)));
+            json.WriteString("marker", bar.Marker(words));
+            json.WriteNumber("confidence", bar.Confidence);
+            json.WriteBoolean("sure", bar.Confidence >= PerformanceTake.AutomaticConfidence);
+            if (draft.DecisionFor(number) is { } decision)
+            {
+                json.WriteString("choice", Name(decision.Choice));
+            }
+            else
+            {
+                json.WriteNull("choice");
+            }
+
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
+        json.WriteEndObject();
     }
 
     private static void Ids(Utf8JsonWriter json, string name, IReadOnlyList<string> ids)

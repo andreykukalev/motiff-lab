@@ -50,23 +50,26 @@ Within each aligned bar a performance note matches a printed note of the same pi
 
 The differences of a bar are summed up in one short kind, inferred and labelled as such: *added notes* (a filling figure, an inner voice), *different bass*, *ornament as played*, *simplified* (printed notes left out), *octave*, *rhythm*. Each comes with its counts and a confidence. These are facts about two sets of notes; any wording beyond them belongs to the assistant (0003).
 
-### 4. On the page: markers, and the comparison as a layer
+### 4. On the page: a clean score, markers under Extra information
 
-Chosen by Andrei on 2026-11-05.
+Chosen by Andrei on 2026-11-05; changed on 2026-11-07 (testing item 33, "everything about versions only in the draft, no extra staves in the main score"):
 
-- **Markers above bars**, always shown when the piece has a performance: a small plum label above a bar that differs, with its kind and count ("+3 · filling", "bass: G instead of D"). Printed notes that were not heard are tinted `--warning` in place. Likely artefacts are hidden by default; a line in the layer's popover counts them and shows them (built 2026-11-05 as `layers.artefacts`, under the comparison layer while it shows, the notes in `--ink-3` grey).
-- A tap on a marker selects the bar; the contextual menu offers **Compare**, **Listen to the performer**, **Take into the score** and **Not a difference** (which removes the marker and is kept).
-- **The comparison layer**, "Other version above the staves" in the layers (`layers.version`, off until asked for; built 2026-11-05 as `PerformanceLayer`; the design kit's "Performance" layer is the transcription's playing marks, a different thing): small staves above every system with what the recording plays, bar for bar, for the whole piece, as the ossia of 0021. Only what is not printed is coloured, so the eye goes to the differences. While the layer is on, the bar-to-page map follows the taller systems. The same view exports to PDF (0017).
+- **The score shows the player's notes only.** What the app adds over them is *extra information*, behind the ⓘ button in the top bar (`layers.extra`, off by default); its chevron lists each kind: **Differences from versions** (`layers.performance`: the plum markers above the bars that differ, with their kind and count, "+3 · added notes", and the printed notes the version does not play in the `--warning` text colour), **Bars taken from a version** (`layers.taken`: a thin plum line under each taken bar) and **Check flags** (shown also while the Check drawer is open). The player's own marks (pencil, notes and highlights, bookmarks, analysis) are not extra information and show as before.
+- **A tap on a marker** opens a popover "Bar N · differs from «name»" with the kind and counts, **▶ As in the version** (the bar looped as the version plays it) and **Open in the draft**. Nothing is taken from the score itself.
+- **The comparison layer** (`layers.version`, the version on small staves above every system) and the artefacts line under it (`layers.artefacts`) were removed from the main score: the version is read in the draft's views instead. The two settings stay in the catalogue so older files still open.
 
-Plum and amber keep their meaning in the design system: the ossia is already plum ("not the original, an alternative"), and "printed but not heard" is a reason to check, like the Check flags, so it takes the amber text colour, never the amber fill of the player's own marks.
+Plum and amber keep their meaning in the design system: plum is what came from another version, amber what the player marked or wrote; "printed but not heard" is a reason to check, like the Check flags, so it takes the amber text colour, never the amber fill of the player's own marks.
 
-### 5. In phrase focus: hear, compare, take
+### 5. Merging a version through a draft
 
-Built first on 2026-11-05: without a variation in play, the card shows the shown version's bars of the phrase as the ossia, named "As in «name»", and the focus bar offers Take into the score for every bar of the phrase the version has otherwise and Restore these notes for the bars taken. The focus bar then also offers Notes / Version / Alternate: the phrase as in the score, as in the version (its notes in the score's time, artefacts left out), or one after the other; leaving focus goes back to the notes.
+Built on 2026-11-07 (testing items 32 and 34; Andrei: "no irreversible actions; explicit Undo, Redo and Reset"). Taking bars one at a time from markers and focus is replaced by a merge draft that changes nothing until applied (`PerformanceMerge`, `MergeDraft` in music-core).
 
-- The focused phrase shows the ossia "As <name> plays it" above the original, in the plum dashed frame of variations.
-- **Notes · Performer · Alternate** chooses what is heard. *Performer* plays the recording itself from the bar, through the time map, not a synthesis of the notes heard; loop and 50–100 % tempo (pitch kept) work as for the score. *Alternate* plays the printed phrase, then the recording.
-- **Take into the score**, per bar, for the whole phrase or a selection; a tick on a note of the ossia leaves it out. Taken notes replace the printed notes of those bars, written with the score's spelling and rhythm grid (section 6), and are labelled "from the performance". The printed notes are kept: **Restore the print** brings them back, bar by bar.
+- **Sources in two levels.** The list of the piece's sources; a version's row opens its page, with "‹ Sources" back. The page has a verdict ("fur-elise-cover plays 2 bars differently, 1 of them sure."), a strip of the piece's bars (grey where the version agrees, plum where it differs, darker where sure; a tap goes to the bar) and three ways into the draft: **Keep my notes**, **Take the sure ones (N)** (from 80 %) and **Take the version wherever it differs (N)**. **Apply at once, without a draft** (`merge.direct`, on the device, off by default) applies the chosen start straight away, still undoable from the toast.
+- **The draft** (dashed plum): ‹ › through the changes, **Bar | Phrase** (a choice for every differing bar of the phrase), **Take mine** (graphite), **Take from the version** (plum), **Edit in the roll** (the bar written by the player in the piano roll, the version's notes as dashed plum outlines; kept as the player's own bar), the list of changes with each one's state, and **Undo**, **Redo**, **Reset the draft** (itself undoable), **Cancel** and **Apply**.
+- **Three views**, colour coded: **Mine** (graphite), **Version** (plum) and **Result** (green, how it will be after Apply: the version's notes in plum, the player's own in amber). While a draft is open a floating "Show: Mine · Version · Result" switch over the score chooses what the score shows; listening offers **Mine · Version · Result · In turn**. A bar chosen anywhere moves the views and the score to it.
+- **Compare versions**, the full-screen window over the same draft: the changes grouped by kind (added notes, other notes, rhythm) with filters (all, sure, doubtful, decided) and **Take the group**; the three views stacked, engraved as excerpts, with **Showing: ± 1 bar · the whole phrase · the whole sentence** and a separate note size; **Not a difference** and **Reset the bar**; keys M, V, E, ← and →, ⌘Z and ⇧⌘Z.
+- **After Apply** the page says "Merge applied HH:MM · N bars" with **Open the draft again** and **Undo the merge**; undoing keeps the choices to open again. Removing a version can be undone from its toast until the piece is closed.
+- **In phrase focus**, with no variation in play, the card still shows the version's bars of the phrase as the ossia "As in «name»", heard as Notes / Version / Alternate; the focus bar offers **Open in the draft** in place of taking bars there.
 
 ### 6. The score and the recording correct each other
 
@@ -76,11 +79,11 @@ Built first on 2026-11-05: without a variation in play, the card shows the shown
 
 ### 7. Free and Pro
 
-Following 0018's rule: transcribing a recording runs on the server and is Pro. Alignment, comparison, markers, the layer, focus, listening and taking run on the device and are free, so a MIDI performance or a recording already transcribed works without Pro.
+Following 0018's rule: transcribing a recording runs on the server and is Pro. Alignment, comparison, markers, the merge draft, focus, listening and taking run on the device and are free, so a MIDI performance or a recording already transcribed works without Pro.
 
 ### 8. What is kept
 
-The project file gets a `performances` list (version 13; the format is written in `project-file.md` with the code): per performance its id and name, its notes (the engine's MIDI, as a transcription's source today, with its transcription origin), the anchors, the bars marked "not a difference", and the bars taken with their notes. Taken notes are edits of the piece with their source, so the score, analysis and playback read them like any correction.
+The project file gets a `performances` list (version 13; the format is written in `project-file.md` with the code): per performance its id and name, its notes (the engine's MIDI, as a transcription's source today, with its transcription origin), the anchors, the bars marked "not a difference", the bars taken with their notes, and the merge draft's choices with when they were applied (an optional `merge`, within version 14). Taken notes are edits of the piece with their source, so the score, analysis and playback read them like any correction.
 
 The recording's sound is not in the project file: the app keeps it on the device (IndexedDB on the web, the app's files on iPad), never sends it to the API, and asks for the file again when it is missing. Listening to the performer needs it; everything else does not.
 

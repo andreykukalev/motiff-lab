@@ -33,3 +33,6 @@ public sealed record ScoreCheckFlag(int Bar, long Tick, string Label);
 
 /// <summary>A bar a performance plays differently, for the score (decision record 0022, section 4): its number, where it starts, the label's text, and what a screen reader says.</summary>
 public sealed record ScorePerformanceMarker(int Bar, long Tick, string Text, string Label);
+
+/// <summary>A version's marker tapped on the score (testing item 33): its bar and where it is on the screen, for the popover beside it.</summary>
+public sealed record ScoreMarkerPick(int Bar, double Left, double Bottom);
