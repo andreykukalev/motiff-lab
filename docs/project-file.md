@@ -1,6 +1,6 @@
-# The project file (`.motiff.json`), version 14
+# The project file (`.motiff.json`), version 15
 
-The project file is what a player keeps of a piece: the imported source, the work on it, and since version 12 everything the redesign keeps with the piece ([0018](decisions/0018-redesign.md), section 7; [0020](decisions/0020-music-core-facade.md)), and since version 13 the performances compared with it ([0022](decisions/0022-score-and-performance.md)). It is written and read by `MotiffLab.MusicCore.Projects.ProjectFile`, by hand, so the same project gives the same bytes. The web app saves it in IndexedDB and, when the player turns saving online on, sends it to the API ([0014](decisions/0014-hosted-scan-server.md)); the iPad app reads and writes the same file through the facade. A file of an earlier version always opens; the rules are at the end.
+The project file is what a player keeps of a piece: the imported source, the work on it, and since version 12 everything the redesign keeps with the piece ([0018](decisions/0018-redesign.md), section 7; [0020](decisions/0020-music-core-facade.md)), since version 13 the performances compared with it ([0022](decisions/0022-score-and-performance.md)), and since version 15 the assembly of the player's own version from them ([0024](decisions/0024-assembling-a-version.md)). It is written and read by `MotiffLab.MusicCore.Projects.ProjectFile`, by hand, so the same project gives the same bytes. The web app saves it in IndexedDB and, when the player turns saving online on, sends it to the API ([0014](decisions/0014-hosted-scan-server.md)); the iPad app reads and writes the same file through the facade. A file of an earlier version always opens; the rules are at the end.
 
 Ticks are integers at 480 per quarter ([0002](decisions/0002-canonical-time.md)). A span is `onset` and `duration` in ticks. Times are ISO 8601 with offset. Enum values in the file are the C# names (`Carmine`, `PianoRoll`); the facade answers them in lower camel case.
 
@@ -9,7 +9,7 @@ Ticks are integers at 480 per quarter ([0002](decisions/0002-canonical-time.md))
 ```jsonc
 {
   "format": "motiff-lab-project",
-  "version": 14,
+  "version": 15,
   "id": "p_…",                 // the project's id
   "fileName": "minuet.musicxml",
   "source": "<base64>",         // the imported file, MIDI or MusicXML, as it was; empty for a PDF read as it is
@@ -30,6 +30,7 @@ Ticks are integers at 480 per quarter ([0002](decisions/0002-canonical-time.md))
   "resumePoints": [ … ],        // version 12; replaces "sessions" (versions 8–11)
   "check": [ … ] | null,        // version 12
   "performances": [ … ],        // version 13
+  "assembly": { … },            // version 15; absent while the piece has no assembly
   "settings": { … },            // version 12
   "scan": { … },                // only a scanned piece (version 7)
   "transcription": { … }        // only a transcribed piece (version 9; bars since 10; seams in 12)
@@ -177,6 +178,33 @@ A performance compared with the piece (version 13, [0022](decisions/0022-score-a
 
 The score a project opens with is the imported notes, then the edits, then the taken bars: removed ids are left out (an id that is no longer there is ignored) and added notes come in marked user-edited. Bars cannot be changed while bars are taken. The array is empty when there are no performances, and a file before version 13 reads as none.
 
+## Assembly (`assembly`)
+
+The assembly of the player's own version from the piece's sources (version 15, [0024](decisions/0024-assembling-a-version.md), section 7): the journal the player's notes are rebuilt by, and after «Сделать нотами» the notes the piece plays since then and the notes before the first apply. Left out while the piece has none.
+
+```jsonc
+"assembly": {
+  "next": 4,                                  // the number the next step takes
+  "steps": [
+    { "number": 1, "at": "…", "kind": "carry",
+      "source": "perf_1",                     // a performance's id
+      "from": { "onset": 2880, "duration": 1200 },        // in the source's own ticks
+      "to": { "start": { "note": "n_0031", "offset": 0 },  // a place held by notes: the note's onset plus offset
+              "end": { "note": "n_0037", "offset": 240 } }, // null end: insert at start
+      "transpose": 0 },
+    { "number": 2, "at": "…", "kind": "note", "note": "c1.n_0042", "semitones": 2 },   // semitones null: the note removed
+    { "number": 3, "at": "…", "kind": "transpose", "place": { … }, "semitones": -2 }
+  ],
+  "applied": { "notes": [ … ], "bars": [ … ], "tempos": [ … ], "keys": [ … ] },   // only after «Сделать нотами»
+  "before":  { … },                                                           // the notes before the first apply
+  "appliedAt": "…"
+}
+```
+
+A note in `applied` and `before` is `{ "id", "pitch", "onset", "duration", "velocity", "track", "voice"?, "hand"?, "handAttribution"?, "attribution": { "provenance", "confidence" } }`, with the provenance in lower camel case; a bar is `{ "onset", "duration", "beats", "beatType" }`, the bars following one another without gaps; a tempo is `{ "at", "microsecondsPerQuarter" }`; a key is `{ "at", "fifths", "mode"? }`. A carried note's id is its source note's id behind the step's number (`c1.n_0042`).
+
+The notes a project opens with: with `applied`, those notes, its bars and tempo, then the edits made since (the taken bars of `performances` are part of them); without it, as before. The journal builds from `before` once there is one, otherwise from the notes the project opens with. A file before version 15 reads as no assembly.
+
 ## Settings (`settings`)
 
 Only the per-piece overrides live in the file (prep item 5); the catalogue (`MotiffLab.MusicCore.Settings.SettingsCatalogue`) says which settings have the piece scope.
@@ -216,6 +244,7 @@ Every version since 1 opens (`ProjectFile.Read`). The rules for the versions bef
 | --- | --- |
 | 8–11 | Each session becomes a resume point with the same number (`s_0001` → `r_0001`), named by the session's task, at its passage, with the session's `lastActive`; its intent is dropped. |
 | 6–11 | Observations lose `sessionId`; `factId` is absent. |
+| < 15 | No assembly. |
 | < 14 | No corrections that add a note. |
 | < 13 | No performances; no `Performance` flags. |
 | 12 without `transcription.seams` | The recording went in one part, or was transcribed before seams were kept: no `PartSeam` flags. |

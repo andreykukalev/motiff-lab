@@ -62,6 +62,8 @@ Plum and amber keep their meaning in the design system: plum is what came from a
 
 ### 5. Merging a version through a draft
 
+Superseded on 2026-11-07 by [0024](0024-assembling-a-version.md): the player's own version is assembled from fragments of independent sources, and the draft below leaves the interface once the web app's step of 0024 is in.
+
 Built on 2026-11-07 (testing items 32 and 34; Andrei: "no irreversible actions; explicit Undo, Redo and Reset"). Taking bars one at a time from markers and focus is replaced by a merge draft that changes nothing until applied (`PerformanceMerge`, `MergeDraft` in music-core).
 
 - **Sources in two levels.** The list of the piece's sources; a version's row opens its page, with "‹ Sources" back. The page has a verdict ("fur-elise-cover plays 2 bars differently, 1 of them sure."), a strip of the piece's bars (grey where the version agrees, plum where it differs, darker where sure; a tap goes to the bar) and three ways into the draft: **Keep my notes**, **Take the sure ones (N)** (from 80 %) and **Take the version wherever it differs (N)**. **Apply at once, without a draft** (`merge.direct`, on the device, off by default) applies the chosen start straight away, still undoable from the toast.

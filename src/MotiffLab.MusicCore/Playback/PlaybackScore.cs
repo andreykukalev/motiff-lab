@@ -230,6 +230,11 @@ public sealed class PlaybackScore
     {
         ArgumentNullException.ThrowIfNull(piece);
 
+        if (piece.AssembledTempos is { } tempos)
+        {
+            return Create(piece.Notes, tempos, piece.Meter, piece.End);
+        }
+
         return piece.Midi is { } midi ? FromMidi(midi) : FromMusicXml(piece.MusicXml!);
     }
 }

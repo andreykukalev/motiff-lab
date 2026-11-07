@@ -22,11 +22,13 @@ namespace MotiffLab.MusicCore.Projects;
 /// gives the same bytes. Enums are written by name. Reading checks every field and throws
 /// <see cref="ProjectFileException"/> with a plain reason; it never half-reads a project.
 /// </remarks>
-public static class ProjectFile
+public static partial class ProjectFile
 {
     public const string FormatName = "motiff-lab-project";
 
     /// <summary>
+    /// 15 adds the assembly of the player's own version from the piece's sources: its journal, the notes applied and
+    /// the notes before the assembly (0024);
     /// 14 lets a correction add a note, with its track and hand (testing item 15);
     /// 12 keeps what the redesign keeps with the piece (0018): the marks (ink, margin notes, highlights, fingering), the
     /// bookmarks and their categories, the resume points that replace the sessions, the Check flags, the piece's settings
@@ -46,7 +48,7 @@ public static class ProjectFile
     /// change the whole selection, versions 1 and 2 have no corrections, and version 1 holds one
     /// step per variation.
     /// </summary>
-    public const int Version = 14;
+    public const int Version = 15;
 
     /// <summary>The extension an exported project gets.</summary>
     public const string Extension = ".motiff.json";
@@ -326,6 +328,11 @@ public static class ProjectFile
 
             json.WriteEndArray();
 
+            if (!project.Assembly.IsEmpty)
+            {
+                WriteAssembly(json, project.Assembly);
+            }
+
             json.WriteStartObject("settings");
             foreach ((string id, string value) in project.SettingOverrides.OrderBy(pair => pair.Key, StringComparer.Ordinal))
             {
@@ -526,6 +533,7 @@ public static class ProjectFile
                 throw Damaged("performances");
             }
 
+            PieceAssembly assembly = version >= 15 ? ReadAssembly(root) : PieceAssembly.Empty;
             IReadOnlyDictionary<string, string> overrides = version >= 12 ? ReadSettings(Property(root, "settings", JsonValueKind.Object)) : new Dictionary<string, string>(StringComparer.Ordinal);
 
             return new Project(
@@ -555,6 +563,7 @@ public static class ProjectFile
                 DocumentMarks = documentMarks,
                 DocumentPages = documentPages,
                 ReadFrom = readFrom,
+                Assembly = assembly,
             };
         }
     }
