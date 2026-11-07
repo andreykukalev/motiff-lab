@@ -1271,6 +1271,7 @@
   "ask.knowsPiece": "The piece: {0}",
   "ask.knowsMap": "The Piece DNA map: {0}",
   "ask.knowsPassage": "The passage: {0}, {1}",
+  "ask.knowsSelection": "The passage: {0}",
   "ask.facts.one": "{0} fact",
   "ask.facts.many": "{0} facts",
   "ask.knowsPractice": "Practising at {0}%, {1}",

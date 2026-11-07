@@ -20,6 +20,9 @@ public static class IdeaFinder
     /// <summary>The most ideas the map shows.</summary>
     public const int MaxIdeas = 6;
 
+    /// <summary>A card names at most this many sections an idea opens, then says how many.</summary>
+    private const int MaxListed = 4;
+
     /// <summary>The ideas, the one heard most often first; empty when no opening is heard again.</summary>
     /// <param name="sections">The form's sections, to say which sections an idea opens; empty for none.</param>
     /// <param name="taken">The places of an idea already on the map, the player's selection: an opening heard there is that idea.</param>
@@ -142,7 +145,11 @@ public static class IdeaFinder
             .Where(section => occurrences.Any(occurrence => occurrence.Span.Onset >= section.Span.Onset && occurrence.Span.Onset < section.Span.End))
             .Select(section => section.Label)
             .Distinct()];
-        if (opens.Length > 0)
+        if (opens.Length > MaxListed)
+        {
+            summary += " " + w.T("Opens ", "Открывает ") + w.Count(opens.Length, "section", "sections", "раздел", "раздела", "разделов") + ".";
+        }
+        else if (opens.Length > 0)
         {
             summary += " " + w.T("Opens ", "Открывает ") + w.Joined(opens) + ".";
         }

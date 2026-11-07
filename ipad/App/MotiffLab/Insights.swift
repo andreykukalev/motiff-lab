@@ -337,6 +337,9 @@ struct InsightsSheet: View {
     @ObservedObject var insights: InsightsController
     @ObservedObject var score: ScoreController
     @ObservedObject var player: Player
+    /// The questions asked about the piece, which the assistant at the stream's foot shows (testing item 23).
+    @ObservedObject var conversation: AskConversation
+    @ObservedObject var account: Account
     /// What loops while a variation is heard: the selection, to the variation's end.
     let range: Range<Double>?
     let text: UIText
@@ -365,11 +368,15 @@ struct InsightsSheet: View {
             }
             ScrollViewReader { reader in
                 ScrollView {
-                    InsightsStream(insights: insights, text: text, hasSelection: !(score.selection?.noteIds.isEmpty ?? true))
-                        .padding(.leading, CGFloat.ds("s-6"))
-                        .padding(.trailing, CGFloat.ds("s-5"))
-                        .padding(.vertical, CGFloat.ds("s-4"))
-                        .id("top")
+                    VStack(alignment: .leading, spacing: CGFloat.ds("s-6")) {
+                        InsightsStream(insights: insights, text: text, hasSelection: !(score.selection?.noteIds.isEmpty ?? true))
+                        // The assistant is the stream's last voice: the conversation the Ask popovers add to, and its field.
+                        AskStreamFoot(conversation: conversation, account: account, text: text)
+                    }
+                    .padding(.leading, CGFloat.ds("s-6"))
+                    .padding(.trailing, CGFloat.ds("s-5"))
+                    .padding(.vertical, CGFloat.ds("s-4"))
+                    .id("top")
                 }
                 .onChange(of: insights.understanding) { _, _ in reader.scrollTo("top", anchor: .top) }
             }

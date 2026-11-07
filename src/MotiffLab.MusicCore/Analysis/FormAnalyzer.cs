@@ -23,7 +23,9 @@ public static class FormAnalyzer
     /// <summary>The fewest bars a section has; a shorter part joins its neighbour.</summary>
     public const int MinBars = 2;
 
-    private static readonly string[] s_primes = ["", "′", "″", "‴", "⁗"];
+    private static readonly string[] s_primes = ["", "′", "″", "‴"];
+
+    private static readonly string[] s_superscripts = ["⁰", "¹", "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹"];
 
     /// <summary>The sections, in time order, one per sentence; empty without notes.</summary>
     public static IReadOnlyList<DnaSection> Sections(IReadOnlyList<Note> notes, MeterMap meter, SentenceMap sentences)
@@ -75,7 +77,7 @@ public static class FormAnalyzer
 
             int returns = groups[group] + (exact ? 0 : 1);
             groups[group] = returns;
-            sections.Add((sentence, group, exact ? Letter(group) : Letter(group) + s_primes[Math.Min(returns, s_primes.Length - 1)]));
+            sections.Add((sentence, group, exact ? Letter(group) : Letter(group) + Primes(returns)));
         }
 
         return [.. sections.Select(section => new DnaSection(
@@ -110,6 +112,12 @@ public static class FormAnalyzer
 
         return [.. joined.Select((part, i) => part with { Number = i + 1 })];
     }
+
+    /// <summary>′, ″ and ‴ for the first three returns, then the return's number raised: A⁴, A⁵.</summary>
+    private static string Primes(int returns) =>
+        returns < s_primes.Length
+            ? s_primes[returns]
+            : string.Concat(returns.ToString(System.Globalization.CultureInfo.InvariantCulture).Select(digit => s_superscripts[digit - '0']));
 
     private static string Id(Sentence sentence) => $"section_{sentence.Number}";
 

@@ -1290,6 +1290,7 @@
   "ask.knowsPiece": "Пьеса: {0}",
   "ask.knowsMap": "Карта ДНК пьесы: {0}",
   "ask.knowsPassage": "Фрагмент: {0}, {1}",
+  "ask.knowsSelection": "Фрагмент: {0}",
   "ask.facts.one": "{0} факт",
   "ask.facts.few": "{0} факта",
   "ask.facts.many": "{0} фактов",
