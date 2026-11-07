@@ -142,28 +142,89 @@ public class PdfPieceTests
     private static ImportedPiece Piece(byte[] musicXml) => PieceImporter.Import("a.musicxml", musicXml).Piece!;
 
     [Fact]
-    public void Recognised_notes_become_a_separate_piece_and_the_pdf_piece_stays_as_it_was()
+    public void Recognised_notes_fill_the_pdf_piece_itself_and_its_pages_and_marks_stay()
     {
+        // Testing item 16 (Andrei, 2026-11-06): the PDF is available right inside the piece, one card in the library.
         DocumentMarks marks = DocumentMarks.Empty.AddBookmark(2, "Trio", s_now);
         Project pdf = Project.CreateDocument("p_pdf", "Nocturne.pdf", s_pdf, s_now) with { DocumentMarks = marks };
-        byte[] before = ProjectFile.Write(pdf);
         byte[] musicXml = Scanned();
 
         PageMap pages = PageMap.Of(Piece(musicXml), 2);
-        Project notes = Project.ReadFromDocument("p_notes", pdf, musicXml, "homr 0.7.0", pages, s_now);
+        Project read = pdf.Recognised(musicXml, "homr 0.7.0", pages);
 
-        Assert.Equal("p_notes", notes.Id);
-        Assert.True(notes.HasNotes);
-        Assert.Null(notes.Document);
-        Assert.Equal("Nocturne.musicxml", notes.FileName);
-        Assert.Equal(PieceOrigin.Scan, notes.Summary.Origin);
-        Assert.Equal("homr 0.7.0", notes.Scan!.Engine);
-        Assert.Equal(DocumentMarks.Empty, notes.DocumentMarks);
-        Assert.NotEmpty(OpenedProject.Open(notes).Piece.Notes);
-        Assert.Equal(before, ProjectFile.Write(pdf));
-        Assert.False(pdf.HasNotes);
-        Assert.Throws<InvalidOperationException>(() => Project.ReadFromDocument("p", Project.Create("p_mid", "a.mid", [1, 2, 3], s_now), musicXml, "homr", pages, s_now));
-        Assert.Throws<ArgumentException>(() => Project.ReadFromDocument("p", pdf, [], "homr", pages, s_now));
+        Assert.Equal("p_pdf", read.Id);
+        Assert.True(read.HasNotes);
+        Assert.Equal(s_pdf, read.Document);
+        Assert.Equal(marks, read.DocumentMarks);
+        Assert.Equal(pages, read.DocumentPages);
+        Assert.Equal("Nocturne.musicxml", read.FileName);
+        Assert.Equal("Nocturne.pdf", read.DocumentFileName);
+        Assert.Equal(PieceOrigin.Scan, read.Summary.Origin);
+        Assert.Equal("homr 0.7.0", read.Scan!.Engine);
+        Assert.Null(read.ReadFrom);
+        Assert.NotEmpty(OpenedProject.Open(read).Piece.Notes);
+        Assert.Throws<InvalidOperationException>(() => read.Recognised(musicXml, "homr", pages));
+        Assert.Throws<InvalidOperationException>(() => Project.Create("p_mid", "a.mid", [1, 2, 3], s_now).Recognised(musicXml, "homr", pages));
+        Assert.Throws<ArgumentException>(() => pdf.Recognised([], "homr", pages));
+        Assert.Equal(ProjectFile.Write(read), ProjectFile.Write(ProjectFile.Read(ProjectFile.Write(read))));
+    }
+
+    [Fact]
+    public void A_pdf_kept_beside_notes_links_its_pages_to_the_bars_and_stays_off_the_online_copy()
+    {
+        // Testing item 16: a PDF added to a piece with notes is kept inside it; its pages are shared over the bars until
+        // its notes are read, then they follow the bars the scan began each page with.
+        byte[] musicXml = Scanned();
+        ImportedPiece piece = Piece(musicXml);
+        Project notes = Project.Create("p_notes", "Nocturne.musicxml", musicXml, s_now);
+
+        PageMap even = PageMap.Even(piece.Meter, piece.End, 2);
+        Project kept = notes.WithDocument(s_pdf, even);
+
+        Assert.Equal(s_pdf, kept.Document);
+        Assert.Equal(even, kept.DocumentPages);
+        Assert.Equal(2, even.Pages);
+        Assert.Equal(Tick.Zero, even.StartOf(1));
+        Assert.True(even.StartOf(2) > Tick.Zero);
+        Assert.Equal(PieceOrigin.File, kept.Summary.Origin);
+        Assert.Throws<ArgumentException>(() => notes.WithDocument([1, 2, 3], even));
+        Assert.Throws<InvalidOperationException>(() => Project.CreateDocument("p_pdf", "a.pdf", s_pdf, s_now).WithDocument(s_pdf, even));
+        Assert.Equal(new PageMap([Tick.Zero]), PageMap.Even(piece.Meter, Tick.Zero, 3));
+
+        // The same pages carried over to other notes by bar numbers, and none past their end.
+        PageMap read = PageMap.Of(piece, 2);
+        Assert.Equal(read, read.Through(piece.Meter, piece.Meter, piece.End));
+        Assert.Equal(new PageMap([Tick.Zero]), read.Through(piece.Meter, piece.Meter, piece.Meter.GetBar(2).Span.Onset));
+
+        // The online copy holds the notes and leaves the PDF on the device; a PDF with no notes has nothing to send.
+        Project online = kept.ForOnline()!;
+        Assert.Null(online.Document);
+        Assert.Null(online.DocumentPages);
+        Assert.Equal(musicXml, online.Source);
+        Assert.Same(notes, notes.ForOnline());
+        Assert.Null(Project.CreateDocument("p_pdf", "a.pdf", s_pdf, s_now).ForOnline());
+    }
+
+    [Fact]
+    public void The_pages_of_a_pdf_are_counted_from_its_page_objects()
+    {
+        Assert.Equal(1, PdfDocument.PageCount(s_pdf));
+        byte[] three = Encoding.ASCII.GetBytes("%PDF-1.4\n1 0 obj << /Type /Pages /Count 3 >> endobj\n2 0 obj << /Type /Page >> endobj\n3 0 obj <</Type/Page/Parent 1 0 R>> endobj\n4 0 obj << /Type\n/Page >> endobj\n5 0 obj << /Type /PageLabel >> endobj\n%%EOF\n");
+        Assert.Equal(3, PdfDocument.PageCount(three));
+    }
+
+    [Fact]
+    public void Notes_read_into_a_separate_piece_before_still_name_their_pdf_piece()
+    {
+        // Between 2026-11-05 and 2026-11-07 reading a PDF made a separate piece; such pieces still open with PDF | Notes.
+        byte[] musicXml = Scanned();
+        PageMap pages = PageMap.Of(Piece(musicXml), 2);
+        Project pdf = Project.CreateDocument("p_pdf", "Nocturne.pdf", s_pdf, s_now);
+        Project notes = Project.Create("p_notes", "Nocturne.musicxml", musicXml, s_now) with
+        {
+            Scan = ScanOrigin.Read("homr 0.7.0"),
+            ReadFrom = new ReadFromPdf("p_pdf", pages),
+        };
 
         // The notes remember the PDF piece and where its pages start, for PDF | Notes; the PDF piece is found from them.
         Assert.Equal(new ReadFromPdf("p_pdf", pages), notes.ReadFrom);

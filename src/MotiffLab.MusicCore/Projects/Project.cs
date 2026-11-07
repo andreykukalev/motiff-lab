@@ -75,12 +75,15 @@ public sealed record Project(
     public DocumentMarks DocumentMarks { get; init; } = DocumentMarks.Empty;
 
     /// <summary>
-    /// For a PDF whose notes were recognised into the same project, as before 2026-11-05, where each of its pages starts in
-    /// the notes (0023); null otherwise. A PDF recognised since then makes a separate piece (<see cref="ReadFromDocument"/>).
+    /// For a piece with a PDF and notes, where each of the PDF's pages starts in the notes (0023; testing item 16): read from
+    /// the PDF (<see cref="Recognised"/>), or added beside the notes (<see cref="WithDocument"/>); null otherwise.
     /// </summary>
     public PageMap? DocumentPages { get; init; }
 
-    /// <summary>For notes read from a PDF piece, that piece and where its pages start in these notes (0023); null otherwise.</summary>
+    /// <summary>
+    /// For notes read from a PDF piece into a separate piece, as between 2026-11-05 and 2026-11-07, that piece and where its
+    /// pages start in these notes (0023); null otherwise. Nothing new is written that way.
+    /// </summary>
     public ReadFromPdf? ReadFrom { get; init; }
 
     /// <summary>Whether the piece has notes: a source to import. A PDF added as it is has none until it is recognised.</summary>
@@ -104,20 +107,18 @@ public sealed record Project(
     }
 
     /// <summary>
-    /// A new piece from the notes the scan read from a PDF piece's pages (0011, 0023): the MusicXML is its source, named
-    /// after the PDF. Recognising a PDF always makes a separate piece, and the PDF piece, its marks and its bookmarks stay
-    /// exactly as they were (Andrei, 2026-11-05). The new piece remembers the PDF piece and where each page starts in it,
-    /// so the two can be switched between at the same place.
+    /// The PDF piece with the notes the scan read from its pages (0011, 0023; testing item 16, Andrei, 2026-11-06: "the PDF
+    /// is available right inside the piece"): the MusicXML becomes its source, named after the PDF, and the PDF, its marks
+    /// and its bookmarks stay exactly as they were, for the "PDF" view beside the "Notes" one in the same piece.
     /// </summary>
-    /// <exception cref="InvalidOperationException">The piece is not a PDF.</exception>
-    public static Project ReadFromDocument(string id, Project pdf, byte[] musicXml, string engine, PageMap pages, DateTimeOffset now)
+    /// <exception cref="InvalidOperationException">The piece is not a PDF with no notes yet.</exception>
+    public Project Recognised(byte[] musicXml, string engine, PageMap pages)
     {
-        ArgumentNullException.ThrowIfNull(pdf);
         ArgumentNullException.ThrowIfNull(musicXml);
         ArgumentNullException.ThrowIfNull(pages);
-        if (pdf.Document is null)
+        if (Document is null || HasNotes)
         {
-            throw new InvalidOperationException("Only a PDF piece is recognised.");
+            throw new InvalidOperationException("Only a PDF with no notes yet is recognised into its own piece.");
         }
 
         if (musicXml.Length == 0)
@@ -125,14 +126,55 @@ public sealed record Project(
             throw new ArgumentException("The scan read no notes.", nameof(musicXml));
         }
 
-        return Create(id, Path.ChangeExtension(pdf.FileName, ".musicxml"), musicXml, now) with
+        return this with
         {
+            FileName = Path.ChangeExtension(FileName, ".musicxml"),
+            Source = musicXml,
             Scan = ScanOrigin.Read(engine),
-            ReadFrom = new ReadFromPdf(pdf.Id, pages),
+            DocumentPages = pages,
         };
     }
 
-    /// <summary>The PDF's file name, as the player added it.</summary>
+    /// <summary>
+    /// The piece with a PDF of it kept inside it, to read as it is in the "PDF" view (testing item 16: one piece, many
+    /// sources). The pages are linked to the bars roughly, <paramref name="pages"/> when the PDF's notes were read and lined
+    /// up, else the bars shared evenly. A PDF kept before is replaced, and its marks with it.
+    /// </summary>
+    /// <exception cref="ArgumentException">The bytes are not a PDF.</exception>
+    /// <exception cref="InvalidOperationException">The piece has no notes: it is a PDF piece already.</exception>
+    public Project WithDocument(byte[] pdf, PageMap pages)
+    {
+        ArgumentNullException.ThrowIfNull(pdf);
+        ArgumentNullException.ThrowIfNull(pages);
+        if (!PdfDocument.IsPdf(pdf))
+        {
+            throw new ArgumentException("The file is not a PDF.", nameof(pdf));
+        }
+
+        if (!HasNotes)
+        {
+            throw new InvalidOperationException("A PDF piece has its PDF already.");
+        }
+
+        bool same = Document is { } kept && kept.AsSpan().SequenceEqual(pdf);
+        return this with
+        {
+            Document = pdf,
+            DocumentPages = pages,
+            DocumentMarks = same ? DocumentMarks : DocumentMarks.Empty,
+            ReadFrom = null,
+        };
+    }
+
+    /// <summary>
+    /// The copy saved online (0014): the notes and everything made from them, without the PDF, which can run to tens of
+    /// megabytes and stays on the device with its marks. A piece that is only a PDF has nothing to save online.
+    /// </summary>
+    public Project? ForOnline() => Document is null ? this
+        : HasNotes ? this with { Document = null, DocumentMarks = DocumentMarks.Empty, DocumentPages = null }
+        : null;
+
+    /// <summary>The PDF's file name: the piece's, as a PDF.</summary>
     public string DocumentFileName => Path.ChangeExtension(FileName, PdfDocument.Extension);
 
     /// <summary>The row on the projects screen (N1).</summary>

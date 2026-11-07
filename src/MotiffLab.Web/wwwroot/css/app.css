@@ -4525,6 +4525,102 @@ body:has(.workspace) .site-footer {
     padding: 0;
 }
 
+/* The Sources sheet (testing item 16): a row for the base, the PDF kept inside and each other version, plum when shown. */
+.workspace .perf-sheet .source-list {
+    display: grid;
+    gap: var(--s-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.workspace .perf-sheet .source-row {
+    box-sizing: border-box;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2) var(--s-3);
+    width: 100%;
+    min-height: var(--h-touch);
+    padding: var(--s-2) var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-s);
+    background: transparent;
+    color: var(--ink);
+    font: var(--t-body);
+    text-align: left;
+}
+
+.workspace .perf-sheet button.source-row {
+    cursor: pointer;
+}
+
+.workspace .perf-sheet button.source-row:hover {
+    background: var(--surface-2);
+}
+
+.workspace .perf-sheet .source-row.on {
+    border-color: var(--plum);
+    background: var(--plum-tint);
+}
+
+.workspace .perf-sheet .source-row:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+.workspace .perf-sheet .source-text {
+    display: grid;
+    flex: 1 1 10rem;
+    min-width: 0;
+}
+
+.workspace .perf-sheet .source-text strong {
+    overflow-wrap: anywhere;
+}
+
+.workspace .perf-sheet .source-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-1);
+}
+
+/* What next, after a version is added: four steps, one under the other. */
+.workspace .perf-sheet .source-next,
+.workspace .perf-sheet .source-choices,
+.workspace .perf-sheet .recognise-inline {
+    display: grid;
+    gap: var(--s-2);
+    padding: var(--s-3);
+    border-radius: var(--r-m);
+    background: var(--surface-2);
+}
+
+.workspace .perf-sheet .source-next .btn {
+    justify-content: flex-start;
+}
+
+.workspace .perf-sheet .source-next .btn .caption {
+    margin-left: auto;
+}
+
+.workspace .perf-sheet .source-taken {
+    align-items: center;
+    justify-content: space-between;
+}
+
+.workspace .perf-sheet .recognise-inline label.consent {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    font: var(--t-label);
+    color: var(--ink);
+}
+
+.workspace .perf-sheet .recognise-inline .problem {
+    color: var(--danger);
+}
+
 .workspace .perf-sheet .field {
     display: grid;
     gap: var(--s-1);

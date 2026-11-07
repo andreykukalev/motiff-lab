@@ -62,6 +62,61 @@ public sealed record PageMap(IReadOnlyList<Tick> Starts)
         return new PageMap([.. firsts.Select(index => index == 0 ? Tick.Zero : measures[index]).Distinct()]);
     }
 
+    /// <summary>
+    /// The map for a PDF of <paramref name="pages"/> pages added beside notes it was not read into (testing item 16): the
+    /// bars before <paramref name="end"/> shared evenly between the pages.
+    /// </summary>
+    public static PageMap Even(MeterMap meter, Tick end, int pages)
+    {
+        ArgumentNullException.ThrowIfNull(meter);
+        ArgumentOutOfRangeException.ThrowIfLessThan(pages, 1);
+        Tick[] bars = [.. meter.BarsBefore(end).Select(bar => bar.Span.Onset)];
+        if (bars.Length == 0)
+        {
+            return new PageMap([Tick.Zero]);
+        }
+
+        int shared = Math.Min(pages, bars.Length);
+        return new PageMap([.. Enumerable.Range(0, shared).Select(page => page == 0 ? Tick.Zero : bars[page * bars.Length / shared]).Distinct()]);
+    }
+
+    /// <summary>
+    /// The map carried from notes read from the PDF over to other notes of the same piece by bar numbers (testing item 16):
+    /// a page that starts at bar 9 of the notes read starts at bar 9 of these. A page past the last bar of these notes, or
+    /// starting no later than the page before, is left out.
+    /// </summary>
+    public PageMap Through(MeterMap read, MeterMap to, Tick end)
+    {
+        ArgumentNullException.ThrowIfNull(read);
+        ArgumentNullException.ThrowIfNull(to);
+        List<Tick> starts = [Tick.Zero];
+        foreach (Tick start in Starts.Skip(1))
+        {
+            int number = read.ToPosition(start).Bar;
+            Bar bar;
+            try
+            {
+                bar = to.GetBar(number);
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                break;
+            }
+
+            if (bar.Span.Onset >= end)
+            {
+                break;
+            }
+
+            if (bar.Span.Onset > starts[^1])
+            {
+                starts.Add(bar.Span.Onset);
+            }
+        }
+
+        return new PageMap(starts);
+    }
+
     /// <summary>The measures of the first part that begin a new page, by index from 0, in order.</summary>
     private static List<int> NewPages(byte[] xml)
     {

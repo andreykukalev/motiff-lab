@@ -31,9 +31,12 @@ internal sealed class OpenDocument
             : throw new FacadeException("import", words.T("This file is not a PDF, though its name ends in .pdf.", "Этот файл не PDF, хотя его имя кончается на .pdf.")) { Data = { ["reason"] = "damaged" } };
     }
 
-    /// <summary>A saved PDF piece: a project with its document and no notes.</summary>
+    /// <summary>
+    /// A saved piece's PDF: a PDF piece with no notes, or one with notes read from its PDF or added beside it (testing item
+    /// 16), opened in its "PDF" view. Either way the calls here are about the PDF and its marks.
+    /// </summary>
     public static OpenDocument Open(Project project) =>
-        project is { HasNotes: false, Document: not null } ? new OpenDocument(project) : throw new ArgumentException("The project is not a PDF piece.", nameof(project));
+        project is { Document: not null } ? new OpenDocument(project) : throw new ArgumentException("The project has no PDF.", nameof(project));
 
     /// <summary>The open answer: the project's summary and what the document is.</summary>
     public void Summary(Utf8JsonWriter json)
@@ -141,9 +144,11 @@ internal sealed class OpenDocument
     }
 
     /// <summary>
-    /// The notes a scan server read from the PDF, as a separate piece (0011, 0023; Andrei, 2026-11-05): its project file,
-    /// with the PDF piece and where each of its pages starts in the notes (<c>readFrom</c>), the scan's Check flags open
-    /// and a resume point at the start, as the web app's PDF view makes it. This PDF piece is not changed.
+    /// The notes a scan server read from the PDF, into this same piece (0011, 0023; testing item 16, Andrei, 2026-11-06:
+    /// "the PDF is available right inside the piece"): its project file with the notes, the PDF, its marks and bookmarks as
+    /// they were, where each page starts in the notes (<c>documentPages</c>), the scan's Check flags open and a resume point
+    /// at the start, as the web app's PDF view makes it. The piece is then opened as notes; until it is closed, saving it
+    /// here writes the notes too.
     /// </summary>
     private string Read(Request request)
     {
@@ -157,6 +162,11 @@ internal sealed class OpenDocument
             throw FacadeException.BadRequest("\"musicXml\" must be base64.");
         }
 
+        if (Project.HasNotes)
+        {
+            throw FacadeException.Unavailable("The notes of this PDF are read already.");
+        }
+
         Words words = Words.For(request.Text("language"));
         string name = Path.ChangeExtension(Project.FileName, ".musicxml");
         PieceImportResult imported = PieceImporter.Import(name, musicXml);
@@ -167,13 +177,13 @@ internal sealed class OpenDocument
 
         DateTimeOffset now = Now(request);
         int pages = Math.Max(1, request.Int("pages") ?? 1);
-        string id = request.Text("id") is { Length: > 0 } given ? given : $"p_{Guid.NewGuid():N}";
         Project read;
         try
         {
-            read = Project.ReadFromDocument(id, Project, musicXml, request.Text("engine") ?? "unknown engine", PageMap.Of(piece, pages), now) with
+            read = Project.Recognised(musicXml, request.Text("engine") ?? "unknown engine", PageMap.Of(piece, pages)) with
             {
                 Check = CheckFlag.FromScan(ScanCheck.Of(piece), []),
+                LastOpened = now,
             };
         }
         catch (ArgumentException exception)
@@ -181,11 +191,11 @@ internal sealed class OpenDocument
             throw FacadeException.BadRequest(exception.Message);
         }
 
-        read = read.AddResumePoint(ResumePoint.Start(read.NextResumePointId(), now));
+        Project = read.AddResumePoint(ResumePoint.Start(read.NextResumePointId(), now));
         return Answer.Write(json =>
         {
-            Answer.Project(json, "project", read);
-            json.WriteString("file", System.Text.Encoding.UTF8.GetString(ProjectFile.Write(read)));
+            Answer.Project(json, "project", Project);
+            json.WriteString("file", System.Text.Encoding.UTF8.GetString(ProjectFile.Write(Project)));
         });
     }
 

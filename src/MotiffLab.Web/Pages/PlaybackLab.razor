@@ -37,6 +37,7 @@
 @inject NavigationManager Navigation
 @inject MotiffLab.Web.Analytics.UsageAnalytics Analytics
 @inject UiText Text
+@inject MotiffLab.Web.Import.ScanService Scans
 
 <PageTitle>@(_title ?? Text["workspace.title"]) · Motiff Lab</PageTitle>
 
@@ -217,7 +218,7 @@
                         {
                             @* A performance compared with the piece (decision record 0022): added and worked with in its drawer. *@
                             <button class="btn quiet" aria-expanded="@(_performanceOpen ? "true" : "false")" @onclick="() => FromMore(Place.Performance, TogglePerformance)">
-                                <Icon Name="mic" /> @(HasPerformances ? Text["performance.title"] : Text["performance.add"])
+                                <Icon Name="mic" /> @Text["sources.title"]
                             </button>
                         }
                         @if (_scoreView is not null)
@@ -472,46 +473,10 @@
                                 }
                             </div>
 
-                            @* A second file as the variation (S1-W5): it plays on this piece's timeline, so A/B keeps the position. *@
-                            <div class="corrections" aria-label="@Text["second.label"]">
-                                <button class="section-toggle" aria-expanded="@(_showSecondFile ? "true" : "false")" @onclick="() => _showSecondFile = !_showSecondFile">
-                                    <span class="caret" aria-hidden="true">@(_showSecondFile ? "▾" : "▸")</span>
-                                    @Text["second.toggle"]
-                                </button>
-                                @if (_showSecondFile)
-                                {
-                                    <section class="row">
-                                        <label class="file">
-                                            @Text["second.open"]
-                                            <InputFile OnChange="OpenSecondFileAsync" accept="@PieceImporter.AcceptedExtensions" />
-                                        </label>
-                                        @if (_secondTitle is not null)
-                                        {
-                                            <span class="meta">@_secondTitle</span>
-                                            <button @onclick="RemoveSecondFileAsync">@Text["notes.remove"]</button>
-                                            <div class="seg" role="radiogroup" aria-label="@Text["workspace.hearLabel"]">
-                                                @foreach ((string key, string[] ids) in s_withSecondFile)
-                                                {
-                                                    bool on = HearShown(ids);
-                                                    <button role="radio" class="@(on ? "on" : null)" aria-checked="@(on ? "true" : "false")" @onclick="() => HearAsync(ids)">@Text[key]</button>
-                                                }
-                                            </div>
-                                        }
-                                        else
-                                        {
-                                            <span class="meta">@Text["second.hint"]</span>
-                                        }
-                                    </section>
-                                    @if (_secondMessage is not null)
-                                    {
-                                        <p class="error">@_secondMessage</p>
-                                        <p class="meta">@_secondTip</p>
-                                    }
-                                    @foreach (string difference in _secondDifferences)
-                                    {
-                                        <p class="meta">@Text.Format("second.difference", difference)</p>
-                                    }
-
+                            @* Mute and solo the tracks of a piece with more than one (S1-W5). Another version of the piece is added in Sources (testing item 16). *@
+                            @if (_tracks.Length > 1)
+                            {
+                                <div class="corrections" aria-label="@Text["tracks.label"]">
                                     <section class="row tracks">
                                         @foreach (int track in _tracks)
                                         {
@@ -520,8 +485,8 @@
                                             <button class="@(Player.Soloed.Contains(track) ? "on" : null)" @onclick="() => ToggleTrackAsync(track, solo: true)">@Text["second.solo"]</button>
                                         }
                                     </section>
-                                }
-                            </div>
+                                </div>
+                            }
                     }
                 </section>
                 }
@@ -1138,33 +1103,85 @@
 </aside>;
 
     /// <summary>
-    /// The Performance drawer (decision record 0022, sections 1, 4 and 5): the performances kept with the piece, a chip for
-    /// each, how well the shown one lines up, the bars it plays differently with Show, Take into the score and Not a
-    /// difference, the bars taken with Restore the print, and the bars dismissed to show again. Over the right of the page.
+    /// The Sources sheet (decision record 0022, sections 1, 4 and 5; testing item 16): the piece's base, the PDF kept inside
+    /// it and the other versions, a row for each, what the player's version holds beyond the base, one Add a source, and
+    /// after a version is added its four next steps. For the version shown: how well it lines up, the bars it has otherwise
+    /// with Show, Take into the score and Not a difference, the bars taken with Restore the print, and the bars dismissed to
+    /// show again. Over the right of the page.
     /// </summary>
     private RenderFragment PerformanceDrawer => @<aside class="sheet inspector check-sheet perf-sheet" aria-labelledby="perf-title" data-keeps-selection data-menu-clear="auto">
     <header class="check-head">
         <div>
             @BackChip(Place.Performance)
-            <p class="overline">@Text["performance.title"]</p>
-            <h2 id="perf-title">@(ShownPerformance is { } heading ? heading.Name : Text["performance.add"])</h2>
+            <p class="overline">@Text["sources.title"]</p>
+            <h2 id="perf-title">@Text["sources.mine"]</h2>
         </div>
         <button class="btn icon" aria-label="@Text["performance.close"]" title="@Text["performance.close"]" @onclick="() => CloseFromAsync(Place.Performance)"><Icon Name="close" /></button>
     </header>
-    @if (_project?.Performances is { Count: > 1 } all)
+    @if (_project is { } piece && Sources is { } sources)
     {
-        <div class="var-chips" role="group" aria-label="@Text["performance.chips"]">
-            @foreach (SavedPerformance kept in all)
+        <p class="caption sources-summary">@sources.Summary(Words)</p>
+        <ul class="source-list" aria-label="@Text["sources.list"]">
+            <li class="source-row">
+                <Icon Name="@BaseIcon" />
+                <span class="source-text"><strong>@Text["sources.base"]</strong><span class="caption">@sources.BaseName(Words)</span></span>
+            </li>
+            @if (piece.Document is not null)
+            {
+                <li class="source-row">
+                    <Icon Name="pages" />
+                    <span class="source-text"><strong>@piece.DocumentFileName</strong><span class="caption">@Text["sources.pdfInside"]</span></span>
+                    <span class="source-actions">
+                        <button class="btn quiet compact" @onclick="ShowPdfAsync">@Text["sources.openPdf"]</button>
+                        <button class="btn quiet compact" aria-expanded="@(_readingDocument ? "true" : "false")" @onclick="ToggleReadDocument">
+                            @Text["sources.readPdf"] @if (Scans.IsHosted) { <span class="tag pro">Pro</span> }
+                        </button>
+                    </span>
+                </li>
+            }
+            @foreach (SavedPerformance kept in piece.Performances)
             {
                 bool shown = kept.Id == ShownPerformance?.Id;
-                <button class="var-chip @(shown ? "on" : null)" aria-pressed="@(shown ? "true" : "false")" @onclick="() => ShowPerformanceOf(kept.Id)">@kept.Name</button>
+                <li>
+                    <button class="source-row version @(shown ? "on" : null)" aria-pressed="@(shown ? "true" : "false")" @onclick="() => ShowPerformanceOf(kept.Id)">
+                        <Icon Name="@VersionIcon(kept)" />
+                        <span class="source-text">
+                            <strong>@kept.Name</strong>
+                            <span class="caption">@VersionRole(kept)@if (shown && AlignedPercent is { } percent) { @(" · " + Text.Format("sources.aligned", percent)) }</span>
+                        </span>
+                    </button>
+                </li>
             }
-        </div>
+        </ul>
+        @if (_readingDocument && piece.Document is { } pdf)
+        {
+            <MotiffLab.Web.Pdf.RecognisePanel Inline Document="pdf" FileName="@piece.DocumentFileName" Heading="@Text["sources.readPdf"]" Intro="@Text["sources.readPdfIntro"]"
+                                              Keeps="@Text["sources.readPdfKeeps"]" Read="ReadDocumentVersionAsync" />
+        }
     }
     @if (_performanceStatus is { } status)
     {
         @* Announced; shown only until the comparison's own line says the same. *@
-        <p class="@(ShownComparison is null ? "caption" : "visually-hidden")" role="status">@status</p>
+        <p class="@(ShownComparison is null || OffersNextSteps ? "caption" : "visually-hidden")" role="status">@status</p>
+    }
+    @if (OffersNextSteps)
+    {
+        <section class="source-next" aria-label="@Text["sources.next"]">
+            <p class="overline">@Text["sources.next"]</p>
+            <button class="btn secondary" @onclick="CompareVersionAsync"><Icon Name="layers" /> @Text["sources.compare"]</button>
+            <button class="btn secondary" @onclick="HearVersionAloneAsync"><Icon Name="play" /> @Text["sources.hearAlone"]</button>
+            <button class="btn secondary" @onclick="TakeAllSureAsync" disabled="@(SureBarCount == 0)">
+                <Icon Name="check" /> @Text["sources.takeAll"] <span class="caption">@Text.Count("sources.sureBars", SureBarCount)</span>
+            </button>
+            <button class="btn secondary" @onclick="AdjustVersionAsync"><Icon Name="roll" /> @Text["sources.adjust"]</button>
+        </section>
+    }
+    @if (_takenAll is { } takenAll && takenAll.Version == ShownPerformance?.Id)
+    {
+        <div class="row source-taken">
+            <span class="caption">@Text.Count("sources.takenAll", takenAll.Bars.Count)</span>
+            <button class="btn quiet compact" @onclick="GiveBackTakenAllAsync"><Icon Name="undo" /> @Text["sources.giveBack"]</button>
+        </div>
     }
     @if (ShownPerformance is { } performance && ShownComparison is { } comparison)
     {
@@ -1172,6 +1189,10 @@
         @if (DifferingBars is { Count: > 0 } differing)
         {
             <p class="overline">@Text.Count("performance.differs", differing.Count)</p>
+            @if (!OffersNextSteps && SureBarCount > 0)
+            {
+                <button class="btn quiet compact" @onclick="TakeAllSureAsync"><Icon Name="check" /> @Text["sources.takeAll"] · @Text.Count("sources.sureBars", SureBarCount)</button>
+            }
             <ul class="check-list">
                 @foreach (BarComparison bar in differing)
                 {
@@ -1232,12 +1253,23 @@
             <button class="btn quiet compact" @onclick="RemovePerformanceAsync">@Text[_performanceRemoving == performance.Id ? "performance.removeSure" : "performance.remove"]</button>
         </div>
     }
-    <p class="caption">@Text["performance.how"]</p>
-    <label class="file btn secondary">
-        @Text["performance.addMidi"]
-        <InputFile OnChange="AddPerformanceAsync" accept="@VersionFile.AcceptedExtensions" />
-    </label>
-    <MotiffLab.Web.Import.RecordingVersion Heard="AddRecordingVersionAsync" />
+    <button class="btn primary source-add" aria-expanded="@(_addingSource ? "true" : "false")" @onclick="ToggleAddSource"><Icon Name="plus" /> @Text["sources.add"]</button>
+    @if (_addingSource)
+    {
+        <section class="source-choices" aria-label="@Text["sources.add"]">
+            <p class="caption">@Text["performance.how"]</p>
+            <label class="file btn secondary">
+                <Icon Name="file" /> @Text["performance.addMidi"]
+                <InputFile OnChange="AddPerformanceAsync" accept="@VersionFile.AcceptedExtensions" />
+            </label>
+            <label class="file btn secondary">
+                <Icon Name="pages" /> @Text[_project?.Document is null ? "sources.addPdf" : "sources.replacePdf"]
+                <InputFile OnChange="AddDocumentAsync" accept="@MotiffLab.MusicCore.Import.PdfDocument.Extension" />
+            </label>
+            <p class="caption">@Text["sources.pdfHow"]</p>
+            <MotiffLab.Web.Import.RecordingVersion Heard="AddRecordingVersionAsync" />
+        </section>
+    }
 </aside>;
 
     private RenderFragment TrialCard => @<ExploreCard Try="TryExperimentAsync" Leave="LeaveExperimentAsync" HearInContext="HearAnswerAsync"
@@ -1576,18 +1608,6 @@
     /// <summary>Note categories the player expects but music-core cannot pick out yet; shown, not offered (S1-A3).</summary>
     private static readonly string[] s_coreCategories = ["term.keep.Melody", "term.keep.Bass", "term.keep.Harmony"];
 
-    /// <summary>A second file opened as the variation (S1-W5).</summary>
-    private const string SecondFileId = "second-file";
-
-    private static readonly (string Key, string[] Ids)[] s_secondFileSources =
-    [
-        ("hear.secondFile", [SecondFileId]),
-        ("hear.originalAndSecond", [Player.OriginalSource, SecondFileId]),
-    ];
-
-    /// <summary>What can be heard with a second file open (S1-W5), each with its label's i18n key.</summary>
-    private static readonly (string Key, string[] Ids)[] s_withSecondFile = [("term.original", [Player.OriginalSource]), .. s_secondFileSources];
-
     private PlaybackScore? _score;
     private IReadOnlyList<Note>? _notes;
     private MeterMap? _meter;
@@ -1675,10 +1695,6 @@
     private string? _title;
     private string? _message;
     private string? _tip;
-    private string? _secondTitle;
-    private string? _secondMessage;
-    private string? _secondTip;
-    private IReadOnlyList<string> _secondDifferences = [];
     private int _pieceVersion;
 
     /// <summary>The project the piece autosaves to (S1-P1); null for Für Elise.</summary>
@@ -1721,11 +1737,9 @@
     /// <summary>Whether keep / change / operation are open in the Insights stream (Adjust).</summary>
     private bool _showOperations;
 
-    /// <summary>Whether the sheet shows the tools the Check drawer and the roll take over: the scan check, hands, corrections, a second file.</summary>
+    /// <summary>Whether the sheet shows the tools the Check drawer and the roll take over: the scan check, hands, corrections and the tracks.</summary>
     private bool _showMoreTools;
 
-    /// <summary>Whether the Tools tab shows the second file and the tracks.</summary>
-    private bool _showSecondFile;
 
     private string MoreToolsLabel => Text["insights.moreTools"];
 
@@ -2031,55 +2045,6 @@
         return (PieceImporter.Import(file.Name, data), data);
     }
 
-    /// <summary>Opens a second file as the variation source and switches to it at the same position (S1-W5).</summary>
-    private async Task OpenSecondFileAsync(InputFileChangeEventArgs args)
-    {
-        (_secondMessage, _secondTip) = (null, null);
-        (PieceImportResult result, _) = await ReadAsync(args.File);
-        if (result.Piece is not { } piece || _score is null)
-        {
-            (_secondMessage, _secondTip) = (result.Rejection?.Text(Words), result.Rejection?.TipIn(Words));
-            return;
-        }
-
-        if (_looping)
-        {
-            await StopLoopingAsync();
-        }
-
-        SecondFileSource second = SecondFileSource.Align(_score, piece);
-        if (second.Timeline != _score)
-        {
-            // The second file runs longer: reload the timeline, which stops playback, and come back to the same place.
-            Tick position = Player.Position;
-            _score = second.Timeline;
-            _lastBar = MotifSelector.LastBar(_meter!, _score.End);
-            await Player.LoadAsync(_score);
-            await ApplyFilterAsync();
-            await SetVariationSourcesAsync();
-            await Player.SeekAsync(position);
-        }
-
-        _secondTitle = piece.FileName;
-        _secondDifferences = second.Differences;
-        await Player.SetSourceAsync(SecondFileId, second.Notes);
-        await HearAsync([SecondFileId]);
-    }
-
-    private async Task RemoveSecondFileAsync()
-    {
-        if (_hear.Contains(SecondFileId))
-        {
-            await HearAsync([Player.OriginalSource]);
-        }
-
-        await Player.SetSourceAsync(SecondFileId, _score!.WithNotes([]));
-        _secondTitle = null;
-        _secondDifferences = [];
-        _motifId = "m_0001";
-        _project = null;
-    }
-
     /// <param name="title">The piece's name, when it is not its file's (Für Elise).</param>
     private async Task LoadPieceAsync(ImportedPiece piece, string? title = null)
     {
@@ -2154,13 +2119,9 @@
         _listenTo = ListenTo.Everything;
         _layered = false;
         _scope = OperationScope.All;
-        _secondTitle = null;
-        _secondDifferences = [];
-        (_secondMessage, _secondTip) = (null, null);
 
         await Player.LoadAsync(_score);
         await SetVariationSourcesAsync();
-        await Player.SetSourceAsync(SecondFileId, _score.WithNotes([]));
         await Player.SetTracksAsync([], []);
     }
 

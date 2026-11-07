@@ -59,6 +59,7 @@ internal sealed partial class OpenPiece
         "check" => Answer.Write(json => Answer.Check(json, Project, Words, Piece.Meter, Piece.End)),
         "check.resolve" => Change(project => project.ResolveCheck(request.Int("bar") ?? throw FacadeException.BadRequest("Send \"bar\"."), request.Bool("resolved") ?? true), json => Answer.Check(json, Project, Words, Piece.Meter, Piece.End)),
         _ when name.StartsWith("performance", StringComparison.Ordinal) => CallOnPerformance(name, request),
+        _ when name.StartsWith("sources", StringComparison.Ordinal) => CallOnSources(name, request),
         _ when name.StartsWith("corrections", StringComparison.Ordinal) => CallOnCorrections(name, request),
         _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\"."),
     };
