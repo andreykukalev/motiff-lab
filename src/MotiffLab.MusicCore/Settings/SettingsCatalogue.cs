@@ -27,6 +27,9 @@ public static class SettingsCatalogue
         Choice("phrases.granularity", SettingSection.Score, ["short", "phrases", "sentences"], "phrases", new("short", "phrases", "phrases"), SettingScope.Piece),
         Choice("score.layout", SettingSection.Score, ["pages", "strip"], "pages", null, SettingScope.Device),
         Switch("score.noteNames", SettingSection.Score, null, SettingScope.Device),
+        // Even bars (testing item 35): the bars take room by their length, so the playhead keeps one pace; off, by their
+        // notes, and more music fits on a page.
+        Switch("score.evenBars", SettingSection.Score, null, SettingScope.Device, on: true),
 
         Switch("layers.ink", SettingSection.MarksAndLayers, Governs(true, true, true), SettingScope.Piece),
         Switch("layers.notes", SettingSection.MarksAndLayers, Governs(true, true, false), SettingScope.Piece),

@@ -1481,9 +1481,14 @@ h1, h2, .app-title strong {
 }
 
 /* The place of playing (testing item 4): a cobalt line at the sounding moment across the system's staves and a light wash
-   over the bar, so the eye finds the place from across the room; the sounding notes are drawn heavier. */
+   over the bar, so the eye finds the place from across the room; the sounding notes are drawn heavier. The wash is graphite,
+   not cobalt, so the bar that plays never reads as a selection (testing item 28); stopped, the line rests in graphite where
+   playing stopped. */
 .score .playhead {
     position: absolute;
+    left: 0;
+    top: 0;
+    will-change: transform;
     z-index: 2;
     width: 2px;
     border-radius: 1px;
@@ -1494,14 +1499,23 @@ h1, h2, .app-title strong {
 
 .score .play-bar {
     position: absolute;
+    left: 0;
+    top: 0;
+    will-change: transform;
     z-index: 0;
     border-radius: var(--r-xs);
-    background: var(--accent-tint);
+    background: var(--hairline);
     pointer-events: none;
 }
 
+.score .playhead.resting {
+    background: var(--ink-2);
+}
+
+/* Heavier by a stroke round the glyphs, not by a drop shadow: a filter on the sounding notes made the browser paint the
+   page over on every frame and playback stuttered (testing item 31). */
 .score g.note.playing, .score g.chord.playing {
-    filter: drop-shadow(0 0 2px var(--accent-tint-strong));
+    stroke-width: 14px;
 }
 
 /* Pencil marks (Score/ScoreView.razor, Scripts/score/pencil-layer.ts, 0015): the player's own writing over the engraving,

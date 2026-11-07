@@ -20,6 +20,16 @@ final class ScoreTests: XCTestCase {
         print("OPEN-AND-ENGRAVE \(elapsed)")
     }
 
+    /// Even bars (Settings · Notes, testing item 35) add Verovio's spacing by length to the A4 page; off, its own by the notes.
+    func testEvenBarsSpaceTheBarsByTheirLength() throws {
+        let even = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(Engraver.a4(evenBars: true).utf8)) as? [String: Any])
+        XCTAssertEqual((even["spacingLinear"] as? NSNumber)?.doubleValue, 0.08)
+        XCTAssertEqual((even["spacingNonLinear"] as? NSNumber)?.doubleValue, 0.9)
+        XCTAssertEqual((even["pageMarginTop"] as? NSNumber)?.intValue, 500)
+        let byNotes = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(Engraver.a4(evenBars: false).utf8)) as? [String: Any])
+        XCTAssertEqual((byNotes["spacingNonLinear"] as? NSNumber)?.doubleValue, 0.6)
+    }
+
     /// Testing log item 26 (2026-11-06): the example is Für Elise whole, one piano part, as on the web.
     func testTheAppsExampleIsTheWholePiece() async throws {
         let example = try XCTUnwrap(OpenPiece.example, "the example piece is in the app")

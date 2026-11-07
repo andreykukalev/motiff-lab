@@ -1185,6 +1185,8 @@
   "settings.granularityHint": "Short phrases, phrases or sentences, until you choose another level for the piece.",
   "settings.follow": "Follow playback",
   "settings.followHint": "The score scrolls so the bars being played stay in view. Off: it stays where you put it, and a button takes you back to the playing bar.",
+  "settings.evenBars": "Even bars",
+  "settings.evenBarsHint": "Bars take room by how long they last, so the playhead moves at one pace. Off: bars take the room their notes need, and more music fits on a page.",
   "settings.layersHow": "What every piece shows, unless you chose otherwise for the piece.",
   "settings.rollColour.hand": "Hands",
   "settings.rollColour.track": "Tracks",

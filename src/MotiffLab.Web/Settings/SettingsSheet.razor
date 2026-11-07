@@ -50,6 +50,7 @@
             case SheetSection.Score:
                 <SettingChoice Id="phrases.granularity" Label="@Text["settings.granularity"]" Name="@(choice => Text[GranularityName(choice)])" Hint="@Text["settings.granularityHint"]" />
                 <SettingSwitch Id="playback.follow" Label="@Text["settings.follow"]" Hint="@Text["settings.followHint"]" />
+                <SettingSwitch Id="score.evenBars" Label="@Text["settings.evenBars"]" Hint="@Text["settings.evenBarsHint"]" />
                 @* A4 pages by default; a strip the width of the view for a narrow window. Kept on the device. *@
                 <div class="set-row column">
                     <span id="set-layout" class="label">@Text["score.layout"]</span>

@@ -124,10 +124,13 @@ button.sel-handle.dragging { background: var(--accent); }
 #focus .card-score svg [color]:not(.playing) { color: inherit !important; }
 /* The notes sounding while the piece plays (the web app's g.note.playing): cobalt, on the page and on the card. */
 .page :is(g.note, g.chord).playing, #focus .card-score :is(g.note, g.chord).playing { fill: var(--accent); stroke: var(--accent); color: var(--accent); }
-.page :is(g.note, g.chord).playing { filter: drop-shadow(0 0 2px var(--accent-tint-strong)); }
+/* Heavier by a stroke round the glyphs, not by a drop shadow, which repainted the page on every frame (testing item 31). */
+.page :is(g.note, g.chord).playing { stroke-width: 14px; }
 /* The place of playing (testing item 4), as the web app draws it: a cobalt line over the staves and a wash over its bar. */
-.playhead { position: absolute; z-index: 2; width: 2px; border-radius: 1px; background: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--paper) 70%, transparent); pointer-events: none; }
-.play-bar { position: absolute; z-index: 0; border-radius: var(--r-xs); background: var(--accent-tint); pointer-events: none; }
+.playhead { position: absolute; left: 0; top: 0; will-change: transform; z-index: 2; width: 2px; border-radius: 1px; background: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--paper) 70%, transparent); pointer-events: none; }
+/* The bar that plays is washed in graphite, not cobalt, so it never reads as a selection; stopped, the line rests in graphite (testing item 28). */
+.play-bar { position: absolute; left: 0; top: 0; will-change: transform; z-index: 0; border-radius: var(--r-xs); background: var(--hairline); pointer-events: none; }
+.playhead.resting { background: var(--ink-2); }
 #focus .card-score svg g.label { display: none; }
 /* The ossia (ds.css Ossia panel, the web app's .ossia-frame): a dashed plum frame round its staves, named by an overline. */
 #focus .ossia-frame { position: absolute; box-sizing: border-box; border: 1.5px dashed var(--plum); border-radius: var(--r-xs); pointer-events: none; }

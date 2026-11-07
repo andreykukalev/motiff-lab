@@ -14,7 +14,7 @@ import { type ScoreSelection, SelectionLayer } from "./selection-layer.js";
 import { ScoreTimeline, highlightedIds, type HighlightPlace } from "./score-timeline.js";
 import { A4_HEIGHT, A4_WIDTH, buildPdf, crop, inkBounds, type InkLayer, type PdfPage } from "./pdf-document.js";
 import { hasText, svgToPdfOperators, textOnlySvg } from "./svg-to-pdf.js";
-import { A4_LAYOUT, A4_PDF_LAYOUT, pdfFileName, titleBlock, withTitle } from "./score-page.js";
+import { A4_LAYOUT, A4_PDF_LAYOUT, EVEN_SPACING, NOTE_SPACING, pdfFileName, titleBlock, withTitle } from "./score-page.js";
 import { BRACKET_LIFT, ScoreGeometry, bookmarkLevels, readPage, type PageGeometry, type PagePlacement, type Playhead, type ScoreBar } from "./score-geometry.js";
 import { downloadBytes, saveCover } from "../storage/project-store.js";
 import { newToolkit, type VerovioToolkit } from "./verovio.js";
@@ -55,6 +55,8 @@ const PLAYING_CLASS = "playing";
 /** The playhead (testing item 4): a cobalt line through the staves at the moment that sounds, and a wash over its bar. */
 const PLAYHEAD_CLASS = "playhead";
 const PLAY_BAR_CLASS = "play-bar";
+/** The playhead and its bar's wash where playing stopped (testing item 28). */
+const RESTING_CLASS = "resting";
 
 /** The playhead counts as out of sight when it is above the bar's reading line or this close to the bottom, where the pill floats. */
 const PILL_ROOM_PX = 84;
@@ -70,6 +72,9 @@ const OUTSIDE_CLASS = "outside";
 
 /** A phrase's pencil bracket above the top staff (0018 section 3, design/kit/ds.css), placed over the engraving. */
 const BRACKET_CLASS = "bracket";
+/** Where a bracket's number sits from its left end (the CSS's left), and how far along the next number starting there goes. */
+const BRACKET_NUMBER_LEFT = -2;
+const BRACKET_NUMBER_STEP = 16;
 
 /** A bookmark's bracket in its category's ink, above the phrase brackets with its title in italic (0018 section 5, design/kit/ds.css .bmb). */
 const BOOKMARK_CLASS = "bmb";
@@ -255,6 +260,8 @@ export class ScoreView {
     private readonly selection: SelectionLayer;
     /** A4 pages (0017), or one strip the width of the view. */
     private paged = true;
+    /** Whether the bars take room by their length rather than their notes (Settings · Notes, score.evenBars; testing item 35). */
+    private evenBars = true;
     /** What was loaded, so a change of layout can engrave it again. */
     private data: string | null = null;
     /** The pages as engraved, and their geometry once read (score-geometry.ts): read again after every layout. */
@@ -266,6 +273,10 @@ export class ScoreView {
     /** The playhead's line and the wash over its bar, made when playback first starts. */
     private playLine: HTMLElement | null = null;
     private playWash: HTMLElement | null = null;
+    /** Whether the piece has played since the score began to follow the player: a pause then leaves the playhead resting where it stopped. */
+    private played = false;
+    /** The playhead line's top in the score, for Back to playback (the line is moved by a transform, so it has no offsetTop). */
+    private playTop = 0;
     /** The geometry the playhead is placed with, kept while the layout stays the same size. */
     private playGeometry: { key: string; geometry: ScoreGeometry | null } | null = null;
     /** Whether the score scrolls to keep the playing system in view (Settings · Playback, playback.follow). */
@@ -327,6 +338,20 @@ export class ScoreView {
         return { pages: engraver.getPageCount(), notes: this.timeline.spans.length, title: heading?.title || null };
     }
 
+    /** Even bars on or off (Settings · Notes): what is showing is engraved again, keeping the player's place in it. */
+    async setEvenBars(on: boolean): Promise<void> {
+        if (on === this.evenBars) {
+            return;
+        }
+        this.evenBars = on;
+        await this.relayOut();
+    }
+
+    /** Verovio's spacing for the bars: even (by their length) or its own (by their notes). */
+    private spacing(): Readonly<Record<string, number>> {
+        return this.evenBars ? EVEN_SPACING : NOTE_SPACING;
+    }
+
     /**
      * Lays the score out as A4 pages, as it prints, or as one strip the width of the view. What is
      * showing is engraved again, keeping the player's place in it.
@@ -337,6 +362,11 @@ export class ScoreView {
         }
         this.paged = paged;
         this.host.classList.toggle("paged", paged);
+        await this.relayOut();
+    }
+
+    /** Engraves what is showing again with the layout's options now, keeping the player's place in it. */
+    private async relayOut(): Promise<void> {
         const engraver = this.engraver;
         const data = this.data;
         if (engraver === null || data === null || this.disposed) {
@@ -366,7 +396,7 @@ export class ScoreView {
         const engraver = await newToolkit();
         const svgs: string[] = [];
         try {
-            engraver.setOptions({ ...A4_PDF_LAYOUT });
+            engraver.setOptions({ ...A4_PDF_LAYOUT, ...this.spacing() });
             if (!engraver.loadData(data)) {
                 throw new Error(`The score could not be engraved. ${engraver.getLog()}`.trim());
             }
@@ -389,6 +419,7 @@ export class ScoreView {
     /** Marks the notes the player is sounding, every animation frame, until called with null. */
     follow(player: PlayerHandle | null): void {
         this.player = player;
+        this.played = false;
         cancelAnimationFrame(this.frame);
         if (player !== null) {
             this.frame = requestAnimationFrame(this.tick);
@@ -410,11 +441,14 @@ export class ScoreView {
             return;
         }
         this.scrolledByHand = 0;
-        this.host.scrollTo({ top: Math.max(0, line.offsetTop - READING_LINE_PX), behavior: "smooth" });
+        this.host.scrollTo({ top: Math.max(0, this.playTop + 6 - READING_LINE_PX), behavior: "smooth" });
     }
 
-    /** Puts the playhead and its bar's wash at a tick, or hides them for null; tells Blazor when it goes out of sight. */
-    private placePlayhead(tick: number | null): void {
+    /**
+     * Puts the playhead and its bar's wash at a tick, or hides them for null; tells Blazor when it goes out of sight while
+     * playing. A resting playhead marks where playing stopped (testing item 28), in graphite rather than cobalt.
+     */
+    private placePlayhead(tick: number | null, resting = false): void {
         const at = tick === null ? undefined : this.playheadAt(tick);
         if (at === undefined) {
             if (this.playLine !== null) {
@@ -433,18 +467,19 @@ export class ScoreView {
                 this.host.append(element);
             }
             element.hidden = false;
+            element.classList.toggle(RESTING_CLASS, resting);
         }
-        line.style.left = `${at.x - 1}px`;
-        line.style.top = `${at.top - 6}px`;
-        line.style.height = `${at.bottom - at.top + 12}px`;
-        wash.style.left = `${at.bar.left}px`;
-        wash.style.top = `${at.top - 4}px`;
-        wash.style.width = `${at.bar.right - at.bar.left}px`;
-        wash.style.height = `${at.bottom - at.top + 8}px`;
+        // Moved by a transform on layers of their own, so the page under them is not painted again on every frame (testing item 31).
+        this.playTop = at.top - 6;
+        setStyle(line, "transform", `translate(${at.x - 1}px, ${this.playTop}px)`);
+        setStyle(line, "height", `${at.bottom - at.top + 12}px`);
+        setStyle(wash, "transform", `translate(${at.bar.left}px, ${at.top - 4}px)`);
+        setStyle(wash, "width", `${at.bar.right - at.bar.left}px`);
+        setStyle(wash, "height", `${at.bottom - at.top + 8}px`);
 
         const shownTop = this.host.scrollTop + READING_LINE_PX - 16;
         const shownBottom = this.host.scrollTop + this.host.clientHeight - PILL_ROOM_PX;
-        this.reportAway(at.bottom < shownTop || at.top > shownBottom ? at.bar.tick : -1);
+        this.reportAway(!resting && (at.bottom < shownTop || at.top > shownBottom) ? at.bar.tick : -1);
     }
 
     private playheadAt(tick: number): Playhead | undefined {
@@ -729,7 +764,7 @@ export class ScoreView {
         this.laidOutWidth = this.host.clientWidth;
         this.laidOutHeight = this.host.clientHeight;
         if (this.paged) {
-            return { ...A4_LAYOUT };
+            return { ...A4_LAYOUT, ...this.spacing() };
         }
         return {
             scale: SCALE,
@@ -738,6 +773,7 @@ export class ScoreView {
             pageMarginRight: 40,
             pageMarginTop: 40,
             pageMarginBottom: 40,
+            ...this.spacing(),
             adjustPageHeight: true,
             breaks: "auto",
             header: "none",
@@ -896,6 +932,9 @@ export class ScoreView {
         if (geometry === null) {
             return;
         }
+        // Two units that start in the same bar (one a bar long or less) would put their numbers one over the other: the later
+        // number moves along by one place (testing item 33).
+        const numbered = new Map<string, number>();
         for (const phrase of this.phrases) {
             for (const run of geometry.bracket(phrase.start, phrase.end)) {
                 const bracket = document.createElement("button");
@@ -915,6 +954,12 @@ export class ScoreView {
                     number.className = "n";
                     number.setAttribute("aria-hidden", "true");
                     number.textContent = String(phrase.number);
+                    const place = `${run.page}:${run.system}:${Math.round(run.left)}`;
+                    const before = numbered.get(place) ?? 0;
+                    numbered.set(place, before + 1);
+                    if (before > 0) {
+                        number.style.left = `${BRACKET_NUMBER_LEFT + before * BRACKET_NUMBER_STEP}px`;
+                    }
                     bracket.append(number);
                 } else {
                     // The rest of a phrase that runs on to the next system is the same target, said once.
@@ -1238,8 +1283,10 @@ export class ScoreView {
         if (this.timeline !== null) {
             const playing = player.state() !== "stopped";
             const tick = player.currentTick();
+            this.played ||= playing;
             this.mark(this.timeline.soundingAt(tick), playing);
-            this.placePlayhead(playing ? tick : null);
+            // Stopped, the playhead stays where playing stopped, so the place is not lost (testing item 28).
+            this.placePlayhead(playing || (this.played && tick > 0) ? tick : null, !playing);
         }
         this.frame = requestAnimationFrame(this.tick);
     };
@@ -1427,6 +1474,13 @@ async function textInk(svg: string): Promise<InkLayer | null> {
 }
 
 /** Entry point for Blazor. */
+/** Sets a style only when it changes, so an unchanged value does not make the browser lay out or paint again. */
+function setStyle(element: HTMLElement, name: "transform" | "width" | "height", value: string): void {
+    if (element.style[name] !== value) {
+        element.style[name] = value;
+    }
+}
+
 /** An overlay over the score that takes no taps and is not read out: the playhead's line or its bar's wash. */
 function overlay(className: string): HTMLElement {
     const element = document.createElement("span");

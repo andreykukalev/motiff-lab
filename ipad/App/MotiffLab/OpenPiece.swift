@@ -24,6 +24,7 @@ struct OpenPiece: Identifiable, Sendable {
         if let heard { fields["transcription"] = heard.request }
         if asPdf { fields["view"] = "pdf" }
         let request = (try? JSONSerialization.data(withJSONObject: fields)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
+        let evenBars = await MainActor.run { DeviceSettings.shared.isOn("score.evenBars") }
         return await MusicCore.run {
             guard let opened = facadeObject(MusicCore.open(fileName: fileName, data: data, request: request)) else {
                 return .failure(EngraveError(message: "music-core did not answer."))
@@ -35,7 +36,7 @@ struct OpenPiece: Identifiable, Sendable {
             if opened["document"] is [String: Any] {
                 return .success(OpenPiece(id: piece, title: title, pages: [], timemap: "", isDocument: true))
             }
-            switch Engraver.engrave(piece: piece, title: title) {
+            switch Engraver.engrave(piece: piece, title: title, evenBars: evenBars) {
             case .success(let engraving):
                 return .success(OpenPiece(id: piece, title: title, pages: engraving.pages, timemap: engraving.timemap))
             case .failure(let error):

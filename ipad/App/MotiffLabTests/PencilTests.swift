@@ -419,6 +419,9 @@ final class PencilTests: XCTestCase {
         _ = try await call(view, "playing", ["tick": bar.onset + 1, "playing": false])
         let cleared = try await view.evaluateJavaScript("document.querySelectorAll('#pages .playing').length") as? NSNumber
         XCTAssertEqual(cleared?.intValue, 0, "nothing is marked once stopped")
+        // The playhead stays where playing stopped, in graphite, so the place is not lost (testing item 28).
+        let resting = try await view.evaluateJavaScript("(() => { const line = document.querySelector('body > .playhead'); return line !== null && !line.hidden && line.classList.contains('resting'); })()") as? Bool
+        XCTAssertEqual(resting, true, "the playhead rests where playing stopped")
     }
 
     func testTheNotesPagesLeadToAndFromThePdfsPages() async throws {

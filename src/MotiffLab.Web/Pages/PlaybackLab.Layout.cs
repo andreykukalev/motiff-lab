@@ -109,6 +109,9 @@ public partial class PlaybackLab : IAsyncDisposable
     /// <summary>Whether the score scrolls with playback (Settings · Score); the playhead shows either way.</summary>
     private const string FollowSetting = "playback.follow";
 
+    /// <summary>Even bars (testing item 35): the bars take room by their length, so the playhead keeps one pace.</summary>
+    private const string EvenBarsSetting = "score.evenBars";
+
     /// <summary>Where the bar the playhead is in starts while it is out of sight during playback; null while it is in sight.</summary>
     private Tick? _playheadAway;
 

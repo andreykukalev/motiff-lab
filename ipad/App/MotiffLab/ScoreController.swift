@@ -174,6 +174,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// On a view engraved, the ids of the notes from the version (plum) and of the player's own (amber).
     private var mergeAdded: [String] = []
     private var mergeOwn: [String] = []
+    /// Even bars (Settings · Notes, testing item 35), as the page was engraved: a change engraves it again.
+    private var engravedEven = DeviceSettings.shared.isOn("score.evenBars")
     /// The version's notes as music-core gives them to play (`playback` of `version`), for the version they are of.
     private var versionPlayback: (id: String, notes: [PlaybackNote])?
 
@@ -316,6 +318,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             markerPick = nil
             comparing = false
             engravedView = nil
+            engravedEven = DeviceSettings.shared.isOn("score.evenBars")
             versionPlayback = nil
         }
         self.dark = dark
@@ -1069,14 +1072,16 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         let id = piece.id
         let title = piece.title
         let view = wantedView
+        let even = DeviceSettings.shared.isOn("score.evenBars")
         let engraved = await MusicCore.run {
-            view.map { Engraver.engraveMerge(piece: id, title: title, view: $0) } ?? Engraver.engrave(piece: id, title: title)
+            view.map { Engraver.engraveMerge(piece: id, title: title, view: $0, evenBars: even) } ?? Engraver.engrave(piece: id, title: title, evenBars: even)
         }
         switch engraved {
         case .success(let engraving):
             // Its other view stays; where it opened does not, so the page stays where the player is.
             self.piece = OpenPiece(id: id, title: title, pages: engraving.pages, timemap: engraving.timemap, file: piece.file, other: piece.other)
             engravedView = view
+            engravedEven = even
             mergeAdded = engraving.version
             mergeOwn = engraving.own
             await render()
@@ -1093,7 +1098,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     /// The page engraved again when the view it should show changed.
     private func applyMergeView() async {
-        guard wantedView != engravedView else { return }
+        // Even bars turned on or off engraves the score again too.
+        guard wantedView != engravedView || engravedEven != DeviceSettings.shared.isOn("score.evenBars") else { return }
         await engraveScore()
     }
 
@@ -1505,6 +1511,23 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     func step(_ direction: Int) {
         guard let unit = focusUnit, let next = phrases?.unit(unit.number + direction.signum()) else { return }
         Task { await select(next.selectableOnset, next.selectableEnd) }
+    }
+
+    /// Whether the card is turning to the phrase that sounds, so a position reported meanwhile does not turn it again.
+    private var turningToPlaying = false
+
+    /// While the piece plays on past the phrase in focus (nothing loops), the card turns to the unit now sounding, as Next
+    /// would, so Notes and Piano roll show the same place (testing item 27). A variation in the card keeps it where it is.
+    func followPlaying(_ tick: Double) {
+        guard focused, ossia == nil, !turningToPlaying, let selection, tick < selection.onset || tick >= selection.end,
+              let shown = focusUnit,
+              let sounding = phrases?.units.last(where: { $0.onset <= tick }), sounding.number != shown.number
+        else { return }
+        turningToPlaying = true
+        Task {
+            await select(sounding.selectableOnset, sounding.selectableEnd)
+            turningToPlaying = false
+        }
     }
 
     /// "bars 9–16 · phrase 3 of 16", or the bars alone for a passage that is not a unit.

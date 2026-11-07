@@ -55,6 +55,9 @@ const ERASER_REACH = 10;
 /** The reading line, this far below the top of the view: the pages it crosses are the ones the bar names, as on the web. */
 const READING_LINE_PX = 72;
 
+/** Where a bracket's number sits from its left end (the CSS's left), and how far along the next number starting there goes. */
+const BRACKET_NUMBER_LEFT = -2;
+const BRACKET_NUMBER_STEP = 16;
 /** Bookmarks sit this far above the top staff, over the phrase brackets and their numbers, and overlapping ones stack by the next amount, as on the web. */
 const BOOKMARK_LIFT = 40;
 const BOOKMARK_STACK = 24;
@@ -200,6 +203,9 @@ function placePhrases() {
     if (geometry === null) {
         return;
     }
+    // Two units that start in the same bar (one a bar long or less) would put their numbers one over the other: the later
+    // number moves along by one place (testing item 33).
+    const numbered = new Map();
     for (const phrase of state.phrases) {
         for (const run of geometry.bracket(phrase.start, phrase.end)) {
             const bracket = document.createElement("button");
@@ -219,6 +225,12 @@ function placePhrases() {
                 number.className = "n";
                 number.setAttribute("aria-hidden", "true");
                 number.textContent = String(phrase.number);
+                const place = `${run.page}:${run.system}:${Math.round(run.left)}`;
+                const before = numbered.get(place) ?? 0;
+                numbered.set(place, before + 1);
+                if (before > 0) {
+                    number.style.left = `${BRACKET_NUMBER_LEFT + before * BRACKET_NUMBER_STEP}px`;
+                }
                 bracket.append(number);
             } else {
                 // The rest of a phrase that runs on to the next system is the same target, said once.
@@ -780,8 +792,11 @@ function reportCardWidth() {
 /** The notes sounding now, marked on the page or on the card, and when they last changed. */
 const sounding = { page: new Set(), card: new Set(), key: "", byHand: -Infinity };
 
-/** The playhead's line and its bar's wash on the page, made on first use, and the bar last reported out of sight. */
-const playhead = { line: null, wash: null, away: -1 };
+/**
+ * The playhead's line and its bar's wash on the page, made on first use, the bar last reported out of sight, and whether
+ * the piece has played, so a pause leaves the playhead resting where it stopped (testing item 28).
+ */
+const playhead = { line: null, wash: null, away: -1, played: false, top: 0 };
 
 /** The pill's room at the bottom of the view: a playhead under it is out of sight. */
 const PILL_ROOM_PX = 84;
@@ -801,7 +816,10 @@ function playing({ tick, playing, follow, auto = true }) {
     if (follow) {
         sounding.byHand = -Infinity;
     }
-    placePlayhead(playing && !state.focus ? tick : null);
+    playhead.played ||= playing;
+    // Stopped, the playhead stays where playing stopped, in graphite, so the place is not lost (testing item 28).
+    const resting = !playing && playhead.played && tick > 0;
+    placePlayhead((playing || resting) && !state.focus ? tick : null, !playing);
     const onPage = playing && state.timeline !== null ? state.timeline.soundingAt(tick) : [];
     const onCard = playing && state.focus && card.timeline ? card.timeline.soundingAt(tick - (card.offset ?? 0)) : [];
     const key = `${onPage.join(" ")}|${onCard.join(" ")}`;
@@ -817,8 +835,8 @@ function playing({ tick, playing, follow, auto = true }) {
     return null;
 }
 
-/** Puts the line and the wash at a tick, as the web app's score view does, or hides them for null. */
-function placePlayhead(tick) {
+/** Puts the line and the wash at a tick, as the web app's score view does, or hides them for null; `resting` where playing stopped. */
+function placePlayhead(tick, resting = false) {
     const timeline = state.timeline;
     const at = tick === null || timeline === null ? undefined : state.geometry?.playhead(tick, (id) => timeline.onsetOf(id));
     if (at === undefined) {
@@ -838,17 +856,25 @@ function placePlayhead(tick) {
             document.body.append(element);
         }
         element.hidden = false;
+        element.classList.toggle("resting", resting);
     }
-    line.style.left = `${at.x - 1}px`;
-    line.style.top = `${at.top - 6}px`;
-    line.style.height = `${at.bottom - at.top + 12}px`;
-    wash.style.left = `${at.bar.left}px`;
-    wash.style.top = `${at.top - 4}px`;
-    wash.style.width = `${at.bar.right - at.bar.left}px`;
-    wash.style.height = `${at.bottom - at.top + 8}px`;
+    // Moved by a transform on layers of their own, so the page under them is not painted again on every frame (testing item 31).
+    playhead.top = at.top - 6;
+    setStyle(line, "transform", `translate(${at.x - 1}px, ${playhead.top}px)`);
+    setStyle(line, "height", `${at.bottom - at.top + 12}px`);
+    setStyle(wash, "transform", `translate(${at.bar.left}px, ${at.top - 4}px)`);
+    setStyle(wash, "width", `${at.bar.right - at.bar.left}px`);
+    setStyle(wash, "height", `${at.bottom - at.top + 8}px`);
     const shownTop = window.scrollY + READING_LINE_PX - 16;
     const shownBottom = window.scrollY + window.innerHeight - PILL_ROOM_PX;
-    reportAway(at.bottom < shownTop || at.top > shownBottom ? at.bar.tick : -1);
+    reportAway(!resting && (at.bottom < shownTop || at.top > shownBottom) ? at.bar.tick : -1);
+}
+
+/** Sets a style only when it changes, so an unchanged value does not make the browser lay out or paint again. */
+function setStyle(element, name, value) {
+    if (element.style[name] !== value) {
+        element.style[name] = value;
+    }
 }
 
 function overlay(className) {
@@ -873,7 +899,7 @@ function returnToPlayhead() {
         return false;
     }
     sounding.byHand = -Infinity;
-    window.scrollTo({ top: Math.max(0, line.offsetTop - READING_LINE_PX), behavior: "smooth" });
+    window.scrollTo({ top: Math.max(0, playhead.top + 6 - READING_LINE_PX), behavior: "smooth" });
     return true;
 }
 

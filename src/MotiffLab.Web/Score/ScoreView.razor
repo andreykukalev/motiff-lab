@@ -65,6 +65,7 @@ else if (_loading && !HoldHeight)
     private IReadOnlyList<HighlightPlace>? _shownPointed;
     private bool _shownHold;
     private bool _shownFollow = true;
+    private bool _shownEvenBars = true;
     private bool _paged = true;
     private bool _exporting;
     private string? _pdfError;
@@ -210,6 +211,10 @@ else if (_loading && !HoldHeight)
     [Parameter]
     public bool Follow { get; set; } = true;
 
+    /// <summary>Whether the bars take room by their length, so the playhead keeps one pace (Settings · Notes, score.evenBars; testing item 35).</summary>
+    [Parameter]
+    public bool EvenBars { get; set; } = true;
+
     /// <summary>Raised when the playhead goes out of sight while playing, with where its bar starts, and with null when it is back in sight or playback stops.</summary>
     [Parameter]
     public EventCallback<Tick?> PlayheadAway { get; set; }
@@ -282,6 +287,12 @@ else if (_loading && !HoldHeight)
         {
             _shownFollow = Follow;
             await _view.InvokeVoidAsync("setFollow", Follow);
+        }
+
+        if (EvenBars != _shownEvenBars)
+        {
+            _shownEvenBars = EvenBars;
+            await _view.InvokeVoidAsync("setEvenBars", EvenBars);
         }
 
         if (HoldHeight != _shownHold)

@@ -57,16 +57,38 @@ final class Engraver {
      "justifyVertically": false, "breaks": "auto", "header": "auto", "footer": "none", "svgViewBox": true}
     """
 
+    /// Even bars (Settings · Notes, `score.evenBars`; testing item 35): the bars take room by their length, so the playhead
+    /// keeps one pace; the web app's `EVEN_SPACING` in Scripts/score/score-page.ts, which tests/web/score-pdf.test.mjs keeps equal.
+    static let evenSpacing = """
+    {"spacingLinear": 0.08, "spacingNonLinear": 0.9}
+    """
+
+    /// Verovio's own spacing, by the notes: given outright when even bars are off, as a toolkit keeps the options it was
+    /// last set; the web app's `NOTE_SPACING`.
+    static let noteSpacing = """
+    {"spacingLinear": 0.25, "spacingNonLinear": 0.6}
+    """
+
+    /// The A4 page's options, with even bars or Verovio's own spacing.
+    static func a4(evenBars: Bool) -> String {
+        guard let options = (try? JSONSerialization.jsonObject(with: Data(a4Leland.utf8))) as? [String: Any],
+              let spacing = (try? JSONSerialization.jsonObject(with: Data((evenBars ? evenSpacing : noteSpacing).utf8))) as? [String: Any],
+              let merged = try? JSONSerialization.data(withJSONObject: options.merging(spacing) { _, new in new })
+        else { return a4Leland }
+        return String(decoding: merged, as: UTF8.self)
+    }
+
     /// The pages of a piece's notation as SVG with Verovio's timemap: music-core writes the MEI (`notation`), Verovio
     /// lays it out on A4 pages. Call it through `MusicCore.run`.
-    static func engrave(piece: Int32, title: String) -> Result<Engraving, EngraveError> {
-        layOut(piece: piece, request: "{\"title\": \(jsonString(title))}", options: a4Leland)
+    /// With `evenBars`, the bars take room by their length (Settings · Notes).
+    static func engrave(piece: Int32, title: String, evenBars: Bool = false) -> Result<Engraving, EngraveError> {
+        layOut(piece: piece, request: "{\"title\": \(jsonString(title))}", options: a4(evenBars: evenBars))
     }
 
     /// The whole piece as a merge draft's view shows it on the pages (testing items 32 and 34): "version" or "result",
     /// with the ids of the notes from the version and of the player's own (`performance.merge.notation`).
-    static func engraveMerge(piece: Int32, title: String, view: String) -> Result<Engraving, EngraveError> {
-        layOut(piece: piece, call: "performance.merge.notation", request: "{\"title\": \(jsonString(title)), \"view\": \(jsonString(view))}", options: a4Leland)
+    static func engraveMerge(piece: Int32, title: String, view: String, evenBars: Bool = false) -> Result<Engraving, EngraveError> {
+        layOut(piece: piece, call: "performance.merge.notation", request: "{\"title\": \(jsonString(title)), \"view\": \(jsonString(view))}", options: a4(evenBars: evenBars))
     }
 
     /// The bars of a merge draft's view engraved on their own for Compare versions, one system at the window's width,
