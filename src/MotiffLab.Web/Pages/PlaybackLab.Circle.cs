@@ -20,7 +20,12 @@ public partial class PlaybackLab
 
     private bool _scaleStarted;
 
-    private async Task HearScaleAsync(KeyCircleView circle)
+    private Task HearScaleAsync(KeyCircleView circle) => _selection is { } selection ? HearScaleAsync(circle, selection.Span.Onset) : Task.CompletedTask;
+
+    /// <summary>The scale of a section's key in Piece DNA, from the section's start (testing item 30).</summary>
+    private Task HearDnaScaleAsync(DnaCircle circle) => HearScaleAsync(circle.Circle, circle.Span.Onset);
+
+    private async Task HearScaleAsync(KeyCircleView circle, Tick at)
     {
         if (_scaleHeard)
         {
@@ -28,13 +33,13 @@ public partial class PlaybackLab
             return;
         }
 
-        if (_score is null || _selection is not { } selection)
+        if (_score is null)
         {
             return;
         }
 
-        // The scale sounds where the selection starts, or ends with the piece when there is no room after it.
-        IReadOnlyList<Note> scale = circle.ScaleNotes(selection.Span.Onset, _score.End);
+        // The scale sounds where the selection or the section starts, or ends with the piece when there is no room after it.
+        IReadOnlyList<Note> scale = circle.ScaleNotes(at, _score.End);
         if (scale.Count == 0)
         {
             return;

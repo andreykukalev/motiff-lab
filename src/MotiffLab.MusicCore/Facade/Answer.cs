@@ -521,15 +521,15 @@ internal static partial class Answer
     /// the key that fits almost as well, its neighbours, the chords on the sectors of their roots, the notes outside the
     /// scale, the scale to hear and the lines that say what it shows; null when no key was read.
     /// </summary>
-    public static void Circle(Utf8JsonWriter json, KeyCircleView? circle, Tick at = default, Tick? end = null)
+    public static void Circle(Utf8JsonWriter json, KeyCircleView? circle, Tick at = default, Tick? end = null, string name = "circle")
     {
         if (circle is null)
         {
-            json.WriteNull("circle");
+            json.WriteNull(name);
             return;
         }
 
-        json.WriteStartObject("circle");
+        json.WriteStartObject(name);
         MusicalKey(json, "key", circle.Key);
         json.WriteString("name", circle.Name);
         json.WriteString("certainty", Name(circle.Certainty));
@@ -576,6 +576,8 @@ internal static partial class Answer
             json.WriteString("degree", chord.Degree);
             json.WriteNumber("position", chord.Position);
             json.WriteString("ring", Name(chord.Ring));
+            json.WriteString("function", Name(chord.Function));
+            json.WriteString("role", chord.Role);
             CirclePlace(json, "place", chord.Place);
             json.WriteEndObject();
         }
@@ -599,6 +601,7 @@ internal static partial class Answer
 
         json.WriteEndArray();
         Texts(json, "lines", circle.Lines);
+        Texts(json, "zones", circle.Zones.Select(static zone => Name(zone)));
         json.WriteEndObject();
     }
 
@@ -740,9 +743,10 @@ internal static partial class Answer
     /// Piece DNA (0018 section 11): every lane with its status (<c>notYet</c>, <c>partial</c>, <c>ready</c>), so the
     /// screen shows an empty state for a lane not analysed yet.
     /// </summary>
-    public static void Dna(Utf8JsonWriter json, PieceDna dna, Words words)
+    public static void Dna(Utf8JsonWriter json, PieceDna dna, Words words, Tick end = default)
     {
         json.WriteString("status", Name(dna.Status));
+        json.WriteString("summary", dna.Summary);
         json.WriteNumber("firstBar", dna.FirstBar);
         json.WriteNumber("lastBar", dna.LastBar);
         json.WriteStartArray("barStarts");
@@ -830,6 +834,8 @@ internal static partial class Answer
             json.WriteNumber("bar", chord.Bar);
             json.WriteString("symbol", chord.Symbol);
             json.WriteBoolean("clear", chord.Clear);
+            json.WriteString("degree", chord.Degree);
+            json.WriteString("function", Name(chord.Function));
             json.WriteEndObject();
         }
 
@@ -841,11 +847,32 @@ internal static partial class Answer
             json.WriteNumber("bar", cadence.Bar);
             json.WriteNumber("at", cadence.At.Value);
             json.WriteString("kind", cadence.Kind == CloseKind.Full ? "full" : "half");
+            json.WriteString("explanation", cadence.Explanation);
             json.WriteEndObject();
         }
 
         json.WriteEndArray();
         json.WriteEndObject();
+
+        json.WriteStartArray("circles");
+        foreach (DnaCircle circle in dna.Circles)
+        {
+            json.WriteStartObject();
+            json.WriteString("id", circle.Id);
+            json.WriteString("label", circle.Label);
+            Passage(json, "passage", circle.Span, circle.FirstBar, circle.LastBar);
+            if (circle.From is { } from)
+            {
+                MusicalKey(json, "from", from);
+                json.WriteString("fromName", from.NameIn(words));
+                json.WriteNumber("fromPosition", circle.FromPosition ?? 0);
+            }
+
+            Circle(json, circle.Circle, circle.Span.Onset, end == default ? null : end);
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
 
         Levels(json, "density", dna.DensityStatus, dna.Density);
 

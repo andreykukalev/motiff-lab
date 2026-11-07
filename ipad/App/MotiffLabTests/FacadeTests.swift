@@ -162,6 +162,12 @@ final class FacadeTests: XCTestCase {
         XCTAssertFalse(map.harmony.isEmpty)
         XCTAssertEqual(map.density.count, map.lastBar - map.firstBar + 1)
         XCTAssertFalse(map.register.isEmpty)
+        // The map explains itself (testing item 30): its summary, the chords' steps and functions, the closes in words, a circle per section.
+        XCTAssertTrue(map.summary.hasPrefix("Форма A"), map.summary)
+        XCTAssertTrue(map.harmony.contains { $0.function == "tonic" && !$0.degree.isEmpty })
+        XCTAssertTrue(map.cadences.allSatisfy { !$0.explanation.isEmpty })
+        XCTAssertEqual(map.circles.count, map.form.count)
+        XCTAssertEqual(map.circles.first?.circle.zones.count, 12)
         let idea = try XCTUnwrap(map.ideas.first)
         XCTAssertTrue(idea.title.hasPrefix("Идея 1"), idea.title)
         XCTAssertTrue(idea.summary.hasPrefix("Звучит"), idea.summary)

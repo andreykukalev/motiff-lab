@@ -7,15 +7,17 @@
    row from the key or the chords, never on its own. Twelve places, the major keys outside and their relative minors inside;
    the selection's key is the cobalt sector (dashed when it is inferred), the key that fits almost as well is outlined, and
    the passage's chords are numbered dots on the sectors of their roots. Everything drawn comes from music-core's
-   KeyCircleView; the card only places it. Its places ring on the score, and Hear the scale plays the key's scale once. *@
-<section class="key-circle" aria-label="@Text["circle.title"]">
+   KeyCircleView; the card only places it. Its places ring on the score, and Hear the scale plays the key's scale once.
+   With Functions (Piece DNA, testing item 30) the sectors take the colours of the harmonic functions around the key, the
+   tonic, the dominant side and the subdominant side, far keys paler, and each chord's dot the colour of what it does. *@
+<section class="key-circle @(Functions ? "functions" : null)" aria-label="@Text["circle.title"]">
     <svg viewBox="-118 -118 236 236" role="img" aria-label="@Text.Format("circle.aria", Circle.Name)">
         @foreach (CircleSector sector in Circle.Sectors)
         {
             bool near = Circle.Neighbours.Any(neighbour => neighbour.Position == sector.Position);
             <g>
-                <path class="sector major @SectorClass(sector.Position, KeyMode.Major) @(near ? "near" : null)" d="@Sector(sector.Position, MiddleRadius, OuterRadius)" />
-                <path class="sector minor @SectorClass(sector.Position, KeyMode.Minor) @(near ? "near" : null)" d="@Sector(sector.Position, InnerRadius, MiddleRadius)" />
+                <path class="sector major @SectorClass(sector.Position, KeyMode.Major) @(near ? "near" : null) @Zone(sector.Position)" d="@Sector(sector.Position, MiddleRadius, OuterRadius)" />
+                <path class="sector minor @SectorClass(sector.Position, KeyMode.Minor) @(near ? "near" : null) @Zone(sector.Position)" d="@Sector(sector.Position, InnerRadius, MiddleRadius)" />
                 <text class="major" x="@X(sector.Position, 84)" y="@Y(sector.Position, 84)">@sector.Major</text>
                 <text class="minor" x="@X(sector.Position, 57)" y="@Y(sector.Position, 57)">@sector.Minor</text>
                 <text class="signature" x="@X(sector.Position, 28)" y="@Y(sector.Position, 28)">@sector.Signature</text>
@@ -26,7 +28,7 @@
             // A major chord sits just outside its sector, a minor one between the minor keys and the signatures.
             double radius = chord.Ring == KeyMode.Major ? 108 : 43;
             bool on = Chosen == chord.Place;
-            <g class="chord @(on ? "on" : null)">
+            <g class="chord @(on ? "on" : null) @(Functions ? $"fn-{chord.Function.ToString().ToLowerInvariant()}" : null)">
                 <circle cx="@F(radius * Math.Sin(angle))" cy="@F(-radius * Math.Cos(angle))" r="6" />
                 <text x="@F(radius * Math.Sin(angle))" y="@F(-radius * Math.Cos(angle))">@chord.Number</text>
             </g>
@@ -89,6 +91,12 @@
     /// <summary>The scale is sounding: the button stops it.</summary>
     [Parameter]
     public bool Playing { get; set; }
+
+    /// <summary>Colour the sectors and the chords by harmonic function around the key (Piece DNA).</summary>
+    [Parameter]
+    public bool Functions { get; set; }
+
+    private string? Zone(int position) => Functions ? $"z-{Circle.Zones[position].ToString().ToLowerInvariant()}" : null;
 
     private string? SectorClass(int position, KeyMode ring)
     {

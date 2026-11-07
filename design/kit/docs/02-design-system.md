@@ -47,6 +47,9 @@ Two themes, one set of token names. **Daylight** is the default; **Night stand**
 | `--plum`         | What the app composed: ossia, variations, saved ideas      | \#7B3F9E            | \#B98CD8                   | 6.3 : 1 (dark 6.3)               |
 | `--amber`        | What the user marked: highlighter, note markers, flags     | \#F0B429            | \#F3C14E                   | fill only                        |
 | `--teal`         | Left-hand notes in the piano roll                          | \#1F8A8A            | \#4FBFB4                   | 3.8 : 1 graphic (dark 7.6)       |
+| `--fn-t`         | Tonic function (rest), Piece DNA harmony and its circle only | \#3E7F5A          | \#6FB58C                   | graphic, always with the letter T |
+| `--fn-s`         | Subdominant function (motion), same places only            | \#B4882B            | \#D9AE55                   | graphic, always with the letter S |
+| `--fn-d`         | Dominant function (tension), same places only              | \#B5502F            | \#E07A55                   | graphic, always with the letter D |
 | `--success`      | Done, resolved                                             | \#2E7D4F            | \#5CBB7D                   | 4.9 : 1                          |
 | `--warning`      | Check flags text, attention                                | \#965D04            | \#F3C14E                   | 4.95 : 1 (dark 10.1)             |
 | `--danger`       | Delete, errors                                             | \#C8352B            | \#F07C70                   | 4.8 : 1 (dark 6.3)               |

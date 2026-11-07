@@ -29,6 +29,10 @@
   --plum: #7B3F9E;         --plum-tint: rgba(123,63,158,.12);
   --amber: #F0B429;        --amber-tint: rgba(240,180,41,.38);
   --teal: #1F8A8A;         --teal-tint: rgba(31,138,138,.18);
+  /* harmonic functions, only on the harmony lane of Piece DNA and its circle (testing item 30): T rest, S motion, D tension */
+  --fn-t: #3E7F5A;         --fn-t-tint: rgba(62,127,90,.16);
+  --fn-s: #B4882B;         --fn-s-tint: rgba(180,136,43,.18);
+  --fn-d: #B5502F;         --fn-d-tint: rgba(181,80,47,.16);
   /* semantic */
   --success: #2E7D4F;
   --warning: #965D04;
@@ -88,6 +92,9 @@
   --plum: #B98CD8;  --plum-tint: rgba(185,140,216,.18);
   --amber: #F3C14E; --amber-tint: rgba(243,193,78,.38);
   --teal: #4FBFB4;  --teal-tint: rgba(79,191,180,.22);
+  --fn-t: #6FB58C;  --fn-t-tint: rgba(111,181,140,.20);
+  --fn-s: #D9AE55;  --fn-s-tint: rgba(217,174,85,.20);
+  --fn-d: #E07A55;  --fn-d-tint: rgba(224,122,85,.20);
   --success: #5CBB7D;
   --warning: #F3C14E;
   --warning-fill: #F3C14E;

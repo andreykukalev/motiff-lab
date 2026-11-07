@@ -157,7 +157,7 @@ public static partial class HarmonyAnalyzer
         return chord.PitchClasses.All(pitchClass => scale.Contains(((pitchClass - key.TonicPitchClass) % 12 + 12) % 12));
     }
 
-    private static string FunctionName(HarmonicFunction function, Words w) => function switch
+    internal static string FunctionName(HarmonicFunction function, Words w) => function switch
     {
         HarmonicFunction.Tonic => w.T("tonic", "тоника"),
         HarmonicFunction.Subdominant => w.T("subdominant", "субдоминанта"),
