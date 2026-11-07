@@ -496,7 +496,8 @@ final class FacadeTests: XCTestCase {
         // Sources (testing item 16, contract 6): the base, a PDF kept inside the piece, and its bytes back for the scan server.
         let first = try XCTUnwrap(SourcesInfo(answer: MusicCore.call(piece: piece, "sources")))
         XCTAssertEqual(first.base, "file")
-        XCTAssertTrue(first.summary.hasPrefix("Base: "), first.summary)
+        XCTAssertFalse(first.baseName.isEmpty)
+        XCTAssertTrue(first.summary.contains(first.baseName), "the line names the base, in the piece's language: \(first.summary)")
         XCTAssertNil(first.document)
 
         let data = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 595, height: 842), format: UIGraphicsPDFRendererFormat()).pdfData { context in
