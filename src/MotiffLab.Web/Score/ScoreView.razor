@@ -647,6 +647,9 @@ else if (_loading && !HoldHeight)
 
     private sealed record ScoreLoadResult(int Pages, int Notes, string? Title);
 
-    /// <summary>What the pencil tools show, as the script reports it (Scripts/score/pencil-layer.ts).</summary>
-    public sealed record PencilState(bool On, string Tool, string Colour, int Marks, int Hidden, bool CanUndo);
+    /// <summary>
+    /// What the pencil tools show, as the script reports it (Scripts/score/pencil-layer.ts). <paramref name="Width"/> is the drawing
+    /// tool's thickness: 0 thin, 1 medium, 2 thick.
+    /// </summary>
+    public sealed record PencilState(bool On, string Tool, string Colour, int Marks, int Hidden, bool CanUndo, int Width = 1);
 }

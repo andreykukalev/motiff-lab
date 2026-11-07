@@ -11,7 +11,7 @@ test("the empty library offers Add a piece and the demo piece", async ({ page })
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Motiff Lab");
     await expect(page.locator(".card.add")).toContainText("Transcribe a recording");
     await page.locator(".card.add").getByRole("link", { name: "or try the demo piece" }).click();
-    await expect(page.locator(".bar .ttl")).toHaveText("Für Elise (Beethoven, opening)");
+    await expect(page.locator(".bar .ttl")).toHaveText("Für Elise");
 });
 
 test("Add piece opens a file on the device straight into the score, and leads to scanning and recording", async ({ page }) => {

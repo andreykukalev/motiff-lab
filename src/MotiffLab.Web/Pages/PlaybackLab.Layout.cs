@@ -88,8 +88,15 @@ public partial class PlaybackLab : IAsyncDisposable
         _popover != Popover.None || _settingsOpen ? "popover-open" : null,
     }.Where(name => name is not null));
 
-    /// <summary>The pill shows with a selection or while playback runs, or only while it runs (the setting "guidance.transportPill", 0018 section 10).</summary>
-    private bool PillShown => (_selection is not null && SettingsStore["guidance.transportPill"] != "playing") || Player.State != PlaybackState.Stopped || _pillMenu != PillMenu.None;
+    /// <summary>
+    /// The pill shows with a selection or while playback runs, or only while it runs (the setting "guidance.transportPill", 0018 section 10).
+    /// Once playback has run it stays after a pause or the end of the piece, so tempo, metronome and count-in can be set before playing
+    /// again, until a tap on the page where there is no music puts it away.
+    /// </summary>
+    private bool PillShown => ((_selection is not null || _pillKept) && SettingsStore["guidance.transportPill"] != "playing") || Player.State != PlaybackState.Stopped || _pillMenu != PillMenu.None;
+
+    /// <summary>Playback has run since the page was last tapped where there is no music: the pill stays.</summary>
+    private bool _pillKept;
 
     /// <summary>"p. 2 of 4", or "pp. 1–2 of 4" with two pages to a row; null in the strip or before the score is engraved.</summary>
     private string? PageText => _pages switch
@@ -613,8 +620,28 @@ public partial class PlaybackLab : IAsyncDisposable
     private Task OnScoreBarPickedAsync((Tick Start, bool Extend) bar) =>
         OnRangePickedAsync(new RollRange(bar.Start, bar.Start, true, bar.Extend));
 
-    /// <summary>A tap on the page where there is no music puts the selection away (0018 section 3); the sheets stay as they are.</summary>
-    private Task OnPaperTappedAsync() => _selection is null || _penOn || Focused ? Task.CompletedTask : ClearSelectionAsync();
+    /// <summary>A tap on the page where there is no music puts the selection away (0018 section 3), or with none the kept pill; the sheets stay as they are.</summary>
+    private Task OnPaperTappedAsync()
+    {
+        if (_penOn || Focused)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (_selection is null)
+        {
+            // With nothing selected the tap puts the kept pill away, and its popover with it.
+            if (Player.State == PlaybackState.Stopped)
+            {
+                _pillKept = false;
+                _pillMenu = PillMenu.None;
+            }
+
+            return Task.CompletedTask;
+        }
+
+        return ClearSelectionAsync();
+    }
 
     /// <summary>Starts the bar's fade and the page-turner keys once the score page is showing; stops them when it goes.</summary>
     private async Task SyncLayoutAsync()

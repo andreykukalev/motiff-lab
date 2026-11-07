@@ -1,6 +1,6 @@
 // The circle of fifths (Andrei, 2026-11-06; the independent assessment's reference card) in every browser project: opened
 // in the key's row of the Insights stream, it shows the selection's key in cobalt among the twelve places with the
-// passage's chords on their roots; a chord or the notes outside the scale ring on the score, and Hear the scale plays it.
+// passage's chords on their roots; a chord or the notes outside the scale ring on the score, and Hear the scale plays it once.
 import { expect, test } from "@playwright/test";
 import { openFurElise, openInsights, violations } from "./steps.mjs";
 
@@ -36,10 +36,12 @@ test("the key opens the circle of fifths: the chords and the notes outside the s
 
     expect(await violations(page)).toEqual([]);
 
-    // Hear the scale loops it from the selection's start.
+    // Hear the scale plays it once from the selection's start; pressed again, it stops, and Play plays the piece again.
     await circle.getByRole("button", { name: "Hear the scale" }).click();
     await expect(page.locator(".pill").getByRole("button", { name: "Pause" })).toBeVisible();
-    await page.locator(".pill").getByRole("button", { name: "Pause" }).click();
+    await circle.getByRole("button", { name: "Stop the scale" }).click();
+    await expect(page.locator(".pill").getByRole("button", { name: "Play", exact: true })).toBeVisible();
+    await expect(circle.getByRole("button", { name: "Hear the scale" })).toBeVisible();
 
     // Pressed again, On the circle closes it.
     await row.getByRole("button", { name: "On the circle" }).click();

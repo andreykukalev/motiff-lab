@@ -37,7 +37,7 @@ test("the score shows A4 pages and downloads as a PDF", async ({ page }) => {
         };
     });
     const [download] = await Promise.all([page.waitForEvent("download"), more.getByRole("button", { name: "Download PDF" }).click()]);
-    expect(await page.evaluate(() => window.__downloaded)).toBe("Für Elise (Beethoven, opening).pdf");
+    expect(await page.evaluate(() => window.__downloaded)).toBe("Für Elise.pdf");
     await download.saveAs(test.info().outputPath("score.pdf"));
     const pdf = await readFile(await download.path());
     const text = pdf.toString("latin1");

@@ -2,6 +2,8 @@ using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Time;
 
+using MotiffLab.MusicCore.Import.Transcription;
+
 namespace MotiffLab.MusicCore.Analysis;
 
 /// <summary>How far the engine fills one part of Piece DNA.</summary>
@@ -52,7 +54,12 @@ public sealed record DnaIdea(string Id, bool FromSelection, TickSpan Span, int F
 
 /// <summary>A stretch of the key lane.</summary>
 /// <param name="ModeInferred">The file gives only sharps or flats, so major or minor was chosen from the notes.</param>
-public sealed record DnaKey(MusicalKey Key, TickSpan Span, int FirstBar, int LastBar, bool ModeInferred);
+/// <param name="KeyInferred">The file gives no key at all (a recording heard, a MIDI file), so the whole key was chosen from the notes.</param>
+public sealed record DnaKey(MusicalKey Key, TickSpan Span, int FirstBar, int LastBar, bool ModeInferred, bool KeyInferred = false)
+{
+    /// <summary>Some of the key comes from the notes rather than the file: shown as assumed.</summary>
+    public bool Inferred => ModeInferred || KeyInferred;
+}
 
 /// <summary>
 /// Piece DNA (0018 section 11, preparation item 18): the map of the whole composition behind the third place in the
@@ -163,14 +170,16 @@ public sealed record PieceDna(
 
     /// <summary>
     /// The key signatures of the file as stretches of the piece. A signature without a mode is read as the major or
-    /// minor key that fits its notes better (<see cref="KeyFinder"/>), and says so.
+    /// minor key that fits its notes better (<see cref="KeyFinder"/>), and says so. A file with no key at all gets the key
+    /// that fits all its notes best, marked inferred, as Insights does for a selection (testing, 2026-11-06: the lane said
+    /// the file gave no key while Insights named one).
     /// </summary>
     private static List<DnaKey> KeyLane(IReadOnlyList<Note> notes, MeterMap meter, IReadOnlyList<KeySignature> keys, Tick first, Tick last)
     {
         KeySignature[] signatures = [.. keys.OrderBy(key => key.At).GroupBy(key => key.At).Select(group => group.Last())];
         if (signatures.Length == 0)
         {
-            return [];
+            return KeyFromNotes(notes, meter, first, last);
         }
 
         var lane = new List<DnaKey>();
@@ -201,13 +210,38 @@ public sealed record PieceDna(
         return lane;
     }
 
-    private static KeyMode ModeFromNotes(IReadOnlyList<Note> notes, TickSpan span, int fifths)
+    private static List<DnaKey> KeyFromNotes(IReadOnlyList<Note> notes, MeterMap meter, Tick first, Tick last)
+    {
+        if (last <= first)
+        {
+            return [];
+        }
+
+        // The reading a transcription's key signature is worked out with (0016): the bass weighs more, long notes count up
+        // to a whole note, so a piece's tonic and its harmony outweigh passing chromatic notes.
+        var span = TickSpan.FromBounds(first, last);
+        if (Transcribed.KeyOf(notes) is not { } key)
+        {
+            return [];
+        }
+
+        return [new DnaKey(key, span, meter.BarAt(first).Number, meter.BarAt(new Tick(last.Value - 1)).Number, ModeInferred: false, KeyInferred: true)];
+    }
+
+    private static double[] Weights(IReadOnlyList<Note> notes, TickSpan span)
     {
         double[] weights = new double[12];
         foreach (Note note in notes.Where(note => note.Span.Onset >= span.Onset && note.Span.Onset < span.End))
         {
             weights[note.Pitch.MidiNumber % 12] += note.Span.Duration;
         }
+
+        return weights;
+    }
+
+    private static KeyMode ModeFromNotes(IReadOnlyList<Note> notes, TickSpan span, int fifths)
+    {
+        double[] weights = Weights(notes, span);
 
         double major = KeyFinder.Score(weights, new MusicalKey(fifths, KeyMode.Major));
         double minor = KeyFinder.Score(weights, new MusicalKey(fifths, KeyMode.Minor));

@@ -30,8 +30,9 @@ targets:
     platform: iOS
     sources:
       - path: MotiffLab
-      # The example piece, the interface's words and the design tokens are the web app's own files.
-      - path: ../../design/kit/elise.musicxml
+      # The example piece, the interface's words and the design tokens are the web app's own files: Für Elise
+      # whole, from the Mutopia Project's public-domain edition (tools/fur-elise/build.mjs).
+      - path: ../../src/MotiffLab.Web/Playback/FurElise.musicxml
         buildPhase: resources
       - path: ../../design/kit/tokens.css
         buildPhase: resources
@@ -103,6 +104,9 @@ targets:
     platform: iOS
     sources:
       - path: MotiffLabTests
+      # The design kit's 97 generated bars of Für Elise, which the tests were written against (KitPiece.swift).
+      - path: ../../design/kit/elise.musicxml
+        buildPhase: resources
     dependencies:
       - target: MotiffLab
     settings:

@@ -254,7 +254,7 @@
         Dna.Keys.Count > 0 ? KeyName(Dna.Keys[0]) : null,
     }.Where(part => part is not null));
 
-    private string KeyName(DnaKey key) => key.ModeInferred ? Text.Format("dna.keyAssumed", key.Key.NameIn(Words)) : key.Key.NameIn(Words);
+    private string KeyName(DnaKey key) => key.Inferred ? Text.Format("dna.keyAssumed", key.Key.NameIn(Words)) : key.Key.NameIn(Words);
 
     private string Bars(int first, int last) => first == last ? Text.Format("dna.bar", first) : Text.Format("dna.barsRange", first, last);
 

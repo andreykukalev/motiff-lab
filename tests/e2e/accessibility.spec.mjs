@@ -173,7 +173,7 @@ test("playback lab with a selection, the Insights stream, an experiment, Adjust 
     await expect(page.locator(".selection-status")).toContainText("Looping the original, then the variation.");
     expect(await violations(page)).toEqual([]);
     // A fact chosen: its row tinted and its places ringed on the score.
-    await stream.getByRole("button", { name: /The motif recurs once/ }).click();
+    await stream.getByRole("button", { name: /The motif recurs 11 times/ }).click();
     await expect(stream.locator("article.fact-row.on")).toBeVisible();
     expect(await violations(page)).toEqual([]);
     await (await openMoreTools(page)).locator("[aria-label='Edit variation notes'] button.section-toggle").click();
@@ -213,7 +213,7 @@ test("the journey by keyboard: open a piece, select bars, loop them", async ({ p
     await expect(load).toBeEnabled({ timeout: 30_000 });
     await load.focus();
     await page.keyboard.press("Enter");
-    await expect(page.locator(".bar .ttl")).toHaveText("Für Elise (Beethoven, opening)");
+    await expect(page.locator(".bar .ttl")).toHaveText("Für Elise");
 
     // The roll from the bar by keyboard; then ] selects the first bar (the pickup), then the next; Shift+] extends by a bar; Space loops it.
     await page.locator(".bar").getByRole("button", { name: "Piano roll" }).focus();

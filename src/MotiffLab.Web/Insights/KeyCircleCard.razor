@@ -7,7 +7,7 @@
    row from the key or the chords, never on its own. Twelve places, the major keys outside and their relative minors inside;
    the selection's key is the cobalt sector (dashed when it is inferred), the key that fits almost as well is outlined, and
    the passage's chords are numbered dots on the sectors of their roots. Everything drawn comes from music-core's
-   KeyCircleView; the card only places it. Its places ring on the score, and Hear the scale loops the key's scale. *@
+   KeyCircleView; the card only places it. Its places ring on the score, and Hear the scale plays the key's scale once. *@
 <section class="key-circle" aria-label="@Text["circle.title"]">
     <svg viewBox="-118 -118 236 236" role="img" aria-label="@Text.Format("circle.aria", Circle.Name)">
         @foreach (CircleSector sector in Circle.Sectors)
@@ -60,7 +60,7 @@
         </div>
     }
     <div class="circle-actions">
-        <button class="btn quiet compact hear-scale" @onclick="() => Hear.InvokeAsync()"><Icon Name="play" /> @Text["circle.hearScale"]</button>
+        <button class="btn quiet compact hear-scale" aria-pressed="@(Playing ? "true" : "false")" @onclick="() => Hear.InvokeAsync()"><Icon Name="@(Playing ? "pause" : "play")" /> @Text[Playing ? "circle.stopScale" : "circle.hearScale"]</button>
     </div>
 </section>
 
@@ -85,6 +85,10 @@
 
     [Parameter]
     public EventCallback Hear { get; set; }
+
+    /// <summary>The scale is sounding: the button stops it.</summary>
+    [Parameter]
+    public bool Playing { get; set; }
 
     private string? SectorClass(int position, KeyMode ring)
     {

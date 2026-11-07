@@ -119,6 +119,10 @@ test("the form is added as Structure bookmarks, the search finds them, and the p
     await expect(sentences.first()).toHaveText(/^A · \d+–\d+$/);
     await sentences.first().click();
     await expect(page.locator(".selection-status")).toContainText(/bars 0/);
+    // A sentence longer than a selection holds selects its first bars.
+    const longest = drawer(page).locator("button.sent", { hasText: /^D · 24–/ });
+    await longest.click();
+    await expect(page.locator(".selection-status")).toContainText(/bars 24–55\b/);
     await drawer(page).getByRole("button", { name: "Add Structure bookmarks" }).click();
     await expect(page.locator(".marks-status")).toContainText("Structure bookmark");
     await expect(drawer(page).locator("button.cat")).toHaveText(["Practise · 3", /^Structure · \d+$/]);

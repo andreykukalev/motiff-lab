@@ -44,6 +44,23 @@ public partial class PlaybackLab
     private int SelectionCap(TickSpan span) =>
         _sentences?.Matching(span) is not null || _phrases?.Phrases.Any(phrase => phrase.Span == span) == true ? MotifSelection.MaxStructureBars : MotifSelection.MaxBars;
 
+    /// <summary>
+    /// The span cut to the bars one selection holds: a sentence or a bookmark longer than that (the whole Für Elise has a
+    /// sentence of 54 bars) selects its first bars, as a drag across more bars stops at the cap.
+    /// </summary>
+    private TickSpan Selectable(TickSpan span)
+    {
+        if (_meter is null)
+        {
+            return span;
+        }
+
+        int cap = SelectionCap(span);
+        int first = _meter.BarAt(span.Onset).Number;
+        int last = _meter.BarAt(new Tick(span.End.Value - 1)).Number;
+        return last - first + 1 <= cap ? span : TickSpan.FromBounds(span.Onset, _meter.GetBar(first + cap - 1).Span.End);
+    }
+
     /// <summary>Selects a sentence whole as the working context; the tab, the tempo, the loop and what is heard carry on.</summary>
     private Task PickSentenceAsync(Sentence sentence) => SelectAsync(sentence.Span, note: null);
 

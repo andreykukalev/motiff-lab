@@ -246,7 +246,7 @@ public partial class PlaybackLab
 
     /// <summary>What selecting the bookmark selects: its span, or the first bars of it when it is longer than a selection goes.</summary>
     private TickSpan SelectedSpanOf(Bookmark bookmark) =>
-        _notes is null || _meter is null ? bookmark.Span : MotifSelector.Select(_notes, _meter, bookmark.Span, _filter, SelectionCap(bookmark.Span)).Span;
+        _notes is null || _meter is null ? bookmark.Span : MotifSelector.Select(_notes, _meter, Selectable(bookmark.Span), _filter, SelectionCap(bookmark.Span)).Span;
 
     private bool IsShown(Bookmark bookmark) => _selection is { } selection && selection.Span == SelectedSpanOf(bookmark);
 

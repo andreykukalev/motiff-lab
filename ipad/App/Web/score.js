@@ -41,7 +41,7 @@ import { cardLayout } from "../score/phrase-card.js";
 import { BRACKET_LIFT, ScoreGeometry, bookmarkLevels, readPage, staffFrames } from "../score/score-geometry.js";
 import { SelectionLayer } from "../score/selection-layer.js";
 import { ScoreTimeline, highlightedIds } from "../score/score-timeline.js";
-import { HIGHLIGHTER_SIZE, PEN_SIZE, anchorMark, framesByTick, outlinePath, placeMark, touches } from "../score/pencil-marks.js";
+import { DEFAULT_WIDTH, HIGHLIGHTER_SIZES, PEN_SIZES, anchorMark, framesByTick, outlinePath, placeMark, touches } from "../score/pencil-marks.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -584,13 +584,14 @@ document.body.addEventListener("click", (event) => {
 });
 
 /**
- * Keeps a stroke, its points in the document's pixels, against the bar it starts in; an empty object when there is
- * no bar (WebKit's async calls do not take a null back).
+ * Keeps a stroke, its points in the document's pixels, against the bar it starts in, at the thickness chosen (0 to 2);
+ * an empty object when there is no bar (WebKit's async calls do not take a null back).
  */
-function anchor({ points, tool, colour }) {
+function anchor({ points, tool, colour, width = DEFAULT_WIDTH }) {
     nextId += 1;
     const id = `m${Date.now().toString(36)}${nextId.toString(36)}`;
-    const size = tool === "highlighter" ? HIGHLIGHTER_SIZE : PEN_SIZE;
+    // The thickness chosen in the palette, thin to thick, as the web app's pencil layer sizes its marks.
+    const size = (tool === "highlighter" ? HIGHLIGHTER_SIZES : PEN_SIZES)[width] ?? (tool === "highlighter" ? HIGHLIGHTER_SIZES : PEN_SIZES)[DEFAULT_WIDTH];
     return anchorMark(state.frames, points, { id, tool, colour: tool === "highlighter" ? "amber" : colour, size }) ?? {};
 }
 

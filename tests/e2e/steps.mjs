@@ -45,7 +45,7 @@ export async function openFurElise(page) {
     const load = page.getByRole("button", { name: "Für Elise" });
     await expect(load).toBeEnabled({ timeout: 30_000 });
     await load.click();
-    await expect(page.locator(".bar .ttl")).toHaveText("Für Elise (Beethoven, opening)");
+    await expect(page.locator(".bar .ttl")).toHaveText("Für Elise");
     return errors;
 }
 

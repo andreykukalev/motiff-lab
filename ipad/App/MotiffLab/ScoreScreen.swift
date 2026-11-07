@@ -79,7 +79,7 @@ struct ScoreScreen: View {
     }
 
     private var pillShown: Bool {
-        (score.selection != nil && settings["guidance.transportPill"] != "playing") || player.state != .stopped
+        ((score.selection != nil || player.transportKept) && settings["guidance.transportPill"] != "playing") || player.state != .stopped
     }
 
     /// What the sheet over the right holds: Check, Other versions, or Insights.
@@ -256,7 +256,9 @@ struct ScoreScreen: View {
         score.noteTapped = { [weak heard] tick in heard?.play(from: tick) }
         // With the sheet open, a tap on the page puts it away and leaves the selection as it is (0018 section 6).
         let sheetOpen = $insightsOpen
-        score.blankTapped = {
+        score.blankTapped = { [weak heard, weak shown] in
+            // With nothing selected and nothing playing, the tap puts away the pill kept after playback.
+            if let heard, heard.state == .stopped, shown?.selection == nil { heard.transportKept = false }
             guard sheetOpen.wrappedValue else { return false }
             sheetOpen.wrappedValue = false
             return true
@@ -275,6 +277,7 @@ struct ScoreScreen: View {
         }
         insights.placeChosen = { [weak heard] tick in heard?.seek(to: tick) }
         insights.scaleReady = { [weak heard] notes, range in heard?.hearAlone(notes, over: range) }
+        insights.scaleStop = { [weak heard] in heard?.stopAlone() }
         // A way tried sounds at once, looping the selection to the variation's end, and the card in focus shows
         // it as the ossia; left, the original sounds again (0018 section 6).
         let tried = insights
@@ -303,6 +306,9 @@ struct ScoreScreen: View {
     /// The drawers and sheets: what covers the page, and one of them at a time.
     private func watching(_ content: some View, covered: CGFloat, contentsSide: Bool) -> some View {
         content
+            .onChange(of: player.hearingAlone) { _, alone in
+                insights.scaleHeard = alone
+            }
             .onChange(of: covered) { _, height in
                 // Room under the last page for whatever covers the bottom of the score.
                 score.insetBottom(height)
@@ -670,6 +676,8 @@ struct Pill: View {
             }
             .buttonStyle(DSItemStyle(on: player.countIn))
             .accessibilityAddTraits(player.countIn ? .isSelected : [])
+            .accessibilityHint(text["transport.countInHint"])
+            .help(text["transport.countInHint"])
         }
         .disabled(!player.ready)
         .padding(.leading, 6)
@@ -944,67 +952,46 @@ struct PhrasesPanel: View {
     }
 }
 
-/// The pen palette under the bar while the Pen is on (ds.css `.pen-palette`): the four inks, the highlighter, the eraser
-/// Undo and the layers. The Pencil writes with the chosen one; a double tap on it switches as the iPad's settings say.
+/// The pen palette under the bar while the Pen is on (ds.css `.pen-palette`): the pencil and its four inks, the
+/// highlighter, the eraser, the thickness, Undo, the layers and a cross that puts the tools away. The Pencil writes with
+/// the chosen one; a double tap on it switches as the iPad's settings say.
 struct PenPalette: View {
     @ObservedObject var score: ScoreController
     let text: UIText
     @State private var layersOpen = false
 
     var body: some View {
+        // The whole palette where it fits; in portrait its words give way to the icons alone.
+        ViewThatFits(in: .horizontal) {
+            palette(compact: false)
+            palette(compact: true)
+        }
+    }
+
+    private func palette(compact: Bool) -> some View {
         HStack(spacing: CGFloat.ds("s-1")) {
-            ForEach(ScoreController.Ink.allCases, id: \.self) { ink in
-                let chosen = score.tool == .pen(ink)
-                Button {
-                    score.tool = .pen(ink)
-                } label: {
-                    Circle()
-                        .fill(Color(uiColor: ink.color))
-                        .frame(width: 20, height: 20)
-                        .padding(2)
-                        .overlay(Circle().strokeBorder(chosen ? Color.ds("accent") : Color.ds("hairline-strong"), lineWidth: chosen ? 2 : 1))
-                        .frame(width: CGFloat.ds("h-touch"), height: CGFloat.ds("h-touch"))
-                        .contentShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(text[ink.labelKey])
-                .accessibilityAddTraits(chosen ? .isSelected : [])
-            }
-            Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
-            Button {
-                score.tool = .highlighter
-            } label: {
-                HStack(spacing: 6) {
-                    Icon(name: "highlight", size: CGFloat.ds("icon-s"))
-                    Text(text["pencil.highlighter"])
-                }
-            }
-            .buttonStyle(DSItemStyle(on: score.tool == .highlighter))
-            .accessibilityAddTraits(score.tool == .highlighter ? .isSelected : [])
-            Button(text["pencil.eraser"]) {
-                score.tool = .eraser
-            }
-            .buttonStyle(DSItemStyle(on: score.tool == .eraser))
-            .accessibilityAddTraits(score.tool == .eraser ? .isSelected : [])
-            Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
+            PenTools(holder: score, text: text, compact: compact)
+            PaletteDivider()
             Button {
                 score.undo()
             } label: {
                 HStack(spacing: 6) {
                     Icon(name: "undo", size: CGFloat.ds("icon-s"))
-                    Text(text["pencil.undo"])
+                    if !compact { Text(text["pencil.undo"]) }
                 }
             }
             .buttonStyle(DSItemStyle())
+            .accessibilityLabel(text["pencil.undo"])
             .disabled(!score.canUndo)
             Button {
                 layersOpen.toggle()
             } label: {
                 HStack(spacing: 6) {
                     Icon(name: "layers", size: CGFloat.ds("icon-s"))
-                    Text(text["layers.title"])
+                    if !compact { Text(text["layers.title"]) }
                 }
             }
+            .accessibilityLabel(text["layers.title"])
             .buttonStyle(DSItemStyle(on: layersOpen || !score.hiddenLayers.isEmpty))
             .popover(isPresented: $layersOpen) {
                 LayersList(score: score, text: text)
@@ -1012,6 +999,7 @@ struct PenPalette: View {
                     .frame(width: 300, alignment: .leading)
                     .presentationCompactAdaptation(.popover)
             }
+            PenClose(holder: score, text: text)
         }
         .padding(.horizontal, CGFloat.ds("s-2"))
         .padding(.vertical, CGFloat.ds("s-1"))

@@ -787,6 +787,7 @@ internal static partial class Answer
             MusicalKey(json, "key", key.Key);
             json.WriteString("label", key.Key.NameIn(words));
             json.WriteBoolean("modeInferred", key.ModeInferred);
+            json.WriteBoolean("keyInferred", key.KeyInferred);
             Passage(json, "passage", key.Span, key.FirstBar, key.LastBar);
             json.WriteEndObject();
         }

@@ -8,7 +8,7 @@ final class FacadeTests: XCTestCase {
     private var piece: Int32 = 0
 
     override func setUpWithError() throws {
-        let example = try XCTUnwrap(OpenPiece.example, "the example piece is in the app")
+        let example = try XCTUnwrap(KitPiece.example, "the kit's piece is bundled with the tests")
         let opened = try object(MusicCore.open(fileName: example.fileName, data: example.data, request: #"{"language": "ru", "id": "p_test"}"#))
         XCTAssertNil(opened["error"], "\(opened)")
         piece = Int32(opened["piece"] as? Int ?? 0)
@@ -27,7 +27,7 @@ final class FacadeTests: XCTestCase {
     }
 
     func testOpenGivesTheSummaryInTheLanguageAskedFor() throws {
-        let example = try XCTUnwrap(OpenPiece.example)
+        let example = try XCTUnwrap(KitPiece.example)
         let opened = try object(MusicCore.open(fileName: example.fileName, data: example.data, request: #"{"language": "ru"}"#))
         defer { MusicCore.close(piece: Int32(opened["piece"] as? Int ?? 0)) }
         let summary = try XCTUnwrap(opened["summary"] as? [String: Any])
@@ -212,7 +212,7 @@ final class FacadeTests: XCTestCase {
 
     func testAnotherVersionIsComparedBarByBarDismissedRenamedAndRemoved() throws {
         // The piece's own MusicXML as another version, as an official score would be: every note finds its pair.
-        let example = try XCTUnwrap(OpenPiece.example)
+        let example = try XCTUnwrap(KitPiece.example)
         let request = try XCTUnwrap(String(data: JSONSerialization.data(withJSONObject: [
             "name": "Official", "file": example.data.base64EncodedString(), "fileName": example.fileName,
         ]), encoding: .utf8))
@@ -458,7 +458,7 @@ final class FacadeTests: XCTestCase {
         defer { MusicCore.close(piece: pdf) }
         let before = MusicCore.call(piece: pdf, "project.save", #"{"now": "2026-11-05T12:00:00Z"}"#)
 
-        let example = try XCTUnwrap(OpenPiece.example)
+        let example = try XCTUnwrap(KitPiece.example)
         let request: [String: Any] = ["musicXml": example.data.base64EncodedString(), "engine": "homr 0.7.0", "pages": 3,
                                       "language": "en", "now": "2026-11-05T12:00:00Z", "id": "p_notes"]
         let body = String(decoding: try JSONSerialization.data(withJSONObject: request), as: UTF8.self)

@@ -35,6 +35,11 @@
     </ItemGroup>
   </Target>
 
+  <!-- The example piece, written by tools/fur-elise/build.mjs; the iPad app bundles the same file. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Playback\FurElise.musicxml" LogicalName="MotiffLab.Web.Playback.FurElise.musicxml" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\MotiffLab.MusicCore\MotiffLab.MusicCore.csproj" />
   </ItemGroup>

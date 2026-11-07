@@ -26,7 +26,7 @@ test("Ask from the menu's overflow looks at the selection, says what it knows, a
     // What it knows: the piece, the passage with its facts, the practice, the level; any item can be taken out.
     const knows = ask.locator(".knows");
     await knows.locator("summary").click();
-    await expect(knows.getByLabel("The piece: Für Elise (Beethoven, opening)")).toBeChecked();
+    await expect(knows.getByLabel("The piece: Für Elise")).toBeChecked();
     await expect(knows.getByLabel(/^The passage: bar 2, \d+ facts?$/)).toBeVisible();
     await expect(knows.getByLabel(/^Practising at 100%/)).toBeVisible();
     await expect(knows.getByLabel(/^Your settings: /)).toBeVisible();
@@ -70,7 +70,7 @@ test("? asks about the selection, and Ask about the piece comes from the overflo
     await assistant(page).getByRole("button", { name: "Close" }).click();
 
     await (await openMore(page)).getByRole("button", { name: "Piece DNA" }).click();
-    const dna = page.getByRole("dialog", { name: "Für Elise (Beethoven, opening)" });
+    const dna = page.getByRole("dialog", { name: "Für Elise" });
     await dna.getByRole("button", { name: "Ask about the piece" }).click();
     await expect(dna).toHaveCount(0);
     const ask = assistant(page);
