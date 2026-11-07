@@ -43,6 +43,8 @@ public static class SettingsCatalogue
 
         Switch("playback.metronome", SettingSection.Playback, null, SettingScope.Device),
         Switch("playback.countIn", SettingSection.Playback, null, SettingScope.Device),
+        // The score scrolls to keep the playing system in view (testing item 4); the playhead shows either way.
+        Switch("playback.follow", SettingSection.Playback, null, SettingScope.Device, on: true),
 
         Switch("roll.followPlayback", SettingSection.PianoRoll, null, SettingScope.Device, on: true),
         Switch("roll.noteNames", SettingSection.PianoRoll, null, SettingScope.Device, on: true),

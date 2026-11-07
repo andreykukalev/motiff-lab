@@ -106,6 +106,24 @@ public partial class PlaybackLab : IAsyncDisposable
         var (first, last, count) => Text.Format("bar.pages", first, last, count),
     };
 
+    /// <summary>Whether the score scrolls with playback (Settings · Score); the playhead shows either way.</summary>
+    private const string FollowSetting = "playback.follow";
+
+    /// <summary>Where the bar the playhead is in starts while it is out of sight during playback; null while it is in sight.</summary>
+    private Tick? _playheadAway;
+
+    private void OnPlayheadAway(Tick? barStart) => _playheadAway = barStart;
+
+    /// <summary>The chip "Back to playback": the playing system scrolls into view and the score follows it again.</summary>
+    private async Task ReturnToPlayheadAsync()
+    {
+        _playheadAway = null;
+        if (_scoreView is not null)
+        {
+            await _scoreView.ReturnToPlayheadAsync();
+        }
+    }
+
     /// <summary>Reads the player's settings on this device: whether the brackets show, and the rest as the page asks for them.</summary>
     private async Task ReadLayoutPreferencesAsync()
     {
@@ -211,8 +229,6 @@ public partial class PlaybackLab : IAsyncDisposable
             _level = ProjectLevel;
         }
     }
-
-    private void CloseSettings() => _settingsOpen = false;
 
     /// <summary>The piece's own choices go (0018 section 10): the settings of the sheet hold for it too.</summary>
     private async Task ClearPieceSettingsAsync()
@@ -437,6 +453,13 @@ public partial class PlaybackLab : IAsyncDisposable
     {
         _insightsOpen = !_insightsOpen;
         _asking = false;
+        _cameFrom = null;
+        if (_dnaAside)
+        {
+            // Piece DNA put aside under the assistant goes with it; its playing stopped when it was put aside.
+            _dnaAside = false;
+            _dna = null;
+        }
         _contentsOpen &= !_insightsOpen;
         _checkOpen &= !_insightsOpen;
         _performanceOpen &= !_insightsOpen;

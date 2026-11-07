@@ -10,7 +10,15 @@
    the score exactly as it was. *@
 <section class="dna" role="dialog" aria-modal="true" aria-labelledby="dna-title" tabindex="-1" @ref="_element" @onkeydown="OnKey">
     <header class="dna-bar">
-        <button class="act" aria-label="@Text["dna.back"]" title="@Text["dna.back"]" @onclick="() => Closed.InvokeAsync()"><Icon Name="back" Size="IconSize.Large" /></button>
+        @if (BackLabel is { } origin)
+        {
+            @* Opened from More: ‹ More goes back there (testing item 20). *@
+            <button class="act back-to" aria-label="@Text.Format("nav.backTo", origin)" @onclick="() => Closed.InvokeAsync()"><Icon Name="back" Size="IconSize.Large" /> @origin</button>
+        }
+        else
+        {
+            <button class="act" aria-label="@Text["dna.back"]" title="@Text["dna.back"]" @onclick="() => Closed.InvokeAsync()"><Icon Name="back" Size="IconSize.Large" /></button>
+        }
         <h2 id="dna-title" class="ttl">@Title</h2>
         <span class="sub">@Text["dna.title"]</span>
         <span class="sp"></span>
@@ -41,7 +49,7 @@
                         @foreach (DnaSection section in Dna.Form)
                         {
                             <button class="dna-sec" style="@Place(section.Span)" aria-label="@($"{section.Label}, {Bars(section.FirstBar, section.LastBar)}")"
-                                    @onclick="() => TapAsync(section.Span)">@section.Label</button>
+                                    @onclick="() => TapAsync(section.Span)">@(section.Label)</button>
                         }
                     }
                 </div>
@@ -163,6 +171,10 @@
 
     [Parameter]
     public EventCallback Closed { get; set; }
+
+    /// <summary>The place the map was opened from, such as "More", which ‹ goes back to; null for the score.</summary>
+    [Parameter]
+    public string? BackLabel { get; set; }
 
     /// <summary>Plays a passage of the map.</summary>
     [Parameter]

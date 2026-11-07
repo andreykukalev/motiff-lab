@@ -19,24 +19,18 @@ namespace MotiffLab.Web.Pages;
 /// </summary>
 public partial class PlaybackLab
 {
-    /// <summary>The tabs of the Contents drawer: the bookmarks, the marks (notes, highlights, ink) and the pages.</summary>
-    private enum ContentsTab
-    {
-        Contents,
-        Notes,
-        Pages,
-    }
-
     /// <summary>The bookmark being made from the menu, or being changed in the drawer (<see cref="BookmarkDraft.Id"/>).</summary>
     private sealed record BookmarkDraft(string? Id, string Title, string CategoryId);
 
     private bool _contentsOpen;
-    private ContentsTab _contentsTab;
     private BookmarkDraft? _bookmarkDraft;
     private string _contentsSearch = "";
     private bool _contentsMyOrder;
     private readonly HashSet<string> _foldedCategories = [];
     private IReadOnlyList<PageOutline> _pageOutline = [];
+
+    /// <summary>The Contents' search and order show once there are more bookmarks than this (testing item 21).</summary>
+    private const int ContentsToolsFrom = 3;
 
     /// <summary>The card's title field, focused once when the card opens so a title can be typed at once.</summary>
     private ElementReference _draftTitle;
@@ -252,7 +246,7 @@ public partial class PlaybackLab
 
     /// <summary>What selecting the bookmark selects: its span, or the first bars of it when it is longer than a selection goes.</summary>
     private TickSpan SelectedSpanOf(Bookmark bookmark) =>
-        _notes is null || _meter is null ? bookmark.Span : MotifSelector.Select(_notes, _meter, bookmark.Span, _filter, SelectionCap(bookmark.Span)).Span;
+        _notes is null || _meter is null ? bookmark.Span : MotifSelector.Select(_notes, _meter, Selectable(bookmark.Span), _filter, SelectionCap(bookmark.Span)).Span;
 
     private bool IsShown(Bookmark bookmark) => _selection is { } selection && selection.Span == SelectedSpanOf(bookmark);
 
@@ -334,20 +328,15 @@ public partial class PlaybackLab
             _insightsOpen = false;
             _checkOpen = false;
             _performanceOpen = false;
-            if (_contentsTab == ContentsTab.Pages)
-            {
-                await LoadPagesAsync();
-            }
+            await LoadPagesAsync();
         }
     }
 
-    private async Task ShowContentsTabAsync(ContentsTab tab)
+    /// <summary>A chip at the top of the Contents: the sheet scrolls to that section; nothing else changes.</summary>
+    private async Task ScrollContentsToAsync(string id)
     {
-        _contentsTab = tab;
-        if (tab == ContentsTab.Pages)
-        {
-            await LoadPagesAsync();
-        }
+        await using IJSObjectReference module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/layout/fragment.js");
+        await module.InvokeAsync<bool>("scrollToFragment", id);
     }
 
     private async Task LoadPagesAsync() => _pageOutline = _scoreView is null ? [] : await _scoreView.PageOutlineAsync();

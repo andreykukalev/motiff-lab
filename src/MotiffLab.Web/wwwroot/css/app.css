@@ -1463,6 +1463,30 @@ h1, h2, .app-title strong {
     color: var(--accent);
 }
 
+/* The place of playing (testing item 4): a cobalt line at the sounding moment across the system's staves and a light wash
+   over the bar, so the eye finds the place from across the room; the sounding notes are drawn heavier. */
+.score .playhead {
+    position: absolute;
+    z-index: 2;
+    width: 2px;
+    border-radius: 1px;
+    background: var(--accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--paper) 70%, transparent);
+    pointer-events: none;
+}
+
+.score .play-bar {
+    position: absolute;
+    z-index: 0;
+    border-radius: var(--r-xs);
+    background: var(--accent-tint);
+    pointer-events: none;
+}
+
+.score g.note.playing, .score g.chord.playing {
+    filter: drop-shadow(0 0 2px var(--accent-tint-strong));
+}
+
 /* Pencil marks (Score/ScoreView.razor, Scripts/score/pencil-layer.ts, 0015): the player's own writing over the engraving,
    in pencil colours on paper. No long-press menu or text selection under the Pencil. */
 .score {
@@ -2628,6 +2652,34 @@ body:has(.workspace) .site-footer {
     box-shadow: var(--shadow-pill);
     font: var(--t-label);
     transition: bottom var(--t-base) var(--ease);
+}
+
+/* Back to the place of playing: shown while the playhead is out of sight, above the pill when the pill is up. */
+.lab.workspace .back-to-play {
+    position: absolute;
+    z-index: 4;
+    left: 50%;
+    bottom: var(--s-4);
+    transform: translateX(-50%);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    min-height: 0;
+    padding: 0 var(--s-3);
+    border-radius: var(--r-pill);
+    border: 1px solid var(--hairline);
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    box-shadow: var(--shadow-pill);
+    color: var(--accent);
+    font: var(--t-label);
+    cursor: pointer;
+}
+
+.lab.workspace .back-to-play.over-pill {
+    bottom: calc(var(--s-4) + 52px + var(--s-2));
 }
 
 .lab.workspace .pill .play {
@@ -3996,7 +4048,7 @@ body:has(.workspace) .site-footer {
     flex-direction: column;
     gap: var(--s-3);
     padding: var(--s-4) var(--s-5);
-    overflow-y: auto;
+    overflow: hidden;
     background: var(--surface);
     border: 1px solid var(--hairline);
     border-radius: var(--r-l);
@@ -4022,25 +4074,73 @@ body:has(.workspace) .site-footer {
 .workspace .contents .contents-head {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: var(--s-2);
 }
 
-/* The three tabs share the head's width on one line (testing, 2026-11-06: in Russian "Страницы" wrapped under the others). */
-.lab.workspace .contents .contents-head .seg {
-    flex: 1;
-    min-width: 0;
-    flex-wrap: nowrap;
-    align-self: center;
+.workspace .contents .contents-head .overline {
+    margin: 0;
 }
 
-.lab.workspace .contents .contents-head .seg > button {
-    flex: 1 1 auto;
-    min-width: 0;
-    padding: 0 var(--s-2);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+.workspace .contents .contents-head .sp {
+    flex: 1;
+}
+
+/* One sheet read top to bottom (testing item 21): the chips scroll to a section, the sections scroll under them. */
+.workspace .contents .contents-anchors {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+}
+
+.workspace .contents .contents-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    display: grid;
+    align-content: start;
+    gap: var(--s-5);
+    margin: 0 calc(-1 * var(--s-5));
+    padding: 0 var(--s-5) var(--s-4);
+    scroll-padding-top: var(--s-1);
+}
+
+.workspace .contents .contents-section {
+    display: grid;
+    gap: var(--s-2);
+    align-content: start;
+}
+
+.workspace .contents .contents-section > h3.overline {
+    margin: 0;
+}
+
+.workspace .contents .sentences {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+}
+
+.lab.workspace .contents button.sent {
+    height: 32px;
+    min-height: 0;
+    padding: 0 var(--s-3);
+    border-radius: var(--r-xs);
+    border: 1px solid var(--hairline-strong);
+    background: var(--surface-2);
+    color: var(--ink);
+    font: var(--t-label);
+    cursor: pointer;
+}
+
+/* Detected, not yet the player's own: grey until added as Structure bookmarks. */
+.lab.workspace .contents .sentences.found button.sent {
+    border-style: dashed;
+    color: var(--ink-2);
+}
+
+.lab.workspace .contents button.sent:hover {
+    background: var(--accent-tint);
 }
 
 .lab.workspace .contents .contents-tools .seg {
@@ -4128,13 +4228,16 @@ body:has(.workspace) .site-footer {
 }
 
 /* The Pages tab: the pages as thumbnails on paper, with the phrases that start on each and a tick per bookmark. */
-.workspace .contents .pages-grid {
+.workspace .contents .pages-strip {
     list-style: none;
-    margin: 0;
-    padding: 0;
+    margin: 0 calc(-1 * var(--s-5));
+    padding: var(--s-1) var(--s-5) var(--s-2);
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
-    gap: var(--s-4) var(--s-3);
+    grid-auto-flow: column;
+    grid-auto-columns: 84px;
+    gap: var(--s-3);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
 }
 
 .lab.workspace .contents .page-thumb {
@@ -6182,4 +6285,42 @@ body:has(.library) .site-footer {
 
 .lab.page-sheet.not-found > .btn {
     align-self: flex-start;
+}
+
+/* The way back (testing item 20): "‹ More" at the top left of a place opened from another place, naming where it goes. */
+.lab .back-to {
+    flex: none;
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-1);
+    width: auto;
+    height: 32px;
+    min-height: 0;
+    margin-left: calc(-1 * var(--s-1));
+    padding: 0 var(--s-2) 0 var(--s-1);
+    border: 0;
+    border-radius: var(--r-pill);
+    background: transparent;
+    color: var(--ink-2);
+    font: var(--t-label);
+    cursor: pointer;
+}
+
+.lab .back-to:hover {
+    background: var(--accent-tint);
+    color: var(--ink);
+}
+
+.lab .settings-sheet .settings-head .back-to + .overline {
+    flex: 1;
+}
+
+.lab.workspace .dna-bar .act.back-to {
+    width: auto;
+    display: inline-flex;
+    gap: var(--s-1);
+    margin-left: 0;
+    padding: 0 var(--s-3) 0 var(--s-2);
+    font: var(--t-label);
 }

@@ -1,6 +1,6 @@
 // Margin notes, highlights and the layers of marks (decision record 0018, section 5): Note in the contextual menu writes
 // the player's words about the bars, shown as a numbered marker that opens them again; Highlight in the menu's overflow
-// lays a band in an ink behind the staves; the Contents drawer's Notes tab lists them; each layer can be hidden.
+// lays a band in an ink behind the staves; the Contents list them under Notes; each layer can be hidden.
 import { expect, test } from "@playwright/test";
 import { closePopover, openFurElise, openMore, selectBar } from "./steps.mjs";
 
@@ -64,7 +64,7 @@ test("a highlight is laid in an ink from the menu's overflow and taken away agai
     expect(errors).toEqual([]);
 });
 
-test("the Notes tab lists the notes and the highlights, by colour, and goes to them", async ({ page }) => {
+test("the Contents' notes list the margin notes and the highlights, by colour, and go to them", async ({ page }) => {
     const errors = await openFurElise(page);
     await selectBar(page, 2);
     await page.locator(".ctx").getByRole("button", { name: "Note", exact: true }).click();
@@ -75,7 +75,7 @@ test("the Notes tab lists the notes and the highlights, by colour, and goes to t
 
     await page.locator(".bar").getByRole("button", { name: /open the contents/ }).click();
     const drawer = page.locator(".sheet.contents");
-    await drawer.getByRole("tab", { name: "Notes" }).click();
+    await drawer.getByRole("button", { name: "Notes", exact: true }).click();
     await expect(drawer.locator("p.cat")).toHaveText(["Margin notes · 1", "Highlights · 1"]);
     await expect(drawer.getByRole("button", { name: /Count the rest/ })).toContainText("bar 2");
 

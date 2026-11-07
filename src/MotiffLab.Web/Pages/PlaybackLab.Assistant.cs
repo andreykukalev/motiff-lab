@@ -42,12 +42,25 @@ public partial class PlaybackLab
     private async Task AskFromDnaAsync()
     {
         string? map = _dna is { } dna ? Text.Format("ask.knowsMap", Text.Count("dna.ideas", dna.Ideas.Count)) : null;
-        await CloseDnaAsync();
+        // The map is put aside, not closed, so ‹ Piece DNA finds it as it was.
+        await StopDnaAsync();
         OpenAsk(wholePiece: true);
+        _dnaAside = _dna is not null;
         _askMap = map;
+        _cameFrom = _dnaAside ? (Place.Ask, Origin.Dna) : null;
     }
 
-    private void LeaveAsk() => _asking = false;
+    /// <summary>‹ in the assistant: back where it was opened from, or to the Insights stream it is the last voice of.</summary>
+    private Task AskBackAsync()
+    {
+        if (CameFrom(Place.Ask) is not null)
+        {
+            return GoBackAsync();
+        }
+
+        _asking = false;
+        return DropDnaAsideAsync();
+    }
 
     private void SetAskWholePiece(bool wholePiece) => _askWholePiece = wholePiece || _selection is null;
 
@@ -55,7 +68,7 @@ public partial class PlaybackLab
     [JSInvokable]
     public void AskFromKey()
     {
-        if (_score is not null && !_penOn && _bookmarkDraft is null && _noteDraft is null && _dna is null)
+        if (_score is not null && !_penOn && _bookmarkDraft is null && _noteDraft is null && !DnaShown)
         {
             OpenAsk(wholePiece: false);
             StateHasChanged();

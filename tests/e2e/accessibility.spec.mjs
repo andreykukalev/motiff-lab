@@ -85,7 +85,7 @@ test("the score page: the bar, its popovers, the pill and its tempo, the roll dr
     }
 });
 
-test("bookmarks: the card over the selection, the brackets on the score, the Contents drawer and its Pages, in both themes", async ({ page }) => {
+test("bookmarks: the card over the selection, the brackets on the score, the Contents sheet with its pages, in both themes", async ({ page }) => {
     await openFurElise(page);
     await selectBar(page, 2);
     await page.locator(".ctx").getByRole("button", { name: "Bookmark" }).click();
@@ -99,14 +99,13 @@ test("bookmarks: the card over the selection, the brackets on the score, the Con
     for (const theme of ["daylight", "night"]) {
         await page.evaluate(name => document.documentElement.setAttribute("data-theme", name), theme);
         expect(await violations(page)).toEqual([]);
-        await page.locator(".sheet.contents").getByRole("tab", { name: "Pages" }).click();
+        await page.locator(".sheet.contents").getByRole("button", { name: "Pages", exact: true }).click();
         await expect(page.locator(".sheet.contents .page-thumb").first()).toBeVisible();
         expect(await violations(page)).toEqual([]);
-        await page.locator(".sheet.contents").getByRole("tab", { name: "Contents" }).click();
     }
 });
 
-test("marks: the note card, a marker, the highlight swatches, the Notes tab and the layers, in both themes", async ({ page }) => {
+test("marks: the note card, a marker, the highlight swatches, the Contents' notes and the layers, in both themes", async ({ page }) => {
     await openFurElise(page);
     await selectBar(page, 2);
     await page.locator(".ctx").getByRole("button", { name: "Note", exact: true }).click();
@@ -120,7 +119,7 @@ test("marks: the note card, a marker, the highlight swatches, the Notes tab and 
     await page.locator(".ctx .menu-more").getByRole("button", { name: "Highlight in ochre" }).click();
     await page.locator(".ctx").getByRole("button", { name: "More for the selection" }).click();
     await page.locator(".bar").getByRole("button", { name: /open the contents/ }).click();
-    await page.locator(".sheet.contents").getByRole("tab", { name: "Notes" }).click();
+    await page.locator(".sheet.contents").getByRole("button", { name: "Notes", exact: true }).click();
     for (const theme of ["daylight", "night"]) {
         await page.evaluate(name => document.documentElement.setAttribute("data-theme", name), theme);
         expect(await violations(page)).toEqual([]);

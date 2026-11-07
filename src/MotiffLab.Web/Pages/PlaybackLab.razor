@@ -99,7 +99,7 @@
                            Bookmarks="ScoreBookmarks" BookmarkPicked="OnBookmarkPickedAsync" Notes="ScoreNotes" MarkHighlights="ScoreHighlights" HiddenLayers="HiddenLayers"
                            NoteMarkerPicked="OpenNoteAsync" LayersRequested="OpenLayers" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync"
                            PerformanceMarkers="ScorePerformanceMarkers" Unheard="ScoreUnheard" VersionAdded="ScoreVersionAdded" VersionArtefacts="ScoreVersionArtefacts" PerformancePicked="OnPerformancePickedAsync"
-                           Pointed="_pointed" NotePicked="OnScoreNotePicked" />
+                           Pointed="_pointed" NotePicked="OnScoreNotePicked" Follow="@SettingsStore.IsOn(FollowSetting)" PlayheadAway="OnPlayheadAway" />
             }
             else
             {
@@ -115,7 +115,9 @@
                 else
                 {
                     <a class="act" href="@BackUrl" aria-label="@BackLabel" title="@BackLabel"><Icon Name="back" Size="IconSize.Large" /></a>
-                    @* The piece's title opens its Contents, the way a reader opens a book at its contents (0018 section 5). *@
+                    @* The Contents at the left, by the way back, as in a reader (testing item 21); the piece's title opens them too (0018 section 5). *@
+                    <button class="act @(_contentsOpen ? "on" : null)" aria-label="@Text["bar.contents"]" title="@Text["bar.contents"]" aria-expanded="@(_contentsOpen ? "true" : "false")"
+                            @onclick="ToggleContentsAsync"><Icon Name="pages" Size="IconSize.Large" /></button>
                     <button class="ttl @(_contentsOpen ? "on" : null)" title="@SessionLine" aria-label="@Text.Format("contents.open", BarTitle)" aria-expanded="@(_contentsOpen ? "true" : "false")"
                             @onclick="ToggleContentsAsync">@BarTitle</button>
                     @if (PageText is { } pages)
@@ -176,6 +178,7 @@
                 case Popover.Layers:
                     @* The layers of marks (0018 section 5): each hidden for a clean page, or all at once; kept with the piece. *@
                     <div class="popover layers-popover" role="dialog" aria-label="@Text["layers.title"]" data-keeps-selection>
+                        @BackChip(Place.Layers)
                         <p class="overline">@Text["layers.title"]</p>
                         @foreach (string layer in PieceLayers)
                         {
@@ -200,20 +203,20 @@
                 case Popover.More:
                     @* The overflow: the piece's places and tools, the PDF, which notation is shown, Settings and the credits. *@
                     <div class="popover more-popover" role="dialog" aria-label="@Text["bar.more"]" data-keeps-selection>
-                        <button class="btn quiet" aria-expanded="@(_contentsOpen ? "true" : "false")" @onclick="ToggleContentsAsync"><Icon Name="bookmark" /> @Text["bar.contents"]</button>
-                        <button class="btn quiet" @onclick="OpenLayers"><Icon Name="layers" /> @Text["layers.title"]</button>
-                        <button class="btn quiet" aria-haspopup="dialog" @onclick="OpenDna"><Icon Name="phrases" /> @Text["dna.title"]</button>
-                        <button class="btn quiet" @onclick="AskAboutPiece"><Icon Name="insight" /> @Text["ask.aboutPiece"]</button>
+                        <button class="btn quiet" aria-expanded="@(_contentsOpen ? "true" : "false")" @onclick="() => FromMoreAsync(Place.Contents, ToggleContentsAsync)"><Icon Name="bookmark" /> @Text["bar.contents"]</button>
+                        <button class="btn quiet" @onclick="() => FromMore(Place.Layers, OpenLayers)"><Icon Name="layers" /> @Text["layers.title"]</button>
+                        <button class="btn quiet" aria-haspopup="dialog" @onclick="() => FromMore(Place.Dna, OpenDna)"><Icon Name="phrases" /> @Text["dna.title"]</button>
+                        <button class="btn quiet" @onclick="() => FromMore(Place.Ask, AskAboutPiece)"><Icon Name="insight" /> @Text["ask.aboutPiece"]</button>
                         @if (HasCheck)
                         {
-                            <button class="btn quiet" aria-expanded="@(_checkOpen ? "true" : "false")" @onclick="ToggleCheck">
+                            <button class="btn quiet" aria-expanded="@(_checkOpen ? "true" : "false")" @onclick="() => FromMore(Place.Check, ToggleCheck)">
                                 <Icon Name="check" /> @(OpenCheckBars.Count > 0 ? Text.Count("check.toReview", OpenCheckBars.Count) : Text["check.title"])
                             </button>
                         }
                         @if (_project is not null)
                         {
                             @* A performance compared with the piece (decision record 0022): added and worked with in its drawer. *@
-                            <button class="btn quiet" aria-expanded="@(_performanceOpen ? "true" : "false")" @onclick="TogglePerformance">
+                            <button class="btn quiet" aria-expanded="@(_performanceOpen ? "true" : "false")" @onclick="() => FromMore(Place.Performance, TogglePerformance)">
                                 <Icon Name="mic" /> @(HasPerformances ? Text["performance.title"] : Text["performance.add"])
                             </button>
                         }
@@ -259,7 +262,7 @@
                             </details>
                         }
                         <hr />
-                        <button class="btn quiet" aria-haspopup="dialog" @onclick="OpenSettings">@Text["settings.title"]</button>
+                        <button class="btn quiet" aria-haspopup="dialog" @onclick="() => FromMore(Place.Settings, () => OpenSettings())">@Text["settings.title"]</button>
                         <p class="caption"><a href="privacy">@Text["footer.privacy"]</a> · <a href="terms">@Text["footer.terms"]</a></p>
                         <p class="credit caption">
                             @Text["credit.piano"] <a href="https://archive.org/details/SalamanderGrandPianoV3">Salamander Grand Piano V3</a> @Text["credit.by"] Alexander Holm,
@@ -335,15 +338,15 @@
                 @PerformanceDrawer
             }
 
-            @if (_dna is { } dna)
+            @if (_dna is { } dna && !_dnaAside)
             {
                 <MotiffLab.Web.Dna.PieceDnaMap Dna="dna" Meter="_meter!" Title="@BarTitle" Words="Words" PlayingAt="@(_dnaPlaying && Player.State != PlaybackState.Stopped ? Player.Position : null)"
-                                               Closed="CloseDnaAsync" Hear="HearDnaAsync" ShowInScore="ShowDnaInScoreAsync" PlayMap="PlayDnaMapAsync" Ask="AskFromDnaAsync" />
+                                               BackLabel="@BackTo(Place.Dna)" Closed="LeaveDnaAsync" Hear="HearDnaAsync" ShowInScore="ShowDnaInScoreAsync" PlayMap="PlayDnaMapAsync" Ask="AskFromDnaAsync" />
             }
 
             @if (_settingsOpen)
             {
-                <SettingsSheet Section="@_settingsSection" PieceOverrides="_project?.SettingOverrides" ClearPieceOverrides="ClearPieceSettingsAsync" Closed="CloseSettings" LayoutChosen="SetPagedAsync" />
+                <SettingsSheet Section="@_settingsSection" PieceOverrides="_project?.SettingOverrides" ClearPieceOverrides="ClearPieceSettingsAsync" BackLabel="@BackTo(Place.Settings)" Back="GoBackAsync" Closed="() => CloseFromAsync(Place.Settings)" LayoutChosen="SetPagedAsync" />
             }
 
             @if (_insightsOpen)
@@ -353,7 +356,7 @@
                 @if (_asking)
                 {
                     <AssistantPanel SelectionLabel="@AskSelectionLabel" WholePiece="@(_askWholePiece || _selection is null)" WholePieceChanged="SetAskWholePiece"
-                                    Knows="AskKnows" Back="LeaveAsk" Closed="ToggleInsights" />
+                                    Knows="AskKnows" BackLabel="@BackTo(Place.Ask)" Back="AskBackAsync" Closed="() => CloseFromAsync(Place.Ask)" />
                 }
                 else
                 {
@@ -509,6 +512,14 @@
                 </section>
                 }
                 </aside>
+            }
+
+            @if (_playheadAway is { } awayAt && Player.State != PlaybackState.Stopped && _meter is not null)
+            {
+                @* The playhead out of sight while playing (testing item 4): one tap scrolls back to it and the score follows again. *@
+                <button class="chip back-to-play @(PillShown ? "over-pill" : null)" data-keeps-selection @onclick="ReturnToPlayheadAsync">
+                    <Icon Name="play" Size="IconSize.Small" /> @Text.Format("transport.backToPlay", _meter.BarAt(awayAt).Number)
+                </button>
             }
 
             @if (PillShown)
@@ -719,114 +730,152 @@
     /// The Contents drawer (0018 section 5) over the left of the page, a bottom sheet in portrait: the player's bookmarks
     /// by category, to search, sort, fold, go to, change or delete, and the pages with their phrases and bookmark ticks.
     /// </summary>
+    /// <summary>"‹ More" at the top left of a place opened from another (testing item 20); nothing when it came from the bar.</summary>
+    private RenderFragment BackChip(Place place) => __builder =>
+    {
+        if (BackTo(place) is { } label)
+        {
+            <button class="btn quiet back-to" aria-label="@Text.Format("nav.backTo", label)" @onclick="GoBackAsync"><Icon Name="back" Size="IconSize.Small" /> @label</button>
+        }
+    };
+
+    /// <summary>
+    /// The Contents (0018 section 5, testing item 21): one sheet read top to bottom, the pages, the detected structure, the
+    /// bookmarks by category and the notes and marks; the chips at the top scroll to a section rather than replace the sheet.
+    /// </summary>
     private RenderFragment ContentsDrawer => @<aside class="sheet left contents" aria-label="@Text["bar.contents"]" data-keeps-selection data-menu-clear="left">
         <div class="contents-head">
-            <div class="seg" role="tablist" aria-label="@Text["contents.tabs"]">
-                <button role="tab" class="@(_contentsTab == ContentsTab.Contents ? "on" : null)" aria-selected="@(_contentsTab == ContentsTab.Contents ? "true" : "false")"
-                        @onclick="() => ShowContentsTabAsync(ContentsTab.Contents)">@Text["contents.tabContents"]</button>
-                <button role="tab" class="@(_contentsTab == ContentsTab.Notes ? "on" : null)" aria-selected="@(_contentsTab == ContentsTab.Notes ? "true" : "false")"
-                        @onclick="() => ShowContentsTabAsync(ContentsTab.Notes)">@Text["contents.tabNotes"]</button>
-                <button role="tab" class="@(_contentsTab == ContentsTab.Pages ? "on" : null)" aria-selected="@(_contentsTab == ContentsTab.Pages ? "true" : "false")"
-                        @onclick="() => ShowContentsTabAsync(ContentsTab.Pages)">@Text["contents.tabPages"]</button>
-            </div>
-            <button class="btn quiet icon" aria-label="@Text["drawer.close"]" title="@Text["drawer.close"]" @onclick="ToggleContentsAsync"><Icon Name="close" /></button>
+            @BackChip(Place.Contents)
+            <p class="overline">@Text["bar.contents"]</p>
+            <span class="sp"></span>
+            <button class="btn quiet icon" aria-label="@Text["drawer.close"]" title="@Text["drawer.close"]" @onclick="() => CloseFromAsync(Place.Contents)"><Icon Name="close" /></button>
         </div>
-        @if (_contentsTab == ContentsTab.Contents)
-        {
-            <div class="contents-tools">
-                <input type="search" class="search" placeholder="@Text["contents.search"]" aria-label="@Text["contents.search"]" value="@_contentsSearch" @oninput="SetContentsSearch" />
-                <div class="seg" role="radiogroup" aria-label="@Text["contents.order"]">
-                    <button role="radio" class="@(_contentsMyOrder ? null : "on")" aria-checked="@(_contentsMyOrder ? "false" : "true")" @onclick="() => _contentsMyOrder = false">@Text["contents.scoreOrder"]</button>
-                    <button role="radio" class="@(_contentsMyOrder ? "on" : null)" aria-checked="@(_contentsMyOrder ? "true" : "false")" @onclick="() => _contentsMyOrder = true">@Text["contents.myOrder"]</button>
-                </div>
-            </div>
-            @if (Bookmarks.Count == 0)
+        <nav class="contents-anchors" aria-label="@Text["contents.sections"]">
+            <button class="chip" @onclick='() => ScrollContentsToAsync("contents-pages")'>@Text["contents.tabPages"]</button>
+            @if (_sentences is { Sentences.Count: > 0 })
             {
-                <div class="contents-empty">
-                    <p class="meta">@Text["contents.empty"]</p>
+                <button class="chip" @onclick='() => ScrollContentsToAsync("contents-structure")'>@Text["contents.structure"]</button>
+            }
+            <button class="chip" @onclick='() => ScrollContentsToAsync("contents-bookmarks")'>@Text["contents.bookmarks"]</button>
+            <button class="chip" @onclick='() => ScrollContentsToAsync("contents-notes")'>@Text["contents.tabNotes"]</button>
+        </nav>
+        <div class="contents-scroll">
+            <section id="contents-pages" class="contents-section" aria-labelledby="contents-pages-title">
+                <h3 id="contents-pages-title" class="overline">@(_pageOutline.Count > 0 ? Text.Format("contents.category", Text["contents.tabPages"], _pageOutline.Count) : Text["contents.tabPages"])</h3>
+                @if (_pageOutline.Count == 0)
+                {
+                    <p class="meta">@Text["contents.pagesStrip"]</p>
+                }
+                else
+                {
+                    <ol class="pages-strip">
+                        @foreach (PageOutline sheet in _pageOutline)
+                        {
+                            <li>
+                                <button class="page-thumb @(PageInView(sheet) ? "on" : null)" aria-label="@Text.Format("contents.pageLabel", sheet.Page)" aria-current="@(PageInView(sheet) ? "page" : null)"
+                                        @onclick="() => ShowPageAsync(sheet.Page)">
+                                    <span class="th"><img src="@sheet.Url" alt="" />
+                                        <span class="ticks" aria-hidden="true">
+                                            @foreach (Bookmark bookmark in BookmarksOn(sheet))
+                                            {
+                                                <span class="tick @InkClass(CategoryOf(bookmark).Ink)" title="@bookmark.Title"></span>
+                                            }
+                                        </span>
+                                    </span>
+                                    <span class="caption">@Text.Format("contents.page", sheet.Page)@(PhrasesOn(sheet) is { } phrases ? $" · {phrases}" : null)</span>
+                                </button>
+                            </li>
+                        }
+                    </ol>
+                }
+            </section>
+
+            @if (_sentences is { Sentences.Count: > 0 } sentences)
+            {
+                @* The form as music-core detects it: a chip per sentence selects its bars; grey until added as Structure bookmarks. *@
+                <section id="contents-structure" class="contents-section" aria-labelledby="contents-structure-title">
+                    <h3 id="contents-structure-title" class="overline">@Text["contents.structureFound"]</h3>
+                    <div class="sentences @(CanAddStructure ? "found" : null)">
+                        @foreach (Sentence sentence in sentences.Sentences)
+                        {
+                            <button class="sent" title="@BarsOf(sentence.Span)" @onclick="() => SelectAsync(sentence.Span, null)">
+                                @Text.Format("contents.sentence", sentence.Letter, sentence.FirstBar == sentence.LastBar ? $"{sentence.FirstBar}" : $"{sentence.FirstBar}–{sentence.LastBar}")
+                            </button>
+                        }
+                    </div>
                     @if (CanAddStructure)
                     {
-                        <button class="btn secondary" title="@Text["contents.addStructureHint"]" @onclick="AddStructureBookmarksAsync">@Text["contents.addStructure"]</button>
+                        <button class="btn quiet" title="@Text["contents.addStructureHint"]" @onclick="AddStructureBookmarksAsync">@Text["contents.addStructure"]</button>
                     }
-                </div>
+                </section>
             }
-            else if (ContentsGroups is { Count: 0 })
-            {
-                <p class="meta contents-empty">@Text["contents.noMatch"]</p>
-            }
-            else
-            {
-                @foreach ((BookmarkCategory category, IReadOnlyList<Bookmark> entries) in ContentsGroups)
+
+            <section id="contents-bookmarks" class="contents-section" aria-labelledby="contents-bookmarks-title">
+                <h3 id="contents-bookmarks-title" class="overline">@(Bookmarks.Count > 0 ? Text.Format("contents.category", Text["contents.bookmarks"], Bookmarks.Count) : Text["contents.bookmarks"])</h3>
+                @if (Bookmarks.Count > ContentsToolsFrom)
                 {
-                    bool folded = _foldedCategories.Contains(category.Id);
-                    <section class="contents-group" aria-label="@CategoryName(category)">
-                        <button class="cat @InkClass(category.Ink)" aria-expanded="@(folded ? "false" : "true")" title="@Text.Format("contents.fold", CategoryName(category))"
-                                @onclick="() => ToggleFold(category.Id)">
-                            <span class="d" aria-hidden="true"></span>@Text.Format("contents.category", CategoryName(category), entries.Count)
-                        </button>
-                        @if (!folded)
-                        {
-                            <ul class="entries">
-                                @foreach (Bookmark bookmark in entries)
-                                {
-                                    <li>
-                                        @if (_bookmarkDraft is { Id: { } editing } draft && editing == bookmark.Id)
-                                        {
-                                            @BookmarkCard(draft)
-                                        }
-                                        else
-                                        {
-                                            bool on = IsShown(bookmark);
-                                            <div class="entry @(on ? "on" : null)">
-                                                <button class="go" aria-current="@(on ? "true" : null)" title="@Text["contents.entryHint"]" @onclick="() => GoToBookmarkAsync(bookmark)">
-                                                    <span class="t">@bookmark.Title</span>
-                                                    <span class="c">@BarsOf(bookmark.Span)@(IdeasIn(bookmark) is { } ideas ? $" · {ideas}" : null)</span>
-                                                </button>
-                                                <button class="btn quiet icon" aria-label="@Text.Format("bookmark.editOne", bookmark.Title)" title="@Text["bookmark.edit"]" @onclick="() => EditBookmark(bookmark)"><Icon Name="pen" /></button>
-                                            </div>
-                                        }
-                                    </li>
-                                }
-                            </ul>
-                        }
-                    </section>
+                    @* Search and order once there are enough bookmarks to need them. *@
+                    <div class="contents-tools">
+                        <input type="search" class="search" placeholder="@Text["contents.search"]" aria-label="@Text["contents.search"]" value="@_contentsSearch" @oninput="SetContentsSearch" />
+                        <div class="seg" role="radiogroup" aria-label="@Text["contents.order"]">
+                            <button role="radio" class="@(_contentsMyOrder ? null : "on")" aria-checked="@(_contentsMyOrder ? "false" : "true")" @onclick="() => _contentsMyOrder = false">@Text["contents.scoreOrder"]</button>
+                            <button role="radio" class="@(_contentsMyOrder ? "on" : null)" aria-checked="@(_contentsMyOrder ? "true" : "false")" @onclick="() => _contentsMyOrder = true">@Text["contents.myOrder"]</button>
+                        </div>
+                    </div>
                 }
-                @if (CanAddStructure)
+                @if (Bookmarks.Count == 0)
                 {
-                    <button class="btn quiet" title="@Text["contents.addStructureHint"]" @onclick="AddStructureBookmarksAsync">@Text["contents.addStructure"]</button>
+                    <p class="meta">@Text["contents.empty"]</p>
                 }
-            }
-        }
-        else if (_contentsTab == ContentsTab.Notes)
-        {
-            @NotesTab
-        }
-        else if (_pageOutline.Count == 0)
-        {
-            <p class="meta contents-empty">@Text["contents.pagesStrip"]</p>
-        }
-        else
-        {
-            <ol class="pages-grid">
-                @foreach (PageOutline sheet in _pageOutline)
+                else if (ContentsGroups is { Count: 0 })
                 {
-                    <li>
-                        <button class="page-thumb @(PageInView(sheet) ? "on" : null)" aria-label="@Text.Format("contents.pageLabel", sheet.Page)" aria-current="@(PageInView(sheet) ? "page" : null)"
-                                @onclick="() => ShowPageAsync(sheet.Page)">
-                            <span class="th"><img src="@sheet.Url" alt="" />
-                                <span class="ticks" aria-hidden="true">
-                                    @foreach (Bookmark bookmark in BookmarksOn(sheet))
+                    <p class="meta">@Text["contents.noMatch"]</p>
+                }
+                else
+                {
+                    @foreach ((BookmarkCategory category, IReadOnlyList<Bookmark> entries) in ContentsGroups)
+                    {
+                        bool folded = _foldedCategories.Contains(category.Id);
+                        <section class="contents-group" aria-label="@CategoryName(category)">
+                            <button class="cat @InkClass(category.Ink)" aria-expanded="@(folded ? "false" : "true")" title="@Text.Format("contents.fold", CategoryName(category))"
+                                    @onclick="() => ToggleFold(category.Id)">
+                                <span class="d" aria-hidden="true"></span>@Text.Format("contents.category", CategoryName(category), entries.Count)
+                            </button>
+                            @if (!folded)
+                            {
+                                <ul class="entries">
+                                    @foreach (Bookmark bookmark in entries)
                                     {
-                                        <span class="tick @InkClass(CategoryOf(bookmark).Ink)" title="@bookmark.Title"></span>
+                                        <li>
+                                            @if (_bookmarkDraft is { Id: { } editing } draft && editing == bookmark.Id)
+                                            {
+                                                @BookmarkCard(draft)
+                                            }
+                                            else
+                                            {
+                                                bool on = IsShown(bookmark);
+                                                <div class="entry @(on ? "on" : null)">
+                                                    <button class="go" aria-current="@(on ? "true" : null)" title="@Text["contents.entryHint"]" @onclick="() => GoToBookmarkAsync(bookmark)">
+                                                        <span class="t">@bookmark.Title</span>
+                                                        <span class="c">@BarsOf(bookmark.Span)@(IdeasIn(bookmark) is { } ideas ? $" · {ideas}" : null)</span>
+                                                    </button>
+                                                    <button class="btn quiet icon" aria-label="@Text.Format("bookmark.editOne", bookmark.Title)" title="@Text["bookmark.edit"]" @onclick="() => EditBookmark(bookmark)"><Icon Name="pen" /></button>
+                                                </div>
+                                            }
+                                        </li>
                                     }
-                                </span>
-                            </span>
-                            <span class="caption">@Text.Format("contents.page", sheet.Page)@(PhrasesOn(sheet) is { } phrases ? $" · {phrases}" : null)</span>
-                        </button>
-                    </li>
+                                </ul>
+                            }
+                        </section>
+                    }
                 }
-            </ol>
-        }
+            </section>
+
+            <section id="contents-notes" class="contents-section" aria-labelledby="contents-notes-title">
+                <h3 id="contents-notes-title" class="overline">@Text["contents.notesHead"]</h3>
+                @NotesTab
+            </section>
+        </div>
     </aside>;
 
     /// <summary>The Contents drawer's Notes tab: the margin notes, the highlights by colour and the bars with ink; a tap goes there.</summary>
@@ -967,10 +1016,11 @@
     private RenderFragment CheckDrawer => @<aside class="sheet inspector check-sheet" aria-labelledby="check-title" data-keeps-selection data-menu-clear="auto">
     <header class="check-head">
         <div>
+            @BackChip(Place.Check)
             <p class="overline">@Text["check.title"]</p>
             <h2 id="check-title">@(OpenCheckBars.Count > 0 ? Text.Count("check.toReview", OpenCheckBars.Count) : HasCheckFlags ? Text["check.allDone"] : Text["transcribe.barsHeading"])</h2>
         </div>
-        <button class="btn icon" aria-label="@Text["check.close"]" title="@Text["check.close"]" @onclick="ToggleCheck"><Icon Name="close" /></button>
+        <button class="btn icon" aria-label="@Text["check.close"]" title="@Text["check.close"]" @onclick="() => CloseFromAsync(Place.Check)"><Icon Name="close" /></button>
     </header>
     <p class="caption">@CheckSourceLine @Text[_project?.Scan is not null ? "check.howScan" : "check.howRecording"]</p>
     @if (_project is { Transcription: { } heard } project)
@@ -1081,10 +1131,11 @@
     private RenderFragment PerformanceDrawer => @<aside class="sheet inspector check-sheet perf-sheet" aria-labelledby="perf-title" data-keeps-selection data-menu-clear="auto">
     <header class="check-head">
         <div>
+            @BackChip(Place.Performance)
             <p class="overline">@Text["performance.title"]</p>
             <h2 id="perf-title">@(ShownPerformance is { } heading ? heading.Name : Text["performance.add"])</h2>
         </div>
-        <button class="btn icon" aria-label="@Text["performance.close"]" title="@Text["performance.close"]" @onclick="TogglePerformance"><Icon Name="close" /></button>
+        <button class="btn icon" aria-label="@Text["performance.close"]" title="@Text["performance.close"]" @onclick="() => CloseFromAsync(Place.Performance)"><Icon Name="close" /></button>
     </header>
     @if (_project?.Performances is { Count: > 1 } all)
     {
@@ -2437,7 +2488,7 @@
             _noteDraft = null;
         }
 
-        _selection = MotifSelector.Select(_notes!, _meter!, span, _filter, SelectionCap(span));
+        _selection = MotifSelector.Select(_notes!, _meter!, Selectable(span), _filter, SelectionCap(span));
         Analyze(_selection);
         _highlight = null;
         MotifTexture? texture = _selection.NoteIds.Count == 0 ? null : MotifTexture.Read(VariationFacts.MotifNotes(_notes!, _selection));

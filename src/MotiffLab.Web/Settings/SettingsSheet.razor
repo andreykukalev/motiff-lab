@@ -17,13 +17,17 @@
             @foreach (SheetSection section in Enum.GetValues<SheetSection>())
             {
                 bool on = _section == section;
-                <button role="tab" id="settings-tab-@section" class="@(on ? "on" : null)" aria-selected="@(on ? "true" : "false")" aria-controls="settings-pane"
+                <button role="tab" id="settings-tab-@(section)" class="@(on ? "on" : null)" aria-selected="@(on ? "true" : "false")" aria-controls="settings-pane"
                         tabindex="@(on ? 0 : -1)" @ref="_tabs[section]" @onclick="() => _section = section" @onkeydown="args => OnTabKey(args, section)">@SectionName(section)</button>
             }
         </div>
     </nav>
     <div id="settings-pane" class="settings-pane" role="tabpanel" aria-labelledby="settings-tab-@_section">
         <header class="settings-head">
+            @if (BackLabel is { } origin)
+            {
+                <button class="btn quiet back-to" aria-label="@Text.Format("nav.backTo", origin)" @onclick="() => Back.InvokeAsync()"><Icon Name="back" Size="IconSize.Small" /> @origin</button>
+            }
             <p class="overline">@SectionName(_section)</p>
             <button class="btn icon" aria-label="@Text["settings.close"]" title="@Text["settings.close"]" @onclick="CloseAsync"><Icon Name="close" /></button>
         </header>
@@ -45,6 +49,7 @@
 
             case SheetSection.Score:
                 <SettingChoice Id="phrases.granularity" Label="@Text["settings.granularity"]" Name="@(choice => Text[GranularityName(choice)])" Hint="@Text["settings.granularityHint"]" />
+                <SettingSwitch Id="playback.follow" Label="@Text["settings.follow"]" Hint="@Text["settings.followHint"]" />
                 @* A4 pages by default; a strip the width of the view for a narrow window. Kept on the device. *@
                 <div class="set-row column">
                     <span id="set-layout" class="label">@Text["score.layout"]</span>
@@ -148,6 +153,13 @@
     [Parameter]
     public EventCallback Closed { get; set; }
 
+    /// <summary>The place the sheet was opened from, such as "More", which ‹ and Escape go back to; null for none.</summary>
+    [Parameter]
+    public string? BackLabel { get; set; }
+
+    [Parameter]
+    public EventCallback Back { get; set; }
+
     /// <summary>The section the sheet opens at, by name ("guidance", "score", "layers", "roll"): an element's popover leads to its own rows.</summary>
     [Parameter]
     public string? Section { get; set; }
@@ -213,7 +225,8 @@
 
     private Task CloseAsync() => Closed.InvokeAsync();
 
-    private Task OnKey(KeyboardEventArgs args) => args.Key == "Escape" ? CloseAsync() : Task.CompletedTask;
+    /// <summary>Escape goes back one place: to where the sheet was opened from, or away.</summary>
+    private Task OnKey(KeyboardEventArgs args) => args.Key != "Escape" ? Task.CompletedTask : BackLabel is not null ? Back.InvokeAsync() : CloseAsync();
 
     /// <summary>Up and down (or left and right) walk the sections, as in any list of tabs.</summary>
     private void OnTabKey(KeyboardEventArgs args, SheetSection section)
