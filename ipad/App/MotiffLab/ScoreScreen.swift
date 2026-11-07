@@ -343,6 +343,13 @@ struct ScoreScreen: View {
         roll.barsPicked = { [weak shown] first, last, extend in shown?.selectBars(first, last, extend: extend) }
         roll.cleared = { [weak shown] in shown?.clearSelection() }
         roll.spacePressed = { [weak heard] in heard?.toggle() }
+        roll.noteEdited = { [weak shown] edit in shown?.editNote(edit) }
+        // The note edits saved are written to the project file at once.
+        let file = piece.file
+        score.noteEditSaved = {
+            guard let file else { return }
+            Task { try? await ProjectFiles.save(piece: id, to: file) }
+        }
         // The bookmarks are drawn as brackets on the score, and again whenever they change.
         contents.changed = { [weak shown] shelf in shown?.showBookmarks(shelf) }
         await contents.load(piece: piece.id)
@@ -399,6 +406,9 @@ struct ScoreScreen: View {
                     insightsOpen = false
                     roll.show(piece, dark: colorScheme == .dark)
                     roll.showSelection(score.selection, loop: player.loop)
+                } else {
+                    // Edits are kept only by Save: the drawer put away with the editor open leaves them, as Cancel does.
+                    score.cancelNoteEdit()
                 }
             }
             .onChange(of: insightsOpen) { _, open in
@@ -497,6 +507,10 @@ struct ScoreScreen: View {
             }
             .onChange(of: player.loop) { _, loop in
                 roll.showSelection(score.selection, loop: loop)
+            }
+            .onChange(of: score.noteEditor) { _, editor in
+                // The note editor on the roll (testing item 15): a press on its notes edits them while it is open.
+                roll.showEditor(editor)
             }
             .onChange(of: score.playRange) { old, new in
                 // A loop follows what play takes for the selection, as on the web: Lead-in, or going back to the page

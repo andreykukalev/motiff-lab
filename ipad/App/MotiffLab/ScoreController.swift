@@ -159,6 +159,10 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     }
     @Published private(set) var canUndo = false
     @Published private(set) var problem: String?
+    /// The note editor on the roll while it is open (testing item 15); nil when it is closed.
+    @Published private(set) var noteEditor: NoteEditorState?
+    /// The note edits were saved: the screen writes the project file.
+    var noteEditSaved: (@MainActor () -> Void)?
     /// The pages under the reading line, for the bar: "p. 2 of 4", or "pp. 1–2 of 4" with two to a row.
     @Published private(set) var pages = PagesInView()
 
@@ -693,6 +697,80 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             }
             corrections = read
             if notes { await notesDidChange() }
+        }
+    }
+
+    // MARK: - Note editor on the roll
+
+    /// Edit notes in the roll's drawer (testing item 15): the editor opens on a draft in music-core, so every edit sounds
+    /// and shows at once but the project file keeps the notes as they were until Save; Cancel puts them back.
+    func beginNoteEdit() {
+        noteEditor = NoteEditorState()
+        noteEditCall("corrections.begin", [:])
+    }
+
+    /// Move, Add or Remove: what a press on the roll's notes does.
+    func chooseNoteEditTool(_ tool: String) {
+        noteEditor?.tool = tool
+    }
+
+    /// A note moved, added or taken out on the roll.
+    func editNote(_ edit: RollNoteEdit) {
+        guard noteEditor != nil else { return }
+        switch edit {
+        case let .change(id, onset, pitch, length):
+            noteEditor?.picked = id
+            noteEditCall("corrections.set", ["id": id, "onset": onset, "pitch": pitch, "length": length], notes: true)
+        case let .add(onset, pitch, length):
+            noteEditCall("corrections.add", ["onset": onset, "pitch": pitch, "length": length], notes: true)
+        case let .remove(id):
+            noteEditor?.picked = nil
+            noteEditCall("corrections.remove", ["id": id], notes: true)
+        }
+    }
+
+    /// Takes back the last edit, the reset too.
+    func undoNoteEdit() { noteEditCall("corrections.undo", [:], notes: true) }
+
+    /// Every correction taken out: the notes as imported, until Save.
+    func resetNotes() { noteEditCall("corrections.reset", [:], notes: true) }
+
+    /// Closes the editor with the notes as they were when it opened.
+    func cancelNoteEdit() {
+        guard noteEditor != nil else { return }
+        let changed = noteEditor?.changed ?? false
+        noteEditor = nil
+        noteEditCall("corrections.discard", [:], notes: changed)
+    }
+
+    /// Keeps the edits with the piece and writes the project file.
+    func saveNoteEdit() {
+        guard noteEditor != nil else { return }
+        noteEditor = nil
+        noteEditCall("corrections.save", [:]) { [weak self] in self?.noteEditSaved?() }
+    }
+
+    private func noteEditCall(_ call: String, _ fields: [String: Any], notes: Bool = false, then: (@MainActor () -> Void)? = nil) {
+        guard let piece else { return }
+        var request = fields
+        // The corrections answer with a bar's notes; the editor needs only what the answer says about the draft.
+        request["bar"] = selection?.firstBar ?? 1
+        let body = Self.json(request) ?? "{}"
+        Task {
+            let answer = await MusicCore.run { MusicCore.call(piece: piece.id, call, body) }
+            guard let read = facadeObject(answer), read["error"] == nil else {
+                problem = facadeObject(answer)?["message"] as? String
+                return
+            }
+            if noteEditor != nil {
+                noteEditor?.canUndo = read["canUndo"] as? Bool ?? false
+                noteEditor?.changed = read["changed"] as? Bool ?? false
+                noteEditor?.canReset = ((read["count"] as? NSNumber)?.intValue ?? 0) > 0
+                if let added = read["added"] as? String { noteEditor?.picked = added }
+            }
+            if corrections != nil, let list = NoteCorrections(answer: answer), list.bar == corrections?.bar { corrections = list }
+            if notes { await notesDidChange() }
+            then?()
         }
     }
 
@@ -1365,4 +1443,14 @@ final class BundleSchemeHandler: NSObject, WKURLSchemeHandler {
     }
 
     func webView(_ webView: WKWebView, stop task: WKURLSchemeTask) {}
+}
+
+/// The note editor on the roll while it is open (testing item 15): the tool a press uses ("move", "add" or "delete"),
+/// what Undo, Reset and Save can do, and the note the arrows and Delete act on.
+struct NoteEditorState: Equatable, Sendable {
+    var tool = "move"
+    var canUndo = false
+    var changed = false
+    var canReset = false
+    var picked: String?
 }
