@@ -2,6 +2,16 @@
 // it, and the PDF's file name. Kept free of the DOM so Node can test it.
 
 /**
+ * How Verovio spaces the notes across a bar: closer to the time they take than its defaults (0.25 and 0.6), so a bar of
+ * long notes is about as wide as a bar of runs and the playhead moves at an even pace across the page (testing item 35;
+ * a 4/4 piece alternating whole notes and semiquavers went from bars up to three times as wide as each other to 1.14).
+ */
+export const EVEN_SPACING: Readonly<Record<string, number>> = {
+    spacingLinear: 0.08,
+    spacingNonLinear: 0.9,
+};
+
+/**
  * An A4 page as the redesign engraves it (0018 section 2, design/kit/render.mjs; 0017 for the page itself): Verovio's
  * page units are tenths of a millimetre, so the page is 210 × 297 mm, with margins of 15 mm at the sides, 50 mm at the
  * top (the most Verovio takes: the app's bar floats over it and the app sets the title in it) and 16 mm at the bottom.
@@ -20,6 +30,7 @@ export const A4_LAYOUT: Readonly<Record<string, unknown>> = {
     pageMarginBottom: 160,
     spacingSystem: 20,
     spacingStaff: 10,
+    ...EVEN_SPACING,
     adjustPageHeight: false,
     justifyVertically: false,
     breaks: "auto",

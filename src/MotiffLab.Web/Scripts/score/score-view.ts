@@ -14,7 +14,7 @@ import { type ScoreSelection, SelectionLayer } from "./selection-layer.js";
 import { ScoreTimeline, highlightedIds, type HighlightPlace } from "./score-timeline.js";
 import { A4_HEIGHT, A4_WIDTH, buildPdf, crop, inkBounds, type InkLayer, type PdfPage } from "./pdf-document.js";
 import { hasText, svgToPdfOperators, textOnlySvg } from "./svg-to-pdf.js";
-import { A4_LAYOUT, A4_PDF_LAYOUT, pdfFileName, titleBlock, withTitle } from "./score-page.js";
+import { A4_LAYOUT, A4_PDF_LAYOUT, EVEN_SPACING, pdfFileName, titleBlock, withTitle } from "./score-page.js";
 import { BRACKET_LIFT, ScoreGeometry, bookmarkLevels, readPage, type PageGeometry, type PagePlacement, type Playhead, type ScoreBar } from "./score-geometry.js";
 import { downloadBytes, saveCover } from "../storage/project-store.js";
 import { newToolkit, type VerovioToolkit } from "./verovio.js";
@@ -741,6 +741,7 @@ export class ScoreView {
             pageMarginRight: 40,
             pageMarginTop: 40,
             pageMarginBottom: 40,
+            ...EVEN_SPACING,
             adjustPageHeight: true,
             breaks: "auto",
             header: "none",

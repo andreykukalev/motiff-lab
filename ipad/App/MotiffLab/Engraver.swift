@@ -53,7 +53,8 @@ final class Engraver {
     /// tests/web/score-pdf.test.mjs keeps the two equal.
     static let a4Leland = """
     {"font": "Leland", "scale": 50, "pageWidth": 2100, "pageHeight": 2970, "pageMarginLeft": 150, "pageMarginRight": 150,
-     "pageMarginTop": 500, "pageMarginBottom": 160, "spacingSystem": 20, "spacingStaff": 10, "adjustPageHeight": false,
+     "pageMarginTop": 500, "pageMarginBottom": 160, "spacingSystem": 20, "spacingStaff": 10, "spacingLinear": 0.08,
+     "spacingNonLinear": 0.9, "adjustPageHeight": false,
      "justifyVertically": false, "breaks": "auto", "header": "auto", "footer": "none", "svgViewBox": true}
     """
 
