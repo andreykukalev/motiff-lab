@@ -487,8 +487,32 @@ public sealed record Project(
     /// <summary>The bars taken from every performance into the score.</summary>
     public IEnumerable<Performance.TakenBar> TakenBars => Performances.SelectMany(performance => performance.Taken);
 
-    /// <summary>Whether the notes differ from the imported ones: corrections, or bars taken from a performance.</summary>
-    public bool ChangesNotes => !Edits.IsEmpty || TakenBars.Any();
+    /// <summary>Whether the notes differ from the imported ones: corrections, bars taken from a performance, or an assembly applied.</summary>
+    public bool ChangesNotes => !Edits.IsEmpty || TakenBars.Any() || Assembly.Applied is not null;
+
+    /// <summary>The assembly of the player's own version from the piece's sources (decision record 0024).</summary>
+    public PieceAssembly Assembly { get; init; } = PieceAssembly.Empty;
+
+    /// <summary>The project with the assembly's journal as it now stands; nothing in the piece's notes changes.</summary>
+    public Project WithJournal(IEnumerable<global::MotiffLab.MusicCore.Assembly.AssemblyStep> steps, int next) =>
+        this with { Assembly = Assembly with { Steps = [.. steps], Next = next } };
+
+    /// <summary>
+    /// «Сделать нотами», the one rule that changes the piece's notes (decision record 0024, section 7): the notes the
+    /// journal builds become the piece's notes. The notes before the first apply are kept as «Ноты до сборки» and stay the
+    /// base the journal builds from; corrections made since the last apply stay where they still fit.
+    /// </summary>
+    public Project ApplyAssembly(global::MotiffLab.MusicCore.Assembly.SourceMusic notes, global::MotiffLab.MusicCore.Assembly.SourceMusic before, DateTimeOffset at)
+    {
+        ArgumentNullException.ThrowIfNull(notes);
+        ArgumentNullException.ThrowIfNull(before);
+        bool first = Assembly.Before is null;
+        return this with
+        {
+            Assembly = Assembly with { Applied = notes, Before = Assembly.Before ?? before, AppliedAt = at },
+            Edits = first ? NoteEditLog.Empty : PieceAssembly.Fitting(Edits, notes.Notes),
+        };
+    }
 
     /// <summary>The flags the player has not resolved, in bar order.</summary>
     public IReadOnlyList<CheckFlag> OpenChecks => [.. (Check ?? []).Where(flag => !flag.Resolved).OrderBy(flag => flag.Bar)];
@@ -810,10 +834,12 @@ public sealed record OpenedProject(
             piece = Transcribed.Mark(piece);
         }
 
+        piece = project.Assembly.Over(piece);
+        bool assembled = project.Assembly.Applied is not null;
         IReadOnlyList<Note> notes;
         try
         {
-            notes = Performance.PerformanceTake.Apply(project.Edits.Apply(piece.Notes), project.TakenBars);
+            notes = assembled ? project.Edits.Apply(piece.Notes) : Performance.PerformanceTake.Apply(project.Edits.Apply(piece.Notes), project.TakenBars);
         }
         catch (InvalidOperationException exception)
         {
@@ -828,6 +854,12 @@ public sealed record OpenedProject(
                 : MotifSelector.Select(notes, piece.Meter, saved.Span, saved.Filter, MotifSelection.MaxStructureBars);
             if (!selection.NoteIds.SequenceEqual(saved.NoteIds, StringComparer.Ordinal))
             {
+                if (assembled)
+                {
+                    // An applied assembly may have changed the motif's notes (decision record 0024, section 7): it leaves the list.
+                    continue;
+                }
+
                 throw new ProjectFileException($"\"{saved.Name}\" no longer matches the notes of the piece.");
             }
 
@@ -837,7 +869,13 @@ public sealed record OpenedProject(
         var variations = new List<(SavedVariation, VariationChain)>();
         foreach (SavedVariation saved in project.Variations)
         {
-            Motif motif = motifs.FirstOrDefault(motif => motif.Id == saved.MotifId)
+            Motif? found = motifs.FirstOrDefault(motif => motif.Id == saved.MotifId);
+            if (found is null && assembled)
+            {
+                continue;
+            }
+
+            Motif motif = found
                 ?? throw new ProjectFileException($"A variation refers to a motif ({saved.MotifId}) that is not in the project.");
             VariationChain chain = VariationChain.Start(
                 VariationFacts.MotifNotes(notes, motif.Selection),

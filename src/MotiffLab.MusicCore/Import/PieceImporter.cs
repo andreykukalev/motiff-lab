@@ -384,6 +384,9 @@ public sealed record ImportedPiece(
     /// <summary>For a transcription, the bars and tempo worked out from its notes (<see cref="Transcription.BarGrid.Apply"/>); null otherwise.</summary>
     public Transcription.BarGrid? Bars { get; init; }
 
+    /// <summary>The tempo of notes made by an assembly and applied to the piece (decision record 0024); null for a piece as its file has it.</summary>
+    public IReadOnlyList<Playback.PlaybackTempo>? AssembledTempos { get; init; }
+
     /// <summary>
     /// What the player can start with (N2 step 4): the whole piece, each hand the notes carry, and
     /// each track when there are several. A hand that is inferred says so.
