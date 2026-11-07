@@ -161,6 +161,7 @@ public partial class PlaybackLab
         _focusSpan = null;
         _focusCard = null;
         _focusCardKey = null;
+        ReopenRollAfterFocus();
         // The other version is heard only in focus: the page goes back to the notes.
         bool versionHeard = VersionChosen || (_alternating && _variation is not { Notes.Count: > 0 });
         if (versionHeard)

@@ -3,7 +3,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect } from "@playwright/test";
 
 // Where the roll draws bar numbers (Scripts/roll/piano-roll.ts): above the notes, right of the pitch names.
-const GUTTER = 52;
+const GUTTER = 62;
 const HEADER = 24;
 const PIXELS_PER_QUARTER = 48;
 

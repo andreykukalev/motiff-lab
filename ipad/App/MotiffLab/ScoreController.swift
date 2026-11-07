@@ -961,6 +961,25 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         }
     }
 
+    /// Whether the card in focus shows the phrase as a roll (testing item 12): Notes | Piano roll in the focus bar, kept while
+    /// the piece is open.
+    @Published var focusRoll = false
+
+    /// Expand on the roll drawer: the selection, or with none the phrase the playhead is in (the first before any playing),
+    /// in focus as a roll.
+    func expandRoll(at tick: Double) {
+        focusRoll = true
+        if selection != nil {
+            enterFocus()
+            return
+        }
+        guard let units = phrases?.units, let unit = units.first(where: { $0.onset <= tick && tick < $0.end }) ?? units.first else { return }
+        Task {
+            await select(unit.selectableOnset, unit.selectableEnd)
+            enterFocus()
+        }
+    }
+
     /// Back to the page, with the selection as it is: Back, a tap on the dimmed page, or Escape.
     func leaveFocus() {
         guard focused else { return }

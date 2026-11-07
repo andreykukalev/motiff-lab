@@ -575,10 +575,16 @@ public class MusicCoreFacadeTests
         Assert.Equal(count, names.GetProperty("notes").GetArrayLength());
         Assert.Equal(names.GetProperty("keyTicks").GetArrayLength(), names.GetProperty("rows").GetArrayLength());
         Assert.Equal("C4", names.GetProperty("rows")[0][60].GetString());
+        // Without the octave inside the notes and on the keys; the octave once at the side, in words.
+        Assert.Equal(count, names.GetProperty("short").GetArrayLength());
+        Assert.Equal("C", names.GetProperty("shortRows")[0][60].GetString());
+        Assert.Equal(11, names.GetProperty("octaves").GetArrayLength());
+        Assert.Equal("octave 4", names.GetProperty("octaves")[5].GetString());
 
         Assert.Equal("до¹", Call(facade, "roll", """{"naming": "syllables"}""").GetProperty("names").GetProperty("rows")[0][60].GetString());
         Call(facade, "language", """{"language": "ru"}""");
         Assert.Equal("до¹", Call(facade, "roll").GetProperty("names").GetProperty("rows")[0][60].GetString());
+        Assert.Equal("первая октава", Call(facade, "roll").GetProperty("names").GetProperty("octaves")[5].GetString());
         Assert.Equal("C4", Call(facade, "roll", """{"naming": "letters"}""").GetProperty("names").GetProperty("rows")[0][60].GetString());
     }
 

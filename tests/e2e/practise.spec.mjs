@@ -57,7 +57,7 @@ test("the workspace reads in Russian when the app is in Russian (#134)", async (
     await expect(page.locator(".roll-head")).toContainText("Названия нот");
     await expect(page.locator(".roll-head")).toContainText("Цвет: руки");
     await expect(page.locator(".roll-legend")).toContainText("Правая рука");
-    await expect(page.locator(".roll-legend")).toContainText("Л, П: рука из файла");
+    await expect(page.locator(".roll").getByRole("group", { name: "Масштаб" })).toContainText("Вместить");
     await expect(page.getByRole("application", { name: /^Пиано-ролл/ })).toBeVisible();
     expect(errors).toEqual([]);
 });

@@ -80,7 +80,7 @@ public partial class PlaybackLab : IAsyncDisposable
 
     private string WorkspaceClass => string.Join(' ', new[]
     {
-        _rollOpen ? "roll-open" : null,
+        _rollOpen && !FocusShowsRoll ? "roll-open" : null,
         _insightsOpen || _checkOpen || _performanceOpen ? "insights-open" : null,
         _contentsOpen ? "contents-open" : null,
         _bookmarkDraft is { Id: null } || _noteDraft is not null ? "bookmarking" : null,

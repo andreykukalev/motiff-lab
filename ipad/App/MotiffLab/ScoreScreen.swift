@@ -30,6 +30,8 @@ struct ScoreScreen: View {
     @StateObject private var insights = InsightsController()
     /// The piano roll's drawer (0018 section 4), from the bar or the selection menu.
     @State private var rollOpen = false
+    /// Whether the roll drawer was open when the phrase went into focus as a roll, so Back opens it again.
+    @State private var rollBeforeFocus = false
     /// The Insights sheet (0018 section 6), from the bar or the selection menu.
     @State private var insightsOpen = false
     @StateObject private var contents = ContentsController()
@@ -79,6 +81,9 @@ struct ScoreScreen: View {
     private func drawerHeight(_ size: CGSize) -> CGFloat {
         (size.width > size.height ? 0.4 : 0.3) * size.height
     }
+
+    /// Whether the roll is on screen: in its drawer, or over the card in focus.
+    private var rollShown: Bool { rollOpen || (score.focused && score.focusRoll) }
 
     private var pillShown: Bool {
         ((score.selection != nil || player.transportKept) && settings["guidance.transportPill"] != "playing") || player.state != .stopped
@@ -155,6 +160,12 @@ struct ScoreScreen: View {
                 }
             }
             .overlay {
+                // The phrase as a roll over the card (testing item 12); the drawer's roll moves here, so it shows once the drawer is gone.
+                if score.focused && score.focusRoll && !rollOpen {
+                    FocusRollCard(roll: roll)
+                }
+            }
+            .overlay {
                 if score.focused {
                     FocusSteps(score: score, text: text)
                 }
@@ -191,7 +202,11 @@ struct ScoreScreen: View {
             }
             .overlay(alignment: .bottom) {
                 if rollOpen {
-                    RollDrawer(roll: roll, score: score, text: text) { rollOpen = false }
+                    RollDrawer(roll: roll, score: score, text: text, expand: {
+                        rollBeforeFocus = true
+                        rollOpen = false
+                        score.expandRoll(at: player.tick)
+                    }) { rollOpen = false }
                         .frame(height: drawer)
                         .padding(.horizontal, CGFloat.ds("s-3"))
                         .transition(.move(edge: .bottom))
@@ -360,6 +375,23 @@ struct ScoreScreen: View {
             .onChange(of: score.focused) { _, focused in
                 // Focus covers the page: the drawer goes, and comes back when the player opens it again.
                 if focused { contentsOpen = false }
+                // Back from the roll in focus opens the roll drawer again when it was open before.
+                if !focused && rollBeforeFocus {
+                    rollBeforeFocus = false
+                    rollOpen = true
+                }
+            }
+            .onChange(of: score.focused && score.focusRoll) { _, shown in
+                // The roll in focus is the drawer's roll laid over the card, fitted to each phrase.
+                roll.fitsSelection(shown)
+                if shown {
+                    if rollOpen {
+                        rollBeforeFocus = true
+                        rollOpen = false
+                    }
+                    roll.show(piece, dark: colorScheme == .dark)
+                    roll.showSelection(score.selection, loop: player.loop)
+                }
             }
             .onChange(of: rollOpen) { _, open in
                 if open {
@@ -439,16 +471,16 @@ struct ScoreScreen: View {
                 roll.highlight(places)
             }
             .onChange(of: colorScheme) { _, scheme in
-                if rollOpen { roll.show(piece, dark: scheme == .dark) }
+                if rollShown { roll.show(piece, dark: scheme == .dark) }
             }
             .onChange(of: player.tick) { _, tick in
                 score.playhead(tick, playing: player.state == .playing)
-                if rollOpen { roll.position(tick, playing: player.state == .playing) }
+                if rollShown { roll.position(tick, playing: player.state == .playing) }
             }
             .onChange(of: player.state) { old, state in
                 // A new Play follows the music again, even after the player scrolled away by hand.
                 score.playhead(player.tick, playing: state == .playing, follow: old != .playing && state == .playing)
-                if rollOpen { roll.position(player.tick, playing: state == .playing) }
+                if rollShown { roll.position(player.tick, playing: state == .playing) }
             }
             .onChange(of: score.selection) { _, selection in
                 roll.showSelection(selection, loop: player.loop)
@@ -875,6 +907,62 @@ struct SelectionMenu: View {
 /// Escape on a keyboard goes back too. While a variation is tried, Original / Variation / Alternate choose what sounds;
 /// with another version over the phrase and no variation, Notes / Version / Alternate, and Take into the score or
 /// Restore these notes for the phrase's bars (0022, section 5). Reading / As played comes with transcriptions on the iPad.
+/// The phrase as a roll in focus (testing item 12): a card over the page's card, as wide and as tall as the stage between the bar
+/// and the pill, with the roll inside between previous and next.
+struct FocusRollCard: View {
+    @ObservedObject var roll: RollController
+
+    var body: some View {
+        ScoreRollView(roll: roll)
+            .padding(.vertical, CGFloat.ds("s-3"))
+            .padding(.horizontal, CGFloat.ds("h-touch") + CGFloat.ds("s-2"))
+            .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
+            .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("accent"), lineWidth: 2))
+            .dsShadow("shadow-sheet")
+            // The stage's insets, as FocusSteps and Web/score.css `#focus .stage` have them.
+            .padding(.horizontal, CGFloat.ds("s-4"))
+            .padding(.top, CGFloat.ds("s-3") + CGFloat.ds("h-touch") + CGFloat.ds("s-5"))
+            .padding(.bottom, 52 + CGFloat.ds("s-4") * 2)
+    }
+}
+
+/// Notes | Piano roll in the focus bar (testing item 12), drawn as the hearing switch is.
+struct FocusShowAs: View {
+    @ObservedObject var score: ScoreController
+    let text: UIText
+
+    var body: some View {
+        HStack(spacing: 0) {
+            option(false, "focus.asNotes")
+            option(true, "focus.asRoll")
+        }
+        .padding(2)
+        .frame(height: CGFloat.ds("h-compact"))
+        .background(Color.ds("surface"), in: Capsule())
+        .overlay(Capsule().strokeBorder(Color.ds("hairline")))
+        .fixedSize()
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(text["focus.showAs"])
+    }
+
+    private func option(_ roll: Bool, _ key: String) -> some View {
+        let on = score.focusRoll == roll
+        return Button {
+            score.focusRoll = roll
+        } label: {
+            Text(text[key])
+                .font(DesignTokens.font(weight: on ? 600 : 500, size: 13, relativeTo: .callout))
+                .foregroundStyle(on ? Color.ds("ink") : Color.ds("ink-2"))
+                .padding(.horizontal, CGFloat.ds("s-3"))
+                .frame(maxHeight: .infinity)
+                .background(on ? Color.ds("accent-tint-strong") : .clear, in: Capsule())
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(on ? .isSelected : [])
+    }
+}
+
 struct FocusBar: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var player: Player
@@ -903,6 +991,7 @@ struct FocusBar: View {
                 .monospacedDigit()
                 .lineLimit(1)
                 .truncationMode(.tail)
+            FocusShowAs(score: score, text: text)
             Spacer(minLength: CGFloat.ds("s-2"))
             if player.hasVariation, let variationRange {
                 HearingSwitch(player: player, range: variationRange, text: text, version: player.secondIsVersion ? score.focusVersion?.name : nil)

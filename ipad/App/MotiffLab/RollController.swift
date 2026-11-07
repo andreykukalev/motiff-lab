@@ -34,6 +34,7 @@ final class RollController: NSObject, ObservableObject {
     private var dark = false
     private var shownSelection: [String: Any]?
     private var shownHighlight: [[String: Any]] = []
+    private var fits = false
     /// How the notes were named when the roll was loaded: "auto", "letters" or "syllables" (the setting "notes.naming").
     private var naming = "auto"
 
@@ -87,6 +88,13 @@ final class RollController: NSObject, ObservableObject {
         shownSelection = data
         guard loaded else { return }
         Task { _ = try? await webView.callAsyncJavaScript("return roll.selection(data)", arguments: ["data": data], contentWorld: .page) }
+    }
+
+    /// Whether every selection is laid across the roll, as its Fit does: the roll in phrase focus (testing item 12).
+    func fitsSelection(_ on: Bool) {
+        fits = on
+        guard loaded else { return }
+        Task { _ = try? await webView.callAsyncJavaScript("return roll.fits(on)", arguments: ["on": on], contentWorld: .page) }
     }
 
     /// The places of the fact chosen in Insights, lit on the roll as on the score; none clears them.
@@ -157,6 +165,9 @@ final class RollController: NSObject, ObservableObject {
             colourBy = shown?["colourBy"] as? String ?? "hand"
             canChangeColour = ((shown?["modes"] as? [Any])?.count ?? 0) > 1
             loaded = true
+            if fits {
+                _ = try? await webView.callAsyncJavaScript("return roll.fits(on)", arguments: ["on": true], contentWorld: .page)
+            }
             if let shownSelection {
                 _ = try? await webView.callAsyncJavaScript("return roll.selection(data)", arguments: ["data": shownSelection], contentWorld: .page)
             }
@@ -172,8 +183,8 @@ final class RollController: NSObject, ObservableObject {
     /// The roll's own words, from the web app's string files (`roll.js.*`), as the web app passes them.
     static func labels(_ text: UIText) -> [String: String] {
         let names = [
-            "track", "trackVoice", "noVoice", "rightHand", "leftHand", "noHand", "rightLetter", "leftLetter", "rollAria", "scrollAria", "keysAria",
-            "legendHint", "legendVariation", "legendHighlight", "legendInferred", "legendHands", "legendHandsInferred", "legendCheck",
+            "track", "trackVoice", "noVoice", "rightHand", "leftHand", "noHand", "rollAria", "scrollAria", "keysAria",
+            "legendVariation", "legendHighlight", "legendInferred", "legendCheck", "zoomGroup", "zoomIn", "zoomOut", "zoomLevel", "fit", "fitHint",
         ]
         return Dictionary(uniqueKeysWithValues: names.map { ($0, text["roll.js.\($0)"]) })
     }
@@ -202,6 +213,8 @@ struct RollDrawer: View {
     @ObservedObject var roll: RollController
     @ObservedObject var score: ScoreController
     let text: UIText
+    /// Expand: the phrase in focus as a roll (testing item 12).
+    let expand: () -> Void
     let close: () -> Void
 
     var body: some View {
@@ -225,6 +238,14 @@ struct RollDrawer: View {
                 .buttonStyle(DSItemStyle())
                 .disabled(!roll.canChangeColour)
                 .help(text["roll.colourHint"])
+                Button(action: expand) {
+                    HStack(spacing: 6) {
+                        Icon(name: "search", size: CGFloat.ds("icon-s"))
+                        Text(text["roll.expand"])
+                    }
+                }
+                .buttonStyle(DSItemStyle())
+                .help(text["roll.expandHint"])
                 Button(action: close) {
                     Icon(name: "close").frame(width: 32, height: 32)
                 }

@@ -84,7 +84,7 @@ function load({ roll, labels, noteNames, dark, colourBy }) {
     view.setLabels(labels);
     state.payload = { ids: roll.ids, notes: roll.notes, bars: roll.bars, end: roll.end };
     view.load(state.payload);
-    view.setNames(roll.names.notes, roll.names.keyTicks, roll.names.rows);
+    view.setNames(roll.names.notes, roll.names.keyTicks, roll.names.rows, roll.names.short, roll.names.shortRows, roll.names.octaves);
     view.setNoteNames(Boolean(noteNames));
     state.modes = modesOf(state.payload);
     // The colouring the player chose in Settings, when this piece tells its notes apart that way.
@@ -149,5 +149,10 @@ function colour(by) {
     return state.colourBy;
 }
 
-window.roll = { load, nextColour, colour, theme, position, selection, noteNames, highlight };
+/** In phrase focus the roll lays every selection across itself, as Fit does (testing item 12); off in the drawer. */
+function fits(on) {
+    view.setFitsSelection(Boolean(on));
+}
+
+window.roll = { load, nextColour, colour, theme, position, selection, noteNames, highlight, fits };
 post("ready");

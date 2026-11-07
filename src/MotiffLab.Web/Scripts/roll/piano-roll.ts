@@ -5,17 +5,23 @@
 
 import {
     ENGLISH_ROLL_LABELS,
-    HAND_LEFT,
-    HAND_NONE,
     HIGHEST_KEY,
     LOWEST_KEY,
-    LabelLines,
+    MAX_ROW,
+    MIN_ROW,
+    ROW_AT_100,
     RollModel,
+    fill,
+    fitRow,
+    fitZoom,
     isBlackKey,
     keyIndexAt,
-    labelPlace,
     laneKey,
+    nameFits,
+    pitchClassName,
     pitchName,
+    rowFor,
+    rowWindow,
     type ColourBy,
     type RollLabels,
     type RollPayload,
@@ -55,11 +61,19 @@ const DEFAULT_ZOOM = 48;
 const MIN_ZOOM = 6;
 const MAX_ZOOM = 480;
 
-/** The keyboard down the left (0018 section 4): a key per row with its name and octave. */
-const GUTTER = 52;
-/** The smallest row that holds every row's name in the keyboard; below it only the Cs are named. */
-const ROW_FOR_EVERY_NAME = 9;
+/**
+ * Down the left (0018 section 4; testing item 13): a band naming each octave once, in words, then a key per row with its
+ * name; the names inside the notes and on the keys leave the octave out.
+ */
+const OCTAVE_BAND = 18;
+const GUTTER = 62;
 const NOTE_FONT = "bold 9px \"Source Sans 3\", system-ui, sans-serif";
+/** The name inside a note grows with the row, so it reads at every zoom. */
+function noteFont(row: number): string {
+    return `bold ${Math.min(13, Math.max(10, Math.round(row * 0.5)))}px "Source Sans 3", system-ui, sans-serif`;
+}
+/** The zoom buttons' step, and the wheel's and the keys' (testing item 13). */
+const ZOOM_STEP = 1.25;
 /** A Check flag on the bar numbers: an amber square with "?" (design/kit/ds.css .flag), and the target round it. */
 const CHECK_FLAG = 14;
 const CHECK_TARGET = 22;
@@ -68,9 +82,6 @@ const HEADER = 24;
 const ROLL_HEIGHT = 360;
 /** The notes area never gets shorter than this when the roll fills its panel (0012). */
 const MIN_ROLL_HEIGHT = 160;
-/** Rows never get shorter than this, so every row's name reads (0018 section 4); more rows than fit scroll up and down. */
-const MIN_ROW = 10;
-const MAX_ROW = 14;
 /** The fewest semitones the rows show when they fit a selection. */
 const MIN_PITCH_SPAN = 12;
 const KEYBOARD_HEIGHT = 64;
@@ -193,6 +204,12 @@ export class PianoRoll {
     private readonly keys: HTMLCanvasElement;
     private readonly scroller: HTMLInputElement;
     private readonly legend: HTMLElement;
+    /** The floating zoom (testing item 13): − the percentage + and Fit, over the corner of the notes, not a panel (0018). */
+    private readonly zoomBar: HTMLElement;
+    private readonly zoomOut: HTMLButtonElement;
+    private readonly zoomIn: HTMLButtonElement;
+    private readonly zoomLevel: HTMLElement;
+    private readonly fitButton: HTMLButtonElement;
     private readonly resizeObserver: ResizeObserver;
     private readonly patterns = new Map<PatternKind, CanvasPattern | null>();
     private model: RollModel | null = null;
@@ -200,15 +217,30 @@ export class PianoRoll {
     private noteNames = true;
     /** Each note's name spelled for its key by music-core (setNames), by note index; null until sent, when the names are unspelled. */
     private spelled: string[] | null = null;
-    /** Where each key signature starts, and the row names spelled for it, MIDI 0 to 127. */
+    /** The same names without the octave, written inside the notes (testing item 13); null until sent. */
+    private shortNames: string[] | null = null;
+    /** Where each key signature starts, and the row names spelled for it without the octave, MIDI 0 to 127. */
     private keyTicks: number[] = [];
     private rowNames: string[][] = [];
+    /** The row names with the octave, for the C named on the octave band where its words do not fit. */
+    private fullRowNames: string[][] = [];
+    /** Each octave's name in words, MIDI octave −1 first, for the band down the left; empty until sent. */
+    private octaveNames: string[] = [];
     /** The bars Check flags, drawn on the bar numbers. */
     private checks: { tick: number; bar: number; label: string }[] = [];
     /** The lowest and highest pitch of the selection's notes, which the rows fit; null for the piece's. */
     private motifPitches: { lowest: number; highest: number } | null = null;
     private laneIndex = new Map<number, number>();
     private zoom = DEFAULT_ZOOM;
+    /** The rows' height as a share of 100 % (ROW_AT_100), zoomed with the time: one zoom for both (testing item 13). */
+    private rowScale = 1;
+    /** Fit the next selection shown, or what is in view, once the roll has its width (Fit, and the roll in phrase focus). */
+    private pendingFit = false;
+    /** Whether every new selection is fitted to the roll: the roll in phrase focus (testing item 12). */
+    private fitsSelection = false;
+    /** Fingers on the notes, for a pinch, and the zoom when the pinch started. */
+    private readonly touches = new Map<number, { x: number; y: number }>();
+    private pinch: { distance: number; zoom: number; rowScale: number } | null = null;
     private scroll = 0;
     private selected = new Set<number>();
     private focusIndex: number | undefined;
@@ -270,10 +302,25 @@ export class PianoRoll {
 
         this.legend = document.createElement("div");
         this.legend.className = "roll-legend";
-        this.labels = labels;
+
+        this.zoomBar = document.createElement("div");
+        this.zoomBar.className = "roll-zoom";
+        this.zoomBar.setAttribute("role", "group");
+        this.zoomOut = zoomButton("−");
+        this.zoomLevel = document.createElement("span");
+        this.zoomLevel.className = "roll-zoom-level";
+        this.zoomIn = zoomButton("+");
+        this.fitButton = zoomButton("");
+        this.fitButton.classList.add("roll-fit");
+        this.zoomBar.replaceChildren(this.zoomOut, this.zoomLevel, this.zoomIn, this.fitButton);
+        this.zoomOut.addEventListener("click", () => this.zoomBy(1 / ZOOM_STEP));
+        this.zoomIn.addEventListener("click", () => this.zoomBy(ZOOM_STEP));
+        this.fitButton.addEventListener("click", () => this.fit());
+
+        this.labels = { ...ENGLISH_ROLL_LABELS, ...labels };
         this.applyLabels();
 
-        this.host.replaceChildren(this.roll, this.scroller, this.keys, this.legend);
+        this.host.replaceChildren(this.roll, this.scroller, this.keys, this.legend, this.zoomBar);
 
         this.roll.addEventListener("pointerdown", this.onPointerDown);
         this.roll.addEventListener("pointermove", this.onPointerMove);
@@ -307,9 +354,11 @@ export class PianoRoll {
         this.variation = null;
         this.highlight = null;
         this.spelled = null;
+        this.shortNames = null;
         this.drag = null;
         this.press = null;
         this.scroll = 0;
+        this.pitchTop = null;
         this.updateLanes();
     }
 
@@ -317,10 +366,14 @@ export class PianoRoll {
      * The names to write, spelled by music-core for the key as the score spells them (0018 section 4): one per note in load
      * order, and per key signature (from where it starts) one per row, MIDI 0 to 127, in the player's naming (C4 or до¹).
      */
-    setNames(notes: string[], keyTicks: number[], rows: string[][]): void {
-        this.spelled = notes.length === (this.model?.notes.length ?? -1) ? notes : null;
+    setNames(notes: string[], keyTicks: number[], rows: string[][], short?: string[], shortRows?: string[][], octaves?: string[]): void {
+        const count = this.model?.notes.length ?? -1;
+        this.spelled = notes.length === count ? notes : null;
+        this.shortNames = short?.length === count ? short : null;
         this.keyTicks = keyTicks;
-        this.rowNames = rows;
+        this.rowNames = shortRows ?? rows;
+        this.fullRowNames = rows;
+        this.octaveNames = octaves ?? [];
         this.invalidate();
     }
 
@@ -361,13 +414,53 @@ export class PianoRoll {
         this.updateLanes();
     }
 
-    /** Zooms in (factor above 1) or out, keeping the playhead, or else the left edge, where it is. */
+    /**
+     * Zooms in (factor above 1) or out, the time and the rows together (testing item 13), keeping the playhead, or else the
+     * left edge, where it is.
+     */
     zoomBy(factor: number, anchorX?: number): void {
-        const width = this.timeWidth();
-        const anchor = anchorX ?? Math.min(Math.max(this.xOf(this.tickNow) - GUTTER, 0), width);
-        const anchorTick = this.scroll + (anchor * TICKS_PER_QUARTER) / this.zoom;
-        this.zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, this.zoom * factor));
-        this.scrollTo(anchorTick - (anchor * TICKS_PER_QUARTER) / this.zoom);
+        this.zoomTo(this.zoom * factor, this.rowScale * factor, anchorX);
+    }
+
+    /**
+     * Fit (testing item 13): lays the selection, or else the phrase in the middle of the view, across the roll's width, its
+     * rows in the roll's height as far as the rows' limits allow. Before the roll has its width, it fits once it has.
+     */
+    fit(): void {
+        const model = this.model;
+        if (model === null || this.host.clientWidth === 0) {
+            this.pendingFit = true;
+            this.invalidate();
+            return;
+        }
+        this.pendingFit = false;
+        const span = this.motif ?? this.phraseAt(this.scroll + this.visibleTicks() / 2) ?? { start: 0, end: model.end };
+        const margin = 8;
+        this.zoom = fitZoom(span.end - span.start, this.timeWidth() - 2 * margin, MIN_ZOOM, MAX_ZOOM);
+        // The rows of the notes in the stretch, an octave at least, with one free row above and below.
+        let lowest = Number.POSITIVE_INFINITY;
+        let highest = Number.NEGATIVE_INFINITY;
+        for (const index of model.inRange(span.start, span.end)) {
+            const pitch = model.notes[index].pitch;
+            lowest = Math.min(lowest, pitch);
+            highest = Math.max(highest, pitch);
+        }
+        if (Number.isFinite(lowest)) {
+            const { low, high } = this.paddedPitches(lowest, highest);
+            this.rowScale = fitRow(high - low + 1, this.rollHeight()) / ROW_AT_100;
+            this.pitchTop = high;
+        }
+        this.scroll = Math.round(Math.max(0, span.start - (margin * TICKS_PER_QUARTER) / this.zoom));
+        this.showZoom();
+        this.invalidate();
+    }
+
+    /** In phrase focus the roll fits every selection it is given (testing item 12). */
+    setFitsSelection(on: boolean): void {
+        this.fitsSelection = on;
+        if (on) {
+            this.fit();
+        }
     }
 
     /** Selects the notes with these ids, for a selection made elsewhere. Unknown ids are ignored. */
@@ -400,6 +493,9 @@ export class PianoRoll {
         if (moved) {
             this.keepInView(start);
             this.pitchTop = null;
+        }
+        if (this.fitsSelection && (moved || this.motif.end !== end)) {
+            this.fit();
         }
         this.invalidate();
     }
@@ -553,7 +649,7 @@ export class PianoRoll {
 
     /** Shows the roll's words in another language (#134): the lanes, the legend, the hand letters and what a screen reader hears. */
     setLabels(labels: RollLabels): void {
-        this.labels = labels;
+        this.labels = { ...ENGLISH_ROLL_LABELS, ...labels };
         this.applyLabels();
         this.renderLegend();
         this.invalidate();
@@ -563,6 +659,46 @@ export class PianoRoll {
         this.roll.setAttribute("aria-label", this.labels.rollAria);
         this.scroller.setAttribute("aria-label", this.labels.scrollAria);
         this.keys.setAttribute("aria-label", this.labels.keysAria);
+        this.zoomBar.setAttribute("aria-label", this.labels.zoomGroup);
+        this.zoomOut.setAttribute("aria-label", this.labels.zoomOut);
+        this.zoomOut.title = this.labels.zoomOut;
+        this.zoomIn.setAttribute("aria-label", this.labels.zoomIn);
+        this.zoomIn.title = this.labels.zoomIn;
+        this.fitButton.textContent = this.labels.fit;
+        this.fitButton.title = this.labels.fitHint;
+        this.showZoom();
+    }
+
+    /** The zoom as a percentage of 100 % (DEFAULT_ZOOM), with − and + off at the limits. */
+    private showZoom(): void {
+        this.zoomLevel.textContent = fill(this.labels.zoomLevel, Math.round((this.zoom / DEFAULT_ZOOM) * 100));
+        this.zoomOut.disabled = this.zoom <= MIN_ZOOM;
+        this.zoomIn.disabled = this.zoom >= MAX_ZOOM;
+    }
+
+    /** Sets the zoom of the time and of the rows, keeping the playhead (or the anchor given) where it is. */
+    private zoomTo(zoom: number, rowScale: number, anchorX?: number): void {
+        const width = this.timeWidth();
+        const anchor = anchorX ?? Math.min(Math.max(this.xOf(this.tickNow) - GUTTER, 0), width);
+        const anchorTick = this.scroll + (anchor * TICKS_PER_QUARTER) / this.zoom;
+        this.zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom));
+        this.rowScale = Math.min(MAX_ROW / ROW_AT_100, Math.max(MIN_ROW / ROW_AT_100, rowScale));
+        this.scrollTo(anchorTick - (anchor * TICKS_PER_QUARTER) / this.zoom);
+        this.showZoom();
+    }
+
+    /** The phrase whose stretch holds a tick, from the phrase starts (#18): to the next start, or the end of the piece. */
+    private phraseAt(tick: number): { start: number; end: number } | null {
+        const model = this.model;
+        const starts = this.phrases.map((phrase) => phrase.tick).sort((a, b) => a - b);
+        if (model === null || starts.length === 0) {
+            return null;
+        }
+        let at = 0;
+        while (at + 1 < starts.length && starts[at + 1] <= tick) {
+            at++;
+        }
+        return { start: starts[at], end: starts[at + 1] ?? model.end };
     }
 
     private updateLanes(): void {
@@ -627,20 +763,20 @@ export class PianoRoll {
     private pitchRange(): { low: number; high: number; row: number; above: boolean; below: boolean } {
         const model = this.model;
         const span = this.motifPitches ?? { lowest: model?.lowest ?? 60, highest: model?.highest ?? 72 };
-        const middle = (span.lowest + span.highest) / 2;
-        const lowest = Math.min(span.lowest, Math.floor(middle - MIN_PITCH_SPAN / 2));
-        const highest = Math.max(span.highest, Math.ceil(middle + MIN_PITCH_SPAN / 2));
-        const low = Math.max(0, lowest - 1);
-        const high = Math.min(127, highest + 1);
-        const height = this.rollHeight();
-        const fit = Math.floor(height / (high - low + 1));
-        if (fit >= MIN_ROW) {
-            return { low, high, row: Math.min(MAX_ROW, fit), above: false, below: false };
-        }
-        // More rows than fit: a window of them, from the top of the notes (where the tune usually is) until scrolled.
-        const visible = Math.max(1, Math.floor(height / MIN_ROW));
-        const top = Math.min(high, Math.max(low + visible - 1, this.pitchTop ?? high));
-        return { low: top - visible + 1, high: top, row: MIN_ROW, above: top < high, below: top - visible + 1 > low };
+        const { low, high } = this.paddedPitches(span.lowest, span.highest);
+        // Rows of the zoom's height (testing item 11): as many as fit, widened round the notes when they take fewer, else a
+        // window from the top of the notes (where the tune usually is) until scrolled.
+        const row = rowFor(this.rowScale);
+        const visible = Math.max(1, Math.floor(this.rollHeight() / row));
+        return { ...rowWindow(low, high, visible, this.pitchTop), row };
+    }
+
+    /** The rows of notes from lowest to highest: an octave at least, with one free row above and below. */
+    private paddedPitches(lowest: number, highest: number): { low: number; high: number } {
+        const middle = (lowest + highest) / 2;
+        const low = Math.min(lowest, Math.floor(middle - MIN_PITCH_SPAN / 2));
+        const high = Math.max(highest, Math.ceil(middle + MIN_PITCH_SPAN / 2));
+        return { low: Math.max(0, low - 1), high: Math.min(127, high + 1) };
     }
 
     /** Scrolls the rows by whole rows, up for a positive count, when they do not all fit. */
@@ -674,9 +810,15 @@ export class PianoRoll {
         if (readPalette(this.host)) {
             this.patterns.clear();
         }
+        if (this.pendingFit) {
+            this.fit();
+        }
         const { low, high, row } = this.pitchRange();
-        this.drawRoll(width, HEADER + (high - low + 1) * row, low, high, row);
+        const height = HEADER + (high - low + 1) * row;
+        this.drawRoll(width, height, low, high, row);
         this.drawKeyboard(width);
+        // The zoom floats over the bottom right corner of the notes.
+        this.zoomBar.style.top = `${this.roll.offsetTop + height - this.zoomBar.offsetHeight - 8}px`;
 
         this.scroller.max = String(this.maxScroll());
         this.scroller.value = String(this.scroll);
@@ -822,7 +964,7 @@ export class PianoRoll {
         context.rect(GUTTER, HEADER, width - GUTTER, height - HEADER);
         context.clip();
         const sounding = new Set(this.soundingNow(model));
-        const lines = new LabelLines();
+        context.font = noteFont(row);
         const chosen: { x: number; y: number; text: string }[] = [];
         for (const index of model.inRange(from, to)) {
             const note = model.notes[index];
@@ -840,16 +982,19 @@ export class PianoRoll {
             const outside = !highlighted && ((this.motif !== null && !this.motif.notes.has(index)) || (this.filtered !== null && !this.filtered.has(index)));
             const behind = this.variation !== null && this.motif !== null && this.motif.notes.has(index);
             context.globalAlpha = outside ? OUTSIDE_ALPHA : behind ? BEHIND_VARIATION_ALPHA : sounding.has(index) ? 1 : 0.82;
+            // A note is a rounded bar, as in a DAW (testing item 11); its lane's colour and pattern tell the hand, the track or the voice.
+            context.beginPath();
+            context.roundRect(x, y, w, h, Math.min(3, w / 2, h / 2));
             context.fillStyle = LANE_COLOURS[lane % LANE_COLOURS.length];
-            context.fillRect(x, y, w, h);
+            context.fill();
             const pattern = this.pattern(LANE_PATTERNS[lane % LANE_PATTERNS.length], context);
             if (pattern !== null) {
                 context.fillStyle = pattern;
-                context.fillRect(x, y, w, h);
+                context.fill();
             }
             context.globalAlpha = 1;
 
-            // Inferred values are marked by a dashed outline, and an inferred hand by a question mark.
+            // Inferred values, the note or its hand, are marked by a dashed outline, with no letters on the note.
             if (note.noteInferred || note.handInferred) {
                 context.setLineDash([3, 2]);
                 context.strokeStyle = INK;
@@ -857,31 +1002,17 @@ export class PianoRoll {
                 context.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
                 context.setLineDash([]);
             }
-            // The note's name (0018 section 4, on by default), spelled for the key: inside it where it fits, else just above it where
-            // the rows leave room and no other name is there, with the hand's letter where the hand was only inferred; without names,
-            // the hand's letter alone. A chosen note always shows its name, in a tag drawn over everything below.
-            const hand = note.hand === HAND_NONE ? "" : `${note.hand === HAND_LEFT ? this.labels.leftLetter : this.labels.rightLetter}${note.handInferred ? "?" : ""}`;
-            const name = this.nameOf(index);
-            const text = this.noteNames ? (note.handInferred ? `${name} ${hand}` : name) : hand;
+            // The note's name without its octave (0018 section 4, on by default; testing items 11 to 13), spelled for the key, inside
+            // the note where it fits; the octave is on the band down the left. A chosen note shows its whole name in a tag.
             if (this.selected.has(index)) {
-                chosen.push({ x, y, text: name });
-            } else if (text !== "") {
-                context.font = NOTE_FONT;
-                const textWidth = context.measureText(text).width;
-                const place = labelPlace(w, textWidth, row);
-                if (place === "inside") {
+                chosen.push({ x, y, text: this.nameOf(index) });
+            } else if (this.noteNames) {
+                const text = this.shortNameOf(index);
+                if (nameFits(w, context.measureText(text).width)) {
                     context.fillStyle = ON_NOTE;
                     context.textAlign = "left";
                     context.textBaseline = "middle";
-                    context.fillText(text, x + 3, y + h / 2, w - 4);
-                } else if (place === "above" && this.noteNames && lines.take(note.pitch + 1, x - 1, x + textWidth + 2)) {
-                    context.textAlign = "left";
-                    context.textBaseline = "bottom";
-                    context.lineWidth = 3;
-                    context.strokeStyle = SURFACE;
-                    context.strokeText(text, x, y);
-                    context.fillStyle = INK;
-                    context.fillText(text, x, y);
+                    context.fillText(text, x + 4, y + h / 2 + 0.5, w - 6);
                 }
             }
             // Selected notes get a thick light outline with a dark edge, readable on every lane colour.
@@ -939,9 +1070,14 @@ export class PianoRoll {
         return this.spelled?.[index] ?? pitchName(this.model?.notes[index].pitch ?? 60);
     }
 
-    /** A row's name spelled for the key in force at the left of the view (0018 section 4). */
+    /** A note's name without its octave, as it is written inside the note. */
+    private shortNameOf(index: number): string {
+        return this.shortNames?.[index] ?? pitchClassName(this.model?.notes[index].pitch ?? 60);
+    }
+
+    /** A row's name without its octave, spelled for the key in force at the left of the view (0018 section 4). */
     private rowName(pitch: number): string {
-        return this.rowNames[keyIndexAt(this.keyTicks, this.scroll)]?.[pitch] ?? pitchName(pitch);
+        return this.rowNames[keyIndexAt(this.keyTicks, this.scroll)]?.[pitch] ?? pitchClassName(pitch);
     }
 
     /**
@@ -958,8 +1094,8 @@ export class PianoRoll {
         const chosen = new Set([...this.selected].map((index) => model.notes[index]?.pitch));
         context.fillStyle = SURFACE;
         context.fillRect(0, HEADER, GUTTER, (high - low + 1) * row);
-        const every = row >= ROW_FOR_EVERY_NAME;
-        context.font = `${Math.min(11, Math.max(8, row - 3))}px "Source Sans 3", system-ui, sans-serif`;
+        this.drawOctaves(context, low, high, row);
+        context.font = `${Math.min(12, Math.max(9, row - 6))}px "Source Sans 3", system-ui, sans-serif`;
         context.textAlign = "left";
         context.textBaseline = "middle";
         for (let pitch = low; pitch <= high; pitch++) {
@@ -968,13 +1104,11 @@ export class PianoRoll {
             const lane = lit.get(pitch);
             const pointed = chosen.has(pitch);
             context.fillStyle = lane !== undefined ? LANE_COLOURS[lane % LANE_COLOURS.length] : pointed ? SELECTION_BAND : black ? KEY_BLACK : KEY_WHITE;
-            context.fillRect(0, y, GUTTER - 3, row);
+            context.fillRect(OCTAVE_BAND, y, GUTTER - 3 - OCTAVE_BAND, row);
             context.fillStyle = BAR_LINE;
-            context.fillRect(0, y + row - 1, GUTTER - 3, pitch % 12 === 0 || pitch % 12 === 5 ? 1 : 0);
-            if (every || pitch % 12 === 0) {
-                context.fillStyle = lane !== undefined ? ON_NOTE : pointed ? ACCENT : black ? KEY_WHITE : INK;
-                context.fillText(this.rowName(pitch), 4, y + row / 2, GUTTER - 9);
-            }
+            context.fillRect(OCTAVE_BAND, y + row - 1, GUTTER - 3 - OCTAVE_BAND, pitch % 12 === 0 || pitch % 12 === 5 ? 1 : 0);
+            context.fillStyle = lane !== undefined ? ON_NOTE : pointed ? ACCENT : black ? KEY_WHITE : INK;
+            context.fillText(this.rowName(pitch), OCTAVE_BAND + 4, y + row / 2, GUTTER - 9 - OCTAVE_BAND);
         }
         context.fillStyle = BAR_LINE;
         context.fillRect(GUTTER - 3, HEADER, 1, (high - low + 1) * row);
@@ -997,6 +1131,41 @@ export class PianoRoll {
     }
 
     /** The bars Check flags on the bar numbers: an amber square with "?" at the right of each flagged bar's number cell. */
+    /**
+     * The octaves down the left (testing item 13): a band per octave, its name written up it once ("octave 4", "первая
+     * октава"), or the name of its C ("C4", "до¹") where only a few of its rows are in view, or nothing where even that does
+     * not fit.
+     */
+    private drawOctaves(context: CanvasRenderingContext2D, low: number, high: number, row: number): void {
+        context.save();
+        context.font = `10px "Source Sans 3", system-ui, sans-serif`;
+        context.textAlign = "center";
+        context.textBaseline = "middle";
+        for (let octave = Math.floor(low / 12); octave <= Math.floor(high / 12); octave++) {
+            const bottom = Math.max(low, octave * 12);
+            const top = Math.min(high, octave * 12 + 11);
+            const y = HEADER + (high - top) * row;
+            const length = (top - bottom + 1) * row;
+            context.fillStyle = octave % 2 === 0 ? SURFACE_DARK : SURFACE;
+            context.fillRect(0, y, OCTAVE_BAND - 2, length);
+            context.fillStyle = BAR_LINE;
+            context.fillRect(0, y + length - 1, OCTAVE_BAND - 2, bottom === octave * 12 ? 1 : 0);
+            const words = this.octaveNames[octave] ?? "";
+            const c = this.fullRowNames[keyIndexAt(this.keyTicks, this.scroll)]?.[octave * 12] ?? pitchName(octave * 12);
+            const text = words !== "" && context.measureText(words).width + 8 <= length ? words : context.measureText(c).width + 6 <= length ? c : "";
+            if (text === "") {
+                continue;
+            }
+            context.save();
+            context.translate((OCTAVE_BAND - 2) / 2, y + length / 2);
+            context.rotate(-Math.PI / 2);
+            context.fillStyle = MUTED;
+            context.fillText(text, 0, 0.5);
+            context.restore();
+        }
+        context.restore();
+    }
+
     private drawChecks(context: CanvasRenderingContext2D, model: RollModel, from: number, to: number, width: number): void {
         context.font = "bold 10px \"Source Sans 3\", system-ui, sans-serif";
         context.textAlign = "center";
@@ -1171,9 +1340,6 @@ export class PianoRoll {
             const index = this.laneIndex.get(lane.key) ?? 0;
             items.push(legendItem(swatch(LANE_COLOURS[index % LANE_COLOURS.length], LANE_PATTERNS[index % LANE_PATTERNS.length], false), lane.label));
         }
-        if (model !== null && model.notes.length > 0) {
-            items.push(legendItem(null, this.labels.legendHint));
-        }
         if (this.variation !== null) {
             items.push(legendItem(variationSwatch(), this.labels.legendVariation));
         }
@@ -1185,10 +1351,6 @@ export class PianoRoll {
         }
         if (model?.notes.some((note) => note.noteInferred || note.handInferred)) {
             items.push(legendItem(swatch(SURFACE, "solid", true), this.labels.legendInferred));
-        }
-        if (model?.notes.some((note) => note.hand !== HAND_NONE)) {
-            const inferred = model.notes.some((note) => note.handInferred);
-            items.push(legendItem(null, inferred ? this.labels.legendHandsInferred : this.labels.legendHands));
         }
         this.legend.replaceChildren(...items);
     }
@@ -1222,6 +1384,9 @@ export class PianoRoll {
         const box = this.roll.getBoundingClientRect();
         const x = event.clientX - box.left;
         const y = event.clientY - box.top;
+        if (this.pinched(event, x, y)) {
+            return;
+        }
         const { high, row } = this.pitchRange();
         const pitch = high - Math.floor((y - HEADER) / row);
         this.roll.setPointerCapture(event.pointerId);
@@ -1268,9 +1433,42 @@ export class PianoRoll {
         this.press = { pointer: event.pointerId, x, y, tick, pitch, add: event.shiftKey || event.ctrlKey || event.metaKey, sounding, top: null };
     };
 
+    /**
+     * Two fingers on the notes pinch the zoom (testing item 13): the second finger cancels what the first began (a press,
+     * a drag) and starts the pinch. True when the press is part of a pinch.
+     */
+    private pinched(event: PointerEvent, x: number, y: number): boolean {
+        if (event.pointerType !== "touch") {
+            return false;
+        }
+        this.touches.set(event.pointerId, { x, y });
+        if (this.touches.size < 2) {
+            return false;
+        }
+        if (this.press !== null) {
+            this.release(this.press.sounding);
+            this.press = null;
+        }
+        this.drag = null;
+        this.roll.setPointerCapture(event.pointerId);
+        const [a, b] = [...this.touches.values()];
+        this.pinch = { distance: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), zoom: this.zoom, rowScale: this.rowScale };
+        this.invalidate();
+        return true;
+    }
+
     private readonly onPointerMove = (event: PointerEvent): void => {
         const box = this.roll.getBoundingClientRect();
         const x = event.clientX - box.left;
+        if (this.touches.has(event.pointerId)) {
+            this.touches.set(event.pointerId, { x, y: event.clientY - box.top });
+            if (this.pinch !== null) {
+                const [a, b] = [...this.touches.values()];
+                const factor = Math.hypot(a.x - b.x, a.y - b.y) / this.pinch.distance;
+                this.zoomTo(this.pinch.zoom * factor, this.pinch.rowScale * factor, Math.max(0, (a.x + b.x) / 2 - GUTTER));
+                return;
+            }
+        }
         const press = this.press;
         if (press !== null && event.pointerId === press.pointer) {
             if (press.tick < 0) {
@@ -1316,6 +1514,11 @@ export class PianoRoll {
      * A click on a note selects it; a click on an empty place clears the selection.
      */
     private readonly onPointerUp = (event: PointerEvent): void => {
+        if (this.touches.delete(event.pointerId) && this.pinch !== null) {
+            // The pinch ends with its first finger lifted; the other finger does nothing more.
+            this.pinch = null;
+            return;
+        }
         const press = this.press;
         if (press !== null && event.pointerId === press.pointer) {
             this.press = null;
@@ -1346,7 +1549,9 @@ export class PianoRoll {
         this.invalidate();
     };
 
-    private readonly onPointerCancel = (): void => {
+    private readonly onPointerCancel = (event: PointerEvent): void => {
+        this.touches.delete(event.pointerId);
+        this.pinch = null;
         this.release(this.press?.sounding ?? null);
         this.drag = null;
         this.press = null;
@@ -1533,10 +1738,10 @@ export class PianoRoll {
                 break;
             case "+":
             case "=":
-                this.zoomBy(1.5);
+                this.zoomBy(ZOOM_STEP);
                 break;
             case "-":
-                this.zoomBy(1 / 1.5);
+                this.zoomBy(1 / ZOOM_STEP);
                 break;
             default:
                 return;
@@ -1549,7 +1754,7 @@ export class PianoRoll {
         // A plain vertical scroll is left to the page.
         if (event.ctrlKey) {
             const box = this.roll.getBoundingClientRect();
-            this.zoomBy(event.deltaY < 0 ? 1.25 : 0.8, Math.max(0, event.clientX - box.left - GUTTER));
+            this.zoomBy(event.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP, Math.max(0, event.clientX - box.left - GUTTER));
         } else if (!event.shiftKey && Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
             // A vertical scroll moves through the rows when they do not all fit; else it is left to the page.
             const { above, below, row } = this.pitchRange();
@@ -1570,6 +1775,15 @@ export class PianoRoll {
     private readonly onScroll = (): void => {
         this.scrollTo(Number(this.scroller.value));
     };
+}
+
+/** A button of the floating zoom. */
+function zoomButton(text: string): HTMLButtonElement {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "roll-zoom-button";
+    button.textContent = text;
+    return button;
 }
 
 /** Sizes a canvas for the device's pixel ratio and returns a context drawing in CSS pixels. */

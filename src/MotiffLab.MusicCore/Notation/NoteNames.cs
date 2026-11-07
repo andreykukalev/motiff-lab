@@ -43,7 +43,14 @@ public static class NoteNames
 
     /// <summary>A note's name spelled for a key signature: "F♯4" or "фа♯¹" with one sharp, "G♭4" or "соль♭¹" with six flats.</summary>
     /// <param name="fifths">Sharps (positive) or flats (negative) of the key signature in force, −7 to 7.</param>
-    public static string Name(int midiNumber, int fifths, NoteNaming naming)
+    public static string Name(int midiNumber, int fifths, NoteNaming naming) => Name(midiNumber, fifths, naming, octave: true);
+
+    /// <summary>
+    /// A note's name spelled for a key signature, with its octave or without it: "F♯" or "фа♯" for the piano roll's notes, whose
+    /// octave the roll shows once at its side rather than on every note (testing item 13).
+    /// </summary>
+    /// <param name="octave">Whether the name carries the octave: the number, or the Russian mark and capital.</param>
+    public static string Name(int midiNumber, int fifths, NoteNaming naming, bool octave)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(midiNumber);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(midiNumber, 127);
@@ -58,11 +65,16 @@ public static class NoteNames
         };
         if (naming == NoteNaming.Letters)
         {
-            return $"{s_letters[spelled.Step]}{accidental}{spelled.Octave}";
+            return octave ? $"{s_letters[spelled.Step]}{accidental}{spelled.Octave}" : $"{s_letters[spelled.Step]}{accidental}";
         }
 
         // The written octave decides the mark, so C♭ in the first octave is до♭¹ though it sounds as the small octave's B.
         string syllable = s_syllables[spelled.Step];
+        if (!octave)
+        {
+            return $"{syllable}{accidental}";
+        }
+
         return spelled.Octave switch
         {
             >= 4 => $"{syllable}{accidental}{s_superscripts[Math.Min(spelled.Octave - 3, s_superscripts.Length - 1)]}",

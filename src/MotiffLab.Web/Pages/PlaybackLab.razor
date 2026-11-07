@@ -304,14 +304,27 @@
                                 </div>
                             }
                             <button class="step prev" aria-label="@Text["focus.previous"]" title="@Text["focus.previous"]" disabled="@(!CanStepBack)" @onclick="() => StepUnitAsync(-1)"><Icon Name="back" Size="IconSize.Large" /></button>
-                            <PhraseCard Source="card" Sounding="@FocusSounding" />
+                            @if (_focusRoll)
+                            {
+                                @* The phrase as a roll laid across the card whole (testing item 12); the zoom and Fit float over it. *@
+                                <div class="focus-roll" data-fill="true">
+                                    <PianoRoll Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases" FitsSelection="true"
+                                               Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible" Highlight="_highlight?.Places"
+                                               RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync"
+                                               SelectionChanged="OnRollNotesChosen" Keys="RollKeys" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync" Point="_rollPoint" />
+                                </div>
+                            }
+                            else
+                            {
+                                <PhraseCard Source="card" Sounding="@FocusSounding" />
+                            }
                             <button class="step next" aria-label="@Text["focus.next"]" title="@Text["focus.next"]" disabled="@(!CanStepOn)" @onclick="() => StepUnitAsync(1)"><Icon Name="fwd" Size="IconSize.Large" /></button>
                         </section>
                     </div>
                 </div>
             }
 
-            @if (_rollOpen)
+            @if (_rollOpen && !FocusShowsRoll)
             {
                 @* The piano roll as a drawer (0018 section 4): it slides up over the score and leaves the selection as it is. *@
                 <section class="drawer roll-drawer" aria-label="@Text["bar.roll"]" data-fill="true" data-keeps-selection data-menu-clear="auto">
@@ -319,7 +332,8 @@
                     <PianoRoll Heading="@RollHeading" Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases"
                                Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible" Highlight="_highlight?.Places"
                                RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync"
-                               SelectionChanged="OnRollNotesChosen" Keys="RollKeys" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync" Point="_rollPoint" />
+                               SelectionChanged="OnRollNotesChosen" Keys="RollKeys" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync" Point="_rollPoint"
+                               Expanded="ExpandRollAsync" />
                 </section>
             }
 
@@ -1371,6 +1385,11 @@
     private RenderFragment FocusBar => @<text>
         <button class="back-to-page" title="@Text["focus.backHint"]" @onclick="LeaveFocusAsync"><Icon Name="back" Size="IconSize.Large" /> <span>@Text["focus.back"]</span></button>
         <span class="crumb">@FocusPosition</span>
+        @* The phrase as notes or as a roll (testing item 12). *@
+        <div class="seg" role="radiogroup" aria-label="@Text["focus.showAs"]">
+            <button role="radio" class="@(_focusRoll ? null : "on")" aria-checked="@(_focusRoll ? "false" : "true")" @onclick="() => ShowFocusAs(false)">@Text["focus.asNotes"]</button>
+            <button role="radio" class="@(_focusRoll ? "on" : null)" aria-checked="@(_focusRoll ? "true" : "false")" @onclick="() => ShowFocusAs(true)">@Text["focus.asRoll"]</button>
+        </div>
         <span class="sp"></span>
         @if (_heard)
         {
@@ -1413,8 +1432,11 @@
             }
         }
         <button class="btn quiet ask @(_insightsOpen && _asking ? "on" : null)" aria-pressed="@(_insightsOpen && _asking ? "true" : "false")" title="?" @onclick="MenuAsk">@Text["ask.menu"]</button>
-        <button class="act @(_rollOpen ? "on" : null)" aria-pressed="@(_rollOpen ? "true" : "false")" aria-label="@Text["bar.roll"]" title="@Text["bar.roll"]"
-                @onclick="ToggleRoll"><Icon Name="roll" Size="IconSize.Large" /></button>
+        @if (!_focusRoll)
+        {
+            <button class="act @(_rollOpen ? "on" : null)" aria-pressed="@(_rollOpen ? "true" : "false")" aria-label="@Text["bar.roll"]" title="@Text["bar.roll"]"
+                    @onclick="ToggleRoll"><Icon Name="roll" Size="IconSize.Large" /></button>
+        }
         <button class="act @(_insightsOpen ? "on" : null)" aria-pressed="@(_insightsOpen ? "true" : "false")" aria-label="@Text["bar.insights"]" title="@Text["bar.insights"]"
                 @onclick="ToggleInsights"><Icon Name="insight" Size="IconSize.Large" /></button>
         <button class="act" @onclick="TogglePlayAsync" aria-label="@(Player.State == PlaybackState.Stopped ? Text["transport.play"] : Text["transport.pause"])">
