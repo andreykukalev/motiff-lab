@@ -1,5 +1,6 @@
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Time;
+using MotiffLab.Web.Playback;
 
 namespace MotiffLab.Web.Pages;
 
@@ -49,6 +50,47 @@ public partial class PlaybackLab
         _rollOpen = false;
         _pointed = null;
         EnterFocus();
+    }
+
+    /// <summary>Whether the card is being turned to the phrase that sounds, so a report while it turns does not turn it again.</summary>
+    private bool _turningFocus;
+
+    /// <summary>
+    /// While the piece plays on past the passage in focus (nothing loops), the card turns to the unit now sounding, as Next
+    /// would, so Notes and Piano roll show the same place and the switch between them never goes back (testing item 27).
+    /// A variation or another version heard in the card keeps it where it is.
+    /// </summary>
+    private async Task FollowPlayingInFocusAsync()
+    {
+        if (!Focused || _turningFocus || Player.State != PlaybackState.Playing || _looping || _alternating || Player.Loop is not null
+            || FocusHasVariation || VersionChosen || _levels is null || FocusSpan is not { } span || FocusUnit is not { } shown)
+        {
+            return;
+        }
+
+        Tick at = Player.Position;
+        if (span.Onset <= at && at < span.End)
+        {
+            return;
+        }
+
+        PhraseUnit sounding = _levels.At(_level, at);
+        if (sounding.Number == shown.Number)
+        {
+            return;
+        }
+
+        _turningFocus = true;
+        try
+        {
+            await SelectAsync(_levels.Selectable(sounding), note: null);
+            _focusSpan = _selection?.Span;
+            _pointed = null;
+        }
+        finally
+        {
+            _turningFocus = false;
+        }
     }
 
     /// <summary>Back from focus opens the roll drawer again when Expand closed it.</summary>

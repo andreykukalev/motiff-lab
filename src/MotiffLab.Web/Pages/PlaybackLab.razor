@@ -1987,6 +1987,7 @@
     private void OnPlayerChanged() => _ = InvokeAsync(async () =>
     {
         await FollowScaleAsync();
+        await FollowPlayingInFocusAsync();
         StateHasChanged();
     });
 

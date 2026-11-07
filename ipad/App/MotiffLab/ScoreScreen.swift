@@ -549,6 +549,7 @@ struct ScoreScreen: View {
             }
             .onChange(of: player.tick) { _, tick in
                 score.playhead(tick, playing: player.state == .playing)
+                if player.state == .playing && player.loop == nil && player.hearing == .original { score.followPlaying(tick) }
                 if rollShown { roll.position(tick, playing: player.state == .playing) }
             }
             .onChange(of: player.state) { old, state in
