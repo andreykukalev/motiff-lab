@@ -7127,7 +7127,7 @@ body:has(.library) .site-footer {
 }
 
 .workspace .dot:is(.tone-graphite, .tone-plum, .tone-teal, .tone-amber, .tone-green, .tone-before),
-.workspace :is(.source-chip, .shown-label) .dot {
+.workspace :is(.source-chip, .shown-label, .beside-chip) .dot {
     display: inline-block;
     flex: none;
     width: 10px;
@@ -7708,6 +7708,183 @@ body:has(.library) .site-footer {
     color: var(--plum);
     font: var(--t-overline);
     white-space: nowrap;
+}
+
+/* «Рядом» (mockup 14): a drawer under the page with one other source, read only, its own scroll; the page above keeps its
+   place and is padded so its last system can still be read over the drawer. */
+.workspace.beside-open .pill {
+    bottom: calc(var(--drawer-h) + var(--s-3));
+}
+
+.workspace.beside-open .score {
+    --pad-bottom: calc(var(--drawer-h) + 96px);
+}
+
+.workspace .beside-drawer {
+    gap: var(--s-2);
+}
+
+.workspace .beside-head {
+    flex: none;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.workspace .beside-head .overline {
+    margin: 0;
+}
+
+.workspace .beside-head .sp {
+    flex: 1;
+}
+
+.workspace .beside-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-1);
+}
+
+.lab.workspace .beside-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    min-height: 0;
+    padding: 0 var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    background: transparent;
+    color: var(--ink-2);
+    font: var(--t-label);
+    cursor: pointer;
+}
+
+.lab.workspace .beside-chip.on {
+    border-color: var(--tone);
+    background: var(--tone-tint);
+    color: var(--ink);
+    font-weight: 600;
+}
+
+.lab.workspace .beside-head .btn.on {
+    background: var(--accent-tint);
+    color: var(--accent-hover);
+}
+
+.workspace .beside-score {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    margin: 0 calc(-1 * var(--s-3));
+    overflow: hidden;
+}
+
+.workspace .beside-drawer .score {
+    --pad-top: var(--s-3);
+    --pad-bottom: var(--s-4);
+}
+
+/* The drawer's pages as wide as the page's above, one under another, so a bar stands near the bar it is like; not shrunk
+   to the drawer's height. */
+.workspace .beside-drawer .score.paged {
+    grid-template-columns: auto;
+    --page-w: min(97cqw, calc((100vh - var(--page-gap)) / 1.4142));
+}
+
+/* Read only: no playhead, the player's position being in the page's time, and no handles to drag its selection by. */
+.workspace .beside-drawer .score .playhead, .workspace .beside-drawer .score .sel-handle {
+    display: none;
+}
+
+/* «Сопоставление»: a cell per bar of the version, in its colour where it matches the notes, paler where partly, amber
+   where it differs and an outline where nothing lines up; a tap shows the bar above. */
+.workspace .beside-drawer > .caption {
+    margin: 0;
+}
+
+.workspace .beside-drawer .legend {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: var(--s-1) var(--s-3);
+    margin-left: var(--s-2);
+    color: var(--ink-2);
+}
+
+.workspace .beside-drawer .legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-1);
+}
+
+.workspace .beside-drawer .legend i {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: var(--r-xs);
+    background: var(--tone);
+}
+
+.workspace .beside-drawer .legend i.partly {
+    background: var(--tone-tint);
+}
+
+.workspace .beside-drawer .legend i.differs {
+    background: var(--amber);
+}
+
+.workspace .beside-drawer .legend i.none {
+    background: transparent;
+    box-shadow: inset 0 0 0 1px var(--hairline-strong);
+}
+
+.workspace .match-map {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 3px;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+}
+
+.lab.workspace .match-map .cell {
+    display: block;
+    width: 24px;
+    height: 24px;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-xs);
+    background: var(--tone);
+    cursor: pointer;
+}
+
+.lab.workspace .match-map .cell.partly {
+    background: var(--tone-tint);
+}
+
+.lab.workspace .match-map .cell.differs {
+    background: var(--amber);
+}
+
+.lab.workspace .match-map .cell.none {
+    background: transparent;
+    box-shadow: inset 0 0 0 1px var(--hairline-strong);
+}
+
+.lab.workspace .match-map .cell:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+/* In portrait the page is Focus alone (mockup 12): no «Рядом» in the bar. */
+@media (orientation: portrait) {
+    .workspace .bar .beside-toggle {
+        display: none;
+    }
 }
 
 /* What a change did, with Undo: amber, as the player's own step. */

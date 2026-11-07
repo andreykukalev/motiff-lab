@@ -221,6 +221,13 @@ else if (_loading && !HoldHeight)
     [Parameter]
     public bool Follow { get; set; } = true;
 
+    /// <summary>
+    /// Whether this score is the one heard: its playhead follows the player and a note clicked moves playback. A score
+    /// shown beside the one heard (0024, «Рядом») is read only: in its own time, the player's position means nothing.
+    /// </summary>
+    [Parameter]
+    public bool Heard { get; set; } = true;
+
     /// <summary>Whether the bars take room by their length, so the playhead keeps one pace (Settings · Notes, score.evenBars; testing item 35).</summary>
     [Parameter]
     public bool EvenBars { get; set; } = true;
@@ -373,7 +380,11 @@ else if (_loading && !HoldHeight)
         {
             ScoreLoadResult loaded = await _view.InvokeAsync<ScoreLoadResult>("load", source.Data, Title);
             await TitleRead.InvokeAsync(loaded.Title);
-            await _view.InvokeVoidAsync("follow", Player.Engine);
+            if (Heard)
+            {
+                await _view.InvokeVoidAsync("follow", Player.Engine);
+            }
+
             await ShowRangeAsync(_view);
             await ShowPhrasesAsync(_view);
             await ShowBookmarksAsync(_view);
@@ -484,6 +495,11 @@ else if (_loading && !HoldHeight)
     public async Task OnScoreNoteClicked(double tick, int pitch)
     {
         long at = Math.Max(0, (long)Math.Round(tick));
+        if (!Heard)
+        {
+            return;
+        }
+
         await Player.SeekAsync(new Tick(at));
         if (pitch >= 0)
         {

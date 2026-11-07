@@ -81,6 +81,7 @@ public partial class PlaybackLab : IAsyncDisposable
     private string WorkspaceClass => string.Join(' ', new[]
     {
         _rollOpen && !FocusShowsRoll ? "roll-open" : null,
+        _assembling && _besideOpen ? "beside-open" : null,
         _insightsOpen || _checkOpen || _performanceOpen || _carry is not null || _journalOpen ? "insights-open" : null,
         _contentsOpen ? "contents-open" : null,
         _bookmarkDraft is { Id: null } || _noteDraft is not null ? "bookmarking" : null,
@@ -438,6 +439,7 @@ public partial class PlaybackLab : IAsyncDisposable
     public void OnDrawerClosed()
     {
         _rollOpen = false;
+        _besideOpen = false;
         _pointed = null;
         StateHasChanged();
     }

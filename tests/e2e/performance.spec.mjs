@@ -161,6 +161,39 @@ test("comparing: a bar of the version is carried into the notes, undone, redone 
     expect(errors).toEqual([]);
 });
 
+test("side by side, the notes follow the version from below, and Mapping shows the version against them bar by bar", async ({ page }) => {
+    const errors = [];
+    page.on("pageerror", error => errors.push(String(error)));
+    const offer = await scoreWithCover(page);
+    await offer.getByRole("button", { name: "Compare" }).click();
+    await tapBar(page, 5);
+    await expect(page.locator(".assembly-card")).toContainText("bar 6 fur-elise-cover");
+
+    // The drawer shows the notes, read only, with the place the selection matches selected.
+    await page.locator(".bar").getByRole("button", { name: "Side by side" }).click();
+    const drawer = page.locator(".beside-drawer");
+    await expect(drawer.getByRole("radio", { name: /Notes/ })).toHaveAttribute("aria-checked", "true");
+    await expect(drawer.locator(".score g.note").first()).toBeVisible();
+    await expect(drawer.locator(".score .sel-band").first()).toBeVisible();
+    // The page above is the same: the version, its selection and its card.
+    await expect(page.locator(".bar .shown-label")).toContainText("fur-elise-cover");
+    expect(await violations(page)).toEqual([]);
+
+    // Mapping: a cell per bar of the version; a tap selects that bar on the page.
+    await drawer.getByRole("button", { name: "Mapping" }).click();
+    const cells = drawer.locator(".match-map .cell");
+    await expect(cells.first()).toBeVisible();
+    expect(await cells.count()).toBeGreaterThan(8);
+    await expect(drawer.locator(".match-map .cell.partly, .match-map .cell.differs").first()).toBeVisible();
+    expect(await violations(page)).toEqual([]);
+    await cells.nth(7).click();
+    await expect(page.locator(".assembly-card")).toContainText("bar 8 fur-elise-cover");
+
+    await drawer.getByRole("button", { name: "Close side by side" }).click();
+    await expect(drawer).toHaveCount(0);
+    expect(errors).toEqual([]);
+});
+
 test("only «Make it the notes» changes the piece; it is undone, and the notes before stay a source", async ({ page }) => {
     const errors = [];
     page.on("pageerror", error => errors.push(String(error)));
