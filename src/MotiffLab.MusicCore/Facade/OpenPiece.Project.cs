@@ -62,6 +62,7 @@ internal sealed partial class OpenPiece
         _ when name.StartsWith("performance", StringComparison.Ordinal) => CallOnPerformance(name, request),
         _ when name.StartsWith("sources", StringComparison.Ordinal) => CallOnSources(name, request),
         _ when name.StartsWith("corrections", StringComparison.Ordinal) => CallOnCorrections(name, request),
+        _ when name == "assembly" || name.StartsWith("assembly.", StringComparison.Ordinal) => CallOnAssembly(name, request),
         _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\"."),
     };
 
