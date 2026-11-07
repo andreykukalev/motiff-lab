@@ -135,6 +135,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     private struct LayerEngraved: Equatable {
         var version: String?
         var artefacts = false
+        /// Even bars (Settings · Notes, testing item 35), as the piece was opened with or engraved since.
+        var evenBars = true
     }
     private var layerEngraved = LayerEngraved()
     /// The engraved ids of the notes the layer's version adds, and of its likely artefacts, to tint on the page.
@@ -268,7 +270,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             sources = SourcesInfo()
             addedVersion = nil
             takenAll = nil
-            layerEngraved = LayerEngraved()
+            layerEngraved = LayerEngraved(evenBars: DeviceSettings.shared.isOn("score.evenBars"))
             versionPlayback = nil
         }
         self.dark = dark
@@ -1094,7 +1096,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// while its layer is on, its likely artefacts too while theirs is; the score is engraved again when that changes.
     private func applyVersionLayer() async {
         let version = hiddenLayers.contains("version") ? nil : versions.shownId
-        let wanted = LayerEngraved(version: version, artefacts: version != nil && !hiddenLayers.contains("artefacts"))
+        let wanted = LayerEngraved(version: version, artefacts: version != nil && !hiddenLayers.contains("artefacts"), evenBars: DeviceSettings.shared.isOn("score.evenBars"))
+        // Even bars turned on or off engraves the score again too.
         guard wanted != layerEngraved else { return }
         await engraveScore()
     }
@@ -1105,8 +1108,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         let id = piece.id
         let title = piece.title
         let version = hiddenLayers.contains("version") ? nil : versions.shownId
-        let layer = LayerEngraved(version: version, artefacts: version != nil && !hiddenLayers.contains("artefacts"))
-        let engraved = await MusicCore.run { Engraver.engrave(piece: id, title: title, version: layer.version, artefacts: layer.artefacts) }
+        let layer = LayerEngraved(version: version, artefacts: version != nil && !hiddenLayers.contains("artefacts"), evenBars: DeviceSettings.shared.isOn("score.evenBars"))
+        let engraved = await MusicCore.run { Engraver.engrave(piece: id, title: title, version: layer.version, artefacts: layer.artefacts, evenBars: layer.evenBars) }
         switch engraved {
         case .success(let engraving):
             // Its other view stays; where it opened does not, so the page stays where the player is.

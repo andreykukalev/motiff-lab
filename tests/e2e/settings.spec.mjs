@@ -73,3 +73,23 @@ test("over the score, the sheet's changes show on the score at once", async ({ p
     await expect(sheet).toHaveCount(0);
     expect(errors).toEqual([]);
 });
+
+test("Even bars in Score lays the score out again, with bars as wide as their notes need when off (testing item 35)", async ({ page }) => {
+    const errors = await openFurElise(page);
+    // Where the barlines of the first page fall: they move when the bars are spaced otherwise.
+    const barlines = () => page.locator("div.score > .score-page").first().evaluate((first) =>
+        [...first.querySelectorAll("g.measure")].slice(0, 12).map((measure) => Math.round(measure.getBoundingClientRect().width)).join(","));
+    const even = await barlines();
+
+    const more = await openMore(page);
+    await more.getByRole("button", { name: "Settings" }).click();
+    const sheet = page.getByRole("dialog", { name: "Settings" });
+    await sheet.getByRole("tab", { name: "Score" }).click();
+    const evenBars = sheet.getByRole("switch", { name: "Even bars" });
+    await expect(evenBars).toBeChecked();
+    await evenBars.uncheck();
+    await expect.poll(barlines).not.toBe(even);
+    await evenBars.check();
+    await expect.poll(barlines).toBe(even);
+    expect(errors).toEqual([]);
+});

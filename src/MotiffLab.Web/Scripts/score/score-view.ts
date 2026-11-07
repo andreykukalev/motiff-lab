@@ -14,7 +14,7 @@ import { type ScoreSelection, SelectionLayer } from "./selection-layer.js";
 import { ScoreTimeline, highlightedIds, type HighlightPlace } from "./score-timeline.js";
 import { A4_HEIGHT, A4_WIDTH, buildPdf, crop, inkBounds, type InkLayer, type PdfPage } from "./pdf-document.js";
 import { hasText, svgToPdfOperators, textOnlySvg } from "./svg-to-pdf.js";
-import { A4_LAYOUT, A4_PDF_LAYOUT, pdfFileName, titleBlock, withTitle } from "./score-page.js";
+import { A4_LAYOUT, A4_PDF_LAYOUT, EVEN_SPACING, NOTE_SPACING, pdfFileName, titleBlock, withTitle } from "./score-page.js";
 import { BRACKET_LIFT, ScoreGeometry, bookmarkLevels, readPage, type PageGeometry, type PagePlacement, type Playhead, type ScoreBar } from "./score-geometry.js";
 import { downloadBytes, saveCover } from "../storage/project-store.js";
 import { newToolkit, type VerovioToolkit } from "./verovio.js";
@@ -251,6 +251,8 @@ export class ScoreView {
     private readonly selection: SelectionLayer;
     /** A4 pages (0017), or one strip the width of the view. */
     private paged = true;
+    /** Whether the bars take room by their length rather than their notes (Settings · Notes, score.evenBars; testing item 35). */
+    private evenBars = true;
     /** What was loaded, so a change of layout can engrave it again. */
     private data: string | null = null;
     /** The pages as engraved, and their geometry once read (score-geometry.ts): read again after every layout. */
@@ -327,6 +329,20 @@ export class ScoreView {
         return { pages: engraver.getPageCount(), notes: this.timeline.spans.length, title: heading?.title || null };
     }
 
+    /** Even bars on or off (Settings · Notes): what is showing is engraved again, keeping the player's place in it. */
+    async setEvenBars(on: boolean): Promise<void> {
+        if (on === this.evenBars) {
+            return;
+        }
+        this.evenBars = on;
+        await this.relayOut();
+    }
+
+    /** Verovio's spacing for the bars: even (by their length) or its own (by their notes). */
+    private spacing(): Readonly<Record<string, number>> {
+        return this.evenBars ? EVEN_SPACING : NOTE_SPACING;
+    }
+
     /**
      * Lays the score out as A4 pages, as it prints, or as one strip the width of the view. What is
      * showing is engraved again, keeping the player's place in it.
@@ -337,6 +353,11 @@ export class ScoreView {
         }
         this.paged = paged;
         this.host.classList.toggle("paged", paged);
+        await this.relayOut();
+    }
+
+    /** Engraves what is showing again with the layout's options now, keeping the player's place in it. */
+    private async relayOut(): Promise<void> {
         const engraver = this.engraver;
         const data = this.data;
         if (engraver === null || data === null || this.disposed) {
@@ -366,7 +387,7 @@ export class ScoreView {
         const engraver = await newToolkit();
         const svgs: string[] = [];
         try {
-            engraver.setOptions({ ...A4_PDF_LAYOUT });
+            engraver.setOptions({ ...A4_PDF_LAYOUT, ...this.spacing() });
             if (!engraver.loadData(data)) {
                 throw new Error(`The score could not be engraved. ${engraver.getLog()}`.trim());
             }
@@ -732,7 +753,7 @@ export class ScoreView {
         this.laidOutWidth = this.host.clientWidth;
         this.laidOutHeight = this.host.clientHeight;
         if (this.paged) {
-            return { ...A4_LAYOUT };
+            return { ...A4_LAYOUT, ...this.spacing() };
         }
         return {
             scale: SCALE,
@@ -741,6 +762,7 @@ export class ScoreView {
             pageMarginRight: 40,
             pageMarginTop: 40,
             pageMarginBottom: 40,
+            ...this.spacing(),
             adjustPageHeight: true,
             breaks: "auto",
             header: "none",

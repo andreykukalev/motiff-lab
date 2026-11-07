@@ -8,7 +8,7 @@ import { inflateSync } from "node:zlib";
 
 import { hasText, num, parseColour, parseSvg, parseTransform, pathOperators, svgToPdfOperators, textOnlySvg } from "../../src/MotiffLab.Web/wwwroot/js/score/svg-to-pdf.js";
 import { A4_HEIGHT, A4_WIDTH, buildPdf, crop, inkBounds, pdfText } from "../../src/MotiffLab.Web/wwwroot/js/score/pdf-document.js";
-import { A4_LAYOUT, A4_PDF_LAYOUT, pdfFileName, withTitle } from "../../src/MotiffLab.Web/wwwroot/js/score/score-page.js";
+import { A4_LAYOUT, A4_PDF_LAYOUT, EVEN_SPACING, NOTE_SPACING, pdfFileName, withTitle } from "../../src/MotiffLab.Web/wwwroot/js/score/score-page.js";
 import createVerovioModule from "../../src/MotiffLab.Web/wwwroot/lib/verovio/verovio-module.mjs";
 import { VerovioToolkit } from "../../src/MotiffLab.Web/wwwroot/lib/verovio/verovio.mjs";
 
@@ -225,4 +225,43 @@ test("the iPad app engraves its A4 pages with the web app's Verovio options", as
     const literal = swift.match(/static let a4Leland = """\n([\s\S]*?)\n\s*"""/);
     assert.ok(literal, "Engraver.a4Leland is a multi-line string literal");
     assert.deepEqual(JSON.parse(literal[1]), { ...A4_LAYOUT });
+    const even = swift.match(/static let evenSpacing = """\n([\s\S]*?)\n\s*"""/);
+    assert.ok(even, "Engraver.evenSpacing is a multi-line string literal");
+    assert.deepEqual(JSON.parse(even[1]), { ...EVEN_SPACING });
+    const byNotes = swift.match(/static let noteSpacing = """\n([\s\S]*?)\n\s*"""/);
+    assert.ok(byNotes, "Engraver.noteSpacing is a multi-line string literal");
+    assert.deepEqual(JSON.parse(byNotes[1]), { ...NOTE_SPACING });
+});
+
+test("with even bars, a bar of long notes is about as wide as a bar of runs, so the playhead keeps one pace (testing item 35)", async () => {
+    const engraver = new VerovioToolkit(await createVerovioModule());
+    const run = Array.from({ length: 16 }, (_, index) => `<note pname="${"cdefgab"[index % 7]}" oct="5" dur="16"/>`).join("");
+    const bars = Array.from({ length: 24 }, (_, bar) =>
+        `<measure n="${bar + 1}"><staff n="1"><layer n="1">${bar % 2 === 0 ? `<note pname="c" oct="5" dur="1"/>` : run}</layer></staff><staff n="2"><layer n="1"><note pname="c" oct="3" dur="1"/></layer></staff></measure>`,
+    ).join("");
+    const mei = `<?xml version="1.0" encoding="UTF-8"?><mei xmlns="http://www.music-encoding.org/ns/mei" meiversion="5.1"><music><body><mdiv><score><scoreDef meter.count="4" meter.unit="4"><staffGrp symbol="brace" bar.thru="true"><staffDef n="1" lines="5" clef.shape="G" clef.line="2"/><staffDef n="2" lines="5" clef.shape="F" clef.line="4"/></staffGrp></scoreDef><section>${bars}</section></score></mdiv></body></music></mei>`;
+    const widest = (options) => {
+        engraver.setOptions({ ...options });
+        assert.ok(engraver.loadData(mei));
+        let worst = 1;
+        for (let page = 1; page <= engraver.getPageCount(); page++) {
+            for (const system of engraver.renderToSVG(page).split('class="system"').slice(1)) {
+                // A bar's width from its top staff line; the first bar of a system also holds the clef and is left out.
+                const widths = system.split('class="measure"').slice(2)
+                    .map((measure) => measure.match(/<path d="M(\d+) \d+ L(\d+) \d+"/))
+                    .filter((line) => line !== null)
+                    .map((line) => Number(line[2]) - Number(line[1]));
+                if (widths.length > 1) {
+                    worst = Math.max(worst, Math.max(...widths) / Math.min(...widths));
+                }
+            }
+        }
+        return worst;
+    };
+    const before = widest({ ...A4_LAYOUT, ...NOTE_SPACING });
+    const now = widest({ ...A4_LAYOUT, ...EVEN_SPACING });
+    // The toolkit keeps the options it was last set: Verovio's own spacing given outright brings its layout back.
+    assert.equal(widest({ ...A4_LAYOUT, ...NOTE_SPACING }), before);
+    assert.ok(before > 1.8, `Verovio's own spacing makes the bars of runs much wider (${before.toFixed(2)})`);
+    assert.ok(now < 1.3, `the bars are nearly as wide as each other (${now.toFixed(2)})`);
 });

@@ -243,6 +243,7 @@ struct SettingsSheet: View {
         case .score:
             choiceRow("phrases.granularity", text["settings.granularity"], hint: text["settings.granularityHint"]) { text[Self.granularityKey($0)] }
             switchRow("playback.follow", text["settings.follow"], hint: text["settings.followHint"])
+            switchRow("score.evenBars", text["settings.evenBars"], hint: text["settings.evenBarsHint"])
         case .layers:
             Text(text["settings.layersHow"])
                 .dsType(.caption)

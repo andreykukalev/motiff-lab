@@ -2,6 +2,24 @@
 // it, and the PDF's file name. Kept free of the DOM so Node can test it.
 
 /**
+ * Even bars (Settings · Notes, score.evenBars, on by default; testing item 35): Verovio spaces the notes closer to the time
+ * they take than its defaults (0.25 and 0.6), so a bar of long notes is about as wide as a bar of runs and the playhead
+ * moves at an even pace (a 4/4 piece alternating whole notes and semiquavers went from bars up to three times as wide as
+ * each other to 1.14). Off, the bars take the room their notes need and more music fits on a page. Added to the layout,
+ * on screen and in the PDF alike; the iPad app's Engraver.evenSpacing is the same.
+ */
+export const EVEN_SPACING: Readonly<Record<string, number>> = {
+    spacingLinear: 0.08,
+    spacingNonLinear: 0.9,
+};
+
+/** Verovio's own spacing, by the notes: given outright when even bars are off, as a toolkit keeps the options it was last set. */
+export const NOTE_SPACING: Readonly<Record<string, number>> = {
+    spacingLinear: 0.25,
+    spacingNonLinear: 0.6,
+};
+
+/**
  * An A4 page as the redesign engraves it (0018 section 2, design/kit/render.mjs; 0017 for the page itself): Verovio's
  * page units are tenths of a millimetre, so the page is 210 × 297 mm, with margins of 15 mm at the sides, 50 mm at the
  * top (the most Verovio takes: the app's bar floats over it and the app sets the title in it) and 16 mm at the bottom.
