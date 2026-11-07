@@ -1,0 +1,111 @@
+@using MotiffLab.MusicCore.Assembly
+@inject MotiffLab.Web.Localization.UiText Text
+
+@* The journal (0024, section 2; mockup 17): every step with its number and time; «Вернуть что было» on one shows, before
+   anything is done, the steps that lean on it (they go with it, amber) and those that stay, in the carry sheet's lines. *@
+<aside class="sheet inspector journal-sheet" aria-labelledby="journal-title" data-keeps-selection data-menu-clear="auto">
+    <header class="check-head">
+        <div>
+            <p class="overline">@Text.Count("assembly.journalOverline", Rows.Count)</p>
+            <h2 id="journal-title">@(Plan is { } plan ? Text.Format("assembly.revertTitle", plan.Number) : Text["assembly.journal"])</h2>
+            <p class="caption">@Text[Plan is null ? "assembly.journalHint" : "assembly.revertHint"]</p>
+        </div>
+        <button class="btn icon" aria-label="@Text["bar.close"]" title="@Text["bar.close"]" @onclick="Close"><Icon Name="close" /></button>
+    </header>
+    @if (Rows.Count == 0)
+    {
+        <p class="caption">@Text["assembly.journalEmpty"]</p>
+    }
+    <ol class="journal-rows">
+        @foreach ((JournalRow row, DateTimeOffset at) in Rows)
+        {
+            string state = Plan is not { } shown ? "" : row.Number == shown.Number ? "going" : shown.Dependents.Contains(row.Number) ? "leans" : shown.Staying.Contains(row.Number) ? "stays" : "";
+            <li class="journal-row @state @(row.Applied ? null : "lost")">
+                <span class="dot tone-@(row.SourceId is { } id ? ToneOf(id) : "graphite")" aria-hidden="true"></span>
+                <div>
+                    <p class="title"><strong>@row.Title</strong></p>
+                    <p class="caption">@Time(at) · @row.Detail
+                        @if (state == "leans")
+                        {
+                            <strong> · @Text["assembly.goes"]</strong>
+                        }
+                        else if (state == "stays")
+                        {
+                            <strong> · @Text["assembly.stays"]</strong>
+                        }
+                    </p>
+                    @if (Plan is null)
+                    {
+                        <div class="row">
+                            <button class="btn secondary compact danger-text" @onclick="() => PlanRevert.InvokeAsync(row.Number)">@Text["assembly.revertWhat"]</button>
+                            @if (row.Span is not null)
+                            {
+                                <button class="btn quiet compact" @onclick="() => ShowStep.InvokeAsync(row.Number)">@Text["assembly.show"]</button>
+                            }
+                        </div>
+                    }
+                </div>
+            </li>
+        }
+    </ol>
+    @if (Plan is not null)
+    {
+        <ul class="sheet-lines">
+            @foreach (JournalLine line in Lines)
+            {
+                <li class="sheet-line @CarrySheetPanel.Mark(line.Mark)">
+                    <span class="mark">@CarrySheetPanel.Glyph(line.Mark)</span>
+                    <div><strong>@($"{line.Label}: ")</strong>@line.Text</div>
+                </li>
+            }
+        </ul>
+        <footer class="carry-foot">
+            <span class="sp"></span>
+            <button class="btn quiet" @onclick="() => PlanRevert.InvokeAsync(null)">@Text["assembly.cancel"]</button>
+            <button class="btn danger" @onclick="() => Revert.InvokeAsync(Plan.Number)">
+                @(Plan.Dependents.Count == 0 ? Text.Format("assembly.revertOne", Plan.Number) : Text.Format("assembly.revertWith", Plan.Number, Plan.Dependents.Count))
+            </button>
+        </footer>
+    }
+    else if (Rows.Count > 0)
+    {
+        <footer class="carry-foot">
+            <button class="btn quiet compact" @onclick="Restart">@Text["assembly.restart"]</button>
+        </footer>
+    }
+</aside>
+
+@code {
+    /// <summary>The rows with each step's time.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<(JournalRow Row, DateTimeOffset At)> Rows { get; set; } = [];
+
+    /// <summary>The return being shown; null lists the journal.</summary>
+    [Parameter]
+    public RevertPlan? Plan { get; set; }
+
+    /// <summary>The lines of the return: what goes with it, what stays, the length.</summary>
+    [Parameter]
+    public IReadOnlyList<JournalLine> Lines { get; set; } = [];
+
+    [Parameter, EditorRequired]
+    public Func<string, string> ToneOf { get; set; } = _ => "graphite";
+
+    [Parameter, EditorRequired]
+    public Func<DateTimeOffset, string> Time { get; set; } = at => at.ToString("t");
+
+    [Parameter]
+    public EventCallback<int?> PlanRevert { get; set; }
+
+    [Parameter]
+    public EventCallback<int> Revert { get; set; }
+
+    [Parameter]
+    public EventCallback<int> ShowStep { get; set; }
+
+    [Parameter]
+    public EventCallback Restart { get; set; }
+
+    [Parameter]
+    public EventCallback Close { get; set; }
+}

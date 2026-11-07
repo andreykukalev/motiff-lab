@@ -1,8 +1,10 @@
-// Another version compared with the piece (decision record 0022): a MIDI file of a performance added in the Sources sheet
-// (testing item 16) opens its page there, with a verdict, a strip of bars and the way into a merge draft that changes nothing
-// until applied (testing items 32 and 34); the score stays clean, its markers shown only with Extra information (item 33). The performance is Für Elise's opening with three notes
-// added in bar 5 and the left hand of bar 7 left out (fixtures/fur-elise-cover.mid, made from the public-domain score). Which is the base is only which was opened first: the score
-// in MusicXML can be added over the cover opened as the piece.
+// Another version of the piece and the player's own version assembled from them (decision records 0022 and 0024). A
+// MIDI file of a performance is added from More or the Sources sheet: one quiet card offers to compare, and the notes
+// stay as they are. Comparing shows each source in its own bars, chosen from the playback pill; a selection in a version
+// is carried into the notes through the carry sheet, every carry is a step of the journal that can be undone or returned
+// with what leans on it, and only «Make it the notes» changes the piece. The performance is Für Elise's opening with three
+// notes added in bar 5 and the left hand of bar 7 left out (fixtures/fur-elise-cover.mid, made from the public-domain
+// score). Which is the base is only which was opened first: the score in MusicXML can be added over the cover opened as the piece.
 import { expect, test } from "@playwright/test";
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -42,35 +44,171 @@ async function recording() {
     return path;
 }
 
-/** The piece from the score, the cover added over it in Sources: the drawer stays on the cover's page. */
-async function scoreWithCover(page) {
+/** The piece from the score, opened. */
+async function openScore(page) {
     await page.goto("/");
     await page.getByRole("button", { name: "Add piece" }).click();
     await page.getByLabel("Choose a MIDI, MusicXML or PDF file").setInputFiles(score);
     await expect(page).toHaveURL(/\/playback\?project=p_[0-9a-f]+/);
-    await (await openMore(page)).getByRole("button", { name: "Sources" }).click();
-    const drawer = page.locator(".perf-sheet");
-    await drawer.getByRole("button", { name: "Add a source" }).click();
-    await drawer.getByLabel("Add a MIDI or MusicXML file").setInputFiles(cover);
-    await expect(drawer.getByRole("status")).toHaveText("Lined up: 50 of 53 notes found in the version, 2 bars differ.");
-    return drawer;
 }
 
-test("a version opens its page, the score stays clean, and its markers show only with Extra information", async ({ page }) => {
+/** The piece from the score, the cover added from More: the card that offers to compare is up. */
+async function scoreWithCover(page) {
+    await openScore(page);
+    await (await openMore(page)).getByLabel(/Add another version/).setInputFiles(cover);
+    const offer = page.locator(".assembly-offer");
+    await expect(offer).toBeVisible();
+    return offer;
+}
+
+/** A bar of the source shown, tapped on its top staff line, away from its notes. */
+async function tapBar(page, index) {
+    await page.locator("div.score g.measure").nth(index).locator("g.staff > path").first().dispatchEvent("click");
+}
+
+test("a version added from More is offered for comparing, and the notes stay as they are", async ({ page }) => {
     const errors = [];
     page.on("pageerror", error => errors.push(String(error)));
-    const drawer = await scoreWithCover(page);
-    await expect(drawer.getByRole("heading", { name: "fur-elise-cover" })).toBeVisible();
-    await expect(drawer.locator(".merge-verdict")).toContainText("fur-elise-cover plays 2 bars differently");
-    await expect(drawer.getByRole("list", { name: "The bars of the piece" }).getByRole("listitem", { name: /^Bar 5:/ })).toHaveAccessibleName("Bar 5: +3 · added notes");
+    await openScore(page);
+    // With one source there is no trace of the assembly.
+    await expect(page.locator(".versions-label")).toHaveCount(0);
+    await expect(page.locator("div.score g.note")).toHaveCount(53);
+
+    await (await openMore(page)).getByLabel(/Add another version/).setInputFiles(cover);
+    const offer = page.locator(".assembly-offer");
+    await expect(offer.getByRole("heading")).toContainText("fur-elise-cover added");
+    await expect(offer).toContainText("The notes have not changed");
+    await expect(page.locator(".versions-label")).toHaveText("+1 version");
+    await expect(page.locator("div.score g.note")).toHaveCount(53);
     expect(await violations(page)).toEqual([]);
+    await offer.getByRole("button", { name: "Later" }).click();
+    await expect(offer).toHaveCount(0);
+
+    // «+1 version» opens the Sources: the notes and the version, which says in bars where it matches them.
+    await page.locator(".versions-label").click();
+    const sheet = page.locator(".perf-sheet");
+    await expect(sheet.getByRole("heading", { name: "What to assemble from" })).toBeVisible();
+    await expect(sheet.locator(".source-card")).toHaveCount(2);
+    await expect(sheet.locator(".source-card").nth(1)).toContainText("fur-elise-cover");
+    await expect(sheet.locator(".source-card").nth(1)).toContainText(/Matches in bars/);
+    expect(await violations(page)).toEqual([]);
+    expect(errors).toEqual([]);
+});
+
+test("comparing: a bar of the version is carried into the notes, undone, redone and returned from the journal", async ({ page }) => {
+    const errors = [];
+    page.on("pageerror", error => errors.push(String(error)));
+    const offer = await scoreWithCover(page);
+    await offer.getByRole("button", { name: "Compare" }).click();
+
+    // The pill holds a chip per source; the version is on the page.
+    const pill = page.locator(".assembly-pill");
+    await expect(pill.getByRole("radio")).toHaveText([/Notes/, /fur-elise-cover/]);
+    await expect(pill.getByRole("radio", { name: /fur-elise-cover/ })).toHaveAttribute("aria-checked", "true");
+    await expect(page.locator(".bar .shown-label")).toContainText("fur-elise-cover");
+
+    // A bar of the version selected: the card says what it holds and where it is like the notes. The cover numbers its
+    // bars from its first note, so the notes' bar 5 is its bar 6.
+    await tapBar(page, 5);
+    const card = page.locator(".assembly-card");
+    await expect(card).toContainText("bar 6 fur-elise-cover");
+    await expect(card.locator(".similar")).toContainText("Like bar 5 of your notes");
+    expect(await violations(page)).toEqual([]);
+
+    // The carry sheet says what the carry will do in six lines, and the ghost is on the page.
+    await card.getByRole("button", { name: "Into the notes…" }).click();
+    const sheet = page.locator(".carry-sheet");
+    await expect(sheet.getByRole("heading")).toContainText("from fur-elise-cover");
+    await expect(sheet.locator(".sheet-line")).toHaveCount(6);
+    await expect(sheet.getByRole("radio", { name: /replace .* bar 5/ })).toHaveAttribute("aria-checked", "true");
+    await expect(page.locator(".score .assembly-ghost")).toHaveCount(1);
+    await expect(page.locator(".bar .shown-label")).toContainText("Notes · ghost");
+    expect(await violations(page)).toEqual([]);
+    await sheet.getByRole("button", { name: "Carry" }).click();
+    await expect(sheet).toHaveCount(0);
+    await expect(page.locator(".merge-toast")).toContainText("Carry No. 1");
+    await expect(page.locator(".bar .shown-label")).toContainText("Notes");
+    await expect(page.locator(".score g.note.version-added")).toHaveCount(0);
+
+    // Origin draws a line in the version's colour under what came from it.
+    await page.locator(".bar").getByRole("button", { name: "Origin" }).click();
+    await expect(page.locator(".score .origin-line.tone-plum").first()).toBeVisible();
+
+    // ⌘Z and ⇧⌘Z step through the journal.
+    const journalButton = page.locator(".bar").getByRole("button", { name: "Journal" });
+    await page.keyboard.press("Control+z");
+    await expect(page.locator(".score .origin-line")).toHaveCount(0);
+    await page.keyboard.press("Control+Shift+z");
+    await expect(page.locator(".score .origin-line").first()).toBeVisible();
+
+    // The journal lists the carry; returning it shows first what goes with it.
+    await journalButton.click();
+    const journal = page.locator(".journal-sheet");
+    await expect(journal.locator(".journal-row")).toHaveCount(1);
+    await expect(journal.locator(".journal-row")).toContainText("No. 1 · ");
+    await journal.getByRole("button", { name: "Return what was" }).click();
+    await expect(journal.getByRole("heading")).toHaveText("Return what was: carry No. 1");
+    await expect(journal.locator(".journal-row.going")).toHaveCount(1);
+    expect(await violations(page)).toEqual([]);
+    await journal.getByRole("button", { name: "Return No. 1" }).click();
+    await expect(page.locator(".score .origin-line")).toHaveCount(0);
+    await expect(page.locator(".bar").getByRole("button", { name: /Make it the notes/ })).toHaveCount(0);
+
+    // Done folds the comparison away; nothing in the piece changed.
+    await page.locator(".bar").getByRole("button", { name: "Done" }).click();
+    await expect(page.locator(".assembly-pill")).toHaveCount(0);
+    await expect(page.locator(".versions-label")).toHaveText("+1 version");
+    expect(errors).toEqual([]);
+});
+
+test("only «Make it the notes» changes the piece; it is undone, and the notes before stay a source", async ({ page }) => {
+    const errors = [];
+    page.on("pageerror", error => errors.push(String(error)));
+    const offer = await scoreWithCover(page);
+    await offer.getByRole("button", { name: "Compare" }).click();
+    await tapBar(page, 5);
+    await page.locator(".assembly-card").getByRole("button", { name: "Into the notes…" }).click();
+    await page.locator(".carry-sheet").getByRole("button", { name: "Carry" }).click();
+    await expect(page.locator(".versions-label")).toHaveCount(0);
+
+    await page.locator(".bar").getByRole("button", { name: /Make it the notes/ }).click();
+    const dialog = page.getByRole("dialog", { name: /Changes: bar 5/ });
+    await expect(dialog.locator(".sheet-line.same")).toContainText("Bar 5 · from fur-elise-cover");
+    expect(await violations(page)).toEqual([]);
+
+    // Undone from the toast, the piece is as it was.
+    await dialog.getByRole("button", { name: "Make it the notes" }).click();
+    const toast = page.locator(".merge-toast");
+    await expect(toast).toContainText("The notes are updated · 1 place");
+    await expect(page.locator(".assembly-pill")).toHaveCount(0);
+    await toast.getByRole("button", { name: "Undo" }).click();
+    await expect(page.locator(".versions-label")).toHaveText("+1 version · 1 carry");
+
+    // Applied again, it stays after a reload: the notes before the assembly are a source of their own.
+    await page.locator(".versions-label").click();
+    const sheet = page.locator(".perf-sheet");
+    await sheet.locator(".source-card").first().getByRole("button", { name: "Open the assembly" }).click();
+    await page.locator(".bar").getByRole("button", { name: /Make it the notes/ }).click();
+    await page.getByRole("dialog", { name: /Changes:/ }).getByRole("button", { name: "Make it the notes" }).click();
+    await expect(page.locator(".merge-toast")).toContainText("The notes are updated");
+    await page.reload();
+    await page.locator(".versions-label").click();
+    await expect(sheet.locator(".source-card")).toHaveCount(3);
+    await expect(sheet.locator(".source-card").nth(1)).toContainText("Notes before the assembly");
+    await expect(sheet.locator(".check-head .caption")).toContainText("The notes were updated from the assembly");
+    expect(errors).toEqual([]);
+});
+
+test("a marker leads into the comparison at its bar, and the version can be removed and put back", async ({ page }) => {
+    const errors = [];
+    page.on("pageerror", error => errors.push(String(error)));
+    const offer = await scoreWithCover(page);
+    await offer.getByRole("button", { name: "Later" }).click();
 
     // Nothing of the version is drawn over the notes until Extra information is on.
     const markers = page.locator(".score button.perf-marker");
     await expect(markers).toHaveCount(0);
-    await expect(page.locator(".score g.note.not-heard")).toHaveCount(0);
     const extra = page.locator(".bar").getByRole("button", { name: "Extra information", exact: true });
-    await expect(extra).toHaveAttribute("aria-pressed", "false");
     await extra.click();
     await expect(markers).toHaveText(["+3 · added notes", "−3 · simplified"]);
     await expect(markers.nth(1)).toHaveAccessibleName("Bar 7 in fur-elise-cover: −3 · simplified");
@@ -85,115 +223,26 @@ test("a version opens its page, the score stays clean, and its markers show only
     await expect(markers).toHaveCount(2);
     await closePopover(page);
 
-    // A marker tells how the bar differs and leads into the draft; nothing is taken from the score itself.
     await markers.nth(1).click();
     const pop = page.getByRole("dialog", { name: "Bar 7 · differs from «fur-elise-cover»" });
     await expect(pop).toContainText("−3 · simplified");
-    await expect(pop.getByRole("button", { name: "As in the version" })).toBeVisible();
     expect(await violations(page)).toEqual([]);
-    await pop.getByRole("button", { name: "Open in the draft" }).click();
-    const draft = drawer.getByRole("region", { name: "Merge draft" });
-    await expect(draft.locator(".merge-step")).toContainText("Bar 7");
-    await expect(draft).toContainText("Decided 0 of 2");
-    expect(errors).toEqual([]);
-});
+    await pop.getByRole("button", { name: "Compare" }).click();
+    await expect(page.locator(".assembly-pill")).toBeVisible();
+    // The cover numbers its bars from its first note, so the notes' bar 7 is its bar 8.
+    await expect(page.locator(".assembly-card")).toContainText("bar 8 fur-elise-cover");
+    await expect(page.locator(".assembly-card .similar")).toContainText("Like bar 7 of your notes");
+    await page.locator(".bar").getByRole("button", { name: "Done" }).click();
 
-test("the draft changes nothing until applied, every step is undone and redone, and the merge is undone after", async ({ page }) => {
-    const errors = [];
-    page.on("pageerror", error => errors.push(String(error)));
-    const drawer = await scoreWithCover(page);
-    await drawer.getByRole("button", { name: "Keep my notes" }).click();
-    const draft = drawer.getByRole("region", { name: "Merge draft" });
-    await expect(draft).toContainText("0 bars will change after Apply");
-    await expect(draft.locator(".merge-step")).toContainText("Bar 5");
-
-    // Bar 5 from the version: the result shows its three added notes in plum, the score is as before.
-    await draft.getByRole("button", { name: "Take from the version" }).click();
-    await expect(draft).toContainText("1 bar will change after Apply");
-    await expect(draft.locator(".merge-state")).toHaveText("Now: from the version");
-    const show = page.getByRole("group", { name: "Show:" });
-    await expect(show.getByRole("button", { name: "Result", exact: true })).toHaveAttribute("aria-pressed", "true");
-    await expect(page.locator(".score g.note.version-added")).toHaveCount(3);
-    await show.getByRole("button", { name: "Mine", exact: true }).click();
-    await expect(page.locator(".score g.note.version-added")).toHaveCount(0);
-    await show.getByRole("button", { name: "Result", exact: true }).click();
-    expect(await violations(page)).toEqual([]);
-
-    // Bar 7 too, then undone, redone, and the draft reset and the reset undone.
-    await draft.getByRole("button", { name: "Next change" }).click();
-    await expect(draft.locator(".merge-step")).toContainText("Bar 7");
-    await draft.getByRole("button", { name: "Take from the version" }).click();
-    await expect(draft).toContainText("2 bars will change after Apply");
-    await draft.getByRole("button", { name: "Undo" }).click();
-    await expect(draft).toContainText("1 bar will change after Apply");
-    await draft.getByRole("button", { name: "Redo" }).click();
-    await expect(draft).toContainText("2 bars will change after Apply");
-    await draft.getByRole("button", { name: "Reset the draft" }).click();
-    await expect(draft).toContainText("0 bars will change after Apply");
-    await draft.getByRole("button", { name: "Undo" }).click();
-    await expect(draft).toContainText("2 bars will change after Apply");
-
-    // Applied: the page says what was merged, and so it stays after a reload, a thin line under the bars taken when asked.
-    await draft.getByRole("button", { name: "Apply" }).click();
-    await expect(page.locator(".merge-toast")).toContainText("Merge applied: 2 bars from the version");
-    await expect(drawer.locator(".merge-applied")).toContainText(/Merge applied \d\d:\d\d · 2 bars/);
-    await page.reload();
-    await page.locator(".bar").getByRole("button", { name: "Extra information", exact: true }).click();
-    await expect(page.locator(".score .taken-bar")).toHaveCount(2);
-    await expect(page.locator(".score button.perf-marker")).toHaveCount(0);
-
-    // Undo the merge: the notes are back, the choices kept to open again.
-    await (await openMore(page)).getByRole("button", { name: "Sources" }).click();
-    await drawer.getByRole("button", { name: /fur-elise-cover/ }).click();
-    await drawer.getByRole("button", { name: "Undo the merge" }).click();
-    await expect(page.locator(".merge-toast")).toContainText("Merge undone: your notes are back. The choices are kept.");
-    await expect(page.locator(".score .taken-bar")).toHaveCount(0);
-    await expect(page.locator(".score button.perf-marker")).toHaveCount(2);
-    await drawer.getByRole("button", { name: "Open the draft again" }).click();
-    await expect(draft).toContainText("Decided 2 of 2");
-    await draft.getByRole("button", { name: "Cancel" }).click();
-
-    // Removed, and put back from its toast.
-    await drawer.getByRole("button", { name: "Remove the version from the piece…" }).click();
+    // Removed from its card in Sources, and put back from the toast.
+    await page.locator(".versions-label").click();
+    const sheet = page.locator(".perf-sheet");
+    await sheet.locator(".source-card").nth(1).getByRole("button", { name: "More" }).click();
+    await sheet.getByRole("button", { name: "Remove the version from the piece…" }).click();
     await expect(page.locator(".merge-toast")).toContainText("Version «fur-elise-cover» removed");
-    await expect(page.locator(".score button.perf-marker")).toHaveCount(0);
+    await expect(page.locator(".versions-label")).toHaveCount(0);
     await page.locator(".merge-toast").getByRole("button", { name: "Undo" }).click();
-    await expect(page.locator(".score button.perf-marker")).toHaveCount(2);
-    expect(errors).toEqual([]);
-});
-
-test("Compare versions shows mine, the version and the result for a change, taken by key or by group", async ({ page }) => {
-    const errors = [];
-    page.on("pageerror", error => errors.push(String(error)));
-    const drawer = await scoreWithCover(page);
-    await drawer.getByRole("button", { name: /Compare versions/ }).click();
-    const window = page.getByRole("dialog", { name: "Compare versions" });
-    await expect(window.locator(".merge-view")).toHaveCount(3);
-    await expect(window.locator(".merge-view.version .phrase-card-score g.note")).not.toHaveCount(0);
-    await expect(window.locator(".merge-step")).toContainText("Bar 5");
-    expect(await violations(page)).toEqual([]);
-
-    // V takes the bar from the version, → goes to the next, M keeps mine there.
-    await window.press("v");
-    await expect(window.locator(".merge-state")).toHaveText("Now: from the version");
-    await window.press("ArrowRight");
-    await expect(window.locator(".merge-step")).toContainText("Bar 7");
-    await window.press("m");
-    await expect(window.locator(".merge-state")).toHaveText("Now: mine");
-    await expect(window).toContainText("Decided 2 of 2");
-    await window.getByRole("button", { name: "Reset the bar" }).click();
-    await expect(window).toContainText("Decided 1 of 2");
-
-    // A group at once, then what is shown and the size of the notes.
-    await window.getByRole("button", { name: "Take the version for the whole group" }).first().click();
-    await window.getByRole("radio", { name: "the whole phrase" }).click();
-    await expect(window.getByRole("radio", { name: "the whole phrase" })).toHaveAttribute("aria-checked", "true");
-    await window.getByRole("button", { name: "Larger notes" }).click();
-    await expect(window.getByRole("group", { name: "Note size" })).toContainText("110 %");
-
-    await window.getByRole("button", { name: "Apply", exact: true }).click();
-    await expect(window).toHaveCount(0);
-    await expect(drawer.locator(".merge-applied")).toBeVisible();
+    await expect(page.locator(".versions-label")).toHaveText("+1 version");
     expect(errors).toEqual([]);
 });
 
@@ -205,22 +254,20 @@ test("the official score in MusicXML is added over notes from a performance", as
     await page.getByLabel("Choose a MIDI, MusicXML or PDF file").setInputFiles(cover);
     await expect(page).toHaveURL(/\/playback\?project=p_[0-9a-f]+/);
 
-    await (await openMore(page)).getByRole("button", { name: "Sources" }).click();
-    const drawer = page.locator(".perf-sheet");
-    await drawer.getByRole("button", { name: "Add a source" }).click();
-    await drawer.getByLabel("Add a MIDI or MusicXML file").setInputFiles(score);
-    await expect(drawer.getByRole("status")).toContainText("Lined up:");
+    await (await openMore(page)).getByLabel(/Add another version/).setInputFiles(score);
+    await page.locator(".assembly-offer").getByRole("button", { name: "Later" }).click();
     // The mirror of the first test: what the cover added is now left out of the score, and the left hand it left out is added.
     await page.locator(".bar").getByRole("button", { name: "Extra information", exact: true }).click();
     await expect(page.locator(".score button.perf-marker")).toHaveText(["−3 · simplified", "+3 · added notes"]);
-    await expect(drawer.getByLabel("Name")).toHaveValue("fur-elise-original");
+    await page.locator(".versions-label").click();
+    await expect(page.locator(".perf-sheet .source-card").nth(1)).toContainText("fur-elise-original");
     expect(errors).toEqual([]);
 });
 
-test("in focus, the other version stands above the phrase, is heard, and opens in the draft", async ({ page }) => {
+test("in focus, the other version stands above the phrase, is heard, and leads into the comparison", async ({ page }) => {
     const errors = [];
     page.on("pageerror", error => errors.push(String(error)));
-    const drawer = await scoreWithCover(page);
+    await (await scoreWithCover(page)).getByRole("button", { name: "Later" }).click();
     await page.locator(".bar").getByRole("button", { name: "Extra information", exact: true }).click();
     const markers = page.locator(".score button.perf-marker");
 
@@ -239,9 +286,10 @@ test("in focus, the other version stands above the phrase, is heard, and opens i
         await expect(listen.getByRole("radio", { name: choice })).toHaveAttribute("aria-checked", "true");
     }
     expect(await violations(page)).toEqual([]);
-    await focusBar.getByRole("button", { name: "Open in the draft" }).click();
+    await focusBar.getByRole("button", { name: "Compare" }).click();
     await expect(page.locator(".bar.focus-bar")).toHaveCount(0);
-    await expect(drawer.getByRole("region", { name: "Merge draft" }).locator(".merge-step")).toContainText("Bar 5");
+    await expect(page.locator(".assembly-pill")).toBeVisible();
+    await expect(page.locator(".assembly-card")).toContainText("fur-elise-cover");
     expect(errors).toEqual([]);
 });
 
@@ -277,47 +325,25 @@ test("a recording is added as another version: its sound is heard on the scan se
 
     await fromRecording.getByLabel("Choose an audio or video recording to add as a version").setInputFiles(await recording());
     // The whole piece was played: its opening, all that is printed here, agrees note for note.
-    await expect(drawer.getByRole("status").first()).toHaveText("Lined up: 53 of 53 notes found in the version, 0 bars differ.");
+    await expect(page.locator(".assembly-offer")).toContainText("Matches in bars");
     expect(uploads).toHaveLength(1);
     // Only the sound went, not the file under its name.
     expect(uploads[0].includes(Buffer.from("Take 1"))).toBe(false);
-    await expect(drawer.getByLabel("Name")).toHaveValue("Take 1 at the piano");
-    await expect(drawer.locator(".merge-verdict")).toHaveText("Take 1 at the piano plays every bar as your notes have it.");
+    await expect(page.locator(".assembly-offer").getByRole("heading")).toContainText("Take 1 at the piano added");
     expect(errors).toEqual([]);
 });
 
-test("the Sources sheet names the base, takes the version at once when asked and keeps a PDF inside the piece", async ({ page }) => {
+test("the Sources sheet keeps a PDF inside the piece and opens it", async ({ page }) => {
     const errors = [];
     page.on("pageerror", error => errors.push(String(error)));
-    await page.goto("/");
-    await page.getByRole("button", { name: "Add piece" }).click();
-    await page.getByLabel("Choose a MIDI, MusicXML or PDF file").setInputFiles(score);
-    await expect(page).toHaveURL(/\/playback\?project=p_[0-9a-f]+/);
+    await openScore(page);
     await (await openMore(page)).getByRole("button", { name: "Sources" }).click();
     const drawer = page.locator(".perf-sheet");
-    await expect(drawer.getByRole("heading", { name: "My version" })).toBeVisible();
-    await expect(drawer.locator(".sources-summary")).toHaveText("Base: the notes of the file");
-
-    await drawer.getByRole("button", { name: "Add a source" }).click();
-    await drawer.getByLabel("Add a MIDI or MusicXML file").setInputFiles(cover);
-    await expect(drawer.getByRole("status")).toContainText("Lined up:");
-
-    // Apply at once, without a draft: the bars come in, and the toast undoes it.
-    await drawer.getByRole("checkbox", { name: "Apply at once, without a draft" }).check();
-    await drawer.getByRole("button", { name: /Take the version wherever it differs/ }).click();
-    await expect(drawer.getByRole("region", { name: "Merge draft" })).toHaveCount(0);
-    await expect(drawer.locator(".merge-applied")).toContainText("· 2 bars");
-    await page.locator(".merge-toast").getByRole("button", { name: "Undo" }).click();
-    await expect(drawer.locator(".merge-applied")).toHaveCount(0);
-
-    await drawer.getByRole("button", { name: "Back to Sources" }).click();
-    await expect(drawer.getByRole("button", { name: /fur-elise-cover/ })).toContainText("Performance");
-
-    // A PDF kept inside the piece: its row opens the "PDF" view of this same piece.
+    await expect(drawer.locator(".source-card")).toHaveCount(1);
     await drawer.getByRole("button", { name: "Add a source" }).click();
     await drawer.getByLabel("Add a PDF").setInputFiles({ name: "Für Elise.pdf", mimeType: "application/pdf", buffer: pdf(2) });
     await expect(drawer.getByRole("status")).toHaveText("The PDF is kept in the piece.");
-    await expect(drawer.locator(".source-row", { hasText: "PDF kept in the piece" })).toBeVisible();
+    await expect(drawer.locator(".source-card", { hasText: "PDF kept in the piece" })).toBeVisible();
     const url = page.url();
     await drawer.getByRole("button", { name: "Open PDF" }).click();
     await expect(page).toHaveURL(new RegExp(`/pdf\\?project=${new URL(url).searchParams.get("project")}&page=1`));

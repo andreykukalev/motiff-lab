@@ -113,10 +113,10 @@ test("Add a version on a PDF reads its notes first, then opens Sources on the sa
     expect(new URL(page.url()).searchParams.get("project")).toBe(pdfId);
     const drawer = page.locator(".perf-sheet");
     await expect(drawer).toBeVisible();
-    await expect(drawer.locator(".sources-summary")).toHaveText("Base: the notes read from the PDF");
+    await expect(drawer.locator(".source-card").first()).toContainText("Notes");
     await drawer.getByRole("button", { name: "Add a source" }).click();
     await drawer.getByLabel("Add a MIDI or MusicXML file").setInputFiles(cover);
-    await expect(drawer.getByRole("status")).toContainText("Lined up:");
+    await expect(page.locator(".assembly-offer")).toContainText("Matches in bars");
     expect(await violations(page)).toEqual([]);
     expect(errors).toEqual([]);
 });

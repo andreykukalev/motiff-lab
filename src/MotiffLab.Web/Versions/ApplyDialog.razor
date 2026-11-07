@@ -1,0 +1,52 @@
+@using MotiffLab.MusicCore.Assembly
+@inject MotiffLab.Web.Localization.UiText Text
+
+@* «Сделать нотами» (0024, section 7; mockup 09): the one action that changes the piece's notes, with what will change, bar by
+   bar and from where, before it is pressed. The notes before stay as «Ноты до сборки». *@
+<div class="ask-pop-backdrop apply-backdrop" @onclick="Cancel"></div>
+<section class="apply-dialog" role="dialog" aria-modal="true" aria-labelledby="apply-title" data-keeps-selection>
+    <p class="overline">@Text["assembly.apply"]</p>
+    <h2 id="apply-title">@Text.Format("assembly.applyTitle", Bars)</h2>
+    <p class="caption">@Text[First ? "assembly.applyFirst" : "assembly.applyAgain"]</p>
+    <ul class="sheet-lines">
+        @foreach (JournalLine line in Lines)
+        {
+            <li class="sheet-line same">
+                <span class="mark">✓</span>
+                <div><strong>@line.Label</strong> · @line.Text</div>
+            </li>
+        }
+        <li class="sheet-line choice">
+            <span class="mark">?</span>
+            <div>@Text["assembly.applyMarks"]</div>
+        </li>
+    </ul>
+    <footer class="carry-foot">
+        <button class="btn quiet" @onclick="Hear"><Icon Name="play" /> @Text["assembly.hearNotes"]</button>
+        <span class="sp"></span>
+        <button class="btn quiet" @onclick="Cancel">@Text["assembly.cancel"]</button>
+        <button class="btn primary" @onclick="Apply" disabled="@(Lines.Count == 0)"><Icon Name="check" /> @Text["assembly.apply"]</button>
+    </footer>
+</section>
+
+@code {
+    /// <summary>«такты 9–10, 15–16».</summary>
+    [Parameter, EditorRequired]
+    public string Bars { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<JournalLine> Lines { get; set; } = [];
+
+    /// <summary>Whether this is the first apply: the notes before are kept from it.</summary>
+    [Parameter]
+    public bool First { get; set; } = true;
+
+    [Parameter]
+    public EventCallback Hear { get; set; }
+
+    [Parameter]
+    public EventCallback Cancel { get; set; }
+
+    [Parameter]
+    public EventCallback Apply { get; set; }
+}

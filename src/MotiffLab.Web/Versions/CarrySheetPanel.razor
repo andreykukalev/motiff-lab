@@ -1,0 +1,106 @@
+@using MotiffLab.MusicCore.Assembly
+@inject MotiffLab.Web.Localization.UiText Text
+
+@* The carry sheet (0024, section 5; mockup 05): what the carry will do, before it is done, in the same six lines every time:
+   ? a choice, ! the music around changes, ✓ nothing changes. The choices sit in their lines as chips; the ghost is on the page. *@
+<aside class="sheet inspector carry-sheet" aria-labelledby="carry-title" data-keeps-selection data-menu-clear="auto">
+    <header class="check-head">
+        <div>
+            <p class="overline">@Text.Format("assembly.sheetOverline", Number)</p>
+            <h2 id="carry-title"><span class="dot tone-@Tone" aria-hidden="true"></span> @Sheet.Title</h2>
+            <p class="caption">@Sheet.Route · @Text["assembly.ghostShown"]</p>
+        </div>
+        <button class="btn icon" aria-label="@Text["assembly.cancel"]" title="@Text["assembly.cancel"]" @onclick="Cancel"><Icon Name="close" /></button>
+    </header>
+    <ul class="sheet-lines" aria-label="@Text["assembly.sheetLines"]">
+        @foreach (SheetLine line in Sheet.Lines)
+        {
+            <li class="sheet-line @Mark(line.Mark)">
+                <span class="mark" aria-label="@Text[$"assembly.mark.{Mark(line.Mark)}"]">@Glyph(line.Mark)</span>
+                <div>
+                    @if (line.Name == "where")
+                    {
+                        <strong>@line.Label:</strong>
+                        <span class="choices" role="radiogroup" aria-label="@line.Label">
+                            @if (Sheet.ReplaceText is { } replace)
+                            {
+                                <button class="chip @(Insert ? null : "on")" role="radio" aria-checked="@(Insert ? "false" : "true")" @onclick="() => ChooseInsert.InvokeAsync(false)">@replace</button>
+                            }
+                            <button class="chip @(Insert || Sheet.ReplaceText is null ? "on" : null)" role="radio" aria-checked="@(Insert || Sheet.ReplaceText is null ? "true" : "false")"
+                                    @onclick="() => ChooseInsert.InvokeAsync(true)">@Sheet.InsertText</button>
+                        </span>
+                    }
+                    else
+                    {
+                        <strong>@($"{line.Label}: ")</strong>@line.Text
+                        @if (line.Name == "key" && Sheet.KeyText is { } transposed)
+                        {
+                            <span class="choices" role="radiogroup" aria-label="@line.Label">
+                                <button class="chip @(Transpose == 0 ? "on" : null)" role="radio" aria-checked="@(Transpose == 0 ? "true" : "false")" @onclick="() => ChooseTranspose.InvokeAsync(0)">@Text["assembly.asIs"]</button>
+                                <button class="chip @(Transpose != 0 ? "on" : null)" role="radio" aria-checked="@(Transpose != 0 ? "true" : "false")"
+                                        @onclick="() => ChooseTranspose.InvokeAsync(Sheet.SuggestedTranspose)">@transposed</button>
+                            </span>
+                        }
+                    }
+                </div>
+            </li>
+        }
+    </ul>
+    <footer class="carry-foot">
+        <button class="btn quiet" @onclick="Hear"><Icon Name="@(Hearing ? "pause" : "play")" /> @Text["assembly.hearGhost"]</button>
+        <span class="sp"></span>
+        <button class="btn quiet" @onclick="Cancel">@Text["assembly.cancel"]</button>
+        <button class="btn primary" @onclick="Carry"><Icon Name="check" /> @Text["assembly.carry"]</button>
+    </footer>
+</aside>
+
+@code {
+    [Parameter, EditorRequired]
+    public CarrySheet Sheet { get; set; } = default!;
+
+    /// <summary>The number the carry will take in the journal.</summary>
+    [Parameter]
+    public int Number { get; set; }
+
+    [Parameter]
+    public string Tone { get; set; } = "plum";
+
+    [Parameter]
+    public bool Insert { get; set; }
+
+    [Parameter]
+    public int Transpose { get; set; }
+
+    [Parameter]
+    public bool Hearing { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> ChooseInsert { get; set; }
+
+    [Parameter]
+    public EventCallback<int> ChooseTranspose { get; set; }
+
+    [Parameter]
+    public EventCallback Hear { get; set; }
+
+    [Parameter]
+    public EventCallback Cancel { get; set; }
+
+    [Parameter]
+    public EventCallback Carry { get; set; }
+
+    /// <summary>The class and the screen reader's word for a line's mark.</summary>
+    public static string Mark(SheetMark mark) => mark switch
+    {
+        SheetMark.Choice => "choice",
+        SheetMark.Changes => "changes",
+        _ => "same",
+    };
+
+    public static string Glyph(SheetMark mark) => mark switch
+    {
+        SheetMark.Choice => "?",
+        SheetMark.Changes => "!",
+        _ => "✓",
+    };
+}
