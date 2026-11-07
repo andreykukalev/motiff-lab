@@ -81,15 +81,19 @@ final class FacadeTests: XCTestCase {
         XCTAssertGreaterThan(understanding.facts.count, 10)
         XCTAssertTrue(understanding.facts.allSatisfy { Understanding.lenses.contains($0.lens) }, "every fact has a lens the stream groups")
         XCTAssertEqual(Set(understanding.facts.map(\.id)).count, understanding.facts.count, "each fact is listed once")
-        let key = try XCTUnwrap(understanding.key, "music-core names the one to hear first")
-        XCTAssertFalse(key.places.isEmpty)
-        XCTAssertFalse(understanding.keyReason?.isEmpty ?? true)
+        // Main (testing item 14): the harmonic motion first, then the texture, at most three.
+        let main = understanding.mainFacts
+        XCTAssertEqual(main.first?.id, "harmony.motion")
+        XCTAssertEqual(main.dropFirst().first?.id, "character.texture")
+        XCTAssertLessThanOrEqual(main.count, 3)
+        XCTAssertTrue(main.allSatisfy { !$0.places.isEmpty })
+        XCTAssertTrue(Understanding.lenses.allSatisfy { understanding.facts(of: $0).allSatisfy { !main.contains($0) } }, "a fact under Main is not repeated under Details")
         XCTAssertTrue(understanding.facts.contains { !$0.tries.isEmpty }, "some facts offer a way to try")
 
         // The stream's words are the web app's, in both languages.
         for language in ["en", "ru"] {
             let text = UIText(language: language)
-            for key in Understanding.lenses.map({ "term.lens.\($0)" }) + ["term.certainty.detected", "term.certainty.inferred", "insights.evidence", "insights.all", "insights.more", "insights.fewer", "understand.keyObservation"] {
+            for key in Understanding.lenses.map({ "term.lens.\($0)" }) + ["term.certainty.detected", "term.certainty.inferred", "insights.evidence", "insights.all", "insights.main", "insights.details"] {
                 XCTAssertNotEqual(text[key], key, "\(language): \(key)")
             }
         }

@@ -90,9 +90,17 @@ export async function openInsights(page) {
     return stream(page);
 }
 
-/** The Insights stream (0018 section 6): facts by lens, their Try chips, the experiment tried and Adjust. */
+/** The Insights stream (0018 section 6): Main, then the facts by lens under Details, their Try chips, the experiment tried and Adjust. */
 export function stream(page) {
     return page.locator(".sheet.insights .stream");
+}
+
+/** Opens every folded lens under Details (testing item 14), so each fact row is in view. */
+export async function openLenses(page) {
+    const closed = stream(page).locator('.lens-toggle[aria-expanded="false"]');
+    while ((await closed.count()) > 0) {
+        await closed.first().click();
+    }
 }
 
 /**
@@ -102,8 +110,8 @@ export function stream(page) {
 export async function tryWay(page, name) {
     const ways = stream(page).locator(".try-row").getByRole("button", { name, exact: true });
     const closed = stream(page).locator('.try-row .btn.try[aria-expanded="false"]');
-    // A lens shows its strongest facts and "N more"; a way may rest on one of the rest.
-    const more = stream(page).locator('.lens-more[aria-expanded="false"]');
+    // Details folds each lens; a way may rest on a fact in one of them.
+    const more = stream(page).locator('.lens-toggle[aria-expanded="false"]');
     while ((await ways.count()) === 0 && ((await closed.count()) > 0 || (await more.count()) > 0)) {
         await ((await closed.count()) > 0 ? closed : more).first().click();
     }

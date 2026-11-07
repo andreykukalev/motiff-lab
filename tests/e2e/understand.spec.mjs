@@ -2,7 +2,7 @@
 // for the selection, grouped by lens and narrowed by filter chips, a fact chosen and its places ringed in the score, one
 // place at a time, a fact's Try button opening its ways, and the variation followed back to its fact.
 import { expect, test } from "@playwright/test";
-import { openFurElise, selectBar, openInsights } from "./steps.mjs";
+import { openFurElise, selectBar, openInsights, openLenses } from "./steps.mjs";
 
 test("understand a phrase: highlight a fact's places, try a way and come back", async ({ page }) => {
     const errors = await openFurElise(page);
@@ -10,21 +10,24 @@ test("understand a phrase: highlight a fact's places, try a way and come back", 
     const stream = await openInsights(page);
     const highlighted = page.locator(".score .highlight");
 
-    // The stream opens on the one observation to hear first (#132), then every fact by lens.
-    await expect(stream.locator(".lens-group.key .certainty")).toHaveCount(1);
-    await expect(stream.locator(".lens-group").nth(1)).toBeVisible();
-
-    // Short statements (assessment items 16–20): a lens shows its strongest facts, the rest under "N more"; a fact that
-    // lists what it counts keeps the listing in its Evidence.
+    // The stream opens on Main (testing item 14): the harmonic motion first, then the texture, then the strongest of the
+    // rest; every other fact under Details, folded by lens with its count, a tap opening it.
+    const main = stream.locator(".lens-group.main");
+    await expect(main.getByRole("heading", { name: "Main" })).toBeVisible();
+    // Bar 1 is the upbeat, one line: no harmonic motion, and the texture says so (the sentence spec reads the motion).
+    await expect(main.locator("article.fact-row").first()).toContainText("One line with no accompaniment.");
+    expect(await main.locator("article.fact-row").count()).toBeLessThanOrEqual(3);
+    await expect(stream.getByRole("heading", { name: "Details" })).toBeVisible();
     const rhythm = stream.locator(".lens-group").filter({ has: page.getByRole("heading", { name: /^Rhythm · / }) });
-    const rhythmFacts = rhythm.locator("article.fact-row");
-    if ((await rhythm.locator(".lens-more").count()) > 0) {
-        await expect(rhythmFacts).toHaveCount(3);
-        await rhythm.locator(".lens-more").click();
-        expect(await rhythmFacts.count()).toBeGreaterThan(3);
-        await rhythm.getByRole("button", { name: "Show fewer" }).click();
-        await expect(rhythmFacts).toHaveCount(3);
-    }
+    const toggle = rhythm.locator(".lens-toggle");
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await expect(rhythm.locator("article.fact-row")).toHaveCount(0);
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(await rhythm.locator("article.fact-row").count()).toBeGreaterThan(0);
+    await toggle.click();
+    await expect(rhythm.locator("article.fact-row")).toHaveCount(0);
+    await openLenses(page);
 
     // Every fact keeps its certainty and Evidence; the motif's return is a structure fact, inferred.
     const fact = stream.getByRole("button", { name: /The motif recurs 11 times/ });
@@ -86,6 +89,9 @@ test("the facts read in Russian when the app is in Russian (#134)", async ({ pag
     await page.goto("/playback?start=fur-elise");
     await selectBar(page, 1);
     const stream = await openInsights(page);
+    await expect(stream.getByRole("heading", { name: "Главное" })).toBeVisible();
+    await expect(stream.getByRole("heading", { name: "Подробности" })).toBeVisible();
+    await openLenses(page);
 
     await expect(stream.getByRole("group", { name: "Показать факты о" }).getByRole("button", { name: "Ритм", exact: true })).toBeVisible();
     await expect(stream.getByText("Тональность: ля минор.")).toBeVisible();

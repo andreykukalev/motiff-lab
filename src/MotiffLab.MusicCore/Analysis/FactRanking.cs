@@ -59,6 +59,28 @@ public static class FactRanking
         return chosen;
     }
 
+    /// <summary>The facts the Insights stream leads with, in this order, when the selection has them (testing item 14).</summary>
+    private static readonly string[] s_mainFirst = ["harmony.motion", "character.texture"];
+
+    /// <summary>
+    /// What the Insights stream shows first, under "Main" (testing item 14): the harmonic motion and what it gives, then
+    /// the texture, then the strongest of the rest (<see cref="Strongest"/>) from lenses not yet shown, up to
+    /// <paramref name="count"/> facts. An interpretation is never among them. Deterministic.
+    /// </summary>
+    public static IReadOnlyList<MotifFact> Main(IReadOnlyList<MotifFact> facts, int count = 3)
+    {
+        ArgumentNullException.ThrowIfNull(facts);
+        ArgumentOutOfRangeException.ThrowIfNegative(count);
+        List<MotifFact> chosen = [.. s_mainFirst
+            .Select(id => facts.FirstOrDefault(fact => fact.Id == id && fact.Certainty != FactCertainty.Interpretation))
+            .OfType<MotifFact>()
+            .Take(count)];
+        var lenses = chosen.Select(static fact => fact.Lens).ToHashSet();
+        MotifFact[] rest = [.. facts.Where(fact => !chosen.Contains(fact) && !lenses.Contains(fact.Lens) && fact.Places.Count > 0)];
+        chosen.AddRange(Strongest(rest, count - chosen.Count));
+        return chosen;
+    }
+
     /// <summary>
     /// Facts in the order the Insights stream lists them under a lens (assessment items 16–20), so its first two or three
     /// are the strongest: those that name places in the score before those that name none, such as "No syncopation";

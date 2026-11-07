@@ -95,6 +95,11 @@ public static partial class MotifAnalyzer
             ArticulationFact(chosen, hits, context.FromNotation, words),
             SyncopationShareFact(chosen, hits, meter, offGrid, words),
         };
+        if (TextureFact(chosen, selection, words) is { } texture)
+        {
+            facts.Insert(0, texture);
+        }
+
         return WithHand(facts, selection, words);
     }
 

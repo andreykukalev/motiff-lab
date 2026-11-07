@@ -2,12 +2,13 @@
 // in the key's row of the Insights stream, it shows the selection's key in cobalt among the twelve places with the
 // passage's chords on their roots; a chord or the notes outside the scale ring on the score, and Hear the scale plays it once.
 import { expect, test } from "@playwright/test";
-import { openFurElise, openInsights, violations } from "./steps.mjs";
+import { openFurElise, openInsights, openLenses, violations } from "./steps.mjs";
 
 test("the key opens the circle of fifths: the chords and the notes outside the scale ring on the score, the scale is heard", async ({ page }) => {
     const errors = await openFurElise(page);
     await page.locator(".score button.bracket[aria-label]").nth(0).click();
     const stream = await openInsights(page);
+    await openLenses(page);
     const row = stream.locator("article.fact-row", { hasText: "Key: A minor." }).first();
 
     await row.getByRole("button", { name: "On the circle" }).click();
@@ -54,6 +55,7 @@ test("in Russian, the circle speaks Russian", async ({ page }) => {
     await openFurElise(page);
     await page.locator(".score button.bracket[aria-label]").nth(0).click();
     const stream = await openInsights(page);
+    await openLenses(page);
     const row = stream.locator("article.fact-row", { hasText: "Тональность: ля минор." }).first();
     await row.getByRole("button", { name: "На круге" }).click();
     const circle = row.locator(".key-circle");
