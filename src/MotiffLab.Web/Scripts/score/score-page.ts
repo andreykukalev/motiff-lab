@@ -2,13 +2,21 @@
 // it, and the PDF's file name. Kept free of the DOM so Node can test it.
 
 /**
- * How Verovio spaces the notes across a bar: closer to the time they take than its defaults (0.25 and 0.6), so a bar of
- * long notes is about as wide as a bar of runs and the playhead moves at an even pace across the page (testing item 35;
- * a 4/4 piece alternating whole notes and semiquavers went from bars up to three times as wide as each other to 1.14).
+ * Even bars (Settings · Notes, score.evenBars, on by default; testing item 35): Verovio spaces the notes closer to the time
+ * they take than its defaults (0.25 and 0.6), so a bar of long notes is about as wide as a bar of runs and the playhead
+ * moves at an even pace (a 4/4 piece alternating whole notes and semiquavers went from bars up to three times as wide as
+ * each other to 1.14). Off, the bars take the room their notes need and more music fits on a page. Added to the layout,
+ * on screen and in the PDF alike; the iPad app's Engraver.evenSpacing is the same.
  */
 export const EVEN_SPACING: Readonly<Record<string, number>> = {
     spacingLinear: 0.08,
     spacingNonLinear: 0.9,
+};
+
+/** Verovio's own spacing, by the notes: given outright when even bars are off, as a toolkit keeps the options it was last set. */
+export const NOTE_SPACING: Readonly<Record<string, number>> = {
+    spacingLinear: 0.25,
+    spacingNonLinear: 0.6,
 };
 
 /**
@@ -30,7 +38,6 @@ export const A4_LAYOUT: Readonly<Record<string, unknown>> = {
     pageMarginBottom: 160,
     spacingSystem: 20,
     spacingStaff: 10,
-    ...EVEN_SPACING,
     adjustPageHeight: false,
     justifyVertically: false,
     breaks: "auto",

@@ -53,18 +53,39 @@ final class Engraver {
     /// tests/web/score-pdf.test.mjs keeps the two equal.
     static let a4Leland = """
     {"font": "Leland", "scale": 50, "pageWidth": 2100, "pageHeight": 2970, "pageMarginLeft": 150, "pageMarginRight": 150,
-     "pageMarginTop": 500, "pageMarginBottom": 160, "spacingSystem": 20, "spacingStaff": 10, "spacingLinear": 0.08,
-     "spacingNonLinear": 0.9, "adjustPageHeight": false,
+     "pageMarginTop": 500, "pageMarginBottom": 160, "spacingSystem": 20, "spacingStaff": 10, "adjustPageHeight": false,
      "justifyVertically": false, "breaks": "auto", "header": "auto", "footer": "none", "svgViewBox": true}
     """
+
+    /// Even bars (Settings · Notes, `score.evenBars`; testing item 35): the bars take room by their length, so the playhead
+    /// keeps one pace; the web app's `EVEN_SPACING` in Scripts/score/score-page.ts, which tests/web/score-pdf.test.mjs keeps equal.
+    static let evenSpacing = """
+    {"spacingLinear": 0.08, "spacingNonLinear": 0.9}
+    """
+
+    /// Verovio's own spacing, by the notes: given outright when even bars are off, as a toolkit keeps the options it was
+    /// last set; the web app's `NOTE_SPACING`.
+    static let noteSpacing = """
+    {"spacingLinear": 0.25, "spacingNonLinear": 0.6}
+    """
+
+    /// The A4 page's options, with even bars or Verovio's own spacing.
+    static func a4(evenBars: Bool) -> String {
+        guard let options = (try? JSONSerialization.jsonObject(with: Data(a4Leland.utf8))) as? [String: Any],
+              let spacing = (try? JSONSerialization.jsonObject(with: Data((evenBars ? evenSpacing : noteSpacing).utf8))) as? [String: Any],
+              let merged = try? JSONSerialization.data(withJSONObject: options.merging(spacing) { _, new in new })
+        else { return a4Leland }
+        return String(decoding: merged, as: UTF8.self)
+    }
 
     /// The pages of a piece's notation as SVG with Verovio's timemap: music-core writes the MEI (`notation`), Verovio
     /// lays it out on A4 pages. Call it through `MusicCore.run`.
     /// With `version`, another version's id, it stands on small staves above every system as the comparison layer (0022,
     /// section 4), its likely artefacts too with `artefacts`.
-    static func engrave(piece: Int32, title: String, version: String? = nil, artefacts: Bool = false) -> Result<Engraving, EngraveError> {
+    /// With `evenBars`, the bars take room by their length (Settings · Notes).
+    static func engrave(piece: Int32, title: String, version: String? = nil, artefacts: Bool = false, evenBars: Bool = false) -> Result<Engraving, EngraveError> {
         let above = version.map { ", \"ossia\": \(jsonString($0)), \"artefacts\": \(artefacts)" } ?? ""
-        return layOut(piece: piece, request: "{\"title\": \(jsonString(title))\(above)}", options: a4Leland)
+        return layOut(piece: piece, request: "{\"title\": \(jsonString(title))\(above)}", options: a4(evenBars: evenBars))
     }
 
     /// The bars of a phrase in focus engraved on their own (0018 section 4): music-core writes the excerpt

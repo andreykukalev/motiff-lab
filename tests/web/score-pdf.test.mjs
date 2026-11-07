@@ -8,7 +8,7 @@ import { inflateSync } from "node:zlib";
 
 import { hasText, num, parseColour, parseSvg, parseTransform, pathOperators, svgToPdfOperators, textOnlySvg } from "../../src/MotiffLab.Web/wwwroot/js/score/svg-to-pdf.js";
 import { A4_HEIGHT, A4_WIDTH, buildPdf, crop, inkBounds, pdfText } from "../../src/MotiffLab.Web/wwwroot/js/score/pdf-document.js";
-import { A4_LAYOUT, A4_PDF_LAYOUT, pdfFileName, withTitle } from "../../src/MotiffLab.Web/wwwroot/js/score/score-page.js";
+import { A4_LAYOUT, A4_PDF_LAYOUT, EVEN_SPACING, NOTE_SPACING, pdfFileName, withTitle } from "../../src/MotiffLab.Web/wwwroot/js/score/score-page.js";
 import createVerovioModule from "../../src/MotiffLab.Web/wwwroot/lib/verovio/verovio-module.mjs";
 import { VerovioToolkit } from "../../src/MotiffLab.Web/wwwroot/lib/verovio/verovio.mjs";
 
@@ -225,9 +225,15 @@ test("the iPad app engraves its A4 pages with the web app's Verovio options", as
     const literal = swift.match(/static let a4Leland = """\n([\s\S]*?)\n\s*"""/);
     assert.ok(literal, "Engraver.a4Leland is a multi-line string literal");
     assert.deepEqual(JSON.parse(literal[1]), { ...A4_LAYOUT });
+    const even = swift.match(/static let evenSpacing = """\n([\s\S]*?)\n\s*"""/);
+    assert.ok(even, "Engraver.evenSpacing is a multi-line string literal");
+    assert.deepEqual(JSON.parse(even[1]), { ...EVEN_SPACING });
+    const byNotes = swift.match(/static let noteSpacing = """\n([\s\S]*?)\n\s*"""/);
+    assert.ok(byNotes, "Engraver.noteSpacing is a multi-line string literal");
+    assert.deepEqual(JSON.parse(byNotes[1]), { ...NOTE_SPACING });
 });
 
-test("a bar of long notes is about as wide as a bar of runs, so the playhead keeps an even pace (testing item 35)", async () => {
+test("with even bars, a bar of long notes is about as wide as a bar of runs, so the playhead keeps one pace (testing item 35)", async () => {
     const engraver = new VerovioToolkit(await createVerovioModule());
     const run = Array.from({ length: 16 }, (_, index) => `<note pname="${"cdefgab"[index % 7]}" oct="5" dur="16"/>`).join("");
     const bars = Array.from({ length: 24 }, (_, bar) =>
@@ -252,8 +258,10 @@ test("a bar of long notes is about as wide as a bar of runs, so the playhead kee
         }
         return worst;
     };
-    const before = widest({ ...A4_LAYOUT, spacingLinear: 0.25, spacingNonLinear: 0.6 });
-    const now = widest(A4_LAYOUT);
+    const before = widest({ ...A4_LAYOUT, ...NOTE_SPACING });
+    const now = widest({ ...A4_LAYOUT, ...EVEN_SPACING });
+    // The toolkit keeps the options it was last set: Verovio's own spacing given outright brings its layout back.
+    assert.equal(widest({ ...A4_LAYOUT, ...NOTE_SPACING }), before);
     assert.ok(before > 1.8, `Verovio's own spacing makes the bars of runs much wider (${before.toFixed(2)})`);
     assert.ok(now < 1.3, `the bars are nearly as wide as each other (${now.toFixed(2)})`);
 });
