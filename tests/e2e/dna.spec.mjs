@@ -7,7 +7,7 @@ import { openFurElise, openMore, selectBar, violations } from "./steps.mjs";
 
 const minuet = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/MusicXml/Fixtures/importer-grand-staff.musicxml", import.meta.url));
 
-test("from the overflow, the map shows where the selection returns, and a mark leads back into the score", async ({ page }) => {
+test("from the overflow, the map reads form, key, harmony, density and ideas, and a mark leads back into the score", async ({ page }) => {
     const errors = await openFurElise(page);
     await selectBar(page, 1);
     const more = await openMore(page);
@@ -16,15 +16,39 @@ test("from the overflow, the map shows where the selection returns, and a mark l
     const dna = page.getByRole("dialog", { name: "Für Elise" });
     await expect(dna).toBeFocused();
     await expect(dna.locator(".dna-bar")).toContainText("Piece DNA");
-    await expect(dna).toContainText("The sections of the whole piece are not analysed yet.");
+
+    // Read top to bottom (testing item 22): the form, the key, the harmony, the density, new material, then the ideas.
+    const rows = await dna.locator(".dna-row").evaluateAll(all => all.map(row => row.className.replace("dna-row", "").trim()));
+    expect(rows.slice(0, 6)).toEqual(["form", "axis", "key", "harmony", "density", "new"]);
+    expect(rows.slice(6).every(row => row === "idea")).toBe(true);
+    await expect(dna.locator(".dna-row.form")).toContainText("inferred");
+    await expect.poll(() => dna.locator(".dna-sec").count()).toBeGreaterThan(1);
+    await expect(dna.locator(".dna-sec").first()).toHaveText("A");
+    await expect.poll(() => dna.locator(".dna-arc").count()).toBeGreaterThan(0);
+    await expect.poll(() => dna.locator(".dna-row.harmony .chord").count()).toBeGreaterThan(1);
+    await expect.poll(() => dna.locator(".dna-row.density .lvl").count()).toBeGreaterThan(1);
+
+    // The selection is the first idea, then the ideas found in the piece, a card each.
     const lane = dna.locator(".dna-row.idea");
-    await expect(lane).toHaveCount(1);
-    await expect(lane.locator(".lane-name")).toContainText("Your selection");
-    const marks = lane.getByRole("button");
+    await expect(lane.first().locator(".lane-name")).toContainText("Your selection");
+    await expect.poll(() => lane.count()).toBeGreaterThan(1);
+    await expect(lane.nth(1).locator(".lane-name")).toContainText(/^Idea 1 · /);
+    await expect(dna.locator(".dna-card")).toHaveCount(await lane.count());
+    await expect(dna.locator(".dna-card").nth(1)).toContainText(/Heard \d+ times/);
+    const marks = lane.first().getByRole("button");
     await expect.poll(() => marks.count()).toBeGreaterThan(1);
-    await expect(dna.locator(".dna-card")).toHaveCount(1);
     await expect(dna.locator(".key-block").first()).toBeVisible();
+
+    // Register and dynamics are folded until asked for.
+    await expect(dna.locator(".dna-row.register")).toHaveCount(0);
+    await dna.getByRole("button", { name: "More lanes: register, dynamics" }).click();
+    await expect(dna.locator(".dna-row.register .rng").first()).toBeVisible();
+    await expect(dna.locator(".dna-row.dynamics")).toBeVisible();
     expect(await violations(page)).toEqual([]);
+
+    // Add Structure bookmarks writes the form's sections into Contents.
+    await dna.getByRole("button", { name: "Add Structure bookmarks" }).click();
+    await expect(dna.locator(".dna-actions [role=status]")).toHaveText(/^\d+ Structure bookmarks? added$/);
 
     // The second mark plays; a second tap opens the score with it selected.
     const second = marks.nth(1);
@@ -38,7 +62,7 @@ test("from the overflow, the map shows where the selection returns, and a mark l
     expect(errors).toEqual([]);
 });
 
-test("from the library card, in Russian, with no selection: the ideas lane says how to fill it, and Escape returns", async ({ page }) => {
+test("from the library card, in Russian, with no selection: the lanes are in Russian, and Escape returns", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "Add piece" }).click();
     await page.getByRole("dialog", { name: "Add a piece" }).getByLabel("Choose a MIDI, MusicXML or PDF file").setInputFiles(minuet);
@@ -49,7 +73,9 @@ test("from the library card, in Russian, with no selection: the ideas lane says 
     await page.getByRole("button", { name: "Ещё: Waltz sketch" }).click();
     await page.getByRole("button", { name: "ДНК пьесы" }).click();
     const dna = page.getByRole("dialog", { name: "Waltz sketch" });
-    await expect(dna).toContainText("Выделите фрагмент в нотах");
+    await expect(dna.locator(".dna-row.form")).toContainText("выведено");
+    await expect(dna.locator(".dna-row.harmony .lane-name")).toHaveText("Гармония");
+    await expect(dna.locator(".dna-row.density .lane-name")).toHaveText("Плотность");
     await expect(dna.locator(".dna-bar .counts")).toContainText("такт");
     expect(await violations(page)).toEqual([]);
     await expect(page).not.toHaveURL(/view=dna/);

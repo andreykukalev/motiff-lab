@@ -163,6 +163,14 @@ final class ContentsController: ObservableObject {
         await call("bookmark.structure", ["now": Self.now()])
     }
 
+    /// Add Structure bookmarks from Piece DNA (testing item 22): one per section of the form, "Section A′, bars 17–32";
+    /// answers how many were added.
+    func addForm() async -> Int {
+        let before = shelf?.bookmarks.count ?? 0
+        await call("bookmark.form", ["now": Self.now()])
+        return (shelf?.bookmarks.count ?? 0) - before
+    }
+
     /// Whether the drawer offers the detected form as Structure bookmarks: the piece has sentences and none is filed yet.
     func canAddStructure(sentences: Int) -> Bool {
         sentences > 0 && !(shelf?.bookmarks.contains { $0.category == BookmarkShelf.structure } ?? false)

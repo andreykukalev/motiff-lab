@@ -2954,7 +2954,7 @@ body:has(.workspace) .site-footer {
     cursor: crosshair;
 }
 
-.lab.workspace :is(.drawer, .sheet, .focus-roll) .chip {
+.lab.workspace :is(.drawer, .sheet, .focus-roll, .ask-pop) .chip {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -6043,7 +6043,12 @@ body:has(.library) .site-footer {
     cursor: pointer;
 }
 
-.lab.workspace .dna .mk-hit.on, .lab.workspace .dna .mk-hit:hover {
+.lab.workspace .dna span.mk-hit {
+    cursor: default;
+    pointer-events: none;
+}
+
+.lab.workspace .dna .mk-hit.on, .lab.workspace .dna button.mk-hit:hover {
     background: var(--accent-tint);
 }
 
@@ -6158,10 +6163,208 @@ body:has(.library) .site-footer {
     gap: var(--s-3);
 }
 
+/* The lanes added to the map (testing item 22): arcs above the form between sections that share material, the chords
+   where they change with the closes as dots, density and dynamics as bars by bar, register as a span by bar. */
+.workspace .dna-row.form .lane-track {
+    min-height: 52px;
+    align-items: flex-end;
+}
+
+.workspace .dna-row.form .lane-name .tag {
+    margin-left: var(--s-2);
+}
+
+.workspace .dna .tag.assumed {
+    display: inline-flex;
+    align-items: center;
+    height: 18px;
+    padding: 0 var(--s-1);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-xs);
+    font: var(--t-caption);
+    letter-spacing: normal;
+    text-transform: none;
+    color: var(--ink-2);
+}
+
+.lab.workspace .dna .dna-sec {
+    top: auto;
+    bottom: 4px;
+}
+
+.lab.workspace .dna .dna-sec.rep {
+    background: var(--surface);
+    border-style: dashed;
+}
+
+.workspace .dna .dna-arc {
+    position: absolute;
+    top: 2px;
+    left: calc(var(--x) * 100%);
+    width: calc((var(--x2) - var(--x)) * 100%);
+    height: 14px;
+    box-sizing: border-box;
+    border: 1.5px solid var(--accent);
+    border-bottom: 0;
+    border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+    opacity: .6;
+    pointer-events: none;
+}
+
+.workspace .dna .chord {
+    position: absolute;
+    left: calc(var(--x) * 100%);
+    top: 4px;
+    font: var(--t-label);
+    white-space: nowrap;
+}
+
+.workspace .dna .chord.unsure {
+    color: var(--ink-2);
+    font-style: italic;
+}
+
+.workspace .dna .cad {
+    position: absolute;
+    left: calc(var(--x) * 100%);
+    bottom: 3px;
+    width: 8px;
+    height: 8px;
+    margin-left: -4px;
+    box-sizing: border-box;
+    border-radius: 50%;
+    background: var(--ink);
+}
+
+.workspace .dna .cad.half {
+    background: transparent;
+    border: 1.5px solid var(--ink);
+}
+
+.workspace .dna .lane-track.levels {
+    min-height: 36px;
+}
+
+.workspace .dna .lvl, .workspace .dna .rng {
+    position: absolute;
+    left: calc(var(--x) * 100%);
+    width: calc((var(--x2) - var(--x)) * 100%);
+    box-sizing: border-box;
+    border-left: 1px solid var(--surface);
+    background: var(--accent-tint-strong);
+}
+
+.workspace .dna .lvl {
+    bottom: 2px;
+    height: calc(2px + var(--h) * 30px);
+}
+
+.workspace .dna .lvl.dyn {
+    background: var(--teal-tint);
+}
+
+.workspace .dna .rng {
+    bottom: calc(2px + var(--lo) * 30px);
+    height: calc(2px + (var(--hi) - var(--lo)) * 30px);
+    background: var(--plum-tint);
+}
+
+.workspace .dna-more {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: var(--s-1);
+}
+
+.workspace .dna-actions .caption {
+    align-self: center;
+    margin: 0;
+    color: var(--ink-2);
+}
+
 @media (orientation: portrait), (max-width: 720px) {
     .workspace .dna-map {
         --name: 112px;
     }
+}
+
+/* Ask where it was pressed (testing item 23): a 320px popover at the press, kept inside the screen, over whatever is
+   there; a tap beside it puts it away and leaves the place as it was. */
+.workspace .ask-pop-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+}
+
+.workspace .ask-pop {
+    position: fixed;
+    z-index: 41;
+    left: clamp(var(--s-4), calc(var(--ax) - 160px), calc(100vw - 320px - var(--s-4)));
+    top: calc(var(--ay) + var(--s-3));
+    /* Below the press when it fits, otherwise moved up just enough to stay on the screen. */
+    transform: translateY(min(0px, calc(100vh - var(--ay) - var(--s-3) - var(--s-4) - 100%)));
+    width: 320px;
+    max-width: calc(100vw - 2 * var(--s-4));
+    max-height: calc(100vh - 2 * var(--s-4));
+    overflow-y: auto;
+    box-sizing: border-box;
+    padding: var(--s-4);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-m);
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: var(--shadow-sheet);
+}
+
+.workspace .assistant.compact {
+    gap: var(--s-3);
+    min-height: 0;
+}
+
+.workspace .assistant .suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+}
+
+.workspace .assistant .chip:disabled {
+    opacity: .38;
+    cursor: default;
+}
+
+.workspace .assistant .turn {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+    margin-bottom: var(--s-2);
+}
+
+.workspace .assistant .conversation .question {
+    font-weight: 600;
+}
+
+.workspace .assistant .conversation .turn .caption {
+    padding: 0 var(--s-4);
+    border: 0;
+    background: none;
+    font: var(--t-caption);
+}
+
+.workspace .assistant .ask-foot {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    margin: 0;
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.workspace .assistant .ask-foot .sp {
+    flex: 1;
+}
+
+.lab.workspace .assistant .ask-foot .open-in {
+    white-space: nowrap;
+    color: var(--accent);
 }
 
 /* The assistant (0018 section 7; design/kit/screens/s9_assistant.png): the last voice in the Insights sheet. Its input closes

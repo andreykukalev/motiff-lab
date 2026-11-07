@@ -449,6 +449,19 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     }
 
     /// The title a new bookmark starts with: "Phrase 3, bars 9–12" for a unit of the level shown, else "Bars 9–12".
+    /// The open piece's title, for what the assistant knows.
+    var pieceTitle: String { piece?.title ?? "" }
+
+    /// The assistant's scope chip for the selection (testing item 23): "This phrase · bars 9–16" or "This selection · bar 3".
+    var askLabel: String? {
+        guard let selection else { return nil }
+        let bars = selection.firstBar == selection.lastBar
+            ? text.format("bars.one", String(selection.firstBar))
+            : text.format("bars.range", String(selection.firstBar), String(selection.lastBar))
+        let phrase = phrases?.units.contains { $0.selectableOnset == selection.onset && $0.selectableEnd == selection.end } ?? false
+        return text.format(phrase ? "ask.thisPhrase" : "ask.thisSelection", bars)
+    }
+
     var bookmarkTitle: String {
         guard let selection else { return "" }
         if let unit = phrases?.units.first(where: { $0.selectableOnset == selection.onset && $0.selectableEnd == selection.end }) {

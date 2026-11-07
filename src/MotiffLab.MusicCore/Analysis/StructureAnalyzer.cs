@@ -129,13 +129,13 @@ public static class StructureAnalyzer
     }
 
     /// <summary>The highest note at each onset, in time order.</summary>
-    private static Note[] Line(IEnumerable<Note> notes) =>
+    internal static Note[] Line(IEnumerable<Note> notes) =>
         [.. notes
             .GroupBy(note => note.Span.Onset)
             .OrderBy(group => group.Key)
             .Select(group => group.OrderByDescending(note => note.Pitch.MidiNumber).ThenBy(note => note.Id, StringComparer.Ordinal).First())];
 
-    private static List<Recurrence> FindRecurrences(Note[] line, Note[] motif, MeterMap meter)
+    internal static List<Recurrence> FindRecurrences(Note[] line, Note[] motif, MeterMap meter)
     {
         Tick motifStart = motif[0].Span.Onset;
         Tick motifLast = motif[^1].Span.Onset;
@@ -222,9 +222,7 @@ public static class StructureAnalyzer
         {
             Bar span = meter.GetBar(bar.Key);
             Note[] notes = [.. bar];
-            string onsets = $"{span.Span.Duration}:{string.Join(",", notes.Select(note => note.Span.Onset.Value - span.Span.Onset.Value))}";
-            string pitches = $"{onsets}/{string.Join(",", notes.Select(note => note.Pitch.MidiNumber))}";
-            string shape = $"{onsets}/{string.Join(",", notes.Zip(notes.Skip(1), (from, to) => to.Pitch.MidiNumber - from.Pitch.MidiNumber))}";
+            (string pitches, string shape) = BarLine(span, notes);
             bool repeats = exact.Contains(pitches) || (notes.Length > 1 && shapes.Contains(shape));
             if (!repeats)
             {
@@ -239,6 +237,18 @@ public static class StructureAnalyzer
         }
 
         return newBars;
+    }
+
+    /// <summary>
+    /// The two keys a bar's line is compared by: its onsets from the bar line with its pitches (an exact repeat), and with
+    /// its intervals (a transposed repeat).
+    /// </summary>
+    internal static (string Pitches, string Shape) BarLine(Bar bar, IReadOnlyList<Note> notes)
+    {
+        string onsets = $"{bar.Span.Duration}:{string.Join(",", notes.Select(note => note.Span.Onset.Value - bar.Span.Onset.Value))}";
+        string pitches = $"{onsets}/{string.Join(",", notes.Select(note => note.Pitch.MidiNumber))}";
+        string shape = $"{onsets}/{string.Join(",", notes.Zip(notes.Skip(1), (from, to) => to.Pitch.MidiNumber - from.Pitch.MidiNumber))}";
+        return (pitches, shape);
     }
 
     private static MotifFact RecurrenceFact(IReadOnlyList<Recurrence> recurrences, Note[] motifLine, bool inferred, string lineBasis, Words w)

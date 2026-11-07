@@ -61,15 +61,31 @@ public sealed record DnaKey(MusicalKey Key, TickSpan Span, int FirstBar, int Las
     public bool Inferred => ModeInferred || KeyInferred;
 }
 
+/// <summary>The chord a bar of the harmony lane holds most of its length.</summary>
+/// <param name="Symbol">Spelt in the key of the bar: "Am", "F♯", "G7/B".</param>
+/// <param name="Clear">At least <see cref="HarmonyAnalyzer.ClearConfidence"/> sure; a less sure chord is drawn as uncertain.</param>
+public sealed record DnaChord(int Bar, TickSpan Span, string Symbol, bool Clear);
+
+/// <summary>A close of a phrase, a dot on the harmony lane: full on the tonic, half on the dominant, inferred.</summary>
+public sealed record DnaCadence(int Bar, Tick At, CloseKind Kind);
+
+/// <summary>One bar of a lane measured as a number: notes per beat for density, the mean velocity for dynamics.</summary>
+public sealed record DnaBarLevel(int Bar, double Value);
+
+/// <summary>One bar of the register lane: its lowest and highest note, as MIDI numbers.</summary>
+public sealed record DnaRange(int Bar, int Low, int High);
+
 /// <summary>
 /// Piece DNA (0018 section 11, preparation item 18): the map of the whole composition behind the third place in the
 /// app, as lanes the screen draws: the form strip, one lane per defining idea, the key lane and the bars that bring new
 /// material. Each lane says how far the engine fills it, so the screen shows an empty state for a part not analysed yet
-/// and new analyses only fill the contract. Today: no form; the player's selection as the one idea with its exact and
-/// transposed repeats (<see cref="StructureAnalyzer"/>); the key signatures of the file; new material by bar.
+/// and new analyses only fill the contract. Filled (testing item 22, read top to bottom in this order): the form from the
+/// sentences (<see cref="FormAnalyzer"/>); the key lane; the harmony lane, a chord per bar with the closes as dots; density
+/// in notes per beat; new material by bar; register and dynamics, folded; then the ideas, found from the openings of the
+/// sentences and phrases (<see cref="IdeaFinder"/>), after the player's selection when there is one.
 /// </summary>
-/// <param name="Form">The sections of the form strip; empty until the form of the whole piece is analysed.</param>
-/// <param name="Ideas">Three to six motifs once they are found; until then the selection, or none.</param>
+/// <param name="Form">The sections of the form strip; empty when the piece's sentences are not given.</param>
+/// <param name="Ideas">The selection, then up to six ideas found in the piece; none when no opening is heard again.</param>
 /// <param name="Keys">The key lane, in time order, covering the piece.</param>
 /// <param name="NewMaterialBars">Bars whose line repeats no earlier bar, exactly or transposed.</param>
 public sealed record PieceDna(
@@ -84,6 +100,33 @@ public sealed record PieceDna(
     DnaStatus NewMaterialStatus,
     IReadOnlyList<int> NewMaterialBars)
 {
+    /// <summary>Where each bar of the map starts, in ticks, from the first bar to one past the last (its end), to place the lanes by bar.</summary>
+    public IReadOnlyList<long> BarStarts { get; init; } = [];
+
+    /// <summary>Whether the harmony lane is filled: partial when chords are read, not yet for a single line.</summary>
+    public DnaStatus HarmonyStatus { get; init; }
+
+    /// <summary>The harmony lane: a chord per bar that holds one, in bar order.</summary>
+    public IReadOnlyList<DnaChord> Harmony { get; init; } = [];
+
+    /// <summary>The full and half closes of the phrases, in time order.</summary>
+    public IReadOnlyList<DnaCadence> Cadences { get; init; } = [];
+
+    /// <summary>Whether the density lane is filled: ready whenever there are notes.</summary>
+    public DnaStatus DensityStatus { get; init; }
+
+    /// <summary>Notes starting per beat, every bar of the piece.</summary>
+    public IReadOnlyList<DnaBarLevel> Density { get; init; } = [];
+
+    /// <summary>The register lane: the lowest and highest note of every bar with notes.</summary>
+    public IReadOnlyList<DnaRange> Register { get; init; } = [];
+
+    /// <summary>Whether the dynamics lane is filled: ready when the notes are played louder and softer, not yet when all are as loud.</summary>
+    public DnaStatus DynamicsStatus { get; init; }
+
+    /// <summary>The mean velocity (1–127) of the notes starting in every bar with notes; empty when all notes are as loud.</summary>
+    public IReadOnlyList<DnaBarLevel> Dynamics { get; init; } = [];
+
     /// <summary>The whole map: ready when every lane is, not yet when none has anything.</summary>
     public DnaStatus Status =>
         new[] { FormStatus, IdeasStatus, KeysStatus, NewMaterialStatus } switch
@@ -97,9 +140,10 @@ public sealed record PieceDna(
     /// The map from what the engine measures today. Pure: the same notes, meter, keys, selection and analysis give the
     /// same map.
     /// </summary>
-    /// <param name="selection">The player's selection, which becomes the one idea; null for none.</param>
+    /// <param name="selection">The player's selection, which becomes the first idea; null for none.</param>
     /// <param name="structure">The structure analysis of that selection; null when there is no selection.</param>
-    public static PieceDna Build(IReadOnlyList<Note> notes, MeterMap meter, IReadOnlyList<KeySignature> keys, Tick end, MotifSelection? selection, StructureAnalysis? structure, Words words = default)
+    /// <param name="sentences">The piece's sentences, for the form, the closes and the ideas found; null leaves them out.</param>
+    public static PieceDna Build(IReadOnlyList<Note> notes, MeterMap meter, IReadOnlyList<KeySignature> keys, Tick end, MotifSelection? selection, StructureAnalysis? structure, Words words = default, SentenceMap? sentences = null)
     {
         ArgumentNullException.ThrowIfNull(notes);
         ArgumentNullException.ThrowIfNull(meter);
@@ -114,21 +158,135 @@ public sealed record PieceDna(
         int firstBar = meter.BarAt(first).Number;
         int lastBar = meter.BarAt(new Tick(Math.Max(first.Value, last.Value - 1))).Number;
 
-        IReadOnlyList<DnaIdea> ideas = selection is { NoteIds.Count: > 0 } && structure is not null ? [Idea(notes, meter, selection, structure, words)] : [];
         IReadOnlyList<DnaKey> keyLane = KeyLane(notes, meter, keys, first, last);
         IReadOnlyList<int> newBars = StructureAnalyzer.NewMaterialBars(notes, meter);
+        IReadOnlyList<DnaSection> form = sentences is null ? [] : FormAnalyzer.Sections(notes, meter, sentences);
 
+        var ideas = new List<DnaIdea>();
+        if (selection is { NoteIds.Count: > 0 } && structure is not null)
+        {
+            ideas.Add(Idea(notes, meter, selection, structure, words));
+        }
+
+        if (sentences is not null)
+        {
+            IReadOnlyList<IdeaOccurrence> taken = ideas.Count > 0 ? ideas[0].Occurrences : [];
+            ideas.AddRange(IdeaFinder.Find(notes, meter, sentences, form, words, taken, firstId: ideas.Count + 1));
+        }
+
+        IReadOnlyList<DnaChord> harmony = HarmonyLane(notes, meter, keyLane, firstBar, lastBar, first, last);
+        IReadOnlyList<DnaBarLevel> dynamics = DynamicsLane(notes, meter);
         return new PieceDna(
             firstBar,
             lastBar,
-            DnaStatus.NotYet,
-            [],
-            ideas.Count > 0 ? DnaStatus.Partial : DnaStatus.NotYet,
+            form.Count > 0 ? DnaStatus.Partial : DnaStatus.NotYet,
+            form,
+            ideas.Count > 0 ? DnaStatus.Partial : sentences is null ? DnaStatus.NotYet : DnaStatus.Ready,
             ideas,
             keyLane.Count > 0 ? DnaStatus.Partial : DnaStatus.NotYet,
             keyLane,
             DnaStatus.Ready,
-            newBars);
+            newBars)
+        {
+            BarStarts = [.. Enumerable.Range(firstBar, lastBar - firstBar + 1).Select(number => meter.GetBar(number).Span.Onset.Value), meter.GetBar(lastBar).Span.End.Value],
+            HarmonyStatus = harmony.Count > 0 ? DnaStatus.Partial : DnaStatus.NotYet,
+            Harmony = harmony,
+            Cadences = sentences is null ? [] : CadenceLane(sentences, meter),
+            DensityStatus = DnaStatus.Ready,
+            Density = DensityLane(notes, meter, firstBar, lastBar),
+            Register = RegisterLane(notes, meter),
+            DynamicsStatus = dynamics.Count > 0 ? DnaStatus.Ready : DnaStatus.NotYet,
+            Dynamics = dynamics,
+        };
+    }
+
+    /// <summary>
+    /// The chord each bar holds longest, from the chords of the whole piece (<see cref="HarmonyAnalyzer.FindChords"/>),
+    /// read and spelt in the key of the bar's lane.
+    /// </summary>
+    private static List<DnaChord> HarmonyLane(IReadOnlyList<Note> notes, MeterMap meter, IReadOnlyList<DnaKey> keys, int firstBar, int lastBar, Tick first, Tick last)
+    {
+        if (last <= first)
+        {
+            return [];
+        }
+
+        MusicalKey? opening = keys.Count > 0 ? keys[0].Key : null;
+        IReadOnlyList<ChordSpan> chords = HarmonyAnalyzer.FindChords(notes, meter, TickSpan.FromBounds(first, last), opening);
+        var lane = new List<DnaChord>();
+        int next = 0;
+        for (int number = firstBar; number <= lastBar; number++)
+        {
+            TickSpan bar = meter.GetBar(number).Span;
+            while (next < chords.Count && chords[next].Span.End <= bar.Onset)
+            {
+                next++;
+            }
+
+            ChordSpan? best = null;
+            long longest = 0;
+            for (int i = next; i < chords.Count && chords[i].Span.Onset < bar.End; i++)
+            {
+                long overlap = Math.Min(chords[i].Span.End.Value, bar.End.Value) - Math.Max(chords[i].Span.Onset.Value, bar.Onset.Value);
+                if (overlap > longest)
+                {
+                    (best, longest) = (chords[i], overlap);
+                }
+            }
+
+            if (best is null)
+            {
+                continue;
+            }
+
+            MusicalKey spelling = keys.LastOrDefault(key => key.Span.Onset <= bar.Onset)?.Key ?? opening ?? new MusicalKey(0, KeyMode.Major);
+            lane.Add(new DnaChord(number, best.Span, best.Symbol(spelling), best.Confidence >= HarmonyAnalyzer.ClearConfidence));
+        }
+
+        return lane;
+    }
+
+    /// <summary>The phrases' full and half closes, at the last notes that close them.</summary>
+    private static List<DnaCadence> CadenceLane(SentenceMap sentences, MeterMap meter) =>
+        [.. sentences.Closes
+            .Where(close => close.Kind != CloseKind.None)
+            .Select(close => (Close: close, At: close.Place?.Span.Onset ?? new Tick(Math.Max(close.Phrase.Span.Onset.Value, close.Phrase.Span.End.Value - 1))))
+            .Select(close => new DnaCadence(meter.BarAt(close.At).Number, close.At, close.Close.Kind))
+            .OrderBy(cadence => cadence.At)];
+
+    /// <summary>Notes starting per beat in every bar: a pickup bar counts the beats it has.</summary>
+    private static List<DnaBarLevel> DensityLane(IReadOnlyList<Note> notes, MeterMap meter, int firstBar, int lastBar)
+    {
+        Dictionary<int, int> counts = notes.GroupBy(note => meter.BarAt(note.Span.Onset).Number).ToDictionary(group => group.Key, group => group.Count());
+        var lane = new List<DnaBarLevel>();
+        for (int number = firstBar; number <= lastBar; number++)
+        {
+            Bar bar = meter.GetBar(number);
+            double beats = (double)bar.Span.Duration / bar.Signature.BeatTicks;
+            lane.Add(new DnaBarLevel(number, beats > 0 ? Math.Round(counts.GetValueOrDefault(number) / beats, 2) : 0));
+        }
+
+        return lane;
+    }
+
+    private static List<DnaRange> RegisterLane(IReadOnlyList<Note> notes, MeterMap meter) =>
+        [.. notes
+            .GroupBy(note => meter.BarAt(note.Span.Onset).Number)
+            .OrderBy(group => group.Key)
+            .Select(group => new DnaRange(group.Key, group.Min(note => note.Pitch.MidiNumber), group.Max(note => note.Pitch.MidiNumber)))];
+
+    /// <summary>The mean velocity by bar, when the notes carry more than one; a score's notes all carry the same.</summary>
+    private static List<DnaBarLevel> DynamicsLane(IReadOnlyList<Note> notes, MeterMap meter)
+    {
+        if (notes.Select(note => note.Velocity).Distinct().Take(2).Count() < 2)
+        {
+            return [];
+        }
+
+        return [.. notes
+            .GroupBy(note => meter.BarAt(note.Span.Onset).Number)
+            .OrderBy(group => group.Key)
+            .Select(group => new DnaBarLevel(group.Key, Math.Round(group.Average(note => note.Velocity), 1)))];
     }
 
     private static DnaIdea Idea(IReadOnlyList<Note> notes, MeterMap meter, MotifSelection selection, StructureAnalysis structure, Words w)

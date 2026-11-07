@@ -45,6 +45,12 @@ struct ScoreScreen: View {
     @State private var hearVersionInFocus = false
     /// The Settings sheet (0018 section 10), from More: over the score, which follows each change at once.
     @State private var settingsOpen = false
+    /// Piece DNA (0018 section 11; testing item 22), from More: the map of the whole piece over the score; nil when closed.
+    @State private var dna: DnaMap?
+    /// Whether Piece DNA was opened from More, so it shows "‹ More".
+    @State private var dnaFromMore = false
+    /// The questions asked about the piece (testing item 23): one conversation, shown by every Ask popover and in Insights.
+    @StateObject private var conversation = AskConversation()
 
     /// The Insights sheet's width beside the score in landscape (ds.css `.sheet`).
     static let sheetWidth: CGFloat = 380
@@ -91,6 +97,17 @@ struct ScoreScreen: View {
         ((score.selection != nil || player.transportKept) && settings["guidance.transportPill"] != "playing") || player.state != .stopped
     }
 
+    /// Piece DNA from More: the map music-core gives for the piece as it is now, the selection as its first idea.
+    private func openDna(fromMore: Bool) {
+        let id = piece.id
+        Task {
+            let answer = await MusicCore.run { MusicCore.call(piece: id, "dna") }
+            guard let map = DnaMap(answer: answer) else { return }
+            dnaFromMore = fromMore
+            dna = map
+        }
+    }
+
     /// ‹ More: the place opened from More goes, and More opens again once it has (after a sheet's dismissal, so the popover can show).
     private func backToMore(_ putAway: () -> Void) {
         putAway()
@@ -124,7 +141,7 @@ struct ScoreScreen: View {
         } else if checkOpen {
             CheckDrawer(score: score, text: text, close: { checkOpen = false }, back: fromMore ? (label: text["bar.more"], action: { backToMore { checkOpen = false } }) : nil)
         } else {
-            InsightsSheet(insights: insights, score: score, player: player, range: variationRange, text: text) { insightsOpen = false }
+            InsightsSheet(insights: insights, score: score, player: player, conversation: conversation, account: account, range: variationRange, text: text) { insightsOpen = false }
         }
     }
 
@@ -173,7 +190,7 @@ struct ScoreScreen: View {
             .overlay(alignment: .topLeading) {
                 // The menu over the selection, where the page places it (the web app's menuPlace).
                 if score.selection != nil, !score.focused, let place = score.menuPlace {
-                    SelectionMenu(score: score, player: player, contents: contents, text: text, rollOpen: $rollOpen, insightsOpen: $insightsOpen)
+                    SelectionMenu(score: score, player: player, contents: contents, conversation: conversation, text: text, rollOpen: $rollOpen, insightsOpen: $insightsOpen)
                         .offset(x: place.x, y: place.y)
                 }
             }
@@ -204,9 +221,9 @@ struct ScoreScreen: View {
             .overlay(alignment: .top) {
                 VStack(alignment: .trailing, spacing: CGFloat.ds("s-2")) {
                     if score.focused {
-                        FocusBar(score: score, player: player, variationRange: variationRange, text: text)
+                        FocusBar(score: score, player: player, conversation: conversation, variationRange: variationRange, text: text, insightsOpen: $insightsOpen)
                     } else {
-                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, more: $more, fromMore: $fromMore, rollOpen: $rollOpen, insightsOpen: $insightsOpen, contentsOpen: $contentsOpen, checkOpen: $checkOpen, versionsOpen: $versionsOpen, settingsOpen: $settingsOpen, pdf: toPdf) { dismiss() }
+                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, conversation: conversation, more: $more, fromMore: $fromMore, rollOpen: $rollOpen, insightsOpen: $insightsOpen, contentsOpen: $contentsOpen, checkOpen: $checkOpen, versionsOpen: $versionsOpen, settingsOpen: $settingsOpen, pdf: toPdf, openDna: { openDna(fromMore: true) }) { dismiss() }
                     }
                     if score.penOn && !score.focused {
                         PenPalette(score: score, text: text)
@@ -445,6 +462,30 @@ struct ScoreScreen: View {
     /// over the score, and the score and the roll follow each change at once.
     private func checking(_ content: some View) -> some View {
         content
+            .fullScreenCover(isPresented: Binding(get: { dna != nil }, set: { if !$0 { dna = nil } })) {
+                if let map = dna {
+                    DnaScreen(
+                        map: map, title: piece.title, player: player, conversation: conversation, account: account, text: text,
+                        back: dnaFromMore ? (label: text["bar.more"], action: { backToMore { dna = nil } }) : nil,
+                        close: { dna = nil },
+                        showInScore: { range, openInsights in
+                            dna = nil
+                            Task {
+                                await score.select(range.lowerBound, range.upperBound)
+                                if openInsights { insightsOpen = true }
+                            }
+                        },
+                        addBookmarks: {
+                            let added = await contents.addForm()
+                            return text.count("bookmark.structureAdded", added)
+                        },
+                        askInInsights: {
+                            dna = nil
+                            insightsOpen = true
+                        }
+                    )
+                }
+            }
             .sheet(isPresented: $settingsOpen) {
                 SettingsSheet(settings: settings, account: account, text: text, pieceOverrides: score.pieceOverrides, clearPiece: { score.clearPieceOverrides() },
                               back: fromMore ? (label: text["bar.more"], action: { backToMore { settingsOpen = false } }) : nil)
@@ -581,6 +622,7 @@ struct ScoreBar: View {
     let text: UIText
     @ObservedObject var player: Player
     @ObservedObject var score: ScoreController
+    @ObservedObject var conversation: AskConversation
     @Binding var more: Bool
     /// Whether the place open now was opened from More, so it shows "‹ More" (testing item 20).
     @Binding var fromMore: Bool
@@ -592,8 +634,13 @@ struct ScoreBar: View {
     @Binding var settingsOpen: Bool
     /// PDF | Notes (0023): goes to the PDF the notes were read from; nil for notes with none.
     let pdf: (() -> Void)?
+    /// Piece DNA from More.
+    let openDna: () -> Void
     let back: () -> Void
     @State private var phrasesOpen = false
+    /// Ask about the piece from More: the assistant's popover where More was (testing item 23).
+    @State private var asking = false
+    @EnvironmentObject private var account: Account
 
     var body: some View {
         HStack(spacing: CGFloat.ds("s-2")) {
@@ -696,7 +743,31 @@ struct ScoreBar: View {
                     more = false
                     settingsOpen = true
                     fromMore = true
+                } openDna: {
+                    more = false
+                    openDna()
+                } askAboutPiece: {
+                    more = false
+                    // Once More's popover has gone, the assistant's opens where it was.
+                    Task {
+                        try? await Task.sleep(for: .milliseconds(350))
+                        asking = true
+                    }
                 }
+            }
+            .background {
+                Color.clear
+                    .popover(isPresented: $asking) {
+                        AskPopover(
+                            conversation: conversation, account: account, text: text,
+                            context: AskContext(selection: score.askLabel, wholePiece: true, title: title),
+                            openInInsights: {
+                                asking = false
+                                insightsOpen = true
+                            },
+                            close: { asking = false }
+                        )
+                    }
             }
         }
         .padding(.leading, CGFloat.ds("s-2"))
@@ -839,10 +910,14 @@ struct SelectionMenu: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var player: Player
     @ObservedObject var contents: ContentsController
+    @ObservedObject var conversation: AskConversation
     let text: UIText
     @Binding var rollOpen: Bool
     @Binding var insightsOpen: Bool
     @State private var more = false
+    /// Ask on the selection: the assistant's popover at the menu, over the selection (testing item 23).
+    @State private var asking = false
+    @EnvironmentObject private var account: Account
 
     var body: some View {
         Group {
@@ -869,6 +944,26 @@ struct SelectionMenu: View {
                     if more {
                         Rectangle().fill(Color.ds("hairline")).frame(height: 1)
                         HighlightRow(score: score, text: text)
+                        Button {
+                            asking = true
+                        } label: {
+                            HStack(spacing: 6) {
+                                Icon(name: "insight")
+                                Text(text["ask.menu"])
+                            }
+                        }
+                        .buttonStyle(DSItemStyle(on: asking))
+                        .popover(isPresented: $asking) {
+                            AskPopover(
+                                conversation: conversation, account: account, text: text,
+                                context: AskContext(selection: score.askLabel, wholePiece: false, title: score.pieceTitle),
+                                openInInsights: {
+                                    asking = false
+                                    insightsOpen = true
+                                },
+                                close: { asking = false }
+                            )
+                        }
                     }
                 }
                 .padding(.horizontal, CGFloat.ds("s-2"))
@@ -1004,8 +1099,13 @@ struct FocusShowAs: View {
 struct FocusBar: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var player: Player
+    @ObservedObject var conversation: AskConversation
     let variationRange: Range<Double>?
     let text: UIText
+    @Binding var insightsOpen: Bool
+    /// Ask on the phrase in focus: the assistant's popover at the button (testing item 23).
+    @State private var asking = false
+    @EnvironmentObject private var account: Account
 
     var body: some View {
         HStack(spacing: CGFloat.ds("s-2")) {
@@ -1043,6 +1143,23 @@ struct FocusBar: View {
                     Button(text["performance.restore"]) { score.restoreFocusBars() }
                         .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
                 }
+            }
+            Button {
+                asking = true
+            } label: {
+                Text(text["ask.menu"]).dsType(.label).padding(.horizontal, CGFloat.ds("s-2")).frame(height: 40)
+            }
+            .buttonStyle(BarActionStyle(on: asking))
+            .popover(isPresented: $asking) {
+                AskPopover(
+                    conversation: conversation, account: account, text: text,
+                    context: AskContext(selection: score.askLabel, wholePiece: false, title: score.pieceTitle),
+                    openInInsights: {
+                        asking = false
+                        insightsOpen = true
+                    },
+                    close: { asking = false }
+                )
             }
             Button {
                 player.toggle()
@@ -1198,6 +1315,8 @@ struct MorePanel: View {
     let openCheck: () -> Void
     let openVersions: () -> Void
     let openSettings: () -> Void
+    let openDna: () -> Void
+    let askAboutPiece: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
@@ -1221,6 +1340,21 @@ struct MorePanel: View {
                 HStack(spacing: CGFloat.ds("s-2")) {
                     Icon(name: "mic")
                     Text(text["sources.title"])
+                }
+            }
+            .buttonStyle(DSButtonStyle(kind: .quiet))
+            // Piece DNA, the map of the whole piece, and the assistant on the whole piece (testing items 22, 23).
+            Button(action: openDna) {
+                HStack(spacing: CGFloat.ds("s-2")) {
+                    Icon(name: "dial")
+                    Text(text["dna.title"])
+                }
+            }
+            .buttonStyle(DSButtonStyle(kind: .quiet))
+            Button(action: askAboutPiece) {
+                HStack(spacing: CGFloat.ds("s-2")) {
+                    Icon(name: "insight")
+                    Text(text["ask.aboutPiece"])
                 }
             }
             .buttonStyle(DSButtonStyle(kind: .quiet))

@@ -150,6 +150,31 @@ final class FacadeTests: XCTestCase {
         XCTAssertEqual(removed.bookmarks.count, filed.bookmarks.count - 1)
     }
 
+    func testPieceDnaReadsTheFormKeyHarmonyDensityAndTheIdeasFound() throws {
+        // Piece DNA filled from the engine (testing item 22): the form lettered by what it shares, the lanes by bar, the ideas found.
+        let map = try XCTUnwrap(DnaMap(answer: MusicCore.call(piece: piece, "dna")))
+        XCTAssertGreaterThan(map.lastBar, map.firstBar)
+        XCTAssertEqual(map.barStarts.count, map.lastBar - map.firstBar + 2)
+        XCTAssertNotNil(map.bar(map.firstBar))
+        XCTAssertEqual(map.form.first?.label, "A")
+        XCTAssertGreaterThan(map.form.count, 1)
+        XCTAssertFalse(map.keys.isEmpty)
+        XCTAssertFalse(map.harmony.isEmpty)
+        XCTAssertEqual(map.density.count, map.lastBar - map.firstBar + 1)
+        XCTAssertFalse(map.register.isEmpty)
+        let idea = try XCTUnwrap(map.ideas.first)
+        XCTAssertTrue(idea.title.hasPrefix("Идея 1"), idea.title)
+        XCTAssertTrue(idea.summary.hasPrefix("Звучит"), idea.summary)
+        XCTAssertEqual(idea.marks.filter { $0.kind == "original" }.count, 1)
+        XCTAssertGreaterThan(idea.marks.count, 1)
+
+        // Add Structure bookmarks on the map: a bookmark per section, once.
+        let filed = try XCTUnwrap(BookmarkShelf(answer: MusicCore.call(piece: piece, "bookmark.form")))
+        XCTAssertEqual(filed.bookmarks.filter { $0.category == BookmarkShelf.structure }.count, map.form.count)
+        XCTAssertTrue(filed.bookmarks.first?.title.hasPrefix("Раздел A") ?? false)
+        XCTAssertEqual(try XCTUnwrap(BookmarkShelf(answer: MusicCore.call(piece: piece, "bookmark.form"))).bookmarks.count, filed.bookmarks.count)
+    }
+
     func testMarginNotesHighlightsAndLayersAreKeptWithThePiece() throws {
         // A note on bars 4–5, written, changed and numbered in score order beside one on bar 1.
         let first = try call("note.add", #"{"span": {"onset": 0, "end": 480}, "text": "Тихо", "now": "2026-11-05T06:00:00Z"}"#)

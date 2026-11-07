@@ -745,6 +745,13 @@ internal static partial class Answer
         json.WriteString("status", Name(dna.Status));
         json.WriteNumber("firstBar", dna.FirstBar);
         json.WriteNumber("lastBar", dna.LastBar);
+        json.WriteStartArray("barStarts");
+        foreach (long start in dna.BarStarts)
+        {
+            json.WriteNumberValue(start);
+        }
+
+        json.WriteEndArray();
 
         json.WriteStartObject("form");
         json.WriteString("status", Name(dna.FormStatus));
@@ -812,6 +819,68 @@ internal static partial class Answer
         json.WriteStartObject("newMaterial");
         json.WriteString("status", Name(dna.NewMaterialStatus));
         Numbers(json, "bars", dna.NewMaterialBars);
+        json.WriteEndObject();
+
+        json.WriteStartObject("harmony");
+        json.WriteString("status", Name(dna.HarmonyStatus));
+        json.WriteStartArray("bars");
+        foreach (DnaChord chord in dna.Harmony)
+        {
+            json.WriteStartObject();
+            json.WriteNumber("bar", chord.Bar);
+            json.WriteString("symbol", chord.Symbol);
+            json.WriteBoolean("clear", chord.Clear);
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
+        json.WriteStartArray("cadences");
+        foreach (DnaCadence cadence in dna.Cadences)
+        {
+            json.WriteStartObject();
+            json.WriteNumber("bar", cadence.Bar);
+            json.WriteNumber("at", cadence.At.Value);
+            json.WriteString("kind", cadence.Kind == CloseKind.Full ? "full" : "half");
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
+        json.WriteEndObject();
+
+        Levels(json, "density", dna.DensityStatus, dna.Density);
+
+        json.WriteStartObject("register");
+        json.WriteString("status", Name(dna.DensityStatus));
+        json.WriteStartArray("bars");
+        foreach (DnaRange range in dna.Register)
+        {
+            json.WriteStartObject();
+            json.WriteNumber("bar", range.Bar);
+            json.WriteNumber("low", range.Low);
+            json.WriteNumber("high", range.High);
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
+        json.WriteEndObject();
+
+        Levels(json, "dynamics", dna.DynamicsStatus, dna.Dynamics);
+    }
+
+    private static void Levels(Utf8JsonWriter json, string name, DnaStatus status, IReadOnlyList<DnaBarLevel> levels)
+    {
+        json.WriteStartObject(name);
+        json.WriteString("status", Name(status));
+        json.WriteStartArray("bars");
+        foreach (DnaBarLevel level in levels)
+        {
+            json.WriteStartObject();
+            json.WriteNumber("bar", level.Bar);
+            json.WriteNumber("value", level.Value);
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
         json.WriteEndObject();
     }
 
