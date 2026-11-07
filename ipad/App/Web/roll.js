@@ -149,5 +149,10 @@ function colour(by) {
     return state.colourBy;
 }
 
-window.roll = { load, nextColour, colour, theme, position, selection, noteNames, highlight };
+/** In phrase focus the roll lays every selection across itself, as Fit does (testing item 12); off in the drawer. */
+function fits(on) {
+    view.setFitsSelection(Boolean(on));
+}
+
+window.roll = { load, nextColour, colour, theme, position, selection, noteNames, highlight, fits };
 post("ready");

@@ -219,6 +219,11 @@ final class PencilTests: XCTestCase {
         XCTAssertEqual(canvases?.intValue, 2, "the notes and the keyboard")
         let zoom = try await view.evaluateJavaScript("document.querySelector('#roll > .roll-zoom')?.textContent ?? ''") as? String
         XCTAssertEqual(zoom?.contains("100 %"), true, "the floating zoom over the notes")
+        // In phrase focus the roll lays each selection across itself (testing item 12).
+        _ = try await view.callAsyncJavaScript("return roll.fits(on)", arguments: ["on": true], contentWorld: .page)
+        let firstBar: [String: Any] = ["selected": ["start": 0, "end": 1440, "ids": Array((roll["ids"] as? [String] ?? []).prefix(4))]]
+        _ = try await view.callAsyncJavaScript("return roll.selection(data)", arguments: ["data": firstBar], contentWorld: .page)
+        _ = try await view.callAsyncJavaScript("return roll.fits(on)", arguments: ["on": false], contentWorld: .page)
         let colour = try await view.callAsyncJavaScript("return roll.nextColour()", contentWorld: .page) as? String
         XCTAssertNotNil(colour)
 
