@@ -25,7 +25,10 @@ public sealed class MusicCoreFacade
     /// 5 moves to project file version 14 (testing item 15): a correction can add a note, the note editor on the roll
     /// adds and sets notes (corrections.add, corrections.set) on a draft that the project keeps only once saved
     /// (corrections.begin, .save, .discard, .reset).
-    /// 4 brings the performances compared with the piece and project file version 13 (0022).
+    /// 6 keeps a piece's sources in the piece (testing item 16): document.read fills the PDF piece itself with the notes read
+    /// from it, a piece with notes and a PDF opens in its "PDF" view with "view": "pdf", sources tells the base and what the
+    /// player's version holds, sources.document keeps a PDF inside a piece with notes, sources.documentNotes adds the notes
+    /// read from it as a version, and performance.takeAll takes every bar the comparison is sure of.
     /// 3 brings the three phrase levels (0018, section 3; preparation items 7–9): the phrases answer names the level shown and
     /// the units of a level with their parent, "long" replaces "fitsSelection", the levels are short, phrase and sentence,
     /// phrases.level and phrases.edit take a level and split, understand ranks the facts and offers Try chips, and try sounds a chip.
@@ -35,7 +38,7 @@ public sealed class MusicCoreFacade
     /// 1 was the first contract: open and save, piece, phrases with their edits, select, understand,
     /// experiments, the variation chain, notation, playback, the catalogue and the Piece DNA placeholder.
     /// </summary>
-    public const int Contract = 5;
+    public const int Contract = 6;
 
     private readonly Dictionary<int, OpenPiece> _pieces = [];
     private readonly Dictionary<int, OpenDocument> _documents = [];
@@ -83,9 +86,11 @@ public sealed class MusicCoreFacade
                 });
             }
 
-            if (IsPdf(fileName, bytes) || (IsProjectFile(fileName, bytes) && ReadDocument(bytes) is not null))
+            // A piece with notes and a PDF (testing item 16) opens as notes, or in its "PDF" view when "view" is "pdf".
+            bool asPdf = fields.Text("view") == "pdf";
+            if (IsPdf(fileName, bytes) || (IsProjectFile(fileName, bytes) && ReadDocument(bytes, asPdf) is not null))
             {
-                OpenDocument document = IsPdf(fileName, bytes) ? OpenDocument.Create(id, fileName, bytes, words, now) : OpenDocument.Open(ReadDocument(bytes)!);
+                OpenDocument document = IsPdf(fileName, bytes) ? OpenDocument.Create(id, fileName, bytes, words, now) : OpenDocument.Open(ReadDocument(bytes, asPdf)!);
                 _documents[number] = document;
                 _next++;
                 return Answer.Write(json =>
@@ -202,7 +207,7 @@ public sealed class MusicCoreFacade
     });
 
     private static bool IsPieceCall(string name) =>
-        name is "piece" or "phrases" or "select" or "understand" or "circle" or "experiments" or "try" or "notation" or "playback" or "roll" or "dna" or "marks" or "bookmarks" or "resume" or "ideas" or "check" or "performances" or "performance" or "corrections"
+        name is "piece" or "phrases" or "select" or "understand" or "circle" or "experiments" or "try" or "notation" or "playback" or "roll" or "dna" or "marks" or "bookmarks" or "resume" or "ideas" or "check" or "performances" or "performance" or "corrections" or "sources"
         || (name.Contains('.') && !name.StartsWith("settings.", StringComparison.Ordinal));
 
     /// <summary>A PDF the player added to read as it is (0023): by its first bytes, or by its name with bytes that are not a project file.</summary>
@@ -210,11 +215,11 @@ public sealed class MusicCoreFacade
         PdfDocument.IsPdf(data) || (fileName.EndsWith(PdfDocument.Extension, StringComparison.OrdinalIgnoreCase) && !IsProjectFile(fileName, data));
 
     /// <summary>The project in a project file when it is a PDF piece (a document and no notes); null for a piece with notes.</summary>
-    private static Project? ReadDocument(byte[] projectFile)
+    private static Project? ReadDocument(byte[] projectFile, bool asPdf)
     {
         try
         {
-            return ProjectFile.Read(projectFile) is { HasNotes: false, Document: not null } project ? project : null;
+            return ProjectFile.Read(projectFile) is { Document: not null } project && (asPdf || !project.HasNotes) ? project : null;
         }
         catch (ProjectFileException)
         {

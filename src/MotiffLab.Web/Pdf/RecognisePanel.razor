@@ -3,10 +3,11 @@
 @inject MotiffLab.Web.Account.CloudAccount Account
 @inject MotiffLab.Web.Localization.UiText Text
 
-@* Read the notes from a PDF piece (0011, 0023): the kept PDF goes to the scan server, as on Scan printed music, and the
-   notes it reads become a separate piece; the PDF piece stays as it is (Andrei, 2026-11-05). What leaves the device is
-   one line and one switch, as there; on Motiff Lab's server it needs an account and Pro, offered here. *@
-<div class="popover recognise-popover" role="dialog" aria-label="@(Heading ?? Text["pdf.readNotes"])">
+@* Read the notes from a PDF kept in a piece (0011, 0023): the kept PDF goes to the scan server, as on Scan printed music,
+   and the notes it reads go into the same piece (testing item 16, Andrei, 2026-11-06), or become another version of a
+   piece that has notes. What leaves the device is one line and one switch, as there; on Motiff Lab's server it needs an
+   account and Pro, offered here. *@
+<div class="@(Inline ? "recognise-inline" : "popover recognise-popover")" role="@(Inline ? "group" : "dialog")" aria-label="@(Heading ?? Text["pdf.readNotes"])">
     <p class="overline">@(Heading ?? Text["pdf.readNotes"])</p>
     @if (Intro is not null)
     {
@@ -55,7 +56,7 @@
         <button class="btn primary" @onclick="ReadAsync" disabled="@(_reading || !(Scans.IsLocal || _send))">
             @(_reading ? Text["import.scanBusy"] : Text["pdf.readSend"])
         </button>
-        <p class="caption">@Text["pdf.readKeeps"]</p>
+        <p class="caption">@(Keeps ?? Text["pdf.readKeeps"])</p>
     }
 
     @if (_problem is not null)
@@ -83,6 +84,14 @@
     /// <summary>Why the notes are read, said above the rest.</summary>
     [Parameter]
     public string? Intro { get; set; }
+
+    /// <summary>Shown in a sheet's flow, such as Sources, rather than as a popover.</summary>
+    [Parameter]
+    public bool Inline { get; set; }
+
+    /// <summary>What becomes of the notes read, said under Send; else that they go into this piece.</summary>
+    [Parameter]
+    public string? Keeps { get; set; }
 
     /// <summary>The PDF's file name, sent with it.</summary>
     [Parameter, EditorRequired]

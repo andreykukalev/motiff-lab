@@ -166,7 +166,11 @@ public partial class Home
 
     private async Task RefreshAsync()
     {
-        _summaries = await Projects.ListAsync();
+        // One piece, one card (testing item 16): a PDF whose notes were read into a separate piece, as between 2026-11-05 and
+        // 2026-11-07, is reached from its notes with PDF | Notes, so only the notes' card shows.
+        IReadOnlyList<ProjectSummary> all = await Projects.ListAsync();
+        HashSet<string> readFrom = [.. all.Select(summary => summary.ReadFrom).OfType<string>()];
+        _summaries = [.. all.Where(summary => summary.Origin != PieceOrigin.Pdf || !readFrom.Contains(summary.Id))];
         _covers = await Projects.CoversAsync();
         _nearlyFull = await Projects.IsNearlyFullAsync();
         _onlineOnly = null;

@@ -18,6 +18,36 @@ public static class PdfDocument
     /// <summary>Whether the bytes are a PDF: they start with the "%PDF-" header, as every PDF does.</summary>
     public static bool IsPdf(ReadOnlySpan<byte> data) => data.StartsWith("%PDF-"u8);
 
+    /// <summary>
+    /// About how many pages the PDF has, read from its page objects ("/Type /Page", not "/Pages"), at least 1: enough to
+    /// share the bars between the pages until its notes are read (testing item 16). A PDF whose page objects are compressed
+    /// counts as one page; the viewer knows the real count.
+    /// </summary>
+    public static int PageCount(ReadOnlySpan<byte> data)
+    {
+        int count = 0;
+        ReadOnlySpan<byte> type = "/Type"u8;
+        for (int at = data.IndexOf(type); at >= 0;)
+        {
+            int next = at + type.Length;
+            while (next < data.Length && data[next] is (byte)' ' or (byte)'\r' or (byte)'\n' or (byte)'\t')
+            {
+                next++;
+            }
+
+            ReadOnlySpan<byte> rest = data[next..];
+            if (rest.StartsWith("/Page"u8) && (rest.Length == 5 || !char.IsAsciiLetterOrDigit((char)rest[5])))
+            {
+                count++;
+            }
+
+            int found = data[next..].IndexOf(type);
+            at = found < 0 ? -1 : next + found;
+        }
+
+        return Math.Max(1, count);
+    }
+
     /// <summary>A rejection for a PDF too large or empty, so the caller need not read it first; null when its size is fine.</summary>
     public static ImportRejection? CheckSize(long bytes) => bytes switch
     {

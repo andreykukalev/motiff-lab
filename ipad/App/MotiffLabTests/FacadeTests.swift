@@ -452,32 +452,65 @@ final class FacadeTests: XCTestCase {
         XCTAssertEqual(sound.wav(from: 250, to: 750).count, 44 + 11_025 * 2)
     }
 
-    func testTheNotesAScanReadsFromAPdfBecomeAPieceThatNamesIt() throws {
-        // Read the notes (0023): what the scan server reads becomes a project of its own; the PDF piece stays as it is.
+    func testTheNotesAScanReadsFromAPdfFillThatPieceWhichOpensAsNotesOrAsItsPdf() throws {
+        // Read the notes (0023; testing item 16, contract 6): what the scan server reads goes into the PDF piece itself.
         let data = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 595, height: 842), format: UIGraphicsPDFRendererFormat()).pdfData { context in
             for _ in 0..<3 { context.beginPage() }
         }
         let opened = try object(MusicCore.open(fileName: "Elise.pdf", data: data, request: #"{"language": "en", "id": "p_pdf"}"#))
         let pdf = Int32(opened["piece"] as? Int ?? 0)
         defer { MusicCore.close(piece: pdf) }
-        let before = MusicCore.call(piece: pdf, "project.save", #"{"now": "2026-11-05T12:00:00Z"}"#)
 
         let example = try XCTUnwrap(KitPiece.example)
         let request: [String: Any] = ["musicXml": example.data.base64EncodedString(), "engine": "homr 0.7.0", "pages": 3,
-                                      "language": "en", "now": "2026-11-05T12:00:00Z", "id": "p_notes"]
+                                      "language": "en", "now": "2026-11-05T12:00:00Z"]
         let body = String(decoding: try JSONSerialization.data(withJSONObject: request), as: UTF8.self)
         let read = try object(MusicCore.call(piece: pdf, "document.read", body))
         XCTAssertNil(read["error"], "\(read)")
         let project = try XCTUnwrap(read["project"] as? [String: Any])
-        XCTAssertEqual(project["readFrom"] as? String, "p_pdf")
-        XCTAssertEqual((project["readFromPages"] as? [NSNumber])?.count, 3)
+        XCTAssertEqual(project["id"] as? String, "p_pdf", "the same piece")
+        XCTAssertNil(project["readFrom"])
+        XCTAssertEqual((project["documentPages"] as? [NSNumber])?.count, 3)
         let file = try XCTUnwrap(read["file"] as? String)
+        XCTAssertEqual(MusicCore.call(piece: pdf, "project.save", #"{"now": "2026-11-05T12:00:00Z"}"#), file)
         let notes = try XCTUnwrap(PieceSummary(answer: MusicCore.call(piece: 0, "project.summary", String(decoding: try JSONSerialization.data(withJSONObject: ["file": file]), as: UTF8.self))))
         XCTAssertTrue(notes.hasNotes)
-        XCTAssertEqual(notes.readFrom, "p_pdf")
+        XCTAssertTrue(notes.document)
+        XCTAssertEqual(notes.documentPages.count, 3)
         XCTAssertEqual(notes.origin, "scanned", "notes a scan read are detected, never imported")
-        XCTAssertEqual(MusicCore.call(piece: pdf, "project.save", #"{"now": "2026-11-05T12:00:00Z"}"#), before, "the PDF piece is untouched")
+        let url = URL(fileURLWithPath: "/shelf/Elise.motiff.json")
+        let other = try XCTUnwrap(OtherView.of(url, in: [url: notes]))
+        XCTAssertEqual(other.file, url, "PDF | Notes switches the two views of the one file")
+        XCTAssertEqual(other.pages.start(of: 1), 0)
+
+        let asNotes = try object(MusicCore.open(fileName: "Elise.motiff.json", data: Data(file.utf8), request: #"{"language": "en"}"#))
+        defer { MusicCore.close(piece: Int32(asNotes["piece"] as? Int ?? 0)) }
+        XCTAssertNil(asNotes["document"], "a piece with notes opens as notes")
+        let asPdf = try object(MusicCore.open(fileName: "Elise.motiff.json", data: Data(file.utf8), request: #"{"language": "en", "view": "pdf"}"#))
+        defer { MusicCore.close(piece: Int32(asPdf["piece"] as? Int ?? 0)) }
+        XCTAssertNotNil(asPdf["document"] as? [String: Any], "or in its PDF view")
         XCTAssertEqual(try object(MusicCore.call(piece: pdf, "document.read", #"{"musicXml": "not base64!"}"#))["error"] as? String, "badRequest")
+    }
+
+    func testAPieceKeepsItsSourcesAndAPdfInsideIt() throws {
+        // Sources (testing item 16, contract 6): the base, a PDF kept inside the piece, and its bytes back for the scan server.
+        let first = try XCTUnwrap(SourcesInfo(answer: MusicCore.call(piece: piece, "sources")))
+        XCTAssertEqual(first.base, "file")
+        XCTAssertFalse(first.baseName.isEmpty)
+        XCTAssertTrue(first.summary.contains(first.baseName), "the line names the base, in the piece's language: \(first.summary)")
+        XCTAssertNil(first.document)
+
+        let data = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 595, height: 842), format: UIGraphicsPDFRendererFormat()).pdfData { context in
+            for _ in 0..<2 { context.beginPage() }
+        }
+        let body = String(decoding: try JSONSerialization.data(withJSONObject: ["pdf": data.base64EncodedString(), "pages": 2]), as: UTF8.self)
+        let kept = try XCTUnwrap(SourcesInfo(answer: MusicCore.call(piece: piece, "sources.document", body)))
+        XCTAssertEqual(kept.document?.pages, 2)
+        XCTAssertEqual(kept.document?.starts.count, 2)
+        XCTAssertEqual(kept.document?.starts.first, 0)
+        let back = try object(MusicCore.call(piece: piece, "sources.pdf"))
+        XCTAssertEqual((back["pdf"] as? String).flatMap { Data(base64Encoded: $0) }, data)
+        XCTAssertEqual(try object(MusicCore.call(piece: piece, "performance.takeAll", #"{"id": "perf_9"}"#))["error"] as? String, "notFound")
     }
 
     @MainActor

@@ -433,6 +433,9 @@ public partial class PlaybackLab
 
         _project = project;
         _performanceId = performance.Id;
+        _addedVersion = performance.Id;
+        _takenAll = null;
+        _addingSource = false;
         _comparison = (performance.Id, performance.Midi, performance.Anchors, _edits, _imported, comparison);
         _performanceStatus = comparison.MatchedCount == 0
             ? Text["performance.noMatch"]

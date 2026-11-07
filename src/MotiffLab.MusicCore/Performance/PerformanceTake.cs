@@ -1,4 +1,5 @@
 using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Performance;
@@ -71,6 +72,31 @@ public static class PerformanceTake
             bar.Bar,
             [.. bar.PrintedNotHeard.Where(id => !skip.Contains(id)).Order(StringComparer.Ordinal)],
             [.. added.OrderBy(note => note.Span.Onset).ThenBy(note => note.Pitch).ThenBy(note => note.Id, StringComparer.Ordinal)]);
+    }
+
+    /// <summary>The confidence a bar needs for Take everything automatically (testing item 16): 80 %.</summary>
+    public const int AutomaticConfidence = 80;
+
+    /// <summary>
+    /// Take everything automatically (testing item 16): every bar the performance plays differently, aligned, not marked
+    /// "not a difference" and not taken yet, whose comparison is at least <paramref name="confidence"/> percent sure, taken
+    /// as <see cref="Take"/> takes one. Restoring the bars taken brings the print back, so it can be undone.
+    /// </summary>
+    public static IReadOnlyList<TakenBar> TakeAll(
+        SavedPerformance performance,
+        PerformanceComparison comparison,
+        MeterMap meter,
+        IReadOnlyList<Note> score,
+        int confidence = AutomaticConfidence)
+    {
+        ArgumentNullException.ThrowIfNull(performance);
+        ArgumentNullException.ThrowIfNull(comparison);
+        IReadOnlyList<PlayedNote> played = performance.Notes();
+        HashSet<int> skip = [.. performance.Dismissed, .. performance.Taken.Select(bar => bar.Bar)];
+        return [.. comparison.Differences
+            .Where(bar => bar.Aligned && bar.Confidence >= confidence && !skip.Contains(bar.Bar))
+            .Select(bar => Take(performance.Id, bar, played, comparison.Alignment, meter, score))
+            .Where(bar => bar.Added.Count > 0 || bar.Removed.Count > 0)];
     }
 
     /// <summary>

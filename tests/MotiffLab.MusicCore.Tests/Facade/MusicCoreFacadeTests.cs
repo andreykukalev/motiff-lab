@@ -995,6 +995,53 @@ public class MusicCoreFacadeTests
     }
 
     [Fact]
+    public void A_piece_keeps_its_sources_a_pdf_inside_it_and_takes_what_a_version_is_sure_of()
+    {
+        // Testing item 16 (Andrei, 2026-11-06): one piece, many sources, and the result is the player's own version.
+        (MusicCoreFacade facade, _) = Open("""{"id": "p_fur"}""");
+        ImportedPiece piece = PieceImporter.Import(FurElise, Fixture(FurElise)).Piece!;
+        TickSpan bar5 = piece.Meter.GetBar(5).Span;
+        Note[] melody = [.. piece.Notes.Where(note => bar5.Contains(note.Span.Onset)).OrderByDescending(note => note.Pitch.MidiNumber).Take(3)];
+        Note[] played = [.. piece.Notes, .. melody.Select((note, i) => note with { Id = $"x{i}", Pitch = new Pitch(note.Pitch.MidiNumber + (i * 7) - 3) })];
+        string midi = Convert.ToBase64String(MidiExporter.Export(played, [], piece.Meter, "performance"));
+        int printed = Call(facade, "piece").GetProperty("noteCount").GetInt32();
+
+        JsonElement sources = Call(facade, "sources");
+        Assert.Equal("file", sources.GetProperty("base").GetString());
+        Assert.Equal("Base: the notes of the file", sources.GetProperty("summary").GetString());
+        Assert.Equal(JsonValueKind.Null, sources.GetProperty("document").ValueKind);
+        Assert.Equal("unavailable", Error(facade, 1, "sources.pdf"));
+
+        Call(facade, "performance.add", $$$"""{"name": "Live", "midi": "{{{midi}}}"}""");
+        JsonElement all = Call(facade, "performance.takeAll", """{"id": "perf_1"}""").GetProperty("performance");
+        Assert.Equal(1, all.GetProperty("takenBars").GetInt32());
+        Assert.Equal(printed + 3, Call(facade, "piece").GetProperty("noteCount").GetInt32());
+        Assert.Equal("Base: the notes of the file · 1 other version · 1 bar taken", Call(facade, "sources").GetProperty("summary").GetString());
+        Assert.Equal(1, Call(facade, "performance.takeAll", """{"id": "perf_1"}""").GetProperty("performance").GetProperty("takenBars").GetInt32());
+
+        // A PDF kept inside the piece, its pages shared over the bars, then its notes read and added as a version.
+        byte[] pdf = System.Text.Encoding.ASCII.GetBytes("%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\n%%EOF\n");
+        Assert.Equal("unavailable", Error(facade, 1, "sources.documentNotes", JsonSerializer.Serialize(new { musicXml = Convert.ToBase64String(Fixture(FurElise)) })));
+        JsonElement kept = Call(facade, "sources.document", JsonSerializer.Serialize(new { pdf = Convert.ToBase64String(pdf), pages = 2 }));
+        Assert.Equal(2, kept.GetProperty("document").GetProperty("pages").GetInt32());
+        Assert.Equal(2, kept.GetProperty("document").GetProperty("starts").GetArrayLength());
+        Assert.Equal(0, kept.GetProperty("document").GetProperty("starts")[0].GetInt64());
+        Assert.False(kept.GetProperty("document").GetProperty("readFrom").GetBoolean());
+        Assert.Equal(pdf, Call(facade, "sources.pdf").GetProperty("pdf").GetBytesFromBase64());
+        JsonElement version = Call(facade, "sources.documentNotes", JsonSerializer.Serialize(new { musicXml = Convert.ToBase64String(Fixture(FurElise)), engine = "homr 0.7.0", pages = 2 })).GetProperty("performance");
+        Assert.Equal("perf_2", version.GetProperty("id").GetString());
+        Assert.Equal("score", version.GetProperty("source").GetString());
+        Assert.Equal("fur-elise-original", version.GetProperty("name").GetString());
+        Assert.Equal("badRequest", Error(facade, 1, "sources.document", JsonSerializer.Serialize(new { pdf = Convert.ToBase64String([1, 2, 3]) })));
+
+        // The PDF stays on the device: the online copy keeps the notes and leaves the PDF out.
+        Project saved = ProjectFile.Read(System.Text.Encoding.UTF8.GetBytes(facade.Call(1, "project.save")));
+        Assert.Equal(pdf, saved.Document);
+        Assert.Null(saved.ForOnline()!.Document);
+        Assert.Equal(saved.Performances, saved.ForOnline()!.Performances);
+    }
+
+    [Fact]
     public void A_performance_is_compared_taken_into_the_score_kept_and_restored()
     {
         (MusicCoreFacade facade, _) = Open("""{"id": "p_fur"}""");
@@ -1163,30 +1210,44 @@ public class MusicCoreFacadeTests
     }
 
     [Fact]
-    public void Notes_a_scan_read_from_a_pdf_piece_become_a_project_of_their_own_that_names_it()
+    public void Notes_a_scan_read_from_a_pdf_piece_fill_that_piece_which_then_opens_as_notes_or_as_its_pdf()
     {
+        // Testing item 16 (Andrei, 2026-11-06): the PDF is available right inside the piece.
         var facade = new MusicCoreFacade();
         byte[] pdf = System.Text.Encoding.ASCII.GetBytes("%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\n%%EOF\n");
         Json(facade.Open("Nocturne.pdf", pdf, """{"id": "p_pdf", "now": "2026-11-05T10:00:00Z"}"""));
-        string before = facade.Call(1, "project.save", """{"now": "2026-11-05T10:00:00Z"}""");
-        string request = JsonSerializer.Serialize(new { musicXml = Convert.ToBase64String(Fixture(FurElise)), engine = "homr 0.7.0", pages = 3, id = "p_notes", now = "2026-11-05T12:00:00Z" });
+        Call(facade, "document.bookmark.add", """{"page": 2, "name": "Trio"}""");
+        string request = JsonSerializer.Serialize(new { musicXml = Convert.ToBase64String(Fixture(FurElise)), engine = "homr 0.7.0", pages = 3, now = "2026-11-05T12:00:00Z" });
 
         JsonElement read = Call(facade, "document.read", request);
 
         JsonElement project = read.GetProperty("project");
-        Assert.Equal("p_notes", project.GetProperty("id").GetString());
+        Assert.Equal("p_pdf", project.GetProperty("id").GetString());
         Assert.Equal("scanned", project.GetProperty("origin").GetString());
         Assert.True(project.GetProperty("hasNotes").GetBoolean());
-        Assert.Equal("p_pdf", project.GetProperty("readFrom").GetString());
-        Assert.Equal(3, project.GetProperty("readFromPages").GetArrayLength());
-        Assert.Equal(0, project.GetProperty("readFromPages")[0].GetInt64());
         Assert.Equal(1, project.GetProperty("resumePoints").GetInt32());
-        JsonElement notes = Json(new MusicCoreFacade().Open("Nocturne.motiff.json", System.Text.Encoding.UTF8.GetBytes(read.GetProperty("file").GetString()!)));
-        Assert.True(notes.GetProperty("piece").GetInt32() > 0, notes.ToString());
-        Assert.False(notes.TryGetProperty("document", out _), "the notes are an ordinary piece");
-        Assert.Equal(before, facade.Call(1, "project.save", """{"now": "2026-11-05T10:00:00Z"}"""));
+        Assert.Equal(3, project.GetProperty("documentPages").GetArrayLength());
+        Assert.Equal(0, project.GetProperty("documentPages")[0].GetInt64());
+        Assert.False(project.TryGetProperty("readFrom", out _));
+        byte[] file = System.Text.Encoding.UTF8.GetBytes(read.GetProperty("file").GetString()!);
+        Assert.Equal(read.GetProperty("file").GetString(), facade.Call(1, "project.save", """{"now": "2026-11-05T12:00:00Z"}"""));
+        Assert.Equal("unavailable", Error(facade, 1, "document.read", request));
 
-        Assert.Equal("import", Error(facade, 1, "document.read", """{"musicXml": "AAAA", "engine": "homr"}"""));
-        Assert.Equal("badRequest", Error(facade, 1, "document.read", """{"musicXml": "not base64!"}"""));
+        var again = new MusicCoreFacade();
+        JsonElement notes = Json(again.Open("Nocturne.motiff.json", file));
+        Assert.False(notes.TryGetProperty("document", out _), "a piece with notes opens as notes");
+        JsonElement sources = Call(again, "sources", null);
+        Assert.Equal("scan", sources.GetProperty("base").GetString());
+        Assert.Equal("Base: the notes read from the PDF", sources.GetProperty("summary").GetString());
+        Assert.Equal(3, sources.GetProperty("document").GetProperty("pages").GetInt32());
+        Assert.True(sources.GetProperty("document").GetProperty("readFrom").GetBoolean());
+        JsonElement asPdf = Json(again.Open("Nocturne.motiff.json", file, """{"view": "pdf"}"""));
+        Assert.True(asPdf.TryGetProperty("document", out _), asPdf.ToString());
+        Assert.Equal("Trio", Json(again.Call(2, "document.marks")).GetProperty("marks").GetProperty("bookmarks")[0].GetProperty("name").GetString());
+
+        var other = new MusicCoreFacade();
+        Json(other.Open("Nocturne.pdf", pdf));
+        Assert.Equal("import", Error(other, 1, "document.read", """{"musicXml": "AAAA", "engine": "homr"}"""));
+        Assert.Equal("badRequest", Error(other, 1, "document.read", """{"musicXml": "not base64!"}"""));
     }
 }

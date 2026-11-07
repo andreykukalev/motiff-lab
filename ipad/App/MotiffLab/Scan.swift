@@ -225,8 +225,12 @@ struct ReadNotesPanel: View {
     let signedIn: Bool
     let pro: Bool
     let text: UIText
+    /// The panel's heading; Read the notes unless given.
+    var heading: String? = nil
+    /// What becomes of the notes read, under Send; that they go into this piece unless given.
+    var keeps: String? = nil
     let settings: () -> Void
-    /// Sends the PDF and makes the notes a piece; answers why not, or nil once they open.
+    /// Sends the PDF and puts the notes into the piece, or adds them as a version; answers why not, or nil once done.
     let read: () async -> String?
     @State private var send = false
     @State private var reading = false
@@ -234,7 +238,7 @@ struct ReadNotesPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
-            Text(text["pdf.readNotes"]).overline().accessibilityAddTraits(.isHeader)
+            Text(heading ?? text["pdf.readNotes"]).overline().accessibilityAddTraits(.isHeader)
             if let address {
                 if hosted && !signedIn {
                     caption(text["scan.signInPrompt"])
@@ -265,7 +269,7 @@ struct ReadNotesPanel: View {
                     }
                     .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
                     .disabled(reading || !(local || send))
-                    caption(text["pdf.readKeeps"])
+                    caption(keeps ?? text["pdf.readKeeps"])
                 }
             } else {
                 caption(text["import.scanSetUp"])

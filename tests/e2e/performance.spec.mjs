@@ -1,5 +1,5 @@
 // Another version compared with the piece (decision record 0022, sections 1, 4 and 5): a MIDI file of a performance added in
-// the Other versions drawer, a plum marker above each bar it plays differently, the printed notes it did not play tinted, a bar
+// the Sources sheet (testing item 16), a plum marker above each bar it plays differently, the printed notes it did not play tinted, a bar
 // taken into the score and restored, all kept with the project. The performance is Für Elise's opening with three notes
 // added in bar 5 and the left hand of bar 7 left out (fixtures/fur-elise-cover.mid, made from the public-domain score). Which is the base is only which was opened first: the score
 // in MusicXML can be added over the cover opened as the piece.
@@ -8,6 +8,7 @@ import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { pdf } from "./pdf-fixture.mjs";
 import { closePopover, openMore, violations } from "./steps.mjs";
 
 const score = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Experiments/Fixtures/fur-elise-original.musicxml", import.meta.url));
@@ -51,9 +52,10 @@ test("a MIDI performance marks the bars it plays differently, and a bar is taken
 
     const more = page.locator(".bar").getByRole("button", { name: "More" });
     await more.click();
-    await page.locator(".more-popover").getByRole("button", { name: "Add a version" }).click();
+    await page.locator(".more-popover").getByRole("button", { name: "Sources" }).click();
     const drawer = page.locator(".perf-sheet");
-    await drawer.locator("input[type=file]").setInputFiles(cover);
+    await drawer.getByRole("button", { name: "Add a source" }).click();
+    await drawer.getByLabel("Add a MIDI or MusicXML file").setInputFiles(cover);
     await expect(drawer.getByRole("status")).toHaveText("Lined up: 50 of 53 notes found in the version, 2 bars differ.");
 
     const markers = page.locator(".score button.perf-marker");
@@ -77,7 +79,7 @@ test("a MIDI performance marks the bars it plays differently, and a bar is taken
     await expect(page.locator(".score g.note.version-added")).toHaveCount(0);
     await closePopover(page);
     await page.locator(".bar").getByRole("button", { name: "More" }).click();
-    await page.locator(".more-popover").getByRole("button", { name: "Other versions" }).click();
+    await page.locator(".more-popover").getByRole("button", { name: "Sources" }).click();
 
     // A marker selects its bar in the drawer.
     await markers.nth(1).click();
@@ -92,7 +94,7 @@ test("a MIDI performance marks the bars it plays differently, and a bar is taken
 
     // Restore these notes: the marker comes back. Not a difference: bar 7's marker goes.
     await page.locator(".bar").getByRole("button", { name: "More" }).click();
-    await page.locator(".more-popover").getByRole("button", { name: "Other versions" }).click();
+    await page.locator(".more-popover").getByRole("button", { name: "Sources" }).click();
     await drawer.getByRole("button", { name: "Restore these notes" }).click();
     await expect(markers).toHaveText(["+3 · added notes", "−3 · simplified"]);
     await drawer.locator(".check-entry", { hasText: "Bar 7" }).getByRole("button", { name: "Not a difference" }).click();
@@ -115,9 +117,10 @@ test("the official score in MusicXML is added over notes from a performance", as
     await expect(page).toHaveURL(/\/playback\?project=p_[0-9a-f]+/);
 
     await page.locator(".bar").getByRole("button", { name: "More" }).click();
-    await page.locator(".more-popover").getByRole("button", { name: "Add a version" }).click();
+    await page.locator(".more-popover").getByRole("button", { name: "Sources" }).click();
     const drawer = page.locator(".perf-sheet");
-    await drawer.locator("input[type=file]").setInputFiles(score);
+    await drawer.getByRole("button", { name: "Add a source" }).click();
+    await drawer.getByLabel("Add a MIDI or MusicXML file").setInputFiles(score);
     await expect(drawer.getByRole("status")).toContainText("Lined up:");
     // The mirror of the first test: what the cover added is now left out of the score, and the left hand it left out is added.
     await expect(page.locator(".score button.perf-marker")).toHaveText(["−3 · simplified", "+3 · added notes"]);
@@ -132,9 +135,10 @@ test("in focus, the other version stands above the phrase, is heard, and its bar
     await page.getByRole("button", { name: "Add piece" }).click();
     await page.getByLabel("Choose a MIDI, MusicXML or PDF file").setInputFiles(score);
     await expect(page).toHaveURL(/\/playback\?project=p_[0-9a-f]+/);
-    await (await openMore(page)).getByRole("button", { name: "Add a version" }).click();
+    await (await openMore(page)).getByRole("button", { name: "Sources" }).click();
     const drawer = page.locator(".perf-sheet");
-    await drawer.locator("input[type=file]").setInputFiles(cover);
+    await drawer.getByRole("button", { name: "Add a source" }).click();
+    await drawer.getByLabel("Add a MIDI or MusicXML file").setInputFiles(cover);
     await expect(drawer.getByRole("status")).toContainText("Lined up:");
     const markers = page.locator(".score button.perf-marker");
 
@@ -185,8 +189,9 @@ test("a recording is added as another version: its sound is heard on the scan se
     await page.getByRole("button", { name: "Add piece" }).click();
     await page.getByLabel("Choose a MIDI, MusicXML or PDF file").setInputFiles(score);
     await expect(page).toHaveURL(/\/playback\?project=p_[0-9a-f]+/);
-    await (await openMore(page)).getByRole("button", { name: "Add a version" }).click();
+    await (await openMore(page)).getByRole("button", { name: "Sources" }).click();
     const drawer = page.locator(".perf-sheet");
+    await drawer.getByRole("button", { name: "Add a source" }).click();
     const fromRecording = drawer.getByRole("region", { name: "From a recording" });
     await expect(fromRecording).toContainText("The recording's sound, up to 7 minutes, goes to localhost and is deleted once heard.");
     expect(await violations(page)).toEqual([]);
@@ -211,5 +216,46 @@ test("a recording is added as another version: its sound is heard on the scan se
     await artefacts.click();
     await expect(page.locator(".score g.note.version-artefact")).toHaveCount(count);
     expect(await violations(page)).toEqual([]);
+    expect(errors).toEqual([]);
+});
+
+test("the Sources sheet names the base, offers four next steps after a version, takes what is sure and keeps a PDF inside the piece", async ({ page }) => {
+    const errors = [];
+    page.on("pageerror", error => errors.push(String(error)));
+    await page.goto("/");
+    await page.getByRole("button", { name: "Add piece" }).click();
+    await page.getByLabel("Choose a MIDI, MusicXML or PDF file").setInputFiles(score);
+    await expect(page).toHaveURL(/\/playback\?project=p_[0-9a-f]+/);
+    await (await openMore(page)).getByRole("button", { name: "Sources" }).click();
+    const drawer = page.locator(".perf-sheet");
+    await expect(drawer.getByRole("heading", { name: "My version" })).toBeVisible();
+    await expect(drawer.locator(".sources-summary")).toHaveText("Base: the notes of the file");
+
+    await drawer.getByRole("button", { name: "Add a source" }).click();
+    await drawer.getByLabel("Add a MIDI or MusicXML file").setInputFiles(cover);
+    const next = drawer.getByRole("region", { name: "What next" });
+    for (const step of ["Compare", "Hear it alone", "Take everything sure", "Adjust it myself"]) {
+        await expect(next.getByRole("button", { name: step })).toBeVisible();
+    }
+    await expect(drawer.getByRole("button", { name: /fur-elise-cover/ })).toContainText("Performance · ");
+    expect(await violations(page)).toEqual([]);
+
+    // Take everything sure: both bars come in at once, the markers go, and Give back returns them.
+    const markers = page.locator(".score button.perf-marker");
+    await next.getByRole("button", { name: "Take everything sure" }).click();
+    await expect(markers).toHaveCount(0);
+    await expect(drawer.locator(".sources-summary")).toHaveText("Base: the notes of the file · 1 other version · 2 bars taken");
+    await drawer.getByRole("button", { name: "Give back" }).click();
+    await expect(markers).toHaveText(["+3 · added notes", "−3 · simplified"]);
+
+    // A PDF kept inside the piece: its row opens the "PDF" view of this same piece.
+    await drawer.getByRole("button", { name: "Add a source" }).click();
+    await drawer.getByLabel("Add a PDF").setInputFiles({ name: "Für Elise.pdf", mimeType: "application/pdf", buffer: pdf(2) });
+    await expect(drawer.getByRole("status")).toHaveText("The PDF is kept in the piece.");
+    await expect(drawer.locator(".source-row", { hasText: "PDF kept in the piece" })).toBeVisible();
+    const url = page.url();
+    await drawer.getByRole("button", { name: "Open PDF" }).click();
+    await expect(page).toHaveURL(new RegExp(`/pdf\\?project=${new URL(url).searchParams.get("project")}&page=1`));
+    await expect(page.locator(".pdf-page")).toHaveCount(2);
     expect(errors).toEqual([]);
 });

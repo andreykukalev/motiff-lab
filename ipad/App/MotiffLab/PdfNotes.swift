@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// PDF | Notes (0023; Andrei, 2026-11-04): a PDF piece and the notes read from it are two pieces in the library, linked by
-/// the notes' `readFrom`. The switch in the bar goes from one to the other, landing roughly on the same stretch of music by
-/// where each of the PDF's pages starts in the notes, as the web app's `ViewSwitch` does.
+/// PDF | Notes (0023; Andrei, 2026-11-04): the two views of a piece with notes and a PDF kept inside it (testing item 16,
+/// since 2026-11-07), or, for notes read between 2026-11-05 and 2026-11-07, a PDF piece and the notes read from it, linked
+/// by the notes' `readFrom`. The switch in the bar goes from one to the other, landing roughly on the same stretch of music
+/// by where each of the PDF's pages starts in the notes, as the web app's `ViewSwitch` does.
 struct PageMap: Equatable, Sendable {
     /// Where each page starts in the notes, in ticks, from page 1.
     let starts: [Double]
@@ -28,10 +29,14 @@ struct OtherView: Equatable, Sendable {
     let file: URL
     let pages: PageMap
 
-    /// The other view of the project at `file`, from the library's summaries: for notes read from a PDF, that PDF piece; for
-    /// a PDF piece, the notes read from it most recently opened. Nil when there is none on the device.
+    /// The other view of the project at `file`, from the library's summaries: for a piece with notes and a PDF, the same
+    /// file in its other view; for notes read from a PDF piece, that PDF piece; for a PDF piece, the notes read from it most
+    /// recently opened. Nil when there is none on the device.
     static func of(_ file: URL, in summaries: [URL: PieceSummary]) -> OtherView? {
         guard let summary = summaries[file] else { return nil }
+        if summary.hasNotes && summary.document {
+            return OtherView(file: file, pages: PageMap(starts: summary.documentPages))
+        }
         if let pdf = summary.readFrom {
             guard let found = summaries.first(where: { $0.value.id == pdf && !$0.value.hasNotes }) else { return nil }
             return OtherView(file: found.key, pages: PageMap(starts: summary.readFromPages))

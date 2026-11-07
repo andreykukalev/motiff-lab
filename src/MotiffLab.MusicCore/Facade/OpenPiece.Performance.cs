@@ -27,6 +27,7 @@ internal sealed partial class OpenPiece
         "performance.rename" => ChangePerformance(request, performance => performance with { Name = request.Required("name") }),
         "performance.dismiss" => ChangePerformance(request, performance => performance.Dismiss(BarOf(request), request.Bool("dismissed") ?? true)),
         "performance.take" => TakeBars(request),
+        "performance.takeAll" => TakeAll(request),
         "performance.restore" => ChangePerformance(request, performance => performance.Restore(BarsOf(request)), notesChange: true),
         "performance.remove" => RemovePerformance(request),
         _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\"."),
@@ -74,8 +75,13 @@ internal sealed partial class OpenPiece
             : request.Has("parts") ? (JoinedParts(request), PerformanceSource.Recording)
             : (MidiOf(request), request.Enum<PerformanceSource>("source") ?? PerformanceSource.Midi);
 
+        return AddVersion(request.Required("name"), midi, source, (request.Long("recordingStart") ?? 0) * 1000, request.Text("engine"));
+    }
+
+    /// <summary>A version added over the piece: lined up with the score, kept with its anchors, and for a scanned piece the Check flags it gives.</summary>
+    private string AddVersion(string name, byte[] midi, PerformanceSource source, long start, string? engine)
+    {
         IReadOnlyList<PlayedNote> played;
-        long start = (request.Long("recordingStart") ?? 0) * 1000;
         try
         {
             played = PlayedNotes.FromMidi(midi, start);
@@ -91,9 +97,9 @@ internal sealed partial class OpenPiece
         }
 
         PerformanceAlignment alignment = PerformanceAlignment.Align(Printed, played);
-        SavedPerformance performance = new(Project.NextPerformanceId(), request.Required("name"), source, midi, start, alignment.Anchors)
+        SavedPerformance performance = new(Project.NextPerformanceId(), name, source, midi, start, alignment.Anchors)
         {
-            Engine = request.Text("engine"),
+            Engine = engine,
         };
 
         Project = Project.AddPerformance(performance);
@@ -201,6 +207,27 @@ internal sealed partial class OpenPiece
         }
 
         return ChangePerformance(request, kept => kept.TakeBars(taken), notesChange: true);
+    }
+
+    /// <summary>
+    /// Take everything automatically (testing item 16): "id", and "confidence" in percent (80 unless sent). Every bar the
+    /// version plays otherwise that the comparison is that sure of; "performance.restore" with the bars answered undoes it.
+    /// </summary>
+    private string TakeAll(Request request)
+    {
+        SavedPerformance performance = Performance(request);
+        int confidence = Math.Clamp(request.Int("confidence") ?? PerformanceTake.AutomaticConfidence, 0, 100);
+        IReadOnlyList<TakenBar> taken;
+        try
+        {
+            taken = PerformanceTake.TakeAll(performance, Compare(performance), Piece.Meter, Printed, confidence);
+        }
+        catch (ArgumentException exception)
+        {
+            throw FacadeException.Unavailable(exception.Message);
+        }
+
+        return taken.Count == 0 ? PerformanceAnswer(performance) : ChangePerformance(request, kept => kept.TakeBars(taken), notesChange: true);
     }
 
     private string RemovePerformance(Request request)

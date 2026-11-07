@@ -279,13 +279,14 @@
     }
 
     /// <summary>
-    /// Makes the notes the scan read a separate piece (0011, 0023; Andrei, 2026-11-05): this PDF piece stays exactly as it
-    /// is. The new piece's Check flags start open, a resume point is set, and it opens where the page under the bar starts,
-    /// or with Other versions open when the notes were read to add a version (0022). Returns why the notes cannot be used.
+    /// Puts the notes the scan read into this same piece (0011, 0023; testing item 16, Andrei, 2026-11-06: "the PDF is
+    /// available right inside the piece"): the PDF, its marks and its bookmarks stay as they were, the scan's Check flags
+    /// start open, a resume point is set, and the piece opens as notes where the page under the bar starts, or with Sources
+    /// open when the notes were read to add a version (0022). Returns why the notes cannot be used.
     /// </summary>
     private async Task<string?> ReadNotesAsync(ScanResult result, bool forVersion)
     {
-        if (_project is not { } project || result.MusicXml is not { } musicXml)
+        if (_project is not { HasNotes: false } project || result.MusicXml is not { } musicXml)
         {
             return result.Problem;
         }
@@ -299,9 +300,10 @@
 
         ScanCheck check = ScanCheck.Of(piece);
         PageMap pages = PageMap.Of(piece, Math.Max(1, _pages.Count));
-        Project read = Project.ReadFromDocument($"p_{Guid.NewGuid():N}", project, musicXml, result.Engine, pages, DateTimeOffset.Now) with
+        Project read = project.Recognised(musicXml, result.Engine, pages) with
         {
             Check = CheckFlag.FromScan(check, []),
+            LastOpened = DateTimeOffset.Now,
         };
         ResumePoint point = ResumePoint.Start(read.NextResumePointId(), DateTimeOffset.Now);
         read = read.AddResumePoint(point);
