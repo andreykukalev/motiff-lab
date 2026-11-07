@@ -32,6 +32,9 @@ public sealed class MusicCoreFacade
     /// 8 explains Piece DNA (testing item 30): dna answers a "summary" line, every harmony bar its "degree" and
     /// "function", every cadence its "explanation", and "circles", the circle of fifths of each section with the key it
     /// comes from; a circle's chords tell their "function" and "role", and a circle its twelve "zones".
+    /// 9 assembles the player's own version from the piece's sources (0024): assembly, assembly.source, .notation,
+    /// .playback, .pick, .sheet, .carry, .transpose, .accept, .undo, .redo, .restart, .revert, .journal, .apply, .unapply
+    /// and .recording, over project file version 15.
     /// 7 merges a version through a draft (testing items 32 and 34): performance.merge.open, .choose, .own, .undecide,
     /// .undo, .redo, .reset, .cancel and .apply, the three views engraved and heard (performance.merge.notation, .playback),
     /// performance.merge.undoApplied, and performance.putBack for a version removed while the piece is open; a performance
@@ -45,7 +48,7 @@ public sealed class MusicCoreFacade
     /// 1 was the first contract: open and save, piece, phrases with their edits, select, understand,
     /// experiments, the variation chain, notation, playback, the catalogue and the Piece DNA placeholder.
     /// </summary>
-    public const int Contract = 8;
+    public const int Contract = 9;
 
     private readonly Dictionary<int, OpenPiece> _pieces = [];
     private readonly Dictionary<int, OpenDocument> _documents = [];
@@ -156,7 +159,14 @@ public sealed class MusicCoreFacade
                 throw new FacadeException("noPiece", $"Piece {piece} is not open.");
             }
 
-            return open.Call(name, fields);
+            string answer = open.Call(name, fields);
+            // «Сделать нотами» changes the piece itself: it opens again as it now is, under the same number.
+            if (open.Replacement is { } replacement)
+            {
+                _pieces[piece] = replacement;
+            }
+
+            return answer;
         }
         catch (Exception exception)
         {
@@ -214,7 +224,7 @@ public sealed class MusicCoreFacade
     });
 
     private static bool IsPieceCall(string name) =>
-        name is "piece" or "phrases" or "select" or "understand" or "circle" or "experiments" or "try" or "notation" or "playback" or "roll" or "dna" or "marks" or "bookmarks" or "resume" or "ideas" or "check" or "performances" or "performance" or "corrections" or "sources"
+        name is "piece" or "phrases" or "select" or "understand" or "circle" or "experiments" or "try" or "notation" or "playback" or "roll" or "dna" or "marks" or "bookmarks" or "resume" or "ideas" or "check" or "performances" or "performance" or "corrections" or "sources" or "assembly"
         || (name.Contains('.') && !name.StartsWith("settings.", StringComparison.Ordinal));
 
     /// <summary>A PDF the player added to read as it is (0023): by its first bytes, or by its name with bytes that are not a project file.</summary>
