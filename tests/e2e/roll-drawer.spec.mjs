@@ -69,6 +69,23 @@ test("Expand takes the phrase into focus as a roll; Notes | Piano roll switches 
     expect(errors).toEqual([]);
 });
 
+test("playing on past the phrase in focus turns the card, so Notes shows where the roll is (testing item 27)", async ({ page }) => {
+    const errors = await openFurElise(page);
+    await page.locator(".bar").getByRole("button", { name: "Piano roll" }).click();
+    await page.locator(".bar").getByRole("button", { name: "Play", exact: true }).click();
+    await page.locator(".roll-head").getByRole("button", { name: "Expand" }).click();
+    const crumb = page.locator(".bar .crumb");
+    await expect(crumb).toContainText("phrase 1 of");
+
+    // The piece plays on into the next phrase: the card turns with it, as the roll does.
+    await expect(crumb).toContainText("phrase 2 of", { timeout: 20_000 });
+    const showAs = page.locator(".bar").getByRole("radiogroup", { name: "Show the phrase as" });
+    await showAs.getByRole("radio", { name: "Notes" }).click();
+    await expect(page.locator(".focus-card .phrase-card-score")).toBeVisible();
+    await expect(crumb).not.toContainText("phrase 1 of");
+    expect(errors).toEqual([]);
+});
+
 test("the handle drags the drawer taller, the height is kept, and a tap puts the drawer away", async ({ page }) => {
     const errors = await openFurElise(page);
     await page.locator(".bar").getByRole("button", { name: "Piano roll" }).click();

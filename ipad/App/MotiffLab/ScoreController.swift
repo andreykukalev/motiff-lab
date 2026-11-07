@@ -1242,6 +1242,23 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         Task { await select(next.selectableOnset, next.selectableEnd) }
     }
 
+    /// Whether the card is turning to the phrase that sounds, so a position reported meanwhile does not turn it again.
+    private var turningToPlaying = false
+
+    /// While the piece plays on past the phrase in focus (nothing loops), the card turns to the unit now sounding, as Next
+    /// would, so Notes and Piano roll show the same place (testing item 27). A variation in the card keeps it where it is.
+    func followPlaying(_ tick: Double) {
+        guard focused, ossia == nil, !turningToPlaying, let selection, tick < selection.onset || tick >= selection.end,
+              let shown = focusUnit,
+              let sounding = phrases?.units.last(where: { $0.onset <= tick }), sounding.number != shown.number
+        else { return }
+        turningToPlaying = true
+        Task {
+            await select(sounding.selectableOnset, sounding.selectableEnd)
+            turningToPlaying = false
+        }
+    }
+
     /// "bars 9–16 · phrase 3 of 16", or the bars alone for a passage that is not a unit.
     var focusPosition: String {
         guard let selection else { return "" }
