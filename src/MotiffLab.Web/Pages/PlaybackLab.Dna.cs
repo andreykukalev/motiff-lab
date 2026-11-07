@@ -19,6 +19,9 @@ public partial class PlaybackLab
 
     private PieceDna? _dna;
 
+    /// <summary>What the map's last action did, such as the bookmarks it added.</summary>
+    private string? _dnaStatus;
+
     /// <summary>Whether a passage of the map or the whole map is playing, so leaving stops it.</summary>
     private bool _dnaPlaying;
 
@@ -30,7 +33,8 @@ public partial class PlaybackLab
         }
 
         _dnaAside = false;
-        _dna = PieceDna.Build(_notes, _meter, _keys, _score.End, _selection, _selection is null ? null : _structure, Words);
+        _dnaStatus = null;
+        _dna = PieceDna.Build(_notes, _meter, _keys, _score.End, _selection, _selection is null ? null : _structure, Words, _sentences);
         _popover = Popover.None;
         _pillMenu = PillMenu.None;
     }
@@ -83,6 +87,30 @@ public partial class PlaybackLab
         _dnaPlaying = true;
         await Player.SeekAsync(Tick.Zero);
         await PlayAsync();
+    }
+
+    /// <summary>In Insights on an idea's card: the map is left, the idea selected and the Insights stream open on it.</summary>
+    private async Task ShowDnaInInsightsAsync(TickSpan span)
+    {
+        await ShowDnaInScoreAsync(span);
+        _insightsOpen = true;
+        _asking = false;
+        _contentsOpen = false;
+        _checkOpen = false;
+        _performanceOpen = false;
+    }
+
+    /// <summary>Add Structure bookmarks on the map: a bookmark for each section of the form, in the Contents drawer.</summary>
+    private async Task AddFormBookmarksAsync()
+    {
+        if (_dna is not { Form.Count: > 0 } dna)
+        {
+            return;
+        }
+
+        int before = Bookmarks.Count;
+        await SaveMarksAsync(project => project.AddFormBookmarks(dna.Form, Words, DateTimeOffset.Now), "");
+        _dnaStatus = Text.Count("bookmark.structureAdded", Bookmarks.Count - before);
     }
 
     /// <summary>Leaves the map for the score with the passage selected.</summary>

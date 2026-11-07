@@ -913,11 +913,40 @@ public class MusicCoreFacadeTests
         int lastBar = dna.GetProperty("lastBar").GetInt32();
         Assert.True(lastBar > firstBar, $"{firstBar}–{lastBar}");
 
-        // The form of the whole piece is not analysed yet, and without a selection there is no idea.
-        Assert.Equal("notYet", dna.GetProperty("form").GetProperty("status").GetString());
-        Assert.Empty(dna.GetProperty("form").GetProperty("sections").EnumerateArray());
-        Assert.Equal("notYet", dna.GetProperty("ideas").GetProperty("status").GetString());
-        Assert.Empty(dna.GetProperty("ideas").GetProperty("items").EnumerateArray());
+        // The form from the piece's sentences, or its phrases, lettered by what they share (testing item 22), and the ideas
+        // found from their openings without a selection.
+        JsonElement form = dna.GetProperty("form");
+        Assert.Equal("partial", form.GetProperty("status").GetString());
+        JsonElement[] sections = [.. form.GetProperty("sections").EnumerateArray()];
+        Assert.Equal("A", sections[0].GetProperty("label").GetString());
+        Assert.True(sections.Length >= 2);
+        Assert.Equal(firstBar, sections[0].GetProperty("passage").GetProperty("firstBar").GetInt32());
+        JsonElement ideasFound = dna.GetProperty("ideas");
+        Assert.Equal("partial", ideasFound.GetProperty("status").GetString());
+        JsonElement idea = ideasFound.GetProperty("items")[0];
+        Assert.False(idea.GetProperty("fromSelection").GetBoolean());
+        Assert.StartsWith("Heard ", idea.GetProperty("summary").GetString());
+        Assert.True(idea.GetProperty("occurrences").GetArrayLength() >= 2);
+
+        // Harmony a chord per bar with the closes, density and register for every bar, dynamics from the file's marks.
+        JsonElement harmony = dna.GetProperty("harmony");
+        Assert.Equal("partial", harmony.GetProperty("status").GetString());
+        Assert.Contains(harmony.GetProperty("bars").EnumerateArray(), bar => bar.GetProperty("symbol").GetString() == "Am");
+        Assert.Contains(harmony.GetProperty("cadences").EnumerateArray(), cadence => cadence.GetProperty("kind").GetString() == "full");
+        Assert.Equal("ready", dna.GetProperty("density").GetProperty("status").GetString());
+        Assert.Equal(lastBar - firstBar + 1, dna.GetProperty("density").GetProperty("bars").GetArrayLength());
+        Assert.True(dna.GetProperty("register").GetProperty("bars")[0].GetProperty("high").GetInt32() >= dna.GetProperty("register").GetProperty("bars")[0].GetProperty("low").GetInt32());
+        Assert.True(dna.GetProperty("dynamics").TryGetProperty("status", out _));
+        long[] starts = [.. dna.GetProperty("barStarts").EnumerateArray().Select(start => start.GetInt64())];
+        Assert.Equal(lastBar - firstBar + 2, starts.Length);
+        Assert.Equal(starts.Order(), starts);
+
+        // Add Structure bookmarks on the map: a bookmark per section of the form, once.
+        JsonElement bookmarks = Call(facade, "bookmark.form", """{"now": "2026-11-07T10:00:00Z"}""");
+        JsonElement[] structure = [.. bookmarks.GetProperty("bookmarks").EnumerateArray().Where(bookmark => bookmark.GetProperty("category").GetString() == "structure")];
+        Assert.Equal(sections.Length, structure.Length);
+        Assert.StartsWith("Section A, bar", structure[0].GetProperty("title").GetString());
+        Assert.Equal(structure.Length, Call(facade, "bookmark.form").GetProperty("bookmarks").EnumerateArray().Count(bookmark => bookmark.GetProperty("category").GetString() == "structure"));
 
         // The key lane from the file's key signature: A minor, no sharps or flats, covering the piece.
         JsonElement keys = dna.GetProperty("keys");
@@ -947,7 +976,7 @@ public class MusicCoreFacadeTests
         JsonElement ideas = Call(facade, "dna").GetProperty("ideas");
 
         Assert.Equal("partial", ideas.GetProperty("status").GetString());
-        JsonElement idea = Assert.Single(ideas.GetProperty("items").EnumerateArray());
+        JsonElement idea = ideas.GetProperty("items")[0];
         Assert.Equal("idea_1", idea.GetProperty("id").GetString());
         Assert.True(idea.GetProperty("fromSelection").GetBoolean());
         Assert.StartsWith("Ваше выделение, такты 1–2", idea.GetProperty("title").GetString());

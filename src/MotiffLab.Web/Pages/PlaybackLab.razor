@@ -207,7 +207,7 @@
                         <button class="btn quiet" aria-expanded="@(_contentsOpen ? "true" : "false")" @onclick="() => FromMoreAsync(Place.Contents, ToggleContentsAsync)"><Icon Name="bookmark" /> @Text["bar.contents"]</button>
                         <button class="btn quiet" @onclick="() => FromMore(Place.Layers, OpenLayers)"><Icon Name="layers" /> @Text["layers.title"]</button>
                         <button class="btn quiet" aria-haspopup="dialog" @onclick="() => FromMore(Place.Dna, OpenDna)"><Icon Name="phrases" /> @Text["dna.title"]</button>
-                        <button class="btn quiet" @onclick="() => FromMore(Place.Ask, AskAboutPiece)"><Icon Name="insight" /> @Text["ask.aboutPiece"]</button>
+                        <button class="btn quiet" @onclick="AskAboutPiece"><Icon Name="insight" /> @Text["ask.aboutPiece"]</button>
                         @if (HasCheck)
                         {
                             <button class="btn quiet" aria-expanded="@(_checkOpen ? "true" : "false")" @onclick="() => FromMore(Place.Check, ToggleCheck)">
@@ -356,7 +356,20 @@
             @if (_dna is { } dna && !_dnaAside)
             {
                 <MotiffLab.Web.Dna.PieceDnaMap Dna="dna" Meter="_meter!" Title="@BarTitle" Words="Words" PlayingAt="@(_dnaPlaying && Player.State != PlaybackState.Stopped ? Player.Position : null)"
-                                               BackLabel="@BackTo(Place.Dna)" Closed="LeaveDnaAsync" Hear="HearDnaAsync" ShowInScore="ShowDnaInScoreAsync" PlayMap="PlayDnaMapAsync" Ask="AskFromDnaAsync" />
+                                               BackLabel="@BackTo(Place.Dna)" Closed="LeaveDnaAsync" Hear="HearDnaAsync" ShowInScore="ShowDnaInScoreAsync" PlayMap="PlayDnaMapAsync" Ask="AskFromDna"
+                                               ShowInInsights="ShowDnaInInsightsAsync" AddBookmarks="AddFormBookmarksAsync" Status="@_dnaStatus" />
+            }
+
+            @if (_askAt is not null)
+            {
+                @* Ask where it was pressed (testing item 23): a popover over the place, which stays as it was under it. *@
+                <div class="ask-pop-backdrop" @onclick="CloseAskPopover"></div>
+                <div class="ask-pop" role="dialog" aria-modal="false" aria-labelledby="ask-pop-title" style="@AskPlace" data-keeps-selection
+                     @onkeydown="AskPopoverKey">
+                    <AssistantPanel Popover="true" SelectionLabel="@AskSelectionLabel" WholePiece="@(_askWholePiece || _selection is null)" WholePieceChanged="SetAskWholePiece"
+                                    Knows="AskKnows" Conversation="_conversation" Suggestions="AskSuggestions" Asked="Asked"
+                                    OpenInInsights="AskInInsightsAsync" Closed="CloseAskPopover" />
+                </div>
             }
 
             @if (_settingsOpen)
@@ -371,7 +384,8 @@
                 @if (_asking)
                 {
                     <AssistantPanel SelectionLabel="@AskSelectionLabel" WholePiece="@(_askWholePiece || _selection is null)" WholePieceChanged="SetAskWholePiece"
-                                    Knows="AskKnows" BackLabel="@BackTo(Place.Ask)" Back="AskBackAsync" Closed="() => CloseFromAsync(Place.Ask)" />
+                                    Knows="AskKnows" Conversation="_conversation" Suggestions="AskSuggestions" Asked="Asked"
+                                    BackLabel="@BackTo(Place.Ask)" Back="AskBackAsync" Closed="() => CloseFromAsync(Place.Ask)" />
                 }
                 else
                 {
@@ -628,7 +642,7 @@
                 @if (MenuMoreOpen)
                 {
                     <div class="menu-more" role="group" aria-label="@Text["menu.more"]">
-                        <button class="it ask @(_insightsOpen && _asking ? "on" : null)" aria-pressed="@(_insightsOpen && _asking ? "true" : "false")" title="?" @onclick="MenuAsk">@Text["ask.menu"]</button>
+                        <button class="it ask @(AskOpen ? "on" : null)" aria-pressed="@(AskOpen ? "true" : "false")" title="?" @onclick="AskHere">@Text["ask.menu"]</button>
                         <div class="highlight-row" role="group" aria-label="@Text["menu.highlight"]">
                             <span class="caption"><Icon Name="highlight" Size="IconSize.Small" /> @Text["menu.highlight"]</span>
                             @foreach (InkColour colour in s_highlightInks)
@@ -1463,7 +1477,7 @@
                 <button class="btn quiet" @onclick="RestoreFocusBarsAsync">@Text["performance.restore"]</button>
             }
         }
-        <button class="btn quiet ask @(_insightsOpen && _asking ? "on" : null)" aria-pressed="@(_insightsOpen && _asking ? "true" : "false")" title="?" @onclick="MenuAsk">@Text["ask.menu"]</button>
+        <button class="btn quiet ask @(AskOpen ? "on" : null)" aria-pressed="@(AskOpen ? "true" : "false")" title="?" @onclick="AskHere">@Text["ask.menu"]</button>
         @if (!_focusRoll)
         {
             <button class="act @(_rollOpen ? "on" : null)" aria-pressed="@(_rollOpen ? "true" : "false")" aria-label="@Text["bar.roll"]" title="@Text["bar.roll"]"

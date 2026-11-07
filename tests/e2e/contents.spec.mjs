@@ -196,16 +196,19 @@ test("a place opened from More shows the way back to More, and its close puts bo
     await page.locator(".layers-popover").getByRole("button", { name: "Back to More" }).click();
     await expect(page.locator(".more-popover")).toBeVisible();
 
-    // The assistant from Piece DNA goes back to the map as it was; its close puts both away.
+    // The assistant from Piece DNA opens over the map; in Insights it goes back to the map as it was; its close puts both away.
     await page.locator(".more-popover").getByRole("button", { name: "Piece DNA" }).click();
     const dna = page.locator(".dna");
     await expect(dna.getByRole("button", { name: "Back to More" })).toBeVisible();
     await dna.getByRole("button", { name: /^Ask/ }).click();
+    await expect(dna).toBeVisible();
+    await page.locator(".ask-pop").getByRole("button", { name: "Open in Insights ›" }).click();
     await expect(dna).toHaveCount(0);
-    const ask = page.locator(".assistant");
+    const ask = page.locator(".sheet.insights .assistant");
     await ask.getByRole("button", { name: "Back to Piece DNA" }).click();
     await expect(dna).toBeVisible();
     await dna.getByRole("button", { name: /^Ask/ }).click();
+    await page.locator(".ask-pop").getByRole("button", { name: "Open in Insights ›" }).click();
     await ask.getByRole("button", { name: "Close" }).click();
     await expect(ask).toHaveCount(0);
     await expect(dna).toHaveCount(0);

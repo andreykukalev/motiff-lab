@@ -6,18 +6,32 @@
    last voice in the Insights stream, in the same sheet. Its scope chips say what it looks at (the phrase or selection, or the
    whole piece), and the fold "What it knows" lists the context it would be given, each item removable before asking. It
    needs an AI model, so it is Pro in full: in the free tier the place where the conversation would be holds a one-line plum
-   offer, and nothing is sent anywhere. The conversation itself is not built yet, so in Pro that place says so, and nothing is
-   sent either. *@
-<section class="assistant" aria-labelledby="ask-title">
-    <div class="ask-head">
-        @* ‹ names where it goes: the place it was opened from (More, Piece DNA), or the Insights stream (testing item 20). *@
-        <button class="btn quiet back-to" aria-label="@(BackLabel is { } origin ? Text.Format("nav.backTo", origin) : Text["ask.back"])" @onclick="() => Back.InvokeAsync()">
-            <Icon Name="back" Size="IconSize.Small" /> @(BackLabel ?? Text["bar.insights"])
-        </button>
-        <h2 id="ask-title" class="overline">@Text["ask.title"]</h2>
-        <span class="sp"></span>
-        <button class="btn quiet icon" aria-label="@Text["drawer.close"]" title="@Text["drawer.close"]" @onclick="() => Closed.InvokeAsync()"><Icon Name="close" /></button>
-    </div>
+   offer, and nothing is sent anywhere. The conversation itself is not built yet (part C), so in Pro a question joins the
+   conversation and that place says the answers are coming, and nothing is sent either. It shows in two ways: in the sheet,
+   and as a popover at the place Ask was pressed (testing item 23), each a window onto the same conversation. *@
+<section class="assistant @(Popover ? "compact" : null)" aria-labelledby="@TitleId">
+    @if (Popover)
+    {
+        @* The popover at the place Ask was pressed (testing item 23): the same assistant, a window onto the one
+           conversation kept in the Insights stream; the place under it stays as it was. *@
+        <div class="ask-head">
+            <h2 id="@TitleId" class="overline">@Text["ask.title"]</h2>
+            <span class="sp"></span>
+            <button class="btn quiet icon" aria-label="@Text["drawer.close"]" title="@Text["drawer.close"]" @onclick="() => Closed.InvokeAsync()"><Icon Name="close" /></button>
+        </div>
+    }
+    else
+    {
+        <div class="ask-head">
+            @* ‹ names where it goes: the place it was opened from (More, Piece DNA), or the Insights stream (testing item 20). *@
+            <button class="btn quiet back-to" aria-label="@(BackLabel is { } origin ? Text.Format("nav.backTo", origin) : Text["ask.back"])" @onclick="() => Back.InvokeAsync()">
+                <Icon Name="back" Size="IconSize.Small" /> @(BackLabel ?? Text["bar.insights"])
+            </button>
+            <h2 id="@TitleId" class="overline">@Text["ask.title"]</h2>
+            <span class="sp"></span>
+            <button class="btn quiet icon" aria-label="@Text["drawer.close"]" title="@Text["drawer.close"]" @onclick="() => Closed.InvokeAsync()"><Icon Name="close" /></button>
+        </div>
+    }
 
     <div class="scope-chips" role="radiogroup" aria-label="@Text["ask.scope"]">
         @if (SelectionLabel is { } selection)
@@ -48,7 +62,14 @@
     }
 
     <div class="conversation" role="status">
-        @if (_allowed is true)
+        @foreach (string question in Conversation)
+        {
+            <div class="turn">
+                <p class="question">@question</p>
+                <p class="caption">@Text[_allowed is true ? "ask.notYet" : "ask.notSent"]</p>
+            </div>
+        }
+        @if (_allowed is true && Conversation.Count == 0)
         {
             <p class="caption">@Text["ask.notYet"]</p>
         }
@@ -64,10 +85,29 @@
         }
     </div>
 
-    <div class="ask-input">
-        <input type="text" disabled aria-label="@Text["ask.placeholder"]" placeholder="@Text["ask.placeholder"]" />
-        <button class="btn quiet icon" disabled aria-label="@Text["ask.speak"]" title="@Text["ask.speak"]"><Icon Name="mic" /></button>
-    </div>
+    @if (Suggestions.Count > 0)
+    {
+        <div class="suggestions" aria-label="@Text["ask.suggestions"]">
+            @foreach (string suggestion in Suggestions)
+            {
+                <button class="chip" disabled="@(_allowed is not true)" @onclick="() => AskAsync(suggestion)">@suggestion</button>
+            }
+        </div>
+    }
+
+    <form class="ask-input" @onsubmit="SubmitAsync" @onsubmit:preventDefault>
+        <input type="text" disabled="@(_allowed is not true)" aria-label="@Text["ask.placeholder"]" placeholder="@Text["ask.placeholder"]" @bind="_draft" @ref="_input" />
+        <button type="button" class="btn quiet icon" disabled aria-label="@Text["ask.speak"]" title="@Text["ask.speak"]"><Icon Name="mic" /></button>
+    </form>
+
+    @if (Popover)
+    {
+        <p class="ask-foot caption">
+            <span>@Text["ask.keptInInsights"]</span>
+            <span class="sp"></span>
+            <button class="btn quiet compact open-in" @onclick="() => OpenInInsights.InvokeAsync()">@Text["ask.openInInsights"] ›</button>
+        </p>
+    }
 </section>
 
 @code {
@@ -78,6 +118,34 @@
     private bool? _allowed;
 
     private bool _signedIn;
+
+    private string _draft = "";
+
+    private ElementReference _input;
+
+    private bool _focused;
+
+    private string TitleId => Popover ? "ask-pop-title" : "ask-title";
+
+    /// <summary>The popover at the place Ask was pressed, rather than the assistant in the Insights sheet.</summary>
+    [Parameter]
+    public bool Popover { get; set; }
+
+    /// <summary>The questions asked so far about this piece: one conversation, which the popover and the sheet both show.</summary>
+    [Parameter]
+    public IReadOnlyList<string> Conversation { get; set; } = [];
+
+    /// <summary>Three questions the player might ask here; a tap asks one.</summary>
+    [Parameter]
+    public IReadOnlyList<string> Suggestions { get; set; } = [];
+
+    /// <summary>A question asked: it joins the conversation. Nothing is sent anywhere until the assistant is built.</summary>
+    [Parameter]
+    public EventCallback<string> Asked { get; set; }
+
+    /// <summary>Open in Insights: the conversation goes on in the stream.</summary>
+    [Parameter]
+    public EventCallback OpenInInsights { get; set; }
 
     /// <summary>"This phrase · 9–16" or "This selection · 9–16"; null with nothing selected, when only the whole piece is offered.</summary>
     [Parameter]
@@ -109,6 +177,39 @@
     {
         _signedIn = Account.IsAvailable && await Account.PlayerAsync() is not null;
         _allowed = _signedIn && await Account.AllowsAsync(ProFeature.Assistant);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Popover && !_focused && _allowed is not null)
+        {
+            _focused = true;
+            try
+            {
+                if (_allowed is true)
+                {
+                    await _input.FocusAsync();
+                }
+            }
+            catch (InvalidOperationException)
+            {
+            }
+        }
+    }
+
+    private async Task SubmitAsync()
+    {
+        string question = _draft.Trim();
+        _draft = "";
+        await AskAsync(question);
+    }
+
+    private async Task AskAsync(string question)
+    {
+        if (_allowed is true && question.Length > 0)
+        {
+            await Asked.InvokeAsync(question);
+        }
     }
 
     private void Toggle(string item)

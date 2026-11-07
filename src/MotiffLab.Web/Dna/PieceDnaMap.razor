@@ -1,6 +1,7 @@
 @using MotiffLab.MusicCore
 @using MotiffLab.MusicCore.Analysis
 @using MotiffLab.MusicCore.Time
+@using MotiffLab.MusicCore.Events
 @inject MotiffLab.Web.Localization.UiText Text
 
 @* Piece DNA (0018 section 11; design/kit/docs/01-ux-concept.md, "Piece DNA"; design/kit/screens/s11_piece_dna.png): the
@@ -37,8 +38,10 @@
                 <span class="dna-playhead" style="@($"--x: {playhead}")" aria-hidden="true"></span>
             }
 
+            @* Read top to bottom (testing item 22): the form, the key, the harmony, the density, new material, the folded
+               lanes, then the ideas. *@
             <div class="dna-row form">
-                <span class="lane-name overline">@Text["dna.form"]</span>
+                <span class="lane-name overline">@Text["dna.form"]@if (Dna.Form.Count > 0) { <span class="tag assumed">@Text["dna.inferred"]</span> }</span>
                 <div class="lane-track">
                     @if (Dna.Form.Count == 0)
                     {
@@ -46,9 +49,15 @@
                     }
                     else
                     {
+                        @foreach ((DnaSection from, DnaSection to) in Arcs)
+                        {
+                            <span class="dna-arc" style="@ArcPlace(from, to)" aria-hidden="true"></span>
+                        }
+
                         @foreach (DnaSection section in Dna.Form)
                         {
-                            <button class="dna-sec" style="@Place(section.Span)" aria-label="@($"{section.Label}, {Bars(section.FirstBar, section.LastBar)}")"
+                            <button class="dna-sec @(section.SharesWith.Count > 0 && section != FirstOf(section) ? "rep" : null)" style="@Place(section.Span)"
+                                    aria-label="@SectionName(section)" title="@SectionName(section)"
                                     @onclick="() => TapAsync(section.Span)">@(section.Label)</button>
                         }
                     }
@@ -65,28 +74,6 @@
                 </div>
             </div>
 
-            <p class="overline lanes-title">@Text["dna.ideasTitle"]</p>
-            @if (Dna.Ideas.Count == 0)
-            {
-                <p class="lane-empty ideas-empty">@Text["dna.ideasEmpty"]</p>
-            }
-            @foreach (DnaIdea idea in Dna.Ideas)
-            {
-                <div class="dna-row idea" role="group" aria-label="@idea.Title">
-                    <span class="lane-name">@idea.Title</span>
-                    <div class="lane-track">
-                        @foreach (IdeaOccurrence occurrence in idea.Occurrences)
-                        {
-                            bool on = _heard == occurrence.Span;
-                            <button class="mk-hit @(on ? "on" : null)" style="@($"--x: {X(occurrence.Span.Onset) ?? "0"}")" aria-label="@MarkName(occurrence)" title="@Text["dna.markHint"]"
-                                    aria-pressed="@(on ? "true" : "false")" @onclick="() => TapAsync(occurrence.Span)">
-                                <span class="mk @MarkClass(occurrence.Kind)" aria-hidden="true"></span>
-                            </button>
-                        }
-                    </div>
-                </div>
-            }
-
             <div class="dna-row key">
                 <span class="lane-name overline">@Text["dna.key"]</span>
                 <div class="lane-track">
@@ -101,6 +88,41 @@
                 </div>
             </div>
 
+            <div class="dna-row harmony">
+                <span class="lane-name overline">@Text["dna.harmony"]</span>
+                <div class="lane-track">
+                    @if (Dna.Harmony.Count == 0)
+                    {
+                        <p class="lane-empty">@Text["dna.harmonyEmpty"]</p>
+                    }
+                    else
+                    {
+                        @foreach (DnaChord chord in ShownChords)
+                        {
+                            <span class="chord @(chord.Clear ? null : "unsure")" style="@($"--x: {X(Meter.GetBar(chord.Bar).Span.Onset) ?? "0"}")" aria-hidden="true">@chord.Symbol</span>
+                        }
+
+                        @foreach (DnaCadence cadence in Dna.Cadences)
+                        {
+                            <span class="cad @(cadence.Kind == CloseKind.Half ? "half" : null)" style="@($"--x: {X(cadence.At) ?? "0"}")" aria-hidden="true"></span>
+                        }
+
+                        <span class="visually-hidden">@HarmonySummary</span>
+                    }
+                </div>
+            </div>
+
+            <div class="dna-row density">
+                <span class="lane-name overline">@Text["dna.density"]</span>
+                <div class="lane-track levels">
+                    @foreach (DnaBarLevel level in Dna.Density)
+                    {
+                        <span class="lvl" style="@($"{Place(Meter.GetBar(level.Bar).Span)}; --h: {Share(level.Value, MaxDensity)}")" aria-hidden="true"></span>
+                    }
+                    <span class="visually-hidden">@DensitySummary</span>
+                </div>
+            </div>
+
             <div class="dna-row new">
                 <span class="lane-name overline">@Text["dna.newMaterial"]</span>
                 <div class="lane-track">
@@ -111,6 +133,70 @@
                     <span class="visually-hidden">@Text.Format("dna.newMaterialSummary", string.Join(", ", Dna.NewMaterialBars))</span>
                 </div>
             </div>
+
+            <div class="dna-more">
+                <button class="btn quiet compact" aria-expanded="@(_moreLanes ? "true" : "false")" @onclick="() => _moreLanes = !_moreLanes">
+                    <span class="caret" aria-hidden="true">@(_moreLanes ? "▾" : "▸")</span> @Text["dna.moreLanes"]
+                </button>
+            </div>
+
+            @if (_moreLanes)
+            {
+                <div class="dna-row register">
+                    <span class="lane-name overline">@Text["dna.register"]</span>
+                    <div class="lane-track levels">
+                        @foreach (DnaRange range in Dna.Register)
+                        {
+                            <span class="rng" style="@($"{Place(Meter.GetBar(range.Bar).Span)}; --lo: {Share(range.Low - LowestNote, HighestNote - LowestNote)}; --hi: {Share(range.High - LowestNote, HighestNote - LowestNote)}")" aria-hidden="true"></span>
+                        }
+                        <span class="visually-hidden">@RegisterSummary</span>
+                    </div>
+                </div>
+
+                <div class="dna-row dynamics">
+                    <span class="lane-name overline">@Text["dna.dynamics"]</span>
+                    <div class="lane-track levels">
+                        @if (Dna.Dynamics.Count == 0)
+                        {
+                            <p class="lane-empty">@Text["dna.dynamicsEmpty"]</p>
+                        }
+                        @foreach (DnaBarLevel level in Dna.Dynamics)
+                        {
+                            <span class="lvl dyn" style="@($"{Place(Meter.GetBar(level.Bar).Span)}; --h: {Share(level.Value, Note.MaxVelocity)}")" aria-hidden="true"></span>
+                        }
+                    </div>
+                </div>
+            }
+
+            <p class="overline lanes-title">@Text["dna.ideasTitle"]</p>
+            @if (Dna.Ideas.Count == 0)
+            {
+                <p class="lane-empty ideas-empty">@Text[Dna.IdeasStatus == DnaStatus.Ready ? "dna.ideasNone" : "dna.ideasEmpty"]</p>
+            }
+            @foreach (DnaIdea idea in Dna.Ideas)
+            {
+                <div class="dna-row idea" role="group" aria-label="@idea.Title">
+                    <span class="lane-name">@idea.Title</span>
+                    <div class="lane-track">
+                        @foreach ((IdeaOccurrence occurrence, bool tappable) in Marks(idea))
+                        {
+                            bool on = _heard == occurrence.Span;
+                            @if (tappable)
+                            {
+                                <button class="mk-hit @(on ? "on" : null)" style="@($"--x: {X(occurrence.Span.Onset) ?? "0"}")" aria-label="@MarkName(idea, occurrence)" title="@Text["dna.markHint"]"
+                                        aria-pressed="@(on ? "true" : "false")" @onclick="() => TapAsync(occurrence.Span)">
+                                    <span class="mk @MarkClass(occurrence.Kind)" aria-hidden="true"></span>
+                                </button>
+                            }
+                            else
+                            {
+                                @* Too close to the mark before it for a finger: drawn, and heard with the card's Hear. *@
+                                <span class="mk-hit" style="@($"--x: {X(occurrence.Span.Onset) ?? "0"}")" aria-hidden="true"><span class="mk @MarkClass(occurrence.Kind)"></span></span>
+                            }
+                        }
+                    </div>
+                </div>
+            }
 
             @if (Dna.Ideas.Count > 0)
             {
@@ -131,8 +217,7 @@
                         <div class="row">
                             <button class="btn secondary compact" @onclick="() => HearIdeaAsync(idea.Span)"><Icon Name="play" /> @Text["dna.hear"]</button>
                             <button class="btn quiet compact" @onclick="() => ShowInScore.InvokeAsync(idea.Span)">@Text["dna.inScore"]</button>
-                            <span class="sp"></span>
-                            <span class="caption times">@Text.Format("dna.times", idea.Occurrences.Count)</span>
+                            <button class="btn quiet compact" @onclick="() => ShowInInsights.InvokeAsync(idea.Span)">@Text["dna.inInsights"]</button>
                         </div>
                     </article>
                 }
@@ -141,7 +226,15 @@
 
         <div class="dna-actions">
             <button class="btn primary" @onclick="() => PlayMap.InvokeAsync()"><Icon Name="@(PlayingAt is null ? "play" : "pause")" /> @(PlayingAt is null ? Text["dna.playMap"] : Text["dna.stop"])</button>
-            <button class="btn secondary" @onclick="() => Ask.InvokeAsync()"><Icon Name="insight" /> @Text["ask.aboutPiece"]</button>
+            @if (Dna.Form.Count > 0)
+            {
+                <button class="btn secondary" @onclick="() => AddBookmarks.InvokeAsync()"><Icon Name="bookmark" /> @Text["dna.addBookmarks"]</button>
+            }
+            <button class="btn secondary ask-piece" @onclick="AskAsync"><Icon Name="insight" /> @Text["ask.aboutPiece"]</button>
+            @if (Status is { } status)
+            {
+                <p class="caption" role="status">@status</p>
+            }
         </div>
     }
 </section>
@@ -152,6 +245,9 @@
 
     /// <summary>The passage of the mark tapped last, which a second tap opens in the score.</summary>
     private TickSpan? _heard;
+
+    /// <summary>Whether the folded lanes, register and dynamics, show.</summary>
+    private bool _moreLanes;
 
     [Parameter, EditorRequired]
     public PieceDna Dna { get; set; } = default!;
@@ -188,9 +284,21 @@
     [Parameter]
     public EventCallback PlayMap { get; set; }
 
-    /// <summary>Ask about the piece: the assistant with whole-piece scope and the map as context.</summary>
+    /// <summary>Ask about the piece: the assistant's popover at the button, the map staying open under it (testing item 23).</summary>
     [Parameter]
-    public EventCallback Ask { get; set; }
+    public EventCallback<MouseEventArgs> Ask { get; set; }
+
+    /// <summary>Leaves for the score with the passage selected and the Insights stream open on it.</summary>
+    [Parameter]
+    public EventCallback<TickSpan> ShowInInsights { get; set; }
+
+    /// <summary>Add Structure bookmarks: the form's sections into the Contents drawer.</summary>
+    [Parameter]
+    public EventCallback AddBookmarks { get; set; }
+
+    /// <summary>A line on what the last action did, such as the bookmarks added.</summary>
+    [Parameter]
+    public string? Status { get; set; }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -265,9 +373,129 @@
         _ => null,
     };
 
-    private string MarkName(IdeaOccurrence occurrence) => Text.Format(occurrence.Kind switch
+    private Task AskAsync(MouseEventArgs args) => Ask.InvokeAsync(args);
+
+    /// <summary>The share of the map's width a chord symbol takes per character (about 8px on a lane about 1000px wide).</summary>
+    private const double SymbolRoom = 0.008;
+
+    /// <summary>The share of the map's width a finger needs between two marks (24px on a lane about 700px wide).</summary>
+    private const double MarkRoom = 0.035;
+
+    /// <summary>The idea's marks, each saying whether it is far enough from the mark before it to be a button of its own.</summary>
+    private IEnumerable<(IdeaOccurrence Occurrence, bool Tappable)> Marks(DnaIdea idea)
     {
-        OccurrenceKind.Original => "dna.mark.original",
+        long length = Math.Max(1, End.Value - Start.Value);
+        double last = double.NegativeInfinity;
+        foreach (IdeaOccurrence occurrence in idea.Occurrences)
+        {
+            double x = (double)(occurrence.Span.Onset.Value - Start.Value) / length;
+            bool tappable = x - last >= MarkRoom;
+            if (tappable)
+            {
+                last = x;
+            }
+
+            yield return (occurrence, tappable);
+        }
+    }
+
+    /// <summary>The arcs above the form: from each section that brings material back to the one before it with the same letter.</summary>
+    private IEnumerable<(DnaSection From, DnaSection To)> Arcs =>
+        Dna.Form.Select(section => (Earlier: Dna.Form.LastOrDefault(other => other.Span.Onset < section.Span.Onset && section.SharesWith.Contains(other.Id)), Section: section))
+            .Where(pair => pair.Earlier is not null)
+            .Select(pair => (pair.Earlier!, pair.Section));
+
+    private DnaSection FirstOf(DnaSection section) =>
+        Dna.Form.FirstOrDefault(other => section.SharesWith.Contains(other.Id) && other.Span.Onset < section.Span.Onset) is { } earlier ? FirstOf(earlier) : section;
+
+    private string ArcPlace(DnaSection from, DnaSection to)
+    {
+        string left = X(Middle(from.Span)) ?? "0";
+        string right = X(Middle(to.Span)) ?? "1";
+        return $"--x: {left}; --x2: {right}";
+    }
+
+    private static Tick Middle(TickSpan span) => new(span.Onset.Value + (span.Duration / 2));
+
+    private string SectionName(DnaSection section) => $"{section.Label}, {Bars(section.FirstBar, section.LastBar)}";
+
+    /// <summary>The chords where they change, with room for each symbol: a symbol too close to the one before is left out on screen.</summary>
+    private IEnumerable<DnaChord> ShownChords
+    {
+        get
+        {
+            string? previous = null;
+            double last = double.NegativeInfinity;
+            long length = Math.Max(1, End.Value - Start.Value);
+            foreach (DnaChord chord in Dna.Harmony)
+            {
+                double x = (double)(Meter.GetBar(chord.Bar).Span.Onset.Value - Start.Value) / length;
+                if (chord.Symbol == previous || x < last)
+                {
+                    previous = chord.Symbol;
+                    continue;
+                }
+
+                previous = chord.Symbol;
+                last = x + ((chord.Symbol.Length + 1) * SymbolRoom);
+                yield return chord;
+            }
+        }
+    }
+
+    /// <summary>For a screen reader: "bar 2 Am, bar 3 E, …; full closes in bars 8, 23".</summary>
+    private string HarmonySummary
+    {
+        get
+        {
+            string? previous = null;
+            var changes = new List<string>();
+            foreach (DnaChord chord in Dna.Harmony)
+            {
+                if (chord.Symbol != previous)
+                {
+                    changes.Add($"{Text.Format("dna.bar", chord.Bar)} {chord.Symbol}");
+                }
+
+                previous = chord.Symbol;
+            }
+
+            return string.Join(", ", changes);
+        }
+    }
+
+    private double MaxDensity => Dna.Density.Count == 0 ? 1 : Math.Max(0.01, Dna.Density.Max(level => level.Value));
+
+    private int LowestNote => Dna.Register.Count == 0 ? 0 : Dna.Register.Min(range => range.Low);
+
+    private int HighestNote => Dna.Register.Count == 0 ? 1 : Math.Max(LowestNote + 1, Dna.Register.Max(range => range.High));
+
+    /// <summary>A share from 0 to 1, written for CSS.</summary>
+    private static string Share(double value, double of) =>
+        (of <= 0 ? 0 : Math.Clamp(value / of, 0, 1)).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+
+    private string DensitySummary
+    {
+        get
+        {
+            if (Dna.Density.Count == 0)
+            {
+                return "";
+            }
+
+            DnaBarLevel busiest = Dna.Density.MaxBy(level => level.Value)!;
+            return Text.Format("dna.densitySummary", Words.Decimal((decimal)busiest.Value), busiest.Bar);
+        }
+    }
+
+    private string RegisterSummary => Dna.Register.Count == 0
+        ? ""
+        : Text.Format("dna.registerSummary", new MotiffLab.MusicCore.Events.Pitch(LowestNote), new MotiffLab.MusicCore.Events.Pitch(HighestNote));
+
+    private string MarkName(DnaIdea idea, IdeaOccurrence occurrence) => Text.Format(occurrence.Kind switch
+    {
+        OccurrenceKind.Original when idea.FromSelection => "dna.mark.original",
+        OccurrenceKind.Original => "dna.mark.first",
         OccurrenceKind.Exact => "dna.mark.exact",
         OccurrenceKind.Transposed => "dna.mark.transposed",
         OccurrenceKind.Varied => "dna.mark.varied",

@@ -297,6 +297,32 @@ public sealed record Project(
         return project;
     }
 
+    /// <summary>
+    /// The project with the form of Piece DNA written into the Structure category (testing item 22, Add Structure
+    /// bookmarks on the map): one bookmark per section, "Section A′, bars 17–32", after the player's own. A section already
+    /// bookmarked in Structure over the same bars is left as it is, so a second call adds nothing.
+    /// </summary>
+    public Project AddFormBookmarks(IEnumerable<DnaSection> sections, Words words, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(sections);
+        Project project = this;
+        foreach (DnaSection section in sections)
+        {
+            if (project.Bookmarks.Any(bookmark => bookmark.CategoryId == BookmarkCategory.StructureId && bookmark.Span == section.Span))
+            {
+                continue;
+            }
+
+            string bars = section.FirstBar == section.LastBar
+                ? words.T($"bar {section.FirstBar}", $"такт {section.FirstBar}")
+                : words.T($"bars {section.FirstBar}–{section.LastBar}", $"такты {section.FirstBar}–{section.LastBar}");
+            string title = words.T($"Section {section.Label}, {bars}", $"Раздел {section.Label}, {bars}");
+            project = project.AddBookmark(new Bookmark(project.NextBookmarkId(), title, BookmarkCategory.StructureId, section.Span, FromPhrase: false, now));
+        }
+
+        return project;
+    }
+
     /// <summary>The project with a category of the player's own after the others.</summary>
     /// <exception cref="ArgumentException">A category with the same id is already there.</exception>
     public Project AddCategory(BookmarkCategory category)
