@@ -87,7 +87,7 @@ public class HarmonyAnalyzerTests
 
         Assert.Equal(first.Facts.Select(fact => fact.Text), second.Facts.Select(fact => fact.Text));
         Assert.All(first.Facts, fact => Assert.Equal(FactLens.Harmony, fact.Lens));
-        Assert.All(first.Facts.Where(fact => fact.Id is not ("harmony.voicing" or "harmony.chords")), fact => Assert.Equal(FactCertainty.Inferred, fact.Certainty));
+        Assert.All(first.Facts.Where(fact => fact.Id is not ("harmony.voicing" or "harmony.chords" or "harmony.motion")), fact => Assert.Equal(FactCertainty.Inferred, fact.Certainty));
 
         // G7 over B has a near rival, so the chords fact is uncertain and names it.
         IReadOnlyList<ChordSpan> chords = HarmonyAnalyzer.FindChords(notes, MeterMap.Default, All(notes).Span, s_cMajor);

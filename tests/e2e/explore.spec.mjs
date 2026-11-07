@@ -3,21 +3,23 @@
 // against the original, kept and left; the accompaniment re-patterned while the melody plays alone; and Adjust with the
 // catalogue's operations.
 import { expect, test } from "@playwright/test";
-import { openAdjust, openFurElise, selectBar, openInsights, heardChoice, tryWay } from "./steps.mjs";
+import { openAdjust, openFurElise, selectBar, openInsights, openLenses, heardChoice, tryWay } from "./steps.mjs";
 
 test("a fact's Try button opens its ways; one is heard, kept, another tried and left", async ({ page }) => {
     const errors = await openFurElise(page);
     await selectBar(page, 2);
     const stream = await openInsights(page);
+    await openLenses(page);
     const card = stream.locator(".explore");
     const selection = page.locator(".selection-status");
     const compare = page.locator(".inspector-head").getByRole("group", { name: "Compare with the original" });
 
     // The ways stay folded until the fact's Try button is pressed; each way is offered once in the stream.
     await expect(stream.locator(".try-row .chip")).toHaveCount(0);
-    const density = stream.locator(".fact-row").filter({ hasText: /^Density/ });
-    await density.getByRole("button", { name: "Try", exact: true }).click();
-    await expect(density.locator(".try-row .chip")).toHaveText(["Held chord", "Repeated chord in 8ths"]);
+    // The held and repeated chords rest on the texture fact (testing item 14), under Main.
+    const texture = stream.locator(".lens-group.main .fact-row").filter({ hasText: /^A melody over/ });
+    await texture.getByRole("button", { name: "Try", exact: true }).click();
+    await expect(texture.locator(".try-row .chip")).toHaveText(["Held chord", "Repeated chord in 8ths", "Falling arpeggio"]);
     await expect(stream.locator(".try-row").getByRole("button", { name: "Held chord", exact: true })).toHaveCount(1);
     // The rhythm and contour reshapes are not offered any more.
     await expect(stream.getByRole("button", { name: "Long–short" })).toHaveCount(0);
@@ -25,7 +27,7 @@ test("a fact's Try button opens its ways; one is heard, kept, another tried and 
     await tryWay(page, "Held chord");
     await expect(card.locator("h3")).toHaveText("Try a variation");
     await expect(card.locator(".passage")).toHaveText("Selected phrase · bar 2");
-    await expect(card.locator(".choices button")).toHaveText(["Held chord", "Repeated chord in 8ths"]);
+    await expect(card.locator(".choices button")).toHaveText(["Held chord", "Repeated chord in 8ths", "Falling arpeggio"]);
     // The card sounds first; the idea and what it keeps are in About this idea.
     await expect(card.getByText("Keeps the melody.")).toBeHidden();
     await card.getByText("About this idea").click();

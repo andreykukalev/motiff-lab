@@ -886,8 +886,6 @@
   "hierarchy.bar": "bar {0}",
   "hierarchy.bars": "bars {0}–{1}",
   "hierarchy.inferred": "inferred",
-  "understand.keyObservation": "The one thing to hear",
-  "understand.whyThisOne": "Why this one:",
   "understand.nothingYet": "Nothing to say about this selection yet: music-core needs a few notes to read. Pick a phrase or a sentence above.",
 
   "bar.phrases": "Phrases",
@@ -965,6 +963,10 @@
 
   "insights.stream": "Insights about the selection",
   "insights.filter": "Show facts about",
+  "insights.main": "Main",
+  "insights.details": "Details",
+  "insights.lensOpen": "open",
+  "insights.lensFolded": "folded",
   "insights.all": "All",
   "insights.ideas": "Ideas kept for this passage",
   "insights.ideasCount": "Ideas · {0}",
@@ -985,8 +987,6 @@
   "circle.showHint": "Rings these notes on the score",
   "circle.hearScale": "Hear the scale",
   "circle.stopScale": "Stop the scale",
-  "insights.fewer": "Show fewer",
-  "insights.more": "{0} more",
   "insights.try": "Try",
   "insights.keep": "Keep",
   "insights.adjust": "Adjust",

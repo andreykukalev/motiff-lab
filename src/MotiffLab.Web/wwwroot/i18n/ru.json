@@ -894,8 +894,6 @@
   "hierarchy.bar": "такт {0}",
   "hierarchy.bars": "такты {0}–{1}",
   "hierarchy.inferred": "предположено",
-  "understand.keyObservation": "Главное, что стоит услышать",
-  "understand.whyThisOne": "Почему именно это:",
   "understand.nothingYet": "Пока нечего сказать об этом выделении: music-core нужно несколько нот. Выберите фразу или предложение выше.",
 
   "bar.phrases": "Фразы",
@@ -973,6 +971,10 @@
 
   "insights.stream": "Инсайты о выделенном",
   "insights.filter": "Показать факты о",
+  "insights.main": "Главное",
+  "insights.details": "Подробности",
+  "insights.lensOpen": "открыт",
+  "insights.lensFolded": "свёрнут",
   "insights.all": "Все",
   "insights.ideas": "Идеи, сохранённые для этого фрагмента",
   "insights.ideasCount": "Идеи · {0}",
@@ -993,8 +995,6 @@
   "circle.showHint": "Обводит эти ноты в нотах",
   "circle.hearScale": "Услышать гамму",
   "circle.stopScale": "Остановить гамму",
-  "insights.fewer": "Свернуть",
-  "insights.more": "Ещё {0}",
   "insights.try": "Попробовать",
   "insights.keep": "Оставить",
   "insights.adjust": "Настроить",

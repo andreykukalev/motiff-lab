@@ -56,7 +56,7 @@ public class CharacterFactTests
         IReadOnlyList<MotifFact> facts = Analyze(Scale(), 0, 8 * Quarter);
 
         Assert.Equal(
-            ["character.tempo", "character.density", "character.register", "character.velocity", "character.articulation", "character.syncopation"],
+            ["character.texture", "character.tempo", "character.density", "character.register", "character.velocity", "character.articulation", "character.syncopation"],
             facts.Select(fact => fact.Id));
         Assert.All(facts, fact => Assert.Equal(FactLens.Character, fact.Lens));
     }

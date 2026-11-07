@@ -78,37 +78,40 @@
         <p class="caption">@Text["understand.nothingYet"]</p>
     }
 
-    @if (Key is { } key && Shows(key))
+    @if (MainShown.Length > 0)
     {
-        <section class="lens-group key" aria-labelledby="key-observation-heading">
-            <h3 class="overline" id="key-observation-heading">@Text["understand.keyObservation"]</h3>
-            @FactRow(key, Tries(key), State.Facts.KeyReason)
+        @* Main (testing item 14): the harmonic motion and what it gives, then the texture, then the strongest of the rest. *@
+        <section class="lens-group main" aria-labelledby="main-heading">
+            <h3 class="overline" id="main-heading">@Text["insights.main"]</h3>
+            @foreach (MotifFact fact in MainShown)
+            {
+                @FactRow(fact, Tries(fact))
+            }
         </section>
     }
 
-    @foreach (FactLens lens in Lenses.Where(lens => _lens is null || _lens == lens))
+    @if (DetailLenses.Length > 0)
+    {
+        @* Details: every other fact, folded by lens with its count; a lens opens on a tap, when filtered to, or when it holds the chosen fact or the trial. *@
+        <h3 class="overline details-heading">@Text["insights.details"]</h3>
+    }
+    @foreach (FactLens lens in DetailLenses)
     {
         IReadOnlyList<MotifFact> facts = LensFacts(lens);
-        if (facts.Count == 0)
-        {
-            continue;
-        }
-
-        MotifFact[] shown = Visible(lens);
-        int hidden = facts.Count - shown.Length;
-        <section class="lens-group" aria-label="@LensLabel(lens)">
-            <h3 class="overline">@Text.Format("insights.lensCount", LensLabel(lens), Text.Count("understand.facts", facts.Count))</h3>
-            @foreach (MotifFact fact in shown)
+        bool open = Opens(lens);
+        <section class="lens-group @(open ? "open" : null)" aria-label="@LensLabel(lens)">
+            <h4 class="lens-head">
+                <button class="lens-toggle" aria-expanded="@(open ? "true" : "false")" disabled="@(_lens == lens)" @onclick="() => ToggleLens(lens)">
+                    <span>@Text.Format("insights.lensCount", LensLabel(lens), Text.Count("understand.facts", facts.Count))</span>
+                    <Icon Name="chevd" />
+                </button>
+            </h4>
+            @if (open)
             {
-                @FactRow(fact, Tries(fact), null)
-            }
-            @if (hidden > 0)
-            {
-                <button class="link lens-more" aria-expanded="false" @onclick="() => _expanded.Add(lens)">@Text.Format("insights.more", hidden)</button>
-            }
-            else if (_expanded.Contains(lens) && _lens != lens && facts.Count > PerLens)
-            {
-                <button class="link lens-more" aria-expanded="true" @onclick="() => _expanded.Remove(lens)">@Text["insights.fewer"]</button>
+                @foreach (MotifFact fact in facts)
+                {
+                    @FactRow(fact, Tries(fact))
+                }
             }
         </section>
     }
@@ -149,17 +152,11 @@
     /// <summary>Whether the kept ideas are listed whole, to rename, note, export or delete.</summary>
     private bool _manage;
 
-    /// <summary>
-    /// The facts a lens shows before "N more" (assessment items 16–20; design/kit/docs/01-ux-concept.md, Insights): short
-    /// statements that point at the notes, the strongest two or three of each lens, the rest a tap away.
-    /// </summary>
-    private const int PerLens = 3;
-
     /// <summary>The fact whose row holds the circle of fifths, opened with On the circle; null when it is closed.</summary>
     private string? _circleFor;
 
     /// <summary>The facts the circle of fifths opens from: the key and the chords (Andrei, 2026-11-06).</summary>
-    private bool OpensCircle(MotifFact fact) => State.Facts.Circle is not null && fact.Id is "key" or "harmony.chords";
+    private bool OpensCircle(MotifFact fact) => State.Facts.Circle is not null && fact.Id is "key" or "harmony.chords" or "harmony.motion";
 
     private void ToggleCircle(string id) => _circleFor = _circleFor == id ? null : id;
 
@@ -170,7 +167,7 @@
     private Task ShowOnScore(MotifFact fact, FactPlace place) =>
         Choose.InvokeAsync(ChosenPlace(fact) == place ? null : new FactChoice(fact, place));
 
-    /// <summary>The lenses the player opened whole with "N more".</summary>
+    /// <summary>The lenses under Details the player opened.</summary>
     private readonly HashSet<FactLens> _expanded = [];
 
     [CascadingParameter]
@@ -228,7 +225,8 @@
 
     private FactChoice? Chosen => State.Facts.Chosen;
 
-    private MotifFact? Key => State.Facts.KeyObservation;
+    /// <summary>The facts under Main that the filter lets through.</summary>
+    private MotifFact[] MainShown => [.. State.Facts.Main.Where(Shows)];
 
     private ExploreTrial? Trial => State.Variation.Trial;
 
@@ -239,8 +237,17 @@
     /// <summary>The kept variations of the passage, for the strip.</summary>
     private IReadOnlyList<ObservationRow> IdeaRows => [.. State.Ideas.Rows.Where(row => row.Observation.Variation is not null)];
 
-    /// <summary>The lenses that have facts, in music-core's order.</summary>
-    private FactLens[] Lenses => [.. Enum.GetValues<FactLens>().Where(lens => Facts.Any(fact => fact.Lens == lens))];
+    /// <summary>
+    /// The lenses in the order the stream lists them (testing item 14): the harmony and the character, which holds the
+    /// texture, first, as Main leads with them; then the structure, the line, the rhythm and the key.
+    /// </summary>
+    private static readonly FactLens[] s_lensOrder = [FactLens.Harmony, FactLens.Character, FactLens.Structure, FactLens.Melody, FactLens.Rhythm, FactLens.Key];
+
+    /// <summary>The lenses that have facts, in the stream's order.</summary>
+    private FactLens[] Lenses => [.. s_lensOrder.Where(lens => Facts.Any(fact => fact.Lens == lens))];
+
+    /// <summary>The lenses under Details: those with facts not under Main, narrowed by the filter.</summary>
+    private FactLens[] DetailLenses => [.. Lenses.Where(lens => (_lens is null || _lens == lens) && LensFacts(lens).Count > 0)];
 
     private bool Shows(MotifFact fact) => _lens is null || _lens == fact.Lens;
 
@@ -249,33 +256,34 @@
         ? ShownFacts.FirstOrDefault(fact => Tries(fact).Any(experiment => experiment.Id == trial.Experiment.Id))?.Id
         : null;
 
-    /// <summary>The facts in the order the stream shows them: the one to hear first, then by lens.</summary>
-    private IEnumerable<MotifFact> ShownFacts =>
-        (Key is { } key && Shows(key) ? [key] : Array.Empty<MotifFact>())
-            .Concat(Lenses.Where(lens => _lens is null || _lens == lens).SelectMany(Visible));
+    /// <summary>The facts in the order the stream shows them: Main, then the open lenses under Details.</summary>
+    private IEnumerable<MotifFact> ShownFacts => MainShown.Concat(DetailLenses.Where(Opens).SelectMany(LensFacts));
 
-    /// <summary>A lens's facts, the one to hear first left out, in music-core's order for the stream.</summary>
-    private IReadOnlyList<MotifFact> LensFacts(FactLens lens) => FactRanking.InStream([.. Facts.Where(fact => fact.Lens == lens && fact != Key)]);
+    /// <summary>A lens's facts under Details, those under Main left out, in music-core's order for the stream.</summary>
+    private IReadOnlyList<MotifFact> LensFacts(FactLens lens) => FactRanking.InStream([.. Facts.Where(fact => fact.Lens == lens && !State.Facts.Main.Contains(fact))]);
 
     /// <summary>
-    /// The facts of a lens the stream shows: all of them when the lens is opened whole or is the one filtered to;
-    /// otherwise the first <see cref="PerLens"/>, with the fact chosen on the score and the one holding the experiment
-    /// tried, wherever they rank, so neither disappears.
+    /// Whether a lens under Details is open: when the player opened it or filtered to it, or when it holds the fact chosen
+    /// on the score or the experiment tried, so neither disappears.
     /// </summary>
-    private MotifFact[] Visible(FactLens lens)
+    private bool Opens(FactLens lens) =>
+        _lens == lens || _expanded.Contains(lens)
+        || LensFacts(lens).Any(fact => Chosen?.Fact == fact || (TrialIn(fact) && !MainShown.Any(TrialIn)));
+
+    private void ToggleLens(FactLens lens)
     {
-        IReadOnlyList<MotifFact> facts = LensFacts(lens);
-        return _lens == lens || _expanded.Contains(lens) || facts.Count <= PerLens
-            ? [.. facts]
-            : [.. facts.Where((fact, i) => i < PerLens || Chosen?.Fact == fact || HoldsTrial(fact))];
+        if (!_expanded.Remove(lens))
+        {
+            _expanded.Add(lens);
+        }
     }
 
-    private bool HoldsTrial(MotifFact fact) => Trial is { } trial && Tries(fact).Any(experiment => experiment.Id == trial.Experiment.Id);
+    private bool TrialIn(MotifFact fact) => Trial is { } trial && Tries(fact).Any(experiment => experiment.Id == trial.Experiment.Id);
 
     /// <summary>The fact's Try button: the experiment music-core built for its kind, if any.</summary>
     private IReadOnlyList<Experiment> Tries(MotifFact fact) => ExperimentCatalogue.RestingOn(FactOffers, fact.Id);
 
-    private RenderFragment FactRow(MotifFact fact, IReadOnlyList<Experiment> tries, string? why) =>
+    private RenderFragment FactRow(MotifFact fact, IReadOnlyList<Experiment> tries) =>
         @<article class="fact-row @(Chosen?.Fact == fact ? "on" : null)" aria-label="@fact.Claim">
             @{
                 bool chosen = Chosen?.Fact == fact;
@@ -311,10 +319,6 @@
                     <p class="basis detail">@fact.Text</p>
                 }
                 <p class="basis">@fact.Basis</p>
-                @if (why is not null)
-                {
-                    <p class="basis"><strong>@Text["understand.whyThisOne"]</strong> @why</p>
-                }
             }
             @if (chosen && fact.Places.Count > 0)
             {

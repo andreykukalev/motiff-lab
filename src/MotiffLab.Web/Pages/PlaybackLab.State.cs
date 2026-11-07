@@ -18,7 +18,6 @@ public partial class PlaybackLab
         get
         {
             IReadOnlyList<MotifFact> facts = Facts;
-            MotifFact? key = FactRanking.KeyObservation(facts);
             // The recommended next step stays on the selection when an offer does; one elsewhere (the motif's return) only otherwise.
             IReadOnlyList<Experiment> offers = UnderstandOffers;
             Experiment? recommended = offers.FirstOrDefault(offer => offer.Passage.Span == _selection?.Span) ?? offers.FirstOrDefault();
@@ -50,7 +49,7 @@ public partial class PlaybackLab
                     SoundingVariation: SoundingVariation,
                     AnswerLooping: _answerLoop is not null),
                 new WorkspaceVariation(_chain, _variation, ActiveTrial, CardOffers, UnderstandOffers),
-                new WorkspaceFacts(facts, _highlight?.Choice, key, key is null ? null : FactRanking.Reason(key, Words), recommended, _circle),
+                new WorkspaceFacts(facts, _highlight?.Choice, FactRanking.Main(facts), recommended, _circle),
                 new WorkspaceIdeas(KeptRows, KeptOnCard, KeptText));
         }
     }

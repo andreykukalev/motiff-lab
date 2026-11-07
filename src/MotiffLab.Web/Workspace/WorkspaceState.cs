@@ -127,14 +127,13 @@ public sealed record WorkspaceVariation(
     public string? Explanation => Current?.Explanation;
 }
 
-/// <summary>The facts about the selection (S1-A1 to S1-A5), the one to hear first, and the one chosen to highlight.</summary>
+/// <summary>The facts about the selection (S1-A1 to S1-A5), those the stream leads with, and the one chosen to highlight.</summary>
 /// <param name="All">The facts of the selection from every analysis, in music-core's order within each lens.</param>
 /// <param name="Chosen">The fact highlighted in the score and on the roll, with the place when one is.</param>
-/// <param name="KeyObservation">The one fact to hear first, as <see cref="FactRanking"/> ranks them (#132); null without facts.</param>
-/// <param name="KeyReason">Why that fact comes first, from the ranking's own criteria.</param>
+/// <param name="Main">The facts the Insights stream leads with, under Main (testing item 14): the harmonic motion, the texture, the strongest of the rest (<see cref="FactRanking.Main"/>).</param>
 /// <param name="Recommended">The one experiment recommended next: the first the catalogue offers for the selection, so it can always run; null without offers.</param>
 /// <param name="Circle">The circle of fifths for the selection, from its key and chords; null when no key was read.</param>
-public sealed record WorkspaceFacts(IReadOnlyList<MotifFact> All, FactChoice? Chosen, MotifFact? KeyObservation, string? KeyReason, Experiment? Recommended, KeyCircleView? Circle = null);
+public sealed record WorkspaceFacts(IReadOnlyList<MotifFact> All, FactChoice? Chosen, IReadOnlyList<MotifFact> Main, Experiment? Recommended, KeyCircleView? Circle = null);
 
 /// <summary>What the player kept about the selection.</summary>
 /// <param name="Rows">The observations kept for the selected phrase, with where each one comes from.</param>

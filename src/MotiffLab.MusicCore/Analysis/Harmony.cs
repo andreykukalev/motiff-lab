@@ -139,7 +139,7 @@ public sealed record HarmonyAnalysis(IReadOnlyList<ChordSpan> Chords, IReadOnlyL
 /// root. Variation operations read the same finder (V12, V15) and the Keep check of harmony compares its chords.
 /// </para>
 /// </remarks>
-public static class HarmonyAnalyzer
+public static partial class HarmonyAnalyzer
 {
     /// <summary>A reading at least this confident is inferred; a closer one is uncertain (FR-D5).</summary>
     public const int ClearConfidence = 70;
@@ -235,10 +235,13 @@ public static class HarmonyAnalyzer
 
         MusicalKey spelling = key ?? new MusicalKey(0, KeyMode.Major);
         Words w = words;
-        var facts = new List<MotifFact>
+        var facts = new List<MotifFact>();
+        if (key is { } inKey)
         {
-            ChordsFact(chords, meter, spelling, w),
-        };
+            facts.Add(MotionFact(chords, meter, inKey, w));
+        }
+
+        facts.Add(ChordsFact(chords, meter, spelling, w));
         if (texture.Bass.Count > 0)
         {
             facts.Add(BassFact(texture.Bass, meter, spelling, w));

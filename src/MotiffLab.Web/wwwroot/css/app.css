@@ -6204,10 +6204,49 @@ body:has(.library) .site-footer {
     margin: var(--s-1) 0 0;
 }
 
-/* A lens's further facts, under its two or three strongest: one quiet link. */
-.workspace .stream .lens-more {
-    align-self: flex-start;
-    margin-top: var(--s-1);
+/* Details (testing item 14): each lens folded to one row with its count, a tap opens it; the chevron turns. */
+.workspace .stream .details-heading {
+    margin-top: var(--s-4);
+}
+
+.workspace .stream .lens-head {
+    margin: 0;
+    font: inherit;
+}
+
+.workspace .stream .lens-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-2);
+    width: 100%;
+    min-height: var(--h-touch);
+    padding: 0;
+    border: 0;
+    border-bottom: 1px solid var(--hairline);
+    background: none;
+    color: var(--ink);
+    font: var(--t-body);
+    text-align: start;
+    cursor: pointer;
+}
+
+.workspace .stream .lens-toggle:disabled {
+    cursor: default;
+}
+
+.workspace .stream .lens-toggle .ic {
+    color: var(--ink-3);
+    transition: transform var(--t-fast) var(--ease);
+}
+
+.workspace .stream .lens-group.open .lens-toggle .ic {
+    transform: rotate(180deg);
+}
+
+.workspace .stream .lens-toggle:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
 }
 
 /* The circle of fifths in a fact's row (Insights/KeyCircleCard.razor): the major keys outside, their relative minors
