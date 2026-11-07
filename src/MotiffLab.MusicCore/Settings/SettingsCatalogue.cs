@@ -49,6 +49,11 @@ public static class SettingsCatalogue
         Switch("pen.pencilOnly", SettingSection.MarksAndLayers, null, SettingScope.Device, on: true),
         Choice("pen.ink", SettingSection.MarksAndLayers, ["graphite", "carmine", "forest", "ochre"], "graphite", null, SettingScope.Device),
 
+        // The rows of the harmony lane in Piece DNA (testing item 30): chords and functions shown, the steps of the key on request.
+        Switch("dna.chords", SettingSection.Score, null, SettingScope.Device, on: true),
+        Switch("dna.degrees", SettingSection.Score, null, SettingScope.Device),
+        Switch("dna.functions", SettingSection.Score, null, SettingScope.Device, on: true),
+
         // A choice on a version's page applied at once, without the merge draft (testing item 34); Undo stays in its toast.
         Switch("merge.direct", SettingSection.Score, null, SettingScope.Device),
 

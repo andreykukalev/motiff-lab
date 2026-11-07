@@ -18,6 +18,10 @@ struct KeyCircle: Equatable, Sendable {
         var position: Int
         var minor: Bool
         var place: Fact.Place
+        /// "tonic", "subdominant", "dominant" or "none": the dot's colour where the circle shows functions (Piece DNA).
+        var function = "none"
+        /// "E7: V7 in A minor, the dominant.", said when the chord is picked.
+        var role = ""
     }
 
     var name: String
@@ -34,10 +38,17 @@ struct KeyCircle: Equatable, Sendable {
     var outside: Fact.Place?
     var scale: [PlaybackNote]
     var lines: [String]
+    /// How each of the twelve places stands from the key, by position: "tonic", "dominant", "subdominant", "near" or "far".
+    var zones: [String]
 
     init?(answer: String) {
-        guard let object = facadeObject(answer), object["error"] == nil, let circle = object["circle"] as? [String: Any],
-              let name = circle["name"] as? String, let position = circle["position"] as? Int else { return nil }
+        guard let object = facadeObject(answer), object["error"] == nil, let circle = object["circle"] as? [String: Any] else { return nil }
+        self.init(circle: circle)
+    }
+
+    /// A circle as the facade writes it, in the `circle` answer or in each section of `dna` (contract 8).
+    init?(circle: [String: Any]) {
+        guard let name = circle["name"] as? String, let position = circle["position"] as? Int else { return nil }
         func place(_ value: Any?) -> Fact.Place? {
             guard let place = value as? [String: Any], let onset = (place["onset"] as? NSNumber)?.doubleValue,
                   let end = (place["end"] as? NSNumber)?.doubleValue else { return nil }
@@ -59,7 +70,8 @@ struct KeyCircle: Equatable, Sendable {
         chords = (circle["chords"] as? [[String: Any]] ?? []).compactMap { chord in
             guard let number = chord["number"] as? Int, let position = chord["position"] as? Int, let place = place(chord["place"]) else { return nil }
             return Chord(number: number, symbol: chord["symbol"] as? String ?? "", degree: chord["degree"] as? String, position: position,
-                         minor: chord["ring"] as? String == "minor", place: place)
+                         minor: chord["ring"] as? String == "minor", place: place,
+                         function: chord["function"] as? String ?? "none", role: chord["role"] as? String ?? "")
         }
         outside = place(circle["outside"])
         scale = (circle["scaleNotes"] as? [[String: Any]] ?? []).compactMap { note in
@@ -68,6 +80,7 @@ struct KeyCircle: Equatable, Sendable {
             return PlaybackNote(onset: onset, duration: end - onset, pitch: pitch, velocity: 80)
         }
         lines = circle["lines"] as? [String] ?? []
+        zones = circle["zones"] as? [String] ?? []
     }
 
     /// Where the scale sounds, in ticks.
@@ -142,10 +155,13 @@ struct KeyCircleCard: View {
     }
 }
 
-/// The drawing itself, in the web card's units: a square 236 across, the circle's centre in the middle.
-private struct CircleDrawing: View {
+/// The drawing itself, in the web card's units: a square 236 across, the circle's centre in the middle. With `functions`
+/// (Piece DNA, testing item 30) the sectors take the colours of the harmonic functions around the key, far keys paler,
+/// and each chord's dot the colour of what it does.
+struct CircleDrawing: View {
     let circle: KeyCircle
     let chosen: Fact.Place?
+    var functions = false
 
     private static let outer = 100.0, middle = 66.0, inner = 36.0, step = 30.0
 
@@ -166,10 +182,11 @@ private struct CircleDrawing: View {
                     let radius = entry.chord.minor ? 43.0 : 108.0
                     let at = point(degrees: entry.angle, radius, unit, centre)
                     Circle()
-                        .fill(Color.ds(on ? "accent" : "ink"))
+                        .fill(Color.ds(functions ? Self.functionColour(entry.chord.function) : on ? "accent" : "ink"))
+                        .overlay(Circle().strokeBorder(Color.ds("ink"), lineWidth: functions && on ? 2 * unit : 0))
                         .frame(width: 12 * unit, height: 12 * unit)
                         .position(at)
-                    label(String(entry.chord.number), at: at, size: 8 * unit, weight: 600, colour: on ? "on-accent" : "paper")
+                    label(String(entry.chord.number), at: at, size: 8 * unit, weight: 600, colour: functions || !on ? "paper" : "on-accent")
                 }
             }
         }
@@ -180,12 +197,38 @@ private struct CircleDrawing: View {
         let isKey = position == circle.position && minor == circle.minor
         let isRunnerUp = position == circle.runnerUpPosition && minor == circle.runnerUpMinor
         let near = circle.neighbourPositions.contains(position)
-        shape.fill(Color.ds(isKey ? "accent-tint-strong" : near ? "surface" : "surface-2"))
+        let zone = position < circle.zones.count ? circle.zones[position] : "near"
+        if functions {
+            shape.fill(Color.ds(Self.zoneColour(zone))).opacity(zone == "far" ? 0.7 : 1)
+        } else {
+            shape.fill(Color.ds(isKey ? "accent-tint-strong" : near ? "surface" : "surface-2"))
+        }
         shape.stroke(
-            Color.ds(isKey ? "accent" : isRunnerUp ? "ink-2" : "hairline-strong"),
+            Color.ds(isKey ? (functions ? "fn-t" : "accent") : isRunnerUp ? "ink-2" : "hairline-strong"),
             style: StrokeStyle(
-                lineWidth: (isKey ? 1.6 : isRunnerUp ? 1.2 : 0.6) * unit,
+                lineWidth: (isKey ? (functions ? 2 : 1.6) : isRunnerUp ? 1.2 : 0.6) * unit,
                 dash: isKey && circle.certainty != "detected" ? [4 * unit, 3 * unit] : isRunnerUp ? [2 * unit, 2 * unit] : []))
+    }
+
+    /// The token a place takes from how it stands from the key.
+    static func zoneColour(_ zone: String) -> String {
+        switch zone {
+        case "tonic": "fn-t-tint"
+        case "dominant": "fn-d-tint"
+        case "subdominant": "fn-s-tint"
+        case "far": "surface"
+        default: "surface-2"
+        }
+    }
+
+    /// The token of a harmonic function: "tonic", "subdominant" or "dominant"; ink for none.
+    static func functionColour(_ function: String) -> String {
+        switch function {
+        case "tonic": "fn-t"
+        case "subdominant": "fn-s"
+        case "dominant": "fn-d"
+        default: "ink"
+        }
     }
 
     private func label(_ words: String, at: CGPoint, size: CGFloat, weight: Int, colour: String) -> some View {

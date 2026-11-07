@@ -140,6 +140,38 @@ public class PieceDnaMapTests
     }
 
     [Fact]
+    public void The_map_explains_itself_with_a_summary_steps_functions_closes_in_words_and_a_circle_per_section()
+    {
+        PieceDna dna = Dna(FurElise(), Words.Russian);
+
+        // Testing item 30: Am in A minor is the tonic on i, E the dominant on V.
+        DnaChord am = dna.Harmony.Single(chord => chord.Bar == 2);
+        DnaChord e = dna.Harmony.Single(chord => chord.Bar == 3);
+        Assert.Equal(("i", HarmonicFunction.Tonic), (am.Degree, am.Function));
+        Assert.Equal(("V", HarmonicFunction.Dominant), (e.Degree, e.Function));
+
+        Assert.StartsWith("Форма " + string.Join(" ", dna.Form.Select(section => section.Label)) + " · ля минор · ", dna.Summary);
+        Assert.Contains("полн", dna.Summary);
+        Assert.Contains("плотнее всего такт", dna.Summary);
+
+        DnaCadence half = dna.Cadences.First(cadence => cadence.Kind == CloseKind.Half);
+        Assert.StartsWith($"Такт {half.Bar}", half.Explanation);
+        Assert.Contains("Половинный каданс", half.Explanation);
+
+        Assert.Equal(dna.Form.Select(section => section.Id), dna.Circles.Select(circle => circle.Id));
+        DnaCircle opening = dna.Circles[0];
+        Assert.Equal(KeyCircle.PositionOf(new MusicalKey(0, KeyMode.Minor)), opening.Circle.Position);
+        Assert.Null(opening.From);
+        Assert.Equal(CircleZone.Tonic, opening.Circle.Zones[0]);
+        Assert.Equal(CircleZone.Dominant, opening.Circle.Zones[1]);
+        Assert.Equal(CircleZone.Subdominant, opening.Circle.Zones[11]);
+        CircleChord dominant = opening.Circle.Chords.First(chord => chord.Symbol.StartsWith('E'));
+        Assert.Equal(HarmonicFunction.Dominant, dominant.Function);
+        Assert.Contains("доминанта", dominant.Role);
+        Assert.Equal(opening.Circle.Chords.Count, opening.Circle.Chords.Select(chord => chord.Symbol).Distinct().Count());
+    }
+
+    [Fact]
     public void A_single_line_has_no_harmony_lane()
     {
         PieceDna dna = Dna(OdeToJoy());

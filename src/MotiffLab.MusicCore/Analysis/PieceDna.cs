@@ -64,10 +64,37 @@ public sealed record DnaKey(MusicalKey Key, TickSpan Span, int FirstBar, int Las
 /// <summary>The chord a bar of the harmony lane holds most of its length.</summary>
 /// <param name="Symbol">Spelt in the key of the bar: "Am", "F♯", "G7/B".</param>
 /// <param name="Clear">At least <see cref="HarmonyAnalyzer.ClearConfidence"/> sure; a less sure chord is drawn as uncertain.</param>
-public sealed record DnaChord(int Bar, TickSpan Span, string Symbol, bool Clear);
+public sealed record DnaChord(int Bar, TickSpan Span, string Symbol, bool Clear)
+{
+    /// <summary>The chord's step of the bar's key as a Roman numeral: "i", "V7", "♭VI" (testing item 30).</summary>
+    public string Degree { get; init; } = "";
+
+    /// <summary>What the chord does in the bar's key: tonic, subdominant, dominant; none for a chord with a note outside it.</summary>
+    public HarmonicFunction Function { get; init; }
+}
 
 /// <summary>A close of a phrase, a dot on the harmony lane: full on the tonic, half on the dominant, inferred.</summary>
-public sealed record DnaCadence(int Bar, Tick At, CloseKind Kind);
+public sealed record DnaCadence(int Bar, Tick At, CloseKind Kind)
+{
+    /// <summary>
+    /// What the close is, in words, said when it is tapped (testing item 30): "Bar 16 · G. A half close: the phrase's melody
+    /// stops on B, not on the tonic, and the music waits to go on. Then section A″."
+    /// </summary>
+    public string Explanation { get; init; } = "";
+}
+
+/// <summary>
+/// The circle of fifths of one section of the form, or of one stretch of the key lane when the form is not read (testing
+/// item 30): the section's key, its chords on the circle, and the key it comes from when that differs.
+/// </summary>
+/// <param name="Id">The form section's id, or <c>key_1</c>, <c>key_2</c>, … for a key stretch.</param>
+/// <param name="Label">The section's letter ("A′"), or the key's name for a key stretch.</param>
+/// <param name="From">The key of the stretch before when it is another: the circle draws the modulation from it.</param>
+public sealed record DnaCircle(string Id, string Label, TickSpan Span, int FirstBar, int LastBar, KeyCircleView Circle, MusicalKey? From)
+{
+    /// <summary>Where <see cref="From"/> sits on the circle; null when the key does not change.</summary>
+    public int? FromPosition => From is { } from ? KeyCircle.PositionOf(from) : null;
+}
 
 /// <summary>One bar of a lane measured as a number: notes per beat for density, the mean velocity for dynamics.</summary>
 public sealed record DnaBarLevel(int Bar, double Value);
@@ -111,6 +138,15 @@ public sealed record PieceDna(
 
     /// <summary>The full and half closes of the phrases, in time order.</summary>
     public IReadOnlyList<DnaCadence> Cadences { get; init; } = [];
+
+    /// <summary>The circle of fifths of every section of the form, or every key stretch without a form; empty without chords.</summary>
+    public IReadOnlyList<DnaCircle> Circles { get; init; } = [];
+
+    /// <summary>
+    /// The map in one line, read before any lane (testing item 30): "Form A A′ B A″ · A minor · 3 full closes, 2 half
+    /// closes · busiest in bar 23". Empty without notes.
+    /// </summary>
+    public string Summary { get; init; } = "";
 
     /// <summary>Whether the density lane is filled: ready whenever there are notes.</summary>
     public DnaStatus DensityStatus { get; init; }
@@ -174,8 +210,11 @@ public sealed record PieceDna(
             ideas.AddRange(IdeaFinder.Find(notes, meter, sentences, form, words, taken, firstId: ideas.Count + 1));
         }
 
-        IReadOnlyList<DnaChord> harmony = HarmonyLane(notes, meter, keyLane, firstBar, lastBar, first, last);
+        List<(DnaChord Chord, ChordSpan Span)> read = HarmonyLane(notes, meter, keyLane, firstBar, lastBar, first, last);
+        IReadOnlyList<DnaChord> harmony = [.. read.Select(pair => pair.Chord)];
         IReadOnlyList<DnaBarLevel> dynamics = DynamicsLane(notes, meter);
+        IReadOnlyList<DnaCadence> cadences = sentences is null ? [] : CadenceLane(sentences, meter, harmony, form, words);
+        IReadOnlyList<DnaBarLevel> density = DensityLane(notes, meter, firstBar, lastBar);
         return new PieceDna(
             firstBar,
             lastBar,
@@ -191,9 +230,11 @@ public sealed record PieceDna(
             BarStarts = [.. Enumerable.Range(firstBar, lastBar - firstBar + 1).Select(number => meter.GetBar(number).Span.Onset.Value), meter.GetBar(lastBar).Span.End.Value],
             HarmonyStatus = harmony.Count > 0 ? DnaStatus.Partial : DnaStatus.NotYet,
             Harmony = harmony,
-            Cadences = sentences is null ? [] : CadenceLane(sentences, meter),
+            Cadences = cadences,
+            Circles = CircleLane(read, form, keyLane, meter, words),
+            Summary = SummaryOf(form, keyLane, cadences, density, words),
             DensityStatus = DnaStatus.Ready,
-            Density = DensityLane(notes, meter, firstBar, lastBar),
+            Density = density,
             Register = RegisterLane(notes, meter),
             DynamicsStatus = dynamics.Count > 0 ? DnaStatus.Ready : DnaStatus.NotYet,
             Dynamics = dynamics,
@@ -204,7 +245,7 @@ public sealed record PieceDna(
     /// The chord each bar holds longest, from the chords of the whole piece (<see cref="HarmonyAnalyzer.FindChords"/>),
     /// read and spelt in the key of the bar's lane.
     /// </summary>
-    private static List<DnaChord> HarmonyLane(IReadOnlyList<Note> notes, MeterMap meter, IReadOnlyList<DnaKey> keys, int firstBar, int lastBar, Tick first, Tick last)
+    private static List<(DnaChord Chord, ChordSpan Span)> HarmonyLane(IReadOnlyList<Note> notes, MeterMap meter, IReadOnlyList<DnaKey> keys, int firstBar, int lastBar, Tick first, Tick last)
     {
         if (last <= first)
         {
@@ -213,7 +254,7 @@ public sealed record PieceDna(
 
         MusicalKey? opening = keys.Count > 0 ? keys[0].Key : null;
         IReadOnlyList<ChordSpan> chords = HarmonyAnalyzer.FindChords(notes, meter, TickSpan.FromBounds(first, last), opening);
-        var lane = new List<DnaChord>();
+        var lane = new List<(DnaChord, ChordSpan)>();
         int next = 0;
         for (int number = firstBar; number <= lastBar; number++)
         {
@@ -240,19 +281,116 @@ public sealed record PieceDna(
             }
 
             MusicalKey spelling = keys.LastOrDefault(key => key.Span.Onset <= bar.Onset)?.Key ?? opening ?? new MusicalKey(0, KeyMode.Major);
-            lane.Add(new DnaChord(number, best.Span, best.Symbol(spelling), best.Confidence >= HarmonyAnalyzer.ClearConfidence));
+            var chord = new DnaChord(number, best.Span, best.Symbol(spelling), best.Confidence >= HarmonyAnalyzer.ClearConfidence)
+            {
+                Degree = HarmonyAnalyzer.Numeral(best.Chord, spelling),
+                Function = HarmonyAnalyzer.FunctionOf(best.Chord, spelling),
+            };
+            lane.Add((chord, best));
         }
 
         return lane;
     }
 
-    /// <summary>The phrases' full and half closes, at the last notes that close them.</summary>
-    private static List<DnaCadence> CadenceLane(SentenceMap sentences, MeterMap meter) =>
+    /// <summary>The phrases' full and half closes, at the last notes that close them, each with what it is in words.</summary>
+    private static List<DnaCadence> CadenceLane(SentenceMap sentences, MeterMap meter, IReadOnlyList<DnaChord> harmony, IReadOnlyList<DnaSection> form, Words w) =>
         [.. sentences.Closes
             .Where(close => close.Kind != CloseKind.None)
             .Select(close => (Close: close, At: close.Place?.Span.Onset ?? new Tick(Math.Max(close.Phrase.Span.Onset.Value, close.Phrase.Span.End.Value - 1))))
-            .Select(close => new DnaCadence(meter.BarAt(close.At).Number, close.At, close.Close.Kind))
+            .Select(close =>
+            {
+                int bar = meter.BarAt(close.At).Number;
+                return new DnaCadence(bar, close.At, close.Close.Kind) { Explanation = Explain(close.Close, bar, harmony, form, w) };
+            })
             .OrderBy(cadence => cadence.At)];
+
+    /// <summary>
+    /// "Bar 16 · G. A half close: the phrase's melody stops on B, not on the tonic, and the music waits to go on. Then
+    /// section A″." Only what the close and the lanes state: the close is read from the melody, the chord from the lane.
+    /// </summary>
+    private static string Explain(PhraseClose close, int bar, IReadOnlyList<DnaChord> harmony, IReadOnlyList<DnaSection> form, Words w)
+    {
+        string? chord = harmony.FirstOrDefault(chord => chord.Bar == bar)?.Symbol;
+        string place = w.T($"Bar {bar}", $"Такт {bar}") + (chord is null ? "." : $" · {chord}.");
+        string top = close.TopName is { } name ? w.T($" on {name}", $" на {name}") : "";
+        string tonic = close.TopName is { } note ? $" ({note})" : "";
+        string what = close.Kind == CloseKind.Full
+            ? w.T(
+                $"A full close: the phrase's melody comes to the tonic{tonic}, and the music comes to rest.",
+                $"Полный каданс: мелодия фразы приходит к тонике{tonic}, музыка приходит к устою.")
+            : w.T(
+                $"A half close: the phrase's melody stops{top}, not on the tonic, and the music waits to go on.",
+                $"Половинный каданс: мелодия фразы останавливается{top}, не на тонике, музыка ждёт продолжения.");
+        string then = form.FirstOrDefault(section => section.FirstBar == bar + 1) is { } next
+            ? " " + w.T($"Then section {next.Label}.", $"Дальше раздел {next.Label}.")
+            : "";
+        return $"{place} {what}{then}";
+    }
+
+    /// <summary>
+    /// The circle of every section of the form, in the key the key lane gives at its start, with the chords of its bars; a
+    /// piece without a form gets one circle per key stretch. A section in another key than the one before says where it
+    /// comes from.
+    /// </summary>
+    private static List<DnaCircle> CircleLane(List<(DnaChord Chord, ChordSpan Span)> harmony, IReadOnlyList<DnaSection> form, IReadOnlyList<DnaKey> keys, MeterMap meter, Words w)
+    {
+        if (harmony.Count == 0 || keys.Count == 0)
+        {
+            return [];
+        }
+
+        IEnumerable<(string Id, string Label, TickSpan Span, int FirstBar, int LastBar)> stretches = form.Count > 0
+            ? form.Select(section => (section.Id, section.Label, section.Span, section.FirstBar, section.LastBar))
+            : keys.Select((key, index) => ($"key_{index + 1}", key.Key.NameIn(w), key.Span, key.FirstBar, key.LastBar));
+        var circles = new List<DnaCircle>();
+        foreach ((string id, string label, TickSpan span, int firstBar, int lastBar) in stretches)
+        {
+            DnaKey key = keys.LastOrDefault(key => key.Span.Onset <= span.Onset) ?? keys[0];
+            ChordSpan[] chords = [.. harmony.Where(pair => pair.Chord.Bar >= firstBar && pair.Chord.Bar <= lastBar).Select(pair => pair.Span)];
+            MusicalKey? from = circles.Count > 0 && circles[^1].Circle.Key != key.Key ? circles[^1].Circle.Key : null;
+            circles.Add(new DnaCircle(id, label, span, firstBar, lastBar, KeyCircle.ForKey(key.Key, key.Inferred, chords, meter, w), from));
+        }
+
+        return circles;
+    }
+
+    /// <summary>"Form A A′ B A″ · A minor · 3 full closes, 2 half closes · busiest in bar 23": only what the lanes hold.</summary>
+    private static string SummaryOf(IReadOnlyList<DnaSection> form, IReadOnlyList<DnaKey> keys, IReadOnlyList<DnaCadence> cadences, IReadOnlyList<DnaBarLevel> density, Words w)
+    {
+        var parts = new List<string>();
+        if (form.Count > 0)
+        {
+            parts.Add(w.T("Form ", "Форма ") + string.Join(" ", form.Select(section => section.Label)));
+        }
+
+        string[] names = [.. keys.Select(key => key.Key.NameIn(w)).Where((name, index) => index == 0 || name != keys[index - 1].Key.NameIn(w))];
+        if (names.Length > 0)
+        {
+            parts.Add(string.Join(" → ", names));
+        }
+
+        int full = cadences.Count(cadence => cadence.Kind == CloseKind.Full);
+        int half = cadences.Count(cadence => cadence.Kind == CloseKind.Half);
+        string[] closes =
+        [
+            .. new[]
+            {
+                full > 0 ? w.Count(full, "full close", "full closes", "полный каданс", "полных каданса", "полных кадансов") : null,
+                half > 0 ? w.Count(half, "half close", "half closes", "половинный каданс", "половинных каданса", "половинных кадансов") : null,
+            }.OfType<string>(),
+        ];
+        if (closes.Length > 0)
+        {
+            parts.Add(string.Join(", ", closes));
+        }
+
+        if (density.Count > 0 && density.MaxBy(level => level.Value) is { Value: > 0 } busiest)
+        {
+            parts.Add(w.T($"busiest in bar {busiest.Bar}", $"плотнее всего такт {busiest.Bar}"));
+        }
+
+        return string.Join(" · ", parts);
+    }
 
     /// <summary>Notes starting per beat in every bar: a pickup bar counts the beats it has.</summary>
     private static List<DnaBarLevel> DensityLane(IReadOnlyList<Note> notes, MeterMap meter, int firstBar, int lastBar)

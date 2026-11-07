@@ -5982,7 +5982,7 @@ body:has(.library) .site-footer {
     position: relative;
     display: flex;
     flex-direction: column;
-    --name: 168px;
+    --name: 196px;
 }
 
 .workspace .dna-row {
@@ -6113,12 +6113,17 @@ body:has(.library) .site-footer {
     height: 22px;
     padding: 0 var(--s-2);
     overflow: hidden;
+    border: 0;
     border-radius: var(--r-xs);
-    background: var(--accent-tint);
+    background: var(--surface-2);
+    color: var(--ink);
     font: var(--t-caption);
     line-height: 22px;
+    text-align: center;
     white-space: nowrap;
     text-overflow: ellipsis;
+    cursor: pointer;
+    min-height: 0;
 }
 
 .workspace .dna .key-block.minor {
@@ -6126,11 +6131,17 @@ body:has(.library) .site-footer {
 }
 
 .workspace .dna .new-bar {
-    top: 12px;
-    height: 16px;
-    border-radius: 2px;
-    background: var(--teal-tint);
-    border-left: 2px solid var(--teal);
+    top: 13px;
+    height: 12px;
+    border-left: 1px solid var(--desk);
+}
+
+.workspace .dna .new-bar.new {
+    background: var(--ink-2);
+}
+
+.workspace .dna .new-bar.heard {
+    background: var(--hairline-strong);
 }
 
 .workspace .dna-legend {
@@ -6224,7 +6235,6 @@ body:has(.library) .site-footer {
 }
 
 .lab.workspace .dna .dna-sec.rep {
-    background: var(--surface);
     border-style: dashed;
 }
 
@@ -6242,35 +6252,6 @@ body:has(.library) .site-footer {
     pointer-events: none;
 }
 
-.workspace .dna .chord {
-    position: absolute;
-    left: calc(var(--x) * 100%);
-    top: 4px;
-    font: var(--t-label);
-    white-space: nowrap;
-}
-
-.workspace .dna .chord.unsure {
-    color: var(--ink-2);
-    font-style: italic;
-}
-
-.workspace .dna .cad {
-    position: absolute;
-    left: calc(var(--x) * 100%);
-    bottom: 3px;
-    width: 8px;
-    height: 8px;
-    margin-left: -4px;
-    box-sizing: border-box;
-    border-radius: 50%;
-    background: var(--ink);
-}
-
-.workspace .dna .cad.half {
-    background: transparent;
-    border: 1.5px solid var(--ink);
-}
 
 .workspace .dna .lane-track.levels {
     min-height: 36px;
@@ -6312,9 +6293,364 @@ body:has(.library) .site-footer {
     color: var(--ink-2);
 }
 
+/* The map explains itself (testing item 30): the summary above the lanes, a line under each lane's name on how to read it,
+   the form's sections coloured by letter, the harmony in rows (chords, steps, functions in their own colours) with the
+   closes in words, new material against what was heard, and the circle of fifths of a section over the map. */
+.workspace .dna-summary {
+    margin: 0;
+    max-width: 68ch;
+    font: var(--t-title);
+    font-size: 17px;
+    line-height: 1.4;
+    color: var(--ink);
+    text-wrap: balance;
+}
+
+.workspace .dna-row {
+    align-items: start;
+}
+
+.workspace .dna-row.axis {
+    align-items: center;
+}
+
+.workspace .dna .lane-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px var(--s-2);
+    padding: var(--s-2) var(--s-3) var(--s-2) 0;
+}
+
+.workspace .dna .lane-head .lane-name {
+    padding-right: 0;
+}
+
+.workspace .dna .lane-head .why {
+    flex-basis: 100%;
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.workspace .dna .lane-track {
+    min-height: 40px;
+}
+
+.lab.workspace .dna .circle-open, .lab.workspace .dna .row-tog {
+    min-height: 0;
+    height: 22px;
+    padding: 0 var(--s-2);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-pill);
+    background: var(--surface-2);
+    color: var(--ink-2);
+    font: var(--t-caption);
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.lab.workspace .dna .circle-open[aria-pressed="true"], .lab.workspace .dna .row-tog.on {
+    border-color: var(--accent);
+    background: var(--accent-tint);
+    color: var(--ink);
+}
+
+.workspace .dna .lane-head .rows {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-1);
+}
+
+.workspace .dna-row.harmony .lane-track.stack {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 3px;
+    padding: var(--s-2) 0;
+}
+
+.workspace .dna .h-row {
+    position: relative;
+    height: 18px;
+}
+
+.workspace .dna .h-row > * {
+    position: absolute;
+    left: calc(var(--x) * 100%);
+    width: calc((var(--x2) - var(--x)) * 100%);
+    box-sizing: border-box;
+    overflow: hidden;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.workspace .dna .h-row.chords {
+    height: 24px;
+}
+
+/* A chord's label is its button: at least the 24px a finger needs, centred on its bars. */
+.lab.workspace .dna .h-row .chord {
+    top: 0;
+    min-width: 24px;
+    min-height: 0;
+    height: 24px;
+    padding: 0 var(--s-1);
+    border: 0;
+    border-radius: var(--r-xs);
+    background: transparent;
+    line-height: 24px;
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+.lab.workspace .dna .h-row .chord:hover, .lab.workspace .dna .h-row .chord.on {
+    background: var(--accent-tint);
+}
+
+/* A label sits centred on its segment and may reach past a short one; it lets taps through to the chord under it. */
+.workspace .dna .h-row .label {
+    width: auto;
+    overflow: visible;
+    transform: translateX(-50%);
+    font: var(--t-label);
+    line-height: 18px;
+    color: var(--ink);
+    pointer-events: none;
+}
+
+.workspace .dna .h-row .label.on {
+    color: var(--ink);
+    font-weight: 600;
+}
+
+.workspace .dna .h-row .label.unsure {
+    color: var(--ink-2);
+    font-style: italic;
+}
+
+.workspace .dna .h-row .label.degree {
+    font: 500 12px/18px var(--font-display);
+}
+
+.workspace .dna .h-row.functions {
+    height: 14px;
+}
+
+.workspace .dna .h-row .fn {
+    height: 14px;
+    border-left: 1px solid var(--desk);
+    border-radius: 3px;
+    font: 600 10px/14px var(--font-ui);
+}
+
+.workspace .dna .h-row .fn.t {
+    background: var(--fn-t-tint);
+    color: var(--ink);
+    box-shadow: inset 0 -3px 0 var(--fn-t);
+}
+
+.workspace .dna .h-row .fn.s {
+    background: var(--fn-s-tint);
+    color: var(--ink);
+    box-shadow: inset 0 -3px 0 var(--fn-s);
+}
+
+.workspace .dna .h-row .fn.d {
+    background: var(--fn-d-tint);
+    color: var(--ink);
+    box-shadow: inset 0 -3px 0 var(--fn-d);
+}
+
+.workspace .dna .h-row.closes {
+    height: 20px;
+}
+
+.lab.workspace .dna .h-row .cad {
+    width: auto;
+    min-height: 0;
+    height: 18px;
+    padding: 0 var(--s-2);
+    transform: translateX(-50%);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-pill);
+    background: var(--surface-2);
+    color: var(--ink-2);
+    font: var(--t-caption);
+    line-height: 16px;
+    cursor: pointer;
+}
+
+.lab.workspace .dna .h-row .cad.half {
+    border-style: dashed;
+}
+
+.lab.workspace .dna .h-row .cad.on, .lab.workspace .dna .h-row .cad:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.lab.workspace .dna .dna-sec.g1 {
+    background: var(--amber-tint);
+}
+
+.lab.workspace .dna .dna-sec.g2 {
+    background: var(--teal-tint);
+}
+
+.lab.workspace .dna .dna-sec.g3 {
+    background: var(--plum-tint);
+}
+
+.workspace .dna-pop {
+    position: fixed;
+    right: max(var(--s-4), env(safe-area-inset-right, 0px));
+    bottom: max(var(--s-4), env(safe-area-inset-bottom, 0px));
+    z-index: 31;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    width: min(23rem, calc(100vw - 2 * var(--s-4)));
+    max-height: calc(100vh - 2 * var(--s-8));
+    overflow-y: auto;
+    box-sizing: border-box;
+    padding: var(--s-4);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-l);
+    background: var(--surface);
+    box-shadow: var(--shadow-menu);
+}
+
+.workspace .dna-pop .pop-head {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s-2);
+}
+
+.workspace .dna-pop .pop-head .ttl {
+    flex: 1;
+    margin: 0;
+    font: var(--t-heading);
+    letter-spacing: normal;
+    text-transform: none;
+    color: var(--ink);
+}
+
+.workspace .dna-pop .explained {
+    flex: 1;
+    margin: 0;
+    font: var(--t-body);
+}
+
+.lab.workspace .dna-pop .close {
+    flex: none;
+    min-height: 0;
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-s);
+    background: transparent;
+    color: var(--ink-2);
+    cursor: pointer;
+}
+
+.workspace .dna-pop .pop-sections, .workspace .dna-pop .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+}
+
+.workspace .dna-pop .role {
+    margin: 0;
+    font: var(--t-body-strong);
+}
+
+.workspace .dna-pop .caption {
+    margin: 0;
+    color: var(--ink-2);
+}
+
+.workspace .dna-pop .dna-legend {
+    align-self: auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-1) var(--s-2);
+    margin: 0;
+}
+
+.workspace .dna-pop .sw {
+    display: inline-block;
+    width: 12px;
+    height: 8px;
+    border-radius: 2px;
+}
+
+.workspace .dna-pop .sw.tonic {
+    background: var(--fn-t);
+}
+
+.workspace .dna-pop .sw.subdominant {
+    background: var(--fn-s);
+}
+
+.workspace .dna-pop .sw.dominant {
+    background: var(--fn-d);
+}
+
+.workspace .dna-pop .sw.far {
+    background: var(--surface);
+    border: 1px solid var(--hairline-strong);
+}
+
+/* The circle in the colours of the functions around the key (Piece DNA): the dot of each chord takes what it does. */
+.key-circle.functions .sector.z-tonic {
+    fill: var(--fn-t-tint);
+}
+
+.key-circle.functions .sector.z-dominant {
+    fill: var(--fn-d-tint);
+}
+
+.key-circle.functions .sector.z-subdominant {
+    fill: var(--fn-s-tint);
+}
+
+.key-circle.functions .sector.z-far {
+    fill: var(--surface);
+    opacity: .7;
+}
+
+.key-circle.functions .sector.key {
+    stroke: var(--fn-t);
+    stroke-width: 2;
+}
+
+.key-circle.functions .chord.fn-tonic circle {
+    fill: var(--fn-t);
+}
+
+.key-circle.functions .chord.fn-subdominant circle {
+    fill: var(--fn-s);
+}
+
+.key-circle.functions .chord.fn-dominant circle {
+    fill: var(--fn-d);
+}
+
+.key-circle.functions .chord.on circle {
+    stroke: var(--ink);
+    stroke-width: 2;
+}
+
+.key-circle.functions .chord.on text {
+    fill: var(--paper);
+}
+
 @media (orientation: portrait), (max-width: 720px) {
     .workspace .dna-map {
-        --name: 112px;
+        --name: 148px;
     }
 }
 

@@ -20,6 +20,20 @@ public enum KeyRelation
     Parallel,
 }
 
+/// <summary>
+/// Where a place on the circle stands from a key, in the colours of the harmonic functions (testing item 30): the key's own
+/// place, which its relative shares, is the tonic; one fifth up the dominant side, one fifth down the subdominant side;
+/// two places away near, further far, drawn paler.
+/// </summary>
+public enum CircleZone
+{
+    Tonic,
+    Dominant,
+    Subdominant,
+    Near,
+    Far,
+}
+
 /// <summary>One of the twelve places on the circle of fifths: a major key outside, its relative minor inside, and the key signature they share.</summary>
 /// <param name="Position">0 for C major and A minor at the top, then clockwise by fifths: 1 for G major, 11 for F major.</param>
 /// <param name="Fifths">The sharps (positive) or flats (negative) of the signature, written with at most six: F♯ major rather than G♭ major.</param>
@@ -35,7 +49,14 @@ public sealed record CircleNeighbour(KeyRelation Relation, MusicalKey Key, int P
 /// <param name="Number">The chord's place in the passage, from 1.</param>
 /// <param name="Degree">Its scale degree in the key as a Roman numeral ("V", "i", "vii°", "V7"); null when the root is outside the scale.</param>
 /// <param name="Place">Where it sounds and its notes, to ring on the score.</param>
-public sealed record CircleChord(int Number, string Symbol, string? Degree, int Position, KeyMode Ring, FactPlace Place);
+public sealed record CircleChord(int Number, string Symbol, string? Degree, int Position, KeyMode Ring, FactPlace Place)
+{
+    /// <summary>What the chord does in the key, for its dot's colour; none for a chord with a note outside the key.</summary>
+    public HarmonicFunction Function { get; init; }
+
+    /// <summary>"E7 is the dominant of A minor (V7)." or "F: VI of A minor.", said when the chord is picked.</summary>
+    public string Role { get; init; } = "";
+}
 
 /// <summary>
 /// The circle of fifths for a selection (the redesign's reference card, Andrei, 2026-11-06): the twelve places with their
@@ -64,6 +85,9 @@ public sealed record KeyCircleView(
     IReadOnlyList<int> ScalePitches,
     IReadOnlyList<string> Lines)
 {
+    /// <summary>The twelve places as they stand from the key, by position (<see cref="KeyCircle.ZoneOf"/>).</summary>
+    public IReadOnlyList<CircleZone> Zones => [.. Enumerable.Range(0, KeyCircle.Places).Select(position => KeyCircle.ZoneOf(Key, position))];
+
     /// <summary>
     /// The scale as notes to hear, one beat each and the octave held for two, from <paramref name="at"/>: inferred, since
     /// the app plays them, not the piece. Their ids start with "circle_". With <paramref name="end"/>, the piece's end, they
@@ -106,6 +130,57 @@ public static class KeyCircle
     /// <summary>A key's place on the circle: the same for a major key and its relative minor.</summary>
     public static int PositionOf(MusicalKey key) => Mod12(key.Fifths);
 
+    /// <summary>How a place on the circle stands from a key (<see cref="CircleZone"/>).</summary>
+    public static CircleZone ZoneOf(MusicalKey key, int position)
+    {
+        int away = Mod12(position - PositionOf(key));
+        return away switch
+        {
+            0 => CircleZone.Tonic,
+            1 => CircleZone.Dominant,
+            11 => CircleZone.Subdominant,
+            2 or 10 => CircleZone.Near,
+            _ => CircleZone.Far,
+        };
+    }
+
+    /// <summary>
+    /// The circle for a stretch of the piece in a known key (Piece DNA, testing item 30): the key as the file or the key
+    /// lane gives it, with no runner-up, and the stretch's chords, each once, in the order they first sound.
+    /// </summary>
+    /// <param name="inferred">The key comes from the notes rather than the file: drawn as assumed.</param>
+    /// <param name="chords">The stretch's chords in time order; a chord heard again keeps its first place.</param>
+    public static KeyCircleView ForKey(MusicalKey key, bool inferred, IReadOnlyList<ChordSpan> chords, MeterMap meter, Words words = default)
+    {
+        ArgumentNullException.ThrowIfNull(chords);
+        ArgumentNullException.ThrowIfNull(meter);
+        string name = key.NameIn(words);
+        CircleNeighbour[] neighbours = Neighbours(key, words);
+        CircleChord[] placed = [.. chords.DistinctBy(chord => chord.Chord).Select((chord, index) => Chord(chord, index + 1, key, meter, words))];
+        return new KeyCircleView(
+            key,
+            name,
+            inferred ? FactCertainty.Inferred : FactCertainty.Detected,
+            PositionOf(key),
+            null,
+            null,
+            null,
+            Sectors,
+            neighbours,
+            placed,
+            null,
+            Scale(key),
+            Lines(key, name, neighbours, placed, words, words.T("section", "раздела")));
+    }
+
+    private static CircleNeighbour[] Neighbours(MusicalKey key, Words words) =>
+    [
+        Neighbour(KeyRelation.Dominant, MusicalKey.OnTonic(key.TonicPitchClass + 7, key.Mode), words),
+        Neighbour(KeyRelation.Subdominant, MusicalKey.OnTonic(key.TonicPitchClass + 5, key.Mode), words),
+        Neighbour(KeyRelation.Relative, key.Relative, words),
+        Neighbour(KeyRelation.Parallel, MusicalKey.OnTonic(key.TonicPitchClass, key.Mode == KeyMode.Major ? KeyMode.Minor : KeyMode.Major), words),
+    ];
+
     /// <summary>
     /// The circle for a selection, or null when no key was read (an empty selection). <paramref name="reading"/> is the
     /// motif's key reading (<see cref="MotifAnalysis.Key"/>); <paramref name="harmony"/> the selection's chords.
@@ -123,13 +198,7 @@ public static class KeyCircle
 
         MusicalKey key = reading.Key;
         string name = key.NameIn(words);
-        CircleNeighbour[] neighbours =
-        [
-            Neighbour(KeyRelation.Dominant, MusicalKey.OnTonic(key.TonicPitchClass + 7, key.Mode), words),
-            Neighbour(KeyRelation.Subdominant, MusicalKey.OnTonic(key.TonicPitchClass + 5, key.Mode), words),
-            Neighbour(KeyRelation.Relative, key.Relative, words),
-            Neighbour(KeyRelation.Parallel, MusicalKey.OnTonic(key.TonicPitchClass, key.Mode == KeyMode.Major ? KeyMode.Minor : KeyMode.Major), words),
-        ];
+        CircleNeighbour[] neighbours = Neighbours(key, words);
 
         CircleChord[] chords = [.. harmony.Chords.Select((chord, index) => Chord(chord, index + 1, key, meter, words))];
 
@@ -163,7 +232,7 @@ public static class KeyCircle
             chords,
             outsidePlace,
             Scale(key),
-            Lines(key, name, neighbours, chords, words));
+            Lines(key, name, neighbours, chords, words, words.T("passage", "отрывка")));
     }
 
     private static CircleSector Sector(int position)
@@ -198,7 +267,14 @@ public static class KeyCircle
         KeyMode ring = chord.Chord.Intervals[1] == 3 ? KeyMode.Minor : KeyMode.Major;
         string symbol = chord.Symbol(key);
         var place = new FactPlace($"{symbol}, {HarmonyAnalyzer.From(chord.Span.Onset, meter, words)}", chord.Span, chord.NoteIds);
-        return new CircleChord(number, symbol, Degree(chord.Chord, key), PositionOf(MusicalKey.OnTonic(root, ring)), ring, place);
+        string? degree = Degree(chord.Chord, key);
+        HarmonicFunction function = HarmonyAnalyzer.FunctionOf(chord.Chord, key);
+        string keyName = key.NameIn(words);
+        string numeral = degree ?? HarmonyAnalyzer.Numeral(chord.Chord, key);
+        string role = function == HarmonicFunction.None
+            ? words.T($"{symbol}: {numeral} in {keyName}, outside the tonic, subdominant and dominant.", $"{symbol}: {numeral} в тональности {keyName}, вне тоники, субдоминанты и доминанты.")
+            : words.T($"{symbol}: {numeral} in {keyName}, the {HarmonyAnalyzer.FunctionName(function, words)}.", $"{symbol}: {numeral} в тональности {keyName}, {HarmonyAnalyzer.FunctionName(function, words)}.");
+        return new CircleChord(number, symbol, degree, PositionOf(MusicalKey.OnTonic(root, ring)), ring, place) { Function = function, Role = role };
     }
 
     /// <summary>The chord's degree in the key: upper case for a major third, lower case for a minor one, ° diminished, + augmented.</summary>
@@ -233,7 +309,7 @@ public static class KeyCircle
         return [.. Enumerable.Range(0, ScaleSteps.StepsPerOctave + 1).Select(step => ScaleSteps.MidiNumber(key, start with { Step = start.Step + step }))];
     }
 
-    private static string[] Lines(MusicalKey key, string name, CircleNeighbour[] neighbours, CircleChord[] chords, Words words)
+    private static string[] Lines(MusicalKey key, string name, CircleNeighbour[] neighbours, CircleChord[] chords, Words words, string of)
     {
         string relative = neighbours.Single(neighbour => neighbour.Relation == KeyRelation.Relative).Name;
         string dominant = neighbours.Single(neighbour => neighbour.Relation == KeyRelation.Dominant).Name;
@@ -257,7 +333,7 @@ public static class KeyCircle
         {
             string list = string.Join(" → ", chords.Take(MaxChordsInLine).Select(chord => chord.Degree is { } degree ? $"{chord.Symbol} ({degree})" : chord.Symbol))
                 + (chords.Length > MaxChordsInLine ? " …" : "");
-            lines.Add(words.T($"The chords of the passage: {list}.", $"Аккорды отрывка: {list}."));
+            lines.Add(words.T($"The chords of the {of}: {list}.", $"Аккорды {of}: {list}."));
         }
 
         return [.. lines];

@@ -2,13 +2,19 @@
 @using MotiffLab.MusicCore.Analysis
 @using MotiffLab.MusicCore.Time
 @using MotiffLab.MusicCore.Events
+@using MotiffLab.Web.Insights
 @inject MotiffLab.Web.Localization.UiText Text
+@inject MotiffLab.Web.Settings.DeviceSettings Settings
+@implements IDisposable
 
 @* Piece DNA (0018 section 11; design/kit/docs/01-ux-concept.md, "Piece DNA"; design/kit/screens/s11_piece_dna.png): the
    third place, a full-screen map of the whole piece read top to bottom: the form strip, a lane per idea with a mark at
    every place it is heard, the key lane and the bars that bring new material, then a card per idea. A lane the engine
    does not fill yet says so in place. A mark plays its passage; a second tap opens the score there. Leaving returns to
-   the score exactly as it was. *@
+   the score exactly as it was. The map explains itself (testing item 30): a line on what it shows above the lanes, a line
+   under each lane's name on how to read it, the form's sections coloured by their letter, the harmony in three rows that
+   each turn on and off (chords, steps of the key, functions in their own colours T · S · D), the closes in words that say
+   what they are when tapped, and the circle of fifths of a section from the key and harmony lanes. *@
 <section class="dna" role="dialog" aria-modal="true" aria-labelledby="dna-title" tabindex="-1" @ref="_element" @onkeydown="OnKey">
     <header class="dna-bar">
         @if (BackLabel is { } origin)
@@ -32,6 +38,10 @@
     }
     else
     {
+        @if (Dna.Summary.Length > 0)
+        {
+            <p class="dna-summary">@Dna.Summary</p>
+        }
         <div class="dna-map">
             @if (PlayingAt is { } at && X(at) is { } playhead)
             {
@@ -41,7 +51,10 @@
             @* Read top to bottom (testing item 22): the form, the key, the harmony, the density, new material, the folded
                lanes, then the ideas. *@
             <div class="dna-row form">
-                <span class="lane-name overline">@Text["dna.form"]@if (Dna.Form.Count > 0) { <span class="tag assumed">@Text["dna.inferred"]</span> }</span>
+                <div class="lane-head">
+                    <span class="lane-name overline">@Text["dna.form"]@if (Dna.Form.Count > 0) { <span class="tag assumed">@Text["dna.inferred"]</span> }</span>
+                    <span class="why">@Text["dna.why.form"]</span>
+                </div>
                 <div class="lane-track">
                     @if (Dna.Form.Count == 0)
                     {
@@ -56,9 +69,9 @@
 
                         @foreach (DnaSection section in Dna.Form)
                         {
-                            <button class="dna-sec @(section.SharesWith.Count > 0 && section != FirstOf(section) ? "rep" : null)" style="@Place(section.Span)"
+                            <button class="dna-sec @SectionColour(section) @(section.Label.Length > 1 ? "rep" : null)" style="@Place(section.Span)"
                                     aria-label="@SectionName(section)" title="@SectionName(section)"
-                                    @onclick="() => TapAsync(section.Span)">@(section.Label)</button>
+                                    @onclick="() => TapSectionAsync(section.Id, section.Span)">@(section.Label)</button>
                         }
                     }
                 </div>
@@ -75,7 +88,14 @@
             </div>
 
             <div class="dna-row key">
-                <span class="lane-name overline">@Text["dna.key"]</span>
+                <div class="lane-head">
+                    <span class="lane-name overline">@Text["dna.key"]</span>
+                    @if (Dna.Circles.Count > 0)
+                    {
+                        <button class="circle-open" aria-pressed="@(_circle is not null ? "true" : "false")" @onclick="() => ToggleCircle(null)">◎ @Text["dna.circle"]</button>
+                    }
+                    <span class="why">@Text["dna.why.key"]</span>
+                </div>
                 <div class="lane-track">
                     @if (Dna.Keys.Count == 0)
                     {
@@ -83,37 +103,82 @@
                     }
                     @foreach (DnaKey key in Dna.Keys)
                     {
-                        <span class="key-block @(key.Key.Mode == KeyMode.Minor ? "minor" : null)" style="@Place(key.Span)">@KeyName(key)</span>
+                        <button class="key-block @(key.Key.Mode == KeyMode.Minor ? "minor" : null)" style="@Place(key.Span)" title="@Text["dna.keyHint"]"
+                                @onclick="() => OpenCircleAt(key.Span.Onset, null)">@KeyName(key)</button>
                     }
                 </div>
             </div>
 
             <div class="dna-row harmony">
-                <span class="lane-name overline">@Text["dna.harmony"]</span>
-                <div class="lane-track">
+                <div class="lane-head">
+                    <span class="lane-name overline">@Text["dna.harmony"]</span>
+                    @if (Dna.Circles.Count > 0)
+                    {
+                        <button class="circle-open" aria-pressed="@(_circle is not null ? "true" : "false")" @onclick="() => ToggleCircle(null)">◎ @Text["dna.circle"]</button>
+                    }
+                    <span class="why">@Text["dna.why.harmony"]</span>
+                    @if (Dna.Harmony.Count > 0)
+                    {
+                        <span class="rows" role="group" aria-label="@Text["dna.rows"]">
+                            <button class="row-tog @(ShowChords ? "on" : null)" aria-pressed="@(ShowChords ? "true" : "false")" @onclick="() => ToggleRowAsync(ChordsSetting)">@Text["dna.rowChords"]</button>
+                            <button class="row-tog @(ShowDegrees ? "on" : null)" aria-pressed="@(ShowDegrees ? "true" : "false")" @onclick="() => ToggleRowAsync(DegreesSetting)">@Text["dna.rowDegrees"]</button>
+                            <button class="row-tog @(ShowFunctions ? "on" : null)" aria-pressed="@(ShowFunctions ? "true" : "false")" @onclick="() => ToggleRowAsync(FunctionsSetting)">@Text["dna.rowFunctions"]</button>
+                        </span>
+                    }
+                </div>
+                <div class="lane-track stack">
                     @if (Dna.Harmony.Count == 0)
                     {
                         <p class="lane-empty">@Text["dna.harmonyEmpty"]</p>
                     }
                     else
                     {
-                        @foreach (DnaChord chord in ShownChords)
+                        @if (ShowChords)
                         {
-                            <span class="chord @(chord.Clear ? null : "unsure")" style="@($"--x: {X(Meter.GetBar(chord.Bar).Span.Onset) ?? "0"}")" aria-hidden="true">@chord.Symbol</span>
+                            <div class="h-row chords">
+                                @foreach ((Segment segment, string label) in Labels(ChordSegments, segment => segment.Symbol, MarkRoom))
+                                {
+                                    <button class="label chord @(segment.Clear ? null : "unsure") @(ChosenSymbol == segment.Symbol ? "on" : null)" style="@($"--x: {X(Middle(segment.Span))}")"
+                                            aria-label="@ChordName(segment)" title="@ChordName(segment)" @onclick="() => OpenCircleAt(segment.Span.Onset, segment.Symbol)">@label</button>
+                                }
+                            </div>
                         }
-
-                        @foreach (DnaCadence cadence in Dna.Cadences)
+                        @if (ShowDegrees)
                         {
-                            <span class="cad @(cadence.Kind == CloseKind.Half ? "half" : null)" style="@($"--x: {X(cadence.At) ?? "0"}")" aria-hidden="true"></span>
+                            <div class="h-row degrees" aria-hidden="true">
+                                @foreach ((Segment segment, string label) in Labels(ChordSegments, segment => segment.Degree))
+                                {
+                                    <span class="label degree" style="@($"--x: {X(Middle(segment.Span))}")">@label</span>
+                                }
+                            </div>
                         }
-
+                        @if (ShowFunctions)
+                        {
+                            <div class="h-row functions" aria-hidden="true">
+                                @foreach (Segment segment in FunctionSegments)
+                                {
+                                    <span class="fn @FunctionClass(segment.Function)" style="@Place(segment.Span)">@(Fits(segment, "T") ? FunctionLetter(segment.Function) : "")</span>
+                                }
+                            </div>
+                        }
+                        <div class="h-row closes">
+                            @foreach (DnaCadence cadence in ShownCadences)
+                            {
+                                bool on = _explained == cadence.Explanation;
+                                <button class="cad @(cadence.Kind == CloseKind.Half ? "half" : null) @(on ? "on" : null)" style="@($"--x: {X(Middle(Meter.GetBar(cadence.Bar).Span)) ?? "0"}")"
+                                        aria-pressed="@(on ? "true" : "false")" aria-label="@cadence.Explanation" @onclick="() => Explain(cadence)">@Text[cadence.Kind == CloseKind.Full ? "dna.cadFull" : "dna.cadHalf"]</button>
+                            }
+                        </div>
                         <span class="visually-hidden">@HarmonySummary</span>
                     }
                 </div>
             </div>
 
             <div class="dna-row density">
-                <span class="lane-name overline">@Text["dna.density"]</span>
+                <div class="lane-head">
+                    <span class="lane-name overline">@Text["dna.density"]</span>
+                    <span class="why">@Text["dna.why.density"]</span>
+                </div>
                 <div class="lane-track levels">
                     @foreach (DnaBarLevel level in Dna.Density)
                     {
@@ -124,11 +189,14 @@
             </div>
 
             <div class="dna-row new">
-                <span class="lane-name overline">@Text["dna.newMaterial"]</span>
+                <div class="lane-head">
+                    <span class="lane-name overline">@Text["dna.newMaterial"]</span>
+                    <span class="why">@Text["dna.why.newMaterial"]</span>
+                </div>
                 <div class="lane-track">
-                    @foreach (int bar in Dna.NewMaterialBars)
+                    @for (int bar = Dna.FirstBar; bar <= Dna.LastBar; bar++)
                     {
-                        <span class="new-bar" style="@Place(Meter.GetBar(bar).Span)" aria-hidden="true"></span>
+                        <span class="new-bar @(NewBars.Contains(bar) ? "new" : "heard")" style="@Place(Meter.GetBar(bar).Span)" aria-hidden="true"></span>
                     }
                     <span class="visually-hidden">@Text.Format("dna.newMaterialSummary", string.Join(", ", Dna.NewMaterialBars))</span>
                 </div>
@@ -143,7 +211,10 @@
             @if (_moreLanes)
             {
                 <div class="dna-row register">
-                    <span class="lane-name overline">@Text["dna.register"]</span>
+                    <div class="lane-head">
+                        <span class="lane-name overline">@Text["dna.register"]</span>
+                        <span class="why">@Text["dna.why.register"]</span>
+                    </div>
                     <div class="lane-track levels">
                         @foreach (DnaRange range in Dna.Register)
                         {
@@ -154,7 +225,10 @@
                 </div>
 
                 <div class="dna-row dynamics">
-                    <span class="lane-name overline">@Text["dna.dynamics"]</span>
+                    <div class="lane-head">
+                        <span class="lane-name overline">@Text["dna.dynamics"]</span>
+                        <span class="why">@Text["dna.why.dynamics"]</span>
+                    </div>
                     <div class="lane-track levels">
                         @if (Dna.Dynamics.Count == 0)
                         {
@@ -205,6 +279,56 @@
                 </p>
             }
         </div>
+
+        @if (_circle is { } circle)
+        {
+            <aside class="dna-pop circle" role="dialog" aria-modal="false" aria-labelledby="dna-circle-title">
+                <div class="pop-head">
+                    <h3 id="dna-circle-title" class="ttl">@Text.Format(circle.Id.StartsWith("key_", StringComparison.Ordinal) ? "dna.circleOfKey" : "dna.circleOfSection", circle.Label)</h3>
+                    <button class="close" aria-label="@Text["dna.closeCircle"]" title="@Text["dna.closeCircle"]" @onclick="CloseCircle"><Icon Name="close" /></button>
+                </div>
+                @if (Dna.Circles.Count > 1)
+                {
+                    <div class="pop-sections" role="group" aria-label="@Text["dna.circleSections"]">
+                        @foreach (DnaCircle other in Dna.Circles)
+                        {
+                            <button class="chip" aria-pressed="@(other == circle ? "true" : "false")" @onclick="() => ShowCircle(other, null)">@other.Label</button>
+                        }
+                    </div>
+                }
+                <KeyCircleCard Circle="circle.Circle" Functions="true" Chosen="@_chosenChord?.Place" Show="PickChord" Hear="() => HearScale.InvokeAsync(circle)" Playing="ScalePlaying" />
+                <p class="dna-legend caption" aria-hidden="true">
+                    <span class="sw tonic"></span> @Text["dna.zoneTonic"] <span class="sw subdominant"></span> @Text["dna.zoneSubdominant"] <span class="sw dominant"></span> @Text["dna.zoneDominant"] <span class="sw far"></span> @Text["dna.zoneFar"]
+                </p>
+                @if (_chosenChord is { } chosen)
+                {
+                    <p class="role" role="status">@chosen.Role</p>
+                }
+                @if (circle.From is { } from)
+                {
+                    <p class="caption">@Text.Format("dna.modulation", circle.Label, from.NameIn(Words), circle.Circle.Name)</p>
+                }
+                <div class="row">
+                    <button class="btn quiet compact" @onclick="() => ShowInScore.InvokeAsync(_chosenChord?.Place.Span ?? circle.Span)">@Text["dna.inScore"]</button>
+                </div>
+            </aside>
+        }
+        else if (_explained is { } explained)
+        {
+            <aside class="dna-pop" role="dialog" aria-modal="false" aria-label="@Text["dna.explainTitle"]">
+                <div class="pop-head">
+                    <p class="explained">@explained</p>
+                    <button class="close" aria-label="@Text["dna.closeCircle"]" @onclick="() => _explained = null"><Icon Name="close" /></button>
+                </div>
+                @if (_explainedSpan is { } span)
+                {
+                    <div class="row">
+                        <button class="btn secondary compact" @onclick="() => HearIdeaAsync(span)"><Icon Name="play" /> @Text["dna.hear"]</button>
+                        <button class="btn quiet compact" @onclick="() => ShowInScore.InvokeAsync(span)">@Text["dna.inScore"]</button>
+                    </div>
+                }
+            </aside>
+        }
 
         @if (Dna.Ideas.Count > 0)
         {
@@ -299,6 +423,229 @@
     /// <summary>A line on what the last action did, such as the bookmarks added.</summary>
     [Parameter]
     public string? Status { get; set; }
+
+    /// <summary>Hear the scale of a section's key, from the section's start; pressed again, it stops.</summary>
+    [Parameter]
+    public EventCallback<DnaCircle> HearScale { get; set; }
+
+    /// <summary>The scale of the open circle is sounding.</summary>
+    [Parameter]
+    public bool ScalePlaying { get; set; }
+
+    // The harmony's three rows (testing item 30), each kept on the device: chords and functions on, the steps on request.
+    private const string ChordsSetting = "dna.chords";
+    private const string DegreesSetting = "dna.degrees";
+    private const string FunctionsSetting = "dna.functions";
+
+    private bool ShowChords => Settings.IsOn(ChordsSetting);
+
+    private bool ShowDegrees => Settings.IsOn(DegreesSetting);
+
+    private bool ShowFunctions => Settings.IsOn(FunctionsSetting);
+
+    /// <summary>The circle of fifths open over the map, if any, and the chord picked on it.</summary>
+    private DnaCircle? _circle;
+
+    private CircleChord? _chosenChord;
+
+    /// <summary>What a tapped close says, and the phrase it ends, shown over the map.</summary>
+    private string? _explained;
+
+    private TickSpan? _explainedSpan;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Settings.Changed += OnSettingsChanged;
+        await Settings.LoadAsync();
+    }
+
+    public void Dispose() => Settings.Changed -= OnSettingsChanged;
+
+    private void OnSettingsChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private Task ToggleRowAsync(string id) => Settings.SetAsync(id, !Settings.IsOn(id));
+
+    /// <summary>A stretch of bars on the harmony lane: equal chords or equal functions joined.</summary>
+    private sealed record Segment(TickSpan Span, string Symbol, string Degree, HarmonicFunction Function, bool Clear);
+
+    private IEnumerable<Segment> ChordSegments => Join(Dna.Harmony, (a, b) => a.Symbol == b.Symbol);
+
+    private IEnumerable<Segment> FunctionSegments => Join(Dna.Harmony, (a, b) => a.Function == b.Function).Where(segment => segment.Function != HarmonicFunction.None);
+
+    /// <summary>The chords of consecutive bars joined while <paramref name="same"/> holds, each segment spanning its bars.</summary>
+    private IEnumerable<Segment> Join(IReadOnlyList<DnaChord> chords, Func<DnaChord, DnaChord, bool> same)
+    {
+        int i = 0;
+        while (i < chords.Count)
+        {
+            int j = i;
+            while (j + 1 < chords.Count && chords[j + 1].Bar == chords[j].Bar + 1 && same(chords[i], chords[j + 1]))
+            {
+                j++;
+            }
+
+            TickSpan span = TickSpan.FromBounds(Meter.GetBar(chords[i].Bar).Span.Onset, Meter.GetBar(chords[j].Bar).Span.End);
+            yield return new Segment(span, chords[i].Symbol, chords[i].Degree, chords[i].Function, chords.Skip(i).Take(j - i + 1).All(chord => chord.Clear));
+            i = j + 1;
+        }
+    }
+
+    /// <summary>Whether a label has room in its segment: about 8px a character on a lane about 1000px wide.</summary>
+    private bool Fits(Segment segment, string label)
+    {
+        long length = Math.Max(1, End.Value - Start.Value);
+        return (double)segment.Span.Duration / length >= (label.Length + 1) * SymbolRoom;
+    }
+
+    /// <summary>
+    /// The labels centred on their segments where they have room: a label may reach past its own short segment, but one
+    /// that would touch the label before it is left out on screen (the circle lists every chord; the summary reads them
+    /// all). A chord's label is its button, so it keeps at least <paramref name="least"/>, the room a finger needs.
+    /// </summary>
+    private IEnumerable<(Segment Segment, string Label)> Labels(IEnumerable<Segment> segments, Func<Segment, string> label, double least = 0)
+    {
+        long length = Math.Max(1, End.Value - Start.Value);
+        double free = double.NegativeInfinity;
+        foreach (Segment segment in segments)
+        {
+            string text = label(segment);
+            if (text.Length == 0)
+            {
+                continue;
+            }
+
+            double middle = (double)(Middle(segment.Span).Value - Start.Value) / length;
+            double half = Math.Max((text.Length + 1) * SymbolRoom, least) / 2;
+            if (middle - half < free)
+            {
+                continue;
+            }
+
+            free = middle + half;
+            yield return (segment, text);
+        }
+    }
+
+    private static string FunctionClass(HarmonicFunction function) => function switch
+    {
+        HarmonicFunction.Tonic => "t",
+        HarmonicFunction.Subdominant => "s",
+        _ => "d",
+    };
+
+    private string FunctionLetter(HarmonicFunction function) => Text[function switch
+    {
+        HarmonicFunction.Tonic => "dna.fnT",
+        HarmonicFunction.Subdominant => "dna.fnS",
+        _ => "dna.fnD",
+    }];
+
+    private string ChordName(Segment segment) => $"{segment.Symbol}, {segment.Degree}"
+        + (segment.Function == HarmonicFunction.None ? "" : $", {Text[$"dna.fnName.{segment.Function.ToString().ToLowerInvariant()}"]}")
+        + $" · {Bars(Meter.BarAt(segment.Span.Onset).Number, Meter.BarAt(new Tick(segment.Span.End.Value - 1)).Number)}";
+
+    /// <summary>The closes in words where there is room: one too close to the one before is left out on screen, still heard by a screen reader in the summary.</summary>
+    private IEnumerable<DnaCadence> ShownCadences
+    {
+        get
+        {
+            double free = double.NegativeInfinity;
+            long length = Math.Max(1, End.Value - Start.Value);
+            foreach (DnaCadence cadence in Dna.Cadences)
+            {
+                double x = (double)(Middle(Meter.GetBar(cadence.Bar).Span).Value - Start.Value) / length;
+                string label = Text[cadence.Kind == CloseKind.Full ? "dna.cadFull" : "dna.cadHalf"];
+                // A pill: its words, its padding and a gap, on a lane that may be as narrow as an iPad held upright.
+                double half = (label.Length + 4) * SymbolRoom * 1.25 / 2;
+                if (x - half < free)
+                {
+                    continue;
+                }
+
+                free = x + half;
+                yield return cadence;
+            }
+        }
+    }
+
+    private void Explain(DnaCadence cadence)
+    {
+        _circle = null;
+        _chosenChord = null;
+        _explained = cadence.Explanation;
+        _explainedSpan = Meter.GetBar(cadence.Bar).Span;
+    }
+
+    private IReadOnlySet<int> NewBars => _newBars ??= Dna.NewMaterialBars.ToHashSet();
+
+    private IReadOnlySet<int>? _newBars;
+
+    protected override void OnParametersSet() => _newBars = null;
+
+    /// <summary>The form's sections coloured by their letter: every section of one letter shares the first one's colour.</summary>
+    private string SectionColour(DnaSection section)
+    {
+        string[] letters = [.. Dna.Form.Select(other => Letter(other.Label)).Distinct()];
+        return $"g{Array.IndexOf(letters, Letter(section.Label)) % 4}";
+    }
+
+    private static string Letter(string label) => label.TrimEnd('′', '″', '‴');
+
+    private string? ChosenSymbol => _chosenChord?.Symbol;
+
+    private DnaCircle? CircleAt(Tick at) => Dna.Circles.LastOrDefault(circle => circle.Span.Onset <= at) ?? Dna.Circles.FirstOrDefault();
+
+    /// <summary>◎ Circle: opens the circle of the section heard or picked last, or the first; pressed again, it closes.</summary>
+    private void ToggleCircle(string? id)
+    {
+        if (_circle is not null && id is null)
+        {
+            CloseCircle();
+            return;
+        }
+
+        DnaCircle? circle = (id is null ? null : Dna.Circles.FirstOrDefault(other => other.Id == id))
+            ?? (_heard is { } heard ? CircleAt(heard.Onset) : Dna.Circles.FirstOrDefault());
+        if (circle is not null)
+        {
+            ShowCircle(circle, null);
+        }
+    }
+
+    /// <summary>A chord or a key tapped: the circle of its section, with the chord picked when there is one.</summary>
+    private void OpenCircleAt(Tick at, string? symbol)
+    {
+        if (CircleAt(at) is { } circle)
+        {
+            ShowCircle(circle, symbol);
+        }
+    }
+
+    private void ShowCircle(DnaCircle circle, string? symbol)
+    {
+        _explained = null;
+        _circle = circle;
+        _chosenChord = symbol is null ? null : circle.Circle.Chords.FirstOrDefault(chord => chord.Symbol == symbol);
+    }
+
+    private void PickChord(FactPlace place) => _chosenChord = _circle?.Circle.Chords.FirstOrDefault(chord => chord.Place == place);
+
+    private void CloseCircle()
+    {
+        _circle = null;
+        _chosenChord = null;
+    }
+
+    /// <summary>A section of the form: it plays, a second tap opens the score; with the circle open, the circle follows it.</summary>
+    private async Task TapSectionAsync(string id, TickSpan span)
+    {
+        if (_circle is not null && Dna.Circles.FirstOrDefault(circle => circle.Id == id) is { } circle)
+        {
+            ShowCircle(circle, null);
+        }
+
+        await TapAsync(span);
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

@@ -44,7 +44,24 @@ test("from the overflow, the map reads form, key, harmony, density and ideas, an
     await dna.getByRole("button", { name: "More lanes: register, dynamics" }).click();
     await expect(dna.locator(".dna-row.register .rng").first()).toBeVisible();
     await expect(dna.locator(".dna-row.dynamics")).toBeVisible();
+
+    // The map explains itself (testing item 30): a line on what it shows, a line under each lane, the harmony in rows that
+    // turn on and off (steps of the key off at first), the closes in words that say what they are, and a chord's circle.
+    await expect(dna.locator(".dna-summary")).toContainText(/^Form A A′ B A″ · A minor · \d+ full close/);
+    await expect(dna.locator(".dna-row.harmony .why")).toContainText("T rest, S motion, D tension");
+    await expect.poll(() => dna.locator(".dna-row.harmony .fn.t").count()).toBeGreaterThan(1);
+    await expect(dna.locator(".dna-row.harmony .degree")).toHaveCount(0);
+    await dna.getByRole("button", { name: "Steps", exact: true }).click();
+    await expect(dna.locator(".dna-row.harmony .degree").first()).toHaveText("i");
+    await dna.locator(".dna-row.harmony .cad").first().click();
+    await expect(dna.locator(".dna-pop")).toContainText(/^Bar \d+ · \S+\. A (half|full) close: the phrase's melody/);
+    await dna.locator(".dna-row.harmony .chord").first().click();
+    const circle = dna.getByRole("dialog", { name: "Circle of fifths · section A" });
+    await expect(circle.locator(".key-circle.functions .sector.z-dominant").first()).toBeAttached();
+    await expect(circle.locator(".role")).toHaveText("Am: i in A minor, the tonic.");
     expect(await violations(page)).toEqual([]);
+    await circle.getByRole("button", { name: "Close" }).click();
+    await expect(circle).toHaveCount(0);
 
     // Add Structure bookmarks writes the form's sections into Contents.
     await dna.getByRole("button", { name: "Add Structure bookmarks" }).click();
