@@ -1161,6 +1161,8 @@ public class MusicCoreFacadeTests
         JsonElement result = Call(facade, "performance.merge.notation", """{"view": "result", "bars": {"first": 5, "last": 5}}""");
         Assert.Equal(3, result.GetProperty("version").GetArrayLength());
         Assert.Empty(result.GetProperty("own").EnumerateArray());
+        // Without bars, the whole piece as the score shows the view while the draft is open.
+        Assert.Equal(3, Call(facade, "performance.merge.notation", """{"view": "result"}""").GetProperty("version").GetArrayLength());
         Assert.Equal(printed + 3, Call(facade, "performance.merge.playback", """{"view": "result"}""").GetProperty("notes").GetArrayLength());
         Assert.Equal("mine", Call(facade, "performance.merge.undo").GetProperty("merge").GetProperty("bars")[0].GetProperty("choice").GetString());
         Assert.Equal("version", Call(facade, "performance.merge.redo").GetProperty("merge").GetProperty("bars")[0].GetProperty("choice").GetString());

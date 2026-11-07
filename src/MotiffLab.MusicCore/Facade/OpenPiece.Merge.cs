@@ -178,11 +178,14 @@ internal sealed partial class OpenPiece
         }
     }
 
-    /// <summary>A view's bars engraved on their own ("bars" {first, last}), with "version" (plum) and "own" (amber) ids engraved.</summary>
+    /// <summary>
+    /// A view's bars engraved on their own ("bars" {first, last}), or the whole piece on its pages without "bars", as the
+    /// score shows the view while the draft is open; with "version" (plum) and "own" (amber) ids engraved.
+    /// </summary>
     private string MergeNotation(Request request)
     {
         (IReadOnlyList<Note> notes, IReadOnlyList<string> version, IReadOnlyList<string> own) = MergeView(request);
-        BarRange bars = ExcerptOf(request) ?? throw FacadeException.BadRequest("Send \"bars\" {first, last}.");
+        BarRange? bars = ExcerptOf(request);
         bool heard = Transcribed.IsHeard(Piece);
         GeneratedNotation notation = Generate(notes, Piece.End, request.Text("title") ?? "", heard, request.Bool("readable") ?? true, bars);
         return Answer.Write(json =>

@@ -88,8 +88,19 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     @Published private(set) var hiddenLayers: Set<String> = []
     /// The piece's own settings, by id, as the project keeps them: the Settings sheet lists them, to clear in one tap.
     @Published private(set) var pieceOverrides: [String: String] = [:]
-    /// The layers of marks, then another version's comparison layer and its likely artefacts (0022, section 4).
-    static let layers = ["ink", "notes", "bookmarks", "analysis", "check", "version", "artefacts"]
+    /// The layers of the player's marks (0018 section 5), which show as before.
+    static let layers = ["ink", "notes", "bookmarks", "analysis"]
+    /// Extra information (testing item 33): what the app adds over the notes, off by default behind the ⓘ button, each
+    /// kind with its own switch: differences from versions, the bars taken from a version, and the Check flags.
+    static let extra = ["performance", "taken", "check"]
+    private static let layerIds = layers + ["extra"] + extra
+    /// Whether the Check drawer is open: its flags show then even with extra information off.
+    var checkDrawerOpen = false {
+        didSet {
+            guard oldValue != checkDrawerOpen else { return }
+            Task { await applyLayers() }
+        }
+    }
     /// The bars a scan or a transcription is unsure of (0018 section 9), as music-core answered the last Check call.
     @Published private(set) var check = CheckShelf()
     /// Fix notes (S1-I7): the bar whose notes the Check drawer lists to correct, as music-core answers `corrections`.
@@ -102,17 +113,44 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     @Published private(set) var versionStatus: String?
     /// The piece's sources (testing item 16): the base, the line on what the player's version holds, the PDF kept inside.
     @Published private(set) var sources = SourcesInfo()
-    /// The version just added: its four next steps show until one is chosen.
-    @Published var addedVersion: String?
-    /// The bars Take everything sure took last, from which version, to give back with one tap.
-    @Published private(set) var takenAll: TakenAll?
+    /// The version whose page Sources shows (testing item 32): its overview, the merge draft and what was merged; nil for
+    /// the list of sources.
+    @Published var versionPage: String?
+    /// The merge draft open now, as music-core answers `performance.merge` (testing items 32 and 34); nil with none.
+    @Published private(set) var merge: MergeInfo?
+    /// The change the draft shows, by its bar.
+    @Published private(set) var mergeAt: Int?
+    /// Whether a choice in the draft goes for the change's bar or every change of its phrase.
+    @Published var mergePhrase = false
+    /// What the score shows while a draft is open: "mine", "version" or "result".
+    @Published private(set) var mergeShow = "result"
+    /// What was last asked to be heard of the draft: "mine", "version", "result" or "alternate".
+    @Published private(set) var mergeHearing: String?
+    /// The full-screen Compare versions window over the draft.
+    @Published var comparing = false
+    /// What was just done with a version, with the way to undo it: a merge applied or undone, a version removed.
+    @Published private(set) var mergeToast: MergeToast?
+    /// A version's marker tapped on the score: the popover under it says how the bar differs (testing item 33).
+    @Published private(set) var markerPick: MarkerPick?
 
-    struct TakenAll: Equatable {
-        var version: String
-        var bars: [Int]
+    struct MergeToast: Equatable {
+        enum Undo: Equatable { case unapply, reapply, putBack }
+        var text: String
+        var undo: Undo?
     }
 
-    /// A version's label tapped on the score: the screen opens Other versions on its bar.
+    struct MarkerPick: Equatable {
+        var bar: Int
+        /// Where the marker is on the screen, in the web view's points: the popover goes under it.
+        var left: Double
+        var bottom: Double
+    }
+
+    /// The draft's notes to hear over a span, once: the screen's player plays them on their own.
+    var hearNotes: (@MainActor ([PlaybackNote], Range<Double>) -> Void)?
+    /// The player's notes, then the version's, in turn over a span.
+    var hearInTurn: (@MainActor ([PlaybackNote], Range<Double>) -> Void)?
+    /// The way into a version's page from the score (its marker's popover, focus): the screen opens Sources.
     var versionPicked: (@MainActor (Int) -> Void)?
     /// The piece's notes changed (bars of another version taken or restored): the player and the roll load them again.
     var notesChanged: (@MainActor () -> Void)?
@@ -127,38 +165,43 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         var notes: [PlaybackNote]
         /// Whether any of them start in the phrase: only then can it be heard there.
         var sounds: Bool
+        /// The bars of the phrase the version has otherwise, the first of which Open in the draft goes to.
         var differing: [Int]
-        var taken: [Int]
     }
 
-    /// What the page's engraving holds above the systems: the version's comparison layer and whether with its artefacts.
-    private struct LayerEngraved: Equatable {
-        var version: String?
-        var artefacts = false
-    }
-    private var layerEngraved = LayerEngraved()
-    /// The engraved ids of the notes the layer's version adds, and of its likely artefacts, to tint on the page.
-    private var layerAdded: [String] = []
-    private var layerArtefacts: [String] = []
+    /// The draft's view the page is engraved with ("version" or "result"); nil for the player's notes.
+    private var engravedView: String?
+    /// On a view engraved, the ids of the notes from the version (plum) and of the player's own (amber).
+    private var mergeAdded: [String] = []
+    private var mergeOwn: [String] = []
     /// The version's notes as music-core gives them to play (`playback` of `version`), for the version they are of.
     private var versionPlayback: (id: String, notes: [PlaybackNote])?
 
-    /// The layers this piece has: Check only for a piece with flags, the comparison layer with a version shown, and its
-    /// likely artefacts while that layer is on and the version has some.
-    var pieceLayers: [String] {
-        Self.layers.filter { layer in
-            switch layer {
+    /// The layers of the player's marks.
+    var pieceLayers: [String] { Self.layers }
+
+    /// The kinds of extra information this piece has: the differences and taken bars with a version, Check with flags.
+    var pieceExtra: [String] {
+        Self.extra.filter { item in
+            switch item {
             case "check": check.hasFlags
-            case "version": versions.shown != nil
-            case "artefacts": versions.shown != nil && !hiddenLayers.contains("version") && versions.artefactCount > 0
-            default: true
+            default: !versions.entries.isEmpty
             }
         }
     }
 
-    /// What a layer is called in the list: the artefacts with their count.
     func layerName(_ layer: String) -> String {
-        layer == "artefacts" ? text.format("layers.artefactsCount", String(versions.artefactCount)) : text["layers.\(layer)"]
+        Self.extra.contains(layer) ? text["extra.\(layer)"] : text["layers.\(layer)"]
+    }
+
+    /// Whether a kind of extra information shows: extra information is on, and that kind is.
+    func extraShown(_ item: String) -> Bool {
+        !hiddenLayers.contains("extra") && !hiddenLayers.contains(item)
+    }
+
+    /// The ⓘ button: extra information on or off, kept with the piece.
+    func toggleExtra() {
+        showLayers(["extra"], hiddenLayers.contains("extra"))
     }
 
     /// A margin note being written: a new one (no id) or one already kept, over its bars.
@@ -266,9 +309,13 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             versions = VersionShelf()
             versionStatus = nil
             sources = SourcesInfo()
-            addedVersion = nil
-            takenAll = nil
-            layerEngraved = LayerEngraved()
+            versionPage = nil
+            merge = nil
+            mergeAt = nil
+            mergeToast = nil
+            markerPick = nil
+            comparing = false
+            engravedView = nil
             versionPlayback = nil
         }
         self.dark = dark
@@ -316,8 +363,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             checkPicked?(Int(bar))
         }
         if let bar = number(message["performanceBar"]) {
+            markerPick = MarkerPick(bar: Int(bar), left: number(message["left"]) ?? 0, bottom: number(message["bottom"]) ?? 0)
             showVersionBar(Int(bar))
-            versionPicked?(Int(bar))
         }
         if let note = number(message["note"]) {
             noteTapped?(note)
@@ -592,7 +639,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
                 _ = await MusicCore.run { MusicCore.call(piece: id, "settings.override", request) }
             }
             await applyLayers()
-            await applyVersionLayer()
+            await drawVersions()
         }
     }
 
@@ -606,13 +653,14 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// The layers hidden: the piece's own choice, else the device's (0018 section 10).
     private func layersHidden() -> Set<String> {
         let values = DeviceSettings.shared.resolved(overrides: pieceOverrides)
-        return Set(Self.layers.filter { values["layers.\($0)"] == "off" })
+        return Set(Self.layerIds.filter { values["layers.\($0)"] == "off" })
     }
 
     /// What the page hides: the layers hidden, and the phrase brackets when Settings turns them off.
     private func applyLayers() async {
         guard shown else { return }
-        var hidden = Array(hiddenLayers)
+        var hidden = Self.layers.filter(hiddenLayers.contains)
+        if !extraShown("check") && !checkDrawerOpen { hidden.append("check") }
         if DeviceSettings.shared["guidance.brackets"] == "off" { hidden.append("brackets") }
         let slate = DeviceSettings.shared["appearance.theme"] == "slate"
         _ = try? await webView.callAsyncJavaScript("return motiff.layers(data)", arguments: ["data": ["hidden": hidden, "slate": slate]], contentWorld: .page)
@@ -644,7 +692,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         Task {
             await applyLayers()
             await applyLevel()
-            await applyVersionLayer()
+            await drawVersions()
         }
     }
 
@@ -844,10 +892,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         await versionAdded(piece)
     }
 
-    /// A version just added: its four next steps show, and the list, the markers and Check follow.
+    /// A version just added: Sources shows its page (testing item 32), and the list, the markers and Check follow.
     private func versionAdded(_ piece: OpenPiece) async {
-        addedVersion = versions.shownId
-        takenAll = nil
+        versionPage = versions.shownId
         versions.read(list: await MusicCore.run { MusicCore.call(piece: piece.id, "performances") })
         await drawVersions()
         await loadCheck(piece)
@@ -883,70 +930,6 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         guard let piece else { return }
         let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "sources") }
         if let read = SourcesInfo(answer: answer) { sources = read }
-    }
-
-    /// Compare: the version's notes on small staves above the systems, its markers above the bars it has otherwise.
-    func compareVersion() {
-        addedVersion = nil
-        showLayers(["version"], true)
-    }
-
-    /// Take everything sure: every bar the comparison lines up with at least 80 % sure, not dismissed or taken already, at
-    /// once (`performance.takeAll`); Give back returns them.
-    func takeAllSure() {
-        guard let piece, let id = versions.shownId else { return }
-        let before = Set(versions.taken.map(\.bar))
-        addedVersion = nil
-        let request = Self.json(["id": id]) ?? "{}"
-        Task {
-            let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.takeAll", request) }
-            guard versions.read(performance: answer) else {
-                versionStatus = facadeObject(answer)?["message"] as? String
-                return
-            }
-            let bars = versions.taken.map(\.bar).filter { !before.contains($0) }
-            guard !bars.isEmpty else {
-                versionStatus = text["sources.nothingSure"]
-                await drawVersions()
-                return
-            }
-            takenAll = TakenAll(version: id, bars: bars)
-            versionStatus = text.count("sources.takenAll", bars.count)
-            await notesDidChange()
-        }
-    }
-
-    /// Give back: the bars Take everything sure took come back as they were.
-    func giveBackTakenAll() {
-        guard let takenAll, takenAll.version == versions.shownId else { return }
-        self.takenAll = nil
-        changeVersion("performance.restore", ["bars": takenAll.bars], status: text.count("sources.givenBack", takenAll.bars.count), notes: true)
-    }
-
-    /// Where the first bar the shown version has otherwise is, or the first bar when it agrees everywhere.
-    private var firstDifference: Range<Double>? {
-        versions.differing.first?.span ?? versions.bars.first?.span
-    }
-
-    /// Hear it alone: the phrase with the first bar the version has otherwise is selected and lifted into focus, where the
-    /// version is heard (0022, section 5).
-    func focusFirstDifference() async {
-        addedVersion = nil
-        guard let span = firstDifference else { return }
-        if let unit = phrases?.units.first(where: { $0.onset <= span.lowerBound && span.lowerBound < $0.end }) {
-            await select(unit.selectableOnset, unit.selectableEnd)
-        } else {
-            await select(span.lowerBound, span.upperBound)
-        }
-        enterFocus()
-    }
-
-    /// Adjust it myself: the first bar the version has otherwise is selected and the note editor opens on it.
-    func editFirstDifference() async {
-        addedVersion = nil
-        guard let span = firstDifference else { return }
-        await select(span.lowerBound, span.upperBound)
-        beginNoteEdit()
     }
 
     /// A PDF kept inside the piece (`sources.document`): its pages shared over the bars until its notes are read; it stays
@@ -1002,29 +985,14 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         }
     }
 
-    /// Not a difference, or Show again: the bar's marker goes or comes back, kept with the piece.
-    func dismissVersionBar(_ bar: Int, _ dismissed: Bool) {
-        changeVersion("performance.dismiss", ["bar": bar, "dismissed": dismissed], status: text.format(dismissed ? "performance.dismissed" : "performance.undismissed", String(bar)))
-    }
-
-    /// Take into the score: the bar's notes become the version's, and the score is engraved again.
-    func takeVersionBar(_ bar: Int) {
-        let name = versions.shown?.name ?? ""
-        changeVersion("performance.take", ["bars": [bar]], status: text.format("performance.taken", String(bar), name), notes: true)
-    }
-
-    /// Restore these notes: the bar is as it was before it was taken.
-    func restoreVersionBar(_ bar: Int) {
-        changeVersion("performance.restore", ["bars": [bar]], status: text.format("performance.restored", String(bar)), notes: true)
-    }
-
     func renameVersion(_ name: String) {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, trimmed != versions.shown?.name else { return }
         changeVersion("performance.rename", ["name": trimmed], status: nil)
     }
 
-    /// Removes the version shown; bars taken from it go back to these notes.
+    /// Removes the version shown with the bars taken from it and its Check flags; the toast's Undo puts it back while the
+    /// piece is open (`performance.putBack`).
     func removeVersion() {
         guard let piece, let shown = versions.shown else { return }
         let request = Self.json(["id": shown.id]) ?? "{}"
@@ -1035,13 +1003,17 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
                 return
             }
             versions.read(list: answer)
-            versionStatus = text.format("performance.removed", shown.name)
+            versionPage = nil
+            if merge?.id == shown.id { endDraft() }
+            versionStatus = nil
+            mergeToast = MergeToast(text: text.format("merge.removed", shown.name), undo: .putBack)
             if let next = versions.entries.first {
                 await readVersion(piece.id, next.id)
             } else {
                 await drawVersions()
             }
             if shown.takenBars > 0 { await notesDidChange() }
+            await loadCheck(piece)
         }
     }
 
@@ -1090,30 +1062,23 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         await engraveScore()
     }
 
-    /// The comparison layer as the layers ask (0022, section 4): the version shown on small staves above every system
-    /// while its layer is on, its likely artefacts too while theirs is; the score is engraved again when that changes.
-    private func applyVersionLayer() async {
-        let version = hiddenLayers.contains("version") ? nil : versions.shownId
-        let wanted = LayerEngraved(version: version, artefacts: version != nil && !hiddenLayers.contains("artefacts"))
-        guard wanted != layerEngraved else { return }
-        await engraveScore()
-    }
-
-    /// Engraves the score again, with the comparison layer when it is on, and draws it with its marks.
+    /// Engraves the score again, as the draft's view asks while one is open (the version or the result), the player's
+    /// notes otherwise, and draws it with its marks.
     private func engraveScore() async {
         guard let piece else { return }
         let id = piece.id
         let title = piece.title
-        let version = hiddenLayers.contains("version") ? nil : versions.shownId
-        let layer = LayerEngraved(version: version, artefacts: version != nil && !hiddenLayers.contains("artefacts"))
-        let engraved = await MusicCore.run { Engraver.engrave(piece: id, title: title, version: layer.version, artefacts: layer.artefacts) }
+        let view = wantedView
+        let engraved = await MusicCore.run {
+            view.map { Engraver.engraveMerge(piece: id, title: title, view: $0) } ?? Engraver.engrave(piece: id, title: title)
+        }
         switch engraved {
         case .success(let engraving):
             // Its other view stays; where it opened does not, so the page stays where the player is.
             self.piece = OpenPiece(id: id, title: title, pages: engraving.pages, timemap: engraving.timemap, file: piece.file, other: piece.other)
-            layerEngraved = layer
-            layerAdded = engraving.ossias.first?.added ?? []
-            layerArtefacts = engraving.ossias.first?.artefacts ?? []
+            engravedView = view
+            mergeAdded = engraving.version
+            mergeOwn = engraving.own
             await render()
             if focused { await engraveCard() }
         case .failure(let error):
@@ -1121,59 +1086,359 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         }
     }
 
-    /// The bars the version has otherwise as plum labels above them, and the printed notes it does not have tinted.
+    /// The draft's view the score should show: the version or the result while a draft is open out of focus.
+    private var wantedView: String? {
+        merge != nil && !focused && mergeShow != "mine" ? mergeShow : nil
+    }
+
+    /// The page engraved again when the view it should show changed.
+    private func applyMergeView() async {
+        guard wantedView != engravedView else { return }
+        await engraveScore()
+    }
+
+    /// With extra information on, the bars the version has otherwise as plum labels above them and the printed notes it
+    /// does not have tinted, and a thin plum line under the bars taken from it; on a draft's view, its notes coloured.
     private func drawVersions() async {
         await readSources()
         guard shown else { return }
         let name = versions.shown?.name ?? ""
-        let differing = versions.differing
+        let differing = extraShown("performance") ? versions.differing : []
         let markers: [[String: Any]] = differing.compactMap { bar in
             guard let span = bar.span else { return nil }
             return ["bar": bar.bar, "tick": span.lowerBound, "text": bar.marker, "label": text.format("performance.markerLabel", String(bar.bar), name, bar.marker)]
         }
-        let layered = layerEngraved.version != nil && layerEngraved.version == versions.shownId
+        let viewed = engravedView != nil
         let data: [String: Any] = [
-            "markers": markers, "unheard": differing.flatMap(\.notHeard),
-            "added": layered ? layerAdded : [], "artefacts": layered ? layerArtefacts : [],
+            "markers": markers, "unheard": viewed ? [] : differing.flatMap(\.notHeard),
+            "added": viewed ? mergeAdded : [], "artefacts": [String](), "own": viewed ? mergeOwn : [],
+            "taken": extraShown("taken") && !viewed ? versions.taken.compactMap { $0.span?.lowerBound } : [],
         ]
         _ = try? await webView.callAsyncJavaScript("return motiff.performance(data)", arguments: ["data": data], contentWorld: .page)
         await updateFocusVersion()
-        await applyVersionLayer()
+        await applyMergeView()
     }
 
-    /// Take into the score in focus: every bar of the phrase the version has otherwise, at once.
-    func takeFocusBars() {
-        guard let focusVersion, !focusVersion.differing.isEmpty else { return }
-        let bars = focusVersion.differing
-        changeVersion("performance.take", ["bars": bars], status: text.format("performance.takenBars", bars.map(String.init).joined(separator: ", "), focusVersion.name), notes: true)
-    }
-
-    /// Restore these notes in focus: every bar of the phrase taken from the version comes back as it was.
-    func restoreFocusBars() {
-        guard let focusVersion, !focusVersion.taken.isEmpty else { return }
-        let bars = focusVersion.taken
-        changeVersion("performance.restore", ["bars": bars], status: text.format("performance.restoredBars", bars.map(String.init).joined(separator: ", ")), notes: true)
-    }
-
-    /// The version for the phrase in focus: its notes to hear, and the bars to take or restore.
+    /// The version for the phrase in focus: its notes to hear, and the bars of the phrase it has otherwise.
     private func updateFocusVersion() async {
         guard focused, let piece, let selection, let shown = versions.shown else {
             focusVersion = nil
             return
         }
-        if versionPlayback?.id != shown.id {
-            let request = Self.json(["of": "version", "id": shown.id]) ?? "{}"
-            let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "playback", request) }
-            versionPlayback = (shown.id, PlaybackScore.read(answer)?.notes ?? [])
-        }
-        guard focused, self.selection == selection, versions.shownId == shown.id, let notes = versionPlayback?.notes else { return }
+        guard let notes = await versionNotes(piece.id, shown.id), focused, self.selection == selection, versions.shownId == shown.id else { return }
         let bars = selection.firstBar...selection.lastBar
         focusVersion = FocusVersion(
             id: shown.id, name: shown.name, notes: notes,
             sounds: notes.contains { $0.onset >= selection.onset && $0.onset < selection.end },
-            differing: versions.differing.map(\.bar).filter { bars.contains($0) },
-            taken: versions.taken.map(\.bar).filter { bars.contains($0) }
+            differing: versions.differing.map(\.bar).filter { bars.contains($0) }
         )
+    }
+
+    /// The version's notes in the score's time, as music-core gives them to play (`playback` of `version`), kept until
+    /// the notes change.
+    private func versionNotes(_ piece: Int32, _ id: String) async -> [PlaybackNote]? {
+        if versionPlayback?.id != id {
+            let request = Self.json(["of": "version", "id": id]) ?? "{}"
+            let answer = await MusicCore.run { MusicCore.call(piece: piece, "playback", request) }
+            versionPlayback = (id, PlaybackScore.read(answer)?.notes ?? [])
+        }
+        return versionPlayback?.id == id ? versionPlayback?.notes : nil
+    }
+
+    // MARK: - Merging a version (testing items 32–34)
+
+    /// A version's page in Sources: its overview, the draft and what was merged.
+    func openVersionPage(_ id: String) {
+        versionPage = id
+        if versions.shownId != id { showVersion(id) }
+    }
+
+    func closeVersionPage() {
+        versionPage = nil
+    }
+
+    /// Keep my notes, Take the sure ones or Take the version wherever it differs: the draft opens with those choices,
+    /// or is applied at once when the player asked for that (`merge.direct`); `saved` opens the choices last applied.
+    func startMerge(_ start: String, direct: Bool = true) {
+        guard let piece, let id = versions.shownId else { return }
+        Task {
+            guard await mergeCall(piece.id, "performance.merge.open", ["id": id, "start": start]) else { return }
+            if direct && DeviceSettings.shared["merge.direct"] == "on" {
+                await applyDraft(piece)
+                return
+            }
+            mergeShow = "result"
+            mergeAt = merge?.bars.first?.bar
+            if let mergeAt { showVersionBar(mergeAt) }
+            await mergeChanged()
+        }
+    }
+
+    /// Open in the draft, from a marker's popover or from focus: the version's page with the draft on the bar, the
+    /// choices as last applied when no draft of it is open.
+    func openDraft(at bar: Int) {
+        guard let piece, let id = versions.shownId else { return }
+        markerPick = nil
+        versionPage = id
+        versionPicked?(bar)
+        Task {
+            if merge?.id != id {
+                guard await mergeCall(piece.id, "performance.merge.open", ["id": id, "start": "saved"]) else { return }
+                mergeShow = "result"
+            }
+            goToMergeBar(bar)
+            await mergeChanged()
+        }
+    }
+
+    /// Open in the draft from focus: focus is left, and the draft opens on the first bar of the phrase that differs.
+    func openDraftFromFocus() {
+        guard focusVersion != nil, let bar = focusVersion?.differing.first ?? selection?.firstBar else { return }
+        leaveFocus()
+        openDraft(at: bar)
+    }
+
+    /// Take mine, Take from the version or Not a difference, for the change shown or the bar given; with Phrase, for every
+    /// change of its phrase.
+    func chooseMerge(_ choice: String, bar: Int? = nil) {
+        guard let piece, let at = bar ?? mergeAt else { return }
+        changeDraft(piece, "performance.merge.choose", ["bars": draftBars(at), "choice": choice])
+    }
+
+    /// Take the group: every change of the kind at once, mine or the version.
+    func chooseMergeGroup(_ group: String, _ choice: String) {
+        guard let piece, let merge else { return }
+        let bars = merge.bars.filter { $0.group == group }.map(\.bar)
+        guard !bars.isEmpty else { return }
+        changeDraft(piece, "performance.merge.choose", ["bars": bars, "choice": choice])
+    }
+
+    /// Reset the bar: undecided again.
+    func undecideMerge(_ bar: Int) {
+        guard let piece else { return }
+        changeDraft(piece, "performance.merge.undecide", ["bars": [bar]])
+    }
+
+    func undoDraft() {
+        guard let piece else { return }
+        changeDraft(piece, "performance.merge.undo")
+    }
+
+    func redoDraft() {
+        guard let piece else { return }
+        changeDraft(piece, "performance.merge.redo")
+    }
+
+    /// Reset the draft: back to how it opened, which Undo can itself take back.
+    func resetDraft() {
+        guard let piece else { return }
+        changeDraft(piece, "performance.merge.reset")
+    }
+
+    /// Cancel: the draft goes and nothing has changed.
+    func cancelDraft() {
+        guard let piece else { return }
+        Task {
+            _ = await mergeCall(piece.id, "performance.merge.cancel")
+            endDraft()
+            await mergeChanged()
+        }
+    }
+
+    func applyMerge() {
+        guard let piece else { return }
+        Task { await applyDraft(piece) }
+    }
+
+    /// Undo the merge: the player's notes back in every bar taken; the choices stay to open again.
+    func undoAppliedMerge() {
+        guard let piece, let id = versions.shownId else { return }
+        Task { await unapply(piece, id, toast: text["merge.undone"], undo: .reapply) }
+    }
+
+    /// The toast's Undo: the step it names taken back.
+    func undoToast() {
+        guard let piece, let toast = mergeToast, let undo = toast.undo else { return }
+        mergeToast = nil
+        Task {
+            switch undo {
+            case .unapply:
+                guard let id = versions.shownId else { return }
+                await unapply(piece, id, toast: text["merge.applyUndone"], undo: nil)
+            case .reapply:
+                guard let id = versions.shownId, await mergeCall(piece.id, "performance.merge.open", ["id": id, "start": "saved"]) else { return }
+                await applyDraft(piece, toast: text["merge.redone"])
+            case .putBack:
+                let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.putBack") }
+                guard versions.read(performance: answer) else {
+                    versionStatus = facadeObject(answer)?["message"] as? String
+                    return
+                }
+                versions.read(list: await MusicCore.run { MusicCore.call(piece: piece.id, "performances") })
+                mergeToast = MergeToast(text: text.format("merge.putBack", versions.shown?.name ?? ""), undo: nil)
+                await notesDidChange()
+                await loadCheck(piece)
+            }
+        }
+    }
+
+    func closeToast() {
+        mergeToast = nil
+    }
+
+    /// ‹ › through the changes.
+    func stepMerge(_ by: Int) {
+        guard let merge, !merge.bars.isEmpty else { return }
+        let bars = merge.bars.map(\.bar)
+        let index = mergeAt.flatMap { bars.firstIndex(of: $0) } ?? (by > 0 ? -1 : bars.count)
+        goToMergeBar(bars[min(max(index + by, 0), bars.count - 1)])
+    }
+
+    /// A change chosen in the list, the strip or the window: the draft and the score go to its bar.
+    func goToMergeBar(_ bar: Int) {
+        mergeAt = bar
+        showVersionBar(bar)
+        if let mergeHearing { hearMerge(mergeHearing) }
+    }
+
+    /// What the score shows while the draft is open: the player's notes, the version or the result.
+    func showMergeView(_ view: String) {
+        mergeShow = view
+        Task {
+            await applyMergeView()
+            await drawVersions()
+        }
+    }
+
+    /// Hear Mine, Version or Result over the change shown (its phrase with Phrase), or the player's notes and the
+    /// version in turn.
+    func hearMerge(_ view: String) {
+        guard let piece, merge != nil, let span = hearSpan else { return }
+        mergeHearing = view
+        Task {
+            let request = Self.json(["view": view == "alternate" ? "version" : view]) ?? "{}"
+            let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.merge.playback", request) }
+            guard let notes = PlaybackScore.read(answer)?.notes else { return }
+            if view == "alternate" { hearInTurn?(notes, span) } else { hearNotes?(notes, span) }
+        }
+    }
+
+    /// The span heard: the change's bar, or its phrase with Phrase.
+    private var hearSpan: Range<Double>? {
+        guard let at = mergeAt else { return nil }
+        let bars = draftBars(at)
+        let spans = versions.bars.filter { bars.contains($0.bar) || $0.bar == at }.compactMap(\.span)
+        guard let first = spans.map(\.lowerBound).min(), let last = spans.map(\.upperBound).max() else { return nil }
+        if mergePhrase, let unit = phrases?.units.first(where: { $0.firstBar <= at && at <= $0.lastBar }) { return unit.onset..<unit.end }
+        return first..<last
+    }
+
+    /// ▶ As in the version, from a marker's popover: the bar as the version plays it.
+    func hearMarkerVersion() {
+        guard let piece, let pick = markerPick, let id = versions.shownId,
+              let span = versions.bars.first(where: { $0.bar == pick.bar })?.span else { return }
+        Task {
+            guard let notes = await versionNotes(piece.id, id) else { return }
+            hearNotes?(notes, span)
+        }
+    }
+
+    func closeMarker() {
+        markerPick = nil
+    }
+
+    /// A draft's view engraved for Compare versions over the bars shown (± 1 bar, the phrase or the sentence round the
+    /// change), with the ids of the notes to colour.
+    func mergeCard(_ view: String, see: String, zoom: Int) async -> MergeCardImage? {
+        guard let piece, let at = mergeAt else { return nil }
+        let id = piece.id
+        let (first, last) = await seenBars(id, at, see)
+        let engraved = await MusicCore.run { Engraver.engraveMergeBars(piece: id, view: view, firstBar: first, lastBar: last, zoom: zoom) }
+        guard case .success(let engraving) = engraved, let svg = engraving.pages.first else { return nil }
+        return MergeCardImage(svg: svg, version: engraving.version, own: engraving.own)
+    }
+
+    private func seenBars(_ piece: Int32, _ bar: Int, _ see: String) async -> (Int, Int) {
+        if see == "phrase" || see == "sentence" {
+            let request = Self.json(["level": see]) ?? "{}"
+            let answer = await MusicCore.run { MusicCore.call(piece: piece, "phrases", request) }
+            if let unit = PhraseLevelsShown(answer: answer)?.units.first(where: { $0.firstBar <= bar && bar <= $0.lastBar }) {
+                return (unit.firstBar, unit.lastBar)
+            }
+        }
+        let numbers = versions.bars.map(\.bar)
+        return (max(numbers.min() ?? bar, bar - 1), min(numbers.max() ?? bar, bar + 1))
+    }
+
+
+    private func draftBars(_ bar: Int) -> [Int] {
+        guard mergePhrase, let merge, let unit = phrases?.units.first(where: { $0.firstBar <= bar && bar <= $0.lastBar }) else { return [bar] }
+        let bars = merge.bars.map(\.bar).filter { unit.firstBar <= $0 && $0 <= unit.lastBar }
+        return bars.isEmpty ? [bar] : bars
+    }
+
+    private func changeDraft(_ piece: OpenPiece, _ call: String, _ fields: [String: Any] = [:]) {
+        Task {
+            if await mergeCall(piece.id, call, fields) { await mergeChanged() }
+        }
+    }
+
+    /// One `performance.merge` call; the draft as it answers. False, with why, for an error.
+    @discardableResult private func mergeCall(_ piece: Int32, _ call: String, _ fields: [String: Any] = [:]) async -> Bool {
+        let request = Self.json(fields) ?? "{}"
+        let answer = await MusicCore.run { MusicCore.call(piece: piece, call, request) }
+        guard let object = facadeObject(answer), object["error"] == nil else {
+            versionStatus = facadeObject(answer)?["message"] as? String
+            return false
+        }
+        merge = MergeInfo(object: object)
+        if let merge, let mergeAt, !merge.bars.contains(where: { $0.bar == mergeAt }) { self.mergeAt = merge.bars.first?.bar }
+        return true
+    }
+
+    /// After the draft changed: the score shows its view again, and what is heard follows.
+    private func mergeChanged() async {
+        if wantedView != nil {
+            await engraveScore()
+        } else {
+            await applyMergeView()
+        }
+        await drawVersions()
+        if merge == nil { mergeHearing = nil }
+    }
+
+    private func endDraft() {
+        merge = nil
+        mergeAt = nil
+        mergeHearing = nil
+        comparing = false
+        mergeShow = "result"
+    }
+
+    /// Apply: the draft's bars come into the score, its choices are kept with the piece, and the toast can undo it.
+    private func applyDraft(_ piece: OpenPiece, toast: String? = nil) async {
+        let at = ISO8601DateFormatter().string(from: Date())
+        let request = Self.json(["at": at]) ?? "{}"
+        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.merge.apply", request) }
+        guard versions.read(performance: answer) else {
+            versionStatus = facadeObject(answer)?["message"] as? String
+            return
+        }
+        endDraft()
+        versionStatus = nil
+        mergeToast = MergeToast(text: toast ?? text.count("merge.applied", versions.shown?.takenBars ?? 0), undo: toast == nil ? .unapply : nil)
+        await notesDidChange()
+    }
+
+    private func unapply(_ piece: OpenPiece, _ id: String, toast: String, undo: MergeToast.Undo?) async {
+        let request = Self.json(["id": id]) ?? "{}"
+        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.merge.undoApplied", request) }
+        guard versions.read(performance: answer) else {
+            versionStatus = facadeObject(answer)?["message"] as? String
+            return
+        }
+        mergeToast = MergeToast(text: toast, undo: undo)
+        await notesDidChange()
     }
 
     // MARK: - Phrase focus

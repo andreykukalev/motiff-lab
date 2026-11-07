@@ -186,14 +186,36 @@ struct HighlightRow: View {
     }
 }
 
-/// The layers of marks (0018 section 5): each hidden for a clean page, or all at once; kept with the piece.
+/// Extra information and the player's marks (0018 section 5; testing item 33): what the app adds over the notes, off by
+/// default, each kind with its own switch, then the layers of the player's own marks, each hidden for a clean page or all
+/// at once; all kept with the piece.
 struct LayersList: View {
     @ObservedObject var score: ScoreController
     let text: UIText
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
-            Text(text["layers.title"]).overline()
+            Text(text["extra.title"]).overline()
+            let extraOn = !score.hiddenLayers.contains("extra")
+            Toggle(text["extra.show"], isOn: Binding(get: { extraOn }, set: { score.showLayers(["extra"], $0) }))
+                .dsType(.label)
+                .foregroundStyle(Color.ds("ink"))
+                .tint(Color.ds("accent"))
+            if score.pieceExtra.isEmpty {
+                Text(text["extra.none"])
+                    .dsType(.caption)
+                    .foregroundStyle(Color.ds("ink-2"))
+            }
+            ForEach(score.pieceExtra, id: \.self) { item in
+                Toggle(score.layerName(item), isOn: Binding(get: { !score.hiddenLayers.contains(item) }, set: { score.showLayers([item], $0) }))
+                    .dsType(.label)
+                    .foregroundStyle(Color.ds("ink"))
+                    .tint(Color.ds("accent"))
+                    .padding(.leading, CGFloat.ds("s-3"))
+                    .disabled(!extraOn)
+            }
+            Rectangle().fill(Color.ds("hairline")).frame(height: 1)
+            Text(text["extra.yours"]).overline()
             ForEach(score.pieceLayers, id: \.self) { layer in
                 Toggle(score.layerName(layer), isOn: Binding(get: { !score.hiddenLayers.contains(layer) }, set: { score.showLayers([layer], $0) }))
                     .dsType(.label)

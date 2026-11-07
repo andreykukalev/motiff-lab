@@ -80,6 +80,9 @@ button.perf-marker span { display: block; height: 20px; padding: 0 var(--s-2); b
 /* On the comparison layer, and above the phrase in focus, a note the version adds is plum, and a likely artefact of a
    recording's hearing grey (0022, the web app's .version-added and .version-artefact). */
 g.note.version-added { fill: var(--plum); stroke: var(--plum); color: var(--plum); }
+/* The player's own notes in a merge draft's result, and the thin plum line under a bar taken from a version (testing item 33). */
+g.note.own-note { fill: var(--amber); stroke: var(--amber); color: var(--amber); }
+div.taken-bar { position: absolute; z-index: 1; height: 2px; border-radius: 1px; background: var(--plum); pointer-events: none; }
 g.note.version-artefact { fill: var(--ink-3); stroke: var(--ink-3); color: var(--ink-3); }
 
 /* The layers of marks, hidden for a clean page (0018 section 5). */

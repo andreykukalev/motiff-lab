@@ -32,6 +32,73 @@ struct VersionEntry: Identifiable, Equatable, Sendable {
     var takenBars: Int
     /// "score" for notes (a MusicXML file, a PDF read); "midi" or "recording" for a performance.
     var source = "midi"
+    /// When a merge draft of it was last applied; nil when none is applied now (testing item 32).
+    var mergedAt: Date?
+    /// Whether the choices of a merge are kept with it, to open again.
+    var mergeKept = false
+
+    /// A time music-core writes (.NET's round trip, seven digits of fraction).
+    static func date(_ text: String?) -> Date? {
+        guard let text else { return nil }
+        let reader = ISO8601DateFormatter()
+        return reader.date(from: text) ?? reader.date(from: text.replacingOccurrences(of: #"\.\d+"#, with: "", options: .regularExpression))
+    }
+}
+
+/// The merge draft open now, as music-core answers `performance.merge` (testing items 32 and 34, contract 7): nothing in
+/// the piece changes until Apply, and every step can be undone, redone or reset.
+struct MergeInfo: Equatable, Sendable {
+    struct Bar: Identifiable, Equatable, Sendable {
+        var bar: Int
+        var kind: String
+        /// "addedNotes", "otherNotes" or "rhythm".
+        var group: String
+        var marker: String
+        var confidence: Int
+        var sure: Bool
+        /// "mine", "version", "own" or "notADifference"; nil while undecided.
+        var choice: String?
+        var id: Int { bar }
+    }
+
+    var id: String
+    var name: String
+    var decided: Int
+    var total: Int
+    var sure: Int
+    /// How many bars change after Apply.
+    var taking: Int
+    var canUndo: Bool
+    var canRedo: Bool
+    var changed: Bool
+    var bars: [Bar]
+
+    /// The draft in an answer; nil when it answers none open.
+    init?(object: [String: Any]) {
+        guard let merge = object["merge"] as? [String: Any], let id = merge["id"] as? String else { return nil }
+        func int(_ value: Any?) -> Int { (value as? NSNumber)?.intValue ?? 0 }
+        self.id = id
+        name = merge["name"] as? String ?? ""
+        decided = int(merge["decided"])
+        total = int(merge["total"])
+        sure = int(merge["sure"])
+        taking = int(merge["taking"])
+        canUndo = merge["canUndo"] as? Bool ?? false
+        canRedo = merge["canRedo"] as? Bool ?? false
+        changed = merge["changed"] as? Bool ?? false
+        bars = (merge["bars"] as? [[String: Any]] ?? []).compactMap { bar in
+            guard let number = bar["bar"] as? NSNumber else { return nil }
+            return Bar(
+                bar: number.intValue, kind: bar["kind"] as? String ?? "", group: bar["group"] as? String ?? "otherNotes",
+                marker: bar["marker"] as? String ?? "", confidence: int(bar["confidence"]), sure: bar["sure"] as? Bool ?? false,
+                choice: bar["choice"] as? String
+            )
+        }
+    }
+
+    func choice(at bar: Int) -> String? {
+        bars.first { $0.bar == bar }?.choice
+    }
 }
 
 /// The piece's sources as music-core answers `sources` (testing item 16, contract 6): the base, the line on what the
@@ -88,8 +155,8 @@ struct VersionShelf: Equatable, Sendable {
     var alignedPercent: Int? { bars.isEmpty ? nil : alignedCount * 100 / bars.count }
     /// The bars Take everything sure would take: lined up, at least 80 % sure, not dismissed or taken.
     var sureCount: Int { differing.filter { $0.confidence >= 80 }.count }
-    /// The likely artefacts on the comparison layer, which writes only the bars that line up.
-    var artefactCount: Int { bars.filter(\.aligned).reduce(0) { $0 + $1.artefacts } }
+    /// The bars that differ, sure or not, whatever was decided about them: what a merge draft goes through.
+    var differingAll: [VersionBar] { bars.filter(\.differs) }
 
     /// Reads `performances`; the version shown stays shown while it is there.
     mutating func read(list answer: String) {
@@ -132,17 +199,18 @@ struct VersionShelf: Equatable, Sendable {
         guard let id = object["id"] as? String else { return nil }
         return VersionEntry(
             id: id, name: object["name"] as? String ?? "", takenBars: (object["takenBars"] as? NSNumber)?.intValue ?? 0,
-            source: object["source"] as? String ?? "midi"
+            source: object["source"] as? String ?? "midi",
+            mergedAt: VersionEntry.date(object["mergedAt"] as? String), mergeKept: object["mergeKept"] as? Bool ?? false
         )
     }
 }
 
-/// Sources (0022; testing item 16, the web app's `.perf-sheet`), from More or a version's label on the score: "My version",
-/// a line on what it holds beyond the base, a row for the base, the PDF kept inside the piece and each other version with its
-/// role, one Add a source (a MIDI or MusicXML file, a PDF, a recording), and after a version is added its four next steps:
-/// Compare, Hear it alone, Take everything sure and Adjust it myself. For the version shown, the bars it has otherwise with
-/// Show, Not a difference and Take into the score, the bars taken to restore, and its name. Over the right of the page in
-/// landscape and the lower half in portrait, as Check.
+/// Sources (0022; testing items 16 and 32, the web app's `.perf-sheet`), from More or a marker's popover, in two levels.
+/// The list: "My version", a line on what it holds beyond the base, a row for the base, the PDF kept inside the piece and
+/// each other version with its role, and one Add a source (a MIDI or MusicXML file, a PDF, a recording). A version's row
+/// opens its page, with "‹ Sources" back: a verdict, a strip of the piece's bars and three ways into a merge draft that
+/// changes nothing until applied; the draft itself; what was merged, to open again or undo; and its name and Remove, which
+/// the toast can undo. Over the right of the page in landscape and the lower half in portrait, as Check.
 struct VersionsDrawer: View {
     @ObservedObject var score: ScoreController
     let text: UIText
@@ -151,18 +219,14 @@ struct VersionsDrawer: View {
     var back: (label: String, action: () -> Void)?
     /// The piece's PDF view, when it keeps a PDF.
     var openPdf: (() -> Void)?
-    /// Hear it alone: the phrase with the first bar the version has otherwise, in focus, as in the version.
-    var hearAlone: () -> Void = {}
-    /// Adjust it myself: the note editor on the roll at the first bar the version has otherwise.
-    var adjust: () -> Void = {}
     @EnvironmentObject private var account: Account
     @ObservedObject private var scan = ScanServer.shared
+    @ObservedObject private var settings = DeviceSettings.shared
     @State private var choosing = false
     @State private var choosingPdf = false
     @State private var adding = false
     @State private var readingPdf = false
     @State private var name = ""
-    @State private var removing = false
 
     /// What a version can be: a MIDI file, or a score in MusicXML.
     static let versionFiles: [UTType] = [
@@ -174,67 +238,34 @@ struct VersionsDrawer: View {
 
     private var scanAddress: URL? { scan.address(hosted: ScanServer.hosted(account)) }
 
+    /// The version whose page shows, once music-core has it shown.
+    private var page: VersionEntry? {
+        guard let id = score.versionPage, let shown = score.versions.shown, shown.id == id else { return nil }
+        return shown
+    }
+
     var body: some View {
         let versions = score.versions
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .top, spacing: CGFloat.ds("s-2")) {
-                VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
-                    if let back {
-                        BackChip(label: back.label, text: text, action: back.action)
-                            .padding(.leading, -CGFloat.ds("s-2"))
-                    }
-                    Text(text["sources.title"]).overline()
-                    Text(text["sources.mine"])
-                        .dsType(.heading)
-                        .foregroundStyle(Color.ds("ink"))
-                        .accessibilityAddTraits(.isHeader)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                Button(action: close) {
-                    Icon(name: "close").frame(width: 32, height: 32)
-                }
-                .buttonStyle(BarActionStyle())
-                .accessibilityLabel(text["performance.close"])
-            }
-            .padding(.leading, CGFloat.ds("s-6"))
-            .padding(.trailing, CGFloat.ds("s-4"))
-            .padding(.top, CGFloat.ds("s-4"))
+            header
             ScrollView {
                 VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
-                    sourceRows(versions)
-                    if let status = score.versionStatus {
-                        Text(status)
-                            .dsType(.caption)
-                            .foregroundStyle(Color.ds("ink-2"))
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    if let shown = versions.shown, score.addedVersion == shown.id {
-                        nextSteps(versions)
-                    }
-                    if let taken = score.takenAll, taken.version == versions.shownId {
-                        HStack(spacing: CGFloat.ds("s-2")) {
-                            Text(text.count("sources.takenAll", taken.bars.count))
-                                .dsType(.caption)
-                                .foregroundStyle(Color.ds("ink-2"))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            Button(text["sources.giveBack"]) { score.giveBackTakenAll() }
-                                .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
+                    if let page {
+                        VersionPage(score: score, text: text, version: page, name: $name)
+                    } else {
+                        sourceRows(versions)
+                        status
+                        Button {
+                            adding.toggle()
+                            readingPdf = false
+                        } label: {
+                            Label { Text(text["sources.add"]) } icon: { Icon(name: "plus") }
                         }
-                    }
-                    if let shown = versions.shown {
-                        comparison(versions)
-                        nameAndRemove(shown)
-                    }
-                    Button {
-                        adding.toggle()
-                        readingPdf = false
-                    } label: {
-                        Label { Text(text["sources.add"]) } icon: { Icon(name: "plus") }
-                    }
-                    .buttonStyle(DSButtonStyle(kind: .primary))
-                    .accessibilityAddTraits(adding ? .isSelected : [])
-                    if adding {
-                        addChoices
+                        .buttonStyle(DSButtonStyle(kind: .primary))
+                        .accessibilityAddTraits(adding ? .isSelected : [])
+                        if adding {
+                            addChoices
+                        }
                     }
                 }
                 .padding(.leading, CGFloat.ds("s-6"))
@@ -288,11 +319,54 @@ struct VersionsDrawer: View {
         }
         .onChange(of: versions.shown?.name) { _, shown in
             name = shown ?? ""
-            removing = false
         }
     }
 
-    /// A row for the base, for the PDF kept inside the piece and for each other version, the one shown in plum.
+    private var header: some View {
+        HStack(alignment: .top, spacing: CGFloat.ds("s-2")) {
+            VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
+                if let page {
+                    BackChip(label: text["sources.title"], text: text) { score.closeVersionPage() }
+                        .padding(.leading, -CGFloat.ds("s-2"))
+                    Text(text[page.source == "score" ? "sources.roleNotes" : "sources.rolePlaying"]).overline()
+                    Text(page.name)
+                        .dsType(.heading)
+                        .foregroundStyle(Color.ds("ink"))
+                        .accessibilityAddTraits(.isHeader)
+                } else {
+                    if let back {
+                        BackChip(label: back.label, text: text, action: back.action)
+                            .padding(.leading, -CGFloat.ds("s-2"))
+                    }
+                    Text(text["sources.title"]).overline()
+                    Text(text["sources.mine"])
+                        .dsType(.heading)
+                        .foregroundStyle(Color.ds("ink"))
+                        .accessibilityAddTraits(.isHeader)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Button(action: close) {
+                Icon(name: "close").frame(width: 32, height: 32)
+            }
+            .buttonStyle(BarActionStyle())
+            .accessibilityLabel(text["performance.close"])
+        }
+        .padding(.leading, CGFloat.ds("s-6"))
+        .padding(.trailing, CGFloat.ds("s-4"))
+        .padding(.top, CGFloat.ds("s-4"))
+    }
+
+    @ViewBuilder private var status: some View {
+        if let status = score.versionStatus {
+            Text(status)
+                .dsType(.caption)
+                .foregroundStyle(Color.ds("ink-2"))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// A row for the base, for the PDF kept inside the piece and for each other version, which opens its page.
     @ViewBuilder private func sourceRows(_ versions: VersionShelf) -> some View {
         let sources = score.sources
         if !sources.summary.isEmpty {
@@ -301,10 +375,10 @@ struct VersionsDrawer: View {
                 .foregroundStyle(Color.ds("ink-2"))
                 .fixedSize(horizontal: false, vertical: true)
         }
-        sourceRow(icon: baseIcon(sources.base), title: text["sources.base"], detail: sources.baseName, on: false)
+        sourceRow(icon: baseIcon(sources.base), title: text["sources.base"], detail: sources.baseName, opens: false)
         if let document = sources.document {
             VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
-                sourceLine(icon: "pages", title: document.fileName, detail: text["sources.pdfInside"])
+                sourceLine(icon: "pages", title: document.fileName, detail: text["sources.pdfInside"], opens: false)
                 HStack(spacing: CGFloat.ds("s-2")) {
                     if let openPdf {
                         Button(text["sources.openPdf"], action: openPdf)
@@ -327,25 +401,22 @@ struct VersionsDrawer: View {
             .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-s")).strokeBorder(Color.ds("hairline")))
         }
         ForEach(versions.entries) { entry in
-            let shown = entry.id == versions.shownId
-            Button { score.showVersion(entry.id) } label: {
-                sourceRow(icon: versionIcon(entry), title: entry.name, detail: versionDetail(entry, shown: shown, versions), on: shown)
+            Button { score.openVersionPage(entry.id) } label: {
+                sourceRow(icon: versionIcon(entry), title: entry.name, detail: versionDetail(entry), opens: true)
             }
             .buttonStyle(.plain)
-            .accessibilityAddTraits(shown ? .isSelected : [])
         }
     }
 
-    private func sourceRow(icon: String, title: String, detail: String, on: Bool) -> some View {
-        sourceLine(icon: icon, title: title, detail: detail)
+    private func sourceRow(icon: String, title: String, detail: String, opens: Bool) -> some View {
+        sourceLine(icon: icon, title: title, detail: detail, opens: opens)
             .padding(CGFloat.ds("s-3"))
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(on ? Color.ds("plum-tint") : Color.clear, in: RoundedRectangle(cornerRadius: CGFloat.ds("r-s")))
-            .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-s")).strokeBorder(on ? Color.ds("plum") : Color.ds("hairline")))
+            .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-s")).strokeBorder(Color.ds("hairline")))
             .contentShape(Rectangle())
     }
 
-    private func sourceLine(icon: String, title: String, detail: String) -> some View {
+    private func sourceLine(icon: String, title: String, detail: String, opens: Bool) -> some View {
         HStack(spacing: CGFloat.ds("s-3")) {
             Icon(name: icon).foregroundStyle(Color.ds("ink-2"))
             VStack(alignment: .leading, spacing: 0) {
@@ -355,6 +426,10 @@ struct VersionsDrawer: View {
                 Text(detail)
                     .dsType(.caption)
                     .foregroundStyle(Color.ds("ink-2"))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            if opens {
+                Icon(name: "fwd", size: CGFloat.ds("icon-s")).foregroundStyle(Color.ds("ink-3"))
             }
         }
         .accessibilityElement(children: .combine)
@@ -368,11 +443,11 @@ struct VersionsDrawer: View {
         }
     }
 
-    /// "Performance · 92 % lined up": what the version is to the notes, and for the one shown how much of it lines up.
-    private func versionDetail(_ entry: VersionEntry, shown: Bool, _ versions: VersionShelf) -> String {
+    /// "Performance · 2 bars taken": what the version is to the notes, and what a merge applied took from it.
+    private func versionDetail(_ entry: VersionEntry) -> String {
         let role = text[entry.source == "score" ? "sources.roleNotes" : "sources.rolePlaying"]
-        guard shown, let percent = versions.alignedPercent else { return role }
-        return role + " · " + text.format("sources.aligned", String(percent))
+        guard entry.mergedAt != nil else { return role }
+        return role + " · " + text.count("merge.takenShort", entry.takenBars)
     }
 
     private func baseIcon(_ base: String) -> String {
@@ -381,38 +456,6 @@ struct VersionsDrawer: View {
         case "scan", "pdf": "pages"
         default: "file"
         }
-    }
-
-    /// What next, once a version is added: compare, hear it alone, take what is sure, or adjust the notes by hand.
-    private func nextSteps(_ versions: VersionShelf) -> some View {
-        VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
-            Text(text["sources.next"]).overline()
-            step("layers", text["sources.compare"]) { score.compareVersion() }
-            step("play", text["sources.hearAlone"], action: hearAlone)
-            step("check", text["sources.takeAll"], detail: text.count("sources.sureBars", versions.sureCount)) { score.takeAllSure() }
-                .disabled(versions.sureCount == 0)
-            step("roll", text["sources.adjust"], action: adjust)
-        }
-        .padding(CGFloat.ds("s-3"))
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(text["sources.next"])
-    }
-
-    private func step(_ icon: String, _ title: String, detail: String? = nil, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: CGFloat.ds("s-2")) {
-                Icon(name: icon)
-                Text(title)
-                Spacer(minLength: CGFloat.ds("s-2"))
-                if let detail {
-                    Text(detail).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .buttonStyle(DSButtonStyle(kind: .secondary))
     }
 
     /// Add a source: a MIDI or MusicXML file, a PDF kept inside the piece, or a recording.
@@ -431,7 +474,7 @@ struct VersionsDrawer: View {
                 choosingPdf = true
                 choosing = true
             }
-                .buttonStyle(DSButtonStyle(kind: .secondary))
+            .buttonStyle(DSButtonStyle(kind: .secondary))
             Text(text["sources.pdfHow"])
                 .dsType(.caption)
                 .foregroundStyle(Color.ds("ink-2"))
@@ -442,91 +485,94 @@ struct VersionsDrawer: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
     }
+}
 
-    @ViewBuilder private func comparison(_ versions: VersionShelf) -> some View {
-        Text(text.format("performance.summary", String(versions.matched), String(versions.printed), String(versions.alignedCount), String(versions.bars.count)))
-            .dsType(.caption)
-            .foregroundStyle(Color.ds("ink-2"))
-        let differing = versions.differing
-        if differing.isEmpty {
-            Text(text["performance.noDifferences"])
+/// The colour of a draft's view (testing item 34): Mine graphite, Version plum, Result green.
+func mergeViewColor(_ view: String) -> Color {
+    switch view {
+    case "version": Color.ds("plum")
+    case "result": Color.ds("success")
+    default: Color.ds("ink-2")
+    }
+}
+
+/// A version's page in Sources (testing items 32 and 34): the overview or the draft, what was merged, the window, the
+/// version's name and Remove.
+struct VersionPage: View {
+    @ObservedObject var score: ScoreController
+    let text: UIText
+    let version: VersionEntry
+    @Binding var name: String
+    @ObservedObject private var settings = DeviceSettings.shared
+
+    var body: some View {
+        let versions = score.versions
+        let differing = versions.differingAll
+        let sure = differing.filter { $0.confidence >= 80 }.count
+        if let merge = score.merge, merge.id == version.id {
+            DraftBlock(score: score, text: text, merge: merge)
+        } else {
+            if let at = version.mergedAt {
+                VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+                    HStack(spacing: CGFloat.ds("s-2")) {
+                        Icon(name: "check", size: CGFloat.ds("icon-s"))
+                        Text(text.format("merge.appliedAt", at.formatted(date: .omitted, time: .shortened), text.count("merge.bars", version.takenBars)))
+                            .font(DesignTokens.font(weight: 600, size: 15))
+                    }
+                    .foregroundStyle(Color.ds("ink"))
+                    HStack(spacing: CGFloat.ds("s-2")) {
+                        Button(text["merge.reopen"]) { score.startMerge("saved", direct: false) }
+                            .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
+                        Button { score.undoAppliedMerge() } label: {
+                            Label { Text(text["merge.undoMerge"]) } icon: { Icon(name: "undo", size: CGFloat.ds("icon-s")) }
+                        }
+                        .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
+                    }
+                }
+                .padding(CGFloat.ds("s-3"))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.ds("plum-tint"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
+            } else if version.mergeKept {
+                VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+                    Text(text["merge.keptChoices"]).dsType(.label).foregroundStyle(Color.ds("ink"))
+                    Button(text["merge.reopen"]) { score.startMerge("saved", direct: false) }
+                        .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
+                }
+                .padding(CGFloat.ds("s-3"))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("plum"), style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+            }
+            VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
+                Text(text["merge.overview"]).overline()
+                Text(verdict(differing.count, sure))
+                    .dsType(.label)
+                    .foregroundStyle(Color.ds("ink"))
+                    .fixedSize(horizontal: false, vertical: true)
+                BarStrip(score: score, text: text, bars: versions.bars)
+                if !differing.isEmpty {
+                    VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+                        startButton("mine", text["merge.keepMine"], swatch: "mine")
+                        startButton("sure", text.format("merge.takeSure", String(sure)), swatch: "version")
+                            .disabled(sure == 0)
+                        startButton("all", text.format("merge.takeAll", String(differing.count)), swatch: "version")
+                    }
+                    directToggle
+                }
+            }
+        }
+        if !versions.differingAll.isEmpty || score.merge != nil {
+            Button { score.comparing = true } label: {
+                Label { Text(text["merge.window"] + " ⤢") } icon: { Icon(name: "layers") }
+            }
+            .buttonStyle(DSButtonStyle(kind: .quiet))
+        }
+        if let status = score.versionStatus {
+            Text(status)
                 .dsType(.caption)
                 .foregroundStyle(Color.ds("ink-2"))
-        } else {
-            Text(text.count("performance.differs", differing.count)).overline()
-            if score.addedVersion != versions.shownId && versions.sureCount > 0 {
-                Button(text["sources.takeAll"] + " · " + text.count("sources.sureBars", versions.sureCount)) { score.takeAllSure() }
-                    .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
-            }
-            ForEach(differing) { bar in differingEntry(bar) }
+                .fixedSize(horizontal: false, vertical: true)
         }
-        if !versions.taken.isEmpty {
-            Text(text["performance.takenHeading"]).overline().padding(.top, CGFloat.ds("s-2"))
-            ForEach(versions.taken) { bar in
-                doneEntry(bar, icon: true, again: text["performance.restore"]) { score.restoreVersionBar(bar.bar) }
-            }
-        }
-        if !versions.dismissed.isEmpty {
-            Text(text["performance.dismissedHeading"]).overline().padding(.top, CGFloat.ds("s-2"))
-            ForEach(versions.dismissed) { bar in
-                doneEntry(bar, icon: false, again: text["performance.undismiss"]) { score.dismissVersionBar(bar.bar, false) }
-            }
-        }
-    }
-
-    private func differingEntry(_ bar: VersionBar) -> some View {
-        let selected = score.selection?.firstBar == bar.bar
-        return VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
-            HStack(spacing: CGFloat.ds("s-2")) {
-                Text(text.format("performance.barLine", String(bar.bar), String(bar.confidence)))
-                    .font(DesignTokens.font(weight: 600, size: 15))
-                    .foregroundStyle(Color.ds("ink"))
-                Tag(text: bar.marker, kind: .saved)
-            }
-            if let counts = counts(bar) {
-                Text(counts)
-                    .dsType(.caption)
-                    .foregroundStyle(Color.ds("ink-2"))
-            }
-            HStack(spacing: CGFloat.ds("s-2")) {
-                Button(text["scanCheck.show"]) { score.showVersionBar(bar.bar) }
-                    .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
-                    .disabled(bar.span == nil)
-                Button(text["performance.dismiss"]) { score.dismissVersionBar(bar.bar, true) }
-                    .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
-                Button(text["performance.take"]) { score.takeVersionBar(bar.bar) }
-                    .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
-            }
-        }
-        .padding(CGFloat.ds("s-3"))
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(selected ? Color.ds("accent-tint") : Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
-        .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(selected ? Color.ds("accent") : Color.ds("hairline")))
-        .accessibilityElement(children: .contain)
-    }
-
-    private func doneEntry(_ bar: VersionBar, icon: Bool, again: String, action: @escaping () -> Void) -> some View {
-        VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
-            HStack(spacing: CGFloat.ds("s-2")) {
-                if icon {
-                    Icon(name: "check", size: CGFloat.ds("icon-s")).foregroundStyle(Color.ds("ink-2"))
-                }
-                Text(text.format("check.bar", String(bar.bar)))
-                    .font(DesignTokens.font(weight: 600, size: 15))
-                    .foregroundStyle(Color.ds("ink"))
-            }
-            HStack(spacing: CGFloat.ds("s-2")) {
-                Button(text["scanCheck.show"]) { score.showVersionBar(bar.bar) }
-                    .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
-                    .disabled(bar.span == nil)
-                Button(again, action: action)
-                    .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
-            }
-        }
-        .padding(.vertical, CGFloat.ds("s-1"))
-    }
-
-    @ViewBuilder private func nameAndRemove(_ shown: VersionEntry) -> some View {
+        Rectangle().fill(Color.ds("hairline")).frame(height: 1)
         VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
             Text(text["performance.name"])
                 .dsType(.caption)
@@ -537,23 +583,387 @@ struct VersionsDrawer: View {
                 .submitLabel(.done)
                 .onSubmit { score.renameVersion(name) }
         }
-        .padding(.top, CGFloat.ds("s-2"))
-        Button(text[removing ? "performance.removeSure" : "performance.remove"]) {
-            if removing {
-                removing = false
-                score.removeVersion()
-            } else {
-                removing = true
-            }
+        Button { score.removeVersion() } label: {
+            Label { Text(text["merge.remove"]) } icon: { Icon(name: "trash", size: CGFloat.ds("icon-s")) }
         }
-        .buttonStyle(DSButtonStyle(kind: removing ? .danger : .quiet, compact: true))
+        .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
+        .foregroundStyle(Color.ds("danger"))
+        Text(text["merge.removeHow"])
+            .dsType(.caption)
+            .foregroundStyle(Color.ds("ink-2"))
+            .fixedSize(horizontal: false, vertical: true)
     }
 
-    /// "in the version, not in these notes: 3 · in these notes, not in the version: 1".
-    private func counts(_ bar: VersionBar) -> String? {
-        var parts: [String] = []
-        if bar.played > 0 { parts.append(text.format("performance.playedNotPrinted", String(bar.played))) }
-        if !bar.notHeard.isEmpty { parts.append(text.format("performance.printedNotHeard", String(bar.notHeard.count))) }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    private var directToggle: some View {
+        Toggle(text["merge.direct"], isOn: Binding(get: { settings["merge.direct"] == "on" }, set: { settings.set("merge.direct", $0 ? "on" : "off") }))
+            .dsType(.label)
+            .foregroundStyle(Color.ds("ink"))
+            .tint(Color.ds("accent"))
+    }
+
+    private func startButton(_ start: String, _ title: String, swatch: String) -> some View {
+        Button { score.startMerge(start) } label: {
+            HStack(spacing: CGFloat.ds("s-2")) {
+                RoundedRectangle(cornerRadius: 2).fill(mergeViewColor(swatch)).frame(width: 10, height: 10)
+                Text(title)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(DSButtonStyle(kind: .secondary))
+    }
+
+    /// "fur-elise-cover plays 2 bars differently, 1 of them sure."
+    private func verdict(_ differing: Int, _ sure: Int) -> String {
+        differing == 0
+            ? text.format("merge.verdictSame", version.name)
+            : text.format("merge.verdict", version.name, text.count("merge.bars", differing), text.count("merge.sure", sure))
+    }
+}
+
+/// The bars of the piece in a strip: grey where the version agrees, plum where it differs, the sure ones darker, those
+/// decided in the draft in their view's colour; a tap goes to the bar.
+struct BarStrip: View {
+    @ObservedObject var score: ScoreController
+    let text: UIText
+    let bars: [VersionBar]
+
+    var body: some View {
+        HStack(spacing: 1) {
+            ForEach(bars) { bar in
+                Button {
+                    if score.merge != nil { score.goToMergeBar(bar.bar) } else { score.showVersionBar(bar.bar) }
+                } label: {
+                    Rectangle()
+                        .fill(fill(bar))
+                        .frame(maxWidth: .infinity, minHeight: 18, maxHeight: 18)
+                        .overlay(Rectangle().strokeBorder(score.mergeAt == bar.bar ? Color.ds("accent") : Color.clear, lineWidth: 2))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(text.format("check.bar", String(bar.bar)) + ": " + (bar.kind == "none" ? text["merge.same"] : bar.marker))
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: CGFloat.ds("r-xs")))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(text["merge.strip"])
+    }
+
+    private func fill(_ bar: VersionBar) -> Color {
+        if let choice = score.merge?.choice(at: bar.bar) {
+            switch choice {
+            case "version": return Color.ds("plum")
+            case "own": return Color.ds("amber")
+            case "notADifference": return Color.ds("hairline")
+            default: return Color.ds("ink-2")
+            }
+        }
+        if !bar.aligned { return Color.ds("surface-2") }
+        if !bar.differs { return Color.ds("hairline") }
+        return bar.confidence >= 80 ? Color.ds("plum") : Color.ds("plum-tint")
+    }
+}
+
+/// The name of a bar's state in the draft: not decided, mine, from the version, your own or not a difference.
+func mergeChoiceName(_ choice: String?, _ text: UIText) -> String {
+    text["merge.state.\(choice == "notADifference" ? "notDifference" : choice ?? "open")"]
+}
+
+/// The draft in the drawer (dashed plum): what changes, ‹ › through the changes, Bar or Phrase, Take mine and Take from the
+/// version for the change shown, the list of changes, the three views to hear, and Undo, Redo, Reset, Cancel and Apply.
+struct DraftBlock: View {
+    @ObservedObject var score: ScoreController
+    let text: UIText
+    let merge: MergeInfo
+    @ObservedObject private var settings = DeviceSettings.shared
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
+            HStack {
+                Text(text["merge.draft"]).overline()
+                Spacer()
+                Text(text.format("merge.decided", String(merge.decided), String(merge.total)))
+                    .dsType(.caption)
+                    .foregroundStyle(Color.ds("ink-2"))
+            }
+            Text(text.count("merge.changes", merge.taking))
+                .dsType(.caption)
+                .foregroundStyle(Color.ds("ink-2"))
+            if let at = score.mergeAt, let current = merge.bars.first(where: { $0.bar == at }) {
+                MergeStep(score: score, text: text, current: current)
+                MergeScope(score: score, text: text)
+                HStack(spacing: CGFloat.ds("s-2")) {
+                    MergeChoiceButton(text: text["merge.takeMine"], view: "mine", on: current.choice == "mine") { score.chooseMerge("mine") }
+                    MergeChoiceButton(text: text["merge.takeVersion"], view: "version", on: current.choice == "version") { score.chooseMerge("version") }
+                }
+                Text(text.format("merge.stateLine", mergeChoiceName(current.choice, text)))
+                    .dsType(.caption)
+                    .foregroundStyle(Color.ds("ink-2"))
+            }
+            VStack(spacing: CGFloat.ds("s-1")) {
+                ForEach(merge.bars) { bar in
+                    MergeRow(score: score, text: text, bar: bar, detail: bar.marker)
+                }
+            }
+            MergeListen(score: score, text: text)
+            HStack(spacing: CGFloat.ds("s-1")) {
+                Button { score.undoDraft() } label: {
+                    Label { Text(text["merge.undo"]) } icon: { Icon(name: "undo", size: CGFloat.ds("icon-s")) }
+                }
+                .disabled(!merge.canUndo)
+                Button { score.redoDraft() } label: {
+                    Label { Text(text["merge.redo"]) } icon: { Icon(name: "undo", size: CGFloat.ds("icon-s")).scaleEffect(x: -1, y: 1) }
+                }
+                .disabled(!merge.canRedo)
+                Button(text["merge.reset"]) { score.resetDraft() }
+                    .disabled(!merge.changed)
+            }
+            .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
+            HStack(spacing: CGFloat.ds("s-2")) {
+                Spacer()
+                Button(text["merge.cancel"]) { score.cancelDraft() }
+                    .buttonStyle(DSButtonStyle(kind: .quiet))
+                Button { score.applyMerge() } label: {
+                    Label { Text(text[score.versions.shown?.mergedAt != nil ? "merge.applyAgain" : "merge.apply"]) } icon: { Icon(name: "check", size: CGFloat.ds("icon-s")) }
+                }
+                .buttonStyle(DSButtonStyle(kind: .primary))
+            }
+            Toggle(text["merge.direct"], isOn: Binding(get: { settings["merge.direct"] == "on" }, set: { settings.set("merge.direct", $0 ? "on" : "off") }))
+                .dsType(.caption)
+                .foregroundStyle(Color.ds("ink-2"))
+                .tint(Color.ds("accent"))
+        }
+        .padding(CGFloat.ds("s-3"))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("plum"), style: StrokeStyle(lineWidth: 1.5, dash: [5, 3])))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(text["merge.draft"])
+    }
+}
+
+/// ‹ Bar N · +3 · added notes · 82 % sure ›
+struct MergeStep: View {
+    @ObservedObject var score: ScoreController
+    let text: UIText
+    let current: MergeInfo.Bar
+
+    var body: some View {
+        HStack(spacing: CGFloat.ds("s-2")) {
+            Button { score.stepMerge(-1) } label: { Icon(name: "back").frame(width: 32, height: 32) }
+                .buttonStyle(BarActionStyle())
+                .accessibilityLabel(text["merge.previous"])
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: CGFloat.ds("s-2")) {
+                    Text(text.format("check.bar", String(current.bar)))
+                        .font(DesignTokens.font(weight: 600, size: 15))
+                        .foregroundStyle(Color.ds("ink"))
+                    Tag(text: current.marker, kind: .saved)
+                }
+                Text(text.format("merge.confidence", String(current.confidence)))
+                    .dsType(.caption)
+                    .foregroundStyle(Color.ds("ink-2"))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Button { score.stepMerge(1) } label: { Icon(name: "fwd").frame(width: 32, height: 32) }
+                .buttonStyle(BarActionStyle())
+                .accessibilityLabel(text["merge.next"])
+        }
+    }
+}
+
+/// Take for: Bar | Phrase.
+struct MergeScope: View {
+    @ObservedObject var score: ScoreController
+    let text: UIText
+
+    var body: some View {
+        SegmentedChoice(options: [(false, text["merge.scopeBar"]), (true, text["merge.scopePhrase"])], chosen: score.mergePhrase, label: text["merge.scope"]) {
+            score.mergePhrase = $0
+        }
+    }
+}
+
+/// A choice in its view's colour: Take mine graphite, Take from the version plum.
+struct MergeChoiceButton: View {
+    let text: String
+    let view: String
+    let on: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: CGFloat.ds("s-2")) {
+                RoundedRectangle(cornerRadius: 2).fill(mergeViewColor(view)).frame(width: 10, height: 10)
+                Text(text)
+            }
+        }
+        .buttonStyle(DSButtonStyle(kind: .secondary))
+        .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-s")).strokeBorder(on ? mergeViewColor(view) : Color.clear, lineWidth: 2))
+        .accessibilityAddTraits(on ? .isSelected : [])
+    }
+}
+
+/// A change in the list: its bar, what differs and its state; a tap goes to it.
+struct MergeRow: View {
+    @ObservedObject var score: ScoreController
+    let text: UIText
+    let bar: MergeInfo.Bar
+    let detail: String
+
+    var body: some View {
+        let on = score.mergeAt == bar.bar
+        Button { score.goToMergeBar(bar.bar) } label: {
+            HStack(spacing: CGFloat.ds("s-2")) {
+                Text(text.format("check.bar", String(bar.bar)))
+                    .font(DesignTokens.font(weight: 600, size: 14))
+                    .foregroundStyle(Color.ds("ink"))
+                Text(detail)
+                    .dsType(.caption)
+                    .foregroundStyle(Color.ds("ink-2"))
+                    .lineLimit(1)
+                Spacer(minLength: CGFloat.ds("s-2"))
+                Text(mergeChoiceName(bar.choice, text))
+                    .font(DesignTokens.font(weight: 600, size: 12, relativeTo: .caption))
+                    .foregroundStyle(stateColor)
+            }
+            .padding(.horizontal, CGFloat.ds("s-2"))
+            .padding(.vertical, CGFloat.ds("s-1"))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(on ? Color.ds("accent-tint") : Color.clear, in: RoundedRectangle(cornerRadius: CGFloat.ds("r-s")))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(on ? .isSelected : [])
+    }
+
+    private var stateColor: Color {
+        switch bar.choice {
+        case "version": Color.ds("plum")
+        case "own": Color.ds("amber")
+        case "mine": Color.ds("ink")
+        default: Color.ds("ink-3")
+        }
+    }
+}
+
+/// Listen: Mine · Version · Result · In turn, each in its view's colour.
+struct MergeListen: View {
+    @ObservedObject var score: ScoreController
+    let text: UIText
+
+    var body: some View {
+        HStack(spacing: CGFloat.ds("s-1")) {
+            Text(text["merge.listen"]).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
+            ForEach(["mine", "version", "result", "alternate"], id: \.self) { view in
+                Button { score.hearMerge(view) } label: {
+                    HStack(spacing: 4) {
+                        if view != "alternate" { Circle().fill(mergeViewColor(view)).frame(width: 8, height: 8) }
+                        Text(text["merge.view.\(view)"])
+                    }
+                }
+                .buttonStyle(DSButtonStyle(kind: score.mergeHearing == view ? .secondary : .quiet, compact: true))
+                .accessibilityLabel(text.format("merge.hearView", text["merge.view.\(view)"]))
+            }
+        }
+    }
+}
+
+/// While a draft is open, what the score shows: "Show: Mine · Version · Result", floating over the score.
+struct MergeShowSwitch: View {
+    @ObservedObject var score: ScoreController
+    let text: UIText
+
+    var body: some View {
+        HStack(spacing: CGFloat.ds("s-2")) {
+            Text(text["merge.show"]).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
+            ForEach(["mine", "version", "result"], id: \.self) { view in
+                let on = score.mergeShow == view
+                Button { score.showMergeView(view) } label: {
+                    HStack(spacing: 4) {
+                        Circle().fill(mergeViewColor(view)).frame(width: 8, height: 8)
+                        Text(text["merge.view.\(view)"])
+                            .font(DesignTokens.font(weight: on ? 600 : 500, size: 13))
+                            .foregroundStyle(on ? Color.ds("ink") : Color.ds("ink-2"))
+                    }
+                    .padding(.horizontal, CGFloat.ds("s-2"))
+                    .frame(height: 32)
+                    .background(on ? Color.ds("surface") : Color.clear, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(on ? .isSelected : [])
+            }
+            Button { score.hearMerge(score.mergeShow) } label: {
+                Icon(name: "play", size: CGFloat.ds("icon-s")).frame(width: 32, height: 32)
+            }
+            .buttonStyle(BarActionStyle())
+            .accessibilityLabel(text.format("merge.hearView", text["merge.view.\(score.mergeShow)"]))
+        }
+        .padding(.horizontal, CGFloat.ds("s-3"))
+        .padding(.vertical, CGFloat.ds("s-1"))
+        .background(Color.ds("surface-2"), in: Capsule())
+        .overlay(Capsule().strokeBorder(Color.ds("hairline")))
+        .dsShadow("shadow-menu")
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(text["merge.show"])
+    }
+}
+
+/// What was just done with a version, with Undo: a merge applied or undone, a version removed.
+struct MergeToastView: View {
+    @ObservedObject var score: ScoreController
+    let text: UIText
+    let toast: ScoreController.MergeToast
+
+    var body: some View {
+        HStack(spacing: CGFloat.ds("s-3")) {
+            Text(toast.text)
+                .dsType(.label)
+                .foregroundStyle(Color.ds("ink"))
+            if toast.undo != nil {
+                Button(text["merge.toastUndo"]) { score.undoToast() }
+                    .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
+            }
+            Button { score.closeToast() } label: { Icon(name: "close", size: CGFloat.ds("icon-s")).frame(width: 28, height: 28) }
+                .buttonStyle(BarActionStyle())
+                .accessibilityLabel(text["bar.close"])
+        }
+        .padding(.leading, CGFloat.ds("s-4"))
+        .padding(.trailing, CGFloat.ds("s-2"))
+        .padding(.vertical, CGFloat.ds("s-1"))
+        .background(Color.ds("surface"), in: Capsule())
+        .overlay(Capsule().strokeBorder(Color.ds("hairline")))
+        .dsShadow("shadow-menu")
+        .accessibilityElement(children: .contain)
+    }
+}
+
+/// A marker tapped on the score (testing item 33): how the bar differs, heard as the version plays it, and the way into
+/// the draft; nothing is taken from the score here.
+struct MarkerPopover: View {
+    @ObservedObject var score: ScoreController
+    let text: UIText
+    let pick: ScoreController.MarkerPick
+
+    var body: some View {
+        let bar = score.versions.bars.first { $0.bar == pick.bar }
+        VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+            Text(text.format("merge.markerTitle", String(pick.bar), score.versions.shown?.name ?? "")).overline()
+            if let bar {
+                Text(bar.marker).dsType(.label).foregroundStyle(Color.ds("ink"))
+            }
+            HStack(spacing: CGFloat.ds("s-2")) {
+                Button { score.hearMarkerVersion() } label: {
+                    Label { Text(text["merge.asInVersion"]) } icon: { Icon(name: "play", size: CGFloat.ds("icon-s")) }
+                }
+                .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
+                Button(text["merge.openDraft"]) { score.openDraft(at: pick.bar) }
+                    .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
+            }
+        }
+        .padding(CGFloat.ds("s-3"))
+        .frame(width: 300, alignment: .leading)
+        .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
+        .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
+        .dsShadow("shadow-menu")
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(text.format("merge.markerTitle", String(pick.bar), score.versions.shown?.name ?? ""))
     }
 }
