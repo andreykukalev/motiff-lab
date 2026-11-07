@@ -27,11 +27,16 @@
     </button>
     @* The colour scheme in one tap: the next grouping that tells notes apart; the overflow lists all three. *@
     <button class="chip" title="@Text["roll.colourHint"]" @onclick="NextColourAsync" disabled="@(AvailableModes.Count() < 2)">@Text[$"roll.colour.{_colourBy}"]</button>
+    @if (Expanded.HasDelegate)
+    {
+        @* Into phrase focus with the phrase as a roll (testing item 12). *@
+        <button class="chip" title="@Text["roll.expandHint"]" @onclick="() => Expanded.InvokeAsync()"><Icon Name="search" /> @Text["roll.expand"]</button>
+    }
     <button class="chip icon @(_menuOpen ? "on" : null)" aria-expanded="@(_menuOpen ? "true" : "false")" aria-label="@Text["roll.more"]" title="@Text["roll.more"]"
             @onclick="() => _menuOpen = !_menuOpen"><Icon Name="more" /></button>
     @if (_menuOpen)
     {
-        @* The roll's own small overflow (0018 section 4): colour by track, voice or hand, and the zoom. *@
+        @* The roll's own small overflow (0018 section 4): colour by track, voice or hand. The zoom floats over the notes (testing item 13). *@
         <div class="roll-menu" role="group" aria-label="@Text["roll.more"]">
             <p class="overline">@Text["roll.colourBy"]</p>
             <div class="roll-tools">
@@ -47,11 +52,6 @@
             {
                 <p class="caption">@string.Join(" ", s_colourModes.Where(mode => LaneCount(mode) < 2).Select(OneLaneText))</p>
             }
-            <p class="overline">@Text["roll.zoom"]</p>
-            <div class="roll-tools">
-                <button class="chip icon" @onclick="() => ZoomAsync(1 / ZoomStep)" aria-label="@Text["roll.zoomOut"]" title="@Text["roll.zoomOut"]">−</button>
-                <button class="chip icon" @onclick="() => ZoomAsync(ZoomStep)" aria-label="@Text["roll.zoomIn"]" title="@Text["roll.zoomIn"]">+</button>
-            </div>
         </div>
     }
 </div>
@@ -59,8 +59,6 @@
 <p class="meta" aria-live="polite">@SelectionText</p>
 
 @code {
-    private const double ZoomStep = 1.5;
-
     private ElementReference _host;
     private IJSObjectReference? _module;
     private IJSObjectReference? _view;
@@ -180,6 +178,16 @@
     [Parameter]
     public EventCallback<int> CheckPicked { get; set; }
 
+    /// <summary>Shows Expand in the head, which opens the phrase in focus as a roll (testing item 12); none without it.</summary>
+    [Parameter]
+    public EventCallback Expanded { get; set; }
+
+    /// <summary>Whether every selection is laid across the roll as Fit does: the roll in phrase focus (testing item 12).</summary>
+    [Parameter]
+    public bool FitsSelection { get; set; }
+
+    private bool? _shownFits;
+
     /// <summary>A note pointed at elsewhere, such as on the score: the roll selects the note at that tick and key and shows it. A new value points again.</summary>
     [Parameter]
     public NotePoint? Point { get; set; }
@@ -234,6 +242,7 @@
             // Start with the player's grouping (hands unless they chose another) when it tells notes apart, else hands, tracks, voices.
             _colourBy = AvailableModes.OrderBy(mode => mode == _preferredColour ? 0 : Array.IndexOf(s_colourModes, mode) + 1).FirstOrDefault() ?? _preferredColour;
             await _view.InvokeVoidAsync("load", PianoRollData.Create(Notes, Score));
+            _shownFits = null;
             await _view.InvokeVoidAsync("setColourBy", _colourBy);
             await _view.InvokeVoidAsync("follow", Player.Engine);
             await ShowMotifAsync(_view);
@@ -242,7 +251,7 @@
         }
         else
         {
-            if (!ReferenceEquals(Motif, _shownMotif) || MotifPlaysAlone != _shownAlone)
+            if (!ReferenceEquals(Motif, _shownMotif) || MotifPlaysAlone != _shownAlone || FitsSelection != _shownFits)
             {
                 await ShowMotifAsync(_view);
             }
@@ -323,9 +332,9 @@
         {
             _shownKeys = Keys;
             _shownNaming = (naming, Text.Language);
-            RollNames names = PianoRollData.Names(Notes!, Keys ?? [], naming);
+            RollNames names = PianoRollData.Names(Notes!, Keys ?? [], naming, MotiffLab.MusicCore.Words.For(Text.Language));
             _spelled = Notes!.Select((note, index) => (note.Id, Name: names.Notes[index])).ToDictionary(pair => pair.Id, pair => pair.Name, StringComparer.Ordinal);
-            await view.InvokeVoidAsync("setNames", names.Notes, names.KeyTicks, names.Rows);
+            await view.InvokeVoidAsync("setNames", names.Notes, names.KeyTicks, names.Rows, names.Short, names.ShortRows, names.Octaves);
         }
 
         if (!ReferenceEquals(Checks, _shownChecks))
@@ -354,8 +363,8 @@
     /// <summary>The words the script draws, in the player's language (RollLabels in Scripts/roll/roll-model.ts).</summary>
     private Dictionary<string, string> Labels() => new[]
     {
-        "track", "trackVoice", "noVoice", "rightHand", "leftHand", "noHand", "rightLetter", "leftLetter", "rollAria", "scrollAria", "keysAria",
-        "legendHint", "legendVariation", "legendHighlight", "legendInferred", "legendHands", "legendHandsInferred", "legendCheck",
+        "track", "trackVoice", "noVoice", "rightHand", "leftHand", "noHand", "rollAria", "scrollAria", "keysAria",
+        "legendVariation", "legendHighlight", "legendInferred", "legendCheck", "zoomGroup", "zoomIn", "zoomOut", "zoomLevel", "fit", "fitHint",
     }.ToDictionary(name => name, name => Text[$"roll.js.{name}"]);
 
     /// <summary>Why a grouping is off for this piece, so the control never looks like it does nothing.</summary>
@@ -368,6 +377,12 @@
 
     private async Task ShowMotifAsync(IJSObjectReference view)
     {
+        if (FitsSelection != _shownFits)
+        {
+            _shownFits = FitsSelection;
+            await view.InvokeVoidAsync("setFitsSelection", FitsSelection);
+        }
+
         _shownMotif = Motif;
         _shownAlone = MotifPlaysAlone;
         if (Motif is { } motif)
@@ -434,14 +449,6 @@
         if (_view is not null)
         {
             await _view.InvokeVoidAsync("setNoteNames", _noteNames);
-        }
-    }
-
-    private async Task ZoomAsync(double factor)
-    {
-        if (_view is not null)
-        {
-            await _view.InvokeVoidAsync("zoomBy", factor);
         }
     }
 

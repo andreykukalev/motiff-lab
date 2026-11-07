@@ -217,6 +217,8 @@ final class PencilTests: XCTestCase {
         XCTAssertEqual(shown["colourBy"] as? String, "hand", "Für Elise has two hands")
         let canvases = try await view.evaluateJavaScript("document.querySelectorAll('#roll > canvas.roll-notes, #roll > canvas.roll-keys').length") as? NSNumber
         XCTAssertEqual(canvases?.intValue, 2, "the notes and the keyboard")
+        let zoom = try await view.evaluateJavaScript("document.querySelector('#roll > .roll-zoom')?.textContent ?? ''") as? String
+        XCTAssertEqual(zoom?.contains("100 %"), true, "the floating zoom over the notes")
         let colour = try await view.callAsyncJavaScript("return roll.nextColour()", contentWorld: .page) as? String
         XCTAssertNotNil(colour)
 

@@ -15,9 +15,13 @@ import {
     fill,
     isBlackKey,
     pitchName,
-    labelPlace,
+    pitchClassName,
     keyIndexAt,
-    LabelLines,
+    nameFits,
+    rowFor,
+    rowWindow,
+    fitZoom,
+    fitRow,
 } from "../../src/MotiffLab.Web/wwwroot/js/roll/roll-model.js";
 
 /** Notes as [id, onset, duration, pitch, track, voice, hand, flags], in any order. */
@@ -171,11 +175,39 @@ test("pitch names and black keys follow music-core's spelling, middle C as C4", 
     assert.deepEqual([60, 61, 62, 63, 64, 65, 66].map(isBlackKey), [false, true, false, true, false, false, true]);
 });
 
-test("a note's name goes inside it when it fits, else above it when the rows leave room, else only when chosen", () => {
-    assert.equal(labelPlace(40, 20, 12), "inside");
-    assert.equal(labelPlace(20, 20, 12), "above");
-    assert.equal(labelPlace(40, 20, 8), "above");
-    assert.equal(labelPlace(40, 20, 6), "none");
+test("a note's name goes inside it only where it fits, without its octave (testing items 11 to 13)", () => {
+    assert.equal(nameFits(40, 20), true);
+    assert.equal(nameFits(25, 20), false);
+    assert.equal(pitchClassName(61), "C♯");
+    assert.equal(pitchClassName(-1), "B");
+});
+
+test("rows are 22 px at 100 %, zoomed with the time between 14 and 40 px", () => {
+    assert.equal(rowFor(1), 22);
+    assert.equal(rowFor(1.25), 28);
+    assert.equal(rowFor(0.1), 14);
+    assert.equal(rowFor(5), 40);
+});
+
+test("the rows shown widen round the notes to fill the height, or are a window from the top until scrolled", () => {
+    // Five rows of notes in ten rows of room: widened round them.
+    assert.deepEqual(rowWindow(60, 64, 10, null), { low: 58, high: 67, above: false, below: false });
+    // Near the top of the keyboard the window stays on it.
+    assert.deepEqual(rowWindow(124, 127, 10, null), { low: 118, high: 127, above: false, below: false });
+    // Twenty rows in ten: from the top, and scrolled down.
+    assert.deepEqual(rowWindow(50, 69, 10, null), { low: 60, high: 69, above: false, below: true });
+    assert.deepEqual(rowWindow(50, 69, 10, 62), { low: 53, high: 62, above: true, below: true });
+    assert.deepEqual(rowWindow(50, 69, 10, 0), { low: 50, high: 59, above: true, below: false });
+});
+
+test("Fit lays a stretch across the width and its rows in the height, within the limits", () => {
+    // Four bars of 4/4 (16 quarters) across 800 px: 50 px a quarter.
+    assert.equal(fitZoom(16 * 480, 800, 6, 480), 50);
+    assert.equal(fitZoom(480, 10000, 6, 480), 480);
+    assert.equal(fitZoom(1000 * 480, 100, 6, 480), 6);
+    assert.equal(fitRow(14, 360), 25);
+    assert.equal(fitRow(60, 360), 14);
+    assert.equal(fitRow(2, 360), 40);
 });
 
 test("the rows are named for the key signature in force at a tick, the first before any", () => {
@@ -184,12 +216,4 @@ test("the rows are named for the key signature in force at a tick, the first bef
     assert.equal(keyIndexAt([0, 1920], 1920), 1);
     assert.equal(keyIndexAt([960], 0), 0);
     assert.equal(keyIndexAt([], 100), 0);
-});
-
-test("names above notes never run into each other on a line", () => {
-    const lines = new LabelLines();
-    assert.equal(lines.take(61, 10, 30), true);
-    assert.equal(lines.take(61, 25, 45), false);
-    assert.equal(lines.take(62, 25, 45), true);
-    assert.equal(lines.take(61, 30, 50), true);
 });

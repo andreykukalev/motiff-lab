@@ -59,7 +59,11 @@ public static class PianoRollData
     /// force where it starts, and every row's for each key signature, so the rows read in the key of the place in view.
     /// Before the first key signature, and in a piece without any, notes are spelled for the first one or C major.
     /// </summary>
-    public static RollNames Names(IReadOnlyList<Note> notes, IReadOnlyList<KeyChange> keys, NoteNaming naming)
+    /// <remarks>
+    /// The names inside the notes and on the keys leave the octave out (testing item 13): the roll shows it once, in a band at
+    /// its side, named in words ("octave 4", "первая октава"), one per MIDI octave from −1 to 9.
+    /// </remarks>
+    public static RollNames Names(IReadOnlyList<Note> notes, IReadOnlyList<KeyChange> keys, NoteNaming naming, Words words)
     {
         KeyChange[] ordered = [.. keys.OrderBy(key => key.At)];
         int FifthsAt(Tick at)
@@ -78,12 +82,17 @@ public static class PianoRollData
             return fifths;
         }
 
-        string[] noteNames = [.. notes.Select(note => NoteNames.Name(note.Pitch.MidiNumber, FifthsAt(note.Span.Onset), naming))];
+        string[] Spell(bool octave) => [.. notes.Select(note => NoteNames.Name(note.Pitch.MidiNumber, FifthsAt(note.Span.Onset), naming, octave))];
         KeyChange[] rows = ordered.Length == 0 ? [new KeyChange(Tick.Zero, 0)] : ordered;
+        string[][] Rows(bool octave) =>
+            [.. rows.Select(key => Enumerable.Range(0, Pitch.MaxMidiNumber + 1).Select(pitch => NoteNames.Name(pitch, key.Fifths, naming, octave)).ToArray())];
         return new RollNames(
-            noteNames,
+            Spell(octave: true),
             [.. rows.Select(key => key.At.Value)],
-            [.. rows.Select(key => Enumerable.Range(0, Pitch.MaxMidiNumber + 1).Select(pitch => NoteNames.Name(pitch, key.Fifths, naming)).ToArray())]);
+            Rows(octave: true),
+            Spell(octave: false),
+            Rows(octave: false),
+            [.. Enumerable.Range(0, (Pitch.MaxMidiNumber / 12) + 1).Select(octave => NoteNames.OctaveOf(octave * 12, words))]);
     }
 
     /// <summary>Imported and player-confirmed values are facts; detected and inferred ones are marked (decision record 0004).</summary>
@@ -93,5 +102,8 @@ public static class PianoRollData
 
 public sealed record RollPayload(string[] Ids, long[] Notes, long[] Bars, long End);
 
-/// <summary>The names the roll writes: one per note, and per key signature (from its tick) one per row, MIDI 0 to 127.</summary>
-public sealed record RollNames(string[] Notes, long[] KeyTicks, string[][] Rows);
+/// <summary>
+/// The names the roll writes: one per note, and per key signature (from its tick) one per row, MIDI 0 to 127; the same without
+/// the octave (<paramref name="Short"/>, <paramref name="ShortRows"/>), and each octave's name in words, MIDI octave −1 first.
+/// </summary>
+public sealed record RollNames(string[] Notes, long[] KeyTicks, string[][] Rows, string[] Short, string[][] ShortRows, string[] Octaves);

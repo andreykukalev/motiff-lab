@@ -1076,6 +1076,15 @@ internal static partial class Answer
         }
 
         json.WriteEndArray();
+        Texts(json, "short", names.Short);
+        json.WriteStartArray("shortRows");
+        foreach (string[] row in names.ShortRows)
+        {
+            Texts(json, null, row);
+        }
+
+        json.WriteEndArray();
+        Texts(json, "octaves", names.Octaves);
         json.WriteEndObject();
     }
 

@@ -5,7 +5,7 @@ import { openFurElise } from "./steps.mjs";
 
 const drawer = page => page.locator(".roll-drawer");
 
-test("the roll's head: Note names, the colour by hand, and the overflow with Colour by and Zoom", async ({ page }) => {
+test("the roll's head: Note names, the colour by hand, the overflow with Colour by, and the floating zoom", async ({ page }) => {
     const errors = await openFurElise(page);
     await page.locator(".bar").getByRole("button", { name: "Piano roll" }).click();
     const head = page.locator(".roll-head");
@@ -22,7 +22,50 @@ test("the roll's head: Note names, the colour by hand, and the overflow with Col
     const more = head.getByRole("button", { name: "Piano roll options" });
     await more.click();
     await expect(more).toHaveAttribute("aria-expanded", "true");
-    await expect(page.locator(".roll-menu").getByRole("button", { name: "Zoom in" })).toBeVisible();
+    await expect(page.locator(".roll-menu")).toContainText("Colour by");
+    await more.click();
+
+    // The zoom floats over the notes (testing item 13): − 100 % + and Fit.
+    const zoom = page.locator(".roll").getByRole("group", { name: "Zoom" });
+    await expect(zoom).toContainText("100 %");
+    await zoom.getByRole("button", { name: "Zoom in" }).click();
+    await expect(zoom).toContainText("125 %");
+    await zoom.getByRole("button", { name: "Zoom out" }).click();
+    await zoom.getByRole("button", { name: "Zoom out" }).click();
+    await expect(zoom).toContainText("80 %");
+    // Fit lays the phrase in view across the roll: the zoom changes from where it was.
+    await zoom.getByRole("button", { name: "Fit" }).click();
+    await expect(zoom).not.toContainText("80 %");
+    expect(errors).toEqual([]);
+});
+
+test("Expand takes the phrase into focus as a roll; Notes | Piano roll switches the card, and Back brings the drawer back", async ({ page }) => {
+    const errors = await openFurElise(page);
+    await page.locator(".bar").getByRole("button", { name: "Piano roll" }).click();
+    await page.locator(".roll-head").getByRole("button", { name: "Expand" }).click();
+
+    // Nothing was selected: the phrase where the playhead is, the first.
+    const card = page.locator(".focus-card");
+    await expect(card.locator(".focus-roll canvas.roll-notes")).toBeVisible();
+    await expect(page.locator(".bar .crumb")).toContainText("phrase 1 of");
+    await expect(drawer(page)).toHaveCount(0);
+    const showAs = page.locator(".bar").getByRole("radiogroup", { name: "Show the phrase as" });
+    await expect(showAs.getByRole("radio", { name: "Piano roll" })).toHaveAttribute("aria-checked", "true");
+
+    // Next walks the phrases with the roll fitted to each.
+    await card.getByRole("button", { name: "Next phrase" }).click();
+    await expect(page.locator(".bar .crumb")).toContainText("phrase 2 of");
+    await expect(card.locator(".focus-roll canvas.roll-notes")).toBeVisible();
+
+    await showAs.getByRole("radio", { name: "Notes" }).click();
+    await expect(card.locator(".phrase-card-score")).toBeVisible();
+    await expect(card.locator(".focus-roll")).toHaveCount(0);
+    await showAs.getByRole("radio", { name: "Piano roll" }).click();
+    await expect(card.locator(".focus-roll")).toBeVisible();
+
+    await page.locator(".bar").getByRole("button", { name: "Back to page" }).click();
+    await expect(card).toHaveCount(0);
+    await expect(drawer(page)).toBeVisible();
     expect(errors).toEqual([]);
 });
 

@@ -172,8 +172,8 @@ final class RollController: NSObject, ObservableObject {
     /// The roll's own words, from the web app's string files (`roll.js.*`), as the web app passes them.
     static func labels(_ text: UIText) -> [String: String] {
         let names = [
-            "track", "trackVoice", "noVoice", "rightHand", "leftHand", "noHand", "rightLetter", "leftLetter", "rollAria", "scrollAria", "keysAria",
-            "legendHint", "legendVariation", "legendHighlight", "legendInferred", "legendHands", "legendHandsInferred", "legendCheck",
+            "track", "trackVoice", "noVoice", "rightHand", "leftHand", "noHand", "rollAria", "scrollAria", "keysAria",
+            "legendVariation", "legendHighlight", "legendInferred", "legendCheck", "zoomGroup", "zoomIn", "zoomOut", "zoomLevel", "fit", "fitHint",
         ]
         return Dictionary(uniqueKeysWithValues: names.map { ($0, text["roll.js.\($0)"]) })
     }

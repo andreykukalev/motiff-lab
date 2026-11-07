@@ -1574,6 +1574,70 @@ h1, h2, .app-title strong {
     gap: 0.4rem;
 }
 
+/* The roll's floating zoom (testing item 13): − the percentage + and Fit, over the bottom right corner of the notes, placed
+   by the script; a small control, not a panel (0018). */
+.roll {
+    position: relative;
+}
+
+.roll .roll-notes {
+    touch-action: none;
+}
+
+.roll .roll-zoom {
+    position: absolute;
+    z-index: 2;
+    right: var(--s-2);
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    border-radius: var(--r-pill);
+    border: 1px solid var(--hairline);
+    background: var(--surface-2);
+    box-shadow: var(--shadow-pill);
+    font: var(--t-label);
+}
+
+.roll .roll-zoom-button {
+    min-width: 32px;
+    height: 32px;
+    min-height: 0;
+    padding: 0 var(--s-2);
+    border: 0;
+    border-radius: var(--r-pill);
+    background: transparent;
+    color: var(--ink);
+    font: var(--t-label);
+    cursor: pointer;
+}
+
+.roll .roll-zoom-button:hover:not(:disabled) {
+    background: var(--hairline);
+}
+
+.roll .roll-zoom-button:disabled {
+    color: var(--ink-3);
+    cursor: default;
+}
+
+.roll .roll-zoom-button:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.roll .roll-zoom-level {
+    min-width: 3.2em;
+    text-align: center;
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+}
+
+.roll .roll-fit {
+    border-left: 1px solid var(--hairline);
+    border-radius: 0 var(--r-pill) var(--r-pill) 0;
+}
+
 /* Import screen (Pages/Import.razor, N2): a drop zone over the native file input, then the report. */
 .import .dropzone {
     position: relative;
@@ -2848,13 +2912,13 @@ body:has(.workspace) .site-footer {
     background: var(--hairline-strong);
 }
 
-.workspace .drawer .roll {
+.workspace :is(.drawer, .focus-roll) .roll {
     flex: 1;
     min-height: 0;
 }
 
 /* The roll's head (design/kit screens s4): its overline, Note names, the colour scheme and the roll's own overflow. */
-.workspace .drawer .roll-head {
+.workspace :is(.drawer, .focus-roll) .roll-head {
     position: relative;
     flex: none;
     display: flex;
@@ -2863,15 +2927,15 @@ body:has(.workspace) .site-footer {
     margin-bottom: var(--s-2);
 }
 
-.workspace .drawer .roll-head .overline {
+.workspace :is(.drawer, .focus-roll) .roll-head .overline {
     margin: 0;
 }
 
-.workspace .drawer .roll-head .sp {
+.workspace :is(.drawer, .focus-roll) .roll-head .sp {
     flex: 1;
 }
 
-.lab.workspace :is(.drawer, .sheet) .chip {
+.lab.workspace :is(.drawer, .sheet, .focus-roll) .chip {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -2886,34 +2950,34 @@ body:has(.workspace) .site-footer {
     cursor: pointer;
 }
 
-.lab.workspace :is(.drawer, .sheet) .chip.icon {
+.lab.workspace :is(.drawer, .sheet, .focus-roll) .chip.icon {
     width: 32px;
     padding: 0;
     justify-content: center;
 }
 
-.lab.workspace :is(.drawer, .sheet) .chip.on {
+.lab.workspace :is(.drawer, .sheet, .focus-roll) .chip.on {
     background: var(--accent-tint);
     border-color: var(--accent);
 }
 
-.lab.workspace :is(.drawer, .sheet) .chip:disabled {
+.lab.workspace :is(.drawer, .sheet, .focus-roll) .chip:disabled {
     opacity: 0.5;
     cursor: default;
 }
 
-.workspace .drawer .chip .dot {
+.workspace :is(.drawer, .focus-roll) .chip .dot {
     width: 6px;
     height: 6px;
     border-radius: 50%;
     background: var(--ink-3);
 }
 
-.workspace .drawer .chip.on .dot {
+.workspace :is(.drawer, .focus-roll) .chip.on .dot {
     background: var(--ink);
 }
 
-.workspace .drawer .roll-menu {
+.workspace :is(.drawer, .focus-roll) .roll-menu {
     position: absolute;
     z-index: 3;
     top: calc(100% + var(--s-1));
@@ -2929,11 +2993,11 @@ body:has(.workspace) .site-footer {
     box-shadow: var(--shadow-menu);
 }
 
-.workspace .drawer .roll-menu .overline, .workspace .drawer .roll-menu .caption {
+.workspace :is(.drawer, .focus-roll) .roll-menu :is(.overline, .caption) {
     margin: 0;
 }
 
-.workspace .drawer .roll-tools {
+.workspace :is(.drawer, .focus-roll) .roll-tools {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -2942,7 +3006,7 @@ body:has(.workspace) .site-footer {
 }
 
 /* The roll's line about the selection is for screen readers here: the score shows the selection. */
-.workspace .drawer > p.meta {
+.workspace :is(.drawer, .focus-roll) > p.meta {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -3741,6 +3805,23 @@ body:has(.workspace) .site-footer {
     font: var(--t-overline);
     letter-spacing: 0.06em;
     text-transform: uppercase;
+}
+
+/* The phrase as a roll in the card (testing item 12): the card takes the stage's height and the roll fills it, between
+   previous and next. */
+.workspace .focus-card:has(.focus-roll) {
+    flex: 1;
+}
+
+.workspace .focus-card .focus-roll {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    padding: var(--s-3) calc(var(--h-touch) + var(--s-2));
+    background: var(--surface);
+    color: var(--ink);
+    border-radius: inherit;
 }
 
 /* Previous and next: 44 px round buttons inside the card's edges. */

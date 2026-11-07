@@ -81,18 +81,50 @@ export function pitchName(pitch: number): string {
     return `${NAMES[((pitch % 12) + 12) % 12]}${Math.floor(pitch / 12) - 1}`;
 }
 
-/** Where a note's name goes (0018 section 4): inside the note when it fits, else above it when the rows leave room, else only when the note is chosen. */
-export type LabelPlace = "inside" | "above" | "none";
+/** The pitch class alone, "C♯", for a note's name inside it before music-core sent the spelled names. */
+export function pitchClassName(pitch: number): string {
+    return NAMES[((pitch % 12) + 12) % 12];
+}
 
-/** The smallest row that holds a name inside its note, and the smallest that leaves room for one above. */
-export const ROW_FOR_INSIDE = 10;
-export const ROW_FOR_ABOVE = 7;
+/**
+ * The rows (testing items 11 and 13): 22 px at 100 %, tall enough for a name inside the note, scaled with the zoom between
+ * 14 and 40 px.
+ */
+export const ROW_AT_100 = 22;
+export const MIN_ROW = 14;
+export const MAX_ROW = 40;
 
-export function labelPlace(noteWidth: number, textWidth: number, row: number): LabelPlace {
-    if (row >= ROW_FOR_INSIDE && noteWidth >= textWidth + 5) {
-        return "inside";
+export function rowFor(scale: number): number {
+    return Math.min(MAX_ROW, Math.max(MIN_ROW, Math.round(ROW_AT_100 * scale)));
+}
+
+/** A note's name goes inside it only where it fits (testing item 12); a narrower note shows its name when chosen. */
+export function nameFits(noteWidth: number, textWidth: number): boolean {
+    return noteWidth >= textWidth + 6;
+}
+
+/**
+ * The rows shown, from the notes' lowest to highest row: all of them, widened round the notes to fill the height when they
+ * take fewer rows than fit, or a window of as many as fit from the top row given (the top of the notes until scrolled).
+ */
+export function rowWindow(low: number, high: number, visible: number, top: number | null): { low: number; high: number; above: boolean; below: boolean } {
+    const count = high - low + 1;
+    if (count <= visible) {
+        const first = Math.max(0, Math.min(127 - visible + 1, low - Math.floor((visible - count) / 2)));
+        return { low: first, high: Math.min(127, first + visible - 1), above: false, below: false };
     }
-    return row >= ROW_FOR_ABOVE ? "above" : "none";
+    const shown = Math.min(high, Math.max(low + visible - 1, top ?? high));
+    return { low: shown - visible + 1, high: shown, above: shown < high, below: shown - visible + 1 > low };
+}
+
+/** "Fit" (testing item 13): the horizontal zoom, in pixels per quarter, that lays a stretch of ticks across a width. */
+export function fitZoom(ticks: number, width: number, min: number, max: number): number {
+    return Math.min(max, Math.max(min, (width * 480) / Math.max(1, ticks)));
+}
+
+/** "Fit": the row height that shows a number of rows in a height, within the rows' limits. */
+export function fitRow(rows: number, height: number): number {
+    return Math.min(MAX_ROW, Math.max(MIN_ROW, Math.floor(height / Math.max(1, rows))));
 }
 
 /** Which key signature is in force at a tick: the index of the last that starts at or before it, the first before any. */
@@ -104,25 +136,6 @@ export function keyIndexAt(keyTicks: readonly number[], tick: number): number {
         }
     }
     return index;
-}
-
-/**
- * Names placed above notes, kept from running into each other: each one takes the stretch it is drawn in on its line, and a
- * name that would overlap one already drawn on that line is left out (the chosen note still shows its own).
- */
-export class LabelLines {
-    private readonly lines = new Map<number, { left: number; right: number }[]>();
-
-    /** Takes the stretch [left, right) on a line when it is free; false when a name already drawn there overlaps it. */
-    take(line: number, left: number, right: number): boolean {
-        const taken = this.lines.get(line) ?? [];
-        if (taken.some((span) => left < span.right && right > span.left)) {
-            return false;
-        }
-        taken.push({ left, right });
-        this.lines.set(line, taken);
-        return true;
-    }
 }
 
 export function laneKey(note: RollNote, by: ColourBy): number {
@@ -145,18 +158,19 @@ export interface RollLabels {
     rightHand: string;
     leftHand: string;
     noHand: string;
-    rightLetter: string;
-    leftLetter: string;
     rollAria: string;
     scrollAria: string;
     keysAria: string;
-    legendHint: string;
     legendVariation: string;
     legendHighlight: string;
     legendInferred: string;
-    legendHands: string;
-    legendHandsInferred: string;
     legendCheck: string;
+    zoomGroup: string;
+    zoomIn: string;
+    zoomOut: string;
+    zoomLevel: string;
+    fit: string;
+    fitHint: string;
 }
 
 export const ENGLISH_ROLL_LABELS: RollLabels = {
@@ -166,19 +180,20 @@ export const ENGLISH_ROLL_LABELS: RollLabels = {
     rightHand: "Right hand",
     leftHand: "Left hand",
     noHand: "No hand",
-    rightLetter: "R",
-    leftLetter: "L",
     rollAria:
         "Piano roll. Drag anywhere across the roll to select a range, drag an edge of the selection to move it, click a bar number to select that bar, Shift-click a bar number to extend the selection to it. Click a note to hear and select it, Shift-click to add to the selection; click the pitch names or the keyboard to hear a key. Click an empty place or press Escape to clear the selection. Space plays the selection on a loop, or the piece, and pauses. Right and left square brackets select the next or previous bar, with Shift they extend the selection by it. Arrow keys move the note selection, plus and minus zoom.",
     scrollAria: "Scroll the piano roll",
     keysAria: "Keyboard: the keys of the notes being heard are lit and marked with a dot. Click or drag across the keys to play them, also while the piece plays.",
-    legendHint: "Drag across the roll to select · drag its edges to adjust · click an empty place to clear · click a note to hear it, see its name and find it in the score · drag the keys up or down to see other notes",
     legendVariation: "Outlined: the variation, linked to the notes it moved from",
     legendHighlight: "Blue box and underline: the places of the fact chosen on Understand",
-    legendInferred: "Dashed outline: inferred, not in the file",
-    legendHands: "L, R: hand from the file",
-    legendHandsInferred: "L, R: hand from the file · L?, R?: hand inferred",
+    legendInferred: "Dashed outline: inferred, not in the file (the note or its hand)",
     legendCheck: "A bar to check: tap its ?",
+    zoomGroup: "Zoom",
+    zoomIn: "Zoom in",
+    zoomOut: "Zoom out",
+    zoomLevel: "{0} %",
+    fit: "Fit",
+    fitHint: "Fit the selection, or the phrase in view, to the roll",
 };
 
 /** A label with its "{0}", "{1}" filled in. */

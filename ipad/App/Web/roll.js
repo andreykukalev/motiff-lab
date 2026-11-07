@@ -84,7 +84,7 @@ function load({ roll, labels, noteNames, dark, colourBy }) {
     view.setLabels(labels);
     state.payload = { ids: roll.ids, notes: roll.notes, bars: roll.bars, end: roll.end };
     view.load(state.payload);
-    view.setNames(roll.names.notes, roll.names.keyTicks, roll.names.rows);
+    view.setNames(roll.names.notes, roll.names.keyTicks, roll.names.rows, roll.names.short, roll.names.shortRows, roll.names.octaves);
     view.setNoteNames(Boolean(noteNames));
     state.modes = modesOf(state.payload);
     // The colouring the player chose in Settings, when this piece tells its notes apart that way.
