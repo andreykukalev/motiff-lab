@@ -52,14 +52,15 @@ struct Fact: Identifiable, Equatable, Sendable {
 }
 
 /// What music-core understood about the selection (facade `understand`): every fact, in the order the web app lists them,
-/// the one to hear first with why, and the three strongest.
+/// those the stream leads with under Main, and the three strongest.
 struct Understanding: Equatable, Sendable {
-    /// The lenses in music-core's order (FactLens), which is the order the stream groups them in.
-    static let lenses = ["rhythm", "melody", "key", "structure", "character", "harmony"]
+    /// The lenses in the order the stream lists them (the web app's InsightsStream, testing item 14): the harmony and the
+    /// character, which holds the texture, first, as Main leads with them; then the structure, the line, the rhythm, the key.
+    static let lenses = ["harmony", "character", "structure", "melody", "rhythm", "key"]
 
     var facts: [Fact]
-    var keyObservation: String?
-    var keyReason: String?
+    /// The fact ids under Main (`FactRanking.Main`): the harmonic motion, the texture, the strongest of the rest.
+    var main: [String]
     var strongest: [String]
     /// Every fact id in the order the stream lists a lens (`FactRanking.InStream`): those naming places first,
     /// interpretations last.
@@ -72,27 +73,26 @@ struct Understanding: Equatable, Sendable {
         let structure = object["structure"] as? [String: Any]
         let harmony = object["harmony"] as? [String: Any]
         facts = read(motif?["facts"]) + read(structure?["facts"]) + read(object["sentence"]) + read(object["character"]) + read(harmony?["facts"])
-        let key = object["keyObservation"] as? [String: Any]
-        keyObservation = key?["id"] as? String
-        keyReason = key?["reason"] as? String
+        main = object["main"] as? [String] ?? []
         strongest = object["strongest"] as? [String] ?? []
         inStream = object["inStream"] as? [String] ?? []
     }
 
-    /// The lenses that have facts, in music-core's order.
+    /// The lenses that have facts, in the stream's order.
     var lensesShown: [String] {
         Self.lenses.filter { lens in facts.contains { $0.lens == lens } }
     }
 
-    var key: Fact? {
-        keyObservation.flatMap { id in facts.first { $0.id == id } }
+    /// The facts under Main, in music-core's order.
+    var mainFacts: [Fact] {
+        main.compactMap { id in facts.first { $0.id == id } }
     }
 
-    /// A lens's facts but the one to hear first, in music-core's stream order.
+    /// A lens's facts under Details, those under Main left out, in music-core's stream order.
     func facts(of lens: String) -> [Fact] {
         let order = Dictionary(inStream.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
         return facts.enumerated()
-            .filter { $0.element.lens == lens && $0.element.id != keyObservation }
+            .filter { $0.element.lens == lens && !main.contains($0.element.id) }
             .sorted { (order[$0.element.id] ?? Int.max, $0.offset) < (order[$1.element.id] ?? Int.max, $1.offset) }
             .map(\.element)
     }
@@ -124,7 +124,7 @@ final class InsightsController: ObservableObject {
     /// The lens the filter chips narrow the stream to; nil for all of them.
     @Published var lens: String?
     @Published private(set) var evidence: Set<String> = []
-    /// The lenses listed whole ("N more"); the others show their first three facts.
+    /// The lenses under Details the player opened; the others are folded to their name and count.
     @Published var expanded: Set<String> = []
     @Published private(set) var chosen: Choice?
     /// The facts whose Try is open, listing their ways.
@@ -218,7 +218,7 @@ final class InsightsController: ObservableObject {
 
     /// The facts the circle of fifths opens from (the web app's InsightsStream): the key and the chords.
     static func opensCircle(_ fact: Fact) -> Bool {
-        fact.id == "key" || fact.id == "harmony.chords"
+        fact.id == "key" || fact.id == "harmony.chords" || fact.id == "harmony.motion"
     }
 
     /// On the circle: the circle opens in the fact's row, read from music-core the first time; pressed again, it closes.
@@ -388,7 +388,8 @@ struct InsightsSheet: View {
     }
 }
 
-/// The stream itself: filter chips, the fact to hear first, then the facts by lens.
+/// The stream itself: filter chips, Main (the harmonic motion, the texture, the strongest of the rest), then Details, the
+/// other facts folded by lens with their count (testing item 14).
 struct InsightsStream: View {
     @ObservedObject var insights: InsightsController
     let text: UIText
@@ -421,23 +422,51 @@ struct InsightsStream: View {
                         TrialRow(insights: insights, text: text)
                     }
                 }
-                if let key = understanding.key, insights.shows(key) {
-                    group(text["understand.keyObservation"]) {
-                        FactRow(fact: key, why: understanding.keyReason, insights: insights, text: text)
+                let main = understanding.mainFacts.filter { insights.shows($0) }
+                if !main.isEmpty {
+                    group(text["insights.main"]) {
+                        ForEach(main) { fact in
+                            FactRow(fact: fact, insights: insights, text: text)
+                        }
                     }
                 }
-                ForEach(lenses.filter { insights.lens == nil || insights.lens == $0 }, id: \.self) { lens in
-                    let facts = understanding.facts(of: lens)
-                    if !facts.isEmpty {
-                        let shown = visible(facts, lens: lens)
-                        group(text.format("insights.lensCount", lensLabel(lens), text.count("understand.facts", facts.count))) {
-                            ForEach(shown) { fact in
-                                FactRow(fact: fact, why: nil, insights: insights, text: text)
+                let details = lenses.filter { (insights.lens == nil || insights.lens == $0) && !understanding.facts(of: $0).isEmpty }
+                if !details.isEmpty {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(text["insights.details"])
+                            .overline()
+                            .padding(.bottom, CGFloat.ds("s-2"))
+                            .accessibilityAddTraits(.isHeader)
+                        ForEach(details, id: \.self) { lens in
+                            let facts = understanding.facts(of: lens)
+                            let open = opens(lens, facts: facts, understanding: understanding)
+                            Button {
+                                if !insights.expanded.insert(lens).inserted { insights.expanded.remove(lens) }
+                            } label: {
+                                HStack {
+                                    Text(text.format("insights.lensCount", lensLabel(lens), text.count("understand.facts", facts.count)))
+                                        .dsType(.body)
+                                        .foregroundStyle(Color.ds("ink"))
+                                    Spacer()
+                                    Icon(name: "chevd", size: CGFloat.ds("icon-s"))
+                                        .foregroundStyle(Color.ds("ink-3"))
+                                        .rotationEffect(.degrees(open ? 180 : 0))
+                                }
+                                .frame(minHeight: CGFloat.ds("h-touch"))
+                                .contentShape(Rectangle())
                             }
-                            if shown.count < facts.count {
-                                more(text.format("insights.more", String(facts.count - shown.count))) { _ = insights.expanded.insert(lens) }
-                            } else if insights.expanded.contains(lens), insights.lens != lens, facts.count > Self.perLens {
-                                more(text["insights.fewer"]) { _ = insights.expanded.remove(lens) }
+                            .buttonStyle(.plain)
+                            .disabled(insights.lens == lens)
+                            .overlay(alignment: .bottom) { Rectangle().fill(Color.ds("hairline")).frame(height: 1) }
+                            .accessibilityAddTraits(.isHeader)
+                            .accessibilityValue(open ? text["insights.lensOpen"] : text["insights.lensFolded"])
+                            if open {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    ForEach(facts) { fact in
+                                        FactRow(fact: fact, insights: insights, text: text)
+                                    }
+                                }
+                                .padding(.top, CGFloat.ds("s-2"))
                             }
                         }
                     }
@@ -455,25 +484,12 @@ struct InsightsStream: View {
         .accessibilityLabel(text["insights.stream"])
     }
 
-    /// How many facts a lens shows before "N more" (the web app's InsightsStream).
-    static let perLens = 3
-
-    /// A lens's facts as the stream shows them: all of them when the lens is filtered to or listed whole, otherwise the
-    /// first three, with the fact chosen on the score and the one holding the trial always in reach.
-    private func visible(_ facts: [Fact], lens: String) -> [Fact] {
-        if insights.lens == lens || insights.expanded.contains(lens) || facts.count <= Self.perLens { return facts }
-        return facts.enumerated()
-            .filter { $0.offset < Self.perLens || insights.chosen?.fact == $0.element || insights.trial?.factId == $0.element.id }
-            .map(\.element)
-    }
-
-    private func more(_ label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(label).dsType(.label).foregroundStyle(Color.ds("accent-hover"))
-        }
-        .buttonStyle(.plain)
-        .frame(minHeight: CGFloat.ds("h-compact"))
-        .padding(.top, CGFloat.ds("s-1"))
+    /// Whether a lens under Details is open: opened by the player or filtered to, or holding the fact chosen on the score
+    /// or the trial when Main does not, so neither disappears.
+    private func opens(_ lens: String, facts: [Fact], understanding: Understanding) -> Bool {
+        if insights.lens == lens || insights.expanded.contains(lens) { return true }
+        let trialInMain = understanding.mainFacts.contains { insights.trial?.factId == $0.id }
+        return facts.contains { insights.chosen?.fact == $0 || (!trialInMain && insights.trial?.factId == $0.id) }
     }
 
     /// The ids of the facts the stream shows under the lens chosen.
@@ -510,8 +526,6 @@ struct InsightsStream: View {
 /// and Evidence, which opens in place; while it is chosen, its places as chips, each ringing only itself.
 struct FactRow: View {
     let fact: Fact
-    /// Why this is the one to hear first, under Evidence; nil for the other facts.
-    let why: String?
     @ObservedObject var insights: InsightsController
     let text: UIText
 
@@ -566,11 +580,6 @@ struct FactRow: View {
                     Text(fact.text).dsType(.caption).foregroundStyle(Color.ds("ink"))
                 }
                 Text(fact.basis).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
-                if let why {
-                    (Text(text["understand.whyThisOne"]).bold() + Text(" " + why))
-                        .dsType(.caption)
-                        .foregroundStyle(Color.ds("ink-2"))
-                }
             }
             if chosen, insights.chosen?.custom == nil, !fact.places.isEmpty {
                 FlowLayout(spacing: CGFloat.ds("s-2")) {
