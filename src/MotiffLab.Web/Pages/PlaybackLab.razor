@@ -379,6 +379,11 @@
                 </div>
             }
 
+            @if (_assembling && _besideOpen)
+            {
+                @BesideDrawer
+            }
+
             @if (_rollOpen && !FocusShowsRoll)
             {
                 @* The piano roll as a drawer (0018 section 4): it slides up over the score and leaves the selection as it is. *@
@@ -1248,6 +1253,9 @@
         <span class="ttl assembly-ttl">@BarTitle <span class="caption">· @Text["assembly.title"]</span></span>
         <span class="shown-label tone-@ToneOf(_assemblyShown)"><span class="dot" aria-hidden="true"></span> @AssemblyShownLabel</span>
         <span class="sp"></span>
+        <button class="act wide beside-toggle @(_besideOpen ? "on" : null)" aria-pressed="@(_besideOpen ? "true" : "false")" aria-label="@Text["assembly.beside"]" title="@Text["assembly.beside"]" @onclick="ToggleBeside">
+            <Icon Name="layers" /> <span>@Text["assembly.beside"]</span>
+        </button>
         <button class="act wide @(_origins ? "on" : null)" aria-pressed="@(_origins ? "true" : "false")" aria-label="@Text["assembly.origins"]" title="@Text["assembly.originsHint"]" @onclick="ToggleOrigins">
             <Icon Name="dot" /> <span>@Text["assembly.origins"]</span>
         </button>
@@ -1316,6 +1324,60 @@
             </div>
         }
     </div></div>;
+
+    /// <summary>
+    /// «Рядом» (0024, section 6; mockup 14): a drawer under the page with one other source, read only, following the page by
+    /// its match; or «Сопоставление», the version against the notes bar by bar. The page above is left as it was.
+    /// </summary>
+    private RenderFragment BesideDrawer => @<section class="drawer beside-drawer" aria-label="@Text["assembly.beside"]" data-keeps-selection>
+        <button class="grab" aria-label="@Text["drawer.resize"]" title="@Text["drawer.resize"]" @onclick="ToggleBeside"></button>
+        <header class="beside-head">
+            <span class="overline">@Text["assembly.beside"]</span>
+            <span class="beside-chips" role="radiogroup" aria-label="@Text["assembly.besideSource"]">
+                @foreach (Versions.AssemblyChip chip in BesideChoices)
+                {
+                    bool on = !_besideMap && chip.Id == BesideSource;
+                    <button class="beside-chip tone-@chip.Tone @(on ? "on" : null)" role="radio" aria-checked="@(on ? "true" : "false")" @onclick="() => ChooseBesideAsync(chip.Id)">
+                        <span class="dot" aria-hidden="true"></span> @chip.Name
+                    </button>
+                }
+            </span>
+            <span class="sp"></span>
+            <button class="btn quiet compact @(_besideMap ? "on" : null)" aria-pressed="@(_besideMap ? "true" : "false")" @onclick="ToggleBesideMap"><Icon Name="tag" /> @Text["assembly.mapping"]</button>
+            <button class="btn icon" aria-label="@Text["assembly.besideClose"]" title="@Text["assembly.besideClose"]" @onclick="ToggleBeside"><Icon Name="close" /></button>
+        </header>
+        @if (_besideMap)
+        {
+            @if (BesideMapBars is { } bars && BesideMapSource is { } mapped && AssemblyMusic(mapped) is { } mapMusic)
+            {
+                <p class="caption tone-@ToneOf(mapped)">@Text.Format("assembly.mapHint", SourceName(mapped))
+                    <span class="legend">
+                        @foreach (MatchKind kind in Enum.GetValues<MatchKind>())
+                        {
+                            <span><i class="@MapClass(new MatchBar(0, default, kind, 0, 0, null, false, false))" aria-hidden="true"></i>@AssemblyMatch.Word(kind, Words)</span>
+                        }
+                    </span>
+                </p>
+                <ol class="match-map tone-@ToneOf(mapped)" aria-label="@Text["assembly.mapping"]">
+                    @foreach (MatchBar bar in bars)
+                    {
+                        <li><button class="cell @MapClass(bar)" aria-label="@MapLabel(bar, mapMusic)" title="@MapLabel(bar, mapMusic)" @onclick="() => ShowMapBarAsync(bar)"></button></li>
+                    }
+                </ol>
+            }
+            else
+            {
+                <p class="caption">@Text["assembly.mapNone"]</p>
+            }
+        }
+        else if (BesideScore is { } beside)
+        {
+            <div class="beside-score">
+                <ScoreView @key="@($"beside-{BesideSource}")" @ref="_besideView" Source="beside" HoldHeight="false" Heard="false" Follow="false" Title="@(BesideSource is NotesSource ? ScoreTitle.Of(_title) : SourceName(BesideSource!))"
+                           Selection="BesidePick" Ghost="@(BesideSource == NotesSource ? AssemblyGhost : null)" VersionAdded="@(BesideSource == NotesSource ? AssemblyGhostNotes : null)" EvenBars="@SettingsStore.IsOn(EvenBarsSetting)" />
+            </div>
+        }
+    </section>;
 
     /// <summary>
     /// The Sources sheet, «Из чего собирать» (decision record 0024, section 6; mockups 01 and 10): the notes, the notes before

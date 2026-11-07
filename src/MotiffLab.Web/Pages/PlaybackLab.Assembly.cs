@@ -213,9 +213,9 @@ public partial class PlaybackLab
     private SourceMusic? ShownMusic => AssemblyMusic(_assemblyShown);
 
     /// <summary>The source shown, engraved in its own bars and keys.</summary>
-    private ScoreSource? AssemblyScore => ShownMusic is { } music ? EngravedAndSounded(music).Score : null;
+    private ScoreSource? AssemblyScore => ShownMusic is { } music ? EngravedAndSounded(music, _assemblyShown).Score : null;
 
-    private (ScoreSource Score, PlaybackScore Sound) EngravedAndSounded(SourceMusic music)
+    private (ScoreSource Score, PlaybackScore Sound) EngravedAndSounded(SourceMusic music, string id)
     {
         if (_assemblyScores.TryGetValue(music, out var made))
         {
@@ -229,7 +229,7 @@ public partial class PlaybackLab
 
         IEnumerable<KeyChange> keys = music.Keys.Select(key => new KeyChange(key.At, Math.Clamp(key.Fifths, -7, 7)));
         // A version is headed with its own name, the notes with the piece's.
-        string? title = _assemblyShown is NotesSource or BeforeSource ? ScoreTitle.Of(_title) : SourceName(_assemblyShown);
+        string? title = id is NotesSource or BeforeSource ? ScoreTitle.Of(_title) : SourceName(id);
         GeneratedNotation notation = NotationGenerator.Generate(music.Notes, music.Meter, keys, music.End, title);
         made = (ScoreSource.FromNotes(notation), PlaybackScore.Create(music.Notes, music.Tempos, music.Meter, music.End));
         _assemblyScores[music] = made;
@@ -335,6 +335,7 @@ public partial class PlaybackLab
         _applyOpen = false;
         _origins = false;
         _pickFrom = null;
+        ForgetBeside();
         if (_score is not null)
         {
             await Player.LoadAsync(_score);
@@ -359,7 +360,7 @@ public partial class PlaybackLab
         bool playing = Player.State != PlaybackState.Stopped;
         _assemblyShown = id;
         _pickFrom = null;
-        (_, PlaybackScore sound) = EngravedAndSounded(music);
+        (_, PlaybackScore sound) = EngravedAndSounded(music, id);
         await Player.LoadAsync(sound);
         Tick at = _picks.TryGetValue(id, out TickSpan pick) ? pick.Onset : was is null ? Tick.Zero : SameBar(was, music, position);
         await Player.SetLoopAsync(_assemblyLoop && _picks.TryGetValue(id, out TickSpan loop) ? loop : null);
@@ -368,6 +369,13 @@ public partial class PlaybackLab
         {
             await Player.PlayAsync();
         }
+
+        if (_besideSource == id)
+        {
+            _besideSource = null;
+        }
+
+        await FollowBesideAsync();
     }
 
     /// <summary>The start of the bar with the same number in another source.</summary>
@@ -442,6 +450,8 @@ public partial class PlaybackLab
         {
             await Player.SetLoopAsync(pick);
         }
+
+        await FollowBesideAsync();
     }
 
     /// <summary>
@@ -982,6 +992,7 @@ public partial class PlaybackLab
     private void ForgetAssembly()
     {
         _assembling = false;
+        ForgetBeside();
         _assemblyShown = NotesSource;
         _picks.Clear();
         _pickFrom = null;
