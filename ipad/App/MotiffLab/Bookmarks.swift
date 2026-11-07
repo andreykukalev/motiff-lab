@@ -79,14 +79,13 @@ struct BookmarkShelf: Equatable, Sendable {
 }
 
 /// The bookmarks of the open piece and the Contents drawer (0018 section 5, the web app's PlaybackLab.Bookmarks.cs): the
-/// card that makes or changes one, the drawer's tabs, its search, order and folded categories, and the pages it shows.
+/// card that makes or changes one, the drawer's search, order and folded categories, the pages and the sentences it shows.
 /// Every change goes to music-core, which keeps the bookmarks with the piece (project file version 12 on) and answers
 /// with all of them, so the drawer and the brackets on the score always show what music-core holds.
 @MainActor
 final class ContentsController: ObservableObject {
-    enum Tab: Hashable {
-        case contents, notes, pages
-    }
+    /// The search and the order show once there are more bookmarks than this (testing item 21).
+    static let toolsFrom = 3
 
     /// The bookmark being made from the menu (`id` nil) or changed in the drawer.
     struct Draft: Equatable {
@@ -104,7 +103,8 @@ final class ContentsController: ObservableObject {
 
     @Published private(set) var shelf: BookmarkShelf?
     @Published var draft: Draft?
-    @Published var tab = Tab.contents
+    /// The sentences music-core finds in the piece, for the Contents' structure, whatever level the brackets show.
+    @Published private(set) var sentences: [PhraseUnit] = []
     @Published var search = ""
     /// The player's own order rather than the score's.
     @Published var myOrder = false
@@ -187,9 +187,16 @@ final class ContentsController: ObservableObject {
         if folded.contains(id) { folded.remove(id) } else { folded.insert(id) }
     }
 
-    /// The Pages tab: each page's picture, drawn by the score's page at about twice the thumbnail's width.
+    /// The Contents' pages: each page's picture, drawn by the score's page at about twice the thumbnail's width.
     func loadPages(from score: ScoreController) async {
-        pages = await score.outline(width: 280)
+        pages = await score.outline(width: 180)
+    }
+
+    /// The detected sentences, asked at their level without changing the level the score shows.
+    func loadSentences() async {
+        guard let piece else { return }
+        let answer = await MusicCore.run { MusicCore.call(piece: piece, "phrases", #"{"level":"sentence"}"#) }
+        sentences = PhraseLevelsShown(answer: answer).map { $0.level == "sentence" ? $0.units : [] } ?? []
     }
 
     private func call(_ name: String, _ request: [String: Any]) async {
@@ -279,38 +286,66 @@ struct BookmarkCard: View {
 /// landscape and from the bottom in portrait. Contents lists the player's bookmarks by category, to search, sort, fold, go
 /// to, change or delete; Notes lists the margin notes, the highlights and the bars with ink; Pages shows the pages with the
 /// phrases that start on each and a tick for each bookmark.
+/// The Contents (testing item 21): one sheet read top to bottom, the pages, the detected structure, the bookmarks by
+/// category and the notes and marks, as the web app's Contents; the chips at the top scroll to a section rather than
+/// replace the sheet.
 struct ContentsDrawer: View {
     @ObservedObject var contents: ContentsController
     @ObservedObject var score: ScoreController
     let text: UIText
     let close: () -> Void
 
+    private enum Part: Hashable {
+        case pages, structure, bookmarks, notes
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
-            HStack(spacing: CGFloat.ds("s-2")) {
-                SegmentedChoice(
-                    options: [
-                        (ContentsController.Tab.contents, text["contents.tabContents"]),
-                        (ContentsController.Tab.notes, text["contents.tabNotes"]),
-                        (ContentsController.Tab.pages, text["contents.tabPages"]),
-                    ],
-                    chosen: contents.tab,
-                    label: text["contents.tabs"]
-                ) { contents.tab = $0 }
-                Spacer(minLength: 0)
-                Button(action: close) {
-                    Icon(name: "close").frame(width: 32, height: 32)
+        ScrollViewReader { reader in
+            VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
+                HStack(spacing: CGFloat.ds("s-2")) {
+                    Text(text["bar.contents"]).overline()
+                    Spacer(minLength: 0)
+                    Button(action: close) {
+                        Icon(name: "close").frame(width: 32, height: 32)
+                    }
+                    .buttonStyle(BarActionStyle())
+                    .accessibilityLabel(text["drawer.close"])
                 }
-                .buttonStyle(BarActionStyle())
-                .accessibilityLabel(text["drawer.close"])
-            }
-            switch contents.tab {
-            case .contents:
-                ContentsList(contents: contents, score: score, text: text, close: close)
-            case .notes:
-                NotesList(score: score, text: text)
-            case .pages:
-                PagesGrid(contents: contents, score: score, text: text)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: CGFloat.ds("s-2")) {
+                        chip(text["contents.tabPages"], .pages, reader)
+                        if !contents.sentences.isEmpty { chip(text["contents.structure"], .structure, reader) }
+                        chip(text["contents.bookmarks"], .bookmarks, reader)
+                        chip(text["contents.tabNotes"], .notes, reader)
+                    }
+                }
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel(text["contents.sections"])
+                ScrollView {
+                    VStack(alignment: .leading, spacing: CGFloat.ds("s-5")) {
+                        part(contents.pages.isEmpty ? text["contents.tabPages"] : text.format("contents.category", text["contents.tabPages"], String(contents.pages.count))) {
+                            PagesStrip(contents: contents, score: score, text: text)
+                        }
+                        .id(Part.pages)
+                        if !contents.sentences.isEmpty {
+                            part(text["contents.structureFound"]) {
+                                StructureChips(contents: contents, score: score, text: text)
+                            }
+                            .id(Part.structure)
+                        }
+                        part(bookmarksTitle) {
+                            ContentsList(contents: contents, score: score, text: text, close: close)
+                        }
+                        .id(Part.bookmarks)
+                        part(text["contents.notesHead"]) {
+                            NotesList(score: score, text: text)
+                        }
+                        .id(Part.notes)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.bottom, CGFloat.ds("s-4"))
+                }
+                .scrollDismissesKeyboard(.interactively)
             }
         }
         .padding(.top, CGFloat.ds("s-4"))
@@ -320,13 +355,108 @@ struct ContentsDrawer: View {
         .background(Color.ds("surface"))
         .accessibilityElement(children: .contain)
         .accessibilityLabel(text["bar.contents"])
-        .task(id: contents.tab) {
-            if contents.tab == .pages { await contents.loadPages(from: score) }
+        .task {
+            await contents.loadPages(from: score)
+            await contents.loadSentences()
+        }
+    }
+
+    private var bookmarksTitle: String {
+        let count = contents.shelf?.bookmarks.count ?? 0
+        return count > 0 ? text.format("contents.category", text["contents.bookmarks"], String(count)) : text["contents.bookmarks"]
+    }
+
+    private func chip(_ label: String, _ part: Part, _ reader: ScrollViewProxy) -> some View {
+        Button(label) {
+            withAnimation(.easeOut(duration: 0.2)) { reader.scrollTo(part, anchor: .top) }
+        }
+        .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
+    }
+
+    private func part<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+            Text(title).overline().accessibilityAddTraits(.isHeader)
+            content()
         }
     }
 }
 
-/// The Contents tab: search, the order, then the bookmarks by category, or the empty state with Add Structure bookmarks.
+/// The form as music-core detects it: a chip per sentence selects its bars; dashed and grey until added as Structure
+/// bookmarks, with the button that adds them.
+struct StructureChips: View {
+    @ObservedObject var contents: ContentsController
+    @ObservedObject var score: ScoreController
+    let text: UIText
+
+    var body: some View {
+        let found = contents.canAddStructure(sentences: contents.sentences.count)
+        VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+            FlowRow(spacing: CGFloat.ds("s-2")) {
+                ForEach(contents.sentences, id: \.number) { sentence in
+                    Button {
+                        Task { await score.select(sentence.selectableOnset, sentence.selectableEnd) }
+                    } label: {
+                        Text(text.format("contents.sentence", Self.letter(sentence.number), sentence.firstBar == sentence.lastBar ? String(sentence.firstBar) : "\(sentence.firstBar)–\(sentence.lastBar)"))
+                            .dsType(.label)
+                            .foregroundStyle(found ? Color.ds("ink-2") : Color.ds("ink"))
+                            .padding(.horizontal, CGFloat.ds("s-3"))
+                            .frame(height: 32)
+                            .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-xs")))
+                            .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-xs")).strokeBorder(Color.ds("hairline-strong"), style: StrokeStyle(lineWidth: 1, dash: found ? [3, 2] : [])))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            if found {
+                Button(text["contents.addStructure"]) { Task { await contents.addStructure() } }
+                    .buttonStyle(DSButtonStyle(kind: .quiet))
+                    .accessibilityHint(text["contents.addStructureHint"])
+            }
+        }
+    }
+
+    /// "A" for the first sentence, "B" for the second, as music-core names them; numbers after Z.
+    static func letter(_ number: Int) -> String {
+        number >= 1 && number <= 26 ? String(Character(UnicodeScalar(UInt8(64 + number)))) : String(number)
+    }
+}
+
+/// Chips that wrap onto the next line when the row is full.
+struct FlowRow: Layout {
+    var spacing: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let rows = arrange(width: proposal.width ?? .infinity, subviews)
+        return CGSize(width: proposal.width ?? rows.width, height: rows.height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let rows = arrange(width: bounds.width, subviews)
+        for (index, point) in rows.points.enumerated() {
+            subviews[index].place(at: CGPoint(x: bounds.minX + point.x, y: bounds.minY + point.y), proposal: .unspecified)
+        }
+    }
+
+    private func arrange(width: CGFloat, _ subviews: Subviews) -> (points: [CGPoint], width: CGFloat, height: CGFloat) {
+        var points: [CGPoint] = []
+        var x: CGFloat = 0, y: CGFloat = 0, line: CGFloat = 0, widest: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > 0, x + size.width > width {
+                x = 0
+                y += line + spacing
+                line = 0
+            }
+            points.append(CGPoint(x: x, y: y))
+            x += size.width + spacing
+            line = max(line, size.height)
+            widest = max(widest, x - spacing)
+        }
+        return (points, widest, y + line)
+    }
+}
+
+/// The Contents' bookmarks: search and the order once there are more than three, then the bookmarks by category.
 struct ContentsList: View {
     @ObservedObject var contents: ContentsController
     @ObservedObject var score: ScoreController
@@ -335,54 +465,35 @@ struct ContentsList: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
-            TextField(text["contents.search"], text: $contents.search)
-                .dsType(.body)
-                .foregroundStyle(Color.ds("ink"))
-                .submitLabel(.search)
-                .padding(.horizontal, CGFloat.ds("s-3"))
-                .frame(height: CGFloat.ds("h-control"))
-                .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-s")))
-                .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-s")).strokeBorder(Color.ds("hairline-strong")))
-                .accessibilityLabel(text["contents.search"])
-            SegmentedChoice(options: [(false, text["contents.scoreOrder"]), (true, text["contents.myOrder"])], chosen: contents.myOrder, label: text["contents.order"]) {
-                contents.myOrder = $0
-            }
-            ScrollView {
-                VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
-                    if (contents.shelf?.bookmarks ?? []).isEmpty {
-                        Text(text["contents.empty"])
-                            .dsType(.label)
-                            .foregroundStyle(Color.ds("ink-2"))
-                        if canAddStructure {
-                            // One line and one action (the web app's Contents): what the button does is its hint.
-                            Button(text["contents.addStructure"]) { Task { await contents.addStructure() } }
-                                .buttonStyle(DSButtonStyle(kind: .secondary))
-                                .accessibilityHint(text["contents.addStructureHint"])
-                        }
-                    } else if contents.groups.isEmpty {
-                        Text(text["contents.noMatch"])
-                            .dsType(.label)
-                            .foregroundStyle(Color.ds("ink-2"))
-                    } else {
-                        ForEach(contents.groups) { group in
-                            section(group)
-                        }
-                        if canAddStructure {
-                            Button(text["contents.addStructure"]) { Task { await contents.addStructure() } }
-                                .buttonStyle(DSButtonStyle(kind: .quiet))
-                                .accessibilityHint(text["contents.addStructureHint"])
-                        }
-                    }
+            if (contents.shelf?.bookmarks.count ?? 0) > ContentsController.toolsFrom {
+                TextField(text["contents.search"], text: $contents.search)
+                    .dsType(.body)
+                    .foregroundStyle(Color.ds("ink"))
+                    .submitLabel(.search)
+                    .padding(.horizontal, CGFloat.ds("s-3"))
+                    .frame(height: CGFloat.ds("h-control"))
+                    .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-s")))
+                    .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-s")).strokeBorder(Color.ds("hairline-strong")))
+                    .accessibilityLabel(text["contents.search"])
+                SegmentedChoice(options: [(false, text["contents.scoreOrder"]), (true, text["contents.myOrder"])], chosen: contents.myOrder, label: text["contents.order"]) {
+                    contents.myOrder = $0
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.vertical, CGFloat.ds("s-2"))
             }
-            .scrollDismissesKeyboard(.interactively)
+            if (contents.shelf?.bookmarks ?? []).isEmpty {
+                Text(text["contents.empty"])
+                    .dsType(.label)
+                    .foregroundStyle(Color.ds("ink-2"))
+            } else if contents.groups.isEmpty {
+                Text(text["contents.noMatch"])
+                    .dsType(.label)
+                    .foregroundStyle(Color.ds("ink-2"))
+            } else {
+                ForEach(contents.groups) { group in
+                    section(group)
+                }
+            }
         }
-    }
-
-    private var canAddStructure: Bool {
-        contents.canAddStructure(sentences: score.phrases?.counts["sentence"] ?? 0)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// A category's heading, which folds it, and its entries.
@@ -470,21 +581,27 @@ struct ContentsList: View {
     }
 }
 
-/// The Pages tab: the pages as small pictures on paper, the one being read outlined in the accent, with the phrases that
-/// start on each and a tick in its category's ink for each bookmark that starts there; a tap brings the page into view.
-struct PagesGrid: View {
+/// The Contents' pages: a strip of small pictures on paper, the one being read outlined in the accent, with the phrases
+/// that start on each and a tick in its category's ink for each bookmark that starts there; a tap brings the page into view.
+struct PagesStrip: View {
     @ObservedObject var contents: ContentsController
     @ObservedObject var score: ScoreController
     let text: UIText
 
     var body: some View {
-        ScrollView {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 112), spacing: CGFloat.ds("s-3"))], spacing: CGFloat.ds("s-4")) {
-                ForEach(contents.pages) { page in
-                    thumbnail(page)
+        if contents.pages.isEmpty {
+            Text(text["contents.pagesStrip"])
+                .dsType(.label)
+                .foregroundStyle(Color.ds("ink-2"))
+        } else {
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(alignment: .top, spacing: CGFloat.ds("s-3")) {
+                    ForEach(contents.pages) { page in
+                        thumbnail(page).frame(width: 84)
+                    }
                 }
+                .padding(.vertical, CGFloat.ds("s-1"))
             }
-            .padding(.vertical, CGFloat.ds("s-2"))
         }
     }
 

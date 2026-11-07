@@ -343,3 +343,25 @@ struct Tag: View {
         }
     }
 }
+
+/// The way back (testing item 20): "‹ More" at the top left of a place opened from another, naming where it goes.
+struct BackChip: View {
+    let label: String
+    let text: UIText
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: CGFloat.ds("s-1")) {
+                Icon(name: "back", size: CGFloat.ds("icon-s"))
+                Text(label).dsType(.label)
+            }
+            .foregroundStyle(Color.ds("ink-2"))
+            .padding(.horizontal, CGFloat.ds("s-2"))
+            .frame(height: 32)
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(text.format("nav.backTo", label))
+    }
+}

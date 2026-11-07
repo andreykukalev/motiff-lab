@@ -162,6 +162,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// The pages under the reading line, for the bar: "p. 2 of 4", or "pp. 1–2 of 4" with two to a row.
     @Published private(set) var pages = PagesInView()
 
+    /// While the piece plays and the playhead is out of sight, the tick the bar it is in starts at; nil while it shows (testing item 4).
+    @Published private(set) var playheadAway: Double?
+
     struct PagesInView: Equatable {
         var first = 0
         var last = 0
@@ -284,6 +287,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         }
         if let note = message["noteMarker"] as? String {
             openNote(note)
+        }
+        if let away = number(message["playheadAway"]) {
+            playheadAway = away < 0 ? nil : away
         }
         if let bar = number(message["checkFlag"]) {
             showCheckBar(Int(bar))
@@ -1069,8 +1075,15 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// after the player scrolled by hand. Called with each position the player reports, about thirty times a second.
     func playhead(_ tick: Double, playing: Bool, follow: Bool = false) {
         guard shown else { return }
-        let data: [String: Any] = ["tick": tick, "playing": playing, "follow": follow]
+        // The page follows the playing unless the player turned that off ("playback.follow", testing item 4).
+        let data: [String: Any] = ["tick": tick, "playing": playing, "follow": follow, "auto": DeviceSettings.shared.isOn("playback.follow")]
         webView.callAsyncJavaScript("return motiff.playing(data)", arguments: ["data": data], in: nil, in: .page, completionHandler: nil)
+    }
+
+    /// Back to playback: the page scrolls to the playhead and follows again.
+    func returnToPlayhead() {
+        guard shown else { return }
+        Task { _ = try? await webView.callAsyncJavaScript("return motiff.returnToPlayhead()", arguments: [:], contentWorld: .page) }
     }
 
     /// Room under the last page for the drawer over the bottom of the score, so the end of the piece can still be read.

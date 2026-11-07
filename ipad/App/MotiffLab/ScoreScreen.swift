@@ -25,6 +25,8 @@ struct ScoreScreen: View {
     @StateObject private var score = ScoreController()
     @StateObject private var roll = RollController()
     @State private var more = false
+    /// Whether Check, Other versions or Settings was opened from More, so it shows "‹ More" (testing item 20).
+    @State private var fromMore = false
     @StateObject private var insights = InsightsController()
     /// The piano roll's drawer (0018 section 4), from the bar or the selection menu.
     @State private var rollOpen = false
@@ -82,12 +84,22 @@ struct ScoreScreen: View {
         ((score.selection != nil || player.transportKept) && settings["guidance.transportPill"] != "playing") || player.state != .stopped
     }
 
+    /// ‹ More: the place opened from More goes, and More opens again once it has (after a sheet's dismissal, so the popover can show).
+    private func backToMore(_ putAway: () -> Void) {
+        putAway()
+        fromMore = false
+        Task {
+            try? await Task.sleep(for: .milliseconds(350))
+            more = true
+        }
+    }
+
     /// What the sheet over the right holds: Check, Other versions, or Insights.
     @ViewBuilder private func sheetContent() -> some View {
         if versionsOpen {
-            VersionsDrawer(score: score, text: text) { versionsOpen = false }
+            VersionsDrawer(score: score, text: text, close: { versionsOpen = false }, back: fromMore ? (label: text["bar.more"], action: { backToMore { versionsOpen = false } }) : nil)
         } else if checkOpen {
-            CheckDrawer(score: score, text: text) { checkOpen = false }
+            CheckDrawer(score: score, text: text, close: { checkOpen = false }, back: fromMore ? (label: text["bar.more"], action: { backToMore { checkOpen = false } }) : nil)
         } else {
             InsightsSheet(insights: insights, score: score, player: player, range: variationRange, text: text) { insightsOpen = false }
         }
@@ -165,7 +177,7 @@ struct ScoreScreen: View {
                     if score.focused {
                         FocusBar(score: score, player: player, variationRange: variationRange, text: text)
                     } else {
-                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, more: $more, rollOpen: $rollOpen, insightsOpen: $insightsOpen, contentsOpen: $contentsOpen, checkOpen: $checkOpen, versionsOpen: $versionsOpen, settingsOpen: $settingsOpen, pdf: toPdf) { dismiss() }
+                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, more: $more, fromMore: $fromMore, rollOpen: $rollOpen, insightsOpen: $insightsOpen, contentsOpen: $contentsOpen, checkOpen: $checkOpen, versionsOpen: $versionsOpen, settingsOpen: $settingsOpen, pdf: toPdf) { dismiss() }
                     }
                     if score.penOn && !score.focused {
                         PenPalette(score: score, text: text)
@@ -214,13 +226,32 @@ struct ScoreScreen: View {
                 // The pill rides above whatever comes up from the bottom, and beside a sheet or a drawer at the side. It
                 // shows with a selection or while the music plays, or only while it plays (the setting
                 // "guidance.transportPill", 0018 section 10).
-                if pillShown {
-                    Pill(player: player, score: score, text: text)
-                        .padding(.bottom, pillBottom)
-                        .padding(.trailing, pillTrailing)
-                        .padding(.leading, pillLeading)
+                VStack(spacing: CGFloat.ds("s-2")) {
+                    // Scrolled away from the playing, a chip leads back to it (testing item 4).
+                    if let away = score.playheadAway, player.state != .stopped, !score.focused, let bar = player.barNumber(at: away) {
+                        Button {
+                            score.returnToPlayhead()
+                        } label: {
+                            HStack(spacing: 6) {
+                                Icon(name: "play", size: CGFloat.ds("icon-s"))
+                                Text(text.format("transport.backToPlay", String(bar))).dsType(.label)
+                            }
+                            .foregroundStyle(Color.ds("accent"))
+                            .padding(.horizontal, CGFloat.ds("s-3"))
+                            .frame(height: 32)
+                            .modifier(FloatingSurface())
+                        }
+                        .buttonStyle(.plain)
                         .transition(.opacity)
+                    }
+                    if pillShown {
+                        Pill(player: player, score: score, text: text)
+                            .transition(.opacity)
+                    }
                 }
+                .padding(.bottom, pillBottom)
+                .padding(.trailing, pillTrailing)
+                .padding(.leading, pillLeading)
             }
             .animation(.easeOut(duration: 0.2), value: rollOpen)
             .animation(.easeOut(duration: 0.2), value: insightsOpen)
@@ -355,11 +386,16 @@ struct ScoreScreen: View {
     private func checking(_ content: some View) -> some View {
         content
             .sheet(isPresented: $settingsOpen) {
-                SettingsSheet(settings: settings, account: account, text: text, pieceOverrides: score.pieceOverrides, clearPiece: { score.clearPieceOverrides() })
+                SettingsSheet(settings: settings, account: account, text: text, pieceOverrides: score.pieceOverrides, clearPiece: { score.clearPieceOverrides() },
+                              back: fromMore ? (label: text["bar.more"], action: { backToMore { settingsOpen = false } }) : nil)
             }
             .onChange(of: settings.values) { _, _ in
                 score.settingsChanged()
                 roll.settingsChanged()
+            }
+            .onChange(of: checkOpen || versionsOpen || settingsOpen) { _, open in
+                // The way back to More belongs to the place opened from it, and goes with it.
+                if !open { fromMore = false }
             }
             .onChange(of: checkOpen) { _, open in
                 if open {
@@ -476,6 +512,8 @@ struct ScoreBar: View {
     @ObservedObject var player: Player
     @ObservedObject var score: ScoreController
     @Binding var more: Bool
+    /// Whether the place open now was opened from More, so it shows "‹ More" (testing item 20).
+    @Binding var fromMore: Bool
     @Binding var rollOpen: Bool
     @Binding var insightsOpen: Bool
     @Binding var contentsOpen: Bool
@@ -495,6 +533,15 @@ struct ScoreBar: View {
             }
             .buttonStyle(BarActionStyle())
             .accessibilityLabel(text["nav.library"])
+            // The Contents at the left, by the way back, as in a reader (testing item 21); the title opens them too.
+            Button {
+                contentsOpen.toggle()
+            } label: {
+                Icon(name: "pages", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+            }
+            .buttonStyle(BarActionStyle(on: contentsOpen))
+            .accessibilityLabel(text["bar.contents"])
+            .accessibilityAddTraits(contentsOpen ? .isSelected : [])
             Button {
                 contentsOpen.toggle()
             } label: {
@@ -570,12 +617,15 @@ struct ScoreBar: View {
                 MorePanel(score: score, text: text, problem: player.problem ?? score.problem) {
                     more = false
                     checkOpen = true
+                    fromMore = true
                 } openVersions: {
                     more = false
                     versionsOpen = true
+                    fromMore = true
                 } openSettings: {
                     more = false
                     settingsOpen = true
+                    fromMore = true
                 }
             }
         }
