@@ -7285,6 +7285,11 @@ body:has(.library) .site-footer {
     color: var(--ink-2);
 }
 
+/* On the shown chip's tint the second ink is too pale at night (WCAG 1.4.3). */
+.workspace .source-chip.shown .detail {
+    color: var(--ink);
+}
+
 .lab.workspace .pill .source-chip .hear {
     justify-content: center;
     width: 30px;
@@ -7885,6 +7890,168 @@ body:has(.library) .site-footer {
     .workspace .bar .beside-toggle {
         display: none;
     }
+}
+
+/* A recording as a source (mockups 06 and 13c): its waveform in a strip just over the pill, the selection's stretch in the
+   accent's tint and the playhead on it; moved along, playing goes there. The page is padded so its last system clears it. */
+.workspace .recording-wave {
+    position: absolute;
+    z-index: 3;
+    left: 50%;
+    bottom: calc(var(--s-4) + 52px + var(--s-2));
+    transform: translateX(-50%);
+    width: min(760px, calc(100% - 2 * var(--s-4)));
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-l);
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--hairline);
+    box-shadow: var(--shadow-pill);
+    color: var(--ink-2);
+    font: var(--t-label);
+}
+
+.workspace.beside-open .recording-wave {
+    bottom: calc(var(--drawer-h) + var(--s-3) + 52px + var(--s-2));
+}
+
+/* Over the pill wherever the pill goes: beside the sheet on the right in landscape. */
+@media (orientation: landscape) {
+    .workspace.insights-open .recording-wave {
+        left: calc(50% - (380px + var(--s-3) + var(--s-4)) / 2);
+        width: min(760px, calc(100% - 380px - var(--s-3) - 3 * var(--s-4)));
+    }
+}
+
+.workspace.wave-open .score {
+    --pad-bottom: calc(96px + 72px);
+}
+
+.workspace.wave-open.beside-open .score {
+    --pad-bottom: calc(var(--drawer-h) + 96px + 72px);
+}
+
+.workspace .recording-wave .times {
+    flex: none;
+    min-width: 84px;
+    color: var(--ink);
+}
+
+.workspace .recording-wave .wave {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    height: 52px;
+    border-radius: var(--r-s);
+    background: var(--surface-2);
+    overflow: hidden;
+}
+
+.workspace .recording-wave .wave > svg {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 14px;
+    bottom: 0;
+    width: 100%;
+    height: calc(100% - 14px);
+}
+
+.workspace .recording-wave path {
+    fill: none;
+    stroke: var(--tone);
+    stroke-width: 0.7;
+    opacity: 0.7;
+}
+
+.workspace .recording-wave .picked {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    box-sizing: border-box;
+    border-inline: 1.5px solid var(--accent);
+    background: var(--accent-tint);
+    pointer-events: none;
+}
+
+.workspace .recording-wave .head {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    margin-left: -1px;
+    background: var(--accent);
+    pointer-events: none;
+}
+
+.workspace .recording-wave .mark {
+    position: absolute;
+    top: 1px;
+    padding-left: 3px;
+    border-left: 1px solid var(--hairline-strong);
+    color: var(--ink-2);
+    font: var(--t-caption);
+    pointer-events: none;
+}
+
+.workspace .recording-wave input[type="range"] {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.workspace .recording-wave .wave:has(input:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.workspace .recording-wave .own {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--tone-text);
+}
+
+.workspace .recording-wave .file {
+    position: relative;
+    flex: none;
+}
+
+.workspace .recording-wave .file input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+@media (max-width: 640px) {
+    .workspace .recording-wave .own {
+        display: none;
+    }
+}
+
+/* From a recording, «Как получить ноты» offers two long choices, one under the other. */
+.workspace .sheet-line .choices.stacked {
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.lab.workspace .sheet-line .choices.stacked .chip {
+    height: auto;
+    min-height: 32px;
+    padding: 6px var(--s-3);
+    text-align: left;
+    white-space: normal;
 }
 
 /* What a change did, with Undo: amber, as the player's own step. */

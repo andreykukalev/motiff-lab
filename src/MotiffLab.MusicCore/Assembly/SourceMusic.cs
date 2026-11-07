@@ -1,6 +1,7 @@
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
+using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Playback;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;
@@ -37,14 +38,29 @@ public sealed record SourceMusic(IReadOnlyList<Note> Notes, IReadOnlyList<Assemb
     }
 
     /// <summary>
-    /// The music of another version as its own file has it: its bars, its bar numbers, its tempo. Null when its notes
-    /// no longer read.
+    /// The music of another version as its own file has it: its bars, its bar numbers, its tempo. A recording's notes, which
+    /// the engine wrote at 120 a minute in 4/4, are written in the bars worked out from them, with a tempo that follows the
+    /// playing (decision record 0016), in the key that fits them, and marked heard. Null when its notes no longer read.
     /// </summary>
     public static SourceMusic? OfVersion(SavedPerformance version)
     {
         ArgumentNullException.ThrowIfNull(version);
         PieceImportResult imported = PieceImporter.Import($"{version.Id}.mid", version.Midi);
-        return imported.Piece is { } piece ? OfPiece(piece, piece.Notes) : null;
+        if (imported.Piece is not { } piece)
+        {
+            return null;
+        }
+
+        if (version.Source != PerformanceSource.Recording || piece.Midi is null)
+        {
+            return OfPiece(piece, piece.Notes);
+        }
+
+        ImportedPiece heard = Transcribed.Mark(BarGrid.Find(piece.Midi) is { } grid ? grid.Apply(piece) : piece);
+        SourceMusic music = OfPiece(heard, heard.Notes);
+        return heard.Keys.Count == 0 && Transcribed.KeyOf(heard.Notes) is { } key
+            ? music with { Keys = [new KeySignature(Tick.Zero, key.Fifths, key.Mode)] }
+            : music;
     }
 
     /// <summary>The bar that holds a position: its number, counted from 1 (0 for a pickup), and the bar.</summary>
@@ -111,7 +127,7 @@ public sealed record SourceMusic(IReadOnlyList<Note> Notes, IReadOnlyList<Assemb
         Tick from = new(Math.Max(0, start.Value - context));
         Tick to = end.Offset(context);
         Note[] notes = [.. Notes.Where(note => note.Span.Onset >= from && note.Span.Onset < to)];
-        return Import.Transcription.Transcribed.KeyOf(notes);
+        return Transcribed.KeyOf(notes);
     }
 
     /// <summary>The notes that start in <c>[start, end)</c>.</summary>

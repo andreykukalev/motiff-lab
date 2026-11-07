@@ -3,6 +3,8 @@
 // playback position to Blazor. Blazor imports this module through JS interop.
 
 import type { EngineMessage, EngineReport, LoopPass, PositionReport, SampleRegion, TransportState } from "./playback-processor.js";
+import { SAMPLE_RATE, decodeMono, peaksOf } from "../import/recording.js";
+import { openRecording } from "../storage/recording-store.js";
 
 interface DotNetObject {
     invokeMethodAsync(method: string, ...args: unknown[]): Promise<unknown>;
@@ -26,6 +28,15 @@ const DOTNET_REPORT_MS = 50;
 /** How long play waits at most for the engine to report it started, for example when nothing is left to play. */
 const PLAY_CONFIRM_MS = 250;
 
+/** How many loudness bars a second of a recording has on the waveform under the notes. */
+export const PEAKS_PER_SECOND = 20;
+
+/** A recording loaded to be heard as it sounds: its length and its loudness, PEAKS_PER_SECOND bars a second. */
+export interface RecordingSound {
+    milliseconds: number;
+    peaks: number[];
+}
+
 /** The attack starts where the sample first rises above this level; encoders add silence before it. */
 const ONSET_THRESHOLD = 0.003;
 
@@ -44,6 +55,8 @@ export class Player {
     private dotnetStale = true;
     private startWaiters: (() => void)[] = [];
     private disposed = false;
+    private recordingKey: string | null = null;
+    private recordingSound: RecordingSound | null = null;
 
     private constructor(context: AudioContext, node: AudioWorkletNode, dotnet: DotNetObject) {
         this.context = context;
@@ -144,6 +157,42 @@ export class Player {
 
     setTracks(muted: number[], soloed: number[]): void {
         this.post({ type: "tracks", muted, soloed });
+    }
+
+    /**
+     * Loads the sound kept on the device under `key` (0024, scenario 2), with where the places of its notes are heard
+     * (`ticks` paired with `milliseconds`); null when no sound is kept there or this browser cannot decode it. The sound
+     * plays in place of the notes once `hearRecording(true)`.
+     */
+    async loadRecording(key: string, ticks: number[], milliseconds: number[]): Promise<RecordingSound | null> {
+        // The same recording is already with the engine: its samples went there and need not be decoded again.
+        if (key === this.recordingKey && this.recordingSound !== null) {
+            return this.recordingSound;
+        }
+        const blob = await openRecording(key);
+        const mono = blob === null ? null : await decodeMono(await blob.arrayBuffer());
+        if (mono === null) {
+            this.forgetRecording();
+            return null;
+        }
+        const length = Math.round((mono.length * 1000) / SAMPLE_RATE);
+        const sound = { milliseconds: length, peaks: peaksOf(mono, Math.max(1, Math.round((length / 1000) * PEAKS_PER_SECOND))) };
+        this.post({ type: "recording", samples: mono, sampleRate: SAMPLE_RATE, ticks, milliseconds }, [mono.buffer]);
+        this.recordingKey = key;
+        this.recordingSound = sound;
+        return sound;
+    }
+
+    /** The recording sounds in place of the notes, at its own speed, or the notes again. */
+    hearRecording(on: boolean): void {
+        this.post({ type: "recordingOn", on });
+    }
+
+    forgetRecording(): void {
+        this.recordingKey = null;
+        this.recordingSound = null;
+        this.post({ type: "recordingOn", on: false });
+        this.post({ type: "recording", samples: null, sampleRate: SAMPLE_RATE, ticks: [], milliseconds: [] });
     }
 
     /** Strikes a key by hand, over playback or without it, until noteOff (the roll and keyboard call this). */

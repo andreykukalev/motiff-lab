@@ -105,6 +105,34 @@ export function soundBetween(fromMilliseconds: number, toMilliseconds: number): 
     return { wav: encodeWav(held.subarray(from, to), SAMPLE_RATE), seconds: (to - from) / SAMPLE_RATE };
 }
 
+/**
+ * The sound of the recording held as a mono WAV file, for keeping it on the device when the recording becomes a
+ * source (0024, scenario 2): small next to a video, and any browser plays it back. Null when none is held.
+ */
+export function heldRecording(): Blob | null {
+    return held ? new Blob([encodeWav(held, SAMPLE_RATE) as BlobPart], { type: "audio/wav" }) : null;
+}
+
+/** A recording's sound decoded on this device and mixed to mono at SAMPLE_RATE; null when this browser cannot decode it. */
+export async function decodeMono(data: ArrayBuffer): Promise<Float32Array | null> {
+    if (typeof OfflineAudioContext === "undefined") {
+        return null;
+    }
+    try {
+        // A context at this rate decodes straight to it; it is never started.
+        const context = new OfflineAudioContext(1, 1, SAMPLE_RATE);
+        const decoded = await context.decodeAudioData(data);
+        const channels: Float32Array[] = [];
+        for (let i = 0; i < decoded.numberOfChannels; i++) {
+            channels.push(decoded.getChannelData(i));
+        }
+        const mono = mixToMono(channels, decoded.length);
+        return mono.length > 0 ? mono : null;
+    } catch {
+        return null;
+    }
+}
+
 /** Lets go of the held recording and its address, and unwires its editor. */
 export function forget(): void {
     detach();
@@ -125,20 +153,8 @@ export async function load(input: HTMLInputElement, maxBytes: number): Promise<L
     if (!file || file.size > maxBytes || typeof OfflineAudioContext === "undefined") {
         return null;
     }
-    let mono: Float32Array;
-    try {
-        // A context at this rate decodes straight to it; it is never started.
-        const context = new OfflineAudioContext(1, 1, SAMPLE_RATE);
-        const decoded = await context.decodeAudioData(await file.arrayBuffer());
-        const channels: Float32Array[] = [];
-        for (let i = 0; i < decoded.numberOfChannels; i++) {
-            channels.push(decoded.getChannelData(i));
-        }
-        mono = mixToMono(channels, decoded.length);
-    } catch {
-        return null;
-    }
-    if (mono.length === 0) {
+    const mono = await decodeMono(await file.arrayBuffer());
+    if (mono === null) {
         return null;
     }
     held = mono;

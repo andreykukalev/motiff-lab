@@ -62,9 +62,13 @@ public abstract record AssemblyStep(int Number, DateTimeOffset At)
 /// <summary>
 /// A fragment of a source carried into the player's notes («В ноты…»): the source's notes that start in
 /// <paramref name="From"/>, put at <paramref name="To"/>, raised or lowered by <paramref name="Transpose"/> semitones.
+/// With <paramref name="Keep"/> (a recording, «оставить ваши ноты, добавив то, что исполнитель играет иначе») the notes of
+/// the place stay and only the fragment's notes none of them sounds are added, fitted into the place, which keeps its length.
 /// </summary>
-public sealed record CarryStep(int Number, DateTimeOffset At, string SourceId, TickSpan From, AssemblyPlace To, int Transpose = 0) : AssemblyStep(Number, At)
+public sealed record CarryStep(int Number, DateTimeOffset At, string SourceId, TickSpan From, AssemblyPlace To, int Transpose = 0, bool Keep = false) : AssemblyStep(Number, At)
 {
+    public bool Keep { get; } = !Keep || !(To ?? throw new ArgumentNullException(nameof(To))).Inserts ? Keep : throw new ArgumentException("Only a carry that replaces can keep the notes of its place.", nameof(Keep));
+
     public string SourceId { get; } = !string.IsNullOrWhiteSpace(SourceId) ? SourceId : throw new ArgumentException("A carry names its source.", nameof(SourceId));
 
     public int Transpose { get; } = Transpose is >= -24 and <= 24 ? Transpose : throw new ArgumentOutOfRangeException(nameof(Transpose), Transpose, "A carry moves by at most two octaves.");

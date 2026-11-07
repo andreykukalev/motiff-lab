@@ -191,7 +191,8 @@ The assembly of the player's own version from the piece's sources (version 15, [
       "from": { "onset": 2880, "duration": 1200 },        // in the source's own ticks
       "to": { "start": { "note": "n_0031", "offset": 0 },  // a place held by notes: the note's onset plus offset
               "end": { "note": "n_0037", "offset": 240 } }, // null end: insert at start
-      "transpose": 0 },
+      "transpose": 0,
+      "keep": true },                         // only from a recording: the place's notes stay, what they lack is added
     { "number": 2, "at": "…", "kind": "note", "note": "c1.n_0042", "semitones": 2 },   // semitones null: the note removed
     { "number": 3, "at": "…", "kind": "transpose", "place": { … }, "semitones": -2 }
   ],
@@ -201,7 +202,7 @@ The assembly of the player's own version from the piece's sources (version 15, [
 }
 ```
 
-A note in `applied` and `before` is `{ "id", "pitch", "onset", "duration", "velocity", "track", "voice"?, "hand"?, "handAttribution"?, "attribution": { "provenance", "confidence" } }`, with the provenance in lower camel case; a bar is `{ "onset", "duration", "beats", "beatType" }`, the bars following one another without gaps; a tempo is `{ "at", "microsecondsPerQuarter" }`; a key is `{ "at", "fifths", "mode"? }`. A carried note's id is its source note's id behind the step's number (`c1.n_0042`).
+A note in `applied` and `before` is `{ "id", "pitch", "onset", "duration", "velocity", "track", "voice"?, "hand"?, "handAttribution"?, "attribution": { "provenance", "confidence" } }`, with the provenance in lower camel case; a bar is `{ "onset", "duration", "beats", "beatType" }`, the bars following one another without gaps; a tempo is `{ "at", "microsecondsPerQuarter" }`; a key is `{ "at", "fifths", "mode"? }`. A carried note's id is its source note's id behind the step's number (`c1.n_0042`). A carry with `keep` (a fragment of a recording, «оставить ваши ноты, добавив то, что исполнитель играет иначе») replaces nothing: the place keeps its length, bars and notes, the fragment is fitted into it, and only its notes no note of the place sounds (the same pitch within a 16th) are added. `keep` is left out when false, and a reader before it took it as an ordinary carry. The recording's sound is never in the file (0024, section 9).
 
 The notes a project opens with: with `applied`, those notes, its bars and tempo, then the edits made since (the taken bars of `performances` are part of them); without it, as before. The journal builds from `before` once there is one, otherwise from the notes the project opens with. A file before version 15 reads as no assembly.
 

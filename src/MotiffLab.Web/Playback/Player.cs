@@ -77,6 +77,12 @@ public sealed class Player(IJSRuntime js) : IAsyncDisposable
         IJSObjectReference engine = await EngineAsync();
 
         _timeline = score;
+        if (HearingRecording)
+        {
+            HearingRecording = false;
+            await engine.InvokeVoidAsync("hearRecording", false);
+        }
+
         await engine.InvokeVoidAsync("setTimeline", PlaybackPayload.Timeline(score));
         await engine.InvokeVoidAsync("setSource", OriginalSource, PlaybackPayload.Notes(score));
         await SelectSourcesAsync(OriginalSource);
@@ -98,6 +104,28 @@ public sealed class Player(IJSRuntime js) : IAsyncDisposable
 
         IJSObjectReference engine = await EngineAsync();
         await engine.InvokeVoidAsync("setSource", id, PlaybackPayload.Notes(score));
+    }
+
+    /// <summary>Whether a recording's own sound plays in place of the notes (0024, scenario 2).</summary>
+    public bool HearingRecording { get; private set; }
+
+    /// <summary>
+    /// Loads the recording kept on the device under <paramref name="key"/>, with where its notes are heard; null when its
+    /// sound is not kept here or cannot be decoded. It plays once <see cref="HearRecordingAsync"/> turns it on.
+    /// </summary>
+    public async Task<RecordingSound?> LoadRecordingAsync(string key, IReadOnlyList<long> ticks, IReadOnlyList<long> milliseconds)
+    {
+        IJSObjectReference engine = await EngineAsync();
+        return await engine.InvokeAsync<RecordingSound?>("loadRecording", key, ticks, milliseconds);
+    }
+
+    /// <summary>The recording loaded sounds in place of the notes, at its own speed; or the notes of <paramref name="sources"/> again.</summary>
+    public async Task HearRecordingAsync(bool on, params string[] sources)
+    {
+        IJSObjectReference engine = await EngineAsync();
+        HearingRecording = on;
+        await engine.InvokeVoidAsync("hearRecording", on);
+        await SelectSourcesAsync(on ? [] : sources.Length > 0 ? sources : [OriginalSource]);
     }
 
     /// <summary>Plays the given sources together: one for A/B switching, several for layering. The musical position is kept.</summary>
@@ -290,6 +318,9 @@ public sealed class Player(IJSRuntime js) : IAsyncDisposable
 
 /// <summary>One pass of an alternating loop: the sources that play and the range they loop over.</summary>
 public sealed record LoopPass(IReadOnlyList<string> Sources, TickSpan Range);
+
+/// <summary>A recording loaded to be heard: its length in milliseconds and its loudness, 20 bars a second, between 0 and 1.</summary>
+public sealed record RecordingSound(long Milliseconds, IReadOnlyList<double> Peaks);
 
 public enum PlaybackState
 {

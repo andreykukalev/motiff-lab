@@ -374,7 +374,7 @@ public partial class PlaybackLab
 
     /// <summary>
     /// A recording as another version (0022): the notes the scan server heard in it, lined up like a MIDI file's and kept as
-    /// a recording's. Its sound is not kept.
+    /// a recording's. Its sound is kept on this device only, never in the project file (0024, scenario 2).
     /// </summary>
     private async Task<string?> AddRecordingVersionAsync(string fileName, byte[] midi)
     {
@@ -397,6 +397,12 @@ public partial class PlaybackLab
             }
 
             await AddVersionAsync(project, fileName, PerformanceSource.Recording, midi, played);
+            if (_performanceId is { } id)
+            {
+                // Its sound stays on this device, to be heard while comparing (0024, scenario 2).
+                await KeepRecordingAsync(id);
+            }
+
             StateHasChanged();
         }
 

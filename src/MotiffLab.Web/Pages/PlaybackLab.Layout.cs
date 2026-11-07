@@ -82,6 +82,7 @@ public partial class PlaybackLab : IAsyncDisposable
     {
         _rollOpen && !FocusShowsRoll ? "roll-open" : null,
         _assembling && _besideOpen ? "beside-open" : null,
+        WaveShown ? "wave-open" : null,
         _insightsOpen || _checkOpen || _performanceOpen || _carry is not null || _journalOpen ? "insights-open" : null,
         _contentsOpen ? "contents-open" : null,
         _bookmarkDraft is { Id: null } || _noteDraft is not null ? "bookmarking" : null,

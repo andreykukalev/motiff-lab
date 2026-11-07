@@ -82,12 +82,12 @@ public sealed record AssemblyWork
     }
 
     /// <summary>The carry a selection in a source would make, not yet in the journal.</summary>
-    public CarryStep Carry(string sourceId, TickSpan from, AssemblyPlace to, int transpose, DateTimeOffset at) =>
-        new(Next, at, sourceId, from, to, transpose);
+    public CarryStep Carry(string sourceId, TickSpan from, AssemblyPlace to, int transpose, DateTimeOffset at, bool keep = false) =>
+        new(Next, at, sourceId, from, to, transpose, keep && !to.Inserts);
 
-    /// <summary>The sheet for a carry before it is made, with its ghost.</summary>
-    public CarrySheet Sheet(CarryStep carry, AssemblyPlace? replaceable, Tick playhead, Words words) =>
-        CarrySheet.Of(Base, Source, Steps, Result, carry, NamesIn(words), replaceable, playhead, words);
+    /// <summary>The sheet for a carry before it is made, with its ghost; <paramref name="heard"/> when its source is a recording.</summary>
+    public CarrySheet Sheet(CarryStep carry, AssemblyPlace? replaceable, Tick playhead, Words words, bool heard = false) =>
+        CarrySheet.Of(Base, Source, Steps, Result, carry, NamesIn(words), replaceable, playhead, words, heard);
 
     /// <summary>The work with a step added to the journal; the redo history goes.</summary>
     public AssemblyWork With(AssemblyStep step)

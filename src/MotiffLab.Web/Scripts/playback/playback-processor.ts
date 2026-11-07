@@ -71,7 +71,21 @@ export type EngineMessage =
     | { type: "countIn"; bars: number }
     | { type: "tracks"; muted: number[]; soloed: number[] }
     | { type: "noteOn"; pitch: number; velocity: number }
-    | { type: "noteOff"; pitch: number };
+    | { type: "noteOff"; pitch: number }
+    | RecordingMessage
+    | { type: "recordingOn"; on: boolean };
+
+/**
+ * A recording heard as it sounds (decision record 0024, scenario 2): its mono samples, and where the places of the
+ * notes heard in it are, as pairs of a tick and a millisecond, ascending. Null samples forget it.
+ */
+export interface RecordingMessage {
+    type: "recording";
+    samples: Float32Array | null;
+    sampleRate: number;
+    ticks: number[];
+    milliseconds: number[];
+}
 
 /**
  * Notes the player strikes by hand (clicking the roll or the keyboard). They sound at once, over
@@ -133,6 +147,14 @@ interface Voice {
     released: boolean;
     endTick: number;
     order: number;
+}
+
+interface Recording {
+    samples: Float32Array;
+    /** Samples a millisecond. */
+    perMillisecond: number;
+    ticks: Float64Array;
+    milliseconds: Float64Array;
 }
 
 interface Click {
@@ -217,6 +239,11 @@ export class Engine {
 
     private voices: Voice[] = [];
     private clicks: Click[] = [];
+    private recording: Recording | null = null;
+    /** Whether the recording sounds in place of the notes; it plays at its own speed, whatever the rate. */
+    private recordingOn = false;
+    /** The recording's sound for the block being rendered. */
+    private recordingOut = new Float32Array(128);
     private voiceOrder = 0;
     private readonly releaseFactor: number;
     private framesSinceReport = 0;
@@ -317,6 +344,12 @@ export class Engine {
             case "noteOff":
                 this.releaseWhere((voice) => voice.sourceId === LIVE_SOURCE && voice.pitch === message.pitch, 0);
                 break;
+            case "recording":
+                this.setRecording(message);
+                break;
+            case "recordingOn":
+                this.recordingOn = message.on;
+                break;
         }
     }
 
@@ -328,6 +361,10 @@ export class Engine {
         const frames = left.length;
         let done = 0;
         this.blockFrame = blockFrame;
+        if (this.recordingOut.length < frames) {
+            this.recordingOut = new Float32Array(frames);
+        }
+        this.recordingOut.fill(0, 0, frames);
         while (done < frames) {
             this.blockOffset = done;
             if (this.state === "playing") {
@@ -343,7 +380,7 @@ export class Engine {
         this.renderVoices(left, frames);
         this.renderClicks(left, frames);
         for (let i = 0; i < frames; i++) {
-            left[i] *= MASTER_GAIN;
+            left[i] = left[i] * MASTER_GAIN + this.recordingOut[i];
         }
         right?.set(left);
 
@@ -569,7 +606,64 @@ export class Engine {
 
     private ticksPerFrame(tempoIndex: number): number {
         const microsecondsPerQuarter = this.timeline!.tempoUspq[tempoIndex];
-        return (TICKS_PER_QUARTER * this.rate * 1e6) / (microsecondsPerQuarter * this.sampleRate);
+        const rate = this.hearingRecording() ? 1 : this.rate;
+        return (TICKS_PER_QUARTER * rate * 1e6) / (microsecondsPerQuarter * this.sampleRate);
+    }
+
+    private hearingRecording(): boolean {
+        return this.recordingOn && this.recording !== null;
+    }
+
+    private setRecording(message: RecordingMessage): void {
+        if (message.samples === null || message.ticks.length === 0 || message.ticks.length !== message.milliseconds.length) {
+            this.recording = null;
+            return;
+        }
+        this.recording = {
+            samples: message.samples,
+            perMillisecond: message.sampleRate / 1000,
+            ticks: Float64Array.from(message.ticks),
+            milliseconds: Float64Array.from(message.milliseconds),
+        };
+    }
+
+    /** Where a tick of the notes is heard in the recording, in milliseconds: between the pairs around it. */
+    recordingMillisecondAt(tick: number): number {
+        const recording = this.recording;
+        if (recording === null) {
+            return 0;
+        }
+        const { ticks, milliseconds } = recording;
+        const i = lastAtOrBefore(ticks, tick);
+        if (i < 0) {
+            return milliseconds[0];
+        }
+        if (i >= ticks.length - 1) {
+            return milliseconds[ticks.length - 1];
+        }
+        const span = ticks[i + 1] - ticks[i];
+        return span <= 0 ? milliseconds[i] : milliseconds[i] + ((milliseconds[i + 1] - milliseconds[i]) * (tick - ticks[i])) / span;
+    }
+
+    /** The recording's sound for `frames` frames from `offset`, while the position goes from `from` to `to`. */
+    private renderRecording(offset: number, frames: number, from: number, to: number): void {
+        const recording = this.recording;
+        if (recording === null || frames <= 0) {
+            return;
+        }
+        const start = this.recordingMillisecondAt(from) * recording.perMillisecond;
+        const end = this.recordingMillisecondAt(to) * recording.perMillisecond;
+        const step = (end - start) / frames;
+        const samples = recording.samples;
+        for (let i = 0; i < frames; i++) {
+            const at = start + i * step;
+            const index = Math.floor(at);
+            if (index < 0 || index + 1 >= samples.length) {
+                continue;
+            }
+            const fraction = at - index;
+            this.recordingOut[offset + i] += samples[index] + (samples[index + 1] - samples[index]) * fraction;
+        }
     }
 
     /** Points every cursor at the current position; with chase, strikes notes already sounding there. */
@@ -635,6 +729,9 @@ export class Engine {
 
         this.scheduleNotes(offset, perFrame, limit);
         this.scheduleBeats(offset, perFrame, limit);
+        if (this.hearingRecording()) {
+            this.renderRecording(offset, frames, this.position, this.position + frames * perFrame);
+        }
         this.scheduleReleases(offset, perFrame, until);
 
         if (frames < toBoundary) {

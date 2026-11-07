@@ -4,6 +4,7 @@
 // start, saved when the score was last shown. Nothing here leaves the device.
 
 export { deleteMarks } from "./pencil-store.js";
+export { deleteRecordings } from "./recording-store.js";
 
 const DATABASE = "motiff-lab";
 const VERSION = 2;

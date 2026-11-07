@@ -1,8 +1,9 @@
 @using MotiffLab.MusicCore.Assembly
 @inject MotiffLab.Web.Localization.UiText Text
 
-@* The carry sheet (0024, section 5; mockup 05): what the carry will do, before it is done, in the same six lines every time:
-   ? a choice, ! the music around changes, ✓ nothing changes. The choices sit in their lines as chips; the ghost is on the page. *@
+@* The carry sheet (0024, section 5; mockups 05 and 07): what the carry will do, before it is done, in the same six lines every
+   time, and from a recording a line first on how to get the notes: ? a choice, ! the music around changes, ✓ nothing changes.
+   The choices sit in their lines as chips; the ghost is on the page. *@
 <aside class="sheet inspector carry-sheet" aria-labelledby="carry-title" data-keeps-selection data-menu-clear="auto">
     <header class="check-head">
         <div>
@@ -18,7 +19,15 @@
             <li class="sheet-line @Mark(line.Mark)">
                 <span class="mark" aria-label="@Text[$"assembly.mark.{Mark(line.Mark)}"]">@Glyph(line.Mark)</span>
                 <div>
-                    @if (line.Name == "where")
+                    @if (line.Name == "how" && Sheet.KeepText is { } keep && Sheet.HeardText is { } heard)
+                    {
+                        <strong>@line.Label:</strong>
+                        <span class="choices stacked" role="radiogroup" aria-label="@line.Label">
+                            <button class="chip @(Keep ? "on" : null)" role="radio" aria-checked="@(Keep ? "true" : "false")" @onclick="() => ChooseKeep.InvokeAsync(true)">@keep</button>
+                            <button class="chip @(Keep ? null : "on")" role="radio" aria-checked="@(Keep ? "false" : "true")" @onclick="() => ChooseKeep.InvokeAsync(false)">@heard</button>
+                        </span>
+                    }
+                    else if (line.Name == "where")
                     {
                         <strong>@line.Label:</strong>
                         <span class="choices" role="radiogroup" aria-label="@line.Label">
@@ -48,6 +57,10 @@
     </ul>
     <footer class="carry-foot">
         <button class="btn quiet" @onclick="Hear"><Icon Name="@(Hearing ? "pause" : "play")" /> @Text["assembly.hearGhost"]</button>
+        @if (HearRecording.HasDelegate)
+        {
+            <button class="btn quiet" @onclick="HearRecording"><Icon Name="@(HearingRecording ? "pause" : "mic")" /> @Text["recording.hearRecording"]</button>
+        }
         <span class="sp"></span>
         <button class="btn quiet" @onclick="Cancel">@Text["assembly.cancel"]</button>
         <button class="btn primary" @onclick="Carry"><Icon Name="check" /> @Text["assembly.carry"]</button>
@@ -73,6 +86,20 @@
 
     [Parameter]
     public bool Hearing { get; set; }
+
+    /// <summary>From a recording: whether the notes stay and only what the performer plays otherwise is added.</summary>
+    [Parameter]
+    public bool Keep { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> ChooseKeep { get; set; }
+
+    [Parameter]
+    public bool HearingRecording { get; set; }
+
+    /// <summary>«Запись»: the fragment as the recording plays it; no delegate when its sound is not on this device.</summary>
+    [Parameter]
+    public EventCallback HearRecording { get; set; }
 
     [Parameter]
     public EventCallback<bool> ChooseInsert { get; set; }

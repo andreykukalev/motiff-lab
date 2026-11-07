@@ -46,6 +46,16 @@ Only «Сделать нотами» changes the piece's notes (`Project.ApplyAs
 
 Everything here runs on the device and is free. Hearing a recording's notes (the source) stays Pro, as in 0022.
 
+### 9. A recording as a source
+
+A recording added as a version (0022) is a source like the others, read in its own time: the notes heard in it are written in the bars worked out from them, with a tempo that follows the playing and a key that fits them ([0016](0016-bars-for-transcribed-notes.md)), marked heard (`SourceMusic.OfVersion`). Each note's place in those bars is paired with the time it was heard at (`RecordingClock`), so a place between notes lies between their times.
+
+While the recording is shown, its own sound plays in place of its notes, at its own speed whatever the tempo, from where the playhead is heard in it: the playback engine reads the recording's samples through the clock, so loops, seeks and the playhead stay in the notes' time. A strip over the pill shows the waveform around the selection or the playhead, the selection's stretch and the playhead on it; moving along it moves playing (mockups 06 and 13c). The card says when the selection is heard («0:41–0:45») and that the recording itself plays.
+
+The sound is kept on the device only, as a mono WAV in a store of its own under the project and the version, never in the project file, so it never goes online with the project; deleting the project deletes it. On another device, or for a version added before, the strip says the sound is not here and offers to pick the file again; until then the notes play on the piano.
+
+The carry sheet from a recording starts with «Как получить ноты» (mockup 07): keep the notes and add what the performer plays otherwise (`CarryStep.Keep`, the default when the carry replaces), or take the notes as heard (an ordinary carry). A carry that keeps adds only the fragment's notes no note of the place sounds, fitted into the place, which keeps its length and bars. «Запись» in the sheet's footer plays the fragment as the recording sounds; «Призрак» goes back to the notes.
+
 ## Consequences
 
 - Built in steps: the engine and the project file; the web app (scenario 1, two different versions); «Рядом», «Сопоставление» and «Принять совпавшее» (scenario 3); a recording as a source (scenario 2); the iPad app through the facade.

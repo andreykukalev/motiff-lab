@@ -187,6 +187,12 @@ public sealed record Assembled(SourceMusic Music, IReadOnlyDictionary<string, in
             }
 
             long length = s1.Value - s0.Value;
+            if (carry.Keep)
+            {
+                KeepCarry(carry, source, t0, t1, s0, length);
+                return;
+            }
+
             long delta = length - (t1.Value - t0.Value);
             Dictionary<int, int> tracks = TracksByHand();
             List<Note> next = [];
@@ -255,6 +261,52 @@ public sealed record Assembled(SourceMusic Music, IReadOnlyDictionary<string, in
                 .Select(key => key.At >= t1 && key.At != Tick.Zero ? key with { At = key.At.Offset(delta) } : key)];
             int[] leans = Leans([carry.To.Start.NoteId, carry.To.End?.NoteId]);
             _outcomes.Add(new StepOutcome(carry.Number, true, null, put, removed, [], shortened, delta, new TickSpan(t0, Math.Max(1, length)), leans));
+        }
+
+        /// <summary>
+        /// A carry that keeps the notes of its place: the fragment is fitted into the place, which keeps its length and
+        /// bars, and only its notes that no note of the place sounds (the same pitch within <see cref="AssemblyMatch.Tolerance"/>)
+        /// are added.
+        /// </summary>
+        private void KeepCarry(CarryStep carry, SourceMusic source, Tick t0, Tick t1, Tick s0, long length)
+        {
+            long place = t1.Value - t0.Value;
+            if (place <= 0)
+            {
+                Lost(carry, carry.To.Start.NoteId ?? carry.SourceId);
+                return;
+            }
+
+            long Fitted(long sourceTick) => t0.Value + AssemblyBars.Snap(new Tick(Math.Max(0, (sourceTick - s0.Value) * place / length))).Value;
+            Note[] there = [.. _notes.Where(note => note.Span.Onset >= t0 && note.Span.Onset < t1)];
+            Dictionary<int, int> tracks = TracksByHand();
+            List<string> put = [];
+            foreach (Note note in source.Notes.Where(note => note.Span.Onset >= carry.From.Onset && note.Span.Onset < carry.From.End))
+            {
+                int pitch = Math.Clamp(note.Pitch.MidiNumber + carry.Transpose, 0, Pitch.MaxMidiNumber);
+                long onset = Math.Min(Fitted(note.Span.Onset.Value), t1.Value - AssemblyBars.Grid);
+                if (onset < t0.Value || there.Any(other => other.Pitch.MidiNumber == pitch && Math.Abs(other.Span.Onset.Value - onset) <= AssemblyMatch.Tolerance))
+                {
+                    continue;
+                }
+
+                long finish = Math.Min(Fitted(Math.Min(note.Span.End.Value, carry.From.End.Value)), t1.Value);
+                string id = carry.IdOf(note.Id);
+                int hand = note.Hand?.Value is { } held ? (int)held : -1;
+                _notes.Add(note with
+                {
+                    Id = id,
+                    Pitch = new Pitch(pitch),
+                    Span = TickSpan.FromBounds(new Tick(onset), new Tick(Math.Max(finish, onset + AssemblyBars.Grid))),
+                    Track = tracks.TryGetValue(hand, out int track) ? track : tracks.GetValueOrDefault(-1),
+                    Voice = null,
+                });
+                _origins[id] = carry.Number;
+                put.Add(id);
+            }
+
+            int[] leans = Leans([carry.To.Start.NoteId, carry.To.End?.NoteId]);
+            _outcomes.Add(new StepOutcome(carry.Number, true, null, put, [], [], [], 0, new TickSpan(t0, place), leans));
         }
 
         private void ChangeNote(NoteStep change)
