@@ -4556,68 +4556,7 @@ body:has(.workspace) .site-footer {
     padding: 0;
 }
 
-/* The Sources sheet (testing item 16): a row for the base, the PDF kept inside and each other version, plum when shown. */
-.workspace .perf-sheet .source-list {
-    display: grid;
-    gap: var(--s-1);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-}
-
-.workspace .perf-sheet .source-row {
-    box-sizing: border-box;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--s-2) var(--s-3);
-    width: 100%;
-    min-height: var(--h-touch);
-    padding: var(--s-2) var(--s-3);
-    border: 1px solid var(--hairline);
-    border-radius: var(--r-s);
-    background: transparent;
-    color: var(--ink);
-    font: var(--t-body);
-    text-align: left;
-}
-
-.workspace .perf-sheet button.source-row {
-    cursor: pointer;
-}
-
-.workspace .perf-sheet button.source-row:hover {
-    background: var(--surface-2);
-}
-
-.workspace .perf-sheet .source-row.on {
-    border-color: var(--plum);
-    background: var(--plum-tint);
-}
-
-.workspace .perf-sheet .source-row:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
-}
-
-.workspace .perf-sheet .source-text {
-    display: grid;
-    flex: 1 1 10rem;
-    min-width: 0;
-}
-
-.workspace .perf-sheet .source-text strong {
-    overflow-wrap: anywhere;
-}
-
-.workspace .perf-sheet .source-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--s-1);
-}
-
-/* What next, after a version is added: four steps, one under the other. */
-.workspace .perf-sheet .source-next,
+/* Add a source: the routes, one under the other. */
 .workspace .perf-sheet .source-choices,
 .workspace .perf-sheet .recognise-inline {
     display: grid;
@@ -4625,19 +4564,6 @@ body:has(.workspace) .site-footer {
     padding: var(--s-3);
     border-radius: var(--r-m);
     background: var(--surface-2);
-}
-
-.workspace .perf-sheet .source-next .btn {
-    justify-content: flex-start;
-}
-
-.workspace .perf-sheet .source-next .btn .caption {
-    margin-left: auto;
-}
-
-.workspace .perf-sheet .source-taken {
-    align-items: center;
-    justify-content: space-between;
 }
 
 .workspace .perf-sheet .recognise-inline label.consent {
@@ -7160,272 +7086,631 @@ body:has(.library) .site-footer {
     cursor: pointer;
 }
 
-/* The merge (testing items 32 and 34). Three views keep one colour each everywhere: mine graphite, the version plum, the
-   result green; a swatch or a dot carries it on the buttons too. */
-.workspace .swatch, .workspace .dot.mine, .workspace .dot.version, .workspace .dot.result {
+/* Assembling the player's own version (decision record 0024; mockups «Сборка своей версии»). Each source keeps one colour
+   everywhere, on its chip, its dot, its card and the lines under the notes it put in: the notes graphite, the versions plum,
+   teal, amber and green in the order they were added, the notes before the assembly a ring in graphite. */
+.lab .tone-graphite {
+    --tone: var(--ink-2);
+    --tone-text: var(--ink-2);
+    --tone-tint: color-mix(in srgb, var(--ink-2) 14%, transparent);
+}
+
+.lab .tone-plum {
+    --tone: var(--plum);
+    --tone-text: var(--plum);
+    --tone-tint: var(--plum-tint);
+}
+
+.lab .tone-teal {
+    --tone: var(--teal);
+    --tone-text: var(--teal);
+    --tone-tint: var(--teal-tint);
+}
+
+/* Amber's own shade is too light for words on the paper: its text is the warning's deeper amber. */
+.lab .tone-amber {
+    --tone: var(--amber);
+    --tone-text: var(--warning);
+    --tone-tint: var(--amber-tint);
+}
+
+.lab .tone-green {
+    --tone: var(--success);
+    --tone-text: var(--success);
+    --tone-tint: color-mix(in srgb, var(--success) 16%, transparent);
+}
+
+.lab .tone-before {
+    --tone: var(--ink-3);
+    --tone-text: var(--ink-2);
+    --tone-tint: var(--surface-2);
+}
+
+.workspace .dot:is(.tone-graphite, .tone-plum, .tone-teal, .tone-amber, .tone-green, .tone-before),
+.workspace :is(.source-chip, .shown-label) .dot {
     display: inline-block;
     flex: none;
     width: 10px;
     height: 10px;
-    border-radius: var(--r-xs);
+    border-radius: 50%;
+    background: var(--tone, var(--ink-2));
     vertical-align: middle;
 }
 
-.workspace .dot.mine, .workspace .dot.version, .workspace .dot.result {
-    border-radius: 50%;
+.workspace .dot.tone-before, .workspace .tone-before .dot {
+    box-sizing: border-box;
+    border: 1.5px dashed var(--tone);
+    background: transparent;
 }
 
-.workspace .swatch.mine, .workspace .dot.mine {
-    background: var(--ink-2);
+/* By the title: «+1 версия», the one trace of the assembly in everyday work; it opens the Sources. */
+.lab.workspace .bar button.versions-label {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    margin-left: var(--s-2);
+    padding: 0 var(--s-3);
+    border-radius: var(--r-pill);
+    background: var(--plum-tint);
+    color: var(--plum);
+    font: var(--t-caption);
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
 }
 
-.workspace .swatch.version, .workspace .dot.version {
-    background: var(--plum);
+.lab.workspace .bar button.versions-label:hover, .lab.workspace .bar button.versions-label[aria-expanded=true] {
+    border-color: var(--plum);
 }
 
-.workspace .dot.result {
-    background: var(--success);
+/* The bar while comparing: the way back, the piece with «Сборка», which source is on the page, then Origins, the journal,
+   undo and redo, «Сделать нотами…» and Done. */
+.workspace .bar .assembly-ttl .caption {
+    font: var(--t-label);
+    color: var(--ink-2);
 }
 
-.workspace .perf-sheet .source-row.version {
+.workspace .bar .shown-label {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    margin-left: var(--s-2);
+    padding: 0 var(--s-3);
+    border-radius: var(--r-pill);
+    background: var(--tone-tint);
+    color: var(--tone-text);
+    font: var(--t-caption);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.lab.workspace .bar .act.wide {
+    width: auto;
+    display: inline-flex;
+    gap: 6px;
+    padding: 0 var(--s-3);
+}
+
+.lab.workspace .bar .act:disabled {
+    opacity: .4;
+    cursor: default;
+}
+
+.lab.workspace .bar .act:disabled:hover {
+    background: transparent;
+}
+
+.workspace .bar .act.redo svg {
+    transform: scaleX(-1);
+}
+
+.lab.workspace .bar .btn.compact {
+    flex: none;
+    height: 36px;
+    padding: 0 var(--s-3);
+}
+
+.lab.workspace .bar .btn.primary {
+    background: var(--accent);
+    color: var(--on-accent);
+}
+
+@media (max-width: 900px) {
+    .workspace.assembling .bar .act.wide span, .workspace.assembling .bar .assembly-ttl .caption {
+        display: none;
+    }
+}
+
+@media (max-width: 640px) {
+    .workspace.assembling .bar .assembly-ttl, .workspace.assembling .bar .shown-label {
+        display: none;
+    }
+}
+
+/* The playback pill while comparing (mockups 00c and 13a): a chip per source is the tab that shows it, with ▶ to hear it. */
+.workspace .assembly-pill {
+    width: max-content;
+}
+
+.workspace .assembly-pill .chips {
+    display: flex;
+    align-items: center;
+    gap: var(--s-1);
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.workspace .source-chip {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    height: 36px;
+    border: 1px solid transparent;
+    border-radius: var(--r-pill);
+    color: var(--ink-2);
+}
+
+.workspace .source-chip.shown {
+    border-color: var(--tone);
+    background: var(--tone-tint);
+    color: var(--ink);
+}
+
+.lab.workspace .pill .source-chip button {
+    display: inline-flex;
+    align-items: center;
+    height: 34px;
+    border: 0;
+    border-radius: var(--r-pill);
+    color: inherit;
+    cursor: pointer;
+}
+
+.lab.workspace .pill .source-chip .name {
+    gap: 6px;
+    padding: 0 var(--s-1) 0 var(--s-3);
+    white-space: nowrap;
+}
+
+.workspace .source-chip.shown .name .label {
+    font-weight: 600;
+}
+
+.workspace .source-chip .detail {
+    color: var(--ink-2);
+}
+
+.lab.workspace .pill .source-chip .hear {
+    justify-content: center;
+    width: 30px;
+    padding: 0;
+    color: var(--tone-text);
+}
+
+.lab.workspace .pill .source-chip button:hover {
+    background: var(--tone-tint);
+}
+
+.workspace .source-chip.heard .hear {
+    box-shadow: inset 0 0 0 1.5px var(--tone);
+}
+
+.lab.workspace .pill .source-chip button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+
+@media (max-width: 640px) {
+    .workspace .assembly-pill .tempo-read, .workspace .source-chip .detail {
+        display: none;
+    }
+}
+
+/* The card at the selection while comparing (mockups 02, 03 and 08): in place of the menu's items, over the selection. */
+.workspace .ctx .menu.assembly-menu {
+    height: auto;
+    padding: 0;
+    border-radius: var(--r-l);
+    white-space: normal;
+    font: var(--t-body);
+}
+
+/* The card scrolls inside the menu, so the menu's pointer stays at the selection however much the card says. */
+.workspace .assembly-card {
+    display: grid;
+    gap: var(--s-2);
+    width: 340px;
+    max-width: calc(100vw - 2 * var(--s-6));
+    max-height: min(52vh, 440px);
+    overflow-y: auto;
+    box-sizing: border-box;
+    padding: var(--s-3) var(--s-4);
+}
+
+.workspace .assembly-card p {
+    margin: 0;
+}
+
+.workspace .assembly-card .head {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.workspace .assembly-card .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+}
+
+.workspace .assembly-card hr {
     width: 100%;
+    margin: var(--s-1) 0;
+    border: 0;
+    border-top: 1px solid var(--hairline);
 }
 
-.workspace .perf-sheet .source-row.version > svg:last-child {
-    margin-left: auto;
-    color: var(--ink-3);
+.lab.workspace :is(.assembly-card, .perf-sheet) button.link {
+    min-height: 0;
+    height: auto;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--accent-hover);
+    font: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
 }
 
-.workspace .perf-sheet .danger-text {
-    align-self: flex-start;
-    color: var(--danger);
-}
-
-.workspace .merge-overview, .workspace .merge-applied {
+/* The carry sheet, the journal and the apply dialog (mockups 05, 09 and 17): the same lines every time, each with its mark:
+   ? a choice, ! the music around changes, ✓ nothing changes. */
+.workspace :is(.carry-sheet, .journal-sheet) {
     display: flex;
     flex-direction: column;
     gap: var(--s-3);
 }
 
-.workspace .merge-applied {
-    padding: var(--s-3);
-    border-radius: var(--r-m);
-    background: var(--plum-tint);
+.workspace :is(.carry-sheet, .journal-sheet, .apply-dialog) .check-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--s-2);
 }
 
-.workspace .merge-applied.undone {
-    background: var(--paper);
-    border: 1px dashed var(--plum);
-}
-
-.workspace .merge-applied p {
+.workspace :is(.carry-sheet, .journal-sheet, .apply-dialog) h2 {
     display: flex;
     align-items: center;
     gap: var(--s-2);
+    margin: var(--s-1) 0 0;
+    font: var(--t-title);
+    color: var(--ink);
+}
+
+.workspace :is(.carry-sheet, .journal-sheet, .apply-dialog, .assembly-offer) p {
+    margin: 0;
+}
+
+.workspace .sheet-lines {
+    display: grid;
+    gap: var(--s-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.workspace .sheet-line {
+    display: grid;
+    grid-template-columns: 22px 1fr;
+    align-items: start;
+    gap: var(--s-2);
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-s);
+    background: var(--surface-2);
+    font: var(--t-label);
+    color: var(--ink);
+}
+
+.workspace .sheet-line .mark {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    font: var(--t-caption);
+    font-weight: 700;
+}
+
+.workspace .sheet-line.choice .mark {
+    background: var(--accent-tint);
+    color: var(--accent-hover);
+}
+
+.workspace .sheet-line.changes {
+    background: var(--amber-tint);
+}
+
+.workspace .sheet-line.changes .mark {
+    background: var(--amber);
+    color: var(--notation);
+}
+
+.workspace .sheet-line.same .mark {
+    color: var(--success);
+    box-shadow: inset 0 0 0 1.5px var(--success);
+}
+
+.workspace .sheet-line .choices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-1);
+    margin-top: var(--s-1);
+}
+
+.lab.workspace .sheet-line .choices .chip {
+    min-height: 0;
+    height: 32px;
+    padding: 0 var(--s-3);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-pill);
+    background: var(--surface);
+    color: var(--ink);
+    font: var(--t-label);
+    cursor: pointer;
+}
+
+/* Solid, so it reads on an amber line too. */
+.lab.workspace .sheet-line .choices .chip.on {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--on-accent);
+    font-weight: 600;
+}
+
+.workspace .carry-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2);
+    margin-top: auto;
+    padding-top: var(--s-2);
+    border-top: 1px solid var(--hairline);
+}
+
+.workspace .carry-foot .sp {
+    flex: 1;
+}
+
+/* The journal: a row per step, newest first; returning one marks what goes with it in amber and what stays in green. */
+.workspace .journal-rows {
+    display: grid;
+    gap: var(--s-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.workspace .journal-row {
+    display: grid;
+    grid-template-columns: 10px 1fr;
+    align-items: start;
+    gap: var(--s-3);
+    padding: var(--s-2) var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-s);
+}
+
+.workspace .journal-row > .dot {
+    margin-top: 5px;
+}
+
+.workspace .journal-row .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-1);
+    margin-top: var(--s-2);
+}
+
+.workspace .journal-row.going {
+    border-color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 8%, transparent);
+}
+
+.workspace .journal-row.leans {
+    border-color: var(--amber);
+    background: var(--amber-tint);
+}
+
+.workspace .journal-row.stays {
+    border-color: var(--success);
+}
+
+.workspace .journal-row.lost .title {
+    color: var(--ink-3);
+    text-decoration: line-through;
+}
+
+.lab.workspace .danger-text {
+    color: var(--danger);
+}
+
+.lab.workspace .btn.danger {
+    border-color: var(--danger);
+    background: var(--danger);
+    color: var(--on-accent);
+}
+
+/* «Сделать нотами»: a dialog over the page, the one action that changes the piece. */
+.workspace .apply-backdrop {
+    background: color-mix(in srgb, var(--notation) 24%, transparent);
+}
+
+.workspace .apply-dialog {
+    position: fixed;
+    z-index: 41;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+    width: 480px;
+    max-width: calc(100vw - 2 * var(--s-4));
+    max-height: calc(100vh - 2 * var(--s-4));
+    overflow-y: auto;
+    box-sizing: border-box;
+    padding: var(--s-5) var(--s-6);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-l);
+    background: var(--surface);
+    box-shadow: var(--shadow-sheet);
+}
+
+/* After a version is added (mockup 00b): one quiet card at the bottom, the notes unchanged; it goes after ten seconds. */
+.workspace .assembly-offer {
+    position: absolute;
+    z-index: 4;
+    left: 50%;
+    bottom: var(--s-4);
+    transform: translateX(-50%);
+    display: grid;
+    gap: var(--s-2);
+    width: 440px;
+    max-width: calc(100% - 2 * var(--s-4));
+    box-sizing: border-box;
+    padding: var(--s-3) var(--s-4);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-l);
+    background: var(--surface);
+    box-shadow: var(--shadow-sheet);
+    font: var(--t-body);
+    animation: rise var(--t-base) var(--ease);
+}
+
+.workspace .assembly-offer header {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.workspace .assembly-offer h2 {
+    flex: 1;
     margin: 0;
     font: var(--t-body-strong);
 }
 
-.workspace .merge-verdict {
-    margin: 0;
-    font: var(--t-body);
-}
-
-.workspace .merge-choices, .workspace .merge-take {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--s-2);
-}
-
-.workspace .merge-choices .btn, .workspace .merge-take .btn {
-    justify-content: flex-start;
-    gap: var(--s-2);
-}
-
-.workspace .merge-take .btn.on, .workspace .compare-actions .btn.on {
-    border-color: var(--accent);
-    background: var(--accent-tint);
-}
-
-/* The strip of bars: a cell per bar, grey where the version agrees, plum where it differs, darker where it is sure. */
-.workspace .merge-strip {
+.workspace .assembly-offer .row {
     display: flex;
     flex-wrap: wrap;
-    gap: 2px;
-}
-
-.lab.workspace .merge-strip .cell {
-    width: 10px;
-    min-width: 0;
-    height: 18px;
-    min-height: 0;
-    padding: 0;
-    border: 0;
-    border-radius: 2px;
-    background: var(--hairline);
-    cursor: pointer;
-}
-
-.lab.workspace .merge-strip .cell.off {
-    background: transparent;
-    outline: 1px dashed var(--hairline-strong);
-    outline-offset: -1px;
-}
-
-.lab.workspace .merge-strip .cell.doubt {
-    background: var(--plum-tint);
-    box-shadow: inset 0 0 0 1px var(--plum);
-}
-
-.lab.workspace .merge-strip .cell.sure {
-    background: var(--plum);
-}
-
-.lab.workspace .merge-strip .cell.mine {
-    background: var(--ink-2);
-}
-
-.lab.workspace .merge-strip .cell.version {
-    background: var(--success);
-}
-
-.lab.workspace .merge-strip .cell.at {
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
-}
-
-/* The draft: a dashed plum block, nothing in it is in the score until Apply. */
-.workspace .merge-draft {
-    display: flex;
-    flex-direction: column;
-    gap: var(--s-3);
-    padding: var(--s-3);
-    border: 1.5px dashed var(--plum);
-    border-radius: var(--r-m);
-    background: var(--surface);
-}
-
-.workspace .merge-draft-head, .workspace .merge-step, .workspace .compare-group, .workspace .compare-see, .workspace .merge-view .lab {
-    display: flex;
     align-items: center;
     gap: var(--s-2);
 }
 
-.workspace .merge-draft-head .overline, .workspace .merge-step p, .workspace .compare-group .overline {
-    margin: 0;
-}
-
-.workspace .merge-draft-head .caption {
-    margin-left: auto;
-}
-
-.workspace .merge-step p {
+.workspace .assembly-offer .sp {
     flex: 1;
-    min-width: 0;
-    text-align: center;
 }
 
-.workspace .merge-state {
-    margin: 0;
-}
-
-.workspace .merge-rows {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+/* The Sources sheet, «Из чего собирать» (mockups 01 and 10): a card per source, in its colour at the left. */
+.workspace .source-cards {
+    display: grid;
+    gap: var(--s-2);
     margin: 0;
     padding: 0;
     list-style: none;
-    max-height: 220px;
-    overflow-y: auto;
 }
 
-.lab.workspace .merge-row {
+.workspace .source-card {
     display: grid;
-    grid-template-columns: auto 1fr auto;
-    align-items: center;
     gap: var(--s-2);
-    width: 100%;
-    min-height: var(--h-compact);
-    padding: 0 var(--s-2);
-    border: 0;
-    border-radius: var(--r-s);
-    background: transparent;
-    color: var(--ink);
-    font: var(--t-label);
-    text-align: left;
-    cursor: pointer;
-}
-
-.lab.workspace .merge-row:hover {
-    background: var(--surface-2);
-}
-
-.lab.workspace .merge-row.on {
-    background: var(--accent-tint);
-}
-
-.workspace .merge-row .state {
-    padding: 0 var(--s-2);
-    border-radius: var(--r-pill);
-    font: var(--t-caption);
-    background: var(--hairline);
-    color: var(--ink-2);
-}
-
-.workspace .merge-row .state.mine {
-    background: var(--surface-2);
-    color: var(--ink);
-    box-shadow: inset 0 0 0 1px var(--ink-2);
-}
-
-.workspace .merge-row .state.version {
-    background: var(--plum-tint);
-    color: var(--plum);
-}
-
-.workspace .merge-row .state.own {
-    background: var(--amber-tint);
-    color: var(--warning);
-}
-
-.workspace .merge-history .redo svg, .workspace .compare-bar .redo svg {
-    transform: scaleX(-1);
-}
-
-.workspace .merge-apply {
-    justify-content: flex-end;
-}
-
-.workspace .merge-listen button, .workspace .merge-show .seg button {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.workspace .merge-window {
-    align-self: flex-start;
-}
-
-/* While a draft is open, what the score shows: floating over the top of the score, under the bar. */
-.workspace .merge-show {
-    position: fixed;
-    z-index: 25;
-    top: calc(env(safe-area-inset-top, 0px) + var(--h-touch) + var(--s-6));
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    align-items: center;
-    gap: var(--s-2);
-    padding: var(--s-1) var(--s-2) var(--s-1) var(--s-4);
+    padding: var(--s-3);
     border: 1px solid var(--hairline);
-    border-radius: var(--r-pill);
+    border-radius: var(--r-m);
     background: var(--surface);
-    box-shadow: var(--shadow-pill);
+    font: var(--t-label);
 }
 
-/* What a merge did, with Undo: amber, as the player's own step. */
+.workspace .source-card p {
+    margin: 0;
+}
+
+.workspace .source-card .head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-1) var(--s-2);
+    font: var(--t-body);
+}
+
+.workspace .source-card .head strong {
+    overflow-wrap: anywhere;
+}
+
+.workspace .source-card .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-1);
+}
+
+.lab.workspace .source-card button.link {
+    justify-self: start;
+    font: var(--t-caption);
+}
+
+.workspace .source-details {
+    display: grid;
+    gap: var(--s-2);
+    padding-top: var(--s-2);
+    border-top: 1px solid var(--hairline);
+}
+
+.workspace .source-details .btn {
+    justify-self: start;
+}
+
+.workspace .perf-sheet .source-add {
+    justify-content: center;
+}
+
+/* On the page while comparing: a line in the source's colour under the notes each carry put in (Origins), and the ghost of
+   the notes as the carry will make them, a dashed box named by its overline. */
+.lab .score .origin-line {
+    position: absolute;
+    z-index: 1;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--tone, var(--plum));
+    pointer-events: none;
+}
+
+.lab .score .assembly-ghost {
+    position: absolute;
+    z-index: 1;
+    box-sizing: border-box;
+    border: 1.5px dashed var(--plum);
+    border-radius: var(--r-s);
+    background: color-mix(in srgb, var(--plum) 6%, transparent);
+    pointer-events: none;
+}
+
+/* Its name reads leftwards from its right edge: a ghost at the end of a system would push it off the page. */
+.lab .score .assembly-ghost span {
+    position: absolute;
+    right: 0;
+    top: -10px;
+    padding: 0 var(--s-1);
+    border-radius: var(--r-xs);
+    background: var(--paper);
+    color: var(--plum);
+    font: var(--t-overline);
+    white-space: nowrap;
+}
+
+/* What a change did, with Undo: amber, as the player's own step. */
 .workspace .merge-toast {
     position: fixed;
     z-index: 45;
@@ -7455,86 +7740,4 @@ body:has(.library) .site-footer {
 
 .workspace .marker-pop .overline {
     margin: 0 0 var(--s-2);
-}
-
-/* The window «Сравнение версий»: the shell of Piece DNA, the list at the left and the three views at the right. */
-.workspace .dna.compare {
-    gap: var(--s-4);
-}
-
-.workspace .compare-body {
-    display: grid;
-    grid-template-columns: minmax(240px, 320px) 1fr;
-    gap: var(--s-6);
-    align-items: start;
-}
-
-.workspace .compare-list, .workspace .compare-main {
-    display: flex;
-    flex-direction: column;
-    gap: var(--s-3);
-    min-width: 0;
-}
-
-.workspace .compare-list .merge-rows {
-    max-height: none;
-}
-
-.workspace .compare-group .sp, .workspace .compare-see .sp, .workspace .merge-view .lab .sp {
-    flex: 1;
-}
-
-.workspace .compare-actions {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--s-2);
-}
-
-.workspace .compare-actions kbd {
-    padding: 0 4px;
-    border: 1px solid var(--hairline-strong);
-    border-radius: var(--r-xs);
-    font: var(--t-caption);
-    color: var(--ink-2);
-}
-
-.workspace .compare-see .zoom {
-    display: flex;
-    align-items: center;
-    gap: var(--s-1);
-}
-
-.workspace .merge-view {
-    padding: var(--s-2) var(--s-3) var(--s-3);
-    border: 1px solid var(--hairline);
-    border-left: 3px solid var(--ink-2);
-    border-radius: var(--r-m);
-    background: var(--paper);
-}
-
-.workspace .merge-view.version {
-    border-left-color: var(--plum);
-}
-
-.workspace .merge-view.result {
-    border-left-color: var(--success);
-}
-
-.workspace .merge-view .phrase-card-score {
-    zoom: var(--zoom, 1);
-}
-
-.lab.workspace .merge-view .btn.icon.version {
-    color: var(--plum);
-}
-
-.lab.workspace .merge-view .btn.icon.result {
-    color: var(--success);
-}
-
-@media (max-width: 760px) {
-    .workspace .compare-body {
-        grid-template-columns: 1fr;
-    }
 }

@@ -60,6 +60,8 @@ else if (_loading && !HoldHeight)
     private IReadOnlyList<string>? _shownVersionArtefacts;
     private IReadOnlyList<long>? _shownTakenBars;
     private IReadOnlyList<string>? _shownOwnNotes;
+    private IReadOnlyList<ScoreOrigin>? _shownOrigins;
+    private ScoreGhost? _shownGhost;
     private IReadOnlyList<string>? _shownHiddenLayers;
     private IReadOnlyList<HighlightPlace>? _shownHighlight;
     private IReadOnlyList<HighlightPlace>? _shownPointed;
@@ -73,6 +75,14 @@ else if (_loading && !HoldHeight)
     /// <summary>The selection, drawn as a band with handles over its bars (0018 section 3); null draws none.</summary>
     [Parameter]
     public TickSpan? Selection { get; set; }
+
+    /// <summary>The lines under the notes carries put in, in their sources' tones (0024, «Происхождение»); null draws none.</summary>
+    [Parameter]
+    public IReadOnlyList<ScoreOrigin>? Origins { get; set; }
+
+    /// <summary>The ghost of a carry being made (0024): a dashed plum box over where its fragment will lie.</summary>
+    [Parameter]
+    public ScoreGhost? Ghost { get; set; }
 
     /// <summary>The contextual menu's items, shown above the selection; null shows no menu.</summary>
     [Parameter]
@@ -334,6 +344,11 @@ else if (_loading && !HoldHeight)
                 await ShowLayersAsync(_view);
             }
 
+            if (!ReferenceEquals(Origins, _shownOrigins) || Ghost != _shownGhost)
+            {
+                await ShowAssemblyAsync(_view);
+            }
+
             if (Selection != _shownSelection || !_selectionShown)
             {
                 await ShowSelectionAsync(_view);
@@ -368,6 +383,7 @@ else if (_loading && !HoldHeight)
             await ShowHighlightAsync(_view);
             await ShowPointedAsync(_view);
             await ShowPerformanceAsync(_view);
+            await ShowAssemblyAsync(_view);
             _error = null;
         }
         catch (JSException exception)
@@ -390,6 +406,13 @@ else if (_loading && !HoldHeight)
         await view.InvokeVoidAsync(
             "setPerformance", (object)(PerformanceMarkers ?? []).ToArray(), (object)(Unheard ?? []).ToArray(), (object)(VersionAdded ?? []).ToArray(), (object)(VersionArtefacts ?? []).ToArray(),
             (object)(TakenBars ?? []).ToArray(), (object)(OwnNotes ?? []).ToArray());
+    }
+
+    private async Task ShowAssemblyAsync(IJSObjectReference view)
+    {
+        _shownOrigins = Origins;
+        _shownGhost = Ghost;
+        await view.InvokeVoidAsync("setAssembly", (object)(Origins ?? []).ToArray(), Ghost);
     }
 
     private async Task ShowRangeAsync(IJSObjectReference view)

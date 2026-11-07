@@ -100,6 +100,10 @@ const PERFORMANCE_CLASS = "perf-marker";
 const TAKEN_CLASS = "taken-bar";
 /** How far under the bar's lowest staff the line runs, in pixels. */
 const TAKEN_GAP = 4;
+/** A line under the notes a carry put in, in its source's colour (decision record 0024, «Происхождение»). */
+const ORIGIN_CLASS = "origin-line";
+/** The ghost of a carry (0024): a dashed plum box over where the fragment will lie, with its label. */
+const GHOST_CLASS = "assembly-ghost";
 const PERFORMANCE_HEIGHT = 20;
 const PERFORMANCE_TARGET = 24;
 const PERFORMANCE_MIN_WIDTH = 36;
@@ -186,6 +190,21 @@ export interface ScorePerformanceMarker {
 }
 
 /** A bar Check asks about, as Blazor sends it: its number, where it starts, and what a screen reader says. */
+/** Where a carry's notes lie in the player's notes, drawn as a line in its source's tone ("plum", "teal", …). */
+export interface ScoreOrigin {
+    start: number;
+    end: number;
+    tone: string;
+    label: string;
+}
+
+/** The ghost of a carry: where its fragment will lie, and what heads it. */
+export interface ScoreGhost {
+    start: number;
+    end: number;
+    label: string;
+}
+
 export interface ScoreCheckFlag {
     bar: number;
     tick: number;
@@ -238,6 +257,8 @@ export class ScoreView {
     private versionAdded: string[] = [];
     private versionArtefacts: string[] = [];
     private highlights: ScoreHighlightMark[] = [];
+    private origins: ScoreOrigin[] = [];
+    private ghost: ScoreGhost | null = null;
     /** The pictures of the pages handed to the Pages tab, freed when new ones are made. */
     private thumbnails: string[] = [];
     /** The places of the chosen fact, and the engraved notes and rests that stand for them. */
@@ -571,6 +592,13 @@ export class ScoreView {
         this.versionArtefacts = artefacts;
         this.placeMarks();
         this.applyUnheard();
+    }
+
+    /** The lines under the notes carries put in, and the ghost of a carry being made (0024); empty draws none. */
+    setAssembly(origins: ScoreOrigin[], ghost: ScoreGhost | null): void {
+        this.origins = origins;
+        this.ghost = ghost;
+        this.placeMarks();
     }
 
     /** Places the contextual menu again, as when a drawer opens beside it. */
@@ -977,12 +1005,44 @@ export class ScoreView {
     }
 
     private placeMarks(): void {
-        for (const old of this.host.querySelectorAll(`:scope > .${NOTE_CLASS}, :scope > .${MARK_HIGHLIGHT_CLASS}, :scope > .${CHECK_CLASS}, :scope > .${PERFORMANCE_CLASS}, :scope > .${TAKEN_CLASS}`)) {
+        for (const old of this.host.querySelectorAll(
+            `:scope > .${NOTE_CLASS}, :scope > .${MARK_HIGHLIGHT_CLASS}, :scope > .${CHECK_CLASS}, :scope > .${PERFORMANCE_CLASS}, :scope > .${TAKEN_CLASS}, :scope > .${ORIGIN_CLASS}, :scope > .${GHOST_CLASS}`,
+        )) {
             old.remove();
         }
-        const geometry = this.marginNotes.length + this.highlights.length + this.checks.length + this.performanceMarkers.length + this.takenBars.length === 0 ? null : this.geometry();
+        const count = this.marginNotes.length + this.highlights.length + this.checks.length + this.performanceMarkers.length + this.takenBars.length + this.origins.length;
+        const geometry = count === 0 && this.ghost === null ? null : this.geometry();
         if (geometry === null) {
             return;
+        }
+        for (const origin of this.origins) {
+            for (const run of geometry.band(origin.start, origin.end, 0)) {
+                const line = document.createElement("div");
+                line.className = `${ORIGIN_CLASS} tone-${origin.tone}`;
+                line.setAttribute("aria-hidden", "true");
+                line.title = origin.label;
+                line.style.left = `${run.left}px`;
+                line.style.top = `${run.bottom + TAKEN_GAP * 3}px`;
+                line.style.width = `${run.right - run.left}px`;
+                this.host.append(line);
+            }
+        }
+        if (this.ghost !== null) {
+            geometry.band(this.ghost.start, this.ghost.end).forEach((run, index) => {
+                const box = document.createElement("div");
+                box.className = GHOST_CLASS;
+                box.setAttribute("aria-hidden", "true");
+                box.style.left = `${run.left}px`;
+                box.style.top = `${run.top}px`;
+                box.style.width = `${run.right - run.left}px`;
+                box.style.height = `${run.bottom - run.top}px`;
+                if (index === 0) {
+                    const label = document.createElement("span");
+                    label.textContent = this.ghost?.label ?? "";
+                    box.append(label);
+                }
+                this.host.append(box);
+            });
         }
         for (const tick of this.takenBars) {
             const bar = geometry.barAt(tick);

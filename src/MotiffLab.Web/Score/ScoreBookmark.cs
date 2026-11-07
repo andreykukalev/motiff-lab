@@ -36,3 +36,9 @@ public sealed record ScorePerformanceMarker(int Bar, long Tick, string Text, str
 
 /// <summary>A version's marker tapped on the score (testing item 33): its bar and where it is on the screen, for the popover beside it.</summary>
 public sealed record ScoreMarkerPick(int Bar, double Left, double Bottom);
+/// <summary>Where a carry's notes lie in the player's notes (decision record 0024, «Происхождение»): a line in its source's tone.</summary>
+/// <param name="Tone">"plum", "teal", "green" or "amber": the source's colour, as on its chip.</param>
+public sealed record ScoreOrigin(long Start, long End, string Tone, string Label);
+
+/// <summary>The ghost of a carry being made (0024): where its fragment will lie in the notes, and its label.</summary>
+public sealed record ScoreGhost(long Start, long End, string Label);

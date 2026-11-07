@@ -250,34 +250,54 @@ public partial class PlaybackLab
         await Player.SetLoopAsync(bar);
         await Player.SeekAsync(bar.Onset);
         await PlayAsync();
-        _mergeHearing = "version";
     }
 
-    /// <summary>«Открыть в черновике»: the version's page opens with the draft on this bar, the choices as last applied.</summary>
-    private Task OpenDraftAtMarkerAsync() => _markerPick is { } pick ? OpenDraftAtAsync(pick.Bar) : Task.CompletedTask;
+    /// <summary>The bars taken from versions by the merge draft of older files, for the thin plum line under them, with extra information on.</summary>
+    private IReadOnlyList<long>? _takenBarTicks;
 
-    private async Task OpenDraftAtAsync(int bar)
+    private IReadOnlyList<long>? ScoreTakenBars
     {
-        if (ShownPerformance is not { } version || ShownComparison is null)
+        get
+        {
+            if (!ExtraShown("taken") || _meter is null || _project is not { } project)
+            {
+                return null;
+            }
+
+            long[] ticks = [.. project.TakenBars.Select(bar => _meter.GetBar(bar.Bar).Span.Onset.Value).Distinct().Order()];
+            if (_takenBarTicks is null || !_takenBarTicks.SequenceEqual(ticks))
+            {
+                _takenBarTicks = ticks;
+            }
+
+            return _takenBarTicks;
+        }
+    }
+
+    /// <summary>«Сравнить» on a marker: the comparison opens on the version, with the bar it plays there selected.</summary>
+    private Task CompareAtMarkerAsync() => _markerPick is { } pick ? CompareAtAsync(pick.Bar) : Task.CompletedTask;
+
+    /// <summary>The comparison opens on the shown version, at the bars of it that stand for <paramref name="bar"/> of the notes.</summary>
+    private async Task CompareAtAsync(int bar)
+    {
+        if (ShownPerformance is not { } version || _meter is null || Work is not { } work || work.Source(version.Id) is null)
         {
             return;
         }
 
         _markerPick = null;
-        _performanceOpen = true;
-        _insightsOpen = false;
-        _checkOpen = false;
-        OpenVersionPage(version.Id);
-        if (_draft?.PerformanceId != version.Id)
+        TickSpan inNotes = _meter.GetBar(bar).Span;
+        if (work.Match(version.Id).InSource(inNotes) is { } inVersion)
         {
-            OpenDraft(PerformanceMerge.Open(version, ShownComparison, MergeStart.Saved));
+            _picks[version.Id] = inVersion;
         }
 
-        await GoToBarAsync(bar);
+        _picks[NotesSource] = inNotes;
+        await OpenAssemblyAsync(version.Id);
     }
 
-    /// <summary>In focus, «Открыть в черновике» on the phrase's first bar the version has otherwise.</summary>
-    private Task OpenDraftInFocusAsync() => FocusVersionBars is [var first, ..] ? LeaveFocusThenAsync(() => OpenDraftAtAsync(first.Bar)) : Task.CompletedTask;
+    /// <summary>In focus, «Сравнить» on the phrase's first bar the version has otherwise.</summary>
+    private Task CompareInFocusAsync() => FocusVersionBars is [var first, ..] ? LeaveFocusThenAsync(() => CompareAtAsync(first.Bar)) : Task.CompletedTask;
 
     private async Task LeaveFocusThenAsync(Func<Task> then)
     {
@@ -402,13 +422,13 @@ public partial class PlaybackLab
         _project = project;
         _performanceId = performance.Id;
         _addingSource = false;
-        OpenVersionPage(performance.Id);
         _comparison = (performance.Id, performance.Midi, performance.Anchors, _edits, _imported, comparison);
-        _performanceStatus = comparison.MatchedCount == 0
-            ? Text["performance.noMatch"]
-            : Text.Format("performance.added", comparison.MatchedCount, printed.Count, comparison.Differences.Count());
+        _performanceStatus = null;
         CurrentPiece.Saved(_project);
         await Projects.SaveAsync(_project);
+        // The notes have not changed (0024, section 6): one quiet card offers to compare, and the sheet steps aside for it.
+        _performanceOpen = false;
+        OfferComparison(performance);
     }
 
     private async Task RenamePerformanceAsync(ChangeEventArgs args)

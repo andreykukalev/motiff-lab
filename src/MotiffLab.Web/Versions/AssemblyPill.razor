@@ -1,0 +1,55 @@
+@inject MotiffLab.Web.Localization.UiText Text
+
+@* The pill while comparing (0024, section 6; mockups 00c and 13a): play, one chip per source (the name shows it, ▶ hears it),
+   the loop and the tempo. Nothing over the notes: the chips are the tabs. *@
+<div class="pill assembly-pill" role="toolbar" aria-label="@Text["assembly.pill"]" data-keeps-selection>
+    <button class="play" @onclick="TogglePlay" aria-label="@(Playing ? Text["transport.pause"] : Text["transport.play"])">
+        <Icon Name="@(Playing ? "pause" : "playf")" />
+    </button>
+    <div class="chips" role="radiogroup" aria-label="@Text["assembly.sources"]">
+        @foreach (AssemblyChip chip in Chips)
+        {
+            <span class="source-chip tone-@chip.Tone @(chip.Shown ? "shown" : null) @(chip.Heard ? "heard" : null)">
+                <button class="name" role="radio" aria-checked="@(chip.Shown ? "true" : "false")" title="@($"{chip.Name} ({chip.Key})")" @onclick="() => Show.InvokeAsync(chip.Id)">
+                    <span class="dot" aria-hidden="true"></span>
+                    <span class="label">@chip.Name</span>
+                    @if (chip.Detail is { } detail)
+                    {
+                        <span class="detail">· @detail</span>
+                    }
+                </button>
+                <button class="hear" aria-label="@Text.Format(chip.Heard ? "assembly.stopSource" : "assembly.hearSource", chip.Name)" title="@Text.Format(chip.Heard ? "assembly.stopSource" : "assembly.hearSource", chip.Name)"
+                        @onclick="() => Hear.InvokeAsync(chip.Id)"><Icon Name="@(chip.Heard ? "pause" : "playf")" Size="IconSize.Small" /></button>
+            </span>
+        }
+    </div>
+    <span class="div" aria-hidden="true"></span>
+    <button class="it @(Looping ? "on" : null)" aria-pressed="@(Looping ? "true" : "false")" @onclick="ToggleLoop"><Icon Name="loop" /> @Text["focus.loop"]</button>
+    <span class="it tempo-read mono" title="@Text["transport.tempo"]"><Icon Name="dial" /> @TempoPercent%</span>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<AssemblyChip> Chips { get; set; } = [];
+
+    [Parameter]
+    public bool Playing { get; set; }
+
+    [Parameter]
+    public bool Looping { get; set; }
+
+    [Parameter]
+    public int TempoPercent { get; set; } = 100;
+
+    [Parameter]
+    public EventCallback TogglePlay { get; set; }
+
+    [Parameter]
+    public EventCallback ToggleLoop { get; set; }
+
+    [Parameter]
+    public EventCallback<string> Show { get; set; }
+
+    [Parameter]
+    public EventCallback<string> Hear { get; set; }
+}
