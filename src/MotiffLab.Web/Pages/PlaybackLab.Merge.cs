@@ -503,8 +503,8 @@ public partial class PlaybackLab
     private void ShowMergeView(string view) => _mergeShow = view;
 
     /// <summary>
-    /// ▶ for a view, or Мои · Версия · Итог · Поочерёдно: the bars shown loop as that view has them, or the three one after
-    /// another. Pressed again, it stops.
+    /// ▶ for a view, or Мои · Версия · Итог · Поочерёдно: the bars shown play once as that view has them, or the three one
+    /// after another, and playback stops back at their start. Pressed while playing, it stops; pressed again, it plays again.
     /// </summary>
     private async Task HearMergeAsync(string view)
     {
@@ -539,12 +539,12 @@ public partial class PlaybackLab
                 new LoopPass([MergeMineSource], range),
                 new LoopPass([MergeVersionSource], range),
                 new LoopPass([MergeResultSource], range),
-            ]);
+            ], once: true);
         }
         else
         {
             await Player.SelectSourcesAsync(view == "mine" ? MergeMineSource : view == "version" ? MergeVersionSource : MergeResultSource);
-            await Player.SetLoopAsync(range);
+            await Player.SetLoopAsync(range, once: true);
         }
 
         if (start || !range.Contains(Player.Position))

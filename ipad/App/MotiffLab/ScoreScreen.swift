@@ -368,7 +368,8 @@ struct ScoreScreen: View {
         score.hearInTurn = { [weak heard] notes, range in
             guard let heard else { return }
             heard.setVariation(notes, version: true)
-            heard.hear(.alternate, over: range)
+            // Testing (2026-11-07): ▶ in the draft plays once; pressed again, it plays again.
+            heard.hear(.alternate, over: range, once: true)
             if heard.state != .playing { heard.play(from: range.lowerBound) }
         }
         let id = piece.id

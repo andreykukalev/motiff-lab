@@ -131,6 +131,21 @@ final class PlaybackEngineTests: XCTestCase {
         XCTAssertEqual(e.tick, 480)
     }
 
+    func testPassesHeardOncePlayInTurnThenStopBackAtTheFirst() {
+        // The merge draft's ▶ (testing, 2026-11-07): the player's notes, then the version, once, then still.
+        let e = engine()
+        source(e, "piece", [(0, 120), (240, 120)])
+        source(e, "version", [(120, 120), (600, 120)])
+        e.handle(.alternate([LoopPass(ids: ["piece"], start: 0, end: 480), LoopPass(ids: ["version"], start: 0, end: 960)], once: true))
+        e.handle(.play)
+
+        let out = e.render(frames: frames(Double(quarter * 5)))
+
+        XCTAssertEqual(noteStarts(out), [0, quarter / 2, quarter + quarter / 4, quarter * 2 + quarter / 4])
+        XCTAssertEqual(e.transportState, .stopped)
+        XCTAssertEqual(e.tick, 0)
+    }
+
     func testALoopNotOnABlockBoundaryKeepsExactTime() {
         // A loop of 100 ticks: 5000 frames, not a multiple of 128.
         let e = engine()

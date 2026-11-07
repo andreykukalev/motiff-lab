@@ -68,7 +68,8 @@ enum EngineMessage: Sendable {
     /// A loop over a range; `once` plays it through once and stops at its end, back at its start (the circle's scale).
     case loop(start: Double, end: Double, once: Bool = false)
     case loopOff
-    case alternate([LoopPass])
+    /// Passes in turn; `once` plays each once and stops at the end of the last, back at the start of the first.
+    case alternate([LoopPass], once: Bool = false)
     case metronome(Bool)
     case countIn(Int)
     case tracks(muted: Set<Int>, soloed: Set<Int>)
@@ -129,6 +130,8 @@ final class PlaybackEngine {
     private var loopOnce = false
     private var passes: [LoopPass]?
     private var pass = -1
+    /// The passes play once each, in turn, and playback stops at the end of the last.
+    private var passesOnce = false
     private var metronome = false
     private var countInBars = 0
     private var muted = Set<Int>()
@@ -202,8 +205,8 @@ final class PlaybackEngine {
             loopStart = 0
             loopEnd = 0
             requestReport()
-        case .alternate(let passes):
-            alternate(passes)
+        case .alternate(let passes, let once):
+            alternate(passes, once: once)
         case .metronome(let on):
             metronome = on
         case .countIn(let bars):
@@ -397,8 +400,9 @@ final class PlaybackEngine {
     }
 
     /// Starts an alternating loop at its first pass: that pass's sources play over its range, then the next pass
-    /// starts on the same frame. A loop, a loop off, a choice of sources or a new timeline ends it.
-    private func alternate(_ given: [LoopPass]) {
+    /// starts on the same frame; with `once` it stops after the last. A loop, a loop off, a choice of sources or a new
+    /// timeline ends it.
+    private func alternate(_ given: [LoopPass], once: Bool = false) {
         let limit = timeline?.end ?? 0
         let kept = given
             .map { LoopPass(ids: $0.ids, start: min(max(0, $0.start), limit), end: min(max(0, $0.end), limit)) }
@@ -414,6 +418,7 @@ final class PlaybackEngine {
         loopOnce = false
         passes = kept
         pass = 0
+        passesOnce = once
         active = first.ids.filter { sources[$0] != nil }
         loopStart = first.start
         loopEnd = first.end
@@ -423,6 +428,13 @@ final class PlaybackEngine {
     private func stopAlternating() {
         passes = nil
         pass = -1
+        passesOnce = false
+    }
+
+    /// The last pass of passes heard once is playing: at its end playback stops rather than going round.
+    private var lastPassOnce: Bool {
+        guard let passes else { return false }
+        return passesOnce && pass == passes.count - 1
     }
 
     // MARK: - Time
@@ -513,7 +525,7 @@ final class PlaybackEngine {
         let overshoot = max(0, until - boundary)
         if boundary == nextTempo && boundary < stop {
             position = boundary + overshoot * (ticksPerFrame(tempo + 1) / perFrame)
-        } else if looping && !loopOnce {
+        } else if looping && !loopOnce && !lastPassOnce {
             release(at: offset + frames) { $0.sourceId != Self.liveSource }
             let alternating = passes != nil
             if let passes {
@@ -533,6 +545,13 @@ final class PlaybackEngine {
         } else {
             transportState = .stopped
             reports.append(.ended(tick: timeline.end))
+            if looping, let first = passes?.first {
+                // Passes heard once end back at the first, ready to be heard again.
+                pass = 0
+                active = first.ids.filter { sources[$0] != nil }
+                loopStart = first.start
+                loopEnd = first.end
+            }
             position = hasLoop ? loopStart : 0
             relocate(chase: false)
             blockOffset = offset + frames

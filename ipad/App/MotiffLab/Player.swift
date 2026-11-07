@@ -149,8 +149,8 @@ final class Player: ObservableObject {
     }
 
     /// Hears the original, the variation, or the two one after the other, looping `range` and playing from its start
-    /// when it was still or elsewhere.
-    func hear(_ next: Hearing, over range: Range<Double>) {
+    /// when it was still or elsewhere. With `once` the two play one after the other once and stop (the merge draft).
+    func hear(_ next: Hearing, over range: Range<Double>, once: Bool = false) {
         guard next == .original || hasVariation else { return }
         if hearingAlone {
             hearingAlone = false
@@ -167,7 +167,7 @@ final class Player: ObservableObject {
         case .alternate:
             loop = range
             let passes = [Self.pieceSource, Self.variationSource].map { LoopPass(ids: [$0], start: range.lowerBound, end: range.upperBound) }
-            send(.alternate(passes))
+            send(.alternate(passes, once: once))
             if state == .stopped { send(.play) }
         }
     }

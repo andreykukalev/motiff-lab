@@ -372,6 +372,24 @@ test("an alternating loop reports which pass plays, with its range, on the frame
     assert.equal(positions[0].pass, 0);
 });
 
+test("passes heard once play in turn, then stop back at the first pass", () => {
+    const e = engine();
+    source(e, "original", [[0, 120], [240, 120]]);
+    source(e, "variation", [[120, 120], [600, 120]]);
+    e.handle({ type: "alternate", once: true, passes: [{ ids: ["original"], start: 0, end: 480 }, { ids: ["variation"], start: 0, end: 960 }] });
+    e.handle({ type: "play" });
+    e.takeReports();
+
+    const out = run(e, frames(QUARTER * 5));
+
+    // The original, then the variation, and nothing after: no third pass.
+    assert.deepEqual(noteStarts(out), [0, QUARTER / 2, QUARTER * 1.25, QUARTER * 2.25]);
+    const reports = e.takeReports();
+    assert.ok(reports.some((report) => report.type === "ended"));
+    const last = reports.filter((report) => report.type === "position").at(-1);
+    assert.deepEqual({ tick: last.tick, pass: last.pass, loopStart: last.loopStart, loopEnd: last.loopEnd }, { tick: 0, pass: 0, loopStart: 0, loopEnd: 480 });
+});
+
 test("an alternating loop starts at its first pass and is deterministic", () => {
     const outputs = [];
     for (let i = 0; i < 2; i++) {

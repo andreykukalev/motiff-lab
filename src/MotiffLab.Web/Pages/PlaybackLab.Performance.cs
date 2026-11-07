@@ -235,7 +235,7 @@ public partial class PlaybackLab
 
     private void CloseMarker() => _markerPick = null;
 
-    /// <summary>«▶ Как в версии»: the bar loops as the version plays it, until stopped.</summary>
+    /// <summary>«▶ Как в версии»: the bar plays once as the version plays it.</summary>
     private async Task HearMarkerVersionAsync()
     {
         if (_markerPick is not { } pick || _meter is null || _score is null)
@@ -247,7 +247,7 @@ public partial class PlaybackLab
         await Player.SetSourceAsync(VersionSource, _score.WithNotes(Voiced(VersionNotesIn(bar))));
         await Player.SelectSourcesAsync(VersionSource);
         _looping = true;
-        await Player.SetLoopAsync(bar);
+        await Player.SetLoopAsync(bar, once: true);
         await Player.SeekAsync(bar.Onset);
         await PlayAsync();
         _mergeHearing = "version";

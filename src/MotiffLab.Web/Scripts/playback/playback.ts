@@ -129,9 +129,9 @@ export class Player {
         this.post({ type: "loopOff" });
     }
 
-    /** Loops each pass in turn, its sources over its range, from the start of the first (#43). */
-    setAlternation(passes: LoopPass[]): void {
-        this.post({ type: "alternate", passes });
+    /** Loops each pass in turn, its sources over its range, from the start of the first (#43); with `once`, stops after the last. */
+    setAlternation(passes: LoopPass[], once = false): void {
+        this.post({ type: "alternate", passes, once });
     }
 
     setMetronome(on: boolean): void {

@@ -167,9 +167,10 @@ public sealed class Player(IJSRuntime js) : IAsyncDisposable
     /// Loops the passes in turn, from the start of the first (#43): each plays its sources over its
     /// range, and the next starts on the frame the range ends, so the switch is sample-accurate and
     /// never depends on the page. <see cref="Pass"/>, <see cref="ActiveSources"/> and <see cref="Loop"/>
-    /// follow the pass the engine reports. Choosing sources or a loop ends it.
+    /// follow the pass the engine reports. Choosing sources or a loop ends it. With <paramref name="once"/> each pass plays
+    /// once and playback stops at the end of the last, back at the start of the first.
     /// </summary>
-    public async Task AlternateAsync(IReadOnlyList<LoopPass> passes)
+    public async Task AlternateAsync(IReadOnlyList<LoopPass> passes, bool once = false)
     {
         ArgumentNullException.ThrowIfNull(passes);
         ArgumentOutOfRangeException.ThrowIfZero(passes.Count);
@@ -179,7 +180,7 @@ public sealed class Player(IJSRuntime js) : IAsyncDisposable
         ActiveSources = passes[0].Sources;
         Loop = passes[0].Range;
         Position = passes[0].Range.Onset;
-        await engine.InvokeVoidAsync("setAlternation", (object)passes.Select(pass => new { ids = pass.Sources, start = pass.Range.Onset.Value, end = pass.Range.End.Value }).ToArray());
+        await engine.InvokeVoidAsync("setAlternation", (object)passes.Select(pass => new { ids = pass.Sources, start = pass.Range.Onset.Value, end = pass.Range.End.Value }).ToArray(), once);
         Changed?.Invoke();
     }
 

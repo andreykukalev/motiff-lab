@@ -66,7 +66,7 @@ export type EngineMessage =
     | { type: "rate"; value: number }
     | { type: "loop"; start: number; end: number; once?: boolean }
     | { type: "loopOff" }
-    | { type: "alternate"; passes: LoopPass[] }
+    | { type: "alternate"; passes: LoopPass[]; once?: boolean }
     | { type: "metronome"; on: boolean }
     | { type: "countIn"; bars: number }
     | { type: "tracks"; muted: number[]; soloed: number[] }
@@ -203,6 +203,8 @@ export class Engine {
     /** An alternating loop: each pass plays its sources over its range, then the next pass starts on the same frame. */
     private passes: LoopPass[] | null = null;
     private pass = -1;
+    /** The passes play once each, in turn, and playback stops at the end of the last, back at the start of the first. */
+    private passesOnce = false;
     private metronome = false;
     private countInBars = 0;
     private muted = new Set<number>();
@@ -289,7 +291,7 @@ export class Engine {
                 this.loopOnce = message.once === true && this.hasLoop();
                 break;
             case "alternate":
-                this.alternate(message.passes);
+                this.alternate(message.passes, message.once === true);
                 break;
             case "loopOff":
                 this.stopAlternating();
@@ -524,10 +526,10 @@ export class Engine {
     /**
      * Starts an alternating loop at the start of its first pass: that pass's sources play over its
      * range, and when the range ends the next pass starts on the same frame, with its own sources and
-     * range, then the first again. Passes whose range is empty once kept to the piece are dropped. A
-     * loop, a loop off, a choice of sources or a new timeline ends it.
+     * range, then the first again; with `once` it stops after the last. Passes whose range is empty once kept to the
+     * piece are dropped. A loop, a loop off, a choice of sources or a new timeline ends it.
      */
-    private alternate(passes: LoopPass[]): void {
+    private alternate(passes: LoopPass[], once = false): void {
         const limit = this.timeline?.end ?? 0;
         const kept = passes
             .map((pass) => ({ ids: [...pass.ids], start: Math.min(Math.max(0, pass.start), limit), end: Math.min(Math.max(0, pass.end), limit) }))
@@ -542,6 +544,7 @@ export class Engine {
 
         this.passes = kept;
         this.pass = 0;
+        this.passesOnce = once;
         this.loopOnce = false;
         // The seek below releases what was sounding and strikes the first pass's notes already sounding there.
         this.active = kept[0].ids.filter((id) => this.sources.has(id));
@@ -553,6 +556,12 @@ export class Engine {
     private stopAlternating(): void {
         this.passes = null;
         this.pass = -1;
+        this.passesOnce = false;
+    }
+
+    /** The last pass of passes heard once is playing: at its end playback stops rather than going round. */
+    private lastPassOnce(): boolean {
+        return this.passes !== null && this.passesOnce && this.pass === this.passes.length - 1;
     }
 
     private hasLoop(): boolean {
@@ -646,7 +655,7 @@ export class Engine {
         const overshoot = Math.max(0, until - boundary);
         if (boundary === nextTempo && boundary < stop) {
             this.position = boundary + overshoot * (this.ticksPerFrame(tempo + 1) / perFrame);
-        } else if (looping && !this.loopOnce) {
+        } else if (looping && !this.loopOnce && !this.lastPassOnce()) {
             this.releaseWhere((voice) => voice.sourceId !== LIVE_SOURCE, offset + frames);
             const alternating = this.passes !== null;
             if (this.passes !== null) {
@@ -668,6 +677,13 @@ export class Engine {
         } else {
             this.state = "stopped";
             this.reports.push({ type: "ended", tick: timeline.end });
+            if (looping && this.passes !== null) {
+                // Passes heard once end back at the first, ready to be heard again.
+                this.pass = 0;
+                this.active = this.passes[0].ids.filter((id) => this.sources.has(id));
+                this.loopStart = this.passes[0].start;
+                this.loopEnd = this.passes[0].end;
+            }
             this.position = this.hasLoop() ? this.loopStart : 0;
             this.relocate(false);
             this.blockOffset = offset + frames;
