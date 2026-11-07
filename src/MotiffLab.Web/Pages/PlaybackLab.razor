@@ -97,7 +97,7 @@
                 @* While comparing (0024, section 6): the source chosen in the pill, engraved in its own bars, with its own selection from note to note. *@
                 <ScoreView @key="@("assembly")" @ref="_assemblyView" Source="assembled" HoldHeight="false" Title="@ScoreTitle.Of(_title)"
                            Selection="AssemblyPick" Menu="@(AssemblyPick is not null ? AssemblyCard : null)" NotePicked="OnAssemblyNotePickedAsync" BarPicked="OnAssemblyBarPickedAsync"
-                           BarsChosen="OnAssemblyBarsChosenAsync" PaperTapped="OnAssemblyPaperTappedAsync" VersionAdded="AssemblyGhostNotes" Origins="AssemblyOrigins" Ghost="AssemblyGhost"
+                           BarsChosen="OnAssemblyBarsChosenAsync" PaperTapped="OnAssemblyPaperTappedAsync" VersionAdded="@(_assemblyShown == NotesSource ? AssemblyGhostNotes : null)" Origins="AssemblyOrigins" Ghost="@(_assemblyShown == NotesSource ? AssemblyGhost : null)"
                            Follow="@SettingsStore.IsOn(FollowSetting)" EvenBars="@SettingsStore.IsOn(EvenBarsSetting)" />
             }
             else if (ShownScore is { } shown)
@@ -415,7 +415,10 @@
             @if (_assembling && _carry is { } carrying && CarrySheetNow is { } carrySheet)
             {
                 <CarrySheetPanel Sheet="carrySheet" Number="@(Work?.Next ?? 1)" Tone="@ToneOf(carrying.SourceId)" Insert="@(carrying.Insert || carrying.Replace is null)" Transpose="carrying.Transpose"
-                                 Hearing="@(Player.State != PlaybackState.Stopped)" ChooseInsert="ChooseCarryPlace" ChooseTranspose="ChooseCarryTranspose" Hear="HearGhostAsync"
+                                 Keep="carrying.Keep" ChooseKeep="ChooseCarryKeep"
+                                 Hearing="@(Player.State != PlaybackState.Stopped && _assemblyShown == NotesSource)" ChooseInsert="ChooseCarryPlace" ChooseTranspose="ChooseCarryTranspose" Hear="HearGhostAsync"
+                                 HearingRecording="@(Player.State != PlaybackState.Stopped && _assemblyShown == carrying.SourceId)"
+                                 HearRecording="@(CarryHeardAsRecording ? EventCallback.Factory.Create(this, HearCarriedRecordingAsync) : default)"
                                  Cancel="CancelCarryAsync" Carry="MakeCarryAsync" />
             }
             else if (_assembling && _journalOpen && Work is { } journalWork)
@@ -640,7 +643,11 @@
 
             @if (_assembling)
             {
-                <AssemblyPill Chips="AssemblyChips" Playing="@(Player.State != PlaybackState.Stopped)" Looping="_assemblyLoop" TempoPercent="TempoPercent"
+                @if (WaveShown)
+                {
+                    @RecordingWave
+                }
+                <AssemblyPill Chips="AssemblyChips" Playing="@(Player.State != PlaybackState.Stopped)" Looping="_assemblyLoop" TempoPercent="@(Player.HearingRecording ? 100 : TempoPercent)"
                               TogglePlay="ToggleAssemblyPlayAsync" ToggleLoop="ToggleAssemblyLoopAsync" Show="ShowSourceAsync" Hear="HearSourceAsync" />
             }
             else if (PillShown)
@@ -1282,6 +1289,10 @@
         {
             <p class="caption">@edges</p>
         }
+        @if (_recordingShown?.Id == _assemblyShown)
+        {
+            <p class="caption">@Text["recording.ownSound"]</p>
+        }
         <div class="row">
             @if (_assemblyShown is not NotesSource and not BeforeSource)
             {
@@ -1324,6 +1335,43 @@
             </div>
         }
     </div></div>;
+
+    /// <summary>
+    /// The recording's strip above the pill (0024, scenario 2; mockup 13c): its waveform around the selection or the playhead,
+    /// the selection's stretch and the playhead on it, the times every ten seconds; moved along, it moves playing there. When
+    /// the sound is not on this device, the strip offers to pick the file again.
+    /// </summary>
+    private RenderFragment RecordingWave => @<div class="recording-wave tone-@ToneOf(_assemblyShown)" role="group" aria-label="@Text["recording.wave"]" data-keeps-selection>
+        @if (_recordingShown is { } shown && shown.Id == _assemblyShown)
+        {
+            long start = WaveStart;
+            long at = RecordingAt(Player.Position) ?? start;
+            <span class="times mono">@(PickTimes ?? Clock(at))</span>
+            <div class="wave">
+                <svg viewBox="0 0 600 40" preserveAspectRatio="none" aria-hidden="true"><path d="@WavePath" /></svg>
+                @if (WavePick is { } picked)
+                {
+                    <span class="picked" style="left: @picked.Left; width: @picked.Width" aria-hidden="true"></span>
+                }
+                @foreach (long mark in WaveMarks)
+                {
+                    <span class="mark mono" style="left: @WavePercent(mark)" aria-hidden="true">@Clock(mark)</span>
+                }
+                <span class="head" style="left: @WavePercent(at)" aria-hidden="true"></span>
+                <input type="range" min="@start" max="@(Math.Min(start + WaveWindow, shown.Sound.Milliseconds))" step="100" value="@Math.Clamp(at, start, start + WaveWindow)"
+                       aria-label="@Text["recording.seek"]" aria-valuetext="@Clock(at)" @onchange="SeekRecordingAsync" />
+            </div>
+            <span class="own"><Icon Name="mic" Size="IconSize.Small" /> @Text["recording.own"]</span>
+        }
+        else
+        {
+            <span class="caption">@Text["recording.missing"]</span>
+            <label class="btn secondary compact file">
+                @Text["recording.pickAgain"]
+                <InputFile @ref="_recordingPicker" OnChange="PickRecordingAgainAsync" accept="@MotiffLab.Web.Import.ScanService.AcceptedRecordings" aria-label="@Text["recording.pickAgain"]" />
+            </label>
+        }
+    </div>;
 
     /// <summary>
     /// «Рядом» (0024, section 6; mockup 14): a drawer under the page with one other source, read only, following the page by

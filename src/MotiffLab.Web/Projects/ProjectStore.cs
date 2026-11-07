@@ -108,6 +108,8 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
         await module.InvokeVoidAsync("deleteProject", id);
         // The pencil marks on its score go with it (0015).
         await module.InvokeVoidAsync("deleteMarks", PencilMarks.ProjectKey(id));
+        // So do the recordings kept on this device for its versions (0024, scenario 2).
+        await module.InvokeVoidAsync("deleteRecordings", id);
         await online.DeleteAsync(id);
     }
 

@@ -413,3 +413,29 @@ test("an alternating loop with no pass inside the piece loops nothing", () => {
     assert.equal(report.pass, -1);
     assert.equal(report.loopEnd, 0);
 });
+
+test("a recording sounds in place of the notes, from where the playhead is heard in it, at its own speed", () => {
+    const e = engine();
+    source(e, "original", [[0, 480]]);
+    e.handle({ type: "activeSources", ids: [] });
+    // One second of recording at 1 kHz: each sample holds its own index, so the output says which sample is heard.
+    const samples = new Float32Array(1000).map((_, i) => i / 1000);
+    // The notes' quarter (480 ticks, half a second at 120) is heard at 100 ms of the recording, and the next at 600 ms.
+    e.handle({ type: "recording", samples, sampleRate: 1000, ticks: [0, 480, 960], milliseconds: [0, 100, 600] });
+    e.handle({ type: "recordingOn", on: true });
+    e.handle({ type: "rate", value: 0.5 });
+    e.handle({ type: "seek", tick: 480 });
+    e.handle({ type: "play" });
+
+    const out = run(e, frames(RATE / 4));
+    // At 48 kHz the first frame is at 100 ms; a quarter second later the playhead is 240 ticks on, which is heard at 350 ms:
+    // the rate is left aside while the recording plays.
+    assert.ok(Math.abs(out[0] - 0.1) < 0.002, `first ${out[0]}`);
+    assert.ok(Math.abs(out[RATE / 4 - 1] - 0.35) < 0.003, `last ${out[RATE / 4 - 1]}`);
+    assert.equal(noteStarts(out.map((v) => (v > 0.99 ? v : 0))).length, 0);
+    assert.equal(e.recordingMillisecondAt(720), 350);
+
+    e.handle({ type: "recordingOn", on: false });
+    const after = run(e, BLOCK * 4);
+    assert.ok(after.every((v) => v === 0));
+});

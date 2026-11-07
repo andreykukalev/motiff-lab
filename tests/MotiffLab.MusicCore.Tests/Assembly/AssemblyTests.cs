@@ -282,4 +282,83 @@ public class AssemblyTests
         Assert.Equal(new TimeSignature(1, 8), again.Piece.Meter.GetBar(4).Signature);
         Assert.Equal(work.Result.Music.End, PlaybackScore.FromPiece(again.Piece).End);
     }
+
+    [Fact]
+    public void A_carry_that_keeps_the_notes_adds_only_what_they_lack()
+    {
+        // The recording plays bar 3 as printed, with one passing note more.
+        SourceMusic heard = Score("c");
+        heard = heard with { Notes = [.. heard.Notes, N("x", 79, (2 * Bar) + (Eighth / 2), Eighth / 2)] };
+        AssemblyWork work = Work(heard);
+        SourceMusic notes = work.Result.Music;
+        AssemblyPlace place = AssemblyPlace.Between(Find(notes, "n2l"), Find(notes, "n2r2"));
+        work = work.With(work.Carry("cover", new TickSpan(new Tick(2 * Bar), Bar), place, 0, s_at, keep: true));
+
+        Assembled result = work.Result;
+        StepOutcome outcome = result.OutcomeOf(1)!;
+        Assert.Equal(["c1.x"], outcome.Put);
+        Assert.Empty(outcome.Removed);
+        Assert.Equal(0, outcome.Delta);
+        Assert.Equal(new Tick((2 * Bar) + (Eighth / 2)), Find(result.Music, "c1.x").Span.Onset);
+        Assert.Contains(result.Music.Notes, note => note.Id == "n2r1");
+        Assert.Equal(8, result.Music.Bars.Count);
+
+        // Inserting cannot keep notes: there are none in its place.
+        Assert.False(work.Carry("cover", new TickSpan(new Tick(2 * Bar), Bar), AssemblyPlace.InsertAt(notes.Notes, new Tick(Bar)), 0, s_at, keep: true).Keep);
+        Assert.Throws<ArgumentException>(() => new CarryStep(9, s_at, "cover", new TickSpan(Tick.Zero, Bar), AssemblyPlace.InsertAt(notes.Notes, Tick.Zero), 0, true));
+
+        Project project = Project.Create("p_1", "piece.mid", MidiExporter.Export([.. Score().Notes], [], new MeterMap([new MeterChange(Tick.Zero, s_threeEight)]), "piece"), s_at)
+            .WithJournal(work.Steps, work.Next);
+        Assert.True(Assert.IsType<CarryStep>(ProjectFile.Read(ProjectFile.Write(project)).Assembly.Steps.Single()).Keep);
+    }
+
+    [Fact]
+    public void A_recording_is_written_in_its_own_bars_and_its_clock_finds_where_each_note_was_heard()
+    {
+        // Four bars of 4/4 at 120 a minute, as the transcription engine writes: a quarter is half a second.
+        List<Note> played = [];
+        for (int i = 0; i < 32; i++)
+        {
+            played.Add(N($"p{i}", 60 + (i % 5), (i * 240) + (i % 3 == 0 ? 0 : 10), 200));
+        }
+
+        byte[] midi = MidiExporter.Export(played, [], new MeterMap([new MeterChange(Tick.Zero, TimeSignature.CommonTime)]), "heard");
+        var version = new SavedPerformance("v1", "Запись", PerformanceSource.Recording, midi, 2_000_000, []);
+
+        SourceMusic music = SourceMusic.OfVersion(version)!;
+        RecordingClock clock = RecordingClock.Of(version, music)!;
+
+        Assert.All(music.Notes, note => Assert.Equal(Provenance.Detected, note.Attribution.Provenance));
+        Assert.Equal(0, clock.Ticks[0]);
+        Assert.Equal(music.End.Value, clock.Ticks[^1]);
+        foreach (var heard in MusicCore.Performance.PlayedNotes.FromMidi(midi, version.RecordingStart))
+        {
+            Note note = Find(music, heard.Id);
+            Assert.InRange(clock.MillisecondsAt(note.Span.Onset), (heard.Onset / 1000) - 10, (heard.Onset / 1000) + 10);
+        }
+
+        // The recording starts two seconds before the stretch that was heard: the first note is at 2 s.
+        Assert.InRange(clock.MillisecondsAt(music.Notes[0].Span.Onset), 1990, 2010);
+        Tick back = clock.TickAt(clock.MillisecondsAt(music.Notes[10].Span.Onset));
+        Assert.InRange(back.Value, music.Notes[10].Span.Onset.Value - 10, music.Notes[10].Span.Onset.Value + 10);
+        Assert.Null(RecordingClock.Of(version with { Source = PerformanceSource.Midi }, music));
+    }
+
+    [Fact]
+    public void The_sheet_from_a_recording_first_asks_how_to_get_the_notes()
+    {
+        AssemblyWork work = Work(Score("c"));
+        SourceMusic notes = work.Result.Music;
+        AssemblyPlace place = AssemblyPlace.Between(Find(notes, "n2l"), Find(notes, "n2r2"));
+
+        CarrySheet heard = work.Sheet(work.Carry("cover", new TickSpan(new Tick(2 * Bar), Bar), place, 0, s_at, keep: true), place, new Tick(2 * Bar), Words.Russian, heard: true);
+        CarrySheet file = work.Sheet(work.Carry("cover", new TickSpan(new Tick(2 * Bar), Bar), place, 0, s_at), place, new Tick(2 * Bar), Words.Russian);
+
+        Assert.Equal(["how", "where", "length", "seam", "key", "meter", "notes"], heard.Lines.Select(line => line.Name));
+        Assert.Equal(heard.KeepText, heard.Lines[0].Text);
+        Assert.StartsWith("оставить ваши ноты", heard.KeepText, StringComparison.Ordinal);
+        Assert.NotNull(heard.HeardText);
+        Assert.Equal(6, file.Lines.Count);
+        Assert.Null(file.KeepText);
+    }
 }

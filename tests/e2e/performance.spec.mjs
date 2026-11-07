@@ -111,7 +111,7 @@ test("comparing: a bar of the version is carried into the notes, undone, redone 
     // bars from its first note, so the notes' bar 5 is its bar 6.
     await tapBar(page, 5);
     const card = page.locator(".assembly-card");
-    await expect(card).toContainText("bar 6 fur-elise-cover");
+    await expect(card).toContainText("bar 6 of fur-elise-cover");
     await expect(card.locator(".similar")).toContainText("Like bar 5 of your notes");
     expect(await violations(page)).toEqual([]);
 
@@ -167,7 +167,7 @@ test("side by side, the notes follow the version from below, and Mapping shows t
     const offer = await scoreWithCover(page);
     await offer.getByRole("button", { name: "Compare" }).click();
     await tapBar(page, 5);
-    await expect(page.locator(".assembly-card")).toContainText("bar 6 fur-elise-cover");
+    await expect(page.locator(".assembly-card")).toContainText("bar 6 of fur-elise-cover");
 
     // The drawer shows the notes, read only, with the place the selection matches selected.
     await page.locator(".bar").getByRole("button", { name: "Side by side" }).click();
@@ -187,7 +187,7 @@ test("side by side, the notes follow the version from below, and Mapping shows t
     await expect(drawer.locator(".match-map .cell.partly, .match-map .cell.differs").first()).toBeVisible();
     expect(await violations(page)).toEqual([]);
     await cells.nth(7).click();
-    await expect(page.locator(".assembly-card")).toContainText("bar 8 fur-elise-cover");
+    await expect(page.locator(".assembly-card")).toContainText("bar 8 of fur-elise-cover");
 
     await drawer.getByRole("button", { name: "Close side by side" }).click();
     await expect(drawer).toHaveCount(0);
@@ -263,7 +263,7 @@ test("a marker leads into the comparison at its bar, and the version can be remo
     await pop.getByRole("button", { name: "Compare" }).click();
     await expect(page.locator(".assembly-pill")).toBeVisible();
     // The cover numbers its bars from its first note, so the notes' bar 7 is its bar 8.
-    await expect(page.locator(".assembly-card")).toContainText("bar 8 fur-elise-cover");
+    await expect(page.locator(".assembly-card")).toContainText("bar 8 of fur-elise-cover");
     await expect(page.locator(".assembly-card .similar")).toContainText("Like bar 7 of your notes");
     await page.locator(".bar").getByRole("button", { name: "Done" }).click();
 
@@ -326,10 +326,8 @@ test("in focus, the other version stands above the phrase, is heard, and leads i
     expect(errors).toEqual([]);
 });
 
-test("a recording is added as another version: its sound is heard on the scan server and its notes lined up", async ({ page }) => {
-    const errors = [];
-    page.on("pageerror", error => errors.push(String(error)));
-    // The scan server is played by the test: it answers with what Transkun heard in a recording of Für Elise.
+/** The stand-in scan server, set in Settings: it answers with what Transkun heard in a recording of Für Elise. */
+async function standInScanServer(page) {
     const heard = await readFile(fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/Transcription/Fixtures/transkun-fur-elise.mid", import.meta.url)));
     const uploads = [];
     const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Expose-Headers": "X-Engine, X-Pages, X-Seconds, X-Cut" };
@@ -344,25 +342,71 @@ test("a recording is added as another version: its sound is heard on the scan se
     await page.goto("/settings");
     await page.getByRole("button", { name: "Save and check" }).click();
     await expect(page.getByText("Connected: the scan server runs homr 0.7.0")).toBeVisible();
+    return uploads;
+}
 
-    await page.goto("/");
-    await page.getByRole("button", { name: "Add piece" }).click();
-    await page.getByLabel("Choose a MIDI, MusicXML or PDF file").setInputFiles(score);
-    await expect(page).toHaveURL(/\/playback\?project=p_[0-9a-f]+/);
+/** The piece from the score, a recording added to it from the Sources sheet: the card that offers to compare is up. */
+async function scoreWithRecording(page) {
+    const uploads = await standInScanServer(page);
+    await openScore(page);
     await (await openMore(page)).getByRole("button", { name: "Sources" }).click();
     const drawer = page.locator(".perf-sheet");
     await drawer.getByRole("button", { name: "Add a source" }).click();
     const fromRecording = drawer.getByRole("region", { name: "From a recording" });
     await expect(fromRecording).toContainText("The recording's sound, up to 7 minutes, goes to localhost and is deleted once heard.");
     expect(await violations(page)).toEqual([]);
-
     await fromRecording.getByLabel("Choose an audio or video recording to add as a version").setInputFiles(await recording());
     // The whole piece was played: its opening, all that is printed here, agrees note for note.
     await expect(page.locator(".assembly-offer")).toContainText("Matches in bars");
+    return uploads;
+}
+
+test("a recording is added as another version: its sound is heard on the scan server and its notes lined up", async ({ page }) => {
+    const errors = [];
+    page.on("pageerror", error => errors.push(String(error)));
+    const uploads = await scoreWithRecording(page);
     expect(uploads).toHaveLength(1);
     // Only the sound went, not the file under its name.
     expect(uploads[0].includes(Buffer.from("Take 1"))).toBe(false);
     await expect(page.locator(".assembly-offer").getByRole("heading")).toContainText("Take 1 at the piano added");
+    expect(errors).toEqual([]);
+});
+
+test("a recording as a source plays its own sound over its waveform, and its fragment keeps the notes it agrees with", async ({ page }) => {
+    const errors = [];
+    page.on("pageerror", error => errors.push(String(error)));
+    await scoreWithRecording(page);
+    await page.locator(".assembly-offer").getByRole("button", { name: "Compare" }).click();
+    const pill = page.locator(".assembly-pill");
+    await pill.getByRole("radio", { name: /Take 1 at the piano/ }).click();
+
+    // Its sound stayed on this device: the strip over the pill shows its waveform, and moving along it moves playing.
+    const wave = page.getByRole("group", { name: "The recording's waveform" });
+    await expect(wave).toBeVisible();
+    await expect(wave.locator("path")).toHaveAttribute("d", /^M/);
+    await expect(wave.getByRole("slider", { name: "Where in the recording" })).toBeVisible();
+
+    // A bar of the recording selected: the card says when it is heard and that the recording itself plays.
+    await tapBar(page, 2);
+    const card = page.locator(".assembly-card");
+    await expect(card).toContainText(/\d+:\d\d–\d+:\d\d/);
+    await expect(card).toContainText("The recording itself plays, not the piano.");
+    await expect(wave.locator(".picked")).toBeVisible();
+    expect(await violations(page)).toEqual([]);
+
+    // Into the notes: the sheet first asks how to get its notes, keeping the notes and adding what is played otherwise.
+    await card.getByRole("button", { name: "Into the notes…" }).click();
+    const sheet = page.locator(".carry-sheet");
+    await expect(sheet.locator(".sheet-line").first()).toContainText("How to get the notes");
+    const how = sheet.getByRole("radiogroup", { name: "How to get the notes" });
+    await expect(how.getByRole("radio", { name: "keep your notes and add what the performer plays otherwise" })).toHaveAttribute("aria-checked", "true");
+    await expect(sheet.getByRole("button", { name: "Recording" })).toBeVisible();
+    expect(await violations(page)).toEqual([]);
+    await how.getByRole("radio", { name: "take the notes as the recording was heard" }).click();
+    await expect(how.getByRole("radio", { name: "take the notes as the recording was heard" })).toHaveAttribute("aria-checked", "true");
+    await how.getByRole("radio", { name: /keep your notes/ }).click();
+    await sheet.getByRole("button", { name: "Carry" }).click();
+    await expect(page.locator(".merge-toast")).toContainText("No. 1");
     expect(errors).toEqual([]);
 });
 

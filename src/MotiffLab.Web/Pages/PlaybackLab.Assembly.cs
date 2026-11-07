@@ -86,7 +86,7 @@ public partial class PlaybackLab
     /// <param name="Replace">The notes it can replace; null when it can only be inserted.</param>
     /// <param name="Playhead">Where an insert goes.</param>
     /// <param name="ReturnTo">The source shown before the sheet opened, shown again on «Отмена».</param>
-    private sealed record CarryDraft(string SourceId, TickSpan From, AssemblyPlace? Replace, Tick Playhead, bool Insert, int Transpose, string ReturnTo);
+    private sealed record CarryDraft(string SourceId, TickSpan From, AssemblyPlace? Replace, Tick Playhead, bool Insert, int Transpose, string ReturnTo, bool Keep = false);
 
     /// <summary>
     /// The work of the assembly over the piece as it is now: built again, with its history, when the versions, the notes
@@ -286,15 +286,15 @@ public partial class PlaybackLab
 
             SourceMusic notes = work.Result.Music;
             AssemblyPlace to = draft.Insert || draft.Replace is null ? AssemblyPlace.InsertAt(notes.Notes, draft.Playhead) : draft.Replace;
-            CarryStep step = work.Carry(draft.SourceId, draft.From, to, draft.Transpose, DateTimeOffset.Now);
-            CarrySheet sheet = work.Sheet(step, draft.Replace, draft.Playhead, Words);
+            CarryStep step = work.Carry(draft.SourceId, draft.From, to, draft.Transpose, DateTimeOffset.Now, draft.Keep);
+            CarrySheet sheet = work.Sheet(step, draft.Replace, draft.Playhead, Words, heard: RecordingVersion(draft.SourceId) is not null);
             _carrySheet = (draft, work, Text.Language, sheet);
             return sheet;
         }
     }
 
     /// <summary>The title of the bar while comparing: the piece and the source shown.</summary>
-    private string AssemblyShownLabel => _carry is not null ? Text["assembly.notesGhost"] : SourceName(_assemblyShown);
+    private string AssemblyShownLabel => _carry is not null && _assemblyShown == NotesSource ? Text["assembly.notesGhost"] : SourceName(_assemblyShown);
 
     /// <summary>Compare: the chips, the card and the sheet come; the page shows <paramref name="show"/>, or the notes.</summary>
     private async Task OpenAssemblyAsync(string? show = null)
@@ -335,6 +335,8 @@ public partial class PlaybackLab
         _applyOpen = false;
         _origins = false;
         _pickFrom = null;
+        _recordingShown = null;
+        _recordingMissing = null;
         ForgetBeside();
         if (_score is not null)
         {
@@ -362,6 +364,7 @@ public partial class PlaybackLab
         _pickFrom = null;
         (_, PlaybackScore sound) = EngravedAndSounded(music, id);
         await Player.LoadAsync(sound);
+        await SoundShownAsync();
         Tick at = _picks.TryGetValue(id, out TickSpan pick) ? pick.Onset : was is null ? Tick.Zero : SameBar(was, music, position);
         await Player.SetLoopAsync(_assemblyLoop && _picks.TryGetValue(id, out TickSpan loop) ? loop : null);
         await Player.SeekAsync(at);
@@ -551,9 +554,10 @@ public partial class PlaybackLab
             {
                 NotesSource => Text["assembly.ofNotes"],
                 BeforeSource => Text["assembly.ofBefore"],
-                _ => Words.IsRussian ? AssemblyWords.Genitive(SourceName(_assemblyShown)) : SourceName(_assemblyShown),
+                _ => Words.T($"of {SourceName(_assemblyShown)}", AssemblyWords.Genitive(SourceName(_assemblyShown))),
             };
-            return $"{Text.Count("assembly.notesCount", PickedNotes.Count)} · {bars} {of}";
+            string title = $"{Text.Count("assembly.notesCount", PickedNotes.Count)} · {bars} {of}";
+            return PickTimes is { } times ? $"{Text.Count("assembly.notesCount", PickedNotes.Count)} · {times} · {bars} {of}" : title;
         }
     }
 
@@ -655,7 +659,8 @@ public partial class PlaybackLab
         AssemblyPlace? replace = target is { } span && notes.NotesIn(span.Onset, span.End).Count > 0 ? AssemblyPlace.Over(notes.Notes, span) : null;
         Tick playhead = target?.Onset ?? Tick.Zero;
         string from = _assemblyShown;
-        _carry = new CarryDraft(from, pick, replace, playhead, replace is null, 0, from);
+        // From a recording, the notes stay and what the performer plays otherwise is added, unless the player chooses the notes as heard.
+        _carry = new CarryDraft(from, pick, replace, playhead, replace is null, 0, from, replace is not null && RecordingVersion(from) is not null);
         _journalOpen = false;
         await ShowSourceAsync(NotesSource);
     }
@@ -664,7 +669,15 @@ public partial class PlaybackLab
     {
         if (_carry is { } draft && (insert || draft.Replace is not null))
         {
-            _carry = draft with { Insert = insert };
+            _carry = draft with { Insert = insert, Keep = !insert && draft.Keep };
+        }
+    }
+
+    private void ChooseCarryKeep(bool keep)
+    {
+        if (_carry is { } draft)
+        {
+            _carry = draft with { Keep = keep };
         }
     }
 
@@ -717,10 +730,10 @@ public partial class PlaybackLab
 
         SourceMusic notes = work.Result.Music;
         AssemblyPlace to = draft.Insert || draft.Replace is null ? AssemblyPlace.InsertAt(notes.Notes, draft.Playhead) : draft.Replace;
-        CarryStep step = work.Carry(draft.SourceId, draft.From, to, draft.Transpose, DateTimeOffset.Now);
-        string title = AssemblyJournal.NotesFrom(work, step, work.NamesIn(Words), Words);
+        CarryStep step = work.Carry(draft.SourceId, draft.From, to, draft.Transpose, DateTimeOffset.Now, draft.Keep);
         _carry = null;
         await ChangeWorkAsync(work.With(step));
+        string title = AssemblyJournal.NotesFrom(_work!, step, _work!.NamesIn(Words), Words);
         if (_work!.Result.OutcomeOf(step.Number) is { Span: { } placed })
         {
             _picks[NotesSource] = placed;

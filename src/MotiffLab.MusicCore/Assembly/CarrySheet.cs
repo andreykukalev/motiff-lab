@@ -11,9 +11,12 @@ public enum SheetMark
     Same,
 }
 
-/// <summary>One line of the carry sheet, always in the same order: where, length, seam, key, meter and tempo, notes.</summary>
-/// <param name="Name">"where", "length", "seam", "key", "meter", "notes".</param>
-/// <param name="Label">«Куда», «Длина», «Стык», «Тональность», «Размер и темп», «Ноты».</param>
+/// <summary>
+/// One line of the carry sheet, always in the same order: where, length, seam, key, meter and tempo, notes; from a
+/// recording, how to get the notes comes first.
+/// </summary>
+/// <param name="Name">"how", "where", "length", "seam", "key", "meter", "notes".</param>
+/// <param name="Label">«Как получить ноты», «Куда», «Длина», «Стык», «Тональность», «Размер и темп», «Ноты».</param>
 /// <param name="Text">The line in musical words, after the label.</param>
 public sealed record SheetLine(string Name, SheetMark Mark, string Label, string Text);
 
@@ -27,6 +30,9 @@ public sealed record SheetLine(string Name, SheetMark Mark, string Label, string
 /// <param name="InsertText">The «Куда» choice for inserting at the playhead: «вставить в такт 15, долю 2».</param>
 /// <param name="KeyText">The key line's choice for a transposition: «на тон вниз»; null when the keys agree or are not known.</param>
 /// <param name="SuggestedTranspose">The semitones that bring the fragment into the notes' key, 0 when they agree.</param>
+/// <param name="KeepText">From a recording, replacing: the «Как получить ноты» choice that keeps the notes and adds what the
+/// performer plays otherwise; null otherwise.</param>
+/// <param name="HeardText">The other choice: the notes as heard in the recording; null when <paramref name="KeepText"/> is.</param>
 /// <param name="Ghost">The notes as they will be after the carry.</param>
 /// <param name="Outcome">What the carry does in the ghost.</param>
 public sealed record CarrySheet(
@@ -36,6 +42,8 @@ public sealed record CarrySheet(
     string InsertText,
     string? KeyText,
     int SuggestedTranspose,
+    string? KeepText,
+    string? HeardText,
     IReadOnlyList<SheetLine> Lines,
     Assembled Ghost,
     StepOutcome Outcome)
@@ -43,7 +51,8 @@ public sealed record CarrySheet(
     /// <summary>
     /// The sheet for <paramref name="carry"/> made on top of <paramref name="steps"/>. <paramref name="names"/> gives a
     /// source's name in the genitive as the lines use it («Кавера»), and <paramref name="replaceable"/> and
-    /// <paramref name="playhead"/> say what the «Куда» line can offer.
+    /// <paramref name="playhead"/> say what the «Куда» line can offer. A fragment of a recording (<paramref name="heard"/>)
+    /// that replaces notes gets a first line on how to get its notes.
     /// </summary>
     public static CarrySheet Of(
         SourceMusic baseMusic,
@@ -54,7 +63,8 @@ public sealed record CarrySheet(
         AssemblyNames names,
         AssemblyPlace? replaceable,
         Tick playhead,
-        Words words)
+        Words words,
+        bool heard = false)
     {
         ArgumentNullException.ThrowIfNull(baseMusic);
         ArgumentNullException.ThrowIfNull(sources);
@@ -93,18 +103,27 @@ public sealed record CarrySheet(
         (int playBar, int playBeat, _) = notes.PositionOf(playhead);
         string insertText = words.T($"insert at bar {playBar}, beat {playBeat}", $"вставить в такт {playBar}, долю {playBeat}");
 
-        List<SheetLine> lines =
+        string? keepText = null, heardText = null;
+        List<SheetLine> lines = [];
+        if (heard && !carry.To.Inserts)
+        {
+            keepText = words.T("keep your notes and add what the performer plays otherwise", "оставить ваши ноты, добавив то, что исполнитель играет иначе");
+            heardText = words.T("take the notes as the recording was heard", "взять ноты так, как они распознаны в записи");
+            lines.Add(new("how", SheetMark.Choice, words.T("How to get the notes", "Как получить ноты"), carry.Keep ? keepText : heardText));
+        }
+
+        lines.AddRange(
         [
             new("where", SheetMark.Choice, words.T("Where", "Куда"), carry.To.Inserts ? insertText : replaceText ?? insertText),
             LengthLine(notes, outcome, t0, words),
             SeamLine(ghost, source, carry, outcome, words),
-        ];
+        ]);
 
         (SheetLine keyLine, string? keyText, int transpose) = KeyLine(source, notes, carry, outcome, sourceName, words);
         lines.Add(keyLine);
         lines.Add(MeterLine(source, notes, carry, outcome, words));
         lines.Add(NotesLine(outcome, names, words));
-        return new CarrySheet(title, route, replaceText, insertText, keyText, transpose, lines, ghost, outcome);
+        return new CarrySheet(title, route, replaceText, insertText, keyText, transpose, keepText, heardText, lines, ghost, outcome);
     }
 
     /// <summary>Where a place lies in the notes now; null when a note it holds on to is gone.</summary>

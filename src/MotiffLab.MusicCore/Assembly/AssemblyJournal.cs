@@ -210,13 +210,15 @@ public static class AssemblyJournal
         return lines;
     }
 
-    /// <summary>«9 нот из Кавера», for a carry.</summary>
+    /// <summary>«9 нот из Кавера», for a carry; for one that keeps the notes, the notes it added once it is in the journal.</summary>
     public static string NotesFrom(AssemblyWork work, CarryStep carry, AssemblyNames names, Words words)
     {
         ArgumentNullException.ThrowIfNull(work);
         ArgumentNullException.ThrowIfNull(carry);
         ArgumentNullException.ThrowIfNull(names);
-        int count = work.Source(carry.SourceId)?.NotesIn(carry.From.Onset, carry.From.End).Count ?? 0;
+        int count = carry.Keep && work.Steps.Contains(carry) && work.Result.OutcomeOf(carry.Number) is { } outcome
+            ? outcome.Put.Count
+            : work.Source(carry.SourceId)?.NotesIn(carry.From.Onset, carry.From.End).Count ?? 0;
         return words.T(
             $"{words.Count(count, "note", "notes", "нота", "ноты", "нот")} from {names.Of(carry.SourceId)}",
             $"{words.Count(count, "note", "notes", "нота", "ноты", "нот")} из {names.GenitiveOf(carry.SourceId)}");

@@ -89,6 +89,11 @@ public static partial class ProjectFile
                 json.WriteEndObject();
                 WritePlace(json, "to", carry.To);
                 json.WriteNumber("transpose", carry.Transpose);
+                if (carry.Keep)
+                {
+                    json.WriteBoolean("keep", true);
+                }
+
                 break;
             case NoteStep note:
                 json.WriteString("kind", "note");
@@ -122,7 +127,8 @@ public static partial class ProjectFile
         DateTimeOffset at = Time(step, "at");
         return Text(step, "kind") switch
         {
-            "carry" => new CarryStep(number, at, Text(step, "source"), ReadSpan(Property(step, "from", JsonValueKind.Object), "assembly"), ReadPlace(Property(step, "to", JsonValueKind.Object)), Integer(step, "transpose")),
+            "carry" => new CarryStep(number, at, Text(step, "source"), ReadSpan(Property(step, "from", JsonValueKind.Object), "assembly"), ReadPlace(Property(step, "to", JsonValueKind.Object)), Integer(step, "transpose"),
+                step.TryGetProperty("keep", out JsonElement keep) && keep.ValueKind == JsonValueKind.True),
             "note" => new NoteStep(number, at, Text(step, "note"), step.TryGetProperty("semitones", out JsonElement value) && value.ValueKind == JsonValueKind.Number ? value.GetInt32() : null),
             "transpose" => new TransposeStep(number, at, ReadPlace(Property(step, "place", JsonValueKind.Object)), Integer(step, "semitones")),
             _ => throw Damaged("assembly"),
