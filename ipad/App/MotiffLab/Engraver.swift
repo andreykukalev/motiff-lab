@@ -80,12 +80,28 @@ final class Engraver {
 
     /// The pages of a piece's notation as SVG with Verovio's timemap: music-core writes the MEI (`notation`), Verovio
     /// lays it out on A4 pages. Call it through `MusicCore.run`.
-    /// With `version`, another version's id, it stands on small staves above every system as the comparison layer (0022,
-    /// section 4), its likely artefacts too with `artefacts`.
     /// With `evenBars`, the bars take room by their length (Settings · Notes).
-    static func engrave(piece: Int32, title: String, version: String? = nil, artefacts: Bool = false, evenBars: Bool = false) -> Result<Engraving, EngraveError> {
-        let above = version.map { ", \"ossia\": \(jsonString($0)), \"artefacts\": \(artefacts)" } ?? ""
-        return layOut(piece: piece, request: "{\"title\": \(jsonString(title))\(above)}", options: a4(evenBars: evenBars))
+    static func engrave(piece: Int32, title: String, evenBars: Bool = false) -> Result<Engraving, EngraveError> {
+        layOut(piece: piece, request: "{\"title\": \(jsonString(title))}", options: a4(evenBars: evenBars))
+    }
+
+    /// The whole piece as a merge draft's view shows it on the pages (testing items 32 and 34): "version" or "result",
+    /// with the ids of the notes from the version and of the player's own (`performance.merge.notation`).
+    static func engraveMerge(piece: Int32, title: String, view: String, evenBars: Bool = false) -> Result<Engraving, EngraveError> {
+        layOut(piece: piece, call: "performance.merge.notation", request: "{\"title\": \(jsonString(title)), \"view\": \(jsonString(view))}", options: a4(evenBars: evenBars))
+    }
+
+    /// The bars of a merge draft's view engraved on their own for Compare versions, one system at the window's width,
+    /// the notes larger or smaller with `zoom` (100 as the page has them).
+    static func engraveMergeBars(piece: Int32, view: String, firstBar: Int, lastBar: Int, zoom: Int) -> Result<Engraving, EngraveError> {
+        let scale = max(20, min(80, 45 * zoom / 100))
+        let options = """
+        {"font": "Leland", "scale": \(scale), "pageWidth": 2400, "pageHeight": 2970, "pageMarginLeft": 40, "pageMarginRight": 40,
+         "pageMarginTop": 40, "pageMarginBottom": 40, "adjustPageHeight": true, "breaks": "none", "header": "none", "footer": "none",
+         "svgViewBox": true}
+        """
+        return layOut(piece: piece, call: "performance.merge.notation",
+                      request: "{\"view\": \(jsonString(view)), \"bars\": {\"first\": \(firstBar), \"last\": \(lastBar)}}", options: options)
     }
 
     /// The bars of a phrase in focus engraved on their own (0018 section 4): music-core writes the excerpt
@@ -98,8 +114,8 @@ final class Engraver {
         return layOut(piece: piece, request: "{\"bars\": {\"first\": \(firstBar), \"last\": \(lastBar)}\(above)}", options: options)
     }
 
-    private static func layOut(piece: Int32, request: String, options: String) -> Result<Engraving, EngraveError> {
-        guard let answer = facadeObject(MusicCore.call(piece: piece, "notation", request)) else {
+    private static func layOut(piece: Int32, call: String = "notation", request: String, options: String) -> Result<Engraving, EngraveError> {
+        guard let answer = facadeObject(MusicCore.call(piece: piece, call, request)) else {
             return .failure(EngraveError(message: "music-core gave no notation."))
         }
         guard let mei = answer["mei"] as? String, !mei.isEmpty else {
@@ -119,7 +135,10 @@ final class Engraver {
                 artefacts: ossia["artefacts"] as? [String] ?? []
             )
         }
-        return .success(Engraving(pages: pages, timemap: engraver.timemap(), ossias: ossias))
+        return .success(Engraving(
+            pages: pages, timemap: engraver.timemap(), ossias: ossias,
+            version: answer["version"] as? [String] ?? [], own: answer["own"] as? [String] ?? []
+        ))
     }
 
     private static func jsonString(_ text: String) -> String {
@@ -142,6 +161,9 @@ struct Engraving: Sendable {
     let pages: [String]
     let timemap: String
     var ossias: [Ossia] = []
+    /// On a merge draft's view, the engraved ids of the notes from the version (plum) and of the player's own (amber).
+    var version: [String] = []
+    var own: [String] = []
 }
 
 struct EngraveError: Error, Sendable {

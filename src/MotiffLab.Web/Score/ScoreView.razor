@@ -58,6 +58,8 @@ else if (_loading && !HoldHeight)
     private IReadOnlyList<HighlightPlace>? _shownUnheard;
     private IReadOnlyList<string>? _shownVersionAdded;
     private IReadOnlyList<string>? _shownVersionArtefacts;
+    private IReadOnlyList<long>? _shownTakenBars;
+    private IReadOnlyList<string>? _shownOwnNotes;
     private IReadOnlyList<string>? _shownHiddenLayers;
     private IReadOnlyList<HighlightPlace>? _shownHighlight;
     private IReadOnlyList<HighlightPlace>? _shownPointed;
@@ -131,9 +133,17 @@ else if (_loading && !HoldHeight)
     [Parameter]
     public IReadOnlyList<string>? VersionArtefacts { get; set; }
 
+    /// <summary>Where each bar taken from another version starts, in ticks: a thin plum line under it (testing item 33); null or empty draws none.</summary>
+    [Parameter]
+    public IReadOnlyList<long>? TakenBars { get; set; }
+
+    /// <summary>The ids of notes the player wrote themselves in a merge, shown amber in the merge's result.</summary>
+    [Parameter]
+    public IReadOnlyList<string>? OwnNotes { get; set; }
+
     /// <summary>A performance's marker was tapped: its bar's number.</summary>
     [Parameter]
-    public EventCallback<int> PerformancePicked { get; set; }
+    public EventCallback<ScoreMarkerPick> PerformancePicked { get; set; }
 
     /// <summary>The layers of marks hidden for a clean page: "ink", "notes", "bookmarks", "analysis".</summary>
     [Parameter]
@@ -314,7 +324,7 @@ else if (_loading && !HoldHeight)
             }
 
             if (!ReferenceEquals(PerformanceMarkers, _shownPerformance) || !ReferenceEquals(Unheard, _shownUnheard) || !ReferenceEquals(VersionAdded, _shownVersionAdded)
-                || !ReferenceEquals(VersionArtefacts, _shownVersionArtefacts))
+                || !ReferenceEquals(VersionArtefacts, _shownVersionArtefacts) || !ReferenceEquals(TakenBars, _shownTakenBars) || !ReferenceEquals(OwnNotes, _shownOwnNotes))
             {
                 await ShowPerformanceAsync(_view);
             }
@@ -375,8 +385,11 @@ else if (_loading && !HoldHeight)
         _shownUnheard = Unheard;
         _shownVersionAdded = VersionAdded;
         _shownVersionArtefacts = VersionArtefacts;
+        _shownTakenBars = TakenBars;
+        _shownOwnNotes = OwnNotes;
         await view.InvokeVoidAsync(
-            "setPerformance", (object)(PerformanceMarkers ?? []).ToArray(), (object)(Unheard ?? []).ToArray(), (object)(VersionAdded ?? []).ToArray(), (object)(VersionArtefacts ?? []).ToArray());
+            "setPerformance", (object)(PerformanceMarkers ?? []).ToArray(), (object)(Unheard ?? []).ToArray(), (object)(VersionAdded ?? []).ToArray(), (object)(VersionArtefacts ?? []).ToArray(),
+            (object)(TakenBars ?? []).ToArray(), (object)(OwnNotes ?? []).ToArray());
     }
 
     private async Task ShowRangeAsync(IJSObjectReference view)
@@ -562,7 +575,7 @@ else if (_loading && !HoldHeight)
 
     /// <summary>Called by the script when a performance's marker is tapped.</summary>
     [JSInvokable]
-    public Task OnPerformanceMarkerClicked(int bar) => PerformancePicked.InvokeAsync(bar);
+    public Task OnPerformanceMarkerClicked(int bar, double left, double bottom) => PerformancePicked.InvokeAsync(new ScoreMarkerPick(bar, left, bottom));
 
     /// <summary>Called by the script when a Check flag is tapped.</summary>
     [JSInvokable]

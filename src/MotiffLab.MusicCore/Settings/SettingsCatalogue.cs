@@ -37,12 +37,20 @@ public static class SettingsCatalogue
         Switch("layers.analysis", SettingSection.MarksAndLayers, Governs(true, true, false), SettingScope.Piece),
         Switch("layers.check", SettingSection.MarksAndLayers, Governs(true, true, false), SettingScope.Piece),
         Switch("layers.performance", SettingSection.MarksAndLayers, Governs(true, true, false), SettingScope.Piece),
-        // The comparison layer (0022, section 4): another version on small staves above every system; off until asked for.
+        // Extra information (testing item 33): what the app adds over the notes (a version's differences, the bars taken from
+        // it, Check flags) shows only while this is on; off by default, so the score shows the player's notes and marks alone.
+        Switch("layers.extra", SettingSection.MarksAndLayers, null, SettingScope.Piece),
+        // A thin plum line under each bar taken from another version, with extra information on.
+        Switch("layers.taken", SettingSection.MarksAndLayers, null, SettingScope.Piece, on: true),
+        // The comparison layer over the whole score (0022, section 4) and its artefacts, no longer shown (testing item 33): a
+        // version is compared in the merge draft. Kept so files that set them still open.
         Switch("layers.version", SettingSection.MarksAndLayers, null, SettingScope.Piece),
-        // On that layer, the notes likely to be artefacts of a recording's hearing, in grey; hidden until asked for.
         Switch("layers.artefacts", SettingSection.MarksAndLayers, null, SettingScope.Piece),
         Switch("pen.pencilOnly", SettingSection.MarksAndLayers, null, SettingScope.Device, on: true),
         Choice("pen.ink", SettingSection.MarksAndLayers, ["graphite", "carmine", "forest", "ochre"], "graphite", null, SettingScope.Device),
+
+        // A choice on a version's page applied at once, without the merge draft (testing item 34); Undo stays in its toast.
+        Switch("merge.direct", SettingSection.Score, null, SettingScope.Device),
 
         Switch("playback.metronome", SettingSection.Playback, null, SettingScope.Device),
         Switch("playback.countIn", SettingSection.Playback, null, SettingScope.Device),

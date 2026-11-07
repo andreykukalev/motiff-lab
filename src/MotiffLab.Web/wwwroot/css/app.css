@@ -1416,10 +1416,27 @@ h1, h2, .app-title strong {
 
 /* In the comparison layer, a note another version plays that these notes do not have (decision record 0022, section 4):
    plum, what the app shows from elsewhere; what agrees stays the notation's colour, so the eye goes to the differences. */
-.score g.note.version-added {
+.score g.note.version-added, .phrase-card-score g.note.version-added {
     fill: var(--plum);
     stroke: var(--plum);
     color: var(--plum);
+}
+
+/* In a merge's result (testing items 32 and 34), a note the player wrote themselves in the roll: amber, as all the player marks. */
+.score g.note.own-note, .phrase-card-score g.note.own-note {
+    fill: var(--amber);
+    stroke: var(--amber);
+    color: var(--amber);
+}
+
+/* A bar taken from another version, with extra information on (testing item 33): a thin plum line under its staves. */
+.lab .score .taken-bar {
+    position: absolute;
+    z-index: 1;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--plum);
+    pointer-events: none;
 }
 
 /* A note on that layer likely to be an artefact of a recording's hearing (0022), shown only when asked for: grey. */
@@ -6775,4 +6792,413 @@ body:has(.library) .site-footer {
     margin-left: 0;
     padding: 0 var(--s-3) 0 var(--s-2);
     font: var(--t-label);
+}
+
+/* Extra information (testing item 33): ⓘ and its chevron as one split action in the bar; on, the pair reads pressed. */
+.lab.workspace .bar .act-split {
+    display: inline-flex;
+    align-items: center;
+    border-radius: var(--r-s);
+}
+
+.lab.workspace .bar .act-split .act.chev {
+    width: var(--h-compact);
+    margin-left: calc(-1 * var(--s-1));
+}
+
+.lab.workspace .bar .act-split.on > .act:first-child {
+    background: var(--accent-tint);
+    color: var(--accent);
+}
+
+.workspace .layers-popover .check-row.muted {
+    color: var(--ink-3);
+}
+
+.workspace .check-row {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    min-height: var(--h-compact);
+    font: var(--t-body);
+    cursor: pointer;
+}
+
+/* The merge (testing items 32 and 34). Three views keep one colour each everywhere: mine graphite, the version plum, the
+   result green; a swatch or a dot carries it on the buttons too. */
+.workspace .swatch, .workspace .dot.mine, .workspace .dot.version, .workspace .dot.result {
+    display: inline-block;
+    flex: none;
+    width: 10px;
+    height: 10px;
+    border-radius: var(--r-xs);
+    vertical-align: middle;
+}
+
+.workspace .dot.mine, .workspace .dot.version, .workspace .dot.result {
+    border-radius: 50%;
+}
+
+.workspace .swatch.mine, .workspace .dot.mine {
+    background: var(--ink-2);
+}
+
+.workspace .swatch.version, .workspace .dot.version {
+    background: var(--plum);
+}
+
+.workspace .dot.result {
+    background: var(--success);
+}
+
+.workspace .perf-sheet .source-row.version {
+    width: 100%;
+}
+
+.workspace .perf-sheet .source-row.version > svg:last-child {
+    margin-left: auto;
+    color: var(--ink-3);
+}
+
+.workspace .perf-sheet .danger-text {
+    align-self: flex-start;
+    color: var(--danger);
+}
+
+.workspace .merge-overview, .workspace .merge-applied {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+}
+
+.workspace .merge-applied {
+    padding: var(--s-3);
+    border-radius: var(--r-m);
+    background: var(--plum-tint);
+}
+
+.workspace .merge-applied.undone {
+    background: var(--paper);
+    border: 1px dashed var(--plum);
+}
+
+.workspace .merge-applied p {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    margin: 0;
+    font: var(--t-body-strong);
+}
+
+.workspace .merge-verdict {
+    margin: 0;
+    font: var(--t-body);
+}
+
+.workspace .merge-choices, .workspace .merge-take {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--s-2);
+}
+
+.workspace .merge-choices .btn, .workspace .merge-take .btn {
+    justify-content: flex-start;
+    gap: var(--s-2);
+}
+
+.workspace .merge-take .btn.on, .workspace .compare-actions .btn.on {
+    border-color: var(--accent);
+    background: var(--accent-tint);
+}
+
+/* The strip of bars: a cell per bar, grey where the version agrees, plum where it differs, darker where it is sure. */
+.workspace .merge-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+}
+
+.lab.workspace .merge-strip .cell {
+    width: 10px;
+    min-width: 0;
+    height: 18px;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 2px;
+    background: var(--hairline);
+    cursor: pointer;
+}
+
+.lab.workspace .merge-strip .cell.off {
+    background: transparent;
+    outline: 1px dashed var(--hairline-strong);
+    outline-offset: -1px;
+}
+
+.lab.workspace .merge-strip .cell.doubt {
+    background: var(--plum-tint);
+    box-shadow: inset 0 0 0 1px var(--plum);
+}
+
+.lab.workspace .merge-strip .cell.sure {
+    background: var(--plum);
+}
+
+.lab.workspace .merge-strip .cell.mine {
+    background: var(--ink-2);
+}
+
+.lab.workspace .merge-strip .cell.version {
+    background: var(--success);
+}
+
+.lab.workspace .merge-strip .cell.at {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+/* The draft: a dashed plum block, nothing in it is in the score until Apply. */
+.workspace .merge-draft {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+    padding: var(--s-3);
+    border: 1.5px dashed var(--plum);
+    border-radius: var(--r-m);
+    background: var(--surface);
+}
+
+.workspace .merge-draft-head, .workspace .merge-step, .workspace .compare-group, .workspace .compare-see, .workspace .merge-view .lab {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.workspace .merge-draft-head .overline, .workspace .merge-step p, .workspace .compare-group .overline {
+    margin: 0;
+}
+
+.workspace .merge-draft-head .caption {
+    margin-left: auto;
+}
+
+.workspace .merge-step p {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+}
+
+.workspace .merge-state {
+    margin: 0;
+}
+
+.workspace .merge-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.lab.workspace .merge-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: var(--s-2);
+    width: 100%;
+    min-height: var(--h-compact);
+    padding: 0 var(--s-2);
+    border: 0;
+    border-radius: var(--r-s);
+    background: transparent;
+    color: var(--ink);
+    font: var(--t-label);
+    text-align: left;
+    cursor: pointer;
+}
+
+.lab.workspace .merge-row:hover {
+    background: var(--surface-2);
+}
+
+.lab.workspace .merge-row.on {
+    background: var(--accent-tint);
+}
+
+.workspace .merge-row .state {
+    padding: 0 var(--s-2);
+    border-radius: var(--r-pill);
+    font: var(--t-caption);
+    background: var(--hairline);
+    color: var(--ink-2);
+}
+
+.workspace .merge-row .state.mine {
+    background: var(--surface-2);
+    color: var(--ink);
+    box-shadow: inset 0 0 0 1px var(--ink-2);
+}
+
+.workspace .merge-row .state.version {
+    background: var(--plum-tint);
+    color: var(--plum);
+}
+
+.workspace .merge-row .state.own {
+    background: var(--amber-tint);
+    color: var(--warning);
+}
+
+.workspace .merge-history .redo svg, .workspace .compare-bar .redo svg {
+    transform: scaleX(-1);
+}
+
+.workspace .merge-apply {
+    justify-content: flex-end;
+}
+
+.workspace .merge-listen button, .workspace .merge-show .seg button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.workspace .merge-window {
+    align-self: flex-start;
+}
+
+/* While a draft is open, what the score shows: floating over the top of the score, under the bar. */
+.workspace .merge-show {
+    position: fixed;
+    z-index: 25;
+    top: calc(env(safe-area-inset-top, 0px) + var(--h-touch) + var(--s-6));
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    padding: var(--s-1) var(--s-2) var(--s-1) var(--s-4);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    background: var(--surface);
+    box-shadow: var(--shadow-pill);
+}
+
+/* What a merge did, with Undo: amber, as the player's own step. */
+.workspace .merge-toast {
+    position: fixed;
+    z-index: 45;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + var(--s-8));
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    max-width: calc(100vw - 2 * var(--s-4));
+    padding: var(--s-2) var(--s-2) var(--s-2) var(--s-4);
+    border-radius: var(--r-pill);
+    background: var(--notation);
+    color: var(--paper);
+    box-shadow: var(--shadow-menu);
+    font: var(--t-label);
+}
+
+.lab.workspace .merge-toast .btn.quiet {
+    color: var(--amber);
+    font-weight: 600;
+}
+
+.lab.workspace .merge-toast .btn.icon {
+    color: var(--paper);
+}
+
+.workspace .marker-pop .overline {
+    margin: 0 0 var(--s-2);
+}
+
+/* The window «Сравнение версий»: the shell of Piece DNA, the list at the left and the three views at the right. */
+.workspace .dna.compare {
+    gap: var(--s-4);
+}
+
+.workspace .compare-body {
+    display: grid;
+    grid-template-columns: minmax(240px, 320px) 1fr;
+    gap: var(--s-6);
+    align-items: start;
+}
+
+.workspace .compare-list, .workspace .compare-main {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+    min-width: 0;
+}
+
+.workspace .compare-list .merge-rows {
+    max-height: none;
+}
+
+.workspace .compare-group .sp, .workspace .compare-see .sp, .workspace .merge-view .lab .sp {
+    flex: 1;
+}
+
+.workspace .compare-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.workspace .compare-actions kbd {
+    padding: 0 4px;
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-xs);
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.workspace .compare-see .zoom {
+    display: flex;
+    align-items: center;
+    gap: var(--s-1);
+}
+
+.workspace .merge-view {
+    padding: var(--s-2) var(--s-3) var(--s-3);
+    border: 1px solid var(--hairline);
+    border-left: 3px solid var(--ink-2);
+    border-radius: var(--r-m);
+    background: var(--paper);
+}
+
+.workspace .merge-view.version {
+    border-left-color: var(--plum);
+}
+
+.workspace .merge-view.result {
+    border-left-color: var(--success);
+}
+
+.workspace .merge-view .phrase-card-score {
+    zoom: var(--zoom, 1);
+}
+
+.lab.workspace .merge-view .btn.icon.version {
+    color: var(--plum);
+}
+
+.lab.workspace .merge-view .btn.icon.result {
+    color: var(--success);
+}
+
+@media (max-width: 760px) {
+    .workspace .compare-body {
+        grid-template-columns: 1fr;
+    }
 }

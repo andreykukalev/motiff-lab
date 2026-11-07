@@ -29,6 +29,10 @@ public sealed class MusicCoreFacade
     /// from it, a piece with notes and a PDF opens in its "PDF" view with "view": "pdf", sources tells the base and what the
     /// player's version holds, sources.document keeps a PDF inside a piece with notes, sources.documentNotes adds the notes
     /// read from it as a version, and performance.takeAll takes every bar the comparison is sure of.
+    /// 7 merges a version through a draft (testing items 32 and 34): performance.merge.open, .choose, .own, .undecide,
+    /// .undo, .redo, .reset, .cancel and .apply, the three views engraved and heard (performance.merge.notation, .playback),
+    /// performance.merge.undoApplied, and performance.putBack for a version removed while the piece is open; a performance
+    /// tells "mergedAt" and "mergeKept". The project file stays version 14 with an optional "merge" on a performance.
     /// 3 brings the three phrase levels (0018, section 3; preparation items 7–9): the phrases answer names the level shown and
     /// the units of a level with their parent, "long" replaces "fitsSelection", the levels are short, phrase and sentence,
     /// phrases.level and phrases.edit take a level and split, understand ranks the facts and offers Try chips, and try sounds a chip.
@@ -38,7 +42,7 @@ public sealed class MusicCoreFacade
     /// 1 was the first contract: open and save, piece, phrases with their edits, select, understand,
     /// experiments, the variation chain, notation, playback, the catalogue and the Piece DNA placeholder.
     /// </summary>
-    public const int Contract = 6;
+    public const int Contract = 7;
 
     private readonly Dictionary<int, OpenPiece> _pieces = [];
     private readonly Dictionary<int, OpenDocument> _documents = [];

@@ -382,8 +382,13 @@ final class PencilTests: XCTestCase {
         let flagLeft = try await view.evaluateJavaScript("parseFloat(document.querySelector('body > .check-flag').style.left)") as? NSNumber
         XCTAssertLessThan(labelLeft?.doubleValue ?? .infinity, flagLeft?.doubleValue ?? 0)
 
+        // A bar taken from the version: a thin plum line under it (testing item 33).
+        _ = try await call(view, "performance", ["markers": [[String: Any]](), "unheard": [String](), "taken": [bar.onset]])
+        let lines = try await view.evaluateJavaScript("document.querySelectorAll('body > .taken-bar').length") as? NSNumber
+        XCTAssertEqual(lines?.intValue, 1)
+
         _ = try await call(view, "performance", ["markers": [[String: Any]](), "unheard": [String]()])
-        let gone = try await view.evaluateJavaScript("document.querySelectorAll('body > .perf-marker, #pages .not-heard').length") as? NSNumber
+        let gone = try await view.evaluateJavaScript("document.querySelectorAll('body > .perf-marker, #pages .not-heard, body > .taken-bar').length") as? NSNumber
         XCTAssertEqual(gone?.intValue, 0)
     }
 

@@ -41,8 +41,6 @@ struct ScoreScreen: View {
     @State private var checkOpen = false
     /// Other versions (0022), from More or a version's label on the score: where Check goes, and one of them at a time.
     @State private var versionsOpen = false
-    /// Hear it alone, from Sources: once the phrase is in focus with the version there, it plays as in the version.
-    @State private var hearVersionInFocus = false
     /// The Settings sheet (0018 section 10), from More: over the score, which follows each change at once.
     @State private var settingsOpen = false
     /// Piece DNA (0018 section 11; testing item 22), from More: the map of the whole piece over the score; nil when closed.
@@ -124,19 +122,7 @@ struct ScoreScreen: View {
             VersionsDrawer(
                 score: score, text: text, close: { versionsOpen = false },
                 back: fromMore ? (label: text["bar.more"], action: { backToMore { versionsOpen = false } }) : nil,
-                openPdf: toPdf,
-                hearAlone: {
-                    versionsOpen = false
-                    hearVersionInFocus = true
-                    Task { await score.focusFirstDifference() }
-                },
-                adjust: {
-                    versionsOpen = false
-                    Task {
-                        await score.editFirstDifference()
-                        rollOpen = true
-                    }
-                }
+                openPdf: toPdf
             )
         } else if checkOpen {
             CheckDrawer(score: score, text: text, close: { checkOpen = false }, back: fromMore ? (label: text["bar.more"], action: { backToMore { checkOpen = false } }) : nil)
@@ -194,6 +180,29 @@ struct ScoreScreen: View {
                         .offset(x: place.x, y: place.y)
                 }
             }
+            .overlay(alignment: .topLeading) {
+                // A version's marker tapped (testing item 33): the popover under it; a tap elsewhere puts it away.
+                if let pick = score.markerPick, !score.focused {
+                    GeometryReader { area in
+                        ZStack(alignment: .topLeading) {
+                            Color.clear.contentShape(Rectangle()).onTapGesture { score.closeMarker() }
+                            MarkerPopover(score: score, text: text, pick: pick)
+                                .offset(x: min(max(CGFloat(pick.left), CGFloat.ds("s-3")), area.size.width - 312), y: CGFloat(pick.bottom) + CGFloat.ds("s-1"))
+                        }
+                    }
+                }
+            }
+            .overlay(alignment: .bottom) {
+                // What was just done with a version, with Undo (testing item 32).
+                if let toast = score.mergeToast {
+                    MergeToastView(score: score, text: text, toast: toast)
+                        .padding(.bottom, pillBottom + 56)
+                        .transition(.opacity)
+                }
+            }
+            .fullScreenCover(isPresented: $score.comparing) {
+                CompareVersionsScreen(score: score, text: text)
+            }
             .overlay {
                 // The phrase as a roll over the card (testing item 12); the drawer's roll moves here, so it shows once the drawer is gone.
                 if score.focused && score.focusRoll && !rollOpen {
@@ -228,6 +237,10 @@ struct ScoreScreen: View {
                     if score.penOn && !score.focused {
                         PenPalette(score: score, text: text)
                             .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+                    if score.merge != nil && !score.focused && !score.comparing {
+                        MergeShowSwitch(score: score, text: text)
+                            .transition(.opacity)
                     }
                 }
                 .padding(.horizontal, CGFloat.ds("s-4"))
@@ -347,9 +360,17 @@ struct ScoreScreen: View {
         // A flag tapped on the score opens Check on its bar.
         let checking = $checkOpen
         score.checkPicked = { _ in checking.wrappedValue = true }
-        // A version's label tapped on the score opens Other versions; bars taken or restored change what plays.
+        // Open in the draft, from a marker's popover or focus, opens Sources on the version's page; a merge applied or
+        // undone changes what plays. The draft's views are heard on their own, or the notes and the version in turn.
         let comparing = $versionsOpen
         score.versionPicked = { _ in comparing.wrappedValue = true }
+        score.hearNotes = { [weak heard] notes, range in heard?.hearAlone(notes, over: range) }
+        score.hearInTurn = { [weak heard] notes, range in
+            guard let heard else { return }
+            heard.setVariation(notes, version: true)
+            heard.hear(.alternate, over: range)
+            if heard.state != .playing { heard.play(from: range.lowerBound) }
+        }
         let id = piece.id
         let rolled = roll
         score.notesChanged = { [weak heard, weak rolled] in
@@ -499,6 +520,7 @@ struct ScoreScreen: View {
                 if !open { fromMore = false }
             }
             .onChange(of: checkOpen) { _, open in
+                score.checkDrawerOpen = open
                 if open {
                     insightsOpen = false
                     rollOpen = false
@@ -530,11 +552,6 @@ struct ScoreScreen: View {
                 guard insights.trial == nil else { return }
                 if let version, version.sounds {
                     player.setVariation(version.notes, version: true)
-                    if hearVersionInFocus, let range = score.playRange?.range {
-                        hearVersionInFocus = false
-                        player.hear(.variation, over: range)
-                        if player.state != .playing { player.play(from: range.lowerBound) }
-                    }
                 } else if player.secondIsVersion {
                     player.setVariation(nil)
                 }
@@ -641,6 +658,8 @@ struct ScoreBar: View {
     @State private var phrasesOpen = false
     /// Ask about the piece from More: the assistant's popover where More was (testing item 23).
     @State private var asking = false
+    /// The list of extra information under the ⓘ button's chevron.
+    @State private var extraOpen = false
     @EnvironmentObject private var account: Account
 
     var body: some View {
@@ -716,6 +735,33 @@ struct ScoreBar: View {
             .buttonStyle(BarActionStyle(on: insightsOpen))
             .accessibilityLabel(text["bar.insights"])
             .accessibilityAddTraits(insightsOpen ? .isSelected : [])
+            // Extra information (testing item 33): one press shows or hides what the app adds over the notes; the chevron
+            // lists each kind and the player's own marks.
+            HStack(spacing: 0) {
+                let on = !score.hiddenLayers.contains("extra")
+                Button {
+                    score.toggleExtra()
+                } label: {
+                    Icon(name: "info", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+                }
+                .buttonStyle(BarActionStyle(on: on))
+                .accessibilityLabel(text["extra.toggle"])
+                .accessibilityHint(text["extra.hint"])
+                .accessibilityAddTraits(on ? .isSelected : [])
+                Button {
+                    extraOpen.toggle()
+                } label: {
+                    Icon(name: "chevd", size: CGFloat.ds("icon-s")).frame(width: 20, height: 40)
+                }
+                .buttonStyle(BarActionStyle(on: extraOpen))
+                .accessibilityLabel(text["extra.list"])
+                .popover(isPresented: $extraOpen) {
+                    LayersList(score: score, text: text)
+                        .padding(CGFloat.ds("s-4"))
+                        .frame(width: 300, alignment: .leading)
+                        .presentationCompactAdaptation(.popover)
+                }
+            }
             Button {
                 player.toggle()
             } label: {
@@ -1135,15 +1181,10 @@ struct FocusBar: View {
             if player.hasVariation, let variationRange {
                 HearingSwitch(player: player, range: variationRange, text: text, version: player.secondIsVersion ? score.focusVersion?.name : nil)
             }
-            if let version = score.focusVersion, !player.hasVariation || player.secondIsVersion {
-                if !version.differing.isEmpty {
-                    Button(text["performance.take"]) { score.takeFocusBars() }
-                        .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
-                }
-                if !version.taken.isEmpty {
-                    Button(text["performance.restore"]) { score.restoreFocusBars() }
-                        .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
-                }
+            if score.focusVersion != nil, !player.hasVariation || player.secondIsVersion {
+                // The way into the merge draft for this phrase (testing item 32); bars are no longer taken here.
+                Button(text["merge.openDraft"]) { score.openDraftFromFocus() }
+                    .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
             }
             Button {
                 asking = true
@@ -1287,7 +1328,7 @@ struct PenPalette: View {
                 }
             }
             .accessibilityLabel(text["layers.title"])
-            .buttonStyle(DSItemStyle(on: layersOpen || !score.hiddenLayers.isEmpty))
+            .buttonStyle(DSItemStyle(on: layersOpen || !score.hiddenLayers.isDisjoint(with: ScoreController.layers)))
             .popover(isPresented: $layersOpen) {
                 LayersList(score: score, text: text)
                     .padding(CGFloat.ds("s-4"))

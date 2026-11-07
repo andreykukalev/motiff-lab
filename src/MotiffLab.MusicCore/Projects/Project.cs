@@ -456,6 +456,25 @@ public sealed record Project(
         };
     }
 
+    /// <summary>
+    /// "Версия убрана · Вернуть" (testing item 32): a performance removed put back where it was, with the Check flags from
+    /// performances the project had before it was removed.
+    /// </summary>
+    /// <exception cref="ArgumentException">A performance with the same id is already there.</exception>
+    public Project PutBackPerformance(SavedPerformance performance, int index, IEnumerable<CheckFlag> flags)
+    {
+        ArgumentNullException.ThrowIfNull(performance);
+        ArgumentNullException.ThrowIfNull(flags);
+        if (FindPerformance(performance.Id) is not null)
+        {
+            throw new ArgumentException($"There is already a performance {performance.Id}.", nameof(performance));
+        }
+
+        List<SavedPerformance> all = [.. Performances];
+        all.Insert(Math.Clamp(index, 0, all.Count), performance);
+        return (this with { Performances = all }).WithPerformanceChecks(flags);
+    }
+
     /// <summary>The project with a performance's Check flags (0022, section 6) in place of earlier ones from performances; flags the player resolved stay resolved.</summary>
     public Project WithPerformanceChecks(IEnumerable<CheckFlag> flags)
     {

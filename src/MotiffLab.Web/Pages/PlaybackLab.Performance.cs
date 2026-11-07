@@ -34,9 +34,6 @@ public partial class PlaybackLab
     /// <summary>What the last change in the drawer did, or why a file could not be added.</summary>
     private string? _performanceStatus;
 
-    /// <summary>The performance asked about before it is removed for good.</summary>
-    private string? _performanceRemoving;
-
     private (string Id, byte[] Midi, IReadOnlyList<Anchor> Anchors, NoteEditLog Edits, IReadOnlyList<Note> Imported, PerformanceComparison Comparison)? _comparison;
 
     private (SavedPerformance Of, PerformanceComparison Comparison, string Language, IReadOnlyList<ScorePerformanceMarker> Markers, IReadOnlyList<HighlightPlace> Unheard)? _performanceMarks;
@@ -114,8 +111,6 @@ public partial class PlaybackLab
     /// <summary>The shown version's layer as worked out (artefacts included), and its notes without the likely artefacts.</summary>
     private (SavedPerformance Of, PerformanceComparison Comparison, PerformanceLayerNotes Layer, IReadOnlyList<Note> Heard)? _versionNotes;
 
-    private (PerformanceLayerNotes Layer, IReadOnlyList<Note> Notes, bool Readable, bool Artefacts, ScoreSource Score, IReadOnlyList<string> Added, IReadOnlyList<string> ArtefactIds)? _versionLayer;
-
     /// <summary>
     /// The shown version in the score's time (0022, section 4): what agrees as printed, what it adds on the grid, bars that
     /// do not line up empty, likely artefacts of a recording's hearing left out. Worked out again only when the version or
@@ -139,40 +134,6 @@ public partial class PlaybackLab
             }
 
             return cached.Heard;
-        }
-    }
-
-    /// <summary>
-    /// The score with the other version on small staves above every system (0022, section 4), when its layer is on: what
-    /// agrees is written as printed and what the version adds is plum. Engraved again only when the version, the notes or
-    /// the writing change.
-    /// </summary>
-    private ScoreSource? VersionScore
-    {
-        get
-        {
-            if (!LayerShown("version") || ShownPerformance is not { } performance || VersionNotes is not { } versionNotes
-                || _notes is not { } notes || _score is null || _versionNotes is not { } version)
-            {
-                return null;
-            }
-
-            // Likely artefacts of a recording's hearing stay out unless asked for, in grey (0022, section 4).
-            bool artefacts = LayerShown("artefacts") && version.Layer.Artefacts.Count > 0;
-            if (_versionLayer is { } cached && ReferenceEquals(cached.Layer, version.Layer) && ReferenceEquals(cached.Notes, notes) && cached.Readable == _readable
-                && cached.Artefacts == artefacts)
-            {
-                return cached.Score;
-            }
-
-            IReadOnlyList<Note> shown = artefacts ? version.Layer.Notes : versionNotes;
-            ScoreSource score = ScoreSource.FromNotes(Notation(notes, _score.End, [new NotationOssia(performance.Name, shown, AsHeard: true)]));
-            string prefix = NotationGenerator.OssiaIdPrefix(0);
-            HashSet<string> artefactIds = [.. version.Layer.Artefacts];
-            _versionLayer = (version.Layer, notes, _readable, artefacts, score,
-                [.. version.Layer.Added.Where(id => !artefactIds.Contains(id)).Select(id => prefix + id)],
-                artefacts ? [.. version.Layer.Artefacts.Select(id => prefix + id)] : []);
-            return score;
         }
     }
 
@@ -221,62 +182,13 @@ public partial class PlaybackLab
         }
     }
 
-    /// <summary>Take into the score, in focus: every bar of the phrase the version has otherwise, at once.</summary>
-    private async Task TakeFocusBarsAsync()
-    {
-        if (_project is not { } project || ShownPerformance is not { } performance || ShownComparison is not { } comparison || _meter is null)
-        {
-            return;
-        }
+    /// <summary>The markers of the version's differences, only with extra information on (testing item 33).</summary>
+    private IReadOnlyList<ScorePerformanceMarker>? ScorePerformanceMarkers => ExtraShown("performance") ? PerformanceMarks?.Markers : null;
 
-        List<TakenBar> taken = [];
-        foreach (BarComparison bar in FocusVersionBars)
-        {
-            try
-            {
-                taken.Add(PerformanceTake.Take(performance.Id, bar, performance.Notes(), comparison.Alignment, _meter, PrintedNotes));
-            }
-            catch (ArgumentException)
-            {
-                // A bar that does not line up has nothing to take; the others still are.
-            }
-        }
+    private IReadOnlyList<HighlightPlace>? ScoreUnheard => ExtraShown("performance") ? PerformanceMarks?.Unheard : null;
 
-        if (taken.Count == 0)
-        {
-            return;
-        }
-
-        _project = project.ChangePerformance(performance.Id, kept => kept.TakeBars(taken));
-        _performanceStatus = Text.Format("performance.takenBars", string.Join(", ", taken.Select(bar => bar.Bar)), performance.Name);
-        await ApplyEditsAsync(_edits);
-    }
-
-    /// <summary>Restore these notes, in focus: the bars of the phrase taken from the version come back as they were.</summary>
-    private async Task RestoreFocusBarsAsync()
-    {
-        if (_project is not { } project || ShownPerformance is not { } performance || FocusTakenBars is not { Count: > 0 } bars)
-        {
-            return;
-        }
-
-        _project = project.ChangePerformance(performance.Id, kept => kept.Restore(bars));
-        _performanceStatus = Text.Format("performance.restoredBars", string.Join(", ", bars));
-        await ApplyEditsAsync(_edits);
-    }
-
-    /// <summary>The notes the other version adds, plum in its layer; null while the layer is off.</summary>
-    private IReadOnlyList<string>? ScoreVersionAdded => VersionScore is null ? null : _versionLayer?.Added;
-
-    /// <summary>The likely artefacts on the layer's staves, in grey, when they are shown.</summary>
-    private IReadOnlyList<string>? ScoreVersionArtefacts => VersionScore is null ? null : _versionLayer?.ArtefactIds;
-
-    /// <summary>How many notes of the shown version are likely artefacts of a recording's hearing; 0 when none is shown.</summary>
-    private int VersionArtefactCount => VersionNotes is not null && _versionNotes is { } version ? version.Layer.Artefacts.Count : 0;
-
-    private IReadOnlyList<ScorePerformanceMarker>? ScorePerformanceMarkers => PerformanceMarks?.Markers;
-
-    private IReadOnlyList<HighlightPlace>? ScoreUnheard => PerformanceMarks?.Unheard;
+    /// <summary>A marker tapped on the score: its bar and where, for the small popover beside it.</summary>
+    private ScoreMarkerPick? _markerPick;
 
     /// <summary>"Bar 5 · 92 %": the bar and how sure the comparison is of it.</summary>
     private string PerformanceBarLine(BarComparison bar) => Text.Format("performance.barLine", bar.Bar, bar.Confidence);
@@ -303,23 +215,79 @@ public partial class PlaybackLab
         _performanceOpen = !_performanceOpen;
         _insightsOpen &= !_performanceOpen;
         _checkOpen &= !_performanceOpen;
-        _performanceRemoving = null;
         _popover = Popover.None;
     }
 
-    /// <summary>A marker tapped on the score: the drawer opens on its bar, selected.</summary>
-    private async Task OnPerformancePickedAsync(int bar)
+    /// <summary>A marker tapped on the score: its bar is selected and a small popover beside it says how the version differs.</summary>
+    private async Task OnPerformancePickedAsync(ScoreMarkerPick pick)
     {
+        _markerPick = pick;
+        await ShowPerformanceBarAsync(pick.Bar);
+    }
+
+    /// <summary>The popover's place for CSS, under the marker.</summary>
+    private string MarkerPlace => _markerPick is { } pick
+        ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"--ax: {pick.Left + 160:0}px; --ay: {pick.Bottom:0}px")
+        : "--ax: 50vw; --ay: 30vh";
+
+    /// <summary>The marked bar in the version, for the popover's line.</summary>
+    private BarComparison? MarkerBar => _markerPick is { } pick ? ShownComparison?.Bars.FirstOrDefault(bar => bar.Bar == pick.Bar) : null;
+
+    private void CloseMarker() => _markerPick = null;
+
+    /// <summary>«▶ Как в версии»: the bar loops as the version plays it, until stopped.</summary>
+    private async Task HearMarkerVersionAsync()
+    {
+        if (_markerPick is not { } pick || _meter is null || _score is null)
+        {
+            return;
+        }
+
+        TickSpan bar = _meter.GetBar(pick.Bar).Span;
+        await Player.SetSourceAsync(VersionSource, _score.WithNotes(Voiced(VersionNotesIn(bar))));
+        await Player.SelectSourcesAsync(VersionSource);
+        _looping = true;
+        await Player.SetLoopAsync(bar);
+        await Player.SeekAsync(bar.Onset);
+        await PlayAsync();
+        _mergeHearing = "version";
+    }
+
+    /// <summary>«Открыть в черновике»: the version's page opens with the draft on this bar, the choices as last applied.</summary>
+    private Task OpenDraftAtMarkerAsync() => _markerPick is { } pick ? OpenDraftAtAsync(pick.Bar) : Task.CompletedTask;
+
+    private async Task OpenDraftAtAsync(int bar)
+    {
+        if (ShownPerformance is not { } version || ShownComparison is null)
+        {
+            return;
+        }
+
+        _markerPick = null;
         _performanceOpen = true;
         _insightsOpen = false;
         _checkOpen = false;
-        await ShowPerformanceBarAsync(bar);
+        OpenVersionPage(version.Id);
+        if (_draft?.PerformanceId != version.Id)
+        {
+            OpenDraft(PerformanceMerge.Open(version, ShownComparison, MergeStart.Saved));
+        }
+
+        await GoToBarAsync(bar);
+    }
+
+    /// <summary>In focus, «Открыть в черновике» on the phrase's first bar the version has otherwise.</summary>
+    private Task OpenDraftInFocusAsync() => FocusVersionBars is [var first, ..] ? LeaveFocusThenAsync(() => OpenDraftAtAsync(first.Bar)) : Task.CompletedTask;
+
+    private async Task LeaveFocusThenAsync(Func<Task> then)
+    {
+        await LeaveFocusAsync();
+        await then();
     }
 
     private void ShowPerformanceOf(string id)
     {
         _performanceId = id;
-        _performanceRemoving = null;
         _performanceStatus = null;
     }
 
@@ -433,64 +401,12 @@ public partial class PlaybackLab
 
         _project = project;
         _performanceId = performance.Id;
-        _addedVersion = performance.Id;
-        _takenAll = null;
         _addingSource = false;
+        OpenVersionPage(performance.Id);
         _comparison = (performance.Id, performance.Midi, performance.Anchors, _edits, _imported, comparison);
         _performanceStatus = comparison.MatchedCount == 0
             ? Text["performance.noMatch"]
             : Text.Format("performance.added", comparison.MatchedCount, printed.Count, comparison.Differences.Count());
-        CurrentPiece.Saved(_project);
-        await Projects.SaveAsync(_project);
-    }
-
-    /// <summary>Take into the score: the bar's printed notes not heard leave, its played notes not printed come in, on the 16th grid.</summary>
-    private async Task TakePerformanceBarAsync(BarComparison bar)
-    {
-        if (_project is not { } project || ShownPerformance is not { } performance || ShownComparison is not { } comparison || _meter is null)
-        {
-            return;
-        }
-
-        TakenBar taken;
-        try
-        {
-            taken = PerformanceTake.Take(performance.Id, bar, performance.Notes(), comparison.Alignment, _meter, PrintedNotes);
-        }
-        catch (ArgumentException)
-        {
-            _performanceStatus = Text.Format("performance.notAligned", bar.Bar);
-            return;
-        }
-
-        _project = project.ChangePerformance(performance.Id, kept => kept.TakeBars([taken]));
-        _performanceStatus = Text.Format("performance.taken", bar.Bar, performance.Name);
-        await ApplyEditsAsync(_edits);
-    }
-
-    /// <summary>Restore the print: the bar's printed notes come back and the performance's leave.</summary>
-    private async Task RestorePerformanceBarAsync(int bar)
-    {
-        if (_project is not { } project || ShownPerformance is not { } performance)
-        {
-            return;
-        }
-
-        _project = project.ChangePerformance(performance.Id, kept => kept.Restore([bar]));
-        _performanceStatus = Text.Format("performance.restored", bar);
-        await ApplyEditsAsync(_edits);
-    }
-
-    /// <summary>Not a difference, or Show again: the bar's marker leaves the score or comes back, and the choice is kept.</summary>
-    private async Task DismissPerformanceBarAsync(int bar, bool dismissed)
-    {
-        if (_project is not { } project || ShownPerformance is not { } performance)
-        {
-            return;
-        }
-
-        _project = project.ChangePerformance(performance.Id, kept => kept.Dismiss(bar, dismissed));
-        _performanceStatus = Text.Format(dismissed ? "performance.dismissed" : "performance.undismissed", bar);
         CurrentPiece.Saved(_project);
         await Projects.SaveAsync(_project);
     }
@@ -503,36 +419,6 @@ public partial class PlaybackLab
         }
 
         _project = project.ChangePerformance(performance.Id, kept => kept with { Name = name });
-        CurrentPiece.Saved(_project);
-        await Projects.SaveAsync(_project);
-    }
-
-    /// <summary>Remove: asked once, then the performance, its markers, its taken bars and its Check flags go.</summary>
-    private async Task RemovePerformanceAsync()
-    {
-        if (_project is not { } project || ShownPerformance is not { } performance)
-        {
-            return;
-        }
-
-        if (_performanceRemoving != performance.Id)
-        {
-            _performanceRemoving = performance.Id;
-            return;
-        }
-
-        bool hadTaken = performance.Taken.Count > 0;
-        _project = project.RemovePerformance(performance.Id);
-        _performanceRemoving = null;
-        _performanceId = null;
-        _scoreChecks = null;
-        _performanceStatus = Text.Format("performance.removed", performance.Name);
-        if (hadTaken)
-        {
-            await ApplyEditsAsync(_edits);
-            return;
-        }
-
         CurrentPiece.Saved(_project);
         await Projects.SaveAsync(_project);
     }

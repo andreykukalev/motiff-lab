@@ -23,4 +23,8 @@ public sealed record NoteEditor(
     Func<Task> Undo,
     Func<Task> Reset,
     Func<Task> Cancel,
-    Func<Task> Save);
+    Func<Task> Save)
+{
+    /// <summary>The label of Save: "edit.save", or "edit.done" for a bar written in a merge draft, which keeps nothing until Apply.</summary>
+    public string SaveKey { get; init; } = "edit.save";
+}

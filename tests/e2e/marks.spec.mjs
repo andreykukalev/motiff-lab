@@ -95,7 +95,7 @@ test("the layers hide the notes, the bookmarks and the analysis, one by one or a
     await expect(page.locator(".score .marker")).toBeVisible();
 
     const more = await openMore(page);
-    await more.getByRole("button", { name: "Layers" }).click();
+    await more.getByRole("button", { name: "Extra information" }).click();
     const layers = page.locator(".layers-popover");
     await layers.getByRole("switch", { name: "Notes and highlights" }).click();
     await expect(page.locator(".score .marker")).toBeHidden();

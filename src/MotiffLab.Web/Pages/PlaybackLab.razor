@@ -99,7 +99,7 @@
                            Selection="_selection?.Span" BarsChosen="OnScoreBarsChosenAsync" Menu="@(MenuShown ? SelectionMenu : null)"
                            Bookmarks="ScoreBookmarks" BookmarkPicked="OnBookmarkPickedAsync" Notes="ScoreNotes" MarkHighlights="ScoreHighlights" HiddenLayers="HiddenLayers"
                            NoteMarkerPicked="OpenNoteAsync" LayersRequested="OpenLayers" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync"
-                           PerformanceMarkers="ScorePerformanceMarkers" Unheard="ScoreUnheard" VersionAdded="ScoreVersionAdded" VersionArtefacts="ScoreVersionArtefacts" PerformancePicked="OnPerformancePickedAsync"
+                           PerformanceMarkers="ScorePerformanceMarkers" Unheard="ScoreUnheard" VersionAdded="MergeScoreVersion" OwnNotes="MergeScoreOwn" TakenBars="ScoreTakenBars" PerformancePicked="OnPerformancePickedAsync"
                            Pointed="_pointed" NotePicked="OnScoreNotePicked" Follow="@SettingsStore.IsOn(FollowSetting)" EvenBars="@SettingsStore.IsOn(EvenBarsSetting)" PlayheadAway="OnPlayheadAway" />
             }
             else
@@ -141,6 +141,13 @@
                             data-long-press="roll" @onclick="ToggleRoll"><Icon Name="roll" Size="IconSize.Large" /></button>
                     <button class="act @(_insightsOpen ? "on" : null)" aria-pressed="@(_insightsOpen ? "true" : "false")" aria-label="@Text["bar.insights"]" title="@Text["bar.insights"]"
                             @onclick="ToggleInsights"><Icon Name="insight" Size="IconSize.Large" /></button>
+                    @* Extra information (testing item 33): one press shows or hides what the app adds over the notes; the chevron lists each kind. *@
+                    <span class="act-split @(LayerShown("extra") ? "on" : null)">
+                        <button class="act" aria-pressed="@(LayerShown("extra") ? "true" : "false")" aria-label="@Text["extra.toggle"]" title="@Text["extra.hint"]"
+                                @onclick="ToggleExtraAsync"><Icon Name="info" Size="IconSize.Large" /></button>
+                        <button class="act chev @(_popover == Popover.Layers ? "on" : null)" aria-expanded="@(_popover == Popover.Layers ? "true" : "false")" aria-label="@Text["extra.list"]"
+                                title="@Text["extra.list"]" @onclick="() => TogglePopover(Popover.Layers)"><Icon Name="chevd" /></button>
+                    </span>
                     <button class="act" @onclick="TogglePlayAsync" aria-label="@(Player.State == PlaybackState.Stopped ? Text["transport.play"] : Text["transport.pause"])">
                         <Icon Name="@(Player.State != PlaybackState.Stopped ? "pause" : "play")" Size="IconSize.Large" />
                     </button>
@@ -177,10 +184,28 @@
                     </div>
                     break;
                 case Popover.Layers:
-                    @* The layers of marks (0018 section 5): each hidden for a clean page, or all at once; kept with the piece. *@
-                    <div class="popover layers-popover" role="dialog" aria-label="@Text["layers.title"]" data-keeps-selection>
+                    @* Extra information (testing item 33): everything the app adds over the notes, off by default, each kind on its own;
+                       below, the player's own marks and the phrases, shown as before. *@
+                    <div class="popover layers-popover" role="dialog" aria-label="@Text["extra.title"]" data-keeps-selection>
                         @BackChip(Place.Layers)
-                        <p class="overline">@Text["layers.title"]</p>
+                        <p class="overline">@Text["extra.title"]</p>
+                        <label class="switch-row">
+                            <span>@Text["extra.show"]</span>
+                            <input type="checkbox" role="switch" class="switch" checked="@LayerShown("extra")" @onchange="ToggleExtraAsync" />
+                        </label>
+                        @foreach (string item in PieceExtra)
+                        {
+                            <label class="check-row @(LayerShown("extra") ? null : "muted")">
+                                <input type="checkbox" checked="@LayerShown(item)" @onchange="() => ToggleLayerAsync(item)" />
+                                <span>@Text[$"extra.{item}"]</span>
+                            </label>
+                        }
+                        @if (!PieceExtra.Any())
+                        {
+                            <p class="caption">@Text["extra.none"]</p>
+                        }
+                        <hr />
+                        <p class="overline">@Text["extra.yours"]</p>
                         @foreach (string layer in PieceLayers)
                         {
                             <label class="switch-row">
@@ -205,7 +230,7 @@
                     @* The overflow: the piece's places and tools, the PDF, which notation is shown, Settings and the credits. *@
                     <div class="popover more-popover" role="dialog" aria-label="@Text["bar.more"]" data-keeps-selection>
                         <button class="btn quiet" aria-expanded="@(_contentsOpen ? "true" : "false")" @onclick="() => FromMoreAsync(Place.Contents, ToggleContentsAsync)"><Icon Name="bookmark" /> @Text["bar.contents"]</button>
-                        <button class="btn quiet" @onclick="() => FromMore(Place.Layers, OpenLayers)"><Icon Name="layers" /> @Text["layers.title"]</button>
+                        <button class="btn quiet" @onclick="() => FromMore(Place.Layers, OpenLayers)"><Icon Name="info" /> @Text["extra.title"]</button>
                         <button class="btn quiet" aria-haspopup="dialog" @onclick="() => FromMore(Place.Dna, OpenDna)"><Icon Name="phrases" /> @Text["dna.title"]</button>
                         <button class="btn quiet" @onclick="AskAboutPiece"><Icon Name="insight" /> @Text["ask.aboutPiece"]</button>
                         @if (HasCheck)
@@ -309,10 +334,10 @@
                             {
                                 @* The phrase as a roll laid across the card whole (testing item 12); the zoom and Fit float over it. *@
                                 <div class="focus-roll" data-fill="true">
-                                    <PianoRoll Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases" FitsSelection="true"
+                                    <PianoRoll Notes="@(OwnEditNotes ?? _notes)" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases" FitsSelection="true"
                                                Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible" Highlight="_highlight?.Places"
                                                RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync"
-                                               SelectionChanged="OnRollNotesChosen" Keys="RollKeys" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync" Point="_rollPoint" Editor="RollEditor" />
+                                               SelectionChanged="OnRollNotesChosen" Keys="RollKeys" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync" Point="_rollPoint" Editor="@(OwnEditor ?? RollEditor)" Ghosts="OwnEditGhosts" />
                                 </div>
                             }
                             else
@@ -330,10 +355,10 @@
                 @* The piano roll as a drawer (0018 section 4): it slides up over the score and leaves the selection as it is. *@
                 <section class="drawer roll-drawer" aria-label="@Text["bar.roll"]" data-fill="true" data-keeps-selection data-menu-clear="auto">
                     <button class="grab" aria-label="@Text["drawer.resize"]" title="@Text["drawer.resize"]" data-long-press="roll" @onclick="ToggleRoll"></button>
-                    <PianoRoll Heading="@RollHeading" Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases"
+                    <PianoRoll Heading="@RollHeading" Notes="@(OwnEditNotes ?? _notes)" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases"
                                Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible" Highlight="_highlight?.Places"
                                RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync"
-                               SelectionChanged="OnRollNotesChosen" Keys="RollKeys" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync" Point="_rollPoint" Editor="RollEditor"
+                               SelectionChanged="OnRollNotesChosen" Keys="RollKeys" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync" Point="_rollPoint" Editor="@(OwnEditor ?? RollEditor)" Ghosts="OwnEditGhosts"
                                Expanded="ExpandRollAsync" />
                 </section>
             }
@@ -351,6 +376,55 @@
             @if (_performanceOpen)
             {
                 @PerformanceDrawer
+            }
+
+            @if (_draft is not null && !_compareOpen && !Focused)
+            {
+                @* While a draft is open, what the score shows (testing item 34): the player's notes, the version or the result. *@
+                <div class="merge-show" role="group" aria-label="@Text["merge.show"]" data-keeps-selection>
+                    <span class="caption">@Text["merge.show"]</span>
+                    <div class="seg">
+                        @foreach (string view in new[] { "mine", "version", "result" })
+                        {
+                            <button class="@view @(_mergeShow == view ? "on" : null)" aria-pressed="@(_mergeShow == view ? "true" : "false")" @onclick="() => ShowMergeView(view)">
+                                <span class="dot @view"></span> @Text[$"merge.view.{view}"]
+                            </button>
+                        }
+                    </div>
+                    <button class="btn icon" aria-label="@Text.Format("merge.hearView", Text[$"merge.view.{_mergeShow}"])" title="@Text.Format("merge.hearView", Text[$"merge.view.{_mergeShow}"])"
+                            @onclick="() => HearMergeAsync(_mergeShow)"><Icon Name="@(_mergeHearing == _mergeShow && Player.State != PlaybackState.Stopped ? "pause" : "play")" /></button>
+                </div>
+            }
+
+            @if (_compareOpen && _draft is not null)
+            {
+                @CompareWindow
+            }
+
+            @if (_markerPick is { } pick && MarkerBar is { } marked && ShownPerformance is { } markedVersion)
+            {
+                @* A marker tapped (testing item 33): how the version differs, heard as it plays it, and the way into the draft; nothing is taken here. *@
+                <div class="ask-pop-backdrop" @onclick="CloseMarker"></div>
+                <div class="ask-pop marker-pop" role="dialog" aria-label="@Text.Format("merge.markerTitle", pick.Bar, markedVersion.Name)" style="@MarkerPlace" data-keeps-selection>
+                    <p class="overline">@Text.Format("merge.markerTitle", pick.Bar, markedVersion.Name)</p>
+                    <p>@marked.Marker(Words) · @PerformanceCounts(marked)</p>
+                    <div class="row">
+                        <button class="btn secondary compact" @onclick="HearMarkerVersionAsync"><Icon Name="play" /> @Text["merge.asInVersion"]</button>
+                        <button class="btn primary compact" @onclick="OpenDraftAtMarkerAsync">@Text["merge.openDraft"]</button>
+                    </div>
+                </div>
+            }
+
+            @if (_mergeToast is { } toast)
+            {
+                <div class="merge-toast" role="status">
+                    <span>@toast.Text</span>
+                    @if (toast.Undo is not null)
+                    {
+                        <button class="btn quiet compact" @onclick="UndoToastAsync">@Text["merge.toastUndo"]</button>
+                    }
+                    <button class="btn icon" aria-label="@Text["bar.close"]" @onclick="CloseToast"><Icon Name="close" /></button>
+                </div>
             }
 
             @if (_dna is { } dna && !_dnaAside)
@@ -1124,167 +1198,365 @@
     /// show again. Over the right of the page.
     /// </summary>
     private RenderFragment PerformanceDrawer => @<aside class="sheet inspector check-sheet perf-sheet" aria-labelledby="perf-title" data-keeps-selection data-menu-clear="auto">
+    @if (PageVersion is { } page && ShownPerformance?.Id == page.Id)
+    {
+        @VersionPage(page)
+    }
+    else
+    {
+        <header class="check-head">
+            <div>
+                @BackChip(Place.Performance)
+                <p class="overline">@Text["sources.title"]</p>
+                <h2 id="perf-title">@Text["sources.mine"]</h2>
+            </div>
+            <button class="btn icon" aria-label="@Text["performance.close"]" title="@Text["performance.close"]" @onclick="() => CloseFromAsync(Place.Performance)"><Icon Name="close" /></button>
+        </header>
+        @if (_project is { } piece && Sources is { } sources)
+        {
+            <p class="caption sources-summary">@sources.Summary(Words)</p>
+            <ul class="source-list" aria-label="@Text["sources.list"]">
+                <li class="source-row">
+                    <Icon Name="@BaseIcon" />
+                    <span class="source-text"><strong>@Text["sources.base"]</strong><span class="caption">@sources.BaseName(Words)</span></span>
+                </li>
+                @if (piece.Document is not null)
+                {
+                    <li class="source-row">
+                        <Icon Name="pages" />
+                        <span class="source-text"><strong>@piece.DocumentFileName</strong><span class="caption">@Text["sources.pdfInside"]</span></span>
+                        <span class="source-actions">
+                            <button class="btn quiet compact" @onclick="ShowPdfAsync">@Text["sources.openPdf"]</button>
+                            <button class="btn quiet compact" aria-expanded="@(_readingDocument ? "true" : "false")" @onclick="ToggleReadDocument">
+                                @Text["sources.readPdf"] @if (Scans.IsHosted) { <span class="tag pro">Pro</span> }
+                            </button>
+                        </span>
+                    </li>
+                }
+                @foreach (SavedPerformance kept in piece.Performances)
+                {
+                    <li>
+                        @* A version's row opens its page (testing item 32): the overview, the draft and what was merged. *@
+                        <button class="source-row version" @onclick="() => OpenVersionPage(kept.Id)">
+                            <Icon Name="@VersionIcon(kept)" />
+                            <span class="source-text">
+                                <strong>@kept.Name</strong>
+                                <span class="caption">@VersionRole(kept)@if (kept.Merge is { AppliedAt: not null }) { @(" · " + Text.Count("merge.takenShort", kept.Taken.Count)) }</span>
+                            </span>
+                            <Icon Name="fwd" />
+                        </button>
+                    </li>
+                }
+            </ul>
+            @if (_readingDocument && piece.Document is { } pdf)
+            {
+                <MotiffLab.Web.Pdf.RecognisePanel Inline Document="pdf" FileName="@piece.DocumentFileName" Heading="@Text["sources.readPdf"]" Intro="@Text["sources.readPdfIntro"]"
+                                                  Keeps="@Text["sources.readPdfKeeps"]" Read="ReadDocumentVersionAsync" />
+            }
+        }
+        @if (_performanceStatus is { } status)
+        {
+            <p class="caption" role="status">@status</p>
+        }
+        <button class="btn primary source-add" aria-expanded="@(_addingSource ? "true" : "false")" @onclick="ToggleAddSource"><Icon Name="plus" /> @Text["sources.add"]</button>
+        @if (_addingSource)
+        {
+            <section class="source-choices" aria-label="@Text["sources.add"]">
+                <p class="caption">@Text["performance.how"]</p>
+                <label class="file btn secondary">
+                    <Icon Name="file" /> @Text["performance.addMidi"]
+                    <InputFile OnChange="AddPerformanceAsync" accept="@VersionFile.AcceptedExtensions" />
+                </label>
+                <label class="file btn secondary">
+                    <Icon Name="pages" /> @Text[_project?.Document is null ? "sources.addPdf" : "sources.replacePdf"]
+                    <InputFile OnChange="AddDocumentAsync" accept="@MotiffLab.MusicCore.Import.PdfDocument.Extension" />
+                </label>
+                <p class="caption">@Text["sources.pdfHow"]</p>
+                <MotiffLab.Web.Import.RecordingVersion Heard="AddRecordingVersionAsync" />
+            </section>
+        }
+    }
+</aside>;
+
+    /// <summary>
+    /// A version's page in Sources (testing items 32 and 34): ‹ Sources back to the list; the overview with its verdict, its
+    /// strip of bars and three choices that open the draft; the draft itself; what was merged, to open again or undo; and,
+    /// under a divider, its name and Remove, which the toast can undo.
+    /// </summary>
+    private RenderFragment VersionPage(SavedPerformance version) => @<text>
     <header class="check-head">
         <div>
-            @BackChip(Place.Performance)
-            <p class="overline">@Text["sources.title"]</p>
-            <h2 id="perf-title">@Text["sources.mine"]</h2>
+            <button class="btn quiet back-to" aria-label="@Text.Format("nav.backTo", Text["sources.title"])" @onclick="CloseVersionPage"><Icon Name="back" Size="IconSize.Small" /> @Text["sources.title"]</button>
+            <p class="overline">@VersionRole(version)</p>
+            <h2 id="perf-title">@version.Name</h2>
         </div>
         <button class="btn icon" aria-label="@Text["performance.close"]" title="@Text["performance.close"]" @onclick="() => CloseFromAsync(Place.Performance)"><Icon Name="close" /></button>
     </header>
-    @if (_project is { } piece && Sources is { } sources)
+    @if (ShownComparison is { } comparison)
     {
-        <p class="caption sources-summary">@sources.Summary(Words)</p>
-        <ul class="source-list" aria-label="@Text["sources.list"]">
-            <li class="source-row">
-                <Icon Name="@BaseIcon" />
-                <span class="source-text"><strong>@Text["sources.base"]</strong><span class="caption">@sources.BaseName(Words)</span></span>
-            </li>
-            @if (piece.Document is not null)
-            {
-                <li class="source-row">
-                    <Icon Name="pages" />
-                    <span class="source-text"><strong>@piece.DocumentFileName</strong><span class="caption">@Text["sources.pdfInside"]</span></span>
-                    <span class="source-actions">
-                        <button class="btn quiet compact" @onclick="ShowPdfAsync">@Text["sources.openPdf"]</button>
-                        <button class="btn quiet compact" aria-expanded="@(_readingDocument ? "true" : "false")" @onclick="ToggleReadDocument">
-                            @Text["sources.readPdf"] @if (Scans.IsHosted) { <span class="tag pro">Pro</span> }
-                        </button>
-                    </span>
-                </li>
-            }
-            @foreach (SavedPerformance kept in piece.Performances)
-            {
-                bool shown = kept.Id == ShownPerformance?.Id;
-                <li>
-                    <button class="source-row version @(shown ? "on" : null)" aria-pressed="@(shown ? "true" : "false")" @onclick="() => ShowPerformanceOf(kept.Id)">
-                        <Icon Name="@VersionIcon(kept)" />
-                        <span class="source-text">
-                            <strong>@kept.Name</strong>
-                            <span class="caption">@VersionRole(kept)@if (shown && AlignedPercent is { } percent) { @(" · " + Text.Format("sources.aligned", percent)) }</span>
-                        </span>
-                    </button>
-                </li>
-            }
-        </ul>
-        @if (_readingDocument && piece.Document is { } pdf)
+        @if (_draft is null)
         {
-            <MotiffLab.Web.Pdf.RecognisePanel Inline Document="pdf" FileName="@piece.DocumentFileName" Heading="@Text["sources.readPdf"]" Intro="@Text["sources.readPdfIntro"]"
-                                              Keeps="@Text["sources.readPdfKeeps"]" Read="ReadDocumentVersionAsync" />
+            @if (MergedLine(version) is { } merged)
+            {
+                <section class="merge-applied" aria-label="@merged">
+                    <p><Icon Name="check" /> @merged</p>
+                    <div class="row">
+                        <button class="btn secondary compact" @onclick="ReopenDraftAsync">@Text["merge.reopen"]</button>
+                        <button class="btn quiet compact" @onclick="UndoMergeAsync"><Icon Name="undo" /> @Text["merge.undoMerge"]</button>
+                    </div>
+                </section>
+            }
+            else if (version.Merge is { AppliedAt: null, Decisions.Count: > 0 })
+            {
+                <section class="merge-applied undone" aria-label="@Text["merge.keptChoices"]">
+                    <p>@Text["merge.keptChoices"]</p>
+                    <div class="row">
+                        <button class="btn secondary compact" @onclick="ReopenDraftAsync">@Text["merge.reopen"]</button>
+                    </div>
+                </section>
+            }
+            <section class="merge-overview" aria-label="@Text["merge.overview"]">
+                <p class="overline">@Text["merge.overview"]</p>
+                <p class="merge-verdict">@PageVerdict(version)</p>
+                @BarStrip(comparison)
+                @if (PageDifferingCount > 0)
+                {
+                    <div class="merge-choices">
+                        <button class="btn secondary" @onclick="() => StartDraftAsync(MergeStart.Mine)"><span class="swatch mine"></span> @Text["merge.keepMine"]</button>
+                        <button class="btn secondary" @onclick="() => StartDraftAsync(MergeStart.Sure)" disabled="@(PageSureCount == 0)"><span class="swatch version"></span> @Text.Format("merge.takeSure", PageSureCount)</button>
+                        <button class="btn secondary" @onclick="() => StartDraftAsync(MergeStart.All)"><span class="swatch version"></span> @Text.Format("merge.takeAll", PageDifferingCount)</button>
+                    </div>
+                    <label class="check-row">
+                        <input type="checkbox" checked="@MergeDirect" @onchange="ToggleMergeDirectAsync" />
+                        <span>@Text["merge.direct"]</span>
+                    </label>
+                }
+            </section>
+        }
+        else
+        {
+            @DraftBlock
+        }
+        @if (PageDifferingCount > 0 || _draft is not null)
+        {
+            <button class="btn quiet merge-window" @onclick="OpenCompareWindowAsync"><Icon Name="layers" /> @Text["merge.window"] ⤢</button>
         }
     }
     @if (_performanceStatus is { } status)
     {
-        @* Announced; shown only until the comparison's own line says the same. *@
-        <p class="@(ShownComparison is null || OffersNextSteps ? "caption" : "visually-hidden")" role="status">@status</p>
+        <p class="caption" role="status">@status</p>
     }
-    @if (OffersNextSteps)
-    {
-        <section class="source-next" aria-label="@Text["sources.next"]">
-            <p class="overline">@Text["sources.next"]</p>
-            <button class="btn secondary" @onclick="CompareVersionAsync"><Icon Name="layers" /> @Text["sources.compare"]</button>
-            <button class="btn secondary" @onclick="HearVersionAloneAsync"><Icon Name="play" /> @Text["sources.hearAlone"]</button>
-            <button class="btn secondary" @onclick="TakeAllSureAsync" disabled="@(SureBarCount == 0)">
-                <Icon Name="check" /> @Text["sources.takeAll"] <span class="caption">@Text.Count("sources.sureBars", SureBarCount)</span>
-            </button>
-            <button class="btn secondary" @onclick="AdjustVersionAsync"><Icon Name="roll" /> @Text["sources.adjust"]</button>
-        </section>
-    }
-    @if (_takenAll is { } takenAll && takenAll.Version == ShownPerformance?.Id)
-    {
-        <div class="row source-taken">
-            <span class="caption">@Text.Count("sources.takenAll", takenAll.Bars.Count)</span>
-            <button class="btn quiet compact" @onclick="GiveBackTakenAllAsync"><Icon Name="undo" /> @Text["sources.giveBack"]</button>
-        </div>
-    }
-    @if (ShownPerformance is { } performance && ShownComparison is { } comparison)
-    {
-        <p class="caption">@Text.Format("performance.summary", comparison.MatchedCount, PrintedNotes.Count, comparison.Bars.Count - UnalignedBarCount, comparison.Bars.Count)</p>
-        @if (DifferingBars is { Count: > 0 } differing)
+    <hr />
+    <label class="field">
+        <span class="caption">@Text["performance.name"]</span>
+        <input type="text" value="@version.Name" @onchange="RenamePerformanceAsync" />
+    </label>
+    <button class="btn quiet compact danger-text" @onclick="RemoveVersionAsync"><Icon Name="trash" /> @Text["merge.remove"]</button>
+    <p class="caption">@Text["merge.removeHow"]</p>
+</text>;
+
+    /// <summary>The bars of the piece in a strip: grey where the version agrees, plum where it differs, the sure ones darker; a tap goes to the bar.</summary>
+    private RenderFragment BarStrip(PerformanceComparison comparison) => @<div class="merge-strip" role="list" aria-label="@Text["merge.strip"]">
+        @foreach (BarComparison bar in comparison.Bars)
         {
-            <p class="overline">@Text.Count("performance.differs", differing.Count)</p>
-            @if (!OffersNextSteps && SureBarCount > 0)
+            string kind = !bar.Aligned ? "off" : bar.Difference == BarDifference.None ? "same" : bar.Confidence >= PerformanceTake.AutomaticConfidence ? "sure" : "doubt";
+            string state = _draft?.DecisionFor(bar.Bar) is not null ? ChoiceClass(bar.Bar) : "";
+            <button role="listitem" class="cell @kind @state @(_draftAt == bar.Bar ? "at" : null)" title="@Text.Format("check.bar", bar.Bar)"
+                    aria-label="@($"{Text.Format("check.bar", bar.Bar)}: {(bar.Difference == BarDifference.None ? Text["merge.same"] : bar.Marker(Words))}")"
+                    @onclick="() => StripBarAsync(bar.Bar)"></button>
+        }
+    </div>;
+
+    /// <summary>
+    /// The draft in the drawer (dashed plum): what changes, ‹ › through the changes, Bar or Phrase, Take mine, Take from the
+    /// version and Edit in the roll for the change shown, the list of changes, the three views to hear, and Undo, Redo,
+    /// Reset, Cancel and Apply.
+    /// </summary>
+    private RenderFragment DraftBlock => @<section class="merge-draft" aria-label="@Text["merge.draft"]">
+    @if (_draft is { } draft)
+    {
+        <div class="merge-draft-head">
+            <p class="overline">@Text["merge.draft"]</p>
+            <span class="caption">@Text.Format("merge.decided", draft.Decided, draft.Bars.Count)</span>
+        </div>
+        <p class="caption">@Text.Count("merge.changes", DraftOutcome?.Taken.Count ?? 0)</p>
+        @if (_draftAt is { } at && DraftRows.FirstOrDefault(bar => bar.Bar == at) is { } current)
+        {
+            <div class="merge-step">
+                <button class="btn icon" aria-label="@Text["merge.previous"]" title="@Text["merge.previous"]" @onclick="() => StepChangeAsync(-1)"><Icon Name="back" /></button>
+                <p><strong>@Text.Format("check.bar", at)</strong> <span class="tag plum">@current.Marker(Words)</span> <span class="caption">@Text.Format("merge.confidence", current.Confidence)</span></p>
+                <button class="btn icon" aria-label="@Text["merge.next"]" title="@Text["merge.next"]" @onclick="() => StepChangeAsync(1)"><Icon Name="fwd" /></button>
+            </div>
+            <div class="seg merge-scope" role="radiogroup" aria-label="@Text["merge.scope"]">
+                <button role="radio" class="@(_draftPhrase ? null : "on")" aria-checked="@(_draftPhrase ? "false" : "true")" @onclick="() => _draftPhrase = false">@Text["merge.scopeBar"]</button>
+                <button role="radio" class="@(_draftPhrase ? "on" : null)" aria-checked="@(_draftPhrase ? "true" : "false")" @onclick="() => _draftPhrase = true">@Text["merge.scopePhrase"]</button>
+            </div>
+            <div class="merge-take">
+                <button class="btn secondary @(draft.DecisionFor(at)?.Choice == MergeChoice.Mine ? "on" : null)" @onclick="() => ChooseAsync(at, MergeChoice.Mine)"><span class="swatch mine"></span> @Text["merge.takeMine"]</button>
+                <button class="btn secondary @(draft.DecisionFor(at)?.Choice == MergeChoice.Version ? "on" : null)" @onclick="() => ChooseAsync(at, MergeChoice.Version)"><span class="swatch version"></span> @Text["merge.takeVersion"]</button>
+                <button class="btn quiet @(draft.DecisionFor(at)?.Choice == MergeChoice.Own ? "on" : null)" @onclick="() => BeginOwnEdit(at)"><Icon Name="pen" /> @Text["merge.editInRoll"]</button>
+            </div>
+            <p class="caption merge-state">@Text.Format("merge.stateLine", ChoiceName(at))</p>
+            <button class="btn quiet compact" @onclick='() => HearMergeAsync("result")'><Icon Name="play" /> @Text["merge.hearResult"]</button>
+        }
+        <ul class="merge-rows">
+            @foreach (BarComparison bar in DraftRows)
             {
-                <button class="btn quiet compact" @onclick="TakeAllSureAsync"><Icon Name="check" /> @Text["sources.takeAll"] · @Text.Count("sources.sureBars", SureBarCount)</button>
+                <li>
+                    <button class="merge-row @(_draftAt == bar.Bar ? "on" : null)" @onclick="() => GoToBarAsync(bar.Bar)">
+                        <span>@Text.Format("check.bar", bar.Bar)</span>
+                        <span class="caption">@bar.Marker(Words)</span>
+                        <span class="state @ChoiceClass(bar.Bar)">@ChoiceName(bar.Bar)</span>
+                    </button>
+                </li>
             }
-            <ul class="check-list">
-                @foreach (BarComparison bar in differing)
-                {
-                    bool selected = SelectedCheckBar == bar.Bar;
-                    <li class="check-entry @(selected ? "on" : null)">
-                        <p class="check-bar"><strong>@PerformanceBarLine(bar)</strong> <span class="tag plum">@bar.Marker(Words)</span></p>
-                        <p class="caption">@PerformanceCounts(bar)</p>
-                        <div class="row">
-                            <button class="btn secondary compact" @onclick="() => ShowPerformanceBarAsync(bar.Bar)">@Text["scanCheck.show"]</button>
-                            <button class="btn quiet compact" @onclick="() => DismissPerformanceBarAsync(bar.Bar, true)">@Text["performance.dismiss"]</button>
-                            <button class="btn primary compact" @onclick="() => TakePerformanceBarAsync(bar)">@Text["performance.take"]</button>
-                        </div>
-                    </li>
-                }
-            </ul>
-        }
-        else
-        {
-            <p class="caption">@Text["performance.noDifferences"]</p>
-        }
-        @if (performance.Taken.Count > 0)
-        {
-            <p class="overline">@Text["performance.takenHeading"]</p>
-            <ul class="check-list resolved">
-                @foreach (TakenBar taken in performance.Taken)
-                {
-                    <li class="check-entry">
-                        <p class="check-bar"><Icon Name="check" /> <strong>@Text.Format("check.bar", taken.Bar)</strong> <span class="caption">@Text.Format("performance.takenCounts", taken.Added.Count, taken.Removed.Count)</span></p>
-                        <div class="row">
-                            <button class="btn quiet compact" @onclick="() => ShowPerformanceBarAsync(taken.Bar)">@Text["scanCheck.show"]</button>
-                            <button class="btn quiet compact" @onclick="() => RestorePerformanceBarAsync(taken.Bar)">@Text["performance.restore"]</button>
-                        </div>
-                    </li>
-                }
-            </ul>
-        }
-        @if (performance.Dismissed.Count > 0)
-        {
-            <p class="overline">@Text["performance.dismissedHeading"]</p>
-            <ul class="check-list resolved">
-                @foreach (int dismissed in performance.Dismissed)
-                {
-                    <li class="check-entry">
-                        <p class="check-bar"><strong>@Text.Format("check.bar", dismissed)</strong></p>
-                        <div class="row">
-                            <button class="btn quiet compact" @onclick="() => ShowPerformanceBarAsync(dismissed)">@Text["scanCheck.show"]</button>
-                            <button class="btn quiet compact" @onclick="() => DismissPerformanceBarAsync(dismissed, false)">@Text["performance.undismiss"]</button>
-                        </div>
-                    </li>
-                }
-            </ul>
-        }
-        <label class="field">
-            <span class="caption">@Text["performance.name"]</span>
-            <input type="text" value="@performance.Name" @onchange="RenamePerformanceAsync" />
+        </ul>
+        @MergeListen
+        <div class="row merge-history">
+            <button class="btn quiet compact" @onclick="UndoDraftAsync" disabled="@(!draft.CanUndo)"><Icon Name="undo" /> @Text["merge.undo"]</button>
+            <button class="btn quiet compact redo" @onclick="RedoDraftAsync" disabled="@(!draft.CanRedo)"><Icon Name="undo" /> @Text["merge.redo"]</button>
+            <button class="btn quiet compact" @onclick="ResetDraftAsync" disabled="@(!draft.Changed)">@Text["merge.reset"]</button>
+        </div>
+        <div class="row merge-apply">
+            <button class="btn quiet" @onclick="CancelDraftAsync">@Text["merge.cancel"]</button>
+            <button class="btn primary" @onclick="ApplyDraftAsync"><Icon Name="check" /> @Text[DraftVersion?.Merge is { AppliedAt: not null } ? "merge.applyAgain" : "merge.apply"]</button>
+        </div>
+        <label class="check-row">
+            <input type="checkbox" checked="@MergeDirect" @onchange="ToggleMergeDirectAsync" />
+            <span>@Text["merge.direct"]</span>
         </label>
-        <div class="row">
-            <button class="btn quiet compact" @onclick="RemovePerformanceAsync">@Text[_performanceRemoving == performance.Id ? "performance.removeSure" : "performance.remove"]</button>
+    }
+</section>;
+
+    /// <summary>
+    /// «Сравнение версий» (testing item 34): the full-screen window over the same draft. At the left the changes grouped by
+    /// kind with Take the group, filtered; at the right the change shown in three views stacked, with how much they show,
+    /// the size of the notes, the choices and the keys M, V, E and ← →.
+    /// </summary>
+    private RenderFragment CompareWindow => @<section class="dna compare" role="dialog" aria-modal="true" aria-labelledby="compare-title" tabindex="0" @onkeydown="CompareKeyAsync" data-keeps-selection>
+    @if (_draft is { } draft)
+    {
+        <header class="dna-bar compare-bar">
+            <button class="act back-to" @onclick="CloseCompare"><Icon Name="back" Size="IconSize.Large" /> @Text["merge.toNotes"]</button>
+            <h2 id="compare-title" class="ttl">@Text["merge.window"]</h2>
+            <span class="sub">@DraftVersion?.Name</span>
+            <span class="sp"></span>
+            <span class="counts">@Text.Format("merge.decided", draft.Decided, draft.Bars.Count)</span>
+            <button class="btn quiet compact" @onclick="UndoDraftAsync" disabled="@(!draft.CanUndo)" title="⌘Z / Ctrl+Z"><Icon Name="undo" /> @Text["merge.undo"]</button>
+            <button class="btn quiet compact redo" @onclick="RedoDraftAsync" disabled="@(!draft.CanRedo)" title="⇧⌘Z / Ctrl+Y"><Icon Name="undo" /> @Text["merge.redo"]</button>
+            <button class="btn quiet compact" @onclick="ResetDraftAsync" disabled="@(!draft.Changed)">@Text["merge.resetShort"]</button>
+            <button class="btn quiet compact" @onclick="CancelDraftAsync">@Text["merge.cancel"]</button>
+            <button class="btn primary compact" @onclick="ApplyDraftAsync"><Icon Name="check" /> @Text["merge.apply"]</button>
+        </header>
+        <div class="compare-body">
+            <aside class="compare-list" aria-label="@Text["merge.changesList"]">
+                <div class="seg" role="radiogroup" aria-label="@Text["merge.filter"]">
+                    @foreach (string filter in new[] { "all", "sure", "doubtful", "decided" })
+                    {
+                        <button role="radio" class="@(_compareFilter == filter ? "on" : null)" aria-checked="@(_compareFilter == filter ? "true" : "false")"
+                                @onclick="() => _compareFilter = filter">@Text[$"merge.filter.{filter}"]</button>
+                    }
+                </div>
+                @foreach (IGrouping<MergeGroup, BarComparison> group in CompareRows.GroupBy(bar => PerformanceMerge.GroupOf(bar.Difference)).OrderBy(group => group.Key))
+                {
+                    <div class="compare-group">
+                        <p class="overline">@Text[GroupKey(group.Key)] · @group.Count()</p>
+                        <span class="sp"></span>
+                        <span class="caption">@Text["merge.takeGroup"]:</span>
+                        <button class="btn quiet compact" title="@Text["merge.groupMine"]" aria-label="@Text["merge.groupMine"]" @onclick="() => ChooseGroupAsync(group.Key, MergeChoice.Mine)"><span class="swatch mine"></span> @Text["merge.view.mine"]</button>
+                        <button class="btn quiet compact" title="@Text["merge.groupVersion"]" aria-label="@Text["merge.groupVersion"]" @onclick="() => ChooseGroupAsync(group.Key, MergeChoice.Version)"><span class="swatch version"></span> @Text["merge.view.version"]</button>
+                    </div>
+                    <ul class="merge-rows">
+                        @foreach (BarComparison bar in group)
+                        {
+                            <li>
+                                <button class="merge-row @(_draftAt == bar.Bar ? "on" : null)" @onclick="() => GoToBarAsync(bar.Bar)">
+                                    <span>@Text.Format("check.bar", bar.Bar)</span>
+                                    <span class="caption">@bar.Marker(Words) · @bar.Confidence %</span>
+                                    <span class="state @ChoiceClass(bar.Bar)">@ChoiceName(bar.Bar)</span>
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                }
+            </aside>
+            <div class="compare-main" style="@($"--zoom: {_compareZoom / 100.0:0.00}".Replace(',', '.'))">
+                @if (_draftAt is { } at && DraftRows.FirstOrDefault(bar => bar.Bar == at) is { } current)
+                {
+                    <div class="merge-step">
+                        <button class="btn icon" aria-label="@Text["merge.previous"]" title="@Text["merge.previous"] (←)" @onclick="() => StepChangeAsync(-1)"><Icon Name="back" /></button>
+                        <p><strong>@Text.Format("check.bar", at)</strong> <span class="tag plum">@current.Marker(Words)</span> <span class="caption">@PerformanceCounts(current) · @Text.Format("merge.confidence", current.Confidence)</span></p>
+                        <button class="btn icon" aria-label="@Text["merge.next"]" title="@Text["merge.next"] (→)" @onclick="() => StepChangeAsync(1)"><Icon Name="fwd" /></button>
+                    </div>
+                    <div class="compare-actions">
+                        <div class="seg merge-scope" role="radiogroup" aria-label="@Text["merge.scope"]">
+                            <button role="radio" class="@(_draftPhrase ? null : "on")" aria-checked="@(_draftPhrase ? "false" : "true")" @onclick="() => _draftPhrase = false">@Text["merge.scopeBar"]</button>
+                            <button role="radio" class="@(_draftPhrase ? "on" : null)" aria-checked="@(_draftPhrase ? "true" : "false")" @onclick="() => _draftPhrase = true">@Text["merge.scopePhrase"]</button>
+                        </div>
+                        <button class="btn secondary @(draft.DecisionFor(at)?.Choice == MergeChoice.Mine ? "on" : null)" title="M" @onclick="() => ChooseAsync(at, MergeChoice.Mine)"><span class="swatch mine"></span> @Text["merge.takeMine"] <kbd>M</kbd></button>
+                        <button class="btn secondary @(draft.DecisionFor(at)?.Choice == MergeChoice.Version ? "on" : null)" title="V" @onclick="() => ChooseAsync(at, MergeChoice.Version)"><span class="swatch version"></span> @Text["merge.takeVersion"] <kbd>V</kbd></button>
+                        <button class="btn quiet @(draft.DecisionFor(at)?.Choice == MergeChoice.Own ? "on" : null)" title="E" @onclick="() => BeginOwnEdit(at)"><Icon Name="pen" /> @Text["merge.editInRoll"] <kbd>E</kbd></button>
+                        <button class="btn quiet @(draft.DecisionFor(at)?.Choice == MergeChoice.NotADifference ? "on" : null)" @onclick="() => ChooseAsync(at, MergeChoice.NotADifference)">@Text["merge.notDifference"]</button>
+                        @if (draft.DecisionFor(at) is not null)
+                        {
+                            <button class="btn quiet compact" @onclick="() => UndecideAsync(at)">@Text["merge.resetBar"]</button>
+                        }
+                        <span class="caption merge-state">@Text.Format("merge.stateLine", ChoiceName(at))</span>
+                    </div>
+                    <div class="compare-see">
+                        <span class="caption">@Text["merge.see"]</span>
+                        <div class="seg" role="radiogroup" aria-label="@Text["merge.see"]">
+                            @foreach (string see in new[] { "bar", "phrase", "sentence" })
+                            {
+                                <button role="radio" class="@(_compareSee == see ? "on" : null)" aria-checked="@(_compareSee == see ? "true" : "false")" @onclick="() => _compareSee = see">@Text[$"merge.see.{see}"]</button>
+                            }
+                        </div>
+                        <span class="sp"></span>
+                        <div class="zoom" role="group" aria-label="@Text["merge.zoom"]">
+                            <button class="btn icon" aria-label="@Text["merge.zoomOut"]" @onclick="() => ZoomCompare(-10)">−</button>
+                            <span class="caption">@_compareZoom %</span>
+                            <button class="btn icon" aria-label="@Text["merge.zoomIn"]" @onclick="() => ZoomCompare(10)">+</button>
+                        </div>
+                    </div>
+                    @foreach (string view in new[] { "mine", "version", "result" })
+                    {
+                        <div class="merge-view @view">
+                            <div class="lab">
+                                <span class="dot @view"></span> <strong>@Text[$"merge.view.{view}"]</strong>
+                                @if (view == "version") { <span class="caption">· @DraftVersion?.Name</span> }
+                                @if (view == "result") { <span class="caption">· @Text["merge.resultHint"]</span> }
+                                <span class="sp"></span>
+                                <button class="btn icon @view" aria-label="@Text.Format("merge.hearView", Text[$"merge.view.{view}"])" @onclick="() => HearMergeAsync(view)">
+                                    <Icon Name="@(_mergeHearing == view && Player.State != PlaybackState.Stopped ? "pause" : "play")" />
+                                </button>
+                            </div>
+                            @if (MergeCard(view) is { } card)
+                            {
+                                <PhraseCard Source="card" />
+                            }
+                        </div>
+                    }
+                    @MergeListen
+                }
+                else
+                {
+                    <p class="caption">@Text["merge.nothing"]</p>
+                }
+            </div>
         </div>
     }
-    <button class="btn primary source-add" aria-expanded="@(_addingSource ? "true" : "false")" @onclick="ToggleAddSource"><Icon Name="plus" /> @Text["sources.add"]</button>
-    @if (_addingSource)
-    {
-        <section class="source-choices" aria-label="@Text["sources.add"]">
-            <p class="caption">@Text["performance.how"]</p>
-            <label class="file btn secondary">
-                <Icon Name="file" /> @Text["performance.addMidi"]
-                <InputFile OnChange="AddPerformanceAsync" accept="@VersionFile.AcceptedExtensions" />
-            </label>
-            <label class="file btn secondary">
-                <Icon Name="pages" /> @Text[_project?.Document is null ? "sources.addPdf" : "sources.replacePdf"]
-                <InputFile OnChange="AddDocumentAsync" accept="@MotiffLab.MusicCore.Import.PdfDocument.Extension" />
-            </label>
-            <p class="caption">@Text["sources.pdfHow"]</p>
-            <MotiffLab.Web.Import.RecordingVersion Heard="AddRecordingVersionAsync" />
-        </section>
-    }
-</aside>;
+</section>;
+
+    /// <summary>Listen: Mine · Version · Result · In turn, each in its view's colour.</summary>
+    private RenderFragment MergeListen => @<div class="seg merge-listen" role="group" aria-label="@Text["merge.listen"]">
+        @foreach (string view in new[] { "mine", "version", "result", "alternate" })
+        {
+            bool on = _mergeHearing == view && Player.State != PlaybackState.Stopped;
+            <button class="@view @(on ? "on" : null)" aria-pressed="@(on ? "true" : "false")" @onclick="() => HearMergeAsync(view)">
+                @if (view != "alternate") { <span class="dot @view"></span> } @Text[$"merge.view.{view}"]
+            </button>
+        }
+    </div>;
 
     private RenderFragment TrialCard => @<ExploreCard Try="TryExperimentAsync" Leave="LeaveExperimentAsync" HearInContext="HearAnswerAsync"
                                                     ListenToChanged="SetListenToAsync" FactChosen="ShowFactAsync" NoteSaved="SaveKeptNoteAsync" />;
@@ -1467,14 +1739,10 @@
         }
         @if (!FocusHasVariation && ShownPerformance is not null)
         {
-            @* Another version above the phrase (0022, section 5): its bars that differ are taken into the score at once, or brought back. *@
+            @* Another version above the phrase (0022, section 5): what to take is decided only in the merge draft (testing item 33). *@
             @if (FocusVersionBars.Count > 0)
             {
-                <button class="btn quiet" @onclick="TakeFocusBarsAsync">@Text["performance.take"]</button>
-            }
-            @if (FocusTakenBars.Count > 0)
-            {
-                <button class="btn quiet" @onclick="RestoreFocusBarsAsync">@Text["performance.restore"]</button>
+                <button class="btn quiet" @onclick="OpenDraftInFocusAsync">@Text["merge.openDraft"]</button>
             }
         }
         <button class="btn quiet ask @(AskOpen ? "on" : null)" aria-pressed="@(AskOpen ? "true" : "false")" title="?" @onclick="AskHere">@Text["ask.menu"]</button>
@@ -1795,11 +2063,11 @@
         _ => ScoreChoice.Generated,
     };
 
-    /// <summary>The score shown: with the other version above every system when its layer is on (0022), except over a variation.</summary>
+    /// <summary>The score shown: while a merge draft is open, the version or the result when «Показать» is on them; never over a variation.</summary>
     private ScoreSource? ShownScore => ShownChoice switch
     {
         ScoreChoice.Variation => _variationScore,
-        _ when VersionScore is { } withVersion => withVersion,
+        _ when MergeScore is { } merged => merged,
         ScoreChoice.AsWritten => _asWritten,
         _ => _generated,
     };

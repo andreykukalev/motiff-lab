@@ -21,8 +21,14 @@ public partial class PlaybackLab
     /// <summary>The note being written over the selection: a new one, or the one <see cref="NoteDraft.Id"/> names.</summary>
     private sealed record NoteDraft(string? Id, TickSpan Span, string Text);
 
-    /// <summary>The layers of marks, as the settings "layers.ink" and the rest name them.</summary>
-    private static readonly string[] s_layers = ["ink", "notes", "bookmarks", "analysis", "check", "version", "artefacts"];
+    /// <summary>The player's own marks and the phrases, as the settings "layers.ink" and the rest name them: shown as before.</summary>
+    private static readonly string[] s_layers = ["ink", "notes", "bookmarks", "analysis"];
+
+    /// <summary>
+    /// What the app adds over the notes (testing item 33): the markers of a version's differences ("layers.performance"), the line
+    /// under the bars taken from a version, and the Check flags. All hidden while "layers.extra" (ⓘ) is off, its default.
+    /// </summary>
+    private static readonly string[] s_extra = ["performance", "taken", "check"];
 
     /// <summary>The inks a highlight is laid in: the amber highlighter first, then the pencil inks.</summary>
     private static readonly InkColour[] s_highlightInks = [InkColour.Amber, InkColour.Carmine, InkColour.Forest, InkColour.Ochre];
@@ -238,12 +244,15 @@ public partial class PlaybackLab
         return _project is null && _sessionLayers.TryGetValue(layer, out bool shown) ? shown : SettingsStore[id] != Setting.Off;
     }
 
-    /// <summary>The layers hidden, for the score; the same list until the choice changes.</summary>
+    /// <summary>
+    /// The layers hidden, for the score; the same list until the choice changes. Check flags are extra information, shown with
+    /// ⓘ, and always while the Check drawer is open, as its bars' places on the page.
+    /// </summary>
     private IReadOnlyList<string> HiddenLayers
     {
         get
         {
-            string[] hidden = [.. s_layers.Where(layer => !LayerShown(layer))];
+            string[] hidden = [.. s_layers.Where(layer => !LayerShown(layer)), .. ExtraShown("check") || _checkOpen ? Array.Empty<string>() : ["check"]];
             string key = string.Join(',', hidden);
             if (_hiddenLayers is not { } cached || cached.Key != key)
             {
@@ -254,20 +263,28 @@ public partial class PlaybackLab
         }
     }
 
-    /// <summary>The layers the piece has: Check only for a scan or a transcription, the other version only when it has one (0022).</summary>
-    private IEnumerable<string> PieceLayers => s_layers.Where(layer => layer switch
+    /// <summary>Whether one kind of extra information shows: ⓘ on, and that kind on in its list.</summary>
+    private bool ExtraShown(string item) => LayerShown("extra") && LayerShown(item);
+
+    /// <summary>The kinds of extra information the piece has: a version's differences and taken bars only with a version, Check only for a scan or a transcription.</summary>
+    private IEnumerable<string> PieceExtra => s_extra.Where(item => item switch
     {
+        "performance" => HasPerformances,
+        "taken" => _project is { } project && project.TakenBars.Any(),
         "check" => HasCheckFlags,
-        "version" => HasPerformances,
-        // A line under the other version's layer, while it shows, that counts the likely artefacts and shows them.
-        "artefacts" => HasPerformances && LayerShown("version") && VersionArtefactCount > 0,
         _ => true,
     });
 
-    /// <summary>The layers of marks, which Hide all marks hides and shows: not the other version or its artefacts, which redraw the score.</summary>
-    private IEnumerable<string> MarkLayers => PieceLayers.Where(layer => layer is not ("version" or "artefacts"));
+    /// <summary>The player's layers, in the lower half of the list.</summary>
+    private IEnumerable<string> PieceLayers => s_layers;
+
+    /// <summary>The layers of marks, which Hide all marks hides and shows.</summary>
+    private IEnumerable<string> MarkLayers => PieceLayers;
 
     private bool AllMarksHidden => MarkLayers.All(layer => !LayerShown(layer));
+
+    /// <summary>ⓘ: everything the app adds over the notes shows, or hides again.</summary>
+    private Task ToggleExtraAsync() => SetLayersAsync(["extra"], !LayerShown("extra"));
 
     private Task ToggleLayerAsync(string layer) => SetLayersAsync([layer], !LayerShown(layer));
 
@@ -306,12 +323,10 @@ public partial class PlaybackLab
         await SaveMarksAsync(_ => project, "");
     }
 
-    private string LayerName(string layer) => layer == "artefacts"
-        ? Text.Format("layers.artefactsCount", VersionArtefactCount)
-        : Text[$"layers.{layer}"];
+    private string LayerName(string layer) => Text[$"layers.{layer}"];
 
-    /// <summary>The settings of the layers the piece has, for the Layers popover's scope.</summary>
-    private IReadOnlyList<string> LayerIds => [.. PieceLayers.Select(layer => $"layers.{layer}")];
+    /// <summary>The settings of the layers the piece has, for the popover's scope.</summary>
+    private IReadOnlyList<string> LayerIds => ["layers.extra", .. PieceExtra.Select(item => $"layers.{item}"), .. PieceLayers.Select(layer => $"layers.{layer}")];
 
     private void OpenLayers()
     {

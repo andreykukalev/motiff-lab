@@ -32,7 +32,7 @@
         <button class="chip" title="@Text["edit.resetHint"]" disabled="@(!editor.CanReset)" @onclick="() => editor.Reset()">@Text["edit.reset"]</button>
         <span class="sp"></span>
         <button class="btn quiet compact" @onclick="() => editor.Cancel()">@Text["edit.cancel"]</button>
-        <button class="btn primary compact" disabled="@(!editor.Changed)" @onclick="() => editor.Save()"><Icon Name="check" /> @Text["edit.save"]</button>
+        <button class="btn primary compact" disabled="@(!editor.Changed)" @onclick="() => editor.Save()"><Icon Name="check" /> @Text[editor.SaveKey]</button>
     </div>
     <p class="caption roll-edit-hint">@Text[$"edit.{editor.Tool}Hint"] @Text["edit.keptOnSave"]</p>
 }
@@ -216,6 +216,12 @@ else
 
     private bool? _shownFits;
 
+    /// <summary>Another version's notes as dashed plum outlines, for the bar the player writes in a merge (testing item 34).</summary>
+    [Parameter]
+    public IReadOnlyList<Note>? Ghosts { get; set; }
+
+    private IReadOnlyList<Note>? _shownGhosts;
+
     /// <summary>The note editor on the roll (testing item 15); null where the notes cannot be edited.</summary>
     [Parameter]
     public NoteEditor? Editor { get; set; }
@@ -305,6 +311,13 @@ else
             _shownKept = Kept;
             // Cast, so the array goes across as one argument rather than as the argument list.
             await view.InvokeVoidAsync("setFilter", (object?)Kept?.ToArray());
+        }
+
+        if (!ReferenceEquals(Ghosts, _shownGhosts))
+        {
+            _shownGhosts = Ghosts;
+            long[] ghosts = [.. (Ghosts ?? []).SelectMany(note => new[] { note.Span.Onset.Value, note.Span.End.Value, (long)note.Pitch.MidiNumber })];
+            await view.InvokeVoidAsync("setGhosts", ghosts);
         }
 
         if (!ReferenceEquals(Variation, _shownVariation))

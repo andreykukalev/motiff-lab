@@ -124,7 +124,7 @@ struct SettingsSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     private static let presets = ["learning", "practising", "clean"]
-    private static let layers = ["ink", "notes", "bookmarks", "analysis", "check"]
+    private static let layers = ["ink", "notes", "bookmarks", "analysis"]
 
     var body: some View {
         GeometryReader { size in
@@ -243,6 +243,7 @@ struct SettingsSheet: View {
         case .score:
             choiceRow("phrases.granularity", text["settings.granularity"], hint: text["settings.granularityHint"]) { text[Self.granularityKey($0)] }
             switchRow("playback.follow", text["settings.follow"], hint: text["settings.followHint"])
+            switchRow("merge.direct", text["merge.direct"])
             switchRow("score.evenBars", text["settings.evenBars"], hint: text["settings.evenBarsHint"])
         case .layers:
             Text(text["settings.layersHow"])
@@ -250,6 +251,11 @@ struct SettingsSheet: View {
                 .foregroundStyle(Color.ds("ink-2"))
             ForEach(Self.layers, id: \.self) { layer in
                 switchRow("layers.\(layer)", text["layers.\(layer)"])
+            }
+            // Extra information (testing item 33): off by default, each kind with its own switch.
+            switchRow("layers.extra", text["extra.title"])
+            ForEach(ScoreController.extra, id: \.self) { item in
+                switchRow("layers.\(item)", text["extra.\(item)"])
             }
         case .roll:
             switchRow("roll.noteNames", text["roll.noteNames"])
@@ -318,7 +324,11 @@ struct SettingsSheet: View {
     /// "Phrases: Short" or "Bookmarks: hidden".
     private func overrideName(_ id: String, _ value: String) -> String {
         if id == "phrases.granularity" { return "\(text["phrases.levelTitle"]): \(text[Self.granularityKey(value)])" }
-        if id.hasPrefix("layers.") { return "\(text[id]): \(text[value == "off" ? "settings.hidden" : "settings.shown"])" }
+        if id.hasPrefix("layers.") {
+            let layer = String(id.dropFirst("layers.".count))
+            let name = layer == "extra" ? text["extra.title"] : ScoreController.extra.contains(layer) ? text["extra.\(layer)"] : text[id]
+            return "\(name): \(text[value == "off" ? "settings.hidden" : "settings.shown"])"
+        }
         return id
     }
 }

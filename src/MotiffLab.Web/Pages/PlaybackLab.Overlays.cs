@@ -120,7 +120,6 @@ public partial class PlaybackLab
                 break;
             case Place.Performance:
                 _performanceOpen = false;
-                _performanceRemoving = null;
                 break;
             case Place.Settings:
                 _settingsOpen = false;

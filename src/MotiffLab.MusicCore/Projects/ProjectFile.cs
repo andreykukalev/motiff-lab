@@ -980,33 +980,66 @@ public static class ProjectFile
         json.WriteStartArray("taken");
         foreach (TakenBar bar in performance.Taken)
         {
-            json.WriteStartObject();
-            json.WriteNumber("bar", bar.Bar);
-            json.WriteStartArray("removed");
-            foreach (string id in bar.Removed)
+            WriteTakenBar(json, bar);
+        }
+
+        json.WriteEndArray();
+        // The merge draft last applied (testing items 32 and 34): optional, so a reader without it keeps what was taken.
+        if (performance.Merge is { } merge)
+        {
+            json.WriteStartObject("merge");
+            if (merge.AppliedAt is { } at)
             {
-                json.WriteStringValue(id);
+                json.WriteString("appliedAt", at.ToString("O", CultureInfo.InvariantCulture));
             }
 
-            json.WriteEndArray();
-            json.WriteStartArray("added");
-            foreach (TakenNote note in bar.Added)
+            json.WriteStartArray("bars");
+            foreach (MergeDecision decision in merge.Decisions)
             {
                 json.WriteStartObject();
-                json.WriteString("id", note.Id);
-                json.WriteNumber("pitch", note.Pitch.MidiNumber);
-                WriteSpan(json, note.Span);
-                json.WriteNumber("velocity", note.Velocity);
-                json.WriteNumber("track", note.Track);
-                if (note.Hand is { } hand)
+                json.WriteNumber("bar", decision.Bar);
+                json.WriteString("choice", decision.Choice.ToString());
+                if (decision.Own is { } own)
                 {
-                    json.WriteString("hand", hand.ToString());
+                    json.WritePropertyName("own");
+                    WriteTakenBar(json, own);
                 }
 
                 json.WriteEndObject();
             }
 
             json.WriteEndArray();
+            json.WriteEndObject();
+        }
+
+        json.WriteEndObject();
+    }
+
+    private static void WriteTakenBar(Utf8JsonWriter json, TakenBar bar)
+    {
+        json.WriteStartObject();
+        json.WriteNumber("bar", bar.Bar);
+        json.WriteStartArray("removed");
+        foreach (string id in bar.Removed)
+        {
+            json.WriteStringValue(id);
+        }
+
+        json.WriteEndArray();
+        json.WriteStartArray("added");
+        foreach (TakenNote note in bar.Added)
+        {
+            json.WriteStartObject();
+            json.WriteString("id", note.Id);
+            json.WriteNumber("pitch", note.Pitch.MidiNumber);
+            WriteSpan(json, note.Span);
+            json.WriteNumber("velocity", note.Velocity);
+            json.WriteNumber("track", note.Track);
+            if (note.Hand is { } hand)
+            {
+                json.WriteString("hand", hand.ToString());
+            }
+
             json.WriteEndObject();
         }
 
@@ -1025,23 +1058,21 @@ public static class ProjectFile
                     ? new Anchor(new Tick(tick), micros)
                     : throw Damaged("performance anchors"))];
             List<int> dismissed = [.. Property(performance, "dismissed", JsonValueKind.Array).EnumerateArray().Select(bar => bar.TryGetInt32(out int number) && number >= 0 ? number : throw Damaged("performance"))];
-            List<TakenBar> taken = [.. Property(performance, "taken", JsonValueKind.Array).EnumerateArray().Select(bar =>
+            List<TakenBar> taken = [.. Property(performance, "taken", JsonValueKind.Array).EnumerateArray().Select(ReadTakenBar)];
+            MergeRecord? merge = null;
+            if (performance.TryGetProperty("merge", out JsonElement kept))
             {
-                Expect(bar, JsonValueKind.Object, "performance");
-                return new TakenBar(
-                    Integer(bar, "bar"),
-                    [.. Property(bar, "removed", JsonValueKind.Array).EnumerateArray().Select(id => id.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(id.GetString()) ? id.GetString()! : throw Damaged("performance"))],
-                    [.. Property(bar, "added", JsonValueKind.Array).EnumerateArray().Select(note =>
+                Expect(kept, JsonValueKind.Object, "performance");
+                merge = new MergeRecord(
+                    [.. Property(kept, "bars", JsonValueKind.Array).EnumerateArray().Select(decision =>
                     {
-                        Expect(note, JsonValueKind.Object, "performance");
-                        int pitch = Integer(note, "pitch");
-                        Hand? hand = note.TryGetProperty("hand", out _) ? Name<Hand>(note, "hand") : null;
-                        string id = Text(note, "id");
-                        return pitch is >= 0 and <= Pitch.MaxMidiNumber && PerformanceTake.IsTaken(id)
-                            ? new TakenNote(id, new Pitch(pitch), ReadSpan(note, "performance"), Integer(note, "velocity"), Integer(note, "track"), hand)
-                            : throw Damaged("performance");
-                    })]);
-            })];
+                        Expect(decision, JsonValueKind.Object, "performance");
+                        MergeChoice choice = Name<MergeChoice>(decision, "choice");
+                        return new MergeDecision(Integer(decision, "bar"), choice, decision.TryGetProperty("own", out JsonElement own) ? ReadTakenBar(own) : null);
+                    })],
+                    kept.TryGetProperty("appliedAt", out _) ? Time(kept, "appliedAt") : null);
+            }
+
             return new SavedPerformance(
                 Text(performance, "id"),
                 Text(performance, "name"),
@@ -1053,12 +1084,31 @@ public static class ProjectFile
                 Engine = performance.TryGetProperty("engine", out _) ? Text(performance, "engine") : null,
                 Dismissed = dismissed,
                 Taken = taken,
+                Merge = merge,
             };
         }
         catch (Exception exception) when (exception is FormatException or ArgumentException)
         {
             throw Damaged("performance");
         }
+    }
+
+    private static TakenBar ReadTakenBar(JsonElement bar)
+    {
+        Expect(bar, JsonValueKind.Object, "performance");
+        return new TakenBar(
+            Integer(bar, "bar"),
+            [.. Property(bar, "removed", JsonValueKind.Array).EnumerateArray().Select(id => id.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(id.GetString()) ? id.GetString()! : throw Damaged("performance"))],
+            [.. Property(bar, "added", JsonValueKind.Array).EnumerateArray().Select(note =>
+            {
+                Expect(note, JsonValueKind.Object, "performance");
+                int pitch = Integer(note, "pitch");
+                Hand? hand = note.TryGetProperty("hand", out _) ? Name<Hand>(note, "hand") : null;
+                string id = Text(note, "id");
+                return pitch is >= 0 and <= Pitch.MaxMidiNumber && PerformanceTake.IsTaken(id)
+                    ? new TakenNote(id, new Pitch(pitch), ReadSpan(note, "performance"), Integer(note, "velocity"), Integer(note, "track"), hand)
+                    : throw Damaged("performance");
+            })]);
     }
 
     private static IReadOnlyDictionary<string, string> ReadSettings(JsonElement settings)

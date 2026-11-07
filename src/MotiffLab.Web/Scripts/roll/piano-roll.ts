@@ -158,6 +158,7 @@ let HIGHLIGHT = "";
 let HIGHLIGHT_BAND = "";
 const HIGHLIGHT_UNDERLINE = 4;
 let VARIATION_LINK = "";
+let GHOST_LINE = "";
 let PATTERN_INK = "";
 let LANE_COLOURS: string[] = [];
 /** The tokens the palette was last read from, so patterns are made again when the theme changes. */
@@ -191,6 +192,7 @@ function readPalette(element: Element): boolean {
     VARIATION_FILL = withAlpha(plum, 0.28);
     VARIATION_FILL_SOUNDING = withAlpha(plum, 0.75);
     VARIATION_LINK = withAlpha(plum, 0.45);
+    GHOST_LINE = plum;
     PHRASE_MARK = INK;
     PHRASE_INFERRED = MUTED;
     HIGHLIGHT = ACCENT;
@@ -259,6 +261,8 @@ export class PianoRoll {
     private filtered: Set<number> | null = null;
     /** The range that plays for the selection [start, end), when it differs from what is selected; null for none. */
     private playRange: { start: number; end: number } | null = null;
+    /** Another version's notes in the bar the player writes in a merge (testing item 34): dashed plum outlines to drag in. */
+    private ghosts: { onset: number; end: number; pitch: number }[] = [];
     /** The variation of the motif, drawn as outlines over it, or null for none. */
     private variation: VariationNote[] | null = null;
     /** The places of the fact chosen on Understand (#25): their stretches of time and their notes, or null for none. */
@@ -675,6 +679,16 @@ export class PianoRoll {
         }
         this.variation = notes;
         this.renderLegend();
+        this.invalidate();
+    }
+
+    /** The version's notes as dashed plum outlines, packed as onset, end and pitch per note; empty for none. */
+    setGhosts(packed: number[]): void {
+        const ghosts: { onset: number; end: number; pitch: number }[] = [];
+        for (let at = 0; at + 3 <= packed.length; at += 3) {
+            ghosts.push({ onset: packed[at], end: packed[at + 1], pitch: packed[at + 2] });
+        }
+        this.ghosts = ghosts;
         this.invalidate();
     }
 
@@ -1142,6 +1156,7 @@ export class PianoRoll {
             }
         }
         this.drawVariation(context, from, to, high, low, row);
+        this.drawGhosts(context, from, to, high, low, row);
         context.restore();
 
         // The chosen notes' names, in a tag above each, over the notes round them.
@@ -1301,6 +1316,26 @@ export class PianoRoll {
             }
         }
         return places;
+    }
+
+    private drawGhosts(context: CanvasRenderingContext2D, from: number, to: number, high: number, low: number, row: number): void {
+        if (this.ghosts.length === 0) {
+            return;
+        }
+        context.save();
+        context.setLineDash([4, 3]);
+        context.strokeStyle = GHOST_LINE;
+        context.lineWidth = 1.5;
+        for (const note of this.ghosts) {
+            if (note.end < from || note.onset > to || note.pitch < low || note.pitch > high) {
+                continue;
+            }
+            const x = this.xOf(note.onset);
+            const w = Math.max(4, ((note.end - note.onset) * this.zoom) / TICKS_PER_QUARTER - 1);
+            const y = HEADER + (high - note.pitch) * row + 1;
+            context.strokeRect(x + 1, y + 1, w - 2, Math.max(2, row - 2) - 2);
+        }
+        context.restore();
     }
 
     /** The variation as outlines where its notes land, each linked to the motif note it came from when it moved. */

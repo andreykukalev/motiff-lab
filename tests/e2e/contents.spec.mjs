@@ -191,8 +191,8 @@ test("a place opened from More shows the way back to More, and its close puts bo
     await expect(page.locator(".settings-sheet")).toHaveCount(0);
     await expect(page.locator(".more-popover")).toBeVisible();
 
-    // Layers from More, and back.
-    await page.locator(".more-popover").getByRole("button", { name: "Layers" }).click();
+    // Extra information from More, and back.
+    await page.locator(".more-popover").getByRole("button", { name: "Extra information" }).click();
     await page.locator(".layers-popover").getByRole("button", { name: "Back to More" }).click();
     await expect(page.locator(".more-popover")).toBeVisible();
 

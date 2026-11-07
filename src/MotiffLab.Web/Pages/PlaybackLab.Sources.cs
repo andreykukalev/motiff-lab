@@ -20,11 +20,6 @@ namespace MotiffLab.Web.Pages;
 /// </summary>
 public partial class PlaybackLab
 {
-    /// <summary>The version just added: its four next steps show until one is chosen or another version is shown.</summary>
-    private string? _addedVersion;
-
-    /// <summary>The bars Take everything sure took last, from which version, to give back with one tap.</summary>
-    private (string Version, IReadOnlyList<int> Bars)? _takenAll;
 
     /// <summary>Whether Read the notes of the PDF as a version is open under the PDF's row.</summary>
     private bool _readingDocument;
@@ -38,12 +33,6 @@ public partial class PlaybackLab
     private int? AlignedPercent => ShownComparison is { Bars.Count: > 0 } comparison
         ? (comparison.Bars.Count - UnalignedBarCount) * 100 / comparison.Bars.Count
         : null;
-
-    /// <summary>The bars of the shown version Take everything sure would take: lined up, sure enough, not dismissed or taken.</summary>
-    private int SureBarCount => DifferingBars.Count(bar => bar.Aligned && bar.Confidence >= PerformanceTake.AutomaticConfidence);
-
-    /// <summary>Whether the version just added still offers its four next steps.</summary>
-    private bool OffersNextSteps => _addedVersion is { } id && ShownPerformance?.Id == id;
 
     private string BaseIcon => _project?.Summary.Origin switch
     {
@@ -73,98 +62,6 @@ public partial class PlaybackLab
     {
         _readingDocument = !_readingDocument;
         _addingSource = false;
-    }
-
-    /// <summary>Compare: the version's notes show over the score, its markers above the bars it has otherwise.</summary>
-    private async Task CompareVersionAsync()
-    {
-        _addedVersion = null;
-        await SetLayersAsync(["version"], true);
-    }
-
-    /// <summary>
-    /// Hear it alone: the phrase with the first bar the version has otherwise, in focus, played as in the version (the
-    /// other version is heard only in focus, 0022 section 5).
-    /// </summary>
-    private async Task HearVersionAloneAsync()
-    {
-        if (FirstDifferingSpan() is not { } span)
-        {
-            return;
-        }
-
-        _addedVersion = null;
-        _performanceOpen = false;
-        await SelectAsync(_phrases?.Covering(span)?.Span ?? span, note: null);
-        EnterFocus();
-        await HearVersionAsync(true);
-    }
-
-    /// <summary>
-    /// Take everything sure: every bar the comparison lines up with at least 80 % sure, not dismissed or taken already, comes
-    /// into the notes at once; Give back returns them.
-    /// </summary>
-    private async Task TakeAllSureAsync()
-    {
-        if (_project is not { } project || ShownPerformance is not { } performance || ShownComparison is not { } comparison || _meter is null)
-        {
-            return;
-        }
-
-        IReadOnlyList<TakenBar> taken = PerformanceTake.TakeAll(performance, comparison, _meter, PrintedNotes);
-        _addedVersion = null;
-        if (taken.Count == 0)
-        {
-            _performanceStatus = Text["sources.nothingSure"];
-            return;
-        }
-
-        _project = project.ChangePerformance(performance.Id, kept => kept.TakeBars(taken));
-        _takenAll = (performance.Id, [.. taken.Select(bar => bar.Bar)]);
-        _performanceStatus = Text.Count("sources.takenAll", taken.Count);
-        await ApplyEditsAsync(_edits);
-    }
-
-    /// <summary>Give back: the bars Take everything sure took come back as they were.</summary>
-    private async Task GiveBackTakenAllAsync()
-    {
-        if (_project is not { } project || _takenAll is not { } last || project.Performances.All(kept => kept.Id != last.Version))
-        {
-            _takenAll = null;
-            return;
-        }
-
-        _project = project.ChangePerformance(last.Version, kept => kept.Restore(last.Bars));
-        _takenAll = null;
-        _performanceStatus = Text.Count("sources.givenBack", last.Bars.Count);
-        await ApplyEditsAsync(_edits);
-    }
-
-    /// <summary>Adjust it myself: the first bar the version has otherwise is selected and the roll opens on it, editing.</summary>
-    private async Task AdjustVersionAsync()
-    {
-        if (FirstDifferingSpan() is not { } span)
-        {
-            return;
-        }
-
-        _addedVersion = null;
-        _performanceOpen = false;
-        await SelectAsync(span, note: null);
-        _rollOpen = true;
-        await BeginNoteEditAsync();
-    }
-
-    /// <summary>The first bar the shown version has otherwise, or the first bar when it agrees everywhere.</summary>
-    private TickSpan? FirstDifferingSpan()
-    {
-        if (_meter is null || _score is null)
-        {
-            return null;
-        }
-
-        int bar = DifferingBars.FirstOrDefault()?.Bar ?? _meter.FirstBarNumber;
-        return MotifSelector.Bars(_meter, bar, bar, _score.End);
     }
 
     /// <summary>

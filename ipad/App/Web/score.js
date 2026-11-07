@@ -30,9 +30,10 @@
 //
 // Another version of the piece (0022) marks the bars it has otherwise with a plum label above the bar's top left, over the
 // phrase bracket and before any Check flag or note on the bar, and tints the printed notes it does not have
-// (`performance`), as the web app's score view does; a tap on a label gives its bar to Swift. With its comparison layer
-// engraved above every system, the notes it adds are plum and its likely artefacts grey, and so above the phrase on the
-// card in focus.
+// (`performance`), as the web app's score view does; a tap on a label gives its bar to Swift with where the label is. These
+// show only with Extra information on (testing item 33). While a merge draft shows the version or the result, the notes from
+// the version are plum and the player's own amber; a thin plum line runs under each bar taken from a version. Above the
+// phrase on the card in focus, the version's added notes are plum.
 //
 // While the piece plays, the notes sounding turn cobalt on the page and on the card in focus (`playing`), a cobalt line
 // stands at the sounding moment with a wash over its bar (testing item 4, the web app's score view), and the page
@@ -70,6 +71,8 @@ const NOTE_OFFSET_X = 4;
 const NOTE_OFFSET_Y = 22;
 
 /** Another version's label: 20 px of plum in a 24 px target, at least wide enough for a count and at most this wide. */
+/** How far under a taken bar's lowest staff its plum line runs, in pixels, as the web app's score view has it. */
+const TAKEN_GAP = 4;
 const PERFORMANCE_HEIGHT = 20;
 const PERFORMANCE_TARGET = 24;
 const PERFORMANCE_MIN_WIDTH = 36;
@@ -81,7 +84,7 @@ const LAYERS = ["ink", "notes", "bookmarks", "analysis", "check"];
 /** After the player scrolls by hand, playback leaves the page where they put it for this long before following again (score-view.ts). */
 const FOLLOW_PAUSE_MS = 4000;
 
-const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], phrases: [], bookmarks: [], notes: [], highlights: [], checks: [], performance: [], unheard: new Set(), added: new Set(), artefacts: new Set(), pen: false, focus: false, ringed: new Set() };
+const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], phrases: [], bookmarks: [], notes: [], highlights: [], checks: [], performance: [], unheard: new Set(), added: new Set(), artefacts: new Set(), own: new Set(), taken: [], pen: false, focus: false, ringed: new Set() };
 let nextId = 0;
 
 /** Shows the pages and reads where their bars are; `timemap` is Verovio's, with measures and rests. */
@@ -311,14 +314,18 @@ function checks({ flags }) {
 
 /**
  * The bars another version has otherwise, each { bar, tick, text, label }, as plum labels above the bars, and the ids of
- * the printed notes it does not have, tinted in place (0022, section 4); empty lists draw none. Given to Swift as
- * `performance`; named otherwise here, where `performance` is the clock.
+ * the printed notes it does not have, tinted in place (0022, section 4); the ids of notes from a version (`added`, plum) and
+ * of the player's own (`own`, amber) on the score a merge draft shows, and the ticks of the bars `taken` from versions, a
+ * thin plum line under each; empty lists draw none. Given to Swift as `performance`; named otherwise here, where
+ * `performance` is the clock.
  */
-function showVersion({ markers, unheard, added, artefacts }) {
+function showVersion({ markers, unheard, added, artefacts, own, taken }) {
     state.performance = markers ?? [];
     state.unheard = new Set(unheard ?? []);
     state.added = new Set(added ?? []);
     state.artefacts = new Set(artefacts ?? []);
+    state.own = new Set(own ?? []);
+    state.taken = taken ?? [];
     placeNotes();
     tintUnheard();
     return document.querySelectorAll("body > .perf-marker").length;
@@ -333,6 +340,7 @@ function tintUnheard() {
     tint(host, state.timeline, state.unheard, "not-heard");
     tint(host, state.timeline, state.added, "version-added");
     tint(host, state.timeline, state.artefacts, "version-artefact");
+    tint(host, state.timeline, state.own, "own-note");
 }
 
 /** Gives the notes engraved in `root` with these ids, or a later piece of one tied over ("…-2"), the class; none lose it. */
@@ -351,12 +359,25 @@ function tint(root, timeline, ids, name) {
 }
 
 function placeNotes() {
-    for (const old of document.querySelectorAll("body > .marker, body > .hl, body > .check-flag, body > .perf-marker")) {
+    for (const old of document.querySelectorAll("body > .marker, body > .hl, body > .check-flag, body > .perf-marker, body > .taken-bar")) {
         old.remove();
     }
     const geometry = state.geometry;
     if (geometry === null) {
         return;
+    }
+    for (const tick of state.taken) {
+        const bar = geometry.barAt(tick);
+        if (bar === undefined) {
+            continue;
+        }
+        const line = document.createElement("div");
+        line.className = "taken-bar";
+        line.setAttribute("aria-hidden", "true");
+        line.style.left = `${bar.left}px`;
+        line.style.top = `${bar.bottom + TAKEN_GAP}px`;
+        line.style.width = `${bar.right - bar.left}px`;
+        document.body.append(line);
     }
     for (const highlight of state.highlights) {
         for (const run of geometry.band(highlight.start, highlight.end, 2)) {
@@ -563,7 +584,8 @@ document.body.addEventListener("click", (event) => {
     }
     const version = target?.closest(".perf-marker");
     if (version) {
-        post({ performanceBar: Number(version.dataset.bar) });
+        const box = version.getBoundingClientRect();
+        post({ performanceBar: Number(version.dataset.bar), left: box.left, bottom: box.bottom });
         return;
     }
     const marker = target?.closest(".marker");

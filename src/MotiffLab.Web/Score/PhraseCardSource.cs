@@ -12,6 +12,9 @@ namespace MotiffLab.Web.Score;
 /// <param name="Ossias">The ossias above the original, top first.</param>
 public sealed record PhraseCardSource(string Mei, Tick Offset, IReadOnlyList<CardOssia> Ossias)
 {
+    /// <summary>A class for some notes by id, such as "version-added" (plum) or "own-note" (amber) in the merge's views.</summary>
+    public IReadOnlyDictionary<string, string> Tints { get; init; } = new Dictionary<string, string>();
+
     /// <summary>The card for an excerpt; <paramref name="label"/> gives each ossia's overline.</summary>
     public static PhraseCardSource From(GeneratedNotation notation, Tick offset, Func<GeneratedOssia, string> label) =>
         new(notation.Mei, offset, [.. notation.Ossias.Select(ossia => new CardOssia([.. ossia.Staves.Select(staff => staff.Number)], ossia.IdPrefix, label(ossia)))]);

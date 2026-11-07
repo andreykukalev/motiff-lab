@@ -90,6 +90,8 @@ export class PhraseCard {
     private sounding: Sounding = "original";
     private player: PlayerHandle | null = null;
     private marked = new Set<string>();
+    /** A class for some notes, by id: the merge's views tint what comes from the version plum and what the player wrote amber. */
+    private tints: Record<string, string> = {};
     private markedKey = "";
     private pages: string[] = [];
     private geometry: PageGeometry[] = [];
@@ -110,7 +112,7 @@ export class PhraseCard {
      * Engraves an excerpt (MEI from music-core) that starts at this tick of the piece, with these ossias above it.
      * Returns how many notes it engraved. Throws if Verovio cannot read it.
      */
-    async load(mei: string, offset: number, ossias: CardOssia[]): Promise<number> {
+    async load(mei: string, offset: number, ossias: CardOssia[], tints: Record<string, string> = {}): Promise<number> {
         this.engraver ??= await newToolkit();
         if (this.disposed) {
             this.release();
@@ -123,6 +125,7 @@ export class PhraseCard {
         }
         this.offset = offset;
         this.ossias = ossias;
+        this.tints = tints;
         this.timeline = ScoreTimeline.fromTimemap(engraver.renderToTimemap({ includeRests: false }));
         this.render();
         return this.timeline.spans.length;
@@ -182,6 +185,9 @@ export class PhraseCard {
         }
         this.geometry = this.pages.map((svg, index) => readPage(svg, index + 1));
         this.host.replaceChildren(...parts);
+        for (const [id, tint] of Object.entries(this.tints)) {
+            this.element(id)?.classList.add(tint);
+        }
         this.placeFrames();
         const marked = [...this.marked];
         this.marked = new Set();
