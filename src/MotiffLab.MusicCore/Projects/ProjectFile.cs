@@ -27,6 +27,7 @@ public static class ProjectFile
     public const string FormatName = "motiff-lab-project";
 
     /// <summary>
+    /// 14 lets a correction add a note, with its track and hand (testing item 15);
     /// 12 keeps what the redesign keeps with the piece (0018): the marks (ink, margin notes, highlights, fingering), the
     /// bookmarks and their categories, the resume points that replace the sessions, the Check flags, the piece's settings
     /// overrides and the fact each idea came from;
@@ -45,7 +46,7 @@ public static class ProjectFile
     /// change the whole selection, versions 1 and 2 have no corrections, and version 1 holds one
     /// step per variation.
     /// </summary>
-    public const int Version = 13;
+    public const int Version = 14;
 
     /// <summary>The extension an exported project gets.</summary>
     public const string Extension = ".motiff.json";
@@ -141,7 +142,23 @@ public static class ProjectFile
             {
                 json.WriteStartObject();
                 json.WriteString("noteId", edit.NoteId);
-                WriteValues(json, "before", edit.Before);
+                if (edit.Before is { } before)
+                {
+                    WriteValues(json, "before", before);
+                }
+                else
+                {
+                    // A note the player added (version 14, testing item 15): its track and hand, then its values.
+                    json.WriteStartObject("added");
+                    json.WriteNumber("track", edit.Track);
+                    if (edit.Hand is { } hand)
+                    {
+                        json.WriteString("hand", hand.ToString());
+                    }
+
+                    json.WriteEndObject();
+                }
+
                 if (edit.After is { } after)
                 {
                     WriteValues(json, "after", after);
@@ -1454,6 +1471,22 @@ public static class ProjectFile
     private static NoteEdit ReadEdit(JsonElement edit)
     {
         Expect(edit, JsonValueKind.Object, "note corrections");
+        if (edit.TryGetProperty("added", out JsonElement added))
+        {
+            Expect(added, JsonValueKind.Object, "note corrections");
+            int track = Integer(added, "track");
+            if (track < 0 || !edit.TryGetProperty("after", out JsonElement values))
+            {
+                throw Damaged("note corrections");
+            }
+
+            return new NoteEdit(Text(edit, "noteId"), null, ReadValues(values))
+            {
+                Track = track,
+                Hand = added.TryGetProperty("hand", out _) ? Name<Hand>(added, "hand") : null,
+            };
+        }
+
         return new NoteEdit(
             Text(edit, "noteId"),
             ReadValues(Property(edit, "before", JsonValueKind.Object)),

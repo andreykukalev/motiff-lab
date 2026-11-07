@@ -1,6 +1,7 @@
 // The piano roll in the iPad app's drawer (0018 section 4). It is the web app's own roll (Scripts/roll/piano-roll.ts),
 // which Blazor drives in the web app; here Swift drives it through window.roll, and what the player does on it goes to
-// Swift as a message: bars dragged across or a bar number tapped, the selection cleared, Space pressed. The roll reads
+// Swift as a message: bars dragged across or a bar number tapped, the selection cleared, Space pressed, and with the note
+// editor on (testing item 15) a note moved, added or taken out. The roll reads
 // the player's position every frame; Swift sends it about 30 times a second (`position`).
 import { createPianoRoll } from "../roll/piano-roll.js";
 import { THEME_CHANGED } from "../layout/theme.js";
@@ -38,6 +39,19 @@ const host = {
                 break;
             case "OnRollSpace":
                 post({ space: true });
+                break;
+            case "OnRollNoteChange": {
+                const [id, onset, pitch, length] = args;
+                post({ edit: { kind: "change", id, onset, pitch, length } });
+                break;
+            }
+            case "OnRollNoteAdd": {
+                const [onset, pitch, length] = args;
+                post({ edit: { kind: "add", onset, pitch, length } });
+                break;
+            }
+            case "OnRollNoteRemove":
+                post({ edit: { kind: "remove", id: args[0] } });
                 break;
             default:
                 break;
@@ -154,5 +168,11 @@ function fits(on) {
     view.setFitsSelection(Boolean(on));
 }
 
-window.roll = { load, nextColour, colour, theme, position, selection, noteNames, highlight, fits };
+/** The note editor on or off with its tool ("move", "add" or "delete"), and the note it acts on, such as one just added. */
+function edit({ on, tool, picked }) {
+    view.setEditing(Boolean(on), tool ?? "move");
+    view.pickForEdit(on ? picked ?? null : null);
+}
+
+window.roll = { load, nextColour, colour, theme, position, selection, noteNames, highlight, fits, edit };
 post("ready");

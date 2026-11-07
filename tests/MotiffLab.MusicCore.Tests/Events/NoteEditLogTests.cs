@@ -106,4 +106,42 @@ public class NoteEditLogTests
         Assert.Equal(NoteEditLog.Empty.Remove(imported, "n2"), NoteEditLog.Empty.Remove(imported, "n2"));
         Assert.NotEqual(NoteEditLog.Empty.Remove(imported, "n2"), NoteEditLog.Empty.Remove(imported, "n3"));
     }
+
+    [Fact]
+    public void An_added_note_joins_the_piece_in_time_order_and_can_be_changed_removed_or_reverted()
+    {
+        Note[] imported = Imported();
+        NoteValues values = new(new Pitch(67), new TickSpan(new Tick(240), 240), 70);
+
+        NoteEditLog log = NoteEditLog.Empty.Add(imported, values, 0, Hand.Left, out string id);
+        Assert.Equal("a1", id);
+        NoteEdit edit = Assert.Single(log.Edits);
+        Assert.True(edit.IsAddition);
+        Assert.False(edit.IsRemoval);
+
+        IReadOnlyList<Note> notes = log.Apply(imported);
+        Assert.Equal(["n1", "a1", "n2", "n3"], notes.Select(note => note.Id));
+        Note added = notes[1];
+        Assert.Equal(values, NoteValues.Of(added));
+        Assert.Equal(Provenance.UserEdited, added.Attribution.Provenance);
+        Assert.Equal(Hand.Left, added.Hand!.Value);
+
+        NoteEditLog second = log.Add(imported, values, 0, null, out string next);
+        Assert.Equal("a2", next);
+        Assert.Null(second.Apply(imported).Single(note => note.Id == "a2").Hand);
+
+        NoteEditLog moved = log.Change(imported, "a1", values with { Pitch = new Pitch(69) });
+        Assert.Equal(69, moved.Apply(imported).Single(note => note.Id == "a1").Pitch.MidiNumber);
+        Assert.DoesNotContain(moved.Remove(imported, "a1").Apply(imported), note => note.Id == "a1");
+        Assert.Equal(imported, moved.Revert("a1").Apply(imported));
+        Assert.Equal(imported, log.Undo().Apply(imported));
+    }
+
+    [Fact]
+    public void An_added_note_whose_id_the_piece_already_has_is_refused()
+    {
+        Note[] imported = Imported();
+        var log = new NoteEditLog([new NoteEdit("n2", null, new NoteValues(new Pitch(60), new TickSpan(Tick.Zero, 240), 80))]);
+        Assert.Throws<InvalidOperationException>(() => log.Apply(imported));
+    }
 }

@@ -311,7 +311,7 @@
                                     <PianoRoll Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases" FitsSelection="true"
                                                Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible" Highlight="_highlight?.Places"
                                                RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync"
-                                               SelectionChanged="OnRollNotesChosen" Keys="RollKeys" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync" Point="_rollPoint" />
+                                               SelectionChanged="OnRollNotesChosen" Keys="RollKeys" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync" Point="_rollPoint" Editor="RollEditor" />
                                 </div>
                             }
                             else
@@ -332,7 +332,7 @@
                     <PianoRoll Heading="@RollHeading" Notes="_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases"
                                Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible" Highlight="_highlight?.Places"
                                RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync"
-                               SelectionChanged="OnRollNotesChosen" Keys="RollKeys" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync" Point="_rollPoint"
+                               SelectionChanged="OnRollNotesChosen" Keys="RollKeys" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync" Point="_rollPoint" Editor="RollEditor"
                                Expanded="ExpandRollAsync" />
                 </section>
             }
@@ -3222,8 +3222,8 @@
     /// </summary>
     private async Task SaveProjectAsync()
     {
-        // An experiment being tried is saved only once the player keeps it.
-        if (_project is null || _restoring || ActiveTrial is { Kept: false })
+        // An experiment being tried is saved only once the player keeps it; the notes edited on the roll once they are saved (testing item 15).
+        if (_project is null || _restoring || ActiveTrial is { Kept: false } || NoteEditing)
         {
             return;
         }

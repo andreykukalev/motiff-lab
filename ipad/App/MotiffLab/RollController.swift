@@ -5,7 +5,8 @@ import WebKit
 /// view of its own (Web/roll.html), as the score is. music-core gives its data (`roll`: the notes and bars packed as the
 /// roll reads them, and their names spelled as the score spells them). Swift tells it where the player is and what is
 /// selected, and lights the places of the fact chosen in Insights; what the player does on it comes back here: bars dragged across or a bar number tapped select those bars,
-/// a tap on an empty place clears the selection, Space plays or pauses.
+/// a tap on an empty place clears the selection, Space plays or pauses; with the note editor on (testing item 15), a note
+/// moved, added or taken out goes to music-core as a correction on the draft.
 @MainActor
 final class RollController: NSObject, ObservableObject {
     /// Whether each note carries its name (the web app's Note names chip, the setting "roll.noteNames").
@@ -25,6 +26,8 @@ final class RollController: NSObject, ObservableObject {
     var barsPicked: (@MainActor (_ first: Int, _ last: Int, _ extend: Bool) -> Void)?
     var cleared: (@MainActor () -> Void)?
     var spacePressed: (@MainActor () -> Void)?
+    /// A note moved, added or taken out with the note editor on.
+    var noteEdited: (@MainActor (RollNoteEdit) -> Void)?
 
     let webView: WKWebView
     private let text = UIText.current
@@ -35,6 +38,8 @@ final class RollController: NSObject, ObservableObject {
     private var shownSelection: [String: Any]?
     private var shownHighlight: [[String: Any]] = []
     private var fits = false
+    /// The note editor as last shown: on or off, its tool and the note picked.
+    private var editor: [String: Any] = ["on": false]
     /// How the notes were named when the roll was loaded: "auto", "letters" or "syllables" (the setting "notes.naming").
     private var naming = "auto"
 
@@ -97,6 +102,15 @@ final class RollController: NSObject, ObservableObject {
         Task { _ = try? await webView.callAsyncJavaScript("return roll.fits(on)", arguments: ["on": on], contentWorld: .page) }
     }
 
+    /// The note editor on, with its tool and the note picked, or off (nil): a press on the notes then edits them.
+    func showEditor(_ state: NoteEditorState?) {
+        var data: [String: Any] = ["on": state != nil, "tool": state?.tool ?? "move"]
+        if let picked = state?.picked { data["picked"] = picked }
+        editor = data
+        guard loaded else { return }
+        Task { _ = try? await webView.callAsyncJavaScript("return roll.edit(data)", arguments: ["data": data], contentWorld: .page) }
+    }
+
     /// The places of the fact chosen in Insights, lit on the roll as on the score; none clears them.
     func highlight(_ places: [Fact.Place]) {
         shownHighlight = places.map { ["onset": $0.onset, "end": $0.end, "noteIds": $0.noteIds] }
@@ -145,6 +159,9 @@ final class RollController: NSObject, ObservableObject {
         if message["space"] != nil {
             spacePressed?()
         }
+        if let edit = message["edit"] as? [String: Any], let made = RollNoteEdit(edit) {
+            noteEdited?(made)
+        }
     }
 
     private func load() async {
@@ -175,6 +192,9 @@ final class RollController: NSObject, ObservableObject {
                 let data: [String: Any] = ["places": shownHighlight]
                 _ = try? await webView.callAsyncJavaScript("return roll.highlight(data)", arguments: ["data": data], contentWorld: .page)
             }
+            if editor["on"] as? Bool == true {
+                _ = try? await webView.callAsyncJavaScript("return roll.edit(data)", arguments: ["data": editor], contentWorld: .page)
+            }
         } catch {
             problem = error.localizedDescription
         }
@@ -187,6 +207,31 @@ final class RollController: NSObject, ObservableObject {
             "legendVariation", "legendHighlight", "legendInferred", "legendCheck", "zoomGroup", "zoomIn", "zoomOut", "zoomLevel", "fit", "fitHint",
         ]
         return Dictionary(uniqueKeysWithValues: names.map { ($0, text["roll.js.\($0)"]) })
+    }
+}
+
+/// A note moved (its new onset and length in ticks, and pitch), added where the player pressed, or taken out, with the note
+/// editor on (testing item 15).
+enum RollNoteEdit: Equatable, Sendable {
+    case change(id: String, onset: Int, pitch: Int, length: Int)
+    case add(onset: Int, pitch: Int, length: Int)
+    case remove(id: String)
+
+    init?(_ message: [String: Any]) {
+        func number(_ key: String) -> Int? { (message[key] as? NSNumber)?.intValue }
+        switch message["kind"] as? String {
+        case "change":
+            guard let id = message["id"] as? String, let onset = number("onset"), let pitch = number("pitch"), let length = number("length") else { return nil }
+            self = .change(id: id, onset: onset, pitch: pitch, length: length)
+        case "add":
+            guard let onset = number("onset"), let pitch = number("pitch"), let length = number("length") else { return nil }
+            self = .add(onset: onset, pitch: pitch, length: length)
+        case "remove":
+            guard let id = message["id"] as? String else { return nil }
+            self = .remove(id: id)
+        default:
+            return nil
+        }
     }
 }
 
@@ -219,38 +264,10 @@ struct RollDrawer: View {
 
     var body: some View {
         VStack(spacing: CGFloat.ds("s-2")) {
-            HStack(spacing: CGFloat.ds("s-2")) {
-                Text(heading).overline()
-                Spacer(minLength: CGFloat.ds("s-2"))
-                Button {
-                    roll.noteNames.toggle()
-                } label: {
-                    HStack(spacing: 6) {
-                        Circle().fill(roll.noteNames ? Color.ds("accent") : Color.ds("hairline-strong")).frame(width: 6, height: 6)
-                        Text(text["roll.noteNames"])
-                    }
-                }
-                .buttonStyle(DSItemStyle(on: roll.noteNames))
-                .accessibilityAddTraits(roll.noteNames ? .isSelected : [])
-                Button(text["roll.colour.\(roll.colourBy)"]) {
-                    roll.nextColour()
-                }
-                .buttonStyle(DSItemStyle())
-                .disabled(!roll.canChangeColour)
-                .help(text["roll.colourHint"])
-                Button(action: expand) {
-                    HStack(spacing: 6) {
-                        Icon(name: "search", size: CGFloat.ds("icon-s"))
-                        Text(text["roll.expand"])
-                    }
-                }
-                .buttonStyle(DSItemStyle())
-                .help(text["roll.expandHint"])
-                Button(action: close) {
-                    Icon(name: "close").frame(width: 32, height: 32)
-                }
-                .buttonStyle(BarActionStyle())
-                .accessibilityLabel(text["bar.close"])
+            if let editor = score.noteEditor {
+                editing(editor)
+            } else {
+                head
             }
             ScoreRollView(roll: roll)
         }
@@ -264,6 +281,101 @@ struct RollDrawer: View {
         .dsShadow("shadow-sheet")
         .accessibilityElement(children: .contain)
         .accessibilityLabel(text["bar.roll"])
+    }
+
+    /// Where it is, Edit notes, Note names, the colour scheme, Expand and Close.
+    private var head: some View {
+        HStack(spacing: CGFloat.ds("s-2")) {
+            Text(heading).overline()
+            Spacer(minLength: CGFloat.ds("s-2"))
+            Button {
+                score.beginNoteEdit()
+            } label: {
+                HStack(spacing: 6) {
+                    Icon(name: "pen", size: CGFloat.ds("icon-s"))
+                    Text(text["edit.begin"])
+                }
+            }
+            .buttonStyle(DSItemStyle())
+            .help(text["edit.beginHint"])
+            Button {
+                roll.noteNames.toggle()
+            } label: {
+                HStack(spacing: 6) {
+                    Circle().fill(roll.noteNames ? Color.ds("accent") : Color.ds("hairline-strong")).frame(width: 6, height: 6)
+                    Text(text["roll.noteNames"])
+                }
+            }
+            .buttonStyle(DSItemStyle(on: roll.noteNames))
+            .accessibilityAddTraits(roll.noteNames ? .isSelected : [])
+            Button(text["roll.colour.\(roll.colourBy)"]) {
+                roll.nextColour()
+            }
+            .buttonStyle(DSItemStyle())
+            .disabled(!roll.canChangeColour)
+            .help(text["roll.colourHint"])
+            Button(action: expand) {
+                HStack(spacing: 6) {
+                    Icon(name: "search", size: CGFloat.ds("icon-s"))
+                    Text(text["roll.expand"])
+                }
+            }
+            .buttonStyle(DSItemStyle())
+            .help(text["roll.expandHint"])
+            Button(action: close) {
+                Icon(name: "close").frame(width: 32, height: 32)
+            }
+            .buttonStyle(BarActionStyle())
+            .accessibilityLabel(text["bar.close"])
+        }
+    }
+
+    /// The note editor's head (testing item 15): the tools, Undo, Reset, Cancel and Save, and what the tool does.
+    private func editing(_ editor: NoteEditorState) -> some View {
+        VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
+            HStack(spacing: CGFloat.ds("s-2")) {
+                // The overline in the accent: the roll is being edited.
+                Text(text["edit.title"]).dsType(.overline).textCase(.uppercase).tracking(0.66).foregroundStyle(Color.ds("accent"))
+                SegmentedChoice(options: ["move", "add", "delete"].map { ($0, text["edit.\($0)"]) }, chosen: editor.tool, label: text["edit.tool"]) {
+                    score.chooseNoteEditTool($0)
+                }
+                Button {
+                    score.undoNoteEdit()
+                } label: {
+                    Icon(name: "undo", size: CGFloat.ds("icon-s")).frame(width: 32, height: 32)
+                }
+                .buttonStyle(DSItemStyle())
+                .disabled(!editor.canUndo)
+                .accessibilityLabel(text["edit.undo"])
+                Button(text["edit.reset"]) {
+                    score.resetNotes()
+                }
+                .buttonStyle(DSItemStyle())
+                .disabled(!editor.canReset)
+                .help(text["edit.resetHint"])
+                Spacer(minLength: CGFloat.ds("s-2"))
+                Button(text["edit.cancel"]) {
+                    score.cancelNoteEdit()
+                }
+                .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
+                Button {
+                    score.saveNoteEdit()
+                } label: {
+                    HStack(spacing: 6) {
+                        Icon(name: "check", size: CGFloat.ds("icon-s"))
+                        Text(text["edit.save"])
+                    }
+                }
+                .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
+                .disabled(!editor.changed)
+            }
+            Text("\(text["edit.\(editor.tool)Hint"]) \(text["edit.keptOnSave"])")
+                .dsType(.caption)
+                .foregroundStyle(Color.ds("ink-2"))
+                .lineLimit(2)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(text["edit.toolbar"])
     }
 
     /// "Piano roll · bars 9–16", or "Piano roll" with nothing selected.

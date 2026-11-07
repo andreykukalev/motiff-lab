@@ -246,7 +246,7 @@ public class ProjectV12Tests
     [Fact]
     public void A_newer_file_is_still_refused()
     {
-        string json = Encoding.UTF8.GetString(ProjectFile.Write(Worked())).Replace("\"version\": 13", "\"version\": 14", StringComparison.Ordinal);
+        string json = Encoding.UTF8.GetString(ProjectFile.Write(Worked())).Replace("\"version\": 14", "\"version\": 15", StringComparison.Ordinal);
 
         ProjectFileException exception = Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Encoding.UTF8.GetBytes(json)));
 

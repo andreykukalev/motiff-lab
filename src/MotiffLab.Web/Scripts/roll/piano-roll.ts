@@ -74,6 +74,13 @@ function noteFont(row: number): string {
 }
 /** The zoom buttons' step, and the wheel's and the keys' (testing item 13). */
 const ZOOM_STEP = 1.25;
+/** The note editor's grid (testing item 15): a sixteenth, the step the web app's note corrections move by. */
+const EDIT_STEP = TICKS_PER_QUARTER / 4;
+/** How near a note's end, in pixels, a press drags its length rather than moving it. */
+const LENGTH_GRAB = 8;
+
+/** What a press on the notes does while the notes are edited: move or lengthen a note, add one, or take one out. */
+export type EditTool = "move" | "add" | "delete";
 /** A Check flag on the bar numbers: an amber square with "?" (design/kit/ds.css .flag), and the target round it. */
 const CHECK_FLAG = 14;
 const CHECK_TARGET = 22;
@@ -280,6 +287,12 @@ export class PianoRoll {
     private frame = 0;
     private disposed = false;
     private labels: RollLabels;
+    /** The note editor (testing item 15): on, its tool, the note picked by id, the length of the next note added, and a drag of a note. */
+    private editing = false;
+    private editTool: EditTool = "move";
+    private editId: string | null = null;
+    private editLength = TICKS_PER_QUARTER / 2;
+    private editDrag: { pointer: number; index: number; mode: "move" | "length"; x: number; y: number; ticks: number; pitches: number; pitch: number; sounding: number | null } | null = null;
 
     constructor(host: HTMLElement, dotnet: DotNetObject, labels: RollLabels = ENGLISH_ROLL_LABELS) {
         this.host = host;
@@ -357,9 +370,96 @@ export class PianoRoll {
         this.shortNames = null;
         this.drag = null;
         this.press = null;
-        this.scroll = 0;
-        this.pitchTop = null;
+        this.editDrag = null;
+        if (!this.editing) {
+            this.scroll = 0;
+            this.pitchTop = null;
+        } else if (this.editId !== null && !this.model.notes.some((note) => note.id === this.editId)) {
+            this.editId = null;
+        }
         this.updateLanes();
+    }
+
+    /**
+     * Turns the note editor on or off (testing item 15) with its tool. While it is on, a press on the notes edits them
+     * instead of selecting: a note dragged moves (by sixteenths and rows), its end dragged changes its length, a press on an
+     * empty place adds a note with Add, a note pressed with Delete is taken out; Delete or Backspace takes out the note
+     * picked and the arrows move it. The roll keeps its scroll and zoom as the notes come back after each edit.
+     */
+    setEditing(on: boolean, tool: EditTool = "move"): void {
+        this.editing = on;
+        this.editTool = tool;
+        if (!on) {
+            this.editId = null;
+            this.editDrag = null;
+        }
+        this.roll.classList.toggle("editing", on);
+        this.invalidate();
+    }
+
+    /** Picks a note in the editor, such as one just added, so the arrows and Delete act on it. */
+    pickForEdit(id: string | null): void {
+        this.editId = id;
+        this.invalidate();
+    }
+
+    private editIndex(): number | undefined {
+        const model = this.model;
+        if (model === null || this.editId === null) {
+            return undefined;
+        }
+        const index = model.notes.findIndex((note) => note.id === this.editId);
+        return index < 0 ? undefined : index;
+    }
+
+    /** A press on the notes while the editor is on: picks, starts a drag, adds or takes out a note. */
+    private editPress(event: PointerEvent, model: RollModel, x: number, y: number, tick: number, pitch: number): void {
+        const index = model.noteAt(tick, pitch);
+        if (this.editTool === "delete") {
+            if (index !== undefined) {
+                void this.dotnet.invokeMethodAsync("OnRollNoteRemove", model.notes[index].id);
+            }
+            return;
+        }
+        if (index === undefined) {
+            if (this.editTool === "add") {
+                const onset = Math.max(0, Math.floor(tick / EDIT_STEP) * EDIT_STEP);
+                this.release(this.strike(pitch));
+                void this.dotnet.invokeMethodAsync("OnRollNoteAdd", onset, pitch, this.editLength);
+            } else {
+                this.editId = null;
+                this.invalidate();
+            }
+            return;
+        }
+        const note = model.notes[index];
+        this.editId = note.id;
+        const nearEnd = Math.abs(x - this.xOf(note.end)) <= LENGTH_GRAB && note.end - note.onset > 0;
+        this.editDrag = { pointer: event.pointerId, index, mode: nearEnd ? "length" : "move", x, y, ticks: 0, pitches: 0, pitch: note.pitch, sounding: this.strike(note.pitch) };
+        this.invalidate();
+    }
+
+    /** Where a note dragged in the editor would go: its onset, pitch and length. */
+    private edited(index: number): { onset: number; pitch: number; length: number } {
+        const note = this.model!.notes[index];
+        const drag = this.editDrag;
+        const length = note.end - note.onset;
+        if (drag === null || drag.index !== index) {
+            return { onset: note.onset, pitch: note.pitch, length };
+        }
+        return drag.mode === "length"
+            ? { onset: note.onset, pitch: note.pitch, length: Math.max(EDIT_STEP, Math.round((length + drag.ticks) / EDIT_STEP) * EDIT_STEP) }
+            : { onset: Math.max(0, note.onset + Math.round(drag.ticks / EDIT_STEP) * EDIT_STEP), pitch: Math.min(127, Math.max(0, note.pitch + drag.pitches)), length };
+    }
+
+    /** Sends a note's new onset, pitch and length to the host. */
+    private sendEdit(index: number, onset: number, pitch: number, length: number): void {
+        const note = this.model!.notes[index];
+        if (onset === note.onset && pitch === note.pitch && length === note.end - note.onset) {
+            return;
+        }
+        this.editLength = length;
+        void this.dotnet.invokeMethodAsync("OnRollNoteChange", note.id, onset, pitch, length);
     }
 
     /**
@@ -971,9 +1071,10 @@ export class PianoRoll {
             if (note.pitch < low || note.pitch > high) {
                 continue;
             }
-            const x = this.xOf(note.onset);
-            const w = Math.max(2, ((note.end - note.onset) * this.zoom) / TICKS_PER_QUARTER - 1);
-            const y = HEADER + (high - note.pitch) * row + 1;
+            const at = this.editDrag?.index === index ? this.edited(index) : { onset: note.onset, pitch: note.pitch, length: note.end - note.onset };
+            const x = this.xOf(at.onset);
+            const w = Math.max(2, (at.length * this.zoom) / TICKS_PER_QUARTER - 1);
+            const y = HEADER + (high - at.pitch) * row + 1;
             const h = Math.max(2, row - 2);
             const lane = this.laneIndex.get(laneKey(note, this.colourBy)) ?? 0;
 
@@ -1023,6 +1124,12 @@ export class PianoRoll {
                 context.strokeStyle = INK;
                 context.lineWidth = 2;
                 context.strokeRect(x - 1, y - 1, w + 2, h + 2);
+            }
+            // The note picked in the editor: the accent's outline, as everything the player points at (0018).
+            if (this.editing && note.id === this.editId) {
+                context.strokeStyle = ACCENT;
+                context.lineWidth = 2;
+                context.strokeRect(x - 1.5, y - 1.5, w + 3, h + 3);
             }
             // Highlighted notes get a solid blue box with a dark edge, outside the selection's outline.
             if (highlighted) {
@@ -1402,11 +1509,14 @@ export class PianoRoll {
         }
         const tick = this.tickAtX(x);
         // A press on an edge of the selection drags that edge; the other edge stays where it is.
-        const edge = this.edgeAt(x);
+        const edge = this.editing ? null : this.edgeAt(x);
         if (edge !== null && this.motif !== null) {
             const anchor = edge === "start" ? this.motif.end - 1 : this.motif.start;
             this.drag = { pointer: event.pointerId, anchorX: Number.NaN, anchor, current: tick, edge: true };
             this.invalidate();
+            return;
+        }
+        if (y < HEADER && this.editing) {
             return;
         }
         if (y < HEADER) {
@@ -1425,6 +1535,10 @@ export class PianoRoll {
             }
             this.drag = { pointer: event.pointerId, anchorX: x, anchor: tick, current: tick, edge: false };
             this.invalidate();
+            return;
+        }
+        if (this.editing) {
+            this.editPress(event, model, x, y, tick, pitch);
             return;
         }
         // A note sounds as soon as it is pressed, over playback too.
@@ -1468,6 +1582,31 @@ export class PianoRoll {
                 this.zoomTo(this.pinch.zoom * factor, this.pinch.rowScale * factor, Math.max(0, (a.x + b.x) / 2 - GUTTER));
                 return;
             }
+        }
+        const editDrag = this.editDrag;
+        if (editDrag !== null && event.pointerId === editDrag.pointer) {
+            const { row } = this.pitchRange();
+            editDrag.ticks = ((x - editDrag.x) * TICKS_PER_QUARTER) / this.zoom;
+            editDrag.pitches = editDrag.mode === "move" ? Math.round((editDrag.y - (event.clientY - box.top)) / row) : 0;
+            // The note sounds again on each new row, so the player hears where it goes.
+            const pitch = this.edited(editDrag.index).pitch;
+            if (pitch !== editDrag.pitch) {
+                this.release(editDrag.sounding);
+                editDrag.pitch = pitch;
+                editDrag.sounding = this.strike(pitch);
+            }
+            this.invalidate();
+            return;
+        }
+        if (this.editing && this.model !== null) {
+            const tick = this.tickAtX(x);
+            const { high, row } = this.pitchRange();
+            const index = x >= GUTTER ? this.model.noteAt(tick, high - Math.floor((event.clientY - box.top - HEADER) / row)) : undefined;
+            this.roll.style.cursor = index === undefined
+                ? this.editTool === "add" ? "copy" : ""
+                : this.editTool === "delete" ? "not-allowed"
+                : Math.abs(x - this.xOf(this.model.notes[index].end)) <= LENGTH_GRAB ? "ew-resize" : "move";
+            return;
         }
         const press = this.press;
         if (press !== null && event.pointerId === press.pointer) {
@@ -1519,6 +1658,15 @@ export class PianoRoll {
             this.pinch = null;
             return;
         }
+        const editDrag = this.editDrag;
+        if (editDrag !== null && event.pointerId === editDrag.pointer) {
+            const { onset, pitch, length } = this.edited(editDrag.index);
+            this.editDrag = null;
+            this.release(editDrag.sounding);
+            this.sendEdit(editDrag.index, onset, pitch, length);
+            this.invalidate();
+            return;
+        }
         const press = this.press;
         if (press !== null && event.pointerId === press.pointer) {
             this.press = null;
@@ -1553,6 +1701,8 @@ export class PianoRoll {
         this.touches.delete(event.pointerId);
         this.pinch = null;
         this.release(this.press?.sounding ?? null);
+        this.release(this.editDrag?.sounding ?? null);
+        this.editDrag = null;
         this.drag = null;
         this.press = null;
         this.invalidate();
@@ -1723,6 +1873,11 @@ export class PianoRoll {
             event.preventDefault();
             return;
         }
+        const picked = this.editing ? this.editIndex() : undefined;
+        if (picked !== undefined && this.editKey(event, model, picked)) {
+            event.preventDefault();
+            return;
+        }
         switch (event.key) {
             case "ArrowRight":
             case "ArrowLeft": {
@@ -1748,6 +1903,38 @@ export class PianoRoll {
         }
         event.preventDefault();
     };
+
+    /** The editor's keys on the note picked: Delete or Backspace takes it out, the arrows move it, Shift with ← → changes its length. */
+    private editKey(event: KeyboardEvent, model: RollModel, index: number): boolean {
+        const note = model.notes[index];
+        const length = note.end - note.onset;
+        switch (event.key) {
+            case "Delete":
+            case "Backspace":
+                void this.dotnet.invokeMethodAsync("OnRollNoteRemove", note.id);
+                return true;
+            case "ArrowUp":
+            case "ArrowDown":
+                this.sendEdit(index, note.onset, Math.min(127, Math.max(0, note.pitch + (event.key === "ArrowUp" ? 1 : -1))), length);
+                return true;
+            case "ArrowLeft":
+            case "ArrowRight": {
+                const step = event.key === "ArrowRight" ? EDIT_STEP : -EDIT_STEP;
+                if (event.shiftKey) {
+                    this.sendEdit(index, note.onset, note.pitch, Math.max(EDIT_STEP, length + step));
+                } else {
+                    this.sendEdit(index, Math.max(0, note.onset + step), note.pitch, length);
+                }
+                return true;
+            }
+            case "Escape":
+                this.editId = null;
+                this.invalidate();
+                return true;
+            default:
+                return false;
+        }
+    }
 
     private readonly onWheel = (event: WheelEvent): void => {
         // Ctrl (or a pinch) zooms around the pointer; a sideways or Shift scroll moves through time.

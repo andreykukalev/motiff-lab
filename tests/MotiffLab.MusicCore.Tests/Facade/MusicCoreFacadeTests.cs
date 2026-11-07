@@ -87,6 +87,56 @@ public class MusicCoreFacadeTests
     }
 
     [Fact]
+    public void The_note_editor_adds_sets_and_resets_notes_on_a_draft_kept_only_once_saved()
+    {
+        (MusicCoreFacade facade, _) = Open("""{"id": "p_fur"}""");
+        JsonElement begun = Call(facade, "corrections.begin", """{"bar": 2}""");
+        Assert.True(begun.GetProperty("editing").GetBoolean());
+        Assert.False(begun.GetProperty("canUndo").GetBoolean());
+        long onset = begun.GetProperty("span").GetProperty("onset").GetInt64();
+
+        // A note a scan missed, added where the player taps; it takes the hand of the notes near it.
+        JsonElement added = Call(facade, "corrections.add", $$"""{"bar": 2, "pitch": 76, "onset": {{onset + 240}}, "length": 240}""");
+        string id = added.GetProperty("added").GetString()!;
+        Assert.Equal("a1", id);
+        Assert.True(added.GetProperty("changed").GetBoolean());
+        JsonElement note = added.GetProperty("notes").EnumerateArray().Single(note => note.GetProperty("id").GetString() == id);
+        Assert.Equal(76, note.GetProperty("pitch").GetInt32());
+        Assert.True(note.GetProperty("edited").GetBoolean());
+
+        // Dragged on the roll: pitch, onset and length at once.
+        JsonElement set = Call(facade, "corrections.set", $$"""{"bar": 2, "id": "{{id}}", "pitch": 77, "onset": {{onset + 480}}, "length": 120}""");
+        note = set.GetProperty("notes").EnumerateArray().Single(note => note.GetProperty("id").GetString() == id);
+        Assert.Equal(77, note.GetProperty("pitch").GetInt32());
+        Assert.Equal(onset + 480, note.GetProperty("onset").GetInt64());
+
+        // Not saved yet: the project file keeps the corrections as they were.
+        string draft = Call(facade, "project.save").GetRawText();
+        Assert.DoesNotMatch("\"noteId\":\\s*\"a1\"", draft);
+
+        // Reset takes every correction out, and undo steps back through the reset and the set.
+        Assert.Equal(0, Call(facade, "corrections.reset", """{"bar": 2}""").GetProperty("count").GetInt32());
+        Assert.Equal(2, Call(facade, "corrections.undo", """{"bar": 2}""").GetProperty("count").GetInt32());
+        JsonElement undone = Call(facade, "corrections.undo", """{"bar": 2}""");
+        Assert.Equal(76, undone.GetProperty("notes").EnumerateArray().Single(note => note.GetProperty("id").GetString() == id).GetProperty("pitch").GetInt32());
+
+        JsonElement saved = Call(facade, "corrections.save", """{"bar": 2}""");
+        Assert.False(saved.GetProperty("editing").GetBoolean());
+        string file = Call(facade, "project.save").GetRawText();
+        var again = new MusicCoreFacade();
+        Assert.False(Json(again.Open("fur.motiff.json", System.Text.Encoding.UTF8.GetBytes(file))).TryGetProperty("error", out _));
+        Assert.Contains(Json(again.Call(1, "corrections", """{"bar": 2}""")).GetProperty("notes").EnumerateArray(), note => note.GetProperty("id").GetString() == id);
+
+        // Discarded, a draft leaves the corrections as they were before it.
+        Call(facade, "corrections.begin", """{"bar": 2}""");
+        Call(facade, "corrections.remove", $$"""{"bar": 2, "id": "{{id}}"}""");
+        JsonElement discarded = Call(facade, "corrections.discard", """{"bar": 2}""");
+        Assert.Contains(discarded.GetProperty("notes").EnumerateArray(), note => note.GetProperty("id").GetString() == id);
+        Assert.Equal("unavailable", Error(facade, 1, "corrections.save", """{"bar": 2}"""));
+        Assert.Equal("badRequest", Error(facade, 1, "corrections.add", """{"bar": 2, "pitch": 200, "onset": 0}"""));
+    }
+
+    [Fact]
     public void VersionNamesTheContractAndTheProjectFile()
     {
         JsonElement version = Json(new MusicCoreFacade().Call(0, "version"));
@@ -987,7 +1037,7 @@ public class MusicCoreFacadeTests
 
         // The performance and the taken bar come back with the project file.
         string saved = facade.Call(1, "project.save", """{"now": "2026-11-05T12:00:00Z"}""");
-        Assert.Equal(13, Json(saved).GetProperty("version").GetInt32());
+        Assert.Equal(ProjectFile.Version, Json(saved).GetProperty("version").GetInt32());
         var again = new MusicCoreFacade();
         again.Open("fur-elise" + ProjectFile.Extension, System.Text.Encoding.UTF8.GetBytes(saved));
         Assert.Equal(printed + 3, Call(again, "piece").GetProperty("noteCount").GetInt32());

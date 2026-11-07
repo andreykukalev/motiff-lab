@@ -16,12 +16,39 @@
 @inject MotiffLab.Web.Localization.UiText Text
 
 @* Drawn on canvas in Scripts/roll (S1-W2, S1-W3, S1-M1); the host's children belong to the script. *@
+@if (Editor is { On: true } editor)
+{
+    @* The note editor (testing item 15): its tools, Undo and Reset, and nothing kept until ✓ Save; ✕ puts the notes back. *@
+    <div class="roll-head editing" role="toolbar" aria-label="@Text["edit.toolbar"]">
+        <p class="overline">@Text["edit.title"]</p>
+        <div class="seg" role="radiogroup" aria-label="@Text["edit.tool"]">
+            @foreach (string tool in s_editTools)
+            {
+                bool on = editor.Tool == tool;
+                <button role="radio" aria-checked="@(on ? "true" : "false")" class="@(on ? "on" : null)" title="@Text[$"edit.{tool}Hint"]" @onclick="() => editor.ChooseTool(tool)">@Text[$"edit.{tool}"]</button>
+            }
+        </div>
+        <button class="chip icon" aria-label="@Text["edit.undo"]" title="@Text["edit.undo"]" disabled="@(!editor.CanUndo)" @onclick="() => editor.Undo()"><Icon Name="undo" /></button>
+        <button class="chip" title="@Text["edit.resetHint"]" disabled="@(!editor.CanReset)" @onclick="() => editor.Reset()">@Text["edit.reset"]</button>
+        <span class="sp"></span>
+        <button class="btn quiet compact" @onclick="() => editor.Cancel()">@Text["edit.cancel"]</button>
+        <button class="btn primary compact" disabled="@(!editor.Changed)" @onclick="() => editor.Save()"><Icon Name="check" /> @Text["edit.save"]</button>
+    </div>
+    <p class="caption roll-edit-hint">@Text[$"edit.{editor.Tool}Hint"] @Text["edit.keptOnSave"]</p>
+}
+else
+{
 <div class="roll-head">
     @if (Heading is not null)
     {
         <p class="overline">@Heading</p>
     }
     <span class="sp"></span>
+    @if (Editor is { } closed)
+    {
+        @* Correct the notes on the roll (testing item 15): recognition artefacts out, missing notes in. *@
+        <button class="chip" title="@Text["edit.beginHint"]" @onclick="() => closed.Begin()"><Icon Name="pen" /> @Text["edit.begin"]</button>
+    }
     <button class="chip @(_noteNames ? "on" : null)" aria-pressed="@(_noteNames ? "true" : "false")" @onclick="ToggleNoteNamesAsync">
         <span class="dot" aria-hidden="true"></span> @Text["roll.noteNames"]
     </button>
@@ -55,6 +82,7 @@
         </div>
     }
 </div>
+}
 <div class="roll" @ref="_host"></div>
 <p class="meta" aria-live="polite">@SelectionText</p>
 
@@ -187,6 +215,15 @@
     public bool FitsSelection { get; set; }
 
     private bool? _shownFits;
+
+    /// <summary>The note editor on the roll (testing item 15); null where the notes cannot be edited.</summary>
+    [Parameter]
+    public NoteEditor? Editor { get; set; }
+
+    private static readonly string[] s_editTools = ["move", "add", "delete"];
+
+    private (bool On, string Tool)? _shownEditing;
+    private string? _shownPicked;
 
     /// <summary>A note pointed at elsewhere, such as on the score: the roll selects the note at that tick and key and shows it. A new value points again.</summary>
     [Parameter]
@@ -349,6 +386,19 @@
             await view.InvokeVoidAsync("pointAt", point.Tick, point.Pitch);
         }
 
+        (bool, string) editing = (Editor?.On ?? false, Editor?.Tool ?? "move");
+        if (editing != _shownEditing)
+        {
+            _shownEditing = editing;
+            await view.InvokeVoidAsync("setEditing", editing.Item1, editing.Item2);
+        }
+
+        if (Editor?.Picked != _shownPicked)
+        {
+            _shownPicked = Editor?.Picked;
+            await view.InvokeVoidAsync("pickForEdit", _shownPicked);
+        }
+
         if ((OriginalAudible, VariationAudible) != _shownAudible)
         {
             _shownAudible = (OriginalAudible, VariationAudible);
@@ -411,6 +461,20 @@
     /// <summary>Called by the script when a Check flag on the bar numbers is tapped.</summary>
     [JSInvokable]
     public Task OnRollCheckPicked(int bar) => CheckPicked.InvokeAsync(bar);
+
+    /// <summary>Called by the script when a note is dragged in the editor, or moved with the arrows: its new onset, pitch and length.</summary>
+    [JSInvokable]
+    public Task OnRollNoteChange(string id, long onset, int pitch, long length) =>
+        Editor?.Change(new RollNoteEdit(id, onset, pitch, length)) ?? Task.CompletedTask;
+
+    /// <summary>Called by the script when the editor adds a note where the player pressed.</summary>
+    [JSInvokable]
+    public Task OnRollNoteAdd(long onset, int pitch, long length) =>
+        Editor?.Add(new RollNoteEdit(null, onset, pitch, length)) ?? Task.CompletedTask;
+
+    /// <summary>Called by the script when the editor takes a note out.</summary>
+    [JSInvokable]
+    public Task OnRollNoteRemove(string id) => Editor?.Remove(id) ?? Task.CompletedTask;
 
     /// <summary>Called by the script when the selection changes.</summary>
     [JSInvokable]

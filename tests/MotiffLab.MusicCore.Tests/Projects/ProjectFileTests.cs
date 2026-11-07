@@ -179,7 +179,7 @@ public class ProjectFileTests
     [Theory]
     [InlineData("not json", "not valid JSON")]
     [InlineData("{\"format\":\"something-else\"}", "not a Motiff Lab project file")]
-    [InlineData("{\"format\":\"motiff-lab-project\",\"version\":14}", "newer version")]
+    [InlineData("{\"format\":\"motiff-lab-project\",\"version\":15}", "newer version")]
     [InlineData("{\"format\":\"motiff-lab-project\",\"version\":1,\"source\":\"!!\"}", "source")]
     public void Unreadable_files_get_a_plain_reason(string json, string reason)
     {
@@ -256,6 +256,25 @@ public class ProjectFileTests
         NoteEditLog edits = NoteEditLog.Empty
             .Change(piece.Notes, first.Id, NoteValues.Of(first) with { Pitch = new Pitch(first.Pitch.MidiNumber + 1), Velocity = 100 });
         return project with { Edits = edits, Variations = [project.Variations[0]] };
+    }
+
+    [Fact]
+    public void An_added_note_is_saved_with_its_track_and_hand_and_comes_back_on_open()
+    {
+        Project project = Corrected();
+        ImportedPiece piece = PieceImporter.Import(project.FileName, project.Source).Piece!;
+        NoteEditLog edits = project.Edits.Add(piece.Notes, new NoteValues(new Pitch(81), new TickSpan(new Tick(960), 240), 64), 0, Hand.Right, out string id);
+        // A saved motif is saved again over the notes as they are; this one has none.
+        Project added = project with { Edits = edits, Motifs = [], Variations = [] };
+
+        string text = System.Text.Encoding.UTF8.GetString(ProjectFile.Write(added));
+        Assert.Contains("\"added\": {", text, StringComparison.Ordinal);
+        Project reread = ProjectFile.Read(ProjectFile.Write(added));
+        Assert.Equal(edits, reread.Edits);
+        Note note = OpenedProject.Open(reread).Notes.Single(note => note.Id == id);
+        Assert.Equal(81, note.Pitch.MidiNumber);
+        Assert.Equal(Hand.Right, note.Hand!.Value);
+        Assert.Equal(Provenance.UserEdited, note.Attribution.Provenance);
     }
 
     [Fact]
@@ -370,7 +389,7 @@ public class ProjectFileTests
     {
         Project project = Corrected();
         NoteEdit edit = project.Edits.Edits[0];
-        Project wrong = project with { Edits = new NoteEditLog([edit with { Before = edit.Before with { Velocity = 1 } }]) };
+        Project wrong = project with { Edits = new NoteEditLog([edit with { Before = edit.Before!.Value with { Velocity = 1 } }]) };
 
         var exception = Assert.Throws<ProjectFileException>(() => OpenedProject.Open(wrong));
 

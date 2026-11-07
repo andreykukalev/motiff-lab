@@ -22,6 +22,10 @@ public sealed class MusicCoreFacade
     /// <summary>
     /// 4 brings performances (0022) and project file version 13: performances, performance (the comparison bar by bar with
     /// its markers), performance.add, .rename, .dismiss, .take, .restore and .remove; a Check flag's source can be performance.
+    /// 5 moves to project file version 14 (testing item 15): a correction can add a note, the note editor on the roll
+    /// adds and sets notes (corrections.add, corrections.set) on a draft that the project keeps only once saved
+    /// (corrections.begin, .save, .discard, .reset).
+    /// 4 brings the performances compared with the piece and project file version 13 (0022).
     /// 3 brings the three phrase levels (0018, section 3; preparation items 7–9): the phrases answer names the level shown and
     /// the units of a level with their parent, "long" replaces "fitsSelection", the levels are short, phrase and sentence,
     /// phrases.level and phrases.edit take a level and split, understand ranks the facts and offers Try chips, and try sounds a chip.
@@ -31,7 +35,7 @@ public sealed class MusicCoreFacade
     /// 1 was the first contract: open and save, piece, phrases with their edits, select, understand,
     /// experiments, the variation chain, notation, playback, the catalogue and the Piece DNA placeholder.
     /// </summary>
-    public const int Contract = 4;
+    public const int Contract = 5;
 
     private readonly Dictionary<int, OpenPiece> _pieces = [];
     private readonly Dictionary<int, OpenDocument> _documents = [];

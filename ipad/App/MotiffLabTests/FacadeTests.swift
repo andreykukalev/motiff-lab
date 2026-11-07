@@ -528,6 +528,32 @@ final class FacadeTests: XCTestCase {
         XCTAssertEqual(try call("corrections.undo", #"{"bar": 1}"#, expectError: true)["error"] as? String, "unavailable")
     }
 
+    func testTheNoteEditorAddsMovesAndRemovesNotesOnADraftKeptOnlyBySave() throws {
+        // Edit notes on the roll (testing item 15): the edits sound at once, the project file keeps the notes as they
+        // were until Save, Undo steps back through the draft, Cancel puts every edit back.
+        let begun = try call("corrections.begin", #"{"bar": 1}"#)
+        XCTAssertEqual(begun["editing"] as? Bool, true)
+        XCTAssertEqual(begun["canUndo"] as? Bool, false)
+        let added = try call("corrections.add", #"{"bar": 1, "onset": 0, "pitch": 40, "length": 240}"#)
+        let id = try XCTUnwrap(added["added"] as? String)
+        XCTAssertEqual(added["changed"] as? Bool, true)
+        let moved = try call("corrections.set", #"{"bar": 1, "id": "\#(id)", "onset": 120, "pitch": 41, "length": 480}"#)
+        XCTAssertEqual(moved["canUndo"] as? Bool, true)
+        XCTAssertEqual(RollNoteEdit(["kind": "change", "id": id, "onset": 120, "pitch": 41, "length": 480]), .change(id: id, onset: 120, pitch: 41, length: 480))
+        XCTAssertEqual(RollNoteEdit(["kind": "add", "onset": 0, "pitch": 40, "length": 240]), .add(onset: 0, pitch: 40, length: 240))
+        XCTAssertNil(RollNoteEdit(["kind": "remove"]))
+        _ = try call("corrections.undo", #"{"bar": 1}"#)
+        let discarded = try call("corrections.discard", #"{"bar": 1}"#)
+        XCTAssertEqual(discarded["editing"] as? Bool, false)
+        XCTAssertEqual(discarded["count"] as? Int, 0, "Cancel leaves no edit")
+        _ = try call("corrections.begin", #"{"bar": 1}"#)
+        _ = try call("corrections.add", #"{"bar": 1, "onset": 0, "pitch": 40, "length": 240}"#)
+        let saved = try call("corrections.save", #"{"bar": 1}"#)
+        XCTAssertEqual(saved["editing"] as? Bool, false)
+        XCTAssertEqual(saved["count"] as? Int, 1, "Save keeps the added note")
+        _ = try call("corrections.reset", #"{"bar": 1}"#)
+    }
+
     func testErrorsComeBackAsCodes() throws {
         XCTAssertEqual(try call("dance", expectError: true)["error"] as? String, "unknownCall")
         XCTAssertEqual(try object(MusicCore.call(piece: 99, "piece"))["error"] as? String, "noPiece")

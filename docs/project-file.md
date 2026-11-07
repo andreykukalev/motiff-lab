@@ -1,4 +1,4 @@
-# The project file (`.motiff.json`), version 13
+# The project file (`.motiff.json`), version 14
 
 The project file is what a player keeps of a piece: the imported source, the work on it, and since version 12 everything the redesign keeps with the piece ([0018](decisions/0018-redesign.md), section 7; [0020](decisions/0020-music-core-facade.md)), and since version 13 the performances compared with it ([0022](decisions/0022-score-and-performance.md)). It is written and read by `MotiffLab.MusicCore.Projects.ProjectFile`, by hand, so the same project gives the same bytes. The web app saves it in IndexedDB and, when the player turns saving online on, sends it to the API ([0014](decisions/0014-hosted-scan-server.md)); the iPad app reads and writes the same file through the facade. A file of an earlier version always opens; the rules are at the end.
 
@@ -9,7 +9,7 @@ Ticks are integers at 480 per quarter ([0002](decisions/0002-canonical-time.md))
 ```jsonc
 {
   "format": "motiff-lab-project",
-  "version": 13,
+  "version": 14,
   "id": "p_…",                 // the project's id
   "fileName": "minuet.musicxml",
   "source": "<base64>",         // the imported file, MIDI or MusicXML, as it was; empty for a PDF read as it is
@@ -21,7 +21,7 @@ Ticks are integers at 480 per quarter ([0002](decisions/0002-canonical-time.md))
   "motifs": [ … ],              // the working selection (version 1)
   "variations": [ … ],          // chains of steps on a motif (version 2); an optional "key" { "fifths", "mode" } the steps read, as on a kept variation (read as none when absent)
   "observations": [ … ],        // ideas (version 6; factId since 12)
-  "edits": [ … ],               // note corrections (version 3)
+  "edits": [ … ],               // note corrections (version 3); a correction can add a note (version 14)
   "phrases": { "added": [ticks], "removed": [ticks],   // the player's phrase boundaries (version 5)
                "short": { "added": [ticks], "removed": [ticks] },       // cuts inside phrases at the Short level (0018, section 3; read as none when absent)
                "sentences": { "added": [ticks], "removed": [ticks] } },  // phrase boundaries where a sentence must end, and ones it runs on across
@@ -185,6 +185,21 @@ A piece added as a PDF to read as it is ([0023](decisions/0023-pdf-pieces.md)) k
 
 Since 2026-11-05 the notes read from a PDF make a separate project, an ordinary scanned piece with `source` and `scan`, and the PDF's project is not changed ([0023](decisions/0023-pdf-pieces.md)). The notes keep `readFrom`: the PDF piece's `project` id and, in `pages`, where each of its pages starts in the notes, in ticks, as `documentPages` below; PDF | Notes switches between the two by it. `readFrom` needs a `source`. A project written before then may hold both: once the notes were read from the PDF by the scan server, the MusicXML became `source` (with `fileName` ending `.musicxml`, the PDF's name with its extension changed), `scan` says which engine read it, and `documentPages` holds where each of the PDF's pages starts in the notes, in ticks: page 1 at 0, each page after the one before. It is the rough link the PDF and Notes views switch by: a page starts at the first bar the scan server marked with `<print new-page="yes"/>`, or, without such marks, the bars are shared evenly between the pages. `documentPages` needs both a `document` and a `source`; the PDF, `documentMarks` and the notes' own `marks` all stay.
 
+## Note corrections (`edits`)
+
+The player's corrections of the notes, oldest first (S1-I7): the imported notes never change, and the notes the apps show are the imported ones with every correction applied in order. Each correction names its note and the values it found, so a log that no longer fits the notes is refused rather than half applied. The note editor on the roll (testing item 15) writes them only when the player saves.
+
+```jsonc
+"edits": [
+  { "noteId": "n_12", "before": { "pitch": 64, "onset": 960, "duration": 240, "velocity": 80 },
+                      "after":  { "pitch": 65, "onset": 960, "duration": 240, "velocity": 80 } },   // changed
+  { "noteId": "n_13", "before": { … } },                                                           // taken out: no "after"
+  { "noteId": "a1", "added": { "track": 0, "hand": "Right" }, "after": { … } }                     // added (version 14): no "before"; "hand" only when the piece has hands
+]
+```
+
+An added note's id is the first of `a1`, `a2`, … that no note of the piece or the log has; it can be changed or taken out like any other.
+
 ## Opening an older file
 
 Every version since 1 opens (`ProjectFile.Read`). The rules for the versions before 12, in addition to the earlier ones kept in `ProjectFile.Version`'s comment:
@@ -193,6 +208,7 @@ Every version since 1 opens (`ProjectFile.Read`). The rules for the versions bef
 | --- | --- |
 | 8–11 | Each session becomes a resume point with the same number (`s_0001` → `r_0001`), named by the session's task, at its passage, with the session's `lastActive`; its intent is dropped. |
 | 6–11 | Observations lose `sessionId`; `factId` is absent. |
+| < 14 | No corrections that add a note. |
 | < 13 | No performances; no `Performance` flags. |
 | 12 without `transcription.seams` | The recording went in one part, or was transcribed before seams were kept: no `PartSeam` flags. |
 | < 12 | No marks, bookmarks (the four built-in categories only) or overrides. `check` is null until the project is opened, then worked out from the piece and the scan's confirmed bars. |
