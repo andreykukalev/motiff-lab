@@ -41,6 +41,8 @@ struct ScoreScreen: View {
     @State private var checkOpen = false
     /// Other versions (0022), from More or a version's label on the score: where Check goes, and one of them at a time.
     @State private var versionsOpen = false
+    /// Hear it alone, from Sources: once the phrase is in focus with the version there, it plays as in the version.
+    @State private var hearVersionInFocus = false
     /// The Settings sheet (0018 section 10), from More: over the score, which follows each change at once.
     @State private var settingsOpen = false
 
@@ -102,7 +104,23 @@ struct ScoreScreen: View {
     /// What the sheet over the right holds: Check, Other versions, or Insights.
     @ViewBuilder private func sheetContent() -> some View {
         if versionsOpen {
-            VersionsDrawer(score: score, text: text, close: { versionsOpen = false }, back: fromMore ? (label: text["bar.more"], action: { backToMore { versionsOpen = false } }) : nil)
+            VersionsDrawer(
+                score: score, text: text, close: { versionsOpen = false },
+                back: fromMore ? (label: text["bar.more"], action: { backToMore { versionsOpen = false } }) : nil,
+                openPdf: toPdf,
+                hearAlone: {
+                    versionsOpen = false
+                    hearVersionInFocus = true
+                    Task { await score.focusFirstDifference() }
+                },
+                adjust: {
+                    versionsOpen = false
+                    Task {
+                        await score.editFirstDifference()
+                        rollOpen = true
+                    }
+                }
+            )
         } else if checkOpen {
             CheckDrawer(score: score, text: text, close: { checkOpen = false }, back: fromMore ? (label: text["bar.more"], action: { backToMore { checkOpen = false } }) : nil)
         } else {
@@ -471,6 +489,11 @@ struct ScoreScreen: View {
                 guard insights.trial == nil else { return }
                 if let version, version.sounds {
                     player.setVariation(version.notes, version: true)
+                    if hearVersionInFocus, let range = score.playRange?.range {
+                        hearVersionInFocus = false
+                        player.hear(.variation, over: range)
+                        if player.state != .playing { player.play(from: range.lowerBound) }
+                    }
                 } else if player.secondIsVersion {
                     player.setVariation(nil)
                 }
@@ -530,21 +553,22 @@ struct ScoreScreen: View {
         Task { try? await ProjectFiles.save(piece: id, to: file) }
     }
 
-    /// PDF in the bar's PDF | Notes, for notes read from a PDF piece the library holds.
+    /// PDF in the bar's PDF | Notes: for a piece with a PDF kept inside it, or notes read from a PDF piece the library holds.
     private var toPdf: (() -> Void)? {
-        guard switchView != nil, piece.other != nil else { return nil }
+        guard switchView != nil, piece.other != nil || score.sources.document != nil else { return nil }
         return { Task { await showPdf() } }
     }
 
     /// The PDF at the page the notes at the top of the view were read from, once the piece is saved (the web app's
     /// `ShowPdfAsync`).
     private func showPdf() async {
-        guard let other = piece.other, let switchView else { return }
+        guard let switchView else { return }
+        let pages = piece.other?.pages ?? PageMap(starts: score.sources.document?.starts ?? [])
         let tick = await score.firstTick(onPage: score.pages.first) ?? 0
         player.shutdown()
         await insights.leave()
         if let file = piece.file { try? await ProjectFiles.save(piece: piece.id, to: file) }
-        await switchView(.page(other.pages.page(of: tick)))
+        await switchView(.page(pages.page(of: tick)))
     }
 }
 
@@ -1192,11 +1216,11 @@ struct MorePanel: View {
                 .buttonStyle(DSButtonStyle(kind: .quiet))
                 Rectangle().fill(Color.ds("hairline")).frame(height: 1)
             }
-            // Another version of the piece compared with these notes (0022): a cover's MIDI or an official score.
+            // The piece's sources (0022; testing item 16): its base, a PDF kept inside it and other versions.
             Button(action: openVersions) {
                 HStack(spacing: CGFloat.ds("s-2")) {
                     Icon(name: "mic")
-                    Text(score.versions.entries.isEmpty ? text["performance.add"] : text["performance.title"])
+                    Text(text["sources.title"])
                 }
             }
             .buttonStyle(DSButtonStyle(kind: .quiet))

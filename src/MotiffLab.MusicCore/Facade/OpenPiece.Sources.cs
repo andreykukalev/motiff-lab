@@ -18,6 +18,7 @@ internal sealed partial class OpenPiece
         "sources" => SourcesAnswer(),
         "sources.document" => KeepDocument(request),
         "sources.documentNotes" => AddDocumentNotes(request),
+        "sources.pdf" => DocumentBytes(),
         _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\"."),
     };
 
@@ -39,6 +40,13 @@ internal sealed partial class OpenPiece
                 json.WriteString("fileName", Project.DocumentFileName);
                 json.WriteNumber("pages", Project.DocumentPages?.Pages ?? 0);
                 json.WriteBoolean("readFrom", sources.ReadFromDocument);
+                json.WriteStartArray("starts");
+                foreach (Time.Tick start in Project.DocumentPages?.Starts ?? [])
+                {
+                    json.WriteNumberValue(start.Value);
+                }
+
+                json.WriteEndArray();
                 json.WriteEndObject();
             }
             else
@@ -49,6 +57,17 @@ internal sealed partial class OpenPiece
             Answer.Performances(json, Project);
             json.WriteNumber("taken", sources.TakenBars);
             json.WriteNumber("edits", sources.Edits);
+        });
+    }
+
+    /// <summary>The PDF kept in the piece, to send to the scan server: "fileName" and "pdf" (base64, the bytes as added).</summary>
+    private string DocumentBytes()
+    {
+        byte[] pdf = Project.Document ?? throw FacadeException.Unavailable("This piece keeps no PDF.");
+        return Answer.Write(json =>
+        {
+            json.WriteString("fileName", Project.DocumentFileName);
+            json.WriteBase64String("pdf", pdf);
         });
     }
 

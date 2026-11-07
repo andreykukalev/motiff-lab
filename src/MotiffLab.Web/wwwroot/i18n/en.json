@@ -1328,7 +1328,6 @@
   "sources.pdfHow": "A PDF is kept in the piece as it is, to read beside the notes; its notes can be read as a version.",
   "sources.notPdf": "This file is not a PDF.",
   "sources.pdfKept": "The PDF is kept in the piece.",
-  "performance.title": "Other versions",
   "performance.add": "Add a version",
   "performance.close": "Close Other versions",
   "performance.chips": "Versions",

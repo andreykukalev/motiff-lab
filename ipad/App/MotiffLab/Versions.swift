@@ -30,6 +30,41 @@ struct VersionEntry: Identifiable, Equatable, Sendable {
     var id: String
     var name: String
     var takenBars: Int
+    /// "score" for notes (a MusicXML file, a PDF read); "midi" or "recording" for a performance.
+    var source = "midi"
+}
+
+/// The piece's sources as music-core answers `sources` (testing item 16, contract 6): the base, the line on what the
+/// player's version holds beyond it, and the PDF kept inside the piece.
+struct SourcesInfo: Equatable, Sendable {
+    /// "file", "scan", "recording" or "pdf".
+    var base = "file"
+    var baseName = ""
+    var summary = ""
+    /// The PDF kept in the piece: its file name and how many pages it has; nil when it keeps none.
+    var document: KeptDocument?
+
+    struct KeptDocument: Equatable, Sendable {
+        var fileName: String
+        var pages: Int
+        /// Where each page starts in the notes, in ticks, for PDF | Notes.
+        var starts: [Double] = []
+    }
+
+    init() {}
+
+    init?(answer: String) {
+        guard let object = facadeObject(answer), object["error"] == nil else { return nil }
+        base = object["base"] as? String ?? "file"
+        baseName = object["baseName"] as? String ?? ""
+        summary = object["summary"] as? String ?? ""
+        if let kept = object["document"] as? [String: Any] {
+            document = KeptDocument(
+                fileName: kept["fileName"] as? String ?? "", pages: (kept["pages"] as? NSNumber)?.intValue ?? 0,
+                starts: (kept["starts"] as? [NSNumber] ?? []).map(\.doubleValue)
+            )
+        }
+    }
 }
 
 /// The other versions of the piece and the one shown, compared bar by bar, as music-core answers `performances` and
@@ -49,6 +84,10 @@ struct VersionShelf: Equatable, Sendable {
     var taken: [VersionBar] { bars.filter(\.taken) }
     var dismissed: [VersionBar] { bars.filter(\.dismissed) }
     var alignedCount: Int { bars.filter(\.aligned).count }
+    /// How much of the shown version lines up, in whole per cent of its bars; nil with no bars.
+    var alignedPercent: Int? { bars.isEmpty ? nil : alignedCount * 100 / bars.count }
+    /// The bars Take everything sure would take: lined up, at least 80 % sure, not dismissed or taken.
+    var sureCount: Int { differing.filter { $0.confidence >= 80 }.count }
     /// The likely artefacts on the comparison layer, which writes only the bars that line up.
     var artefactCount: Int { bars.filter(\.aligned).reduce(0) { $0 + $1.artefacts } }
 
@@ -91,21 +130,37 @@ struct VersionShelf: Equatable, Sendable {
 
     private static func entry(_ object: [String: Any]) -> VersionEntry? {
         guard let id = object["id"] as? String else { return nil }
-        return VersionEntry(id: id, name: object["name"] as? String ?? "", takenBars: (object["takenBars"] as? NSNumber)?.intValue ?? 0)
+        return VersionEntry(
+            id: id, name: object["name"] as? String ?? "", takenBars: (object["takenBars"] as? NSNumber)?.intValue ?? 0,
+            source: object["source"] as? String ?? "midi"
+        )
     }
 }
 
-/// Other versions (0022, the web app's `.perf-sheet`), from More or a version's label on the score: the versions as chips,
-/// the bars the one shown has otherwise with Show, Not a difference and Take into the score, the bars taken to restore,
-/// its name, and a MIDI or MusicXML file to add. Over the right of the page in landscape and the lower half in portrait,
-/// as Check.
+/// Sources (0022; testing item 16, the web app's `.perf-sheet`), from More or a version's label on the score: "My version",
+/// a line on what it holds beyond the base, a row for the base, the PDF kept inside the piece and each other version with its
+/// role, one Add a source (a MIDI or MusicXML file, a PDF, a recording), and after a version is added its four next steps:
+/// Compare, Hear it alone, Take everything sure and Adjust it myself. For the version shown, the bars it has otherwise with
+/// Show, Not a difference and Take into the score, the bars taken to restore, and its name. Over the right of the page in
+/// landscape and the lower half in portrait, as Check.
 struct VersionsDrawer: View {
     @ObservedObject var score: ScoreController
     let text: UIText
     let close: () -> Void
     /// "‹ More" when opened from More: closes the drawer and opens More again (testing item 20); nil from elsewhere.
     var back: (label: String, action: () -> Void)?
+    /// The piece's PDF view, when it keeps a PDF.
+    var openPdf: (() -> Void)?
+    /// Hear it alone: the phrase with the first bar the version has otherwise, in focus, as in the version.
+    var hearAlone: () -> Void = {}
+    /// Adjust it myself: the note editor on the roll at the first bar the version has otherwise.
+    var adjust: () -> Void = {}
+    @EnvironmentObject private var account: Account
+    @ObservedObject private var scan = ScanServer.shared
     @State private var choosing = false
+    @State private var choosingPdf = false
+    @State private var adding = false
+    @State private var readingPdf = false
     @State private var name = ""
     @State private var removing = false
 
@@ -117,6 +172,8 @@ struct VersionsDrawer: View {
         .xml,
     ]
 
+    private var scanAddress: URL? { scan.address(hosted: ScanServer.hosted(account)) }
+
     var body: some View {
         let versions = score.versions
         VStack(alignment: .leading, spacing: 0) {
@@ -126,8 +183,8 @@ struct VersionsDrawer: View {
                         BackChip(label: back.label, text: text, action: back.action)
                             .padding(.leading, -CGFloat.ds("s-2"))
                     }
-                    Text(text["performance.title"]).overline()
-                    Text(versions.shown?.name ?? text["performance.add"])
+                    Text(text["sources.title"]).overline()
+                    Text(text["sources.mine"])
                         .dsType(.heading)
                         .foregroundStyle(Color.ds("ink"))
                         .accessibilityAddTraits(.isHeader)
@@ -144,26 +201,41 @@ struct VersionsDrawer: View {
             .padding(.top, CGFloat.ds("s-4"))
             ScrollView {
                 VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
-                    if versions.entries.count > 1 {
-                        chips(versions)
-                    }
+                    sourceRows(versions)
                     if let status = score.versionStatus {
                         Text(status)
                             .dsType(.caption)
                             .foregroundStyle(Color.ds("ink-2"))
                             .fixedSize(horizontal: false, vertical: true)
                     }
+                    if let shown = versions.shown, score.addedVersion == shown.id {
+                        nextSteps(versions)
+                    }
+                    if let taken = score.takenAll, taken.version == versions.shownId {
+                        HStack(spacing: CGFloat.ds("s-2")) {
+                            Text(text.count("sources.takenAll", taken.bars.count))
+                                .dsType(.caption)
+                                .foregroundStyle(Color.ds("ink-2"))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            Button(text["sources.giveBack"]) { score.giveBackTakenAll() }
+                                .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
+                        }
+                    }
                     if let shown = versions.shown {
                         comparison(versions)
                         nameAndRemove(shown)
                     }
-                    Text(text["performance.how"])
-                        .dsType(.caption)
-                        .foregroundStyle(Color.ds("ink-2"))
-                        .fixedSize(horizontal: false, vertical: true)
-                    Button(text["performance.addMidi"]) { choosing = true }
-                        .buttonStyle(DSButtonStyle(kind: .secondary))
-                    RecordingVersionSection(score: score, text: text)
+                    Button {
+                        adding.toggle()
+                        readingPdf = false
+                    } label: {
+                        Label { Text(text["sources.add"]) } icon: { Icon(name: "plus") }
+                    }
+                    .buttonStyle(DSButtonStyle(kind: .primary))
+                    .accessibilityAddTraits(adding ? .isSelected : [])
+                    if adding {
+                        addChoices
+                    }
                 }
                 .padding(.leading, CGFloat.ds("s-6"))
                 .padding(.trailing, CGFloat.ds("s-5"))
@@ -173,33 +245,202 @@ struct VersionsDrawer: View {
         }
         .background(Color.ds("surface"))
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(text["performance.title"])
-        .fileImporter(isPresented: $choosing, allowedContentTypes: Self.versionFiles) { result in
+        .accessibilityLabel(text["sources.title"])
+        // One importer for both choices: SwiftUI presents only one of two on the same view.
+        .fileImporter(isPresented: $choosing, allowedContentTypes: choosingPdf ? [.pdf] : Self.versionFiles) { result in
             guard case .success(let url) = result else { return }
             let lent = url.startAccessingSecurityScopedResource()
             defer { if lent { url.stopAccessingSecurityScopedResource() } }
             guard let data = try? Data(contentsOf: url) else { return }
             let fileName = url.lastPathComponent
-            Task { await score.addVersion(fileName: fileName, data: data) }
+            let pdf = choosingPdf
+            adding = false
+            Task {
+                if pdf {
+                    await score.keepDocument(data)
+                } else {
+                    await score.addVersion(fileName: fileName, data: data)
+                }
+            }
         }
-        .onAppear { name = versions.shown?.name ?? "" }
+        .sheet(isPresented: $readingPdf) {
+            ReadNotesPanel(
+                address: scanAddress,
+                hosted: scanAddress != nil && scanAddress == ScanServer.hosted(account),
+                signedIn: account.player != nil,
+                pro: account.allows(.scan),
+                text: text,
+                heading: text["sources.readPdf"],
+                keeps: text["sources.readPdfKeeps"],
+                settings: { readingPdf = false },
+                read: {
+                    guard let address = scanAddress else { return text["pdf.readNone"] }
+                    let problem = await score.readDocumentVersion(address: address, account: account)
+                    if problem == nil { readingPdf = false }
+                    return problem
+                }
+            )
+            .presentationDetents([.medium])
+        }
+        .onAppear {
+            name = versions.shown?.name ?? ""
+            score.refreshSources()
+        }
         .onChange(of: versions.shown?.name) { _, shown in
             name = shown ?? ""
             removing = false
         }
     }
 
-    private func chips(_ versions: VersionShelf) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: CGFloat.ds("s-2")) {
-                ForEach(versions.entries) { entry in
-                    Button(entry.name) { score.showVersion(entry.id) }
-                        .buttonStyle(DSChipStyle(on: entry.id == versions.shownId))
-                        .accessibilityAddTraits(entry.id == versions.shownId ? .isSelected : [])
+    /// A row for the base, for the PDF kept inside the piece and for each other version, the one shown in plum.
+    @ViewBuilder private func sourceRows(_ versions: VersionShelf) -> some View {
+        let sources = score.sources
+        if !sources.summary.isEmpty {
+            Text(sources.summary)
+                .dsType(.caption)
+                .foregroundStyle(Color.ds("ink-2"))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        sourceRow(icon: baseIcon(sources.base), title: text["sources.base"], detail: sources.baseName, on: false)
+        if let document = sources.document {
+            VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+                sourceLine(icon: "pages", title: document.fileName, detail: text["sources.pdfInside"])
+                HStack(spacing: CGFloat.ds("s-2")) {
+                    if let openPdf {
+                        Button(text["sources.openPdf"], action: openPdf)
+                            .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
+                    }
+                    Button {
+                        readingPdf = true
+                        adding = false
+                    } label: {
+                        HStack(spacing: CGFloat.ds("s-1")) {
+                            Text(text["sources.readPdf"])
+                            if scanAddress != nil && scanAddress == ScanServer.hosted(account) { Tag(text: "Pro", kind: .saved) }
+                        }
+                    }
+                    .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
                 }
             }
+            .padding(CGFloat.ds("s-3"))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-s")).strokeBorder(Color.ds("hairline")))
         }
-        .accessibilityLabel(text["performance.chips"])
+        ForEach(versions.entries) { entry in
+            let shown = entry.id == versions.shownId
+            Button { score.showVersion(entry.id) } label: {
+                sourceRow(icon: versionIcon(entry), title: entry.name, detail: versionDetail(entry, shown: shown, versions), on: shown)
+            }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(shown ? .isSelected : [])
+        }
+    }
+
+    private func sourceRow(icon: String, title: String, detail: String, on: Bool) -> some View {
+        sourceLine(icon: icon, title: title, detail: detail)
+            .padding(CGFloat.ds("s-3"))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(on ? Color.ds("plum-tint") : Color.clear, in: RoundedRectangle(cornerRadius: CGFloat.ds("r-s")))
+            .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-s")).strokeBorder(on ? Color.ds("plum") : Color.ds("hairline")))
+            .contentShape(Rectangle())
+    }
+
+    private func sourceLine(icon: String, title: String, detail: String) -> some View {
+        HStack(spacing: CGFloat.ds("s-3")) {
+            Icon(name: icon).foregroundStyle(Color.ds("ink-2"))
+            VStack(alignment: .leading, spacing: 0) {
+                Text(title)
+                    .font(DesignTokens.font(weight: 600, size: 15))
+                    .foregroundStyle(Color.ds("ink"))
+                Text(detail)
+                    .dsType(.caption)
+                    .foregroundStyle(Color.ds("ink-2"))
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func versionIcon(_ entry: VersionEntry) -> String {
+        switch entry.source {
+        case "recording": "mic"
+        case "score": "note"
+        default: "file"
+        }
+    }
+
+    /// "Performance · 92 % lined up": what the version is to the notes, and for the one shown how much of it lines up.
+    private func versionDetail(_ entry: VersionEntry, shown: Bool, _ versions: VersionShelf) -> String {
+        let role = text[entry.source == "score" ? "sources.roleNotes" : "sources.rolePlaying"]
+        guard shown, let percent = versions.alignedPercent else { return role }
+        return role + " · " + text.format("sources.aligned", String(percent))
+    }
+
+    private func baseIcon(_ base: String) -> String {
+        switch base {
+        case "recording": "mic"
+        case "scan", "pdf": "pages"
+        default: "file"
+        }
+    }
+
+    /// What next, once a version is added: compare, hear it alone, take what is sure, or adjust the notes by hand.
+    private func nextSteps(_ versions: VersionShelf) -> some View {
+        VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+            Text(text["sources.next"]).overline()
+            step("layers", text["sources.compare"]) { score.compareVersion() }
+            step("play", text["sources.hearAlone"], action: hearAlone)
+            step("check", text["sources.takeAll"], detail: text.count("sources.sureBars", versions.sureCount)) { score.takeAllSure() }
+                .disabled(versions.sureCount == 0)
+            step("roll", text["sources.adjust"], action: adjust)
+        }
+        .padding(CGFloat.ds("s-3"))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(text["sources.next"])
+    }
+
+    private func step(_ icon: String, _ title: String, detail: String? = nil, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: CGFloat.ds("s-2")) {
+                Icon(name: icon)
+                Text(title)
+                Spacer(minLength: CGFloat.ds("s-2"))
+                if let detail {
+                    Text(detail).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(DSButtonStyle(kind: .secondary))
+    }
+
+    /// Add a source: a MIDI or MusicXML file, a PDF kept inside the piece, or a recording.
+    private var addChoices: some View {
+        VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+            Text(text["performance.how"])
+                .dsType(.caption)
+                .foregroundStyle(Color.ds("ink-2"))
+                .fixedSize(horizontal: false, vertical: true)
+            Button(text["performance.addMidi"]) {
+                choosingPdf = false
+                choosing = true
+            }
+            .buttonStyle(DSButtonStyle(kind: .secondary))
+            Button(text[score.sources.document == nil ? "sources.addPdf" : "sources.replacePdf"]) {
+                choosingPdf = true
+                choosing = true
+            }
+                .buttonStyle(DSButtonStyle(kind: .secondary))
+            Text(text["sources.pdfHow"])
+                .dsType(.caption)
+                .foregroundStyle(Color.ds("ink-2"))
+                .fixedSize(horizontal: false, vertical: true)
+            RecordingVersionSection(score: score, text: text)
+        }
+        .padding(CGFloat.ds("s-3"))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
     }
 
     @ViewBuilder private func comparison(_ versions: VersionShelf) -> some View {
@@ -213,6 +454,10 @@ struct VersionsDrawer: View {
                 .foregroundStyle(Color.ds("ink-2"))
         } else {
             Text(text.count("performance.differs", differing.count)).overline()
+            if score.addedVersion != versions.shownId && versions.sureCount > 0 {
+                Button(text["sources.takeAll"] + " · " + text.count("sources.sureBars", versions.sureCount)) { score.takeAllSure() }
+                    .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
+            }
             ForEach(differing) { bar in differingEntry(bar) }
         }
         if !versions.taken.isEmpty {

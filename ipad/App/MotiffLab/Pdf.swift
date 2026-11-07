@@ -497,8 +497,8 @@ struct PdfScreen: View {
     /// The scan server the PDF would go to: the player's own, or Motiff Lab's in a build with sign-in.
     private var scanAddress: URL? { scan.address(hosted: ScanServer.hosted(account)) }
 
-    /// Sends the PDF to the scan server and makes the notes it read a piece of their own, which opens in this one's place
-    /// where the page under the bar starts (the web app's `ReadNotesAsync`). Answers why not, or nil once they open.
+    /// Sends the PDF to the scan server and puts the notes it read into this same piece (testing item 16), which opens as
+    /// notes where the page under the bar starts (the web app's `ReadNotesAsync`). Answers why not, or nil once they open.
     private func readNotes() async -> String? {
         guard let address = scanAddress, let openRead, let data = pdf.original else { return text["pdf.readNone"] }
         let result: ScanResult
@@ -520,15 +520,15 @@ struct PdfScreen: View {
         guard let object = facadeObject(answer) else { return text["pdf.readNone"] }
         if object["error"] != nil { return object["message"] as? String ?? text["pdf.readNone"] }
         guard let file = object["file"] as? String else { return text["pdf.readNone"] }
-        let starts = ((object["project"] as? [String: Any])?["readFromPages"] as? [NSNumber] ?? []).map(\.doubleValue)
-        let url = ProjectFiles.newURL(for: "\(piece.title) — \(text["pdf.viewNotes"])")
+        let starts = ((object["project"] as? [String: Any])?["documentPages"] as? [NSNumber] ?? []).map(\.doubleValue)
+        // The same piece's project file, now with notes: the PDF, its marks and bookmarks stay in it.
+        let url = piece.file ?? ProjectFiles.newURL(for: piece.title)
         do {
             try Data(file.utf8).write(to: url, options: .atomic)
         } catch {
             return error.localizedDescription
         }
         metronome.stop()
-        if let saved = piece.file { try? await ProjectFiles.save(piece: id, to: saved) }
         readingOpen = false
         await openRead(url, .tick(PageMap(starts: starts).start(of: max(1, pdf.page))))
         return nil

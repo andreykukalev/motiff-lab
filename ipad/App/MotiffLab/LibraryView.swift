@@ -52,7 +52,7 @@ struct LibraryView: View {
                         alignment: .leading,
                         spacing: CGFloat.ds("s-6")
                     ) {
-                        ForEach(projects) { entry in
+                        ForEach(shelved) { entry in
                             PieceCard(entry: entry, summary: summaries[entry.url], text: text) {
                                 Task { await openProject(entry.url) }
                             } delete: {
@@ -165,6 +165,16 @@ struct LibraryView: View {
         }
     }
 
+    /// The projects on the shelf: one card per piece. A PDF piece whose notes were read into a piece of their own between
+    /// 2026-11-05 and 2026-11-07 is reached from those notes by PDF | Notes (testing item 16).
+    private var shelved: [ProjectFiles.Entry] {
+        let readFrom = Set(summaries.values.compactMap(\.readFrom))
+        return projects.filter { entry in
+            guard let summary = summaries[entry.url], !summary.hasNotes, let id = summary.id else { return true }
+            return !readFrom.contains(id)
+        }
+    }
+
     /// The projects in Documents, and what music-core reads from each.
     private func reload() async {
         projects = ProjectFiles.list()
@@ -206,17 +216,20 @@ struct LibraryView: View {
 
     /// PDF | Notes (0023): the piece's other view replaces it, at the page or place given. The screen has saved the piece.
     private func switchView(from current: OpenPiece, to landing: Landing) async {
-        guard let other = current.other else { return }
-        await openFile(other.file, at: landing)
+        // A PDF kept in the piece since it was opened is in its own file: the PDF view of the same piece.
+        guard let file = current.other?.file ?? current.file else { return }
+        await openFile(file, at: landing)
     }
 
-    /// Opens a project file in Documents in place of the piece shown, at a page or place.
+    /// Opens a project file in Documents in place of the piece shown, at a page or place: at a page, a piece with notes and
+    /// a PDF inside it opens in its PDF view.
     private func openFile(_ file: URL, at landing: Landing) async {
         do {
             let data = try Data(contentsOf: file)
             let language = text.language
+            let asPdf = landing.page != nil
             await show(file: file, landing: landing) {
-                await OpenPiece.open(fileName: file.lastPathComponent, data: data, language: language)
+                await OpenPiece.open(fileName: file.lastPathComponent, data: data, language: language, asPdf: asPdf)
             }
         } catch {
             problem = error.localizedDescription
@@ -298,6 +311,10 @@ struct PieceSummary: Equatable, Sendable {
     /// For notes read from a PDF piece: that piece's id, and where each of its pages starts in the notes (PDF | Notes, 0023).
     var readFrom: String?
     var readFromPages: [Double] = []
+    /// For a piece with notes and a PDF kept inside it: where each of the PDF's pages starts in the notes (contract 6).
+    var documentPages: [Double] = []
+    /// Whether the piece keeps a PDF.
+    var document = false
 
     struct Latest: Equatable, Sendable {
         var name: String?
@@ -315,6 +332,8 @@ struct PieceSummary: Equatable, Sendable {
         lastOpened = project["lastOpened"] as? String ?? ""
         readFrom = project["readFrom"] as? String
         readFromPages = (project["readFromPages"] as? [NSNumber] ?? []).map(\.doubleValue)
+        documentPages = (project["documentPages"] as? [NSNumber] ?? []).map(\.doubleValue)
+        document = project["document"] as? Bool ?? false
     }
 
     /// Reads a project file's summary through music-core; nil when the file cannot be read.

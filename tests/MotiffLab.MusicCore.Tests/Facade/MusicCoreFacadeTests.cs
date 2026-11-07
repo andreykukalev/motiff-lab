@@ -1010,6 +1010,7 @@ public class MusicCoreFacadeTests
         Assert.Equal("file", sources.GetProperty("base").GetString());
         Assert.Equal("Base: the notes of the file", sources.GetProperty("summary").GetString());
         Assert.Equal(JsonValueKind.Null, sources.GetProperty("document").ValueKind);
+        Assert.Equal("unavailable", Error(facade, 1, "sources.pdf"));
 
         Call(facade, "performance.add", $$$"""{"name": "Live", "midi": "{{{midi}}}"}""");
         JsonElement all = Call(facade, "performance.takeAll", """{"id": "perf_1"}""").GetProperty("performance");
@@ -1023,7 +1024,10 @@ public class MusicCoreFacadeTests
         Assert.Equal("unavailable", Error(facade, 1, "sources.documentNotes", JsonSerializer.Serialize(new { musicXml = Convert.ToBase64String(Fixture(FurElise)) })));
         JsonElement kept = Call(facade, "sources.document", JsonSerializer.Serialize(new { pdf = Convert.ToBase64String(pdf), pages = 2 }));
         Assert.Equal(2, kept.GetProperty("document").GetProperty("pages").GetInt32());
+        Assert.Equal(2, kept.GetProperty("document").GetProperty("starts").GetArrayLength());
+        Assert.Equal(0, kept.GetProperty("document").GetProperty("starts")[0].GetInt64());
         Assert.False(kept.GetProperty("document").GetProperty("readFrom").GetBoolean());
+        Assert.Equal(pdf, Call(facade, "sources.pdf").GetProperty("pdf").GetBytesFromBase64());
         JsonElement version = Call(facade, "sources.documentNotes", JsonSerializer.Serialize(new { musicXml = Convert.ToBase64String(Fixture(FurElise)), engine = "homr 0.7.0", pages = 2 })).GetProperty("performance");
         Assert.Equal("perf_2", version.GetProperty("id").GetString());
         Assert.Equal("score", version.GetProperty("source").GetString());
@@ -1222,6 +1226,9 @@ public class MusicCoreFacadeTests
         Assert.Equal("scanned", project.GetProperty("origin").GetString());
         Assert.True(project.GetProperty("hasNotes").GetBoolean());
         Assert.Equal(1, project.GetProperty("resumePoints").GetInt32());
+        Assert.Equal(3, project.GetProperty("documentPages").GetArrayLength());
+        Assert.Equal(0, project.GetProperty("documentPages")[0].GetInt64());
+        Assert.False(project.TryGetProperty("readFrom", out _));
         byte[] file = System.Text.Encoding.UTF8.GetBytes(read.GetProperty("file").GetString()!);
         Assert.Equal(read.GetProperty("file").GetString(), facade.Call(1, "project.save", """{"now": "2026-11-05T12:00:00Z"}"""));
         Assert.Equal("unavailable", Error(facade, 1, "document.read", request));

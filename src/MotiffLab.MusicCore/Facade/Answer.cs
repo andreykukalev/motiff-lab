@@ -345,6 +345,19 @@ internal static partial class Answer
             json.WriteEndArray();
         }
 
+        // Contract 6 (testing item 16): a piece with notes and a PDF kept inside it, where each of the PDF's pages starts
+        // in the notes, in ticks, for PDF | Notes within the one piece.
+        if (project.HasNotes && project.DocumentPages is { } pages)
+        {
+            json.WriteStartArray("documentPages");
+            foreach (Tick start in pages.Starts)
+            {
+                json.WriteNumberValue(start.Value);
+            }
+
+            json.WriteEndArray();
+        }
+
         if (project.RecentResumePoints.FirstOrDefault() is { } latest)
         {
             json.WriteStartObject("latest");

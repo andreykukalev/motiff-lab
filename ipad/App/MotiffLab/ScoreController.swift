@@ -1,3 +1,4 @@
+import PDFKit
 import PencilKit
 import SwiftUI
 import UniformTypeIdentifiers
@@ -99,6 +100,18 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     @Published private(set) var versions = VersionShelf()
     /// What the last thing done with a version came to: "Bar 12 is now as in Cover", or why it could not be done.
     @Published private(set) var versionStatus: String?
+    /// The piece's sources (testing item 16): the base, the line on what the player's version holds, the PDF kept inside.
+    @Published private(set) var sources = SourcesInfo()
+    /// The version just added: its four next steps show until one is chosen.
+    @Published var addedVersion: String?
+    /// The bars Take everything sure took last, from which version, to give back with one tap.
+    @Published private(set) var takenAll: TakenAll?
+
+    struct TakenAll: Equatable {
+        var version: String
+        var bars: [Int]
+    }
+
     /// A version's label tapped on the score: the screen opens Other versions on its bar.
     var versionPicked: (@MainActor (Int) -> Void)?
     /// The piece's notes changed (bars of another version taken or restored): the player and the roll load them again.
@@ -252,6 +265,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             self.piece = piece
             versions = VersionShelf()
             versionStatus = nil
+            sources = SourcesInfo()
+            addedVersion = nil
+            takenAll = nil
             layerEngraved = LayerEngraved()
             versionPlayback = nil
         }
@@ -812,6 +828,13 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         versionStatus = versions.matched == 0
             ? text["performance.noMatch"]
             : text.format("performance.added", String(versions.matched), String(versions.printed), String(versions.bars.filter(\.differs).count))
+        await versionAdded(piece)
+    }
+
+    /// A version just added: its four next steps show, and the list, the markers and Check follow.
+    private func versionAdded(_ piece: OpenPiece) async {
+        addedVersion = versions.shownId
+        takenAll = nil
         versions.read(list: await MusicCore.run { MusicCore.call(piece: piece.id, "performances") })
         await drawVersions()
         await loadCheck(piece)
@@ -833,9 +856,127 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             : text.format("performance.added", String(versions.matched), String(versions.printed), String(versions.bars.filter(\.differs).count))
         if heard.cut { status += " " + text.format("version.recordingCut", "7") }
         versionStatus = status
-        versions.read(list: await MusicCore.run { MusicCore.call(piece: piece.id, "performances") })
-        await drawVersions()
-        await loadCheck(piece)
+        await versionAdded(piece)
+        return nil
+    }
+
+    // MARK: - Sources (testing item 16)
+
+    func refreshSources() {
+        Task { await readSources() }
+    }
+
+    private func readSources() async {
+        guard let piece else { return }
+        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "sources") }
+        if let read = SourcesInfo(answer: answer) { sources = read }
+    }
+
+    /// Compare: the version's notes on small staves above the systems, its markers above the bars it has otherwise.
+    func compareVersion() {
+        addedVersion = nil
+        showLayers(["version"], true)
+    }
+
+    /// Take everything sure: every bar the comparison lines up with at least 80 % sure, not dismissed or taken already, at
+    /// once (`performance.takeAll`); Give back returns them.
+    func takeAllSure() {
+        guard let piece, let id = versions.shownId else { return }
+        let before = Set(versions.taken.map(\.bar))
+        addedVersion = nil
+        let request = Self.json(["id": id]) ?? "{}"
+        Task {
+            let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.takeAll", request) }
+            guard versions.read(performance: answer) else {
+                versionStatus = facadeObject(answer)?["message"] as? String
+                return
+            }
+            let bars = versions.taken.map(\.bar).filter { !before.contains($0) }
+            guard !bars.isEmpty else {
+                versionStatus = text["sources.nothingSure"]
+                await drawVersions()
+                return
+            }
+            takenAll = TakenAll(version: id, bars: bars)
+            versionStatus = text.count("sources.takenAll", bars.count)
+            await notesDidChange()
+        }
+    }
+
+    /// Give back: the bars Take everything sure took come back as they were.
+    func giveBackTakenAll() {
+        guard let takenAll, takenAll.version == versions.shownId else { return }
+        self.takenAll = nil
+        changeVersion("performance.restore", ["bars": takenAll.bars], status: text.count("sources.givenBack", takenAll.bars.count), notes: true)
+    }
+
+    /// Where the first bar the shown version has otherwise is, or the first bar when it agrees everywhere.
+    private var firstDifference: Range<Double>? {
+        versions.differing.first?.span ?? versions.bars.first?.span
+    }
+
+    /// Hear it alone: the phrase with the first bar the version has otherwise is selected and lifted into focus, where the
+    /// version is heard (0022, section 5).
+    func focusFirstDifference() async {
+        addedVersion = nil
+        guard let span = firstDifference else { return }
+        if let unit = phrases?.units.first(where: { $0.onset <= span.lowerBound && span.lowerBound < $0.end }) {
+            await select(unit.selectableOnset, unit.selectableEnd)
+        } else {
+            await select(span.lowerBound, span.upperBound)
+        }
+        enterFocus()
+    }
+
+    /// Adjust it myself: the first bar the version has otherwise is selected and the note editor opens on it.
+    func editFirstDifference() async {
+        addedVersion = nil
+        guard let span = firstDifference else { return }
+        await select(span.lowerBound, span.upperBound)
+        beginNoteEdit()
+    }
+
+    /// A PDF kept inside the piece (`sources.document`): its pages shared over the bars until its notes are read; it stays
+    /// on the iPad. A PDF kept before is replaced.
+    func keepDocument(_ data: Data) async {
+        guard let piece else { return }
+        var fields: [String: Any] = ["pdf": data.base64EncodedString()]
+        if let pages = PDFDocument(data: data)?.pageCount, pages > 0 { fields["pages"] = pages }
+        let request = Self.json(fields) ?? "{}"
+        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "sources.document", request) }
+        guard let read = SourcesInfo(answer: answer) else {
+            versionStatus = facadeObject(answer)?["message"] as? String
+            return
+        }
+        sources = read
+        versionStatus = text["sources.pdfKept"]
+        if let file = piece.file { try? await ProjectFiles.save(piece: piece.id, to: file) }
+    }
+
+    /// Read as a version: the PDF kept in the piece goes to the scan server, and the notes it reads are added as another
+    /// version from a score, its pages linked to these bars (`sources.documentNotes`). Answers why not, or nil once added.
+    func readDocumentVersion(address: URL, account: Account) async -> String? {
+        guard let piece else { return nil }
+        let kept = await MusicCore.run { MusicCore.call(piece: piece.id, "sources.pdf") }
+        guard let object = facadeObject(kept), let base64 = object["pdf"] as? String, let data = Data(base64Encoded: base64) else {
+            return facadeObject(kept)?["message"] as? String ?? text["pdf.readNone"]
+        }
+        let fileName = object["fileName"] as? String ?? "score.pdf"
+        let result: ScanResult
+        switch await ScanServer.recognise(fileName: fileName, data: data, address: address, account: account) {
+        case .failure(let problem): return problem.text(text)
+        case .success(let read): result = read
+        }
+        let pages = max(1, sources.document?.pages ?? result.pages)
+        let request = Self.json(["musicXml": result.musicXml.base64EncodedString(), "engine": result.engine, "pages": pages]) ?? "{}"
+        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "sources.documentNotes", request) }
+        guard versions.read(performance: answer) else {
+            return facadeObject(answer)?["message"] as? String ?? text["pdf.readNone"]
+        }
+        versionStatus = versions.matched == 0
+            ? text["performance.noMatch"]
+            : text.format("performance.added", String(versions.matched), String(versions.printed), String(versions.bars.filter(\.differs).count))
+        await versionAdded(piece)
         return nil
     }
 
@@ -969,6 +1110,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     /// The bars the version has otherwise as plum labels above them, and the printed notes it does not have tinted.
     private func drawVersions() async {
+        await readSources()
         guard shown else { return }
         let name = versions.shown?.name ?? ""
         let differing = versions.differing

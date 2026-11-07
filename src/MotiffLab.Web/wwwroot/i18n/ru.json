@@ -1354,7 +1354,6 @@
   "sources.pdfHow": "PDF хранится в пьесе как есть, чтобы читать рядом с нотами; его ноты можно распознать как версию.",
   "sources.notPdf": "Этот файл не PDF.",
   "sources.pdfKept": "PDF теперь хранится в пьесе.",
-  "performance.title": "Другие версии",
   "performance.add": "Добавить версию",
   "performance.close": "Закрыть другие версии",
   "performance.chips": "Версии",
