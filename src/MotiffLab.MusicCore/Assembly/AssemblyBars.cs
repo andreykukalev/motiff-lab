@@ -196,7 +196,11 @@ public static class AssemblyBars
         return new TimeSignature((int)Math.Clamp((length + (grid / 2)) / grid, 1, TimeSignature.MaxNumerator), TimeSignature.MaxDenominator);
     }
 
-    /// <summary>Joins the two bars on either side of <paramref name="seam"/> when both are short.</summary>
+    /// <summary>
+    /// Joins the two bars on either side of <paramref name="seam"/> when both are short. A joined bar that is still not
+    /// as long as a bar of either side stays short, in the signature of its left part, so a carry inside one bar joins
+    /// with both of its cut halves again; <see cref="ToMeter"/> writes it with a signature of its own length.
+    /// </summary>
     private static void JoinAt(List<AssemblyBar> bars, int seam)
     {
         if (seam <= 0 || seam >= bars.Count || !bars[seam - 1].IsShort || !bars[seam].IsShort)
@@ -207,9 +211,7 @@ public static class AssemblyBars
         AssemblyBar left = bars[seam - 1];
         AssemblyBar right = bars[seam];
         long length = left.Span.Duration + right.Span.Duration;
-        TimeSignature signature = length == left.Signature.BarTicks ? left.Signature
-            : length == right.Signature.BarTicks ? right.Signature
-            : OfLength(length, left.Signature);
+        TimeSignature signature = length == right.Signature.BarTicks && length != left.Signature.BarTicks ? right.Signature : left.Signature;
         bars[seam - 1] = new AssemblyBar(new TickSpan(left.Span.Onset, length), signature);
         bars.RemoveAt(seam);
     }

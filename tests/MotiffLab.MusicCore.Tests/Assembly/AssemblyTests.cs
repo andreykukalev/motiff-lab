@@ -96,6 +96,23 @@ public class AssemblyTests
     }
 
     [Fact]
+    public void A_carry_inside_one_bar_leaves_the_bar_whole()
+    {
+        SourceMusic cover = Score("c", melody: bar => bar == 2 ? [76, 81, 76] : [76, 75, 76]);
+        AssemblyWork work = Work(cover);
+        SourceMusic notes = work.Result.Music;
+
+        // The middle eighth of bar 3 of the cover over the middle eighth of bar 3: both seams cut the same bar.
+        work = work.With(work.Carry("cover", new TickSpan(new Tick((2 * Bar) + Eighth), Eighth), AssemblyPlace.Between(Find(notes, "n2r1"), Find(notes, "n2r1")), 0, s_at));
+
+        Assembled result = work.Result;
+        Assert.Equal(8, result.Music.Bars.Count);
+        Assert.All(result.Music.Bars, bar => Assert.False(bar.IsShort));
+        Assert.Equal([new MeterChange(Tick.Zero, s_threeEight)], result.Music.Meter.Changes);
+        Assert.Equal(81, result.Music.NotesIn(new Tick((2 * Bar) + Eighth), new Tick((2 * Bar) + (2 * Eighth))).Single().Pitch.MidiNumber);
+    }
+
+    [Fact]
     public void Short_bars_meeting_at_a_seam_become_one_bar()
     {
         IReadOnlyList<AssemblyBar> bars = Score().Bars;
@@ -147,6 +164,32 @@ public class AssemblyTests
         // The return is one change: ⌘Z brings all three back, ⇧⌘Z returns it again.
         Assert.Equal([1, 2, 3], back.Undo().Steps.Select(step => step.Number));
         Assert.Equal([3], back.Undo().Redo().Steps.Select(step => step.Number));
+    }
+
+    [Fact]
+    public void The_journal_says_each_step_and_what_returning_one_takes_with_it()
+    {
+        AssemblyWork work = Work(Score("c", melody: bar => [81, 79, 77]));
+        SourceMusic notes = work.Result.Music;
+        work = work.With(work.Carry("cover", new TickSpan(new Tick(2 * Bar), Bar), AssemblyPlace.Between(Find(notes, "n2l"), Find(notes, "n2r2")), 0, s_at));
+        work = work.ChangeNote("c1.c2r1", 2, s_at);
+        work = work.With(work.Carry("cover", new TickSpan(new Tick(5 * Bar), Bar), AssemblyPlace.Between(Find(notes, "n5l"), Find(notes, "n5r2")), 0, s_at));
+
+        IReadOnlyList<JournalRow> rows = AssemblyJournal.Rows(work, Words.Russian, MusicCore.Notation.NoteNaming.Syllables);
+        Assert.Equal("№1 · 4 ноты из Кавера → такт 3", rows[0].Title);
+        Assert.Equal("положил 4, убрал 4", rows[0].Detail);
+        Assert.Equal("№2 · Правка ноты", rows[1].Title);
+        Assert.Equal("соль² на тон вверх, такт 3", rows[1].Detail);
+
+        IReadOnlyList<JournalLine> card = AssemblyJournal.Card(work, 1, Words.Russian);
+        Assert.Equal("4 ноты. Убрал: 4 прежние ноты.", card[0].Text);
+        Assert.Equal(SheetMark.Changes, card[1].Mark);
+        Assert.Equal("вместе с ним уйдёт 1 правка нот.", card[1].Text);
+
+        IReadOnlyList<JournalLine> revert = AssemblyJournal.Revert(work, work.PlanRevert(1), Words.Russian);
+        Assert.Equal("перенос №3 из Кавера.", revert[1].Text);
+        Assert.Equal("такты 3, 6", AssemblyJournal.ChangedBars(work, Words.Russian));
+        Assert.Equal("Такт 3", AssemblyJournal.Apply(work, Words.Russian)[0].Label);
     }
 
     [Fact]
