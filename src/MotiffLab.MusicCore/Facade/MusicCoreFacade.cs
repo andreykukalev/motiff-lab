@@ -32,6 +32,7 @@ public sealed class MusicCoreFacade
     /// 8 explains Piece DNA (testing item 30): dna answers a "summary" line, every harmony bar its "degree" and
     /// "function", every cadence its "explanation", and "circles", the circle of fifths of each section with the key it
     /// comes from; a circle's chords tell their "function" and "role", and a circle its twelve "zones".
+    /// 10 takes out the merge draft's calls of contract 7 (performance.merge and its steps): the assembly replaced it.
     /// 9 assembles the player's own version from the piece's sources (0024): assembly, assembly.source, .notation,
     /// .playback, .pick, .sheet, .carry, .transpose, .accept, .undo, .redo, .restart, .revert, .journal, .apply, .unapply
     /// and .recording, over project file version 15.
@@ -48,7 +49,7 @@ public sealed class MusicCoreFacade
     /// 1 was the first contract: open and save, piece, phrases with their edits, select, understand,
     /// experiments, the variation chain, notation, playback, the catalogue and the Piece DNA placeholder.
     /// </summary>
-    public const int Contract = 9;
+    public const int Contract = 10;
 
     private readonly Dictionary<int, OpenPiece> _pieces = [];
     private readonly Dictionary<int, OpenDocument> _documents = [];

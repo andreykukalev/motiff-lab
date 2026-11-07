@@ -30,7 +30,7 @@ internal sealed partial class OpenPiece
         "performance.takeAll" => TakeAll(request),
         "performance.restore" => ChangePerformance(request, performance => performance.Restore(BarsOf(request)), notesChange: true),
         "performance.remove" => RemovePerformance(request),
-        _ when name.StartsWith("performance.merge", StringComparison.Ordinal) || name == "performance.putBack" => CallOnMerge(name, request),
+        "performance.putBack" => PutBackVersion(),
         _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\"."),
     };
 
@@ -238,11 +238,6 @@ internal sealed partial class OpenPiece
         bool hadTaken = removed.Taken.Count > 0;
         int index = Project.Performances.ToList().FindIndex(performance => performance.Id == removed.Id);
         _removedVersion = (removed, index, [.. (Project.Check ?? []).Where(flag => flag.Source == CheckSource.Performance)]);
-        if (_merge?.PerformanceId == removed.Id)
-        {
-            _merge = null;
-        }
-
         Project = Project.RemovePerformance(removed.Id);
         if (hadTaken)
         {

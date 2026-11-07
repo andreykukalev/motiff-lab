@@ -269,15 +269,12 @@ final class FacadeTests: XCTestCase {
         shelf.read(list: MusicCore.call(piece: piece, "performances"))
         XCTAssertEqual(shelf.entries.map(\.name), ["Urtext"])
 
-        // A merge draft of it has nothing to decide, and its result engraves the whole piece (testing item 32); the version
+        // The assembly lists the notes and the version as sources, and the version shown engraves on its own; the version
         // above the phrase in focus, and the version to hear.
-        let opened = try object(MusicCore.call(piece: piece, "performance.merge.open", #"{"id": "\#(id)", "start": "all"}"#))
-        let merge = try XCTUnwrap(MergeInfo(object: opened))
-        XCTAssertEqual(merge.total, 0)
-        let result = try Engraver.engraveMerge(piece: piece, title: "Für Elise", view: "result").get()
-        XCTAssertFalse(result.pages.isEmpty)
-        XCTAssertTrue(result.version.isEmpty, "the piece's own score adds nothing")
-        XCTAssertNil(MergeInfo(object: try object(MusicCore.call(piece: piece, "performance.merge.cancel"))))
+        let assembly = try XCTUnwrap(AssemblyInfo(object: object(MusicCore.call(piece: piece, "assembly")), text: UIText(language: "en")))
+        XCTAssertEqual(assembly.sources.map(\.id), ["notes", id])
+        let shown = try Engraver.engraveAssembly(piece: piece, request: #"{"source": "\#(id)", "title": "Für Elise"}"#).get()
+        XCTAssertFalse(shown.pages.isEmpty)
         let card = try Engraver.engraveCard(piece: piece, firstBar: 4, lastBar: 8, options: #"{"scale": 42, "pageWidth": 2600, "adjustPageHeight": true, "breaks": "auto"}"#, version: id).get()
         XCTAssertEqual(card.ossias.count, 1)
         let heard = try XCTUnwrap(PlaybackScore.read(MusicCore.call(piece: piece, "playback", #"{"of": "version", "id": "\#(id)"}"#)))

@@ -777,6 +777,17 @@ internal sealed partial class OpenPiece
         json.WriteEndArray();
     }
 
+    private static void WriteIds(Utf8JsonWriter json, string name, IEnumerable<string> ids)
+    {
+        json.WriteStartArray(name);
+        foreach (string id in ids)
+        {
+            json.WriteStringValue(id);
+        }
+
+        json.WriteEndArray();
+    }
+
     private static void WriteNumbers(Utf8JsonWriter json, string name, IEnumerable<int> numbers)
     {
         json.WriteStartArray(name);

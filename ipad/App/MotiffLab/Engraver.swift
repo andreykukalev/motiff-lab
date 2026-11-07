@@ -85,23 +85,10 @@ final class Engraver {
         layOut(piece: piece, request: "{\"title\": \(jsonString(title))}", options: a4(evenBars: evenBars))
     }
 
-    /// The whole piece as a merge draft's view shows it on the pages (testing items 32 and 34): "version" or "result",
-    /// with the ids of the notes from the version and of the player's own (`performance.merge.notation`).
-    static func engraveMerge(piece: Int32, title: String, view: String, evenBars: Bool = false) -> Result<Engraving, EngraveError> {
-        layOut(piece: piece, call: "performance.merge.notation", request: "{\"title\": \(jsonString(title)), \"view\": \(jsonString(view))}", options: a4(evenBars: evenBars))
-    }
-
-    /// The bars of a merge draft's view engraved on their own for Compare versions, one system at the window's width,
-    /// the notes larger or smaller with `zoom` (100 as the page has them).
-    static func engraveMergeBars(piece: Int32, view: String, firstBar: Int, lastBar: Int, zoom: Int) -> Result<Engraving, EngraveError> {
-        let scale = max(20, min(80, 45 * zoom / 100))
-        let options = """
-        {"font": "Leland", "scale": \(scale), "pageWidth": 2400, "pageHeight": 2970, "pageMarginLeft": 40, "pageMarginRight": 40,
-         "pageMarginTop": 40, "pageMarginBottom": 40, "adjustPageHeight": true, "breaks": "none", "header": "none", "footer": "none",
-         "svgViewBox": true}
-        """
-        return layOut(piece: piece, call: "performance.merge.notation",
-                      request: "{\"view\": \(jsonString(view)), \"bars\": {\"first\": \(firstBar), \"last\": \(lastBar)}}", options: options)
+    /// A source of the assembly (0024) on the pages, in its own bars and keys (`assembly.notation`): the notes, a version or
+    /// «Как было»; with a carry being made, the notes as it will leave them, the ids of the notes it puts in as `version` (plum).
+    static func engraveAssembly(piece: Int32, request: String, evenBars: Bool = false) -> Result<Engraving, EngraveError> {
+        layOut(piece: piece, call: "assembly.notation", request: request, options: a4(evenBars: evenBars))
     }
 
     /// The bars of a phrase in focus engraved on their own (0018 section 4): music-core writes the excerpt
@@ -137,7 +124,7 @@ final class Engraver {
         }
         return .success(Engraving(
             pages: pages, timemap: engraver.timemap(), ossias: ossias,
-            version: answer["version"] as? [String] ?? [], own: answer["own"] as? [String] ?? []
+            version: answer["version"] as? [String] ?? answer["put"] as? [String] ?? [], own: answer["own"] as? [String] ?? []
         ))
     }
 
@@ -161,7 +148,7 @@ struct Engraving: Sendable {
     let pages: [String]
     let timemap: String
     var ossias: [Ossia] = []
-    /// On a merge draft's view, the engraved ids of the notes from the version (plum) and of the player's own (amber).
+    /// On a source of the assembly, the engraved ids of the notes a carry puts in (plum, `put`); `own` stays for amber.
     var version: [String] = []
     var own: [String] = []
 }

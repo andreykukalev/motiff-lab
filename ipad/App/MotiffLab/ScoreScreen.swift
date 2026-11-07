@@ -92,7 +92,9 @@ struct ScoreScreen: View {
     private var rollShown: Bool { rollOpen || (score.focused && score.focusRoll) }
 
     private var pillShown: Bool {
-        ((score.selection != nil || player.transportKept) && settings["guidance.transportPill"] != "playing") || player.state != .stopped
+        // While comparing, the chips of the sources take the pill's place (0024).
+        guard !score.assembly.open else { return false }
+        return ((score.selection != nil || player.transportKept) && settings["guidance.transportPill"] != "playing") || player.state != .stopped
     }
 
     /// Piece DNA from More: the map music-core gives for the piece as it is now, the selection as its first idea.
@@ -175,7 +177,7 @@ struct ScoreScreen: View {
         return ScoreWebView(score: score, piece: piece, dark: colorScheme == .dark)
             .overlay(alignment: .topLeading) {
                 // The menu over the selection, where the page places it (the web app's menuPlace).
-                if score.selection != nil, !score.focused, let place = score.menuPlace {
+                if score.selection != nil, !score.focused, !score.assembly.open, let place = score.menuPlace {
                     SelectionMenu(score: score, player: player, contents: contents, conversation: conversation, text: text, rollOpen: $rollOpen, insightsOpen: $insightsOpen)
                         .offset(x: place.x, y: place.y)
                 }
@@ -199,9 +201,6 @@ struct ScoreScreen: View {
                         .padding(.bottom, pillBottom + 56)
                         .transition(.opacity)
                 }
-            }
-            .fullScreenCover(isPresented: $score.comparing) {
-                CompareVersionsScreen(score: score, text: text)
             }
             .overlay {
                 // The phrase as a roll over the card (testing item 12); the drawer's roll moves here, so it shows once the drawer is gone.
@@ -238,8 +237,8 @@ struct ScoreScreen: View {
                         PenPalette(score: score, text: text)
                             .transition(.opacity.combined(with: .move(edge: .top)))
                     }
-                    if score.merge != nil && !score.focused && !score.comparing {
-                        MergeShowSwitch(score: score, text: text)
+                    if score.assembly.open && !score.focused {
+                        AssemblyShownLabel(assembly: score.assembly, text: text)
                             .transition(.opacity)
                     }
                 }
@@ -316,6 +315,23 @@ struct ScoreScreen: View {
                 .padding(.trailing, pillTrailing)
                 .padding(.leading, pillLeading)
             }
+            .overlay(alignment: .bottom) {
+                // Comparing the piece's sources and assembling the player's version (0024), or the card after a version was added.
+                if !score.focused {
+                    AssemblyOverlay(assembly: score.assembly, text: text, bottom: pillBottom)
+                        .padding(.trailing, pillTrailing)
+                        .padding(.leading, pillLeading)
+                }
+            }
+            .onChange(of: score.assembly.open) { _, open in
+                // The comparison is the whole screen's work: the drawers and sheets go while it is open.
+                guard open else { return }
+                insightsOpen = false
+                checkOpen = false
+                versionsOpen = false
+                rollOpen = false
+                contentsOpen = false
+            }
             .animation(.easeOut(duration: 0.2), value: rollOpen)
             .animation(.easeOut(duration: 0.2), value: insightsOpen)
             .animation(.easeOut(duration: 0.2), value: contentsOpen)
@@ -360,17 +376,8 @@ struct ScoreScreen: View {
         // A flag tapped on the score opens Check on its bar.
         let checking = $checkOpen
         score.checkPicked = { _ in checking.wrappedValue = true }
-        // Open in the draft, from a marker's popover or focus, opens Sources on the version's page; a merge applied or
-        // undone changes what plays. The draft's views are heard on their own, or the notes and the version in turn.
-        let comparing = $versionsOpen
-        score.versionPicked = { _ in comparing.wrappedValue = true }
+        // A source of the assembly (0024) and a bar of a version are heard on their own.
         score.hearNotes = { [weak heard] notes, range in heard?.hearAlone(notes, over: range) }
-        score.hearInTurn = { [weak heard] notes, range in
-            guard let heard else { return }
-            heard.setVariation(notes, version: true)
-            heard.hear(.alternate, over: range)
-            if heard.state != .playing { heard.play(from: range.lowerBound) }
-        }
         let id = piece.id
         let rolled = roll
         score.notesChanged = { [weak heard, weak rolled] in
@@ -1182,8 +1189,8 @@ struct FocusBar: View {
                 HearingSwitch(player: player, range: variationRange, text: text, version: player.secondIsVersion ? score.focusVersion?.name : nil)
             }
             if score.focusVersion != nil, !player.hasVariation || player.secondIsVersion {
-                // The way into the merge draft for this phrase (testing item 32); bars are no longer taken here.
-                Button(text["merge.openDraft"]) { score.openDraftFromFocus() }
+                // The way into the comparison with the version (0024); bars are no longer taken here.
+                Button(text["assembly.compare"]) { score.compareFromFocus() }
                     .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
             }
             Button {
@@ -1352,6 +1359,7 @@ struct PenPalette: View {
 /// steps.
 struct MorePanel: View {
     @ObservedObject var score: ScoreController
+    @Environment(\.dismiss) private var dismiss
     let text: UIText
     let problem: String?
     let openCheck: () -> Void
@@ -1385,6 +1393,19 @@ struct MorePanel: View {
                 }
             }
             .buttonStyle(DSButtonStyle(kind: .quiet))
+            // Compare the piece's sources and assemble the player's own version from them (0024).
+            if !score.versions.entries.isEmpty {
+                Button {
+                    dismiss()
+                    score.assembly.openComparison()
+                } label: {
+                    HStack(spacing: CGFloat.ds("s-2")) {
+                        Icon(name: "layers")
+                        Text(score.assembly.versionsLabel.map { "\(text["assembly.open"]) · \($0)" } ?? text["assembly.open"])
+                    }
+                }
+                .buttonStyle(DSButtonStyle(kind: .quiet))
+            }
             // Piece DNA, the map of the whole piece, and the assistant on the whole piece (testing items 22, 23).
             Button(action: openDna) {
                 HStack(spacing: CGFloat.ds("s-2")) {

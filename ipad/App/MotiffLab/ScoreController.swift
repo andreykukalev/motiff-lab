@@ -1,3 +1,4 @@
+import Combine
 import PDFKit
 import PencilKit
 import SwiftUI
@@ -116,25 +117,17 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// The version whose page Sources shows (testing item 32): its overview, the merge draft and what was merged; nil for
     /// the list of sources.
     @Published var versionPage: String?
-    /// The merge draft open now, as music-core answers `performance.merge` (testing items 32 and 34); nil with none.
-    @Published private(set) var merge: MergeInfo?
-    /// The change the draft shows, by its bar.
-    @Published private(set) var mergeAt: Int?
-    /// Whether a choice in the draft goes for the change's bar or every change of its phrase.
-    @Published var mergePhrase = false
-    /// What the score shows while a draft is open: "mine", "version" or "result".
-    @Published private(set) var mergeShow = "result"
-    /// What was last asked to be heard of the draft: "mine", "version", "result" or "alternate".
-    @Published private(set) var mergeHearing: String?
-    /// The full-screen Compare versions window over the draft.
-    @Published var comparing = false
-    /// What was just done with a version, with the way to undo it: a merge applied or undone, a version removed.
+    /// What was just done with a version, with the way to undo it: a version removed.
     @Published private(set) var mergeToast: MergeToast?
     /// A version's marker tapped on the score: the popover under it says how the bar differs (testing item 33).
     @Published private(set) var markerPick: MarkerPick?
+    /// Assembling the player's own version from the piece's sources (0024): while it is open, the page shows the source
+    /// it holds and taps on the page select in that source.
+    let assembly = AssemblyModel()
+    private var assemblyChange: AnyCancellable?
 
     struct MergeToast: Equatable {
-        enum Undo: Equatable { case unapply, reapply, putBack }
+        enum Undo: Equatable { case putBack }
         var text: String
         var undo: Undo?
     }
@@ -148,10 +141,6 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     /// The draft's notes to hear over a span, once: the screen's player plays them on their own.
     var hearNotes: (@MainActor ([PlaybackNote], Range<Double>) -> Void)?
-    /// The player's notes, then the version's, in turn over a span.
-    var hearInTurn: (@MainActor ([PlaybackNote], Range<Double>) -> Void)?
-    /// The way into a version's page from the score (its marker's popover, focus): the screen opens Sources.
-    var versionPicked: (@MainActor (Int) -> Void)?
     /// The piece's notes changed (bars of another version taken or restored): the player and the roll load them again.
     var notesChanged: (@MainActor () -> Void)?
     /// The version shown, for the phrase in focus with no variation open: what Version plays, its name, and the bars of
@@ -300,6 +289,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         applyTool()
 
         webView.load(URLRequest(url: BundleSchemeHandler.url("Web/score.html")))
+        assembly.score = self
+        assemblyChange = assembly.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
     }
 
     /// Shows a piece's pages and its marks; again when the appearance changes.
@@ -312,14 +303,12 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             versionStatus = nil
             sources = SourcesInfo()
             versionPage = nil
-            merge = nil
-            mergeAt = nil
             mergeToast = nil
             markerPick = nil
-            comparing = false
             engravedView = nil
             engravedEven = DeviceSettings.shared.isOn("score.evenBars")
             versionPlayback = nil
+            assembly.attach(piece.id)
         }
         self.dark = dark
         if pageReady { Task { await render() } }
@@ -343,11 +332,12 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             let place = message["menu"] as? [String: Any]
             menuPlace = place.flatMap { place in number(place["left"]).map { CGPoint(x: $0, y: number(place["top"]) ?? 0) } }
         }
+        // While comparing, a tap or a drag selects in the source shown (0024).
         if let chosen = message["chosen"] as? [String: Any], let start = number(chosen["start"]), let end = number(chosen["end"]) {
-            Task { await select(start, end) }
+            if assembly.open { assembly.pickBars(start, end) } else { Task { await select(start, end) } }
         }
         if let bar = message["bar"] as? [String: Any], let start = number(bar["start"]), let end = number(bar["end"]) {
-            Task { await select(start, end) }
+            if assembly.open { assembly.pickBars(start, end) } else { Task { await select(start, end) } }
         }
         if let bracket = number(message["bracket"]) {
             selectPhrase(Int(bracket))
@@ -370,10 +360,14 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             showVersionBar(Int(bar))
         }
         if let note = number(message["note"]) {
-            noteTapped?(note)
+            if assembly.open { assembly.pickNote(note) } else { noteTapped?(note) }
         }
-        if message["blank"] != nil, blankTapped?() != true {
-            clearSelection()
+        if message["blank"] != nil {
+            if assembly.open {
+                assembly.clearPick()
+            } else if blankTapped?() != true {
+                clearSelection()
+            }
         }
         if let note = number(message["cardNote"]) {
             noteTapped?(note)
@@ -895,12 +889,59 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         await versionAdded(piece)
     }
 
-    /// A version just added: Sources shows its page (testing item 32), and the list, the markers and Check follow.
+    /// A version just added: the list, the markers and Check follow, and one quiet card offers to compare (0024).
     private func versionAdded(_ piece: OpenPiece) async {
-        versionPage = versions.shownId
         versions.read(list: await MusicCore.run { MusicCore.call(piece: piece.id, "performances") })
         await drawVersions()
         await loadCheck(piece)
+        if let id = versions.shownId { assembly.offerComparison(id) }
+    }
+
+    // MARK: - Assembling a version (0024)
+
+    /// Comparing opens: the selection, focus and the old draft go; the page shows the source the assembly holds.
+    func assemblyOpened() {
+        leaveFocus()
+        selection = nil
+        markerPick = nil
+        versionPage = nil
+    }
+
+    /// Comparing closes: the page shows the piece's notes again with its marks and phrases.
+    func assemblyClosed() {
+        selection = nil
+        Task {
+            await engraveScore()
+            await drawVersions()
+        }
+    }
+
+    /// What the assembly shows changed: the page is engraved again with it.
+    func assemblyChanged() async {
+        await applyMergeView()
+        await drawVersions()
+    }
+
+    /// The selection in the source shown, as the band on the page; nil for none.
+    func showAssemblyPick(_ span: Range<Double>?) async {
+        selection = span.map { ScoreSelection(onset: $0.lowerBound, end: $0.upperBound, firstBar: 0, lastBar: 0) }
+        await showSelection()
+        if let span {
+            _ = try? await webView.callAsyncJavaScript("return motiff.reveal(data)", arguments: ["data": ["start": span.lowerBound]], contentWorld: .page)
+        }
+    }
+
+    /// The journal changed: it is kept with the piece at once.
+    func assemblySaved() async {
+        guard let piece, let file = piece.file else { return }
+        try? await ProjectFiles.save(piece: piece.id, to: file)
+    }
+
+    /// «Сделать нотами» or its undo: music-core opened the piece again with other notes; everything on the page follows.
+    func assemblyApplied() async {
+        selection = nil
+        await assemblySaved()
+        await notesDidChange()
     }
 
     /// A recording heard by the scan server in parts, as another version (0022): music-core joins the parts' notes and
@@ -1007,7 +1048,6 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             }
             versions.read(list: answer)
             versionPage = nil
-            if merge?.id == shown.id { endDraft() }
             versionStatus = nil
             mergeToast = MergeToast(text: text.format("merge.removed", shown.name), undo: .putBack)
             if let next = versions.entries.first {
@@ -1073,8 +1113,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         let title = piece.title
         let view = wantedView
         let even = DeviceSettings.shared.isOn("score.evenBars")
+        let assembled = view?.hasPrefix("assembly:") == true ? Self.json(assembly.notationRequest(title: title)) : nil
         let engraved = await MusicCore.run {
-            view.map { Engraver.engraveMerge(piece: id, title: title, view: $0, evenBars: even) } ?? Engraver.engrave(piece: id, title: title, evenBars: even)
+            assembled.map { Engraver.engraveAssembly(piece: id, request: $0, evenBars: even) } ?? Engraver.engrave(piece: id, title: title, evenBars: even)
         }
         switch engraved {
         case .success(let engraving):
@@ -1093,7 +1134,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     /// The draft's view the score should show: the version or the result while a draft is open out of focus.
     private var wantedView: String? {
-        merge != nil && !focused && mergeShow != "mine" ? mergeShow : nil
+        assembly.open ? assembly.engravingKey : nil
     }
 
     /// The page engraved again when the view it should show changed.
@@ -1109,7 +1150,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         await readSources()
         guard shown else { return }
         let name = versions.shown?.name ?? ""
-        let differing = extraShown("performance") ? versions.differing : []
+        // A source of the assembly is in its own bars: the markers on the piece's bars do not show on it.
+        let differing = extraShown("performance") && !assembly.open ? versions.differing : []
         let markers: [[String: Any]] = differing.compactMap { bar in
             guard let span = bar.span else { return nil }
             return ["bar": bar.bar, "tick": span.lowerBound, "text": bar.marker, "label": text.format("performance.markerLabel", String(bar.bar), name, bar.marker)]
@@ -1151,9 +1193,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         return versionPlayback?.id == id ? versionPlayback?.notes : nil
     }
 
-    // MARK: - Merging a version (testing items 32–34)
+    // MARK: - A version's page and its marker
 
-    /// A version's page in Sources: its overview, the draft and what was merged.
+    /// A version's page in Sources: its match with the notes, the way into the comparison, its name and Remove.
     func openVersionPage(_ id: String) {
         versionPage = id
         if versions.shownId != id { showVersion(id) }
@@ -1163,180 +1205,40 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         versionPage = nil
     }
 
-    /// Keep my notes, Take the sure ones or Take the version wherever it differs: the draft opens with those choices,
-    /// or is applied at once when the player asked for that (`merge.direct`); `saved` opens the choices last applied.
-    func startMerge(_ start: String, direct: Bool = true) {
-        guard let piece, let id = versions.shownId else { return }
-        Task {
-            guard await mergeCall(piece.id, "performance.merge.open", ["id": id, "start": start]) else { return }
-            if direct && DeviceSettings.shared["merge.direct"] == "on" {
-                await applyDraft(piece)
-                return
-            }
-            mergeShow = "result"
-            mergeAt = merge?.bars.first?.bar
-            if let mergeAt { showVersionBar(mergeAt) }
-            await mergeChanged()
-        }
-    }
-
-    /// Open in the draft, from a marker's popover or from focus: the version's page with the draft on the bar, the
-    /// choices as last applied when no draft of it is open.
-    func openDraft(at bar: Int) {
-        guard let piece, let id = versions.shownId else { return }
+    /// Compare from a version's page, its marker or focus: the comparison opens with the version shown (0024).
+    func compare(_ id: String? = nil) {
         markerPick = nil
-        versionPage = id
-        versionPicked?(bar)
-        Task {
-            if merge?.id != id {
-                guard await mergeCall(piece.id, "performance.merge.open", ["id": id, "start": "saved"]) else { return }
-                mergeShow = "result"
-            }
-            goToMergeBar(bar)
-            await mergeChanged()
-        }
+        versionPage = nil
+        assembly.openComparison(id ?? versions.shownId)
     }
 
-    /// Open in the draft from focus: focus is left, and the draft opens on the first bar of the phrase that differs.
-    func openDraftFromFocus() {
-        guard focusVersion != nil, let bar = focusVersion?.differing.first ?? selection?.firstBar else { return }
+    /// Compare from focus: focus is left, and the comparison opens with the version of the phrase.
+    func compareFromFocus() {
+        let id = focusVersion?.id
         leaveFocus()
-        openDraft(at: bar)
+        compare(id)
     }
 
-    /// Take mine, Take from the version or Not a difference, for the change shown or the bar given; with Phrase, for every
-    /// change of its phrase.
-    func chooseMerge(_ choice: String, bar: Int? = nil) {
-        guard let piece, let at = bar ?? mergeAt else { return }
-        changeDraft(piece, "performance.merge.choose", ["bars": draftBars(at), "choice": choice])
-    }
-
-    /// Take the group: every change of the kind at once, mine or the version.
-    func chooseMergeGroup(_ group: String, _ choice: String) {
-        guard let piece, let merge else { return }
-        let bars = merge.bars.filter { $0.group == group }.map(\.bar)
-        guard !bars.isEmpty else { return }
-        changeDraft(piece, "performance.merge.choose", ["bars": bars, "choice": choice])
-    }
-
-    /// Reset the bar: undecided again.
-    func undecideMerge(_ bar: Int) {
-        guard let piece else { return }
-        changeDraft(piece, "performance.merge.undecide", ["bars": [bar]])
-    }
-
-    func undoDraft() {
-        guard let piece else { return }
-        changeDraft(piece, "performance.merge.undo")
-    }
-
-    func redoDraft() {
-        guard let piece else { return }
-        changeDraft(piece, "performance.merge.redo")
-    }
-
-    /// Reset the draft: back to how it opened, which Undo can itself take back.
-    func resetDraft() {
-        guard let piece else { return }
-        changeDraft(piece, "performance.merge.reset")
-    }
-
-    /// Cancel: the draft goes and nothing has changed.
-    func cancelDraft() {
-        guard let piece else { return }
-        Task {
-            _ = await mergeCall(piece.id, "performance.merge.cancel")
-            endDraft()
-            await mergeChanged()
-        }
-    }
-
-    func applyMerge() {
-        guard let piece else { return }
-        Task { await applyDraft(piece) }
-    }
-
-    /// Undo the merge: the player's notes back in every bar taken; the choices stay to open again.
-    func undoAppliedMerge() {
-        guard let piece, let id = versions.shownId else { return }
-        Task { await unapply(piece, id, toast: text["merge.undone"], undo: .reapply) }
-    }
-
-    /// The toast's Undo: the step it names taken back.
+    /// The toast's Undo: a version removed is put back while the piece is open.
     func undoToast() {
-        guard let piece, let toast = mergeToast, let undo = toast.undo else { return }
+        guard let piece, let toast = mergeToast, toast.undo == .putBack else { return }
         mergeToast = nil
         Task {
-            switch undo {
-            case .unapply:
-                guard let id = versions.shownId else { return }
-                await unapply(piece, id, toast: text["merge.applyUndone"], undo: nil)
-            case .reapply:
-                guard let id = versions.shownId, await mergeCall(piece.id, "performance.merge.open", ["id": id, "start": "saved"]) else { return }
-                await applyDraft(piece, toast: text["merge.redone"])
-            case .putBack:
-                let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.putBack") }
-                guard versions.read(performance: answer) else {
-                    versionStatus = facadeObject(answer)?["message"] as? String
-                    return
-                }
-                versions.read(list: await MusicCore.run { MusicCore.call(piece: piece.id, "performances") })
-                mergeToast = MergeToast(text: text.format("merge.putBack", versions.shown?.name ?? ""), undo: nil)
-                await notesDidChange()
-                await loadCheck(piece)
+            let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.putBack") }
+            guard versions.read(performance: answer) else {
+                versionStatus = facadeObject(answer)?["message"] as? String
+                return
             }
+            versions.read(list: await MusicCore.run { MusicCore.call(piece: piece.id, "performances") })
+            mergeToast = MergeToast(text: text.format("merge.putBack", versions.shown?.name ?? ""), undo: nil)
+            await assembly.refresh()
+            await notesDidChange()
+            await loadCheck(piece)
         }
     }
 
     func closeToast() {
         mergeToast = nil
-    }
-
-    /// ‹ › through the changes.
-    func stepMerge(_ by: Int) {
-        guard let merge, !merge.bars.isEmpty else { return }
-        let bars = merge.bars.map(\.bar)
-        let index = mergeAt.flatMap { bars.firstIndex(of: $0) } ?? (by > 0 ? -1 : bars.count)
-        goToMergeBar(bars[min(max(index + by, 0), bars.count - 1)])
-    }
-
-    /// A change chosen in the list, the strip or the window: the draft and the score go to its bar.
-    func goToMergeBar(_ bar: Int) {
-        mergeAt = bar
-        showVersionBar(bar)
-        if let mergeHearing { hearMerge(mergeHearing) }
-    }
-
-    /// What the score shows while the draft is open: the player's notes, the version or the result.
-    func showMergeView(_ view: String) {
-        mergeShow = view
-        Task {
-            await applyMergeView()
-            await drawVersions()
-        }
-    }
-
-    /// Hear Mine, Version or Result over the change shown (its phrase with Phrase), or the player's notes and the
-    /// version in turn.
-    func hearMerge(_ view: String) {
-        guard let piece, merge != nil, let span = hearSpan else { return }
-        mergeHearing = view
-        Task {
-            let request = Self.json(["view": view == "alternate" ? "version" : view]) ?? "{}"
-            let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.merge.playback", request) }
-            guard let notes = PlaybackScore.read(answer)?.notes else { return }
-            if view == "alternate" { hearInTurn?(notes, span) } else { hearNotes?(notes, span) }
-        }
-    }
-
-    /// The span heard: the change's bar, or its phrase with Phrase.
-    private var hearSpan: Range<Double>? {
-        guard let at = mergeAt else { return nil }
-        let bars = draftBars(at)
-        let spans = versions.bars.filter { bars.contains($0.bar) || $0.bar == at }.compactMap(\.span)
-        guard let first = spans.map(\.lowerBound).min(), let last = spans.map(\.upperBound).max() else { return nil }
-        if mergePhrase, let unit = phrases?.units.first(where: { $0.firstBar <= at && at <= $0.lastBar }) { return unit.onset..<unit.end }
-        return first..<last
     }
 
     /// ▶ As in the version, from a marker's popover: the bar as the version plays it.
@@ -1351,100 +1253,6 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     func closeMarker() {
         markerPick = nil
-    }
-
-    /// A draft's view engraved for Compare versions over the bars shown (± 1 bar, the phrase or the sentence round the
-    /// change), with the ids of the notes to colour.
-    func mergeCard(_ view: String, see: String, zoom: Int) async -> MergeCardImage? {
-        guard let piece, let at = mergeAt else { return nil }
-        let id = piece.id
-        let (first, last) = await seenBars(id, at, see)
-        let engraved = await MusicCore.run { Engraver.engraveMergeBars(piece: id, view: view, firstBar: first, lastBar: last, zoom: zoom) }
-        guard case .success(let engraving) = engraved, let svg = engraving.pages.first else { return nil }
-        return MergeCardImage(svg: svg, version: engraving.version, own: engraving.own)
-    }
-
-    private func seenBars(_ piece: Int32, _ bar: Int, _ see: String) async -> (Int, Int) {
-        if see == "phrase" || see == "sentence" {
-            let request = Self.json(["level": see]) ?? "{}"
-            let answer = await MusicCore.run { MusicCore.call(piece: piece, "phrases", request) }
-            if let unit = PhraseLevelsShown(answer: answer)?.units.first(where: { $0.firstBar <= bar && bar <= $0.lastBar }) {
-                return (unit.firstBar, unit.lastBar)
-            }
-        }
-        let numbers = versions.bars.map(\.bar)
-        return (max(numbers.min() ?? bar, bar - 1), min(numbers.max() ?? bar, bar + 1))
-    }
-
-
-    private func draftBars(_ bar: Int) -> [Int] {
-        guard mergePhrase, let merge, let unit = phrases?.units.first(where: { $0.firstBar <= bar && bar <= $0.lastBar }) else { return [bar] }
-        let bars = merge.bars.map(\.bar).filter { unit.firstBar <= $0 && $0 <= unit.lastBar }
-        return bars.isEmpty ? [bar] : bars
-    }
-
-    private func changeDraft(_ piece: OpenPiece, _ call: String, _ fields: [String: Any] = [:]) {
-        Task {
-            if await mergeCall(piece.id, call, fields) { await mergeChanged() }
-        }
-    }
-
-    /// One `performance.merge` call; the draft as it answers. False, with why, for an error.
-    @discardableResult private func mergeCall(_ piece: Int32, _ call: String, _ fields: [String: Any] = [:]) async -> Bool {
-        let request = Self.json(fields) ?? "{}"
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, call, request) }
-        guard let object = facadeObject(answer), object["error"] == nil else {
-            versionStatus = facadeObject(answer)?["message"] as? String
-            return false
-        }
-        merge = MergeInfo(object: object)
-        if let merge, let mergeAt, !merge.bars.contains(where: { $0.bar == mergeAt }) { self.mergeAt = merge.bars.first?.bar }
-        return true
-    }
-
-    /// After the draft changed: the score shows its view again, and what is heard follows.
-    private func mergeChanged() async {
-        if wantedView != nil {
-            await engraveScore()
-        } else {
-            await applyMergeView()
-        }
-        await drawVersions()
-        if merge == nil { mergeHearing = nil }
-    }
-
-    private func endDraft() {
-        merge = nil
-        mergeAt = nil
-        mergeHearing = nil
-        comparing = false
-        mergeShow = "result"
-    }
-
-    /// Apply: the draft's bars come into the score, its choices are kept with the piece, and the toast can undo it.
-    private func applyDraft(_ piece: OpenPiece, toast: String? = nil) async {
-        let at = ISO8601DateFormatter().string(from: Date())
-        let request = Self.json(["at": at]) ?? "{}"
-        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.merge.apply", request) }
-        guard versions.read(performance: answer) else {
-            versionStatus = facadeObject(answer)?["message"] as? String
-            return
-        }
-        endDraft()
-        versionStatus = nil
-        mergeToast = MergeToast(text: toast ?? text.count("merge.applied", versions.shown?.takenBars ?? 0), undo: toast == nil ? .unapply : nil)
-        await notesDidChange()
-    }
-
-    private func unapply(_ piece: OpenPiece, _ id: String, toast: String, undo: MergeToast.Undo?) async {
-        let request = Self.json(["id": id]) ?? "{}"
-        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.merge.undoApplied", request) }
-        guard versions.read(performance: answer) else {
-            versionStatus = facadeObject(answer)?["message"] as? String
-            return
-        }
-        mergeToast = MergeToast(text: toast, undo: undo)
-        await notesDidChange()
     }
 
     // MARK: - Phrase focus
@@ -1651,7 +1459,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// Draws the brackets, the selected one in the accent, and the band over the selection.
     private func showSelection() async {
         guard shown else { return }
-        let units: [[String: Any]] = (phrases?.units ?? []).map { unit in
+        let units: [[String: Any]] = (assembly.open ? [] : phrases?.units ?? []).map { unit in
             let current = selection.map { $0.onset == unit.selectableOnset && $0.end == unit.selectableEnd } ?? false
             return ["start": unit.onset, "end": unit.end, "number": unit.number, "kind": unit.kind, "current": current, "label": label(of: unit)]
         }
@@ -1696,10 +1504,11 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
                 _ = try? await webView.callAsyncJavaScript("return motiff.showTick(data)", arguments: ["data": ["tick": tick]], contentWorld: .page)
             }
             _ = try? await webView.callAsyncJavaScript("return motiff.pen(on)", arguments: ["on": penOn], contentWorld: .page)
-            let marks = await MusicCore.run { MusicCore.call(piece: piece.id, "marks") }
+            // The marks, the phrases and the bookmarks are on the piece's bars: a source of the assembly shows without them.
+            let marks = assembly.open ? "{\"ink\": []}" : await MusicCore.run { MusicCore.call(piece: piece.id, "marks") }
             await draw(marks)
             await loadPhrases(piece)
-            await drawBookmarks()
+            if !assembly.open { await drawBookmarks() }
             await loadCheck(piece)
             await loadPieceSettings(piece)
             await applyLayers()
