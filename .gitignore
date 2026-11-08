@@ -491,3 +491,6 @@ playwright-report/
 ipad/build/
 ipad/App/*.xcodeproj/
 ipad/App/Config/Local.xcconfig
+
+# The agents' local task state and guard log (.claude/hooks, governance/roles/common.md)
+.aom/

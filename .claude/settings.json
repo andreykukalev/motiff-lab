@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "mcp__github__merge_pull_request",
+      "mcp__github__enable_pr_auto_merge",
+      "mcp__github__actions_run_trigger",
+      "mcp__github__push_files",
+      "mcp__github__create_or_update_file",
+      "mcp__github__delete_file",
+      "mcp__github__create_repository",
+      "mcp__github__fork_repository",
+      "mcp__plugin_engineering_github__merge_pull_request",
+      "mcp__plugin_engineering_github__enable_pr_auto_merge",
+      "mcp__plugin_engineering_github__actions_run_trigger",
+      "mcp__plugin_engineering_github__push_files",
+      "mcp__plugin_engineering_github__create_or_update_file",
+      "mcp__plugin_engineering_github__delete_file",
+      "mcp__plugin_engineering_github__create_repository",
+      "mcp__plugin_engineering_github__fork_repository",
+      "mcp__plugin_desktop-commander_desktop-commander",
+      "mcp__remote-devices",
+      "mcp__hearthbot__start_remote_control",
+      "mcp__hearthbot__connect_device",
+      "mcp__azure",
+      "mcp__Gmail",
+      "mcp__Google_Calendar",
+      "mcp__Google_Drive",
+      "mcp__Google_Sheets",
+      "mcp__Google_Docs",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push * --force*)",
+      "Bash(git push * -f*)",
+      "Bash(git push origin main*)",
+      "Bash(git push origin HEAD:main*)",
+      "Bash(git push --delete*)",
+      "Bash(git push * --delete*)",
+      "Bash(git push * --tags*)",
+      "Bash(gh pr merge*)",
+      "Bash(gh workflow run*)",
+      "Bash(gh run rerun*)",
+      "Bash(gh secret*)",
+      "Bash(gh variable*)",
+      "Bash(gh ruleset*)",
+      "Bash(gh repo edit*)",
+      "Bash(gh repo delete*)",
+      "Bash(gh auth token*)",
+      "Bash(gh api *rulesets*)",
+      "Bash(gh api *environments*)",
+      "Bash(gh api *pending_deployments*)",
+      "Bash(gh api *protection*)",
+      "Bash(az *)",
+      "Bash(azd *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/push-guard.mjs\"", "timeout": 10 }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash",
+        "hooks": [
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/scope-guard.mjs\"", "timeout": 10 }
+        ]
+      }
+    ]
+  }
+}

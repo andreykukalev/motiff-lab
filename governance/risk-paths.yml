@@ -1,0 +1,36 @@
+# Minimum risk class by path (AOM v1.3, "Классификация рисков" > "Минимум по путям"), checked against main = 27453f9.
+# Patterns are from the repository root, glob as in CODEOWNERS: * stays within a folder, ** crosses folders.
+# A file gets the highest class of every pattern it matches; a file no pattern matches gets standard.
+# A task's minimum is the highest over every file of its diff, old and new paths of renames included.
+# Read by governance/metrics/collect.mjs. Changing this file is a Guardrail task (E3).
+guardrail:
+  - .github/**
+  - infra/**
+  - governance/**
+  - .claude/**
+  - CLAUDE.md
+high:
+  - src/MotiffLab.MusicCore/Facade/**
+  - src/MotiffLab.MusicCore/Projects/**
+  - ipad/Core/**
+  - docs/project-file.md
+  # High while api.yml deploys the API on every change here; standard once that deploy waits for approval in the
+  # Environment production and Andrei lowers it.
+  - src/MotiffLab.MusicCore/**
+  - src/MotiffLab.Api/**
+  - services/omr/**
+  - src/MotiffLab.Web/Scripts/**
+  - src/MotiffLab.Web/wwwroot/i18n/**
+  - src/MotiffLab.Web/wwwroot/audio/**
+  - src/MotiffLab.Web/wwwroot/css/**
+  - src/MotiffLab.Web/Pages/PlaybackLab*
+standard:
+  # tests/acceptance/** becomes guardrail with the first approved set of protected scenarios.
+  - tests/**
+  - ipad/App/**
+  - src/MotiffLab.Web/**
+  - design/kit/**
+  - docs/decisions/**
+low:
+  - docs/**
+  - README.md

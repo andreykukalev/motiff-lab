@@ -19,9 +19,10 @@ permissions:
 
 # A newer push to the same pull request supersedes the run in progress. Never cancel a run on main:
 # it may be provisioning infrastructure. Pull requests group by number, not ref, so a pull request's
-# run never shares a group with main.
+# run never shares a group with main. Adding any other label than browser-tests (agent, role:*, ipad-tests)
+# runs in a group of its own, so it never cancels the real run.
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}${{ github.event.action == 'labeled' && github.event.label.name != 'browser-tests' && '-label' || '' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -33,7 +34,11 @@ jobs:
   # One job for build, test, publish and deploy: a second job would pay for another runner start, checkout,
   # artifact upload and download, and billing rounds each job up to a whole minute.
   # The job name is the required check, so it always runs and reports; what it skips it skips by step.
+  # The ruleset on main requires the check build-test (infra/github/protect.ps1). A run for another label is
+  # skipped, and GitHub counts a skipped job as passed, so that run reports under another name and never stands
+  # in for build-test on the pull request's commit.
   build-test:
+    name: ${{ github.event.action == 'labeled' && github.event.label.name != 'browser-tests' && 'label (not a build)' || 'build-test' }}
     # Of labels, only adding browser-tests starts a run.
     if: >-
       github.event.pull_request.draft != true &&
@@ -107,6 +112,12 @@ jobs:
           if [[ "$browser" == true || "$azure" == true ]]; then
             publish=true
           fi
+          # Changes to the agents' own environment (governance/roles/common.md, E3) are flagged, not refused.
+          environment="$(grep -E '^(\.claude/|governance/|\.github/|CLAUDE\.md$|tests/acceptance/)' <<< "${changed:-}" || true)"
+          if [[ -n "$environment" && "${{ github.event_name }}" == pull_request ]]; then
+            echo "::warning title=env-scope::This pull request changes the agents' environment (E3): $(tr '\n' ' ' <<< "$environment")"
+            { echo '### env-scope: environment change (E3)'; echo; sed 's/^/- /' <<< "$environment"; } >> "$GITHUB_STEP_SUMMARY"
+          fi
           echo "code=$code" >> "$GITHUB_OUTPUT"
           echo "browser=$browser" >> "$GITHUB_OUTPUT"
           echo "publish=$publish" >> "$GITHUB_OUTPUT"
@@ -154,6 +165,11 @@ jobs:
       - name: Test TypeScript layer
         if: steps.changes.outputs.code == 'true'
         run: node --test "tests/web/*.test.mjs"
+
+      # The agents' guards in .claude/hooks (governance/roles/common.md): a second.
+      - name: Test agent guards
+        if: steps.changes.outputs.code == 'true'
+        run: node --test "governance/tests/*.test.mjs"
 
       # The scan server (services/omr, decision record 0011), with homr replaced by a stand-in: a few seconds.
       - uses: actions/setup-python@v5

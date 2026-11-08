@@ -26,7 +26,19 @@ env:
   IMAGE: ghcr.io/${{ github.repository_owner }}/motiff-api
 
 jobs:
+  # Every deploy to Azure waits for Andrei: the Environment production has him as its required reviewer and lets only
+  # main deploy (infra/github/protect.ps1, governance/roles/common.md). The gate is its own job without an Azure
+  # identity, so the OIDC subject Azure trusts (ref:refs/heads/main) stays as it is and nothing changes in Azure.
+  approve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: production
+    permissions: {}
+    steps:
+      - run: echo "Deploy of ${{ github.sha }} approved."
+
   publish-deploy:
+    needs: approve
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
