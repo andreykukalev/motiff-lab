@@ -1,46 +1,47 @@
-# Совет Motiff Lab: <ТЕМА> — бриф для мест
+# Motiff Lab council: <TOPIC> — brief for the seats
 
-Вы одно из мест совета: <СПИСОК МЕСТ>. Модератор ведёт раунды, сам не голосует и проверяет спорные факты. Решает
-Андрей, владелец продукта; совет даёт ему варианты, позиции, факты и несогласия, но не решение.
+You are one of the council's seats: <LIST OF SEATS>. A moderator runs the rounds, does not vote and checks disputed
+facts. Andrei, the product owner, decides; the council gives him options, positions, facts and disagreements, not a
+decision.
 
-Бриф подтверждён Андреем <ДАТА ВРЕМЯ> и после этого не меняется.
+Andrei confirmed this brief on <DATE TIME>; it does not change after that.
 
-## Что читать (и только это)
+## What to read (and only this)
 
-1. Этот файл.
-2. <concept-*.md — продуктовая концепция Андрея целиком, если есть>
-3. `facts-baseline.md` — факты исследователя `F<n>` на `main` <SHA>.
-4. `lenses.md`, если есть.
-5. Инструкция текущего раунда (`r1-instructions.md` и т. д.); с R2 — `facts.md` и отчёты прошлых раундов.
+1. This file.
+2. <concept-*.md — Andrei's product concept in full, if there is one>
+3. `facts-baseline.md` — the researcher's facts `F<n>` on `main` <SHA>.
+4. `lenses.md`, if there is one.
+5. The current round's instructions (`r1-instructions.md` and so on); from R2 on, `facts.md` and earlier reports.
 
-Все файлы в `/mnt/project-files/councils/<тема>/`. Не читайте репозиторий и другие файлы на диске.
+All files are in `/mnt/project-files/councils/<topic>/`. Do not read the repository or any other file on disk.
 
-## Вопрос
+## The question
 
-<ОДИН СТРАТЕГИЧЕСКИЙ ВОПРОС В ДВУХ-ТРЁХ ПРЕДЛОЖЕНИЯХ: ЧТО ДОЛЖНО РАБОТАТЬ, ДЛЯ КОГО, ЧТО НЕ ДОЛЖНО СЛОМАТЬСЯ.>
+<ONE STRATEGIC QUESTION IN TWO OR THREE SENTENCES: WHAT MUST WORK, FOR WHOM, WHAT MUST NOT BREAK.>
 
-## Продуктовая рамка
+## Product frame
 
-<КОНЦЕПЦИЯ АНДРЕЯ КАК ПРОВЕРЯЕМЫЕ ГИПОТЕЗЫ H1…, БЕЗ ЕГО АРХИТЕКТУРНОГО ВЫБОРА.>
+<ANDREI'S CONCEPT AS TESTABLE HYPOTHESES H1…, WITHOUT HIS ARCHITECTURAL CHOICE.>
 
-## Варианты (совет может добавить свой)
+## Options (the council may add its own)
 
-1. <ВАРИАНТ — ЧТО ОБЩЕЕ, ЧТО РАЗДЕЛЬНОЕ, ОДНОЙ-ДВУМЯ СТРОКАМИ>
+1. <OPTION — WHAT IS SHARED, WHAT IS SEPARATE, IN ONE OR TWO LINES>
 2. <…>
 
-## Критерии (нумерованные, чтобы раунды на них ссылались)
+## Criteria (numbered, so the rounds can cite them)
 
-1. <НАБЛЮДАЕМЫЙ КРИТЕРИЙ>
+1. <OBSERVABLE CRITERION>
 2. <…>
 
-## Жёсткие ограничения
+## Hard constraints
 
-- <ЛЮДИ: ОДИН АНДРЕЙ; ОН ЕДИНСТВЕННЫЙ, КТО СЛИВАЕТ И ВЫПУСКАЕТ>
-- <АГЕНТЫ: ОДНА ЗАДАЧА ЗА РАЗ, ПОДПИСКА БЕЗ КЛЮЧЕЙ API, LINUX-КОНТЕЙНЕР БЕЗ macOS>
-- <CI В 5 МИНУТАХ; iPad-СБОРКИ ТОЛЬКО ПО МЕТКЕ ИЛИ ТЕГУ>
-- <ДЕНЬГИ: ОРИЕНТИРЫ AZURE, ЧТО БЕСПЛАТНО И ЧТО PRO>
-- <ПРАВИЛА ПРОДУКТА ИЗ CLAUDE.md, КОТОРЫЕ ЗАДЕВАЕТ ВОПРОС>
+- <PEOPLE: ONLY ANDREI; HE IS THE ONLY ONE WHO MERGES AND RELEASES>
+- <AGENTS: ONE TASK AT A TIME, SUBSCRIPTION ONLY WITHOUT API KEYS, A LINUX CONTAINER WITHOUT macOS>
+- <CI WITHIN 5 MINUTES; iPad BUILDS ONLY BY LABEL OR TAG>
+- <MONEY: AZURE REFERENCE FIGURES, WHAT IS FREE AND WHAT IS PRO>
+- <PRODUCT RULES FROM CLAUDE.md THAT THE QUESTION TOUCHES>
 
-## Сценарий проверки
+## Test scenario
 
-<ПУТЬ ИГРОКА ИЗ 5–8 ШАГОВ, КОТОРЫЙ КАЖДОЕ МЕСТО ПРОХОДИТ ПО СВОЕЙ ПОЗИЦИИ, НАЗЫВАЯ КОМПОНЕНТ НА КАЖДОМ ШАГЕ.>
+<A PLAYER JOURNEY OF 5–8 STEPS THAT EACH SEAT WALKS THROUGH ON ITS POSITION, NAMING THE COMPONENT AT EACH STEP.>

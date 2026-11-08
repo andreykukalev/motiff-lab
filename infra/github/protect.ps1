@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-  Sets up the GitHub guards of the agents' soft mode (governance/roles/common.md, "Ограждения"), once. Run it from a
+  Sets up the GitHub guards of the agents' soft mode (governance/roles/common.md, "Guards"), once. Run it from a
   clone of the repository on your own computer, signed in to the GitHub CLI as the repository's owner; running it again
   is safe and brings the settings back to what is written here.
 

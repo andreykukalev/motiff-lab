@@ -4,7 +4,7 @@
 //  2. When the task's scope is written to .aom/task.json ({"task": 12, "allowed_paths": ["src/MotiffLab.Web/Pages/**"]}),
 //     a file outside allowed_paths: ask. The file itself is changed only by Andrei's decision: ask.
 // It asks rather than refuses, because the person may agree; where nobody can answer, the platform treats it as a
-// refusal. Rules: governance/roles/common.md, "Ограждения" and "Остановка".
+// refusal. Rules: governance/roles/common.md, "Guards" and "Stopping".
 
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -60,21 +60,21 @@ export function decideFile(rel, { envTask, scope, scopeExists }) {
   if (rel === null) return { decision: 'allow' }; // outside the repository: scratch files
   if (rel === '.aom/task.json') {
     return scopeExists
-      ? { decision: 'ask', reason: 'Правка .aom/task.json меняет рамки задачи: allowed_paths меняются только решением Андрея в Task Record.' }
+      ? { decision: 'ask', reason: 'Editing .aom/task.json changes the task\'s scope: allowed_paths change only by Andrei\'s decision in the Task Record.' }
       : { decision: 'allow' };
   }
   if (rel.startsWith('.aom/')) return { decision: 'allow' };
   if (isProtected(rel) && !envTask) {
     return {
       decision: 'ask',
-      reason: `«${rel}» — часть среды агентов (${PROTECTED_PATHS.join(', ')}). Её меняет только задача среды (E3), которую применяет Андрей.`,
+      reason: `"${rel}" is part of the agents' environment (${PROTECTED_PATHS.join(', ')}). It changes only in an environment task (E3), which Andrei applies.`,
     };
   }
-  if (scope?.invalid) return { decision: 'ask', reason: '.aom/task.json не читается как JSON; рамки задачи неизвестны.' };
+  if (scope?.invalid) return { decision: 'ask', reason: '.aom/task.json does not read as JSON; the task\'s scope is unknown.' };
   if (scope && !isProtected(rel) && !scope.allowed_paths.some((p) => globMatch(p, rel))) {
     return {
       decision: 'ask',
-      reason: `«${rel}» вне allowed_paths задачи #${scope.task ?? '?'} (${scope.allowed_paths.join(', ')}). Это условие остановки: опиши, зачем нужен файл, и спроси Андрея.`,
+      reason: `"${rel}" is outside the allowed_paths of task #${scope.task ?? '?'} (${scope.allowed_paths.join(', ')}). This is a stop condition: say why the file is needed and ask Andrei.`,
     };
   }
   return { decision: 'allow' };

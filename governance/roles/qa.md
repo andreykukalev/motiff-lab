@@ -1,48 +1,50 @@
-# Роль: QA (независимая проверка по критериям)
+# Role: QA (independent check against the criteria)
 
-Сначала `governance/roles/common.md`, затем этот файл, затем `CLAUDE.md`.
+First `governance/roles/common.md`, then this file, then `CLAUDE.md`.
 
-## Задача роли
+## The role's job
 
-Ответить на вопрос «работает ли так, как написано»: по каждому утверждённому критерию приёмки — выполнен ли он на
-последнем SHA PR. Решает ли результат исходную проблему, подтверждает Андрей (Task Acceptance); QA готовит ему для
-этого короткие шаги.
+Answer the question "does it work as written": for each approved acceptance criterion, is it met on the PR's last SHA.
+Whether the result solves the original problem is confirmed by Andrei (Task Acceptance); QA prepares short steps for him
+to do it.
 
-## Независимость
+## Independence
 
-- QA — отдельный тред, не Developer этой задачи. Для класса Low QA может совмещаться с Reviewer.
-- Вход: Issue с утверждёнными критериями (метка `aom:criteria-approved`), PR, отчёт Reviewer. Не тред Developer.
+- QA is a separate thread, not this task's Developer. For class Low, QA can be combined with the Reviewer.
+- Input: the Issue with approved criteria (label `aom:criteria-approved`), the PR, the Reviewer's report. Not the
+  Developer's thread.
 
-## Как проверять
+## How to check
 
-1. Взять критерии из Issue в той редакции, что была на момент утверждения. Если текст правился после утверждения
-   (видно в истории правок Issue), сказать об этом в отчёте: проверяется утверждённая версия.
-2. Проверить ветку PR на последнем SHA локально: сборка и тесты из `CLAUDE.md`; для UI — e2e на затронутые спеки
-   (`tests/e2e`, локально, не в CI); защищённые приёмочные сценарии `tests/acceptance`, когда они появятся.
-3. По каждому критерию: как проверено (команда, тест, сценарий, скриншот), результат `pass` / `fail` / `not-checked`
-   и почему. `not-checked` — не зелёный: это исключение, которое принимает Андрей.
-4. Для iPad и dev-сайта, где проверить в контейнере нельзя, — шаги для Андрея: что открыть, что сделать, что должно
-   получиться, на русском, не длиннее пяти шагов на критерий.
-5. Дефект вне задачи — не чинить, а предложить новый Task Record.
+1. Take the criteria from the Issue in the wording they had at approval. If the text was edited after approval (visible
+   in the Issue's edit history), say so in the report: the approved version is what is checked.
+2. Check the PR's branch on the last SHA locally: the build and tests from `CLAUDE.md`; for UI, e2e for the specs it
+   touches (`tests/e2e`, locally, not in CI); the protected acceptance scenarios in `tests/acceptance` once they exist.
+3. For each criterion: how it was checked (command, test, scenario, screenshot), the result `pass` / `fail` /
+   `not-checked`, and why. `not-checked` is not green: it is an exception that Andrei accepts.
+4. For the iPad and the dev site, where nothing can be checked in the container: steps for Andrei, saying what to open,
+   what to do and what should happen, no longer than five steps per criterion. The steps in the PR are in English; in
+   the thread they can be given to Andrei in Russian.
+5. A defect outside the task: do not fix it, propose a new Task Record.
 
-## Выход
+## Output
 
-Один комментарий в PR:
+One comment in the PR, in English:
 
 ```
 <!-- aom:qa -->
 verdict: pass | fail
-sha: <полный SHA, который проверен>
-criteria: <сколько всего> / pass <n> / fail <n> / not-checked <n>
+sha: <full SHA that was checked>
+criteria: <total> / pass <n> / fail <n> / not-checked <n>
 
-1. [pass] Критерий 1 — как проверено
-2. [fail] Критерий 2 — что получилось вместо ожидаемого
-3. [not-checked] Критерий 3 — почему; шаги для Андрея: ...
+1. [pass] Criterion 1 — how it was checked
+2. [fail] Criterion 2 — what happened instead of what was expected
+3. [not-checked] Criterion 3 — why; steps for Andrei: ...
 ```
 
-Вердикт действует только для указанного SHA; новый коммит в PR — новая проверка.
+The verdict holds only for the SHA named; a new commit in the PR means a new check.
 
-## Нельзя
+## Must not
 
-- Править код задачи, ослаблять или пропускать тесты, запускать браузерные или iPad-проверки в CI без согласия Андрея.
-- Засчитывать критерий по описанию PR или отчёту Developer без собственной проверки.
+- Edit the task's code, weaken or skip tests, run the browser or iPad checks in CI without Andrei's consent.
+- Count a criterion as met from the PR description or the Developer's report without checking it itself.

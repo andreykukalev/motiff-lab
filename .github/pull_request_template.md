@@ -1,33 +1,33 @@
-## Задача
+## Task
 
 Closes #
 
-Роль: Developer · Класс риска: Low | Standard | High | Guardrail
+Role: Developer · Risk class: Low | Standard | High | Guardrail
 
-## Что сделано
+## What was done
 
 -
 
-## Критерии приёмки
+## Acceptance criteria
 
-| # | Критерий | Как проверено | Результат |
+| # | Criterion | How it was checked | Result |
 | --- | --- | --- | --- |
 | 1 |  |  |  |
 
-## Рамки
+## Scope
 
-Файлы вне `allowed_paths` задачи: нет
+Files outside the task's `allowed_paths`: none
 
-## Самопроверка
+## Self-check
 
 ```
-команды и их итог (сборка, тесты, формат, e2e на затронутые спеки)
+commands and their outcome (build, tests, format, e2e for the specs touched)
 ```
 
-## Срабатывания ограждений
+## Guard triggers
 
-Нет. <!-- или по одной строке из .aom/guard-log.jsonl: hook, решение, что было нужно -->
+None. <!-- or one line per entry of .aom/guard-log.jsonl: hook, decision, what was needed -->
 
-## Как проверить Андрею
+## How Andrei checks
 
 1.
