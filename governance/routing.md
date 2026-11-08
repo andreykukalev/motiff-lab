@@ -12,7 +12,8 @@ ones in `roles/common.md`.
 - **Andrei names no role**: the coordinator picks one from the table below and says in one line which role it picked
   and why. If several rows fit, or none, it asks rather than guesses.
 
-Role names the coordinator understands: council (moderator), researcher, developer, reviewer, QA, environment task.
+Role names the coordinator understands: council (moderator), researcher, developer, reviewer, QA, environment task,
+product auditor, acceptance designer, UX designer.
 Andrei may also name a role that does not exist yet: the coordinator answers that there is no such role and suggests
 the nearest one in the table.
 
@@ -30,23 +31,27 @@ the nearest one in the table.
 | After review; "QA for PR #…" | QA (`roles/qa.md`) | A new thread, not the Developer's | The Reviewer's report | An `aom:qa` comment, steps for Andrei |
 | Comments on a PR, "fix it per the review" | Developer as Feedback Resolver | The Developer thread of that task | The Reviewer's report | New commits, then review and QA again |
 | A new role, a rules change, hooks, CI, `CLAUDE.md`, `tests/acceptance` | Environment task (E1–E3 per the Task Record form) | A new thread, then an independent Reviewer | A Task Record with `aom:criteria-approved`, like any task | A PR to the agents' environment, applied by Andrei |
-| A redesign of a screen or mechanic | Design variants before any PR (`common.md`, product decisions) | A new thread, no PR | — | Variants for approval |
+| A redesign of a screen or mechanic; "show me variants" | UX designer (`roles/ux-designer.md`), variants before any PR | A new thread, no PR | Andrei's request or a draft UI Task Record | Variants for approval, then the chosen one in the Task Record's criteria |
+| "What is worth keeping", an audit before a rebuild or a release | Product auditor (`roles/product-auditor.md`) | A new thread | Andrei's request with the scope; the decision frame, if any | A feature registry with verdicts and draft Task Records |
+| Acceptance scenarios for journeys or rules | Acceptance designer (`roles/acceptance-designer.md`) | A new thread, never the Developer of the task they check | Andrei's request with the journeys and the level | A scenario list for approval, then an environment task for `tests/acceptance` |
 | Merge a PR, release, deploy, change GitHub or Azure settings | Andrei only | — | — | The coordinator gives the steps and does none of it |
 | A question that the documents answer | The coordinator answers itself | Project chat | — | An answer with a link |
 
 ## Not created yet
 
-Roles from the multi-agent design doc (https://claude.ai/artifact/UtpGa79GKqHQeE9wga1eM3) that come in
-task #286: product auditor (a feature registry "keep / fix / redo / remove"), acceptance designer, UX designer (variants
-from `design/kit`). Waiting for a decision: the product profiles "web" and "iPad". Until a role exists, such intents go
-to the nearest row of the table, or to Andrei as a question.
+Waiting for a decision: the product profiles "web" and "iPad" from the multi-agent design doc
+(https://claude.ai/artifact/UtpGa79GKqHQeE9wga1eM3). Until they exist, such intents go to the nearest row of the table,
+or to Andrei as a question.
 
 The external council seat from another model family is paused (`roles/council.md`).
 
 ## Where roles load by themselves
 
 - **Claude Code on Andrei's computer** reads the repository's `.claude/agents/` and `.claude/skills/`: a role can be
-  called by name (`@agent-researcher` [unverified, check on the Mac], `/council <topic>`). The council folder and the
+  called by name (`/council <topic>`; the `@agent-researcher` mention is unverified). Checked on 2026-11-08 on Windows
+  (Claude Code 2.1.308, `main` after #284): `/council` started with the brief, all seven agents were listed with their
+  tool lists, and a PreToolUse hook refused `gh ruleset list`. So agents, skills and hooks load there; the deny rules
+  were not tested on their own, because the hook refused the command first. The council folder and the
   questions to Andrei work differently there: skill `council`, "Where the council runs".
 - **claude.ai cloud threads** did not read them on 2026-11-08 (nor apply `.claude/settings.json`): the thread reads the
   role file itself and passes it to a subagent as the prompt, as the skill `council` says in "Starting the seats".

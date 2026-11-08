@@ -9,6 +9,7 @@ class Guardrail: it changes only in an environment task, which Andrei applies.
 | `roles/common.md` | Common process rules for every role; read before any task starts |
 | `roles/developer.md`, `roles/reviewer.md`, `roles/qa.md` | The roles of soft mode: what each does, what it sees, what it must not do, what it delivers |
 | `roles/council.md` | Advisory track: council moderator, seats, researcher; the order of rounds is the skill `.claude/skills/council` |
+| `roles/product-auditor.md`, `roles/acceptance-designer.md`, `roles/ux-designer.md` | Advisory roles: a feature registry with verdicts, acceptance scenarios from the music, design variants before any PR |
 | `routing.md` | Routing: which of Andrei's intents goes to which role, and how to name a role explicitly |
 | `risk-paths.yml` | The minimum risk class by path |
 | `metrics/` | Metrics M1–M11 and the guards' figures for each task: definitions and the script `collect.mjs` |
