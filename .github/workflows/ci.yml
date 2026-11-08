@@ -19,10 +19,11 @@ permissions:
 
 # A newer push to the same pull request supersedes the run in progress. Never cancel a run on main:
 # it may be provisioning infrastructure. Pull requests group by number, not ref, so a pull request's
-# run never shares a group with main. Adding any other label than browser-tests (agent, role:*, ipad-tests)
-# runs in a group of its own, so it never cancels the real run.
+# run never shares a group with main. A run for adding any label other than browser-tests (agent, role:*,
+# risk:*, ipad-tests) only reports the result of the build before it (see the job), so it gets a group of its
+# own per run: it never cancels the build in progress, and no other label run cancels it.
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}${{ github.event.action == 'labeled' && github.event.label.name != 'browser-tests' && '-label' || '' }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}${{ github.event.action == 'labeled' && github.event.label.name != 'browser-tests' && format('-label-{0}', github.run_id) || '' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -33,28 +34,72 @@ env:
 jobs:
   # One job for build, test, publish and deploy: a second job would pay for another runner start, checkout,
   # artifact upload and download, and billing rounds each job up to a whole minute.
-  # The job name is the required check, so it always runs and reports; what it skips it skips by step.
-  # The ruleset on main requires the check build-test (infra/github/protect.ps1). A run for another label is
-  # skipped, and GitHub counts a skipped job as passed, so that run reports under another name and never stands
-  # in for build-test on the pull request's commit.
+  # The job name is the required check (the ruleset on main, infra/github/protect.ps1), so it is fixed text and
+  # the job always runs and reports; what it skips it skips by step.
+  #
+  # Adding a label starts a run too (GitHub cannot filter label events by name), and the pull request shows
+  # build-test from the newest CI run on its commit. A label run that skipped the job, or reported under another
+  # name, hid the real result and left the pull request blocked (#294, #295). So a run for adding any label
+  # other than browser-tests builds nothing: its build-test waits for the CI run on the same commit just before
+  # it and reports that run's build-test, passing only if that one passed. Label runs that come close together
+  # each wait for the one before, down to the real build. Adding browser-tests starts a full run with the
+  # browser suite, as before. To try a failed build again after labels were added, re-run the build, then the
+  # newest run (or push).
   build-test:
-    name: ${{ github.event.action == 'labeled' && github.event.label.name != 'browser-tests' && 'label (not a build)' || 'build-test' }}
-    # Of labels, only adding browser-tests starts a run.
-    if: >-
-      github.event.pull_request.draft != true &&
-      (github.event.action != 'labeled' || github.event.label.name == 'browser-tests')
+    name: build-test
+    if: github.event.pull_request.draft != true
     runs-on: ubuntu-latest
     # CI stays within 5 minutes. The browser suite alone takes about 15 minutes on one worker, so a run
-    # that asks for it gets longer.
-    timeout-minutes: ${{ (inputs.browser_tests || contains(github.event.pull_request.labels.*.name, 'browser-tests')) && 30 || 5 }}
+    # that asks for it gets longer. A label run builds nothing, but waits for the build before it, so its
+    # limit covers that build.
+    timeout-minutes: >-
+      ${{ (github.event.action == 'labeled' && github.event.label.name != 'browser-tests')
+      && (contains(github.event.pull_request.labels.*.name, 'browser-tests') && 35 || 10)
+      || ((inputs.browser_tests || contains(github.event.pull_request.labels.*.name, 'browser-tests')) && 30 || 5) }}
     permissions:
+      actions: read # a label run reads the run before it
       contents: read
       id-token: write # OIDC sign-in to Azure
     env:
       RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
       SWA_NAME: swa-motifflab
+      LABEL_ONLY: ${{ github.event.action == 'labeled' && github.event.label.name != 'browser-tests' }}
     steps:
+      # A run for adding a label other than browser-tests: report the build-test of the CI run on this commit
+      # just before this one (pull_request runs, by run number), once it has finished. Every other step is
+      # skipped, since "Find what changed" does not run and sets no outputs.
+      - name: Report the build of this commit
+        if: env.LABEL_ONLY == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          workflow="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq .workflow_id)"
+          while true; do
+            before="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$workflow/runs?head_sha=$HEAD_SHA&event=pull_request&per_page=100" \
+              --jq "[.workflow_runs[] | select(.run_number < $GITHUB_RUN_NUMBER)] | max_by(.run_number) // empty | \"\(.id) \(.status)\"")"
+            if [[ -z "$before" ]]; then
+              echo "::error::No CI run on $HEAD_SHA before this one, so there is no build to report. Push, or re-run the build."
+              exit 1
+            fi
+            read -r id status <<< "$before"
+            if [[ "$status" == completed ]]; then
+              break
+            fi
+            echo "Waiting for run $id ($status)"
+            sleep 15
+          done
+          conclusion="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs" \
+            --jq '[.jobs[] | select(.name == "build-test")][0].conclusion // "missing"')"
+          echo "build-test of run $id on $HEAD_SHA: $conclusion"
+          echo "### build-test of run [$id]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$id): $conclusion" >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$conclusion" != success ]]; then
+            echo "::error::build-test of run $id did not pass ($conclusion)."
+            exit 1
+          fi
+
       - uses: actions/checkout@v4
+        if: env.LABEL_ONLY != 'true'
 
       # Documentation-only changes skip the build and tests. Only changes to the app (src, infra, SDK and
       # build settings) are published and deployed; test-only changes are built and tested but not deployed.
@@ -62,6 +107,7 @@ jobs:
       # the app or they changed. Any doubt (a commit that cannot be fetched) runs everything asked for.
       - name: Find what changed
         id: changes
+        if: env.LABEL_ONLY != 'true'
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
