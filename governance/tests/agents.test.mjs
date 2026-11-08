@@ -51,7 +51,8 @@ test('council seats only read', () => {
   }
 });
 
-test('the researcher cannot edit files or start agents', () => {
+// Bash can still write; that limit is an instruction (governance/roles/council.md, «Исследователь»).
+test('the researcher has no edit or agent tools', () => {
   const researcher = agents.find((a) => a.fields.name === 'researcher');
   assert.ok(researcher);
   for (const tool of WRITERS) assert.ok(!tools(researcher).includes(tool), `researcher: ${tool}`);
