@@ -1,0 +1,103 @@
+# Task Record (AOM v1.3, governance/roles/common.md): one task, its acceptance criteria and its scope.
+# The headings below are read by governance/metrics/collect.mjs; rename them only together with it.
+name: Задача (Task Record)
+description: Одна задача для агентов с критериями приёмки, классом риска и рамками
+title: "[Задача] "
+labels: ["task"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Критерии приёмки утверждает Андрей до начала работы меткой `aom:criteria-approved`. После утверждения они не правятся: если нужно иначе — решение Андрея комментарием или новая задача.
+  - type: textarea
+    id: goal
+    attributes:
+      label: Цель
+      description: Какую проблему игрока или проекта решает задача, одним-двумя предложениями.
+    validations:
+      required: true
+  - type: textarea
+    id: criteria
+    attributes:
+      label: Критерии приёмки
+      description: Пронумерованный список. Каждый критерий проверяем — командой, тестом, сценарием или действием на iPad — и описывает результат, а не способ.
+      placeholder: |
+        1. На пустой библиотеке видна кнопка «Добавить пьесу», и по ней открывается выбор файла (веб и iPad).
+        2. Текст есть на русском и английском.
+        3. Существующие проекты открываются как раньше.
+    validations:
+      required: true
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: Вне рамок
+      description: Что задача сознательно не делает.
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Класс риска
+      description: Не ниже минимума по путям из таблицы AOM. Повысить может любая роль, понизить — только Андрей.
+      options:
+        - Low
+        - Standard
+        - High
+        - Guardrail
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Контур
+      description: Продукт или среда агентов (.claude/, governance/, .github/, CLAUDE.md, tests/acceptance/).
+      options:
+        - Product Delivery
+        - Среда E1 (инструкции и документы)
+        - Среда E2 (hooks, skills, проверки)
+        - Среда E3 (права, правила веток, workflows, Environments)
+    validations:
+      required: true
+  - type: input
+    id: components
+    attributes:
+      label: Компоненты
+      description: Через запятую, например web-ui, music-core, facade, ipad-app, api, scan-server.
+    validations:
+      required: true
+  - type: textarea
+    id: allowed-paths
+    attributes:
+      label: allowed_paths
+      description: Пути, которые задача может менять, по одному на строку, glob как в CODEOWNERS (* в пределах папки, ** через папки). Файл вне них — условие остановки.
+      render: text
+      placeholder: |
+        src/MotiffLab.Web/Pages/Library*
+        tests/web/library*
+    validations:
+      required: true
+  - type: checkboxes
+    id: platforms
+    attributes:
+      label: Затронутые платформы
+      options:
+        - label: Веб (dev-сайт)
+        - label: iPad
+        - label: API
+        - label: Сервер распознавания
+        - label: Только документы или среда агентов
+  - type: input
+    id: depends-on
+    attributes:
+      label: Зависит от
+      description: Номера задач или PR, например #12, #15. Пусто, если ни от чего.
+  - type: textarea
+    id: checks
+    attributes:
+      label: Как проверить
+      description: Какие тесты, e2e-спеки, приёмочные сценарии, проверка на iPad или dev-сайте нужны по классу риска.
+    validations:
+      required: true
+  - type: textarea
+    id: stop
+    attributes:
+      label: Условия остановки
+      description: Когда агент останавливается и спрашивает. Общие уже действуют (файл вне allowed_paths, контракт, право, неясный критерий, сработавшее ограждение); здесь — свои для задачи.
