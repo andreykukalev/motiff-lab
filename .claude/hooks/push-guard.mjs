@@ -2,7 +2,7 @@
 // Refused: a push to main or to any branch but the one checked out, a push from main, force, delete, tags, --all,
 // --mirror, another remote; gh commands that merge, run workflows, change releases, secrets, variables or the
 // repository, any gh api call that is not a read, and writes to api.github.com through curl or PowerShell; the Azure
-// CLI and the infrastructure scripts (Andrei runs those). Rules: governance/roles/common.md, "Ограждения".
+// CLI and the infrastructure scripts (Andrei runs those). Rules: governance/roles/common.md, "Guards".
 // This is the second line, not the boundary: the ruleset on main refuses what slips through.
 
 import path from 'node:path';
@@ -39,27 +39,27 @@ function checkPush(args, cwd, branchOf) {
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
     if (a === '--') { positional.push(...args.slice(i + 1)); break; }
-    if (PUSH_REFUSED.test(a)) return refuse(`git push ${a} запрещён: агент пушит только свою ветку, без force, удаления и тегов.`);
-    if (/^-[A-Za-z]+$/.test(a) && /[fd]/.test(a)) return refuse(`git push ${a} запрещён: force (-f) и удаление (-d) не разрешены.`);
+    if (PUSH_REFUSED.test(a)) return refuse(`git push ${a} is refused: an agent pushes only its own branch, without force, deletion or tags.`);
+    if (/^-[A-Za-z]+$/.test(a) && /[fd]/.test(a)) return refuse(`git push ${a} is refused: force (-f) and deletion (-d) are not allowed.`);
     if (PUSH_OPTIONS_WITH_VALUE.has(a)) { i++; continue; }
     if (a.startsWith('-')) continue;
     positional.push(a);
   }
   const branch = branchOf(cwd);
-  if (!branch || branch === 'HEAD') return refuse('Не удалось определить текущую ветку; push не разрешён.');
+  if (!branch || branch === 'HEAD') return refuse('Could not tell the current branch; the push is not allowed.');
   if (!AGENT_BRANCH.test(branch)) {
-    return refuse(`Текущая ветка «${branch}» не ветка агента (claude/*, task/*, env/*). Push из main и чужих веток запрещён.`);
+    return refuse(`The current branch "${branch}" is not an agent branch (claude/*, task/*, env/*). Pushing from main or from someone else's branch is refused.`);
   }
   const [remote, ...refspecs] = positional;
-  if (remote && remote !== 'origin') return refuse(`Push только в origin, не в «${remote}».`);
+  if (remote && remote !== 'origin') return refuse(`Push only to origin, not to "${remote}".`);
   for (const spec of refspecs.length ? refspecs : [branch]) {
-    if (spec.startsWith('+')) return refuse(`Refspec «${spec}» с + — это force push; запрещён.`);
-    if (spec.startsWith(':')) return refuse(`Refspec «${spec}» удаляет ветку; запрещён.`);
+    if (spec.startsWith('+')) return refuse(`The refspec "${spec}" with + is a force push; refused.`);
+    if (spec.startsWith(':')) return refuse(`The refspec "${spec}" deletes a branch; refused.`);
     const parts = spec.split(':');
     const target = (parts.length > 1 ? parts[1] : (parts[0] === 'HEAD' ? branch : parts[0])).replace(/^refs\/heads\//, '');
-    if (target.startsWith('refs/')) return refuse(`Push в «${target}» запрещён: только ветки, не теги и другие ссылки.`);
+    if (target.startsWith('refs/')) return refuse(`A push to "${target}" is refused: branches only, not tags or other refs.`);
     if (target !== branch) {
-      return refuse(`Push в «${target}» запрещён: агент пушит только текущую ветку «${branch}». В main попадает только PR, который сливает Андрей.`);
+      return refuse(`A push to "${target}" is refused: an agent pushes only its current branch "${branch}". Only a PR that Andrei merges reaches main.`);
     }
   }
   return null;
@@ -80,9 +80,9 @@ function checkGit(words, cwd, branchOf) {
 function checkGh(words) {
   const sub = words[1];
   const action = words[2];
-  if (GH_REFUSED_ALL.has(sub)) return refuse(`gh ${sub} запрещён агентам: настройки репозитория меняет только Андрей.`);
+  if (GH_REFUSED_ALL.has(sub)) return refuse(`gh ${sub} is refused to agents: only Andrei changes the repository's settings.`);
   if (GH_REFUSED[sub] && GH_REFUSED[sub].includes(action)) {
-    return refuse(`gh ${sub} ${action} запрещён агентам (сливает, запускает workflow, выпускает и меняет настройки только Андрей).`);
+    return refuse(`gh ${sub} ${action} is refused to agents (only Andrei merges, runs workflows, releases and changes settings).`);
   }
   if (sub === 'api') {
     let method = null;
@@ -96,7 +96,7 @@ function checkGh(words) {
     }
     if (!method) method = hasBody ? 'POST' : 'GET';
     if (method !== 'GET' && method !== 'HEAD') {
-      return refuse(`gh api с методом ${method} запрещён: агенты только читают API, а пишут через свою ветку и PR.`);
+      return refuse(`gh api with the method ${method} is refused: agents only read the API and write through their branch and PR.`);
     }
   }
   return null;
@@ -108,7 +108,7 @@ function checkHttp(words, raw) {
   const write = /(^|\s)(-X|--request|-Method)\s*(POST|PUT|PATCH|DELETE)\b/i.test(text)
     || /(^|\s)(-d|--data|--data-raw|--data-binary|--data-urlencode|-F|--form|-T|--upload-file|-Body|-InFile)(\s|=|$)/i.test(text)
     || /-Method\s+(Post|Put|Patch|Delete)/i.test(raw);
-  return write ? refuse('Запись в GitHub API через curl или PowerShell запрещена агентам.') : null;
+  return write ? refuse('Writing to the GitHub API through curl or PowerShell is refused to agents.') : null;
 }
 
 export function check(command, cwd, branchOf = currentBranch) {
@@ -127,15 +127,15 @@ export function check(command, cwd, branchOf = currentBranch) {
       result = checkGit(words, cwd, branchOf);
     } else if (name === 'gh') result = checkGh(words);
     else if (['curl', 'wget', 'http', 'https', 'invoke-webrequest', 'invoke-restmethod', 'iwr', 'irm'].includes(name)) result = checkHttp(words, command);
-    else if (name === 'az' || name === 'azd') result = refuse('Azure CLI агентам запрещён: в Azure пишет только workflow после одобрения Андрея.');
+    else if (name === 'az' || name === 'azd') result = refuse('The Azure CLI is refused to agents: only a workflow writes to Azure, after Andrei approves.');
     else if (['pwsh', 'powershell'].includes(name) && /infra[\\/](azure|github)/i.test(words.join(' '))) {
-      result = refuse('Скрипты infra/azure и infra/github запускает только Андрей.');
+      result = refuse('Only Andrei runs the scripts in infra/azure and infra/github.');
     }
     if (result) return result;
   }
   // A push the parser could not see (inside bash -c '...', eval) is refused rather than guessed at.
   if (!sawPush && sawShell && /\bgit\b[^\n;&|]*\bpush\b/.test(command || '')) {
-    return refuse('Не удалось разобрать git push в этой команде; запусти git push отдельной простой командой.');
+    return refuse('Could not parse the git push in this command; run git push as a separate simple command.');
   }
   return { decision: 'allow' };
 }
@@ -148,7 +148,7 @@ async function main() {
   const result = check(command, cwd);
   if (result.decision !== 'allow') {
     logIncident(repoRoot(cwd), { hook: 'push-guard', decision: result.decision, tool: 'Bash', command: command.slice(0, 300), reason: result.reason });
-    respond(result.decision, `${result.reason} Не обходи ограждение: остановись и опиши в PR или треде, что было нужно (governance/roles/common.md).`);
+    respond(result.decision, `${result.reason} Do not get around the guard: stop and say in the PR or the thread what was needed (governance/roles/common.md).`);
   }
 }
 

@@ -1,4 +1,4 @@
-# Minimum risk class by path (AOM v1.3, "Классификация рисков" > "Минимум по путям"), checked against main = 27453f9.
+# Minimum risk class by path (AOM v1.3, "Risk classification" > "Minimum by path"), checked against main = 27453f9.
 # Patterns are from the repository root, glob as in CODEOWNERS: * stays within a folder, ** crosses folders.
 # A file gets the highest class of every pattern it matches; a file no pattern matches gets standard.
 # A task's minimum is the highest over every file of its diff, old and new paths of renames included.

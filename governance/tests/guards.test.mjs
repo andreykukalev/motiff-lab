@@ -1,5 +1,5 @@
 // Tests of the agent guards in .claude/hooks: node --test "governance/tests/*.test.mjs" (Node 22+).
-// Each failure test is a promise the guard makes in governance/roles/common.md ("Ограждения").
+// Each failure test is a promise the guard makes in governance/roles/common.md ("Guards").
 
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';

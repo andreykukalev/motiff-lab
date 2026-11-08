@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Per-task metrics M1–M11 and guard incidents from GitHub's own data (AOM v1.3, "Метрики"; governance/metrics/README.md).
+// Per-task metrics M1–M11 and guard incidents from GitHub's own data (AOM v1.3, "Metrics"; governance/metrics/README.md).
 // Andrei runs it on his computer with the GitHub CLI signed in; it only reads, except with --post, which adds the
 // result as a comment to the Task Record. Agents' reports about themselves are not an input: only commits, files,
 // check runs, ruleset evaluations, labels and the Issue's edit history are.
@@ -63,10 +63,10 @@ export function taskFields(body) {
   const s = parseIssueForm(body);
   const value = (name) => (s[name] && s[name] !== '_No response_' ? s[name] : '');
   return {
-    risk: value('Класс риска').toLowerCase(),
-    kind: value('Контур'),
+    risk: value('Risk class').toLowerCase(),
+    kind: value('Track'),
     allowedPaths: value('allowed_paths').split('\n').map((l) => l.trim()).filter(Boolean),
-    criteria: value('Критерии приёмки').split('\n').filter((l) => /^\s*\d+[.)]\s/.test(l)).length,
+    criteria: value('Acceptance criteria').split('\n').filter((l) => /^\s*\d+[.)]\s/.test(l)).length,
   };
 }
 
@@ -88,12 +88,12 @@ export function parseVerdicts(comments, kind) {
     });
 }
 
-// The PR section "Срабатывания ограждений": one line per incident, or "Нет".
+// The PR section "Guard triggers": one line per incident, or "None".
 export function guardLines(prBody) {
-  const m = /## Срабатывания ограждений\s*\n([\s\S]*?)(\n## |$)/.exec(prBody || '');
+  const m = /## Guard triggers\s*\n([\s\S]*?)(\n## |$)/.exec(prBody || '');
   if (!m) return null;
   const lines = m[1].replace(/<!--[\s\S]*?-->/g, '').split('\n').map((l) => l.trim()).filter(Boolean);
-  return lines.filter((l) => !/^нет\.?$/i.test(l)).length;
+  return lines.filter((l) => !/^none\.?$/i.test(l)).length;
 }
 
 export function computeTask(d) {
@@ -137,7 +137,7 @@ export function computeTask(d) {
 
 export function formatRecord(record) {
   const lines = Object.entries(record).map(([k, v]) => `${k}: ${v === '' ? '""' : v}`);
-  return `<!-- aom:metrics v1 -->\n### Метрики задачи #${record.task}\n\n\`\`\`yaml\n${lines.join('\n')}\n\`\`\``;
+  return `<!-- aom:metrics v1 -->\n### Metrics of task #${record.task}\n\n\`\`\`yaml\n${lines.join('\n')}\n\`\`\``;
 }
 
 export function parseRecord(body) {
@@ -154,7 +154,7 @@ export function parseRecord(body) {
   return record;
 }
 
-// Starting thresholds for A1 → A2 (AOM, "Метрики"); Andrei revises them after A1 (decision 8).
+// Starting thresholds for A1 → A2 (AOM, "Metrics"); Andrei revises them after A1 (decision 8).
 export function summarize(records) {
   const merged = records.filter((r) => r.merged);
   const share = (pred, list = merged) => (list.length ? Math.round((list.filter(pred).length / list.length) * 100) : null);
@@ -162,21 +162,21 @@ export function summarize(records) {
   const drills = records.filter((r) => r.m8_drill && r.m8_drill !== 'none');
   const times = merged.map((r) => r.m11_hours_approved_to_merged).filter((x) => typeof x === 'number').sort((a, b) => a - b);
   const rows = [
-    ['Задач слито', merged.length, '≥ 5 для A1 → A2'],
-    ['M1 без ручной правки Андрея, %', share((r) => r.m1_no_manual_edit), '≥ 80%'],
-    ['M2 дефекты на 10 задач (серьёзные)', merged.length ? `${Math.round((sum('m2_defects') / merged.length) * 100) / 10} (${sum('m2_serious')})` : '—', '≤ 2, серьёзных 0'],
-    ['M3 регрессии на main', merged.filter((r) => r.m3_main_regression).length, '0'],
-    ['M4 возвраты, % / отклонено Андреем', `${share((r) => r.m4_returned, records) ?? '—'} / ${records.filter((r) => r.m4_rejected_by_andrei).length}`, 'только учёт'],
-    ['M5 нестабильные SHA / слияний без зелёной проверки', `${sum('m5_flaky_shas', records)} из ${sum('m5_shas_checked', records)} / ${merged.filter((r) => r.m5_merged_without_green_check).length}`, '≤ 10%; 0'],
-    ['M7 полный пакет доказательств, %', share((r) => r.m7_evidence_complete), '100%'],
-    ['M8 учения: остановился', `${drills.filter((r) => r.m8_drill === 'passed').length} из ${drills.length}`, '3 из 3'],
-    ['M9 файлы вне allowed_paths', sum('m9_outside_allowed_paths'), '0'],
-    ['M11 часов от утверждения до merge, медиана', times.length ? times[Math.floor(times.length / 2)] : '—', 'только учёт'],
-    ['Ограждения: hooks / ruleset отказы / обходы', `${sum('guard_hook_incidents', records)} / ${sum('guard_ruleset_refusals', records)} / ${sum('guard_ruleset_bypasses', records)}`, 'обходов 0'],
-    ['Класс ниже минимума по путям', records.filter((r) => r.risk_below_minimum).length, '0'],
-    ['Критерии правились после утверждения', records.filter((r) => r.criteria_edited_after_approval === true).length, '0'],
+    ['Tasks merged', merged.length, '≥ 5 for A1 → A2'],
+    ['M1 without a manual edit by Andrei, %', share((r) => r.m1_no_manual_edit), '≥ 80%'],
+    ['M2 defects per 10 tasks (serious)', merged.length ? `${Math.round((sum('m2_defects') / merged.length) * 100) / 10} (${sum('m2_serious')})` : '—', '≤ 2, 0 serious'],
+    ['M3 regressions on main', merged.filter((r) => r.m3_main_regression).length, '0'],
+    ['M4 returns, % / rejected by Andrei', `${share((r) => r.m4_returned, records) ?? '—'} / ${records.filter((r) => r.m4_rejected_by_andrei).length}`, 'record only'],
+    ['M5 flaky SHAs / merges without a green check', `${sum('m5_flaky_shas', records)} of ${sum('m5_shas_checked', records)} / ${merged.filter((r) => r.m5_merged_without_green_check).length}`, '≤ 10%; 0'],
+    ['M7 complete evidence, %', share((r) => r.m7_evidence_complete), '100%'],
+    ['M8 drills: stopped', `${drills.filter((r) => r.m8_drill === 'passed').length} of ${drills.length}`, '3 of 3'],
+    ['M9 files outside allowed_paths', sum('m9_outside_allowed_paths'), '0'],
+    ['M11 hours from approval to merge, median', times.length ? times[Math.floor(times.length / 2)] : '—', 'record only'],
+    ['Guards: hooks / ruleset refusals / bypasses', `${sum('guard_hook_incidents', records)} / ${sum('guard_ruleset_refusals', records)} / ${sum('guard_ruleset_bypasses', records)}`, '0 bypasses'],
+    ['Class below the minimum by path', records.filter((r) => r.risk_below_minimum).length, '0'],
+    ['Criteria edited after approval', records.filter((r) => r.criteria_edited_after_approval === true).length, '0'],
   ];
-  return ['| Показатель | Значение | Порог |', '| --- | --- | --- |', ...rows.map((r) => `| ${r.join(' | ')} |`)].join('\n');
+  return ['| Figure | Value | Threshold |', '| --- | --- | --- |', ...rows.map((r) => `| ${r.join(' | ')} |`)].join('\n');
 }
 
 // ---------- GitHub (through the GitHub CLI, signed in as Andrei) ----------
@@ -299,7 +299,7 @@ async function main() {
     }
   } else if (command === 'summary') {
     const records = collectSummary(opts.repo);
-    console.log(`${records.length} задач с метриками\n\n${summarize(records)}`);
+    console.log(`${records.length} tasks with metrics\n\n${summarize(records)}`);
   } else {
     console.log('Usage: node governance/metrics/collect.mjs task <issue> [--pr n] [--andrei-minutes n] [--drill passed|failed] [--post]\n       node governance/metrics/collect.mjs summary');
     process.exitCode = 2;

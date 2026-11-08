@@ -13,15 +13,15 @@ const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const table = parseRiskPaths(readFileSync(path.join(root, 'governance', 'risk-paths.yml'), 'utf8'));
 
 const issueBody = [
-  '### Цель', '', 'Пустая библиотека подсказывает, что делать.', '',
-  '### Критерии приёмки', '', '1. Видна кнопка.', '2. Оба языка.', '3. Старые проекты открываются.', '',
-  '### Класс риска', '', 'Standard', '',
-  '### Контур', '', 'Product Delivery', '',
+  '### Goal', '', 'An empty library says what to do.', '',
+  '### Acceptance criteria', '', '1. The button is visible.', '2. Both languages.', '3. Old projects open.', '',
+  '### Risk class', '', 'Standard', '',
+  '### Track', '', 'Product Delivery', '',
   '### allowed_paths', '', '```text', 'src/MotiffLab.Web/Pages/Library*', 'tests/web/**', '```', '',
-  '### Зависит от', '', '_No response_',
+  '### Depends on', '', '_No response_',
 ].join('\n');
 
-const prBody = '## Задача\n\nCloses #12\n\n## Срабатывания ограждений\n\nНет. <!-- или по строке -->\n\n## Как проверить Андрею\n\n1. Открыть';
+const prBody = '## Task\n\nCloses #12\n\n## Guard triggers\n\nNone. <!-- or one line each -->\n\n## How Andrei checks\n\n1. Open';
 
 function data(overrides = {}) {
   const head = 'b'.repeat(40);
@@ -90,8 +90,8 @@ test('owner commits, files out of scope, a stale verdict and a low class are all
 });
 
 test('guard lines count incidents, and a missing section is not zero', () => {
-  assert.equal(guardLines('## Срабатывания ограждений\n\n- push-guard deny: git push origin main\n- scope-guard ask: CLAUDE.md\n'), 2);
-  assert.equal(guardLines('## Что сделано\n\n-'), null);
+  assert.equal(guardLines('## Guard triggers\n\n- push-guard deny: git push origin main\n- scope-guard ask: CLAUDE.md\n'), 2);
+  assert.equal(guardLines('## What was done\n\n-'), null);
 });
 
 test('a record survives the comment and the summary reads it', () => {
@@ -101,6 +101,6 @@ test('a record survives the comment and the summary reads it', () => {
   assert.equal(back.m1_no_manual_edit, true);
   assert.equal(back.m8_drill, 'passed');
   const table = summarize([back]);
-  assert.match(table, /M1 без ручной правки Андрея, % \| 100 \|/);
-  assert.match(table, /M8 учения: остановился \| 1 из 1/);
+  assert.match(table, /M1 without a manual edit by Andrei, % \| 100 \|/);
+  assert.match(table, /M8 drills: stopped \| 1 of 1/);
 });

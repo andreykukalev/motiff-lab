@@ -1,8 +1,8 @@
-// Shared helpers for the agent guards (push-guard, scope-guard): governance/roles/common.md, "Ограждения".
+// Shared helpers for the agent guards (push-guard, scope-guard): governance/roles/common.md, "Guards".
 // The guards are the second line: the ruleset on main and the Environment production are the boundary.
 // Each guard reads the PreToolUse event as JSON on stdin and answers with a permission decision on stdout.
 // Every deny or ask is appended to .aom/guard-log.jsonl (ignored by git), which the Developer copies into the PR
-// (section "Срабатывания ограждений") and governance/metrics/collect.mjs counts.
+// (section "Guard triggers") and governance/metrics/collect.mjs counts.
 
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, mkdirSync } from 'node:fs';
