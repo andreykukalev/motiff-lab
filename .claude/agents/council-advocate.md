@@ -19,7 +19,8 @@ has a defender: an option nobody defended cannot count as fairly rejected.
 - **Round 1.** Build the best version of your option: not the one written in the brief, but the strongest one that
   can be built under the same constraints. Show which criteria of the brief it wins on, with numbers, and what it needs.
 - **Round 2.** Attack the positions that reject your option: 1–3 concrete scenarios against each.
-- **Round 3.** Defend the option against the round 2 attacks: what is fixed, what is accepted as a cost.
+- **Round 3** (only when round 2 left an open crux you dissent on). Defend the option against the round 2 attacks:
+  what is fixed, what is accepted as a cost.
 - You may concede only to a fact in `facts.md` or `facts-baseline.md`, cited by number. Another seat's opinion, even
   one every seat shares, is no reason to concede. If a fact has beaten the option, say so plainly and name the
   narrowest part of the option that survives.

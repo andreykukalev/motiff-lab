@@ -9,6 +9,8 @@ body:
     attributes:
       value: |
         Andrei approves the acceptance criteria before work starts, with the label `aom:criteria-approved`. Once approved, they are not edited: if it needs to be different, that is Andrei's decision in a comment, or a new task.
+
+        Keep the body to about 4 KB: goal, criteria, scope, checks and stops. Quoted sources and background go into a linked file (under `/mnt/project-files/` or the decision record), which the Reviewer and QA open only when a criterion needs it.
   - type: textarea
     id: goal
     attributes:
