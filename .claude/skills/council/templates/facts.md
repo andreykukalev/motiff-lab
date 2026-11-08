@@ -1,21 +1,22 @@
-# Факты, проверенные модератором (<ДАТА>, main <SHA>)
+# Facts verified by the moderator (<DATE>, main <SHA>)
 
-Как проверено: <ЧТЕНИЕ КОДА В КЛОНЕ / КОМАНДЫ / ДОКУМЕНТАЦИЯ ВЕНДОРА С ДАТОЙ>. Номера строк — на <SHA>.
+How they were checked: <READING THE CODE IN A CLONE / COMMANDS / VENDOR DOCS WITH THE DATE READ>. Line numbers are on
+<SHA>.
 
-## После раунда 1
+## After round 1
 
-- **V1. <УТВЕРЖДЕНИЕ> — <ВЕРНО / НЕВЕРНО / ЧАСТИЧНО>.** <ЧТО ИМЕННО: `файл:строка`, команда и вывод, URL и дата>.
-  (<Какое место было право, если утверждало.>)
+- **V1. <CLAIM> — <TRUE / FALSE / PARTLY>.** <EXACTLY WHAT: `file:line`, a command and its output, a URL and the date>.
+  (<Which seat was right, if one claimed it.>)
 - **V2. …**
 
-## После раунда 2
+## After round 2
 
 - **V<n>. …**
 
-## Не проверено
+## Unverified
 
-- <УТВЕРЖДЕНИЕ> — нужна <ПРОВЕРКА, КОТОРАЯ ЭТО РЕШИТ>; важно, потому что <ЧЬЯ ПОЗИЦИЯ НА НЁМ ДЕРЖИТСЯ>.
+- <CLAIM> — needs <THE CHECK THAT WOULD SETTLE IT>; it matters because <WHOSE POSITION RESTS ON IT>.
 
-## Проверить до стройки
+## Check before building
 
-- <ПРОВЕРКА, КОТОРОЙ НУЖНА СБОРКА, РАНТАЙМ ИЛИ УСТРОЙСТВО> — <КТО И ГДЕ МОЖЕТ ЕЁ СДЕЛАТЬ>.
+- <A CHECK THAT NEEDS A BUILD, A RUNTIME OR A DEVICE> — <WHO CAN DO IT AND WHERE>.
