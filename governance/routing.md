@@ -1,51 +1,52 @@
-# Маршруты: намерение → роль
+# Routing: intent → role
 
-Как координатор решает, кого звать, когда Андрей пишет о своём намерении. Правила ролей — в `roles/`, общие — в
-`roles/common.md`.
+How the coordinator decides whom to call when Andrei writes what he wants. The role rules are in `roles/`, the common
+ones in `roles/common.md`.
 
-## Два способа
+## Two ways
 
-- **Андрей называет роль сам**: «созови совет по …», «ревьюер для PR #…», «QA по PR #…», «исследователь: сколько …».
-  Координатор зовёт названную роль. Отступает от этого только тогда, когда названная роль нарушила бы независимость
-  (например, ревью тем же тредом, который писал код): тогда он говорит, почему, и зовёт роль в новом треде.
-- **Андрей роль не называет**: координатор выбирает по таблице ниже и одной строкой пишет, какую роль выбрал и
-  почему. Если строк подходит несколько или ни одной — спрашивает, а не угадывает.
+- **Andrei names the role himself**: "convene a council on …", "reviewer for PR #…", "QA for PR #…", "researcher: how
+  many …". The coordinator calls the named role. It departs from this only when the named role would break
+  independence (for example, a review by the same thread that wrote the code): then it says why and calls the role in a
+  new thread.
+- **Andrei names no role**: the coordinator picks one from the table below and says in one line which role it picked
+  and why. If several rows fit, or none, it asks rather than guesses.
 
-Имена ролей, которые понимает координатор: совет (модератор), исследователь, разработчик (Developer), ревьюер
-(Reviewer), QA, задача среды. Роли, которые ещё не заведены, Андрей тоже может назвать: координатор ответит, что
-роли нет, и предложит ближайшую из таблицы.
+Role names the coordinator understands: council (moderator), researcher, developer, reviewer, QA, environment task.
+Andrei may also name a role that does not exist yet: the coordinator answers that there is no such role and suggests
+the nearest one in the table.
 
-## Таблица
+## Table
 
-| Намерение Андрея | Роль | Где работает | Что нужно до старта | Выход |
+| Andrei's intent | Role | Where it works | Needed before start | Output |
 | --- | --- | --- | --- | --- |
-| Архитектурная или продуктовая развилка, которую дорого отменить; «созови совет» | Модератор совета, полный совет (`roles/council.md`, skill `council`) | Новый тред; места — субагенты в нём | Вопрос от Андрея; бриф, который он подтвердил | Запись решения (Claude Doc), вопросы Андрею |
-| Развилка поменьше, «быстро сравни варианты» | Модератор, лёгкий совет | Новый тред | То же | То же, два раунда |
-| Developer остановился на контракте (facade, файл проекта, API, Cosmos) или архитектурном вопросе | Модератор, лёгкий совет | Новый тред; задача доставки ждёт | Остановка записана в Issue | Запись решения, затем решение Андрея |
-| «Сколько…», «как часто ломалось…», факты до решения | Исследователь (`.claude/agents/researcher.md`) | Субагент в треде, которому нужны факты | Вопросы и SHA | Лист фактов с источниками |
-| «Сделай …», Task Record ещё нет | Координатор (Intake) | Чат проекта | — | Issue по форме Task Record на утверждение |
-| Есть Issue с `aom:criteria-approved` | Developer (`roles/developer.md`) | Новый тред | Метка утверждения от Андрея | PR на зелёном CI |
-| PR открыт, CI зелёный; «ревьюер для PR #…» | Reviewer (`roles/reviewer.md`) | Новый тред, не тред Developer | Номер Issue и PR, без пересказа | Комментарий `aom:review` |
-| После review; «QA по PR #…» | QA (`roles/qa.md`) | Новый тред, не тред Developer | Отчёт Reviewer | Комментарий `aom:qa`, шаги для Андрея |
-| Замечания в PR, «поправь по review» | Developer как Feedback Resolver | Тред Developer этой задачи | Отчёт Reviewer | Новые коммиты, затем повторные review и QA |
-| Новая роль, правка правил, hooks, CI, `CLAUDE.md`, `tests/acceptance` | Задача среды (E3) | Новый тред, затем независимый Reviewer | Task Record с `aom:criteria-approved`, как у любой задачи | PR в среду агентов, применяет Андрей |
-| Редизайн экрана или механики | Варианты дизайна до любого PR (`common.md`, «Продуктовые решения») | Новый тред, без PR | — | Варианты на согласование |
-| Слить PR, выпустить, задеплоить, поменять настройки GitHub или Azure | Только Андрей | — | — | Координатор даёт шаги, сам не делает |
-| Вопрос, на который можно ответить по документам | Координатор отвечает сам | Чат проекта | — | Ответ со ссылкой |
+| An architecture or product fork that is expensive to undo; "convene a council" | Council moderator, full council (`roles/council.md`, skill `council`) | A new thread; the seats are subagents in it | A question from Andrei; a brief he confirmed | Decision record (Claude Doc), questions for Andrei |
+| A smaller fork, "quickly compare the options" | Moderator, light council | A new thread | The same | The same, two rounds |
+| A Developer stopped on a contract (facade, project file, API, Cosmos) or an architecture question | Moderator, light council | A new thread; the delivery task waits | The stop is recorded in the Issue | Decision record, then Andrei's decision |
+| "How many…", "how often did it break…", facts before a decision | Researcher (`.claude/agents/researcher.md`) | A subagent in the thread that needs the facts | Questions and a SHA | A fact list with sources |
+| "Do …", no Task Record yet | Coordinator (intake) | Project chat | — | An Issue in the Task Record form, for approval |
+| An Issue with `aom:criteria-approved` | Developer (`roles/developer.md`) | A new thread | Andrei's approval label | A PR on green CI |
+| A PR is open and CI is green; "reviewer for PR #…" | Reviewer (`roles/reviewer.md`) | A new thread, not the Developer's | The Issue and PR numbers, no summary | An `aom:review` comment |
+| After review; "QA for PR #…" | QA (`roles/qa.md`) | A new thread, not the Developer's | The Reviewer's report | An `aom:qa` comment, steps for Andrei |
+| Comments on a PR, "fix it per the review" | Developer as Feedback Resolver | The Developer thread of that task | The Reviewer's report | New commits, then review and QA again |
+| A new role, a rules change, hooks, CI, `CLAUDE.md`, `tests/acceptance` | Environment task (E1–E3 per the Task Record form) | A new thread, then an independent Reviewer | A Task Record with `aom:criteria-approved`, like any task | A PR to the agents' environment, applied by Andrei |
+| A redesign of a screen or mechanic | Design variants before any PR (`common.md`, product decisions) | A new thread, no PR | — | Variants for approval |
+| Merge a PR, release, deploy, change GitHub or Azure settings | Andrei only | — | — | The coordinator gives the steps and does none of it |
+| A question that the documents answer | The coordinator answers itself | Project chat | — | An answer with a link |
 
-## Ещё не заведены
+## Not created yet
 
-Роли из дизайна мультиагентной системы (документ «Мультиагентная система Motiff Lab: роли и взаимодействие»),
-которые ждут решения Андрея: аудитор продукта (реестр функций «оставить / починить / переделать / убрать»), дизайнер
-приёмочных сценариев, дизайнер интерфейса (варианты по `design/kit`), профили продуктов «веб» и «iPad». Пока их нет,
-такие намерения идут в ближайшую строку таблицы или к Андрею с вопросом.
+Roles from the multi-agent design doc (https://claude.ai/artifact/UtpGa79GKqHQeE9wga1eM3) that come in
+task #286: product auditor (a feature registry "keep / fix / redo / remove"), acceptance designer, UX designer (variants
+from `design/kit`). Waiting for a decision: the product profiles "web" and "iPad". Until a role exists, such intents go
+to the nearest row of the table, or to Andrei as a question.
 
-Внешнее место совета другого семейства моделей — на паузе (`roles/council.md`).
+The external council seat from another model family is paused (`roles/council.md`).
 
-## Где роли загружаются сами
+## Where roles load by themselves
 
-- **Claude Code на компьютере Андрея** читает `.claude/agents/` и `.claude/skills/` репозитория: роль можно позвать
-  по имени (`@agent-researcher` [не проверено, сверить на Mac], `/council <тема>`). Папка совета и вопросы
-  Андрею там другие: skill `council`, «Где идёт совет».
-- **Облачные треды claude.ai** на 2026-11-08 их не читали (и не применяли `.claude/settings.json`): тред читает файл
-  роли сам и передаёт его субагенту промптом, как описано в skill `council`, раздел «Запуск мест».
+- **Claude Code on Andrei's computer** reads the repository's `.claude/agents/` and `.claude/skills/`: a role can be
+  called by name (`@agent-researcher` [unverified, check on the Mac], `/council <topic>`). The council folder and the
+  questions to Andrei work differently there: skill `council`, "Where the council runs".
+- **claude.ai cloud threads** did not read them on 2026-11-08 (nor apply `.claude/settings.json`): the thread reads the
+  role file itself and passes it to a subagent as the prompt, as the skill `council` says in "Starting the seats".
