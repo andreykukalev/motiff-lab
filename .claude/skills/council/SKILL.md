@@ -39,7 +39,7 @@ run on Sonnet. This table and the `model:` line of each definition agree (`gover
 | iPad | `council-seat-ipad` | sonnet |
 | Cost and delivery | `council-seat-cost` | sonnet |
 | Advocate of option N | `council-advocate` | sonnet; haiku if there are more than three options (pass `model: haiku` when starting it) |
-| Blind seat | `council-blind` | opus |
+| Blind seat | `council-blind` | opus; fable only for an irreversible decision Andrei approved, pass `model: fable` when starting it |
 
 **If that `subagent_type` does not exist** (claude.ai cloud threads did not read the repository's `.claude/agents` on
 2026-11-08): start `Explore` with the `model` from the table, and as the prompt pass first the line

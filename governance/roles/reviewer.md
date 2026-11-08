@@ -58,6 +58,23 @@ The check `aom-verdicts` (`.github/workflows/aom-verdicts.yml`) reads exactly th
 Findings on lines of code go as separate line comments when that is clearer. The verdict holds only for the SHA named:
 after a new commit the PR cannot merge until the Reviewer and QA post verdicts for the new head.
 
+## Fable opinion (rare)
+
+Two cases may add an opinion from Fable 5.1, each only after Andrei's yes for that use, which the coordinator asks for
+(`governance/routing.md`, "Fable 5.1"); the Reviewer never starts Fable on its own, and never while the weekly limit is
+"warning".
+
+- **(a) Final review opinion** on a PR of a High or Guardrail task. After its own verdict, the Reviewer starts one
+  read-only subagent with `model: "fable"` and gives it only the Issue and the PR's diff: not its own findings, not the
+  PR discussion.
+- **(b) A disputed blocking finding**: the Developer still disagrees after one round. The subagent gets the Issue, the
+  diff and the dispute as written in the Issue, and gives an independent opinion. Andrei decides; the Reviewer does not
+  withdraw the finding because of the opinion.
+
+The opinion goes unedited into one comment in the Issue (not the PR), first line `<!-- aom:fable-opinion -->`, with a
+line `usage: fable, <tokens> tokens, <minutes> min`. It is an opinion, not a verdict: it has no `verdict:` or `sha:`
+header, does not count for `aom-verdicts`, and does not replace the Reviewer's verdict.
+
 ## Must not
 
 - Edit the task's code, push to the PR's branch, merge, set approval labels.
