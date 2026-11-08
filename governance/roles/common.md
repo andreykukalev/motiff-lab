@@ -32,12 +32,16 @@ only in an environment task (E3) that Andrei applies; an agent does not change i
    `role:developer`, `risk:*`.
 4. **CI** `build-test` green on the last commit (the ruleset requires it).
 5. **Reviewer**, a new thread: only the Task Record and the PR, never the Developer's thread.
-6. **Fixes**: the Developer answers with commits. A verdict holds only for the SHA it checked.
+6. **Fixes**: the Developer answers with commits. A verdict holds only for the SHA it checked: a new commit has no
+   `aom-verdicts` success until the Reviewer's `approve` and QA's `pass` name it (`roles/reviewer.md`, `roles/qa.md`).
    The same Reviewer (and QA) thread re-checks only the delta (fix commits, criteria they affect) on the new SHA,
    started by a coordinator message holding only the PR and SHA. A new review thread only if the delta touches files
    the review did not cover, or the Reviewer asks.
-7. **QA** checks every criterion on the last SHA and writes steps for Andrei.
-8. **Acceptance and merge** by Andrei **himself** (UI on the dev site or the iPad).
+7. **QA** checks every criterion on the last SHA and writes steps for Andrei. The check `aom-verdicts`
+   (`.github/workflows/aom-verdicts.yml`) turns green on that SHA only when both verdicts for it are there.
+8. **Acceptance and merge** by Andrei **himself** (UI on the dev site or the iPad), only with `build-test` and
+   `aom-verdicts` green on the head commit; the ruleset requires both once Andrei has run
+   `infra/github/protect.ps1 -RequireVerdicts`.
 9. **Metrics**: after the merge Andrei runs `node governance/metrics/collect.mjs task <issue>`.
 
 **Light path**: a Low or Standard task with no contract touched (facade JSON, project file, HTTP API, Cosmos), no High
