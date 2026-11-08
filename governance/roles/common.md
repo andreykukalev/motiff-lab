@@ -127,9 +127,8 @@ In soft mode all agents share one identity, Andrei's, so the guards catch a mist
 
 Check of 2026-11-08: in a claude.ai cloud thread the repository's `.claude/settings.json` did not apply — a denied
 command ran, `scope-guard` did not ask, the agents in `.claude/agents` were not found. Until this is fixed, in cloud
-threads only the ruleset, the Environment and these rules hold. In Claude Code on Andrei's computer (Windows, Claude
-Code 2.1.308, checked 2026-11-08) the deny rules, the hooks and the seven agents of `.claude/agents` do apply: a hook
-refused `gh ruleset list`.
+threads only the ruleset, the Environment and these rules hold. In Claude Code on a computer the deny rules and hooks
+should apply, but that is not checked yet [unverified].
 
 Every refusal and question from the hooks is written to `.aom/guard-log.jsonl`. The Developer carries them into the PR
 section "Guard triggers". Any attempt to get around a guard is an incident: the whole soft mode goes one step back until
