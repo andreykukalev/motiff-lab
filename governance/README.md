@@ -9,6 +9,7 @@
 | `roles/common.md` | Общие правила процесса для всех ролей; читается до начала любой задачи |
 | `roles/developer.md`, `roles/reviewer.md`, `roles/qa.md` | Роли мягкого режима: что делает, что видит, что нельзя, какой выход |
 | `roles/council.md` | Совещательный контур: модератор совета, места, исследователь; порядок раундов — skill `.claude/skills/council` |
+| `roles/product-auditor.md`, `roles/acceptance-designer.md`, `roles/ux-designer.md` | Advisory roles: feature registry with verdicts, acceptance scenarios from the music, design variants before any PR |
 | `routing.md` | Маршруты: какое намерение Андрея к какой роли идёт, и как назвать роль явно |
 | `risk-paths.yml` | Минимальный класс риска по путям |
 | `metrics/` | Метрики M1–M11 и ограждений по каждой задаче: определения и скрипт `collect.mjs` |
