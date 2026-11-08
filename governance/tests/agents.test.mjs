@@ -104,6 +104,9 @@ test('no agent definition names Fable; the routing model table has a row for eve
     .filter((f) => f.endsWith('.md') && f !== 'common.md');
   assert.ok(roleFiles.length >= 3);
   for (const file of roleFiles) {
-    assert.ok(rows.some((cells) => cells[0].includes(`roles/${file}`)), `routing.md: no model row for roles/${file}`);
+    assert.ok(
+      rows.some((cells) => cells[0].includes(`roles/${file}`) && cells[1] === 'thread'),
+      `routing.md: no thread model row for roles/${file}`,
+    );
   }
 });

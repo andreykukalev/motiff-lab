@@ -68,6 +68,7 @@ Each thread keeps one model and effort for its whole run; this table says which 
 | Developer (`roles/developer.md`) | thread | Opus 5.5 | high |
 | Reviewer (`roles/reviewer.md`) | thread | Opus 5.5 | high |
 | QA (`roles/qa.md`) | thread | Sonnet 5.5 | medium |
+| QA on a High or Guardrail task (`roles/qa.md`) | thread | Opus 5.5 | high |
 | Council moderator (`roles/council.md`) | thread | Opus 5.5 | high |
 | Council seats and researcher (`roles/council.md`) | subagents of the moderator | as in the table "Starting the seats" of `.claude/skills/council/SKILL.md` | the moderator's (no file sets effort per agent) |
 | Product auditor (`roles/product-auditor.md`) | thread | Opus 5.5 | high |
@@ -93,8 +94,8 @@ How it takes effect:
 
 Fable 5.1 (`claude-fable-5-1`; in the Agent tool `model: "fable"`) has no row in the table above: no thread runs on it
 and no `.claude/agents/*.md` names it (their `model:` lines stay `opus`, `sonnet` or `haiku`,
-`governance/tests/agents.test.mjs`). It runs only as a one-off, read-only subagent started with `model: "fable"`, for
-these three uses and no others:
+`governance/tests/agents.test.mjs`). It runs only as a one-off, read-only subagent started with
+`subagent_type: "Explore"` (no Edit or Write) and `model: "fable"`, for these three uses and no others:
 
 1. **Final review opinion** on a PR of a High or Guardrail task, from the diff and the Issue only
    (`roles/reviewer.md`).

@@ -65,8 +65,8 @@ Two cases may add an opinion from Fable 5.1, each only after Andrei's yes for th
 "warning".
 
 - **(a) Final review opinion** on a PR of a High or Guardrail task. After its own verdict, the Reviewer starts one
-  read-only subagent with `model: "fable"` and gives it only the Issue and the PR's diff: not its own findings, not the
-  PR discussion.
+  read-only subagent (`subagent_type: "Explore"`, `model: "fable"`) and gives it only the Issue and the PR's diff: not
+  its own findings, not the PR discussion.
 - **(b) A disputed blocking finding**: the Developer still disagrees after one round. The subagent gets the Issue, the
   diff and the dispute as written in the Issue, and gives an independent opinion. Andrei decides; the Reviewer does not
   withdraw the finding because of the opinion.
