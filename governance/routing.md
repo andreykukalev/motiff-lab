@@ -58,6 +58,63 @@ the nearest one in the table.
 | A question that the documents answer | The coordinator answers itself | Project chat | — | An answer with a link |
 | Small work: an audit other than the product audit above, folder work, filing a Task Record, a question that needs digging | A plain thread without roles (Andrei's rule above) | A new thread | Andrei's request | The result in the thread |
 
+## Model and effort per role
+
+Each thread keeps one model and effort for its whole run; this table says which (task #304). Ids: Opus 5.5
+`claude-opus-5-5`, Sonnet 5.5 `claude-sonnet-5-5`.
+
+| Role | Runs as | Model | Effort |
+| --- | --- | --- | --- |
+| Developer (`roles/developer.md`) | thread | Opus 5.5 | high |
+| Reviewer (`roles/reviewer.md`) | thread | Opus 5.5 | high |
+| QA (`roles/qa.md`) | thread | Sonnet 5.5 | medium |
+| QA on a High or Guardrail task (`roles/qa.md`) | thread | Opus 5.5 | high |
+| Council moderator (`roles/council.md`) | thread | Opus 5.5 | high |
+| Council seats and researcher (`roles/council.md`) | subagents of the moderator | as in the table "Starting the seats" of `.claude/skills/council/SKILL.md` | the moderator's (no file sets effort per agent) |
+| Product auditor (`roles/product-auditor.md`) | thread | Opus 5.5 | high |
+| Acceptance designer (`roles/acceptance-designer.md`) | thread | Opus 5.5 | high |
+| UX designer (`roles/ux-designer.md`) | thread | Opus 5.5 | high |
+| Plain thread without a role (audits, filing Task Records, questions, folder work) | thread | Opus 5.5 | medium |
+| Coordinator | project chat | Opus 5.5 | low |
+
+The moderator, product auditor, acceptance designer and UX designer keep the thread default; #304 set no other value
+for them.
+
+How it takes effect:
+
+- **claude.ai cloud thread.** A thread starts on the project's default (`claude-opus-5-5[1m]`, effort high) and changes
+  its own model or effort only on Andrei's own words; a coordinator's note does not count. Those words are one line in
+  the project instructions ("Model and effort per role: follow the table in governance/routing.md; at the first turn
+  switch this thread to its row"). So at its first turn a thread finds its row, compares it with `get_session`
+  (`session_context.model` and the effort), and switches (`switch_model`, `set_effort_level`) only where they differ.
+  The coordinator names the role in the thread's first message, so the thread knows its row.
+- **Claude Code on Andrei's computer.** The same table, set with `/model` and `/effort` when the session starts.
+
+## Fable 5.1: a rare escalation tier
+
+Fable 5.1 (`claude-fable-5-1`; in the Agent tool `model: "fable"`) has no row in the table above: no thread runs on it
+and no `.claude/agents/*.md` names it (their `model:` lines stay `opus`, `sonnet` or `haiku`,
+`governance/tests/agents.test.mjs`). It runs only as a one-off, read-only subagent started with
+`subagent_type: "Explore"` (no Edit or Write) and `model: "fable"`, for these three uses and no others:
+
+1. **Final review opinion** on a PR of a High or Guardrail task, from the diff and the Issue only
+   (`roles/reviewer.md`).
+2. **A disputed blocking finding**: still disputed by the Developer and the Reviewer after one round. Fable gives an
+   independent opinion attached to the dispute in the Issue, and Andrei decides; the finding is not withdrawn and the
+   Reviewer is not replaced (the coordinator's rules above).
+3. **The blind seat of a council** on a decision that is expensive to undo (a data contract, the project file version,
+   an ADR), instead of Opus (`roles/council.md`, the skill's table "Starting the seats").
+
+Who asks and when:
+
+- The coordinator asks Andrei for each use (a decision card or his message); his yes covers that one use. No thread
+  starts Fable on its own: a Reviewer or moderator who thinks a use is due tells the coordinator. After the yes, the
+  coordinator tells the thread named in the use (the Reviewer for 1 and 2, the moderator for 3), which starts the
+  subagent.
+- Never while the weekly limit is "warning" (`rate_limit_info.status` = `allowed_warning`); at most two uses per week.
+- Each use is recorded (model, tokens, time) in the Issue comment that carries the opinion (1, 2) or in the council's
+  `usage.md` (3). Fable's price against Opus is not known: the first use is measured before the second.
+
 ## Not created yet
 
 Waiting for a decision: the product profiles "web" and "iPad" from the multi-agent design doc

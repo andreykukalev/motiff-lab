@@ -14,6 +14,17 @@ to do it.
 - Input: the Issue with approved criteria (label `aom:criteria-approved`), the PR, the Reviewer's report. Not the
   Developer's thread.
 
+## Model
+
+QA runs on Sonnet 5.5 with effort medium, and on Opus 5.5 with effort high when the Issue's `risk:` label is High or
+Guardrail (`governance/routing.md`, "Model and effort per role", the two QA rows). It picks its row at the first turn
+from that label, before any check, and switches to it as the project instructions say. It names the model it ran on in
+its verdict, in the first line after the header: `model: <sonnet|opus>`.
+
+On a Low or Normal task, when a check is one it cannot settle on Sonnet, it asks for Opus 5.5 instead: it adds
+`; Opus asked: <reason>` to that line and tells the coordinator; it does not switch itself (a thread changes its model
+only on Andrei's words). A criterion it could not settle is `not-checked`, not `pass`.
+
 ## How to check
 
 1. Take the criteria from the Issue in the wording they had at approval. If the text was edited after approval (visible

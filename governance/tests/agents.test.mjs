@@ -79,3 +79,34 @@ test('the council skill model table matches the agent definitions; Opus only for
     if (agent.fields.model === 'opus') assert.equal(agent.fields.name, 'council-blind', `${agent.file}: opus`);
   }
 });
+
+// Fable 5.1 is a rare tier started only with model: "fable" at run time (governance/routing.md, "Fable 5.1"), so no
+// agent definition names it; and routing.md's table "Model and effort per role" has a row for every role file, none of
+// them on Fable (task #304).
+test('no agent definition names Fable; the routing model table has a row for every role file', () => {
+  for (const agent of agents) {
+    const text = readFileSync(path.join(agentsDir, agent.file), 'utf8');
+    assert.doesNotMatch(text, /fable/i, `${agent.file} names Fable`);
+  }
+  const routing = readFileSync(path.join(root, 'governance', 'routing.md'), 'utf8');
+  const section = /^## Model and effort per role\r?\n([\s\S]*?)(?=^## )/m.exec(routing);
+  assert.ok(section, 'routing.md: no section "Model and effort per role"');
+  const rows = section[1]
+    .split(/\r?\n/)
+    .filter((line) => /^\|/.test(line) && !/^\|\s*(Role|---)/.test(line))
+    .map((line) => line.split('|').slice(1, -1).map((cell) => cell.trim()));
+  assert.ok(rows.length > 0, 'routing.md: the model table has no rows');
+  for (const cells of rows) {
+    assert.equal(cells.length, 4, `routing.md row "${cells[0]}": role, runs as, model, effort`);
+    assert.doesNotMatch(cells[2], /fable/i, `routing.md row "${cells[0]}" runs on Fable`);
+  }
+  const roleFiles = readdirSync(path.join(root, 'governance', 'roles'))
+    .filter((f) => f.endsWith('.md') && f !== 'common.md');
+  assert.ok(roleFiles.length >= 3);
+  for (const file of roleFiles) {
+    assert.ok(
+      rows.some((cells) => cells[0].includes(`roles/${file}`) && cells[1] === 'thread'),
+      `routing.md: no thread model row for roles/${file}`,
+    );
+  }
+});
