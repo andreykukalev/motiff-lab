@@ -112,10 +112,10 @@
 | `scope-guard` | `.claude/hooks` | Спрашивает перед правкой среды агентов вне задачи среды и перед правкой вне `allowed_paths` из `.aom/task.json` |
 | env-scope | CI | Помечает PR, который меняет среду агентов (предупреждение, не запрет) |
 
-Check of 2026-11-08: in a claude.ai cloud thread the repository's `.claude/settings.json` did not apply — a denied
-command ran, `scope-guard` did not ask, the agents in `.claude/agents` were not found. Until this is fixed, in cloud
-threads only the ruleset, the Environment and these rules hold. In Claude Code on a computer the deny rules and hooks
-should apply, but that is not checked yet [unverified].
+Проверка 2026-11-08: в облачном треде claude.ai `.claude/settings.json` репозитория не применился — запрещённая
+команда выполнилась, `scope-guard` не спросил, агенты из `.claude/agents` не нашлись. Пока это не исправлено, в
+облачных тредах держат только ruleset, Environment и эти правила. В Claude Code на компьютере deny и hooks должны
+действовать, но это ещё не проверено [не проверено].
 
 Каждый отказ и вопрос hooks записывается в `.aom/guard-log.jsonl`. Developer переносит их в раздел PR «Срабатывания
 ограждений». Любая попытка обойти ограждение — инцидент: весь мягкий режим возвращается на шаг назад до разбора с
@@ -124,8 +124,8 @@ should apply, but that is not checked yet [unverified].
 ## Координатор (Orchestrator в мягком режиме)
 
 - Помогает Андрею сформулировать Task Record, заводит Issue, следит за ходом, но не пишет код и не решает споры.
-- Picks the role for Andrei's intent from the table in `governance/routing.md`; if Andrei named the role, calls that one.
-- Hands architecture and product forks to the council (`governance/roles/council.md`) instead of deciding them.
+- Выбирает роль по намерению Андрея по таблице `governance/routing.md`; если Андрей назвал роль сам — зовёт её.
+- Архитектурные и продуктовые развилки отдаёт совету (`governance/roles/council.md`), а не решает сам.
 - Запускает роли отдельными тредами: Developer, затем Reviewer (новый тред, без пересказа рассуждений Developer —
   только номер Issue и PR), затем QA. Сам не сливает и не просит треды слить.
 - Одна задача в работе за раз. Следующая начинается после merge или отмены текущей.

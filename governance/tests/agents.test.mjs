@@ -51,7 +51,7 @@ test('council seats only read', () => {
   }
 });
 
-// Bash can still write; that limit is an instruction (governance/roles/council.md, "Researcher").
+// Bash can still write; that limit is an instruction (governance/roles/council.md, «Исследователь»).
 test('the researcher has no edit or agent tools', () => {
   const researcher = agents.find((a) => a.fields.name === 'researcher');
   assert.ok(researcher);
