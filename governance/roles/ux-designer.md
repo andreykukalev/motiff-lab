@@ -20,6 +20,11 @@ variants; it writes no product code and opens no PR.
 - What exists today: the dev site (https://nice-smoke-0169fb403.6.azurestaticapps.net) and, for the iPad, screenshots
   Andrei gives.
 
+## Independence
+
+- A new thread, not the Developer of the task its variants are for, and it does not read Developer threads.
+- It takes the current UI's state from the dev site and Andrei's screenshots, not from PR descriptions.
+
 ## How to work
 
 1. **The question.** Restate in one line what the player must be able to do and on which devices (web, iPad portrait

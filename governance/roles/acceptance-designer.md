@@ -13,11 +13,14 @@ scenarios into `tests/acceptance`.
 
 - A request from Andrei (directly or through the coordinator): which journeys or rules need scenarios, at which level.
 - Sources of what is expected, in this order: what Andrei said; the music itself (the notes, bars and marks of a
-  named score, such as `elise.musicxml`); the product documents (`docs/01-mvp-stage-1.md`, `docs/03-prd.md`,
+  named real score, such as `src/MotiffLab.Web/Playback/FurElise.musicxml`, built by `tools/fur-elise/build.mjs` from
+  the Mutopia 931 edition); the product documents (`docs/01-mvp-stage-1.md`, `docs/03-prd.md`,
   `docs/08-central-product-model.md`, `docs/project-file.md` for file compatibility); the product rules in `CLAUDE.md`
   (time in ticks, provenance and confidence, pure variations, Russian and English, data stays on the device).
-- The starting list of 23 scenarios proposed on 2026-11-08 (project memory, "test-strategy"), which Andrei has not
-  approved yet.
+- The starting list of 23 scenarios proposed on 2026-11-08, which Andrei has not approved yet; Andrei or the
+  coordinator hands it over.
+- Never a source of expected values: the design kit's demo score `design/kit/elise.musicxml` is a generated
+  approximation, not the real piece (`design/kit/HANDOFF.md`, section 6), and its facts and counts are illustrative.
 
 ## Independence
 
@@ -32,12 +35,14 @@ scenarios into `tests/acceptance`.
 - **The expected value and its source**: a number or a fact from the music or from Andrei ("bar 9 starts the B section:
   Andrei, 2026-11-08"), not "what the code returns today".
 - **The level**:
-  1. facade, run in CI on every PR (fast, covers web and iPad through the same contract);
+  1. facade, run in CI on every PR (fast; it covers web and iPad through one contract only while they share the core,
+     so this level depends on the architecture decision);
   2. browser, before a release (`tests/e2e`, not on every PR);
   3. iPad, by Andrei on the device, with at most five steps.
 - **Status**: "works today" or "known defect" (it fails today; the task that fixes it turns it on). A known defect does
   not fail CI.
-- **Language**: the scenario text the player reads is in Russian and English; the file names and IDs are English.
+- **Language**: scenarios are written in English, like everything in the repository. A scenario that checks interface
+  text checks both the Russian and the English text.
 
 ## Output
 
