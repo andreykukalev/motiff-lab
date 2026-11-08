@@ -10,10 +10,10 @@ Decision records: `docs/decisions/`, listed with what each decides in `docs/READ
 
 - `src/MotiffLab.MusicCore`: C# music-core: shared event model, parsing, analysis, variation operations. Pure and deterministic; no UI, I/O or browser dependencies. Tests: `tests/MotiffLab.MusicCore.Tests`.
 - `src/MotiffLab.Api`: ASP.NET Core API saving a signed-in player's projects in Cosmos DB (0014); tests in `tests/MotiffLab.Api.Tests`. Deployed by the `API` workflow, not CI.
-- `src/MotiffLab.Web`: Blazor WebAssembly PWA. Browser-only APIs (Web Audio, Web MIDI, canvas, IndexedDB) go through a thin TypeScript layer via JS interop: sources in `Scripts/`, compiled to `wwwroot/js/` (not committed) by `dotnet build`; `tests/web` tests run on the compiled output.
-- `services/omr`: the scan server: homr (AGPL-3.0, unmodified) and Basic Pitch (Apache-2.0) behind a small Python HTTP service, run by the player in Docker (0011) or hosted in Azure Container Apps (0014, `Scan server` workflow, not CI). Tests: `python -m pytest` there.
-- `ipad`: native iPad app (0019, `ipad/README.md`): SwiftUI in `ipad/App` (XcodeGen, on a Mac); music-core as a NativeAOT framework with the facade's C functions in `ipad/Core` (in the solution, so CI compiles it); Verovio from source in `ipad/Verovio`. Swift is built and tested by the `iPad` workflow, not CI.
-- `design/kit`: the redesign kit (0018); how the web app uses its tokens, fonts and icons is in `docs/ui-conventions.md`.
+- `src/MotiffLab.Web`: Blazor WebAssembly PWA. Browser-only APIs (Web Audio, Web MIDI, canvas, IndexedDB) go through a thin TypeScript layer (JS interop): sources in `Scripts/`, compiled to `wwwroot/js/` (not committed) by `dotnet build`; `tests/web` tests run on the compiled output.
+- `services/omr`: the scan server: homr (AGPL-3.0, unmodified) and Basic Pitch (Apache-2.0) behind a Python HTTP service, run by the player in Docker (0011) or hosted in Azure Container Apps (0014, `Scan server` workflow, not CI). Tests: `python -m pytest` there.
+- `ipad`: native iPad app (0019, `ipad/README.md`): SwiftUI in `ipad/App` (XcodeGen, Mac); music-core as a NativeAOT framework with the facade's C functions in `ipad/Core` (in the solution, so CI compiles it); Verovio from source in `ipad/Verovio`. Swift is built and tested by the `iPad` workflow, not CI.
+- `design/kit`: the redesign kit (0018); the web app serves copies of `tokens.css` and fonts in `wwwroot/css`, icons as `docs/ui-conventions.md` says.
 - `tests/e2e`: Playwright on the published app (browsers, offline, WCAG 2.2 AA).
 
 ## Redesign
