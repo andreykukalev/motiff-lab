@@ -11,7 +11,8 @@ namespace MotiffLab.MusicCore.Facade;
 /// <summary>
 /// The one entry point for an app (0020): keeps the pieces the app has open, numbered from 1, and
 /// answers calls by name with JSON text. The web app calls it from C#; the iPad app through the C
-/// functions of the native build. The same calls in the same order give the same answers.
+/// functions of the native build. The same calls in the same order give the same answers, apart from a new project's id
+/// and creation time when the request names neither.
 /// </summary>
 /// <remarks>
 /// Not thread-safe: an app calls it from one thread at a time. Every answer is one JSON object; a
@@ -65,8 +66,8 @@ public sealed class MusicCoreFacade
     /// <summary>
     /// Opens a MIDI or MusicXML file as a new project, or a project file (.motiff.json), and answers
     /// with the piece's number, its project and its summary. The request may carry "language" ("en"
-    /// or "ru"), "id" for the new project and "now" (ISO 8601) for its creation time. A PDF, or the
-    /// project file of a PDF piece, opens as a PDF piece (0023): the answer has "document" in place of
+    /// or "ru"), "id" for the new project (without one it gets <see cref="NewProjectId"/>) and "now" (ISO 8601) for its
+    /// creation time. A PDF, or the project file of a PDF piece, opens as a PDF piece (0023): the answer has "document" in place of
     /// "summary", and only the document's calls work on it. With "transcription" ({"engine", "milliseconds", "parts"}, the
     /// notes a recording's parts were heard as, as performance.add takes them) the data is not read: the new project is
     /// the recording's notes, worked out as the web app works them out (0014, 0016).
@@ -83,7 +84,7 @@ public sealed class MusicCoreFacade
                 : DateTimeOffset.UtcNow;
             byte[] bytes = data.ToArray();
             int number = _next;
-            string id = fields.Text("id") ?? string.Create(CultureInfo.InvariantCulture, $"p_{number:0000}");
+            string id = fields.Text("id") ?? NewProjectId();
             if (fields.Has("transcription"))
             {
                 OpenPiece heard = OpenPiece.Transcribe(id, fileName, fields.Object("transcription"), words, now);
@@ -211,6 +212,32 @@ public sealed class MusicCoreFacade
         string file = fields.Required("file");
         Project project = ProjectFile.Read(Encoding.UTF8.GetBytes(file));
         return Answer.Write(json => Answer.Project(json, "project", project));
+    }
+
+    /// <summary>
+    /// A new project's id: "p_" and the 32 lowercase hex digits of a new GUID, so projects made in different runs or on
+    /// different devices never share one (V8). Ids numbered by a counter in each run ("p_0001") gave two different iPad
+    /// pieces the same id; files that carry such ids still open as they are.
+    /// </summary>
+    public static string NewProjectId() => string.Create(CultureInfo.InvariantCulture, $"p_{Guid.NewGuid():N}");
+
+    /// <summary>
+    /// The project to save for a project file the player imports, given the project already saved under the file's id
+    /// (V8). The same project, the same id and the same project-level "createdAt", is the player's own export coming back
+    /// and replaces the saved one (AC-S1-20). A different piece that carries the same id, or a saved project that cannot
+    /// be read to tell, is never overwritten: the file is saved beside it as a new project with a new id, and nothing else
+    /// in it changes.
+    /// </summary>
+    /// <param name="file">The project read from the imported file.</param>
+    /// <param name="saved">The project saved under <paramref name="file"/>'s id; null when there is none.</param>
+    /// <param name="savedUnreadable">True when a project is saved under that id but is damaged and cannot be read.</param>
+    public static Project Imported(Project file, Project? saved, bool savedUnreadable = false)
+    {
+        ArgumentNullException.ThrowIfNull(file);
+        bool sameProject = saved is null
+            ? !savedUnreadable
+            : saved.Id == file.Id && saved.CreatedAt == file.CreatedAt;
+        return sameProject ? file : file with { Id = NewProjectId() };
     }
 
     /// <summary>Forgets an open piece; false when it was not open.</summary>

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Components.Web;
 
 using MotiffLab.MusicCore;
 using MotiffLab.MusicCore.Analytics;
+using MotiffLab.MusicCore.Facade;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Projects;
@@ -531,7 +532,7 @@ public partial class Home
             return;
         }
 
-        Project project = Project.Create($"p_{Guid.NewGuid():N}", piece.FileName, data, DateTimeOffset.Now);
+        Project project = Project.Create(MusicCoreFacade.NewProjectId(), piece.FileName, data, DateTimeOffset.Now);
         ResumePoint point = ResumePoint.Start(project.NextResumePointId(), DateTimeOffset.Now);
         project = project.AddResumePoint(point);
         await Projects.SaveAsync(project);
@@ -572,7 +573,7 @@ public partial class Home
             return;
         }
 
-        Project project = Project.CreateDocument($"p_{Guid.NewGuid():N}", file.Name, data, DateTimeOffset.Now);
+        Project project = Project.CreateDocument(MusicCoreFacade.NewProjectId(), file.Name, data, DateTimeOffset.Now);
         await Projects.SaveAsync(project);
         Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(project));
     }
@@ -627,7 +628,11 @@ public partial class Home
             await using Stream stream = args.File.OpenReadStream(70 * 1024 * 1024);
             using var memory = new MemoryStream();
             await stream.CopyToAsync(memory);
-            Project project = ProjectFile.Read(memory.ToArray());
+            Project file = ProjectFile.Read(memory.ToArray());
+            // A different piece that carries the id of a saved one is saved beside it, never over it (V8); the player's
+            // own export coming back replaces itself (AC-S1-20).
+            (Project? saved, bool unreadable) = await SavedAsync(file.Id);
+            Project project = MusicCoreFacade.Imported(file, saved, unreadable);
             OpenedProject.Open(project);
             await Projects.SaveAsync(project);
             await RefreshAsync();
@@ -639,6 +644,19 @@ public partial class Home
         catch (IOException)
         {
             _message = Text.Format("home.tooLarge", args.File.Name);
+        }
+    }
+
+    /// <summary>The project saved on this device under an id, null when there is none; unreadable when it is damaged.</summary>
+    private async Task<(Project? Saved, bool Unreadable)> SavedAsync(string id)
+    {
+        try
+        {
+            return (await Projects.LoadAsync(id), false);
+        }
+        catch (ProjectFileException)
+        {
+            return (null, true);
         }
     }
 }
