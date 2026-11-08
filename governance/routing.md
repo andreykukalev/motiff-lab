@@ -50,7 +50,8 @@ The external council seat from another model family is paused (`roles/council.md
 - **Claude Code on Andrei's computer** reads the repository's `.claude/agents/` and `.claude/skills/`: a role can be
   called by name (`/council <topic>`; the `@agent-researcher` mention is unverified). Checked on 2026-11-08 on Windows
   (Claude Code 2.1.308, `main` after #284): `/council` started with the brief, all seven agents were listed with their
-  tool lists, and a PreToolUse hook refused `gh ruleset list`. The council folder and the
+  tool lists, and a PreToolUse hook refused `gh ruleset list`. So agents, skills and hooks load there; the deny rules
+  were not tested on their own, because the hook refused the command first. The council folder and the
   questions to Andrei work differently there: skill `council`, "Where the council runs".
 - **claude.ai cloud threads** did not read them on 2026-11-08 (nor apply `.claude/settings.json`): the thread reads the
   role file itself and passes it to a subagent as the prompt, as the skill `council` says in "Starting the seats".
