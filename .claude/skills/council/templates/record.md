@@ -1,15 +1,17 @@
-# Запись решения: <ТЕМА>
+# Decision record: <TOPIC>
 
-Каркас Claude Doc записи решения. Пишется на русском, для Андрея, без внутренних обозначений, которые он не видел.
+The outline of the decision record (a Claude Doc). Written in Russian, for Andrei, without internal labels he has not
+seen.
 
-1. **Итог одним абзацем.** К чему пришли места и где они разошлись. Не решение: решает Андрей.
-2. **Вопрос и рамка.** Ссылка на бриф, дата подтверждения, кто сидел (место, модель).
-3. **Варианты и кто что держит.** Таблица: вариант, кто защищал (включая адвоката), чем закончилось, почему.
-4. **Что устоялось** (S1…) — одна строка на пункт, с номерами фактов.
-5. **Открытые узлы** (C1…) — по каждому позиции мест с числами и особые мнения.
-6. **Факты.** Таблица V1…: утверждение, результат, как проверено. Отдельно — «не проверено» и «проверить до стройки».
-7. **Что разошлось по существу** между местами разных моделей и адвокатами и подтвердилось ли это фактами: по этой
-   строке видно, дал ли состав совета больше, чем одно место.
-8. **Вопросы Андрею** — одним списком, по каждому рекомендация и альтернатива. Те же вопросы — карточками решений.
-9. **Расход** — сводка `usage.md`.
-10. **Что дальше после решения** — ADR обычной задачей доставки; какие задачи из него вытекают.
+1. **The outcome in one paragraph.** Where the seats converged and where they split. Not a decision: Andrei decides.
+2. **Question and frame.** A link to the brief, the date it was confirmed, who sat (seat, model).
+3. **Options and who held what.** A table: option, who defended it (including the advocate), how it ended, why.
+4. **What settled** (S1…): one line per point, with fact numbers.
+5. **Open cruxes** (C1…): for each, the seats' positions with numbers and the dissenting opinions.
+6. **Facts.** A table V1…: claim, result, how checked. Separately, "unverified" and "check before building".
+7. **Where seats split on substance** between seats of different models and the advocates, and whether the facts
+   bore it out: this line shows whether the council's make-up gave more than one seat would.
+8. **Questions for Andrei** in one list, each with a recommendation and an alternative. The same questions go on
+   decision cards.
+9. **Usage**: a summary of `usage.md`.
+10. **What follows a decision**: an ADR as an ordinary delivery task, and the tasks that follow from it.
