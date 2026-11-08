@@ -28,7 +28,8 @@ it impossible.
 
 | Guard | Where | What it does |
 | --- | --- | --- |
-| Ruleset `main` | GitHub | PR only, `build-test` required, no force push or deletion; nobody can bypass it |
+| Ruleset `main` | GitHub | PR only, `build-test` and `aom-verdicts` required, no force push or deletion; nobody can bypass it (`aom-verdicts` once Andrei runs `protect.ps1 -RequireVerdicts`) |
+| `aom-verdicts` | CI (`.github/workflows/aom-verdicts.yml`) | A commit status on the PR's head: green only when the Reviewer's `approve` and QA's `pass` comments name that exact SHA; a new commit waits for new verdicts. Only comment events start it, never pushes or labels |
 | Environment `production` | GitHub | Deploys of the API and the scan server wait for Andrei to press the button |
 | Deny | `.claude/settings.json` | Refuses merge, auto-merge, starting workflows, writing files through the GitHub API, force push, editing rulesets and Environments, the Azure CLI, Andrei's computer and mail |
 | `push-guard` | `.claude/hooks` | Lets through only a push of the agent's current branch to `origin`; refuses `gh` commands that merge, run, release or change settings, and writes to the GitHub API |

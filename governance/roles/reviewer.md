@@ -46,7 +46,17 @@ non_blocking: <number of the others>
 2. [non-blocking][style] ...
 ```
 
-Findings on lines of code go as separate line comments when that is clearer. The verdict holds only for the SHA named.
+The check `aom-verdicts` (`.github/workflows/aom-verdicts.yml`) reads exactly these lines, so write them as shown:
+
+- the first non-empty line of the comment is `<!-- aom:review -->`, on its own, not inside a code block or a quote;
+- the header is that line and the lines after it up to the first blank line; in it, one line `verdict: approve` or
+  `verdict: changes-requested` (one value, not the template's `approve | changes-requested`) and one line
+  `sha: <the full 40-character SHA of the PR's head commit>`; a short SHA counts for nothing;
+- only comments by the repository's owner, members or collaborators count; for one SHA the latest verdict wins, so a
+  new `changes-requested` after an `approve` blocks the merge again; editing or deleting the comment is re-checked.
+
+Findings on lines of code go as separate line comments when that is clearer. The verdict holds only for the SHA named:
+after a new commit the PR cannot merge until the Reviewer and QA post verdicts for the new head.
 
 ## Must not
 

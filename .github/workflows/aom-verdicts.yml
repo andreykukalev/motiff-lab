@@ -1,0 +1,46 @@
+name: AOM verdicts
+
+# The commit status aom-verdicts on a pull request's head commit (Task Record #300, governance/roles/common.md):
+# success only when the Reviewer's `approve` and QA's `pass` comments name that exact commit. The parser is
+# .github/scripts/aom-verdicts.mjs; the exact lines it reads are in governance/roles/reviewer.md and qa.md.
+#
+# Only comment events start it, so it never runs for a push or a label and never touches CI's build-test. A new
+# commit has no aom-verdicts status at all, which the ruleset treats as not passed, until verdicts for it are posted.
+# issue_comment workflows always run the definition and the script from main, never from the pull request.
+on:
+  issue_comment:
+    types: [created, edited, deleted]
+
+permissions: {}
+
+# One run at a time per pull request, none cancelled: each run reads all comments afresh, so the last one to finish
+# reports the newest state.
+concurrency:
+  group: aom-verdicts-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  report:
+    # Skipped (no runner) unless the comment is on a pull request, by a trusted author, and is or was a verdict.
+    if: >-
+      github.event.issue.pull_request &&
+      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association) &&
+      (contains(github.event.comment.body, 'aom:review') || contains(github.event.comment.body, 'aom:qa') ||
+       contains(github.event.changes.body.from, 'aom:review') || contains(github.event.changes.body.from, 'aom:qa'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+      statuses: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+      - name: Report aom-verdicts on the head commit
+        run: node .github/scripts/aom-verdicts.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.issue.number }}

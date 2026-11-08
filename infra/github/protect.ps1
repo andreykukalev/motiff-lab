@@ -15,6 +15,11 @@
        api.yml and scan-server.yml wait for it once the foundation's pull request adds their approve job; until then
        nothing uses it;
     3. the labels the process uses (agent, role:*, risk:*, aom:*, defect, env-change).
+  With -RequireVerdicts the ruleset also requires the commit status aom-verdicts (Task Record #300,
+  .github/workflows/aom-verdicts.yml): a pull request merges only when the Reviewer's approve and QA's pass comments
+  name its head commit. Run it with -RequireVerdicts only after that workflow is on main and has reported on at least
+  one pull request; the script checks both and stops otherwise. Once the ruleset requires aom-verdicts, later runs
+  keep it without the switch; -NoVerdicts takes it out again.
   It changes no workflow, variable, secret or setting beyond these. To switch the ruleset off for a while, run it
   with -Enforcement disabled; to remove the Environment, use Settings > Environments.
 
@@ -24,8 +29,12 @@
   .\infra\github\protect.ps1 -DryRun            # shows what it would write, writes nothing
 .EXAMPLE
   .\infra\github\protect.ps1 -Enforcement disabled
+.EXAMPLE
+  .\infra\github\protect.ps1 -RequireVerdicts    # after aom-verdicts.yml is on main and has reported on one pull request
 .PARAMETER CheckName
   The required check: the CI job's name (.github/workflows/ci.yml, job build-test).
+.PARAMETER VerdictCheckName
+  The second required check, with -RequireVerdicts: the commit status the workflow aom-verdicts.yml reports.
 .PARAMETER Reviewer
   The GitHub login that approves deploys to Azure.
 #>
@@ -35,6 +44,9 @@ param(
   [string]$Reviewer = 'andreykukalev',
   [string]$RulesetName = 'main',
   [string]$CheckName = 'build-test',
+  [string]$VerdictCheckName = 'aom-verdicts',
+  [switch]$RequireVerdicts,
+  [switch]$NoVerdicts,
   [string]$EnvironmentName = 'production',
   [ValidateSet('active', 'disabled')][string]$Enforcement = 'active',
   [switch]$SkipRuleset,
@@ -47,6 +59,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $GitHubActionsAppId = 15368 # the app that reports workflow checks; used when main has no build-test run to read it from
+if ($RequireVerdicts -and $NoVerdicts) { throw 'Use -RequireVerdicts or -NoVerdicts, not both.' }
 $Utf8NoBom = New-Object System.Text.UTF8Encoding $false
 
 function Write-Step([string]$Text) { Write-Host ''; Write-Host "==> $Text" -ForegroundColor Cyan }
@@ -132,6 +145,37 @@ if (-not $SkipRuleset) {
     if ($run) { $appId = [int]$run.app.id; Write-Info "Check $CheckName is reported by $($run.app.name) (app id $appId)." }
   }
   if (-not $appId) { $appId = $GitHubActionsAppId; Write-Warn "No $CheckName run on $defaultBranch to read its app from; using GitHub Actions ($appId)." }
+  $requiredChecks = @([ordered]@{ context = $CheckName; integration_id = $appId })
+
+  # aom-verdicts: kept if the ruleset already requires it, added with -RequireVerdicts, removed with -NoVerdicts.
+  $hasVerdicts = $false
+  if ($existing) {
+    $current = Invoke-Gh @('api', "repos/$Repository/rulesets/$($existing.id)") | ConvertFrom-Json
+    foreach ($rule in @($current.rules)) {
+      if ($rule.type -ne 'required_status_checks') { continue }
+      foreach ($c in @((Get-Field $rule 'parameters').required_status_checks)) { if ($c.context -eq $VerdictCheckName) { $hasVerdicts = $true } }
+    }
+  }
+  $withVerdicts = ($RequireVerdicts -or $hasVerdicts) -and -not $NoVerdicts
+  if ($withVerdicts -and -not $hasVerdicts) {
+    # Only once the workflow runs from main and has set the status on a pull request: requiring a status nobody reports
+    # would block every pull request.
+    if (-not (Test-Gh @('api', "repos/$Repository/contents/.github/workflows/aom-verdicts.yml?ref=$defaultBranch"))) {
+      throw ".github/workflows/aom-verdicts.yml is not on $defaultBranch yet: merge its pull request first, then run this again."
+    }
+    $reporter = $null
+    foreach ($pr in @((Invoke-Gh @('api', "repos/$Repository/pulls?state=all&sort=updated&direction=desc&per_page=20")) | ConvertFrom-Json | ForEach-Object { $_ })) {
+      $statuses = @((Invoke-Gh @('api', "repos/$Repository/commits/$($pr.head.sha)/statuses?per_page=100")) | ConvertFrom-Json | ForEach-Object { $_ })
+      $found = $statuses | Where-Object { $_.context -eq $VerdictCheckName } | Select-Object -First 1
+      if ($found) { $reporter = $found; Write-Info "$VerdictCheckName reported on pull request #$($pr.number): $($found.state), '$($found.description)', by $($found.creator.login)."; break }
+    }
+    if (-not $reporter) { throw "$VerdictCheckName has not reported on any of the last 20 pull requests yet: post a Reviewer or QA verdict on one, check that the status appears, then run this again." }
+    if ("$($reporter.creator.login)" -ne 'github-actions[bot]') { throw "$VerdictCheckName was set by $($reporter.creator.login), not by the workflow (github-actions[bot]); not requiring it." }
+  }
+  if ($withVerdicts) {
+    # The workflow sets the status with its GITHUB_TOKEN, so it comes from the GitHub Actions app, like build-test.
+    $requiredChecks += , ([ordered]@{ context = $VerdictCheckName; integration_id = $GitHubActionsAppId })
+  }
   $ruleset = [ordered]@{
     name = $RulesetName
     target = 'branch'
@@ -155,13 +199,14 @@ if (-not $SkipRuleset) {
         type = 'required_status_checks'
         parameters = [ordered]@{
           strict_required_status_checks_policy = $false
-          required_status_checks = @([ordered]@{ context = $CheckName; integration_id = $appId })
+          required_status_checks = $requiredChecks
         }
       }
     )
   }
   Write-Info 'Bypass list: empty (applies to everyone, the owner included)'
-  Write-Info "Rules: pull request (0 approvals), check $CheckName must pass, no force push, no deletion; enforcement $Enforcement"
+  $checkNames = @($requiredChecks | ForEach-Object { $_.context }) -join ' and '
+  Write-Info "Rules: pull request (0 approvals), check $checkNames must pass, no force push, no deletion; enforcement $Enforcement"
   if ($DryRun) {
     Write-Host ($ruleset | ConvertTo-Json -Depth 10)
   }
@@ -173,7 +218,8 @@ if (-not $SkipRuleset) {
     $check = Invoke-Gh @('api', "repos/$Repository/rulesets/$($saved.id)") | ConvertFrom-Json
     $types = @($check.rules | ForEach-Object { $_.type }) -join ', '
     $bypass = @(Get-Field $check 'bypass_actors' | Where-Object { $_ }).Count
-    Write-Info "Saved: id $($check.id), $($check.enforcement), rules $types, bypass actors $bypass"
+    $savedChecks = @($check.rules | Where-Object { $_.type -eq 'required_status_checks' } | ForEach-Object { $_.parameters.required_status_checks } | ForEach-Object { "$($_.context) (app $($_.integration_id))" }) -join ', '
+    Write-Info "Saved: id $($check.id), $($check.enforcement), rules $types, required checks $savedChecks, bypass actors $bypass"
     if ($bypass -ne 0) { Write-Warn 'The bypass list is not empty: remove the actors in Settings > Rules > Rulesets.' }
   }
 }
@@ -237,3 +283,4 @@ if ($DryRun) { Write-Info 'Dry run: nothing was written.' }
 Write-Info 'Next: open the foundation pull request (the approve job in api.yml and scan-server.yml, .claude, governance) and merge it.'
 Write-Info 'Check after the merge: a pull request cannot merge while build-test is red, a push to main is refused,'
 Write-Info "and a deploy of the API or the scan server waits for you under Actions (Review deployments)."
+Write-Info "With $VerdictCheckName required: the next pull request cannot merge until the Reviewer's approve and QA's pass name its head commit."

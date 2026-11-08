@@ -42,7 +42,17 @@ criteria: <total> / pass <n> / fail <n> / not-checked <n>
 3. [not-checked] Criterion 3 — why; steps for Andrei: ...
 ```
 
-The verdict holds only for the SHA named; a new commit in the PR means a new check.
+The check `aom-verdicts` (`.github/workflows/aom-verdicts.yml`) reads exactly these lines, so write them as shown:
+
+- the first non-empty line of the comment is `<!-- aom:qa -->`, on its own, not inside a code block or a quote;
+- the header is that line and the lines after it up to the first blank line; in it, one line `verdict: pass` or
+  `verdict: fail` (one value, not the template's `pass | fail`) and one line
+  `sha: <the full 40-character SHA of the PR's head commit>`; a short SHA counts for nothing;
+- only comments by the repository's owner, members or collaborators count; for one SHA the latest verdict wins, so a
+  new `fail` after a `pass` blocks the merge again; editing or deleting the comment is re-checked.
+
+The verdict holds only for the SHA named; a new commit in the PR means a new check, and the PR cannot merge until the
+Reviewer and QA post verdicts for the new head.
 
 ## Must not
 
