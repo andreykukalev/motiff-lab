@@ -97,7 +97,7 @@ Where the library lives is not fixed by this record beyond the working hypothesi
 
 1. **One musical project model** whose entities are the same in both apps: Project, Score, Musical Object, Phrase, Version, Variation, Annotation, Practice State, Resume Point. **Phrase identity** above all: a variation made for a phrase on the web belongs to the same phrase on the iPad.
 2. **The working context moves between the workspaces, not just the file.** On the iPad the player finds the same phrase, the original, the kept variation and the notes, and can start practising at once; back on the web they see what was noted at the instrument.
-3. **Independent releases.** The web app and the iPad app can be released independently; the project stays compatible, and each app shows the data it understands.
+3. **Independent releases.** The web app and the iPad app can be released independently; the project stays compatible, and each app shows the data it understands. This is a requirement on compatibility; the release rule is Andrei's decision (2026-11-08) and is recorded with A4 in 0026.
 
 ### 10. Practice state
 
