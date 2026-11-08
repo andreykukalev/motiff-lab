@@ -193,7 +193,7 @@ if (-not $SkipEnvironment) {
     Write-Host ($settings | ConvertTo-Json -Depth 10)
   }
   else {
-    Confirm-Step "Create or update Environment $EnvironmentName?"
+    Confirm-Step "Create or update Environment ${EnvironmentName}?"
     $null = Invoke-GhJson 'PUT' "repos/$Repository/environments/$EnvironmentName" $settings
     $policies = Invoke-Gh @('api', "repos/$Repository/environments/$EnvironmentName/deployment-branch-policies") | ConvertFrom-Json
     $names = @($policies.branch_policies | ForEach-Object { $_.name })
