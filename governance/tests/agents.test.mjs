@@ -66,3 +66,16 @@ test('the council skill dispatches only agents that exist', () => {
   const existing = new Set(agents.map((a) => a.fields.name));
   for (const name of named) assert.ok(existing.has(name), `SKILL.md names ${name}, which has no .claude/agents file`);
 });
+
+// The model table in the council skill ("Starting the seats") and the model: lines of the definitions agree, and only
+// the blind seat runs on Opus (governance/roles/council.md, "Seats"; task #297).
+test('the council skill model table matches the agent definitions; Opus only for the blind seat', () => {
+  const skill = readFileSync(path.join(root, '.claude', 'skills', 'council', 'SKILL.md'), 'utf8');
+  const rows = [...skill.matchAll(/^\|[^|\n]*\|\s*`((?:council-[a-z-]+)|researcher)`\s*\|\s*([a-z]+)\b[^|\n]*\|\s*$/gm)];
+  assert.ok(rows.length >= 7, `model table rows found: ${rows.length}`);
+  const byName = new Map(agents.map((a) => [a.fields.name, a.fields.model]));
+  for (const [, name, model] of rows) assert.equal(model, byName.get(name), `SKILL.md says ${name} runs on ${model}`);
+  for (const agent of agents) {
+    if (agent.fields.model === 'opus') assert.equal(agent.fields.name, 'council-blind', `${agent.file}: opus`);
+  }
+});

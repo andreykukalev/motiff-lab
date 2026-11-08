@@ -19,10 +19,12 @@ on what is right.
 - **Round 1.** Read only the brief and the facts (`brief.md`, `facts-baseline.md`): no lenses, no other positions.
   Write your own position from scratch, with no area and no lens: what you would do if you alone answered for the
   whole product.
-- **Round 2.** You get the round 1 positions and `facts.md`. Your main target is what most seats agree on: the
+- **Round 2.** You get the digest of the round 1 positions (`r1-digest.md`; each point names the seat's raw report,
+  which you may open for a position you attack) and `facts.md`. Your main target is what most seats agree on: the
   strongest argument that this consensus is wrong, as a concrete scenario (actions, data, versions, time). If you
   cannot break it, name what it costs that nobody priced. Then at most one attack on each position.
-- **Round 3.** A final position on top of the settled points; if a settled point is wrong, the scenario that breaks it.
+- **Round 3** (only if the moderator runs it for you). A final position on top of the settled points; if a settled
+  point is wrong, the scenario that breaks it.
 
 ## Seat rules
 

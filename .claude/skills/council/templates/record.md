@@ -13,5 +13,5 @@ seen.
    bore it out: this line shows whether the council's make-up gave more than one seat would.
 8. **Questions for Andrei** in one list, each with a recommendation and an alternative. The same questions go on
    decision cards.
-9. **Usage**: a summary of `usage.md`.
+9. **Usage**: a summary of `usage.md` and its line against the targets (light ≤ 0.7M, full ≤ 1.4M subagent tokens).
 10. **What follows a decision**: an ADR as an ordinary delivery task, and the tasks that follow from it.
