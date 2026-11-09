@@ -19,6 +19,23 @@ export async function violations(page) {
     return results.violations.map(v => `${v.id} (${v.impact}): ${v.help}\n  ${v.nodes.slice(0, 5).map(n => n.target.join(" ")).join("\n  ")}`);
 }
 
+/**
+ * The page's uncaught script errors, collected from now on, to expect none. Playwright reports every JavaScript error
+ * WebKit writes to its console as a page error, and WebKit writes one for a load the page gives up on: a spec that
+ * leaves the workspace while the piano samples load gets "Fetch API cannot load …/audio/piano/piano.json due to
+ * access control checks", though the app catches that failure (Playback/Player.cs). That log is left out; an uncaught
+ * rejection still counts (WebKit reports it as "Unhandled Promise Rejection: …").
+ */
+export function pageErrors(page) {
+    const errors = [];
+    page.on("pageerror", error => {
+        if (!error.name.startsWith("Fetch API cannot load")) {
+            errors.push(String(error));
+        }
+    });
+    return errors;
+}
+
 /** Opens the lab with Für Elise loaded, and fails on any script error. */
 export async function openFurElise(page) {
     // Listens to the engine's reports alongside the app, for startTime.

@@ -2,7 +2,7 @@
 // action with the routes in; the resume points of a piece listed, named and removed in a sheet.
 import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { violations } from "./steps.mjs";
+import { pageErrors, violations } from "./steps.mjs";
 
 const minuet = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/MusicXml/Fixtures/importer-grand-staff.musicxml", import.meta.url));
 
@@ -15,8 +15,7 @@ test("the empty library offers Add a piece and the demo piece", async ({ page })
 });
 
 test("Add piece opens a file on the device straight into the score, and leads to scanning and recording", async ({ page }) => {
-    const errors = [];
-    page.on("pageerror", error => errors.push(String(error)));
+    const errors = pageErrors(page);
     await page.goto("/");
     await page.getByRole("button", { name: "Add piece" }).click();
     const sheet = page.getByRole("dialog", { name: "Add a piece" });
@@ -38,8 +37,7 @@ test("Add piece opens a file on the device straight into the score, and leads to
 });
 
 test("a card resumes the piece where it was left, opens page 1 afresh, and lists its resume points to name and remove", async ({ page }) => {
-    const errors = [];
-    page.on("pageerror", error => errors.push(String(error)));
+    const errors = pageErrors(page);
     await page.goto("/");
     await page.getByRole("button", { name: "Add piece" }).click();
     await page.getByLabel("Choose a MIDI, MusicXML or PDF file").setInputFiles(minuet);
@@ -88,8 +86,7 @@ test("in Russian, the library speaks Russian", async ({ page }) => {
 });
 
 test("the scan, recording, account and not-found screens open as sheets over the library and close back to it", async ({ page }) => {
-    const errors = [];
-    page.on("pageerror", error => errors.push(String(error)));
+    const errors = pageErrors(page);
     for (const [path, heading] of [["/import/scan", "Scan printed music"], ["/import/recording", "Notes from a recording"], ["/settings", "Settings"], ["/not-found", "Not found"]]) {
         await page.goto(path);
         const sheet = page.locator("main.page-sheet");
