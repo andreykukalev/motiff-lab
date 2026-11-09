@@ -1,0 +1,14 @@
+{
+  "format": ["csharp", "razor", "typescript", "swift", "python"],
+  "ignore": [
+    "**/node_modules/**",
+    "**/bin/**",
+    "**/obj/**",
+    "**/wwwroot/**",
+    "artifacts/**",
+    "ipad/Verovio/**",
+    "ipad/App/Web/**"
+  ],
+  "gitignore": true,
+  "absolute": false
+}

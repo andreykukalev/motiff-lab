@@ -1,0 +1,13 @@
+{
+  "name": "motifflab-web-quality",
+  "private": true,
+  "description": "Code-quality tools for the TypeScript layer and the repository (tools/quality, issue #332). Not part of the app.",
+  "type": "module",
+  "devDependencies": {
+    "eslint": "10.13.0",
+    "eslint-plugin-sonarjs": "4.2.2",
+    "jscpd": "5.4.1",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.72.0"
+  }
+}
