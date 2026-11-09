@@ -1,6 +1,7 @@
 /* The piano roll in the drawer, as the web app's app.css draws it (`.roll`): the canvases fill the drawer under its head,
    which Swift draws; the roll takes the height the scroller and the keyboard leave (data-fill). Colours come from the design kit's tokens. */
-html, body { height: 100%; }
+/* The page never scrolls or zooms itself: a finger on the roll moves the roll (#338). */
+html, body { height: 100%; overflow: hidden; }
 body { margin: 0; background: var(--surface); color: var(--ink); font: var(--t-body); -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .roll { position: absolute; inset: 0; display: flex; flex-direction: column; }
 .roll canvas { display: block; border-radius: 0.4rem; touch-action: none; }

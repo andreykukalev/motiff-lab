@@ -5,7 +5,7 @@ import WebKit
 /// view of its own (Web/roll.html), as the score is. music-core gives its data (`roll`: the notes and bars packed as the
 /// roll reads them, and their names spelled as the score spells them). Swift tells it where the player is and what is
 /// selected, and lights the places of the fact chosen in Insights; what the player does on it comes back here: bars dragged across or a bar number tapped select those bars,
-/// a tap on an empty place clears the selection, Space plays or pauses; with the note editor on (testing item 15), a note
+/// Escape clears the selection (a tap never does, #338), Space plays or pauses; with the note editor on (testing item 15), a note
 /// moved, added or taken out goes to music-core as a correction on the draft.
 @MainActor
 final class RollController: NSObject, ObservableObject {
@@ -206,7 +206,10 @@ final class RollController: NSObject, ObservableObject {
             "track", "trackVoice", "noVoice", "rightHand", "leftHand", "noHand", "rollAria", "scrollAria", "keysAria",
             "legendVariation", "legendHighlight", "legendInferred", "legendCheck", "zoomGroup", "zoomIn", "zoomOut", "zoomLevel", "fit", "fitHint",
         ]
-        return Dictionary(uniqueKeysWithValues: names.map { ($0, text["roll.js.\($0)"]) })
+        var labels = Dictionary(uniqueKeysWithValues: names.map { ($0, text["roll.js.\($0)"]) })
+        // The iPad's roll is read by touch (#338): a screen reader hears how, not the web roll's mouse and keyboard.
+        labels["rollAria"] = text["roll.ipad.rollAria"]
+        return labels
     }
 }
 
@@ -283,10 +286,14 @@ struct RollDrawer: View {
         .accessibilityLabel(text["bar.roll"])
     }
 
-    /// Where it is, Edit notes, Note names, the colour scheme, Expand and Close.
+    /// Where it is with Clear selection, Edit notes, Note names, the colour scheme, Expand and Close.
     private var head: some View {
         HStack(spacing: CGFloat.ds("s-2")) {
             Text(heading).overline()
+            // The selection menu gives way to the drawer, so the selection is let go here (#338).
+            if score.selection != nil {
+                ClearSelectionButton(score: score, text: text)
+            }
             Spacer(minLength: CGFloat.ds("s-2"))
             Button {
                 score.beginNoteEdit()

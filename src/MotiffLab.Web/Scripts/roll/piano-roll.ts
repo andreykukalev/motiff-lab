@@ -103,6 +103,15 @@ const EDGE_GRAB = 6;
 /** A press that moves less than this many pixels is a click, not a drag. */
 const CLICK_SLOP = 4;
 
+/** After the player moves or zooms the roll by hand in touch reading, playback leaves the view there this long (ms). */
+const HAND_PAUSE_MS = 4000;
+/**
+ * In touch reading Fit may make the rows this thin, so a selection's two hands fit the drawer; names are written on the
+ * keys and in the notes only from NAMED_ROW up.
+ */
+const READING_MIN_ROW = 6;
+const NAMED_ROW = 11;
+
 /**
  * A click outside the roll clears the selection unless it lands on a control or inside an element
  * marked data-keeps-selection, such as the panels that show or act on the selection. The score keeps it too: a tap on a note
@@ -250,6 +259,18 @@ export class PianoRoll {
     /** Fingers on the notes, for a pinch, and the zoom when the pinch started. */
     private readonly touches = new Map<number, { x: number; y: number }>();
     private pinch: { distance: number; zoom: number; rowScale: number } | null = null;
+    /**
+     * Touch reading (the iPad's roll, #338): a finger on the notes moves through the music instead of selecting, two
+     * fingers zoom the time only, a tap never clears the selection or sounds a note, and every new selection is fitted.
+     * Off by default, as the web app has it.
+     */
+    private touchReading = false;
+    /** A finger moving the roll in touch reading: where it went down, and the scroll and top row then. */
+    private pan: { pointer: number; x: number; y: number; scroll: number; top: number; moving: boolean } | null = null;
+    /** Whether the view is what Fit made of it, so a new size fits it again (touch reading). */
+    private fitted = false;
+    /** Until when, after a move or zoom by hand, playback does not move the view (touch reading). */
+    private handUntil = 0;
     private scroll = 0;
     private selected = new Set<number>();
     private focusIndex: number | undefined;
@@ -354,7 +375,7 @@ export class PianoRoll {
         document.addEventListener("pointerup", this.onDocumentPointerUp);
         document.addEventListener("keydown", this.onDocumentKeyDown);
         document.addEventListener(THEME_CHANGED, this.onThemeChanged);
-        this.resizeObserver = new ResizeObserver(() => this.invalidate());
+        this.resizeObserver = new ResizeObserver(() => this.onResize());
         this.resizeObserver.observe(host);
         this.frame = requestAnimationFrame(this.tick);
     }
@@ -374,6 +395,7 @@ export class PianoRoll {
         this.shortNames = null;
         this.drag = null;
         this.press = null;
+        this.pan = null;
         this.editDrag = null;
         if (!this.editing) {
             this.scroll = 0;
@@ -523,6 +545,12 @@ export class PianoRoll {
      * left edge, where it is.
      */
     zoomBy(factor: number, anchorX?: number): void {
+        if (this.touchReading) {
+            // Touch reading zooms the time only, round the middle of the view unless an anchor is given.
+            this.byHand();
+            this.zoomTo(this.zoom * factor, this.rowScale, anchorX ?? this.timeWidth() / 2);
+            return;
+        }
         this.zoomTo(this.zoom * factor, this.rowScale * factor, anchorX);
     }
 
@@ -551,11 +579,30 @@ export class PianoRoll {
         }
         if (Number.isFinite(lowest)) {
             const { low, high } = this.paddedPitches(lowest, highest);
-            this.rowScale = fitRow(high - low + 1, this.rollHeight()) / ROW_AT_100;
-            this.pitchTop = high;
+            const rows = high - low + 1;
+            const fitted = this.touchReading
+                ? Math.min(MAX_ROW, Math.max(READING_MIN_ROW, Math.floor(this.rollHeight() / rows)))
+                : fitRow(rows, this.rollHeight());
+            this.rowScale = fitted / ROW_AT_100;
+            // Touch reading shows the whole piece's rows: the selection's sit in the middle of those in view.
+            const spare = Math.floor(this.rollHeight() / this.rowHeight()) - rows;
+            this.pitchTop = this.touchReading ? high + Math.max(0, Math.floor(spare / 2)) : high;
         }
         this.scroll = Math.round(Math.max(0, span.start - (margin * TICKS_PER_QUARTER) / this.zoom));
+        this.fitted = true;
+        this.handUntil = 0;
         this.showZoom();
+        this.invalidate();
+    }
+
+    /**
+     * Touch reading (#338), for the iPad's roll: a finger on the notes moves through the music sideways and through the rows
+     * up and down, never selecting; two fingers zoom the time only; a tap on the notes neither selects, clears nor sounds;
+     * every new selection is fitted, and fitted again when the roll changes size. The bar numbers still select bars.
+     */
+    setTouchReading(on: boolean): void {
+        this.touchReading = on;
+        this.pan = null;
         this.invalidate();
     }
 
@@ -589,6 +636,7 @@ export class PianoRoll {
         }
         const notes = new Set(ids.map((id) => model.indexOf(id)).filter((index): index is number => index !== undefined));
         const moved = this.motif === null || this.motif.start !== start;
+        const changed = moved || this.motif?.end !== end;
         this.motif = { start, end, notes, alone };
         const pitches = [...notes].map((index) => model.notes[index].pitch);
         this.motifPitches = pitches.length === 0 ? null : { lowest: Math.min(...pitches), highest: Math.max(...pitches) };
@@ -598,7 +646,7 @@ export class PianoRoll {
             this.keepInView(start);
             this.pitchTop = null;
         }
-        if (this.fitsSelection && (moved || this.motif.end !== end)) {
+        if (this.touchReading ? changed : this.fitsSelection && (moved || this.motif.end !== end)) {
             this.fit();
         }
         this.invalidate();
@@ -745,7 +793,9 @@ export class PianoRoll {
                 const jumped = Math.abs(now - this.tickNow) > TICKS_PER_QUARTER;
                 this.tickNow = now;
                 this.dirty = true;
-                if (player.state() !== "stopped" || jumped) {
+                if (this.touchReading) {
+                    this.followReading(now, jumped);
+                } else if (player.state() !== "stopped" || jumped) {
                     this.keepInView(now);
                 }
             }
@@ -759,6 +809,32 @@ export class PianoRoll {
 
     private invalidate(): void {
         this.dirty = true;
+    }
+
+    /**
+     * Touch reading follows the playhead only when it leaves the view, so a fitted selection on a loop stays still, and not
+     * for a while after the player moved the view by hand.
+     */
+    private followReading(tick: number, jumped: boolean): void {
+        const offset = tick - this.scroll;
+        const away = offset < 0 || offset > this.visibleTicks();
+        if (away && (this.player?.state() !== "stopped" || jumped) && performance.now() >= this.handUntil) {
+            this.keepInView(tick);
+        }
+    }
+
+    /** The roll changed size (a turn of the iPad, the drawer): in touch reading a fitted view is fitted again. */
+    private onResize(): void {
+        if (this.touchReading && this.fitted) {
+            this.pendingFit = true;
+        }
+        this.invalidate();
+    }
+
+    /** The player moved or zoomed the view by hand: it is no longer what Fit made, and playback leaves it for a while. */
+    private byHand(): void {
+        this.fitted = false;
+        this.handUntil = performance.now() + HAND_PAUSE_MS;
     }
 
     /** Shows the roll's words in another language (#134): the lanes, the legend, the hand letters and what a screen reader hears. */
@@ -796,7 +872,7 @@ export class PianoRoll {
         const anchor = anchorX ?? Math.min(Math.max(this.xOf(this.tickNow) - GUTTER, 0), width);
         const anchorTick = this.scroll + (anchor * TICKS_PER_QUARTER) / this.zoom;
         this.zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom));
-        this.rowScale = Math.min(MAX_ROW / ROW_AT_100, Math.max(MIN_ROW / ROW_AT_100, rowScale));
+        this.rowScale = Math.min(MAX_ROW / ROW_AT_100, Math.max((this.touchReading ? READING_MIN_ROW : MIN_ROW) / ROW_AT_100, rowScale));
         this.scrollTo(anchorTick - (anchor * TICKS_PER_QUARTER) / this.zoom);
         this.showZoom();
     }
@@ -876,13 +952,21 @@ export class PianoRoll {
      */
     private pitchRange(): { low: number; high: number; row: number; above: boolean; below: boolean } {
         const model = this.model;
-        const span = this.motifPitches ?? { lowest: model?.lowest ?? 60, highest: model?.highest ?? 72 };
+        // In touch reading the rows reach the whole piece, so moving on through the music finds every note; Fit puts the
+        // selection's rows in view.
+        const piece = { lowest: model?.lowest ?? 60, highest: model?.highest ?? 72 };
+        const span = this.touchReading ? piece : this.motifPitches ?? piece;
         const { low, high } = this.paddedPitches(span.lowest, span.highest);
         // Rows of the zoom's height (testing item 11): as many as fit, widened round the notes when they take fewer, else a
         // window from the top of the notes (where the tune usually is) until scrolled.
-        const row = rowFor(this.rowScale);
+        const row = this.rowHeight();
         const visible = Math.max(1, Math.floor(this.rollHeight() / row));
         return { ...rowWindow(low, high, visible, this.pitchTop), row };
+    }
+
+    /** The height of a row: the zoom's, down to thinner rows in touch reading. */
+    private rowHeight(): number {
+        return this.touchReading ? Math.min(MAX_ROW, Math.max(READING_MIN_ROW, Math.round(ROW_AT_100 * this.rowScale))) : rowFor(this.rowScale);
     }
 
     /** The rows of notes from lowest to highest: an octave at least, with one free row above and below. */
@@ -1121,7 +1205,7 @@ export class PianoRoll {
             // the note where it fits; the octave is on the band down the left. A chosen note shows its whole name in a tag.
             if (this.selected.has(index)) {
                 chosen.push({ x, y, text: this.nameOf(index) });
-            } else if (this.noteNames) {
+            } else if (this.noteNames && row >= NAMED_ROW) {
                 const text = this.shortNameOf(index);
                 if (nameFits(w, context.measureText(text).width)) {
                     context.fillStyle = ON_NOTE;
@@ -1230,7 +1314,10 @@ export class PianoRoll {
             context.fillStyle = BAR_LINE;
             context.fillRect(OCTAVE_BAND, y + row - 1, GUTTER - 3 - OCTAVE_BAND, pitch % 12 === 0 || pitch % 12 === 5 ? 1 : 0);
             context.fillStyle = lane !== undefined ? ON_NOTE : pointed ? ACCENT : black ? KEY_WHITE : INK;
-            context.fillText(this.rowName(pitch), OCTAVE_BAND + 4, y + row / 2, GUTTER - 9 - OCTAVE_BAND);
+            // Thin rows (touch reading) name only their Cs, so the names do not run into each other.
+            if (row >= NAMED_ROW || pitch % 12 === 0) {
+                context.fillText(this.rowName(pitch), OCTAVE_BAND + 4, y + row / 2, GUTTER - 9 - OCTAVE_BAND);
+            }
         }
         context.fillStyle = BAR_LINE;
         context.fillRect(GUTTER - 3, HEADER, 1, (high - low + 1) * row);
@@ -1543,6 +1630,11 @@ export class PianoRoll {
             return;
         }
         const tick = this.tickAtX(x);
+        // In touch reading a finger on the notes moves through the music: it neither selects nor sounds.
+        if (this.touchReading && !this.editing && y >= HEADER && event.pointerType !== "mouse") {
+            this.pan = { pointer: event.pointerId, x, y, scroll: this.scroll, top: this.pitchRange().high, moving: false };
+            return;
+        }
         // A press on an edge of the selection drags that edge; the other edge stays where it is.
         const edge = this.editing ? null : this.edgeAt(x);
         if (edge !== null && this.motif !== null) {
@@ -1599,6 +1691,7 @@ export class PianoRoll {
             this.press = null;
         }
         this.drag = null;
+        this.pan = null;
         this.roll.setPointerCapture(event.pointerId);
         const [a, b] = [...this.touches.values()];
         this.pinch = { distance: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), zoom: this.zoom, rowScale: this.rowScale };
@@ -1609,14 +1702,8 @@ export class PianoRoll {
     private readonly onPointerMove = (event: PointerEvent): void => {
         const box = this.roll.getBoundingClientRect();
         const x = event.clientX - box.left;
-        if (this.touches.has(event.pointerId)) {
-            this.touches.set(event.pointerId, { x, y: event.clientY - box.top });
-            if (this.pinch !== null) {
-                const [a, b] = [...this.touches.values()];
-                const factor = Math.hypot(a.x - b.x, a.y - b.y) / this.pinch.distance;
-                this.zoomTo(this.pinch.zoom * factor, this.pinch.rowScale * factor, Math.max(0, (a.x + b.x) / 2 - GUTTER));
-                return;
-            }
+        if (this.movedByFingers(event, x, event.clientY - box.top)) {
+            return;
         }
         const editDrag = this.editDrag;
         if (editDrag !== null && event.pointerId === editDrag.pointer) {
@@ -1688,9 +1775,7 @@ export class PianoRoll {
      * A click on a note selects it; a click on an empty place clears the selection.
      */
     private readonly onPointerUp = (event: PointerEvent): void => {
-        if (this.touches.delete(event.pointerId) && this.pinch !== null) {
-            // The pinch ends with its first finger lifted; the other finger does nothing more.
-            this.pinch = null;
+        if (this.endedByFingers(event)) {
             return;
         }
         const editDrag = this.editDrag;
@@ -1740,8 +1825,65 @@ export class PianoRoll {
         this.editDrag = null;
         this.drag = null;
         this.press = null;
+        this.pan = null;
         this.invalidate();
     };
+
+    /** A move of a pinch, or of a finger moving the roll in touch reading; true when it was one. */
+    private movedByFingers(event: PointerEvent, x: number, y: number): boolean {
+        if (this.touches.has(event.pointerId)) {
+            this.touches.set(event.pointerId, { x, y });
+        }
+        const pinch = this.pinch;
+        if (pinch !== null && this.touches.has(event.pointerId)) {
+            const [a, b] = [...this.touches.values()];
+            const factor = Math.hypot(a.x - b.x, a.y - b.y) / pinch.distance;
+            const anchor = Math.max(0, (a.x + b.x) / 2 - GUTTER);
+            if (this.touchReading) {
+                // Two fingers zoom the time only, so the rows stay where they are.
+                this.byHand();
+                this.zoomTo(pinch.zoom * factor, this.rowScale, anchor);
+            } else {
+                this.zoomTo(pinch.zoom * factor, pinch.rowScale * factor, anchor);
+            }
+            return true;
+        }
+        if (this.pan !== null && event.pointerId === this.pan.pointer) {
+            this.movePan(this.pan, x, y);
+            return true;
+        }
+        return false;
+    }
+
+    /** The end of a pinch, or of a finger on the roll in touch reading; true when it was one. */
+    private endedByFingers(event: PointerEvent): boolean {
+        if (this.touches.delete(event.pointerId) && this.pinch !== null) {
+            // The pinch ends with its first finger lifted; the other finger does nothing more.
+            this.pinch = null;
+            return true;
+        }
+        if (this.pan !== null && event.pointerId === this.pan.pointer) {
+            // A tap or a move through the music: the selection stays as it is.
+            this.pan = null;
+            return true;
+        }
+        return false;
+    }
+
+    /** A finger moving the roll in touch reading: the time follows it sideways, and the rows up and down when they do not all fit. */
+    private movePan(pan: { x: number; y: number; scroll: number; top: number; moving: boolean }, x: number, y: number): void {
+        if (!pan.moving && Math.hypot(x - pan.x, y - pan.y) < CLICK_SLOP) {
+            return;
+        }
+        pan.moving = true;
+        this.byHand();
+        this.scrollTo(pan.scroll - ((x - pan.x) * TICKS_PER_QUARTER) / this.zoom);
+        const { row, above, below } = this.pitchRange();
+        if (above || below) {
+            this.pitchTop = pan.top + Math.round((y - pan.y) / row);
+        }
+        this.invalidate();
+    }
 
     /** Which edge of the selection is under x, if any. */
     private edgeAt(x: number): "start" | "end" | null {
@@ -1875,7 +2017,7 @@ export class PianoRoll {
         if (press === null || Math.hypot(event.clientX - press.x, event.clientY - press.y) >= CLICK_SLOP) {
             return;
         }
-        if (this.host.isConnected && this.host.offsetParent !== null) {
+        if (this.host.isConnected && this.host.offsetParent !== null && !this.touchReading) {
             this.clearAll();
         }
     };
@@ -1995,6 +2137,7 @@ export class PianoRoll {
     };
 
     private readonly onScroll = (): void => {
+        this.byHand();
         this.scrollTo(Number(this.scroller.value));
     };
 }

@@ -56,11 +56,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     /// Where the selection menu's top left corner goes in the score's view, as the web app places its menu; nil while
     /// nothing is selected or a drag is on.
     @Published private(set) var menuPlace: CGPoint?
-    /// A note tapped on the score or on the card in focus: the player plays from it.
-    var noteTapped: (@MainActor (Double) -> Void)?
-    /// A tap on the page away from the notes; true when the screen took it (the Insights sheet goes away and the
-    /// selection stays), false to clear the selection.
-    var blankTapped: (@MainActor () -> Bool)?
+    /// A tap on the page that selects nothing: away from the bars, or anywhere while a passage is selected. The Insights
+    /// sheet goes away; the selection stays (#338).
+    var blankTapped: (@MainActor () -> Void)?
     /// Phrase focus (0018 section 4): the selection lifted into a card across the screen, the page dimmed behind it.
     @Published private(set) var focused = false
     /// Lead-in, on the pill in focus: play takes in the bar before the phrase and the bar after it.
@@ -346,8 +344,14 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         if let chosen = message["chosen"] as? [String: Any], let start = number(chosen["start"]), let end = number(chosen["end"]) {
             Task { await select(start, end) }
         }
+        // A tap in a bar selects it only when nothing is selected: the selection stays until Clear selection or another
+        // choice (a bracket, a long press and drag, a handle, the roll's bar numbers), so a stray tap cannot lose it (#338).
         if let bar = message["bar"] as? [String: Any], let start = number(bar["start"]), let end = number(bar["end"]) {
-            Task { await select(start, end) }
+            if selection == nil {
+                Task { await select(start, end) }
+            } else {
+                blankTapped?()
+            }
         }
         if let bracket = number(message["bracket"]) {
             selectPhrase(Int(bracket))
@@ -369,14 +373,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             markerPick = MarkerPick(bar: Int(bar), left: number(message["left"]) ?? 0, bottom: number(message["bottom"]) ?? 0)
             showVersionBar(Int(bar))
         }
-        if let note = number(message["note"]) {
-            noteTapped?(note)
-        }
-        if message["blank"] != nil, blankTapped?() != true {
-            clearSelection()
-        }
-        if let note = number(message["cardNote"]) {
-            noteTapped?(note)
+        // A tap away from the bars puts the sheet away, and leaves the selection as it is (#338).
+        if message["blank"] != nil {
+            blankTapped?()
         }
         if message["leave"] != nil {
             leaveFocus()

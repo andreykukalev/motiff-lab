@@ -85,7 +85,7 @@ final class Player: ObservableObject {
         send(.seek(tick))
     }
 
-    /// Plays from a place in the piece, as a note tapped on the score asks: moves there, and starts if it was still.
+    /// Plays from a place in the piece, as Piece DNA's Play asks: moves there, and starts if it was still.
     func play(from tick: Double) {
         send(.seek(tick))
         if state == .stopped { send(.play) }
