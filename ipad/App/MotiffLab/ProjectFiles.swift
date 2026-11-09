@@ -77,3 +77,59 @@ enum ProjectFiles {
 struct ProjectError: Error {
     let message: String
 }
+
+/// What a library card says of a piece, read by music-core from its project file (`project.summary`, facade contract 4).
+struct PieceSummary: Equatable, Sendable {
+    /// "imported", "scanned" or "transcribed".
+    var origin: String
+    var hasNotes: Bool
+    var ideas: Int
+    var checkBars: Int
+    /// The resume point worked from last, by its name when it has one.
+    var latest: Latest?
+    /// The project's id, and when it was last opened (ISO 8601, as music-core writes it).
+    var id: String?
+    var lastOpened = ""
+    /// For notes read from a PDF piece: that piece's id, and where each of its pages starts in the notes (PDF | Notes, 0023).
+    var readFrom: String?
+    var readFromPages: [Double] = []
+    /// For a piece with notes and a PDF kept inside it: where each of the PDF's pages starts in the notes (contract 6).
+    var documentPages: [Double] = []
+    /// Whether the piece keeps a PDF.
+    var document = false
+
+    struct Latest: Equatable, Sendable {
+        var name: String?
+    }
+
+    /// The summary in a facade answer: {"project": {…}}.
+    init?(answer: String) {
+        guard let project = facadeObject(answer)?["project"] as? [String: Any] else { return nil }
+        origin = project["origin"] as? String ?? "imported"
+        hasNotes = project["hasNotes"] as? Bool ?? true
+        ideas = (project["ideas"] as? NSNumber)?.intValue ?? 0
+        checkBars = (project["checkBars"] as? NSNumber)?.intValue ?? 0
+        latest = (project["latest"] as? [String: Any]).map { Latest(name: $0["name"] as? String) }
+        id = project["id"] as? String
+        lastOpened = project["lastOpened"] as? String ?? ""
+        readFrom = project["readFrom"] as? String
+        readFromPages = (project["readFromPages"] as? [NSNumber] ?? []).map(\.doubleValue)
+        documentPages = (project["documentPages"] as? [NSNumber] ?? []).map(\.doubleValue)
+        document = project["document"] as? Bool ?? false
+    }
+
+    /// Reads a project file's summary through music-core; nil when the file cannot be read.
+    static func read(_ url: URL) async -> PieceSummary? {
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return await read(data)
+    }
+
+    /// Reads the summary of a project file's bytes through music-core; nil when they are not a project file it can read.
+    static func read(_ data: Data) async -> PieceSummary? {
+        guard let file = String(data: data, encoding: .utf8),
+              let body = try? JSONSerialization.data(withJSONObject: ["file": file]),
+              let request = String(data: body, encoding: .utf8) else { return nil }
+        let answer = await MusicCore.run { MusicCore.call(piece: 0, "project.summary", request) }
+        return PieceSummary(answer: answer)
+    }
+}

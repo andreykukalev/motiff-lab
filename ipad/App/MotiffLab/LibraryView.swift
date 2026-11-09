@@ -4,7 +4,8 @@ import UniformTypeIdentifiers
 /// The library (0018 section 9, design/kit/screens/s1_library.png): the screen outside the piece, a shelf of cards, each
 /// resumed with one tap. The pieces are project files in the app's Documents (0019 section 2.3); what a card says comes
 /// from music-core (`project.summary`) without opening the piece. One Add piece action holds the ways in; the overflow
-/// imports a project file. Everything here runs on the device and is free.
+/// imports a project file. Everything here runs on the device and is free; signed in, the projects saved online that are
+/// not on this iPad are listed under them, to download (0014, #335).
 struct LibraryView: View {
     private let text = UIText.current
     @EnvironmentObject private var account: Account
@@ -16,6 +17,11 @@ struct LibraryView: View {
     @State private var problem: String?
     @State private var projects: [ProjectFiles.Entry] = []
     @State private var summaries: [URL: PieceSummary] = [:]
+    /// The projects saved online that are not on this iPad (#335); none while signed out or offline.
+    @State private var online: [OnlineProject] = []
+
+    /// The shelf's columns, for the projects here and those saved online.
+    static let columns = [GridItem(.adaptive(minimum: 320), spacing: CGFloat.ds("s-6"), alignment: .top)]
 
     /// MIDI, MusicXML (plain and compressed), a PDF to read as it is (0023) and Motiff Lab project files.
     static let openable: [UTType] = [
@@ -47,11 +53,7 @@ struct LibraryView: View {
                     Text(text["home.projects"])
                         .overline()
                         .accessibilityAddTraits(.isHeader)
-                    LazyVGrid(
-                        columns: [GridItem(.adaptive(minimum: 320), spacing: CGFloat.ds("s-6"), alignment: .top)],
-                        alignment: .leading,
-                        spacing: CGFloat.ds("s-6")
-                    ) {
+                    LazyVGrid(columns: Self.columns, alignment: .leading, spacing: CGFloat.ds("s-6")) {
                         ForEach(shelved) { entry in
                             PieceCard(entry: entry, summary: summaries[entry.url], text: text) {
                                 Task { await openProject(entry.url) }
@@ -60,6 +62,9 @@ struct LibraryView: View {
                             }
                         }
                         AddCard(text: text) { adding = true }
+                    }
+                    if !online.isEmpty {
+                        OnlineShelf(text: text, projects: online) { project in Task { await getHere(project) } }
                     }
                 }
                 .padding(.horizontal, CGFloat.ds("s-12"))
@@ -101,14 +106,17 @@ struct LibraryView: View {
                 let screensFile = ScreensHook.start()
                 #endif
                 await reload()
+                await refreshOnline()
                 #if DEBUG
                 if let screensFile { await open(.success(screensFile)) }
                 #endif
             }
             .onChange(of: piece == nil) { _, closed in
                 // Back from a score: its project was saved as the screen closed.
-                if closed { Task { await reload() } }
+                if closed { Task { await reload(); await refreshOnline() } }
             }
+            // Signed in or out: the projects saved online come or go.
+            .onChange(of: account.player) { _, _ in Task { await refreshOnline() } }
         }
     }
 
@@ -185,6 +193,29 @@ struct LibraryView: View {
             }
         }
         summaries = read
+    }
+
+    /// The projects saved online whose id is in no project file here (0014); none while signed out, offline or when the
+    /// API cannot be reached, and then nothing is said: the library is about the projects on this iPad.
+    private func refreshOnline() async {
+        var listed: [OnlineProject] = []
+        if account.player != nil { listed = await account.online.list() ?? [] }
+        online = OnlineProjects.notHere(listed, here: Set(summaries.values.compactMap(\.id)))
+    }
+
+    /// Get it here (#335): downloads a project saved online as a new project file and opens it, from then on an ordinary
+    /// project on this iPad. A failed download says so in one line and leaves the library as it was.
+    private func getHere(_ project: OnlineProject) async {
+        opening = true
+        problem = nil
+        switch await account.online.keep(project) {
+        case .success(let url):
+            online.removeAll { $0.id == project.id }
+            await openProject(url)
+        case .failure(let failure):
+            opening = false
+            problem = text[failure.key]
+        }
     }
 
     private func openExample() async {
@@ -293,56 +324,6 @@ struct LibraryView: View {
         try? FileManager.default.removeItem(at: entry.url)
         projects.removeAll { $0.url == entry.url }
         summaries[entry.url] = nil
-    }
-}
-
-/// What a library card says of a piece, read by music-core from its project file (`project.summary`, facade contract 4).
-struct PieceSummary: Equatable, Sendable {
-    /// "imported", "scanned" or "transcribed".
-    var origin: String
-    var hasNotes: Bool
-    var ideas: Int
-    var checkBars: Int
-    /// The resume point worked from last, by its name when it has one.
-    var latest: Latest?
-    /// The project's id, and when it was last opened (ISO 8601, as music-core writes it).
-    var id: String?
-    var lastOpened = ""
-    /// For notes read from a PDF piece: that piece's id, and where each of its pages starts in the notes (PDF | Notes, 0023).
-    var readFrom: String?
-    var readFromPages: [Double] = []
-    /// For a piece with notes and a PDF kept inside it: where each of the PDF's pages starts in the notes (contract 6).
-    var documentPages: [Double] = []
-    /// Whether the piece keeps a PDF.
-    var document = false
-
-    struct Latest: Equatable, Sendable {
-        var name: String?
-    }
-
-    /// The summary in a facade answer: {"project": {…}}.
-    init?(answer: String) {
-        guard let project = facadeObject(answer)?["project"] as? [String: Any] else { return nil }
-        origin = project["origin"] as? String ?? "imported"
-        hasNotes = project["hasNotes"] as? Bool ?? true
-        ideas = (project["ideas"] as? NSNumber)?.intValue ?? 0
-        checkBars = (project["checkBars"] as? NSNumber)?.intValue ?? 0
-        latest = (project["latest"] as? [String: Any]).map { Latest(name: $0["name"] as? String) }
-        id = project["id"] as? String
-        lastOpened = project["lastOpened"] as? String ?? ""
-        readFrom = project["readFrom"] as? String
-        readFromPages = (project["readFromPages"] as? [NSNumber] ?? []).map(\.doubleValue)
-        documentPages = (project["documentPages"] as? [NSNumber] ?? []).map(\.doubleValue)
-        document = project["document"] as? Bool ?? false
-    }
-
-    /// Reads a project file's summary through music-core; nil when the file cannot be read.
-    static func read(_ url: URL) async -> PieceSummary? {
-        guard let data = try? Data(contentsOf: url), let file = String(data: data, encoding: .utf8),
-              let body = try? JSONSerialization.data(withJSONObject: ["file": file]),
-              let request = String(data: body, encoding: .utf8) else { return nil }
-        let answer = await MusicCore.run { MusicCore.call(piece: 0, "project.summary", request) }
-        return PieceSummary(answer: answer)
     }
 }
 
