@@ -185,3 +185,77 @@ export function valueIn(message) {
   }
   return undefined;
 }
+
+// ---- Suppressions -------------------------------------------------------------------------------------------
+
+/** The files where a violation could be hidden from the checks: git pathspecs. */
+export const SUPPRESSION_FILES = [
+  '*.cs', '*.razor', '*.ts', '*.mjs', '*.js', '*.swift', '*.py',
+  '.editorconfig', '*.editorconfig', '*.globalconfig', '*.csproj', '*.props', '*.targets', '*.ruleset',
+  '*.swiftlint.yml', 'eslint.config.*',
+];
+
+const CA = /CA150[256]\b/;
+
+/**
+ * Why one line of a file hides a violation from the code-quality checks, or null. Covers inline directives
+ * (ESLint, SwiftLint, jscpd, C# pragmas and SuppressMessage) and configuration that turns the CA metrics rules
+ * or the analyzers off. Vendored and compiled files are not tracked as these extensions or are excluded by path.
+ */
+export function findSuppression(file, text) {
+  const line = text ?? '';
+  const name = file.split('/').pop();
+  const ext = name.includes('.') ? name.slice(name.lastIndexOf('.')) : name;
+  if (/jscpd:ignore/.test(line)) {
+    return 'jscpd:ignore';
+  }
+  if (['.ts', '.mjs', '.js'].includes(ext) || /^eslint\.config\./.test(name)) {
+    if (/\beslint-disable/.test(line) || /\/\*\s*eslint\s+[\w/@-]+\s*:/.test(line)) {
+      return 'ESLint directive';
+    }
+    if (/^eslint\.config\./.test(name) && /noInlineConfig\s*:\s*false/.test(line)) {
+      return 'ESLint inline directives allowed';
+    }
+  }
+  if (ext === '.swift' && /swiftlint:disable/.test(line)) {
+    return 'swiftlint:disable';
+  }
+  if (name.endsWith('.swiftlint.yml') && /^\s*(disabled_rules|opt_in_rules)\s*:/.test(line)) {
+    return 'SwiftLint configuration';
+  }
+  if (ext === '.cs' || ext === '.razor') {
+    if (/#\s*pragma\s+warning\s+disable\s*($|\/\/|CA150[256]|.*,\s*CA150[256])/.test(line)) {
+      return '#pragma warning disable';
+    }
+    if (/SuppressMessage/.test(line) && CA.test(line)) {
+      return 'SuppressMessage';
+    }
+  }
+  if (ext === '.editorconfig' || ext === '.globalconfig' || name === '.editorconfig') {
+    if (/dotnet_diagnostic\.CA150[256]\./.test(line)) {
+      return 'analyzer configuration';
+    }
+    if (/dotnet_analyzer_diagnostic\.(category-Maintainability\.)?severity/.test(line)) {
+      return 'analyzer configuration';
+    }
+    if (/dotnet_code_quality\./.test(line) && CA.test(line)) {
+      return 'analyzer configuration';
+    }
+  }
+  if (ext === '.ruleset' && CA.test(line)) {
+    return 'rule set';
+  }
+  if (['.csproj', '.props', '.targets'].includes(ext)) {
+    if (/<NoWarn>/.test(line) && CA.test(line)) {
+      return 'NoWarn';
+    }
+    if (/<(RunAnalyzers|RunAnalyzersDuringBuild|EnableNETAnalyzers)>\s*false/i.test(line)) {
+      return 'analyzers turned off';
+    }
+    if (/<(AnalysisLevel|AnalysisMode)\w*>\s*none/i.test(line)) {
+      return 'analyzers turned off';
+    }
+  }
+  return null;
+}
+

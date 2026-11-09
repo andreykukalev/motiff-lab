@@ -27,8 +27,10 @@ change stay within the task's scope. The Reviewer does not fix the code and does
 6. **Evidence.** The self-check in the PR matches what was done; CI is green on this SHA.
 7. **Code quality** (`governance/quality/README.md`). The `build-test` job summary has the code-quality report: every
    baseline entry the PR adds (listed there) has a reason in `why` and an explanation in the PR, and the reason holds;
-   otherwise the baseline must not grow. No new violation is left unexplained, even in soft mode, and no threshold or
-   tool configuration was loosened outside an E3 task. An unjustified entry is a blocking finding (`rules`).
+   otherwise the baseline must not grow. No new violation is left unexplained, even in soft mode, no threshold or
+   tool configuration was loosened outside an E3 task, and no suppression comment or setting hides a violation (the
+   check `suppressions`). The list "Got worse but still in the baseline" does not fail the check: the Reviewer says
+   whether the growth is acceptable for the task. An unjustified entry or suppression is a blocking finding (`rules`).
 
 Findings carry categories: `scope`, `risk`, `correctness`, `contract`, `rules`, `tests`, `evidence`, `style`. A
 blocking finding is one without whose fix the PR must not be merged. Zero findings on many tasks in a row is a reason to

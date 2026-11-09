@@ -210,7 +210,7 @@ jobs:
         run: dotnet test MotiffLab.slnx --configuration Release --no-build
 
       - uses: actions/setup-node@v4
-        if: steps.changes.outputs.code == 'true'
+        if: steps.changes.outputs.code == 'true' || steps.changes.outputs.scan == 'true'
         with:
           node-version: 22
           cache: npm
@@ -229,16 +229,23 @@ jobs:
       # Code quality (#332, governance/quality/README.md): complexity, size and duplication in C#, TypeScript,
       # Swift (SwiftLint in Docker) and Python against the ratchet baseline, in about half a minute. The report
       # goes to the job summary; in soft mode it never fails build-test, governance/quality/settings.json makes
-      # it blocking. The base commit was fetched by "Find what changed", to list what the baseline gained.
+      # it blocking. The base commit was fetched by "Find what changed", to list what the baseline gained. A pull
+      # request that changes only the scan server (no build) gets the checks that need none: Python duplicates.
       - name: Check code quality
-        if: steps.changes.outputs.code == 'true'
+        if: steps.changes.outputs.code == 'true' || steps.changes.outputs.scan == 'true'
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          BUILT: ${{ steps.changes.outputs.code }}
         run: |
           npm ci --prefix src/MotiffLab.Web --no-audit --no-fund \
             || echo "::warning title=quality::npm ci failed; the quality report says which checks did not run"
           node --test "tools/quality/*.test.mjs"
-          node tools/quality/quality.mjs --ci --dotnet-log artifacts/quality/dotnet-build.log --base "$BASE_SHA"
+          if [[ "$BUILT" == true ]]; then
+            checks=(--dotnet-log artifacts/quality/dotnet-build.log)
+          else
+            checks=(--only config,jscpd,suppressions)
+          fi
+          node tools/quality/quality.mjs --ci "${checks[@]}" --base "$BASE_SHA"
 
       # The scan server (services/omr, decision record 0011), with homr replaced by a stand-in: a few seconds.
       - uses: actions/setup-python@v5

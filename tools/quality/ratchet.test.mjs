@@ -95,3 +95,41 @@ test('values are read from the tools\' messages', () => {
   assert.equal(valueIn('File should contain 600 lines or less: currently contains 655'), 655);
   assert.equal(valueIn('Function should have complexity 15 or less; currently complexity is 19'), 19);
 });
+
+test('a way to hide a violation is found in every language', async () => {
+  const { findSuppression } = await import('./ratchet.mjs');
+  const hidden = [
+    ['src/MotiffLab.Web/Scripts/a.ts', '/* eslint-disable max-lines-per-function */'],
+    ['src/MotiffLab.Web/Scripts/a.ts', '  // eslint-disable-next-line sonarjs/cognitive-complexity'],
+    ['src/MotiffLab.Web/Scripts/a.ts', '/* eslint max-lines: off */'],
+    ['src/MotiffLab.Web/eslint.config.mjs', '    linterOptions: { noInlineConfig: false },'],
+    ['ipad/App/MotiffLab/A.swift', '// swiftlint:disable function_body_length'],
+    ['ipad/App/MotiffLab/A.swift', 'func f() { // swiftlint:disable:this cyclomatic_complexity'],
+    ['src/A.cs', '#pragma warning disable CA1502'],
+    ['src/A.cs', '#pragma warning disable IDE0005, CA1506 // coupling'],
+    ['src/A.cs', '#pragma warning disable'],
+    ['src/A.cs', '[SuppressMessage("Maintainability", "CA1502:Avoid excessive complexity")]'],
+    ['src/A.razor', '    #pragma warning disable CA1505'],
+    ['src/A.cs', '// jscpd:ignore-start'],
+    ['services/omr/a.py', '# jscpd:ignore-start'],
+    ['src/MotiffLab.Web/.editorconfig', 'dotnet_diagnostic.CA1502.severity = none'],
+    ['.editorconfig', 'dotnet_analyzer_diagnostic.category-Maintainability.severity = none'],
+    ['src/X/X.csproj', '    <NoWarn>$(NoWarn);CA1502</NoWarn>'],
+    ['Directory.Build.props', '    <RunAnalyzers>false</RunAnalyzers>'],
+  ];
+  for (const [file, line] of hidden) {
+    assert.ok(findSuppression(file, line), `${file}: ${line}`);
+  }
+  const fine = [
+    ['src/A.cs', '#pragma warning disable CS0618 // obsolete API'],
+    ['src/A.cs', '[SuppressMessage("Style", "IDE0060")]'],
+    ['.editorconfig', 'dotnet_diagnostic.IDE0005.severity = warning'],
+    ['src/X/X.csproj', '    <NoWarn>$(NoWarn);CS1591</NoWarn>'],
+    ['src/MotiffLab.Web/Scripts/a.ts', 'const eslint = 1;'],
+    ['ipad/App/MotiffLab/A.swift', 'let swiftlint = "lint"'],
+    ['Directory.Build.props', '    <WarningsNotAsErrors>$(WarningsNotAsErrors);CA1502;CA1505;CA1506</WarningsNotAsErrors>'],
+  ];
+  for (const [file, line] of fine) {
+    assert.equal(findSuppression(file, line), null, `${file}: ${line}`);
+  }
+});

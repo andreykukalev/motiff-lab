@@ -9,7 +9,8 @@
 //   node tools/quality/quality.mjs --write-config     rewrite CodeMetricsConfig.txt and ipad/.swiftlint.yml
 //
 // CI (.github/workflows/ci.yml) passes --ci, the log of its own build (--dotnet-log) and the pull request's base
-// (--base), and the result goes to the job summary. Checks: config, dotnet, csharp, eslint, swiftlint, jscpd.
+// (--base), and the result goes to the job summary. Checks: config, dotnet, csharp, eslint, swiftlint, jscpd,
+// suppressions (an inline or configured way to hide a violation from the others is itself a violation).
 // In soft mode the command reports and exits 0; in blocking mode it exits 1 on a violation not in the baseline,
 // a baseline entry no longer needed, an entry without a reason, or a check that could not run.
 import { spawnSync } from 'node:child_process';
@@ -19,8 +20,10 @@ import { dirname, isAbsolute, join, relative as relativePath } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  SUPPRESSION_FILES,
   addedEntries,
   compare,
+  findSuppression,
   formatBaseline,
   parseDotnetLog,
   swiftSymbol,
@@ -38,7 +41,7 @@ const SWIFTLINT_IMAGE =
 const BASELINE_NOTE =
   'Known violations of the code-quality thresholds (governance/quality/README.md). Only shrinks: fixing code '
   + 'removes its entry; a new entry needs a reason in "why" and an explanation in the pull request.';
-const CHECKS = ['config', 'dotnet', 'csharp', 'eslint', 'swiftlint', 'jscpd'];
+const CHECKS = ['config', 'dotnet', 'csharp', 'eslint', 'swiftlint', 'jscpd', 'suppressions'];
 
 const settings = JSON.parse(readFileSync(SETTINGS_PATH, 'utf8'));
 const limits = settings.thresholds;
@@ -304,6 +307,9 @@ function eslintCheck(args) {
   for (const report of JSON.parse(result.stdout)) {
     const file = toRepoPath(report.filePath);
     for (const m of report.messages) {
+      if (!m.ruleId && /noInlineConfig/.test(m.message)) {
+        continue; // an inline directive ESLint ignored: the check "suppressions" reports it
+      }
       if (!m.ruleId) {
         throw new Error(`eslint could not check ${file}: ${m.message}`);
       }
@@ -361,7 +367,33 @@ function jscpdCheck(args) {
   });
 }
 
-const RUNNERS = { dotnet: dotnetCheck, csharp: csharpCheck, eslint: eslintCheck, swiftlint: swiftlintCheck, jscpd: jscpdCheck };
+/** Ways to hide a violation from the checks above, each reported as a violation of its own (rule "suppression"). */
+function suppressionsCheck() {
+  const out = [];
+  for (const file of gitFiles(...SUPPRESSION_FILES)) {
+    if (file.startsWith('tools/quality/')) {
+      continue; // the checker itself: its globalconfig turns the CA rules on, and its sources name the patterns
+    }
+    const lines = readLines(file);
+    for (const [i, text] of lines.entries()) {
+      const why = findSuppression(file, text);
+      if (why) {
+        out.push({ tool: 'suppressions', rule: 'suppression', file, symbol: text.trim().slice(0, 120), line: i + 1,
+          message: `${why}: hides a violation from the code-quality checks; fix the code or add a baseline entry with a reason.` });
+      }
+    }
+  }
+  return out;
+}
+
+const RUNNERS = {
+  dotnet: dotnetCheck,
+  csharp: csharpCheck,
+  eslint: eslintCheck,
+  swiftlint: swiftlintCheck,
+  jscpd: jscpdCheck,
+  suppressions: suppressionsCheck,
+};
 
 // ---- Report -------------------------------------------------------------------------------------------------
 

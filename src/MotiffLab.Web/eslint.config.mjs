@@ -13,7 +13,8 @@ export default [
     files: ['Scripts/**/*.ts'],
     languageOptions: { parser: tseslint.parser, ecmaVersion: 2022, sourceType: 'module' },
     plugins: { sonarjs },
-    linterOptions: { reportUnusedDisableDirectives: 'off' },
+    // Inline directives are ignored, so a comment cannot hide a violation; the check "suppressions" reports them.
+    linterOptions: { noInlineConfig: true, reportUnusedDisableDirectives: 'off' },
     rules: {
       'sonarjs/cognitive-complexity': ['warn', thresholds.functionComplexity],
       'max-lines-per-function': ['warn', { max: thresholds.functionLines, IIFEs: true }],
