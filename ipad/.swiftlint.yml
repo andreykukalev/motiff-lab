@@ -1,0 +1,33 @@
+# Code-quality checks for the iPad app (#332): only size and complexity rules, no style rules.
+# Written by `node tools/quality/quality.mjs --write-config` from governance/quality/settings.json, the one
+# place the thresholds are kept; the check "config" fails when this file differs. Every rule only warns: the
+# ratchet in tools/quality decides what fails (governance/quality/README.md). CI runs SwiftLint on Linux, in Docker.
+only_rules:
+  - cyclomatic_complexity
+  - function_body_length
+  - file_length
+  - type_body_length
+  - nesting
+included:
+  - App
+excluded:
+  - App/Web
+cyclomatic_complexity:
+  warning: 15
+  error: 1000000
+function_body_length:
+  warning: 80
+  error: 1000000
+file_length:
+  warning: 600
+  error: 1000000
+type_body_length:
+  warning: 600
+  error: 1000000
+nesting:
+  type_level:
+    warning: 4
+    error: 1000000
+  function_level:
+    warning: 4
+    error: 1000000

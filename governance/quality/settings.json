@@ -1,0 +1,15 @@
+{
+  "mode": "soft",
+  "thresholds": {
+    "functionComplexity": 15,
+    "functionLines": 80,
+    "fileLines": 600,
+    "nesting": 4,
+    "duplicateLines": 10
+  },
+  "dotnet": {
+    "maintainabilityIndex": 10,
+    "typeCoupling": 95,
+    "memberCoupling": 40
+  }
+}

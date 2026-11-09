@@ -70,7 +70,12 @@ that, the Reviewer says so and QA gets its own thread. High and Guardrail tasks 
 
 ## CI and heavy checks
 
-- CI stays within 5 minutes (`build-test`): whitespace, build, unit, TypeScript and guard tests.
+- Balance rule (Andrei, 2026-11-09; it replaces the hard 5-minute limit): the repository is public, so Actions
+  minutes are free, but that is no licence to waste them. `build-test` stays quick (a few minutes) and runs on every
+  pull request: whitespace, build, unit, TypeScript, guard tests and the code-quality checks
+  (`governance/quality/README.md`). A pull request that makes it noticeably slower says so, with the times before and
+  after. Long suites never join it: they run only by label or by hand.
+- No needless runs: batch commits, push rarely, never push only to start CI again.
 - Browser tests run in CI only when Andrei asks (label `browser-tests` or a manual run); run touched specs locally.
 - The iPad macOS build only with the label `ipad-tests` or a tag `ipad-v*`, when Andrei agrees; first fix the
   expectations in `ipad/App/MotiffLabTests` (page counts, i18n keys, `score.js` DOM counters) in the same commit.

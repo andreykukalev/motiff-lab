@@ -49,13 +49,15 @@ jobs:
     name: build-test
     if: github.event.pull_request.draft != true
     runs-on: ubuntu-latest
-    # CI stays within 5 minutes. The browser suite alone takes about 15 minutes on one worker, so a run
-    # that asks for it gets longer. A label run builds nothing, but waits for the build before it, so its
-    # limit covers that build.
+    # Balance rule (governance/roles/common.md, "CI and heavy checks"): the repository is public, so minutes are
+    # free, but build-test stays quick (a few minutes) and runs on every pull request; the limit below is a
+    # safety net, not a budget. Long suites run only by label or by hand: the browser suite alone takes about
+    # 15 minutes on one worker, so a run that asks for it gets longer. A label run builds nothing, but waits for
+    # the build before it, so its limit covers that build.
     timeout-minutes: >-
       ${{ (github.event.action == 'labeled' && github.event.label.name != 'browser-tests')
-      && (contains(github.event.pull_request.labels.*.name, 'browser-tests') && 35 || 10)
-      || ((inputs.browser_tests || contains(github.event.pull_request.labels.*.name, 'browser-tests')) && 30 || 5) }}
+      && (contains(github.event.pull_request.labels.*.name, 'browser-tests') && 35 || 15)
+      || ((inputs.browser_tests || contains(github.event.pull_request.labels.*.name, 'browser-tests')) && 30 || 10) }}
     permissions:
       actions: read # a label run reads the run before it
       contents: read
@@ -194,9 +196,14 @@ jobs:
         if: steps.changes.outputs.code == 'true'
         run: dotnet format whitespace --folder --verify-no-changes
 
+      # A quality build: the code-metrics rules (CA1502, CA1505, CA1506) warn without failing it, and the log of
+      # those warnings is the input of "Check code quality" below (governance/quality/README.md).
       - name: Build
         if: steps.changes.outputs.code == 'true'
-        run: dotnet build MotiffLab.slnx --configuration Release --no-restore
+        run: |
+          mkdir -p artifacts/quality
+          dotnet build MotiffLab.slnx --configuration Release --no-restore -p:QualityMetrics=true \
+            "-flp1:logfile=artifacts/quality/dotnet-build.log;warningsonly"
 
       - name: Test
         if: steps.changes.outputs.code == 'true'
@@ -206,6 +213,8 @@ jobs:
         if: steps.changes.outputs.code == 'true'
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: src/MotiffLab.Web/package-lock.json
 
       # The build compiles the TypeScript layer to wwwroot/js; these tests run the compiled engine.
       - name: Test TypeScript layer
@@ -216,6 +225,20 @@ jobs:
       - name: Test agent guards
         if: steps.changes.outputs.code == 'true'
         run: node --test "governance/tests/*.test.mjs"
+
+      # Code quality (#332, governance/quality/README.md): complexity, size and duplication in C#, TypeScript,
+      # Swift (SwiftLint in Docker) and Python against the ratchet baseline, in about half a minute. The report
+      # goes to the job summary; in soft mode it never fails build-test, governance/quality/settings.json makes
+      # it blocking. The base commit was fetched by "Find what changed", to list what the baseline gained.
+      - name: Check code quality
+        if: steps.changes.outputs.code == 'true'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          npm ci --prefix src/MotiffLab.Web --no-audit --no-fund \
+            || echo "::warning title=quality::npm ci failed; the quality report says which checks did not run"
+          node --test "tools/quality/*.test.mjs"
+          node tools/quality/quality.mjs --ci --dotnet-log artifacts/quality/dotnet-build.log --base "$BASE_SHA"
 
       # The scan server (services/omr, decision record 0011), with homr replaced by a stand-in: a few seconds.
       - uses: actions/setup-python@v5

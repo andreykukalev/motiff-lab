@@ -32,6 +32,7 @@ dotnet build MotiffLab.slnx
 dotnet test MotiffLab.slnx
 node --test "tests/web/*.test.mjs"  # after a build; Node 22+
 node --test "governance/tests/*.test.mjs"  # the guards
+node tools/quality/quality.mjs  # code quality against the ratchet baseline (governance/quality/README.md); before every push of code
 dotnet publish src/MotiffLab.Web -c Release -o publish && (cd tests/e2e && npm ci && npx playwright test)
 dotnet format MotiffLab.slnx  # CI: dotnet format whitespace --folder --verify-no-changes
 dotnet run --project src/MotiffLab.Web

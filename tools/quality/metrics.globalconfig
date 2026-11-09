@@ -1,0 +1,8 @@
+# Code-metrics rules (#332), loaded only in a quality build (-p:QualityMetrics=true, Directory.Build.props).
+# Thresholds: CodeMetricsConfig.txt, a copy of governance/quality/settings.json. They warn and never fail the
+# build; the ratchet in tools/quality decides (governance/quality/README.md).
+is_global = true
+
+dotnet_diagnostic.CA1502.severity = warning
+dotnet_diagnostic.CA1505.severity = warning
+dotnet_diagnostic.CA1506.severity = warning
