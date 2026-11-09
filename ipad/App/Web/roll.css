@@ -1,6 +1,7 @@
 /* The piano roll in the drawer, as the web app's app.css draws it (`.roll`): the canvases fill the drawer under its head,
    which Swift draws; the roll takes the height the scroller and the keyboard leave (data-fill). Colours come from the design kit's tokens. */
-html, body { height: 100%; }
+/* The page never scrolls or zooms itself: a finger on the roll moves the roll (#338). */
+html, body { height: 100%; overflow: hidden; }
 body { margin: 0; background: var(--surface); color: var(--ink); font: var(--t-body); -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .roll { position: absolute; inset: 0; display: flex; flex-direction: column; }
 .roll canvas { display: block; border-radius: 0.4rem; touch-action: none; }
@@ -9,6 +10,9 @@ body { margin: 0; background: var(--surface); color: var(--ink); font: var(--t-b
 /* No legend and no how-to line under the drawer's roll (assessment, screen 15): the hands show by their colours on the
    keys, as on the web, and the roll takes the height. */
 .roll .roll-legend { display: none; }
+/* Read by touch (#338), the drawer gives the notes all its height: a finger moves through the music, so the scroller goes,
+   and the keys sounding light down the left of the notes, so the keyboard goes too. */
+.roll .roll-scroll, .roll .roll-keys { display: none; }
 /* The floating zoom (testing item 13), as the web app's app.css draws it: − the percentage + and Fit over the corner of the notes. */
 .roll .roll-zoom { position: absolute; z-index: 2; right: var(--s-2); display: flex; align-items: center; gap: 2px; padding: 2px; border-radius: var(--r-pill); border: 1px solid var(--hairline); background: var(--surface-2); box-shadow: var(--shadow-pill); font: var(--t-label); }
 .roll .roll-zoom-button { min-width: 36px; height: 36px; padding: 0 var(--s-2); border: 0; border-radius: var(--r-pill); background: transparent; color: var(--ink); font: var(--t-label); }
