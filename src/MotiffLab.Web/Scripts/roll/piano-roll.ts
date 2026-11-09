@@ -106,10 +106,10 @@ const CLICK_SLOP = 4;
 /** After the player moves or zooms the roll by hand in touch reading, playback leaves the view there this long (ms). */
 const HAND_PAUSE_MS = 4000;
 /**
- * In touch reading Fit may make the rows this thin, so a selection's two hands fit the drawer; names are written on the
- * keys and in the notes only from NAMED_ROW up.
+ * In touch reading Fit may make the rows this thin, so a selection's two hands fit the drawer (four octaves in the iPad
+ * Pro 11" drawer, whose roll page shows no keyboard); names are written on the keys and in the notes only from NAMED_ROW up.
  */
-const READING_MIN_ROW = 6;
+const READING_MIN_ROW = 5;
 const NAMED_ROW = 11;
 
 /**
@@ -396,6 +396,7 @@ export class PianoRoll {
         this.drag = null;
         this.press = null;
         this.pan = null;
+        this.fitted = false;
         this.editDrag = null;
         if (!this.editing) {
             this.scroll = 0;
@@ -584,9 +585,10 @@ export class PianoRoll {
                 ? Math.min(MAX_ROW, Math.max(READING_MIN_ROW, Math.floor(this.rollHeight() / rows)))
                 : fitRow(rows, this.rollHeight());
             this.rowScale = fitted / ROW_AT_100;
-            // Touch reading shows the whole piece's rows: the selection's sit in the middle of those in view.
+            // Touch reading shows the whole piece's rows: the selection's sit in the middle of those in view, and when even
+            // the thinnest rows cannot hold them all, the middle of the selection is what shows.
             const spare = Math.floor(this.rollHeight() / this.rowHeight()) - rows;
-            this.pitchTop = this.touchReading ? high + Math.max(0, Math.floor(spare / 2)) : high;
+            this.pitchTop = this.touchReading ? high + Math.floor(spare / 2) : high;
         }
         this.scroll = Math.round(Math.max(0, span.start - (margin * TICKS_PER_QUARTER) / this.zoom));
         this.fitted = true;
@@ -656,6 +658,8 @@ export class PianoRoll {
         this.motif = null;
         this.motifPitches = null;
         this.drag = null;
+        // With no selection there is nothing to fit again: a new size keeps the left edge and the zoom.
+        this.fitted = false;
         this.invalidate();
     }
 
@@ -820,6 +824,8 @@ export class PianoRoll {
         const away = offset < 0 || offset > this.visibleTicks();
         if (away && (this.player?.state() !== "stopped" || jumped) && performance.now() >= this.handUntil) {
             this.keepInView(tick);
+            // The view has left what Fit made: a new size keeps it, rather than jumping back to the selection.
+            this.fitted = false;
         }
     }
 
@@ -996,8 +1002,10 @@ export class PianoRoll {
             return ROLL_HEIGHT;
         }
         const rest = [this.scroller, this.keys, this.legend].reduce((sum, part) => sum + part.getBoundingClientRect().height, 0);
-        // The parts' margins (css: .roll-scroll, .roll-keys, .roll-legend) sit between them, and the bar numbers sit above the notes.
-        return Math.max(MIN_ROLL_HEIGHT, Math.floor(this.host.clientHeight - rest - 20 - HEADER));
+        // The parts' margins (css: .roll-scroll, .roll-keys, .roll-legend) sit between them, and the bar numbers sit above the
+        // notes; a page that hides the parts (the iPad's, in touch reading) has no margins to leave.
+        const margins = rest > 0 ? 20 : 0;
+        return Math.max(MIN_ROLL_HEIGHT, Math.floor(this.host.clientHeight - rest - margins - HEADER));
     }
 
     private draw(): void {
@@ -1798,7 +1806,8 @@ export class PianoRoll {
             const index = model?.noteAt(press.tick, press.pitch);
             if (index !== undefined || press.add) {
                 this.selectIndex(index, press.add);
-            } else {
+            } else if (!this.touchReading) {
+                // In touch reading no click clears the selection, a mouse's or a trackpad's included.
                 this.clearAll();
             }
             return;
