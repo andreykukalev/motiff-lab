@@ -41,9 +41,10 @@ test("a second tap on the selected bracket lifts the phrase; Back, the dimmed pa
     expect(errors).toEqual([]);
 });
 
-test("previous and next walk the phrases, and the card follows", async ({ page, browserName }) => {
-    // Twenty phrases, each engraved in the card, two to three seconds a phrase in Firefox and WebKit on a CI runner (#309).
-    test.slow(browserName !== "chromium", "walks all twenty phrases, slow outside Chromium on Linux");
+test("previous and next walk the phrases, and the card follows", async ({ page }) => {
+    // Twenty phrases, each engraved in the card: two to three seconds a phrase on a CI runner, near the minute in
+    // every engine (#309).
+    test.slow(true, "walks all twenty phrases");
     await openFurElise(page);
     const bracket = page.locator(".score button.bracket[aria-label]").first();
     await bracket.click();
