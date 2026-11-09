@@ -6,4 +6,19 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
   </PropertyGroup>
+
+  <!--
+    Code metrics (#332, governance/quality/README.md): CA1502 complexity, CA1505 maintainability and CA1506
+    coupling report only in a quality build (-p:QualityMetrics=true, as tools/quality/quality.mjs and CI run it),
+    as warnings that never fail the build: the ratchet in tools/quality decides what fails.
+  -->
+  <ItemGroup>
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)CodeMetricsConfig.txt" />
+  </ItemGroup>
+  <PropertyGroup Condition="'$(QualityMetrics)' == 'true'">
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);CA1502;CA1505;CA1506</WarningsNotAsErrors>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(QualityMetrics)' == 'true'">
+    <GlobalAnalyzerConfigFiles Include="$(MSBuildThisFileDirectory)tools/quality/metrics.globalconfig" />
+  </ItemGroup>
 </Project>

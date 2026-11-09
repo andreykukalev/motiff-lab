@@ -29,13 +29,20 @@ answer the findings (the Feedback Resolver role; usually the same thread).
 - Before a push, run what applies to the change: `dotnet build MotiffLab.slnx`, `dotnet test MotiffLab.slnx`,
   `node --test "tests/web/*.test.mjs"`, `dotnet format whitespace --folder --verify-no-changes`; for UI, e2e for the
   specs it touches, locally; for `ipad/App`, check the expectations in `ipad/App/MotiffLabTests`.
+- Before every push of code, run the quality command `node tools/quality/quality.mjs`
+  (`governance/quality/README.md`). New code meets the thresholds; a violation it cannot avoid in this task becomes a
+  baseline entry with its reason in `why`, and the PR explains each such deviation (what, where, why, which task
+  removes it). Code it fixed drops its entry (`--update-baseline`). Never loosen `governance/quality/settings.json`
+  or another tool's configuration to pass.
 - Commits in a batch, pushes rarely. Push only its own branch (`push-guard` lets only that one through).
 
 ## PR
 
 - The template `.github/pull_request_template.md`: the task (`Closes #N`), what was done, how each criterion was
-  checked, files outside `allowed_paths` (should be "none"), the self-check with commands and results, guard triggers
-  (from `.aom/guard-log.jsonl`), the steps for Andrei to check.
+  checked, files outside `allowed_paths` (should be "none"), the self-check with commands and results (the quality
+  command's summary line among them), guard triggers (from `.aom/guard-log.jsonl`), the steps for Andrei to check.
+- Code-quality deviations: under "What was done", one line per baseline entry the PR adds, with its reason; "none"
+  when it adds none.
 - Labels: `agent`, `role:developer`, the class `risk:*` from the Issue. Assignee and reviewer: Andrei.
 - Wait for a green `build-test`; fix a red CI by reproducing the failure locally.
 
