@@ -16,7 +16,8 @@ export default defineConfig({
     expect: { timeout: 15_000 },
     fullyParallel: true,
     forbidOnly: !!process.env.CI,
-    reporter: process.env.CI ? [["list"], ["github"]] : "list",
+    // In CI the HTML report (playwright-report/) is kept as an artifact of the Browser tests workflow.
+    reporter: process.env.CI ? [["list"], ["github"], ["html", { open: "never" }]] : "list",
     use: {
         baseURL: `http://localhost:${port}`,
         trace: "retain-on-failure",

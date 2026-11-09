@@ -1,29 +1,31 @@
 name: CI
 
-# The browser tests (tests/e2e) are heavy, so they run only when asked: label a pull request
-# `browser-tests`, or run CI from the Actions tab with "Run the browser tests" ticked.
+# The browser tests (tests/e2e) are heavy, so they are not here: browser-tests.yml runs them daily on main,
+# on a pull request labelled `browser-tests`, and by hand, and says when they must pass before a release.
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review, labeled]
   push:
     branches: [main]
+  # infra/azure/setup.ps1 starts this workflow with browser_tests=false; the input stays so that call still
+  # works, and does nothing.
   workflow_dispatch:
     inputs:
       browser_tests:
-        description: Run the browser tests
+        description: Unused (the browser tests are in the Browser tests workflow)
         type: boolean
-        default: true
+        default: false
 
 permissions:
   contents: read
 
 # A newer push to the same pull request supersedes the run in progress. Never cancel a run on main:
 # it may be provisioning infrastructure. Pull requests group by number, not ref, so a pull request's
-# run never shares a group with main. A run for adding any label other than browser-tests (agent, role:*,
-# risk:*, ipad-tests) only reports the result of the build before it (see the job), so it gets a group of its
+# run never shares a group with main. A run for adding a label (agent, role:*, risk:*, browser-tests,
+# ipad-tests) only reports the result of the build before it (see the job), so it gets a group of its
 # own per run: it never cancels the build in progress, and no other label run cancels it.
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}${{ github.event.action == 'labeled' && github.event.label.name != 'browser-tests' && format('-label-{0}', github.run_id) || '' }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}${{ github.event.action == 'labeled' && format('-label-{0}', github.run_id) || '' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -39,23 +41,18 @@ jobs:
   #
   # Adding a label starts a run too (GitHub cannot filter label events by name), and the pull request shows
   # build-test from the newest CI run on its commit. A label run that skipped the job, or reported under another
-  # name, hid the real result and left the pull request blocked (#294, #295). So a run for adding any label
-  # other than browser-tests builds nothing: its build-test waits for the CI run on the same commit just before
-  # it and reports that run's build-test, passing only if that one passed. Label runs that come close together
-  # each wait for the one before, down to the real build. Adding browser-tests starts a full run with the
-  # browser suite, as before. To try a failed build again after labels were added, re-run the build, then the
-  # newest run (or push).
+  # name, hid the real result and left the pull request blocked (#294, #295). So a run for adding a label
+  # builds nothing: its build-test waits for the CI run on the same commit just before it and reports that
+  # run's build-test, passing only if that one passed. Label runs that come close together each wait for the
+  # one before, down to the real build. To try a failed build again after labels were added, re-run the build,
+  # then the newest run (or push).
   build-test:
     name: build-test
     if: github.event.pull_request.draft != true
     runs-on: ubuntu-latest
-    # CI stays within 5 minutes. The browser suite alone takes about 15 minutes on one worker, so a run
-    # that asks for it gets longer. A label run builds nothing, but waits for the build before it, so its
+    # CI stays within 5 minutes. A label run builds nothing, but waits for the build before it, so its
     # limit covers that build.
-    timeout-minutes: >-
-      ${{ (github.event.action == 'labeled' && github.event.label.name != 'browser-tests')
-      && (contains(github.event.pull_request.labels.*.name, 'browser-tests') && 35 || 10)
-      || ((inputs.browser_tests || contains(github.event.pull_request.labels.*.name, 'browser-tests')) && 30 || 5) }}
+    timeout-minutes: ${{ github.event.action == 'labeled' && 10 || 5 }}
     permissions:
       actions: read # a label run reads the run before it
       contents: read
@@ -63,9 +60,9 @@ jobs:
     env:
       RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
       SWA_NAME: swa-motifflab
-      LABEL_ONLY: ${{ github.event.action == 'labeled' && github.event.label.name != 'browser-tests' }}
+      LABEL_ONLY: ${{ github.event.action == 'labeled' }}
     steps:
-      # A run for adding a label other than browser-tests: report the build-test of the CI run on this commit
+      # A run for adding a label: report the build-test of the CI run on this commit
       # just before this one (pull_request runs, by run number), once it has finished. Every other step is
       # skipped, since "Find what changed" does not run and sets no outputs.
       - name: Report the build of this commit
@@ -103,19 +100,16 @@ jobs:
 
       # Documentation-only changes skip the build and tests. Only changes to the app (src, infra, SDK and
       # build settings) are published and deployed; test-only changes are built and tested but not deployed.
-      # The browser tests run on the published app only when asked (see the top), and then only when
-      # the app or they changed. Any doubt (a commit that cannot be fetched) runs everything asked for.
+      # Any doubt (a commit that cannot be fetched) runs everything.
       - name: Find what changed
         id: changes
         if: env.LABEL_ONLY != 'true'
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
-          BROWSER_ASKED: ${{ inputs.browser_tests || contains(github.event.pull_request.labels.*.name, 'browser-tests') }}
         run: |
           code=true
           app=true
-          browser=true
           infra=true
           scan=true
           if [[ -n "$BASE_SHA" && "$BASE_SHA" != 0000000000000000000000000000000000000000 ]] \
@@ -124,7 +118,6 @@ jobs:
             echo "$changed"
             code=false
             app=false
-            browser=false
             infra=false
             scan=false
             while IFS= read -r f; do
@@ -133,11 +126,7 @@ jobs:
                 *.md|docs/*|design/*|stage1-issues/*|pilot/*|LICENSE*|.github/ISSUE_TEMPLATE/*|.github/pull_request_template.md) ;;
                 src/*|infra/*|global.json|Directory.Build.props|Directory.Packages.props|MotiffLab.slnx|.github/workflows/ci.yml)
                   code=true
-                  app=true
-                  browser=true ;;
-                tests/e2e/*)
-                  code=true
-                  browser=true ;;
+                  app=true ;;
                 services/omr/*) scan=true ;;
                 *) code=true ;;
               esac
@@ -146,18 +135,12 @@ jobs:
               esac
             done <<< "$changed"
           fi
-          if [[ "$BROWSER_ASKED" != true ]]; then
-            browser=false
-          fi
           azure=false
           if [[ "$app" == true && -n "$AZURE_CLIENT_ID" ]] \
             && [[ "${{ github.ref }}" == refs/heads/main && ( "${{ github.event_name }}" == push || "${{ github.event_name }}" == workflow_dispatch ) ]]; then
             azure=true
           fi
-          publish=false
-          if [[ "$browser" == true || "$azure" == true ]]; then
-            publish=true
-          fi
+          publish="$azure"
           # Changes to the agents' own environment (governance/roles/common.md, E3) are flagged, not refused.
           environment="$(grep -E '^(\.claude/|governance/|\.github/|CLAUDE\.md$|tests/acceptance/)' <<< "${changed:-}" || true)"
           if [[ -n "$environment" && "${{ github.event_name }}" == pull_request ]]; then
@@ -165,12 +148,11 @@ jobs:
             { echo '### env-scope: environment change (E3)'; echo; sed 's/^/- /' <<< "$environment"; } >> "$GITHUB_STEP_SUMMARY"
           fi
           echo "code=$code" >> "$GITHUB_OUTPUT"
-          echo "browser=$browser" >> "$GITHUB_OUTPUT"
           echo "publish=$publish" >> "$GITHUB_OUTPUT"
           echo "deploy=$azure" >> "$GITHUB_OUTPUT"
           echo "infra=$infra" >> "$GITHUB_OUTPUT"
           echo "scan=$scan" >> "$GITHUB_OUTPUT"
-          echo "code=$code browser=$browser publish=$publish deploy=$azure infra=$infra scan=$scan"
+          echo "code=$code publish=$publish deploy=$azure infra=$infra scan=$scan"
 
       - uses: actions/setup-dotnet@v4
         if: steps.changes.outputs.code == 'true'
@@ -233,7 +215,7 @@ jobs:
           python -m pytest -q
 
       # Publishing needs the wasm-tools workload (about 30 s to install) and a trimming publish (about a minute),
-      # so it only runs when the result is tested in browsers or deployed.
+      # so it only runs when the result is deployed.
       - name: Install WebAssembly build tools
         if: steps.changes.outputs.publish == 'true'
         run: dotnet workload install wasm-tools
@@ -268,36 +250,6 @@ jobs:
       - name: Publish web app
         if: steps.changes.outputs.publish == 'true'
         run: dotnet publish src/MotiffLab.Web --configuration Release --output publish
-
-      # Smoke, offline and accessibility tests of the published app in Chromium, Firefox and WebKit
-      # (tests/e2e, issue #66), when asked, before it is deployed. Firefox plays audio only with a sound device,
-      # so PulseAudio gives the runner a silent one.
-      - uses: actions/cache@v4
-        if: steps.changes.outputs.browser == 'true'
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('tests/e2e/package-lock.json') }}
-
-      - name: Install browsers
-        if: steps.changes.outputs.browser == 'true'
-        working-directory: tests/e2e
-        run: |
-          npm ci
-          npx playwright install --with-deps chromium firefox webkit
-          sudo apt-get install --yes --no-install-recommends pulseaudio
-          pulseaudio --start --exit-idle-time=-1
-
-      - name: Test in browsers
-        if: steps.changes.outputs.browser == 'true'
-        working-directory: tests/e2e
-        run: npx playwright test
-
-      - uses: actions/upload-artifact@v4
-        if: failure() && steps.changes.outputs.browser == 'true'
-        with:
-          name: browser-test-results
-          path: tests/e2e/test-results
-          retention-days: 7
 
       # Provisions infra/main.bicep and deploys the published app to Azure Static Web Apps, from main only.
       # Pull requests are built and tested but not deployed: there are no preview sites (Andrei, 2026-10-31;

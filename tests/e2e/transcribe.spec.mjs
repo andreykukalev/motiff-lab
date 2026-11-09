@@ -194,11 +194,14 @@ test("a recording longer than two minutes is heard in overlapping parts and its 
     await transcribe(page, await recording(240, 8000));
     await expect(page.getByRole("heading", { name: "Check the transcription" })).toBeVisible({ timeout: 30_000 });
 
-    // Four minutes go as two parts of 2 minutes 5 seconds: each half with five seconds of the other.
+    // Four minutes go as two parts of 2 minutes 5 seconds: each half with five seconds of the other. The last part
+    // ends where the decoded sound does, and WebKit resamples the 8 kHz file a couple of samples short of 240 s, so
+    // a part may be up to a millisecond short.
     expect(uploads).toHaveLength(2);
     for (const body of uploads) {
         const wav = body.indexOf(Buffer.from("RIFF"));
-        expect(body.readUInt32LE(wav + 40)).toBe(125 * 22050 * 2);
+        expect(body.readUInt32LE(wav + 40)).toBeLessThanOrEqual(125 * 22050 * 2);
+        expect(body.readUInt32LE(wav + 40)).toBeGreaterThan((125 - 0.001) * 22050 * 2);
     }
 
     // The stand-in answers each part with Für Elise's first 130 s: the first part keeps its first two

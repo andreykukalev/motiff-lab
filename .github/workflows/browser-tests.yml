@@ -1,0 +1,141 @@
+name: Browser tests
+
+# The browser specs (tests/e2e, Playwright) on the published app, in the browsers playwright.config.mjs names.
+# They take about 15 minutes, so they are not part of build-test (ci.yml), which every pull request runs and
+# keeps quick. They run (#309):
+#
+# - Once a day on main, only when main changed since the last scheduled run (the first job checks). A failure
+#   shows as a failed run of this workflow on main, and the Playwright report is kept as an artifact.
+# - On a pull request labelled `browser-tests`: when the label is added, and on every push while it is there.
+#   A pull request without the label never runs them.
+# - By hand from the Actions tab, on any branch.
+#
+# Before a release (an iPad tag `ipad-v*`, which releases the web app with it), the commit being released must
+# have a green run of this workflow: the daily run on that commit of main, or a run by hand on main when main
+# has changed since. A red run blocks the release until the defect is fixed or Andrei accepts it as a known
+# defect in its Issue.
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled]
+    # Only what can change the published app or the specs; a pull request with other changes skips the run.
+    paths:
+      - 'src/**'
+      - 'tests/e2e/**'
+      - 'global.json'
+      - 'Directory.Build.props'
+      - 'Directory.Packages.props'
+      - 'MotiffLab.slnx'
+      - '.github/workflows/browser-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to a labelled pull request supersedes the run in progress; runs on main are never cancelled.
+# Adding another label (agent, risk:*, ...) starts a run too, which does nothing (see decide), so it gets a
+# group of its own and never cancels the browser run in progress.
+concurrency:
+  group: browser-tests-${{ github.event.pull_request.number || github.ref }}${{ github.event.action == 'labeled' && github.event.label.name != 'browser-tests' && format('-label-{0}', github.run_id) || '' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  # Decides whether to run, in seconds and without a build. A scheduled run goes ahead only when main has a
+  # commit the last scheduled run (passed or failed) did not test; a pull request only with the label; a run by
+  # hand always.
+  decide:
+    name: decide
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.draft != true && contains(github.event.pull_request.labels.*.name, 'browser-tests') &&
+      (github.event.action != 'labeled' || github.event.label.name == 'browser-tests'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      actions: read # the scheduled runs before this one
+    outputs:
+      run: ${{ steps.decide.outputs.run }}
+    steps:
+      - name: Decide
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run=true
+          if [[ "$GITHUB_EVENT_NAME" == schedule ]]; then
+            last="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/browser-tests.yml/runs?event=schedule&branch=main&status=completed&per_page=20" \
+              --jq "[.workflow_runs[] | select(.id != $GITHUB_RUN_ID and (.conclusion == \"success\" or .conclusion == \"failure\"))][0].head_sha // empty")"
+            echo "main is at $GITHUB_SHA; the last scheduled run tested ${last:-nothing}"
+            if [[ "$last" == "$GITHUB_SHA" ]]; then
+              run=false
+              echo "### main has not changed since the last scheduled run ($last): skipped" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
+  browser-tests:
+    name: browser-tests
+    needs: decide
+    if: needs.decide.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    # The suite takes about 15 minutes; a run past 30 is a fault to look into, not a reason to raise this.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Build.props', 'Directory.Packages.props', 'global.json') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      # Publishing needs the wasm-tools workload (about 30 s) and a trimming publish (about a minute). The
+      # committed appsettings.json is kept: no accounts, as in a pull request build.
+      - name: Install WebAssembly build tools
+        run: dotnet workload install wasm-tools
+
+      - name: Publish web app
+        run: dotnet publish src/MotiffLab.Web --configuration Release --output publish
+
+      # Firefox plays audio only with a sound device, so PulseAudio gives the runner a silent one.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('tests/e2e/package-lock.json') }}
+
+      - name: Install browsers
+        working-directory: tests/e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium firefox webkit
+          sudo apt-get install --yes --no-install-recommends pulseaudio
+          pulseaudio --start --exit-idle-time=-1
+
+      - name: Test in browsers
+        working-directory: tests/e2e
+        run: npx playwright test
+
+      # The HTML report (tests/e2e/playwright-report) and, for a failed spec, its trace and screenshots.
+      - uses: actions/upload-artifact@v4
+        if: always() && !cancelled()
+        with:
+          name: playwright-report
+          path: |
+            tests/e2e/playwright-report
+            tests/e2e/test-results
+          if-no-files-found: ignore
+          retention-days: 14

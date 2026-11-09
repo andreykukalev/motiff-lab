@@ -3,7 +3,22 @@
 // what the score shows, One after the other loops the two in turn, and Compare says what changed and
 // what was kept.
 import { expect, test } from "@playwright/test";
-import { openAdjust, openFurElise, selectBar, openInsights, heardChoice, scoreChoice, tryWay } from "./steps.mjs";
+import { closePopover, openAdjust, openFurElise, openMore, selectBar, openInsights, heardChoice, scoreChoice, tryWay } from "./steps.mjs";
+
+/**
+ * While the two loop one after the other, with the overflow open: which one the heading says sounds, the compare
+ * button marked current, and the score the overflow's Notation choice shows, all read at one moment.
+ */
+function sounding(page) {
+    return page.evaluate(() => {
+        const head = document.querySelector(".inspector-head");
+        return [
+            head.querySelector(".selection-text")?.textContent.match(/Now the \w+\./)?.[0] ?? null,
+            head.querySelector('.compare-switch [aria-current="true"]')?.textContent.trim() ?? null,
+            document.querySelector('.more-popover [role="radiogroup"][aria-label="Which score shows"] [aria-checked="true"]')?.textContent.trim() ?? null,
+        ];
+    });
+}
 
 test("go back to the original, compare, and hear the two one after the other", async ({ page }) => {
     const errors = await openFurElise(page);
@@ -45,12 +60,12 @@ test("go back to the original, compare, and hear the two one after the other", a
     await expect(status).toContainText("Looping the original, then the variation.");
     await expect.poll(() => heardChoice(page)).toBe("The original, then the variation");
     await expect(selection).toContainText(/Now the (original|variation)\./);
-    await expect(selection).toContainText("Now the variation.", { timeout: 20_000 });
-    await expect(variation).toHaveAttribute("aria-current", "true");
-    await expect.poll(() => scoreChoice(page)).toBe("With the variation");
-    await expect(selection).toContainText("Now the original.", { timeout: 20_000 });
-    await expect(original).toHaveAttribute("aria-current", "true");
-    await expect.poll(() => scoreChoice(page)).toBe("As written");
+    // A pass lasts about a second, less than opening and closing the overflow can take, so the score's choice is
+    // read with the overflow open, in the same moment as the heading and the current button.
+    await openMore(page);
+    await expect.poll(() => sounding(page), { timeout: 20_000 }).toEqual(["Now the variation.", "Variation", "With the variation"]);
+    await expect.poll(() => sounding(page), { timeout: 20_000 }).toEqual(["Now the original.", "Original", "As written"]);
+    await closePopover(page);
 
     // Pressed again, the selection keeps looping what Hear says.
     await alternate.click();
