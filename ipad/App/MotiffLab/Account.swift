@@ -322,6 +322,18 @@ final class Account: ObservableObject {
         return request
     }
 
+    /// A request to the API with a token for its scope, got without asking the player anything; nil when nobody is
+    /// signed in or there is no token.
+    func apiRequest(_ path: String) async -> URLRequest? {
+        guard let options, player != nil, let token = await token(options.apiScope) else { return nil }
+        return request(path: path, token: token)
+    }
+
+    /// The projects the player saved online, read with their token on any plan (0014); the iPad only reads them (#335).
+    var online: OnlineProjects {
+        OnlineProjects(session: session) { [weak self] path in await self?.apiRequest(path) }
+    }
+
     /// Adds a tester's choice to a request for the API or the hosted scan server; nothing when there is none.
     func addPlanChoice(to request: inout URLRequest) {
         if let choice { request.setValue(choice.rawValue, forHTTPHeaderField: Self.planHeader) }
