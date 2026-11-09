@@ -44,11 +44,11 @@ The HTML mockups are pictures built to look right in a screenshot, with absolute
 ## 3. Product context the documents assume
 
 - **Motiff Lab** — an app for pianists that is centred on the score: import a piece, read it, select phrases, practise them (loop, tempo, hands), understand them (facts with evidence), try variations, annotate. Tagline: *Hear. Understand. Transform.*
-- **Current build**: a Blazor web app running in an iPad shell, branch `main` after PR #170, 32 screens, notation rendered by **Verovio**. Import routes: MIDI/MusicXML (on device), photo/PDF via **homr** OMR (server), audio/video via **Transkun** transcription (server). Phrase detection, facts, experiments, build-a-variation, sessions and saved ideas all exist today. The redesign moves and reshapes them; it removes no capability (the full mapping is the "Where every current feature goes" table in the UX tab).
+- **Current build** (when the kit was made; history now): a Blazor web app running in an iPad shell, branch `main` after PR #170, 32 screens, notation rendered by **Verovio**. Import routes: MIDI/MusicXML (on device), photo/PDF via **homr** OMR (server), audio/video via **Transkun** transcription (server). Phrase detection, facts, experiments, build-a-variation, sessions and saved ideas all exist today. The redesign moves and reshapes them; it removes no capability (the full mapping is the "Where every current feature goes" table in the UX tab). Since then the shell was replaced by a native iPad app (`docs/decisions/0019-native-ipad-app.md`), and the web app and the iPad app became two workspaces of one product with no parity, the web Music Studio and the iPad Practice Studio (`docs/decisions/0025-two-studios.md`).
 - **Today's look** is a dark dashboard with a neon-lime accent. That accent and those surfaces disappear entirely.
 - **Target device**: any iPad, **with or without a stylus**, both orientations, designed at 11″ (1180×820 landscape, 820×1180 portrait) and to be checked on 13″.
 - **Languages**: Russian and English, for the interface **and all generated content** (facts, Evidence, Try chip names, assistant answers, Piece DNA idea cards, category names, Check reasons, import warnings). One language setting applies to everything. The current build mixes English into Russian; that is a defect to remove. Lay out every control for the longer Russian labels.
-- **Free vs Pro** (a product rule, not a per-feature choice): everything that runs on the device is free; everything that needs cloud infrastructure or an AI model is Pro. So: AI Assistant, scan import, transcription import and online sync are Pro. Facts, Try chips, variations, Piece DNA, bookmarks, ink, playback and on-device file import are free. Free-tier Pro entry points are visible and open a one-line plum offer; nothing is sent anywhere.
+- **Free vs Pro** (a product rule, not a per-feature choice): everything that runs on the device is free; everything that needs cloud infrastructure or an AI model is Pro. So: AI Assistant, scan import and transcription import are Pro; sync between the workspaces is free with a quota (Andrei, 2026-11-08, `docs/decisions/0025-two-studios.md` section 8). Facts, Try chips, variations, Piece DNA, bookmarks, ink, playback and on-device file import are free. Free-tier Pro entry points are visible and open a one-line plum offer; nothing is sent anywhere unless the player signs in and turns sync on.
 
 ---
 
@@ -94,6 +94,7 @@ These are the product owner's decisions during the work, in his own terms where 
 | Sheet named "Insights" | Chosen name |
 | RU + EN for UI and content | Both languages ship |
 | Pro = anything needing cloud/AI; on-device = free | "Pro is everything that I will pay for (infra, cloud, AI models). Everything run on user device is free." |
+| Sync between the workspaces is free, with a quota (2026-11-08) | An exception to the Pro rule above; `docs/decisions/0025-two-studios.md` section 8 |
 | First run asks for a preset, with short descriptions | "Ask, and give a short description of each preset" |
 | Fourth ink token `--ink-ochre` #9C6A0C for Teacher | The concept had four categories but tokens had three inks; ochre chosen for 4.5:1 on paper |
 
@@ -201,6 +202,6 @@ This follows the DS tab's "Applying it to the existing app", adjusted with what 
 - Cobalt is used for anything other than pointing / selection / active state; or a second accent appears.
 - A white panel sits on top of the page (other than the contextual menu and dialogs), or anything is brighter than the paper.
 - The app explains itself in captions under the score.
-- A Pro feature sends anything to the cloud in the free tier, or an on-device feature is behind Pro.
+- A Pro feature sends anything to the cloud in the free tier (other than sync the player turned on), or an on-device feature is behind Pro.
 - A string or generated text is in English while the UI is Russian (or the reverse).
 - Opening or closing an overlay loses the selection, the position, the loop or the tempo.
