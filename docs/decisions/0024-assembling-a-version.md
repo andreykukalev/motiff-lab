@@ -58,5 +58,5 @@ The carry sheet from a recording starts with «Как получить ноты�
 
 ## Consequences
 
-- Built in steps: the engine and the project file; the web app (scenario 1, two different versions); «Рядом», «Сопоставление» and «Принять совпавшее» (scenario 3); a recording as a source (scenario 2); the iPad app through the facade.
+- Built in steps: the engine and the project file; the web app (scenario 1, two different versions); «Рядом», «Сопоставление» and «Принять совпавшее» (scenario 3); a recording as a source (scenario 2). The assembly stays in the web app: on the iPad, [0025](0025-two-studios.md) section 7 gives the simplified compare (listen to another version and choose), not the assembly.
 - The merge draft of 0022, section 5 (the version's page with three starts, Compare versions, the Mine / Version / Result switch) leaves the interface once the web app's step is in. Bars taken by it in older files still load as part of the notes.

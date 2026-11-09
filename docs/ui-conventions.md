@@ -1,6 +1,6 @@
 # UI conventions
 
-Rules for the web UI (`src/MotiffLab.Web`) as it is on main after the redesign (decision record 0018), so a fix in one corner reads like the rest. The native iPad app (0019) follows the same rules in SwiftUI over the same music-core facade. Where this file and `design/kit` disagree, the kit's documents win (`design/kit/HANDOFF.md` says which source wins), and this file is corrected in the same PR.
+Rules for the web UI (`src/MotiffLab.Web`) as it is on main after the redesign (decision record 0018), so a fix in one corner reads like the rest. The native iPad app (0019) follows these rules in SwiftUI where it has the same function; which functions it has, and in which form, follows 0025 (two workspaces, no parity). Where this file and `design/kit` disagree, the kit's documents win (`design/kit/HANDOFF.md` says which source wins), and this file is corrected in the same PR.
 
 ## What the UI may do
 

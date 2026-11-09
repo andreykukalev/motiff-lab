@@ -71,7 +71,7 @@ The notebook records what the player thought and where they wanted to go, not on
 | **Experiment record** | Prediction, the change (operation, Keep preset, diff), what they noticed, next move | By running an experiment | No field is required |
 | **Process note** | Anything else: a question for later, an idea, a decision, why something worked, a link to other music | Any time, in one step | Never prompted |
 
-Notes stay on the device in Stage 1, like the rest of the project. No sync, sharing or cross-device copies are assumed.
+Notes stay on the device in Stage 1, like the rest of the project. No sync, sharing or cross-device copies are assumed. (This was the Stage 1 assumption; for sync it is superseded by [0025](decisions/0025-two-studios.md) section 8: sync between the web app and the iPad app is free with a quota, once the player signs in and turns it on.)
 
 **Proposed design, to test in the pilot**
 

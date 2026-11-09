@@ -133,20 +133,20 @@ Where the library lives is not fixed by this record beyond the working hypothesi
 
 1. The iPad v1 rows not yet set (section 11).
 2. The sync quota (section 8).
-3. The architecture decisions A1–A5 of the review's feature registry. The product requires of them what sections 7–9 say; each is decided in an architecture record, not here:
-   - **A1 The shared project model and phrase identity.** Required: the entities of section 9.1 are the same objects in both apps, and a phrase keeps its identity. To be decided in ADR 0026, project continuity (Task Record #292), from the project-continuity council of 2026-11-08.
-   - **A2 Sync**: project identity, the transfer of changes within the quota, conflicts. Required: free sync with a quota (section 8), nothing the player did on either device lost. To be decided in 0026.
-   - **A3 The hand-over of the working context.** Required: section 9.2. To be decided in 0026.
-   - **A4 Independent web and iPad releases over a compatible data contract.** Required: section 9.3. To be decided in 0026, with the project file ([docs/project-file.md](../project-file.md)) and the facade ([0020](0020-music-core-facade.md)).
+3. The architecture decisions A1–A5 of the review's feature registry. The product requires of them what sections 7–9 say; each is decided in an architecture record, not here. A1–A4 are now decided in [0026](0026-project-continuity.md) (accepted 2026-11-08); A5 is still open:
+   - **A1 The shared project model and phrase identity.** Required: the entities of section 9.1 are the same objects in both apps, and a phrase keeps its identity. Decided in 0026: one C# core and the project file as the contract (S1), random ids (S3) and the stored phrase anchor `ph_` (section 2, C1).
+   - **A2 Sync**: project identity, the transfer of changes within the quota, conflicts. Required: free sync with a quota (section 8), nothing the player did on either device lost. Decided in 0026: ids (S3), transfer (S4), device state (S5), field classes and note corrections in the merge (S8, S9), pulling (S10) and one conflict record (section 2, C2). The quota itself is still open (item 2).
+   - **A3 The hand-over of the working context.** Required: section 9.2. Decided in 0026: the hand-over record (S11).
+   - **A4 Independent web and iPad releases over a compatible data contract.** Required: section 9.3. Decided in 0026: compatibility (S6) and the release rule (section 3), with the project file ([docs/project-file.md](../project-file.md)) and the facade ([0020](0020-music-core-facade.md)) as the data contract.
    - **A5 One source for the form of a piece.** Required: Contents and Piece DNA give one answer about the form of a piece (today Contents shows "A B C D E" where Piece DNA shows "A A′ B A″"). To be decided in its own task, before either screen changes.
-4. The code architecture behind the two workspaces: one C# music-core under both apps (0019, 0020) or two codebases. This record does not change it; it is to be decided with A1–A4 in 0026.
+4. The code architecture behind the two workspaces: one C# music-core under both apps (0019, 0020) or two codebases. This record does not change it. Decided in 0026 (S1): one C# music-core under both apps.
 
 ## Consequences
 
 - A feature is not built in the iPad app because the web app has it, nor the other way round. Each feature, in each workspace, is proposed with the purpose it has there and weighed by the six questions; where a function serves both, its two forms may differ.
 - The redesign's visual system, the shared strings and icons, music-core and the project file stay common to both apps. What differs is which functions each app carries and in which form.
 - The follow-up product work (sync, hands separately on the iPad, the ideas kept on the web on the iPad, the resume point, the library, the Piece DNA chord summary, the simplified compare on the iPad and the rest of the review's draft tasks) runs through its own Task Records, each citing the section of this record it depends on. None of them settles an architecture decision of section 13 silently.
-- Documents that still assume the same screens in both apps or Pro-only sync (outside 0018, 0019 and `CLAUDE.md`) are listed in the pull request of this record and corrected in follow-up work.
+- Documents that still assume the same screens in both apps or Pro-only sync (outside 0018, 0019 and `CLAUDE.md`) are listed in the pull request of this record (#299) and corrected by Task Record #316; the two sentences in High paths (`docs/project-file.md`, the facade's code comment) wait for the next task that changes those files.
 
 ## What this record changes in earlier records
 
