@@ -249,7 +249,10 @@ test("only the stretch the player chooses in a long recording is sent, and the p
     await expect(page.getByText("with 2 requests", { exact: false })).toBeVisible();
 });
 
-test("the selection is dragged on the recording's shape, and the play position moved by the strip, the arrows and the space bar", async ({ page }) => {
+test("the selection is dragged on the recording's shape, and the play position moved by the strip, the arrows and the space bar", async ({ page, browserName }) => {
+    // Known defect, accepted by Andrei in #309: in WebKit the recording's player sometimes cannot load the picked
+    // file (error 4, NotSupportedError on play). Fixed or explained in #337, which removes this mark.
+    test.fixme(browserName === "webkit", "#337: the recording's player sometimes cannot load the file in WebKit");
     await scanServer(page);
     await page.goto("/settings");
     await page.getByRole("button", { name: "Save and check" }).click();
