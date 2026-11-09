@@ -1,11 +1,11 @@
 name: Browser tests
 
-# The browser specs (tests/e2e, Playwright) on the published app, in the browsers playwright.config.mjs names.
-# They take about 15 minutes, so they are not part of build-test (ci.yml), which every pull request runs and
-# keeps quick. They run (#309):
+# The browser specs (tests/e2e, Playwright) on the published app, in the browsers playwright.config.mjs names,
+# one job per browser side by side (about 15 minutes). They are not part of build-test (ci.yml), which every pull
+# request runs and keeps quick. They run (#309):
 #
 # - Once a day on main, only when main changed since the last scheduled run (the first job checks). A failure
-#   shows as a failed run of this workflow on main, and the Playwright report is kept as an artifact.
+#   shows as a failed run of this workflow on main, and each browser's Playwright report is kept as an artifact.
 # - On a pull request labelled `browser-tests`: when the label is added, and on every push while it is there.
 #   A pull request without the label never runs them.
 # - By hand from the Actions tab, on any branch.
@@ -79,13 +79,13 @@ jobs:
           fi
           echo "run=$run" >> "$GITHUB_OUTPUT"
 
-  browser-tests:
-    name: browser-tests
+  # The app is published once and shared with the five browser jobs.
+  publish:
+    name: publish
     needs: decide
     if: needs.decide.outputs.run == 'true'
     runs-on: ubuntu-latest
-    # The suite takes about 15 minutes; a run past 30 is a fault to look into, not a reason to raise this.
-    timeout-minutes: 30
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -99,15 +99,45 @@ jobs:
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Build.props', 'Directory.Packages.props', 'global.json') }}
           restore-keys: nuget-${{ runner.os }}-
 
-      # Publishing needs the wasm-tools workload (about 30 s) and a trimming publish (about a minute). The
-      # committed appsettings.json is kept: no accounts, as in a pull request build.
+      # Publishing needs the wasm-tools workload (about 30 s) and a trimming publish (about a minute and a half).
+      # The committed appsettings.json is kept: no accounts, as in a pull request build.
       - name: Install WebAssembly build tools
         run: dotnet workload install wasm-tools
 
       - name: Publish web app
         run: dotnet publish src/MotiffLab.Web --configuration Release --output publish
 
-      # Firefox plays audio only with a sound device, so PulseAudio gives the runner a silent one.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: published-app
+          path: publish/wwwroot
+          retention-days: 1
+
+  # One job per project of playwright.config.mjs, side by side: the whole suite takes about 50 minutes on one
+  # runner, a project about 10 to 15. A job past its 30 minutes is a fault to look into, not a reason to raise
+  # the limit (#309).
+  browser-tests:
+    name: browser-tests (${{ matrix.project }})
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { project: chromium, browser: chromium }
+          - { project: firefox, browser: firefox }
+          - { project: webkit, browser: webkit }
+          - { project: tablet-ipad, browser: webkit }
+          - { project: tablet-android, browser: chromium }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: published-app
+          path: publish/wwwroot
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -115,25 +145,31 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('tests/e2e/package-lock.json') }}
+          key: playwright-${{ matrix.browser }}-${{ runner.os }}-${{ hashFiles('tests/e2e/package-lock.json') }}
 
-      - name: Install browsers
+      # Firefox plays audio only with a sound device, so PulseAudio gives the runner a silent one.
+      - name: Install the browser
         working-directory: tests/e2e
+        env:
+          BROWSER: ${{ matrix.browser }}
         run: |
           npm ci
-          npx playwright install --with-deps chromium firefox webkit
+          npx playwright install --with-deps "$BROWSER"
           sudo apt-get install --yes --no-install-recommends pulseaudio
           pulseaudio --start --exit-idle-time=-1
 
-      - name: Test in browsers
+      - name: Test in the browser
         working-directory: tests/e2e
-        run: npx playwright test
+        env:
+          PROJECT: ${{ matrix.project }}
+        run: npx playwright test --project="$PROJECT"
 
-      # The HTML report (tests/e2e/playwright-report) and, for a failed spec, its trace and screenshots.
+      # The HTML report (tests/e2e/playwright-report) and, for a failed spec, its trace and screenshots; also
+      # when the job ran out of time.
       - uses: actions/upload-artifact@v4
-        if: always() && !cancelled()
+        if: always()
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.project }}
           path: |
             tests/e2e/playwright-report
             tests/e2e/test-results

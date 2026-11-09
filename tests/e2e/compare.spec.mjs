@@ -20,7 +20,9 @@ function sounding(page) {
     });
 }
 
-test("go back to the original, compare, and hear the two one after the other", async ({ page }) => {
+test("go back to the original, compare, and hear the two one after the other", async ({ page, browserName }) => {
+    // Some forty steps, each a second or more in Firefox and WebKit on a CI runner (#309).
+    test.slow(browserName !== "chromium", "many steps, slow outside Chromium on Linux");
     const errors = await openFurElise(page);
     await selectBar(page, 1);
     await openInsights(page);
