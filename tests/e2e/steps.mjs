@@ -23,13 +23,13 @@ export async function violations(page) {
  * The page's uncaught script errors, collected from now on, to expect none. Playwright reports every JavaScript error
  * WebKit writes to its console as a page error, and WebKit writes one for a load the page gives up on: a spec that
  * leaves the workspace while the piano samples load gets "Fetch API cannot load …/audio/piano/piano.json due to
- * access control checks", though the app catches that failure (Playback/Player.cs). That log is left out; an uncaught
- * rejection still counts (WebKit reports it as "Unhandled Promise Rejection: …").
+ * access control checks", though the app catches that failure (Playback/Player.cs). That log of the piano samples is
+ * left out. Any other failed load still counts, and so does an uncaught rejection ("Unhandled Promise Rejection: …").
  */
 export function pageErrors(page) {
     const errors = [];
     page.on("pageerror", error => {
-        if (!error.name.startsWith("Fetch API cannot load")) {
+        if (!(error.name.startsWith("Fetch API cannot load") && error.message.includes("/audio/piano/"))) {
             errors.push(String(error));
         }
     });
