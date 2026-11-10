@@ -75,22 +75,4 @@ public class SettingsTests
         Assert.Throws<ArgumentException>(() => project.OverrideSetting("layers.check", "dim"));
         Assert.Throws<KeyNotFoundException>(() => project.OverrideSetting("layers.magic", Setting.On));
     }
-
-    [Fact]
-    public void The_device_document_round_trips_and_forgives_what_it_does_not_know()
-    {
-        SettingsState state = SettingsState.Default.WithPreset(Preset.Learning).With("appearance.language", "ru");
-
-        string json = state.Write();
-        Assert.Equal(state, SettingsState.Read(json));
-        Assert.Equal(Preset.Learning, SettingsState.Read(json).Preset);
-
-        SettingsState forgiving = SettingsState.Read("""{"version": 1, "values": {"appearance.theme": "slate", "appearance.theme.old": "x", "guidance.hints": 3}}""");
-        Assert.Equal("slate", forgiving["appearance.theme"]);
-        Assert.Equal(Preset.Practising, forgiving.Preset);
-        Assert.Equal(SettingsState.Default, SettingsState.Read("not json"));
-        Assert.Equal(SettingsState.Default, SettingsState.Read(null));
-        Assert.Equal(["appearance.theme", "appearance.language"], state.DeviceValues.Select(pair => pair.Key).Where(key => key.StartsWith("appearance", StringComparison.Ordinal)));
-        Assert.DoesNotContain(state.AccountValues, pair => pair.Key == "appearance.theme");
-    }
 }

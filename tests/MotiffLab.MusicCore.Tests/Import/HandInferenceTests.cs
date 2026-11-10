@@ -134,23 +134,4 @@ public class HandInferenceTests
 
         Assert.Equal([Hand.Left, Hand.Right, Hand.Right], HandInference.Infer(notes).Select(note => note.Hand!.Value));
     }
-
-    [Fact]
-    public void The_player_can_reassign_a_note_and_the_change_is_user_edited()
-    {
-        IReadOnlyList<Note> inferred = ImportMidi("piano-single-track.mid").Notes;
-        Note target = Assert.Single(inferred, note => note.Span.Onset.Value == Bar + (3 * 480) && note.Pitch.MidiNumber == 69);
-
-        IReadOnlyList<Note> edited = HandInference.Reassign(inferred, target.Id, Hand.Left);
-
-        Note changed = Assert.Single(edited, note => note.Id == target.Id);
-        Assert.Equal(new Attributed<Hand>(Hand.Left, Attribution.UserEdited), changed.Hand);
-        Assert.Equal(inferred.Count, edited.Count);
-        Assert.All(edited.Where(note => note.Id != target.Id), note => Assert.Equal(Provenance.Inferred, note.Hand!.Attribution.Provenance));
-        Assert.Equal(Hand.Right, target.Hand!.Value); // the original list is unchanged
-
-        // An edited hand is no longer up for inference.
-        Assert.False(HandInference.Applies([.. edited]));
-        Assert.Throws<ArgumentException>(() => HandInference.Reassign(inferred, "missing", Hand.Left));
-    }
 }

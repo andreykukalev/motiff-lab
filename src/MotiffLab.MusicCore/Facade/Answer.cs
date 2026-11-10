@@ -911,52 +911,6 @@ internal static partial class Answer
         json.WriteEndObject();
     }
 
-    public static void Experiments(Utf8JsonWriter json, string name, IEnumerable<Experiment> experiments)
-    {
-        json.WriteStartArray(name);
-        foreach (Experiment experiment in experiments)
-        {
-            json.WriteStartObject();
-            json.WriteString("id", experiment.Id);
-            json.WriteString("topic", Name(experiment.Topic));
-            json.WriteString("title", experiment.Title);
-            json.WriteString("change", experiment.Change);
-            json.WriteString("question", experiment.Question);
-            json.WriteString("listeningFocus", experiment.ListeningFocus);
-            Texts(json, "factIds", experiment.FactIds);
-            Passage(json, "passage", experiment.Passage.Span, experiment.Passage.FirstBar, experiment.Passage.LastBar);
-            Filter(json, "filter", experiment.Filter);
-            json.WriteString("keepPreset", experiment.KeepPresetId);
-            json.WriteStartArray("alternatives");
-            foreach (ExperimentAlternative alternative in experiment.Alternatives)
-            {
-                json.WriteStartObject();
-                json.WriteString("label", alternative.Label);
-                json.WriteString("keeps", alternative.Keeps);
-                if (alternative.KeepPresetId is { } preset)
-                {
-                    json.WriteString("keepPreset", preset);
-                }
-
-                json.WriteStartArray("steps");
-                foreach (ExperimentStep step in alternative.Steps)
-                {
-                    json.WriteStartObject();
-                    ProjectFile.WriteStep(json, new SavedStep(step.OperationId, step.Parameters));
-                    json.WriteEndObject();
-                }
-
-                json.WriteEndArray();
-                json.WriteEndObject();
-            }
-
-            json.WriteEndArray();
-            json.WriteEndObject();
-        }
-
-        json.WriteEndArray();
-    }
-
     public static void Chain(Utf8JsonWriter json, VariationChain chain, Words words)
     {
         Keep(json, "keep", chain.Context.Keep);

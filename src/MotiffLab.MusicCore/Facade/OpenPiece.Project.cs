@@ -62,7 +62,6 @@ internal sealed partial class OpenPiece
         _ when name.StartsWith("performance", StringComparison.Ordinal) => CallOnPerformance(name, request),
         _ when name.StartsWith("sources", StringComparison.Ordinal) => CallOnSources(name, request),
         _ when name.StartsWith("corrections", StringComparison.Ordinal) => CallOnCorrections(name, request),
-        _ when name == "assembly" || name.StartsWith("assembly.", StringComparison.Ordinal) => CallOnAssembly(name, request),
         _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\"."),
     };
 
@@ -266,9 +265,8 @@ internal sealed partial class OpenPiece
     }
 
     /// <summary>
-    /// Keeps the variation heard now, with the experiment it came from and the fact that offered it, as an idea about the
-    /// selection (0018, section 7); with "note" and no variation, keeps the note alone. The name defaults to the
-    /// experiment's title or the steps' operations.
+    /// Keeps the variation heard now, with the fact that offered it ("factId"), as an idea about the selection (0018,
+    /// section 7); with "note" and no variation, keeps the note alone. The name defaults to the steps' operations.
     /// </summary>
     private string KeepIdea(Request request)
     {
@@ -280,20 +278,16 @@ internal sealed partial class OpenPiece
             throw FacadeException.Unavailable("There is no variation to keep; send \"note\" to keep a note alone.");
         }
 
-        (string Id, int Alternative)? experiment = _trial is { } trial ? (trial.Experiment.Id, trial.Alternative) : null;
         string name = request.Text("name")
-            ?? (_trial is { } tried ? tried.Experiment.Alternatives.Count > 1 ? $"{tried.Experiment.Title}: {tried.Experiment.Alternatives[tried.Alternative].Label}" : tried.Experiment.Title
-                : chain is not null ? string.Join(" › ", chain.Steps.Select(step => step.Operation.Id))
-                : BarsTitle(selection.Span));
-        string? factId = request.Text("factId") ?? (_trial is { } offered ? offered.Experiment.FactIds.FirstOrDefault() : null);
+            ?? (chain is not null ? string.Join(" › ", chain.Steps.Select(step => step.Operation.Id)) : BarsTitle(selection.Span));
+        string? factId = request.Text("factId");
         return Ideas(project => project.Keep(Observation.Create(
             project.NextObservationId(),
             SavedPassage.Of(selection),
             chain is null ? null : KeptVariation.Create(chain, selection.Filter),
             name,
             note,
-            Now(request),
-            chain is null ? null : experiment) with
+            Now(request)) with
         { FactId = factId }));
     }
 
@@ -317,8 +311,6 @@ internal sealed partial class OpenPiece
         Selection = selection;
         _selectionKind = MotifSelectionKind.Range;
         _understood = null;
-        _offered = null;
-        _trial = null;
         Chain = chain;
         if (chain is not null)
         {

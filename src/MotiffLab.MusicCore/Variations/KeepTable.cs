@@ -14,9 +14,6 @@ public sealed record KeepFootnote(int Number, string Text, KeepProperty? Conflic
 {
     /// <summary>The footnote in Russian (#134).</summary>
     public string RussianText { get; init; } = Text;
-
-    /// <summary>The footnote in the player's language.</summary>
-    public string TextIn(Words words) => words.IsRussian ? RussianText : Text;
 }
 
 /// <summary>One operation's row of the Keep table (S1-E2).</summary>
@@ -179,15 +176,6 @@ public static class KeepTable
             : words.IsRussian
             ? $"«{row.RussianName}» {row.RussianWhatItChanges}, поэтому эту операцию нельзя применить, пока в «Сохранить» отмечено: {words.Joined([.. blocking.Select(RussianName)])}."
             : $"{row.Name} {row.WhatItChanges}, so it is off while Keep {string.Join(" and Keep ", blocking.Select(Name))} {(blocking.Length == 1 ? "is" : "are")} on.";
-    }
-
-    /// <summary>The footnotes that qualify what the operation keeps under these Keep choices, by number, for its card.</summary>
-    public static IReadOnlyList<KeepFootnote> Footnotes(string operationId, IReadOnlySet<KeepProperty> keep)
-    {
-        ArgumentNullException.ThrowIfNull(keep);
-        return Find(operationId) is { } row
-            ? [.. row.Footnotes.Where(cell => keep.Contains(cell.Key)).Select(static cell => cell.Value).OrderBy(static footnote => footnote.Number)]
-            : [];
     }
 
     /// <summary>Whether V3 may change a chord's inversion: not while Keep bass is on (footnote 4).</summary>

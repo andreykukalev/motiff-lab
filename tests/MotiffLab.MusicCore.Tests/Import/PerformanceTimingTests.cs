@@ -40,7 +40,7 @@ public class PerformanceTimingTests
         Assert.Equal(
             "This file was played rather than written: 42% of onsets are more than 10 ticks off the 16th and triplet-8th grids, and on the 16th grid they are 11 ticks off on average. "
             + "The playing follows the file's tempo, so Restore rhythm would snap it to 16ths, the grid it sits closest to.",
-            timing.Describe());
+            timing.Describe(Words.English));
     }
 
     /// <summary>AC-S1-06: a free-tempo performance is explained and stays usable as played.</summary>
@@ -52,7 +52,7 @@ public class PerformanceTimingTests
         Assert.Equal(TimingKind.FreeTempo, timing.Kind);
         Assert.All(timing.Grids, grid => Assert.False(grid.Fits(timing.Onsets)));
         Assert.Null(timing.DefaultGrid);
-        Assert.Contains("cannot restore free-tempo playing in this version, so the file plays as it was recorded", timing.Describe());
+        Assert.Contains("cannot restore free-tempo playing in this version, so the file plays as it was recorded", timing.Describe(Words.English));
     }
 
     [Theory]
@@ -68,7 +68,7 @@ public class PerformanceTimingTests
 
         Assert.Equal(TimingKind.Quantised, timing.Kind);
         Assert.Equal(0, timing.OffGrid);
-        Assert.Null(timing.Describe());
+        Assert.Null(timing.Describe(Words.English));
     }
 
     [Fact]
@@ -106,7 +106,6 @@ public class PerformanceTimingTests
         PerformanceTiming timing = PerformanceTiming.Measure(notes, MeterMap.Default);
 
         Assert.Equal(new SwingMeasure(8, 320, 480), timing.Swing);
-        Assert.Equal(66, timing.Swing!.Percent);
         Assert.Equal(TimingKind.Quantised, timing.Kind);
     }
 
@@ -116,7 +115,7 @@ public class PerformanceTimingTests
         PerformanceTiming first = MeasureFixture("performance-click.mid");
         PerformanceTiming second = MeasureFixture("performance-click.mid");
 
-        Assert.Equal(first.Describe(), second.Describe());
+        Assert.Equal(first.Describe(Words.English), second.Describe(Words.English));
         Assert.Equal(first.Grids.Select(grid => grid.Histogram), second.Grids.Select(grid => grid.Histogram));
         Assert.Equal(first.Swing, second.Swing);
     }

@@ -137,70 +137,13 @@ public class MotifTests
     }
 
     [Fact]
-    public void A_single_line_is_all_melody_as_a_fact()
-    {
-        Note[] notes = [Note("a", 60, 0), Note("b", 64, Beat), Note("c", 62, 2 * Beat)];
-
-        MotifVoiceSplit split = MotifVoices.Split(notes, Create(notes, Range(notes, 0, Bar)));
-
-        Assert.Equal(["a", "b", "c"], split.Melody);
-        Assert.Empty(split.Others);
-        Assert.Equal(Attribution.Imported, split.Attribution);
-    }
-
-    [Fact]
-    public void The_melody_is_the_top_line_and_accompaniment_under_a_held_note_is_not_melody()
-    {
-        Note[] notes =
-        [
-            Note("m1", 76, 0, 2 * Beat), // held over the next beat
-            Note("bass", 48, 0, Bar),
-            Note("inner", 64, Beat), // starts under the held E5
-            Note("m2", 74, 2 * Beat),
-            Note("chord", 67, 2 * Beat),
-            Note("m3", 72, 3 * Beat),
-        ];
-
-        MotifVoiceSplit split = MotifVoices.Split(notes, Create(notes, Range(notes, 0, Bar)));
-
-        Assert.Equal(["m1", "m2", "m3"], split.Melody);
-        Assert.Equal(["bass", "inner", "chord"], split.Others);
-        Assert.Equal(Attribution.Inferred(MotifVoices.SplitConfidence), split.Attribution);
-    }
-
-    [Fact]
-    public void With_hands_the_melody_comes_from_the_right_hand()
-    {
-        Note[] notes =
-        [
-            Note("r1", 72, 0, Beat, hand: Hand.Right),
-            Note("l1", 48, 0, Bar, hand: Hand.Left),
-            Note("l2", 55, Beat, Beat, hand: Hand.Left), // the right hand rests here
-            Note("r2", 74, 2 * Beat, Beat, hand: Hand.Right),
-        ];
-
-        MotifVoiceSplit split = MotifVoices.Split(notes, Create(notes, Range(notes, 0, Bar)));
-
-        Assert.Equal(["r1", "r2"], split.Melody);
-        Assert.Equal(["l1", "l2"], split.Others);
-    }
-
-    [Fact]
-    public void A_grand_staff_motif_splits_into_melody_and_accompaniment()
+    public void A_motif_from_a_MusicXml_file_points_at_its_source()
     {
         MusicXmlImport score = MusicXmlImporter.Import(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "MusicXml", "Fixtures", "grand-staff.musicxml")));
         MotifSelection selection = MotifSelector.Select(score.Notes, score.Meter, MotifSelector.Bars(score.Meter, 1, 2, score.End), SelectionFilter.All);
         Motif motif = Motif.Create("m_0001", 1, selection, MotifSelectionKind.Range, MotifMode.Discovery, score.Notes);
 
-        MotifVoiceSplit split = MotifVoices.Split(score.Notes, motif);
-        MotifVoiceSplit again = MotifVoices.Split(score.Notes.Reverse(), motif);
-
-        Assert.Equal(motif.NoteIds.Order(StringComparer.Ordinal), split.Melody.Concat(split.Others).Order(StringComparer.Ordinal));
-        Assert.All(split.Melody, id => Assert.Equal(Hand.Right, score.Notes.Single(note => note.Id == id).Hand!.Value));
-        Assert.Contains(split.Others, id => score.Notes.Single(note => note.Id == id).Hand!.Value == Hand.Left);
         Assert.IsType<MusicXmlSourceLocation>(motif.Source.FirstNote);
-        Assert.Equal(split.Melody, again.Melody);
-        Assert.Equal(split.Others, again.Others);
     }
 
     /// <summary>Stands in for a file location, so the source reference has something to carry.</summary>

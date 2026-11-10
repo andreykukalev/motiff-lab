@@ -53,28 +53,6 @@ public class MotifTextureTests
         Assert.Equal(Attribution.Inferred(MotifTexture.Confidence), texture.Attribution);
         Assert.Equal(["e5", "d5"], Ids(texture.Melody));
         Assert.Equal(["c3", "g2"], Ids(texture.Bass));
-        Assert.Equal([VoiceRole.Inner], texture.RolesOf(notes[1]));
-        Assert.Equal([0, 4, 7], texture.Sonorities[0].PitchClasses);
-    }
-
-    [Fact]
-    public void Accompaniment_under_a_held_melody_note_is_not_melody()
-    {
-        // Für Elise, bar 2: the melody holds A4 while the left hand plays A2 E3 A3; then the melody goes on with C4.
-        Note[] notes =
-        [
-            Note("a4", 69, 0, 3 * Eighth), Note("a2", 45, 0, Eighth), Note("e3", 52, Eighth, Eighth), Note("a3", 57, 2 * Eighth, Eighth),
-            Note("c4", 60, 3 * Eighth, Eighth),
-        ];
-
-        MotifTexture texture = MotifTexture.Read(notes);
-
-        Assert.Equal(["a4", "c4"], Ids(texture.Melody));
-
-        // C4 is struck alone once everything else has stopped, so it is the bottom line too.
-        Assert.Equal(["a2", "e3", "a3", "c4"], Ids(texture.Bass));
-        Assert.Equal(["a4"], Ids(texture.Sonorities[1].Held));
-        Assert.Equal(["e3"], Ids(texture.Sonorities[1].Struck));
     }
 
     [Fact]
@@ -94,23 +72,14 @@ public class MotifTextureTests
     }
 
     [Fact]
-    public void A_note_struck_alone_with_nothing_held_is_both_melody_and_bass()
+    public void A_note_struck_alone_with_nothing_held_sounds_with_nothing()
     {
         Note[] notes = [Note("chord-low", 48, 0, Quarter), Note("chord-top", 64, 0, Quarter), Note("alone", 60, Quarter, Quarter)];
 
         MotifTexture texture = MotifTexture.Read(notes);
 
-        Assert.Equal([VoiceRole.Melody, VoiceRole.Bass], texture.RolesOf(notes[2]).Order());
         Assert.Empty(texture.SoundingWith(notes[2]));
         Assert.Equal(["chord-low"], Ids(texture.SoundingWith(notes[1])));
-    }
-
-    [Fact]
-    public void A_note_outside_the_motif_has_no_role()
-    {
-        MotifTexture texture = MotifTexture.Read([Note("a", 60, 0, Quarter)]);
-
-        Assert.Empty(texture.RolesOf(Note("elsewhere", 62, 0, Quarter)));
     }
 
     [Fact]

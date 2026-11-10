@@ -406,29 +406,6 @@ final class FacadeTests: XCTestCase {
         store.removePersistentDomain(forName: "motiff-metronome-test")
     }
 
-    func testVariationNotationPlaybackAndSave() throws {
-        _ = try call("select", #"{"bars": {"first": 1, "last": 2}}"#)
-        let proposed = try call("variation.propose", #"{"operation": "V1", "parameters": {"kind": "HalfTime", "eighths": 1}}"#)
-        XCTAssertEqual((proposed["pending"] as? [String: Any])?["operation"] as? String, "V1")
-        _ = try call("variation.accept")
-
-        let notation = try call("notation", #"{"bars": "selection", "ossia": "variation"}"#)
-        XCTAssertTrue((notation["mei"] as? String ?? "").contains("<mei"))
-        let playback = try call("playback")
-        XCTAssertNil(playback["error"])
-
-        let saved = MusicCore.call(piece: piece, "project.save", #"{"now": "2026-11-04T12:00:00Z"}"#)
-        let file = try object(saved)
-        XCTAssertEqual(file["format"] as? String, "motiff-lab-project")
-        XCTAssertGreaterThanOrEqual(file["version"] as? Int ?? 0, 12)
-
-        // The saved file opens as a second piece with the work restored.
-        let reopened = try object(MusicCore.open(fileName: "elise.motiff.json", data: Data(saved.utf8)))
-        let second = Int32(reopened["piece"] as? Int ?? 0)
-        defer { MusicCore.close(piece: second) }
-        XCTAssertEqual(reopened["hasVariation"] as? Bool, true)
-    }
-
     func testALibraryCardReadsAProjectFileWithoutOpeningIt() throws {
         let file = MusicCore.call(piece: piece, "project.save")
         let body = try JSONSerialization.data(withJSONObject: ["file": file])

@@ -140,19 +140,6 @@ public static class ExperimentCatalogue
         AnswerTheMotif,
     ];
 
-    /// <summary>The question each topic stands for in the "I have a question" list.</summary>
-    public static string Prompt(ExperimentTopic topic) => Prompt(topic, Words.English);
-
-    /// <summary>The question for a topic in a language.</summary>
-    public static string Prompt(ExperimentTopic topic, Words words) => topic switch
-    {
-        ExperimentTopic.Character => words.T("How does the character change if the notes stay the same?", "Как меняется характер, если ноты остаются теми же?"),
-        ExperimentTopic.Rhythm => words.T("Is the tune in its pitches or in its rhythm?", "Мелодия держится на высотах или на ритме?"),
-        ExperimentTopic.Layers => words.T("What does each layer add?", "Что добавляет каждый слой?"),
-        ExperimentTopic.Motif => words.T("Which changes keep the motif recognisable?", "Какие изменения оставляют мотив узнаваемым?"),
-        _ => throw new ArgumentOutOfRangeException(nameof(topic), topic, "Unknown topic."),
-    };
-
     /// <summary>The experiments that fit the selection, in the catalogue's order; empty when none does.</summary>
     public static IReadOnlyList<Experiment> Offer(InvitationContext context)
     {
@@ -165,10 +152,6 @@ public static class ExperimentCatalogue
         var experiment = new ExperimentContext(context, KeyOf(context));
         return [.. s_rules.Select(rule => rule(experiment)).OfType<Experiment>()];
     }
-
-    /// <summary>The experiments that fit the selection and explore <paramref name="topic"/>.</summary>
-    public static IReadOnlyList<Experiment> ForQuestion(InvitationContext context, ExperimentTopic topic) =>
-        [.. Offer(context).Where(experiment => experiment.Topic == topic)];
 
     /// <summary>
     /// The experiments of <paramref name="offered"/> that rest on the fact <paramref name="factId"/>,

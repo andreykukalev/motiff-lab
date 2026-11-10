@@ -278,7 +278,6 @@ internal sealed partial class OpenPiece
         Notes = PerformanceTake.Apply(Printed, Project.TakenBars);
         Levels = PhraseLevels.Suggest(Notes, Piece.Meter, Piece.MusicXml?.PhraseMarks ?? PhraseMarks.None, Piece.End, KeySignature.InForce(Piece.Keys, Tick.Zero), Words, Levels.Edits);
         _understood = null;
-        _offered = null;
     }
 
     private static int BarOf(Request request) => request.Int("bar") ?? throw FacadeException.BadRequest("Send \"bar\".");

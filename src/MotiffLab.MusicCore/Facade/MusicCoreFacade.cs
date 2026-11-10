@@ -10,8 +10,8 @@ namespace MotiffLab.MusicCore.Facade;
 
 /// <summary>
 /// The one entry point for an app (0020): keeps the pieces the app has open, numbered from 1, and
-/// answers calls by name with JSON text. The web app calls it from C#; the iPad app through the C
-/// functions of the native build. The same calls in the same order give the same answers, apart from a new project's id
+/// answers calls by name with JSON text. The iPad app calls it through the C functions of the native
+/// build; the web app calls music-core directly and uses only <see cref="NewProjectId"/> and <see cref="Imported"/> (0025). The same calls in the same order give the same answers, apart from a new project's id
 /// and creation time when the request names neither.
 /// </summary>
 /// <remarks>
@@ -21,6 +21,10 @@ namespace MotiffLab.MusicCore.Facade;
 public sealed class MusicCoreFacade
 {
     /// <summary>
+    /// 10 removes the calls no app sends (#342): the assembly calls of 9 (the web assembles through music-core directly,
+    /// 0024 and 0025), variation.start, .propose, .check, .accept, .reject, .undo and .redo (the iPad app runs a variation
+    /// through try and variation.clear), and experiments, experiments.start and experiments.surprise. They answer
+    /// unknownCall. The project file stays version 15 and keeps an assembly journal as it was read.
     /// 4 brings performances (0022) and project file version 13: performances, performance (the comparison bar by bar with
     /// its markers), performance.add, .rename, .dismiss, .take, .restore and .remove; a Check flag's source can be performance.
     /// 5 moves to project file version 14 (testing item 15): a correction can add a note, the note editor on the roll
@@ -49,7 +53,7 @@ public sealed class MusicCoreFacade
     /// 1 was the first contract: open and save, piece, phrases with their edits, select, understand,
     /// experiments, the variation chain, notation, playback, the catalogue and the Piece DNA placeholder.
     /// </summary>
-    public const int Contract = 9;
+    public const int Contract = 10;
 
     private readonly Dictionary<int, OpenPiece> _pieces = [];
     private readonly Dictionary<int, OpenDocument> _documents = [];
@@ -160,14 +164,7 @@ public sealed class MusicCoreFacade
                 throw new FacadeException("noPiece", $"Piece {piece} is not open.");
             }
 
-            string answer = open.Call(name, fields);
-            // «Сделать нотами» changes the piece itself: it opens again as it now is, under the same number.
-            if (open.Replacement is { } replacement)
-            {
-                _pieces[piece] = replacement;
-            }
-
-            return answer;
+            return open.Call(name, fields);
         }
         catch (Exception exception)
         {
@@ -251,7 +248,7 @@ public sealed class MusicCoreFacade
     });
 
     private static bool IsPieceCall(string name) =>
-        name is "piece" or "phrases" or "select" or "understand" or "circle" or "experiments" or "try" or "notation" or "playback" or "roll" or "dna" or "marks" or "bookmarks" or "resume" or "ideas" or "check" or "performances" or "performance" or "corrections" or "sources" or "assembly"
+        name is "piece" or "phrases" or "select" or "understand" or "circle" or "try" or "notation" or "playback" or "roll" or "dna" or "marks" or "bookmarks" or "resume" or "ideas" or "check" or "performances" or "performance" or "corrections" or "sources"
         || (name.Contains('.') && !name.StartsWith("settings.", StringComparison.Ordinal));
 
     /// <summary>A PDF the player added to read as it is (0023): by its first bytes, or by its name with bytes that are not a project file.</summary>

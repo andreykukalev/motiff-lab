@@ -141,11 +141,6 @@ public partial class RussianExplanationTests
             }
         }
 
-        foreach (ExperimentTopic topic in Enum.GetValues<ExperimentTopic>())
-        {
-            AddLatin(found, topic.ToString(), ExperimentCatalogue.Prompt(topic, Words.Russian));
-        }
-
         Assert.Empty(found);
         Assert.True(offered > 0, $"No experiment was offered on {name}.");
     }
@@ -171,10 +166,6 @@ public partial class RussianExplanationTests
             }
 
             AddLatin(found, row.OperationId, row.NameIn(Words.Russian));
-            foreach (KeepFootnote footnote in row.Footnotes.Values)
-            {
-                AddLatin(found, row.OperationId, footnote.TextIn(Words.Russian));
-            }
         }
 
         foreach (KeepPreset preset in KeepTable.Presets)
