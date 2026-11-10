@@ -174,8 +174,9 @@ struct ScoreScreen: View {
         let pillLeading: CGFloat = contentsPlace == .side ? Self.contentsWidth + gap : 0
         return ScoreWebView(score: score, piece: piece, dark: colorScheme == .dark)
             .overlay(alignment: .topLeading) {
-                // The menu over the selection, where the page places it (the web app's menuPlace).
-                if score.selection != nil, !score.focused, let place = score.menuPlace {
+                // The menu over the selection, where the page places it (the web app's menuPlace). While the roll's drawer is
+                // open it gives way to the drawer's head and the pill, so Loop is not shown twice (#338).
+                if score.selection != nil, !score.focused, !rollOpen, let place = score.menuPlace {
                     SelectionMenu(score: score, player: player, contents: contents, conversation: conversation, text: text, rollOpen: $rollOpen, insightsOpen: $insightsOpen)
                         .offset(x: place.x, y: place.y)
                 }
@@ -347,15 +348,13 @@ struct ScoreScreen: View {
     private func wire() async {
         let heard = player
         let shown = score
-        score.noteTapped = { [weak heard] tick in heard?.play(from: tick) }
-        // With the sheet open, a tap on the page puts it away and leaves the selection as it is (0018 section 6).
+        // A tap on the page plays nothing (#338): the music starts only with Play or Loop. With the sheet open, a tap that
+        // selects nothing puts it away; the selection stays as it is (0018 section 6).
         let sheetOpen = $insightsOpen
         score.blankTapped = { [weak heard, weak shown] in
             // With nothing selected and nothing playing, the tap puts away the pill kept after playback.
             if let heard, heard.state == .stopped, shown?.selection == nil { heard.transportKept = false }
-            guard sheetOpen.wrappedValue else { return false }
-            sheetOpen.wrappedValue = false
-            return true
+            if sheetOpen.wrappedValue { sheetOpen.wrappedValue = false }
         }
         // A flag tapped on the score opens Check on its bar.
         let checking = $checkOpen
@@ -1068,6 +1067,7 @@ struct SelectionMenu: View {
             .buttonStyle(DSItemStyle(on: more || score.selectedHighlight != nil))
             .accessibilityLabel(text["menu.more"])
             .accessibilityAddTraits(more ? .isSelected : [])
+            ClearSelectionButton(score: score, text: text)
         }
     }
 
@@ -1080,6 +1080,23 @@ struct SelectionMenu: View {
         }
         .buttonStyle(DSItemStyle(on: on))
         .accessibilityAddTraits(on ? .isSelected : [])
+    }
+}
+
+/// Clear selection (#338): the one way to let go of a selection, as a tap elsewhere on the page or the roll keeps it.
+struct ClearSelectionButton: View {
+    @ObservedObject var score: ScoreController
+    let text: UIText
+
+    var body: some View {
+        Button {
+            score.clearSelection()
+        } label: {
+            Icon(name: "close").frame(width: 32, height: 32)
+        }
+        .buttonStyle(DSItemStyle())
+        .accessibilityLabel(text["menu.clearSelection"])
+        .help(text["menu.clearSelection"])
     }
 }
 

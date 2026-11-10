@@ -837,6 +837,7 @@
   "roll.js.leftHand": "Left hand",
   "roll.js.noHand": "No hand",
   "roll.js.rollAria": "Piano roll. Drag anywhere across the roll to select a range, drag an edge of the selection to move it, click a bar number to select that bar, Shift-click a bar number to extend the selection to it. Click a note to hear and select it, Shift-click to add to the selection; click the pitch names or the keyboard to hear a key. Click an empty place or press Escape to clear the selection. Space plays the selection on a loop, or the piece, and pauses. Right and left square brackets select the next or previous bar, with Shift they extend the selection by it. Arrow keys move the note selection, plus and minus zoom.",
+  "roll.ipad.rollAria": "Piano roll. Move a finger across the notes to go through the music, up and down for the rows that do not fit; two fingers zoom the time. Drag across the bar numbers, or tap one, to select bars. A tap on the notes keeps the selection; Clear the selection lets it go. Fit lays the selection across the roll. Space plays and pauses.",
   "roll.js.scrollAria": "Scroll the piano roll",
   "roll.js.keysAria": "Keyboard: the keys of the notes being heard are lit and marked with a dot. Click or drag across the keys to play them, also while the piece plays.",
   "roll.js.legendVariation": "Outlined: the variation, linked to the notes it moved from",
@@ -914,6 +915,7 @@
 
   "menu.label": "Selection",
   "menu.more": "More for the selection",
+  "menu.clearSelection": "Clear the selection",
   "menu.makeShort": "Make a short phrase",
   "menu.makePhrase": "Make a phrase",
   "menu.makeSentence": "Make a sentence",

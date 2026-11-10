@@ -5,7 +5,7 @@ import WebKit
 /// view of its own (Web/roll.html), as the score is. music-core gives its data (`roll`: the notes and bars packed as the
 /// roll reads them, and their names spelled as the score spells them). Swift tells it where the player is and what is
 /// selected, and lights the places of the fact chosen in Insights; what the player does on it comes back here: bars dragged across or a bar number tapped select those bars,
-/// a tap on an empty place clears the selection, Space plays or pauses; with the note editor on (testing item 15), a note
+/// Escape clears the selection (a tap never does, #338), Space plays or pauses; with the note editor on (testing item 15), a note
 /// moved, added or taken out goes to music-core as a correction on the draft.
 @MainActor
 final class RollController: NSObject, ObservableObject {
@@ -206,7 +206,10 @@ final class RollController: NSObject, ObservableObject {
             "track", "trackVoice", "noVoice", "rightHand", "leftHand", "noHand", "rollAria", "scrollAria", "keysAria",
             "legendVariation", "legendHighlight", "legendInferred", "legendCheck", "zoomGroup", "zoomIn", "zoomOut", "zoomLevel", "fit", "fitHint",
         ]
-        return Dictionary(uniqueKeysWithValues: names.map { ($0, text["roll.js.\($0)"]) })
+        var labels = Dictionary(uniqueKeysWithValues: names.map { ($0, text["roll.js.\($0)"]) })
+        // The iPad's roll is read by touch (#338): a screen reader hears how, not the web roll's mouse and keyboard.
+        labels["rollAria"] = text["roll.ipad.rollAria"]
+        return labels
     }
 }
 
@@ -283,10 +286,14 @@ struct RollDrawer: View {
         .accessibilityLabel(text["bar.roll"])
     }
 
-    /// Where it is, Edit notes, Note names, the colour scheme, Expand and Close.
+    /// Where it is with Clear selection, Edit notes, Note names, the colour scheme, Expand and Close.
     private var head: some View {
         HStack(spacing: CGFloat.ds("s-2")) {
             Text(heading).overline()
+            // The selection menu gives way to the drawer, so the selection is let go here (#338).
+            if score.selection != nil {
+                ClearSelectionButton(score: score, text: text)
+            }
             Spacer(minLength: CGFloat.ds("s-2"))
             Button {
                 score.beginNoteEdit()
@@ -388,12 +395,63 @@ struct RollDrawer: View {
     }
 }
 
+/// The roll's one web view, in the drawer or over the card in focus. Each place gets a holder of its own that the web view
+/// fills at every layout, so it takes the place's size whenever the iPad turns (#338). Expand hands the web view from the
+/// drawer to the card while the drawer is still sliding away; the holder shown last takes it back, rather than the web view
+/// keeping the size of a holder that is going.
 struct ScoreRollView: UIViewRepresentable {
     @ObservedObject var roll: RollController
 
-    func makeUIView(context: Context) -> WKWebView {
-        roll.webView
+    func makeUIView(context: Context) -> RollHolder {
+        let holder = RollHolder(webView: roll.webView)
+        holder.hold()
+        return holder
     }
 
-    func updateUIView(_ view: WKWebView, context: Context) {}
+    func updateUIView(_ holder: RollHolder, context: Context) {
+        holder.hold()
+    }
+
+    /// All the room it is offered, never the size the web view kept from its last place.
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: RollHolder, context: Context) -> CGSize? {
+        guard let width = proposal.width, let height = proposal.height, width.isFinite, height.isFinite else { return nil }
+        return CGSize(width: width, height: height)
+    }
+}
+
+/// A place the roll's web view fills: its bounds, on every layout. A holder leaving the screen with the web view hands it
+/// to a holder still on screen.
+final class RollHolder: UIView {
+    private static let all = NSHashTable<RollHolder>.weakObjects()
+    private let webView: WKWebView
+
+    init(webView: WKWebView) {
+        self.webView = webView
+        super.init(frame: .zero)
+        Self.all.add(self)
+    }
+
+    required init?(coder: NSCoder) {
+        return nil
+    }
+
+    func hold() {
+        if webView.superview !== self {
+            addSubview(webView)
+        }
+        setNeedsLayout()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        if webView.superview === self {
+            webView.frame = bounds
+        }
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        guard window == nil, webView.superview === self else { return }
+        Self.all.allObjects.first { $0 !== self && $0.window != nil && $0.webView === webView }?.hold()
+    }
 }

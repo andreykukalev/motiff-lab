@@ -7,7 +7,7 @@
 // The score is also the selection surface (0018 section 3): the phrases are drawn as pencil brackets above the top
 // staff (`phrases`), and the web app's own selection layer (Scripts/score/selection-layer.ts) draws the band and its
 // handles and turns a long press and a drag across bars into a choice of bars. What the player does on the score goes
-// to Swift as a message: a bracket, a note or a bar tapped, bars chosen, and where the selection menu goes.
+// to Swift as a message: a bracket or a bar tapped, bars chosen, and where the selection menu goes.
 //
 // Phrase focus (0018 section 4) lifts the selection into a card across the screen with the page dimmed behind it
 // (`focus`, `card`): Swift engraves the phrase's bars with Verovio at the card's width, with the web app's own card
@@ -571,7 +571,30 @@ function pen(on) {
     state.pen = Boolean(on);
 }
 
-/** A tap on the score: a bracket selects its phrase, a note plays from it, a bar away from its notes selects that bar. */
+/** How far above or below a bar's staves a tap still lands on that bar, in pixels. */
+const BAR_REACH = 24;
+
+/**
+ * The bar under a tap, found from where the bars are engraved rather than from the SVG element under the finger, so a tap on
+ * the white between the staff lines lands on its bar as a tap on a note does (#338).
+ */
+function barUnder(event) {
+    const geometry = state.geometry;
+    if (!geometry) {
+        return undefined;
+    }
+    const view = document.body.getBoundingClientRect();
+    const x = event.clientX - view.left + document.body.scrollLeft;
+    const y = event.clientY - view.top + document.body.scrollTop;
+    // The staves, widened to the notes above and below them (ledger lines) and a finger's reach round both.
+    return geometry.bars.find((bar) => x >= bar.left && x < bar.right
+        && y >= Math.min(bar.top, bar.ink.top) - BAR_REACH && y <= Math.max(bar.bottom, bar.ink.bottom) + BAR_REACH);
+}
+
+/**
+ * A tap on the score: a bracket selects its phrase, and a tap anywhere in a bar, on a note or between them, names that bar
+ * to Swift, which selects it when nothing is selected. A tap never plays (#338): the music starts only with Play or Loop.
+ */
 document.body.addEventListener("click", (event) => {
     const target = event.target instanceof Element ? event.target : null;
     if (target?.closest("#focus")) {
@@ -606,17 +629,7 @@ document.body.addEventListener("click", (event) => {
     if (selection.swallowsClick() || state.pen || target === null || target.closest(".sel-handle")) {
         return;
     }
-    const timeline = state.timeline;
-    const hit = target.closest("g.note, g.chord");
-    const note = hit?.matches("g.chord") ? hit.querySelector("g.note") : hit;
-    const onset = note?.id ? timeline?.onsetOf(note.id) : undefined;
-    if (onset !== undefined) {
-        post({ note: onset });
-        return;
-    }
-    const measure = target.closest("g.measure");
-    const start = measure?.id ? timeline?.measureOnset(measure.id) : undefined;
-    const bar = start === undefined ? undefined : state.geometry?.barAt(start);
+    const bar = barUnder(event);
     post(bar ? { bar: { start: bar.tick, end: bar.end } } : { blank: true });
 });
 
@@ -691,15 +704,6 @@ const cardScore = focusLayer.querySelector(".card-score");
 const card = { timeline: null, offset: 0, width: 0, ossias: [] };
 
 focusLayer.querySelector(".veil").addEventListener("click", () => post({ leave: true }));
-cardScore.addEventListener("click", (event) => {
-    const target = event.target instanceof Element ? event.target : null;
-    const hit = target?.closest("g.note, g.chord");
-    const note = hit?.matches("g.chord") ? hit.querySelector("g.note") : hit;
-    const onset = note?.id ? card.timeline?.onsetOf(note.id) : undefined;
-    if (onset !== undefined) {
-        post({ cardNote: onset + card.offset });
-    }
-});
 
 /**
  * Lifts the selection into focus, or puts it back: the page dimmed behind an empty card, which `card` fills. Returns
