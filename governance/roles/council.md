@@ -26,9 +26,10 @@ ordinary delivery task, which he merges too. A council's conclusion without Andr
 
 The model of each seat is in the skill's table "Starting the seats", which agrees with the `model:` line of each
 definition (`governance/tests/agents.test.mjs` checks it). One exception: on a council about a decision that is
-expensive to undo (a data contract, the project file version, an ADR), the blind seat runs on Fable 5.1 instead of
-Opus, only with Andrei's yes for that council (`governance/routing.md`, "Fable 5.1"). The moderator passes
-`model: "fable"` when starting it, records the run in `usage.md`, and the definition's `model:` line stays `opus`.
+expensive to undo (a data contract, the project file version, an ADR), the blind seat runs on Fable 5.2 instead of
+Opus, only with Andrei's yes for that council (`governance/routing.md`, "Fable 5.2: a rare escalation tier"). The
+moderator passes `model: "fable"` when starting it, records the run in `usage.md`, and the definition's `model:` line
+stays `opus`.
 
 The external seat from another model family (Antigravity CLI or Codex CLI on a subscription) is **paused** by Andrei's
 decision of 2026-11-08: the council runs inside Claude first.
