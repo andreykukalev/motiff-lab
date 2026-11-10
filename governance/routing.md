@@ -90,9 +90,9 @@ How it takes effect:
   The coordinator names the role in the thread's first message, so the thread knows its row.
 - **Claude Code on Andrei's computer.** The same table, set with `/model` and `/effort` when the session starts.
 
-## Fable 5.1: a rare escalation tier
+## Fable 5.2: a rare escalation tier
 
-Fable 5.1 (`claude-fable-5-1`; in the Agent tool `model: "fable"`) has no row in the table above: no thread runs on it
+Fable 5.2 (`claude-fable-5-2`; in the Agent tool `model: "fable"`) has no row in the table above: no thread runs on it
 and no `.claude/agents/*.md` names it (their `model:` lines stay `opus`, `sonnet` or `haiku`,
 `governance/tests/agents.test.mjs`). It runs only as a one-off, read-only subagent started with
 `subagent_type: "Explore"` (no Edit or Write) and `model: "fable"`, for these three uses and no others:
@@ -113,7 +113,13 @@ Who asks and when:
   subagent.
 - Never while the weekly limit is "warning" (`rate_limit_info.status` = `allowed_warning`); at most two uses per week.
 - Each use is recorded (model, tokens, time) in the Issue comment that carries the opinion (1, 2) or in the council's
-  `usage.md` (3). Fable's price against Opus is not known: the first use is measured before the second.
+  `usage.md` (3). On the API Fable 5.2 costs $8/$40 per MTok (input/output) against $4/$20 for Opus 5.5, twice as
+  much (https://platform.claude.com/docs/en/about-claude/models/overview). On the subscription Fable draws from the
+  weekly limit faster than the other models, with no official multiplier, so the first use is still measured (tokens,
+  time, the weekly Usage % before and after) before the second.
+- The record of the first use also states which model version `model: "fable"` actually ran, from the model id the
+  subagent reports, because it is not verified that the alias resolves to Fable 5.2. If it ran an older Fable, the use
+  is reported to Andrei and the second use waits for his decision.
 
 ## Not created yet
 

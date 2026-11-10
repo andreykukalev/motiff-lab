@@ -66,9 +66,9 @@ after a new commit the PR cannot merge until the Reviewer and QA post verdicts f
 
 ## Fable opinion (rare)
 
-Two cases may add an opinion from Fable 5.1, each only after Andrei's yes for that use, which the coordinator asks for
-(`governance/routing.md`, "Fable 5.1"); the Reviewer never starts Fable on its own, and never while the weekly limit is
-"warning".
+Two cases may add an opinion from Fable 5.2, each only after Andrei's yes for that use, which the coordinator asks for
+(`governance/routing.md`, "Fable 5.2: a rare escalation tier"); the Reviewer never starts Fable on its own, and never
+while the weekly limit is "warning".
 
 - **(a) Final review opinion** on a PR of a High or Guardrail task. After its own verdict, the Reviewer starts one
   read-only subagent (`subagent_type: "Explore"`, `model: "fable"`) and gives it only the Issue and the PR's diff: not

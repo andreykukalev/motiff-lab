@@ -80,9 +80,9 @@ test('the council skill model table matches the agent definitions; Opus only for
   }
 });
 
-// Fable 5.1 is a rare tier started only with model: "fable" at run time (governance/routing.md, "Fable 5.1"), so no
-// agent definition names it; and routing.md's table "Model and effort per role" has a row for every role file, none of
-// them on Fable (task #304).
+// Fable 5.2 is a rare tier started only with model: "fable" at run time (governance/routing.md, "Fable 5.2: a rare
+// escalation tier"), so no agent definition names it; and routing.md's table "Model and effort per role" has a row
+// for every role file, none of them on Fable (task #304).
 test('no agent definition names Fable; the routing model table has a row for every role file', () => {
   for (const agent of agents) {
     const text = readFileSync(path.join(agentsDir, agent.file), 'utf8');
