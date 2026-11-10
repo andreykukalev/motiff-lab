@@ -1,5 +1,3 @@
-using System.Text.Json;
-
 namespace MotiffLab.MusicCore.Settings;
 
 /// <summary>
@@ -112,57 +110,6 @@ public sealed record SettingsState
         }
 
         return new SettingsState(values);
-    }
-
-    /// <summary>Only the device settings, for the store that never leaves the device.</summary>
-    public IEnumerable<KeyValuePair<string, string>> DeviceValues => Values.Where(pair => SettingsCatalogue.Get(pair.Key).Scope == SettingScope.Device);
-
-    /// <summary>The settings that travel with the account for Pro: everything but the device ones.</summary>
-    public IEnumerable<KeyValuePair<string, string>> AccountValues => Values.Where(pair => SettingsCatalogue.Get(pair.Key).Scope != SettingScope.Device);
-
-    /// <summary>The state as one JSON document, {"version": 1, "values": {id: value, …}}, the shape both apps store on the device.</summary>
-    public string Write()
-    {
-        using var buffer = new MemoryStream();
-        using (var json = new Utf8JsonWriter(buffer))
-        {
-            json.WriteStartObject();
-            json.WriteNumber("version", 1);
-            json.WriteStartObject("values");
-            foreach ((string id, string value) in Values)
-            {
-                json.WriteString(id, value);
-            }
-
-            json.WriteEndObject();
-            json.WriteEndObject();
-        }
-
-        return System.Text.Encoding.UTF8.GetString(buffer.ToArray());
-    }
-
-    /// <summary>A state read from <see cref="Write"/>'s document; anything unreadable gives the default.</summary>
-    public static SettingsState Read(string? json)
-    {
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return Default;
-        }
-
-        try
-        {
-            using JsonDocument document = JsonDocument.Parse(json);
-            if (document.RootElement.ValueKind != JsonValueKind.Object || !document.RootElement.TryGetProperty("values", out JsonElement values) || values.ValueKind != JsonValueKind.Object)
-            {
-                return Default;
-            }
-
-            return From(values.EnumerateObject().Where(property => property.Value.ValueKind == JsonValueKind.String).Select(property => new KeyValuePair<string, string>(property.Name, property.Value.GetString()!)));
-        }
-        catch (JsonException)
-        {
-            return Default;
-        }
     }
 
     public bool Equals(SettingsState? other) => other is not null && Values.SequenceEqual(other.Values);

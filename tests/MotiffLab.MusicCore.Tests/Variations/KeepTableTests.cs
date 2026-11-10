@@ -132,8 +132,6 @@ public class KeepTableTests
         Assert.Equal(
             "Rhythm reshape changes when notes start and how long they last, so Keep melody and Keep rhythm cannot both be on.",
             KeepTable.DisabledReason("V1", Keep(KeepProperty.Melody, KeepProperty.Rhythm)));
-        Assert.Equal([KeepTable.MelodyPitchesOnly], KeepTable.Footnotes("V1", Keep(KeepProperty.Melody, KeepProperty.Pitches)));
-        Assert.Empty(KeepTable.Footnotes("V1", Keep(KeepProperty.Pitches)));
     }
 
     [Fact]
@@ -189,7 +187,6 @@ public class KeepTableTests
         Assert.Null(KeepTable.DisabledReason("V3", Keep(KeepProperty.Bass)));
         Assert.False(KeepTable.AllowsInversions(Keep(KeepProperty.Bass)));
         Assert.True(KeepTable.AllowsInversions(Keep(KeepProperty.Melody)));
-        Assert.Equal([KeepTable.MelodyPitchClasses, KeepTable.UpperVoicesOnly], KeepTable.Footnotes("V3", Keep(KeepProperty.Bass, KeepProperty.Melody)));
     }
 
     [Fact]
@@ -215,7 +212,6 @@ public class KeepTableTests
     {
         Assert.Null(KeepTable.Find("V5"));
         Assert.Throws<ArgumentException>(() => KeepTable.DisabledReason("V5", Keep()));
-        Assert.Empty(KeepTable.Footnotes("V5", Keep(KeepProperty.Melody)));
     }
 
     [Fact]

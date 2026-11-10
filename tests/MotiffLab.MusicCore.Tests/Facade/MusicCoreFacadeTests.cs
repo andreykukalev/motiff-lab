@@ -141,9 +141,65 @@ public class MusicCoreFacadeTests
     {
         JsonElement version = Json(new MusicCoreFacade().Call(0, "version"));
 
+        Assert.Equal(10, MusicCoreFacade.Contract);
         Assert.Equal(MusicCoreFacade.Contract, version.GetProperty("contract").GetInt32());
         Assert.Equal(ProjectFile.Version, version.GetProperty("projectFile").GetInt32());
         Assert.Contains(".NET", version.GetProperty("runtime").GetString());
+    }
+
+    [Theory]
+    [InlineData("assembly")]
+    [InlineData("assembly.source")]
+    [InlineData("assembly.notation")]
+    [InlineData("assembly.playback")]
+    [InlineData("assembly.pick")]
+    [InlineData("assembly.sheet")]
+    [InlineData("assembly.carry")]
+    [InlineData("assembly.transpose")]
+    [InlineData("assembly.undo")]
+    [InlineData("assembly.redo")]
+    [InlineData("assembly.restart")]
+    [InlineData("assembly.accept")]
+    [InlineData("assembly.journal")]
+    [InlineData("assembly.revert")]
+    [InlineData("assembly.apply")]
+    [InlineData("assembly.unapply")]
+    [InlineData("assembly.recording")]
+    [InlineData("variation.start")]
+    [InlineData("variation.propose")]
+    [InlineData("variation.check")]
+    [InlineData("variation.accept")]
+    [InlineData("variation.reject")]
+    [InlineData("variation.undo")]
+    [InlineData("variation.redo")]
+    [InlineData("experiments")]
+    [InlineData("experiments.start")]
+    [InlineData("experiments.surprise")]
+    public void CallsRemovedInContract10AreUnknown(string name)
+    {
+        (MusicCoreFacade facade, _) = Open();
+        Call(facade, "select", """{"bars": {"first": 1, "last": 2}}""");
+
+        Assert.Equal("unknownCall", Error(facade, 1, name, """{"source": "perf_1", "id": "x"}"""));
+    }
+
+    [Fact]
+    public void A_version_15_file_with_an_assembly_journal_is_saved_with_the_journal_as_read()
+    {
+        byte[] golden = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", "v15-worked.motiff.json"));
+        var facade = new MusicCoreFacade();
+        JsonElement opened = Json(facade.Open("v15-worked" + ProjectFile.Extension, golden));
+        Assert.False(opened.TryGetProperty("error", out JsonElement error), error.ToString());
+        Assert.NotEqual(JsonValueKind.Undefined, Json(System.Text.Encoding.UTF8.GetString(golden)).GetProperty("assembly").GetProperty("before").ValueKind);
+        Assert.NotEqual(JsonValueKind.Undefined, Json(System.Text.Encoding.UTF8.GetString(golden)).GetProperty("assembly").GetProperty("applied").ValueKind);
+        Assert.NotEmpty(Call(facade, "playback").GetProperty("notes").EnumerateArray());
+
+        JsonElement saved = Json(facade.Call(1, "project.save"));
+
+        Assert.Equal(ProjectFile.Version, saved.GetProperty("version").GetInt32());
+        Assert.Equal(
+            System.Text.Json.Nodes.JsonNode.Parse(System.Text.Encoding.UTF8.GetString(golden))!["assembly"]!.ToJsonString(),
+            System.Text.Json.Nodes.JsonNode.Parse(saved.GetRawText())!["assembly"]!.ToJsonString());
     }
 
     [Fact]
@@ -423,112 +479,11 @@ public class MusicCoreFacadeTests
         (MusicCoreFacade facade, _) = Open();
 
         Assert.Equal("noSelection", Error(facade, 1, "understand"));
-        Assert.Equal("noSelection", Error(facade, 1, "experiments"));
         Assert.Equal("noVariation", Error(facade, 1, "variation"));
         Assert.Equal("noPiece", Error(facade, 2, "piece"));
         Assert.Equal("unknownCall", Error(facade, 1, "dance"));
         Assert.Equal("badRequest", Error(facade, 1, "select", """{"bars": {"first": "one"}}"""));
         Assert.Equal("badRequest", Error(facade, 1, "select", "not json"));
-    }
-
-    [Fact]
-    public void ExperimentsAreOfferedAndStartAVariation()
-    {
-        (MusicCoreFacade facade, _) = Open();
-        Call(facade, "select", """{"bars": {"first": 1, "last": 2}}""");
-
-        JsonElement offered = Call(facade, "experiments");
-        JsonElement[] experiments = [.. offered.GetProperty("experiments").EnumerateArray()];
-        Assert.NotEmpty(experiments);
-        JsonElement experiment = experiments[0];
-        foreach (string field in new[] { "id", "topic", "title", "change", "question", "listeningFocus", "factIds", "passage", "keepPreset", "alternatives" })
-        {
-            Assert.True(experiment.TryGetProperty(field, out _), field);
-        }
-
-        JsonElement step = experiment.GetProperty("alternatives")[0].GetProperty("steps")[0];
-        Assert.True(step.TryGetProperty("operation", out _));
-        Assert.True(step.TryGetProperty("parameters", out _));
-
-        JsonElement started = Call(facade, "experiments.start", $$$"""{"id": "{{{experiment.GetProperty("id").GetString()}}}", "alternative": 0}""");
-        Assert.Equal(experiment.GetProperty("id").GetString(), started.GetProperty("experiment").GetProperty("id").GetString());
-        Assert.NotEqual(JsonValueKind.Null, started.GetProperty("result").ValueKind);
-        Assert.NotEmpty(started.GetProperty("heard").EnumerateArray());
-        Assert.Equal("badRequest", Error(facade, 1, "experiments.start", """{"id": "nothing.like.it"}"""));
-    }
-
-    [Fact]
-    public void SurprisePrefersExperimentsNotYetTried()
-    {
-        (MusicCoreFacade facade, _) = Open();
-        Call(facade, "select", """{"bars": {"first": 1, "last": 2}}""");
-        int offered = Call(facade, "experiments").GetProperty("experiments").GetArrayLength();
-        var tried = new List<string>();
-
-        for (int seed = 0; seed < offered; seed++)
-        {
-            string triedJson = string.Join(", ", tried.Select(id => $"\"{id}\""));
-            JsonElement answer = Call(facade, "experiments.surprise", $$$"""{"seed": {{{seed}}}, "tried": [{{{triedJson}}}]}""");
-            tried.Add(answer.GetProperty("experiment").GetProperty("id").GetString()!);
-            Assert.NotEqual(JsonValueKind.Null, answer.GetProperty("result").ValueKind);
-        }
-
-        Assert.Equal(offered, tried.Distinct().Count());
-    }
-
-    [Fact]
-    public void TheVariationChainTakesStepsInTheProjectFilesShape()
-    {
-        (MusicCoreFacade facade, _) = Open();
-        Call(facade, "select", """{"bars": {"first": 1, "last": 2}}""");
-
-        JsonElement started = Call(facade, "variation.start", """{"keep": ["pitches", "pitchOrder"], "seed": 3}""");
-        Assert.Equal(["pitchOrder", "pitches"], started.GetProperty("keep").EnumerateArray().Select(keep => keep.GetString()!).Order(StringComparer.Ordinal).ToArray());
-        Assert.Equal(3, started.GetProperty("seed").GetInt32());
-        Assert.Equal(JsonValueKind.Null, started.GetProperty("result").ValueKind);
-        Assert.Contains(started.GetProperty("operations").EnumerateArray(), operation => operation.GetProperty("id").GetString() == "V1");
-
-        Assert.Equal(JsonValueKind.Null, Call(facade, "variation.check", """{"operation": "V1", "parameters": {"kind": "HalfTime", "eighths": 1}}""").GetProperty("reason").ValueKind);
-
-        JsonElement proposed = Call(facade, "variation.propose", """{"operation": "V1", "parameters": {"kind": "HalfTime", "eighths": 1}}""");
-        JsonElement pending = proposed.GetProperty("pending");
-        Assert.Equal("V1", pending.GetProperty("operation").GetString());
-        Assert.Equal("HalfTime", pending.GetProperty("parameters").GetProperty("kind").GetString());
-        Assert.False(string.IsNullOrEmpty(pending.GetProperty("explanation").GetString()));
-        JsonElement result = proposed.GetProperty("result");
-        Assert.Equal("V1", result.GetProperty("operation").GetString());
-        Assert.NotEmpty(result.GetProperty("changes").EnumerateArray());
-        Assert.NotEmpty(result.GetProperty("checks").EnumerateArray());
-        Assert.Empty(proposed.GetProperty("steps").EnumerateArray());
-
-        JsonElement accepted = Call(facade, "variation.accept");
-        Assert.Single(accepted.GetProperty("steps").EnumerateArray());
-        Assert.Equal(JsonValueKind.Null, accepted.GetProperty("pending").ValueKind);
-        Assert.True(accepted.GetProperty("canUndo").GetBoolean());
-
-        JsonElement undone = Call(facade, "variation.undo");
-        Assert.Empty(undone.GetProperty("steps").EnumerateArray());
-        Assert.True(undone.GetProperty("canRedo").GetBoolean());
-        Assert.Single(Call(facade, "variation.redo").GetProperty("steps").EnumerateArray());
-
-        Assert.Equal("badRequest", Error(facade, 1, "variation.propose", """{"operation": "V99", "parameters": {}}"""));
-        Assert.Equal("badRequest", Error(facade, 1, "variation.propose", """{"operation": "V1", "parameters": {"kind": "HalfTime", "eighths": 99}}"""));
-        Assert.Equal("unavailable", Error(facade, 1, "variation.accept"));
-        Assert.True(Call(facade, "variation.clear").GetProperty("cleared").GetBoolean());
-        Assert.Equal("noVariation", Error(facade, 1, "variation"));
-    }
-
-    [Fact]
-    public void EditingByHandIsAStepOfOperationE7()
-    {
-        (MusicCoreFacade facade, _) = Open();
-        JsonElement selection = Call(facade, "select", """{"bars": {"first": 1, "last": 2}}""").GetProperty("selection");
-        string noteId = selection.GetProperty("noteIds")[0].GetString()!;
-
-        JsonElement edited = Call(facade, "variation.propose", $$$"""{"operation": "E7", "parameters": {"kind": "Remove", "noteId": "{{{noteId}}}"}}""");
-
-        Assert.Equal("E7", edited.GetProperty("steps")[0].GetProperty("operation").GetString());
-        Assert.Contains(edited.GetProperty("result").GetProperty("removed").EnumerateArray(), note => note.GetProperty("id").GetString() == noteId);
     }
 
     [Fact]
@@ -543,7 +498,7 @@ public class MusicCoreFacadeTests
         Assert.Equal("noVariation", Error(facade, 1, "notation", """{"of": "variation"}"""));
 
         Call(facade, "select", """{"bars": {"first": 1, "last": 2}}""");
-        Call(facade, "variation.propose", """{"operation": "V1", "parameters": {"kind": "HalfTime", "eighths": 1}}""");
+        Call(facade, "try", """{"chip": "v1.halfTime"}""");
         JsonElement variation = Call(facade, "notation", """{"of": "variation"}""");
         Assert.Contains("<mei", variation.GetProperty("mei").GetString());
         Assert.NotEqual(piece.GetProperty("mei").GetString(), variation.GetProperty("mei").GetString());
@@ -568,7 +523,7 @@ public class MusicCoreFacadeTests
 
         Call(facade, "select", """{"bars": {"first": 1, "last": 2}}""");
         Assert.Equal("noVariation", Error(facade, 1, "notation", """{"bars": "selection", "ossia": "variation"}"""));
-        Call(facade, "variation.propose", """{"operation": "V1", "parameters": {"kind": "HalfTime", "eighths": 1}}""");
+        Call(facade, "try", """{"chip": "v1.halfTime"}""");
         JsonElement withOssia = Call(facade, "notation", """{"bars": "selection", "ossia": "variation"}""");
         string mei = withOssia.GetProperty("mei").GetString()!;
         JsonElement ossia = Assert.Single(withOssia.GetProperty("ossias").EnumerateArray());
@@ -580,7 +535,6 @@ public class MusicCoreFacadeTests
         int ossiaStaves = ossia.GetProperty("staves").GetArrayLength();
         Assert.Equal(ossiaStaves + 1, withOssia.GetProperty("staves")[0].GetProperty("number").GetInt32());
 
-        Call(facade, "variation.accept");
         string idea = Call(facade, "idea.keep", """{"name": "Half time", "now": "2026-11-01T10:00:00Z"}""").GetProperty("ideas")[0].GetProperty("id").GetString()!;
         JsonElement compared = Call(facade, "notation", $$"""{"bars": {"first": 1, "last": 2}, "ossia": ["variation", "{{idea}}"]}""");
         Assert.Equal(["Variation", "Half time"], compared.GetProperty("ossias").EnumerateArray().Select(item => item.GetProperty("label").GetString()));
@@ -603,7 +557,7 @@ public class MusicCoreFacadeTests
         Assert.NotEmpty(piece.GetProperty("bars").EnumerateArray());
 
         Call(facade, "select", """{"bars": {"first": 1, "last": 2}}""");
-        Call(facade, "variation.propose", """{"operation": "V1", "parameters": {"kind": "HalfTime", "eighths": 1}}""");
+        Call(facade, "try", """{"chip": "v1.halfTime"}""");
         JsonElement heard = Call(facade, "playback", """{"of": "heard"}""");
         Assert.True(heard.GetProperty("notes").GetArrayLength() < piece.GetProperty("notes").GetArrayLength());
         JsonElement inPlace = Call(facade, "playback", """{"of": "inPlace"}""");
@@ -643,8 +597,7 @@ public class MusicCoreFacadeTests
     {
         (MusicCoreFacade facade, _) = Open("""{"id": "p_fur"}""");
         Call(facade, "select", """{"bars": {"first": 1, "last": 2}, "filter": {"hand": "right"}}""");
-        Call(facade, "variation.propose", """{"operation": "V1", "parameters": {"kind": "HalfTime", "eighths": 1}}""");
-        Call(facade, "variation.accept");
+        Call(facade, "try", """{"chip": "v1.halfTime"}""");
         JsonElement firstPhrase = Call(facade, "phrases").GetProperty("units")[0];
         Call(facade, "phrases.edit", $$$"""{"joinWithNext": {{{firstPhrase.GetProperty("number").GetInt32()}}}}""");
 
@@ -779,13 +732,11 @@ public class MusicCoreFacadeTests
         (MusicCoreFacade facade, _) = Open();
         Call(facade, "select", """{"bars": {"first": 1, "last": 2}}""");
         Assert.Equal("unavailable", Error(facade, 1, "idea.keep"));
-        JsonElement experiment = Call(facade, "experiments").GetProperty("experiments")[0];
-        Call(facade, "experiments.start", $$$"""{"id": "{{{experiment.GetProperty("id").GetString()}}}", "alternative": 0}""");
+        Call(facade, "try", """{"chip": "v1.halfTime"}""");
 
-        JsonElement kept = Call(facade, "idea.keep", """{"now": "2026-11-01T10:00:00Z"}""").GetProperty("ideas")[0];
+        JsonElement kept = Call(facade, "idea.keep", """{"factId": "rhythm.durations", "now": "2026-11-01T10:00:00Z"}""").GetProperty("ideas")[0];
         Assert.Equal("o_0001", kept.GetProperty("id").GetString());
-        Assert.Equal(experiment.GetProperty("id").GetString(), kept.GetProperty("experiment").GetProperty("id").GetString());
-        Assert.Equal(experiment.GetProperty("factIds")[0].GetString(), kept.GetProperty("factId").GetString());
+        Assert.Equal("rhythm.durations", kept.GetProperty("factId").GetString());
         Assert.True(kept.GetProperty("hasVariation").GetBoolean());
 
         Call(facade, "variation.clear");
@@ -797,7 +748,7 @@ public class MusicCoreFacadeTests
         Assert.Equal("Try it slower", Call(facade, "ideas").GetProperty("ideas")[0].GetProperty("note").GetString());
 
         JsonElement saved = Json(facade.Call(1, "project.save"));
-        Assert.Equal(experiment.GetProperty("factIds")[0].GetString(), saved.GetProperty("observations")[0].GetProperty("factId").GetString());
+        Assert.Equal("rhythm.durations", saved.GetProperty("observations")[0].GetProperty("factId").GetString());
         Assert.Empty(Call(facade, "idea.remove", """{"id": "o_0001"}""").GetProperty("ideas").EnumerateArray());
     }
 
@@ -998,8 +949,7 @@ public class MusicCoreFacadeTests
             var answers = new List<string> { facade.Open(OdeToJoy, Fixture(OdeToJoy), """{"id": "p_ode", "now": "2026-11-01T10:00:00Z"}""") };
             foreach ((string name, string? request) in new (string, string?)[]
             {
-                ("phrases", null), ("select", """{"bars": {"first": 1, "last": 4}}"""), ("understand", null), ("experiments", null),
-                ("variation.start", """{"keep": ["pitches"], "seed": 7}"""), ("variation.propose", """{"operation": "V1", "parameters": {"kind": "HalfTime", "eighths": 1}}"""),
+                ("phrases", null), ("select", """{"bars": {"first": 1, "last": 4}}"""), ("understand", null), ("try", """{"chip": "v1.halfTime"}"""),
                 ("notation", """{"of": "variation"}"""), ("playback", """{"of": "inPlace"}"""), ("project.save", """{"now": "2026-11-01T12:00:00Z"}"""),
             })
             {
@@ -1188,96 +1138,6 @@ public class MusicCoreFacadeTests
     }
 
     [Fact]
-    public void A_version_is_assembled_into_the_notes_through_the_journal_and_made_the_notes_by_one_rule()
-    {
-        // Decision record 0024 for the iPad app: the comparison's calls, nothing in the piece until «Сделать нотами».
-        (MusicCoreFacade facade, _) = Open("""{"id": "p_fur"}""");
-        ImportedPiece piece = PieceImporter.Import(FurElise, Fixture(FurElise)).Piece!;
-        TickSpan bar5 = piece.Meter.GetBar(5).Span;
-        Note[] melody = [.. piece.Notes.Where(note => bar5.Contains(note.Span.Onset)).OrderByDescending(note => note.Pitch.MidiNumber).Take(3)];
-        Note[] played = [.. piece.Notes, .. melody.Select((note, i) => note with { Id = $"x{i}", Pitch = new Pitch(note.Pitch.MidiNumber + (i * 7) - 3) })];
-        string midi = Convert.ToBase64String(MidiExporter.Export(played, [], piece.Meter, "performance"));
-        int printed = Call(facade, "piece").GetProperty("noteCount").GetInt32();
-        Call(facade, "performance.add", $$$"""{"name": "Live", "midi": "{{{midi}}}"}""");
-
-        JsonElement assembly = Call(facade, "assembly").GetProperty("assembly");
-        Assert.Equal(["notes", "perf_1"], assembly.GetProperty("sources").EnumerateArray().Select(source => source.GetProperty("id").GetString()));
-        JsonElement version = assembly.GetProperty("sources")[1];
-        Assert.Equal(0, version.GetProperty("tone").GetInt32());
-        Assert.True(version.GetProperty("reads").GetBoolean());
-        Assert.False(string.IsNullOrEmpty(version.GetProperty("summary").GetString()));
-        Assert.Equal(0, assembly.GetProperty("steps").GetInt32());
-
-        // The version in its own bars: the bar that is like the piece's bar 5 is the fragment.
-        JsonElement source = Call(facade, "assembly.source", """{"source": "perf_1"}""");
-        Assert.Equal(printed + 3, source.GetProperty("notes").GetArrayLength());
-        static string SpanOf(JsonElement bar) => $$"""{"onset": {{bar.GetProperty("onset").GetInt64()}}, "end": {{bar.GetProperty("end").GetInt64()}}}""";
-        string span = source.GetProperty("bars").EnumerateArray().Select(SpanOf)
-            .First(candidate => Call(facade, "assembly.pick", $$"""{"source": "perf_1", "span": {{candidate}}}""").GetProperty("similar").GetProperty("span") is { ValueKind: JsonValueKind.Object } like
-                && like.GetProperty("onset").GetInt64() == bar5.Onset.Value);
-        JsonElement pick = Call(facade, "assembly.pick", $$"""{"source": "perf_1", "span": {{span}}}""");
-        Assert.True(pick.GetProperty("canCarry").GetBoolean());
-        Assert.Contains("of Live", pick.GetProperty("title").GetString(), StringComparison.Ordinal);
-
-        // The sheet says what the carry will do before it is made; the ghost shows the notes as they will be.
-        string carry = $$"""{"carry": {"source": "perf_1", "span": {{span}}}, "now": "2026-11-07T20:00:00Z"}""";
-        JsonElement sheet = Call(facade, "assembly.sheet", carry).GetProperty("sheet");
-        Assert.Equal("where", sheet.GetProperty("lines")[0].GetProperty("name").GetString());
-        Assert.True(sheet.GetProperty("canReplace").GetBoolean());
-        Assert.False(sheet.GetProperty("insert").GetBoolean());
-        Assert.NotEmpty(sheet.GetProperty("put").EnumerateArray());
-        JsonElement ghost = Call(facade, "assembly.notation", carry);
-        Assert.False(string.IsNullOrEmpty(ghost.GetProperty("mei").GetString()));
-        Assert.Equal(sheet.GetProperty("put").GetArrayLength(), ghost.GetProperty("put").GetArrayLength());
-        Assert.Equal(printed + 3, Call(facade, "assembly.playback", carry).GetProperty("notes").GetArrayLength());
-
-        JsonElement carried = Call(facade, "assembly.carry", carry);
-        Assert.Equal(1, carried.GetProperty("carried").GetProperty("number").GetInt32());
-        Assert.Equal(bar5.Onset.Value, carried.GetProperty("carried").GetProperty("span").GetProperty("onset").GetInt64());
-        assembly = carried.GetProperty("assembly");
-        Assert.Equal(1, assembly.GetProperty("carries").GetInt32());
-        Assert.Equal("before", assembly.GetProperty("sources")[2].GetProperty("id").GetString());
-        Assert.Equal(printed, Call(facade, "piece").GetProperty("noteCount").GetInt32());
-        Assert.Equal(printed + 3, Call(facade, "assembly.playback", """{"source": "notes"}""").GetProperty("notes").GetArrayLength());
-        Assert.Equal(printed, Call(facade, "assembly.playback", """{"source": "before"}""").GetProperty("notes").GetArrayLength());
-        JsonElement origins = Call(facade, "assembly.notation", """{"source": "notes", "origins": true}""").GetProperty("origins");
-        Assert.Equal("Carry No. 1 from Live", Assert.Single(origins.EnumerateArray()).GetProperty("label").GetString());
-        JsonElement onNotes = Call(facade, "assembly.pick", $$"""{"source": "notes", "span": {{span}}}""");
-        Assert.Equal(1, onNotes.GetProperty("carry").GetProperty("number").GetInt32());
-        Assert.True(onNotes.GetProperty("canTranspose").GetBoolean());
-
-        // The journal is kept with the piece, and every step can be undone, redone and returned.
-        byte[] saved = System.Text.Encoding.UTF8.GetBytes(facade.Call(1, "project.save", """{"now": "2026-11-07T20:01:00Z"}"""));
-        var again = new MusicCoreFacade();
-        Assert.False(Json(again.Open("p_fur.motiff.json", saved)).TryGetProperty("error", out _));
-        Assert.Equal(1, Call(again, "assembly").GetProperty("assembly").GetProperty("steps").GetInt32());
-        JsonElement journal = Call(facade, "assembly.journal", """{"revert": 1}""");
-        Assert.Equal(1, Assert.Single(journal.GetProperty("rows").EnumerateArray()).GetProperty("number").GetInt32());
-        Assert.Empty(journal.GetProperty("revert").GetProperty("dependents").EnumerateArray());
-        Assert.Equal(1, journal.GetProperty("apply").GetProperty("places").GetInt32());
-        Assert.Equal(0, Call(facade, "assembly.undo").GetProperty("assembly").GetProperty("steps").GetInt32());
-        Assert.Equal(1, Call(facade, "assembly.redo").GetProperty("assembly").GetProperty("steps").GetInt32());
-        Assert.Equal(0, Call(facade, "assembly.revert", """{"number": 1}""").GetProperty("assembly").GetProperty("steps").GetInt32());
-        Assert.Equal(1, Call(facade, "assembly.undo").GetProperty("assembly").GetProperty("steps").GetInt32());
-
-        // «Сделать нотами»: the piece opens again with the notes the journal builds, and can go back while open.
-        JsonElement applied = Call(facade, "assembly.apply", """{"now": "2026-11-07T20:02:00Z"}""");
-        Assert.Equal(1, applied.GetProperty("places").GetInt32());
-        Assert.Equal(printed + 3, applied.GetProperty("summary").GetProperty("noteCount").GetInt32());
-        Assert.Equal(printed + 3, Call(facade, "piece").GetProperty("noteCount").GetInt32());
-        assembly = Call(facade, "assembly").GetProperty("assembly");
-        Assert.True(assembly.GetProperty("applied").GetBoolean());
-        Assert.Equal("Notes before the assembly", assembly.GetProperty("sources").EnumerateArray().Last().GetProperty("name").GetString());
-        Call(facade, "assembly.unapply");
-        Assert.Equal(printed, Call(facade, "piece").GetProperty("noteCount").GetInt32());
-        Assert.False(Call(facade, "assembly").GetProperty("assembly").GetProperty("applied").GetBoolean());
-
-        Assert.Equal(JsonValueKind.Null, Call(facade, "assembly.recording", """{"id": "perf_1"}""").GetProperty("clock").ValueKind);
-        Assert.Equal("badRequest", Error(facade, 1, "assembly.notation", """{"source": "nope"}"""));
-        Assert.Equal("unavailable", Error(facade, 1, "assembly.unapply"));
-    }
-
-    [Fact]
     public void Another_version_is_added_from_a_MusicXML_or_MIDI_file()
     {
         (MusicCoreFacade facade, _) = Open("""{"id": "p_fur"}""");
@@ -1336,12 +1196,6 @@ public class MusicCoreFacadeTests
         Assert.Equal("recording", added.GetProperty("source").GetString());
         Assert.Equal("transkun", added.GetProperty("engine").GetString());
         Assert.Equal(added.GetProperty("printed").GetInt32(), added.GetProperty("matched").GetInt32());
-
-        // As a source (0024, scenario 2): its notes in bars of their own, a clock to hear its sound by, its stretch in time.
-        JsonElement clock = Call(facade, "assembly.recording", """{"id": "perf_1"}""").GetProperty("clock");
-        Assert.Equal(clock.GetProperty("ticks").GetArrayLength(), clock.GetProperty("milliseconds").GetArrayLength());
-        Assert.True(Call(facade, "assembly.source", """{"source": "perf_1"}""").GetProperty("recording").GetBoolean());
-        Assert.Matches(@"^\d+ notes · \d+:\d\d–\d+:\d\d · ", Call(facade, "assembly.pick", """{"source": "perf_1", "span": {"onset": 0, "end": 1920}}""").GetProperty("title").GetString());
 
         JsonElement joined = Call(facade, "performance.add", $$$"""{"name": "Long", "milliseconds": 300000, "parts": [{"index": 0, "midi": "{{{midi}}}"}, {"index": 2, "midi": "{{{midi}}}"}]}""").GetProperty("performance");
         Assert.Equal("recording", joined.GetProperty("source").GetString());

@@ -20,17 +20,14 @@ namespace MotiffLab.MusicCore.Facade;
 
 /// <summary>
 /// One open piece (0020): its project, the imported piece, the notes with the player's corrections,
-/// the phrases, the one primary selection (0013) with what was understood about it and the
-/// experiments offered for it, and the variation chain. The orchestration the web app's page does
-/// today, kept in one place for both apps.
+/// the phrases, the one primary selection (0013) with what was understood about it, and the
+/// variation chain a Try chip starts. The iPad app's orchestration of music-core, kept in one place.
 /// </summary>
 internal sealed partial class OpenPiece
 {
     private static readonly KeepProperty[] s_defaultKeep = [KeepProperty.Pitches, KeepProperty.PitchOrder];
 
     private InvitationContext? _understood;
-    private IReadOnlyList<Experiment>? _offered;
-    private (Experiment Experiment, int Alternative)? _trial;
     private TryChip? _chip;
     private MotifSelectionKind _selectionKind = MotifSelectionKind.Range;
 
@@ -158,18 +155,8 @@ internal sealed partial class OpenPiece
         "select" => Select(request),
         "understand" => Answer.Write(json => Answer.Understanding(json, Understood(), SentenceFacts(), fact => TryChips.Offer(fact.Id, Understood()))),
         "circle" => Answer.Write(json => Answer.Circle(json, Circle(Understood()), Understood().Selection.Span.Onset, Piece.End)),
-        "experiments" => Answer.Write(json => Answer.Experiments(json, "experiments", Offered())),
-        "experiments.start" => StartExperiment(request),
-        "experiments.surprise" => Surprise(request),
         "try" => TryChip(request),
         "variation" => ChainAnswer(Chain ?? throw FacadeException.NoVariation()),
-        "variation.start" => StartChain(request),
-        "variation.propose" => Propose(request),
-        "variation.check" => Check(request),
-        "variation.accept" => Step(chain => chain.AcceptDisabledReason is { } reason ? throw FacadeException.Unavailable(reason) : chain.Accept()),
-        "variation.reject" => Step(chain => chain.Reject()),
-        "variation.undo" => Step(chain => chain.CanUndo ? chain.Undo() : throw FacadeException.Unavailable("There is no step to undo.")),
-        "variation.redo" => Step(chain => chain.CanRedo ? chain.Redo() : throw FacadeException.Unavailable("There is no step to redo.")),
         "variation.clear" => Clear(),
         "notation" => Notation(request),
         "playback" => Playback(request),
@@ -203,7 +190,6 @@ internal sealed partial class OpenPiece
         Words = Words.For(request.Required("language"));
         Levels = PhraseLevels.Suggest(Notes, Piece.Meter, Piece.MusicXml?.PhraseMarks ?? PhraseMarks.None, Piece.End, KeySignature.InForce(Piece.Keys, Tick.Zero), Words, Levels.Edits);
         _understood = null;
-        _offered = null;
         return Answer.Write(json => json.WriteString("language", Words.IsRussian ? "ru" : "en"));
     }
 
@@ -237,8 +223,6 @@ internal sealed partial class OpenPiece
                 {
                     Selection = moved;
                     _understood = null;
-                    _offered = null;
-                    _trial = null;
                     _chip = null;
                     Chain = null;
                 }
@@ -290,7 +274,6 @@ internal sealed partial class OpenPiece
         // Bookmarks made from a phrase follow it through the merge or split (0018, section 5).
         Project = Project.WithPhraseLevels(Levels.Edits).FollowPhrases(Levels.Phrases.Phrases.Select(phrase => phrase.Span));
         _understood = null;
-        _offered = null;
         return Answer.Write(json => Answer.Phrases(json, Levels, Level, Words));
     }
 
@@ -315,7 +298,6 @@ internal sealed partial class OpenPiece
         Keep.Clear();
         Keep.UnionWith(chain.Context.Keep);
         Chain = chain;
-        _trial = null;
         _chip = chip;
         return ChainAnswer(chain);
     }
@@ -350,8 +332,6 @@ internal sealed partial class OpenPiece
         Selection = selection;
         _selectionKind = kind;
         _understood = null;
-        _offered = null;
-        _trial = null;
         _chip = null;
         Chain = null;
         return Answer.Write(json => Answer.Selection(json, "selection", selection, KeySignature.InForce(Piece.Keys, selection.Span.Onset)));
@@ -377,124 +357,9 @@ internal sealed partial class OpenPiece
         return _understood = new InvitationContext(Notes, Piece.Meter, selection, motif, structure, character, Words) { Harmony = harmony };
     }
 
-    private IReadOnlyList<Experiment> Offered() => _offered ??= ExperimentCatalogue.Offer(Understood());
-
-    /// <summary>The key the variation operations work in: the one read from the motif unless it is uncertain.</summary>
-    private MusicalKey? Key => Understood().Motif.Key is { Certainty: not FactCertainty.Uncertain } reading ? reading.Key : null;
-
-    private string StartExperiment(Request request)
-    {
-        string id = request.Required("id");
-        int alternative = request.Int("alternative") ?? 0;
-        Experiment experiment = Offered().FirstOrDefault(offered => offered.Id == id) ?? throw FacadeException.BadRequest($"Experiment \"{id}\" is not offered for this passage.");
-        if (alternative < 0 || alternative >= experiment.Alternatives.Count)
-        {
-            throw FacadeException.BadRequest($"Experiment \"{id}\" has {experiment.Alternatives.Count} alternatives.");
-        }
-
-        return Try(experiment, alternative);
-    }
-
-    private string Surprise(Request request)
-    {
-        var tried = request.Texts("tried").ToHashSet(StringComparer.Ordinal);
-        SurprisePick? pick = ExperimentCatalogue.Surprise(Understood(), request.Int("seed") ?? 0, tried);
-        return pick is null ? Answer.Write(json => json.WriteBoolean("none", true)) : Try(pick.Experiment, pick.Alternative);
-    }
-
-    private string Try(Experiment experiment, int alternative)
-    {
-        VariationChain chain = ExperimentCatalogue.Start(experiment, alternative, Understood());
-        Keep.Clear();
-        Keep.UnionWith(chain.Context.Keep);
-        Chain = chain;
-        _trial = (experiment, alternative);
-        _chip = null;
-        return ChainAnswer(chain);
-    }
-
-    private string StartChain(Request request)
-    {
-        MotifSelection selection = Selection ?? throw FacadeException.NoSelection();
-        if (request.Has("keep"))
-        {
-            Keep.Clear();
-            Keep.UnionWith(request.Enums<KeepProperty>("keep"));
-        }
-
-        _trial = null;
-        _chip = null;
-        Chain = NewChain(selection, request.Int("seed") ?? 0);
-        return ChainAnswer(Chain);
-    }
-
-    private VariationChain NewChain(MotifSelection selection, int seed) =>
-        VariationChain.Start(VariationFacts.MotifNotes(Notes, selection), VariationContext.For(selection, Keep.ToHashSet(), seed, Key, Piece.Meter, Words));
-
-    private string Propose(Request request)
-    {
-        MotifSelection selection = Selection ?? throw FacadeException.NoSelection();
-        (IVariationOperation operation, OperationParameters parameters) = ReadStep(request);
-        VariationChain chain = Chain ?? NewChain(selection, 0);
-        if (parameters is HandEditParameters edit)
-        {
-            if (chain.EditUnavailableReason(edit) is { } editReason)
-            {
-                throw FacadeException.Unavailable(editReason);
-            }
-
-            Chain = chain.Edit(edit);
-            return ChainAnswer(Chain);
-        }
-
-        if (chain.UnavailableReason(operation, parameters) is { } reason)
-        {
-            throw FacadeException.Unavailable(reason);
-        }
-
-        Chain = chain.Propose(operation, parameters);
-        return ChainAnswer(Chain);
-    }
-
-    private string Check(Request request)
-    {
-        MotifSelection selection = Selection ?? throw FacadeException.NoSelection();
-        (IVariationOperation operation, OperationParameters parameters) = ReadStep(request);
-        VariationChain chain = Chain ?? NewChain(selection, 0);
-        string? reason = parameters is HandEditParameters edit ? chain.EditUnavailableReason(edit) : chain.UnavailableReason(operation, parameters);
-        return Answer.Write(json => json.WriteString("reason", reason));
-    }
-
-    /// <summary>A step in the project file's shape: {"operation": id, "parameters": {…}}.</summary>
-    private static (IVariationOperation Operation, OperationParameters Parameters) ReadStep(Request request)
-    {
-        string id = request.Required("operation");
-        IVariationOperation operation = id == HandEdit.OperationId ? HandEdit.Instance : VariationOperations.Find(id) ?? throw FacadeException.BadRequest($"There is no operation \"{id}\".");
-        if (!request.Has("parameters"))
-        {
-            throw FacadeException.BadRequest("The step needs \"parameters\".");
-        }
-
-        try
-        {
-            return (operation, ProjectFile.ReadStep(request.Root).Parameters);
-        }
-        catch (ProjectFileException exception)
-        {
-            throw FacadeException.BadRequest(exception.Message);
-        }
-    }
-
-    private string Step(Func<VariationChain, VariationChain> step)
-    {
-        Chain = step(Chain ?? throw FacadeException.NoVariation());
-        return ChainAnswer(Chain);
-    }
-
     private string Clear()
     {
         Chain = null;
-        _trial = null;
         _chip = null;
         return Answer.Write(json => json.WriteBoolean("cleared", true));
     }
@@ -502,17 +367,8 @@ internal sealed partial class OpenPiece
     private string ChainAnswer(VariationChain chain) => Answer.Write(json =>
     {
         Answer.Chain(json, chain, Words);
-        if (_trial is { } trial)
-        {
-            json.WriteStartObject("experiment");
-            json.WriteString("id", trial.Experiment.Id);
-            json.WriteNumber("alternative", trial.Alternative);
-            json.WriteEndObject();
-        }
-        else
-        {
-            json.WriteNull("experiment");
-        }
+        // No call starts an experiment since contract 10; the field stays so that "try" and "variation" answer as before.
+        json.WriteNull("experiment");
 
         json.WriteString("chip", _chip?.Id);
     });

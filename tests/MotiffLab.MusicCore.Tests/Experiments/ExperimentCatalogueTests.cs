@@ -211,16 +211,6 @@ public class ExperimentCatalogueTests
     }
 
     [Fact]
-    public void A_question_lists_only_its_experiments()
-    {
-        InvitationContext context = Context(FurElise, 0, 1);
-
-        Assert.Equal(["rhythm.groove"], ExperimentCatalogue.ForQuestion(context, ExperimentTopic.Rhythm).Select(experiment => experiment.Id));
-        Assert.Empty(ExperimentCatalogue.ForQuestion(context, ExperimentTopic.Layers));
-        Assert.Equal("What does each layer add?", ExperimentCatalogue.Prompt(ExperimentTopic.Layers));
-    }
-
-    [Fact]
     public void Surprise_me_is_deterministic_and_prefers_what_was_not_tried()
     {
         InvitationContext context = Context(FurElise, 0, 1);

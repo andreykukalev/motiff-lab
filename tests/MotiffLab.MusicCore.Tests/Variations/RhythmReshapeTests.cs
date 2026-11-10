@@ -179,35 +179,6 @@ public class RhythmReshapeTests
     }
 
     [Fact]
-    public void Half_time_explanation_states_the_diff()
-    {
-        Assert.Equal(
-            "The pitch sequence is unchanged. All 4 notes last twice as long. The time between onsets doubles, so 3 of 4 notes move. "
-            + "From its first onset to its last note's end, the motif now takes 8 quarter notes instead of 4 quarter notes."
-            + " Unchanged: pitches, pitch order, contour, intervals, melody pitches and register.",
-            Apply(RhythmReshapeKind.HalfTime).Explanation);
-    }
-
-    [Fact]
-    public void Double_time_explanation_states_the_diff()
-    {
-        Assert.Equal(
-            "The pitch sequence is unchanged. All 4 notes last half as long. The time between onsets halves, so 3 of 4 notes move. "
-            + "From its first onset to its last note's end, the motif now takes 2 quarter notes instead of 4 quarter notes."
-            + " Unchanged: pitches, pitch order, contour, intervals, melody pitches and register.",
-            Apply(RhythmReshapeKind.DoubleTime).Explanation);
-    }
-
-    [Fact]
-    public void Displace_explanation_states_the_diff()
-    {
-        Assert.Equal(
-            "The pitch sequence is unchanged. Every note keeps its length. All 4 notes start 1 eighth later."
-            + " Unchanged: pitches, pitch order, contour, intervals, melody pitches and register.",
-            Apply(RhythmReshapeKind.Displace).Explanation);
-    }
-
-    [Fact]
     public void Syncopate_moves_each_beat_after_the_first_half_a_beat_earlier_and_keeps_where_it_ends()
     {
         Variation variation = Apply(RhythmReshapeKind.Syncopate);

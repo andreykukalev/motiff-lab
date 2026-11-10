@@ -93,9 +93,6 @@ public sealed record PerformanceTiming(TimingKind Kind, int Onsets, int OffGrid,
         return new PerformanceTiming(kind, fromBar.Length, offGrid, grids, SwingMeasure.Measure(notes, meter));
     }
 
-    /// <summary>The import screen's sentence about the timing, with the figures, or null when there is nothing to say.</summary>
-    public string? Describe() => Describe(Words.English);
-
     /// <summary>The import screen's sentence about the timing in a language, or null when there is nothing to say.</summary>
     public string? Describe(Words words)
     {
@@ -172,9 +169,6 @@ public sealed record PerformanceTiming(TimingKind Kind, int Onsets, int OffGrid,
 /// <param name="BeatTicks">The length of the beats measured; when the meter changes beat length, the most common.</param>
 public sealed record SwingMeasure(int Beats, long MedianOffbeat, long BeatTicks)
 {
-    /// <summary>The median offbeat's position as a whole percentage of the beat, rounded down: 50 is straight, 66 a triplet swing.</summary>
-    public int Percent => (int)(MedianOffbeat * 100 / BeatTicks);
-
     internal static SwingMeasure? Measure(IReadOnlyList<Note> notes, MeterMap meter)
     {
         var offbeats = new List<(long Position, long Beat)>();

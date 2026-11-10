@@ -34,7 +34,7 @@ public sealed record MotifSourceReference(TickSpan Span, int FirstBar, int LastB
 /// </summary>
 /// <remarks>
 /// Melodic views and operations use the motif's melody voice and accompaniment operations its other
-/// voices; <see cref="MotifVoices"/> derives both. Creating a motif is pure: the same selection and
+/// voices; <see cref="MotifTexture"/> reads both. Creating a motif is pure: the same selection and
 /// notes give the same motif.
 /// </remarks>
 public sealed record Motif

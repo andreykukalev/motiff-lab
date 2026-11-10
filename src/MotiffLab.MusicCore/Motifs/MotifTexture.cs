@@ -3,19 +3,6 @@ using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Motifs;
 
-/// <summary>What a note does in a motif's texture. A note can have more than one role.</summary>
-public enum VoiceRole
-{
-    /// <summary>A note of the melody: the top line.</summary>
-    Melody,
-
-    /// <summary>Neither melody nor bass: a chord tone or an inner voice.</summary>
-    Inner,
-
-    /// <summary>A note of the bass: the bottom line.</summary>
-    Bass,
-}
-
 /// <summary>Everything that sounds at one onset of a motif: the notes struck there and the notes still held from before.</summary>
 /// <param name="Struck">Notes that start at <paramref name="At"/>, from low to high.</param>
 /// <param name="Held">Notes that started earlier and still sound at <paramref name="At"/>, from low to high.</param>
@@ -23,9 +10,6 @@ public sealed record Sonority(Tick At, IReadOnlyList<Note> Struck, IReadOnlyList
 {
     /// <summary>Every note sounding at <see cref="At"/>, from low to high.</summary>
     public IReadOnlyList<Note> Sounding => [.. Struck.Concat(Held).OrderBy(static note => note.Pitch.MidiNumber).ThenBy(static note => note.Id, StringComparer.Ordinal)];
-
-    /// <summary>The distinct pitch classes sounding, 0 (C) to 11 (B), in rising order.</summary>
-    public IReadOnlyList<int> PitchClasses => [.. Struck.Concat(Held).Select(static note => note.Pitch.PitchClass).Distinct().Order()];
 }
 
 /// <summary>
@@ -87,29 +71,6 @@ public sealed record MotifTexture(
         Note[] melody = Line(Prefer(sorted, Hand.Right), top: true);
         Note[] bass = Line(Prefer(sorted, Hand.Left), top: false);
         return new MotifTexture(sorted, melody, bass, sonorities, Attribution.Inferred(Confidence));
-    }
-
-    /// <summary>The roles of a note of this motif; empty when the note is not in it.</summary>
-    public IReadOnlySet<VoiceRole> RolesOf(Note note)
-    {
-        ArgumentNullException.ThrowIfNull(note);
-        var roles = new HashSet<VoiceRole>();
-        if (Melody.Any(melody => melody.Id == note.Id))
-        {
-            roles.Add(VoiceRole.Melody);
-        }
-
-        if (Bass.Any(bass => bass.Id == note.Id))
-        {
-            roles.Add(VoiceRole.Bass);
-        }
-
-        if (roles.Count == 0 && Notes.Any(other => other.Id == note.Id))
-        {
-            roles.Add(VoiceRole.Inner);
-        }
-
-        return roles;
     }
 
     /// <summary>The other notes sounding when <paramref name="note"/> starts, from low to high: struck with it or still held.</summary>

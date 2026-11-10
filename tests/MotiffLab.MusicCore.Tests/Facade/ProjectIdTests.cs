@@ -37,15 +37,13 @@ public partial class ProjectIdTests
         return opened.GetProperty("project").GetProperty("id").GetString()!;
     }
 
-    /// <summary>A project file with a motif, a variation with Keep choices and a phrase edit, as the player saves it.</summary>
+    /// <summary>A project file with a motif, a variation tried from a chip (with its Keep preset) and a phrase edit, as the player saves it.</summary>
     private static byte[] Worked(string fileName, string request, string now)
     {
         var facade = new MusicCoreFacade();
         OpenedId(facade, fileName, Fixture(fileName), request);
         Call(facade, "select", """{"bars": {"first": 1, "last": 2}}""");
-        Call(facade, "variation.start", """{"keep": ["pitches", "pitchOrder"], "seed": 3}""");
-        Call(facade, "variation.propose", """{"operation": "V1", "parameters": {"kind": "HalfTime", "eighths": 1}}""");
-        Call(facade, "variation.accept");
+        Call(facade, "try", """{"chip": "v1.halfTime"}""");
         JsonElement firstPhrase = Call(facade, "phrases").GetProperty("units")[0];
         Call(facade, "phrases.edit", $$$"""{"joinWithNext": {{{firstPhrase.GetProperty("number").GetInt32()}}}}""");
         return Encoding.UTF8.GetBytes(facade.Call(1, "project.save", $$"""{"now": "{{now}}"}"""));
@@ -168,7 +166,7 @@ public partial class ProjectIdTests
         var reopened = new MusicCoreFacade();
         OpenedId(reopened, "fur-elise" + ProjectFile.Extension, device.Saved["p_0001"]);
         JsonElement chain = Call(reopened, "variation");
-        Assert.Equal(["pitchOrder", "pitches"], chain.GetProperty("keep").EnumerateArray().Select(keep => keep.GetString()!).Order(StringComparer.Ordinal).ToArray());
+        Assert.Equal(["pitchOrder"], chain.GetProperty("keep").EnumerateArray().Select(keep => keep.GetString()!).Order(StringComparer.Ordinal).ToArray());
         Assert.Equal("V1", Assert.Single(chain.GetProperty("steps").EnumerateArray()).GetProperty("operation").GetString());
     }
 

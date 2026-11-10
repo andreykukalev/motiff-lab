@@ -139,27 +139,6 @@ public static class HandInference
         return [.. notes.Select((note, i) => note with { Hand = hands[i] })];
     }
 
-    /// <summary>The notes with one note's hand set by the player, recorded as user-edited (AC-S1-04).</summary>
-    public static IReadOnlyList<Note> Reassign(IReadOnlyList<Note> notes, string noteId, Hand hand)
-    {
-        ArgumentNullException.ThrowIfNull(notes);
-        ArgumentException.ThrowIfNullOrWhiteSpace(noteId);
-        if (!Enum.IsDefined(hand))
-        {
-            throw new ArgumentOutOfRangeException(nameof(hand), hand, "Unknown hand.");
-        }
-
-        int index = notes.Select(static note => note.Id).ToList().IndexOf(noteId);
-        if (index < 0)
-        {
-            throw new ArgumentException($"No note has the id {noteId}.", nameof(noteId));
-        }
-
-        Note[] result = [.. notes];
-        result[index] = result[index] with { Hand = new Attributed<Hand>(hand, Attribution.UserEdited) };
-        return result;
-    }
-
     /// <summary>The cost of giving the lowest <paramref name="split"/> pitches to the left hand and the rest to the right.</summary>
     private static double SplitCost(int[] pitches, int split, List<int> left, List<int> right)
     {

@@ -191,7 +191,6 @@ internal sealed partial class OpenPiece
             }
 
             Chain = null;
-            _trial = null;
             _chip = null;
         }
 
