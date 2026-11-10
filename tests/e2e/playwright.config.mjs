@@ -12,11 +12,14 @@ const chromiumOnly = /(accessibility|analytics|pencil|performance|scan)\.spec/;
 
 export default defineConfig({
     testDir: ".",
-    timeout: 60_000,
+    // A GitHub runner can be half again as slow as another (#309: the same jobs took 7 to 11.5 minutes), so the
+    // longer walks (36 to 50 s on a usual runner) get twice the time there; a spec that hangs still stops.
+    timeout: process.env.CI ? 120_000 : 60_000,
     expect: { timeout: 15_000 },
     fullyParallel: true,
     forbidOnly: !!process.env.CI,
-    reporter: process.env.CI ? [["list"], ["github"]] : "list",
+    // In CI the HTML report (playwright-report/) is kept as an artifact of the Browser tests workflow.
+    reporter: process.env.CI ? [["list"], ["github"], ["html", { open: "never" }]] : "list",
     use: {
         baseURL: `http://localhost:${port}`,
         trace: "retain-on-failure",

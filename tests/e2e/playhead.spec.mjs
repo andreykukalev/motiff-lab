@@ -4,7 +4,7 @@
 import { expect, test } from "@playwright/test";
 import { openFurElise } from "./steps.mjs";
 
-test("the playhead moves with the playing, and Back to playback finds it after scrolling away", async ({ page }) => {
+test("the playhead moves with the playing, and Back to playback finds it after scrolling away", async ({ page, browserName, isMobile }) => {
     // A small upright window: the page is fitted to its width, so the opening runs below the screen.
     await page.setViewportSize({ width: 400, height: 440 });
     const errors = await openFurElise(page);
@@ -21,9 +21,18 @@ test("the playhead moves with the playing, and Back to playback finds it after s
 
     // Scrolled far from the playing, the chip says where it is and brings the score back to it.
     const score = page.locator("div.score");
-    const box = await score.boundingBox();
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-    await page.mouse.wheel(0, 5000);
+    if (browserName === "webkit" && isMobile) {
+        // Playwright has no wheel in mobile WebKit, and WebKit no Touch constructor: a swipe's touchmove, and the
+        // scroll it makes.
+        await score.evaluate(element => {
+            element.dispatchEvent(new Event("touchmove", { bubbles: true }));
+            element.scrollBy(0, 5000);
+        });
+    } else {
+        const box = await score.boundingBox();
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        await page.mouse.wheel(0, 5000);
+    }
     const back = page.getByRole("button", { name: /^Back to playback · bar \d+$/ });
     await expect(back).toBeVisible();
     await back.click();

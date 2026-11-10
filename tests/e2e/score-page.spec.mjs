@@ -63,10 +63,11 @@ test("the score fills the screen, and brackets pick phrases at the level chosen"
     await expect(page.locator(".sheet")).toHaveCount(0);
     await expect(selection).toContainText("Selected phrase 1");
 
-    // A bar clicked in the score, away from its notes (here on a staff line), is selected.
+    // A bar clicked in the score, away from its notes (here on a staff line), is selected. The line is a fraction of a
+    // pixel thick, and Firefox and WebKit take a click's point in whole pixels, so the click is on the nearest one.
     const line = page.locator("div.score g.measure").nth(2).locator("g.staff > path").first();
     const box = await line.boundingBox();
-    await page.mouse.click(box.x + box.width * 0.9, box.y + box.height / 2);
+    await page.mouse.click(Math.round(box.x + box.width * 0.9), Math.round(box.y + box.height / 2));
     await expect(selection).toContainText("Selected bar 2");
 
     // The pill loops the selection and slows it down.

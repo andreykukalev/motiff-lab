@@ -194,12 +194,14 @@ test("a recording longer than two minutes is heard in overlapping parts and its 
     await transcribe(page, await recording(240, 8000));
     await expect(page.getByRole("heading", { name: "Check the transcription" })).toBeVisible({ timeout: 30_000 });
 
-    // Four minutes go as two parts of 2 minutes 5 seconds: each half with five seconds of the other.
+    // Four minutes go as two parts of 2 minutes 5 seconds: each half with five seconds of the other. The last part
+    // ends where the decoded sound does, and WebKit resamples the 8 kHz file a couple of samples short of 240 s, so
+    // the last part may be up to a millisecond short.
     expect(uploads).toHaveLength(2);
-    for (const body of uploads) {
-        const wav = body.indexOf(Buffer.from("RIFF"));
-        expect(body.readUInt32LE(wav + 40)).toBe(125 * 22050 * 2);
-    }
+    const sizes = uploads.map(body => body.readUInt32LE(body.indexOf(Buffer.from("RIFF")) + 40));
+    expect(sizes[0]).toBe(125 * 22050 * 2);
+    expect(sizes[1]).toBeLessThanOrEqual(125 * 22050 * 2);
+    expect(sizes[1]).toBeGreaterThan((125 - 0.001) * 22050 * 2);
 
     // The stand-in answers each part with Für Elise's first 130 s: the first part keeps its first two
     // minutes, the second what it heard after its five-second lead-in.
@@ -246,7 +248,10 @@ test("only the stretch the player chooses in a long recording is sent, and the p
     await expect(page.getByText("with 2 requests", { exact: false })).toBeVisible();
 });
 
-test("the selection is dragged on the recording's shape, and the play position moved by the strip, the arrows and the space bar", async ({ page }) => {
+test("the selection is dragged on the recording's shape, and the play position moved by the strip, the arrows and the space bar", async ({ page, browserName }) => {
+    // Known defect, accepted by Andrei in #309: in WebKit the recording's player sometimes cannot load the picked
+    // file (error 4, NotSupportedError on play). Fixed or explained in #337, which removes this mark.
+    test.fixme(browserName === "webkit", "#337: the recording's player sometimes cannot load the file in WebKit");
     await scanServer(page);
     await page.goto("/settings");
     await page.getByRole("button", { name: "Save and check" }).click();
