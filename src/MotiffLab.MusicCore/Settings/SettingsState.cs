@@ -1,5 +1,3 @@
-using System.Text.Json;
-
 namespace MotiffLab.MusicCore.Settings;
 
 /// <summary>
@@ -112,27 +110,6 @@ public sealed record SettingsState
         }
 
         return new SettingsState(values);
-    }
-
-    /// <summary>The state as one JSON document, {"version": 1, "values": {id: value, …}}, the shape both apps store on the device.</summary>
-    public string Write()
-    {
-        using var buffer = new MemoryStream();
-        using (var json = new Utf8JsonWriter(buffer))
-        {
-            json.WriteStartObject();
-            json.WriteNumber("version", 1);
-            json.WriteStartObject("values");
-            foreach ((string id, string value) in Values)
-            {
-                json.WriteString(id, value);
-            }
-
-            json.WriteEndObject();
-            json.WriteEndObject();
-        }
-
-        return System.Text.Encoding.UTF8.GetString(buffer.ToArray());
     }
 
     public bool Equals(SettingsState? other) => other is not null && Values.SequenceEqual(other.Values);

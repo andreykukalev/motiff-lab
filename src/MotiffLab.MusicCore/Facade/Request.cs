@@ -187,8 +187,6 @@ internal sealed class Request : IDisposable
         }
     }
 
-    public JsonElement Root => _root ?? throw FacadeException.BadRequest("The request is empty.");
-
     public bool IsEmpty => _root is null;
 
     public void Dispose() => _document?.Dispose();
