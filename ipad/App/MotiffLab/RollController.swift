@@ -395,12 +395,63 @@ struct RollDrawer: View {
     }
 }
 
+/// The roll's one web view, in the drawer or over the card in focus. Each place gets a holder of its own that the web view
+/// fills at every layout, so it takes the place's size whenever the iPad turns (#338). Expand hands the web view from the
+/// drawer to the card while the drawer is still sliding away; the holder shown last takes it back, rather than the web view
+/// keeping the size of a holder that is going.
 struct ScoreRollView: UIViewRepresentable {
     @ObservedObject var roll: RollController
 
-    func makeUIView(context: Context) -> WKWebView {
-        roll.webView
+    func makeUIView(context: Context) -> RollHolder {
+        let holder = RollHolder(webView: roll.webView)
+        holder.hold()
+        return holder
     }
 
-    func updateUIView(_ view: WKWebView, context: Context) {}
+    func updateUIView(_ holder: RollHolder, context: Context) {
+        holder.hold()
+    }
+
+    /// All the room it is offered, never the size the web view kept from its last place.
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: RollHolder, context: Context) -> CGSize? {
+        guard let width = proposal.width, let height = proposal.height, width.isFinite, height.isFinite else { return nil }
+        return CGSize(width: width, height: height)
+    }
+}
+
+/// A place the roll's web view fills: its bounds, on every layout. A holder leaving the screen with the web view hands it
+/// to a holder still on screen.
+final class RollHolder: UIView {
+    private static let all = NSHashTable<RollHolder>.weakObjects()
+    private let webView: WKWebView
+
+    init(webView: WKWebView) {
+        self.webView = webView
+        super.init(frame: .zero)
+        Self.all.add(self)
+    }
+
+    required init?(coder: NSCoder) {
+        return nil
+    }
+
+    func hold() {
+        if webView.superview !== self {
+            addSubview(webView)
+        }
+        setNeedsLayout()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        if webView.superview === self {
+            webView.frame = bounds
+        }
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        guard window == nil, webView.superview === self else { return }
+        Self.all.allObjects.first { $0 !== self && $0.window != nil && $0.webView === webView }?.hold()
+    }
 }
