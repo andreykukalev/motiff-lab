@@ -120,7 +120,7 @@ public sealed class CloudSync(ProjectStore store, OnlineProjects online, UiText 
             return false;
         }
 
-        await store.SaveHereAsync(ProjectSync.Pulled(fetched, await LoadAsync(id)));
+        await store.SaveHereAsync(ProjectSync.Pulled(fetched, await LoadAsync(id), HoldingDevice.Web));
         await online.NoteAsync(id, new SyncRecord(etag, row.SavedAt, false, null));
         return true;
     }
@@ -145,7 +145,7 @@ public sealed class CloudSync(ProjectStore store, OnlineProjects online, UiText 
         }
 
         string copyTitle = text.Format("sync.previousCopy", "{0}", DateTimeOffset.Now.ToString("g", text.Culture));
-        SyncResolution resolved = ProjectSync.Resolve(project, record.ChangedAt ?? summary.LastOpened, fetched, row.SavedAt, copyTitle, MusicCoreFacade.NewProjectId());
+        SyncResolution resolved = ProjectSync.Resolve(project, record.ChangedAt ?? summary.LastOpened, fetched, row.SavedAt, copyTitle, MusicCoreFacade.NewProjectId(), HoldingDevice.Web);
         bool changed = false;
         if (resolved.PreviousCopy is { } previous)
         {

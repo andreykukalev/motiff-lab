@@ -109,6 +109,8 @@ public static partial class ProjectFile
                 json.WriteEndObject();
             }
 
+            WriteOriginals(json, project);
+
             List<UnknownEntity> unknownMotifs = KeptUnknown(project.Unknown, "motifs", project.Motifs.Select(static motif => motif.Id), null, out HashSet<string> replacedMotifs);
             WriteList(json, "motifs", project.Motifs, unknownMotifs, motif =>
             {
@@ -330,6 +332,7 @@ public static partial class ProjectFile
                 }
 
                 json.WriteEndArray();
+                WriteMadeFrom(json, scan.From, scan.At);
                 json.WriteEndObject();
             }
             else
@@ -380,6 +383,7 @@ public static partial class ProjectFile
                     json.WriteEndArray();
                 }
 
+                WriteMadeFrom(json, transcription.From, transcription.At);
                 json.WriteEndObject();
             }
             else
@@ -534,6 +538,7 @@ public static partial class ProjectFile
                 ReadFrom = readFrom,
                 Assembly = assembly,
                 Metadata = ReadMetadata(root),
+                KeptOriginals = ReadOriginals(root, unknowns),
             });
         }
     }
@@ -1002,6 +1007,7 @@ public static partial class ProjectFile
             json.WriteEndObject();
         }
 
+        WriteMadeFrom(json, performance.From, performance.At);
         json.WriteEndObject();
     }
 
@@ -1075,6 +1081,8 @@ public static partial class ProjectFile
                 Dismissed = dismissed,
                 Taken = taken,
                 Merge = merge,
+                From = ReadMadeFrom(performance).From,
+                At = ReadMadeFrom(performance).At,
             };
         }
         catch (Exception exception) when (exception is FormatException or ArgumentException)
@@ -1275,7 +1283,8 @@ public static partial class ProjectFile
         int[] bars = [.. Property(scan, "confirmedBars", JsonValueKind.Array)
             .EnumerateArray()
             .Select(bar => bar.ValueKind == JsonValueKind.Number && bar.TryGetInt32(out int value) && value >= 0 ? value : throw Damaged("checked bars"))];
-        return new ScanOrigin(Text(scan, "engine"), bars);
+        (string? from, DateTimeOffset? at) = ReadMadeFrom(scan);
+        return new ScanOrigin(Text(scan, "engine"), bars) { From = from, At = at };
     }
 
     private static TranscriptionOrigin? ReadTranscription(JsonElement root, int version)
@@ -1307,7 +1316,8 @@ public static partial class ProjectFile
 
         try
         {
-            return new TranscriptionOrigin(engine, version >= 10 ? ReadBars(transcription, version) : null) { Seams = seams };
+            (string? from, DateTimeOffset? at) = ReadMadeFrom(transcription);
+            return new TranscriptionOrigin(engine, version >= 10 ? ReadBars(transcription, version) : null) { Seams = seams, From = from, At = at };
         }
         catch (ArgumentException)
         {

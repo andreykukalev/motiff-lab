@@ -12,10 +12,20 @@ namespace MotiffLab.MusicCore.Facade;
 /// </summary>
 internal static class SyncRequest
 {
-    /// <summary>{"file": text} → {"file": the copy saved online, or null for a piece that is only a PDF}.</summary>
+    /// <summary>
+    /// {"file": text, "now"?: ISO 8601} → {"file": the copy saved online, or null for a piece that is only a PDF}. The PDF
+    /// the iPad keeps in the piece is marked held by the iPad in the copy (version 0.3), so the web shows where it is.
+    /// </summary>
     public static string Online(Request fields)
     {
-        Project? copy = Read(fields.Required("file")).ForOnline();
+        Project project = Read(fields.Required("file"));
+        if (project.Document is not null && project.FindOriginal(PieceOriginal.DocumentId) is not null)
+        {
+            DateTimeOffset now = fields.Text("now") is not null ? Time(fields, "now") : DateTimeOffset.UtcNow;
+            project = project.Fingerprinted().MarkHeld(PieceOriginal.DocumentId, HoldingDevice.Ipad, held: true, now);
+        }
+
+        Project? copy = project.ForOnline();
         return Answer.Write(json =>
         {
             if (copy is null)
@@ -51,7 +61,7 @@ internal static class SyncRequest
     {
         Project online = Read(fields.Required("file"));
         Project? here = fields.Text("here") is { } text ? Read(text) : null;
-        return Answer.Write(json => json.WriteString("file", Text(ProjectSync.Pulled(online, here))));
+        return Answer.Write(json => json.WriteString("file", Text(ProjectSync.Pulled(online, here, HoldingDevice.Ipad))));
     }
 
     /// <summary>
@@ -63,7 +73,7 @@ internal static class SyncRequest
         SyncResolution resolved = ProjectSync.Resolve(
             Read(fields.Required("here")), Time(fields, "savedHere"),
             Read(fields.Required("online")), Time(fields, "savedOnline"),
-            fields.Required("copyTitle"), MusicCoreFacade.NewProjectId());
+            fields.Required("copyTitle"), MusicCoreFacade.NewProjectId(), HoldingDevice.Ipad);
         return Answer.Write(json =>
         {
             json.WriteString("file", Text(resolved.Kept));
