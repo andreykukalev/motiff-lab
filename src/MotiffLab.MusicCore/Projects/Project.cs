@@ -93,6 +93,12 @@ public sealed record Project(
     /// </summary>
     public ReadFromPdf? ReadFrom { get; init; }
 
+    /// <summary>The title, composer and tags the player set in the library (version 0.2); none until they set one.</summary>
+    public PieceMetadata Metadata { get; init; } = PieceMetadata.None;
+
+    /// <summary>The title, composer and tags a card shows, and where each comes from: the player, the file or its name.</summary>
+    public PieceDetails Details => PieceDetails.Of(this);
+
     /// <summary>Whether the piece has notes: a source to import. A PDF added as it is has none until it is recognised.</summary>
     public bool HasNotes => Source.Length > 0;
 
@@ -190,6 +196,7 @@ public sealed record Project(
         Origin = !HasNotes ? PieceOrigin.Pdf : Scan is not null ? PieceOrigin.Scan : Transcription is not null ? PieceOrigin.Recording : PieceOrigin.File,
         CheckBars = OpenChecks.Select(flag => flag.Bar).Distinct().Count(),
         ReadFrom = ReadFrom?.ProjectId,
+        Details = Details,
         Latest = RecentResumePoints.FirstOrDefault() is { } latest
             ? new ResumeSummary(latest.Id, latest.Name, latest.At.Value, latest.Passage?.Span.Onset.Value, latest.Passage?.Span.End.Value, latest.LastActive)
             : null,
@@ -712,6 +719,9 @@ public sealed record ProjectSummary(string Id, string FileName, int MotifCount, 
 
     /// <summary>For notes read from a PDF piece, that piece's id (0023), so the PDF view finds its notes; null otherwise.</summary>
     public string? ReadFrom { get; init; }
+
+    /// <summary>The title, composer and tags the card shows (<see cref="Project.Details"/>); null for a summary saved before they were kept.</summary>
+    public PieceDetails? Details { get; init; }
 }
 
 /// <summary>Where a piece came from: a file opened on the device, a page scanned (0011) or a recording heard (0014).</summary>

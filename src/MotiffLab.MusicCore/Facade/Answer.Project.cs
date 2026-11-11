@@ -324,6 +324,35 @@ internal static partial class Answer
         json.WriteEndObject();
     }
 
+    /// <summary>
+    /// The title, composer and tags a library card shows (contract 12): "title" and "titleFrom" ("player", "file" or
+    /// "fileName"), "composer" and "composerFrom" ("player" or "file"; both null when neither names one), and "tags".
+    /// </summary>
+    public static void Details(Utf8JsonWriter json, PieceDetails details)
+    {
+        json.WriteString("title", details.Title.Value);
+        json.WriteString("titleFrom", From(details.Title.Attribution));
+        if (details.Composer is { } composer)
+        {
+            json.WriteString("composer", composer.Value);
+            json.WriteString("composerFrom", From(composer.Attribution));
+        }
+        else
+        {
+            json.WriteNull("composer");
+            json.WriteNull("composerFrom");
+        }
+
+        Texts(json, "tags", details.Tags);
+    }
+
+    private static string From(Events.Attribution attribution) => attribution.Provenance switch
+    {
+        Events.Provenance.UserEdited => "player",
+        Events.Provenance.Imported => "file",
+        _ => "fileName",
+    };
+
     /// <summary>A span with the bars it covers, as the drawers list a mark: "span": {onset, end}, "bars": {first, last}.</summary>
     private static void Place(Utf8JsonWriter json, TickSpan span, MeterMap meter)
     {

@@ -172,7 +172,9 @@ public class ProjectFileTests
     [Fact]
     public void The_summary_counts_motifs_and_variations()
     {
-        Assert.Equal(new ProjectSummary("p_test", "minuet.musicxml", 2, 2, s_opened), Worked().Summary);
+        ProjectSummary summary = Worked().Summary;
+        Assert.Equal(new ProjectSummary("p_test", "minuet.musicxml", 2, 2, s_opened), summary with { Details = null });
+        Assert.Equal("Waltz sketch", summary.Details!.Title.Value);
         Assert.Equal(0, Project.Create("p", "a.mid", [1], s_created).Summary.MotifCount);
     }
 

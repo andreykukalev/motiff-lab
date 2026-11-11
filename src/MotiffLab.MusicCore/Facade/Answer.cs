@@ -326,6 +326,7 @@ internal static partial class Answer
         json.WriteNumber("marks", project.Marks.Count);
         json.WriteNumber("bookmarks", project.Bookmarks.Count);
         json.WriteNumber("openChecks", project.OpenChecks.Count);
+        Details(json, project.Details);
         // Within contract 4, for the library's cards (0018 section 9): the bars still to check, whether the piece has notes
         // and a PDF (0023), and the resume point worked from last.
         json.WriteNumber("checkBars", project.Summary.CheckBars);

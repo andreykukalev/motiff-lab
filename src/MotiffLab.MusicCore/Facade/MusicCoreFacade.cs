@@ -21,6 +21,11 @@ namespace MotiffLab.MusicCore.Facade;
 public sealed class MusicCoreFacade
 {
     /// <summary>
+    /// 12 lets the library keep a piece's title, composer and tags (version 0.2), with the project file still version 15 and
+    /// an optional "metadata": the project summary (project.summary, open, project) answers "title" and "titleFrom"
+    /// ("player", "file" or "fileName"), "composer" and "composerFrom" ("player" or "file", or null) and "tags";
+    /// project.metadata sets them on an open piece or PDF piece, and on piece 0 in a project file sent as "file", answering
+    /// that file changed.
     /// 11 lets doubt about recognised notes reach what is read from them (#352, 0027 section 12), adding fields only: a
     /// chord, a fact and a DNA chord or key built on recognised notes still to check (in a bar with an open Check flag)
     /// tell "doubt", a sentence that says where, and the chord's "certainty" and the DNA chord's "clear" say uncertain;
@@ -58,7 +63,7 @@ public sealed class MusicCoreFacade
     /// 1 was the first contract: open and save, piece, phrases with their edits, select, understand,
     /// experiments, the variation chain, notation, playback, the catalogue and the Piece DNA placeholder.
     /// </summary>
-    public const int Contract = 11;
+    public const int Contract = 12;
 
     private readonly Dictionary<int, OpenPiece> _pieces = [];
     private readonly Dictionary<int, OpenDocument> _documents = [];
@@ -153,6 +158,7 @@ public sealed class MusicCoreFacade
                     "settings" => Answer.Write(json => Answer.SettingsCatalogue(json)),
                     "settings.state" => OpenPiece.SettingsState(fields),
                     "project.summary" => ProjectSummary(fields),
+                    "project.metadata" => ProjectMetadata(fields),
                     "recording.parts" => RecordingPartsOf(fields),
                     _ when Count == 0 && IsPieceCall(name) => throw new FacadeException("noPiece", "Open a piece first."),
                     _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\" without a piece."),
@@ -214,6 +220,21 @@ public sealed class MusicCoreFacade
         string file = fields.Required("file");
         Project project = ProjectFile.Read(Encoding.UTF8.GetBytes(file));
         return Answer.Write(json => Answer.Project(json, "project", project));
+    }
+
+    /// <summary>
+    /// The title, composer and tags set in a project file without opening the piece (contract 12), for the library's edit
+    /// sheet: the request's "file" is the project file's text, and "title", "composer" and "tags" as on an open piece. Answers
+    /// {"project": {…}} as project.summary does and "file", the project file to save in place of the one sent.
+    /// </summary>
+    private static string ProjectMetadata(Request fields)
+    {
+        Project project = MetadataRequest.Apply(ProjectFile.Read(Encoding.UTF8.GetBytes(fields.Required("file"))), fields);
+        return Answer.Write(json =>
+        {
+            Answer.Project(json, "project", project);
+            json.WriteString("file", Encoding.UTF8.GetString(ProjectFile.Write(project)));
+        });
     }
 
     /// <summary>
