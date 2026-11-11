@@ -1,5 +1,5 @@
 {
-  "mode": "soft",
+  "mode": "blocking",
   "thresholds": {
     "functionComplexity": 15,
     "functionLines": 80,

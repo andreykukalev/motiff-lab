@@ -54,6 +54,22 @@ resource pullRequests 'Microsoft.ManagedIdentity/userAssignedIdentities/federate
   ]
 }
 
+// Pushes to develop: deploy the web test site (the Static Web App's environment "develop", governance/README.md).
+resource developBranch 'Microsoft.ManagedIdentity/userAssignedIdentities/federatedIdentityCredentials@2023-01-31' = {
+  parent: ci
+  name: 'github-develop'
+  properties: {
+    issuer: 'https://token.actions.githubusercontent.com'
+    subject: 'repo:${repository}:ref:refs/heads/develop'
+    audiences: [
+      'api://AzureADTokenExchange'
+    ]
+  }
+  dependsOn: [
+    pullRequests
+  ]
+}
+
 resource contributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(resourceGroup().id, ci.id, contributorRoleId)
   properties: {
