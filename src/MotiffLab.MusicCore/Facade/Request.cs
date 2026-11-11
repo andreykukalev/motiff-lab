@@ -51,6 +51,9 @@ internal sealed class Request : IDisposable
 
     public static Request Of(JsonElement element) => new(null, element);
 
+    /// <summary>Whether the request names the field at all, null included: a null asks to clear what the field sets.</summary>
+    public bool Sends(string name) => _root is { } root && root.TryGetProperty(name, out _);
+
     public bool Has(string name) => _root is { } root && root.TryGetProperty(name, out JsonElement value) && value.ValueKind != JsonValueKind.Null;
 
     public JsonElement? Element(string name) => _root is { } root && root.TryGetProperty(name, out JsonElement value) && value.ValueKind != JsonValueKind.Null ? value : null;

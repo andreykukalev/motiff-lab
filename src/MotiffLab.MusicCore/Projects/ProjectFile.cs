@@ -30,6 +30,8 @@ public static partial class ProjectFile
     public const string FormatName = "motiff-lab-project";
 
     /// <summary>
+    /// Within 15, "metadata" keeps the piece's title, composer and tags as the player set them in the library (version
+    /// 0.2); a file without it has none, and a build before it drops the field when it writes the file again;
     /// 15 adds the assembly of the player's own version from the piece's sources: its journal, the notes applied and
     /// the notes before the assembly (0024);
     /// 14 lets a correction add a note, with its track and hand (testing item 15);
@@ -70,6 +72,7 @@ public static partial class ProjectFile
             json.WriteString("fileName", project.FileName);
             json.WriteString("createdAt", project.CreatedAt.ToString("O", CultureInfo.InvariantCulture));
             json.WriteString("lastOpened", project.LastOpened.ToString("O", CultureInfo.InvariantCulture));
+            WriteMetadata(json, project.Metadata);
             json.WriteBase64String("source", project.Source);
             if (project.Document is { } document)
             {
@@ -530,6 +533,7 @@ public static partial class ProjectFile
                 DocumentPages = documentPages,
                 ReadFrom = readFrom,
                 Assembly = assembly,
+                Metadata = ReadMetadata(root),
             });
         }
     }

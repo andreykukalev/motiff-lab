@@ -52,6 +52,7 @@ internal sealed class OpenDocument
     {
         "project" => Answer.Write(json => Answer.Project(json, "project", Project)),
         "project.save" => Save(request),
+        "project.metadata" => Metadata(request),
         "document" => Answer.Write(json =>
         {
             json.WriteString("fileName", Project.DocumentFileName);
@@ -68,6 +69,13 @@ internal sealed class OpenDocument
         "document.read" => Read(request),
         _ => throw new FacadeException("noNotes", $"This piece is a PDF with no notes yet, so there is no call \"{name}\" on it. Read the notes from it first."),
     };
+
+    /// <summary>The PDF piece with the title, composer and tags of the request (contract 12), answered as its summary.</summary>
+    private string Metadata(Request request)
+    {
+        Project = MetadataRequest.Apply(Project, request);
+        return Answer.Write(json => Answer.Project(json, "project", Project));
+    }
 
     private void Marks(Utf8JsonWriter json)
     {
