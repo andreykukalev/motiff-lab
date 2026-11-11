@@ -106,6 +106,12 @@
             case SheetSection.Account:
                 <MotiffLab.Web.Account.AccountPanel Level="3" />
                 break;
+
+            case SheetSection.Experimental:
+                @* New ideas tried in the app before they become features (governance, "Experiments"): each off until turned on, on this device. *@
+                <p class="caption">@Text["settings.experimentalHow"]</p>
+                <SettingSwitch Id="experimental.autoBookmarks" Label="@Text["settings.autoBookmarks"]" Hint="@Text["settings.autoBookmarksHint"]" />
+                break;
         }
 
         @if (PieceOverrides is { Count: > 0 } overrides)
@@ -128,6 +134,7 @@
         Roll,
         Appearance,
         Account,
+        Experimental,
     }
 
     private static readonly Preset[] s_presets = [Preset.Learning, Preset.Practising, Preset.Clean];
@@ -253,6 +260,7 @@
         SheetSection.Layers => "settings.section.layers",
         SheetSection.Roll => "settings.section.roll",
         SheetSection.Appearance => "settings.appearance",
+        SheetSection.Experimental => "settings.section.experimental",
         _ => "settings.section.account",
     }];
 
