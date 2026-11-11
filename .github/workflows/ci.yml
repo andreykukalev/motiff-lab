@@ -4,7 +4,7 @@ name: CI
 # on a pull request labelled `browser-tests`, and by hand, and says when they must pass before a release.
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review, labeled]
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
   push:
     branches: [main]
   # infra/azure/setup.ps1 starts this workflow with browser_tests=false; the input stays so that call still
@@ -21,11 +21,12 @@ permissions:
 
 # A newer push to the same pull request supersedes the run in progress. Never cancel a run on main:
 # it may be provisioning infrastructure. Pull requests group by number, not ref, so a pull request's
-# run never shares a group with main. A run for adding a label (agent, role:*, risk:*, browser-tests,
-# ipad-tests) only reports the result of the build before it (see the job), so it gets a group of its
-# own per run: it never cancels the build in progress, and no other label run cancels it.
+# run never shares a group with main. A run for adding or removing a label (agent, role:*, risk:*,
+# browser-tests, ipad-tests, acceptance-approved) only reports the result of the build before it and checks
+# the approval of the protected scenarios again (see the job), so it gets a group of its own per run: it
+# never cancels the build in progress, and no other label run cancels it.
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}${{ github.event.action == 'labeled' && format('-label-{0}', github.run_id) || '' }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && format('-label-{0}', github.run_id) || '' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -39,13 +40,14 @@ jobs:
   # The job name is the required check (the ruleset on main, infra/github/protect.ps1), so it is fixed text and
   # the job always runs and reports; what it skips it skips by step.
   #
-  # Adding a label starts a run too (GitHub cannot filter label events by name), and the pull request shows
-  # build-test from the newest CI run on its commit. A label run that skipped the job, or reported under another
-  # name, hid the real result and left the pull request blocked (#294, #295). So a run for adding a label
+  # Adding or removing a label starts a run too (GitHub cannot filter label events by name), and the pull
+  # request shows build-test from the newest CI run on its commit. A label run that skipped the job, or reported
+  # under another name, hid the real result and left the pull request blocked (#294, #295). So a label run
   # builds nothing: its build-test waits for the CI run on the same commit just before it and reports that
-  # run's build-test, passing only if that one passed. Label runs that come close together each wait for the
-  # one before, down to the real build. To try a failed build again after labels were added, re-run the build,
-  # then the newest run (or push).
+  # run's build-test, passing only if that one passed, or failed only for want of acceptance-approved; then it
+  # checks that approval again with the labels as they are now (#310). Label runs that come close together
+  # each wait for the one before, down to the real build. To try a failed build again after labels were added,
+  # re-run the build, then the newest run (or push).
   build-test:
     name: build-test
     if: github.event.pull_request.draft != true
@@ -55,19 +57,21 @@ jobs:
     # safety net, not a budget. Long suites run only by label or by hand, in their own workflows (the browser
     # tests in browser-tests.yml). A label run builds nothing, but waits for the build before it, so its limit
     # covers that build.
-    timeout-minutes: ${{ github.event.action == 'labeled' && 15 || 10 }}
+    timeout-minutes: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && 15 || 10 }}
     permissions:
       actions: read # a label run reads the run before it
       contents: read
       id-token: write # OIDC sign-in to Azure
+      pull-requests: read # the approval of the protected scenarios reads the pull request's files and labels
     env:
       RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
       SWA_NAME: swa-motifflab
-      LABEL_ONLY: ${{ github.event.action == 'labeled' }}
+      LABEL_ONLY: ${{ github.event.action == 'labeled' || github.event.action == 'unlabeled' }}
     steps:
-      # A run for adding a label: report the build-test of the CI run on this commit
-      # just before this one (pull_request runs, by run number), once it has finished. Every other step is
-      # skipped, since "Find what changed" does not run and sets no outputs.
+      # A run for adding or removing a label: report the build-test of the CI run on this commit just before this
+      # one (pull_request runs, by run number), once it has finished. A build-test that failed only in "Check
+      # approval of the protected scenarios" counts as built, since that step runs again below with the labels as
+      # they are now. Every other step is skipped, since "Find what changed" does not run and sets no outputs.
       - name: Report the build of this commit
         if: env.LABEL_ONLY == 'true'
         env:
@@ -89,11 +93,19 @@ jobs:
             echo "Waiting for run $id ($status)"
             sleep 15
           done
+          approval='Check approval of the protected scenarios'
           conclusion="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs" \
-            --jq '[.jobs[] | select(.name == "build-test")][0].conclusion // "missing"')"
+            --jq "([.jobs[] | select(.name == \"build-test\")][0] // {}) as \$job
+              | (\$job.steps // []) as \$steps
+              | if \$job.conclusion == \"failure\"
+                  and any(\$steps[]; .name == \"$approval\" and .conclusion == \"failure\")
+                  and all(\$steps[] | select(.name != \"$approval\"); .conclusion == \"success\" or .conclusion == \"skipped\")
+                then \"built, not approved\" else (\$job.conclusion // \"missing\") end")"
           echo "build-test of run $id on $HEAD_SHA: $conclusion"
           echo "### build-test of run [$id]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$id): $conclusion" >> "$GITHUB_STEP_SUMMARY"
-          if [[ "$conclusion" != success ]]; then
+          if [[ "$conclusion" == "built, not approved" ]]; then
+            echo "The build passed; the approval of the protected scenarios is checked again below."
+          elif [[ "$conclusion" != success ]]; then
             echo "::error::build-test of run $id did not pass ($conclusion)."
             exit 1
           fi
@@ -244,6 +256,38 @@ jobs:
         run: |
           pip install -r requirements-test.txt
           python -m pytest -q
+
+      # The protected acceptance scenarios (tests/acceptance/README.md, #310): a pull request that adds, changes,
+      # removes or renames a file there needs the label acceptance-approved, which only Andrei sets. It runs last
+      # in a build and again in every label run, from the pull request's files and labels as GitHub has them now.
+      # A file list shorter than the pull request's count of changed files counts as touching the scenarios.
+      - name: Check approval of the protected scenarios
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          label=acceptance-approved
+          pull="repos/$GITHUB_REPOSITORY/pulls/$PR"
+          count="$(gh api "$pull" --jq .changed_files)"
+          labels="$(gh api "$pull" --jq '.labels[].name')"
+          files="$(gh api --paginate "$pull/files?per_page=100" --jq '.[] | .filename, (.previous_filename // empty)')"
+          listed="$(gh api --paginate "$pull/files?per_page=100" --jq '.[].filename' | grep -c . || true)"
+          protected="$(grep -E '^tests/acceptance/' <<< "$files" | sort -u || true)"
+          if (( listed < count )); then
+            protected="${protected:-(GitHub listed $listed of $count changed files, so the rest may touch tests/acceptance)}"
+          fi
+          if [[ -z "$protected" ]]; then
+            echo "No protected acceptance scenario changes."
+            exit 0
+          fi
+          { echo '### Protected acceptance scenarios (tests/acceptance)'; echo; sed 's/^/- /' <<< "$protected"; } >> "$GITHUB_STEP_SUMMARY"
+          if grep -qxF "$label" <<< "$labels"; then
+            echo "The protected scenarios change with the label $label."
+            exit 0
+          fi
+          echo "::error title=$label::This pull request changes the protected acceptance scenarios, which only Andrei approves: it needs the label $label. $(tr '\n' ' ' <<< "$protected")"
+          exit 1
 
       # Publishing needs the wasm-tools workload (about 30 s to install) and a trimming publish (about a minute),
       # so it only runs when the result is deployed.

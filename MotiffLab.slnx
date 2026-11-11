@@ -8,6 +8,7 @@
     <Project Path="src/MotiffLab.Web/MotiffLab.Web.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/acceptance/MotiffLab.Acceptance.Tests.csproj" />
     <Project Path="tests/MotiffLab.Api.Tests/MotiffLab.Api.Tests.csproj" />
     <Project Path="tests/MotiffLab.MusicCore.Tests/MotiffLab.MusicCore.Tests.csproj" />
   </Folder>

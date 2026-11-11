@@ -1,0 +1,1100 @@
+{
+  "format": "motiff-lab-project",
+  "version": 16,
+  "id": "p_0b5e7c1d2a3f4e5d6c7b8a9f0e1d2c3b",
+  "fileName": "minuet.musicxml",
+  "createdAt": "2026-11-08T20:00:00.0000000+00:00",
+  "lastOpened": "2026-11-08T21:30:00.0000000+01:00",
+  "source": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9Im5vIj8+CjwhRE9DVFlQRSBzY29yZS1wYXJ0d2lzZSBQVUJMSUMgIi0vL1JlY29yZGFyZS8vRFREIE11c2ljWE1MIDQuMCBQYXJ0d2lzZS8vRU4iICJodHRwOi8vd3d3Lm11c2ljeG1sLm9yZy9kdGRzL3BhcnR3aXNlLmR0ZCI+CjwhLS0gU2VsZi1tYWRlIHRlc3QgZml4dHVyZSBmb3IgTW90aWZmIExhYjogYSBzaG9ydCB3YWx0eiBza2V0Y2ggb24gYSBncmFuZCBzdGFmZi4gTm90IHB1Ymxpc2hlZCBtdXNpYy4gLS0+CjxzY29yZS1wYXJ0d2lzZSB2ZXJzaW9uPSI0LjAiPgogIDx3b3JrPjx3b3JrLXRpdGxlPldhbHR6IHNrZXRjaDwvd29yay10aXRsZT48L3dvcms+CiAgPHBhcnQtbGlzdD4KICAgIDxzY29yZS1wYXJ0IGlkPSJQMSI+CiAgICAgIDxwYXJ0LW5hbWU+UGlhbm88L3BhcnQtbmFtZT4KICAgICAgPHNjb3JlLWluc3RydW1lbnQgaWQ9IlAxLUkxIj48aW5zdHJ1bWVudC1uYW1lPkFjb3VzdGljIEdyYW5kIFBpYW5vPC9pbnN0cnVtZW50LW5hbWU+PC9zY29yZS1pbnN0cnVtZW50PgogICAgPC9zY29yZS1wYXJ0PgogIDwvcGFydC1saXN0PgogIDxwYXJ0IGlkPSJQMSI+CiAgICA8IS0tIE9uZS1iZWF0IHBpY2t1cCwgbGVmdCBvdXQgb2YgdGhlIGJhciBudW1iZXJpbmcuIC0tPgogICAgPG1lYXN1cmUgbnVtYmVyPSIwIiBpbXBsaWNpdD0ieWVzIj4KICAgICAgPGF0dHJpYnV0ZXM+CiAgICAgICAgPGRpdmlzaW9ucz4yPC9kaXZpc2lvbnM+CiAgICAgICAgPGtleT48ZmlmdGhzPjE8L2ZpZnRocz48bW9kZT5tYWpvcjwvbW9kZT48L2tleT4KICAgICAgICA8dGltZT48YmVhdHM+MzwvYmVhdHM+PGJlYXQtdHlwZT40PC9iZWF0LXR5cGU+PC90aW1lPgogICAgICAgIDxzdGF2ZXM+Mjwvc3RhdmVzPgogICAgICAgIDxjbGVmIG51bWJlcj0iMSI+PHNpZ24+Rzwvc2lnbj48bGluZT4yPC9saW5lPjwvY2xlZj4KICAgICAgICA8Y2xlZiBudW1iZXI9IjIiPjxzaWduPkY8L3NpZ24+PGxpbmU+NDwvbGluZT48L2NsZWY+CiAgICAgIDwvYXR0cmlidXRlcz4KICAgICAgPGRpcmVjdGlvbiBwbGFjZW1lbnQ9ImFib3ZlIj4KICAgICAgICA8ZGlyZWN0aW9uLXR5cGU+CiAgICAgICAgICA8bWV0cm9ub21lPjxiZWF0LXVuaXQ+cXVhcnRlcjwvYmVhdC11bml0PjxwZXItbWludXRlPjk2PC9wZXItbWludXRlPjwvbWV0cm9ub21lPgogICAgICAgIDwvZGlyZWN0aW9uLXR5cGU+CiAgICAgICAgPHNvdW5kIHRlbXBvPSI5NiIgZHluYW1pY3M9IjcwIi8+CiAgICAgIDwvZGlyZWN0aW9uPgogICAgICA8bm90ZT48cGl0Y2g+PHN0ZXA+RDwvc3RlcD48b2N0YXZlPjU8L29jdGF2ZT48L3BpdGNoPjxkdXJhdGlvbj4yPC9kdXJhdGlvbj48dm9pY2U+MTwvdm9pY2U+PHR5cGU+cXVhcnRlcjwvdHlwZT48c3RhZmY+MTwvc3RhZmY+PC9ub3RlPgogICAgICA8YmFja3VwPjxkdXJhdGlvbj4yPC9kdXJhdGlvbj48L2JhY2t1cD4KICAgICAgPG5vdGU+PHJlc3QvPjxkdXJhdGlvbj4yPC9kdXJhdGlvbj48dm9pY2U+NTwvdm9pY2U+PHR5cGU+cXVhcnRlcjwvdHlwZT48c3RhZmY+Mjwvc3RhZmY+PC9ub3RlPgogICAgPC9tZWFzdXJlPgogICAgPG1lYXN1cmUgbnVtYmVyPSIxIj4KICAgICAgPG5vdGU+PHBpdGNoPjxzdGVwPkc8L3N0ZXA+PG9jdGF2ZT40PC9vY3RhdmU+PC9waXRjaD48ZHVyYXRpb24+NDwvZHVyYXRpb24+PHZvaWNlPjE8L3ZvaWNlPjx0eXBlPmhhbGY8L3R5cGU+PHN0YWZmPjE8L3N0YWZmPjwvbm90ZT4KICAgICAgPG5vdGU+PGNob3JkLz48cGl0Y2g+PHN0ZXA+Qjwvc3RlcD48b2N0YXZlPjQ8L29jdGF2ZT48L3BpdGNoPjxkdXJhdGlvbj40PC9kdXJhdGlvbj48dm9pY2U+MTwvdm9pY2U+PHR5cGU+aGFsZjwvdHlwZT48c3RhZmY+MTwvc3RhZmY+PC9ub3RlPgogICAgICA8bm90ZT48Y2hvcmQvPjxwaXRjaD48c3RlcD5EPC9zdGVwPjxvY3RhdmU+NTwvb2N0YXZlPjwvcGl0Y2g+PGR1cmF0aW9uPjQ8L2R1cmF0aW9uPjx2b2ljZT4xPC92b2ljZT48dHlwZT5oYWxmPC90eXBlPjxzdGFmZj4xPC9zdGFmZj48L25vdGU+CiAgICAgIDxub3RlPjxwaXRjaD48c3RlcD5BPC9zdGVwPjxvY3RhdmU+NDwvb2N0YXZlPjwvcGl0Y2g+PGR1cmF0aW9uPjI8L2R1cmF0aW9uPjx2b2ljZT4xPC92b2ljZT48dHlwZT5xdWFydGVyPC90eXBlPjxzdGFmZj4xPC9zdGFmZj48L25vdGU+CiAgICAgIDxiYWNrdXA+PGR1cmF0aW9uPjY8L2R1cmF0aW9uPjwvYmFja3VwPgogICAgICA8bm90ZT48cGl0Y2g+PHN0ZXA+Rzwvc3RlcD48b2N0YXZlPjI8L29jdGF2ZT48L3BpdGNoPjxkdXJhdGlvbj42PC9kdXJhdGlvbj48dm9pY2U+NTwvdm9pY2U+PHR5cGU+aGFsZjwvdHlwZT48ZG90Lz48c3RhZmY+Mjwvc3RhZmY+PC9ub3RlPgogICAgPC9tZWFzdXJlPgogICAgPG1lYXN1cmUgbnVtYmVyPSIyIj4KICAgICAgPCEtLSBEaXZpc2lvbnMgY2hhbmdlIG1pZC1wYXJ0IHNvIHRoZSB0cmlwbGV0IGVpZ2h0aHMgYXJlIHdob2xlIG51bWJlcnMuIC0tPgogICAgICA8YXR0cmlidXRlcz48ZGl2aXNpb25zPjY8L2RpdmlzaW9ucz48L2F0dHJpYnV0ZXM+CiAgICAgIDxub3RlPjxwaXRjaD48c3RlcD5CPC9zdGVwPjxvY3RhdmU+NDwvb2N0YXZlPjwvcGl0Y2g+PGR1cmF0aW9uPjI8L2R1cmF0aW9uPjx2b2ljZT4xPC92b2ljZT48dHlwZT5laWdodGg8L3R5cGU+CiAgICAgICAgPHRpbWUtbW9kaWZpY2F0aW9uPjxhY3R1YWwtbm90ZXM+MzwvYWN0dWFsLW5vdGVzPjxub3JtYWwtbm90ZXM+Mjwvbm9ybWFsLW5vdGVzPjwvdGltZS1tb2RpZmljYXRpb24+PHN0YWZmPjE8L3N0YWZmPjwvbm90ZT4KICAgICAgPG5vdGU+PHBpdGNoPjxzdGVwPkM8L3N0ZXA+PG9jdGF2ZT41PC9vY3RhdmU+PC9waXRjaD48ZHVyYXRpb24+MjwvZHVyYXRpb24+PHZvaWNlPjE8L3ZvaWNlPjx0eXBlPmVpZ2h0aDwvdHlwZT4KICAgICAgICA8dGltZS1tb2RpZmljYXRpb24+PGFjdHVhbC1ub3Rlcz4zPC9hY3R1YWwtbm90ZXM+PG5vcm1hbC1ub3Rlcz4yPC9ub3JtYWwtbm90ZXM+PC90aW1lLW1vZGlmaWNhdGlvbj48c3RhZmY+MTwvc3RhZmY+PC9ub3RlPgogICAgICA8bm90ZT48cGl0Y2g+PHN0ZXA+RDwvc3RlcD48b2N0YXZlPjU8L29jdGF2ZT48L3BpdGNoPjxkdXJhdGlvbj4yPC9kdXJhdGlvbj48dm9pY2U+MTwvdm9pY2U+PHR5cGU+ZWlnaHRoPC90eXBlPgogICAgICAgIDx0aW1lLW1vZGlmaWNhdGlvbj48YWN0dWFsLW5vdGVzPjM8L2FjdHVhbC1ub3Rlcz48bm9ybWFsLW5vdGVzPjI8L25vcm1hbC1ub3Rlcz48L3RpbWUtbW9kaWZpY2F0aW9uPjxzdGFmZj4xPC9zdGFmZj48L25vdGU+CiAgICAgIDxub3RlPjxwaXRjaD48c3RlcD5FPC9zdGVwPjxvY3RhdmU+NTwvb2N0YXZlPjwvcGl0Y2g+PGR1cmF0aW9uPjEyPC9kdXJhdGlvbj48dGllIHR5cGU9InN0YXJ0Ii8+PHZvaWNlPjE8L3ZvaWNlPjx0eXBlPmhhbGY8L3R5cGU+PHN0YWZmPjE8L3N0YWZmPjwvbm90ZT4KICAgICAgPGJhY2t1cD48ZHVyYXRpb24+MTg8L2R1cmF0aW9uPjwvYmFja3VwPgogICAgICA8bm90ZT48cGl0Y2g+PHN0ZXA+RDwvc3RlcD48b2N0YXZlPjM8L29jdGF2ZT48L3BpdGNoPjxkdXJhdGlvbj4xMjwvZHVyYXRpb24+PHZvaWNlPjU8L3ZvaWNlPjx0eXBlPmhhbGY8L3R5cGU+PHN0YWZmPjI8L3N0YWZmPjwvbm90ZT4KICAgICAgPG5vdGU+PHJlc3QvPjxkdXJhdGlvbj42PC9kdXJhdGlvbj48dm9pY2U+NTwvdm9pY2U+PHR5cGU+cXVhcnRlcjwvdHlwZT48c3RhZmY+Mjwvc3RhZmY+PC9ub3RlPgogICAgPC9tZWFzdXJlPgogICAgPG1lYXN1cmUgbnVtYmVyPSIzIj4KICAgICAgPG5vdGU+PHBpdGNoPjxzdGVwPkU8L3N0ZXA+PG9jdGF2ZT41PC9vY3RhdmU+PC9waXRjaD48ZHVyYXRpb24+NjwvZHVyYXRpb24+PHRpZSB0eXBlPSJzdG9wIi8+PHZvaWNlPjE8L3ZvaWNlPjx0eXBlPnF1YXJ0ZXI8L3R5cGU+PHN0YWZmPjE8L3N0YWZmPjwvbm90ZT4KICAgICAgPG5vdGU+PGdyYWNlLz48cGl0Y2g+PHN0ZXA+RTwvc3RlcD48b2N0YXZlPjU8L29jdGF2ZT48L3BpdGNoPjx2b2ljZT4xPC92b2ljZT48dHlwZT5laWdodGg8L3R5cGU+PHN0YWZmPjE8L3N0YWZmPjwvbm90ZT4KICAgICAgPG5vdGUgZHluYW1pY3M9IjExMCI+PHBpdGNoPjxzdGVwPkQ8L3N0ZXA+PG9jdGF2ZT41PC9vY3RhdmU+PC9waXRjaD48ZHVyYXRpb24+MTI8L2R1cmF0aW9uPjx2b2ljZT4xPC92b2ljZT48dHlwZT5oYWxmPC90eXBlPjxzdGFmZj4xPC9zdGFmZj48L25vdGU+CiAgICAgIDxiYWNrdXA+PGR1cmF0aW9uPjE4PC9kdXJhdGlvbj48L2JhY2t1cD4KICAgICAgPG5vdGU+PHBpdGNoPjxzdGVwPkc8L3N0ZXA+PG9jdGF2ZT4yPC9vY3RhdmU+PC9waXRjaD48ZHVyYXRpb24+MTg8L2R1cmF0aW9uPjx2b2ljZT41PC92b2ljZT48dHlwZT5oYWxmPC90eXBlPjxkb3QvPjxzdGFmZj4yPC9zdGFmZj48L25vdGU+CiAgICAgIDxiYXJsaW5lIGxvY2F0aW9uPSJyaWdodCI+PGJhci1zdHlsZT5saWdodC1oZWF2eTwvYmFyLXN0eWxlPjwvYmFybGluZT4KICAgIDwvbWVhc3VyZT4KICA8L3BhcnQ+Cjwvc2NvcmUtcGFydHdpc2U+Cg==",
+  "motifs": [
+    {
+      "id": "m_0001",
+      "name": "Opening turn",
+      "kind": "FutureValue",
+      "mode": "FutureValue",
+      "onset": 480,
+      "duration": 2880,
+      "filter": {
+        "hand": "FutureValue"
+      },
+      "noteIds": [
+        "n_0003",
+        "n_0004",
+        "n_0005",
+        "n_0006",
+        "n_0008",
+        "n_0009",
+        "n_0010",
+        "n_0011"
+      ],
+      "future": "A field a later version adds to a motif."
+    },
+    {
+      "id": "m_0002",
+      "name": "Motif 2 · bars 1–2",
+      "kind": "Range",
+      "mode": "Guided",
+      "onset": 480,
+      "duration": 2880,
+      "filter": {},
+      "noteIds": [
+        "n_0002",
+        "n_0003",
+        "n_0004",
+        "n_0005",
+        "n_0006",
+        "n_0007",
+        "n_0008",
+        "n_0009",
+        "n_0010",
+        "n_0011"
+      ]
+    },
+    {
+      "id": "m_0003",
+      "name": "Motif 3 · bars 0–1",
+      "kind": "Notes",
+      "mode": "Analysis",
+      "onset": 0,
+      "duration": 1920,
+      "filter": {},
+      "noteIds": [
+        "n_0001",
+        "n_0002",
+        "n_0003"
+      ]
+    }
+  ],
+  "variations": [
+    {
+      "id": "v_0001",
+      "motifId": "m_0001",
+      "steps": [
+        {
+          "operation": "V1",
+          "parameters": {
+            "kind": "FutureValue",
+            "eighths": 1
+          }
+        }
+      ],
+      "pending": {
+        "operation": "V1",
+        "parameters": {
+          "kind": "Displace",
+          "eighths": 3
+        }
+      },
+      "keep": [
+        "Pitches",
+        "PitchOrder"
+      ]
+    },
+    {
+      "id": "v_0002",
+      "motifId": "m_0001",
+      "steps": [
+        {
+          "operation": "V13",
+          "parameters": {
+            "kind": "FutureValue"
+          }
+        }
+      ],
+      "keep": []
+    },
+    {
+      "id": "v_0003",
+      "motifId": "m_0001",
+      "steps": [
+        {
+          "operation": "V14",
+          "parameters": {
+            "kind": "FutureValue"
+          }
+        }
+      ],
+      "keep": [],
+      "key": {
+        "fifths": 0,
+        "mode": "FutureValue"
+      }
+    },
+    {
+      "id": "v_0004",
+      "motifId": "m_0001",
+      "steps": [
+        {
+          "operation": "V8",
+          "parameters": {
+            "pattern": "FutureValue"
+          }
+        }
+      ],
+      "keep": []
+    },
+    {
+      "id": "v_0005",
+      "motifId": "m_0001",
+      "steps": [
+        {
+          "operation": "V11",
+          "parameters": {
+            "kind": "FutureValue",
+            "intervals": [
+              0
+            ]
+          }
+        }
+      ],
+      "keep": []
+    },
+    {
+      "id": "v_0006",
+      "motifId": "m_0002",
+      "steps": [
+        {
+          "operation": "V2",
+          "parameters": {
+            "kind": "FutureValue",
+            "unit": "Triplets"
+          }
+        }
+      ],
+      "keep": []
+    },
+    {
+      "id": "v_0007",
+      "motifId": "m_0002",
+      "steps": [
+        {
+          "operation": "V7",
+          "parameters": {
+            "kind": "FutureValue",
+            "unit": "FutureValue"
+          }
+        }
+      ],
+      "keep": []
+    },
+    {
+      "id": "v_0008",
+      "motifId": "m_0002",
+      "steps": [
+        {
+          "operation": "V12",
+          "parameters": {
+            "kind": "FutureValue"
+          }
+        }
+      ],
+      "keep": []
+    },
+    {
+      "id": "v_0009",
+      "motifId": "m_0002",
+      "steps": [
+        {
+          "operation": "V3",
+          "parameters": {
+            "kind": "FutureValue",
+            "scope": "FutureValue"
+          }
+        }
+      ],
+      "keep": []
+    },
+    {
+      "id": "v_0010",
+      "motifId": "m_0002",
+      "steps": [
+        {
+          "operation": "V15",
+          "parameters": {
+            "kind": "FutureValue"
+          }
+        }
+      ],
+      "keep": []
+    },
+    {
+      "id": "v_0011",
+      "motifId": "m_0003",
+      "steps": [],
+      "pending": {
+        "operation": "E7",
+        "parameters": {
+          "kind": "FutureValue",
+          "noteId": "n_0001"
+        }
+      },
+      "keep": []
+    }
+  ],
+  "observations": [
+    {
+      "id": "o_0001",
+      "name": "Bar 3",
+      "factId": "rhythm.anacrusis",
+      "note": "The left hand leads here.",
+      "createdAt": "2026-11-08T21:30:00.0000000+01:00",
+      "phrase": {
+        "onset": 3360,
+        "duration": 1440,
+        "filter": {}
+      }
+    }
+  ],
+  "edits": [
+    {
+      "noteId": "n_added_0001",
+      "added": {
+        "track": 0,
+        "hand": "Right"
+      },
+      "after": {
+        "pitch": 79,
+        "onset": 3360,
+        "duration": 240,
+        "velocity": 70
+      }
+    }
+  ],
+  "phrases": {
+    "added": [],
+    "removed": [],
+    "short": {
+      "added": [],
+      "removed": []
+    },
+    "sentences": {
+      "added": [],
+      "removed": []
+    }
+  },
+  "marks": {
+    "ink": [
+      {
+        "id": "k1",
+        "tool": "FutureValue",
+        "colour": "graphite",
+        "size": 0.16,
+        "bar": 480,
+        "u": 0.25,
+        "v": 1.5,
+        "points": [
+          0.5,
+          0.25,
+          0.5,
+          1,
+          0.5,
+          0.6
+        ],
+        "pressure": 0.5
+      },
+      {
+        "id": "k2",
+        "tool": "highlighter",
+        "colour": "amber",
+        "size": 0.16,
+        "bar": 3360,
+        "u": 0.25,
+        "v": 1.5,
+        "points": [
+          0.5,
+          0.25,
+          0.5,
+          1,
+          0.5,
+          0.6
+        ],
+        "pressure": 0.5
+      }
+    ],
+    "notes": [
+      {
+        "id": "n_0001",
+        "onset": 3360,
+        "duration": 1440,
+        "text": "Breathe here",
+        "createdAt": "2026-11-08T21:30:00.0000000+01:00"
+      }
+    ],
+    "highlights": [
+      {
+        "id": "h_0001",
+        "onset": 480,
+        "duration": 2880,
+        "noteIds": [
+          "n_0001"
+        ],
+        "colour": "FutureValue"
+      }
+    ],
+    "fingering": [
+      {
+        "noteId": "n_0001",
+        "finger": 3
+      }
+    ]
+  },
+  "bookmarks": {
+    "categories": [
+      {
+        "id": "practise",
+        "ink": "Carmine"
+      },
+      {
+        "id": "performance",
+        "ink": "Forest"
+      },
+      {
+        "id": "structure",
+        "ink": "Graphite"
+      },
+      {
+        "id": "teacher",
+        "ink": "Ochre"
+      },
+      {
+        "id": "c_0001",
+        "name": "Exam",
+        "ink": "Ochre"
+      }
+    ],
+    "items": [
+      {
+        "id": "b_0001",
+        "title": "Opening",
+        "category": "practise",
+        "onset": 480,
+        "duration": 2880,
+        "fromPhrase": true,
+        "createdAt": "2026-11-08T21:30:00.0000000+01:00"
+      }
+    ]
+  },
+  "resumePoints": [
+    {
+      "id": "r_0001",
+      "name": "Left hand",
+      "at": 3360,
+      "passage": {
+        "onset": 3360,
+        "duration": 1440,
+        "filter": {
+          "hand": "Left"
+        }
+      },
+      "focused": true,
+      "overlays": [
+        "PianoRoll",
+        "Insights"
+      ],
+      "tempoPercent": 60,
+      "hands": "Left",
+      "loop": true,
+      "createdAt": "2026-11-08T21:30:00.0000000+01:00",
+      "lastActive": "2026-11-08T21:35:00.0000000+01:00"
+    }
+  ],
+  "check": [
+    {
+      "bar": 2,
+      "source": "FutureValue",
+      "reason": "FutureValue",
+      "resolved": false
+    },
+    {
+      "bar": 3,
+      "source": "Transcription",
+      "reason": "HandsGuessed",
+      "resolved": true
+    }
+  ],
+  "performances": [
+    {
+      "id": "perf_1",
+      "name": "Live take",
+      "source": "FutureValue",
+      "engine": "transkun 2.0.1",
+      "midi": "TVRoZAAAAAYAAQADAeBNVHJrAAAAGwD/AwR0YWtlAP9YBAMCGAgA/1EDB6EgAP8vAE1UcmsAAABrAP8DClJpZ2h0IGhhbmSHQJBKP4NggEpAAJBKPwCQQz8AkEc/h0CASkAAgENAAIBHQACQRT+DYIBFQACQRz+BIIBHQACQSD+BIIBIQACQSj+BIIBKQACQTD+LIIBMQACQSmOHQIBKQAD/LwBNVHJrAAAALgD/AwlMZWZ0IGhhbmSLIJErP4sggStAAJEyP4dAgTJAg2CRKz+LIIErQAD/LwA=",
+      "recordingStart": 2000000,
+      "anchors": [
+        [
+          0,
+          0
+        ],
+        [
+          3360,
+          3000000
+        ]
+      ],
+      "dismissed": [
+        1
+      ],
+      "taken": [
+        {
+          "bar": 2,
+          "removed": [
+            "n_0007"
+          ],
+          "added": [
+            {
+              "id": "perf-0001",
+              "pitch": 74,
+              "onset": 1920,
+              "duration": 480,
+              "velocity": 66,
+              "track": 0,
+              "hand": "Right"
+            }
+          ]
+        }
+      ],
+      "merge": {
+        "appliedAt": "2026-11-08T21:37:00.0000000+01:00",
+        "bars": [
+          {
+            "bar": 2,
+            "choice": "FutureValue"
+          },
+          {
+            "bar": 3,
+            "choice": "Own",
+            "own": {
+              "bar": 3,
+              "removed": [
+                "n_0007"
+              ],
+              "added": [
+                {
+                  "id": "perf-0001",
+                  "pitch": 74,
+                  "onset": 1920,
+                  "duration": 480,
+                  "velocity": 66,
+                  "track": 0,
+                  "hand": "Right"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "assembly": {
+    "next": 4,
+    "steps": [
+      {
+        "number": 1,
+        "at": "2026-11-08T21:40:00.0000000+01:00",
+        "kind": "carry",
+        "source": "perf_1",
+        "from": {
+          "onset": 1920,
+          "duration": 1440
+        },
+        "to": {
+          "start": {
+            "note": "n_0001",
+            "offset": 0
+          },
+          "end": {
+            "note": "n_0003",
+            "offset": 960
+          }
+        },
+        "transpose": 0,
+        "keep": true
+      },
+      {
+        "number": 2,
+        "at": "2026-11-08T21:41:00.0000000+01:00",
+        "kind": "note",
+        "note": "n_0001",
+        "semitones": 1
+      },
+      {
+        "number": 3,
+        "at": "2026-11-08T21:42:00.0000000+01:00",
+        "kind": "transpose",
+        "place": {
+          "start": {
+            "note": "n_0012",
+            "offset": 0
+          },
+          "end": {
+            "note": "n_0013",
+            "offset": 960
+          }
+        },
+        "semitones": -12
+      }
+    ],
+    "applied": {
+      "notes": [
+        {
+          "id": "n_0001",
+          "pitch": 74,
+          "onset": 0,
+          "duration": 480,
+          "velocity": 63,
+          "track": 0,
+          "voice": 1,
+          "hand": "right",
+          "handAttribution": {
+            "provenance": "imported",
+            "confidence": 1
+          },
+          "attribution": {
+            "provenance": "FutureValue",
+            "confidence": 1
+          }
+        },
+        {
+          "id": "n_0002",
+          "pitch": 43,
+          "onset": 480,
+          "duration": 1440,
+          "velocity": 63,
+          "track": 0,
+          "voice": 5,
+          "hand": "left",
+          "handAttribution": {
+            "provenance": "imported",
+            "confidence": 1
+          },
+          "attribution": {
+            "provenance": "imported",
+            "confidence": 1
+          }
+        },
+        {
+          "id": "n_0003",
+          "pitch": 67,
+          "onset": 480,
+          "duration": 960,
+          "velocity": 63,
+          "track": 0,
+          "voice": 1,
+          "hand": "right",
+          "handAttribution": {
+            "provenance": "imported",
+            "confidence": 1
+          },
+          "attribution": {
+            "provenance": "imported",
+            "confidence": 1
+          }
+        },
+        {
+          "id": "n_0004",
+          "pitch": 71,
+          "onset": 480,
+          "duration": 960,
+          "velocity": 63,
+          "track": 0,
+          "voice": 1,
+          "hand": "right",
+          "handAttribution": {
+            "provenance": "imported",
+            "confidence": 1
+          },
+          "attribution": {
+            "provenance": "imported",
+            "confidence": 1
+          }
+        },
+        {
+          "id": "n_0005",
+          "pitch": 74,
+          "onset": 480,
+          "duration": 960,
+          "velocity": 63,
+          "track": 0,
+          "voice": 1,
+          "hand": "right",
+          "handAttribution": {
+            "provenance": "imported",
+            "confidence": 1
+          },
+          "attribution": {
+            "provenance": "imported",
+            "confidence": 1
+          }
+        },
+        {
+          "id": "n_0006",
+          "pitch": 69,
+          "onset": 1440,
+          "duration": 480,
+          "velocity": 63,
+          "track": 0,
+          "voice": 1,
+          "hand": "right",
+          "handAttribution": {
+            "provenance": "imported",
+            "confidence": 1
+          },
+          "attribution": {
+            "provenance": "imported",
+            "confidence": 1
+          }
+        },
+        {
+          "id": "n_0007",
+          "pitch": 50,
+          "onset": 1920,
+          "duration": 960,
+          "velocity": 63,
+          "track": 0,
+          "voice": 5,
+          "hand": "left",
+          "handAttribution": {
+            "provenance": "imported",
+            "confidence": 1
+          },
+          "attribution": {
+            "provenance": "imported",
+            "confidence": 1
+          }
+        },
+        {
+          "id": "n_0008",
+          "pitch": 71,
+          "onset": 1920,
+          "duration": 160,
+          "velocity": 63,
+          "track": 0,
+          "voice": 1,
+          "hand": "right",
+          "handAttribution": {
+            "provenance": "imported",
+            "confidence": 1
+          },
+          "attribution": {
+            "provenance": "imported",
+            "confidence": 1
+          }
+        },
+        {
+          "id": "n_0009",
+          "pitch": 72,
+          "onset": 2080,
+          "duration": 160,
+          "velocity": 63,
+          "track": 0,
+          "voice": 1,
+          "hand": "right",
+          "handAttribution": {
+            "provenance": "imported",
+            "confidence": 1
+          },
+          "attribution": {
+            "provenance": "imported",
+            "confidence": 1
+          }
+        },
+        {
+          "id": "n_0010",
+          "pitch": 74,
+          "onset": 2240,
+          "duration": 160,
+          "velocity": 63,
+          "track": 0,
+          "voice": 1,
+          "hand": "right",
+          "handAttribution": {
+            "provenance": "imported",
+            "confidence": 1
+          },
+          "attribution": {
+            "provenance": "imported",
+            "confidence": 1
+          }
+        },
+        {
+          "id": "n_0011",
+          "pitch": 76,
+          "onset": 2400,
+          "duration": 1440,
+          "velocity": 63,
+          "track": 0,
+          "voice": 1,
+          "hand": "right",
+          "handAttribution": {
+            "provenance": "imported",
+            "confidence": 1
+          },
+          "attribution": {
+            "provenance": "imported",
+            "confidence": 1
+          }
+        },
+        {
+          "id": "n_0012",
+          "pitch": 43,
+          "onset": 3360,
+          "duration": 1440,
+          "velocity": 63,
+          "track": 0,
+          "voice": 5,
+          "hand": "left",
+          "handAttribution": {
+            "provenance": "imported",
+            "confidence": 1
+          },
+          "attribution": {
+            "provenance": "imported",
+            "confidence": 1
+          }
+        },
+        {
+          "id": "n_0013",
+          "pitch": 74,
+          "onset": 3840,
+          "duration": 960,
+          "velocity": 99,
+          "track": 0,
+          "voice": 1,
+          "hand": "right",
+          "handAttribution": {
+            "provenance": "imported",
+            "confidence": 1
+          },
+          "attribution": {
+            "provenance": "imported",
+            "confidence": 1
+          }
+        }
+      ],
+      "bars": [
+        {
+          "onset": 0,
+          "duration": 480,
+          "beats": 3,
+          "beatType": 4
+        },
+        {
+          "onset": 480,
+          "duration": 1440,
+          "beats": 3,
+          "beatType": 4
+        },
+        {
+          "onset": 1920,
+          "duration": 1440,
+          "beats": 3,
+          "beatType": 4
+        },
+        {
+          "onset": 3360,
+          "duration": 1440,
+          "beats": 3,
+          "beatType": 4
+        }
+      ],
+      "tempos": [
+        {
+          "at": 0,
+          "microsecondsPerQuarter": 625000
+        }
+      ],
+      "keys": [
+        {
+          "at": 0,
+          "fifths": 0,
+          "mode": "major"
+        }
+      ]
+    },
+    "before": {
+      "notes": [
+        {
+          "id": "n_0001",
+          "pitch": 74,
+          "onset": 0,
+          "duration": 480,
+          "velocity": 63,
+          "track": 0,
+          "voice": 1,
+          "hand": "right",
+          "handAttribution": {
+            "provenance": "imported",
+            "confidence": 1
+          },
+          "attribution": {
+            "provenance": "imported",
+            "confidence": 1
+          }
+        },
+        {
+          "id": "n_0002",
+          "pitch": 43,
+          "onset": 480,
+          "duration": 1440,
+          "velocity": 63,
+          "track": 0,
+          "voice": 5,
+          "hand": "left",
+          "handAttribution": {
+            "provenance": "imported",
+            "confidence": 1
+          },
+          "attribution": {
+            "provenance": "imported",
+            "confidence": 1
+          }
+        },
+        {
+          "id": "n_0003",
+          "pitch": 67,
+          "onset": 480,
+          "duration": 960,
+          "velocity": 63,
+          "track": 0,
+          "voice": 1,
+          "hand": "right",
+          "handAttribution": {
+            "provenance": "imported",
+            "confidence": 1
+          },
+          "attribution": {
+            "provenance": "imported",
+            "confidence": 1
+          }
+        },
+        {
+          "id": "n_0004",
+          "pitch": 71,
+          "onset": 480,
+          "duration": 960,
+          "velocity": 63,
+          "track": 0,
+          "voice": 1,
+          "hand": "right",
+          "handAttribution": {
+            "provenance": "imported",
+            "confidence": 1
+          },
+          "attribution": {
+            "provenance": "imported",
+            "confidence": 1
+          }
+        },
+        {
+          "id": "n_0005",
+          "pitch": 74,
+          "onset": 480,
+          "duration": 960,
+          "velocity": 63,
+          "track": 0,
+          "voice": 1,
+          "hand": "right",
+          "handAttribution": {
+            "provenance": "imported",
+            "confidence": 1
+          },
+          "attribution": {
+            "provenance": "imported",
+            "confidence": 1
+          }
+        },
+        {
+          "id": "n_0006",
+          "pitch": 69,
+          "onset": 1440,
+          "duration": 480,
+          "velocity": 63,
+          "track": 0,
+          "voice": 1,
+          "hand": "right",
+          "handAttribution": {
+            "provenance": "imported",
+            "confidence": 1
+          },
+          "attribution": {
+            "provenance": "imported",
+            "confidence": 1
+          }
+        },
+        {
+          "id": "n_0007",
+          "pitch": 50,
+          "onset": 1920,
+          "duration": 960,
+          "velocity": 63,
+          "track": 0,
+          "voice": 5,
+          "hand": "left",
+          "handAttribution": {
+            "provenance": "imported",
+            "confidence": 1
+          },
+          "attribution": {
+            "provenance": "imported",
+            "confidence": 1
+          }
+        },
+        {
+          "id": "n_0008",
+          "pitch": 71,
+          "onset": 1920,
+          "duration": 160,
+          "velocity": 63,
+          "track": 0,
+          "voice": 1,
+          "hand": "right",
+          "handAttribution": {
+            "provenance": "imported",
+            "confidence": 1
+          },
+          "attribution": {
+            "provenance": "imported",
+            "confidence": 1
+          }
+        },
+        {
+          "id": "n_0009",
+          "pitch": 72,
+          "onset": 2080,
+          "duration": 160,
+          "velocity": 63,
+          "track": 0,
+          "voice": 1,
+          "hand": "right",
+          "handAttribution": {
+            "provenance": "imported",
+            "confidence": 1
+          },
+          "attribution": {
+            "provenance": "imported",
+            "confidence": 1
+          }
+        },
+        {
+          "id": "n_0010",
+          "pitch": 74,
+          "onset": 2240,
+          "duration": 160,
+          "velocity": 63,
+          "track": 0,
+          "voice": 1,
+          "hand": "right",
+          "handAttribution": {
+            "provenance": "imported",
+            "confidence": 1
+          },
+          "attribution": {
+            "provenance": "imported",
+            "confidence": 1
+          }
+        },
+        {
+          "id": "n_0011",
+          "pitch": 76,
+          "onset": 2400,
+          "duration": 1440,
+          "velocity": 63,
+          "track": 0,
+          "voice": 1,
+          "hand": "right",
+          "handAttribution": {
+            "provenance": "imported",
+            "confidence": 1
+          },
+          "attribution": {
+            "provenance": "imported",
+            "confidence": 1
+          }
+        },
+        {
+          "id": "n_0012",
+          "pitch": 43,
+          "onset": 3360,
+          "duration": 1440,
+          "velocity": 63,
+          "track": 0,
+          "voice": 5,
+          "hand": "left",
+          "handAttribution": {
+            "provenance": "imported",
+            "confidence": 1
+          },
+          "attribution": {
+            "provenance": "imported",
+            "confidence": 1
+          }
+        },
+        {
+          "id": "n_0013",
+          "pitch": 74,
+          "onset": 3840,
+          "duration": 960,
+          "velocity": 99,
+          "track": 0,
+          "voice": 1,
+          "hand": "right",
+          "handAttribution": {
+            "provenance": "imported",
+            "confidence": 1
+          },
+          "attribution": {
+            "provenance": "imported",
+            "confidence": 1
+          }
+        }
+      ],
+      "bars": [
+        {
+          "onset": 0,
+          "duration": 480,
+          "beats": 3,
+          "beatType": 4
+        },
+        {
+          "onset": 480,
+          "duration": 1440,
+          "beats": 3,
+          "beatType": 4
+        },
+        {
+          "onset": 1920,
+          "duration": 1440,
+          "beats": 3,
+          "beatType": 4
+        },
+        {
+          "onset": 3360,
+          "duration": 1440,
+          "beats": 3,
+          "beatType": 4
+        }
+      ],
+      "tempos": [
+        {
+          "at": 0,
+          "microsecondsPerQuarter": 625000
+        }
+      ],
+      "keys": [
+        {
+          "at": 0,
+          "fifths": 0,
+          "mode": "major"
+        }
+      ]
+    },
+    "appliedAt": "2026-11-08T21:43:00.0000000+01:00"
+  },
+  "settings": {
+    "phrases.granularity": "short"
+  },
+  "scan": null,
+  "transcription": null,
+  "future": {
+    "note": "A field a later version adds; today's reader does not know it."
+  }
+}
