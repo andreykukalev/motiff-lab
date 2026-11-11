@@ -1183,14 +1183,21 @@ public class MusicCoreFacadeTests
         ImportedPiece piece = PieceImporter.Import(FurElise, Fixture(FurElise)).Piece!;
         string midi = Convert.ToBase64String(MidiExporter.Export(piece.Notes, [], piece.Meter, "heard"));
 
-        // Seven minutes at most, heard in parts of up to two minutes that overlap by five seconds.
+        // The whole recording however long, heard in parts of about two minutes that overlap by five seconds.
         JsonElement parts = Json(facade.Call(0, "recording.parts", """{"milliseconds": 600000}"""));
-        Assert.Equal(420_000, parts.GetProperty("milliseconds").GetInt64());
+        Assert.Equal(600_000, parts.GetProperty("milliseconds").GetInt64());
         JsonElement[] planned = [.. parts.GetProperty("parts").EnumerateArray()];
-        Assert.Equal(4, planned.Length);
+        Assert.Equal(5, planned.Length);
         Assert.Equal(0, planned[0].GetProperty("sendFrom").GetInt64());
         Assert.Equal(planned[0].GetProperty("keepTo").GetInt64() + 5_000, planned[0].GetProperty("sendTo").GetInt64());
+        Assert.Equal(600_000, planned[^1].GetProperty("sendTo").GetInt64());
         Assert.Equal("badRequest", Error(facade, 0, "recording.parts", """{"milliseconds": 0}"""));
+
+        // With the sound's loudness in each 100 ms, the seam moves to the quiet moment near the even cut.
+        string levels = string.Join(", ", Enumerable.Range(0, 2_400).Select(level => level is >= 1_150 and < 1_160 ? 0 : 300));
+        JsonElement quiet = Json(facade.Call(0, "recording.parts", $$"""{"milliseconds": 240000, "levels": [{{levels}}]}"""));
+        Assert.Equal(115_750, quiet.GetProperty("parts")[0].GetProperty("keepTo").GetInt64());
+        Assert.Equal("badRequest", Error(facade, 0, "recording.parts", """{"milliseconds": 240000, "levels": [1, -1]}"""));
 
         JsonElement added = Call(facade, "performance.add", $$$"""{"name": "Recital", "engine": "transkun", "milliseconds": 100000, "parts": [{"index": 0, "midi": "{{{midi}}}"}]}""").GetProperty("performance");
         Assert.Equal("recording", added.GetProperty("source").GetString());
