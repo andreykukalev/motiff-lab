@@ -6,14 +6,19 @@ targetScope = 'resourceGroup'
 @description('Name of the Static Web App. Becomes part of the default *.azurestaticapps.net host name.')
 param name string = 'swa-motifflab'
 
-// Static Web Apps is offered in a few regions only; West Europe is the EU one.
+// Static Web Apps is offered in a few regions only. West Europe, the EU one, stopped accepting new
+// Static Web Apps in 2026-11, so the app is in East US 2.
 // Static content is served from the global edge; the region holds the app's metadata
 // and, from Stage 2, its managed Functions.
 @description('Region for the Static Web App resource.')
 @allowed([
   'westeurope'
+  'eastus2'
+  'centralus'
+  'westus2'
+  'eastasia'
 ])
-param location string = 'westeurope'
+param location string = 'eastus2'
 
 @description('Pricing plan. Free covers Stage 1: 3 preview environments, 100 GB bandwidth a month.')
 @allowed([
