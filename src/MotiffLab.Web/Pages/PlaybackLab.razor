@@ -365,7 +365,7 @@
                                 <div class="focus-roll" data-fill="true">
                                     <PianoRoll Notes="@_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases" FitsSelection="true"
                                                Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible" Highlight="_highlight?.Places"
-                                               RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync"
+                                               RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync" PlayheadMoved="OnPlayheadMovedAsync"
                                                SelectionChanged="OnRollNotesChosen" Keys="RollKeys" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync" Point="_rollPoint" Editor="@RollEditor" />
                                 </div>
                             }
@@ -391,7 +391,7 @@
                     <button class="grab" aria-label="@Text["drawer.resize"]" title="@Text["drawer.resize"]" data-long-press="roll" @onclick="ToggleRoll"></button>
                     <PianoRoll Heading="@RollHeading" Notes="@_notes" Score="_score" Meter="_meter" Motif="_selection" MotifPlaysAlone="_looping" Phrases="_phrases"
                                Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible" Highlight="_highlight?.Places"
-                               RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync"
+                               RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync" PlayheadMoved="OnPlayheadMovedAsync"
                                SelectionChanged="OnRollNotesChosen" Keys="RollKeys" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync" Point="_rollPoint" Editor="@RollEditor"
                                Expanded="ExpandRollAsync" />
                 </section>

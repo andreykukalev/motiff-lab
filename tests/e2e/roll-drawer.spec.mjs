@@ -1,7 +1,7 @@
 // The piano roll drawer (decision record 0018, section 4): its head names the passage and carries Note names, the colour
 // and the overflow; its handle drags it taller or shorter, remembered on the device, and a tap on the handle puts it away.
 import { expect, test } from "@playwright/test";
-import { openFurElise } from "./steps.mjs";
+import { openFurElise, selectBar } from "./steps.mjs";
 
 const drawer = page => page.locator(".roll-drawer");
 
@@ -116,3 +116,55 @@ test("the handle drags the drawer taller, the height is kept, and a tap puts the
     await expect(drawer(page)).toHaveCount(0);
     expect(errors).toEqual([]);
 });
+
+test("the playhead's handle drags it inside the looping selection, playing on; paused, the arrows nudge it a beat and Play goes on from there", async ({ page }) => {
+    const errors = await openFurElise(page);
+    await selectBar(page, 2);
+    const pill = page.locator(".pill");
+    const playhead = page.locator(".roll").getByRole("slider", { name: "Playhead" });
+    const value = async () => Number(await playhead.inputValue());
+
+    // Space loops the selection and plays it; the playhead keeps to the loop.
+    await page.keyboard.press("Space");
+    await expect(pill.getByRole("button", { name: "Pause", exact: true })).toBeVisible();
+    const min = Number(await playhead.getAttribute("min"));
+    const max = Number(await playhead.getAttribute("max"));
+    expect(max).toBeGreaterThan(min);
+
+    // The handle hangs under the bar numbers, where the control sits: dragged, the music plays on from the new place.
+    const box = await playhead.boundingBox();
+    const x = box.x + box.width / 2;
+    await page.mouse.move(x, box.y + 8);
+    await page.mouse.down();
+    await page.mouse.move(x + 400, box.y + 8, { steps: 6 });
+    await page.mouse.up();
+    await expect(pill.getByRole("button", { name: "Pause", exact: true })).toBeVisible();
+    await expect.poll(value).toBeGreaterThanOrEqual(min);
+    expect(await value()).toBeLessThanOrEqual(max);
+    await expect(page.locator(".selection-status")).toContainText("bar 2");
+
+    // Paused, the place waits; → moves it a beat on, and Play goes on from there, not from the loop's start.
+    await pill.getByRole("button", { name: "Pause", exact: true }).click();
+    await expect(pill.getByRole("button", { name: "Play", exact: true })).toBeVisible();
+    // Dragged far to the left while paused, it stops at the loop's start and waits there.
+    const paused = await playhead.boundingBox();
+    await page.mouse.move(paused.x + paused.width / 2, paused.y + 8);
+    await page.mouse.down();
+    await page.mouse.move(paused.x + paused.width / 2 - 600, paused.y + 8, { steps: 6 });
+    await page.mouse.up();
+    await expect.poll(value).toBe(min);
+    await expect(pill.getByRole("button", { name: "Play", exact: true })).toBeVisible();
+    await playhead.focus();
+    await expect(playhead).toHaveAttribute("aria-valuetext", /^Bar 2, beat 1$/);
+    await page.keyboard.press("ArrowRight");
+    await expect.poll(value).toBeGreaterThan(min);
+    const nudged = await value();
+    await page.waitForTimeout(300);
+    expect(await value()).toBe(nudged);
+    await expect(playhead).toHaveAttribute("aria-valuetext", /^Bar 2, beat 2$/);
+    await page.keyboard.press("Space");
+    await expect(pill.getByRole("button", { name: "Pause", exact: true })).toBeVisible();
+    expect(await value()).toBeGreaterThanOrEqual(nudged);
+    expect(errors).toEqual([]);
+});
+

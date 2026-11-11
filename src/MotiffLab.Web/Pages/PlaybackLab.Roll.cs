@@ -1,6 +1,8 @@
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Notation;
+using MotiffLab.MusicCore.Time;
+using MotiffLab.Web.Playback;
 using MotiffLab.Web.Roll;
 using MotiffLab.Web.Understand;
 
@@ -53,6 +55,31 @@ public partial class PlaybackLab
         if (_rollOpen)
         {
             _rollPoint = point;
+        }
+    }
+
+    /// <summary>
+    /// The playhead moved on the roll (Andrei, v0.2): dragged or nudged it only moves, playing on from there while it plays;
+    /// a tap plays from there, looping the selection first when nothing loops yet. It stays inside the loop, whose span and
+    /// the tempo stay as they were.
+    /// </summary>
+    private async Task OnPlayheadMovedAsync(RollSeek seek)
+    {
+        if (seek.Play && !Looping && _selection is { NoteIds.Count: > 0 })
+        {
+            await ToggleLoopSelectionAsync();
+        }
+
+        Tick at = seek.At;
+        if (Player.Loop is { } loop && loop.End > loop.Onset)
+        {
+            at = new Tick(Math.Clamp(at.Value, loop.Onset.Value, loop.End.Value - 1));
+        }
+
+        await Player.SeekAsync(at);
+        if (seek.Play && Player.State == PlaybackState.Stopped)
+        {
+            await PlayAsync();
         }
     }
 

@@ -219,6 +219,62 @@ final class PlaybackEngineTests: XCTestCase {
         XCTAssertEqual(noteStarts(out), [Int(((960 - paused) * Double(quarter) / 480).rounded(.up))])
     }
 
+    /// One bar looping, a short note on each beat: what the playhead moved on the roll plays (v0.2).
+    private func loopedBar(rate: Double = 1) -> PlaybackEngine {
+        let e = engine()
+        source(e, "a", [(0, 120), (480, 120), (960, 120), (1440, 120)])
+        e.handle(.activeSources(["a"]))
+        e.handle(.rate(rate))
+        e.handle(.loop(start: 0, end: 1920))
+        return e
+    }
+
+    func testThePlayheadDraggedWhilePlayingPlaysOnFromThereKeepingTheLoopAndTheTempo() {
+        let e = loopedBar(rate: 0.5)
+        e.handle(.play)
+        let before = e.render(frames: frames(Double(quarter) / 2))
+        e.handle(.seek(1200))
+
+        let out = e.render(frames: frames(Double(quarter) * 5.5), startFrame: before.count)
+
+        // At half the tempo a quarter takes two: the beat at 1440, the loop's start again after its end, then its second beat.
+        XCTAssertEqual(noteStarts(out), [quarter, quarter * 3, quarter * 5])
+        XCTAssertEqual(e.transportState, .playing)
+    }
+
+    func testThePlayheadMovedWhilePausedWaitsThereAndPlayGoesOnFromItNotFromTheLoopsStart() {
+        let e = loopedBar()
+        e.handle(.play)
+        let before = e.render(frames: frames(Double(quarter) * 1.5))
+        e.handle(.pause)
+        e.handle(.seek(1300))
+        _ = e.render(frames: frames(Double(quarter)), startFrame: before.count)
+        XCTAssertEqual(e.tick, 1300)
+        XCTAssertEqual(e.transportState, .stopped)
+
+        e.handle(.play)
+        let out = e.render(frames: 60_000)
+
+        // 140 ticks to the beat at 1440, then 480 to the loop's end and its start again, then its second beat.
+        XCTAssertEqual(noteStarts(out), [7_000, 31_000, 55_000])
+    }
+
+    func testPausedInsideALoopPlayResumesWhereItPausedNotAtTheLoopsStart() {
+        let e = loopedBar()
+        e.handle(.play)
+        _ = e.render(frames: frames(Double(quarter) * 1.25))
+        e.handle(.pause)
+        let paused = e.tick
+        XCTAssertGreaterThan(paused, 480)
+
+        e.handle(.play)
+        let starts = noteStarts(e.render(frames: frames(Double(quarter))))
+
+        // The next beat, 960, from where it paused (to the frame), not the loop's start at 0.
+        XCTAssertEqual(starts.count, 1)
+        XCTAssertEqual(Double(starts.first ?? 0), (960 - paused) * Double(quarter) / 480, accuracy: 1)
+    }
+
     func testPlaybackStopsAtTheEndAndReportsIt() {
         let e = engine(end: 960)
         source(e, "a", [(0, 240)])
@@ -345,5 +401,21 @@ final class PianoAndProjectTests: XCTestCase {
         XCTAssertEqual(again.pages.count, first.pages.count)
         let file = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
         XCTAssertEqual(file["version"] as? Int, 15)
+    }
+}
+
+/// Where the playhead may go when the player moves it on the roll (v0.2): inside the loop, before its end.
+final class PlayheadPlaceTests: XCTestCase {
+    func testThePlayheadStaysInsideTheLoopBeforeItsEnd() {
+        let loop = 1920.0..<3840.0
+        XCTAssertEqual(Player.place(2400, inside: loop), 2400)
+        XCTAssertEqual(Player.place(100, inside: loop), 1920)
+        XCTAssertEqual(Player.place(9000, inside: loop), 3839, "never on the loop's end, where playing would run past it")
+    }
+
+    func testWithNoLoopThePlayheadGoesAnywhereFromTheStart() {
+        XCTAssertEqual(Player.place(-5, inside: nil), 0)
+        XCTAssertEqual(Player.place(5000, inside: nil), 5000)
+        XCTAssertEqual(Player.place(700, inside: 960.0..<960.0), 700, "an empty loop is no loop")
     }
 }

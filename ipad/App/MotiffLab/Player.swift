@@ -91,11 +91,32 @@ final class Player: ObservableObject {
         if state == .stopped { send(.play) }
     }
 
+    /// The playhead moved on the roll (v0.2). Dragged or nudged it only moves: playing, the music goes on from there; paused,
+    /// it waits there, and Play goes on from there. A tap (`play`) plays from there, looping `selection` first when nothing
+    /// loops yet. It stays inside the loop, which keeps its span, as the tempo does.
+    func move(to tick: Double, play: Bool, selection: Range<Double>?) {
+        if play, loop == nil, let selection {
+            setLoop(selection, from: Self.place(tick, inside: selection))
+            return
+        }
+        send(.seek(Self.place(tick, inside: loop)))
+        // Playing already, the engine plays on; Play is only for when it was still.
+        if play { send(.play) }
+    }
+
+    /// Where the playhead may go: inside the loop when one plays (before its end, so playing does not run past it), else
+    /// anywhere from the start.
+    nonisolated static func place(_ tick: Double, inside loop: Range<Double>?) -> Double {
+        guard let loop, !loop.isEmpty else { return max(0, tick) }
+        return min(max(tick, loop.lowerBound), max(loop.lowerBound, loop.upperBound - 1))
+    }
+
     /// The passage that loops, in ticks; nil when nothing loops.
     @Published private(set) var loop: Range<Double>?
 
-    /// Loops a passage and plays it from its start, or stops looping (0018 section 7: a selection loops the selection).
-    func setLoop(_ range: Range<Double>?) {
+    /// Loops a passage and plays it from its start, or from `start` when given, or stops looping (0018 section 7: a selection
+    /// loops the selection).
+    func setLoop(_ range: Range<Double>?, from start: Double? = nil) {
         loop = range
         // Notes heard alone (the circle's scale) give way to the piece, or the variation, as any other loop comes.
         if hearingAlone {
@@ -113,7 +134,11 @@ final class Player: ObservableObject {
             return
         }
         send(.loop(start: range.lowerBound, end: range.upperBound))
-        if !range.contains(tick) { send(.seek(range.lowerBound)) }
+        if let start {
+            send(.seek(start))
+        } else if !range.contains(tick) {
+            send(.seek(range.lowerBound))
+        }
         if state == .stopped { send(.play) }
     }
 

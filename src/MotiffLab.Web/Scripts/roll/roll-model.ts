@@ -171,6 +171,10 @@ export interface RollLabels {
     zoomLevel: string;
     fit: string;
     fitHint: string;
+    /** The playhead's control, for the keyboard and a screen reader. */
+    playhead: string;
+    /** Where the playhead is: "{0}" the bar's number, "{1}" the beat. */
+    playheadAt: string;
 }
 
 export const ENGLISH_ROLL_LABELS: RollLabels = {
@@ -194,6 +198,8 @@ export const ENGLISH_ROLL_LABELS: RollLabels = {
     zoomLevel: "{0} %",
     fit: "Fit",
     fitHint: "Fit the selection, or the phrase in view, to the roll",
+    playhead: "Playhead",
+    playheadAt: "Bar {0}, beat {1}",
 };
 
 /** A label with its "{0}", "{1}" filled in. */

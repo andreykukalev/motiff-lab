@@ -162,6 +162,10 @@ else
     [Parameter]
     public EventCallback PlayPausePressed { get; set; }
 
+    /// <summary>Raised when the player moves the playhead on the roll: dragged or nudged by a beat, or tapped to play from there.</summary>
+    [Parameter]
+    public EventCallback<RollSeek> PlayheadMoved { get; set; }
+
     /// <summary>The ids of the notes the Notes filter keeps, drawn at full strength and lit as they sound; null keeps all.</summary>
     [Parameter]
     public IReadOnlyCollection<string>? Kept { get; set; }
@@ -428,6 +432,7 @@ else
     {
         "track", "trackVoice", "noVoice", "rightHand", "leftHand", "noHand", "rollAria", "scrollAria", "keysAria",
         "legendVariation", "legendHighlight", "legendInferred", "legendCheck", "zoomGroup", "zoomIn", "zoomOut", "zoomLevel", "fit", "fitHint",
+        "playhead", "playheadAt",
     }.ToDictionary(name => name, name => Text[$"roll.js.{name}"]);
 
     /// <summary>Why a grouping is off for this piece, so the control never looks like it does nothing.</summary>
@@ -470,6 +475,10 @@ else
     /// <summary>Called by the script when Space is pressed outside a control.</summary>
     [JSInvokable]
     public Task OnRollSpace() => PlayPausePressed.InvokeAsync();
+
+    /// <summary>Called by the script when the playhead is moved on the roll, and with play when a tap plays from there.</summary>
+    [JSInvokable]
+    public Task OnRollSeek(long tick, bool play) => PlayheadMoved.InvokeAsync(new RollSeek(new Tick(Math.Max(0, tick)), play));
 
     /// <summary>Called by the script when a Check flag on the bar numbers is tapped.</summary>
     [JSInvokable]
