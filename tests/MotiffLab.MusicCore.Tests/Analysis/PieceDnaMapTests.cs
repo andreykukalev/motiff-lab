@@ -21,11 +21,11 @@ public class PieceDnaMapTests
 
     private static ImportedPiece OdeToJoy() => Piece("Experiments", "Fixtures", "ode-to-joy.musicxml");
 
-    private static SentenceMap Sentences(ImportedPiece piece, Words words = default) =>
-        PhraseLevels.Suggest(piece.Notes, piece.Meter, piece.MusicXml?.PhraseMarks ?? PhraseMarks.None, piece.End, KeySignature.InForce(piece.Keys, Tick.Zero), words, null).Sentences;
+    private static PieceStructure Structure(ImportedPiece piece, Words words = default) =>
+        PieceStructure.Of(piece.Notes, piece.Meter, PhraseLevels.Suggest(piece.Notes, piece.Meter, piece.MusicXml?.PhraseMarks ?? PhraseMarks.None, piece.End, KeySignature.InForce(piece.Keys, Tick.Zero), words, null), words);
 
     private static PieceDna Dna(ImportedPiece piece, Words words = default) =>
-        PieceDna.Build(piece.Notes, piece.Meter, piece.Keys, piece.End, selection: null, structure: null, words, Sentences(piece, words));
+        PieceDna.Build(piece.Notes, piece.Meter, piece.Keys, piece.End, selection: null, structure: null, words, Structure(piece, words));
 
     [Fact]
     public void A_period_read_as_one_sentence_shows_its_two_phrases_as_A_and_A_prime()
@@ -84,7 +84,27 @@ public class PieceDnaMapTests
     [Fact]
     public void A_transposed_idea_counts_its_places_higher_and_lower()
     {
-        DnaIdea? transposed = Dna(FurElise()).Ideas.FirstOrDefault(idea => idea.Occurrences.Any(occurrence => occurrence.Kind == OccurrenceKind.Transposed));
+        // Four bars of a figure, a beat of rest, the figure a tone higher, a beat of rest and the figure two tones higher:
+        // each later phrase opens with the first one's opening, transposed. (Für Elise had such an idea at bar 10 until its second ending joined the phrase
+        // after it, #347, so its b phrase now opens in bar 9.)
+        const long quarter = 480;
+        int[] figure = [60, 62, 64, 65, 67, 65, 64, 62, 60, 64, 67, 72, 71, 67, 64, 60];
+        MusicCore.Events.Note[] notes = [.. Enumerable.Range(0, 3)
+            .SelectMany(time => figure.Select((pitch, i) => (Pitch: pitch + (2 * time), At: ((17 * time) + i) * quarter)))
+            .Select((note, i) => new MusicCore.Events.Note
+            {
+                Id = $"n{i}",
+                Pitch = new MusicCore.Events.Pitch(note.Pitch),
+                Span = new TickSpan(new Tick(note.At), quarter),
+                Velocity = 80,
+                Track = 0,
+                Attribution = MusicCore.Events.Attribution.Imported,
+            })];
+        Tick end = new(50 * quarter);
+        PieceStructure piece = PieceStructure.Of(notes, MeterMap.Default, PhraseLevels.Suggest(notes, MeterMap.Default, PhraseMarks.None, end, null));
+
+        DnaIdea? transposed = PieceDna.Build(notes, MeterMap.Default, [], end, selection: null, structure: null, default, piece).Ideas
+            .FirstOrDefault(idea => idea.Occurrences.Any(occurrence => occurrence.Kind == OccurrenceKind.Transposed));
 
         Assert.NotNull(transposed);
         int higher = transposed.Occurrences.Count(occurrence => occurrence.Transposition > 0);
@@ -100,7 +120,7 @@ public class PieceDnaMapTests
         MotifSelection selection = MotifSelector.Select(piece.Notes, piece.Meter, piece.Meter.GetBar(1).Span, SelectionFilter.All);
         StructureAnalysis structure = StructureAnalyzer.Analyze(piece.Notes, piece.Meter, selection, []);
 
-        PieceDna dna = PieceDna.Build(piece.Notes, piece.Meter, piece.Keys, piece.End, selection, structure, default, Sentences(piece));
+        PieceDna dna = PieceDna.Build(piece.Notes, piece.Meter, piece.Keys, piece.End, selection, structure, default, Structure(piece));
 
         Assert.True(dna.Ideas[0].FromSelection);
         Assert.Equal("idea_1", dna.Ideas[0].Id);

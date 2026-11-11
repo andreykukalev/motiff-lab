@@ -107,11 +107,11 @@ public sealed record DnaRange(int Bar, int Low, int High);
 /// app, as lanes the screen draws: the form strip, one lane per defining idea, the key lane and the bars that bring new
 /// material. Each lane says how far the engine fills it, so the screen shows an empty state for a part not analysed yet
 /// and new analyses only fill the contract. Filled (testing item 22, read top to bottom in this order): the form from the
-/// sentences (<see cref="FormAnalyzer"/>); the key lane; the harmony lane, a chord per bar with the closes as dots; density
+/// piece's structure (<see cref="PieceStructure.Sections"/>), the same sections the Contents show; the key lane; the harmony lane, a chord per bar with the closes as dots; density
 /// in notes per beat; new material by bar; register and dynamics, folded; then the ideas, found from the openings of the
 /// sentences and phrases (<see cref="IdeaFinder"/>), after the player's selection when there is one.
 /// </summary>
-/// <param name="Form">The sections of the form strip; empty when the piece's sentences are not given.</param>
+/// <param name="Form">The sections of the form strip; empty when the piece's structure is not given.</param>
 /// <param name="Ideas">The selection, then up to six ideas found in the piece; none when no opening is heard again.</param>
 /// <param name="Keys">The key lane, in time order, covering the piece.</param>
 /// <param name="NewMaterialBars">Bars whose line repeats no earlier bar, exactly or transposed.</param>
@@ -178,8 +178,11 @@ public sealed record PieceDna(
     /// </summary>
     /// <param name="selection">The player's selection, which becomes the first idea; null for none.</param>
     /// <param name="structure">The structure analysis of that selection; null when there is no selection.</param>
-    /// <param name="sentences">The piece's sentences, for the form, the closes and the ideas found; null leaves them out.</param>
-    public static PieceDna Build(IReadOnlyList<Note> notes, MeterMap meter, IReadOnlyList<KeySignature> keys, Tick end, MotifSelection? selection, StructureAnalysis? structure, Words words = default, SentenceMap? sentences = null)
+    /// <param name="piece">
+    /// The structure of the piece (#347), for the form, the closes and the ideas found: the form is its sections as they
+    /// are, so the map and the Contents show one form; null leaves them out.
+    /// </param>
+    public static PieceDna Build(IReadOnlyList<Note> notes, MeterMap meter, IReadOnlyList<KeySignature> keys, Tick end, MotifSelection? selection, StructureAnalysis? structure, Words words = default, PieceStructure? piece = null)
     {
         ArgumentNullException.ThrowIfNull(notes);
         ArgumentNullException.ThrowIfNull(meter);
@@ -196,7 +199,7 @@ public sealed record PieceDna(
 
         IReadOnlyList<DnaKey> keyLane = KeyLane(notes, meter, keys, first, last);
         IReadOnlyList<int> newBars = StructureAnalyzer.NewMaterialBars(notes, meter);
-        IReadOnlyList<DnaSection> form = sentences is null ? [] : FormAnalyzer.Sections(notes, meter, sentences);
+        IReadOnlyList<DnaSection> form = piece?.Sections ?? [];
 
         var ideas = new List<DnaIdea>();
         if (selection is { NoteIds.Count: > 0 } && structure is not null)
@@ -204,23 +207,25 @@ public sealed record PieceDna(
             ideas.Add(Idea(notes, meter, selection, structure, words));
         }
 
-        if (sentences is not null)
+        if (piece is not null)
         {
-            IReadOnlyList<IdeaOccurrence> taken = ideas.Count > 0 ? ideas[0].Occurrences : [];
-            ideas.AddRange(IdeaFinder.Find(notes, meter, sentences, form, words, taken, firstId: ideas.Count + 1));
+            // Without a selection the ideas are the piece's own motifs; a selection takes the places it is heard in.
+            ideas.AddRange(ideas.Count == 0
+                ? piece.Motifs
+                : IdeaFinder.Find(notes, meter, piece.Levels.Sentences, form, words, ideas[0].Occurrences, firstId: 2));
         }
 
         List<(DnaChord Chord, ChordSpan Span)> read = HarmonyLane(notes, meter, keyLane, firstBar, lastBar, first, last);
         IReadOnlyList<DnaChord> harmony = [.. read.Select(pair => pair.Chord)];
         IReadOnlyList<DnaBarLevel> dynamics = DynamicsLane(notes, meter);
-        IReadOnlyList<DnaCadence> cadences = sentences is null ? [] : CadenceLane(sentences, meter, harmony, form, words);
+        IReadOnlyList<DnaCadence> cadences = piece is null ? [] : CadenceLane(piece.Closes, meter, harmony, form, words);
         IReadOnlyList<DnaBarLevel> density = DensityLane(notes, meter, firstBar, lastBar);
         return new PieceDna(
             firstBar,
             lastBar,
             form.Count > 0 ? DnaStatus.Partial : DnaStatus.NotYet,
             form,
-            ideas.Count > 0 ? DnaStatus.Partial : sentences is null ? DnaStatus.NotYet : DnaStatus.Ready,
+            ideas.Count > 0 ? DnaStatus.Partial : piece is null ? DnaStatus.NotYet : DnaStatus.Ready,
             ideas,
             keyLane.Count > 0 ? DnaStatus.Partial : DnaStatus.NotYet,
             keyLane,
@@ -293,8 +298,8 @@ public sealed record PieceDna(
     }
 
     /// <summary>The phrases' full and half closes, at the last notes that close them, each with what it is in words.</summary>
-    private static List<DnaCadence> CadenceLane(SentenceMap sentences, MeterMap meter, IReadOnlyList<DnaChord> harmony, IReadOnlyList<DnaSection> form, Words w) =>
-        [.. sentences.Closes
+    private static List<DnaCadence> CadenceLane(IReadOnlyList<PhraseClose> closes, MeterMap meter, IReadOnlyList<DnaChord> harmony, IReadOnlyList<DnaSection> form, Words w) =>
+        [.. closes
             .Where(close => close.Kind != CloseKind.None)
             .Select(close => (Close: close, At: close.Place?.Span.Onset ?? new Tick(Math.Max(close.Phrase.Span.Onset.Value, close.Phrase.Span.End.Value - 1))))
             .Select(close =>

@@ -20,6 +20,13 @@ public enum PhraseEvidence
     /// note. Derived from the notes, so inferred.
     /// </summary>
     Repetition,
+
+    /// <summary>
+    /// Inside a stretch that runs longer than a phrase with no boundary (<see cref="PhraseMap.LongPhraseBars"/>), a
+    /// passage starts again at once, note for note: the start of a phrase answered by one that starts the same, or
+    /// either edge of a short figure played twice in a row. Derived from the notes, so inferred.
+    /// </summary>
+    Restatement,
 }
 
 /// <summary>A slur in the source, from the onset of its first note to the onset of its last.</summary>
@@ -63,6 +70,20 @@ public sealed record PhraseBoundary(Tick At, IReadOnlyList<PhraseEvidence> Evide
 /// this way are searched in turn, so a passage that comes back twice marks both returns.
 /// </para>
 /// <para>
+/// A stretch between boundaries that runs longer than a phrase (<see cref="PhraseMap.LongPhraseBars"/> bars) is read
+/// again at its bar lines (#347). A passage from one of its bar lines that starts again at once, note for note, from a
+/// later bar line of the stretch makes a restatement: when it starts again after <see cref="MinPhraseBars"/> to
+/// <see cref="PhraseMap.LongPhraseBars"/> bars, the two are phrases of their own, the first marked as a restatement and
+/// the second as a repetition; when a shorter figure is played twice in a row, whole, the two make one phrase, marked at
+/// both edges as a restatement. A bar line of the stretch where a passage from an earlier bar line comes back is a
+/// repetition. Only the first bar line of a passage that comes back counts, not the ones inside it: the onsets just before the two
+/// differ.
+/// </para>
+/// <para>
+/// Last, a phrase between two others that would lie within one bar (a second ending, a bar of chords between rests)
+/// joins the phrase after it: the boundary between them is left out, unless a slur marks it.
+/// </para>
+/// <para>
 /// Pass the notes the phrases are wanted for, for example one hand or track: silences are
 /// measured across those notes only, and only slurs on their tracks count.
 /// The result is pure: the same notes, meter and marks give the same boundaries.
@@ -78,6 +99,12 @@ public static class PhraseBoundaryFinder
 
     /// <summary>The fewest onsets that must come back note for note, so a short figure repeating inside a phrase marks nothing.</summary>
     public const int MinRepeatNotes = 8;
+
+    /// <summary>A passage that starts again at once is less sure than one that brings back an opening: a figure can also run on.</summary>
+    public const double RestatementConfidence = 0.5;
+
+    /// <summary>The fewest bars a phrase usually runs (decision record 0018, section 3: phrases are 4–8 bars).</summary>
+    public const int MinPhraseBars = 4;
 
     public static IReadOnlyList<PhraseBoundary> Find(IEnumerable<Note> notes, MeterMap meter, PhraseMarks marks)
     {
@@ -109,32 +136,14 @@ public static class PhraseBoundaryFinder
             set.Add(evidence);
         }
 
-        // Slurs: outermost per track.
-        var tracks = sorted.Select(static note => note.Track).ToHashSet();
-        SlurMark[] slurs = [.. marks.Slurs.Where(slur => tracks.Contains(slur.Track)).Distinct()];
-        foreach (SlurMark slur in slurs)
+        foreach (Tick? at in SlurEdges(sorted, onsets, marks))
         {
-            bool nested = slurs.Any(other => other != slur && other.Track == slur.Track && other.Start <= slur.Start && slur.Stop <= other.Stop);
-            if (!nested)
-            {
-                Add(FirstOnsetFrom(onsets, slur.Start), PhraseEvidence.Slur);
-                Add(FirstOnsetFrom(onsets, slur.Stop.Offset(1)), PhraseEvidence.Slur);
-            }
+            Add(at, PhraseEvidence.Slur);
         }
 
-        // Rests: a beat or more where none of the notes sounds.
-        Tick soundingUntil = sorted[0].Span.End;
-        foreach (Note note in sorted.Skip(1))
+        foreach (Tick at in Rests(sorted, meter))
         {
-            if (note.Span.Onset.Value - soundingUntil.Value >= meter.SignatureAt(soundingUntil).BeatTicks)
-            {
-                Add(note.Span.Onset, PhraseEvidence.Rest);
-            }
-
-            if (note.Span.End > soundingUntil)
-            {
-                soundingUntil = note.Span.End;
-            }
+            Add(at, PhraseEvidence.Rest);
         }
 
         // Repeat signs.
@@ -144,33 +153,261 @@ public static class PhraseBoundaryFinder
         }
 
         // Repetitions: what starts the piece or a boundary, coming back note for note.
-        foreach (Tick at in Repetitions(sorted, meter, found.Keys))
+        (Tick At, int Pitch)[] line = TopLine(sorted);
+        foreach (Tick at in Repetitions(line, meter, found.Keys))
         {
             Add(at, PhraseEvidence.Repetition);
         }
 
+        // Stretches longer than a phrase, read again at their bar lines.
+        Tick end = sorted.Max(static note => note.Span.End);
+        foreach ((Tick at, PhraseEvidence evidence) in InsideLongStretches(line, meter, [.. found.Keys], end))
+        {
+            Add(at, evidence);
+        }
+
+        JoinOneBarPhrases(found, meter, end);
         return [.. found.Select(static entry => new PhraseBoundary(
             entry.Key,
             [.. entry.Value],
             Attributed(entry.Value)))];
     }
 
+    /// <summary>The first onset at the start of each outermost slur of a track and the first onset after its end.</summary>
+    private static IEnumerable<Tick?> SlurEdges(Note[] sorted, Tick[] onsets, PhraseMarks marks)
+    {
+        var tracks = sorted.Select(static note => note.Track).ToHashSet();
+        SlurMark[] slurs = [.. marks.Slurs.Where(slur => tracks.Contains(slur.Track)).Distinct()];
+        foreach (SlurMark slur in slurs)
+        {
+            bool nested = slurs.Any(other => other != slur && other.Track == slur.Track && other.Start <= slur.Start && slur.Stop <= other.Stop);
+            if (!nested)
+            {
+                yield return FirstOnsetFrom(onsets, slur.Start);
+                yield return FirstOnsetFrom(onsets, slur.Stop.Offset(1));
+            }
+        }
+    }
+
+    /// <summary>The onsets after a beat or more where none of the notes sounds.</summary>
+    private static IEnumerable<Tick> Rests(Note[] sorted, MeterMap meter)
+    {
+        Tick soundingUntil = sorted[0].Span.End;
+        foreach (Note note in sorted.Skip(1))
+        {
+            if (note.Span.Onset.Value - soundingUntil.Value >= meter.SignatureAt(soundingUntil).BeatTicks)
+            {
+                yield return note.Span.Onset;
+            }
+
+            if (note.Span.End > soundingUntil)
+            {
+                soundingUntil = note.Span.End;
+            }
+        }
+    }
+
     /// <summary>Imported when the file marks it; otherwise inferred, as sure as its surest evidence.</summary>
     private static Attribution Attributed(SortedSet<PhraseEvidence> evidence) =>
         evidence.Any(static mark => mark is PhraseEvidence.Slur or PhraseEvidence.RepeatSign) ? Attribution.Imported
         : evidence.Contains(PhraseEvidence.Rest) ? Attribution.Inferred(RestConfidence)
-        : Attribution.Inferred(RepetitionConfidence);
+        : evidence.Contains(PhraseEvidence.Repetition) ? Attribution.Inferred(RepetitionConfidence)
+        : Attribution.Inferred(RestatementConfidence);
+
+    /// <summary>The top line: the highest note at each onset, in time order.</summary>
+    private static (Tick At, int Pitch)[] TopLine(Note[] sorted) =>
+        [.. sorted
+            .GroupBy(static note => note.Span.Onset)
+            .Select(static onset => (onset.Key, onset.Max(static note => note.Pitch.MidiNumber)))];
+
+    /// <summary>
+    /// The restatements and repetitions at the bar lines of every stretch between <paramref name="boundaries"/> that runs
+    /// longer than <see cref="PhraseMap.LongPhraseBars"/> bars, each less than a beat from no boundary or cut already known.
+    /// </summary>
+    private static List<(Tick At, PhraseEvidence Evidence)> InsideLongStretches((Tick At, int Pitch)[] line, MeterMap meter, Tick[] boundaries, Tick end)
+    {
+        var stretches = new LongStretches(line, meter, boundaries, end);
+        Tick[] edges = [line[0].At, .. boundaries.Where(tick => tick > line[0].At), end];
+        for (int k = 0; k + 1 < edges.Length; k++)
+        {
+            int firstBar = meter.BarAt(edges[k]).Number;
+            int lastBar = meter.BarAt(new Tick(edges[k + 1].Value - 1)).Number;
+            if (lastBar - firstBar + 1 > PhraseMap.LongPhraseBars)
+            {
+                stretches.Read(edges[k], edges[k + 1]);
+            }
+        }
+
+        return stretches.Cuts;
+    }
+
+    /// <summary>The bar lines of the long stretches of one top line, read for passages that start again or come back.</summary>
+    private sealed class LongStretches
+    {
+        private readonly (Tick At, int Pitch)[] _line;
+        private readonly MeterMap _meter;
+
+        /// <summary>The bar lines a note starts on: bar number to the index of its onset in the line.</summary>
+        private readonly SortedDictionary<int, int> _starts = [];
+        private readonly SortedSet<Tick> _known;
+
+        public LongStretches((Tick At, int Pitch)[] line, MeterMap meter, Tick[] boundaries, Tick end)
+        {
+            _line = line;
+            _meter = meter;
+            _known = new SortedSet<Tick>(boundaries) { line[0].At };
+            var index = new Dictionary<Tick, int>();
+            for (int i = 0; i < line.Length; i++)
+            {
+                index[line[i].At] = i;
+            }
+
+            foreach (Bar bar in meter.BarsBefore(end))
+            {
+                if (index.TryGetValue(bar.Span.Onset, out int at))
+                {
+                    _starts[bar.Number] = at;
+                }
+            }
+        }
+
+        /// <summary>The cuts found so far, in the order they were found.</summary>
+        public List<(Tick At, PhraseEvidence Evidence)> Cuts { get; } = [];
+
+        /// <summary>
+        /// The stretch from <paramref name="from"/> to <paramref name="to"/>: a phrase answered at once by one that starts
+        /// the same, or a short figure played twice whole, is cut at its edges; then any bar line where a passage heard
+        /// earlier comes back.
+        /// </summary>
+        public void Read(Tick from, Tick to)
+        {
+            int[] inside = [.. _starts.Keys.Where(bar => _meter.GetBar(bar).Span.Onset > from && _meter.GetBar(bar).Span.Onset < to)];
+            var claimed = new HashSet<int>();
+            foreach (int first in inside.Where(bar => !claimed.Contains(bar)))
+            {
+                int second = inside.FirstOrDefault(bar => bar > first && bar - first <= PhraseMap.LongPhraseBars && FirstOfPassage(first, bar));
+                if (second == 0 || Onsets(first, second) < MinRepeatNotes)
+                {
+                    continue;
+                }
+
+                claimed.UnionWith(Restated(first, second, to));
+            }
+
+            foreach (int later in inside.Where(bar => !claimed.Contains(bar) && _starts.Keys.Any(earlier => earlier < bar && FirstOfPassage(earlier, bar))))
+            {
+                Cut(later, PhraseEvidence.Repetition);
+            }
+        }
+
+        /// <summary>The cuts for a passage at <paramref name="first"/> that starts again at <paramref name="second"/>, and the bars it claims.</summary>
+        private IEnumerable<int> Restated(int first, int second, Tick to)
+        {
+            int period = second - first;
+            if (period >= MinPhraseBars)
+            {
+                // A phrase answered by one that starts the same.
+                Cut(first, PhraseEvidence.Restatement);
+                Cut(second, PhraseEvidence.Repetition);
+                return Enumerable.Range(first, period + 1);
+            }
+
+            if (2 * period > PhraseMap.LongPhraseBars || !PlayedTwice(_line, _meter, first, second))
+            {
+                return [];
+            }
+
+            // A short figure played twice in a row, whole: one phrase.
+            Cut(first, PhraseEvidence.Restatement);
+            if (_starts.ContainsKey(second + period) && _meter.GetBar(second + period).Span.Onset < to)
+            {
+                Cut(second + period, PhraseEvidence.Restatement);
+            }
+
+            return Enumerable.Range(first, (2 * period) + 1);
+        }
+
+        /// <summary>Whether the passage from one bar line comes back from another; one pitch repeated is a held texture, not a passage.</summary>
+        private bool Repeats(int earlier, int later) =>
+            _starts.TryGetValue(earlier, out int from) && _starts.TryGetValue(later, out int to)
+            && from + MinRepeatNotes <= _line.Length && to + MinRepeatNotes <= _line.Length && Same(_line, from, to)
+            && _line.Skip(from).Take(MinRepeatNotes).Select(static onset => onset.Pitch).Distinct().Count() > 1;
+
+        /// <summary>How many onsets of the top line start in the bars from one bar line up to another.</summary>
+        private int Onsets(int first, int stop) => _starts.TryGetValue(stop, out int to) ? to - _starts[first] : _line.Length - _starts[first];
+
+        /// <summary>The first bar line of a passage that comes back: the onsets just before the two do not repeat each other.</summary>
+        private bool FirstOfPassage(int earlier, int later)
+        {
+            if (!Repeats(earlier, later))
+            {
+                return false;
+            }
+
+            int from = _starts[earlier];
+            int to = _starts[later];
+            return from == 0 || _line[from - 1].Pitch != _line[to - 1].Pitch
+                || _line[from].At.Value - _line[from - 1].At.Value != _line[to].At.Value - _line[to - 1].At.Value;
+        }
+
+        /// <summary>A cut at a bar line, unless a boundary or cut already known is less than a beat away.</summary>
+        private void Cut(int bar, PhraseEvidence evidence)
+        {
+            Tick tick = _line[_starts[bar]].At;
+            long beat = _meter.SignatureAt(tick).BeatTicks;
+            if (!_known.Any(other => Math.Abs(other.Value - tick.Value) < beat))
+            {
+                _known.Add(tick);
+                Cuts.Add((tick, evidence));
+            }
+        }
+    }
+
+    /// <summary>Whether every onset of the top line from bar <paramref name="first"/> up to bar <paramref name="second"/> comes back as it was from <paramref name="second"/>, the same time later.</summary>
+    private static bool PlayedTwice((Tick At, int Pitch)[] line, MeterMap meter, int first, int second)
+    {
+        Tick from = meter.GetBar(first).Span.Onset;
+        Tick to = meter.GetBar(second).Span.Onset;
+        long shift = to.Value - from.Value;
+        (Tick At, int Pitch)[] statement = [.. line.Where(onset => onset.At >= from && onset.At < to)];
+        (Tick At, int Pitch)[] again = [.. line.Where(onset => onset.At >= to && onset.At.Value < to.Value + shift)];
+        return statement.Length == again.Length
+            && statement.Zip(again).All(pair => pair.First.Pitch == pair.Second.Pitch && pair.Second.At.Value - pair.First.At.Value == shift);
+    }
+
+    /// <summary>
+    /// Joins every phrase between two others that would lie within one bar to the phrase after it, as a second ending
+    /// leads into what follows: the boundary between them is left out, unless a slur marks it.
+    /// </summary>
+    private static void JoinOneBarPhrases(SortedDictionary<Tick, SortedSet<PhraseEvidence>> found, MeterMap meter, Tick end)
+    {
+        bool joined = true;
+        while (joined && found.Count > 0)
+        {
+            joined = false;
+            Tick[] at = [Tick.Zero, .. found.Keys, end];
+            for (int i = 1; i + 2 < at.Length && !joined; i++)
+            {
+                if (meter.BarAt(at[i]).Number != meter.BarAt(new Tick(at[i + 1].Value - 1)).Number)
+                {
+                    continue;
+                }
+
+                if (!found[at[i + 1]].Contains(PhraseEvidence.Slur))
+                {
+                    found.Remove(at[i + 1]);
+                    joined = true;
+                }
+            }
+        }
+    }
 
     /// <summary>
     /// Where the passage at the start of the piece or at one of <paramref name="boundaries"/> comes
     /// back on the top line, less than a beat from no boundary already known.
     /// </summary>
-    private static List<Tick> Repetitions(Note[] sorted, MeterMap meter, IEnumerable<Tick> boundaries)
+    private static List<Tick> Repetitions((Tick At, int Pitch)[] line, MeterMap meter, IEnumerable<Tick> boundaries)
     {
-        // The top line: the highest note at each onset.
-        (Tick At, int Pitch)[] line = [.. sorted
-            .GroupBy(static note => note.Span.Onset)
-            .Select(static onset => (onset.Key, onset.Max(static note => note.Pitch.MidiNumber)))];
         var index = new Dictionary<Tick, int>();
         for (int i = 0; i < line.Length; i++)
         {

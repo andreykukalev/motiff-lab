@@ -8,7 +8,8 @@ namespace MotiffLab.MusicCore.Analysis;
 /// phrase, is a candidate, the line of its first bar (two bars when the first has fewer than
 /// <see cref="StructureAnalyzer.MinNotesForRecurrence"/> notes); <see cref="StructureAnalyzer"/> finds where each is
 /// heard again, exactly or transposed, across the whole piece; the candidates heard most often, at least twice, become
-/// the ideas, at most <see cref="MaxIdeas"/>, and a candidate heard where an idea already is heard is the same idea.
+/// the ideas, at most <see cref="MaxIdeas"/>, and a candidate heard where an idea already is heard is the same idea. A
+/// candidate heard exactly earlier in the piece is not an idea of its own: the idea is where it is first heard.
 /// </summary>
 /// <remarks>
 /// Lines are the highest note at each onset of all the notes. Every card states only what its marks show: how many times
@@ -62,7 +63,9 @@ public static class IdeaFinder
                 break;
             }
 
-            if (chosen.Any(idea => HeardAt(idea.Motif, idea.Recurrences, motif[0].Span.Onset) || HeardAt(motif, recurrences, idea.Motif[0].Span.Onset))
+            // An opening heard exactly before it is that earlier idea, met again: the idea is named where it is first heard.
+            if (recurrences.Any(recurrence => recurrence.IsExact && recurrence.Span.Onset < motif[0].Span.Onset)
+                || chosen.Any(idea => HeardAt(idea.Motif, idea.Recurrences, motif[0].Span.Onset) || HeardAt(motif, recurrences, idea.Motif[0].Span.Onset))
                 || (taken ?? []).Any(place => Covers(place.Span.Onset, new Tick(Math.Max(place.Span.Onset.Value, place.Span.End.Value - 1)), motif[0].Span.Onset)))
             {
                 continue;

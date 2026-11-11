@@ -19,7 +19,7 @@
      {
       "id": "phrase",
       "available": true,
-      "count": 10
+      "count": 18
      },
      {
       "id": "sentence",
@@ -150,15 +150,15 @@
        "end": 8640
       },
       "long": false,
-      "parent": 2,
+      "parent": 3,
       "start": {
        "at": 6000,
        "evidence": [
-        "return"
+        "repetition"
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where the phrase's opening figure comes back"
+       "description": "where an earlier passage comes back note for note"
       }
      },
      {
@@ -174,7 +174,7 @@
        "end": 9600
       },
       "long": false,
-      "parent": 3,
+      "parent": 4,
       "start": {
        "at": 8640,
        "evidence": [
@@ -198,7 +198,7 @@
        "end": 11760
       },
       "long": false,
-      "parent": 3,
+      "parent": 4,
       "start": {
        "at": 9600,
        "evidence": [
@@ -222,7 +222,7 @@
        "end": 13200
       },
       "long": false,
-      "parent": 3,
+      "parent": 4,
       "start": {
        "at": 11760,
        "evidence": [
@@ -246,7 +246,7 @@
        "end": 15360
       },
       "long": false,
-      "parent": 3,
+      "parent": 4,
       "start": {
        "at": 13200,
        "evidence": [
@@ -270,7 +270,7 @@
        "end": 16080
       },
       "long": false,
-      "parent": 3,
+      "parent": 4,
       "start": {
        "at": 15360,
        "evidence": [
@@ -294,15 +294,15 @@
        "end": 18720
       },
       "long": false,
-      "parent": 3,
+      "parent": 5,
       "start": {
        "at": 16080,
        "evidence": [
-        "return"
+        "repetition"
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where the phrase's opening figure comes back"
+       "description": "where an earlier passage comes back note for note"
       }
      },
      {
@@ -318,7 +318,7 @@
        "end": 19680
       },
       "long": false,
-      "parent": 4,
+      "parent": 6,
       "start": {
        "at": 18720,
        "evidence": [
@@ -342,7 +342,7 @@
        "end": 21840
       },
       "long": false,
-      "parent": 4,
+      "parent": 6,
       "start": {
        "at": 19680,
        "evidence": [
@@ -366,15 +366,15 @@
        "end": 24480
       },
       "long": false,
-      "parent": 4,
+      "parent": 7,
       "start": {
        "at": 21840,
        "evidence": [
-        "return"
+        "repetition"
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where the phrase's opening figure comes back"
+       "description": "where an earlier passage comes back note for note"
       }
      },
      {
@@ -390,7 +390,7 @@
        "end": 25440
       },
       "long": false,
-      "parent": 5,
+      "parent": 8,
       "start": {
        "at": 24480,
        "evidence": [
@@ -414,7 +414,7 @@
        "end": 27600
       },
       "long": false,
-      "parent": 5,
+      "parent": 8,
       "start": {
        "at": 25440,
        "evidence": [
@@ -438,7 +438,7 @@
        "end": 29040
       },
       "long": false,
-      "parent": 5,
+      "parent": 8,
       "start": {
        "at": 27600,
        "evidence": [
@@ -462,7 +462,7 @@
        "end": 31200
       },
       "long": false,
-      "parent": 5,
+      "parent": 8,
       "start": {
        "at": 29040,
        "evidence": [
@@ -486,7 +486,7 @@
        "end": 31920
       },
       "long": false,
-      "parent": 5,
+      "parent": 8,
       "start": {
        "at": 31200,
        "evidence": [
@@ -510,15 +510,15 @@
        "end": 34560
       },
       "long": false,
-      "parent": 5,
+      "parent": 9,
       "start": {
        "at": 31920,
        "evidence": [
-        "return"
+        "repetition"
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where the phrase's opening figure comes back"
+       "description": "where an earlier passage comes back note for note"
       }
      },
      {
@@ -534,7 +534,7 @@
        "end": 35520
       },
       "long": false,
-      "parent": 6,
+      "parent": 10,
       "start": {
        "at": 34560,
        "evidence": [
@@ -558,7 +558,7 @@
        "end": 37680
       },
       "long": false,
-      "parent": 6,
+      "parent": 10,
       "start": {
        "at": 35520,
        "evidence": [
@@ -582,15 +582,15 @@
        "end": 40320
       },
       "long": false,
-      "parent": 6,
+      "parent": 11,
       "start": {
        "at": 37680,
        "evidence": [
-        "return"
+        "repetition"
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where the phrase's opening figure comes back"
+       "description": "where an earlier passage comes back note for note"
       }
      },
      {
@@ -606,7 +606,7 @@
        "end": 41280
       },
       "long": false,
-      "parent": 7,
+      "parent": 12,
       "start": {
        "at": 40320,
        "evidence": [
@@ -630,7 +630,7 @@
        "end": 43440
       },
       "long": false,
-      "parent": 7,
+      "parent": 12,
       "start": {
        "at": 41280,
        "evidence": [
@@ -654,7 +654,7 @@
        "end": 44880
       },
       "long": false,
-      "parent": 7,
+      "parent": 12,
       "start": {
        "at": 43440,
        "evidence": [
@@ -678,7 +678,7 @@
        "end": 47040
       },
       "long": false,
-      "parent": 7,
+      "parent": 12,
       "start": {
        "at": 44880,
        "evidence": [
@@ -702,7 +702,7 @@
        "end": 47760
       },
       "long": false,
-      "parent": 7,
+      "parent": 12,
       "start": {
        "at": 47040,
        "evidence": [
@@ -726,15 +726,15 @@
        "end": 50400
       },
       "long": false,
-      "parent": 7,
+      "parent": 13,
       "start": {
        "at": 47760,
        "evidence": [
-        "return"
+        "repetition"
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where the phrase's opening figure comes back"
+       "description": "where an earlier passage comes back note for note"
       }
      },
      {
@@ -750,7 +750,7 @@
        "end": 51360
       },
       "long": false,
-      "parent": 8,
+      "parent": 14,
       "start": {
        "at": 50400,
        "evidence": [
@@ -774,7 +774,7 @@
        "end": 53520
       },
       "long": false,
-      "parent": 8,
+      "parent": 14,
       "start": {
        "at": 51360,
        "evidence": [
@@ -798,15 +798,15 @@
        "end": 56160
       },
       "long": false,
-      "parent": 8,
+      "parent": 15,
       "start": {
        "at": 53520,
        "evidence": [
-        "return"
+        "repetition"
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where the phrase's opening figure comes back"
+       "description": "where an earlier passage comes back note for note"
       }
      },
      {
@@ -822,7 +822,7 @@
        "end": 57120
       },
       "long": false,
-      "parent": 9,
+      "parent": 16,
       "start": {
        "at": 56160,
        "evidence": [
@@ -846,7 +846,7 @@
        "end": 59280
       },
       "long": false,
-      "parent": 9,
+      "parent": 16,
       "start": {
        "at": 57120,
        "evidence": [
@@ -870,7 +870,7 @@
        "end": 60720
       },
       "long": false,
-      "parent": 9,
+      "parent": 16,
       "start": {
        "at": 59280,
        "evidence": [
@@ -894,7 +894,7 @@
        "end": 62880
       },
       "long": false,
-      "parent": 9,
+      "parent": 16,
       "start": {
        "at": 60720,
        "evidence": [
@@ -918,7 +918,7 @@
        "end": 63600
       },
       "long": false,
-      "parent": 9,
+      "parent": 16,
       "start": {
        "at": 62880,
        "evidence": [
@@ -942,15 +942,15 @@
        "end": 66240
       },
       "long": false,
-      "parent": 9,
+      "parent": 17,
       "start": {
        "at": 63600,
        "evidence": [
-        "return"
+        "repetition"
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "where the phrase's opening figure comes back"
+       "description": "where an earlier passage comes back note for note"
       }
      },
      {
@@ -966,7 +966,7 @@
        "end": 67200
       },
       "long": false,
-      "parent": 10,
+      "parent": 18,
       "start": {
        "at": 66240,
        "evidence": [
@@ -990,7 +990,7 @@
        "end": 69360
       },
       "long": false,
-      "parent": 10,
+      "parent": 18,
       "start": {
        "at": 67200,
        "evidence": [
@@ -1021,7 +1021,7 @@
      {
       "id": "phrase",
       "available": true,
-      "count": 10
+      "count": 18
      },
      {
       "id": "sentence",
@@ -1072,14 +1072,14 @@
       "level": "phrase",
       "name": "phrase",
       "firstBar": 4,
-      "lastBar": 12,
+      "lastBar": 8,
       "onset": 2880,
-      "end": 8640,
+      "end": 6000,
       "selectable": {
        "onset": 2880,
-       "end": 8640
+       "end": 6000
       },
-      "long": true,
+      "long": false,
       "parent": 1,
       "start": {
        "at": 2880,
@@ -1095,13 +1095,37 @@
       "number": 3,
       "level": "phrase",
       "name": "phrase",
+      "firstBar": 9,
+      "lastBar": 12,
+      "onset": 6000,
+      "end": 8640,
+      "selectable": {
+       "onset": 6000,
+       "end": 8640
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 6000,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 4,
+      "level": "phrase",
+      "name": "phrase",
       "firstBar": 12,
-      "lastBar": 26,
+      "lastBar": 22,
       "onset": 8640,
-      "end": 18720,
+      "end": 16080,
       "selectable": {
        "onset": 8640,
-       "end": 18720
+       "end": 16080
       },
       "long": true,
       "parent": 1,
@@ -1116,18 +1140,42 @@
       }
      },
      {
-      "number": 4,
+      "number": 5,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 23,
+      "lastBar": 26,
+      "onset": 16080,
+      "end": 18720,
+      "selectable": {
+       "onset": 16080,
+       "end": 18720
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 16080,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 6,
       "level": "phrase",
       "name": "phrase",
       "firstBar": 26,
-      "lastBar": 34,
+      "lastBar": 30,
       "onset": 18720,
-      "end": 24480,
+      "end": 21840,
       "selectable": {
        "onset": 18720,
-       "end": 24480
+       "end": 21840
       },
-      "long": true,
+      "long": false,
       "parent": 1,
       "start": {
        "at": 18720,
@@ -1140,16 +1188,40 @@
       }
      },
      {
-      "number": 5,
+      "number": 7,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 31,
+      "lastBar": 34,
+      "onset": 21840,
+      "end": 24480,
+      "selectable": {
+       "onset": 21840,
+       "end": 24480
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 21840,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 8,
       "level": "phrase",
       "name": "phrase",
       "firstBar": 34,
-      "lastBar": 48,
+      "lastBar": 44,
       "onset": 24480,
-      "end": 34560,
+      "end": 31920,
       "selectable": {
        "onset": 24480,
-       "end": 34560
+       "end": 31920
       },
       "long": true,
       "parent": 1,
@@ -1164,18 +1236,42 @@
       }
      },
      {
-      "number": 6,
+      "number": 9,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 45,
+      "lastBar": 48,
+      "onset": 31920,
+      "end": 34560,
+      "selectable": {
+       "onset": 31920,
+       "end": 34560
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 31920,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 10,
       "level": "phrase",
       "name": "phrase",
       "firstBar": 48,
-      "lastBar": 56,
+      "lastBar": 52,
       "onset": 34560,
-      "end": 40320,
+      "end": 37680,
       "selectable": {
        "onset": 34560,
-       "end": 40320
+       "end": 37680
       },
-      "long": true,
+      "long": false,
       "parent": 1,
       "start": {
        "at": 34560,
@@ -1188,16 +1284,40 @@
       }
      },
      {
-      "number": 7,
+      "number": 11,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 53,
+      "lastBar": 56,
+      "onset": 37680,
+      "end": 40320,
+      "selectable": {
+       "onset": 37680,
+       "end": 40320
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 37680,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 12,
       "level": "phrase",
       "name": "phrase",
       "firstBar": 56,
-      "lastBar": 70,
+      "lastBar": 66,
       "onset": 40320,
-      "end": 50400,
+      "end": 47760,
       "selectable": {
        "onset": 40320,
-       "end": 50400
+       "end": 47760
       },
       "long": true,
       "parent": 1,
@@ -1212,18 +1332,42 @@
       }
      },
      {
-      "number": 8,
+      "number": 13,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 67,
+      "lastBar": 70,
+      "onset": 47760,
+      "end": 50400,
+      "selectable": {
+       "onset": 47760,
+       "end": 50400
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 47760,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 14,
       "level": "phrase",
       "name": "phrase",
       "firstBar": 70,
-      "lastBar": 78,
+      "lastBar": 74,
       "onset": 50400,
-      "end": 56160,
+      "end": 53520,
       "selectable": {
        "onset": 50400,
-       "end": 56160
+       "end": 53520
       },
-      "long": true,
+      "long": false,
       "parent": 1,
       "start": {
        "at": 50400,
@@ -1236,16 +1380,40 @@
       }
      },
      {
-      "number": 9,
+      "number": 15,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 75,
+      "lastBar": 78,
+      "onset": 53520,
+      "end": 56160,
+      "selectable": {
+       "onset": 53520,
+       "end": 56160
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 53520,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 16,
       "level": "phrase",
       "name": "phrase",
       "firstBar": 78,
-      "lastBar": 92,
+      "lastBar": 88,
       "onset": 56160,
-      "end": 66240,
+      "end": 63600,
       "selectable": {
        "onset": 56160,
-       "end": 66240
+       "end": 63600
       },
       "long": true,
       "parent": 1,
@@ -1260,7 +1428,31 @@
       }
      },
      {
-      "number": 10,
+      "number": 17,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 89,
+      "lastBar": 92,
+      "onset": 63600,
+      "end": 66240,
+      "selectable": {
+       "onset": 63600,
+       "end": 66240
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 63600,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 18,
       "level": "phrase",
       "name": "phrase",
       "firstBar": 92,
@@ -1303,7 +1495,7 @@
      {
       "id": "phrase",
       "available": true,
-      "count": 10
+      "count": 18
      },
      {
       "id": "sentence",
@@ -1346,7 +1538,7 @@
        "evidence": [],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "Phrase 2 starts where phrase 1 comes back note for note, so it reads as the consequent; phrase 2 ends on a half close, so it runs on; phrase 3 ends on a half close, so it runs on; phrase 4 ends on a half close, so it runs on; phrase 5 ends on a half close, so it runs on; phrase 6 ends on a half close, so it runs on; phrase 7 ends on a half close, so it runs on; phrase 8 ends on a half close, so it runs on; phrase 9 ends on a half close, so it runs on; phrase 10 ends with the piece."
+       "description": "Phrase 2 starts where phrase 1 comes back note for note, so it reads as the consequent; phrase 2 reads no close, so it runs on; phrase 3 ends on a half close, so it runs on; phrase 4 ends on a half close, so it runs on; phrase 5 ends on a half close, so it runs on; phrase 6 reads no close, so it runs on; phrase 7 ends on a half close, so it runs on; phrase 8 ends on a half close, so it runs on; phrase 9 ends on a half close, so it runs on; phrase 10 reads no close, so it runs on; phrase 11 ends on a half close, so it runs on; phrase 12 ends on a half close, so it runs on; phrase 13 ends on a half close, so it runs on; phrase 14 reads no close, so it runs on; phrase 15 ends on a half close, so it runs on; phrase 16 ends on a half close, so it runs on; phrase 17 ends on a half close, so it runs on; phrase 18 ends with the piece."
       }
      }
     ]
@@ -1358,7 +1550,7 @@
    "request": null,
    "answer": {
     "status": "partial",
-    "summary": "Form A A′ B A″ C A‴ D A⁴ E A⁵ · A minor · 10 half closes · busiest in bar 2",
+    "summary": "Form A A′ A″ B A‴ A⁴ A⁵ B A⁶ A⁷ A⁸ B A⁹ A¹⁰ A¹¹ B A¹² A¹³ · A minor · 14 half closes · busiest in bar 2",
     "firstBar": 0,
     "lastBar": 96,
     "barStarts": [
@@ -1475,10 +1667,18 @@
        },
        "sharesWith": [
         "section_2",
-        "section_4",
+        "section_3",
+        "section_5",
         "section_6",
-        "section_8",
-        "section_10"
+        "section_7",
+        "section_9",
+        "section_10",
+        "section_11",
+        "section_13",
+        "section_14",
+        "section_15",
+        "section_17",
+        "section_18"
        ]
       },
       {
@@ -1486,116 +1686,364 @@
        "label": "A′",
        "passage": {
         "onset": 2880,
-        "end": 8640,
+        "end": 6000,
         "firstBar": 4,
-        "lastBar": 12
+        "lastBar": 8
        },
        "sharesWith": [
         "section_1",
-        "section_4",
+        "section_3",
+        "section_5",
         "section_6",
-        "section_8",
-        "section_10"
+        "section_7",
+        "section_9",
+        "section_10",
+        "section_11",
+        "section_13",
+        "section_14",
+        "section_15",
+        "section_17",
+        "section_18"
        ]
       },
       {
        "id": "section_3",
-       "label": "B",
+       "label": "A″",
        "passage": {
-        "onset": 8640,
-        "end": 18720,
-        "firstBar": 12,
-        "lastBar": 26
+        "onset": 6000,
+        "end": 8640,
+        "firstBar": 9,
+        "lastBar": 12
        },
-       "sharesWith": []
+       "sharesWith": [
+        "section_1",
+        "section_2",
+        "section_5",
+        "section_6",
+        "section_7",
+        "section_9",
+        "section_10",
+        "section_11",
+        "section_13",
+        "section_14",
+        "section_15",
+        "section_17",
+        "section_18"
+       ]
       },
       {
        "id": "section_4",
-       "label": "A″",
+       "label": "B",
+       "passage": {
+        "onset": 8640,
+        "end": 16080,
+        "firstBar": 12,
+        "lastBar": 22
+       },
+       "sharesWith": [
+        "section_8",
+        "section_12",
+        "section_16"
+       ]
+      },
+      {
+       "id": "section_5",
+       "label": "A‴",
+       "passage": {
+        "onset": 16080,
+        "end": 18720,
+        "firstBar": 23,
+        "lastBar": 26
+       },
+       "sharesWith": [
+        "section_1",
+        "section_2",
+        "section_3",
+        "section_6",
+        "section_7",
+        "section_9",
+        "section_10",
+        "section_11",
+        "section_13",
+        "section_14",
+        "section_15",
+        "section_17",
+        "section_18"
+       ]
+      },
+      {
+       "id": "section_6",
+       "label": "A⁴",
        "passage": {
         "onset": 18720,
-        "end": 24480,
+        "end": 21840,
         "firstBar": 26,
+        "lastBar": 30
+       },
+       "sharesWith": [
+        "section_1",
+        "section_2",
+        "section_3",
+        "section_5",
+        "section_7",
+        "section_9",
+        "section_10",
+        "section_11",
+        "section_13",
+        "section_14",
+        "section_15",
+        "section_17",
+        "section_18"
+       ]
+      },
+      {
+       "id": "section_7",
+       "label": "A⁵",
+       "passage": {
+        "onset": 21840,
+        "end": 24480,
+        "firstBar": 31,
         "lastBar": 34
        },
        "sharesWith": [
         "section_1",
         "section_2",
+        "section_3",
+        "section_5",
         "section_6",
-        "section_8",
-        "section_10"
+        "section_9",
+        "section_10",
+        "section_11",
+        "section_13",
+        "section_14",
+        "section_15",
+        "section_17",
+        "section_18"
        ]
       },
       {
-       "id": "section_5",
-       "label": "C",
+       "id": "section_8",
+       "label": "B",
        "passage": {
         "onset": 24480,
-        "end": 34560,
+        "end": 31920,
         "firstBar": 34,
-        "lastBar": 48
+        "lastBar": 44
        },
-       "sharesWith": []
+       "sharesWith": [
+        "section_4",
+        "section_12",
+        "section_16"
+       ]
       },
       {
-       "id": "section_6",
-       "label": "A‴",
+       "id": "section_9",
+       "label": "A⁶",
+       "passage": {
+        "onset": 31920,
+        "end": 34560,
+        "firstBar": 45,
+        "lastBar": 48
+       },
+       "sharesWith": [
+        "section_1",
+        "section_2",
+        "section_3",
+        "section_5",
+        "section_6",
+        "section_7",
+        "section_10",
+        "section_11",
+        "section_13",
+        "section_14",
+        "section_15",
+        "section_17",
+        "section_18"
+       ]
+      },
+      {
+       "id": "section_10",
+       "label": "A⁷",
        "passage": {
         "onset": 34560,
-        "end": 40320,
+        "end": 37680,
         "firstBar": 48,
+        "lastBar": 52
+       },
+       "sharesWith": [
+        "section_1",
+        "section_2",
+        "section_3",
+        "section_5",
+        "section_6",
+        "section_7",
+        "section_9",
+        "section_11",
+        "section_13",
+        "section_14",
+        "section_15",
+        "section_17",
+        "section_18"
+       ]
+      },
+      {
+       "id": "section_11",
+       "label": "A⁸",
+       "passage": {
+        "onset": 37680,
+        "end": 40320,
+        "firstBar": 53,
         "lastBar": 56
        },
        "sharesWith": [
         "section_1",
         "section_2",
-        "section_4",
-        "section_8",
-        "section_10"
+        "section_3",
+        "section_5",
+        "section_6",
+        "section_7",
+        "section_9",
+        "section_10",
+        "section_13",
+        "section_14",
+        "section_15",
+        "section_17",
+        "section_18"
        ]
       },
       {
-       "id": "section_7",
-       "label": "D",
+       "id": "section_12",
+       "label": "B",
        "passage": {
         "onset": 40320,
-        "end": 50400,
+        "end": 47760,
         "firstBar": 56,
-        "lastBar": 70
+        "lastBar": 66
        },
-       "sharesWith": []
+       "sharesWith": [
+        "section_4",
+        "section_8",
+        "section_16"
+       ]
       },
       {
-       "id": "section_8",
-       "label": "A⁴",
+       "id": "section_13",
+       "label": "A⁹",
+       "passage": {
+        "onset": 47760,
+        "end": 50400,
+        "firstBar": 67,
+        "lastBar": 70
+       },
+       "sharesWith": [
+        "section_1",
+        "section_2",
+        "section_3",
+        "section_5",
+        "section_6",
+        "section_7",
+        "section_9",
+        "section_10",
+        "section_11",
+        "section_14",
+        "section_15",
+        "section_17",
+        "section_18"
+       ]
+      },
+      {
+       "id": "section_14",
+       "label": "A¹⁰",
        "passage": {
         "onset": 50400,
-        "end": 56160,
+        "end": 53520,
         "firstBar": 70,
+        "lastBar": 74
+       },
+       "sharesWith": [
+        "section_1",
+        "section_2",
+        "section_3",
+        "section_5",
+        "section_6",
+        "section_7",
+        "section_9",
+        "section_10",
+        "section_11",
+        "section_13",
+        "section_15",
+        "section_17",
+        "section_18"
+       ]
+      },
+      {
+       "id": "section_15",
+       "label": "A¹¹",
+       "passage": {
+        "onset": 53520,
+        "end": 56160,
+        "firstBar": 75,
         "lastBar": 78
        },
        "sharesWith": [
         "section_1",
         "section_2",
-        "section_4",
+        "section_3",
+        "section_5",
         "section_6",
-        "section_10"
+        "section_7",
+        "section_9",
+        "section_10",
+        "section_11",
+        "section_13",
+        "section_14",
+        "section_17",
+        "section_18"
        ]
       },
       {
-       "id": "section_9",
-       "label": "E",
+       "id": "section_16",
+       "label": "B",
        "passage": {
         "onset": 56160,
-        "end": 66240,
+        "end": 63600,
         "firstBar": 78,
-        "lastBar": 92
+        "lastBar": 88
        },
-       "sharesWith": []
+       "sharesWith": [
+        "section_4",
+        "section_8",
+        "section_12"
+       ]
       },
       {
-       "id": "section_10",
-       "label": "A⁵",
+       "id": "section_17",
+       "label": "A¹²",
+       "passage": {
+        "onset": 63600,
+        "end": 66240,
+        "firstBar": 89,
+        "lastBar": 92
+       },
+       "sharesWith": [
+        "section_1",
+        "section_2",
+        "section_3",
+        "section_5",
+        "section_6",
+        "section_7",
+        "section_9",
+        "section_10",
+        "section_11",
+        "section_13",
+        "section_14",
+        "section_15",
+        "section_18"
+       ]
+      },
+      {
+       "id": "section_18",
+       "label": "A¹³",
        "passage": {
         "onset": 66240,
         "end": 69360,
@@ -1605,9 +2053,17 @@
        "sharesWith": [
         "section_1",
         "section_2",
-        "section_4",
+        "section_3",
+        "section_5",
         "section_6",
-        "section_8"
+        "section_7",
+        "section_9",
+        "section_10",
+        "section_11",
+        "section_13",
+        "section_14",
+        "section_15",
+        "section_17"
        ]
       }
      ]
@@ -2417,6 +2873,12 @@
        "explanation": "Bar 12 · Am. A half close: the phrase's melody stops on E4, not on the tonic, and the music waits to go on."
       },
       {
+       "bar": 22,
+       "at": 15960,
+       "kind": "half",
+       "explanation": "Bar 22. A half close: the phrase's melody stops on E5, not on the tonic, and the music waits to go on. Then section A‴."
+      },
+      {
        "bar": 26,
        "at": 18600,
        "kind": "half",
@@ -2427,6 +2889,12 @@
        "at": 24360,
        "kind": "half",
        "explanation": "Bar 34 · Am. A half close: the phrase's melody stops on E4, not on the tonic, and the music waits to go on."
+      },
+      {
+       "bar": 44,
+       "at": 31800,
+       "kind": "half",
+       "explanation": "Bar 44. A half close: the phrase's melody stops on E5, not on the tonic, and the music waits to go on. Then section A⁶."
       },
       {
        "bar": 48,
@@ -2441,6 +2909,12 @@
        "explanation": "Bar 56 · Am. A half close: the phrase's melody stops on E4, not on the tonic, and the music waits to go on."
       },
       {
+       "bar": 66,
+       "at": 47640,
+       "kind": "half",
+       "explanation": "Bar 66. A half close: the phrase's melody stops on E5, not on the tonic, and the music waits to go on. Then section A⁹."
+      },
+      {
        "bar": 70,
        "at": 50280,
        "kind": "half",
@@ -2451,6 +2925,12 @@
        "at": 56040,
        "kind": "half",
        "explanation": "Bar 78 · Am. A half close: the phrase's melody stops on E4, not on the tonic, and the music waits to go on."
+      },
+      {
+       "bar": 88,
+       "at": 63480,
+       "kind": "half",
+       "explanation": "Bar 88. A half close: the phrase's melody stops on E5, not on the tonic, and the music waits to go on. Then section A¹²."
       },
       {
        "bar": 92,
@@ -2743,9 +3223,9 @@
       "label": "A′",
       "passage": {
        "onset": 2880,
-       "end": 8640,
+       "end": 6000,
        "firstBar": 4,
-       "lastBar": 12
+       "lastBar": 8
       },
       "circle": {
        "key": {
@@ -3007,12 +3487,283 @@
      },
      {
       "id": "section_3",
+      "label": "A″",
+      "passage": {
+       "onset": 6000,
+       "end": 8640,
+       "firstBar": 9,
+       "lastBar": 12
+      },
+      "circle": {
+       "key": {
+        "name": "A minor",
+        "fifths": 0,
+        "mode": "minor"
+       },
+       "name": "A minor",
+       "certainty": "detected",
+       "position": 0,
+       "sectors": [
+        {
+         "position": 0,
+         "fifths": 0,
+         "major": "C",
+         "minor": "Am",
+         "signature": "0"
+        },
+        {
+         "position": 1,
+         "fifths": 1,
+         "major": "G",
+         "minor": "Em",
+         "signature": "1♯"
+        },
+        {
+         "position": 2,
+         "fifths": 2,
+         "major": "D",
+         "minor": "Bm",
+         "signature": "2♯"
+        },
+        {
+         "position": 3,
+         "fifths": 3,
+         "major": "A",
+         "minor": "F♯m",
+         "signature": "3♯"
+        },
+        {
+         "position": 4,
+         "fifths": 4,
+         "major": "E",
+         "minor": "C♯m",
+         "signature": "4♯"
+        },
+        {
+         "position": 5,
+         "fifths": 5,
+         "major": "B",
+         "minor": "G♯m",
+         "signature": "5♯"
+        },
+        {
+         "position": 6,
+         "fifths": 6,
+         "major": "F♯",
+         "minor": "D♯m",
+         "signature": "6♯"
+        },
+        {
+         "position": 7,
+         "fifths": -5,
+         "major": "D♭",
+         "minor": "B♭m",
+         "signature": "5♭"
+        },
+        {
+         "position": 8,
+         "fifths": -4,
+         "major": "A♭",
+         "minor": "Fm",
+         "signature": "4♭"
+        },
+        {
+         "position": 9,
+         "fifths": -3,
+         "major": "E♭",
+         "minor": "Cm",
+         "signature": "3♭"
+        },
+        {
+         "position": 10,
+         "fifths": -2,
+         "major": "B♭",
+         "minor": "Gm",
+         "signature": "2♭"
+        },
+        {
+         "position": 11,
+         "fifths": -1,
+         "major": "F",
+         "minor": "Dm",
+         "signature": "1♭"
+        }
+       ],
+       "neighbours": [
+        {
+         "relation": "dominant",
+         "key": {
+          "name": "E minor",
+          "fifths": 1,
+          "mode": "minor"
+         },
+         "position": 1,
+         "name": "E minor",
+         "label": "dominant"
+        },
+        {
+         "relation": "subdominant",
+         "key": {
+          "name": "D minor",
+          "fifths": -1,
+          "mode": "minor"
+         },
+         "position": 11,
+         "name": "D minor",
+         "label": "subdominant"
+        },
+        {
+         "relation": "relative",
+         "key": {
+          "name": "C major",
+          "fifths": 0,
+          "mode": "major"
+         },
+         "position": 0,
+         "name": "C major",
+         "label": "relative key"
+        },
+        {
+         "relation": "parallel",
+         "key": {
+          "name": "A major",
+          "fifths": 3,
+          "mode": "major"
+         },
+         "position": 3,
+         "name": "A major",
+         "label": "parallel key"
+        }
+       ],
+       "chords": [
+        {
+         "number": 1,
+         "symbol": "Am",
+         "degree": "i",
+         "position": 0,
+         "ring": "minor",
+         "function": "tonic",
+         "role": "Am: i in A minor, the tonic.",
+         "place": {
+          "label": "Am, from bar 10",
+          "onset": 6720,
+          "end": 7440,
+          "noteIds": [
+           "n_0063",
+           "n_0064",
+           "n_0065",
+           "n_0066",
+           "n_0067",
+           "n_0068",
+           "n_0069"
+          ]
+         }
+        },
+        {
+         "number": 2,
+         "symbol": "E",
+         "degree": "V",
+         "position": 4,
+         "ring": "major",
+         "function": "dominant",
+         "role": "E: V in A minor, the dominant.",
+         "place": {
+          "label": "E, from bar 11",
+          "onset": 7440,
+          "end": 8160,
+          "noteIds": [
+           "n_0070",
+           "n_0071",
+           "n_0072",
+           "n_0073",
+           "n_0074",
+           "n_0075",
+           "n_0076"
+          ]
+         }
+        }
+       ],
+       "scale": [
+        57,
+        59,
+        60,
+        62,
+        64,
+        65,
+        67,
+        69
+       ],
+       "scaleNotes": [
+        {
+         "pitch": 57,
+         "onset": 6000,
+         "end": 6480
+        },
+        {
+         "pitch": 59,
+         "onset": 6480,
+         "end": 6960
+        },
+        {
+         "pitch": 60,
+         "onset": 6960,
+         "end": 7440
+        },
+        {
+         "pitch": 62,
+         "onset": 7440,
+         "end": 7920
+        },
+        {
+         "pitch": 64,
+         "onset": 7920,
+         "end": 8400
+        },
+        {
+         "pitch": 65,
+         "onset": 8400,
+         "end": 8880
+        },
+        {
+         "pitch": 67,
+         "onset": 8880,
+         "end": 9360
+        },
+        {
+         "pitch": 69,
+         "onset": 9360,
+         "end": 10320
+        }
+       ],
+       "lines": [
+        "A minor: no sharps or flats, the same as its relative key, C major.",
+        "Its neighbours on the circle differ by one sharp or flat: E minor (dominant) and D minor (subdominant).",
+        "The chords of the section: Am (i) → E (V)."
+       ],
+       "zones": [
+        "tonic",
+        "dominant",
+        "near",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "near",
+        "subdominant"
+       ]
+      }
+     },
+     {
+      "id": "section_4",
       "label": "B",
       "passage": {
        "onset": 8640,
-       "end": 18720,
+       "end": 16080,
        "firstBar": 12,
-       "lastBar": 26
+       "lastBar": 22
       },
       "circle": {
        "key": {
@@ -3313,13 +4064,284 @@
       }
      },
      {
-      "id": "section_4",
-      "label": "A″",
+      "id": "section_5",
+      "label": "A‴",
+      "passage": {
+       "onset": 16080,
+       "end": 18720,
+       "firstBar": 23,
+       "lastBar": 26
+      },
+      "circle": {
+       "key": {
+        "name": "A minor",
+        "fifths": 0,
+        "mode": "minor"
+       },
+       "name": "A minor",
+       "certainty": "detected",
+       "position": 0,
+       "sectors": [
+        {
+         "position": 0,
+         "fifths": 0,
+         "major": "C",
+         "minor": "Am",
+         "signature": "0"
+        },
+        {
+         "position": 1,
+         "fifths": 1,
+         "major": "G",
+         "minor": "Em",
+         "signature": "1♯"
+        },
+        {
+         "position": 2,
+         "fifths": 2,
+         "major": "D",
+         "minor": "Bm",
+         "signature": "2♯"
+        },
+        {
+         "position": 3,
+         "fifths": 3,
+         "major": "A",
+         "minor": "F♯m",
+         "signature": "3♯"
+        },
+        {
+         "position": 4,
+         "fifths": 4,
+         "major": "E",
+         "minor": "C♯m",
+         "signature": "4♯"
+        },
+        {
+         "position": 5,
+         "fifths": 5,
+         "major": "B",
+         "minor": "G♯m",
+         "signature": "5♯"
+        },
+        {
+         "position": 6,
+         "fifths": 6,
+         "major": "F♯",
+         "minor": "D♯m",
+         "signature": "6♯"
+        },
+        {
+         "position": 7,
+         "fifths": -5,
+         "major": "D♭",
+         "minor": "B♭m",
+         "signature": "5♭"
+        },
+        {
+         "position": 8,
+         "fifths": -4,
+         "major": "A♭",
+         "minor": "Fm",
+         "signature": "4♭"
+        },
+        {
+         "position": 9,
+         "fifths": -3,
+         "major": "E♭",
+         "minor": "Cm",
+         "signature": "3♭"
+        },
+        {
+         "position": 10,
+         "fifths": -2,
+         "major": "B♭",
+         "minor": "Gm",
+         "signature": "2♭"
+        },
+        {
+         "position": 11,
+         "fifths": -1,
+         "major": "F",
+         "minor": "Dm",
+         "signature": "1♭"
+        }
+       ],
+       "neighbours": [
+        {
+         "relation": "dominant",
+         "key": {
+          "name": "E minor",
+          "fifths": 1,
+          "mode": "minor"
+         },
+         "position": 1,
+         "name": "E minor",
+         "label": "dominant"
+        },
+        {
+         "relation": "subdominant",
+         "key": {
+          "name": "D minor",
+          "fifths": -1,
+          "mode": "minor"
+         },
+         "position": 11,
+         "name": "D minor",
+         "label": "subdominant"
+        },
+        {
+         "relation": "relative",
+         "key": {
+          "name": "C major",
+          "fifths": 0,
+          "mode": "major"
+         },
+         "position": 0,
+         "name": "C major",
+         "label": "relative key"
+        },
+        {
+         "relation": "parallel",
+         "key": {
+          "name": "A major",
+          "fifths": 3,
+          "mode": "major"
+         },
+         "position": 3,
+         "name": "A major",
+         "label": "parallel key"
+        }
+       ],
+       "chords": [
+        {
+         "number": 1,
+         "symbol": "Am",
+         "degree": "i",
+         "position": 0,
+         "ring": "minor",
+         "function": "tonic",
+         "role": "Am: i in A minor, the tonic.",
+         "place": {
+          "label": "Am, from bar 24",
+          "onset": 16800,
+          "end": 17520,
+          "noteIds": [
+           "n_0154",
+           "n_0155",
+           "n_0156",
+           "n_0157",
+           "n_0158",
+           "n_0159",
+           "n_0160"
+          ]
+         }
+        },
+        {
+         "number": 2,
+         "symbol": "E",
+         "degree": "V",
+         "position": 4,
+         "ring": "major",
+         "function": "dominant",
+         "role": "E: V in A minor, the dominant.",
+         "place": {
+          "label": "E, from bar 25",
+          "onset": 17520,
+          "end": 18240,
+          "noteIds": [
+           "n_0161",
+           "n_0162",
+           "n_0163",
+           "n_0164",
+           "n_0165",
+           "n_0166",
+           "n_0167"
+          ]
+         }
+        }
+       ],
+       "scale": [
+        57,
+        59,
+        60,
+        62,
+        64,
+        65,
+        67,
+        69
+       ],
+       "scaleNotes": [
+        {
+         "pitch": 57,
+         "onset": 16080,
+         "end": 16560
+        },
+        {
+         "pitch": 59,
+         "onset": 16560,
+         "end": 17040
+        },
+        {
+         "pitch": 60,
+         "onset": 17040,
+         "end": 17520
+        },
+        {
+         "pitch": 62,
+         "onset": 17520,
+         "end": 18000
+        },
+        {
+         "pitch": 64,
+         "onset": 18000,
+         "end": 18480
+        },
+        {
+         "pitch": 65,
+         "onset": 18480,
+         "end": 18960
+        },
+        {
+         "pitch": 67,
+         "onset": 18960,
+         "end": 19440
+        },
+        {
+         "pitch": 69,
+         "onset": 19440,
+         "end": 20400
+        }
+       ],
+       "lines": [
+        "A minor: no sharps or flats, the same as its relative key, C major.",
+        "Its neighbours on the circle differ by one sharp or flat: E minor (dominant) and D minor (subdominant).",
+        "The chords of the section: Am (i) → E (V)."
+       ],
+       "zones": [
+        "tonic",
+        "dominant",
+        "near",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "near",
+        "subdominant"
+       ]
+      }
+     },
+     {
+      "id": "section_6",
+      "label": "A⁴",
       "passage": {
        "onset": 18720,
-       "end": 24480,
+       "end": 21840,
        "firstBar": 26,
-       "lastBar": 34
+       "lastBar": 30
       },
       "circle": {
        "key": {
@@ -3580,13 +4602,284 @@
       }
      },
      {
-      "id": "section_5",
-      "label": "C",
+      "id": "section_7",
+      "label": "A⁵",
+      "passage": {
+       "onset": 21840,
+       "end": 24480,
+       "firstBar": 31,
+       "lastBar": 34
+      },
+      "circle": {
+       "key": {
+        "name": "A minor",
+        "fifths": 0,
+        "mode": "minor"
+       },
+       "name": "A minor",
+       "certainty": "detected",
+       "position": 0,
+       "sectors": [
+        {
+         "position": 0,
+         "fifths": 0,
+         "major": "C",
+         "minor": "Am",
+         "signature": "0"
+        },
+        {
+         "position": 1,
+         "fifths": 1,
+         "major": "G",
+         "minor": "Em",
+         "signature": "1♯"
+        },
+        {
+         "position": 2,
+         "fifths": 2,
+         "major": "D",
+         "minor": "Bm",
+         "signature": "2♯"
+        },
+        {
+         "position": 3,
+         "fifths": 3,
+         "major": "A",
+         "minor": "F♯m",
+         "signature": "3♯"
+        },
+        {
+         "position": 4,
+         "fifths": 4,
+         "major": "E",
+         "minor": "C♯m",
+         "signature": "4♯"
+        },
+        {
+         "position": 5,
+         "fifths": 5,
+         "major": "B",
+         "minor": "G♯m",
+         "signature": "5♯"
+        },
+        {
+         "position": 6,
+         "fifths": 6,
+         "major": "F♯",
+         "minor": "D♯m",
+         "signature": "6♯"
+        },
+        {
+         "position": 7,
+         "fifths": -5,
+         "major": "D♭",
+         "minor": "B♭m",
+         "signature": "5♭"
+        },
+        {
+         "position": 8,
+         "fifths": -4,
+         "major": "A♭",
+         "minor": "Fm",
+         "signature": "4♭"
+        },
+        {
+         "position": 9,
+         "fifths": -3,
+         "major": "E♭",
+         "minor": "Cm",
+         "signature": "3♭"
+        },
+        {
+         "position": 10,
+         "fifths": -2,
+         "major": "B♭",
+         "minor": "Gm",
+         "signature": "2♭"
+        },
+        {
+         "position": 11,
+         "fifths": -1,
+         "major": "F",
+         "minor": "Dm",
+         "signature": "1♭"
+        }
+       ],
+       "neighbours": [
+        {
+         "relation": "dominant",
+         "key": {
+          "name": "E minor",
+          "fifths": 1,
+          "mode": "minor"
+         },
+         "position": 1,
+         "name": "E minor",
+         "label": "dominant"
+        },
+        {
+         "relation": "subdominant",
+         "key": {
+          "name": "D minor",
+          "fifths": -1,
+          "mode": "minor"
+         },
+         "position": 11,
+         "name": "D minor",
+         "label": "subdominant"
+        },
+        {
+         "relation": "relative",
+         "key": {
+          "name": "C major",
+          "fifths": 0,
+          "mode": "major"
+         },
+         "position": 0,
+         "name": "C major",
+         "label": "relative key"
+        },
+        {
+         "relation": "parallel",
+         "key": {
+          "name": "A major",
+          "fifths": 3,
+          "mode": "major"
+         },
+         "position": 3,
+         "name": "A major",
+         "label": "parallel key"
+        }
+       ],
+       "chords": [
+        {
+         "number": 1,
+         "symbol": "Am",
+         "degree": "i",
+         "position": 0,
+         "ring": "minor",
+         "function": "tonic",
+         "role": "Am: i in A minor, the tonic.",
+         "place": {
+          "label": "Am, from bar 32",
+          "onset": 22560,
+          "end": 23280,
+          "noteIds": [
+           "n_0208",
+           "n_0209",
+           "n_0210",
+           "n_0211",
+           "n_0212",
+           "n_0213",
+           "n_0214"
+          ]
+         }
+        },
+        {
+         "number": 2,
+         "symbol": "E",
+         "degree": "V",
+         "position": 4,
+         "ring": "major",
+         "function": "dominant",
+         "role": "E: V in A minor, the dominant.",
+         "place": {
+          "label": "E, from bar 33",
+          "onset": 23280,
+          "end": 24000,
+          "noteIds": [
+           "n_0215",
+           "n_0216",
+           "n_0217",
+           "n_0218",
+           "n_0219",
+           "n_0220",
+           "n_0221"
+          ]
+         }
+        }
+       ],
+       "scale": [
+        57,
+        59,
+        60,
+        62,
+        64,
+        65,
+        67,
+        69
+       ],
+       "scaleNotes": [
+        {
+         "pitch": 57,
+         "onset": 21840,
+         "end": 22320
+        },
+        {
+         "pitch": 59,
+         "onset": 22320,
+         "end": 22800
+        },
+        {
+         "pitch": 60,
+         "onset": 22800,
+         "end": 23280
+        },
+        {
+         "pitch": 62,
+         "onset": 23280,
+         "end": 23760
+        },
+        {
+         "pitch": 64,
+         "onset": 23760,
+         "end": 24240
+        },
+        {
+         "pitch": 65,
+         "onset": 24240,
+         "end": 24720
+        },
+        {
+         "pitch": 67,
+         "onset": 24720,
+         "end": 25200
+        },
+        {
+         "pitch": 69,
+         "onset": 25200,
+         "end": 26160
+        }
+       ],
+       "lines": [
+        "A minor: no sharps or flats, the same as its relative key, C major.",
+        "Its neighbours on the circle differ by one sharp or flat: E minor (dominant) and D minor (subdominant).",
+        "The chords of the section: Am (i) → E (V)."
+       ],
+       "zones": [
+        "tonic",
+        "dominant",
+        "near",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "near",
+        "subdominant"
+       ]
+      }
+     },
+     {
+      "id": "section_8",
+      "label": "B",
       "passage": {
        "onset": 24480,
-       "end": 34560,
+       "end": 31920,
        "firstBar": 34,
-       "lastBar": 48
+       "lastBar": 44
       },
       "circle": {
        "key": {
@@ -3887,13 +5180,284 @@
       }
      },
      {
-      "id": "section_6",
-      "label": "A‴",
+      "id": "section_9",
+      "label": "A⁶",
+      "passage": {
+       "onset": 31920,
+       "end": 34560,
+       "firstBar": 45,
+       "lastBar": 48
+      },
+      "circle": {
+       "key": {
+        "name": "A minor",
+        "fifths": 0,
+        "mode": "minor"
+       },
+       "name": "A minor",
+       "certainty": "detected",
+       "position": 0,
+       "sectors": [
+        {
+         "position": 0,
+         "fifths": 0,
+         "major": "C",
+         "minor": "Am",
+         "signature": "0"
+        },
+        {
+         "position": 1,
+         "fifths": 1,
+         "major": "G",
+         "minor": "Em",
+         "signature": "1♯"
+        },
+        {
+         "position": 2,
+         "fifths": 2,
+         "major": "D",
+         "minor": "Bm",
+         "signature": "2♯"
+        },
+        {
+         "position": 3,
+         "fifths": 3,
+         "major": "A",
+         "minor": "F♯m",
+         "signature": "3♯"
+        },
+        {
+         "position": 4,
+         "fifths": 4,
+         "major": "E",
+         "minor": "C♯m",
+         "signature": "4♯"
+        },
+        {
+         "position": 5,
+         "fifths": 5,
+         "major": "B",
+         "minor": "G♯m",
+         "signature": "5♯"
+        },
+        {
+         "position": 6,
+         "fifths": 6,
+         "major": "F♯",
+         "minor": "D♯m",
+         "signature": "6♯"
+        },
+        {
+         "position": 7,
+         "fifths": -5,
+         "major": "D♭",
+         "minor": "B♭m",
+         "signature": "5♭"
+        },
+        {
+         "position": 8,
+         "fifths": -4,
+         "major": "A♭",
+         "minor": "Fm",
+         "signature": "4♭"
+        },
+        {
+         "position": 9,
+         "fifths": -3,
+         "major": "E♭",
+         "minor": "Cm",
+         "signature": "3♭"
+        },
+        {
+         "position": 10,
+         "fifths": -2,
+         "major": "B♭",
+         "minor": "Gm",
+         "signature": "2♭"
+        },
+        {
+         "position": 11,
+         "fifths": -1,
+         "major": "F",
+         "minor": "Dm",
+         "signature": "1♭"
+        }
+       ],
+       "neighbours": [
+        {
+         "relation": "dominant",
+         "key": {
+          "name": "E minor",
+          "fifths": 1,
+          "mode": "minor"
+         },
+         "position": 1,
+         "name": "E minor",
+         "label": "dominant"
+        },
+        {
+         "relation": "subdominant",
+         "key": {
+          "name": "D minor",
+          "fifths": -1,
+          "mode": "minor"
+         },
+         "position": 11,
+         "name": "D minor",
+         "label": "subdominant"
+        },
+        {
+         "relation": "relative",
+         "key": {
+          "name": "C major",
+          "fifths": 0,
+          "mode": "major"
+         },
+         "position": 0,
+         "name": "C major",
+         "label": "relative key"
+        },
+        {
+         "relation": "parallel",
+         "key": {
+          "name": "A major",
+          "fifths": 3,
+          "mode": "major"
+         },
+         "position": 3,
+         "name": "A major",
+         "label": "parallel key"
+        }
+       ],
+       "chords": [
+        {
+         "number": 1,
+         "symbol": "Am",
+         "degree": "i",
+         "position": 0,
+         "ring": "minor",
+         "function": "tonic",
+         "role": "Am: i in A minor, the tonic.",
+         "place": {
+          "label": "Am, from bar 46",
+          "onset": 32640,
+          "end": 33360,
+          "noteIds": [
+           "n_0299",
+           "n_0300",
+           "n_0301",
+           "n_0302",
+           "n_0303",
+           "n_0304",
+           "n_0305"
+          ]
+         }
+        },
+        {
+         "number": 2,
+         "symbol": "E",
+         "degree": "V",
+         "position": 4,
+         "ring": "major",
+         "function": "dominant",
+         "role": "E: V in A minor, the dominant.",
+         "place": {
+          "label": "E, from bar 47",
+          "onset": 33360,
+          "end": 34080,
+          "noteIds": [
+           "n_0306",
+           "n_0307",
+           "n_0308",
+           "n_0309",
+           "n_0310",
+           "n_0311",
+           "n_0312"
+          ]
+         }
+        }
+       ],
+       "scale": [
+        57,
+        59,
+        60,
+        62,
+        64,
+        65,
+        67,
+        69
+       ],
+       "scaleNotes": [
+        {
+         "pitch": 57,
+         "onset": 31920,
+         "end": 32400
+        },
+        {
+         "pitch": 59,
+         "onset": 32400,
+         "end": 32880
+        },
+        {
+         "pitch": 60,
+         "onset": 32880,
+         "end": 33360
+        },
+        {
+         "pitch": 62,
+         "onset": 33360,
+         "end": 33840
+        },
+        {
+         "pitch": 64,
+         "onset": 33840,
+         "end": 34320
+        },
+        {
+         "pitch": 65,
+         "onset": 34320,
+         "end": 34800
+        },
+        {
+         "pitch": 67,
+         "onset": 34800,
+         "end": 35280
+        },
+        {
+         "pitch": 69,
+         "onset": 35280,
+         "end": 36240
+        }
+       ],
+       "lines": [
+        "A minor: no sharps or flats, the same as its relative key, C major.",
+        "Its neighbours on the circle differ by one sharp or flat: E minor (dominant) and D minor (subdominant).",
+        "The chords of the section: Am (i) → E (V)."
+       ],
+       "zones": [
+        "tonic",
+        "dominant",
+        "near",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "near",
+        "subdominant"
+       ]
+      }
+     },
+     {
+      "id": "section_10",
+      "label": "A⁷",
       "passage": {
        "onset": 34560,
-       "end": 40320,
+       "end": 37680,
        "firstBar": 48,
-       "lastBar": 56
+       "lastBar": 52
       },
       "circle": {
        "key": {
@@ -4154,13 +5718,284 @@
       }
      },
      {
-      "id": "section_7",
-      "label": "D",
+      "id": "section_11",
+      "label": "A⁸",
+      "passage": {
+       "onset": 37680,
+       "end": 40320,
+       "firstBar": 53,
+       "lastBar": 56
+      },
+      "circle": {
+       "key": {
+        "name": "A minor",
+        "fifths": 0,
+        "mode": "minor"
+       },
+       "name": "A minor",
+       "certainty": "detected",
+       "position": 0,
+       "sectors": [
+        {
+         "position": 0,
+         "fifths": 0,
+         "major": "C",
+         "minor": "Am",
+         "signature": "0"
+        },
+        {
+         "position": 1,
+         "fifths": 1,
+         "major": "G",
+         "minor": "Em",
+         "signature": "1♯"
+        },
+        {
+         "position": 2,
+         "fifths": 2,
+         "major": "D",
+         "minor": "Bm",
+         "signature": "2♯"
+        },
+        {
+         "position": 3,
+         "fifths": 3,
+         "major": "A",
+         "minor": "F♯m",
+         "signature": "3♯"
+        },
+        {
+         "position": 4,
+         "fifths": 4,
+         "major": "E",
+         "minor": "C♯m",
+         "signature": "4♯"
+        },
+        {
+         "position": 5,
+         "fifths": 5,
+         "major": "B",
+         "minor": "G♯m",
+         "signature": "5♯"
+        },
+        {
+         "position": 6,
+         "fifths": 6,
+         "major": "F♯",
+         "minor": "D♯m",
+         "signature": "6♯"
+        },
+        {
+         "position": 7,
+         "fifths": -5,
+         "major": "D♭",
+         "minor": "B♭m",
+         "signature": "5♭"
+        },
+        {
+         "position": 8,
+         "fifths": -4,
+         "major": "A♭",
+         "minor": "Fm",
+         "signature": "4♭"
+        },
+        {
+         "position": 9,
+         "fifths": -3,
+         "major": "E♭",
+         "minor": "Cm",
+         "signature": "3♭"
+        },
+        {
+         "position": 10,
+         "fifths": -2,
+         "major": "B♭",
+         "minor": "Gm",
+         "signature": "2♭"
+        },
+        {
+         "position": 11,
+         "fifths": -1,
+         "major": "F",
+         "minor": "Dm",
+         "signature": "1♭"
+        }
+       ],
+       "neighbours": [
+        {
+         "relation": "dominant",
+         "key": {
+          "name": "E minor",
+          "fifths": 1,
+          "mode": "minor"
+         },
+         "position": 1,
+         "name": "E minor",
+         "label": "dominant"
+        },
+        {
+         "relation": "subdominant",
+         "key": {
+          "name": "D minor",
+          "fifths": -1,
+          "mode": "minor"
+         },
+         "position": 11,
+         "name": "D minor",
+         "label": "subdominant"
+        },
+        {
+         "relation": "relative",
+         "key": {
+          "name": "C major",
+          "fifths": 0,
+          "mode": "major"
+         },
+         "position": 0,
+         "name": "C major",
+         "label": "relative key"
+        },
+        {
+         "relation": "parallel",
+         "key": {
+          "name": "A major",
+          "fifths": 3,
+          "mode": "major"
+         },
+         "position": 3,
+         "name": "A major",
+         "label": "parallel key"
+        }
+       ],
+       "chords": [
+        {
+         "number": 1,
+         "symbol": "Am",
+         "degree": "i",
+         "position": 0,
+         "ring": "minor",
+         "function": "tonic",
+         "role": "Am: i in A minor, the tonic.",
+         "place": {
+          "label": "Am, from bar 54",
+          "onset": 38400,
+          "end": 39120,
+          "noteIds": [
+           "n_0353",
+           "n_0354",
+           "n_0355",
+           "n_0356",
+           "n_0357",
+           "n_0358",
+           "n_0359"
+          ]
+         }
+        },
+        {
+         "number": 2,
+         "symbol": "E",
+         "degree": "V",
+         "position": 4,
+         "ring": "major",
+         "function": "dominant",
+         "role": "E: V in A minor, the dominant.",
+         "place": {
+          "label": "E, from bar 55",
+          "onset": 39120,
+          "end": 39840,
+          "noteIds": [
+           "n_0360",
+           "n_0361",
+           "n_0362",
+           "n_0363",
+           "n_0364",
+           "n_0365",
+           "n_0366"
+          ]
+         }
+        }
+       ],
+       "scale": [
+        57,
+        59,
+        60,
+        62,
+        64,
+        65,
+        67,
+        69
+       ],
+       "scaleNotes": [
+        {
+         "pitch": 57,
+         "onset": 37680,
+         "end": 38160
+        },
+        {
+         "pitch": 59,
+         "onset": 38160,
+         "end": 38640
+        },
+        {
+         "pitch": 60,
+         "onset": 38640,
+         "end": 39120
+        },
+        {
+         "pitch": 62,
+         "onset": 39120,
+         "end": 39600
+        },
+        {
+         "pitch": 64,
+         "onset": 39600,
+         "end": 40080
+        },
+        {
+         "pitch": 65,
+         "onset": 40080,
+         "end": 40560
+        },
+        {
+         "pitch": 67,
+         "onset": 40560,
+         "end": 41040
+        },
+        {
+         "pitch": 69,
+         "onset": 41040,
+         "end": 42000
+        }
+       ],
+       "lines": [
+        "A minor: no sharps or flats, the same as its relative key, C major.",
+        "Its neighbours on the circle differ by one sharp or flat: E minor (dominant) and D minor (subdominant).",
+        "The chords of the section: Am (i) → E (V)."
+       ],
+       "zones": [
+        "tonic",
+        "dominant",
+        "near",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "near",
+        "subdominant"
+       ]
+      }
+     },
+     {
+      "id": "section_12",
+      "label": "B",
       "passage": {
        "onset": 40320,
-       "end": 50400,
+       "end": 47760,
        "firstBar": 56,
-       "lastBar": 70
+       "lastBar": 66
       },
       "circle": {
        "key": {
@@ -4461,13 +6296,284 @@
       }
      },
      {
-      "id": "section_8",
-      "label": "A⁴",
+      "id": "section_13",
+      "label": "A⁹",
+      "passage": {
+       "onset": 47760,
+       "end": 50400,
+       "firstBar": 67,
+       "lastBar": 70
+      },
+      "circle": {
+       "key": {
+        "name": "A minor",
+        "fifths": 0,
+        "mode": "minor"
+       },
+       "name": "A minor",
+       "certainty": "detected",
+       "position": 0,
+       "sectors": [
+        {
+         "position": 0,
+         "fifths": 0,
+         "major": "C",
+         "minor": "Am",
+         "signature": "0"
+        },
+        {
+         "position": 1,
+         "fifths": 1,
+         "major": "G",
+         "minor": "Em",
+         "signature": "1♯"
+        },
+        {
+         "position": 2,
+         "fifths": 2,
+         "major": "D",
+         "minor": "Bm",
+         "signature": "2♯"
+        },
+        {
+         "position": 3,
+         "fifths": 3,
+         "major": "A",
+         "minor": "F♯m",
+         "signature": "3♯"
+        },
+        {
+         "position": 4,
+         "fifths": 4,
+         "major": "E",
+         "minor": "C♯m",
+         "signature": "4♯"
+        },
+        {
+         "position": 5,
+         "fifths": 5,
+         "major": "B",
+         "minor": "G♯m",
+         "signature": "5♯"
+        },
+        {
+         "position": 6,
+         "fifths": 6,
+         "major": "F♯",
+         "minor": "D♯m",
+         "signature": "6♯"
+        },
+        {
+         "position": 7,
+         "fifths": -5,
+         "major": "D♭",
+         "minor": "B♭m",
+         "signature": "5♭"
+        },
+        {
+         "position": 8,
+         "fifths": -4,
+         "major": "A♭",
+         "minor": "Fm",
+         "signature": "4♭"
+        },
+        {
+         "position": 9,
+         "fifths": -3,
+         "major": "E♭",
+         "minor": "Cm",
+         "signature": "3♭"
+        },
+        {
+         "position": 10,
+         "fifths": -2,
+         "major": "B♭",
+         "minor": "Gm",
+         "signature": "2♭"
+        },
+        {
+         "position": 11,
+         "fifths": -1,
+         "major": "F",
+         "minor": "Dm",
+         "signature": "1♭"
+        }
+       ],
+       "neighbours": [
+        {
+         "relation": "dominant",
+         "key": {
+          "name": "E minor",
+          "fifths": 1,
+          "mode": "minor"
+         },
+         "position": 1,
+         "name": "E minor",
+         "label": "dominant"
+        },
+        {
+         "relation": "subdominant",
+         "key": {
+          "name": "D minor",
+          "fifths": -1,
+          "mode": "minor"
+         },
+         "position": 11,
+         "name": "D minor",
+         "label": "subdominant"
+        },
+        {
+         "relation": "relative",
+         "key": {
+          "name": "C major",
+          "fifths": 0,
+          "mode": "major"
+         },
+         "position": 0,
+         "name": "C major",
+         "label": "relative key"
+        },
+        {
+         "relation": "parallel",
+         "key": {
+          "name": "A major",
+          "fifths": 3,
+          "mode": "major"
+         },
+         "position": 3,
+         "name": "A major",
+         "label": "parallel key"
+        }
+       ],
+       "chords": [
+        {
+         "number": 1,
+         "symbol": "Am",
+         "degree": "i",
+         "position": 0,
+         "ring": "minor",
+         "function": "tonic",
+         "role": "Am: i in A minor, the tonic.",
+         "place": {
+          "label": "Am, from bar 68",
+          "onset": 48480,
+          "end": 49200,
+          "noteIds": [
+           "n_0444",
+           "n_0445",
+           "n_0446",
+           "n_0447",
+           "n_0448",
+           "n_0449",
+           "n_0450"
+          ]
+         }
+        },
+        {
+         "number": 2,
+         "symbol": "E",
+         "degree": "V",
+         "position": 4,
+         "ring": "major",
+         "function": "dominant",
+         "role": "E: V in A minor, the dominant.",
+         "place": {
+          "label": "E, from bar 69",
+          "onset": 49200,
+          "end": 49920,
+          "noteIds": [
+           "n_0451",
+           "n_0452",
+           "n_0453",
+           "n_0454",
+           "n_0455",
+           "n_0456",
+           "n_0457"
+          ]
+         }
+        }
+       ],
+       "scale": [
+        57,
+        59,
+        60,
+        62,
+        64,
+        65,
+        67,
+        69
+       ],
+       "scaleNotes": [
+        {
+         "pitch": 57,
+         "onset": 47760,
+         "end": 48240
+        },
+        {
+         "pitch": 59,
+         "onset": 48240,
+         "end": 48720
+        },
+        {
+         "pitch": 60,
+         "onset": 48720,
+         "end": 49200
+        },
+        {
+         "pitch": 62,
+         "onset": 49200,
+         "end": 49680
+        },
+        {
+         "pitch": 64,
+         "onset": 49680,
+         "end": 50160
+        },
+        {
+         "pitch": 65,
+         "onset": 50160,
+         "end": 50640
+        },
+        {
+         "pitch": 67,
+         "onset": 50640,
+         "end": 51120
+        },
+        {
+         "pitch": 69,
+         "onset": 51120,
+         "end": 52080
+        }
+       ],
+       "lines": [
+        "A minor: no sharps or flats, the same as its relative key, C major.",
+        "Its neighbours on the circle differ by one sharp or flat: E minor (dominant) and D minor (subdominant).",
+        "The chords of the section: Am (i) → E (V)."
+       ],
+       "zones": [
+        "tonic",
+        "dominant",
+        "near",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "near",
+        "subdominant"
+       ]
+      }
+     },
+     {
+      "id": "section_14",
+      "label": "A¹⁰",
       "passage": {
        "onset": 50400,
-       "end": 56160,
+       "end": 53520,
        "firstBar": 70,
-       "lastBar": 78
+       "lastBar": 74
       },
       "circle": {
        "key": {
@@ -4728,13 +6834,284 @@
       }
      },
      {
-      "id": "section_9",
-      "label": "E",
+      "id": "section_15",
+      "label": "A¹¹",
+      "passage": {
+       "onset": 53520,
+       "end": 56160,
+       "firstBar": 75,
+       "lastBar": 78
+      },
+      "circle": {
+       "key": {
+        "name": "A minor",
+        "fifths": 0,
+        "mode": "minor"
+       },
+       "name": "A minor",
+       "certainty": "detected",
+       "position": 0,
+       "sectors": [
+        {
+         "position": 0,
+         "fifths": 0,
+         "major": "C",
+         "minor": "Am",
+         "signature": "0"
+        },
+        {
+         "position": 1,
+         "fifths": 1,
+         "major": "G",
+         "minor": "Em",
+         "signature": "1♯"
+        },
+        {
+         "position": 2,
+         "fifths": 2,
+         "major": "D",
+         "minor": "Bm",
+         "signature": "2♯"
+        },
+        {
+         "position": 3,
+         "fifths": 3,
+         "major": "A",
+         "minor": "F♯m",
+         "signature": "3♯"
+        },
+        {
+         "position": 4,
+         "fifths": 4,
+         "major": "E",
+         "minor": "C♯m",
+         "signature": "4♯"
+        },
+        {
+         "position": 5,
+         "fifths": 5,
+         "major": "B",
+         "minor": "G♯m",
+         "signature": "5♯"
+        },
+        {
+         "position": 6,
+         "fifths": 6,
+         "major": "F♯",
+         "minor": "D♯m",
+         "signature": "6♯"
+        },
+        {
+         "position": 7,
+         "fifths": -5,
+         "major": "D♭",
+         "minor": "B♭m",
+         "signature": "5♭"
+        },
+        {
+         "position": 8,
+         "fifths": -4,
+         "major": "A♭",
+         "minor": "Fm",
+         "signature": "4♭"
+        },
+        {
+         "position": 9,
+         "fifths": -3,
+         "major": "E♭",
+         "minor": "Cm",
+         "signature": "3♭"
+        },
+        {
+         "position": 10,
+         "fifths": -2,
+         "major": "B♭",
+         "minor": "Gm",
+         "signature": "2♭"
+        },
+        {
+         "position": 11,
+         "fifths": -1,
+         "major": "F",
+         "minor": "Dm",
+         "signature": "1♭"
+        }
+       ],
+       "neighbours": [
+        {
+         "relation": "dominant",
+         "key": {
+          "name": "E minor",
+          "fifths": 1,
+          "mode": "minor"
+         },
+         "position": 1,
+         "name": "E minor",
+         "label": "dominant"
+        },
+        {
+         "relation": "subdominant",
+         "key": {
+          "name": "D minor",
+          "fifths": -1,
+          "mode": "minor"
+         },
+         "position": 11,
+         "name": "D minor",
+         "label": "subdominant"
+        },
+        {
+         "relation": "relative",
+         "key": {
+          "name": "C major",
+          "fifths": 0,
+          "mode": "major"
+         },
+         "position": 0,
+         "name": "C major",
+         "label": "relative key"
+        },
+        {
+         "relation": "parallel",
+         "key": {
+          "name": "A major",
+          "fifths": 3,
+          "mode": "major"
+         },
+         "position": 3,
+         "name": "A major",
+         "label": "parallel key"
+        }
+       ],
+       "chords": [
+        {
+         "number": 1,
+         "symbol": "Am",
+         "degree": "i",
+         "position": 0,
+         "ring": "minor",
+         "function": "tonic",
+         "role": "Am: i in A minor, the tonic.",
+         "place": {
+          "label": "Am, from bar 76",
+          "onset": 54240,
+          "end": 54960,
+          "noteIds": [
+           "n_0498",
+           "n_0499",
+           "n_0500",
+           "n_0501",
+           "n_0502",
+           "n_0503",
+           "n_0504"
+          ]
+         }
+        },
+        {
+         "number": 2,
+         "symbol": "E",
+         "degree": "V",
+         "position": 4,
+         "ring": "major",
+         "function": "dominant",
+         "role": "E: V in A minor, the dominant.",
+         "place": {
+          "label": "E, from bar 77",
+          "onset": 54960,
+          "end": 55680,
+          "noteIds": [
+           "n_0505",
+           "n_0506",
+           "n_0507",
+           "n_0508",
+           "n_0509",
+           "n_0510",
+           "n_0511"
+          ]
+         }
+        }
+       ],
+       "scale": [
+        57,
+        59,
+        60,
+        62,
+        64,
+        65,
+        67,
+        69
+       ],
+       "scaleNotes": [
+        {
+         "pitch": 57,
+         "onset": 53520,
+         "end": 54000
+        },
+        {
+         "pitch": 59,
+         "onset": 54000,
+         "end": 54480
+        },
+        {
+         "pitch": 60,
+         "onset": 54480,
+         "end": 54960
+        },
+        {
+         "pitch": 62,
+         "onset": 54960,
+         "end": 55440
+        },
+        {
+         "pitch": 64,
+         "onset": 55440,
+         "end": 55920
+        },
+        {
+         "pitch": 65,
+         "onset": 55920,
+         "end": 56400
+        },
+        {
+         "pitch": 67,
+         "onset": 56400,
+         "end": 56880
+        },
+        {
+         "pitch": 69,
+         "onset": 56880,
+         "end": 57840
+        }
+       ],
+       "lines": [
+        "A minor: no sharps or flats, the same as its relative key, C major.",
+        "Its neighbours on the circle differ by one sharp or flat: E minor (dominant) and D minor (subdominant).",
+        "The chords of the section: Am (i) → E (V)."
+       ],
+       "zones": [
+        "tonic",
+        "dominant",
+        "near",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "near",
+        "subdominant"
+       ]
+      }
+     },
+     {
+      "id": "section_16",
+      "label": "B",
       "passage": {
        "onset": 56160,
-       "end": 66240,
+       "end": 63600,
        "firstBar": 78,
-       "lastBar": 92
+       "lastBar": 88
       },
       "circle": {
        "key": {
@@ -5035,8 +7412,279 @@
       }
      },
      {
-      "id": "section_10",
-      "label": "A⁵",
+      "id": "section_17",
+      "label": "A¹²",
+      "passage": {
+       "onset": 63600,
+       "end": 66240,
+       "firstBar": 89,
+       "lastBar": 92
+      },
+      "circle": {
+       "key": {
+        "name": "A minor",
+        "fifths": 0,
+        "mode": "minor"
+       },
+       "name": "A minor",
+       "certainty": "detected",
+       "position": 0,
+       "sectors": [
+        {
+         "position": 0,
+         "fifths": 0,
+         "major": "C",
+         "minor": "Am",
+         "signature": "0"
+        },
+        {
+         "position": 1,
+         "fifths": 1,
+         "major": "G",
+         "minor": "Em",
+         "signature": "1♯"
+        },
+        {
+         "position": 2,
+         "fifths": 2,
+         "major": "D",
+         "minor": "Bm",
+         "signature": "2♯"
+        },
+        {
+         "position": 3,
+         "fifths": 3,
+         "major": "A",
+         "minor": "F♯m",
+         "signature": "3♯"
+        },
+        {
+         "position": 4,
+         "fifths": 4,
+         "major": "E",
+         "minor": "C♯m",
+         "signature": "4♯"
+        },
+        {
+         "position": 5,
+         "fifths": 5,
+         "major": "B",
+         "minor": "G♯m",
+         "signature": "5♯"
+        },
+        {
+         "position": 6,
+         "fifths": 6,
+         "major": "F♯",
+         "minor": "D♯m",
+         "signature": "6♯"
+        },
+        {
+         "position": 7,
+         "fifths": -5,
+         "major": "D♭",
+         "minor": "B♭m",
+         "signature": "5♭"
+        },
+        {
+         "position": 8,
+         "fifths": -4,
+         "major": "A♭",
+         "minor": "Fm",
+         "signature": "4♭"
+        },
+        {
+         "position": 9,
+         "fifths": -3,
+         "major": "E♭",
+         "minor": "Cm",
+         "signature": "3♭"
+        },
+        {
+         "position": 10,
+         "fifths": -2,
+         "major": "B♭",
+         "minor": "Gm",
+         "signature": "2♭"
+        },
+        {
+         "position": 11,
+         "fifths": -1,
+         "major": "F",
+         "minor": "Dm",
+         "signature": "1♭"
+        }
+       ],
+       "neighbours": [
+        {
+         "relation": "dominant",
+         "key": {
+          "name": "E minor",
+          "fifths": 1,
+          "mode": "minor"
+         },
+         "position": 1,
+         "name": "E minor",
+         "label": "dominant"
+        },
+        {
+         "relation": "subdominant",
+         "key": {
+          "name": "D minor",
+          "fifths": -1,
+          "mode": "minor"
+         },
+         "position": 11,
+         "name": "D minor",
+         "label": "subdominant"
+        },
+        {
+         "relation": "relative",
+         "key": {
+          "name": "C major",
+          "fifths": 0,
+          "mode": "major"
+         },
+         "position": 0,
+         "name": "C major",
+         "label": "relative key"
+        },
+        {
+         "relation": "parallel",
+         "key": {
+          "name": "A major",
+          "fifths": 3,
+          "mode": "major"
+         },
+         "position": 3,
+         "name": "A major",
+         "label": "parallel key"
+        }
+       ],
+       "chords": [
+        {
+         "number": 1,
+         "symbol": "Am",
+         "degree": "i",
+         "position": 0,
+         "ring": "minor",
+         "function": "tonic",
+         "role": "Am: i in A minor, the tonic.",
+         "place": {
+          "label": "Am, from bar 90",
+          "onset": 64320,
+          "end": 65040,
+          "noteIds": [
+           "n_0589",
+           "n_0590",
+           "n_0591",
+           "n_0592",
+           "n_0593",
+           "n_0594",
+           "n_0595"
+          ]
+         }
+        },
+        {
+         "number": 2,
+         "symbol": "E",
+         "degree": "V",
+         "position": 4,
+         "ring": "major",
+         "function": "dominant",
+         "role": "E: V in A minor, the dominant.",
+         "place": {
+          "label": "E, from bar 91",
+          "onset": 65040,
+          "end": 65760,
+          "noteIds": [
+           "n_0596",
+           "n_0597",
+           "n_0598",
+           "n_0599",
+           "n_0600",
+           "n_0601",
+           "n_0602"
+          ]
+         }
+        }
+       ],
+       "scale": [
+        57,
+        59,
+        60,
+        62,
+        64,
+        65,
+        67,
+        69
+       ],
+       "scaleNotes": [
+        {
+         "pitch": 57,
+         "onset": 63600,
+         "end": 64080
+        },
+        {
+         "pitch": 59,
+         "onset": 64080,
+         "end": 64560
+        },
+        {
+         "pitch": 60,
+         "onset": 64560,
+         "end": 65040
+        },
+        {
+         "pitch": 62,
+         "onset": 65040,
+         "end": 65520
+        },
+        {
+         "pitch": 64,
+         "onset": 65520,
+         "end": 66000
+        },
+        {
+         "pitch": 65,
+         "onset": 66000,
+         "end": 66480
+        },
+        {
+         "pitch": 67,
+         "onset": 66480,
+         "end": 66960
+        },
+        {
+         "pitch": 69,
+         "onset": 66960,
+         "end": 67920
+        }
+       ],
+       "lines": [
+        "A minor: no sharps or flats, the same as its relative key, C major.",
+        "Its neighbours on the circle differ by one sharp or flat: E minor (dominant) and D minor (subdominant).",
+        "The chords of the section: Am (i) → E (V)."
+       ],
+       "zones": [
+        "tonic",
+        "dominant",
+        "near",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "near",
+        "subdominant"
+       ]
+      }
+     },
+     {
+      "id": "section_18",
+      "label": "A¹³",
       "passage": {
        "onset": 66240,
        "end": 69360,
@@ -6208,7 +8856,7 @@
      {
       "id": "phrase",
       "available": true,
-      "count": 10
+      "count": 18
      },
      {
       "id": "sentence",
@@ -6339,15 +8987,15 @@
        "end": 8640
       },
       "long": false,
-      "parent": 2,
+      "parent": 3,
       "start": {
        "at": 6000,
        "evidence": [
-        "return"
+        "repetition"
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "там, где возвращается начальная фигура фразы"
+       "description": "там, где нота в ноту возвращается более ранний отрывок"
       }
      },
      {
@@ -6363,7 +9011,7 @@
        "end": 9600
       },
       "long": false,
-      "parent": 3,
+      "parent": 4,
       "start": {
        "at": 8640,
        "evidence": [
@@ -6387,7 +9035,7 @@
        "end": 11760
       },
       "long": false,
-      "parent": 3,
+      "parent": 4,
       "start": {
        "at": 9600,
        "evidence": [
@@ -6411,7 +9059,7 @@
        "end": 13200
       },
       "long": false,
-      "parent": 3,
+      "parent": 4,
       "start": {
        "at": 11760,
        "evidence": [
@@ -6435,7 +9083,7 @@
        "end": 15360
       },
       "long": false,
-      "parent": 3,
+      "parent": 4,
       "start": {
        "at": 13200,
        "evidence": [
@@ -6459,7 +9107,7 @@
        "end": 16080
       },
       "long": false,
-      "parent": 3,
+      "parent": 4,
       "start": {
        "at": 15360,
        "evidence": [
@@ -6483,15 +9131,15 @@
        "end": 18720
       },
       "long": false,
-      "parent": 3,
+      "parent": 5,
       "start": {
        "at": 16080,
        "evidence": [
-        "return"
+        "repetition"
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "там, где возвращается начальная фигура фразы"
+       "description": "там, где нота в ноту возвращается более ранний отрывок"
       }
      },
      {
@@ -6507,7 +9155,7 @@
        "end": 19680
       },
       "long": false,
-      "parent": 4,
+      "parent": 6,
       "start": {
        "at": 18720,
        "evidence": [
@@ -6531,7 +9179,7 @@
        "end": 21840
       },
       "long": false,
-      "parent": 4,
+      "parent": 6,
       "start": {
        "at": 19680,
        "evidence": [
@@ -6555,15 +9203,15 @@
        "end": 24480
       },
       "long": false,
-      "parent": 4,
+      "parent": 7,
       "start": {
        "at": 21840,
        "evidence": [
-        "return"
+        "repetition"
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "там, где возвращается начальная фигура фразы"
+       "description": "там, где нота в ноту возвращается более ранний отрывок"
       }
      },
      {
@@ -6579,7 +9227,7 @@
        "end": 25440
       },
       "long": false,
-      "parent": 5,
+      "parent": 8,
       "start": {
        "at": 24480,
        "evidence": [
@@ -6603,7 +9251,7 @@
        "end": 27600
       },
       "long": false,
-      "parent": 5,
+      "parent": 8,
       "start": {
        "at": 25440,
        "evidence": [
@@ -6627,7 +9275,7 @@
        "end": 29040
       },
       "long": false,
-      "parent": 5,
+      "parent": 8,
       "start": {
        "at": 27600,
        "evidence": [
@@ -6651,7 +9299,7 @@
        "end": 31200
       },
       "long": false,
-      "parent": 5,
+      "parent": 8,
       "start": {
        "at": 29040,
        "evidence": [
@@ -6675,7 +9323,7 @@
        "end": 31920
       },
       "long": false,
-      "parent": 5,
+      "parent": 8,
       "start": {
        "at": 31200,
        "evidence": [
@@ -6699,15 +9347,15 @@
        "end": 34560
       },
       "long": false,
-      "parent": 5,
+      "parent": 9,
       "start": {
        "at": 31920,
        "evidence": [
-        "return"
+        "repetition"
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "там, где возвращается начальная фигура фразы"
+       "description": "там, где нота в ноту возвращается более ранний отрывок"
       }
      },
      {
@@ -6723,7 +9371,7 @@
        "end": 35520
       },
       "long": false,
-      "parent": 6,
+      "parent": 10,
       "start": {
        "at": 34560,
        "evidence": [
@@ -6747,7 +9395,7 @@
        "end": 37680
       },
       "long": false,
-      "parent": 6,
+      "parent": 10,
       "start": {
        "at": 35520,
        "evidence": [
@@ -6771,15 +9419,15 @@
        "end": 40320
       },
       "long": false,
-      "parent": 6,
+      "parent": 11,
       "start": {
        "at": 37680,
        "evidence": [
-        "return"
+        "repetition"
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "там, где возвращается начальная фигура фразы"
+       "description": "там, где нота в ноту возвращается более ранний отрывок"
       }
      },
      {
@@ -6795,7 +9443,7 @@
        "end": 41280
       },
       "long": false,
-      "parent": 7,
+      "parent": 12,
       "start": {
        "at": 40320,
        "evidence": [
@@ -6819,7 +9467,7 @@
        "end": 43440
       },
       "long": false,
-      "parent": 7,
+      "parent": 12,
       "start": {
        "at": 41280,
        "evidence": [
@@ -6843,7 +9491,7 @@
        "end": 44880
       },
       "long": false,
-      "parent": 7,
+      "parent": 12,
       "start": {
        "at": 43440,
        "evidence": [
@@ -6867,7 +9515,7 @@
        "end": 47040
       },
       "long": false,
-      "parent": 7,
+      "parent": 12,
       "start": {
        "at": 44880,
        "evidence": [
@@ -6891,7 +9539,7 @@
        "end": 47760
       },
       "long": false,
-      "parent": 7,
+      "parent": 12,
       "start": {
        "at": 47040,
        "evidence": [
@@ -6915,15 +9563,15 @@
        "end": 50400
       },
       "long": false,
-      "parent": 7,
+      "parent": 13,
       "start": {
        "at": 47760,
        "evidence": [
-        "return"
+        "repetition"
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "там, где возвращается начальная фигура фразы"
+       "description": "там, где нота в ноту возвращается более ранний отрывок"
       }
      },
      {
@@ -6939,7 +9587,7 @@
        "end": 51360
       },
       "long": false,
-      "parent": 8,
+      "parent": 14,
       "start": {
        "at": 50400,
        "evidence": [
@@ -6963,7 +9611,7 @@
        "end": 53520
       },
       "long": false,
-      "parent": 8,
+      "parent": 14,
       "start": {
        "at": 51360,
        "evidence": [
@@ -6987,15 +9635,15 @@
        "end": 56160
       },
       "long": false,
-      "parent": 8,
+      "parent": 15,
       "start": {
        "at": 53520,
        "evidence": [
-        "return"
+        "repetition"
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "там, где возвращается начальная фигура фразы"
+       "description": "там, где нота в ноту возвращается более ранний отрывок"
       }
      },
      {
@@ -7011,7 +9659,7 @@
        "end": 57120
       },
       "long": false,
-      "parent": 9,
+      "parent": 16,
       "start": {
        "at": 56160,
        "evidence": [
@@ -7035,7 +9683,7 @@
        "end": 59280
       },
       "long": false,
-      "parent": 9,
+      "parent": 16,
       "start": {
        "at": 57120,
        "evidence": [
@@ -7059,7 +9707,7 @@
        "end": 60720
       },
       "long": false,
-      "parent": 9,
+      "parent": 16,
       "start": {
        "at": 59280,
        "evidence": [
@@ -7083,7 +9731,7 @@
        "end": 62880
       },
       "long": false,
-      "parent": 9,
+      "parent": 16,
       "start": {
        "at": 60720,
        "evidence": [
@@ -7107,7 +9755,7 @@
        "end": 63600
       },
       "long": false,
-      "parent": 9,
+      "parent": 16,
       "start": {
        "at": 62880,
        "evidence": [
@@ -7131,15 +9779,15 @@
        "end": 66240
       },
       "long": false,
-      "parent": 9,
+      "parent": 17,
       "start": {
        "at": 63600,
        "evidence": [
-        "return"
+        "repetition"
        ],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "там, где возвращается начальная фигура фразы"
+       "description": "там, где нота в ноту возвращается более ранний отрывок"
       }
      },
      {
@@ -7155,7 +9803,7 @@
        "end": 67200
       },
       "long": false,
-      "parent": 10,
+      "parent": 18,
       "start": {
        "at": 66240,
        "evidence": [
@@ -7179,7 +9827,7 @@
        "end": 69360
       },
       "long": false,
-      "parent": 10,
+      "parent": 18,
       "start": {
        "at": 67200,
        "evidence": [
@@ -7210,7 +9858,7 @@
      {
       "id": "phrase",
       "available": true,
-      "count": 10
+      "count": 18
      },
      {
       "id": "sentence",
@@ -7261,14 +9909,14 @@
       "level": "phrase",
       "name": "фраза",
       "firstBar": 4,
-      "lastBar": 12,
+      "lastBar": 8,
       "onset": 2880,
-      "end": 8640,
+      "end": 6000,
       "selectable": {
        "onset": 2880,
-       "end": 8640
+       "end": 6000
       },
-      "long": true,
+      "long": false,
       "parent": 1,
       "start": {
        "at": 2880,
@@ -7284,13 +9932,37 @@
       "number": 3,
       "level": "phrase",
       "name": "фраза",
+      "firstBar": 9,
+      "lastBar": 12,
+      "onset": 6000,
+      "end": 8640,
+      "selectable": {
+       "onset": 6000,
+       "end": 8640
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 6000,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "там, где нота в ноту возвращается более ранний отрывок"
+      }
+     },
+     {
+      "number": 4,
+      "level": "phrase",
+      "name": "фраза",
       "firstBar": 12,
-      "lastBar": 26,
+      "lastBar": 22,
       "onset": 8640,
-      "end": 18720,
+      "end": 16080,
       "selectable": {
        "onset": 8640,
-       "end": 18720
+       "end": 16080
       },
       "long": true,
       "parent": 1,
@@ -7305,18 +9977,42 @@
       }
      },
      {
-      "number": 4,
+      "number": 5,
+      "level": "phrase",
+      "name": "фраза",
+      "firstBar": 23,
+      "lastBar": 26,
+      "onset": 16080,
+      "end": 18720,
+      "selectable": {
+       "onset": 16080,
+       "end": 18720
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 16080,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "там, где нота в ноту возвращается более ранний отрывок"
+      }
+     },
+     {
+      "number": 6,
       "level": "phrase",
       "name": "фраза",
       "firstBar": 26,
-      "lastBar": 34,
+      "lastBar": 30,
       "onset": 18720,
-      "end": 24480,
+      "end": 21840,
       "selectable": {
        "onset": 18720,
-       "end": 24480
+       "end": 21840
       },
-      "long": true,
+      "long": false,
       "parent": 1,
       "start": {
        "at": 18720,
@@ -7329,16 +10025,40 @@
       }
      },
      {
-      "number": 5,
+      "number": 7,
+      "level": "phrase",
+      "name": "фраза",
+      "firstBar": 31,
+      "lastBar": 34,
+      "onset": 21840,
+      "end": 24480,
+      "selectable": {
+       "onset": 21840,
+       "end": 24480
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 21840,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "там, где нота в ноту возвращается более ранний отрывок"
+      }
+     },
+     {
+      "number": 8,
       "level": "phrase",
       "name": "фраза",
       "firstBar": 34,
-      "lastBar": 48,
+      "lastBar": 44,
       "onset": 24480,
-      "end": 34560,
+      "end": 31920,
       "selectable": {
        "onset": 24480,
-       "end": 34560
+       "end": 31920
       },
       "long": true,
       "parent": 1,
@@ -7353,18 +10073,42 @@
       }
      },
      {
-      "number": 6,
+      "number": 9,
+      "level": "phrase",
+      "name": "фраза",
+      "firstBar": 45,
+      "lastBar": 48,
+      "onset": 31920,
+      "end": 34560,
+      "selectable": {
+       "onset": 31920,
+       "end": 34560
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 31920,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "там, где нота в ноту возвращается более ранний отрывок"
+      }
+     },
+     {
+      "number": 10,
       "level": "phrase",
       "name": "фраза",
       "firstBar": 48,
-      "lastBar": 56,
+      "lastBar": 52,
       "onset": 34560,
-      "end": 40320,
+      "end": 37680,
       "selectable": {
        "onset": 34560,
-       "end": 40320
+       "end": 37680
       },
-      "long": true,
+      "long": false,
       "parent": 1,
       "start": {
        "at": 34560,
@@ -7377,16 +10121,40 @@
       }
      },
      {
-      "number": 7,
+      "number": 11,
+      "level": "phrase",
+      "name": "фраза",
+      "firstBar": 53,
+      "lastBar": 56,
+      "onset": 37680,
+      "end": 40320,
+      "selectable": {
+       "onset": 37680,
+       "end": 40320
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 37680,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "там, где нота в ноту возвращается более ранний отрывок"
+      }
+     },
+     {
+      "number": 12,
       "level": "phrase",
       "name": "фраза",
       "firstBar": 56,
-      "lastBar": 70,
+      "lastBar": 66,
       "onset": 40320,
-      "end": 50400,
+      "end": 47760,
       "selectable": {
        "onset": 40320,
-       "end": 50400
+       "end": 47760
       },
       "long": true,
       "parent": 1,
@@ -7401,18 +10169,42 @@
       }
      },
      {
-      "number": 8,
+      "number": 13,
+      "level": "phrase",
+      "name": "фраза",
+      "firstBar": 67,
+      "lastBar": 70,
+      "onset": 47760,
+      "end": 50400,
+      "selectable": {
+       "onset": 47760,
+       "end": 50400
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 47760,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "там, где нота в ноту возвращается более ранний отрывок"
+      }
+     },
+     {
+      "number": 14,
       "level": "phrase",
       "name": "фраза",
       "firstBar": 70,
-      "lastBar": 78,
+      "lastBar": 74,
       "onset": 50400,
-      "end": 56160,
+      "end": 53520,
       "selectable": {
        "onset": 50400,
-       "end": 56160
+       "end": 53520
       },
-      "long": true,
+      "long": false,
       "parent": 1,
       "start": {
        "at": 50400,
@@ -7425,16 +10217,40 @@
       }
      },
      {
-      "number": 9,
+      "number": 15,
+      "level": "phrase",
+      "name": "фраза",
+      "firstBar": 75,
+      "lastBar": 78,
+      "onset": 53520,
+      "end": 56160,
+      "selectable": {
+       "onset": 53520,
+       "end": 56160
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 53520,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "там, где нота в ноту возвращается более ранний отрывок"
+      }
+     },
+     {
+      "number": 16,
       "level": "phrase",
       "name": "фраза",
       "firstBar": 78,
-      "lastBar": 92,
+      "lastBar": 88,
       "onset": 56160,
-      "end": 66240,
+      "end": 63600,
       "selectable": {
        "onset": 56160,
-       "end": 66240
+       "end": 63600
       },
       "long": true,
       "parent": 1,
@@ -7449,7 +10265,31 @@
       }
      },
      {
-      "number": 10,
+      "number": 17,
+      "level": "phrase",
+      "name": "фраза",
+      "firstBar": 89,
+      "lastBar": 92,
+      "onset": 63600,
+      "end": 66240,
+      "selectable": {
+       "onset": 63600,
+       "end": 66240
+      },
+      "long": false,
+      "parent": 1,
+      "start": {
+       "at": 63600,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "там, где нота в ноту возвращается более ранний отрывок"
+      }
+     },
+     {
+      "number": 18,
       "level": "phrase",
       "name": "фраза",
       "firstBar": 92,
@@ -7492,7 +10332,7 @@
      {
       "id": "phrase",
       "available": true,
-      "count": 10
+      "count": 18
      },
      {
       "id": "sentence",
@@ -7535,7 +10375,7 @@
        "evidence": [],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "Фраза 2 начинается там, где фраза 1 возвращается нота в ноту, поэтому читается как ответное построение; фраза 2 заканчивается половинной каденцией, поэтому продолжается; фраза 3 заканчивается половинной каденцией, поэтому продолжается; фраза 4 заканчивается половинной каденцией, поэтому продолжается; фраза 5 заканчивается половинной каденцией, поэтому продолжается; фраза 6 заканчивается половинной каденцией, поэтому продолжается; фраза 7 заканчивается половинной каденцией, поэтому продолжается; фраза 8 заканчивается половинной каденцией, поэтому продолжается; фраза 9 заканчивается половинной каденцией, поэтому продолжается; фраза 10 заканчивается вместе с произведением."
+       "description": "Фраза 2 начинается там, где фраза 1 возвращается нота в ноту, поэтому читается как ответное построение; во фразе 2 каденция не читается, поэтому она продолжается; фраза 3 заканчивается половинной каденцией, поэтому продолжается; фраза 4 заканчивается половинной каденцией, поэтому продолжается; фраза 5 заканчивается половинной каденцией, поэтому продолжается; во фразе 6 каденция не читается, поэтому она продолжается; фраза 7 заканчивается половинной каденцией, поэтому продолжается; фраза 8 заканчивается половинной каденцией, поэтому продолжается; фраза 9 заканчивается половинной каденцией, поэтому продолжается; во фразе 10 каденция не читается, поэтому она продолжается; фраза 11 заканчивается половинной каденцией, поэтому продолжается; фраза 12 заканчивается половинной каденцией, поэтому продолжается; фраза 13 заканчивается половинной каденцией, поэтому продолжается; во фразе 14 каденция не читается, поэтому она продолжается; фраза 15 заканчивается половинной каденцией, поэтому продолжается; фраза 16 заканчивается половинной каденцией, поэтому продолжается; фраза 17 заканчивается половинной каденцией, поэтому продолжается; фраза 18 заканчивается вместе с произведением."
       }
      }
     ]
@@ -7547,7 +10387,7 @@
    "request": null,
    "answer": {
     "status": "partial",
-    "summary": "Форма A A′ B A″ C A‴ D A⁴ E A⁵ · ля минор · 10 половинных кадансов · плотнее всего такт 2",
+    "summary": "Форма A A′ A″ B A‴ A⁴ A⁵ B A⁶ A⁷ A⁸ B A⁹ A¹⁰ A¹¹ B A¹² A¹³ · ля минор · 14 половинных кадансов · плотнее всего такт 2",
     "firstBar": 0,
     "lastBar": 96,
     "barStarts": [
@@ -7664,10 +10504,18 @@
        },
        "sharesWith": [
         "section_2",
-        "section_4",
+        "section_3",
+        "section_5",
         "section_6",
-        "section_8",
-        "section_10"
+        "section_7",
+        "section_9",
+        "section_10",
+        "section_11",
+        "section_13",
+        "section_14",
+        "section_15",
+        "section_17",
+        "section_18"
        ]
       },
       {
@@ -7675,116 +10523,364 @@
        "label": "A′",
        "passage": {
         "onset": 2880,
-        "end": 8640,
+        "end": 6000,
         "firstBar": 4,
-        "lastBar": 12
+        "lastBar": 8
        },
        "sharesWith": [
         "section_1",
-        "section_4",
+        "section_3",
+        "section_5",
         "section_6",
-        "section_8",
-        "section_10"
+        "section_7",
+        "section_9",
+        "section_10",
+        "section_11",
+        "section_13",
+        "section_14",
+        "section_15",
+        "section_17",
+        "section_18"
        ]
       },
       {
        "id": "section_3",
-       "label": "B",
+       "label": "A″",
        "passage": {
-        "onset": 8640,
-        "end": 18720,
-        "firstBar": 12,
-        "lastBar": 26
+        "onset": 6000,
+        "end": 8640,
+        "firstBar": 9,
+        "lastBar": 12
        },
-       "sharesWith": []
+       "sharesWith": [
+        "section_1",
+        "section_2",
+        "section_5",
+        "section_6",
+        "section_7",
+        "section_9",
+        "section_10",
+        "section_11",
+        "section_13",
+        "section_14",
+        "section_15",
+        "section_17",
+        "section_18"
+       ]
       },
       {
        "id": "section_4",
-       "label": "A″",
+       "label": "B",
+       "passage": {
+        "onset": 8640,
+        "end": 16080,
+        "firstBar": 12,
+        "lastBar": 22
+       },
+       "sharesWith": [
+        "section_8",
+        "section_12",
+        "section_16"
+       ]
+      },
+      {
+       "id": "section_5",
+       "label": "A‴",
+       "passage": {
+        "onset": 16080,
+        "end": 18720,
+        "firstBar": 23,
+        "lastBar": 26
+       },
+       "sharesWith": [
+        "section_1",
+        "section_2",
+        "section_3",
+        "section_6",
+        "section_7",
+        "section_9",
+        "section_10",
+        "section_11",
+        "section_13",
+        "section_14",
+        "section_15",
+        "section_17",
+        "section_18"
+       ]
+      },
+      {
+       "id": "section_6",
+       "label": "A⁴",
        "passage": {
         "onset": 18720,
-        "end": 24480,
+        "end": 21840,
         "firstBar": 26,
+        "lastBar": 30
+       },
+       "sharesWith": [
+        "section_1",
+        "section_2",
+        "section_3",
+        "section_5",
+        "section_7",
+        "section_9",
+        "section_10",
+        "section_11",
+        "section_13",
+        "section_14",
+        "section_15",
+        "section_17",
+        "section_18"
+       ]
+      },
+      {
+       "id": "section_7",
+       "label": "A⁵",
+       "passage": {
+        "onset": 21840,
+        "end": 24480,
+        "firstBar": 31,
         "lastBar": 34
        },
        "sharesWith": [
         "section_1",
         "section_2",
+        "section_3",
+        "section_5",
         "section_6",
-        "section_8",
-        "section_10"
+        "section_9",
+        "section_10",
+        "section_11",
+        "section_13",
+        "section_14",
+        "section_15",
+        "section_17",
+        "section_18"
        ]
       },
       {
-       "id": "section_5",
-       "label": "C",
+       "id": "section_8",
+       "label": "B",
        "passage": {
         "onset": 24480,
-        "end": 34560,
+        "end": 31920,
         "firstBar": 34,
-        "lastBar": 48
+        "lastBar": 44
        },
-       "sharesWith": []
+       "sharesWith": [
+        "section_4",
+        "section_12",
+        "section_16"
+       ]
       },
       {
-       "id": "section_6",
-       "label": "A‴",
+       "id": "section_9",
+       "label": "A⁶",
+       "passage": {
+        "onset": 31920,
+        "end": 34560,
+        "firstBar": 45,
+        "lastBar": 48
+       },
+       "sharesWith": [
+        "section_1",
+        "section_2",
+        "section_3",
+        "section_5",
+        "section_6",
+        "section_7",
+        "section_10",
+        "section_11",
+        "section_13",
+        "section_14",
+        "section_15",
+        "section_17",
+        "section_18"
+       ]
+      },
+      {
+       "id": "section_10",
+       "label": "A⁷",
        "passage": {
         "onset": 34560,
-        "end": 40320,
+        "end": 37680,
         "firstBar": 48,
+        "lastBar": 52
+       },
+       "sharesWith": [
+        "section_1",
+        "section_2",
+        "section_3",
+        "section_5",
+        "section_6",
+        "section_7",
+        "section_9",
+        "section_11",
+        "section_13",
+        "section_14",
+        "section_15",
+        "section_17",
+        "section_18"
+       ]
+      },
+      {
+       "id": "section_11",
+       "label": "A⁸",
+       "passage": {
+        "onset": 37680,
+        "end": 40320,
+        "firstBar": 53,
         "lastBar": 56
        },
        "sharesWith": [
         "section_1",
         "section_2",
-        "section_4",
-        "section_8",
-        "section_10"
+        "section_3",
+        "section_5",
+        "section_6",
+        "section_7",
+        "section_9",
+        "section_10",
+        "section_13",
+        "section_14",
+        "section_15",
+        "section_17",
+        "section_18"
        ]
       },
       {
-       "id": "section_7",
-       "label": "D",
+       "id": "section_12",
+       "label": "B",
        "passage": {
         "onset": 40320,
-        "end": 50400,
+        "end": 47760,
         "firstBar": 56,
-        "lastBar": 70
+        "lastBar": 66
        },
-       "sharesWith": []
+       "sharesWith": [
+        "section_4",
+        "section_8",
+        "section_16"
+       ]
       },
       {
-       "id": "section_8",
-       "label": "A⁴",
+       "id": "section_13",
+       "label": "A⁹",
+       "passage": {
+        "onset": 47760,
+        "end": 50400,
+        "firstBar": 67,
+        "lastBar": 70
+       },
+       "sharesWith": [
+        "section_1",
+        "section_2",
+        "section_3",
+        "section_5",
+        "section_6",
+        "section_7",
+        "section_9",
+        "section_10",
+        "section_11",
+        "section_14",
+        "section_15",
+        "section_17",
+        "section_18"
+       ]
+      },
+      {
+       "id": "section_14",
+       "label": "A¹⁰",
        "passage": {
         "onset": 50400,
-        "end": 56160,
+        "end": 53520,
         "firstBar": 70,
+        "lastBar": 74
+       },
+       "sharesWith": [
+        "section_1",
+        "section_2",
+        "section_3",
+        "section_5",
+        "section_6",
+        "section_7",
+        "section_9",
+        "section_10",
+        "section_11",
+        "section_13",
+        "section_15",
+        "section_17",
+        "section_18"
+       ]
+      },
+      {
+       "id": "section_15",
+       "label": "A¹¹",
+       "passage": {
+        "onset": 53520,
+        "end": 56160,
+        "firstBar": 75,
         "lastBar": 78
        },
        "sharesWith": [
         "section_1",
         "section_2",
-        "section_4",
+        "section_3",
+        "section_5",
         "section_6",
-        "section_10"
+        "section_7",
+        "section_9",
+        "section_10",
+        "section_11",
+        "section_13",
+        "section_14",
+        "section_17",
+        "section_18"
        ]
       },
       {
-       "id": "section_9",
-       "label": "E",
+       "id": "section_16",
+       "label": "B",
        "passage": {
         "onset": 56160,
-        "end": 66240,
+        "end": 63600,
         "firstBar": 78,
-        "lastBar": 92
+        "lastBar": 88
        },
-       "sharesWith": []
+       "sharesWith": [
+        "section_4",
+        "section_8",
+        "section_12"
+       ]
       },
       {
-       "id": "section_10",
-       "label": "A⁵",
+       "id": "section_17",
+       "label": "A¹²",
+       "passage": {
+        "onset": 63600,
+        "end": 66240,
+        "firstBar": 89,
+        "lastBar": 92
+       },
+       "sharesWith": [
+        "section_1",
+        "section_2",
+        "section_3",
+        "section_5",
+        "section_6",
+        "section_7",
+        "section_9",
+        "section_10",
+        "section_11",
+        "section_13",
+        "section_14",
+        "section_15",
+        "section_18"
+       ]
+      },
+      {
+       "id": "section_18",
+       "label": "A¹³",
        "passage": {
         "onset": 66240,
         "end": 69360,
@@ -7794,9 +10890,17 @@
        "sharesWith": [
         "section_1",
         "section_2",
-        "section_4",
+        "section_3",
+        "section_5",
         "section_6",
-        "section_8"
+        "section_7",
+        "section_9",
+        "section_10",
+        "section_11",
+        "section_13",
+        "section_14",
+        "section_15",
+        "section_17"
        ]
       }
      ]
@@ -8606,6 +11710,12 @@
        "explanation": "Такт 12 · Am. Половинный каданс: мелодия фразы останавливается на E4, не на тонике, музыка ждёт продолжения."
       },
       {
+       "bar": 22,
+       "at": 15960,
+       "kind": "half",
+       "explanation": "Такт 22. Половинный каданс: мелодия фразы останавливается на E5, не на тонике, музыка ждёт продолжения. Дальше раздел A‴."
+      },
+      {
        "bar": 26,
        "at": 18600,
        "kind": "half",
@@ -8616,6 +11726,12 @@
        "at": 24360,
        "kind": "half",
        "explanation": "Такт 34 · Am. Половинный каданс: мелодия фразы останавливается на E4, не на тонике, музыка ждёт продолжения."
+      },
+      {
+       "bar": 44,
+       "at": 31800,
+       "kind": "half",
+       "explanation": "Такт 44. Половинный каданс: мелодия фразы останавливается на E5, не на тонике, музыка ждёт продолжения. Дальше раздел A⁶."
       },
       {
        "bar": 48,
@@ -8630,6 +11746,12 @@
        "explanation": "Такт 56 · Am. Половинный каданс: мелодия фразы останавливается на E4, не на тонике, музыка ждёт продолжения."
       },
       {
+       "bar": 66,
+       "at": 47640,
+       "kind": "half",
+       "explanation": "Такт 66. Половинный каданс: мелодия фразы останавливается на E5, не на тонике, музыка ждёт продолжения. Дальше раздел A⁹."
+      },
+      {
        "bar": 70,
        "at": 50280,
        "kind": "half",
@@ -8640,6 +11762,12 @@
        "at": 56040,
        "kind": "half",
        "explanation": "Такт 78 · Am. Половинный каданс: мелодия фразы останавливается на E4, не на тонике, музыка ждёт продолжения."
+      },
+      {
+       "bar": 88,
+       "at": 63480,
+       "kind": "half",
+       "explanation": "Такт 88. Половинный каданс: мелодия фразы останавливается на E5, не на тонике, музыка ждёт продолжения. Дальше раздел A¹²."
       },
       {
        "bar": 92,
@@ -8932,9 +12060,9 @@
       "label": "A′",
       "passage": {
        "onset": 2880,
-       "end": 8640,
+       "end": 6000,
        "firstBar": 4,
-       "lastBar": 12
+       "lastBar": 8
       },
       "circle": {
        "key": {
@@ -9196,12 +12324,283 @@
      },
      {
       "id": "section_3",
+      "label": "A″",
+      "passage": {
+       "onset": 6000,
+       "end": 8640,
+       "firstBar": 9,
+       "lastBar": 12
+      },
+      "circle": {
+       "key": {
+        "name": "A minor",
+        "fifths": 0,
+        "mode": "minor"
+       },
+       "name": "ля минор",
+       "certainty": "detected",
+       "position": 0,
+       "sectors": [
+        {
+         "position": 0,
+         "fifths": 0,
+         "major": "C",
+         "minor": "Am",
+         "signature": "0"
+        },
+        {
+         "position": 1,
+         "fifths": 1,
+         "major": "G",
+         "minor": "Em",
+         "signature": "1♯"
+        },
+        {
+         "position": 2,
+         "fifths": 2,
+         "major": "D",
+         "minor": "Bm",
+         "signature": "2♯"
+        },
+        {
+         "position": 3,
+         "fifths": 3,
+         "major": "A",
+         "minor": "F♯m",
+         "signature": "3♯"
+        },
+        {
+         "position": 4,
+         "fifths": 4,
+         "major": "E",
+         "minor": "C♯m",
+         "signature": "4♯"
+        },
+        {
+         "position": 5,
+         "fifths": 5,
+         "major": "B",
+         "minor": "G♯m",
+         "signature": "5♯"
+        },
+        {
+         "position": 6,
+         "fifths": 6,
+         "major": "F♯",
+         "minor": "D♯m",
+         "signature": "6♯"
+        },
+        {
+         "position": 7,
+         "fifths": -5,
+         "major": "D♭",
+         "minor": "B♭m",
+         "signature": "5♭"
+        },
+        {
+         "position": 8,
+         "fifths": -4,
+         "major": "A♭",
+         "minor": "Fm",
+         "signature": "4♭"
+        },
+        {
+         "position": 9,
+         "fifths": -3,
+         "major": "E♭",
+         "minor": "Cm",
+         "signature": "3♭"
+        },
+        {
+         "position": 10,
+         "fifths": -2,
+         "major": "B♭",
+         "minor": "Gm",
+         "signature": "2♭"
+        },
+        {
+         "position": 11,
+         "fifths": -1,
+         "major": "F",
+         "minor": "Dm",
+         "signature": "1♭"
+        }
+       ],
+       "neighbours": [
+        {
+         "relation": "dominant",
+         "key": {
+          "name": "E minor",
+          "fifths": 1,
+          "mode": "minor"
+         },
+         "position": 1,
+         "name": "ми минор",
+         "label": "доминанта"
+        },
+        {
+         "relation": "subdominant",
+         "key": {
+          "name": "D minor",
+          "fifths": -1,
+          "mode": "minor"
+         },
+         "position": 11,
+         "name": "ре минор",
+         "label": "субдоминанта"
+        },
+        {
+         "relation": "relative",
+         "key": {
+          "name": "C major",
+          "fifths": 0,
+          "mode": "major"
+         },
+         "position": 0,
+         "name": "до мажор",
+         "label": "параллельная"
+        },
+        {
+         "relation": "parallel",
+         "key": {
+          "name": "A major",
+          "fifths": 3,
+          "mode": "major"
+         },
+         "position": 3,
+         "name": "ля мажор",
+         "label": "одноимённая"
+        }
+       ],
+       "chords": [
+        {
+         "number": 1,
+         "symbol": "Am",
+         "degree": "i",
+         "position": 0,
+         "ring": "minor",
+         "function": "tonic",
+         "role": "Am: i в тональности ля минор, тоника.",
+         "place": {
+          "label": "Am, с такта 10",
+          "onset": 6720,
+          "end": 7440,
+          "noteIds": [
+           "n_0063",
+           "n_0064",
+           "n_0065",
+           "n_0066",
+           "n_0067",
+           "n_0068",
+           "n_0069"
+          ]
+         }
+        },
+        {
+         "number": 2,
+         "symbol": "E",
+         "degree": "V",
+         "position": 4,
+         "ring": "major",
+         "function": "dominant",
+         "role": "E: V в тональности ля минор, доминанта.",
+         "place": {
+          "label": "E, с такта 11",
+          "onset": 7440,
+          "end": 8160,
+          "noteIds": [
+           "n_0070",
+           "n_0071",
+           "n_0072",
+           "n_0073",
+           "n_0074",
+           "n_0075",
+           "n_0076"
+          ]
+         }
+        }
+       ],
+       "scale": [
+        57,
+        59,
+        60,
+        62,
+        64,
+        65,
+        67,
+        69
+       ],
+       "scaleNotes": [
+        {
+         "pitch": 57,
+         "onset": 6000,
+         "end": 6480
+        },
+        {
+         "pitch": 59,
+         "onset": 6480,
+         "end": 6960
+        },
+        {
+         "pitch": 60,
+         "onset": 6960,
+         "end": 7440
+        },
+        {
+         "pitch": 62,
+         "onset": 7440,
+         "end": 7920
+        },
+        {
+         "pitch": 64,
+         "onset": 7920,
+         "end": 8400
+        },
+        {
+         "pitch": 65,
+         "onset": 8400,
+         "end": 8880
+        },
+        {
+         "pitch": 67,
+         "onset": 8880,
+         "end": 9360
+        },
+        {
+         "pitch": 69,
+         "onset": 9360,
+         "end": 10320
+        }
+       ],
+       "lines": [
+        "Ля минор: без диезов и бемолей, как у параллельной тональности, до мажор.",
+        "Соседи по кругу отличаются на один знак: ми минор (доминанта) и ре минор (субдоминанта).",
+        "Аккорды раздела: Am (i) → E (V)."
+       ],
+       "zones": [
+        "tonic",
+        "dominant",
+        "near",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "near",
+        "subdominant"
+       ]
+      }
+     },
+     {
+      "id": "section_4",
       "label": "B",
       "passage": {
        "onset": 8640,
-       "end": 18720,
+       "end": 16080,
        "firstBar": 12,
-       "lastBar": 26
+       "lastBar": 22
       },
       "circle": {
        "key": {
@@ -9502,13 +12901,284 @@
       }
      },
      {
-      "id": "section_4",
-      "label": "A″",
+      "id": "section_5",
+      "label": "A‴",
+      "passage": {
+       "onset": 16080,
+       "end": 18720,
+       "firstBar": 23,
+       "lastBar": 26
+      },
+      "circle": {
+       "key": {
+        "name": "A minor",
+        "fifths": 0,
+        "mode": "minor"
+       },
+       "name": "ля минор",
+       "certainty": "detected",
+       "position": 0,
+       "sectors": [
+        {
+         "position": 0,
+         "fifths": 0,
+         "major": "C",
+         "minor": "Am",
+         "signature": "0"
+        },
+        {
+         "position": 1,
+         "fifths": 1,
+         "major": "G",
+         "minor": "Em",
+         "signature": "1♯"
+        },
+        {
+         "position": 2,
+         "fifths": 2,
+         "major": "D",
+         "minor": "Bm",
+         "signature": "2♯"
+        },
+        {
+         "position": 3,
+         "fifths": 3,
+         "major": "A",
+         "minor": "F♯m",
+         "signature": "3♯"
+        },
+        {
+         "position": 4,
+         "fifths": 4,
+         "major": "E",
+         "minor": "C♯m",
+         "signature": "4♯"
+        },
+        {
+         "position": 5,
+         "fifths": 5,
+         "major": "B",
+         "minor": "G♯m",
+         "signature": "5♯"
+        },
+        {
+         "position": 6,
+         "fifths": 6,
+         "major": "F♯",
+         "minor": "D♯m",
+         "signature": "6♯"
+        },
+        {
+         "position": 7,
+         "fifths": -5,
+         "major": "D♭",
+         "minor": "B♭m",
+         "signature": "5♭"
+        },
+        {
+         "position": 8,
+         "fifths": -4,
+         "major": "A♭",
+         "minor": "Fm",
+         "signature": "4♭"
+        },
+        {
+         "position": 9,
+         "fifths": -3,
+         "major": "E♭",
+         "minor": "Cm",
+         "signature": "3♭"
+        },
+        {
+         "position": 10,
+         "fifths": -2,
+         "major": "B♭",
+         "minor": "Gm",
+         "signature": "2♭"
+        },
+        {
+         "position": 11,
+         "fifths": -1,
+         "major": "F",
+         "minor": "Dm",
+         "signature": "1♭"
+        }
+       ],
+       "neighbours": [
+        {
+         "relation": "dominant",
+         "key": {
+          "name": "E minor",
+          "fifths": 1,
+          "mode": "minor"
+         },
+         "position": 1,
+         "name": "ми минор",
+         "label": "доминанта"
+        },
+        {
+         "relation": "subdominant",
+         "key": {
+          "name": "D minor",
+          "fifths": -1,
+          "mode": "minor"
+         },
+         "position": 11,
+         "name": "ре минор",
+         "label": "субдоминанта"
+        },
+        {
+         "relation": "relative",
+         "key": {
+          "name": "C major",
+          "fifths": 0,
+          "mode": "major"
+         },
+         "position": 0,
+         "name": "до мажор",
+         "label": "параллельная"
+        },
+        {
+         "relation": "parallel",
+         "key": {
+          "name": "A major",
+          "fifths": 3,
+          "mode": "major"
+         },
+         "position": 3,
+         "name": "ля мажор",
+         "label": "одноимённая"
+        }
+       ],
+       "chords": [
+        {
+         "number": 1,
+         "symbol": "Am",
+         "degree": "i",
+         "position": 0,
+         "ring": "minor",
+         "function": "tonic",
+         "role": "Am: i в тональности ля минор, тоника.",
+         "place": {
+          "label": "Am, с такта 24",
+          "onset": 16800,
+          "end": 17520,
+          "noteIds": [
+           "n_0154",
+           "n_0155",
+           "n_0156",
+           "n_0157",
+           "n_0158",
+           "n_0159",
+           "n_0160"
+          ]
+         }
+        },
+        {
+         "number": 2,
+         "symbol": "E",
+         "degree": "V",
+         "position": 4,
+         "ring": "major",
+         "function": "dominant",
+         "role": "E: V в тональности ля минор, доминанта.",
+         "place": {
+          "label": "E, с такта 25",
+          "onset": 17520,
+          "end": 18240,
+          "noteIds": [
+           "n_0161",
+           "n_0162",
+           "n_0163",
+           "n_0164",
+           "n_0165",
+           "n_0166",
+           "n_0167"
+          ]
+         }
+        }
+       ],
+       "scale": [
+        57,
+        59,
+        60,
+        62,
+        64,
+        65,
+        67,
+        69
+       ],
+       "scaleNotes": [
+        {
+         "pitch": 57,
+         "onset": 16080,
+         "end": 16560
+        },
+        {
+         "pitch": 59,
+         "onset": 16560,
+         "end": 17040
+        },
+        {
+         "pitch": 60,
+         "onset": 17040,
+         "end": 17520
+        },
+        {
+         "pitch": 62,
+         "onset": 17520,
+         "end": 18000
+        },
+        {
+         "pitch": 64,
+         "onset": 18000,
+         "end": 18480
+        },
+        {
+         "pitch": 65,
+         "onset": 18480,
+         "end": 18960
+        },
+        {
+         "pitch": 67,
+         "onset": 18960,
+         "end": 19440
+        },
+        {
+         "pitch": 69,
+         "onset": 19440,
+         "end": 20400
+        }
+       ],
+       "lines": [
+        "Ля минор: без диезов и бемолей, как у параллельной тональности, до мажор.",
+        "Соседи по кругу отличаются на один знак: ми минор (доминанта) и ре минор (субдоминанта).",
+        "Аккорды раздела: Am (i) → E (V)."
+       ],
+       "zones": [
+        "tonic",
+        "dominant",
+        "near",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "near",
+        "subdominant"
+       ]
+      }
+     },
+     {
+      "id": "section_6",
+      "label": "A⁴",
       "passage": {
        "onset": 18720,
-       "end": 24480,
+       "end": 21840,
        "firstBar": 26,
-       "lastBar": 34
+       "lastBar": 30
       },
       "circle": {
        "key": {
@@ -9769,13 +13439,284 @@
       }
      },
      {
-      "id": "section_5",
-      "label": "C",
+      "id": "section_7",
+      "label": "A⁵",
+      "passage": {
+       "onset": 21840,
+       "end": 24480,
+       "firstBar": 31,
+       "lastBar": 34
+      },
+      "circle": {
+       "key": {
+        "name": "A minor",
+        "fifths": 0,
+        "mode": "minor"
+       },
+       "name": "ля минор",
+       "certainty": "detected",
+       "position": 0,
+       "sectors": [
+        {
+         "position": 0,
+         "fifths": 0,
+         "major": "C",
+         "minor": "Am",
+         "signature": "0"
+        },
+        {
+         "position": 1,
+         "fifths": 1,
+         "major": "G",
+         "minor": "Em",
+         "signature": "1♯"
+        },
+        {
+         "position": 2,
+         "fifths": 2,
+         "major": "D",
+         "minor": "Bm",
+         "signature": "2♯"
+        },
+        {
+         "position": 3,
+         "fifths": 3,
+         "major": "A",
+         "minor": "F♯m",
+         "signature": "3♯"
+        },
+        {
+         "position": 4,
+         "fifths": 4,
+         "major": "E",
+         "minor": "C♯m",
+         "signature": "4♯"
+        },
+        {
+         "position": 5,
+         "fifths": 5,
+         "major": "B",
+         "minor": "G♯m",
+         "signature": "5♯"
+        },
+        {
+         "position": 6,
+         "fifths": 6,
+         "major": "F♯",
+         "minor": "D♯m",
+         "signature": "6♯"
+        },
+        {
+         "position": 7,
+         "fifths": -5,
+         "major": "D♭",
+         "minor": "B♭m",
+         "signature": "5♭"
+        },
+        {
+         "position": 8,
+         "fifths": -4,
+         "major": "A♭",
+         "minor": "Fm",
+         "signature": "4♭"
+        },
+        {
+         "position": 9,
+         "fifths": -3,
+         "major": "E♭",
+         "minor": "Cm",
+         "signature": "3♭"
+        },
+        {
+         "position": 10,
+         "fifths": -2,
+         "major": "B♭",
+         "minor": "Gm",
+         "signature": "2♭"
+        },
+        {
+         "position": 11,
+         "fifths": -1,
+         "major": "F",
+         "minor": "Dm",
+         "signature": "1♭"
+        }
+       ],
+       "neighbours": [
+        {
+         "relation": "dominant",
+         "key": {
+          "name": "E minor",
+          "fifths": 1,
+          "mode": "minor"
+         },
+         "position": 1,
+         "name": "ми минор",
+         "label": "доминанта"
+        },
+        {
+         "relation": "subdominant",
+         "key": {
+          "name": "D minor",
+          "fifths": -1,
+          "mode": "minor"
+         },
+         "position": 11,
+         "name": "ре минор",
+         "label": "субдоминанта"
+        },
+        {
+         "relation": "relative",
+         "key": {
+          "name": "C major",
+          "fifths": 0,
+          "mode": "major"
+         },
+         "position": 0,
+         "name": "до мажор",
+         "label": "параллельная"
+        },
+        {
+         "relation": "parallel",
+         "key": {
+          "name": "A major",
+          "fifths": 3,
+          "mode": "major"
+         },
+         "position": 3,
+         "name": "ля мажор",
+         "label": "одноимённая"
+        }
+       ],
+       "chords": [
+        {
+         "number": 1,
+         "symbol": "Am",
+         "degree": "i",
+         "position": 0,
+         "ring": "minor",
+         "function": "tonic",
+         "role": "Am: i в тональности ля минор, тоника.",
+         "place": {
+          "label": "Am, с такта 32",
+          "onset": 22560,
+          "end": 23280,
+          "noteIds": [
+           "n_0208",
+           "n_0209",
+           "n_0210",
+           "n_0211",
+           "n_0212",
+           "n_0213",
+           "n_0214"
+          ]
+         }
+        },
+        {
+         "number": 2,
+         "symbol": "E",
+         "degree": "V",
+         "position": 4,
+         "ring": "major",
+         "function": "dominant",
+         "role": "E: V в тональности ля минор, доминанта.",
+         "place": {
+          "label": "E, с такта 33",
+          "onset": 23280,
+          "end": 24000,
+          "noteIds": [
+           "n_0215",
+           "n_0216",
+           "n_0217",
+           "n_0218",
+           "n_0219",
+           "n_0220",
+           "n_0221"
+          ]
+         }
+        }
+       ],
+       "scale": [
+        57,
+        59,
+        60,
+        62,
+        64,
+        65,
+        67,
+        69
+       ],
+       "scaleNotes": [
+        {
+         "pitch": 57,
+         "onset": 21840,
+         "end": 22320
+        },
+        {
+         "pitch": 59,
+         "onset": 22320,
+         "end": 22800
+        },
+        {
+         "pitch": 60,
+         "onset": 22800,
+         "end": 23280
+        },
+        {
+         "pitch": 62,
+         "onset": 23280,
+         "end": 23760
+        },
+        {
+         "pitch": 64,
+         "onset": 23760,
+         "end": 24240
+        },
+        {
+         "pitch": 65,
+         "onset": 24240,
+         "end": 24720
+        },
+        {
+         "pitch": 67,
+         "onset": 24720,
+         "end": 25200
+        },
+        {
+         "pitch": 69,
+         "onset": 25200,
+         "end": 26160
+        }
+       ],
+       "lines": [
+        "Ля минор: без диезов и бемолей, как у параллельной тональности, до мажор.",
+        "Соседи по кругу отличаются на один знак: ми минор (доминанта) и ре минор (субдоминанта).",
+        "Аккорды раздела: Am (i) → E (V)."
+       ],
+       "zones": [
+        "tonic",
+        "dominant",
+        "near",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "near",
+        "subdominant"
+       ]
+      }
+     },
+     {
+      "id": "section_8",
+      "label": "B",
       "passage": {
        "onset": 24480,
-       "end": 34560,
+       "end": 31920,
        "firstBar": 34,
-       "lastBar": 48
+       "lastBar": 44
       },
       "circle": {
        "key": {
@@ -10076,13 +14017,284 @@
       }
      },
      {
-      "id": "section_6",
-      "label": "A‴",
+      "id": "section_9",
+      "label": "A⁶",
+      "passage": {
+       "onset": 31920,
+       "end": 34560,
+       "firstBar": 45,
+       "lastBar": 48
+      },
+      "circle": {
+       "key": {
+        "name": "A minor",
+        "fifths": 0,
+        "mode": "minor"
+       },
+       "name": "ля минор",
+       "certainty": "detected",
+       "position": 0,
+       "sectors": [
+        {
+         "position": 0,
+         "fifths": 0,
+         "major": "C",
+         "minor": "Am",
+         "signature": "0"
+        },
+        {
+         "position": 1,
+         "fifths": 1,
+         "major": "G",
+         "minor": "Em",
+         "signature": "1♯"
+        },
+        {
+         "position": 2,
+         "fifths": 2,
+         "major": "D",
+         "minor": "Bm",
+         "signature": "2♯"
+        },
+        {
+         "position": 3,
+         "fifths": 3,
+         "major": "A",
+         "minor": "F♯m",
+         "signature": "3♯"
+        },
+        {
+         "position": 4,
+         "fifths": 4,
+         "major": "E",
+         "minor": "C♯m",
+         "signature": "4♯"
+        },
+        {
+         "position": 5,
+         "fifths": 5,
+         "major": "B",
+         "minor": "G♯m",
+         "signature": "5♯"
+        },
+        {
+         "position": 6,
+         "fifths": 6,
+         "major": "F♯",
+         "minor": "D♯m",
+         "signature": "6♯"
+        },
+        {
+         "position": 7,
+         "fifths": -5,
+         "major": "D♭",
+         "minor": "B♭m",
+         "signature": "5♭"
+        },
+        {
+         "position": 8,
+         "fifths": -4,
+         "major": "A♭",
+         "minor": "Fm",
+         "signature": "4♭"
+        },
+        {
+         "position": 9,
+         "fifths": -3,
+         "major": "E♭",
+         "minor": "Cm",
+         "signature": "3♭"
+        },
+        {
+         "position": 10,
+         "fifths": -2,
+         "major": "B♭",
+         "minor": "Gm",
+         "signature": "2♭"
+        },
+        {
+         "position": 11,
+         "fifths": -1,
+         "major": "F",
+         "minor": "Dm",
+         "signature": "1♭"
+        }
+       ],
+       "neighbours": [
+        {
+         "relation": "dominant",
+         "key": {
+          "name": "E minor",
+          "fifths": 1,
+          "mode": "minor"
+         },
+         "position": 1,
+         "name": "ми минор",
+         "label": "доминанта"
+        },
+        {
+         "relation": "subdominant",
+         "key": {
+          "name": "D minor",
+          "fifths": -1,
+          "mode": "minor"
+         },
+         "position": 11,
+         "name": "ре минор",
+         "label": "субдоминанта"
+        },
+        {
+         "relation": "relative",
+         "key": {
+          "name": "C major",
+          "fifths": 0,
+          "mode": "major"
+         },
+         "position": 0,
+         "name": "до мажор",
+         "label": "параллельная"
+        },
+        {
+         "relation": "parallel",
+         "key": {
+          "name": "A major",
+          "fifths": 3,
+          "mode": "major"
+         },
+         "position": 3,
+         "name": "ля мажор",
+         "label": "одноимённая"
+        }
+       ],
+       "chords": [
+        {
+         "number": 1,
+         "symbol": "Am",
+         "degree": "i",
+         "position": 0,
+         "ring": "minor",
+         "function": "tonic",
+         "role": "Am: i в тональности ля минор, тоника.",
+         "place": {
+          "label": "Am, с такта 46",
+          "onset": 32640,
+          "end": 33360,
+          "noteIds": [
+           "n_0299",
+           "n_0300",
+           "n_0301",
+           "n_0302",
+           "n_0303",
+           "n_0304",
+           "n_0305"
+          ]
+         }
+        },
+        {
+         "number": 2,
+         "symbol": "E",
+         "degree": "V",
+         "position": 4,
+         "ring": "major",
+         "function": "dominant",
+         "role": "E: V в тональности ля минор, доминанта.",
+         "place": {
+          "label": "E, с такта 47",
+          "onset": 33360,
+          "end": 34080,
+          "noteIds": [
+           "n_0306",
+           "n_0307",
+           "n_0308",
+           "n_0309",
+           "n_0310",
+           "n_0311",
+           "n_0312"
+          ]
+         }
+        }
+       ],
+       "scale": [
+        57,
+        59,
+        60,
+        62,
+        64,
+        65,
+        67,
+        69
+       ],
+       "scaleNotes": [
+        {
+         "pitch": 57,
+         "onset": 31920,
+         "end": 32400
+        },
+        {
+         "pitch": 59,
+         "onset": 32400,
+         "end": 32880
+        },
+        {
+         "pitch": 60,
+         "onset": 32880,
+         "end": 33360
+        },
+        {
+         "pitch": 62,
+         "onset": 33360,
+         "end": 33840
+        },
+        {
+         "pitch": 64,
+         "onset": 33840,
+         "end": 34320
+        },
+        {
+         "pitch": 65,
+         "onset": 34320,
+         "end": 34800
+        },
+        {
+         "pitch": 67,
+         "onset": 34800,
+         "end": 35280
+        },
+        {
+         "pitch": 69,
+         "onset": 35280,
+         "end": 36240
+        }
+       ],
+       "lines": [
+        "Ля минор: без диезов и бемолей, как у параллельной тональности, до мажор.",
+        "Соседи по кругу отличаются на один знак: ми минор (доминанта) и ре минор (субдоминанта).",
+        "Аккорды раздела: Am (i) → E (V)."
+       ],
+       "zones": [
+        "tonic",
+        "dominant",
+        "near",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "near",
+        "subdominant"
+       ]
+      }
+     },
+     {
+      "id": "section_10",
+      "label": "A⁷",
       "passage": {
        "onset": 34560,
-       "end": 40320,
+       "end": 37680,
        "firstBar": 48,
-       "lastBar": 56
+       "lastBar": 52
       },
       "circle": {
        "key": {
@@ -10343,13 +14555,284 @@
       }
      },
      {
-      "id": "section_7",
-      "label": "D",
+      "id": "section_11",
+      "label": "A⁸",
+      "passage": {
+       "onset": 37680,
+       "end": 40320,
+       "firstBar": 53,
+       "lastBar": 56
+      },
+      "circle": {
+       "key": {
+        "name": "A minor",
+        "fifths": 0,
+        "mode": "minor"
+       },
+       "name": "ля минор",
+       "certainty": "detected",
+       "position": 0,
+       "sectors": [
+        {
+         "position": 0,
+         "fifths": 0,
+         "major": "C",
+         "minor": "Am",
+         "signature": "0"
+        },
+        {
+         "position": 1,
+         "fifths": 1,
+         "major": "G",
+         "minor": "Em",
+         "signature": "1♯"
+        },
+        {
+         "position": 2,
+         "fifths": 2,
+         "major": "D",
+         "minor": "Bm",
+         "signature": "2♯"
+        },
+        {
+         "position": 3,
+         "fifths": 3,
+         "major": "A",
+         "minor": "F♯m",
+         "signature": "3♯"
+        },
+        {
+         "position": 4,
+         "fifths": 4,
+         "major": "E",
+         "minor": "C♯m",
+         "signature": "4♯"
+        },
+        {
+         "position": 5,
+         "fifths": 5,
+         "major": "B",
+         "minor": "G♯m",
+         "signature": "5♯"
+        },
+        {
+         "position": 6,
+         "fifths": 6,
+         "major": "F♯",
+         "minor": "D♯m",
+         "signature": "6♯"
+        },
+        {
+         "position": 7,
+         "fifths": -5,
+         "major": "D♭",
+         "minor": "B♭m",
+         "signature": "5♭"
+        },
+        {
+         "position": 8,
+         "fifths": -4,
+         "major": "A♭",
+         "minor": "Fm",
+         "signature": "4♭"
+        },
+        {
+         "position": 9,
+         "fifths": -3,
+         "major": "E♭",
+         "minor": "Cm",
+         "signature": "3♭"
+        },
+        {
+         "position": 10,
+         "fifths": -2,
+         "major": "B♭",
+         "minor": "Gm",
+         "signature": "2♭"
+        },
+        {
+         "position": 11,
+         "fifths": -1,
+         "major": "F",
+         "minor": "Dm",
+         "signature": "1♭"
+        }
+       ],
+       "neighbours": [
+        {
+         "relation": "dominant",
+         "key": {
+          "name": "E minor",
+          "fifths": 1,
+          "mode": "minor"
+         },
+         "position": 1,
+         "name": "ми минор",
+         "label": "доминанта"
+        },
+        {
+         "relation": "subdominant",
+         "key": {
+          "name": "D minor",
+          "fifths": -1,
+          "mode": "minor"
+         },
+         "position": 11,
+         "name": "ре минор",
+         "label": "субдоминанта"
+        },
+        {
+         "relation": "relative",
+         "key": {
+          "name": "C major",
+          "fifths": 0,
+          "mode": "major"
+         },
+         "position": 0,
+         "name": "до мажор",
+         "label": "параллельная"
+        },
+        {
+         "relation": "parallel",
+         "key": {
+          "name": "A major",
+          "fifths": 3,
+          "mode": "major"
+         },
+         "position": 3,
+         "name": "ля мажор",
+         "label": "одноимённая"
+        }
+       ],
+       "chords": [
+        {
+         "number": 1,
+         "symbol": "Am",
+         "degree": "i",
+         "position": 0,
+         "ring": "minor",
+         "function": "tonic",
+         "role": "Am: i в тональности ля минор, тоника.",
+         "place": {
+          "label": "Am, с такта 54",
+          "onset": 38400,
+          "end": 39120,
+          "noteIds": [
+           "n_0353",
+           "n_0354",
+           "n_0355",
+           "n_0356",
+           "n_0357",
+           "n_0358",
+           "n_0359"
+          ]
+         }
+        },
+        {
+         "number": 2,
+         "symbol": "E",
+         "degree": "V",
+         "position": 4,
+         "ring": "major",
+         "function": "dominant",
+         "role": "E: V в тональности ля минор, доминанта.",
+         "place": {
+          "label": "E, с такта 55",
+          "onset": 39120,
+          "end": 39840,
+          "noteIds": [
+           "n_0360",
+           "n_0361",
+           "n_0362",
+           "n_0363",
+           "n_0364",
+           "n_0365",
+           "n_0366"
+          ]
+         }
+        }
+       ],
+       "scale": [
+        57,
+        59,
+        60,
+        62,
+        64,
+        65,
+        67,
+        69
+       ],
+       "scaleNotes": [
+        {
+         "pitch": 57,
+         "onset": 37680,
+         "end": 38160
+        },
+        {
+         "pitch": 59,
+         "onset": 38160,
+         "end": 38640
+        },
+        {
+         "pitch": 60,
+         "onset": 38640,
+         "end": 39120
+        },
+        {
+         "pitch": 62,
+         "onset": 39120,
+         "end": 39600
+        },
+        {
+         "pitch": 64,
+         "onset": 39600,
+         "end": 40080
+        },
+        {
+         "pitch": 65,
+         "onset": 40080,
+         "end": 40560
+        },
+        {
+         "pitch": 67,
+         "onset": 40560,
+         "end": 41040
+        },
+        {
+         "pitch": 69,
+         "onset": 41040,
+         "end": 42000
+        }
+       ],
+       "lines": [
+        "Ля минор: без диезов и бемолей, как у параллельной тональности, до мажор.",
+        "Соседи по кругу отличаются на один знак: ми минор (доминанта) и ре минор (субдоминанта).",
+        "Аккорды раздела: Am (i) → E (V)."
+       ],
+       "zones": [
+        "tonic",
+        "dominant",
+        "near",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "near",
+        "subdominant"
+       ]
+      }
+     },
+     {
+      "id": "section_12",
+      "label": "B",
       "passage": {
        "onset": 40320,
-       "end": 50400,
+       "end": 47760,
        "firstBar": 56,
-       "lastBar": 70
+       "lastBar": 66
       },
       "circle": {
        "key": {
@@ -10650,13 +15133,284 @@
       }
      },
      {
-      "id": "section_8",
-      "label": "A⁴",
+      "id": "section_13",
+      "label": "A⁹",
+      "passage": {
+       "onset": 47760,
+       "end": 50400,
+       "firstBar": 67,
+       "lastBar": 70
+      },
+      "circle": {
+       "key": {
+        "name": "A minor",
+        "fifths": 0,
+        "mode": "minor"
+       },
+       "name": "ля минор",
+       "certainty": "detected",
+       "position": 0,
+       "sectors": [
+        {
+         "position": 0,
+         "fifths": 0,
+         "major": "C",
+         "minor": "Am",
+         "signature": "0"
+        },
+        {
+         "position": 1,
+         "fifths": 1,
+         "major": "G",
+         "minor": "Em",
+         "signature": "1♯"
+        },
+        {
+         "position": 2,
+         "fifths": 2,
+         "major": "D",
+         "minor": "Bm",
+         "signature": "2♯"
+        },
+        {
+         "position": 3,
+         "fifths": 3,
+         "major": "A",
+         "minor": "F♯m",
+         "signature": "3♯"
+        },
+        {
+         "position": 4,
+         "fifths": 4,
+         "major": "E",
+         "minor": "C♯m",
+         "signature": "4♯"
+        },
+        {
+         "position": 5,
+         "fifths": 5,
+         "major": "B",
+         "minor": "G♯m",
+         "signature": "5♯"
+        },
+        {
+         "position": 6,
+         "fifths": 6,
+         "major": "F♯",
+         "minor": "D♯m",
+         "signature": "6♯"
+        },
+        {
+         "position": 7,
+         "fifths": -5,
+         "major": "D♭",
+         "minor": "B♭m",
+         "signature": "5♭"
+        },
+        {
+         "position": 8,
+         "fifths": -4,
+         "major": "A♭",
+         "minor": "Fm",
+         "signature": "4♭"
+        },
+        {
+         "position": 9,
+         "fifths": -3,
+         "major": "E♭",
+         "minor": "Cm",
+         "signature": "3♭"
+        },
+        {
+         "position": 10,
+         "fifths": -2,
+         "major": "B♭",
+         "minor": "Gm",
+         "signature": "2♭"
+        },
+        {
+         "position": 11,
+         "fifths": -1,
+         "major": "F",
+         "minor": "Dm",
+         "signature": "1♭"
+        }
+       ],
+       "neighbours": [
+        {
+         "relation": "dominant",
+         "key": {
+          "name": "E minor",
+          "fifths": 1,
+          "mode": "minor"
+         },
+         "position": 1,
+         "name": "ми минор",
+         "label": "доминанта"
+        },
+        {
+         "relation": "subdominant",
+         "key": {
+          "name": "D minor",
+          "fifths": -1,
+          "mode": "minor"
+         },
+         "position": 11,
+         "name": "ре минор",
+         "label": "субдоминанта"
+        },
+        {
+         "relation": "relative",
+         "key": {
+          "name": "C major",
+          "fifths": 0,
+          "mode": "major"
+         },
+         "position": 0,
+         "name": "до мажор",
+         "label": "параллельная"
+        },
+        {
+         "relation": "parallel",
+         "key": {
+          "name": "A major",
+          "fifths": 3,
+          "mode": "major"
+         },
+         "position": 3,
+         "name": "ля мажор",
+         "label": "одноимённая"
+        }
+       ],
+       "chords": [
+        {
+         "number": 1,
+         "symbol": "Am",
+         "degree": "i",
+         "position": 0,
+         "ring": "minor",
+         "function": "tonic",
+         "role": "Am: i в тональности ля минор, тоника.",
+         "place": {
+          "label": "Am, с такта 68",
+          "onset": 48480,
+          "end": 49200,
+          "noteIds": [
+           "n_0444",
+           "n_0445",
+           "n_0446",
+           "n_0447",
+           "n_0448",
+           "n_0449",
+           "n_0450"
+          ]
+         }
+        },
+        {
+         "number": 2,
+         "symbol": "E",
+         "degree": "V",
+         "position": 4,
+         "ring": "major",
+         "function": "dominant",
+         "role": "E: V в тональности ля минор, доминанта.",
+         "place": {
+          "label": "E, с такта 69",
+          "onset": 49200,
+          "end": 49920,
+          "noteIds": [
+           "n_0451",
+           "n_0452",
+           "n_0453",
+           "n_0454",
+           "n_0455",
+           "n_0456",
+           "n_0457"
+          ]
+         }
+        }
+       ],
+       "scale": [
+        57,
+        59,
+        60,
+        62,
+        64,
+        65,
+        67,
+        69
+       ],
+       "scaleNotes": [
+        {
+         "pitch": 57,
+         "onset": 47760,
+         "end": 48240
+        },
+        {
+         "pitch": 59,
+         "onset": 48240,
+         "end": 48720
+        },
+        {
+         "pitch": 60,
+         "onset": 48720,
+         "end": 49200
+        },
+        {
+         "pitch": 62,
+         "onset": 49200,
+         "end": 49680
+        },
+        {
+         "pitch": 64,
+         "onset": 49680,
+         "end": 50160
+        },
+        {
+         "pitch": 65,
+         "onset": 50160,
+         "end": 50640
+        },
+        {
+         "pitch": 67,
+         "onset": 50640,
+         "end": 51120
+        },
+        {
+         "pitch": 69,
+         "onset": 51120,
+         "end": 52080
+        }
+       ],
+       "lines": [
+        "Ля минор: без диезов и бемолей, как у параллельной тональности, до мажор.",
+        "Соседи по кругу отличаются на один знак: ми минор (доминанта) и ре минор (субдоминанта).",
+        "Аккорды раздела: Am (i) → E (V)."
+       ],
+       "zones": [
+        "tonic",
+        "dominant",
+        "near",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "near",
+        "subdominant"
+       ]
+      }
+     },
+     {
+      "id": "section_14",
+      "label": "A¹⁰",
       "passage": {
        "onset": 50400,
-       "end": 56160,
+       "end": 53520,
        "firstBar": 70,
-       "lastBar": 78
+       "lastBar": 74
       },
       "circle": {
        "key": {
@@ -10917,13 +15671,284 @@
       }
      },
      {
-      "id": "section_9",
-      "label": "E",
+      "id": "section_15",
+      "label": "A¹¹",
+      "passage": {
+       "onset": 53520,
+       "end": 56160,
+       "firstBar": 75,
+       "lastBar": 78
+      },
+      "circle": {
+       "key": {
+        "name": "A minor",
+        "fifths": 0,
+        "mode": "minor"
+       },
+       "name": "ля минор",
+       "certainty": "detected",
+       "position": 0,
+       "sectors": [
+        {
+         "position": 0,
+         "fifths": 0,
+         "major": "C",
+         "minor": "Am",
+         "signature": "0"
+        },
+        {
+         "position": 1,
+         "fifths": 1,
+         "major": "G",
+         "minor": "Em",
+         "signature": "1♯"
+        },
+        {
+         "position": 2,
+         "fifths": 2,
+         "major": "D",
+         "minor": "Bm",
+         "signature": "2♯"
+        },
+        {
+         "position": 3,
+         "fifths": 3,
+         "major": "A",
+         "minor": "F♯m",
+         "signature": "3♯"
+        },
+        {
+         "position": 4,
+         "fifths": 4,
+         "major": "E",
+         "minor": "C♯m",
+         "signature": "4♯"
+        },
+        {
+         "position": 5,
+         "fifths": 5,
+         "major": "B",
+         "minor": "G♯m",
+         "signature": "5♯"
+        },
+        {
+         "position": 6,
+         "fifths": 6,
+         "major": "F♯",
+         "minor": "D♯m",
+         "signature": "6♯"
+        },
+        {
+         "position": 7,
+         "fifths": -5,
+         "major": "D♭",
+         "minor": "B♭m",
+         "signature": "5♭"
+        },
+        {
+         "position": 8,
+         "fifths": -4,
+         "major": "A♭",
+         "minor": "Fm",
+         "signature": "4♭"
+        },
+        {
+         "position": 9,
+         "fifths": -3,
+         "major": "E♭",
+         "minor": "Cm",
+         "signature": "3♭"
+        },
+        {
+         "position": 10,
+         "fifths": -2,
+         "major": "B♭",
+         "minor": "Gm",
+         "signature": "2♭"
+        },
+        {
+         "position": 11,
+         "fifths": -1,
+         "major": "F",
+         "minor": "Dm",
+         "signature": "1♭"
+        }
+       ],
+       "neighbours": [
+        {
+         "relation": "dominant",
+         "key": {
+          "name": "E minor",
+          "fifths": 1,
+          "mode": "minor"
+         },
+         "position": 1,
+         "name": "ми минор",
+         "label": "доминанта"
+        },
+        {
+         "relation": "subdominant",
+         "key": {
+          "name": "D minor",
+          "fifths": -1,
+          "mode": "minor"
+         },
+         "position": 11,
+         "name": "ре минор",
+         "label": "субдоминанта"
+        },
+        {
+         "relation": "relative",
+         "key": {
+          "name": "C major",
+          "fifths": 0,
+          "mode": "major"
+         },
+         "position": 0,
+         "name": "до мажор",
+         "label": "параллельная"
+        },
+        {
+         "relation": "parallel",
+         "key": {
+          "name": "A major",
+          "fifths": 3,
+          "mode": "major"
+         },
+         "position": 3,
+         "name": "ля мажор",
+         "label": "одноимённая"
+        }
+       ],
+       "chords": [
+        {
+         "number": 1,
+         "symbol": "Am",
+         "degree": "i",
+         "position": 0,
+         "ring": "minor",
+         "function": "tonic",
+         "role": "Am: i в тональности ля минор, тоника.",
+         "place": {
+          "label": "Am, с такта 76",
+          "onset": 54240,
+          "end": 54960,
+          "noteIds": [
+           "n_0498",
+           "n_0499",
+           "n_0500",
+           "n_0501",
+           "n_0502",
+           "n_0503",
+           "n_0504"
+          ]
+         }
+        },
+        {
+         "number": 2,
+         "symbol": "E",
+         "degree": "V",
+         "position": 4,
+         "ring": "major",
+         "function": "dominant",
+         "role": "E: V в тональности ля минор, доминанта.",
+         "place": {
+          "label": "E, с такта 77",
+          "onset": 54960,
+          "end": 55680,
+          "noteIds": [
+           "n_0505",
+           "n_0506",
+           "n_0507",
+           "n_0508",
+           "n_0509",
+           "n_0510",
+           "n_0511"
+          ]
+         }
+        }
+       ],
+       "scale": [
+        57,
+        59,
+        60,
+        62,
+        64,
+        65,
+        67,
+        69
+       ],
+       "scaleNotes": [
+        {
+         "pitch": 57,
+         "onset": 53520,
+         "end": 54000
+        },
+        {
+         "pitch": 59,
+         "onset": 54000,
+         "end": 54480
+        },
+        {
+         "pitch": 60,
+         "onset": 54480,
+         "end": 54960
+        },
+        {
+         "pitch": 62,
+         "onset": 54960,
+         "end": 55440
+        },
+        {
+         "pitch": 64,
+         "onset": 55440,
+         "end": 55920
+        },
+        {
+         "pitch": 65,
+         "onset": 55920,
+         "end": 56400
+        },
+        {
+         "pitch": 67,
+         "onset": 56400,
+         "end": 56880
+        },
+        {
+         "pitch": 69,
+         "onset": 56880,
+         "end": 57840
+        }
+       ],
+       "lines": [
+        "Ля минор: без диезов и бемолей, как у параллельной тональности, до мажор.",
+        "Соседи по кругу отличаются на один знак: ми минор (доминанта) и ре минор (субдоминанта).",
+        "Аккорды раздела: Am (i) → E (V)."
+       ],
+       "zones": [
+        "tonic",
+        "dominant",
+        "near",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "near",
+        "subdominant"
+       ]
+      }
+     },
+     {
+      "id": "section_16",
+      "label": "B",
       "passage": {
        "onset": 56160,
-       "end": 66240,
+       "end": 63600,
        "firstBar": 78,
-       "lastBar": 92
+       "lastBar": 88
       },
       "circle": {
        "key": {
@@ -11224,8 +16249,279 @@
       }
      },
      {
-      "id": "section_10",
-      "label": "A⁵",
+      "id": "section_17",
+      "label": "A¹²",
+      "passage": {
+       "onset": 63600,
+       "end": 66240,
+       "firstBar": 89,
+       "lastBar": 92
+      },
+      "circle": {
+       "key": {
+        "name": "A minor",
+        "fifths": 0,
+        "mode": "minor"
+       },
+       "name": "ля минор",
+       "certainty": "detected",
+       "position": 0,
+       "sectors": [
+        {
+         "position": 0,
+         "fifths": 0,
+         "major": "C",
+         "minor": "Am",
+         "signature": "0"
+        },
+        {
+         "position": 1,
+         "fifths": 1,
+         "major": "G",
+         "minor": "Em",
+         "signature": "1♯"
+        },
+        {
+         "position": 2,
+         "fifths": 2,
+         "major": "D",
+         "minor": "Bm",
+         "signature": "2♯"
+        },
+        {
+         "position": 3,
+         "fifths": 3,
+         "major": "A",
+         "minor": "F♯m",
+         "signature": "3♯"
+        },
+        {
+         "position": 4,
+         "fifths": 4,
+         "major": "E",
+         "minor": "C♯m",
+         "signature": "4♯"
+        },
+        {
+         "position": 5,
+         "fifths": 5,
+         "major": "B",
+         "minor": "G♯m",
+         "signature": "5♯"
+        },
+        {
+         "position": 6,
+         "fifths": 6,
+         "major": "F♯",
+         "minor": "D♯m",
+         "signature": "6♯"
+        },
+        {
+         "position": 7,
+         "fifths": -5,
+         "major": "D♭",
+         "minor": "B♭m",
+         "signature": "5♭"
+        },
+        {
+         "position": 8,
+         "fifths": -4,
+         "major": "A♭",
+         "minor": "Fm",
+         "signature": "4♭"
+        },
+        {
+         "position": 9,
+         "fifths": -3,
+         "major": "E♭",
+         "minor": "Cm",
+         "signature": "3♭"
+        },
+        {
+         "position": 10,
+         "fifths": -2,
+         "major": "B♭",
+         "minor": "Gm",
+         "signature": "2♭"
+        },
+        {
+         "position": 11,
+         "fifths": -1,
+         "major": "F",
+         "minor": "Dm",
+         "signature": "1♭"
+        }
+       ],
+       "neighbours": [
+        {
+         "relation": "dominant",
+         "key": {
+          "name": "E minor",
+          "fifths": 1,
+          "mode": "minor"
+         },
+         "position": 1,
+         "name": "ми минор",
+         "label": "доминанта"
+        },
+        {
+         "relation": "subdominant",
+         "key": {
+          "name": "D minor",
+          "fifths": -1,
+          "mode": "minor"
+         },
+         "position": 11,
+         "name": "ре минор",
+         "label": "субдоминанта"
+        },
+        {
+         "relation": "relative",
+         "key": {
+          "name": "C major",
+          "fifths": 0,
+          "mode": "major"
+         },
+         "position": 0,
+         "name": "до мажор",
+         "label": "параллельная"
+        },
+        {
+         "relation": "parallel",
+         "key": {
+          "name": "A major",
+          "fifths": 3,
+          "mode": "major"
+         },
+         "position": 3,
+         "name": "ля мажор",
+         "label": "одноимённая"
+        }
+       ],
+       "chords": [
+        {
+         "number": 1,
+         "symbol": "Am",
+         "degree": "i",
+         "position": 0,
+         "ring": "minor",
+         "function": "tonic",
+         "role": "Am: i в тональности ля минор, тоника.",
+         "place": {
+          "label": "Am, с такта 90",
+          "onset": 64320,
+          "end": 65040,
+          "noteIds": [
+           "n_0589",
+           "n_0590",
+           "n_0591",
+           "n_0592",
+           "n_0593",
+           "n_0594",
+           "n_0595"
+          ]
+         }
+        },
+        {
+         "number": 2,
+         "symbol": "E",
+         "degree": "V",
+         "position": 4,
+         "ring": "major",
+         "function": "dominant",
+         "role": "E: V в тональности ля минор, доминанта.",
+         "place": {
+          "label": "E, с такта 91",
+          "onset": 65040,
+          "end": 65760,
+          "noteIds": [
+           "n_0596",
+           "n_0597",
+           "n_0598",
+           "n_0599",
+           "n_0600",
+           "n_0601",
+           "n_0602"
+          ]
+         }
+        }
+       ],
+       "scale": [
+        57,
+        59,
+        60,
+        62,
+        64,
+        65,
+        67,
+        69
+       ],
+       "scaleNotes": [
+        {
+         "pitch": 57,
+         "onset": 63600,
+         "end": 64080
+        },
+        {
+         "pitch": 59,
+         "onset": 64080,
+         "end": 64560
+        },
+        {
+         "pitch": 60,
+         "onset": 64560,
+         "end": 65040
+        },
+        {
+         "pitch": 62,
+         "onset": 65040,
+         "end": 65520
+        },
+        {
+         "pitch": 64,
+         "onset": 65520,
+         "end": 66000
+        },
+        {
+         "pitch": 65,
+         "onset": 66000,
+         "end": 66480
+        },
+        {
+         "pitch": 67,
+         "onset": 66480,
+         "end": 66960
+        },
+        {
+         "pitch": 69,
+         "onset": 66960,
+         "end": 67920
+        }
+       ],
+       "lines": [
+        "Ля минор: без диезов и бемолей, как у параллельной тональности, до мажор.",
+        "Соседи по кругу отличаются на один знак: ми минор (доминанта) и ре минор (субдоминанта).",
+        "Аккорды раздела: Am (i) → E (V)."
+       ],
+       "zones": [
+        "tonic",
+        "dominant",
+        "near",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "near",
+        "subdominant"
+       ]
+      }
+     },
+     {
+      "id": "section_18",
+      "label": "A¹³",
       "passage": {
        "onset": 66240,
        "end": 69360,

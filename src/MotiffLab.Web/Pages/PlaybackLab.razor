@@ -200,7 +200,7 @@
                             <span>@Text["phrases.showBrackets"]</span>
                             <input type="checkbox" role="switch" class="switch" checked="@_showBrackets" @onchange="ToggleBracketsAsync" />
                         </label>
-                        <button class="btn quiet" @onclick="ResetLevelAsync" disabled="@(_levels is null || _levels.Edits[_level].IsEmpty)">@Text["phrases.resetLevel"]</button>
+                        <button class="btn quiet" @onclick="ResetLevelAsync" disabled="@(Levels is null || Levels.Edits[_level].IsEmpty)">@Text["phrases.resetLevel"]</button>
                         @PopoverScope([GranularitySetting], "score")
                     </div>
                     break;
@@ -880,7 +880,7 @@
         </div>
         <nav class="contents-anchors" aria-label="@Text["contents.sections"]">
             <button class="chip" @onclick='() => ScrollContentsToAsync("contents-pages")'>@Text["contents.tabPages"]</button>
-            @if (_sentences is { Sentences.Count: > 0 })
+            @if (FormSections.Count > 0)
             {
                 <button class="chip" @onclick='() => ScrollContentsToAsync("contents-structure")'>@Text["contents.structure"]</button>
             }
@@ -918,16 +918,16 @@
                 }
             </section>
 
-            @if (_sentences is { Sentences.Count: > 0 } sentences)
+            @if (FormSections.Count > 0)
             {
-                @* The form as music-core detects it: a chip per sentence selects its bars; grey until added as Structure bookmarks. *@
+                @* The form as music-core detects it, the sections Piece DNA shows (#347): a chip per section selects its bars; grey until added as Structure bookmarks. *@
                 <section id="contents-structure" class="contents-section" aria-labelledby="contents-structure-title">
                     <h3 id="contents-structure-title" class="overline">@Text["contents.structureFound"]</h3>
                     <div class="sentences @(CanAddStructure ? "found" : null)">
-                        @foreach (Sentence sentence in sentences.Sentences)
+                        @foreach (DnaSection section in FormSections)
                         {
-                            <button class="sent" title="@BarsOf(sentence.Span)" @onclick="() => SelectAsync(sentence.Span, null)">
-                                @Text.Format("contents.sentence", sentence.Letter, sentence.FirstBar == sentence.LastBar ? $"{sentence.FirstBar}" : $"{sentence.FirstBar}–{sentence.LastBar}")
+                            <button class="sent" title="@BarsOf(section.Span)" @onclick="() => SelectAsync(section.Span, null)">
+                                @Text.Format("contents.sentence", section.Label, section.FirstBar == section.LastBar ? $"{section.FirstBar}" : $"{section.FirstBar}–{section.LastBar}")
                             </button>
                         }
                     </div>
@@ -2361,7 +2361,7 @@
         _title = title;
         _tracks = piece.Notes.Select(note => note.Track).Distinct().Order().ToArray();
         _lastBar = MotifSelector.LastBar(_meter, _score.End);
-        _levels = null;
+        _pieceStructure = null;
         _level = DefaultLevel;
         SuggestPhrases(LevelEdits.None);
         _filters = Filters(piece.Notes, _tracks);
@@ -2826,7 +2826,7 @@
 
         if (around is { } span)
         {
-            await SelectAsync(_levels!.Selectable(_levels.Map(span, _level)), note: null);
+            await SelectAsync(Levels!.Selectable(Levels.Map(span, _level)), note: null);
         }
         else if (_selection is { } selection)
         {
@@ -3476,7 +3476,7 @@
             }
         }
 
-        _project = TouchResumePoint((_project with { Motifs = motifs, Variations = variations, Edits = _edits }).WithPhraseLevels(_levels?.Edits ?? LevelEdits.None));
+        _project = TouchResumePoint((_project with { Motifs = motifs, Variations = variations, Edits = _edits }).WithPhraseLevels(Levels?.Edits ?? LevelEdits.None));
         CurrentPiece.Saved(_project);
         await Projects.SaveAsync(_project);
     }

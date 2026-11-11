@@ -37,7 +37,7 @@ internal sealed partial class OpenPiece
         "bookmark.move" => Bookmarks(project => project.MoveBookmark(request.Required("id"), request.Int("index") ?? throw FacadeException.BadRequest("Send \"index\", the place in your order."))),
         "bookmark.remove" => Bookmarks(project => project.RemoveBookmark(request.Required("id"))),
         "bookmark.structure" => Bookmarks(project => project.AddStructureBookmarks(Levels.Sentences.Sentences, Words, Now(request))),
-        "bookmark.form" => Bookmarks(project => project.AddFormBookmarks(FormAnalyzer.Sections(Notes, Piece.Meter, Levels.Sentences), Words, Now(request))),
+        "bookmark.form" => Bookmarks(project => project.AddFormBookmarks(Structure.Sections, Words, Now(request))),
         "category.add" => Bookmarks(project => project.AddCategory(new BookmarkCategory(project.NextCategoryId(), request.Required("name"), request.Enum<InkColour>("ink") ?? InkColour.Graphite))),
         "category.rename" => Bookmarks(project => project.RenameCategory(request.Required("id"), request.Text("name"))),
         "category.remove" => Bookmarks(project => project.RemoveCategory(request.Required("id"))),

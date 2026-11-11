@@ -53,8 +53,14 @@ public partial class PlaybackLab : IAsyncDisposable
         Settings,
     }
 
+    /// <summary>
+    /// The structure of the piece (#347), read once from music-core: the phrase levels the brackets show, the sections of
+    /// the form the Contents and Piece DNA show, and the closes and motifs beside them.
+    /// </summary>
+    private PieceStructure? _pieceStructure;
+
     /// <summary>The piece at the three levels; its <see cref="PhraseLevels.Phrases"/> and <see cref="PhraseLevels.Sentences"/> are <see cref="_phrases"/> and <see cref="_sentences"/>.</summary>
-    private PhraseLevels? _levels;
+    private PhraseLevels? Levels => _pieceStructure?.Levels;
 
     /// <summary>The level the brackets show and a tap selects at.</summary>
     private PhraseLevel _level = PhraseLevel.Phrase;
@@ -141,7 +147,7 @@ public partial class PlaybackLab : IAsyncDisposable
     {
         _showBrackets = SettingsStore.IsOn(BracketsPreference);
         // A piece without its own level opens at the setting's.
-        if (_levels is not null && _project?.SettingOverrides.ContainsKey(GranularitySetting) != true)
+        if (Levels is not null && _project?.SettingOverrides.ContainsKey(GranularitySetting) != true)
         {
             _level = ProjectLevel;
         }
@@ -229,7 +235,7 @@ public partial class PlaybackLab : IAsyncDisposable
         _project = project;
         CurrentPiece.Saved(project);
         await Projects.SaveAsync(project);
-        if (_levels is not null)
+        if (Levels is not null)
         {
             _level = ProjectLevel;
         }
@@ -251,7 +257,7 @@ public partial class PlaybackLab : IAsyncDisposable
         _project = project;
         CurrentPiece.Saved(project);
         await Projects.SaveAsync(project);
-        if (_levels is not null)
+        if (Levels is not null)
         {
             _level = ProjectLevel;
         }
@@ -263,9 +269,10 @@ public partial class PlaybackLab : IAsyncDisposable
     /// </summary>
     private void SuggestPhrases(LevelEdits? edits = null)
     {
-        _levels = PhraseLevels.Suggest(_notes!, _meter!, _phraseMarks, _score!.End, KeySignature.InForce(_keys, Tick.Zero), Words, edits ?? _levels?.Edits);
-        _phrases = _levels.Phrases;
-        _sentences = _levels.Sentences;
+        PhraseLevels levels = PhraseLevels.Suggest(_notes!, _meter!, _phraseMarks, _score!.End, KeySignature.InForce(_keys, Tick.Zero), Words, edits ?? Levels?.Edits);
+        _pieceStructure = PieceStructure.Of(_notes!, _meter!, levels, Words);
+        _phrases = levels.Phrases;
+        _sentences = levels.Sentences;
     }
 
     /// <summary>The level the project keeps for the piece, or the setting's default.</summary>
@@ -291,12 +298,12 @@ public partial class PlaybackLab : IAsyncDisposable
     }
 
     /// <summary>How many units the piece has at the level shown, as the popover says it.</summary>
-    private string LevelCount => _levels is null ? "" : Text.Count(_level switch
+    private string LevelCount => Levels is null ? "" : Text.Count(_level switch
     {
         PhraseLevel.Short => "phrases.countShort",
         PhraseLevel.Sentence => "phrases.countSentences",
         _ => "phrases.countPhrases",
-    }, _levels.Units(_level).Count);
+    }, Levels.Units(_level).Count);
 
     /// <summary>The unit of the level shown that the selection is (<see cref="SelectedUnit"/>): its bracket is drawn in the accent.</summary>
     private PhraseUnit? CurrentUnit => SelectedUnit;
@@ -306,17 +313,17 @@ public partial class PlaybackLab : IAsyncDisposable
     {
         get
         {
-            if (_levels is null || !_showBrackets)
+            if (Levels is null || !_showBrackets)
             {
                 return null;
             }
 
             PhraseUnit? current = CurrentUnit;
             IReadOnlyList<Observation> kept = Kept;
-            if (!ReferenceEquals(_levels, _scorePhrasesFor) || _level != _scorePhrasesLevel || current != _scorePhrasesCurrent || !ReferenceEquals(kept, _scorePhrasesKept))
+            if (!ReferenceEquals(Levels, _scorePhrasesFor) || _level != _scorePhrasesLevel || current != _scorePhrasesCurrent || !ReferenceEquals(kept, _scorePhrasesKept))
             {
-                (_scorePhrasesFor, _scorePhrasesLevel, _scorePhrasesCurrent, _scorePhrasesKept) = (_levels, _level, current, kept);
-                _scorePhrases = [.. _levels.Units(_level).Select(unit =>
+                (_scorePhrasesFor, _scorePhrasesLevel, _scorePhrasesCurrent, _scorePhrasesKept) = (Levels, _level, current, kept);
+                _scorePhrases = [.. Levels.Units(_level).Select(unit =>
                 {
                     int ideas = kept.Count(observation => observation.IsAbout(unit.Span));
                     string label = Text.Format("phrases.bracketLabel", UnitName(unit.Level), unit.Number, Bars(unit));
@@ -356,12 +363,12 @@ public partial class PlaybackLab : IAsyncDisposable
     private Task OnBracketPickedAsync(int number)
     {
         _popover = Popover.None;
-        if (_levels is null || number < 1 || number > _levels.Units(_level).Count)
+        if (Levels is null || number < 1 || number > Levels.Units(_level).Count)
         {
             return Task.CompletedTask;
         }
 
-        PhraseUnit unit = _levels.Units(_level)[number - 1];
+        PhraseUnit unit = Levels.Units(_level)[number - 1];
         if (unit == CurrentUnit)
         {
             // The second tap lifts the phrase into focus.
@@ -369,7 +376,7 @@ public partial class PlaybackLab : IAsyncDisposable
             return Task.CompletedTask;
         }
 
-        TickSpan span = _levels.Selectable(unit);
+        TickSpan span = Levels.Selectable(unit);
         string? note = span == unit.Span ? null : Text.Format("selection.unitCapped", UnitName(unit.Level), unit.Number, unit.BarCount, MotifSelection.MaxStructureBars, _meter!.BarAt(new Tick(span.End.Value - 1)).Number);
         return SelectAsync(span, note);
     }
@@ -380,7 +387,7 @@ public partial class PlaybackLab : IAsyncDisposable
     /// </summary>
     private async Task SetLevelAsync(PhraseLevel level)
     {
-        if (level == _level || _levels is null)
+        if (level == _level || Levels is null)
         {
             return;
         }
@@ -398,8 +405,8 @@ public partial class PlaybackLab : IAsyncDisposable
 
         if (_selection is { } selection)
         {
-            PhraseUnit unit = _levels.Map(selection.Span, level);
-            await SelectAsync(_levels.Selectable(unit), note: null);
+            PhraseUnit unit = Levels.Map(selection.Span, level);
+            await SelectAsync(Levels.Selectable(unit), note: null);
         }
         else
         {
@@ -409,7 +416,7 @@ public partial class PlaybackLab : IAsyncDisposable
 
     /// <summary>The level's own edits go; the other levels keep theirs.</summary>
     private Task ResetLevelAsync() =>
-        _levels is { } levels ? ChangePhrasesAsync(levels.Reset(_level), around: null) : Task.CompletedTask;
+        Levels is { } levels ? ChangePhrasesAsync(levels.Reset(_level), around: null) : Task.CompletedTask;
 
     private async Task ToggleBracketsAsync()
     {
@@ -529,12 +536,12 @@ public partial class PlaybackLab : IAsyncDisposable
     /// </summary>
     private async Task SaveCoverAsync()
     {
-        if (_project is not { } project || _scoreView is null || _levels is null || _meter is null || _score is null || Focused || _pages.Count == 0)
+        if (_project is not { } project || _scoreView is null || Levels is null || _meter is null || _score is null || Focused || _pages.Count == 0)
         {
             return;
         }
 
-        IReadOnlyList<PhraseUnit> phrases = _levels.Units(PhraseLevel.Phrase);
+        IReadOnlyList<PhraseUnit> phrases = Levels.Units(PhraseLevel.Phrase);
         string key = $"{project.Id}:{_pages.Count}:{string.Join(',', phrases.Select(unit => unit.Span.Onset.Value))}";
         if (key == _coverKey)
         {
@@ -602,20 +609,20 @@ public partial class PlaybackLab : IAsyncDisposable
     /// </summary>
     private async Task StepUnitAsync(int direction)
     {
-        if (_levels is null)
+        if (Levels is null)
         {
             return;
         }
 
-        IReadOnlyList<PhraseUnit> units = _levels.Units(_level);
-        PhraseUnit? from = Focused ? FocusUnit : _selection is { } selection ? CurrentUnit ?? _levels.At(_level, selection.Span.Onset) : null;
+        IReadOnlyList<PhraseUnit> units = Levels.Units(_level);
+        PhraseUnit? from = Focused ? FocusUnit : _selection is { } selection ? CurrentUnit ?? Levels.At(_level, selection.Span.Onset) : null;
         int index = from is not null ? from.Number - 1 + Math.Sign(direction) : direction > 0 ? 0 : -1;
         if (index < 0 || index >= units.Count)
         {
             return;
         }
 
-        await SelectAsync(_levels.Selectable(units[index]), note: null);
+        await SelectAsync(Levels.Selectable(units[index]), note: null);
         if (_focus)
         {
             _focusSpan = _selection?.Span;

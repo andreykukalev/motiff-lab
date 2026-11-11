@@ -276,7 +276,7 @@ internal sealed partial class OpenPiece
     private void RefreshNotes()
     {
         Notes = PerformanceTake.Apply(Printed, Project.TakenBars);
-        Levels = PhraseLevels.Suggest(Notes, Piece.Meter, Piece.MusicXml?.PhraseMarks ?? PhraseMarks.None, Piece.End, KeySignature.InForce(Piece.Keys, Tick.Zero), Words, Levels.Edits);
+        ReadStructure();
         _understood = null;
     }
 

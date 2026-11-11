@@ -294,6 +294,7 @@ public sealed class PhraseMap
             PhraseEvidence.Rest => "after a rest of a beat or more",
             PhraseEvidence.RepeatSign => "at a repeat sign",
             PhraseEvidence.Repetition => "where an earlier passage comes back note for note",
+            PhraseEvidence.Restatement => "at the edge of a passage that starts again at once, note for note",
             _ => mark.ToString(),
         })];
         string source = evidence.Length switch
@@ -324,6 +325,7 @@ public sealed class PhraseMap
             PhraseEvidence.Rest => "после паузы в долю или больше",
             PhraseEvidence.RepeatSign => "по знаку репризы",
             PhraseEvidence.Repetition => "там, где нота в ноту возвращается более ранний отрывок",
+            PhraseEvidence.Restatement => "на краю отрывка, который сразу начинается снова нота в ноту",
             _ => mark.ToString(),
         })];
         string source = evidence.Length == 0 ? "" : Words.Russian.Joined(evidence);

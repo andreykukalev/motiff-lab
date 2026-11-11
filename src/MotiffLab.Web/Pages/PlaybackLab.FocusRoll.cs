@@ -34,10 +34,10 @@ public partial class PlaybackLab
     /// </summary>
     private async Task ExpandRollAsync()
     {
-        if (_selection is null && _levels is not null && _levels.Units(_level).Count > 0)
+        if (_selection is null && Levels is not null && Levels.Units(_level).Count > 0)
         {
-            PhraseUnit unit = _levels.At(_level, Player.Position);
-            await SelectAsync(_levels.Selectable(unit), note: null);
+            PhraseUnit unit = Levels.At(_level, Player.Position);
+            await SelectAsync(Levels.Selectable(unit), note: null);
         }
 
         if (_selection is null || _penOn)
@@ -63,7 +63,7 @@ public partial class PlaybackLab
     private async Task FollowPlayingInFocusAsync()
     {
         if (!Focused || _turningFocus || Player.State != PlaybackState.Playing || _looping || _alternating || Player.Loop is not null
-            || FocusHasVariation || VersionChosen || _levels is null || FocusSpan is not { } span || FocusUnit is not { } shown)
+            || FocusHasVariation || VersionChosen || Levels is null || FocusSpan is not { } span || FocusUnit is not { } shown)
         {
             return;
         }
@@ -74,7 +74,7 @@ public partial class PlaybackLab
             return;
         }
 
-        PhraseUnit sounding = _levels.At(_level, at);
+        PhraseUnit sounding = Levels.At(_level, at);
         if (sounding.Number == shown.Number)
         {
             return;
@@ -83,7 +83,7 @@ public partial class PlaybackLab
         _turningFocus = true;
         try
         {
-            await SelectAsync(_levels.Selectable(sounding), note: null);
+            await SelectAsync(Levels.Selectable(sounding), note: null);
             _focusSpan = _selection?.Span;
             _pointed = null;
         }

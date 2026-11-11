@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 
+using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;
@@ -264,19 +265,23 @@ public partial class PlaybackLab
             : Task.CompletedTask;
     }
 
-    /// <summary>Whether the drawer's empty state offers the detected form as Structure bookmarks.</summary>
-    private bool CanAddStructure => _sentences is { Sentences.Count: > 0 } && !Bookmarks.Any(bookmark => bookmark.CategoryId == BookmarkCategory.StructureId);
+    /// <summary>The sections of the form the Contents show, the same as Piece DNA's (#347); empty before the piece is read.</summary>
+    private IReadOnlyList<DnaSection> FormSections => _pieceStructure?.Sections ?? [];
 
-    /// <summary>Add Structure bookmarks: one bookmark for each detected sentence (music-core writes and names them).</summary>
+    /// <summary>Whether the drawer's empty state offers the detected form as Structure bookmarks.</summary>
+    private bool CanAddStructure => FormSections.Count > 0 && !Bookmarks.Any(bookmark => bookmark.CategoryId == BookmarkCategory.StructureId);
+
+    /// <summary>Add Structure bookmarks: one bookmark for each section of the form, as Piece DNA adds them (music-core writes and names them).</summary>
     private async Task AddStructureBookmarksAsync()
     {
-        if (_sentences is not { } map)
+        IReadOnlyList<DnaSection> sections = FormSections;
+        if (sections.Count == 0)
         {
             return;
         }
 
         int before = Bookmarks.Count;
-        await SaveMarksAsync(project => project.AddStructureBookmarks(map.Sentences, Words, DateTimeOffset.Now), "");
+        await SaveMarksAsync(project => project.AddFormBookmarks(sections, Words, DateTimeOffset.Now), "");
         _marksStatus = Text.Count("bookmark.structureAdded", Bookmarks.Count - before);
     }
 

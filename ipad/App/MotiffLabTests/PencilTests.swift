@@ -284,7 +284,7 @@ final class PencilTests: XCTestCase {
         _ = try await call(view, "show", ["pages": piece.pages, "timemap": timemap, "dark": false])
 
         // The form found in the piece, filed as Structure bookmarks: a bracket for each, titled at its left end.
-        let shelf = try XCTUnwrap(BookmarkShelf(answer: MusicCore.call(piece: piece.id, "bookmark.structure")))
+        let shelf = try XCTUnwrap(BookmarkShelf(answer: MusicCore.call(piece: piece.id, "bookmark.form")))
         XCTAssertFalse(shelf.bookmarks.isEmpty)
         let items = shelf.bookmarks.map { bookmark in
             ["id": bookmark.id, "start": bookmark.onset, "end": bookmark.end, "title": bookmark.title, "ink": shelf.category(of: bookmark)?.ink ?? "graphite", "label": bookmark.title] as [String: Any]

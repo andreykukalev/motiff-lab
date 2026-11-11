@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.Json;
 
@@ -37,7 +38,7 @@ internal sealed partial class OpenPiece
         Piece = piece;
         Notes = notes;
         Words = words;
-        Levels = PhraseLevels.Suggest(notes, piece.Meter, piece.MusicXml?.PhraseMarks ?? PhraseMarks.None, piece.End, KeySignature.InForce(piece.Keys, Tick.Zero), words, project.PhraseLevels);
+        ReadStructure(project.PhraseLevels);
         Level = PhraseLevels.Parse(project.SettingOverrides.GetValueOrDefault(GranularitySetting)) ?? PhraseLevels.Parse(SettingsCatalogue.Get(GranularitySetting).Default) ?? PhraseLevel.Phrase;
         Keep = [.. s_defaultKeep];
     }
@@ -54,8 +55,14 @@ internal sealed partial class OpenPiece
 
     public Words Words { get; private set; }
 
+    /// <summary>
+    /// The structure of the piece (#347): the phrase levels, the sections of the form and the landmarks beside them, read
+    /// once; the brackets (<c>phrases</c>), the Contents (<c>dna</c>'s form) and Structure bookmarks all read it.
+    /// </summary>
+    public PieceStructure Structure { get; private set; }
+
     /// <summary>The piece in three levels (0018, section 3) with the player's edits at each.</summary>
-    public PhraseLevels Levels { get; private set; }
+    public PhraseLevels Levels => Structure.Levels;
 
     /// <summary>The level the app shows, remembered per piece through <see cref="GranularitySetting"/>.</summary>
     public PhraseLevel Level { get; private set; }
@@ -162,7 +169,7 @@ internal sealed partial class OpenPiece
         "playback" => Playback(request),
         "roll" => Roll(request),
         "project.save" => Save(request),
-        "dna" => Answer.Write(json => Answer.Dna(json, PieceDna.Build(Notes, Piece.Meter, Piece.Keys, Piece.End, Selection, Selection is null ? null : Understood().Structure, Words, Levels.Sentences), Words, Piece.End)),
+        "dna" => Answer.Write(json => Answer.Dna(json, PieceDna.Build(Notes, Piece.Meter, Piece.Keys, Piece.End, Selection, Selection is null ? null : Understood().Structure, Words, Structure), Words, Piece.End)),
         _ => CallOnProject(name, request),
     };
 
@@ -185,10 +192,15 @@ internal sealed partial class OpenPiece
         json.WriteBoolean("hasVariation", Chain is not null);
     }
 
+    /// <summary>The structure read again from the notes as they are now, in the language set, with the player's <paramref name="edits"/> (by default those kept).</summary>
+    [MemberNotNull(nameof(Structure))]
+    private void ReadStructure(LevelEdits? edits = null) =>
+        Structure = PieceStructure.Of(Notes, Piece.Meter, PhraseLevels.Suggest(Notes, Piece.Meter, Piece.MusicXml?.PhraseMarks ?? PhraseMarks.None, Piece.End, KeySignature.InForce(Piece.Keys, Tick.Zero), Words, edits ?? Levels.Edits), Words);
+
     private string Language(Request request)
     {
         Words = Words.For(request.Required("language"));
-        Levels = PhraseLevels.Suggest(Notes, Piece.Meter, Piece.MusicXml?.PhraseMarks ?? PhraseMarks.None, Piece.End, KeySignature.InForce(Piece.Keys, Tick.Zero), Words, Levels.Edits);
+        ReadStructure();
         _understood = null;
         return Answer.Write(json => json.WriteString("language", Words.IsRussian ? "ru" : "en"));
     }
@@ -270,7 +282,7 @@ internal sealed partial class OpenPiece
             throw FacadeException.BadRequest("Send \"makePhrase\" (a span), \"joinWithNext\" (a number), \"split\" (a tick) or \"reset\", with an optional \"level\".");
         }
 
-        Levels = Levels.With(edits);
+        Structure = Structure.With(Levels.With(edits));
         // Bookmarks made from a phrase follow it through the merge or split (0018, section 5).
         Project = Project.WithPhraseLevels(Levels.Edits).FollowPhrases(Levels.Phrases.Phrases.Select(phrase => phrase.Span));
         _understood = null;
