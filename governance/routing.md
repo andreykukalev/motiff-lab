@@ -18,6 +18,8 @@ rules are in `roles/`, the common ones in `roles/common.md`.
 - Starts the roles as separate threads: Developer, then Reviewer (a new thread, with no retelling of the Developer's
   reasoning, only the numbers of the Issue and the PR), then QA, or one Reviewer+QA thread on the light path. Does not
   merge itself and does not ask threads to merge.
+- Starts no Reviewer or QA thread for a docs-only PR (only `docs/` and `README.md`, never `docs/project-file.md`;
+  `roles/common.md`, "Docs-only path"): `aom-verdicts` is green on it without verdicts; Andrei reviews and merges it.
 - After fix commits, sends the same Reviewer (and QA) thread the PR number and the new SHA for a delta re-check; starts
   a new review thread only when the delta touches files the review did not cover, or the Reviewer asks for one.
 - One task in progress at a time. The next one starts after the current one is merged or cancelled.
