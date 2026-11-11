@@ -138,7 +138,7 @@ jobs:
             while IFS= read -r f; do
               case "$f" in
                 '') ;;
-                *.md|docs/*|design/*|stage1-issues/*|pilot/*|LICENSE*|.github/ISSUE_TEMPLATE/*|.github/pull_request_template.md) ;;
+                *.md|docs/*|design/*|stage1-issues/*|pilot/*|LICENSE*|VERSION|.github/ISSUE_TEMPLATE/*|.github/pull_request_template.md|.github/workflows/version.yml) ;;
                 src/*|infra/*|global.json|Directory.Build.props|Directory.Packages.props|MotiffLab.slnx|.github/workflows/ci.yml)
                   code=true
                   app=true ;;

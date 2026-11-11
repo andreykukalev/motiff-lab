@@ -34,7 +34,8 @@ original message, and answer with one line «записал: …» with links. A
 When `develop` has a visible change and is green, at most every 2–3 days, and not when two earlier versions still wait
 for feedback:
 
-1. Tag the `develop` head `v0.<n>` and push the tag; the tag runs the iPad and browser tests.
+1. Open a pull request to `develop` that sets `VERSION` to `0.<n>` and merge it on green: the `Version` workflow tags
+   that commit `v0.<n>` and starts the iPad and browser tests on the tag (a cloud thread cannot push tags itself).
 2. Write the version note: what is new, how to switch on each experiment, what to check, what is uncertain,
    «Решено без вас» (3–5 lines with links), which models were used and roughly how much of the limits.
 3. Ask the coordinator to open the thread «Версия 0.<n>» with the note, and close the previous version's thread.
