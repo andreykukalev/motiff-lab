@@ -476,6 +476,7 @@ internal static partial class Answer
             }
 
             json.WriteString("basis", fact.Basis);
+            Doubt(json, fact.Doubt);
             json.WriteStartArray("places");
             foreach (FactPlace place in fact.Places)
             {
@@ -497,6 +498,18 @@ internal static partial class Answer
         }
 
         json.WriteEndArray();
+    }
+
+    /// <summary>
+    /// "doubt": why a chord, key or fact rests on recognised notes still to check (#352), written only when it does, so an
+    /// answer about imported notes reads as before (contract 11).
+    /// </summary>
+    private static void Doubt(Utf8JsonWriter json, string? doubt)
+    {
+        if (doubt is not null)
+        {
+            json.WriteString("doubt", doubt);
+        }
     }
 
     /// <summary>Try chips (0018, section 7): id, operation, label in the language, Keep preset and the step's parameters in the project file's shape.</summary>
@@ -727,7 +740,8 @@ internal static partial class Answer
             json.WriteNumber("bass", chord.Bass.MidiNumber);
             json.WriteNumber("inversion", chord.Inversion);
             json.WriteNumber("confidence", chord.Confidence);
-            json.WriteString("certainty", Name(chord.Confidence < HarmonyAnalyzer.ClearConfidence ? FactCertainty.Uncertain : FactCertainty.Inferred));
+            json.WriteString("certainty", Name(chord.IsUncertain ? FactCertainty.Uncertain : FactCertainty.Inferred));
+            Doubt(json, chord.Doubt);
             Texts(json, "alternatives", chord.Alternatives.Select(alternative => alternative.Symbol(spelling, chord.Bass.PitchClass)));
             Texts(json, "noteIds", chord.NoteIds);
             json.WriteEndObject();
@@ -814,6 +828,7 @@ internal static partial class Answer
             json.WriteString("label", key.Key.NameIn(words));
             json.WriteBoolean("modeInferred", key.ModeInferred);
             json.WriteBoolean("keyInferred", key.KeyInferred);
+            Doubt(json, key.Doubt);
             Passage(json, "passage", key.Span, key.FirstBar, key.LastBar);
             json.WriteEndObject();
         }
@@ -837,6 +852,7 @@ internal static partial class Answer
             json.WriteBoolean("clear", chord.Clear);
             json.WriteString("degree", chord.Degree);
             json.WriteString("function", Name(chord.Function));
+            Doubt(json, chord.Doubt);
             json.WriteEndObject();
         }
 

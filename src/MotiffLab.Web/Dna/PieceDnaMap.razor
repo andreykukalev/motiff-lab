@@ -103,7 +103,7 @@
                     }
                     @foreach (DnaKey key in Dna.Keys)
                     {
-                        <button class="key-block @(key.Key.Mode == KeyMode.Minor ? "minor" : null)" style="@Place(key.Span)" title="@Text["dna.keyHint"]"
+                        <button class="key-block @(key.Key.Mode == KeyMode.Minor ? "minor" : null)" style="@Place(key.Span)" title="@(key.Doubt is { } doubt ? $"{Text["dna.keyHint"]} {doubt}" : Text["dna.keyHint"])"
                                 @onclick="() => OpenCircleAt(key.Span.Onset, null)">@KeyName(key)</button>
                     }
                 </div>
@@ -466,7 +466,8 @@
     private Task ToggleRowAsync(string id) => Settings.SetAsync(id, !Settings.IsOn(id));
 
     /// <summary>A stretch of bars on the harmony lane: equal chords or equal functions joined.</summary>
-    private sealed record Segment(TickSpan Span, string Symbol, string Degree, HarmonicFunction Function, bool Clear);
+    /// <param name="Doubt">Why some of its chords rest on recognised notes still to check (#352); null when none does.</param>
+    private sealed record Segment(TickSpan Span, string Symbol, string Degree, HarmonicFunction Function, bool Clear, string? Doubt = null);
 
     private IEnumerable<Segment> ChordSegments => Join(Dna.Harmony, (a, b) => a.Symbol == b.Symbol);
 
@@ -485,7 +486,8 @@
             }
 
             TickSpan span = TickSpan.FromBounds(Meter.GetBar(chords[i].Bar).Span.Onset, Meter.GetBar(chords[j].Bar).Span.End);
-            yield return new Segment(span, chords[i].Symbol, chords[i].Degree, chords[i].Function, chords.Skip(i).Take(j - i + 1).All(chord => chord.Clear));
+            DnaChord[] joined = [.. chords.Skip(i).Take(j - i + 1)];
+            yield return new Segment(span, chords[i].Symbol, chords[i].Degree, chords[i].Function, joined.All(chord => chord.Clear), joined.Select(chord => chord.Doubt).FirstOrDefault(doubt => doubt is not null));
             i = j + 1;
         }
     }
@@ -542,7 +544,8 @@
 
     private string ChordName(Segment segment) => $"{segment.Symbol}, {segment.Degree}"
         + (segment.Function == HarmonicFunction.None ? "" : $", {Text[$"dna.fnName.{segment.Function.ToString().ToLowerInvariant()}"]}")
-        + $" · {Bars(Meter.BarAt(segment.Span.Onset).Number, Meter.BarAt(new Tick(segment.Span.End.Value - 1)).Number)}";
+        + $" · {Bars(Meter.BarAt(segment.Span.Onset).Number, Meter.BarAt(new Tick(segment.Span.End.Value - 1)).Number)}"
+        + (segment.Doubt is { } doubt ? $" · {doubt}" : "");
 
     /// <summary>The closes in words where there is room: one too close to the one before is left out on screen, still heard by a screen reader in the summary.</summary>
     private IEnumerable<DnaCadence> ShownCadences

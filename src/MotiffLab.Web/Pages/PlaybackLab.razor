@@ -1228,6 +1228,27 @@
             </li>
         }
     </ul>
+    @if (UncertainLengthBars is { Count: > 0 } lengths)
+    {
+        @* A recording's note lengths are heard less surely than their starts (#352): shown apart, worked out, never saved. *@
+        <p class="overline">@Text["check.lengthsHeading"]</p>
+        <p class="caption">@Text["check.lengthsHint"]</p>
+        <ul class="check-list lengths">
+            @foreach (UncertainLengths bar in lengths)
+            {
+                <li class="check-entry @(SelectedCheckBar == bar.Bar ? "on" : null)">
+                    <p class="check-bar"><strong>@Text.Format("check.bar", bar.Bar)</strong> <span class="caption">@Text.Count("check.lengthsNotes", bar.NoteIds.Count) · @LengthNames(bar)</span></p>
+                    @foreach (LengthDoubt reason in bar.Reasons)
+                    {
+                        <p class="caption">@HeardLengths.Explain(reason, Words)</p>
+                    }
+                    <div class="row">
+                        <button class="btn quiet compact" @onclick="() => ShowCheckBarAsync(bar.Bar)">@Text["scanCheck.show"]</button>
+                    </div>
+                </li>
+            }
+        </ul>
+    }
     @if (UncheckedSelectedBars is { Count: > 0 } others)
     {
         @* A scan's other bars: confirmed once the player compared them with the page (0011). *@
@@ -2724,12 +2745,15 @@
     {
         IReadOnlyList<PhraseBoundary> phrases = _phrases!.Boundaries;
         KeySignature? key = KeySignature.InForce(_keys, selection.Span.Onset);
-        _analysis = MotifAnalyzer.Analyze(_notes!, _meter!, selection, key, _accents, phrases, Words);
-        _structure = StructureAnalyzer.Analyze(_notes!, _meter!, selection, phrases, Words);
-        _character = MotifAnalyzer.AnalyzeCharacter(_notes!, _meter!, selection, key, _characterContext!, Words);
-        _harmony = HarmonyAnalyzer.Analyze(_notes!, _meter!, selection, _analysis.Key?.Key, Words);
+        // Recognised notes still to check make what is read from them uncertain, and say where (#352).
+        NoteDoubt doubt = Doubt;
+        MotifAnalysis read = MotifAnalyzer.Analyze(_notes!, _meter!, selection, key, _accents, phrases, Words);
+        _harmony = doubt.On(HarmonyAnalyzer.Analyze(_notes!, _meter!, selection, read.Key?.Key, Words), selection);
+        _analysis = doubt.On(read, selection);
+        _structure = doubt.On(StructureAnalyzer.Analyze(_notes!, _meter!, selection, phrases, Words), selection);
+        _character = doubt.On(MotifAnalyzer.AnalyzeCharacter(_notes!, _meter!, selection, key, _characterContext!, Words), selection);
         _circle = KeyCircle.For(selection, _notes!, _meter!, _analysis.Key, _harmony, Words);
-        _sentenceFacts = SentenceFactsFor(selection);
+        _sentenceFacts = doubt.On(SentenceFactsFor(selection), selection);
         _invitationContext = new InvitationContext(_notes!, _meter!, selection, _analysis, _structure, _character, Words) { Harmony = _harmony };
         _offers = TryChips.Buttons(Facts, _invitationContext);
     }

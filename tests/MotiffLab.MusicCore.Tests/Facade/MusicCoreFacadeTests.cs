@@ -141,7 +141,7 @@ public class MusicCoreFacadeTests
     {
         JsonElement version = Json(new MusicCoreFacade().Call(0, "version"));
 
-        Assert.Equal(10, MusicCoreFacade.Contract);
+        Assert.Equal(11, MusicCoreFacade.Contract);
         Assert.Equal(MusicCoreFacade.Contract, version.GetProperty("contract").GetInt32());
         Assert.Equal(ProjectFile.Version, version.GetProperty("projectFile").GetInt32());
         Assert.Contains(".NET", version.GetProperty("runtime").GetString());

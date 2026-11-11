@@ -29,6 +29,9 @@ internal sealed partial class OpenPiece
     private static readonly KeepProperty[] s_defaultKeep = [KeepProperty.Pitches, KeepProperty.PitchOrder];
 
     private InvitationContext? _understood;
+
+    /// <summary>The Check flags and notes <see cref="_understood"/> was read from.</summary>
+    private (IReadOnlyList<CheckFlag>? Check, IReadOnlyList<Note> Notes)? _understoodFor;
     private TryChip? _chip;
     private MotifSelectionKind _selectionKind = MotifSelectionKind.Range;
 
@@ -169,7 +172,7 @@ internal sealed partial class OpenPiece
         "playback" => Playback(request),
         "roll" => Roll(request),
         "project.save" => Save(request),
-        "dna" => Answer.Write(json => Answer.Dna(json, PieceDna.Build(Notes, Piece.Meter, Piece.Keys, Piece.End, Selection, Selection is null ? null : Understood().Structure, Words, Structure), Words, Piece.End, Piece.Meter)),
+        "dna" => Answer.Write(json => Answer.Dna(json, Doubt().On(PieceDna.Build(Notes, Piece.Meter, Piece.Keys, Piece.End, Selection, Selection is null ? null : Understood().Structure, Words, Structure)), Words, Piece.End, Piece.Meter)),
         _ => CallOnProject(name, request),
     };
 
@@ -293,12 +296,10 @@ internal sealed partial class OpenPiece
     private IReadOnlyList<MotifFact> SentenceFacts()
     {
         MotifSelection selection = Selection ?? throw FacadeException.NoSelection();
-        if (Levels.Phrases.Matching(selection.Span) is { } phrase)
-        {
-            return Levels.Sentences.Facts(phrase);
-        }
-
-        return Levels.Sentences.Matching(selection.Span) is { } sentence ? Levels.Sentences.Facts(sentence) : [];
+        IReadOnlyList<MotifFact> facts = Levels.Phrases.Matching(selection.Span) is { } phrase ? Levels.Sentences.Facts(phrase)
+            : Levels.Sentences.Matching(selection.Span) is { } sentence ? Levels.Sentences.Facts(sentence)
+            : [];
+        return Doubt().On(facts, selection);
     }
 
     /// <summary>Sounds a Try chip (0018, section 7): one accepted step over the selection with the chip's Keep preset.</summary>
@@ -356,18 +357,25 @@ internal sealed partial class OpenPiece
     private InvitationContext Understood()
     {
         MotifSelection selection = Selection ?? throw FacadeException.NoSelection();
-        if (_understood is { } understood)
+        // Fixing a note or resolving a Check flag changes the doubt, so the understanding is read again (#352).
+        if (_understood is { } understood && _understoodFor is { } from && ReferenceEquals(from.Check, Project.Check) && ReferenceEquals(from.Notes, Notes))
         {
             return understood;
         }
 
+        NoteDoubt doubt = Doubt();
         KeySignature? key = KeySignature.InForce(Piece.Keys, selection.Span.Onset);
-        MotifAnalysis motif = MotifAnalyzer.Analyze(Notes, Piece.Meter, selection, key, Piece.MusicXml?.AccentMarks, Phrases.Boundaries, Words);
-        StructureAnalysis structure = StructureAnalyzer.Analyze(Notes, Piece.Meter, selection, Phrases.Boundaries, Words);
-        IReadOnlyList<MotifFact> character = MotifAnalyzer.AnalyzeCharacter(Notes, Piece.Meter, selection, key, CharacterContext.FromPiece(Piece), Words);
-        HarmonyAnalysis harmony = HarmonyAnalyzer.Analyze(Notes, Piece.Meter, selection, motif.Key?.Key, Words);
+        MotifAnalysis read = MotifAnalyzer.Analyze(Notes, Piece.Meter, selection, key, Piece.MusicXml?.AccentMarks, Phrases.Boundaries, Words);
+        HarmonyAnalysis harmony = doubt.On(HarmonyAnalyzer.Analyze(Notes, Piece.Meter, selection, read.Key?.Key, Words), selection);
+        MotifAnalysis motif = doubt.On(read, selection);
+        StructureAnalysis structure = doubt.On(StructureAnalyzer.Analyze(Notes, Piece.Meter, selection, Phrases.Boundaries, Words), selection);
+        IReadOnlyList<MotifFact> character = doubt.On(MotifAnalyzer.AnalyzeCharacter(Notes, Piece.Meter, selection, key, CharacterContext.FromPiece(Piece), Words), selection);
+        _understoodFor = (Project.Check, Notes);
         return _understood = new InvitationContext(Notes, Piece.Meter, selection, motif, structure, character, Words) { Harmony = harmony };
     }
+
+    /// <summary>The recognised notes still to check: in the bars with an open Check flag (#352).</summary>
+    private NoteDoubt Doubt() => NoteDoubt.Of(Notes, Piece.Meter, Project.OpenChecks.Select(static flag => flag.Bar), Words);
 
     private string Clear()
     {

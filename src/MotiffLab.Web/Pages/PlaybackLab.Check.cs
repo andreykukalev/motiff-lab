@@ -1,5 +1,8 @@
 using Microsoft.AspNetCore.Components;
 
+using MotiffLab.MusicCore.Analysis;
+using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Projects;
@@ -22,6 +25,8 @@ public partial class PlaybackLab
     private int? _checkFixing;
 
     private (IReadOnlyList<CheckFlag>? From, string Language, IReadOnlyList<ScoreCheckFlag> Drawn)? _scoreChecks;
+
+    private (ImportedPiece Piece, IReadOnlyList<Note> Notes, IReadOnlyList<UncertainLengths> Bars)? _uncertainLengths;
 
     /// <summary>Whether the piece came with Check flags, open or resolved: the Check layer.</summary>
     private bool HasCheckFlags => _project?.Check is { Count: > 0 };
@@ -66,6 +71,10 @@ public partial class PlaybackLab
         string[] names = [.. flags.Select(flag => flag.Reason).Distinct().Select(reason => CheckFlag.NameOf(reason, Words))];
         return names.Length == 0 ? "" : string.Join(", ", names.Select((name, index) => index == 0 ? name : name.ToLower(Text.Culture)));
     }
+
+    /// <summary>"Pedal held at the end, long note": why a bar's lengths are uncertain, each reason once.</summary>
+    private string LengthNames(UncertainLengths bar) =>
+        string.Join(", ", bar.Reasons.Select((reason, index) => index == 0 ? HeardLengths.NameOf(reason, Words) : HeardLengths.NameOf(reason, Words).ToLower(Text.Culture)));
 
     /// <summary>"Read from a scan by homr 0.7.0" or "Heard in a recording by Transkun": where the doubts come from.</summary>
     private string CheckSourceLine => _project switch
@@ -132,8 +141,47 @@ public partial class PlaybackLab
             return;
         }
 
+        // The bar's notes are checked, or to check again: what was read from them says so (#352).
+        if (_selection is { } selection)
+        {
+            Analyze(selection);
+        }
+
+        if (_dna is not null)
+        {
+            _dna = BuildDna();
+        }
+
         CurrentPiece.Saved(_project);
         await Projects.SaveAsync(_project);
+    }
+
+    /// <summary>The recognised notes still to check: those in the bars with an open Check flag (#352).</summary>
+    private NoteDoubt Doubt => _project is { } project && _notes is { } notes && _meter is { } meter
+        ? NoteDoubt.Of(notes, meter, project.OpenChecks.Select(static flag => flag.Bar), Words)
+        : NoteDoubt.None;
+
+    /// <summary>
+    /// The notes heard in a recording whose length is uncertain, by bar (#352): worked out from the notes as they are, never
+    /// saved; empty for any other piece.
+    /// </summary>
+    private IReadOnlyList<UncertainLengths> UncertainLengthBars
+    {
+        get
+        {
+            if (CurrentPiece.Piece is not { } piece || _notes is not { } notes)
+            {
+                return [];
+            }
+
+            // Worked out once for the notes as they are, not on every render of the drawer.
+            if (_uncertainLengths is not { } cached || !ReferenceEquals(cached.Piece, piece) || !ReferenceEquals(cached.Notes, notes))
+            {
+                _uncertainLengths = cached = (piece, notes, HeardLengths.Of(piece, notes));
+            }
+
+            return cached.Bars;
+        }
     }
 
     /// <summary>The bar the selection starts in, so its entry in the drawer is marked; null without a selection.</summary>

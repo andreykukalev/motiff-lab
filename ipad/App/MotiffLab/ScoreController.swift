@@ -716,7 +716,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     /// Show: the bar is selected, so it can be looped and compared with the page or the recording, and comes into view.
     func showCheckBar(_ bar: Int) {
-        guard let span = check.flags.first(where: { $0.bar == bar && $0.span != nil })?.span else { return }
+        // A bar of a flag, or of notes whose length is uncertain (#352).
+        guard let span = check.flags.first(where: { $0.bar == bar && $0.span != nil })?.span
+            ?? check.lengths.first(where: { $0.bar == bar })?.span else { return }
         Task {
             await select(span.lowerBound, span.upperBound)
             _ = try? await webView.callAsyncJavaScript("return motiff.reveal(data)", arguments: ["data": ["start": span.lowerBound]], contentWorld: .page)
