@@ -30,15 +30,15 @@ public partial class PlaybackLab
     /// longer than a selection may (<see cref="PhraseLevels.Selectable"/>); null for another range or nothing.
     /// </summary>
     private PhraseUnit? SelectedUnit =>
-        _selection is { } selection && _levels is { } levels
+        _selection is { } selection && Levels is { } levels
             ? levels.Matching(_level, selection.Span) ?? levels.Units(_level).FirstOrDefault(unit => levels.Selectable(unit) == selection.Span)
             : null;
 
     /// <summary>Make phrase, at the level shown: the selection is not a unit of it yet.</summary>
-    private bool CanMakeUnit => _levels is not null && _selection is not null && SelectedUnit is null;
+    private bool CanMakeUnit => Levels is not null && _selection is not null && SelectedUnit is null;
 
     /// <summary>Merge with next: the selected unit has one after it.</summary>
-    private bool CanMerge => SelectedUnit is { } unit && unit.Number < _levels!.Units(_level).Count;
+    private bool CanMerge => SelectedUnit is { } unit && unit.Number < Levels!.Units(_level).Count;
 
     /// <summary>
     /// Where Split here splits the selected unit: the start of the bar the playhead stands in, when that is a bar of
@@ -96,7 +96,7 @@ public partial class PlaybackLab
         Tick last = new(_score.End.Value - 1);
         int from = _meter.BarAt(chosen.First > last ? last : chosen.First).Number;
         int to = _meter.BarAt(chosen.Last > last ? last : chosen.Last).Number;
-        if (chosen.ByHandle && SelectedUnit is { } unit && _levels is { } levels)
+        if (chosen.ByHandle && SelectedUnit is { } unit && Levels is { } levels)
         {
             TickSpan span = MotifSelector.Bars(_meter, Math.Min(from, to), Math.Max(from, to), _score.End);
             if (span != unit.Span && span != _selection?.Span)
@@ -120,21 +120,21 @@ public partial class PlaybackLab
     private Task MakeUnitAsync()
     {
         _menuMore = false;
-        return _levels is { } levels && _selection is { } selection ? ChangePhrasesAsync(levels.MakeUnit(_level, selection.Span), selection.Span) : Task.CompletedTask;
+        return Levels is { } levels && _selection is { } selection ? ChangePhrasesAsync(levels.MakeUnit(_level, selection.Span), selection.Span) : Task.CompletedTask;
     }
 
     /// <summary>Merge with next: the boundary after the selected unit goes, and the merged unit is selected.</summary>
     private Task MergeWithNextAsync()
     {
         _menuMore = false;
-        return _levels is { } levels && SelectedUnit is { } unit ? ChangePhrasesAsync(levels.JoinWithNext(_level, unit), unit.Span) : Task.CompletedTask;
+        return Levels is { } levels && SelectedUnit is { } unit ? ChangePhrasesAsync(levels.JoinWithNext(_level, unit), unit.Span) : Task.CompletedTask;
     }
 
     /// <summary>Split here: a boundary at the playhead's bar; the first part stays selected.</summary>
     private Task SplitHereAsync()
     {
         _menuMore = false;
-        return _levels is { } levels && SelectedUnit is { } unit && SplitPoint is { } at ? ChangePhrasesAsync(levels.SplitAt(_level, at), unit.Span) : Task.CompletedTask;
+        return Levels is { } levels && SelectedUnit is { } unit && SplitPoint is { } at ? ChangePhrasesAsync(levels.SplitAt(_level, at), unit.Span) : Task.CompletedTask;
     }
 
     /// <summary>The piano roll from the menu: opened (or put away) with the selection kept.</summary>

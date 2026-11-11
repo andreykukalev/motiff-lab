@@ -12,6 +12,9 @@ struct DnaMap: Sendable {
         var firstBar: Int
         var lastBar: Int
         var sharesWith: [String]
+        /// What a tap on the section selects: the whole section, or its first bars when it runs longer than a selection holds.
+        var selectableOnset: Double
+        var selectableEnd: Double
     }
 
     struct Mark: Sendable, Equatable {
@@ -136,8 +139,11 @@ struct DnaMap: Sendable {
         barStarts = (object["barStarts"] as? [NSNumber] ?? []).map(\.doubleValue)
         form = (lane("form")["sections"] as? [[String: Any]] ?? []).map { section in
             let (onset, end, first, last) = passage(section["passage"])
+            let selectable = section["selectable"] as? [String: Any]
             return Section(id: section["id"] as? String ?? "", label: section["label"] as? String ?? "", onset: onset, end: end,
-                           firstBar: first, lastBar: last, sharesWith: section["sharesWith"] as? [String] ?? [])
+                           firstBar: first, lastBar: last, sharesWith: section["sharesWith"] as? [String] ?? [],
+                           selectableOnset: selectable.map { number($0["onset"]) } ?? onset,
+                           selectableEnd: selectable.map { number($0["end"]) } ?? end)
         }
         ideasStatus = lane("ideas")["status"] as? String ?? "notYet"
         ideas = (lane("ideas")["items"] as? [[String: Any]] ?? []).map { idea in

@@ -89,6 +89,24 @@ public static class FormAnalyzer
             [.. sections.Where(other => other.Group == section.Group && other.Sentence != section.Sentence).Select(other => Id(other.Sentence))]))];
     }
 
+    /// <summary>
+    /// The span a tap on <paramref name="section"/> selects: the whole section when it fits a selection
+    /// (<see cref="Motifs.MotifSelection.MaxStructureBars"/>), otherwise its first bars up to that many, as
+    /// <see cref="PhraseLevels.Selectable"/> gives for a long sentence.
+    /// </summary>
+    public static TickSpan Selectable(DnaSection section, MeterMap meter)
+    {
+        ArgumentNullException.ThrowIfNull(section);
+        ArgumentNullException.ThrowIfNull(meter);
+        if (section.LastBar - section.FirstBar + 1 <= Motifs.MotifSelection.MaxStructureBars)
+        {
+            return section.Span;
+        }
+
+        Tick stop = meter.GetBar(section.FirstBar + Motifs.MotifSelection.MaxStructureBars - 1).Span.End;
+        return TickSpan.FromBounds(section.Span.Onset, stop < section.Span.End ? stop : section.Span.End);
+    }
+
     /// <summary>A part shorter than <see cref="MinBars"/> is no section of its own: it joins the one before it, or the first the one after.</summary>
     private static Sentence[] Joined(Sentence[] parts)
     {

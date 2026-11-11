@@ -207,8 +207,8 @@ public static partial class MotifAnalyzer
         PhraseBoundary[] cited = atStart is null ? inside : [atStart, .. inside];
         bool inferred = cited.Any(boundary => boundary.Attribution.Provenance is Provenance.Inferred or Provenance.Detected);
         string basis = w.T(
-            "Boundaries come from phrase slurs, rests of a beat or more and repeat signs in the source, from a passage that comes back note for note, and from boundaries the player set; where none of these marks one, none is invented.",
-            "Границы берутся из фразировочных лиг, пауз длиной в долю и больше и знаков повторения в источнике, из отрывка, который возвращается нота в ноту, и из границ, поставленных исполнителем; там, где ничего из этого границу не отмечает, она не придумывается.");
+            "Boundaries come from phrase slurs, rests of a beat or more and repeat signs in the source, from a passage that comes back note for note or starts again at once, and from boundaries the player set; where none of these marks one, none is invented.",
+            "Границы берутся из фразировочных лиг, пауз длиной в долю и больше и знаков повторения в источнике, из отрывка, который возвращается нота в ноту или сразу начинается снова, и из границ, поставленных исполнителем; там, где ничего из этого границу не отмечает, она не придумывается.");
         MotifFact fact = inferred
             ? new MotifFact("melody.phrases", FactLens.Melody, FactCertainty.Inferred, text, $"{basis} {w.T("A boundary from a rest or a return alone is a reading of the notes, not a mark in the score.", "Граница только по паузе или возврату — это прочтение нот, а не знак в нотах.")}")
             : new MotifFact("melody.phrases", FactLens.Melody, FactCertainty.Detected, text, basis);
@@ -243,6 +243,7 @@ public static partial class MotifAnalyzer
             PhraseEvidence.Rest => w.T("a rest of a beat or more", "паузе в долю и больше"),
             PhraseEvidence.RepeatSign => w.T("a repeat sign", "знаку повторения"),
             PhraseEvidence.Repetition => w.T("a passage that comes back note for note", "отрывку, который возвращается нота в ноту"),
+            PhraseEvidence.Restatement => w.T("a passage that starts again at once", "отрывку, который сразу начинается снова"),
             _ => mark.ToString(),
         })];
         string source = evidence.Length switch

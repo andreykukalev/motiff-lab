@@ -14,17 +14,17 @@
      {
       "id": "short",
       "available": true,
-      "count": 43
+      "count": 39
      },
      {
       "id": "phrase",
       "available": true,
-      "count": 20
+      "count": 21
      },
      {
       "id": "sentence",
       "available": true,
-      "count": 5
+      "count": 4
      }
     ],
     "evidence": "partial",
@@ -142,12 +142,12 @@
       "level": "short",
       "name": "short unit",
       "firstBar": 9,
-      "lastBar": 9,
+      "lastBar": 11,
       "onset": 5760,
-      "end": 6480,
+      "end": 7920,
       "selectable": {
        "onset": 5760,
-       "end": 6480
+       "end": 7920
       },
       "long": false,
       "parent": 3,
@@ -165,42 +165,18 @@
       "number": 6,
       "level": "short",
       "name": "short unit",
-      "firstBar": 10,
-      "lastBar": 12,
-      "onset": 6480,
-      "end": 8640,
-      "selectable": {
-       "onset": 6480,
-       "end": 8640
-      },
-      "long": false,
-      "parent": 4,
-      "start": {
-       "at": 6480,
-       "evidence": [
-        "repeatSign"
-       ],
-       "provenance": "imported",
-       "confidence": 1,
-       "description": "at a repeat sign"
-      }
-     },
-     {
-      "number": 7,
-      "level": "short",
-      "name": "short unit",
-      "firstBar": 13,
+      "firstBar": 12,
       "lastBar": 15,
-      "onset": 8640,
+      "onset": 7920,
       "end": 10560,
       "selectable": {
-       "onset": 8640,
+       "onset": 7920,
        "end": 10560
       },
       "long": false,
-      "parent": 4,
+      "parent": 3,
       "start": {
-       "at": 8640,
+       "at": 7920,
        "evidence": [
         "length"
        ],
@@ -210,7 +186,7 @@
       }
      },
      {
-      "number": 8,
+      "number": 7,
       "level": "short",
       "name": "short unit",
       "firstBar": 15,
@@ -222,7 +198,7 @@
        "end": 11520
       },
       "long": false,
-      "parent": 5,
+      "parent": 4,
       "start": {
        "at": 10560,
        "evidence": [
@@ -234,7 +210,7 @@
       }
      },
      {
-      "number": 9,
+      "number": 8,
       "level": "short",
       "name": "short unit",
       "firstBar": 17,
@@ -246,7 +222,7 @@
        "end": 13440
       },
       "long": false,
-      "parent": 5,
+      "parent": 4,
       "start": {
        "at": 11520,
        "evidence": [
@@ -258,7 +234,7 @@
       }
      },
      {
-      "number": 10,
+      "number": 9,
       "level": "short",
       "name": "short unit",
       "firstBar": 19,
@@ -270,7 +246,7 @@
        "end": 14400
       },
       "long": false,
-      "parent": 6,
+      "parent": 5,
       "start": {
        "at": 13440,
        "evidence": [
@@ -282,7 +258,7 @@
       }
      },
      {
-      "number": 11,
+      "number": 10,
       "level": "short",
       "name": "short unit",
       "firstBar": 21,
@@ -294,7 +270,7 @@
        "end": 16560
       },
       "long": false,
-      "parent": 6,
+      "parent": 5,
       "start": {
        "at": 14400,
        "evidence": [
@@ -306,7 +282,7 @@
       }
      },
      {
-      "number": 12,
+      "number": 11,
       "level": "short",
       "name": "short unit",
       "firstBar": 24,
@@ -318,7 +294,7 @@
        "end": 19440
       },
       "long": false,
-      "parent": 7,
+      "parent": 6,
       "start": {
        "at": 16560,
        "evidence": [
@@ -330,7 +306,7 @@
       }
      },
      {
-      "number": 13,
+      "number": 12,
       "level": "short",
       "name": "short unit",
       "firstBar": 28,
@@ -342,7 +318,7 @@
        "end": 22320
       },
       "long": false,
-      "parent": 7,
+      "parent": 6,
       "start": {
        "at": 19440,
        "evidence": [
@@ -354,7 +330,7 @@
       }
      },
      {
-      "number": 14,
+      "number": 13,
       "level": "short",
       "name": "short unit",
       "firstBar": 32,
@@ -370,15 +346,15 @@
       "start": {
        "at": 22320,
        "evidence": [
-        "length"
+        "restatement"
        ],
        "provenance": "inferred",
-       "confidence": 0.4,
-       "description": "at the middle of a long phrase"
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note"
       }
      },
      {
-      "number": 15,
+      "number": 14,
       "level": "short",
       "name": "short unit",
       "firstBar": 36,
@@ -390,19 +366,19 @@
        "end": 27840
       },
       "long": false,
-      "parent": 7,
+      "parent": 8,
       "start": {
        "at": 25200,
        "evidence": [
-        "length"
+        "restatement"
        ],
        "provenance": "inferred",
-       "confidence": 0.4,
-       "description": "at the middle of a long phrase"
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note"
       }
      },
      {
-      "number": 16,
+      "number": 15,
       "level": "short",
       "name": "short unit",
       "firstBar": 39,
@@ -414,7 +390,7 @@
        "end": 28800
       },
       "long": false,
-      "parent": 8,
+      "parent": 9,
       "start": {
        "at": 27840,
        "evidence": [
@@ -426,7 +402,7 @@
       }
      },
      {
-      "number": 17,
+      "number": 16,
       "level": "short",
       "name": "short unit",
       "firstBar": 41,
@@ -438,7 +414,7 @@
        "end": 30720
       },
       "long": false,
-      "parent": 8,
+      "parent": 9,
       "start": {
        "at": 28800,
        "evidence": [
@@ -450,7 +426,7 @@
       }
      },
      {
-      "number": 18,
+      "number": 17,
       "level": "short",
       "name": "short unit",
       "firstBar": 43,
@@ -462,9 +438,33 @@
        "end": 33120
       },
       "long": false,
-      "parent": 9,
+      "parent": 10,
       "start": {
        "at": 30720,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 18,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 47,
+      "lastBar": 49,
+      "onset": 33120,
+      "end": 35280,
+      "selectable": {
+       "onset": 33120,
+       "end": 35280
+      },
+      "long": false,
+      "parent": 11,
+      "start": {
+       "at": 33120,
        "evidence": [
         "repetition"
        ],
@@ -477,66 +477,18 @@
       "number": 19,
       "level": "short",
       "name": "short unit",
-      "firstBar": 47,
-      "lastBar": 47,
-      "onset": 33120,
-      "end": 33840,
-      "selectable": {
-       "onset": 33120,
-       "end": 33840
-      },
-      "long": false,
-      "parent": 10,
-      "start": {
-       "at": 33120,
-       "evidence": [
-        "repetition"
-       ],
-       "provenance": "inferred",
-       "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
-     },
-     {
-      "number": 20,
-      "level": "short",
-      "name": "short unit",
-      "firstBar": 48,
-      "lastBar": 50,
-      "onset": 33840,
-      "end": 36000,
-      "selectable": {
-       "onset": 33840,
-       "end": 36000
-      },
-      "long": false,
-      "parent": 11,
-      "start": {
-       "at": 33840,
-       "evidence": [
-        "repetition"
-       ],
-       "provenance": "inferred",
-       "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
-     },
-     {
-      "number": 21,
-      "level": "short",
-      "name": "short unit",
-      "firstBar": 51,
+      "firstBar": 50,
       "lastBar": 53,
-      "onset": 36000,
+      "onset": 35280,
       "end": 37920,
       "selectable": {
-       "onset": 36000,
+       "onset": 35280,
        "end": 37920
       },
       "long": false,
       "parent": 11,
       "start": {
-       "at": 36000,
+       "at": 35280,
        "evidence": [
         "length"
        ],
@@ -546,7 +498,7 @@
       }
      },
      {
-      "number": 22,
+      "number": 20,
       "level": "short",
       "name": "short unit",
       "firstBar": 53,
@@ -570,7 +522,7 @@
       }
      },
      {
-      "number": 23,
+      "number": 21,
       "level": "short",
       "name": "short unit",
       "firstBar": 55,
@@ -594,16 +546,16 @@
       }
      },
      {
-      "number": 24,
+      "number": 22,
       "level": "short",
       "name": "short unit",
       "firstBar": 57,
-      "lastBar": 58,
+      "lastBar": 60,
       "onset": 40800,
-      "end": 41760,
+      "end": 43200,
       "selectable": {
        "onset": 40800,
-       "end": 41760
+       "end": 43200
       },
       "long": false,
       "parent": 13,
@@ -618,55 +570,31 @@
       }
      },
      {
-      "number": 25,
+      "number": 23,
       "level": "short",
       "name": "short unit",
-      "firstBar": 59,
-      "lastBar": 61,
-      "onset": 41760,
-      "end": 43920,
-      "selectable": {
-       "onset": 41760,
-       "end": 43920
-      },
-      "long": false,
-      "parent": 13,
-      "start": {
-       "at": 41760,
-       "evidence": [
-        "length"
-       ],
-       "provenance": "inferred",
-       "confidence": 0.4,
-       "description": "at the middle of a long phrase"
-      }
-     },
-     {
-      "number": 26,
-      "level": "short",
-      "name": "short unit",
-      "firstBar": 62,
+      "firstBar": 61,
       "lastBar": 63,
-      "onset": 43920,
+      "onset": 43200,
       "end": 45360,
       "selectable": {
-       "onset": 43920,
+       "onset": 43200,
        "end": 45360
       },
       "long": false,
-      "parent": 13,
+      "parent": 14,
       "start": {
-       "at": 43920,
+       "at": 43200,
        "evidence": [
-        "length"
+        "restatement"
        ],
        "provenance": "inferred",
-       "confidence": 0.4,
-       "description": "at the middle of a long phrase"
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note"
       }
      },
      {
-      "number": 27,
+      "number": 24,
       "level": "short",
       "name": "short unit",
       "firstBar": 64,
@@ -678,9 +606,81 @@
        "end": 47520
       },
       "long": false,
-      "parent": 13,
+      "parent": 14,
       "start": {
        "at": 45360,
+       "evidence": [
+        "length"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.4,
+       "description": "at the middle of a long phrase"
+      }
+     },
+     {
+      "number": 25,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 67,
+      "lastBar": 68,
+      "onset": 47520,
+      "end": 48960,
+      "selectable": {
+       "onset": 47520,
+       "end": 48960
+      },
+      "long": false,
+      "parent": 14,
+      "start": {
+       "at": 47520,
+       "evidence": [
+        "return"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where the phrase's opening figure comes back"
+      }
+     },
+     {
+      "number": 26,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 69,
+      "lastBar": 72,
+      "onset": 48960,
+      "end": 51840,
+      "selectable": {
+       "onset": 48960,
+       "end": 51840
+      },
+      "long": false,
+      "parent": 15,
+      "start": {
+       "at": 48960,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 27,
+      "level": "short",
+      "name": "short unit",
+      "firstBar": 73,
+      "lastBar": 74,
+      "onset": 51840,
+      "end": 53280,
+      "selectable": {
+       "onset": 51840,
+       "end": 53280
+      },
+      "long": false,
+      "parent": 15,
+      "start": {
+       "at": 51840,
        "evidence": [
         "length"
        ],
@@ -693,18 +693,18 @@
       "number": 28,
       "level": "short",
       "name": "short unit",
-      "firstBar": 67,
-      "lastBar": 68,
-      "onset": 47520,
-      "end": 48960,
+      "firstBar": 75,
+      "lastBar": 77,
+      "onset": 53280,
+      "end": 55440,
       "selectable": {
-       "onset": 47520,
-       "end": 48960
+       "onset": 53280,
+       "end": 55440
       },
       "long": false,
-      "parent": 13,
+      "parent": 15,
       "start": {
-       "at": 47520,
+       "at": 53280,
        "evidence": [
         "length"
        ],
@@ -717,66 +717,66 @@
       "number": 29,
       "level": "short",
       "name": "short unit",
-      "firstBar": 69,
-      "lastBar": 71,
-      "onset": 48960,
-      "end": 51120,
+      "firstBar": 78,
+      "lastBar": 78,
+      "onset": 55440,
+      "end": 56160,
       "selectable": {
-       "onset": 48960,
-       "end": 51120
+       "onset": 55440,
+       "end": 56160
       },
       "long": false,
-      "parent": 13,
+      "parent": 16,
       "start": {
-       "at": 48960,
+       "at": 55440,
        "evidence": [
-        "length"
+        "rest"
        ],
        "provenance": "inferred",
-       "confidence": 0.4,
-       "description": "at the middle of a long phrase"
+       "confidence": 0.7,
+       "description": "after a rest of a beat or more"
       }
      },
      {
       "number": 30,
       "level": "short",
       "name": "short unit",
-      "firstBar": 72,
-      "lastBar": 74,
-      "onset": 51120,
-      "end": 53280,
+      "firstBar": 79,
+      "lastBar": 80,
+      "onset": 56160,
+      "end": 57600,
       "selectable": {
-       "onset": 51120,
-       "end": 53280
+       "onset": 56160,
+       "end": 57600
       },
       "long": false,
-      "parent": 13,
+      "parent": 16,
       "start": {
-       "at": 51120,
+       "at": 56160,
        "evidence": [
-        "length"
+        "rest"
        ],
        "provenance": "inferred",
-       "confidence": 0.4,
-       "description": "at the middle of a long phrase"
+       "confidence": 0.7,
+       "description": "after half a beat or more of rest"
       }
      },
      {
       "number": 31,
       "level": "short",
       "name": "short unit",
-      "firstBar": 75,
-      "lastBar": 77,
-      "onset": 53280,
-      "end": 55440,
+      "firstBar": 81,
+      "lastBar": 83,
+      "onset": 57600,
+      "end": 59760,
       "selectable": {
-       "onset": 53280,
-       "end": 55440
+       "onset": 57600,
+       "end": 59760
       },
       "long": false,
-      "parent": 13,
+      "parent": 16,
       "start": {
-       "at": 53280,
+       "at": 57600,
        "evidence": [
         "length"
        ],
@@ -789,90 +789,90 @@
       "number": 32,
       "level": "short",
       "name": "short unit",
-      "firstBar": 78,
-      "lastBar": 78,
-      "onset": 55440,
-      "end": 56160,
+      "firstBar": 84,
+      "lastBar": 87,
+      "onset": 59760,
+      "end": 62400,
       "selectable": {
-       "onset": 55440,
-       "end": 56160
+       "onset": 59760,
+       "end": 62400
       },
       "long": false,
-      "parent": 14,
+      "parent": 17,
       "start": {
-       "at": 55440,
+       "at": 59760,
        "evidence": [
-        "rest"
+        "repetition"
        ],
        "provenance": "inferred",
-       "confidence": 0.7,
-       "description": "after a rest of a beat or more"
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
       }
      },
      {
       "number": 33,
       "level": "short",
       "name": "short unit",
-      "firstBar": 79,
-      "lastBar": 82,
-      "onset": 56160,
-      "end": 59040,
+      "firstBar": 87,
+      "lastBar": 90,
+      "onset": 62400,
+      "end": 64800,
       "selectable": {
-       "onset": 56160,
-       "end": 59040
+       "onset": 62400,
+       "end": 64800
       },
       "long": false,
-      "parent": 15,
+      "parent": 18,
       "start": {
-       "at": 56160,
+       "at": 62400,
        "evidence": [
-        "rest"
+        "repetition"
        ],
        "provenance": "inferred",
-       "confidence": 0.7,
-       "description": "after a rest of a beat or more"
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
       }
      },
      {
       "number": 34,
       "level": "short",
       "name": "short unit",
-      "firstBar": 83,
-      "lastBar": 84,
-      "onset": 59040,
-      "end": 60480,
+      "firstBar": 91,
+      "lastBar": 93,
+      "onset": 64800,
+      "end": 66960,
       "selectable": {
-       "onset": 59040,
-       "end": 60480
+       "onset": 64800,
+       "end": 66960
       },
       "long": false,
-      "parent": 15,
+      "parent": 19,
       "start": {
-       "at": 59040,
+       "at": 64800,
        "evidence": [
-        "length"
+        "repetition"
        ],
        "provenance": "inferred",
-       "confidence": 0.4,
-       "description": "at the middle of a long phrase"
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
       }
      },
      {
       "number": 35,
       "level": "short",
       "name": "short unit",
-      "firstBar": 85,
-      "lastBar": 87,
-      "onset": 60480,
-      "end": 62400,
+      "firstBar": 94,
+      "lastBar": 97,
+      "onset": 66960,
+      "end": 69600,
       "selectable": {
-       "onset": 60480,
-       "end": 62400
+       "onset": 66960,
+       "end": 69600
       },
       "long": false,
-      "parent": 15,
+      "parent": 19,
       "start": {
-       "at": 60480,
+       "at": 66960,
        "evidence": [
         "length"
        ],
@@ -885,18 +885,18 @@
       "number": 36,
       "level": "short",
       "name": "short unit",
-      "firstBar": 87,
-      "lastBar": 90,
-      "onset": 62400,
-      "end": 64800,
+      "firstBar": 97,
+      "lastBar": 98,
+      "onset": 69600,
+      "end": 70560,
       "selectable": {
-       "onset": 62400,
-       "end": 64800
+       "onset": 69600,
+       "end": 70560
       },
       "long": false,
-      "parent": 16,
+      "parent": 20,
       "start": {
-       "at": 62400,
+       "at": 69600,
        "evidence": [
         "repetition"
        ],
@@ -909,42 +909,42 @@
       "number": 37,
       "level": "short",
       "name": "short unit",
-      "firstBar": 91,
-      "lastBar": 91,
-      "onset": 64800,
-      "end": 65520,
+      "firstBar": 99,
+      "lastBar": 101,
+      "onset": 70560,
+      "end": 72480,
       "selectable": {
-       "onset": 64800,
-       "end": 65520
+       "onset": 70560,
+       "end": 72480
       },
       "long": false,
-      "parent": 17,
+      "parent": 20,
       "start": {
-       "at": 64800,
+       "at": 70560,
        "evidence": [
-        "repetition"
+        "length"
        ],
        "provenance": "inferred",
-       "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
+       "confidence": 0.4,
+       "description": "at the middle of a long phrase"
       }
      },
      {
       "number": 38,
       "level": "short",
       "name": "short unit",
-      "firstBar": 92,
-      "lastBar": 94,
-      "onset": 65520,
-      "end": 67680,
+      "firstBar": 101,
+      "lastBar": 102,
+      "onset": 72480,
+      "end": 73440,
       "selectable": {
-       "onset": 65520,
-       "end": 67680
+       "onset": 72480,
+       "end": 73440
       },
       "long": false,
-      "parent": 18,
+      "parent": 21,
       "start": {
-       "at": 65520,
+       "at": 72480,
        "evidence": [
         "repetition"
        ],
@@ -957,102 +957,6 @@
       "number": 39,
       "level": "short",
       "name": "short unit",
-      "firstBar": 95,
-      "lastBar": 97,
-      "onset": 67680,
-      "end": 69600,
-      "selectable": {
-       "onset": 67680,
-       "end": 69600
-      },
-      "long": false,
-      "parent": 18,
-      "start": {
-       "at": 67680,
-       "evidence": [
-        "length"
-       ],
-       "provenance": "inferred",
-       "confidence": 0.4,
-       "description": "at the middle of a long phrase"
-      }
-     },
-     {
-      "number": 40,
-      "level": "short",
-      "name": "short unit",
-      "firstBar": 97,
-      "lastBar": 98,
-      "onset": 69600,
-      "end": 70560,
-      "selectable": {
-       "onset": 69600,
-       "end": 70560
-      },
-      "long": false,
-      "parent": 19,
-      "start": {
-       "at": 69600,
-       "evidence": [
-        "repetition"
-       ],
-       "provenance": "inferred",
-       "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
-     },
-     {
-      "number": 41,
-      "level": "short",
-      "name": "short unit",
-      "firstBar": 99,
-      "lastBar": 101,
-      "onset": 70560,
-      "end": 72480,
-      "selectable": {
-       "onset": 70560,
-       "end": 72480
-      },
-      "long": false,
-      "parent": 19,
-      "start": {
-       "at": 70560,
-       "evidence": [
-        "length"
-       ],
-       "provenance": "inferred",
-       "confidence": 0.4,
-       "description": "at the middle of a long phrase"
-      }
-     },
-     {
-      "number": 42,
-      "level": "short",
-      "name": "short unit",
-      "firstBar": 101,
-      "lastBar": 102,
-      "onset": 72480,
-      "end": 73440,
-      "selectable": {
-       "onset": 72480,
-       "end": 73440
-      },
-      "long": false,
-      "parent": 20,
-      "start": {
-       "at": 72480,
-       "evidence": [
-        "repetition"
-       ],
-       "provenance": "inferred",
-       "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
-     },
-     {
-      "number": 43,
-      "level": "short",
-      "name": "short unit",
       "firstBar": 103,
       "lastBar": 105,
       "onset": 73440,
@@ -1062,7 +966,7 @@
        "end": 75600
       },
       "long": false,
-      "parent": 20,
+      "parent": 21,
       "start": {
        "at": 73440,
        "evidence": [
@@ -1088,17 +992,17 @@
      {
       "id": "short",
       "available": true,
-      "count": 43
+      "count": 39
      },
      {
       "id": "phrase",
       "available": true,
-      "count": 20
+      "count": 21
      },
      {
       "id": "sentence",
       "available": true,
-      "count": 5
+      "count": 4
      }
     ],
     "evidence": "partial",
@@ -1168,12 +1072,12 @@
       "level": "phrase",
       "name": "phrase",
       "firstBar": 9,
-      "lastBar": 9,
+      "lastBar": 15,
       "onset": 5760,
-      "end": 6480,
+      "end": 10560,
       "selectable": {
        "onset": 5760,
-       "end": 6480
+       "end": 10560
       },
       "long": false,
       "parent": 2,
@@ -1191,30 +1095,6 @@
       "number": 4,
       "level": "phrase",
       "name": "phrase",
-      "firstBar": 10,
-      "lastBar": 15,
-      "onset": 6480,
-      "end": 10560,
-      "selectable": {
-       "onset": 6480,
-       "end": 10560
-      },
-      "long": false,
-      "parent": 3,
-      "start": {
-       "at": 6480,
-       "evidence": [
-        "repeatSign"
-       ],
-       "provenance": "imported",
-       "confidence": 1,
-       "description": "at a repeat sign"
-      }
-     },
-     {
-      "number": 5,
-      "level": "phrase",
-      "name": "phrase",
       "firstBar": 15,
       "lastBar": 19,
       "onset": 10560,
@@ -1224,9 +1104,33 @@
        "end": 13440
       },
       "long": false,
-      "parent": 3,
+      "parent": 2,
       "start": {
        "at": 10560,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 5,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 19,
+      "lastBar": 23,
+      "onset": 13440,
+      "end": 16560,
+      "selectable": {
+       "onset": 13440,
+       "end": 16560
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 13440,
        "evidence": [
         "repetition"
        ],
@@ -1239,40 +1143,16 @@
       "number": 6,
       "level": "phrase",
       "name": "phrase",
-      "firstBar": 19,
-      "lastBar": 23,
-      "onset": 13440,
-      "end": 16560,
+      "firstBar": 24,
+      "lastBar": 31,
+      "onset": 16560,
+      "end": 22320,
       "selectable": {
-       "onset": 13440,
-       "end": 16560
+       "onset": 16560,
+       "end": 22320
       },
       "long": false,
       "parent": 3,
-      "start": {
-       "at": 13440,
-       "evidence": [
-        "repetition"
-       ],
-       "provenance": "inferred",
-       "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
-     },
-     {
-      "number": 7,
-      "level": "phrase",
-      "name": "phrase",
-      "firstBar": 24,
-      "lastBar": 39,
-      "onset": 16560,
-      "end": 27840,
-      "selectable": {
-       "onset": 16560,
-       "end": 27840
-      },
-      "long": true,
-      "parent": 4,
       "start": {
        "at": 16560,
        "evidence": [
@@ -1284,7 +1164,55 @@
       }
      },
      {
+      "number": 7,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 32,
+      "lastBar": 35,
+      "onset": 22320,
+      "end": 25200,
+      "selectable": {
+       "onset": 22320,
+       "end": 25200
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 22320,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note"
+      }
+     },
+     {
       "number": 8,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 36,
+      "lastBar": 39,
+      "onset": 25200,
+      "end": 27840,
+      "selectable": {
+       "onset": 25200,
+       "end": 27840
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 25200,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note"
+      }
+     },
+     {
+      "number": 9,
       "level": "phrase",
       "name": "phrase",
       "firstBar": 39,
@@ -1296,33 +1224,9 @@
        "end": 30720
       },
       "long": false,
-      "parent": 4,
+      "parent": 3,
       "start": {
        "at": 27840,
-       "evidence": [
-        "repetition"
-       ],
-       "provenance": "inferred",
-       "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
-     },
-     {
-      "number": 9,
-      "level": "phrase",
-      "name": "phrase",
-      "firstBar": 43,
-      "lastBar": 46,
-      "onset": 30720,
-      "end": 33120,
-      "selectable": {
-       "onset": 30720,
-       "end": 33120
-      },
-      "long": false,
-      "parent": 4,
-      "start": {
-       "at": 30720,
        "evidence": [
         "repetition"
        ],
@@ -1335,18 +1239,18 @@
       "number": 10,
       "level": "phrase",
       "name": "phrase",
-      "firstBar": 47,
-      "lastBar": 47,
-      "onset": 33120,
-      "end": 33840,
+      "firstBar": 43,
+      "lastBar": 46,
+      "onset": 30720,
+      "end": 33120,
       "selectable": {
-       "onset": 33120,
-       "end": 33840
+       "onset": 30720,
+       "end": 33120
       },
       "long": false,
-      "parent": 4,
+      "parent": 3,
       "start": {
-       "at": 33120,
+       "at": 30720,
        "evidence": [
         "repetition"
        ],
@@ -1359,18 +1263,18 @@
       "number": 11,
       "level": "phrase",
       "name": "phrase",
-      "firstBar": 48,
+      "firstBar": 47,
       "lastBar": 53,
-      "onset": 33840,
+      "onset": 33120,
       "end": 37920,
       "selectable": {
-       "onset": 33840,
+       "onset": 33120,
        "end": 37920
       },
       "long": false,
-      "parent": 4,
+      "parent": 3,
       "start": {
-       "at": 33840,
+       "at": 33120,
        "evidence": [
         "repetition"
        ],
@@ -1392,7 +1296,7 @@
        "end": 40800
       },
       "long": false,
-      "parent": 4,
+      "parent": 3,
       "start": {
        "at": 37920,
        "evidence": [
@@ -1408,15 +1312,15 @@
       "level": "phrase",
       "name": "phrase",
       "firstBar": 57,
-      "lastBar": 77,
+      "lastBar": 60,
       "onset": 40800,
-      "end": 55440,
+      "end": 43200,
       "selectable": {
        "onset": 40800,
-       "end": 55440
+       "end": 43200
       },
-      "long": true,
-      "parent": 4,
+      "long": false,
+      "parent": 3,
       "start": {
        "at": 40800,
        "evidence": [
@@ -1431,16 +1335,64 @@
       "number": 14,
       "level": "phrase",
       "name": "phrase",
-      "firstBar": 78,
-      "lastBar": 78,
-      "onset": 55440,
-      "end": 56160,
+      "firstBar": 61,
+      "lastBar": 68,
+      "onset": 43200,
+      "end": 48960,
       "selectable": {
-       "onset": 55440,
-       "end": 56160
+       "onset": 43200,
+       "end": 48960
       },
       "long": false,
-      "parent": 5,
+      "parent": 3,
+      "start": {
+       "at": 43200,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "at the edge of a passage that starts again at once, note for note"
+      }
+     },
+     {
+      "number": 15,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 69,
+      "lastBar": 77,
+      "onset": 48960,
+      "end": 55440,
+      "selectable": {
+       "onset": 48960,
+       "end": 55440
+      },
+      "long": true,
+      "parent": 3,
+      "start": {
+       "at": 48960,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 16,
+      "level": "phrase",
+      "name": "phrase",
+      "firstBar": 78,
+      "lastBar": 83,
+      "onset": 55440,
+      "end": 59760,
+      "selectable": {
+       "onset": 55440,
+       "end": 59760
+      },
+      "long": false,
+      "parent": 4,
       "start": {
        "at": 55440,
        "evidence": [
@@ -1452,69 +1404,21 @@
       }
      },
      {
-      "number": 15,
-      "level": "phrase",
-      "name": "phrase",
-      "firstBar": 79,
-      "lastBar": 87,
-      "onset": 56160,
-      "end": 62400,
-      "selectable": {
-       "onset": 56160,
-       "end": 62400
-      },
-      "long": true,
-      "parent": 5,
-      "start": {
-       "at": 56160,
-       "evidence": [
-        "rest"
-       ],
-       "provenance": "inferred",
-       "confidence": 0.7,
-       "description": "after a rest of a beat or more"
-      }
-     },
-     {
-      "number": 16,
-      "level": "phrase",
-      "name": "phrase",
-      "firstBar": 87,
-      "lastBar": 90,
-      "onset": 62400,
-      "end": 64800,
-      "selectable": {
-       "onset": 62400,
-       "end": 64800
-      },
-      "long": false,
-      "parent": 5,
-      "start": {
-       "at": 62400,
-       "evidence": [
-        "repetition"
-       ],
-       "provenance": "inferred",
-       "confidence": 0.6,
-       "description": "where an earlier passage comes back note for note"
-      }
-     },
-     {
       "number": 17,
       "level": "phrase",
       "name": "phrase",
-      "firstBar": 91,
-      "lastBar": 91,
-      "onset": 64800,
-      "end": 65520,
+      "firstBar": 84,
+      "lastBar": 87,
+      "onset": 59760,
+      "end": 62400,
       "selectable": {
-       "onset": 64800,
-       "end": 65520
+       "onset": 59760,
+       "end": 62400
       },
       "long": false,
-      "parent": 5,
+      "parent": 4,
       "start": {
-       "at": 64800,
+       "at": 59760,
        "evidence": [
         "repetition"
        ],
@@ -1527,18 +1431,18 @@
       "number": 18,
       "level": "phrase",
       "name": "phrase",
-      "firstBar": 92,
-      "lastBar": 97,
-      "onset": 65520,
-      "end": 69600,
+      "firstBar": 87,
+      "lastBar": 90,
+      "onset": 62400,
+      "end": 64800,
       "selectable": {
-       "onset": 65520,
-       "end": 69600
+       "onset": 62400,
+       "end": 64800
       },
       "long": false,
-      "parent": 5,
+      "parent": 4,
       "start": {
-       "at": 65520,
+       "at": 62400,
        "evidence": [
         "repetition"
        ],
@@ -1551,18 +1455,18 @@
       "number": 19,
       "level": "phrase",
       "name": "phrase",
-      "firstBar": 97,
-      "lastBar": 101,
-      "onset": 69600,
-      "end": 72480,
+      "firstBar": 91,
+      "lastBar": 97,
+      "onset": 64800,
+      "end": 69600,
       "selectable": {
-       "onset": 69600,
-       "end": 72480
+       "onset": 64800,
+       "end": 69600
       },
       "long": false,
-      "parent": 5,
+      "parent": 4,
       "start": {
-       "at": 69600,
+       "at": 64800,
        "evidence": [
         "repetition"
        ],
@@ -1575,6 +1479,30 @@
       "number": 20,
       "level": "phrase",
       "name": "phrase",
+      "firstBar": 97,
+      "lastBar": 101,
+      "onset": 69600,
+      "end": 72480,
+      "selectable": {
+       "onset": 69600,
+       "end": 72480
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 69600,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "where an earlier passage comes back note for note"
+      }
+     },
+     {
+      "number": 21,
+      "level": "phrase",
+      "name": "phrase",
       "firstBar": 101,
       "lastBar": 105,
       "onset": 72480,
@@ -1584,7 +1512,7 @@
        "end": 75600
       },
       "long": false,
-      "parent": 5,
+      "parent": 4,
       "start": {
        "at": 72480,
        "evidence": [
@@ -1610,17 +1538,17 @@
      {
       "id": "short",
       "available": true,
-      "count": 43
+      "count": 39
      },
      {
       "id": "phrase",
       "available": true,
-      "count": 20
+      "count": 21
      },
      {
       "id": "sentence",
       "available": true,
-      "count": 5
+      "count": 4
      }
     ],
     "evidence": "partial",
@@ -1666,47 +1594,25 @@
       "level": "sentence",
       "name": "sentence",
       "firstBar": 9,
-      "lastBar": 9,
-      "onset": 5760,
-      "end": 6480,
-      "selectable": {
-       "onset": 5760,
-       "end": 6480
-      },
-      "long": false,
-      "parent": null,
-      "start": {
-       "at": 5760,
-       "evidence": [],
-       "provenance": "detected",
-       "confidence": 0.9,
-       "description": "A repeat sign stands after phrase 3."
-      }
-     },
-     {
-      "number": 3,
-      "level": "sentence",
-      "name": "sentence",
-      "firstBar": 10,
       "lastBar": 23,
-      "onset": 6480,
+      "onset": 5760,
       "end": 16560,
       "selectable": {
-       "onset": 6480,
+       "onset": 5760,
        "end": 16560
       },
       "long": true,
       "parent": null,
       "start": {
-       "at": 6480,
+       "at": 5760,
        "evidence": [],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "Phrase 5 starts where phrase 4 comes back note for note, so it reads as the consequent; phrase 5 ends on a half close, so it runs on; a repeat sign stands after phrase 6."
+       "description": "Phrase 4 starts where phrase 3 comes back note for note, so it reads as the consequent; phrase 4 ends on a half close, so it runs on; a repeat sign stands after phrase 5."
       }
      },
      {
-      "number": 4,
+      "number": 3,
       "level": "sentence",
       "name": "sentence",
       "firstBar": 24,
@@ -1724,11 +1630,11 @@
        "evidence": [],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "Phrase 8 starts where phrase 7 comes back note for note, so it reads as the consequent; phrase 8 ends on a half close, so it runs on; phrase 9 ends on a half close, so it runs on; phrase 10 reads no close, so it runs on; phrase 11 reads no close, so it runs on; phrase 12 ends on a half close, so it runs on; phrase 13 ends on the tonic, a full close."
+       "description": "Phrase 6 ends on a half close, so it runs on; phrase 7 reads no close, so it runs on; phrase 8 reads no close, so it runs on; phrase 9 ends on a half close, so it runs on; phrase 10 ends on a half close, so it runs on; phrase 11 reads no close, so it runs on; phrase 12 ends on a half close, so it runs on; phrase 13 ends on a half close, so it runs on; phrase 14 ends on a half close, so it runs on; phrase 15 ends on the tonic, a full close."
       }
      },
      {
-      "number": 5,
+      "number": 4,
       "level": "sentence",
       "name": "sentence",
       "firstBar": 78,
@@ -1746,7 +1652,7 @@
        "evidence": [],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "Phrase 14 ends on a half close, so it runs on; phrase 15 ends on a half close, so it runs on; phrase 16 ends on a half close, so it runs on; phrase 17 reads no close, so it runs on; phrase 18 reads no close, so it runs on; phrase 19 ends on a half close, so it runs on; phrase 20 ends with the piece."
+       "description": "Phrase 17 starts where phrase 16 comes back note for note, so it reads as the consequent; phrase 17 ends on a half close, so it runs on; phrase 18 ends on a half close, so it runs on; phrase 19 reads no close, so it runs on; phrase 20 ends on a half close, so it runs on; phrase 21 ends with the piece."
       }
      }
     ]
@@ -1758,7 +1664,7 @@
    "request": null,
    "answer": {
     "status": "partial",
-    "summary": "Form A A′ B A″ · A minor · 3 full closes, 9 half closes · busiest in bar 32",
+    "summary": "Form A B C A′ · A minor · 3 full closes, 11 half closes · busiest in bar 32",
     "firstBar": 0,
     "lastBar": 105,
     "barStarts": [
@@ -1878,52 +1784,63 @@
        "label": "A",
        "passage": {
         "onset": 0,
-        "end": 6480,
+        "end": 5760,
         "firstBar": 0,
-        "lastBar": 9
+        "lastBar": 8
+       },
+       "selectable": {
+        "onset": 0,
+        "end": 5760
        },
        "sharesWith": [
-        "section_2",
         "section_4"
        ]
       },
       {
        "id": "section_2",
-       "label": "A′",
+       "label": "B",
        "passage": {
-        "onset": 6480,
+        "onset": 5760,
         "end": 16560,
-        "firstBar": 10,
+        "firstBar": 9,
         "lastBar": 23
        },
-       "sharesWith": [
-        "section_1",
-        "section_4"
-       ]
+       "selectable": {
+        "onset": 5760,
+        "end": 16560
+       },
+       "sharesWith": []
       },
       {
        "id": "section_3",
-       "label": "B",
+       "label": "C",
        "passage": {
         "onset": 16560,
         "end": 55440,
         "firstBar": 24,
         "lastBar": 77
        },
+       "selectable": {
+        "onset": 16560,
+        "end": 39600
+       },
        "sharesWith": []
       },
       {
        "id": "section_4",
-       "label": "A″",
+       "label": "A′",
        "passage": {
         "onset": 55440,
         "end": 75600,
         "firstBar": 78,
         "lastBar": 105
        },
+       "selectable": {
+        "onset": 55440,
+        "end": 75600
+       },
        "sharesWith": [
-        "section_1",
-        "section_2"
+        "section_1"
        ]
       }
      ]
@@ -2179,7 +2096,7 @@
        "id": "idea_2",
        "fromSelection": false,
        "title": "Idea 2 · bar 9",
-       "summary": "Heard 4 times, always exactly.",
+       "summary": "Heard 4 times, always exactly. Opens B.",
        "passage": {
         "onset": 5760,
         "end": 6480,
@@ -2272,75 +2189,75 @@
       {
        "id": "idea_3",
        "fromSelection": false,
-       "title": "Idea 3 · bar 10",
-       "summary": "Heard 3 times, always exactly. Opens A′.",
+       "title": "Idea 3 · bar 32",
+       "summary": "Heard twice, always exactly. Only in C.",
        "passage": {
-        "onset": 6480,
-        "end": 7200,
-        "firstBar": 10,
-        "lastBar": 10
+        "onset": 22320,
+        "end": 23040,
+        "firstBar": 32,
+        "lastBar": 32
        },
        "noteIds": [
-        "n_0062",
-        "n_0063",
-        "n_0064",
-        "n_0065",
-        "n_0066",
-        "n_0067"
+        "n_0251",
+        "n_0252",
+        "n_0253",
+        "n_0254",
+        "n_0255",
+        "n_0256",
+        "n_0259",
+        "n_0260",
+        "n_0263",
+        "n_0264",
+        "n_0268",
+        "n_0269"
        ],
        "occurrences": [
         {
          "kind": "original",
          "passage": {
-          "onset": 6480,
-          "end": 7200,
-          "firstBar": 10,
-          "lastBar": 10
+          "onset": 22320,
+          "end": 23040,
+          "firstBar": 32,
+          "lastBar": 32
          },
          "transposition": 0,
          "noteIds": [
-          "n_0062",
-          "n_0063",
-          "n_0064",
-          "n_0065",
-          "n_0066",
-          "n_0067"
+          "n_0251",
+          "n_0252",
+          "n_0253",
+          "n_0254",
+          "n_0255",
+          "n_0256",
+          "n_0259",
+          "n_0260",
+          "n_0263",
+          "n_0264",
+          "n_0268",
+          "n_0269"
          ]
         },
         {
          "kind": "exact",
          "passage": {
-          "onset": 33840,
-          "end": 34560,
-          "firstBar": 48,
-          "lastBar": 48
+          "onset": 23760,
+          "end": 24480,
+          "firstBar": 34,
+          "lastBar": 34
          },
          "transposition": 0,
          "noteIds": [
-          "n_0411",
-          "n_0412",
-          "n_0413",
-          "n_0414",
-          "n_0415",
-          "n_0416"
-         ]
-        },
-        {
-         "kind": "exact",
-         "passage": {
-          "onset": 65520,
-          "end": 66240,
-          "firstBar": 92,
-          "lastBar": 92
-         },
-         "transposition": 0,
-         "noteIds": [
-          "n_0814",
-          "n_0815",
-          "n_0816",
-          "n_0817",
-          "n_0818",
-          "n_0819"
+          "n_0290",
+          "n_0291",
+          "n_0292",
+          "n_0293",
+          "n_0294",
+          "n_0295",
+          "n_0298",
+          "n_0299",
+          "n_0302",
+          "n_0303",
+          "n_0307",
+          "n_0308"
          ]
         }
        ]
@@ -2348,87 +2265,57 @@
       {
        "id": "idea_4",
        "fromSelection": false,
-       "title": "Idea 4 · bar 79",
-       "summary": "Heard 3 times: 1 exactly and 2 higher. Only in A″.",
+       "title": "Idea 4 · bar 61",
+       "summary": "Heard twice, always exactly. Only in C.",
        "passage": {
-        "onset": 56160,
-        "end": 56880,
-        "firstBar": 79,
-        "lastBar": 79
+        "onset": 43200,
+        "end": 43920,
+        "firstBar": 61,
+        "lastBar": 61
        },
        "noteIds": [
-        "n_0696",
-        "n_0697",
-        "n_0698",
-        "n_0699",
-        "n_0700",
-        "n_0701",
-        "n_0705",
-        "n_0706",
-        "n_0707"
+        "n_0498",
+        "n_0499",
+        "n_0500",
+        "n_0501",
+        "n_0502",
+        "n_0503"
        ],
        "occurrences": [
         {
          "kind": "original",
          "passage": {
-          "onset": 56160,
-          "end": 56880,
-          "firstBar": 79,
-          "lastBar": 79
+          "onset": 43200,
+          "end": 43920,
+          "firstBar": 61,
+          "lastBar": 61
          },
          "transposition": 0,
          "noteIds": [
-          "n_0696",
-          "n_0697",
-          "n_0698",
-          "n_0699",
-          "n_0700",
-          "n_0701",
-          "n_0705",
-          "n_0706",
-          "n_0707"
+          "n_0498",
+          "n_0499",
+          "n_0500",
+          "n_0501",
+          "n_0502",
+          "n_0503"
          ]
         },
         {
-         "kind": "transposed",
+         "kind": "exact",
          "passage": {
-          "onset": 56880,
-          "end": 57600,
-          "firstBar": 80,
-          "lastBar": 80
+          "onset": 48960,
+          "end": 49680,
+          "firstBar": 69,
+          "lastBar": 69
          },
-         "transposition": 12,
+         "transposition": 0,
          "noteIds": [
-          "n_0711",
-          "n_0712",
-          "n_0713",
-          "n_0714",
-          "n_0715",
-          "n_0716",
-          "n_0720",
-          "n_0721",
-          "n_0722"
-         ]
-        },
-        {
-         "kind": "transposed",
-         "passage": {
-          "onset": 57600,
-          "end": 58320,
-          "firstBar": 81,
-          "lastBar": 81
-         },
-         "transposition": 24,
-         "noteIds": [
-          "n_0726",
-          "n_0727",
-          "n_0728",
-          "n_0729",
-          "n_0730",
-          "n_0731",
-          "n_0735",
-          "n_0736",
-          "n_0737"
+          "n_0604",
+          "n_0605",
+          "n_0606",
+          "n_0607",
+          "n_0608",
+          "n_0609"
          ]
         }
        ]
@@ -3147,13 +3034,19 @@
        "bar": 8,
        "at": 5520,
        "kind": "full",
-       "explanation": "Bar 8 · Am. A full close: the phrase's melody comes to the tonic (A3), and the music comes to rest."
+       "explanation": "Bar 8 · Am. A full close: the phrase's melody comes to the tonic (A3), and the music comes to rest. Then section B."
       },
       {
        "bar": 19,
        "at": 13320,
        "kind": "half",
        "explanation": "Bar 19 · Am. A half close: the phrase's melody stops on E4, not on the tonic, and the music waits to go on."
+      },
+      {
+       "bar": 31,
+       "at": 22260,
+       "kind": "half",
+       "explanation": "Bar 31 · C/G. A half close: the phrase's melody stops on B4, not on the tonic, and the music waits to go on."
       },
       {
        "bar": 43,
@@ -3174,16 +3067,22 @@
        "explanation": "Bar 57 · Am. A half close: the phrase's melody stops on E4, not on the tonic, and the music waits to go on."
       },
       {
+       "bar": 60,
+       "at": 43080,
+       "kind": "half",
+       "explanation": "Bar 60 · E. A half close: the phrase's melody stops on B4, not on the tonic, and the music waits to go on."
+      },
+      {
+       "bar": 68,
+       "at": 48840,
+       "kind": "half",
+       "explanation": "Bar 68 · Am/E. A half close: the phrase's melody stops on G♯2, not on the tonic, and the music waits to go on."
+      },
+      {
        "bar": 77,
        "at": 54720,
        "kind": "full",
-       "explanation": "Bar 77 · Am/C. A full close: the phrase's melody comes to the tonic (A4), and the music comes to rest. Then section A″."
-      },
-      {
-       "bar": 78,
-       "at": 55440,
-       "kind": "half",
-       "explanation": "Bar 78 · E. A half close: the phrase's melody stops on B4, not on the tonic, and the music waits to go on."
+       "explanation": "Bar 77 · Am/C. A full close: the phrase's melody comes to the tonic (A4), and the music comes to rest. Then section A′."
       },
       {
        "bar": 87,
@@ -3217,9 +3116,9 @@
       "label": "A",
       "passage": {
        "onset": 0,
-       "end": 6480,
+       "end": 5760,
        "firstBar": 0,
-       "lastBar": 9
+       "lastBar": 8
       },
       "circle": {
        "key": {
@@ -3485,11 +3384,11 @@
      },
      {
       "id": "section_2",
-      "label": "A′",
+      "label": "B",
       "passage": {
-       "onset": 6480,
+       "onset": 5760,
        "end": 16560,
-       "firstBar": 10,
+       "firstBar": 9,
        "lastBar": 23
       },
       "circle": {
@@ -3636,6 +3535,29 @@
        "chords": [
         {
          "number": 1,
+         "symbol": "Am",
+         "degree": "i",
+         "position": 0,
+         "ring": "minor",
+         "function": "tonic",
+         "role": "Am: i in A minor, the tonic.",
+         "place": {
+          "label": "Am, from bar 8",
+          "onset": 5280,
+          "end": 6000,
+          "noteIds": [
+           "n_0050",
+           "n_0051",
+           "n_0052",
+           "n_0053",
+           "n_0054",
+           "n_0055",
+           "n_0056"
+          ]
+         }
+        },
+        {
+         "number": 2,
          "symbol": "C",
          "degree": "III",
          "position": 0,
@@ -3656,7 +3578,7 @@
          }
         },
         {
-         "number": 2,
+         "number": 3,
          "symbol": "G",
          "degree": "VII",
          "position": 1,
@@ -3671,27 +3593,6 @@
            "n_0068",
            "n_0069",
            "n_0070"
-          ]
-         }
-        },
-        {
-         "number": 3,
-         "symbol": "Am",
-         "degree": "i",
-         "position": 0,
-         "ring": "minor",
-         "function": "tonic",
-         "role": "Am: i in A minor, the tonic.",
-         "place": {
-          "label": "Am, from bar 12",
-          "onset": 7920,
-          "end": 8400,
-          "noteIds": [
-           "n_0075",
-           "n_0076",
-           "n_0077",
-           "n_0078",
-           "n_0079"
           ]
          }
         },
@@ -3764,49 +3665,49 @@
        "scaleNotes": [
         {
          "pitch": 57,
-         "onset": 6480,
-         "end": 6960
+         "onset": 5760,
+         "end": 6240
         },
         {
          "pitch": 59,
-         "onset": 6960,
-         "end": 7440
+         "onset": 6240,
+         "end": 6720
         },
         {
          "pitch": 60,
-         "onset": 7440,
-         "end": 7920
+         "onset": 6720,
+         "end": 7200
         },
         {
          "pitch": 62,
-         "onset": 7920,
-         "end": 8400
+         "onset": 7200,
+         "end": 7680
         },
         {
          "pitch": 64,
-         "onset": 8400,
-         "end": 8880
+         "onset": 7680,
+         "end": 8160
         },
         {
          "pitch": 65,
-         "onset": 8880,
-         "end": 9360
+         "onset": 8160,
+         "end": 8640
         },
         {
          "pitch": 67,
-         "onset": 9360,
-         "end": 9840
+         "onset": 8640,
+         "end": 9120
         },
         {
          "pitch": 69,
-         "onset": 9840,
-         "end": 10800
+         "onset": 9120,
+         "end": 10080
         }
        ],
        "lines": [
         "A minor: no sharps or flats, the same as its relative key, C major.",
         "Its neighbours on the circle differ by one sharp or flat: E minor (dominant) and D minor (subdominant).",
-        "The chords of the section: C (III) → G (VII) → Am (i) → E (V) → Emaj7 (Vmaj7)."
+        "The chords of the section: Am (i) → C (III) → G (VII) → E (V) → Emaj7 (Vmaj7)."
        ],
        "zones": [
         "tonic",
@@ -3826,7 +3727,7 @@
      },
      {
       "id": "section_3",
-      "label": "B",
+      "label": "C",
       "passage": {
        "onset": 16560,
        "end": 55440,
@@ -4471,7 +4372,7 @@
      },
      {
       "id": "section_4",
-      "label": "A″",
+      "label": "A′",
       "passage": {
        "onset": 55440,
        "end": 75600,
@@ -5832,17 +5733,17 @@
      {
       "id": "short",
       "available": true,
-      "count": 43
+      "count": 39
      },
      {
       "id": "phrase",
       "available": true,
-      "count": 20
+      "count": 21
      },
      {
       "id": "sentence",
       "available": true,
-      "count": 5
+      "count": 4
      }
     ],
     "evidence": "partial",
@@ -5960,12 +5861,12 @@
       "level": "short",
       "name": "короткое построение",
       "firstBar": 9,
-      "lastBar": 9,
+      "lastBar": 11,
       "onset": 5760,
-      "end": 6480,
+      "end": 7920,
       "selectable": {
        "onset": 5760,
-       "end": 6480
+       "end": 7920
       },
       "long": false,
       "parent": 3,
@@ -5983,42 +5884,18 @@
       "number": 6,
       "level": "short",
       "name": "короткое построение",
-      "firstBar": 10,
-      "lastBar": 12,
-      "onset": 6480,
-      "end": 8640,
-      "selectable": {
-       "onset": 6480,
-       "end": 8640
-      },
-      "long": false,
-      "parent": 4,
-      "start": {
-       "at": 6480,
-       "evidence": [
-        "repeatSign"
-       ],
-       "provenance": "imported",
-       "confidence": 1,
-       "description": "по знаку репризы"
-      }
-     },
-     {
-      "number": 7,
-      "level": "short",
-      "name": "короткое построение",
-      "firstBar": 13,
+      "firstBar": 12,
       "lastBar": 15,
-      "onset": 8640,
+      "onset": 7920,
       "end": 10560,
       "selectable": {
-       "onset": 8640,
+       "onset": 7920,
        "end": 10560
       },
       "long": false,
-      "parent": 4,
+      "parent": 3,
       "start": {
-       "at": 8640,
+       "at": 7920,
        "evidence": [
         "length"
        ],
@@ -6028,7 +5905,7 @@
       }
      },
      {
-      "number": 8,
+      "number": 7,
       "level": "short",
       "name": "короткое построение",
       "firstBar": 15,
@@ -6040,7 +5917,7 @@
        "end": 11520
       },
       "long": false,
-      "parent": 5,
+      "parent": 4,
       "start": {
        "at": 10560,
        "evidence": [
@@ -6052,7 +5929,7 @@
       }
      },
      {
-      "number": 9,
+      "number": 8,
       "level": "short",
       "name": "короткое построение",
       "firstBar": 17,
@@ -6064,7 +5941,7 @@
        "end": 13440
       },
       "long": false,
-      "parent": 5,
+      "parent": 4,
       "start": {
        "at": 11520,
        "evidence": [
@@ -6076,7 +5953,7 @@
       }
      },
      {
-      "number": 10,
+      "number": 9,
       "level": "short",
       "name": "короткое построение",
       "firstBar": 19,
@@ -6088,7 +5965,7 @@
        "end": 14400
       },
       "long": false,
-      "parent": 6,
+      "parent": 5,
       "start": {
        "at": 13440,
        "evidence": [
@@ -6100,7 +5977,7 @@
       }
      },
      {
-      "number": 11,
+      "number": 10,
       "level": "short",
       "name": "короткое построение",
       "firstBar": 21,
@@ -6112,7 +5989,7 @@
        "end": 16560
       },
       "long": false,
-      "parent": 6,
+      "parent": 5,
       "start": {
        "at": 14400,
        "evidence": [
@@ -6124,7 +6001,7 @@
       }
      },
      {
-      "number": 12,
+      "number": 11,
       "level": "short",
       "name": "короткое построение",
       "firstBar": 24,
@@ -6136,7 +6013,7 @@
        "end": 19440
       },
       "long": false,
-      "parent": 7,
+      "parent": 6,
       "start": {
        "at": 16560,
        "evidence": [
@@ -6148,7 +6025,7 @@
       }
      },
      {
-      "number": 13,
+      "number": 12,
       "level": "short",
       "name": "короткое построение",
       "firstBar": 28,
@@ -6160,7 +6037,7 @@
        "end": 22320
       },
       "long": false,
-      "parent": 7,
+      "parent": 6,
       "start": {
        "at": 19440,
        "evidence": [
@@ -6172,7 +6049,7 @@
       }
      },
      {
-      "number": 14,
+      "number": 13,
       "level": "short",
       "name": "короткое построение",
       "firstBar": 32,
@@ -6188,15 +6065,15 @@
       "start": {
        "at": 22320,
        "evidence": [
-        "length"
+        "restatement"
        ],
        "provenance": "inferred",
-       "confidence": 0.4,
-       "description": "в середине длинной фразы"
+       "confidence": 0.5,
+       "description": "на краю отрывка, который сразу начинается снова нота в ноту"
       }
      },
      {
-      "number": 15,
+      "number": 14,
       "level": "short",
       "name": "короткое построение",
       "firstBar": 36,
@@ -6208,19 +6085,19 @@
        "end": 27840
       },
       "long": false,
-      "parent": 7,
+      "parent": 8,
       "start": {
        "at": 25200,
        "evidence": [
-        "length"
+        "restatement"
        ],
        "provenance": "inferred",
-       "confidence": 0.4,
-       "description": "в середине длинной фразы"
+       "confidence": 0.5,
+       "description": "на краю отрывка, который сразу начинается снова нота в ноту"
       }
      },
      {
-      "number": 16,
+      "number": 15,
       "level": "short",
       "name": "короткое построение",
       "firstBar": 39,
@@ -6232,7 +6109,7 @@
        "end": 28800
       },
       "long": false,
-      "parent": 8,
+      "parent": 9,
       "start": {
        "at": 27840,
        "evidence": [
@@ -6244,7 +6121,7 @@
       }
      },
      {
-      "number": 17,
+      "number": 16,
       "level": "short",
       "name": "короткое построение",
       "firstBar": 41,
@@ -6256,7 +6133,7 @@
        "end": 30720
       },
       "long": false,
-      "parent": 8,
+      "parent": 9,
       "start": {
        "at": 28800,
        "evidence": [
@@ -6268,7 +6145,7 @@
       }
      },
      {
-      "number": 18,
+      "number": 17,
       "level": "short",
       "name": "короткое построение",
       "firstBar": 43,
@@ -6280,9 +6157,33 @@
        "end": 33120
       },
       "long": false,
-      "parent": 9,
+      "parent": 10,
       "start": {
        "at": 30720,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "там, где нота в ноту возвращается более ранний отрывок"
+      }
+     },
+     {
+      "number": 18,
+      "level": "short",
+      "name": "короткое построение",
+      "firstBar": 47,
+      "lastBar": 49,
+      "onset": 33120,
+      "end": 35280,
+      "selectable": {
+       "onset": 33120,
+       "end": 35280
+      },
+      "long": false,
+      "parent": 11,
+      "start": {
+       "at": 33120,
        "evidence": [
         "repetition"
        ],
@@ -6295,66 +6196,18 @@
       "number": 19,
       "level": "short",
       "name": "короткое построение",
-      "firstBar": 47,
-      "lastBar": 47,
-      "onset": 33120,
-      "end": 33840,
-      "selectable": {
-       "onset": 33120,
-       "end": 33840
-      },
-      "long": false,
-      "parent": 10,
-      "start": {
-       "at": 33120,
-       "evidence": [
-        "repetition"
-       ],
-       "provenance": "inferred",
-       "confidence": 0.6,
-       "description": "там, где нота в ноту возвращается более ранний отрывок"
-      }
-     },
-     {
-      "number": 20,
-      "level": "short",
-      "name": "короткое построение",
-      "firstBar": 48,
-      "lastBar": 50,
-      "onset": 33840,
-      "end": 36000,
-      "selectable": {
-       "onset": 33840,
-       "end": 36000
-      },
-      "long": false,
-      "parent": 11,
-      "start": {
-       "at": 33840,
-       "evidence": [
-        "repetition"
-       ],
-       "provenance": "inferred",
-       "confidence": 0.6,
-       "description": "там, где нота в ноту возвращается более ранний отрывок"
-      }
-     },
-     {
-      "number": 21,
-      "level": "short",
-      "name": "короткое построение",
-      "firstBar": 51,
+      "firstBar": 50,
       "lastBar": 53,
-      "onset": 36000,
+      "onset": 35280,
       "end": 37920,
       "selectable": {
-       "onset": 36000,
+       "onset": 35280,
        "end": 37920
       },
       "long": false,
       "parent": 11,
       "start": {
-       "at": 36000,
+       "at": 35280,
        "evidence": [
         "length"
        ],
@@ -6364,7 +6217,7 @@
       }
      },
      {
-      "number": 22,
+      "number": 20,
       "level": "short",
       "name": "короткое построение",
       "firstBar": 53,
@@ -6388,7 +6241,7 @@
       }
      },
      {
-      "number": 23,
+      "number": 21,
       "level": "short",
       "name": "короткое построение",
       "firstBar": 55,
@@ -6412,16 +6265,16 @@
       }
      },
      {
-      "number": 24,
+      "number": 22,
       "level": "short",
       "name": "короткое построение",
       "firstBar": 57,
-      "lastBar": 58,
+      "lastBar": 60,
       "onset": 40800,
-      "end": 41760,
+      "end": 43200,
       "selectable": {
        "onset": 40800,
-       "end": 41760
+       "end": 43200
       },
       "long": false,
       "parent": 13,
@@ -6436,55 +6289,31 @@
       }
      },
      {
-      "number": 25,
+      "number": 23,
       "level": "short",
       "name": "короткое построение",
-      "firstBar": 59,
-      "lastBar": 61,
-      "onset": 41760,
-      "end": 43920,
-      "selectable": {
-       "onset": 41760,
-       "end": 43920
-      },
-      "long": false,
-      "parent": 13,
-      "start": {
-       "at": 41760,
-       "evidence": [
-        "length"
-       ],
-       "provenance": "inferred",
-       "confidence": 0.4,
-       "description": "в середине длинной фразы"
-      }
-     },
-     {
-      "number": 26,
-      "level": "short",
-      "name": "короткое построение",
-      "firstBar": 62,
+      "firstBar": 61,
       "lastBar": 63,
-      "onset": 43920,
+      "onset": 43200,
       "end": 45360,
       "selectable": {
-       "onset": 43920,
+       "onset": 43200,
        "end": 45360
       },
       "long": false,
-      "parent": 13,
+      "parent": 14,
       "start": {
-       "at": 43920,
+       "at": 43200,
        "evidence": [
-        "length"
+        "restatement"
        ],
        "provenance": "inferred",
-       "confidence": 0.4,
-       "description": "в середине длинной фразы"
+       "confidence": 0.5,
+       "description": "на краю отрывка, который сразу начинается снова нота в ноту"
       }
      },
      {
-      "number": 27,
+      "number": 24,
       "level": "short",
       "name": "короткое построение",
       "firstBar": 64,
@@ -6496,9 +6325,81 @@
        "end": 47520
       },
       "long": false,
-      "parent": 13,
+      "parent": 14,
       "start": {
        "at": 45360,
+       "evidence": [
+        "length"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.4,
+       "description": "в середине длинной фразы"
+      }
+     },
+     {
+      "number": 25,
+      "level": "short",
+      "name": "короткое построение",
+      "firstBar": 67,
+      "lastBar": 68,
+      "onset": 47520,
+      "end": 48960,
+      "selectable": {
+       "onset": 47520,
+       "end": 48960
+      },
+      "long": false,
+      "parent": 14,
+      "start": {
+       "at": 47520,
+       "evidence": [
+        "return"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "там, где возвращается начальная фигура фразы"
+      }
+     },
+     {
+      "number": 26,
+      "level": "short",
+      "name": "короткое построение",
+      "firstBar": 69,
+      "lastBar": 72,
+      "onset": 48960,
+      "end": 51840,
+      "selectable": {
+       "onset": 48960,
+       "end": 51840
+      },
+      "long": false,
+      "parent": 15,
+      "start": {
+       "at": 48960,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "там, где нота в ноту возвращается более ранний отрывок"
+      }
+     },
+     {
+      "number": 27,
+      "level": "short",
+      "name": "короткое построение",
+      "firstBar": 73,
+      "lastBar": 74,
+      "onset": 51840,
+      "end": 53280,
+      "selectable": {
+       "onset": 51840,
+       "end": 53280
+      },
+      "long": false,
+      "parent": 15,
+      "start": {
+       "at": 51840,
        "evidence": [
         "length"
        ],
@@ -6511,18 +6412,18 @@
       "number": 28,
       "level": "short",
       "name": "короткое построение",
-      "firstBar": 67,
-      "lastBar": 68,
-      "onset": 47520,
-      "end": 48960,
+      "firstBar": 75,
+      "lastBar": 77,
+      "onset": 53280,
+      "end": 55440,
       "selectable": {
-       "onset": 47520,
-       "end": 48960
+       "onset": 53280,
+       "end": 55440
       },
       "long": false,
-      "parent": 13,
+      "parent": 15,
       "start": {
-       "at": 47520,
+       "at": 53280,
        "evidence": [
         "length"
        ],
@@ -6535,66 +6436,66 @@
       "number": 29,
       "level": "short",
       "name": "короткое построение",
-      "firstBar": 69,
-      "lastBar": 71,
-      "onset": 48960,
-      "end": 51120,
+      "firstBar": 78,
+      "lastBar": 78,
+      "onset": 55440,
+      "end": 56160,
       "selectable": {
-       "onset": 48960,
-       "end": 51120
+       "onset": 55440,
+       "end": 56160
       },
       "long": false,
-      "parent": 13,
+      "parent": 16,
       "start": {
-       "at": 48960,
+       "at": 55440,
        "evidence": [
-        "length"
+        "rest"
        ],
        "provenance": "inferred",
-       "confidence": 0.4,
-       "description": "в середине длинной фразы"
+       "confidence": 0.7,
+       "description": "после паузы в долю или больше"
       }
      },
      {
       "number": 30,
       "level": "short",
       "name": "короткое построение",
-      "firstBar": 72,
-      "lastBar": 74,
-      "onset": 51120,
-      "end": 53280,
+      "firstBar": 79,
+      "lastBar": 80,
+      "onset": 56160,
+      "end": 57600,
       "selectable": {
-       "onset": 51120,
-       "end": 53280
+       "onset": 56160,
+       "end": 57600
       },
       "long": false,
-      "parent": 13,
+      "parent": 16,
       "start": {
-       "at": 51120,
+       "at": 56160,
        "evidence": [
-        "length"
+        "rest"
        ],
        "provenance": "inferred",
-       "confidence": 0.4,
-       "description": "в середине длинной фразы"
+       "confidence": 0.7,
+       "description": "после паузы в полдоли или больше"
       }
      },
      {
       "number": 31,
       "level": "short",
       "name": "короткое построение",
-      "firstBar": 75,
-      "lastBar": 77,
-      "onset": 53280,
-      "end": 55440,
+      "firstBar": 81,
+      "lastBar": 83,
+      "onset": 57600,
+      "end": 59760,
       "selectable": {
-       "onset": 53280,
-       "end": 55440
+       "onset": 57600,
+       "end": 59760
       },
       "long": false,
-      "parent": 13,
+      "parent": 16,
       "start": {
-       "at": 53280,
+       "at": 57600,
        "evidence": [
         "length"
        ],
@@ -6607,90 +6508,90 @@
       "number": 32,
       "level": "short",
       "name": "короткое построение",
-      "firstBar": 78,
-      "lastBar": 78,
-      "onset": 55440,
-      "end": 56160,
+      "firstBar": 84,
+      "lastBar": 87,
+      "onset": 59760,
+      "end": 62400,
       "selectable": {
-       "onset": 55440,
-       "end": 56160
+       "onset": 59760,
+       "end": 62400
       },
       "long": false,
-      "parent": 14,
+      "parent": 17,
       "start": {
-       "at": 55440,
+       "at": 59760,
        "evidence": [
-        "rest"
+        "repetition"
        ],
        "provenance": "inferred",
-       "confidence": 0.7,
-       "description": "после паузы в долю или больше"
+       "confidence": 0.6,
+       "description": "там, где нота в ноту возвращается более ранний отрывок"
       }
      },
      {
       "number": 33,
       "level": "short",
       "name": "короткое построение",
-      "firstBar": 79,
-      "lastBar": 82,
-      "onset": 56160,
-      "end": 59040,
+      "firstBar": 87,
+      "lastBar": 90,
+      "onset": 62400,
+      "end": 64800,
       "selectable": {
-       "onset": 56160,
-       "end": 59040
+       "onset": 62400,
+       "end": 64800
       },
       "long": false,
-      "parent": 15,
+      "parent": 18,
       "start": {
-       "at": 56160,
+       "at": 62400,
        "evidence": [
-        "rest"
+        "repetition"
        ],
        "provenance": "inferred",
-       "confidence": 0.7,
-       "description": "после паузы в долю или больше"
+       "confidence": 0.6,
+       "description": "там, где нота в ноту возвращается более ранний отрывок"
       }
      },
      {
       "number": 34,
       "level": "short",
       "name": "короткое построение",
-      "firstBar": 83,
-      "lastBar": 84,
-      "onset": 59040,
-      "end": 60480,
+      "firstBar": 91,
+      "lastBar": 93,
+      "onset": 64800,
+      "end": 66960,
       "selectable": {
-       "onset": 59040,
-       "end": 60480
+       "onset": 64800,
+       "end": 66960
       },
       "long": false,
-      "parent": 15,
+      "parent": 19,
       "start": {
-       "at": 59040,
+       "at": 64800,
        "evidence": [
-        "length"
+        "repetition"
        ],
        "provenance": "inferred",
-       "confidence": 0.4,
-       "description": "в середине длинной фразы"
+       "confidence": 0.6,
+       "description": "там, где нота в ноту возвращается более ранний отрывок"
       }
      },
      {
       "number": 35,
       "level": "short",
       "name": "короткое построение",
-      "firstBar": 85,
-      "lastBar": 87,
-      "onset": 60480,
-      "end": 62400,
+      "firstBar": 94,
+      "lastBar": 97,
+      "onset": 66960,
+      "end": 69600,
       "selectable": {
-       "onset": 60480,
-       "end": 62400
+       "onset": 66960,
+       "end": 69600
       },
       "long": false,
-      "parent": 15,
+      "parent": 19,
       "start": {
-       "at": 60480,
+       "at": 66960,
        "evidence": [
         "length"
        ],
@@ -6703,18 +6604,18 @@
       "number": 36,
       "level": "short",
       "name": "короткое построение",
-      "firstBar": 87,
-      "lastBar": 90,
-      "onset": 62400,
-      "end": 64800,
+      "firstBar": 97,
+      "lastBar": 98,
+      "onset": 69600,
+      "end": 70560,
       "selectable": {
-       "onset": 62400,
-       "end": 64800
+       "onset": 69600,
+       "end": 70560
       },
       "long": false,
-      "parent": 16,
+      "parent": 20,
       "start": {
-       "at": 62400,
+       "at": 69600,
        "evidence": [
         "repetition"
        ],
@@ -6727,42 +6628,42 @@
       "number": 37,
       "level": "short",
       "name": "короткое построение",
-      "firstBar": 91,
-      "lastBar": 91,
-      "onset": 64800,
-      "end": 65520,
+      "firstBar": 99,
+      "lastBar": 101,
+      "onset": 70560,
+      "end": 72480,
       "selectable": {
-       "onset": 64800,
-       "end": 65520
+       "onset": 70560,
+       "end": 72480
       },
       "long": false,
-      "parent": 17,
+      "parent": 20,
       "start": {
-       "at": 64800,
+       "at": 70560,
        "evidence": [
-        "repetition"
+        "length"
        ],
        "provenance": "inferred",
-       "confidence": 0.6,
-       "description": "там, где нота в ноту возвращается более ранний отрывок"
+       "confidence": 0.4,
+       "description": "в середине длинной фразы"
       }
      },
      {
       "number": 38,
       "level": "short",
       "name": "короткое построение",
-      "firstBar": 92,
-      "lastBar": 94,
-      "onset": 65520,
-      "end": 67680,
+      "firstBar": 101,
+      "lastBar": 102,
+      "onset": 72480,
+      "end": 73440,
       "selectable": {
-       "onset": 65520,
-       "end": 67680
+       "onset": 72480,
+       "end": 73440
       },
       "long": false,
-      "parent": 18,
+      "parent": 21,
       "start": {
-       "at": 65520,
+       "at": 72480,
        "evidence": [
         "repetition"
        ],
@@ -6775,102 +6676,6 @@
       "number": 39,
       "level": "short",
       "name": "короткое построение",
-      "firstBar": 95,
-      "lastBar": 97,
-      "onset": 67680,
-      "end": 69600,
-      "selectable": {
-       "onset": 67680,
-       "end": 69600
-      },
-      "long": false,
-      "parent": 18,
-      "start": {
-       "at": 67680,
-       "evidence": [
-        "length"
-       ],
-       "provenance": "inferred",
-       "confidence": 0.4,
-       "description": "в середине длинной фразы"
-      }
-     },
-     {
-      "number": 40,
-      "level": "short",
-      "name": "короткое построение",
-      "firstBar": 97,
-      "lastBar": 98,
-      "onset": 69600,
-      "end": 70560,
-      "selectable": {
-       "onset": 69600,
-       "end": 70560
-      },
-      "long": false,
-      "parent": 19,
-      "start": {
-       "at": 69600,
-       "evidence": [
-        "repetition"
-       ],
-       "provenance": "inferred",
-       "confidence": 0.6,
-       "description": "там, где нота в ноту возвращается более ранний отрывок"
-      }
-     },
-     {
-      "number": 41,
-      "level": "short",
-      "name": "короткое построение",
-      "firstBar": 99,
-      "lastBar": 101,
-      "onset": 70560,
-      "end": 72480,
-      "selectable": {
-       "onset": 70560,
-       "end": 72480
-      },
-      "long": false,
-      "parent": 19,
-      "start": {
-       "at": 70560,
-       "evidence": [
-        "length"
-       ],
-       "provenance": "inferred",
-       "confidence": 0.4,
-       "description": "в середине длинной фразы"
-      }
-     },
-     {
-      "number": 42,
-      "level": "short",
-      "name": "короткое построение",
-      "firstBar": 101,
-      "lastBar": 102,
-      "onset": 72480,
-      "end": 73440,
-      "selectable": {
-       "onset": 72480,
-       "end": 73440
-      },
-      "long": false,
-      "parent": 20,
-      "start": {
-       "at": 72480,
-       "evidence": [
-        "repetition"
-       ],
-       "provenance": "inferred",
-       "confidence": 0.6,
-       "description": "там, где нота в ноту возвращается более ранний отрывок"
-      }
-     },
-     {
-      "number": 43,
-      "level": "short",
-      "name": "короткое построение",
       "firstBar": 103,
       "lastBar": 105,
       "onset": 73440,
@@ -6880,7 +6685,7 @@
        "end": 75600
       },
       "long": false,
-      "parent": 20,
+      "parent": 21,
       "start": {
        "at": 73440,
        "evidence": [
@@ -6906,17 +6711,17 @@
      {
       "id": "short",
       "available": true,
-      "count": 43
+      "count": 39
      },
      {
       "id": "phrase",
       "available": true,
-      "count": 20
+      "count": 21
      },
      {
       "id": "sentence",
       "available": true,
-      "count": 5
+      "count": 4
      }
     ],
     "evidence": "partial",
@@ -6986,12 +6791,12 @@
       "level": "phrase",
       "name": "фраза",
       "firstBar": 9,
-      "lastBar": 9,
+      "lastBar": 15,
       "onset": 5760,
-      "end": 6480,
+      "end": 10560,
       "selectable": {
        "onset": 5760,
-       "end": 6480
+       "end": 10560
       },
       "long": false,
       "parent": 2,
@@ -7009,30 +6814,6 @@
       "number": 4,
       "level": "phrase",
       "name": "фраза",
-      "firstBar": 10,
-      "lastBar": 15,
-      "onset": 6480,
-      "end": 10560,
-      "selectable": {
-       "onset": 6480,
-       "end": 10560
-      },
-      "long": false,
-      "parent": 3,
-      "start": {
-       "at": 6480,
-       "evidence": [
-        "repeatSign"
-       ],
-       "provenance": "imported",
-       "confidence": 1,
-       "description": "по знаку репризы"
-      }
-     },
-     {
-      "number": 5,
-      "level": "phrase",
-      "name": "фраза",
       "firstBar": 15,
       "lastBar": 19,
       "onset": 10560,
@@ -7042,9 +6823,33 @@
        "end": 13440
       },
       "long": false,
-      "parent": 3,
+      "parent": 2,
       "start": {
        "at": 10560,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "там, где нота в ноту возвращается более ранний отрывок"
+      }
+     },
+     {
+      "number": 5,
+      "level": "phrase",
+      "name": "фраза",
+      "firstBar": 19,
+      "lastBar": 23,
+      "onset": 13440,
+      "end": 16560,
+      "selectable": {
+       "onset": 13440,
+       "end": 16560
+      },
+      "long": false,
+      "parent": 2,
+      "start": {
+       "at": 13440,
        "evidence": [
         "repetition"
        ],
@@ -7057,40 +6862,16 @@
       "number": 6,
       "level": "phrase",
       "name": "фраза",
-      "firstBar": 19,
-      "lastBar": 23,
-      "onset": 13440,
-      "end": 16560,
+      "firstBar": 24,
+      "lastBar": 31,
+      "onset": 16560,
+      "end": 22320,
       "selectable": {
-       "onset": 13440,
-       "end": 16560
+       "onset": 16560,
+       "end": 22320
       },
       "long": false,
       "parent": 3,
-      "start": {
-       "at": 13440,
-       "evidence": [
-        "repetition"
-       ],
-       "provenance": "inferred",
-       "confidence": 0.6,
-       "description": "там, где нота в ноту возвращается более ранний отрывок"
-      }
-     },
-     {
-      "number": 7,
-      "level": "phrase",
-      "name": "фраза",
-      "firstBar": 24,
-      "lastBar": 39,
-      "onset": 16560,
-      "end": 27840,
-      "selectable": {
-       "onset": 16560,
-       "end": 27840
-      },
-      "long": true,
-      "parent": 4,
       "start": {
        "at": 16560,
        "evidence": [
@@ -7102,7 +6883,55 @@
       }
      },
      {
+      "number": 7,
+      "level": "phrase",
+      "name": "фраза",
+      "firstBar": 32,
+      "lastBar": 35,
+      "onset": 22320,
+      "end": 25200,
+      "selectable": {
+       "onset": 22320,
+       "end": 25200
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 22320,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "на краю отрывка, который сразу начинается снова нота в ноту"
+      }
+     },
+     {
       "number": 8,
+      "level": "phrase",
+      "name": "фраза",
+      "firstBar": 36,
+      "lastBar": 39,
+      "onset": 25200,
+      "end": 27840,
+      "selectable": {
+       "onset": 25200,
+       "end": 27840
+      },
+      "long": false,
+      "parent": 3,
+      "start": {
+       "at": 25200,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "на краю отрывка, который сразу начинается снова нота в ноту"
+      }
+     },
+     {
+      "number": 9,
       "level": "phrase",
       "name": "фраза",
       "firstBar": 39,
@@ -7114,33 +6943,9 @@
        "end": 30720
       },
       "long": false,
-      "parent": 4,
+      "parent": 3,
       "start": {
        "at": 27840,
-       "evidence": [
-        "repetition"
-       ],
-       "provenance": "inferred",
-       "confidence": 0.6,
-       "description": "там, где нота в ноту возвращается более ранний отрывок"
-      }
-     },
-     {
-      "number": 9,
-      "level": "phrase",
-      "name": "фраза",
-      "firstBar": 43,
-      "lastBar": 46,
-      "onset": 30720,
-      "end": 33120,
-      "selectable": {
-       "onset": 30720,
-       "end": 33120
-      },
-      "long": false,
-      "parent": 4,
-      "start": {
-       "at": 30720,
        "evidence": [
         "repetition"
        ],
@@ -7153,18 +6958,18 @@
       "number": 10,
       "level": "phrase",
       "name": "фраза",
-      "firstBar": 47,
-      "lastBar": 47,
-      "onset": 33120,
-      "end": 33840,
+      "firstBar": 43,
+      "lastBar": 46,
+      "onset": 30720,
+      "end": 33120,
       "selectable": {
-       "onset": 33120,
-       "end": 33840
+       "onset": 30720,
+       "end": 33120
       },
       "long": false,
-      "parent": 4,
+      "parent": 3,
       "start": {
-       "at": 33120,
+       "at": 30720,
        "evidence": [
         "repetition"
        ],
@@ -7177,18 +6982,18 @@
       "number": 11,
       "level": "phrase",
       "name": "фраза",
-      "firstBar": 48,
+      "firstBar": 47,
       "lastBar": 53,
-      "onset": 33840,
+      "onset": 33120,
       "end": 37920,
       "selectable": {
-       "onset": 33840,
+       "onset": 33120,
        "end": 37920
       },
       "long": false,
-      "parent": 4,
+      "parent": 3,
       "start": {
-       "at": 33840,
+       "at": 33120,
        "evidence": [
         "repetition"
        ],
@@ -7210,7 +7015,7 @@
        "end": 40800
       },
       "long": false,
-      "parent": 4,
+      "parent": 3,
       "start": {
        "at": 37920,
        "evidence": [
@@ -7226,15 +7031,15 @@
       "level": "phrase",
       "name": "фраза",
       "firstBar": 57,
-      "lastBar": 77,
+      "lastBar": 60,
       "onset": 40800,
-      "end": 55440,
+      "end": 43200,
       "selectable": {
        "onset": 40800,
-       "end": 55440
+       "end": 43200
       },
-      "long": true,
-      "parent": 4,
+      "long": false,
+      "parent": 3,
       "start": {
        "at": 40800,
        "evidence": [
@@ -7249,16 +7054,64 @@
       "number": 14,
       "level": "phrase",
       "name": "фраза",
-      "firstBar": 78,
-      "lastBar": 78,
-      "onset": 55440,
-      "end": 56160,
+      "firstBar": 61,
+      "lastBar": 68,
+      "onset": 43200,
+      "end": 48960,
       "selectable": {
-       "onset": 55440,
-       "end": 56160
+       "onset": 43200,
+       "end": 48960
       },
       "long": false,
-      "parent": 5,
+      "parent": 3,
+      "start": {
+       "at": 43200,
+       "evidence": [
+        "restatement"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.5,
+       "description": "на краю отрывка, который сразу начинается снова нота в ноту"
+      }
+     },
+     {
+      "number": 15,
+      "level": "phrase",
+      "name": "фраза",
+      "firstBar": 69,
+      "lastBar": 77,
+      "onset": 48960,
+      "end": 55440,
+      "selectable": {
+       "onset": 48960,
+       "end": 55440
+      },
+      "long": true,
+      "parent": 3,
+      "start": {
+       "at": 48960,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "там, где нота в ноту возвращается более ранний отрывок"
+      }
+     },
+     {
+      "number": 16,
+      "level": "phrase",
+      "name": "фраза",
+      "firstBar": 78,
+      "lastBar": 83,
+      "onset": 55440,
+      "end": 59760,
+      "selectable": {
+       "onset": 55440,
+       "end": 59760
+      },
+      "long": false,
+      "parent": 4,
       "start": {
        "at": 55440,
        "evidence": [
@@ -7270,69 +7123,21 @@
       }
      },
      {
-      "number": 15,
-      "level": "phrase",
-      "name": "фраза",
-      "firstBar": 79,
-      "lastBar": 87,
-      "onset": 56160,
-      "end": 62400,
-      "selectable": {
-       "onset": 56160,
-       "end": 62400
-      },
-      "long": true,
-      "parent": 5,
-      "start": {
-       "at": 56160,
-       "evidence": [
-        "rest"
-       ],
-       "provenance": "inferred",
-       "confidence": 0.7,
-       "description": "после паузы в долю или больше"
-      }
-     },
-     {
-      "number": 16,
-      "level": "phrase",
-      "name": "фраза",
-      "firstBar": 87,
-      "lastBar": 90,
-      "onset": 62400,
-      "end": 64800,
-      "selectable": {
-       "onset": 62400,
-       "end": 64800
-      },
-      "long": false,
-      "parent": 5,
-      "start": {
-       "at": 62400,
-       "evidence": [
-        "repetition"
-       ],
-       "provenance": "inferred",
-       "confidence": 0.6,
-       "description": "там, где нота в ноту возвращается более ранний отрывок"
-      }
-     },
-     {
       "number": 17,
       "level": "phrase",
       "name": "фраза",
-      "firstBar": 91,
-      "lastBar": 91,
-      "onset": 64800,
-      "end": 65520,
+      "firstBar": 84,
+      "lastBar": 87,
+      "onset": 59760,
+      "end": 62400,
       "selectable": {
-       "onset": 64800,
-       "end": 65520
+       "onset": 59760,
+       "end": 62400
       },
       "long": false,
-      "parent": 5,
+      "parent": 4,
       "start": {
-       "at": 64800,
+       "at": 59760,
        "evidence": [
         "repetition"
        ],
@@ -7345,18 +7150,18 @@
       "number": 18,
       "level": "phrase",
       "name": "фраза",
-      "firstBar": 92,
-      "lastBar": 97,
-      "onset": 65520,
-      "end": 69600,
+      "firstBar": 87,
+      "lastBar": 90,
+      "onset": 62400,
+      "end": 64800,
       "selectable": {
-       "onset": 65520,
-       "end": 69600
+       "onset": 62400,
+       "end": 64800
       },
       "long": false,
-      "parent": 5,
+      "parent": 4,
       "start": {
-       "at": 65520,
+       "at": 62400,
        "evidence": [
         "repetition"
        ],
@@ -7369,18 +7174,18 @@
       "number": 19,
       "level": "phrase",
       "name": "фраза",
-      "firstBar": 97,
-      "lastBar": 101,
-      "onset": 69600,
-      "end": 72480,
+      "firstBar": 91,
+      "lastBar": 97,
+      "onset": 64800,
+      "end": 69600,
       "selectable": {
-       "onset": 69600,
-       "end": 72480
+       "onset": 64800,
+       "end": 69600
       },
       "long": false,
-      "parent": 5,
+      "parent": 4,
       "start": {
-       "at": 69600,
+       "at": 64800,
        "evidence": [
         "repetition"
        ],
@@ -7393,6 +7198,30 @@
       "number": 20,
       "level": "phrase",
       "name": "фраза",
+      "firstBar": 97,
+      "lastBar": 101,
+      "onset": 69600,
+      "end": 72480,
+      "selectable": {
+       "onset": 69600,
+       "end": 72480
+      },
+      "long": false,
+      "parent": 4,
+      "start": {
+       "at": 69600,
+       "evidence": [
+        "repetition"
+       ],
+       "provenance": "inferred",
+       "confidence": 0.6,
+       "description": "там, где нота в ноту возвращается более ранний отрывок"
+      }
+     },
+     {
+      "number": 21,
+      "level": "phrase",
+      "name": "фраза",
       "firstBar": 101,
       "lastBar": 105,
       "onset": 72480,
@@ -7402,7 +7231,7 @@
        "end": 75600
       },
       "long": false,
-      "parent": 5,
+      "parent": 4,
       "start": {
        "at": 72480,
        "evidence": [
@@ -7428,17 +7257,17 @@
      {
       "id": "short",
       "available": true,
-      "count": 43
+      "count": 39
      },
      {
       "id": "phrase",
       "available": true,
-      "count": 20
+      "count": 21
      },
      {
       "id": "sentence",
       "available": true,
-      "count": 5
+      "count": 4
      }
     ],
     "evidence": "partial",
@@ -7484,47 +7313,25 @@
       "level": "sentence",
       "name": "предложение",
       "firstBar": 9,
-      "lastBar": 9,
-      "onset": 5760,
-      "end": 6480,
-      "selectable": {
-       "onset": 5760,
-       "end": 6480
-      },
-      "long": false,
-      "parent": null,
-      "start": {
-       "at": 5760,
-       "evidence": [],
-       "provenance": "detected",
-       "confidence": 0.9,
-       "description": "После фразы 3 стоит знак репризы."
-      }
-     },
-     {
-      "number": 3,
-      "level": "sentence",
-      "name": "предложение",
-      "firstBar": 10,
       "lastBar": 23,
-      "onset": 6480,
+      "onset": 5760,
       "end": 16560,
       "selectable": {
-       "onset": 6480,
+       "onset": 5760,
        "end": 16560
       },
       "long": true,
       "parent": null,
       "start": {
-       "at": 6480,
+       "at": 5760,
        "evidence": [],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "Фраза 5 начинается там, где фраза 4 возвращается нота в ноту, поэтому читается как ответное построение; фраза 5 заканчивается половинной каденцией, поэтому продолжается; после фразы 6 стоит знак репризы."
+       "description": "Фраза 4 начинается там, где фраза 3 возвращается нота в ноту, поэтому читается как ответное построение; фраза 4 заканчивается половинной каденцией, поэтому продолжается; после фразы 5 стоит знак репризы."
       }
      },
      {
-      "number": 4,
+      "number": 3,
       "level": "sentence",
       "name": "предложение",
       "firstBar": 24,
@@ -7542,11 +7349,11 @@
        "evidence": [],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "Фраза 8 начинается там, где фраза 7 возвращается нота в ноту, поэтому читается как ответное построение; фраза 8 заканчивается половинной каденцией, поэтому продолжается; фраза 9 заканчивается половинной каденцией, поэтому продолжается; во фразе 10 каденция не читается, поэтому она продолжается; во фразе 11 каденция не читается, поэтому она продолжается; фраза 12 заканчивается половинной каденцией, поэтому продолжается; фраза 13 заканчивается на тонике, полная каденция."
+       "description": "Фраза 6 заканчивается половинной каденцией, поэтому продолжается; во фразе 7 каденция не читается, поэтому она продолжается; во фразе 8 каденция не читается, поэтому она продолжается; фраза 9 заканчивается половинной каденцией, поэтому продолжается; фраза 10 заканчивается половинной каденцией, поэтому продолжается; во фразе 11 каденция не читается, поэтому она продолжается; фраза 12 заканчивается половинной каденцией, поэтому продолжается; фраза 13 заканчивается половинной каденцией, поэтому продолжается; фраза 14 заканчивается половинной каденцией, поэтому продолжается; фраза 15 заканчивается на тонике, полная каденция."
       }
      },
      {
-      "number": 5,
+      "number": 4,
       "level": "sentence",
       "name": "предложение",
       "firstBar": 78,
@@ -7564,7 +7371,7 @@
        "evidence": [],
        "provenance": "inferred",
        "confidence": 0.6,
-       "description": "Фраза 14 заканчивается половинной каденцией, поэтому продолжается; фраза 15 заканчивается половинной каденцией, поэтому продолжается; фраза 16 заканчивается половинной каденцией, поэтому продолжается; во фразе 17 каденция не читается, поэтому она продолжается; во фразе 18 каденция не читается, поэтому она продолжается; фраза 19 заканчивается половинной каденцией, поэтому продолжается; фраза 20 заканчивается вместе с произведением."
+       "description": "Фраза 17 начинается там, где фраза 16 возвращается нота в ноту, поэтому читается как ответное построение; фраза 17 заканчивается половинной каденцией, поэтому продолжается; фраза 18 заканчивается половинной каденцией, поэтому продолжается; во фразе 19 каденция не читается, поэтому она продолжается; фраза 20 заканчивается половинной каденцией, поэтому продолжается; фраза 21 заканчивается вместе с произведением."
       }
      }
     ]
@@ -7576,7 +7383,7 @@
    "request": null,
    "answer": {
     "status": "partial",
-    "summary": "Форма A A′ B A″ · ля минор · 3 полных каданса, 9 половинных кадансов · плотнее всего такт 32",
+    "summary": "Форма A B C A′ · ля минор · 3 полных каданса, 11 половинных кадансов · плотнее всего такт 32",
     "firstBar": 0,
     "lastBar": 105,
     "barStarts": [
@@ -7696,52 +7503,63 @@
        "label": "A",
        "passage": {
         "onset": 0,
-        "end": 6480,
+        "end": 5760,
         "firstBar": 0,
-        "lastBar": 9
+        "lastBar": 8
+       },
+       "selectable": {
+        "onset": 0,
+        "end": 5760
        },
        "sharesWith": [
-        "section_2",
         "section_4"
        ]
       },
       {
        "id": "section_2",
-       "label": "A′",
+       "label": "B",
        "passage": {
-        "onset": 6480,
+        "onset": 5760,
         "end": 16560,
-        "firstBar": 10,
+        "firstBar": 9,
         "lastBar": 23
        },
-       "sharesWith": [
-        "section_1",
-        "section_4"
-       ]
+       "selectable": {
+        "onset": 5760,
+        "end": 16560
+       },
+       "sharesWith": []
       },
       {
        "id": "section_3",
-       "label": "B",
+       "label": "C",
        "passage": {
         "onset": 16560,
         "end": 55440,
         "firstBar": 24,
         "lastBar": 77
        },
+       "selectable": {
+        "onset": 16560,
+        "end": 39600
+       },
        "sharesWith": []
       },
       {
        "id": "section_4",
-       "label": "A″",
+       "label": "A′",
        "passage": {
         "onset": 55440,
         "end": 75600,
         "firstBar": 78,
         "lastBar": 105
        },
+       "selectable": {
+        "onset": 55440,
+        "end": 75600
+       },
        "sharesWith": [
-        "section_1",
-        "section_2"
+        "section_1"
        ]
       }
      ]
@@ -7997,7 +7815,7 @@
        "id": "idea_2",
        "fromSelection": false,
        "title": "Идея 2 · такт 9",
-       "summary": "Звучит 4 раза, всегда точно.",
+       "summary": "Звучит 4 раза, всегда точно. Открывает B.",
        "passage": {
         "onset": 5760,
         "end": 6480,
@@ -8090,75 +7908,75 @@
       {
        "id": "idea_3",
        "fromSelection": false,
-       "title": "Идея 3 · такт 10",
-       "summary": "Звучит 3 раза, всегда точно. Открывает A′.",
+       "title": "Идея 3 · такт 32",
+       "summary": "Звучит 2 раза, всегда точно. Только в C.",
        "passage": {
-        "onset": 6480,
-        "end": 7200,
-        "firstBar": 10,
-        "lastBar": 10
+        "onset": 22320,
+        "end": 23040,
+        "firstBar": 32,
+        "lastBar": 32
        },
        "noteIds": [
-        "n_0062",
-        "n_0063",
-        "n_0064",
-        "n_0065",
-        "n_0066",
-        "n_0067"
+        "n_0251",
+        "n_0252",
+        "n_0253",
+        "n_0254",
+        "n_0255",
+        "n_0256",
+        "n_0259",
+        "n_0260",
+        "n_0263",
+        "n_0264",
+        "n_0268",
+        "n_0269"
        ],
        "occurrences": [
         {
          "kind": "original",
          "passage": {
-          "onset": 6480,
-          "end": 7200,
-          "firstBar": 10,
-          "lastBar": 10
+          "onset": 22320,
+          "end": 23040,
+          "firstBar": 32,
+          "lastBar": 32
          },
          "transposition": 0,
          "noteIds": [
-          "n_0062",
-          "n_0063",
-          "n_0064",
-          "n_0065",
-          "n_0066",
-          "n_0067"
+          "n_0251",
+          "n_0252",
+          "n_0253",
+          "n_0254",
+          "n_0255",
+          "n_0256",
+          "n_0259",
+          "n_0260",
+          "n_0263",
+          "n_0264",
+          "n_0268",
+          "n_0269"
          ]
         },
         {
          "kind": "exact",
          "passage": {
-          "onset": 33840,
-          "end": 34560,
-          "firstBar": 48,
-          "lastBar": 48
+          "onset": 23760,
+          "end": 24480,
+          "firstBar": 34,
+          "lastBar": 34
          },
          "transposition": 0,
          "noteIds": [
-          "n_0411",
-          "n_0412",
-          "n_0413",
-          "n_0414",
-          "n_0415",
-          "n_0416"
-         ]
-        },
-        {
-         "kind": "exact",
-         "passage": {
-          "onset": 65520,
-          "end": 66240,
-          "firstBar": 92,
-          "lastBar": 92
-         },
-         "transposition": 0,
-         "noteIds": [
-          "n_0814",
-          "n_0815",
-          "n_0816",
-          "n_0817",
-          "n_0818",
-          "n_0819"
+          "n_0290",
+          "n_0291",
+          "n_0292",
+          "n_0293",
+          "n_0294",
+          "n_0295",
+          "n_0298",
+          "n_0299",
+          "n_0302",
+          "n_0303",
+          "n_0307",
+          "n_0308"
          ]
         }
        ]
@@ -8166,87 +7984,57 @@
       {
        "id": "idea_4",
        "fromSelection": false,
-       "title": "Идея 4 · такт 79",
-       "summary": "Звучит 3 раза: 1 точно и 2 выше. Только в A″.",
+       "title": "Идея 4 · такт 61",
+       "summary": "Звучит 2 раза, всегда точно. Только в C.",
        "passage": {
-        "onset": 56160,
-        "end": 56880,
-        "firstBar": 79,
-        "lastBar": 79
+        "onset": 43200,
+        "end": 43920,
+        "firstBar": 61,
+        "lastBar": 61
        },
        "noteIds": [
-        "n_0696",
-        "n_0697",
-        "n_0698",
-        "n_0699",
-        "n_0700",
-        "n_0701",
-        "n_0705",
-        "n_0706",
-        "n_0707"
+        "n_0498",
+        "n_0499",
+        "n_0500",
+        "n_0501",
+        "n_0502",
+        "n_0503"
        ],
        "occurrences": [
         {
          "kind": "original",
          "passage": {
-          "onset": 56160,
-          "end": 56880,
-          "firstBar": 79,
-          "lastBar": 79
+          "onset": 43200,
+          "end": 43920,
+          "firstBar": 61,
+          "lastBar": 61
          },
          "transposition": 0,
          "noteIds": [
-          "n_0696",
-          "n_0697",
-          "n_0698",
-          "n_0699",
-          "n_0700",
-          "n_0701",
-          "n_0705",
-          "n_0706",
-          "n_0707"
+          "n_0498",
+          "n_0499",
+          "n_0500",
+          "n_0501",
+          "n_0502",
+          "n_0503"
          ]
         },
         {
-         "kind": "transposed",
+         "kind": "exact",
          "passage": {
-          "onset": 56880,
-          "end": 57600,
-          "firstBar": 80,
-          "lastBar": 80
+          "onset": 48960,
+          "end": 49680,
+          "firstBar": 69,
+          "lastBar": 69
          },
-         "transposition": 12,
+         "transposition": 0,
          "noteIds": [
-          "n_0711",
-          "n_0712",
-          "n_0713",
-          "n_0714",
-          "n_0715",
-          "n_0716",
-          "n_0720",
-          "n_0721",
-          "n_0722"
-         ]
-        },
-        {
-         "kind": "transposed",
-         "passage": {
-          "onset": 57600,
-          "end": 58320,
-          "firstBar": 81,
-          "lastBar": 81
-         },
-         "transposition": 24,
-         "noteIds": [
-          "n_0726",
-          "n_0727",
-          "n_0728",
-          "n_0729",
-          "n_0730",
-          "n_0731",
-          "n_0735",
-          "n_0736",
-          "n_0737"
+          "n_0604",
+          "n_0605",
+          "n_0606",
+          "n_0607",
+          "n_0608",
+          "n_0609"
          ]
         }
        ]
@@ -8965,13 +8753,19 @@
        "bar": 8,
        "at": 5520,
        "kind": "full",
-       "explanation": "Такт 8 · Am. Полный каданс: мелодия фразы приходит к тонике (A3), музыка приходит к устою."
+       "explanation": "Такт 8 · Am. Полный каданс: мелодия фразы приходит к тонике (A3), музыка приходит к устою. Дальше раздел B."
       },
       {
        "bar": 19,
        "at": 13320,
        "kind": "half",
        "explanation": "Такт 19 · Am. Половинный каданс: мелодия фразы останавливается на E4, не на тонике, музыка ждёт продолжения."
+      },
+      {
+       "bar": 31,
+       "at": 22260,
+       "kind": "half",
+       "explanation": "Такт 31 · C/G. Половинный каданс: мелодия фразы останавливается на B4, не на тонике, музыка ждёт продолжения."
       },
       {
        "bar": 43,
@@ -8992,16 +8786,22 @@
        "explanation": "Такт 57 · Am. Половинный каданс: мелодия фразы останавливается на E4, не на тонике, музыка ждёт продолжения."
       },
       {
+       "bar": 60,
+       "at": 43080,
+       "kind": "half",
+       "explanation": "Такт 60 · E. Половинный каданс: мелодия фразы останавливается на B4, не на тонике, музыка ждёт продолжения."
+      },
+      {
+       "bar": 68,
+       "at": 48840,
+       "kind": "half",
+       "explanation": "Такт 68 · Am/E. Половинный каданс: мелодия фразы останавливается на G♯2, не на тонике, музыка ждёт продолжения."
+      },
+      {
        "bar": 77,
        "at": 54720,
        "kind": "full",
-       "explanation": "Такт 77 · Am/C. Полный каданс: мелодия фразы приходит к тонике (A4), музыка приходит к устою. Дальше раздел A″."
-      },
-      {
-       "bar": 78,
-       "at": 55440,
-       "kind": "half",
-       "explanation": "Такт 78 · E. Половинный каданс: мелодия фразы останавливается на B4, не на тонике, музыка ждёт продолжения."
+       "explanation": "Такт 77 · Am/C. Полный каданс: мелодия фразы приходит к тонике (A4), музыка приходит к устою. Дальше раздел A′."
       },
       {
        "bar": 87,
@@ -9035,9 +8835,9 @@
       "label": "A",
       "passage": {
        "onset": 0,
-       "end": 6480,
+       "end": 5760,
        "firstBar": 0,
-       "lastBar": 9
+       "lastBar": 8
       },
       "circle": {
        "key": {
@@ -9303,11 +9103,11 @@
      },
      {
       "id": "section_2",
-      "label": "A′",
+      "label": "B",
       "passage": {
-       "onset": 6480,
+       "onset": 5760,
        "end": 16560,
-       "firstBar": 10,
+       "firstBar": 9,
        "lastBar": 23
       },
       "circle": {
@@ -9454,6 +9254,29 @@
        "chords": [
         {
          "number": 1,
+         "symbol": "Am",
+         "degree": "i",
+         "position": 0,
+         "ring": "minor",
+         "function": "tonic",
+         "role": "Am: i в тональности ля минор, тоника.",
+         "place": {
+          "label": "Am, с такта 8",
+          "onset": 5280,
+          "end": 6000,
+          "noteIds": [
+           "n_0050",
+           "n_0051",
+           "n_0052",
+           "n_0053",
+           "n_0054",
+           "n_0055",
+           "n_0056"
+          ]
+         }
+        },
+        {
+         "number": 2,
          "symbol": "C",
          "degree": "III",
          "position": 0,
@@ -9474,7 +9297,7 @@
          }
         },
         {
-         "number": 2,
+         "number": 3,
          "symbol": "G",
          "degree": "VII",
          "position": 1,
@@ -9489,27 +9312,6 @@
            "n_0068",
            "n_0069",
            "n_0070"
-          ]
-         }
-        },
-        {
-         "number": 3,
-         "symbol": "Am",
-         "degree": "i",
-         "position": 0,
-         "ring": "minor",
-         "function": "tonic",
-         "role": "Am: i в тональности ля минор, тоника.",
-         "place": {
-          "label": "Am, с такта 12",
-          "onset": 7920,
-          "end": 8400,
-          "noteIds": [
-           "n_0075",
-           "n_0076",
-           "n_0077",
-           "n_0078",
-           "n_0079"
           ]
          }
         },
@@ -9582,49 +9384,49 @@
        "scaleNotes": [
         {
          "pitch": 57,
-         "onset": 6480,
-         "end": 6960
+         "onset": 5760,
+         "end": 6240
         },
         {
          "pitch": 59,
-         "onset": 6960,
-         "end": 7440
+         "onset": 6240,
+         "end": 6720
         },
         {
          "pitch": 60,
-         "onset": 7440,
-         "end": 7920
+         "onset": 6720,
+         "end": 7200
         },
         {
          "pitch": 62,
-         "onset": 7920,
-         "end": 8400
+         "onset": 7200,
+         "end": 7680
         },
         {
          "pitch": 64,
-         "onset": 8400,
-         "end": 8880
+         "onset": 7680,
+         "end": 8160
         },
         {
          "pitch": 65,
-         "onset": 8880,
-         "end": 9360
+         "onset": 8160,
+         "end": 8640
         },
         {
          "pitch": 67,
-         "onset": 9360,
-         "end": 9840
+         "onset": 8640,
+         "end": 9120
         },
         {
          "pitch": 69,
-         "onset": 9840,
-         "end": 10800
+         "onset": 9120,
+         "end": 10080
         }
        ],
        "lines": [
         "Ля минор: без диезов и бемолей, как у параллельной тональности, до мажор.",
         "Соседи по кругу отличаются на один знак: ми минор (доминанта) и ре минор (субдоминанта).",
-        "Аккорды раздела: C (III) → G (VII) → Am (i) → E (V) → Emaj7 (Vmaj7)."
+        "Аккорды раздела: Am (i) → C (III) → G (VII) → E (V) → Emaj7 (Vmaj7)."
        ],
        "zones": [
         "tonic",
@@ -9644,7 +9446,7 @@
      },
      {
       "id": "section_3",
-      "label": "B",
+      "label": "C",
       "passage": {
        "onset": 16560,
        "end": 55440,
@@ -10289,7 +10091,7 @@
      },
      {
       "id": "section_4",
-      "label": "A″",
+      "label": "A′",
       "passage": {
        "onset": 55440,
        "end": 75600,

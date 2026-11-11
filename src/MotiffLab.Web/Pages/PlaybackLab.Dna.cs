@@ -34,7 +34,7 @@ public partial class PlaybackLab
 
         _dnaAside = false;
         _dnaStatus = null;
-        _dna = PieceDna.Build(_notes, _meter, _keys, _score.End, _selection, _selection is null ? null : _structure, Words, _sentences);
+        _dna = PieceDna.Build(_notes, _meter, _keys, _score.End, _selection, _selection is null ? null : _structure, Words, _pieceStructure);
         _popover = Popover.None;
         _pillMenu = PillMenu.None;
     }

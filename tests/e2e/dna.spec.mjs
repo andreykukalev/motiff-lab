@@ -47,7 +47,7 @@ test("from the overflow, the map reads form, key, harmony, density and ideas, an
 
     // The map explains itself (testing item 30): a line on what it shows, a line under each lane, the harmony in rows that
     // turn on and off (steps of the key off at first), the closes in words that say what they are, and a chord's circle.
-    await expect(dna.locator(".dna-summary")).toContainText(/^Form A A′ B A″ · A minor · \d+ full close/);
+    await expect(dna.locator(".dna-summary")).toContainText(/^Form A B C A′ · A minor · \d+ full close/);
     await expect(dna.locator(".dna-row.harmony .why")).toContainText("T rest, S motion, D tension");
     await expect.poll(() => dna.locator(".dna-row.harmony .fn.t").count()).toBeGreaterThan(1);
     await expect(dna.locator(".dna-row.harmony .degree")).toHaveCount(0);

@@ -79,7 +79,7 @@ struct BookmarkShelf: Equatable, Sendable {
 }
 
 /// The bookmarks of the open piece and the Contents drawer (0018 section 5, the web app's PlaybackLab.Bookmarks.cs): the
-/// card that makes or changes one, the drawer's search, order and folded categories, the pages and the sentences it shows.
+/// card that makes or changes one, the drawer's search, order and folded categories, the pages and the sections of the form it shows.
 /// Every change goes to music-core, which keeps the bookmarks with the piece (project file version 12 on) and answers
 /// with all of them, so the drawer and the brackets on the score always show what music-core holds.
 @MainActor
@@ -103,8 +103,9 @@ final class ContentsController: ObservableObject {
 
     @Published private(set) var shelf: BookmarkShelf?
     @Published var draft: Draft?
-    /// The sentences music-core finds in the piece, for the Contents' structure, whatever level the brackets show.
-    @Published private(set) var sentences: [PhraseUnit] = []
+    /// The sections of the form music-core finds in the piece, for the Contents' structure: the same sections, letters and
+    /// bars as Piece DNA, read from the one structure of the piece (#347), whatever level the brackets show.
+    @Published private(set) var sections: [DnaMap.Section] = []
     @Published var search = ""
     /// The player's own order rather than the score's.
     @Published var myOrder = false
@@ -158,9 +159,9 @@ final class ContentsController: ObservableObject {
         await call("bookmark.remove", ["id": id])
     }
 
-    /// Add Structure bookmarks: one for each sentence music-core found, named and placed by it.
+    /// Add Structure bookmarks: one for each section of the form music-core found, named and placed by it, as Piece DNA adds them.
     func addStructure() async {
-        await call("bookmark.structure", ["now": Self.now()])
+        await call("bookmark.form", ["now": Self.now()])
     }
 
     /// Add Structure bookmarks from Piece DNA (testing item 22): one per section of the form, "Section A′, bars 17–32";
@@ -171,9 +172,9 @@ final class ContentsController: ObservableObject {
         return (shelf?.bookmarks.count ?? 0) - before
     }
 
-    /// Whether the drawer offers the detected form as Structure bookmarks: the piece has sentences and none is filed yet.
-    func canAddStructure(sentences: Int) -> Bool {
-        sentences > 0 && !(shelf?.bookmarks.contains { $0.category == BookmarkShelf.structure } ?? false)
+    /// Whether the drawer offers the detected form as Structure bookmarks: the piece has sections and none is filed yet.
+    func canAddStructure(sections: Int) -> Bool {
+        sections > 0 && !(shelf?.bookmarks.contains { $0.category == BookmarkShelf.structure } ?? false)
     }
 
     /// The bookmarks the drawer lists, by category in the categories' order: each in score order or the player's own,
@@ -200,11 +201,11 @@ final class ContentsController: ObservableObject {
         pages = await score.outline(width: 180)
     }
 
-    /// The detected sentences, asked at their level without changing the level the score shows.
-    func loadSentences() async {
+    /// The detected sections of the form, read from the map of the piece without changing the level the score shows.
+    func loadSections() async {
         guard let piece else { return }
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, "phrases", #"{"level":"sentence"}"#) }
-        sentences = PhraseLevelsShown(answer: answer).map { $0.level == "sentence" ? $0.units : [] } ?? []
+        let answer = await MusicCore.run { MusicCore.call(piece: piece, "dna") }
+        sections = DnaMap(answer: answer)?.form ?? []
     }
 
     private func call(_ name: String, _ request: [String: Any]) async {
@@ -322,7 +323,7 @@ struct ContentsDrawer: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: CGFloat.ds("s-2")) {
                         chip(text["contents.tabPages"], .pages, reader)
-                        if !contents.sentences.isEmpty { chip(text["contents.structure"], .structure, reader) }
+                        if !contents.sections.isEmpty { chip(text["contents.structure"], .structure, reader) }
                         chip(text["contents.bookmarks"], .bookmarks, reader)
                         chip(text["contents.tabNotes"], .notes, reader)
                     }
@@ -335,7 +336,7 @@ struct ContentsDrawer: View {
                             PagesStrip(contents: contents, score: score, text: text)
                         }
                         .id(Part.pages)
-                        if !contents.sentences.isEmpty {
+                        if !contents.sections.isEmpty {
                             part(text["contents.structureFound"]) {
                                 StructureChips(contents: contents, score: score, text: text)
                             }
@@ -365,7 +366,7 @@ struct ContentsDrawer: View {
         .accessibilityLabel(text["bar.contents"])
         .task {
             await contents.loadPages(from: score)
-            await contents.loadSentences()
+            await contents.loadSections()
         }
     }
 
@@ -389,7 +390,7 @@ struct ContentsDrawer: View {
     }
 }
 
-/// The form as music-core detects it: a chip per sentence selects its bars; dashed and grey until added as Structure
+/// The form as music-core detects it, lettered as Piece DNA letters it: a chip per section selects its bars; dashed and grey until added as Structure
 /// bookmarks, with the button that adds them.
 struct StructureChips: View {
     @ObservedObject var contents: ContentsController
@@ -397,14 +398,14 @@ struct StructureChips: View {
     let text: UIText
 
     var body: some View {
-        let found = contents.canAddStructure(sentences: contents.sentences.count)
+        let found = contents.canAddStructure(sections: contents.sections.count)
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
             FlowRow(spacing: CGFloat.ds("s-2")) {
-                ForEach(contents.sentences, id: \.number) { sentence in
+                ForEach(contents.sections) { section in
                     Button {
-                        Task { await score.select(sentence.selectableOnset, sentence.selectableEnd) }
+                        Task { await score.select(section.selectableOnset, section.selectableEnd) }
                     } label: {
-                        Text(text.format("contents.sentence", Self.letter(sentence.number), sentence.firstBar == sentence.lastBar ? String(sentence.firstBar) : "\(sentence.firstBar)–\(sentence.lastBar)"))
+                        Text(text.format("contents.sentence", section.label, section.firstBar == section.lastBar ? String(section.firstBar) : "\(section.firstBar)–\(section.lastBar)"))
                             .dsType(.label)
                             .foregroundStyle(found ? Color.ds("ink-2") : Color.ds("ink"))
                             .padding(.horizontal, CGFloat.ds("s-3"))
@@ -421,11 +422,6 @@ struct StructureChips: View {
                     .accessibilityHint(text["contents.addStructureHint"])
             }
         }
-    }
-
-    /// "A" for the first sentence, "B" for the second, as music-core names them; numbers after Z.
-    static func letter(_ number: Int) -> String {
-        number >= 1 && number <= 26 ? String(Character(UnicodeScalar(UInt8(64 + number)))) : String(number)
     }
 }
 

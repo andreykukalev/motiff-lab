@@ -158,6 +158,12 @@ final class FacadeTests: XCTestCase {
         XCTAssertNotNil(map.bar(map.firstBar))
         XCTAssertEqual(map.form.first?.label, "A")
         XCTAssertGreaterThan(map.form.count, 1)
+        // A section chip in the Contents selects what a selection holds: the section, or its first bars when it is long.
+        for section in map.form {
+            XCTAssertEqual(section.selectableOnset, section.onset)
+            XCTAssertLessThanOrEqual(section.selectableEnd, section.end)
+            _ = try call("select", #"{"span": {"onset": \#(Int(section.selectableOnset)), "end": \#(Int(section.selectableEnd))}}"#)
+        }
         XCTAssertFalse(map.keys.isEmpty)
         XCTAssertFalse(map.harmony.isEmpty)
         XCTAssertEqual(map.density.count, map.lastBar - map.firstBar + 1)

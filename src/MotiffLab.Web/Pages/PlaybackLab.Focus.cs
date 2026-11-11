@@ -47,7 +47,7 @@ public partial class PlaybackLab
         : null;
 
     /// <summary>The unit of the level shown that the card is, or holds the card's start.</summary>
-    private PhraseUnit? FocusUnit => FocusSpan is { } span && _levels is { } levels ? levels.Matching(_level, span) ?? levels.At(_level, span.Onset) : null;
+    private PhraseUnit? FocusUnit => FocusSpan is { } span && Levels is { } levels ? levels.Matching(_level, span) ?? levels.At(_level, span.Onset) : null;
 
     /// <summary>"bars 9–16 · phrase 3 of 16", or the bars alone for a passage that is not a unit.</summary>
     private string FocusPosition
@@ -60,7 +60,7 @@ public partial class PlaybackLab
             }
 
             string bars = BarsOf(span);
-            return _levels is { } levels && levels.Matching(_level, span) is { } unit
+            return Levels is { } levels && levels.Matching(_level, span) is { } unit
                 ? Text.Format("focus.position", bars, PhraseLevels.Describe(unit.Level, Words), unit.Number, levels.Units(_level).Count)
                 : bars;
         }
@@ -68,7 +68,7 @@ public partial class PlaybackLab
 
     private bool CanStepBack => FocusUnit is { Number: > 1 };
 
-    private bool CanStepOn => FocusUnit is { } unit && unit.Number < _levels!.Units(_level).Count;
+    private bool CanStepOn => FocusUnit is { } unit && unit.Number < Levels!.Units(_level).Count;
 
     /// <summary>Whether the passage has a variation to hear: Original / Variation / Alternate shows only then (0018 section 7).</summary>
     private bool FocusHasVariation => _variation is { Notes.Count: > 0 };
