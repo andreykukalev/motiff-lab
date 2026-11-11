@@ -9,6 +9,8 @@ guardrail:
   - governance/**
   - .claude/**
   - CLAUDE.md
+  # The protected acceptance scenarios (#310): CI fails a pull request that changes them without protected-scenarios-ok.
+  - tests/acceptance/**
 high:
   - src/MotiffLab.MusicCore/Facade/**
   - src/MotiffLab.MusicCore/Projects/**
@@ -25,7 +27,6 @@ high:
   - src/MotiffLab.Web/wwwroot/css/**
   - src/MotiffLab.Web/Pages/PlaybackLab*
 standard:
-  # tests/acceptance/** becomes guardrail with the first approved set of protected scenarios.
   - tests/**
   - ipad/App/**
   - src/MotiffLab.Web/**
