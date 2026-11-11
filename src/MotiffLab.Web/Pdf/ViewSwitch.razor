@@ -1,9 +1,10 @@
 @inject MotiffLab.Web.Localization.UiText Text
 
 @* The two views of a recognised PDF (0023; Andrei, 2026-11-04): the printed pages as they are, and the notes read from them.
-   Each keeps its own marks; switching lands on the same stretch of music, roughly, by the pages the scan read. *@
+   Each keeps its own marks; switching lands on the same stretch of music, roughly, by the pages the scan read. Original PDF |
+   Notes (Andrei, 2026-11-11), PDF | Notes where the bar is short of room (app.css). *@
 <div class="seg view-switch" role="radiogroup" aria-label="@Text["pdf.views"]">
-    <button role="radio" class="@(OnPdf ? "on" : null)" aria-checked="@(OnPdf ? "true" : "false")" @onclick="() => Pick(true)">@Text["pdf.viewPdf"]</button>
+    <button role="radio" class="@(OnPdf ? "on" : null)" aria-checked="@(OnPdf ? "true" : "false")" @onclick="() => Pick(true)"><span class="long">@Text["pdf.viewPdf"]</span><span class="short">@Text["pdf.viewPdfShort"]</span></button>
     <button role="radio" class="@(OnPdf ? null : "on")" aria-checked="@(OnPdf ? "false" : "true")" @onclick="() => Pick(false)">@Text["pdf.viewNotes"]</button>
 </div>
 

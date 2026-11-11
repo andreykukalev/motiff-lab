@@ -55,6 +55,15 @@
             <span class="tag pdf-tag">PDF</span>
         }
         <span class="sp"></span>
+        @* Recognise notes, in the bar while the PDF has pages and no notes yet (Andrei, 2026-11-11: in More it was not found). *@
+        @if (_project is not null && !HasNotes && _pages.Count > 0)
+        {
+            bool reading = _popover == Popover.Recognise;
+            <button class="act wide recognise @(reading ? "on" : null)" aria-expanded="@(reading ? "true" : "false")" title="@Text["pdf.readNotes"]"
+                    @onclick="() => Toggle(Popover.Recognise)">
+                <Icon Name="roll" Size="IconSize.Large" /> <span class="lbl">@Text["pdf.readNotes"]</span> @if (Scans.IsHosted) { <span class="tag pro">Pro</span> }
+            </button>
+        }
         @if (_project is not null)
         {
             bool marked = CurrentBookmark is not null;
@@ -81,12 +90,6 @@
     @if (_popover == Popover.More)
     {
         <div class="popover more-popover" role="dialog" aria-label="@Text["bar.more"]">
-            @if (_project is not null && !HasNotes)
-            {
-                <button class="btn quiet" @onclick="() => _popover = Popover.Recognise" disabled="@(_pages.Count == 0)">
-                    <Icon Name="camera" /> @Text["pdf.readNotes"] @if (Scans.IsHosted) { <span class="tag pro">Pro</span> }
-                </button>
-            }
             @* Another version is compared with notes (0022), so a PDF needs its notes read first; they become a separate piece. *@
             <button class="btn quiet" @onclick="AddVersionAsync" disabled="@(_project is null || (!HasNotes && _pages.Count == 0))">
                 <Icon Name="mic" /> @Text["performance.add"] @if (_project is not null && !HasNotes && Scans.IsHosted) { <span class="tag pro">Pro</span> }

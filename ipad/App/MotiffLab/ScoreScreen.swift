@@ -669,164 +669,182 @@ struct ScoreBar: View {
     @EnvironmentObject private var account: Account
 
     var body: some View {
+        // Original PDF | Notes where the whole bar fits, else PDF | Notes (Andrei, 2026-11-11).
+        ViewThatFits(in: .horizontal) {
+            content(compact: false)
+            content(compact: true)
+        }
+    }
+
+    private func content(compact: Bool) -> some View {
         HStack(spacing: CGFloat.ds("s-2")) {
-            Button(action: back) {
-                Icon(name: "back", size: CGFloat.ds("icon-l"))
-                    .frame(width: 40, height: 40)
-            }
-            .buttonStyle(BarActionStyle())
-            .accessibilityLabel(text["nav.library"])
-            // The Contents at the left, by the way back, as in a reader (testing item 21); the title opens them too.
-            Button {
-                contentsOpen.toggle()
-            } label: {
-                Icon(name: "pages", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
-            }
-            .buttonStyle(BarActionStyle(on: contentsOpen))
-            .accessibilityLabel(text["bar.contents"])
-            .accessibilityAddTraits(contentsOpen ? .isSelected : [])
-            Button {
-                contentsOpen.toggle()
-            } label: {
-                Text(title)
-                    .font(DesignTokens.font(display: true, weight: 500, size: 17, relativeTo: .headline))
-                    .foregroundStyle(contentsOpen ? Color.ds("accent") : Color.ds("ink"))
-                    .lineLimit(1)
-                    .padding(.horizontal, CGFloat.ds("s-2"))
-                    .frame(height: 40)
-            }
-            .buttonStyle(BarActionStyle(on: contentsOpen))
-            .accessibilityLabel(text.format("contents.open", title))
-            .accessibilityAddTraits(contentsOpen ? [.isHeader, .isSelected] : .isHeader)
-            if let pageText {
-                Text(pageText)
-                    .dsType(.label)
-                    .foregroundStyle(Color.ds("ink-2"))
-                    .lineLimit(1)
-                    .padding(.leading, CGFloat.ds("s-2"))
-            }
+            leading
             if let pdf {
-                PdfNotesSwitch(onPdf: false, text: text) { pdf() }
+                PdfNotesSwitch(onPdf: false, text: text, compact: compact) { pdf() }
             }
             Spacer(minLength: CGFloat.ds("s-2"))
-            Button {
-                phrasesOpen.toggle()
-            } label: {
-                Icon(name: "phrases", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
-            }
-            .buttonStyle(BarActionStyle(on: phrasesOpen))
-            .accessibilityLabel(text["bar.phrases"])
-            .popover(isPresented: $phrasesOpen) { PhrasesPanel(score: score, text: text) }
-            Button {
-                score.penOn.toggle()
-            } label: {
-                Icon(name: "pen", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
-            }
-            .buttonStyle(BarActionStyle(on: score.penOn))
-            .accessibilityLabel(text["bar.pen"])
-            .accessibilityAddTraits(score.penOn ? .isSelected : [])
-            Button {
-                rollOpen.toggle()
-            } label: {
-                Icon(name: "roll", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
-            }
-            .buttonStyle(BarActionStyle(on: rollOpen))
-            .accessibilityLabel(text["bar.roll"])
-            .accessibilityAddTraits(rollOpen ? .isSelected : [])
-            Button {
-                insightsOpen.toggle()
-            } label: {
-                Icon(name: "insight", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
-            }
-            .buttonStyle(BarActionStyle(on: insightsOpen))
-            .accessibilityLabel(text["bar.insights"])
-            .accessibilityAddTraits(insightsOpen ? .isSelected : [])
-            // Extra information (testing item 33): one press shows or hides what the app adds over the notes; the chevron
-            // lists each kind and the player's own marks.
-            HStack(spacing: 0) {
-                let on = !score.hiddenLayers.contains("extra")
-                Button {
-                    score.toggleExtra()
-                } label: {
-                    Icon(name: "info", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
-                }
-                .buttonStyle(BarActionStyle(on: on))
-                .accessibilityLabel(text["extra.toggle"])
-                .accessibilityHint(text["extra.hint"])
-                .accessibilityAddTraits(on ? .isSelected : [])
-                Button {
-                    extraOpen.toggle()
-                } label: {
-                    Icon(name: "chevd", size: CGFloat.ds("icon-s")).frame(width: 20, height: 40)
-                }
-                .buttonStyle(BarActionStyle(on: extraOpen))
-                .accessibilityLabel(text["extra.list"])
-                .popover(isPresented: $extraOpen) {
-                    LayersList(score: score, text: text)
-                        .padding(CGFloat.ds("s-4"))
-                        .frame(width: 300, alignment: .leading)
-                        .presentationCompactAdaptation(.popover)
-                }
-            }
-            Button {
-                player.toggle()
-            } label: {
-                Icon(name: player.state == .stopped ? "play" : "pause", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
-            }
-            .buttonStyle(BarActionStyle())
-            .disabled(!player.ready)
-            .accessibilityLabel(player.state == .stopped ? text["transport.play"] : text["transport.pause"])
-            Button {
-                more.toggle()
-            } label: {
-                Icon(name: "more", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
-            }
-            .buttonStyle(BarActionStyle(on: more))
-            .accessibilityLabel(text["bar.more"])
-            .popover(isPresented: $more) {
-                MorePanel(score: score, text: text, problem: player.problem ?? score.problem) {
-                    more = false
-                    checkOpen = true
-                    fromMore = true
-                } openVersions: {
-                    more = false
-                    versionsOpen = true
-                    fromMore = true
-                } openSettings: {
-                    more = false
-                    settingsOpen = true
-                    fromMore = true
-                } openDna: {
-                    more = false
-                    openDna()
-                } askAboutPiece: {
-                    more = false
-                    // Once More's popover has gone, the assistant's opens where it was.
-                    Task {
-                        try? await Task.sleep(for: .milliseconds(350))
-                        asking = true
-                    }
-                }
-            }
-            .background {
-                Color.clear
-                    .popover(isPresented: $asking) {
-                        AskPopover(
-                            conversation: conversation, account: account, text: text,
-                            context: AskContext(selection: score.askLabel, wholePiece: true, title: title),
-                            openInInsights: {
-                                asking = false
-                                insightsOpen = true
-                            },
-                            close: { asking = false }
-                        )
-                    }
-            }
+            actions
         }
         .padding(.leading, CGFloat.ds("s-2"))
         .padding(.trailing, CGFloat.ds("s-2"))
         .frame(height: CGFloat.ds("h-touch"))
         .modifier(FloatingSurface())
+    }
+
+    /// Back, the Contents, the title and the pages in view.
+    @ViewBuilder private var leading: some View {
+        Button(action: back) {
+            Icon(name: "back", size: CGFloat.ds("icon-l"))
+                .frame(width: 40, height: 40)
+        }
+        .buttonStyle(BarActionStyle())
+        .accessibilityLabel(text["nav.library"])
+        // The Contents at the left, by the way back, as in a reader (testing item 21); the title opens them too.
+        Button {
+            contentsOpen.toggle()
+        } label: {
+            Icon(name: "pages", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+        }
+        .buttonStyle(BarActionStyle(on: contentsOpen))
+        .accessibilityLabel(text["bar.contents"])
+        .accessibilityAddTraits(contentsOpen ? .isSelected : [])
+        Button {
+            contentsOpen.toggle()
+        } label: {
+            Text(title)
+                .font(DesignTokens.font(display: true, weight: 500, size: 17, relativeTo: .headline))
+                .foregroundStyle(contentsOpen ? Color.ds("accent") : Color.ds("ink"))
+                .lineLimit(1)
+                .padding(.horizontal, CGFloat.ds("s-2"))
+                .frame(height: 40)
+        }
+        .buttonStyle(BarActionStyle(on: contentsOpen))
+        .accessibilityLabel(text.format("contents.open", title))
+        .accessibilityAddTraits(contentsOpen ? [.isHeader, .isSelected] : .isHeader)
+        if let pageText {
+            Text(pageText)
+                .dsType(.label)
+                .foregroundStyle(Color.ds("ink-2"))
+                .lineLimit(1)
+                .padding(.leading, CGFloat.ds("s-2"))
+        }
+    }
+
+    /// Phrases, Pen, the piano roll, Insights, the extra information, Play and More.
+    @ViewBuilder private var actions: some View {
+        Button {
+            phrasesOpen.toggle()
+        } label: {
+            Icon(name: "phrases", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+        }
+        .buttonStyle(BarActionStyle(on: phrasesOpen))
+        .accessibilityLabel(text["bar.phrases"])
+        .popover(isPresented: $phrasesOpen) { PhrasesPanel(score: score, text: text) }
+        Button {
+            score.penOn.toggle()
+        } label: {
+            Icon(name: "pen", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+        }
+        .buttonStyle(BarActionStyle(on: score.penOn))
+        .accessibilityLabel(text["bar.pen"])
+        .accessibilityAddTraits(score.penOn ? .isSelected : [])
+        Button {
+            rollOpen.toggle()
+        } label: {
+            Icon(name: "roll", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+        }
+        .buttonStyle(BarActionStyle(on: rollOpen))
+        .accessibilityLabel(text["bar.roll"])
+        .accessibilityAddTraits(rollOpen ? .isSelected : [])
+        Button {
+            insightsOpen.toggle()
+        } label: {
+            Icon(name: "insight", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+        }
+        .buttonStyle(BarActionStyle(on: insightsOpen))
+        .accessibilityLabel(text["bar.insights"])
+        .accessibilityAddTraits(insightsOpen ? .isSelected : [])
+        // Extra information (testing item 33): one press shows or hides what the app adds over the notes; the chevron
+        // lists each kind and the player's own marks.
+        HStack(spacing: 0) {
+            let on = !score.hiddenLayers.contains("extra")
+            Button {
+                score.toggleExtra()
+            } label: {
+                Icon(name: "info", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+            }
+            .buttonStyle(BarActionStyle(on: on))
+            .accessibilityLabel(text["extra.toggle"])
+            .accessibilityHint(text["extra.hint"])
+            .accessibilityAddTraits(on ? .isSelected : [])
+            Button {
+                extraOpen.toggle()
+            } label: {
+                Icon(name: "chevd", size: CGFloat.ds("icon-s")).frame(width: 20, height: 40)
+            }
+            .buttonStyle(BarActionStyle(on: extraOpen))
+            .accessibilityLabel(text["extra.list"])
+            .popover(isPresented: $extraOpen) {
+                LayersList(score: score, text: text)
+                    .padding(CGFloat.ds("s-4"))
+                    .frame(width: 300, alignment: .leading)
+                    .presentationCompactAdaptation(.popover)
+            }
+        }
+        Button {
+            player.toggle()
+        } label: {
+            Icon(name: player.state == .stopped ? "play" : "pause", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+        }
+        .buttonStyle(BarActionStyle())
+        .disabled(!player.ready)
+        .accessibilityLabel(player.state == .stopped ? text["transport.play"] : text["transport.pause"])
+        Button {
+            more.toggle()
+        } label: {
+            Icon(name: "more", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+        }
+        .buttonStyle(BarActionStyle(on: more))
+        .accessibilityLabel(text["bar.more"])
+        .popover(isPresented: $more) {
+            MorePanel(score: score, text: text, problem: player.problem ?? score.problem) {
+                more = false
+                checkOpen = true
+                fromMore = true
+            } openVersions: {
+                more = false
+                versionsOpen = true
+                fromMore = true
+            } openSettings: {
+                more = false
+                settingsOpen = true
+                fromMore = true
+            } openDna: {
+                more = false
+                openDna()
+            } askAboutPiece: {
+                more = false
+                // Once More's popover has gone, the assistant's opens where it was.
+                Task {
+                    try? await Task.sleep(for: .milliseconds(350))
+                    asking = true
+                }
+            }
+        }
+        .background {
+            Color.clear
+                .popover(isPresented: $asking) {
+                    AskPopover(
+                        conversation: conversation, account: account, text: text,
+                        context: AskContext(selection: score.askLabel, wholePiece: true, title: title),
+                        openInInsights: {
+                            asking = false
+                            insightsOpen = true
+                        },
+                        close: { asking = false }
+                    )
+                }
+        }
     }
 
     /// "p. 2 of 4", or "pp. 1–2 of 4" with two pages to a row; nothing before the score is laid out.

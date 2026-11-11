@@ -359,7 +359,7 @@ struct PdfScreen: View {
         }) {
             ReadNotesPanel(
                 address: scanAddress,
-                hosted: scanAddress != nil && scanAddress == ScanServer.hosted(account),
+                hosted: hosted,
                 signedIn: account.player != nil,
                 pro: account.allows(.scan),
                 text: text,
@@ -388,87 +388,123 @@ struct PdfScreen: View {
     }
 
     private var bar: some View {
+        // Recognise notes with its word and Original PDF | Notes where the whole bar fits, else the icon and PDF | Notes.
+        ViewThatFits(in: .horizontal) {
+            barContent(compact: false)
+            barContent(compact: true)
+        }
+    }
+
+    private func barContent(compact: Bool) -> some View {
         HStack(spacing: CGFloat.ds("s-2")) {
-            Button {
-                dismiss()
-            } label: {
-                Icon(name: "back", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
-            }
-            .buttonStyle(BarActionStyle())
-            .accessibilityLabel(text["nav.library"])
-            Button {
-                contentsOpen.toggle()
-            } label: {
-                Text(piece.title)
-                    .font(DesignTokens.font(display: true, weight: 500, size: 17, relativeTo: .headline))
-                    .foregroundStyle(contentsOpen ? Color.ds("accent") : Color.ds("ink"))
-                    .lineLimit(1)
-                    .padding(.horizontal, CGFloat.ds("s-2"))
-                    .frame(height: 40)
-            }
-            .buttonStyle(BarActionStyle(on: contentsOpen))
-            .accessibilityLabel(text.format("contents.open", piece.title))
-            .accessibilityAddTraits(.isHeader)
-            .popover(isPresented: $contentsOpen) {
-                PdfContents(pdf: pdf, text: text) { page in
-                    contentsOpen = false
-                    pdf.go(to: page)
-                }
-            }
-            if let pageText {
-                Text(pageText)
-                    .dsType(.label)
-                    .foregroundStyle(Color.ds("ink-2"))
-                    .lineLimit(1)
-                    .padding(.leading, CGFloat.ds("s-2"))
-            }
+            barLeading
             if switchView != nil, piece.other != nil {
-                PdfNotesSwitch(onPdf: true, text: text) { Task { await showNotes() } }
+                PdfNotesSwitch(onPdf: true, text: text, compact: compact) { Task { await showNotes() } }
             } else {
                 Tag(text: text["pdf.title"], kind: .assumed)
             }
             Spacer(minLength: CGFloat.ds("s-2"))
-            Button {
-                Task { await pdf.toggleBookmark() }
-            } label: {
-                Icon(name: "bookmark", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+            // Recognise notes, in the bar while the PDF has pages and no notes yet (Andrei, 2026-11-11: in More it was not found).
+            if let readNotesAction, pdf.pageCount > 0 {
+                Button(action: readNotesAction) {
+                    HStack(spacing: CGFloat.ds("s-2")) {
+                        Icon(name: "roll", size: CGFloat.ds("icon-l"))
+                        if !compact {
+                            Text(text["pdf.readNotes"]).dsType(.label).fontWeight(.semibold).lineLimit(1)
+                        }
+                        if hosted { Tag(text: "Pro", kind: .saved) }
+                    }
+                    .padding(.horizontal, CGFloat.ds("s-2"))
+                    .frame(height: CGFloat.ds("h-control"))
+                }
+                .buttonStyle(BarActionStyle(on: readingOpen))
+                .disabled(pdf.original == nil)
+                .accessibilityLabel(text["pdf.readNotes"])
+                .accessibilityValue(hosted ? "Pro" : "")
             }
-            .buttonStyle(BarActionStyle(on: pdf.currentBookmark != nil))
-            .disabled(pdf.page == 0)
-            .accessibilityLabel(text["pdf.bookmarkPage"])
-            .accessibilityAddTraits(pdf.currentBookmark != nil ? .isSelected : [])
-            Button {
-                metronomeOpen.toggle()
-                if !metronomeOpen { metronome.stop() }
-            } label: {
-                Icon(name: "metronome", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
-            }
-            .buttonStyle(BarActionStyle(on: metronomeOpen))
-            .accessibilityLabel(text["metronome.label"])
-            .accessibilityAddTraits(metronomeOpen ? .isSelected : [])
-            Button {
-                pdf.penOn.toggle()
-            } label: {
-                Icon(name: "pen", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
-            }
-            .buttonStyle(BarActionStyle(on: pdf.penOn))
-            .accessibilityLabel(text["bar.pen"])
-            .accessibilityHint(text["pencil.hint"])
-            .accessibilityAddTraits(pdf.penOn ? .isSelected : [])
-            Button {
-                more.toggle()
-            } label: {
-                Icon(name: "more", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
-            }
-            .buttonStyle(BarActionStyle(on: more))
-            .accessibilityLabel(text["bar.more"])
-            .popover(isPresented: $more) {
-                PdfMore(pdf: pdf, text: text, hosted: scanAddress != nil && scanAddress == ScanServer.hosted(account), readNotes: readNotesAction)
-            }
+            barActions
         }
         .padding(.horizontal, CGFloat.ds("s-2"))
         .frame(height: CGFloat.ds("h-touch"))
         .modifier(FloatingSurface())
+    }
+
+    /// Back, the title, which opens the Contents, and the pages in view.
+    @ViewBuilder private var barLeading: some View {
+        Button {
+            dismiss()
+        } label: {
+            Icon(name: "back", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+        }
+        .buttonStyle(BarActionStyle())
+        .accessibilityLabel(text["nav.library"])
+        Button {
+            contentsOpen.toggle()
+        } label: {
+            Text(piece.title)
+                .font(DesignTokens.font(display: true, weight: 500, size: 17, relativeTo: .headline))
+                .foregroundStyle(contentsOpen ? Color.ds("accent") : Color.ds("ink"))
+                .lineLimit(1)
+                .padding(.horizontal, CGFloat.ds("s-2"))
+                .frame(height: 40)
+        }
+        .buttonStyle(BarActionStyle(on: contentsOpen))
+        .accessibilityLabel(text.format("contents.open", piece.title))
+        .accessibilityAddTraits(.isHeader)
+        .popover(isPresented: $contentsOpen) {
+            PdfContents(pdf: pdf, text: text) { page in
+                contentsOpen = false
+                pdf.go(to: page)
+            }
+        }
+        if let pageText {
+            Text(pageText)
+                .dsType(.label)
+                .foregroundStyle(Color.ds("ink-2"))
+                .lineLimit(1)
+                .padding(.leading, CGFloat.ds("s-2"))
+        }
+    }
+
+    /// Bookmark the page, the metronome, the pen and More.
+    @ViewBuilder private var barActions: some View {
+        Button {
+            Task { await pdf.toggleBookmark() }
+        } label: {
+            Icon(name: "bookmark", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+        }
+        .buttonStyle(BarActionStyle(on: pdf.currentBookmark != nil))
+        .disabled(pdf.page == 0)
+        .accessibilityLabel(text["pdf.bookmarkPage"])
+        .accessibilityAddTraits(pdf.currentBookmark != nil ? .isSelected : [])
+        Button {
+            metronomeOpen.toggle()
+            if !metronomeOpen { metronome.stop() }
+        } label: {
+            Icon(name: "metronome", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+        }
+        .buttonStyle(BarActionStyle(on: metronomeOpen))
+        .accessibilityLabel(text["metronome.label"])
+        .accessibilityAddTraits(metronomeOpen ? .isSelected : [])
+        Button {
+            pdf.penOn.toggle()
+        } label: {
+            Icon(name: "pen", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+        }
+        .buttonStyle(BarActionStyle(on: pdf.penOn))
+        .accessibilityLabel(text["bar.pen"])
+        .accessibilityHint(text["pencil.hint"])
+        .accessibilityAddTraits(pdf.penOn ? .isSelected : [])
+        Button {
+            more.toggle()
+        } label: {
+            Icon(name: "more", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+        }
+        .buttonStyle(BarActionStyle(on: more))
+        .accessibilityLabel(text["bar.more"])
+        .popover(isPresented: $more) {
+            PdfMore(pdf: pdf, text: text)
+        }
     }
 
     /// "p. 2 of 5", or "pp. 2–3 of 5" with two pages to a row.
@@ -485,7 +521,7 @@ struct PdfScreen: View {
         Task { try? await ProjectFiles.save(piece: id, to: file) }
     }
 
-    /// More's Read the notes, while none have been read from this PDF on this device.
+    /// Recognise notes in the bar, while none have been read from this PDF on this device.
     private var readNotesAction: (() -> Void)? {
         guard openRead != nil, piece.other == nil else { return nil }
         return {
@@ -493,6 +529,9 @@ struct PdfScreen: View {
             readingOpen = true
         }
     }
+
+    /// Whether recognising the notes goes to Motiff Lab's server, which is Pro.
+    private var hosted: Bool { scanAddress != nil && scanAddress == ScanServer.hosted(account) }
 
     /// The scan server the PDF would go to: the player's own, or Motiff Lab's in a build with sign-in.
     private var scanAddress: URL? { scan.address(hosted: ScanServer.hosted(account)) }
@@ -617,28 +656,13 @@ struct PdfBookmarkRow: View {
     }
 }
 
-/// The PDF's overflow: Read the notes and Download the PDF (the bytes as added, through the share sheet).
+/// The PDF's overflow: Download the PDF (the bytes as added, through the share sheet). Recognise notes is in the bar.
 struct PdfMore: View {
     @ObservedObject var pdf: PdfController
     let text: UIText
-    /// Whether reading the notes goes to Motiff Lab's server, which is Pro.
-    var hosted = false
-    /// Read the notes, while none have been read from this PDF.
-    var readNotes: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
-            if let readNotes {
-                Button(action: readNotes) {
-                    HStack(spacing: CGFloat.ds("s-2")) {
-                        Icon(name: "camera")
-                        Text(text["pdf.readNotes"])
-                        if hosted { Tag(text: "Pro", kind: .saved) }
-                    }
-                }
-                .buttonStyle(DSButtonStyle(kind: .quiet))
-                .disabled(pdf.original == nil)
-            }
             if let url = pdf.shareable {
                 ShareLink(item: url) {
                     HStack(spacing: CGFloat.ds("s-2")) {

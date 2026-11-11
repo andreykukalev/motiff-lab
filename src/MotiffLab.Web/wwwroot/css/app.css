@@ -2580,7 +2580,82 @@ body:has(.workspace) .site-footer {
     margin-left: var(--s-2);
 }
 
-/* Read the notes, from the overflow of a PDF not yet recognised. */
+/* Original PDF | Notes, and PDF | Notes where the bar is short of room. Measured on the notes view's bar, the fuller one, in
+   Russian: the long label takes 65px more, and the title keeps about 60px only from 860px across, or 1250px beside a sheet.
+   The PDF view follows the same widths, so the label does not change between the two views. */
+.view-switch .short {
+    display: none;
+}
+
+@media (max-width: 900px) {
+    .view-switch .long {
+        display: none;
+    }
+
+    .view-switch .short {
+        display: inline;
+    }
+}
+
+@media (orientation: landscape) and (max-width: 1250px) {
+    .workspace.insights-open .view-switch .long, .workspace.contents-open .view-switch .long {
+        display: none;
+    }
+
+    .workspace.insights-open .view-switch .short, .workspace.contents-open .view-switch .short {
+        display: inline;
+    }
+}
+
+@media (orientation: landscape) {
+    .workspace.insights-open.contents-open .view-switch .long {
+        display: none;
+    }
+
+    .workspace.insights-open.contents-open .view-switch .short {
+        display: inline;
+    }
+}
+
+/* Recognise notes in the bar of a PDF not yet recognised (Andrei, 2026-11-11): the notes icon and its word, with Pro on
+   Motiff Lab's server. Where the bar has no room for the word, the icon and Pro stay and the word is left to the name. */
+.pdf-reader .bar .act.recognise {
+    font: var(--t-label);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.pdf-reader .bar .act.recognise .tag.pro {
+    display: inline-flex;
+    align-items: center;
+    height: var(--s-6);
+    padding: 0 var(--s-2);
+    border-radius: var(--r-xs);
+    background: var(--plum-tint);
+    color: var(--plum);
+    font: var(--t-caption);
+    font-weight: 600;
+}
+
+/* On a phone the PDF tag gives way too: Recognise notes says the same, that the notes are not read yet. */
+@media (max-width: 480px) {
+    .pdf-reader .bar:has(.recognise) .pdf-tag {
+        display: none;
+    }
+}
+
+@media (max-width: 640px) {
+    .pdf-reader .bar .act.recognise .lbl {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+    }
+}
+
+/* The panel Recognise notes opens, under the bar of a PDF not yet recognised. */
 .workspace .recognise-popover {
     top: calc(var(--s-3) + var(--h-touch) + var(--s-2));
     right: var(--s-4);
