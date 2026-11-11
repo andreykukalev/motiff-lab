@@ -6,8 +6,9 @@ using MotiffLab.Web.Projects;
 namespace MotiffLab.Web.Pages;
 
 /// <summary>
-/// The library as the place to manage a couple of hundred pieces (version 0.2): search, order, filters by composer and
-/// tag, cards or a compact list, and the title, composer and tags of a piece edited from its card.
+/// The library as the place to manage a couple of hundred pieces (version 0.2, ux-prototype/v2/screens/lib-1-list.png to
+/// lib-4-props.png): the tabs, search, filters by composer, tag and playlist, the list ordered by its columns, and a piece's
+/// properties: its title, composer, tags and playlists.
 /// </summary>
 public partial class Home
 {
@@ -15,12 +16,17 @@ public partial class Home
     private LibraryShelfState Shelf { get; set; } = default!;
 
     private Project? _editing;
-    private string _editHeading = "";
 
     /// <summary>The cards made again from the summaries and covers, after a listing or a change to one piece.</summary>
     private void Shelve() => Shelf.Restock(_summaries ?? [], _covers);
 
     private void OnShelfChanged() => _menu = null;
+
+    private void Narrow(LibraryQuery query)
+    {
+        Shelf.Narrow(query);
+        _menu = null;
+    }
 
     /// <summary>
     /// Rows saved before the library kept a piece's title, composer and tags have none: each such piece is read once and its
@@ -71,7 +77,6 @@ public partial class Home
                 return;
             }
 
-            _editHeading = entry.Title;
             _sheet = Sheet.Edit;
         }
         catch (ProjectFileException exception)
@@ -80,7 +85,7 @@ public partial class Home
         }
     }
 
-    /// <summary>Keeps the title, composer and tags in the project, and the card and the filters change at once.</summary>
+    /// <summary>Keeps the title, composer, tags and playlists in the project, and the line and the filters change at once.</summary>
     private async Task SaveDetailsAsync(PieceMetadata metadata)
     {
         if (_editing is not { } project)
@@ -94,23 +99,6 @@ public partial class Home
         _summaries = [.. (_summaries ?? []).Select(kept => kept.Id == summary.Id ? summary : kept)];
         Shelve();
         CloseSheet();
-    }
-
-    /// <summary>"Beethoven · From a recording": what a line of the list says under the title.</summary>
-    private string RowLine(LibraryEntry entry)
-    {
-        List<string> parts = [];
-        if (entry.Composer is { } composer)
-        {
-            parts.Add(composer);
-        }
-
-        if (entry.Summary.Origin != PieceOrigin.File)
-        {
-            parts.Add(Text[OriginKey(entry.Summary.Origin)]);
-        }
-
-        return string.Join(" · ", parts);
     }
 
     private static string OriginKey(PieceOrigin origin) => origin switch

@@ -9,7 +9,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { closePopover, openMore, violations } from "./steps.mjs";
+import { closePopover, openMore, violations, librarySessions } from "./steps.mjs";
 
 const fixtures = "../MotiffLab.MusicCore.Tests/Import/Transcription/Fixtures/";
 const heard = fileURLToPath(new URL(`${fixtures}basic-pitch-melody.mid`, import.meta.url));
@@ -106,6 +106,7 @@ test("a recording's sound is sent as mono audio, and its notes open marked as he
     await expect(page).toHaveURL(/playback/);
     await page.goto("/");
     // The library's card says where the piece came from (0018 section 9).
+    await librarySessions(page);
     await expect(page.locator(".card.piece").first()).toContainText("From a recording");
 });
 
@@ -181,6 +182,7 @@ test("a transcription is written in bars and a tempo worked out from its notes, 
     await closePopover(page);
     await page.goto("/");
     // The library's card says where the piece came from (0018 section 9).
+    await librarySessions(page);
     await expect(page.locator(".card.piece").first()).toContainText("From a recording");
 });
 

@@ -124,7 +124,7 @@ public partial class Home
     {
         await SettingsStore.LoadAsync();
         _firstRun = !SettingsStore.PresetChosen;
-        await Shelf.LoadViewAsync();
+        await Shelf.LoadTabAsync();
         await Scans.LoadAsync();
         _player = await Account.PlayerAsync();
         _serverNote = ServerNote();

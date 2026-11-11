@@ -3,7 +3,7 @@
 // markup and styles, which are the same in each engine.
 import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { closePopover, openAdjust, openFurElise, openInsights, openMore, openMoreTools, openRoll, selectBar, tryWay, violations } from "./steps.mjs";
+import { closePopover, openAdjust, openFurElise, openInsights, openMore, openMoreTools, openRoll, selectBar, tryWay, violations, librarySessions } from "./steps.mjs";
 
 const midi = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/Midi/Fixtures/two-hands-type1.mid", import.meta.url));
 
@@ -31,6 +31,9 @@ test("import, its report, the opened piece and the project on the home screen", 
     expect(await violations(page)).toEqual([]);
 
     await page.goto("/");
+    await expect(page.locator(".lib-table tbody tr")).toHaveCount(1);
+    expect(await violations(page)).toEqual([]);
+    await librarySessions(page);
     await expect(page.locator(".card.piece")).toHaveCount(1);
     expect(await violations(page)).toEqual([]);
 });
@@ -41,6 +44,7 @@ test("the library: a card, its menu, its resume points, and Add piece, in both t
     await page.getByLabel("Choose a MIDI, MusicXML or PDF file").setInputFiles(midi);
     await expect(page.locator(".score .score-page").first()).toBeVisible();
     await page.locator(".bar").getByRole("link", { name: "Library" }).click();
+    await librarySessions(page);
     const card = page.locator(".card.piece");
     await expect(card.locator(".thumb img")).toBeVisible();
     for (const theme of ["daylight", "night"]) {

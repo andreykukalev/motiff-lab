@@ -1,0 +1,76 @@
+@using MotiffLab.Web.Localization
+
+@* The list of pieces (version 0.2, ux-prototype/v2/screens/lib-1-list.png): Title, Composer, Playlists and Opened, a heading
+   ordering the list by its column and again turning the order round; one line a piece, a tap opening it where it was left,
+   and its ••• for the rest. Each line carries its place, for the index at the edge. *@
+<table class="lib-table">
+    <thead>
+        <tr>
+            <th scope="col" class="col-title" aria-sort="@AriaSort(LibrarySort.Title)">@Heading(LibrarySort.Title, Text["library.fieldTitle"])</th>
+            <th scope="col" class="col-composer" aria-sort="@AriaSort(LibrarySort.Composer)">@Heading(LibrarySort.Composer, Text["library.fieldComposer"])</th>
+            <th scope="col" class="col-playlists"><span class="head">@Text["library.fieldPlaylists"]</span></th>
+            <th scope="col" class="col-opened" aria-sort="@AriaSort(LibrarySort.Opened)">@Heading(LibrarySort.Opened, Text["library.colOpened"])</th>
+            <th scope="col" class="col-more"><span class="visually-hidden">@Text["library.more"]</span></th>
+        </tr>
+    </thead>
+    <tbody>
+        @for (int index = 0; index < Entries.Count; index++)
+        {
+            LibraryEntry entry = Entries[index];
+            <tr class="@(MenuOpen == entry.Summary.Id ? "menu-open" : null)" id="@($"lib-at-{index}")" @key="entry.Summary.Id" @onclick="() => Opened.InvokeAsync(entry)">
+                <th scope="row" class="col-title">
+                    <button class="ttl" @onclick="() => Opened.InvokeAsync(entry)" @onclick:stopPropagation="true" disabled="@Busy">@entry.Title</button>
+                </th>
+                <td class="col-composer">@entry.Composer</td>
+                <td class="col-playlists">@string.Join(", ", entry.Playlists)</td>
+                <td class="col-opened">@When(entry.Summary.LastOpened)</td>
+                <td class="col-more" @onclick:stopPropagation="true">@Menu(entry)</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [Inject]
+    private UiText Text { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<LibraryEntry> Entries { get; set; } = [];
+
+    /// <summary>The order shown, to mark its column.</summary>
+    [Parameter, EditorRequired]
+    public LibraryQuery Query { get; set; } = LibraryQuery.All;
+
+    [Parameter]
+    public EventCallback<LibrarySort> Sorted { get; set; }
+
+    [Parameter]
+    public EventCallback<LibraryEntry> Opened { get; set; }
+
+    /// <summary>A piece's ••• and its menu.</summary>
+    [Parameter, EditorRequired]
+    public RenderFragment<LibraryEntry> Menu { get; set; } = default!;
+
+    /// <summary>"today", "yesterday", "3 days ago", then the date.</summary>
+    [Parameter, EditorRequired]
+    public Func<DateTimeOffset, string> When { get; set; } = default!;
+
+    /// <summary>The piece whose ••• menu is open, if any.</summary>
+    [Parameter]
+    public string? MenuOpen { get; set; }
+
+    /// <summary>A piece is being opened: the lines wait.</summary>
+    [Parameter]
+    public bool Busy { get; set; }
+
+    private RenderFragment Heading(LibrarySort column, string label) => @<button class="head @(Query.Sort == column ? "on" : null)" @onclick="() => Sorted.InvokeAsync(column)">
+        @label@if (Query.Sort == column)
+        {
+            <span aria-hidden="true">@(Query.Ascending ? " ↑" : " ↓")</span>
+        }
+    </button>;
+
+    /// <summary>The column the list is ordered by, either way; the last opened first counts as descending.</summary>
+    private string? AriaSort(LibrarySort column) => Query.Sort != column ? null
+        : (Query.Ascending != (column == LibrarySort.Opened)) ? "ascending" : "descending";
+}

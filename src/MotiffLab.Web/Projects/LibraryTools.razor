@@ -1,61 +1,47 @@
 @using MotiffLab.Web.Localization
 
-@* The library's search, order, view and filters (version 0.2), for a shelf of a couple of hundred pieces. Search finds
-   words in the title, the composer and the tags, whatever their case and accents; a composer and a tag can be picked as
-   chips, one of each; the count says how many pieces show, and when none does, the way back to all of them. *@
-<div class="lib-tools">
-    <label class="search">
-        <Icon Name="search" />
-        <span class="visually-hidden">@Text["library.search"]</span>
-        <input type="search" value="@State.Query.Search" placeholder="@Text["library.searchHint"]" aria-label="@Text["library.search"]"
-               @oninput="change => NarrowAsync(State.Query with { Search = change.Value as string })" />
-    </label>
-    <label class="sort">
-        <span class="caption">@Text["library.sort"]</span>
-        <select @onchange="change => NarrowAsync(State.Query with { Sort = Enum.TryParse(change.Value as string, out LibrarySort sort) ? sort : LibrarySort.Recent })">
-            @foreach (LibrarySort sort in Enum.GetValues<LibrarySort>())
-            {
-                <option value="@sort" selected="@(State.Query.Sort == sort)">@SortLabel(sort)</option>
-            }
-        </select>
-    </label>
-    <div class="view-switch" role="group" aria-label="@Text["library.view"]">
-        @foreach (LibraryView view in Enum.GetValues<LibraryView>())
+@* The library's tabs (version 0.2, ux-prototype/v2/screens/lib-1-list.png) in Andrei's order, with the Composer, Tag and
+   Playlist filters at their right on the tabs that list pieces; on Composers and Playlists, once one is opened, the way back
+   to all of them. *@
+<div class="lib-tabs">
+    <div class="tabs" role="tablist" aria-label="@Text["library.title"]">
+        @foreach (LibraryTab tab in Enum.GetValues<LibraryTab>())
         {
-            <button class="seg @(State.View == view ? "on" : null)" aria-pressed="@(State.View == view ? "true" : "false")" @onclick="() => ChooseAsync(view)">@(view == LibraryView.List ? Text["library.viewList"] : Text["library.viewCards"])</button>
+            bool on = State.Tab == tab;
+            <button class="tab @(on ? "on" : null)" role="tab" aria-selected="@(on ? "true" : "false")" @key="tab" @onclick="() => ChooseAsync(tab)">@TabLabel(tab)</button>
         }
     </div>
+    @if (State.Filters)
+    {
+        <div class="filters">
+            @if (State.Composers.Count > 0)
+            {
+                <LibraryFilter Label="@Text["library.byComposer"]" All="@Text["library.anyComposer"]" Values="State.Composers" Picked="@State.Query.Composer"
+                               Chosen="composer => NarrowAsync(State.Query with { Composer = composer })" />
+            }
+            @if (State.Tags.Count > 0)
+            {
+                <LibraryFilter Label="@Text["library.byTag"]" All="@Text["library.anyTag"]" Values="State.Tags" Picked="@State.Query.Tag"
+                               Chosen="tag => NarrowAsync(State.Query with { Tag = tag })" />
+            }
+            @if (State.Playlists.Count > 0)
+            {
+                <LibraryFilter Label="@Text["library.byPlaylist"]" All="@Text["library.anyPlaylist"]" Values="State.Playlists" Picked="@State.Query.Playlist"
+                               Chosen="playlist => NarrowAsync(State.Query with { Playlist = playlist })" />
+            }
+        </div>
+    }
 </div>
 
-@if (State.Composers.Count > 0)
+@if (State.Picked is { } picked)
 {
-    <div class="chip-row" role="group" aria-label="@Text["library.byComposer"]">
-        <span class="caption">@Text["library.byComposer"]</span>
-        @foreach (string composer in State.Composers)
-        {
-            bool on = string.Equals(State.Query.Composer, composer, StringComparison.OrdinalIgnoreCase);
-            <button class="chip @(on ? "on" : null)" aria-pressed="@(on ? "true" : "false")" @key="composer"
-                    @onclick="() => NarrowAsync(State.Query with { Composer = on ? null : composer })">@composer</button>
-        }
+    <div class="lib-picked">
+        <button class="btn quiet back" @onclick="UnpickAsync"><Icon Name="back" /> @TabLabel(State.Tab)</button>
+        <h2 class="ttl">@(picked.Name ?? Text["library.noComposer"])</h2>
     </div>
 }
 
-@if (State.Tags.Count > 0)
-{
-    <div class="chip-row" role="group" aria-label="@Text["library.byTag"]">
-        <span class="caption">@Text["library.byTag"]</span>
-        @foreach (string tag in State.Tags)
-        {
-            bool on = string.Equals(State.Query.Tag, tag, StringComparison.OrdinalIgnoreCase);
-            <button class="chip @(on ? "on" : null)" aria-pressed="@(on ? "true" : "false")" @key="tag"
-                    @onclick="() => NarrowAsync(State.Query with { Tag = on ? null : tag })"><Icon Name="tag" /> @tag</button>
-        }
-    </div>
-}
-
-<p class="meta lib-count" role="status">@(State.Query.Narrows ? Text.Format("library.shownOf", State.Shown.Count, State.Entries.Count) : Text.Count("library.pieces", State.Entries.Count))</p>
-
-@if (State.NoneMatch)
+@if (State.Page.IsEmpty && State.Query.Narrows)
 {
     <div class="lib-none">
         <p class="lead">@Text["library.noneMatch"]</p>
@@ -87,16 +73,24 @@
         return Changed.InvokeAsync();
     }
 
-    private async Task ChooseAsync(LibraryView view)
+    private Task UnpickAsync()
     {
-        await State.ChooseAsync(view);
+        State.Pick(null);
+        return Changed.InvokeAsync();
+    }
+
+    private async Task ChooseAsync(LibraryTab tab)
+    {
+        await State.ChooseAsync(tab);
         await Changed.InvokeAsync();
     }
 
-    private string SortLabel(LibrarySort sort) => sort switch
+    private string TabLabel(LibraryTab tab) => tab switch
     {
-        LibrarySort.Title => Text["library.sortTitle"],
-        LibrarySort.Composer => Text["library.sortComposer"],
-        _ => Text["library.sortRecent"],
+        LibraryTab.Composers => Text["library.tabComposers"],
+        LibraryTab.Recent => Text["library.tabRecent"],
+        LibraryTab.Playlists => Text["library.tabPlaylists"],
+        LibraryTab.Sessions => Text["library.tabSessions"],
+        _ => Text["library.tabAll"],
     };
 }

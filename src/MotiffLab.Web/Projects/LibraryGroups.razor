@@ -1,0 +1,29 @@
+@using MotiffLab.Web.Localization
+
+@* The Composers or Playlists tab (version 0.2): each composer or playlist with how many pieces it holds, in the language's
+   order, the pieces without a composer last; a tap opens its pieces in the same list. Each line carries its place, for the
+   index at the edge. *@
+<ul class="lib-groups">
+    @for (int index = 0; index < Groups.Count; index++)
+    {
+        LibraryGroup group = Groups[index];
+        <li id="@($"lib-at-{index}")" @key="group.Name ?? string.Empty">
+            <button class="group" @onclick="() => Picked.InvokeAsync(group)">
+                <span class="name">@(group.Name ?? Text["library.noComposer"])</span>
+                <span class="count">@Text.Count("library.pieces", group.Count)</span>
+                <Icon Name="fwd" />
+            </button>
+        </li>
+    }
+</ul>
+
+@code {
+    [Inject]
+    private UiText Text { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<LibraryGroup> Groups { get; set; } = [];
+
+    [Parameter]
+    public EventCallback<LibraryGroup> Picked { get; set; }
+}
