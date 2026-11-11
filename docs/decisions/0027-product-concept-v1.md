@@ -153,7 +153,7 @@ Second plan, kept as ideas: variations (plan row 4.12), practice state, fingerin
 - The phrase anchor of #318 is the place for the boundary correction and later for state and tempo; whether #318 reserves them is Andrei's choice before approving it.
 - #342 (PR #344) removed the AI fact digest as dead code; the assistant will need a per-piece summary of facts with stable ids again.
 - The first-screen task of the web (plan row 4.8) is weighed by section 1: the web is a full environment, not a practice app, and the at-the-keys loop works there too, for example on an Android tablet.
-- The four scenarios of section 20 become the acceptance walk of the first prototype.
+- The four scenarios of section 20 become the acceptance walk of the first prototype. The tasks each one stands on: (1) bought score, handwritten mark, continue on the iPad: #355, #354, sync #323 and #324 (or a file moved by hand until then); (2) learn a passage, parts, join, next: #349, #328, #327, #347; (3) a score from a real recording: #346, #352, Andrei's three live recordings; (4) a large library: #354.
 
 ## Alternatives considered
 
