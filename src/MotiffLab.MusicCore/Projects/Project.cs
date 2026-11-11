@@ -37,6 +37,13 @@ public sealed record Project(
     IReadOnlyList<SavedMotif> Motifs,
     IReadOnlyList<SavedVariation> Variations)
 {
+    /// <summary>
+    /// The entities of the file this build cannot read (S6, the tolerant reader), kept to be written back unchanged; the
+    /// marks keep their own in <see cref="Marks.Unknown"/> and <see cref="DocumentMarks.Unknown"/>. Empty for a project
+    /// this build made or a file it reads whole.
+    /// </summary>
+    public IReadOnlyList<UnknownEntity> Unknown { get; init; } = [];
+
     /// <summary>The player's corrections of the imported notes, oldest first (S1-I7).</summary>
     public NoteEditLog Edits { get; init; } = NoteEditLog.Empty;
 
@@ -363,10 +370,10 @@ public sealed record Project(
     }
 
     /// <summary>"b_0004": one more than the highest bookmark number.</summary>
-    public string NextBookmarkId() => NextId("b_", Bookmarks.Select(bookmark => bookmark.Id));
+    public string NextBookmarkId() => NextId("b_", Bookmarks.Select(bookmark => bookmark.Id).Concat(UnknownIds(Unknown, "bookmarks.items")));
 
     /// <summary>"c_0004": one more than the highest number among the player's own categories.</summary>
-    public string NextCategoryId() => NextId("c_", Categories.Select(category => category.Id));
+    public string NextCategoryId() => NextId("c_", Categories.Select(category => category.Id).Concat(UnknownIds(Unknown, "bookmarks.categories")));
 
     /// <summary>Where the player left off (0018, section 9), in the order the points were made.</summary>
     public IReadOnlyList<ResumePoint> ResumePoints { get; init; } = [];
@@ -403,10 +410,10 @@ public sealed record Project(
     }
 
     /// <summary>"r_0004": one more than the highest resume point number, so ids stay stable for the life of the project.</summary>
-    public string NextResumePointId() => NextId("r_", ResumePoints.Select(point => point.Id));
+    public string NextResumePointId() => NextId("r_", ResumePoints.Select(point => point.Id).Concat(UnknownIds(Unknown, "resumePoints")));
 
     /// <summary>"o_0004": one more than the highest observation number.</summary>
-    public string NextObservationId() => NextId("o_", Observations.Select(observation => observation.Id));
+    public string NextObservationId() => NextId("o_", Observations.Select(observation => observation.Id).Concat(UnknownIds(Unknown, "observations")));
 
     /// <summary>
     /// The Check flags (0018, section 9): the doubtful bars of a scan or a transcription, with whether the player
@@ -543,6 +550,7 @@ public sealed record Project(
     /// </summary>
     public bool CanChangeBars => Transcription is not null && Edits.IsEmpty && !TakenBars.Any() && Phrases.IsEmpty && ShortPhrases.IsEmpty && Sentences.IsEmpty
         && Marks.IsEmpty && Bookmarks.Count == 0 && Motifs.Count == 0 && Variations.Count == 0 && Observations.Count == 0
+        && Unknown.Count == 0 && Marks.Unknown.Count == 0
         && !(Check ?? []).Any(flag => flag.Resolved);
 
     /// <summary>
@@ -627,6 +635,10 @@ public sealed record Project(
 
         return this with { SettingOverrides = overrides };
     }
+
+    /// <summary>The ids of the unknown entities of a list, so a new id never takes one (S6).</summary>
+    internal static IEnumerable<string> UnknownIds(IEnumerable<UnknownEntity> unknown, string list) =>
+        unknown.Where(entity => entity.List == list && entity.Id is not null).Select(entity => entity.Id!);
 
     internal static string NextId(string prefix, IEnumerable<string> ids)
     {

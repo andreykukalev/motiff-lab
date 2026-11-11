@@ -209,10 +209,10 @@ public class ProjectV12Tests
 
     [Theory]
     [InlineData("\"finger\": 3", "\"finger\": 6", "fingering")]
-    [InlineData("\"colour\": \"amber\"", "\"colour\": \"pink\"", "colour")]
+    [InlineData("\"colour\": \"amber\"", "\"colour\": \"pink ink\"", "colour")]
     [InlineData("\"category\": \"c_0001\"", "\"category\": \"c_0009\"", "bookmarks")]
     [InlineData("\"tempoPercent\": 60", "\"tempoPercent\": 10", "resume point")]
-    [InlineData("\"reason\": \"TempoUncertain\"", "\"reason\": \"Hunch\"", "reason")]
+    [InlineData("\"reason\": \"TempoUncertain\"", "\"reason\": \"a hunch\"", "reason")]
     [InlineData("\"phrases.granularity\": \"short\"", "\"phrases.granularity\": \"tiny\"", "settings")]
     [InlineData("\"layers.bookmarks\": \"off\"", "\"guidance.hints\": \"off\"", "settings")]
     public void Damaged_version_12_fields_are_refused_with_a_plain_reason(string from, string to, string what)

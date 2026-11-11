@@ -254,4 +254,14 @@ Every version since 1 opens (`ProjectFile.Read`). The rules for the versions bef
 
 Pencil marks saved on the device before version 12 (the `motiff-lab-pencil` IndexedDB database, [0015](decisions/0015-ipad-app.md)) are taken into the project the first time its score is shown and then forgotten on the device. A piece open without a project (Für Elise from the start page) still keeps its marks on the device.
 
+## Unknown enum values
+
+A later build can add a value to an enum while the file keeps its version ([0026](decisions/0026-project-continuity.md), S6). A reader that does not know the value keeps the entity holding it as an unknown entity (`UnknownEntity`, with the enum's type name), out of the project's lists: it takes no part in playback, analysis or variations, and an app never meets it. The writer puts it back unchanged at the place it had in its array, so a file read and written with no change keeps every entity in the same order.
+
+- **Only a value that is a name** (ASCII letters and digits, starting with a letter) and only in a file of the reader's own version. In an older file, or for any other text, the field is damaged as before: the builds that wrote an older file knew no value this one does not.
+- **The entities kept so**: a motif (`motifs`), a variation (`variations`), an idea (`observations`), a stroke (`marks.ink`, `documentMarks.ink`), a highlight (`marks.highlights`), a bookmark category (`bookmarks.categories`), a resume point (`resumePoints`) and a Check flag (`check`), whatever the depth of the value inside it (a variation step's parameters, a passage's filter, a key's mode).
+- **What goes with it.** A motif and its variations are kept or left unknown together: a variation cannot open without its motif, and an app that replaces a motif drops its variations, which it cannot do with one it does not see. A bookmark in an unknown category is left unknown with it. A built-in category with an unknown ink stays unknown and is not taken by the built-in one.
+- **New ids** for bookmarks, categories, resume points, ideas and highlights pass the unknown ones by. An entity an app makes with the id of an unknown one (the facade's working motif `m_0001`) takes its place: the unknown one is not written, and neither is what went with it.
+- **Still damaged**: an unknown value in a note correction (`edits`), a performance (`performances`) or the assembly (`assembly`), since keeping those aside would change the notes that sound (Andrei, #313); an unknown per-piece setting (`settings`) or variation operation; an unknown `Overlay` or Keep choice. Unknown fields are still dropped on writing, except inside an entity kept whole as unknown.
+
 A file written by a newer version is refused with "This project was saved by a newer version of Motiff Lab", so the API ([0014](decisions/0014-hosted-scan-server.md)), which reads every file it stores, must be deployed with or before the apps that write a new version.

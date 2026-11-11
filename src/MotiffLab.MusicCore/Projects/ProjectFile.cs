@@ -20,7 +20,10 @@ namespace MotiffLab.MusicCore.Projects;
 /// <remarks>
 /// Written by hand rather than by reflection, so the layout is fixed and the same project always
 /// gives the same bytes. Enums are written by name. Reading checks every field and throws
-/// <see cref="ProjectFileException"/> with a plain reason; it never half-reads a project.
+/// <see cref="ProjectFileException"/> with a plain reason; it never half-reads a project. The one exception is the
+/// tolerant reader (decision record 0026, S6): in a file of this version, an entity of a list that holds a value a later
+/// build added to an enum is kept whole as an <see cref="UnknownEntity"/> and written back unchanged where it stood
+/// (docs/project-file.md, "Unknown enum values").
 /// </remarks>
 public static partial class ProjectFile
 {
@@ -73,7 +76,7 @@ public static partial class ProjectFile
                 json.WriteBase64String("document", document);
             }
 
-            if (!project.DocumentMarks.IsEmpty)
+            if (!project.DocumentMarks.IsEmpty || project.DocumentMarks.Unknown.Count > 0)
             {
                 WriteDocumentMarks(json, project.DocumentMarks);
             }
@@ -103,8 +106,8 @@ public static partial class ProjectFile
                 json.WriteEndObject();
             }
 
-            json.WriteStartArray("motifs");
-            foreach (SavedMotif motif in project.Motifs)
+            List<UnknownEntity> unknownMotifs = KeptUnknown(project.Unknown, "motifs", project.Motifs.Select(static motif => motif.Id), null, out HashSet<string> replacedMotifs);
+            WriteList(json, "motifs", project.Motifs, unknownMotifs, motif =>
             {
                 json.WriteStartObject();
                 json.WriteString("id", motif.Id);
@@ -114,12 +117,9 @@ public static partial class ProjectFile
                 WriteRange(json, motif.Span, motif.Filter);
                 WriteNoteIds(json, motif.NoteIds);
                 json.WriteEndObject();
-            }
+            });
 
-            json.WriteEndArray();
-
-            json.WriteStartArray("variations");
-            foreach (SavedVariation variation in project.Variations)
+            WriteList(json, "variations", project.Variations, KeptUnknown(project.Unknown, "variations", project.Variations.Select(static variation => variation.Id), replacedMotifs, out _), variation =>
             {
                 json.WriteStartObject();
                 json.WriteString("id", variation.Id);
@@ -127,17 +127,9 @@ public static partial class ProjectFile
                 WriteChain(json, variation.Steps, variation.Pending, variation.Keep);
                 WriteKey(json, variation.Key);
                 json.WriteEndObject();
-            }
+            });
 
-            json.WriteEndArray();
-
-            json.WriteStartArray("observations");
-            foreach (Observation observation in project.Observations)
-            {
-                WriteObservation(json, observation);
-            }
-
-            json.WriteEndArray();
+            WriteList(json, "observations", project.Observations, KeptUnknown(project.Unknown, "observations", project.Observations.Select(static observation => observation.Id), null, out _), observation => WriteObservation(json, observation));
 
             json.WriteStartArray("edits");
             foreach (NoteEdit edit in project.Edits.Edits)
@@ -185,13 +177,7 @@ public static partial class ProjectFile
             json.WriteEndObject();
 
             json.WriteStartObject("marks");
-            json.WriteStartArray("ink");
-            foreach (InkStroke stroke in project.Marks.Ink)
-            {
-                WriteStroke(json, stroke);
-            }
-
-            json.WriteEndArray();
+            WriteList(json, "ink", project.Marks.Ink, KeptUnknown(project.Marks.Unknown, "marks.ink", project.Marks.Ink.Select(static stroke => stroke.Id), null, out _), stroke => WriteStroke(json, stroke));
             json.WriteStartArray("notes");
             foreach (MarginNote note in project.Marks.Notes)
             {
@@ -204,8 +190,7 @@ public static partial class ProjectFile
             }
 
             json.WriteEndArray();
-            json.WriteStartArray("highlights");
-            foreach (Highlight highlight in project.Marks.Highlights)
+            WriteList(json, "highlights", project.Marks.Highlights, KeptUnknown(project.Marks.Unknown, "marks.highlights", project.Marks.Highlights.Select(static highlight => highlight.Id), null, out _), highlight =>
             {
                 json.WriteStartObject();
                 json.WriteString("id", highlight.Id);
@@ -213,9 +198,7 @@ public static partial class ProjectFile
                 WriteNoteIds(json, highlight.NoteIds);
                 json.WriteString("colour", highlight.Colour.ToString());
                 json.WriteEndObject();
-            }
-
-            json.WriteEndArray();
+            });
             json.WriteStartArray("fingering");
             foreach (Fingering fingering in project.Marks.Fingering)
             {
@@ -229,8 +212,8 @@ public static partial class ProjectFile
             json.WriteEndObject();
 
             json.WriteStartObject("bookmarks");
-            json.WriteStartArray("categories");
-            foreach (BookmarkCategory category in project.Categories)
+            List<UnknownEntity> unknownCategories = KeptUnknown(project.Unknown, "bookmarks.categories", project.Categories.Select(static category => category.Id), null, out HashSet<string> replacedCategories);
+            WriteList(json, "categories", project.Categories, unknownCategories, category =>
             {
                 json.WriteStartObject();
                 json.WriteString("id", category.Id);
@@ -241,11 +224,9 @@ public static partial class ProjectFile
 
                 json.WriteString("ink", category.Ink.ToString());
                 json.WriteEndObject();
-            }
+            });
 
-            json.WriteEndArray();
-            json.WriteStartArray("items");
-            foreach (Bookmark bookmark in project.Bookmarks)
+            WriteList(json, "items", project.Bookmarks, KeptUnknown(project.Unknown, "bookmarks.items", project.Bookmarks.Select(static bookmark => bookmark.Id), replacedCategories, out _), bookmark =>
             {
                 json.WriteStartObject();
                 json.WriteString("id", bookmark.Id);
@@ -255,13 +236,11 @@ public static partial class ProjectFile
                 json.WriteBoolean("fromPhrase", bookmark.FromPhrase);
                 json.WriteString("createdAt", bookmark.CreatedAt.ToString("O", CultureInfo.InvariantCulture));
                 json.WriteEndObject();
-            }
+            });
 
-            json.WriteEndArray();
             json.WriteEndObject();
 
-            json.WriteStartArray("resumePoints");
-            foreach (ResumePoint point in project.ResumePoints)
+            WriteList(json, "resumePoints", project.ResumePoints, KeptUnknown(project.Unknown, "resumePoints", project.ResumePoints.Select(static point => point.Id), null, out _), point =>
             {
                 json.WriteStartObject();
                 json.WriteString("id", point.Id);
@@ -296,14 +275,12 @@ public static partial class ProjectFile
                 json.WriteString("createdAt", point.CreatedAt.ToString("O", CultureInfo.InvariantCulture));
                 json.WriteString("lastActive", point.LastActive.ToString("O", CultureInfo.InvariantCulture));
                 json.WriteEndObject();
-            }
+            });
 
-            json.WriteEndArray();
-
-            if (project.Check is { } check)
+            List<UnknownEntity> unknownFlags = KeptUnknown(project.Unknown, "check", [], null, out _);
+            if (project.Check is not null || unknownFlags.Count > 0)
             {
-                json.WriteStartArray("check");
-                foreach (CheckFlag flag in check)
+                WriteList(json, "check", project.Check ?? [], unknownFlags, flag =>
                 {
                     json.WriteStartObject();
                     json.WriteNumber("bar", flag.Bar);
@@ -311,9 +288,7 @@ public static partial class ProjectFile
                     json.WriteString("reason", flag.Reason.ToString());
                     json.WriteBoolean("resolved", flag.Resolved);
                     json.WriteEndObject();
-                }
-
-                json.WriteEndArray();
+                });
             }
             else
             {
@@ -417,17 +392,7 @@ public static partial class ProjectFile
 
     public static Project Read(ReadOnlySpan<byte> data)
     {
-        JsonDocument document;
-        try
-        {
-            document = JsonDocument.Parse(data.ToArray());
-        }
-        catch (JsonException)
-        {
-            throw new ProjectFileException("This is not a Motiff Lab project file: it is not valid JSON.");
-        }
-
-        using (document)
+        using (JsonDocument document = Parse(data))
         {
             JsonElement root = document.RootElement;
             if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("format", out JsonElement format) || format.ValueKind != JsonValueKind.String || format.GetString() != FormatName)
@@ -445,6 +410,8 @@ public static partial class ProjectFile
             {
                 throw Damaged("version");
             }
+
+            var unknowns = new Unknowns(version == Version);
 
             byte[] source;
             byte[]? pdf = null;
@@ -480,7 +447,7 @@ public static partial class ProjectFile
             }
 
             DocumentMarks documentMarks = root.TryGetProperty("documentMarks", out JsonElement documentMarksElement)
-                ? ReadDocumentMarks(documentMarksElement)
+                ? ReadDocumentMarks(documentMarksElement, unknowns)
                 : DocumentMarks.Empty;
             PageMap? documentPages = root.TryGetProperty("documentPages", out JsonElement pagesElement)
                 ? ReadDocumentPages(pagesElement, pdf, source)
@@ -489,10 +456,9 @@ public static partial class ProjectFile
                 ? ReadReadFrom(readFromElement, source)
                 : null;
 
-            var motifs = Property(root, "motifs", JsonValueKind.Array).EnumerateArray().Select(ReadMotif).ToList();
-            var variations = Property(root, "variations", JsonValueKind.Array).EnumerateArray().Select(variation => ReadVariation(variation, version)).ToList();
+            List<SavedMotif> motifs = ReadMotifs(root, version, unknowns, out List<SavedVariation> variations);
             List<Observation> observations = version >= 6
-                ? Property(root, "observations", JsonValueKind.Array).EnumerateArray().Select(observation => ReadObservation(observation, version)).ToList()
+                ? ReadList(Property(root, "observations", JsonValueKind.Array), "observations", observation => ReadObservation(observation, version), unknowns)
                 : [];
             if (observations.Select(static observation => observation.Id).Distinct(StringComparer.Ordinal).Count() != observations.Count)
             {
@@ -513,18 +479,18 @@ public static partial class ProjectFile
             }
 
             List<ResumePoint> resumePoints = version >= 12
-                ? Property(root, "resumePoints", JsonValueKind.Array).EnumerateArray().Select(ReadResumePoint).ToList()
+                ? ReadList(Property(root, "resumePoints", JsonValueKind.Array), "resumePoints", ReadResumePoint, unknowns)
                 : version >= 8 ? Property(root, "sessions", JsonValueKind.Array).EnumerateArray().Select(ReadSessionAsResumePoint).ToList() : [];
             if (resumePoints.Select(static point => point.Id).Distinct(StringComparer.Ordinal).Count() != resumePoints.Count)
             {
                 throw Damaged("resume points");
             }
 
-            Marks marks = version >= 12 ? ReadMarks(Property(root, "marks", JsonValueKind.Object)) : Marks.Empty;
+            Marks marks = version >= 12 ? ReadMarks(Property(root, "marks", JsonValueKind.Object), unknowns) : Marks.Empty;
             (IReadOnlyList<BookmarkCategory> categories, IReadOnlyList<Bookmark> bookmarks) = version >= 12
-                ? ReadBookmarks(Property(root, "bookmarks", JsonValueKind.Object))
+                ? ReadBookmarks(Property(root, "bookmarks", JsonValueKind.Object), unknowns)
                 : (BookmarkCategory.BuiltIn, []);
-            IReadOnlyList<CheckFlag>? check = version >= 12 ? ReadCheck(root) : null;
+            IReadOnlyList<CheckFlag>? check = version >= 12 ? ReadCheck(root, unknowns) : null;
             List<SavedPerformance> performances = version >= 13
                 ? [.. Property(root, "performances", JsonValueKind.Array).EnumerateArray().Select(ReadPerformance)]
                 : [];
@@ -536,7 +502,7 @@ public static partial class ProjectFile
             PieceAssembly assembly = version >= 15 ? ReadAssembly(root) : PieceAssembly.Empty;
             IReadOnlyDictionary<string, string> overrides = version >= 12 ? ReadSettings(Property(root, "settings", JsonValueKind.Object)) : new Dictionary<string, string>(StringComparer.Ordinal);
 
-            return new Project(
+            return unknowns.KeptIn(new Project(
                 Text(root, "id"),
                 Text(root, "fileName"),
                 source,
@@ -564,7 +530,19 @@ public static partial class ProjectFile
                 DocumentPages = documentPages,
                 ReadFrom = readFrom,
                 Assembly = assembly,
-            };
+            });
+        }
+    }
+
+    private static JsonDocument Parse(ReadOnlySpan<byte> data)
+    {
+        try
+        {
+            return JsonDocument.Parse(data.ToArray());
+        }
+        catch (JsonException)
+        {
+            throw new ProjectFileException("This is not a Motiff Lab project file: it is not valid JSON.");
         }
     }
 
@@ -709,13 +687,7 @@ public static partial class ProjectFile
     private static void WriteDocumentMarks(Utf8JsonWriter json, DocumentMarks marks)
     {
         json.WriteStartObject("documentMarks");
-        json.WriteStartArray("ink");
-        foreach (InkStroke stroke in marks.Ink)
-        {
-            WriteStroke(json, stroke);
-        }
-
-        json.WriteEndArray();
+        WriteList(json, "ink", marks.Ink, KeptUnknown(marks.Unknown, "documentMarks.ink", marks.Ink.Select(static stroke => stroke.Id), null, out _), stroke => WriteStroke(json, stroke));
         json.WriteStartArray("bookmarks");
         foreach (PageBookmark bookmark in marks.Bookmarks)
         {
@@ -735,10 +707,10 @@ public static partial class ProjectFile
         json.WriteEndObject();
     }
 
-    private static DocumentMarks ReadDocumentMarks(JsonElement marks)
+    private static DocumentMarks ReadDocumentMarks(JsonElement marks, Unknowns unknowns)
     {
         Expect(marks, JsonValueKind.Object, "documentMarks");
-        List<InkStroke> ink = Property(marks, "ink", JsonValueKind.Array).EnumerateArray().Select(ReadStroke).ToList();
+        List<InkStroke> ink = ReadList(Property(marks, "ink", JsonValueKind.Array), "documentMarks.ink", ReadStroke, unknowns);
         List<PageBookmark> bookmarks = [];
         foreach (JsonElement bookmark in Property(marks, "bookmarks", JsonValueKind.Array).EnumerateArray())
         {
@@ -769,9 +741,9 @@ public static partial class ProjectFile
         }
     }
 
-    private static Marks ReadMarks(JsonElement marks)
+    private static Marks ReadMarks(JsonElement marks, Unknowns unknowns)
     {
-        List<InkStroke> ink = Property(marks, "ink", JsonValueKind.Array).EnumerateArray().Select(ReadStroke).ToList();
+        List<InkStroke> ink = ReadList(Property(marks, "ink", JsonValueKind.Array), "marks.ink", ReadStroke, unknowns);
         List<MarginNote> notes = [];
         foreach (JsonElement note in Property(marks, "notes", JsonValueKind.Array).EnumerateArray())
         {
@@ -786,19 +758,18 @@ public static partial class ProjectFile
             }
         }
 
-        List<Highlight> highlights = [];
-        foreach (JsonElement highlight in Property(marks, "highlights", JsonValueKind.Array).EnumerateArray())
+        List<Highlight> highlights = ReadList(Property(marks, "highlights", JsonValueKind.Array), "marks.highlights", highlight =>
         {
             Expect(highlight, JsonValueKind.Object, "highlights");
             try
             {
-                highlights.Add(new Highlight(Text(highlight, "id"), ReadSpan(highlight, "highlight"), ReadNoteIds(highlight, "highlight notes"), Name<InkColour>(highlight, "colour")));
+                return new Highlight(Text(highlight, "id"), ReadSpan(highlight, "highlight"), ReadNoteIds(highlight, "highlight notes"), Name<InkColour>(highlight, "colour"));
             }
             catch (ArgumentException)
             {
                 throw Damaged("highlights");
             }
-        }
+        }, unknowns);
 
         List<Fingering> fingering = [];
         foreach (JsonElement finger in Property(marks, "fingering", JsonValueKind.Array).EnumerateArray())
@@ -822,27 +793,28 @@ public static partial class ProjectFile
         }
     }
 
-    private static (IReadOnlyList<BookmarkCategory> Categories, IReadOnlyList<Bookmark> Bookmarks) ReadBookmarks(JsonElement bookmarks)
+    private static (IReadOnlyList<BookmarkCategory> Categories, IReadOnlyList<Bookmark> Bookmarks) ReadBookmarks(JsonElement bookmarks, Unknowns unknowns)
     {
-        List<BookmarkCategory> categories = [];
-        foreach (JsonElement category in Property(bookmarks, "categories", JsonValueKind.Array).EnumerateArray())
+        List<BookmarkCategory> categories = ReadList(Property(bookmarks, "categories", JsonValueKind.Array), "bookmarks.categories", category =>
         {
             Expect(category, JsonValueKind.Object, "bookmark categories");
             try
             {
-                categories.Add(new BookmarkCategory(Text(category, "id"), category.TryGetProperty("name", out _) ? Text(category, "name") : null, Name<InkColour>(category, "ink")));
+                return new BookmarkCategory(Text(category, "id"), category.TryGetProperty("name", out _) ? Text(category, "name") : null, Name<InkColour>(category, "ink"));
             }
             catch (ArgumentException)
             {
                 throw Damaged("bookmark categories");
             }
-        }
+        }, unknowns);
 
-        // The four built-in categories are always there, under their own name when the file does not name them.
+        // The four built-in categories are always there, under their own name when the file does not name them; one the file
+        // holds with an ink this build does not know stays unknown, written back as it was, rather than taken by the built-in.
+        HashSet<string> unknownCategories = [.. Project.UnknownIds(unknowns.Kept, "bookmarks.categories")];
         for (int i = 0; i < BookmarkCategory.BuiltIn.Count; i++)
         {
             BookmarkCategory builtIn = BookmarkCategory.BuiltIn[i];
-            if (categories.All(category => category.Id != builtIn.Id))
+            if (categories.All(category => category.Id != builtIn.Id) && !unknownCategories.Contains(builtIn.Id))
             {
                 categories.Insert(Math.Min(i, categories.Count), builtIn);
             }
@@ -853,24 +825,32 @@ public static partial class ProjectFile
             throw Damaged("bookmark categories");
         }
 
-        List<Bookmark> items = [];
-        foreach (JsonElement bookmark in Property(bookmarks, "items", JsonValueKind.Array).EnumerateArray())
-        {
-            Expect(bookmark, JsonValueKind.Object, "bookmarks");
-            try
-            {
-                items.Add(new Bookmark(Text(bookmark, "id"), Text(bookmark, "title"), Text(bookmark, "category"), ReadSpan(bookmark, "bookmark"), Boolean(bookmark, "fromPhrase"), Time(bookmark, "createdAt")));
-            }
-            catch (ArgumentException)
-            {
-                throw Damaged("bookmarks");
-            }
-        }
+        // A bookmark in an unknown category is left unknown with it: an app could not show it in its category.
+        List<Bookmark> items = Known(
+            ReadEntries(Property(bookmarks, "items", JsonValueKind.Array), "bookmarks.items", ReadBookmark, unknowns, "category"),
+            "bookmarks.items",
+            static bookmark => bookmark.CategoryId,
+            unknownCategories,
+            "category",
+            unknowns);
 
         return items.Select(static bookmark => bookmark.Id).Distinct(StringComparer.Ordinal).Count() == items.Count
             && items.All(bookmark => categories.Any(category => category.Id == bookmark.CategoryId))
             ? (categories, items)
             : throw Damaged("bookmarks");
+    }
+
+    private static Bookmark ReadBookmark(JsonElement bookmark)
+    {
+        Expect(bookmark, JsonValueKind.Object, "bookmarks");
+        try
+        {
+            return new Bookmark(Text(bookmark, "id"), Text(bookmark, "title"), Text(bookmark, "category"), ReadSpan(bookmark, "bookmark"), Boolean(bookmark, "fromPhrase"), Time(bookmark, "createdAt"));
+        }
+        catch (ArgumentException)
+        {
+            throw Damaged("bookmarks");
+        }
     }
 
     private static ResumePoint ReadResumePoint(JsonElement point)
@@ -933,7 +913,7 @@ public static partial class ProjectFile
         }
     }
 
-    private static IReadOnlyList<CheckFlag>? ReadCheck(JsonElement root)
+    private static IReadOnlyList<CheckFlag>? ReadCheck(JsonElement root, Unknowns unknowns)
     {
         if (!root.TryGetProperty("check", out JsonElement check) || check.ValueKind is not (JsonValueKind.Null or JsonValueKind.Array))
         {
@@ -945,15 +925,12 @@ public static partial class ProjectFile
             return null;
         }
 
-        List<CheckFlag> flags = [];
-        foreach (JsonElement flag in check.EnumerateArray())
+        return ReadList(check, "check", flag =>
         {
             Expect(flag, JsonValueKind.Object, "check");
             int bar = Integer(flag, "bar");
-            flags.Add(bar >= 0 ? new CheckFlag(bar, Name<CheckSource>(flag, "source"), Name<CheckReason>(flag, "reason"), Boolean(flag, "resolved")) : throw Damaged("check"));
-        }
-
-        return flags;
+            return bar >= 0 ? new CheckFlag(bar, Name<CheckSource>(flag, "source"), Name<CheckReason>(flag, "reason"), Boolean(flag, "resolved")) : throw Damaged("check");
+        }, unknowns);
     }
 
     private static void WritePerformance(Utf8JsonWriter json, SavedPerformance performance)
@@ -1170,6 +1147,20 @@ public static partial class ProjectFile
             span,
             filter,
             noteIds);
+    }
+
+    /// <summary>
+    /// The motifs and their variations. A motif and its variations are kept or left unknown together: a variation cannot
+    /// open without its motif, and an app that replaces a motif drops its variations, which it cannot do with one it never
+    /// sees.
+    /// </summary>
+    private static List<SavedMotif> ReadMotifs(JsonElement root, int version, Unknowns unknowns, out List<SavedVariation> variations)
+    {
+        var motifs = ReadEntries(Property(root, "motifs", JsonValueKind.Array), "motifs", ReadMotif, unknowns);
+        var read = ReadEntries(Property(root, "variations", JsonValueKind.Array), "variations", variation => ReadVariation(variation, version), unknowns, "motifId");
+        HashSet<string> unknown = [.. Project.UnknownIds(unknowns.Kept, "motifs"), .. unknowns.Kept.Where(static entity => entity.List == "variations" && entity.Owner is not null).Select(static entity => entity.Owner!)];
+        variations = Known(read, "variations", static variation => variation.MotifId, unknown, "motifId", unknowns);
+        return Known(motifs, "motifs", static motif => motif.Id, unknown, null, unknowns);
     }
 
     private static void WriteTicks(Utf8JsonWriter json, string name, IEnumerable<Tick> ticks)
@@ -1843,7 +1834,7 @@ public static partial class ProjectFile
         where T : struct, Enum
     {
         string text = Text(parent, name);
-        return Enum.GetNames<T>().FirstOrDefault(known => string.Equals(known, text, StringComparison.OrdinalIgnoreCase)) is { } match ? Enum.Parse<T>(match) : throw Damaged(name);
+        return Enum.GetNames<T>().FirstOrDefault(known => string.Equals(known, text, StringComparison.OrdinalIgnoreCase)) is { } match ? Enum.Parse<T>(match) : throw Unknown<T>(name, text);
     }
 
     private static long Long(JsonElement parent, string name) =>
@@ -1855,8 +1846,28 @@ public static partial class ProjectFile
             : throw Damaged(name);
 
     private static T Name<T>(JsonElement parent, string name)
-        where T : struct, Enum =>
-        TryName(Text(parent, name), out T value) ? value : throw Damaged(name);
+        where T : struct, Enum
+    {
+        string text = Text(parent, name);
+        return TryName(text, out T value) ? value : throw Unknown<T>(name, text);
+    }
+
+    /// <summary>
+    /// The reason for a value that is none of the enum's names: "damaged", as for any field, marked with the enum's type
+    /// name when the value is itself a name (ASCII letters and digits, from a letter), so a tolerant read can keep the
+    /// entity that holds it (S6). Where no list keeps it, the file is refused as before.
+    /// </summary>
+    private static ProjectFileException Unknown<T>(string name, string text)
+        where T : struct, Enum
+    {
+        ProjectFileException damaged = Damaged(name);
+        if (char.IsAsciiLetter(text[0]) && text.All(char.IsAsciiLetterOrDigit))
+        {
+            damaged.Data[UnknownEnumKey] = typeof(T).Name;
+        }
+
+        return damaged;
+    }
 
     /// <summary>An enum by its exact name; numbers are not names.</summary>
     private static bool TryName<T>(string? text, out T value)
@@ -1864,6 +1875,149 @@ public static partial class ProjectFile
     {
         value = default;
         return text is not null && Enum.GetNames<T>().Contains(text, StringComparer.Ordinal) && Enum.TryParse(text, out value);
+    }
+
+    /// <summary>The key under which a "damaged" reason names the enum whose value this build does not know.</summary>
+    private const string UnknownEnumKey = "MotiffLab.UnknownEnum";
+
+    /// <summary>
+    /// The entities of one array of the file with their places. In a tolerant read an entity whose only fault is a value
+    /// this build does not know is left out and kept as unknown; any other fault is damage, as before.
+    /// </summary>
+    /// <param name="owner">The field naming the entity it belongs with, kept with it when it is unknown.</param>
+    private static List<(int Index, JsonElement Element, T Value)> ReadEntries<T>(JsonElement array, string list, Func<JsonElement, T> read, Unknowns unknowns, string? owner = null)
+    {
+        List<(int, JsonElement, T)> entries = [];
+        int index = 0;
+        foreach (JsonElement element in array.EnumerateArray())
+        {
+            try
+            {
+                entries.Add((index, element, read(element)));
+            }
+            catch (ProjectFileException reason) when (unknowns.Keeps(reason, element))
+            {
+                unknowns.Keep(list, index, element, owner, (string)reason.Data[UnknownEnumKey]!);
+            }
+
+            index++;
+        }
+
+        return entries;
+    }
+
+    /// <summary>The entities of one array of the file this build reads, as <see cref="ReadEntries"/> reads them.</summary>
+    private static List<T> ReadList<T>(JsonElement array, string list, Func<JsonElement, T> read, Unknowns unknowns) =>
+        [.. ReadEntries(array, list, read, unknowns).Select(static entry => entry.Value)];
+
+    /// <summary>The entities read, but those that belong with an unknown entity, which are kept as unknown with it.</summary>
+    /// <param name="key">The id of the entity an entity belongs with (a motif's own id, a variation's motif).</param>
+    /// <param name="owner">The field that names it, kept with an unknown entity; null when it is the entity's own id.</param>
+    private static List<T> Known<T>(List<(int Index, JsonElement Element, T Value)> entries, string list, Func<T, string> key, IReadOnlySet<string> unknownKeys, string? owner, Unknowns unknowns)
+    {
+        List<T> known = [];
+        foreach ((int index, JsonElement element, T value) in entries)
+        {
+            if (unknownKeys.Contains(key(value)))
+            {
+                unknowns.Keep(list, index, element, owner, null);
+            }
+            else
+            {
+                known.Add(value);
+            }
+        }
+
+        return known;
+    }
+
+    /// <summary>
+    /// The unknown entities of a list to write back: not one whose id a known entity of the list now has (the app made a
+    /// new one in its place), nor one that belongs with an unknown entity dropped so; <paramref name="replaced"/> names the
+    /// ones dropped.
+    /// </summary>
+    private static List<UnknownEntity> KeptUnknown(IEnumerable<UnknownEntity> unknown, string list, IEnumerable<string> knownIds, IReadOnlySet<string>? replacedOwners, out HashSet<string> replaced)
+    {
+        HashSet<string> taken = [.. knownIds];
+        List<UnknownEntity> kept = [];
+        replaced = [];
+        foreach (UnknownEntity entity in unknown.Where(entity => entity.List == list).OrderBy(static entity => entity.Index))
+        {
+            if (entity.Id is { } id && taken.Contains(id))
+            {
+                replaced.Add(id);
+            }
+            else if (entity.Owner is not { } owner || replacedOwners is null || !replacedOwners.Contains(owner))
+            {
+                kept.Add(entity);
+            }
+        }
+
+        return kept;
+    }
+
+    /// <summary>
+    /// An array of the file: the known entities in their order, each unknown one written back unchanged at the place it
+    /// had, so a file read and written with no change gives the same entities in the same order.
+    /// </summary>
+    private static void WriteList<T>(Utf8JsonWriter json, string name, IEnumerable<T> known, IReadOnlyList<UnknownEntity> unknown, Action<T> write)
+    {
+        json.WriteStartArray(name);
+        int written = 0;
+        int next = 0;
+        foreach (T entity in known)
+        {
+            for (; next < unknown.Count && unknown[next].Index <= written; next++, written++)
+            {
+                WriteUnknown(json, unknown[next]);
+            }
+
+            write(entity);
+            written++;
+        }
+
+        for (; next < unknown.Count; next++)
+        {
+            WriteUnknown(json, unknown[next]);
+        }
+
+        json.WriteEndArray();
+    }
+
+    private static void WriteUnknown(Utf8JsonWriter json, UnknownEntity entity)
+    {
+        using JsonDocument kept = JsonDocument.Parse(entity.Json);
+        kept.RootElement.WriteTo(json);
+    }
+
+    private static string? TextOf(JsonElement entity, string name) =>
+        entity.TryGetProperty(name, out JsonElement value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+
+    /// <summary>
+    /// What a read keeps as unknown (S6). Only a file of this build's own version is read so: the builds that wrote an
+    /// older file knew no value this one does not, so an unknown value there is damage.
+    /// </summary>
+    private sealed class Unknowns(bool tolerant)
+    {
+        public List<UnknownEntity> Kept { get; } = [];
+
+        /// <summary>Whether the only fault of a list's entity is a value this build does not know.</summary>
+        public bool Keeps(ProjectFileException reason, JsonElement entity) =>
+            tolerant && entity.ValueKind == JsonValueKind.Object && reason.Data[UnknownEnumKey] is string;
+
+        public void Keep(string list, int index, JsonElement entity, string? owner, string? enumName) =>
+            Kept.Add(new UnknownEntity(list, index, TextOf(entity, "id"), owner is null ? null : TextOf(entity, owner), entity.GetRawText()) { Enum = enumName });
+
+        /// <summary>The project read, with the unknown entities where they are kept: the marks' and the PDF's marks' own, and the rest on the project.</summary>
+        public Project KeptIn(Project project) => project with
+        {
+            Unknown = InOrder(Kept.Where(static entity => !entity.List.StartsWith("marks.", StringComparison.Ordinal) && !entity.List.StartsWith("documentMarks.", StringComparison.Ordinal))),
+            Marks = project.Marks with { Unknown = InOrder(Kept.Where(static entity => entity.List.StartsWith("marks.", StringComparison.Ordinal))) },
+            DocumentMarks = project.DocumentMarks with { Unknown = InOrder(Kept.Where(static entity => entity.List.StartsWith("documentMarks.", StringComparison.Ordinal))) },
+        };
+
+        private static List<UnknownEntity> InOrder(IEnumerable<UnknownEntity> entities) =>
+            [.. entities.OrderBy(static entity => entity.List, StringComparer.Ordinal).ThenBy(static entity => entity.Index)];
     }
 
     private static ProjectFileException Damaged(string what) =>

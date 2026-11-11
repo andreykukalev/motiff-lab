@@ -172,7 +172,7 @@ public class ObservationTests
     [Theory]
     [InlineData("\"alternative\": 1", "\"alternative\": -1")]
     [InlineData("\"fifths\": 0", "\"fifths\": 9")]
-    [InlineData("\"mode\": \"Major\"", "\"mode\": \"Lydian\"")]
+    [InlineData("\"mode\": \"Major\"", "\"mode\": \"Lydian mode\"")]
     [InlineData("\"name\": \"Half time\"", "\"name\": \" \"")]
     [InlineData("\"id\": \"o_0002\"", "\"id\": \"o_0001\"")]
     [InlineData("\"note\": \"The left hand leads here.\"", "\"note\": \"   \"")]

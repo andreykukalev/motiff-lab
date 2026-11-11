@@ -22,6 +22,9 @@ public sealed record DocumentMarks
     /// <summary>The pages the player bookmarked, in page order.</summary>
     public IReadOnlyList<PageBookmark> Bookmarks { get; init; } = [];
 
+    /// <summary>The strokes of the file this build cannot read (S6), kept to be written back unchanged.</summary>
+    public IReadOnlyList<UnknownEntity> Unknown { get; init; } = [];
+
     public bool IsEmpty => Ink.Count == 0 && Bookmarks.Count == 0;
 
     /// <summary>The marks with these strokes in place of the ones before; every stroke must name a page from 1.</summary>
