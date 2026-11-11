@@ -5144,6 +5144,305 @@ body:has(.library) .site-footer {
     color: var(--ink);
 }
 
+/* The player's own tags on a card or a row: neutral, since cobalt points, plum is the app's and amber is Check's. */
+.library .tag.own {
+    border: 1px solid var(--hairline);
+    background: var(--surface-2);
+    color: var(--ink-2);
+    font-weight: 500;
+}
+
+/* Search, order and view (version 0.2), then the composer and tag chips, each row scrolling sideways rather than
+   growing as the shelf does; then how many pieces show. */
+.library .lib-tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-3);
+    margin-bottom: var(--s-3);
+}
+
+.library .lib-tools .search {
+    display: flex;
+    flex: 1 1 18rem;
+    align-items: center;
+    gap: var(--s-2);
+    height: var(--h-touch);
+    padding: 0 var(--s-3);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-s);
+    background: var(--surface);
+    color: var(--ink-2);
+}
+
+.library .lib-tools .search:focus-within {
+    box-shadow: var(--focus-ring);
+}
+
+.library .lib-tools .search input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    font: var(--t-body);
+    outline: none;
+}
+
+/* The field around it shows the focus, once. */
+.library .lib-tools .search input:focus-visible {
+    box-shadow: none;
+}
+
+.library .lib-tools .sort {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.library .lib-tools select {
+    height: var(--h-touch);
+    padding: 0 var(--s-3);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-s);
+    background: var(--surface);
+    color: var(--ink);
+    font: var(--t-body);
+}
+
+.library .lib-tools select:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.library .view-switch {
+    display: inline-flex;
+    overflow: hidden;
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-s);
+}
+
+.library .view-switch .seg {
+    display: inline-flex;
+    align-items: center;
+    height: var(--h-touch);
+    min-height: 0;
+    padding: 0 var(--s-4);
+    border: 0;
+    background: var(--surface);
+    color: var(--ink-2);
+    font: var(--t-label);
+    cursor: pointer;
+}
+
+.library .view-switch .seg + .seg {
+    border-left: 1px solid var(--hairline-strong);
+}
+
+.library .view-switch .seg.on {
+    background: var(--accent-tint);
+    box-shadow: inset 0 0 0 1px var(--accent);
+    color: var(--ink);
+}
+
+.library .chip-row {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    margin: 0 0 var(--s-2);
+    padding: var(--s-1) var(--s-1) var(--s-1) 0;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+.library .chip-row > .caption {
+    flex: none;
+    min-width: 6rem;
+}
+
+.library .chip {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: var(--s-1);
+    height: var(--h-compact);
+    min-height: 0;
+    padding: 0 var(--s-3);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-pill);
+    background: var(--surface-2);
+    color: var(--ink);
+    font: var(--t-label);
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.library .chip.on {
+    border-color: var(--accent);
+    background: var(--accent-tint);
+}
+
+.library .lib-count {
+    margin: var(--s-1) 0 var(--s-4);
+}
+
+.library .lib-none {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--s-4);
+}
+
+/* A long shelf costs little: a card off screen is not laid out or painted until it scrolls near. */
+.library .card.piece {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 320px;
+}
+
+/* An open ••• menu reaches out of its card, which containment would cut. */
+.library .card.piece.menu-open {
+    content-visibility: visible;
+}
+
+/* The compact list: one line a piece, title and composer, the tags, when it was opened and its •••. */
+.library ul.lib-list {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-l);
+    background: var(--surface);
+    list-style: none;
+}
+
+.library .lib-row {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) auto auto;
+    align-items: center;
+    gap: var(--s-4);
+    min-height: var(--s-12);
+    padding: var(--s-2) var(--s-4);
+    border-bottom: 1px solid var(--hairline);
+    cursor: pointer;
+    content-visibility: auto;
+    contain-intrinsic-size: auto var(--s-12);
+    -webkit-touch-callout: none;
+    user-select: none;
+}
+
+.library .lib-row:last-child {
+    border-bottom: 0;
+}
+
+.library .lib-row:hover, .library .lib-row.menu-open {
+    background: var(--surface-2);
+    content-visibility: visible;
+}
+
+.library .lib-row .ttl {
+    margin: 0;
+    text-transform: none;
+    letter-spacing: 0;
+    font: var(--t-title);
+    font-size: 18px;
+    line-height: 24px;
+    color: var(--ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.library .lib-row .meta {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.library .lib-row .tags-cell {
+    min-width: 0;
+}
+
+.library .lib-row .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-1);
+    margin: 0;
+}
+
+.library .lib-row .when {
+    white-space: nowrap;
+}
+
+/* The edit sheet: the fields one under another, the tags as chips with their ×, the library's other tags to pick. */
+.library .edit-sheet .field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.library .edit-sheet input[type=text] {
+    height: var(--h-touch);
+    padding: 0 var(--s-3);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-s);
+    background: var(--surface);
+    color: var(--ink);
+    font: var(--t-body);
+}
+
+.library .edit-sheet input[type=text]:focus {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.library .edit-sheet .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    margin: var(--s-1) 0;
+    padding: 0;
+    list-style: none;
+}
+
+.library .edit-sheet li.chip {
+    cursor: default;
+    padding-right: var(--s-1);
+}
+
+.library .edit-sheet .chip-x {
+    display: grid;
+    place-items: center;
+    width: var(--h-compact);
+    height: calc(var(--h-compact) - 2px);
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-pill);
+    background: transparent;
+    color: var(--ink-2);
+    cursor: pointer;
+}
+
+.library .edit-sheet .add-tag {
+    display: flex;
+    gap: var(--s-2);
+}
+
+.library .edit-sheet .add-tag input {
+    flex: 1;
+    min-width: 0;
+}
+
+.library .edit-sheet .row {
+    display: flex;
+    gap: var(--s-2);
+}
+
 .library .card .rule {
     height: 1px;
     margin: var(--s-2) 0 var(--s-2);
@@ -5420,6 +5719,14 @@ body:has(.library) .site-footer {
     .library h1.wordmark {
         font-size: 32px;
         line-height: 38px;
+    }
+
+    .library .lib-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .library .lib-row .tags-cell, .library .lib-row .when {
+        display: none;
     }
 
     .library .lib-sheet {

@@ -67,111 +67,111 @@ else if (_firstRun is false)
             }
 
             <h2 class="overline">@Text["home.projects"]</h2>
-            <ul class="lib-grid">
-                @foreach (ProjectSummary summary in _summaries)
-                {
-                    PieceCover? cover = _covers.GetValueOrDefault(summary.Id);
-                    string title = TitleOf(summary, cover);
-                    string headingId = $"piece-{summary.Id}";
-                    <li class="card piece @(_menu == summary.Id ? "menu-open" : null)" aria-labelledby="@headingId"
-                        @onclick="() => CardClickedAsync(summary)" @oncontextmenu="() => OpenResumesAsync(summary)" @oncontextmenu:preventDefault="true"
-                        @onpointerdown="() => PressStart(summary)" @onpointerup="PressEnd" @onpointerleave="PressEnd" @onpointercancel="PressEnd">
-                        <div class="top">
-                            <button class="thumb" aria-label="@Text.Format("library.openPage1", title)" @onclick="() => OpenFreshAsync(summary.Id, null)" @onclick:stopPropagation="true" disabled="@_opening">
-                                @if (cover is not null)
+            @if (Shelf.Entries.Count > 0)
+            {
+                <LibraryTools State="Shelf" Changed="OnShelfChanged" />
+            }
+            @if (Shelf.NoneMatch)
+            {
+                @* No card: the tools say nothing matches, with the way back to all the pieces. *@
+            }
+            else if (Shelf.IsList && Shelf.Entries.Count > 0)
+            {
+                @* The compact list (version 0.2): one line a piece, for a shelf of a couple of hundred. A tap resumes it, as a card does. *@
+                <ul class="lib-list">
+                    @foreach (LibraryEntry entry in Shelf.Shown)
+                    {
+                        ProjectSummary summary = entry.Summary;
+                        string headingId = $"piece-{summary.Id}";
+                        <li class="lib-row piece @(_menu == summary.Id ? "menu-open" : null)" @key="summary.Id" aria-labelledby="@headingId"
+                            @onclick="() => CardClickedAsync(summary)" @oncontextmenu="() => OpenResumesAsync(summary)" @oncontextmenu:preventDefault="true">
+                            <div class="what">
+                                <h3 class="ttl" id="@headingId">@entry.Title</h3>
+                                <p class="meta">@RowLine(entry)</p>
+                            </div>
+                            <div class="tags-cell"><PieceTags Entry="entry" /></div>
+                            <p class="meta when">@Day(summary.LastOpened)</p>
+                            @CardMenu(entry)
+                        </li>
+                    }
+                </ul>
+            }
+            else
+            {
+                <ul class="lib-grid">
+                    @foreach (LibraryEntry entry in Shelf.Shown)
+                    {
+                        ProjectSummary summary = entry.Summary;
+                        PieceCover? cover = _covers.GetValueOrDefault(summary.Id);
+                        string title = entry.Title;
+                        string headingId = $"piece-{summary.Id}";
+                        <li class="card piece @(_menu == summary.Id ? "menu-open" : null)" @key="summary.Id" aria-labelledby="@headingId"
+                            @onclick="() => CardClickedAsync(summary)" @oncontextmenu="() => OpenResumesAsync(summary)" @oncontextmenu:preventDefault="true"
+                            @onpointerdown="() => PressStart(summary)" @onpointerup="PressEnd" @onpointerleave="PressEnd" @onpointercancel="PressEnd">
+                            <div class="top">
+                                <button class="thumb" aria-label="@Text.Format("library.openPage1", title)" @onclick="() => OpenFreshAsync(summary.Id, null)" @onclick:stopPropagation="true" disabled="@_opening">
+                                    @if (cover is not null)
+                                    {
+                                        <img src="@cover.Url" alt="" loading="lazy" decoding="async" />
+                                    }
+                                    else
+                                    {
+                                        <span class="blank" aria-hidden="true"></span>
+                                    }
+                                </button>
+                                <div class="what">
+                                    <h3 class="ttl" id="@headingId">@title</h3>
+                                    <p class="meta">@MetaLine(summary, cover, entry.Composer)</p>
+                                    <PieceTags Entry="entry" />
+                                </div>
+                                @CardMenu(entry)
+                            </div>
+                            <div class="rule"></div>
+                            @* A piece not opened yet has no work to come back to: one Open, no Recent work (assessment, screen 04). *@
+                            @if (summary.Origin == PieceOrigin.Pdf || summary.Latest is not null)
+                            {
+                                <p class="overline">@Text["library.recentWork"]</p>
+                            }
+                            @if (summary.Origin == PieceOrigin.Pdf)
+                            {
+                                @* A PDF read as it is has no resume points: it opens at the page it was left on (0023). *@
+                                <p class="resume-name">@Text["library.pdfAsIs"]</p>
+                                <p class="meta">@Text.Format("home.lastOpened", Day(summary.LastOpened))</p>
+                            }
+                            else if (summary.Latest is { } latest)
+                            {
+                                <p class="resume-name">@ResumeName(latest, cover)</p>
+                                <p class="meta">@ResumeLine(latest, cover)</p>
+                            }
+                            <div class="row">
+                                @if (summary.Origin == PieceOrigin.Pdf || summary.Latest is not null)
                                 {
-                                    <img src="@cover.Url" alt="" />
+                                    <button class="btn secondary resume" @onclick="() => ResumeAsync(summary.Id, null)" @onclick:stopPropagation="true" disabled="@_opening"
+                                            aria-label="@Text.Format("library.resumeLabel", title)"><Icon Name="play" /> @Text["library.resume"]</button>
                                 }
                                 else
                                 {
-                                    <span class="blank" aria-hidden="true"></span>
-                                }
-                            </button>
-                            <div class="what">
-                                <h3 class="ttl" id="@headingId">@title</h3>
-                                <p class="meta">@MetaLine(summary, cover)</p>
-                                @if (summary.IdeaCount > 0 || summary.CheckBars > 0)
-                                {
-                                    <p class="tags">
-                                        @if (summary.IdeaCount > 0)
-                                        {
-                                            <span class="tag saved">@Text.Count("library.ideas", summary.IdeaCount)</span>
-                                        }
-                                        @if (summary.CheckBars > 0)
-                                        {
-                                            <span class="tag warn">@Text.Count("library.check", summary.CheckBars)</span>
-                                        }
-                                    </p>
+                                    <button class="btn secondary resume" @onclick="() => ResumeAsync(summary.Id, null)" @onclick:stopPropagation="true" disabled="@_opening"
+                                            aria-label="@Text.Format("library.openLabel", title)">@Text["home.open"]</button>
                                 }
                             </div>
-                            <div class="card-more">
-                                <button class="btn icon" aria-label="@Text.Format("library.moreFor", title)" title="@Text["library.more"]" aria-expanded="@(_menu == summary.Id ? "true" : "false")"
-                                        @onclick="() => ToggleMenu(summary.Id)" @onclick:stopPropagation="true"><Icon Name="more" /></button>
-                                @if (_menu == summary.Id)
-                                {
-                                    <div class="lib-menu" role="group" aria-label="@Text.Format("library.moreFor", title)" @onclick:stopPropagation="true">
-                                        @if (summary.Origin != PieceOrigin.Pdf)
-                                        {
-                                            <button class="btn quiet" @onclick="() => OpenFreshAsync(summary.Id, null)" disabled="@_opening"><Icon Name="file" /> @Text["library.page1"]</button>
-                                            <button class="btn quiet" @onclick="() => OpenResumesAsync(summary)"><Icon Name="pages" /> @Text["library.resumePoints"]</button>
-                                            <button class="btn quiet" @onclick="() => ResumeAsync(summary.Id, null, dna: true)" disabled="@_opening"><Icon Name="phrases" /> @Text["dna.title"]</button>
-                                        }
-                                        <button class="btn quiet" @onclick="() => ExportAsync(summary.Id)"><Icon Name="export" /> @Text["library.export"]</button>
-                                        @if (_confirmDelete == summary.Id)
-                                        {
-                                            <button class="btn quiet danger" @onclick="() => DeleteAsync(summary.Id)"><Icon Name="trash" /> @Text["home.deleteForGood"]</button>
-                                            <button class="btn quiet" @onclick="() => _confirmDelete = null">@Text["home.keep"]</button>
-                                        }
-                                        else
-                                        {
-                                            <button class="btn quiet" @onclick="() => _confirmDelete = summary.Id"><Icon Name="trash" /> @Text["home.delete"]</button>
-                                        }
-                                    </div>
-                                }
-                            </div>
-                        </div>
-                        <div class="rule"></div>
-                        @* A piece not opened yet has no work to come back to: one Open, no Recent work (assessment, screen 04). *@
-                        @if (summary.Origin == PieceOrigin.Pdf || summary.Latest is not null)
-                        {
-                            <p class="overline">@Text["library.recentWork"]</p>
-                        }
-                        @if (summary.Origin == PieceOrigin.Pdf)
-                        {
-                            @* A PDF read as it is has no resume points: it opens at the page it was left on (0023). *@
-                            <p class="resume-name">@Text["library.pdfAsIs"]</p>
-                            <p class="meta">@Text.Format("home.lastOpened", Day(summary.LastOpened))</p>
-                        }
-                        else if (summary.Latest is { } latest)
-                        {
-                            <p class="resume-name">@ResumeName(latest, cover)</p>
-                            <p class="meta">@ResumeLine(latest, cover)</p>
-                        }
-                        <div class="row">
-                            @if (summary.Origin == PieceOrigin.Pdf || summary.Latest is not null)
-                            {
-                                <button class="btn secondary resume" @onclick="() => ResumeAsync(summary.Id, null)" @onclick:stopPropagation="true" disabled="@_opening"
-                                        aria-label="@Text.Format("library.resumeLabel", title)"><Icon Name="play" /> @Text["library.resume"]</button>
-                            }
-                            else
-                            {
-                                <button class="btn secondary resume" @onclick="() => ResumeAsync(summary.Id, null)" @onclick:stopPropagation="true" disabled="@_opening"
-                                        aria-label="@Text.Format("library.openLabel", title)">@Text["home.open"]</button>
-                            }
-                        </div>
-                    </li>
-                }
-                <li class="card add">
-                    <button class="add-round" @onclick="OpenAddPiece" aria-haspopup="dialog" aria-labelledby="add-card-title"><Icon Name="plus" Size="IconSize.Large" /></button>
-                    <h3 class="ttl" id="add-card-title">@Text["library.addAPiece"]</h3>
-                    <ul class="routes">
-                        <li>@Text["library.routeFile"]</li>
-                        <li>@Text["library.routeScan"]</li>
-                        <li>@Text["library.routeRecording"]</li>
-                    </ul>
-                    <a class="demo" href="playback?start=fur-elise">@Text["library.tryDemo"]</a>
-                </li>
-            </ul>
+                        </li>
+                    }
+                    @if (!Shelf.Query.Narrows)
+                    {
+                        <li class="card add">
+                            <button class="add-round" @onclick="OpenAddPiece" aria-haspopup="dialog" aria-labelledby="add-card-title"><Icon Name="plus" Size="IconSize.Large" /></button>
+                            <h3 class="ttl" id="add-card-title">@Text["library.addAPiece"]</h3>
+                            <ul class="routes">
+                                <li>@Text["library.routeFile"]</li>
+                                <li>@Text["library.routeScan"]</li>
+                                <li>@Text["library.routeRecording"]</li>
+                            </ul>
+                            <a class="demo" href="playback?start=fur-elise">@Text["library.tryDemo"]</a>
+                        </li>
+                    }
+                </ul>
+            }
         }
 
         @if (_onlineOnly is { Count: > 0 })
@@ -204,54 +204,11 @@ else if (_firstRun is false)
 
         @if (_sheet == Sheet.AddPiece)
         {
-            @* Add piece (0018 section 9): the routes in one sheet. Opening a file runs on the device and is free; scanning a page
-               and transcribing a recording run on the server and are Pro. *@
-            <section class="lib-sheet add-sheet" role="dialog" aria-modal="true" aria-labelledby="add-title" tabindex="-1" @ref="_sheetElement" @onkeydown="OnSheetKey">
-                <header class="hd">
-                    <h2 class="ttl" id="add-title">@Text["library.addAPiece"]</h2>
-                    <button class="btn icon" aria-label="@Text["library.close"]" title="@Text["library.close"]" @onclick="CloseSheet"><Icon Name="close" /></button>
-                </header>
-                <ul class="routes-list">
-                    <li>
-                        <label class="route @(_reading ? "busy" : null)">
-                            <span class="ic"><Icon Name="file" /></span>
-                            <span class="txt">
-                                <strong>@Text["library.openFile"]</strong>
-                                <span class="caption">@(_reading ? Text["import.reading"] : Text["library.openFileHint"])</span>
-                            </span>
-                            <InputFile OnChange="OpenFileAsync" accept="@(MotiffLab.MusicCore.Import.PieceImporter.AcceptedExtensions + "," + MotiffLab.MusicCore.Import.PdfDocument.Extension)" disabled="@_reading" aria-label="@Text["library.fileChoose"]" />
-                        </label>
-                        @if (_rejection is not null)
-                        {
-                            <p class="route-problem" role="alert">@_rejection</p>
-                            @if (_otherRoute is { } other)
-                            {
-                                <p class="caption"><a href="@other.Href">@Text[other.Label]</a></p>
-                            }
-                        }
-                    </li>
-                    <li>
-                        <a class="route" href="import/scan">
-                            <span class="ic"><Icon Name="camera" /></span>
-                            <span class="txt">
-                                <strong>@Text["library.scanPage"] @if (UsesOurServer) { <span class="tag pro">Pro</span> }</strong>
-                                <span class="caption">@(_serverNote ?? Text["library.scanPageHint"])</span>
-                            </span>
-                        </a>
-                    </li>
-                    <li>
-                        <a class="route" href="import/recording">
-                            <span class="ic"><Icon Name="mic" /></span>
-                            <span class="txt">
-                                <strong>@Text["library.fromRecording"] @if (UsesOurServer) { <span class="tag pro">Pro</span> }</strong>
-                                <span class="caption">@(_serverNote ?? Text["library.fromRecordingHint"])</span>
-                            </span>
-                        </a>
-                    </li>
-                </ul>
-                <p class="caption privacy-line">@Text["library.whatLeaves"]</p>
-                <a class="btn quiet demo" href="playback?start=fur-elise"><Icon Name="play" /> @Text["library.demo"]</a>
-            </section>
+            <AddPieceSheet ServerNote="@_serverNote" UsesOurServer="UsesOurServer" Closed="CloseSheet" />
+        }
+        else if (_sheet == Sheet.Edit && _editing is { } editing)
+        {
+            <PieceEditSheet Project="editing" Heading="@_editHeading" LibraryTags="Shelf.Tags" Saved="SaveDetailsAsync" Closed="CloseSheet" />
         }
         else if (_sheet == Sheet.Account)
         {
@@ -323,4 +280,35 @@ else if (_firstRun is false)
             <SettingsSheet Closed="() => _settingsOpen = false" />
         }
     </main>
+}
+
+@code {
+    /// <summary>A piece's ••• and its menu, the same on a card and on a row of the list.</summary>
+    private RenderFragment CardMenu(LibraryEntry entry) => @<div class="card-more">
+        <button class="btn icon" aria-label="@Text.Format("library.moreFor", entry.Title)" title="@Text["library.more"]" aria-expanded="@(_menu == entry.Summary.Id ? "true" : "false")"
+                @onclick="() => ToggleMenu(entry.Summary.Id)" @onclick:stopPropagation="true"><Icon Name="more" /></button>
+        @if (_menu == entry.Summary.Id)
+        {
+            ProjectSummary summary = entry.Summary;
+            <div class="lib-menu" role="group" aria-label="@Text.Format("library.moreFor", entry.Title)" @onclick:stopPropagation="true">
+                @if (summary.Origin != PieceOrigin.Pdf)
+                {
+                    <button class="btn quiet" @onclick="() => OpenFreshAsync(summary.Id, null)" disabled="@_opening"><Icon Name="file" /> @Text["library.page1"]</button>
+                    <button class="btn quiet" @onclick="() => OpenResumesAsync(summary)"><Icon Name="pages" /> @Text["library.resumePoints"]</button>
+                    <button class="btn quiet" @onclick="() => ResumeAsync(summary.Id, null, dna: true)" disabled="@_opening"><Icon Name="phrases" /> @Text["dna.title"]</button>
+                }
+                <button class="btn quiet" @onclick="() => OpenEditAsync(entry)"><Icon Name="pen" /> @Text["library.editDetails"]</button>
+                <button class="btn quiet" @onclick="() => ExportAsync(summary.Id)"><Icon Name="export" /> @Text["library.export"]</button>
+                @if (_confirmDelete == summary.Id)
+                {
+                    <button class="btn quiet danger" @onclick="() => DeleteAsync(summary.Id)"><Icon Name="trash" /> @Text["home.deleteForGood"]</button>
+                    <button class="btn quiet" @onclick="() => _confirmDelete = null">@Text["home.keep"]</button>
+                }
+                else
+                {
+                    <button class="btn quiet" @onclick="() => _confirmDelete = summary.Id"><Icon Name="trash" /> @Text["home.delete"]</button>
+                }
+            </div>
+        }
+    </div>;
 }

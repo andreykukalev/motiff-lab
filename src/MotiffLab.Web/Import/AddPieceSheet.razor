@@ -1,0 +1,215 @@
+@using MotiffLab.MusicCore
+@using MotiffLab.MusicCore.Analytics
+@using MotiffLab.MusicCore.Facade
+@using MotiffLab.MusicCore.Import
+@using MotiffLab.MusicCore.Motifs
+@using MotiffLab.MusicCore.Projects
+@using MotiffLab.Web.Analytics
+@using MotiffLab.Web.Localization
+@using MotiffLab.Web.Projects
+
+@* Add piece (0018 section 9): the routes in one sheet. Opening a file runs on the device and is free; scanning a page and
+   transcribing a recording run on the server and are Pro. *@
+<section class="lib-sheet add-sheet" role="dialog" aria-modal="true" aria-labelledby="add-title" tabindex="-1" @ref="_sheet" @onkeydown="OnKey">
+    <header class="hd">
+        <h2 class="ttl" id="add-title">@Text["library.addAPiece"]</h2>
+        <button class="btn icon" aria-label="@Text["library.close"]" title="@Text["library.close"]" @onclick="Closed"><Icon Name="close" /></button>
+    </header>
+    <ul class="routes-list">
+        <li>
+            <label class="route @(_reading ? "busy" : null)">
+                <span class="ic"><Icon Name="file" /></span>
+                <span class="txt">
+                    <strong>@Text["library.openFile"]</strong>
+                    <span class="caption">@(_reading ? Text["import.reading"] : Text["library.openFileHint"])</span>
+                </span>
+                <InputFile OnChange="OpenFileAsync" accept="@(PieceImporter.AcceptedExtensions + "," + PdfDocument.Extension)" disabled="@_reading" aria-label="@Text["library.fileChoose"]" />
+            </label>
+            @if (_rejection is not null)
+            {
+                <p class="route-problem" role="alert">@_rejection</p>
+                @if (_otherRoute is { } other)
+                {
+                    <p class="caption"><a href="@other.Href">@Text[other.Label]</a></p>
+                }
+            }
+        </li>
+        <li>
+            <a class="route" href="import/scan">
+                <span class="ic"><Icon Name="camera" /></span>
+                <span class="txt">
+                    <strong>@Text["library.scanPage"] @if (UsesOurServer) { <span class="tag pro">Pro</span> }</strong>
+                    <span class="caption">@(ServerNote ?? Text["library.scanPageHint"])</span>
+                </span>
+            </a>
+        </li>
+        <li>
+            <a class="route" href="import/recording">
+                <span class="ic"><Icon Name="mic" /></span>
+                <span class="txt">
+                    <strong>@Text["library.fromRecording"] @if (UsesOurServer) { <span class="tag pro">Pro</span> }</strong>
+                    <span class="caption">@(ServerNote ?? Text["library.fromRecordingHint"])</span>
+                </span>
+            </a>
+        </li>
+    </ul>
+    <p class="caption privacy-line">@Text["library.whatLeaves"]</p>
+    <a class="btn quiet demo" href="playback?start=fur-elise"><Icon Name="play" /> @Text["library.demo"]</a>
+</section>
+
+@code {
+    [Inject]
+    private UiText Text { get; set; } = default!;
+
+    [Inject]
+    private ProjectStore Projects { get; set; } = default!;
+
+    [Inject]
+    private CurrentPiece CurrentPiece { get; set; } = default!;
+
+    [Inject]
+    private NavigationManager Navigation { get; set; } = default!;
+
+    [Inject]
+    private UsageAnalytics Analytics { get; set; } = default!;
+
+    /// <summary>What scanning and transcription need before they work here, or null when they are ready.</summary>
+    [Parameter]
+    public string? ServerNote { get; set; }
+
+    /// <summary>Scanning and transcription go to Motiff Lab's server, which is Pro.</summary>
+    [Parameter]
+    public bool UsesOurServer { get; set; }
+
+    [Parameter]
+    public EventCallback Closed { get; set; }
+
+    private ElementReference _sheet;
+    private bool _reading;
+    private string? _rejection;
+    private (string Href, string Label)? _otherRoute;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                await _sheet.FocusAsync();
+            }
+            catch (InvalidOperationException)
+            {
+                // Not on the page yet.
+            }
+        }
+    }
+
+    private async Task OnKey(KeyboardEventArgs key)
+    {
+        if (key.Key == "Escape")
+        {
+            await Closed.InvokeAsync();
+        }
+    }
+
+    /// <summary>Open a file: read on the device (S1-I1), saved as a new project at a new resume point, and opened.</summary>
+    private async Task OpenFileAsync(InputFileChangeEventArgs args)
+    {
+        _rejection = null;
+        _otherRoute = null;
+        Words words = Words.For(Text.Language);
+        if (string.Equals(Path.GetExtension(args.File.Name), PdfDocument.Extension, StringComparison.OrdinalIgnoreCase))
+        {
+            await OpenPdfAsync(args.File, words);
+            return;
+        }
+
+        ImportRejection? rejection = PieceImporter.CheckSize(args.File.Size);
+        ImportedPiece? piece = null;
+        byte[] data = [];
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        if (rejection is null)
+        {
+            _reading = true;
+            StateHasChanged();
+            try
+            {
+                await using Stream stream = args.File.OpenReadStream(PieceImporter.MaxFileBytes);
+                using var memory = new MemoryStream();
+                await stream.CopyToAsync(memory);
+                data = memory.ToArray();
+                PieceImportResult result = PieceImporter.Import(args.File.Name, data);
+                (piece, rejection) = (result.Piece, result.Rejection);
+            }
+            finally
+            {
+                _reading = false;
+            }
+        }
+
+        PerformanceTiming? timing = piece is { Format: SourceFormat.Midi } midi ? PerformanceTiming.Measure(midi.Notes, midi.Meter) : null;
+        await Analytics.TrackAsync(AnalyticsEvent.PieceImported(
+            AnalyticsEvent.FormatOf(args.File.Name), piece is not null, piece?.Report.NoteCount ?? 0, piece?.Tracks.Count ?? 0,
+            timing?.Kind == TimingKind.Performance, (long)watch.Elapsed.TotalMilliseconds));
+
+        if (piece is null)
+        {
+            ImportRejection problem = rejection ?? new ImportRejection(ImportRejectionReason.NotMusic, "", "");
+            _otherRoute = problem.Reason switch
+            {
+                ImportRejectionReason.Pdf or ImportRejectionReason.Image => ("import/scan", "import.goScan"),
+                ImportRejectionReason.Audio => ("import/recording", "import.goRecording"),
+                _ => null,
+            };
+            _rejection = _otherRoute is null
+                ? $"{args.File.Name}: {problem.Text(words)} {problem.TipIn(words)}".Trim()
+                : $"{args.File.Name}: {problem.Text(words)}";
+            return;
+        }
+
+        Project project = Project.Create(MusicCoreFacade.NewProjectId(), piece.FileName, data, DateTimeOffset.Now);
+        ResumePoint point = ResumePoint.Start(project.NextResumePointId(), DateTimeOffset.Now);
+        project = project.AddResumePoint(point);
+        await Projects.SaveAsync(project);
+        CurrentPiece.Open(piece, SelectionFilter.All, project);
+        Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(project, point.Id));
+    }
+
+    /// <summary>
+    /// Adds a PDF to read as it is (0023; Andrei, 2026-11-04): kept on the device byte for byte, with no notes, and opened
+    /// in its PDF view. Reading its notes is Scan printed music's job.
+    /// </summary>
+    private async Task OpenPdfAsync(IBrowserFile file, Words words)
+    {
+        if (PdfDocument.CheckSize(file.Size) is { } tooLarge)
+        {
+            _rejection = $"{file.Name}: {tooLarge.Text(words)} {tooLarge.TipIn(words)}".Trim();
+            return;
+        }
+
+        byte[] data;
+        _reading = true;
+        StateHasChanged();
+        try
+        {
+            await using Stream stream = file.OpenReadStream(PdfDocument.MaxFileBytes);
+            using var memory = new MemoryStream();
+            await stream.CopyToAsync(memory);
+            data = memory.ToArray();
+        }
+        finally
+        {
+            _reading = false;
+        }
+
+        if (!PdfDocument.IsPdf(data))
+        {
+            _rejection = $"{file.Name}: {Text["pdf.notPdf"]}";
+            return;
+        }
+
+        Project project = Project.CreateDocument(MusicCoreFacade.NewProjectId(), file.Name, data, DateTimeOffset.Now);
+        await Projects.SaveAsync(project);
+        Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(project));
+    }
+}

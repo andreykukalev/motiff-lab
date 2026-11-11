@@ -3,6 +3,7 @@ using System.Text;
 
 using Microsoft.JSInterop;
 
+using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.Web.Account;
 using MotiffLab.Web.Score;
@@ -38,19 +39,35 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
     {
         ArgumentNullException.ThrowIfNull(project);
         IJSObjectReference module = await ModuleAsync();
-        ProjectSummary summary = project.Summary;
-        await module.InvokeVoidAsync(
-            "saveProject",
-            project.Id,
-            Encoding.UTF8.GetString(ProjectFile.Write(project)),
-            new StoredSummary(summary.Id, summary.FileName, summary.MotifCount, summary.VariationCount, Iso(summary.LastOpened), summary.ResumeCount, summary.IdeaCount)
-            {
-                Origin = summary.Origin.ToString(),
-                CheckBars = summary.CheckBars,
-                ReadFrom = summary.ReadFrom,
-                Latest = summary.Latest is { } latest ? new StoredResume(latest.Id, latest.Name, latest.At, latest.From, latest.To, Iso(latest.LastActive)) : null,
-            });
+        await module.InvokeVoidAsync("saveProject", project.Id, Encoding.UTF8.GetString(ProjectFile.Write(project)), Row(project.Summary));
     }
+
+    /// <summary>
+    /// Writes a saved project's library row again from the project, as it is: for rows saved before the row kept the title,
+    /// composer and tags (version 0.2), so the library can search and filter them. The project file is not touched.
+    /// </summary>
+    public async Task<ProjectSummary> SaveSummaryAsync(Project project)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+        IJSObjectReference module = await ModuleAsync();
+        ProjectSummary summary = project.Summary;
+        await module.InvokeVoidAsync("saveSummary", Row(summary));
+        return summary;
+    }
+
+    private static StoredSummary Row(ProjectSummary summary) =>
+        new(summary.Id, summary.FileName, summary.MotifCount, summary.VariationCount, Iso(summary.LastOpened), summary.ResumeCount, summary.IdeaCount)
+        {
+            Origin = summary.Origin.ToString(),
+            CheckBars = summary.CheckBars,
+            ReadFrom = summary.ReadFrom,
+            Latest = summary.Latest is { } latest ? new StoredResume(latest.Id, latest.Name, latest.At, latest.From, latest.To, Iso(latest.LastActive)) : null,
+            Title = summary.Details?.Title.Value,
+            TitleFrom = summary.Details?.Title.Attribution.Provenance.ToString(),
+            Composer = summary.Details?.Composer?.Value,
+            ComposerFrom = summary.Details?.Composer?.Attribution.Provenance.ToString(),
+            Tags = summary.Details?.Tags,
+        };
 
     /// <summary>The saved project, or null when there is none. Throws <see cref="ProjectFileException"/> when it is damaged.</summary>
     public async Task<Project?> LoadAsync(string id)
@@ -78,6 +95,7 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
             CheckBars = row.CheckBars,
             ReadFrom = row.ReadFrom,
             Latest = row.Latest is { } latest ? new ResumeSummary(latest.Id, latest.Name, latest.At, latest.From, latest.To, Time(latest.LastActive)) : null,
+            Details = DetailsOf(row),
         })];
     }
 
@@ -151,6 +169,17 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
         }
     }
 
+    /// <summary>The title, composer and tags a row keeps; null for a row saved before it kept them, or one this build cannot read.</summary>
+    private static PieceDetails? DetailsOf(StoredSummary row) =>
+        row is { Title: { } title, TitleFrom: { } titleFrom } && Attributed(title, titleFrom) is { } shown
+            ? new PieceDetails(shown, row is { Composer: { } composer, ComposerFrom: { } composerFrom } ? Attributed(composer, composerFrom) : null, row.Tags ?? [])
+            : null;
+
+    private static Attributed<string>? Attributed(string value, string provenance) =>
+        Enum.TryParse(provenance, out Provenance kind) && kind is Provenance.UserEdited or Provenance.Imported or Provenance.Inferred
+            ? new(value, kind == Provenance.Inferred ? Attribution.Inferred(1) : kind == Provenance.Imported ? Attribution.Imported : Attribution.UserEdited)
+            : null;
+
     /// <summary>UTC, so the script can order rows by comparing the strings.</summary>
     private static string Iso(DateTimeOffset time) => time.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture);
 
@@ -169,6 +198,17 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
         public StoredResume? Latest { get; init; }
 
         public string? ReadFrom { get; init; }
+
+        /// <summary>The title, composer and tags the card shows, with where each comes from (a provenance name); rows saved before version 0.2 have none.</summary>
+        public string? Title { get; init; }
+
+        public string? TitleFrom { get; init; }
+
+        public string? Composer { get; init; }
+
+        public string? ComposerFrom { get; init; }
+
+        public IReadOnlyList<string>? Tags { get; init; }
     }
 
     private sealed record StoredResume(string Id, string? Name, long At, long? From, long? To, string LastActive);

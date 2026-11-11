@@ -29,6 +29,12 @@ export interface ProjectSummary {
     origin?: string;
     checkBars?: number;
     latest?: { id: string; name: string | null; at: number; from: number | null; to: number | null; lastActive: string } | null;
+    /** The title, composer and tags the card shows, each with where it comes from (version 0.2); rows saved earlier have none. */
+    title?: string | null;
+    titleFrom?: string | null;
+    composer?: string | null;
+    composerFrom?: string | null;
+    tags?: string[] | null;
 }
 
 /**
@@ -116,6 +122,14 @@ export async function saveProject(id: string, file: string, summary: ProjectSumm
     const db = await open();
     const transaction = db.transaction([PROJECTS, SUMMARIES], "readwrite");
     transaction.objectStore(PROJECTS).put(file, id);
+    transaction.objectStore(SUMMARIES).put(summary);
+    await done(transaction);
+}
+
+/** Writes a project's summary row again, leaving its file as it is: rows saved before they kept the title, composer and tags. */
+export async function saveSummary(summary: ProjectSummary): Promise<void> {
+    const db = await open();
+    const transaction = db.transaction(SUMMARIES, "readwrite");
     transaction.objectStore(SUMMARIES).put(summary);
     await done(transaction);
 }

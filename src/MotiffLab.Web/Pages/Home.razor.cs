@@ -2,15 +2,11 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
 
-using MotiffLab.MusicCore;
-using MotiffLab.MusicCore.Analytics;
 using MotiffLab.MusicCore.Facade;
 using MotiffLab.MusicCore.Import;
-using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;
 using MotiffLab.Web.Account;
-using MotiffLab.Web.Analytics;
 using MotiffLab.Web.Import;
 using MotiffLab.Web.Localization;
 using MotiffLab.Web.Projects;
@@ -32,6 +28,7 @@ public partial class Home
         AddPiece,
         Resumes,
         Account,
+        Edit,
     }
 
     /// <summary>The menu id of the library's own overflow; a card's menu is named by its project id.</summary>
@@ -60,9 +57,6 @@ public partial class Home
 
     [Inject]
     private ScanService Scans { get; set; } = default!;
-
-    [Inject]
-    private UsageAnalytics Analytics { get; set; } = default!;
 
     [Inject]
     private MotiffLab.Web.Settings.DeviceSettings SettingsStore { get; set; } = default!;
@@ -97,10 +91,6 @@ public partial class Home
     private string? _confirmRemove;
     private string? _newName;
 
-    private bool _reading;
-    private string? _rejection;
-    private (string Href, string Label)? _otherRoute;
-
     private CancellationTokenSource? _press;
     private bool _pressed;
 
@@ -126,6 +116,7 @@ public partial class Home
     private void OnChanged()
     {
         _serverNote = ServerNote();
+        Shelve();
         _ = InvokeAsync(StateHasChanged);
     }
 
@@ -133,6 +124,7 @@ public partial class Home
     {
         await SettingsStore.LoadAsync();
         _firstRun = !SettingsStore.PresetChosen;
+        await Shelf.LoadViewAsync();
         await Scans.LoadAsync();
         _player = await Account.PlayerAsync();
         _serverNote = ServerNote();
@@ -148,6 +140,8 @@ public partial class Home
         if (firstRender)
         {
             await RefreshAsync();
+            StateHasChanged();
+            await CompleteRowsAsync();
             StateHasChanged();
         }
 
@@ -173,6 +167,7 @@ public partial class Home
         HashSet<string> readFrom = [.. all.Select(summary => summary.ReadFrom).OfType<string>()];
         _summaries = [.. all.Where(summary => summary.Origin != PieceOrigin.Pdf || !readFrom.Contains(summary.Id))];
         _covers = await Projects.CoversAsync();
+        Shelve();
         _nearlyFull = await Projects.IsNearlyFullAsync();
         _onlineOnly = null;
         if (await Online.IsOnAsync())
@@ -184,24 +179,20 @@ public partial class Home
         }
     }
 
-    /// <summary>The card's title: as the score is headed, or the file's name without its extension.</summary>
-    private static string TitleOf(ProjectSummary summary, PieceCover? cover) =>
-        cover?.Title is { Length: > 0 } title ? title : ScoreTitle.Of(summary.FileName) ?? summary.FileName;
-
     /// <summary>"Beethoven · 4 pages · 16 phrases", "From a recording · 5 pages · 9 phrases": what is known before the piece opens.</summary>
-    private string MetaLine(ProjectSummary summary, PieceCover? cover)
+    private string MetaLine(ProjectSummary summary, PieceCover? cover, string? composer)
     {
         List<string> parts = [];
+        if (composer is not null)
+        {
+            parts.Add(composer);
+        }
+
         if (summary.Origin != PieceOrigin.File)
         {
-            parts.Add(Text[summary.Origin switch
-            {
-                PieceOrigin.Scan => "library.scanned",
-                PieceOrigin.Pdf => "library.pdf",
-                _ => "library.recorded",
-            }]);
+            parts.Add(Text[OriginKey(summary.Origin)]);
         }
-        else if (cover?.Lines is [var first, ..])
+        else if (composer is null && cover?.Lines is [var first, ..])
         {
             parts.Add(first);
         }
@@ -381,10 +372,7 @@ public partial class Home
     private void OpenAddPiece()
     {
         _menu = null;
-        _rejection = null;
-        _otherRoute = null;
         _sheet = Sheet.AddPiece;
-        _focusSheet = true;
     }
 
     /// <summary>Lists a piece's resume points: the project is read, and its piece imported again for the bars of each passage.</summary>
@@ -408,7 +396,7 @@ public partial class Home
                 return;
             }
 
-            _resumeTitle = TitleOf(summary, _covers.GetValueOrDefault(summary.Id));
+            _resumeTitle = LibraryEntry.Of(summary, _covers.GetValueOrDefault(summary.Id)).Title;
             _resumePiece = PieceImporter.Import(_resumeProject.FileName, _resumeProject.Source).Piece;
             _sheet = Sheet.Resumes;
             _focusSheet = true;
@@ -429,6 +417,7 @@ public partial class Home
     private void CloseSheet()
     {
         _sheet = Sheet.None;
+        _editing = null;
         _resumeProject = null;
         _resumePiece = null;
     }
@@ -475,107 +464,6 @@ public partial class Home
         _resumeProject = project.RemoveResumePoint(point.Id);
         await Projects.SaveAsync(_resumeProject);
         await RefreshAsync();
-    }
-
-    /// <summary>Open a file in Add piece: read on the device (S1-I1), saved as a new project at a new resume point, and opened.</summary>
-    private async Task OpenFileAsync(InputFileChangeEventArgs args)
-    {
-        _rejection = null;
-        _otherRoute = null;
-        Words words = Words.For(Text.Language);
-        if (string.Equals(Path.GetExtension(args.File.Name), PdfDocument.Extension, StringComparison.OrdinalIgnoreCase))
-        {
-            await OpenPdfAsync(args.File, words);
-            return;
-        }
-
-        ImportRejection? rejection = PieceImporter.CheckSize(args.File.Size);
-        ImportedPiece? piece = null;
-        byte[] data = [];
-        var watch = System.Diagnostics.Stopwatch.StartNew();
-        if (rejection is null)
-        {
-            _reading = true;
-            StateHasChanged();
-            try
-            {
-                await using Stream stream = args.File.OpenReadStream(PieceImporter.MaxFileBytes);
-                using var memory = new MemoryStream();
-                await stream.CopyToAsync(memory);
-                data = memory.ToArray();
-                PieceImportResult result = PieceImporter.Import(args.File.Name, data);
-                (piece, rejection) = (result.Piece, result.Rejection);
-            }
-            finally
-            {
-                _reading = false;
-            }
-        }
-
-        PerformanceTiming? timing = piece is { Format: SourceFormat.Midi } midi ? PerformanceTiming.Measure(midi.Notes, midi.Meter) : null;
-        await Analytics.TrackAsync(AnalyticsEvent.PieceImported(
-            AnalyticsEvent.FormatOf(args.File.Name), piece is not null, piece?.Report.NoteCount ?? 0, piece?.Tracks.Count ?? 0,
-            timing?.Kind == TimingKind.Performance, (long)watch.Elapsed.TotalMilliseconds));
-
-        if (piece is null)
-        {
-            ImportRejection problem = rejection ?? new ImportRejection(ImportRejectionReason.NotMusic, "", "");
-            _otherRoute = problem.Reason switch
-            {
-                ImportRejectionReason.Pdf or ImportRejectionReason.Image => ("import/scan", "import.goScan"),
-                ImportRejectionReason.Audio => ("import/recording", "import.goRecording"),
-                _ => null,
-            };
-            _rejection = _otherRoute is null
-                ? $"{args.File.Name}: {problem.Text(words)} {problem.TipIn(words)}".Trim()
-                : $"{args.File.Name}: {problem.Text(words)}";
-            return;
-        }
-
-        Project project = Project.Create(MusicCoreFacade.NewProjectId(), piece.FileName, data, DateTimeOffset.Now);
-        ResumePoint point = ResumePoint.Start(project.NextResumePointId(), DateTimeOffset.Now);
-        project = project.AddResumePoint(point);
-        await Projects.SaveAsync(project);
-        CurrentPiece.Open(piece, SelectionFilter.All, project);
-        Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(project, point.Id));
-    }
-
-    /// <summary>
-    /// Adds a PDF to read as it is (0023; Andrei, 2026-11-04): kept on the device byte for byte, with no notes, and opened
-    /// in its PDF view. Reading its notes is Scan printed music's job.
-    /// </summary>
-    private async Task OpenPdfAsync(IBrowserFile file, Words words)
-    {
-        if (PdfDocument.CheckSize(file.Size) is { } tooLarge)
-        {
-            _rejection = $"{file.Name}: {tooLarge.Text(words)} {tooLarge.TipIn(words)}".Trim();
-            return;
-        }
-
-        byte[] data;
-        _reading = true;
-        StateHasChanged();
-        try
-        {
-            await using Stream stream = file.OpenReadStream(PdfDocument.MaxFileBytes);
-            using var memory = new MemoryStream();
-            await stream.CopyToAsync(memory);
-            data = memory.ToArray();
-        }
-        finally
-        {
-            _reading = false;
-        }
-
-        if (!PdfDocument.IsPdf(data))
-        {
-            _rejection = $"{file.Name}: {Text["pdf.notPdf"]}";
-            return;
-        }
-
-        Project project = Project.CreateDocument(MusicCoreFacade.NewProjectId(), file.Name, data, DateTimeOffset.Now);
-        await Projects.SaveAsync(project);
-        Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(project));
     }
 
     private async Task GetHereAsync(string id)
