@@ -8,8 +8,8 @@ import UniformTypeIdentifiers
 /// work, each resumed with one tap. A piece's properties (title, composer, tags, playlists) are edited from a long press.
 /// The pieces are project files in the app's Documents (0019 section 2.3), read by music-core (`project.summary`) without
 /// opening them. One Add piece action holds the ways in; the overflow imports a project file. Everything here runs on the
-/// device and is free; signed in, the projects saved online that are not on this iPad are listed under them, to download
-/// (0014, #335).
+/// device and is free; signed in, the pieces sync with the player's other devices by themselves (version 0.2,
+/// `CloudSync`), and a project saved online that is still not here is listed under them, to download (0014, #335).
 struct LibraryView: View {
     private let text = UIText.current
     @EnvironmentObject private var account: Account
@@ -23,6 +23,12 @@ struct LibraryView: View {
     @State private var summaries: [URL: PieceSummary] = [:]
     /// The projects saved online that are not on this iPad (#335); none while signed out or offline.
     @State private var online: [OnlineProject] = []
+    /// Saving online and sync, on until the player turns it off in Settings (version 0.2).
+    @AppStorage(CloudSync.onKey) private var syncOn = true
+    @State private var syncing = false
+    /// How many pieces stay on this iPad because the free account's room online is full (0025 section 8).
+    @State private var overQuota = 0
+    @Environment(\.scenePhase) private var phase
     /// The pieces made from the project files and their summaries, with the library's composers, tags and playlists
     /// (version 0.2).
     @State private var entries: [LibraryEntry] = []
@@ -61,6 +67,11 @@ struct LibraryView: View {
                                 .dsType(.label)
                                 .foregroundStyle(Color.ds("danger"))
                                 .accessibilityAddTraits(.isStaticText)
+                        }
+                        if overQuota > 0 {
+                            Text(text.format("online.overQuota", String(overQuota), String(CloudSync.freeProjectsOnline)))
+                                .dsType(.label)
+                                .foregroundStyle(Color.ds("ink-2"))
                         }
                         if projects.isEmpty {
                             Text(text["home.emptyWhat"])
@@ -145,6 +156,13 @@ struct LibraryView: View {
             }
             // Signed in or out: the projects saved online come or go.
             .onChange(of: account.player) { _, _ in Task { await refreshOnline() } }
+            // Back on the screen: what changed on another device meanwhile comes here (never inside a piece).
+            .onChange(of: phase) { _, now in
+                if now == .active && piece == nil { Task { await refreshOnline() } }
+            }
+            .onChange(of: syncOn) { _, on in
+                if on { Task { await refreshOnline() } }
+            }
             // Recent lists the last opened first; the other lists start from A.
             .onChange(of: tab) { _, shown in
                 picked = nil
@@ -244,12 +262,36 @@ struct LibraryView: View {
         }
     }
 
-    /// The projects saved online whose id is in no project file here (0014); none while signed out, offline or when the
-    /// API cannot be reached, and then nothing is said: the library is about the projects on this iPad.
+    /// One sync pass (version 0.2), then the projects saved online whose id is still in no project file here (0014),
+    /// such as one deleted here; none while signed out, offline or when the API cannot be reached, and then nothing is
+    /// said: the library is about the projects on this iPad.
     private func refreshOnline() async {
-        var listed: [OnlineProject] = []
-        if account.player != nil { listed = await account.online.list() ?? [] }
+        guard account.player != nil else {
+            online = []
+            return
+        }
+        if syncOn && !syncing {
+            syncing = true
+            let language = text.language
+            let previous = text.format("sync.previousCopy", "{0}", "%@")
+            let outcome = await CloudSync(online: account.online) { made in
+                previous.replacingOccurrences(of: "%@", with: Self.when(made, language: language))
+            }.run()
+            syncing = false
+            overQuota = outcome.overQuota
+            if outcome.changed { await reload() }
+        }
+        let listed = await account.online.list() ?? []
         online = OnlineProjects.notHere(listed, here: Set(summaries.values.compactMap(\.id)))
+    }
+
+    /// "11.11.2026, 20:40" in the interface's language, for a previous copy's title.
+    private static func when(_ date: Date, language: String) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: language)
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
     }
 
     /// Get it here (#335): downloads a project saved online as a new project file and opens it, from then on an ordinary

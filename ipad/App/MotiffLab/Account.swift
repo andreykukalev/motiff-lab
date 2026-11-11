@@ -329,7 +329,8 @@ final class Account: ObservableObject {
         return request(path: path, token: token)
     }
 
-    /// The projects the player saved online, read with their token on any plan (0014); the iPad only reads them (#335).
+    /// The projects the player saved online, with their token on any plan (0014): listed, fetched and sent by the sync
+    /// (version 0.2, `CloudSync`), never deleted from the iPad.
     var online: OnlineProjects {
         OnlineProjects(session: session) { [weak self] path in await self?.apiRequest(path) }
     }

@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 
+using MotiffLab.MusicCore.Accounts;
 using MotiffLab.MusicCore.Projects;
 
 namespace MotiffLab.Api.Tests;
@@ -38,32 +39,27 @@ public sealed class ProjectApiTests : IClassFixture<ProjectApiTests.Api>
     }
 
     [Fact]
-    public async Task Saving_online_needs_Pro_but_reading_and_erasing_do_not()
+    public async Task Saving_online_is_free_up_to_the_quota_and_a_piece_beyond_it_is_refused()
     {
+        // 0025 section 8 (Andrei, 2026-11-11): free sync up to 300 pieces; those online keep syncing, a new one stays on the device.
         string player = Player();
-        await Client(player).PutAsync("/projects/p_kept", Json(File("p_kept")));
-
         HttpClient free = Client(player, roles: []);
-        HttpResponseMessage refused = await free.PutAsync("/projects/p_kept", Json(File("p_kept")));
-        Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
-        Assert.Contains("\"code\":\"pro\"", await refused.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.NoContent, (await free.PutAsync("/projects/p_kept", Json(File("p_kept")))).StatusCode);
+        for (int index = 1; index < Plans.FreeProjectsOnline; index++)
+        {
+            await _api.Services.GetRequiredService<IProjectStore>().PutAsync(
+                player, Project.Create($"p_{index:D4}", "a.musicxml", Encoding.UTF8.GetBytes("<score-partwise/>"), s_created).Summary, "", null, default);
+        }
 
-        Assert.Single((await free.GetFromJsonAsync<Summary[]>("/projects"))!);
+        HttpResponseMessage refused = await free.PutAsync("/projects/p_new", Json(File("p_new")));
+        Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
+        Assert.Contains("\"code\":\"quota\"", await refused.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.NoContent, (await free.PutAsync("/projects/p_kept", Json(File("p_kept")))).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await Client(player).PutAsync("/projects/p_new", Json(File("p_new")))).StatusCode);
+
+        Assert.Equal(Plans.FreeProjectsOnline + 1, (await free.GetFromJsonAsync<Summary[]>("/projects"))!.Length);
         Assert.Equal(HttpStatusCode.OK, (await free.GetAsync("/projects/p_kept")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await free.DeleteAsync("/me")).StatusCode);
-    }
-
-    [Theory]
-    [InlineData(new string[0], null, HttpStatusCode.Forbidden)]
-    [InlineData(new string[0], "pro", HttpStatusCode.Forbidden)]
-    [InlineData(new[] { "Tester" }, null, HttpStatusCode.Forbidden)]
-    [InlineData(new[] { "Tester" }, "pro", HttpStatusCode.NoContent)]
-    [InlineData(new[] { "Tester", "Pro" }, "free", HttpStatusCode.Forbidden)]
-    [InlineData(new[] { "Pro" }, "free", HttpStatusCode.NoContent)]
-    public async Task Only_a_tester_may_choose_the_plan(string[] roles, string? choice, HttpStatusCode expected)
-    {
-        HttpResponseMessage response = await Client(Player(), roles: roles, choice: choice).PutAsync("/projects/p_test", Json(File("p_test")));
-        Assert.Equal(expected, response.StatusCode);
     }
 
     [Fact]
@@ -75,7 +71,7 @@ public sealed class ProjectApiTests : IClassFixture<ProjectApiTests.Api>
 
         Account testing = (await Client(Player(), roles: ["Tester", "Pro"], choice: "free").GetFromJsonAsync<Account>("/account"))!;
         Assert.Equal(("free", true, "free"), (testing.Plan, testing.Tester, testing.Chosen));
-        Assert.DoesNotContain(true, testing.Features.Values);
+        Assert.Equal(["saveOnline"], testing.Features.Where(feature => feature.Value).Select(feature => feature.Key));
 
         Assert.Equal(HttpStatusCode.Unauthorized, (await _api.CreateClient().GetAsync("/account")).StatusCode);
     }

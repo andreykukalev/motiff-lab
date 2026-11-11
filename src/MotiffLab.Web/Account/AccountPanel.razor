@@ -3,7 +3,7 @@
 @inject MotiffLab.Web.Localization.UiText Text
 @inject CloudAccount Account
 @inject OnlineProjects Online
-@inject MotiffLab.Web.Projects.ProjectStore Projects
+@inject CloudSync Sync
 @inject IJSRuntime JS
 
 @* The player's account (0014; 0018 section 9, "Account"): signing in, or who is signed in, the plan, saving online and
@@ -87,9 +87,9 @@
                 }
                 <div class="switch-row">
                     <label for="save-online">@Text["settings.saveOnline"]</label>
-                    <input id="save-online" type="checkbox" class="switch" checked="@_online" disabled="@(!_online && !CanSaveOnline)" @onchange="ToggleOnlineAsync" aria-describedby="online-status" />
+                    <input id="save-online" type="checkbox" class="switch" checked="@_online" @onchange="ToggleOnlineAsync" aria-describedby="online-status" />
                 </div>
-                <p id="online-status" class="meta" role="status">@(Online.Status ?? (_online ? Text["settings.onlineOn"] : CanSaveOnline ? Text["settings.onlineOff"] : Text["settings.onlineNeedsPro"]))</p>
+                <p id="online-status" class="meta" role="status">@(Online.Status ?? (_online ? Text.Format("settings.onlineOn", MotiffLab.MusicCore.Accounts.Plans.FreeProjectsOnline) : Text["settings.onlineOff"]))</p>
                 <p class="meta"><a href="privacy#online">@Text["settings.onlineWhatIsKept"]</a></p>
                 <div class="row danger">
                     @if (_confirmDeleteOnline)
@@ -164,8 +164,6 @@
     private bool _showHowToRun;
     private MotiffLab.Web.Account.AccountPlan? _plan;
     private MotiffLab.MusicCore.Accounts.Plan? _choice;
-
-    private bool CanSaveOnline => _plan?.Allows(MotiffLab.MusicCore.Accounts.ProFeature.SaveOnline) == true;
 
     private string PlanName => _plan is null ? Text["settings.planUnknown"] : _plan.IsPro ? Text["settings.planPro"] : Text["settings.planFree"];
 
@@ -265,7 +263,10 @@
         _scanStatus = engine is not null ? Text.Format("settings.scanConnected", engine) : Text.Format("settings.scanSavedBut", problem!);
     }
 
-    /// <summary>Turning saving online on sends the projects already on this device, so they are all online.</summary>
+    /// <summary>
+    /// Saving online is on once the player signs in (version 0.2); turning it back on syncs at once, so the projects
+    /// already on this device go online and those saved from another device come here.
+    /// </summary>
     private async Task ToggleOnlineAsync(ChangeEventArgs args)
     {
         _online = args.Value is true;
@@ -273,20 +274,7 @@
         await Online.SetOnAsync(_online);
         if (_online)
         {
-            foreach (MotiffLab.MusicCore.Projects.ProjectSummary summary in await Projects.ListAsync())
-            {
-                try
-                {
-                    if (await Projects.LoadAsync(summary.Id) is { } project)
-                    {
-                        await Online.QueueAsync(project);
-                    }
-                }
-                catch (MotiffLab.MusicCore.Projects.ProjectFileException)
-                {
-                    // A damaged project stays on this device; Home says so when it is opened.
-                }
-            }
+            await Sync.RunAsync();
         }
     }
 

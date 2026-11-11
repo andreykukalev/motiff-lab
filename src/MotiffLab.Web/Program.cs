@@ -29,6 +29,7 @@ AccountOptions account = builder.Configuration.GetSection("Account").Get<Account
 builder.Services.AddSingleton(account);
 builder.Services.AddScoped<CloudAccount>();
 builder.Services.AddScoped<OnlineProjects>();
+builder.Services.AddScoped<CloudSync>();
 if (account.IsConfigured)
 {
     builder.Services.AddMsalAuthentication(options =>

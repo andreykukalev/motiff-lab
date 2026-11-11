@@ -1,6 +1,6 @@
 // Pro (decision record 0018, section 12; preparation item 14): what needs the cloud is Pro. The API tells the app the
 // player's plan (GET /account), Settings shows it, a tester gets a switch whose choice goes with every request as the
-// Motiff-Plan header, and without Pro saving online and the hosted scan server are offered no further. The build under
+// Motiff-Plan header, and without Pro the hosted scan server is offered no further; saving online is free (0025 section 8). The build under
 // test has no sign-in, so the test gives it sign-in settings, plays MSAL's script as a signed-in player, and plays the API.
 import { expect, test } from "@playwright/test";
 import { openFurElise, selectBar } from "./steps.mjs";
@@ -63,14 +63,14 @@ async function signedIn(page, { tester, own }) {
     return choices;
 }
 
-test("a free player is told what Pro adds and cannot turn saving online on", async ({ page }) => {
+test("a free player is told what Pro adds and saves online for free", async ({ page }) => {
     await signedIn(page, { tester: false, own: "free" });
     await page.goto("settings");
 
     await expect(page.locator("#plan")).toContainText("Free");
     await expect(page.getByLabel("Testing")).toHaveCount(0);
-    await expect(page.getByLabel("Save my projects online")).toBeDisabled();
-    await expect(page.locator("#online-status")).toHaveText("Saving online is part of Pro.");
+    await expect(page.getByLabel("Save my projects online and sync my devices")).toBeChecked();
+    await expect(page.locator("#online-status")).toContainText("Free for up to 300 pieces.");
 
     await page.goto("import/scan");
     await expect(page.getByText("Scanning runs on Motiff Lab's server and is part of Pro.")).toBeVisible();
@@ -82,11 +82,11 @@ test("a tester switches between Pro and no Pro, and the choice goes to the API",
     await page.goto("settings");
 
     await expect(page.locator("#plan")).toContainText("Pro");
-    await expect(page.getByLabel("Save my projects online")).toBeEnabled();
+    await expect(page.getByLabel("Save my projects online and sync my devices")).toBeEnabled();
 
     await page.getByLabel("Testing").selectOption("free");
     await expect(page.locator("#plan")).toContainText("Free");
-    await expect(page.getByLabel("Save my projects online")).toBeDisabled();
+    await expect(page.getByLabel("Save my projects online and sync my devices")).toBeEnabled();
     expect(choices.at(-1)).toBe("free");
 
     // The choice stays on this device.

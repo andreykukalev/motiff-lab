@@ -60,6 +60,9 @@ else if (_firstRun is false)
             <p class="lib-note warning" role="status">@Text["home.nearlyFull"]</p>
         }
 
+        @* Sync with the player's other devices (version 0.2): a pass when the library opens and comes back into view. *@
+        <MotiffLab.Web.Account.LibrarySync Synced="RefreshAsync" />
+
         @if (_summaries is null)
         {
             <p class="meta">@Text["home.loading"]</p>
@@ -159,7 +162,7 @@ else if (_firstRun is false)
 
         @if (_onlineOnly is { Count: > 0 })
         {
-            @* Saved online from another device (0014): fetched only when the player asks for it. *@
+            @* Saved online from another device (0014) and not fetched by the sync, as when it could not be read here. *@
             <h2 class="overline">@Text["home.onlineOnly"]</h2>
             <ul class="lib-grid online">
                 @foreach (ProjectSummary summary in _onlineOnly)
