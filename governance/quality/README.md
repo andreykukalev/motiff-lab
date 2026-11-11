@@ -2,8 +2,8 @@
 
 Agents write code to a measurable spec: functions and files stay small and simple, and copy-paste is caught (#332).
 The checks run in the repository, with no external service: locally with one command, in CI in `build-test` on every
-pull request. Changing this folder is a Guardrail task (E3, `governance/risk-paths.yml`), so the thresholds and the
-switch below change only when Andrei applies it.
+pull request. The thresholds and the switch below are the agents' own rules (decision 6 in `governance/README.md`):
+they change only in a pull request Andrei merges.
 
 ## One command
 
@@ -51,20 +51,19 @@ duplicate), never by line number, so moving code keeps its entry; `value` is wha
 - An entry no violation matches any more (the code was fixed, renamed or moved to another file) must be removed:
   `--update-baseline` removes it. The baseline only shrinks unless a pull request justifies an entry.
 - A baselined violation that got worse (a longer function, a bigger file) is listed in the report but does not fail,
-  in soft or blocking mode; the Reviewer reads that list. Whether growth should fail is Andrei's call before the switch.
+  in soft or blocking mode; the release reviewer reads that list.
 - A suppression (the `suppressions` check) is fixed by removing it; when it truly cannot go, it is a baseline entry
   with a reason like any other.
-- In CI the report lists the entries the pull request adds to the baseline, with their reasons, for the Reviewer.
+- In CI the report lists the entries the pull request adds to the baseline, with their reasons.
 
 ## Soft mode and the switch
 
 `"mode"` in [`settings.json`](settings.json) is the one switch:
 
-- `"soft"` (from the merge of #332, for two weeks): the report goes to the job summary and annotations, and the checks
+- `"soft"` (from the merge of #332 until 2026-11-11): the report goes to the job summary and annotations, and the checks
   never fail `build-test`, whatever they find, even when a check cannot run.
-- `"blocking"`: `build-test` fails on a new violation, an entry to remove, an entry without a reason, a configuration
+- `"blocking"` (since 2026-11-11, the current mode): `build-test` fails on a new violation, an entry to remove, an entry without a reason, a configuration
   that differs from `settings.json`, or a check that could not run. Old code in the baseline does not fail: only new
   code is held to the thresholds.
 
-Andrei flips it: a pull request that changes `"soft"` to `"blocking"`, an E3 change he applies. Raising or lowering a
-threshold works the same way, followed by `--write-config` and `--update-baseline`.
+Changing the mode, or raising or lowering a threshold, is a pull request Andrei merges, followed by `--write-config` and `--update-baseline`.

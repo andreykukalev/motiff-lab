@@ -10,7 +10,7 @@
        the account's other databases use, and stops, creating nothing, if Motiff Lab would take it past the free 1000 RU/s;
     2. the resource group rg-motifflab (Poland Central) with the CI identity id-motifflab-github (infra/bootstrap.bicep,
        Contributor on that group only), the API's identity id-motifflab-api (data access to the motifflab database only)
-       and the web app's Static Web App swa-motifflab (infra/main.bicep, Free plan, West Europe), so everything Motiff Lab
+       and the web app's Static Web App swa-motifflab (infra/main.bicep, Free plan, East US 2), so everything Motiff Lab
        runs is in one group and CI deploys all of it as one identity;
     3. the sign-in tenant, Microsoft Entra External ID (free up to 50,000 monthly users), linked to rg-motifflab, with the
        app registrations Motiff Lab API (scopes Projects.ReadWrite and Scan) and Motiff Lab (the web app, and the iPad app

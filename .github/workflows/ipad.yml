@@ -13,8 +13,9 @@ on:
         description: Photograph the app's screens (Russian, landscape and portrait, light and dark)
         type: boolean
         default: false
+  # Every version tag (governance/README.md, "Versions"), and the old iPad release tags.
   push:
-    tags: ['ipad-v*']
+    tags: ['v*', 'ipad-v*']
   pull_request:
     types: [opened, synchronize, reopened, labeled]
 

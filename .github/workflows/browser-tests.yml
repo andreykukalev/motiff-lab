@@ -23,6 +23,9 @@ name: Browser tests
 on:
   schedule:
     - cron: '17 3 * * *'
+  # Every version tag (governance/README.md, "Versions"): the version note says whether they passed.
+  push:
+    tags: ['v*']
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review, labeled]
     # Only what can change the published app or the specs; a pull request with other changes skips the run.

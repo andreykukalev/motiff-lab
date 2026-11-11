@@ -43,4 +43,10 @@ A `Local.xcconfig` from the old shell (`ios/Config/Local.xcconfig`) can be moved
 
 ## Releases
 
-A release is a tag `ipad-v<major>.<minor>.<patch>` on main, built in Xcode with `MARKETING_VERSION` set to that number (0019). TestFlight and the App Store need the paid Apple Developer Program.
+Versions follow `governance/README.md`: a test version is a tag `v0.<n>` on `develop`, a stable version a tag on `main`. Install one on the iPad with one command on the Mac:
+
+```bash
+ipad/build-version.sh v0.1     # or a branch name; then `git switch -` to go back
+```
+
+It builds everything from that tag, signs with your team from `Local.xcconfig` (a free Apple ID: 7 days), sets `MARKETING_VERSION` from the tag, and installs on the one connected iPad, or opens Xcode for Product > Run. Every `v*` tag also runs the `iPad` workflow (the Swift tests in the simulator). TestFlight and the App Store need the paid Apple Developer Program; the old `ipad-v*` tags still work.
