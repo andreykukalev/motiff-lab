@@ -68,7 +68,7 @@ struct AddPieceSheet: View {
         .interactiveDismissDisabled(progress != nil)
     }
 
-    /// From a recording (0014): the scan server hears the sound of an audio or video file, up to its first 7 minutes, and
+    /// From a recording (0014): the scan server hears the sound of an audio or video file, however long, and
     /// its notes become a new piece. Pro, as on the web; what it needs first is offered here.
     private var fromRecording: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {

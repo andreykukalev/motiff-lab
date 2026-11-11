@@ -22,7 +22,7 @@ What exists: transcription with bars, tempo and key worked out from the playing 
 
 A performance is added to a piece in the "Notes" view (MusicXML or MIDI import, or a recognised scan). It comes from one of:
 
-- a recording of the player's own file, transcribed on the scan server (0014; Pro, since it runs on a server). Only the player's own file: no links, no YouTube (decided 2026-10-31). Built 2026-11-05 as From a recording in the Other versions drawer: the whole recording is heard, up to 7 minutes, in parts as on Transcribe a recording, with the same line and switch for what leaves the device; its sound is not kept, only the notes heard, as a version from a recording;
+- a recording of the player's own file, transcribed on the scan server (0014; Pro, since it runs on a server). Only the player's own file: no links, no YouTube (decided 2026-10-31). Built 2026-11-05 as From a recording in the Other versions drawer: the whole recording is heard (up to 7 minutes until 0014 item 7 lifted the limit in version 0.3), in parts as on Transcribe a recording, with the same line and switch for what leaves the device; its sound is not kept, only the notes heard, as a version from a recording;
 - a project already transcribed, so a recording heard once is not sent again;
 - a MIDI file of a performance (a digital piano, a performer's MIDI): on the device and free.
 

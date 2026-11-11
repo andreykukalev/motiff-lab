@@ -915,10 +915,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         guard versions.read(performance: answer) else {
             return facadeObject(answer)?["message"] as? String ?? text["transcribe.failed"]
         }
-        var status = versions.matched == 0
+        let status = versions.matched == 0
             ? text["performance.noMatch"]
             : text.format("performance.added", String(versions.matched), String(versions.printed), String(versions.bars.filter(\.differs).count))
-        if heard.cut { status += " " + text.format("version.recordingCut", "7") }
         versionStatus = status
         await versionAdded(piece)
         return nil
