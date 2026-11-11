@@ -2,7 +2,7 @@ import SwiftUI
 
 extension LibraryEntry {
     /// The line of a project file: the title the player set or the one the score names, else the file's name; the composer
-    /// the player set or the score names; the player's tags; and whether there is work on it to come back to.
+    /// the player set or the score names; the player's tags and playlists; and whether there is work on it to come back to.
     static func of(_ entry: ProjectFiles.Entry, _ summary: PieceSummary?) -> LibraryEntry {
         let named = summary?.titleFrom == "player" || summary?.titleFrom == "file"
         return LibraryEntry(
@@ -10,19 +10,21 @@ extension LibraryEntry {
             title: named ? summary?.title ?? entry.title : entry.title,
             composer: summary?.composer,
             tags: summary?.tags ?? [],
+            playlists: summary?.playlists ?? [],
             modified: entry.modified,
             inSession: summary.map { !$0.hasNotes || $0.latest != nil } ?? false
         )
     }
 }
 
-/// The library's tabs (ux-prototype/v2/screens/lib-1-list.png): All pieces, Composers, Recent and Sessions, the one shown
-/// underlined in the accent; on the lists of pieces, the Composer and Tag filters as menus at the right.
+/// The library's tabs (ux-prototype/v2/screens/lib-1-list.png): All pieces, Composers, Recent, Playlists and Sessions, the
+/// one shown underlined in the accent; on the lists of pieces, the Composer, Tag and Playlist filters as menus at the right.
 struct LibraryTabs: View {
     @Binding var tab: LibraryTab
     @Binding var query: LibraryQuery
     let composers: [String]
     let tags: [String]
+    let playlists: [String]
     let text: UIText
 
     var body: some View {
@@ -63,7 +65,7 @@ struct LibraryTabs: View {
         }
     }
 
-    /// The Composer and Tag filters, on the lists of pieces only.
+    /// The Composer, Tag and Playlist filters, on the lists of pieces only.
     @ViewBuilder
     private var filters: some View {
         if tab == .all || tab == .recent {
@@ -74,15 +76,23 @@ struct LibraryTabs: View {
                 if !tags.isEmpty {
                     LibraryFilter(caption: text["library.byTag"], all: text["library.anyTag"], values: tags, picked: $query.tag)
                 }
+                if !playlists.isEmpty {
+                    LibraryFilter(caption: text["library.byPlaylist"], all: text["library.anyPlaylist"], values: playlists, picked: $query.playlist)
+                }
             }
         }
     }
 
     private func label(_ tab: LibraryTab) -> String {
+        LibraryTabs.label(tab, text)
+    }
+
+    static func label(_ tab: LibraryTab, _ text: UIText) -> String {
         switch tab {
         case .all: text["library.tabAll"]
         case .composers: text["library.tabComposers"]
         case .recent: text["library.tabRecent"]
+        case .playlists: text["library.tabPlaylists"]
         case .sessions: text["library.tabSessions"]
         }
     }
@@ -128,8 +138,9 @@ struct LibraryFilter: View {
     }
 }
 
-/// The list of pieces (lib-1): Title, Composer and Opened as columns, each heading ordering the list by it, the arrow
-/// on the one in use; a line per piece, a tap opening it where it was left, a long press offering its properties and Delete.
+/// The list of pieces (lib-1): Title, Composer, Playlists and Opened as columns, a heading ordering the list by its column
+/// (Playlists does not), the arrow on the one in use; a line per piece, a tap opening it where it was left, a long press
+/// offering its properties and Delete.
 struct LibraryList: View {
     let entries: [LibraryEntry]
     @Binding var query: LibraryQuery
@@ -146,6 +157,8 @@ struct LibraryList: View {
             HStack(spacing: CGFloat.ds("s-4")) {
                 heading(text["library.fieldTitle"], .title)
                 heading(text["library.fieldComposer"], .composer)
+                Text(text["library.fieldPlaylists"]).overline()
+                    .frame(maxWidth: .infinity, minHeight: CGFloat.ds("h-compact"), alignment: .leading)
                 heading(text["library.colOpened"], .recent, trailing: true)
                     .frame(width: Self.openedWidth, alignment: .trailing)
             }
@@ -184,7 +197,7 @@ struct LibraryList: View {
     }
 }
 
-/// One piece in the list: its title in the serif, its composer, and when it was last opened.
+/// One piece in the list: its title in the serif, its composer, its playlists, and when it was last opened.
 struct LibraryLine: View {
     let entry: LibraryEntry
     let text: UIText
@@ -202,6 +215,11 @@ struct LibraryLine: View {
                     .lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 Text(entry.composer ?? "")
+                    .dsType(.body)
+                    .foregroundStyle(Color.ds("ink-2"))
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text(entry.playlists.joined(separator: ", "))
                     .dsType(.body)
                     .foregroundStyle(Color.ds("ink-2"))
                     .lineLimit(1)
@@ -267,12 +285,12 @@ struct LibraryIndex: View {
     }
 }
 
-/// The Composers tab: the library's composers from A, each with how many pieces of theirs it holds, and the pieces without a
-/// composer last; a tap shows that composer's pieces.
-struct ComposerList: View {
-    let rows: [ComposerRow]
+/// The Composers or Playlists tab: the library's composers or playlists from A, each with how many pieces it holds, and the
+/// pieces without a composer last; a tap shows its pieces.
+struct GroupList: View {
+    let rows: [LibraryGroup]
     let text: UIText
-    let pick: (ComposerRow) -> Void
+    let pick: (LibraryGroup) -> Void
 
     var body: some View {
         LazyVStack(alignment: .leading, spacing: 0) {
