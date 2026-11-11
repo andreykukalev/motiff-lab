@@ -1,8 +1,9 @@
-// Tests of .github/scripts/aom-verdicts.mjs (Task Record #300, criteria 1-4): node --test "governance/tests/*.test.mjs".
+// Tests of .github/scripts/aom-verdicts.mjs (Task Record #300, criteria 1-4; Task Record #358, the docs-only rule):
+// node --test "governance/tests/*.test.mjs".
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { CONTEXT, evaluate, parseVerdict } from '../../.github/scripts/aom-verdicts.mjs';
+import { CONTEXT, decide, evaluate, isDocsOnly, parseVerdict } from '../../.github/scripts/aom-verdicts.mjs';
 
 const A = 'a'.repeat(40);
 const B = '0123456789abcdef0123456789abcdef01234567';
@@ -91,4 +92,61 @@ test('criterion 4: light path, one thread posts both on one SHA; a delta re-chec
   const recheck = [...thread, review('approve', B, '3'), qa('pass', B, '4')];
   assert.equal(evaluate(recheck, B).state, 'success');
   assert.equal(evaluate(recheck, A).state, 'failure');
+});
+
+// Task Record #358: docs-only pull requests.
+const file = (filename, previous_filename) => (previous_filename === undefined ? { filename } : { filename, previous_filename, status: 'renamed' });
+const docsOnly = { state: 'success', description: 'docs-only: no Reviewer or QA needed on aaaaaaa' };
+
+test('#358 criterion 1: docs/ and the root README.md only are docs-only', () => {
+  assert.equal(isDocsOnly([file('docs/decisions/0027-prototype.md')]), true);
+  assert.equal(isDocsOnly([file('docs/README.md'), file('README.md'), file('docs/wireframes/a.png')]), true);
+  assert.equal(isDocsOnly([file('docs/new.md', 'docs/old.md')]), true);
+});
+
+test('#358 criterion 1: docs/project-file.md, Guardrail markdown and any other file are not docs-only', () => {
+  assert.equal(isDocsOnly([file('docs/project-file.md')]), false);
+  assert.equal(isDocsOnly([file('docs/README.md'), file('docs/project-file.md')]), false);
+  for (const path of ['governance/x.md', 'CLAUDE.md', '.github/pull_request_template.md', '.claude/agents/x.md',
+    'infra/README.md', 'src/MotiffLab.Web/README.md', 'design/kit/HANDOFF.md', 'Docs/x.md', 'docs', 'docs/', 'readme.md']) {
+    assert.equal(isDocsOnly([file('docs/README.md'), file(path)]), false, path);
+  }
+});
+
+test('#358 criterion 1: a rename counts its old path too', () => {
+  assert.equal(isDocsOnly([file('docs/x.cs', 'src/MotiffLab.MusicCore/x.cs')]), false);
+  assert.equal(isDocsOnly([file('docs/old-project-file.md', 'docs/project-file.md')]), false);
+  assert.equal(isDocsOnly([file('src/x.md', 'docs/x.md')]), false);
+});
+
+test('#358 criterion 1: no files, or a list shorter than the pull request reports, is not docs-only', () => {
+  assert.equal(isDocsOnly([]), false);
+  assert.equal(isDocsOnly([file('docs/a.md')], 2), false);
+  assert.equal(isDocsOnly([file('docs/a.md'), file('docs/b.md')], 2), true);
+});
+
+test('#358 criterion 2: a docs-only head commit gets success without any verdict comment', () => {
+  assert.deepEqual(decide({ files: [file('docs/a.md')], total: 1, comments: [], headSha: A }), docsOnly);
+  assert.deepEqual(decide({ files: [file('docs/a.md')], total: 1, comments: [], headSha: A.toUpperCase() }), docsOnly);
+});
+
+test('#358 criterion 3: a mixed pull request still waits for both verdicts on its head', () => {
+  const files = [file('docs/a.md'), file('src/MotiffLab.Web/Program.cs')];
+  assert.deepEqual(decide({ files, total: 2, comments: [], headSha: A }), { state: 'pending', description: 'waiting for Reviewer and QA on aaaaaaa' });
+  assert.equal(decide({ files, total: 2, comments: [review('approve', A, '1')], headSha: A }).state, 'pending');
+  assert.deepEqual(decide({ files, total: 2, comments: [review('approve', A, '1'), qa('pass', A, '2')], headSha: A }), { state: 'success', description: 'Reviewer approve and QA pass on aaaaaaa' });
+  assert.equal(decide({ files: [file('docs/project-file.md')], total: 1, comments: [], headSha: A }).state, 'pending');
+});
+
+test('#358 criterion 3: a docs-only pull request that gets a code commit loses the success on the new head', () => {
+  assert.equal(decide({ files: [file('docs/a.md')], total: 1, comments: [], headSha: A }).state, 'success');
+  assert.deepEqual(decide({ files: [file('docs/a.md'), file('ci.sh')], total: 2, comments: [], headSha: B }), { state: 'pending', description: 'waiting for Reviewer and QA on 0123456' });
+});
+
+test('#358 criterion 4: a verdict comment on a docs-only pull request does not undo the success', () => {
+  const files = [file('docs/a.md')];
+  for (const comments of [[review('changes-requested', A, '1')], [qa('fail', A, '1')], [review('approve', A, '1')],
+    [review('approve | changes-requested', A, '1'), qa('pass', B, '2')]]) {
+    assert.deepEqual(decide({ files, total: 1, comments, headSha: A }), docsOnly);
+  }
 });

@@ -48,6 +48,10 @@ only in an environment task (E3) that Andrei applies; an agent does not change i
 or Guardrail path and at most about 300 changed lines runs as Developer plus one Reviewer+QA thread; if the PR outgrows
 that, the Reviewer says so and QA gets its own thread. High and Guardrail tasks keep the full cycle.
 
+**Docs-only path**: a PR that changes only `docs/` and `README.md` (never `docs/project-file.md`; the rule is
+`isDocsOnly` in `.github/scripts/aom-verdicts.mjs`) has no Reviewer or QA thread: `aom-verdicts` turns green on its
+head commit by itself, and Andrei reviews and merges it himself. A commit with any other file ends the docs-only path.
+
 ## What an agent must never do
 
 - Merge a PR, turn on auto-merge, approve a deploy, start or restart a workflow by hand.

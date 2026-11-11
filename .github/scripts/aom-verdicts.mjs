@@ -1,7 +1,9 @@
-// The check aom-verdicts (Task Record #300): a pull request's head commit gets the commit status `aom-verdicts`,
-// success only when the Reviewer's `approve` and QA's `pass` exist for that exact commit. The verdicts are the
-// comments the roles write (governance/roles/reviewer.md, qa.md, "Output"). Run by .github/workflows/aom-verdicts.yml
-// on comment events; `evaluate` is pure and tested in governance/tests/verdicts.test.mjs.
+// The check aom-verdicts (Task Records #300, #358): a pull request's head commit gets the commit status `aom-verdicts`,
+// success only when the Reviewer's `approve` and QA's `pass` exist for that exact commit, or when the pull request is
+// docs-only (`isDocsOnly`): then Andrei reviews it himself and no verdict is needed. The verdicts are the comments the
+// roles write (governance/roles/reviewer.md, qa.md, "Output"). Run by .github/workflows/aom-verdicts.yml on comment
+// and pull request events; `isDocsOnly`, `evaluate` and `decide` are pure and tested in
+// governance/tests/verdicts.test.mjs.
 
 export const CONTEXT = 'aom-verdicts';
 export const TRUSTED = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
@@ -56,6 +58,38 @@ export function evaluate(comments, headSha) {
   return { state: problems.length ? 'failure' : 'pending', description: `${parts.join('; ')} on ${short}` };
 }
 
+// The one docs-only rule (Task Record #358, criterion 1). files: the pull request's changed files as the REST API
+// gives them ({ filename, previous_filename? }); total: the number of changed files the pull request reports, so a
+// list cut short by the API is never read as complete. Docs-only when every path, old and new path of a rename alike,
+// is under docs/ or is the root README.md, and none is docs/project-file.md (High, the data contract). Anything else,
+// a Guardrail file such as CLAUDE.md or governance/*.md included, makes the pull request not docs-only.
+export function isDocsOnly(files, total = files.length) {
+  if (!files.length || files.length !== total) return false;
+  const paths = files.flatMap((f) => [f.filename, ...(f.previous_filename == null ? [] : [f.previous_filename])]);
+  return paths.every((p) => typeof p === 'string'
+    && (p === 'README.md' || (p.startsWith('docs/') && p.length > 'docs/'.length))
+    && p !== 'docs/project-file.md');
+}
+
+// The status to report for headSha: docs-only success, whatever the comments say, or the verdicts' status.
+export function decide({ files, total, comments, headSha }) {
+  if (isDocsOnly(files, total)) {
+    const short = String(headSha).toLowerCase().slice(0, 7);
+    return { state: 'success', description: `docs-only: no Reviewer or QA needed on ${short}` };
+  }
+  return evaluate(comments, headSha);
+}
+
+async function list(token, url) {
+  const items = [];
+  for (let next = url; next;) {
+    const response = await api(token, 'GET', next);
+    items.push(...(await response.json()));
+    next = /<([^>]+)>;\s*rel="next"/.exec(response.headers.get('link') || '')?.[1];
+  }
+  return items;
+}
+
 async function api(token, method, url, body) {
   const response = await fetch(url, {
     method,
@@ -75,14 +109,17 @@ async function main() {
   const { GITHUB_TOKEN: token, GITHUB_REPOSITORY: repo, GITHUB_API_URL: apiUrl = 'https://api.github.com' } = process.env;
   const number = Number(process.env.PR_NUMBER);
   if (!token || !repo || !number) throw new Error('GITHUB_TOKEN, GITHUB_REPOSITORY and PR_NUMBER are required');
-  const pr = await (await api(token, 'GET', `${apiUrl}/repos/${repo}/pulls/${number}`)).json();
-  const comments = [];
-  for (let url = `${apiUrl}/repos/${repo}/issues/${number}/comments?per_page=100`; url;) {
-    const response = await api(token, 'GET', url);
-    comments.push(...(await response.json()));
-    url = /<([^>]+)>;\s*rel="next"/.exec(response.headers.get('link') || '')?.[1];
+  const getPr = async () => (await api(token, 'GET', `${apiUrl}/repos/${repo}/pulls/${number}`)).json();
+  const pr = await getPr();
+  const files = await list(token, `${apiUrl}/repos/${repo}/pulls/${number}/files?per_page=100`);
+  const comments = await list(token, `${apiUrl}/repos/${repo}/issues/${number}/comments?per_page=100`);
+  // A push while this run read the files: the lists may be of the newer head, so report nothing for the old one; the
+  // push's own run reports the new head.
+  if ((await getPr()).head.sha !== pr.head.sha) {
+    console.log(`#${number}: the head moved from ${pr.head.sha} while reading, nothing reported`);
+    return;
   }
-  const status = evaluate(comments, pr.head.sha);
+  const status = decide({ files, total: pr.changed_files, comments, headSha: pr.head.sha });
   const runUrl = `${process.env.GITHUB_SERVER_URL}/${repo}/actions/runs/${process.env.GITHUB_RUN_ID}`;
   await api(token, 'POST', `${apiUrl}/repos/${repo}/statuses/${pr.head.sha}`, {
     state: status.state, context: CONTEXT, description: status.description, target_url: runUrl,
