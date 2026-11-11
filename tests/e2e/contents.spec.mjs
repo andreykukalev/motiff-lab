@@ -114,31 +114,31 @@ test("the form is added as Structure bookmarks, the search finds them, and the p
     }
     await page.locator(".bar").getByRole("button", { name: /open the contents/ }).click();
     await expect(drawer(page).getByRole("searchbox")).toHaveCount(0);
-    // The detected sentences are listed before they are added; a chip selects a sentence's bars.
-    const sentences = drawer(page).locator("button.sent");
-    await expect(sentences.first()).toHaveText(/^A · \d+–\d+$/);
-    await sentences.first().click();
+    // The sections of the form Piece DNA shows are listed before they are added; a chip selects a section's bars.
+    const sections = drawer(page).locator("button.sent");
+    await expect(sections.first()).toHaveText(/^A · \d+–\d+$/);
+    await sections.first().click();
     await expect(page.locator(".selection-status")).toContainText(/bars 0/);
-    // A sentence longer than a selection holds selects its first bars.
-    const longest = drawer(page).locator("button.sent", { hasText: /^D · 24–/ });
+    // A section longer than a selection holds selects its first bars.
+    const longest = drawer(page).locator("button.sent", { hasText: /^C · 24–/ });
     await longest.click();
     await expect(page.locator(".selection-status")).toContainText(/bars 24–55\b/);
     await drawer(page).getByRole("button", { name: "Add Structure bookmarks" }).click();
     await expect(page.locator(".marks-status")).toContainText("Structure bookmark");
     await expect(drawer(page).locator("button.cat")).toHaveText(["Practise · 3", /^Structure · \d+$/]);
-    await expect(drawer(page).getByRole("button", { name: /^Sentence A, / })).toBeVisible();
+    await expect(drawer(page).getByRole("button", { name: /^Section A, / })).toBeVisible();
     await expect(drawer(page).getByRole("button", { name: "Add Structure bookmarks" })).toHaveCount(0);
 
     // Search and order come once there are more than three bookmarks.
     await drawer(page).getByRole("searchbox").fill("nothing like this");
     await expect(drawer(page)).toContainText("No bookmark matches.");
-    await drawer(page).getByRole("searchbox").fill("sentence a");
-    await expect(drawer(page).getByRole("button", { name: /^Sentence A, / })).toBeVisible();
+    await drawer(page).getByRole("searchbox").fill("section a");
+    await expect(drawer(page).getByRole("button", { name: /^Section A, / })).toBeVisible();
 
     // The chips scroll to a section and leave the rest of the sheet as it is.
     await drawer(page).getByRole("button", { name: "Notes", exact: true }).click();
     await expect(drawer(page).locator("#contents-notes")).toBeInViewport();
-    await expect(drawer(page).getByRole("button", { name: /^Sentence A, / })).toHaveCount(1);
+    await expect(drawer(page).getByRole("button", { name: /^Section A, / })).toHaveCount(1);
     await drawer(page).getByRole("button", { name: "Pages", exact: true }).click();
     const first = drawer(page).getByRole("button", { name: "Page 1" });
     await expect(first).toBeVisible();

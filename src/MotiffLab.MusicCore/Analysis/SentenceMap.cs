@@ -275,9 +275,13 @@ public sealed class SentenceMap
             { Kind: CloseKind.Full } => _words.T(
                 $"Phrase {phrase.Number} ends on {close.TopName}, the tonic: a full close.",
                 $"Фраза {phrase.Number} заканчивается на {close.TopName}, тонике: полная каденция."),
+            { Kind: CloseKind.Half, Degree: { } half } => _words.T(
+                $"Phrase {phrase.Number} ends on {close.TopName}, {DegreeName(half, _words)}: a half close.",
+                $"Фраза {phrase.Number} заканчивается на {close.TopName}, {DegreeName(half, _words)}: половинная каденция."),
+            // A note outside the scale over the dominant in the bass still reads as a half close.
             { Kind: CloseKind.Half } => _words.T(
-                $"Phrase {phrase.Number} ends on {close.TopName}, {DegreeName(close.Degree!.Value, _words)}: a half close.",
-                $"Фраза {phrase.Number} заканчивается на {close.TopName}, {DegreeName(close.Degree!.Value, _words)}: половинная каденция."),
+                $"Phrase {phrase.Number} ends on {close.TopName}, outside the scale, over the dominant in the bass: a half close.",
+                $"Фраза {phrase.Number} заканчивается на {close.TopName}, вне звукоряда, над доминантой в басу: половинная каденция."),
             { Degree: { } degree } => _words.T(
                 $"Phrase {phrase.Number} ends on {close.TopName}, {DegreeName(degree, _words)}: no close is read.",
                 $"Фраза {phrase.Number} заканчивается на {close.TopName}, {DegreeName(degree, _words)}: каденция не читается."),

@@ -377,7 +377,10 @@ public static class PhraseBoundaryFinder
 
     /// <summary>
     /// Joins every phrase between two others that would lie within one bar to the phrase after it, as a second ending
-    /// leads into what follows: the boundary between them is left out, unless a slur marks it.
+    /// leads into what follows: the boundary between them is left out, unless a slur marks it. A repeat sign does not keep
+    /// it: a one-bar ending stands just before the sign that opens the next part (Für Elise's second ending, bar 9, before
+    /// the repeat at bar 10), and the ear hears the ending start the phrase that follows, not a phrase of its own. A slur
+    /// is the composer marking the phrase itself.
     /// </summary>
     private static void JoinOneBarPhrases(SortedDictionary<Tick, SortedSet<PhraseEvidence>> found, MeterMap meter, Tick end)
     {

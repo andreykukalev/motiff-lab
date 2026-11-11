@@ -77,6 +77,20 @@ public class PieceStructureTests
     }
 
     [Fact]
+    public void Piece_dna_writes_the_ideas_in_the_language_chosen_after_the_structure_was_read()
+    {
+        ImportedPiece piece = FurElise();
+        PieceStructure english = Structure(piece);
+
+        // The web app keeps the structure across a change of the interface language; the map is built in the new one.
+        PieceDna dna = PieceDna.Build(piece.Notes, piece.Meter, piece.Keys, piece.End, selection: null, structure: null, Words.For("ru"), english);
+
+        Assert.NotEmpty(dna.Ideas);
+        Assert.All(dna.Ideas, idea => Assert.StartsWith("Идея", idea.Title, StringComparison.Ordinal));
+        Assert.Equal(english.Motifs.Select(idea => idea.Span), dna.Ideas.Select(idea => idea.Span));
+    }
+
+    [Fact]
     public void The_phrases_of_fur_elise_start_where_the_ear_hears_them_start()
     {
         ImportedPiece piece = FurElise();
@@ -84,6 +98,15 @@ public class PieceStructureTests
 
         Tick[] expected = [.. s_furEliseStarts.Select(start => new Tick(piece.Meter.GetBar(start.Bar).Span.Onset.Value + (start.Sixteenth * (CanonicalTime.TicksPerQuarter / 4))))];
         Assert.Equal(expected, phrases.Phrases.Select(phrase => phrase.Start?.At ?? piece.Meter.GetBar(0).Span.Onset));
+    }
+
+    [Fact]
+    public void Every_phrase_of_fur_elise_says_how_it_ends()
+    {
+        // Phrase 14 ends on a note outside the scale over E in the bass: a half close with no degree to name.
+        PhraseLevels levels = Structure(FurElise()).Levels;
+
+        Assert.All(levels.Phrases.Phrases, phrase => Assert.Contains(levels.Sentences.Facts(phrase), fact => fact.Id == $"sentence.close.{phrase.Number}" && fact.Text.Length > 0));
     }
 
     [Fact]

@@ -211,7 +211,7 @@ public sealed record PieceDna(
         {
             // Without a selection the ideas are the piece's own motifs; a selection takes the places it is heard in.
             ideas.AddRange(ideas.Count == 0
-                ? piece.Motifs
+                ? piece.MotifsIn(words)
                 : IdeaFinder.Find(notes, meter, piece.Levels.Sentences, form, words, ideas[0].Occurrences, firstId: 2));
         }
 

@@ -49,6 +49,13 @@ public sealed class PieceStructure
     /// <summary>The motifs heard again across the piece, the one heard most often first: the openings of the sentences and phrases that come back.</summary>
     public IReadOnlyList<DnaIdea> Motifs => _motifs ??= IdeaFinder.Find(_notes, _meter, Levels.Sentences, Sections, _words);
 
+    /// <summary>
+    /// The motifs written in <paramref name="words"/>: the ones kept when it is the language the structure was read in,
+    /// otherwise read again, so a view in a language chosen later never shows them in the old one.
+    /// </summary>
+    public IReadOnlyList<DnaIdea> MotifsIn(Words words) =>
+        words == _words ? Motifs : IdeaFinder.Find(_notes, _meter, Levels.Sentences, Sections, words);
+
     /// <summary>The structure of <paramref name="notes"/> read at <paramref name="levels"/>, in <paramref name="words"/>.</summary>
     public static PieceStructure Of(IReadOnlyList<Note> notes, MeterMap meter, PhraseLevels levels, Words words = default)
     {

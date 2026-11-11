@@ -19,8 +19,8 @@ test("the score fills the screen, and brackets pick phrases at the level chosen"
     await expect(page.locator(".roll")).toHaveCount(0);
     await expect(page.locator(".sheet")).toHaveCount(0);
 
-    // Für Elise is twenty phrases at the default level; a tap on a bracket selects its phrase and brings the pill.
-    await expect(brackets).toHaveCount(20);
+    // Für Elise is twenty-one phrases at the default level; a tap on a bracket selects its phrase and brings the pill.
+    await expect(brackets).toHaveCount(21);
     await expect(brackets.nth(1)).toHaveAccessibleName("Phrase 2, bars 4–8");
     await brackets.nth(1).click();
     await expect(brackets.nth(1)).toHaveAttribute("aria-pressed", "true");
@@ -36,13 +36,13 @@ test("the score fills the screen, and brackets pick phrases at the level chosen"
     await bar.getByRole("button", { name: "Phrases" }).click();
     const popover = page.getByRole("dialog", { name: "Phrases" });
     await popover.getByRole("radio", { name: "Sentences" }).click();
-    await expect(brackets).toHaveCount(5);
+    await expect(brackets).toHaveCount(4);
     await expect(selection).toContainText("Selected sentence");
-    await expect(popover).toContainText("5 sentences in the piece");
+    await expect(popover).toContainText("4 sentences in the piece");
     await popover.getByRole("radio", { name: "Short" }).click();
-    await expect.poll(() => brackets.count()).toBeGreaterThan(20);
+    await expect.poll(() => brackets.count()).toBeGreaterThan(21);
     await popover.getByRole("radio", { name: "Phrases" }).click();
-    await expect(brackets).toHaveCount(20);
+    await expect(brackets).toHaveCount(21);
     await expect(selection).toContainText("Selected phrase 1");
 
     // The brackets can be hidden for a clean page.
@@ -50,7 +50,7 @@ test("the score fills the screen, and brackets pick phrases at the level chosen"
     await show.uncheck();
     await expect(brackets).toHaveCount(0);
     await show.check();
-    await expect(brackets).toHaveCount(20);
+    await expect(brackets).toHaveCount(21);
     await closePopover(page);
 
     // The roll and the sheet come and go; the selection stays as it was.
@@ -128,14 +128,14 @@ test("bars dragged across on the score are selected, the handles move the edges,
     await menu.getByRole("button", { name: "More for the selection" }).click();
     await expect(menu.getByRole("button", { name: "Merge with the next phrase" })).toHaveCount(0);
     await menu.getByRole("button", { name: "Make a phrase" }).click();
-    await expect(brackets).toHaveCount(21);
+    await expect(brackets).toHaveCount(22);
     await expect(brackets.nth(1)).toHaveAttribute("aria-pressed", "true");
     await expect(selection).toContainText("Selected phrase 2");
 
     // Merge with the next phrase takes the boundary after it away.
     await menu.getByRole("button", { name: "More for the selection" }).click();
     await menu.getByRole("button", { name: "Merge with the next phrase" }).click();
-    await expect(brackets).toHaveCount(20);
+    await expect(brackets).toHaveCount(21);
     await expect(selection).toContainText("Selected phrase 2");
 
     // A phrase with the playhead outside it can be merged on, but not made or split.
@@ -150,13 +150,13 @@ test("bars dragged across on the score are selected, the handles move the edges,
     await bars.nth(5).locator("g.note").first().dispatchEvent("click");
     await menu.getByRole("button", { name: "More for the selection" }).click();
     await menu.getByRole("button", { name: "Split here" }).click();
-    await expect(brackets).toHaveCount(21);
+    await expect(brackets).toHaveCount(22);
     await expect(selection).toContainText("Selected phrase 2");
 
     // Reset to detected brings the suggested phrases back.
     await page.locator(".bar").getByRole("button", { name: "Phrases" }).click();
     await page.getByRole("dialog", { name: "Phrases" }).getByRole("button", { name: "Reset to detected" }).click();
-    await expect(brackets).toHaveCount(20);
+    await expect(brackets).toHaveCount(21);
     await closePopover(page);
 
     // With the pen on, the menu goes away and the mouse writes rather than selects.
