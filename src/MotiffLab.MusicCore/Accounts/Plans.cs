@@ -57,6 +57,12 @@ public static class Plans
     /// <summary>Every feature that needs Pro, in the order the app lists them.</summary>
     public static IReadOnlyList<ProFeature> Features { get; } = [ProFeature.Scan, ProFeature.Transcribe, ProFeature.SaveOnline, ProFeature.Assistant];
 
+    /// <summary>
+    /// How many pieces a free account keeps online (0025, section 8; Andrei, 2026-11-11): a new piece beyond them stays
+    /// on the device, and the pieces already online keep syncing. Pro has no such limit.
+    /// </summary>
+    public const int FreeProjectsOnline = 300;
+
     /// <summary>Whether the plan allows the feature: Pro allows every feature, and the free tier none of them.</summary>
     public static bool Allows(Plan plan, ProFeature feature) =>
         Enum.IsDefined(feature) ? plan == Plan.Pro : throw new ArgumentOutOfRangeException(nameof(feature), feature, "Not a Pro feature.");
