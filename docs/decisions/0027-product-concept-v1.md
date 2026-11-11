@@ -144,8 +144,9 @@ Second plan, kept as ideas: variations (plan row 4.12), practice state, fingerin
 
 ## Consequences
 
+- Task Records filed with this record (2026-11-11): #346 excerpt picker on the iPad, #347 one source of structure, #348 the player moves a section boundary, #349 explicit selection by beats, #350 the player's own edition by hear-and-choose, #351 transposition as a view (first step), #352 doubt reaches chords, #353 the assistant's entry and context (first step), #354 the library for 200 pieces, #355 handwritten notes, #356 the rename. Those with a UI wait for a UX designer variant approved by Andrei.
 - The library (plan row 4.1) and handwritten notes join the first prototype (section 13); the library goes to the UX designer first.
-- iPad prerequisites before anything is shown: hands separately (#328), resume with place, tempo and loop (#327), an excerpt picker for a recording (new task).
+- iPad prerequisites before anything is shown: hands separately (#328), resume with place, tempo and loop (#327), an excerpt picker for a recording (#346).
 - The single source of structure (plan row 4.2) moves to the front of phase 4, with the boundary correction after the phrase anchor (#318).
 - Plan row 4.7 (sources and assembly on the web) becomes per-place hear-and-choose into the player's own edition; row 4.13 (versions by musical meaning) is answered in part: matching by notes exists, matching by phrases and harmony is its next step.
 - Plan row 4.14 (council on the assistant): its position is decided (a layer), its capabilities are not; defining and testing them is still to come, before or with the hosting task.
