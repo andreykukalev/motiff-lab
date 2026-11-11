@@ -44,7 +44,7 @@ what the code answered. The project runs in `build-test` with the rest of `dotne
 | d | Opens a PDF | A PDF piece: a document, no notes, the same bytes back; calls about notes refused with `noNotes` | The fixture; 0023 (a PDF piece has no notes until they are read) |
 | e | Selects the right hand of bars 1–2, tries "Half time" | No note added or removed; the pitches E D♯ E B D C A C E A in their order; the variation sounds different in place; the piece's own notes and sound unchanged, also after saving and reopening | The score (the right hand of bars 1–2); the operation's definition (a rhythm reshape keeps the pitches and their order) |
 | f | Does e's steps twice, in two app sessions | The same variation and the same sound, to the byte | The rule that variation operations are pure (`CLAUDE.md`); since contract 10 a Try chip has fixed parameters and a fixed seed |
-| g | Asks for a variation the catalogue does not have | Refused with `badRequest`; the variation tried before and its sound unchanged | The facade's contract (a failure leaves the piece as it was); since contract 10 no call takes an operation's parameters, so this replaces "an out-of-range parameter", waiting for Andrei (#310) |
+| g | Asks for a variation the catalogue does not have | Refused with `badRequest`; the variation tried before and its sound unchanged | The facade's contract (a failure leaves the piece as it was); since contract 10 no call takes an operation's parameters, so this replaces "an out-of-range parameter", as Andrei chose (2026-11-11, #310) |
 | h | Saves a project with a selection and a variation, reopens it | The same id, selection, notes, variation steps and sound; saved again unchanged, the same file | The rule S1-P1 (the project keeps the work) |
 | i | Opens the version 12 and version 15 project files | Each opens with the id, file name, motifs, variations, resume points, bookmarks and versions the file holds; the first motif back as the selection; a transcription's notes detected; saved again, the file opens | The fixtures (what each file holds) |
 | j | Opens a project file of version 16 | Refused with `import` and the newer-version message; nothing open, so nothing to save over it; the bytes as they were | Today's rule in the #293 golden README; the tolerant-reader task changes it to read-only with Andrei's approval |
@@ -62,7 +62,7 @@ reason, only after Andrei agrees (`KnownDefect.cs`); the task that fixes the def
 
 | Scenario | Defect | Status |
 | --- | --- | --- |
-| l2, in Russian | The refusal of a newer project file is in English only: the text comes from `ProjectFile.Read` | Waiting for Andrei's agreement (#310) |
+| l2, in Russian | The refusal of a newer project file is in English only: the text comes from `ProjectFile.Read` | Skipped, as Andrei agreed (2026-11-11, #310); a fix task turns it on |
 
 ## Running them
 
