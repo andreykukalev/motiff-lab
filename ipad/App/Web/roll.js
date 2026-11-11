@@ -1,7 +1,7 @@
 // The piano roll in the iPad app's drawer (0018 section 4). It is the web app's own roll (Scripts/roll/piano-roll.ts),
 // which Blazor drives in the web app; here Swift drives it through window.roll, and what the player does on it goes to
-// Swift as a message: bars dragged across or a bar number tapped, the selection cleared by Escape, Space pressed, and with the note
-// editor on (testing item 15) a note moved, added or taken out. The roll reads
+// Swift as a message: bars dragged across or a bar number tapped, the selection cleared by Escape, Space pressed, the playhead
+// dragged, nudged by a beat or a tap inside the loop or the selection to play from there, and with the note editor on (testing item 15) a note moved, added or taken out. The roll reads
 // the player's position every frame; Swift sends it about 30 times a second (`position`).
 import { createPianoRoll } from "../roll/piano-roll.js";
 import { THEME_CHANGED } from "../layout/theme.js";
@@ -40,6 +40,11 @@ const host = {
             case "OnRollSpace":
                 post({ space: true });
                 break;
+            case "OnRollSeek": {
+                const [tick, play] = args;
+                post({ seek: { tick, play: Boolean(play) } });
+                break;
+            }
             case "OnRollNoteChange": {
                 const [id, onset, pitch, length] = args;
                 post({ edit: { kind: "change", id, onset, pitch, length } });
@@ -64,7 +69,8 @@ const state = { payload: null, modes: [], colourBy: "hand" };
 const view = createPianoRoll(document.getElementById("roll"), host);
 view.follow(player);
 // The iPad reads the roll by touch (#338): a finger moves through the music, two fingers zoom the time, a tap never clears
-// the selection or sounds a note, and each selection is fitted to the roll, again when the iPad turns.
+// the selection or sounds a note, and each selection is fitted to the roll, again when the iPad turns. A finger on the
+// playhead drags it, and a tap inside the loop or the selection plays from there (v0.2).
 view.setTouchReading(true);
 
 /** The number of the bar that holds a tick, the last bar for a tick at or past the end. */

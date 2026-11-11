@@ -401,6 +401,8 @@ struct ScoreScreen: View {
         roll.barsPicked = { [weak shown] first, last, extend in shown?.selectBars(first, last, extend: extend) }
         roll.cleared = { [weak shown] in shown?.clearSelection() }
         roll.spacePressed = { [weak heard] in heard?.toggle() }
+        // The playhead moved on the roll (v0.2): it stays inside the loop, and a tap in a selection that does not loop yet loops it.
+        roll.playheadMoved = { [weak heard, weak shown] tick, play in heard?.move(to: tick, play: play, selection: shown?.playRange?.range) }
         roll.noteEdited = { [weak shown] edit in shown?.editNote(edit) }
         // The note edits saved are written to the project file at once.
         let file = piece.file

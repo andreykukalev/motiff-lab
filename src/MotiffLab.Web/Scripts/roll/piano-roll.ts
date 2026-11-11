@@ -28,6 +28,7 @@ import {
 } from "./roll-model.js";
 import { THEME_CHANGED } from "../layout/theme.js";
 import { mix, token, withAlpha } from "../layout/tokens.js";
+import { PlayheadControl, onPlayhead, type PlayheadContext, type Span } from "./roll-playhead.js";
 
 interface DotNetObject {
     invokeMethodAsync(method: string, ...args: unknown[]): Promise<unknown>;
@@ -86,6 +87,10 @@ const CHECK_FLAG = 14;
 const CHECK_TARGET = 22;
 // Tall enough to press and drag on for a bar selection (WCAG 2.2 target size, 2.5.8).
 const HEADER = 24;
+/** The playhead's handle under the bar numbers (Andrei, v0.2): drawn this wide and tall; a mouse takes it this near. */
+const KNOB_WIDTH = 12;
+const KNOB_HEIGHT = 16;
+const KNOB_MOUSE = 20;
 const ROLL_HEIGHT = 360;
 /** The notes area never gets shorter than this when the roll fills its panel (0012). */
 const MIN_ROLL_HEIGHT = 160;
@@ -170,6 +175,9 @@ let VARIATION_LINK = "";
 let GHOST_LINE = "";
 let PATTERN_INK = "";
 let LANE_COLOURS: string[] = [];
+/** What a finger needs (`--h-touch`) and the handle's corners (`--r-xs`), in pixels. */
+let TOUCH = 44;
+let KNOB_RADIUS = 4;
 /** The tokens the palette was last read from, so patterns are made again when the theme changes. */
 let paletteKey = "";
 
@@ -208,6 +216,8 @@ function readPalette(element: Element): boolean {
     HIGHLIGHT_BAND = withAlpha(ACCENT, 0.12);
     PATTERN_INK = withAlpha(ON_NOTE, 0.6);
     LANE_COLOURS = [ACCENT, t("teal"), plum, t("ink-carmine"), t("ink-ochre"), t("ink-forest")];
+    TOUCH = Number.parseFloat(t("h-touch")) || TOUCH;
+    KNOB_RADIUS = Number.parseFloat(t("r-xs")) || KNOB_RADIUS;
     return true;
 }
 
@@ -228,6 +238,8 @@ export class PianoRoll {
     private readonly zoomIn: HTMLButtonElement;
     private readonly zoomLevel: HTMLElement;
     private readonly fitButton: HTMLButtonElement;
+    /** The playhead the player moves (roll-playhead.ts): its control for the keyboard and a screen reader, and its drag. */
+    private readonly playhead: PlayheadControl;
     private readonly resizeObserver: ResizeObserver;
     private readonly patterns = new Map<PatternKind, CanvasPattern | null>();
     private model: RollModel | null = null;
@@ -357,8 +369,13 @@ export class PianoRoll {
 
         this.labels = { ...ENGLISH_ROLL_LABELS, ...labels };
         this.applyLabels();
+        this.playhead = new PlayheadControl(
+            () => this.playheadContext(),
+            (tick, play) => void this.dotnet.invokeMethodAsync("OnRollSeek", tick, play),
+            () => this.invalidate(),
+        );
 
-        this.host.replaceChildren(this.roll, this.scroller, this.keys, this.legend, this.zoomBar);
+        this.host.replaceChildren(this.roll, this.scroller, this.keys, this.legend, this.zoomBar, this.playhead.element);
 
         this.roll.addEventListener("pointerdown", this.onPointerDown);
         this.roll.addEventListener("pointermove", this.onPointerMove);
@@ -792,7 +809,7 @@ export class PianoRoll {
         }
         const player = this.player;
         if (player !== null) {
-            const now = player.currentTick();
+            const now = this.playhead.heard(player.currentTick());
             if (now !== this.tickNow) {
                 const jumped = Math.abs(now - this.tickNow) > TICKS_PER_QUARTER;
                 this.tickNow = now;
@@ -1271,11 +1288,83 @@ export class PianoRoll {
         const { above, below } = this.pitchRange();
         this.drawGutter(context, model, low, high, row, sounding, above, below);
 
-        // Playhead.
-        const playhead = this.xOf(this.tickNow);
-        if (playhead >= GUTTER && playhead <= width) {
-            context.fillStyle = ACCENT;
-            context.fillRect(Math.round(playhead) - 1, 0, 2, height);
+        this.drawPlayhead(context, width, height);
+    }
+
+    /**
+     * The playhead: the kit's 2 px accent line, with its handle hanging under the bar numbers for a finger to drag, ringed
+     * while the keyboard is on it. Its control sits over the handle, kept in view when the line is not.
+     */
+    private drawPlayhead(context: CanvasRenderingContext2D, width: number, height: number): void {
+        const at = this.xOf(this.tickNow);
+        const playheadContext = this.playheadContext();
+        if (playheadContext !== null) {
+            const left = this.roll.offsetLeft + Math.min(Math.max(at, GUTTER), width);
+            this.playhead.place(left, this.roll.offsetTop + HEADER, TOUCH, playheadContext, this.labels);
+        }
+        if (at < GUTTER || at > width) {
+            return;
+        }
+        const x = Math.round(at);
+        context.fillStyle = ACCENT;
+        context.fillRect(x - 1, 0, 2, height);
+        context.beginPath();
+        context.roundRect(x - KNOB_WIDTH / 2, HEADER, KNOB_WIDTH, KNOB_HEIGHT, [0, 0, KNOB_RADIUS, KNOB_RADIUS]);
+        context.fill();
+        if (this.playhead.focused) {
+            context.strokeStyle = ACCENT;
+            context.lineWidth = 2;
+            context.strokeRect(x - KNOB_WIDTH / 2 - 3, HEADER - 3, KNOB_WIDTH + 6, KNOB_HEIGHT + 6);
+        }
+    }
+
+    /** Where the playhead may go and where it is, for its control; null before a piece is shown. */
+    private playheadContext(): PlayheadContext | null {
+        const model = this.model;
+        if (model === null) {
+            return null;
+        }
+        return { bars: model.bars, span: this.playheadSpan(), end: model.end, tick: this.player?.currentTick() ?? this.tickNow };
+    }
+
+    /** Where the playhead stays: the loop, else the selection; null for neither. */
+    private playheadSpan(): Span | null {
+        return this.playRange ?? (this.motif === null ? null : { start: this.motif.start, end: this.motif.end });
+    }
+
+    /**
+     * A press on the playhead takes it rather than what lies under it: on its handle, or with a finger in touch reading
+     * anywhere down its line, a touch target wide. Not while the notes are being edited.
+     */
+    private pressPlayhead(event: PointerEvent, x: number, y: number): boolean {
+        const finger = event.pointerType !== "mouse";
+        const line = this.touchReading && finger;
+        if (this.editing || this.player === null || !onPlayhead(x, y, this.xOf(this.tickNow), HEADER, finger ? TOUCH : KNOB_MOUSE, line)) {
+            return false;
+        }
+        this.playhead.begin(event.pointerId, x);
+        return true;
+    }
+
+    /** The end of a press on the playhead: a drag has moved it; a tap on it in touch reading plays from there. */
+    private releasePlayhead(event: PointerEvent): boolean {
+        const ended = this.playhead.end(event.pointerId);
+        if (ended === null) {
+            return false;
+        }
+        if (ended === "tapped" && this.touchReading) {
+            this.playFrom(event.clientX - this.roll.getBoundingClientRect().left);
+        }
+        this.invalidate();
+        return true;
+    }
+
+    /** A tap inside the loop, or the selection, plays from there (touch reading); anywhere else it does nothing (#338). */
+    private playFrom(x: number): void {
+        const span = this.playheadSpan();
+        const tick = this.tickAtX(x);
+        if (span !== null && !this.editing && tick >= span.start && tick < span.end) {
+            this.playhead.go(Math.round(tick), true);
         }
     }
 
@@ -1638,6 +1727,9 @@ export class PianoRoll {
             return;
         }
         const tick = this.tickAtX(x);
+        if (this.pressPlayhead(event, x, y)) {
+            return;
+        }
         // In touch reading a finger on the notes moves through the music: it neither selects nor sounds.
         if (this.touchReading && !this.editing && y >= HEADER && event.pointerType !== "mouse") {
             this.pan = { pointer: event.pointerId, x, y, scroll: this.scroll, top: this.pitchRange().high, moving: false };
@@ -1700,6 +1792,7 @@ export class PianoRoll {
         }
         this.drag = null;
         this.pan = null;
+        this.playhead.cancel();
         this.roll.setPointerCapture(event.pointerId);
         const [a, b] = [...this.touches.values()];
         this.pinch = { distance: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), zoom: this.zoom, rowScale: this.rowScale };
@@ -1710,7 +1803,7 @@ export class PianoRoll {
     private readonly onPointerMove = (event: PointerEvent): void => {
         const box = this.roll.getBoundingClientRect();
         const x = event.clientX - box.left;
-        if (this.movedByFingers(event, x, event.clientY - box.top)) {
+        if (this.movedByFingers(event, x, event.clientY - box.top) || this.playhead.move(event.pointerId, x, this.tickAtX(Math.max(GUTTER, x)))) {
             return;
         }
         const editDrag = this.editDrag;
@@ -1783,7 +1876,7 @@ export class PianoRoll {
      * A click on a note selects it; a click on an empty place clears the selection.
      */
     private readonly onPointerUp = (event: PointerEvent): void => {
-        if (this.endedByFingers(event)) {
+        if (this.endedByFingers(event) || this.releasePlayhead(event)) {
             return;
         }
         const editDrag = this.editDrag;
@@ -1835,6 +1928,7 @@ export class PianoRoll {
         this.drag = null;
         this.press = null;
         this.pan = null;
+        this.playhead.cancel();
         this.invalidate();
     };
 
@@ -1872,7 +1966,11 @@ export class PianoRoll {
             return true;
         }
         if (this.pan !== null && event.pointerId === this.pan.pointer) {
-            // A tap or a move through the music: the selection stays as it is.
+            // A tap or a move through the music: the selection stays as it is. A tap inside the loop or the selection plays
+            // from there (Andrei, v0.2).
+            if (!this.pan.moving) {
+                this.playFrom(this.pan.x);
+            }
             this.pan = null;
             return true;
         }
@@ -2064,6 +2162,9 @@ export class PianoRoll {
             event.preventDefault();
             return;
         }
+        if (this.touchReading && this.nudgeKey(event)) {
+            return;
+        }
         switch (event.key) {
             case "ArrowRight":
             case "ArrowLeft": {
@@ -2089,6 +2190,16 @@ export class PianoRoll {
         }
         event.preventDefault();
     };
+
+    /** Read by touch, the roll selects no notes: ← and → move the playhead by a beat. True when the key was one of them. */
+    private nudgeKey(event: KeyboardEvent): boolean {
+        if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") {
+            return false;
+        }
+        event.preventDefault();
+        this.playhead.nudge(event.key === "ArrowRight" ? 1 : -1);
+        return true;
+    }
 
     /** The editor's keys on the note picked: Delete or Backspace takes it out, the arrows move it, Shift with ← → changes its length. */
     private editKey(event: KeyboardEvent, model: RollModel, index: number): boolean {

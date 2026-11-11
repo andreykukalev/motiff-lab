@@ -5,8 +5,9 @@ import WebKit
 /// view of its own (Web/roll.html), as the score is. music-core gives its data (`roll`: the notes and bars packed as the
 /// roll reads them, and their names spelled as the score spells them). Swift tells it where the player is and what is
 /// selected, and lights the places of the fact chosen in Insights; what the player does on it comes back here: bars dragged across or a bar number tapped select those bars,
-/// Escape clears the selection (a tap never does, #338), Space plays or pauses; with the note editor on (testing item 15), a note
-/// moved, added or taken out goes to music-core as a correction on the draft.
+/// Escape clears the selection (a tap never does, #338), Space plays or pauses; the playhead dragged or nudged by a beat moves
+/// the player there, and a tap inside the loop or the selection plays from there (v0.2); with the note editor on (testing item
+/// 15), a note moved, added or taken out goes to music-core as a correction on the draft.
 @MainActor
 final class RollController: NSObject, ObservableObject {
     /// Whether each note carries its name (the web app's Note names chip, the setting "roll.noteNames").
@@ -26,6 +27,8 @@ final class RollController: NSObject, ObservableObject {
     var barsPicked: (@MainActor (_ first: Int, _ last: Int, _ extend: Bool) -> Void)?
     var cleared: (@MainActor () -> Void)?
     var spacePressed: (@MainActor () -> Void)?
+    /// The playhead moved on the roll: to a tick, and with `play` a tap that plays from there.
+    var playheadMoved: (@MainActor (_ tick: Double, _ play: Bool) -> Void)?
     /// A note moved, added or taken out with the note editor on.
     var noteEdited: (@MainActor (RollNoteEdit) -> Void)?
 
@@ -159,6 +162,9 @@ final class RollController: NSObject, ObservableObject {
         if message["space"] != nil {
             spacePressed?()
         }
+        if let seek = message["seek"] as? [String: Any], let tick = (seek["tick"] as? NSNumber)?.doubleValue {
+            playheadMoved?(tick, (seek["play"] as? Bool) ?? false)
+        }
         if let edit = message["edit"] as? [String: Any], let made = RollNoteEdit(edit) {
             noteEdited?(made)
         }
@@ -205,6 +211,7 @@ final class RollController: NSObject, ObservableObject {
         let names = [
             "track", "trackVoice", "noVoice", "rightHand", "leftHand", "noHand", "rollAria", "scrollAria", "keysAria",
             "legendVariation", "legendHighlight", "legendInferred", "legendCheck", "zoomGroup", "zoomIn", "zoomOut", "zoomLevel", "fit", "fitHint",
+            "playhead", "playheadAt",
         ]
         var labels = Dictionary(uniqueKeysWithValues: names.map { ($0, text["roll.js.\($0)"]) })
         // The iPad's roll is read by touch (#338): a screen reader hears how, not the web roll's mouse and keyboard.
