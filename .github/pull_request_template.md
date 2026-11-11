@@ -1,33 +1,15 @@
-## Task
+## What and why
 
-Closes #
+<!-- One or two sentences. Link the issue or the idea entry. Experiments: name the switch. -->
 
-Role: Developer · Risk class: Low | Standard | High | Guardrail
-
-## What was done
-
--
-
-## Acceptance criteria
-
-| # | Criterion | How it was checked | Result |
-| --- | --- | --- | --- |
-| 1 |  |  |  |
-
-## Scope
-
-Files outside the task's `allowed_paths`: none
-
-## Self-check
+## Checked
 
 ```
-commands and their outcome (build, tests, format, e2e for the specs touched)
+commands and their outcome (build, tests, whitespace, node tools/quality/quality.mjs summary line)
 ```
 
-## Guard triggers
+Quality baseline entries added: none <!-- or one line each: what, where, why -->
 
-None. <!-- or one line per entry of .aom/guard-log.jsonl: hook, decision, what was needed -->
+## Decided without Andrei
 
-## How Andrei checks
-
-1.
+<!-- One line per decision you took yourself (also in the decision log), or "none". -->

@@ -6,7 +6,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
   push:
-    branches: [main]
+    branches: [main, develop]
   # infra/azure/setup.ps1 starts this workflow with browser_tests=false; the input stays so that call still
   # works, and does nothing.
   workflow_dispatch:
@@ -150,21 +150,32 @@ jobs:
               esac
             done <<< "$changed"
           fi
+          # main deploys the main address; develop deploys the Static Web App's environment "develop", the web test
+          # site (governance/README.md), once Andrei has set the repository variable DEPLOY_DEVELOP to true (the
+          # develop branch needs its own sign-in to Azure first: infra/bootstrap.bicep, github-develop).
           azure=false
+          site=production
           if [[ "$app" == true && -n "$AZURE_CLIENT_ID" ]] \
-            && [[ "${{ github.ref }}" == refs/heads/main && ( "${{ github.event_name }}" == push || "${{ github.event_name }}" == workflow_dispatch ) ]]; then
-            azure=true
+            && [[ "${{ github.event_name }}" == push || "${{ github.event_name }}" == workflow_dispatch ]]; then
+            if [[ "${{ github.ref }}" == refs/heads/main ]]; then
+              azure=true
+            elif [[ "${{ github.ref }}" == refs/heads/develop && "${{ vars.DEPLOY_DEVELOP }}" == true ]]; then
+              azure=true
+              site=develop
+              infra=false
+            fi
           fi
           publish="$azure"
-          # Changes to the agents' own environment (governance/roles/common.md, E3) are flagged, not refused.
+          # Changes to the agents' own rules (decision 6 in governance/README.md) are flagged: Andrei merges them.
           environment="$(grep -E '^(\.claude/|governance/|\.github/|CLAUDE\.md$|tests/acceptance/)' <<< "${changed:-}" || true)"
           if [[ -n "$environment" && "${{ github.event_name }}" == pull_request ]]; then
-            echo "::warning title=env-scope::This pull request changes the agents' environment (E3): $(tr '\n' ' ' <<< "$environment")"
-            { echo '### env-scope: environment change (E3)'; echo; sed 's/^/- /' <<< "$environment"; } >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning title=env-scope::This pull request changes the agents' rules; Andrei merges it: $(tr '\n' ' ' <<< "$environment")"
+            { echo "### env-scope: the agents' rules change (Andrei merges)"; echo; sed 's/^/- /' <<< "$environment"; } >> "$GITHUB_STEP_SUMMARY"
           fi
           echo "code=$code" >> "$GITHUB_OUTPUT"
           echo "publish=$publish" >> "$GITHUB_OUTPUT"
           echo "deploy=$azure" >> "$GITHUB_OUTPUT"
+          echo "site=$site" >> "$GITHUB_OUTPUT"
           echo "infra=$infra" >> "$GITHUB_OUTPUT"
           echo "scan=$scan" >> "$GITHUB_OUTPUT"
           echo "code=$code publish=$publish deploy=$azure infra=$infra scan=$scan"
@@ -223,8 +234,8 @@ jobs:
 
       # Code quality (#332, governance/quality/README.md): complexity, size and duplication in C#, TypeScript,
       # Swift (SwiftLint in Docker) and Python against the ratchet baseline, in about half a minute. The report
-      # goes to the job summary; in soft mode it never fails build-test, governance/quality/settings.json makes
-      # it blocking. The base commit was fetched by "Find what changed", to list what the baseline gained. A pull
+      # goes to the job summary; governance/quality/settings.json is in blocking mode, so a new violation fails
+      # build-test. The base commit was fetched by "Find what changed", to list what the baseline gained. A pull
       # request that changes only the scan server (no build) gets the checks that need none: Python duplicates.
       - name: Check code quality
         if: steps.changes.outputs.code == 'true' || steps.changes.outputs.scan == 'true'
@@ -300,7 +311,7 @@ jobs:
       # appsettings.json, with no accounts.
       - name: Write the sign-in settings
         if: >-
-          steps.changes.outputs.publish == 'true' && github.event_name != 'pull_request' &&
+          steps.changes.outputs.publish == 'true' && github.event_name != 'pull_request' && steps.changes.outputs.site == 'production' &&
           vars.AUTH_AUTHORITY != '' && vars.AUTH_CLIENT_ID != '' && vars.AUTH_AUDIENCE != '' && vars.API_URL != ''
         env:
           AUTHORITY: ${{ vars.AUTH_AUTHORITY }}
@@ -326,9 +337,9 @@ jobs:
         if: steps.changes.outputs.publish == 'true'
         run: dotnet publish src/MotiffLab.Web --configuration Release --output publish
 
-      # Provisions infra/main.bicep and deploys the published app to Azure Static Web Apps, from main only.
-      # Pull requests are built and tested but not deployed: there are no preview sites (Andrei, 2026-10-31;
-      # a preview can't sign in, and the iPad app opens the production site), so a change is checked there.
+      # Provisions infra/main.bicep (from main only) and deploys the published app to Azure Static Web Apps: main to
+      # the main address, develop to the environment "develop" (the web test site, without sign-in: its address is
+      # not a registered redirect). Pull requests are built and tested but not deployed.
       # Signs in through OIDC as the identity from infra/bootstrap.bicep; see infra/README.md.
       # Skipped until the bootstrap has set the AZURE_* repository variables.
       - uses: azure/login@v2
@@ -367,3 +378,4 @@ jobs:
           output_location: ''
           skip_app_build: true
           skip_api_build: true
+          deployment_environment: ${{ steps.changes.outputs.site == 'develop' && 'develop' || '' }}
