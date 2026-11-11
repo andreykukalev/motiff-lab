@@ -97,13 +97,14 @@ struct PieceSummary: Equatable, Sendable {
     var documentPages: [Double] = []
     /// Whether the piece keeps a PDF.
     var document = false
-    /// The title, composer and tags a card shows (contract 12): "titleFrom" is "player", "file" (the score names it) or
-    /// "fileName"; "composerFrom" is "player" or "file", or nil when neither names one.
+    /// The title, composer, tags and playlists a line shows (contract 12): "titleFrom" is "player", "file" (the score names
+    /// it) or "fileName"; "composerFrom" is "player" or "file", or nil when neither names one.
     var title: String?
     var titleFrom: String?
     var composer: String?
     var composerFrom: String?
     var tags: [String] = []
+    var playlists: [String] = []
 
     /// The title the player set in the library, if they did.
     var playersTitle: String? { titleFrom == "player" ? title : nil }
@@ -134,6 +135,7 @@ struct PieceSummary: Equatable, Sendable {
         composer = project["composer"] as? String
         composerFrom = project["composerFrom"] as? String
         tags = project["tags"] as? [String] ?? []
+        playlists = project["playlists"] as? [String] ?? []
     }
 
     /// Reads a project file's summary through music-core; nil when the file cannot be read.
@@ -152,7 +154,7 @@ struct PieceSummary: Equatable, Sendable {
     }
 }
 
-/// A piece's title, composer and tags as the player sets them in the library (version 0.2, facade contract 12):
+/// A piece's title, composer, tags and playlists as the player sets them in the library (version 0.2, facade contract 12):
 /// `project.metadata` on piece 0 with the project file's text as "file", which music-core answers changed; the app writes
 /// it back in place. A field sent as null is cleared, so the card shows what the file says again.
 enum PieceDetailsFile {
@@ -161,13 +163,14 @@ enum PieceDetailsFile {
         (try? await change(url, ["title": NSNull(), "composer": NSNull()]))?.summary
     }
 
-    /// Writes the player's title, composer and tags into the project file. The file keeps its date, so the piece keeps its
-    /// place among the ones opened last.
-    static func save(_ url: URL, title: String?, composer: String?, tags: [String]) async throws {
+    /// Writes the player's title, composer, tags and playlists into the project file. The file keeps its date, so the piece
+    /// keeps its place among the ones opened last.
+    static func save(_ url: URL, title: String?, composer: String?, tags: [String], playlists: [String]) async throws {
         let changed = try await change(url, [
             "title": title.map { $0 as Any } ?? NSNull(),
             "composer": composer.map { $0 as Any } ?? NSNull(),
             "tags": tags,
+            "playlists": playlists,
         ])
         let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
         try Data(changed.file.utf8).write(to: url, options: .atomic)

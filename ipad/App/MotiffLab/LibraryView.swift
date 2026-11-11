@@ -3,12 +3,13 @@ import UniformTypeIdentifiers
 
 /// The library (version 0.2, Andrei's approved screens ux-prototype/v2/screens/lib-1-list.png, lib-3-sessions.png and
 /// lib-4-props.png): the screen outside the piece and the way into one, as short as it can be: find a piece and start.
-/// The pieces are a list with Title, Composer and Opened columns and an index at the edge, searched, filtered by composer
-/// and tag, and in tabs: All pieces, Composers, Recent, and Sessions, the cards of current work, each resumed with one tap.
-/// A piece's properties (title, composer, tags) are edited from a long press. The pieces are project files in the app's
-/// Documents (0019 section 2.3), read by music-core (`project.summary`) without opening them. One Add piece action holds
-/// the ways in; the overflow imports a project file. Everything here runs on the device and is free; signed in, the
-/// projects saved online that are not on this iPad are listed under them, to download (0014, #335).
+/// The pieces are a list with Title, Composer, Playlists and Opened columns and an index at the edge, searched, filtered by
+/// composer, tag and playlist, and in tabs: All pieces, Composers, Recent, Playlists, and Sessions, the cards of current
+/// work, each resumed with one tap. A piece's properties (title, composer, tags, playlists) are edited from a long press.
+/// The pieces are project files in the app's Documents (0019 section 2.3), read by music-core (`project.summary`) without
+/// opening them. One Add piece action holds the ways in; the overflow imports a project file. Everything here runs on the
+/// device and is free; signed in, the projects saved online that are not on this iPad are listed under them, to download
+/// (0014, #335).
 struct LibraryView: View {
     private let text = UIText.current
     @EnvironmentObject private var account: Account
@@ -22,15 +23,17 @@ struct LibraryView: View {
     @State private var summaries: [URL: PieceSummary] = [:]
     /// The projects saved online that are not on this iPad (#335); none while signed out or offline.
     @State private var online: [OnlineProject] = []
-    /// The pieces made from the project files and their summaries, with the library's composers and tags (version 0.2).
+    /// The pieces made from the project files and their summaries, with the library's composers, tags and playlists
+    /// (version 0.2).
     @State private var entries: [LibraryEntry] = []
     @State private var composers: [String] = []
     @State private var tags: [String] = []
+    @State private var playlists: [String] = []
     @State private var query = LibraryQuery()
     /// The tab shown last, kept on the device.
     @AppStorage("library.tab") private var tab = LibraryTab.all
-    /// The composer picked on the Composers tab.
-    @State private var picked: ComposerRow?
+    /// The composer or playlist picked on its tab.
+    @State private var picked: LibraryGroup?
     @State private var editing: LibraryEntry?
 
     /// The shelf's columns, for the projects here and those saved online.
@@ -65,7 +68,7 @@ struct LibraryView: View {
                                 .foregroundStyle(Color.ds("ink-2"))
                                 .frame(maxWidth: 560, alignment: .leading)
                         } else {
-                            LibraryShelfView(page: page, summaries: summaries, composers: composers, tags: tags, tab: $tab, query: $query, picked: $picked, text: text) { url in
+                            LibraryShelfView(page: page, summaries: summaries, composers: composers, tags: tags, playlists: playlists, tab: $tab, query: $query, picked: $picked, text: text) { url in
                                 Task { await openProject(url) }
                             } edit: { entry in
                                 editing = entry
@@ -96,7 +99,7 @@ struct LibraryView: View {
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $settings) { SettingsSheet(settings: DeviceSettings.shared, account: account, text: text) }
             .sheet(item: $editing) { entry in
-                PiecePropertiesSheet(entry: entry, summary: summaries[entry.url], composers: composers, libraryTags: tags, text: text) {
+                PiecePropertiesSheet(entry: entry, summary: summaries[entry.url], composers: composers, libraryTags: tags, libraryPlaylists: playlists, text: text) {
                     await reload()
                 }
             }
@@ -226,15 +229,19 @@ struct LibraryView: View {
         shelve()
     }
 
-    /// The pieces made again from the project files and their summaries; a composer or tag no piece has any more stops
-    /// filtering, and a composer picked on the Composers tab that has no piece left goes back to the composers.
+    /// The pieces made again from the project files and their summaries; a composer, tag or playlist no piece has any more
+    /// stops filtering, and a composer or playlist picked on its tab that has no piece left goes back to the list of them.
     private func shelve() {
         let locale = Locale(identifier: text.language)
         entries = shelved.map { LibraryEntry.of($0, summaries[$0.url]) }
         composers = LibraryShelf.composers(entries, locale: locale)
         tags = LibraryShelf.tags(entries, locale: locale)
-        query = LibraryShelf.kept(query, composers: composers, tags: tags)
-        if let shown = picked, LibraryShelf.pieces(by: shown.name, entries).isEmpty { picked = nil }
+        playlists = LibraryShelf.playlists(entries, locale: locale)
+        query = LibraryShelf.kept(query, composers: composers, tags: tags, playlists: playlists)
+        if let shown = picked {
+            let left = tab == .playlists ? LibraryShelf.pieces(on: shown.name ?? "", entries) : LibraryShelf.pieces(by: shown.name, entries)
+            if left.isEmpty { picked = nil }
+        }
     }
 
     /// The projects saved online whose id is in no project file here (0014); none while signed out, offline or when the
