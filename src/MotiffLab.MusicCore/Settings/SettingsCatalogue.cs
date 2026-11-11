@@ -74,6 +74,10 @@ public static class SettingsCatalogue
 
         Switch("account.saveOnline", SettingSection.Account, null, SettingScope.Device),
         Switch("account.analytics", SettingSection.Account, null, SettingScope.Device),
+
+        // Experiments, each off until the player turns it on on this device. Automatic bookmarks: the boundaries of the pieces,
+        // movements and large sections of a long score or recording proposed in the Contents (SectionFinder), to confirm, move or dismiss.
+        Switch("experimental.autoBookmarks", SettingSection.Experimental, null, SettingScope.Device),
     ];
 
     private static readonly Dictionary<string, Setting> s_byId = All.ToDictionary(setting => setting.Id, StringComparer.Ordinal);

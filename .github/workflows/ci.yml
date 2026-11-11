@@ -308,8 +308,9 @@ jobs:
 
       # Sign-in and saving online (0014) in the deployed app, on the main address and on the web test site (develop,
       # whose address infra/azure/test-site-signin.ps1 registers for sign-in): the External ID tenant and the services'
-      # addresses come from repository variables that infra/azure/setup.ps1 sets. Pull request builds keep the
-      # committed appsettings.json, with no accounts.
+      # addresses come from repository variables that infra/azure/setup.ps1 sets. The test site uses develop's own API and
+      # scan server (rg-motifflab-dev, API_URL_DEV and SCAN_URL_DEV from infra/azure/dev-env.ps1) once they are set, and
+      # main's until then. Pull request builds keep the committed appsettings.json, with no accounts.
       - name: Write the sign-in settings
         if: >-
           steps.changes.outputs.publish == 'true' && github.event_name != 'pull_request' &&
@@ -318,8 +319,8 @@ jobs:
           AUTHORITY: ${{ vars.AUTH_AUTHORITY }}
           CLIENT_ID: ${{ vars.AUTH_CLIENT_ID }}
           AUDIENCE: ${{ vars.AUTH_AUDIENCE }}
-          API_URL: ${{ vars.API_URL }}
-          SCAN_URL: ${{ vars.SCAN_URL }}
+          API_URL: ${{ steps.changes.outputs.site == 'develop' && vars.API_URL_DEV || vars.API_URL }}
+          SCAN_URL: ${{ steps.changes.outputs.site == 'develop' && vars.SCAN_URL_DEV || vars.SCAN_URL }}
         run: |
           for address in "$API_URL" "${SCAN_URL:-https://unset}"; do
             if [[ ! "$address" =~ ^https://[A-Za-z0-9.-]+$ ]]; then

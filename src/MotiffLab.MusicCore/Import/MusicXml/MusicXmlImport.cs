@@ -40,6 +40,12 @@ public sealed record MusicXmlImport(
     Tick End,
     ImportReport Report)
 {
+    /// <summary>The bar lines drawn other than single (double, final, heavy), one per position and style, in time order.</summary>
+    public IReadOnlyList<MusicXmlBarline> Barlines { get; init; } = [];
+
+    /// <summary>The words and rehearsal marks written over the music (tempo words, headings, letters), in time order.</summary>
+    public IReadOnlyList<MusicXmlText> Texts { get; init; } = [];
+
     /// <summary>The slurs and repeat signs as phrase evidence for <see cref="PhraseBoundaryFinder"/>.</summary>
     public PhraseMarks PhraseMarks => new(
         [.. Slurs.Select(static slur => new SlurMark(slur.Track, slur.Start, slur.Stop))],
@@ -134,6 +140,24 @@ public sealed record MusicXmlSlur(int Track, string PartId, int Number, int Meas
 /// <param name="At">The bar line: the start of the measure for a left bar line, its end for a right one.</param>
 /// <param name="MeasureIndex">The measure whose bar line carries the sign.</param>
 public sealed record MusicXmlRepeat(Tick At, int MeasureIndex, MusicXmlRepeatDirection Direction);
+
+/// <summary>A bar line drawn other than single, from <c>&lt;bar-style&gt;</c>, as the score writes it.</summary>
+/// <param name="At">The bar line: the start of the measure after it.</param>
+/// <param name="MeasureIndex">The measure the bar line starts (the one after a right bar line).</param>
+/// <param name="Style">The style as written: "light-light" (a double bar line), "light-heavy" (a final one), "heavy-light", "heavy-heavy", "dashed"….</param>
+/// <param name="IsRepeat">True when the bar line also carries a repeat sign.</param>
+public sealed record MusicXmlBarline(Tick At, int MeasureIndex, string Style, bool IsRepeat)
+{
+    /// <summary>Two thin lines: the end of a section.</summary>
+    public bool IsDouble => Style is "light-light" or "heavy-heavy";
+
+    /// <summary>A thin and a thick line without a repeat: the end of a piece or a movement.</summary>
+    public bool IsFinal => Style == "light-heavy" && !IsRepeat;
+}
+
+/// <summary>A text written over the music: a <c>&lt;words&gt;</c> direction (a tempo word, a heading) or a <c>&lt;rehearsal&gt;</c> mark.</summary>
+/// <param name="IsBold">True for words in bold (<c>font-weight="bold"</c>), as titles and tempo marks are set; expression marks are not.</param>
+public sealed record MusicXmlText(Tick At, int Track, int MeasureIndex, string Text, bool IsRehearsal, bool IsBold = false);
 
 public enum MusicXmlRepeatDirection
 {

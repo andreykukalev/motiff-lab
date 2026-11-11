@@ -55,13 +55,14 @@ Rules for the web UI (`src/MotiffLab.Web`) as it is on main after the redesign (
 
 - The pen writes on the score (`Scripts/score/pencil-layer.ts`): a pen or the mouse with the pen on, never a finger, which scrolls. Marks are kept against their bar and are the player's writing, never music: no analysis reads them.
 - A bookmark is a bracket in its category's ink above the phrase brackets, its title in italic serif; across a system break each run keeps its hooks and repeats the title after "…", and a long title ends in an ellipsis. The Contents lists bookmarks by category, the detected form and the pages.
+- Automatic bookmarks (an experiment, Settings · Experimental): the Contents list the sections music-core proposes for a long score or recording (`SectionFinder`) above the bookmarks, each dashed and tagged "found automatically" with the facts it rests on and how sure it is, never in amber or a category's ink. Confirm saves it as an ordinary Structure bookmark; Move and Dismiss change the proposals only while the piece is open; nothing else is saved (`Workspace/FoundSectionList.razor`).
 - Layers (under Pen) show or hide the player's marks by kind.
 
 ## The library and the screens around it
 
 - The library (`Pages/Home.razor`) shows the pieces as cards, each resumed where it was left; Add a piece opens one sheet with the routes in (Open a file, Scan a page, From a recording, the demo). The Pro routes say what to do in the player's words ("Sign in or get Pro").
 - A screen a link leads to outside the score (opening a file, scanning a page, notes from a recording, the account, a page not found) is a sheet over the library (`Design/PageSheet.razor`): its title, a close back to the library, the paper dimmed behind.
-- Settings is a sheet (`Settings/SettingsSheet.razor`) with its sections as tabs: Guidance, Score, Layers, Piano roll, Appearance and Account (with the scan server's address only in a build without Motiff Lab's own). A popover's settings name where they apply: this piece or everywhere.
+- Settings is a sheet (`Settings/SettingsSheet.razor`) with its sections as tabs: Guidance, Score, Layers, Piano roll, Appearance, Account (with the scan server's address only in a build without Motiff Lab's own) and Experimental, which holds one switch per experiment (governance, "Experiments"), each off by default and kept on the device. A popover's settings name where they apply: this piece or everywhere.
 - A link to a place on another screen (`settings#account`) lands there: the layout scrolls to the fragment.
 
 ## Localization
