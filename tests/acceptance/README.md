@@ -9,7 +9,7 @@ what the code answered. The project runs in `build-test` with the rest of `dotne
 
 - `governance/risk-paths.yml` puts `tests/acceptance/**` under `guardrail`: a change here is an environment task (E3).
 - CI's `build-test` fails a pull request that changes, adds, removes or renames a file under `tests/acceptance/`
-  unless the pull request has the label `acceptance-approved`, which only Andrei sets (step "Check approval of the
+  unless the pull request has the label `protected-scenarios-ok`, which only Andrei sets (step "Check approval of the
   protected scenarios" in `.github/workflows/ci.yml`; the guard test is `governance/tests/acceptance.test.mjs`). Adding
   or removing the label runs the check again.
 - When a scenario fails, the code is fixed, not the scenario. An expected value changes only with Andrei's approval.

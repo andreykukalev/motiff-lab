@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!-- The protected acceptance scenarios (README.md): what the player can rely on, through the facade's JSON contract.
-       A pull request that changes anything in tests/acceptance needs Andrei's label acceptance-approved (CI checks it). -->
+       A pull request that changes anything in tests/acceptance needs Andrei's label protected-scenarios-ok (CI checks it). -->
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>

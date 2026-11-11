@@ -9,7 +9,7 @@ guardrail:
   - governance/**
   - .claude/**
   - CLAUDE.md
-  # The protected acceptance scenarios (#310): CI fails a pull request that changes them without acceptance-approved.
+  # The protected acceptance scenarios (#310): CI fails a pull request that changes them without protected-scenarios-ok.
   - tests/acceptance/**
 high:
   - src/MotiffLab.MusicCore/Facade/**

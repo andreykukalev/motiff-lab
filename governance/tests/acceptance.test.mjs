@@ -1,6 +1,6 @@
 // Tests of the protection of the acceptance scenarios (Task Record #310, criterion 3): node --test "governance/tests/*.test.mjs".
 // tests/acceptance/** is Guardrail by path, and CI's build-test fails a pull request that changes it without the label
-// acceptance-approved. The CI steps are run as written in ci.yml, with bash and jq, against a stand-in for gh that answers
+// protected-scenarios-ok. The CI steps are run as written in ci.yml, with bash and jq, against a stand-in for gh that answers
 // from hand-made GitHub data.
 
 import assert from 'node:assert/strict';
@@ -97,16 +97,16 @@ test('a pull request that changes no scenario passes without the label', needsTo
   assert.equal(result.code, 0, result.out);
 });
 
-test('a pull request that changes a scenario fails without acceptance-approved', needsTools, () => {
+test('a pull request that changes a scenario fails without protected-scenarios-ok', needsTools, () => {
   for (const changed of [['tests/acceptance/OpeningAPiece.cs'], ['README.md', 'tests/acceptance/Fixtures/new.musicxml']]) {
-    const result = approval(changed, ['agent', 'risk:guardrail', 'acceptance-approved-later']);
+    const result = approval(changed, ['agent', 'risk:guardrail', 'protected-scenarios-ok-later']);
     assert.equal(result.code, 1, result.out);
-    assert.match(result.out, /::error title=acceptance-approved::.*tests\/acceptance\//);
+    assert.match(result.out, /::error title=protected-scenarios-ok::.*tests\/acceptance\//);
   }
 });
 
-test('a pull request that changes a scenario passes with acceptance-approved', needsTools, () => {
-  const result = approval(['tests/acceptance/README.md', 'MotiffLab.slnx'], ['agent', 'acceptance-approved']);
+test('a pull request that changes a scenario passes with protected-scenarios-ok', needsTools, () => {
+  const result = approval(['tests/acceptance/README.md', 'MotiffLab.slnx'], ['agent', 'protected-scenarios-ok']);
   assert.equal(result.code, 0, result.out);
 });
 
@@ -117,7 +117,7 @@ test('moving a scenario out of tests/acceptance counts as changing it', needsToo
 
 test('a file list GitHub cut short counts as changing the scenarios', needsTools, () => {
   assert.equal(approval(['src/a.cs'], [], 3001).code, 1);
-  assert.equal(approval(['src/a.cs'], ['acceptance-approved'], 3001).code, 0);
+  assert.equal(approval(['src/a.cs'], ['protected-scenarios-ok'], 3001).code, 0);
 });
 
 // A label run reports the build before it: built and approved, built but not approved (checked again), or not built.

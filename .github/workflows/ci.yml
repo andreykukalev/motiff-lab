@@ -22,7 +22,7 @@ permissions:
 # A newer push to the same pull request supersedes the run in progress. Never cancel a run on main:
 # it may be provisioning infrastructure. Pull requests group by number, not ref, so a pull request's
 # run never shares a group with main. A run for adding or removing a label (agent, role:*, risk:*,
-# browser-tests, ipad-tests, acceptance-approved) only reports the result of the build before it and checks
+# browser-tests, ipad-tests, protected-scenarios-ok) only reports the result of the build before it and checks
 # the approval of the protected scenarios again (see the job), so it gets a group of its own per run: it
 # never cancels the build in progress, and no other label run cancels it.
 concurrency:
@@ -44,7 +44,7 @@ jobs:
   # request shows build-test from the newest CI run on its commit. A label run that skipped the job, or reported
   # under another name, hid the real result and left the pull request blocked (#294, #295). So a label run
   # builds nothing: its build-test waits for the CI run on the same commit just before it and reports that
-  # run's build-test, passing only if that one passed, or failed only for want of acceptance-approved; then it
+  # run's build-test, passing only if that one passed, or failed only for want of protected-scenarios-ok; then it
   # checks that approval again with the labels as they are now (#310). Label runs that come close together
   # each wait for the one before, down to the real build. To try a failed build again after labels were added,
   # re-run the build, then the newest run (or push).
@@ -258,7 +258,7 @@ jobs:
           python -m pytest -q
 
       # The protected acceptance scenarios (tests/acceptance/README.md, #310): a pull request that adds, changes,
-      # removes or renames a file there needs the label acceptance-approved, which only Andrei sets. It runs last
+      # removes or renames a file there needs the label protected-scenarios-ok, which only Andrei sets. It runs last
       # in a build and again in every label run, from the pull request's files and labels as GitHub has them now.
       # A file list shorter than the pull request's count of changed files counts as touching the scenarios.
       - name: Check approval of the protected scenarios
@@ -267,7 +267,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          label=acceptance-approved
+          label=protected-scenarios-ok
           pull="repos/$GITHUB_REPOSITORY/pulls/$PR"
           count="$(gh api "$pull" --jq .changed_files)"
           labels="$(gh api "$pull" --jq '.labels[].name')"
