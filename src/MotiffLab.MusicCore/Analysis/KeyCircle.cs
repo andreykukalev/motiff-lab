@@ -274,6 +274,8 @@ public static class KeyCircle
         string role = function == HarmonicFunction.None
             ? words.T($"{symbol}: {numeral} in {keyName}, outside the tonic, subdominant and dominant.", $"{symbol}: {numeral} в тональности {keyName}, вне тоники, субдоминанты и доминанты.")
             : words.T($"{symbol}: {numeral} in {keyName}, the {HarmonyAnalyzer.FunctionName(function, words)}.", $"{symbol}: {numeral} в тональности {keyName}, {HarmonyAnalyzer.FunctionName(function, words)}.");
+        // A chord on recognised notes still to check says so where its role is told (#352).
+        role = chord.Doubt is { } doubt ? $"{role} {doubt}" : role;
         return new CircleChord(number, symbol, degree, PositionOf(MusicalKey.OnTonic(root, ring)), ring, place) { Function = function, Role = role };
     }
 

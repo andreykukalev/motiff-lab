@@ -372,9 +372,12 @@ struct ScoreScreen: View {
         }
         let id = piece.id
         let rolled = roll
-        score.notesChanged = { [weak heard, weak rolled] in
+        let understood = insights
+        score.notesChanged = { [weak heard, weak rolled, weak understood] in
             rolled?.notesChanged()
             Task { await heard?.reload(piece: id) }
+            // A fixed note may be one a fact rested on while it was still to check (#352).
+            Task { await understood?.reread() }
         }
         insights.placeChosen = { [weak heard] tick in heard?.seek(to: tick) }
         insights.scaleReady = { [weak heard] notes, range in heard?.hearAlone(notes, over: range) }
@@ -465,6 +468,10 @@ struct ScoreScreen: View {
                     // Edits are kept only by Save: the drawer put away with the editor open leaves them, as Cancel does.
                     score.cancelNoteEdit()
                 }
+            }
+            .onChange(of: score.check) { _, _ in
+                // A bar checked, or to check again: the facts on its notes say so, or no longer do (#352).
+                Task { await insights.reread() }
             }
             .onChange(of: insightsOpen) { _, open in
                 if open {

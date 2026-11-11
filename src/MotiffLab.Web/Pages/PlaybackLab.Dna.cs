@@ -34,10 +34,13 @@ public partial class PlaybackLab
 
         _dnaAside = false;
         _dnaStatus = null;
-        _dna = PieceDna.Build(_notes, _meter, _keys, _score.End, _selection, _selection is null ? null : _structure, Words, _pieceStructure);
+        _dna = BuildDna();
         _popover = Popover.None;
         _pillMenu = PillMenu.None;
     }
+
+    /// <summary>The map of the piece, with the doubt of recognised notes still to check in its chords and keys (#352).</summary>
+    private PieceDna BuildDna() => Doubt.On(PieceDna.Build(_notes!, _meter!, _keys, _score!.End, _selection, _selection is null ? null : _structure, Words, _pieceStructure));
 
     private async Task CloseDnaAsync()
     {

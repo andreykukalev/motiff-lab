@@ -13,6 +13,19 @@ struct CheckFlagEntry: Equatable, Sendable {
     var span: Range<Double>?
 }
 
+/// The notes of a recording's bar whose length is uncertain (facade `check` "lengths", #352): worked out, never saved, and
+/// apart from the flags, since a length can be wrong where the pitch and the start are right.
+struct UncertainLengthsEntry: Identifiable, Equatable, Sendable {
+    var bar: Int
+    var noteIds: [String]
+    /// The reasons' short names in the piece's language: "Pedal held at the end".
+    var names: [String]
+    /// What each reason means, in the piece's language.
+    var texts: [String]
+    var span: Range<Double>?
+    var id: Int { bar }
+}
+
 /// The bars Check asks about, as music-core answers `check` and `check.resolve`: the flags in bar order, how many are open,
 /// and where the doubts come from.
 struct CheckShelf: Equatable, Sendable {
@@ -25,6 +38,8 @@ struct CheckShelf: Equatable, Sendable {
     }
 
     var flags: [CheckFlagEntry] = []
+    /// A recording's bars with notes of uncertain length, in bar order (#352).
+    var lengths: [UncertainLengthsEntry] = []
     var open = 0
     /// "scanned", "transcribed" or "imported".
     var origin = "imported"
@@ -35,11 +50,21 @@ struct CheckShelf: Equatable, Sendable {
     init?(answer: String) {
         guard let object = facadeObject(answer), object["error"] == nil else { return nil }
         func number(_ value: Any?) -> Double? { (value as? NSNumber)?.doubleValue }
-        flags = (object["flags"] as? [[String: Any]] ?? []).compactMap { entry in
-            guard let bar = number(entry["bar"]) else { return nil }
-            let span = (entry["span"] as? [String: Any]).flatMap { span in
+        func spanOf(_ value: Any?) -> Range<Double>? {
+            (value as? [String: Any]).flatMap { span in
                 number(span["onset"]).flatMap { onset in number(span["end"]).map { onset..<max($0, onset + 1) } }
             }
+        }
+        lengths = (object["lengths"] as? [[String: Any]] ?? []).compactMap { entry in
+            guard let bar = number(entry["bar"]) else { return nil }
+            return UncertainLengthsEntry(
+                bar: Int(bar), noteIds: entry["noteIds"] as? [String] ?? [], names: entry["names"] as? [String] ?? [],
+                texts: entry["texts"] as? [String] ?? [], span: spanOf(entry["span"])
+            )
+        }
+        flags = (object["flags"] as? [[String: Any]] ?? []).compactMap { entry in
+            guard let bar = number(entry["bar"]) else { return nil }
+            let span = spanOf(entry["span"])
             return CheckFlagEntry(
                 bar: Int(bar), reason: entry["reason"] as? String ?? "", name: entry["name"] as? String ?? "",
                 text: entry["text"] as? String ?? "", resolved: entry["resolved"] as? Bool ?? false, span: span
@@ -190,6 +215,15 @@ struct CheckDrawer: View {
                             .foregroundStyle(Color.ds("ink-2"))
                     }
                     ForEach(check.openBars) { bar in openEntry(bar) }
+                    if !check.lengths.isEmpty {
+                        // A recording's note lengths are heard less surely than their starts (#352): shown apart.
+                        Text(text["check.lengthsHeading"]).overline().padding(.top, CGFloat.ds("s-2"))
+                        Text(text["check.lengthsHint"])
+                            .dsType(.caption)
+                            .foregroundStyle(Color.ds("ink-2"))
+                            .fixedSize(horizontal: false, vertical: true)
+                        ForEach(check.lengths) { bar in lengthsEntry(bar) }
+                    }
                     if !check.resolvedBars.isEmpty {
                         Text(text["check.resolvedHeading"]).overline().padding(.top, CGFloat.ds("s-2"))
                         ForEach(check.resolvedBars) { bar in resolvedEntry(bar) }
@@ -261,6 +295,32 @@ struct CheckDrawer: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(selected ? Color.ds("accent-tint") : Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
         .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(selected ? Color.ds("accent") : Color.ds("hairline")))
+        .accessibilityElement(children: .contain)
+    }
+
+    private func lengthsEntry(_ bar: UncertainLengthsEntry) -> some View {
+        let locale = Locale(identifier: text.language)
+        let names = bar.names.enumerated().map { $0.offset == 0 ? $0.element : $0.element.lowercased(with: locale) }.joined(separator: ", ")
+        return VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+            HStack(spacing: CGFloat.ds("s-2")) {
+                Text(text.format("check.bar", String(bar.bar)))
+                    .font(DesignTokens.font(weight: 600, size: 15))
+                    .foregroundStyle(Color.ds("ink"))
+                Text(text.count("check.lengthsNotes", bar.noteIds.count) + " · " + names)
+                    .dsType(.caption)
+                    .foregroundStyle(Color.ds("ink-2"))
+            }
+            ForEach(bar.texts, id: \.self) { explanation in
+                Text(explanation)
+                    .dsType(.caption)
+                    .foregroundStyle(Color.ds("ink-2"))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Button(text["scanCheck.show"]) { score.showCheckBar(bar.bar) }
+                .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
+                .disabled(bar.span == nil)
+        }
+        .padding(.vertical, CGFloat.ds("s-1"))
         .accessibilityElement(children: .contain)
     }
 

@@ -25,7 +25,12 @@ public sealed class MusicCoreFacade
     /// an optional "metadata": the project summary (project.summary, open, project) answers "title" and "titleFrom"
     /// ("player", "file" or "fileName"), "composer" and "composerFrom" ("player" or "file", or null) and "tags";
     /// project.metadata sets them on an open piece or PDF piece, and on piece 0 in a project file sent as "file", answering
-    /// that file changed. 11 is #352's.
+    /// that file changed.
+    /// 11 lets doubt about recognised notes reach what is read from them (#352, 0027 section 12), adding fields only: a
+    /// chord, a fact and a DNA chord or key built on recognised notes still to check (in a bar with an open Check flag)
+    /// tell "doubt", a sentence that says where, and the chord's "certainty" and the DNA chord's "clear" say uncertain;
+    /// a fact turns "uncertain" and a key read from those notes too; check answers "lengths", the bars of a recording
+    /// whose notes' lengths are uncertain. The project file stays version 15.
     /// 10 removes the calls no app sends (#342): the assembly calls of 9 (the web assembles through music-core directly,
     /// 0024 and 0025), variation.start, .propose, .check, .accept, .reject, .undo and .redo (the iPad app runs a variation
     /// through try and variation.clear), and experiments, experiments.start and experiments.surprise. They answer
