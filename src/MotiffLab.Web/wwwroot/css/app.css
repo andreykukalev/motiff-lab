@@ -4433,6 +4433,71 @@ body:has(.workspace) .site-footer {
     color: var(--ink-2);
 }
 
+/* Automatic bookmarks (an experiment): proposals, not the player's marks, so they are dashed and neutral like any inference,
+   never amber or a category's ink, with the tag "found automatically" and the facts they rest on. */
+.workspace .contents .found-sections .found-entry {
+    display: grid;
+    gap: var(--s-1);
+    justify-items: start;
+    padding: var(--s-1) var(--s-1) var(--s-2);
+    border: 1px dashed var(--hairline-strong);
+    border-radius: var(--r-s);
+}
+
+.workspace .contents .found-sections .found-entry + .found-entry {
+    margin-top: var(--s-1);
+}
+
+.workspace .contents .found-sections .entry {
+    width: 100%;
+}
+
+.workspace .contents .found-sections .entry .why {
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.workspace .contents .found-sections .found-tag {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    margin-left: var(--s-3);
+    padding: 0 var(--s-2);
+    border-radius: var(--r-xs);
+    background: var(--hairline);
+    color: var(--ink-2);
+    font: var(--t-caption);
+}
+
+.workspace .contents .found-sections .found-actions,
+.workspace .contents .found-sections .found-move {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-1);
+    padding: 0 var(--s-2);
+}
+
+.lab.workspace .contents .found-sections .found-actions .btn {
+    padding: 0 var(--s-2);
+}
+
+.workspace .contents .found-sections .found-move label {
+    font: var(--t-label);
+    color: var(--ink-2);
+}
+
+.workspace .contents .found-sections .found-move input {
+    width: calc(var(--s-12) + var(--s-4));
+    height: var(--h-compact);
+    padding: 0 var(--s-2);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-xs);
+    background: var(--surface-2);
+    color: var(--ink);
+    font: var(--t-label);
+}
+
 /* The Pages tab: the pages as thumbnails on paper, with the phrases that start on each and a tick per bookmark. */
 .workspace .contents .pages-strip {
     list-style: none;

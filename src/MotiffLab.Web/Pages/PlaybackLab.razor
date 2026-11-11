@@ -884,6 +884,10 @@
             {
                 <button class="chip" @onclick='() => ScrollContentsToAsync("contents-structure")'>@Text["contents.structure"]</button>
             }
+            @if (AutoBookmarksOn)
+            {
+                <button class="chip" @onclick='() => ScrollContentsToAsync("contents-found")'>@Text["found.chip"]</button>
+            }
             <button class="chip" @onclick='() => ScrollContentsToAsync("contents-bookmarks")'>@Text["contents.bookmarks"]</button>
             <button class="chip" @onclick='() => ScrollContentsToAsync("contents-notes")'>@Text["contents.tabNotes"]</button>
         </nav>
@@ -936,6 +940,13 @@
                         <button class="btn quiet" title="@Text["contents.addStructureHint"]" @onclick="AddStructureBookmarksAsync">@Text["contents.addStructure"]</button>
                     }
                 </section>
+            }
+
+            @if (AutoBookmarksOn)
+            {
+                @* An experiment (Settings · Experimental): the boundaries music-core proposes, to confirm, move or dismiss. *@
+                <FoundSectionList Sections="PendingSections" AnyFound="Found.Items.Count > 0" Words="Words" CanMove="CanMoveFound"
+                                  Go="GoToFoundAsync" Confirm="ConfirmFoundAsync" Dismiss="DismissFound" Move="MoveFound" />
             }
 
             <section id="contents-bookmarks" class="contents-section" aria-labelledby="contents-bookmarks-title">
@@ -2341,6 +2352,7 @@
         _characterContext = CharacterContext.FromPiece(piece);
         // MIDI has no slurs or repeat signs; rests still mark phrase boundaries.
         _phraseMarks = piece.MusicXml?.PhraseMarks ?? PhraseMarks.None;
+        ReadSectionsOf(piece);
         _heard = Transcribed.IsHeard(piece);
         _heardKey = _heard && piece.Keys.Count == 0 ? Transcribed.KeyOf(piece.Notes) : null;
         if (piece.AssembledTempos is { } tempos)

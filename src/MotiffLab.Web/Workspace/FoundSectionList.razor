@@ -1,0 +1,107 @@
+@using MotiffLab.MusicCore
+@using MotiffLab.MusicCore.Analysis
+@inject MotiffLab.Web.Localization.UiText Text
+
+@* Automatic bookmarks in the Contents (an experiment, Settings · Experimental): the sections music-core proposes for a long
+   score or recording, each marked as found automatically with the facts it rests on and how sure it is, dashed like any
+   inference. A tap goes to its bars; Confirm keeps it as a Structure bookmark; Move starts it at another bar; Dismiss
+   drops it. Nothing here is saved until it is confirmed. *@
+<section id="contents-found" class="contents-section found-sections" aria-labelledby="contents-found-title">
+    <h3 id="contents-found-title" class="overline">@(Sections.Count > 0 ? Text.Format("contents.category", Text["found.title"], Sections.Count) : Text["found.title"])</h3>
+    @if (Sections.Count == 0)
+    {
+        <p class="meta">@Text[AnyFound ? "found.allConfirmed" : "found.none"]</p>
+    }
+    else
+    {
+        <ul class="entries">
+            @foreach (FoundSection found in Sections)
+            {
+                <li class="found-entry">
+                    <div class="entry">
+                        <button class="go" title="@Text["found.goHint"]" @onclick="() => Go.InvokeAsync(found)">
+                            <span class="t">@found.NameIn(Words)</span>
+                            <span class="c">@found.BarsIn(Words) · @found.ConfidenceIn(Words)</span>
+                            <span class="why">@found.ReasonIn(Words)</span>
+                        </button>
+                    </div>
+                    <span class="tag found-tag">@Text["found.tag"]</span>
+                    @if (_moving == found.Number)
+                    {
+                        <div class="found-move">
+                            <label for="found-move-@found.Number">@Text["found.moveTo"]</label>
+                            <input id="found-move-@found.Number" type="number" inputmode="numeric" min="1" value="@_bar"
+                                   aria-invalid="@(Valid(found) ? "false" : "true")" @oninput="args => _bar = args.Value as string ?? string.Empty" />
+                            <button class="btn compact" disabled="@(!Valid(found))" @onclick="() => DoneMoving(found)">@Text["found.moveDone"]</button>
+                            <button class="btn quiet compact" @onclick="() => _moving = null">@Text["found.moveCancel"]</button>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="found-actions" role="group" aria-label="@found.NameIn(Words)">
+                            <button class="btn quiet compact" @onclick="() => Confirm.InvokeAsync(found)">@Text["found.confirm"]</button>
+                            @if (!found.IsOpening)
+                            {
+                                <button class="btn quiet compact" @onclick="() => StartMoving(found)">@Text["found.move"]</button>
+                            }
+                            <button class="btn quiet compact" @onclick="() => Dismiss.InvokeAsync(found)">@Text["found.dismiss"]</button>
+                        </div>
+                    }
+                </li>
+            }
+        </ul>
+    }
+</section>
+
+@code {
+    /// <summary>The proposals still to confirm, move or dismiss, in score order.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<FoundSection> Sections { get; set; } = [];
+
+    /// <summary>Whether anything was found at all: when every proposal is a bookmark already, the list says so.</summary>
+    [Parameter]
+    public bool AnyFound { get; set; }
+
+    [Parameter, EditorRequired]
+    public Words Words { get; set; }
+
+    /// <summary>Whether a section can start at a bar (music-core's <see cref="FoundSections.CanMove"/>).</summary>
+    [Parameter, EditorRequired]
+    public Func<int, int, bool> CanMove { get; set; } = (_, _) => false;
+
+    [Parameter]
+    public EventCallback<FoundSection> Go { get; set; }
+
+    [Parameter]
+    public EventCallback<FoundSection> Confirm { get; set; }
+
+    [Parameter]
+    public EventCallback<FoundSection> Dismiss { get; set; }
+
+    /// <summary>A section's number and the bar it is to start at.</summary>
+    [Parameter]
+    public EventCallback<(int Number, int Bar)> Move { get; set; }
+
+    /// <summary>The section whose start is being moved, and the bar typed for it.</summary>
+    private int? _moving;
+    private string _bar = string.Empty;
+
+    private void StartMoving(FoundSection found)
+    {
+        _moving = found.Number;
+        _bar = found.FirstBar.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private int? TypedBar => int.TryParse(_bar, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int bar) ? bar : null;
+
+    private bool Valid(FoundSection found) => TypedBar is { } bar && CanMove(found.Number, bar);
+
+    private async Task DoneMoving(FoundSection found)
+    {
+        if (TypedBar is { } bar && CanMove(found.Number, bar))
+        {
+            _moving = null;
+            await Move.InvokeAsync((found.Number, bar));
+        }
+    }
+}

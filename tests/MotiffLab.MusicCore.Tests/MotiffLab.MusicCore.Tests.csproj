@@ -26,6 +26,7 @@
     <None Include="Import\Scan\Fixtures\*.musicxml" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Import\Transcription\Fixtures\*.mid" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Experiments\Fixtures\*.musicxml" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Analysis\Fixtures\*.musicxml" CopyToOutputDirectory="PreserveNewest" />
     <!-- Project files of earlier, current and later versions and what today's writer makes of them (Golden/README.md). -->
     <None Include="Golden\*.motiff.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The phrases, form and Piece DNA golden the iPad tests assert under NativeAOT too, and the kit's piece it is made from. -->
