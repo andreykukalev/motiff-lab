@@ -66,14 +66,16 @@ enum Landing: Equatable, Sendable {
 }
 
 /// The two views of a recognised PDF in the bar (the web app's `ViewSwitch`): the printed pages as they are, and the notes
-/// read from them. Picking the other one calls `other`.
+/// read from them, as Original PDF | Notes, or PDF | Notes where the bar is short of room. Picking the other one calls `other`.
 struct PdfNotesSwitch: View {
     let onPdf: Bool
     let text: UIText
+    var compact = false
     let other: () -> Void
 
     var body: some View {
-        SegmentedChoice(options: [(true, text["pdf.viewPdf"]), (false, text["pdf.viewNotes"])], chosen: onPdf, label: text["pdf.views"]) { pdf in
+        let original = compact ? text["pdf.viewPdfShort"] : text["pdf.viewPdf"]
+        SegmentedChoice(options: [(true, original), (false, text["pdf.viewNotes"])], chosen: onPdf, label: text["pdf.views"]) { pdf in
             if pdf != onPdf { other() }
         }
     }

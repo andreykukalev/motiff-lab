@@ -1,6 +1,7 @@
-// A PDF piece recognised (0023; testing item 16, Andrei, 2026-11-06: "the PDF is available right inside the piece"): Read
-// the notes sends the kept PDF to the scan server, and the notes go into the same piece with their bars to check, while the
-// PDF and its marks stay exactly as they were; PDF | Notes switches between the two at the same place. Add a version on a
+// A PDF piece recognised (0023; testing item 16, Andrei, 2026-11-06: "the PDF is available right inside the piece"):
+// Recognise notes, in the PDF's bar (Andrei, 2026-11-11), sends the kept PDF to the scan server, and the notes go into the
+// same piece with their bars to check, while the PDF and its marks stay exactly as they were; Original PDF | Notes switches
+// between the two at the same place. Add a version on a
 // PDF (0022) reads the notes first in the same way and opens Sources on the piece. The scan server is played by the
 // test, answering with what homr read from Für Elise. Runs in desktop Chromium only (playwright.config.mjs).
 import { expect, test } from "@playwright/test";
@@ -50,16 +51,19 @@ test("a PDF's notes are read into the same piece, the PDF stays as it was, and P
     const bar = page.locator(".bar");
     await expect(bar.getByRole("radiogroup", { name: "View" })).toHaveCount(0);
 
-    // More offers to read the notes; the panel says where the PDF goes and that it stays as it is, and sends it, byte for byte.
+    // The bar offers to recognise the notes, and More no longer does; the panel says where the PDF goes and that it stays as
+    // it is, and sends it, byte for byte.
     await bar.getByRole("button", { name: "More" }).click();
-    await page.getByRole("dialog", { name: "More" }).getByRole("button", { name: "Read the notes" }).click();
-    const panel = page.getByRole("dialog", { name: "Read the notes" });
+    await expect(page.getByRole("dialog", { name: "More" }).getByRole("button", { name: "Recognise notes" })).toHaveCount(0);
+    await page.locator("button.scrim").click();
+    await bar.getByRole("button", { name: "Recognise notes" }).click();
+    const panel = page.getByRole("dialog", { name: "Recognise notes" });
     await expect(panel).toContainText(`goes to the scan server at ${server}/ on this computer`);
     await expect(panel).toContainText("The notes go into this same piece");
     expect(await violations(page)).toEqual([]);
-    await panel.getByRole("button", { name: "Read the notes" }).click();
+    await panel.getByRole("button", { name: "Recognise notes" }).click();
 
-    // The notes open in the same piece with the bars to check, and PDF | Notes switches to its PDF.
+    // The notes open in the same piece with the bars to check, and Original PDF | Notes switches to its PDF.
     await expect(page).toHaveURL(new RegExp(`/playback\\?project=${pdfId}&resume=r_[0-9a-z_]+&at=0$`));
     expect(uploads).toHaveLength(1);
     expect(uploads[0].includes(file)).toBe(true);
@@ -70,14 +74,14 @@ test("a PDF's notes are read into the same piece, the PDF stays as it was, and P
     await expect(views.getByRole("radio", { name: "Notes" })).toHaveAttribute("aria-checked", "true");
     expect(await violations(page)).toEqual([]);
 
-    // PDF shows the PDF as it was: its pages, Download hands back the PDF, and no Read the notes now.
-    await views.getByRole("radio", { name: "PDF" }).click();
+    // Original PDF shows the PDF as it was: its pages, Download hands back the PDF, and no Recognise notes now.
+    await views.getByRole("radio", { name: "Original PDF" }).click();
     await expect(page).toHaveURL(new RegExp(`/pdf\\?project=${pdfId}&page=1$`));
     await expect(page.locator(".pdf-view .score-page.pdf-page").first().locator("canvas")).toHaveCount(1);
-    await expect(views.getByRole("radio", { name: "PDF" })).toHaveAttribute("aria-checked", "true");
+    await expect(views.getByRole("radio", { name: "Original PDF" })).toHaveAttribute("aria-checked", "true");
+    await expect(bar.getByRole("button", { name: "Recognise notes" })).toHaveCount(0);
     await bar.getByRole("button", { name: "More" }).click();
     const more = page.getByRole("dialog", { name: "More" });
-    await expect(more.getByRole("button", { name: "Read the notes" })).toHaveCount(0);
     const [download] = await Promise.all([page.waitForEvent("download"), more.getByRole("button", { name: "Download the PDF" }).click()]);
     expect(download.suggestedFilename()).toBe("Elise.pdf");
     expect(await violations(page)).toEqual([]);
@@ -107,7 +111,7 @@ test("Add a version on a PDF reads its notes first, then opens Sources on the sa
     const panel = page.getByRole("dialog", { name: "Add a version" });
     await expect(panel).toContainText("the notes have to be read from this PDF first");
     expect(await violations(page)).toEqual([]);
-    await panel.getByRole("button", { name: "Read the notes" }).click();
+    await panel.getByRole("button", { name: "Recognise notes" }).click();
 
     await expect(page).toHaveURL(/\/playback\?project=p_[0-9a-f]+&resume=r_[0-9a-z_]+$/);
     expect(new URL(page.url()).searchParams.get("project")).toBe(pdfId);
