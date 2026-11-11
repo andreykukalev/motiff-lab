@@ -18,7 +18,7 @@ Ticks are integers at 480 per quarter ([0002](decisions/0002-canonical-time.md))
   "documentPages": [0, 15360, 29760],  // only a piece with both notes and a PDF: where each page starts, in ticks (0023)
   "readFrom": { "project": "p_…", "pages": [0, 15360, 29760] },  // only notes read from a PDF piece into a project of their own, 2026-11-05 to 2026-11-07 (0023)
   "createdAt": "…", "lastOpened": "…",
-  "metadata": { "title": "…", "composer": "…", "tags": ["…"] },   // within version 15: only what the player set in the library
+  "metadata": { "title": "…", "composer": "…", "tags": ["…"], "playlists": ["…"] },   // within version 15: only what the player set in the library
   "motifs": [ … ],              // the working selection (version 1)
   "variations": [ … ],          // chains of steps on a motif (version 2); an optional "key" { "fifths", "mode" } the steps read, as on a kept variation (read as none when absent)
   "observations": [ … ],        // ideas (version 6; factId since 12)
@@ -40,23 +40,24 @@ Ticks are integers at 480 per quarter ([0002](decisions/0002-canonical-time.md))
 
 The transcription keeps `"seams": [ms, …]` when a long recording was sent in parts ([0016](decisions/0016-bars-for-transcribed-notes.md)): where each part after the first takes over, in milliseconds from the start of the stretch of the recording that was sent, ascending. The Check layer flags the bars on either side of each seam (`PartSeam`). The array is left out when the recording went in one part, and a file without it reads as no seams.
 
-## Title, composer and tags (`metadata`)
+## Title, composer, tags and playlists (`metadata`)
 
-What the player wrote about the piece in the library (version 0.2; Andrei approved the change on 2026-11-11): its title, its composer and their own tags, kept within version 15 as an optional field, like `merge` within version 14. Each is the player's: nothing is copied into it from the source file.
+What the player wrote about the piece in the library (version 0.2; Andrei approved the change on 2026-11-11): its title, its composer, their own tags and the playlists it is on, kept within version 15 as an optional field, like `merge` within version 14. Each is the player's: nothing is copied into it from the source file.
 
 ```jsonc
 "metadata": {
   "title": "Für Elise",          // optional: the player's title
   "composer": "L. van Beethoven", // optional: the player's composer
-  "tags": ["Exam", "Romantic"]    // optional: the player's tags, in their order
+  "tags": ["Exam", "Romantic"],   // optional: the player's tags, in their order
+  "playlists": ["Recital"]        // optional: the playlists the piece is on, by name, in the player's order
 }
 ```
 
-Every text is one line: runs of white space are one space and the ends are trimmed, so an empty text is none. Tags keep the player's order and are distinct whatever the letter case ("Exam" and "exam" are one tag, the first spelling kept). A field is written only when it is set, and `metadata` only when one is; a file without it has none.
+Every text is one line: runs of white space are one space and the ends are trimmed, so an empty text is none. Tags and playlists keep the player's order and are distinct whatever the letter case ("Exam" and "exam" are one tag, the first spelling kept). A playlist is its name: it exists while a piece is on it, so a piece is on many playlists without copies and its playlists travel with it; the order of the pieces within a playlist is not kept yet. A field is written only when it is set, and `metadata` only when one is; a file without it has none.
 
-What a library card shows (`Project.Details`, the facade's `title`, `composer` and `tags`) is the player's value where there is one, else what the imported file says (a MusicXML score's `<work-title>`, else `<movement-title>`, else a title credit; its `<creator type="composer">`, else a composer credit), else for the title the file's name without its extensions. The file's values are read from the source on every summary and never written into `metadata`, so clearing the player's value shows the file's again. A scanned or transcribed piece and a PDF piece take no title or composer from their source.
+What a library card shows (`Project.Details`, the facade's `title`, `composer`, `tags` and `playlists`) is the player's value where there is one, else what the imported file says (a MusicXML score's `<work-title>`, else `<movement-title>`, else a title credit; its `<creator type="composer">`, else a composer credit), else for the title the file's name without its extensions. The file's values are read from the source on every summary and never written into `metadata`, so clearing the player's value shows the file's again. A scanned or transcribed piece and a PDF piece take no title or composer from their source.
 
-A build before this field reads such a file as before and drops `metadata` when it writes the file again (unknown fields are dropped on writing), so the title, composer and tags are lost if the piece is saved by an older build of either app.
+A build before this field reads such a file as before and drops `metadata` when it writes the file again (unknown fields are dropped on writing), so the title, composer and tags are lost if the piece is saved by an older build of either app. Likewise a build before `playlists` reads the rest of `metadata` and drops the playlists when it writes the file again.
 
 ## Marks (`marks`)
 

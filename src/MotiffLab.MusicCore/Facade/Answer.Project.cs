@@ -325,8 +325,9 @@ internal static partial class Answer
     }
 
     /// <summary>
-    /// The title, composer and tags a library card shows (contract 12): "title" and "titleFrom" ("player", "file" or
-    /// "fileName"), "composer" and "composerFrom" ("player" or "file"; both null when neither names one), and "tags".
+    /// The title, composer, tags and playlists a library card shows (contract 12): "title" and "titleFrom" ("player",
+    /// "file" or "fileName"), "composer" and "composerFrom" ("player" or "file"; both null when neither names one), "tags"
+    /// and "playlists".
     /// </summary>
     public static void Details(Utf8JsonWriter json, PieceDetails details)
     {
@@ -344,6 +345,7 @@ internal static partial class Answer
         }
 
         Texts(json, "tags", details.Tags);
+        Texts(json, "playlists", details.Playlists);
     }
 
     private static string From(Events.Attribution attribution) => attribution.Provenance switch

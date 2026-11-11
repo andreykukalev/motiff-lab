@@ -5,7 +5,7 @@ using MotiffLab.MusicCore.Facade;
 
 namespace MotiffLab.MusicCore.Tests.Facade;
 
-/// <summary>The library's title, composer and tags through the facade (contract 12): the summary, project.metadata and project.save.</summary>
+/// <summary>The library's title, composer, tags and playlists through the facade (contract 12): the summary, project.metadata and project.save.</summary>
 public class ProjectMetadataFacadeTests
 {
     private const string FurElise = "fur-elise-original.musicxml";
@@ -21,7 +21,11 @@ public class ProjectMetadataFacadeTests
         return answer;
     }
 
-    private static string[] Tags(JsonElement project) => [.. project.GetProperty("tags").EnumerateArray().Select(tag => tag.GetString()!)];
+    private static string[] Tags(JsonElement project) => Names(project, "tags");
+
+    private static string[] Playlists(JsonElement project) => Names(project, "playlists");
+
+    private static string[] Names(JsonElement project, string field) => [.. project.GetProperty(field).EnumerateArray().Select(name => name.GetString()!)];
 
     private static (string? Title, string? TitleFrom, string? Composer, string? ComposerFrom) Shown(JsonElement project) => (
         project.GetProperty("title").GetString(), project.GetProperty("titleFrom").GetString(),
@@ -37,6 +41,7 @@ public class ProjectMetadataFacadeTests
 
         Assert.Equal(("Fur Elise, opening", "file", "Ludwig van Beethoven", "file"), Shown(project));
         Assert.Empty(Tags(project));
+        Assert.Empty(Playlists(project));
 
         JsonElement midi = Json(facade.Open("Scale.mid", File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "Midi", "Fixtures", "two-hands-type1.mid")))).GetProperty("project");
         Assert.Equal(("Scale", "fileName", null, null), Shown(midi));
@@ -69,6 +74,7 @@ public class ProjectMetadataFacadeTests
         Assert.Equal(saved, again.Call(1, "project.save"));
 
         JsonElement none = Answer(facade, 1, "project.metadata", """{"composer": "", "tags": null}""").GetProperty("project");
+        Assert.Empty(Playlists(none));
         Assert.Equal(("Fur Elise, opening", "file", "Ludwig van Beethoven", "file"), Shown(none));
         Assert.False(Json(facade.Call(1, "project.save")).TryGetProperty("metadata", out _));
     }
@@ -93,6 +99,35 @@ public class ProjectMetadataFacadeTests
     }
 
     [Fact]
+    public void Project_metadata_puts_a_piece_on_playlists_and_takes_it_off_leaving_the_tags_as_they_are()
+    {
+        var facade = new MusicCoreFacade();
+        Assert.False(Json(facade.Open(FurElise, Fixture(FurElise), """{"id": "p_fur"}""")).TryGetProperty("error", out _));
+        Answer(facade, 1, "project.metadata", """{"tags": ["Exam"]}""");
+
+        JsonElement listed = Answer(facade, 1, "project.metadata", """{"playlists": [" Recital ", "recital", "Экзамен 2027", ""]}""").GetProperty("project");
+        Assert.Equal(["Recital", "Экзамен 2027"], Playlists(listed));
+        Assert.Equal(["Exam"], Tags(listed));
+
+        // A request that sends only the tags or the title leaves the playlists, as an older app's properties sheet does.
+        JsonElement retagged = Answer(facade, 1, "project.metadata", """{"title": "Für Elise", "tags": ["Bagatelle"]}""").GetProperty("project");
+        Assert.Equal(["Recital", "Экзамен 2027"], Playlists(retagged));
+
+        string saved = facade.Call(1, "project.save");
+        Assert.Equal(["Recital", "Экзамен 2027"], Names(Json(saved).GetProperty("metadata"), "playlists"));
+        var library = new MusicCoreFacade();
+        Assert.Equal(["Recital", "Экзамен 2027"], Playlists(Answer(library, 0, "project.summary", Request(saved, "\"language\": \"en\"")).GetProperty("project")));
+
+        JsonElement moved = Answer(library, 0, "project.metadata", Request(saved, """ "playlists": ["Экзамен 2027"] """));
+        Assert.Equal(["Экзамен 2027"], Playlists(moved.GetProperty("project")));
+        Assert.Equal(["Bagatelle"], Tags(moved.GetProperty("project")));
+
+        JsonElement off = Answer(facade, 1, "project.metadata", """{"playlists": null}""").GetProperty("project");
+        Assert.Empty(Playlists(off));
+        Assert.Equal(["Bagatelle"], Tags(off));
+    }
+
+    [Fact]
     public void A_pdf_piece_keeps_its_metadata_too()
     {
         var facade = new MusicCoreFacade();
@@ -112,6 +147,8 @@ public class ProjectMetadataFacadeTests
     [InlineData("""{"tags": "Exam"}""")]
     [InlineData("""{"tags": [1]}""")]
     [InlineData("""{"title": 3}""")]
+    [InlineData("""{"playlists": "Recital"}""")]
+    [InlineData("""{"playlists": [true]}""")]
     public void Metadata_of_the_wrong_shape_is_a_bad_request_and_changes_nothing(string request)
     {
         var facade = new MusicCoreFacade();

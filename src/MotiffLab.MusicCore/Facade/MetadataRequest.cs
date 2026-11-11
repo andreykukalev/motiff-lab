@@ -3,9 +3,9 @@ using MotiffLab.MusicCore.Projects;
 namespace MotiffLab.MusicCore.Facade;
 
 /// <summary>
-/// The call project.metadata (contract 12): the title, composer and tags the player sets in the library. "title" and
-/// "composer" are text, "tags" a list of text that replaces the tags; a field left out stays as it is, and null (or text
-/// with nothing in it) clears it, so the card shows the file's title or composer again.
+/// The call project.metadata (contract 12): the title, composer, tags and playlists the player sets in the library.
+/// "title" and "composer" are text, "tags" and "playlists" lists of text that replace the piece's; a field left
+/// out stays as it is, and null (or text with nothing in it) clears it, so the card shows the file's title or composer again.
 /// </summary>
 internal static class MetadataRequest
 {
@@ -17,7 +17,8 @@ internal static class MetadataRequest
             Metadata = new PieceMetadata(
                 request.Sends("title") ? request.Text("title") : current.Title,
                 request.Sends("composer") ? request.Text("composer") : current.Composer,
-                request.Sends("tags") ? request.Texts("tags") : current.Tags),
+                request.Sends("tags") ? request.Texts("tags") : current.Tags,
+                request.Sends("playlists") ? request.Texts("playlists") : current.Playlists),
         };
     }
 }

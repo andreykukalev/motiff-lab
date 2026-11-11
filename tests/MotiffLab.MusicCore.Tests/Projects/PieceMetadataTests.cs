@@ -7,7 +7,7 @@ using MotiffLab.MusicCore.Projects;
 
 namespace MotiffLab.MusicCore.Tests.Projects;
 
-/// <summary>The title, composer and tags the player keeps for a piece in the library (version 0.2), and what a card shows.</summary>
+/// <summary>The title, composer, tags and playlists the player keeps for a piece in the library (version 0.2), and what a card shows.</summary>
 public class PieceMetadataTests
 {
     private static readonly DateTimeOffset s_now = new(2026, 11, 11, 9, 0, 0, TimeSpan.Zero);
@@ -24,20 +24,23 @@ public class PieceMetadataTests
     [Fact]
     public void Tags_are_trimmed_kept_in_order_and_distinct_in_any_letter_case_and_empty_ones_are_dropped()
     {
-        var metadata = new PieceMetadata("  Für   Elise \n", " ", [" Exam ", "exam", "", "  ", "Романтика", "РОМАНТИКА", "Two  words", null]);
+        var metadata = new PieceMetadata("  Für   Elise \n", " ", [" Exam ", "exam", "", "  ", "Романтика", "РОМАНТИКА", "Two  words", null], [" Recital ", "recital", "", "Экзамен 2027"]);
 
         Assert.Equal("Für Elise", metadata.Title);
         Assert.Null(metadata.Composer);
         Assert.Equal(["Exam", "Романтика", "Two words"], metadata.Tags);
+        Assert.Equal(["Recital", "Экзамен 2027"], metadata.Playlists);
         Assert.False(metadata.IsEmpty);
-        Assert.True(new PieceMetadata("", null, ["", " "]).IsEmpty);
-        Assert.Equal(metadata, new PieceMetadata("Für Elise", null, ["Exam", "Романтика", "Two words"]));
+        Assert.True(new PieceMetadata("", null, ["", " "], [" "]).IsEmpty);
+        Assert.False(new PieceMetadata(null, null, null, ["Recital"]).IsEmpty);
+        Assert.Equal(metadata, new PieceMetadata("Für Elise", null, ["Exam", "Романтика", "Two words"], ["Recital", "Экзамен 2027"]));
+        Assert.NotEqual(metadata, new PieceMetadata("Für Elise", null, ["Exam", "Романтика", "Two words"], ["Recital"]));
     }
 
     [Fact]
     public void Metadata_round_trips_through_the_project_file_and_the_same_project_gives_the_same_bytes()
     {
-        Project project = FurElise() with { Metadata = new PieceMetadata("Für Elise", "L. van Beethoven", ["Exam", "Bagatelle"]) };
+        Project project = FurElise() with { Metadata = new PieceMetadata("Für Elise", "L. van Beethoven", ["Exam", "Bagatelle"], ["Recital"]) };
 
         byte[] written = ProjectFile.Write(project);
         Project read = ProjectFile.Read(written);
@@ -47,7 +50,7 @@ public class PieceMetadataTests
         Assert.Equal(written, ProjectFile.Write(read));
         JsonObject file = JsonNode.Parse(written)!.AsObject();
         Assert.Equal(15, file["version"]!.GetValue<int>());
-        Assert.Equal("""{"title":"Für Elise","composer":"L. van Beethoven","tags":["Exam","Bagatelle"]}""", file["metadata"]!.ToJsonString(new System.Text.Json.JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }));
+        Assert.Equal("""{"title":"Für Elise","composer":"L. van Beethoven","tags":["Exam","Bagatelle"],"playlists":["Recital"]}""", file["metadata"]!.ToJsonString(new System.Text.Json.JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }));
     }
 
     [Fact]
@@ -56,9 +59,12 @@ public class PieceMetadataTests
         JsonObject none = JsonNode.Parse(ProjectFile.Write(FurElise()))!.AsObject();
         Assert.False(none.ContainsKey("metadata"));
 
-        JsonObject tagged = JsonNode.Parse(ProjectFile.Write(FurElise() with { Metadata = new PieceMetadata(null, null, ["Exam"]) }))!.AsObject();
+        JsonObject tagged = JsonNode.Parse(ProjectFile.Write(FurElise() with { Metadata = new PieceMetadata(null, null, ["Exam"], null) }))!.AsObject();
         JsonObject metadata = tagged["metadata"]!.AsObject();
         Assert.Equal(["tags"], metadata.Select(pair => pair.Key));
+
+        JsonObject listed = JsonNode.Parse(ProjectFile.Write(FurElise() with { Metadata = new PieceMetadata(null, null, null, ["Recital"]) }))!.AsObject();
+        Assert.Equal(["playlists"], listed["metadata"]!.AsObject().Select(pair => pair.Key));
     }
 
     [Fact]
@@ -77,6 +83,8 @@ public class PieceMetadataTests
     [InlineData("\"metadata\": {\"tags\": \"Exam\"}")]
     [InlineData("\"metadata\": {\"tags\": [1]}")]
     [InlineData("\"metadata\": {\"title\": 3}")]
+    [InlineData("\"metadata\": {\"playlists\": \"Recital\"}")]
+    [InlineData("\"metadata\": {\"playlists\": [null]}")]
     public void Metadata_of_the_wrong_shape_is_damaged(string field)
     {
         string file = Encoding.UTF8.GetString(ProjectFile.Write(FurElise())).Replace("\"source\":", field + ",\n  \"source\":", StringComparison.Ordinal);
@@ -88,12 +96,25 @@ public class PieceMetadataTests
     [Fact]
     public void A_file_with_untidy_metadata_reads_it_cleaned()
     {
-        string file = Encoding.UTF8.GetString(ProjectFile.Write(FurElise())).Replace("\"source\":", "\"metadata\": {\"title\": \"  \", \"tags\": [\"a\", \"A\", \" b \"]},\n  \"source\":", StringComparison.Ordinal);
+        string file = Encoding.UTF8.GetString(ProjectFile.Write(FurElise())).Replace("\"source\":", "\"metadata\": {\"title\": \"  \", \"tags\": [\"a\", \"A\", \" b \"], \"playlists\": [\" c \", \"C\"]},\n  \"source\":", StringComparison.Ordinal);
 
         Project project = ProjectFile.Read(Encoding.UTF8.GetBytes(file));
 
         Assert.Null(project.Metadata.Title);
         Assert.Equal(["a", "b"], project.Metadata.Tags);
+        Assert.Equal(["c"], project.Metadata.Playlists);
+    }
+
+    [Fact]
+    public void A_file_with_tags_but_no_playlists_reads_as_on_no_playlist()
+    {
+        string file = Encoding.UTF8.GetString(ProjectFile.Write(FurElise())).Replace("\"source\":", "\"metadata\": {\"tags\": [\"Exam\"]},\n  \"source\":", StringComparison.Ordinal);
+
+        Project project = ProjectFile.Read(Encoding.UTF8.GetBytes(file));
+
+        Assert.Equal(["Exam"], project.Metadata.Tags);
+        Assert.Empty(project.Metadata.Playlists);
+        Assert.Empty(project.Details.Playlists);
     }
 
     [Fact]
@@ -105,12 +126,14 @@ public class PieceMetadataTests
         Assert.Equal(("Fur Elise, opening", Provenance.Imported), (fromFile.Title.Value, fromFile.Title.Attribution.Provenance));
         Assert.Equal(("Ludwig van Beethoven", Provenance.Imported), (fromFile.Composer!.Value, fromFile.Composer.Attribution.Provenance));
         Assert.Empty(fromFile.Tags);
+        Assert.Empty(fromFile.Playlists);
         Assert.True(project.Metadata.IsEmpty);
 
-        PieceDetails own = (project with { Metadata = new PieceMetadata("Für Elise", null, ["Exam"]) }).Details;
+        PieceDetails own = (project with { Metadata = new PieceMetadata("Für Elise", null, ["Exam"], ["Recital"]) }).Details;
         Assert.Equal(("Für Elise", Provenance.UserEdited), (own.Title.Value, own.Title.Attribution.Provenance));
         Assert.Equal(Provenance.Imported, own.Composer!.Attribution.Provenance);
         Assert.Equal(["Exam"], own.Tags);
+        Assert.Equal(["Recital"], own.Playlists);
         Assert.Equal((fromFile.Title, fromFile.Composer), (project.Summary.Details!.Title, project.Summary.Details.Composer));
     }
 
