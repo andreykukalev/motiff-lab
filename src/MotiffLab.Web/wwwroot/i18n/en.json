@@ -1138,6 +1138,7 @@
   "library.pieces.many": "{0} pieces",
   "library.noneMatch": "No pieces match.",
   "library.clearFilters": "Clear search and filters",
+  "library.clearSearch": "Clear search",
   "library.openFile": "Open a file",
   "library.openFileHint": "MIDI, MusicXML or PDF, read on this device",
   "library.scanPage": "Scan a page",

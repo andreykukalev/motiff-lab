@@ -1151,6 +1151,7 @@
   "library.pieces.many": "{0} пьес",
   "library.noneMatch": "Ничего не нашлось.",
   "library.clearFilters": "Сбросить поиск и фильтры",
+  "library.clearSearch": "Очистить поиск",
   "library.openFile": "Открыть файл",
   "library.openFileHint": "MIDI, MusicXML или PDF, читается на этом устройстве",
   "library.scanPage": "Распознать страницу",

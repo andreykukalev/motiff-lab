@@ -309,9 +309,10 @@ struct FloatingSurface: ViewModifier {
     }
 }
 
-/// A small tag (ds.css `.tag`): ideas kept in plum, bars to check in amber.
+/// A small tag (ds.css `.tag`): ideas kept in plum, bars to check in amber; the player's own tags quiet, with a hairline
+/// (app.css `.library .tag.own`).
 struct Tag: View {
-    enum Kind { case saved, warn, detected, assumed }
+    enum Kind { case saved, warn, detected, assumed, own }
 
     let text: String
     let kind: Kind
@@ -323,6 +324,9 @@ struct Tag: View {
             .padding(.horizontal, CGFloat.ds("s-2"))
             .frame(minHeight: 22)
             .background(background, in: RoundedRectangle(cornerRadius: CGFloat.ds("r-xs")))
+            .overlay {
+                if kind == .own { RoundedRectangle(cornerRadius: CGFloat.ds("r-xs")).strokeBorder(Color.ds("hairline")) }
+            }
     }
 
     private var foreground: Color {
@@ -330,7 +334,7 @@ struct Tag: View {
         case .saved: .ds("plum")
         case .warn: .ds("warning")
         case .detected: .ds("accent")
-        case .assumed: .ds("ink-2")
+        case .assumed, .own: .ds("ink-2")
         }
     }
 
@@ -340,6 +344,7 @@ struct Tag: View {
         case .warn: .ds("amber-tint")
         case .detected: .ds("accent-tint")
         case .assumed: .ds("hairline")
+        case .own: .ds("surface-2")
         }
     }
 }

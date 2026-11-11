@@ -222,6 +222,8 @@ struct RecordingChooser: View {
     let button: String
     let hint: String
     let progress: String?
+    /// Why the last recording was not heard, under the button.
+    var problem: String?
     let picked: (URL) -> Void
     @State private var send = false
     @State private var choosing = false
@@ -248,6 +250,12 @@ struct RecordingChooser: View {
                     .buttonStyle(DSButtonStyle(kind: .secondary))
                     .disabled(!send || progress != nil)
                     .accessibilityHint(hint)
+            }
+            if let problem {
+                Text(problem)
+                    .dsType(.caption)
+                    .foregroundStyle(Color.ds("danger"))
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .fileImporter(isPresented: $choosing, allowedContentTypes: RecordingHearing.recordings) { result in
@@ -293,15 +301,10 @@ struct RecordingVersionSection: View {
                 line: text["version.recordingLineDevice"],
                 button: text["version.addRecording"],
                 hint: text["version.chooseRecording"],
-                progress: progress
+                progress: progress,
+                problem: problem
             ) { url in
                 Task { await hear(url) }
-            }
-            if let problem {
-                Text(problem)
-                    .dsType(.caption)
-                    .foregroundStyle(Color.ds("danger"))
-                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(.top, CGFloat.ds("s-2"))
