@@ -67,6 +67,7 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
             Composer = summary.Details?.Composer?.Value,
             ComposerFrom = summary.Details?.Composer?.Attribution.Provenance.ToString(),
             Tags = summary.Details?.Tags,
+            Playlists = summary.Details?.Playlists,
         };
 
     /// <summary>The saved project, or null when there is none. Throws <see cref="ProjectFileException"/> when it is damaged.</summary>
@@ -169,10 +170,10 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
         }
     }
 
-    /// <summary>The title, composer and tags a row keeps; null for a row saved before it kept them, or one this build cannot read.</summary>
+    /// <summary>The title, composer, tags and playlists a row keeps; null for a row saved before it kept them, or one this build cannot read.</summary>
     private static PieceDetails? DetailsOf(StoredSummary row) =>
         row is { Title: { } title, TitleFrom: { } titleFrom } && Attributed(title, titleFrom) is { } shown
-            ? new PieceDetails(shown, row is { Composer: { } composer, ComposerFrom: { } composerFrom } ? Attributed(composer, composerFrom) : null, row.Tags ?? [])
+            ? new PieceDetails(shown, row is { Composer: { } composer, ComposerFrom: { } composerFrom } ? Attributed(composer, composerFrom) : null, row.Tags ?? [], row.Playlists ?? [])
             : null;
 
     private static Attributed<string>? Attributed(string value, string provenance) =>
@@ -199,7 +200,7 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
 
         public string? ReadFrom { get; init; }
 
-        /// <summary>The title, composer and tags the card shows, with where each comes from (a provenance name); rows saved before version 0.2 have none.</summary>
+        /// <summary>The title, composer, tags and playlists the card shows, with where each comes from (a provenance name); rows saved before version 0.2 have none.</summary>
         public string? Title { get; init; }
 
         public string? TitleFrom { get; init; }
@@ -209,6 +210,8 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
         public string? ComposerFrom { get; init; }
 
         public IReadOnlyList<string>? Tags { get; init; }
+
+        public IReadOnlyList<string>? Playlists { get; init; }
     }
 
     private sealed record StoredResume(string Id, string? Name, long At, long? From, long? To, string LastActive);

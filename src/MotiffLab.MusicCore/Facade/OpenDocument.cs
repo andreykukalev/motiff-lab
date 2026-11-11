@@ -70,7 +70,7 @@ internal sealed class OpenDocument
         _ => throw new FacadeException("noNotes", $"This piece is a PDF with no notes yet, so there is no call \"{name}\" on it. Read the notes from it first."),
     };
 
-    /// <summary>The PDF piece with the title, composer and tags of the request (contract 12), answered as its summary.</summary>
+    /// <summary>The PDF piece with the title, composer, tags and playlists of the request (contract 12), answered as its summary.</summary>
     private string Metadata(Request request)
     {
         Project = MetadataRequest.Apply(Project, request);

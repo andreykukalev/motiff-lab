@@ -168,7 +168,7 @@
         try
         {
             AddTyped();
-            await Saved.InvokeAsync(new PieceMetadata(_title, _composer, _tags));
+            await Saved.InvokeAsync(new PieceMetadata(_title, _composer, _tags, Project.Metadata.Playlists));
         }
         finally
         {

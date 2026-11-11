@@ -29,12 +29,13 @@ export interface ProjectSummary {
     origin?: string;
     checkBars?: number;
     latest?: { id: string; name: string | null; at: number; from: number | null; to: number | null; lastActive: string } | null;
-    /** The title, composer and tags the card shows, each with where it comes from (version 0.2); rows saved earlier have none. */
+    /** The title, composer, tags and playlists the card shows, each with where it comes from (version 0.2); rows saved earlier have none. */
     title?: string | null;
     titleFrom?: string | null;
     composer?: string | null;
     composerFrom?: string | null;
     tags?: string[] | null;
+    playlists?: string[] | null;
 }
 
 /**

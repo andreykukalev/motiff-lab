@@ -2,10 +2,10 @@ using System.Text.Json;
 
 namespace MotiffLab.MusicCore.Projects;
 
-/// <summary>The piece's title, composer and tags as the player set them in the library (version 0.2, within version 15).</summary>
+/// <summary>The piece's title, composer, tags and playlists as the player set them in the library (version 0.2, within version 15).</summary>
 public static partial class ProjectFile
 {
-    /// <summary>"metadata": {"title", "composer", "tags"}, each only when set; nothing at all while none is.</summary>
+    /// <summary>"metadata": {"title", "composer", "tags", "playlists"}, each only when set; nothing at all while none is.</summary>
     private static void WriteMetadata(Utf8JsonWriter json, PieceMetadata metadata)
     {
         if (metadata.IsEmpty)
@@ -24,18 +24,25 @@ public static partial class ProjectFile
             json.WriteString("composer", composer);
         }
 
-        if (metadata.Tags.Count > 0)
-        {
-            json.WriteStartArray("tags");
-            foreach (string tag in metadata.Tags)
-            {
-                json.WriteStringValue(tag);
-            }
+        WriteNames(json, "tags", metadata.Tags);
+        WriteNames(json, "playlists", metadata.Playlists);
+        json.WriteEndObject();
+    }
 
-            json.WriteEndArray();
+    private static void WriteNames(Utf8JsonWriter json, string name, IReadOnlyList<string> names)
+    {
+        if (names.Count == 0)
+        {
+            return;
         }
 
-        json.WriteEndObject();
+        json.WriteStartArray(name);
+        foreach (string each in names)
+        {
+            json.WriteStringValue(each);
+        }
+
+        json.WriteEndArray();
     }
 
     /// <summary>The metadata a file keeps; none when it has no "metadata", as every file written before it was kept.</summary>
@@ -47,13 +54,15 @@ public static partial class ProjectFile
         }
 
         Expect(metadata, JsonValueKind.Object, "metadata");
-        IEnumerable<string?> tags = metadata.TryGetProperty("tags", out JsonElement list)
-            ? list.ValueKind == JsonValueKind.Array
-                ? [.. list.EnumerateArray().Select(tag => tag.ValueKind == JsonValueKind.String ? tag.GetString() : throw Damaged("metadata tags"))]
-                : throw Damaged("metadata tags")
-            : [];
-        return new PieceMetadata(OptionalText(metadata, "title"), OptionalText(metadata, "composer"), tags);
+        return new PieceMetadata(OptionalText(metadata, "title"), OptionalText(metadata, "composer"), Names(metadata, "tags"), Names(metadata, "playlists"));
     }
+
+    /// <summary>A list of names, or none when the field is left out.</summary>
+    private static string?[] Names(JsonElement parent, string name) =>
+        !parent.TryGetProperty(name, out JsonElement list) ? []
+        : list.ValueKind == JsonValueKind.Array
+            ? [.. list.EnumerateArray().Select(each => each.ValueKind == JsonValueKind.String ? each.GetString() : throw Damaged($"metadata {name}"))]
+            : throw Damaged($"metadata {name}");
 
     private static string? OptionalText(JsonElement parent, string name) =>
         !parent.TryGetProperty(name, out JsonElement value) ? null
