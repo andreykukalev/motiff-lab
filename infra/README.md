@@ -17,12 +17,15 @@ Static Web Apps is only offered in a few regions. West Europe, the only EU one, 
 | [`azure/pro.ps1`](azure/pro.ps1) | Gives a player Pro or makes them a tester: the API's app roles `Pro` and `Tester` in the sign-in tenant (0018 section 12). See [Pro and testers](#pro-and-testers). |
 | [`azure/setup.ps1`](azure/setup.ps1), [`azure/MotiffAzure.psm1`](azure/MotiffAzure.psm1) | One-time, in the subscription with `rg-shared`: the group `rg-motifflab` with its CI identity, the web app's Static Web App, Motiff Lab's database, the API's identity with access to that database only, the players' sign-in tenant, the repository variables, then the first deploys. |
 | [`api.bicep`](api.bicep) | The Motiff Lab API (`src/MotiffLab.Api`) next to the scan server, signing in to Cosmos DB as `id-motifflab-api`. Deployed by the `API` workflow once sign-in and the database are set up. |
+| [`dev-env.bicep`](dev-env.bicep) | The develop environment's own servers and data, in `rg-motifflab-dev`: the Container Apps environment `cae-motifflab-dev`, a serverless Cosmos DB account with the same database and container, the API's identity `id-motifflab-api-dev` (that database only) and the CI identity `id-motifflab-github-dev` (Contributor on this group only, signing in from `develop`). See [The develop environment](#the-develop-environment). |
+| [`azure/dev-env.ps1`](azure/dev-env.ps1) | Sets up the develop environment, once: creates `rg-motifflab-dev`, deploys `dev-env.bicep` there and sets the repository variables `AZURE_DEV_CLIENT_ID`, `AZURE_DEV_RESOURCE_GROUP`, `COSMOS_ENDPOINT_DEV`, `API_URL_DEV` and `SCAN_URL_DEV`. Changes nothing in `rg-motifflab`. Running it again is safe. |
 
 ## How deploys work
 
 The `CI` workflow ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) builds and tests, publishes the web app, then signs in to Azure through OIDC as the bootstrap identity. No Azure secret is stored in GitHub: the Static Web Apps deployment token is read at run time.
 
 - **Push to `main`**: deploys `main.bicep` (incremental), then deploys the app to production.
+- **Push to `develop`**: deploys the app to the Static Web App's environment `develop`, the web test site, with develop's own API and scan server ([below](#the-develop-environment)).
 - **Pull request**: builds and tests only. There are no preview sites (Andrei, 2026-10-31): a preview can't sign in, and the iPad app opens the production site, so a change is checked there after it is merged.
 - Until the bootstrap has set the `AZURE_*` repository variables, the deploy steps are skipped.
 
@@ -34,9 +37,31 @@ The `CI` workflow ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) bu
 
 These live with the web app in the subscription that holds `rg-shared`, in the resource group `rg-motifflab` (Poland Central), so the API reaches its database with its own identity and no keys. Everything signs in to Azure as the one CI identity: the services through the `AZURE_SERVICES_*` repository variables, CI's web app deploys through `AZURE_*`, both set to that group by the setup script.
 
-The scan server (`services/omr`) is published and deployed by [`.github/workflows/scan-server.yml`](../.github/workflows/scan-server.yml) whenever `services/omr` or `scan.bicep` changes on `main`, or when run by hand from the Actions tab. It builds the image (about 2 GB, longer than CI's 5 minutes, hence its own workflow), pushes it to `ghcr.io/andreykukalev/motiff-omr`, and deploys `scan.bicep`; the job summary shows the server's address. The API's [`.github/workflows/api.yml`](../.github/workflows/api.yml) does the same for `src/MotiffLab.Api` and `api.bicep`. Until the setup below has run, both only publish their images.
+The scan server (`services/omr`) is published and deployed by [`.github/workflows/scan-server.yml`](../.github/workflows/scan-server.yml) whenever `services/omr` or `scan.bicep` changes on `main`, or when run by hand from the Actions tab; from `main` it waits for Andrei's approval (the Environment `production`). The same workflow deploys develop's copy from `develop` ([below](#the-develop-environment)). It builds the image (about 2 GB, longer than CI's 5 minutes, hence its own workflow), pushes it to `ghcr.io/andreykukalev/motiff-omr`, and deploys `scan.bicep`; the job summary shows the server's address. The API's [`.github/workflows/api.yml`](../.github/workflows/api.yml) does the same for `src/MotiffLab.Api` and `api.bicep`. Until the setup below has run, both only publish their images.
 
 Nothing here has a standing cost: the Consumption-only environment has no load balancer and no Log Analytics workspace, the apps scale to zero, the database stays within the free tier, and External ID is free for the first 50,000 monthly active users.
+
+## The develop environment
+
+A version is tried on the web test site and on the iPad before it reaches `main`, so it has its own servers and data in their own group, `rg-motifflab-dev`, in the same subscription and region (Andrei chose a separate group, 2026-11-11; [0014](../docs/decisions/0014-hosted-scan-server.md), item 15):
+
+| `rg-motifflab-dev` | `rg-motifflab` (main) |
+| --- | --- |
+| Container Apps environment `cae-motifflab-dev` | `cae-motifflab` |
+| API `ca-motifflab-api-dev`, as `id-motifflab-api-dev` | `ca-motifflab-api`, as `id-motifflab-api` |
+| Scan server `ca-motifflab-scan-dev` | `ca-motifflab-scan` |
+| Serverless Cosmos DB `cosmos-motifflab-dev-<8 characters>`, database `motifflab`, container `projects` | the players' real database |
+| CI identity `id-motifflab-github-dev`: signs in from `develop`, Contributor on this group only | `id-motifflab-github` |
+
+Shared by both: the sign-in tenant (the same accounts and the roles Pro and Tester), the Static Web App (its environment `develop` is the web test site) and the images on `ghcr.io` (one package each, tagged by commit; the newest also `latest` from `main`, `develop` from `develop`).
+
+- **Set up once** by Andrei: `.\infra\azure\dev-env.ps1` (as `setup.ps1`, in PowerShell with the Azure and GitHub CLIs). It creates the group, deploys [`dev-env.bicep`](dev-env.bicep) and sets `AZURE_DEV_CLIENT_ID`, `AZURE_DEV_RESOURCE_GROUP`, `COSMOS_ENDPOINT_DEV`, `API_URL_DEV` and `SCAN_URL_DEV` (`https://ca-motifflab-api-dev.<environment's domain>` and the same for the scan server).
+- **Deploys**: a push to `develop` that changes the API (or music-core) or the scan server runs the `API` or `Scan server` workflow, which deploys the same `api.bicep` or `scan.bicep` with `branch=develop` (the names above) into `rg-motifflab-dev`, at once and without approval, signed in as `id-motifflab-github-dev`; *Run workflow* on `develop` does the same by hand. Until `AZURE_DEV_CLIENT_ID` is set, those runs only say so and deploy nothing. `main` deploys exactly as before, after Andrei's approval.
+- **The web test site** gets `API_URL_DEV` and `SCAN_URL_DEV` in its `appsettings.json` (CI, on every deploy from `develop`), or main's addresses while they are not set. The develop servers allow the test site's origin (`<name>-develop.<region>.<n>.azurestaticapps.net`, the same rule as main's).
+- **iPad version builds** (`ipad/build-version.sh v0.<n>`, a tag not in `main` yet) read the servers from the test site's `appsettings.json` and build with them; a version in `main` keeps main's servers (`ipad/README.md`).
+- **The data**: pieces saved on the test site or a version build live in the test database, never next to the players' real data. They reach the main database only through the released version or an export. Nothing cleans the test database without asking Andrei.
+- **Cost**: none standing. Both apps scale to zero; the serverless account bills only requests and storage (cents a month at test use); Container Apps' free grant is per subscription.
+- **Remove it all** at once: `az group delete --name rg-motifflab-dev`, then delete the five `*_DEV*` repository variables, and the test site and version builds fall back to main's servers.
 
 ## Setting up the services and sign-in, once
 

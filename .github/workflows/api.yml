@@ -4,9 +4,12 @@ name: API
 # Azure Container Apps (infra/api.bicep, decision record 0014), next to the scan server. CI runs its tests.
 # The deploy waits until the services and sign-in are set up: the repository variables AZURE_SERVICES_*,
 # COSMOS_ENDPOINT, AUTH_AUTHORITY and AUTH_AUDIENCE, all set by infra/azure/setup.ps1 (infra/README.md).
+# develop deploys the same image to its own group, rg-motifflab-dev (ca-motifflab-api-dev with its own database), by
+# itself and without approval, signed in as id-motifflab-github-dev, once infra/azure/dev-env.ps1 has set
+# AZURE_DEV_CLIENT_ID, AZURE_DEV_RESOURCE_GROUP and COSMOS_ENDPOINT_DEV (infra/README.md, "The develop environment").
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
     paths:
       - src/MotiffLab.Api/**
       - src/MotiffLab.MusicCore/**
@@ -17,19 +20,22 @@ on:
 permissions:
   contents: read
 
-# One deploy at a time, and never cancel one halfway.
+# One deploy at a time per branch, and never cancel one halfway. main's and develop's go to different groups, so a
+# develop deploy never waits behind main's approval.
 concurrency:
-  group: api
+  group: api-${{ github.ref }}
   cancel-in-progress: false
 
 env:
   IMAGE: ghcr.io/${{ github.repository_owner }}/motiff-api
 
 jobs:
-  # Every deploy to Azure waits for Andrei: the Environment production has him as its required reviewer and lets only
+  # Every deploy from main waits for Andrei: the Environment production has him as its required reviewer and lets only
   # main deploy (infra/github/protect.ps1, governance/roles/common.md). The gate is its own job without an Azure
   # identity, so the OIDC subject Azure trusts (ref:refs/heads/main) stays as it is and nothing changes in Azure.
+  # develop needs no approval: it deploys only to rg-motifflab-dev, the only group its identity may change.
   approve:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     environment: production
@@ -37,8 +43,22 @@ jobs:
     steps:
       - run: echo "Deploy of ${{ github.sha }} approved."
 
+  # Until infra/azure/dev-env.ps1 has run, a develop run builds and deploys nothing.
+  develop-not-set-up:
+    if: github.ref == 'refs/heads/develop' && vars.AZURE_DEV_CLIENT_ID == ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - run: |
+          echo "::notice::develop's API is not deployed: AZURE_DEV_CLIENT_ID is empty. Andrei runs infra/azure/dev-env.ps1 once (infra/README.md, The develop environment)."
+
+  # main after the approval; develop at once, once its environment exists. Any other branch deploys nothing.
   publish-deploy:
     needs: approve
+    if: >-
+      ${{ !cancelled() && (needs.approve.result == 'success' ||
+      (github.ref == 'refs/heads/develop' && vars.AZURE_DEV_CLIENT_ID != '')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -48,6 +68,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # main: rg-motifflab, as set up by infra/azure/setup.ps1. develop: rg-motifflab-dev, by infra/azure/dev-env.ps1.
+      - name: Where to deploy
+        id: target
+        env:
+          REF: ${{ github.ref }}
+          MAIN_CLIENT_ID: ${{ vars.AZURE_SERVICES_CLIENT_ID }}
+          MAIN_GROUP: ${{ vars.AZURE_SERVICES_RESOURCE_GROUP }}
+          MAIN_COSMOS: ${{ vars.COSMOS_ENDPOINT }}
+          DEV_CLIENT_ID: ${{ vars.AZURE_DEV_CLIENT_ID }}
+          DEV_GROUP: ${{ vars.AZURE_DEV_RESOURCE_GROUP }}
+          DEV_COSMOS: ${{ vars.COSMOS_ENDPOINT_DEV }}
+        run: |
+          if [[ "$REF" == refs/heads/develop ]]; then
+            { echo "branch=develop"; echo "tag=develop"; echo "client-id=$DEV_CLIENT_ID"
+              echo "group=${DEV_GROUP:-rg-motifflab-dev}"; echo "cosmos=$DEV_COSMOS"; } >> "$GITHUB_OUTPUT"
+          else
+            { echo "branch=main"; echo "tag=latest"; echo "client-id=$MAIN_CLIENT_ID"
+              echo "group=$MAIN_GROUP"; echo "cosmos=$MAIN_COSMOS"; } >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: docker/setup-buildx-action@v3
 
       - uses: docker/login-action@v3
@@ -56,7 +96,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # The source label links the package to this repository.
+      # The source label links the package to this repository. One package for both branches: each image is tagged by
+      # its commit, and the newest also as latest (main) or develop.
       - uses: docker/build-push-action@v6
         with:
           context: .
@@ -64,7 +105,7 @@ jobs:
           push: true
           tags: |
             ${{ env.IMAGE }}:${{ github.sha }}
-            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ steps.target.outputs.tag }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.description=Motiff Lab API: a signed-in player's projects in Cosmos DB
@@ -84,8 +125,8 @@ jobs:
       - name: Check sign-in and database settings
         id: settings
         run: |
-          if [[ -z "${{ vars.AZURE_SERVICES_CLIENT_ID }}" || -z "${{ vars.AUTH_AUTHORITY }}" || -z "${{ vars.AUTH_AUDIENCE }}" || -z "${{ vars.COSMOS_ENDPOINT }}" ]]; then
-            echo "::notice::Not deployed: run infra/azure/setup.ps1 first (infra/README.md)."
+          if [[ -z "${{ steps.target.outputs.client-id }}" || -z "${{ vars.AUTH_AUTHORITY }}" || -z "${{ vars.AUTH_AUDIENCE }}" || -z "${{ steps.target.outputs.cosmos }}" ]]; then
+            echo "::notice::Not deployed: run infra/azure/${{ steps.target.outputs.branch == 'develop' && 'dev-env' || 'setup' }}.ps1 first (infra/README.md)."
             echo "ready=false" >> "$GITHUB_OUTPUT"
           else
             echo "ready=true" >> "$GITHUB_OUTPUT"
@@ -94,14 +135,14 @@ jobs:
       - uses: azure/login@v2
         if: steps.settings.outputs.ready == 'true'
         with:
-          client-id: ${{ vars.AZURE_SERVICES_CLIENT_ID }}
+          client-id: ${{ steps.target.outputs.client-id }}
           tenant-id: ${{ vars.AZURE_SERVICES_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SERVICES_SUBSCRIPTION_ID }}
 
       - name: Deploy to Container Apps
         if: steps.settings.outputs.ready == 'true'
         env:
-          RESOURCE_GROUP: ${{ vars.AZURE_SERVICES_RESOURCE_GROUP }}
+          RESOURCE_GROUP: ${{ steps.target.outputs.group }}
         run: |
           url="$(az deployment group create \
             --resource-group "$RESOURCE_GROUP" \
@@ -110,6 +151,6 @@ jobs:
             --parameters image="$IMAGE:${{ github.sha }}" \
               authAuthority="${{ vars.AUTH_AUTHORITY }}" authAudience="${{ vars.AUTH_AUDIENCE }}" \
               webHost="${{ vars.WEB_HOST || 'nice-smoke-0169fb403.6.azurestaticapps.net' }}" \
-              cosmosEndpoint="${{ vars.COSMOS_ENDPOINT }}" \
+              cosmosEndpoint="${{ steps.target.outputs.cosmos }}" branch="${{ steps.target.outputs.branch }}" \
             --query properties.outputs.url.value --output tsv)"
-          echo "API: $url" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "API (${{ steps.target.outputs.branch }}): $url" | tee -a "$GITHUB_STEP_SUMMARY"

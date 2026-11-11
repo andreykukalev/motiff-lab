@@ -7,7 +7,7 @@
   In the subscription that holds rg-motifflab (Visual Studio Premium), Poland Central:
   1. the resource group rg-motifflab-dev;
   2. infra/dev-env.bicep there: the Container Apps environment cae-motifflab-dev (Consumption only, scales to zero),
-     a serverless Cosmos DB account cosmos-motifflab-dev-<…> with the database motifflab and the container projects,
+     a serverless Cosmos DB account cosmos-motifflab-dev-<8 characters> with the database motifflab and the container projects,
      the API's identity id-motifflab-api-dev (data access to that database only), and the CI identity
      id-motifflab-github-dev, which signs in from the develop branch and is Contributor on this group only;
   3. the GitHub repository variables the API and Scan server workflows read for develop (identifiers, not secrets):
@@ -33,6 +33,13 @@ Import-Module (Join-Path $PSScriptRoot 'MotiffAzure.psm1') -Force
 
 Assert-MotiffCommand -Name 'az' -Hint 'Install the Azure CLI (winget install Microsoft.AzureCLI), then reopen the terminal.'
 Assert-MotiffCommand -Name 'gh' -Hint 'Install the GitHub CLI (winget install GitHub.cli), then reopen the terminal.'
+# Signed in to GitHub before anything changes in Azure, so the variables at the end can be set (as setup.ps1 does).
+$null = Invoke-MotiffNative { & gh auth status 2>&1 }
+if ($LASTEXITCODE -ne 0) {
+  Write-MotiffInfo 'Signing in to GitHub...'
+  Invoke-MotiffNative { & gh auth login --hostname github.com --git-protocol https --web }
+  if ($LASTEXITCODE -ne 0) { throw 'GitHub sign-in failed.' }
+}
 
 Write-MotiffStep 'Signing in to Azure'
 $account = Connect-MotiffAzure -Subscription $Subscription
@@ -79,4 +86,5 @@ foreach ($pair in @(
 
 Write-MotiffStep 'Done'
 Write-MotiffInfo 'The next push to develop deploys the develop API and scan server here, without approval.'
-Write-MotiffInfo 'The web test site and version builds for the iPad switch to them once those deploys are green.'
+Write-MotiffInfo 'The web test site switches to them at its next deploy from develop, and version builds for the iPad'
+Write-MotiffInfo '(ipad/build-version.sh) read them from the test site.'
