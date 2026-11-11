@@ -564,8 +564,8 @@ public partial class PlaybackLab : IAsyncDisposable
     /// <summary>The title the score's first page is headed with, when it has one.</summary>
     private string? _engravedTitle;
 
-    /// <summary>The piece's name in the bar: as its score is headed, or its file's name without the extension.</summary>
-    private string BarTitle => _engravedTitle ?? ScoreTitle.Of(_title) ?? Text["workspace.title"];
+    /// <summary>The piece's title in the bar: the one the player gave it in the library (version 0.2), else as engraved, else from the file's name.</summary>
+    private string BarTitle => _project?.Metadata.Title ?? _engravedTitle ?? ScoreTitle.Of(_title) ?? Text["workspace.title"];
 
     private void OnTitleRead(string? title) => _engravedTitle = string.IsNullOrWhiteSpace(title) ? null : title;
 

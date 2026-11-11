@@ -1,0 +1,178 @@
+@using MotiffLab.MusicCore.Projects
+@using MotiffLab.Web.Localization
+
+@* The title, composer and tags of one piece, edited from its card in the library (version 0.2). What is typed is the
+   player's; a field left empty shows what the file says again, named in its placeholder. Tags are added by typing a new one
+   or picking one the library already has, and taken off one by one. Nothing is kept until Save. *@
+<section class="lib-sheet edit-sheet" role="dialog" aria-modal="true" aria-labelledby="edit-title" tabindex="-1" @ref="_sheet" @onkeydown="OnKey">
+    <header class="hd">
+        <div>
+            <p class="overline">@Text["library.details"]</p>
+            <h2 class="ttl" id="edit-title">@Heading</h2>
+        </div>
+        <button class="btn icon" aria-label="@Text["library.close"]" title="@Text["library.close"]" @onclick="Closed"><Icon Name="close" /></button>
+    </header>
+
+    <label class="field">
+        <span class="caption">@Text["library.fieldTitle"]</span>
+        <input type="text" maxlength="200" @bind="_title" @bind:event="oninput" placeholder="@_fromFile.Title.Value" @ref="_first" />
+    </label>
+    <label class="field">
+        <span class="caption">@Text["library.fieldComposer"]</span>
+        <input type="text" maxlength="200" @bind="_composer" @bind:event="oninput" placeholder="@(_fromFile.Composer?.Value ?? Text["library.composerNone"])" />
+    </label>
+    <p class="caption">@Text["library.emptyFromFile"]</p>
+
+    <fieldset class="field tags-field">
+        <legend class="caption">@Text["library.fieldTags"]</legend>
+        @if (_tags.Count > 0)
+        {
+            <ul class="chips" aria-label="@Text["library.fieldTags"]">
+                @foreach (string tag in _tags)
+                {
+                    <li class="chip on" @key="tag">
+                        <span>@tag</span>
+                        <button class="chip-x" aria-label="@Text.Format("library.removeTag", tag)" title="@Text.Format("library.removeTag", tag)" @onclick="() => Remove(tag)"><Icon Name="close" /></button>
+                    </li>
+                }
+            </ul>
+        }
+        <div class="add-tag">
+            <input type="text" maxlength="60" @bind="_newTag" @bind:event="oninput" @onkeydown="OnTagKey" aria-label="@Text["library.newTag"]" placeholder="@Text["library.newTag"]" />
+            <button class="btn secondary" @onclick="AddTyped" disabled="@(PieceMetadata.Clean(_newTag) is null)">@Text["library.addTag"]</button>
+        </div>
+        @if (Suggestions.Count > 0)
+        {
+            <ul class="chips" aria-label="@Text["library.libraryTags"]">
+                @foreach (string tag in Suggestions)
+                {
+                    <li @key="tag"><button class="chip" @onclick="() => Add(tag)" aria-label="@Text.Format("library.addTagNamed", tag)"><Icon Name="plus" /> @tag</button></li>
+                }
+            </ul>
+        }
+    </fieldset>
+
+    <div class="row">
+        <button class="btn primary" @onclick="SaveAsync" disabled="@_saving">@Text["library.save"]</button>
+        <button class="btn quiet" @onclick="Closed">@Text["library.cancel"]</button>
+    </div>
+</section>
+
+@code {
+    [Inject]
+    private UiText Text { get; set; } = default!;
+
+    /// <summary>The piece as saved: what the player set, and what its file says.</summary>
+    [Parameter, EditorRequired]
+    public Project Project { get; set; } = default!;
+
+    /// <summary>The piece's title as its card shows it, to head the sheet.</summary>
+    [Parameter, EditorRequired]
+    public string Heading { get; set; } = "";
+
+    /// <summary>Every tag on the shelf, to pick from.</summary>
+    [Parameter]
+    public IReadOnlyList<string> LibraryTags { get; set; } = [];
+
+    [Parameter]
+    public EventCallback<PieceMetadata> Saved { get; set; }
+
+    [Parameter]
+    public EventCallback Closed { get; set; }
+
+    private ElementReference _sheet;
+    private ElementReference _first;
+    private PieceDetails _fromFile = default!;
+    private string? _title;
+    private string? _composer;
+    private string? _newTag;
+    private List<string> _tags = [];
+    private bool _saving;
+    private string? _for;
+
+    /// <summary>The library's tags not on this piece yet, narrowed to what is typed in the new tag.</summary>
+    private IReadOnlyList<string> Suggestions =>
+        [.. LibraryTags.Where(tag => !_tags.Contains(tag, StringComparer.OrdinalIgnoreCase)
+            && (PieceMetadata.Clean(_newTag) is not { } typed || LibraryShelf.Fold(tag).Contains(LibraryShelf.Fold(typed), StringComparison.Ordinal)))];
+
+    protected override void OnParametersSet()
+    {
+        if (_for == Project.Id)
+        {
+            return;
+        }
+
+        _for = Project.Id;
+        _fromFile = (Project with { Metadata = PieceMetadata.None }).Details;
+        _title = Project.Metadata.Title;
+        _composer = Project.Metadata.Composer;
+        _tags = [.. Project.Metadata.Tags];
+        _newTag = null;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                await _first.FocusAsync();
+            }
+            catch (InvalidOperationException)
+            {
+                // Not on the page yet.
+            }
+        }
+    }
+
+    private void Add(string tag)
+    {
+        if (PieceMetadata.Clean(tag) is { } clean && !_tags.Contains(clean, StringComparer.OrdinalIgnoreCase))
+        {
+            _tags.Add(clean);
+        }
+    }
+
+    private void AddTyped()
+    {
+        if (_newTag is { } typed)
+        {
+            // A tag the library has in another letter case is taken as the library writes it.
+            Add(LibraryTags.FirstOrDefault(tag => string.Equals(tag, PieceMetadata.Clean(typed), StringComparison.OrdinalIgnoreCase)) ?? typed);
+        }
+
+        _newTag = null;
+    }
+
+    private void Remove(string tag) => _tags.Remove(tag);
+
+    private void OnTagKey(KeyboardEventArgs key)
+    {
+        if (key.Key == "Enter")
+        {
+            AddTyped();
+        }
+    }
+
+    private async Task OnKey(KeyboardEventArgs key)
+    {
+        if (key.Key == "Escape")
+        {
+            await Closed.InvokeAsync();
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        try
+        {
+            AddTyped();
+            await Saved.InvokeAsync(new PieceMetadata(_title, _composer, _tags));
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

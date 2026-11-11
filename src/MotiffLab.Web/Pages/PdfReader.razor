@@ -178,7 +178,7 @@
     private bool _coverSaved;
 
     /// <summary>The piece's name: the file's name without its extension.</summary>
-    private string? Title => _project is { } project ? ScoreTitle.Of(project.FileName) ?? project.FileName : null;
+    private string? Title => _project is { } project ? project.Metadata.Title ?? ScoreTitle.Of(project.FileName) ?? project.FileName : null;
 
     private string? PageText => _pages switch
     {

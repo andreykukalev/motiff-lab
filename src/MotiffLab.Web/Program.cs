@@ -21,6 +21,7 @@ builder.Services.AddScoped<UsageAnalytics>();
 builder.Services.AddScoped<ScanService>();
 builder.Services.AddScoped<UiText>();
 builder.Services.AddScoped<Preferences>();
+builder.Services.AddTransient<LibraryShelfState>();
 builder.Services.AddScoped<MotiffLab.Web.Settings.DeviceSettings>();
 
 // Sign-in and saving online (0014) exist only in a build whose appsettings.json names the External ID tenant.

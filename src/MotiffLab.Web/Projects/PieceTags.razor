@@ -1,0 +1,29 @@
+@using MotiffLab.Web.Localization
+
+@* What a card says about a piece besides its title: the ideas kept from it (plum), the bars Check asks about (amber) and the
+   player's own tags (neutral). Nothing when there is none of them. *@
+@if (Entry.Summary.IdeaCount > 0 || Entry.Summary.CheckBars > 0 || Entry.Tags.Count > 0)
+{
+    <p class="tags">
+        @if (Entry.Summary.IdeaCount > 0)
+        {
+            <span class="tag saved">@Text.Count("library.ideas", Entry.Summary.IdeaCount)</span>
+        }
+        @if (Entry.Summary.CheckBars > 0)
+        {
+            <span class="tag warn">@Text.Count("library.check", Entry.Summary.CheckBars)</span>
+        }
+        @foreach (string tag in Entry.Tags)
+        {
+            <span class="tag own">@tag</span>
+        }
+    </p>
+}
+
+@code {
+    [Inject]
+    private UiText Text { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public LibraryEntry Entry { get; set; } = default!;
+}
