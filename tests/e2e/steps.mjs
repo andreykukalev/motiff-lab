@@ -220,3 +220,11 @@ export async function clearByPage(page) {
     await page.mouse.click(box.x + 12, box.y + box.height * 0.3);
     await expect(page.locator(".selection-status")).toContainText(/Nothing selected|Ничего не выделено/);
 }
+
+/**
+ * The library's Sessions tab (version 0.2, lib-3-sessions.png): the pieces with work to come back to, as cards, each resumed
+ * with one tap. The library opens on its list of every piece; the tab picked is kept on the device.
+ */
+export async function librarySessions(page) {
+    await page.getByRole("tab", { name: /^(Sessions|Сессии)$/ }).click();
+}

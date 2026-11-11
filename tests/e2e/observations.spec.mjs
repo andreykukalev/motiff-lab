@@ -4,7 +4,7 @@
 // has no project, so it says what is kept lasts while the page is open; an imported piece saves it with its project.
 import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { clearByPage, openAdjust, openFurElise, openInsights, heardChoice, tryWay } from "./steps.mjs";
+import { clearByPage, openAdjust, openFurElise, openInsights, heardChoice, tryWay, librarySessions } from "./steps.mjs";
 
 /** Lists the kept ideas whole from the strip at the top of the Insights stream. */
 async function manageIdeas(page) {
@@ -145,6 +145,7 @@ test("what is kept is saved with the project and comes back when it is opened ag
 
     // The library resumes the piece where it was left (0018 section 9): the card counts the idea, and Resume comes back to the phrase.
     await page.goto("/");
+    await librarySessions(page);
     const piece = page.locator(".card.piece").filter({ has: page.getByRole("heading", { name: "Waltz sketch" }) });
     await expect(piece.locator(".tag.saved")).toHaveText("1 idea");
     await piece.getByRole("button", { name: "Resume Waltz sketch" }).click();

@@ -2,6 +2,7 @@
 // device, whether the file came through the import screen or the workspace's own Open file. The address names
 // the resume point too (0018), so the work has a context to come back to from the library.
 import { expect, test } from "@playwright/test";
+import { librarySessions } from "./steps.mjs";
 import { fileURLToPath } from "node:url";
 
 const minuet = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/MusicXml/Fixtures/importer-grand-staff.musicxml", import.meta.url));
@@ -42,6 +43,7 @@ test("a file opened in the workspace is saved as a project and survives a reload
     await expect(title(page)).toHaveText("Waltz sketch", { timeout: 30_000 });
 
     await page.goto("/");
+    await librarySessions(page);
     await expect(page.locator(".card.piece").getByRole("heading", { name: "Waltz sketch" })).toBeVisible();
     expect(errors).toEqual([]);
 });

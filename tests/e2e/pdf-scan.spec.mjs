@@ -90,7 +90,7 @@ test("a PDF's notes are read into the same piece, the PDF stays as it was, and P
 
     // The library holds one piece.
     await page.goto("/");
-    await expect(page.locator(".lib-grid .card.piece", { hasText: "Elise" })).toHaveCount(1);
+    await expect(page.locator(".lib-table tbody tr", { hasText: "Elise" })).toHaveCount(1);
     await expect(page.locator("#blazor-error-ui")).toBeHidden();
     expect(errors).toEqual([]);
 });

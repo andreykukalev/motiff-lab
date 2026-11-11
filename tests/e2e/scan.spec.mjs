@@ -5,7 +5,7 @@
 import { expect, test } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { openRoll, violations } from "./steps.mjs";
+import { openRoll, violations, librarySessions } from "./steps.mjs";
 
 const scanned = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/Scan/Fixtures/homr-fur-elise-page1.musicxml", import.meta.url));
 const photo = fileURLToPath(new URL("../../src/MotiffLab.Web/wwwroot/icon-192.png", import.meta.url));
@@ -93,6 +93,7 @@ test("a scanned page opens with its doubtful bars to check, and checked bars sta
 
     // The library's card counts the bars still to check.
     await page.goto("/");
+    await librarySessions(page);
     await expect(page.locator(".card.piece .tag.warn")).toHaveText("Check · 7 bars to review");
     expect(await violations(page)).toEqual([]);
 });

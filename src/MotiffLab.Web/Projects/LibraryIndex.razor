@@ -1,0 +1,41 @@
+@using MotiffLab.Web.Localization
+
+@* The index at the list's right edge (version 0.2, lib-1-list.png): A to Z, and the Cyrillic capitals when a line starts with
+   one; a letter brings the first line filed under it, or the first after it, to the top. Shown only while the list is in
+   order from A. *@
+<nav class="lib-index" aria-label="@Text["library.index"]">
+    @foreach (string letter in LibraryShelf.IndexLetters(Initials))
+    {
+        <button @key="letter" @onclick="() => GoAsync(letter)">@letter</button>
+    }
+</nav>
+
+@code {
+    [Inject]
+    private UiText Text { get; set; } = default!;
+
+    [Inject]
+    private IJSRuntime JS { get; set; } = default!;
+
+    /// <summary>Each line's initial, in the order shown.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<string> Initials { get; set; } = [];
+
+    private async Task GoAsync(string letter)
+    {
+        if (LibraryShelf.Target(letter, Initials, Text.Culture) is not { } index)
+        {
+            return;
+        }
+
+        try
+        {
+            await using IJSObjectReference module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/layout/fragment.js");
+            await module.InvokeAsync<bool>("scrollToFragment", $"lib-at-{index}");
+        }
+        catch (JSException)
+        {
+            // Nothing to scroll to: the list changed under the tap.
+        }
+    }
+}

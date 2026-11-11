@@ -4832,9 +4832,10 @@ body:has(.workspace) .site-footer {
 }
 
 /* ---------------------------------------------------------------------------------------------------------------------
-   The library (decision record 0018 section 9; design/kit/screens/s1_library.png, ds.css .card): the wordmark, Add piece,
-   the overflow and the account; the pieces as cards with their first page, three across in landscape and two in portrait;
-   the dashed Add a piece card; Add piece and a piece's resume points as sheets over the shelf.
+   The library (decision record 0018 section 9; version 0.2, ux-prototype/v2/screens/lib-1-list.png to lib-4-props.png): its
+   name, the search, Add piece, the overflow and the account; the tabs and filters; the list of pieces with its columns and
+   the index; the sessions as cards with their first page, three across in landscape and two in portrait; the dashed Add a
+   piece card of the empty library; Add piece, a piece's properties and its resume points as sheets over the shelf.
    --------------------------------------------------------------------------------------------------------------------- */
 .lab.library {
     position: relative;
@@ -4947,7 +4948,7 @@ body:has(.library) .site-footer {
     border-left: 3px solid var(--amber);
 }
 
-/* The header: "Motiff Lab" in the serif with the italic tagline, then Add piece, ••• and the account. */
+/* The header: "Library" in the serif, then the search, Add piece, ••• and the account. */
 .library .lib-head {
     display: flex;
     flex-wrap: wrap;
@@ -4956,30 +4957,18 @@ body:has(.library) .site-footer {
     gap: var(--s-4);
 }
 
-.library .brand {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: var(--s-2) var(--s-5);
-}
-
-.library h1.wordmark {
+.library .lib-head h1 {
     margin: 0;
     font: var(--t-display);
-    font-size: 40px;
-    line-height: 48px;
     color: var(--ink);
-}
-
-.library .tagline {
-    margin: 0;
-    font: italic 400 20px/26px var(--font-display);
-    color: var(--ink-2);
 }
 
 .library .lib-actions {
     display: flex;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
     align-items: center;
+    justify-content: flex-end;
     gap: var(--s-3);
 }
 
@@ -5152,34 +5141,27 @@ body:has(.library) .site-footer {
     font-weight: 500;
 }
 
-/* Search, order and view (version 0.2), then the composer and tag chips, each row scrolling sideways rather than
-   growing as the shelf does; then how many pieces show. */
-.library .lib-tools {
+/* The search in the header (version 0.2, lib-1-list.png): the field shows the focus, once. */
+.library .lib-head .search {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--s-3);
-    margin-bottom: var(--s-3);
-}
-
-.library .lib-tools .search {
-    display: flex;
-    flex: 1 1 18rem;
+    flex: 0 1 24rem;
     align-items: center;
     gap: var(--s-2);
+    min-width: 12rem;
     height: var(--h-touch);
     padding: 0 var(--s-3);
     border: 1px solid var(--hairline-strong);
     border-radius: var(--r-s);
-    background: var(--surface);
+    background: var(--surface-2);
     color: var(--ink-2);
 }
 
-.library .lib-tools .search:focus-within {
+.library .lib-head .search:focus-within {
+    border-color: var(--accent);
     box-shadow: var(--focus-ring);
 }
 
-.library .lib-tools .search input {
+.library .lib-head .search input {
     flex: 1;
     min-width: 0;
     height: 100%;
@@ -5190,75 +5172,74 @@ body:has(.library) .site-footer {
     outline: none;
 }
 
-/* The field around it shows the focus, once. */
-.library .lib-tools .search input:focus-visible {
+.library .lib-head .search input:focus-visible {
     box-shadow: none;
 }
 
-.library .lib-tools .sort {
+/* The tabs (ds.css .tabs) with the filters at their right; on a narrow screen the filters go under them. */
+.library .lib-tabs {
     display: flex;
-    align-items: center;
-    gap: var(--s-2);
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--s-2) var(--s-4);
+    margin-top: var(--s-6);
+    border-bottom: 1px solid var(--hairline);
 }
 
-.library .lib-tools select {
-    height: var(--h-touch);
-    padding: 0 var(--s-3);
-    border: 1px solid var(--hairline-strong);
-    border-radius: var(--r-s);
-    background: var(--surface);
-    color: var(--ink);
-    font: var(--t-body);
+.library .lib-tabs .tabs {
+    display: flex;
+    gap: var(--s-5);
+    overflow-x: auto;
 }
 
-.library .lib-tools select:focus-visible {
-    outline: none;
-    box-shadow: var(--focus-ring);
-}
-
-.library .view-switch {
-    display: inline-flex;
-    overflow: hidden;
-    border: 1px solid var(--hairline-strong);
-    border-radius: var(--r-s);
-}
-
-.library .view-switch .seg {
-    display: inline-flex;
-    align-items: center;
-    height: var(--h-touch);
-    min-height: 0;
-    padding: 0 var(--s-4);
+.library .lib-tabs .tab {
+    min-height: var(--h-touch);
+    border-radius: 0;
+    margin-bottom: -1px;
+    padding: var(--s-3) 0;
     border: 0;
-    background: var(--surface);
+    border-bottom: 2px solid transparent;
+    background: transparent;
     color: var(--ink-2);
     font: var(--t-label);
+    font-size: 15px;
+    white-space: nowrap;
     cursor: pointer;
 }
 
-.library .view-switch .seg + .seg {
-    border-left: 1px solid var(--hairline-strong);
-}
-
-.library .view-switch .seg.on {
-    background: var(--accent-tint);
-    box-shadow: inset 0 0 0 1px var(--accent);
+.library .lib-tabs .tab.on {
+    border-bottom-color: var(--accent);
     color: var(--ink);
+    font-weight: 600;
 }
 
-.library .chip-row {
+.library .lib-tabs .filters {
     display: flex;
-    align-items: center;
+    flex-wrap: wrap;
     gap: var(--s-2);
-    margin: 0 0 var(--s-2);
-    padding: var(--s-1) var(--s-1) var(--s-1) 0;
-    overflow-x: auto;
-    scrollbar-width: thin;
+    padding-bottom: var(--s-2);
 }
 
-.library .chip-row > .caption {
-    flex: none;
-    min-width: 6rem;
+.library .lib-filter {
+    position: relative;
+}
+
+.library .lib-filter .lib-menu {
+    left: auto;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.library .lib-filter .lib-menu .mark {
+    display: inline-grid;
+    width: var(--s-5);
+    color: var(--accent);
+}
+
+.library .lib-filter .lib-menu .btn.picked {
+    color: var(--ink);
+    font-weight: 600;
 }
 
 .library .chip {
@@ -5283,15 +5264,362 @@ body:has(.library) .site-footer {
     background: var(--accent-tint);
 }
 
-.library .lib-count {
-    margin: var(--s-1) 0 var(--s-4);
-}
-
 .library .lib-none {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: var(--s-4);
+}
+
+/* A composer or playlist opened on its tab: the way back to all of them, and its name. */
+.library .lib-picked {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-3);
+    margin-top: var(--s-4);
+}
+
+.library .lib-picked .ttl {
+    margin: 0;
+    font: var(--t-title);
+    color: var(--ink);
+}
+
+/* The panel under the tabs; with the index at its right edge while the list is in order from A. */
+.library .lib-panel {
+    position: relative;
+    margin-top: var(--s-2);
+}
+
+.library .lib-panel.indexed {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: var(--s-2);
+}
+
+.library .lib-panel > .lib-grid {
+    margin-top: var(--s-4);
+}
+
+/* The list of pieces (lib-1-list.png): the column headings in small capitals, a line a piece in the serif. */
+.library .lib-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.library .lib-table th, .library .lib-table td {
+    padding: 0 var(--s-3);
+    overflow: hidden;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.library .lib-table thead th {
+    height: var(--h-control);
+    border-bottom: 1px solid var(--hairline);
+    font-weight: 400;
+}
+
+.library .lib-table .head {
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--ink-2);
+    font: var(--t-overline);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.library .lib-table span.head {
+    cursor: default;
+}
+
+.library .lib-table .head.on {
+    color: var(--ink);
+}
+
+.library .lib-table .col-title {
+    width: 40%;
+}
+
+.library .lib-table .col-composer {
+    width: 20%;
+}
+
+.library .lib-table .col-playlists {
+    width: 22%;
+}
+
+.library .lib-table .col-opened {
+    width: 18%;
+    text-align: right;
+}
+
+.library .lib-table .col-more {
+    width: calc(var(--h-touch) + var(--s-3));
+    padding: 0;
+    overflow: visible;
+}
+
+.library .lib-table tbody tr {
+    height: var(--s-12);
+    border-bottom: 1px solid var(--hairline);
+    cursor: pointer;
+    content-visibility: auto;
+    contain-intrinsic-size: auto var(--s-12);
+}
+
+.library .lib-table tbody tr:hover, .library .lib-table tbody tr.menu-open {
+    background: var(--surface);
+    content-visibility: visible;
+}
+
+/* An open ••• menu stands over the clear scrim that closes it. */
+.library .lib-table tbody tr.menu-open {
+    position: relative;
+    z-index: 3;
+}
+
+.library .lib-table tbody th {
+    font-weight: 400;
+}
+
+.library .lib-table .ttl {
+    max-width: 100%;
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    font: var(--t-title);
+    font-size: 18px;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.library .lib-table td {
+    color: var(--ink-2);
+    font: var(--t-body);
+}
+
+.library .lib-table td.col-opened {
+    font: var(--t-caption);
+}
+
+.library .lib-table .card-more {
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* The Composers and Playlists tabs: a line each, its name and how many pieces, the way into it at the right. */
+.library .lib-groups {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.library .lib-groups .group {
+    display: flex;
+    align-items: center;
+    gap: var(--s-4);
+    width: 100%;
+    min-height: var(--s-12);
+    padding: 0 var(--s-3);
+    border: 0;
+    border-bottom: 1px solid var(--hairline);
+    border-radius: 0;
+    background: transparent;
+    color: var(--ink-2);
+    font: var(--t-body);
+    text-align: left;
+    cursor: pointer;
+}
+
+.library .lib-groups .group:hover {
+    background: var(--surface);
+}
+
+.library .lib-groups .name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--ink);
+    font: var(--t-title);
+    font-size: 18px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* The index at the right edge, staying in view as the list scrolls: a letter a line, small; the Cyrillic letters, when there
+   are any, in a column of their own. */
+.library .lib-index {
+    position: sticky;
+    top: var(--s-4);
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-rows: repeat(26, var(--s-6));
+    padding-top: var(--h-control);
+}
+
+.library .lib-index button {
+    width: var(--s-6);
+    min-height: 0;
+    height: var(--s-6);
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--ink-2);
+    font: var(--t-overline);
+    cursor: pointer;
+}
+
+.library .lib-index button:hover {
+    color: var(--accent);
+}
+
+/* A piece's properties (lib-4-props.png): the title and Done, then the fields one under another; the composers already in the
+   library under the composer while typing; the tags as chips with their ✕ and a dashed «+ tag»; the playlists ticked. */
+.library .props-sheet .hd {
+    align-items: center;
+}
+
+.library .props-sheet .field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.library .props-sheet .caption {
+    font: var(--t-label);
+}
+
+.library .props-sheet input[type=text] {
+    height: var(--h-touch);
+    padding: 0 var(--s-3);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-s);
+    background: var(--paper);
+    color: var(--ink);
+    font: var(--t-body);
+}
+
+.library .props-sheet input[type=text]:focus {
+    border-color: var(--accent);
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.library .props-sheet .suggest {
+    margin: 0;
+    padding: var(--s-1);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-s);
+    background: var(--surface-2);
+    box-shadow: var(--shadow-menu);
+    list-style: none;
+}
+
+.library .props-sheet .suggest button {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    width: 100%;
+    min-height: var(--h-touch);
+    padding: 0 var(--s-3);
+    border: 0;
+    border-radius: var(--r-s);
+    background: transparent;
+    color: var(--ink);
+    font: var(--t-body);
+    text-align: left;
+    cursor: pointer;
+}
+
+.library .props-sheet .suggest button:hover, .library .props-sheet .suggest button:focus-visible {
+    background: var(--accent-tint);
+}
+
+.library .props-sheet .suggest .name {
+    flex: 1;
+}
+
+.library .props-sheet .chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.library .props-sheet li.chip {
+    height: var(--h-control);
+    padding: 0 0 0 var(--s-4);
+    background: var(--surface-2);
+    cursor: default;
+}
+
+.library .props-sheet .chip-x {
+    display: grid;
+    place-items: center;
+    width: var(--h-control);
+    height: 100%;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-pill);
+    background: transparent;
+    color: var(--ink-2);
+    cursor: pointer;
+}
+
+.library .props-sheet .chip.add {
+    height: var(--h-control);
+    border-style: dashed;
+    background: transparent;
+    color: var(--ink-2);
+}
+
+.library .props-sheet input.chip-input {
+    width: 12rem;
+    height: var(--h-control);
+    border-color: var(--accent);
+    border-radius: var(--r-pill);
+}
+
+.library .props-sheet .playlists .check {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    min-height: var(--h-control);
+    color: var(--ink);
+    font: var(--t-body);
+    cursor: pointer;
+}
+
+.library .props-sheet .playlists input[type=checkbox] {
+    width: var(--s-5);
+    height: var(--s-5);
+    margin: 0;
+    accent-color: var(--accent);
+}
+
+.library .props-sheet .new-playlist {
+    align-self: flex-start;
+    color: var(--accent);
 }
 
 /* A long shelf costs little: a card off screen is not laid out or painted until it scrolls near. */
@@ -5303,144 +5631,6 @@ body:has(.library) .site-footer {
 /* An open ••• menu reaches out of its card, which containment would cut. */
 .library .card.piece.menu-open {
     content-visibility: visible;
-}
-
-/* The compact list: one line a piece, title and composer, the tags, when it was opened and its •••. */
-.library ul.lib-list {
-    display: flex;
-    flex-direction: column;
-    margin: 0;
-    padding: 0;
-    border: 1px solid var(--hairline);
-    border-radius: var(--r-l);
-    background: var(--surface);
-    list-style: none;
-}
-
-.library .lib-row {
-    display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) auto auto;
-    align-items: center;
-    gap: var(--s-4);
-    min-height: var(--s-12);
-    padding: var(--s-2) var(--s-4);
-    border-bottom: 1px solid var(--hairline);
-    cursor: pointer;
-    content-visibility: auto;
-    contain-intrinsic-size: auto var(--s-12);
-    -webkit-touch-callout: none;
-    user-select: none;
-}
-
-.library .lib-row:last-child {
-    border-bottom: 0;
-}
-
-.library .lib-row:hover, .library .lib-row.menu-open {
-    background: var(--surface-2);
-    content-visibility: visible;
-}
-
-.library .lib-row .ttl {
-    margin: 0;
-    text-transform: none;
-    letter-spacing: 0;
-    font: var(--t-title);
-    font-size: 18px;
-    line-height: 24px;
-    color: var(--ink);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.library .lib-row .meta {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.library .lib-row .tags-cell {
-    min-width: 0;
-}
-
-.library .lib-row .tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--s-1);
-    margin: 0;
-}
-
-.library .lib-row .when {
-    white-space: nowrap;
-}
-
-/* The edit sheet: the fields one under another, the tags as chips with their ×, the library's other tags to pick. */
-.library .edit-sheet .field {
-    display: flex;
-    flex-direction: column;
-    gap: var(--s-1);
-    margin: 0;
-    padding: 0;
-    border: 0;
-}
-
-.library .edit-sheet input[type=text] {
-    height: var(--h-touch);
-    padding: 0 var(--s-3);
-    border: 1px solid var(--hairline-strong);
-    border-radius: var(--r-s);
-    background: var(--surface);
-    color: var(--ink);
-    font: var(--t-body);
-}
-
-.library .edit-sheet input[type=text]:focus {
-    outline: none;
-    box-shadow: var(--focus-ring);
-}
-
-.library .edit-sheet .chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--s-2);
-    margin: var(--s-1) 0;
-    padding: 0;
-    list-style: none;
-}
-
-.library .edit-sheet li.chip {
-    cursor: default;
-    padding-right: var(--s-1);
-}
-
-.library .edit-sheet .chip-x {
-    display: grid;
-    place-items: center;
-    width: var(--h-compact);
-    height: calc(var(--h-compact) - 2px);
-    min-height: 0;
-    padding: 0;
-    border: 0;
-    border-radius: var(--r-pill);
-    background: transparent;
-    color: var(--ink-2);
-    cursor: pointer;
-}
-
-.library .edit-sheet .add-tag {
-    display: flex;
-    gap: var(--s-2);
-}
-
-.library .edit-sheet .add-tag input {
-    flex: 1;
-    min-width: 0;
-}
-
-.library .edit-sheet .row {
-    display: flex;
-    gap: var(--s-2);
 }
 
 .library .card .rule {
@@ -5699,13 +5889,6 @@ body:has(.library) .site-footer {
     align-items: flex-end;
 }
 
-/* In portrait the tagline gives way, so the wordmark and the actions share one line. */
-@media (max-width: 960px) {
-    .library .tagline {
-        display: none;
-    }
-}
-
 /* Phones: the header wraps, the gutters narrow; Add piece and the resume points rise from the bottom. */
 @media (max-width: 760px) {
     .lab.library {
@@ -5716,17 +5899,21 @@ body:has(.library) .site-footer {
         padding: 0 var(--s-4) var(--s-6);
     }
 
-    .library h1.wordmark {
-        font-size: 32px;
-        line-height: 38px;
+    .library .lib-head .search {
+        flex: 1 1 100%;
+        order: 1;
     }
 
-    .library .lib-row {
-        grid-template-columns: minmax(0, 1fr) auto;
-    }
-
-    .library .lib-row .tags-cell, .library .lib-row .when {
+    .library .lib-table .col-playlists, .library .lib-table .col-composer {
         display: none;
+    }
+
+    .library .lib-table .col-title {
+        width: 60%;
+    }
+
+    .library .lib-table .col-opened {
+        width: 40%;
     }
 
     .library .lib-sheet {

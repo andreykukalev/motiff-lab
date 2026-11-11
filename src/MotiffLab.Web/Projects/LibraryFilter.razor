@@ -1,0 +1,60 @@
+@* One of the library's filters (version 0.2, lib-1-list.png): a chip named by what it filters, or by the value picked, that
+   opens the shelf's composers, tags or playlists to pick one, or all of them again. *@
+<div class="lib-filter">
+    <button class="chip @(Picked is null ? null : "on")" aria-haspopup="true" aria-expanded="@(_open ? "true" : "false")"
+            aria-label="@(Picked is null ? Label : $"{Label}: {Picked}")" @onclick="() => _open = !_open">
+        <span>@(Picked ?? Label)</span><Icon Name="chevd" Size="IconSize.Small" />
+    </button>
+    @if (_open)
+    {
+        <div class="lib-scrim clear" @onclick="() => _open = false"></div>
+        <div class="lib-menu" role="group" aria-label="@Label" @onkeydown="OnKey">
+            <button class="btn quiet @(Picked is null ? "picked" : null)" aria-pressed="@(Picked is null ? "true" : "false")" @onclick="() => ChooseAsync(null)">
+                <span class="mark">@if (Picked is null) {<Icon Name="check" />}</span>@All
+            </button>
+            @foreach (string value in Values)
+            {
+                bool on = string.Equals(value, Picked, StringComparison.OrdinalIgnoreCase);
+                <button class="btn quiet @(on ? "picked" : null)" aria-pressed="@(on ? "true" : "false")" @key="value" @onclick="() => ChooseAsync(value)">
+                    <span class="mark">@if (on) {<Icon Name="check" />}</span>@value
+                </button>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>What it filters by: "Composer", "Tag", "Playlist".</summary>
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = "";
+
+    /// <summary>The line that takes the filter off: "All composers".</summary>
+    [Parameter, EditorRequired]
+    public string All { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<string> Values { get; set; } = [];
+
+    [Parameter]
+    public string? Picked { get; set; }
+
+    /// <summary>The value picked, or null for all of them.</summary>
+    [Parameter]
+    public EventCallback<string?> Chosen { get; set; }
+
+    private bool _open;
+
+    private async Task ChooseAsync(string? value)
+    {
+        _open = false;
+        await Chosen.InvokeAsync(value);
+    }
+
+    private void OnKey(KeyboardEventArgs key)
+    {
+        if (key.Key == "Escape")
+        {
+            _open = false;
+        }
+    }
+}

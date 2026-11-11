@@ -2,7 +2,7 @@
 // page in its own view with the score's bar, opened again at the page it was left on, and handed back as it was added.
 import { expect, test } from "@playwright/test";
 import { pdf } from "./pdf-fixture.mjs";
-import { violations } from "./steps.mjs";
+import { violations, librarySessions } from "./steps.mjs";
 
 test("a PDF added from the library is read page by page, opens again where it was left, and downloads as it was added", async ({ page }) => {
     const errors = [];
@@ -36,6 +36,7 @@ test("a PDF added from the library is read page by page, opens again where it wa
 
     // The library shows it as a PDF with its first page as the cover; opening it again lands on page 3.
     await page.locator(".bar a.act").click();
+    await librarySessions(page);
     const card = page.locator(".lib-grid .card.piece", { hasText: "Nocturne" });
     await expect(card.locator(".what .meta")).toContainText("PDF · 3 pages");
     await expect(card.locator(".thumb img")).toHaveCount(1);

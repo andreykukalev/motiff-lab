@@ -1,14 +1,14 @@
-// The library (decision record 0018, section 9): the pieces as cards, each resumed where it was left; one Add piece
+// The library (decision record 0018, section 9; version 0.2): the pieces with work on them as cards in Sessions, each resumed where it was left; one Add piece
 // action with the routes in; the resume points of a piece listed, named and removed in a sheet.
 import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { pageErrors, violations } from "./steps.mjs";
+import { pageErrors, violations, librarySessions } from "./steps.mjs";
 
 const minuet = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/MusicXml/Fixtures/importer-grand-staff.musicxml", import.meta.url));
 
 test("the empty library offers Add a piece and the demo piece", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Motiff Lab");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Library");
     await expect(page.locator(".card.add")).toContainText("Transcribe a recording");
     await page.locator(".card.add").getByRole("link", { name: "or try the demo piece" }).click();
     await expect(page.locator(".bar .ttl")).toHaveText("Für Elise");
@@ -45,6 +45,7 @@ test("a card resumes the piece where it was left, opens page 1 afresh, and lists
     await phrases.nth(0).click();
     await expect(page.locator(".selection-status")).toContainText("Selected phrase 1");
     await page.locator(".bar").getByRole("link", { name: "Library" }).click();
+    await librarySessions(page);
 
     const card = page.locator(".card.piece").filter({ has: page.getByRole("heading", { name: "Waltz sketch" }) });
     await expect(card).toContainText("1 page · 1 phrase");
