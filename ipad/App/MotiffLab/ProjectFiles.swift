@@ -97,6 +97,19 @@ struct PieceSummary: Equatable, Sendable {
     var documentPages: [Double] = []
     /// Whether the piece keeps a PDF.
     var document = false
+    /// The title, composer and tags a card shows (contract 12): "titleFrom" is "player", "file" (the score names it) or
+    /// "fileName"; "composerFrom" is "player" or "file", or nil when neither names one.
+    var title: String?
+    var titleFrom: String?
+    var composer: String?
+    var composerFrom: String?
+    var tags: [String] = []
+
+    /// The title the player set in the library, if they did.
+    var playersTitle: String? { titleFrom == "player" ? title : nil }
+
+    /// The composer the player set in the library, if they did.
+    var playersComposer: String? { composerFrom == "player" ? composer : nil }
 
     struct Latest: Equatable, Sendable {
         var name: String?
@@ -116,6 +129,11 @@ struct PieceSummary: Equatable, Sendable {
         readFromPages = (project["readFromPages"] as? [NSNumber] ?? []).map(\.doubleValue)
         documentPages = (project["documentPages"] as? [NSNumber] ?? []).map(\.doubleValue)
         document = project["document"] as? Bool ?? false
+        title = project["title"] as? String
+        titleFrom = project["titleFrom"] as? String
+        composer = project["composer"] as? String
+        composerFrom = project["composerFrom"] as? String
+        tags = project["tags"] as? [String] ?? []
     }
 
     /// Reads a project file's summary through music-core; nil when the file cannot be read.
@@ -131,5 +149,48 @@ struct PieceSummary: Equatable, Sendable {
               let request = String(data: body, encoding: .utf8) else { return nil }
         let answer = await MusicCore.run { MusicCore.call(piece: 0, "project.summary", request) }
         return PieceSummary(answer: answer)
+    }
+}
+
+/// A piece's title, composer and tags as the player sets them in the library (version 0.2, facade contract 12):
+/// `project.metadata` on piece 0 with the project file's text as "file", which music-core answers changed; the app writes
+/// it back in place. A field sent as null is cleared, so the card shows what the file says again.
+enum PieceDetailsFile {
+    /// What the file itself says: its summary with the player's title and composer taken off, written nowhere.
+    static func fromFile(_ url: URL) async -> PieceSummary? {
+        (try? await change(url, ["title": NSNull(), "composer": NSNull()]))?.summary
+    }
+
+    /// Writes the player's title, composer and tags into the project file. The file keeps its date, so the piece keeps its
+    /// place among the ones opened last.
+    static func save(_ url: URL, title: String?, composer: String?, tags: [String]) async throws {
+        let changed = try await change(url, [
+            "title": title.map { $0 as Any } ?? NSNull(),
+            "composer": composer.map { $0 as Any } ?? NSNull(),
+            "tags": tags,
+        ])
+        let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+        try Data(changed.file.utf8).write(to: url, options: .atomic)
+        if let modified {
+            try? FileManager.default.setAttributes([.modificationDate: modified], ofItemAtPath: url.path)
+        }
+    }
+
+    /// The project file at the url with the fields changed, as music-core answers it: its summary and its whole text.
+    private static func change(_ url: URL, _ fields: [String: Any]) async throws -> (summary: PieceSummary, file: String) {
+        let data = try Data(contentsOf: url)
+        guard let file = String(data: data, encoding: .utf8) else {
+            throw ProjectError(message: "The project file could not be read.")
+        }
+        var request = fields
+        request["file"] = file
+        let encoded = try JSONSerialization.data(withJSONObject: request)
+        let body = String(decoding: encoded, as: UTF8.self)
+        let answer = await MusicCore.run { MusicCore.call(piece: 0, "project.metadata", body) }
+        guard let object = facadeObject(answer), object["error"] == nil,
+              let changed = object["file"] as? String, let summary = PieceSummary(answer: answer) else {
+            throw ProjectError(message: facadeObject(answer)?["message"] as? String ?? "music-core did not change the project.")
+        }
+        return (summary, changed)
     }
 }
