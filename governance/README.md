@@ -31,7 +31,8 @@ to undo it), and each version note lists them under «Решено без вас
 
 ## Versions
 
-- A **test version** is a snapshot of `develop`, tagged `v0.<n>` (later `v<major>.<minor>`). It is cut when `develop`
+- A **test version** is a snapshot of `develop`, tagged `v0.<n>` (later `v<major>.<minor>`) by the `Version` workflow
+  when a pull request changes the file `VERSION` (agents cannot push tags from a cloud thread). It is cut when `develop`
   has at least one change Andrei can see and everything is green, at most once every 2–3 days. What has merged goes
   in; the rest waits for the next one. Nothing waits for a feature.
 - If the two previous versions have no feedback yet, no new version is cut; work goes on.
@@ -39,7 +40,7 @@ to undo it), and each version note lists them under «Решено без вас
   last stable version (`roles/release-reviewer.md`), then `develop` is merged to `main` by a pull request Andrei merges,
   and the tag stays.
 - A **hotfix**: branch from the stable tag, fix, tests and the quality checks, Andrei installs it and writes «ок», then
-  a pull request to `main` (tag `v<x>.<y>.1`) and the same fix merged to `develop` at once. No release review.
+  a pull request to `main` that sets `VERSION` to `<x>.<y>.1` (the workflow tags it) and the same fix merged to `develop` at once. No release review.
 - **Bugs**: in a test version, fixed in `develop` and shipped with the next version; one that blocks testing (a crash, a
   piece that will not open) gets a same-day version `v0.<n>.1`; in a stable version, a hotfix.
 - **Rollback** of a broken version: Andrei installs the previous tag (iPad) or the release is reverted on `main`.
