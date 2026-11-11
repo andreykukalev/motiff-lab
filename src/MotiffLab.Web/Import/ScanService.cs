@@ -23,7 +23,7 @@ namespace MotiffLab.Web.Import;
 /// The page goes only to that address, and only when the player picks it for scanning; the server
 /// deletes it as soon as it has been read. MIDI and MusicXML files never leave the browser.
 /// </remarks>
-public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text)
+public sealed partial class ScanService(IJSRuntime js, CloudAccount account, UiText text)
 {
     /// <summary>The address the service's README starts it on.</summary>
     public const string SuggestedAddress = "http://localhost:8765";
@@ -198,27 +198,16 @@ public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text
 
     /// <summary>
     /// Decodes the recording picked in the input on this device and holds its sound in the browser for
-    /// <see cref="SoundBetweenAsync"/>; null when this browser cannot decode it or it is larger than
-    /// <see cref="MaxDecodeBytes"/>. Nothing is sent.
+    /// <see cref="HearRangeAsync"/>; null when this browser cannot decode it. A WAV file, and an MP4, M4A or MOV file in
+    /// a browser with WebCodecs, are decoded a block at a time, of any size; another file only when it is at most
+    /// <see cref="MaxDecodeBytes"/>, and when it is too long to decode whole on this device the answer says so
+    /// (<see cref="LoadedRecording.TooLong"/>). Nothing is sent.
     /// </summary>
     public async Task<LoadedRecording?> LoadRecordingAsync(ElementReference input)
     {
         try
         {
             return await (await RecordingModuleAsync()).InvokeAsync<LoadedRecording?>("load", input, MaxDecodeBytes);
-        }
-        catch (JSException)
-        {
-            return null;
-        }
-    }
-
-    /// <summary>The held recording's sound from one millisecond to another, as a mono WAV file; null when none is held.</summary>
-    public async Task<RecordingSound?> SoundBetweenAsync(long fromMilliseconds, long toMilliseconds)
-    {
-        try
-        {
-            return await (await RecordingModuleAsync()).InvokeAsync<RecordingSound?>("soundBetween", fromMilliseconds, toMilliseconds);
         }
         catch (JSException)
         {
@@ -269,53 +258,6 @@ public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text
 
     private async Task<IJSObjectReference> RecordingModuleAsync() =>
         _recording ??= await js.InvokeAsync<IJSObjectReference>("import", "./js/import/recording.js");
-
-    /// <summary>
-    /// Hears the sound of a stretch on the scan server (0014): in one request, or in overlapping parts, one after another,
-    /// when it is longer than the server hears at once, with the notes joined and their times from the stretch's start.
-    /// <paramref name="progress"/> is told the part about to be sent and how many there are.
-    /// </summary>
-    public async Task<HeardSound> HearAsync(RecordingSound sound, Action<int, int>? progress = null)
-    {
-        ArgumentNullException.ThrowIfNull(sound);
-        IReadOnlyList<RecordingPart> parts = RecordingParts.Plan(Math.Max(1, sound.Milliseconds));
-        var heard = new List<(RecordingPart, byte[])>();
-        TranscriptionResult result = TranscriptionResult.Failed(text["transcribe.failed"]);
-        foreach (RecordingPart part in parts)
-        {
-            progress?.Invoke(part.Index + 1, parts.Count);
-            byte[] upload = parts.Count == 1 ? sound.Wav : sound.Part(part.SendFromMilliseconds, part.SendToMilliseconds);
-            TranscriptionResult partResult = await TranscribeAsync("recording.wav", upload);
-            if (partResult.Midi is { } partMidi)
-            {
-                result = partResult;
-                heard.Add((part, partMidi));
-            }
-            else if (partResult.NothingHeard && parts.Count > 1)
-            {
-                // A quiet stretch: the other parts still have notes.
-                result = heard.Count == 0 ? partResult : result;
-            }
-            else
-            {
-                return new HeardSound(null, partResult, parts);
-            }
-        }
-
-        if (heard.Count == 0)
-        {
-            return new HeardSound(null, result, parts);
-        }
-
-        try
-        {
-            return new HeardSound(parts.Count == 1 ? result.Midi : RecordingParts.Join(heard), result, parts);
-        }
-        catch (MidiImportException)
-        {
-            return new HeardSound(null, TranscriptionResult.Failed(text["transcribe.failed"]), parts);
-        }
-    }
 
     /// <summary>Sends a recording, or the sound taken out of it, to be transcribed; the MIDI and engine, or a plain reason there is none.</summary>
     public async Task<TranscriptionResult> TranscribeAsync(string fileName, byte[] data, CancellationToken cancellation = default)
@@ -426,31 +368,16 @@ public sealed class ScanService(IJSRuntime js, CloudAccount account, UiText text
     }
 }
 
-/// <summary>A recording the browser decoded and holds: its length, its loudness in equal stretches between 0 and 1, and an address its page can play it from.</summary>
-public sealed record LoadedRecording(long Milliseconds, double[] Peaks, string Url);
-
-/// <summary>The sound the browser took out of a stretch of a recording: a mono WAV file and its length.</summary>
-public sealed record RecordingSound(byte[] Wav, double Seconds)
+/// <summary>
+/// A recording the browser decoded and holds: its length, its loudness in equal stretches between 0 and 1, an address its
+/// page can play it from, and a fingerprint of its sound by which the parts already heard are found again. With
+/// <see cref="Problem"/> "tooLong" nothing is held: the recording, of the length told, is too long to decode whole here,
+/// where <see cref="MostMinutes"/> is the most.
+/// </summary>
+public sealed record LoadedRecording(long Milliseconds, double[] Peaks, string Url, string Fingerprint = "", string? Problem = null, int MostMinutes = 0)
 {
-    private const int HeaderBytes = 44;
-
-    /// <summary>The length in milliseconds.</summary>
-    public long Milliseconds => (long)Math.Round(Seconds * 1000);
-
-    /// <summary>The stretch of the sound from one millisecond to another, as a WAV file of its own.</summary>
-    public byte[] Part(long fromMilliseconds, long toMilliseconds)
-    {
-        int rate = BitConverter.ToInt32(Wav, 24);
-        int samples = (Wav.Length - HeaderBytes) / 2;
-        int from = (int)Math.Clamp(fromMilliseconds * rate / 1000, 0, samples);
-        int to = (int)Math.Clamp(toMilliseconds * rate / 1000, from, samples);
-        byte[] part = new byte[HeaderBytes + ((to - from) * 2)];
-        Wav.AsSpan(0, HeaderBytes).CopyTo(part);
-        Wav.AsSpan(HeaderBytes + (from * 2), (to - from) * 2).CopyTo(part.AsSpan(HeaderBytes));
-        BitConverter.TryWriteBytes(part.AsSpan(4), part.Length - 8);
-        BitConverter.TryWriteBytes(part.AsSpan(40), part.Length - HeaderBytes);
-        return part;
-    }
+    /// <summary>True when the recording is too long for this browser to decode whole on this device, and it cannot decode it in blocks.</summary>
+    public bool TooLong => Problem == "tooLong";
 }
 
 /// <summary>What the scan server heard in a recording: the notes as MIDI, or why there are none.</summary>

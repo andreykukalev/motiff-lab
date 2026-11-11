@@ -113,7 +113,7 @@
 
                 <label class="dropzone @(_transcribing || _decoding ? "busy" : null)">
                     <InputFile @ref="_recordingInput" OnChange="PickRecordingAsync" accept="@ScanService.AcceptedRecordings" disabled="@(_reading || _scanning || _transcribing || _decoding || !(Scans.IsLocal || _sendSound))" aria-label="@Text["transcribe.choose"]" />
-                    <span>@(_decoding ? Text["transcribe.decoding"] : _loaded is not null && !_transcribing ? Text["transcribe.dropAnother"] : !_transcribing ? Text["transcribe.drop"] : _parts > 1 ? Text.Format("transcribe.part", _part, _parts) : Text["transcribe.busy"])</span>
+                    <span>@(_decoding ? Text["transcribe.decoding"] : _loaded is not null && !_transcribing ? Text["transcribe.dropAnother"] : !_transcribing ? Text["transcribe.drop"] : HearingText(_hearing))</span>
                 </label>
 
                 @* The stretch to hear (0014), chosen as in an audio trimmer: a selection window on the recording's shape whose
@@ -159,7 +159,7 @@
                             <button @onclick="() => RangeHereAsync(start: true)" disabled="@_transcribing">@Text["transcribe.startHere"]</button>
                             <button @onclick="() => RangeHereAsync(start: false)" disabled="@_transcribing">@Text["transcribe.endHere"]</button>
                         </div>
-                        <p class="meta">@Text.Format("transcribe.rangeHow", RecordingRange.MostMilliseconds / 60_000)</p>
+                        <p class="meta">@Text["transcribe.rangeHow"]</p>
                         <p class="estimate">@Estimate(range)</p>
                         <div class="actions">
                             <button class="primary" @onclick="TranscribeRangeAsync" disabled="@(_transcribing || !(Scans.IsLocal || _sendSound))">@Text["transcribe.hearRange"]</button>
@@ -363,9 +363,8 @@
     private RecordingRange? _heardRange;
     private int _requests;
 
-    /// <summary>While a long recording is heard in parts: the part being heard, from 1, and how many there are.</summary>
-    private int _part;
-    private int _parts;
+    /// <summary>While a long recording is heard in parts: how many parts are heard of how many; null before the first word.</summary>
+    private HearingProgress? _hearing;
     private bool _transcribing;
     private bool _sendSound;
 
@@ -561,6 +560,15 @@
             _decoding = false;
         }
 
+        if (loaded is { TooLong: true })
+        {
+            _rejection = new(
+                ImportRejectionReason.TooLarge,
+                Text.Format("transcribe.tooLongToDecode", Clock(loaded.Milliseconds), loaded.MostMinutes),
+                Text["transcribe.tooLongToDecodeTip"]);
+            return;
+        }
+
         if (loaded is { Milliseconds: > 0 })
         {
             (_loaded, _range, _recordingName) = (loaded, RecordingRange.Start(loaded.Milliseconds), args.File.Name);
@@ -615,32 +623,39 @@
         try
         {
             var watch = Stopwatch.StartNew();
-            if (await Scans.SoundBetweenAsync(range.FromMilliseconds, range.ToMilliseconds) is not { } sound)
+            if (_loaded is not { } loaded)
             {
-                _rejection = new(ImportRejectionReason.NotMusic, Text["transcribe.failed"], Text["transcribe.tooLargeTip"]);
                 return;
             }
 
-            // A stretch longer than the server hears at once goes in overlapping parts, one after another, and the
-            // notes are joined; the notes' times start at the stretch's start.
-            HeardSound heard = await Scans.HearAsync(sound, (part, parts) =>
+            // A stretch longer than the server hears at once goes in overlapping parts, several at once, and the notes
+            // are joined; the notes' times start at the stretch's start. Parts heard before are not sent again.
+            HeardSound heard = await Scans.HearRangeAsync(loaded, range, progress =>
             {
-                (_part, _parts) = (part, parts);
+                _hearing = progress;
                 StateHasChanged();
             });
             if (heard.Midi is not { } midi)
             {
-                _rejection = new(ImportRejectionReason.NotMusic, heard.Problem!, Text["transcribe.notHeardTip"]);
+                _rejection = new(ImportRejectionReason.NotMusic, heard.Problem!, heard.Result.NothingHeard ? Text["transcribe.notHeardTip"] : "");
                 return;
             }
 
-            Show(_recordingName, midi, heard.Result, watch.Elapsed, sound.Seconds, false, range, heard.Parts.Count, RecordingParts.Seams(heard.Parts));
+            Show(_recordingName, midi, heard.Result, watch.Elapsed, range.Milliseconds / 1000.0, false, range, heard.Parts.Count, RecordingParts.Seams(heard.Parts));
         }
         finally
         {
-            (_transcribing, _part, _parts) = (false, 0, 0);
+            (_transcribing, _hearing) = (false, null);
         }
     }
+
+    /// <summary>What the drop zone says while a stretch is heard: parts heard of how many, and whether the server is asked again.</summary>
+    private string HearingText(HearingProgress? hearing) => hearing switch
+    {
+        { Total: > 1, Retrying: true } => Text.Format("transcribe.retrying", hearing.Done, hearing.Total),
+        { Total: > 1 } => Text.Format("transcribe.progress", hearing.Done, hearing.Total),
+        _ => Text["transcribe.busy"],
+    };
 
     /// <summary>Imports what the server heard, marked as heard, in the bars worked out from it (0016).</summary>
     private void Show(string recordingName, byte[] midi, TranscriptionResult result, TimeSpan elapsed, double seconds, bool cut, RecordingRange? range, int requests, IReadOnlyList<long>? seams = null)
@@ -747,18 +762,20 @@
     private string Estimate(RecordingRange range)
     {
         int parts = range.Parts.Count;
-        double seconds = range.SentMilliseconds / 1000.0 * ScanService.SecondsPerSecondHeard;
+        double seconds = Scans.EstimateSeconds(range.Parts);
         string time = seconds < 90
             ? Text.Format("transcribe.aboutSeconds", (Math.Ceiling(seconds / 10) * 10).ToString("0", Text.Culture))
             : Text.Format("transcribe.aboutMinutes", Math.Ceiling(seconds / 60).ToString("0", Text.Culture));
+        string estimate = parts == 1 ? "transcribe.estimateOne" : Scans.MostAtOnce > 1 ? "transcribe.estimate" : "transcribe.estimateSerial";
         return Text.Format(
-            parts == 1 ? "transcribe.estimateOne" : "transcribe.estimate",
+            estimate,
             Clock(range.FromMilliseconds),
             Clock(range.ToMilliseconds),
             Clock(range.Milliseconds),
             Text.Count("transcribe.parts", parts),
             Text.Count("transcribe.requests", parts),
-            time);
+            time,
+            Math.Min(parts, Scans.MostAtOnce));
     }
 
     /// <summary>A time in the recording as m:ss, or h:mm:ss from an hour, with tenths of a second when asked.</summary>

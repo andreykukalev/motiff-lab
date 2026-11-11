@@ -1,11 +1,15 @@
 // Takes the sound out of an audio or video recording in the browser, for transcription (0014): the
 // file is decoded here and mixed to mono at 22,050 Hz, the player sees its length and loudness and
 // chooses the stretch to hear, and only that stretch's sound is sent, never the video. The decoded
-// sound stays in this module until the next recording or `forget`. Browsers decode what they can play;
-// when one cannot decode a file, the caller sends the file itself and the server's ffmpeg reads it.
+// sound stays in this module, as 16-bit samples, until the next recording or `forget`. A WAV file, and the AAC or MP3
+// sound of an MP4, M4A or MOV file where the browser has WebCodecs, are decoded a block at a time (decode.ts), so a
+// recording of an hour fits; anything else is decoded whole, as long as that fits this device. When a browser cannot
+// decode a file, the caller sends the file itself and the server's ffmpeg reads it.
 
-/** Enough for Transkun, which listens up to 8 kHz, at half the size of its own 44,100 Hz; the server resamples. */
-export const SAMPLE_RATE = 22050;
+import { SAMPLE_RATE } from "./resample.js";
+import { decodeMono, decodePicked, encodeWav, mixToMono, mostWholeMinutes, wavOf } from "./sound.js";
+
+export { SAMPLE_RATE, decodeMono, encodeWav, mixToMono };
 
 /** The sound of a stretch of a recording as a 16-bit mono WAV file, and how many seconds it holds. */
 export interface Sound {
@@ -13,71 +17,31 @@ export interface Sound {
     seconds: number;
 }
 
-/** A decoded recording: its length, how loud it is along the way, and an address the page can play it from. */
+/**
+ * A decoded recording: its length, how loud it is along the way, an address the page can play it from, and a
+ * fingerprint of its sound, by which parts already heard are found again. With `problem` "tooLong" it was not
+ * decoded: decoding it whole would take more memory than this device has to spare, and only its length is told.
+ */
 export interface Loaded {
     milliseconds: number;
     peaks: number[];
     url: string;
+    fingerprint: string;
+    problem?: "tooLong";
+    mostMinutes?: number;
 }
 
 /** How many loudness bars the overview of a recording has, whatever its length. */
 export const PEAK_COUNT = 400;
 
-let held: Float32Array | null = null;
+let held: Int16Array | null = null;
 let heldUrl: string | null = null;
 
-/** The channels averaged into one, over the first `length` samples. */
-export function mixToMono(channels: readonly Float32Array[], length: number): Float32Array {
-    const mono = new Float32Array(length);
-    if (channels.length === 0) {
-        return mono;
-    }
-    for (const channel of channels) {
-        const count = Math.min(length, channel.length);
-        for (let i = 0; i < count; i++) {
-            mono[i] += channel[i];
-        }
-    }
-    for (let i = 0; i < length; i++) {
-        mono[i] /= channels.length;
-    }
-    return mono;
-}
-
-/** Samples between -1 and 1 as a 16-bit PCM WAV file; louder samples are clipped. */
-export function encodeWav(samples: Float32Array, sampleRate: number): Uint8Array {
-    const bytes = new Uint8Array(44 + samples.length * 2);
-    const view = new DataView(bytes.buffer);
-    const text = (offset: number, value: string) => {
-        for (let i = 0; i < value.length; i++) {
-            view.setUint8(offset + i, value.charCodeAt(i));
-        }
-    };
-    text(0, "RIFF");
-    view.setUint32(4, 36 + samples.length * 2, true);
-    text(8, "WAVE");
-    text(12, "fmt ");
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true); // PCM
-    view.setUint16(22, 1, true); // mono
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * 2, true);
-    view.setUint16(32, 2, true);
-    view.setUint16(34, 16, true);
-    text(36, "data");
-    view.setUint32(40, samples.length * 2, true);
-    for (let i = 0; i < samples.length; i++) {
-        const sample = Math.max(-1, Math.min(1, samples[i]));
-        view.setInt16(44 + i * 2, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
-    }
-    return bytes;
-}
-
 /**
- * The loudest sample in each of `count` equal stretches of `samples`, between 0 and 1, for drawing the
- * shape of a recording; fewer when there are fewer samples.
+ * The loudest sample in each of `count` equal stretches of `samples`, between 0 and 1 once multiplied by `scale`
+ * (1 / 32768 for 16-bit samples), for drawing the shape of a recording; fewer when there are fewer samples.
  */
-export function peaksOf(samples: Float32Array, count: number): number[] {
+export function peaksOf(samples: Float32Array | Int16Array, count: number, scale = 1): number[] {
     const bars = Math.min(count, samples.length);
     const peaks: number[] = [];
     for (let bar = 0; bar < bars; bar++) {
@@ -85,14 +49,16 @@ export function peaksOf(samples: Float32Array, count: number): number[] {
         const to = Math.floor((samples.length * (bar + 1)) / bars);
         let peak = 0;
         for (let i = from; i < to; i++) {
-            const value = Math.abs(samples[i]);
-            if (value > peak) {
-                peak = value;
-            }
+            peak = Math.max(peak, Math.abs(samples[i]));
         }
-        peaks.push(Math.min(1, Math.round(peak * 1000) / 1000));
+        peaks.push(Math.min(1, Math.round(peak * scale * 1000) / 1000));
     }
     return peaks;
+}
+
+/** How many samples of the held sound, at SAMPLE_RATE, lie before a millisecond of it. */
+function sampleAt(milliseconds: number, length: number): number {
+    return Math.max(0, Math.min(length, Math.round((milliseconds * SAMPLE_RATE) / 1000)));
 }
 
 /** The held sound from one millisecond to another as a WAV file, or null when no recording is held. */
@@ -100,9 +66,49 @@ export function soundBetween(fromMilliseconds: number, toMilliseconds: number): 
     if (!held) {
         return null;
     }
-    const from = Math.max(0, Math.min(held.length, Math.round((fromMilliseconds * SAMPLE_RATE) / 1000)));
-    const to = Math.max(from, Math.min(held.length, Math.round((toMilliseconds * SAMPLE_RATE) / 1000)));
-    return { wav: encodeWav(held.subarray(from, to), SAMPLE_RATE), seconds: (to - from) / SAMPLE_RATE };
+    const from = sampleAt(fromMilliseconds, held.length);
+    const to = Math.max(from, sampleAt(toMilliseconds, held.length));
+    return { wav: wavOf(held.subarray(from, to), SAMPLE_RATE), seconds: (to - from) / SAMPLE_RATE };
+}
+
+/** The stretch of a level of loudness (RecordingParts.LevelMilliseconds in music-core). */
+export const LEVEL_MILLISECONDS = 100;
+
+/**
+ * How loud the held sound is in each 100 ms from one millisecond to another, as whole numbers (the mean of the
+ * samples' size, 0 to 32767), for music-core to put the seams of a long recording at quiet moments. Empty when
+ * nothing is held.
+ */
+export function levelsBetween(fromMilliseconds: number, toMilliseconds: number): number[] {
+    if (!held) {
+        return [];
+    }
+    const levels: number[] = [];
+    for (let at = fromMilliseconds; at < toMilliseconds; at += LEVEL_MILLISECONDS) {
+        const from = sampleAt(at, held.length);
+        const to = sampleAt(Math.min(toMilliseconds, at + LEVEL_MILLISECONDS), held.length);
+        let sum = 0;
+        for (let i = from; i < to; i++) {
+            sum += Math.abs(held[i]);
+        }
+        levels.push(to > from ? Math.round(sum / (to - from)) : 0);
+    }
+    return levels;
+}
+
+/**
+ * A fingerprint of 16-bit sound: its length and two 32-bit hashes of every sample, as hex. The same sound decoded
+ * again gives the same fingerprint, so the parts of it already heard are found again (0014).
+ */
+export function fingerprintOf(samples: Int16Array): string {
+    let a = 0x811c9dc5;
+    let b = 0x9e3779b9;
+    for (let i = 0; i < samples.length; i++) {
+        a = Math.imul(a ^ (samples[i] & 0xffff), 0x01000193);
+        b = Math.imul(b ^ samples[i], 0x85ebca6b) ^ (b >>> 13);
+    }
+    const hex = (value: number) => (value >>> 0).toString(16).padStart(8, "0");
+    return `${samples.length.toString(16)}-${hex(a)}${hex(b)}`;
 }
 
 /**
@@ -110,27 +116,7 @@ export function soundBetween(fromMilliseconds: number, toMilliseconds: number): 
  * source (0024, scenario 2): small next to a video, and any browser plays it back. Null when none is held.
  */
 export function heldRecording(): Blob | null {
-    return held ? new Blob([encodeWav(held, SAMPLE_RATE) as BlobPart], { type: "audio/wav" }) : null;
-}
-
-/** A recording's sound decoded on this device and mixed to mono at SAMPLE_RATE; null when this browser cannot decode it. */
-export async function decodeMono(data: ArrayBuffer): Promise<Float32Array | null> {
-    if (typeof OfflineAudioContext === "undefined") {
-        return null;
-    }
-    try {
-        // A context at this rate decodes straight to it; it is never started.
-        const context = new OfflineAudioContext(1, 1, SAMPLE_RATE);
-        const decoded = await context.decodeAudioData(data);
-        const channels: Float32Array[] = [];
-        for (let i = 0; i < decoded.numberOfChannels; i++) {
-            channels.push(decoded.getChannelData(i));
-        }
-        const mono = mixToMono(channels, decoded.length);
-        return mono.length > 0 ? mono : null;
-    } catch {
-        return null;
-    }
+    return held ? new Blob([wavOf(held, SAMPLE_RATE) as BlobPart], { type: "audio/wav" }) : null;
 }
 
 /** Lets go of the held recording and its address, and unwires its editor. */
@@ -145,21 +131,29 @@ export function forget(): void {
 
 /**
  * Decodes the file picked in `input` on this device and holds its sound, or returns null when this browser
- * cannot decode it (or has no file there, or the file is larger than `maxBytes`). Nothing is sent from here.
+ * cannot decode it (or has no file there). Nothing is sent from here.
  */
 export async function load(input: HTMLInputElement, maxBytes: number): Promise<Loaded | null> {
     forget();
     const file = input.files?.[0];
-    if (!file || file.size > maxBytes || typeof OfflineAudioContext === "undefined") {
+    if (!file) {
         return null;
     }
-    const mono = await decodeMono(await file.arrayBuffer());
+    const mono = await decodePicked(file, maxBytes);
+    if (typeof mono === "number") {
+        return { milliseconds: mono, peaks: [], url: "", fingerprint: "", problem: "tooLong", mostMinutes: mostWholeMinutes() };
+    }
     if (mono === null) {
         return null;
     }
     held = mono;
     heldUrl = URL.createObjectURL(file);
-    return { milliseconds: Math.round((mono.length * 1000) / SAMPLE_RATE), peaks: peaksOf(mono, PEAK_COUNT), url: heldUrl };
+    return {
+        milliseconds: Math.round((mono.length * 1000) / SAMPLE_RATE),
+        peaks: peaksOf(mono, PEAK_COUNT, 1 / 32768),
+        url: heldUrl,
+        fingerprint: fingerprintOf(mono),
+    };
 }
 
 /** Where the player is in the recording, in milliseconds. */

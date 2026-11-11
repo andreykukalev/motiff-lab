@@ -61,7 +61,7 @@ async function scanServer(page, answer = heard) {
     return uploads;
 }
 
-/** Picks a recording and, once the browser has read it, sends the stretch chosen (all of it, up to 7 minutes). */
+/** Picks a recording and, once the browser has read it, sends the stretch chosen (all of it, however long). */
 async function transcribe(page, file) {
     await page.getByLabel("Choose an audio or video recording to transcribe").setInputFiles(file);
     await page.getByRole("button", { name: "Transcribe the stretch" }).click();
@@ -196,14 +196,15 @@ test("a recording longer than two minutes is heard in overlapping parts and its 
     await transcribe(page, await recording(240, 8000));
     await expect(page.getByRole("heading", { name: "Check the transcription" })).toBeVisible({ timeout: 30_000 });
 
-    // Four minutes go as two parts of 2 minutes 5 seconds: each half with five seconds of the other. The last part
-    // ends where the decoded sound does, and WebKit resamples the 8 kHz file a couple of samples short of 240 s, so
-    // the last part may be up to a millisecond short.
+    // Four minutes go as two parts, each half with five seconds of the other: the seam lies at the quietest moment
+    // within ten seconds of two minutes, so together they carry 250 s, neither more than the server hears at once.
     expect(uploads).toHaveLength(2);
-    const sizes = uploads.map(body => body.readUInt32LE(body.indexOf(Buffer.from("RIFF")) + 40));
-    expect(sizes[0]).toBe(125 * 22050 * 2);
-    expect(sizes[1]).toBeLessThanOrEqual(125 * 22050 * 2);
-    expect(sizes[1]).toBeGreaterThan((125 - 0.001) * 22050 * 2);
+    const sizes = uploads.map(body => body.readUInt32LE(body.indexOf(Buffer.from("RIFF")) + 40) / (22050 * 2));
+    expect(Math.abs(sizes[0] + sizes[1] - 250)).toBeLessThan(0.01);
+    for (const seconds of sizes) {
+        expect(seconds).toBeGreaterThanOrEqual(115);
+        expect(seconds).toBeLessThanOrEqual(140);
+    }
 
     // The stand-in answers each part with Für Elise's first 130 s: the first part keeps its first two
     // minutes, the second what it heard after its five-second lead-in.
@@ -221,31 +222,31 @@ test("only the stretch the player chooses in a long recording is sent, and the p
     await page.goto("/import/recording");
     await page.getByLabel("Choose an audio or video recording to transcribe").setInputFiles(await recording(600, 8000));
     const range = page.getByRole("region", { name: "Choose what to hear" });
-    await expect(range.getByText("10:00 long", { exact: false })).toBeVisible({ timeout: 30_000 });
+    await expect(range.getByText("Take 1 at the piano.wav · 10:00 long")).toBeVisible({ timeout: 30_000 });
 
-    // Ten minutes start as their first seven, which go in four parts.
-    await expect(range.getByText("0:00 to 7:00, 7:00 long: heard in 4 parts", { exact: false })).toBeVisible();
-    await expect(range.getByText("so 4 requests to the scan server", { exact: false })).toBeVisible();
+    // Ten minutes start whole, and go in five parts, one after another to the player's own server.
+    await expect(range.getByText("0:00 to 10:00, 10:00 long: heard in 5 parts", { exact: false })).toBeVisible();
+    await expect(range.getByText("so 5 requests to the scan server, one after another", { exact: false })).toBeVisible();
 
     // Found by ear: the play position moved to 2:00, "Start here"; the end stays. Then to 4:30, "End here".
     const player = page.locator(".recording-range audio");
     await player.evaluate(audio => { audio.currentTime = 120; });
     await range.getByRole("button", { name: "Start here" }).click();
-    await expect(range.getByText("2:00 to 7:00, 5:00 long: heard in 3 parts", { exact: false })).toBeVisible();
+    await expect(range.getByText("2:00 to 10:00, 8:00 long: heard in 4 parts", { exact: false })).toBeVisible();
     await player.evaluate(audio => { audio.currentTime = 270; });
     await range.getByRole("button", { name: "End here" }).click();
     await expect(range.getByText("2:00 to 4:30, 2:30 long: heard in 2 parts", { exact: false })).toBeVisible();
     await expect(range.getByText("so 2 requests to the scan server", { exact: false })).toBeVisible();
     expect(await violations(page)).toEqual([]);
 
-    // Two and a half minutes go as two parts of 75 s with five seconds of the other: 80 s each.
+    // Two and a half minutes go as two parts of about 75 s, the seam at the quietest moment near the even cut, each
+    // with five seconds of the other: 160 s together.
     await range.getByRole("button", { name: "Transcribe the stretch" }).click();
     await expect(page.getByRole("heading", { name: "Check the transcription" })).toBeVisible({ timeout: 30_000 });
     expect(uploads).toHaveLength(2);
-    for (const body of uploads) {
-        const wav = body.indexOf(Buffer.from("RIFF"));
-        expect(body.readUInt32LE(wav + 40)).toBe(80 * 22050 * 2);
-    }
+    const sizes = uploads.map(body => body.readUInt32LE(body.indexOf(Buffer.from("RIFF")) + 40) / (22050 * 2));
+    expect(Math.abs(sizes[0] + sizes[1] - 160)).toBeLessThan(0.01);
+    expect(Math.min(...sizes)).toBeGreaterThanOrEqual(70);
     await expect(page.getByText("2:00 to 4:30 of the recording heard", { exact: false })).toBeVisible();
     await expect(page.getByText("with 2 requests", { exact: false })).toBeVisible();
 });
@@ -262,7 +263,7 @@ test("the selection is dragged on the recording's shape, and the play position m
     await page.goto("/import/recording");
     await page.getByLabel("Choose an audio or video recording to transcribe").setInputFiles(await recording(600, 8000));
     const range = page.getByRole("region", { name: "Choose what to hear" });
-    await expect(range.getByText("0:00 to 7:00, 7:00 long", { exact: false })).toBeVisible({ timeout: 30_000 });
+    await expect(range.getByText("0:00 to 10:00, 10:00 long", { exact: false })).toBeVisible({ timeout: 30_000 });
     const start = range.getByRole("slider", { name: "Start" });
     const end = range.getByRole("slider", { name: "End" });
     const box = await range.locator(".wave").boundingBox();
