@@ -743,7 +743,7 @@ internal static partial class Answer
     /// Piece DNA (0018 section 11): every lane with its status (<c>notYet</c>, <c>partial</c>, <c>ready</c>), so the
     /// screen shows an empty state for a lane not analysed yet.
     /// </summary>
-    public static void Dna(Utf8JsonWriter json, PieceDna dna, Words words, Tick end = default)
+    public static void Dna(Utf8JsonWriter json, PieceDna dna, Words words, Tick end = default, MeterMap? meter = null)
     {
         json.WriteString("status", Name(dna.Status));
         json.WriteString("summary", dna.Summary);
@@ -766,6 +766,7 @@ internal static partial class Answer
             json.WriteString("id", section.Id);
             json.WriteString("label", section.Label);
             Passage(json, "passage", section.Span, section.FirstBar, section.LastBar);
+            Span(json, "selectable", meter is null ? section.Span : FormAnalyzer.Selectable(section, meter));
             Texts(json, "sharesWith", section.SharesWith);
             json.WriteEndObject();
         }

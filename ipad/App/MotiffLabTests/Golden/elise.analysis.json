@@ -1665,6 +1665,10 @@
         "firstBar": 0,
         "lastBar": 4
        },
+       "selectable": {
+        "onset": 0,
+        "end": 2880
+       },
        "sharesWith": [
         "section_2",
         "section_3",
@@ -1689,6 +1693,10 @@
         "end": 6000,
         "firstBar": 4,
         "lastBar": 8
+       },
+       "selectable": {
+        "onset": 2880,
+        "end": 6000
        },
        "sharesWith": [
         "section_1",
@@ -1715,6 +1723,10 @@
         "firstBar": 9,
         "lastBar": 12
        },
+       "selectable": {
+        "onset": 6000,
+        "end": 8640
+       },
        "sharesWith": [
         "section_1",
         "section_2",
@@ -1740,6 +1752,10 @@
         "firstBar": 12,
         "lastBar": 22
        },
+       "selectable": {
+        "onset": 8640,
+        "end": 16080
+       },
        "sharesWith": [
         "section_8",
         "section_12",
@@ -1754,6 +1770,10 @@
         "end": 18720,
         "firstBar": 23,
         "lastBar": 26
+       },
+       "selectable": {
+        "onset": 16080,
+        "end": 18720
        },
        "sharesWith": [
         "section_1",
@@ -1780,6 +1800,10 @@
         "firstBar": 26,
         "lastBar": 30
        },
+       "selectable": {
+        "onset": 18720,
+        "end": 21840
+       },
        "sharesWith": [
         "section_1",
         "section_2",
@@ -1804,6 +1828,10 @@
         "end": 24480,
         "firstBar": 31,
         "lastBar": 34
+       },
+       "selectable": {
+        "onset": 21840,
+        "end": 24480
        },
        "sharesWith": [
         "section_1",
@@ -1830,6 +1858,10 @@
         "firstBar": 34,
         "lastBar": 44
        },
+       "selectable": {
+        "onset": 24480,
+        "end": 31920
+       },
        "sharesWith": [
         "section_4",
         "section_12",
@@ -1844,6 +1876,10 @@
         "end": 34560,
         "firstBar": 45,
         "lastBar": 48
+       },
+       "selectable": {
+        "onset": 31920,
+        "end": 34560
        },
        "sharesWith": [
         "section_1",
@@ -1870,6 +1906,10 @@
         "firstBar": 48,
         "lastBar": 52
        },
+       "selectable": {
+        "onset": 34560,
+        "end": 37680
+       },
        "sharesWith": [
         "section_1",
         "section_2",
@@ -1894,6 +1934,10 @@
         "end": 40320,
         "firstBar": 53,
         "lastBar": 56
+       },
+       "selectable": {
+        "onset": 37680,
+        "end": 40320
        },
        "sharesWith": [
         "section_1",
@@ -1920,6 +1964,10 @@
         "firstBar": 56,
         "lastBar": 66
        },
+       "selectable": {
+        "onset": 40320,
+        "end": 47760
+       },
        "sharesWith": [
         "section_4",
         "section_8",
@@ -1934,6 +1982,10 @@
         "end": 50400,
         "firstBar": 67,
         "lastBar": 70
+       },
+       "selectable": {
+        "onset": 47760,
+        "end": 50400
        },
        "sharesWith": [
         "section_1",
@@ -1960,6 +2012,10 @@
         "firstBar": 70,
         "lastBar": 74
        },
+       "selectable": {
+        "onset": 50400,
+        "end": 53520
+       },
        "sharesWith": [
         "section_1",
         "section_2",
@@ -1984,6 +2040,10 @@
         "end": 56160,
         "firstBar": 75,
         "lastBar": 78
+       },
+       "selectable": {
+        "onset": 53520,
+        "end": 56160
        },
        "sharesWith": [
         "section_1",
@@ -2010,6 +2070,10 @@
         "firstBar": 78,
         "lastBar": 88
        },
+       "selectable": {
+        "onset": 56160,
+        "end": 63600
+       },
        "sharesWith": [
         "section_4",
         "section_8",
@@ -2024,6 +2088,10 @@
         "end": 66240,
         "firstBar": 89,
         "lastBar": 92
+       },
+       "selectable": {
+        "onset": 63600,
+        "end": 66240
        },
        "sharesWith": [
         "section_1",
@@ -2049,6 +2117,10 @@
         "end": 69360,
         "firstBar": 92,
         "lastBar": 96
+       },
+       "selectable": {
+        "onset": 66240,
+        "end": 69360
        },
        "sharesWith": [
         "section_1",
@@ -10502,6 +10574,10 @@
         "firstBar": 0,
         "lastBar": 4
        },
+       "selectable": {
+        "onset": 0,
+        "end": 2880
+       },
        "sharesWith": [
         "section_2",
         "section_3",
@@ -10526,6 +10602,10 @@
         "end": 6000,
         "firstBar": 4,
         "lastBar": 8
+       },
+       "selectable": {
+        "onset": 2880,
+        "end": 6000
        },
        "sharesWith": [
         "section_1",
@@ -10552,6 +10632,10 @@
         "firstBar": 9,
         "lastBar": 12
        },
+       "selectable": {
+        "onset": 6000,
+        "end": 8640
+       },
        "sharesWith": [
         "section_1",
         "section_2",
@@ -10577,6 +10661,10 @@
         "firstBar": 12,
         "lastBar": 22
        },
+       "selectable": {
+        "onset": 8640,
+        "end": 16080
+       },
        "sharesWith": [
         "section_8",
         "section_12",
@@ -10591,6 +10679,10 @@
         "end": 18720,
         "firstBar": 23,
         "lastBar": 26
+       },
+       "selectable": {
+        "onset": 16080,
+        "end": 18720
        },
        "sharesWith": [
         "section_1",
@@ -10617,6 +10709,10 @@
         "firstBar": 26,
         "lastBar": 30
        },
+       "selectable": {
+        "onset": 18720,
+        "end": 21840
+       },
        "sharesWith": [
         "section_1",
         "section_2",
@@ -10641,6 +10737,10 @@
         "end": 24480,
         "firstBar": 31,
         "lastBar": 34
+       },
+       "selectable": {
+        "onset": 21840,
+        "end": 24480
        },
        "sharesWith": [
         "section_1",
@@ -10667,6 +10767,10 @@
         "firstBar": 34,
         "lastBar": 44
        },
+       "selectable": {
+        "onset": 24480,
+        "end": 31920
+       },
        "sharesWith": [
         "section_4",
         "section_12",
@@ -10681,6 +10785,10 @@
         "end": 34560,
         "firstBar": 45,
         "lastBar": 48
+       },
+       "selectable": {
+        "onset": 31920,
+        "end": 34560
        },
        "sharesWith": [
         "section_1",
@@ -10707,6 +10815,10 @@
         "firstBar": 48,
         "lastBar": 52
        },
+       "selectable": {
+        "onset": 34560,
+        "end": 37680
+       },
        "sharesWith": [
         "section_1",
         "section_2",
@@ -10731,6 +10843,10 @@
         "end": 40320,
         "firstBar": 53,
         "lastBar": 56
+       },
+       "selectable": {
+        "onset": 37680,
+        "end": 40320
        },
        "sharesWith": [
         "section_1",
@@ -10757,6 +10873,10 @@
         "firstBar": 56,
         "lastBar": 66
        },
+       "selectable": {
+        "onset": 40320,
+        "end": 47760
+       },
        "sharesWith": [
         "section_4",
         "section_8",
@@ -10771,6 +10891,10 @@
         "end": 50400,
         "firstBar": 67,
         "lastBar": 70
+       },
+       "selectable": {
+        "onset": 47760,
+        "end": 50400
        },
        "sharesWith": [
         "section_1",
@@ -10797,6 +10921,10 @@
         "firstBar": 70,
         "lastBar": 74
        },
+       "selectable": {
+        "onset": 50400,
+        "end": 53520
+       },
        "sharesWith": [
         "section_1",
         "section_2",
@@ -10821,6 +10949,10 @@
         "end": 56160,
         "firstBar": 75,
         "lastBar": 78
+       },
+       "selectable": {
+        "onset": 53520,
+        "end": 56160
        },
        "sharesWith": [
         "section_1",
@@ -10847,6 +10979,10 @@
         "firstBar": 78,
         "lastBar": 88
        },
+       "selectable": {
+        "onset": 56160,
+        "end": 63600
+       },
        "sharesWith": [
         "section_4",
         "section_8",
@@ -10861,6 +10997,10 @@
         "end": 66240,
         "firstBar": 89,
         "lastBar": 92
+       },
+       "selectable": {
+        "onset": 63600,
+        "end": 66240
        },
        "sharesWith": [
         "section_1",
@@ -10886,6 +11026,10 @@
         "end": 69360,
         "firstBar": 92,
         "lastBar": 96
+       },
+       "selectable": {
+        "onset": 66240,
+        "end": 69360
        },
        "sharesWith": [
         "section_1",

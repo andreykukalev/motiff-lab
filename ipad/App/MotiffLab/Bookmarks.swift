@@ -403,7 +403,7 @@ struct StructureChips: View {
             FlowRow(spacing: CGFloat.ds("s-2")) {
                 ForEach(contents.sections) { section in
                     Button {
-                        Task { await score.select(section.onset, section.end) }
+                        Task { await score.select(section.selectableOnset, section.selectableEnd) }
                     } label: {
                         Text(text.format("contents.sentence", section.label, section.firstBar == section.lastBar ? String(section.firstBar) : "\(section.firstBar)–\(section.lastBar)"))
                             .dsType(.label)

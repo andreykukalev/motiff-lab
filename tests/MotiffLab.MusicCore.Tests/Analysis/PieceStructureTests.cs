@@ -61,6 +61,42 @@ public class PieceStructureTests
         facade.Close(piece);
     }
 
+    [Theory]
+    [MemberData(nameof(Pieces))]
+    public void A_tap_on_a_section_chip_selects_it_or_its_first_bars_a_selection_holds(string path)
+    {
+        var facade = new MusicCoreFacade();
+        int piece = Parse(facade.Open(Path.GetFileName(path), File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, path)), """{"language":"en","id":"p_structure"}""")).GetProperty("piece").GetInt32();
+
+        foreach (JsonElement section in Parse(facade.Call(piece, "dna", null)).GetProperty("form").GetProperty("sections").EnumerateArray())
+        {
+            JsonElement passage = section.GetProperty("passage");
+            JsonElement selectable = section.GetProperty("selectable");
+            double onset = selectable.GetProperty("onset").GetDouble();
+            double end = selectable.GetProperty("end").GetDouble();
+            Assert.Equal(passage.GetProperty("onset").GetDouble(), onset);
+            Assert.True(end <= passage.GetProperty("end").GetDouble());
+
+            // The span the iPad Contents sends is one a selection holds: the select call takes it.
+            JsonElement selected = Parse(facade.Call(piece, "select", $$$"""{"span":{"onset":{{{onset}}},"end":{{{end}}}}}"""));
+            Assert.False(selected.TryGetProperty("error", out _), $"{section.GetProperty("label").GetString()}: {selected.GetRawText()}");
+            int bars = passage.GetProperty("lastBar").GetInt32() - passage.GetProperty("firstBar").GetInt32() + 1;
+            Assert.Equal(bars <= MusicCore.Motifs.MotifSelection.MaxStructureBars, end == passage.GetProperty("end").GetDouble());
+        }
+
+        facade.Close(piece);
+    }
+
+    [Fact]
+    public void The_long_section_of_fur_elise_selects_its_first_thirty_two_bars()
+    {
+        ImportedPiece piece = FurElise();
+        DnaSection c = Structure(piece).Sections.Single(section => section.Label == "C");
+
+        Assert.Equal((24, 77), (c.FirstBar, c.LastBar));
+        Assert.Equal(TickSpan.FromBounds(c.Span.Onset, piece.Meter.GetBar(55).Span.End), FormAnalyzer.Selectable(c, piece.Meter));
+    }
+
     [Fact]
     public void Piece_dna_shows_the_sections_the_structure_holds()
     {

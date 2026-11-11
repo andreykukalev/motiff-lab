@@ -1788,6 +1788,10 @@
         "firstBar": 0,
         "lastBar": 8
        },
+       "selectable": {
+        "onset": 0,
+        "end": 5760
+       },
        "sharesWith": [
         "section_4"
        ]
@@ -1801,6 +1805,10 @@
         "firstBar": 9,
         "lastBar": 23
        },
+       "selectable": {
+        "onset": 5760,
+        "end": 16560
+       },
        "sharesWith": []
       },
       {
@@ -1812,6 +1820,10 @@
         "firstBar": 24,
         "lastBar": 77
        },
+       "selectable": {
+        "onset": 16560,
+        "end": 39600
+       },
        "sharesWith": []
       },
       {
@@ -1822,6 +1834,10 @@
         "end": 75600,
         "firstBar": 78,
         "lastBar": 105
+       },
+       "selectable": {
+        "onset": 55440,
+        "end": 75600
        },
        "sharesWith": [
         "section_1"
@@ -7491,6 +7507,10 @@
         "firstBar": 0,
         "lastBar": 8
        },
+       "selectable": {
+        "onset": 0,
+        "end": 5760
+       },
        "sharesWith": [
         "section_4"
        ]
@@ -7504,6 +7524,10 @@
         "firstBar": 9,
         "lastBar": 23
        },
+       "selectable": {
+        "onset": 5760,
+        "end": 16560
+       },
        "sharesWith": []
       },
       {
@@ -7515,6 +7539,10 @@
         "firstBar": 24,
         "lastBar": 77
        },
+       "selectable": {
+        "onset": 16560,
+        "end": 39600
+       },
        "sharesWith": []
       },
       {
@@ -7525,6 +7553,10 @@
         "end": 75600,
         "firstBar": 78,
         "lastBar": 105
+       },
+       "selectable": {
+        "onset": 55440,
+        "end": 75600
        },
        "sharesWith": [
         "section_1"
