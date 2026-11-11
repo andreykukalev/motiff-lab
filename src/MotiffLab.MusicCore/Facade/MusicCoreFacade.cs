@@ -29,7 +29,10 @@ public sealed class MusicCoreFacade
     /// project.metadata takes them as it takes "tags", a field added. Also within 12, four calls on piece 0 sync projects
     /// (version 0.2, <see cref="ProjectSync"/>), each with project files as text: project.online (the copy saved online),
     /// project.sync (the next step), project.pulled (an online copy kept with this device's PDF) and project.resolve (two
-    /// changed copies: the last saved kept, the other beside as a previous copy), calls added.
+    /// changed copies: the last saved kept, the other beside as a previous copy), calls added. Also within 12 (version 0.3,
+    /// long recordings), recording.parts plans the whole recording rather than its first 7 minutes, and it, performance.add
+    /// with "parts" and open with "transcription" take "levels", the sound's loudness that puts the seams at quiet moments,
+    /// a field added.
     /// 11 lets doubt about recognised notes reach what is read from them (#352, 0027 section 12), adding fields only: a
     /// chord, a fact and a DNA chord or key built on recognised notes still to check (in a bar with an open Check flag)
     /// tell "doubt", a sentence that says where, and the chord's "certainty" and the DNA chord's "clear" say uncertain;
@@ -192,14 +195,17 @@ public sealed class MusicCoreFacade
     }
 
     /// <summary>
-    /// The parts a recording of "milliseconds" is heard in, its first 7 minutes (<see cref="RecordingRange.MostMilliseconds"/>):
+    /// The parts a recording of "milliseconds" is heard in, all of it however long (until version 0.3, its first 7 minutes),
+    /// with the seams at quiet moments when the request sends "levels", how loud the sound is in each 100 ms
+    /// (<see cref="RecordingParts.Plan(long, IReadOnlyList{int})"/>):
     /// {"milliseconds": heard, "parts": [{index, sendFrom, sendTo, keepFrom, keepTo}]} in milliseconds, so an app sends each
-    /// part's sound to the scan server and gives the notes back to `performance.add` as "parts" (0014, 0022).
+    /// part's sound to the scan server and gives the notes back to `performance.add` as "parts", with the same "levels"
+    /// (0014, 0022).
     /// </summary>
     private static string RecordingPartsOf(Request request)
     {
-        long milliseconds = request.Long("milliseconds") is > 0 and var length ? Math.Min(length, RecordingRange.MostMilliseconds) : throw FacadeException.BadRequest("Send \"milliseconds\", how long the recording is.");
-        IReadOnlyList<RecordingPart> parts = RecordingParts.Plan(milliseconds);
+        long milliseconds = request.Long("milliseconds") is > 0 and var length ? length : throw FacadeException.BadRequest("Send \"milliseconds\", how long the recording is.");
+        IReadOnlyList<RecordingPart> parts = OpenPiece.PlanOf(request, milliseconds);
         return Answer.Write(json =>
         {
             json.WriteNumber("milliseconds", milliseconds);

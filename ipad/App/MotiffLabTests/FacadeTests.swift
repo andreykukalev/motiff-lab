@@ -454,9 +454,16 @@ final class FacadeTests: XCTestCase {
 
     func testARecordingIsPlannedInPartsAndItsSoundReadBack() async throws {
         let parts = await RecordingParts.plan(600_000)
-        XCTAssertEqual(parts.count, 4, "the first 7 minutes, in parts of about two minutes")
+        XCTAssertEqual(parts.count, 5, "all 10 minutes, in parts of about two minutes")
         XCTAssertEqual(parts.first?.sendFrom, 0)
-        XCTAssertEqual(parts.last?.sendTo, 420_000)
+        XCTAssertEqual(parts.last?.sendTo, 600_000)
+        XCTAssertEqual(parts.first?.sendTo, 125_000, "without levels the seam is the even cut, with five seconds of the next part")
+
+        // The levels of 100 ms lay the seam at the quietest moment within ten seconds of the even cut (0014 item 7).
+        var levels = [Int](repeating: 500, count: 6_000)
+        for index in 1_150..<1_160 { levels[index] = 0 }
+        let quiet = await RecordingParts.plan(600_000, levels: levels)
+        XCTAssertEqual(quiet.first?.sendTo, 120_750, "kept to 115.75 s, sent five seconds on")
 
         let tone = (0..<22_050).map { Int16(8_000 * sin(Double($0) * 2 * .pi * 440 / RecordingSound.sampleRate)) }
         let wav = RecordingSound.wav(tone[...])
@@ -469,6 +476,9 @@ final class FacadeTests: XCTestCase {
         XCTAssertEqual(Double(sound.milliseconds), 1_000, accuracy: 20)
         XCTAssertEqual(RecordingSound.read(url, most: 500)?.milliseconds, 500)
         XCTAssertEqual(sound.wav(from: 250, to: 750).count, 44 + 11_025 * 2)
+        let levels = sound.levels(from: 0, to: 1_000)
+        XCTAssertEqual(levels.count, 10, "one level every 100 ms")
+        XCTAssertEqual(Double(levels[3]), 8_000 * 2 / .pi, accuracy: 60, "the mean size of a sine 8,000 high")
     }
 
     func testTheNotesAScanReadsFromAPdfFillThatPieceWhichOpensAsNotesOrAsItsPdf() throws {

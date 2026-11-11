@@ -66,8 +66,8 @@ internal sealed partial class OpenPiece
     /// "name", and either "midi" (base64) with "source" ("recording" or "midi", default midi), "engine" for a recording
     /// and "recordingStart" in milliseconds where the transcribed stretch starts, or "file" (base64) with its "fileName",
     /// a MIDI or MusicXML file of another version, such as the official score over notes heard in a recording; or "parts",
-    /// the notes heard in a recording heard in parts ({index, midi} by <see cref="RecordingParts.Plan"/> of "milliseconds"),
-    /// joined into one recording. Lines the notes up with the score, keeps the anchors, raises the Check flags the version
+    /// the notes heard in a recording heard in parts ({index, midi} by the plan of "milliseconds" and "levels" that
+    /// recording.parts answers), joined into one recording. Lines the notes up with the score, keeps the anchors, raises the Check flags the version
     /// gives a scanned piece, and answers the comparison.
     /// </summary>
     private string AddPerformance(Request request)
@@ -126,11 +126,23 @@ internal sealed partial class OpenPiece
         }
     }
 
+    /// <summary>
+    /// The parts a recording of <paramref name="milliseconds"/> is heard in: cut evenly, or with the seams at quiet moments
+    /// when the request sends "levels", how loud the sound is in each <see cref="RecordingParts.LevelMilliseconds"/>.
+    /// </summary>
+    internal static IReadOnlyList<RecordingPart> PlanOf(Request request, long milliseconds)
+    {
+        int[] levels = [.. request.Elements("levels").Select(level => level.ValueKind == JsonValueKind.Number && level.TryGetInt32(out int loud) && loud >= 0
+            ? loud
+            : throw FacadeException.BadRequest("\"levels\" are whole numbers from 0, how loud the sound is in each 100 ms."))];
+        return RecordingParts.Plan(milliseconds, levels);
+    }
+
     /// <summary>The notes heard in each part of a recording, joined on the recording's own clock as the web app joins them.</summary>
     internal static byte[] JoinedParts(Request request)
     {
         long milliseconds = request.Long("milliseconds") is > 0 and var length ? length : throw FacadeException.BadRequest("Send \"milliseconds\", how long the sound heard in parts is.");
-        IReadOnlyList<RecordingPart> plan = RecordingParts.Plan(milliseconds);
+        IReadOnlyList<RecordingPart> plan = PlanOf(request, milliseconds);
         List<(RecordingPart Part, byte[] Midi)> heard = [];
         foreach (JsonElement part in request.Elements("parts"))
         {

@@ -4,8 +4,8 @@
 @inject MotiffLab.Web.Localization.UiText Text
 
 @* A recording as another version (0022): its sound goes to the scan server, as on Transcribe a recording, and the notes
-   it hears are lined up with the piece's; the recording itself stays on the device. The whole recording is heard, up to
-   7 minutes. What leaves the device is one line and one switch; on Motiff Lab's server it needs an account and Pro,
+   it hears are lined up with the piece's; the recording itself stays on the device. The whole recording is heard, however
+   long, in parts several at once (0014, version 0.3). What leaves the device is one line and one switch; on Motiff Lab's server it needs an account and Pro,
    offered here. *@
 <section class="recording-version" aria-label="@Text["version.recordingHeading"]">
     <p class="overline">@Text["version.recordingHeading"]</p>
@@ -73,8 +73,7 @@
     private bool _send;
     private bool _busy;
     private bool _decoding;
-    private int _part;
-    private int _parts;
+    private HearingProgress? _hearing;
     private string? _note;
     private string? _problem;
 
@@ -83,7 +82,7 @@
     public Func<string, byte[], Task<string?>> Heard { get; set; } = default!;
 
     private string Progress => _decoding ? Text["transcribe.decoding"]
-        : _parts > 1 ? Text.Format("transcribe.part", _part, _parts)
+        : _hearing is { Total: > 1 } hearing ? Text.Format(hearing.Retrying ? "transcribe.retrying" : "transcribe.progress", hearing.Done, hearing.Total)
         : Text["transcribe.busy"];
 
     protected override async Task OnInitializedAsync()
@@ -116,14 +115,14 @@
         }
         finally
         {
-            (_busy, _decoding, _part, _parts) = (false, false, 0, 0);
+            (_busy, _decoding, _hearing) = (false, false, null);
             await Scans.ForgetRecordingAsync();
         }
     }
 
     /// <summary>
-    /// The notes heard in the recording: its sound taken out on this device and sent, the first 7 minutes of a longer one;
-    /// or, when this browser cannot take the sound out, the file itself when it is small enough, of which the server hears the start.
+    /// The notes heard in the recording: its sound taken out on this device and sent, all of it, in parts; or, when this
+    /// browser cannot take the sound out, the file itself when it is small enough, of which the server hears the start.
     /// </summary>
     private async Task<byte[]?> HearAsync(IBrowserFile file)
     {
@@ -132,27 +131,25 @@
         LoadedRecording? loaded = _input?.Element is { } input ? await Scans.LoadRecordingAsync(input) : null;
         _decoding = false;
         StateHasChanged();
+        if (loaded is { TooLong: true })
+        {
+            _problem = $"{Text.Format("transcribe.tooLongToDecode", TimeSpan.FromMilliseconds(loaded.Milliseconds).ToString(@"h\:mm\:ss", Text.Culture), loaded.MostMinutes)} {Text["transcribe.tooLongToDecodeTip"]}";
+            return null;
+        }
+
         if (loaded is { Milliseconds: > 0 })
         {
-            long to = Math.Min(loaded.Milliseconds, RecordingRange.MostMilliseconds);
-            if (await Scans.SoundBetweenAsync(0, to) is not { } sound)
+            HeardSound heard = await Scans.HearRangeAsync(loaded, RecordingRange.Start(loaded.Milliseconds), progress =>
             {
-                _problem = Text["transcribe.failed"];
-                return null;
-            }
-
-            HeardSound heard = await Scans.HearAsync(sound, (part, parts) =>
-            {
-                (_part, _parts) = (part, parts);
+                _hearing = progress;
                 StateHasChanged();
             });
             if (heard.Midi is null)
             {
-                _problem = $"{heard.Problem} {Text["transcribe.notHeardTip"]}".Trim();
+                _problem = $"{heard.Problem} {(heard.Result.NothingHeard ? Text["transcribe.notHeardTip"] : "")}".Trim();
                 return null;
             }
 
-            _note = loaded.Milliseconds > to ? Text.Format("version.recordingCut", RecordingRange.MostMilliseconds / 60_000) : null;
             return heard.Midi;
         }
 

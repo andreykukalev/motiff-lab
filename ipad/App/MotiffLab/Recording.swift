@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 
 /// A recording's sound read on the iPad (decision records 0014 and 0022): mono 16-bit at 22,050 Hz, as the web app takes it
 /// out (Scripts/import/recording.ts), so only the sound, never the file, goes to the scan server, in the parts music-core
-/// plans (`recording.parts`).
+/// plans (`recording.parts`). It is read a block at a time, so a long recording is held only as this sound.
 struct RecordingSound: Sendable {
     static let sampleRate = 22_050.0
 
@@ -12,8 +12,8 @@ struct RecordingSound: Sendable {
 
     var milliseconds: Int64 { Int64((Double(samples.count) * 1000 / Self.sampleRate).rounded()) }
 
-    /// The sound of an audio or video file, its first `most` milliseconds; nil when it has none the iPad can read.
-    static func read(_ url: URL, most: Int64) -> RecordingSound? {
+    /// The sound of an audio or video file, all of it or its first `most` milliseconds; nil when it has none the iPad can read.
+    static func read(_ url: URL, most: Int64? = nil) -> RecordingSound? {
         guard let file = try? AVAudioFile(forReading: url),
               let target = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: sampleRate, channels: 1, interleaved: true),
               let converter = AVAudioConverter(from: file.processingFormat, to: target)
@@ -21,7 +21,7 @@ struct RecordingSound: Sendable {
         converter.downmix = true
         let chunk: AVAudioFrameCount = 16_384
         guard let input = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: chunk) else { return nil }
-        let wanted = Int(Double(most) / 1000 * sampleRate)
+        let wanted = most.map { Int(Double($0) / 1000 * sampleRate) } ?? Int.max
         var samples: [Int16] = []
         samples.reserveCapacity(min(wanted, Int(Double(file.length) * sampleRate / max(file.processingFormat.sampleRate, 1)) + Int(chunk)))
         var ended = false
@@ -53,6 +53,28 @@ struct RecordingSound: Sendable {
             if status == .endOfStream || output.frameLength == 0 { break }
         }
         return samples.isEmpty ? nil : RecordingSound(samples: Array(samples.prefix(wanted)))
+    }
+
+    /// How loud the sound is every 100 ms from one moment to another: the mean size of its samples, as the web app's
+    /// levelsBetween (Scripts/import/recording.ts), so music-core lays each seam between parts at a quiet moment.
+    func levels(from start: Int64, to end: Int64) -> [Int] {
+        var levels: [Int] = []
+        levels.reserveCapacity(Int(max(0, end - start) / 100) + 1)
+        var at = start
+        while at < end {
+            let first = sample(at)
+            let last = sample(min(end, at + 100))
+            var sum = 0
+            for index in first..<last { sum += abs(Int(samples[index])) }
+            levels.append(last > first ? Int((Double(sum) / Double(last - first)).rounded()) : 0)
+            at += 100
+        }
+        return levels
+    }
+
+    /// The sample at a moment, within the sound.
+    private func sample(_ milliseconds: Int64) -> Int {
+        max(0, min(samples.count, Int((Double(milliseconds) * Self.sampleRate / 1000).rounded())))
     }
 
     /// The sound from one moment to another as a WAV file, as a part is sent.
@@ -93,10 +115,13 @@ struct RecordingSound: Sendable {
 /// Motiff Lab's scan server hearing a recording (`POST /transcribe`, 0014): the sound as a WAV file, the player's Scan
 /// token and a tester's plan choice; the MIDI it heard and its engine, or why there is none, as the web app's ScanService.
 enum Transcriber {
-    enum Heard: Equatable {
+    enum Heard: Equatable, Sendable {
         case notes(midi: Data, engine: String)
         /// The part had no notes to hear: a quiet stretch of a longer recording.
         case nothing
+        /// The server was busy (429, 502, 503, 504), took too long or the connection was lost: the part may be sent again,
+        /// after the seconds the server asked for if it did. `reached`: the server answered.
+        case busy(String, after: Double?, reached: Bool)
         case failed(String)
     }
 
@@ -130,12 +155,20 @@ enum Transcriber {
                 return .failed(text["transcribe.oldServer"])
             case 422:
                 return .nothing
+            case 429, 502, 503, 504:
+                var after: Double?
+                if let header = (response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Retry-After"), let seconds = Double(header), seconds > 0 {
+                    after = min(120, seconds)
+                }
+                return .busy(text["transcribe.busyServer"], after: after, reached: true)
             default:
                 let message = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["message"] as? String
                 return .failed(message.flatMap { $0.isEmpty ? nil : $0 } ?? text["transcribe.failed"])
             }
         } catch let error as URLError where error.code == .timedOut {
-            return .failed(text["transcribe.tooLong"])
+            return .busy(text["transcribe.tooLong"], after: nil, reached: true)
+        } catch let error as URLError where [URLError.Code.networkConnectionLost, .notConnectedToInternet, .cannotConnectToHost].contains(error.code) {
+            return .busy(text["transcribe.failed"], after: nil, reached: false)
         } catch {
             return .failed(text["transcribe.failed"])
         }
@@ -149,25 +182,23 @@ struct HeardRecording: Sendable {
     let engine: String
     let milliseconds: Int64
     let parts: [(index: Int, midi: Data)]
+    /// How loud the sound was every 100 ms, which laid the seams between the parts.
+    var levels: [Int] = []
 
-    /// The longest stretch heard, from the start of the recording: 7 minutes.
-    static let most: Int64 = 420_000
-
-    /// The recording was longer than the 7 minutes heard.
-    var cut: Bool { milliseconds >= Self.most }
-
-    /// {"engine", "milliseconds", "parts": [{index, midi}]}, as the facade takes it.
+    /// {"engine", "milliseconds", "levels", "parts": [{index, midi}]}, as the facade takes it: the same levels plan the
+    /// same parts the notes were heard in.
     var request: [String: Any] {
         [
             "engine": engine,
             "milliseconds": milliseconds,
+            "levels": levels,
             "parts": parts.map { ["index": $0.index, "midi": $0.midi.base64EncodedString()] as [String: Any] },
         ]
     }
 }
 
-/// Hearing a recording (0014): its sound read on the iPad, the parts music-core plans sent one after another to the scan
-/// server, and the notes heard in each kept for music-core to join.
+/// Hearing a recording (0014): its sound read on the iPad, however long, the parts music-core plans sent to the scan
+/// server several at once (PartHearing), and the notes heard in each kept for music-core to join.
 @MainActor
 enum RecordingHearing {
     /// The recordings the iPad can read the sound of: audio, and the sound of a video.
@@ -177,33 +208,27 @@ enum RecordingHearing {
     static func hear(_ url: URL, account: Account, text: UIText, progress: (String) -> Void) async -> Result<HeardRecording, RecordingProblem> {
         progress(text["transcribe.decoding"])
         let lent = url.startAccessingSecurityScopedResource()
-        let most = HeardRecording.most
-        let sound = await Task.detached { RecordingSound.read(url, most: most) }.value
+        let sound = await Task.detached { RecordingSound.read(url) }.value
         if lent { url.stopAccessingSecurityScopedResource() }
         guard let sound, sound.milliseconds > 0 else { return .failure(RecordingProblem(text["transcribe.empty"])) }
-        let parts = await RecordingParts.plan(sound.milliseconds)
+        let milliseconds = sound.milliseconds
+        let levels = await Task.detached { sound.levels(from: 0, to: milliseconds) }.value
+        let parts = await RecordingParts.plan(milliseconds, levels: levels)
         guard !parts.isEmpty else { return .failure(RecordingProblem(text["transcribe.failed"])) }
-        var heard: [(index: Int, midi: Data)] = []
-        var engine = "unknown engine"
-        for part in parts {
-            progress(parts.count > 1 ? text.format("transcribe.part", String(part.index + 1), String(parts.count)) : text["transcribe.busy"])
+        let heard = await PartHearing.hear(parts, most: mostAtOnce, send: { part in
             let wav = await Task.detached { sound.wav(from: part.sendFrom, to: part.sendTo) }.value
-            switch await Transcriber.hear(wav, account: account, text: text) {
-            case .notes(let midi, let by):
-                heard.append((part.index, midi))
-                engine = by
-            case .nothing where parts.count > 1:
-                continue
-            case .nothing:
-                return .failure(RecordingProblem(text["transcribe.failed"] + " " + text["transcribe.notHeardTip"]))
-            case .failed(let why):
-                return .failure(RecordingProblem(why))
-            }
-        }
-        guard !heard.isEmpty else { return .failure(RecordingProblem(text["transcribe.failed"] + " " + text["transcribe.notHeardTip"])) }
+            return await Transcriber.hear(wav, account: account, text: text)
+        }, progress: { done, total, retrying in
+            progress(total == 1 ? text["transcribe.busy"] : text.format(retrying ? "transcribe.retrying" : "transcribe.progress", String(done), String(total)))
+        })
+        if let why = heard.failure { return .failure(RecordingProblem(why)) }
+        guard !heard.parts.isEmpty else { return .failure(RecordingProblem(text["transcribe.failed"] + " " + text["transcribe.notHeardTip"])) }
         let name = url.deletingPathExtension().lastPathComponent
-        return .success(HeardRecording(name: name, engine: engine, milliseconds: sound.milliseconds, parts: heard))
+        return .success(HeardRecording(name: name, engine: heard.engine, milliseconds: milliseconds, parts: heard.parts, levels: levels))
     }
+
+    /// How many parts go to Motiff Lab's scan server at most at once, as on the web (ScanService.HostedAtOnce).
+    static let mostAtOnce = 4
 }
 
 struct RecordingProblem: Error, Sendable {
@@ -284,7 +309,7 @@ struct ProTag: View {
 }
 
 /// From a recording, in Other versions (0022; the web app's RecordingVersion): its sound read on the iPad and heard by
-/// Motiff Lab's scan server, up to 7 minutes, in parts of about two minutes; the notes heard become another version. It
+/// Motiff Lab's scan server, however long, in parts of about two minutes; the notes heard become another version. It
 /// needs an account and Pro, offered here, and a switch to let the sound go.
 struct RecordingVersionSection: View {
     @ObservedObject var score: ScoreController
@@ -331,8 +356,11 @@ enum RecordingParts {
         var sendTo: Int64
     }
 
-    static func plan(_ milliseconds: Int64) async -> [Part] {
-        let request = "{\"milliseconds\": \(milliseconds)}"
+    /// The parts of `milliseconds` of sound, the seams at the quietest moment near each even cut when `levels` (every 100 ms)
+    /// are given.
+    static func plan(_ milliseconds: Int64, levels: [Int] = []) async -> [Part] {
+        let fields: [String: Any] = ["milliseconds": milliseconds, "levels": levels]
+        let request = (try? JSONSerialization.data(withJSONObject: fields)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
         let answer = await MusicCore.run { MusicCore.call(piece: 0, "recording.parts", request) }
         return (facadeObject(answer)?["parts"] as? [[String: Any]] ?? []).compactMap { part in
             guard let index = (part["index"] as? NSNumber)?.intValue,
