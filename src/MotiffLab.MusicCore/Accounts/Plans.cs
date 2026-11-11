@@ -3,7 +3,7 @@ namespace MotiffLab.MusicCore.Accounts;
 /// <summary>What a player's account allows (decision record 0018, section 12).</summary>
 public enum Plan
 {
-    /// <summary>Everything that runs on the device. The free tier has no cloud account and sends nothing anywhere.</summary>
+    /// <summary>Everything that runs on the device, and sync within <see cref="Plans.FreeProjectsOnline"/> pieces once the player signs in (0025, section 8).</summary>
     Free,
 
     /// <summary>Also what needs cloud infrastructure or an AI model.</summary>
@@ -19,7 +19,11 @@ public enum ProFeature
     /// <summary>Hearing the notes of a recording on Motiff Lab's server (0014).</summary>
     Transcribe,
 
-    /// <summary>Saving projects online through the Motiff Lab API (0014).</summary>
+    /// <summary>
+    /// Saving projects online through the Motiff Lab API (0014), which syncs them between the devices: free since version
+    /// 0.2 up to <see cref="Plans.FreeProjectsOnline"/> pieces (0025, section 8), so every plan allows it; the name stays,
+    /// as the account's answer lists it.
+    /// </summary>
     SaveOnline,
 
     /// <summary>The assistant (0018, section 7).</summary>
@@ -57,9 +61,18 @@ public static class Plans
     /// <summary>Every feature that needs Pro, in the order the app lists them.</summary>
     public static IReadOnlyList<ProFeature> Features { get; } = [ProFeature.Scan, ProFeature.Transcribe, ProFeature.SaveOnline, ProFeature.Assistant];
 
-    /// <summary>Whether the plan allows the feature: Pro allows every feature, and the free tier none of them.</summary>
+    /// <summary>
+    /// How many pieces a free account keeps online (0025, section 8; Andrei, 2026-11-11): a new piece beyond them stays
+    /// on the device, and the pieces already online keep syncing. Pro has no such limit.
+    /// </summary>
+    public const int FreeProjectsOnline = 300;
+
+    /// <summary>
+    /// Whether the plan allows the feature: Pro allows every feature, and the free tier saving online only (within
+    /// <see cref="FreeProjectsOnline"/>).
+    /// </summary>
     public static bool Allows(Plan plan, ProFeature feature) =>
-        Enum.IsDefined(feature) ? plan == Plan.Pro : throw new ArgumentOutOfRangeException(nameof(feature), feature, "Not a Pro feature.");
+        Enum.IsDefined(feature) ? plan == Plan.Pro || feature == ProFeature.SaveOnline : throw new ArgumentOutOfRangeException(nameof(feature), feature, "Not a Pro feature.");
 
     /// <summary>
     /// The plan in force for a sign-in with these app roles and, for a tester, this choice. A tester without a choice

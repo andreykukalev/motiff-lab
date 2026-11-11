@@ -1,10 +1,11 @@
 import SwiftUI
 
-/// A project the player saved online, as the API lists it (`GET /projects`, decision record 0014): its id and the name
-/// of the file it was opened from.
+/// A project the player saved online, as the API lists it (`GET /projects`, decision record 0014): its id, the name
+/// of the file it was opened from, and when it was saved online, as the API writes it (the sync compares it as it is).
 struct OnlineProject: Identifiable, Equatable, Sendable {
     let id: String
     let fileName: String
+    var savedAt: String?
 
     /// The title the web gives it (Score/ScoreTitle.cs): the file name without the extensions of the files it comes
     /// from, "Für Elise.musicxml" as "Für Elise"; the id when the name is empty.
@@ -31,14 +32,14 @@ struct OnlineProject: Identifiable, Equatable, Sendable {
         guard let rows = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] else { return nil }
         return rows.compactMap { row in
             guard let id = row["id"] as? String, !id.isEmpty else { return nil }
-            return OnlineProject(id: id, fileName: row["fileName"] as? String ?? "")
+            return OnlineProject(id: id, fileName: row["fileName"] as? String ?? "", savedAt: row["savedAt"] as? String)
         }
     }
 }
 
-/// The projects saved online, read on the iPad (#335), a first step of the sync (#324): the library lists those that
-/// are not on this iPad, and a tap downloads one as a new project file, which is then an ordinary project here. Only
-/// `GET` goes to the API, so nothing saved online is ever changed or deleted from the iPad.
+/// The projects saved online, on the iPad: listed, fetched with their ETag and sent with `If-Match` by the sync
+/// (version 0.2, `CloudSync`), and one listed but not here downloaded as a new project file (#335). Nothing saved online
+/// is ever deleted from the iPad.
 struct OnlineProjects {
     /// Why a project did not come, in the web's words (Account/OnlineProjects.cs).
     enum Failure: Error, Equatable {
@@ -70,11 +71,50 @@ struct OnlineProjects {
         online.filter { !here.contains($0.id) }
     }
 
+    /// What the API answered a project sent to it.
+    enum Sent: Equatable, Sendable {
+        /// Saved online; its new ETag.
+        case saved(etag: String?)
+        /// A free account keeps `Plans.FreeProjectsOnline` pieces online and this new one is beyond them (0025 section 8).
+        case overQuota
+        /// Changed on another device since this one saw it (412): the next pass fetches it and keeps both.
+        case changedOnline
+        case failed(Failure)
+    }
+
     /// The project file saved online, its bytes as the API sends them.
     func download(_ id: String) async -> Result<Data, Failure> {
+        await fetch(id).map { $0.data }
+    }
+
+    /// The project file saved online with its ETag.
+    func fetch(_ id: String) async -> Result<(data: Data, etag: String?), Failure> {
+        guard let path = Self.path(of: id) else { return .failure(.notFound) }
+        return await send(path) { _ in }
+            .map { (data: $0.data, etag: $0.response.value(forHTTPHeaderField: "ETag")) }
+            .mapError(Self.failure)
+    }
+
+    /// Sends the copy saved online (`project.online`) as the project's file, over the online copy with `ifMatch` when given.
+    func upload(_ id: String, file: String, ifMatch: String?) async -> Sent {
+        guard let path = Self.path(of: id) else { return .failed(.notFound) }
+        let answer = await send(path) { request in
+            request.httpMethod = "PUT"
+            request.httpBody = Data(file.utf8)
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            if let ifMatch { request.setValue(ifMatch, forHTTPHeaderField: "If-Match") }
+        }
+        switch answer {
+        case .success(let done): return .saved(etag: done.response.value(forHTTPHeaderField: "ETag"))
+        case .failure(.changedOnline): return .changedOnline
+        case .failure(.overQuota): return .overQuota
+        case .failure(.failed(let failure)): return .failed(failure)
+        }
+    }
+
+    private static func path(of id: String) -> String? {
         let allowed = CharacterSet.urlPathAllowed.subtracting(CharacterSet(charactersIn: "/"))
-        guard let escaped = id.addingPercentEncoding(withAllowedCharacters: allowed) else { return .failure(.notFound) }
-        return await get("projects/" + escaped)
+        return id.addingPercentEncoding(withAllowedCharacters: allowed).map { "projects/" + $0 }
     }
 
     /// Downloads the project into the folder as a new project file, named by its title, and gives where it is. The file
@@ -107,18 +147,41 @@ struct OnlineProjects {
     }
 
     private func get(_ path: String) async -> Result<Data, Failure> {
-        guard let made = await request(path) else { return .failure(.signedOut) }
+        await send(path) { _ in }.map { $0.data }.mapError(Self.failure)
+    }
+
+    private static func failure(_ refused: Refused) -> Failure {
+        if case .failed(let failure) = refused { return failure }
+        return .problem
+    }
+
+    /// Why the API refused a request: a Failure, or what a save meets (412, the quota).
+    private enum Refused: Error {
+        case failed(Failure), changedOnline, overQuota
+    }
+
+    private func send(_ path: String, _ shape: (inout URLRequest) -> Void) async -> Result<(data: Data, response: HTTPURLResponse), Refused> {
+        guard var made = await request(path) else { return .failure(.failed(.signedOut)) }
+        shape(&made)
         do {
             let (data, response) = try await session.data(for: made)
-            switch (response as? HTTPURLResponse)?.statusCode ?? 0 {
-            case 200..<300: return .success(data)
-            case 401: return .failure(.signedOut)
-            case 404: return .failure(.notFound)
-            default: return .failure(.problem)
+            guard let response = response as? HTTPURLResponse else { return .failure(.failed(.problem)) }
+            switch response.statusCode {
+            case 200..<300: return .success((data, response))
+            case 401: return .failure(.failed(.signedOut))
+            case 404: return .failure(.failed(.notFound))
+            case 412: return .failure(.changedOnline)
+            case 403 where Self.code(data) == "quota": return .failure(.overQuota)
+            default: return .failure(.failed(.problem))
             }
         } catch {
-            return .failure(.offline)
+            return .failure(.failed(.offline))
         }
+    }
+
+    /// The "code" of the API's problem answer, `{"message": …, "code": "quota"}`.
+    private static func code(_ data: Data) -> String? {
+        ((try? JSONSerialization.jsonObject(with: data)) as? [String: Any])?["code"] as? String
     }
 }
 

@@ -339,6 +339,8 @@ struct AccountPanel: View {
     @ObservedObject var account: Account
     let text: UIText
     @State private var editing = false
+    /// Saving online and sync with the player's other devices (version 0.2): on once signed in, until turned off here.
+    @AppStorage(CloudSync.onKey) private var syncOn = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-4")) {
@@ -365,6 +367,15 @@ struct AccountPanel: View {
                 Button(text["settings.signOut"]) { account.signOut() }
                     .buttonStyle(DSButtonStyle(kind: .danger, compact: true))
                 plan
+                VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
+                    Toggle(text["settings.saveOnline"], isOn: $syncOn)
+                        .dsType(.label)
+                        .foregroundStyle(Color.ds("ink"))
+                        .tint(Color.ds("accent"))
+                    Text(syncOn ? text.format("settings.onlineOn", String(CloudSync.freeProjectsOnline)) : text["settings.onlineOff"])
+                        .dsType(.caption)
+                        .foregroundStyle(Color.ds("ink-2"))
+                }
             } else {
                 Text(text["settings.accountTitle"]).dsType(.label).foregroundStyle(Color.ds("ink"))
                 Text(text["settings.accountWhy"]).dsType(.caption).foregroundStyle(Color.ds("ink-2"))

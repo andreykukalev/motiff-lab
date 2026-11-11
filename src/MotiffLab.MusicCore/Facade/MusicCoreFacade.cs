@@ -26,7 +26,10 @@ public sealed class MusicCoreFacade
     /// ("player", "file" or "fileName"), "composer" and "composerFrom" ("player" or "file", or null) and "tags";
     /// project.metadata sets them on an open piece or PDF piece, and on piece 0 in a project file sent as "file", answering
     /// that file changed. Within 12, the summary gained "playlists", the playlists the piece is on by name, and
-    /// project.metadata takes them as it takes "tags", a field added.
+    /// project.metadata takes them as it takes "tags", a field added. Also within 12, four calls on piece 0 sync projects
+    /// (version 0.2, <see cref="ProjectSync"/>), each with project files as text: project.online (the copy saved online),
+    /// project.sync (the next step), project.pulled (an online copy kept with this device's PDF) and project.resolve (two
+    /// changed copies: the last saved kept, the other beside as a previous copy), calls added.
     /// 11 lets doubt about recognised notes reach what is read from them (#352, 0027 section 12), adding fields only: a
     /// chord, a fact and a DNA chord or key built on recognised notes still to check (in a bar with an open Check flag)
     /// tell "doubt", a sentence that says where, and the chord's "certainty" and the DNA chord's "clear" say uncertain;
@@ -160,6 +163,10 @@ public sealed class MusicCoreFacade
                     "settings.state" => OpenPiece.SettingsState(fields),
                     "project.summary" => ProjectSummary(fields),
                     "project.metadata" => ProjectMetadata(fields),
+                    "project.online" => SyncRequest.Online(fields),
+                    "project.sync" => SyncRequest.Next(fields),
+                    "project.pulled" => SyncRequest.Pulled(fields),
+                    "project.resolve" => SyncRequest.Resolve(fields),
                     "recording.parts" => RecordingPartsOf(fields),
                     _ when Count == 0 && IsPieceCall(name) => throw new FacadeException("noPiece", "Open a piece first."),
                     _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\" without a piece."),

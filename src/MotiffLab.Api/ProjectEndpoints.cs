@@ -9,8 +9,9 @@ namespace MotiffLab.Api;
 /// <summary>
 /// The player's projects: list, read, save and delete one, and delete everything (the right to erasure).
 /// A project travels as its project file (<see cref="ProjectFile"/>), the same bytes the app autosaves and exports.
-/// Saving needs Pro (0018, section 12); reading, listing and deleting do not, so a player who leaves Pro can still take
-/// their projects home and erase them.
+/// Saving is free since version 0.2 (0025, section 8): a free account keeps up to <see cref="Plans.FreeProjectsOnline"/>
+/// pieces online, and a new piece beyond them is refused with the code "quota" and stays on the device; the pieces already
+/// online keep syncing. Pro has no such limit. Reading, listing and deleting are on every plan.
 /// </summary>
 internal static partial class ProjectEndpoints
 {
@@ -45,9 +46,9 @@ internal static partial class ProjectEndpoints
                 return Problem(StatusCodes.Status400BadRequest, "A project id has letters, digits, - and _ only.");
             }
 
-            if (!Player.Plan(http).Allows(ProFeature.SaveOnline))
+            if (Player.Plan(http).Plan != Plan.Pro && await IsBeyondFreeAsync(store, Player.Id(http.User), id, cancel))
             {
-                return Problem(StatusCodes.Status403Forbidden, "Saving online is part of Pro.", "pro");
+                return Problem(StatusCodes.Status403Forbidden, $"A free account keeps {Plans.FreeProjectsOnline} pieces online; this one stays on the device.", "quota");
             }
 
             byte[]? file = await ReadBodyAsync(http.Request, cancel);
@@ -99,6 +100,13 @@ internal static partial class ProjectEndpoints
         app.MapDelete("/me", async (HttpContext http, IProjectStore store, CancellationToken cancel) =>
             Results.Ok(new { deletedProjects = await store.DeleteAllAsync(Player.Id(http.User), cancel) }))
             .RequireAuthorization(Player.Policy);
+    }
+
+    /// <summary>True when the project is new online and the player already keeps <see cref="Plans.FreeProjectsOnline"/> pieces there.</summary>
+    private static async Task<bool> IsBeyondFreeAsync(IProjectStore store, string ownerId, string id, CancellationToken cancel)
+    {
+        IReadOnlyList<StoredSummary> kept = await store.ListAsync(ownerId, cancel);
+        return kept.Count >= Plans.FreeProjectsOnline && !kept.Any(summary => summary.Id == id);
     }
 
     /// <summary>The project file, gzipped and in base64, so a typical score fits one document.</summary>
