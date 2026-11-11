@@ -1,41 +1,5 @@
 import SwiftUI
 
-/// The last card on the shelf (ds.css `.card.add`): the ways in, and the demo piece.
-struct AddCard: View {
-    let text: UIText
-    let add: () -> Void
-
-    var body: some View {
-        Button(action: add) {
-            VStack(spacing: CGFloat.ds("s-3")) {
-                Icon(name: "plus", size: CGFloat.ds("icon-l"))
-                    .foregroundStyle(Color.ds("accent"))
-                    .frame(width: 56, height: 56)
-                    .background(Color.ds("accent-tint"), in: Circle())
-                Text(text["library.addAPiece"])
-                    .dsType(.heading)
-                    .foregroundStyle(Color.ds("ink"))
-                Text(text["library.openFileHintHere"])
-                    .dsType(.label)
-                    .foregroundStyle(Color.ds("ink-2"))
-                    .multilineTextAlignment(.center)
-                Text(text["library.tryDemo"])
-                    .dsType(.label)
-                    .foregroundStyle(Color.ds("ink-2"))
-            }
-            .padding(CGFloat.ds("s-6"))
-            .frame(maxWidth: .infinity, minHeight: 280)
-            .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
-            .overlay(
-                RoundedRectangle(cornerRadius: CGFloat.ds("r-m"))
-                    .strokeBorder(Color.ds("hairline-strong"), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
-            )
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(text["library.addAPiece"])
-    }
-}
-
 /// Add piece (0018 section 9): opening a file runs on the device and is free. Scanning a page and hearing a recording come
 /// to the iPad in a later step; until then they are on the web app.
 struct AddPieceSheet: View {

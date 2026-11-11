@@ -1,19 +1,36 @@
 import Foundation
 
-/// How the library orders its pieces: the one opened last first (the default), by title, or by composer.
+/// How the list of pieces is ordered: by title (the default), by composer, or the one opened last first.
 enum LibrarySort: String, CaseIterable, Sendable {
     case recent, title, composer
 }
 
-/// The shelf as cards, or as a compact list of one line a piece.
-enum LibraryLayout: String, CaseIterable, Sendable {
-    case cards, list
+/// The library's tabs (design: ux-prototype/v2/screens/lib-1-list.png, lib-3-sessions.png): every piece as a list, the
+/// composers with their pieces, the ones opened last, and the sessions of current work as cards (playlists come between
+/// Recent and Sessions).
+enum LibraryTab: String, CaseIterable, Sendable {
+    case all, composers, recent, sessions
 }
 
-/// What the library is narrowed to: words to find in a title, composer or tag, and one composer and one tag.
+/// A line of the Composers tab: a composer and how many pieces of theirs the library holds; nil for the pieces without one.
+struct ComposerRow: Identifiable, Equatable, Sendable {
+    let name: String?
+    let count: Int
+
+    var id: String { name ?? "" }
+
+    /// The first letter of the name, folded and in capitals, for the index at the list's edge.
+    var initial: String {
+        name.flatMap { LibraryShelf.fold($0).first }.map { String($0).uppercased() } ?? ""
+    }
+}
+
+/// What the library is narrowed to: words to find in a title, composer or tag, and one composer and one tag; and the order
+/// of the list, by the column chosen, either way.
 struct LibraryQuery: Equatable, Sendable {
     var search = ""
-    var sort = LibrarySort.recent
+    var sort = LibrarySort.title
+    var ascending = true
     var composer: String?
     var tag: String?
 
@@ -23,7 +40,16 @@ struct LibraryQuery: Equatable, Sendable {
 
     /// Search and filters cleared; the order stays.
     var cleared: LibraryQuery {
-        LibraryQuery(sort: sort)
+        LibraryQuery(sort: sort, ascending: ascending)
+    }
+
+    /// Ordered by this column: the same column again turns the order round, another one starts its natural way (titles
+    /// and composers from A, the last opened first).
+    func sorted(by column: LibrarySort) -> LibraryQuery {
+        var next = self
+        next.ascending = column == sort ? !ascending : true
+        next.sort = column
+        return next
     }
 }
 
@@ -35,18 +61,64 @@ struct LibraryEntry: Identifiable, Equatable, Sendable {
     let tags: [String]
     /// When the project file was last saved: the order of "recently opened".
     let modified: Date
+    /// Whether there is work on it to come back to: a session (a resume point), or a PDF read as it is.
+    let inSession: Bool
     /// The title, composer and tags in one folded text, for search.
     let folded: String
 
     var id: URL { url }
 
-    init(url: URL, title: String, composer: String?, tags: [String], modified: Date) {
+    init(url: URL, title: String, composer: String?, tags: [String], modified: Date, inSession: Bool = false) {
         self.url = url
         self.title = title
         self.composer = composer
         self.tags = tags
         self.modified = modified
+        self.inSession = inSession
         folded = LibraryShelf.fold(([title, composer ?? ""] + tags).joined(separator: "\n"))
+    }
+
+    /// The first letter of the title, folded and in capitals, for the index at the list's edge ("É" files under "E").
+    var initial: String {
+        LibraryShelf.fold(title).first.map { String($0).uppercased() } ?? ""
+    }
+}
+
+/// What one tab of the library shows: its pieces, searched, filtered and ordered as asked, or on the Composers tab the
+/// composers until one is picked; and whether the index at the list's edge leads into it (a list ordered from A).
+struct LibraryPage: Equatable, Sendable {
+    let pieces: [LibraryEntry]
+    /// The composers' lines, on the Composers tab before one is picked; nil otherwise.
+    let composers: [ComposerRow]?
+    let indexed: Bool
+
+    static func of(_ entries: [LibraryEntry], _ query: LibraryQuery, tab: LibraryTab, picked: ComposerRow?, locale: Locale) -> LibraryPage {
+        let fromA = query.sort == .title && query.ascending
+        switch tab {
+        case .all, .recent:
+            return LibraryPage(pieces: LibraryShelf.apply(LibraryShelf.pieces(of: tab, entries), query, locale: locale), composers: nil, indexed: fromA)
+        case .composers:
+            // The composer is picked here, not by the filter; search still narrows.
+            let searched = LibraryShelf.apply(entries, LibraryQuery(search: query.search, sort: query.sort, ascending: query.ascending), locale: locale)
+            if let picked {
+                return LibraryPage(pieces: LibraryShelf.pieces(by: picked.name, searched), composers: nil, indexed: fromA)
+            }
+            return LibraryPage(pieces: [], composers: LibraryShelf.composerRows(searched, locale: locale), indexed: true)
+        case .sessions:
+            let sessions = LibraryShelf.pieces(of: .sessions, entries)
+            return LibraryPage(pieces: LibraryShelf.apply(sessions, LibraryQuery(search: query.search, sort: .recent), locale: locale), composers: nil, indexed: false)
+        }
+    }
+
+    var isEmpty: Bool { composers?.isEmpty ?? pieces.isEmpty }
+
+    /// Each line's initial, in the order shown, for the index.
+    var initials: [String] { composers?.map(\.initial) ?? pieces.map(\.initial) }
+
+    /// The id of the line at a place in the list, to bring it into view.
+    func id(at index: Int) -> AnyHashable {
+        if let composers { return AnyHashable(composers[index].id) }
+        return AnyHashable(pieces[index].id)
     }
 }
 
@@ -54,19 +126,56 @@ struct LibraryEntry: Identifiable, Equatable, Sendable {
 /// pure functions over the cards, so the shelf narrows as the player types without reading a project file again. Search
 /// ignores letter case and accents ("fur elise" finds "Für Elise", "ежи" finds "Ёжик", and "и" finds "й").
 enum LibraryShelf {
-    /// A shelf longer than this opens as a list until the player picks a view.
-    static let listFrom = 12
+    /// How many pieces Recent lists, the last opened first.
+    static let recentCount = 20
+
+    /// The latin capitals of the index at the list's edge; Cyrillic ones follow when a title starts with one.
+    static let latin = (UInt8(ascii: "A")...UInt8(ascii: "Z")).map { String(UnicodeScalar($0)) }
+    static let cyrillic = "АБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЩЭЮЯ".map(String.init)
+
+    /// The pieces of a tab: all of them, the last opened, or those with a session, before search, filters and order.
+    static func pieces(of tab: LibraryTab, _ entries: [LibraryEntry]) -> [LibraryEntry] {
+        switch tab {
+        case .all: entries
+        case .recent: Array(entries.sorted { $0.modified > $1.modified }.prefix(recentCount))
+        case .composers: entries
+        case .sessions: entries.filter(\.inSession).sorted { $0.modified > $1.modified }
+        }
+    }
+
+    /// The composers of the pieces given, in the language's order, each once whatever its letter case and with how many
+    /// pieces; the pieces without a composer under one line at the end.
+    static func composerRows(_ entries: [LibraryEntry], locale: Locale) -> [ComposerRow] {
+        let named = composers(entries, locale: locale).map { name in
+            ComposerRow(name: name, count: entries.filter { same($0.composer, name) }.count)
+        }
+        let without = entries.filter { $0.composer == nil }.count
+        return named + (without > 0 ? [ComposerRow(name: nil, count: without)] : [])
+    }
+
+    /// The pieces of one line of the Composers tab: the composer's, whatever the letter case, or those without one.
+    static func pieces(by composer: String?, _ entries: [LibraryEntry]) -> [LibraryEntry] {
+        entries.filter { entry in composer.map { same(entry.composer, $0) } ?? (entry.composer == nil) }
+    }
 
     static func apply(_ entries: [LibraryEntry], _ query: LibraryQuery, locale: Locale) -> [LibraryEntry] {
+        let ordered = order(filter(entries, query), query.sort, locale: locale)
+        return query.ascending ? ordered : ordered.reversed()
+    }
+
+    private static func filter(_ entries: [LibraryEntry], _ query: LibraryQuery) -> [LibraryEntry] {
         let words = fold(query.search).split(whereSeparator: \.isWhitespace).map(String.init)
-        let found = entries.filter { entry in
+        return entries.filter { entry in
             words.allSatisfy { entry.folded.contains($0) }
                 && (query.composer.map { same(entry.composer, $0) } ?? true)
                 && (query.tag.map { tag in entry.tags.contains { same($0, tag) } } ?? true)
         }
-        switch query.sort {
+    }
+
+    private static func order(_ found: [LibraryEntry], _ sort: LibrarySort, locale: Locale) -> [LibraryEntry] {
+        switch sort {
         case .recent:
-            return found
+            return found.sorted { $0.modified > $1.modified }
         case .title:
             return found.sorted { before($0, $1, locale: locale) }
         case .composer:
@@ -103,9 +212,24 @@ enum LibraryShelf {
         return kept
     }
 
-    /// Cards or the list: the player's pick, else a list for a shelf longer than `listFrom`.
-    static func layout(chosen: LibraryLayout?, count: Int) -> LibraryLayout {
-        chosen ?? (count > listFrom ? .list : .cards)
+    /// The letters of the index at the list's edge: A to Z, and the Cyrillic capitals when a line starts with one.
+    static func indexLetters(_ initials: [String]) -> [String] {
+        latin + (initials.contains { cyrillic.contains($0) } ? cyrillic : [])
+    }
+
+    /// Where a letter of the index leads in a list ordered from A, given each line's initial: the first line filed under
+    /// it, else the first after it, else the last line; nil for an empty list.
+    static func target(_ letter: String, in initials: [String], locale: Locale) -> Int? {
+        let found = initials.firstIndex { initial in
+            initial == letter || compare(initial, letter, locale: locale) == .orderedDescending
+        }
+        return found ?? (initials.isEmpty ? nil : initials.count - 1)
+    }
+
+    /// The composers in the library that hold what is typed, to pick instead of typing on; none once one is typed whole.
+    static func composerSuggestions(_ typed: String, _ composers: [String]) -> [String] {
+        guard let wanted = clean(typed).map(fold), !composers.contains(where: { fold($0) == wanted }) else { return [] }
+        return Array(composers.filter { fold($0).contains(wanted) }.prefix(5))
     }
 
     /// Lower case without accents: "Für Élise" is "fur elise", "Ёлка" is "елка", "й" is "и".

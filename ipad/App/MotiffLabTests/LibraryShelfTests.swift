@@ -4,21 +4,23 @@ import XCTest
 /// The library's search, filters and order (version 0.2), held to the web app's rules (src/MotiffLab.Web/Projects/
 /// LibraryShelf.cs and tests/e2e/library.spec.mjs): letter case and accents do not matter, every word searched must be
 /// found, one composer and one tag filter whatever their case, the title and composer orders follow the language, and
-/// tags are cleaned and kept once as music-core keeps them.
+/// tags are cleaned and kept once as music-core keeps them. The tabs, the index at the list's edge and the composers
+/// offered while typing follow the approved library screens (ux-prototype/v2, lib-1 and lib-4).
 final class LibraryShelfTests: XCTestCase {
     private let english = Locale(identifier: "en")
 
-    private func entry(_ title: String, _ composer: String? = nil, _ tags: [String] = []) -> LibraryEntry {
-        LibraryEntry(url: URL(fileURLWithPath: "/pieces/\(title).motiff.json"), title: title, composer: composer, tags: tags, modified: .distantPast)
+    private func entry(_ title: String, _ composer: String? = nil, _ tags: [String] = [], opened: Double = 0, session: Bool = false) -> LibraryEntry {
+        LibraryEntry(url: URL(fileURLWithPath: "/pieces/\(title).motiff.json"), title: title, composer: composer, tags: tags,
+                     modified: Date(timeIntervalSince1970: opened), inSession: session)
     }
 
     private var shelf: [LibraryEntry] {
         [
-            entry("Waltz sketch", nil, ["Exam"]),
-            entry("Für Elise, opening", "Ludwig van Beethoven"),
-            entry("Ode to Joy, theme", "Ludwig van Beethoven", ["exam"]),
-            entry("Ёжик в тумане", "Норштейн"),
-            entry("Йога"),
+            entry("Waltz sketch", nil, ["Exam"], opened: 5, session: true),
+            entry("Für Elise, opening", "Ludwig van Beethoven", opened: 3),
+            entry("Ode to Joy, theme", "Ludwig van Beethoven", ["exam"], opened: 9, session: true),
+            entry("Ёжик в тумане", "Норштейн", opened: 1),
+            entry("Йога", opened: 2),
         ]
     }
 
@@ -36,7 +38,7 @@ final class LibraryShelfTests: XCTestCase {
 
     func testEveryWordIsFoundInTheTitleComposerOrTags() {
         XCTAssertEqual(titles(LibraryQuery(search: "beethoven ode")), ["Ode to Joy, theme"])
-        XCTAssertEqual(titles(LibraryQuery(search: "exam")), ["Waltz sketch", "Ode to Joy, theme"])
+        XCTAssertEqual(titles(LibraryQuery(search: "exam")), ["Ode to Joy, theme", "Waltz sketch"])
         XCTAssertEqual(titles(LibraryQuery(search: "nothing like this")), [])
         XCTAssertFalse(LibraryQuery(search: "   ").narrows)
         XCTAssertTrue(LibraryQuery(tag: "Exam").narrows)
@@ -44,15 +46,75 @@ final class LibraryShelfTests: XCTestCase {
 
     func testOneComposerAndOneTagFilterWhateverTheirCase() {
         XCTAssertEqual(titles(LibraryQuery(composer: "ludwig van beethoven")), ["Für Elise, opening", "Ode to Joy, theme"])
-        XCTAssertEqual(titles(LibraryQuery(tag: "EXAM")), ["Waltz sketch", "Ode to Joy, theme"])
+        XCTAssertEqual(titles(LibraryQuery(tag: "EXAM")), ["Ode to Joy, theme", "Waltz sketch"])
         XCTAssertEqual(titles(LibraryQuery(composer: "Ludwig van Beethoven", tag: "Exam")), ["Ode to Joy, theme"])
-        XCTAssertEqual(LibraryQuery(search: "x", sort: .title, composer: "A", tag: "B").cleared, LibraryQuery(sort: .title))
+        XCTAssertEqual(LibraryQuery(search: "x", sort: .composer, composer: "A", tag: "B").cleared, LibraryQuery(sort: .composer))
     }
 
-    func testOrdersByTitleAndByComposerWithPiecesWithoutOneLast() {
-        XCTAssertEqual(titles(LibraryQuery()), shelf.map(\.title))
-        XCTAssertEqual(titles(LibraryQuery(sort: .title)), ["Für Elise, opening", "Ode to Joy, theme", "Waltz sketch", "Ёжик в тумане", "Йога"])
+    func testTheListIsOrderedByTheColumnChosenEitherWay() {
+        let byTitle = ["Für Elise, opening", "Ode to Joy, theme", "Waltz sketch", "Ёжик в тумане", "Йога"]
+        XCTAssertEqual(titles(LibraryQuery()), byTitle)
+        XCTAssertEqual(titles(LibraryQuery().sorted(by: .title)), byTitle.reversed())
         XCTAssertEqual(titles(LibraryQuery(sort: .composer)), ["Für Elise, opening", "Ode to Joy, theme", "Ёжик в тумане", "Waltz sketch", "Йога"])
+        XCTAssertEqual(titles(LibraryQuery(sort: .recent)), ["Ode to Joy, theme", "Waltz sketch", "Für Elise, opening", "Йога", "Ёжик в тумане"])
+        XCTAssertEqual(LibraryQuery(sort: .title, ascending: false).sorted(by: .recent), LibraryQuery(sort: .recent))
+    }
+
+    func testRecentListsTheLastOpenedAndSessionsThePiecesWithWork() {
+        XCTAssertEqual(LibraryShelf.pieces(of: .recent, shelf).map(\.title), ["Ode to Joy, theme", "Waltz sketch", "Für Elise, opening", "Йога", "Ёжик в тумане"])
+        let many = (0..<30).map { entry("Piece \($0)", opened: Double($0)) }
+        XCTAssertEqual(LibraryShelf.pieces(of: .recent, many).count, LibraryShelf.recentCount)
+        XCTAssertEqual(LibraryShelf.pieces(of: .sessions, shelf).map(\.title), ["Ode to Joy, theme", "Waltz sketch"])
+        XCTAssertEqual(LibraryShelf.pieces(of: .all, shelf), shelf)
+    }
+
+    func testTheIndexLeadsToTheFirstTitleUnderOrAfterItsLetter() {
+        let byTitle = LibraryShelf.apply(shelf + [entry("Élégie")], LibraryQuery(), locale: english)
+        let initials = byTitle.map(\.initial)
+        XCTAssertEqual(initials, ["E", "F", "O", "W", "Е", "И"])
+        XCTAssertEqual(LibraryShelf.indexLetters(initials).first, "A")
+        XCTAssertTrue(LibraryShelf.indexLetters(initials).contains("И"))
+        XCTAssertFalse(LibraryShelf.indexLetters(initials).contains("Й"))
+        XCTAssertEqual(LibraryShelf.indexLetters(["A"]).count, 26)
+        XCTAssertEqual(LibraryShelf.target("E", in: initials, locale: english), 0)
+        XCTAssertEqual(LibraryShelf.target("P", in: initials, locale: english), 3)
+        XCTAssertEqual(LibraryShelf.target("И", in: initials, locale: english), 5)
+        XCTAssertNil(LibraryShelf.target("A", in: [], locale: english))
+    }
+
+    func testTheComposersTabCountsEachComposersPiecesAndThoseWithoutOneLast() {
+        let rows = LibraryShelf.composerRows(shelf + [entry("Moonlight", "ludwig van beethoven")], locale: english)
+        XCTAssertEqual(rows, [
+            ComposerRow(name: "Ludwig van Beethoven", count: 3),
+            ComposerRow(name: "Норштейн", count: 1),
+            ComposerRow(name: nil, count: 2),
+        ])
+        XCTAssertEqual(rows.map(\.initial), ["L", "Н", ""])
+        XCTAssertEqual(LibraryShelf.pieces(by: "LUDWIG VAN BEETHOVEN", shelf).map(\.title), ["Für Elise, opening", "Ode to Joy, theme"])
+        XCTAssertEqual(LibraryShelf.pieces(by: nil, shelf).map(\.title), ["Waltz sketch", "Йога"])
+    }
+
+    func testEachTabShowsItsPiecesOrTheComposersUntilOneIsPicked() {
+        let all = LibraryPage.of(shelf, LibraryQuery(), tab: .all, picked: nil, locale: english)
+        XCTAssertEqual(all.pieces.map(\.title), ["Für Elise, opening", "Ode to Joy, theme", "Waltz sketch", "Ёжик в тумане", "Йога"])
+        XCTAssertTrue(all.indexed)
+        XCTAssertFalse(LibraryPage.of(shelf, LibraryQuery(sort: .recent), tab: .recent, picked: nil, locale: english).indexed)
+        let composers = LibraryPage.of(shelf, LibraryQuery(composer: "Норштейн"), tab: .composers, picked: nil, locale: english)
+        XCTAssertEqual(composers.composers?.map(\.count), [2, 1, 2])
+        XCTAssertEqual(composers.initials, ["L", "Н", ""])
+        XCTAssertEqual(composers.id(at: 2), AnyHashable(""))
+        let picked = LibraryPage.of(shelf, LibraryQuery(search: "ode"), tab: .composers, picked: ComposerRow(name: "Ludwig van Beethoven", count: 2), locale: english)
+        XCTAssertEqual(picked.pieces.map(\.title), ["Ode to Joy, theme"])
+        XCTAssertNil(picked.composers)
+        let sessions = LibraryPage.of(shelf, LibraryQuery(tag: "nothing"), tab: .sessions, picked: nil, locale: english)
+        XCTAssertEqual(sessions.pieces.map(\.title), ["Ode to Joy, theme", "Waltz sketch"])
+        XCTAssertTrue(LibraryPage.of([], LibraryQuery(), tab: .composers, picked: nil, locale: english).isEmpty)
+    }
+
+    func testComposersInTheLibraryAreOfferedWhileTyping() {
+        XCTAssertEqual(LibraryShelf.composerSuggestions("bee", ["Bach", "Ludwig van Beethoven"]), ["Ludwig van Beethoven"])
+        XCTAssertEqual(LibraryShelf.composerSuggestions("BACH", ["Bach"]), [])
+        XCTAssertEqual(LibraryShelf.composerSuggestions(" ", ["Bach"]), [])
     }
 
     func testTheShelfsComposersAndTagsAreListedOnce() {
@@ -70,12 +132,6 @@ final class LibraryShelfTests: XCTestCase {
         XCTAssertEqual(LibraryShelf.adding("  ", to: ["Exam"]), ["Exam"])
         XCTAssertEqual(LibraryShelf.suggestions(["Exam", "Waltzes", "Scales"], excluding: ["exam"], typed: "al"), ["Waltzes", "Scales"])
         XCTAssertEqual(LibraryShelf.suggestions(["Exam", "Waltzes"], excluding: [], typed: ""), ["Exam", "Waltzes"])
-    }
-
-    func testALongShelfOpensAsAListUntilThePlayerPicks() {
-        XCTAssertEqual(LibraryShelf.layout(chosen: nil, count: 12), .cards)
-        XCTAssertEqual(LibraryShelf.layout(chosen: nil, count: 13), .list)
-        XCTAssertEqual(LibraryShelf.layout(chosen: .cards, count: 200), .cards)
     }
 }
 

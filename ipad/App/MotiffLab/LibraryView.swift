@@ -1,13 +1,14 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The library (0018 section 9, design/kit/screens/s1_library.png): the screen outside the piece, a shelf of cards, each
-/// resumed with one tap. The pieces are project files in the app's Documents (0019 section 2.3); what a card says comes
-/// from music-core (`project.summary`) without opening the piece. One Add piece action holds the ways in; the overflow
-/// imports a project file. Everything here runs on the device and is free; signed in, the projects saved online that are
-/// not on this iPad are listed under them, to download (0014, #335). For a couple of hundred pieces (version 0.2) the shelf
-/// is searched, ordered and filtered by composer and tag, shows as cards or a compact list, and each piece's title,
-/// composer and tags are edited from its ⋯.
+/// The library (version 0.2, Andrei's approved screens ux-prototype/v2/screens/lib-1-list.png, lib-3-sessions.png and
+/// lib-4-props.png): the screen outside the piece and the way into one, as short as it can be: find a piece and start.
+/// The pieces are a list with Title, Composer and Opened columns and an index at the edge, searched, filtered by composer
+/// and tag, and in tabs: All pieces, Composers, Recent, and Sessions, the cards of current work, each resumed with one tap.
+/// A piece's properties (title, composer, tags) are edited from a long press. The pieces are project files in the app's
+/// Documents (0019 section 2.3), read by music-core (`project.summary`) without opening them. One Add piece action holds
+/// the ways in; the overflow imports a project file. Everything here runs on the device and is free; signed in, the
+/// projects saved online that are not on this iPad are listed under them, to download (0014, #335).
 struct LibraryView: View {
     private let text = UIText.current
     @EnvironmentObject private var account: Account
@@ -21,13 +22,15 @@ struct LibraryView: View {
     @State private var summaries: [URL: PieceSummary] = [:]
     /// The projects saved online that are not on this iPad (#335); none while signed out or offline.
     @State private var online: [OnlineProject] = []
-    /// The cards made from the project files and their summaries, with the shelf's composers and tags (version 0.2).
+    /// The pieces made from the project files and their summaries, with the library's composers and tags (version 0.2).
     @State private var entries: [LibraryEntry] = []
     @State private var composers: [String] = []
     @State private var tags: [String] = []
     @State private var query = LibraryQuery()
-    /// Cards or the list as the player picked, kept on the device; empty until they pick.
-    @AppStorage("library.view") private var chosenLayout = ""
+    /// The tab shown last, kept on the device.
+    @AppStorage("library.tab") private var tab = LibraryTab.all
+    /// The composer picked on the Composers tab.
+    @State private var picked: ComposerRow?
     @State private var editing: LibraryEntry?
 
     /// The shelf's columns, for the projects here and those saved online.
@@ -45,31 +48,47 @@ struct LibraryView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: CGFloat.ds("s-6")) {
-                    header
-                    if let problem {
-                        Text(problem)
-                            .dsType(.label)
-                            .foregroundStyle(Color.ds("danger"))
-                            .accessibilityAddTraits(.isStaticText)
+            let page = LibraryPage.of(entries, query, tab: tab, picked: picked, locale: Locale(identifier: text.language))
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: CGFloat.ds("s-6")) {
+                        header
+                        if let problem {
+                            Text(problem)
+                                .dsType(.label)
+                                .foregroundStyle(Color.ds("danger"))
+                                .accessibilityAddTraits(.isStaticText)
+                        }
+                        if projects.isEmpty {
+                            Text(text["home.emptyWhat"])
+                                .dsType(.body)
+                                .foregroundStyle(Color.ds("ink-2"))
+                                .frame(maxWidth: 560, alignment: .leading)
+                        } else {
+                            LibraryShelfView(page: page, summaries: summaries, composers: composers, tags: tags, tab: $tab, query: $query, picked: $picked, text: text) { url in
+                                Task { await openProject(url) }
+                            } edit: { entry in
+                                editing = entry
+                            } delete: { url in
+                                delete(url)
+                            }
+                        }
+                        if !online.isEmpty {
+                            OnlineShelf(text: text, projects: online) { project in Task { await getHere(project) } }
+                        }
                     }
-                    if projects.isEmpty {
-                        Text(text["home.emptyWhat"])
-                            .dsType(.body)
-                            .foregroundStyle(Color.ds("ink-2"))
-                            .frame(maxWidth: 560, alignment: .leading)
-                    }
-                    Text(text["home.projects"])
-                        .overline()
-                        .accessibilityAddTraits(.isHeader)
-                    shelf
-                    if !online.isEmpty {
-                        OnlineShelf(text: text, projects: online) { project in Task { await getHere(project) } }
+                    .padding(.horizontal, CGFloat.ds("s-12"))
+                    .padding(.vertical, CGFloat.ds("s-10"))
+                }
+                .overlay(alignment: .trailing) {
+                    if page.indexed && !page.isEmpty {
+                        LibraryIndex(letters: LibraryShelf.indexLetters(page.initials), text: text) { letter in
+                            guard let at = LibraryShelf.target(letter, in: page.initials, locale: Locale(identifier: text.language)) else { return }
+                            proxy.scrollTo(page.id(at: at), anchor: .top)
+                        }
+                        .padding(.trailing, CGFloat.ds("s-2"))
                     }
                 }
-                .padding(.horizontal, CGFloat.ds("s-12"))
-                .padding(.vertical, CGFloat.ds("s-10"))
             }
             .background(Color.ds("desk").ignoresSafeArea())
             .disabled(opening)
@@ -77,7 +96,7 @@ struct LibraryView: View {
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $settings) { SettingsSheet(settings: DeviceSettings.shared, account: account, text: text) }
             .sheet(item: $editing) { entry in
-                PieceEditSheet(entry: entry, summary: summaries[entry.url], libraryTags: tags, text: text) {
+                PiecePropertiesSheet(entry: entry, summary: summaries[entry.url], composers: composers, libraryTags: tags, text: text) {
                     await reload()
                 }
             }
@@ -123,22 +142,27 @@ struct LibraryView: View {
             }
             // Signed in or out: the projects saved online come or go.
             .onChange(of: account.player) { _, _ in Task { await refreshOnline() } }
+            // Recent lists the last opened first; the other lists start from A.
+            .onChange(of: tab) { _, shown in
+                picked = nil
+                query.sort = shown == .recent ? .recent : .title
+                query.ascending = true
+            }
         }
     }
 
-    /// The wordmark and tagline, Add piece, the overflow and the account.
+    /// The library's name, the search, Add piece, the overflow and the account (lib-1).
     private var header: some View {
         HStack(alignment: .center, spacing: CGFloat.ds("s-4")) {
-            HStack(alignment: .firstTextBaseline, spacing: CGFloat.ds("s-4")) {
-                Text("Motiff Lab")
-                    .dsType(.display)
-                    .foregroundStyle(Color.ds("ink"))
-                    .accessibilityAddTraits(.isHeader)
-                Text(text["home.tagline"])
-                    .font(DesignTokens.font(display: true, weight: 400, size: 17).italic())
-                    .foregroundStyle(Color.ds("ink-2"))
-            }
+            Text(text["library.title"])
+                .dsType(.display)
+                .foregroundStyle(Color.ds("ink"))
+                .fixedSize()
+                .accessibilityAddTraits(.isHeader)
             Spacer(minLength: CGFloat.ds("s-4"))
+            if !projects.isEmpty {
+                LibrarySearchField(search: $query.search, text: text)
+            }
             Button {
                 adding = true
             } label: {
@@ -179,64 +203,6 @@ struct LibraryView: View {
         }
     }
 
-    /// Cards or the list: the player's pick, else a list for a long shelf.
-    private var layout: LibraryLayout {
-        LibraryShelf.layout(chosen: LibraryLayout(rawValue: chosenLayout), count: entries.count)
-    }
-
-    /// The search, order, view and filters, then the pieces as cards or as lines of a list, or a way back to all of them
-    /// when none matches.
-    @ViewBuilder
-    private var shelf: some View {
-        let shown = LibraryShelf.apply(entries, query, locale: Locale(identifier: text.language))
-        if !entries.isEmpty {
-            LibraryTools(query: $query, layout: layout, composers: composers, tags: tags, shown: shown.count, total: entries.count, text: text) {
-                chosenLayout = $0.rawValue
-            }
-        }
-        if query.narrows && shown.isEmpty {
-            VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
-                Text(text["library.noneMatch"])
-                    .dsType(.body)
-                    .foregroundStyle(Color.ds("ink-2"))
-                Button(text["library.clearFilters"]) { query = query.cleared }
-                    .buttonStyle(DSButtonStyle(kind: .secondary))
-            }
-        } else if layout == .list && !entries.isEmpty {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                ForEach(shown) { entry in
-                    LibraryRow(entry: entry, summary: summaries[entry.url], text: text) {
-                        Task { await openProject(entry.url) }
-                    } edit: {
-                        editing = entry
-                    } delete: {
-                        delete(entry.url)
-                    }
-                    if entry.id != shown.last?.id {
-                        Rectangle().fill(Color.ds("hairline")).frame(height: 1)
-                    }
-                }
-            }
-            .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
-            .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
-        } else {
-            LazyVGrid(columns: Self.columns, alignment: .leading, spacing: CGFloat.ds("s-6")) {
-                ForEach(shown) { entry in
-                    PieceCard(entry: entry, summary: summaries[entry.url], text: text) {
-                        Task { await openProject(entry.url) }
-                    } edit: {
-                        editing = entry
-                    } delete: {
-                        delete(entry.url)
-                    }
-                }
-                if !query.narrows {
-                    AddCard(text: text) { adding = true }
-                }
-            }
-        }
-    }
-
     /// The projects on the shelf: one card per piece. A PDF piece whose notes were read into a piece of their own between
     /// 2026-11-05 and 2026-11-07 is reached from those notes by PDF | Notes (testing item 16).
     private var shelved: [ProjectFiles.Entry] {
@@ -260,14 +226,15 @@ struct LibraryView: View {
         shelve()
     }
 
-    /// The cards made again from the project files and their summaries; a composer or tag no piece has any more stops
-    /// filtering.
+    /// The pieces made again from the project files and their summaries; a composer or tag no piece has any more stops
+    /// filtering, and a composer picked on the Composers tab that has no piece left goes back to the composers.
     private func shelve() {
         let locale = Locale(identifier: text.language)
         entries = shelved.map { LibraryEntry.of($0, summaries[$0.url]) }
         composers = LibraryShelf.composers(entries, locale: locale)
         tags = LibraryShelf.tags(entries, locale: locale)
         query = LibraryShelf.kept(query, composers: composers, tags: tags)
+        if let shown = picked, LibraryShelf.pieces(by: shown.name, entries).isEmpty { picked = nil }
     }
 
     /// The projects saved online whose id is in no project file here (0014); none while signed out, offline or when the
@@ -405,9 +372,9 @@ struct LibraryView: View {
     }
 }
 
-/// A piece on the shelf (ds.css `.card`): its page, title, composer and what kind of piece it is, the ideas kept, bars to
-/// check and the player's tags, and where work on it stopped, with Resume, or Open for a piece not opened yet. A tap on the
-/// card opens it too. Its ⋯, or a long press, offers its title, composer and tags, and Delete, which asks once more.
+/// A session on the Sessions tab (ds.css `.card`, lib-3): the piece's page, title, composer and what kind of piece it is,
+/// the ideas kept and bars to check, and where work on it stopped, with Resume. A tap on the card resumes it too; a long
+/// press offers its properties and Delete, which asks once more.
 struct PieceCard: View {
     let entry: LibraryEntry
     let summary: PieceSummary?
@@ -415,7 +382,6 @@ struct PieceCard: View {
     let open: () -> Void
     let edit: () -> Void
     let delete: () -> Void
-    @State private var confirming = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
@@ -443,10 +409,8 @@ struct PieceCard: View {
                             if summary.checkBars > 0 { Tag(text: text.count("library.check", summary.checkBars), kind: .warn) }
                         }
                     }
-                    PieceTagsLine(tags: entry.tags, most: 4)
                 }
                 Spacer(minLength: 0)
-                PieceMenu(title: entry.title, text: text, edit: edit, delete: delete)
             }
             Rectangle().fill(Color.ds("hairline")).frame(height: 1)
             if let resumeName {
@@ -478,20 +442,7 @@ struct PieceCard: View {
         .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
         .contentShape(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
         .onTapGesture(perform: open)
-        .contextMenu {
-            Button(action: edit) {
-                Text(text["library.editDetails"])
-            }
-            Button(role: .destructive) {
-                confirming = true
-            } label: {
-                Text(text["home.delete"])
-            }
-        }
-        .confirmationDialog(text["home.deleteForGood"], isPresented: $confirming, titleVisibility: .hidden) {
-            Button(text["home.deleteForGood"], role: .destructive, action: delete)
-            Button(text["home.keep"], role: .cancel) {}
-        }
+        .modifier(PieceActions(text: text, edit: edit, delete: delete))
     }
 
     /// The composer, and what kind of piece: scanned, from a recording or a PDF, or a file the player opened when no
