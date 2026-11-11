@@ -52,6 +52,8 @@ struct DnaMap: Sendable {
         var degree = ""
         /// "tonic", "subdominant", "dominant" or "none".
         var function = "none"
+        /// Why it is uncertain when it rests on recognised notes still to check (#352); nil otherwise.
+        var doubt: String?
     }
 
     struct Cadence: Sendable {
@@ -163,7 +165,7 @@ struct DnaMap: Sendable {
         }
         harmony = (lane("harmony")["bars"] as? [[String: Any]] ?? []).map {
             Chord(bar: int($0["bar"]), symbol: $0["symbol"] as? String ?? "", clear: $0["clear"] as? Bool ?? true,
-                  degree: $0["degree"] as? String ?? "", function: $0["function"] as? String ?? "none")
+                  degree: $0["degree"] as? String ?? "", function: $0["function"] as? String ?? "none", doubt: $0["doubt"] as? String)
         }
         cadences = (lane("harmony")["cadences"] as? [[String: Any]] ?? []).map {
             Cadence(at: number($0["at"]), full: ($0["kind"] as? String) == "full", bar: int($0["bar"]),
@@ -606,6 +608,7 @@ struct DnaScreen: View {
         var clear: Bool
         var firstBar: Int
         var lastBar: Int
+        var doubt: String?
 
         var middle: Double { (onset + end) / 2 }
     }
@@ -619,10 +622,11 @@ struct DnaScreen: View {
                 last.end = span.upperBound
                 last.lastBar = chord.bar
                 last.clear = last.clear && chord.clear
+                last.doubt = last.doubt ?? chord.doubt
                 result[result.count - 1] = last
             } else {
                 result.append(Segment(onset: span.lowerBound, end: span.upperBound, symbol: chord.symbol, degree: chord.degree,
-                                      function: chord.function, clear: chord.clear, firstBar: chord.bar, lastBar: chord.bar))
+                                      function: chord.function, clear: chord.clear, firstBar: chord.bar, lastBar: chord.bar, doubt: chord.doubt))
             }
             previous = chord
         }
@@ -795,6 +799,7 @@ struct DnaScreen: View {
         var name = "\(bars(segment.firstBar, segment.lastBar)) \(segment.symbol)"
         if !segment.degree.isEmpty { name += ", \(segment.degree)" }
         if segment.function != "none" { name += ", \(text["dna.fnName.\(segment.function)"])" }
+        if let doubt = segment.doubt { name += ". \(doubt)" }
         return name
     }
 

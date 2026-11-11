@@ -299,6 +299,11 @@
             {
                 <p class="claim">@fact.Claim</p>
             }
+            @if (fact.Doubt is { } doubt)
+            {
+                @* The fact rests on recognised notes still to check (#352): said where, beside the uncertain tag. *@
+                <p class="caption doubt">@doubt</p>
+            }
             <div class="caption-row">
                 <span class="tag certainty @fact.Certainty.ToString().ToLowerInvariant()">@CertaintyLabel(fact.Certainty)</span>
                 @if (fact.Places.Count > 0)

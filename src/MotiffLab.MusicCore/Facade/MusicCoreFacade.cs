@@ -21,6 +21,11 @@ namespace MotiffLab.MusicCore.Facade;
 public sealed class MusicCoreFacade
 {
     /// <summary>
+    /// 11 lets doubt about recognised notes reach what is read from them (#352, 0027 section 12), adding fields only: a
+    /// chord, a fact and a DNA chord or key built on recognised notes still to check (in a bar with an open Check flag)
+    /// tell "doubt", a sentence that says where, and the chord's "certainty" and the DNA chord's "clear" say uncertain;
+    /// a fact turns "uncertain" and a key read from those notes too; check answers "lengths", the bars of a recording
+    /// whose notes' lengths are uncertain. The project file stays version 15.
     /// 10 removes the calls no app sends (#342): the assembly calls of 9 (the web assembles through music-core directly,
     /// 0024 and 0025), variation.start, .propose, .check, .accept, .reject, .undo and .redo (the iPad app runs a variation
     /// through try and variation.clear), and experiments, experiments.start and experiments.surprise. They answer
@@ -53,7 +58,7 @@ public sealed class MusicCoreFacade
     /// 1 was the first contract: open and save, piece, phrases with their edits, select, understand,
     /// experiments, the variation chain, notation, playback, the catalogue and the Piece DNA placeholder.
     /// </summary>
-    public const int Contract = 10;
+    public const int Contract = 11;
 
     private readonly Dictionary<int, OpenPiece> _pieces = [];
     private readonly Dictionary<int, OpenDocument> _documents = [];

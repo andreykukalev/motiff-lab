@@ -3,6 +3,7 @@ using System.Text.Json;
 
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Settings;
@@ -57,8 +58,8 @@ internal sealed partial class OpenPiece
             Answer.Overrides(json, Project);
         }),
         "settings.override" => Change(project => project.OverrideSetting(request.Required("id"), request.Text("value")), json => Answer.Overrides(json, Project)),
-        "check" => Answer.Write(json => Answer.Check(json, Project, Words, Piece.Meter, Piece.End)),
-        "check.resolve" => Change(project => project.ResolveCheck(request.Int("bar") ?? throw FacadeException.BadRequest("Send \"bar\"."), request.Bool("resolved") ?? true), json => Answer.Check(json, Project, Words, Piece.Meter, Piece.End)),
+        "check" => Answer.Write(json => Answer.Check(json, Project, Words, Piece.Meter, Piece.End, HeardLengths.Of(Piece, Notes))),
+        "check.resolve" => Change(project => project.ResolveCheck(request.Int("bar") ?? throw FacadeException.BadRequest("Send \"bar\"."), request.Bool("resolved") ?? true), json => Answer.Check(json, Project, Words, Piece.Meter, Piece.End, HeardLengths.Of(Piece, Notes))),
         _ when name.StartsWith("performance", StringComparison.Ordinal) => CallOnPerformance(name, request),
         _ when name.StartsWith("sources", StringComparison.Ordinal) => CallOnSources(name, request),
         _ when name.StartsWith("corrections", StringComparison.Ordinal) => CallOnCorrections(name, request),
