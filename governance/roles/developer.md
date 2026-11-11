@@ -1,66 +1,31 @@
-# Role: Developer (and Feedback Resolver)
+# Role: Developer
 
-First `governance/roles/common.md`, then this file, then `CLAUDE.md` and the documents the task refers to.
-
-## The role's job
-
-Make a bounded change according to an approved Task Record, check it and open a PR with the evidence. After review,
-answer the findings (the Feedback Resolver role; usually the same thread).
-
-## Input
-
-- An Issue labelled `task` and `aom:criteria-approved`. No label: do not start, tell the coordinator.
-- From the Issue: goal, acceptance criteria, risk class, `allowed_paths`, platforms, stop conditions.
-
-## Before the first edit
-
-1. Read the whole Issue and the related ADRs in `docs/decisions/`.
-2. Write the task's scope to `.aom/task.json` (the folder is not in git), so that `scope-guard` asks about files outside
-   it: `{"task": 12, "allowed_paths": ["src/MotiffLab.Web/Pages/Library*", "tests/web/library*"]}`, with the paths
-   exactly as in the Issue.
-3. Make sure the branch is from the current `main` and is this thread's branch.
+One agent per change, from start to end. Automated tests and the code-quality checks are its feedback loop; there is no
+per-change reviewer.
 
 ## Work
 
-- Change only files in `allowed_paths`. Another file is needed: stop (common.md, "Stopping"), do not add it "while we
-  are at it".
-- Follow `CLAUDE.md`: time in ticks without floating point, provenance and confidence on events, pure variation
-  operations, design tokens instead of literals, Russian and English for every interface text.
-- Before a push, run what applies to the change: `dotnet build MotiffLab.slnx`, `dotnet test MotiffLab.slnx`,
-  `node --test "tests/web/*.test.mjs"`, `dotnet format whitespace --folder --verify-no-changes`; for UI, e2e for the
-  specs it touches, locally; for `ipad/App`, check the expectations in `ipad/App/MotiffLabTests`.
-- Before every push of code, run the quality command `node tools/quality/quality.mjs`
-  (`governance/quality/README.md`). New code meets the thresholds; a violation it cannot avoid in this task becomes a
-  baseline entry with its reason in `why`, and the PR explains each such deviation (what, where, why, which task
-  removes it). Code it fixed drops its entry (`--update-baseline`). Never loosen `governance/quality/settings.json`
-  or another tool's configuration to pass.
-- Commits in a batch, pushes rarely. Push only its own branch (`push-guard` lets only that one through).
+1. Branch from the current `develop` (or the stable tag for a hotfix).
+2. Read what the task needs: the issue or idea entry, the design note if any, the related decision records,
+   `design/kit/HANDOFF.md` before any UI work.
+3. Make the change. Follow `CLAUDE.md`: ticks without floating point, provenance and confidence on events, pure
+   variation operations, design tokens instead of literals, Russian and English for every interface text.
+4. A new idea is an experiment: behind its switch in Settings, «Экспериментальное», off by default, in its natural
+   place in the existing flows, with a minimal UI. Removing an experiment removes all its code.
+5. Check before the push: build, unit tests, web tests, whitespace, `node tools/quality/quality.mjs`; for UI, the
+   browser specs it touches, locally; for `ipad/App`, the expectations in `ipad/App/MotiffLabTests`. Fix what the
+   quality checks find instead of adding baseline entries; an entry that cannot be avoided gets its reason in `why` and
+   a line in the pull request.
+6. Open the pull request to `develop` (template `.github/pull_request_template.md`), assignee Andrei. When `build-test`
+   is green, merge it yourself (in a cloud thread through the GitHub tools; on Andrei's computer the deny rules leave
+   the merge to him). A red CI: reproduce it locally, fix, push once.
 
-## PR
+## Leave to Andrei
 
-- The template `.github/pull_request_template.md`: the task (`Closes #N`), what was done, how each criterion was
-  checked, files outside `allowed_paths` (should be "none"), the self-check with commands and results (the quality
-  command's summary line among them), guard triggers (from `.aom/guard-log.jsonl`), the steps for Andrei to check.
-- Code-quality deviations: under "What was done", one line per baseline entry the PR adds, with its reason; "none"
-  when it adds none.
-- Labels: `agent`, `role:developer`, the class `risk:*` from the Issue. Assignee and reviewer: Andrei.
-- Wait for a green `build-test`; fix a red CI by reproducing the failure locally.
+A pull request that changes the agents' rules (decision 6) or the saved data format (decision 3): open it, do not merge
+it, and tell the lead.
 
-## Answering a review (Feedback Resolver)
+## Stop
 
-- For each finding: fixed (a commit) or disagreed (the reason). Do not close a disputed blocking finding yourself:
-  write the dispute into the Issue for Andrei.
-- Every new commit voids the earlier verdicts of the Reviewer and QA: after the fixes, ask the coordinator for a new
-  check.
-
-## Must not
-
-- Anything on the "must never do" list in common.md: merge, workflows, settings, Azure, the approval label, editing
-  the criteria.
-- Check its own change as Reviewer or QA.
-- Change tests so that they pass instead of fixing the code; turn tests off or skip them.
-
-## Output
-
-A PR with the template filled in, on a green `build-test`, and a line in the thread: the PR number, what was done, what
-is left for Andrei.
+Stop and tell the lead when the task turns out to touch Music Core, both apps or saved data in a way the design did not
+foresee, or when it failed twice (the lead steps the model up).

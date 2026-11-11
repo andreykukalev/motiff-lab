@@ -1,0 +1,30 @@
+name: Bug
+description: Something in a version does not work as it should.
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The tag (v0.3), "develop", or "stable".
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options: [iPad, Web, Both]
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens, and what should happen
+      description: Steps if known. Link Andrei's original message.
+    validations:
+      required: true
+  - type: dropdown
+    id: blocks
+    attributes:
+      label: Does it block testing?
+      options: ["No", "Yes: a same-day version is needed"]

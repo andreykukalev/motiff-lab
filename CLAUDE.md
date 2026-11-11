@@ -2,7 +2,7 @@
 
 Musical exploration workspace: help musicians move from reproducing music to understanding, transforming and creating it. Specs: `docs/` (start with `docs/README.md`). Current stage: **Stage 1, notation-based motif exploration** (`docs/01-mvp-stage-1.md`), framed by `docs/08-central-product-model.md`: the loaded piece is the context for a work session, the phrase is the unit of work.
 
-This file holds the rules of the product and its code. How the work is run is in `governance/roles/common.md`: read it, and your task's role file in `governance/roles/`, before you start. `CLAUDE.md`, `governance/`, `.claude/`, `.github/` and `tests/acceptance/` are the agents' environment: they change only in an environment task, which Andrei applies.
+This file holds the rules of the product and its code. How the work is run (versions on `develop` and `main`, experiments behind a switch, the six things only Andrei decides, roles and models) is in `governance/README.md`: read it, `governance/roles/common.md` and your role's file before you start. `CLAUDE.md`, `governance/`, `.claude/`, `.github/` and `tests/acceptance/` are the agents' own rules: a pull request that changes them is merged by Andrei.
 
 ## Stack
 
@@ -32,13 +32,14 @@ dotnet build MotiffLab.slnx
 dotnet test MotiffLab.slnx
 node --test "tests/web/*.test.mjs"  # after a build; Node 22+
 node --test "governance/tests/*.test.mjs"  # the guards
-node tools/quality/quality.mjs  # code quality against the ratchet baseline (governance/quality/README.md); before every push of code
+node tools/quality/quality.mjs  # code quality against the ratchet baseline (governance/quality/README.md, blocking); before every push of code
+ipad/build-version.sh v0.1  # on Andrei's Mac: build a version from its tag and install it on the iPad
 dotnet publish src/MotiffLab.Web -c Release -o publish && (cd tests/e2e && npm ci && npx playwright test)
 dotnet format MotiffLab.slnx  # CI: dotnet format whitespace --folder --verify-no-changes
 dotnet run --project src/MotiffLab.Web
 ```
 
-Warnings are errors (`Directory.Build.props`). What CI `build-test` runs and when heavy tests may run: `common.md`; run the browser specs you touch locally.
+Warnings are errors (`Directory.Build.props`). What CI `build-test` runs and when heavy tests may run: `governance/roles/common.md`; run the browser specs you touch locally.
 
 ## Conventions
 
