@@ -108,6 +108,9 @@ public sealed record Marks(
 {
     public static Marks Empty { get; } = new([], [], [], []);
 
+    /// <summary>The strokes and highlights of the file this build cannot read (S6), kept to be written back unchanged.</summary>
+    public IReadOnlyList<UnknownEntity> Unknown { get; init; } = [];
+
     public bool IsEmpty => Ink.Count == 0 && Notes.Count == 0 && Highlights.Count == 0 && Fingering.Count == 0;
 
     public int Count => Ink.Count + Notes.Count + Highlights.Count + Fingering.Count;
@@ -184,7 +187,7 @@ public sealed record Marks(
     public string NextNoteId() => Project.NextId("n_", Notes.Select(note => note.Id));
 
     /// <summary>"h_0004": one more than the highest highlight number.</summary>
-    public string NextHighlightId() => Project.NextId("h_", Highlights.Select(highlight => highlight.Id));
+    public string NextHighlightId() => Project.NextId("h_", Highlights.Select(highlight => highlight.Id).Concat(Project.UnknownIds(Unknown, "marks.highlights")));
 
     public bool Equals(Marks? other) =>
         other is not null && Ink.SequenceEqual(other.Ink) && Notes.SequenceEqual(other.Notes) && Highlights.SequenceEqual(other.Highlights) && Fingering.SequenceEqual(other.Fingering);

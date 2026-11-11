@@ -1,8 +1,8 @@
 # Golden project files
 
 What today's reader and writer (`src/MotiffLab.MusicCore/Projects/ProjectFile*.cs`, project file version 15) do with
-files of earlier, current and later versions, before the tolerant reader changes them (task #293; basis rules S6 and
-S7 and pre-build checks 1 and 2 of the project-continuity council, 2026-11-08). The tests are
+files of earlier, current and later versions (task #293; basis rules S6 and S7 and pre-build checks 1 and 2 of the
+project-continuity council, 2026-11-08), with the tolerant reader for enum values (#313). The tests are
 `ProjectFileGoldenTests.cs` and `AnalysisParityTests.cs` in this folder.
 
 ## The files
@@ -48,9 +48,13 @@ kinds of piece; the Einaudi file holds a transcription.
   version and an empty `performances` changed.
 - **Version 15**: the file reads, opens (3 motifs, 11 variations) and is written back unchanged.
 - **The future file is refused** today, before any field is read: "This project was saved by a newer version of
-  Motiff Lab." (council fact V3). This is the expectation the tolerant reader will flip.
-- **One unknown enum value** in a version 15 file makes the whole file "damaged", for each of the 24 enum types
-  (council fact V3, now run for every type).
+  Motiff Lab." (council fact V3). Read-only opening, a later task, is meant to flip it.
+- **One unknown enum value** in a version 15 file (#313, flipping council fact V3): for 21 of the 24 enum types the file
+  opens, the entity holding the value is kept as unknown and the file is written back unchanged. For PerformanceSource,
+  MergeChoice and Provenance, and for Hand and KeyMode on a note correction, a performance or the assembly, the file is
+  still "damaged": those change the notes that sound (Andrei's decision on #313, option A).
+- **The enum part of the future file**: with version 15 and the three values on the notes that sound put back, the
+  future file opens and is written back without only its unknown top-level field.
 - **An unknown field** in a version 15 file is read and then lost: the file written back is the version 15 file
   without it (council fact V2, confirmed by running).
 - **Phrases, sentences, form and Piece DNA**: the facade's answers for the design kit's piece (`design/kit/elise.musicxml`)

@@ -58,6 +58,69 @@ public class ProjectFileGoldenTests
 
     private const string UnknownValue = "FutureValue";
 
+    /// <summary>
+    /// The enum types whose only place in the file is a note correction, a performance or the assembly, which change the
+    /// notes that sound: an unknown value there still makes the file damaged (Andrei's decision on #313, option A; read-only
+    /// opening takes them up).
+    /// </summary>
+    private static readonly HashSet<string> s_onNotesThatSound = ["PerformanceSource", "MergeChoice", "Provenance"];
+
+    /// <summary>The rows of <see cref="EnumValues"/> whose entity this build keeps as unknown (S6, #313): 21 of the 24 types.</summary>
+    public static TheoryData<string, string> KeptValues => Rows(row => !s_onNotesThatSound.Contains(row.Type));
+
+    /// <summary>
+    /// Every place an unknown value still makes the file damaged: the three types of <see cref="s_onNotesThatSound"/> and
+    /// Hand and KeyMode where they stand on a note correction, a performance or the assembly.
+    /// </summary>
+    public static TheoryData<string, string> RefusedValues
+    {
+        get
+        {
+            TheoryData<string, string> rows = Rows(row => s_onNotesThatSound.Contains(row.Type));
+            rows.Add("Hand", "edits/0/added/hand");
+            rows.Add("Hand", "performances/0/taken/0/added/0/hand");
+            rows.Add("Hand", "performances/0/merge/bars/1/own/added/0/hand");
+            rows.Add("Hand", "assembly/applied/notes/0/hand");
+            rows.Add("KeyMode", "assembly/applied/keys/0/mode");
+            return rows;
+        }
+    }
+
+    private static TheoryData<string, string> Rows(Func<(string Type, string Path), bool> which)
+    {
+        var rows = new TheoryData<string, string>();
+        foreach (object[] row in EnumValues)
+        {
+            if (which(((string)row[0], (string)row[1])))
+            {
+                rows.Add((string)row[0], (string)row[1]);
+            }
+        }
+
+        return rows;
+    }
+
+    /// <summary>The list of the file an entity on the path stands in, as <see cref="UnknownEntity.List"/> names it, and its place.</summary>
+    private static (string List, int Index) EntityOf(string path)
+    {
+        string[] parts = path.Split('/');
+        int at = Array.FindIndex(parts, part => int.TryParse(part, out _));
+        return (string.Join('.', parts[..at]), int.Parse(parts[at], System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    private static JsonNode At(JsonNode root, string path)
+    {
+        JsonNode node = root;
+        foreach (string part in path.Split('/'))
+        {
+            node = int.TryParse(part, out int index) ? node[index]! : node[part]!;
+        }
+
+        return node;
+    }
+
+    private static IEnumerable<UnknownEntity> AllUnknown(Project project) => [.. project.Unknown, .. project.Marks.Unknown, .. project.DocumentMarks.Unknown];
+
     private static byte[] File(string name) => System.IO.File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", name));
 
     private static string Text(byte[] bytes) => Encoding.UTF8.GetString(bytes).ReplaceLineEndings("\n");
@@ -198,9 +261,9 @@ public class ProjectFileGoldenTests
     }
 
     /// <summary>
-    /// TODAY'S BEHAVIOUR, which the tolerant reader (basis rule S6) is meant to flip: a file of a later version is refused
-    /// whole before any field is read (council fact V3). When the tolerant reader lands, this test changes to assert that
-    /// the future file opens, keeps the unknown fields and flags the unknown values.
+    /// TODAY'S BEHAVIOUR, which read-only opening (basis rule S6, a later task) is meant to flip: a file of a later version
+    /// is refused whole before any field is read (council fact V3). The tolerant reader for enum values (#313) does not
+    /// change it: the file's version stays the reader's gate.
     /// </summary>
     [Fact]
     public void Today_the_future_file_is_refused_as_saved_by_a_newer_version()
@@ -211,12 +274,37 @@ public class ProjectFileGoldenTests
     }
 
     /// <summary>
-    /// TODAY'S BEHAVIOUR, which the tolerant reader is meant to flip: with the version a reader knows, one unknown value of
-    /// any of the 24 enum types makes the whole file "damaged" (council fact V3).
+    /// The tolerant reader (S6, #313), flipping council fact V3: with the version a reader knows, an unknown value of 21 of
+    /// the 24 enum types no longer makes the file damaged. The entity that holds it is kept as unknown, out of the
+    /// project's lists, and written back unchanged in its place, so the file read and written again is the file it was.
     /// </summary>
     [Theory]
-    [MemberData(nameof(EnumValues))]
-    public void Today_one_unknown_enum_value_makes_the_whole_file_damaged(string type, string path)
+    [MemberData(nameof(KeptValues))]
+    public void One_unknown_enum_value_opens_and_its_entity_is_written_back_unchanged(string type, string path)
+    {
+        JsonObject file = Node(File(Worked));
+        Parent(file, path, out string last)[last] = UnknownValue;
+        (string list, int index) = EntityOf(path);
+
+        Project project = ProjectFile.Read(Bytes(file));
+        OpenedProject opened = OpenedProject.Open(project);
+        byte[] written = ProjectFile.Write(project);
+
+        UnknownEntity kept = Assert.Single(AllUnknown(project), entity => entity.Enum is not null);
+        Assert.Equal((list, index, type), (kept.List, kept.Index, kept.Enum));
+        Assert.True(JsonNode.DeepEquals(At(file, $"{list.Replace('.', '/')}/{index}"), JsonNode.Parse(kept.Json)), "the unknown entity is kept as the file held it");
+        Assert.True(JsonNode.DeepEquals(file, Node(written)), "the file written back is the file read, the unknown value and its entity included");
+        Assert.Equal(written, ProjectFile.Write(ProjectFile.Read(written)));
+        Assert.NotEmpty(opened.Notes);
+    }
+
+    /// <summary>
+    /// What stays as it was (Andrei's decision on #313, option A): an unknown value on a note correction, a performance or
+    /// the assembly changes the notes that sound, so the file is still refused as damaged; read-only opening takes it up.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(RefusedValues))]
+    public void An_unknown_value_on_the_notes_that_sound_still_makes_the_file_damaged(string type, string path)
     {
         JsonObject file = Node(File(Worked));
         Parent(file, path, out string last)[last] = UnknownValue;
@@ -225,6 +313,42 @@ public class ProjectFileGoldenTests
 
         Assert.StartsWith("This project file is damaged", refused.Message);
         Assert.NotEmpty(type);
+    }
+
+    /// <summary>
+    /// The enum part of the future file (criterion 3 of #313, as option A amends it): with the version this build reads, and
+    /// the three values on the notes that sound put back, every other unknown value opens and is written back; an unknown
+    /// field is still lost (council fact V2, a later task) unless it stands in an entity kept whole as unknown.
+    /// </summary>
+    [Fact]
+    public void The_enum_part_of_the_future_file_opens_with_this_version()
+    {
+        JsonObject file = Node(File(Future));
+        JsonObject worked = Node(File(Worked));
+        file["version"] = ProjectFile.Version;
+        foreach (object[] row in RefusedValues)
+        {
+            if (Parent(worked, (string)row[1], out string known)[known] is JsonNode value)
+            {
+                Parent(file, (string)row[1], out string last)[last] = value.DeepClone();
+            }
+        }
+
+        Project project = ProjectFile.Read(Bytes(file));
+        OpenedProject opened = OpenedProject.Open(project);
+        JsonObject written = Node(ProjectFile.Write(project));
+
+        // All three motifs hold or own an unknown value, so they and their eleven variations are kept unknown.
+        Assert.Empty(opened.Motifs);
+        Assert.Empty(opened.Variations);
+        Assert.Equal(
+            KeptValues.Select(row => EntityOf((string)row[1])).Distinct().Order(),
+            AllUnknown(project).Where(entity => entity.Enum is not null).Select(entity => (entity.List, entity.Index)).Order());
+        Assert.Contains(opened.Notes, note => note.Id == "n_added_0001");
+        Assert.Single(project.Performances);
+        // The unknown top-level field is lost; the motif's unknown field stays, because the motif is kept whole as unknown.
+        file.Remove("future");
+        Assert.True(JsonNode.DeepEquals(file, written), "everything but the unknown top-level field is written back");
     }
 
     /// <summary>
