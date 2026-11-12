@@ -235,7 +235,7 @@ struct FoundLine: View {
                 titleColumn.frame(maxWidth: .infinity, alignment: .leading).layoutPriority(1)
                 composerColumn.frame(maxWidth: .infinity, alignment: .leading)
                 Text(folder).dsType(.body).foregroundStyle(Color.ds("ink-2")).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading)
-                Text(pages.map(String.init) ?? "").dsType(.body).foregroundStyle(Color.ds("ink-2")).frame(width: CGFloat.ds("h-touch"), alignment: .trailing)
+                Text(pages.map { String($0) } ?? "").dsType(.body).foregroundStyle(Color.ds("ink-2")).frame(width: CGFloat.ds("h-touch"), alignment: .trailing)
             }
         }
         .padding(.vertical, CGFloat.ds("s-3"))

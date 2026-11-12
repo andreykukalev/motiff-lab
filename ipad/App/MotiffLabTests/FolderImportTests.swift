@@ -186,7 +186,8 @@ final class FolderImportTests: XCTestCase {
         XCTAssertEqual(again?.originals.first?.folder, "Концерт")
         XCTAssertEqual(again?.originals.first?.fileName, "Баллада 1.pdf")
         XCTAssertEqual(OriginalLinks.load(project: try XCTUnwrap(summary.id), original: OriginalEntry.documentId, in: links)?.path, "Концерт/Баллада 1.pdf")
-        let opened = await AwayPdf.read(url, try XCTUnwrap(again), links: links, folders: records)
+        let relinked = try XCTUnwrap(again)
+        let opened = await AwayPdf.read(url, relinked, links: links, folders: records)
         XCTAssertEqual(try opened.get().data, ballade)
     }
 

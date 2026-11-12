@@ -97,7 +97,7 @@ struct LibraryView: View {
                                 .foregroundStyle(Color.ds("ink-2"))
                                 .frame(maxWidth: 560, alignment: .leading)
                         } else {
-                            LibraryShelfView(page: page, summaries: summaries, composers: composers, tags: tags, playlists: playlists, tab: $tab, query: $query, picked: $picked, text: text, playlistAccessory: importOn ? { name in AnyView(KeepPlaylistToggle(model: folderImport, playlist: name, summaries: summaries, text: text)) } : nil, marks: importOn ? marks : nil) { url in
+                            LibraryShelfView(page: page, summaries: summaries, composers: composers, tags: tags, playlists: playlists, tab: $tab, query: $query, picked: $picked, text: text, playlistAccessory: playlistToggle, marks: importOn ? marks : nil) { url in
                                 Task { await openProject(url) }
                             } edit: { entry in
                                 editing = entry
@@ -400,6 +400,12 @@ struct LibraryView: View {
         } catch {
             problem = error.localizedDescription
         }
+    }
+
+    /// «Держать на этом iPad» beside a playlist's name, with the experiment on.
+    private var playlistToggle: ((String) -> AnyView)? {
+        guard importOn else { return nil }
+        return { name in AnyView(KeepPlaylistToggle(model: folderImport, playlist: name, summaries: summaries, text: text)) }
     }
 
     /// The pieces picked to recognise, a tap on a PDF-only piece picking or unpicking it, and each piece's recognition.
