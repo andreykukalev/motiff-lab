@@ -975,7 +975,7 @@ public sealed partial record BarGrid
         /// below middle C: likely downbeats. Without any below middle C, the lowest within that reach.
         /// The reach is the same for every bar length, so their scores compare.
         /// </summary>
-        private static int[] Lows(int[] steps, int[] lowest)
+        public static int[] Lows(int[] steps, int[] lowest)
         {
             var lows = new List<int>();
             var fallback = new List<int>();
