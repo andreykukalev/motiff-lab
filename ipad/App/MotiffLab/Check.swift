@@ -26,8 +26,35 @@ struct UncertainLengthsEntry: Identifiable, Equatable, Sendable {
     var id: Int { bar }
 }
 
+/// One page of a scan the server reported on, as `check` counts it (v0.4, within contract 12): its place in the notes from
+/// 1, its quality ("good", "weak" or "poor"), how far the server turned it, its bars and how many of them are doubtful, and
+/// its first and last bar (nil without bars).
+struct CheckPageEntry: Identifiable, Equatable, Sendable {
+    var page: Int
+    var quality: String
+    var rotation: Int
+    var bars: Int
+    var doubtful: Int
+    var firstBar: Int?
+    var lastBar: Int?
+    var id: Int { page }
+
+    /// The bars to show for the page.
+    var barRange: ClosedRange<Int>? {
+        guard let firstBar, let lastBar, firstBar <= lastBar else { return nil }
+        return firstBar...lastBar
+    }
+}
+
+extension PageSummaryLine {
+    /// «Страница 4: 9 из 12 тактов под вопросом», for a page as `check` counts it.
+    static func of(_ page: CheckPageEntry, _ text: UIText) -> PageSummaryLine {
+        of(page.page, JoinedPage(bars: page.bars, doubtful: page.doubtful, quality: page.quality), text)
+    }
+}
+
 /// The bars Check asks about, as music-core answers `check` and `check.resolve`: the flags in bar order, how many are open,
-/// and where the doubts come from.
+/// where the doubts come from, and a scan's pages as the server's page reports kept with it tell them (v0.4).
 struct CheckShelf: Equatable, Sendable {
     /// A bar with its flags, as the drawer lists it.
     struct BarFlags: Identifiable, Equatable, Sendable {
@@ -44,6 +71,8 @@ struct CheckShelf: Equatable, Sendable {
     /// "scanned", "transcribed" or "imported".
     var origin = "imported"
     var engine: String?
+    /// The scan's pages, in order; empty without page reports.
+    var pages: [CheckPageEntry] = []
 
     init() {}
 
@@ -73,6 +102,14 @@ struct CheckShelf: Equatable, Sendable {
         open = Int(number(object["open"]) ?? 0)
         origin = object["origin"] as? String ?? "imported"
         engine = object["engine"] as? String
+        pages = (object["pages"] as? [[String: Any]] ?? []).compactMap { entry in
+            guard let page = number(entry["page"]) else { return nil }
+            return CheckPageEntry(
+                page: Int(page), quality: entry["quality"] as? String ?? "good", rotation: Int(number(entry["rotation"]) ?? 0),
+                bars: Int(number(entry["bars"]) ?? 0), doubtful: Int(number(entry["doubtful"]) ?? 0),
+                firstBar: number(entry["firstBar"]).map { Int($0) }, lastBar: number(entry["lastBar"]).map { Int($0) }
+            )
+        }
     }
 
     var hasFlags: Bool { !flags.isEmpty }
@@ -214,7 +251,7 @@ struct CheckDrawer: View {
                             .dsType(.caption)
                             .foregroundStyle(Color.ds("ink-2"))
                     }
-                    // Photographed pages just read (v0.4, «Фото страниц»): their quality, until the app closes.
+                    // A scan's pages in doubt, from the page reports kept with it (v0.4, «Фото страниц»).
                     PhotoPagesCheck(score: score, text: text)
                     ForEach(check.openBars) { bar in openEntry(bar) }
                     if !check.lengths.isEmpty {

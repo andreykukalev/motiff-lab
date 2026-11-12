@@ -14,6 +14,8 @@ struct OpenPiece: Identifiable, Sendable {
     /// The piece's other view, PDF or notes, when the library holds one (PDF | Notes, 0023), and where this view opens.
     var other: OtherView?
     var landing: Landing?
+    /// The pieces split from it and where it was split from, as the library's summaries tell (v0.4, «Пьесы в файле»).
+    var family = PieceFamily()
 
     /// Opens the file in music-core in the interface's language and engraves it, titled by its name unless given one; a PDF,
     /// or a PDF piece's project file, opens as a PDF piece with nothing to engrave. With `heard`, a recording heard by the

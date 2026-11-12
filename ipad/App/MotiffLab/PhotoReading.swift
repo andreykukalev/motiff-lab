@@ -5,7 +5,7 @@ import SwiftUI
 /// Reading the notes from a PDF of photographed pages (v0.4, «Фото страниц»): one page a request to the scan server the
 /// player set, so each page shows when it is done and can be sent again; the pages read are joined by music-core
 /// (`scan.join`, `replace` for a page read again), and the server's page reports count in its doubtful bars. The notes stay
-/// detected, and nothing about the pages' quality is kept in the project file.
+/// detected; the reports the join took are kept with them (`document.read`, v0.4), so Check tells each page's quality.
 @MainActor
 final class PhotoReader: ObservableObject {
     @Published private(set) var readings = PhotoReadings(count: 0)
@@ -91,55 +91,31 @@ final class PhotoReader: ObservableObject {
         guard let request = readings.joinRequest(again: again), let body = try? JSONSerialization.data(withJSONObject: request) else { return }
         let json = String(decoding: body, as: UTF8.self)
         let answer = await MusicCore.run { MusicCore.call(piece: 0, "scan.join", json) }
-        guard let object = facadeObject(answer), readings.joined(object, from: read) else {
+        guard let object = facadeObject(answer), readings.joined(object, from: read, reports: request["reports"] as? [String]) else {
             problem = facadeObject(answer)?["message"] as? String ?? "music-core did not join the pages."
             return
         }
     }
 }
 
-/// The summary of the pages last read, kept until the app closes, for Check on the notes (v0.4): the page reports are not
-/// saved, so the pages' quality is shown only while the reading is fresh.
-@MainActor
-final class PhotoPageNotes: ObservableObject {
-    static let shared = PhotoPageNotes()
-
-    struct Kept: Equatable {
-        var titles: Set<String>
-        var lines: [PageSummaryLine]
-        var bars: [Int: ClosedRange<Int>]
-    }
-
-    @Published private(set) var kept: Kept?
-
-    func keep(titles: Set<String>, lines: [PageSummaryLine], bars: [Int: ClosedRange<Int>]) {
-        kept = Kept(titles: titles, lines: lines.filter(\.unsure), bars: bars)
-    }
-
-    /// The pages in doubt of the piece with this title, if it is the one read last.
-    func unsure(for title: String) -> Kept? {
-        guard let kept, kept.titles.contains(title), !kept.lines.isEmpty else { return nil }
-        return kept
-    }
-}
-
-/// Check's part about the photographed pages just read: each page in doubt, and its bars to look at.
+/// Check's part about a scan's pages (v0.4, with «Фото страниц» on): each page in doubt as the server's page reports kept
+/// with the notes tell it (`check` "pages"), and its bars to look at. Pages are numbered as they are in the notes.
 struct PhotoPagesCheck: View {
     @ObservedObject var score: ScoreController
-    @ObservedObject private var notes = PhotoPageNotes.shared
     let text: UIText
 
     var body: some View {
-        if let kept = notes.unsure(for: score.pieceTitle) {
+        let pages = score.check.pages.filter { PageSummaryLine.of($0, text).unsure }
+        if DeviceSettings.shared.isOn("experimental.photoPages"), !pages.isEmpty {
             VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
-                Text(text["photos.checkHeading"]).overline()
-                Text(text["photos.checkHint"]).dsType(.caption).foregroundStyle(Color.ds("ink-2")).fixedSize(horizontal: false, vertical: true)
-                ForEach(kept.lines) { line in
+                Text(text["check.pagesHeading"]).overline()
+                Text(text["check.pagesHint"]).dsType(.caption).foregroundStyle(Color.ds("ink-2")).fixedSize(horizontal: false, vertical: true)
+                ForEach(pages) { page in
                     HStack(alignment: .firstTextBaseline, spacing: CGFloat.ds("s-2")) {
-                        Tag(text: text.format("photos.page", String(line.page)), kind: .warn)
-                        Text(line.text).dsType(.caption).foregroundStyle(Color.ds("ink")).fixedSize(horizontal: false, vertical: true)
+                        Tag(text: text.format("photos.page", String(page.page)), kind: .warn)
+                        Text(PageSummaryLine.of(page, text).text).dsType(.caption).foregroundStyle(Color.ds("ink")).fixedSize(horizontal: false, vertical: true)
                         Spacer(minLength: 0)
-                        if let bars = kept.bars[line.page] {
+                        if let bars = page.barRange {
                             Button(text["scanCheck.show"]) { score.selectBars(bars.lowerBound, bars.upperBound, extend: false) }
                                 .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
                         }
@@ -156,13 +132,12 @@ struct PhotoReadingPanel: View {
     @ObservedObject var reader: PhotoReader
     /// The PDF piece's pages, loaded again once a page is photographed again.
     @ObservedObject var pdf: PdfController
-    let titles: Set<String>
     let address: URL?
     let text: UIText
     /// The send panel, with what to do on Send.
     let send: (@escaping () async -> String?) -> ReadNotesPanel
-    /// Puts the joined notes into the piece and opens them: answers why not, or nil.
-    let open: (Data, String, Int) async -> String?
+    /// Puts the joined notes into the piece, with the page reports the join took, and opens them: answers why not, or nil.
+    let open: (Data, String, Int, [String]?) async -> String?
     @EnvironmentObject private var account: Account
     @State private var retaking: Int?
     @State private var cameraOpen = false
@@ -225,7 +200,7 @@ struct PhotoReadingPanel: View {
                 .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
                 .disabled(opening)
                 .padding(.horizontal, CGFloat.ds("s-4"))
-                Text(text["photos.reportNotKept"]).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
+                Text(readings.joinedReports == nil ? text["photos.reportNone"] : text["photos.reportKept"]).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, CGFloat.ds("s-4"))
             }
@@ -292,8 +267,7 @@ struct PhotoReadingPanel: View {
         guard let score = readings.joined else { return }
         opening = true
         defer { opening = false }
-        PhotoPageNotes.shared.keep(titles: titles, lines: readings.summary(text), bars: readings.barRanges)
-        if let problem = await open(Data(score.utf8), reader.engine, max(1, readings.joinedFrom.count)) {
+        if let problem = await open(Data(score.utf8), reader.engine, max(1, readings.joinedFrom.count), readings.joinedReports) {
             reader.problem = problem
         }
     }

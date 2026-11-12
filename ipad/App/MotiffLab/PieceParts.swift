@@ -164,9 +164,16 @@ enum PartsSplit {
         ))
     }
 
-    /// «Разделено на 19 пьес · плейлист «Islands»».
-    static func summary(count: Int, playlist: String, text: UIText) -> String {
-        text.format("parts.done", text.count("parts.pieces", count), playlist)
+    /// «Разделено на 19 пьес · плейлист «Islands»», or «Разделено на 19 пьес» when the pieces share no playlist.
+    static func summary(count: Int, playlist: String?, text: UIText) -> String {
+        let pieces = text.count("parts.pieces", count)
+        return playlist.map { text.format("parts.done", pieces, $0) } ?? text.format("parts.doneOnly", pieces)
+    }
+
+    /// «Выделена из «Islands» · плейлист «Islands» · с. 6–11»: the playlist when the piece is on one, the pages when known.
+    static func from(_ origin: PartOrigin, text: UIText) -> String {
+        let line = origin.playlist.map { text.format("parts.from", origin.title, $0) } ?? text.format("parts.fromOnly", origin.title)
+        return origin.pages.map { line + " · " + pages(first: $0.lowerBound, last: $0.upperBound, text: text) } ?? line
     }
 
     /// «с. 6–11», or «с. 6» for one page.
@@ -179,57 +186,106 @@ struct PartsSplitFailure: Error, Equatable {
     let message: String?
 }
 
-/// One piece made from a collection, as this iPad keeps it: its project, its title and the collection's pages it took.
-struct PartLink: Codable, Equatable, Sendable {
+/// One piece made from a collection: its project, its title and the collection's pages it took (nil for a stretch of a
+/// recording, or a piece whose place is not known).
+struct PartLink: Equatable, Sendable {
     var id: String
     var title: String
-    var first: Int
-    var last: Int
+    var pages: ClosedRange<Int>?
 }
 
-/// A collection's split: its title, the playlist the pieces joined and the pieces, in order.
-struct SplitLink: Codable, Equatable, Sendable {
-    var title: String
-    var playlist: String
+/// The pieces split from a collection, in page order, and the playlist they share (nil when they share none).
+struct SplitLink: Equatable, Sendable {
+    var playlist: String?
     var parts: [PartLink]
 }
 
-/// Where a piece came from: the collection it was split from, by project id, and its place there.
+/// Where a piece came from: the collection's title (its original's name when the collection is not in this library), the
+/// piece's playlist, and the collection's pages it takes (nil for a stretch of a recording).
 struct PartOrigin: Equatable, Sendable {
-    var collection: String
     var title: String
-    var playlist: String
-    var part: PartLink
+    var playlist: String?
+    var pages: ClosedRange<Int>?
 }
 
-/// The pieces this iPad split from its collections, by the collection's project id, so the collection says «Разделено на
-/// N пьес» and a piece where it came from (the web keeps the same in local storage, `piece-parts.ts`). The project file
-/// says nothing of it until the format step adds `partOf`; until then it is kept in Application Support/piece-parts.json,
-/// shared by the environments (project ids are unique). Nothing here leaves the iPad.
-enum PieceSplits {
-    static var url: URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("piece-parts.json")
+/// Where a piece made with «Пьесы в файле» is in its collection, as the project summary answers it ("partOf", within
+/// contract 12, version 0.4): the id of the collection's original among the piece's own originals, and its pages or the
+/// stretch of the recording in milliseconds.
+struct PartOfEntry: Equatable, Sendable {
+    var original: String
+    var pages: ClosedRange<Int>?
+    var milliseconds: ClosedRange<Int>?
+
+    init(original: String, pages: ClosedRange<Int>? = nil, milliseconds: ClosedRange<Int>? = nil) {
+        self.original = original
+        self.pages = pages
+        self.milliseconds = milliseconds
     }
 
-    static func load(from url: URL = url) -> [String: SplitLink] {
-        guard let data = try? Data(contentsOf: url) else { return [:] }
-        return (try? JSONDecoder().decode([String: SplitLink].self, from: data)) ?? [:]
-    }
-
-    /// Keeps the collection's split in place of any kept before; a split with no pieces forgets it.
-    static func keep(_ link: SplitLink, collection: String, in url: URL = url) {
-        var splits = load(from: url)
-        splits[collection] = link.parts.isEmpty ? nil : link
-        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        if let data = try? JSONEncoder().encode(splits) { try? data.write(to: url, options: .atomic) }
-    }
-
-    static func origin(of part: String, in splits: [String: SplitLink]) -> PartOrigin? {
-        for (collection, link) in splits.sorted(by: { $0.key < $1.key }) {
-            if let found = link.parts.first(where: { $0.id == part }) {
-                return PartOrigin(collection: collection, title: link.title, playlist: link.playlist, part: found)
-            }
+    /// The summary's "partOf"; nil for a piece of its own (null).
+    init?(_ value: Any?) {
+        guard let object = value as? [String: Any], let original = object["original"] as? String else { return nil }
+        func range(_ value: Any?, _ low: String, _ high: String) -> ClosedRange<Int>? {
+            guard let span = value as? [String: Any], let from = (span[low] as? NSNumber)?.intValue,
+                  let to = (span[high] as? NSNumber)?.intValue, from <= to else { return nil }
+            return from...to
         }
-        return nil
+        self.init(original: original, pages: range(object["pages"], "first", "last"), milliseconds: range(object["milliseconds"], "from", "to"))
+    }
+}
+
+/// What the library knows of a piece's collection (v0.4, «Пьесы в файле»), worked out from the project files' summaries
+/// and kept nowhere: the pieces split from it, whose `partOf` names an original with this piece's fingerprint, and where
+/// it was split from itself. So a collection says «Разделено на N пьес» and a piece «Выделена из «…» · с. 6–11» on any
+/// device that has them, pieces split on the web too.
+struct PieceFamily: Equatable, Sendable {
+    var split: SplitLink?
+    var origin: PartOrigin?
+
+    init(split: SplitLink? = nil, origin: PartOrigin? = nil) {
+        self.split = split
+        self.origin = origin
+    }
+
+    /// The family of the piece in the project file at `file`, from the library's summaries; empty when it has none.
+    static func of(_ file: URL, in summaries: [URL: PieceSummary]) -> PieceFamily {
+        guard let summary = summaries[file] else { return PieceFamily() }
+        // In the order of the files, so the same library always answers the same.
+        let others = summaries.filter { $0.key != file }.sorted { $0.key.path < $1.key.path }
+        var family = PieceFamily()
+        if let partOf = summary.partOf {
+            let original = summary.originals.first { $0.id == partOf.original }
+            let collection = summary.partOfFingerprint.flatMap { fingerprint in others.first { $0.value.ownFingerprints.contains(fingerprint) } }
+            // The original is named by the collection's title (music-core, v0.4); a part made before was named by the file.
+            let named = original.map { $0.shown == $0.fileName ? ProjectFiles.title(of: $0.shown) : $0.shown }
+            let name = collection.map { title(of: $0.key, $0.value) } ?? named ?? ""
+            family.origin = PartOrigin(title: name, playlist: summary.playlists.first, pages: partOf.pages)
+        }
+        let own = summary.ownFingerprints
+        let parts = others
+            .filter { entry in entry.value.partOfFingerprint.map { own.contains($0) } ?? false }
+            .map { (link: PartLink(id: $0.value.id ?? "", title: title(of: $0.key, $0.value), pages: $0.value.partOf?.pages), playlists: $0.value.playlists) }
+            .sorted { ($0.link.pages?.lowerBound ?? .max, $0.link.title) < ($1.link.pages?.lowerBound ?? .max, $1.link.title) }
+        if let first = parts.first {
+            let shared = first.playlists.first { name in parts.allSatisfy { $0.playlists.contains(name) } }
+            family.split = SplitLink(playlist: shared, parts: parts.map(\.link))
+        }
+        return family
+    }
+
+    private static func title(of file: URL, _ summary: PieceSummary) -> String {
+        summary.title ?? ProjectFiles.title(of: file.lastPathComponent)
+    }
+}
+
+extension PieceSummary {
+    /// The fingerprint of the collection's original this piece was split from, when it was and the original has one.
+    var partOfFingerprint: String? {
+        partOf.flatMap { partOf in originals.first { $0.id == partOf.original }?.sha256 }
+    }
+
+    /// The fingerprints of the piece's own originals, the collection it was split from left out.
+    var ownFingerprints: Set<String> {
+        Set(originals.filter { $0.id != partOf?.original }.compactMap(\.sha256))
     }
 }

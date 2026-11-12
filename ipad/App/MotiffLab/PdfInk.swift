@@ -4,7 +4,9 @@ import UIKit
 
 /// A stroke on a PDF's page, as music-core answers `document.marks` (0023, `DocumentMarks`): the pencil layer's shape with
 /// the page in place of the bar. U is across from the page's left edge (0 to 1), V down from its top edge in the page's
-/// own spaces (a hundred and twentieth of its width); the points after the first are dx, dy in spaces and a pressure.
+/// own spaces (a hundred and twentieth of its width); the points after the first are dx, dy in spaces and a pressure. A
+/// stroke begun beside the page (U below 0 or above 1) is in its "left" or "right" margin (v0.4, within contract 12): the
+/// page is its own line, so it is drawn where it was written either way.
 struct DocumentStroke: Identifiable, Equatable, Sendable {
     var id: String
     var tool: String
@@ -15,6 +17,9 @@ struct DocumentStroke: Identifiable, Equatable, Sendable {
     var v: Double
     var points: [Double]
     var pressure: Double
+    /// "left" or "right" for a stroke begun in a margin, as music-core answers it; nil for one begun on the page (and an
+    /// unknown value, as pencil-marks.ts drops it).
+    var margin: String? = nil
 
     /// A page's width in its own spaces, as the web app's PDF frames are.
     static let spacesAcross = 120.0
@@ -27,7 +32,8 @@ struct DocumentStroke: Identifiable, Equatable, Sendable {
             return DocumentStroke(
                 id: id, tool: entry["tool"] as? String ?? "pen", colour: entry["colour"] as? String ?? "graphite",
                 size: number(entry["size"]) ?? 0.16, page: Int(page), u: u, v: v,
-                points: (entry["points"] as? [Any] ?? []).compactMap(number), pressure: number(entry["pressure"]) ?? 0.5
+                points: (entry["points"] as? [Any] ?? []).compactMap(number), pressure: number(entry["pressure"]) ?? 0.5,
+                margin: (entry["margin"] as? String).flatMap { ["left", "right"].contains($0) ? $0 : nil }
             )
         }
     }
@@ -54,11 +60,19 @@ struct DocumentStroke: Identifiable, Equatable, Sendable {
             values += [(point.x - first.0.x) / space, (first.0.y - point.y) / space, pressure]
         }
         if values.isEmpty { values = [0, 0, first.1] }
-        return [
+        let u = (first.0.x - box.minX) / box.width
+        var request: [String: Any] = [
             "id": id, "tool": tool, "colour": colour, "size": size, "page": page,
-            "u": (first.0.x - box.minX) / box.width, "v": (box.maxY - first.0.y) / space,
+            "u": u, "v": (box.maxY - first.0.y) / space,
             "points": values, "pressure": first.1,
         ]
+        if let side = Self.margin(u: u) { request["margin"] = side }
+        return request
+    }
+
+    /// The margin a stroke begun at `u` across its page is in: "left" before the page's left edge, "right" past its right.
+    static func margin(u: Double) -> String? {
+        u < 0 ? "left" : u > 1 ? "right" : nil
     }
 }
 

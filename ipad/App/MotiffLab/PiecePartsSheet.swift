@@ -17,7 +17,8 @@ enum PdfPartCopy {
 
 /// «Разделить на пьесы» for a PDF or photo piece (v0.4, experiment «Пьесы в файле»): each listed piece's pages copied,
 /// `parts.split` one piece at a time, each project file saved as a new piece of the library in the playlist. The
-/// collection is not changed; what was made is kept on this iPad (`PieceSplits`).
+/// collection is not changed. Each piece's project file says where it is in the collection (`partOf`, written by
+/// music-core), so the library tells what was split from what (`PieceFamily`).
 @MainActor
 final class PieceSplitter: ObservableObject {
     @Published var rows: PartRows
@@ -34,11 +35,8 @@ final class PieceSplitter: ObservableObject {
         collection = title
         playlist = title
         rows = PartRows.fromBookmarks(pdf.bookmarks, pageCount: pdf.pageCount)
-        let splits = PieceSplits.load()
-        if let id = pdf.projectId {
-            done = splits[id]
-            origin = PieceSplits.origin(of: id, in: splits)
-        }
+        done = pdf.family.split
+        origin = pdf.family.origin
     }
 
     func again() {
@@ -47,7 +45,7 @@ final class PieceSplitter: ObservableObject {
     }
 
     func split(piece: Int32, pdf: PdfController, text: UIText) async {
-        guard rows.problem == nil, making == nil, let original = pdf.original, let collectionId = pdf.projectId else { return }
+        guard rows.problem == nil, making == nil, let original = pdf.original else { return }
         problem = nil
         let now = Date()
         let request = "{\"now\": \"\(ISO8601DateFormatter().string(from: now))\"}"
@@ -70,14 +68,16 @@ final class PieceSplitter: ObservableObject {
             making = (index + 1, list.count)
         }
         if !made.isEmpty {
-            let link = SplitLink(title: collection, playlist: name, parts: made)
-            PieceSplits.keep(link, collection: collectionId)
+            // What the library will tell from the pieces' partOf once it reads them again.
+            let link = SplitLink(playlist: name, parts: made)
+            pdf.family.split = link
             done = link
         }
         making = nil
     }
 
-    /// One piece: its pages copied off the main thread, `parts.split`, its project file written beside the others.
+    /// One piece: its pages copied off the main thread, `parts.split`, its project file (with its `partOf`) written beside
+    /// the others as music-core answers it.
     private func make(_ row: PartRow, number: Int, file: String, original: Data, playlist: String, now: Date, text: UIText) async -> Result<PartLink, PartsSplitFailure> {
         let (first, last) = (row.first, row.last)
         let failed = { (why: String?) in PartsSplitFailure(message: text.format("parts.pdf.failed", String(number), why ?? text["parts.pdf.failedNoWord"])) }
@@ -97,7 +97,7 @@ final class PieceSplitter: ObservableObject {
             } catch {
                 return .failure(failed(error.localizedDescription))
             }
-            return .success(PartLink(id: part.id, title: part.title, first: part.first, last: part.last))
+            return .success(PartLink(id: part.id, title: part.title, pages: part.first > 0 && part.last >= part.first ? part.first...part.last : nil))
         }
     }
 }
@@ -124,7 +124,7 @@ struct PiecePartsSheet: View {
             VStack(alignment: .leading, spacing: CGFloat.ds("s-5")) {
                 header
                 if let origin = splitter.origin {
-                    Text(text.format("parts.from", origin.title, origin.playlist) + " · " + PartsSplit.pages(first: origin.part.first, last: origin.part.last, text: text))
+                    Text(PartsSplit.from(origin, text: text))
                         .dsType(.label)
                         .foregroundStyle(Color.ds("ink-2"))
                         .fixedSize(horizontal: false, vertical: true)
@@ -314,14 +314,16 @@ private struct PiecePartsDone: View {
                 .dsType(.bodyStrong)
                 .foregroundStyle(Color.ds("ink"))
                 .fixedSize(horizontal: false, vertical: true)
-            ForEach(link.parts, id: \.id) { part in
+            ForEach(Array(link.parts.enumerated()), id: \.offset) { _, part in
                 HStack {
                     Text(part.title).dsType(.body).foregroundStyle(Color.ds("ink"))
                     Spacer(minLength: CGFloat.ds("s-4"))
-                    Text(PartsSplit.pages(first: part.first, last: part.last, text: text))
-                        .dsType(.label)
-                        .monospacedDigit()
-                        .foregroundStyle(Color.ds("ink-2"))
+                    if let pages = part.pages {
+                        Text(PartsSplit.pages(first: pages.lowerBound, last: pages.upperBound, text: text))
+                            .dsType(.label)
+                            .monospacedDigit()
+                            .foregroundStyle(Color.ds("ink-2"))
+                    }
                 }
                 .frame(minHeight: CGFloat.ds("h-touch"))
                 .accessibilityElement(children: .combine)
@@ -338,10 +340,14 @@ private struct PiecePartsDone: View {
 
 /// «Пьесы в этом файле» in the PDF's Contents, with what was split from this piece or where it came from.
 struct PiecePartsEntry: View {
-    let projectId: String?
+    let family: PieceFamily
     let text: UIText
     let open: () -> Void
-    @State private var line: String? = nil
+
+    private var line: String? {
+        if let split = family.split { return PartsSplit.summary(count: split.parts.count, playlist: split.playlist, text: text) }
+        return family.origin.map { PartsSplit.from($0, text: text) }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
@@ -357,15 +363,6 @@ struct PiecePartsEntry: View {
                     .dsType(.caption)
                     .foregroundStyle(Color.ds("ink-2"))
                     .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .onAppear {
-            guard let projectId else { return }
-            let splits = PieceSplits.load()
-            if let done = splits[projectId] {
-                line = PartsSplit.summary(count: done.parts.count, playlist: done.playlist, text: text)
-            } else if let origin = PieceSplits.origin(of: projectId, in: splits) {
-                line = text.format("parts.from", origin.title, origin.playlist)
             }
         }
     }

@@ -29,6 +29,9 @@ final class PdfController: NSObject, ObservableObject, PenHolder {
     /// The PDF is the player's photos of pages (v0.4, «Фото страниц»), read page by page.
     @Published private(set) var isPhotos = false
     private(set) var fileName = "score.pdf"
+    /// The pieces split from this one and where it was split from (v0.4, «Пьесы в файле»): the library's, then this
+    /// screen's own split.
+    @Published var family = PieceFamily()
 
     /// The bar's Pen: while it is on, a finger writes too and two fingers scroll. The Pencil always writes.
     @Published var penOn = false { didSet { applyInput() } }
@@ -369,10 +372,10 @@ struct PdfScreen: View {
             }
         }) {
             if pdf.isPhotos && DeviceSettings.shared.isOn("experimental.photoPages") {
-                PhotoReadingPanel(reader: photos, pdf: pdf, titles: titles, address: scanAddress, text: text) { read in
+                PhotoReadingPanel(reader: photos, pdf: pdf, address: scanAddress, text: text) { read in
                     readPanel(read, heading: text["photos.readHeading"], keeps: text["photos.readKeeps"], line: "photos.readLine")
-                } open: { musicXml, engine, pages in
-                    await fill(musicXml, engine: engine, pages: pages)
+                } open: { musicXml, engine, pages, reports in
+                    await fill(musicXml, engine: engine, pages: pages, reports: reports)
                 }
                 .presentationDetents([.large])
             } else {
@@ -387,6 +390,7 @@ struct PdfScreen: View {
         }
         .task {
             pdf.inkable = !linked
+            pdf.family = piece.family
             await pdf.load(piece: piece.id, text: text, page: piece.landing?.page)
             if let id = pdf.projectId { metronome.load(piece: id) }
         }
@@ -565,11 +569,14 @@ struct PdfScreen: View {
 
     /// Sends the PDF to the scan server and puts the notes it read into this same piece (testing item 16), which opens as
     /// notes where the page under the bar starts (the web app's `ReadNotesAsync`). Answers why not, or nil once they open.
+    /// With «Фото страниц» on, the server's report on the pages goes with the notes (v0.4).
     private func readNotes() async -> String? {
         guard let address = scanAddress, let data = pdf.original else { return text["pdf.readNone"] }
         switch await ScanServer.recognise(fileName: pdf.fileName, data: data, address: address, account: account) {
         case .failure(let problem): return problem.text(text)
-        case .success(let read): return await fill(read.musicXml, engine: read.engine, pages: max(1, pdf.pageCount))
+        case .success(let read):
+            let reports = DeviceSettings.shared.isOn("experimental.photoPages") ? read.report.map { [$0] } : nil
+            return await fill(read.musicXml, engine: read.engine, pages: max(1, pdf.pageCount), reports: reports)
         }
     }
 
@@ -592,27 +599,12 @@ struct PdfScreen: View {
         )
     }
 
-    /// The names the notes read from these photos open under, for Check's summary of the pages (PhotoPageNotes).
-    private var titles: Set<String> {
-        var names: Set<String> = [piece.title]
-        if let file = piece.file { names.insert(ProjectFiles.title(of: file.lastPathComponent)) }
-        return names
-    }
-
-    /// The notes read from the pages into this same piece, which then opens as notes: answers why not, or nil.
-    private func fill(_ musicXml: Data, engine: String, pages: Int) async -> String? {
+    /// The notes read from the pages into this same piece, which then opens as notes: answers why not, or nil. The page
+    /// reports (v0.4), one per page of the notes, are kept with them, or left out when music-core refuses them.
+    private func fill(_ musicXml: Data, engine: String, pages: Int, reports: [String]?) async -> String? {
         guard let openRead else { return text["pdf.readNone"] }
-        let request: [String: Any] = [
-            "musicXml": musicXml.base64EncodedString(),
-            "engine": engine,
-            "pages": pages,
-            "language": text.language,
-            "now": ISO8601DateFormatter().string(from: Date()),
-        ]
-        guard let body = try? JSONSerialization.data(withJSONObject: request) else { return text["pdf.readNone"] }
-        let json = String(decoding: body, as: UTF8.self)
-        let id = piece.id
-        let answer = await MusicCore.run { MusicCore.call(piece: id, "document.read", json) }
+        let request = DocumentRead.request(musicXml: musicXml, engine: engine, pages: pages, reports: reports, language: text.language, now: Date())
+        let answer = await DocumentRead.call(piece: piece.id, request)
         guard let object = facadeObject(answer) else { return text["pdf.readNone"] }
         if object["error"] != nil { return object["message"] as? String ?? text["pdf.readNone"] }
         guard let file = object["file"] as? String else { return text["pdf.readNone"] }
@@ -650,7 +642,7 @@ struct PdfContents: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
-            if let parts { PiecePartsEntry(projectId: pdf.projectId, text: text, open: parts) }
+            if let parts { PiecePartsEntry(family: pdf.family, text: text, open: parts) }
             Text(text["pdf.bookmarks"]).overline().accessibilityAddTraits(.isHeader)
             if pdf.bookmarks.isEmpty {
                 Text(text["pdf.noBookmarks"])

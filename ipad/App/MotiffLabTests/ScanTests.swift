@@ -3,7 +3,8 @@ import XCTest
 
 /// Photos of pages (v0.4, experiment «Фото страниц»): the order of the pages on the review screen, how a photo's look is
 /// measured and warned about before sending, the scan server's page report, the progress page by page, the `scan.join`
-/// request and its answer, and the summary after reading, in both languages.
+/// request and its answer, the summary after reading, in both languages, and the reports kept with the notes
+/// (`document.read`, v0.4) that Check reads back page by page.
 final class ScanTests: XCTestCase {
     private let english = UIText(language: "en")
     private let russian = UIText(language: "ru")
@@ -146,7 +147,8 @@ final class ScanTests: XCTestCase {
         XCTAssertEqual(first["reports"] as? [String], [report, report])
         XCTAssertNil(first["score"])
 
-        XCTAssertTrue(readings.joined(["score": "<joined/>", "pages": [["page": 1, "bars": 28, "doubtful": 2, "quality": "good"], ["page": 2, "bars": 12, "doubtful": 12, "quality": "poor"]]], from: [1, 3]))
+        XCTAssertTrue(readings.joined(["score": "<joined/>", "pages": [["page": 1, "bars": 28, "doubtful": 2, "quality": "good"], ["page": 2, "bars": 12, "doubtful": 12, "quality": "poor"]]], from: [1, 3], reports: first["reports"] as? [String]))
+        XCTAssertEqual(readings.joinedReports, [report, report], "the reports the join took go on to the notes")
         readings.set(3, .read(musicXml: "<again/>", report: nil))
         let again = try XCTUnwrap(readings.joinRequest(again: 3))
         XCTAssertEqual(again["score"] as? String, "<joined/>")
@@ -165,7 +167,8 @@ final class ScanTests: XCTestCase {
         readings.set(2, .failed(message: "Не найдены нотоносцы.", report: nil))
         readings.set(3, .read(musicXml: "<c/>", report: report))
         readings.set(4, .read(musicXml: "<d/>", report: report))
-        XCTAssertFalse(readings.joined(["error": "badRequest"], from: [1, 3, 4]))
+        XCTAssertFalse(readings.joined(["error": "badRequest"], from: [1, 3, 4], reports: [report, report, report]))
+        XCTAssertNil(readings.joinedReports, "a join refused keeps no reports")
         XCTAssertTrue(readings.joined(["score": "<s/>", "pages": [
             ["page": 1, "bars": 12, "doubtful": 0, "quality": "good"],
             ["page": 2, "bars": 12, "doubtful": 9, "quality": "weak"],
@@ -208,5 +211,88 @@ final class ScanTests: XCTestCase {
         XCTAssertEqual(readings.joinedPages[1], JoinedPage(bars: 3, doubtful: 0, quality: "good"))
         XCTAssertEqual(readings.joinedPages[2], JoinedPage(bars: 2, doubtful: 2, quality: "poor"))
         XCTAssertEqual(readings.summary(english)[1].text, "Page 2: 2 of 2 bars in doubt. The photo is too dark or too soft to trust.")
+    }
+
+    func testTheReadRequestCarriesTheReportsOnlyWhenThereAreSome() {
+        let now = Date(timeIntervalSince1970: 0)
+        let with = DocumentRead.request(musicXml: Data("<s/>".utf8), engine: "homr 0.7.0", pages: 2, reports: [report, report], language: "ru", now: now)
+        XCTAssertEqual(with["reports"] as? [String], [report, report])
+        XCTAssertEqual(with["musicXml"] as? String, Data("<s/>".utf8).base64EncodedString())
+        XCTAssertEqual(with["pages"] as? Int, 2)
+        XCTAssertEqual(with["now"] as? String, "1970-01-01T00:00:00Z")
+        XCTAssertNil(DocumentRead.request(musicXml: Data(), engine: "e", pages: 1, reports: [], language: "en", now: now)["reports"])
+        XCTAssertNil(DocumentRead.request(musicXml: Data(), engine: "e", pages: 1, reports: nil, language: "en", now: now)["reports"])
+    }
+
+    func testCheckReadsAScansPagesAndWhatToShowOfThem() throws {
+        let answer = #"{"flags": [{"bar": 4, "source": "scan", "reason": "pageQuality", "name": "Плохая страница", "text": "Страница плохая.", "resolved": false, "span": null}], "open": 1, "origin": "scanned", "engine": "homr 0.7.0", "pages": [{"page": 1, "quality": "good", "rotation": 0, "bars": 3, "doubtful": 0, "firstBar": 1, "lastBar": 3}, {"page": 2, "quality": "poor", "rotation": 90, "bars": 2, "doubtful": 2, "firstBar": 4, "lastBar": 5}, {"page": 3, "quality": "weak", "rotation": 0, "bars": 0, "doubtful": 0, "firstBar": null, "lastBar": null}]}"#
+        let check = try XCTUnwrap(CheckShelf(answer: answer))
+        XCTAssertEqual(check.pages, [
+            CheckPageEntry(page: 1, quality: "good", rotation: 0, bars: 3, doubtful: 0, firstBar: 1, lastBar: 3),
+            CheckPageEntry(page: 2, quality: "poor", rotation: 90, bars: 2, doubtful: 2, firstBar: 4, lastBar: 5),
+            CheckPageEntry(page: 3, quality: "weak", rotation: 0, bars: 0, doubtful: 0, firstBar: nil, lastBar: nil),
+        ])
+        XCTAssertEqual(check.pages.map(\.barRange), [1...3, 4...5, nil])
+        XCTAssertEqual(check.pages.map { PageSummaryLine.of($0, russian).unsure }, [false, true, true], "only the pages in doubt are listed")
+        XCTAssertEqual(PageSummaryLine.of(check.pages[1], russian).text, "Страница 2: 2 из 2 тактов под вопросом. Снимок слишком тёмный или нечёткий, ему нельзя доверять.")
+        XCTAssertEqual(CheckShelf.reasonNames(check.openBars[0].flags, russian), "Плохая страница", "a poor page's flag is named by music-core")
+        XCTAssertEqual(CheckShelf(answer: #"{"flags": [], "open": 0}"#)?.pages, [], "no reports, no pages")
+    }
+
+    /// A PDF piece of `count` pages as music-core counts them (its page objects), opened in the language.
+    private func pdfPiece(_ count: Int, language: String) throws -> Int32 {
+        let pdf = Data(("%PDF-1.4\n1 0 obj << /Type /Pages /Count \(count) >> endobj\n" + (2...(count + 1)).map { "\($0) 0 obj << /Type /Page >> endobj\n" }.joined() + "%%EOF\n").utf8)
+        let opened = facadeObject(MusicCore.open(fileName: "Pages.pdf", data: pdf, request: #"{"language": "\#(language)"}"#))
+        return try XCTUnwrap((opened?["piece"] as? NSNumber)?.int32Value)
+    }
+
+    @MainActor
+    func testThePageReportsAreKeptWithTheNotesAndCheckTellsThePagesAfter() async throws {
+        var readings = PhotoReadings(count: 2)
+        let dim = #"[{"page":1,"rotation":0,"sharpness":0.76,"contrast":58,"staves":13,"noteheads":121,"barLines":48,"spacePx":17.0,"measures":2}]"#
+        readings.set(1, .read(musicXml: page(3), report: report))
+        readings.set(2, .read(musicXml: page(2), report: dim))
+        let join = try XCTUnwrap(readings.joinRequest())
+        let joinBody = String(decoding: try JSONSerialization.data(withJSONObject: join), as: UTF8.self)
+        let joinAnswer = try XCTUnwrap(facadeObject(MusicCore.call(piece: 0, "scan.join", joinBody)))
+        XCTAssertTrue(readings.joined(joinAnswer, from: readings.readPages, reports: join["reports"] as? [String]))
+        let score = try XCTUnwrap(readings.joined)
+
+        let piece = try pdfPiece(2, language: "en")
+        defer { MusicCore.close(piece: piece) }
+        let request = DocumentRead.request(musicXml: Data(score.utf8), engine: "homr 0.7.0", pages: 2, reports: readings.joinedReports, language: "en", now: Date())
+        let answer = await DocumentRead.call(piece: piece, request)
+        let read = try XCTUnwrap(facadeObject(answer))
+        XCTAssertNil(read["error"], "\(read)")
+        let file = try XCTUnwrap(read["file"] as? String)
+
+        // Opened again, as after the app was closed: Check tells the pages from the file.
+        let again = try XCTUnwrap((facadeObject(MusicCore.open(fileName: "Pages.motiff.json", data: Data(file.utf8), request: #"{"language": "en"}"#))?["piece"] as? NSNumber)?.int32Value)
+        defer { MusicCore.close(piece: again) }
+        let check = try XCTUnwrap(CheckShelf(answer: MusicCore.call(piece: again, "check")))
+        XCTAssertEqual(check.pages.map(\.quality), ["good", "poor"])
+        XCTAssertEqual(check.pages.map(\.barRange), [1...3, 4...5])
+        XCTAssertEqual(check.pages.map(\.doubtful), [0, 2])
+        XCTAssertEqual(Set(check.flags.filter { $0.bar >= 4 }.map(\.name)), ["Poor page"], "the poor page's bars are flagged, named by music-core")
+        XCTAssertEqual(PageSummaryLine.of(check.pages[1], english).text, "Page 2: 2 of 2 bars in doubt. The photo is too dark or too soft to trust.")
+    }
+
+    @MainActor
+    func testReportsMusicCoreRefusesAreLeftOutAndTheNotesReadWithout() async throws {
+        let piece = try pdfPiece(1, language: "en")
+        defer { MusicCore.close(piece: piece) }
+        // Two reports for the one page of the notes: not one per page.
+        let request = DocumentRead.request(musicXml: Data(page(3).utf8), engine: "homr 0.7.0", pages: 1, reports: [report, report], language: "en", now: Date())
+        let refused = facadeObject(MusicCore.call(piece: piece, "document.read", String(decoding: try JSONSerialization.data(withJSONObject: request), as: UTF8.self)))
+        XCTAssertEqual(refused?["error"] as? String, "badRequest", "music-core takes one report per page of the notes")
+        let answer = await DocumentRead.call(piece: piece, request)
+        let read = try XCTUnwrap(facadeObject(answer))
+        XCTAssertNil(read["error"], "\(read)")
+        let file = try XCTUnwrap(read["file"] as? String)
+        let again = try XCTUnwrap((facadeObject(MusicCore.open(fileName: "Pages.motiff.json", data: Data(file.utf8), request: #"{"language": "en"}"#))?["piece"] as? NSNumber)?.int32Value)
+        defer { MusicCore.close(piece: again) }
+        let check = try XCTUnwrap(CheckShelf(answer: MusicCore.call(piece: again, "check")))
+        XCTAssertEqual(check.pages, [], "read without the reports")
+        XCTAssertEqual(check.origin, "scanned")
     }
 }

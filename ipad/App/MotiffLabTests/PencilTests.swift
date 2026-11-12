@@ -134,11 +134,15 @@ final class PencilTests: XCTestCase {
         XCTAssertEqual((right["bar"] as? NSNumber)?.doubleValue, value(last, "tick"))
         XCTAssertGreaterThan((right["u"] as? NSNumber)?.doubleValue ?? 0, 1)
 
+        // The page names the margin a stroke was begun in (v0.4, pencil-marks.ts), and the mark goes to music-core as it is.
+        XCTAssertEqual(left["margin"] as? String, "left")
+        XCTAssertEqual(right["margin"] as? String, "right")
         let request = String(decoding: try JSONSerialization.data(withJSONObject: ["strokes": [left, right]]), as: UTF8.self)
         let added = await MusicCore.run { MusicCore.call(piece: piece.id, "ink.add", request) }
         let answer = try XCTUnwrap(facadeObject(added))
         let ink = try XCTUnwrap(answer["ink"] as? [[String: Any]], "\(answer)")
         XCTAssertEqual(ink.count, 2)
+        XCTAssertEqual(ink.compactMap { $0["margin"] as? String }.sorted(), ["left", "right"], "music-core keeps and answers each stroke's margin")
         // Forty points on a straight line are kept as its two ends.
         XCTAssertEqual((ink.first?["points"] as? [Any])?.count, 3, "the straight stroke is thinned to its ends")
 
