@@ -1,6 +1,7 @@
 using System.Xml.Linq;
 
 using MotiffLab.MusicCore.Analysis;
+using MotiffLab.MusicCore.Notation;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Time;
 
@@ -140,6 +141,7 @@ public class ReferenceSoundingTests
         Assert.Equal("s", (string?)notes[8].Attribute("accid"));
         Assert.Equal("f", (string?)notes[5].Attribute("accid.ges"));
         Assert.Equal(["B♭", "C♯"], sounding.Music.Keys.Where(key => key.Name.Length > 1).Select(key => key.Name));
+        Assert.Equal("ре ми фа соль ля си♭ до♯ ре", string.Join(" ", sounding.Music.Keys.Select(key => key.NameIn(NoteNaming.Syllables))));
     }
 
     [Fact]
@@ -147,7 +149,17 @@ public class ReferenceSoundingTests
     {
         ScaleSounding sounding = ReferenceSounding.Scale(ScaleReference.For(new SpelledName(5, 0), ScaleForm.MelodicMinor), ScalePattern.UpAndDown, 1);
 
-        Assert.Equal("57 59 60 62 64 66 68 69 67 65 64 62 60 59 57", Heard(sounding.Music));
+        Assert.Equal("69 71 72 74 76 78 80 81 79 77 76 74 72 71 69", Heard(sounding.Music));
+    }
+
+    [Fact]
+    public void One_octave_starts_at_or_above_middle_c_and_two_round_it_to_keep_the_treble_staff()
+    {
+        ScaleCard g = ScaleReference.For(new SpelledName(4, 0), ScaleForm.Major);
+
+        Assert.Equal(67, ReferenceSounding.Scale(g, ScalePattern.Up, 1).Music.Notes[0].Pitch.MidiNumber);
+        Assert.Equal(55, ReferenceSounding.Scale(g, ScalePattern.Up, 2).Music.Notes[0].Pitch.MidiNumber);
+        Assert.Equal(79, ReferenceSounding.Scale(g, ScalePattern.Up, 2).Music.Notes[^1].Pitch.MidiNumber);
     }
 
     [Fact]

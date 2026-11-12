@@ -7,13 +7,17 @@
 @implements IDisposable
 
 @* Circle in the library's head (the Reference, an experiment, Settings · Experimental): shown while the experiment is on,
-   it opens the circle of fifths. No piece is loaded here, so a scale or chord of a key's card plays on the app's piano as
+   it opens the circle of fifths; with «Справочник» on (version 0.5), the Reference with its three tabs. No piece is loaded here, so a scale or chord of a key's card plays on the app's piano as
    a playback score of its own, at the reference tempo. *@
-@if (Store.IsOn(Setting))
+@if (Store.IsOn(Setting) || Store.IsOn(HarmonySetting))
 {
     <button class="btn quiet ref-open" aria-haspopup="dialog" title="@Text["reference.openHint"]" @onclick="() => _open = true">@Text["reference.open"]</button>
 }
-@if (_open)
+@if (_open && Store.IsOn(HarmonySetting))
+{
+    <MotiffLab.Web.Reference.Handbook.HandbookSheet Closed="() => _open = false" Hear="HearAsync" Play="PlayAsync" Stop="Player.PauseAsync" />
+}
+else if (_open)
 {
     <ReferenceSheet Closed="() => _open = false" Hear="HearAsync" />
 }
@@ -21,6 +25,9 @@
 @code {
     /// <summary>The experiment's switch in Settings · Experimental.</summary>
     public const string Setting = "experimental.reference";
+
+    /// <summary>The 0.5 Reference, «Справочник», with chords and scales and the harmony explorer.</summary>
+    public const string HarmonySetting = "experimental.harmony";
 
     private bool _open;
 
@@ -42,6 +49,21 @@
 
         await Player.LoadAsync(KeyReference.Playback(sound));
         await Player.PlayAsync();
+    }
+
+    /// <summary>The «Справочник»'s music on its own, at its own tempo, once or looped.</summary>
+    private async Task<MotiffLab.Web.Reference.Handbook.ReferencePlacement?> PlayAsync(MotiffLab.Web.Reference.Handbook.ReferencePlay play)
+    {
+        await Player.InitializeAsync();
+        if (!Player.IsReady)
+        {
+            return null;
+        }
+
+        await Player.LoadAsync(play.Music.Playback());
+        await Player.SetLoopAsync(play.Loop ? MotiffLab.MusicCore.Time.TickSpan.FromBounds(MotiffLab.MusicCore.Time.Tick.Zero, play.Music.End) : null);
+        await Player.PlayAsync();
+        return new(0, play.Music.MicrosecondsPerQuarter, play.Music.MicrosecondsPerQuarter);
     }
 
     public void Dispose() => Store.Changed -= OnChanged;

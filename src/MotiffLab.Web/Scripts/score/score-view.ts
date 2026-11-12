@@ -302,7 +302,8 @@ export class ScoreView {
      * The geometry as last read, kept while the layout stays the same size (#419): reading it measures every page, and the
      * playhead, the brackets, the marks, the selection and the pencil all ask for it.
      */
-    private placedGeometry: { key: string; geometry: ScoreGeometry } | null = null;
+    private placedGeometry: { key: string; ends: number[]; geometry: ScoreGeometry } | null = null;
+    private replaceFrame = 0;
     /** The notes and rests marked outside the selection's range, so a new range changes only the ones that differ. */
     private outside = new Set<string>();
     /** Whether the score scrolls to keep the playing system in view (Settings · Playback, playback.follow). */
@@ -744,23 +745,41 @@ export class ScoreView {
             return null;
         }
         const host = this.host;
+        // An A4 sheet is the page's own box, the drawing as wide as it and from its top (app.css: .score svg is 100% wide,
+        // its height from its shape): measuring the sheet rather than the drawing leaves the pages out of sight unrendered
+        // (content-visibility, #419). The strip's sheet is as tall as its drawing, which is measured.
+        const sheets = host.querySelectorAll(this.paged ? ":scope > .score-page" : ":scope > .score-page > svg");
+        const view = host.getBoundingClientRect();
+        // Kept while the view and the sheets stay where they are: a drawer, a bar or a setting that moves the sheets without
+        // changing the view's size makes it again (#434). Where the first and last sheets are, in the score's content pixels.
+        const ends = [sheets[0], sheets[sheets.length - 1]].flatMap((sheet) => {
+            const box = sheet?.getBoundingClientRect();
+            return box === undefined ? [] : [box.left - view.left + host.scrollLeft, box.top - view.top + host.scrollTop, box.width];
+        });
         const key = `${host.clientWidth}x${host.clientHeight}x${host.scrollHeight}x${this.pageSvgs.length}`;
-        if (this.placedGeometry?.key === key) {
-            return this.placedGeometry.geometry;
+        const kept = this.placedGeometry;
+        if (kept?.key === key && kept.ends.length === ends.length && kept.ends.every((value, index) => Math.abs(value - ends[index]) < 1)) {
+            return kept.geometry;
+        }
+        // Sheets that moved under marks drawn over them: the marks are drawn again where the bars are now.
+        if (this.placedGeometry !== null) {
+            this.replaceMarks();
         }
         this.pageGeometry ??= this.pageSvgs.map((svg, index) => readPage(svg, index + 1));
         const pages = this.pageGeometry;
-        const view = host.getBoundingClientRect();
         const placements: PagePlacement[] = [];
-        // An A4 sheet is the page's own box, which its drawing fills: measuring the sheet rather than the drawing leaves the
-        // pages out of sight unrendered (content-visibility, #419). The strip's sheet is as tall as its drawing.
-        host.querySelectorAll(this.paged ? ":scope > .score-page" : ":scope > .score-page > svg").forEach((svg, index) => {
+        sheets.forEach((element, index) => {
             const page = pages[index];
             if (page === undefined) {
                 return;
             }
+            const box = element.getBoundingClientRect();
+            if (this.paged) {
+                const scale = box.width / page.width;
+                placements.push({ left: box.left - view.left + host.scrollLeft, top: box.top - view.top + host.scrollTop, scale });
+                return;
+            }
             // The page's view box is fitted into the element and centred, as preserveAspectRatio has it.
-            const box = svg.getBoundingClientRect();
             const scale = Math.min(box.width / page.width, box.height / page.height);
             placements.push({
                 left: box.left - view.left + host.scrollLeft + (box.width - page.width * scale) / 2,
@@ -769,8 +788,25 @@ export class ScoreView {
             });
         });
         const geometry = new ScoreGeometry(pages, placements, (id) => timeline.measureOnset(id));
-        this.placedGeometry = { key, geometry };
+        this.placedGeometry = { key, ends, geometry };
         return geometry;
+    }
+
+    /** Draws the marks over the pages again in the next frame, once, where the bars are then. */
+    private replaceMarks(): void {
+        if (this.replaceFrame !== 0) {
+            return;
+        }
+        this.replaceFrame = requestAnimationFrame(() => {
+            this.replaceFrame = 0;
+            if (this.disposed || this.engraver === null) {
+                return;
+            }
+            this.placePhrases();
+            this.selection.place();
+            this.applyHighlight(false);
+            this.pencil.relayout();
+        });
     }
 
     /** The pencil marks over the score, for Blazor to choose the piece and the tool (0015). */
@@ -783,6 +819,7 @@ export class ScoreView {
         this.pencil.dispose();
         this.selection.dispose();
         cancelAnimationFrame(this.frame);
+        cancelAnimationFrame(this.replaceFrame);
         clearTimeout(this.relayoutTimer);
         this.resizeObserver.disconnect();
         this.host.removeEventListener("click", this.onClick);

@@ -503,7 +503,11 @@
                 </div>
             }
 
-            @if (_referenceOpen)
+            @if (_referenceOpen && HandbookOn)
+            {
+                <MotiffLab.Web.Reference.Handbook.HandbookSheet PieceKey="_referencePieceKey" Hear="HearReferenceAsync" Play="PlayHandbookAsync" Stop="StopScaleAsync" Closed="() => _referenceOpen = false" />
+            }
+            else if (_referenceOpen)
             {
                 <MotiffLab.Web.Reference.ReferenceSheet PieceKey="_referencePieceKey" Hear="HearReferenceAsync" Closed="() => _referenceOpen = false" />
             }
