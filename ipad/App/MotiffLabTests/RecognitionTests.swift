@@ -60,6 +60,18 @@ final class RecognitionTests: XCTestCase {
         XCTAssertNil(RecognitionStore.load(in: base))
     }
 
+    func testThePieceOpenOnScreenIsLeftQueuedUntilItCloses() {
+        var batch = RecognitionBatch(address: "https://scan.example.org/", hosted: false, items: [
+            RecognitionItem(file: "a.motiff.json", title: "Arabesque", pages: 5), RecognitionItem(file: "b.motiff.json", title: "Ballade", pages: 12),
+        ])
+
+        XCTAssertEqual(RecognitionQueue.next(in: batch, open: "a.motiff.json"), 1, "the open piece is skipped: saving the screen would cover its notes")
+        XCTAssertEqual(RecognitionQueue.next(in: batch, open: nil), 0)
+        batch.items[1].state = .done
+        XCTAssertNil(RecognitionQueue.next(in: batch, open: "a.motiff.json"), "only the open piece is left: it waits")
+        XCTAssertEqual(RecognitionQueue.next(in: batch, open: nil), 0, "read once the screen closes")
+    }
+
     func testOnlyPiecesThatAreOnlyAPdfArePickedAndFilteredWithoutNotes() {
         let pdf = LibraryEntry(url: URL(fileURLWithPath: "/p/a.motiff.json"), title: "Arabesque", composer: nil, tags: [], modified: Date())
         var away = pdf

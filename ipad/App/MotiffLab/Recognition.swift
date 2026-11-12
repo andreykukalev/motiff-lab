@@ -86,6 +86,8 @@ enum DailyPages {
 struct RecognitionFailure: Error, Equatable {
     let reason: String
     var stop: String?
+    /// The piece was opened on screen while its notes were read: they are not written, and it is read again once closed.
+    var open = false
 }
 
 /// Runs the batch in the background of the library: one piece at a time, the batch kept after each, the library told to
@@ -104,6 +106,11 @@ final class RecognitionQueue: ObservableObject {
     var projects: () -> URL = { ProjectFiles.folder }
     var defaults = UserDefaults.standard
     private var restored = false
+    /// The project file of the piece open on screen. The batch leaves it queued and never writes it: closing the screen
+    /// saves the piece over anything written meanwhile. It is read once the screen closes.
+    private(set) var open: String?
+    /// The batch stopped only at the open piece, to go on once it closes.
+    private var waiting = false
 
     /// A batch left unfinished when the app was closed, waiting for «Продолжить».
     var interrupted: Bool { batch.map { !$0.finished && !$0.paused } == true && !running }
@@ -160,6 +167,22 @@ final class RecognitionQueue: ObservableObject {
         revision += 1
     }
 
+    /// The piece now open on screen (nil when none); a piece left for it is read once another is open or none.
+    func opened(_ url: URL?) {
+        let now = url?.lastPathComponent
+        guard now != open else { return }
+        open = now
+        if waiting {
+            waiting = false
+            Task { await run() }
+        }
+    }
+
+    /// The next piece to read: the first queued, except the one open on screen.
+    static func next(in batch: RecognitionBatch, open: String?) -> Int? {
+        batch.items.firstIndex { $0.state == .queued && $0.file != open }
+    }
+
     /// What is happening to the piece's notes in the batch, if it is in it.
     func status(of url: URL) -> RecognitionItem? {
         batch?.items.first { $0.file == url.lastPathComponent }
@@ -170,9 +193,10 @@ final class RecognitionQueue: ObservableObject {
         running = true
         defer {
             running = false
+            waiting = batch.map { !$0.paused && $0.items.contains { $0.state == .queued } } ?? false
             revision += 1
         }
-        while let current = batch, !current.paused, let index = current.items.firstIndex(where: { $0.state == .queued }) {
+        while let current = batch, !current.paused, let index = Self.next(in: current, open: open) {
             guard let address = URL(string: current.address) else { return stop() }
             let item = current.items[index]
             if current.hosted, let player = account.player, DailyPages.used(player: player, defaults: defaults) + item.pages > DailyPages.limit {
@@ -182,12 +206,14 @@ final class RecognitionQueue: ObservableObject {
             }
             batch?.items[index].state = .reading
             RecognitionStore.save(batch, in: root)
-            let outcome = await Self.recognise(projects().appendingPathComponent(item.file), address: address, account: account, links: links, folders: root)
+            let outcome = await Self.recognise(projects().appendingPathComponent(item.file), address: address, account: account, links: links, folders: root) { self.open == item.file }
             guard batch?.id == current.id, batch?.items.indices.contains(index) == true else { return }
             switch outcome {
             case .success(let pages):
                 batch?.items[index].state = .done
                 if current.hosted, let player = account.player { DailyPages.add(pages, player: player, defaults: defaults) }
+            case .failure(let failure) where failure.open:
+                batch?.items[index].state = .queued
             case .failure(let failure):
                 batch?.items[index].state = failure.stop == nil ? .failed : .queued
                 batch?.items[index].reason = failure.stop == nil ? failure.reason : nil
@@ -202,8 +228,9 @@ final class RecognitionQueue: ObservableObject {
     }
 
     /// One piece's PDF read by the scan server and its notes put into the same piece (`document.read`), as «Распознать
-    /// ноты» on its PDF does: the pages sent, or why not.
-    static func recognise(_ url: URL, address: URL, account: Account, links: URL, folders: URL) async -> Result<Int, RecognitionFailure> {
+    /// ноты» on its PDF does: the pages sent, or why not. `isOpen` says, just before the notes are written, whether the piece
+    /// is open on screen now.
+    static func recognise(_ url: URL, address: URL, account: Account, links: URL, folders: URL, isOpen: () -> Bool) async -> Result<Int, RecognitionFailure> {
         let text = UIText.current
         guard let summary = await PieceSummary.read(url), let project = try? Data(contentsOf: url) else {
             return .failure(RecognitionFailure(reason: text["recognition.failMissing"]))
@@ -220,12 +247,12 @@ final class RecognitionQueue: ObservableObject {
             return .failure(RecognitionFailure(reason: text["pdf.unreadable"]))
         }
         let piece = open.id
-        let outcome = await read(piece, url: url, address: address, account: account, text: text)
+        let outcome = await read(piece, url: url, address: address, account: account, text: text, isOpen: isOpen)
         _ = await MusicCore.run { MusicCore.close(piece: piece) }
         return outcome
     }
 
-    private static func read(_ piece: Int32, url: URL, address: URL, account: Account, text: UIText) async -> Result<Int, RecognitionFailure> {
+    private static func read(_ piece: Int32, url: URL, address: URL, account: Account, text: UIText, isOpen: () -> Bool) async -> Result<Int, RecognitionFailure> {
         let document = await MusicCore.run { MusicCore.call(piece: piece, "document") }
         guard let object = facadeObject(document), let base64 = object["pdf"] as? String, let data = Data(base64Encoded: base64) else {
             return .failure(RecognitionFailure(reason: text["pdf.unreadable"]))
@@ -241,6 +268,7 @@ final class RecognitionQueue: ObservableObject {
             guard let read = facadeObject(answer), read["error"] == nil, let file = read["file"] as? String else {
                 return .failure(RecognitionFailure(reason: facadeObject(answer)?["message"] as? String ?? text["pdf.readNone"]))
             }
+            if isOpen() { return .failure(RecognitionFailure(reason: "", open: true)) }
             do {
                 try Data(file.utf8).write(to: url, options: .atomic)
             } catch {
