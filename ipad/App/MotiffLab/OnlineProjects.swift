@@ -59,6 +59,9 @@ struct OnlineProjects {
     /// A request to the API for a path, with the player's token and a tester's choice (`Account.request`); nil while
     /// nobody is signed in.
     let request: (String) async -> URLRequest?
+    /// False where the app may not write (Main in a version build, `EnvironmentSetup.writes`): then only reads go out,
+    /// and a save is refused here without being sent.
+    var writable = true
 
     /// The player's projects saved online; nil when signed out, offline or when the API cannot be reached.
     func list() async -> [OnlineProject]? {
@@ -163,6 +166,7 @@ struct OnlineProjects {
     private func send(_ path: String, _ shape: (inout URLRequest) -> Void) async -> Result<(data: Data, response: HTTPURLResponse), Refused> {
         guard var made = await request(path) else { return .failure(.failed(.signedOut)) }
         shape(&made)
+        if !writable && (made.httpMethod ?? "GET") != "GET" { return .failure(.failed(.problem)) }
         do {
             let (data, response) = try await session.data(for: made)
             guard let response = response as? HTTPURLResponse else { return .failure(.failed(.problem)) }

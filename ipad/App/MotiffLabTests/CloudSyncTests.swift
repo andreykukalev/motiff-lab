@@ -25,9 +25,10 @@ final class CloudSyncTests: XCTestCase {
         StubAPI.reset()
     }
 
-    private func sync() -> CloudSync {
+    /// Not writable: Main in a version build (`EnvironmentSetup.writes`).
+    private func sync(writable: Bool = true) -> CloudSync {
         let account = account!
-        let online = OnlineProjects(session: StubAPI.session()) { path in await account.request(path: path, token: "t") }
+        let online = OnlineProjects(session: StubAPI.session(), request: { path in await account.request(path: path, token: "t") }, writable: writable)
         return CloudSync(online: online, folder: folder, recordsURL: records) { _ in "{0} (previous copy)" }
     }
 
@@ -146,5 +147,46 @@ final class CloudSyncTests: XCTestCase {
         let outcome = await CloudSync(online: online, folder: folder, recordsURL: records) { _ in "{0}" }.run()
         XCTAssertEqual(outcome, CloudSync.Outcome())
         XCTAssertTrue(StubAPI.requests.isEmpty)
+    }
+
+    /// Main in a version build (Andrei, 2026-11-12): the real pieces come here, nothing goes online.
+    func testReadOnlyFetchesWhatIsNewOnlineAndSendsNothing() async throws {
+        let here = "p_" + String(repeating: "f", count: 32)
+        let there = "p_" + String(repeating: "g", count: 32)
+        try Data(try projectFile(id: here).utf8).write(to: folder.appendingPathComponent("Elise.motiff.json"))
+        StubAPI.reset([
+            try url("projects"): .init(status: 200, body: Data("[\(row(there, savedAt: "2026-11-11T10:00:00+00:00"))]".utf8)),
+            try url("projects/" + there): .init(status: 200, body: Data(try projectFile(id: there, tags: ["Real"]).utf8), headers: ["ETag": "\"e1\""]),
+            try "PUT " + url("projects/" + here): .init(status: 204, body: Data(), headers: ["ETag": "\"e2\""]),
+        ])
+
+        let outcome = await sync(writable: false).run()
+
+        XCTAssertTrue(outcome.changed)
+        XCTAssertEqual(ProjectFiles.list(in: folder).count, 2, "the piece online came here")
+        XCTAssertTrue(StubAPI.requests.allSatisfy { ($0.httpMethod ?? "GET") == "GET" }, "nothing was sent")
+        XCTAssertNil(SyncRecords.load(from: records)[here]?.etag, "the piece here is not online, and goes once writing is allowed")
+        XCTAssertEqual(SyncRecords.load(from: records)[there]?.etag, "\"e1\"")
+    }
+
+    func testReadOnlyLeavesAPieceChangedOnBothSidesAsItIs() async throws {
+        let id = "p_" + String(repeating: "h", count: 32)
+        let here = folder.appendingPathComponent("Elise.motiff.json")
+        let base = try projectFile(id: id)
+        let mine = try projectFile(id: id, tags: ["Here"])
+        try Data(mine.utf8).write(to: here)
+        SyncRecords.save([id: SyncRecord(etag: "\"e1\"", savedAt: "2020-01-01T09:00:00+00:00", hash: CloudSync.hash(Data(base.utf8)))], to: records)
+        StubAPI.reset([
+            try url("projects"): .init(status: 200, body: Data("[\(row(id, savedAt: "2020-01-02T09:00:00+00:00"))]".utf8)),
+            try url("projects/" + id): .init(status: 200, body: Data(try projectFile(id: id, tags: ["Online"]).utf8), headers: ["ETag": "\"e2\""]),
+        ])
+
+        let outcome = await sync(writable: false).run()
+
+        XCTAssertFalse(outcome.changed)
+        XCTAssertEqual(try String(contentsOf: here, encoding: .utf8), mine, "this iPad's copy stays as it was")
+        XCTAssertEqual(ProjectFiles.list(in: folder).count, 1, "no previous copy is made")
+        XCTAssertTrue(StubAPI.requests.allSatisfy { ($0.httpMethod ?? "GET") == "GET" })
+        XCTAssertEqual(SyncRecords.load(from: records)[id]?.etag, "\"e1\"", "resolved once writing is allowed")
     }
 }
