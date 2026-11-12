@@ -116,6 +116,34 @@ public sealed class PlayerFolders(IJSRuntime js) : IAsyncDisposable
         return pairs.Select(static pair => (pair[0], Link(pair[1]))).Where(static pair => pair.Item2 is not null).ToDictionary(static pair => pair.Item1, static pair => pair.Item2!);
     }
 
+    /// <summary>Whether this browser picks one file with a handle it keeps (Chrome, Edge): «Привязать оригинал» reads it in place.</summary>
+    public async Task<bool> CanKeepFilesAsync() => await (await ModuleAsync()).InvokeAsync<bool>("canKeepFiles");
+
+    /// <summary>Chrome and Edge: the player picks a piece's PDF; its read-only handle is kept for the piece. Null when closed.</summary>
+    public async Task<byte[]?> ChooseOriginalAsync(string projectId, string description) =>
+        await (await ModuleAsync()).InvokeAsync<byte[]?>("chooseOriginal", TimeSpan.FromMinutes(10), projectId, description);
+
+    /// <summary>Other browsers: a copy of the PDF the player picked for a piece, kept on this device; null forgets it.</summary>
+    public async Task KeepCopyAsync(string projectId, byte[]? data) =>
+        await (await ModuleAsync()).InvokeVoidAsync("keepCopy", TimeSpan.FromMinutes(5), projectId, data);
+
+    /// <summary>"none", "prompt" (Chrome asks again only from a tap, with <paramref name="ask"/>) or "ready".</summary>
+    public async Task<string> OriginalStateAsync(string projectId, bool ask) =>
+        await (await ModuleAsync()).InvokeAsync<string>("originalState", projectId, ask);
+
+    /// <summary>The PDF the player picked for a piece, read where it is or from its copy; null when gone.</summary>
+    public async Task<byte[]?> ReadOriginalAsync(string projectId)
+    {
+        try
+        {
+            return await (await ModuleAsync()).InvokeAsync<byte[]?>("readOriginal", TimeSpan.FromMinutes(5), projectId);
+        }
+        catch (JSException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>A piece of state kept as text on this device (the import under way, the recognition queue).</summary>
     public async Task<string?> LoadStateAsync(string key) => await (await ModuleAsync()).InvokeAsync<string?>("loadState", key);
 

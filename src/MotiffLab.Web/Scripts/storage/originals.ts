@@ -3,6 +3,7 @@
 // browser may hold the same piece's sound); and the one request that the browser keep this site's storage. Nothing here
 // leaves the device.
 
+import { linkedPieces } from "./import-store.js";
 import { hasRecording, keepPicked } from "./recording-store.js";
 
 const HELD = "motiff-lab:originals-here";
@@ -50,6 +51,11 @@ function writeHeld(held: Set<string>): void {
 /** The keys ("<project>/<original>") of the recordings this browser said it holds. */
 export function heldHere(): string[] {
     return [...readHeld()];
+}
+
+/** What heldHere says, and the PDFs this browser reads where the player keeps them (version 0.5, «Импорт папки»). */
+export async function heldHereWithLinks(): Promise<string[]> {
+    return [...readHeld(), ...(await linkedPieces()).map((projectId) => `${projectId}/src_pdf`)];
 }
 
 /** Remembers that this browser holds a recording under the key, or that it no longer does. */

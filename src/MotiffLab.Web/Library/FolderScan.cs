@@ -34,6 +34,7 @@ public sealed class FolderScan(ChosenFolder folder)
     private readonly Dictionary<string, string> _titles = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _composers = new(StringComparer.Ordinal);
     private readonly HashSet<string> _left = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _claimed = new(StringComparer.Ordinal);
     private IReadOnlyList<LibraryOriginal> _library = [];
 
     public ChosenFolder Folder { get; } = folder ?? throw new ArgumentNullException(nameof(folder));
@@ -100,6 +101,15 @@ public sealed class FolderScan(ChosenFolder folder)
         }
     }
 
+    /// <summary>A new file that is possibly a piece of the library, until the player answers, or is one («Это она»): it is not added.</summary>
+    public void Claim(string path) => _claimed.Add(path);
+
+    /// <summary>The file is among the new ones again («Нет, добавить отдельной пьесой»).</summary>
+    public void Release(string path) => _claimed.Remove(path);
+
+    /// <summary>The new files, less those the player said are pieces of the library.</summary>
+    public int NewCount => Plan.Files.Count(file => file.Status == ImportStatus.New && !_claimed.Contains(file.File.Path));
+
     /// <summary>Why a file cannot be added, in the words' keys: a locked PDF, not a PDF, too big, not notes, not readable.</summary>
     public string? Problem(PlannedFile planned)
     {
@@ -120,17 +130,20 @@ public sealed class FolderScan(ChosenFolder folder)
     public List<FoundRow> Rows(FoundFilter filter, System.Globalization.CultureInfo culture)
     {
         StringComparer byTitle = StringComparer.Create(culture, System.Globalization.CompareOptions.IgnoreCase | System.Globalization.CompareOptions.IgnoreNonSpace);
-        return [.. Plan.Files.Where(file => Shows(filter, file.Status)).Select(Row).OrderBy(row => row.Title, byTitle).ThenBy(row => row.Path, StringComparer.Ordinal)];
+        return [.. Plan.Files.Where(file => Shows(filter, file.Status) && !_claimed.Contains(file.File.Path)).Select(Row).OrderBy(row => row.Title, byTitle).ThenBy(row => row.Path, StringComparer.Ordinal)];
     }
 
     /// <summary>The new files the player keeps in: what «Добавить» adds.</summary>
-    public IReadOnlyList<FoundRow> ToAdd => [.. Plan.Files.Where(static file => file.Status == ImportStatus.New).Select(Row).Where(static row => row.Included)];
+    public IReadOnlyList<FoundRow> ToAdd => [.. Plan.Files.Where(file => file.Status == ImportStatus.New && !_claimed.Contains(file.File.Path)).Select(Row).Where(static row => row.Included)];
 
     /// <summary>The files the library has already, with the piece that has each: linked on this device as they are.</summary>
     public IReadOnlyList<PlannedFile> Known => [.. Plan.Files.Where(static file => file.Status == ImportStatus.InLibrary && file.Project is not null)];
 
     /// <summary>What a copy of the new files takes, in bytes: for the estimate where the files cannot be linked.</summary>
     public long CopyBytes => ToAdd.Sum(static row => row.Planned.File.Bytes);
+
+    /// <summary>The listed files as music-core sees them, with what the worker read.</summary>
+    public IReadOnlyList<FoundFile> Files => [.. Listing.Files.Select(Found)];
 
     public FileDetails? DetailsOf(string path) => _details.GetValueOrDefault(path);
 
