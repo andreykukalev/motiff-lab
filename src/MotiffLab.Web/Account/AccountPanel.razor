@@ -72,7 +72,7 @@
                 }
                 @* The plan (0018 section 12, preparation item 14): what runs on the device is free, what needs the cloud is Pro.
                    Testers switch between Pro and no Pro to try both; the servers trust that choice only from a tester. *@
-                <p id="plan" class="meta">@Text["settings.plan"]: <strong>@PlanName</strong></p>
+                <p id="plan" class="meta" role="status">@Text["settings.plan"]: <strong>@PlanName</strong></p>
                 @if (_plan?.IsTester == true)
                 {
                     <div class="switch-row">
@@ -165,7 +165,11 @@
     private MotiffLab.Web.Account.AccountPlan? _plan;
     private MotiffLab.MusicCore.Accounts.Plan? _choice;
 
-    private string PlanName => _plan is null ? Text["settings.planUnknown"] : _plan.IsPro ? Text["settings.planPro"] : Text["settings.planFree"];
+    private bool _planAsking;
+
+    /// <summary>The plan; "the server is waking up" while the API is asked, and "did not answer" only once it has not.</summary>
+    private string PlanName => _plan is not null ? (_plan.IsPro ? Text["settings.planPro"] : Text["settings.planFree"])
+        : _planAsking ? Text["settings.planWaking"] : Text["settings.planUnknown"];
 
     protected override async Task OnInitializedAsync()
     {
@@ -175,13 +179,29 @@
         _online = _player is not null && await Online.IsOnAsync();
         if (_player is not null)
         {
-            _plan = await Account.PlanAsync();
             _choice = await Account.PlanChoiceAsync();
-            _profile = await Account.ProfileAsync();
+            // The API sleeps while nobody uses it and takes a while to wake: the panel shows at once, and the plan and the
+            // profile fill in when it answers.
+            _planAsking = true;
+            _ = ShowPlanAsync();
+            _ = ShowProfileAsync();
         }
 
         await Scans.LoadAsync();
         _address = Scans.Address?.ToString() ?? MotiffLab.Web.Import.ScanService.SuggestedAddress;
+    }
+
+    private async Task ShowPlanAsync()
+    {
+        _plan = await Account.PlanAsync();
+        _planAsking = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ShowProfileAsync()
+    {
+        _profile = await Account.ProfileAsync();
+        await InvokeAsync(StateHasChanged);
     }
 
     /// <summary>Every section as a level-2 heading on the account page, level 3 inside a sheet whose title is level 2.</summary>

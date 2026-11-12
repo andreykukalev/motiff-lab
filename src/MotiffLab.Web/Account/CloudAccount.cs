@@ -50,8 +50,16 @@ public sealed class CloudAccount(AccountOptions options, NavigationManager navig
 {
     private const string ChoiceKey = "ml-test-plan";
 
-    private readonly HttpClient _http = new();
+    /// <summary>
+    /// How long the API may take to answer. It sleeps while nobody uses it and wakes in about half a minute (24 s measured,
+    /// 2026-11-12); an API that has not answered in a minute is taken as not answering, and the player is told so.
+    /// </summary>
+    public static readonly TimeSpan AnswerWithin = TimeSpan.FromSeconds(60);
+
+    private readonly HttpClient _http = new() { Timeout = AnswerWithin };
     private AccountPlan? _plan;
+    private Task<AccountPlan?>? _planAsked;
+    private int _planAsks;
     private PlayerProfile? _profile;
     private string? _choice;
     private bool _choiceLoaded;
@@ -127,33 +135,49 @@ public sealed class CloudAccount(AccountOptions options, NavigationManager navig
 
     /// <summary>
     /// The signed-in player's plan as the API answers it, asked once and kept; null when nobody is signed in or the API
-    /// cannot be reached, and then the app offers no Pro feature.
+    /// cannot be reached or has not answered within <see cref="AnswerWithin"/>, and then the app offers no Pro feature.
+    /// Everyone who asks while the API is being asked shares the one request.
     /// </summary>
-    public async Task<AccountPlan?> PlanAsync()
+    public Task<AccountPlan?> PlanAsync()
     {
-        if (_plan is not null || await PlayerAsync() is null || await TokenAsync(options.ApiScope) is not { } token)
+        if (_plan is not null)
         {
-            return _plan;
+            return Task.FromResult<AccountPlan?>(_plan);
         }
 
-        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(new Uri(options.Api.TrimEnd('/') + "/"), "account"));
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        if (_planAsked is { IsCompleted: false } asking)
+        {
+            return asking;
+        }
+
+        _planAsked = AskPlanAsync(_planAsks);
+        return _planAsked;
+    }
+
+    private async Task<AccountPlan?> AskPlanAsync(int ask)
+    {
+        if (await PlayerAsync() is null)
+        {
+            return null;
+        }
+
+        using HttpRequestMessage request = await ApiRequestAsync(HttpMethod.Get, "account");
+        if (request.Headers.Authorization is null)
+        {
+            return null;
+        }
+
         await AddPlanChoiceAsync(request);
-        try
+        // Null when unreachable for now: asked again next time.
+        AccountPlan? plan = await AnswerAsync(request, AccountPlan.Read);
+        if (ask != _planAsks)
         {
-            using HttpResponseMessage response = await _http.SendAsync(request);
-            if (response.IsSuccessStatusCode)
-            {
-                using JsonDocument answer = JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync());
-                _plan = AccountPlan.Read(answer.RootElement);
-            }
-        }
-        catch (Exception error) when (error is HttpRequestException or JsonException)
-        {
-            // Unreachable for now: asked again next time.
+            // A tester's choice changed while this was asked: the answer for the new choice counts.
+            return await PlanAsync();
         }
 
-        return _plan;
+        _plan = plan;
+        return plan;
     }
 
     /// <summary>
@@ -167,26 +191,14 @@ public sealed class CloudAccount(AccountOptions options, NavigationManager navig
             return _profile;
         }
 
-        try
+        using HttpRequestMessage request = await ApiRequestAsync(HttpMethod.Get, "profile");
+        if (request.Headers.Authorization is null)
         {
-            using HttpRequestMessage request = await ApiRequestAsync(HttpMethod.Get, "profile");
-            if (request.Headers.Authorization is null)
-            {
-                return null;
-            }
-
-            using HttpResponseMessage response = await _http.SendAsync(request);
-            if (response.IsSuccessStatusCode)
-            {
-                using JsonDocument answer = JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync());
-                _profile = PlayerProfile.Read(answer.RootElement);
-            }
-        }
-        catch (Exception error) when (error is HttpRequestException or JsonException)
-        {
-            // Unreachable for now: asked again next time, and the sign-in's name is shown meanwhile.
+            return null;
         }
 
+        // Null when unreachable for now: asked again next time, and the sign-in's name is shown meanwhile.
+        _profile ??= await AnswerAsync(request, PlayerProfile.Read);
         return _profile;
     }
 
@@ -217,7 +229,7 @@ public sealed class CloudAccount(AccountOptions options, NavigationManager navig
             ProfileChanged?.Invoke();
             return null;
         }
-        catch (Exception error) when (error is HttpRequestException or JsonException)
+        catch (Exception error) when (error is HttpRequestException or JsonException or TaskCanceledException)
         {
             return text["profile.notSaved"];
         }
@@ -228,6 +240,30 @@ public sealed class CloudAccount(AccountOptions options, NavigationManager navig
     {
         _profile = null;
         ProfileChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// The API's answer to the request, read by <paramref name="read"/>; null when the API cannot be reached, answers with
+    /// an error or with something that is no JSON, or takes longer than <see cref="AnswerWithin"/>.
+    /// </summary>
+    private async Task<T?> AnswerAsync<T>(HttpRequestMessage request, Func<JsonElement, T> read)
+        where T : class
+    {
+        try
+        {
+            using HttpResponseMessage response = await _http.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            using JsonDocument answer = JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync());
+            return read(answer.RootElement);
+        }
+        catch (Exception error) when (error is HttpRequestException or JsonException or TaskCanceledException)
+        {
+            return null;
+        }
     }
 
     private async Task<HttpRequestMessage> ApiRequestAsync(HttpMethod method, string path)
@@ -262,7 +298,10 @@ public sealed class CloudAccount(AccountOptions options, NavigationManager navig
         _choice = choice is { } plan ? Plans.Id(plan) : null;
         _choiceLoaded = true;
         await preferences.SetAsync(ChoiceKey, _choice);
+        // A request still out for the earlier choice is not shared: this one asks for the new choice.
         _plan = null;
+        _planAsked = null;
+        _planAsks++;
         await PlanAsync();
         PlanChanged?.Invoke();
     }

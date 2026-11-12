@@ -160,6 +160,7 @@
   "settings.planPro": "Pro",
   "settings.planFree": "Free",
   "settings.planUnknown": "Not known yet: Motiff Lab's server did not answer.",
+  "settings.planWaking": "The server is waking up, waiting for its answer…",
   "settings.testPlan": "Testing",
   "settings.testPlanAccount": "As the account",
   "settings.testPlanPro": "Pro",
