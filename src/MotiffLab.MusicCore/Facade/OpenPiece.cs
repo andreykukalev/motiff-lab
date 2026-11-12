@@ -186,7 +186,7 @@ internal sealed partial class OpenPiece
         json.WriteString("language", Words.IsRussian ? "ru" : "en");
         if (Selection is { } selection)
         {
-            Answer.Selection(json, "selection", selection, KeySignature.InForce(Piece.Keys, selection.Span.Onset));
+            Answer.Selection(json, "selection", selection, KeySignature.InForce(Piece.Keys, selection.Span.Onset), Piece.Meter);
         }
         else
         {
@@ -250,7 +250,7 @@ internal sealed partial class OpenPiece
             Answer.Phrases(json, Levels, Level, Words);
             if (Selection is { } now)
             {
-                Answer.Selection(json, "selection", now, KeySignature.InForce(Piece.Keys, now.Span.Onset));
+                Answer.Selection(json, "selection", now, KeySignature.InForce(Piece.Keys, now.Span.Onset), Piece.Meter);
             }
             else
             {
@@ -328,7 +328,14 @@ internal sealed partial class OpenPiece
         }
         else if (request.Span("span") is { } span)
         {
-            selection = MotifSelector.Select(Notes, Piece.Meter, span, filter);
+            // "snap": "beat" (#349, within contract 12) takes the span out to whole beats, so it can start and end mid-bar.
+            TickSpan chosen = request.Text("snap") switch
+            {
+                null => span,
+                "beat" => MotifSelector.ToBeats(Piece.Meter, span),
+                _ => throw FacadeException.BadRequest("\"snap\" is \"beat\"."),
+            };
+            selection = MotifSelector.Select(Notes, Piece.Meter, chosen, filter);
         }
         else
         {
@@ -348,7 +355,7 @@ internal sealed partial class OpenPiece
         _understood = null;
         _chip = null;
         Chain = null;
-        return Answer.Write(json => Answer.Selection(json, "selection", selection, KeySignature.InForce(Piece.Keys, selection.Span.Onset)));
+        return Answer.Write(json => Answer.Selection(json, "selection", selection, KeySignature.InForce(Piece.Keys, selection.Span.Onset), Piece.Meter));
     }
 
     /// <summary>The circle of fifths for the selection, from the key and chords music-core read for it.</summary>
@@ -567,23 +574,45 @@ internal sealed partial class OpenPiece
         return Answer.Write(json => Answer.Roll(json, payload, names));
     }
 
+    /// <summary>
+    /// What plays: the piece, the variation heard, the variation in place or another version, with "hands" ("right" or
+    /// "left", #328 within contract 12) only that hand's notes, as the web app plays a hand alone. The answer says which
+    /// hands the piece's notes carry and whether any was inferred ("hands").
+    /// </summary>
     private string Playback(Request request)
     {
-        PlaybackScore score = PlaybackScore.FromPiece(Piece);
-        if (Project.ChangesNotes)
+        Hand? hand = request.Text("hands") switch
         {
-            score = score.WithNotes(Notes);
-        }
-
-        score = (request.Text("of") ?? "piece") switch
+            null or "both" => null,
+            "right" => Hand.Right,
+            "left" => Hand.Left,
+            _ => throw FacadeException.BadRequest("\"hands\" is \"both\", \"right\" or \"left\"."),
+        };
+        IEnumerable<Note>? notes = (request.Text("of") ?? "piece") switch
         {
-            "piece" => score,
-            "heard" => score.WithNotes((Chain ?? throw FacadeException.NoVariation()).Heard),
-            "inPlace" => score.WithNotes(InPlace(Shown())),
-            "version" => score.WithNotes(VersionLayer(Performance(request), artefacts: false).Notes),
+            "piece" => Project.ChangesNotes || hand is not null ? Notes : null,
+            "heard" => (Chain ?? throw FacadeException.NoVariation()).Heard,
+            "inPlace" => InPlace(Shown()),
+            "version" => VersionLayer(Performance(request), artefacts: false).Notes,
             _ => throw FacadeException.BadRequest("\"of\" is \"piece\", \"heard\", \"inPlace\" or \"version\"."),
         };
-        return Answer.Write(json => Answer.Playback(json, score));
+        if (hand is { } alone)
+        {
+            notes = notes!.Where(SelectionFilter.ForHand(alone).Matches);
+        }
+
+        PlaybackScore score = PlaybackScore.FromPiece(Piece);
+        if (notes is not null)
+        {
+            score = score.WithNotes(notes);
+        }
+
+        PlaybackHands hands = PlaybackHands.Of(Notes);
+        return Answer.Write(json =>
+        {
+            Answer.Playback(json, score);
+            Answer.Hands(json, hands);
+        });
     }
 
     /// <summary>The variation the player sees and hears: the pending step's result, else the accepted chain's.</summary>

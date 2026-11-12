@@ -77,16 +77,22 @@ struct ScoreSelection: Equatable, Sendable {
     var firstBar: Int
     var lastBar: Int
     var noteIds: [String]
+    /// The beat of the first bar it starts on and of the last bar it ends in, as music-core counts them (#349); nil from
+    /// an older answer.
+    var firstBeat: Int?
+    var lastBeat: Int?
 
-    init(onset: Double, end: Double, firstBar: Int, lastBar: Int, noteIds: [String] = []) {
+    init(onset: Double, end: Double, firstBar: Int, lastBar: Int, noteIds: [String] = [], firstBeat: Int? = nil, lastBeat: Int? = nil) {
         self.onset = onset
         self.end = end
         self.firstBar = firstBar
         self.lastBar = lastBar
         self.noteIds = noteIds
+        self.firstBeat = firstBeat
+        self.lastBeat = lastBeat
     }
 
-    /// The selection in a facade answer: {"selection": {onset, end, firstBar, lastBar, noteIds, …}}.
+    /// The selection in a facade answer: {"selection": {onset, end, firstBar, lastBar, firstBeat, lastBeat, noteIds, …}}.
     init?(answer: String) {
         guard let selection = facadeObject(answer)?["selection"] as? [String: Any],
               let onset = (selection["onset"] as? NSNumber)?.doubleValue,
@@ -96,7 +102,15 @@ struct ScoreSelection: Equatable, Sendable {
             end: end,
             firstBar: (selection["firstBar"] as? NSNumber)?.intValue ?? 0,
             lastBar: (selection["lastBar"] as? NSNumber)?.intValue ?? 0,
-            noteIds: selection["noteIds"] as? [String] ?? []
+            noteIds: selection["noteIds"] as? [String] ?? [],
+            firstBeat: (selection["firstBeat"] as? NSNumber)?.intValue,
+            lastBeat: (selection["lastBeat"] as? NSNumber)?.intValue
         )
+    }
+
+    /// "Bar 5, beat 2 → bar 8, beat 3", for a selection by beats (#349); nil without the beats.
+    func beatSpan(_ text: UIText) -> String? {
+        guard let firstBeat, let lastBeat else { return nil }
+        return text.format("selection.beatSpan", String(firstBar), String(firstBeat), String(lastBar), String(lastBeat))
     }
 }

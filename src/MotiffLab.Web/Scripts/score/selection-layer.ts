@@ -3,8 +3,10 @@
 // the edges from barline to barline, a drag across bars with the mouse (or a long press, then a drag, with a
 // finger) that selects them, and the contextual menu placed above the band. The band and the handles are drawn
 // in the score's content pixels, as the brackets are; the menu belongs to Blazor and is only placed here.
+// Selection by beats (#349): selection-beats.ts.
 
 import { BRACKET_LIFT, type Run, type ScoreBar, type ScoreGeometry } from "./score-geometry.js";
+import { BEAT_CLASS, type Beat, type BeatSource, ScoreBeats, keyLines, spanOf, stepEdge } from "./selection-beats.js";
 
 /** How far the mouse moves before a press becomes a drag across bars, in pixels. */
 export const DRAG_DISTANCE = 6;
@@ -29,7 +31,7 @@ const BAND_CLASS = "sel-band";
 const HANDLE_CLASS = "sel-handle";
 
 /** What the layer needs from the score view. */
-export interface SelectionHost {
+export interface SelectionHost extends BeatSource {
     geometry(): ScoreGeometry | null;
     /** Whether the pen takes the pointer now: then the mouse and a finger write rather than select. */
     penOn(): boolean;
@@ -37,6 +39,8 @@ export interface SelectionHost {
     chosen(first: number, last: number, byHandle: boolean): void;
     /** The top of the marks drawn just above a band's first run (the bookmarks), in window pixels, for the menu to clear; null for none. */
     marksTop?(band: { left: number; right: number; top: number }): number | null;
+    /** Beats chosen by a drag or a handle while selecting by beats: the passage from `start` to `end`, in ticks. */
+    chosenSpan?(start: number, end: number, byHandle: boolean): void;
 }
 
 /** The selection as Blazor gives it: its span in ticks and what a screen reader says for each handle. */
@@ -110,6 +114,9 @@ interface Drag {
     /** Set once the press is a drag: the bar it started on, and the one under the pointer now. */
     anchor: ScoreBar | null;
     current: ScoreBar | null;
+    /** Selecting by beats: the beat the drag started on, and the one under the pointer now. */
+    anchorBeat: Beat | null;
+    currentBeat: Beat | null;
     timer: number;
 }
 
@@ -118,6 +125,9 @@ interface HandleDrag {
     edge: "start" | "end";
     first: ScoreBar;
     last: ScoreBar;
+    /** The passage the band shows while the handle moves, in ticks: whole bars, or beats while selecting by beats. */
+    start: number;
+    end: number;
 }
 
 export class SelectionLayer {
@@ -129,11 +139,14 @@ export class SelectionLayer {
     private swallowNextClick = false;
     /** The menu's size changes with what it holds; it is placed again then. */
     private readonly menuSize = new ResizeObserver(() => this.placeMenu());
+    /** Selecting by beats, while the score view gives beat lines. */
+    private readonly beats: ScoreBeats;
 
     constructor(
         private readonly host: HTMLElement,
         private readonly owner: SelectionHost,
     ) {
+        this.beats = new ScoreBeats(owner);
         host.addEventListener("pointerdown", this.onPointerDown);
         host.addEventListener("pointermove", this.onPointerMove);
         host.addEventListener("pointerup", this.onPointerUp);
@@ -177,7 +190,7 @@ export class SelectionLayer {
         }
         const handle = this.handleDrag;
         if (handle !== null) {
-            this.draw(geometry, handle.first.tick, handle.last.end, null);
+            this.draw(geometry, handle.start, handle.end, null);
         } else {
             this.draw(geometry, selection.start, selection.end, selection);
         }
@@ -233,7 +246,7 @@ export class SelectionLayer {
     }
 
     private clear(): void {
-        for (const old of this.host.querySelectorAll(`:scope > .${BAND_CLASS}, :scope > .${HANDLE_CLASS}`)) {
+        for (const old of this.host.querySelectorAll(`:scope > .${BAND_CLASS}, :scope > .${HANDLE_CLASS}, :scope > .${BEAT_CLASS}`)) {
             old.remove();
         }
     }
@@ -242,7 +255,7 @@ export class SelectionLayer {
     private draw(geometry: ScoreGeometry, start: number, end: number, selection: ScoreSelection | null): void {
         // A handle being dragged keeps its element, and with it the pointer capture.
         const kept = this.handleDrag !== null ? [...this.host.querySelectorAll<HTMLElement>(`:scope > .${HANDLE_CLASS}`)] : [];
-        for (const old of this.host.querySelectorAll(`:scope > .${BAND_CLASS}`)) {
+        for (const old of this.host.querySelectorAll(`:scope > .${BAND_CLASS}, :scope > .${BEAT_CLASS}`)) {
             old.remove();
         }
         if (this.handleDrag === null) {
@@ -251,6 +264,7 @@ export class SelectionLayer {
             }
         }
         const runs = geometry.band(start, end);
+        this.host.append(...this.beats.cut(geometry, runs, start, end));
         for (const run of runs) {
             const band = document.createElement("div");
             band.className = BAND_CLASS;
@@ -319,7 +333,7 @@ export class SelectionLayer {
             return;
         }
         const at = this.point(event);
-        const drag: Drag = { pointerId: event.pointerId, x: at.x, y: at.y, touch, anchor: null, current: null, timer: 0 };
+        const drag: Drag = { pointerId: event.pointerId, x: at.x, y: at.y, touch, anchor: null, current: null, anchorBeat: null, currentBeat: null, timer: 0 };
         if (touch) {
             drag.timer = window.setTimeout(() => this.startDrag(drag), LONG_PRESS_MS);
         }
@@ -334,17 +348,28 @@ export class SelectionLayer {
         }
         drag.anchor = bar;
         drag.current = bar;
+        const lines = this.beats.lines();
+        if (lines !== null) {
+            drag.anchorBeat = this.beats.near(geometry, lines, drag.x, drag.y) ?? null;
+            drag.currentBeat = drag.anchorBeat;
+        }
         try {
             this.host.setPointerCapture(drag.pointerId);
         } catch {
             // The pointer is gone already; the drag ends with it.
         }
-        this.preview(geometry, bar, bar);
+        this.preview(geometry, drag);
     }
 
-    private preview(geometry: ScoreGeometry, a: ScoreBar, b: ScoreBar): void {
-        const [first, last] = ordered(a, b);
-        this.draw(geometry, first.tick, last.end, null);
+    /** The band over what the drag covers so far: its bars, or its beats while selecting by beats. */
+    private preview(geometry: ScoreGeometry, drag: Drag): void {
+        if (drag.anchorBeat !== null && drag.currentBeat !== null) {
+            const span = spanOf(drag.anchorBeat, drag.currentBeat);
+            this.draw(geometry, span.start, span.end, null);
+        } else if (drag.anchor !== null && drag.current !== null) {
+            const [first, last] = ordered(drag.anchor, drag.current);
+            this.draw(geometry, first.tick, last.end, null);
+        }
         this.placeMenu();
     }
 
@@ -370,12 +395,21 @@ export class SelectionLayer {
             this.startDrag(drag);
         }
         const geometry = this.owner.geometry();
+        const lines = this.beats.lines();
+        if (geometry != null && lines !== null && drag.anchorBeat !== null) {
+            const beat = this.beats.near(geometry, lines, at.x, at.y);
+            if (beat !== undefined && (beat.start !== drag.currentBeat?.start || beat.end !== drag.currentBeat?.end)) {
+                drag.currentBeat = beat;
+                this.preview(geometry, drag);
+            }
+            return;
+        }
         const bar = geometry?.barNear(at.x, at.y);
         if (geometry == null || bar === undefined || drag.anchor === null || bar === drag.current) {
             return;
         }
         drag.current = bar;
-        this.preview(geometry, drag.anchor, bar);
+        this.preview(geometry, drag);
     };
 
     private readonly onPointerUp = (event: PointerEvent): void => {
@@ -391,6 +425,11 @@ export class SelectionLayer {
         this.swallowNextClick = true;
         // A click may not follow (the pointer left the score); the next real click is not swallowed.
         window.setTimeout(() => (this.swallowNextClick = false), 0);
+        if (drag.anchorBeat !== null && drag.currentBeat !== null && this.owner.chosenSpan !== undefined) {
+            const span = spanOf(drag.anchorBeat, drag.currentBeat);
+            this.owner.chosenSpan(span.start, span.end, false);
+            return;
+        }
         const [first, last] = ordered(drag.anchor, drag.current);
         this.owner.chosen(first.tick, last.tick, false);
     };
@@ -421,13 +460,16 @@ export class SelectionLayer {
         const handle = event.currentTarget as HTMLElement;
         const geometry = this.owner.geometry();
         const bars = geometry === null ? null : this.selectedBars(geometry);
-        if (bars === null || (event.pointerType !== "touch" && event.button !== 0)) {
+        const selection = this.selection;
+        if (bars === null || selection === null || (event.pointerType !== "touch" && event.button !== 0)) {
             return;
         }
         event.preventDefault();
         event.stopPropagation();
         handle.setPointerCapture(event.pointerId);
-        const drag: HandleDrag = { pointerId: event.pointerId, edge: handle.dataset.edge === "start" ? "start" : "end", first: bars[0], last: bars[1] };
+        const drag: HandleDrag = {
+            pointerId: event.pointerId, edge: handle.dataset.edge === "start" ? "start" : "end", first: bars[0], last: bars[1], start: selection.start, end: selection.end,
+        };
         this.handleDrag = drag;
         handle.classList.add("dragging");
         this.placeMenu();
@@ -436,18 +478,9 @@ export class SelectionLayer {
                 return;
             }
             const now = this.owner.geometry();
-            const at = this.point(moveEvent);
-            const bar = now?.edgeNear(at.x, at.y, drag.edge);
-            if (now == null || bar === undefined) {
-                return;
+            if (now != null) {
+                this.moveEdge(now, drag, this.point(moveEvent));
             }
-            // An edge never passes the other one: the selection keeps at least a bar.
-            if (drag.edge === "start") {
-                drag.first = bar.tick <= drag.last.tick ? bar : drag.last;
-            } else {
-                drag.last = bar.tick >= drag.first.tick ? bar : drag.first;
-            }
-            this.draw(now, drag.first.tick, drag.last.end, null);
         };
         const end = (endEvent: PointerEvent): void => {
             if (endEvent.pointerId !== drag.pointerId) {
@@ -458,8 +491,11 @@ export class SelectionLayer {
             handle.removeEventListener("pointercancel", end);
             handle.classList.remove("dragging");
             this.handleDrag = null;
-            const changed = drag.first !== bars[0] || drag.last !== bars[1];
-            if (changed && endEvent.type === "pointerup") {
+            const byBeats = this.beats.lines() === null ? undefined : this.owner.chosenSpan;
+            const changed = byBeats ? drag.start !== selection.start || drag.end !== selection.end : drag.first !== bars[0] || drag.last !== bars[1];
+            if (changed && endEvent.type === "pointerup" && byBeats) {
+                byBeats.call(this.owner, drag.start, drag.end, true);
+            } else if (changed && endEvent.type === "pointerup") {
                 this.owner.chosen(drag.first.tick, drag.last.tick, true);
             } else {
                 this.place();
@@ -470,6 +506,46 @@ export class SelectionLayer {
         handle.addEventListener("pointercancel", end);
     };
 
+    /** A handle dragged to a point: its edge goes to the barline, or the beat line, nearest it, never past the other edge. */
+    private moveEdge(geometry: ScoreGeometry, drag: HandleDrag, at: { x: number; y: number }): void {
+        const lines = this.beats.lines();
+        if (lines !== null) {
+            const line = this.beats.edgeNear(geometry, lines, at.x, at.y);
+            if (line !== undefined && (drag.edge === "start" ? line < drag.end : line > drag.start)) {
+                drag[drag.edge] = line;
+                this.draw(geometry, drag.start, drag.end, null);
+            }
+            return;
+        }
+        const bar = geometry.edgeNear(at.x, at.y, drag.edge);
+        if (bar === undefined) {
+            return;
+        }
+        // An edge never passes the other one: the selection keeps at least a bar.
+        if (drag.edge === "start") {
+            drag.first = bar.tick <= drag.last.tick ? bar : drag.last;
+        } else {
+            drag.last = bar.tick >= drag.first.tick ? bar : drag.first;
+        }
+        drag.start = drag.first.tick;
+        drag.end = drag.last.end;
+        this.draw(geometry, drag.start, drag.end, null);
+    }
+
+    /** By beats the arrow keys move an edge a beat at a time; false while the selection takes whole bars. */
+    private stepByBeats(geometry: ScoreGeometry, edge: "start" | "end", step: number): boolean {
+        const lines = this.beats.lines();
+        const pick = this.owner.chosenSpan;
+        if (lines === null || pick === undefined || this.selection === null) {
+            return false;
+        }
+        const moved = stepEdge(keyLines(lines, geometry.bars), this.selection, edge, step);
+        if (moved !== undefined) {
+            pick.call(this.owner, moved.start, moved.end, true);
+        }
+        return true;
+    }
+
     /** The arrow keys move a handle's edge a bar at a time, as a drag does (WCAG 2.1.1). */
     private readonly onHandleKey = (event: KeyboardEvent): void => {
         const step = event.key === "ArrowLeft" ? -1 : event.key === "ArrowRight" ? 1 : 0;
@@ -479,8 +555,11 @@ export class SelectionLayer {
             return;
         }
         event.preventDefault();
-        const inTime = uniqueInTime(geometry.bars);
         const edge = (event.currentTarget as HTMLElement).dataset.edge;
+        if (this.stepByBeats(geometry, edge === "start" ? "start" : "end", step)) {
+            return;
+        }
+        const inTime = uniqueInTime(geometry.bars);
         let [first, last] = bars;
         if (edge === "start") {
             const index = inTime.findIndex((bar) => bar.tick === first.tick) + step;

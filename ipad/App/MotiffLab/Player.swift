@@ -26,6 +26,18 @@ final class Player: ObservableObject {
 
     static let tempoChoices = [25, 50, 75, 90, 100, 110, 125, 150]
 
+    /// Which hands sound (#328, an experiment): the piece's notes as music-core gives them for both hands or for one
+    /// alone. A change applies at once, also while playing, and the loop and the place stay.
+    @Published var hands = PlayerHands.both {
+        didSet { if oldValue != hands { Task { await applyHands() } } }
+    }
+    /// Which hands the piece's notes carry, and whether any was inferred, from music-core's playback score.
+    @Published private(set) var handsHeld = HandsHeld()
+    /// The beat lines of the piece in ticks, from music-core's playback score: what a selection by beats snaps to (#349).
+    private(set) var beatLines: [Double] = []
+    /// The piece played, for hearing one hand alone.
+    private var piece: Int32?
+
     private let audio = AVAudioEngine()
     private var renderer: Renderer?
     private var last: Renderer.Stamped?
@@ -57,6 +69,9 @@ final class Player: ObservableObject {
             renderer.send(.samples(try await piano.value))
             renderer.send(.timeline(score.timeline))
             barNumbers = score.barNumbers
+            beatLines = score.timeline.beats.map(\.at)
+            handsHeld = score.hands
+            self.piece = piece
             renderer.send(.source(id: "piece", notes: score.notes))
             renderer.send(.activeSources(["piece"]))
             ready = true
@@ -115,8 +130,8 @@ final class Player: ObservableObject {
     @Published private(set) var loop: Range<Double>?
 
     /// Loops a passage and plays it from its start, or from `start` when given, or stops looping (0018 section 7: a selection
-    /// loops the selection).
-    func setLoop(_ range: Range<Double>?, from start: Double? = nil) {
+    /// loops the selection). With `play` false the loop is set and waits for Play, as a resumed piece's does (#327).
+    func setLoop(_ range: Range<Double>?, from start: Double? = nil, play: Bool = true) {
         loop = range
         // Notes heard alone (the circle's scale) give way to the piece, or the variation, as any other loop comes.
         if hearingAlone {
@@ -139,7 +154,7 @@ final class Player: ObservableObject {
         } else if !range.contains(tick) {
             send(.seek(range.lowerBound))
         }
-        if state == .stopped { send(.play) }
+        if play && state == .stopped { send(.play) }
     }
 
     /// What sounds (0018 section 7, Original / Variation / Alternate): the piece, the piece with the variation being tried
@@ -228,11 +243,30 @@ final class Player: ObservableObject {
     /// The piece's notes again after they changed, as when bars of another version are taken into the score or restored
     /// (0022): the timeline and the notes are sent anew, and whatever plays or loops carries on.
     func reload(piece: Int32) async {
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, "playback") }
+        let request = Self.handsRequest(hands)
+        let answer = await MusicCore.run { MusicCore.call(piece: piece, "playback", request) }
         guard let score = PlaybackScore.read(answer) else { return }
         barNumbers = score.barNumbers
+        beatLines = score.timeline.beats.map(\.at)
+        handsHeld = score.hands
         send(.timeline(score.timeline))
         send(.source(id: Self.pieceSource, notes: score.notes))
+    }
+
+    /// The piece's notes for the hands chosen, in place of those that sounded: what plays or loops carries on (#328).
+    private func applyHands() async {
+        guard let piece else { return }
+        let chosen = hands
+        let request = Self.handsRequest(chosen)
+        let answer = await MusicCore.run { MusicCore.call(piece: piece, "playback", request) }
+        // Another choice came while music-core answered: the newer one sends its own notes.
+        guard chosen == hands, let score = PlaybackScore.read(answer) else { return }
+        send(.source(id: Self.pieceSource, notes: score.notes))
+    }
+
+    /// The `playback` request for the hands chosen: nothing for both, as before the experiment.
+    nonisolated static func handsRequest(_ hands: PlayerHands) -> String? {
+        hands == .both ? nil : "{\"hands\": \"\(hands.rawValue)\"}"
     }
 
     /// Stops the sound and the audio engine; the screen calls this when it closes.
@@ -375,6 +409,8 @@ struct PlaybackScore: Sendable {
     var timeline: PlaybackTimeline
     /// Where each bar starts and the number it is printed with, in time order: "Back to playback · bar 12".
     var barNumbers: [(start: Double, number: Int)] = []
+    /// Which hands the piece's notes carry, and whether any was inferred (#328).
+    var hands = HandsHeld()
 
     static func read(_ text: String) -> PlaybackScore? {
         guard let object = facadeObject(text), let end = number(object["end"]) else { return nil }
@@ -401,7 +437,7 @@ struct PlaybackScore: Sendable {
             guard let start = number(bar["onset"]), let printed = number(bar["number"]) else { return nil }
             return (start, Int(printed))
         }
-        return PlaybackScore(notes: notes, timeline: PlaybackTimeline(tempos: tempos, beats: beats, bars: bars, end: end), barNumbers: numbers)
+        return PlaybackScore(notes: notes, timeline: PlaybackTimeline(tempos: tempos, beats: beats, bars: bars, end: end), barNumbers: numbers, hands: HandsHeld(answer: object))
     }
 
     private static func number(_ value: Any?) -> Double? {

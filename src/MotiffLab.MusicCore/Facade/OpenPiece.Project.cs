@@ -211,14 +211,15 @@ internal sealed partial class OpenPiece
 
     /// <summary>
     /// Saves where the player is: a new resume point, or the one "id" names brought up to date. Fields not sent
-    /// keep the point's values; a new point starts at the selection, as written, with both hands.
+    /// keep the point's values; a new point starts at the selection, as written, with both hands. "passage": null
+    /// (#327, within contract 12) says the player left no passage selected: the point keeps only its place.
     /// </summary>
     private string SaveResumePoint(Request request)
     {
         DateTimeOffset now = Now(request);
         SavedPassage? passage = null;
-        bool hasPassage = request.Has("passage");
-        if (hasPassage)
+        bool hasPassage = request.Sends("passage");
+        if (request.Has("passage"))
         {
             Request sent = request.Object("passage");
             TickSpan span = sent.Span("span") ?? throw FacadeException.BadRequest("The passage needs \"span\".");
@@ -322,7 +323,7 @@ internal sealed partial class OpenPiece
 
         return Answer.Write(json =>
         {
-            Answer.Selection(json, "selection", selection, KeySignature.InForce(Piece.Keys, selection.Span.Onset));
+            Answer.Selection(json, "selection", selection, KeySignature.InForce(Piece.Keys, selection.Span.Onset), Piece.Meter);
             json.WriteBoolean("hasVariation", chain is not null);
             if (chain is not null)
             {

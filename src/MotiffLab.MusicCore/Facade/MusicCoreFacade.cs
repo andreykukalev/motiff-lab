@@ -37,6 +37,9 @@ public sealed class MusicCoreFacade
     /// scales and chords to hear (the Reference experiment, <see cref="Analysis.KeyReference"/>), calls added. Also within 12
     /// (the Reference, part 2), reference.chord and reference.scale on piece 0 answer a chord's and a scale's own card,
     /// reference.sound sounds them, and reference.key on an open piece also answers "pieceKey", calls and fields added.
+    /// Also within 12, for the iPad's practice experiments (#327, #328, #349): select takes "snap": "beat" and a selection
+    /// answers "firstBeat" and "lastBeat"; playback takes "hands" ("both", "right", "left") and answers "hands" (which hands
+    /// the notes carry, and whether any was inferred); resume.save takes "passage": null for no passage, fields added.
     /// 11 lets doubt about recognised notes reach what is read from them (#352, 0027 section 12), adding fields only: a
     /// chord, a fact and a DNA chord or key built on recognised notes still to check (in a bar with an open Check flag)
     /// tell "doubt", a sentence that says where, and the chord's "certainty" and the DNA chord's "clear" say uncertain;
