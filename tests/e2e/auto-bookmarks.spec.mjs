@@ -1,6 +1,6 @@
-// Automatic bookmarks, an experiment (Settings · Experimental, off by default; Andrei, 2026-11-11): in a long score the
-// Contents propose where pieces, movements and large sections begin, marked as found automatically with the facts each
-// rests on. A proposal is confirmed as an ordinary Structure bookmark, moved to another bar or dismissed; nothing is
+// Automatic bookmarks, part of the experiment Several pieces (Settings · Experimental, off by default; 2026-11-11): in a
+// long score the Contents propose where pieces, movements and large sections begin, marked as found automatically with the
+// facts each rests on. A proposal is confirmed as an ordinary Structure bookmark, moved to another bar or dismissed; nothing is
 // saved until it is confirmed.
 import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
@@ -13,7 +13,7 @@ test("with the experiment on, the Contents propose where the second piece begins
     await page.locator(".lib-head").getByRole("button", { name: "Settings" }).click();
     const sheet = page.getByRole("dialog", { name: "Settings" });
     await sheet.getByRole("tab", { name: "Experimental" }).click();
-    const experiment = sheet.getByRole("switch", { name: "Automatic bookmarks" });
+    const experiment = sheet.getByRole("switch", { name: "Several pieces in a score or recording" });
     await expect(experiment).not.toBeChecked();
     await experiment.check();
     await sheet.press("Escape");

@@ -75,13 +75,17 @@ public static class SettingsCatalogue
         Switch("account.saveOnline", SettingSection.Account, null, SettingScope.Device),
         Switch("account.analytics", SettingSection.Account, null, SettingScope.Device),
 
-        // Experiments, each off until the player turns it on on this device. Automatic bookmarks: the boundaries of the pieces,
-        // movements and large sections of a long score or recording proposed in the Contents (SectionFinder), to confirm, move or dismiss.
-        Switch("experimental.autoBookmarks", SettingSection.Experimental, null, SettingScope.Device),
+        // Experiments, each off until the player turns it on on this device. Several pieces in a score or recording (v0.5,
+        // replacing automatic bookmarks and pieces in a file): where the pieces of a long score or recording begin, proposed
+        // by music-core (SectionFinder) and set by hand, kept as the pieces layer, and each piece made a library piece of
+        // its own (PieceParts); the file itself is not cut.
+        Switch("experimental.pieces", SettingSection.Experimental, null, SettingScope.Device),
 
-        // Pieces in a file (v0.4): a collection's confirmed boundaries made into pieces of their own (PieceParts), each an
-        // ordinary project in the collection's playlist; the file itself is not cut.
-        Switch("experimental.pieceParts", SettingSection.Experimental, null, SettingScope.Device),
+        // My corrections on or off (v0.5): the player's note corrections laid on one by one, the ones that no longer fit shown.
+        Switch("experimental.editsLayer", SettingSection.Experimental, null, SettingScope.Device),
+
+        // Live performance tempo (v0.5): a recording's beat grid found again after each pause and tempo jump.
+        Switch("experimental.liveTempo", SettingSection.Experimental, null, SettingScope.Device),
 
         // Reference: the circle of fifths one tap away from the library and the piece, with any key's card (KeyReference).
         Switch("experimental.reference", SettingSection.Experimental, null, SettingScope.Device),

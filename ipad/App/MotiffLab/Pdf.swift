@@ -545,7 +545,7 @@ struct PdfScreen: View {
 
     /// «Пьесы в этом файле» from the Contents, with the experiment on, for a PDF kept in the piece.
     private var openParts: (() -> Void)? {
-        guard !linked, DeviceSettings.shared.isOn("experimental.pieceParts") else { return nil }
+        guard !linked, DeviceSettings.shared.isOn("experimental.pieces") else { return nil }
         return {
             contentsOpen = false
             partsOpen = true

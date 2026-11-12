@@ -2,11 +2,13 @@ using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Projects;
+using MotiffLab.Web.Workspace;
 
 namespace MotiffLab.Web.Pages;
 
 /// <summary>
-/// Automatic bookmarks, an experiment behind Settings · Experimental (Andrei, 2026-11-11): in a long score or a recording
+/// Automatic bookmarks, part of the experiment Several pieces in a score or recording (Settings · Experimental, v0.5;
+/// first its own switch, Andrei, 2026-11-11): in a long score or a recording
 /// music-core proposes where the pieces, movements and large sections begin (<see cref="SectionFinder"/>), and the
 /// Contents list them, marked as found automatically, above the player's bookmarks. A proposal is never saved: Confirm
 /// saves it as an ordinary Structure bookmark through the same path as any other; Move and Dismiss change the proposals
@@ -14,8 +16,8 @@ namespace MotiffLab.Web.Pages;
 /// </summary>
 public partial class PlaybackLab
 {
-    /// <summary>The experiment's switch in Settings · Experimental, off by default and kept on the device.</summary>
-    private const string AutoBookmarksSetting = "experimental.autoBookmarks";
+    /// <summary>The experiment's switch in Settings · Experimental, off by default and kept on the device: the one for several pieces.</summary>
+    private const string AutoBookmarksSetting = PartPlace.Setting;
 
     /// <summary>The piece as imported, which the proposals read its bar lines, texts, keys and tempo from.</summary>
     private ImportedPiece? _sectionSource;

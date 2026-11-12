@@ -32,7 +32,7 @@ async function addTwoPieces(page) {
 
 test("the confirmed boundaries of a file with two pieces split it into two pieces of the library, in one playlist", async ({ page }) => {
     const errors = pageErrors(page);
-    await experiments(page, ["Automatic bookmarks", "Pieces in a file"]);
+    await experiments(page, ["Several pieces in a score or recording"]);
     const drawer = await addTwoPieces(page);
 
     // Nothing marks a piece yet; confirming what was found automatically gives two Structure bookmarks.
