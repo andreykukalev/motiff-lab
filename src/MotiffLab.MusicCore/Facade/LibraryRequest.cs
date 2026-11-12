@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 
@@ -8,7 +9,7 @@ using MotiffLab.MusicCore.Projects;
 namespace MotiffLab.MusicCore.Facade;
 
 /// <summary>
-/// library.plan, library.relink and library.confirm on piece 0 (contract 12, calls added; version 0.5, «Импорт папки»): the import plan
+/// library.plan, library.relink, library.confirm and library.link on piece 0 (contract 12, calls added; version 0.5, «Импорт папки»): the import plan
 /// of a folder the app read (<see cref="LibraryImport"/>), the same for the iPad as for the web, and the metadata of a
 /// piece once the player confirmed its suggestions. Nothing is kept and no file is touched: the app reads the folder and
 /// saves the projects.
@@ -121,6 +122,54 @@ internal static class LibraryRequest
             json.WriteEndArray();
             WriteTexts(json, "fingerprint", plan.ToFingerprint);
             WriteTexts(json, "confirm", plan.ToConfirm);
+        });
+    }
+
+    /// <summary>
+    /// {"fileName", "folder", "sha256", "bytes", "pages", "id", "now", "device"} → {"project", "file"}: a new piece for a PDF
+    /// that stays in the player's folder (<see cref="Project.CreateLinkedDocument"/>), held by the device ("ipad", the
+    /// default, or "web"). With "file", a project file whose PDF is kept by link, that PDF found again: its place in the
+    /// folder, and the fingerprint, size and pages of the file there (the same file moved, or the one the player said is
+    /// it), held by the device; its notes, marks and metadata stay as they were. Nothing is read or changed on disk.
+    /// </summary>
+    public static string Link(Request fields)
+    {
+        string fileName = fields.Required("fileName");
+        string folder = fields.Text("folder") ?? string.Empty;
+        string sha256 = fields.Required("sha256");
+        long bytes = fields.Long("bytes") ?? throw FacadeException.BadRequest("Send \"bytes\", the file's size.");
+        int? pages = fields.Int("pages");
+        HoldingDevice device = fields.Enum<HoldingDevice>("device") ?? HoldingDevice.Ipad;
+        DateTimeOffset now = fields.Text("now") is { } text
+            ? DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset parsed) ? parsed : throw FacadeException.BadRequest("\"now\" must be an ISO 8601 time.")
+            : DateTimeOffset.UtcNow;
+        Project project;
+        if (fields.Text("file") is { } file)
+        {
+            Project linked = ProjectFile.Read(Encoding.UTF8.GetBytes(file));
+            PieceOriginal original = linked.FindOriginal(PieceOriginal.DocumentId) is { Kind: OriginalKind.Pdf, Kept: OriginalKept.Link } kept
+                ? kept
+                : throw FacadeException.Unavailable("Only a piece whose PDF is kept by link in a folder is linked again so.");
+            var found = new PieceOriginal(original.Id, original.Kind, fileName, OriginalKept.Link, original.AddedAt)
+            {
+                Name = original.Name,
+                Folder = folder,
+                Sha256 = sha256,
+                Bytes = bytes,
+                Pages = pages ?? (original.Sha256 == sha256 ? original.Pages : null),
+                Held = original.Held,
+            };
+            project = linked.WithOriginal(found.HeldBy(device, now));
+        }
+        else
+        {
+            project = Project.CreateLinkedDocument(fields.Text("id") ?? MusicCoreFacade.NewProjectId(), fileName, folder, sha256, bytes, pages, device, now);
+        }
+
+        return Answer.Write(json =>
+        {
+            Answer.Project(json, "project", project);
+            json.WriteString("file", Encoding.UTF8.GetString(ProjectFile.Write(project)));
         });
     }
 

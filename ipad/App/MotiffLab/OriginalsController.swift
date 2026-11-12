@@ -174,6 +174,10 @@ final class OriginalsController: ObservableObject {
     /// copy. The iPad's mark follows what is found. Nil when the bytes are not the original's or were not read, with the
     /// reason in `status` when one was looked for.
     private func linkedBytes(_ original: OriginalEntry, _ kept: OriginalLink, reading: Bool, verifying: Bool = true) async -> Data? {
+        if kept.folderId != nil {
+            guard reading || verifying else { return nil }
+            return await folderBytes(original, kept)
+        }
         guard let target = LinkedFile.resolve(kept.bookmark) else {
             await lost(original)
             return nil
@@ -191,6 +195,25 @@ final class OriginalsController: ObservableObject {
         }
         if check == .unknown && !reading && !verifying { return nil }
         return await verified(original, link, target.url, trusted: check == .same)
+    }
+
+    /// A PDF linked in a folder the player imported (version 0.5): read through the folder's bookmark and its path there,
+    /// then by the file's own bookmark, and checked by its fingerprint. A file not found keeps its link: «Проверить папку»
+    /// finds it again.
+    private func folderBytes(_ original: OriginalEntry, _ link: OriginalLink) async -> Data? {
+        loading = original.id
+        let read = await AwayPdf.bytes(link)
+        loading = nil
+        switch read {
+        case .failure(let reason):
+            status[original.id] = reason.text(text)
+            return nil
+        case .success(let data):
+            let checked = link.verified(sha256: CloudSync.hash(data), bytes: Int64(data.count), modified: nil)
+            keep(checked, for: original)
+            await mark(original, held: !checked.changed)
+            return checked.changed ? nil : data
+        }
     }
 
     /// Reads the linked file and, unless its size and date say it is the same (`trusted`), checks its fingerprint.

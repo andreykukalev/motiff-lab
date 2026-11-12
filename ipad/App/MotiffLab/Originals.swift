@@ -11,11 +11,14 @@ struct OriginalEntry: Identifiable, Equatable, Sendable {
     /// The player's name for it, else its file's.
     var shown: String
     var fileName: String
+    /// Where the file was inside the folder the player imported, "Бах/ХТК" (version 0.5); nil when it came from no folder.
+    var folder: String?
     /// The SHA-256 of its bytes, 64 lower-case hex digits; nil when not known.
     var sha256: String?
     var bytes: Int64?
     var pages: Int?
-    /// "file" (in the project file on the device that has it) or "device" (beside it).
+    /// "file" (in the project file on the device that has it), "device" (beside it) or "link" (version 0.5: in the player's
+    /// folder, read where it lies and never copied into the project file).
     var kept: String
     /// The bytes are in this project file, here: the PDF kept in the piece.
     var inFile: Bool
@@ -41,7 +44,7 @@ struct OriginalEntry: Identifiable, Equatable, Sendable {
         let fileName = object["fileName"] as? String ?? ""
         return OriginalEntry(
             id: id, kind: kind, shown: object["shown"] as? String ?? fileName, fileName: fileName,
-            sha256: object["sha256"] as? String, bytes: (object["bytes"] as? NSNumber)?.int64Value,
+            folder: object["folder"] as? String, sha256: object["sha256"] as? String, bytes: (object["bytes"] as? NSNumber)?.int64Value,
             pages: (object["pages"] as? NSNumber)?.intValue, kept: object["kept"] as? String ?? "file",
             inFile: object["inFile"] as? Bool ?? false,
             held: (object["held"] as? [[String: Any]] ?? []).compactMap { $0["device"] as? String }
@@ -146,6 +149,10 @@ struct OriginalLink: Codable, Equatable, Sendable {
     var changedBytes: Int64?
     var changedModified: Date?
     var linkedAt: Date
+    /// For a file in a folder the player imported (version 0.5, «Импорт папки»): that folder (`ImportFolder.id`) and the
+    /// file's path inside it, found through the folder's own bookmark first; nil for a file picked on its own.
+    var folderId: String?
+    var path: String?
 
     /// What the file's size and date say without reading it.
     enum Check: Equatable, Sendable {

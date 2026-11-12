@@ -47,7 +47,9 @@ public sealed class MusicCoreFacade
     /// Also within 12 (version 0.5, «Импорт папки»), library.plan on piece 0 answers the import plan of a folder the app
     /// read (<see cref="Import.LibraryImport"/>) and library.confirm the metadata of a piece once the player confirmed its
     /// suggestions, calls added; library.relink answers where the library's originals are in a fresh listing of the folder
-    /// (<see cref="Import.LibraryRelink"/>), a call added.
+    /// (<see cref="Import.LibraryRelink"/>), a call added; library.link makes the project file of a piece whose PDF stays in
+    /// the player's folder, or links such a piece's PDF where it is now, and open takes "project" to open such a piece with
+    /// its PDF read where it lies, a call and a field added.
     /// 11 lets doubt about recognised notes reach what is read from them (#352, 0027 section 12), adding fields only: a
     /// chord, a fact and a DNA chord or key built on recognised notes still to check (in a bar with an open Check flag)
     /// tell "doubt", a sentence that says where, and the chord's "certainty" and the DNA chord's "clear" say uncertain;
@@ -109,6 +111,9 @@ public sealed class MusicCoreFacade
     /// notes a recording's parts were heard as, as performance.add takes them) the data is not read: the new project is
     /// the recording's notes, worked out as the web app works them out (0014, 0016). For a project file, "edits" ("on" or
     /// "off", version 0.5) lays the corrections over the notes one by one or leaves them out; without it they must all fit.
+    /// With "project" (version 0.5, «Импорт папки»), the project file of a piece that is only a PDF whose PDF is not in the
+    /// file, the data is that PDF as the app read it where it lies, and the piece opens as a PDF piece with it
+    /// (<see cref="OpenDocument.Linked"/>); a file that is not its PDF any more answers "originalChanged".
     /// </summary>
     public string Open(string fileName, ReadOnlySpan<byte> data, string? request = null)
     {
@@ -135,18 +140,17 @@ public sealed class MusicCoreFacade
                 });
             }
 
+            // A piece that is only a PDF, its PDF not in its file (version 0.5): the data is that PDF, read where it lies.
+            if (fields.Has("project"))
+            {
+                return Keep(OpenDocument.Linked(ProjectFile.Read(Encoding.UTF8.GetBytes(fields.Required("project"))), bytes, words));
+            }
+
             // A piece with notes and a PDF (testing item 16) opens as notes, or in its "PDF" view when "view" is "pdf".
             bool asPdf = fields.Text("view") == "pdf";
             if (IsPdf(fileName, bytes) || (IsProjectFile(fileName, bytes) && ReadDocument(bytes, asPdf) is not null))
             {
-                OpenDocument document = IsPdf(fileName, bytes) ? OpenDocument.Create(id, fileName, bytes, words, now, fields.Int("photos")) : OpenDocument.Open(ReadDocument(bytes, asPdf)!);
-                _documents[number] = document;
-                _next++;
-                return Answer.Write(json =>
-                {
-                    json.WriteNumber("piece", number);
-                    document.Summary(json);
-                });
+                return Keep(IsPdf(fileName, bytes) ? OpenDocument.Create(id, fileName, bytes, words, now, fields.Int("photos")) : OpenDocument.Open(ReadDocument(bytes, asPdf)!));
             }
 
             if (IsProjectFile(fileName, bytes) && IsAway(bytes))
@@ -169,6 +173,18 @@ public sealed class MusicCoreFacade
         {
             return Failure(exception);
         }
+    }
+
+    /// <summary>Keeps a PDF piece open under the next number and answers as open does: its number, project and document.</summary>
+    private string Keep(OpenDocument document)
+    {
+        int number = _next++;
+        _documents[number] = document;
+        return Answer.Write(json =>
+        {
+            json.WriteNumber("piece", number);
+            document.Summary(json);
+        });
     }
 
     /// <summary>Runs one call on an open piece; piece 0 is for the stateless calls (version, catalogue, settings, settings.state).</summary>
@@ -199,6 +215,7 @@ public sealed class MusicCoreFacade
                     "library.plan" => LibraryRequest.Plan(fields),
                     "library.confirm" => LibraryRequest.Confirm(fields),
                     "library.relink" => LibraryRequest.Relink(fields),
+                    "library.link" => LibraryRequest.Link(fields),
                     _ when Count == 0 && IsPieceCall(name) => throw new FacadeException("noPiece", "Open a piece first."),
                     _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\" without a piece."),
                 };
