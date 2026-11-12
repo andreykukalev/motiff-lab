@@ -1249,6 +1249,7 @@
             }
             <p class="caption">@Text[canChange ? "check.barsHow" : "check.barsKept"]</p>
             @if (LiveTempoOn) { <MotiffLab.Web.Workspace.LiveBarsActions CanChange="LiveBars.CanChange(project)" HasScore="HasScoreVersion" Find="FindLiveBarsAsync" /> }
+            @if (MetersOn && heard.Bars is not null) { <MotiffLab.Web.Workspace.OddMetersPreview Stretches="OddMetersShown" /> }
         </section>
     }
     @if (OpenCheckBars.Count == 0 && HasCheckFlags)
