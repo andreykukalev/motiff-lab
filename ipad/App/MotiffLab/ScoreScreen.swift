@@ -51,6 +51,8 @@ struct ScoreScreen: View {
     @State private var dnaFromMore = false
     /// The questions asked about the piece (testing item 23): one conversation, shown by every Ask popover and in Insights.
     @StateObject private var conversation = AskConversation()
+    /// The piece's originals on this iPad (version 0.3): where each one is, and the PDF linked where it lies in Files.
+    @StateObject private var originals = OriginalsController()
 
     /// The Insights sheet's width beside the score in landscape (ds.css `.sheet`).
     static let sheetWidth: CGFloat = 380
@@ -124,7 +126,8 @@ struct ScoreScreen: View {
             VersionsDrawer(
                 score: score, text: text, close: { versionsOpen = false },
                 back: fromMore ? (label: text["bar.more"], action: { backToMore { versionsOpen = false } }) : nil,
-                openPdf: toPdf
+                openPdf: toPdf,
+                originals: originals
             )
         } else if checkOpen {
             CheckDrawer(score: score, text: text, close: { checkOpen = false }, back: fromMore ? (label: text["bar.more"], action: { backToMore { checkOpen = false } }) : nil)
@@ -517,6 +520,26 @@ struct ScoreScreen: View {
                     )
                 }
             }
+            // The PDF linked where it lies in Files (version 0.3): read from there, shown, never written into the piece.
+            .fullScreenCover(item: $originals.linkedPdf, onDismiss: { originals.closeLinkedPdf() }) { pdf in
+                PdfScreen(piece: pdf, linked: true).environmentObject(account)
+            }
+            .task(id: piece.id) {
+                let shown = score
+                originals.changed = { [weak shown] in shown?.refreshSources() }
+                await originals.load(piece)
+            }
+            .overlay(alignment: .center) {
+                // Opening the linked PDF from the bar: iOS may first download it from iCloud Drive or Google Drive.
+                if originals.loading != nil && !versionsOpen {
+                    HStack(spacing: CGFloat.ds("s-2")) {
+                        ProgressView()
+                        Text(text["originals.loading"]).dsType(.label).foregroundStyle(Color.ds("ink"))
+                    }
+                    .padding(CGFloat.ds("s-4"))
+                    .modifier(FloatingSurface())
+                }
+            }
             .sheet(isPresented: $referenceOpen) {
                 ReferenceSheet(text: text, settings: settings, piece: piece.id)
             }
@@ -625,10 +648,21 @@ struct ScoreScreen: View {
         Task { try? await ProjectFiles.save(piece: id, to: file) }
     }
 
-    /// PDF in the bar's PDF | Notes: for a piece with a PDF kept inside it, or notes read from a PDF piece the library holds.
+    /// PDF in the bar's PDF | Notes: for a piece with a PDF kept inside it, or notes read from a PDF piece the library holds;
+    /// else the PDF linked where it lies in Files, over the score (version 0.3).
     private var toPdf: (() -> Void)? {
-        guard switchView != nil, piece.other != nil || score.sources.document != nil else { return nil }
-        return { Task { await showPdf() } }
+        if switchView != nil, piece.other != nil || score.sources.document != nil {
+            return { Task { await showPdf() } }
+        }
+        guard originals.canOpenLinkedPdf else { return nil }
+        return {
+            if player.state == .playing { player.toggle() }
+            Task {
+                await originals.openLinkedPdf(title: piece.title)
+                // Changed, gone or not downloaded: Sources says why, under the PDF.
+                if originals.linkedPdf == nil { versionsOpen = true }
+            }
+        }
     }
 
     /// The PDF at the page the notes at the top of the view were read from, once the piece is saved (the web app's

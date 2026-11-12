@@ -69,6 +69,8 @@ struct LibraryEntry: Identifiable, Equatable, Sendable {
     let inSession: Bool
     /// The title, composer, tags and playlists in one folded text, for search.
     let folded: String
+    /// Its first PDF, photos or recording that is not on this iPad, said on its line (version 0.3); nil when all are here.
+    var originalAway: OriginalAway?
 
     var id: URL { url }
 

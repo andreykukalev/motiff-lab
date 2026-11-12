@@ -217,13 +217,17 @@ struct VersionsDrawer: View {
     let close: () -> Void
     /// "‹ More" when opened from More: closes the drawer and opens More again (testing item 20); nil from elsewhere.
     var back: (label: String, action: () -> Void)?
-    /// The piece's PDF view, when it keeps a PDF.
+    /// The piece's PDF view, when it keeps a PDF or links to it in Files.
     var openPdf: (() -> Void)?
+    /// The piece's originals on this iPad: where each one is, and «Привязать оригинал» (version 0.3).
+    @ObservedObject var originals: OriginalsController
     @EnvironmentObject private var account: Account
     @ObservedObject private var scan = ScanServer.shared
     @ObservedObject private var settings = DeviceSettings.shared
     @State private var choosing = false
     @State private var choosingPdf = false
+    /// The original whose file the importer picks, to link it again; nil for a version or a PDF to add.
+    @State private var relinking: OriginalEntry?
     @State private var adding = false
     @State private var readingPdf = false
     @State private var name = ""
@@ -278,7 +282,13 @@ struct VersionsDrawer: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel(text["sources.title"])
         // One importer for both choices: SwiftUI presents only one of two on the same view.
-        .fileImporter(isPresented: $choosing, allowedContentTypes: choosingPdf ? [.pdf] : Self.versionFiles) { result in
+        .fileImporter(isPresented: $choosing, allowedContentTypes: choosingPdf || relinking != nil ? [.pdf] : Self.versionFiles) { result in
+            if let original = relinking {
+                // «Привязать оригинал»: the file stays where it is until the player chooses a link or a copy.
+                relinking = nil
+                if case .success(let url) = result { Task { await originals.picked(url, for: original) } }
+                return
+            }
             guard case .success(let url) = result else { return }
             let lent = url.startAccessingSecurityScopedResource()
             defer { if lent { url.stopAccessingSecurityScopedResource() } }
@@ -316,6 +326,7 @@ struct VersionsDrawer: View {
         .onAppear {
             name = versions.shown?.name ?? ""
             score.refreshSources()
+            Task { await originals.verify() }
         }
         .onChange(of: versions.shown?.name) { _, shown in
             name = shown ?? ""
@@ -379,6 +390,7 @@ struct VersionsDrawer: View {
         if let document = sources.document {
             VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
                 sourceLine(icon: "pages", title: document.fileName, detail: text["sources.pdfInside"], opens: false)
+                OriginalPlaceLabel(label: OriginalBadge.here.text(text), badge: .here)
                 HStack(spacing: CGFloat.ds("s-2")) {
                     if let openPdf {
                         Button(text["sources.openPdf"], action: openPdf)
@@ -399,6 +411,15 @@ struct VersionsDrawer: View {
             .padding(CGFloat.ds("s-3"))
             .frame(maxWidth: .infinity, alignment: .leading)
             .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-s")).strokeBorder(Color.ds("hairline")))
+        }
+        // The PDF, photos and recordings whose bytes are not in the piece here: where each one is (version 0.3).
+        ForEach(originals.originals.filter { $0.isShown && !$0.inFile }) { original in
+            OriginalCard(originals: originals, original: original, text: text, openPdf: originals.canOpenLinkedPdf ? openPdf : nil) {
+                relinking = original
+                choosingPdf = false
+                adding = false
+                choosing = true
+            }
         }
         ForEach(versions.entries) { entry in
             Button { score.openVersionPage(entry.id) } label: {
@@ -467,11 +488,13 @@ struct VersionsDrawer: View {
                 .fixedSize(horizontal: false, vertical: true)
             Button(text["performance.addMidi"]) {
                 choosingPdf = false
+                relinking = nil
                 choosing = true
             }
             .buttonStyle(DSButtonStyle(kind: .secondary))
             Button(text[score.sources.document == nil ? "sources.addPdf" : "sources.replacePdf"]) {
                 choosingPdf = true
+                relinking = nil
                 choosing = true
             }
             .buttonStyle(DSButtonStyle(kind: .secondary))

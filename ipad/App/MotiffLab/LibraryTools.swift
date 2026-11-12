@@ -5,7 +5,7 @@ extension LibraryEntry {
     /// the player set or the score names; the player's tags and playlists; and whether there is work on it to come back to.
     static func of(_ entry: ProjectFiles.Entry, _ summary: PieceSummary?) -> LibraryEntry {
         let named = summary?.titleFrom == "player" || summary?.titleFrom == "file"
-        return LibraryEntry(
+        var line = LibraryEntry(
             url: entry.url,
             title: named ? summary?.title ?? entry.title : entry.title,
             composer: summary?.composer,
@@ -14,6 +14,8 @@ extension LibraryEntry {
             modified: entry.modified,
             inSession: summary.map { !$0.hasNotes || $0.latest != nil } ?? false
         )
+        line.originalAway = OriginalAway.of(summary)
+        return line
     }
 }
 
@@ -209,11 +211,16 @@ struct LibraryLine: View {
     var body: some View {
         Button(action: open) {
             HStack(spacing: CGFloat.ds("s-4")) {
-                Text(entry.title)
-                    .font(DesignTokens.font(display: true, weight: 500, size: 19, relativeTo: .title3))
-                    .foregroundStyle(Color.ds("ink"))
-                    .lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(entry.title)
+                        .font(DesignTokens.font(display: true, weight: 500, size: 19, relativeTo: .title3))
+                        .foregroundStyle(Color.ds("ink"))
+                        .lineLimit(1)
+                    if let away = entry.originalAway {
+                        OriginalPlaceLabel(label: away.text(text), badge: away.badge)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 Text(entry.composer ?? "")
                     .dsType(.body)
                     .foregroundStyle(Color.ds("ink-2"))
