@@ -142,7 +142,10 @@ public class ProjectSyncTests
         Assert.Equal("forget", Call("project.sync", new { here = true, known = true }).GetProperty("step").GetString());
 
         Project pdf = Project.CreateDocument("p_pdf", "a.pdf", s_pdf, s_now);
-        Assert.Equal(JsonValueKind.Null, Call("project.online", new { file = Text(pdf) }).GetProperty("file").ValueKind);
+        // Version 0.5 (Andrei, 2026-11-12, amending 0026 C3): a piece that is only a PDF goes online too, without the PDF.
+        Project pdfOnline = ProjectFile.Read(Encoding.UTF8.GetBytes(Call("project.online", new { file = Text(pdf), now = "2026-11-12T18:00:00Z" }).GetProperty("file").GetString()!));
+        Assert.Null(pdfOnline.Document);
+        Assert.True(pdfOnline.FindOriginal(PieceOriginal.DocumentId)!.IsHeldBy(HoldingDevice.Ipad));
         Assert.Equal(Text(FurElise()), Call("project.online", new { file = Text(FurElise()) }).GetProperty("file").GetString());
 
         JsonElement resolved = Call("project.resolve", new

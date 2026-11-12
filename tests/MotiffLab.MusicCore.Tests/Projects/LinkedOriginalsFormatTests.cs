@@ -47,28 +47,16 @@ public class LinkedOriginalsFormatTests
 
     private static Project Read(JsonNode file) => ProjectFile.Read(Encoding.UTF8.GetBytes(file.ToJsonString()));
 
-    private static string Text(byte[] bytes) => Encoding.UTF8.GetString(bytes).ReplaceLineEndings("\n");
+    private static string Text(byte[] bytes) => GoldenFiles.Text(bytes);
 
-    private static string GoldenFolder([System.Runtime.CompilerServices.CallerFilePath] string source = "") =>
-        Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(source))!, "Golden");
-
-    private static byte[] Kept(string name) => File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", name));
+    private static byte[] Kept(string name) => GoldenFiles.Kept(name);
 
     [Theory]
     [InlineData(LinkedGolden)]
     [InlineData(FolderGolden)]
     public void The_files_version_0_5_writes_are_the_goldens_and_read_back_unchanged(string golden)
     {
-        byte[] written = ProjectFile.Write(golden == LinkedGolden ? Linked() : FromFolder());
-        if (Environment.GetEnvironmentVariable("MOTIFF_UPDATE_SNAPSHOTS") == "1")
-        {
-            File.WriteAllBytes(Path.Combine(GoldenFolder(), golden), written);
-            return;
-        }
-
-        byte[] kept = Kept(golden);
-        Assert.Equal(Text(kept), Text(written));
-        Assert.Equal(Text(kept), Text(ProjectFile.Write(ProjectFile.Read(kept))));
+        GoldenFiles.AssertIs(golden, ProjectFile.Write(golden == LinkedGolden ? Linked() : FromFolder()));
     }
 
     [Fact]

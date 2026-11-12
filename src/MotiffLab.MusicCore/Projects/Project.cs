@@ -299,13 +299,13 @@ public sealed partial record Project(
 
     /// <summary>
     /// The copy saved online (0014): the notes and everything made from them, without the PDF, which can run to tens of
-    /// megabytes and stays on the device. A piece that is only a PDF has nothing to save online. The originals'
-    /// descriptions go with it (version 0.3), so another device shows where the PDF is, and so do the marks on the PDF's
-    /// pages (version 0.4; Andrei, 2026-11-12), so another device that has the same PDF shows them.
+    /// megabytes and stays on the device. The originals' descriptions go with it (version 0.3), so another device shows
+    /// where the PDF is, and so do the marks on the PDF's pages (version 0.4; Andrei, 2026-11-12), so another device that
+    /// has the same PDF shows them. A piece that is only a PDF goes online too (version 0.5; Andrei, 2026-11-12, amending
+    /// 0026 C3): its title, composer, tags, playlists, the PDF's description with its fingerprint and the page marks,
+    /// without the PDF, so another device lists it and opens it once the same file is linked there. Never null since 0.5.
     /// </summary>
-    public Project? ForOnline() => Document is null ? this
-        : HasNotes ? this with { Document = null, DocumentPages = null, KeptOriginals = [.. Originals] }
-        : null;
+    public Project? ForOnline() => Document is null ? this : WithoutDocument(HasNotes ? this : Fingerprinted());
 
     /// <summary>
     /// Whether <paramref name="device"/> writes the marks on the PDF's pages (version 0.4; Andrei, 2026-11-12: only a
