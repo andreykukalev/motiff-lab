@@ -135,6 +135,7 @@ h1, h2, .app-title strong {
 .seg {
     display: inline-flex;
     flex-wrap: wrap;
+    align-items: stretch;
     gap: 2px;
     padding: 2px;
     background: var(--surface);
@@ -144,6 +145,10 @@ h1, h2, .app-title strong {
 
 .seg > button,
 .lab .seg > button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-2);
     min-height: var(--h-compact);
     padding: 0 var(--s-3);
     border: 0;
@@ -1235,6 +1240,13 @@ h1, h2, .app-title strong {
 .score.paged .score-page {
     width: var(--page-w);
     aspect-ratio: 210 / 297;
+}
+
+/* A long score (#419: 71 pages, tens of thousands of elements) stays one document, but the browser lays out and paints only
+   the engraved sheets near the view; the sheet's size comes from its width and shape, so the scroll keeps its length. A PDF's
+   sheet is left out: its bookmark tab reaches past the edge, which this would clip. */
+.score.paged .score-page:not(.pdf-page) {
+    content-visibility: auto;
 }
 
 /* A PDF's pages (0023) keep their own shape and numbers: the sheet takes the page's proportions, the drawing fills it, and the
@@ -2336,7 +2348,9 @@ h1:focus {
     background: var(--desk);
 }
 
-body:has(.workspace) .site-footer {
+/* The pages are #app's children and the footer follows them. Asked of the body with :has(), the question walked the whole
+   document on every change, a long score's tens of thousands of elements included (#419). */
+.workspace ~ .site-footer {
     display: none;
 }
 
@@ -2354,6 +2368,7 @@ body:has(.workspace) .site-footer {
 .lab.workspace .btn {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: var(--s-2);
     height: var(--h-control);
     padding: 0 var(--s-4);
@@ -3064,8 +3079,9 @@ body:has(.workspace) .site-footer {
 .lab.workspace :is(.drawer, .sheet, .focus-roll, .ask-pop) .chip {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    height: 32px;
+    justify-content: center;
+    gap: var(--s-2);
+    height: var(--h-compact);
     min-height: 0;
     padding: 0 var(--s-3);
     border-radius: var(--r-pill);
@@ -5095,11 +5111,11 @@ body:has(.workspace) .site-footer {
     padding: var(--s-10) var(--s-10) var(--s-8);
 }
 
-body:has(.library) {
+body:has(> #app > .library) {
     background: var(--desk);
 }
 
-body:has(.library) .site-footer {
+.library ~ .site-footer {
     max-width: 1280px;
     padding: 0 var(--s-10) var(--s-8);
 }
@@ -5511,6 +5527,7 @@ body:has(.library) .site-footer {
     display: inline-flex;
     flex: none;
     align-items: center;
+    justify-content: center;
     gap: var(--s-1);
     height: var(--h-compact);
     min-height: 0;
@@ -6160,7 +6177,7 @@ body:has(.library) .site-footer {
         padding: var(--s-6) var(--s-4);
     }
 
-    body:has(.library) .site-footer {
+    .library ~ .site-footer {
         padding: 0 var(--s-4) var(--s-6);
     }
 
@@ -6326,6 +6343,7 @@ body:has(.library) .site-footer {
 .lab .settings-sheet .seg {
     display: inline-flex;
     flex-wrap: wrap;
+    align-items: stretch;
 }
 
 .lab .settings-sheet .seg.presets {
@@ -8943,6 +8961,7 @@ body:has(.library) .site-footer {
 .ref-sheet .btn {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: var(--s-2);
     min-height: var(--h-compact);
     padding: 0 var(--s-3);

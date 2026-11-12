@@ -22,8 +22,21 @@ public enum ScaleForm
     MinorPentatonic,
 }
 
+/// <summary>How the Reference groups its scales (version 0.5): the major and the minors, the church modes, the pentatonics.</summary>
+public enum ScaleFamily
+{
+    MajorAndMinor,
+    Mode,
+    Pentatonic,
+}
+
 /// <summary>A scale the Reference offers: its id ("dorian") and its name in words ("Dorian", «дорийский»).</summary>
-public sealed record ScaleFormChoice(ScaleForm Form, string Id, string Name);
+/// <param name="Short">Its name within its group: "major" and "minor" for the pentatonics («мажорная», «минорная»), else the name.</param>
+public sealed record ScaleFormChoice(ScaleForm Form, string Id, string Name, string Short)
+{
+    /// <summary>The group it is offered in.</summary>
+    public ScaleFamily Family => ScaleReference.FamilyOf(Form);
+}
 
 /// <summary>A scale's own card (the Reference, part 2): its notes spelled by letter from the tonic, its degrees, and the scale up and down to hear.</summary>
 /// <param name="Name">The tonic and the scale: "D Dorian", «ре дорийский».</param>
@@ -57,7 +70,22 @@ public static class ScaleReference
 
     /// <summary>The scales in the order the Reference offers them, with their ids and names.</summary>
     public static IReadOnlyList<ScaleFormChoice> Forms(Words words = default) =>
-        [.. Enum.GetValues<ScaleForm>().Select(form => new ScaleFormChoice(form, Id(form), Title(form, words)))];
+        [.. Enum.GetValues<ScaleForm>().Select(form => new ScaleFormChoice(form, Id(form), Title(form, words), Short(form, words)))];
+
+    /// <summary>The group a scale is offered in.</summary>
+    public static ScaleFamily FamilyOf(ScaleForm form) => form switch
+    {
+        <= ScaleForm.MelodicMinor => ScaleFamily.MajorAndMinor,
+        <= ScaleForm.Locrian => ScaleFamily.Mode,
+        _ => ScaleFamily.Pentatonic,
+    };
+
+    private static string Short(ScaleForm form, Words words) => form switch
+    {
+        ScaleForm.MajorPentatonic => words.T("major", "мажорная"),
+        ScaleForm.MinorPentatonic => words.T("minor", "минорная"),
+        _ => Title(form, words),
+    };
 
     /// <summary>"major", "naturalMinor", "dorian", "minorPentatonic": the id the facade takes.</summary>
     public static string Id(ScaleForm form)

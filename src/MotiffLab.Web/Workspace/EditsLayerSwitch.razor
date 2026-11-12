@@ -1,0 +1,83 @@
+@using MotiffLab.MusicCore.Events
+@inject MotiffLab.Web.Localization.UiText Text
+
+@* «Мои правки: вкл / выкл» (an experiment, Settings · Experimental, version 0.5): the switch with how many corrections the
+   piece has and how many no longer fit, then those, each with its bar, note and why, and «Убрать». music-core lays the
+   corrections and says which fit; nothing here works one out. *@
+<section class="edits-layer" aria-labelledby="@($"{IdPrefix}-edits-title")">
+    <label class="switch-line">
+        <input type="checkbox" role="switch" class="switch" checked="@View.On" disabled="@Disabled" @onchange="args => Switch.InvokeAsync(args.Value is true)" />
+        <span id="@($"{IdPrefix}-edits-title")">@Text["edits.title"]</span>
+    </label>
+    <p class="caption">@Summary</p>
+    @if (!View.On)
+    {
+        <p class="caption">@Text["edits.off"]</p>
+    }
+    @if (View.Hidden > 0)
+    {
+        <p class="caption">@Text.Format("edits.hidden", View.Hidden)</p>
+    }
+    @if (View.Unfit.Count > 0)
+    {
+        <p class="overline">@Text["edits.unfitHeading"]</p>
+        <ul class="check-list">
+            @foreach (EditsLayerRow row in View.Unfit)
+            {
+                <li class="check-entry">
+                    <p class="check-bar">@Text.Format("edits.unfitRow", row.Bar, row.Note, Reason(row.Reason))</p>
+                    <div class="row">
+                        <button class="btn quiet compact" title="@Text["edits.dropHint"]" disabled="@Disabled" @onclick="() => Drop.InvokeAsync(row.NoteId)">@Text["edits.drop"]</button>
+                    </div>
+                </li>
+            }
+        </ul>
+    }
+</section>
+
+@code {
+    /// <summary>The switch's state and music-core's account of the corrections.</summary>
+    [Parameter, EditorRequired]
+    public EditsLayerView View { get; set; } = default!;
+
+    /// <summary>Prefixes the ids, so the switch can show in two places on one page.</summary>
+    [Parameter]
+    public string IdPrefix { get; set; } = "layer";
+
+    /// <summary>True while the notes are being edited on the roll: the layer waits until Save or Cancel.</summary>
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> Switch { get; set; }
+
+    /// <summary>Takes the corrections of one note that no longer fit out of the piece.</summary>
+    [Parameter]
+    public EventCallback<string> Drop { get; set; }
+
+    private string Summary
+    {
+        get
+        {
+            string line = Text.Count("edits.count", View.Count);
+            if (View.Unfit.Count > 0)
+            {
+                line += $", {Text.Count("edits.unfit", View.Unfit.Count)}";
+            }
+
+            if (View.Moved > 0)
+            {
+                line += $", {Text.Format("edits.moved", View.Moved)}";
+            }
+
+            return line;
+        }
+    }
+
+    private string Reason(EditMisfit reason) => Text[reason switch
+    {
+        EditMisfit.Missing => "edits.reasonMissing",
+        EditMisfit.IdTaken => "edits.reasonIdTaken",
+        _ => "edits.reasonChanged",
+    }];
+}

@@ -125,7 +125,7 @@ else
     private NotePoint? _shownPoint;
 
     /// <summary>Each note's name spelled for its key, by id, as the roll writes it.</summary>
-    private Dictionary<string, string> _spelled = [];
+    private IReadOnlyDictionary<string, string> _spelled = new Dictionary<string, string>();
 
     /// <summary>The notes to draw. The view loads them again only when a different list is given.</summary>
     [Parameter, EditorRequired]
@@ -288,7 +288,13 @@ else
             };
             // Start with the player's grouping (hands unless they chose another) when it tells notes apart, else hands, tracks, voices.
             _colourBy = AvailableModes.OrderBy(mode => mode == _preferredColour ? 0 : Array.IndexOf(s_colourModes, mode) + 1).FirstOrDefault() ?? _preferredColour;
-            await _view.InvokeVoidAsync("load", PianoRollData.Create(Notes, Score));
+            // The notes cross over once per piece: a second roll on them (Expand) takes what the first was sent (#419).
+            string notesKey = RollShared.NotesKey(Notes, Score);
+            if (!await _view.InvokeAsync<bool>("loadKept", notesKey))
+            {
+                await _view.InvokeVoidAsync("load", PianoRollData.Create(Notes, Score), notesKey);
+            }
+
             _shownFits = null;
             await _view.InvokeVoidAsync("setColourBy", _colourBy);
             await _view.InvokeVoidAsync("follow", Player.Engine);
@@ -386,9 +392,12 @@ else
         {
             _shownKeys = Keys;
             _shownNaming = (naming, Text.Language);
-            RollNames names = PianoRollData.Names(Notes!, Keys ?? [], naming, MotiffLab.MusicCore.Words.For(Text.Language));
-            _spelled = Notes!.Select((note, index) => (note.Id, Name: names.Notes[index])).ToDictionary(pair => pair.Id, pair => pair.Name, StringComparer.Ordinal);
-            await view.InvokeVoidAsync("setNames", names.Notes, names.KeyTicks, names.Rows, names.Short, names.ShortRows, names.Octaves);
+            string namesKey = RollShared.NamesKey(RollShared.NotesKey(Notes!, Score!), Keys, naming, Text.Language);
+            (RollNames names, _spelled) = RollShared.Names(namesKey, Notes!, () => PianoRollData.Names(Notes!, Keys ?? [], naming, MotiffLab.MusicCore.Words.For(Text.Language)));
+            if (!await view.InvokeAsync<bool>("setNamesKept", namesKey))
+            {
+                await view.InvokeVoidAsync("setNames", names.Notes, names.KeyTicks, names.Rows, names.Short, names.ShortRows, names.Octaves, namesKey);
+            }
         }
 
         if (!ReferenceEquals(Checks, _shownChecks))

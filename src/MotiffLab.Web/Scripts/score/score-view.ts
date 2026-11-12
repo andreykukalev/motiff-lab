@@ -298,8 +298,13 @@ export class ScoreView {
     private played = false;
     /** The playhead line's top in the score, for Back to playback (the line is moved by a transform, so it has no offsetTop). */
     private playTop = 0;
-    /** The geometry the playhead is placed with, kept while the layout stays the same size. */
-    private playGeometry: { key: string; geometry: ScoreGeometry | null } | null = null;
+    /**
+     * The geometry as last read, kept while the layout stays the same size (#419): reading it measures every page, and the
+     * playhead, the brackets, the marks, the selection and the pencil all ask for it.
+     */
+    private placedGeometry: { key: string; geometry: ScoreGeometry } | null = null;
+    /** The notes and rests marked outside the selection's range, so a new range changes only the ones that differ. */
+    private outside = new Set<string>();
     /** Whether the score scrolls to keep the playing system in view (Settings · Playback, playback.follow). */
     private following = true;
     /** Where the bar the playhead is in starts, as last told to Blazor while it was out of sight; -1 when in sight or stopped. */
@@ -508,11 +513,7 @@ export class ScoreView {
         if (timeline === null) {
             return undefined;
         }
-        const key = `${this.host.scrollWidth}x${this.host.scrollHeight}x${this.pageSvgs.length}`;
-        if (this.playGeometry?.key !== key) {
-            this.playGeometry = { key, geometry: this.geometry() };
-        }
-        return this.playGeometry.geometry?.playhead(tick, (id) => timeline.onsetOf(id));
+        return this.geometry()?.playhead(tick, (id) => timeline.onsetOf(id));
     }
 
     private reportAway(barTick: number): void {
@@ -742,11 +743,18 @@ export class ScoreView {
         if (timeline === null || this.pageSvgs.length === 0) {
             return null;
         }
+        const host = this.host;
+        const key = `${host.clientWidth}x${host.clientHeight}x${host.scrollHeight}x${this.pageSvgs.length}`;
+        if (this.placedGeometry?.key === key) {
+            return this.placedGeometry.geometry;
+        }
         this.pageGeometry ??= this.pageSvgs.map((svg, index) => readPage(svg, index + 1));
         const pages = this.pageGeometry;
-        const view = this.host.getBoundingClientRect();
+        const view = host.getBoundingClientRect();
         const placements: PagePlacement[] = [];
-        this.host.querySelectorAll(":scope > .score-page > svg").forEach((svg, index) => {
+        // An A4 sheet is the page's own box, which its drawing fills: measuring the sheet rather than the drawing leaves the
+        // pages out of sight unrendered (content-visibility, #419). The strip's sheet is as tall as its drawing.
+        host.querySelectorAll(this.paged ? ":scope > .score-page" : ":scope > .score-page > svg").forEach((svg, index) => {
             const page = pages[index];
             if (page === undefined) {
                 return;
@@ -755,12 +763,14 @@ export class ScoreView {
             const box = svg.getBoundingClientRect();
             const scale = Math.min(box.width / page.width, box.height / page.height);
             placements.push({
-                left: box.left - view.left + this.host.scrollLeft + (box.width - page.width * scale) / 2,
-                top: box.top - view.top + this.host.scrollTop + (box.height - page.height * scale) / 2,
+                left: box.left - view.left + host.scrollLeft + (box.width - page.width * scale) / 2,
+                top: box.top - view.top + host.scrollTop + (box.height - page.height * scale) / 2,
                 scale,
             });
         });
-        return new ScoreGeometry(pages, placements, (id) => timeline.measureOnset(id));
+        const geometry = new ScoreGeometry(pages, placements, (id) => timeline.measureOnset(id));
+        this.placedGeometry = { key, geometry };
+        return geometry;
     }
 
     /** The pencil marks over the score, for Blazor to choose the piece and the tool (0015). */
@@ -837,7 +847,8 @@ export class ScoreView {
         }
         this.host.replaceChildren(...pages);
         this.pagesShown = "";
-        this.playGeometry = null;
+        this.placedGeometry = null;
+        this.outside = new Set();
         if (this.holding) {
             this.keepHeight();
         }
@@ -934,14 +945,27 @@ export class ScoreView {
         }
         const range = this.range;
         let first: Element | null = null;
+        const outside = new Set<string>();
         for (const span of timeline.spans) {
-            const element = this.element(span.id);
             const inside = range === null || (span.onset >= range.start && span.onset < range.end);
-            element?.classList.toggle(OUTSIDE_CLASS, !inside);
-            if (inside && range !== null && first === null) {
-                first = element;
+            if (!inside) {
+                outside.add(span.id);
+            } else if (range !== null && first === null) {
+                first = this.element(span.id);
             }
         }
+        // Only the notes whose side of the range changed are touched: a piece of thousands of notes keeps its others as they are.
+        for (const id of this.outside) {
+            if (!outside.has(id)) {
+                this.element(id)?.classList.remove(OUTSIDE_CLASS);
+            }
+        }
+        for (const id of outside) {
+            if (!this.outside.has(id)) {
+                this.element(id)?.classList.add(OUTSIDE_CLASS);
+            }
+        }
+        this.outside = outside;
         if (scroll && first !== null && this.player?.state() !== "playing") {
             this.scrollIntoView(first);
         }

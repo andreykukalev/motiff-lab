@@ -1980,5 +1980,22 @@
   "parts.composerOf": "Composer of piece {0}",
   "parts.tagsOf": "Tags of piece {0}",
   "import.severalPieces": "Several pieces in this recording",
-  "import.piecesCount": "How many pieces"
+  "import.piecesCount": "How many pieces",
+  "edits.title": "My corrections",
+  "edits.count.one": "{0} correction",
+  "edits.count.few": "{0} corrections",
+  "edits.count.many": "{0} corrections",
+  "edits.unfit.one": "{0} no longer fits",
+  "edits.unfit.few": "{0} no longer fit",
+  "edits.unfit.many": "{0} no longer fit",
+  "edits.moved": "moved to a near note: {0}",
+  "edits.off": "Corrections are off: the notes are as they were recognised. Turn them on to correct notes.",
+  "edits.hidden": "Hidden because they no longer fit the notes: {0}. They stay in the piece.",
+  "edits.unfitHeading": "Corrections that no longer fit",
+  "edits.unfitRow": "Bar {0} · {1} · {2}",
+  "edits.reasonMissing": "the note is not there",
+  "edits.reasonChanged": "the note is different now",
+  "edits.reasonIdTaken": "a note with this number is already there",
+  "edits.drop": "Remove",
+  "edits.dropHint": "Take this correction out of the piece"
 }

@@ -1,7 +1,9 @@
+using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.Web.Projects;
+using MotiffLab.Web.Settings;
 
 namespace MotiffLab.Web.Import;
 
@@ -10,8 +12,11 @@ namespace MotiffLab.Web.Import;
 /// they chose to start, handed to the workspace. The piece's project autosaves on the device, and the
 /// workspace's address names it, so a reload or a link opens it again from there.
 /// </summary>
-public sealed class CurrentPiece(ProjectStore projects)
+public sealed class CurrentPiece(ProjectStore projects, DeviceSettings settings, Preferences preferences)
 {
+    /// <summary>The experiment's switch in Settings · Experimental («Мои правки: вкл / выкл», version 0.5), off by default.</summary>
+    public const string EditsLayerSetting = "experimental.editsLayer";
+
     public ImportedPiece? Piece { get; private set; }
 
     /// <summary>The track or hand the player picked to start with (N2 step 4).</summary>
@@ -83,10 +88,35 @@ public sealed class CurrentPiece(ProjectStore projects)
             return true;
         }
 
-        OpenedProject opened = OpenedProject.Open(project);
+        OpenedProject opened = await OpenAsync(project);
         await projects.SaveAsync(project);
         Open(opened.Piece, opened.Motifs.FirstOrDefault()?.Filter ?? SelectionFilter.All, project, opened);
         return true;
+    }
+
+    /// <summary>
+    /// How a piece's corrections are laid over its notes: strictly, as before, while the experiment is off; else one by one,
+    /// or not at all when the player turned them off for this piece on this device.
+    /// </summary>
+    public async Task<EditsLayer> EditsLayerAsync(string projectId)
+    {
+        await settings.LoadAsync();
+        if (!settings.IsOn(EditsLayerSetting))
+        {
+            return EditsLayer.Strict;
+        }
+
+        return await preferences.EditsOffAsync(projectId) ? EditsLayer.Off : EditsLayer.Lenient;
+    }
+
+    /// <summary>
+    /// The project rebuilt from its source, its corrections laid as <see cref="EditsLayerAsync"/> says. Throws
+    /// <see cref="ProjectFileException"/> when it is damaged.
+    /// </summary>
+    public async Task<OpenedProject> OpenAsync(Project project)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+        return OpenedProject.Open(project, await EditsLayerAsync(project.Id));
     }
 
     /// <summary>Keeps the latest save, so the next one builds on it.</summary>
