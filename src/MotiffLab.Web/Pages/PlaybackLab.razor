@@ -541,7 +541,7 @@
                     </div>
 
                 <InsightsStream Choose="ChooseFactAsync" HearScale="HearScaleAsync" ScaleHeard="_scaleHeard" Try="TryExperimentAsync" Keep="KeepExperimentAsync" Ask="MenuAsk" OpenIdea="ShowKeptVariationAsync"
-                                Adjusting="_showOperations" AdjustingChanged="SetAdjusting" TrialCard="TrialCard" AdjustTools="ShapeTools" Ideas="IdeasList" />
+                                Adjusting="_showOperations" AdjustingChanged="SetAdjusting" TrialCard="TrialCard" AdjustTools="ShapeTools" Ideas="IdeasList" Tempo="TempoShown" ShowBars="ShowTempoBarsAsync" />
                 @if (_variation is not null && _selection is { NoteIds.Count: > 0 })
                 {
                     <ComparePanel />
@@ -1238,6 +1238,7 @@
                 <p class="caption">@Text["transcribe.barsOff"]</p>
             }
             <p class="caption">@Text[canChange ? "check.barsHow" : "check.barsKept"]</p>
+            @if (LiveTempoOn) { <MotiffLab.Web.Workspace.LiveBarsActions CanChange="LiveBars.CanChange(project)" HasScore="HasScoreVersion" Find="FindLiveBarsAsync" /> }
         </section>
     }
     @if (OpenCheckBars.Count == 0 && HasCheckFlags)
