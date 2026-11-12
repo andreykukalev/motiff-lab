@@ -13,6 +13,8 @@ struct LibraryShelfView: View {
     @Binding var query: LibraryQuery
     @Binding var picked: LibraryGroup?
     let text: UIText
+    /// Beside a playlist's name: «Держать на этом iPad» (version 0.5, experiment «Импорт папки»).
+    var playlistAccessory: ((String) -> AnyView)?
     let open: (URL) -> Void
     let edit: (LibraryEntry) -> Void
     let delete: (URL) -> Void
@@ -30,6 +32,10 @@ struct LibraryShelfView: View {
                         .dsType(.title)
                         .foregroundStyle(Color.ds("ink"))
                         .accessibilityAddTraits(.isHeader)
+                    if tab == .playlists, let name = picked.name, let playlistAccessory {
+                        Spacer(minLength: CGFloat.ds("s-4"))
+                        playlistAccessory(name)
+                    }
                 }
             }
             if page.isEmpty {

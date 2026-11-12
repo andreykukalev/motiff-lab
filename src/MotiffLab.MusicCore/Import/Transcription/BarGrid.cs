@@ -275,6 +275,7 @@ public sealed partial record BarGrid
         long[] times = [.. onsets.Select(onset => (onset.Units - originUnits) / Clock.UnitsPerMicrosecond)];
         long[] lows = Lows(onsets, times);
         long[] beats;
+        long[]? plain = null;
         int found;
         long? bassBeat = BassBeat(lows);
         if (bassBeat is { } period)
@@ -296,6 +297,7 @@ public sealed partial record BarGrid
             }
 
             beats = Track(times, 2 * step);
+            plain = Track(times, 2 * step, null, out _, relock: false);
             found = 2;
         }
 
@@ -304,14 +306,13 @@ public sealed partial record BarGrid
         long sixteenth = Math.Clamp(sorted[sorted.Length / 2] / perBeat, ShortestSixteenth, LongestSixteenth);
         var grid = new BarGrid(origin, (int)sixteenth, TimeSignature.CommonTime, [0], beats, perBeat);
 
-        // Onsets that ignore the beat sit a quarter of a step from it on average, as at random, and a
-        // beat that bends to follow them still leaves them an eighth of a step away. A bass that
-        // keeps the beat is evidence enough, however freely the hands around it play.
-        long[] positions = [.. times.Select(grid.ThousandthsOfSteps)];
-        if (bassBeat is null && stepsPerBeat is null && 8 * Distance(positions) > positions.Length * 1000L)
+        // A bass that keeps the beat is evidence enough, however freely the hands around it play.
+        if (bassBeat is null && stepsPerBeat is null && !Steady(origin, times, plain!, perBeat))
         {
             return null;
         }
+
+        long[] positions = [.. times.Select(grid.ThousandthsOfSteps)];
 
         int[] steps = [.. positions.Select(position => (int)((position + 500) / 1000))];
         int[] lowest = [.. onsets.Select(onset => onset.Lowest)];
@@ -320,14 +321,27 @@ public sealed partial record BarGrid
         if (signature is { } wanted)
         {
             picked = wanted;
-            layout = Layout.Of(steps, lowest, (int)(wanted.BarTicks / StepTicks));
+            layout = Layout.Of(steps, lowest, (int)(wanted.BarTicks / StepTicks), perBeat);
         }
         else
         {
-            (picked, layout) = Pick(steps, lowest);
+            (picked, layout) = Pick(steps, lowest, perBeat);
         }
 
         return new BarGrid(origin, (int)sixteenth, picked, layout.Starts, beats, perBeat);
+    }
+
+    /// <summary>
+    /// Whether the onsets follow <paramref name="beats"/>, tracked without finding a slipped beat again: onsets that ignore
+    /// the beat sit a quarter of a step from it on average, as at random, and a beat that bends to follow them still leaves
+    /// them an eighth of a step away. Found again, a beat would follow even onsets at random, so it is not asked.
+    /// </summary>
+    private static bool Steady(Tick origin, long[] times, long[] beats, int perBeat)
+    {
+        long[] gaps = [.. beats.Zip(beats.Skip(1), (a, b) => b - a).Order()];
+        long sixteenth = Math.Clamp(gaps[gaps.Length / 2] / perBeat, ShortestSixteenth, LongestSixteenth);
+        var grid = new BarGrid(origin, (int)sixteenth, TimeSignature.CommonTime, [0], beats, perBeat);
+        return 8 * Distance([.. times.Select(grid.ThousandthsOfSteps)]) <= times.Length * 1000L;
     }
 
     /// <summary>The summed distance of positions, in thousandths of a 16th, to the nearest 16th.</summary>
@@ -384,7 +398,8 @@ public sealed partial record BarGrid
     private static long[] TrackBass(long[] times, long[] lows, long period) => TrackBass(times, lows, period, null, out _);
 
     /// <param name="jump">With a run length, tracking stops where that many beats in a row wanted to be longer or shorter than the clamp lets them: the time of the next onset, else null.</param>
-    private static long[] TrackBass(long[] times, long[] lows, long period, int? jump, out long? jumped)
+    /// <param name="relock">Whether a beat that slipped is found again (<see cref="Follow"/>).</param>
+    private static long[] TrackBass(long[] times, long[] lows, long period, int? jump, out long? jumped, bool relock = true)
     {
         var beats = new List<long> { 0 };
         long first = lows[0];
@@ -401,25 +416,8 @@ public sealed partial record BarGrid
             beats.Add(first);
         }
 
-        var clamp = new ClampWatch(period, jump);
-        long beat = period, at = beats[^1], last = times[^1];
-        jumped = null;
-        while (at < last)
-        {
-            long expected = at + beat;
-            long? heard = Nearest(lows, expected, beat / 4, at + (beat * 3 / 10))
-                ?? Nearest(times, expected, beat / 8, at);
-            long next = heard ?? expected;
-            beat = clamp.Next(beat, next - at, heard is not null);
-            beats.Add(next);
-            at = next;
-            if (clamp.Jumped && NextAfter(times, at) is { } onset)
-            {
-                jumped = onset;
-                break;
-            }
-        }
-
+        jumped = Follow(beats, times, period, jump, relock, (at, expected, beat) =>
+            Nearest(lows, expected, beat / 4, at + (beat * 3 / 10)) ?? Nearest(times, expected, beat / 8, at));
         return [.. beats];
     }
 
@@ -473,28 +471,60 @@ public sealed partial record BarGrid
     private static long[] Track(long[] times, long period) => Track(times, period, null, out _);
 
     /// <param name="jump">With a run length, tracking stops where that many beats in a row wanted to be longer or shorter than the clamp lets them: the time of the next onset, else null.</param>
-    private static long[] Track(long[] times, long period, int? jump, out long? jumped)
+    /// <param name="relock">Whether a beat that slipped is found again (<see cref="Follow"/>).</param>
+    private static long[] Track(long[] times, long period, int? jump, out long? jumped, bool relock = true)
     {
         var beats = new List<long> { 0 };
+        jumped = Follow(beats, times, period, jump, relock, (at, expected, beat) => Nearest(times, expected, beat / 4, at));
+        return [.. beats];
+    }
+
+    /// <summary>
+    /// Adds beats to <paramref name="beats"/> to the last onset, each where <paramref name="near"/> hears it (from the last
+    /// beat, where it is expected and how long the beat is) or else where it was expected, the length following the last
+    /// few beats within the clamp. A beat that slips: when two beats in a row hear nothing though notes were played
+    /// between them, the playing has held back or pressed on by more than the reach, and every later onset would fall
+    /// between the beats (issue #455); the beats go back to the last one heard and the next is looked for within 3/8 of
+    /// a beat, once for each beat heard. Returns where tracking stopped for a jump in tempo, as <see cref="Track(long[], long, int?, out long?)"/>.
+    /// </summary>
+    private static long? Follow(List<long> beats, long[] times, long period, int? jump, bool relock, Func<long, long, long, long?> near)
+    {
         var clamp = new ClampWatch(period, jump);
-        long beat = period, at = 0, last = times[^1];
-        jumped = null;
+        long beat = period, at = beats[^1], last = times[^1];
+        int heardAt = beats.Count - 1, missed = 0;
+        long heardBeat = beat;
+        bool wide = false, gone = false;
         while (at < last)
         {
             long expected = at + beat;
-            long? heard = Nearest(times, expected, beat / 4, at);
+            long? heard = near(at, expected, beat);
+            // Found again further away, the beat moves to the playing but keeps its length, so it never runs away.
+            bool moved = heard is null && wide && (heard = Nearest(times, expected, beat * 3 / 8, at + (beat / 4))) is not null;
+            wide = false;
+            missed = heard is null && NextAfter(times, at + (beat / 4)) is { } played && played < expected + (beat / 2) ? missed + 1 : 0;
+            if (relock && missed >= 2 && !gone)
+            {
+                beats.RemoveRange(heardAt + 1, beats.Count - heardAt - 1);
+                (at, beat, missed, wide, gone) = (beats[^1], heardBeat, 0, true, true);
+                continue;
+            }
+
             long next = heard ?? expected;
-            beat = clamp.Next(beat, next - at, heard is not null);
+            beat = moved ? beat : clamp.Next(beat, next - at, heard is not null);
             beats.Add(next);
             at = next;
+            if (heard is not null)
+            {
+                (heardAt, heardBeat, gone) = (beats.Count - 1, beat, false);
+            }
+
             if (clamp.Jumped && NextAfter(times, at) is { } onset)
             {
-                jumped = onset;
-                break;
+                return onset;
             }
         }
 
-        return [.. beats];
+        return null;
     }
 
     /// <summary>The first time later than <paramref name="after"/>, or null.</summary>
@@ -672,13 +702,13 @@ public sealed partial record BarGrid
     }
 
     /// <summary>The bars the bass supports best: the shortest bar that does nearly as well as the best.</summary>
-    private static (TimeSignature Signature, Layout Layout) Pick(int[] steps, int[] lowest)
+    private static (TimeSignature Signature, Layout Layout) Pick(int[] steps, int[] lowest, int beat)
     {
         // By 16ths in a bar, in the order that breaks a near tie: when the bass does as well on
         // every half bar as on the bar line, the shorter bar says as much, except that 4/4 is far
         // more common than 2/4.
         int[] sizes = [16, 6, 12, 8];
-        Layout[] layouts = [.. sizes.Select(size => Layout.Of(steps, lowest, size))];
+        Layout[] layouts = [.. sizes.Select(size => Layout.Of(steps, lowest, size, beat))];
         long[] scores = [.. layouts.Select(layout => layout.Score)];
         long best = scores.Max();
         int index = best <= 0 ? 0 : Array.FindIndex(scores, score => 10 * score >= 9 * best);
@@ -901,7 +931,8 @@ public sealed partial record BarGrid
         /// <summary>How far, in 16ths, a likely downbeat is the lowest onset: a dotted eighth.</summary>
         private const int LowReach = 3;
 
-        public static Layout Of(int[] steps, int[] lowest, int size)
+        /// <param name="beat">16ths in a beat: when the bar holds whole beats, its downbeat falls on one, never between two (issue #455).</param>
+        public static Layout Of(int[] steps, int[] lowest, int size, int beat)
         {
             int[] lows = Lows(steps, lowest);
             int last = steps[^1] + 1;
@@ -919,8 +950,7 @@ public sealed partial record BarGrid
                     counts[low % size]++;
                 }
 
-                int max = counts.Max();
-                phases[w] = max > 0 ? Array.IndexOf(counts, max) : null;
+                phases[w] = Downbeat(counts, beat);
             }
 
             int current = phases.FirstOrDefault(phase => phase is not null) ?? 0;
@@ -968,6 +998,28 @@ public sealed partial record BarGrid
             }
 
             return new Layout([.. starts], score, compound);
+        }
+
+        /// <summary>
+        /// Where in the bar the most likely downbeats fall, from how many fall at each place; null when none do. Between two
+        /// beats only when that place catches twice the likely downbeats of any place on a beat, when the bar holds whole beats.
+        /// </summary>
+        private static int? Downbeat(int[] counts, int beat)
+        {
+            int max = counts.Max();
+            if (max == 0)
+            {
+                return null;
+            }
+
+            int most = Array.IndexOf(counts, max);
+            if (counts.Length % beat != 0 || most % beat == 0)
+            {
+                return most;
+            }
+
+            int onBeat = Enumerable.Range(0, counts.Length / beat).MaxBy(index => counts[index * beat]) * beat;
+            return 2 * counts[onBeat] > max ? onBeat : most;
         }
 
         /// <summary>

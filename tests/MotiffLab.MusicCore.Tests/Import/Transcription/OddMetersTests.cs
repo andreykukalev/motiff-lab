@@ -40,9 +40,12 @@ public class OddMetersTests
 
     private static readonly int[] s_five = [0, 4];
 
+    /// <summary>A 16th of 0.16 s, which the grid reads as one: at 0.125 s it reads two as one, and its beats are the playing's quarters.</summary>
+    private const long Sixteenth = 160_000;
+
     private static (BarGrid Grid, IReadOnlyList<MeterStretch> Odd) Heard(IEnumerable<(int, int, int)> notes)
     {
-        ImportedPiece piece = BarGridTests.Import(LivePlaying.Heard(LivePlaying.At(1_000_000, 125_000, notes)));
+        ImportedPiece piece = BarGridTests.Import(LivePlaying.Heard(LivePlaying.At(1_000_000, Sixteenth, notes)));
         BarGrid grid = BarGrid.Find(piece.Midi!)!;
         return (grid, grid.OddMeters(piece.Midi!));
     }
@@ -52,9 +55,9 @@ public class OddMetersTests
     {
         (BarGrid grid, IReadOnlyList<MeterStretch> odd) = Heard([.. Bars(0, 16, 12, s_seven), .. Bars(192, 16, 14, s_seven)]);
 
-        // The grid reads this playing in eighths, so its 16th is two of the playing's and its bar 3/8: the change at 192 is its 96th.
-        Assert.Equal(new TimeSignature(3, 8), grid.Signature);
-        Assert.Equal(new MeterStretch(96, 208, new TimeSignature(7, 8)), Assert.Single(odd));
+        // The waltz is read in bars of 4/4 by its bass on every beat; the 7/8 is found from the change to the end.
+        Assert.Equal(TimeSignature.CommonTime, grid.Signature);
+        Assert.Equal(new MeterStretch(192, 192 + (16 * 14), new TimeSignature(7, 8)), Assert.Single(odd));
     }
 
     [Fact]
@@ -79,15 +82,15 @@ public class OddMetersTests
     [Fact]
     public void A_transcriptions_odd_bars_are_named_by_the_bars_of_the_piece_as_it_opens_and_nothing_changes()
     {
-        byte[] midi = LivePlaying.Heard(LivePlaying.At(1_000_000, 125_000, [.. Bars(0, 16, 12, s_seven), .. Bars(192, 16, 14, s_seven)]));
+        byte[] midi = LivePlaying.Heard(LivePlaying.At(1_000_000, Sixteenth, [.. Bars(0, 16, 12, s_seven), .. Bars(192, 16, 14, s_seven)]));
         var facade = new MusicCoreFacade();
         _ = facade.Open("Recital.m4a", [], $$$"""{"id": "p_odd", "now": "2026-11-12T12:00:00Z", "transcription": {"engine": "transkun", "milliseconds": 60000, "parts": [{"index": 0, "midi": "{{{Convert.ToBase64String(midi)}}}"}]}}""");
         string saved = facade.Call(1, "project.save");
         Project project = ProjectFile.Read(Encoding.UTF8.GetBytes(saved));
         ImportedPiece opened = OpenedProject.Open(project).Piece;
 
-        // Bars of 3/8 on the grid: the change at its 96th 16th starts bar 17, and the stretch runs to the last bar.
-        Assert.Equal(new OddBars(17, opened.Meter.BarAt(new Tick(opened.End.Value - 1)).Number, new TimeSignature(7, 8)), Assert.Single(LiveBars.OddMeters(project, opened)));
+        // Bars of 4/4 on the grid: the change at its 192nd 16th starts bar 13, and the stretch runs to the last bar.
+        Assert.Equal(new OddBars(13, opened.Meter.BarAt(new Tick(opened.End.Value - 1)).Number, new TimeSignature(7, 8)), Assert.Single(LiveBars.OddMeters(project, opened)));
         Assert.Equal(saved, Encoding.UTF8.GetString(ProjectFile.Write(project)));
         Assert.Empty(LiveBars.OddMeters(project with { Transcription = project.Transcription! with { Bars = null } }, opened));
     }

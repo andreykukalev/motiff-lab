@@ -46,7 +46,10 @@ public sealed class MusicCoreFacade
     /// document.marks answer, fields added.
     /// Also within 12 (version 0.5, «Импорт папки»), library.plan on piece 0 answers the import plan of a folder the app
     /// read (<see cref="Import.LibraryImport"/>) and library.confirm the metadata of a piece once the player confirmed its
-    /// suggestions, calls added.
+    /// suggestions, calls added; library.relink answers where the library's originals are in a fresh listing of the folder
+    /// (<see cref="Import.LibraryRelink"/>), a call added; library.linked makes a piece of a PDF left in the player's folder
+    /// and library.link moves an original to where it was found again, calls added; open takes "pdf" (base64) for a piece
+    /// whose PDF is away (it answered "originalAway" before), and answers "otherFile" when the fingerprint differs.
     /// 11 lets doubt about recognised notes reach what is read from them (#352, 0027 section 12), adding fields only: a
     /// chord, a fact and a DNA chord or key built on recognised notes still to check (in a bar with an open Check flag)
     /// tell "doubt", a sentence that says where, and the chord's "certainty" and the DNA chord's "clear" say uncertain;
@@ -150,7 +153,20 @@ public sealed class MusicCoreFacade
 
             if (IsProjectFile(fileName, bytes) && IsAway(bytes))
             {
-                throw new FacadeException("originalAway", "This piece's PDF is not in its file: link the file again where it is (Привязать оригинал).");
+                if (!fields.Has("pdf"))
+                {
+                    throw new FacadeException("originalAway", "This piece's PDF is not in its file: link the file again where it is (Привязать оригинал).");
+                }
+
+                // Version 0.5, «Импорт папки»: the PDF read from where it is, matched by its fingerprint; never written into the file.
+                OpenDocument away = OpenDocument.Open(AwayOpened(bytes, fields.Required("pdf")));
+                _documents[number] = away;
+                _next++;
+                return Answer.Write(json =>
+                {
+                    json.WriteNumber("piece", number);
+                    away.Summary(json);
+                });
             }
 
             OpenPiece piece = IsProjectFile(fileName, bytes)
@@ -197,6 +213,9 @@ public sealed class MusicCoreFacade
                     "parts.split" => PartsRequest.Split(fields),
                     "library.plan" => LibraryRequest.Plan(fields),
                     "library.confirm" => LibraryRequest.Confirm(fields),
+                    "library.relink" => LibraryRequest.Relink(fields),
+                    "library.linked" => LibraryRequest.Linked(fields),
+                    "library.link" => LibraryRequest.Link(fields),
                     _ when Count == 0 && IsPieceCall(name) => throw new FacadeException("noPiece", "Open a piece first."),
                     _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\" without a piece."),
                 };
@@ -349,6 +368,30 @@ public sealed class MusicCoreFacade
         {
             return false;
         }
+    }
+
+    /// <summary>
+    /// A PDF piece whose PDF is away, with the PDF the app read from the player's folder or a file the player picked
+    /// (base64): the same file by its fingerprint, or "otherFile". A linked PDF stays out of the file when it is saved; a
+    /// PDF kept in the file on another device is kept here again, as «Привязать оригинал» keeps it.
+    /// </summary>
+    private static Project AwayOpened(byte[] projectFile, string pdf)
+    {
+        byte[] data;
+        try
+        {
+            data = Convert.FromBase64String(pdf);
+        }
+        catch (FormatException)
+        {
+            throw FacadeException.BadRequest("\"pdf\" must be base64.");
+        }
+
+        Project project = ProjectFile.Read(projectFile);
+        Project? opened = project.LinksDocument ? project.WithLinkedDocument(data)
+            : project.FindOriginal(PieceOriginal.DocumentId) is { Kind: OriginalKind.Pdf or OriginalKind.Images } original && PdfDocument.IsPdf(data) && original.Matches(PieceOriginal.Fingerprint(data)) ? project with { Document = data }
+            : null;
+        return opened ?? throw new FacadeException("otherFile", "This is another file, not the PDF of this piece: its fingerprint differs.");
     }
 
     /// <summary>A project file by its extension, or by its first bytes: a JSON object naming the format.</summary>

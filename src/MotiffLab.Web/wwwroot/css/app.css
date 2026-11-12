@@ -6078,7 +6078,8 @@ body:has(> #app > .library) {
     cursor: progress;
 }
 
-.library .route .ic {
+/* The round behind a route's icon; the icon inside it keeps its own size (it is an .ic too). */
+.library .route > .ic {
     display: grid;
     place-items: center;
     width: 40px;
@@ -6293,6 +6294,12 @@ body:has(> #app > .library) {
     gap: var(--s-3);
     padding: var(--s-4) var(--s-6) var(--s-6);
     overflow-y: auto;
+}
+
+/* A row's own min-height replaces the flex item's automatic minimum, so in a pane taller than the sheet the rows would
+   shrink below their text and a long hint would run over the next row: rows keep their height and the pane scrolls. */
+.lab .settings-sheet .settings-pane > * {
+    flex-shrink: 0;
 }
 
 .lab .settings-sheet .settings-head {

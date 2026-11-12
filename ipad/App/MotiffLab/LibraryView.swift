@@ -45,6 +45,11 @@ struct LibraryView: View {
     /// The composer or playlist picked on its tab.
     @State private var picked: LibraryGroup?
     @State private var editing: LibraryEntry?
+    /// A piece whose PDF could not be read where it lies (version 0.5), and what can be done.
+    @State private var away: AwayPrompt?
+    /// «Импорт папки» (version 0.5, an experiment): the folders imported, their review and «Держать на этом iPad».
+    @StateObject private var folderImport = FolderImportModel()
+    private var importOn: Bool { deviceSettings.isOn("experimental.libraryImport") }
 
     /// The shelf's columns, for the projects here and those saved online.
     static let columns = [GridItem(.adaptive(minimum: 320), spacing: CGFloat.ds("s-6"), alignment: .top)]
@@ -67,6 +72,7 @@ struct LibraryView: View {
                     VStack(alignment: .leading, spacing: CGFloat.ds("s-6")) {
                         header
                         MainEnvironmentLine(account: account, text: text)
+                        if importOn { ImportBanner(runner: ImportRunner.shared, text: text) }
                         if let problem {
                             Text(problem)
                                 .dsType(.label)
@@ -84,7 +90,7 @@ struct LibraryView: View {
                                 .foregroundStyle(Color.ds("ink-2"))
                                 .frame(maxWidth: 560, alignment: .leading)
                         } else {
-                            LibraryShelfView(page: page, summaries: summaries, composers: composers, tags: tags, playlists: playlists, tab: $tab, query: $query, picked: $picked, text: text) { url in
+                            LibraryShelfView(page: page, summaries: summaries, composers: composers, tags: tags, playlists: playlists, tab: $tab, query: $query, picked: $picked, text: text, playlistAccessory: importOn ? { name in AnyView(KeepPlaylistToggle(model: folderImport, playlist: name, summaries: summaries, text: text)) } : nil) { url in
                                 Task { await openProject(url) }
                             } edit: { entry in
                                 editing = entry
@@ -130,8 +136,16 @@ struct LibraryView: View {
                 } demo: {
                     adding = false
                     Task { await openExample() }
+                } folder: { result in
+                    adding = false
+                    folderImport.later { folderImport.picked(result, pieces: summaries) }
                 }
                 .environmentObject(account)
+            }
+            .sheet(item: $away) { prompt in
+                AwayPieceSheet(prompt: prompt, text: text, recheck: recheck(prompt)) { found in
+                    await openFound(prompt.url, found, title: prompt.summary.playersTitle)
+                }
             }
             .navigationDestination(item: $piece) { piece in
                 Group {
@@ -146,6 +160,7 @@ struct LibraryView: View {
             .fileImporter(isPresented: $choosing, allowedContentTypes: Self.openable) { result in
                 Task { await open(result) }
             }
+            .folderImport(folderImport, text: text, summaries: summaries, on: importOn) { await reload() } open: { url in await openProject(url) }
             .task {
                 #if DEBUG
                 let screensFile = ScreensHook.start()
@@ -219,6 +234,9 @@ struct LibraryView: View {
                     choosing = true
                 } label: {
                     Text(text["home.importProject"])
+                }
+                if importOn {
+                    FolderMenuItems(folders: folderImport.folders, text: text) { folder in folderImport.recheck(folder, pieces: summaries) }
                 }
             } label: {
                 Icon(name: "more", size: CGFloat.ds("icon-l"))
@@ -351,8 +369,20 @@ struct LibraryView: View {
         }
     }
 
-    /// Opens a project in Documents where it was left, titled as the player titled it in the library, if they did.
+    /// Opens a project in Documents where it was left, titled as the player titled it in the library, if they did. A piece
+    /// that is only a PDF whose PDF is not in its file (version 0.5) opens with the PDF read where this iPad links it, or
+    /// says why it cannot and what can be done.
     private func openProject(_ url: URL) async {
+        if let summary = summaries[url], AwayPdf.isAway(summary) {
+            opening = true
+            let read = await AwayPdf.read(url, summary)
+            opening = false
+            switch read {
+            case .success(let found): await openFound(url, found, title: summary.playersTitle)
+            case .failure(let reason): away = AwayPrompt(url: url, summary: summary, title: entries.first { $0.url == url }?.title ?? ProjectFiles.title(of: url.lastPathComponent), reason: reason)
+            }
+            return
+        }
         do {
             let data = try Data(contentsOf: url)
             let language = text.language
@@ -361,6 +391,19 @@ struct LibraryView: View {
         } catch {
             problem = error.localizedDescription
         }
+    }
+
+    /// «Проверить папку» for a piece whose PDF was not found, when it came from a folder imported here (experiment on).
+    private func recheck(_ prompt: AwayPrompt) -> (() -> Void)? {
+        guard importOn, let folder = folderImport.folder(of: prompt.summary) else { return nil }
+        return { folderImport.later { folderImport.recheck(folder, pieces: summaries, target: prompt.url) } }
+    }
+
+    /// A piece that is only a PDF, opened with its PDF found where it lies; saved to its own file, which never takes a
+    /// linked PDF's bytes.
+    private func openFound(_ url: URL, _ found: AwayFound, title: String?) async {
+        let language = text.language
+        await show(file: url) { await OpenPiece.open(fileName: url.lastPathComponent, data: Data(found.project.utf8), language: language, title: title, pdf: found.data) }
     }
 
     /// PDF | Notes (0023): the piece's other view replaces it, at the page or place given. The screen has saved the piece.
@@ -446,110 +489,6 @@ struct LibraryView: View {
         projects.removeAll { $0.url == url }
         summaries[url] = nil
         shelve()
-    }
-}
-
-/// A session on the Sessions tab (ds.css `.card`, lib-3): the piece's page, title, composer and what kind of piece it is,
-/// the ideas kept and bars to check, and where work on it stopped, with Resume. A tap on the card resumes it too; a long
-/// press offers its properties and Delete, which asks once more.
-struct PieceCard: View {
-    let entry: LibraryEntry
-    let summary: PieceSummary?
-    let text: UIText
-    let open: () -> Void
-    let edit: () -> Void
-    let delete: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
-            HStack(alignment: .top, spacing: CGFloat.ds("s-4")) {
-                Button(action: open) {
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(Color.ds("paper"))
-                        .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(Color.ds("hairline")))
-                        .frame(width: 84, height: 118)
-                        .shadow(color: Color.ds("hairline"), radius: 1, y: 1)
-                }
-                .buttonStyle(.plain)
-                .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
-                    Text(entry.title)
-                        .font(DesignTokens.font(display: true, weight: 500, size: 19, relativeTo: .title3))
-                        .foregroundStyle(Color.ds("ink"))
-                        .accessibilityAddTraits(.isHeader)
-                    Text(meta)
-                        .dsType(.label)
-                        .foregroundStyle(Color.ds("ink-2"))
-                    if let away = entry.originalAway {
-                        OriginalPlaceLabel(label: away.text(text), badge: away.badge)
-                    }
-                    if let summary, summary.ideas > 0 || summary.checkBars > 0 {
-                        HStack(spacing: CGFloat.ds("s-2")) {
-                            if summary.ideas > 0 { Tag(text: text.count("library.ideas", summary.ideas), kind: .saved) }
-                            if summary.checkBars > 0 { Tag(text: text.count("library.check", summary.checkBars), kind: .warn) }
-                        }
-                    }
-                }
-                Spacer(minLength: 0)
-            }
-            Rectangle().fill(Color.ds("hairline")).frame(height: 1)
-            if let resumeName {
-                Text(text["library.recentWork"]).overline()
-                Text(resumeName)
-                    .dsType(.body)
-                    .foregroundStyle(Color.ds("ink"))
-                Text(text.format("home.lastOpened", entry.modified.formatted(.relative(presentation: .named).locale(Locale(identifier: text.language)))))
-                    .dsType(.label)
-                    .foregroundStyle(Color.ds("ink-2"))
-                Button(action: open) {
-                    HStack(spacing: CGFloat.ds("s-2")) {
-                        Icon(name: "play")
-                        Text(text["library.resume"])
-                    }
-                }
-                .buttonStyle(DSButtonStyle(kind: .secondary))
-                .accessibilityLabel(text.format("library.resumeLabel", entry.title))
-            } else {
-                // A piece not opened yet has no work to come back to: one Open, as on the web.
-                Button(text["home.open"], action: open)
-                    .buttonStyle(DSButtonStyle(kind: .secondary))
-                    .accessibilityLabel(text.format("library.openLabel", entry.title))
-            }
-        }
-        .padding(CGFloat.ds("s-4"))
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
-        .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
-        .contentShape(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
-        .onTapGesture(perform: open)
-        .modifier(PieceActions(text: text, edit: edit, delete: delete))
-    }
-
-    /// The composer, and what kind of piece: scanned, from a recording or a PDF, or a file the player opened when no
-    /// composer is named.
-    private var meta: String {
-        guard let summary else { return entry.composer ?? " " }
-        let kind = Self.kind(summary, text)
-        return [entry.composer, kind ?? (entry.composer == nil ? text["library.openFile"] : nil)].compactMap { $0 }.joined(separator: " · ")
-    }
-
-    /// What kind of piece, when it is not a file the player opened: scanned, from a recording or a PDF.
-    static func kind(_ summary: PieceSummary?, _ text: UIText) -> String? {
-        guard let summary else { return nil }
-        if !summary.hasNotes { return text["library.pdf"] }
-        return switch summary.origin {
-        case "scanned": text["library.scanned"]
-        case "transcribed": text["library.recorded"]
-        default: nil
-        }
-    }
-
-    /// Where work on the piece stopped; nil for a piece not opened yet.
-    private var resumeName: String? {
-        guard let summary else { return nil }
-        if !summary.hasNotes { return text["library.pdfAsIs"] }
-        guard let latest = summary.latest else { return nil }
-        return latest.name ?? text["library.page1"]
     }
 }
 

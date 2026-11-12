@@ -43,6 +43,10 @@ targets:
       - path: ../../src/MotiffLab.Web/wwwroot/i18n
         type: folder
         buildPhase: resources
+      # What only the iPad says (version 0.5, «Импорт папки»), in English and Russian beside the web app's words.
+      - path: Words
+        type: folder
+        buildPhase: resources
       # The score page and the web app's score modules (Scripts/score, compiled to wwwroot/js/score by
       # `dotnet build src/MotiffLab.Web`): the same geometry and pencil marks as the web (0019 section 1.4).
       - path: Web
