@@ -1,3 +1,4 @@
+using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Scan;
 
 namespace MotiffLab.MusicCore.Projects;
@@ -36,6 +37,14 @@ public sealed record ScanOrigin(string Engine, IReadOnlyList<int> ConfirmedBars)
     public static ScanOrigin Read(string engine) => new(engine, []);
 
     public bool IsConfirmed(int bar) => ConfirmedBars.Contains(bar);
+
+    /// <summary>
+    /// The check of the notes this scan read (<paramref name="piece"/>, its source as imported), with the page reports it
+    /// keeps (<see cref="Pages"/>, version 0.4): bars on a weak page less sure, bars on a poor page flagged
+    /// <see cref="ScanFlag.PageQuality"/>. Without reports, as <see cref="ScanCheck.Of(ImportedPiece)"/>.
+    /// </summary>
+    /// <exception cref="ArgumentException">The piece was not imported from MusicXML.</exception>
+    public ScanCheck CheckOf(ImportedPiece piece) => ScanCheck.Of(piece, Pages.Count > 0 ? Pages : null);
 
     /// <summary>The origin with the bars added to the confirmed ones.</summary>
     public ScanOrigin Confirm(IEnumerable<int> bars) => new(Engine, [.. ConfirmedBars, .. bars]) { From = From, At = At, Pages = Pages };

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 
+using MotiffLab.MusicCore.Import.Scan;
 using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Settings;
@@ -33,6 +34,7 @@ internal static partial class Answer
 
             json.WriteEndArray();
             json.WriteNumber("pressure", stroke.Pressure);
+            Margin(json, stroke.Margin);
             json.WriteEndObject();
         }
 
@@ -204,9 +206,10 @@ internal static partial class Answer
     /// The Check flags (0018 section 9) in bar order, each with its reason's short name and explanation in the piece's
     /// language and the span of its bar (null for a bar the piece does not reach), and where the doubts come from: the
     /// scan's or the transcription's engine. A recording's notes whose length is uncertain come apart as "lengths" (#352,
-    /// contract 11): one entry per bar with its notes, its reasons' names and explanations; empty for any other piece.
+    /// contract 11): one entry per bar with its notes, its reasons' names and explanations; empty for any other piece. A scan
+    /// with the server's page reports (version 0.4) tells its "pages" (<see cref="ScanPages"/>); empty for any other piece.
     /// </summary>
-    public static void Check(Utf8JsonWriter json, Project project, Words words, MeterMap meter, Tick end, IReadOnlyList<UncertainLengths> lengths)
+    public static void Check(Utf8JsonWriter json, Project project, Words words, MeterMap meter, Tick end, IReadOnlyList<UncertainLengths> lengths, IReadOnlyList<ScanPage> pages)
     {
         json.WriteStartArray("flags");
         foreach (CheckFlag flag in (project.Check ?? []).OrderBy(flag => flag.Bar))
@@ -225,6 +228,7 @@ internal static partial class Answer
         json.WriteEndArray();
         json.WriteNumber("open", project.OpenChecks.Count);
         Lengths(json, lengths, words, meter, end);
+        ScanPages(json, pages, project.Scan?.ConfirmedBars ?? []);
         json.WriteString("origin", project.Scan is not null ? "scanned" : project.Transcription is not null ? "transcribed" : "imported");
         if ((project.Scan?.Engine ?? project.Transcription?.Engine) is { } engine)
         {

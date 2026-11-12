@@ -59,8 +59,8 @@ internal sealed partial class OpenPiece
         }),
         "settings.override" => Change(project => project.OverrideSetting(request.Required("id"), request.Text("value")), json => Answer.Overrides(json, Project)),
         "project.metadata" => Change(project => MetadataRequest.Apply(project, request), json => Answer.Project(json, "project", Project)),
-        "check" => Answer.Write(json => Answer.Check(json, Project, Words, Piece.Meter, Piece.End, HeardLengths.Of(Piece, Notes))),
-        "check.resolve" => Change(project => project.ResolveCheck(request.Int("bar") ?? throw FacadeException.BadRequest("Send \"bar\"."), request.Bool("resolved") ?? true), json => Answer.Check(json, Project, Words, Piece.Meter, Piece.End, HeardLengths.Of(Piece, Notes))),
+        "check" => Answer.Write(CheckAnswer),
+        "check.resolve" => Change(project => project.ResolveCheck(request.Int("bar") ?? throw FacadeException.BadRequest("Send \"bar\"."), request.Bool("resolved") ?? true), CheckAnswer),
         _ when name.StartsWith("performance", StringComparison.Ordinal) => CallOnPerformance(name, request),
         _ when name.StartsWith("sources", StringComparison.Ordinal) => CallOnSources(name, request),
         _ when name.StartsWith("corrections", StringComparison.Ordinal) => CallOnCorrections(name, request),
@@ -120,6 +120,11 @@ internal sealed partial class OpenPiece
 
         return Answer.Write(answer);
     }
+
+    /// <summary>The Check flags, a recording's uncertain lengths and a scan's pages as its page reports count them (version 0.4).</summary>
+    private void CheckAnswer(Utf8JsonWriter json) =>
+        Answer.Check(json, Project, Words, Piece.Meter, Piece.End, HeardLengths.Of(Piece, Notes),
+            Project.Scan is { Pages.Count: > 0 } scan && Piece.MusicXml is not null ? scan.CheckOf(Piece).Pages : []);
 
     private string Marks(Func<Marks, Marks> change) => Change(project => project.ChangeMarks(change), json => Answer.Marks(json, Project.Marks, Piece.Meter));
 

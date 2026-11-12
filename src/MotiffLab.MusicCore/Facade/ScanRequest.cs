@@ -85,7 +85,28 @@ internal static class ScanRequest
         }
     }
 
-    private static List<PageReport>? Reports(Request fields, int pages)
+    private static IReadOnlyList<PageReport>? Reports(Request fields, int pages)
+    {
+        if (ReportsIn(fields) is not { } reports)
+        {
+            return null;
+        }
+
+        try
+        {
+            return PageReport.ForPages(reports, pages);
+        }
+        catch (ArgumentException exception)
+        {
+            throw FacadeException.BadRequest(exception.Message);
+        }
+    }
+
+    /// <summary>
+    /// "reports" as scan.join and document.read take them: each the X-Page-Report header as text (a list of pages), its list or
+    /// one of its objects, all the pages in order; null when the request has none.
+    /// </summary>
+    internal static List<PageReport>? ReportsIn(Request fields)
     {
         if (!fields.Has("reports"))
         {
@@ -105,8 +126,6 @@ internal static class ScanRequest
             throw FacadeException.BadRequest(exception.Message);
         }
 
-        return reports.Count == pages
-            ? [.. reports.Select((report, index) => report with { Page = index + 1 })]
-            : throw FacadeException.BadRequest($"Send one page report per page: {reports.Count} for {pages} pages.");
+        return reports;
     }
 }

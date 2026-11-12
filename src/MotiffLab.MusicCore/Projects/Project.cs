@@ -131,7 +131,17 @@ public sealed record Project(
     /// and its bookmarks stay exactly as they were, for the "PDF" view beside the "Notes" one in the same piece.
     /// </summary>
     /// <exception cref="InvalidOperationException">The piece is not a PDF with no notes yet.</exception>
-    public Project Recognised(byte[] musicXml, string engine, PageMap pages, DateTimeOffset? at = null)
+    public Project Recognised(byte[] musicXml, string engine, PageMap pages, DateTimeOffset? at = null) => Recognised(musicXml, engine, pages, at, null);
+
+    /// <summary>
+    /// The PDF piece with the notes the scan read from its pages, as <see cref="Recognised(byte[], string, PageMap, DateTimeOffset?)"/>,
+    /// and with <paramref name="reports"/>, the scan server's report on each page of the notes (its <c>X-Page-Report</c>,
+    /// version 0.4), kept by the scan (<see cref="ScanOrigin.Pages"/>) numbered by their place in the notes, so its check
+    /// (<see cref="ScanOrigin.CheckOf"/>) counts each page's quality on every open; the caller raises the Check flags from it.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The piece is not a PDF with no notes yet.</exception>
+    /// <exception cref="ArgumentException">No notes, or not one report per page of the notes (<see cref="PageReport.ForScore"/>).</exception>
+    public Project Recognised(byte[] musicXml, string engine, PageMap pages, DateTimeOffset? at, IReadOnlyList<PageReport>? reports)
     {
         ArgumentNullException.ThrowIfNull(musicXml);
         ArgumentNullException.ThrowIfNull(pages);
@@ -149,7 +159,7 @@ public sealed record Project(
         {
             FileName = Path.ChangeExtension(FileName, ".musicxml"),
             Source = musicXml,
-            Scan = ScanOrigin.Read(engine) with { From = PieceOriginal.DocumentId, At = at },
+            Scan = ScanOrigin.Read(engine) with { From = PieceOriginal.DocumentId, At = at, Pages = reports is null ? [] : PageReport.ForScore(reports, musicXml) },
             DocumentPages = pages,
         };
     }
@@ -949,7 +959,7 @@ public sealed record OpenedProject(
                 throw new ProjectFileException("This project says it was scanned, but its piece is not MusicXML.");
             }
 
-            piece = ScanCheck.Of(piece).Mark(piece, scan.ConfirmedBars);
+            piece = scan.CheckOf(piece).Mark(piece, scan.ConfirmedBars);
         }
 
         if (project.Transcription is not null)
@@ -1044,7 +1054,7 @@ public sealed record OpenedProject(
             // A file from before version 12: the Check flags are worked out from the piece, a scan's resolved where the player confirmed the bar.
             project = project with
             {
-                Check = project.Scan is { } scanned ? CheckFlag.FromScan(ScanCheck.Of(piece), scanned.ConfirmedBars)
+                Check = project.Scan is { } scanned ? CheckFlag.FromScan(scanned.CheckOf(piece), scanned.ConfirmedBars)
                     : project.Transcription is { } heard ? CheckFlag.FromTranscription(heard, project.Source, piece)
                     : [],
             };
