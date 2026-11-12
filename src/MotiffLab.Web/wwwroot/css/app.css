@@ -10693,3 +10693,387 @@ body:has(> #app > .library) {
         flex-basis: 100%;
     }
 }
+
+/* «Добавить папку» (an experiment, version 0.5, «Импорт папки», ux-prototype/v0.5/screens/import-web-1..3): the route on Add
+   piece, «Что нашлось» and the import's line over the list. Ported from the mockup's import.css on tokens only. */
+.library button.route {
+    width: 100%;
+    font: inherit;
+    text-align: start;
+}
+
+/* «Что нашлось»: wide, nearly the height of the window; the list scrolls between the counters and the foot. */
+.library .lib-sheet.found {
+    gap: 0;
+    width: min(1080px, calc(100vw - 2 * var(--s-8)));
+    height: calc(100vh - 2 * var(--s-10));
+    padding: 0;
+    overflow: hidden;
+}
+
+.library .found .hd {
+    padding: var(--s-6) var(--s-6) 0;
+}
+
+.library .found .hd .overline {
+    margin: 0 0 var(--s-1);
+}
+
+.library .found .found-status {
+    margin: 0;
+    padding: var(--s-4) var(--s-6) 0;
+    font: var(--t-body);
+    color: var(--ink-2);
+}
+
+.library .found .counts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    padding: var(--s-4) var(--s-6);
+}
+
+.library .found .counts .chip {
+    gap: var(--s-2);
+    height: var(--h-control);
+    padding: 0 var(--s-4);
+    font: var(--t-body);
+}
+
+/* A counter chosen is cobalt-tinted with ink text (the lab's chosen button is white on cobalt). */
+.library .found .counts .chip.on {
+    color: var(--ink);
+    font-weight: 400;
+}
+
+.library .found .chip .n {
+    font-weight: 600;
+}
+
+.library .found .list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0 var(--s-6) var(--s-4);
+}
+
+.library .found table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.library .found th, .library .found td {
+    padding: 0 var(--s-3);
+    text-align: start;
+    vertical-align: middle;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.library .found thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    height: var(--h-touch);
+    border-bottom: 1px solid var(--hairline);
+    background: var(--surface-2);
+    font: var(--t-overline);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+}
+
+.library .found thead .head.on {
+    color: var(--ink);
+}
+
+.library .found tbody tr {
+    height: calc(var(--h-touch) + var(--s-3));
+    border-bottom: 1px solid var(--hairline);
+}
+
+.library .found .c-check {
+    width: calc(var(--h-touch) + var(--s-3));
+    padding: 0 0 0 var(--s-3);
+}
+
+.library .found .c-comp {
+    width: 20%;
+}
+
+.library .found .c-folder {
+    width: 26%;
+}
+
+.library .found .c-pages {
+    width: calc(var(--s-12) + var(--s-4));
+    text-align: end;
+}
+
+.library .found td.c-pages {
+    font: var(--t-body);
+    color: var(--ink-2);
+}
+
+.library .found input.check {
+    width: var(--s-5);
+    height: var(--s-5);
+    margin: 0;
+    accent-color: var(--accent);
+    vertical-align: middle;
+}
+
+/* A title or composer to write over: plain text until pointed at; a guess is grey until the player writes. */
+.library .found input.t, .library .found input.v {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin: 0 0 0 calc(-1 * var(--s-1));
+    padding: 0 var(--s-1);
+    border: 1px solid transparent;
+    border-radius: var(--r-xs);
+    background: transparent;
+    color: var(--ink);
+    text-overflow: ellipsis;
+}
+
+.library .found input.t {
+    font: var(--t-title);
+}
+
+.library .found input.v {
+    font: var(--t-body);
+}
+
+.library .found input.guess {
+    color: var(--ink-2);
+}
+
+.library .found input.t:hover, .library .found input.v:hover {
+    border-color: var(--hairline-strong);
+}
+
+.library .found input.t:focus, .library .found input.v:focus {
+    border-color: var(--hairline-strong);
+    background: var(--surface);
+    color: var(--ink);
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.library .found span.t {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font: var(--t-title);
+    color: var(--ink-2);
+}
+
+.library .found .src {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.library .found td.c-comp .v, .library .found td.c-folder .v {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font: var(--t-body);
+    color: var(--ink-2);
+}
+
+.library .found td.c-comp .v.fact {
+    color: var(--ink);
+}
+
+.library .found span.t .tag {
+    height: calc(var(--s-5) + 2px);
+    margin-inline-start: var(--s-2);
+    border: 1px solid var(--hairline-strong);
+    background: var(--surface);
+    font-family: var(--font-ui);
+    vertical-align: middle;
+    color: var(--ink-2);
+}
+
+.library .found span.t .tag.bad {
+    color: var(--danger);
+}
+
+.library .found .others {
+    padding: var(--s-3) var(--s-3) 0;
+}
+
+.library .found .ft {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: var(--s-4);
+    padding: var(--s-4) var(--s-6) var(--s-5);
+    border-top: 1px solid var(--hairline);
+    background: var(--surface);
+}
+
+.library .found .choices {
+    display: grid;
+    grid-template-columns: max-content minmax(0, max-content);
+    align-items: center;
+    gap: var(--s-2) var(--s-4);
+}
+
+.library .found .choices .lbl {
+    font: var(--t-body);
+    color: var(--ink-2);
+}
+
+.library .found .choices .seg {
+    justify-self: start;
+    background: var(--surface-2);
+}
+
+.library .found .seg > button {
+    min-height: var(--h-control);
+    padding: 0 var(--s-4);
+    font: var(--t-body);
+}
+
+.library .found .seg > button.on {
+    font-weight: 600;
+}
+
+.library .found .space.short {
+    color: var(--danger);
+}
+
+.library .found .go {
+    height: var(--h-touch);
+    padding: 0 var(--s-6);
+    font: var(--t-body-strong);
+}
+
+/* The import's line over the list: what it is doing, the folder, Pause and Stop; a thin track of how far it is. */
+.library .run-bar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    min-height: var(--h-touch);
+    margin-top: var(--s-5);
+    padding: 0 var(--s-2) 0 var(--s-4);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-s);
+    background: var(--surface);
+    overflow: hidden;
+}
+
+.library .run-bar .what {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--ink);
+    font: var(--t-body-strong);
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.library .run-bar .what .ic {
+    color: var(--ink-2);
+}
+
+.library .run-bar .what[aria-expanded=true] .ic {
+    transform: rotate(90deg);
+}
+
+.library .run-bar .where {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font: var(--t-caption);
+    color: var(--ink-2);
+    white-space: nowrap;
+}
+
+.library .run-bar .sp {
+    flex: 1;
+}
+
+.library .run-bar .btn {
+    height: var(--h-compact);
+    padding: 0 var(--s-3);
+}
+
+.library .run-bar label.btn input[type=file] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+}
+
+.library .run-bar .track {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: var(--hairline);
+}
+
+.library .run-bar .fill {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: var(--done, 0%);
+    background: var(--ink-2);
+    transition: width var(--t-base) var(--ease);
+}
+
+.library .run-details {
+    margin-top: var(--s-2);
+    padding: var(--s-3) var(--s-4);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-s);
+    background: var(--surface-2);
+}
+
+.library .run-details .overline {
+    margin: var(--s-3) 0 var(--s-1);
+}
+
+.library .run-details ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.library .run-details li {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    padding: var(--s-1) 0;
+    font: var(--t-body);
+}
+
+/* Phones: «Что нашлось» takes the screen; the composer and the folder give way to the title. */
+@media (max-width: 760px) {
+    .library .lib-sheet.found {
+        width: 100%;
+        height: 92vh;
+        max-height: 92vh;
+    }
+
+    .library .found .c-comp, .library .found .c-folder {
+        display: none;
+    }
+
+    .library .found .ft, .library .found .choices {
+        grid-template-columns: 1fr;
+    }
+}

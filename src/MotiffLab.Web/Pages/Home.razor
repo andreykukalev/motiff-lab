@@ -62,6 +62,9 @@ else if (_firstRun is false)
             <p class="lib-note warning" role="status">@Text["home.nearlyFull"]</p>
         }
 
+        @* The folder import's line (an experiment, Settings · Experimental, version 0.5); nothing while it is off. *@
+        <MotiffLab.Web.Library.ImportBanner Listed="RefreshAsync" />
+
         @* Sync with the player's other devices (version 0.2): a pass when the library opens and comes back into view. *@
         <MotiffLab.Web.Account.LibrarySync Synced="RefreshAsync" />
 
