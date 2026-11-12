@@ -41,8 +41,11 @@ public partial class PlaybackLab
     private bool CanStep(int direction) => CurrentSentence is not null ? SentenceTarget(direction) is not null : StepTarget(direction) is not null;
 
     /// <summary>The most bars a selection of <paramref name="span"/> may hold: a structure the maps know is selected whole (0013).</summary>
-    private int SelectionCap(TickSpan span) =>
-        _sentences?.Matching(span) is not null || _phrases?.Phrases.Any(phrase => phrase.Span == span) == true ? MotifSelection.MaxStructureBars : MotifSelection.MaxBars;
+    private int SelectionCap(TickSpan span)
+    {
+        EnsureLevels();
+        return _sentences?.Matching(span) is not null || _phrases?.Phrases.Any(phrase => phrase.Span == span) == true ? MotifSelection.MaxStructureBars : MotifSelection.MaxBars;
+    }
 
     /// <summary>
     /// The span cut to the bars one selection holds: a sentence or a bookmark longer than that (the whole Für Elise has a

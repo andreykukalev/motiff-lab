@@ -40,7 +40,7 @@ public partial class PlaybackLab
     }
 
     /// <summary>The map of the piece, with the doubt of recognised notes still to check in its chords and keys (#352).</summary>
-    private PieceDna BuildDna() => Doubt.On(PieceDna.Build(_notes!, _meter!, _keys, _score!.End, _selection, _selection is null ? null : _structure, Words, _pieceStructure));
+    private PieceDna BuildDna() => Doubt.On(PieceDna.Build(_notes!, _meter!, _keys, _score!.End, _selection, _selection is null ? null : _reading?.Structure, Words, _pieceStructure));
 
     private async Task CloseDnaAsync()
     {

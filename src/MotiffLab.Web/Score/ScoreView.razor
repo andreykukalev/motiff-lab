@@ -240,6 +240,13 @@ else if (_loading && !HoldHeight)
     [Parameter]
     public EventCallback<string?> TitleRead { get; set; }
 
+    /// <summary>
+    /// Raised after each engraving is on screen, or has failed: its first sheets are drawn and the rest follow (#419). The
+    /// workspace reads a long piece's phrases after it, so the score shows first.
+    /// </summary>
+    [Parameter]
+    public EventCallback Engraved { get; set; }
+
     /// <summary>Raised when the player taps a phrase's bracket, with the number <see cref="ScorePhrase"/> gave it.</summary>
     [Parameter]
     public EventCallback<int> BracketPicked { get; set; }
@@ -404,6 +411,7 @@ else if (_loading && !HoldHeight)
 
         _loading = false;
         StateHasChanged();
+        await Engraved.InvokeAsync();
     }
 
     private async Task ShowPerformanceAsync(IJSObjectReference view)

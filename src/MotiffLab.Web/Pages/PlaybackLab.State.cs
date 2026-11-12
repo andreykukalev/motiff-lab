@@ -19,12 +19,10 @@ public partial class PlaybackLab
     {
         get
         {
-            IReadOnlyList<MotifFact> facts = Facts;
-            // The offers as they are now, made only when the stream or the card reads them (#419).
+            // The facts and offers as they are now, read only when the stream or the card shows them (#419).
             ExploreTrial? trial = ActiveTrial;
-            LazyOffers offers = _offers;
-            InvitationContext? context = _invitationContext;
-            IReadOnlyList<Experiment> Card() => trial?.Offers ?? offers.Value;
+            SelectionReading? reading = _reading;
+            IReadOnlyList<Experiment> Card() => trial?.Offers ?? reading?.Offers ?? [];
             return new(
                 new WorkspaceSelection(
                     _selection,
@@ -54,8 +52,8 @@ public partial class PlaybackLab
                     AnswerLooping: _answerLoop is not null),
                 // Understand links its facts only to offers for the same selection: none while an experiment offered for another
                 // selection runs (the motif's return), as its offers rest on other facts.
-                new WorkspaceVariation(_chain, _variation, trial, Card, () => trial is { } tried && !ReferenceEquals(tried.OfferedIn, context) ? [] : Card()),
-                new WorkspaceFacts(facts, _highlight?.Choice, FactRanking.Main(facts), _circle),
+                new WorkspaceVariation(_chain, _variation, trial, Card, () => trial is { } tried && !ReferenceEquals(tried.OfferedIn, reading?.Context) ? [] : Card()),
+                new WorkspaceFacts(() => reading?.Facts ?? [], _highlight?.Choice, _circle),
                 new WorkspaceIdeas(KeptRows, KeptOnCard, KeptText));
         }
     }

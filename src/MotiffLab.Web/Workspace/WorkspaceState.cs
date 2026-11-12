@@ -133,12 +133,30 @@ public sealed record WorkspaceVariation(
     public string? Explanation => Current?.Explanation;
 }
 
-/// <summary>The facts about the selection (S1-A1 to S1-A5), those the stream leads with, and the one chosen to highlight.</summary>
-/// <param name="All">The facts of the selection from every analysis, in music-core's order within each lens.</param>
-/// <param name="Chosen">The fact highlighted in the score and on the roll, with the place when one is.</param>
-/// <param name="Main">The facts the Insights stream leads with, under Main (testing item 14): the harmonic motion, the texture, the strongest of the rest (<see cref="FactRanking.Main"/>).</param>
-/// <param name="Circle">The circle of fifths for the selection, from its key and chords; null when no key was read.</param>
-public sealed record WorkspaceFacts(IReadOnlyList<MotifFact> All, FactChoice? Chosen, IReadOnlyList<MotifFact> Main, KeyCircleView? Circle = null);
+/// <summary>
+/// The facts about the selection (S1-A1 to S1-A5), those the stream leads with, and the one chosen to highlight. The facts
+/// are read the first time something shows them (#419): a render with Insights closed reads none.
+/// </summary>
+/// <param name="facts">The facts of the selection from every analysis, in music-core's order within each lens.</param>
+/// <param name="chosen">The fact highlighted in the score and on the roll, with the place when one is.</param>
+/// <param name="circle">The circle of fifths for the selection, from its key and chords; null when no key was read.</param>
+public sealed class WorkspaceFacts(Func<IReadOnlyList<MotifFact>> facts, FactChoice? chosen, KeyCircleView? circle = null)
+{
+    private IReadOnlyList<MotifFact>? _all;
+    private IReadOnlyList<MotifFact>? _main;
+
+    /// <summary>The facts of the selection from every analysis, in music-core's order within each lens.</summary>
+    public IReadOnlyList<MotifFact> All => _all ??= facts();
+
+    /// <summary>The fact highlighted in the score and on the roll, with the place when one is.</summary>
+    public FactChoice? Chosen => chosen;
+
+    /// <summary>The facts the Insights stream leads with, under Main (testing item 14): the harmonic motion, the texture, the strongest of the rest (<see cref="FactRanking.Main"/>).</summary>
+    public IReadOnlyList<MotifFact> Main => _main ??= FactRanking.Main(All);
+
+    /// <summary>The circle of fifths for the selection, from its key and chords; null when no key was read.</summary>
+    public KeyCircleView? Circle => circle;
+}
 
 /// <summary>What the player kept about the selection.</summary>
 /// <param name="Rows">The observations kept for the selected phrase, with where each one comes from.</param>
