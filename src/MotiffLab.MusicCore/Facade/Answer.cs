@@ -555,19 +555,7 @@ internal static partial class Answer
             json.WriteString("runnerUpNote", circle.RunnerUpNote);
         }
 
-        json.WriteStartArray("sectors");
-        foreach (CircleSector sector in circle.Sectors)
-        {
-            json.WriteStartObject();
-            json.WriteNumber("position", sector.Position);
-            json.WriteNumber("fifths", sector.Fifths);
-            json.WriteString("major", sector.Major);
-            json.WriteString("minor", sector.Minor);
-            json.WriteString("signature", sector.Signature);
-            json.WriteEndObject();
-        }
-
-        json.WriteEndArray();
+        Sectors(json, circle.Sectors);
         json.WriteStartArray("neighbours");
         foreach (CircleNeighbour neighbour in circle.Neighbours)
         {
@@ -617,6 +605,24 @@ internal static partial class Answer
         Texts(json, "lines", circle.Lines);
         Texts(json, "zones", circle.Zones.Select(static zone => Name(zone)));
         json.WriteEndObject();
+    }
+
+    /// <summary>The circle's twelve places: each with its signature's fifths, its major and minor keys and the signature in short.</summary>
+    public static void Sectors(Utf8JsonWriter json, IEnumerable<CircleSector> sectors)
+    {
+        json.WriteStartArray("sectors");
+        foreach (CircleSector sector in sectors)
+        {
+            json.WriteStartObject();
+            json.WriteNumber("position", sector.Position);
+            json.WriteNumber("fifths", sector.Fifths);
+            json.WriteString("major", sector.Major);
+            json.WriteString("minor", sector.Minor);
+            json.WriteString("signature", sector.Signature);
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
     }
 
     private static void CirclePlace(Utf8JsonWriter json, string name, FactPlace place)

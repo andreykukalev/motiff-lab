@@ -1,0 +1,124 @@
+@using System.Globalization
+@using MotiffLab.MusicCore
+@using MotiffLab.MusicCore.Analysis
+@using MotiffLab.Web.Localization
+@inject UiText Text
+
+@* A key's card in the Reference (music-core's KeyCard): its name; the relative, parallel and enharmonic keys, each a tap to
+   their own card; the key signature on a treble staff and in words; the scales and the three main chords with their notes.
+   A tap on a scale or a chord plays it and shows it on the small keyboard below. *@
+<section class="ref-card" aria-labelledby="ref-card-title">
+    <h3 id="ref-card-title" class="ref-name">@Words.Capitalize(Card.Name)</h3>
+    <ul class="ref-related">
+        @Related("reference.relative", Card.Relative, Card.RelativeName)
+        @Related("reference.parallel", Card.Parallel, Card.ParallelName)
+        @if (Card.Enharmonic is { } enharmonic)
+        {
+            @Related("reference.enharmonic", enharmonic, Card.EnharmonicName ?? "")
+        }
+    </ul>
+
+    <div class="ref-signature">
+        <svg class="ref-staff" viewBox="0 0 @Num(StaffWidth) 48" role="img" aria-label="@Text.Format("reference.staffAria", SignatureLine)">
+            @for (int line = 0; line < 5; line++)
+            {
+                <line x1="0" x2="@Num(StaffWidth)" y1="@Num(StaffY(line * 2))" y2="@Num(StaffY(line * 2))" />
+            }
+            <g>
+                <text class="clef" x="2" y="@Num(StaffY(0) + 6)">𝄞</text>
+                @for (int i = 0; i < Card.Signature.TrebleSteps.Count; i++)
+                {
+                    <g><text class="accidental" x="@Num(30 + (i * 9))" y="@Num(StaffY(Card.Signature.TrebleSteps[i]))">@(Card.Signature.Sharps ? "♯" : "♭")</text></g>
+                }
+            </g>
+        </svg>
+        <p class="ref-signature-line">@SignatureLine</p>
+    </div>
+
+    <h4 class="overline">@Text["reference.scales"]</h4>
+    <ul class="ref-sounds">
+        @foreach (ReferenceScale scale in Card.Scales)
+        {
+            <li>
+                <button class="ref-sound" aria-pressed="@(_shown?.Id == scale.Sound.Id ? "true" : "false")"
+                        aria-label="@Text.Format("reference.play", $"{scale.Title}: {string.Join(" ", scale.Notes)}")" @onclick="() => ShowAsync(scale.Sound, scale.Notes)">
+                    <Icon Name="play" />
+                    <span class="ref-sound-title">@Words.Capitalize(scale.Title)</span>
+                    <span class="ref-notes">@string.Join(" ", scale.Notes)</span>
+                </button>
+            </li>
+        }
+    </ul>
+
+    <h4 class="overline">@Text["reference.chords"]</h4>
+    <ul class="ref-sounds ref-chords">
+        @foreach (ReferenceChord chord in Card.Chords)
+        {
+            <li>
+                <button class="ref-sound fn-@chord.Function.ToString().ToLowerInvariant()" aria-pressed="@(_shown?.Id == chord.Sound.Id ? "true" : "false")"
+                        aria-label="@Text.Format("reference.play", $"{chord.Numeral}, {chord.FunctionName}, {chord.Symbol}: {string.Join(" ", chord.Notes)}")" @onclick="() => ShowAsync(chord.Sound, chord.Notes)">
+                    <span class="ref-numeral">@chord.Numeral</span>
+                    <span class="ref-sound-title">@chord.Symbol</span>
+                    <span class="ref-notes">@string.Join(" ", chord.Notes)</span>
+                    <span class="ref-function">@chord.FunctionName</span>
+                </button>
+            </li>
+        }
+    </ul>
+
+    @if (_shown is { } shown)
+    {
+        <MiniKeyboard Sound="shown" Label="@Text.Format("reference.keys", string.Join(" ", _shownNames))" />
+    }
+</section>
+
+@code {
+    private ReferenceSound? _shown;
+    private IReadOnlyList<string> _shownNames = [];
+    private KeyCard? _card;
+
+    [Parameter, EditorRequired]
+    public KeyCard Card { get; set; } = null!;
+
+    [Parameter]
+    public Words Words { get; set; }
+
+    /// <summary>Opens another key's card: the relative, the parallel or the enharmonic key.</summary>
+    [Parameter]
+    public EventCallback<MusicalKey> Pick { get; set; }
+
+    [Parameter]
+    public EventCallback<ReferenceSound> Hear { get; set; }
+
+    private double StaffWidth => 34 + (Math.Max(1, Card.Signature.TrebleSteps.Count) * 9);
+
+    private string SignatureLine => Card.Signature.Accidentals.Count == 0
+        ? Card.Signature.Count
+        : $"{Card.Signature.Count}: {string.Join(", ", Card.Signature.Accidentals)}";
+
+    protected override void OnParametersSet()
+    {
+        // A new key's card starts on its first scale, shown on the keyboard but not played.
+        if (!ReferenceEquals(_card, Card))
+        {
+            _card = Card;
+            _shown = Card.Scales[0].Sound;
+            _shownNames = Card.Scales[0].Notes;
+        }
+    }
+
+    private async Task ShowAsync(ReferenceSound sound, IReadOnlyList<string> names)
+    {
+        _shown = sound;
+        _shownNames = names;
+        await Hear.InvokeAsync(sound);
+    }
+
+    private RenderFragment Related(string label, MusicalKey key, string name) =>
+        @<li><span class="caption">@Text[label]</span> <button class="btn quiet compact" @onclick="() => Pick.InvokeAsync(key)">@name</button></li>;
+
+    /// <summary>Where a diatonic step above the staff's bottom line sits: four units a step, the bottom line at 40.</summary>
+    private static double StaffY(int step) => 40 - (step * 4);
+
+    private static string Num(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
+}

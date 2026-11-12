@@ -9,7 +9,6 @@
     {"tool":"csharp","rule":"method-length","file":"src/MotiffLab.MusicCore/Analysis/SentenceMap.cs","symbol":"SentenceMap.Group","value":86,"why":"existing before #332"},
     {"tool":"csharp","rule":"method-length","file":"src/MotiffLab.MusicCore/Assembly/Assembled.cs","symbol":"Assembled.Builder.Carry","value":105,"why":"existing before #332"},
     {"tool":"csharp","rule":"file-length","file":"src/MotiffLab.MusicCore/Facade/Answer.cs","symbol":"","value":1321,"why":"existing before #332"},
-    {"tool":"csharp","rule":"method-length","file":"src/MotiffLab.MusicCore/Facade/Answer.cs","symbol":"Answer.Circle","value":83,"why":"existing before #332"},
     {"tool":"csharp","rule":"method-length","file":"src/MotiffLab.MusicCore/Facade/Answer.cs","symbol":"Answer.Dna","value":150,"why":"existing before #332"},
     {"tool":"csharp","rule":"method-length","file":"src/MotiffLab.MusicCore/Facade/Answer.cs","symbol":"Answer.Piece","value":105,"why":"existing before #332"},
     {"tool":"csharp","rule":"method-length","file":"src/MotiffLab.MusicCore/Facade/Answer.cs","symbol":"Answer.Understanding","value":86,"why":"existing before #332"},

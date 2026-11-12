@@ -162,6 +162,11 @@
                             data-long-press="roll" @onclick="ToggleRoll"><Icon Name="roll" Size="IconSize.Large" /></button>
                     <button class="act @(_insightsOpen ? "on" : null)" aria-pressed="@(_insightsOpen ? "true" : "false")" aria-label="@Text["bar.insights"]" title="@Text["bar.insights"]"
                             @onclick="ToggleInsights"><Icon Name="insight" Size="IconSize.Large" /></button>
+                    @if (ReferenceOn)
+                    {
+                        @* The Reference (an experiment, Settings · Experimental): the circle of fifths in one tap from the score. *@
+                        <button class="act ref-act @(_referenceOpen ? "on" : null)" aria-haspopup="dialog" title="@Text["reference.openHint"]" @onclick="OpenReference">@Text["reference.open"]</button>
+                    }
                     @* Extra information (testing item 33): one press shows or hides what the app adds over the notes; the chevron lists each kind. *@
                     <span class="act-split @(LayerShown("extra") ? "on" : null)">
                         <button class="act" aria-pressed="@(LayerShown("extra") ? "true" : "false")" aria-label="@Text["extra.toggle"]" title="@Text["extra.hint"]"
@@ -496,6 +501,11 @@
                                     Knows="AskKnows" Conversation="_conversation" Suggestions="AskSuggestions" Asked="Asked"
                                     OpenInInsights="AskInInsightsAsync" Closed="CloseAskPopover" />
                 </div>
+            }
+
+            @if (_referenceOpen)
+            {
+                <MotiffLab.Web.Reference.ReferenceSheet PieceKey="_referencePieceKey" Hear="HearReferenceAsync" Closed="() => _referenceOpen = false" />
             }
 
             @if (_settingsOpen)

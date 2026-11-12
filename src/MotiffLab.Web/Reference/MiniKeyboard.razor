@@ -1,0 +1,51 @@
+@using System.Globalization
+@using MotiffLab.MusicCore.Analysis
+
+@* A small keyboard under a key's card: the white and black keys from the C below a scale or chord to the B above it
+   (ReferenceSound), its notes in cobalt, as the app points at them. *@
+<svg class="ref-keyboard" viewBox="0 0 @Num(Whites.Count * WhiteWidth) @Num(WhiteHeight)" role="img" aria-label="@Label">
+    @for (int i = 0; i < Whites.Count; i++)
+    {
+        <rect class="white @(Sound.Sounds(Whites[i]) ? "on" : null)" x="@Num(i * WhiteWidth)" y="0" width="@Num(WhiteWidth)" height="@Num(WhiteHeight)" />
+    }
+    @foreach ((int pitch, double x) in Blacks)
+    {
+        <rect class="black @(Sound.Sounds(pitch) ? "on" : null)" x="@Num(x)" y="0" width="@Num(BlackWidth)" height="@Num(BlackHeight)" />
+    }
+</svg>
+
+@code {
+    private const double WhiteWidth = 14;
+    private const double WhiteHeight = 52;
+    private const double BlackWidth = 9;
+    private const double BlackHeight = 32;
+
+    private static readonly bool[] s_black = [false, true, false, true, false, false, true, false, true, false, true, false];
+
+    [Parameter, EditorRequired]
+    public ReferenceSound Sound { get; set; } = null!;
+
+    /// <summary>What the keyboard shows, read out in place of the picture.</summary>
+    [Parameter]
+    public string? Label { get; set; }
+
+    private List<int> Whites => [.. Enumerable.Range(Sound.KeyboardLow, Sound.KeyboardHigh - Sound.KeyboardLow + 1).Where(pitch => !s_black[pitch % 12])];
+
+    /// <summary>Each black key between the white keys either side of it.</summary>
+    private IEnumerable<(int Pitch, double X)> Blacks
+    {
+        get
+        {
+            List<int> whites = Whites;
+            for (int i = 1; i < whites.Count; i++)
+            {
+                if (whites[i] - whites[i - 1] == 2)
+                {
+                    yield return (whites[i] - 1, (i * WhiteWidth) - (BlackWidth / 2));
+                }
+            }
+        }
+    }
+
+    private static string Num(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
+}

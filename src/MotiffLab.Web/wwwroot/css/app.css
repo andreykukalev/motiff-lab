@@ -8719,3 +8719,417 @@ body:has(.library) .site-footer {
 .workspace .marker-pop .overline {
     margin: 0 0 var(--s-2);
 }
+
+/* The Reference (an experiment, Settings · Experimental): the circle of fifths over the library or the score. The key
+   signatures first, then the circle and the key's card side by side, or one under the other on a narrow screen. Cobalt is
+   the key chosen and its relative (pointing); the piece's key is outlined in ink, dashed when assumed. */
+.ref-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    background: var(--dim);
+}
+
+.ref-sheet {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    z-index: 21;
+    display: flex;
+    flex-direction: column;
+    width: min(960px, calc(100vw - 2 * var(--s-4)));
+    max-height: calc(100vh - 2 * var(--s-4));
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-l);
+    background: var(--surface);
+    box-shadow: var(--shadow-sheet);
+    color: var(--ink);
+    transform: translate(-50%, -50%);
+    overflow: hidden;
+}
+
+.ref-sheet:focus {
+    outline: none;
+}
+
+.ref-sheet :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+}
+
+.ref-sheet .ref-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-3);
+    padding: var(--s-4) var(--s-6) var(--s-2);
+}
+
+.ref-sheet h2 {
+    margin: 0;
+    font: var(--t-title);
+}
+
+.ref-sheet .ref-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+    padding: 0 var(--s-6) var(--s-6);
+    overflow-y: auto;
+}
+
+.ref-sheet .overline {
+    margin: 0;
+    font: var(--t-overline);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+}
+
+.ref-sheet .caption {
+    margin: 0;
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.ref-sheet .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    min-height: var(--h-compact);
+    padding: 0 var(--s-3);
+    border: 1px solid transparent;
+    border-radius: var(--r-s);
+    background: transparent;
+    color: var(--ink);
+    font: var(--t-label);
+    cursor: pointer;
+}
+
+.ref-sheet .btn:hover {
+    background: var(--accent-tint);
+}
+
+.ref-sheet .btn.icon {
+    width: var(--h-touch);
+    height: var(--h-touch);
+    padding: 0;
+    justify-content: center;
+}
+
+.ref-sheet .ref-lookup {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+}
+
+.ref-sheet .ref-signatures {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+}
+
+.ref-sheet .ref-sig {
+    min-width: var(--h-touch);
+    height: var(--h-touch);
+    padding: 0 var(--s-2);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-pill);
+    background: var(--surface-2);
+    color: var(--ink);
+    font: var(--t-body-strong);
+    cursor: pointer;
+}
+
+.ref-sheet .ref-sig:hover {
+    border-color: var(--accent);
+}
+
+.ref-sheet .ref-sig[aria-pressed=true] {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--on-accent);
+}
+
+.ref-sheet .ref-main {
+    display: grid;
+    grid-template-columns: minmax(240px, 1fr) minmax(280px, 1.2fr);
+    gap: var(--s-6);
+    align-items: start;
+}
+
+@media (max-width: 700px) {
+    .ref-sheet .ref-main {
+        grid-template-columns: 1fr;
+    }
+
+    .ref-sheet .ref-head, .ref-sheet .ref-body {
+        padding-left: var(--s-4);
+        padding-right: var(--s-4);
+    }
+}
+
+.ref-sheet .ref-circle-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+}
+
+.ref-sheet .ref-circle {
+    width: 100%;
+    max-width: 420px;
+    margin: 0 auto;
+}
+
+.ref-circle .ref-key path {
+    fill: var(--surface-2);
+    stroke: var(--hairline-strong);
+    stroke-width: 0.6;
+    cursor: pointer;
+}
+
+.ref-circle .ref-key.minor path {
+    fill: var(--surface);
+}
+
+.ref-circle .ref-key path:hover {
+    fill: var(--accent-tint);
+}
+
+.ref-circle .ref-key path:focus-visible {
+    outline: none;
+    stroke: var(--focus-ring);
+    stroke-width: 2;
+}
+
+.ref-circle .ref-key.pair path {
+    fill: var(--accent-tint);
+}
+
+.ref-circle .ref-key.on path {
+    fill: var(--accent-tint-strong);
+    stroke: var(--accent);
+    stroke-width: 1.6;
+}
+
+.ref-circle .ref-key.piece path {
+    stroke: var(--ink);
+    stroke-width: 1.6;
+}
+
+.ref-circle .ref-key.piece.inferred path {
+    stroke-dasharray: 4 3;
+}
+
+.ref-circle text {
+    fill: var(--ink);
+    font-family: var(--font-ui);
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none;
+}
+
+.ref-circle .ref-key.major text {
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.ref-circle .ref-key.minor text {
+    font-size: 9.5px;
+}
+
+.ref-circle .ref-sign {
+    fill: var(--ink-2);
+    font-size: 8px;
+}
+
+.ref-sheet .ref-piece-key {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+}
+
+.ref-sheet .ref-piece-mark {
+    width: var(--s-4);
+    height: var(--s-3);
+    border: 1.5px dashed var(--ink);
+    border-radius: var(--r-xs);
+}
+
+.ref-sheet .ref-choose {
+    align-self: center;
+}
+
+.ref-sheet .ref-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+}
+
+.ref-sheet .ref-name {
+    margin: 0;
+    font: var(--t-heading);
+    letter-spacing: normal;
+    text-transform: none;
+    color: var(--ink);
+}
+
+.ref-sheet .ref-related {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-1) var(--s-4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ref-sheet .ref-related li {
+    display: flex;
+    align-items: center;
+    gap: var(--s-1);
+}
+
+.ref-sheet .ref-related .btn.quiet {
+    color: var(--accent);
+}
+
+.ref-sheet .ref-signature {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+}
+
+.ref-sheet .ref-staff {
+    height: var(--s-12);
+    flex: none;
+    color: var(--notation);
+}
+
+.ref-staff line {
+    stroke: currentColor;
+    stroke-width: 0.8;
+}
+
+.ref-staff text {
+    fill: currentColor;
+    dominant-baseline: central;
+}
+
+.ref-staff .clef {
+    font-size: 34px;
+    dominant-baseline: auto;
+}
+
+.ref-staff .accidental {
+    font-size: 13px;
+    text-anchor: middle;
+}
+
+.ref-sheet .ref-signature-line {
+    margin: 0;
+    font: var(--t-body);
+}
+
+.ref-sheet .ref-sounds {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ref-sheet .ref-sound {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--s-1) var(--s-3);
+    width: 100%;
+    min-height: var(--h-touch);
+    padding: var(--s-1) var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-s);
+    background: var(--surface-2);
+    color: var(--ink);
+    font: var(--t-body);
+    text-align: left;
+    cursor: pointer;
+}
+
+.ref-sheet .ref-sound:hover {
+    border-color: var(--accent);
+}
+
+.ref-sheet .ref-sound[aria-pressed=true] {
+    border-color: var(--accent);
+    background: var(--accent-tint);
+    color: var(--ink);
+}
+
+.ref-sheet .ref-sound-title {
+    font: var(--t-body-strong);
+}
+
+.ref-sheet .ref-notes {
+    color: var(--ink-2);
+}
+
+.ref-sheet .ref-numeral {
+    min-width: var(--s-8);
+    font: var(--t-body-strong);
+    font-family: var(--font-display);
+}
+
+.ref-sheet .ref-function {
+    margin-left: auto;
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+/* The function's colour on the chord's edge, as Piece DNA colours functions; the text stays ink. */
+.ref-sheet .ref-chords .ref-sound {
+    border-left-width: var(--s-1);
+}
+
+.ref-sheet .ref-chords .fn-tonic {
+    border-left-color: var(--fn-t);
+}
+
+.ref-sheet .ref-chords .fn-subdominant {
+    border-left-color: var(--fn-s);
+}
+
+.ref-sheet .ref-chords .fn-dominant {
+    border-left-color: var(--fn-d);
+}
+
+.ref-sheet .ref-keyboard {
+    width: 100%;
+    max-width: 320px;
+    height: auto;
+}
+
+.ref-keyboard rect {
+    stroke: var(--ink-2);
+    stroke-width: 0.6;
+}
+
+.ref-keyboard .white {
+    fill: var(--paper);
+}
+
+.ref-keyboard .black {
+    fill: var(--ink);
+}
+
+.ref-keyboard .on {
+    fill: var(--accent);
+}
+
+/* Circle in the score's bar is a word, not an icon: its own width. */
+.lab.workspace .bar .act.ref-act {
+    width: auto;
+    padding: 0 var(--s-2);
+    font: var(--t-label);
+}

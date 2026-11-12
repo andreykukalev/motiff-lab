@@ -476,6 +476,19 @@ public sealed record PieceDna(
     }
 
     /// <summary>
+    /// The key the piece starts in, as the key lane reads it (the Reference's circle marks it): the file's first key
+    /// signature with its mode, chosen from the notes when the file gives none, or the key that fits all the notes best,
+    /// marked inferred; null for a piece without notes.
+    /// </summary>
+    public static DnaKey? OpeningKey(IReadOnlyList<Note> notes, MeterMap meter, IReadOnlyList<KeySignature> keys, Tick end)
+    {
+        ArgumentNullException.ThrowIfNull(notes);
+        ArgumentNullException.ThrowIfNull(meter);
+        ArgumentNullException.ThrowIfNull(keys);
+        return notes.Count == 0 ? null : KeyLane(notes, meter, keys, notes.Min(note => note.Span.Onset), Later(end, notes.Max(note => note.Span.End))).FirstOrDefault();
+    }
+
+    /// <summary>
     /// The key signatures of the file as stretches of the piece. A signature without a mode is read as the major or
     /// minor key that fits its notes better (<see cref="KeyFinder"/>), and says so. A file with no key at all gets the key
     /// that fits all its notes best, marked inferred, as Insights does for a selection (testing, 2026-11-06: the lane said
