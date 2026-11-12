@@ -90,6 +90,7 @@ public static class HeardCut
             Seams = [.. heard.Seams.Where(seam => seam > from && seam < to).Select(seam => seam - from)],
             From = linked ? PieceParts.OriginalId : null,
             At = heard.At,
+            SentFromMilliseconds = heard.SentFromMilliseconds,
         };
         ImportedPiece piece = Transcribed.Mark(bars is { } grid ? grid.Apply(read) : read);
         return new PieceParts.Cut(midi, ".mid", origin, (from, to)) { Check = CheckFlag.FromTranscription(origin, midi, piece) };

@@ -146,7 +146,7 @@ public sealed class MusicCoreFacade
             }
 
             OpenPiece piece = IsProjectFile(fileName, bytes)
-                ? OpenPiece.Open(bytes, words, OpenPiece.LayerOf(fields.Text("edits")))
+                ? OpenPiece.Open(bytes, words, OpenPiece.LayerOf(fields.Text("edits")), asTheFileSays: fields.Text("edits") == "piece")
                 : OpenPiece.Import(id, fileName, bytes, words, now);
             _pieces[number] = piece;
             _next++;

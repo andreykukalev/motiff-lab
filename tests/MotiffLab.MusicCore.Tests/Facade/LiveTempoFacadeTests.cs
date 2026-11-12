@@ -46,6 +46,20 @@ public class LiveTempoFacadeTests
     }
 
     [Fact]
+    public void A_transcription_keeps_where_its_stretch_started_in_the_recording_file()
+    {
+        (byte[] midi, _) = Recital();
+        var facade = new MusicCoreFacade();
+        Assert.Equal(1, Json(facade.Open("Recital.m4a", [], Transcribed(midi, "\"sentFromMs\": 754000,"))).GetProperty("piece").GetInt32());
+        Assert.Equal(754_000, ProjectFile.Read(Encoding.UTF8.GetBytes(facade.Call(1, "project.save"))).Transcription!.SentFromMilliseconds);
+
+        var unsaid = new MusicCoreFacade();
+        _ = unsaid.Open("Recital.m4a", [], Transcribed(midi, ""));
+        Assert.Null(ProjectFile.Read(Encoding.UTF8.GetBytes(unsaid.Call(1, "project.save"))).Transcription!.SentFromMilliseconds);
+        Assert.Equal("badRequest", Json(new MusicCoreFacade().Open("Recital.m4a", [], Transcribed(midi, "\"sentFromMs\": -1,"))).GetProperty("error").GetString());
+    }
+
+    [Fact]
     public void Starts_and_a_hint_are_taken_and_bad_ones_refused()
     {
         (byte[] midi, long second) = Recital();

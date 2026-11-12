@@ -1,3 +1,5 @@
+using MotiffLab.MusicCore.Import.Transcription;
+
 namespace MotiffLab.MusicCore.Projects;
 
 /// <summary>What a device does next with one project against its copy saved online (version 0.2 sync).</summary>
@@ -28,6 +30,22 @@ public enum SyncStep
 /// <param name="DeletedOnline">This device saw the online copy go and keeps its own without sending it again.</param>
 public sealed record SyncFacts(bool Here, bool Online, bool Known, bool ChangedHere, bool ChangedOnline, bool DeletedOnline = false);
 
+/// <summary>How the merge treats a field of the project file (0026 S8).</summary>
+public enum FieldClass
+{
+    /// <summary>The player's own data: on a conflict over the same field both values are kept.</summary>
+    Player,
+
+    /// <summary>Bookkeeping such as when the piece was last opened: the latest write wins (V21).</summary>
+    Bookkeeping,
+
+    /// <summary>Worked out again from the rest, such as the Check flags: never a conflict (V22).</summary>
+    Derived,
+
+    /// <summary>What an import brought, such as the scan's page reports: on a pull this device's stays when the online copy has none and the notes are the same import.</summary>
+    Import,
+}
+
 /// <summary>What resolving two copies of one project keeps.</summary>
 /// <param name="Kept">The project to keep on this device.</param>
 /// <param name="Upload">True when <paramref name="Kept"/> goes online over the online copy (the device's copy won).</param>
@@ -43,6 +61,47 @@ public sealed record SyncResolution(Project Kept, bool Upload, Project? Previous
 /// </summary>
 public static class ProjectSync
 {
+    /// <summary>
+    /// The class of every top-level field of the project file, and of the fields within one that a version added on its own
+    /// (by path, such as "transcription.bars.meters"), so that a field with none fails its test (0026 S8).
+    /// </summary>
+    public static IReadOnlyDictionary<string, FieldClass> Fields { get; } = new Dictionary<string, FieldClass>(StringComparer.Ordinal)
+    {
+        ["format"] = FieldClass.Bookkeeping,
+        ["version"] = FieldClass.Bookkeeping,
+        ["id"] = FieldClass.Bookkeeping,
+        ["fileName"] = FieldClass.Import,
+        ["createdAt"] = FieldClass.Bookkeeping,
+        ["lastOpened"] = FieldClass.Bookkeeping,
+        ["source"] = FieldClass.Import,
+        ["document"] = FieldClass.Import,
+        ["documentPages"] = FieldClass.Import,
+        ["documentMarks"] = FieldClass.Player,
+        ["readFrom"] = FieldClass.Import,
+        ["originals"] = FieldClass.Import,
+        ["partOf"] = FieldClass.Import,
+        ["editsOff"] = FieldClass.Bookkeeping,
+        ["motifs"] = FieldClass.Player,
+        ["variations"] = FieldClass.Player,
+        ["observations"] = FieldClass.Player,
+        ["edits"] = FieldClass.Player,
+        ["phrases"] = FieldClass.Player,
+        ["marks"] = FieldClass.Player,
+        ["bookmarks"] = FieldClass.Player,
+        ["resumePoints"] = FieldClass.Player,
+        ["sessions"] = FieldClass.Bookkeeping,
+        ["scan"] = FieldClass.Import,
+        ["scan.pages"] = FieldClass.Import,
+        ["transcription"] = FieldClass.Import,
+        ["transcription.bars.meters"] = FieldClass.Import,
+        ["transcription.sentFromMs"] = FieldClass.Import,
+        ["check"] = FieldClass.Derived,
+        ["settings"] = FieldClass.Player,
+        ["performances"] = FieldClass.Player,
+        ["assembly"] = FieldClass.Player,
+        ["metadata"] = FieldClass.Player,
+    };
+
     /// <summary>The next step for a project from what the device knows about it.</summary>
     public static SyncStep Next(SyncFacts facts)
     {
@@ -101,10 +160,12 @@ public static class ProjectSync
     }
 
     /// <summary>
-    /// What version 0.4 adds within version 15 and a build before it drops on writing, kept from this device when the online
-    /// copy has none: the piece's place in its collection (<see cref="Project.PartOf"/>), and the scan server's page reports
-    /// (<see cref="ScanOrigin.Pages"/>) while the notes are the same import. A margin on a stroke goes with the file, as
-    /// every stroke does.
+    /// What versions 0.4 and 0.5 add within version 15 and a build before them drops on writing, kept from this device when
+    /// the online copy has none: the piece's place in its collection (<see cref="Project.PartOf"/>), the scan server's page
+    /// reports (<see cref="ScanOrigin.Pages"/>), a recording's changes of signature (<see cref="BarGrid.Meters"/>) and where
+    /// in its file the stretch heard started (<see cref="TranscriptionOrigin.SentFromMilliseconds"/>) while the notes are the
+    /// same import. A margin on a stroke goes with the file, as every stroke does; whether the corrections
+    /// are off (<see cref="Project.EditsOff"/>) is bookkeeping, and the copy saved last says it.
     /// </summary>
     private static Project KeptAdditions(Project kept, Project here)
     {
@@ -116,6 +177,20 @@ public static class ProjectSync
         if (kept.Scan is { Pages.Count: 0 } scan && here.Scan is { Pages.Count: > 0 } mine && kept.Source.AsSpan().SequenceEqual(here.Source))
         {
             kept = kept with { Scan = scan with { Pages = mine.Pages } };
+        }
+
+        // Version 0.5: the changes of signature of a recording's bars, when the online copy has the same grid without them.
+        if (kept.Transcription is { Bars: { Meters.Count: 0 } theirs } heard && here.Transcription?.Bars is { Meters.Count: > 0 } bars
+            && theirs.Equals(bars with { Meters = [] }) && kept.Source.AsSpan().SequenceEqual(here.Source))
+        {
+            kept = kept with { Transcription = heard with { Bars = theirs with { Meters = bars.Meters } } };
+        }
+
+        // Version 0.5: where in the recording file the stretch heard started, when the online copy does not say.
+        if (kept.Transcription is { SentFromMilliseconds: null } online && here.Transcription?.SentFromMilliseconds is { } sentFrom
+            && kept.Source.AsSpan().SequenceEqual(here.Source))
+        {
+            kept = kept with { Transcription = online with { SentFromMilliseconds = sentFrom } };
         }
 
         return kept;

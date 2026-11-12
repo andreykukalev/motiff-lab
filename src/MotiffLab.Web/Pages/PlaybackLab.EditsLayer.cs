@@ -8,8 +8,8 @@ namespace MotiffLab.Web.Pages;
 /// «Мои правки: вкл / выкл» (an experiment, Settings · Experimental, version 0.5): the player's corrections laid over the
 /// notes one by one, or left out to see the notes as recognised. music-core lays them (<see cref="NoteEditLog.ApplyEach"/>)
 /// and says which no longer fit; the page shows the switch with the counts and the list, each with «Убрать». Whether the
-/// corrections are off is kept on this device by the piece's id (<see cref="MotiffLab.Web.Projects.Preferences"/>), never in
-/// the project. The edit log changes only when the player takes a correction out or makes one. While they are off the
+/// corrections are off is kept in the project ("editsOff"), so the piece opens so on every device; what earlier builds kept
+/// on this device by the piece's id (<see cref="MotiffLab.Web.Projects.Preferences"/>) still turns them off. The edit log changes only when the player takes a correction out or makes one. While they are off the
 /// notes cannot be corrected, and saving keeps the motifs and variations as they were.
 /// </summary>
 public partial class PlaybackLab
@@ -84,7 +84,7 @@ public partial class PlaybackLab
         }
     }
 
-    /// <summary>The corrections on or off for this piece on this device: saved first, then the piece opens again with them so.</summary>
+    /// <summary>The corrections on or off for this piece: saved first, then saved in the project, and the piece opens again with them so.</summary>
     private async Task SwitchEditsLayerAsync(bool on)
     {
         if (_project is not { } project || NoteEditing || on == !EditsOff)
@@ -93,7 +93,12 @@ public partial class PlaybackLab
         }
 
         await SaveProjectAsync();
-        await Preferences.SetEditsOffAsync(project.Id, !on);
+        // The piece's file says so (version 0.5, "editsOff"), so it opens so on every device; the device's own word, kept
+        // by builds before the file did, is cleared.
+        _project = (_project ?? project) with { EditsOff = !on };
+        CurrentPiece.Saved(_project);
+        await Projects.SaveAsync(_project);
+        await Preferences.SetEditsOffAsync(project.Id, false);
         await CurrentPiece.OpenSavedAsync(project.Id);
     }
 

@@ -113,6 +113,28 @@ public class EditsLayerFacadeTests
     }
 
     [Fact]
+    public void The_piece_remembers_the_corrections_off_in_its_file_and_opens_so_as_the_file_says()
+    {
+        (MusicCoreFacade facade, _) = OpenFile(Worked(), """{"edits": "on"}""");
+        Assert.True(Call(facade, "corrections.layer", """{"on": false}""").GetProperty("editsOff").GetBoolean());
+        byte[] off = Encoding.UTF8.GetBytes(Call(facade, "project.save").GetRawText());
+        Assert.True(ProjectFile.Read(off).EditsOff);
+
+        (MusicCoreFacade piece, JsonElement opened) = OpenFile(off, """{"edits": "piece"}""");
+        Assert.Equal("off", opened.GetProperty("edits").GetProperty("layer").GetString());
+        Assert.Equal("on", OpenFile(off, """{"edits": "on"}""").Opened.GetProperty("edits").GetProperty("layer").GetString());
+
+        // A build that opens it strictly, as the iPad does, keeps the field when it saves.
+        (MusicCoreFacade strict, _) = OpenFile(off);
+        Assert.True(ProjectFile.Read(Encoding.UTF8.GetBytes(Call(strict, "project.save").GetRawText())).EditsOff);
+
+        Assert.False(Call(piece, "corrections.layer", """{"on": true}""").GetProperty("editsOff").GetBoolean());
+        byte[] on = Encoding.UTF8.GetBytes(Call(piece, "project.save").GetRawText());
+        Assert.False(ProjectFile.Read(on).EditsOff);
+        Assert.Equal("on", OpenFile(on, """{"edits": "piece"}""").Opened.GetProperty("edits").GetProperty("layer").GetString());
+    }
+
+    [Fact]
     public void An_open_without_edits_answers_as_before_and_a_wrong_value_is_refused()
     {
         byte[] worked = Worked();

@@ -50,7 +50,7 @@ public class HeardCutTests
         BarGrid? grid = BarGrid.Find(PieceImporter.Import("concert.mid", midi).Piece!.Midi!);
         Project project = Project.Create("p_concert", "concert.mid", midi, s_now) with
         {
-            Transcription = new TranscriptionOrigin("transkun 2", grid) { Seams = [40_000], At = s_now },
+            Transcription = new TranscriptionOrigin("transkun 2", grid) { Seams = [40_000], At = s_now, SentFromMilliseconds = 90_000 },
         };
         ImportedPiece piece = OpenedProject.Open(project).Piece;
         return project with { Check = CheckFlag.FromTranscription(project.Transcription!, midi, piece) };
@@ -115,6 +115,8 @@ public class HeardCutTests
         Assert.NotNull(heard.Bars);
         Assert.NotEqual(concert.Transcription!.Bars, heard.Bars);
         Assert.Equal((PieceParts.OriginalId, s_now), (heard.From, heard.At));
+        // Its stretch in the recording file is the concert's start there and its own place in the concert (version 0.5).
+        Assert.Equal(90_000, heard.SentFromMilliseconds);
         ImportedPiece own = OpenedProject.Open(second.Project).Piece;
         HeardClock clock = HeardClock.Of(second.Project, own)!;
         long[] played = [.. own.Notes.OrderBy(static note => note.Span.Onset).Select(note => clock.MicrosecondsAt(note.Span.Onset) + 25_000_000)];

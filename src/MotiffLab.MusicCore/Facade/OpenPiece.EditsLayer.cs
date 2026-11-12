@@ -32,13 +32,17 @@ internal sealed partial class OpenPiece
     /// <summary>The ids of the motifs, variations and ideas left out when the piece opened, because they no longer fit the notes.</summary>
     private IReadOnlyList<string> _hidden = [];
 
-    /// <summary>The layer named by an open request's "edits": "on" lays the corrections one by one, "off" leaves them out; none is strict.</summary>
+    /// <summary>
+    /// The layer named by an open request's "edits": "on" lays the corrections one by one, "off" leaves them out, and "piece"
+    /// lays them one by one unless the piece's file says they are off (<see cref="Open"/>); none is strict.
+    /// </summary>
     public static EditsLayer LayerOf(string? edits) => edits switch
     {
         null => EditsLayer.Strict,
         "on" => EditsLayer.Lenient,
         "off" => EditsLayer.Off,
-        _ => throw FacadeException.BadRequest("\"edits\" is \"on\" or \"off\"."),
+        "piece" => EditsLayer.Lenient,
+        _ => throw FacadeException.BadRequest("\"edits\" is \"on\", \"off\" or \"piece\"."),
     };
 
     /// <summary>The corrections laid one by one over the imported notes, read again only when the log changed.</summary>
@@ -104,6 +108,8 @@ internal sealed partial class OpenPiece
         {
             SavedVariation? working = Chain is { Result: not null } chain ? SavedVariation.Create(MotifId.Replace("m_", "v_", StringComparison.Ordinal), MotifId, chain) : _hiddenVariation;
             _layer = layer;
+            // The piece remembers it in its file (version 0.5), so it opens so again on any device.
+            Project = Project with { EditsOff = layer == EditsLayer.Off };
             RefreshNotes();
             Reselect();
             Chain = null;
@@ -199,6 +205,7 @@ internal sealed partial class OpenPiece
 
         EditsApplied applied = Layered;
         json.WriteString("layer", _layer == EditsLayer.Off ? "off" : "on");
+        json.WriteBoolean("editsOff", Project.EditsOff);
         json.WriteNumber("applied", applied.Applied.Count);
         json.WriteStartArray("moved");
         foreach (MovedEdit moved in applied.Moved)
