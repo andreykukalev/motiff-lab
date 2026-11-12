@@ -143,3 +143,55 @@ test("a file larger than the scan server reads is refused before it is sent, in 
     expect(uploads).toHaveLength(0);
     expect(await violations(page)).toEqual([]);
 });
+
+test("photos of pages: several photos are read one at a time into one piece, and a page not read is left out and named", async ({ page }) => {
+    const musicXml = await readFile(scanned);
+    const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Expose-Headers": "X-Engine, X-Pages, X-Page-Report" };
+    const sent = [];
+    await page.route(`${server}/health`, route => route.fulfill({ json: { engine: "homr", version: "0.7.0", maxPages: 8 }, headers: cors }));
+    await page.route(`${server}/recognise`, route => {
+        sent.push(route.request().postDataBuffer().toString("latin1").match(/filename="([^"]+)"/)[1]);
+        if (sent.length === 2) {
+            return route.fulfill({ status: 422, json: { message: "No staves were found on this page." }, headers: cors });
+        }
+        const report = JSON.stringify([{ page: 1, rotation: 0, sharpness: 1.1, contrast: 110, staves: 4, noteheads: 60, barLines: 12, spacePx: 15, measures: 32 }]);
+        return route.fulfill({ body: musicXml, contentType: "application/vnd.recordare.musicxml+xml", headers: { ...cors, "X-Engine": "homr 0.7.0", "X-Pages": "1", "X-Page-Report": report } });
+    });
+    await page.goto("/settings");
+    await page.getByRole("button", { name: "Save and check" }).click();
+    await expect(page.getByText("Connected: the scan server runs homr 0.7.0")).toBeVisible();
+
+    // Off by default: one file at a time.
+    await page.goto("/import/scan");
+    await expect(page.getByLabel("Choose a PDF or photo of printed music to scan")).not.toHaveAttribute("multiple");
+    await page.goto("/");
+    await page.locator(".lib-head").getByRole("button", { name: "Settings" }).click();
+    const sheet = page.getByRole("dialog", { name: "Settings" });
+    await sheet.getByRole("tab", { name: "Experimental" }).click();
+    await sheet.getByRole("switch", { name: "Photos of pages" }).check();
+    await sheet.press("Escape");
+
+    // Picked in any order, read in the order of their names, the numbers counted as numbers.
+    const png = await readFile(photo);
+    await page.goto("/import/scan");
+    const field = page.getByLabel("Choose a PDF or photo of printed music, or several photos of one piece's pages");
+    await field.setInputFiles([
+        { name: "page 10.png", mimeType: "image/png", buffer: png },
+        { name: "page 2.png", mimeType: "image/png", buffer: png },
+        { name: "page 1.png", mimeType: "image/png", buffer: png },
+    ]);
+    await expect(page.locator(".scan-check")).toContainText("of 64 may have been misread");
+    expect(sent).toEqual(["page 1.png", "page 2.png", "page 10.png"]);
+    await expect(page.getByText("2 pages read in")).toBeVisible();
+    await expect(page.locator(".scan-check .scan-pages li")).toHaveCount(2);
+    await expect(page.locator(".left-out li")).toHaveText(["Page 2 (page 2.png) could not be read and is left out: No staves were found on this page."]);
+    expect(await violations(page)).toEqual([]);
+
+    // A PDF among the photos is read on its own, and nothing is sent.
+    await field.setInputFiles([
+        { name: "page 1.png", mimeType: "image/png", buffer: png },
+        { name: "score.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4") },
+    ]);
+    await expect(page.getByText("Several files are read as photos of one piece's pages: choose PNG or JPEG photos only.")).toBeVisible();
+    expect(sent).toHaveLength(3);
+});
