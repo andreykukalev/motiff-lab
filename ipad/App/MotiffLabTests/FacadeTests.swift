@@ -581,6 +581,17 @@ final class FacadeTests: XCTestCase {
         XCTAssertEqual(scan.address(hosted: hosted), hosted)
     }
 
+    /// A file larger than the scan server reads is not sent, so it is not refused after the whole upload (v0.5, E).
+    @MainActor
+    func testAFileLargerThanTheScanServerReadsIsNotSent() async throws {
+        let address = try XCTUnwrap(ScanServer.parse("http://127.0.0.1:9"))
+        let big = Data(count: ScanServer.maxUploadBytes + 1)
+        let answer = await ScanServer.recognisePage(fileName: "big.pdf", data: big, address: address, account: Account(options: nil))
+        guard case .failure(.tooLarge) = answer.result else { return XCTFail("refused before sending") }
+        XCTAssertNil(answer.report)
+        XCTAssertTrue(ScanProblem.tooLarge.text(UIText(language: "en")).hasPrefix("This file is larger than 50 MB"))
+    }
+
     func testANoteOfABarIsCorrectedAndPutBackAsImported() throws {
         // Fix notes in Check (S1-I7): a correction is a step in the piece's edit log; Revert puts the imported note back.
         let bar = try XCTUnwrap(NoteCorrections(answer: MusicCore.call(piece: piece, "corrections", #"{"bar": 1}"#)))

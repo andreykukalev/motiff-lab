@@ -23,6 +23,9 @@ final class ScanServer: ObservableObject {
     static let off = "off"
     /// The address the service's README starts it on.
     static let suggested = "http://localhost:8765"
+    /// The largest file the scan server reads (services/omr `MAX_UPLOAD_MB`, 50 there and on Motiff Lab's server): a larger
+    /// one is not sent, so it is not refused after the whole upload (the web app's `ScanService.MaxUploadBytes`).
+    static let maxUploadBytes = 50 * 1024 * 1024
 
     /// What the player chose: their own server's address, `off`, or nil for the hosted server where there is one.
     @Published private(set) var chosen: String?
@@ -102,6 +105,7 @@ final class ScanServer: ObservableObject {
     /// Sends one file to be read, as `recognise`, with the server's page report (`X-Page-Report`), which comes with a page
     /// that could not be read too (v0.4, «Фото страниц»).
     static func recognisePage(fileName: String, data: Data, address: URL, account: Account) async -> (result: Result<ScanResult, ScanProblem>, report: String?) {
+        guard data.count <= maxUploadBytes else { return (.failure(.tooLarge), nil) }
         let boundary = "motiff-\(UUID().uuidString)"
         var request = URLRequest(url: address.appendingPathComponent("recognise"))
         request.httpMethod = "POST"
@@ -149,6 +153,8 @@ enum ScanProblem: Error, Equatable {
     case unreachable(URL)
     case signIn
     case needsPro
+    /// Larger than the scan server reads; nothing was sent.
+    case tooLarge
     case server(String)
 
     func text(_ text: UIText) -> String {
@@ -157,6 +163,7 @@ enum ScanProblem: Error, Equatable {
         case .unreachable(let address): "The scan server at \(address.absoluteString) does not answer. Check that it is running (see Settings), and that this iPad may reach it."
         case .signIn: text["scan.signIn"]
         case .needsPro: text["scan.needsPro"]
+        case .tooLarge: text["import.scanTooLarge"] + " " + text["import.scanTooLargeTip"]
         case .server(let message): message
         }
     }

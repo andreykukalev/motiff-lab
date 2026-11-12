@@ -29,7 +29,7 @@ public sealed partial class ScanService(IJSRuntime js, CloudAccount account, UiT
     /// <summary>The address the service's README starts it on.</summary>
     public const string SuggestedAddress = "http://localhost:8765";
 
-    /// <summary>The largest upload the server accepts.</summary>
+    /// <summary>The largest upload the server accepts (services/omr <c>MAX_UPLOAD_MB</c>, 50 there and on Motiff Lab's server); a larger file is not sent.</summary>
     public const long MaxUploadBytes = 50 * 1024 * 1024;
 
     public const string AcceptedExtensions = ".pdf,.png,.jpg,.jpeg";
@@ -147,6 +147,12 @@ public sealed partial class ScanService(IJSRuntime js, CloudAccount account, UiT
         if (Address is not { } address)
         {
             return ScanResult.Failed("Scanning is off. Give the scan server's address in Settings.");
+        }
+
+        // Said before sending, so the whole file is not uploaded only to be refused.
+        if (data.Length > MaxUploadBytes)
+        {
+            return ScanResult.Failed($"{text["import.scanTooLarge"]} {text["import.scanTooLargeTip"]}");
         }
 
         using var content = new MultipartFormDataContent();

@@ -3,7 +3,7 @@
 // server is played by the test: it answers with what homr read from a page of Für Elise.
 // Runs in desktop Chromium only (playwright.config.mjs), with the WCAG checks on the new screens.
 import { expect, test } from "@playwright/test";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { openRoll, violations, librarySessions } from "./steps.mjs";
 
@@ -125,4 +125,21 @@ test("a page the scan server calls poor flags each of its bars, and the summary 
     await expect(drawer.locator(".scan-pages li")).toHaveText(["Page 1: 31 of 32 bars in question poor page"]);
     await page.reload();
     await expect(drawer.locator(".scan-pages li")).toHaveText(["Page 1: 31 of 32 bars in question poor page"], { timeout: 30_000 });
+});
+
+test("a file larger than the scan server reads is refused before it is sent, in plain words", async ({ page }, testInfo) => {
+    const uploads = await scanServer(page);
+    await page.goto("/settings");
+    await page.getByRole("button", { name: "Save and check" }).click();
+    await expect(page.getByText("Connected: the scan server runs homr 0.7.0")).toBeVisible();
+
+    // One byte over the 50 MB the scan server reads (services/omr MAX_UPLOAD_MB).
+    const big = testInfo.outputPath("big.pdf");
+    await writeFile(big, Buffer.alloc(50 * 1024 * 1024 + 1));
+    await page.goto("/import/scan");
+    await page.getByLabel("Choose a PDF or photo of printed music to scan").setInputFiles(big);
+    await expect(page.getByText("This file is larger than 50 MB, the most the scan server reads.")).toBeVisible();
+    await expect(page.getByText("Scan fewer pages at a time, or save the photo at a lower resolution.")).toBeVisible();
+    expect(uploads).toHaveLength(0);
+    expect(await violations(page)).toEqual([]);
 });
