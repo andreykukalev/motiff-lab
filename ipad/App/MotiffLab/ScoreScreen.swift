@@ -43,6 +43,8 @@ struct ScoreScreen: View {
     @State private var versionsOpen = false
     /// The Settings sheet (0018 section 10), from More: over the score, which follows each change at once.
     @State private var settingsOpen = false
+    /// The Reference's circle of fifths (an experiment, Settings · Experimental), open over the score.
+    @State private var referenceOpen = false
     /// Piece DNA (0018 section 11; testing item 22), from More: the map of the whole piece over the score; nil when closed.
     @State private var dna: DnaMap?
     /// Whether Piece DNA was opened from More, so it shows "‹ More".
@@ -233,7 +235,7 @@ struct ScoreScreen: View {
                     if score.focused {
                         FocusBar(score: score, player: player, conversation: conversation, variationRange: variationRange, text: text, insightsOpen: $insightsOpen)
                     } else {
-                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, conversation: conversation, more: $more, fromMore: $fromMore, rollOpen: $rollOpen, insightsOpen: $insightsOpen, contentsOpen: $contentsOpen, checkOpen: $checkOpen, versionsOpen: $versionsOpen, settingsOpen: $settingsOpen, pdf: toPdf, openDna: { openDna(fromMore: true) }) { dismiss() }
+                        ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, conversation: conversation, more: $more, fromMore: $fromMore, rollOpen: $rollOpen, insightsOpen: $insightsOpen, contentsOpen: $contentsOpen, checkOpen: $checkOpen, versionsOpen: $versionsOpen, settingsOpen: $settingsOpen, pdf: toPdf, openDna: { openDna(fromMore: true) }, openReference: settings.isOn("experimental.reference") ? { referenceOpen = true } : nil) { dismiss() }
                     }
                     if score.penOn && !score.focused {
                         PenPalette(score: score, text: text)
@@ -515,6 +517,9 @@ struct ScoreScreen: View {
                     )
                 }
             }
+            .sheet(isPresented: $referenceOpen) {
+                ReferenceSheet(text: text, settings: settings)
+            }
             .sheet(isPresented: $settingsOpen) {
                 SettingsSheet(settings: settings, account: account, text: text, pieceOverrides: score.pieceOverrides, clearPiece: { score.clearPieceOverrides() },
                               back: fromMore ? (label: text["bar.more"], action: { backToMore { settingsOpen = false } }) : nil)
@@ -662,6 +667,8 @@ struct ScoreBar: View {
     let pdf: (() -> Void)?
     /// Piece DNA from More.
     let openDna: () -> Void
+    /// The Reference's circle of fifths (an experiment, Settings · Experimental); nil while it is off.
+    var openReference: (() -> Void)?
     let back: () -> Void
     @State private var phrasesOpen = false
     /// Ask about the piece from More: the assistant's popover where More was (testing item 23).
@@ -766,6 +773,17 @@ struct ScoreBar: View {
         .buttonStyle(BarActionStyle(on: insightsOpen))
         .accessibilityLabel(text["bar.insights"])
         .accessibilityAddTraits(insightsOpen ? .isSelected : [])
+        if let openReference {
+            // The Reference (an experiment): Circle, a word rather than an icon, opens the circle of fifths over the score.
+            Button(action: openReference) {
+                Text(text["reference.open"])
+                    .dsType(.label)
+                    .padding(.horizontal, CGFloat.ds("s-2"))
+                    .frame(height: 40)
+            }
+            .buttonStyle(BarActionStyle())
+            .accessibilityHint(text["reference.openHint"])
+        }
         // Extra information (testing item 33): one press shows or hides what the app adds over the notes; the chevron
         // lists each kind and the player's own marks.
         HStack(spacing: 0) {

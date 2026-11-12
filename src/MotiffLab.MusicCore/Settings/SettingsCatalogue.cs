@@ -78,6 +78,9 @@ public static class SettingsCatalogue
         // Experiments, each off until the player turns it on on this device. Automatic bookmarks: the boundaries of the pieces,
         // movements and large sections of a long score or recording proposed in the Contents (SectionFinder), to confirm, move or dismiss.
         Switch("experimental.autoBookmarks", SettingSection.Experimental, null, SettingScope.Device),
+
+        // Reference: the circle of fifths one tap away from the library and the piece, with any key's card (KeyReference).
+        Switch("experimental.reference", SettingSection.Experimental, null, SettingScope.Device),
     ];
 
     private static readonly Dictionary<string, Setting> s_byId = All.ToDictionary(setting => setting.Id, StringComparer.Ordinal);

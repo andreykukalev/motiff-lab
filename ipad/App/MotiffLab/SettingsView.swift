@@ -109,7 +109,7 @@ final class DeviceSettings: ObservableObject {
 /// iPad acts on are shown: the others join the sheet with the features they switch.
 struct SettingsSheet: View {
     enum SheetSection: String, CaseIterable, Hashable {
-        case guidance, score, layers, roll, appearance, account
+        case guidance, score, layers, roll, appearance, account, experimental
     }
 
     @ObservedObject var settings: DeviceSettings
@@ -279,6 +279,13 @@ struct SettingsSheet: View {
                 // Without Motiff Lab's server, the player's own scan server (0011), as in the web app's Settings.
                 ScanPanel(scan: ScanServer.shared, text: text)
             }
+        case .experimental:
+            // New ideas tried in the app before they become features (governance, "Experiments"): each off until turned
+            // on, on this iPad. Only the experiments the iPad acts on are listed.
+            Text(text["settings.experimentalHow"])
+                .dsType(.caption)
+                .foregroundStyle(Color.ds("ink-2"))
+            switchRow("experimental.reference", text["settings.reference"], hint: text["settings.referenceHint"])
         }
     }
 
@@ -312,6 +319,7 @@ struct SettingsSheet: View {
         case .roll: text["settings.section.roll"]
         case .appearance: text["settings.appearance"]
         case .account: text["settings.section.account"]
+        case .experimental: text["settings.section.experimental"]
         }
     }
 

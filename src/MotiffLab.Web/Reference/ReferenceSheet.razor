@@ -1,0 +1,129 @@
+@using MotiffLab.MusicCore
+@using MotiffLab.MusicCore.Analysis
+@using MotiffLab.MusicCore.Notation
+@using MotiffLab.Web.Localization
+@using MotiffLab.Web.Settings
+@inject UiText Text
+@inject DeviceSettings Store
+@implements IDisposable
+
+@* The Reference (an experiment, Settings · Experimental; Andrei, 2026-11-11): the circle of fifths one tap away, over the
+   library or the score. The key signatures come first, as the player most often looks a key up by them (23:44 UTC): one tap
+   marks the major and its relative minor on the circle and opens the major's card. A tap on the circle opens that key's
+   card. Everything shown is music-core's KeyReference; the sheet only lays it out and hands a scale or chord to its host
+   to hear. *@
+<div class="ref-scrim" @onclick="CloseAsync"></div>
+<section class="ref-sheet" role="dialog" aria-modal="true" aria-labelledby="ref-title" tabindex="-1" @ref="_element" @onkeydown="OnKey">
+    <header class="ref-head">
+        <h2 id="ref-title">@Text["reference.title"]</h2>
+        <button class="btn icon" aria-label="@Text["reference.close"]" title="@Text["reference.close"]" @onclick="CloseAsync"><Icon Name="close" /></button>
+    </header>
+    <div class="ref-body">
+        <section class="ref-lookup" aria-labelledby="ref-lookup-title">
+            <h3 id="ref-lookup-title" class="overline">@Text["reference.bySignature"]</h3>
+            @foreach (SignatureChoice[] row in Rows)
+            {
+                <div class="ref-signatures" role="group" aria-labelledby="ref-lookup-title">
+                    @foreach (SignatureChoice choice in row)
+                    {
+                        bool on = _key?.Fifths == choice.Fifths;
+                        <button class="chip ref-sig" aria-pressed="@(on ? "true" : "false")" aria-label="@choice.Spoken" title="@choice.Spoken"
+                                @onclick="() => Pick(new MusicalKey(choice.Fifths, KeyMode.Major))">@choice.Label</button>
+                    }
+                </div>
+            }
+        </section>
+        <div class="ref-main">
+            <div class="ref-circle-wrap">
+                <ReferenceCircle Chosen="_key" PieceKey="PieceKey?.Key" PieceKeyInferred="PieceKeyInferred" Pick="Pick" />
+                @if (PieceKey is { } piece)
+                {
+                    <p class="caption ref-piece-key">
+                        <span class="ref-piece-mark" aria-hidden="true"></span>
+                        @Text.Format(PieceKeyInferred ? "reference.pieceKeyInferred" : "reference.pieceKey", piece.Key.NameIn(Words))
+                        <button class="btn quiet compact" @onclick="() => Pick(piece.Key)">@Text["reference.showPieceKey"]</button>
+                    </p>
+                }
+            </div>
+            @if (_card is { } card)
+            {
+                <KeyCardView Card="card" Words="Words" Pick="Pick" Hear="Hear" />
+            }
+            else
+            {
+                <p class="caption ref-choose">@Text["reference.choose"]</p>
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    private ElementReference _element;
+    private MusicalKey? _key;
+    private KeyCard? _card;
+    private bool _focused;
+
+    [Parameter]
+    public EventCallback Closed { get; set; }
+
+    /// <summary>Raised with a scale or chord of the card to hear; the host plays it with the app's piano.</summary>
+    [Parameter]
+    public EventCallback<ReferenceSound> Hear { get; set; }
+
+    /// <summary>The key the open piece starts in (music-core's key lane), marked on the circle; null outside a piece.</summary>
+    [Parameter]
+    public DnaKey? PieceKey { get; set; }
+
+    private bool PieceKeyInferred => PieceKey is { Inferred: true };
+
+    private Words Words => Words.For(Text.Language);
+
+    private NoteNaming Naming => NoteNames.For(Store[NoteNames.Setting], Words);
+
+    /// <summary>None and the sharps on one row, the flats on the next, as Andrei listed them.</summary>
+    private SignatureChoice[][] Rows
+    {
+        get
+        {
+            IReadOnlyList<SignatureChoice> all = KeyReference.Signatures(Words);
+            return [[.. all.Where(choice => choice.Fifths >= 0)], [.. all.Where(choice => choice.Fifths < 0)]];
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Text.Changed += StateHasChanged;
+        await Store.LoadAsync();
+        if (PieceKey is { } piece)
+        {
+            Pick(piece.Key);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focused)
+        {
+            _focused = true;
+            await _element.FocusAsync();
+        }
+    }
+
+    private void Pick(MusicalKey key)
+    {
+        _key = key;
+        _card = KeyReference.For(key, Naming, Words);
+    }
+
+    private async Task OnKey(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape")
+        {
+            await CloseAsync();
+        }
+    }
+
+    private Task CloseAsync() => Closed.InvokeAsync();
+
+    public void Dispose() => Text.Changed -= StateHasChanged;
+}
