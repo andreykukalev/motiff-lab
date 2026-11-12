@@ -29,6 +29,12 @@
                 <LibraryFilter Label="@Text["library.byPlaylist"]" All="@Text["library.anyPlaylist"]" Values="State.Playlists" Picked="@State.Query.Playlist"
                                Chosen="playlist => NarrowAsync(State.Query with { Playlist = playlist })" />
             }
+            @if (_withoutNotes && (State.Query.WithoutNotes || State.Entries.Any(static entry => entry.Summary.Origin == MotiffLab.MusicCore.Projects.PieceOrigin.Pdf)))
+            {
+                @* «Без нот» (version 0.5, import-web-5): the PDF pieces whose notes are not read yet. *@
+                <button class="chip @(State.Query.WithoutNotes ? "on" : null)" aria-pressed="@(State.Query.WithoutNotes ? "true" : "false")"
+                        @onclick="() => NarrowAsync(State.Query with { WithoutNotes = !State.Query.WithoutNotes })">@Text["library.withoutNotes"]</button>
+            }
         </div>
     }
 </div>
@@ -52,6 +58,17 @@
 @code {
     [Inject]
     private UiText Text { get; set; } = default!;
+
+    [Inject]
+    private MotiffLab.Web.Settings.DeviceSettings Settings { get; set; } = default!;
+
+    private bool _withoutNotes;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Settings.LoadAsync();
+        _withoutNotes = Settings.IsOn(MotiffLab.Web.Library.ImportJob.Setting);
+    }
 
     /// <summary>The shelf this narrows and orders, changed in place.</summary>
     [Parameter, EditorRequired]

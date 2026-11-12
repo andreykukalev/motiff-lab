@@ -5,44 +5,11 @@
 import { PencilLayer, type PencilState } from "../score/pencil-layer.js";
 import type { BarFrame } from "../score/pencil-marks.js";
 import { saveCover } from "../storage/project-store.js";
+import { openPdf, type PdfDocumentProxy, type PdfLoadingTask, type PdfRenderTask } from "./pdfjs.js";
 
 interface DotNetRef {
     invokeMethodAsync(method: string, ...args: unknown[]): Promise<unknown>;
 }
-
-/** The part of pdf.js the reader uses. */
-interface PdfViewport {
-    width: number;
-    height: number;
-}
-
-interface PdfRenderTask {
-    promise: Promise<void>;
-    cancel(): void;
-}
-
-interface PdfPage {
-    getViewport(options: { scale: number }): PdfViewport;
-    render(options: { canvas: HTMLCanvasElement; viewport: PdfViewport }): PdfRenderTask;
-}
-
-interface PdfDocumentProxy {
-    numPages: number;
-    getPage(number: number): Promise<PdfPage>;
-}
-
-/** What getDocument returns: the document to come, and the way to let go of it (pdf.js 6 has no destroy on the document). */
-interface PdfLoadingTask {
-    promise: Promise<PdfDocumentProxy>;
-    destroy(): Promise<void>;
-}
-
-interface PdfJs {
-    GlobalWorkerOptions: { workerSrc: string };
-    getDocument(options: Record<string, unknown>): PdfLoadingTask;
-}
-
-const PDFJS_BASE = new URL("../../lib/pdfjs/", import.meta.url);
 
 /** How far beyond the view a page is drawn before it scrolls in, as a share of the view's height. */
 const DRAW_AHEAD = "150% 0px";
@@ -59,20 +26,6 @@ const PAGE_SPACES = 120;
 /** The cover's width in pixels: enough for a library card at twice the density. */
 const COVER_WIDTH = 360;
 
-let pdfjs: Promise<PdfJs> | null = null;
-
-function loadPdfJs(): Promise<PdfJs> {
-    pdfjs ??= (async () => {
-        const module = (await import(new URL("pdf.min.mjs", PDFJS_BASE).href)) as PdfJs;
-        module.GlobalWorkerOptions.workerSrc = new URL("pdf.worker.min.mjs", PDFJS_BASE).href;
-        return module;
-    })();
-    // A failed download can be retried on the next open.
-    pdfjs.catch(() => {
-        pdfjs = null;
-    });
-    return pdfjs;
-}
 
 /** One page: its sheet on the desk, its size at scale 1, and the width it was last drawn at (0 for not drawn). */
 interface PageSheet {
@@ -128,14 +81,7 @@ export class PdfView {
         this.close();
         let document: PdfDocumentProxy;
         try {
-            const pdf = await loadPdfJs();
-            const loading = pdf.getDocument({
-                data,
-                wasmUrl: new URL("wasm/", PDFJS_BASE).href,
-                standardFontDataUrl: new URL("standard_fonts/", PDFJS_BASE).href,
-                isEvalSupported: false,
-                enableXfa: false,
-            });
+            const loading = await openPdf(data);
             this.loading = loading;
             document = await loading.promise;
         } catch (error) {

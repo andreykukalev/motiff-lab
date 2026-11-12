@@ -28,6 +28,10 @@ builder.Services.AddScoped<MotiffLab.Web.Library.ImportJob>();
 builder.Services.AddScoped<MotiffLab.Web.Library.OriginalFinder>();
 builder.Services.AddScoped<MotiffLab.Web.Library.FolderSheets>();
 builder.Services.AddScoped<MotiffLab.Web.Library.FolderChanges>();
+builder.Services.AddScoped<MotiffLab.Web.Library.HostedPages>();
+builder.Services.AddScoped<MotiffLab.Web.Library.PdfPages>();
+builder.Services.AddScoped<MotiffLab.Web.Library.RecognitionQueue>();
+builder.Services.AddScoped<MotiffLab.Web.Library.RecognitionPick>();
 
 // Sign-in and saving online (0014) exist only in a build whose appsettings.json names the External ID tenant.
 AccountOptions account = builder.Configuration.GetSection("Account").Get<AccountOptions>() ?? new AccountOptions();

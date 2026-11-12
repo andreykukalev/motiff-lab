@@ -60,6 +60,8 @@ public partial class FolderSheet
     private IReadOnlyList<LibraryOriginal> _library = [];
     private List<ChangedPiece> _changed = [];
     private int _moved;
+    private bool _recogniseNow;
+    private bool _consent;
 
     protected override void OnInitialized() => _filter = Recheck ? FoundFilter.New : FoundFilter.All;
 
@@ -244,13 +246,33 @@ public partial class FolderSheet
             return;
         }
 
+        // «Сразу для всех»: the PDFs to add are named in one consent first; nothing is sent before «Отправить».
+        if (_recogniseNow && scan.ToAdd.Any(static row => FolderScan.IsPdf(row.Path)))
+        {
+            _consent = true;
+            return;
+        }
+
+        await StartAsync(recognise: false);
+    }
+
+    private async Task StartAsync(bool recognise)
+    {
+        if (_scan is not { } scan)
+        {
+            return;
+        }
+
         await Folders.StopDetailsAsync();
         var state = new JobState(
             Folder.Id,
             Folder.Name,
             scan.Linked,
             [.. scan.ToAdd.Select(row => new JobFile(row.Path, row.Planned.File.Bytes, row.Planned.File.Sha256, row.Planned.File.Pages, row.Title, row.Composer, row.Planned.Tags, row.Planned.Playlists))],
-            [.. scan.Known.Select(file => new JobKnown(file.Project!, file.File.Path, file.Tags, file.Playlists))]);
+            [.. scan.Known.Select(file => new JobKnown(file.Project!, file.File.Path, file.Tags, file.Playlists))])
+        {
+            Recognise = recognise,
+        };
         _ = Job.StartAsync(state);
         await Closed.InvokeAsync();
     }

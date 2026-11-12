@@ -155,7 +155,6 @@
     {"tool":"jscpd","rule":"duplicate","file":"src/MotiffLab.MusicCore/Import/Midi/MidiIssueCodes.cs","symbol":"with src/MotiffLab.MusicCore/Import/MusicXml/MusicXmlIssueCodes.cs","value":15,"why":"existing before #332"},
     {"tool":"jscpd","rule":"duplicate","file":"src/MotiffLab.MusicCore/Playback/PianoRollData.cs","symbol":"with src/MotiffLab.Web/Playback/PlaybackPayload.cs","value":11,"why":"existing before #332"},
     {"tool":"jscpd","rule":"duplicate","file":"src/MotiffLab.Web/Dna/PieceDnaMap.razor","symbol":"same file","value":16,"why":"existing before #332"},
-    {"tool":"jscpd","rule":"duplicate","file":"src/MotiffLab.Web/Import/RecordingVersion.razor","symbol":"with src/MotiffLab.Web/Pdf/RecognisePanel.razor","value":32,"why":"existing before #332"},
     {"tool":"jscpd","rule":"duplicate","file":"src/MotiffLab.Web/Import/ScanService.cs","symbol":"same file","value":13,"why":"existing before #332"},
     {"tool":"jscpd","rule":"duplicate","file":"src/MotiffLab.Web/Pages/Home.razor.cs","symbol":"same file","value":18,"why":"existing before #332"},
     {"tool":"jscpd","rule":"duplicate","file":"src/MotiffLab.Web/Pages/Import.razor","symbol":"same file","value":24,"why":"existing before #332"},

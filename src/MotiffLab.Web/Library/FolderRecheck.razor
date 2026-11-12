@@ -24,8 +24,12 @@
 {
     <p class="caption error" role="alert">@_problem</p>
 }
-@if (_folders.Count > 0)
+@if (_on)
 {
+    @* Batch recognition (version 0.5, import-web-4): the list gets a box on each PDF piece with no notes. *@
+    <div class="item">
+        <button class="btn quiet" @onclick="PickAsync"><Icon Name="select" /> @Text["recognition.pickMenu"]</button>
+    </div>
     <hr />
 }
 
@@ -40,6 +44,9 @@
     private FolderSheets Sheets { get; set; } = default!;
 
     [Inject]
+    private RecognitionPick Pick { get; set; } = default!;
+
+    [Inject]
     private MotiffLab.Web.Settings.DeviceSettings Settings { get; set; } = default!;
 
     /// <summary>After a folder was chosen: the menu closes.</summary>
@@ -49,11 +56,19 @@
     private IReadOnlyList<ChosenFolder> _folders = [];
     private readonly Dictionary<string, ElementReference> _inputs = [];
     private string? _problem;
+    private bool _on;
 
     protected override async Task OnInitializedAsync()
     {
         await Settings.LoadAsync();
-        _folders = Settings.IsOn(ImportJob.Setting) ? await Folders.KeptAsync() : [];
+        _on = Settings.IsOn(ImportJob.Setting);
+        _folders = _on ? await Folders.KeptAsync() : [];
+    }
+
+    private async Task PickAsync()
+    {
+        await Pick.StartAsync();
+        await Chosen.InvokeAsync();
     }
 
     private async Task OpenAsync(ChosenFolder folder)

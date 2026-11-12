@@ -146,7 +146,7 @@ public sealed partial class ScanService(IJSRuntime js, CloudAccount account, UiT
         ArgumentNullException.ThrowIfNull(data);
         if (Address is not { } address)
         {
-            return ScanResult.Failed("Scanning is off. Give the scan server's address in Settings.");
+            return ScanResult.Failed("Scanning is off. Give the scan server's address in Settings.") with { Stop = ScanStop.Off };
         }
 
         // Said before sending, so the whole file is not uploaded only to be refused.
@@ -165,7 +165,7 @@ public sealed partial class ScanService(IJSRuntime js, CloudAccount account, UiT
         {
             if (await account.TokenAsync(account.Options.ScanScope) is not { } token)
             {
-                return ScanResult.Failed(text["scan.signIn"]);
+                return ScanResult.Failed(text["scan.signIn"]) with { Stop = ScanStop.SignIn };
             }
 
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -185,13 +185,13 @@ public sealed partial class ScanService(IJSRuntime js, CloudAccount account, UiT
 
             if (IsHosted && response.StatusCode == HttpStatusCode.Forbidden)
             {
-                return ScanResult.Failed(text["scan.needsPro"]);
+                return ScanResult.Failed(text["scan.needsPro"]) with { Stop = ScanStop.NeedsPro };
             }
 
             string? problem = TextOf(await response.Content.ReadAsByteArrayAsync(cancellation), "message");
-            return ScanResult.Failed(problem is { Length: > 0 } message
-                ? message
-                : response.StatusCode == HttpStatusCode.NotFound ? NotAScanServer : "The scan server could not read this file.");
+            return problem is { Length: > 0 } message ? ScanResult.Failed(message)
+                : response.StatusCode == HttpStatusCode.NotFound ? ScanResult.Failed(NotAScanServer) with { Stop = ScanStop.Unreachable }
+                : ScanResult.Failed("The scan server could not read this file.");
         }
         catch (TaskCanceledException) when (!cancellation.IsCancellationRequested)
         {
@@ -199,7 +199,7 @@ public sealed partial class ScanService(IJSRuntime js, CloudAccount account, UiT
         }
         catch (HttpRequestException)
         {
-            return ScanResult.Failed(Unreachable(address));
+            return ScanResult.Failed(Unreachable(address)) with { Stop = ScanStop.Unreachable };
         }
     }
 
@@ -435,4 +435,23 @@ public sealed record ScanResult(byte[]? MusicXml, string Engine, int Pages, stri
     public IReadOnlyList<PageReport> Reports { get; init; } = [];
 
     public static ScanResult Failed(string problem) => new(null, "", 0, problem);
+
+    /// <summary>Why nothing more can be read until the player acts, when that is why this was not: not the file's fault.</summary>
+    public ScanStop? Stop { get; init; }
+}
+
+/// <summary>What stops every read after it, not only this one (a batch waits for the player then).</summary>
+public enum ScanStop
+{
+    /// <summary>Scanning is off: no server is set.</summary>
+    Off,
+
+    /// <summary>Motiff Lab's server needs the player signed in.</summary>
+    SignIn,
+
+    /// <summary>Motiff Lab's server reads for Pro.</summary>
+    NeedsPro,
+
+    /// <summary>The server cannot be reached, or is not a scan server.</summary>
+    Unreachable,
 }
