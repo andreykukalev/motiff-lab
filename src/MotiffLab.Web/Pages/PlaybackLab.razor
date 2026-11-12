@@ -1182,6 +1182,7 @@
     </header>
     <p class="caption">@CheckSourceLine @Text[_project?.Scan is not null ? "check.howScan" : "check.howRecording"]</p>
     @if (EditsLayerShown is { } layer) { <MotiffLab.Web.Workspace.EditsLayerSwitch View="layer" IdPrefix="check" Disabled="NoteEditing" Switch="SwitchEditsLayerAsync" Drop="DropUnfitEditAsync" /> }
+    @if (CheckPiecesShown is { Count: > 0 } checkPieces) { <MotiffLab.Web.Workspace.CheckPieces Pieces="checkPieces" BarsText="BarsOf" Shown="_checkPiece?.First" Undoable="CheckPieceUndoable" Open="ShowCheckPiece" LooksRight="ResolveCheckPieceAsync" Undo="UndoCheckPieceAsync" /> }
     @if (_scanCheck is { Pages.Count: > 0 } pagesChecked && _project?.Scan is { } scanRead)
     {
         @* The summary by page from the scan server's reports (version 0.4): music-core's counts, the confirmed bars left out. *@
@@ -1240,7 +1241,7 @@
         <p class="caption">@Text["check.allDoneHint"]</p>
     }
     <ul class="check-list">
-        @foreach (IGrouping<int, CheckFlag> bar in OpenCheckBars)
+        @foreach (IGrouping<int, CheckFlag> bar in ListedCheckBars)
         {
             bool fixing = _checkFixing == bar.Key;
             bool selected = SelectedCheckBar == bar.Key;

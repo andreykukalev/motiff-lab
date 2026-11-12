@@ -9497,3 +9497,8 @@ body:has(> #app > .library) {
     gap: var(--s-2);
     margin-bottom: var(--s-2);
 }
+
+/* Check by pieces (an experiment, version 0.5): one row a piece of the pieces layer above the bars to check. */
+.workspace .check-sheet .check-pieces {
+    margin-bottom: var(--s-3);
+}
