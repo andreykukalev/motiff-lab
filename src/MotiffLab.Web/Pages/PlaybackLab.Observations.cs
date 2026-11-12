@@ -287,10 +287,12 @@ public partial class PlaybackLab
     private string NextObservationId() => (_project ?? _session)?.NextObservationId() ?? "o_0001";
 
     /// <summary>"bar 5", "bars 5–6", "the pickup", "the pickup and bars 1–4", as the Explore card names a passage.</summary>
-    private string BarsOf(TickSpan span)
+    private string BarsOf(TickSpan span) =>
+        BarsOf(_meter!.BarAt(span.Onset).Number, _meter.BarAt(new Tick(Math.Max(span.Onset.Value, span.End.Value - 1))).Number);
+
+    /// <summary>The bars from <paramref name="first"/> to <paramref name="last"/>, both included, in the same words.</summary>
+    private string BarsOf(int first, int last)
     {
-        int first = _meter!.BarAt(span.Onset).Number;
-        int last = _meter.BarAt(new Tick(Math.Max(span.Onset.Value, span.End.Value - 1))).Number;
         return (first, last) switch
         {
             (0, 0) => Text["bars.pickup"],

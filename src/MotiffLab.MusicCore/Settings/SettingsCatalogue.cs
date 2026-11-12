@@ -79,6 +79,10 @@ public static class SettingsCatalogue
         // movements and large sections of a long score or recording proposed in the Contents (SectionFinder), to confirm, move or dismiss.
         Switch("experimental.autoBookmarks", SettingSection.Experimental, null, SettingScope.Device),
 
+        // Pieces in a file (v0.4): a collection's confirmed boundaries made into pieces of their own (PieceParts), each an
+        // ordinary project in the collection's playlist; the file itself is not cut.
+        Switch("experimental.pieceParts", SettingSection.Experimental, null, SettingScope.Device),
+
         // Reference: the circle of fifths one tap away from the library and the piece, with any key's card (KeyReference).
         Switch("experimental.reference", SettingSection.Experimental, null, SettingScope.Device),
 

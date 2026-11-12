@@ -899,6 +899,10 @@
                 <button class="chip" @onclick='() => ScrollContentsToAsync("contents-found")'>@Text["found.chip"]</button>
             }
             <button class="chip" @onclick='() => ScrollContentsToAsync("contents-bookmarks")'>@Text["contents.bookmarks"]</button>
+            @if (PiecePartsOn && _project is not null)
+            {
+                <button class="chip" @onclick='() => ScrollContentsToAsync("contents-parts")'>@Text["parts.chip"]</button>
+            }
             <button class="chip" @onclick='() => ScrollContentsToAsync("contents-notes")'>@Text["contents.tabNotes"]</button>
         </nav>
         <div class="contents-scroll">
@@ -1019,6 +1023,12 @@
                     }
                 }
             </section>
+
+            @if (PiecePartsOn && _project is not null)
+            {
+                @* An experiment (Settings · Experimental): the bookmarks that mark the pieces of a collection made into pieces of their own. *@
+                <PiecePartsSection Collection="_project" Bookmarks="Bookmarks" Categories="Categories" Meter="_meter" BarsText="BarsOf" BarNumbersText="BarsOf" Words="Words" Done="_partsMade" Origin="_partOf" Made="SavePartsAsync" />
+            }
 
             <section id="contents-notes" class="contents-section" aria-labelledby="contents-notes-title">
                 <h3 id="contents-notes-title" class="overline">@Text["contents.notesHead"]</h3>
@@ -2304,6 +2314,7 @@
 
             await ArriveAtResumePointAsync();
             await CheckOriginalsAsync();
+            await ReadPartsMadeAsync();
             StateHasChanged();
         }
 
