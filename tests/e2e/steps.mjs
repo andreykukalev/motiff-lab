@@ -38,15 +38,47 @@ export function pageErrors(page) {
 
 /** Opens the lab with Für Elise loaded, and fails on any script error. */
 export async function openFurElise(page) {
-    // Listens to the engine's reports alongside the app, for startTime.
+    // Listens to the engine's reports alongside the app, for startTime, and keeps what audioDiagnostic tells.
     await page.addInitScript(() => {
+        const trace = { clicks: [], resumes: [], posted: [], lastReport: null };
+        window.__audioTrace = trace;
+        const since = () => Math.round(performance.now());
+        document.addEventListener("click", event => {
+            const button = event.target instanceof Element ? event.target.closest("button") : null;
+            if (button !== null) {
+                trace.clicks.push({ at: since(), label: button.getAttribute("aria-label") ?? button.textContent.trim().slice(0, 40), engine: window.__audio !== undefined });
+            }
+        }, { capture: true });
+        const resume = AudioContext.prototype.resume;
+        AudioContext.prototype.resume = function (...args) {
+            const call = { at: since(), before: this.state, settled: null, after: null };
+            trace.resumes.push(call);
+            return resume.apply(this, args).then(value => {
+                Object.assign(call, { settled: since(), after: this.state });
+                return value;
+            }, error => {
+                Object.assign(call, { settled: since(), after: `${this.state} (${error})` });
+                throw error;
+            });
+        };
         const Node = window.AudioWorkletNode;
         window.AudioWorkletNode = class extends Node {
             constructor(...args) {
                 super(...args);
                 window.__audio = this.context;
+                const port = this.port;
+                const post = port.postMessage;
+                port.postMessage = (message, ...rest) => {
+                    if (typeof message?.type === "string" && !["timeline", "source", "samples", "recording"].includes(message.type)) {
+                        trace.posted.push({ at: since(), type: message.type });
+                    }
+                    return post.call(port, message, ...rest);
+                };
                 let playing = false;
-                this.port.addEventListener("message", event => {
+                port.addEventListener("message", event => {
+                    if (event.data?.type === "position") {
+                        trace.lastReport = { at: since(), state: event.data.state, tick: event.data.tick, frame: event.data.frame };
+                    }
                     const now = event.data?.type === "position" && event.data.state === "playing";
                     if (now && !playing) {
                         window.__engineStarted?.(event.data.frame / this.context.sampleRate);
@@ -64,6 +96,27 @@ export async function openFurElise(page) {
     await load.click();
     await expect(page.locator(".bar .ttl")).toHaveText("Für Elise");
     return errors;
+}
+
+/**
+ * Runs the steps after a press of Play; if they fail, attaches to the test what the audio did before throwing again
+ * (#401): the AudioContext's state and clock, every resume asked of it and how it ended, the buttons clicked (and
+ * whether the engine existed then), the messages the app posted to the engine (a "play" is posted only once the Play
+ * handler has run and the context has resumed) and the engine's last report.
+ */
+export async function withAudioDiagnostic(page, testInfo, steps) {
+    try {
+        await steps();
+    } catch (error) {
+        const diagnostic = await page.evaluate(() => ({
+            context: window.__audio === undefined ? null : { state: window.__audio.state, currentTime: window.__audio.currentTime },
+            ...window.__audioTrace,
+            now: Math.round(performance.now()),
+        })).catch(reason => ({ unavailable: String(reason) }));
+        await testInfo.attach("audio diagnostic", { body: JSON.stringify(diagnostic, null, 2), contentType: "application/json" });
+        console.log(`Audio diagnostic, ${testInfo.project.name}: ${JSON.stringify(diagnostic)}`);
+        throw error;
+    }
 }
 
 /**
