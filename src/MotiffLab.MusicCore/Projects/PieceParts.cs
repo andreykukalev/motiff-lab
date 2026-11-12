@@ -71,6 +71,12 @@ public sealed record PieceSplitOptions(DateTimeOffset Now, Func<string> NewId)
     /// over from the collection's bars (<see cref="RecordingCut"/>, as in 0.4).
     /// </summary>
     public bool FreshBars { get; init; }
+
+    /// <summary>
+    /// With <see cref="FreshBars"/>: each part's beat found again in every section of its stretch (<see cref="Import.Transcription.GridSearch.Live"/>,
+    /// version 0.5, the experiment «Темп живого исполнения»), as a recording heard with the experiment on is; else found once.
+    /// </summary>
+    public bool LiveTempo { get; init; }
 }
 
 /// <summary>
@@ -245,7 +251,7 @@ public static class PieceParts
 
             after = span.End;
             Cut cut = engine is null ? ScoreCutOf(piece, span)
-                : shared.Options.FreshBars ? FreshCut(collection, engine, clock!, parts[i], span, shared.Original is not null)
+                : shared.Options.FreshBars ? FreshCut(collection, engine, clock!, parts[i], span, shared.Original is not null, shared.Options.LiveTempo)
                 : RecordingCut.Of(collection, piece, engine, span, shared.Original is not null);
             made.Add(Part(shared, parts[i], i + 1, piece, pages, span, cut));
         }
@@ -261,10 +267,10 @@ public static class PieceParts
     }
 
     /// <summary>A part of a recording cut by time on bars of its own: its stretch as sent, or the time of its bar lines.</summary>
-    private static Cut FreshCut(Project collection, MidiImport engine, HeardClock clock, PartRange range, TickSpan span, bool linked)
+    private static Cut FreshCut(Project collection, MidiImport engine, HeardClock clock, PartRange range, TickSpan span, bool linked, bool live)
     {
         (long from, long to) = range.Milliseconds ?? HeardCut.StretchOfBars(clock, span);
-        return HeardCut.Of(collection, engine, from, to, linked);
+        return HeardCut.Of(collection, engine, from, to, linked, live);
     }
 
     private static Cut ScoreCutOf(ImportedPiece piece, TickSpan span)
