@@ -204,6 +204,22 @@ public class HeardCutTests
     }
 
     [Fact]
+    public void With_the_live_tempo_a_piece_cut_by_time_finds_its_beat_in_each_section_of_its_stretch()
+    {
+        Project concert = Concert();
+        PartRange[] whole = [PartRange.InRecording("All", 0, 70_000)];
+
+        Project once = PieceParts.Split(concert, whole, Options()).Parts[0].Project;
+        Project live = PieceParts.Split(concert, whole, Options() with { LiveTempo = true }).Parts[0].Project;
+
+        // The same grid a transcription of those notes finds, with and without the live search; the notes are the same.
+        Assert.Equal(once.FindBars(), once.Transcription!.Bars);
+        Assert.Equal(live.FindBars(search: GridSearch.Live), live.Transcription!.Bars);
+        Assert.NotEqual(once.Transcription.Bars, live.Transcription.Bars);
+        Assert.Equal(once.Source, live.Source);
+    }
+
+    [Fact]
     public void The_facade_splits_a_recording_by_time_on_fresh_bars_and_proposes_each_pieces_stretch()
     {
         var facade = new MusicCoreFacade();
@@ -224,6 +240,12 @@ public class HeardCutTests
         Assert.Equal("Chopin", part.GetProperty("project").GetProperty("composer").GetString());
         using JsonDocument wrong = JsonDocument.Parse(facade.Call(0, "parts.split", request.Replace("\"fresh\"", "\"new\"", StringComparison.Ordinal)));
         Assert.Equal("badRequest", wrong.RootElement.GetProperty("error").GetString());
+        string live = request.Replace("\"bars\":\"fresh\"", "\"bars\":\"fresh\",\"tempo\":\"live\"", StringComparison.Ordinal);
+        Assert.NotEqual(request, live);
+        using JsonDocument heardLive = JsonDocument.Parse(facade.Call(0, "parts.split", live));
+        Assert.Equal(1, heardLive.RootElement.GetProperty("parts").GetArrayLength());
+        using JsonDocument wrongTempo = JsonDocument.Parse(facade.Call(0, "parts.split", live.Replace("\"live\"", "\"steady\"", StringComparison.Ordinal)));
+        Assert.Equal("badRequest", wrongTempo.RootElement.GetProperty("error").GetString());
 
         Assert.Equal(1, JsonDocument.Parse(facade.Open("concert.motiff.json", Encoding.UTF8.GetBytes(file))).RootElement.GetProperty("piece").GetInt32());
         JsonElement[] proposals = [.. JsonDocument.Parse(facade.Call(1, "pieces.find", """{"count": 2}""")).RootElement.GetProperty("proposals").EnumerateArray()];

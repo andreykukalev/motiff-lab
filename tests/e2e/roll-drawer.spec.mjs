@@ -39,6 +39,49 @@ test("the roll's head: Note names, the colour by hand, the overflow with Colour 
     expect(errors).toEqual([]);
 });
 
+/**
+ * What covers the roll's head or spills out of its buttons (#432): each button is what shows at its middle, its icons lie
+ * inside it, and its label is one line.
+ */
+function headTrouble(page, scope) {
+    return page.evaluate((css) => {
+        const buttons = [...document.querySelectorAll(`${css} .roll-head button`)];
+        if (buttons.length === 0) {
+            return ["no head"];
+        }
+        return buttons.flatMap((button) => {
+            const box = button.getBoundingClientRect();
+            const name = button.textContent.trim() || button.getAttribute("aria-label");
+            const top = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+            const covered = button.contains(top) ? [] : [`${name}: covered by ${top?.tagName} ${top?.getAttribute("class")}`];
+            const spilled = [...button.querySelectorAll("svg")].filter((icon) => {
+                const inner = icon.getBoundingClientRect();
+                return inner.left < box.left || inner.top < box.top || inner.right > box.right || inner.bottom > box.bottom;
+            }).map(() => `${name}: an icon spills out`);
+            const words = document.createTreeWalker(button, NodeFilter.SHOW_TEXT);
+            const lines = new Set();
+            for (let text = words.nextNode(); text !== null; text = words.nextNode()) {
+                const label = document.createRange();
+                label.selectNodeContents(text);
+                [...label.getClientRects()].filter((rect) => rect.width > 1).forEach((rect) => lines.add(Math.round(rect.top)));
+            }
+            const wrapped = lines.size > 1 ? [`${name}: ${lines.size} lines`] : [];
+            return [...covered, ...spilled, ...wrapped];
+        });
+    }, scope);
+}
+
+test("nothing covers the roll's head, its icons stay in their buttons and its labels on one line, in the drawer and in focus (#432)", async ({ page }) => {
+    const errors = await openFurElise(page);
+    await page.locator(".bar").getByRole("button", { name: "Piano roll" }).click();
+    await expect(page.locator(".roll-drawer .roll-head").getByRole("button", { name: "Edit notes" })).toBeVisible();
+    await expect.poll(() => headTrouble(page, ".roll-drawer")).toEqual([]);
+    await page.locator(".roll-head").getByRole("button", { name: "Expand" }).click();
+    await expect(page.locator(".focus-roll .roll-head").getByRole("button", { name: "Edit notes" })).toBeVisible();
+    await expect.poll(() => headTrouble(page, ".focus-roll")).toEqual([]);
+    expect(errors).toEqual([]);
+});
+
 test("Expand takes the phrase into focus as a roll; Notes | Piano roll switches the card, and Back brings the drawer back", async ({ page }) => {
     const errors = await openFurElise(page);
     await page.locator(".bar").getByRole("button", { name: "Piano roll" }).click();
