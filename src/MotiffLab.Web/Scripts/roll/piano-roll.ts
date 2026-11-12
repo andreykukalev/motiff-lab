@@ -29,6 +29,9 @@ import {
 import { THEME_CHANGED } from "../layout/theme.js";
 import { mix, token, withAlpha } from "../layout/tokens.js";
 import { PlayheadControl, onPlayhead, type PlayheadContext, type Span } from "./roll-playhead.js";
+import { type InteractionMode, modeOf } from "../score/score-modes.js";
+import type { PlayheadsState } from "../score/playheads.js";
+import { drawBox, drawPlayheads, gestureFor, notesInBox, type RollGesture } from "./roll-modes.js";
 
 interface DotNetObject {
     invokeMethodAsync(method: string, ...args: unknown[]): Promise<unknown>;
@@ -138,6 +141,7 @@ let INK = "";
 let MUTED = "";
 /** A halo round outlines drawn on the notes, so they read on every lane colour. */
 let CHARCOAL = "";
+let PAPER = "";
 /** Letters and dots on a note or a lit key. */
 let ON_NOTE = "";
 let ACCENT = "";
@@ -194,6 +198,7 @@ function readPalette(element: Element): boolean {
     SURFACE_DARK = mix(SURFACE, INK, 0.04);
     MUTED = t("ink-2");
     CHARCOAL = t("surface-2");
+    PAPER = t("paper");
     ON_NOTE = t("on-accent");
     ACCENT = t("accent");
     BAR_LINE = mix(SURFACE, INK, 0.3);
@@ -337,6 +342,14 @@ export class PianoRoll {
     private labels: RollLabels;
     /** The note editor (testing item 15): on, its tool, the note picked by id, the length of the next note added, and a drag of a note. */
     private editing = false;
+    /** The modes and the two playheads of version 0.5 (roll-modes.ts); null while the experiment is off. */
+    private mode: InteractionMode | null = null;
+    private heads: PlayheadsState | null = null;
+    /** A press under the modes: what it began and where; a pan keeps the scroll and rows it started from. */
+    private rulePress: { pointer: number; x: number; y: number; tick: number; pitch: number; gesture: RollGesture; shift: boolean; scroll: number; top: number; moving: boolean } | null = null;
+    /** The box being drawn in Edit notes, to where the pointer is; and the notes the last box took, for the editor. */
+    private box: { x: number; y: number } | null = null;
+    private boxPicked = new Set<number>();
     private editTool: EditTool = "move";
     private editId: string | null = null;
     private editLength = TICKS_PER_QUARTER / 2;
@@ -443,6 +456,8 @@ export class PianoRoll {
         this.pan = null;
         this.fitted = false;
         this.editDrag = null;
+        this.rulePress = null;
+        this.boxPicked.clear();
         if (!this.editing) {
             this.scroll = 0;
             this.pitchTop = null;
@@ -464,6 +479,7 @@ export class PianoRoll {
         if (!on) {
             this.editId = null;
             this.editDrag = null;
+            this.boxPicked.clear();
         }
         this.roll.classList.toggle("editing", on);
         this.invalidate();
@@ -472,6 +488,18 @@ export class PianoRoll {
     /** Picks a note in the editor, such as one just added, so the arrows and Delete act on it. */
     pickForEdit(id: string | null): void {
         this.editId = id;
+        this.invalidate();
+    }
+
+    /** The mode the bar chose and the two playheads (version 0.5, roll-modes.ts); a null mode keeps the roll as it was. */
+    setRules(mode: string | null, heads: PlayheadsState | null): void {
+        this.mode = modeOf(mode);
+        this.heads = this.mode === null ? null : heads;
+        if (this.mode === null) {
+            delete this.roll.dataset.mode;
+        } else {
+            this.roll.dataset.mode = this.mode;
+        }
         this.invalidate();
     }
 
@@ -500,6 +528,8 @@ export class PianoRoll {
                 void this.dotnet.invokeMethodAsync("OnRollNoteAdd", onset, pitch, this.editLength);
             } else {
                 this.editId = null;
+                this.boxPicked.clear();
+                this.beginRulePress(event, x, y, tick, pitch, true);
                 this.invalidate();
             }
             return;
@@ -1289,7 +1319,7 @@ export class PianoRoll {
                 context.strokeRect(x - 1, y - 1, w + 2, h + 2);
             }
             // The note picked in the editor: the accent's outline, as everything the player points at (0018).
-            if (this.editing && note.id === this.editId) {
+            if (this.editing && (note.id === this.editId || this.boxPicked.has(index))) {
                 context.strokeStyle = ACCENT;
                 context.lineWidth = 2;
                 context.strokeRect(x - 1.5, y - 1.5, w + 3, h + 3);
@@ -1341,6 +1371,9 @@ export class PianoRoll {
         if (playheadContext !== null) {
             const left = this.roll.offsetLeft + Math.min(Math.max(at, GUTTER), width);
             this.playhead.place(left, this.roll.offsetTop + HEADER, TOUCH, playheadContext, this.labels);
+        }
+        if (this.drawRules(context, width, height)) {
+            return;
         }
         if (at < GUTTER || at > width) {
             return;
@@ -1406,6 +1439,121 @@ export class PianoRoll {
         if (span !== null && !this.editing && tick >= span.start && tick < span.end) {
             this.playhead.go(Math.round(tick), true);
         }
+    }
+
+    /**
+     * A press under the modes of version 0.5 (roll-modes.ts): the hand in Navigate, a range from outside the selection in
+     * Select, a box in Edit notes; else only a click. False while the modes are off, or the editor has the press.
+     */
+    private beginRulePress(event: PointerEvent, x: number, y: number, tick: number, pitch: number, box = false): boolean {
+        if (this.mode === null || (this.editing && !box)) {
+            return false;
+        }
+        const motif = this.motif;
+        const gesture = box ? "box" : gestureFor(this.mode, motif !== null && tick >= motif.start && tick < motif.end);
+        this.rulePress = { pointer: event.pointerId, x, y, tick, pitch, gesture, shift: event.shiftKey, scroll: this.scroll, top: this.pitchRange().high, moving: false };
+        return true;
+    }
+
+    /** A move of a press under the modes; false when a range drag takes it on from here, as before the modes. */
+    private moveRulePress(event: PointerEvent, x: number, y: number): boolean {
+        const press = this.rulePress;
+        if (press === null || event.pointerId !== press.pointer) {
+            return false;
+        }
+        if (press.gesture === "pan") {
+            this.movePan(press, x, y);
+            return true;
+        }
+        if (!press.moving && Math.hypot(x - press.x, y - press.y) < CLICK_SLOP) {
+            return true;
+        }
+        press.moving = true;
+        if (press.gesture === "range") {
+            this.rulePress = null;
+            this.drag = { pointer: press.pointer, anchorX: press.x, anchor: press.tick, current: press.tick, edge: false };
+            return false;
+        }
+        if (press.gesture === "box") {
+            this.box = { x, y };
+            this.invalidate();
+        }
+        return true;
+    }
+
+    /** The end of a press under the modes: a box picks its notes for the editor; a click places a playhead, or picks a note in Edit notes. */
+    private endRulePress(event: PointerEvent): boolean {
+        const press = this.rulePress;
+        if (press === null || event.pointerId !== press.pointer) {
+            return false;
+        }
+        this.rulePress = null;
+        const box = this.box;
+        this.box = null;
+        if (box !== null) {
+            this.pickBox(press, box);
+        } else if (!press.moving) {
+            this.clickUnderRules(press);
+        }
+        this.invalidate();
+        return true;
+    }
+
+    /** A click under the modes: in Edit notes on a note, the editor opens on it; anywhere else a playhead goes to the beat. */
+    private clickUnderRules(press: { tick: number; pitch: number; shift: boolean }): void {
+        const index = this.mode === "edit" ? this.model?.noteAt(press.tick, press.pitch) : undefined;
+        if (index !== undefined && this.model !== null) {
+            this.boxPicked.clear();
+            this.editId = this.model.notes[index].id;
+            void this.dotnet.invokeMethodAsync("OnRollNotesPicked", [this.editId]);
+            return;
+        }
+        void this.dotnet.invokeMethodAsync("OnRollPlace", Math.round(press.tick), press.shift);
+    }
+
+    /** The notes a box drawn in Edit notes takes, picked for the editor (not a selection); the editor opens on them. */
+    private pickBox(from: { x: number; y: number }, to: { x: number; y: number }): void {
+        const model = this.model;
+        if (model === null) {
+            return;
+        }
+        const { high, row } = this.pitchRange();
+        const pitchAt = (y: number): number => high - Math.floor((y - HEADER) / row);
+        const picked = notesInBox(model.notes, { fromTick: this.tickAtX(from.x), toTick: this.tickAtX(to.x), fromPitch: pitchAt(from.y), toPitch: pitchAt(to.y) });
+        this.boxPicked = new Set(picked);
+        this.editId = picked.length > 0 ? model.notes[picked[0]].id : null;
+        if (picked.length > 0) {
+            void this.dotnet.invokeMethodAsync("OnRollNotesPicked", picked.map((index) => model.notes[index].id));
+        }
+    }
+
+    /** Delete or Backspace in the editor takes out every note a box picked. True when it did. */
+    private removeBoxPicked(event: KeyboardEvent, model: RollModel): boolean {
+        if (!this.editing || this.boxPicked.size < 2 || (event.key !== "Delete" && event.key !== "Backspace")) {
+            return false;
+        }
+        for (const index of this.boxPicked) {
+            void this.dotnet.invokeMethodAsync("OnRollNoteRemove", model.notes[index].id);
+        }
+        this.boxPicked.clear();
+        this.editId = null;
+        return true;
+    }
+
+    /** The two playheads and the box being drawn, under the modes of version 0.5; false while they are off. */
+    private drawRules(context: CanvasRenderingContext2D, width: number, height: number): boolean {
+        const press = this.rulePress;
+        if (press !== null && this.box !== null) {
+            drawBox(context, press, this.box, { ink: INK, accent: ACCENT, surface: CHARCOAL, paper: PAPER });
+        }
+        const model = this.model;
+        if (this.heads === null || model === null) {
+            return false;
+        }
+        const frame = { xOf: (tick: number) => this.xOf(tick), header: HEADER, left: GUTTER, right: width, height };
+        const playing = this.player !== null && this.player.state() !== "stopped";
+        drawPlayheads(context, frame, model.bars, this.heads, this.tickNow, playing, { ink: INK, accent: ACCENT, surface: CHARCOAL, paper: PAPER });
+        return true;
     }
 
     /** A note's name spelled for its key, or its unspelled name before music-core sent the names. */
@@ -1795,6 +1943,9 @@ export class PianoRoll {
                 void this.dotnet.invokeMethodAsync("OnRollCheckPicked", flag.bar);
                 return;
             }
+            if (this.beginRulePress(event, x, y, tick, pitch)) {
+                return;
+            }
             // Shift-click on a bar number extends the selection to that bar.
             if (event.shiftKey && this.motif !== null) {
                 void this.dotnet.invokeMethodAsync("OnRollRange", Math.round(tick), Math.round(tick), true, true);
@@ -1806,6 +1957,9 @@ export class PianoRoll {
         }
         if (this.editing) {
             this.editPress(event, model, x, y, tick, pitch);
+            return;
+        }
+        if (this.beginRulePress(event, x, y, tick, pitch)) {
             return;
         }
         // A note sounds as soon as it is pressed, over playback too.
@@ -1844,6 +1998,9 @@ export class PianoRoll {
         const box = this.roll.getBoundingClientRect();
         const x = event.clientX - box.left;
         if (this.movedByFingers(event, x, event.clientY - box.top) || this.playhead.move(event.pointerId, x, this.tickAtX(Math.max(GUTTER, x)))) {
+            return;
+        }
+        if (this.moveRulePress(event, x, event.clientY - box.top)) {
             return;
         }
         const editDrag = this.editDrag;
@@ -1916,7 +2073,7 @@ export class PianoRoll {
      * A click on a note selects it; a click on an empty place clears the selection.
      */
     private readonly onPointerUp = (event: PointerEvent): void => {
-        if (this.endedByFingers(event) || this.releasePlayhead(event)) {
+        if (this.endedByFingers(event) || this.releasePlayhead(event) || this.endRulePress(event)) {
             return;
         }
         const editDrag = this.editDrag;
@@ -1968,6 +2125,8 @@ export class PianoRoll {
         this.drag = null;
         this.press = null;
         this.pan = null;
+        this.rulePress = null;
+        this.box = null;
         this.playhead.cancel();
         this.invalidate();
     };
@@ -2164,7 +2323,8 @@ export class PianoRoll {
         if (press === null || Math.hypot(event.clientX - press.x, event.clientY - press.y) >= CLICK_SLOP) {
             return;
         }
-        if (this.host.isConnected && this.host.offsetParent !== null && !this.touchReading) {
+        // Under the modes of version 0.5 only ✕ or Escape removes the selection.
+        if (this.host.isConnected && this.host.offsetParent !== null && !this.touchReading && this.mode === null) {
             this.clearAll();
         }
     };
@@ -2194,6 +2354,10 @@ export class PianoRoll {
         // By key position, so Shift (which turns them into braces) and other layouts keep working.
         if (event.code === "BracketRight" || event.code === "BracketLeft") {
             this.stepBar(model, event.code === "BracketRight" ? 1 : -1, event.shiftKey);
+            event.preventDefault();
+            return;
+        }
+        if (this.removeBoxPicked(event, model)) {
             event.preventDefault();
             return;
         }
