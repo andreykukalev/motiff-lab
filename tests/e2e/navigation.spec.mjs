@@ -11,8 +11,13 @@ test("step between phrases and play on from one", async ({ page }) => {
     const pill = page.locator(".pill");
 
     // Page Down with nothing selected starts at the first phrase; its bracket is drawn in the accent.
-    await page.keyboard.press("PageDown");
-    await expect(selection).toContainText("Selected phrase 1");
+    // The keys are listened to a moment after the title shows (PlaybackLab.Layout.cs), so a press that came before is pressed again.
+    await expect(async () => {
+        if (!(await selection.textContent() ?? "").includes("Selected phrase")) {
+            await page.keyboard.press("PageDown");
+        }
+        await expect(selection).toContainText("Selected phrase 1", { timeout: 3_000 });
+    }).toPass({ timeout: 20_000 });
     await expect(current).toHaveAccessibleName("Phrase 1, bars 0–4");
 
     // Stepping keeps the way of working: the sheet stays open, on the new phrase.
