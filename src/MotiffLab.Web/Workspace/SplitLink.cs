@@ -43,8 +43,11 @@ public sealed record PartOrigin(string Collection, string? Playlist, PartOf? Pla
 /// <summary>A piece's place in its collection's original in words: «с. 6–11», «с. 4» or «12:30–19:40»; empty with none.</summary>
 public static class PartPlace
 {
-    /// <summary>The experiment's switch in Settings · Experimental (Pieces in a file), off by default and kept on the device.</summary>
-    public const string Setting = "experimental.pieceParts";
+    /// <summary>
+    /// The experiment's switch in Settings · Experimental (Several pieces in a score or recording, v0.5), off by default and
+    /// kept on the device. It also turns on the boundaries music-core proposes in the Contents.
+    /// </summary>
+    public const string Setting = "experimental.pieces";
 
     /// <summary>A library card's line for a piece made from a collection: «Из «Сборник» · с. 6–11»; null for a piece of its own.</summary>
     public static string? CardLine(UiText text, ProjectSummary summary)
