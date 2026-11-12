@@ -386,7 +386,7 @@ struct PdfScreen: View {
             SettingsSheet(settings: DeviceSettings.shared, account: account, text: text, section: .account)
         }
         .sheet(isPresented: $partsOpen) {
-            PiecePartsSheet(piece: piece, pdf: pdf, text: text).presentationDetents([.large])
+            PiecePartsSheet(piece: piece, pdf: pdf, text: text, reopen: reopenParts).presentationDetents([.large])
         }
         .task {
             pdf.inkable = !linked
@@ -549,6 +549,16 @@ struct PdfScreen: View {
         return {
             contentsOpen = false
             partsOpen = true
+        }
+    }
+
+    /// Opens this piece's file again in the PDF view at the page under the bar, once «Подтвердить пьесы» has written the
+    /// pieces layer into it (version 0.5); nil where the library cannot open it here.
+    private var reopenParts: (() async -> Void)? {
+        guard let switchView else { return nil }
+        return { [pdf] in
+            partsOpen = false
+            await switchView(.page(max(1, pdf.page)))
         }
     }
 

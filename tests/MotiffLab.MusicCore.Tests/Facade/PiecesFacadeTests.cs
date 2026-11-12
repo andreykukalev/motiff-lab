@@ -1,6 +1,7 @@
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Facade;
+using MotiffLab.MusicCore.Projects;
 
 namespace MotiffLab.MusicCore.Tests.Facade;
 
@@ -75,5 +76,24 @@ public class PiecesFacadeTests
         Assert.Equal("badRequest", Error("pieces.save", """{"pieces": [{"title": "A"}]}"""));
         Assert.Equal("badRequest", Error("pieces.save", "{}"));
         Assert.Equal("badRequest", Error("pieces.save", """{"pieces": [{"firstBar": 500}]}"""));
+    }
+
+    [Fact]
+    public void Save_takes_a_piece_by_its_first_page_from_the_notes_page_map()
+    {
+        byte[] pdf = System.Text.Encoding.ASCII.GetBytes("%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\n%%EOF\n");
+        Project scored = Project.CreateDocument("p_pages", "two-pieces.pdf", pdf, new DateTimeOffset(2026, 11, 12, 15, 0, 0, TimeSpan.Zero)) with { FileName = TwoPieces, Source = Fixture() };
+        MotiffLab.MusicCore.Time.Tick ode = OpenedProject.Open(scored).Piece.Meter.GetBar(106).Span.Onset;
+        byte[] file = ProjectFile.Write(scored with { DocumentPages = new PageMap([MotiffLab.MusicCore.Time.Tick.Zero, ode]) });
+        var paged = new MusicCoreFacade();
+        Assert.Equal(1, Json(paged.Open("pages.motiff.json", file)).GetProperty("piece").GetInt32());
+
+        JsonElement saved = Json(paged.Call(1, "pieces.save", """{"pieces": [{"title": "Für Elise", "firstPage": 1}, {"title": "Ode to Joy", "firstPage": 2}]}"""));
+
+        JsonElement[] layer = [.. saved.GetProperty("layer").EnumerateArray()];
+        Assert.Equal([0, 106], layer.Select(piece => piece.GetProperty("firstBar").GetInt32()));
+        Assert.Equal(2, layer[1].GetProperty("pages").GetProperty("first").GetInt32());
+        Assert.Equal("badRequest", Json(paged.Call(1, "pieces.save", """{"pieces": [{"firstPage": 3}]}""")).GetProperty("error").GetString());
+        Assert.Equal("badRequest", Error("pieces.save", """{"pieces": [{"firstPage": 1}]}"""));
     }
 }

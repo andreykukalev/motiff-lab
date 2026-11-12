@@ -55,21 +55,42 @@ internal static class PiecesRequest
         Layer(json, project, places);
     }
 
-    /// <summary>{"pieces": [{"title" (optional), "firstBar"}], "language", "now"} → the project with that pieces layer; none clears it.</summary>
+    /// <summary>
+    /// {"pieces": [{"title" (optional), "firstBar"} or {"title", "firstPage"}], "language", "now"} → the project with that
+    /// pieces layer; none clears it. A piece by its first page (the iPad's rows of a PDF with notes read, version 0.5)
+    /// starts at the bar its page starts in, by the piece's page map.
+    /// </summary>
     public static Project Save(Project project, ImportedPiece piece, Words words, DateTimeOffset now, Request request)
     {
-        PieceStart[] pieces =
-        [
-            .. request.Elements("pieces").Select(element => Request.Of(element)).Select(start => new PieceStart(
-                start.Text("title"),
-                start.Int("firstBar") ?? throw FacadeException.BadRequest("Each piece needs \"firstBar\"."))),
-        ];
         if (!request.Has("pieces"))
         {
-            throw FacadeException.BadRequest("Send \"pieces\": [{\"title\", \"firstBar\"}], in order.");
+            throw FacadeException.BadRequest("Send \"pieces\": [{\"title\", \"firstBar\" or \"firstPage\"}], in order.");
         }
 
+        PageMap? pages = PieceParts.PagesOf(project, piece);
+        PieceStart[] pieces = [.. request.Elements("pieces").Select(element => Request.Of(element)).Select(start => new PieceStart(start.Text("title"), FirstBar(start, piece, pages)))];
         return PieceLayer.Save(project, pieces, piece.Meter, piece.End, words, now);
+    }
+
+    /// <summary>A piece's first bar: as sent, or the bar its first page starts in.</summary>
+    private static int FirstBar(Request start, ImportedPiece piece, PageMap? pages)
+    {
+        if (start.Int("firstBar") is { } bar)
+        {
+            return bar;
+        }
+
+        if (start.Int("firstPage") is not { } page)
+        {
+            throw FacadeException.BadRequest("Each piece needs \"firstBar\" or \"firstPage\".");
+        }
+
+        if (pages is null || page < 1 || page > pages.Pages)
+        {
+            throw FacadeException.BadRequest(pages is null ? "These notes have no pages." : $"A page is from 1 to {pages.Pages}; not {page}.");
+        }
+
+        return piece.Meter.BarAt(pages.StartOf(page)).Number;
     }
 
     /// <summary>
