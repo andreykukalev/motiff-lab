@@ -476,6 +476,16 @@
                 </div>
             }
 
+            @if (Transposed is { } moved)
+            {
+                @* The piece shown in another key (#351): what it is, Play it there, and its own key back; nothing is saved. *@
+                <div class="transpose-pill" role="status" data-keeps-selection>
+                    <span>@TransposedText(moved)</span>
+                    <button type="button" class="btn quiet compact" @onclick="HearShownTransposedAsync"><Icon Name="playf" />@Text["reference.hearPiece"]</button>
+                    <button type="button" class="btn quiet compact" @onclick="UntransposeAsync">@Text.Format("reference.backTo", moved.From.NameIn(Words))</button>
+                </div>
+            }
+
             @if (_mergeToast is { } toast)
             {
                 <div class="merge-toast" role="status">
@@ -510,7 +520,8 @@
 
             @if (_referenceOpen && HandbookOn)
             {
-                <MotiffLab.Web.Reference.Handbook.HandbookSheet PieceKey="_referencePieceKey" Hear="HearReferenceAsync" Play="PlayHandbookAsync" Stop="StopScaleAsync" Closed="() => _referenceOpen = false" />
+                <MotiffLab.Web.Reference.Handbook.HandbookSheet PieceKey="_referencePieceKey" Hear="HearReferenceAsync" Play="PlayHandbookAsync" Stop="StopScaleAsync" Closed="() => _referenceOpen = false"
+                                                                PieceTitle="@ScoreTitle.Of(_title)" Transposed="Transposed?.To" Transpose="TransposeAsync" />
             }
             else if (_referenceOpen)
             {
@@ -2161,16 +2172,16 @@
         _ => ScoreChoice.Generated,
     };
 
-    /// <summary>The score shown: as written, generated from the notes, or with the variation in place.</summary>
-    private ScoreSource? ShownScore => ShownChoice switch
+    /// <summary>The score shown: as written, generated from the notes, with the variation in place, or moved to another key (#351).</summary>
+    private ScoreSource? ShownScore => TransposedScore ?? ShownChoice switch
     {
         ScoreChoice.Variation => _variationScore,
         ScoreChoice.AsWritten => _asWritten,
         _ => _generated,
     };
 
-    /// <summary>The piece's pencil marks (0015), on its own score as written or generated; a score with a variation in it shows none.</summary>
-    private string? ShownPencilKey => ShownChoice == ScoreChoice.Variation ? null : PencilMarks.KeyFor(_project?.Id, _title);
+    /// <summary>The piece's pencil marks (0015), on its own score as written or generated; a score with a variation in it, or moved to another key, shows none.</summary>
+    private string? ShownPencilKey => ShownChoice == ScoreChoice.Variation || TransposedScore is not null ? null : PencilMarks.KeyFor(_project?.Id, _title);
 
     private IReadOnlyList<InkStroke>? _inkWritten;
     private string _ink = "";
@@ -2627,6 +2638,12 @@
     /// </summary>
     private async Task PlayPauseAsync()
     {
+        if (Transposed is not null)
+        {
+            await TogglePlayAsync();
+            return;
+        }
+
         if (TwoPlayheads)
         {
             await TwoPlayheadsSpaceAsync();
@@ -2647,7 +2664,8 @@
         await TogglePlayAsync();
     }
 
-    private Task TogglePlayAsync() => Player.State == PlaybackState.Stopped ? PlayAsync() : Player.PauseAsync();
+    /// <summary>The transport's Play: while the notes are shown in another key (#351), they are heard there.</summary>
+    private Task TogglePlayAsync() => Player.State != PlaybackState.Stopped ? Player.PauseAsync() : Transposed is not null ? HearShownTransposedAsync() : PlayAsync();
 
     /// <summary>Starts playback, and counts it for analytics when the player has turned them on (#64).</summary>
     private async Task PlayAsync()

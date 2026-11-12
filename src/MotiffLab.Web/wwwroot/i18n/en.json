@@ -2121,5 +2121,11 @@
   "import.scanPhotosOnly": "Several files are read as photos of one piece's pages: choose PNG or JPEG photos only.",
   "import.scanPhotosTip": "The pages are read in the order of the file names. A PDF is read on its own.",
   "import.scanPagesNotJoined": "The pages read do not join into one piece: they seem to come from different scores.",
-  "settings.photoPagesWebHint": "On Scan printed music, pick several photos of one piece's pages at once. They go to the scan server one at a time, in the order of their names, and become one piece with a summary by page; a page that could not be read is left out and named. The photos are not kept."
+  "settings.photoPagesWebHint": "On Scan printed music, pick several photos of one piece's pages at once. They go to the scan server one at a time, in the order of their names, and become one piece with a summary by page; a page that could not be read is left out and named. The photos are not kept.",
+  "reference.pieceIn": "{0} in {1}",
+  "reference.thePiece": "The piece",
+  "reference.hearPiece": "Listen",
+  "reference.showNotes": "Show the notes",
+  "reference.backTo": "Back to {0}",
+  "transpose.shown": "{0} in {1} · shown, not saved"
 }

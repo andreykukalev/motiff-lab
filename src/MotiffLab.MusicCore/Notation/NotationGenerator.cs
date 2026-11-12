@@ -132,7 +132,11 @@ public static class NotationGenerator
     /// staves are numbered first; their note ids carry the prefix <c>ossia-</c> (<c>ossia2-</c> for a second),
     /// so a note shown twice has two ids.
     /// </param>
-    public static GeneratedNotation Generate(IEnumerable<Note> notes, MeterMap meter, IEnumerable<KeyChange> keys, Tick end, string? title = null, bool asHeard = false, IReadOnlyList<PlaybackTempo>? playedTempos = null, IEnumerable<TickSpan>? pedal = null, BarRange? bars = null, IReadOnlyList<NotationOssia>? ossias = null, PlayedMarks marks = PlayedMarks.All)
+    /// <param name="spelling">
+    /// For notes moved to another key (#351): each written as the original note was, moved by the interval's letters,
+    /// rather than from the key signature alone.
+    /// </param>
+    public static GeneratedNotation Generate(IEnumerable<Note> notes, MeterMap meter, IEnumerable<KeyChange> keys, Tick end, string? title = null, bool asHeard = false, IReadOnlyList<PlaybackTempo>? playedTempos = null, IEnumerable<TickSpan>? pedal = null, BarRange? bars = null, IReadOnlyList<NotationOssia>? ossias = null, PlayedMarks marks = PlayedMarks.All, TransposedSpelling? spelling = null)
     {
         ArgumentNullException.ThrowIfNull(notes);
         ArgumentNullException.ThrowIfNull(meter);
@@ -180,7 +184,7 @@ public static class NotationGenerator
         {
             Bar bar = allBars[index];
             int fifths = KeyAt(keyChanges, bar.Span.Onset);
-            measures.Add(new MeasurePlan(bar, fifths, [.. parts.Select(part => part.Measure(bar, index, fifths))]));
+            measures.Add(new MeasurePlan(bar, fifths, [.. parts.Select(part => part.Measure(bar, index, fifths, spelling))]));
         }
 
         string mei = WriteMei(title ?? "Generated notation", parts, above, measures);
@@ -678,7 +682,7 @@ public static class NotationGenerator
         return [.. voices.OrderByDescending(voice => voice.SelectMany(chord => chord.Notes).Average(note => note.Note.Pitch.MidiNumber))];
     }
 
-    private static StaffMeasure LayOutStaff(StaffPlan staff, Bar bar, int fifths)
+    private static StaffMeasure LayOutStaff(StaffPlan staff, Bar bar, int fifths, TransposedSpelling? spelling)
     {
         var grid = new BarGrid(bar.IsPickup ? bar.Span.End.Value - bar.Signature.BarTicks : bar.Span.Onset.Value, Pulse(bar.Signature), Middle(bar.Signature));
         long beamGroup = BeamGroup(bar.Signature);
@@ -735,7 +739,7 @@ public static class NotationGenerator
             layers.Add(Group(elements, grid.Origin, beamGroup));
         }
 
-        WriteAccidentals(layers, fifths);
+        WriteAccidentals(layers, fifths, spelling);
         return new StaffMeasure(layers);
     }
 
@@ -905,7 +909,7 @@ public static class NotationGenerator
     }
 
     /// <summary>Accidentals per bar and staff, in time order across voices; tied continuations carry theirs silently.</summary>
-    private static void WriteAccidentals(List<List<Element>> layers, int fifths)
+    private static void WriteAccidentals(List<List<Element>> layers, int fifths, TransposedSpelling? spelling)
     {
         int[] key = PitchSpeller.KeyAlterations(fifths);
         var current = new Dictionary<(int Step, int Octave), int>();
@@ -917,7 +921,7 @@ public static class NotationGenerator
 
         foreach (ChordPiece piece in pieces)
         {
-            piece.Spellings = [.. piece.Chord.Notes.Select(note => PitchSpeller.Spell(note.Note.Pitch.MidiNumber, fifths))];
+            piece.Spellings = [.. piece.Chord.Notes.Select(note => spelling?.Spell(note.Note, fifths) ?? PitchSpeller.Spell(note.Note.Pitch.MidiNumber, fifths))];
             piece.ShowAccidental = new bool[piece.Spellings.Length];
             for (int i = 0; i < piece.Spellings.Length; i++)
             {
@@ -1324,9 +1328,11 @@ public static class NotationGenerator
 
     private static string Accidental(int alter) => alter switch
     {
+        -2 => "ff",
         -1 => "f",
         0 => "n",
         1 => "s",
+        2 => "x",
         _ => throw new InvalidOperationException($"No accidental for an alteration of {alter}."),
     };
 
@@ -1406,7 +1412,7 @@ public static class NotationGenerator
         public NotationStaff[] StaffInfo => [.. Staves.Select(staff => new NotationStaff(staff.Number, staff.Track, staff.Clef, staff.Hand, staff.IsSplitInferred))];
 
         /// <summary>The part's staves laid out in a bar, with the marks of the playing that start there.</summary>
-        public PartMeasure Measure(Bar bar, int index, int fifths) => new(FirstStaff, [.. Staves.Select(staff => LayOutStaff(staff, bar, fifths))])
+        public PartMeasure Measure(Bar bar, int index, int fifths, TransposedSpelling? spelling) => new(FirstStaff, [.. Staves.Select(staff => LayOutStaff(staff, bar, fifths, spelling))])
         {
             Dynamic = Marks is not null && Marks.Dynamics.TryGetValue(index, out (long At, string Level) dynamic) ? dynamic : null,
             TempoWord = Marks is not null && Marks.TempoWords.TryGetValue(index, out string? word) ? word : null,

@@ -1,11 +1,14 @@
 @using MotiffLab.MusicCore
 @using MotiffLab.MusicCore.Analysis
+@using MotiffLab.MusicCore.Assembly
 @using MotiffLab.Web.Localization
 @inject UiText Text
 
 @* «Тональности» (version 0.5): the circle of fifths with the signatures round it and each key a shade of one neutral tone by
    its accidentals, majors outside and their relative minors inside (Andrei, 2026-11-12: no new colours, the kit unchanged);
-   the chosen key's card beside it (KeyCardView). In a piece its key is outlined, and the legend says which. *@
+   the chosen key's card beside it (KeyCardView). In a piece its key is outlined, and the legend says which; under the card
+   of another key of its mode, «Für Elise в ми миноре»: Слушать and Показать ноты (mockup C2, #351), and once the notes are
+   shown in another key, the piece's own key takes them back. *@
 <div class="ref-keys-tab">
     <div class="ref-circle-side">
         <ReferenceCircle Shaded="true" Chosen="Key" PieceKey="PieceKey?.Key" PieceKeyInferred="PieceKey is { Inferred: true }" Pick="Pick" />
@@ -21,6 +24,23 @@
         @if (Card is { } card)
         {
             <KeyCardView Card="card" Words="Words" Keyboard="false" Pick="Pick" Hear="Hear" OpenChord="OpenChord" OpenScale="OpenScale" />
+            @if (PieceKey is { } own && Key is { } key && key.Mode == own.Key.Mode && (key != own.Key || Transposed is not null))
+            {
+                <section class="ref-piece-in" aria-labelledby="ref-piece-in-title">
+                    <h3 id="ref-piece-in-title" class="overline">@Text.Format("reference.pieceIn", PieceTitle ?? Text["reference.thePiece"], AssemblyWords.KeyPrepositional(key, Words))</h3>
+                    <div class="ref-piece-in-actions">
+                        @if (key == own.Key)
+                        {
+                            <button type="button" class="btn primary" @onclick="() => Transpose.InvokeAsync(new PieceInKey(key, false))">@Text.Format("reference.backTo", key.NameIn(Words))</button>
+                        }
+                        else
+                        {
+                            <button type="button" class="btn primary" @onclick="() => Transpose.InvokeAsync(new PieceInKey(key, true))"><Icon Name="playf" />@Text["reference.hearPiece"]</button>
+                            <button type="button" class="btn secondary" aria-pressed="@(Transposed == key ? "true" : "false")" @onclick="() => Transpose.InvokeAsync(new PieceInKey(key, false))">@Text["reference.showNotes"]</button>
+                        }
+                    </div>
+                </section>
+            }
         }
         else
         {
@@ -42,6 +62,18 @@
 
     [Parameter]
     public EventCallback<MusicalKey> Pick { get; set; }
+
+    /// <summary>The open piece's title, for «Für Elise в ми миноре»; null outside a piece or without a title.</summary>
+    [Parameter]
+    public string? PieceTitle { get; set; }
+
+    /// <summary>The key the piece's notes are shown in for now, when it is not its own (#351).</summary>
+    [Parameter]
+    public MusicalKey? Transposed { get; set; }
+
+    /// <summary>The piece heard in the chosen key, its notes shown in it, or (its own key) shown as written again.</summary>
+    [Parameter]
+    public EventCallback<PieceInKey> Transpose { get; set; }
 
     [Parameter]
     public EventCallback<ReferenceSound> Hear { get; set; }

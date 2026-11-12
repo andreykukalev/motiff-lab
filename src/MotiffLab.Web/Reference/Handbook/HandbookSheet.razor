@@ -30,7 +30,8 @@
     <div class="ref-body" id="handbook-panel" role="tabpanel" aria-labelledby="handbook-tab-@_tab">
         @if (_tab == "keys")
         {
-            <KeysTab Key="_key" Card="_card" PieceKey="PieceKey" Pick="Pick" Hear="HearAsync" OpenChord="OpenChord" OpenScale="OpenScale" />
+            <KeysTab Key="_key" Card="_card" PieceKey="PieceKey" Pick="Pick" Hear="HearAsync" OpenChord="OpenChord" OpenScale="OpenScale"
+                     PieceTitle="@PieceTitle" Transposed="Transposed" Transpose="TransposeAsync" />
         }
         else if (_tab == "chords")
         {
@@ -71,6 +72,21 @@
     [Parameter]
     public DnaKey? PieceKey { get; set; }
 
+    /// <summary>The open piece's title, for «Für Elise в ми миноре» on a key's card; null outside a piece.</summary>
+    [Parameter]
+    public string? PieceTitle { get; set; }
+
+    /// <summary>The key the piece is shown in for now, when it is not its own (#351); null when it is.</summary>
+    [Parameter]
+    public MusicalKey? Transposed { get; set; }
+
+    /// <summary>
+    /// Raised to hear the piece in a key or to see its notes in it (#351); the piece's own key takes the view back. Nothing
+    /// is written into the piece.
+    /// </summary>
+    [Parameter]
+    public EventCallback<PieceInKey> Transpose { get; set; }
+
     private static IReadOnlyList<string> Tabs => ["keys", "chords", "explorer"];
 
     private Words Words => Words.For(Text.Language);
@@ -107,6 +123,17 @@
         }
 
         await Hear.InvokeAsync(sound);
+    }
+
+    /// <summary>The piece in another key: heard with the Reference's own music stopped first, or shown on the score.</summary>
+    private async Task TransposeAsync(PieceInKey request)
+    {
+        if (_listening.Playing is not null)
+        {
+            await _listening.StopAsync();
+        }
+
+        await Transpose.InvokeAsync(request);
     }
 
     private void OpenChord(ReferenceChord chord)
