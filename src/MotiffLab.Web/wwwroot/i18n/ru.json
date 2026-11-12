@@ -160,6 +160,7 @@
   "settings.planPro": "Pro",
   "settings.planFree": "Бесплатный",
   "settings.planUnknown": "Пока неизвестен: сервер Motiff Lab не ответил.",
+  "settings.planWaking": "Сервер просыпается, ждём ответа…",
   "settings.testPlan": "Проверка",
   "settings.testPlanAccount": "Как в аккаунте",
   "settings.testPlanPro": "Pro",

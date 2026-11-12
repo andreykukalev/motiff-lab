@@ -32,7 +32,8 @@
         Account.ProfileChanged += OnProfileChanged;
         _player = await Account.PlayerAsync();
         _loaded = true;
-        await LoadProfileAsync();
+        // The API may take a while to wake: the button shows the sign-in's name at once, and the chosen one when it answers.
+        OnProfileChanged();
     }
 
     /// <summary>The name and photo the player chose, once the API answers; the sign-in's name until then.</summary>
