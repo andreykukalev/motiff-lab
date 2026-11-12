@@ -1,4 +1,3 @@
-@using System.Globalization
 @using MotiffLab.MusicCore
 @using MotiffLab.MusicCore.Projects
 @using MotiffLab.MusicCore.Time
@@ -9,17 +8,22 @@
    Structure ones, where a confirmed automatic bookmark goes, or a category of the player's own) are its pieces:
    «Разделить на пьесы» lists them with their bars (and, for a recording, the stretch of the sound music-core gives), a
    title for each and the playlist they join; Split makes each an ordinary piece of the library (PieceParts). The
-   collection stays as it is, and says afterwards how many pieces were made from it; a piece made says where it came from. *@
+   collection stays as it is, and says afterwards how many pieces were made from it; a piece made says where it came from.
+   Both are read from the project files (version 0.4: the original each piece keeps, and its partOf). *@
 <section id="contents-parts" class="contents-section piece-parts" aria-labelledby="contents-parts-title">
     <h3 id="contents-parts-title" class="overline">@Text["parts.title"]</h3>
     @if (Origin is { } origin)
     {
-        <p class="parts-done">@Text.Format("parts.from", origin.Title, origin.Playlist)</p>
-        <p class="meta">@DoneRange(origin.Part)</p>
+        <p class="parts-done">@(origin.Playlist is { } playlist ? Text.Format("parts.from", origin.Collection, playlist) : Text.Format("parts.fromAlone", origin.Collection))</p>
+        @if (PartPlace.Of(Text, origin.Place) is { Length: > 0 } place)
+        {
+            <p class="meta">@place</p>
+        }
     }
     @if (Done is { Parts.Count: > 0 } done)
     {
-        <p class="parts-done">@Text.Format("parts.done", Text.Count("parts.pieces", done.Parts.Count), done.Playlist)</p>
+        string pieces = Text.Count("parts.pieces", done.Parts.Count);
+        <p class="parts-done">@(done.Playlist is { } playlist ? Text.Format("parts.done", pieces, playlist) : Text.Format("parts.doneAlone", pieces))</p>
         <ul class="entries">
             @foreach (PartLink part in done.Parts)
             {
@@ -111,11 +115,11 @@
     [Parameter, EditorRequired]
     public Words Words { get; set; }
 
-    /// <summary>What this browser made from the collection before, with the pieces still in the library; null when nothing.</summary>
+    /// <summary>The pieces of the library made from the collection, as their files tell it; null when none.</summary>
     [Parameter]
     public SplitLink? Done { get; set; }
 
-    /// <summary>The collection this piece was split from, as this browser kept it; null for a piece not made from one.</summary>
+    /// <summary>The collection this piece was made from, as its file names it; null for a piece of its own.</summary>
     [Parameter]
     public PartOrigin? Origin { get; set; }
 
@@ -290,22 +294,13 @@
     }
 
     private string RowRange(PartRow row) =>
-        row.Preview?.Milliseconds is { } stretch ? $"{BarsText(row.Span)} · {Times(stretch.From, stretch.To)}" : BarsText(row.Span);
+        row.Preview?.Milliseconds is { } stretch ? $"{BarsText(row.Span)} · {PartPlace.Times(stretch.From, stretch.To)}" : BarsText(row.Span);
 
+    /// <summary>A piece made: the collection's bars it took, known right after the split, and its place in the original.</summary>
     private string DoneRange(PartLink part)
     {
         string bars = part is { First: { } first, Last: { } last } ? BarNumbersText(first, last) : "";
-        return part is { From: { } from, To: { } to } ? $"{bars} · {Times(from, to)}" : bars;
-    }
-
-    /// <summary>«12:30–19:40»: a stretch of the recording, with the hours when it runs past one.</summary>
-    private static string Times(long from, long to) => $"{Clock(from)}–{Clock(to)}";
-
-    private static string Clock(long milliseconds)
-    {
-        long seconds = Math.Max(0, milliseconds) / 1000;
-        return seconds >= 3600
-            ? string.Create(CultureInfo.InvariantCulture, $"{seconds / 3600}:{seconds / 60 % 60:00}:{seconds % 60:00}")
-            : string.Create(CultureInfo.InvariantCulture, $"{seconds / 60}:{seconds % 60:00}");
+        string place = PartPlace.Of(Text, part.Place);
+        return string.Join(" · ", new[] { bars, place }.Where(static each => each.Length > 0));
     }
 }

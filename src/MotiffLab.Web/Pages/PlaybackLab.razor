@@ -1182,6 +1182,11 @@
         <button class="btn icon" aria-label="@Text["check.close"]" title="@Text["check.close"]" @onclick="() => CloseFromAsync(Place.Check)"><Icon Name="close" /></button>
     </header>
     <p class="caption">@CheckSourceLine @Text[_project?.Scan is not null ? "check.howScan" : "check.howRecording"]</p>
+    @if (_scanCheck is { Pages.Count: > 0 } pagesChecked && _project?.Scan is { } scanRead)
+    {
+        @* The summary by page from the scan server's reports (version 0.4): music-core's counts, the confirmed bars left out. *@
+        <MotiffLab.Web.Import.ScanPagesSummary Pages="pagesChecked.Pages" Confirmed="scanRead.ConfirmedBars" HeadingId="check-pages-title" />
+    }
     @if (_project is { Transcription: { } heard } project)
     {
         @* The bars and tempo worked out from the notes (0016), in the drawer's head for a transcription (0018 section 9). *@

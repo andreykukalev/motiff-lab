@@ -196,5 +196,6 @@ final class PiecePartsTests: XCTestCase {
         XCTAssertEqual(PieceFamily.of(book, in: summaries).split, SplitLink(playlist: "Islands", parts: [PartLink(id: made.id, title: "I Giorni", pages: 3...8)]))
         XCTAssertEqual(PieceFamily.of(part, in: summaries).origin?.pages, 3...8)
         XCTAssertEqual(PieceFamily.of(part, in: summaries).origin?.playlist, "Islands")
+        XCTAssertEqual(PieceFamily.of(part, in: [part: summary]).origin?.title, "Islands", "without the collection here, its original is named by its title")
     }
 }

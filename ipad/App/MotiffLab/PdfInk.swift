@@ -17,7 +17,8 @@ struct DocumentStroke: Identifiable, Equatable, Sendable {
     var v: Double
     var points: [Double]
     var pressure: Double
-    /// "left" or "right" for a stroke begun in a margin, as music-core answers it; nil for one begun on the page.
+    /// "left" or "right" for a stroke begun in a margin, as music-core answers it; nil for one begun on the page (and an
+    /// unknown value, as pencil-marks.ts drops it).
     var margin: String? = nil
 
     /// A page's width in its own spaces, as the web app's PDF frames are.
@@ -32,7 +33,7 @@ struct DocumentStroke: Identifiable, Equatable, Sendable {
                 id: id, tool: entry["tool"] as? String ?? "pen", colour: entry["colour"] as? String ?? "graphite",
                 size: number(entry["size"]) ?? 0.16, page: Int(page), u: u, v: v,
                 points: (entry["points"] as? [Any] ?? []).compactMap(number), pressure: number(entry["pressure"]) ?? 0.5,
-                margin: entry["margin"] as? String
+                margin: (entry["margin"] as? String).flatMap { ["left", "right"].contains($0) ? $0 : nil }
             )
         }
     }

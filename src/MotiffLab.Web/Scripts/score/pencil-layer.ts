@@ -100,7 +100,7 @@ function sameMarks(a: readonly PencilMark[], b: readonly PencilMark[]): boolean 
         return false;
     }
     const key = (mark: PencilMark): string =>
-        JSON.stringify([mark.id, mark.tool, mark.colour, mark.size, mark.bar, mark.u, mark.v, mark.points, mark.pressure]);
+        JSON.stringify([mark.id, mark.tool, mark.colour, mark.size, mark.bar, mark.u, mark.v, mark.points, mark.pressure, mark.margin ?? null]);
     return a.every((mark, i) => key(mark) === key(b[i]));
 }
 

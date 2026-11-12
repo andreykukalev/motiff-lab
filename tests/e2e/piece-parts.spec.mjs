@@ -4,7 +4,7 @@
 // and each piece opens on its own bars and says where it came from.
 import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { pageErrors, violations } from "./steps.mjs";
+import { librarySessions, pageErrors, violations } from "./steps.mjs";
 
 const twoPieces = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Analysis/Fixtures/two-pieces.musicxml", import.meta.url));
 
@@ -72,8 +72,10 @@ test("the confirmed boundaries of a file with two pieces split it into two piece
     // The collection is not cut: its bookmarks and bars are as they were.
     await expect(drawer.locator("button.cat")).toHaveText("Structure · 2");
 
-    // The library has three pieces, two of them in the playlist.
+    // The library has three pieces, two of them in the playlist; each piece's card says where it came from.
     await page.goto("/");
+    await librarySessions(page);
+    await expect(page.locator(".card.piece").filter({ has: page.getByRole("heading", { name: "Ode to Joy", exact: true }) }).locator(".what .meta")).toContainText("From “Two pieces: Für Elise and Ode to Joy”");
     await page.getByRole("tab", { name: "Playlists" }).click();
     await expect(page.locator(".lib-groups .group .name")).toHaveText(["Two pieces"]);
     await expect(page.locator(".lib-groups .group .count")).toHaveText(["2 pieces"]);
@@ -86,8 +88,8 @@ test("the confirmed boundaries of a file with two pieces split it into two piece
     await expect(page.locator(".bar .ttl")).toHaveText("Ode to Joy");
     await page.locator(".bar").getByRole("button", { name: "Contents", exact: true }).click();
     const own = page.locator(".sheet.contents #contents-parts");
-    await expect(own).toContainText("Split from “Two pieces: Für Elise and Ode to Joy” · playlist “Two pieces”");
-    await expect(own).toContainText("bars 106–121");
+    // Read from the piece's own file (version 0.4): a score cut by bars keeps its collection, and no place in it.
+    await expect(own.locator(".parts-done")).toHaveText("Split from “Two pieces: Für Elise and Ode to Joy” · playlist “Two pieces”");
     await expect(page.locator(".sheet.contents button.cat")).toHaveCount(0);
 
     // The collection still says what was made from it after a reload.
@@ -96,6 +98,7 @@ test("the confirmed boundaries of a file with two pieces split it into two piece
     await page.locator(".lib-table tbody").getByRole("button", { name: "Two pieces: Für Elise and Ode to Joy", exact: true }).click();
     await page.locator(".bar").getByRole("button", { name: "Contents", exact: true }).click();
     await expect(page.locator(".sheet.contents #contents-parts .parts-done")).toHaveText("Split into 2 pieces · playlist “Two pieces”");
+    await expect(page.locator(".sheet.contents #contents-parts .entry .t")).toHaveText(["Für Elise", "Ode to Joy"]);
     expect(errors).toEqual([]);
 });
 

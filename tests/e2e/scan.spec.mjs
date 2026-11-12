@@ -14,18 +14,19 @@ const server = "http://localhost:8765";
 // The app's service worker would answer the page's requests before the test's stand-in server could.
 test.use({ serviceWorkers: "block" });
 
-/** Plays the scan server; returns the uploads it received. */
-async function scanServer(page) {
+/** Plays the scan server, with its page report when one is given (version 0.4); returns the uploads it received. */
+async function scanServer(page, report = null) {
     const uploads = [];
     const musicXml = await readFile(scanned);
-    const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Expose-Headers": "X-Engine, X-Pages" };
+    const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Expose-Headers": "X-Engine, X-Pages, X-Page-Report" };
+    const reported = report === null ? {} : { "X-Page-Report": JSON.stringify(report) };
     await page.route(`${server}/health`, route => route.fulfill({ json: { engine: "homr", version: "0.7.0", maxPages: 8 }, headers: cors }));
     await page.route(`${server}/recognise`, route => {
         uploads.push(route.request().postDataBuffer()?.length ?? 0);
         return route.fulfill({
             body: musicXml,
             contentType: "application/vnd.recordare.musicxml+xml",
-            headers: { ...cors, "X-Engine": "homr 0.7.0", "X-Pages": "1" },
+            headers: { ...cors, "X-Engine": "homr 0.7.0", "X-Pages": "1", ...reported },
         });
     });
     return uploads;
@@ -96,4 +97,32 @@ test("a scanned page opens with its doubtful bars to check, and checked bars sta
     await librarySessions(page);
     await expect(page.locator(".card.piece .tag.warn")).toHaveText("Check · 7 bars to review");
     expect(await violations(page)).toEqual([]);
+});
+
+test("a page the scan server calls poor flags each of its bars, and the summary by page says how many are in question", async ({ page }) => {
+    // Faint print: contrast 50, below the 70 a poor page has (PageReport.PoorContrast).
+    await scanServer(page, [{ page: 1, rotation: 0, sharpness: 1.1, contrast: 50, staves: 4, noteheads: 180, barLines: 32, spacePx: 15.5, measures: 32 }]);
+    await page.goto("/settings");
+    await page.getByRole("button", { name: "Save and check" }).click();
+    await expect(page.getByText("Connected: the scan server runs homr 0.7.0")).toBeVisible();
+
+    await page.goto("/import/scan");
+    await page.getByLabel("Choose a PDF or photo of printed music to scan").setInputFiles(photo);
+    const pages = page.locator(".scan-check .scan-pages");
+    await expect(pages.locator("li")).toHaveText(["Page 1: 32 of 32 bars in question poor page"]);
+    expect(await violations(page)).toEqual([]);
+
+    // In the workspace every bar of the page is to review, with the reason, and the Check sheet repeats the summary.
+    await page.getByText("Open the piece").click();
+    const drawer = page.locator(".sheet.check-sheet");
+    await expect(drawer.getByRole("heading", { level: 2 })).toHaveText("32 bars to review");
+    await expect(drawer.locator(".scan-pages li")).toHaveText(["Page 1: 32 of 32 bars in question poor page"]);
+    await expect(drawer.locator(".check-entry").first()).toContainText("Poor page");
+    expect(await violations(page)).toEqual([]);
+
+    // A bar confirmed is no longer in question; the report is kept with the piece, so this holds after a reload.
+    await drawer.locator(".check-entry").first().getByRole("button", { name: "Looks right" }).click();
+    await expect(drawer.locator(".scan-pages li")).toHaveText(["Page 1: 31 of 32 bars in question poor page"]);
+    await page.reload();
+    await expect(drawer.locator(".scan-pages li")).toHaveText(["Page 1: 31 of 32 bars in question poor page"], { timeout: 30_000 });
 });

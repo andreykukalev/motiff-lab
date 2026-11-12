@@ -82,9 +82,11 @@ test("a stroke begun in a line's margin is kept against the line's first or last
     const left = anchorMark(frames, [{ x: 60, y: 60, pressure: 0.5 }, { x: 70, y: 80, pressure: 0.5 }], style);
     assert.equal(left.bar, 0);
     assert.equal(left.u, -0.4);
+    assert.equal(left.margin, "left");
     const right = anchorMark(frames, [{ x: 445, y: 300, pressure: 0.5 }, { x: 450, y: 320, pressure: 0.5 }], style);
     assert.equal(right.bar, 7680);
     assert.equal(right.u, 1.3);
+    assert.equal(right.margin, "right");
 
     // Above the staves, nearer a tall bar further in, the margin still goes to the line's first bar.
     const tall = [{ ...frames[0], top: 30 }, { ...frames[1], top: -200 }, frames[2]];
@@ -96,6 +98,9 @@ test("a stroke begun in a line's margin is kept against the line's first or last
     const page = bar(1, 100, 300, 50);
     assert.equal(anchorBar([page, bar(2, 400, 600, 50)], 340, 60).tick, 1);
     assert.equal(anchorMark([page], [{ x: 60, y: 60, pressure: 0.5 }], style).u, -0.2);
+    assert.equal("margin" in anchorMark([page], [{ x: 60, y: 60, pressure: 0.5 }], style), false);
+    // A stroke begun in its bar says no margin.
+    assert.equal("margin" in anchorMark(frames, [{ x: 150, y: 60, pressure: 0.5 }], style), false);
 });
 
 test("laid out again, a stroke in a margin stays at the edge of its bar's line, not over the neighbouring bar", () => {
@@ -116,6 +121,34 @@ test("laid out again, a stroke in a margin stays at the edge of its bar's line, 
     // A stroke inside its bar goes with the bar as before.
     const inside = anchorMark(written, [{ x: 150, y: 60, pressure: 0.5 }], style);
     assert.equal(placeMark(inside, wider).points[0].x, 150);
+
+    // A stroke written before 0.4 has no margin: u below 0 or above 1 places it exactly as the stroke that says one.
+    const { margin: leftSide, ...oldLeft } = left;
+    const { margin: rightSide, ...oldRight } = right;
+    assert.deepEqual([leftSide, rightSide], ["left", "right"]);
+    assert.deepEqual(placeMark(oldLeft, wider), placeMark(left, wider));
+    assert.deepEqual(placeMark(oldRight, wider), placeMark(right, wider));
+});
+
+test("a stroke that says its margin is counted from that edge of its line, even begun right at the line's end", () => {
+    // Begun a hair past the last bar's right edge, u rounds to 1: only the margin says it is outside the bar.
+    const mark = { id: "m9", tool: "pen", colour: "graphite", size: 0.16, bar: 3840, u: 1, v: 1, points: [], pressure: 0.5, margin: "right" };
+    const wider = framesByTick(line(2, [1920, 3840, 5760, 7680, 9600], 0, 100, 400));
+    assert.equal(placeMark(mark, wider).points[0].x, 500);
+    const { margin, ...inBar } = mark;
+    assert.equal(margin, "right");
+    assert.equal(placeMark(inBar, wider).points[0].x, 200);
+    assert.equal(placeMark({ ...mark, bar: 5760, u: 0, margin: "left" }, wider).points[0].x, 0);
+    // Without a line (a PDF's pages), a margin is from the frame's own edge.
+    assert.equal(placeMark({ ...mark, u: 1.1 }, framesByTick([bar(3840, 300, 400, 50)])).points[0].x, 410);
+});
+
+test("a stroke's margin is saved and read back; one this build does not know is left out, and the stroke kept", () => {
+    const left = { id: "m1", tool: "pen", colour: "graphite", size: 0.16, bar: 0, u: -0.3, v: 1, points: [], pressure: 0.5, margin: "left" };
+    assert.deepEqual(readMarks(writeMarks([left])), [left]);
+    const [kept] = readMarks(JSON.stringify({ version: 2, marks: [{ ...left, margin: "top" }] }));
+    assert.equal("margin" in kept, false);
+    assert.equal(kept.u, -0.3);
 });
 
 test("pressure thins a light touch and thickens a firm one; without it the size holds", () => {

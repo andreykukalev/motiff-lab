@@ -376,7 +376,7 @@ public static class PieceParts
 
         PieceOriginal original = new(OriginalId, found.Kind, found.FileName, OriginalKept.Device, found.AddedAt)
         {
-            Name = found.Name,
+            Name = NameOf(found, collection),
             Sha256 = found.Sha256,
             Bytes = found.Bytes,
             Pages = found.Pages ?? options.Pages ?? (collection.Document is { } pdf && PdfDocument.PageCount(pdf) is > 0 and var count ? count : null),
@@ -398,6 +398,44 @@ public static class PieceParts
         }
 
         string name = Path.GetFileNameWithoutExtension(collection.FileName);
-        return new PieceOriginal(OriginalId, OriginalKind.Audio, string.IsNullOrWhiteSpace(name) ? "recording" : name, OriginalKept.Device, collection.CreatedAt);
+        return new PieceOriginal(OriginalId, OriginalKind.Audio, string.IsNullOrWhiteSpace(name) ? "recording" : name, OriginalKept.Device, collection.CreatedAt)
+        {
+            Name = TitleOf(collection),
+        };
+    }
+
+    /// <summary>
+    /// The collection's title, as the name its parts give its original when the original has none of the player's: so a
+    /// part says it was made from «Сборник», not from «IMG_0412.pdf».
+    /// </summary>
+    private static string? TitleOf(Project collection) => PieceMetadata.Clean(collection.Details.Title.Value);
+
+    /// <summary>The name the player gave the original, else the collection's title (<see cref="TitleOf"/>).</summary>
+    private static string? NameOf(PieceOriginal found, Project collection) => found.Name ?? TitleOf(collection);
+
+    /// <summary>
+    /// The original a part made from <paramref name="collection"/> keeps under <see cref="OriginalId"/>, as
+    /// <see cref="Split"/> describes it (without any device's mark), so an app can find the pieces made from the piece open
+    /// among its library's rows (<see cref="IsPartOf"/>); null for a piece that names no original.
+    /// </summary>
+    public static PieceOriginal? CollectionOriginal(Project collection)
+    {
+        ArgumentNullException.ThrowIfNull(collection);
+        return OriginalOf(collection, new PieceSplitOptions(collection.CreatedAt, static () => ""));
+    }
+
+    /// <summary>
+    /// Whether a piece made from a collection (<paramref name="part"/>, from its library row) was made from the collection
+    /// whose original is <paramref name="collection"/> (<see cref="CollectionOriginal"/>): the same fingerprint when both
+    /// have one, else the same kind, file name and time it was added, as a recording described by its name has no fingerprint.
+    /// </summary>
+    public static bool IsPartOf(PartSummary part, PieceOriginal collection)
+    {
+        ArgumentNullException.ThrowIfNull(part);
+        ArgumentNullException.ThrowIfNull(collection);
+        PieceOriginal kept = part.Original;
+        return kept.Sha256 is { } fingerprint && collection.Sha256 is not null
+            ? collection.Matches(fingerprint)
+            : kept.Kind == collection.Kind && kept.FileName == collection.FileName && kept.AddedAt == collection.AddedAt;
     }
 }

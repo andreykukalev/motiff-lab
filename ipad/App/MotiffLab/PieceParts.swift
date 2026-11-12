@@ -256,7 +256,9 @@ struct PieceFamily: Equatable, Sendable {
         if let partOf = summary.partOf {
             let original = summary.originals.first { $0.id == partOf.original }
             let collection = summary.partOfFingerprint.flatMap { fingerprint in others.first { $0.value.ownFingerprints.contains(fingerprint) } }
-            let name = collection.map { title(of: $0.key, $0.value) } ?? original.map { ProjectFiles.title(of: $0.shown) } ?? ""
+            // The original is named by the collection's title (music-core, v0.4); a part made before was named by the file.
+            let named = original.map { $0.shown == $0.fileName ? ProjectFiles.title(of: $0.shown) : $0.shown }
+            let name = collection.map { title(of: $0.key, $0.value) } ?? named ?? ""
             family.origin = PartOrigin(title: name, playlist: summary.playlists.first, pages: partOf.pages)
         }
         let own = summary.ownFingerprints

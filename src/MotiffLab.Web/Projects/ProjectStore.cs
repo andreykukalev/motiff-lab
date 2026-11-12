@@ -77,6 +77,7 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
             Playlists = summary.Details?.Playlists,
             Originals = [.. summary.Originals.Select(static original => new StoredOriginal(
                 original.Id, original.Kind.ToString(), original.Kept.ToString(), original.InFile, [.. original.Held.Select(static device => device.ToString())]))],
+            Part = StoredPartOf(summary.Part),
         };
 
     /// <summary>The saved project, or null when there is none. Throws <see cref="ProjectFileException"/> when it is damaged.</summary>
@@ -107,6 +108,7 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
             Latest = row.Latest is { } latest ? new ResumeSummary(latest.Id, latest.Name, latest.At, latest.From, latest.To, Time(latest.LastActive)) : null,
             Details = DetailsOf(row),
             Originals = OriginalsOf(row),
+            Part = PartSummaryOf(row.Part),
         })];
     }
 
@@ -219,6 +221,37 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
             : null;
 
     /// <summary>UTC, so the script can order rows by comparing the strings.</summary>
+    private static StoredPart? StoredPartOf(PartSummary? part) =>
+        part is { Original: var book, Place: var place }
+            ? new StoredPart(book.Kind.ToString(), book.FileName, book.Name, Iso(book.AddedAt), book.Sha256, place?.Pages?.First, place?.Pages?.Last, place?.Milliseconds?.From, place?.Milliseconds?.To)
+            : null;
+
+    /// <summary>
+    /// A piece made from a collection as its row keeps it (version 0.4): the collection's original and its place there;
+    /// null for a piece of its own, and for a row this build cannot read, which then reads as one.
+    /// </summary>
+    private static PartSummary? PartSummaryOf(StoredPart? part)
+    {
+        if (part is null || !Enum.TryParse(part.Kind, out OriginalKind kind) || string.IsNullOrWhiteSpace(part.FileName)
+            || !DateTimeOffset.TryParse(part.AddedAt, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset added))
+        {
+            return null;
+        }
+
+        try
+        {
+            var original = new PieceOriginal(PieceParts.OriginalId, kind, part.FileName, OriginalKept.Device, added) { Name = part.Name, Sha256 = part.Sha256 };
+            PartOf? place = part is { FirstPage: { } first, LastPage: { } last } ? PartOf.OnPages(PieceParts.OriginalId, first, last)
+                : part is { From: { } from, To: { } to } ? PartOf.InRecording(PieceParts.OriginalId, from, to)
+                : null;
+            return new PartSummary(original, place);
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+    }
+
     private static string Iso(DateTimeOffset time) => time.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture);
 
     private async Task<IJSObjectReference> ModuleAsync() =>
@@ -252,7 +285,12 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
 
         /// <summary>The piece's originals and where their bytes are (version 0.3); rows saved before have none.</summary>
         public IReadOnlyList<StoredOriginal>? Originals { get; init; }
+
+        /// <summary>For a piece made from a collection, the collection's original and the piece's place there (version 0.4); rows saved before have none.</summary>
+        public StoredPart? Part { get; init; }
     }
+
+    private sealed record StoredPart(string Kind, string FileName, string? Name, string AddedAt, string? Sha256, int? FirstPage, int? LastPage, long? From, long? To);
 
     private sealed record StoredOriginal(string Id, string Kind, string Kept, bool InFile, IReadOnlyList<string>? Held);
 

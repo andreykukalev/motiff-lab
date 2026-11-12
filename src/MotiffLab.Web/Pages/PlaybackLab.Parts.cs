@@ -6,32 +6,27 @@ using MotiffLab.Web.Workspace;
 namespace MotiffLab.Web.Pages;
 
 /// <summary>
-/// Pieces in a file, an experiment behind Settings · Experimental (v0.4 design B, first version without a format change):
-/// the Contents make the bookmarks that mark the pieces of a collection into pieces of their own (<see cref="PieceParts"/>).
-/// Each is saved as a new project through the same path as any new piece, with its title, in the collection's playlist,
-/// naming the collection's original by its fingerprint and marked held by this browser. The collection is not changed;
-/// which pieces were made from it, and where each was (for a recording, its stretch of the sound), is kept in this
-/// browser beside the projects (<c>Scripts/storage/piece-parts.ts</c>) until the format step keeps it in the projects.
+/// Pieces in a file, an experiment behind Settings · Experimental (v0.4 design B): the Contents make the bookmarks that
+/// mark the pieces of a collection into pieces of their own (<see cref="PieceParts"/>). Each is saved as a new project
+/// through the same path as any new piece, with its title, in the collection's playlist, keeping the collection's original
+/// (marked held by this browser) and its place there (<see cref="Project.PartOf"/>, version 0.4). The collection is not
+/// changed. What was made from what is read back from the project files alone: a piece says where it came from by the
+/// original it keeps, and the collection finds its pieces among the library's rows (<see cref="ProjectSummary.Part"/>).
 /// </summary>
 public partial class PlaybackLab
 {
     /// <summary>The experiment's switch in Settings · Experimental, off by default and kept on the device.</summary>
-    private const string PiecePartsSetting = "experimental.pieceParts";
+    private const string PiecePartsSetting = PartPlace.Setting;
 
-    private IJSObjectReference? _partsModule;
-
-    /// <summary>The pieces this browser made from the piece open, those still in the library; null when none.</summary>
+    /// <summary>The pieces made from the piece open that are in the library; null when none.</summary>
     private SplitLink? _partsMade;
 
-    /// <summary>The collection the piece open was split from, when this browser split it and the collection is still here; null otherwise.</summary>
+    /// <summary>The collection the piece open was made from, as its file names it; null for a piece of its own.</summary>
     private PartOrigin? _partOf;
 
     private bool PiecePartsOn => SettingsStore.IsOn(PiecePartsSetting);
 
-    private async Task<IJSObjectReference> PartsModuleAsync() =>
-        _partsModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/storage/piece-parts.js");
-
-    /// <summary>A piece opened: what this browser made from it before, with the pieces deleted since left out, and what it was made from.</summary>
+    /// <summary>A piece opened: where it came from, from its own file, and the pieces of the library made from it.</summary>
     private async Task ReadPartsMadeAsync()
     {
         _partsMade = null;
@@ -41,33 +36,28 @@ public partial class PlaybackLab
             return;
         }
 
+        PartSummary? own = project.Summary.Part;
+        _partOf = own is null ? null : new PartOrigin(own.Original.Shown, project.Details.Playlists.FirstOrDefault(), own.Place);
+
+        // A piece of a recording keeps the recording itself as its original: its sister pieces are not made from it.
+        if (PieceParts.CollectionOriginal(project) is not { } original || (own is not null && PieceParts.IsPartOf(own, original)))
+        {
+            return;
+        }
+
         try
         {
-            IJSObjectReference module = await PartsModuleAsync();
-            SplitLink? kept = await module.InvokeAsync<SplitLink?>("splitOf", project.Id);
-            PartOrigin? origin = await module.InvokeAsync<PartOrigin?>("partOf", project.Id);
-            if (kept is null && origin is null)
-            {
-                return;
-            }
-
-            HashSet<string> saved = [.. (await Projects.ListAsync()).Select(static summary => summary.Id)];
-            if (kept is not null && kept.Parts.Where(part => saved.Contains(part.Id)).ToArray() is { Length: > 0 } left)
-            {
-                _partsMade = kept with { Parts = left };
-            }
-
-            _partOf = origin is not null && saved.Contains(origin.Collection) ? origin : null;
+            _partsMade = SplitLink.Of(await Projects.ListAsync(), project.Id, original);
         }
         catch (JSException)
         {
-            // The lines are a convenience: the pieces are in the library all the same.
+            // The line is a convenience: the pieces are in the library all the same.
         }
     }
 
     /// <summary>
-    /// Split confirmed: each piece is saved as a new project opening at its start, as a piece added from a file is, and
-    /// this browser remembers which pieces came from the collection. Nothing is cut: the collection stays as it is.
+    /// Split confirmed: each piece is saved as a new project opening at its start, as a piece added from a file is, with
+    /// where it is in the collection in its own file. Nothing is cut: the collection stays as it is.
     /// </summary>
     private async Task SavePartsAsync(PieceSplit split)
     {
@@ -78,20 +68,8 @@ public partial class PlaybackLab
             await Projects.SaveAsync(project.AddResumePoint(ResumePoint.Start(project.NextResumePointId(), now)));
         }
 
-        var made = new SplitLink(_project?.Details.Title.Value ?? "", split.Playlist, [.. split.Parts.Select(static part => new PartLink(
-            part.Project.Id, part.Project.Details.Title.Value, part.Bars?.First, part.Bars?.Last, part.Milliseconds?.From, part.Milliseconds?.To))]);
-        _partsMade = made;
-        _marksStatus = Text.Format("parts.made", Text.Count("parts.added", made.Parts.Count), made.Playlist);
-        if (_project is { } collection)
-        {
-            try
-            {
-                await (await PartsModuleAsync()).InvokeVoidAsync("keepSplit", collection.Id, made);
-            }
-            catch (JSException)
-            {
-                // Blocked storage: the pieces are saved; only the collection's line is not kept.
-            }
-        }
+        _partsMade = new SplitLink(split.Playlist, [.. split.Parts.Select(static part => new PartLink(
+            part.Project.Id, part.Project.Details.Title.Value, part.Bars?.First, part.Bars?.Last, part.Project.PartOf))]);
+        _marksStatus = Text.Format("parts.made", Text.Count("parts.added", split.Parts.Count), split.Playlist);
     }
 }
