@@ -146,6 +146,7 @@ public partial class PlaybackLab : IAsyncDisposable
     private void OnSettingsChanged() => _ = InvokeAsync(async () =>
     {
         _showBrackets = SettingsStore.IsOn(BracketsPreference);
+        ReadingMarksChanged();
         // A piece without its own level opens at the setting's.
         if (Levels is not null && _project?.SettingOverrides.ContainsKey(GranularitySetting) != true)
         {

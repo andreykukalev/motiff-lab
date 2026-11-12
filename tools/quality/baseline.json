@@ -72,7 +72,6 @@
     {"tool":"dotnet","rule":"CA1502","file":"src/MotiffLab.MusicCore/Notation/NotationGenerator.cs","symbol":"Generate","value":17,"why":"existing before #332"},
     {"tool":"dotnet","rule":"CA1502","file":"src/MotiffLab.MusicCore/Notation/NotationGenerator.cs","symbol":"LayOutStaff","value":23,"why":"existing before #332"},
     {"tool":"dotnet","rule":"CA1502","file":"src/MotiffLab.MusicCore/Notation/NotationGenerator.cs","symbol":"PlanPart","value":23,"why":"existing before #332"},
-    {"tool":"dotnet","rule":"CA1502","file":"src/MotiffLab.MusicCore/Notation/PlayingMarks.cs","symbol":"Of","value":22,"why":"existing before #332"},
     {"tool":"dotnet","rule":"CA1502","file":"src/MotiffLab.MusicCore/Performance/PerformanceComparison.cs","symbol":"Compare","value":23,"why":"existing before #332"},
     {"tool":"dotnet","rule":"CA1502","file":"src/MotiffLab.MusicCore/Performance/PerformanceComparison.cs","symbol":"Kind","value":18,"why":"existing before #332"},
     {"tool":"dotnet","rule":"CA1502","file":"src/MotiffLab.MusicCore/Performance/RecordingCorrections.cs","symbol":"Octaves","value":24,"why":"existing before #332"},

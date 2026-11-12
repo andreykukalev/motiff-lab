@@ -2087,5 +2087,8 @@
   "reference.texture.Broken": "Broken",
   "reference.texture.Alberti": "Alberti",
   "reference.tempo": "Tempo {0}",
-  "reference.tempoAria": "Tempo {0} a minute: tap for the next"
+  "reference.tempoAria": "Tempo {0} a minute: tap for the next",
+  "settings.readingMarks": "For reading: rit., fermatas and dynamics",
+  "settings.readingMarksHint": "A recording's score for reading also shows how it was played where it matters: a dynamic where the playing gets markedly louder or softer, rit. and accel. where it slows down or speeds up a lot, and a fermata over a chord held far longer than the beats around it. Accents, crescendos, slurs and pedal stay in As played. All of it is worked out from the recording.",
+  "score.readingMarks": "The dynamics, rit., accel. and fermatas that matter are worked out from the recording: how loud the bars were played and where the playing slowed, sped up or held."
 }
