@@ -26,6 +26,7 @@ public partial class PlaybackLab
     {
         _partsMade = null;
         _partOf = null;
+        await ReadOwnSoundAsync();
         if (_project is not { } project || !PiecesOn)
         {
             return;
@@ -52,19 +53,52 @@ public partial class PlaybackLab
 
     /// <summary>
     /// Split confirmed: each piece is saved as a new project opening at its start, as a piece added from a file is, with
-    /// where it is in the collection in its own file. Nothing is cut: the collection stays as it is.
+    /// where it is in the collection in its own file. Nothing is cut: the collection stays as it is. A piece of a recording
+    /// whose stretch heard is kept here (version 0.5) keeps its own stretch of the sound on this device, described in its
+    /// file (<see cref="PieceParts.WithSound"/>); then the first piece opens with Add a source, for its score.
     /// </summary>
     private async Task SavePartsAsync(PieceSplit split)
     {
         DateTimeOffset now = DateTimeOffset.Now;
+        List<(Project Project, string Point)> saved = [];
         foreach (PiecePart part in split.Parts)
         {
-            Project project = part.Project;
-            await Projects.SaveAsync(project.AddResumePoint(ResumePoint.Start(project.NextResumePointId(), now)));
+            Project project = await WithOwnSoundAsync(part.Project, now);
+            ResumePoint start = ResumePoint.Start(project.NextResumePointId(), now);
+            await Projects.SaveAsync(project.AddResumePoint(start));
+            saved.Add((project, start.Id));
         }
 
         _partsMade = new SplitLink(split.Playlist, [.. split.Parts.Select(static part => new PartLink(
             part.Project.Id, part.Project.Details.Title.Value, part.Bars?.First, part.Bars?.Last, part.Project.PartOf))]);
         _marksStatus = Text.Format("parts.made", Text.Count("parts.added", split.Parts.Count), split.Playlist);
+        if (_project is { Transcription: not null } && saved is [var (first, point), ..] && await CurrentPiece.OpenSavedAsync(first.Id))
+        {
+            Navigation.NavigateTo($"{MotiffLab.Web.Import.CurrentPiece.WorkspaceUrl(first, point)}&view={AddSourceView}");
+        }
+    }
+
+    /// <summary>A piece of a recording with its own stretch of the sound kept here, cut from the stretch heard; as it was when none is kept.</summary>
+    private async Task<Project> WithOwnSoundAsync(Project part, DateTimeOffset now)
+    {
+        if (_project is not { Transcription: not null } collection || part.PartOf?.Milliseconds is not { } stretch)
+        {
+            return part;
+        }
+
+        try
+        {
+            IJSObjectReference store = await RecordingStoreAsync();
+            CutSound? cut = await store.InvokeAsync<CutSound?>(
+                "keepStretchOf", $"{collection.Id}/{PartPlace.ConcertSound}", OwnSoundKeyOf(part.Id), stretch.From, stretch.To);
+            return cut is null ? part : PieceParts.WithSound(part, cut.Bytes, cut.Milliseconds, cut.Sha256, HoldingDevice.Web, now);
+        }
+        catch (JSException)
+        {
+            return part;
+        }
     }
 }
+
+/// <summary>A piece's own sound as kept on the device: its WAV file's size, length and SHA-256 (<c>recording-store.ts</c>).</summary>
+internal sealed record CutSound(long Bytes, long Milliseconds, string Sha256);

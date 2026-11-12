@@ -960,6 +960,10 @@
                 @if (_project is not null)
                 {
                     <PiecePartsSection Collection="_project" Layer="KeptPieces" Stretch="PieceStretch" BarsText="BarsOf" BarNumbersText="BarsOf" Words="Words" Done="_partsMade" Origin="_partOf" Made="SavePartsAsync" />
+                    @if (_ownSound != MotiffLab.Web.Workspace.PieceSoundPlace.None)
+                    {
+                        <PieceSound Sound="_ownSound" Hearing="HearingOwnSound" Busy="_ownSoundBusy" Hear="HearOwnSoundAsync" Pick="PickOwnSoundAsync" />
+                    }
                 }
             }
 

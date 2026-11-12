@@ -1,0 +1,61 @@
+@using Microsoft.AspNetCore.Components.Forms
+@inject MotiffLab.Web.Localization.UiText Text
+
+@* A piece split from a recording, part of the experiment Several pieces in a score or recording (Settings · Experimental;
+   version 0.5): its own stretch of the sound, kept only on the device that cut it, never in the project file. Kept here,
+   the player hears either the recording or the notes heard in it; kept elsewhere, the player picks the recording's file
+   again and its stretch is cut and checked by music-core's description of it (recording-store.ts). *@
+<section id="contents-sound" class="contents-section piece-sound" aria-labelledby="contents-sound-title">
+    <h3 id="contents-sound-title" class="overline">@Text["parts.sound"]</h3>
+    @if (Sound == PieceSoundPlace.Here)
+    {
+        <span class="choices" role="radiogroup" aria-label="@Text["parts.sound"]">
+            <button class="chip @(Hearing ? "on" : null)" role="radio" aria-checked="@(Hearing ? "true" : "false")" disabled="@Busy"
+                    @onclick="() => Hear.InvokeAsync(true)">@Text["parts.soundRecording"]</button>
+            <button class="chip @(Hearing ? null : "on")" role="radio" aria-checked="@(Hearing ? "false" : "true")" disabled="@Busy"
+                    @onclick="() => Hear.InvokeAsync(false)">@Text["parts.soundNotes"]</button>
+        </span>
+        <p class="caption">@Text["parts.soundHere"]</p>
+    }
+    else
+    {
+        <p class="meta">@Text["parts.soundElsewhere"]</p>
+        <label class="btn secondary compact file">
+            @Text["parts.soundPick"]
+            <InputFile @ref="_picker" OnChange="PickedAsync" accept="@MotiffLab.Web.Import.ScanService.AcceptedRecordings" aria-label="@Text["parts.soundPick"]" />
+        </label>
+    }
+</section>
+
+@code {
+    /// <summary>Where the piece's own sound is: on this device, or only on another.</summary>
+    [Parameter, EditorRequired]
+    public PieceSoundPlace Sound { get; set; }
+
+    /// <summary>Whether the recording plays in place of the notes.</summary>
+    [Parameter]
+    public bool Hearing { get; set; }
+
+    /// <summary>Whether the sound is being loaded or kept.</summary>
+    [Parameter]
+    public bool Busy { get; set; }
+
+    /// <summary>The recording (true) or the notes (false) chosen.</summary>
+    [Parameter]
+    public EventCallback<bool> Hear { get; set; }
+
+    /// <summary>The recording's file picked again, in its file input, for the page to cut the piece's stretch from.</summary>
+    [Parameter]
+    public EventCallback<ElementReference> Pick { get; set; }
+
+    private InputFile? _picker;
+
+    private async Task PickedAsync(InputFileChangeEventArgs args)
+    {
+        _ = args;
+        if (_picker?.Element is { } input)
+        {
+            await Pick.InvokeAsync(input);
+        }
+    }
+}

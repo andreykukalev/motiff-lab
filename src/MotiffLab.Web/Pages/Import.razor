@@ -19,6 +19,7 @@
 @inject MotiffLab.Web.Localization.UiText Text
 @inject MotiffLab.Web.Account.CloudAccount Account
 @inject MotiffLab.Web.Settings.DeviceSettings SettingsStore
+@inject Microsoft.JSInterop.IJSRuntime JS
 @implements IDisposable
 
 <PageTitle>@Text[Heading] · Motiff Lab</PageTitle>
@@ -901,9 +902,36 @@
         await Projects.SaveAsync(project);
         CurrentPiece.Open(piece, piece.StartChoices[Math.Clamp(_start, 0, piece.StartChoices.Count - 1)].Filter, project);
         string url = CurrentPiece.WorkspaceUrl(project, point.Id);
-        Navigation.NavigateTo(_severalPieces && _transcriptionEngine is not null && SettingsStore.IsOn(MotiffLab.Web.Workspace.PartPlace.Setting)
-            ? $"{url}&pieces={Math.Clamp(_piecesCount, 1, 99)}"
-            : url);
+        bool several = _severalPieces && _transcriptionEngine is not null && SettingsStore.IsOn(MotiffLab.Web.Workspace.PartPlace.Setting);
+        if (several)
+        {
+            await KeepConcertAsync(project.Id);
+        }
+
+        Navigation.NavigateTo(several ? $"{url}&pieces={Math.Clamp(_piecesCount, 1, 99)}" : url);
+    }
+
+    /// <summary>
+    /// A recording of several pieces (version 0.5): the stretch heard is kept on this device, before the page lets the
+    /// recording go, so each piece split from it can have its own sound. Never in the project file; a browser that could
+    /// not decode the recording keeps nothing.
+    /// </summary>
+    private async Task KeepConcertAsync(string projectId)
+    {
+        if (_heardRange is not { } range)
+        {
+            return;
+        }
+
+        try
+        {
+            await using Microsoft.JSInterop.IJSObjectReference store = await JS.InvokeAsync<Microsoft.JSInterop.IJSObjectReference>("import", "./js/storage/recording-store.js");
+            await store.InvokeAsync<bool>("keepHeldStretch", $"{projectId}/{MotiffLab.Web.Workspace.PartPlace.ConcertSound}", range.FromMilliseconds, range.ToMilliseconds);
+        }
+        catch (Microsoft.JSInterop.JSException)
+        {
+            // The pieces are made all the same; their sound is then picked again from the file.
+        }
     }
 
     private static string FormatName(SourceFormat format) => format == SourceFormat.Midi ? "MIDI" : "MusicXML";

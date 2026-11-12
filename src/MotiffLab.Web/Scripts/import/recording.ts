@@ -119,6 +119,15 @@ export function heldRecording(): Blob | null {
     return held ? new Blob([wavOf(held, SAMPLE_RATE) as BlobPart], { type: "audio/wav" }) : null;
 }
 
+/**
+ * The held sound from one millisecond to another as a mono WAV file (version 0.5, a recording of several pieces): the
+ * stretch sent to be heard, kept on the device so its pieces can each have their own sound. Null when none is held.
+ */
+export function heldStretch(fromMilliseconds: number, toMilliseconds: number): Blob | null {
+    const sound = soundBetween(fromMilliseconds, toMilliseconds);
+    return sound ? new Blob([sound.wav as BlobPart], { type: "audio/wav" }) : null;
+}
+
 /** Lets go of the held recording and its address, and unwires its editor. */
 export function forget(): void {
     detach();

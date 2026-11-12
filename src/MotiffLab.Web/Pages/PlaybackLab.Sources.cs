@@ -52,6 +52,19 @@ public partial class PlaybackLab
     private string VersionRole(SavedPerformance version) =>
         Text[version.Source == PerformanceSource.Score ? "sources.roleNotes" : "sources.rolePlaying"];
 
+    /// <summary>The place to open on arrival («&amp;view=addSource»): the Sources sheet with Add a source open, as a piece split from a recording opens (version 0.5).</summary>
+    private const string AddSourceView = "addSource";
+
+    /// <summary>A piece split from a recording, opened: the Sources sheet with Add a source open, for its score.</summary>
+    private void OpenAddSource()
+    {
+        _insightsOpen = false;
+        _checkOpen = false;
+        _performanceOpen = true;
+        _addingSource = true;
+        _readingDocument = false;
+    }
+
     private void ToggleAddSource()
     {
         _addingSource = !_addingSource;

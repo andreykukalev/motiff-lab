@@ -9,6 +9,7 @@ using MotiffLab.MusicCore.Assembly;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;
 using MotiffLab.Web.Playback;
+using MotiffLab.Web.Workspace;
 
 namespace MotiffLab.Web.Pages;
 
@@ -277,4 +278,123 @@ public partial class PlaybackLab
 
     /// <summary>Whether a carry from this source can be heard as the recording: its sound is on this device.</summary>
     private bool CarryHeardAsRecording => _carry is { } draft && RecordingVersion(draft.SourceId) is not null && _recordingMissing != draft.SourceId;
+
+    /// <summary>Where the own sound of the piece open is (version 0.5, a piece split from a recording).</summary>
+    private PieceSoundPlace _ownSound;
+
+    /// <summary>Whether the piece's own sound is being loaded or kept.</summary>
+    private bool _ownSoundBusy;
+
+    private static string OwnSoundKeyOf(string projectId) => $"{projectId}/{PieceParts.SoundId}";
+
+    /// <summary>Whether the piece's own sound plays in place of its notes: the score is on the page, not the assembly.</summary>
+    private bool HearingOwnSound => _ownSound == PieceSoundPlace.Here && Player.HearingRecording && !_assembling;
+
+    /// <summary>A piece opened: whether it is a piece of a recording, and whether its own sound is kept on this device.</summary>
+    private async Task ReadOwnSoundAsync()
+    {
+        _ownSound = PieceSoundPlace.None;
+        if (!PiecesOn || _project is not { Transcription: not null, PartOf.Milliseconds: not null } project)
+        {
+            return;
+        }
+
+        _ownSound = PieceSoundPlace.Elsewhere;
+        try
+        {
+            IJSObjectReference store = await RecordingStoreAsync();
+            if (await store.InvokeAsync<bool>("hasRecording", OwnSoundKeyOf(project.Id)))
+            {
+                _ownSound = PieceSoundPlace.Here;
+            }
+        }
+        catch (JSException)
+        {
+            // Then the file is picked again.
+        }
+    }
+
+    /// <summary>
+    /// «Звук записи» or «Ноты»: the piece's own sound plays in place of its notes, at its own speed, its notes heard where
+    /// music-core's clock of the recording says they were played (<see cref="HeardClock.Pairs"/>); or the notes again.
+    /// </summary>
+    private async Task HearOwnSoundAsync(bool on)
+    {
+        if (!on)
+        {
+            if (Player.HearingRecording)
+            {
+                await Player.HearRecordingAsync(false);
+            }
+
+            return;
+        }
+
+        if (_assembling || _project is not { } project || HeardClockOf() is not { } clock || _sectionSource is not { } piece)
+        {
+            return;
+        }
+
+        _ownSoundBusy = true;
+        try
+        {
+            (IReadOnlyList<long> ticks, IReadOnlyList<long> milliseconds) = clock.Pairs(piece);
+            if (await Player.LoadRecordingAsync(OwnSoundKeyOf(project.Id), ticks, milliseconds) is null)
+            {
+                _ownSound = PieceSoundPlace.Elsewhere;
+                return;
+            }
+
+            await Player.HearRecordingAsync(true);
+        }
+        finally
+        {
+            _ownSoundBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// The recording's file picked again: the piece's stretch of it is cut and kept on this device, when it is the piece's
+    /// sound (by the fingerprint its file gives, else by its length within a second). A piece without a description of its
+    /// sound gets one, saved with it.
+    /// </summary>
+    private async Task PickOwnSoundAsync(ElementReference input)
+    {
+        if (_project is not { PartOf.Milliseconds: { } stretch } project)
+        {
+            return;
+        }
+
+        PieceOriginal? described = project.FindOriginal(PieceParts.SoundId);
+        _ownSoundBusy = true;
+        try
+        {
+            IJSObjectReference store = await RecordingStoreAsync();
+            CutSound? cut = await store.InvokeAsync<CutSound?>("keepPickedStretch", input, OwnSoundKeyOf(project.Id), stretch.From, stretch.To,
+                described?.Sha256, described?.DurationMs ?? (stretch.To - stretch.From));
+            if (cut is null)
+            {
+                _marksStatus = Text["parts.soundNotSame"];
+                return;
+            }
+
+            _ownSound = PieceSoundPlace.Here;
+            if (described is null)
+            {
+                await SaveMarksAsync(piece => PieceParts.WithSound(piece, cut.Bytes, cut.Milliseconds, cut.Sha256, HoldingDevice.Web, DateTimeOffset.Now), Text["parts.soundKept"]);
+            }
+            else
+            {
+                _marksStatus = Text["parts.soundKept"];
+            }
+        }
+        catch (JSException)
+        {
+            _marksStatus = Text["recording.notDecoded"];
+        }
+        finally
+        {
+            _ownSoundBusy = false;
+        }
+    }
 }

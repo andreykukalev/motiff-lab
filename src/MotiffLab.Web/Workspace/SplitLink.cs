@@ -49,6 +49,12 @@ public static class PartPlace
     /// </summary>
     public const string Setting = "experimental.pieces";
 
+    /// <summary>
+    /// Where a recording of several pieces keeps the stretch heard on this device, after its project's id
+    /// (<c>recording-store.ts</c>), to cut each piece's own sound from.
+    /// </summary>
+    public const string ConcertSound = "src_concert";
+
     /// <summary>A library card's line for a piece made from a collection: «Из «Сборник» · с. 6–11»; null for a piece of its own.</summary>
     public static string? CardLine(UiText text, ProjectSummary summary)
     {
@@ -91,4 +97,17 @@ public static class PartPlace
             ? string.Create(CultureInfo.InvariantCulture, $"{seconds / 3600}:{seconds / 60 % 60:00}:{seconds % 60:00}")
             : string.Create(CultureInfo.InvariantCulture, $"{seconds / 60}:{seconds % 60:00}");
     }
+}
+
+/// <summary>Where the own sound of a piece split from a recording is kept (version 0.5).</summary>
+public enum PieceSoundPlace
+{
+    /// <summary>The piece has no sound of its own: it is not a piece of a recording.</summary>
+    None,
+
+    /// <summary>On another device, or not cut yet: the recording's file is picked again here.</summary>
+    Elsewhere,
+
+    /// <summary>On this device.</summary>
+    Here,
 }

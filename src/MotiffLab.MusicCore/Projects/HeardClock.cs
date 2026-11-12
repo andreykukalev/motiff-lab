@@ -104,6 +104,31 @@ public sealed class HeardClock
     /// <summary>When a tick of the piece was played, in whole milliseconds from the start of the stretch sent.</summary>
     public long MillisecondsAt(Tick tick) => MicrosecondsAt(tick) / 1000;
 
+    /// <summary>
+    /// Places of the piece paired with when they were played, for its own sound to be heard in place of its notes (version
+    /// 0.5): the start, each note's onset and the end of its last note, ascending, each played later than the one before
+    /// (a place played no later is left out), in whole milliseconds.
+    /// </summary>
+    public (IReadOnlyList<long> Ticks, IReadOnlyList<long> Milliseconds) Pairs(ImportedPiece piece)
+    {
+        ArgumentNullException.ThrowIfNull(piece);
+        IEnumerable<long> places = piece.Notes.Select(static note => note.Span.Onset.Value)
+            .Append(0)
+            .Append(piece.Notes.Count == 0 ? 0 : piece.Notes.Max(static note => note.Span.End.Value));
+        List<long> ticks = [], milliseconds = [];
+        foreach (long tick in places.Distinct().Order())
+        {
+            long at = MillisecondsAt(new Tick(tick));
+            if (ticks.Count == 0 || at > milliseconds[^1])
+            {
+                ticks.Add(tick);
+                milliseconds.Add(at);
+            }
+        }
+
+        return (ticks, milliseconds);
+    }
+
     /// <summary>A MIDI tempo map as segments: where each starts in ticks, its time there in microseconds × 480, and how long a tick lasts in those units.</summary>
     private static (long At, long Units, long PerTick)[] Segments(IReadOnlyList<MidiTempoChange> tempos)
     {

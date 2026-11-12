@@ -1997,5 +1997,13 @@
   "edits.reasonChanged": "the note is different now",
   "edits.reasonIdTaken": "a note with this number is already there",
   "edits.drop": "Remove",
-  "edits.dropHint": "Take this correction out of the piece"
+  "edits.dropHint": "Take this correction out of the piece",
+  "parts.sound": "Sound of this piece",
+  "parts.soundRecording": "Recording",
+  "parts.soundNotes": "Notes",
+  "parts.soundHere": "Its stretch of the recording is kept on this device only, never in the piece's file.",
+  "parts.soundElsewhere": "Its stretch of the recording is kept on the device that split it. Pick the recording's file again to hear it here.",
+  "parts.soundPick": "Pick the recording again",
+  "parts.soundNotSame": "This file does not give this piece's sound. If only a stretch of the recording was heard, where it started is not kept, so the file is read from its start.",
+  "parts.soundKept": "The piece's own sound is kept on this device."
 }

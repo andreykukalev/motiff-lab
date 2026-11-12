@@ -109,6 +109,10 @@ public partial class PlaybackLab
             _checkOpen = false;
             _performanceOpen = true;
         }
+        else if (View == AddSourceView && _project is not null)
+        {
+            OpenAddSource();
+        }
 
         if (fresh || idea is { Length: > 0 } || View is { Length: > 0 })
         {

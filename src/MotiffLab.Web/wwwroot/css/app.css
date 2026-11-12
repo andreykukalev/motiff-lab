@@ -9489,3 +9489,11 @@ body:has(> #app > .library) {
     color: var(--ink);
     font: var(--t-body);
 }
+
+/* A piece split from a recording (an experiment, version 0.5): its own sound or its notes. */
+.workspace .contents .piece-sound .choices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    margin-bottom: var(--s-2);
+}

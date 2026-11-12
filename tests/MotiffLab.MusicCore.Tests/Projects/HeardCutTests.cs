@@ -76,6 +76,24 @@ public class HeardCutTests
     }
 
     [Fact]
+    public void A_pieces_places_are_paired_with_when_they_were_played_from_its_start_to_its_end()
+    {
+        Project concert = Concert();
+        ImportedPiece piece = OpenedProject.Open(concert).Piece;
+        HeardClock clock = HeardClock.Of(concert, piece)!;
+
+        (IReadOnlyList<long> ticks, IReadOnlyList<long> milliseconds) = clock.Pairs(piece);
+
+        Assert.Equal(ticks.Count, milliseconds.Count);
+        Assert.Equal(0, ticks[0]);
+        Assert.Equal(piece.Notes.Max(static note => note.Span.End.Value), ticks[^1]);
+        Assert.True(ticks.Zip(ticks.Skip(1)).All(static pair => pair.First < pair.Second));
+        Assert.True(milliseconds.Zip(milliseconds.Skip(1)).All(static pair => pair.First < pair.Second));
+        Note last = piece.Notes.MaxBy(static note => note.Span.Onset)!;
+        Assert.Equal(clock.MillisecondsAt(last.Span.Onset), milliseconds[ticks.ToList().IndexOf(last.Span.Onset.Value)]);
+    }
+
+    [Fact]
     public void A_piece_cut_from_a_concert_by_time_finds_its_own_bars_and_plays_its_stretch_as_it_was_played()
     {
         Project concert = Concert();
