@@ -3,13 +3,14 @@
 @using MotiffLab.MusicCore.Time
 @inject MotiffLab.Web.Localization.UiText Text
 
-@* Pieces in a file, an experiment (Settings · Experimental; v0.4, ideas bank «Несколько произведений внутри одного файла
-   или записи»: a logical organisation, not physical cutting). The bookmarks that mark the pieces of a collection (the
-   Structure ones, where a confirmed automatic bookmark goes, or a category of the player's own) are its pieces:
-   «Разделить на пьесы» lists them with their bars (and, for a recording, the stretch of the sound music-core gives), a
-   title for each and the playlist they join; Split makes each an ordinary piece of the library (PieceParts). The
-   collection stays as it is, and says afterwards how many pieces were made from it; a piece made says where it came from.
-   Both are read from the project files (version 0.4: the original each piece keeps, and its partOf). *@
+@* Pieces in a file, part of the experiment Several pieces in a score or recording (Settings · Experimental; v0.4, made
+   from the pieces layer in 0.5; ideas bank «Несколько произведений внутри одного файла или записи»: a logical
+   organisation, not physical cutting). The pieces the player confirmed above (the pieces layer) are the pieces of the
+   collection: «Разделить на пьесы» lists them with their bars (and, for a recording, the stretch of the sound music-core
+   gives), a title, a composer and tags for each, and the playlist they join; Split makes each an ordinary piece of the
+   library (PieceParts; a recording's pieces on bars of their own, found from their own stretch). The collection stays as
+   it is, and says afterwards how many pieces were made from it; a piece made says where it came from. Both are read from
+   the project files (version 0.4: the original each piece keeps, and its partOf). *@
 <section id="contents-parts" class="contents-section piece-parts" aria-labelledby="contents-parts-title">
     <h3 id="contents-parts-title" class="overline">@Text["parts.title"]</h3>
     @if (Origin is { } origin)
@@ -38,29 +39,17 @@
     {
         @if (Origin is null)
         {
-            <p class="meta">@Text["parts.none"]</p>
+            <p class="meta">@Text["parts.noneLayer"]</p>
         }
     }
     else if (_rows is null)
     {
-        <p class="meta">@Text.Format("parts.ready", Candidates.Count, CategoryName)</p>
+        <p class="meta">@Text.Format("parts.readyLayer", Text.Count("parts.layerPieces", Candidates.Count))</p>
         <button class="btn quiet" @onclick="Start">@Text["parts.split"]</button>
     }
     else
     {
         <div class="parts-form" role="group" aria-label="@Text["parts.split"]">
-            @if (Kinds.Count > 1)
-            {
-                <label class="field">
-                    <span class="caption">@Text["parts.category"]</span>
-                    <select value="@_categoryId" @onchange="ChangeCategory">
-                        @foreach (BookmarkCategory category in Kinds)
-                        {
-                            <option value="@category.Id">@category.NameIn(Words)</option>
-                        }
-                    </select>
-                </label>
-            }
             <label class="field">
                 <span class="caption">@Text["parts.playlist"]</span>
                 <input type="text" maxlength="80" @bind="_playlist" @bind:event="oninput" placeholder="@Collection?.Details.Title.Value" />
@@ -75,6 +64,8 @@
                         </label>
                         <input type="text" maxlength="200" aria-label="@Text.Format("parts.titleOf", row.Number)" @bind="row.Title" @bind:event="oninput" disabled="@(!row.Include)" />
                         <span class="c">@RowRange(row)</span>
+                        <input type="text" maxlength="200" aria-label="@Text.Format("parts.composerOf", row.Number)" placeholder="@Text["parts.composer"]" @bind="row.Composer" @bind:event="oninput" disabled="@(!row.Include)" />
+                        <input type="text" maxlength="200" aria-label="@Text.Format("parts.tagsOf", row.Number)" placeholder="@Text["parts.tags"]" @bind="row.Tags" @bind:event="oninput" disabled="@(!row.Include)" />
                     </li>
                 }
             </ol>
@@ -92,17 +83,13 @@
     [Parameter, EditorRequired]
     public Project? Collection { get; set; }
 
-    /// <summary>The piece's bookmarks; those of one category (Structure, or one of the player's own) are the pieces it holds.</summary>
+    /// <summary>The pieces the player confirmed (the pieces layer), in score order: the pieces the collection holds.</summary>
     [Parameter, EditorRequired]
-    public IReadOnlyList<Bookmark> Bookmarks { get; set; } = [];
+    public IReadOnlyList<LayerPiece> Layer { get; set; } = [];
 
-    /// <summary>The piece's bookmark categories, in the Contents' order.</summary>
+    /// <summary>A piece's stretch of a recording heard, in milliseconds (music-core's HeardCut.StretchOf); null for notes not heard.</summary>
     [Parameter, EditorRequired]
-    public IReadOnlyList<BookmarkCategory> Categories { get; set; } = BookmarkCategory.BuiltIn;
-
-    /// <summary>The bars as the workspace numbers them.</summary>
-    [Parameter, EditorRequired]
-    public MeterMap? Meter { get; set; }
+    public Func<TickSpan, (long From, long To)?> Stretch { get; set; } = static _ => null;
 
     /// <summary>A passage's bars in words, as the workspace says them («такты 1–40»).</summary>
     [Parameter, EditorRequired]
@@ -127,14 +114,21 @@
     [Parameter]
     public EventCallback<PieceSplit> Made { get; set; }
 
-    /// <summary>One piece to make: the bookmark it comes from, whether it is made, its title and what music-core says of it.</summary>
-    private sealed class PartRow(int number, TickSpan span, string title)
+    /// <summary>One piece to make: the layer piece it comes from, whether it is made, its title, composer and tags, and what music-core says of it.</summary>
+    private sealed class PartRow(int number, LayerPiece piece)
     {
         public int Number { get; } = number;
 
-        public TickSpan Span { get; } = span;
+        public LayerPiece Piece { get; } = piece;
 
-        public string Title { get; set; } = title;
+        public TickSpan Span => Piece.Span;
+
+        public string Title { get; set; } = piece.Title;
+
+        public string Composer { get; set; } = "";
+
+        /// <summary>The tags as typed, separated by commas.</summary>
+        public string Tags { get; set; } = "";
 
         public bool Include { get; set; } = true;
 
@@ -143,69 +137,16 @@
     }
 
     private List<PartRow>? _rows;
-    private string? _categoryId;
     private string _playlist = "";
     private string? _problem;
     private bool _making;
 
-    /// <summary>The categories that hold bookmarks, any of which can mark the pieces.</summary>
-    private IReadOnlyList<BookmarkCategory> Kinds => [.. Categories.Where(category => Bookmarks.Any(bookmark => bookmark.CategoryId == category.Id))];
-
-    /// <summary>
-    /// The category whose bookmarks are the pieces: the one chosen, else Structure (a confirmed automatic bookmark is one),
-    /// else the first of the player's own that holds bookmarks; null when neither holds any.
-    /// </summary>
-    private string? CategoryId
-    {
-        get
-        {
-            IReadOnlyList<BookmarkCategory> kinds = Kinds;
-            return kinds.Any(category => category.Id == _categoryId) ? _categoryId
-                : kinds.Any(static category => category.Id == BookmarkCategory.StructureId) ? BookmarkCategory.StructureId
-                : kinds.FirstOrDefault(static category => !category.IsBuiltIn)?.Id;
-        }
-    }
-
-    /// <summary>The bookmarks of that category in score order: the pieces of the collection, as the player confirmed them.</summary>
-    private IReadOnlyList<Bookmark> Candidates
-    {
-        get
-        {
-            if (Collection is null || Meter is null || CategoryId is not { } id)
-            {
-                return [];
-            }
-
-            return [.. Bookmarks.Where(bookmark => bookmark.CategoryId == id).OrderBy(static bookmark => bookmark.Span.Onset).ThenBy(static bookmark => bookmark.Span.End)];
-        }
-    }
-
-    private string CategoryName => Categories.FirstOrDefault(category => category.Id == CategoryId)?.NameIn(Words) ?? "";
-
-    private void ChangeCategory(ChangeEventArgs change)
-    {
-        _categoryId = change.Value as string;
-        string playlist = _playlist;
-        Start();
-        _playlist = playlist;
-    }
+    /// <summary>The pieces of the layer: the pieces of the collection, as the player confirmed them.</summary>
+    private IReadOnlyList<LayerPiece> Candidates => Collection is null ? [] : Layer;
 
     private void Start()
     {
-        List<PartRow> rows = [];
-        Tick end = Tick.Zero;
-        foreach (Bookmark bookmark in Candidates)
-        {
-            // A passage inside one already listed (a section of a piece) is offered unticked.
-            rows.Add(new PartRow(rows.Count + 1, bookmark.Span, bookmark.Title) { Include = rows.Count == 0 || bookmark.Span.Onset >= end });
-            if (rows[^1].Include)
-            {
-                end = bookmark.Span.End;
-            }
-        }
-
-        _rows = rows;
-        _categoryId = CategoryId;
+        _rows = [.. Candidates.Select((piece, index) => new PartRow(index + 1, piece))];
         _playlist = Collection?.Details.Title.Value ?? "";
         Preview();
     }
@@ -222,10 +163,21 @@
         Preview();
     }
 
-    /// <summary>The ticked bookmarks as music-core's parts, by the bars they take.</summary>
+    /// <summary>The ticked pieces as music-core's parts: by their stretch of a recording heard, else by their bars.</summary>
     private List<(PartRow Row, PartRange Range)> Chosen() =>
-        [.. (_rows ?? []).Where(static row => row.Include).Select(row => (row, new PartRange(row.Title, PartUnit.Bars, Meter!.BarAt(row.Span.Onset).Number,
-            Meter.BarAt(new Tick(Math.Max(row.Span.Onset.Value, row.Span.End.Value - 1))).Number)))];
+        [.. (_rows ?? []).Where(static row => row.Include).Select(row => (row, RangeOf(row)))];
+
+    private PartRange RangeOf(PartRow row)
+    {
+        PartRange range = Stretch(row.Span) is { } stretch
+            ? PartRange.InRecording(row.Title, stretch.From, stretch.To)
+            : new PartRange(row.Title, PartUnit.Bars, row.Piece.FirstBar, row.Piece.LastBar);
+        return range with
+        {
+            Composer = string.IsNullOrWhiteSpace(row.Composer) ? null : row.Composer,
+            Tags = [.. row.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)],
+        };
+    }
 
     /// <summary>The split as it would be, read again whenever a piece is ticked: what each takes, or why it cannot be made.</summary>
     private void Preview()
@@ -256,7 +208,7 @@
     /// <summary>The pieces music-core makes of the collection; null, with the reason in words, when it cannot.</summary>
     private PieceSplit? Split(List<(PartRow Row, PartRange Range)> chosen, Func<string> newId)
     {
-        var options = new PieceSplitOptions(DateTimeOffset.Now, newId) { Playlist = _playlist, Device = HoldingDevice.Web, Words = Words };
+        var options = new PieceSplitOptions(DateTimeOffset.Now, newId) { Playlist = _playlist, Device = HoldingDevice.Web, Words = Words, FreshBars = true };
         try
         {
             return PieceParts.Split(Collection!, [.. chosen.Select(static each => each.Range)], options);

@@ -15,23 +15,18 @@ namespace MotiffLab.Web.Pages;
 /// </summary>
 public partial class PlaybackLab
 {
-    /// <summary>The experiment's switch in Settings · Experimental, off by default and kept on the device.</summary>
-    private const string PiecePartsSetting = PartPlace.Setting;
-
     /// <summary>The pieces made from the piece open that are in the library; null when none.</summary>
     private SplitLink? _partsMade;
 
     /// <summary>The collection the piece open was made from, as its file names it; null for a piece of its own.</summary>
     private PartOrigin? _partOf;
 
-    private bool PiecePartsOn => SettingsStore.IsOn(PiecePartsSetting);
-
     /// <summary>A piece opened: where it came from, from its own file, and the pieces of the library made from it.</summary>
     private async Task ReadPartsMadeAsync()
     {
         _partsMade = null;
         _partOf = null;
-        if (_project is not { } project || !PiecePartsOn)
+        if (_project is not { } project || !PiecesOn)
         {
             return;
         }

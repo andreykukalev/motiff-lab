@@ -115,6 +115,9 @@ internal static partial class SectionCues
     /// <summary>A boundary the player set.</summary>
     public static SectionCue Added() => new(SectionCueKind.Added, 0, "added by you", "добавлено вами");
 
+    /// <summary>A boundary of the pieces layer, as the player confirmed it.</summary>
+    public static SectionCue Kept() => new(SectionCueKind.Kept, 0, "confirmed by you", "подтверждено вами");
+
     /// <summary>The keys the music around a silence fits best: a hearing, said as one.</summary>
     public static SectionCue HeardKey(MusicalKey before, MusicalKey after) => new(
         SectionCueKind.HeardKey,

@@ -894,15 +894,11 @@
             {
                 <button class="chip" @onclick='() => ScrollContentsToAsync("contents-structure")'>@Text["contents.structure"]</button>
             }
-            @if (AutoBookmarksOn)
+            @if (PiecesOn)
             {
-                <button class="chip" @onclick='() => ScrollContentsToAsync("contents-found")'>@Text["found.chip"]</button>
+                <button class="chip" @onclick='() => ScrollContentsToAsync("contents-pieces")'>@Text["parts.chip"]</button>
             }
             <button class="chip" @onclick='() => ScrollContentsToAsync("contents-bookmarks")'>@Text["contents.bookmarks"]</button>
-            @if (PiecePartsOn && _project is not null)
-            {
-                <button class="chip" @onclick='() => ScrollContentsToAsync("contents-parts")'>@Text["parts.chip"]</button>
-            }
             <button class="chip" @onclick='() => ScrollContentsToAsync("contents-notes")'>@Text["contents.tabNotes"]</button>
         </nav>
         <div class="contents-scroll">
@@ -956,11 +952,15 @@
                 </section>
             }
 
-            @if (AutoBookmarksOn)
+            @if (PiecesOn)
             {
-                @* An experiment (Settings · Experimental): the boundaries music-core proposes, to confirm, move or dismiss. *@
-                <FoundSectionList Sections="PendingSections" AnyFound="Found.Items.Count > 0" Words="Words" CanMove="CanMoveFound"
-                                  Go="GoToFoundAsync" Confirm="ConfirmFoundAsync" Dismiss="DismissFound" Move="MoveFound" />
+                @* An experiment (Settings · Experimental, version 0.5): where the pieces begin, reviewed and kept as the pieces layer, then made pieces of their own. *@
+                <PiecesReview Review="PiecesUnderReview" Layer="KeptPieces" Words="Words" Place="PiecePlace" SelectionBar="SelectionStartBar" Count="_reviewCount"
+                              Go="GoToPieceAsync" Change="ChangePieces" Find="FindPiecesAgain" Confirm="ConfirmPiecesAsync" Cancel="CancelPiecesReview" ReviewAgain="ReviewKeptPieces" />
+                @if (_project is not null)
+                {
+                    <PiecePartsSection Collection="_project" Layer="KeptPieces" Stretch="PieceStretch" BarsText="BarsOf" BarNumbersText="BarsOf" Words="Words" Done="_partsMade" Origin="_partOf" Made="SavePartsAsync" />
+                }
             }
 
             <section id="contents-bookmarks" class="contents-section" aria-labelledby="contents-bookmarks-title">
@@ -1023,12 +1023,6 @@
                     }
                 }
             </section>
-
-            @if (PiecePartsOn && _project is not null)
-            {
-                @* An experiment (Settings · Experimental): the bookmarks that mark the pieces of a collection made into pieces of their own. *@
-                <PiecePartsSection Collection="_project" Bookmarks="Bookmarks" Categories="Categories" Meter="_meter" BarsText="BarsOf" BarNumbersText="BarsOf" Words="Words" Done="_partsMade" Origin="_partOf" Made="SavePartsAsync" />
-            }
 
             <section id="contents-notes" class="contents-section" aria-labelledby="contents-notes-title">
                 <h3 id="contents-notes-title" class="overline">@Text["contents.notesHead"]</h3>

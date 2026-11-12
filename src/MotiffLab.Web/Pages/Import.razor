@@ -18,6 +18,7 @@
 @inject ScanService Scans
 @inject MotiffLab.Web.Localization.UiText Text
 @inject MotiffLab.Web.Account.CloudAccount Account
+@inject MotiffLab.Web.Settings.DeviceSettings SettingsStore
 @implements IDisposable
 
 <PageTitle>@Text[Heading] · Motiff Lab</PageTitle>
@@ -226,6 +227,23 @@
                     <p>@Text["transcribe.draft"]</p>
                     @* Bars and tempo worked out from the notes (0016): changed, or turned off, in the head of the Check drawer (0018 section 9). *@
                     <p>@(_bars is { } bars ? Text.Format("transcribe.barsReport", bars.Signature, bars.QuarterNotesPerMinute) : Text["transcribe.barsNone"])</p>
+                    @if (SettingsStore.IsOn(MotiffLab.Web.Workspace.PartPlace.Setting))
+                    {
+                        @* An experiment (Settings · Experimental, version 0.5): the number of pieces, kept nowhere, opens the review of the pieces with it. *@
+                        <div class="several-pieces">
+                            <label class="consent">
+                                <input type="checkbox" role="switch" class="switch" @bind="_severalPieces" />
+                                <span>@Text["import.severalPieces"]</span>
+                            </label>
+                            @if (_severalPieces)
+                            {
+                                <label class="field">
+                                    <span class="caption">@Text["import.piecesCount"]</span>
+                                    <input type="number" inputmode="numeric" min="2" max="99" @bind="_piecesCount" />
+                                </label>
+                            }
+                        </div>
+                    }
                     @if (_cut)
                     {
                         <p class="notice">@Text.Format("transcribe.cut", (ScanService.ServerRecordingSeconds / 60.0).ToString("0.#", Text.Culture))</p>
@@ -377,6 +395,10 @@
 
     /// <summary>The bars and tempo worked out from the notes (0016), as found or as the player changed them; null when none were found.</summary>
     private BarGrid? _bars;
+
+    /// <summary>«В записи несколько пьес» and how many (version 0.5): passed to the workspace once, kept nowhere.</summary>
+    private bool _severalPieces;
+    private int _piecesCount = 2;
     private InputFile? _recordingInput;
 
     /// <summary>Whether a player is signed in, which Motiff Lab's scan server needs.</summary>
@@ -878,7 +900,10 @@
         project = project.AddResumePoint(point);
         await Projects.SaveAsync(project);
         CurrentPiece.Open(piece, piece.StartChoices[Math.Clamp(_start, 0, piece.StartChoices.Count - 1)].Filter, project);
-        Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(project, point.Id));
+        string url = CurrentPiece.WorkspaceUrl(project, point.Id);
+        Navigation.NavigateTo(_severalPieces && _transcriptionEngine is not null && SettingsStore.IsOn(MotiffLab.Web.Workspace.PartPlace.Setting)
+            ? $"{url}&pieces={Math.Clamp(_piecesCount, 1, 99)}"
+            : url);
     }
 
     private static string FormatName(SourceFormat format) => format == SourceFormat.Midi ? "MIDI" : "MusicXML";

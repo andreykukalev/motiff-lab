@@ -48,6 +48,9 @@ public enum SectionCueKind
 
     /// <summary>A boundary the player added by hand.</summary>
     Added,
+
+    /// <summary>A boundary of the pieces layer the player confirmed before (<see cref="Projects.PieceLayer.Review"/>).</summary>
+    Kept,
 }
 
 /// <summary>
@@ -91,8 +94,11 @@ public sealed record FoundSection(int Number, TickSpan Span, int FirstBar, int L
     /// <summary>The heading written where it starts ("Trio", "Andante"), if any.</summary>
     public string? Heading => Cues.Select(cue => cue.Label).FirstOrDefault(label => label is not null);
 
-    /// <summary>Inferred, at the confidence of its boundary; the player's own when the player set it.</summary>
-    public Attribution Attribution => IsAdded ? Attribution.UserEdited : Attribution.Inferred(Confidence);
+    /// <summary>Whether the player confirmed this piece before, in the pieces layer (<see cref="Projects.PieceLayer.Review"/>).</summary>
+    public bool IsKept => Cues.Any(cue => cue.Kind == SectionCueKind.Kept);
+
+    /// <summary>Inferred, at the confidence of its boundary; the player's own when the player set or confirmed it.</summary>
+    public Attribution Attribution => IsAdded ? Attribution.UserEdited : IsKept ? Attribution.UserConfirmed : Attribution.Inferred(Confidence);
 
     /// <summary>The player's title, else "Trio" or "Part 2"; "Часть 2".</summary>
     public string NameIn(Words words) => Title ?? Heading ?? words.T($"Part {Number}", $"Часть {Number}");
