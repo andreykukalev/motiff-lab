@@ -10377,3 +10377,77 @@ body:has(> #app > .library) {
         font-size: 13px;
     }
 }
+
+/* The modes in the bar (version 0.5, the experiment Two playheads and modes; mockup «Указатели и режимы»): one group of
+   icons in a quiet pill, the mode chosen naming itself in the accent's tint, its text centred as in every control. */
+.lab.workspace .bar .modes {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    height: var(--h-control);
+    padding: 2px;
+    margin: 0 var(--s-1);
+    box-sizing: border-box;
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+}
+
+.lab.workspace .bar .modes .mode {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 34px;
+    min-width: 34px;
+    min-height: 0;
+    padding: 0 7px;
+    border: 0;
+    border-radius: var(--r-pill);
+    background: transparent;
+    color: var(--ink);
+    font: var(--t-label);
+    font-size: 14px;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.lab.workspace .bar .modes .mode:hover {
+    background: var(--accent-tint);
+}
+
+.lab.workspace .bar .modes .mode.on {
+    padding: 0 var(--s-3);
+    background: var(--accent-tint);
+    color: var(--accent-hover);
+    font-weight: 600;
+}
+
+.lab.workspace .bar .modes .mode:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+/* Each mode has its cursor on the score: a hand that closes while it moves the score, a cross to select, the arrow to
+   pick a note (a pointer over one), and the pen's own. */
+.score[data-mode="navigate"] {
+    cursor: grab;
+}
+
+.score[data-mode="navigate"].panning {
+    cursor: grabbing;
+}
+
+.score[data-mode="select"] {
+    cursor: crosshair;
+}
+
+.score[data-mode="edit"] {
+    cursor: default;
+}
+
+.score[data-mode="edit"] g.note {
+    cursor: pointer;
+}

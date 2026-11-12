@@ -9,6 +9,7 @@
   <symbol id="ic-count" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l2.5 1.5"/></symbol>
   <symbol id="ic-dial" viewBox="0 0 20 20"><path d="M4 14a6.5 6.5 0 1 1 12 0"/><path d="M10 14l3.2-4.5"/><circle cx="10" cy="14" r="1.2" fill="currentColor"/></symbol>
   <symbol id="ic-dot" viewBox="0 0 20 20"><circle cx="10" cy="10" r="3" fill="currentColor"/></symbol>
+  <symbol id="ic-editnote" viewBox="0 0 20 20"><ellipse cx="6.6" cy="14.6" rx="3" ry="2.2" transform="rotate(-20 6.6 14.6)"/><path d="M9.4 13.8V3.5c.6 1.6 2.4 2.4 3.6 3.6"/><path d="M12 17l.6-2.4 4-4a1 1 0 0 1 1.4 1.4l-4 4z"/></symbol>
   <symbol id="ic-export" viewBox="0 0 20 20"><path d="M10 13V4M6.5 7.5L10 4l3.5 3.5"/><path d="M4 12v3.5A1.5 1.5 0 0 0 5.5 17h9a1.5 1.5 0 0 0 1.5-1.5V12"/></symbol>
   <symbol id="ic-file" viewBox="0 0 20 20"><path d="M5 3h6l4 4v9.5A1.5 1.5 0 0 1 13.5 18h-8A1.5 1.5 0 0 1 4 16.5v-12A1.5 1.5 0 0 1 5.5 3"/><path d="M11 3v4h4"/></symbol>
   <symbol id="ic-fwd" viewBox="0 0 20 20"><path d="M7.5 4.5L13 10l-5.5 5.5"/></symbol>
@@ -22,6 +23,7 @@
   <symbol id="ic-metronome" viewBox="0 0 20 20"><path d="M7.5 3.5h5l2.5 13h-10z"/><path d="M10 12V5.5M10 12l4-6"/></symbol>
   <symbol id="ic-mic" viewBox="0 0 20 20"><rect x="7.5" y="3" width="5" height="9" rx="2.5"/><path d="M5 10a5 5 0 0 0 10 0M10 15v2"/></symbol>
   <symbol id="ic-more" viewBox="0 0 20 20"><circle cx="5" cy="10" r="1.2" fill="currentColor"/><circle cx="10" cy="10" r="1.2" fill="currentColor"/><circle cx="15" cy="10" r="1.2" fill="currentColor"/></symbol>
+  <symbol id="ic-move" viewBox="0 0 20 20"><path d="M10 2.8v14.4M2.8 10h14.4"/><path d="M7.8 5 10 2.8 12.2 5M7.8 15 10 17.2 12.2 15M5 7.8 2.8 10 5 12.2M15 7.8 17.2 10 15 12.2"/></symbol>
   <symbol id="ic-note" viewBox="0 0 20 20"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h9A1.5 1.5 0 0 1 16 5.5v6a1.5 1.5 0 0 1-1.5 1.5H9l-4 3.5V13"/></symbol>
   <symbol id="ic-pages" viewBox="0 0 20 20"><rect x="4" y="3" width="12" height="14" rx="1.5"/><path d="M7 7h6M7 10h6M7 13h4"/></symbol>
   <symbol id="ic-pause" viewBox="0 0 20 20"><path d="M7 4.5v11M13 4.5v11"/></symbol>
@@ -32,6 +34,7 @@
   <symbol id="ic-plus" viewBox="0 0 20 20"><path d="M10 4v12M4 10h12"/></symbol>
   <symbol id="ic-roll" viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="12" rx="1.5"/><path d="M5 7.5h4M8 10h5M6 12.5h3M12 7.5h3"/></symbol>
   <symbol id="ic-search" viewBox="0 0 20 20"><circle cx="9" cy="9" r="5.5"/><path d="M13 13l4 4"/></symbol>
+  <symbol id="ic-select" viewBox="0 0 20 20"><path d="M3.5 6V4.5a1 1 0 0 1 1-1H6M9 3.5h2M14 3.5h1.5a1 1 0 0 1 1 1V6M16.5 9v2M16.5 14v1.5a1 1 0 0 1-1 1H14M11 16.5H9M6 16.5H4.5a1 1 0 0 1-1-1V14M3.5 11V9"/></symbol>
   <symbol id="ic-tag" viewBox="0 0 20 20"><path d="M3.5 4.5v5l7.5 7.5 6.5-6.5L10 3H5a1.5 1.5 0 0 0-1.5 1.5z"/><circle cx="7" cy="7" r="1"/></symbol>
   <symbol id="ic-tempo" viewBox="0 0 20 20"><path d="M4 15.5L10 4l6 11.5z"/><path d="M10 9v3"/></symbol>
   <symbol id="ic-trash" viewBox="0 0 20 20"><path d="M4 6h12M8 6V4h4v2M6 6l.8 10h6.4L14 6"/></symbol>

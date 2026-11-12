@@ -2090,5 +2090,16 @@
   "reference.tempoAria": "Tempo {0} a minute: tap for the next",
   "settings.readingMarks": "For reading: rit., fermatas and dynamics",
   "settings.readingMarksHint": "A recording's score for reading also shows how it was played where it matters: a dynamic where the playing gets markedly louder or softer, rit. and accel. where it slows down or speeds up a lot, and a fermata over a chord held far longer than the beats around it. Accents, crescendos, slurs and pedal stay in As played. All of it is worked out from the recording.",
-  "score.readingMarks": "The dynamics, rit., accel. and fermatas that matter are worked out from the recording: how loud the bars were played and where the playing slowed, sped up or held."
+  "score.readingMarks": "The dynamics, rit., accel. and fermatas that matter are worked out from the recording: how loud the bars were played and where the playing slowed, sped up or held.",
+  "settings.playheads": "Two playheads and modes",
+  "settings.playheadsHint": "One playhead for the piece and one inside the selection, each with its own Play: the piece's in the bar, the selection's first in its menu. A selection goes by beats and changes only by its handles; a click places a playhead and never changes it; ✕ or Escape removes it. The bar chooses what the mouse does: Navigate, Select, Edit notes or Pen (keys H, S, E, P).",
+  "mode.label": "Mode",
+  "mode.navigate": "Navigate",
+  "mode.select": "Select",
+  "mode.edit": "Edit notes",
+  "mode.pen": "Pen",
+  "mode.navigateHint": "Navigate (H): drag to move around the score; a click places the playhead.",
+  "mode.selectHint": "Select (S): drag across the beats to select them; Shift-click extends the selection.",
+  "mode.editHint": "Edit notes (E): click a note to correct it on the piano roll.",
+  "mode.penHint": "Pen (P): write on the score; the selection stays as it is."
 }
