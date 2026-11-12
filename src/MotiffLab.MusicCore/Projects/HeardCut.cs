@@ -65,8 +65,9 @@ public static class HeardCut
     /// <summary>The stretch <paramref name="from"/>–<paramref name="to"/> of the collection's recording as a transcription of its own, on bars found afresh.</summary>
     /// <param name="engine">The engine's MIDI, the collection's source, as read: on the recording's clock.</param>
     /// <param name="linked">Whether the part keeps the collection's original, which its notes were then heard in.</param>
+    /// <param name="live">Whether the beat is found again in each section of the stretch (<see cref="GridSearch.Live"/>), else once.</param>
     /// <exception cref="ArgumentException">The stretch is empty, starts before 0, or holds no note.</exception>
-    internal static PieceParts.Cut Of(Project collection, MidiImport engine, long from, long to, bool linked)
+    internal static PieceParts.Cut Of(Project collection, MidiImport engine, long from, long to, bool linked, bool live = false)
     {
         if (from < 0 || to <= from)
         {
@@ -84,7 +85,7 @@ public static class HeardCut
 
         byte[] midi = Midi(engine, notes, start, stop);
         ImportedPiece read = PieceImporter.Import("part.mid", midi).Piece is { Midi: not null } imported ? imported : throw new ArgumentException("The notes cut could not be read.", nameof(collection));
-        BarGrid? bars = BarGrid.Find(read.Midi!);
+        BarGrid? bars = BarGrid.Find(read.Midi!, search: live ? GridSearch.Live : null);
         var origin = new TranscriptionOrigin(heard.Engine, bars)
         {
             Seams = [.. heard.Seams.Where(seam => seam > from && seam < to).Select(seam => seam - from)],

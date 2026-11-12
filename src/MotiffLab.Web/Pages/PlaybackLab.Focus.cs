@@ -111,7 +111,7 @@ public partial class PlaybackLab
             // Without a variation, another version of the piece stands above as the performer has it (0022, section 5).
             IReadOnlyList<Note>? version = variation is null ? VersionNotes : null;
             string? name = variation is not null ? VariationName : version is not null ? Text.Format("focus.version", ShownPerformance!.Name) : null;
-            var key = (span, _notes, variation, version, _readable, name, Text.Culture.Name);
+            var key = (span, _notes, variation, version, _readable, SettingsStore.IsOn(ReadingMarksSetting), name, Text.Culture.Name);
             if (_focusCard is not null && Equals(key, _focusCardKey))
             {
                 return _focusCard;
@@ -126,7 +126,7 @@ public partial class PlaybackLab
             GeneratedNotation notation = !_heard
                 ? NotationGenerator.Generate(_notes, _meter!, NotationKeys(), end, bars: bars, ossias: ossias)
                 : _readable
-                    ? NotationGenerator.Generate(_notes, _meter!, NotationKeys(), end, asHeard: true, bars: bars, ossias: ossias)
+                    ? ReadableNotation(_notes, _meter!, NotationKeys(), end, null, _score, bars, ossias)
                     : NotationGenerator.Generate(_notes, _meter!, NotationKeys(), end, playedTempos: _score.Tempos, pedal: _score.Pedal.Select(held => held.Span), bars: bars, ossias: ossias);
             _focusCard = PhraseCardSource.From(notation, _meter!.GetBar(bars.FirstBar).Span.Onset, _ => variation is not null ? Text.Format("focus.ossia", name!) : name!);
             _focusCardKey = key;

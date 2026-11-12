@@ -433,6 +433,13 @@ internal sealed partial class OpenPiece
         string of = request.Text("of") ?? "piece";
         string title = request.Text("title") ?? Path.GetFileNameWithoutExtension(Piece.FileName);
         bool readable = request.Bool("readable") ?? true;
+        // «Для чтения» (version 0.5): the score for reading with the marks of the playing that matter, "reading": "marks".
+        bool reading = request.Text("reading") switch
+        {
+            null => false,
+            "marks" => true,
+            _ => throw FacadeException.BadRequest("\"reading\" is \"marks\": the score for reading with the marks of the playing that matter."),
+        };
         bool heard = Transcribed.IsHeard(Piece);
         BarRange? bars = ExcerptOf(request);
         // Another version above (0022, section 4) is engraved as the comparison layer has it, likely artefacts only when asked.
@@ -447,14 +454,14 @@ internal sealed partial class OpenPiece
         if (of == "piece")
         {
             notation = generated
-                ? Generate(Notes, Piece.End, title, heard, readable, bars, ossias)
+                ? Generate(Notes, Piece.End, title, heard, readable, bars, ossias, reading)
                 : Piece.MusicXml is { } xml ? NotationGenerator.FromMusicXml(xml, title) : NotationGenerator.FromMidi(Piece.Midi!, title);
         }
         else if (of == "variation")
         {
             Note[] notes = InPlace(Shown());
             Tick end = notes.Length == 0 ? Piece.End : notes.Max(note => note.Span.End);
-            notation = Generate(notes, end > Piece.End ? end : Piece.End, title, heard, readable, bars, ossias);
+            notation = Generate(notes, end > Piece.End ? end : Piece.End, title, heard, readable, bars, ossias, reading);
         }
         else
         {
@@ -554,7 +561,8 @@ internal sealed partial class OpenPiece
         return new NotationOssia(idea.Name, variation.Notes, AsHeard: heard && readable);
     }
 
-    private GeneratedNotation Generate(IEnumerable<Note> notes, Tick end, string title, bool heard, bool readable, BarRange? bars = null, IReadOnlyList<NotationOssia>? ossias = null)
+    /// <param name="reading">For notes heard, written for reading: with the marks of the playing that matter («Для чтения», <see cref="PlayedMarks.Significant"/>).</param>
+    private GeneratedNotation Generate(IEnumerable<Note> notes, Tick end, string title, bool heard, bool readable, BarRange? bars = null, IReadOnlyList<NotationOssia>? ossias = null, bool reading = false)
     {
         IEnumerable<KeyChange> keys = NotationKeys(heard);
         if (!heard)
@@ -562,12 +570,17 @@ internal sealed partial class OpenPiece
             return NotationGenerator.Generate(notes, Piece.Meter, keys, end, title, bars: bars, ossias: ossias);
         }
 
-        if (readable)
+        if (readable && !reading)
         {
             return NotationGenerator.Generate(notes, Piece.Meter, keys, end, title, asHeard: true, bars: bars, ossias: ossias);
         }
 
         PlaybackScore played = PlaybackScore.FromPiece(Piece);
+        if (readable)
+        {
+            return NotationGenerator.Generate(notes, Piece.Meter, keys, end, title, asHeard: true, playedTempos: played.Tempos, bars: bars, ossias: ossias, marks: PlayedMarks.Significant);
+        }
+
         return NotationGenerator.Generate(notes, Piece.Meter, keys, end, title, playedTempos: played.Tempos, pedal: played.Pedal.Select(held => held.Span), bars: bars, ossias: ossias);
     }
 

@@ -36,6 +36,9 @@ const ICONS = {
   dial: '<path d="M4 14a6.5 6.5 0 1 1 12 0"/><path d="M10 14l3.2-4.5"/><circle cx="10" cy="14" r="1.2" fill="currentColor"/>',
   leadin: '<path d="M3 10h7.5M8 7l2.5 3L8 13"/><path d="M13.5 4H17v12h-3.5"/>',
   bookmark: '<path d="M5.5 3.5h9v13l-4.5-3.2-4.5 3.2z"/>',
-  dot: '<circle cx="10" cy="10" r="3" fill="currentColor"/>'
+  dot: '<circle cx="10" cy="10" r="3" fill="currentColor"/>',
+  move: '<path d="M10 2.8v14.4M2.8 10h14.4"/><path d="M7.8 5 10 2.8 12.2 5M7.8 15 10 17.2 12.2 15M5 7.8 2.8 10 5 12.2M15 7.8 17.2 10 15 12.2"/>',
+  select: '<path d="M3.5 6V4.5a1 1 0 0 1 1-1H6M9 3.5h2M14 3.5h1.5a1 1 0 0 1 1 1V6M16.5 9v2M16.5 14v1.5a1 1 0 0 1-1 1H14M11 16.5H9M6 16.5H4.5a1 1 0 0 1-1-1V14M3.5 11V9"/>',
+  editnote: '<ellipse cx="6.6" cy="14.6" rx="3" ry="2.2" transform="rotate(-20 6.6 14.6)"/><path d="M9.4 13.8V3.5c.6 1.6 2.4 2.4 3.6 3.6"/><path d="M12 17l.6-2.4 4-4a1 1 0 0 1 1.4 1.4l-4 4z"/>'
 };
 function ic(name, cls) { return `<svg class="ic ${cls||''}" viewBox="0 0 20 20" aria-hidden="true">${ICONS[name]}</svg>`; }

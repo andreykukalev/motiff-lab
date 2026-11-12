@@ -3089,6 +3089,8 @@ h1:focus {
     background: var(--surface-2);
     color: var(--ink);
     font: var(--t-label);
+    /* A chip's label stays on one line (#432). */
+    white-space: nowrap;
     cursor: pointer;
 }
 
@@ -3893,7 +3895,9 @@ h1:focus {
     margin: 0 calc(var(--h-touch) + var(--s-2));
 }
 
-.workspace .focus-card svg {
+/* The phrase's notation only: the icons in the card's buttons and in the focus roll's head keep their own size and line
+   (#432: the Edit notes pen, drawn the card's width and filled, crossed the roll's head as a black stripe). */
+.workspace .focus-card .phrase-card-score svg {
     display: block;
     width: 100%;
     height: auto;
@@ -3901,16 +3905,16 @@ h1:focus {
     fill: currentColor;
 }
 
-.workspace .focus-card svg use {
+.workspace .focus-card .phrase-card-score svg use {
     fill: currentColor;
 }
 
-.workspace .focus-card svg [color]:not(.playing) {
+.workspace .focus-card .phrase-card-score svg [color]:not(.playing) {
     color: inherit !important;
 }
 
 /* The ossia's name is the overline on its frame, not Verovio's label at its left. */
-.workspace .focus-card svg g.label {
+.workspace .focus-card .phrase-card-score svg g.label {
     display: none;
 }
 
@@ -10372,4 +10376,78 @@ body:has(> #app > .library) {
         padding: 0 var(--s-1);
         font-size: 13px;
     }
+}
+
+/* The modes in the bar (version 0.5, the experiment Two playheads and modes; mockup «Указатели и режимы»): one group of
+   icons in a quiet pill, the mode chosen naming itself in the accent's tint, its text centred as in every control. */
+.lab.workspace .bar .modes {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    height: var(--h-control);
+    padding: 2px;
+    margin: 0 var(--s-1);
+    box-sizing: border-box;
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+}
+
+.lab.workspace .bar .modes .mode {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 34px;
+    min-width: 34px;
+    min-height: 0;
+    padding: 0 7px;
+    border: 0;
+    border-radius: var(--r-pill);
+    background: transparent;
+    color: var(--ink);
+    font: var(--t-label);
+    font-size: 14px;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.lab.workspace .bar .modes .mode:hover {
+    background: var(--accent-tint);
+}
+
+.lab.workspace .bar .modes .mode.on {
+    padding: 0 var(--s-3);
+    background: var(--accent-tint);
+    color: var(--accent-hover);
+    font-weight: 600;
+}
+
+.lab.workspace .bar .modes .mode:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+/* Each mode has its cursor on the score: a hand that closes while it moves the score, a cross to select, the arrow to
+   pick a note (a pointer over one), and the pen's own. */
+.score[data-mode="navigate"] {
+    cursor: grab;
+}
+
+.score[data-mode="navigate"].panning {
+    cursor: grabbing;
+}
+
+.score[data-mode="select"] {
+    cursor: crosshair;
+}
+
+.score[data-mode="edit"] {
+    cursor: default;
+}
+
+.score[data-mode="edit"] g.note {
+    cursor: pointer;
 }

@@ -87,6 +87,10 @@ public static class SettingsCatalogue
         // Live performance tempo (v0.5): a recording's beat grid found again after each pause and tempo jump.
         Switch("experimental.liveTempo", SettingSection.Experimental, null, SettingScope.Device),
 
+        // «Для чтения» with the marks that matter (v0.5): a recording's score for reading with marked dynamics, rit. and
+        // accel., and fermatas (PlayingMarks.Significant).
+        Switch("experimental.readingMarks", SettingSection.Experimental, null, SettingScope.Device),
+
         // Reference: the circle of fifths one tap away from the library and the piece, with any key's card (KeyReference).
         Switch("experimental.reference", SettingSection.Experimental, null, SettingScope.Device),
 
@@ -107,6 +111,13 @@ public static class SettingsCatalogue
 
         // Selection by beats (#349): the selection's edges snap to beats, so a passage can start and end mid-bar.
         Switch("experimental.beats", SettingSection.Experimental, null, SettingScope.Device),
+
+        // Two playheads and modes (v0.5, specs two-playheads and interaction-modes): a global playhead and one inside the
+        // selection, the selection by beats changed only by its handles, and the modes Navigate, Select, Edit notes and Pen.
+        Switch("experimental.playheads", SettingSection.Experimental, null, SettingScope.Device),
+
+        // Inside that experiment: while the piece plays, the bars other than the one playing fade, to try by feel.
+        Switch("experimental.playheadsFade", SettingSection.Experimental, null, SettingScope.Device, on: true),
     ];
 
     private static readonly Dictionary<string, Setting> s_byId = All.ToDictionary(setting => setting.Id, StringComparer.Ordinal);
