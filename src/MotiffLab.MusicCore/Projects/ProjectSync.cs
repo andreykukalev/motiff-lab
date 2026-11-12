@@ -69,8 +69,11 @@ public static class ProjectSync
     }
 
     /// <summary>
-    /// The online copy as it is kept here: a PDF and its marks stay on the device (0026 C3), so when the online copy has
-    /// none, the device's own PDF, its pages and its marks stay with the piece.
+    /// The online copy as it is kept here: a PDF stays on the device (0026 C3), so when the online copy has none, the
+    /// device's own PDF and its pages stay with the piece. The marks on the PDF's pages (version 0.4) are the writer's
+    /// (<see cref="Project.WritesDocumentMarks"/>): the device that writes them keeps its own, and every other device takes
+    /// the online copy's, unless the online copy has none and this device has some, as a copy a build before 0.4 sent
+    /// (it leaves them out), so they are never wiped by it.
     /// </summary>
     /// <remarks>
     /// The originals' descriptions (version 0.3) are a union of both copies by fingerprint, else by id, so an original
@@ -85,12 +88,19 @@ public static class ProjectSync
             return online;
         }
 
-        Project kept = here is { Document: { } document } && online.Document is null
-            ? online with { Document = document, DocumentPages = here.DocumentPages, DocumentMarks = here.DocumentMarks }
-            : online;
+        bool keepsPdf = here.Document is not null && online.Document is null;
+        Project kept = keepsPdf ? online with { Document = here.Document, DocumentPages = here.DocumentPages } : online;
         IReadOnlyList<PieceOriginal> originals = PieceOriginals.Merge(online.Originals, here.Originals, device);
-        return originals.SequenceEqual(kept.Originals) ? kept : kept with { KeptOriginals = originals };
+        if (!originals.SequenceEqual(kept.Originals))
+        {
+            kept = kept with { KeptOriginals = originals };
+        }
+
+        bool ownMarks = (keepsPdf && kept.WritesDocumentMarks(device)) || (!HasPageMarks(online) && HasPageMarks(here));
+        return ownMarks ? kept with { DocumentMarks = here.DocumentMarks } : kept;
     }
+
+    private static bool HasPageMarks(Project project) => !project.DocumentMarks.IsEmpty || project.DocumentMarks.Unknown.Count > 0;
 
     /// <summary>
     /// Two copies of one project, both changed: the one saved last is kept, here and online, and the other is kept beside
@@ -123,8 +133,10 @@ public static class ProjectSync
             return new SyncResolution(here, Upload: true, PreviousCopy: online with { Id = newId });
         }
 
+        // This device's copy wins with the page marks it does not write as the pull brings them, so it never sends old ones.
+        Project mine = pulled.WritesDocumentMarks(device) || here.DocumentMarks.Equals(pulled.DocumentMarks) ? here : here with { DocumentMarks = pulled.DocumentMarks };
         return savedHere >= savedOnline
-            ? new SyncResolution(here, Upload: true, PreviousCopy: PreviousCopy(online, copyTitle, newId))
+            ? new SyncResolution(mine, Upload: true, PreviousCopy: PreviousCopy(online, copyTitle, newId))
             : new SyncResolution(pulled, Upload: false, PreviousCopy: PreviousCopy(here, copyTitle, newId));
     }
 

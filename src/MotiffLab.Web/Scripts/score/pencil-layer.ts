@@ -116,6 +116,8 @@ export class PencilLayer {
     private marks: PencilMark[] = [];
     private undo: Change[] = [];
     private on = false;
+    /** True while the marks are shown only: another device writes them (a PDF's pages the iPad also holds, version 0.4). */
+    private readOnly = false;
     private tool: PencilTool = "pen";
     private toolBeforeEraser: PencilTool = "pen";
     private colour: MarkColour = "graphite";
@@ -183,6 +185,9 @@ export class PencilLayer {
         if (generation !== this.generation) {
             return;
         }
+        if (this.readOnly) {
+            return; // Shown only: what the device kept stays on it.
+        }
         if (!inProject) {
             // Marks written while the saved ones loaded stay, on top of them.
             this.marks = [...saved, ...this.marks];
@@ -222,9 +227,22 @@ export class PencilLayer {
         this.notify();
     }
 
+    /** Shows the marks another device writes, with nothing to write, erase or clear them; set before the key. */
+    setReadOnly(readOnly: boolean): void {
+        if (readOnly === this.readOnly) {
+            return;
+        }
+        this.readOnly = readOnly;
+        if (readOnly) {
+            this.endStroke();
+            this.undo = [];
+            this.setOn(false);
+        }
+    }
+
     /** Turns the tools on or off. Off, the pen still writes; the mouse picks notes and bars again. */
     setOn(on: boolean): void {
-        this.on = on;
+        this.on = on && !this.readOnly;
         if (!on && this.tool === "eraser") {
             this.tool = this.toolBeforeEraser;
         }
@@ -271,7 +289,7 @@ export class PencilLayer {
 
     /** Takes away every mark on this piece; Undo brings them back. */
     clear(): void {
-        if (this.marks.length === 0) {
+        if (this.marks.length === 0 || this.readOnly) {
             return;
         }
         this.remember({ added: [], removed: this.marks });
@@ -393,7 +411,7 @@ export class PencilLayer {
     }
 
     private readonly onPointerDown = (event: PointerEvent): void => {
-        if (this.key === null || this.stroke !== null) {
+        if (this.key === null || this.stroke !== null || this.readOnly) {
             return;
         }
         const pen = event.pointerType === "pen";
@@ -563,7 +581,7 @@ export class PencilLayer {
     }
 
     private readonly onTouch = (event: TouchEvent): void => {
-        if (this.key === null) {
+        if (this.key === null || this.readOnly) {
             return;
         }
         for (const touch of Array.from(event.changedTouches)) {

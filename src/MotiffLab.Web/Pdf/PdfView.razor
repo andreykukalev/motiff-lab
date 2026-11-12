@@ -22,6 +22,7 @@
     private IJSObjectReference? _pencil;
     private string? _shownPencilKey;
     private string? _shownInk;
+    private bool? _shownReadOnly;
     private IReadOnlyList<int>? _shownBookmarks;
     private ScoreView.PencilState _pencilState = new(false, "pen", "graphite", 0, 0, false);
 
@@ -48,6 +49,13 @@
     /// <summary>The strokes the project keeps on the pages, as ProjectFile.WriteInk writes them; empty for none.</summary>
     [Parameter]
     public string Ink { get; set; } = "";
+
+    /// <summary>
+    /// Whether the strokes are shown only, for the marks another device writes (version 0.4): nothing writes, erases or
+    /// clears them here, and the pen stays off.
+    /// </summary>
+    [Parameter]
+    public bool ReadOnly { get; set; }
 
     /// <summary>The strokes after the player wrote or erased, for the project to keep.</summary>
     [Parameter]
@@ -82,6 +90,12 @@
         {
             _shownBookmarks = Bookmarks;
             await _view.InvokeVoidAsync("setBookmarks", (object)Bookmarks.ToArray());
+        }
+
+        if (_pencil is not null && ReadOnly != _shownReadOnly)
+        {
+            _shownReadOnly = ReadOnly;
+            await _pencil.InvokeVoidAsync("setReadOnly", ReadOnly);
         }
 
         if (_pencil is not null && PencilKey != _shownPencilKey)

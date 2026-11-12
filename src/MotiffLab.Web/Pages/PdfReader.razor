@@ -27,7 +27,7 @@
     @if (_project?.Document is { } document)
     {
         <PdfView @ref="_view" Document="document" Label="@Title" StartPage="_startPage" PagesShown="OnPagesShownAsync" Opened="OnOpenedAsync"
-                 PencilKey="@PencilKey" Ink="@_ink" MarksChanged="OnMarksChangedAsync" PencilChanged="_ => StateHasChanged()" Bookmarks="_bookmarkedPages" />
+                 PencilKey="@PencilKey" Ink="@_ink" ReadOnly="ReadOnlyMarks" MarksChanged="OnMarksChangedAsync" PencilChanged="_ => StateHasChanged()" Bookmarks="_bookmarkedPages" />
     }
 
     @if (_message is not null)
@@ -67,12 +67,13 @@
         @if (_project is not null)
         {
             bool marked = CurrentBookmark is not null;
-            <button class="act @(marked ? "on" : null)" aria-pressed="@(marked ? "true" : "false")" aria-label="@Text["pdf.bookmarkPage"]" title="@Text["pdf.bookmarkPage"]"
-                    @onclick="ToggleBookmarkAsync" disabled="@(_pages.Count == 0)"><Icon Name="bookmark" Size="IconSize.Large" /></button>
+            <button class="act @(marked ? "on" : null)" aria-pressed="@(marked ? "true" : "false")" aria-label="@Text["pdf.bookmarkPage"]"
+                    title="@(ReadOnlyMarks ? Text["pdf.marksElsewhere"] : Text["pdf.bookmarkPage"])"
+                    @onclick="ToggleBookmarkAsync" disabled="@(_pages.Count == 0 || ReadOnlyMarks)"><Icon Name="bookmark" Size="IconSize.Large" /></button>
             <button class="act @(_metronomeOpen ? "on" : null)" aria-pressed="@(_metronomeOpen ? "true" : "false")" aria-label="@Text["metronome.label"]" title="@Text["metronome.label"]"
                     @onclick="() => _metronomeOpen = !_metronomeOpen"><Icon Name="metronome" Size="IconSize.Large" /></button>
-            <button class="act @(_view?.PenOn == true ? "on" : null)" aria-pressed="@(_view?.PenOn == true ? "true" : "false")" aria-label="@Text["bar.pen"]" title="@Text["pencil.hint"]"
-                    @onclick="TogglePenAsync"><Icon Name="pen" Size="IconSize.Large" /></button>
+            <button class="act @(_view?.PenOn == true ? "on" : null)" aria-pressed="@(_view?.PenOn == true ? "true" : "false")" aria-label="@Text["bar.pen"]"
+                    title="@(ReadOnlyMarks ? Text["pdf.marksElsewhere"] : Text["pencil.hint"])" @onclick="TogglePenAsync" disabled="@ReadOnlyMarks"><Icon Name="pen" Size="IconSize.Large" /></button>
         }
         <button class="act @(_popover == Popover.More ? "on" : null)" aria-expanded="@(_popover == Popover.More ? "true" : "false")" aria-label="@Text["bar.more"]" title="@Text["bar.more"]"
                 @onclick="() => Toggle(Popover.More)"><Icon Name="more" Size="IconSize.Large" /></button>
@@ -110,6 +111,10 @@
     {
         <div class="popover pdf-contents" role="dialog" aria-label="@Text["bar.contents"]">
             <p class="overline">@Text["pdf.bookmarks"]</p>
+            @if (ReadOnlyMarks)
+            {
+                <p class="caption">@Text["pdf.marksElsewhere"]</p>
+            }
             @if (project.DocumentMarks.Bookmarks.Count == 0)
             {
                 <p class="caption">@Text["pdf.noBookmarks"]</p>
@@ -124,10 +129,17 @@
                             <button class="btn quiet go" @onclick="() => GoToAsync(bookmark.Page)" aria-label="@Text.Format("pdf.goTo", bookmark.Name ?? where)">
                                 <Icon Name="bookmark" /> <span class="pgno">@where</span>
                             </button>
-                            <input type="text" value="@bookmark.Name" maxlength="@PageBookmark.MaxName" placeholder="@Text["pdf.bookmarkName"]"
-                                   aria-label="@Text.Format("pdf.bookmarkNameFor", where)" @onchange="args => RenameAsync(bookmark.Id, args.Value as string)" />
-                            <button class="btn icon" aria-label="@Text.Format("pdf.removeBookmark", where)" title="@Text["pdf.removeBookmarkHint"]"
-                                    @onclick="() => RemoveBookmarkAsync(bookmark.Id)"><Icon Name="trash" /></button>
+                            @if (ReadOnlyMarks)
+                            {
+                                <span class="name">@bookmark.Name</span>
+                            }
+                            else
+                            {
+                                <input type="text" value="@bookmark.Name" maxlength="@PageBookmark.MaxName" placeholder="@Text["pdf.bookmarkName"]"
+                                       aria-label="@Text.Format("pdf.bookmarkNameFor", where)" @onchange="args => RenameAsync(bookmark.Id, args.Value as string)" />
+                                <button class="btn icon" aria-label="@Text.Format("pdf.removeBookmark", where)" title="@Text["pdf.removeBookmarkHint"]"
+                                        @onclick="() => RemoveBookmarkAsync(bookmark.Id)"><Icon Name="trash" /></button>
+                            }
                         </li>
                     }
                 </ul>
@@ -167,6 +179,12 @@
         Recognise,
         Version,
     }
+
+    /// <summary>
+    /// Whether the marks on the pages are shown only (version 0.4; Andrei, 2026-11-12): the iPad holds this PDF too and
+    /// writes them, and they come here with the online copy (<see cref="Project.WritesDocumentMarks"/>).
+    /// </summary>
+    private bool ReadOnlyMarks => _project is { } project && !project.WritesDocumentMarks(HoldingDevice.Web);
 
     /// <summary>The key the pencil layer keeps the pages' marks under; the project holds them (0023).</summary>
     private string? PencilKey => _project is { } project ? $"pdf:{project.Id}" : null;
@@ -377,7 +395,7 @@
     /// <summary>Keeps what the player wrote or erased on the pages.</summary>
     private async Task OnMarksChangedAsync(string ink)
     {
-        if (_project is not { } project)
+        if (_project is not { } project || ReadOnlyMarks)
         {
             return;
         }
@@ -402,7 +420,7 @@
     /// <summary>Bookmarks the page under the bar, or takes its bookmark away.</summary>
     private async Task ToggleBookmarkAsync()
     {
-        if (_project is not { } project || _pages.First < 1)
+        if (_project is not { } project || _pages.First < 1 || ReadOnlyMarks)
         {
             return;
         }
@@ -415,7 +433,7 @@
 
     private async Task RenameAsync(string id, string? name)
     {
-        if (_project is { } project)
+        if (_project is { } project && !ReadOnlyMarks)
         {
             await SaveAsync(project with { DocumentMarks = project.DocumentMarks.RenameBookmark(id, name) });
         }
@@ -423,7 +441,7 @@
 
     private async Task RemoveBookmarkAsync(string id)
     {
-        if (_project is { } project)
+        if (_project is { } project && !ReadOnlyMarks)
         {
             await SaveAsync(project with { DocumentMarks = project.DocumentMarks.RemoveBookmark(id) });
         }

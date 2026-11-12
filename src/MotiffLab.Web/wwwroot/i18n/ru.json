@@ -1645,6 +1645,7 @@
   "pdf.bookmarkNameFor": "Название закладки на {0}",
   "pdf.removeBookmark": "Убрать закладку на {0}",
   "pdf.removeBookmarkHint": "Убрать эту закладку",
+  "pdf.marksElsewhere": "Пометки и закладки на этих страницах делаются на iPad, где тоже есть этот PDF. Здесь они видны такими, как пришли из онлайн-копии, без правки.",
   "metronome.label": "Метроном",
   "metronome.start": "Запустить метроном",
   "metronome.stop": "Остановить метроном",

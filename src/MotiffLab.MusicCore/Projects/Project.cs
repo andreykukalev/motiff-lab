@@ -276,12 +276,23 @@ public sealed record Project(
 
     /// <summary>
     /// The copy saved online (0014): the notes and everything made from them, without the PDF, which can run to tens of
-    /// megabytes and stays on the device with its marks. A piece that is only a PDF has nothing to save online. The
-    /// originals' descriptions go with it (version 0.3), so another device shows where the PDF is.
+    /// megabytes and stays on the device. A piece that is only a PDF has nothing to save online. The originals'
+    /// descriptions go with it (version 0.3), so another device shows where the PDF is, and so do the marks on the PDF's
+    /// pages (version 0.4; Andrei, 2026-11-12), so another device that has the same PDF shows them.
     /// </summary>
     public Project? ForOnline() => Document is null ? this
-        : HasNotes ? this with { Document = null, DocumentMarks = DocumentMarks.Empty, DocumentPages = null, KeptOriginals = [.. Originals] }
+        : HasNotes ? this with { Document = null, DocumentPages = null, KeptOriginals = [.. Originals] }
         : null;
+
+    /// <summary>
+    /// Whether <paramref name="device"/> writes the marks on the PDF's pages (version 0.4; Andrei, 2026-11-12: only a
+    /// device that has the PDF writes them): it has the PDF, and it is the iPad, or the iPad does not hold the PDF. So the
+    /// marks have one writer; another device that has the same PDF shows them as the online copy brings them, read only.
+    /// With no device named, a device that has the PDF writes them, as before.
+    /// </summary>
+    public bool WritesDocumentMarks(HoldingDevice? device) =>
+        Document is not null
+        && (device != HoldingDevice.Web || FindOriginal(PieceOriginal.DocumentId) is not { } pdf || !pdf.IsHeldBy(HoldingDevice.Ipad));
 
     /// <summary>The PDF's file name: the piece's, as a PDF.</summary>
     public string DocumentFileName => Path.ChangeExtension(FileName, PdfDocument.Extension);
