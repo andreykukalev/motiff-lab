@@ -403,7 +403,7 @@
                                Kept="_keptIds" Variation="_variation" PlayRange="ShownRange" OriginalAudible="OriginalAudible" VariationAudible="VariationAudible" Highlight="_highlight?.Places"
                                RangePicked="OnRangePickedAsync" Cleared="ClearSelectionAsync" PlayPausePressed="PlayPauseAsync" PlayheadMoved="OnPlayheadMovedAsync"
                                SelectionChanged="OnRollNotesChosen" Keys="RollKeys" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync" Point="_rollPoint" Editor="@RollEditor"
-                               Expanded="ExpandRollAsync" />
+                               Expanded="ExpandRollAsync" Mode="@ScoreMode" Playheads="Playheads" Placed="OnRollPlacedAsync" />
                 </section>
             }
 
@@ -2014,11 +2014,6 @@
     private int[] _tracks = [];
     private int _lastBar;
     private MotifSelection? _selection;
-    private MotifAnalysis? _analysis;
-    private IReadOnlyList<MotifFact> _character = [];
-    private HarmonyAnalysis _harmony = HarmonyAnalysis.None;
-    /// <summary>The circle of fifths for the selection, from its key and chords (<see cref="KeyCircle"/>).</summary>
-    private KeyCircleView? _circle;
     private CharacterContext? _characterContext;
     private PhraseMarks _phraseMarks = PhraseMarks.None;
 
@@ -2514,11 +2509,7 @@
         _focus = false;
         _focusSpan = null;
         _highlight = null;
-        _analysis = null;
         _reading = null;
-        _character = [];
-        _harmony = HarmonyAnalysis.None;
-        _circle = null;
         _sentenceFacts = [];
         _selectionNote = null;
         _looping = false;
@@ -2889,17 +2880,22 @@
         IReadOnlyList<Note> notes = _notes!;
         MeterMap meter = _meter!;
         Words words = Words;
-        MotifAnalysis read = MotifAnalyzer.Analyze(notes, meter, selection, key, _accents, phrases, words);
-        HarmonyAnalysis harmony = doubt.On(HarmonyAnalyzer.Analyze(notes, meter, selection, read.Key?.Key, words), selection);
-        MotifAnalysis analysis = doubt.On(read, selection);
-        IReadOnlyList<MotifFact> character = doubt.On(MotifAnalyzer.AnalyzeCharacter(notes, meter, selection, key, _characterContext!, words), selection);
-        (_harmony, _analysis, _character) = (harmony, analysis, character);
-        _circle = KeyCircle.For(selection, notes, meter, analysis.Key, harmony, words);
+        IReadOnlyList<AccentMark>? accents = _accents;
+        CharacterContext characterContext = _characterContext!;
         _sentenceFacts = doubt.On(SentenceFactsFor(selection), selection);
-        // The structure, and what is read from it, waits until something shows it (#419).
-        _reading = new SelectionReading(analysis, _sentenceFacts, character, harmony,
+        // The readings wait until something shows them (#419): a card turned by playback in focus shows none (#433).
+        _reading = new SelectionReading(
+            () =>
+            {
+                MotifAnalysis read = MotifAnalyzer.Analyze(notes, meter, selection, key, accents, phrases, words);
+                HarmonyAnalysis harmony = doubt.On(HarmonyAnalyzer.Analyze(notes, meter, selection, read.Key?.Key, words), selection);
+                MotifAnalysis analysis = doubt.On(read, selection);
+                IReadOnlyList<MotifFact> character = doubt.On(MotifAnalyzer.AnalyzeCharacter(notes, meter, selection, key, characterContext, words), selection);
+                return new SelectionAnalysis(analysis, harmony, character, KeyCircle.For(selection, notes, meter, analysis.Key, harmony, words));
+            },
+            _sentenceFacts,
             () => doubt.On(StructureAnalyzer.Analyze(notes, meter, selection, phrases, words), selection),
-            structure => new InvitationContext(notes, meter, selection, analysis, structure, character, words) { Harmony = harmony });
+            (read, structure) => new InvitationContext(notes, meter, selection, read.Motif, structure, read.Character, words) { Harmony = read.Harmony });
     }
 
     private async Task SelectAsync(TickSpan span, string? note)
@@ -3023,11 +3019,7 @@
         _focus = false;
         _focusSpan = null;
         _highlight = null;
-        _analysis = null;
         _reading = null;
-        _character = [];
-        _harmony = HarmonyAnalysis.None;
-        _circle = null;
         _sentenceFacts = [];
         _trial = null;
         _layered = false;
@@ -3529,7 +3521,7 @@
         VariationChain.Start(VariationFacts.MotifNotes(_notes!, selection), VariationContext.For(selection, _keep.ToHashSet(), key: Key, meter: _meter, words: Words));
 
     /// <summary>The key the selection's analysis read, which diatonic operations count steps in; null when it is uncertain.</summary>
-    private MusicalKey? Key => _analysis?.Key is { Certainty: not FactCertainty.Uncertain } reading ? reading.Key : null;
+    private MusicalKey? Key => _reading?.Analysis.Motif.Key is { Certainty: not FactCertainty.Uncertain } reading ? reading.Key : null;
 
     /// <summary>Runs the chain's steps again on the selection and Keep choices as they are now; clears it when a step no longer runs.</summary>
     private Task ReplayAsync() =>

@@ -222,6 +222,61 @@ async function play(page, playhead = ".score .playhead:not([hidden])") {
     await click(page, ".pill button.play");
 }
 
+/**
+ * Plays from the last bar of a system in view until the score has turned to the next system and a second more (#433), then
+ * pauses: the frames at the turn's start are where it hitched.
+ */
+async function turn(page) {
+    const top = await page.evaluate(() => {
+        const host = document.querySelector(".score");
+        const view = host.getBoundingClientRect();
+        // The last system wholly in view: the next runs off the bottom, so playing into it turns the score.
+        const system = [...host.querySelectorAll("svg g.system")].filter((candidate) => {
+            const box = candidate.getBoundingClientRect();
+            return box.top >= view.top + 120 && box.bottom <= view.bottom;
+        }).at(-1);
+        const measures = system.querySelectorAll("g.measure");
+        const note = measures[measures.length - 1].querySelector("g.note");
+        note.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+        return host.scrollTop;
+    });
+    await page.waitForTimeout(300);
+    await click(page, '.bar button[aria-label="Play"]');
+    await page.waitForFunction((from) => Math.abs(document.querySelector(".score").scrollTop - from) > 20, top, { timeout: 30_000 });
+    await page.waitForTimeout(1500);
+    await click(page, '.bar button[aria-label="Pause"]');
+}
+
+/**
+ * Für Elise in phrase focus with its notes, playing from bar 6: the card turns to phrase 3 at bar 9 (#433). The step is
+ * the turn and a second after it.
+ */
+async function focusOnPlaying(page, base) {
+    await page.goto(`${base}/playback`);
+    await page.getByRole("button", { name: "Für Elise" }).click();
+    await appears(page, ".score button.bracket");
+    await page.waitForTimeout(1000);
+    await page.evaluate(() => {
+        const measure = document.querySelectorAll(".score svg g.measure")[5];
+        measure.querySelector("g.note").dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    });
+    await page.waitForTimeout(300);
+    await click(page, '.bar button[aria-label="Play"]');
+    await click(page, 'header.bar button[aria-label="Piano roll"]');
+    await appears(page, ".roll-drawer canvas");
+    await click(page, ".roll-drawer .chip", "Expand");
+    await appears(page, ".focus-card");
+    await click(page, '.bar [role="radiogroup"] button', "Notes");
+    await appears(page, ".focus-card .phrase-card-score svg");
+    return page.evaluate(() => document.querySelector(".bar .crumb").textContent);
+}
+
+async function focusTurn(page, shown) {
+    await page.waitForFunction((was) => document.querySelector(".bar .crumb").textContent !== was, shown, { timeout: 30_000 });
+    await page.waitForTimeout(1000);
+    await click(page, '.bar button[aria-label="Pause"]');
+}
+
 async function openRoll(page) {
     await click(page, 'header.bar button[aria-label="Piano roll"]');
     await appears(page, ".roll-drawer canvas");
@@ -258,12 +313,15 @@ async function run(browser, base, profileDir) {
     result.dom = await page.evaluate(() => document.getElementsByTagName("*").length);
     result.pages = await page.locator(".score-page").count();
     result.scroll = await step(page, session, "scroll", dir, () => scrollPages(page));
+    result.turn = await step(page, session, "turn", dir, () => turn(page));
     result.select = await step(page, session, "select", dir, () => selectBar(page));
     result.play = await step(page, session, "play", dir, () => play(page));
     result.roll = await step(page, session, "roll", dir, () => openRoll(page));
     result.expand = await step(page, session, "expand", dir, () => expand(page));
     result.focusPlay = await step(page, session, "focus-play", dir, () => play(page, null));
     result.heap = Math.round((await page.evaluate(() => performance.memory?.usedJSHeapSize ?? 0)) / 1e6);
+    const phrase = await focusOnPlaying(page, base);
+    result.focusTurn = await step(page, session, "focus-turn", dir, () => focusTurn(page, phrase));
     await context.close();
     return result;
 }
@@ -273,7 +331,7 @@ function median(values) {
 }
 
 function table(results) {
-    const rows = ["boot", "open", "ready", "drawn", "scroll", "select", "play", "roll", "expand", "focusPlay"].map((name) => {
+    const rows = ["boot", "open", "ready", "drawn", "scroll", "turn", "select", "play", "roll", "expand", "focusPlay", "focusTurn"].map((name) => {
         const pick = (key) => Math.round(median(results.map((result) => result[name][key])));
         return `| ${name} | ${pick("time")} | ${pick("long")} | ${pick("p95")} | ${pick("max")} |`;
     });

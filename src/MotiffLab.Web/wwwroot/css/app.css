@@ -10551,6 +10551,20 @@ body:has(> #app > .library) {
     color: var(--on-accent);
 }
 
+/* The modes on the Piano Roll (version 0.5, Scripts/roll/roll-modes.ts): the hand in Navigate, a crosshair to select by
+   beats in Select and to draw a box round notes in Edit notes. An edge of the selection still shows its own cursor. */
+.roll-notes[data-mode="navigate"] {
+    cursor: grab;
+}
+
+.roll-notes[data-mode="navigate"]:active {
+    cursor: grabbing;
+}
+
+.roll-notes[data-mode="select"], .roll-notes[data-mode="edit"] {
+    cursor: crosshair;
+}
+
 /* The piece in another key (#351, mockup C2): under the key's card, «Für Elise в ми миноре» with Слушать and Показать ноты,
    kept to the card's foot over a hairline. The piece's own key while it is chosen: the cobalt of the choice wins over the
    ink outline of the piece's key. */

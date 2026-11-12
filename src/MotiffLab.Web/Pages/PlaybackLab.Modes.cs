@@ -140,6 +140,32 @@ public partial class PlaybackLab
         await PlacePlayheadAsync(beat.Start);
     }
 
+    /// <summary>A click on the roll under the modes: as a click on the score, on the beat under it (music-core's beat lines).</summary>
+    private Task OnRollPlacedAsync((long Tick, bool Extend) place)
+    {
+        if (_score is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        long start = 0;
+        long end = _score.End.Value;
+        foreach (long line in _score.Beats.Select(beat => beat.At.Value))
+        {
+            if (line <= place.Tick)
+            {
+                start = line;
+            }
+            else
+            {
+                end = line;
+                break;
+            }
+        }
+
+        return OnScoreBeatClickedAsync((new Tick(start), new Tick(end), place.Extend));
+    }
+
     /// <summary>A note clicked in Edit notes: the roll opens on it with the editor on and the note picked.</summary>
     private async Task OnScoreNoteToEditAsync(NotePoint point)
     {
