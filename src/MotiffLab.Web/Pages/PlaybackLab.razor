@@ -1608,7 +1608,7 @@
                 <InputFile OnChange="AddDocumentAsync" accept="@MotiffLab.MusicCore.Import.PdfDocument.Extension" />
             </label>
             <p class="caption">@Text["sources.pdfHow"]</p>
-            <MotiffLab.Web.Import.RecordingVersion Heard="AddRecordingVersionAsync" />
+            <MotiffLab.Web.Import.RecordingVersion Heard="AddRecordingVersionAsync" Picked="FingerprintRecordingAsync" />
         </section>
     }
 </aside>;

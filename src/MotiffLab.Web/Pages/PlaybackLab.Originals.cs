@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.JSInterop;
 
@@ -43,9 +44,25 @@ public partial class PlaybackLab
                 .Where(HoldingDevice.Web, _heldHere.Contains(original.Id))
             : OriginalWhere.Nowhere;
 
+    /// <summary>The fingerprint of the recording just picked to add as a version; null when it was too large to read whole.</summary>
+    private string? _pickedRecording;
+
+    /// <summary>A recording is picked to add as a version: its fingerprint is taken before it is heard, so it can be linked again.</summary>
+    private async Task FingerprintRecordingAsync(ElementReference input)
+    {
+        try
+        {
+            _pickedRecording = await (await OriginalsAsync()).InvokeAsync<string?>("fingerprintPicked", input);
+        }
+        catch (JSException)
+        {
+            _pickedRecording = null;
+        }
+    }
+
     /// <summary>
-    /// A recording just added as a version: its original is described by the file the player picked (version 0.3), the
-    /// version says it was heard in it, and this browser marks it held when its sound was kept here.
+    /// A recording just added as a version: its original is described by the file the player picked (version 0.3) with its
+    /// fingerprint, the version says it was heard in it, and this browser marks it held when its sound was kept here.
     /// </summary>
     private async Task KeepRecordingOriginalAsync(string versionId, string fileName)
     {
@@ -56,8 +73,9 @@ public partial class PlaybackLab
 
         DateTimeOffset now = DateTimeOffset.Now;
         _project = _project
-            .WithOriginal(new PieceOriginal(versionId, OriginalKind.Audio, string.IsNullOrWhiteSpace(fileName) ? original.FileName : fileName, OriginalKept.Device, now))
+            .WithOriginal(new PieceOriginal(versionId, OriginalKind.Audio, string.IsNullOrWhiteSpace(fileName) ? original.FileName : fileName, OriginalKept.Device, now) { Sha256 = _pickedRecording })
             .ChangePerformance(versionId, version => version with { From = versionId, At = now });
+        _pickedRecording = null;
         await CheckOriginalsAsync(changed: true);
     }
 
@@ -181,13 +199,7 @@ public partial class PlaybackLab
 
         IJSObjectReference module = await OriginalsAsync();
         string? sha256 = await module.InvokeAsync<string?>("fingerprintPicked", input);
-        if (sha256 is null)
-        {
-            _relinkStatus = Text["recording.notDecoded"];
-            return;
-        }
-
-        if (original.Sha256 is not null && !original.Matches(sha256))
+        if (original.Sha256 is not null && (sha256 is null || !original.Matches(sha256)))
         {
             _relinkStatus = Text["originals.otherFile"];
             return;
@@ -201,7 +213,7 @@ public partial class PlaybackLab
 
         _heldHere.Add(id);
         Project project = _project!;
-        _project = project.WithOriginal(original with { Sha256 = sha256 }).MarkHeld(id, HoldingDevice.Web, held: true, DateTimeOffset.Now);
+        _project = project.WithOriginal(original with { Sha256 = original.Sha256 ?? sha256 }).MarkHeld(id, HoldingDevice.Web, held: true, DateTimeOffset.Now);
         _relinkStatus = Text["originals.linked"];
         CurrentPiece.Saved(_project);
         await Projects.SaveAsync(_project);

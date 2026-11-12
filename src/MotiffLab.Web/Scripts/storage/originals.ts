@@ -14,10 +14,13 @@ export async function sha256(bytes: ArrayBuffer): Promise<string> {
     return Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-/** The fingerprint of the file picked in `input`, or null when none is picked or it cannot be read. */
+/** The largest file fingerprinted: it is read whole into memory. A longer recording is linked again by the player's word. */
+export const MOST_FINGERPRINTED = 300 * 1024 * 1024;
+
+/** The fingerprint of the file picked in `input`, or null when none is picked, it is too large or it cannot be read. */
 export async function fingerprintPicked(input: HTMLInputElement): Promise<string | null> {
     const file = input.files?.[0];
-    if (!file) {
+    if (!file || file.size > MOST_FINGERPRINTED) {
         return null;
     }
     try {
