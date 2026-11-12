@@ -1831,6 +1831,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         }
     }
 
+    /// The mark `motiff.anchor` makes goes to `ink.add` as it is, its `margin` (v0.4) with it when the page sets one.
     private func add(_ piece: Int32, _ points: [[String: Double]], tool: String, colour: String, width: Int) async {
         let request: [String: Any] = ["points": points, "tool": tool, "colour": colour, "width": width]
         guard let mark = try? await webView.callAsyncJavaScript("return motiff.anchor(data)", arguments: ["data": request], contentWorld: .page) as? [String: Any],

@@ -54,7 +54,8 @@ struct JoinedPage: Equatable, Sendable {
 }
 
 /// The pages of a photographed piece read one request at a time (v0.4, «Фото страниц»): each page's state, the request to
-/// join the pages read, and what music-core answered. Nothing here is kept: the report counts only right after reading.
+/// join the pages read, and what music-core answered. The page reports the join took go on to `document.read`, which keeps
+/// them with the notes (`scan.pages`), so Check tells the pages' quality after the piece is opened again.
 struct PhotoReadings: Equatable, Sendable {
     var pages: [PageReading]
     /// The score music-core joined, and each photographed page's place in it (nil for a page not in it).
@@ -62,6 +63,8 @@ struct PhotoReadings: Equatable, Sendable {
     var joinedPages: [Int: JoinedPage] = [:]
     /// The photographed pages that went into `joined`, in order.
     var joinedFrom: [Int] = []
+    /// The page reports music-core took with that join, one per page of `joined`; nil when the join went without them.
+    var joinedReports: [String]?
 
     init(count: Int) {
         pages = Array(repeating: .waiting, count: count)
@@ -102,12 +105,13 @@ struct PhotoReadings: Equatable, Sendable {
         return request
     }
 
-    /// Takes music-core's answer to the join of `from`; false when it is an error.
-    mutating func joined(_ answer: [String: Any], from read: [Int]) -> Bool {
+    /// Takes music-core's answer to the join of `from`, sent with `reports` (the request's); false when it is an error.
+    mutating func joined(_ answer: [String: Any], from read: [Int], reports: [String]? = nil) -> Bool {
         guard answer["error"] == nil, let score = answer["score"] as? String, let list = answer["pages"] as? [[String: Any]],
               list.count == read.count else { return false }
         joined = score
         joinedFrom = read
+        joinedReports = reports.flatMap { $0.count == read.count ? $0 : nil }
         joinedPages = [:]
         for (index, entry) in list.enumerated() {
             joinedPages[read[index]] = JoinedPage(
@@ -175,5 +179,40 @@ struct PageSummaryLine: Equatable, Sendable, Identifiable {
             let key = joined.doubtful > 0 ? "photos.pageDoubtful.\(form)" : "photos.pageClean.\(form)"
             return PageSummaryLine(page: page, text: text.format(key, number, doubtful, bars), retake: false, unsure: joined.doubtful > 0)
         }
+    }
+}
+
+/// `document.read` (facade 0020): the notes a scan server read, put into the PDF piece, with the server's page reports
+/// (v0.4, within contract 12) when there are some: one per page of the notes, each an `X-Page-Report` header's text, as
+/// `scan.join` takes them. music-core keeps them with the notes (`scan.pages`) and flags the bars of a poor page
+/// (`PageQuality`); reports it refuses as not one per page (`badRequest`) are left out, and the notes read without them.
+enum DocumentRead {
+    static func request(musicXml: Data, engine: String, pages: Int, reports: [String]?, language: String, now: Date) -> [String: Any] {
+        var request: [String: Any] = [
+            "musicXml": musicXml.base64EncodedString(),
+            "engine": engine,
+            "pages": pages,
+            "language": language,
+            "now": ISO8601DateFormatter().string(from: now),
+        ]
+        if let reports, !reports.isEmpty { request["reports"] = reports }
+        return request
+    }
+
+    /// music-core's answer to the request on the PDF piece, sent again without the reports when it refused them.
+    @MainActor
+    static func call(piece: Int32, _ request: [String: Any]) async -> String {
+        let answer = await send(piece, request)
+        guard request["reports"] != nil, facadeObject(answer)?["error"] as? String == "badRequest" else { return answer }
+        var without = request
+        without["reports"] = nil
+        return await send(piece, without)
+    }
+
+    @MainActor
+    private static func send(_ piece: Int32, _ request: [String: Any]) async -> String {
+        guard let body = try? JSONSerialization.data(withJSONObject: request) else { return "" }
+        let json = String(decoding: body, as: UTF8.self)
+        return await MusicCore.run { MusicCore.call(piece: piece, "document.read", json) }
     }
 }

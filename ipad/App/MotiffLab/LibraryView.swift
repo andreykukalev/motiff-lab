@@ -430,7 +430,10 @@ struct LibraryView: View {
                 }
             }
             await reload()
-            if let saved = opened.file { opened.other = OtherView.of(saved, in: summaries) }
+            if let saved = opened.file {
+                opened.other = OtherView.of(saved, in: summaries)
+                opened.family = PieceFamily.of(saved, in: summaries)
+            }
             opened.landing = landing
             piece = opened
         case .failure(let error):

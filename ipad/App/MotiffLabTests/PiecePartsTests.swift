@@ -3,8 +3,8 @@ import XCTest
 
 /// Pieces in a file (v0.4, experiment «Пьесы в файле») for a PDF or photo collection: the rows «название · с–по» filled
 /// from the page bookmarks and checked (in order, not overlapping, within the file), a piece added or moved, the
-/// `parts.split` request and its answer, the summary in both languages, what the iPad keeps of a split, and one piece
-/// made by the native music-core.
+/// `parts.split` request and its answer, the summary in both languages, what the library tells of a split from the pieces'
+/// `partOf`, and one piece made by the native music-core.
 final class PiecePartsTests: XCTestCase {
     private let english = UIText(language: "en")
     private let russian = UIText(language: "ru")
@@ -116,23 +116,48 @@ final class PiecePartsTests: XCTestCase {
         XCTAssertEqual(PartsSplit.pages(first: 6, last: 6, text: english), "p. 6")
     }
 
-    // MARK: - What the iPad keeps
+    func testAPieceSaysWhereItCameFromWithItsPlaylistAndPages() {
+        XCTAssertEqual(PartsSplit.from(PartOrigin(title: "Islands", playlist: "Einaudi", pages: 6...11), text: russian), "Выделена из «Islands» · плейлист «Einaudi» · с. 6–11")
+        XCTAssertEqual(PartsSplit.from(PartOrigin(title: "Islands", playlist: nil, pages: 6...6), text: english), "Split from “Islands” · p. 6")
+        XCTAssertEqual(PartsSplit.from(PartOrigin(title: "Concert", playlist: nil, pages: nil), text: russian), "Выделена из «Concert»", "a stretch of a recording has no pages")
+        XCTAssertEqual(PartsSplit.summary(count: 5, playlist: nil, text: russian), "Разделено на 5 пьес")
+    }
 
-    func testASplitIsKeptOnTheIPadAndAPieceKnowsWhereItCameFrom() throws {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("parts-\(UUID().uuidString)").appendingPathComponent("piece-parts.json")
-        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
-        XCTAssertEqual(PieceSplits.load(from: url), [:])
-        let link = SplitLink(title: "Islands", playlist: "Islands", parts: [PartLink(id: "p_1", title: "I Giorni", first: 3, last: 8)])
-        PieceSplits.keep(link, collection: "p_book", in: url)
-        PieceSplits.keep(SplitLink(title: "Other", playlist: "Other", parts: [PartLink(id: "p_9", title: "X", first: 1, last: 1)]), collection: "p_other", in: url)
-        let kept = PieceSplits.load(from: url)
-        XCTAssertEqual(kept["p_book"], link)
-        XCTAssertEqual(PieceSplits.origin(of: "p_1", in: kept), PartOrigin(collection: "p_book", title: "Islands", playlist: "Islands", part: link.parts[0]))
-        XCTAssertNil(PieceSplits.origin(of: "p_book", in: kept))
-        PieceSplits.keep(SplitLink(title: "Islands", playlist: "Islands", parts: []), collection: "p_book", in: url)
-        XCTAssertNil(PieceSplits.load(from: url)["p_book"], "a split with no pieces is forgotten")
-        try Data("garbage".utf8).write(to: url)
-        XCTAssertEqual(PieceSplits.load(from: url), [:])
+    // MARK: - What the library knows
+
+    /// A summary as music-core answers it, with its originals and partOf.
+    private func described(id: String, title: String, playlists: [String] = [], originals: [(id: String, sha256: String)], partOf: String = "null") -> PieceSummary? {
+        let listed = originals.map { #"{"id": "\#($0.id)", "kind": "pdf", "fileName": "Islands.pdf", "sha256": "\#($0.sha256)"}"# }.joined(separator: ", ")
+        let names = playlists.map { #""\#($0)""# }.joined(separator: ", ")
+        return PieceSummary(answer: #"{"project": {"id": "\#(id)", "title": "\#(title)", "playlists": [\#(names)], "originals": [\#(listed)], "partOf": \#(partOf)}}"#)
+    }
+
+    func testTheLibraryTellsWhatWasSplitFromWhatByTheOriginalsFingerprint() throws {
+        let book = try XCTUnwrap(described(id: "p_book", title: "Islands", originals: [("src_pdf", "aa")]))
+        let first = try XCTUnwrap(described(id: "p_1", title: "I Giorni", playlists: ["Islands"], originals: [("src_pdf", "b1"), ("src_book", "aa")],
+                                          partOf: #"{"original": "src_book", "pages": {"first": 3, "last": 8}, "milliseconds": null}"#))
+        let second = try XCTUnwrap(described(id: "p_2", title: "Nuvole bianche", playlists: ["Recital", "Islands"], originals: [("src_pdf", "b2"), ("src_book", "aa")],
+                                           partOf: #"{"original": "src_book", "pages": {"first": 9, "last": 11}, "milliseconds": null}"#))
+        let stranger = try XCTUnwrap(described(id: "p_x", title: "Other", playlists: ["Islands"], originals: [("src_pdf", "cc"), ("src_book", "zz")],
+                                             partOf: #"{"original": "src_book", "pages": {"first": 1, "last": 2}, "milliseconds": null}"#))
+        XCTAssertEqual(first.partOf, PartOfEntry(original: "src_book", pages: 3...8))
+        XCTAssertNil(book.partOf)
+        let shelf = URL(fileURLWithPath: "/shelf")
+        let urls = ["Islands", "I Giorni", "Nuvole", "Other"].map { shelf.appendingPathComponent("\($0).motiff.json") }
+        let summaries = [urls[0]: book, urls[1]: first, urls[2]: second, urls[3]: stranger]
+
+        let split = try XCTUnwrap(PieceFamily.of(urls[0], in: summaries).split)
+        XCTAssertEqual(split.parts.map(\.title), ["I Giorni", "Nuvole bianche"], "in page order, the other collection's piece left out")
+        XCTAssertEqual(split.parts.map(\.pages), [3...8, 9...11])
+        XCTAssertEqual(split.playlist, "Islands", "the playlist every piece is on")
+        XCTAssertEqual(PartsSplit.summary(count: split.parts.count, playlist: split.playlist, text: russian), "Разделено на 2 пьесы · плейлист «Islands»")
+        XCTAssertNil(PieceFamily.of(urls[0], in: summaries).origin)
+
+        let origin = try XCTUnwrap(PieceFamily.of(urls[1], in: summaries).origin)
+        XCTAssertEqual(origin, PartOrigin(title: "Islands", playlist: "Islands", pages: 3...8))
+        XCTAssertNil(PieceFamily.of(urls[1], in: summaries).split, "a piece's own PDF is not the collection's")
+        XCTAssertEqual(PieceFamily.of(urls[3], in: summaries).origin?.title, "Islands", "a collection not in this library is named by its original")
+        XCTAssertEqual(PieceFamily.of(shelf.appendingPathComponent("Gone.motiff.json"), in: summaries), PieceFamily())
     }
 
     // MARK: - Through music-core
@@ -161,5 +186,15 @@ final class PiecePartsTests: XCTestCase {
         XCTAssertTrue(summary.document)
         XCTAssertFalse(summary.hasNotes)
         XCTAssertEqual(summary.id, made.id)
+        XCTAssertEqual(summary.partOf, PartOfEntry(original: "src_book", pages: 3...8), "the piece's file says where it is in the collection")
+
+        // The collection says it was split, and the piece where it came from, from their summaries alone.
+        let collection = try XCTUnwrap(PieceSummary(answer: MusicCore.call(piece: 0, "project.summary", String(decoding: try JSONSerialization.data(withJSONObject: ["file": file]), as: UTF8.self))))
+        let shelf = URL(fileURLWithPath: "/shelf")
+        let book = shelf.appendingPathComponent("Islands.motiff.json"), part = shelf.appendingPathComponent("I Giorni.motiff.json")
+        let summaries = [book: collection, part: summary]
+        XCTAssertEqual(PieceFamily.of(book, in: summaries).split, SplitLink(playlist: "Islands", parts: [PartLink(id: made.id, title: "I Giorni", pages: 3...8)]))
+        XCTAssertEqual(PieceFamily.of(part, in: summaries).origin?.pages, 3...8)
+        XCTAssertEqual(PieceFamily.of(part, in: summaries).origin?.playlist, "Islands")
     }
 }

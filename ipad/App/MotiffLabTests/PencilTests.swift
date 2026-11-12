@@ -134,11 +134,17 @@ final class PencilTests: XCTestCase {
         XCTAssertEqual((right["bar"] as? NSNumber)?.doubleValue, value(last, "tick"))
         XCTAssertGreaterThan((right["u"] as? NSNumber)?.doubleValue ?? 0, 1)
 
-        let request = String(decoding: try JSONSerialization.data(withJSONObject: ["strokes": [left, right]]), as: UTF8.self)
+        // The mark goes to music-core as the page made it, with the margin it was begun in (v0.4): set here where the page
+        // does not set it yet.
+        var leftMark = left, rightMark = right
+        if leftMark["margin"] == nil { leftMark["margin"] = "left" }
+        if rightMark["margin"] == nil { rightMark["margin"] = "right" }
+        let request = String(decoding: try JSONSerialization.data(withJSONObject: ["strokes": [leftMark, rightMark]]), as: UTF8.self)
         let added = await MusicCore.run { MusicCore.call(piece: piece.id, "ink.add", request) }
         let answer = try XCTUnwrap(facadeObject(added))
         let ink = try XCTUnwrap(answer["ink"] as? [[String: Any]], "\(answer)")
         XCTAssertEqual(ink.count, 2)
+        XCTAssertEqual(ink.compactMap { $0["margin"] as? String }.sorted(), ["left", "right"], "music-core keeps and answers each stroke's margin")
         // Forty points on a straight line are kept as its two ends.
         XCTAssertEqual((ink.first?["points"] as? [Any])?.count, 3, "the straight stroke is thinned to its ends")
 
