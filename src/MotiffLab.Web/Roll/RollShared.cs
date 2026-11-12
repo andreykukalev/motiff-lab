@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Runtime.CompilerServices;
+
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Notation;
 using MotiffLab.MusicCore.Playback;
