@@ -2,9 +2,12 @@
 // shows its length and shape for the player to choose the stretch to hear, sends only that stretch's sound
 // to the scan server, and opens the MIDI it hears with every note marked as detected.
 // The scan server is played by the test: it answers with what Basic Pitch heard in a synthesised melody.
+// It is a real HTTP server rather than a route, so the test reads the bytes the browser sent: WebKit's network inspector
+// leaves a Blob's bytes out of the body it reports (only the multipart text around them is kept), though WebKit sends them.
 // Runs in every engine, since decoding the recording is the browser's own work.
 import { expect, test } from "@playwright/test";
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,10 +17,19 @@ import { closePopover, openMore, violations, librarySessions } from "./steps.mjs
 const fixtures = "../MotiffLab.MusicCore.Tests/Import/Transcription/Fixtures/";
 const heard = fileURLToPath(new URL(`${fixtures}basic-pitch-melody.mid`, import.meta.url));
 const furElise = fileURLToPath(new URL(`${fixtures}transkun-fur-elise.mid`, import.meta.url));
-const server = "http://localhost:8765";
 
 // The app's service worker would answer the page's requests before the test's stand-in server could.
 test.use({ serviceWorkers: "block" });
+
+/** The stand-in scan servers the running test started, closed after it. */
+const servers = [];
+
+test.afterEach(async () => {
+    await Promise.all(servers.splice(0).map(server => new Promise(resolve => {
+        server.closeAllConnections();
+        server.close(resolve);
+    })));
+});
 
 /** A 440 Hz tone in stereo, a second at 44.1 kHz by default, as a WAV file the browser decodes and mixes down. */
 async function recording(seconds = 1, rate = 44100) {
@@ -45,19 +57,44 @@ async function recording(seconds = 1, rate = 44100) {
     return path;
 }
 
-/** Plays the scan server, answering with the MIDI file given; returns the uploads it received. */
+/**
+ * Plays the scan server on a free port, answering every part with the MIDI file given, and points the app at it in
+ * Settings; returns the uploads it received, each the request's body as it arrived.
+ */
 async function scanServer(page, answer = heard) {
     const uploads = [];
     const midi = await readFile(answer);
     const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Expose-Headers": "X-Engine, X-Pages, X-Seconds, X-Cut" };
-    await page.route(`${server}/health`, route => route.fulfill({
-        json: { engine: "homr", version: "0.7.0", maxPages: 8, transcribe: { engine: "basic-pitch", version: "0.4.0", maxMegabytes: 200, maxSeconds: 600 } },
-        headers: cors,
-    }));
-    await page.route(`${server}/transcribe`, route => {
-        uploads.push(route.request().postDataBuffer() ?? Buffer.alloc(0));
-        return route.fulfill({ body: midi, contentType: "audio/midi", headers: { ...cors, "X-Engine": "basic-pitch 0.4.0", "X-Seconds": "1.0", "X-Cut": "false" } });
+    const health = { engine: "homr", version: "0.7.0", maxPages: 8, transcribe: { engine: "basic-pitch", version: "0.4.0", maxMegabytes: 200, maxSeconds: 600 } };
+    const server = createServer((request, response) => {
+        const chunks = [];
+        request.on("data", chunk => chunks.push(chunk));
+        request.on("end", () => {
+            const path = new URL(request.url, "http://localhost").pathname;
+            if (request.method === "OPTIONS") {
+                const allowed = request.headers["access-control-request-headers"] ?? "";
+                response.writeHead(204, { ...cors, "Access-Control-Allow-Methods": "GET, POST", "Access-Control-Allow-Headers": allowed });
+                response.end();
+            } else if (path === "/health") {
+                response.writeHead(200, { ...cors, "Content-Type": "application/json" });
+                response.end(JSON.stringify(health));
+            } else if (path === "/transcribe" && request.method === "POST") {
+                uploads.push(Buffer.concat(chunks));
+                response.writeHead(200, { ...cors, "Content-Type": "audio/midi", "X-Engine": "basic-pitch 0.4.0", "X-Seconds": "1.0", "X-Cut": "false" });
+                response.end(midi);
+            } else {
+                response.writeHead(404, cors);
+                response.end();
+            }
+        });
     });
+    servers.push(server);
+    await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+
+    await page.goto("/settings");
+    await page.getByLabel("Scan server address").fill(`http://127.0.0.1:${server.address().port}`);
+    await page.getByRole("button", { name: "Save and check" }).click();
+    await expect(page.getByText("Connected: the scan server runs homr 0.7.0")).toBeVisible();
     return uploads;
 }
 
@@ -75,9 +112,6 @@ test("transcription is off until Settings has a scan server", async ({ page }) =
 
 test("a recording's sound is sent as mono audio, and its notes open marked as heard", async ({ page }) => {
     const uploads = await scanServer(page);
-    await page.goto("/settings");
-    await page.getByRole("button", { name: "Save and check" }).click();
-    await expect(page.getByText("Connected: the scan server runs homr 0.7.0")).toBeVisible();
 
     await page.goto("/import/recording");
     await page.getByLabel("Choose an audio or video recording to transcribe").setInputFiles(await recording());
@@ -112,9 +146,6 @@ test("a recording's sound is sent as mono audio, and its notes open marked as he
 
 test("a transcription is written in bars and a tempo worked out from its notes, which the player changes in Check", async ({ page }) => {
     await scanServer(page, furElise);
-    await page.goto("/settings");
-    await page.getByRole("button", { name: "Save and check" }).click();
-    await expect(page.getByText("Connected: the scan server runs homr 0.7.0")).toBeVisible();
 
     await page.goto("/import/recording");
     await transcribe(page, await recording());
@@ -188,9 +219,6 @@ test("a transcription is written in bars and a tempo worked out from its notes, 
 
 test("a recording longer than two minutes is heard in overlapping parts and its notes are joined", async ({ page }) => {
     const uploads = await scanServer(page, furElise);
-    await page.goto("/settings");
-    await page.getByRole("button", { name: "Save and check" }).click();
-    await expect(page.getByText("Connected: the scan server runs homr 0.7.0")).toBeVisible();
 
     await page.goto("/import/recording");
     await transcribe(page, await recording(240, 8000));
@@ -215,9 +243,6 @@ test("a recording longer than two minutes is heard in overlapping parts and its 
 
 test("only the stretch the player chooses in a long recording is sent, and the parts it takes are told first", async ({ page }) => {
     const uploads = await scanServer(page, furElise);
-    await page.goto("/settings");
-    await page.getByRole("button", { name: "Save and check" }).click();
-    await expect(page.getByText("Connected: the scan server runs homr 0.7.0")).toBeVisible();
 
     await page.goto("/import/recording");
     await page.getByLabel("Choose an audio or video recording to transcribe").setInputFiles(await recording(600, 8000));
@@ -256,9 +281,6 @@ test("the selection is dragged on the recording's shape, and the play position m
     // file (error 4, NotSupportedError on play). Fixed or explained in #337, which removes this mark.
     test.fixme(browserName === "webkit", "#337: the recording's player sometimes cannot load the file in WebKit");
     await scanServer(page);
-    await page.goto("/settings");
-    await page.getByRole("button", { name: "Save and check" }).click();
-    await expect(page.getByText("Connected: the scan server runs homr 0.7.0")).toBeVisible();
 
     await page.goto("/import/recording");
     await page.getByLabel("Choose an audio or video recording to transcribe").setInputFiles(await recording(600, 8000));

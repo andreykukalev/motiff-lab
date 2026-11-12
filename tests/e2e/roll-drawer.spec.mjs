@@ -132,10 +132,16 @@ test("the playhead's handle drags it inside the looping selection, playing on; p
     expect(max).toBeGreaterThan(min);
 
     // The handle hangs under the bar numbers, where the control sits: dragged, the music plays on from the new place.
+    // It is taken while paused and the music started under the finger: a handle that moves with the playing would be
+    // pressed where it stood a moment before, a beat or more behind on a slow runner, and the press would select notes.
+    await pill.getByRole("button", { name: "Pause", exact: true }).click();
+    await expect(pill.getByRole("button", { name: "Play", exact: true })).toBeVisible();
     const box = await playhead.boundingBox();
     const x = box.x + box.width / 2;
     await page.mouse.move(x, box.y + 8);
     await page.mouse.down();
+    await page.keyboard.press("Space");
+    await expect(pill.getByRole("button", { name: "Pause", exact: true })).toBeVisible();
     await page.mouse.move(x + 400, box.y + 8, { steps: 6 });
     await page.mouse.up();
     await expect(pill.getByRole("button", { name: "Pause", exact: true })).toBeVisible();
@@ -164,7 +170,9 @@ test("the playhead's handle drags it inside the looping selection, playing on; p
     await expect(playhead).toHaveAttribute("aria-valuetext", /^Bar 2, beat 2$/);
     await page.keyboard.press("Space");
     await expect(pill.getByRole("button", { name: "Pause", exact: true })).toBeVisible();
-    expect(await value()).toBeGreaterThanOrEqual(nudged);
+    // The place shown is the one heard, which trails the start by the sound card's output latency for a moment: a few
+    // ticks before the nudged beat, never back at the loop's start a beat earlier.
+    expect(await value()).toBeGreaterThanOrEqual(nudged - 120);
     expect(errors).toEqual([]);
 });
 
