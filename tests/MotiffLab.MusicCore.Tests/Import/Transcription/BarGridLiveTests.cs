@@ -81,7 +81,10 @@ public class BarGridLiveTests
         Assert.Equal(2, found.Sections);
         long[] late = [.. chords.Skip(56)];
         Assert.InRange(OnBeats(found.Grid!, late), 85, 100);
-        Assert.InRange(OnBeats(BarGrid.Find(piece.Midi!)!, late), 0, 50);
+
+        // The single grid's beat stays within 8/5 of where it started, but since issue #455 it finds the chords again each
+        // time they slip off it.
+        Assert.InRange(OnBeats(BarGrid.Find(piece.Midi!)!, late), 85, 100);
     }
 
     /// <summary>The percentage of <paramref name="onsets"/>, microseconds of the recording, that fall within 30 ms of a beat of the grid.</summary>

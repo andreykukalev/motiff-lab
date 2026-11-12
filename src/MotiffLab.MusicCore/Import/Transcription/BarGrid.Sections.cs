@@ -26,23 +26,30 @@ public sealed partial record BarGrid
             return GridFound.None;
         }
 
-        var live = new LiveSearch(onsets, Silences(import.Notes, clock, onsets), search, stepsPerBeat);
+        long[] silences = Silences(import.Notes, clock, onsets);
+        var live = new LiveSearch(onsets, silences, search, stepsPerBeat, relock: true);
         List<LiveSection> sections = live.Sections();
         (long[] beats, int[] firstBeats) = Join(sections);
         long[] gaps = [.. beats.Zip(beats.Skip(1), (a, b) => b - a).Order()];
         long sixteenth = Math.Clamp(gaps[gaps.Length / 2] / live.PerBeat, ShortestSixteenth, LongestSixteenth);
         Tick origin = onsets[0].Tick;
         var grid = new BarGrid(origin, (int)sixteenth, TimeSignature.CommonTime, [0], beats, live.PerBeat);
-        long[] positions = [.. live.Times.Select(grid.ThousandthsOfSteps)];
-        if (!live.FirstHasBass && stepsPerBeat is null && 8 * Distance(positions) > positions.Length * 1000L)
+        if (!live.FirstHasBass && stepsPerBeat is null)
         {
-            return GridFound.None;
+            // Asked of the beats tracked without finding a slipped one again, as Find asks it.
+            var plain = new LiveSearch(onsets, silences, search, stepsPerBeat, relock: false);
+            if (!Steady(origin, plain.Times, Join(plain.Sections()).Beats, plain.PerBeat))
+            {
+                return GridFound.None;
+            }
         }
+
+        long[] positions = [.. live.Times.Select(grid.ThousandthsOfSteps)];
 
         int[] steps = [.. positions.Select(position => (int)((position + 500) / 1000))];
         int[] lowest = [.. onsets.Select(onset => onset.Lowest)];
         int[] sectionStarts = [.. firstBeats.Select(beat => beat * live.PerBeat)];
-        var bars = new SectionBars(sections, sectionStarts, steps, lowest);
+        var bars = new SectionBars(sections, sectionStarts, steps, lowest, live.PerBeat);
         (TimeSignature picked, bool? fits) = bars.Pick(signature, search.Hint?.Signature);
         return new GridFound(new BarGrid(origin, (int)sixteenth, picked, bars.Starts(picked), beats, live.PerBeat), sections.Count, fits);
     }
@@ -130,9 +137,12 @@ public sealed partial record BarGrid
         private readonly HashSet<int> _starts;
         private readonly GridHint? _hint;
         private readonly int? _steps;
+        private readonly bool _relock;
 
-        public LiveSearch(Onset[] onsets, long[] silences, GridSearch search, int? steps)
+        /// <param name="relock">Whether a beat that slipped is found again (<see cref="Follow"/>).</param>
+        public LiveSearch(Onset[] onsets, long[] silences, GridSearch search, int? steps, bool relock)
         {
+            _relock = relock;
             _onsets = onsets;
             _silences = silences;
             _hint = search.Hint;
@@ -198,16 +208,19 @@ public sealed partial record BarGrid
                 long step = local.Length >= MinOnsets ? NearestStep(local, previous.Beat / PerBeat) : previous.Beat / PerBeat;
                 long period = Math.Max(1, PerBeat * step);
                 beats = BassBeat(lows) is { } bass
-                    ? Divided(TrackBass(local, lows, bass, GridSearch.JumpRun, out jumped), Within(bass, period))
-                    : BarGrid.Track(local, period, GridSearch.JumpRun, out jumped);
+                    ? Divided(TrackBass(local, lows, bass, GridSearch.JumpRun, out jumped, _relock), Within(bass, period))
+                    : BarGrid.Track(local, period, GridSearch.JumpRun, out jumped, _relock);
             }
 
             int end = jumped is { } at ? from + Array.IndexOf(local, at) : to;
             return new LiveSection(from, end, [.. beats.Select(beat => beat + Times[from])]);
         }
 
-        /// <summary>How many beats near <paramref name="period"/> a beat of the bass holds: 1, 2, 4 or 8, the beat nearest the period.</summary>
-        private static int Within(long bass, long period) => new[] { 1, 2, 4, 8 }
+        /// <summary>
+        /// How many beats near <paramref name="period"/> a beat of the bass holds: 1, 2, 3, 4, 6 or 8, the beat nearest the
+        /// period. A bass on every third or sixth beat, as in 3/4 or 6/8, holds three or six (issue #455).
+        /// </summary>
+        private static int Within(long bass, long period) => new[] { 1, 2, 3, 4, 6, 8 }
             .MinBy(count => Math.Max(bass / count, period) * 1000 / Math.Max(1, Math.Min(bass / count, period)));
 
         /// <summary>The bass's beats, each divided evenly into <paramref name="count"/>, so the section keeps the 16ths of the one before.</summary>
@@ -231,7 +244,7 @@ public sealed partial record BarGrid
         {
             if (BassBeat(lows) is { } period)
             {
-                long[] bass = TrackBass(local, lows, period, GridSearch.JumpRun, out jumped);
+                long[] bass = TrackBass(local, lows, period, GridSearch.JumpRun, out jumped, _relock);
                 PerBeat = _steps ?? Divisions(Tick.Zero, local, bass, period);
                 FirstHasBass = true;
                 return bass;
@@ -245,7 +258,7 @@ public sealed partial record BarGrid
             }
 
             PerBeat = _steps ?? 2;
-            return BarGrid.Track(local, PerBeat * step, GridSearch.JumpRun, out jumped);
+            return BarGrid.Track(local, PerBeat * step, GridSearch.JumpRun, out jumped, _relock);
         }
 
         /// <summary>The 16ths searched: within 0.6 to 1.6 of a hinted 16th, else all.</summary>
@@ -283,7 +296,7 @@ public sealed partial record BarGrid
     }
 
     /// <summary>The bars of each section of a live performance, laid out from its own first downbeat.</summary>
-    private sealed class SectionBars(List<LiveSection> sections, int[] starts, int[] steps, int[] lowest)
+    private sealed class SectionBars(List<LiveSection> sections, int[] starts, int[] steps, int[] lowest, int beat)
     {
         private static readonly int[] s_sizes = [16, 6, 12, 8];
 
@@ -333,7 +346,7 @@ public sealed partial record BarGrid
         {
             LiveSection section = sections[k];
             int[] local = [.. steps[section.From..section.To].Select(step => Math.Max(0, step - starts[k]))];
-            return Layout.Of(local, lowest[section.From..section.To], size);
+            return Layout.Of(local, lowest[section.From..section.To], size, beat);
         }
 
         /// <summary>How well the bass falls on the bar lines in every section, each weighed by its onsets.</summary>
