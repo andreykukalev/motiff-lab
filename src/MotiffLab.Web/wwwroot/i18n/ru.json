@@ -2103,5 +2103,9 @@
   "reference.octaves": "Октавы",
   "reference.playIt": "Сыграть",
   "reference.pause": "Пауза",
-  "reference.loop": "Цикл"
+  "reference.loop": "Цикл",
+  "pieces.suggest": "Предложить",
+  "pieces.suggestHow": "Предложить, где начинаются пьесы, по распознанным нотам или по уже сохранённым пьесам; «Подтвердить пьесы» сохраняет их в пьесе на всех устройствах.",
+  "pieces.noSuggestion": "По распознанным нотам здесь нечего предложить.",
+  "pieces.confirmLayer": "Подтвердить пьесы"
 }

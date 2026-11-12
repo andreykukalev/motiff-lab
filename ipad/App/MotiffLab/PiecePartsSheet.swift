@@ -44,6 +44,68 @@ final class PieceSplitter: ObservableObject {
         problem = nil
     }
 
+    /// What «Предложить» or «Подтвердить пьесы» last said (version 0.5): the pieces kept, or why not.
+    @Published private(set) var layerStatus: String?
+    @Published private(set) var layerBusy = false
+
+    /// «Предложить»: the rows from the pieces layer the piece keeps, else from music-core's proposals over the notes read
+    /// from this PDF (`pieces.find`), by their pages.
+    func suggest(file: URL, text: UIText) async {
+        guard !layerBusy, making == nil else { return }
+        layerBusy = true
+        defer { layerBusy = false }
+        let answer = await PiecesLayer.withNotes(file: file, language: text.language) { (piece: Int32) -> String in MusicCore.call(piece: piece, "pieces.find") }
+        guard let answer, let found = PiecesLayer.rows(answer, pageCount: rows.pageCount) else {
+            layerStatus = text["pieces.noSuggestion"]
+            return
+        }
+        rows = found
+        layerStatus = nil
+    }
+
+    /// «Подтвердить пьесы»: what the PDF view holds is saved to the piece's file first, then the rows are kept there as the
+    /// pieces layer (`pieces.save`), in one write. True once the file is written, for the PDF view to open it again.
+    func confirm(document: Int32, file: URL, text: UIText) async -> Bool {
+        guard !layerBusy, making == nil, rows.problem == nil else { return false }
+        layerBusy = true
+        defer { layerBusy = false }
+        do {
+            try await ProjectFiles.save(piece: document, to: file)
+        } catch {
+            layerStatus = (error as? ProjectError)?.message ?? error.localizedDescription
+            return false
+        }
+        let request = PiecesLayer.saveRequest(rows.rows, now: Date())
+        let now = "{\"now\": \"\(ISO8601DateFormatter().string(from: Date()))\"}"
+        let answers = await PiecesLayer.withNotes(file: file, language: text.language) { (piece: Int32) -> (saved: String, file: String?) in
+            let saved = MusicCore.call(piece: piece, "pieces.save", request)
+            guard case .success = PiecesLayer.kept(saved) else { return (saved, nil) }
+            return (saved, MusicCore.call(piece: piece, "project.save", now))
+        }
+        guard let answers else {
+            layerStatus = text["parts.pdf.failedNoWord"]
+            return false
+        }
+        switch PiecesLayer.kept(answers.saved) {
+        case .failure(let failure):
+            layerStatus = failure.message ?? text["parts.pdf.failedNoWord"]
+            return false
+        case .success(let count):
+            guard let project = answers.file, !(project.utf8.count < 4096 && facadeObject(project)?["error"] != nil) else {
+                layerStatus = text["parts.pdf.failedNoWord"]
+                return false
+            }
+            do {
+                try Data(project.utf8).write(to: file, options: .atomic)
+            } catch {
+                layerStatus = error.localizedDescription
+                return false
+            }
+            layerStatus = text.count("pieces.kept", count)
+            return true
+        }
+    }
+
     func split(piece: Int32, pdf: PdfController, text: UIText) async {
         guard rows.problem == nil, making == nil, let original = pdf.original else { return }
         problem = nil
@@ -109,14 +171,23 @@ struct PiecePartsSheet: View {
     let piece: OpenPiece
     @ObservedObject var pdf: PdfController
     let text: UIText
+    /// Opens the piece's file again in the PDF view, once the pieces layer is written to it; nil where it cannot be.
+    var reopen: (() async -> Void)? = nil
     @StateObject private var splitter: PieceSplitter
     @Environment(\.dismiss) private var dismiss
 
-    init(piece: OpenPiece, pdf: PdfController, text: UIText) {
+    init(piece: OpenPiece, pdf: PdfController, text: UIText, reopen: (() async -> Void)? = nil) {
         self.piece = piece
         _pdf = ObservedObject(wrappedValue: pdf)
         self.text = text
+        self.reopen = reopen
         _splitter = StateObject(wrappedValue: PieceSplitter(pdf: pdf, title: piece.title))
+    }
+
+    /// The piece's file, when its notes were read from this PDF into it (version 0.5): «Предложить» and «Подтвердить пьесы».
+    private var notesFile: URL? {
+        guard reopen != nil, let file = piece.file, piece.other?.file == file else { return nil }
+        return file
     }
 
     var body: some View {
@@ -166,6 +237,9 @@ struct PiecePartsSheet: View {
             .dsType(.caption)
             .foregroundStyle(Color.ds("ink-2"))
             .fixedSize(horizontal: false, vertical: true)
+        if let file = notesFile {
+            layer(file)
+        }
         ForEach($splitter.rows.rows) { $row in
             let number = (splitter.rows.rows.firstIndex { $0.id == row.id } ?? 0) + 1
             PiecePartRowView(
@@ -216,6 +290,38 @@ struct PiecePartsSheet: View {
                     .monospacedDigit()
                     .foregroundStyle(Color.ds("ink-2"))
             }
+        }
+    }
+}
+
+extension PiecePartsSheet {
+    /// «Предложить» and «Подтвердить пьесы» for a PDF with notes read (version 0.5): the rows from the notes, and the rows
+    /// kept as the pieces layer, which syncs with the web; then the PDF view opens the file again.
+    @ViewBuilder func layer(_ file: URL) -> some View {
+        Text(text["pieces.suggestHow"])
+            .dsType(.caption)
+            .foregroundStyle(Color.ds("ink-2"))
+            .fixedSize(horizontal: false, vertical: true)
+        HStack(spacing: CGFloat.ds("s-3")) {
+            Button(text["pieces.suggest"]) {
+                Task { await splitter.suggest(file: file, text: text) }
+            }
+            .buttonStyle(DSButtonStyle(kind: .secondary))
+            .disabled(splitter.layerBusy || splitter.making != nil)
+            Button(text["pieces.confirmLayer"]) {
+                Task {
+                    if await splitter.confirm(document: piece.id, file: file, text: text) { await reopen?() }
+                }
+            }
+            .buttonStyle(DSButtonStyle(kind: .secondary))
+            .disabled(splitter.layerBusy || splitter.making != nil || splitter.rows.problem != nil)
+            if splitter.layerBusy { ProgressView() }
+        }
+        if let status = splitter.layerStatus {
+            Text(status)
+                .dsType(.label)
+                .foregroundStyle(Color.ds("ink-2"))
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }

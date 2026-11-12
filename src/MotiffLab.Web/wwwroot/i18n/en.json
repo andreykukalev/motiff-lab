@@ -2050,5 +2050,9 @@
   "reference.octaves": "Octaves",
   "reference.playIt": "Play",
   "reference.pause": "Pause",
-  "reference.loop": "Loop"
+  "reference.loop": "Loop",
+  "pieces.suggest": "Suggest",
+  "pieces.suggestHow": "Suggest where the pieces begin from the notes read, or start from the pieces kept; Confirm the pieces keeps them in the piece, on every device.",
+  "pieces.noSuggestion": "No pieces can be suggested from the notes read here.",
+  "pieces.confirmLayer": "Confirm the pieces"
 }

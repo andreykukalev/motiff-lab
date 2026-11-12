@@ -64,7 +64,21 @@ struct CheckShelf: Equatable, Sendable {
         var span: Range<Double>? { flags.lazy.compactMap(\.span).first }
     }
 
+    /// A piece of the pieces layer with its flagged bars, open and in all (version 0.5, `check` "pieces"): Check by piece.
+    struct PieceEntry: Identifiable, Equatable, Sendable {
+        var title: String
+        var firstBar: Int
+        var lastBar: Int
+        var open: Int
+        var total: Int
+        var id: Int { firstBar }
+
+        func holds(_ bar: Int) -> Bool { bar >= firstBar && bar <= lastBar }
+    }
+
     var flags: [CheckFlagEntry] = []
+    /// The pieces of the layer, in score order; empty without a pieces layer.
+    var pieces: [PieceEntry] = []
     /// A recording's bars with notes of uncertain length, in bar order (#352).
     var lengths: [UncertainLengthsEntry] = []
     var open = 0
@@ -99,6 +113,13 @@ struct CheckShelf: Equatable, Sendable {
                 text: entry["text"] as? String ?? "", resolved: entry["resolved"] as? Bool ?? false, span: span
             )
         }
+        pieces = (object["pieces"] as? [[String: Any]] ?? []).compactMap { entry in
+            guard let first = number(entry["firstBar"]), let last = number(entry["lastBar"]) else { return nil }
+            return PieceEntry(
+                title: entry["title"] as? String ?? "", firstBar: Int(first), lastBar: Int(last),
+                open: Int(number(entry["open"]) ?? 0), total: Int(number(entry["total"]) ?? 0)
+            )
+        }
         open = Int(number(object["open"]) ?? 0)
         origin = object["origin"] as? String ?? "imported"
         engine = object["engine"] as? String
@@ -116,6 +137,12 @@ struct CheckShelf: Equatable, Sendable {
 
     /// The bars still to check, each with its open flags, in bar order.
     var openBars: [BarFlags] { group(flags.filter { !$0.resolved }) }
+
+    /// The bars still to check in one piece of the layer, or in every piece without one.
+    func openBars(in piece: PieceEntry?) -> [BarFlags] {
+        guard let piece else { return openBars }
+        return openBars.filter { piece.holds($0.bar) }
+    }
 
     /// The bars checked, every flag on them, in bar order.
     var resolvedBars: [BarFlags] { group(flags.filter(\.resolved)) }
@@ -215,6 +242,8 @@ struct CheckDrawer: View {
     let close: () -> Void
     /// "‹ More" when opened from More: closes the drawer and opens More again (testing item 20); nil from elsewhere.
     var back: (label: String, action: () -> Void)?
+    /// The piece of the layer the list keeps to, after Open (version 0.5, Check by piece), by its first bar; nil for every piece.
+    @State private var shownPiece: Int?
 
     var body: some View {
         let check = score.check
@@ -253,7 +282,12 @@ struct CheckDrawer: View {
                     }
                     // A scan's pages in doubt, from the page reports kept with it (v0.4, «Фото страниц»).
                     PhotoPagesCheck(score: score, text: text)
-                    ForEach(check.openBars) { bar in openEntry(bar) }
+                    if DeviceSettings.shared.isOn("experimental.pieces"), !check.pieces.isEmpty {
+                        // Check by piece (version 0.5): the pieces of the layer with their bars to check.
+                        Text(text["checkPieces.title"]).overline().padding(.top, CGFloat.ds("s-2"))
+                        ForEach(check.pieces) { piece in pieceEntry(piece) }
+                    }
+                    ForEach(check.openBars(in: check.pieces.first { $0.firstBar == shownPiece })) { bar in openEntry(bar) }
                     if !check.lengths.isEmpty {
                         // A recording's note lengths are heard less surely than their starts (#352): shown apart.
                         Text(text["check.lengthsHeading"]).overline().padding(.top, CGFloat.ds("s-2"))
@@ -292,6 +326,42 @@ struct CheckDrawer: View {
         default: source = ""
         }
         return source + text[check.origin == "transcribed" ? "check.howRecordingShort" : "check.howScanShort"]
+    }
+
+    /// A piece of the layer: its title and bars, its bars to check, Open (the list keeps to its bars; again, every piece's)
+    /// and Looks right for the whole piece, one change music-core makes (`check.resolve` with its bars).
+    private func pieceEntry(_ piece: CheckShelf.PieceEntry) -> some View {
+        let shown = shownPiece == piece.firstBar
+        return VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+            HStack(spacing: CGFloat.ds("s-2")) {
+                Text(piece.title)
+                    .font(DesignTokens.font(weight: 600, size: 15))
+                    .foregroundStyle(Color.ds("ink"))
+                Text(text.format("bars.range", String(piece.firstBar), String(piece.lastBar)))
+                    .dsType(.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(Color.ds("ink-2"))
+            }
+            Text(piece.open > 0 ? text.count("check.toReview", piece.open) : text["checkPieces.done"])
+                .dsType(.caption)
+                .foregroundStyle(Color.ds("ink-2"))
+            HStack(spacing: CGFloat.ds("s-2")) {
+                if piece.open > 0 || shown {
+                    Button(text[shown ? "checkPieces.all" : "checkPieces.open"]) { shownPiece = shown ? nil : piece.firstBar }
+                        .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
+                        .accessibilityAddTraits(shown ? .isSelected : [])
+                }
+                if piece.open > 0 {
+                    Button(text["scanCheck.looksRight"]) { score.resolveCheckPiece(first: piece.firstBar, last: piece.lastBar) }
+                        .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
+                }
+            }
+        }
+        .padding(CGFloat.ds("s-3"))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(shown ? Color.ds("accent-tint") : Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
+        .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(shown ? Color.ds("accent") : Color.ds("hairline")))
+        .accessibilityElement(children: .contain)
     }
 
     private func openEntry(_ bar: CheckShelf.BarFlags) -> some View {
