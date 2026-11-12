@@ -156,6 +156,13 @@ public sealed class CloudSync(ProjectStore store, OnlineProjects online, UiText 
 
         if (resolved.Upload)
         {
+            // This browser's copy won; the PDF's page marks another device writes come with it as the pull brought them.
+            if (!ReferenceEquals(resolved.Kept, project))
+            {
+                await store.SaveHereAsync(resolved.Kept);
+                changed = true;
+            }
+
             if (resolved.Kept.ForOnline() is { } copy)
             {
                 await online.UploadAsync(copy, etag);

@@ -1614,6 +1614,7 @@
   "pdf.bookmarkNameFor": "Name for the bookmark on {0}",
   "pdf.removeBookmark": "Remove the bookmark on {0}",
   "pdf.removeBookmarkHint": "Remove this bookmark",
+  "pdf.marksElsewhere": "The marks and bookmarks on these pages are made on the iPad, which holds this PDF too. Here you see them as they come from the online copy, without changing them.",
   "metronome.label": "Metronome",
   "metronome.start": "Start the metronome",
   "metronome.stop": "Stop the metronome",

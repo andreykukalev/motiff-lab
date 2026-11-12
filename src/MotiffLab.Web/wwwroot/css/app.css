@@ -1307,7 +1307,8 @@ h1, h2, .app-title strong {
     font-variant-numeric: tabular-nums;
 }
 
-.pdf-contents .pdf-bookmarks input {
+.pdf-contents .pdf-bookmarks input,
+.pdf-contents .pdf-bookmarks .name {
     flex: 1;
     min-width: 0;
 }
