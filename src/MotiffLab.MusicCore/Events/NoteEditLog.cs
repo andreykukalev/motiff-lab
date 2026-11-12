@@ -39,10 +39,11 @@ public sealed record NoteEdit(string NoteId, NoteValues? Before, NoteValues? Aft
 /// </summary>
 /// <remarks>
 /// Each edit records the values it replaced, and applying the log checks them, so a log that no
-/// longer fits the notes is refused rather than half applied. Pure: the same notes and log give the
+/// longer fits the notes is refused rather than half applied (<see cref="Apply"/>); <see cref="ApplyEach"/> lays
+/// the edits one by one instead and says which no longer fit (version 0.5). Pure: the same notes and log give the
 /// same result. Compares by value.
 /// </remarks>
-public sealed record NoteEditLog
+public sealed partial record NoteEditLog
 {
     public NoteEditLog(IEnumerable<NoteEdit> edits)
     {
@@ -66,53 +67,8 @@ public sealed record NoteEditLog
     /// <exception cref="InvalidOperationException">An edit names a note that is not there, or one whose values are not what the edit replaced.</exception>
     public IReadOnlyList<Note> Apply(IReadOnlyList<Note> imported)
     {
-        ArgumentNullException.ThrowIfNull(imported);
-        if (IsEmpty)
-        {
-            return imported;
-        }
-
-        Dictionary<string, Note?> current = imported.ToDictionary(static note => note.Id, static note => (Note?)note, StringComparer.Ordinal);
-        var added = new List<string>();
-        foreach (NoteEdit edit in Edits)
-        {
-            if (edit.IsAddition)
-            {
-                if (current.ContainsKey(edit.NoteId) || edit.After is not { } values)
-                {
-                    throw new InvalidOperationException($"Note {edit.NoteId} is already in the piece.");
-                }
-
-                current[edit.NoteId] = new Note
-                {
-                    Id = edit.NoteId,
-                    Pitch = values.Pitch,
-                    Span = values.Span,
-                    Velocity = values.Velocity,
-                    Track = edit.Track,
-                    Hand = edit.Hand is { } hand ? new Attributed<Hand>(hand, Attribution.UserEdited) : null,
-                    Attribution = Attribution.UserEdited,
-                };
-                added.Add(edit.NoteId);
-                continue;
-            }
-
-            if (!current.TryGetValue(edit.NoteId, out Note? note) || note is null)
-            {
-                throw new InvalidOperationException($"Note {edit.NoteId} is not in the piece.");
-            }
-
-            if (NoteValues.Of(note) != edit.Before)
-            {
-                throw new InvalidOperationException($"Note {edit.NoteId} is not as the edit found it.");
-            }
-
-            current[edit.NoteId] = edit.After is { } after
-                ? note with { Pitch = after.Pitch, Span = after.Span, Velocity = after.Velocity, Attribution = Attribution.UserEdited }
-                : null;
-        }
-
-        return [.. imported.Select(note => note.Id).Concat(added).Select(id => current[id]).OfType<Note>().OrderBy(static note => note.Span.Onset)];
+        EditsApplied each = ApplyEach(imported);
+        return each.AllFit ? each.Notes : throw Refusal(each);
     }
 
     /// <summary>The log with note <paramref name="noteId"/> changed to <paramref name="after"/>; the same log when nothing changes.</summary>
@@ -175,7 +131,8 @@ public sealed record NoteEditLog
     private Note Current(IReadOnlyList<Note> imported, string noteId)
     {
         ArgumentNullException.ThrowIfNull(noteId);
-        return Apply(imported).FirstOrDefault(note => note.Id == noteId)
+        // The notes as they are with the corrections that fit, so a correction can be made while another no longer fits.
+        return ApplyEach(imported).Notes.FirstOrDefault(note => note.Id == noteId)
             ?? throw new ArgumentException($"Note {noteId} is not in the piece.", nameof(noteId));
     }
 }

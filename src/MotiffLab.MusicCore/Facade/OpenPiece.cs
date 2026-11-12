@@ -122,15 +122,18 @@ internal sealed partial class OpenPiece
         return Open(ProjectFile.Write(project), words);
     }
 
-    /// <summary>A saved project, with its first motif back as the selection and that motif's variation.</summary>
-    public static OpenPiece Open(byte[] projectFile, Words words)
+    /// <summary>
+    /// A saved project, with its first motif back as the selection and that motif's variation; the corrections laid over
+    /// the notes as <paramref name="layer"/> says (version 0.5), strictly by default.
+    /// </summary>
+    public static OpenPiece Open(byte[] projectFile, Words words, EditsLayer layer = EditsLayer.Strict)
     {
         Project project;
         OpenedProject opened;
         try
         {
             project = ProjectFile.Read(projectFile);
-            opened = OpenedProject.Open(project);
+            opened = OpenedProject.Open(project, layer);
         }
         catch (ProjectFileException exception)
         {
@@ -152,6 +155,7 @@ internal sealed partial class OpenPiece
             }
         }
 
+        result.StartLayer(opened);
         return result;
     }
 
@@ -194,6 +198,13 @@ internal sealed partial class OpenPiece
         }
 
         json.WriteBoolean("hasVariation", Chain is not null);
+        if (_layer != EditsLayer.Strict)
+        {
+            json.WriteStartObject("edits");
+            json.WriteNumber("count", Project.Edits.Edits.Count);
+            LayerFields(json);
+            json.WriteEndObject();
+        }
     }
 
     /// <summary>The structure read again from the notes as they are now, in the language set, with the player's <paramref name="edits"/> (by default those kept).</summary>
@@ -313,6 +324,7 @@ internal sealed partial class OpenPiece
         Keep.UnionWith(chain.Context.Keep);
         Chain = chain;
         _chip = chip;
+        _hiddenVariation = null;
         return ChainAnswer(chain);
     }
 
@@ -355,6 +367,7 @@ internal sealed partial class OpenPiece
         _understood = null;
         _chip = null;
         Chain = null;
+        _hiddenVariation = null;
         return Answer.Write(json => Answer.Selection(json, "selection", selection, KeySignature.InForce(Piece.Keys, selection.Span.Onset), Piece.Meter));
     }
 
@@ -640,12 +653,22 @@ internal sealed partial class OpenPiece
             : null;
         var motifs = Project.Motifs.Where(motif => motif.Id != MotifId).ToList();
         var variations = Project.Variations.Where(variation => variation.MotifId != MotifId).ToList();
-        if (Selection is { NoteIds.Count: > 0 } selection)
+        if (_layer == EditsLayer.Off)
+        {
+            // With the corrections off, the selection is over notes they would change: the motifs stay as they were (version 0.5).
+            motifs = [.. Project.Motifs];
+            variations = [.. Project.Variations];
+        }
+        else if (Selection is { NoteIds.Count: > 0 } selection)
         {
             motifs.Insert(0, SavedMotif.From(Motif.Create(MotifId, 1, selection, _selectionKind, MotifMode.Discovery, Notes)));
             if (Chain is { Result: not null } chain)
             {
                 variations.Insert(0, SavedVariation.Create(MotifId.Replace("m_", "v_", StringComparison.Ordinal), MotifId, chain));
+            }
+            else if (_hiddenVariation is { } hidden)
+            {
+                variations.Insert(0, hidden);
             }
         }
 
