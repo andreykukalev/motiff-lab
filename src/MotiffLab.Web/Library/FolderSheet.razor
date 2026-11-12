@@ -11,7 +11,7 @@
     <header class="hd">
         <div>
             <p class="overline">@Folder.Name</p>
-            <h2 class="ttl" id="found-title">@Text["folder.found"]</h2>
+            <h2 class="ttl" id="found-title">@Text[Recheck ? "folder.changedTitle" : "folder.found"]</h2>
         </div>
         <button class="btn icon" aria-label="@Text["library.close"]" title="@Text["library.close"]" @onclick="CloseAsync"><Icon Name="close" /></button>
     </header>
@@ -24,12 +24,52 @@
     {
         ImportPlan plan = _scan.Plan;
         <div class="counts" role="group" aria-label="@Text["folder.filters"]">
-            @Counter(FoundFilter.All, "folder.countFound", plan.Found + _scan.Listing.Others)
-            @Counter(FoundFilter.New, "folder.countNew", plan.New)
-            @Counter(FoundFilter.InLibrary, "folder.countInLibrary", plan.InLibrary)
-            @Counter(FoundFilter.Duplicates, "folder.countDuplicates", plan.Duplicates)
-            @Counter(FoundFilter.Unsuitable, "folder.countUnsuitable", plan.Unsuitable + _scan.Listing.Others)
+            @if (!Recheck)
+            {
+                @Counter(FoundFilter.All, "folder.countFound", plan.Found + _scan.Listing.Others)
+            }
+            @Counter(FoundFilter.New, "folder.countNew", _scan.NewCount)
+            @if (Recheck && _changed.Count > 0)
+            {
+                <span class="chip static">@Text["folder.countChanged"] <span class="n">@_changed.Count.ToString("N0", Text.Culture)</span></span>
+            }
+            @if (!Recheck)
+            {
+                @Counter(FoundFilter.InLibrary, "folder.countInLibrary", plan.InLibrary)
+                @Counter(FoundFilter.Duplicates, "folder.countDuplicates", plan.Duplicates)
+            }
+            @if (!Recheck || plan.Unsuitable + _scan.Listing.Others > 0)
+            {
+                @Counter(FoundFilter.Unsuitable, "folder.countUnsuitable", plan.Unsuitable + _scan.Listing.Others)
+            }
         </div>
+        @if (_moved > 0)
+        {
+            <p class="found-status" role="status">@Text.Count("folder.moved", _moved)</p>
+        }
+        @if (_changed.FirstOrDefault() is { } changed)
+        {
+            <div class="same" role="group" aria-labelledby="same-title">
+                <h3 id="same-title">@Text["away.alikeTitle"]</h3>
+                <div class="pair">
+                    <div class="side">
+                        <p class="overline">@Text["away.inLibrary"]</p>
+                        <p class="t">@(changed.Original.Title ?? changed.Original.FileName)</p>
+                        <p class="m">@string.Join(" · ", new[] { changed.Original.Composer, changed.Original.Folder, changed.Original.Pages is { } pages ? Text.Format("away.pages", pages) : null }.Where(static part => !string.IsNullOrEmpty(part)))</p>
+                    </div>
+                    <div class="side">
+                        <p class="overline">@Text["away.inFolderNow"]</p>
+                        <p class="t">@Path.GetFileName(changed.Alike.Path)</p>
+                        <p class="m">@string.Join(" · ", new[] { Path.GetDirectoryName(changed.Alike.Path), changed.Alike.Pages is { } now ? Text.Format("away.pages", now) : null, Size(changed.Alike.Bytes) }.Where(static part => !string.IsNullOrEmpty(part)))</p>
+                    </div>
+                </div>
+                <div class="act">
+                    <button class="btn secondary" @onclick="() => SameAsync(changed)">@Text["away.itIs"]</button>
+                    <button class="btn quiet" @onclick="() => NotSame(changed)">@Text["folder.notSame"]</button>
+                    <span class="caption">@Text["away.alikeKeeps"]</span>
+                </div>
+            </div>
+        }
         @if (_scan.Read < _scan.Listing.Files.Count)
         {
             <p class="found-status" role="status">@Text.Format("folder.reading", _scan.Read, _scan.Listing.Files.Count)</p>
@@ -75,7 +115,7 @@
                 }
             </div>
             <button class="btn primary go" @onclick="AddAsync" disabled="@(_scan.ToAdd.Count == 0 && _scan.Known.Count == 0)">
-                @(_scan.ToAdd.Count > 0 ? Text.Count("folder.add", _scan.ToAdd.Count) : Text["folder.linkKnown"])
+                @(_scan.ToAdd.Count > 0 ? Text.Count("folder.add", _scan.ToAdd.Count) : _scan.Known.Count > 0 ? Text["folder.linkKnown"] : Text["folder.nothingNew"])
             </button>
         </footer>
     }

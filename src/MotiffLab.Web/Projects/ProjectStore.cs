@@ -158,15 +158,15 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
     }
 
     /// <summary>
-    /// The recordings this browser holds, as "&lt;project&gt;/&lt;original&gt;" (version 0.3), for the library's badges; none
-    /// when the browser does not say.
+    /// The recordings this browser holds, as "&lt;project&gt;/&lt;original&gt;" (version 0.3), and the PDFs it reads where the
+    /// player keeps them (version 0.5), for the library's badges; none when the browser does not say.
     /// </summary>
     public async Task<IReadOnlySet<string>> HeldHereAsync()
     {
         try
         {
             _originals ??= await js.InvokeAsync<IJSObjectReference>("import", "./js/storage/originals.js");
-            return new HashSet<string>(await _originals.InvokeAsync<string[]>("heldHere"), StringComparer.Ordinal);
+            return new HashSet<string>(await _originals.InvokeAsync<string[]>("heldHereWithLinks"), StringComparer.Ordinal);
         }
         catch (JSException)
         {

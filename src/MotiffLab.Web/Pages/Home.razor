@@ -37,6 +37,8 @@ else if (_firstRun is false)
                     @if (_menu == LibraryMenu)
                     {
                         <div class="lib-menu" role="group" aria-label="@Text["library.more"]">
+                            @* «Проверить папку» (an experiment, version 0.5): nothing while it is off or no folder was chosen. *@
+                            <MotiffLab.Web.Library.FolderRecheck Chosen="() => ToggleMenu(null)" />
                             <label class="btn quiet file">
                                 <Icon Name="file" /> @Text["home.importProject"]
                                 <InputFile OnChange="ImportProjectAsync" accept=".json" />

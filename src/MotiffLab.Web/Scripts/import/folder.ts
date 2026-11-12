@@ -5,7 +5,7 @@
 // deletes a file or a folder, and nothing is sent anywhere.
 
 import type { DetailsAsked, DetailsRead } from "./folder-worker.js";
-import { folder, folders, keepFolder, type KeptFolder } from "../storage/import-store.js";
+import { folder, folders, keepFolder, keepOriginal, pickedOriginal, type KeptFolder } from "../storage/import-store.js";
 
 export { linkPiece, linkedFolder, links, loadState, saveState } from "../storage/import-store.js";
 
@@ -316,4 +316,67 @@ export async function freeSpace(): Promise<number | null> {
     }
     const { usage = 0, quota = 0 } = await navigator.storage.estimate();
     return quota > 0 ? Math.max(0, quota - usage) : null;
+}
+
+
+type FilePicker = (options: { types: { description: string; accept: Record<string, string[]> }[]; id?: string }) => Promise<FileSystemFileHandle[]>;
+
+/**
+ * «Привязать оригинал» for a PDF piece whose file is not here: Chrome and Edge pick the file with their picker and keep a
+ * read-only handle to it, so it is read where it is. Null when this browser has no such picker (the page's file input
+ * picks it instead, and keepCopy keeps a copy) or the player closed it.
+ */
+export async function chooseOriginal(projectId: string, description: string): Promise<Uint8Array | null> {
+    const pick = (globalThis as unknown as { showOpenFilePicker?: FilePicker }).showOpenFilePicker;
+    if (typeof pick !== "function") {
+        return null;
+    }
+    try {
+        const [handle] = await pick({ types: [{ description, accept: { "application/pdf": [".pdf"] } }], id: "motiff-lab-notes" });
+        const data = new Uint8Array(await (await handle.getFile()).arrayBuffer());
+        await keepOriginal(projectId, handle);
+        return data;
+    } catch {
+        return null;
+    }
+}
+
+/** Whether this browser picks a single file with a handle it can keep (Chrome, Edge). */
+export function canKeepFiles(): boolean {
+    return typeof (globalThis as unknown as { showOpenFilePicker?: FilePicker }).showOpenFilePicker === "function";
+}
+
+/** Keeps a copy of the PDF the player picked, in browsers that cannot keep the file's handle; null forgets the original. */
+export async function keepCopy(projectId: string, data: Uint8Array | null): Promise<void> {
+    await keepOriginal(projectId, data === null ? null : new Blob([data as BlobPart], { type: "application/pdf" }));
+}
+
+/**
+ * Whether the original the player picked for a piece can be read: "none" when there is none, "prompt" when Chrome must be
+ * asked again (from a tap, with ask), else "ready".
+ */
+export async function originalState(projectId: string, ask: boolean): Promise<string> {
+    const kept = await pickedOriginal(projectId);
+    if (kept === null) {
+        return "none";
+    }
+    if (kept instanceof Blob) {
+        return "ready";
+    }
+    const handle = kept as FileSystemFileHandle & Permissioned;
+    let state = (await handle.queryPermission?.({ mode: "read" })) ?? "granted";
+    if (state === "prompt" && ask) {
+        state = (await handle.requestPermission?.({ mode: "read" }).catch(() => "denied" as PermissionState)) ?? "denied";
+    }
+    return state === "granted" ? "ready" : "prompt";
+}
+
+/** The original the player picked for a piece, read; null when there is none or the file is gone. */
+export async function readOriginal(projectId: string): Promise<Uint8Array | null> {
+    const kept = await pickedOriginal(projectId);
+    try {
+        return kept === null ? null : new Uint8Array(await (kept instanceof Blob ? kept : await kept.getFile()).arrayBuffer());
+    } catch {
+        return null;
+    }
 }

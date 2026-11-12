@@ -11077,3 +11077,147 @@ body:has(> #app > .library) {
         grid-template-columns: 1fr;
     }
 }
+
+/* «Проверить папку» in the library's ••• menu (version 0.5, import-web-6-recheck-menu.png): a folder, when it was looked through. */
+.library .lib-menu .item {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.library .lib-menu .item .caption {
+    padding: 0 var(--s-4) var(--s-2) calc(var(--s-4) + var(--icon-m) + var(--s-2));
+}
+
+.library .lib-menu hr {
+    width: 100%;
+    margin: var(--s-1) 0;
+    border: 0;
+    border-top: 1px solid var(--hairline);
+}
+
+.library .lib-menu .caption.error {
+    color: var(--danger);
+}
+
+/* «Что изменилось в папке»: a count that is not a filter, and «Похоже, это та же пьеса» over the new files. */
+.library .found .counts .chip.static {
+    cursor: default;
+    font: var(--t-body);
+}
+
+.library .found .same {
+    margin: 0 var(--s-6) var(--s-4);
+    padding: var(--s-4);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-m);
+    background: var(--surface-2);
+}
+
+.library .found .same h3 {
+    margin: 0 0 var(--s-3);
+    font: var(--t-heading);
+    letter-spacing: normal;
+    text-transform: none;
+    color: var(--ink);
+}
+
+.library .found .same .pair, .pdf-reader .away-card .pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s-4);
+}
+
+.library .found .same .side p, .pdf-reader .away-card .side p {
+    margin: 0;
+}
+
+.library .found .same .overline, .pdf-reader .away-card .overline {
+    margin: 0 0 var(--s-1);
+    font: var(--t-overline);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+}
+
+.library .found .same .t, .pdf-reader .away-card .side .t {
+    font: var(--t-title);
+    color: var(--ink);
+}
+
+.library .found .same .m, .pdf-reader .away-card .side .m {
+    font: var(--t-body);
+    color: var(--ink-2);
+}
+
+.library .found .same .act {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2);
+    margin-top: var(--s-4);
+}
+
+/* A PDF piece whose file is not in it (version 0.5, import-web-7-missing.png): where its PDF is, over the dimmed reader. */
+.pdf-reader .away-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 4;
+    background: var(--dim);
+}
+
+.pdf-reader .away-card {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    width: min(440px, calc(100vw - 2 * var(--s-4)));
+    padding: var(--s-6);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-l);
+    background: var(--surface-2);
+    box-shadow: var(--shadow-sheet);
+    transform: translate(-50%, -50%);
+}
+
+.pdf-reader .away-card:has(.pair) {
+    width: min(640px, calc(100vw - 2 * var(--s-4)));
+}
+
+.pdf-reader .away-card h2 {
+    margin: 0;
+    font: var(--t-title);
+    color: var(--ink);
+}
+
+.pdf-reader .away-card > p {
+    margin: 0;
+    font: var(--t-body);
+    color: var(--ink);
+}
+
+.pdf-reader .away-card > p.path, .pdf-reader .away-card > p.caption {
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.pdf-reader .away-card .acts {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--s-2);
+    margin-top: var(--s-4);
+}
+
+.pdf-reader .away-card .file input {
+    display: none;
+}
+
+@media (max-width: 600px) {
+    .library .found .same .pair, .pdf-reader .away-card .pair {
+        grid-template-columns: 1fr;
+    }
+}

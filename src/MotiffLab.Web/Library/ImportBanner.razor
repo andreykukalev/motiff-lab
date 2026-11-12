@@ -63,6 +63,13 @@
     }
 }
 
+@if (_on && Sheets.Recheck is { } recheck)
+{
+    @* «Что изменилось в папке», from «Проверить папку» in the library's menu. *@
+    <div class="lib-scrim" @onclick="Sheets.Close"></div>
+    <FolderSheet @key="recheck.Id" Folder="recheck" Recheck="true" Closed="Sheets.Close" />
+}
+
 @code {
     [Inject]
     private ImportJob Job { get; set; } = default!;
@@ -75,6 +82,9 @@
 
     [Inject]
     private MotiffLab.Web.Settings.DeviceSettings Settings { get; set; } = default!;
+
+    [Inject]
+    private FolderSheets Sheets { get; set; } = default!;
 
     /// <summary>After pieces were added: the library reads its list again.</summary>
     [Parameter]
@@ -94,6 +104,7 @@
     protected override async Task OnInitializedAsync()
     {
         Job.Changed += OnChanged;
+        Sheets.Changed += OnSheet;
         await Settings.LoadAsync();
         _on = Settings.IsOn(ImportJob.Setting);
         if (_on)
@@ -103,7 +114,13 @@
         }
     }
 
-    public void Dispose() => Job.Changed -= OnChanged;
+    public void Dispose()
+    {
+        Job.Changed -= OnChanged;
+        Sheets.Changed -= OnSheet;
+    }
+
+    private void OnSheet() => _ = InvokeAsync(StateHasChanged);
 
     private void OnChanged() => _ = InvokeAsync(async () =>
     {

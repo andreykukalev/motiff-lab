@@ -30,12 +30,22 @@ public partial class FolderSheet
     [Inject]
     private ImportJob Job { get; set; } = default!;
 
+    [Inject]
+    private FolderChanges Changes { get; set; } = default!;
+
+    [Inject]
+    private OriginalFinder Finder { get; set; } = default!;
+
     /// <summary>The folder the player chose.</summary>
     [Parameter, EditorRequired]
     public ChosenFolder Folder { get; set; } = default!;
 
     [Parameter]
     public EventCallback Closed { get; set; }
+
+    /// <summary>«Проверить папку»: what changed since the folder was added: new files, and pieces that moved or changed.</summary>
+    [Parameter]
+    public bool Recheck { get; set; }
 
     private ElementReference _element;
     private FolderScan? _scan;
@@ -47,6 +57,11 @@ public partial class FolderSheet
     private bool _spaceShort;
     private bool _closed;
     private DateTime _shown;
+    private IReadOnlyList<LibraryOriginal> _library = [];
+    private List<ChangedPiece> _changed = [];
+    private int _moved;
+
+    protected override void OnInitialized() => _filter = Recheck ? FoundFilter.New : FoundFilter.All;
 
     private string SpaceLine => _free is { } free
         ? Text.Format(_spaceShort ? "folder.spaceShort" : "folder.space", Size(_scan?.CopyBytes ?? 0), Size(free))
@@ -99,13 +114,45 @@ public partial class FolderSheet
         }
 
         var scan = new FolderScan(Folder);
-        scan.Listed(listing, await LibraryAsync());
+        _library = await LibraryAsync();
+        scan.Listed(listing, _library);
         _scan = scan;
         _free = scan.Linked ? null : await Folders.FreeSpaceAsync();
         Show();
         await Folders.MarkCheckedAsync(Folder.Id);
         await ReadHeadersAsync(scan);
         await Folders.DetailsAsync(Folder.Id, scan.ToRead, details => Detailed(scan, details));
+        if (Recheck && !_closed && scan.Linked && scan.Read == scan.Listing.Files.Count)
+        {
+            _changed = [.. await Changes.RelinkAsync(Folder.Id, scan.Files, _library)];
+            foreach (ChangedPiece changed in _changed)
+            {
+                // Held out of the new ones until the player answers, so an unanswered question adds no second piece.
+                scan.Claim(changed.Alike.Path);
+            }
+            _moved = Changes.Moved;
+        }
+
+        Show();
+    }
+
+    /// <summary>«Это она: открывать этот файл»: the changed file becomes the piece's PDF and is not added again.</summary>
+    private async Task SameAsync(ChangedPiece changed)
+    {
+        if (await Projects.LoadAsync(changed.Original.ProjectId) is not { } project || await Finder.ConfirmAsync(project, changed.Alike) is null)
+        {
+            _scan?.Release(changed.Alike.Path);
+        }
+
+        _changed.Remove(changed);
+        Show();
+    }
+
+    /// <summary>«Нет, добавить отдельной пьесой»: the file is among the new ones again.</summary>
+    private void NotSame(ChangedPiece changed)
+    {
+        _scan?.Release(changed.Alike.Path);
+        _changed.Remove(changed);
         Show();
     }
 
