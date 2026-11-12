@@ -37,6 +37,8 @@ else if (_firstRun is false)
                     @if (_menu == LibraryMenu)
                     {
                         <div class="lib-menu" role="group" aria-label="@Text["library.more"]">
+                            @* «Проверить папку» (an experiment, version 0.5): nothing while it is off or no folder was chosen. *@
+                            <MotiffLab.Web.Library.FolderRecheck Chosen="() => ToggleMenu(null)" />
                             <label class="btn quiet file">
                                 <Icon Name="file" /> @Text["home.importProject"]
                                 <InputFile OnChange="ImportProjectAsync" accept=".json" />
@@ -61,6 +63,9 @@ else if (_firstRun is false)
         {
             <p class="lib-note warning" role="status">@Text["home.nearlyFull"]</p>
         }
+
+        @* The folder import's line (an experiment, Settings · Experimental, version 0.5); nothing while it is off. *@
+        <MotiffLab.Web.Library.ImportBanner Listed="RefreshAsync" />
 
         @* Sync with the player's other devices (version 0.2): a pass when the library opens and comes back into view. *@
         <MotiffLab.Web.Account.LibrarySync Synced="RefreshAsync" />

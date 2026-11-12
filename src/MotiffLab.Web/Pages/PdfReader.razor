@@ -30,6 +30,11 @@
                  PencilKey="@PencilKey" Ink="@_ink" ReadOnly="ReadOnlyMarks" MarksChanged="OnMarksChangedAsync" PencilChanged="_ => StateHasChanged()" Bookmarks="_bookmarkedPages" />
     }
 
+    @if (_away is { } away)
+    {
+        <MotiffLab.Web.Library.OriginalAway @key="away.Id" Project="away" Opened="OpenedAway" />
+    }
+
     @if (_message is not null)
     {
         <div class="workspace-notice meta" role="alert">
@@ -219,6 +224,7 @@
         }
 
         _message = null;
+        _away = null;
         _notes = null;
         _coverSaved = false;
         _pages = default;
@@ -231,12 +237,22 @@
                 return;
             }
 
-            // A piece with no PDF opens in the workspace.
-            if (project.Document is null)
+            // A piece with notes and no PDF opens in the workspace. A piece that is only a PDF whose file is not in it
+            // (version 0.5: linked in the player's folder, or on another device) shows where its PDF is (OriginalAway).
+            if (project.Document is null && project.HasNotes)
             {
                 Navigation.NavigateTo(CurrentPiece.WorkspaceUrl(project), replace: true);
                 return;
             }
+
+            if (project.Document is null && !project.DescribesDocument)
+            {
+                _project = null;
+                _message = Text["pdf.unreadable"];
+                return;
+            }
+
+            _away = project.Document is null ? project : null;
 
             _notes = await Projects.NotesReadFromAsync(id);
             _startPage = Page is > 0 and int asked ? asked
@@ -285,6 +301,16 @@
     }
 
     /// <summary>Shows the project and what is kept on its pages.</summary>
+    /// <summary>The piece whose PDF is not in its file yet: OriginalAway finds it, then the pages show.</summary>
+    private Project? _away;
+
+    private void OpenedAway(Project opened)
+    {
+        _away = null;
+        CurrentPiece.Saved(opened);
+        Show(opened);
+    }
+
     private void Show(Project project)
     {
         _project = project;

@@ -10,53 +10,89 @@
 
 @* Add piece (0018 section 9): the routes in one sheet. Opening a file runs on the device and is free; scanning a page and
    transcribing a recording run on the server and are Pro. *@
-<section class="lib-sheet add-sheet" role="dialog" aria-modal="true" aria-labelledby="add-title" tabindex="-1" @ref="_sheet" @onkeydown="OnKey">
-    <header class="hd">
-        <h2 class="ttl" id="add-title">@Text["library.addAPiece"]</h2>
-        <button class="btn icon" aria-label="@Text["library.close"]" title="@Text["library.close"]" @onclick="Closed"><Icon Name="close" /></button>
-    </header>
-    <ul class="routes-list">
-        <li>
-            <label class="route @(_reading ? "busy" : null)">
-                <span class="ic"><Icon Name="file" /></span>
-                <span class="txt">
-                    <strong>@Text["library.openFile"]</strong>
-                    <span class="caption">@(_reading ? Text["import.reading"] : Text["library.openFileHint"])</span>
-                </span>
-                <InputFile OnChange="OpenFileAsync" accept="@(PieceImporter.AcceptedExtensions + "," + PdfDocument.Extension)" disabled="@_reading" aria-label="@Text["library.fileChoose"]" />
-            </label>
-            @if (_rejection is not null)
-            {
-                <p class="route-problem" role="alert">@_rejection</p>
-                @if (_otherRoute is { } other)
+@if (_folder is { } folder)
+{
+    @* «Добавить папку» goes on in «Что нашлось», in place of the routes (an experiment, version 0.5). *@
+    <MotiffLab.Web.Library.FolderSheet Folder="folder" Closed="Closed" />
+}
+else
+{
+    <section class="lib-sheet add-sheet" role="dialog" aria-modal="true" aria-labelledby="add-title" tabindex="-1" @ref="_sheet" @onkeydown="OnKey">
+        <header class="hd">
+            <h2 class="ttl" id="add-title">@Text["library.addAPiece"]</h2>
+            <button class="btn icon" aria-label="@Text["library.close"]" title="@Text["library.close"]" @onclick="Closed"><Icon Name="close" /></button>
+        </header>
+        <ul class="routes-list">
+            <li>
+                <label class="route @(_reading ? "busy" : null)">
+                    <span class="ic"><Icon Name="file" /></span>
+                    <span class="txt">
+                        <strong>@Text["library.openFile"]</strong>
+                        <span class="caption">@(_reading ? Text["import.reading"] : Text["library.openFileHint"])</span>
+                    </span>
+                    <InputFile OnChange="OpenFileAsync" accept="@(PieceImporter.AcceptedExtensions + "," + PdfDocument.Extension)" disabled="@_reading" aria-label="@Text["library.fileChoose"]" />
+                </label>
+                @if (_rejection is not null)
                 {
-                    <p class="caption"><a href="@other.Href">@Text[other.Label]</a></p>
+                    <p class="route-problem" role="alert">@_rejection</p>
+                    @if (_otherRoute is { } other)
+                    {
+                        <p class="caption"><a href="@other.Href">@Text[other.Label]</a></p>
+                    }
                 }
+            </li>
+            @if (_folders)
+            {
+                @* «Добавить папку» (an experiment, Settings · Experimental, version 0.5, import-web-1-source.png): Chrome and Edge keep
+                   read access to the folder and link its files where they are; other browsers pick it with webkitdirectory and copy. *@
+                <li>
+                    @if (_keepsFolders)
+                    {
+                        <button class="route" @onclick="ChooseFolderAsync">
+                            <span class="ic"><Icon Name="folder" /></span>
+                            <span class="txt">
+                                <strong>@Text["folder.addFolder"]</strong>
+                                <span class="caption">@Text["folder.addFolderHint"]</span>
+                            </span>
+                        </button>
+                    }
+                    else
+                    {
+                        <label class="route">
+                            <span class="ic"><Icon Name="folder" /></span>
+                            <span class="txt">
+                                <strong>@Text["folder.addFolder"]</strong>
+                                <span class="caption">@Text["folder.addFolderHint"]</span>
+                            </span>
+                            <input type="file" webkitdirectory multiple @ref="_folderInput" @onchange="FolderPickedAsync" aria-label="@Text["folder.addFolder"]" />
+                        </label>
+                    }
+                </li>
             }
-        </li>
-        <li>
-            <a class="route" href="import/scan">
-                <span class="ic"><Icon Name="camera" /></span>
-                <span class="txt">
-                    <strong>@Text["library.scanPage"] @if (UsesOurServer) { <span class="tag pro">Pro</span> }</strong>
-                    <span class="caption">@(ServerNote ?? Text["library.scanPageHint"])</span>
-                </span>
-            </a>
-        </li>
-        <li>
-            <a class="route" href="import/recording">
-                <span class="ic"><Icon Name="mic" /></span>
-                <span class="txt">
-                    <strong>@Text["library.fromRecording"] @if (UsesOurServer) { <span class="tag pro">Pro</span> }</strong>
-                    <span class="caption">@(ServerNote ?? Text["library.fromRecordingHint"])</span>
-                </span>
-            </a>
-        </li>
-    </ul>
-    <p class="caption privacy-line">@Text["library.whatLeaves"]</p>
-    <p class="caption privacy-line">@Text["originals.localFirst"]</p>
-    <a class="btn quiet demo" href="playback?start=fur-elise"><Icon Name="play" /> @Text["library.demo"]</a>
-</section>
+            <li>
+                <a class="route" href="import/scan">
+                    <span class="ic"><Icon Name="camera" /></span>
+                    <span class="txt">
+                        <strong>@Text["library.scanPage"] @if (UsesOurServer) { <span class="tag pro">Pro</span> }</strong>
+                        <span class="caption">@(ServerNote ?? Text["library.scanPageHint"])</span>
+                    </span>
+                </a>
+            </li>
+            <li>
+                <a class="route" href="import/recording">
+                    <span class="ic"><Icon Name="mic" /></span>
+                    <span class="txt">
+                        <strong>@Text["library.fromRecording"] @if (UsesOurServer) { <span class="tag pro">Pro</span> }</strong>
+                        <span class="caption">@(ServerNote ?? Text["library.fromRecordingHint"])</span>
+                    </span>
+                </a>
+            </li>
+        </ul>
+        <p class="caption privacy-line">@Text["library.whatLeaves"]</p>
+        <p class="caption privacy-line">@Text["originals.localFirst"]</p>
+        <a class="btn quiet demo" href="playback?start=fur-elise"><Icon Name="play" /> @Text["library.demo"]</a>
+    </section>
+}
 
 @code {
     [Inject]
@@ -84,6 +120,36 @@
 
     [Parameter]
     public EventCallback Closed { get; set; }
+
+    [Inject]
+    private MotiffLab.Web.Settings.DeviceSettings Settings { get; set; } = default!;
+
+    [Inject]
+    private MotiffLab.Web.Library.PlayerFolders Folders { get; set; } = default!;
+
+    private bool _folders;
+    private bool _keepsFolders;
+
+    /// <summary>The folder the player chose to add: «Что нашлось» shows in place of the routes.</summary>
+    private MotiffLab.Web.Library.ChosenFolder? _folder;
+    private ElementReference _folderInput;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Settings.LoadAsync();
+        _folders = Settings.IsOn(MotiffLab.Web.Library.ImportJob.Setting);
+        _keepsFolders = _folders && await Folders.CanKeepAsync();
+    }
+
+    private async Task ChooseFolderAsync()
+    {
+        _folder = await Folders.ChooseAsync();
+    }
+
+    private async Task FolderPickedAsync()
+    {
+        _folder = await Folders.TakePickedAsync(_folderInput);
+    }
 
     private ElementReference _sheet;
     private bool _reading;

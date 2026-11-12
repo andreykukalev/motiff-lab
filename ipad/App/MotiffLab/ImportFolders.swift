@@ -28,7 +28,7 @@ struct ImportFolder: Codable, Equatable, Identifiable, Sendable {
 }
 
 /// Why the app could not get into a folder it was given.
-enum FolderProblem: String, Codable, Equatable, Sendable {
+enum FolderProblem: String, Codable, Equatable, Sendable, Error {
     /// The bookmark no longer opens: iOS (or the provider) did not keep the app's right to the folder after a relaunch.
     case lost
     /// The bookmark opens, but the folder cannot be listed: the provider refuses the app, or the folder is gone.

@@ -1,0 +1,102 @@
+@using MotiffLab.Web.Localization
+
+@* «Проверить папку» in the library's ••• menu (an experiment, version 0.5, ux-prototype/v0.5/screens/import-web-6-recheck-menu.png):
+   one entry for each folder chosen on this browser, with when it was last looked through. Chrome and Edge look through the
+   folder they keep; other browsers pick it again. Any time, as often as the player likes. *@
+@foreach (ChosenFolder folder in _folders)
+{
+    <div class="item">
+        @if (folder.Kept)
+        {
+            <button class="btn quiet" @onclick="() => OpenAsync(folder)"><Icon Name="recheck" /> @Text.Format("away.recheckNamed", folder.Name)</button>
+        }
+        else
+        {
+            <label class="btn quiet file">
+                <Icon Name="recheck" /> @Text.Format("away.recheckNamed", folder.Name)
+                <input type="file" webkitdirectory multiple @ref="_inputs[folder.Id]" @onchange="() => PickedAsync(folder)" />
+            </label>
+        }
+        <p class="caption">@Checked(folder)</p>
+    </div>
+}
+@if (_problem is not null)
+{
+    <p class="caption error" role="alert">@_problem</p>
+}
+@if (_folders.Count > 0)
+{
+    <hr />
+}
+
+@code {
+    [Inject]
+    private UiText Text { get; set; } = default!;
+
+    [Inject]
+    private PlayerFolders Folders { get; set; } = default!;
+
+    [Inject]
+    private FolderSheets Sheets { get; set; } = default!;
+
+    [Inject]
+    private MotiffLab.Web.Settings.DeviceSettings Settings { get; set; } = default!;
+
+    /// <summary>After a folder was chosen: the menu closes.</summary>
+    [Parameter]
+    public EventCallback Chosen { get; set; }
+
+    private IReadOnlyList<ChosenFolder> _folders = [];
+    private readonly Dictionary<string, ElementReference> _inputs = [];
+    private string? _problem;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Settings.LoadAsync();
+        _folders = Settings.IsOn(ImportJob.Setting) ? await Folders.KeptAsync() : [];
+    }
+
+    private async Task OpenAsync(ChosenFolder folder)
+    {
+        if (await Folders.PermissionAsync(folder.Id) != "granted" && !await Folders.AskPermissionAsync(folder.Id))
+        {
+            _problem = Text["folder.noAccess"];
+            return;
+        }
+
+        Sheets.Open(folder);
+        await Chosen.InvokeAsync();
+    }
+
+    /// <summary>A folder picked again in a browser that does not keep it: the same folder by its name.</summary>
+    private async Task PickedAsync(ChosenFolder folder)
+    {
+        if (await Folders.TakePickedAsync(_inputs[folder.Id]) is not { } picked)
+        {
+            return;
+        }
+
+        if (picked.Id != folder.Id)
+        {
+            _problem = Text.Format("folder.otherFolder", folder.Name);
+            return;
+        }
+
+        Sheets.Open(picked);
+        await Chosen.InvokeAsync();
+    }
+
+    /// <summary>«проверена сегодня в 9:40», «проверена 3 ноября», or when it was added.</summary>
+    private string Checked(ChosenFolder folder)
+    {
+        if (folder.CheckedAt is not { } at || !DateTimeOffset.TryParse(at, Text.Culture, System.Globalization.DateTimeStyles.RoundtripKind, out DateTimeOffset when))
+        {
+            return Text["folder.neverChecked"];
+        }
+
+        DateTime local = when.ToLocalTime().DateTime;
+        return local.Date == DateTime.Today
+            ? Text.Format("folder.checkedToday", local.ToString("t", Text.Culture))
+            : Text.Format("folder.checkedOn", local.ToString("d MMMM", Text.Culture));
+    }
+}

@@ -50,6 +50,10 @@ struct LibraryView: View {
     /// «Импорт папки» (version 0.5, an experiment): the folders imported, their review and «Держать на этом iPad».
     @StateObject private var folderImport = FolderImportModel()
     private var importOn: Bool { deviceSettings.isOn("experimental.libraryImport") }
+    /// «Распознать ноты» for several pieces: those picked while choosing (nil when not), and the batch's consent.
+    @State private var chosen: Set<URL>?
+    @State private var consenting = false
+    @ObservedObject private var recognitionQueue = RecognitionQueue.shared
 
     /// The shelf's columns, for the projects here and those saved online.
     static let columns = [GridItem(.adaptive(minimum: 320), spacing: CGFloat.ds("s-6"), alignment: .top)]
@@ -72,7 +76,10 @@ struct LibraryView: View {
                     VStack(alignment: .leading, spacing: CGFloat.ds("s-6")) {
                         header
                         MainEnvironmentLine(account: account, text: text)
-                        if importOn { ImportBanner(runner: ImportRunner.shared, text: text) }
+                        if importOn {
+                            ImportBanner(runner: ImportRunner.shared, text: text)
+                            RecognitionTop(queue: recognitionQueue, text: text, chosen: $chosen, entries: entries) { consenting = true }
+                        }
                         if let problem {
                             Text(problem)
                                 .dsType(.label)
@@ -90,7 +97,7 @@ struct LibraryView: View {
                                 .foregroundStyle(Color.ds("ink-2"))
                                 .frame(maxWidth: 560, alignment: .leading)
                         } else {
-                            LibraryShelfView(page: page, summaries: summaries, composers: composers, tags: tags, playlists: playlists, tab: $tab, query: $query, picked: $picked, text: text, playlistAccessory: importOn ? { name in AnyView(KeepPlaylistToggle(model: folderImport, playlist: name, summaries: summaries, text: text)) } : nil) { url in
+                            LibraryShelfView(page: page, summaries: summaries, composers: composers, tags: tags, playlists: playlists, tab: $tab, query: $query, picked: $picked, text: text, playlistAccessory: playlistToggle, marks: importOn ? marks : nil) { url in
                                 Task { await openProject(url) }
                             } edit: { entry in
                                 editing = entry
@@ -160,7 +167,8 @@ struct LibraryView: View {
             .fileImporter(isPresented: $choosing, allowedContentTypes: Self.openable) { result in
                 Task { await open(result) }
             }
-            .folderImport(folderImport, text: text, summaries: summaries, on: importOn) { await reload() } open: { url in await openProject(url) }
+            .folderImport(folderImport, text: text, summaries: summaries, on: importOn, account: account) { await reload() } open: { url in await openProject(url) }
+            .recognition(chosen: $chosen, consenting: $consenting, account: account, entries: entries, on: importOn, text: text) { settings = true } reload: { await reload() }
             .task {
                 #if DEBUG
                 let screensFile = ScreensHook.start()
@@ -236,6 +244,7 @@ struct LibraryView: View {
                     Text(text["home.importProject"])
                 }
                 if importOn {
+                    Button(text["recognition.choose"]) { chosen = [] }
                     FolderMenuItems(folders: folderImport.folders, text: text) { folder in folderImport.recheck(folder, pieces: summaries) }
                 }
             } label: {
@@ -391,6 +400,20 @@ struct LibraryView: View {
         } catch {
             problem = error.localizedDescription
         }
+    }
+
+    /// «Держать на этом iPad» beside a playlist's name, with the experiment on.
+    private var playlistToggle: ((String) -> AnyView)? {
+        guard importOn else { return nil }
+        return { name in AnyView(KeepPlaylistToggle(model: folderImport, playlist: name, summaries: summaries, text: text)) }
+    }
+
+    /// The pieces picked to recognise, a tap on a PDF-only piece picking or unpicking it, and each piece's recognition.
+    private var marks: LibraryMarks {
+        LibraryMarks(chosen: chosen, toggle: { entry in
+            guard entry.withoutNotes, chosen != nil else { return }
+            if chosen?.contains(entry.url) == true { chosen?.remove(entry.url) } else { chosen?.insert(entry.url) }
+        }, status: { url in recognitionQueue.status(of: url) })
     }
 
     /// «Проверить папку» for a piece whose PDF was not found, when it came from a folder imported here (experiment on).

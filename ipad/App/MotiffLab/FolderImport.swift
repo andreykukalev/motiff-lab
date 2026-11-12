@@ -101,7 +101,7 @@ final class FolderImportModel: ObservableObject {
         kept = names
         let linked = pieces.values.filter { $0.playlists.contains(playlist) && AwayPdf.isAway($0) }
         guard on else {
-            let stillKept = Set(pieces.values.filter { !$0.playlists.filter(names.contains).isEmpty }.compactMap(\.id))
+            let stillKept = Set(pieces.values.filter { $0.playlists.contains { names.contains($0) } }.compactMap(\.id))
             for summary in linked { if let id = summary.id, !stillKept.contains(id) { KeptCopies.remove(project: id) } }
             return
         }
@@ -138,12 +138,14 @@ final class FolderImportModel: ObservableObject {
 
 /// The folder import's sheets over the library: «Что нашлось» (or the check of a folder) and a folder to pick again;
 /// and, at launch, the job left unfinished and the folders' access.
+@MainActor
 struct FolderImportLayer: ViewModifier {
     @ObservedObject var model: FolderImportModel
     @ObservedObject var runner = ImportRunner.shared
     let text: UIText
     let summaries: [URL: PieceSummary]
     let on: Bool
+    @ObservedObject var account: Account
     /// Reads the library again: pieces were added, or a piece was linked again.
     let reload: () async -> Void
     /// Opens a piece found again by «Проверить папку».
@@ -152,7 +154,7 @@ struct FolderImportLayer: ViewModifier {
     func body(content: Content) -> some View {
         content
             .sheet(item: $model.review) { review in
-                FolderFoundSheet(review: review, text: text) { job in
+                FolderFoundSheet(review: review, text: text, offer: RecognitionOffer.of(account)) { job in
                     model.add(job)
                 } open: { url in
                     model.review = nil
@@ -177,8 +179,9 @@ struct FolderImportLayer: ViewModifier {
 }
 
 extension View {
-    func folderImport(_ model: FolderImportModel, text: UIText, summaries: [URL: PieceSummary], on: Bool, reload: @escaping () async -> Void, open: @escaping (URL) async -> Void) -> some View {
-        modifier(FolderImportLayer(model: model, text: text, summaries: summaries, on: on, reload: reload, open: open))
+    @MainActor
+    func folderImport(_ model: FolderImportModel, text: UIText, summaries: [URL: PieceSummary], on: Bool, account: Account, reload: @escaping () async -> Void, open: @escaping (URL) async -> Void) -> some View {
+        modifier(FolderImportLayer(model: model, text: text, summaries: summaries, on: on, account: account, reload: reload, open: open))
     }
 }
 

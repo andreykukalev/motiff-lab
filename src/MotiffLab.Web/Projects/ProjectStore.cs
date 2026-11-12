@@ -4,6 +4,7 @@ using System.Text;
 using Microsoft.JSInterop;
 
 using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.Web.Account;
 using MotiffLab.Web.Score;
@@ -46,7 +47,7 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
     {
         ArgumentNullException.ThrowIfNull(project);
         IJSObjectReference module = await ModuleAsync();
-        await module.InvokeVoidAsync("saveProject", project.Id, Encoding.UTF8.GetString(ProjectFile.Write(project)), Row(project.Summary));
+        await module.InvokeVoidAsync("saveProject", project.Id, Encoding.UTF8.GetString(ProjectFile.Write(project)), Row(project));
     }
 
     /// <summary>
@@ -57,13 +58,14 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
     {
         ArgumentNullException.ThrowIfNull(project);
         IJSObjectReference module = await ModuleAsync();
-        ProjectSummary summary = project.Summary;
-        await module.InvokeVoidAsync("saveSummary", Row(summary));
-        return summary;
+        await module.InvokeVoidAsync("saveSummary", Row(project));
+        return project.Summary;
     }
 
-    private static StoredSummary Row(ProjectSummary summary) =>
-        new(summary.Id, summary.FileName, summary.MotifCount, summary.VariationCount, Iso(summary.LastOpened), summary.ResumeCount, summary.IdeaCount)
+    private static StoredSummary Row(Project project)
+    {
+        ProjectSummary summary = project.Summary;
+        return new(summary.Id, summary.FileName, summary.MotifCount, summary.VariationCount, Iso(summary.LastOpened), summary.ResumeCount, summary.IdeaCount)
         {
             Origin = summary.Origin.ToString(),
             CheckBars = summary.CheckBars,
@@ -75,9 +77,20 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
             ComposerFrom = summary.Details?.Composer?.Attribution.Provenance.ToString(),
             Tags = summary.Details?.Tags,
             Playlists = summary.Details?.Playlists,
-            Originals = [.. summary.Originals.Select(static original => new StoredOriginal(
-                original.Id, original.Kind.ToString(), original.Kept.ToString(), original.InFile, [.. original.Held.Select(static device => device.ToString())]))],
+            Originals = [.. summary.Originals.Select(original => StoredOriginalOf(original, project.FindOriginal(original.Id)))],
             Part = StoredPartOf(summary.Part),
+        };
+    }
+
+    /// <summary>An original as its row keeps it: where its bytes are, and (version 0.5) its name, folder, fingerprint, size and pages.</summary>
+    private static StoredOriginal StoredOriginalOf(OriginalSummary original, PieceOriginal? described) =>
+        new(original.Id, original.Kind.ToString(), original.Kept.ToString(), original.InFile, [.. original.Held.Select(static device => device.ToString())])
+        {
+            FileName = described?.FileName,
+            Folder = described?.Folder,
+            Sha256 = described?.Sha256,
+            Bytes = described?.Bytes,
+            Pages = described?.Pages,
         };
 
     /// <summary>The saved project, or null when there is none. Throws <see cref="ProjectFileException"/> when it is damaged.</summary>
@@ -113,15 +126,47 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
     }
 
     /// <summary>
-    /// The recordings this browser holds, as "&lt;project&gt;/&lt;original&gt;" (version 0.3), for the library's badges; none
-    /// when the browser does not say.
+    /// The library's originals as the rows keep them (version 0.5, «Импорт папки»), each with its piece's title and composer,
+    /// for the import plan to know the files the library has and for «Проверить папку» to find them again; and the pieces
+    /// whose rows were saved before they kept them, to read once.
+    /// </summary>
+    public async Task<(IReadOnlyList<LibraryOriginal> Originals, IReadOnlyList<string> Unknown)> LibraryOriginalsAsync()
+    {
+        IJSObjectReference module = await ModuleAsync();
+        StoredSummary[] rows = await module.InvokeAsync<StoredSummary[]>("listProjects");
+        List<LibraryOriginal> originals = [];
+        List<string> unknown = [];
+        foreach (StoredSummary row in rows)
+        {
+            if ((row.Originals ?? []).Any(static original => original.FileName is null))
+            {
+                unknown.Add(row.Id);
+            }
+
+            originals.AddRange((row.Originals ?? []).Where(static original => original.FileName is not null).Select(original => new LibraryOriginal(row.Id, original.Id, original.Sha256)
+            {
+                Bytes = original.Bytes,
+                Pages = original.Pages,
+                FileName = original.FileName,
+                Folder = original.Folder,
+                Title = row.Title ?? ScoreTitle.Of(row.FileName),
+                Composer = row.Composer,
+            }));
+        }
+
+        return (originals, unknown);
+    }
+
+    /// <summary>
+    /// The recordings this browser holds, as "&lt;project&gt;/&lt;original&gt;" (version 0.3), and the PDFs it reads where the
+    /// player keeps them (version 0.5), for the library's badges; none when the browser does not say.
     /// </summary>
     public async Task<IReadOnlySet<string>> HeldHereAsync()
     {
         try
         {
             _originals ??= await js.InvokeAsync<IJSObjectReference>("import", "./js/storage/originals.js");
-            return new HashSet<string>(await _originals.InvokeAsync<string[]>("heldHere"), StringComparer.Ordinal);
+            return new HashSet<string>(await _originals.InvokeAsync<string[]>("heldHereWithLinks"), StringComparer.Ordinal);
         }
         catch (JSException)
         {
@@ -292,7 +337,19 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
 
     private sealed record StoredPart(string Kind, string FileName, string? Name, string AddedAt, string? Sha256, int? FirstPage, int? LastPage, long? From, long? To);
 
-    private sealed record StoredOriginal(string Id, string Kind, string Kept, bool InFile, IReadOnlyList<string>? Held);
+    private sealed record StoredOriginal(string Id, string Kind, string Kept, bool InFile, IReadOnlyList<string>? Held)
+    {
+        /// <summary>The original's name, folder, fingerprint, size and pages (version 0.5, «Импорт папки»); rows saved before have none.</summary>
+        public string? FileName { get; init; }
+
+        public string? Folder { get; init; }
+
+        public string? Sha256 { get; init; }
+
+        public long? Bytes { get; init; }
+
+        public int? Pages { get; init; }
+    }
 
     private sealed record StoredResume(string Id, string? Name, long At, long? From, long? To, string LastActive);
 

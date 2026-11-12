@@ -1,0 +1,190 @@
+@using MotiffLab.Web.Localization
+@implements IDisposable
+
+@* The import's line over the library (version 0.5, «Импорт папки», ux-prototype/v0.5/screens/import-web-3-adding.png): how
+   far it is, the folder, Pause and Stop; a tap on the count opens what was added and what was not and why. After a reload,
+   «Импорт остановлен на 214 из 628 — продолжить?». The pieces appear in the list as they are added: Listed asks the library
+   to read its list again every couple of seconds, and once more when the import stops. Nothing shows while the experiment
+   is off. *@
+@if (_on && Job.State is { } state)
+{
+    int total = state.Files.Count;
+    <div class="run-bar" role="status" aria-live="polite">
+        <button class="what" aria-expanded="@(_open ? "true" : "false")" @onclick="() => _open = !_open">
+            @Headline(state) <Icon Name="fwd" Size="IconSize.Small" />
+        </button>
+        <span class="where">@state.FolderName</span>
+        <span class="sp"></span>
+        @if (Job.Running)
+        {
+            <button class="btn quiet" @onclick="Job.PauseAsync"><Icon Name="pause" /> @Text["folder.pause"]</button>
+            <button class="btn quiet" @onclick="Job.CloseAsync">@Text["folder.stop"]</button>
+        }
+        else if (!state.Finished)
+        {
+            @if (_pickAgain)
+            {
+                <label class="btn quiet file">
+                    @Text.Format("folder.pickAgain", state.FolderName)
+                    <input type="file" webkitdirectory multiple @ref="_input" @onchange="PickedAgainAsync" />
+                </label>
+            }
+            else
+            {
+                <button class="btn quiet" @onclick="ResumeAsync"><Icon Name="play" /> @Text["folder.resume"]</button>
+            }
+            <button class="btn quiet" @onclick="Job.CloseAsync">@Text["folder.stop"]</button>
+        }
+        else
+        {
+            <button class="btn quiet" @onclick="Job.CloseAsync">@Text["library.done"]</button>
+        }
+        <span class="track" aria-hidden="true"><span class="fill" style="--done: @Percent(state)%"></span></span>
+    </div>
+    @if (_problem is not null)
+    {
+        <p class="lib-note error" role="alert">@_problem</p>
+    }
+    @if (_open)
+    {
+        <div class="run-details">
+            <p class="caption">@Text.Count("folder.addedCount", state.Added)</p>
+            @if (state.Failed > 0)
+            {
+                <p class="overline">@Text.Count("folder.failedCount", state.Failed)</p>
+                <ul>
+                    @foreach (JobFile file in state.Files.Where(static file => file.State == JobFileState.Failed))
+                    {
+                        <li><span class="name">@file.Path</span> <span class="caption">@Text[file.Reason ?? "folder.problemUnreadable"]</span></li>
+                    }
+                </ul>
+            }
+        </div>
+    }
+}
+
+@if (_on && Sheets.Recheck is { } recheck)
+{
+    @* «Что изменилось в папке», from «Проверить папку» in the library's menu. *@
+    <div class="lib-scrim" @onclick="Sheets.Close"></div>
+    <FolderSheet @key="recheck.Id" Folder="recheck" Recheck="true" Closed="Sheets.Close" />
+}
+
+@code {
+    [Inject]
+    private ImportJob Job { get; set; } = default!;
+
+    [Inject]
+    private PlayerFolders Folders { get; set; } = default!;
+
+    [Inject]
+    private UiText Text { get; set; } = default!;
+
+    [Inject]
+    private MotiffLab.Web.Settings.DeviceSettings Settings { get; set; } = default!;
+
+    [Inject]
+    private FolderSheets Sheets { get; set; } = default!;
+
+    /// <summary>After pieces were added: the library reads its list again.</summary>
+    [Parameter]
+    public EventCallback Listed { get; set; }
+
+    /// <summary>How often the list is read again while the import adds pieces.</summary>
+    private static readonly TimeSpan s_listEvery = TimeSpan.FromSeconds(2);
+
+    private bool _on;
+    private int _addedListed;
+    private DateTime _listedAt;
+    private bool _open;
+    private bool _pickAgain;
+    private string? _problem;
+    private ElementReference _input;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Job.Changed += OnChanged;
+        Sheets.Changed += OnSheet;
+        await Settings.LoadAsync();
+        _on = Settings.IsOn(ImportJob.Setting);
+        if (_on)
+        {
+            await Job.LoadAsync();
+            _addedListed = Job.State?.Added ?? 0;
+        }
+    }
+
+    public void Dispose()
+    {
+        Job.Changed -= OnChanged;
+        Sheets.Changed -= OnSheet;
+    }
+
+    private void OnSheet() => _ = InvokeAsync(StateHasChanged);
+
+    private void OnChanged() => _ = InvokeAsync(async () =>
+    {
+        _on = Settings.IsOn(ImportJob.Setting);
+        StateHasChanged();
+        int added = Job.State?.Added ?? 0;
+        if (added == _addedListed || (Job.Running && DateTime.UtcNow - _listedAt < s_listEvery))
+        {
+            return;
+        }
+
+        _addedListed = added;
+        _listedAt = DateTime.UtcNow;
+        await Listed.InvokeAsync();
+    });
+
+    /// <summary>«Добавляю 214 из 628», «Импорт остановлен на 214 из 628 — продолжить?», «Добавлено 626 из 628».</summary>
+    private string Headline(JobState state) =>
+        Job.Running ? Text.Format("folder.adding", state.Done, state.Files.Count)
+        : state.Finished ? Text.Format("folder.added", state.Added, state.Files.Count)
+        : Text.Format("folder.stopped", state.Done, state.Files.Count);
+
+    private static int Percent(JobState state) => state.Files.Count == 0 ? 100 : state.Done * 100 / state.Files.Count;
+
+    /// <summary>Goes on, once the browser lets the app read the folder again: one tap for the whole folder.</summary>
+    private async Task ResumeAsync()
+    {
+        _problem = null;
+        if (Job.State is not { } state)
+        {
+            return;
+        }
+
+        string permission = await Folders.PermissionAsync(state.Folder);
+        if (permission == "none")
+        {
+            _pickAgain = true;
+            return;
+        }
+
+        if (permission != "granted" && !await Folders.AskPermissionAsync(state.Folder))
+        {
+            _problem = Text["folder.noAccess"];
+            return;
+        }
+
+        _ = Job.ResumeAsync();
+    }
+
+    /// <summary>In a browser that does not keep the folder, the player picks it again; the same folder goes on.</summary>
+    private async Task PickedAgainAsync()
+    {
+        if (Job.State is not { } state || await Folders.TakePickedAsync(_input) is not { } picked)
+        {
+            return;
+        }
+
+        if (picked.Id != state.Folder)
+        {
+            _problem = Text.Format("folder.otherFolder", state.FolderName);
+            return;
+        }
+
+        _pickAgain = false;
+        _ = Job.ResumeAsync();
+    }
+}

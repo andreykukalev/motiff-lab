@@ -1,0 +1,128 @@
+@using MotiffLab.MusicCore.Import
+@using MotiffLab.Web.Localization
+@using Microsoft.AspNetCore.Components.Web.Virtualization
+@implements IAsyncDisposable
+
+@* «Что нашлось» (version 0.5, «Импорт папки», ux-prototype/v0.5/screens/import-web-2-found.png): the folder's notes files as
+   the library will list them. The counters are filters; a guess is grey with where it comes from and is written over in the
+   row; a check leaves a new file out. What the folders become is chosen at the foot, then «Добавить» starts the import and
+   the sheet closes. Nothing is added before that, and the files are only read. *@
+<section class="lib-sheet found" role="dialog" aria-modal="true" aria-labelledby="found-title" tabindex="-1" @ref="_element" @onkeydown="OnKey">
+    <header class="hd">
+        <div>
+            <p class="overline">@Folder.Name</p>
+            <h2 class="ttl" id="found-title">@Text[Recheck ? "folder.changedTitle" : "folder.found"]</h2>
+        </div>
+        <button class="btn icon" aria-label="@Text["library.close"]" title="@Text["library.close"]" @onclick="CloseAsync"><Icon Name="close" /></button>
+    </header>
+
+    @if (_scan is null)
+    {
+        <p class="found-status" role="status">@(_problem ?? Text.Format("folder.looking", _listed))</p>
+    }
+    else
+    {
+        ImportPlan plan = _scan.Plan;
+        <div class="counts" role="group" aria-label="@Text["folder.filters"]">
+            @if (!Recheck)
+            {
+                @Counter(FoundFilter.All, "folder.countFound", plan.Found + _scan.Listing.Others)
+            }
+            @Counter(FoundFilter.New, "folder.countNew", _scan.NewCount)
+            @if (Recheck && _changed.Count > 0)
+            {
+                <span class="chip static">@Text["folder.countChanged"] <span class="n">@_changed.Count.ToString("N0", Text.Culture)</span></span>
+            }
+            @if (!Recheck)
+            {
+                @Counter(FoundFilter.InLibrary, "folder.countInLibrary", plan.InLibrary)
+                @Counter(FoundFilter.Duplicates, "folder.countDuplicates", plan.Duplicates)
+            }
+            @if (!Recheck || plan.Unsuitable + _scan.Listing.Others > 0)
+            {
+                @Counter(FoundFilter.Unsuitable, "folder.countUnsuitable", plan.Unsuitable + _scan.Listing.Others)
+            }
+        </div>
+        @if (_moved > 0)
+        {
+            <p class="found-status" role="status">@Text.Count("folder.moved", _moved)</p>
+        }
+        @if (_changed.FirstOrDefault() is { } changed)
+        {
+            <div class="same" role="group" aria-labelledby="same-title">
+                <h3 id="same-title">@Text["away.alikeTitle"]</h3>
+                <div class="pair">
+                    <div class="side">
+                        <p class="overline">@Text["away.inLibrary"]</p>
+                        <p class="t">@(changed.Original.Title ?? changed.Original.FileName)</p>
+                        <p class="m">@string.Join(" · ", new[] { changed.Original.Composer, changed.Original.Folder, changed.Original.Pages is { } pages ? Text.Format("away.pages", pages) : null }.Where(static part => !string.IsNullOrEmpty(part)))</p>
+                    </div>
+                    <div class="side">
+                        <p class="overline">@Text["away.inFolderNow"]</p>
+                        <p class="t">@Path.GetFileName(changed.Alike.Path)</p>
+                        <p class="m">@string.Join(" · ", new[] { Path.GetDirectoryName(changed.Alike.Path), changed.Alike.Pages is { } now ? Text.Format("away.pages", now) : null, Size(changed.Alike.Bytes) }.Where(static part => !string.IsNullOrEmpty(part)))</p>
+                    </div>
+                </div>
+                <div class="act">
+                    <button class="btn secondary" @onclick="() => SameAsync(changed)">@Text["away.itIs"]</button>
+                    <button class="btn quiet" @onclick="() => NotSame(changed)">@Text["folder.notSame"]</button>
+                    <span class="caption">@Text["away.alikeKeeps"]</span>
+                </div>
+            </div>
+        }
+        @if (_scan.Read < _scan.Listing.Files.Count)
+        {
+            <p class="found-status" role="status">@Text.Format("folder.reading", _scan.Read, _scan.Listing.Files.Count)</p>
+        }
+
+        <div class="list">
+            <table class="found-table">
+                <thead>
+                    <tr>
+                        <th scope="col" class="c-check"><span class="visually-hidden">@Text["folder.colAdd"]</span></th>
+                        <th scope="col" class="c-title" aria-sort="ascending"><span class="head on">@Text["library.fieldTitle"] <span aria-hidden="true">↑</span></span></th>
+                        <th scope="col" class="c-comp"><span class="head">@Text["library.fieldComposer"]</span></th>
+                        <th scope="col" class="c-folder"><span class="head">@Text["folder.colFolder"]</span></th>
+                        <th scope="col" class="c-pages"><span class="head" title="@Text["folder.colPagesLong"]">@Text["folder.colPages"]</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <Virtualize Items="_rows" Context="row" ItemSize="56" SpacerElement="tr" OverscanCount="8">
+                        <FoundLine Row="row" Scan="_scan" Changed="Show" />
+                    </Virtualize>
+                </tbody>
+            </table>
+            @if ((_filter == FoundFilter.All || _filter == FoundFilter.Unsuitable) && _scan.Listing.Others > 0)
+            {
+                <p class="caption others">@Text.Count("folder.others", _scan.Listing.Others)</p>
+            }
+        </div>
+
+        <footer class="ft">
+            <div class="choices">
+                <span class="lbl" id="found-folders">@Text["folder.foldersBecome"]</span>
+                <div class="seg" role="radiogroup" aria-labelledby="found-folders">
+                    @foreach (FolderMapping mapping in Enum.GetValues<FolderMapping>())
+                    {
+                        bool on = _scan.Mapping == mapping;
+                        <button role="radio" aria-checked="@(on ? "true" : "false")" class="@(on ? "on" : null)" @key="mapping" @onclick="() => Map(mapping)">@Text[MappingKey(mapping)]</button>
+                    }
+                </div>
+                @if (!_scan.Linked)
+                {
+                    <span class="lbl">@Text["folder.copies"]</span>
+                    <span class="caption space @(_spaceShort ? "short" : null)">@SpaceLine</span>
+                }
+            </div>
+            <button class="btn primary go" @onclick="AddAsync" disabled="@(_scan.ToAdd.Count == 0 && _scan.Known.Count == 0)">
+                @(_scan.ToAdd.Count > 0 ? Text.Count("folder.add", _scan.ToAdd.Count) : _scan.Known.Count > 0 ? Text["folder.linkKnown"] : Text["folder.nothingNew"])
+            </button>
+        </footer>
+    }
+</section>
+
+@code {
+    /// <summary>A counter that filters the list: «Новых 628».</summary>
+    private RenderFragment Counter(FoundFilter filter, string key, int count) => @<button class="chip @(_filter == filter ? "on" : null)" aria-pressed="@(_filter == filter ? "true" : "false")"
+                                                                                       @onclick="() => Filter(filter)">@Text[key] <span class="n">@count.ToString("N0", Text.Culture)</span></button>;
+}

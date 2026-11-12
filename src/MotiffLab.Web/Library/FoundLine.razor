@@ -1,0 +1,115 @@
+@using MotiffLab.MusicCore.Import
+@using MotiffLab.Web.Localization
+
+@* One file on «Что нашлось»: a new file with its check, its title and composer to write over (a guess grey, with where it
+   comes from), its folder and pages; any other file with what it is (a repeat of which file, in the library already, or
+   why it cannot be added). *@
+@{
+    PlannedFile planned = Row.Planned;
+    bool isNew = planned.Status == ImportStatus.New;
+}
+<tr class="@(isNew ? null : "other")">
+    <td class="c-check">
+        @if (isNew)
+        {
+            <input type="checkbox" class="check" checked="@Row.Included" aria-label="@Text.Format("folder.include", Row.Title)"
+                   @onchange="change => Include(change.Value is true)" />
+        }
+    </td>
+    <td class="c-title">
+        @if (isNew)
+        {
+            <input type="text" class="t @(Row.TitleEdited ? null : "guess")" value="@Row.Title" maxlength="200" aria-label="@Text.Format("folder.titleOf", planned.File.Name)"
+                   @onchange="change => WriteTitle(change.Value as string)" />
+            @if (!Row.TitleEdited && Row.TitleSuggestion is { } title)
+            {
+                <span class="src">@Text[SourceKey(title.Source)]</span>
+            }
+        }
+        else
+        {
+            <span class="t">@(planned.Status == ImportStatus.Unsupported ? planned.File.Name : Row.Title) <span class="tag @(Bad ? "bad" : "plain")">@Text[TagKey]</span></span>
+            @if (Sub is { } sub)
+            {
+                <span class="src">@sub</span>
+            }
+        }
+    </td>
+    <td class="c-comp">
+        @if (isNew)
+        {
+            <input type="text" class="v @(Row.ComposerEdited ? null : "guess")" value="@Row.Composer" maxlength="200" placeholder="—"
+                   aria-label="@Text.Format("folder.composerOf", planned.File.Name)" @onchange="change => WriteComposer(change.Value as string)" />
+            @if (!Row.ComposerEdited && Row.ComposerSuggestion is { } composer)
+            {
+                <span class="src">@Text[SourceKey(composer.Source)]</span>
+            }
+        }
+        else if (planned.Status == ImportStatus.InLibrary)
+        {
+            <span class="v fact">@Row.Composer</span>
+        }
+    </td>
+    <td class="c-folder"><span class="v">@planned.File.Folder</span></td>
+    <td class="c-pages">@planned.File.Pages</td>
+</tr>
+
+@code {
+    [Inject]
+    private UiText Text { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public FoundRow Row { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public FolderScan Scan { get; set; } = default!;
+
+    /// <summary>After the player changed the row, so the sheet counts again.</summary>
+    [Parameter]
+    public EventCallback Changed { get; set; }
+
+    private bool Bad => Row.Planned.Status is ImportStatus.Unsupported or ImportStatus.TooBig or ImportStatus.Unreadable;
+
+    private string TagKey => Row.Planned.Status switch
+    {
+        ImportStatus.Duplicate => "folder.tagDuplicate",
+        ImportStatus.InLibrary => "library.inLibrary",
+        _ => "folder.tagUnsuitable",
+    };
+
+    /// <summary>"the same file as in Дебюсси/Арабески", or why the file cannot be added.</summary>
+    private string? Sub => Row.Planned switch
+    {
+        { Status: ImportStatus.Duplicate, SameAs: { } same } => Text.Format("folder.sameFile", Folder(same)),
+        _ when Scan.Problem(Row.Planned) is { } problem => Text[problem],
+        _ => null,
+    };
+
+    private string Folder(string path) => path.LastIndexOf('/') is var slash and > 0 ? path[..slash] : Text["folder.top"];
+
+    private static string SourceKey(SuggestionSource source) => source switch
+    {
+        SuggestionSource.FolderChoice or SuggestionSource.Folder => "folder.fromFolder",
+        SuggestionSource.ScoreHeader => "folder.fromScore",
+        SuggestionSource.PdfInfo => "folder.fromPdf",
+        _ => "folder.fromFileName",
+    };
+
+    private Task Include(bool included)
+    {
+        Scan.Include(Row.Path, included);
+        return Changed.InvokeAsync();
+    }
+
+    private Task WriteTitle(string? title)
+    {
+        Scan.WriteTitle(Row.Path, title);
+        return Changed.InvokeAsync();
+    }
+
+    private Task WriteComposer(string? composer)
+    {
+        Scan.WriteComposer(Row.Path, composer);
+        return Changed.InvokeAsync();
+    }
+}

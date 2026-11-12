@@ -1,0 +1,262 @@
+import Foundation
+import PDFKit
+
+/// One piece of a batch sent to be recognised: its project file by name in the library's folder, its title and pages, and
+/// what came of it.
+struct RecognitionItem: Codable, Equatable, Identifiable, Sendable {
+    enum State: String, Codable, Sendable {
+        case queued, reading, done, failed
+    }
+
+    var file: String
+    var title: String
+    var pages: Int
+    var state = State.queued
+    /// Why its notes were not read, in the player's words.
+    var reason: String?
+
+    var id: String { file }
+}
+
+/// «Распознать ноты» for several pieces at once (version 0.5, the approved screens import-ipad-4-consent.png and
+/// import-ipad-5-status.png): the PDF-only pieces the player picked, sent one at a time to the scan server they agreed to
+/// for the batch, the notes put into each same piece. Kept in Application Support after each piece, so it is paused,
+/// stopped and carried on after a relaunch.
+struct RecognitionBatch: Codable, Equatable, Sendable {
+    var id = UUID().uuidString
+    /// The scan server the player agreed to send these PDFs to.
+    var address: String
+    /// Motiff Lab's hosted server, with its daily limit of pages.
+    var hosted: Bool
+    var items: [RecognitionItem]
+    var paused = false
+    /// "limit", "offline", "signIn", "needsPro" or "unreachable" when the app paused it.
+    var stopped: String?
+    var startedAt = Date()
+
+    var done: Int { items.filter { $0.state == .done || $0.state == .failed }.count }
+    var read: Int { items.filter { $0.state == .done }.count }
+    var failed: Int { items.filter { $0.state == .failed }.count }
+    var finished: Bool { !items.contains { $0.state == .queued || $0.state == .reading } }
+    var pagesLeft: Int { items.filter { $0.state == .queued || $0.state == .reading }.reduce(0) { $0 + max(1, $1.pages) } }
+}
+
+/// The batch beside the folder import's records: `recognition.json`.
+enum RecognitionStore {
+    static func load(in root: URL = ImportFolders.root) -> RecognitionBatch? {
+        guard let data = try? Data(contentsOf: root.appendingPathComponent("recognition.json")) else { return nil }
+        return try? ImportFolders.decoder.decode(RecognitionBatch.self, from: data)
+    }
+
+    static func save(_ batch: RecognitionBatch?, in root: URL = ImportFolders.root) {
+        let url = root.appendingPathComponent("recognition.json")
+        guard let batch else {
+            try? FileManager.default.removeItem(at: url)
+            return
+        }
+        try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        if let data = try? ImportFolders.encoder.encode(batch) { try? data.write(to: url, options: .atomic) }
+    }
+}
+
+/// Motiff Lab's hosted scan server reads 100 pages a day for each player, counted on this device by player and day (the
+/// player's own server has no limit).
+enum DailyPages {
+    static let limit = 100
+
+    static func key(player: String, day: Date) -> String {
+        let parts = Calendar(identifier: .gregorian).dateComponents([.year, .month, .day], from: day)
+        return String(format: "motiff.recognise.hosted.%@.%04d-%02d-%02d", player, parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+    }
+
+    static func used(player: String, on day: Date = Date(), defaults: UserDefaults = .standard) -> Int {
+        defaults.integer(forKey: key(player: player, day: day))
+    }
+
+    static func add(_ pages: Int, player: String, on day: Date = Date(), defaults: UserDefaults = .standard) {
+        defaults.set(used(player: player, on: day, defaults: defaults) + pages, forKey: key(player: player, day: day))
+    }
+
+    /// About how long a batch takes, in minutes: half a minute a page, as the scan server reads.
+    static func minutes(_ pages: Int) -> Int { max(1, (pages * 30 + 59) / 60) }
+}
+
+/// Why one piece's notes were not read, and whether the batch stops there for it (no connection, no sign-in, no Pro, the
+/// server not answering).
+struct RecognitionFailure: Error, Equatable {
+    let reason: String
+    var stop: String?
+}
+
+/// Runs the batch in the background of the library: one piece at a time, the batch kept after each, the library told to
+/// read the piece again once its notes are in. A piece whose PDF is in a folder is read there, as opening it does.
+@MainActor
+final class RecognitionQueue: ObservableObject {
+    static let shared = RecognitionQueue()
+
+    @Published private(set) var batch: RecognitionBatch?
+    @Published private(set) var running = false
+    /// Grows as each piece is done, so the library reads its pieces again.
+    @Published private(set) var revision = 0
+    var account: Account?
+    var root = ImportFolders.root
+    var links = OriginalLinks.folder
+    var projects: () -> URL = { ProjectFiles.folder }
+    var defaults = UserDefaults.standard
+    private var restored = false
+
+    /// A batch left unfinished when the app was closed, waiting for «Продолжить».
+    var interrupted: Bool { batch.map { !$0.finished && !$0.paused } == true && !running }
+
+    func restore() {
+        guard !restored else { return }
+        restored = true
+        batch = RecognitionStore.load(in: root)
+        for index in batch?.items.indices ?? 0..<0 where batch?.items[index].state == .reading {
+            batch?.items[index].state = .queued
+        }
+    }
+
+    /// The pieces the player agreed to send to `address`: added to the batch going to the same server, else a new batch.
+    func start(_ items: [RecognitionItem], address: URL, hosted: Bool) {
+        if var current = batch, !current.finished, current.address == address.absoluteString {
+            let known = Set(current.items.map(\.file))
+            current.items += items.filter { !known.contains($0.file) }
+            batch = current
+        } else {
+            batch = RecognitionBatch(address: address.absoluteString, hosted: hosted, items: items)
+        }
+        RecognitionStore.save(batch, in: root)
+        Task { await run() }
+    }
+
+    /// A piece the folder import just added, when the player asked for its notes for the whole import.
+    func append(_ url: URL, address: URL, hosted: Bool) async {
+        guard let summary = await PieceSummary.read(url), !summary.hasNotes else { return }
+        start([Self.item(url, summary)], address: address, hosted: hosted)
+    }
+
+    static func item(_ url: URL, _ summary: PieceSummary?) -> RecognitionItem {
+        let pages = summary?.originals.first(where: \.isDocument)?.pages ?? summary?.documentPages.count ?? 1
+        return RecognitionItem(file: url.lastPathComponent, title: summary?.title ?? ProjectFiles.title(of: url.lastPathComponent), pages: max(1, pages))
+    }
+
+    func pause() {
+        batch?.paused = true
+        RecognitionStore.save(batch, in: root)
+    }
+
+    func resume() {
+        batch?.paused = false
+        batch?.stopped = nil
+        RecognitionStore.save(batch, in: root)
+        Task { await run() }
+    }
+
+    /// Stops: the pieces not read yet stay without notes; those read keep theirs.
+    func stop() {
+        batch = nil
+        RecognitionStore.save(nil, in: root)
+        revision += 1
+    }
+
+    /// What is happening to the piece's notes in the batch, if it is in it.
+    func status(of url: URL) -> RecognitionItem? {
+        batch?.items.first { $0.file == url.lastPathComponent }
+    }
+
+    private func run() async {
+        guard !running, let account else { return }
+        running = true
+        defer {
+            running = false
+            revision += 1
+        }
+        while let current = batch, !current.paused, let index = current.items.firstIndex(where: { $0.state == .queued }) {
+            guard let address = URL(string: current.address) else { return stop() }
+            let item = current.items[index]
+            if current.hosted, let player = account.player, DailyPages.used(player: player, defaults: defaults) + item.pages > DailyPages.limit {
+                batch?.paused = true
+                batch?.stopped = "limit"
+                return RecognitionStore.save(batch, in: root)
+            }
+            batch?.items[index].state = .reading
+            RecognitionStore.save(batch, in: root)
+            let outcome = await Self.recognise(projects().appendingPathComponent(item.file), address: address, account: account, links: links, folders: root)
+            guard batch?.id == current.id, batch?.items.indices.contains(index) == true else { return }
+            switch outcome {
+            case .success(let pages):
+                batch?.items[index].state = .done
+                if current.hosted, let player = account.player { DailyPages.add(pages, player: player, defaults: defaults) }
+            case .failure(let failure):
+                batch?.items[index].state = failure.stop == nil ? .failed : .queued
+                batch?.items[index].reason = failure.stop == nil ? failure.reason : nil
+                if let stop = failure.stop {
+                    batch?.paused = true
+                    batch?.stopped = stop
+                }
+            }
+            RecognitionStore.save(batch, in: root)
+            revision += 1
+        }
+    }
+
+    /// One piece's PDF read by the scan server and its notes put into the same piece (`document.read`), as «Распознать
+    /// ноты» on its PDF does: the pages sent, or why not.
+    static func recognise(_ url: URL, address: URL, account: Account, links: URL, folders: URL) async -> Result<Int, RecognitionFailure> {
+        let text = UIText.current
+        guard let summary = await PieceSummary.read(url), let project = try? Data(contentsOf: url) else {
+            return .failure(RecognitionFailure(reason: text["recognition.failMissing"]))
+        }
+        if summary.hasNotes { return .success(0) }
+        var pdf: Data?
+        if AwayPdf.isAway(summary) {
+            switch await AwayPdf.read(url, summary, links: links, folders: folders) {
+            case .success(let found): pdf = found.data
+            case .failure(let reason): return .failure(RecognitionFailure(reason: reason.text(text), stop: reason == .offline ? "offline" : nil))
+            }
+        }
+        guard case .success(let open) = await OpenPiece.open(fileName: url.lastPathComponent, data: project, language: text.language, pdf: pdf), open.isDocument else {
+            return .failure(RecognitionFailure(reason: text["pdf.unreadable"]))
+        }
+        let piece = open.id
+        let outcome = await read(piece, url: url, address: address, account: account, text: text)
+        _ = await MusicCore.run { MusicCore.close(piece: piece) }
+        return outcome
+    }
+
+    private static func read(_ piece: Int32, url: URL, address: URL, account: Account, text: UIText) async -> Result<Int, RecognitionFailure> {
+        let document = await MusicCore.run { MusicCore.call(piece: piece, "document") }
+        guard let object = facadeObject(document), let base64 = object["pdf"] as? String, let data = Data(base64Encoded: base64) else {
+            return .failure(RecognitionFailure(reason: text["pdf.unreadable"]))
+        }
+        let name = (object["fileName"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "score.pdf"
+        let pages = max(1, PDFDocument(data: data)?.pageCount ?? 1)
+        switch await ScanServer.recognise(fileName: name, data: data, address: address, account: account) {
+        case .failure(let problem):
+            return .failure(RecognitionFailure(reason: problem.text(text), stop: stop(problem)))
+        case .success(let scanned):
+            let request = DocumentRead.request(musicXml: scanned.musicXml, engine: scanned.engine, pages: pages, reports: nil, language: text.language, now: Date())
+            let answer = await DocumentRead.call(piece: piece, request)
+            guard let read = facadeObject(answer), read["error"] == nil, let file = read["file"] as? String else {
+                return .failure(RecognitionFailure(reason: facadeObject(answer)?["message"] as? String ?? text["pdf.readNone"]))
+            }
+            do {
+                try Data(file.utf8).write(to: url, options: .atomic)
+            } catch {
+                return .failure(RecognitionFailure(reason: error.localizedDescription))
+            }
+            return .success(pages)
+        }
+    }
+
+    /// The problems that stop the batch rather than fail one piece: every piece after would meet them too.
+    private static func stop(_ problem: ScanProblem) -> String? {
+        switch problem {
+        case .signIn: "signIn"
+        case .needsPro: "needsPro"
+        case .unreachable, .notAScanServer: "unreachable"
+        case .tooLarge, .server: nil
+        }
+    }
+}
