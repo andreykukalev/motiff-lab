@@ -287,6 +287,7 @@ struct SettingsSheet: View {
                 .foregroundStyle(Color.ds("ink-2"))
             switchRow("experimental.reference", text["settings.reference"], hint: text["settings.referenceHint"])
             switchRow("experimental.photoPages", text["settings.photoPages"], hint: text["settings.photoPagesHint"])
+            switchRow("experimental.pieceParts", text["settings.pieceParts"], hint: text["settings.piecePartsPdfHint"])
             // At the instrument (#327, #328, #349).
             switchRow("experimental.resume", text["settings.resume"], hint: text["settings.resumeHint"])
             switchRow("experimental.hands", text["settings.hands"], hint: text["settings.handsHint"])

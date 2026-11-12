@@ -209,6 +209,48 @@ public class PiecePartsTests
         Assert.Throws<ArgumentException>(() => PieceParts.Split(book, [new("One", PartUnit.Pages, 4, 6) { Pdf = first }], Options()));
     }
 
+    [Fact]
+    public void A_part_of_photos_of_pages_keeps_its_pdf_described_as_photos_of_its_own_pages()
+    {
+        Project plain = Project.CreateDocument("p_photos", "Songbook.pdf", Pdf(5), s_now);
+        Project book = plain.WithOriginal(plain.FindOriginal(PieceOriginal.DocumentId)! with { Kind = OriginalKind.Images, Pages = 5 });
+        (byte[] first, byte[] rest) = (Pdf(2), Pdf(3));
+
+        PieceSplit split = PieceParts.Split(book, [new("One", PartUnit.Pages, 1, 2) { Pdf = first }, new("Two", PartUnit.Pages, 3, 5) { Pdf = rest }], Options(device: HoldingDevice.Ipad));
+
+        Assert.Equal([(OriginalKind.Images, 2), (OriginalKind.Images, 3)], split.Parts.Select(static part => part.Project.FindOriginal(PieceOriginal.DocumentId)!).Select(static own => (own.Kind, own.Pages ?? 0)));
+        Project saved = ProjectFile.Read(ProjectFile.Write(split.Parts[1].Project));
+        Assert.Equal((OriginalKind.Images, 3, PieceOriginal.Fingerprint(rest)), (saved.FindOriginal(PieceOriginal.DocumentId)!.Kind, saved.FindOriginal(PieceOriginal.DocumentId)!.Pages, saved.FindOriginal(PieceOriginal.DocumentId)!.Sha256));
+        Assert.Equal(OriginalKind.Images, split.Original!.Kind);
+
+        // A part of a PDF that is not photos stays a PDF.
+        PieceSplit pdf = PieceParts.Split(plain, [new("One", PartUnit.Pages, 1, 2) { Pdf = first }], Options());
+        Assert.Equal(OriginalKind.Pdf, pdf.Parts[0].Project.FindOriginal(PieceOriginal.DocumentId)!.Kind);
+    }
+
+    [Fact]
+    public void A_pdf_whose_pages_are_hidden_in_compressed_objects_is_split_by_the_page_count_the_app_reads()
+    {
+        // No "/Type /Page" to count: music-core takes such a PDF for one page, the app's viewer knows it has five.
+        Project book = Project.CreateDocument("p_packed", "Packed.pdf", Encoding.ASCII.GetBytes("%PDF-1.5\n1 0 obj << /Type /ObjStm /N 7 >> stream\nx\nendstream endobj\n%%EOF\n"), s_now);
+        PartRange tail = new("Tail", PartUnit.Pages, 3, 5) { Pdf = Pdf(3) };
+        Assert.Throws<ArgumentException>(() => PieceParts.Split(book, [tail], Options()));
+
+        PieceSplit split = PieceParts.Split(book, [tail], Options() with { Pages = 5 });
+
+        Assert.Equal((3, 5), split.Parts[0].Pages);
+        Assert.Equal(5, split.Original!.Pages);
+        Assert.Throws<ArgumentException>(() => PieceParts.Split(book, [tail with { Last = 6 }], Options() with { Pages = 5 }));
+
+        var facade = new MusicCoreFacade();
+        string file = Encoding.UTF8.GetString(ProjectFile.Write(book));
+        string request = JsonSerializer.Serialize(new { file, parts = new[] { new { title = "Tail", pages = new { first = 3, last = 5 }, pdf = Convert.ToBase64String(Pdf(3)) } }, pages = 5, device = "ipad" });
+        using JsonDocument answer = JsonDocument.Parse(facade.Call(0, "parts.split", request));
+        Assert.Equal(3, answer.RootElement.GetProperty("parts")[0].GetProperty("pages").GetProperty("first").GetInt32());
+        using JsonDocument refused = JsonDocument.Parse(facade.Call(0, "parts.split", request.Replace("\"pages\":5", "\"pages\":0", StringComparison.Ordinal)));
+        Assert.Equal("badRequest", refused.RootElement.GetProperty("error").GetString());
+    }
+
     private const long Beat = 250_000;
 
     /// <summary>

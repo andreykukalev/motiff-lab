@@ -327,8 +327,8 @@ struct PiecePropertiesSheet: View {
 }
 
 /// A one-line field in the kit's look (ds.css `.field input`): body type on the paper, a strong hairline round it, the
-/// accent's ring while it is typed in.
-private struct FieldLook: ViewModifier {
+/// accent's ring while it is typed in. Also the fields of «Пьесы в этом файле».
+struct FieldLook: ViewModifier {
     var on = false
 
     func body(content: Content) -> some View {
