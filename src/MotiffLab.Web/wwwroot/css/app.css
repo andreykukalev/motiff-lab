@@ -9502,3 +9502,584 @@ body:has(> #app > .library) {
 .workspace .check-sheet .check-pieces {
     margin-bottom: var(--s-3);
 }
+
+/* «Справочник» (version 0.5, experimental.harmony; Andrei approved the mockup 2026-11-12): the Reference's three tabs in one
+   dialog. Every control centres its text (and icon and text) both ways, as design/kit/ds.css builds them. */
+.ref-sheet.handbook {
+    width: min(1180px, calc(100vw - 2 * var(--s-4)));
+    height: min(820px, calc(100vh - 2 * var(--s-4)));
+    max-height: none;
+}
+
+.ref-sheet.handbook .ref-head {
+    justify-content: flex-start;
+    gap: var(--s-5);
+    padding: var(--s-3) var(--s-4) var(--s-3) var(--s-6);
+    border-bottom: 1px solid var(--hairline);
+}
+
+.ref-sheet.handbook .ref-head .btn.icon {
+    margin-left: auto;
+}
+
+.ref-sheet.handbook .ref-tabs > button {
+    min-height: var(--h-control);
+    padding: 0 var(--s-4);
+    font: var(--t-label);
+    font-size: 15px;
+    line-height: 1;
+}
+
+.ref-sheet.handbook .ref-body {
+    flex: 1;
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+.ref-sheet.handbook :is(.btn, .chip, .seg > button) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-2);
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.ref-sheet.handbook .btn.primary {
+    min-height: var(--h-touch);
+    padding: 0 var(--s-5);
+    background: var(--accent);
+    color: var(--on-accent);
+    font-size: 15px;
+}
+
+.ref-sheet.handbook .btn.primary:hover {
+    background: var(--accent-hover);
+}
+
+.ref-sheet.handbook .btn.secondary {
+    min-height: var(--h-touch);
+    padding: 0 var(--s-5);
+    border-color: var(--hairline-strong);
+    background: var(--surface-2);
+    font-size: 15px;
+}
+
+.ref-sheet.handbook .btn.secondary.on {
+    border-color: var(--accent);
+    background: var(--accent-tint);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.ref-sheet.handbook .chip {
+    min-width: var(--h-touch);
+    height: var(--h-touch);
+    padding: 0 var(--s-4);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-pill);
+    background: var(--surface-2);
+    color: var(--ink);
+    font: var(--t-label);
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.ref-sheet.handbook .chip:hover {
+    border-color: var(--accent);
+}
+
+/* The tint laid on white, not on the sheet, so the cobalt name keeps its contrast (WCAG AA). */
+.ref-sheet.handbook .chip[aria-pressed=true] {
+    border-color: var(--accent);
+    background: linear-gradient(var(--accent-tint), var(--accent-tint)) var(--surface-2);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+/* Аккорды и гаммы: what sounds on the left, the result and how it sounds on the right. */
+.ref-sheet.handbook .ref-cs {
+    display: grid;
+    grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+    height: 100%;
+}
+
+.ref-sheet.handbook .ref-material {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+    padding: var(--s-5) var(--s-6);
+    border-right: 1px solid var(--hairline);
+    overflow-y: auto;
+}
+
+.ref-sheet.handbook .ref-kind {
+    display: flex;
+    width: 100%;
+    margin-bottom: var(--s-3);
+}
+
+.ref-sheet.handbook .ref-kind > button {
+    flex: 1;
+    min-height: var(--h-compact);
+}
+
+.ref-sheet.handbook .ref-roots {
+    display: grid;
+    grid-template-columns: repeat(15, minmax(0, 1fr));
+    gap: var(--s-2) var(--s-1);
+}
+
+.ref-sheet.handbook .ref-roots .chip {
+    min-width: 0;
+    padding: 0;
+    font-size: 13px;
+    background: var(--surface);
+    color: var(--ink-2);
+}
+
+.ref-sheet.handbook .ref-roots .chip.natural {
+    background: var(--surface-2);
+    color: var(--ink);
+}
+
+.ref-sheet.handbook .ref-roots .chip[aria-pressed=true] {
+    background: linear-gradient(var(--accent-tint), var(--accent-tint)) var(--surface-2);
+    color: var(--accent);
+}
+
+.ref-sheet.handbook .ref-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    margin-top: var(--s-3);
+}
+
+.ref-sheet.handbook .ref-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+}
+
+.ref-sheet.handbook .ref-result {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+    min-width: 0;
+    padding: var(--s-5) var(--s-6);
+    overflow-y: auto;
+}
+
+.ref-sheet.handbook .ref-result-head {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--s-3) var(--s-5);
+}
+
+/* The result's name over the library (.lab h3 is an overline there): its own type, in its own case. */
+.ref-sheet.handbook :is(.ref-result-symbol, .ref-result-name) {
+    letter-spacing: normal;
+    text-transform: none;
+    color: var(--ink);
+}
+
+.ref-sheet.handbook .ref-result-symbol {
+    margin: 0;
+    font: var(--t-display);
+    font-size: var(--s-12);
+    line-height: 1;
+}
+
+.ref-sheet.handbook .ref-result-name {
+    margin: 0;
+    font: var(--t-display);
+}
+
+.ref-sheet.handbook .ref-result-kind {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+    margin: 0;
+    font: var(--t-body);
+    color: var(--ink-2);
+}
+
+.ref-sheet.handbook .ref-result-kind strong {
+    font: var(--t-body-strong);
+    color: var(--ink);
+}
+
+.ref-sheet.handbook .ref-result-head .ref-formula {
+    margin-left: auto;
+}
+
+.ref-sheet.handbook .ref-formula th {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.ref-sheet.handbook .ref-formula td {
+    min-width: var(--s-10);
+    padding: var(--s-1) var(--s-3);
+    border-left: 1px solid var(--hairline);
+    font: var(--t-body-strong);
+}
+
+.ref-sheet.handbook .ref-formula td:first-of-type {
+    border-left: 0;
+}
+
+.ref-sheet.handbook .ref-formula .ref-degree {
+    font: var(--t-label);
+    color: var(--ink-2);
+}
+
+/* The notation on the paper, its notes cobalt while they sound. */
+.ref-sheet.handbook .ref-score {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    min-height: var(--s-12);
+    padding: var(--s-4);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-m);
+    background: var(--paper);
+    color: var(--notation);
+}
+
+.ref-sheet.handbook .ref-score.stretch {
+    display: block;
+}
+
+.ref-sheet.handbook .ref-score svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    fill: currentColor;
+}
+
+.ref-sheet.handbook .ref-score svg use {
+    fill: currentColor;
+}
+
+.ref-sheet.handbook .ref-score svg [color]:not(.playing) {
+    color: inherit !important;
+}
+
+.ref-sheet.handbook .ref-score g.note.playing, .ref-sheet.handbook .ref-score g.chord.playing {
+    fill: var(--accent);
+    stroke: var(--accent);
+    color: var(--accent);
+}
+
+.ref-sheet.handbook .ref-playhead {
+    position: absolute;
+    top: var(--s-2);
+    bottom: var(--s-2);
+    width: 2px;
+    background: var(--ink);
+    pointer-events: none;
+}
+
+/* The keyboard: white keys side by side, the black ones over them; the keys the music marks tinted, named. */
+.ref-sheet.handbook .ref-keys {
+    position: relative;
+    display: flex;
+    height: calc(3 * var(--s-10));
+    margin: 0 var(--s-4);
+}
+
+.ref-sheet.handbook .ref-white {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    padding-bottom: var(--s-2);
+    border: 1px solid var(--hairline-strong);
+    border-left-width: 0;
+    border-radius: 0 0 var(--r-xs) var(--r-xs);
+    background: var(--surface-2);
+}
+
+.ref-sheet.handbook .ref-white:first-child {
+    border-left-width: 1px;
+}
+
+.ref-sheet.handbook .ref-white.on {
+    background: var(--accent-tint-strong);
+    color: var(--accent);
+}
+
+.ref-sheet.handbook .ref-black {
+    position: absolute;
+    top: 0;
+    left: calc(var(--after) * 100% / var(--whites) - 30% / var(--whites));
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    width: calc(60% / var(--whites));
+    height: 58%;
+    padding-bottom: var(--s-1);
+    border-radius: 0 0 var(--r-xs) var(--r-xs);
+    background: var(--ink);
+}
+
+.ref-sheet.handbook .ref-black.on {
+    background: var(--accent);
+    color: var(--on-accent);
+}
+
+.ref-sheet.handbook .ref-keys b {
+    font: var(--t-label);
+    font-weight: 600;
+}
+
+.ref-sheet.handbook .ref-keys i {
+    font: var(--t-caption);
+    font-style: normal;
+    color: var(--ink-2);
+}
+
+/* Звучание: a label and a segmented control a row, then Play and Loop. */
+.ref-sheet.handbook .ref-sound-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+    padding-top: var(--s-4);
+    border-top: 1px solid var(--hairline);
+}
+
+.ref-sheet.handbook .ref-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--s-2) var(--s-4);
+}
+
+.ref-sheet.handbook .ref-row-label {
+    width: calc(4 * var(--s-10));
+    flex: none;
+    font: var(--t-body);
+    color: var(--ink-2);
+}
+
+.ref-sheet.handbook .ref-row .seg > button {
+    min-height: var(--h-compact);
+    padding: 0 var(--s-3);
+}
+
+/* Тональности: the circle on the left, the key's card on the right. */
+.ref-sheet.handbook .ref-keys-tab {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    height: 100%;
+}
+
+.ref-sheet.handbook .ref-circle-side {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-4);
+    padding: var(--s-5);
+    border-right: 1px solid var(--hairline);
+}
+
+.ref-sheet.handbook .ref-circle-side .ref-circle {
+    width: 100%;
+    max-width: 600px;
+}
+
+.ref-sheet.handbook .ref-card-side {
+    padding: var(--s-6);
+    overflow-y: auto;
+}
+
+.ref-sheet.handbook .ref-card .ref-name {
+    font: var(--t-display);
+}
+
+/* The key's card as a list (mockup C2): a scale or a main chord a row over a hairline, its notes in a column, the function
+   at the right; no keyboard under it (KeyCardView.Keyboard), as «Аккорды и гаммы» shows the keys. */
+.ref-sheet.handbook .ref-card .ref-sounds {
+    gap: 0;
+}
+
+.ref-sheet.handbook .ref-card .ref-sound {
+    display: grid;
+    grid-template-columns: var(--s-8) minmax(var(--s-12), 1fr) 1.4fr auto;
+    align-items: center;
+    flex-wrap: nowrap;
+    min-height: var(--h-touch);
+    padding: var(--s-2) 0;
+    border: 0;
+    border-bottom: 1px solid var(--hairline);
+    border-radius: 0;
+    background: transparent;
+}
+
+.ref-sheet.handbook .ref-card .ref-sound:hover {
+    background: var(--accent-tint);
+}
+
+.ref-sheet.handbook .ref-card .ref-sound .ic {
+    color: var(--accent);
+}
+
+.ref-sheet.handbook .ref-card .ref-sound .ref-sound-title {
+    font: var(--t-body);
+    font-weight: 500;
+}
+
+.ref-sheet.handbook .ref-card .ref-notes {
+    letter-spacing: 0.04em;
+}
+
+.ref-sheet.handbook .ref-card .ref-function {
+    margin-left: 0;
+    text-align: right;
+}
+
+.ref-sheet.handbook .ref-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--s-2) var(--s-5);
+    margin: 0;
+    font: var(--t-label);
+    color: var(--ink-2);
+}
+
+.ref-sheet.handbook .ref-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.ref-sheet.handbook .ref-swatch {
+    width: var(--s-4);
+    height: var(--s-4);
+    border: 1.5px solid var(--ink);
+    border-radius: var(--r-xs);
+}
+
+.ref-sheet.handbook .ref-swatch.inferred {
+    border-style: dashed;
+}
+
+.ref-sheet.handbook .ref-swatch.on {
+    border-color: var(--accent);
+    background: var(--accent-tint-strong);
+}
+
+/* The circle by accidentals: one neutral tone, a shade darker for each sharp or flat (Andrei, 2026-11-12). */
+.ref-circle.shaded .ref-key path {
+    stroke: var(--surface);
+    stroke-width: 1.2;
+}
+
+.ref-circle.shaded .ref-key.acc-0:not(.on):not(.pair) path { fill: color-mix(in srgb, var(--ink) 3%, var(--surface-2)); }
+.ref-circle.shaded .ref-key.acc-1:not(.on):not(.pair) path { fill: color-mix(in srgb, var(--ink) 7%, var(--surface-2)); }
+.ref-circle.shaded .ref-key.acc-2:not(.on):not(.pair) path { fill: color-mix(in srgb, var(--ink) 11%, var(--surface-2)); }
+.ref-circle.shaded .ref-key.acc-3:not(.on):not(.pair) path { fill: color-mix(in srgb, var(--ink) 15%, var(--surface-2)); }
+.ref-circle.shaded .ref-key.acc-4:not(.on):not(.pair) path { fill: color-mix(in srgb, var(--ink) 19%, var(--surface-2)); }
+.ref-circle.shaded .ref-key.acc-5:not(.on):not(.pair) path { fill: color-mix(in srgb, var(--ink) 23%, var(--surface-2)); }
+.ref-circle.shaded .ref-key.acc-6:not(.on):not(.pair) path { fill: color-mix(in srgb, var(--ink) 27%, var(--surface-2)); }
+
+.ref-circle.shaded .ref-key:not(.on):not(.pair) path:hover {
+    fill: var(--accent-tint);
+}
+
+.ref-circle.shaded .ref-key.pair path {
+    fill: color-mix(in srgb, var(--accent-tint) 50%, var(--surface-2));
+}
+
+.ref-circle.shaded .ref-key.on path {
+    fill: var(--accent-tint);
+    stroke: var(--accent);
+    stroke-width: 2.4;
+}
+
+.ref-circle.shaded .ref-key.piece path {
+    stroke: var(--ink);
+    stroke-width: 2;
+}
+
+.ref-circle.shaded .ref-key.on text, .ref-circle.shaded .ref-key.pair text {
+    fill: var(--accent);
+}
+
+.ref-circle.shaded .ref-key.major text {
+    font-size: 13px;
+}
+
+.ref-circle.shaded .ref-key.minor text {
+    font-size: 10.5px;
+    font-weight: 500;
+}
+
+.ref-circle.shaded .ref-sign {
+    font-size: 10px;
+}
+
+/* A phone: one column, the result under what sounds, the card under the circle. */
+@media (max-width: 860px) {
+    .ref-sheet.handbook {
+        width: 100vw;
+        height: 100vh;
+        border-radius: 0;
+    }
+
+    .ref-sheet.handbook .ref-head {
+        flex-wrap: wrap;
+        gap: var(--s-2);
+        padding: var(--s-2) var(--s-4);
+    }
+
+    .ref-sheet.handbook .ref-tabs {
+        order: 3;
+        width: 100%;
+    }
+
+    .ref-sheet.handbook .ref-tabs > button {
+        flex: 1;
+        padding: 0 var(--s-2);
+    }
+
+    .ref-sheet.handbook .ref-body {
+        overflow-y: auto;
+    }
+
+    .ref-sheet.handbook :is(.ref-cs, .ref-keys-tab) {
+        display: flex;
+        flex-direction: column;
+        height: auto;
+    }
+
+    .ref-sheet.handbook :is(.ref-material, .ref-circle-side) {
+        border-right: 0;
+        border-bottom: 1px solid var(--hairline);
+        overflow: visible;
+    }
+
+    .ref-sheet.handbook :is(.ref-material, .ref-result, .ref-card-side) {
+        padding: var(--s-4);
+        overflow: visible;
+    }
+
+    .ref-sheet.handbook .ref-row-label {
+        width: 100%;
+    }
+
+    .ref-sheet.handbook .ref-keys {
+        margin: 0;
+    }
+}

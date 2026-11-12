@@ -1,0 +1,152 @@
+@using MotiffLab.MusicCore
+@using MotiffLab.MusicCore.Analysis
+@using MotiffLab.MusicCore.Notation
+@using MotiffLab.Web.Localization
+@using MotiffLab.Web.Playback
+@using MotiffLab.Web.Settings
+@inject UiText Text
+@inject DeviceSettings Store
+@inject Player Player
+@implements IDisposable
+
+@* «Справочник» (version 0.5, an experiment: Settings · Experimental, experimental.harmony; Andrei approved the mockup
+   2026-11-12): one dialog over the library or the score with its sections as tabs, Тональности, Аккорды и гаммы and
+   Исследователь. Everything shown is music-core's; the host plays what the tabs ask for (ReferenceListening) and nothing
+   is saved or written into the piece. *@
+<div class="ref-scrim" @onclick="CloseAsync"></div>
+<section class="ref-sheet handbook" role="dialog" aria-modal="true" aria-labelledby="handbook-title" tabindex="-1" @ref="_element" @onkeydown="OnKey">
+    <header class="ref-head">
+        <h2 id="handbook-title">@Text["reference.handbook"]</h2>
+        <div class="seg ref-tabs" role="tablist" aria-label="@Text["reference.tabs"]">
+            @foreach (string tab in Tabs)
+            {
+                bool on = _tab == tab;
+                <button type="button" role="tab" id="handbook-tab-@tab" class="@(on ? "on" : null)" aria-selected="@(on ? "true" : "false")"
+                        aria-controls="handbook-panel" @onclick="() => _tab = tab">@Text[$"reference.tab.{tab}"]</button>
+            }
+        </div>
+        <button type="button" class="btn icon" aria-label="@Text["reference.closeHandbook"]" title="@Text["reference.closeHandbook"]" @onclick="CloseAsync"><Icon Name="close" /></button>
+    </header>
+    <div class="ref-body" id="handbook-panel" role="tabpanel" aria-labelledby="handbook-tab-@_tab">
+        @if (_tab == "keys")
+        {
+            <KeysTab Key="_key" Card="_card" PieceKey="PieceKey" Pick="Pick" Hear="HearAsync" OpenChord="OpenChord" OpenScale="OpenScale" />
+        }
+        else if (_tab == "chords")
+        {
+            <ChordsScalesTab Choice="_chords" Listening="_listening" Naming="Naming" />
+        }
+    </div>
+</section>
+
+@code {
+    private ElementReference _element;
+    private string _tab = "keys";
+    private MusicalKey? _key;
+    private KeyCard? _card;
+    private readonly ChordsScalesChoice _chords = new();
+    private ReferenceListening _listening = null!;
+
+    [Parameter]
+    public EventCallback Closed { get; set; }
+
+    /// <summary>Raised with a scale or chord of a key's card to hear; the host plays it with the app's piano.</summary>
+    [Parameter]
+    public EventCallback<ReferenceSound> Hear { get; set; }
+
+    /// <summary>Plays the tabs' music: on its own in the library, over the piece's timeline in a piece; says where.</summary>
+    [Parameter, EditorRequired]
+    public Func<ReferencePlay, Task<ReferencePlacement?>> Play { get; set; } = null!;
+
+    /// <summary>Stops the tabs' music.</summary>
+    [Parameter, EditorRequired]
+    public Func<Task> Stop { get; set; } = null!;
+
+    /// <summary>The key the open piece starts in, marked on the circle; null outside a piece.</summary>
+    [Parameter]
+    public DnaKey? PieceKey { get; set; }
+
+    private static IReadOnlyList<string> Tabs => ["keys", "chords"];
+
+    private Words Words => Words.For(Text.Language);
+
+    private NoteNaming Naming => NoteNames.For(Store[NoteNames.Setting], Words);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _listening = new ReferenceListening(Player, Play, Stop);
+        Text.Changed += OnLanguage;
+        await Store.LoadAsync();
+        Pick(PieceKey?.Key ?? new MusicalKey(0, KeyMode.Major));
+    }
+
+    /// <summary>The dialog takes the focus as it opens, so Escape closes it and Tab starts inside it.</summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await _element.FocusAsync();
+        }
+    }
+
+    private void Pick(MusicalKey key) => (_key, _card) = (key, KeyReference.For(key, Naming, Words));
+
+    /// <summary>A scale or chord of a key's card plays in place of anything the tabs played.</summary>
+    private async Task HearAsync(ReferenceSound sound)
+    {
+        if (_listening.Playing is not null)
+        {
+            await _listening.StopAsync();
+        }
+
+        await Hear.InvokeAsync(sound);
+    }
+
+    private void OpenChord(ReferenceChord chord)
+    {
+        _chords.Scale = false;
+        _chords.Root = chord.Root;
+        _chords.Type = chord.Type;
+    }
+
+    private void OpenScale(ReferenceScale scale)
+    {
+        _chords.Scale = true;
+        _chords.Root = scale.Tonic;
+        _chords.Form = scale.Form;
+    }
+
+    private void OnLanguage()
+    {
+        if (_key is { } key)
+        {
+            _card = KeyReference.For(key, Naming, Words);
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task OnKey(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape")
+        {
+            await CloseAsync();
+        }
+    }
+
+    private async Task CloseAsync()
+    {
+        if (_listening.Playing is not null)
+        {
+            await _listening.StopAsync();
+        }
+
+        await Closed.InvokeAsync();
+    }
+
+    public void Dispose()
+    {
+        Text.Changed -= OnLanguage;
+        _listening.Dispose();
+    }
+}

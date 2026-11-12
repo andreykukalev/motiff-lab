@@ -1,0 +1,58 @@
+@using MotiffLab.MusicCore
+@using MotiffLab.MusicCore.Analysis
+@using MotiffLab.Web.Localization
+@inject UiText Text
+
+@* «Тональности» (version 0.5): the circle of fifths with the signatures round it and each key a shade of one neutral tone by
+   its accidentals, majors outside and their relative minors inside (Andrei, 2026-11-12: no new colours, the kit unchanged);
+   the chosen key's card beside it (KeyCardView). In a piece its key is outlined, and the legend says which. *@
+<div class="ref-keys-tab">
+    <div class="ref-circle-side">
+        <ReferenceCircle Shaded="true" Chosen="Key" PieceKey="PieceKey?.Key" PieceKeyInferred="PieceKey is { Inferred: true }" Pick="Pick" />
+        <p class="ref-legend">
+            @if (PieceKey is { } piece)
+            {
+                <span class="ref-legend-item"><span class="ref-swatch piece @(piece.Inferred ? "inferred" : null)" aria-hidden="true"></span>@Text.Format(piece.Inferred ? "reference.pieceKeyInferred" : "reference.pieceKey", piece.Key.NameIn(Words))</span>
+            }
+            <span class="ref-legend-item"><span class="ref-swatch on" aria-hidden="true"></span>@Text["reference.chosen"]</span>
+        </p>
+    </div>
+    <div class="ref-card-side">
+        @if (Card is { } card)
+        {
+            <KeyCardView Card="card" Words="Words" Keyboard="false" Pick="Pick" Hear="Hear" OpenChord="OpenChord" OpenScale="OpenScale" />
+        }
+        else
+        {
+            <p class="caption ref-choose">@Text["reference.chooseOnCircle"]</p>
+        }
+    </div>
+</div>
+
+@code {
+    /// <summary>The key whose card is open, kept by the sheet.</summary>
+    [Parameter]
+    public MusicalKey? Key { get; set; }
+
+    [Parameter]
+    public KeyCard? Card { get; set; }
+
+    [Parameter]
+    public DnaKey? PieceKey { get; set; }
+
+    [Parameter]
+    public EventCallback<MusicalKey> Pick { get; set; }
+
+    [Parameter]
+    public EventCallback<ReferenceSound> Hear { get; set; }
+
+    /// <summary>A main chord of the card: it becomes the chord of «Аккорды и гаммы».</summary>
+    [Parameter]
+    public EventCallback<ReferenceChord> OpenChord { get; set; }
+
+    /// <summary>A scale of the card: it becomes the scale of «Аккорды и гаммы».</summary>
+    [Parameter]
+    public EventCallback<ReferenceScale> OpenScale { get; set; }
+
+    private Words Words => Words.For(Text.Language);
+}

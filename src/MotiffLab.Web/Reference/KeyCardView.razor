@@ -40,7 +40,7 @@
         @foreach (ReferenceScale scale in Card.Scales)
         {
             <li>
-                <button class="ref-sound" aria-pressed="@(_shown?.Id == scale.Sound.Id ? "true" : "false")"
+                <button class="ref-sound" aria-pressed="@Pressed(scale.Sound)"
                         aria-label="@Text.Format("reference.play", $"{scale.Title}: {string.Join(" ", scale.Notes)}")" @onclick="() => ShowScaleAsync(scale)">
                     <Icon Name="play" />
                     <span class="ref-sound-title">@Words.Capitalize(scale.Title)</span>
@@ -55,7 +55,7 @@
         @foreach (ReferenceChord chord in Card.Chords)
         {
             <li>
-                <button class="ref-sound fn-@chord.Function.ToString().ToLowerInvariant()" aria-pressed="@(_shown?.Id == chord.Sound.Id ? "true" : "false")"
+                <button class="ref-sound fn-@chord.Function.ToString().ToLowerInvariant()" aria-pressed="@Pressed(chord.Sound)"
                         aria-label="@Text.Format("reference.play", $"{chord.Numeral}, {chord.FunctionName}, {chord.Symbol}: {string.Join(" ", chord.Notes)}")" @onclick="() => ShowChordAsync(chord)">
                     <span class="ref-numeral">@chord.Numeral</span>
                     <span class="ref-sound-title">@chord.Symbol</span>
@@ -66,7 +66,7 @@
         }
     </ul>
 
-    @if (_shown is { } shown)
+    @if (Keyboard && _shown is { } shown)
     {
         <MiniKeyboard Sound="shown" Label="@Text.Format("reference.keys", string.Join(" ", _shownNames))" />
     }
@@ -89,6 +89,13 @@
 
     [Parameter]
     public EventCallback<ReferenceSound> Hear { get; set; }
+
+    /// <summary>
+    /// The 0.4 card shows the scale or chord last heard on a small keyboard, its row pressed. The 0.5 Reference leaves it
+    /// out: «Аккорды и гаммы» shows the keys, so no row stays pressed.
+    /// </summary>
+    [Parameter]
+    public bool Keyboard { get; set; } = true;
 
     private double StaffWidth => 34 + (Math.Max(1, Card.Signature.TrebleSteps.Count) * 9);
 
@@ -133,6 +140,8 @@
         _shownNames = names;
         await Hear.InvokeAsync(sound);
     }
+
+    private string? Pressed(ReferenceSound sound) => Keyboard ? (_shown?.Id == sound.Id ? "true" : "false") : null;
 
     private RenderFragment Related(string label, MusicalKey key, string name) =>
         @<li><span class="caption">@Text[label]</span> <button class="btn quiet compact" @onclick="() => Pick.InvokeAsync(key)">@name</button></li>;

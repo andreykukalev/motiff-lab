@@ -2,12 +2,22 @@
 @using MotiffLab.MusicCore.Notation
 
 @* The roots a chord or a scale of the Reference starts on (music-core's KeyReference.Roots): the seven letters and each
-   black key spelled both ways, in the order of the keyboard, named as the note naming setting says. *@
-<div class="ref-signatures ref-roots" role="group" aria-label="@Label">
+   black key spelled both ways, in the order of the keyboard, named as the note naming setting says. Keyboard (version
+   0.5, «Аккорды и гаммы»): laid out as a keyboard, the seven letters in the middle row, each black key spelled as a sharp
+   above and as a flat below, between the letters it lies between. *@
+<div class="@(Keyboard ? "ref-roots keyboard" : "ref-signatures ref-roots")" role="group" aria-label="@Label">
     @foreach (SpelledName root in KeyReference.Roots)
     {
         bool on = Chosen == root;
-        <button class="chip ref-sig" aria-pressed="@(on ? "true" : "false")" @onclick="() => Pick.InvokeAsync(root)">@root.Name(Naming)</button>
+        @if (Keyboard)
+        {
+            <button type="button" class="chip ref-root @(root.Alter == 0 ? "natural" : null)" aria-pressed="@(on ? "true" : "false")"
+                    style="@Place(root)" @onclick="() => Pick.InvokeAsync(root)">@root.Name(Naming)</button>
+        }
+        else
+        {
+            <button class="chip ref-sig" aria-pressed="@(on ? "true" : "false")" @onclick="() => Pick.InvokeAsync(root)">@root.Name(Naming)</button>
+        }
     }
 </div>
 
@@ -24,4 +34,15 @@
 
     [Parameter]
     public EventCallback<SpelledName> Pick { get; set; }
+
+    /// <summary>Laid out as a keyboard in three rows, sharps above the letters and flats below.</summary>
+    [Parameter]
+    public bool Keyboard { get; set; }
+
+    private static string Place(SpelledName root)
+    {
+        int column = root.Alter switch { 0 => 1 + (2 * root.Step), > 0 => 2 + (2 * root.Step), _ => 2 * root.Step };
+        int row = root.Alter switch { 0 => 2, > 0 => 1, _ => 3 };
+        return $"grid-column: {column} / span 2; grid-row: {row}";
+    }
 }
