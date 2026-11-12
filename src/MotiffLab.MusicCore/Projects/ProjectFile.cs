@@ -789,7 +789,7 @@ public static partial class ProjectFile
 
         try
         {
-            Marks read = Marks.Empty.WithInk(ink) with { Notes = notes, Highlights = highlights, Fingering = fingering };
+            Marks read = Marks.Empty.WithInkAsWritten(ink) with { Notes = notes, Highlights = highlights, Fingering = fingering };
             return notes.Select(static note => note.Id).Concat(highlights.Select(static highlight => highlight.Id)).Distinct(StringComparer.Ordinal).Count() == notes.Count + highlights.Count
                 && fingering.Select(static finger => finger.NoteId).Distinct(StringComparer.Ordinal).Count() == fingering.Count
                 ? read

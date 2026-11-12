@@ -31,7 +31,11 @@ public enum InkTool
 /// </remarks>
 /// <param name="Size">The stroke's thickness in staff spaces.</param>
 /// <param name="Bar">Where the bar the stroke starts in begins.</param>
-/// <param name="U">Where the stroke starts across the bar: 0 at its left edge, 1 at its right.</param>
+/// <param name="U">
+/// Where the stroke starts across the bar: 0 at its left edge, 1 at its right. Below 0 the stroke starts in the left
+/// margin of the bar's line, above 1 in its right margin: the bar is then the line's first or last, and the apps draw the
+/// stroke from that edge of the line the bar is on in any layout (pencil-marks.ts).
+/// </param>
 /// <param name="V">Where the stroke starts: staff spaces below the bar's top staff line, negative above it.</param>
 /// <param name="Points">The points after the first as dx, dy (staff spaces from the first point) and pressure, three numbers each.</param>
 /// <param name="Pressure">The first point's pressure, 0 to 1.</param>
@@ -50,6 +54,109 @@ public sealed record InkStroke(string Id, InkTool Tool, InkColour Colour, double
         && U == other.U && V == other.V && Pressure == other.Pressure && Points.SequenceEqual(other.Points);
 
     public override int GetHashCode() => HashCode.Combine(Id, Bar, Points.Count);
+
+    /// <summary>
+    /// The same stroke without the points its line does not need (Ramer–Douglas–Peucker, <see cref="InkThinning"/>). The
+    /// first and last points stay, and the points kept are as they were. The same stroke always gives the same points,
+    /// and a thinned stroke stays as it is.
+    /// </summary>
+    public InkStroke Thinned()
+    {
+        IReadOnlyList<double> points = InkThinning.Thin(Points, Pressure);
+        return points.Count == Points.Count ? this : new InkStroke(Id, Tool, Colour, Size, Bar, U, V, points, Pressure);
+    }
+}
+
+/// <summary>
+/// How a stroke's points are thinned before the marks keep them (v0.4): the apps hand in a point every pixel or so, many
+/// more than the line needs, and every one is saved and synced. A point is left out when it lies within
+/// <see cref="Tolerance"/> staff spaces of the line between the points kept on either side, and its pressure within
+/// <see cref="PressureTolerance"/> of theirs along that line.
+/// </summary>
+public static class InkThinning
+{
+    /// <summary>How far, in staff spaces, a point left out may lie from the line drawn without it: a twentieth of a space.</summary>
+    public const double Tolerance = 0.05;
+
+    /// <summary>How far a point's pressure left out may differ from the pressure along the line drawn without it.</summary>
+    public const double PressureTolerance = 0.1;
+
+    /// <summary>
+    /// The points to keep, in <see cref="InkStroke.Points"/>' shape: after a first point at (0, 0) with the pressure given,
+    /// dx, dy and pressure, three numbers each. The list itself when every point is needed.
+    /// </summary>
+    public static IReadOnlyList<double> Thin(IReadOnlyList<double> points, double pressure)
+    {
+        ArgumentNullException.ThrowIfNull(points);
+        int count = (points.Count / 3) + 1;
+        if (count <= 2)
+        {
+            return points;
+        }
+
+        var keep = new bool[count];
+        keep[0] = true;
+        keep[count - 1] = true;
+        var ranges = new Stack<(int From, int To)>();
+        ranges.Push((0, count - 1));
+        while (ranges.TryPop(out (int From, int To) range))
+        {
+            int split = Farthest(points, pressure, range.From, range.To);
+            if (split > 0)
+            {
+                keep[split] = true;
+                ranges.Push((range.From, split));
+                ranges.Push((split, range.To));
+            }
+        }
+
+        if (keep.All(static kept => kept))
+        {
+            return points;
+        }
+
+        List<double> thinned = [];
+        for (int i = 1; i < count; i++)
+        {
+            if (keep[i])
+            {
+                thinned.AddRange([points[(3 * i) - 3], points[(3 * i) - 2], points[(3 * i) - 1]]);
+            }
+        }
+
+        return thinned;
+    }
+
+    /// <summary>The point between two kept ones that strays furthest beyond the tolerances, the first of equals; -1 when none does.</summary>
+    private static int Farthest(IReadOnlyList<double> points, double pressure, int from, int to)
+    {
+        (double ax, double ay, double ap) = At(points, pressure, from);
+        (double bx, double by, double bp) = At(points, pressure, to);
+        double dx = bx - ax;
+        double dy = by - ay;
+        double lengthSquared = (dx * dx) + (dy * dy);
+        int farthest = -1;
+        double most = 1;
+        for (int i = from + 1; i < to; i++)
+        {
+            (double x, double y, double p) = At(points, pressure, i);
+            // The nearest place on the segment, not on the whole line, so the far end of a stroke that turns back stays.
+            double t = lengthSquared == 0 ? 0 : Math.Clamp((((x - ax) * dx) + ((y - ay) * dy)) / lengthSquared, 0, 1);
+            double ex = ax + (t * dx) - x;
+            double ey = ay + (t * dy) - y;
+            double stray = Math.Max(Math.Sqrt((ex * ex) + (ey * ey)) / Tolerance, Math.Abs(ap + (t * (bp - ap)) - p) / PressureTolerance);
+            if (stray > most)
+            {
+                most = stray;
+                farthest = i;
+            }
+        }
+
+        return farthest;
+    }
+
+    private static (double X, double Y, double Pressure) At(IReadOnlyList<double> points, double pressure, int index) =>
+        index == 0 ? (0, 0, pressure) : (points[(3 * index) - 3], points[(3 * index) - 2], points[(3 * index) - 1]);
 }
 
 /// <summary>
@@ -115,16 +222,22 @@ public sealed record Marks(
 
     public int Count => Ink.Count + Notes.Count + Highlights.Count + Fingering.Count;
 
-    /// <summary>The marks with these strokes in place of the ink, as the pencil layer hands them back after a change.</summary>
-    public Marks WithInk(IEnumerable<InkStroke> ink)
-    {
-        List<InkStroke> strokes = [.. ink ?? throw new ArgumentNullException(nameof(ink))];
-        return strokes.Select(static stroke => stroke.Id).Distinct(StringComparer.Ordinal).Count() == strokes.Count
-            ? this with { Ink = strokes }
-            : throw new ArgumentException("Two strokes have the same id.", nameof(ink));
-    }
+    /// <summary>
+    /// The marks with these strokes in place of the ink, as the pencil layer hands them back after a change: each stroke
+    /// thinned (<see cref="InkStroke.Thinned"/>), so the web app's strokes and the iPad's are kept and synced alike.
+    /// </summary>
+    public Marks WithInk(IEnumerable<InkStroke> ink) =>
+        WithStrokes([.. (ink ?? throw new ArgumentNullException(nameof(ink))).Select(static stroke => stroke.Thinned())]);
 
-    /// <summary>The marks with the strokes added after the others.</summary>
+    /// <summary>The marks with the strokes as a project file holds them, not thinned, so a file reads back as it was written.</summary>
+    internal Marks WithInkAsWritten(IEnumerable<InkStroke> ink) => WithStrokes([.. ink ?? throw new ArgumentNullException(nameof(ink))]);
+
+    private Marks WithStrokes(List<InkStroke> ink) =>
+        ink.Select(static stroke => stroke.Id).Distinct(StringComparer.Ordinal).Count() == ink.Count
+            ? this with { Ink = ink }
+            : throw new ArgumentException("Two strokes have the same id.", nameof(ink));
+
+    /// <summary>The marks with the strokes added after the others, thinned as <see cref="WithInk"/> keeps them.</summary>
     public Marks AddInk(IEnumerable<InkStroke> strokes) => WithInk([.. Ink, .. strokes ?? throw new ArgumentNullException(nameof(strokes))]);
 
     /// <summary>The marks without the strokes named; ids not there are ignored.</summary>
