@@ -209,7 +209,8 @@ public static class MidiExporter
         return meta.ToArray();
     }
 
-    private static void WriteVariableLength(Stream stream, long value)
+    /// <summary>A MIDI variable-length quantity: seven bits a byte, the most significant first.</summary>
+    internal static void WriteVariableLength(Stream stream, long value)
     {
         Span<byte> buffer = stackalloc byte[10];
         int count = 0;

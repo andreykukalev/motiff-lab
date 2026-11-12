@@ -180,6 +180,7 @@ public sealed class MusicCoreFacade
                     "recording.parts" => RecordingPartsOf(fields),
                     _ when name.StartsWith("reference.", StringComparison.Ordinal) => ReferenceRequest.Call(name, fields),
                     "scan.join" => ScanRequest.Join(fields),
+                    "parts.split" => PartsRequest.Split(fields),
                     _ when Count == 0 && IsPieceCall(name) => throw new FacadeException("noPiece", "Open a piece first."),
                     _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\" without a piece."),
                 };
