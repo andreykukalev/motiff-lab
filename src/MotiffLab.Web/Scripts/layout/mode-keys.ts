@@ -1,14 +1,15 @@
 // The keys of the modes (the experiment Two playheads and modes, Settings · Experimental; product spec interaction-modes):
 // H Navigate, S Select, E Edit notes and P Pen, by the key's place on the keyboard, so a Russian layout works as well;
-// Escape removes the selection. Keys typed into a field or pressed with a modifier are left alone, and nothing is taken
-// while the experiment is off.
+// Escape removes the selection; Space plays the selection when there is one, else the piece, as the roll's Space does (the
+// roll takes it first while it is open). Keys typed into a field or pressed with a modifier are left alone, and nothing is
+// taken while the experiment is off.
 
 import type { InteractionMode } from "../score/score-modes.js";
 
-/** The .NET side: PlaybackLab.OnModeKeyAsync and OnEscapeKeyAsync. */
+/** The .NET side: PlaybackLab.OnModeKeyAsync, OnEscapeKeyAsync and OnSpaceKeyAsync. */
 export interface ModeTarget {
     invokeMethodAsync(method: "OnModeKeyAsync", mode: InteractionMode): Promise<void>;
-    invokeMethodAsync(method: "OnEscapeKeyAsync"): Promise<void>;
+    invokeMethodAsync(method: "OnEscapeKeyAsync" | "OnSpaceKeyAsync"): Promise<void>;
 }
 
 type KeyPress = Pick<KeyboardEvent, "code" | "key" | "altKey" | "ctrlKey" | "metaKey" | "shiftKey" | "target" | "defaultPrevented">;
@@ -37,6 +38,18 @@ export function removesSelection(event: KeyPress): boolean {
     return event.key === "Escape" && !ownedElsewhere(event);
 }
 
+/** Where Space types or ticks, or a dialog has it: the key is theirs. A button or a slider leaves it to Play, as on the roll. */
+const SPACE_OWNERS = "input:not([type=range]), select, textarea, [contenteditable], [role=dialog]";
+
+/** Whether the key plays or pauses: Space, outside a field or a dialog, with no modifier but Shift, and not taken already. */
+export function playsOrPauses(event: KeyPress): boolean {
+    if (event.key !== " " || event.altKey || event.ctrlKey || event.metaKey || event.defaultPrevented) {
+        return false;
+    }
+    const target = event.target as { closest?: (selector: string) => unknown } | null;
+    return typeof target?.closest !== "function" || target.closest(SPACE_OWNERS) === null;
+}
+
 export class ModeKeys {
     private on = false;
 
@@ -50,6 +63,9 @@ export class ModeKeys {
             void this.target.invokeMethodAsync("OnModeKeyAsync", mode);
         } else if (removesSelection(event)) {
             void this.target.invokeMethodAsync("OnEscapeKeyAsync");
+        } else if (playsOrPauses(event)) {
+            event.preventDefault();
+            void this.target.invokeMethodAsync("OnSpaceKeyAsync");
         }
     };
 
