@@ -110,4 +110,25 @@ public class LiveTempoFacadeTests
         // Anything else placed in the bars still keeps them.
         Assert.False(LiveBars.CanChange(changed.AddBookmark(new Bookmark(changed.NextBookmarkId(), "Mine", BookmarkCategory.BuiltIn[0].Id, layer[0].Span, FromPhrase: false, now))));
     }
+
+    [Fact]
+    public void A_score_version_gives_the_hint_and_the_bars_are_found_with_it()
+    {
+        (byte[] midi, _) = Recital();
+        var facade = new MusicCoreFacade();
+        Json(facade.Open("Recital.m4a", [], Transcribed(midi, "")));
+        Project project = ProjectFile.Read(Encoding.UTF8.GetBytes(facade.Call(1, "project.save")));
+        Assert.Null(LiveBars.HintOf(project));
+
+        ImportedPiece waltz = BarGridTests.Import(LivePlaying.Heard(LivePlaying.At(0, 150_000, BarGridTests.Waltz())));
+        byte[] score = MotiffLab.MusicCore.Export.MidiExporter.Export(waltz.Notes, [], new MeterMap([new MeterChange(Tick.Zero, new TimeSignature(3, 4))]), "score");
+        Project linked = project with { Performances = [new SavedPerformance("perf_1", "Score", PerformanceSource.Score, score, 0, [])] };
+
+        GridHint hint = LiveBars.HintOf(linked)!;
+        Assert.Equal(new TimeSignature(3, 4), hint.Signature);
+        GridFound found = LiveBars.Find(linked, GridSearch.Live with { Hint = hint });
+        Assert.True(found.HintFits);
+        Assert.Equal(new TimeSignature(3, 4), found.Grid!.Signature);
+        Assert.Equal(2, found.Sections);
+    }
 }

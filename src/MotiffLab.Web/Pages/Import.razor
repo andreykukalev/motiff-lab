@@ -721,7 +721,7 @@
 
         (_heard, _data, _fileName, _transcriptionEngine) = (Transcribed.Mark(piece), midi, name, result.Engine);
         (_heardSeconds, _cut, _heardRange, _requests) = (seconds, cut, range, requests);
-        _bars = BarGrid.Find(piece.Midi!);
+        _bars = BarGrid.Find(piece.Midi!, search: SettingsStore.IsOn(MotiffLab.Web.Insights.TempoCard.Setting) ? GridSearch.Live : null);
         ShowBars();
     }
 

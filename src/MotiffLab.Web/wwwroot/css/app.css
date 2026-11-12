@@ -10095,6 +10095,61 @@ body:has(> #app > .library) {
     }
 }
 
+/* «Темп живого исполнения» (an experiment, version 0.5): the tempo card in Insights, music-core's tempo bar by bar. */
+.tempo-card {
+    display: grid;
+    gap: var(--s-2);
+    padding: var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-m);
+    background: var(--paper);
+}
+
+.tempo-card svg {
+    width: 100%;
+    height: calc(var(--s-12) + var(--s-4));
+}
+
+.tempo-card .band {
+    fill: var(--surface-2);
+}
+
+.tempo-card .stretch {
+    fill: var(--teal-tint);
+}
+
+.tempo-card .usual {
+    stroke: var(--ink-3);
+    stroke-dasharray: var(--s-1) var(--s-1);
+    vector-effect: non-scaling-stroke;
+}
+
+.tempo-card .curve {
+    fill: none;
+    stroke: var(--ink-2);
+    stroke-width: var(--stroke-icon);
+    vector-effect: non-scaling-stroke;
+}
+
+.tempo-card .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+}
+
+.tempo-card .tempo-pieces {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: var(--s-1);
+}
+
+.live-bars {
+    display: grid;
+    gap: var(--s-2);
+}
+
 /* Исследователь (mockup C3): the key and its chords as tiles, the progression as bars with each bar's position and Remove
    above the bar chosen, the progression in notes across the width with its playhead, then how it is played. */
 .ref-sheet.handbook .ref-explorer {
