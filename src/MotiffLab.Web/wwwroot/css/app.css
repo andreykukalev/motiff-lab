@@ -4498,6 +4498,87 @@ body:has(.workspace) .site-footer {
     font: var(--t-label);
 }
 
+/* Pieces in a file (an experiment): the Structure bookmarks listed as pieces to make, each ticked, titled and with its
+   bars (and its stretch of a recording), the playlist above them; after the split, one line and the pieces made. */
+.workspace .contents .piece-parts .parts-form {
+    display: grid;
+    gap: var(--s-2);
+}
+
+.workspace .contents .piece-parts .field {
+    display: grid;
+    gap: var(--s-1);
+}
+
+.workspace .contents .piece-parts .caption {
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.workspace .contents .piece-parts input[type=text],
+.workspace .contents .piece-parts select {
+    min-width: 0;
+    height: var(--h-touch);
+    padding: 0 var(--s-2);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-xs);
+    background: var(--surface-2);
+    color: var(--ink);
+    font: var(--t-body);
+}
+
+.workspace .contents .piece-parts input[type=text]:disabled {
+    color: var(--ink-2);
+}
+
+.workspace .contents .piece-parts .parts-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--s-2);
+}
+
+.workspace .contents .piece-parts .part-row {
+    display: grid;
+    gap: var(--s-1);
+    padding: var(--s-2);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-s);
+}
+
+.workspace .contents .piece-parts .part-row .check {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    min-height: var(--h-touch);
+    font: var(--t-label);
+    color: var(--ink);
+}
+
+.workspace .contents .piece-parts .part-row .c,
+.workspace .contents .piece-parts .entry .c {
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.workspace .contents .piece-parts .entry {
+    display: grid;
+    padding: var(--s-1) var(--s-2);
+}
+
+.workspace .contents .piece-parts .parts-done {
+    margin: 0;
+    font: var(--t-body);
+    color: var(--ink);
+}
+
+.workspace .contents .piece-parts .parts-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--s-2);
+}
+
 /* The Pages tab: the pages as thumbnails on paper, with the phrases that start on each and a tick per bookmark. */
 .workspace .contents .pages-strip {
     list-style: none;

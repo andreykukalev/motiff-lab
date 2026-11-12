@@ -1,0 +1,311 @@
+@using System.Globalization
+@using MotiffLab.MusicCore
+@using MotiffLab.MusicCore.Projects
+@using MotiffLab.MusicCore.Time
+@inject MotiffLab.Web.Localization.UiText Text
+
+@* Pieces in a file, an experiment (Settings · Experimental; v0.4, ideas bank «Несколько произведений внутри одного файла
+   или записи»: a logical organisation, not physical cutting). The bookmarks that mark the pieces of a collection (the
+   Structure ones, where a confirmed automatic bookmark goes, or a category of the player's own) are its pieces:
+   «Разделить на пьесы» lists them with their bars (and, for a recording, the stretch of the sound music-core gives), a
+   title for each and the playlist they join; Split makes each an ordinary piece of the library (PieceParts). The
+   collection stays as it is, and says afterwards how many pieces were made from it; a piece made says where it came from. *@
+<section id="contents-parts" class="contents-section piece-parts" aria-labelledby="contents-parts-title">
+    <h3 id="contents-parts-title" class="overline">@Text["parts.title"]</h3>
+    @if (Origin is { } origin)
+    {
+        <p class="parts-done">@Text.Format("parts.from", origin.Title, origin.Playlist)</p>
+        <p class="meta">@DoneRange(origin.Part)</p>
+    }
+    @if (Done is { Parts.Count: > 0 } done)
+    {
+        <p class="parts-done">@Text.Format("parts.done", Text.Count("parts.pieces", done.Parts.Count), done.Playlist)</p>
+        <ul class="entries">
+            @foreach (PartLink part in done.Parts)
+            {
+                <li class="entry" @key="part.Id">
+                    <span class="t">@part.Title</span>
+                    <span class="c">@DoneRange(part)</span>
+                </li>
+            }
+        </ul>
+    }
+    else if (Candidates.Count == 0)
+    {
+        @if (Origin is null)
+        {
+            <p class="meta">@Text["parts.none"]</p>
+        }
+    }
+    else if (_rows is null)
+    {
+        <p class="meta">@Text.Format("parts.ready", Candidates.Count, CategoryName)</p>
+        <button class="btn quiet" @onclick="Start">@Text["parts.split"]</button>
+    }
+    else
+    {
+        <div class="parts-form" role="group" aria-label="@Text["parts.split"]">
+            @if (Kinds.Count > 1)
+            {
+                <label class="field">
+                    <span class="caption">@Text["parts.category"]</span>
+                    <select value="@_categoryId" @onchange="ChangeCategory">
+                        @foreach (BookmarkCategory category in Kinds)
+                        {
+                            <option value="@category.Id">@category.NameIn(Words)</option>
+                        }
+                    </select>
+                </label>
+            }
+            <label class="field">
+                <span class="caption">@Text["parts.playlist"]</span>
+                <input type="text" maxlength="80" @bind="_playlist" @bind:event="oninput" placeholder="@Collection?.Details.Title.Value" />
+            </label>
+            <ol class="parts-list">
+                @foreach (PartRow row in _rows)
+                {
+                    <li class="part-row" @key="row.Number">
+                        <label class="check">
+                            <input type="checkbox" checked="@row.Include" @onchange="change => Include(row, change.Value is true)" />
+                            <span>@Text.Format("parts.piece", row.Number)</span>
+                        </label>
+                        <input type="text" maxlength="200" aria-label="@Text.Format("parts.titleOf", row.Number)" @bind="row.Title" @bind:event="oninput" disabled="@(!row.Include)" />
+                        <span class="c">@RowRange(row)</span>
+                    </li>
+                }
+            </ol>
+            <p class="caption">@(_problem ?? Text["parts.how"])</p>
+            <div class="parts-actions">
+                <button class="btn quiet" @onclick="Cancel">@Text["parts.cancel"]</button>
+                <button class="btn primary" disabled="@(_problem is not null || _making)" @onclick="ConfirmAsync">@Text["parts.confirm"]</button>
+            </div>
+        </div>
+    }
+</section>
+
+@code {
+    /// <summary>The collection: the piece open, as saved.</summary>
+    [Parameter, EditorRequired]
+    public Project? Collection { get; set; }
+
+    /// <summary>The piece's bookmarks; those of one category (Structure, or one of the player's own) are the pieces it holds.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<Bookmark> Bookmarks { get; set; } = [];
+
+    /// <summary>The piece's bookmark categories, in the Contents' order.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<BookmarkCategory> Categories { get; set; } = BookmarkCategory.BuiltIn;
+
+    /// <summary>The bars as the workspace numbers them.</summary>
+    [Parameter, EditorRequired]
+    public MeterMap? Meter { get; set; }
+
+    /// <summary>A passage's bars in words, as the workspace says them («такты 1–40»).</summary>
+    [Parameter, EditorRequired]
+    public Func<TickSpan, string> BarsText { get; set; } = static _ => "";
+
+    /// <summary>Bars by their numbers, first and last, in the same words.</summary>
+    [Parameter, EditorRequired]
+    public Func<int, int, string> BarNumbersText { get; set; } = static (_, _) => "";
+
+    [Parameter, EditorRequired]
+    public Words Words { get; set; }
+
+    /// <summary>What this browser made from the collection before, with the pieces still in the library; null when nothing.</summary>
+    [Parameter]
+    public SplitLink? Done { get; set; }
+
+    /// <summary>The collection this piece was split from, as this browser kept it; null for a piece not made from one.</summary>
+    [Parameter]
+    public PartOrigin? Origin { get; set; }
+
+    /// <summary>The pieces made, for the page to save.</summary>
+    [Parameter]
+    public EventCallback<PieceSplit> Made { get; set; }
+
+    /// <summary>One piece to make: the bookmark it comes from, whether it is made, its title and what music-core says of it.</summary>
+    private sealed class PartRow(int number, TickSpan span, string title)
+    {
+        public int Number { get; } = number;
+
+        public TickSpan Span { get; } = span;
+
+        public string Title { get; set; } = title;
+
+        public bool Include { get; set; } = true;
+
+        /// <summary>The piece as music-core would make it now: its bars and its stretch of a recording.</summary>
+        public PiecePart? Preview { get; set; }
+    }
+
+    private List<PartRow>? _rows;
+    private string? _categoryId;
+    private string _playlist = "";
+    private string? _problem;
+    private bool _making;
+
+    /// <summary>The categories that hold bookmarks, any of which can mark the pieces.</summary>
+    private IReadOnlyList<BookmarkCategory> Kinds => [.. Categories.Where(category => Bookmarks.Any(bookmark => bookmark.CategoryId == category.Id))];
+
+    /// <summary>
+    /// The category whose bookmarks are the pieces: the one chosen, else Structure (a confirmed automatic bookmark is one),
+    /// else the first of the player's own that holds bookmarks; null when neither holds any.
+    /// </summary>
+    private string? CategoryId
+    {
+        get
+        {
+            IReadOnlyList<BookmarkCategory> kinds = Kinds;
+            return kinds.Any(category => category.Id == _categoryId) ? _categoryId
+                : kinds.Any(static category => category.Id == BookmarkCategory.StructureId) ? BookmarkCategory.StructureId
+                : kinds.FirstOrDefault(static category => !category.IsBuiltIn)?.Id;
+        }
+    }
+
+    /// <summary>The bookmarks of that category in score order: the pieces of the collection, as the player confirmed them.</summary>
+    private IReadOnlyList<Bookmark> Candidates
+    {
+        get
+        {
+            if (Collection is null || Meter is null || CategoryId is not { } id)
+            {
+                return [];
+            }
+
+            return [.. Bookmarks.Where(bookmark => bookmark.CategoryId == id).OrderBy(static bookmark => bookmark.Span.Onset).ThenBy(static bookmark => bookmark.Span.End)];
+        }
+    }
+
+    private string CategoryName => Categories.FirstOrDefault(category => category.Id == CategoryId)?.NameIn(Words) ?? "";
+
+    private void ChangeCategory(ChangeEventArgs change)
+    {
+        _categoryId = change.Value as string;
+        string playlist = _playlist;
+        Start();
+        _playlist = playlist;
+    }
+
+    private void Start()
+    {
+        List<PartRow> rows = [];
+        Tick end = Tick.Zero;
+        foreach (Bookmark bookmark in Candidates)
+        {
+            // A passage inside one already listed (a section of a piece) is offered unticked.
+            rows.Add(new PartRow(rows.Count + 1, bookmark.Span, bookmark.Title) { Include = rows.Count == 0 || bookmark.Span.Onset >= end });
+            if (rows[^1].Include)
+            {
+                end = bookmark.Span.End;
+            }
+        }
+
+        _rows = rows;
+        _categoryId = CategoryId;
+        _playlist = Collection?.Details.Title.Value ?? "";
+        Preview();
+    }
+
+    private void Cancel()
+    {
+        _rows = null;
+        _problem = null;
+    }
+
+    private void Include(PartRow row, bool include)
+    {
+        row.Include = include;
+        Preview();
+    }
+
+    /// <summary>The ticked bookmarks as music-core's parts, by the bars they take.</summary>
+    private List<(PartRow Row, PartRange Range)> Chosen() =>
+        [.. (_rows ?? []).Where(static row => row.Include).Select(row => (row, new PartRange(row.Title, PartUnit.Bars, Meter!.BarAt(row.Span.Onset).Number,
+            Meter.BarAt(new Tick(Math.Max(row.Span.Onset.Value, row.Span.End.Value - 1))).Number)))];
+
+    /// <summary>The split as it would be, read again whenever a piece is ticked: what each takes, or why it cannot be made.</summary>
+    private void Preview()
+    {
+        _problem = null;
+        foreach (PartRow row in _rows ?? [])
+        {
+            row.Preview = null;
+        }
+
+        List<(PartRow Row, PartRange Range)> chosen = Chosen();
+        if (chosen.Count == 0)
+        {
+            _problem = Text["parts.noneChosen"];
+            return;
+        }
+
+        int preview = 0;
+        if (Split(chosen, () => $"p_preview{++preview}") is { } split)
+        {
+            for (int i = 0; i < chosen.Count; i++)
+            {
+                chosen[i].Row.Preview = split.Parts[i];
+            }
+        }
+    }
+
+    /// <summary>The pieces music-core makes of the collection; null, with the reason in words, when it cannot.</summary>
+    private PieceSplit? Split(List<(PartRow Row, PartRange Range)> chosen, Func<string> newId)
+    {
+        var options = new PieceSplitOptions(DateTimeOffset.Now, newId) { Playlist = _playlist, Device = HoldingDevice.Web, Words = Words };
+        try
+        {
+            return PieceParts.Split(Collection!, [.. chosen.Select(static each => each.Range)], options);
+        }
+        catch (NotSupportedException)
+        {
+            _problem = Text["parts.notSupported"];
+        }
+        catch (ArgumentException)
+        {
+            _problem = Text["parts.overlap"];
+        }
+
+        return null;
+    }
+
+    private async Task ConfirmAsync()
+    {
+        List<(PartRow Row, PartRange Range)> chosen = Chosen();
+        if (_making || chosen.Count == 0 || Split(chosen, static () => $"p_{Guid.NewGuid():N}") is not { } split)
+        {
+            return;
+        }
+
+        _making = true;
+        try
+        {
+            await Made.InvokeAsync(split);
+            _rows = null;
+        }
+        finally
+        {
+            _making = false;
+        }
+    }
+
+    private string RowRange(PartRow row) =>
+        row.Preview?.Milliseconds is { } stretch ? $"{BarsText(row.Span)} · {Times(stretch.From, stretch.To)}" : BarsText(row.Span);
+
+    private string DoneRange(PartLink part)
+    {
+        string bars = part is { First: { } first, Last: { } last } ? BarNumbersText(first, last) : "";
+        return part is { From: { } from, To: { } to } ? $"{bars} · {Times(from, to)}" : bars;
+    }
+
+    /// <summary>«12:30–19:40»: a stretch of the recording, with the hours when it runs past one.</summary>
+    private static string Times(long from, long to) => $"{Clock(from)}–{Clock(to)}";
+
+    private static string Clock(long milliseconds)
+    {
+        long seconds = Math.Max(0, milliseconds) / 1000;
+        return seconds >= 3600
+            ? string.Create(CultureInfo.InvariantCulture, $"{seconds / 3600}:{seconds / 60 % 60:00}:{seconds % 60:00}")
+            : string.Create(CultureInfo.InvariantCulture, $"{seconds / 60}:{seconds % 60:00}");
+    }
+}
