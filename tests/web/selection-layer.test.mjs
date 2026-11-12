@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { menuPlace, ordered } from "../../src/MotiffLab.Web/wwwroot/js/score/selection-layer.js";
+import { barLines, beatAt, keyLines, nearestLine, spanOf, stepEdge } from "../../src/MotiffLab.Web/wwwroot/js/score/selection-beats.js";
 import { BRACKET_LIFT } from "../../src/MotiffLab.Web/wwwroot/js/score/score-geometry.js";
 
 const window = { width: 1180, height: 820 };
@@ -52,4 +53,50 @@ test("the menu keeps left of a sheet on the right and above a drawer over the fo
     assert.equal(foot.top, 500 - 16 - 200);
     const low = menuPlace({ left: 100, right: 300, top: 90 }, { bottom: 300 }, menu, { width: 1180, height: 820, bottom: 200 });
     assert.equal(low.top, 72);
+});
+
+// Selection by beats (#349): the drag and the handles snap to the beat lines music-core gives.
+const bar = { tick: 1920, end: 3840 };
+const lines = [0, 480, 960, 1440, 1920, 2400, 2880, 3360, 3840, 4320];
+const xOf = (line) => 100 + (line - bar.tick) / 4;
+
+test("a bar's beat lines run from its start to its end, the lines inside it between", () => {
+    assert.deepEqual(barLines(lines, bar), [1920, 2400, 2880, 3360, 3840]);
+    assert.deepEqual(barLines(lines, { tick: 3840, end: Infinity }), [3840, 4320]);
+});
+
+test("a point across a bar falls in the beat from the last line left of it to the next", () => {
+    const bars = barLines(lines, bar);
+    assert.deepEqual(beatAt(bars, xOf, 90), { start: 1920, end: 2400 });
+    assert.deepEqual(beatAt(bars, xOf, 100 + 130), { start: 2400, end: 2880 });
+    assert.deepEqual(beatAt(bars, xOf, 100 + 2000), { start: 3360, end: 3840 });
+    assert.equal(beatAt([1920], xOf, 100), undefined);
+});
+
+test("a handle goes to the beat line nearest the finger", () => {
+    assert.equal(nearestLine(barLines(lines, bar), xOf, 100 + 115), 2400);
+    assert.equal(nearestLine(barLines(lines, bar), xOf, 100 + 470), 3840);
+    assert.equal(nearestLine([], xOf, 0), undefined);
+});
+
+test("a drag over two beats takes both, whichever came first", () => {
+    assert.deepEqual(spanOf({ start: 2880, end: 3360 }, { start: 1920, end: 2400 }), { start: 1920, end: 3360 });
+});
+
+test("the arrow keys move an edge one beat line and never onto the other edge", () => {
+    const span = { start: 2400, end: 2880 };
+    assert.deepEqual(stepEdge(lines, span, "start", -1), { start: 1920, end: 2880 });
+    assert.deepEqual(stepEdge(lines, span, "end", 1), { start: 2400, end: 3360 });
+    assert.equal(stepEdge(lines, span, "start", 1), undefined);
+    assert.equal(stepEdge(lines, span, "end", -1), undefined);
+    assert.equal(stepEdge(lines, { start: 0, end: 480 }, "start", -1), undefined);
+});
+
+test("the arrow keys move a beat edge among the beat lines and the barlines, each once and in time order", () => {
+    const bars = [
+        { tick: 1440, end: 2880 },
+        { tick: 0, end: 1440 },
+        { tick: 1440, end: 2880 },
+    ];
+    assert.deepEqual(keyLines([480, 960, 1440, 1920], bars), [0, 480, 960, 1440, 1920, 2880]);
 });

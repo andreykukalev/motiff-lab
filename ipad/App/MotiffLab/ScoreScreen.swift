@@ -53,6 +53,8 @@ struct ScoreScreen: View {
     @StateObject private var conversation = AskConversation()
     /// The piece's originals on this iPad (version 0.3): where each one is, and the PDF linked where it lies in Files.
     @StateObject private var originals = OriginalsController()
+    /// The resume point this visit brings up to date (#327), so the piece keeps one for it rather than one for each save.
+    @State private var resumeId: String?
 
     /// The Insights sheet's width beside the score in landscape (ds.css `.sheet`).
     static let sheetWidth: CGFloat = 380
@@ -334,12 +336,14 @@ struct ScoreScreen: View {
             .toolbar(.hidden, for: .navigationBar)
             .task { await wire() }
             .onDisappear {
+                let now = resumeNow()
                 player.shutdown()
                 // A variation only tried is not kept with the piece: it is left before the project file is written.
                 let file = piece.file
                 let id = piece.id
                 let tried = insights
                 Task {
+                    await keepResume(now)
                     await tried.leave()
                     if let file { try? await ProjectFiles.save(piece: id, to: file) }
                 }
@@ -348,6 +352,7 @@ struct ScoreScreen: View {
                 // The project file is written whenever the app leaves the screen, so nothing waits for a Save button.
                 if phase == .background { save() }
             }
+            .onChange(of: settings.values) { _, _ in applyExperiments() }
     }
 
     private func wire() async {
@@ -419,6 +424,8 @@ struct ScoreScreen: View {
         contents.changed = { [weak shown] shelf in shown?.showBookmarks(shelf) }
         await contents.load(piece: piece.id)
         await player.load(piece: piece.id)
+        applyExperiments()
+        await resume()
     }
 
     /// The drawers and sheets: what covers the page, and one of them at a time.
@@ -645,7 +652,11 @@ struct ScoreScreen: View {
     private func save() {
         guard let file = piece.file else { return }
         let id = piece.id
-        Task { try? await ProjectFiles.save(piece: id, to: file) }
+        let now = resumeNow()
+        Task {
+            await keepResume(now)
+            try? await ProjectFiles.save(piece: id, to: file)
+        }
     }
 
     /// PDF in the bar's PDF | Notes: for a piece with a PDF kept inside it, or notes read from a PDF piece the library holds;
@@ -675,6 +686,62 @@ struct ScoreScreen: View {
         await insights.leave()
         if let file = piece.file { try? await ProjectFiles.save(piece: piece.id, to: file) }
         await switchView(.page(pages.page(of: tick)))
+    }
+}
+
+/// Settings · Experimental on the score: resume where the player stopped (#327), hands separately (#328) and selecting by
+/// beats (#349).
+extension ScoreScreen {
+    /// The experiments as Settings has them: selecting by beats (#349) snaps the score's selection to the piece's beat
+    /// lines while its switch is on, and with hands separately (#328) off both hands sound again.
+    private func applyExperiments() {
+        score.beatLines = settings.isOn("experimental.beats") ? player.beatLines : []
+        if !settings.isOn("experimental.hands") && player.hands != .both { player.hands = .both }
+    }
+
+    /// Back where the player stopped (#327): the project's latest resume point, the web app's too, with its passage, focus,
+    /// tempo, loop and, while hands separately is on, its hands. Nothing starts playing.
+    private func resume() async {
+        // From the PDF in PDF | Notes the notes open at the page the player came from instead.
+        guard settings.isOn("experimental.resume"), piece.landing == nil else { return }
+        let id = piece.id
+        let answer = await MusicCore.run { MusicCore.call(piece: id, "resume") }
+        guard let place = ResumePlace(answer: answer) else { return }
+        resumeId = place.id
+        player.tempoPercent = place.tempoPercent
+        if settings.isOn("experimental.hands"), player.handsHeld.canSeparate { player.hands = place.hands }
+        await score.arrive(at: place)
+        if place.loop, let range = score.playRange?.range ?? place.passage {
+            player.setLoop(range, play: false)
+        }
+    }
+
+    /// Where the player is now, taken before the player stops; nil while the resume point is off.
+    private func resumeNow() -> ResumePlace.Now? {
+        guard settings.isOn("experimental.resume") else { return nil }
+        return ResumePlace.Now(
+            passage: score.selection.map { $0.onset..<$0.end },
+            tick: player.tick,
+            focused: score.focused,
+            tempoPercent: player.tempoPercent,
+            hands: settings.isOn("experimental.hands") ? player.hands : nil,
+            loop: player.loop != nil
+        )
+    }
+
+    /// Keeps where the player is as the project's resume point (`resume.save`), before the project file is written.
+    private func keepResume(_ now: ResumePlace.Now?) async {
+        guard let now else { return }
+        let id = piece.id
+        var at = now.tick
+        if now.passage == nil, let inView = await score.tickInView() { at = inView }
+        let request = ResumePlace.saveRequest(
+            id: resumeId, passage: now.passage, at: at, focused: now.focused, tempoPercent: now.tempoPercent, hands: now.hands, loop: now.loop, now: Date()
+        )
+        let answer = await MusicCore.run { MusicCore.call(piece: id, "resume.save", request) }
+        if let saved = facadeObject(answer)?["saved"] as? [String: Any], let point = ResumePlace(point: saved) {
+            resumeId = point.id
+        }
     }
 }
 
@@ -929,6 +996,7 @@ struct Pill: View {
     @ObservedObject var player: Player
     @ObservedObject var score: ScoreController
     let text: UIText
+    @EnvironmentObject private var settings: DeviceSettings
 
     var body: some View {
         HStack(spacing: CGFloat.ds("s-1")) {
@@ -971,6 +1039,9 @@ struct Pill: View {
             .menuStyle(.button)
             .buttonStyle(DSItemStyle(on: player.tempoPercent != 100))
             .accessibilityLabel(text.format("pill.tempoLabel", String(player.tempoPercent)))
+            if settings.isOn("experimental.hands") {
+                handsControls
+            }
             Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
             Button {
                 player.metronome.toggle()
@@ -1002,6 +1073,45 @@ struct Pill: View {
         .modifier(FloatingSurface(shadow: "shadow-pill", opacity: 0.92))
         .accessibilityElement(children: .contain)
         .accessibilityLabel(text["transport.label"])
+    }
+
+    /// Hands separately at the instrument (#328, Settings · Experimental): both, right or left, two touches away, and the
+    /// phrase before or after without lifting it into focus. The hands are the ones music-core gives the notes, and the
+    /// menu says when they were worked out rather than read from the file.
+    @ViewBuilder private var handsControls: some View {
+        if player.handsHeld.canSeparate {
+            let label = text.format("pill.handsLabel", text[player.hands.labelKey])
+            Menu {
+                Picker(label, selection: $player.hands) {
+                    ForEach(PlayerHands.allCases, id: \.self) { Text(text[$0.labelKey]).tag($0) }
+                }
+                if player.handsHeld.inferred {
+                    Text(text["import.handsInferredWhy"])
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Icon(name: "hands")
+                    Text(text[player.hands.labelKey])
+                }
+            }
+            .menuStyle(.button)
+            .buttonStyle(DSItemStyle(on: player.hands != .both))
+            .accessibilityLabel(label)
+            .accessibilityHint(player.handsHeld.inferred ? text["import.handsInferredWhy"] : "")
+        }
+        if score.selection != nil && !score.focused {
+            step("back", text["focus.previous"], enabled: score.canStepBack) { score.step(-1) }
+            step("fwd", text["focus.next"], enabled: score.canStepOn) { score.step(1) }
+        }
+    }
+
+    private func step(_ icon: String, _ label: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Icon(name: icon).frame(width: 32, height: 32)
+        }
+        .buttonStyle(DSItemStyle())
+        .disabled(!enabled)
+        .accessibilityLabel(label)
     }
 }
 
@@ -1043,6 +1153,7 @@ struct SelectionMenu: View {
     /// Ask on the selection: the assistant's popover at the menu, over the selection (testing item 23).
     @State private var asking = false
     @EnvironmentObject private var account: Account
+    @EnvironmentObject private var settings: DeviceSettings
 
     var body: some View {
         Group {
@@ -1112,6 +1223,14 @@ struct SelectionMenu: View {
 
     private var actions: some View {
         HStack(spacing: CGFloat.ds("s-1")) {
+            // Selecting by beats (#349, Settings · Experimental): where the selection starts and ends, beat by beat.
+            if settings.isOn("experimental.beats"), let span = score.selection?.beatSpan(text) {
+                Text(span)
+                    .dsType(.label)
+                    .foregroundStyle(Color.ds("accent"))
+                    .padding(.horizontal, CGFloat.ds("s-2"))
+                Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
+            }
             LoopButton(score: score, player: player, text: text)
             if !score.penOn {
                 Button {

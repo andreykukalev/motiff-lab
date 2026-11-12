@@ -81,6 +81,16 @@ public static class SettingsCatalogue
 
         // Reference: the circle of fifths one tap away from the library and the piece, with any key's card (KeyReference).
         Switch("experimental.reference", SettingSection.Experimental, null, SettingScope.Device),
+
+        // At the instrument, on the iPad. Resume where you stopped (#327): the passage, focus, tempo, loop and hands of the
+        // latest resume point come back when the piece opens, and are kept in it when it closes.
+        Switch("experimental.resume", SettingSection.Experimental, null, SettingScope.Device),
+
+        // Hands separately (#328): both hands, the right or the left in the pill, and the next or previous phrase outside focus.
+        Switch("experimental.hands", SettingSection.Experimental, null, SettingScope.Device),
+
+        // Selection by beats (#349): the selection's edges snap to beats, so a passage can start and end mid-bar.
+        Switch("experimental.beats", SettingSection.Experimental, null, SettingScope.Device),
     ];
 
     private static readonly Dictionary<string, Setting> s_byId = All.ToDictionary(setting => setting.Id, StringComparer.Ordinal);

@@ -98,6 +98,8 @@ body.hide-check button.check-flag { display: none; }
 button.sel-handle { position: absolute; z-index: 2; width: 14px; height: 14px; min-height: 0; padding: 0; box-sizing: border-box; border-radius: 50%; background: var(--surface-2); border: 2px solid var(--accent); transform: translate(-50%, -50%); touch-action: none; }
 button.sel-handle::before { content: ""; position: absolute; inset: -15px; border-radius: 50%; }
 button.sel-handle.dragging { background: var(--accent); }
+/* Selection by beats (an experiment): a short cobalt tick down from the band's top at each beat inside it. */
+.sel-beat { position: absolute; z-index: 1; width: 1.5px; height: var(--s-2); background: var(--accent); transform: translateX(-50%); pointer-events: none; }
 
 /* The places of the fact chosen in Insights (the web app's .highlight and .highlight-mark): cobalt, with a solid box
    round each notehead or rest, so they differ from the band by more than colour. */

@@ -306,6 +306,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         // The same piece keeps the pages engraved here after its notes changed or its comparison layer came on.
         if self.piece?.id != piece.id {
             self.piece = piece
+            rendered = false
             versions = VersionShelf()
             versionStatus = nil
             sources = SourcesInfo()
@@ -342,7 +343,12 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             menuPlace = place.flatMap { place in number(place["left"]).map { CGPoint(x: $0, y: number(place["top"]) ?? 0) } }
         }
         if let chosen = message["chosen"] as? [String: Any], let start = number(chosen["start"]), let end = number(chosen["end"]) {
-            Task { await select(start, end) }
+            // By beats (#349) music-core takes the edges to the beat lines; otherwise to the bars, as before.
+            if chosen["beats"] as? Bool == true {
+                Task { await select(request: "{\"span\": {\"onset\": \(Int(start)), \"end\": \(Int(end))}, \"snap\": \"beat\"}") }
+            } else {
+                Task { await select(start, end) }
+            }
         }
         // A tap in a bar selects it only when nothing is selected: the selection stays until Clear selection or another
         // choice (a bracket, a long press and drag, a handle, the roll's bar numbers), so a stray tap cannot lose it (#338).
@@ -1507,10 +1513,61 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     var canStepOn: Bool { focusUnit.map { $0.number < (phrases?.units.count ?? 0) } ?? false }
 
-    /// Previous or next at the level shown: the card moves on to that unit.
+    /// Previous or next at the level shown: the card moves on to that unit. Outside focus (the pill's arrows, #328) the
+    /// page brings it into view.
     func step(_ direction: Int) {
         guard let unit = focusUnit, let next = phrases?.unit(unit.number + direction.signum()) else { return }
-        Task { await select(next.selectableOnset, next.selectableEnd) }
+        Task {
+            await select(next.selectableOnset, next.selectableEnd)
+            if !focused { await reveal(next.selectableOnset) }
+        }
+    }
+
+    /// Scrolls the page smoothly to where a tick is, without a jump of page.
+    private func reveal(_ tick: Double) async {
+        _ = try? await webView.callAsyncJavaScript("return motiff.reveal(data)", arguments: ["data": ["start": tick]], contentWorld: .page)
+    }
+
+    // MARK: - Resume and beats (Settings · Experimental)
+
+    /// Whether the page is engraved and everything on it drawn, so a resume point can be shown on it (#327).
+    private(set) var rendered = false
+
+    /// The beat lines a selection snaps to (#349): the player's while selecting by beats is on, none otherwise.
+    var beatLines: [Double] = [] {
+        didSet {
+            guard beatLines != oldValue else { return }
+            Task { await applyBeats() }
+        }
+    }
+
+    private func applyBeats() async {
+        guard shown else { return }
+        _ = try? await webView.callAsyncJavaScript("return motiff.beats(data)", arguments: ["data": ["lines": beatLines]], contentWorld: .page)
+    }
+
+    /// Back where the player stopped (#327): the passage selected and brought into view, and in focus when it was. It
+    /// waits for the page to be drawn, so the level the piece opens in does not move the selection afterwards.
+    func arrive(at place: ResumePlace) async {
+        var waited = 0
+        while !rendered && waited < 100 {
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            waited += 1
+        }
+        guard rendered, piece != nil else { return }
+        guard let passage = place.passage else {
+            await reveal(place.at)
+            return
+        }
+        await select(passage.lowerBound, passage.upperBound)
+        guard let selection else { return }
+        await reveal(selection.onset)
+        if place.focused { enterFocus() }
+    }
+
+    /// The tick at the top of the pages in view: where the player was when nothing is selected.
+    func tickInView() async -> Double? {
+        await firstTick(onPage: pages.first)
     }
 
     /// Whether the card is turning to the phrase that sounds, so a position reported meanwhile does not turn it again.
@@ -1706,6 +1763,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             await applyLevel()
             await loadVersions(piece)
             if !ringed.isEmpty { await showRings(scroll: false) }
+            await applyBeats()
+            rendered = true
         } catch {
             problem = error.localizedDescription
         }
