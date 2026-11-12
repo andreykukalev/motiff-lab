@@ -221,6 +221,17 @@ function readPalette(element: Element): boolean {
     return true;
 }
 
+/** The names setNames takes, in its order. */
+type RollNamesArgs = [notes: string[], keyTicks: number[], rows: string[][], short?: string[], shortRows?: string[][], octaves?: string[]];
+
+/**
+ * The last notes and names Blazor sent, by the keys it gave them (#419): the roll in the drawer and the one in focus that
+ * Expand opens show the same piece, so the second takes the model and the names the first was sent instead of having
+ * thousands of notes cross over from .NET again. The model never changes once made, so the rolls can share it.
+ */
+let keptModel: { key: string; model: RollModel } | null = null;
+let keptNames: { key: string; names: RollNamesArgs } | null = null;
+
 /** Patterns go with colours so that lanes differ by more than colour (WCAG 2.2 AA, 1.4.1). */
 type PatternKind = "solid" | "rising" | "falling" | "horizontal" | "vertical" | "dots";
 const LANE_PATTERNS: PatternKind[] = ["solid", "rising", "falling", "horizontal", "vertical", "dots"];
@@ -397,9 +408,26 @@ export class PianoRoll {
         this.frame = requestAnimationFrame(this.tick);
     }
 
-    /** Shows a piece, replacing what was shown. The selection is cleared. */
-    load(payload: RollPayload): void {
-        this.model = RollModel.fromPayload(payload);
+    /** Shows a piece, replacing what was shown, and keeps it under the key given for the next roll. The selection is cleared. */
+    load(payload: RollPayload, key?: string): void {
+        const model = RollModel.fromPayload(payload);
+        if (key !== undefined) {
+            keptModel = { key, model };
+        }
+        this.show(model);
+    }
+
+    /** Shows the piece kept under the key, as load does; false when another is kept, so Blazor sends this one. */
+    loadKept(key: string): boolean {
+        if (keptModel?.key !== key) {
+            return false;
+        }
+        this.show(keptModel.model);
+        return true;
+    }
+
+    private show(model: RollModel): void {
+        this.model = model;
         this.selected = new Set();
         this.focusIndex = undefined;
         this.motif = null;
@@ -510,7 +538,10 @@ export class PianoRoll {
      * The names to write, spelled by music-core for the key as the score spells them (0018 section 4): one per note in load
      * order, and per key signature (from where it starts) one per row, MIDI 0 to 127, in the player's naming (C4 or до¹).
      */
-    setNames(notes: string[], keyTicks: number[], rows: string[][], short?: string[], shortRows?: string[][], octaves?: string[]): void {
+    setNames(notes: string[], keyTicks: number[], rows: string[][], short?: string[], shortRows?: string[][], octaves?: string[], key?: string): void {
+        if (key !== undefined) {
+            keptNames = { key, names: [notes, keyTicks, rows, short, shortRows, octaves] };
+        }
         const count = this.model?.notes.length ?? -1;
         this.spelled = notes.length === count ? notes : null;
         this.shortNames = short?.length === count ? short : null;
@@ -519,6 +550,15 @@ export class PianoRoll {
         this.fullRowNames = rows;
         this.octaveNames = octaves ?? [];
         this.invalidate();
+    }
+
+    /** Writes the names kept under the key, as setNames does; false when others are kept, so Blazor sends these. */
+    setNamesKept(key: string): boolean {
+        if (keptNames?.key !== key) {
+            return false;
+        }
+        this.setNames(...keptNames.names);
+        return true;
     }
 
     /** The bars Check flags (0018 section 9): an amber "?" on each bar's number, which opens Check at that bar. */
