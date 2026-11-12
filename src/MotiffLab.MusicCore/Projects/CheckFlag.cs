@@ -66,12 +66,17 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
 {
     public int Bar { get; } = Bar >= 0 ? Bar : throw new ArgumentOutOfRangeException(nameof(Bar), Bar, "A bar number is not negative.");
 
-    /// <summary>The flags of a scan's check, one per flagged bar and reason, resolved where the player confirmed the bar.</summary>
+    /// <summary>
+    /// The flags of a scan's check, one per flagged bar and reason, resolved where the player confirmed the bar. A bar on a
+    /// poor page (<see cref="ScanFlag.PageQuality"/>) raises none yet: that reason is not a value of the project file
+    /// until its format takes it (v0.4 design, A1), so it lives only in the check worked out from the page reports.
+    /// </summary>
     public static IReadOnlyList<CheckFlag> FromScan(ScanCheck check, IReadOnlyCollection<int> confirmedBars)
     {
         ArgumentNullException.ThrowIfNull(check);
         ArgumentNullException.ThrowIfNull(confirmedBars);
-        return [.. check.Flagged.SelectMany(bar => bar.Flags.Select(flag => new CheckFlag(bar.Bar, CheckSource.Scan, Of(flag), confirmedBars.Contains(bar.Bar))))];
+        return [.. check.Flagged.SelectMany(bar => bar.Flags.Where(static flag => flag != ScanFlag.PageQuality)
+            .Select(flag => new CheckFlag(bar.Bar, CheckSource.Scan, Of(flag), confirmedBars.Contains(bar.Bar))))];
     }
 
     /// <summary>The most bars flagged for one reason in a transcription; beyond it the reason says nothing about a bar in particular.</summary>
