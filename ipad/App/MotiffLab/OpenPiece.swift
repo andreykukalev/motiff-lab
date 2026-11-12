@@ -20,13 +20,13 @@ struct OpenPiece: Identifiable, Sendable {
     /// Opens the file in music-core in the interface's language and engraves it, titled by its name unless given one; a PDF,
     /// or a PDF piece's project file, opens as a PDF piece with nothing to engrave. With `heard`, a recording heard by the
     /// scan server, the new piece is its notes and `data` is not read (0014, 0016). With `asPdf`, a piece with notes and a
-    /// PDF kept inside it opens in its PDF view (testing item 16, facade contract 6). With `project`, the project file of a
-    /// piece that is only a PDF whose PDF is not in the file, `data` is that PDF read where it lies (version 0.5).
-    static func open(fileName: String, data: Data, language: String, title given: String? = nil, heard: HeardRecording? = nil, asPdf: Bool = false, project: String? = nil) async -> Result<OpenPiece, EngraveError> {
+    /// PDF kept inside it opens in its PDF view (testing item 16, facade contract 6). With `pdf`, the PDF of a piece that
+    /// is only a PDF and whose PDF is not in its file, read where it lies, `data` being the project file (version 0.5).
+    static func open(fileName: String, data: Data, language: String, title given: String? = nil, heard: HeardRecording? = nil, asPdf: Bool = false, pdf: Data? = nil) async -> Result<OpenPiece, EngraveError> {
         var fields: [String: Any] = ["language": language]
         if let heard { fields["transcription"] = heard.request }
         if asPdf { fields["view"] = "pdf" }
-        if let project { fields["project"] = project }
+        if let pdf { fields["pdf"] = pdf.base64EncodedString() }
         let request = (try? JSONSerialization.data(withJSONObject: fields)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
         let evenBars = await MainActor.run { DeviceSettings.shared.isOn("score.evenBars") }
         return await MusicCore.run {

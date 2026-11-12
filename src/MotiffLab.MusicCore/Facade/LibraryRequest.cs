@@ -9,7 +9,7 @@ using MotiffLab.MusicCore.Projects;
 namespace MotiffLab.MusicCore.Facade;
 
 /// <summary>
-/// library.plan, library.relink, library.confirm and library.link on piece 0 (contract 12, calls added; version 0.5, «Импорт папки»): the import plan
+/// library.plan, library.relink, library.confirm, library.linked and library.link on piece 0 (contract 12, calls added; version 0.5, «Импорт папки»): the import plan
 /// of a folder the app read (<see cref="LibraryImport"/>), the same for the iPad as for the web, and the metadata of a
 /// piece once the player confirmed its suggestions. Nothing is kept and no file is touched: the app reads the folder and
 /// saves the projects.
@@ -126,52 +126,69 @@ internal static class LibraryRequest
     }
 
     /// <summary>
-    /// {"fileName", "folder", "sha256", "bytes", "pages", "id", "now", "device"} → {"project", "file"}: a new piece for a PDF
-    /// that stays in the player's folder (<see cref="Project.CreateLinkedDocument"/>), held by the device ("ipad", the
-    /// default, or "web"). With "file", a project file whose PDF is kept by link, that PDF found again: its place in the
-    /// folder, and the fingerprint, size and pages of the file there (the same file moved, or the one the player said is
-    /// it), held by the device; its notes, marks and metadata stay as they were. Nothing is read or changed on disk.
+    /// {"id", "fileName", "folder", "sha256", "bytes", "pages", "device" ("ipad", the default, or "web"), "now"} →
+    /// {"project", "file"}: a new piece for a PDF that stays in the player's folder (<see cref="Project.CreateLinkedDocument"/>),
+    /// its original linked, held by the device that links it; the PDF's bytes are never in the file.
+    /// </summary>
+    public static string Linked(Request fields)
+    {
+        Project project;
+        try
+        {
+            project = Project.CreateLinkedDocument(
+                fields.Text("id") ?? MusicCoreFacade.NewProjectId(),
+                fields.Required("fileName"),
+                fields.Text("folder") ?? string.Empty,
+                fields.Required("sha256"),
+                fields.Long("bytes") ?? throw FacadeException.BadRequest("A linked PDF needs \"bytes\"."),
+                fields.Int("pages"),
+                fields.Text("device") == "web" ? HoldingDevice.Web : HoldingDevice.Ipad,
+                Now(fields));
+        }
+        catch (Exception exception) when (exception is ArgumentException)
+        {
+            throw FacadeException.BadRequest(exception.Message);
+        }
+
+        return Filed(project);
+    }
+
+    /// <summary>
+    /// {"file": a project file, "original" (default "src_pdf"), "folder", "fileName", and for a changed file the player
+    /// confirmed, "sha256", "bytes", "pages"} → {"project", "file"}: the original found again in the folder, at its new
+    /// place (<see cref="Project.RelinkedAt"/>), as library.relink found it or the player chose it.
     /// </summary>
     public static string Link(Request fields)
     {
-        string fileName = fields.Required("fileName");
-        string folder = fields.Text("folder") ?? string.Empty;
-        string sha256 = fields.Required("sha256");
-        long bytes = fields.Long("bytes") ?? throw FacadeException.BadRequest("Send \"bytes\", the file's size.");
-        int? pages = fields.Int("pages");
-        HoldingDevice device = fields.Enum<HoldingDevice>("device") ?? HoldingDevice.Ipad;
-        DateTimeOffset now = fields.Text("now") is { } text
-            ? DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset parsed) ? parsed : throw FacadeException.BadRequest("\"now\" must be an ISO 8601 time.")
-            : DateTimeOffset.UtcNow;
-        Project project;
-        if (fields.Text("file") is { } file)
+        Project project = ProjectFile.Read(Encoding.UTF8.GetBytes(fields.Required("file")));
+        try
         {
-            Project linked = ProjectFile.Read(Encoding.UTF8.GetBytes(file));
-            PieceOriginal original = linked.FindOriginal(PieceOriginal.DocumentId) is { Kind: OriginalKind.Pdf, Kept: OriginalKept.Link } kept
-                ? kept
-                : throw FacadeException.Unavailable("Only a piece whose PDF is kept by link in a folder is linked again so.");
-            var found = new PieceOriginal(original.Id, original.Kind, fileName, OriginalKept.Link, original.AddedAt)
-            {
-                Name = original.Name,
-                Folder = folder,
-                Sha256 = sha256,
-                Bytes = bytes,
-                Pages = pages ?? (original.Sha256 == sha256 ? original.Pages : null),
-                Held = original.Held,
-            };
-            project = linked.WithOriginal(found.HeldBy(device, now));
+            project = project.RelinkedAt(
+                fields.Text("original") ?? PieceOriginal.DocumentId,
+                fields.Text("folder") ?? string.Empty,
+                fields.Required("fileName"),
+                fields.Text("sha256"),
+                fields.Long("bytes"),
+                fields.Int("pages"));
         }
-        else
+        catch (Exception exception) when (exception is ArgumentException or KeyNotFoundException)
         {
-            project = Project.CreateLinkedDocument(fields.Text("id") ?? MusicCoreFacade.NewProjectId(), fileName, folder, sha256, bytes, pages, device, now);
+            throw FacadeException.BadRequest(exception.Message);
         }
 
-        return Answer.Write(json =>
-        {
-            Answer.Project(json, "project", project);
-            json.WriteString("file", Encoding.UTF8.GetString(ProjectFile.Write(project)));
-        });
+        return Filed(project);
     }
+
+    private static string Filed(Project project) => Answer.Write(json =>
+    {
+        Answer.Project(json, "project", project);
+        json.WriteString("file", Encoding.UTF8.GetString(ProjectFile.Write(project)));
+    });
+
+    private static DateTimeOffset Now(Request request) =>
+        request.Text("now") is { } text
+            ? DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset parsed) ? parsed : throw FacadeException.BadRequest("\"now\" must be an ISO 8601 time.")
+            : DateTimeOffset.UtcNow;
 
     private static FoundFile FoundOf(JsonElement element)
     {

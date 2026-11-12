@@ -1,5 +1,4 @@
 import Foundation
-import PDFKit
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -43,7 +42,7 @@ struct AwayFound: Sendable {
 /// A piece with no notes whose PDF is not in its project file (version 0.5): kept by link in a folder the player imported
 /// (`kept: "link"`), or synced from another device without its PDF (PR #463). The library lists it; opening it reads the
 /// PDF where this iPad links it — through the folder's bookmark and the path inside it, else the file's own bookmark —
-/// checks its fingerprint and opens it with the facade's `open` and `project`. Nothing is written where the file lies.
+/// checks its fingerprint and opens it with the facade's `open` and its `pdf`. Nothing is written where the file lies.
 enum AwayPdf {
     /// Whether the summary is of such a piece: no notes, no PDF in the file, and a PDF described.
     static func isAway(_ summary: PieceSummary?) -> Bool {
@@ -101,11 +100,11 @@ enum AwayPdf {
     }
 
     /// «Привязать оригинал» for such a piece: a PDF the player picked in Files, read and checked against the piece's
-    /// fingerprint. A PDF kept by link stays where it lies (this iPad keeps a bookmark of it and `library.link` marks the
-    /// piece held here); one kept in the file on another device opens and is kept in this iPad's file, a copy.
+    /// fingerprint. A PDF kept by link stays where it lies (this iPad keeps a bookmark of it; its piece is not changed);
+    /// one kept in the file on another device opens and is kept in this iPad's file, a copy.
     static func relink(_ picked: URL, piece url: URL, _ summary: PieceSummary, links: URL = OriginalLinks.folder) async -> Result<AwayFound, AwayReason> {
         guard let project = summary.id, let original = summary.originals.first(where: \.isDocument),
-              var file = try? String(contentsOf: url, encoding: .utf8) else { return .failure(.unreadable) }
+              let file = try? String(contentsOf: url, encoding: .utf8) else { return .failure(.unreadable) }
         let lent = picked.startAccessingSecurityScopedResource()
         defer { if lent { picked.stopAccessingSecurityScopedResource() } }
         let bookmark = try? LinkedFile.bookmark(of: picked)
@@ -120,35 +119,40 @@ enum AwayPdf {
             let attributes = LinkedFile.attributes(of: picked)
             let link = OriginalLink(bookmark: bookmark, fileName: picked.lastPathComponent, sha256: sha256, bytes: attributes.bytes, modified: attributes.modified, linkedAt: Date())
             OriginalLinks.save(link, project: project, original: original.id, in: links)
-            let fields = LibraryLink.fields(fileName: original.fileName, folder: original.folder ?? "", sha256: sha256, bytes: Int64(data.count), pages: PDFDocument(data: data)?.pageCount)
-            if let held = await LibraryLink.call(fields, file: file) {
-                try? Data(held.utf8).write(to: url, options: .atomic)
-                file = held
-            }
         }
         return .success(AwayFound(data: data, project: file, fileName: original.fileName))
     }
 }
 
-/// The facade's `library.link` on piece 0: a new project file of a PDF kept by link in a folder, or, with `file`, that
-/// piece's PDF found again where it is now and marked held by this iPad.
+/// The facade's calls for a PDF kept by link in a folder, on piece 0: `library.linked` makes a new piece of it, and
+/// `library.link` moves a piece's original to where it was found again (or takes a changed file the player said is it).
 enum LibraryLink {
-    static func fields(fileName: String, folder: String, sha256: String, bytes: Int64, pages: Int?) -> [String: Any] {
-        var fields: [String: Any] = [
+    /// The project file of a new piece whose PDF stays in the folder, held by this iPad; nil when music-core refused.
+    static func create(fileName: String, folder: String, sha256: String, bytes: Int64, pages: Int?) async -> String? {
+        var request: [String: Any] = [
             "fileName": fileName, "folder": folder, "sha256": sha256, "bytes": bytes,
             "device": "ipad", "now": ISO8601DateFormatter().string(from: Date()),
         ]
-        if let pages, pages > 0 { fields["pages"] = pages }
-        return fields
+        if let pages, pages > 0 { request["pages"] = pages }
+        return await call("library.linked", request)
     }
 
-    /// The project file music-core answers; nil when it refused.
-    static func call(_ fields: [String: Any], file: String? = nil) async -> String? {
-        var request = fields
-        if let file { request["file"] = file }
+    /// The project file with its PDF at `folder`/`fileName`; with `changed`, the fingerprint, size and pages of a changed
+    /// file the player confirmed. Nothing else of the piece changes.
+    static func move(_ file: String, folder: String, fileName: String, changed: (sha256: String, bytes: Int64, pages: Int?)? = nil) async -> String? {
+        var request: [String: Any] = ["file": file, "original": OriginalEntry.documentId, "folder": folder, "fileName": fileName]
+        if let changed {
+            request["sha256"] = changed.sha256
+            request["bytes"] = changed.bytes
+            if let pages = changed.pages, pages > 0 { request["pages"] = pages }
+        }
+        return await call("library.link", request)
+    }
+
+    private static func call(_ name: String, _ request: [String: Any]) async -> String? {
         guard let body = try? JSONSerialization.data(withJSONObject: request) else { return nil }
         let json = String(decoding: body, as: UTF8.self)
-        let answer = await MusicCore.run { MusicCore.call(piece: 0, "library.link", json) }
+        let answer = await MusicCore.run { MusicCore.call(piece: 0, name, json) }
         guard let object = facadeObject(answer), object["error"] == nil else { return nil }
         return object["file"] as? String
     }

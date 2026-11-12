@@ -29,8 +29,7 @@ final class AwayPiecesTests: XCTestCase {
     private func linkedPiece() async throws -> (url: URL, summary: PieceSummary) {
         let folder = ImportFolder(id: "f1", name: "Ноты", provider: nil, bookmark: try FolderAccess.bookmark(of: music), addedAt: Date())
         ImportFolders.keep(folder, in: records)
-        let fields = LibraryLink.fields(fileName: "Ballade No. 1.pdf", folder: "Шопен/Баллады", sha256: CloudSync.hash(pdf), bytes: Int64(pdf.count), pages: 1)
-        let made = await LibraryLink.call(fields)
+        let made = await LibraryLink.create(fileName: "Ballade No. 1.pdf", folder: "Шопен/Баллады", sha256: CloudSync.hash(pdf), bytes: Int64(pdf.count), pages: 1)
         let file = try XCTUnwrap(made)
         let url = base.appendingPathComponent("Ballade.motiff.json")
         try Data(file.utf8).write(to: url)
@@ -58,7 +57,7 @@ final class AwayPiecesTests: XCTestCase {
 
         let found = try await AwayPdf.read(piece.url, piece.summary, links: links, folders: records).get()
         XCTAssertEqual(found.data, pdf)
-        let opened = await OpenPiece.open(fileName: found.fileName, data: found.data, language: "en", project: found.project)
+        let opened = await OpenPiece.open(fileName: piece.url.lastPathComponent, data: Data(found.project.utf8), language: "en", pdf: found.data)
         let open = try opened.get()
         XCTAssertTrue(open.isDocument)
         try await ProjectFiles.save(piece: open.id, to: piece.url)

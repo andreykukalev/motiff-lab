@@ -3,7 +3,6 @@ using System.Text.Json;
 
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Projects;
-using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Facade;
 
@@ -46,26 +45,6 @@ internal sealed class OpenDocument
     /// </summary>
     public static OpenDocument Open(Project project) =>
         project is { Document: not null } ? new OpenDocument(project) : throw new ArgumentException("The project has no PDF.", nameof(project));
-
-    /// <summary>
-    /// A piece that is only a PDF whose PDF is not in its file (version 0.5, «Импорт папки»: kept by link in the player's
-    /// folder, or on another device), opened with <paramref name="pdf"/>, the file the app read where it lies, which must
-    /// have the fingerprint the piece's description keeps (<see cref="Project.RelinkDocument"/>). A linked PDF stays out
-    /// of the file the piece is saved to (<see cref="Project.AsFiled"/>); one kept in the file on another device is kept in
-    /// this device's file from now on, a copy, as «Привязать оригинал» keeps it.
-    /// </summary>
-    /// <exception cref="FacadeException">"unavailable" for a piece with notes or with its PDF in the file; "originalChanged" for another file.</exception>
-    public static OpenDocument Linked(Project project, byte[] pdf, Words words)
-    {
-        if (project.HasNotes || project.Document is not null || project.FindOriginal(PieceOriginal.DocumentId) is not { Kind: OriginalKind.Pdf })
-        {
-            throw FacadeException.Unavailable("Only a piece that is only a PDF, with its PDF not in its file, opens with the PDF where it lies.");
-        }
-
-        return project.RelinkDocument(pdf, new PageMap([Tick.Zero])) is { } linked
-            ? new OpenDocument(linked)
-            : throw new FacadeException("originalChanged", words.T("This file is not the piece's PDF any more: it changed after it was added.", "Это уже не PDF этой пьесы: файл изменился после того, как его добавили."));
-    }
 
     /// <summary>The open answer: the project's summary and what the document is.</summary>
     public void Summary(Utf8JsonWriter json)

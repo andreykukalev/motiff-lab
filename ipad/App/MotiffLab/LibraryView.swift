@@ -386,8 +386,7 @@ struct LibraryView: View {
     /// linked PDF's bytes.
     private func openFound(_ url: URL, _ found: AwayFound, title: String?) async {
         let language = text.language
-        let name = found.fileName.lowercased().hasSuffix(".pdf") ? found.fileName : found.fileName + ".pdf"
-        await show(file: url) { await OpenPiece.open(fileName: name, data: found.data, language: language, title: title, project: found.project) }
+        await show(file: url) { await OpenPiece.open(fileName: url.lastPathComponent, data: Data(found.project.utf8), language: language, title: title, pdf: found.data) }
     }
 
     /// PDF | Notes (0023): the piece's other view replaces it, at the page or place given. The screen has saved the piece.

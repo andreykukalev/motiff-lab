@@ -150,7 +150,6 @@
     {"tool":"jscpd","rule":"duplicate","file":"src/MotiffLab.MusicCore/Facade/Answer.cs","symbol":"same file","value":12,"why":"existing before #332"},
     {"tool":"jscpd","rule":"duplicate","file":"src/MotiffLab.MusicCore/Facade/Answer.cs","symbol":"with src/MotiffLab.MusicCore/Facade/OpenPiece.cs","value":15,"why":"existing before #332"},
     {"tool":"jscpd","rule":"duplicate","file":"src/MotiffLab.MusicCore/Facade/Answer.cs","symbol":"with src/MotiffLab.MusicCore/Projects/ProjectFile.cs","value":15,"why":"existing before #332"},
-    {"tool":"jscpd","rule":"duplicate","file":"src/MotiffLab.MusicCore/Facade/OpenDocument.cs","symbol":"with src/MotiffLab.MusicCore/Facade/OpenPiece.Project.cs","value":11,"why":"existing before #332"},
     {"tool":"jscpd","rule":"duplicate","file":"src/MotiffLab.MusicCore/Facade/OpenDocument.cs","symbol":"with src/MotiffLab.MusicCore/Projects/ProjectFile.cs","value":13,"why":"existing before #332"},
     {"tool":"jscpd","rule":"duplicate","file":"src/MotiffLab.MusicCore/Import/Midi/MidiImporter.cs","symbol":"with src/MotiffLab.MusicCore/Import/MusicXml/MusicXmlImporter.cs","value":12,"why":"existing before #332"},
     {"tool":"jscpd","rule":"duplicate","file":"src/MotiffLab.MusicCore/Import/Midi/MidiIssueCodes.cs","symbol":"with src/MotiffLab.MusicCore/Import/MusicXml/MusicXmlIssueCodes.cs","value":15,"why":"existing before #332"},
