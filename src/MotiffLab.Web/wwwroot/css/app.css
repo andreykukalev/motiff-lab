@@ -6078,7 +6078,8 @@ body:has(> #app > .library) {
     cursor: progress;
 }
 
-.library .route .ic {
+/* The round behind a route's icon; the icon inside it keeps its own size (it is an .ic too). */
+.library .route > .ic {
     display: grid;
     place-items: center;
     width: 40px;
