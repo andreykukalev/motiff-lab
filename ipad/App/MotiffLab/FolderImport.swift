@@ -101,7 +101,7 @@ final class FolderImportModel: ObservableObject {
         kept = names
         let linked = pieces.values.filter { $0.playlists.contains(playlist) && AwayPdf.isAway($0) }
         guard on else {
-            let stillKept = Set(pieces.values.filter { !$0.playlists.filter(names.contains).isEmpty }.compactMap(\.id))
+            let stillKept = Set(pieces.values.filter { $0.playlists.contains { names.contains($0) } }.compactMap(\.id))
             for summary in linked { if let id = summary.id, !stillKept.contains(id) { KeptCopies.remove(project: id) } }
             return
         }

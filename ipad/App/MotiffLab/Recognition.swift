@@ -112,7 +112,9 @@ final class RecognitionQueue: ObservableObject {
         guard !restored else { return }
         restored = true
         batch = RecognitionStore.load(in: root)
-        batch?.items.indices.forEach { if batch?.items[$0].state == .reading { batch?.items[$0].state = .queued } }
+        for index in batch?.items.indices ?? 0..<0 where batch?.items[index].state == .reading {
+            batch?.items[index].state = .queued
+        }
     }
 
     /// The pieces the player agreed to send to `address`: added to the batch going to the same server, else a new batch.
@@ -217,8 +219,9 @@ final class RecognitionQueue: ObservableObject {
         guard case .success(let open) = await OpenPiece.open(fileName: url.lastPathComponent, data: project, language: text.language, pdf: pdf), open.isDocument else {
             return .failure(RecognitionFailure(reason: text["pdf.unreadable"]))
         }
-        let outcome = await read(open.id, url: url, address: address, account: account, text: text)
-        _ = await MusicCore.run { MusicCore.close(piece: open.id) }
+        let piece = open.id
+        let outcome = await read(piece, url: url, address: address, account: account, text: text)
+        _ = await MusicCore.run { MusicCore.close(piece: piece) }
         return outcome
     }
 
