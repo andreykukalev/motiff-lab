@@ -26,6 +26,8 @@ final class PdfController: NSObject, ObservableObject, PenHolder {
     @Published private(set) var shareable: URL?
     /// The PDF exactly as the player added it, and its file name, for Read the notes.
     private(set) var original: Data?
+    /// The PDF is the player's photos of pages (v0.4, «Фото страниц»), read page by page.
+    @Published private(set) var isPhotos = false
     private(set) var fileName = "score.pdf"
 
     /// The bar's Pen: while it is on, a finger writes too and two fingers scroll. The Pencil always writes.
@@ -79,6 +81,7 @@ final class PdfController: NSObject, ObservableObject, PenHolder {
         if let page, page > 0 { startPage = min(page, read.pageCount) }
         bookmarks = Self.bookmarks(object["marks"])
         strokes = DocumentStroke.list(object["marks"])
+        isPhotos = object["kind"] as? String == "images"
         let name = object["fileName"] as? String ?? "score.pdf"
         original = data
         fileName = name.isEmpty ? "score.pdf" : name
@@ -303,6 +306,7 @@ struct PdfScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var pdf = PdfController()
+    @StateObject private var photos = PhotoReader()
     @StateObject private var metronome = Metronome()
     @State private var contentsOpen = false
     @State private var more = false
@@ -362,19 +366,16 @@ struct PdfScreen: View {
                 settingsOpen = true
             }
         }) {
-            ReadNotesPanel(
-                address: scanAddress,
-                hosted: hosted,
-                signedIn: account.player != nil,
-                pro: account.allows(.scan),
-                text: text,
-                settings: {
-                    settingsNext = true
-                    readingOpen = false
-                },
-                read: readNotes
-            )
-            .presentationDetents([.medium])
+            if pdf.isPhotos && DeviceSettings.shared.isOn("experimental.photoPages") {
+                PhotoReadingPanel(reader: photos, pdf: pdf, titles: titles, address: scanAddress, text: text) { read in
+                    readPanel(read, heading: text["photos.readHeading"], keeps: text["photos.readKeeps"], line: "photos.readLine")
+                } open: { musicXml, engine, pages in
+                    await fill(musicXml, engine: engine, pages: pages)
+                }
+                .presentationDetents([.large])
+            } else {
+                readPanel(readNotes).presentationDetents([.medium])
+            }
         }
         .sheet(isPresented: $settingsOpen) {
             SettingsSheet(settings: DeviceSettings.shared, account: account, text: text, section: .account)
@@ -551,16 +552,46 @@ struct PdfScreen: View {
     /// Sends the PDF to the scan server and puts the notes it read into this same piece (testing item 16), which opens as
     /// notes where the page under the bar starts (the web app's `ReadNotesAsync`). Answers why not, or nil once they open.
     private func readNotes() async -> String? {
-        guard let address = scanAddress, let openRead, let data = pdf.original else { return text["pdf.readNone"] }
-        let result: ScanResult
+        guard let address = scanAddress, let data = pdf.original else { return text["pdf.readNone"] }
         switch await ScanServer.recognise(fileName: pdf.fileName, data: data, address: address, account: account) {
         case .failure(let problem): return problem.text(text)
-        case .success(let read): result = read
+        case .success(let read): return await fill(read.musicXml, engine: read.engine, pages: max(1, pdf.pageCount))
         }
+    }
+
+    /// Read the notes, as the panel offers it: what leaves the iPad and to where, and what to do on Send.
+    private func readPanel(_ read: @escaping () async -> String?, heading: String? = nil, keeps: String? = nil, line: String? = nil) -> ReadNotesPanel {
+        ReadNotesPanel(
+            address: scanAddress,
+            hosted: hosted,
+            signedIn: account.player != nil,
+            pro: account.allows(.scan),
+            text: text,
+            heading: heading,
+            keeps: keeps,
+            line: line,
+            settings: {
+                settingsNext = true
+                readingOpen = false
+            },
+            read: read
+        )
+    }
+
+    /// The names the notes read from these photos open under, for Check's summary of the pages (PhotoPageNotes).
+    private var titles: Set<String> {
+        var names: Set<String> = [piece.title]
+        if let file = piece.file { names.insert(ProjectFiles.title(of: file.lastPathComponent)) }
+        return names
+    }
+
+    /// The notes read from the pages into this same piece, which then opens as notes: answers why not, or nil.
+    private func fill(_ musicXml: Data, engine: String, pages: Int) async -> String? {
+        guard let openRead else { return text["pdf.readNone"] }
         let request: [String: Any] = [
-            "musicXml": result.musicXml.base64EncodedString(),
-            "engine": result.engine,
-            "pages": max(1, pdf.pageCount),
+            "musicXml": musicXml.base64EncodedString(),
+            "engine": engine,
+            "pages": pages,
             "language": text.language,
             "now": ISO8601DateFormatter().string(from: Date()),
         ]

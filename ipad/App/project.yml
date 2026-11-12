@@ -97,6 +97,9 @@ targets:
         # Projects are files in the app's Documents, shown in the Files app (0019).
         INFOPLIST_KEY_UIFileSharingEnabled: YES
         INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace: YES
+        # Photos of pages (v0.4, experiment «Фото страниц»): the document camera photographs the pages on the iPad. In
+        # English, as the app's other Info.plist strings (they are not localised).
+        INFOPLIST_KEY_NSCameraUsageDescription: "Motiff Lab photographs the pages of your sheet music to make a piece of them. The photos stay on this iPad until you send a page to read its notes."
         SUPPORTS_MACCATALYST: NO
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO

@@ -96,7 +96,8 @@ public sealed class MusicCoreFacade
     /// with the piece's number, its project and its summary. The request may carry "language" ("en"
     /// or "ru"), "id" for the new project (without one it gets <see cref="NewProjectId"/>) and "now" (ISO 8601) for its
     /// creation time. A PDF, or the project file of a PDF piece, opens as a PDF piece (0023): the answer has "document" in place of
-    /// "summary", and only the document's calls work on it. With "transcription" ({"engine", "milliseconds", "parts"}, the
+    /// "summary", and only the document's calls work on it; with "photos" (v0.4) the PDF is that many photographed pages, and
+    /// its original is described so. With "transcription" ({"engine", "milliseconds", "parts"}, the
     /// notes a recording's parts were heard as, as performance.add takes them) the data is not read: the new project is
     /// the recording's notes, worked out as the web app works them out (0014, 0016).
     /// </summary>
@@ -129,7 +130,7 @@ public sealed class MusicCoreFacade
             bool asPdf = fields.Text("view") == "pdf";
             if (IsPdf(fileName, bytes) || (IsProjectFile(fileName, bytes) && ReadDocument(bytes, asPdf) is not null))
             {
-                OpenDocument document = IsPdf(fileName, bytes) ? OpenDocument.Create(id, fileName, bytes, words, now) : OpenDocument.Open(ReadDocument(bytes, asPdf)!);
+                OpenDocument document = IsPdf(fileName, bytes) ? OpenDocument.Create(id, fileName, bytes, words, now, fields.Int("photos")) : OpenDocument.Open(ReadDocument(bytes, asPdf)!);
                 _documents[number] = document;
                 _next++;
                 return Answer.Write(json =>

@@ -9,7 +9,9 @@ struct AddPieceSheet: View {
     let heard: (HeardRecording) -> Void
     let demo: () -> Void
     @EnvironmentObject private var account: Account
+    @ObservedObject private var settings = DeviceSettings.shared
     @State private var choosing = false
+    @State private var photographing = false
     @State private var progress: String?
     @State private var problem: String?
 
@@ -50,6 +52,9 @@ struct AddPieceSheet: View {
                 .fileImporter(isPresented: $choosing, allowedContentTypes: LibraryView.openable) { result in
                     picked(result)
                 }
+                if settings.isOn("experimental.photoPages") {
+                    fromPhotos
+                }
                 if account.isAvailable {
                     fromRecording
                 }
@@ -66,6 +71,36 @@ struct AddPieceSheet: View {
         .background(Color.ds("surface").ignoresSafeArea())
         .presentationDetents([.medium, .large])
         .interactiveDismissDisabled(progress != nil)
+        .fullScreenCover(isPresented: $photographing) {
+            PhotoReviewScreen(text: text) { url in picked(.success(url)) }
+        }
+    }
+
+    /// Photos of pages (v0.4, experiment «Фото страниц»): pages photographed in a row, or picked in Photos or Files, become
+    /// one PDF piece on the iPad, free; reading its notes then goes page by page, as any scan.
+    private var fromPhotos: some View {
+        Button {
+            photographing = true
+        } label: {
+            HStack(alignment: .top, spacing: CGFloat.ds("s-3")) {
+                Icon(name: "camera", size: CGFloat.ds("icon-l"))
+                    .foregroundStyle(Color.ds("accent"))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(text["photos.addTitle"])
+                        .dsType(.bodyStrong)
+                        .foregroundStyle(Color.ds("ink"))
+                    Text(text["photos.addHint"])
+                        .dsType(.caption)
+                        .foregroundStyle(Color.ds("ink-2"))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(CGFloat.ds("s-4"))
+            .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
+            .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
+        }
+        .buttonStyle(.plain)
     }
 
     /// From a recording (0014): the scan server hears the sound of an audio or video file, however long, and

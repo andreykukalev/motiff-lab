@@ -5,6 +5,8 @@ struct ScanResult: Sendable {
     let musicXml: Data
     let engine: String
     let pages: Int
+    /// The server's report on each page (`X-Page-Report`, numbers only), when it sends one.
+    var report: String?
 }
 
 /// Sheet music scanning on the iPad (0011, 0014, 0023), as the web app's `ScanService` does it: the PDF goes to the scan
@@ -94,6 +96,12 @@ final class ScanServer: ObservableObject {
     /// Sends the PDF to be read: the MusicXML and engine, or why it could not be read. To the hosted server it goes with
     /// the player's Scan token and a tester's plan choice; to any other address with nothing of the player's.
     static func recognise(fileName: String, data: Data, address: URL, account: Account) async -> Result<ScanResult, ScanProblem> {
+        await recognisePage(fileName: fileName, data: data, address: address, account: account).result
+    }
+
+    /// Sends one file to be read, as `recognise`, with the server's page report (`X-Page-Report`), which comes with a page
+    /// that could not be read too (v0.4, «Фото страниц»).
+    static func recognisePage(fileName: String, data: Data, address: URL, account: Account) async -> (result: Result<ScanResult, ScanProblem>, report: String?) {
         let boundary = "motiff-\(UUID().uuidString)"
         var request = URLRequest(url: address.appendingPathComponent("recognise"))
         request.httpMethod = "POST"
@@ -114,22 +122,23 @@ final class ScanServer: ObservableObject {
         do {
             let (answer, response) = try await URLSession.shared.data(for: request)
             let http = response as? HTTPURLResponse
+            let report = http?.value(forHTTPHeaderField: "X-Page-Report")
             switch http?.statusCode ?? 0 {
             case 200..<300:
                 let engine = http?.value(forHTTPHeaderField: "X-Engine") ?? "unknown engine"
                 let pages = Int(http?.value(forHTTPHeaderField: "X-Pages") ?? "") ?? 1
-                return .success(ScanResult(musicXml: answer, engine: engine, pages: pages))
+                return (.success(ScanResult(musicXml: answer, engine: engine, pages: pages, report: report)), report)
             case 403 where hostedServer:
-                return .failure(.needsPro)
+                return (.failure(.needsPro), nil)
             case let status:
                 let message = (try? JSONSerialization.jsonObject(with: answer) as? [String: Any])?["message"] as? String
-                if let message, !message.isEmpty { return .failure(.server(message)) }
-                return .failure(status == 404 ? .notAScanServer : .server("The scan server could not read this file."))
+                if let message, !message.isEmpty { return (.failure(.server(message)), report) }
+                return (.failure(status == 404 ? .notAScanServer : .server("The scan server could not read this file.")), report)
             }
         } catch let error as URLError where error.code == .timedOut {
-            return .failure(.server("The scan server took too long to answer."))
+            return (.failure(.server("The scan server took too long to answer.")), nil)
         } catch {
-            return .failure(.unreachable(address))
+            return (.failure(.unreachable(address)), nil)
         }
     }
 }
@@ -229,6 +238,8 @@ struct ReadNotesPanel: View {
     var heading: String? = nil
     /// What becomes of the notes read, under Send; that they go into this piece unless given.
     var keeps: String? = nil
+    /// The key of the line on what is sent and to where ({0} the address), in place of the PDF's.
+    var line: String? = nil
     let settings: () -> Void
     /// Sends the PDF and puts the notes into the piece, or adds them as a version; answers why not, or nil once done.
     let read: () async -> String?
@@ -250,7 +261,7 @@ struct ReadNotesPanel: View {
                     }
                 } else {
                     let local = ScanServer.isLocal(address)
-                    caption(text.format(local ? "pdf.readLineHere" : "pdf.readLine", address.absoluteString))
+                    caption(line.map { text.format($0, address.absoluteString) } ?? text.format(local ? "pdf.readLineHere" : "pdf.readLine", address.absoluteString))
                     if !local {
                         Toggle(hosted ? text["pdf.sendHosted"] : text.format("pdf.sendElsewhere", address.host ?? address.absoluteString), isOn: $send)
                             .dsType(.label)
