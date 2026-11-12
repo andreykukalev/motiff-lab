@@ -2072,5 +2072,20 @@
   "pieces.suggest": "Suggest",
   "pieces.suggestHow": "Suggest where the pieces begin from the notes read, or start from the pieces kept; Confirm the pieces keeps them in the piece, on every device.",
   "pieces.noSuggestion": "No pieces can be suggested from the notes read here.",
-  "pieces.confirmLayer": "Confirm the pieces"
+  "pieces.confirmLayer": "Confirm the pieces",
+  "reference.key": "Key",
+  "reference.chordsOfKey": "Chords",
+  "reference.addChord": "Add {0}, {1}",
+  "reference.progression": "The progression",
+  "reference.progressionEmpty": "Tap a chord above to start a progression.",
+  "reference.barAria": "Bar {0}: {1}, {2}",
+  "reference.barTurns": "Bar {0}: position",
+  "reference.removeBar": "Remove",
+  "reference.texture": "Texture",
+  "reference.texture.Together": "Together",
+  "reference.texture.Arpeggio": "Arpeggio",
+  "reference.texture.Broken": "Broken",
+  "reference.texture.Alberti": "Alberti",
+  "reference.tempo": "Tempo {0}",
+  "reference.tempoAria": "Tempo {0} a minute: tap for the next"
 }

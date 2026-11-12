@@ -1,7 +1,8 @@
 // «Справочник», an experiment (version 0.5, Settings · Experimental, off by default; Andrei approved the mockup on
 // 2026-11-12): Circle opens the Reference as sections. Keys: the circle of fifths shaded by accidentals, with the chosen
 // key's card. Chords and scales: what sounds, a chord or a scale from a note, apart from how it sounds, the spacing, the
-// inversion and the way it is played, in notes and on a keyboard, played once or in a loop. Nothing goes into the piece.
+// inversion and the way it is played, in notes and on a keyboard, played once or in a loop. Explorer: a key's chords
+// tapped into a progression, each bar in a position, heard in a texture. Nothing goes into the piece.
 import { expect, test } from "@playwright/test";
 import { openFurElise, violations } from "./steps.mjs";
 
@@ -82,4 +83,40 @@ test("in a piece the Reference marks the piece's key and plays over the piece", 
     await sheet.press("Escape");
     await expect(sheet).toHaveCount(0);
     await expect(page.locator(".bar .ttl")).toHaveText("Für Elise");
+});
+
+test("the explorer builds a progression from a key's chords and plays it in a texture", async ({ page }) => {
+    await page.goto("/");
+    await turnOn(page);
+    await page.locator(".lib-head").getByRole("button", { name: "Circle", exact: true }).click();
+    const sheet = page.getByRole("dialog", { name: "Reference" });
+    await sheet.getByRole("tab", { name: "Explorer" }).click();
+
+    // A minor starts on i iv V i, its chords offered with the harmonic minor's dominant.
+    await sheet.getByLabel("Key").selectOption({ label: "A minor" });
+    const bars = sheet.getByRole("list", { name: "The progression" }).locator(".ref-bar");
+    await expect(bars).toHaveCount(4);
+    await expect(sheet.getByRole("button", { name: "Add V7, E7" })).toBeVisible();
+
+    // V7 added and turned to 6/5: E7 over G♯.
+    await sheet.getByRole("button", { name: "Add V7, E7" }).click();
+    await expect(bars).toHaveCount(5);
+    await bars.nth(4).click();
+    const turns = sheet.getByRole("group", { name: "Bar 5: position" });
+    await turns.getByRole("radio", { name: "6/5" }).click();
+    await expect(bars.nth(4)).toContainText("E7/G♯");
+    await expect(sheet.locator(".ref-score-page .measure")).toHaveCount(5);
+    expect(await violations(page)).toEqual([]);
+
+    await turns.getByRole("button", { name: "Remove" }).click();
+    await expect(bars).toHaveCount(4);
+
+    await sheet.getByRole("radiogroup", { name: "Texture" }).getByRole("radio", { name: "Arpeggio" }).click();
+    await sheet.getByRole("button", { name: /^Tempo 72/ }).click();
+    await expect(sheet.getByRole("button", { name: /^Tempo 90/ })).toBeVisible();
+    await sheet.getByRole("button", { name: "Play", exact: true }).click();
+    await expect(sheet.getByRole("button", { name: "Pause", exact: true })).toBeVisible();
+    await expect(sheet.locator(".ref-playhead:not([hidden])")).toHaveCount(1);
+    await sheet.getByRole("button", { name: "Pause", exact: true }).click();
+    await expect(sheet.getByRole("button", { name: "Play", exact: true })).toBeVisible();
 });

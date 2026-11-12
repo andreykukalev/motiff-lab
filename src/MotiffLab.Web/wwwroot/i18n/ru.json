@@ -2125,5 +2125,20 @@
   "pieces.suggest": "Предложить",
   "pieces.suggestHow": "Предложить, где начинаются пьесы, по распознанным нотам или по уже сохранённым пьесам; «Подтвердить пьесы» сохраняет их в пьесе на всех устройствах.",
   "pieces.noSuggestion": "По распознанным нотам здесь нечего предложить.",
-  "pieces.confirmLayer": "Подтвердить пьесы"
+  "pieces.confirmLayer": "Подтвердить пьесы",
+  "reference.key": "Тональность",
+  "reference.chordsOfKey": "Аккорды",
+  "reference.addChord": "Добавить {0}, {1}",
+  "reference.progression": "Последовательность",
+  "reference.progressionEmpty": "Нажмите аккорд выше, чтобы начать последовательность.",
+  "reference.barAria": "Такт {0}: {1}, {2}",
+  "reference.barTurns": "Такт {0}: обращение",
+  "reference.removeBar": "Убрать",
+  "reference.texture": "Фактура",
+  "reference.texture.Together": "Вместе",
+  "reference.texture.Arpeggio": "Арпеджио",
+  "reference.texture.Broken": "Ломаное",
+  "reference.texture.Alberti": "Альберти",
+  "reference.tempo": "Темп {0}",
+  "reference.tempoAria": "Темп {0} в минуту: нажмите для следующего"
 }

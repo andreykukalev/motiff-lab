@@ -170,14 +170,19 @@ export class ReferenceScore {
         if (playhead === null || !this.stretch) {
             return;
         }
-        // The latest note to start is the rightmost of those sounding: a held bass starts earlier, further left.
-        const boxes = this.marked.map((element) => element.getBoundingClientRect());
-        playhead.hidden = boxes.length === 0;
-        if (boxes.length === 0) {
+        // The latest note to start is the rightmost of those sounding: a held bass starts earlier, further left. The band
+        // stands over that note's system, so on a narrow page it moves down the systems with the music.
+        playhead.hidden = this.marked.length === 0;
+        if (this.marked.length === 0) {
             return;
         }
-        const note = boxes.reduce((right, box) => (box.left > right.left ? box : right));
-        playhead.style.left = `${note.left + note.width / 2 - this.host.getBoundingClientRect().left}px`;
+        const notes = this.marked.map((element) => ({ element, box: element.getBoundingClientRect() }));
+        const note = notes.reduce((right, next) => (next.box.left > right.box.left ? next : right));
+        const host = this.host.getBoundingClientRect();
+        const system = (note.element.closest(".system") ?? note.element).getBoundingClientRect();
+        playhead.style.left = `${note.box.left + note.box.width / 2 - host.left}px`;
+        playhead.style.top = `${system.top - host.top}px`;
+        playhead.style.height = `${system.height}px`;
     }
 }
 

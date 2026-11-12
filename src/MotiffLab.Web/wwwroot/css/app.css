@@ -9779,13 +9779,24 @@ body:has(> #app > .library) {
     color: var(--accent);
 }
 
+/* A progression's playhead (mockup C3): a soft band over the notes sounding, marked by a small triangle above. */
 .ref-sheet.handbook .ref-playhead {
     position: absolute;
-    top: var(--s-2);
-    bottom: var(--s-2);
-    width: 2px;
-    background: var(--ink);
+    width: var(--s-6);
+    border-radius: var(--r-xs);
+    background: color-mix(in srgb, var(--ink) 14%, transparent);
+    transform: translateX(-50%);
     pointer-events: none;
+}
+
+.ref-sheet.handbook .ref-playhead::before {
+    position: absolute;
+    top: calc(-1 * var(--s-4));
+    left: 50%;
+    border: var(--s-2) solid transparent;
+    border-top-color: var(--ink);
+    transform: translateX(-50%);
+    content: "";
 }
 
 /* The keyboard: white keys side by side, the black ones over them; the keys the music marks tinted, named. */
@@ -10137,4 +10148,228 @@ body:has(> #app > .library) {
 .live-bars {
     display: grid;
     gap: var(--s-2);
+}
+
+/* Исследователь (mockup C3): the key and its chords as tiles, the progression as bars with each bar's position and Remove
+   above the bar chosen, the progression in notes across the width with its playhead, then how it is played. */
+.ref-sheet.handbook .ref-explorer {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+    height: 100%;
+    padding: var(--s-5) var(--s-6);
+    overflow-y: auto;
+}
+
+/* The tab scrolls as a whole; nothing in it shrinks below its content (the notation keeps its systems). */
+.ref-sheet.handbook .ref-explorer > * {
+    flex: none;
+}
+
+.ref-sheet.handbook .ref-select {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.ref-sheet.handbook .ref-select select {
+    height: var(--h-touch);
+    padding: 0 var(--s-10) 0 var(--s-4);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-pill);
+    background: var(--surface-2);
+    color: var(--ink);
+    font: var(--t-body-strong);
+    appearance: none;
+    cursor: pointer;
+}
+
+.ref-sheet.handbook .ref-select select:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.ref-sheet.handbook .ref-select .ic {
+    position: absolute;
+    right: var(--s-4);
+    pointer-events: none;
+}
+
+.ref-sheet.handbook .ref-tiles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+}
+
+.ref-sheet.handbook :is(.ref-tile, .ref-bar) {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-1);
+    border: 1px solid var(--hairline-strong);
+    background: var(--surface-2);
+    color: var(--ink);
+    cursor: pointer;
+}
+
+.ref-sheet.handbook .ref-tile {
+    min-width: calc(2 * var(--s-10) - var(--s-2));
+    min-height: calc(var(--s-12) + var(--s-2));
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-s);
+}
+
+.ref-sheet.handbook :is(.ref-tile, .ref-bar):hover {
+    border-color: var(--accent);
+}
+
+.ref-sheet.handbook .ref-tile:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.ref-sheet.handbook :is(.ref-tile, .ref-bar) .ref-numeral {
+    font: var(--t-title);
+    line-height: 1;
+}
+
+.ref-sheet.handbook :is(.ref-tile, .ref-bar) .ref-numeral sup {
+    margin-left: 1px;
+    font: var(--t-caption);
+}
+
+.ref-sheet.handbook :is(.ref-tile, .ref-bar) .ref-symbol {
+    font: var(--t-label);
+    color: var(--ink-2);
+}
+
+.ref-sheet.handbook .ref-bars {
+    display: flex;
+    gap: var(--s-3);
+    margin: var(--s-10) 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ref-sheet.handbook .ref-bar-item {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+
+.ref-sheet.handbook .ref-bar {
+    width: 100%;
+    min-height: calc(var(--s-12) + var(--s-6));
+    padding: var(--s-2);
+    border-radius: var(--r-m);
+}
+
+.ref-sheet.handbook .ref-bar.on {
+    border: 2px solid var(--accent);
+    background: linear-gradient(var(--accent-tint), var(--accent-tint)) var(--surface-2);
+    color: var(--accent);
+}
+
+.ref-sheet.handbook .ref-bar.on .ref-symbol {
+    color: var(--accent);
+}
+
+/* The bar's positions and Remove float above it, inside the tab at the first and last bars. */
+.ref-sheet.handbook .ref-turns {
+    position: absolute;
+    bottom: calc(100% + var(--s-2));
+    left: 50%;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: var(--s-1);
+    padding: var(--s-1);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    background: var(--surface-2);
+    box-shadow: var(--shadow-menu);
+    transform: translateX(-50%);
+    white-space: nowrap;
+}
+
+.ref-sheet.handbook .ref-bar-item.first .ref-turns {
+    left: 0;
+    transform: none;
+}
+
+.ref-sheet.handbook .ref-bar-item.last .ref-turns {
+    right: 0;
+    left: auto;
+    transform: none;
+}
+
+.ref-sheet.handbook .ref-turns .seg {
+    flex-wrap: nowrap;
+    border: 0;
+    background: transparent;
+}
+
+.ref-sheet.handbook .ref-turns :is(.seg > button, .btn) {
+    min-height: var(--h-compact);
+    height: var(--h-compact);
+    padding: 0 var(--s-3);
+    font: var(--t-label);
+    line-height: 1;
+}
+
+.ref-sheet.handbook .ref-turns .btn {
+    border-left: 1px solid var(--hairline);
+    border-radius: 0 var(--r-pill) var(--r-pill) 0;
+}
+
+.ref-sheet.handbook .ref-explorer .ref-score {
+    min-height: calc(4 * var(--s-12));
+}
+
+.ref-sheet.handbook .ref-explorer-sound {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-3) var(--s-8);
+}
+
+.ref-sheet.handbook .ref-explorer-sound .ref-row + .ref-row .ref-row-label {
+    width: auto;
+}
+
+.ref-sheet.handbook .btn.primary.round {
+    width: calc(var(--s-12) + var(--s-2));
+    height: calc(var(--s-12) + var(--s-2));
+    padding: 0;
+    border-radius: var(--r-pill);
+}
+
+@media (max-width: 860px) {
+    .ref-sheet.handbook .ref-explorer {
+        height: auto;
+        padding: var(--s-4);
+    }
+
+    .ref-sheet.handbook .ref-bars {
+        flex-wrap: wrap;
+    }
+
+    .ref-sheet.handbook .ref-bar-item {
+        flex: 1 0 calc(25% - var(--s-3));
+    }
+
+    .ref-sheet.handbook .ref-explorer-sound .ref-row + .ref-row .ref-row-label {
+        width: 100%;
+    }
+
+    /* Three sections on a phone's width: one line, the labels at the compact size of ds.css. */
+    .ref-sheet.handbook .ref-tabs {
+        flex-wrap: nowrap;
+    }
+
+    .ref-sheet.handbook .ref-tabs > button {
+        min-width: 0;
+        padding: 0 var(--s-1);
+        font-size: 13px;
+    }
 }
