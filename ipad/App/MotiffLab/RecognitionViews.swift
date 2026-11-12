@@ -272,8 +272,12 @@ struct RecognitionLayer: ViewModifier {
     let reload: () async -> Void
     @ObservedObject var queue = RecognitionQueue.shared
 
+    /// The PDF-only pieces picked.
+    private var picked: [LibraryEntry] {
+        entries.filter { chosen?.contains($0.url) == true && $0.withoutNotes }
+    }
+
     func body(content: Content) -> some View {
-        let picked = entries.filter { chosen?.contains($0.url) == true && $0.withoutNotes }
         content
             .sheet(isPresented: $consenting) {
                 RecogniseConsentSheet(pieces: picked.count, pages: picked.reduce(0) { $0 + $1.pages }, offer: RecognitionOffer.of(account), text: text, settings: settings) {
