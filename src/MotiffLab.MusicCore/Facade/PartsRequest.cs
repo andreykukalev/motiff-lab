@@ -16,7 +16,8 @@ internal static class PartsRequest
     /// <summary>
     /// {"file": the collection's project file, "parts": [{"title", "bars": {"first", "last"} or "pages": {"first", "last"},
     /// "pdf" (optional, base64: the part's pages copied), "id" (optional)}], "playlist" (optional; the collection's title),
-    /// "device" ("ipad" or "web", optional: it holds the collection's original), "now", "language"} →
+    /// "device" ("ipad" or "web", optional: it holds the collection's original), "pages" (optional: how many pages the
+    /// collection's PDF has, as the app's viewer reads it), "now", "language"} →
     /// {"original": {"id", "kind", "fileName", "sha256"} or null, "playlist", "parts": [{"number", "title", "bars", "pages",
     /// "milliseconds": {"from", "to"} or null, "span", "notes", "project", "file"}]}.
     /// </summary>
@@ -28,6 +29,7 @@ internal static class PartsRequest
             Playlist = fields.Text("playlist"),
             Device = fields.Enum<HoldingDevice>("device"),
             Words = Words.For(fields.Text("language")),
+            Pages = fields.Int("pages") is { } pages ? pages > 0 ? pages : throw FacadeException.BadRequest("\"pages\" is how many pages the collection's PDF has, from 1.") : null,
         };
         PieceSplit split;
         try

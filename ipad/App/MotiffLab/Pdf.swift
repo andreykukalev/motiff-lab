@@ -309,6 +309,8 @@ struct PdfScreen: View {
     @StateObject private var photos = PhotoReader()
     @StateObject private var metronome = Metronome()
     @State private var contentsOpen = false
+    /// «Пьесы в этом файле» (v0.4, experiment «Пьесы в файле»), opened from the Contents.
+    @State private var partsOpen = false
     @State private var more = false
     @State private var metronomeOpen = false
 
@@ -379,6 +381,9 @@ struct PdfScreen: View {
         }
         .sheet(isPresented: $settingsOpen) {
             SettingsSheet(settings: DeviceSettings.shared, account: account, text: text, section: .account)
+        }
+        .sheet(isPresented: $partsOpen) {
+            PiecePartsSheet(piece: piece, pdf: pdf, text: text).presentationDetents([.large])
         }
         .task {
             pdf.inkable = !linked
@@ -461,7 +466,7 @@ struct PdfScreen: View {
         .accessibilityLabel(text.format("contents.open", piece.title))
         .accessibilityAddTraits(.isHeader)
         .popover(isPresented: $contentsOpen) {
-            PdfContents(pdf: pdf, text: text) { page in
+            PdfContents(pdf: pdf, text: text, parts: openParts) { page in
                 contentsOpen = false
                 pdf.go(to: page)
             }
@@ -532,6 +537,15 @@ struct PdfScreen: View {
         guard let file = piece.file else { return }
         let id = piece.id
         Task { try? await ProjectFiles.save(piece: id, to: file) }
+    }
+
+    /// «Пьесы в этом файле» from the Contents, with the experiment on, for a PDF kept in the piece.
+    private var openParts: (() -> Void)? {
+        guard !linked, DeviceSettings.shared.isOn("experimental.pieceParts") else { return nil }
+        return {
+            contentsOpen = false
+            partsOpen = true
+        }
     }
 
     /// Recognise notes in the bar, while none have been read from this PDF on this device.
@@ -630,10 +644,13 @@ struct PdfScreen: View {
 struct PdfContents: View {
     @ObservedObject var pdf: PdfController
     let text: UIText
+    /// Opens «Пьесы в этом файле», with the experiment on.
+    var parts: (() -> Void)?
     let go: (Int) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
+            if let parts { PiecePartsEntry(projectId: pdf.projectId, text: text, open: parts) }
             Text(text["pdf.bookmarks"]).overline().accessibilityAddTraits(.isHeader)
             if pdf.bookmarks.isEmpty {
                 Text(text["pdf.noBookmarks"])

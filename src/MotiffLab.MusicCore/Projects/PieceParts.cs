@@ -40,6 +40,12 @@ public sealed record PieceSplitOptions(DateTimeOffset Now, Func<string> NewId)
     public HoldingDevice? Device { get; init; }
 
     public Words Words { get; init; } = Words.English;
+
+    /// <summary>
+    /// How many pages the collection's PDF has, as the app's viewer reads it; null counts its page objects, which a PDF
+    /// with compressed objects hides (it then counts as one page).
+    /// </summary>
+    public int? Pages { get; init; }
 }
 
 /// <summary>
@@ -121,12 +127,22 @@ public static class PieceParts
             Project project = Project.Create(range.Id ?? Options.NewId(), fileName, source, Options.Now) with { Metadata = new PieceMetadata(title, null, null, [Playlist]) };
             return Original is { } book ? project.WithOriginal(book) : project;
         }
+
+        /// <summary>
+        /// The part with its own PDF described as photos of its pages when the collection's PDF is photos (v0.4, «Фото
+        /// страниц»; <see cref="OriginalKind.Images"/>, a value of the project file since 0.3), so the iPad reads it page by
+        /// page as it would the collection; as it is otherwise.
+        /// </summary>
+        public Project AsPhotos(Project part, int pages) =>
+            Collection.FindOriginal(PieceOriginal.DocumentId) is { Kind: OriginalKind.Images } && part.FindOriginal(PieceOriginal.DocumentId) is { } own
+                ? part.WithOriginal(own with { Kind = OriginalKind.Images, Pages = pages })
+                : part;
     }
 
     /// <summary>The parts of a PDF without notes: each a PDF piece of the pages the app copied.</summary>
     private static List<PiecePart> FromDocument(Shared shared, IReadOnlyList<PartRange> parts)
     {
-        int pages = PdfDocument.PageCount(shared.Collection.Document!);
+        int pages = shared.Options.Pages ?? PdfDocument.PageCount(shared.Collection.Document!);
         List<PiecePart> made = [];
         int after = 0;
         for (int i = 0; i < parts.Count; i++)
@@ -141,7 +157,7 @@ public static class PieceParts
             after = range.Last;
             byte[] pdf = range.Pdf is { } own && PdfDocument.IsPdf(own) ? own : throw new ArgumentException($"Part {i + 1} needs its own PDF: the pages {range.First}–{range.Last} copied.", nameof(parts));
             Project project = shared.Create(range, i + 1, PdfDocument.Extension, []) with { Document = pdf };
-            made.Add(new PiecePart(i + 1, project.Fingerprinted(), null, []) { Pages = (range.First, range.Last) });
+            made.Add(new PiecePart(i + 1, shared.AsPhotos(project.Fingerprinted(), range.Last - range.First + 1), null, []) { Pages = (range.First, range.Last) });
         }
 
         return made;
@@ -219,7 +235,7 @@ public static class PieceParts
         {
             (int first, int last) = (pages.PageOf(span.Onset), pages.PageOf(new Tick(span.End.Value - 1)));
             onPages = (first, last);
-            project = WithPdf(project, range.Pdf, pages, span, first, last);
+            project = shared.AsPhotos(WithPdf(project, range.Pdf, pages, span, first, last), last - first + 1);
         }
 
         OpenedProject opened = OpenedProject.Open(project);
@@ -338,7 +354,7 @@ public static class PieceParts
             Name = found.Name,
             Sha256 = found.Sha256,
             Bytes = found.Bytes,
-            Pages = found.Pages ?? (collection.Document is { } pdf && PdfDocument.PageCount(pdf) is > 0 and var count ? count : null),
+            Pages = found.Pages ?? options.Pages ?? (collection.Document is { } pdf && PdfDocument.PageCount(pdf) is > 0 and var count ? count : null),
             DurationMs = found.DurationMs,
             Held = found.Held,
         };
