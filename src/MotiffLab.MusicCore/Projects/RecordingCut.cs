@@ -150,7 +150,7 @@ internal static class RecordingCut
     }
 
     /// <summary>The changes in effect from <paramref name="from"/>: the last one at or before it, then every later one.</summary>
-    private static IEnumerable<T> Since<T>(IEnumerable<T> changes, Func<T, Tick> at, Tick from)
+    internal static IEnumerable<T> Since<T>(IEnumerable<T> changes, Func<T, Tick> at, Tick from)
     {
         T[] ordered = [.. changes.OrderBy(at)];
         T[] before = [.. ordered.Where(change => at(change) <= from)];
@@ -158,7 +158,7 @@ internal static class RecordingCut
     }
 
     /// <summary>A type 1 MIDI file at 480 ticks a quarter, its tracks numbered as the engine's were, so the part reads its notes alike.</summary>
-    private sealed class MidiWriter(int tracks, IReadOnlyList<MidiTrackInfo> names)
+    internal sealed class MidiWriter(int tracks, IReadOnlyList<MidiTrackInfo> names)
     {
         private readonly List<(long Tick, int Order, byte[] Data)>[] _tracks = [.. Enumerable.Range(0, tracks).Select(static _ => new List<(long, int, byte[])>())];
         private readonly List<(long Tick, int Channel, int Track, int Pitch, int Velocity, long End)> _notes = [];

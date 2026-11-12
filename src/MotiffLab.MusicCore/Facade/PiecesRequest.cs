@@ -19,7 +19,7 @@ internal static class PiecesRequest
 {
     /// <summary>
     /// {"count" (optional, from 1: how many pieces the player says there are)} → {"proposals": [{"number", "title", "firstBar",
-    /// "lastBar", "span", "pages": {"first", "last"} or null, "confidence", "certainty", "reason", "added", "onlySilence"}],
+    /// "lastBar", "span", "pages": {"first", "last"} or null, "ms": {"from", "to"} or null (a recording's stretch), "confidence", "certainty", "reason", "added", "onlySilence"}],
     /// "layer": [...]}; the proposals leave out none, the layer is what the project keeps.
     /// </summary>
     public static void Find(Utf8JsonWriter json, Project project, ImportedPiece piece, IReadOnlyList<Note> notes, Words words, Request request)
@@ -32,6 +32,7 @@ internal static class PiecesRequest
 
         FoundSections found = SectionFinder.FindPieces(SectionEvidence.Of(piece, notes, PlaybackScore.FromPiece(piece).Tempos), count);
         PageMap? pages = PieceParts.PagesOf(project, piece);
+        var places = new Places(piece, pages, HeardClock.Of(project, piece));
         json.WriteStartArray("proposals");
         foreach (FoundSection section in found.Items)
         {
@@ -41,7 +42,7 @@ internal static class PiecesRequest
             json.WriteNumber("firstBar", section.FirstBar);
             json.WriteNumber("lastBar", section.LastBar);
             Answer.Span(json, "span", section.Span);
-            Pages(json, pages, section.Span);
+            places.Write(json, section.Span);
             json.WriteNumber("confidence", section.Confidence);
             json.WriteString("certainty", section.ConfidenceIn(words));
             json.WriteString("reason", section.ReasonIn(words));
@@ -51,7 +52,7 @@ internal static class PiecesRequest
         }
 
         json.WriteEndArray();
-        Layer(json, project, piece.Meter, pages);
+        Layer(json, project, places);
     }
 
     /// <summary>{"pieces": [{"title" (optional), "firstBar"}], "language", "now"} → the project with that pieces layer; none clears it.</summary>
@@ -71,11 +72,14 @@ internal static class PiecesRequest
         return PieceLayer.Save(project, pieces, piece.Meter, piece.End, words, now);
     }
 
-    /// <summary>"layer": [{"id", "title", "firstBar", "lastBar", "span", "pages"}]: the pieces the project keeps, in score order.</summary>
-    public static void Layer(Utf8JsonWriter json, Project project, MeterMap meter, PageMap? pages)
+    /// <summary>"layer": [{"id", "title", "firstBar", "lastBar", "span", "pages", "ms"}]: the pieces the project keeps, in score order.</summary>
+    public static void Layer(Utf8JsonWriter json, Project project, ImportedPiece opened) =>
+        Layer(json, project, new Places(opened, PieceParts.PagesOf(project, opened), HeardClock.Of(project, opened)));
+
+    private static void Layer(Utf8JsonWriter json, Project project, Places places)
     {
         json.WriteStartArray("layer");
-        foreach (LayerPiece piece in PieceLayer.Read(project, meter))
+        foreach (LayerPiece piece in PieceLayer.Read(project, places.Piece.Meter))
         {
             json.WriteStartObject();
             json.WriteString("id", piece.BookmarkId);
@@ -83,24 +87,42 @@ internal static class PiecesRequest
             json.WriteNumber("firstBar", piece.FirstBar);
             json.WriteNumber("lastBar", piece.LastBar);
             Answer.Span(json, "span", piece.Span);
-            Pages(json, pages, piece.Span);
+            places.Write(json, piece.Span);
             json.WriteEndObject();
         }
 
         json.WriteEndArray();
     }
 
-    private static void Pages(Utf8JsonWriter json, PageMap? pages, TickSpan span)
+    /// <summary>Where a piece is besides its bars: its pages, when the notes have pages, and its stretch of a recording heard.</summary>
+    private sealed record Places(ImportedPiece Piece, PageMap? Pages, HeardClock? Clock)
     {
-        if (pages is null)
+        /// <summary>"pages": {"first", "last"} or null; "ms": {"from", "to"} (<see cref="HeardCut.StretchOf"/>) or null.</summary>
+        public void Write(Utf8JsonWriter json, TickSpan span)
         {
-            json.WriteNull("pages");
-            return;
-        }
+            if (Pages is null)
+            {
+                json.WriteNull("pages");
+            }
+            else
+            {
+                json.WriteStartObject("pages");
+                json.WriteNumber("first", Pages.PageOf(span.Onset));
+                json.WriteNumber("last", Pages.PageOf(new Tick(span.End.Value - 1)));
+                json.WriteEndObject();
+            }
 
-        json.WriteStartObject("pages");
-        json.WriteNumber("first", pages.PageOf(span.Onset));
-        json.WriteNumber("last", pages.PageOf(new Tick(span.End.Value - 1)));
-        json.WriteEndObject();
+            if (Clock is null)
+            {
+                json.WriteNull("ms");
+                return;
+            }
+
+            (long from, long to) = HeardCut.StretchOf(Piece, Clock, span);
+            json.WriteStartObject("ms");
+            json.WriteNumber("from", from);
+            json.WriteNumber("to", to);
+            json.WriteEndObject();
+        }
     }
 }
