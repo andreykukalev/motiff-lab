@@ -355,12 +355,13 @@ public partial class PlaybackLab
 
     /// <summary>
     /// The recording's file picked again: the piece's stretch of it is cut and kept on this device, when it is the piece's
-    /// sound (by the fingerprint its file gives, else by its length within a second). A piece without a description of its
-    /// sound gets one, saved with it.
+    /// sound (by the fingerprint its file gives, else by its length within a second). The stretch is where the piece is in
+    /// the file (<see cref="PieceParts.StretchInFile"/>, version 0.5). A piece without a description of its sound gets one,
+    /// saved with it.
     /// </summary>
     private async Task PickOwnSoundAsync(ElementReference input)
     {
-        if (_project is not { PartOf.Milliseconds: { } stretch } project)
+        if (_project is not { } project || PieceParts.StretchInFile(project) is not { } stretch)
         {
             return;
         }

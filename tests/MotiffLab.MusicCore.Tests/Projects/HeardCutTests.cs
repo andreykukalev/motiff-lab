@@ -188,6 +188,22 @@ public class HeardCutTests
     }
 
     [Fact]
+    public void A_pieces_stretch_in_the_recording_file_counts_from_where_the_stretch_heard_started_there()
+    {
+        Project concert = Concert();
+        PartRange[] parts = [PartRange.InRecording("A", 0, 25_000), PartRange.InRecording("B", 25_000, 70_000)];
+
+        // The concert was heard from 1 min 30 s into its file; a piece made before 0.5 does not say where.
+        Project before = PieceParts.Split(concert with { Transcription = concert.Transcription! with { SentFromMilliseconds = null } }, parts, Options()).Parts[1].Project;
+        Project later = PieceParts.Split(concert, parts, Options()).Parts[1].Project;
+
+        Assert.Equal((25_000L, 70_000L), PieceParts.StretchInFile(before));
+        Assert.Equal((115_000L, 160_000L), PieceParts.StretchInFile(later));
+        Assert.Equal((115_000L, 160_000L), PieceParts.StretchInFile(ProjectFile.Read(ProjectFile.Write(later))));
+        Assert.Null(PieceParts.StretchInFile(concert));
+    }
+
+    [Fact]
     public void With_the_live_tempo_a_piece_cut_by_time_finds_its_beat_in_each_section_of_its_stretch()
     {
         Project concert = Concert();

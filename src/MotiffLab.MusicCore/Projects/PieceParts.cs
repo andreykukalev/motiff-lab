@@ -129,6 +129,18 @@ public static class PieceParts
     public const string SoundId = "src_sound";
 
     /// <summary>
+    /// Where a part's stretch of a recording heard is in the recording's file, in milliseconds: its <see cref="PartOf"/>
+    /// stretch from where the transcription's stretch started in the file (<see cref="TranscriptionOrigin.SentFromMilliseconds"/>,
+    /// version 0.5), or from the file's start when the part does not say, as before 0.5. Null for a part not cut by time.
+    /// </summary>
+    public static (long From, long To)? StretchInFile(Project part)
+    {
+        ArgumentNullException.ThrowIfNull(part);
+        long offset = part.Transcription?.SentFromMilliseconds ?? 0;
+        return part.PartOf?.Milliseconds is { } stretch ? (offset + stretch.From, offset + stretch.To) : null;
+    }
+
+    /// <summary>
     /// The part with its own stretch of the sound described in its originals (<see cref="SoundId"/>): a WAV kept only on the
     /// device that cut it, named by the part's title, with its size, length and fingerprint. The sound itself is never in
     /// the project file.
