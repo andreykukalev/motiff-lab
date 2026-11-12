@@ -120,3 +120,33 @@ test("the explorer builds a progression from a key's chords and plays it in a te
     await sheet.getByRole("button", { name: "Pause", exact: true }).click();
     await expect(sheet.getByRole("button", { name: "Play", exact: true })).toBeVisible();
 });
+
+test("in a piece a key of its mode on the circle hears it there and shows its notes there, nothing saved (#351)", async ({ page }) => {
+    await page.goto("/");
+    await turnOn(page);
+    await openFurElise(page);
+
+    await page.locator(".bar").getByRole("button", { name: "Circle", exact: true }).click();
+    const sheet = page.getByRole("dialog", { name: "Reference" });
+    // The piece's own key chosen: cobalt wins over the ink outline, and nothing to move to.
+    await expect(sheet.locator(".ref-key.on.piece")).toHaveCount(1);
+    await expect(sheet.locator(".ref-piece-in")).toHaveCount(0);
+
+    await sheet.getByRole("button", { name: "C minor, 3 flats", exact: true }).click();
+    const entry = sheet.getByRole("region", { name: "Für Elise in C minor" });
+    await expect(entry).toBeVisible();
+    expect(await violations(page)).toEqual([]);
+    await entry.getByRole("button", { name: "Listen" }).click();
+    await expect(page.locator(".bar").getByRole("button", { name: "Pause" }).first()).toBeVisible();
+
+    await entry.getByRole("button", { name: "Show the notes" }).click();
+    await expect(sheet).toHaveCount(0);
+    const pill = page.getByRole("status").filter({ hasText: "Für Elise in C minor" });
+    await expect(pill).toBeVisible();
+    await expect(page.locator(".score-page svg .keySig").first().locator("use")).toHaveCount(3);
+    expect(await violations(page)).toEqual([]);
+
+    await pill.getByRole("button", { name: "Back to A minor" }).click();
+    await expect(pill).toHaveCount(0);
+    await expect(page.locator(".bar .ttl")).toHaveText("Für Elise");
+});

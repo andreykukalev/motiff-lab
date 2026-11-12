@@ -6,6 +6,9 @@ namespace MotiffLab.Web.Reference.Handbook;
 /// <summary>Music of the Reference to hear, once or round and round.</summary>
 public sealed record ReferencePlay(ReferenceMusic Music, bool Loop);
 
+/// <summary>The piece heard in a key (<paramref name="Hear"/>) or its notes shown in it (#351).</summary>
+public sealed record PieceInKey(MusicalKey Key, bool Hear);
+
 /// <summary>Where the host put the music on the player's timeline: from a tick, at the music's tempo over the timeline's.</summary>
 public sealed record ReferencePlacement(long At, int MusicTempo, int TimelineTempo);
 

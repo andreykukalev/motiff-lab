@@ -10377,3 +10377,125 @@ body:has(> #app > .library) {
         font-size: 13px;
     }
 }
+
+/* The piece in another key (#351, mockup C2): under the key's card, «Für Elise в ми миноре» with Слушать and Показать ноты,
+   kept to the card's foot over a hairline. The piece's own key while it is chosen: the cobalt of the choice wins over the
+   ink outline of the piece's key. */
+.ref-sheet.handbook .ref-card-side {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-6);
+}
+
+.ref-sheet.handbook .ref-piece-in {
+    margin-top: auto;
+    padding-top: var(--s-5);
+    border-top: 1px solid var(--hairline);
+}
+
+.ref-sheet.handbook .ref-piece-in .overline {
+    margin: 0 0 var(--s-3);
+}
+
+.ref-sheet.handbook .ref-piece-in-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-3);
+}
+
+.ref-sheet.handbook .ref-piece-in-actions .btn {
+    justify-content: center;
+    gap: var(--s-2);
+    text-align: center;
+}
+
+.ref-circle.shaded .ref-key.on.piece path {
+    stroke: var(--accent);
+    stroke-width: 2.4;
+}
+
+/* The outlines are drawn over the keys (ReferenceCircle.Outlines), which keep their order so the focus stays put. */
+.ref-circle .ref-outline {
+    fill: none;
+    pointer-events: none;
+    stroke-linejoin: round;
+}
+
+.ref-circle .ref-outline.piece {
+    stroke: var(--ink);
+    stroke-width: 1.6;
+}
+
+.ref-circle .ref-outline.piece.inferred {
+    stroke-dasharray: 4 3;
+}
+
+.ref-circle .ref-outline.on {
+    stroke: var(--accent);
+    stroke-width: 1.6;
+}
+
+.ref-circle.shaded .ref-outline.piece {
+    stroke-width: 2;
+}
+
+.ref-circle.shaded .ref-outline.on {
+    stroke-width: 2.4;
+}
+
+/* The score shown in another key (#351): a plum pill under the bar, as what the app made, clear of the transport pill at
+   the foot; Play there and the key back. */
+.workspace .transpose-pill {
+    position: fixed;
+    z-index: 6;
+    top: calc(env(safe-area-inset-top, 0px) + var(--s-3) + var(--h-touch) + var(--s-2));
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    max-width: calc(100vw - 2 * var(--s-4));
+    padding: var(--s-1) var(--s-1) var(--s-1) var(--s-4);
+    border: 1.5px solid var(--plum);
+    border-radius: var(--r-pill);
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: var(--shadow-menu);
+    font: var(--t-label);
+}
+
+.lab.workspace .transpose-pill .btn.quiet {
+    justify-content: center;
+    gap: var(--s-1);
+    color: var(--plum);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* A key of the circle pressed with the pointer shows no browser ring; reached with the keyboard it is outlined in cobalt (the
+   ring's box-shadow does not draw on SVG). */
+.ref-circle .ref-key path:focus {
+    outline: none;
+}
+
+.ref-circle .ref-key path:focus-visible {
+    stroke: var(--accent);
+    stroke-width: 3;
+}
+
+/* On a phone the pill's words take a line of their own over its two actions. */
+@media (max-width: 600px) {
+    .workspace .transpose-pill {
+        flex-wrap: wrap;
+        justify-content: center;
+        box-sizing: border-box;
+        width: calc(100vw - 2 * var(--s-4));
+        padding: var(--s-2) var(--s-3) var(--s-1);
+        border-radius: var(--r-l);
+        text-align: center;
+    }
+
+    .workspace .transpose-pill > span {
+        flex-basis: 100%;
+    }
+}

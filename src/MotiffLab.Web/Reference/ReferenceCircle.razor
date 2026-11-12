@@ -14,6 +14,13 @@
     {
         @Ring(sector, mode)
     }
+    @* The outlines over the keys beside them, the piece's first and the chosen one's over it: the keys keep their order, so
+       the focus stays where it was when a key is picked. *@
+    @foreach ((MusicalKey key, string kind) in Outlines())
+    {
+        (double from, double to) = key.Mode == KeyMode.Major ? (Middle, Outer) : (Inner, Middle);
+        <path class="ref-outline @kind" d="@Band(KeyCircle.PositionOf(key), from, to)" aria-hidden="true" />
+    }
     @foreach (CircleSector sector in KeyCircle.Sectors)
     {
         <g aria-hidden="true"><text class="ref-sign" x="@At(sector.Position, Shaded ? OuterSignRadius : SignRadius).X" y="@At(sector.Position, Shaded ? OuterSignRadius : SignRadius).Y">@sector.Signature</text></g>
@@ -45,16 +52,26 @@
     [Parameter]
     public EventCallback<MusicalKey> Pick { get; set; }
 
-    /// <summary>
-    /// Every key, the chosen one and the piece's last: SVG paints in order, so their outlines stay above the keys beside them.
-    /// </summary>
-    private IEnumerable<(CircleSector Sector, KeyMode Mode)> Places() =>
-        KeyCircle.Sectors
-            .SelectMany(sector => new[] { (sector, KeyMode.Major), (sector, KeyMode.Minor) })
-            .OrderBy(place => Is(Chosen, place) || Is(PieceKey, place));
+    /// <summary>Every key, majors and minors round the circle, always in the same order.</summary>
+    private static IEnumerable<(CircleSector Sector, KeyMode Mode)> Places() =>
+        KeyCircle.Sectors.SelectMany(sector => new[] { (sector, KeyMode.Major), (sector, KeyMode.Minor) });
 
-    private static bool Is(MusicalKey? key, (CircleSector Sector, KeyMode Mode) place) =>
-        key is { } known && known.Mode == place.Mode && KeyCircle.PositionOf(known) == place.Sector.Position;
+    /// <summary>
+    /// The outlines drawn after the keys, as SVG paints in order: the piece's key, then the chosen key over it, so the
+    /// choice's cobalt wins where they are one key.
+    /// </summary>
+    private IEnumerable<(MusicalKey Key, string Kind)> Outlines()
+    {
+        if (PieceKey is { } piece)
+        {
+            yield return (piece, PieceKeyInferred ? "piece inferred" : "piece");
+        }
+
+        if (Chosen is { } chosen)
+        {
+            yield return (chosen, "on");
+        }
+    }
 
     private RenderFragment Ring(CircleSector sector, KeyMode mode)
     {
