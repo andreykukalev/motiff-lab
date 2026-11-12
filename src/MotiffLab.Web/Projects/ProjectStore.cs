@@ -25,7 +25,8 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
     /// <summary>
     /// Saves on this device, and online when saving online is on. A PDF (0023) stays on the device: it can run to tens of
     /// megabytes, more than an online copy holds. So the online copy of a piece with notes and a PDF holds the notes and
-    /// what was made from them, without the PDF (testing item 16), and a piece that is only a PDF is not saved online.
+    /// what was made from them, without the PDF (testing item 16); a piece that is only a PDF goes online without it too
+    /// (version 0.5, 0026 C3 amended), described with its fingerprint, so another device lists it and opens it once linked.
     /// </summary>
     public async Task SaveAsync(Project project)
     {

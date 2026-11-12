@@ -13,8 +13,9 @@ namespace MotiffLab.MusicCore.Facade;
 internal static class SyncRequest
 {
     /// <summary>
-    /// {"file": text, "now"?: ISO 8601} → {"file": the copy saved online, or null for a piece that is only a PDF}. The PDF
-    /// the iPad keeps in the piece is marked held by the iPad in the copy (version 0.3), so the web shows where it is.
+    /// {"file": text, "now"?: ISO 8601} → {"file": the copy saved online}: without the PDF, and since version 0.5 also for a
+    /// piece that is only a PDF (before, null for one). The PDF the iPad keeps in the piece is marked held by the iPad in the
+    /// copy (version 0.3), so the web shows where it is.
     /// </summary>
     public static string Online(Request fields)
     {

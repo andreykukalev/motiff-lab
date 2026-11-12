@@ -24,6 +24,10 @@ public sealed partial record Project
     /// <summary>The project as its file holds it: without the PDF's bytes and its page map when the PDF is linked.</summary>
     public Project AsFiled() => LinksDocument && Document is not null ? this with { Document = null, DocumentPages = null } : this;
 
+    /// <summary>The project without its PDF's bytes and page map, every original described, as the online copy holds it.</summary>
+    private static Project WithoutDocument(Project project) =>
+        project with { Document = null, DocumentPages = null, KeptOriginals = [.. project.Originals] };
+
     /// <summary>
     /// A new piece for a PDF that stays in the player's folder (version 0.5): no notes and no PDF bytes, its original
     /// described as linked with where it was in the folder, its fingerprint, size and pages, held by the device that links it.

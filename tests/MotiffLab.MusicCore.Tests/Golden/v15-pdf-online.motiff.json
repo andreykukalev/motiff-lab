@@ -1,0 +1,96 @@
+{
+  "format": "motiff-lab-project",
+  "version": 15,
+  "id": "p_9c3d4e5f6a7b4c8d9e0f1a2b3c4d5e6f",
+  "fileName": "Chopin - Nocturne Op. 9 No. 2.pdf",
+  "createdAt": "2026-11-12T18:30:00.0000000\u002B00:00",
+  "lastOpened": "2026-11-12T18:30:00.0000000\u002B00:00",
+  "metadata": {
+    "title": "Nocturne Op. 9 No. 2",
+    "composer": "Chopin",
+    "tags": [
+      "\u0428\u043E\u043F\u0435\u043D"
+    ],
+    "playlists": [
+      "\u041A\u043E\u043D\u0446\u0435\u0440\u0442 \u0432 \u043C\u0430\u0435"
+    ]
+  },
+  "source": "",
+  "documentMarks": {
+    "ink": [],
+    "bookmarks": [
+      {
+        "id": "pb_0001",
+        "page": 2,
+        "name": "Reprise",
+        "createdAt": "2026-11-12T18:30:00.0000000\u002B00:00"
+      }
+    ]
+  },
+  "originals": [
+    {
+      "id": "src_pdf",
+      "kind": "pdf",
+      "fileName": "Chopin - Nocturne Op. 9 No. 2.pdf",
+      "sha256": "a8a2db77eb47543c809071855f00a4e9d67fa00bd438ac83e8cffa8c495ae8f3",
+      "bytes": 38,
+      "addedAt": "2026-11-12T18:30:00.0000000\u002B00:00",
+      "kept": "file",
+      "held": [
+        {
+          "device": "ipad",
+          "at": "2026-11-12T18:30:00.0000000\u002B00:00"
+        }
+      ]
+    }
+  ],
+  "motifs": [],
+  "variations": [],
+  "observations": [],
+  "edits": [],
+  "phrases": {
+    "added": [],
+    "removed": [],
+    "short": {
+      "added": [],
+      "removed": []
+    },
+    "sentences": {
+      "added": [],
+      "removed": []
+    }
+  },
+  "marks": {
+    "ink": [],
+    "notes": [],
+    "highlights": [],
+    "fingering": []
+  },
+  "bookmarks": {
+    "categories": [
+      {
+        "id": "practise",
+        "ink": "Carmine"
+      },
+      {
+        "id": "performance",
+        "ink": "Forest"
+      },
+      {
+        "id": "structure",
+        "ink": "Graphite"
+      },
+      {
+        "id": "teacher",
+        "ink": "Ochre"
+      }
+    ],
+    "items": []
+  },
+  "resumePoints": [],
+  "check": [],
+  "performances": [],
+  "settings": {},
+  "scan": null,
+  "transcription": null
+}
