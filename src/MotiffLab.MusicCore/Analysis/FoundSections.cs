@@ -42,6 +42,12 @@ public enum SectionCueKind
 
     /// <summary>The playing before and after a silence keeps different tempos.</summary>
     HeardTempo,
+
+    /// <summary>A silence in a recording with the same key and tempo on both sides: proposed only to make up the number of pieces.</summary>
+    SameMusic,
+
+    /// <summary>A boundary the player added by hand.</summary>
+    Added,
 }
 
 /// <summary>
@@ -52,6 +58,9 @@ public enum SectionCueKind
 /// <param name="Label">For a heading, the heading as written; null for any other cue.</param>
 public sealed record SectionCue(SectionCueKind Kind, double Weight, string English, string Russian, string? Label = null)
 {
+    /// <summary>For a silence, how long it lasts in microseconds; null for any other cue.</summary>
+    public long? Microseconds { get; init; }
+
     public string In(Words words) => words.T(English, Russian);
 }
 
@@ -67,20 +76,32 @@ public sealed record FoundSection(int Number, TickSpan Span, int FirstBar, int L
     /// <summary>The bar the boundary was found at, when the player moved it; null when it is where it was found.</summary>
     public int? MovedFrom { get; init; }
 
+    /// <summary>The player's title for it, trimmed; null until the player names it (<see cref="FoundSections.Rename"/>).</summary>
+    public string? Title { get; init => field = string.IsNullOrWhiteSpace(value) ? null : value.Trim(); }
+
+    /// <summary>Whether the player set this boundary (<see cref="FoundSections.Add"/>): it is the player's, not found.</summary>
+    public bool IsAdded => Cues.Any(cue => cue.Kind == SectionCueKind.Added);
+
+    /// <summary>Whether its boundary is only a silence with the same key and tempo on both sides (<see cref="SectionFinder.FindPieces"/>).</summary>
+    public bool IsOnlySilence => Cues.Any(cue => cue.Kind == SectionCueKind.SameMusic);
+
     /// <summary>Whether this is the first section, which starts where the piece starts.</summary>
     public bool IsOpening => Cues.Any(cue => cue.Kind == SectionCueKind.Opening);
 
     /// <summary>The heading written where it starts ("Trio", "Andante"), if any.</summary>
     public string? Heading => Cues.Select(cue => cue.Label).FirstOrDefault(label => label is not null);
 
-    /// <summary>Inferred, at the confidence of its boundary.</summary>
-    public Attribution Attribution => Attribution.Inferred(Confidence);
+    /// <summary>Inferred, at the confidence of its boundary; the player's own when the player set it.</summary>
+    public Attribution Attribution => IsAdded ? Attribution.UserEdited : Attribution.Inferred(Confidence);
 
-    /// <summary>"Trio" or "Part 2"; "Часть 2".</summary>
-    public string NameIn(Words words) => Heading ?? words.T($"Part {Number}", $"Часть {Number}");
+    /// <summary>The player's title, else "Trio" or "Part 2"; "Часть 2".</summary>
+    public string NameIn(Words words) => Title ?? Heading ?? words.T($"Part {Number}", $"Часть {Number}");
 
-    /// <summary>The title a confirmed bookmark gets: "Part 2, bars 41–80"; "Часть 2, такты 41–80".</summary>
-    public string TitleIn(Words words) => $"{NameIn(words)}, {BarsIn(words)}";
+    /// <summary>The title a confirmed bookmark gets: the player's, else "Part 2, bars 41–80"; "Часть 2, такты 41–80".</summary>
+    public string TitleIn(Words words) => Title ?? $"{NameIn(words)}, {BarsIn(words)}";
+
+    /// <summary>The title of a piece in the pieces layer: the player's, else the heading, else "Piece 2"; "Пьеса 2".</summary>
+    public string PieceTitleIn(Words words) => Title ?? Heading ?? words.T($"Piece {Number}", $"Пьеса {Number}");
 
     /// <summary>"bars 41–80"; "такты 41–80".</summary>
     public string BarsIn(Words words) => FirstBar == LastBar
@@ -112,11 +133,12 @@ public sealed class FoundSections
 {
     private readonly MeterMap _meter;
 
-    internal FoundSections(IReadOnlyList<FoundSection> items, MeterMap meter, int lastBar)
+    internal FoundSections(IReadOnlyList<FoundSection> items, MeterMap meter, int lastBar, bool pieces = false)
     {
         Items = items;
         _meter = meter;
         LastBar = lastBar;
+        IsPieces = pieces;
     }
 
     public static FoundSections None { get; } = new([], MeterMap.Default, 0);
@@ -126,6 +148,12 @@ public sealed class FoundSections
 
     /// <summary>The last bar of the piece.</summary>
     public int LastBar { get; }
+
+    /// <summary>
+    /// True for the pieces of a score or recording (<see cref="SectionFinder.FindPieces"/>): they always cover it, so there
+    /// is at least one, from its start, and dismissing the last boundary leaves that one.
+    /// </summary>
+    public bool IsPieces { get; }
 
     /// <summary>The sections no bookmark starts at yet: the ones still to confirm, move or dismiss.</summary>
     public IReadOnlyList<FoundSection> Pending(IEnumerable<Bookmark> bookmarks)
@@ -171,17 +199,17 @@ public sealed class FoundSections
         var items = Items.ToList();
         items[index - 1] = before with { Span = TickSpan.FromBounds(before.Span.Onset, onset), LastBar = bar - 1 };
         items[index] = moved with { Span = TickSpan.FromBounds(onset, moved.Span.End), FirstBar = bar, MovedFrom = moved.MovedFrom ?? moved.FirstBar };
-        return new FoundSections(items, _meter, LastBar);
+        return new FoundSections(items, _meter, LastBar, IsPieces);
     }
 
     /// <summary>
     /// The proposals without the section: its bars join the section before it. Once no boundary is left, nothing is
-    /// proposed.
+    /// proposed; for pieces (<see cref="IsPieces"/>) the one piece is left, and the first piece does not go.
     /// </summary>
     public FoundSections Dismiss(int number)
     {
         int index = IndexOf(number);
-        if (index < 0)
+        if (index < 0 || (IsPieces && index == 0))
         {
             return this;
         }
@@ -195,10 +223,52 @@ public sealed class FoundSections
             items[index - 1] = before with { Span = TickSpan.FromBounds(before.Span.Onset, gone.Span.End), LastBar = gone.LastBar };
         }
 
-        return items.All(section => section.IsOpening)
+        return items.All(section => section.IsOpening) && !IsPieces
             ? new FoundSections([], _meter, LastBar)
-            : new FoundSections([.. items.Select((section, at) => section with { Number = at + 1 })], _meter, LastBar);
+            : Numbered(items);
     }
+
+    /// <summary>Whether a boundary can be added at the bar: inside a section, after the bar it starts at.</summary>
+    public bool CanAdd(int bar) => Items.Any(section => bar > section.FirstBar && bar <= section.LastBar);
+
+    /// <summary>
+    /// The proposals with a boundary the player set at the start of the bar: the section the bar is in ends before it, and
+    /// a new one, the player's own (<see cref="FoundSection.IsAdded"/>), runs from it to where that section ended.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">No section has the bar after its first (<see cref="CanAdd"/>).</exception>
+    public FoundSections Add(int bar)
+    {
+        if (!CanAdd(bar))
+        {
+            throw new ArgumentOutOfRangeException(nameof(bar), bar, $"No boundary can be added at bar {bar}.");
+        }
+
+        int index = Items.ToList().FindIndex(section => bar > section.FirstBar && bar <= section.LastBar);
+        FoundSection split = Items[index];
+        Tick onset = _meter.GetBar(bar).Span.Onset;
+        var items = Items.ToList();
+        items[index] = split with { Span = TickSpan.FromBounds(split.Span.Onset, onset), LastBar = bar - 1 };
+        items.Insert(index + 1, new FoundSection(0, TickSpan.FromBounds(onset, split.Span.End), bar, split.LastBar, 1, [SectionCues.Added()]));
+        return Numbered(items);
+    }
+
+    /// <summary>The proposals with the section titled by the player; a blank title takes the player's title away.</summary>
+    /// <exception cref="ArgumentOutOfRangeException">No section has the number.</exception>
+    public FoundSections Rename(int number, string? title)
+    {
+        int index = IndexOf(number);
+        if (index < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(number), number, $"There is no section {number}.");
+        }
+
+        var items = Items.ToList();
+        items[index] = items[index] with { Title = title };
+        return new FoundSections(items, _meter, LastBar, IsPieces);
+    }
+
+    private FoundSections Numbered(List<FoundSection> items) =>
+        new([.. items.Select((section, at) => section with { Number = at + 1 })], _meter, LastBar, IsPieces);
 
     private int IndexOf(int number)
     {

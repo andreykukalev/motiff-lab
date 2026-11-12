@@ -78,9 +78,57 @@ public static class SectionFinder
     public static FoundSections Find(SectionEvidence evidence)
     {
         ArgumentNullException.ThrowIfNull(evidence);
-        if (evidence.Notes.Count == 0 || evidence.End.Value <= 0)
+        if (Candidates(evidence) is not { } found)
         {
             return FoundSections.None;
+        }
+
+        int[] boundaries = Strongest(found.FirstBar, found.LastBar, StrongBars(found.Cues, heard: false), int.MaxValue);
+        return boundaries.Length == 0 ? FoundSections.None : Sections(evidence, found.Cues, boundaries, found.LastBar, pieces: false);
+    }
+
+    /// <summary>
+    /// Finds where the pieces of a long score or recording begin (version 0.5, the pieces layer): as <see cref="Find"/>, but
+    /// in a recording a silence alone is not a boundary (Andrei, 2026-11-12): it needs a different key or tempo around it
+    /// (<see cref="SectionCueKind.HeardKey"/>, <see cref="SectionCueKind.HeardTempo"/>). With <paramref name="count"/>, the
+    /// player's number of pieces, at most that many come back: the strongest boundaries first, then, while there are too
+    /// few, the silences alone, longest first, each saying so (<see cref="SectionCueKind.SameMusic"/>); in notation, the
+    /// weaker boundaries by their confidence. The pieces always cover the piece: with no boundary there is one.
+    /// </summary>
+    /// <param name="count">How many pieces the player says there are, from 1; null to let the facts decide.</param>
+    public static FoundSections FindPieces(SectionEvidence evidence, int? count = null)
+    {
+        ArgumentNullException.ThrowIfNull(evidence);
+        if (count is < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(count), count, "There is at least one piece.");
+        }
+
+        if (Candidates(evidence) is not { } found)
+        {
+            return FoundSections.None;
+        }
+
+        int[] strong = StrongBars(found.Cues, evidence.Heard);
+        int wanted = count is { } pieces ? pieces - 1 : int.MaxValue;
+        int[] boundaries = Strongest(found.FirstBar, found.LastBar, [.. strong, .. count is null ? [] : Weaker(found.Cues, strong, evidence.Heard)], wanted);
+        if (evidence.Heard)
+        {
+            foreach (int bar in boundaries.Where(bar => !strong.Contains(bar)))
+            {
+                found.Cues[bar].Add(SectionCues.SameMusic());
+            }
+        }
+
+        return Sections(evidence, found.Cues, boundaries, found.LastBar, pieces: true);
+    }
+
+    /// <summary>Every bar a fact says a section may start at, with those facts; null without notes.</summary>
+    private static (SortedDictionary<int, List<SectionCue>> Cues, int FirstBar, int LastBar)? Candidates(SectionEvidence evidence)
+    {
+        if (evidence.Notes.Count == 0 || evidence.End.Value <= 0)
+        {
+            return null;
         }
 
         MeterMap meter = evidence.Meter;
@@ -110,9 +158,33 @@ public static class SectionFinder
             }
         }
 
-        int[] boundaries = Strongest(cues, firstBar, lastBar);
-        return boundaries.Length == 0 ? FoundSections.None : Sections(evidence, cues, boundaries, lastBar);
+        return (cues, firstBar, lastBar);
     }
+
+    /// <summary>
+    /// The bars whose facts reach <see cref="MinConfidence"/>, the most confident first; for the pieces of a recording only
+    /// those where the silence has a different key or tempo around it.
+    /// </summary>
+    private static int[] StrongBars(SortedDictionary<int, List<SectionCue>> cues, bool heard) =>
+    [
+        .. cues
+            .Where(pair => Confidence(pair.Value) >= MinConfidence
+                && (!heard || pair.Value.Any(cue => cue.Kind is SectionCueKind.HeardKey or SectionCueKind.HeardTempo)))
+            .OrderByDescending(pair => Confidence(pair.Value))
+            .ThenBy(pair => pair.Key)
+            .Select(pair => pair.Key),
+    ];
+
+    /// <summary>The other bars, to make up a number of pieces: in a recording the silences by length, in notation the facts by confidence.</summary>
+    private static int[] Weaker(SortedDictionary<int, List<SectionCue>> cues, int[] strong, bool heard) =>
+    [
+        .. cues
+            .Where(pair => !strong.Contains(pair.Key) && (!heard || pair.Value.Any(cue => cue.Kind == SectionCueKind.Silence)))
+            .OrderByDescending(pair => heard ? pair.Value.Max(cue => cue.Microseconds ?? 0) : 0)
+            .ThenByDescending(pair => Confidence(pair.Value))
+            .ThenBy(pair => pair.Key)
+            .Select(pair => pair.Key),
+    ];
 
     /// <summary>The confidence of the facts at one bar together: each fact leaves the doubt the others left smaller.</summary>
     internal static double Confidence(IEnumerable<SectionCue> cues)
@@ -180,18 +252,16 @@ public static class SectionFinder
         return inside.Length < 3 ? null : inside[inside.Length / 2];
     }
 
-    /// <summary>The bars proposed as boundaries: the strongest first, each far enough from the start, the end and the stronger ones.</summary>
-    private static int[] Strongest(SortedDictionary<int, List<SectionCue>> cues, int firstBar, int lastBar)
+    /// <summary>
+    /// The bars proposed as boundaries: taken in the order given, each far enough from the start, the end and the ones
+    /// taken before it, at most <paramref name="most"/>.
+    /// </summary>
+    private static int[] Strongest(int firstBar, int lastBar, int[] ranked, int most)
     {
         var kept = new List<int>();
-        foreach (int bar in cues
-            .Select(pair => (Bar: pair.Key, Confidence: Confidence(pair.Value)))
-            .Where(candidate => candidate.Confidence >= MinConfidence)
-            .OrderByDescending(candidate => candidate.Confidence)
-            .ThenBy(candidate => candidate.Bar)
-            .Select(candidate => candidate.Bar))
+        foreach (int bar in ranked)
         {
-            if (bar - firstBar >= MinBars && lastBar - bar + 1 >= MinBars && kept.All(other => Math.Abs(other - bar) >= MinBars))
+            if (kept.Count < most && bar - firstBar >= MinBars && lastBar - bar + 1 >= MinBars && kept.All(other => Math.Abs(other - bar) >= MinBars))
             {
                 kept.Add(bar);
             }
@@ -201,7 +271,7 @@ public static class SectionFinder
     }
 
     /// <summary>The sections between the boundaries: the opening up to the first, then one from each boundary to the next or the end.</summary>
-    private static FoundSections Sections(SectionEvidence evidence, SortedDictionary<int, List<SectionCue>> cues, int[] boundaries, int lastBar)
+    private static FoundSections Sections(SectionEvidence evidence, SortedDictionary<int, List<SectionCue>> cues, int[] boundaries, int lastBar, bool pieces)
     {
         MeterMap meter = evidence.Meter;
         int firstBar = meter.BarAt(Tick.Zero).Number;
@@ -215,12 +285,12 @@ public static class SectionFinder
             IReadOnlyList<SectionCue> found = index == 0
                 ? [SectionCues.Opening(evidence.Heard)]
                 : [.. cues[bar].OrderByDescending(cue => cue.Weight).ThenBy(cue => cue.Kind)];
-            double confidence = Confidence(index == 0 ? cues[starts[1]] : found);
+            double confidence = index > 0 ? Confidence(found) : starts.Length > 1 ? Confidence(cues[starts[1]]) : MostConfidence;
             int last = index + 1 < starts.Length ? starts[index + 1] - 1 : lastBar;
             sections.Add(new FoundSection(index + 1, TickSpan.FromBounds(onset, end), bar, last, confidence, found));
         }
 
-        return new FoundSections(sections, meter, lastBar);
+        return new FoundSections(sections, meter, lastBar, pieces);
     }
 
     /// <summary>How long the stretch lasts at the tempo map, in microseconds; 120 BPM before the first tempo.</summary>

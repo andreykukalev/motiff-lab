@@ -15,6 +15,12 @@ public sealed record BookmarkCategory(string Id, string? Name, InkColour Ink)
     public const string StructureId = "structure";
     public const string TeacherId = "teacher";
 
+    /// <summary>
+    /// The pieces layer (version 0.5, <see cref="PieceLayer"/>): a reserved id, written with a name in the player's language
+    /// so that builds before 0.5 read it as a category of the player's own and keep it; this build names it by its id.
+    /// </summary>
+    public const string PiecesId = "pieces";
+
     /// <summary>The four categories every project starts with, in the order the Contents drawer lists them.</summary>
     public static IReadOnlyList<BookmarkCategory> BuiltIn { get; } =
     [
@@ -36,14 +42,17 @@ public sealed record BookmarkCategory(string Id, string? Name, InkColour Ink)
 
     public static bool IsBuiltInId(string id) => id is PractiseId or PerformanceId or StructureId or TeacherId;
 
-    /// <summary>The name shown: the player's, or the built-in name in the language.</summary>
-    public string NameIn(Words words) => Name ?? Id switch
+    /// <summary>The name shown: the pieces layer's in the language, the player's, or the built-in name in the language.</summary>
+    public string NameIn(Words words) => Id == PiecesId ? PiecesNameIn(words) : Name ?? Id switch
     {
         PractiseId => words.T("Practise", "Поиграть"),
         PerformanceId => words.T("Performance", "Исполнение"),
         StructureId => words.T("Structure", "Структура"),
         _ => words.T("Teacher", "Учитель"),
     };
+
+    /// <summary>"Pieces"; "Пьесы": the pieces layer's name.</summary>
+    public static string PiecesNameIn(Words words) => words.T("Pieces", "Пьесы");
 
     /// <summary>The category under another name; blank gives a built-in category its own name back.</summary>
     public BookmarkCategory Rename(string? name) => new(Id, name, Ink);
