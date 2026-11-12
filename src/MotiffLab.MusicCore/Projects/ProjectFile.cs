@@ -110,6 +110,7 @@ public static partial class ProjectFile
             }
 
             WriteOriginals(json, project);
+            WritePartOf(json, project.PartOf);
 
             List<UnknownEntity> unknownMotifs = KeptUnknown(project.Unknown, "motifs", project.Motifs.Select(static motif => motif.Id), null, out HashSet<string> replacedMotifs);
             WriteList(json, "motifs", project.Motifs, unknownMotifs, motif =>
@@ -332,6 +333,7 @@ public static partial class ProjectFile
                 }
 
                 json.WriteEndArray();
+                WriteScanPages(json, scan.Pages);
                 WriteMadeFrom(json, scan.From, scan.At);
                 json.WriteEndObject();
             }
@@ -538,7 +540,7 @@ public static partial class ProjectFile
                 ReadFrom = readFrom,
                 Assembly = assembly,
                 Metadata = ReadMetadata(root),
-            }.WithOriginalsOf(root, unknowns));
+            }.WithOriginalsOf(root, unknowns).WithPartOfIn(root));
         }
     }
 
@@ -625,6 +627,7 @@ public static partial class ProjectFile
 
         json.WriteEndArray();
         json.WriteNumber("pressure", stroke.Pressure);
+        WriteMargin(json, stroke.Margin);
         json.WriteEndObject();
     }
 
@@ -647,7 +650,10 @@ public static partial class ProjectFile
                 Number(stroke, "u"),
                 Number(stroke, "v"),
                 points,
-                Number(stroke, "pressure"));
+                Number(stroke, "pressure"))
+            {
+                Margin = ReadMargin(stroke),
+            };
         }
         catch (ArgumentException)
         {
@@ -1283,7 +1289,7 @@ public static partial class ProjectFile
             .EnumerateArray()
             .Select(bar => bar.ValueKind == JsonValueKind.Number && bar.TryGetInt32(out int value) && value >= 0 ? value : throw Damaged("checked bars"))];
         (string? from, DateTimeOffset? at) = ReadMadeFrom(scan);
-        return new ScanOrigin(Text(scan, "engine"), bars) { From = from, At = at };
+        return new ScanOrigin(Text(scan, "engine"), bars) { From = from, At = at, Pages = ReadScanPages(scan) };
     }
 
     private static TranscriptionOrigin? ReadTranscription(JsonElement root, int version)

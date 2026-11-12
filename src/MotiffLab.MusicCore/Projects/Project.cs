@@ -93,6 +93,12 @@ public sealed record Project(
     /// </summary>
     public ReadFromPdf? ReadFrom { get; init; }
 
+    /// <summary>
+    /// Where the piece is inside the collection it was made from (version 0.4, «Пьесы в файле», within version 15): the
+    /// collection's original and the pages or the stretch of the recording; null for a piece of its own.
+    /// </summary>
+    public PartOf? PartOf { get; init; }
+
     /// <summary>The title, composer and tags the player set in the library (version 0.2); none until they set one.</summary>
     public PieceMetadata Metadata { get; init; } = PieceMetadata.None;
 

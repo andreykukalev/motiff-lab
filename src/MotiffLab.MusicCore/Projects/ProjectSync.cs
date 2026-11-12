@@ -73,7 +73,7 @@ public static class ProjectSync
     /// device's own PDF and its pages stay with the piece. The marks on the PDF's pages (version 0.4) are the writer's
     /// (<see cref="Project.WritesDocumentMarks"/>): the device that writes them keeps its own, and every other device takes
     /// the online copy's, unless the online copy has none and this device has some, as a copy a build before 0.4 sent
-    /// (it leaves them out), so they are never wiped by it.
+    /// (it leaves them out), so they are never wiped by it. So are the fields version 0.4 adds (<see cref="KeptAdditions"/>).
     /// </summary>
     /// <remarks>
     /// The originals' descriptions (version 0.3) are a union of both copies by fingerprint, else by id, so an original
@@ -97,7 +97,28 @@ public static class ProjectSync
         }
 
         bool ownMarks = (keepsPdf && kept.WritesDocumentMarks(device)) || (!HasPageMarks(online) && HasPageMarks(here));
-        return ownMarks ? kept with { DocumentMarks = here.DocumentMarks } : kept;
+        return KeptAdditions(ownMarks ? kept with { DocumentMarks = here.DocumentMarks } : kept, here);
+    }
+
+    /// <summary>
+    /// What version 0.4 adds within version 15 and a build before it drops on writing, kept from this device when the online
+    /// copy has none: the piece's place in its collection (<see cref="Project.PartOf"/>), and the scan server's page reports
+    /// (<see cref="ScanOrigin.Pages"/>) while the notes are the same import. A margin on a stroke goes with the file, as
+    /// every stroke does.
+    /// </summary>
+    private static Project KeptAdditions(Project kept, Project here)
+    {
+        if (kept.PartOf is null && here.PartOf is { } partOf)
+        {
+            kept = kept with { PartOf = partOf };
+        }
+
+        if (kept.Scan is { Pages.Count: 0 } scan && here.Scan is { Pages.Count: > 0 } mine && kept.Source.AsSpan().SequenceEqual(here.Source))
+        {
+            kept = kept with { Scan = scan with { Pages = mine.Pages } };
+        }
+
+        return kept;
     }
 
     private static bool HasPageMarks(Project project) => !project.DocumentMarks.IsEmpty || project.DocumentMarks.Unknown.Count > 0;

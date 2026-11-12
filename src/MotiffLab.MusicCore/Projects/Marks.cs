@@ -12,6 +12,13 @@ public enum InkColour
     Amber,
 }
 
+/// <summary>Which margin of its line a stroke begun outside the bars is in (version 0.4).</summary>
+public enum StrokeMargin
+{
+    Left,
+    Right,
+}
+
 /// <summary>What an ink stroke was made with.</summary>
 public enum InkTool
 {
@@ -49,9 +56,16 @@ public sealed record InkStroke(string Id, InkTool Tool, InkColour Colour, double
         ? Points
         : throw new ArgumentException("A stroke's points come three numbers at a time.", nameof(Points));
 
+    /// <summary>
+    /// For a stroke begun in a line's margin (version 0.4, within version 15), which margin: <see cref="U"/> then counts
+    /// from that edge of the line the bar is on. Null for a stroke in its bar, and for every stroke a build before 0.4
+    /// wrote, which the apps place by <see cref="U"/> below 0 or above 1 as before.
+    /// </summary>
+    public StrokeMargin? Margin { get; init; }
+
     public bool Equals(InkStroke? other) =>
         other is not null && Id == other.Id && Tool == other.Tool && Colour == other.Colour && Size == other.Size && Bar == other.Bar
-        && U == other.U && V == other.V && Pressure == other.Pressure && Points.SequenceEqual(other.Points);
+        && U == other.U && V == other.V && Pressure == other.Pressure && Points.SequenceEqual(other.Points) && Margin == other.Margin;
 
     public override int GetHashCode() => HashCode.Combine(Id, Bar, Points.Count);
 
@@ -63,7 +77,7 @@ public sealed record InkStroke(string Id, InkTool Tool, InkColour Colour, double
     public InkStroke Thinned()
     {
         IReadOnlyList<double> points = InkThinning.Thin(Points, Pressure);
-        return points.Count == Points.Count ? this : new InkStroke(Id, Tool, Colour, Size, Bar, U, V, points, Pressure);
+        return points.Count == Points.Count ? this : new InkStroke(Id, Tool, Colour, Size, Bar, U, V, points, Pressure) { Margin = Margin };
     }
 }
 

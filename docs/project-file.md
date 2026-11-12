@@ -18,6 +18,7 @@ Ticks are integers at 480 per quarter ([0002](decisions/0002-canonical-time.md))
   "documentPages": [0, 15360, 29760],  // only a piece with both notes and a PDF: where each page starts, in ticks (0023)
   "readFrom": { "project": "p_…", "pages": [0, 15360, 29760] },  // only notes read from a PDF piece into a project of their own, 2026-11-05 to 2026-11-07 (0023)
   "originals": [ … ],           // within version 15 (version 0.3): the descriptions of the piece's originals the piece's own data does not show
+  "partOf": { "original": "src_book", "pages": [6, 11] },   // within version 15 (version 0.4): only a piece made from a collection; or "ms": [from, to]
   "createdAt": "…", "lastOpened": "…",
   "metadata": { "title": "…", "composer": "…", "tags": ["…"], "playlists": ["…"] },   // within version 15: only what the player set in the library
   "motifs": [ … ],              // the working selection (version 1)
@@ -34,7 +35,7 @@ Ticks are integers at 480 per quarter ([0002](decisions/0002-canonical-time.md))
   "performances": [ … ],        // version 13
   "assembly": { … },            // version 15; absent while the piece has no assembly
   "settings": { … },            // version 12
-  "scan": { … },                // only a scanned piece (version 7); "from" and "at" within version 15 (version 0.3)
+  "scan": { … },                // only a scanned piece (version 7); "from" and "at" within version 15 (version 0.3); "pages" within 15 (version 0.4)
   "transcription": { … }        // only a transcribed piece (version 9; bars since 10; seams in 12; "from" and "at" within 15)
 }
 ```
@@ -66,6 +67,30 @@ The piece's own data shows most originals, so a file without `originals` (every 
 `scan`, `transcription` and each performance can say which original their notes were made from and when: `"from": "src_pdf"`, `"at": "…"`, both optional. A scan of the piece's own PDF says `src_pdf`; a recording version says its own id.
 
 In the sync (0026 S8) the descriptions are the player's data: a pull unites both copies by fingerprint, else by id, with no deletions (a different original with an id the other copy uses gets the next free one, `src_a_2`). The `held` marks are bookkeeping that only their own device writes: a pull takes this device's mark from its own copy and every other device's from the online copy. The iPad marks the PDF it keeps when it sends the copy online (`project.online`). An unknown `kind`, `kept` or `device` in a file of this version keeps the description whole as an unknown entity (S6). A piece that is only a PDF still stays on the device: its online copy would have neither notes nor a PDF, which version 0.2 reads as damaged.
+
+## Pieces of a collection, page reports and margins (version 0.4)
+
+Three additions of version 0.4 kept within version 15 as optional fields, like `originals` and `metadata` (v0.4 design, step Ф1; Andrei approved it on 2026-11-12): versions 0.2 and 0.3 open such a file, and when they write it again they drop the fields (unknown fields are dropped on writing), so they lose only the links and the details; version 16 waits until no 0.2 build syncs. Checked by building music-core at the tags `v0.2` and `v0.3` and reading `tests/MotiffLab.MusicCore.Tests/Golden/v15-photos-parts.motiff.json` (see the golden README).
+
+```jsonc
+"partOf": { "original": "src_book",          // the collection's original: an id in this piece's own `originals`
+            "pages": [6, 11] },              // the collection's pages the piece takes, from 1, both ends included
+"partOf": { "original": "src_concert",
+            "ms": [750000, 1180000] },       // or the stretch of the collection's recording, in milliseconds, from < to
+"scan": { "engine": "homr 0.7.0", "confirmedBars": [ … ],
+          "pages": [                          // what the scan server saw of each page it read (its X-Page-Report), in page order
+            { "page": 1, "rotation": 0, "sharpness": 1.12, "contrast": 118, "staves": 6, "noteheads": 214,
+              "barLines": 38, "spacePx": 15.5, "measures": 9 } ] },
+"check": [ { "bar": 16, "source": "Scan", "reason": "PageQuality", "resolved": false } ],
+"marks": { "ink": [ { "id": "m1", …, "u": -0.2, "v": 1.5, …, "pressure": 0.5, "margin": "left" | "right" } ] }
+```
+
+- **`partOf`**: where a piece made with «Пьесы в файле» is in its collection. Each piece is an ordinary project with its own notes and bytes; `partOf` is only the link, so an older build sees a whole piece. Exactly one of `pages` and `ms`; a `partOf` with neither (another kind of place, from a later build) reads as none. Written only when set.
+- **`scan.pages`**: the raw numbers of the scan server's report on each page (`PageReport`), never the music; a page's quality (good, weak, poor) is worked out from them on every read (`PageReport.Quality`), so the thresholds change without a migration. A field a report lacks reads as 0. Written only when there are reports.
+- **`PageQuality`**: a Check reason for each bar on a page the report calls poor (`CheckFlag.FromScan` with the reports). A build before 0.4 keeps such a flag whole as an unknown flag and writes it back (S6, "Unknown enum values"); `resolved` is the player's and goes with the file.
+- **`margin`** on a stroke (`marks.ink`, `documentMarks.ink`): which margin of its line a stroke begun outside the bars is in; `u` then counts from that edge of the line the bar is on. Without it, as in every file before 0.4, a stroke with `u` below 0 or above 1 is placed as "Marks" describes. An unknown value keeps the stroke whole as an unknown entity.
+
+In the sync these are data the player made or imported: a pull keeps this device's `partOf` when the online copy has none, and this device's `scan.pages` when the online copy has none and its notes are the same import (the same `source`), as with `originals`. A margin goes with its stroke and the whole file, as every stroke does.
 
 ## Title, composer, tags and playlists (`metadata`)
 
@@ -186,7 +211,8 @@ What the scan server, the transcription or a performance left for the player to 
   { "bar": 12, "source": "Scan" | "Transcription" | "Performance",
     "reason": "BarTooLong" | "BarTooShort" | "StavesDiffer" | "OutOfPianoRange" | "GraceNotes"   // scan
             | "PartSeam" | "TempoUncertain" | "DenseCluster" | "HandsGuessed"                     // transcription
-            | "RecordingOctave" | "RecordingBarLength",                                           // a performance (version 13)
+            | "RecordingOctave" | "RecordingBarLength"                                            // a performance (version 13)
+            | "PageQuality",                                                                        // scan: a bar on a poor page (version 0.4, within 15)
     "resolved": false }
 ]
 ```
