@@ -25,8 +25,20 @@ public enum ChordType
     Add9,
 }
 
+/// <summary>How the Reference groups its chords (version 0.5): the triads, the sevenths, and the sixths with the added ninth.</summary>
+public enum ChordFamily
+{
+    Triad,
+    Seventh,
+    SixthOrNinth,
+}
+
 /// <summary>A chord the Reference offers: its id ("minor7"), the symbol after the root ("m7") and its name in words.</summary>
-public sealed record ChordTypeChoice(ChordType Type, string Id, string Suffix, string Name);
+public sealed record ChordTypeChoice(ChordType Type, string Id, string Suffix, string Name)
+{
+    /// <summary>The group it is offered in.</summary>
+    public ChordFamily Family => ChordReference.FamilyOf(Type);
+}
 
 /// <summary>A chord in one position on the keyboard: root position or an inversion, struck at once or broken.</summary>
 /// <param name="Inversion">0 for root position, 1 to 3 for the first to the third inversion.</param>
@@ -127,7 +139,7 @@ public static class ChordReference
         int bass = KeyReference.Around(root.PitchClass);
         int[] rootPosition = [.. tones.Select(tone => bass + tone.Semitones)];
         // An added ninth is no bass of its own: the inversions turn the triad under it, and it stays on top.
-        int turning = type == ChordType.Add9 ? 3 : tones.Length;
+        int turning = Turning(type);
         int[][] voicings = [.. Enumerable.Range(0, turning).Select(inversion => Voicing(rootPosition, turning, inversion))];
         int low = voicings.Min(voicing => voicing.Min());
         int high = voicings.Max(voicing => voicing.Max());
@@ -140,6 +152,25 @@ public static class ChordReference
             [.. notes.Select(note => note.Name(naming))],
             [.. voicings.Select((voicing, inversion) => Position(type, inversion, voicing, (low, high), rootPosition, notes, naming, words))]);
     }
+
+    /// <summary>
+    /// A position of the chord in close position from around middle C, as its card shows it: each pitch from the bass up with
+    /// the tone it is, spelled. <paramref name="inversion"/> 0 is root position; an added ninth turns only the triad under it.
+    /// </summary>
+    internal static IReadOnlyList<WrittenTone> Close(SpelledName root, ChordType type, int inversion)
+    {
+        (int Steps, int Semitones)[] tones = Tones(type);
+        IReadOnlyList<SpelledName> notes = Spell(root, type);
+        int bass = KeyReference.Around(root.PitchClass);
+        int[] rootPosition = [.. tones.Select(tone => bass + tone.Semitones)];
+        int turning = Turning(type);
+        ArgumentOutOfRangeException.ThrowIfNegative(inversion);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(inversion, turning);
+        return [.. Voicing(rootPosition, turning, inversion).Select(pitch => new WrittenTone(pitch, notes[Array.FindIndex(rootPosition, tone => (((pitch - tone) % 12) + 12) % 12 == 0)]))];
+    }
+
+    /// <summary>How many positions the chord has: one for each tone, but an added ninth is no bass of its own.</summary>
+    public static int Turning(ChordType type) => type == ChordType.Add9 ? 3 : Tones(type).Length;
 
     /// <summary>The tones of an inversion from the bass up: those below the new bass an octave higher, an added ninth above them all.</summary>
     private static int[] Voicing(int[] rootPosition, int turning, int inversion)
@@ -177,6 +208,10 @@ public static class ChordReference
         ReferenceSound arpeggio = block with { Id = $"arpeggio.{inversion}", Together = false, Step = ArpeggioStep, Ringing = true };
         return new ChordPosition(inversion, Title(type, inversion, words), Figure(type, inversion), names, block, arpeggio);
     }
+
+    /// <summary>The group a chord is offered in: the four triads and the two suspended chords, the five sevenths, the rest.</summary>
+    public static ChordFamily FamilyOf(ChordType type) =>
+        type <= ChordType.Sus4 ? ChordFamily.Triad : IsSeventh(type) ? ChordFamily.Seventh : ChordFamily.SixthOrNinth;
 
     private static bool IsTriad(ChordType type) => type is ChordType.Major or ChordType.Minor or ChordType.Diminished or ChordType.Augmented;
 
