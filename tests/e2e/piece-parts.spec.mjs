@@ -1,6 +1,6 @@
-// Pieces in a file, an experiment (Settings · Experimental, off by default; v0.4, ideas bank «Несколько произведений
-// внутри одного файла или записи»): a file holding two pieces, its boundaries confirmed as Structure bookmarks, is split
-// into two pieces of the library in one playlist. Nothing is cut: the collection stays and says what was made from it,
+// Pieces in a file, part of the experiment Several pieces in a score or recording (Settings · Experimental, off by default;
+// v0.4, made from the pieces layer in 0.5; ideas bank «Несколько произведений внутри одного файла или записи»): a file
+// holding two pieces, its pieces confirmed in the Contents, is split into two pieces of the library in one playlist. Nothing is cut: the collection stays and says what was made from it,
 // and each piece opens on its own bars and says where it came from.
 import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
@@ -35,16 +35,15 @@ test("the confirmed boundaries of a file with two pieces split it into two piece
     await experiments(page, ["Several pieces in a score or recording"]);
     const drawer = await addTwoPieces(page);
 
-    // Nothing marks a piece yet; confirming what was found automatically gives two Structure bookmarks.
+    // No piece is kept yet; confirming the two pieces found keeps them as the pieces layer.
     const parts = drawer.locator("#contents-parts");
-    await expect(parts).toContainText("Mark each piece from its start to its end");
-    const found = drawer.locator("#contents-found");
-    await expect(found.locator(".found-entry")).toHaveCount(2);
-    await found.locator(".found-entry").first().getByRole("button", { name: "Confirm" }).click();
-    await found.locator(".found-entry").first().getByRole("button", { name: "Confirm" }).click();
-    await expect(drawer.locator("button.cat")).toHaveText("Structure · 2");
+    await expect(parts).toContainText("Confirm the pieces above to make each one a piece of its own.");
+    const review = drawer.locator("#contents-pieces");
+    await expect(review.locator(".found-entry")).toHaveCount(2);
+    await review.getByRole("button", { name: "Confirm" }).click();
+    await expect(drawer.locator("button.cat")).toHaveText("Pieces · 2");
 
-    await expect(parts).toContainText("Structure bookmarks: 2.");
+    await expect(parts).toContainText("2 pieces. Each can become a piece of its own in the library.");
     await parts.getByRole("button", { name: "Split into pieces" }).click();
     const form = parts.getByRole("group", { name: "Split into pieces" });
     await expect(form.getByLabel("Playlist")).toHaveValue("Two pieces: Für Elise and Ode to Joy");
@@ -69,8 +68,8 @@ test("the confirmed boundaries of a file with two pieces split it into two piece
     await form.getByRole("button", { name: "Split", exact: true }).click();
     await expect(parts.locator(".parts-done")).toHaveText("Split into 2 pieces · playlist “Two pieces”");
     await expect(parts.locator(".entry .t")).toHaveText(["Für Elise", "Ode to Joy"]);
-    // The collection is not cut: its bookmarks and bars are as they were.
-    await expect(drawer.locator("button.cat")).toHaveText("Structure · 2");
+    // The collection is not cut: its pieces and bars are as they were.
+    await expect(drawer.locator("button.cat")).toHaveText("Pieces · 2");
 
     // The library has three pieces, two of them in the playlist; each piece's card says where it came from.
     await page.goto("/");

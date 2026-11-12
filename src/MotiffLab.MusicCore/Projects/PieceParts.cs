@@ -404,7 +404,7 @@ public static class PieceParts
     }
 
     /// <summary>Where the collection's pages start in its notes: the PDF's page map, else a scan's <c>new-page</c> marks; null without pages.</summary>
-    internal static PageMap? PagesOf(Project collection, ImportedPiece piece)
+    public static PageMap? PagesOf(Project collection, ImportedPiece piece)
     {
         if (collection.DocumentPages is { } map)
         {

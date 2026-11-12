@@ -9432,3 +9432,60 @@ body:has(> #app > .library) {
     padding: 0 var(--s-2);
     font: var(--t-label);
 }
+
+/* Several pieces in a score or recording (an experiment, version 0.5): the review of where the pieces begin. A boundary
+   music-core found stays dashed like any inference; the player's own (added, or confirmed before) is drawn solid. */
+.workspace .contents .pieces-review .found-entry.mine {
+    border-style: solid;
+}
+
+.workspace .contents .pieces-review .piece-title {
+    width: 100%;
+    min-width: 0;
+    height: var(--h-touch);
+    padding: 0 var(--s-2);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-xs);
+    background: var(--surface-2);
+    color: var(--ink);
+    font: var(--t-body);
+}
+
+.workspace .contents .pieces-review > .caption {
+    margin: 0 0 var(--s-2);
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.workspace .contents .pieces-review .found-move {
+    margin-top: var(--s-2);
+}
+
+.workspace .contents .pieces-review .parts-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--s-2);
+    margin-top: var(--s-2);
+}
+
+/* «В записи несколько пьес» under the report of a recording heard, with how many. */
+.import .several-pieces {
+    display: grid;
+    gap: var(--s-2);
+}
+
+.import .several-pieces .field {
+    display: grid;
+    gap: var(--s-1);
+}
+
+.import .several-pieces input[type=number] {
+    width: calc(var(--s-12) + var(--s-4));
+    height: var(--h-touch);
+    padding: 0 var(--s-2);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-xs);
+    background: var(--surface-2);
+    color: var(--ink);
+    font: var(--t-body);
+}

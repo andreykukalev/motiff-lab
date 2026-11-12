@@ -100,4 +100,23 @@ public class PieceLayerTests
         Assert.Equal(PieceLayer.Read(project, MeterMap.Default), PieceLayer.Read(read, MeterMap.Default));
         Assert.Equal("Пьесы", read.FindCategory(BookmarkCategory.PiecesId)!.Name);
     }
+
+    [Fact]
+    public void The_kept_pieces_come_back_to_review_as_the_players_own_and_an_empty_layer_as_one_piece()
+    {
+        Project project = Saved(new PieceStart("Prelude", 3), new PieceStart("Fugue", 31));
+
+        MotiffLab.MusicCore.Analysis.FoundSections review = PieceLayer.Review(project, MeterMap.Default, s_end);
+
+        Assert.True(review.IsPieces);
+        Assert.Equal([(1, 30), (31, 60)], review.Items.Select(piece => (piece.FirstBar, piece.LastBar)));
+        Assert.Equal(["Prelude", "Fugue"], review.Items.Select(piece => piece.PieceTitleIn(Words.English)));
+        Assert.All(review.Items, piece => Assert.True(piece.IsKept));
+        Assert.Equal(MotiffLab.MusicCore.Events.Provenance.UserConfirmed, review.Items[1].Attribution.Provenance);
+        Assert.Equal("подтверждено вами", review.Items[1].ReasonIn(Words.Russian));
+        Assert.Equal([1, 31, 41], review.Add(41).Items.Select(piece => piece.FirstBar));
+
+        MotiffLab.MusicCore.Analysis.FoundSections none = PieceLayer.Review(Fresh(), MeterMap.Default, s_end);
+        Assert.Equal((1, 60), (Assert.Single(none.Items).FirstBar, none.Items[0].LastBar));
+    }
 }
