@@ -28,7 +28,7 @@ namespace MotiffLab.MusicCore.Import.Transcription;
 /// give the same grid.
 /// </para>
 /// </remarks>
-public sealed record BarGrid
+public sealed partial record BarGrid
 {
     /// <summary>One grid step in canonical ticks: a 16th note.</summary>
     public const long StepTicks = CanonicalTime.TicksPerQuarter / 4;
@@ -212,19 +212,16 @@ public sealed record BarGrid
     /// </summary>
     /// <param name="signature">The bars to lay out; null picks the one the bass supports best.</param>
     /// <param name="stepsPerBeat">How many 16ths a beat is written as, for example twice or half as many as were found; null takes the ones found.</param>
-    public static BarGrid? Find(MidiImport import, TimeSignature? signature = null, int? stepsPerBeat = null)
+    /// <param name="search">How to follow a live performance (<see cref="FindLive"/>); null finds the beat once, over the whole recording.</param>
+    public static BarGrid? Find(MidiImport import, TimeSignature? signature = null, int? stepsPerBeat = null, GridSearch? search = null)
     {
         ArgumentNullException.ThrowIfNull(import);
-        if (signature is { } chosen && !Signatures.Contains(chosen))
+        if (search is not null)
         {
-            throw new ArgumentException($"Bars of {chosen} are not offered.", nameof(signature));
+            return FindLive(import, search, signature, stepsPerBeat).Grid;
         }
 
-        if (stepsPerBeat is < FewestStepsPerBeat or > MostStepsPerBeat)
-        {
-            throw new ArgumentOutOfRangeException(nameof(stepsPerBeat), stepsPerBeat, "A beat is written as 1 to 16 16ths.");
-        }
-
+        Validate(signature, stepsPerBeat);
         var clock = new Clock(import.Tempos);
         Onset[] onsets = Cluster(import.Notes, clock);
         if (onsets.Length < MinOnsets)
@@ -343,7 +340,10 @@ public sealed record BarGrid
     /// any onset close to it, with the expected length following the last few beats. The beats before
     /// the first bass note count back from it, so that the first beat is at the first onset.
     /// </summary>
-    private static long[] TrackBass(long[] times, long[] lows, long period)
+    private static long[] TrackBass(long[] times, long[] lows, long period) => TrackBass(times, lows, period, null, out _);
+
+    /// <param name="jump">With a run length, tracking stops where that many beats in a row wanted to be longer or shorter than the clamp lets them: the time of the next onset, else null.</param>
+    private static long[] TrackBass(long[] times, long[] lows, long period, int? jump, out long? jumped)
     {
         var beats = new List<long> { 0 };
         long first = lows[0];
@@ -360,17 +360,23 @@ public sealed record BarGrid
             beats.Add(first);
         }
 
+        var clamp = new ClampWatch(period, jump);
         long beat = period, at = beats[^1], last = times[^1];
-        long shortest = period * 3 / 5, longest = period * 8 / 5;
+        jumped = null;
         while (at < last)
         {
             long expected = at + beat;
-            long next = Nearest(lows, expected, beat / 4, at + (beat * 3 / 10))
-                ?? Nearest(times, expected, beat / 8, at)
-                ?? expected;
-            beat = Math.Clamp(((3 * beat) + (next - at)) / 4, shortest, longest);
+            long? heard = Nearest(lows, expected, beat / 4, at + (beat * 3 / 10))
+                ?? Nearest(times, expected, beat / 8, at);
+            long next = heard ?? expected;
+            beat = clamp.Next(beat, next - at, heard is not null);
             beats.Add(next);
             at = next;
+            if (clamp.Jumped && NextAfter(times, at) is { } onset)
+            {
+                jumped = onset;
+                break;
+            }
         }
 
         return [.. beats];
@@ -423,21 +429,64 @@ public sealed record BarGrid
     /// quarter of a beat, with the expected length following the last few beats: a tempo that bends
     /// with the playing. Where nothing is played, the beat goes on at the tempo it had.
     /// </summary>
-    private static long[] Track(long[] times, long period)
+    private static long[] Track(long[] times, long period) => Track(times, period, null, out _);
+
+    /// <param name="jump">With a run length, tracking stops where that many beats in a row wanted to be longer or shorter than the clamp lets them: the time of the next onset, else null.</param>
+    private static long[] Track(long[] times, long period, int? jump, out long? jumped)
     {
         var beats = new List<long> { 0 };
+        var clamp = new ClampWatch(period, jump);
         long beat = period, at = 0, last = times[^1];
-        long shortest = period * 3 / 5, longest = period * 8 / 5;
+        jumped = null;
         while (at < last)
         {
             long expected = at + beat;
-            long next = Nearest(times, expected, beat / 4, at) ?? expected;
-            beat = Math.Clamp(((3 * beat) + (next - at)) / 4, shortest, longest);
+            long? heard = Nearest(times, expected, beat / 4, at);
+            long next = heard ?? expected;
+            beat = clamp.Next(beat, next - at, heard is not null);
             beats.Add(next);
             at = next;
+            if (clamp.Jumped && NextAfter(times, at) is { } onset)
+            {
+                jumped = onset;
+                break;
+            }
         }
 
         return [.. beats];
+    }
+
+    /// <summary>The first time later than <paramref name="after"/>, or null.</summary>
+    private static long? NextAfter(long[] times, long after)
+    {
+        int index = Array.BinarySearch(times, after + 1);
+        index = index >= 0 ? index : ~index;
+        return index < times.Length ? times[index] : null;
+    }
+
+    /// <summary>
+    /// The beat's length following the last few beats, held within 3/5 and 8/5 of where it started; with a run length,
+    /// whether that many beats in a row wanted to go past the clamp, as when the tempo jumps without a pause (version 0.5).
+    /// </summary>
+    private sealed class ClampWatch(long period, int? run)
+    {
+        private readonly long _shortest = period * 3 / 5;
+        private readonly long _longest = period * 8 / 5;
+        private int _held;
+
+        public bool Jumped => run is { } length && _held >= length;
+
+        /// <param name="heard">Whether an onset marked the beat; a beat where nothing is played neither adds to the run nor ends it.</param>
+        public long Next(long beat, long played, bool heard)
+        {
+            long wanted = ((3 * beat) + played) / 4;
+            if (heard)
+            {
+                _held = wanted < _shortest || wanted > _longest ? _held + 1 : 0;
+            }
+
+            return Math.Clamp(wanted, _shortest, _longest);
+        }
     }
 
     /// <summary>Where a time falls on the grid, in thousandths of a 16th, rounded down.</summary>
@@ -604,14 +653,18 @@ public sealed record BarGrid
     }
 
     /// <summary>The 16th and phase in microseconds that leave the onsets closest to the grid, relative to its step.</summary>
-    private static (long Step, long Phase) Search(long[] times)
+    private static (long Step, long Phase) Search(long[] times) => Search(times, ShortestSearched, LongestSearched);
+
+    /// <param name="shortest">The shortest 16th tried, from <see cref="ShortestSearched"/>.</param>
+    /// <param name="longest">The longest 16th tried, up to <see cref="LongestSearched"/>.</param>
+    private static (long Step, long Phase) Search(long[] times, long shortest, long longest)
     {
         // A step that is slightly off drifts a whole step away within a minute or two, so the search
         // looks at the start of the piece: a coarse pass over the first 16 seconds, a fine pass over
         // the first 32, then a straight-line fit over ever longer stretches up to the whole piece.
         (long step, long phase, long cost) best = (0, 0, 0);
         long[] start = Opening(times, 16_000_000);
-        for (long step = ShortestSearched; step <= LongestSearched; step += 500)
+        for (long step = shortest; step <= longest; step += 500)
         {
             Consider(start, step, 16, ref best);
         }
@@ -619,7 +672,7 @@ public sealed record BarGrid
         long coarse = best.step;
         best = (0, 0, 0);
         start = Opening(times, 32_000_000);
-        for (long step = Math.Max(ShortestSearched, coarse - 1_000); step <= Math.Min(LongestSearched, coarse + 1_000); step += 50)
+        for (long step = Math.Max(shortest, coarse - 1_000); step <= Math.Min(longest, coarse + 1_000); step += 50)
         {
             Consider(start, step, 32, ref best);
         }

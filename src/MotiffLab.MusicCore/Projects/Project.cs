@@ -691,7 +691,8 @@ public sealed record Project(
     /// as many 16ths as asked when given; null when the notes follow no beat.
     /// </summary>
     /// <exception cref="InvalidOperationException">The project is not a transcription.</exception>
-    public BarGrid? FindBars(TimeSignature? signature = null, int? stepsPerBeat = null)
+    /// <param name="search">How to follow a live performance (version 0.5, <see cref="BarGrid.FindLive"/>); null finds the beat once.</param>
+    public BarGrid? FindBars(TimeSignature? signature = null, int? stepsPerBeat = null, GridSearch? search = null)
     {
         if (Transcription is null)
         {
@@ -700,7 +701,7 @@ public sealed record Project(
 
         MidiImport heard = PieceImporter.Import(FileName, Source).Piece?.Midi
             ?? throw new ProjectFileException("This project says it was transcribed from a recording, but its piece is not MIDI.");
-        return BarGrid.Find(heard, signature, stepsPerBeat);
+        return BarGrid.Find(heard, signature, stepsPerBeat, search);
     }
 
     /// <summary>

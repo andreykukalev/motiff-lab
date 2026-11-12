@@ -96,7 +96,8 @@ internal sealed partial class OpenPiece
     /// <summary>
     /// A new project from a recording heard in parts (0014, 0016), as the web app makes one: the parts' notes joined
     /// ("milliseconds", "parts" and "levels" as for performance.add), marked detected, written in the bars worked out from them when
-    /// some fit, with the transcription's engine ("engine"), its seams and the Check flags it raises.
+    /// some fit ("tempo": "live" finds the beat afresh in each section, <see cref="LiveTempoRequest"/>), with the transcription's
+    /// engine ("engine"), its seams and the Check flags it raises.
     /// </summary>
     public static OpenPiece Transcribe(string id, string fileName, Request heard, Words words, DateTimeOffset now)
     {
@@ -111,7 +112,7 @@ internal sealed partial class OpenPiece
 
         long milliseconds = heard.Long("milliseconds")!.Value;
         IReadOnlyList<RecordingPart> plan = PlanOf(heard, milliseconds);
-        BarGrid? bars = BarGrid.Find(imported.Midi);
+        BarGrid? bars = BarGrid.Find(imported.Midi, search: LiveTempoRequest.Of(heard));
         var origin = new TranscriptionOrigin(heard.Text("engine") ?? "unknown engine", bars)
         {
             Seams = plan.Count > 1 ? RecordingParts.Seams(plan) : [],
