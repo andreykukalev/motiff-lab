@@ -1,9 +1,7 @@
 @using MotiffLab.MusicCore
 @using MotiffLab.MusicCore.Analysis
 @using MotiffLab.MusicCore.Notation
-@using MotiffLab.Web.Localization
-@implements IDisposable
-@inject UiText Text
+@inherits ListeningTab
 
 @* «Аккорды и гаммы» (version 0.5, Andrei approved the mockup 2026-11-12): what sounds on the left, a chord or a scale from
    a root, in groups; the result on the right, its name, degrees over notes, notation and keyboard; how it sounds under
@@ -84,8 +82,6 @@
 </div>
 
 @code {
-    private const string Name = "chords";
-
     private static readonly IReadOnlyList<(string, string)> s_octaves = [("1", "1"), ("2", "2")];
 
     private ChordSounding _chord = null!;
@@ -95,19 +91,18 @@
     [Parameter, EditorRequired]
     public ChordsScalesChoice Choice { get; set; } = null!;
 
-    [Parameter, EditorRequired]
-    public ReferenceListening Listening { get; set; } = null!;
-
     [Parameter]
     public NoteNaming Naming { get; set; }
 
-    private Words Words => Words.For(Text.Language);
+    protected override string Name => "chords";
 
-    private bool Playing => Listening.Playing == Name;
+    protected override ReferenceMusic Music => Choice.Scale ? _scale.Music : _chord.Music;
 
-    private ReferencePlacement? Placement => Playing ? Listening.Placement : null;
-
-    private ReferenceMusic Music => Choice.Scale ? _scale.Music : _chord.Music;
+    protected override bool Loop
+    {
+        get => Choice.Loop;
+        set => Choice.Loop = value;
+    }
 
     private IReadOnlyList<(string, string)> Spacings =>
         [(nameof(ChordSpacing.Close), Text["reference.spacing.close"]), (nameof(ChordSpacing.Open), Text["reference.spacing.open"])];
@@ -118,26 +113,14 @@
     private IReadOnlyList<(string, string)> ScalePatterns =>
         [.. Enum.GetValues<ScalePattern>().Select(pattern => (pattern.ToString(), Text[$"reference.pattern.{pattern}"]))];
 
-    /// <summary>Root position by its name, each inversion by its figures, or by its number where it has none.</summary>
     private IReadOnlyList<(string, string)> Inversions =>
-        [.. _chord.Card.Positions.Select(position => (
-            Number(position.Inversion),
-            position.Inversion == 0 ? Words.Capitalize(position.Title) : position.Figure ?? Text.Format("reference.inversionNumber", position.Inversion)))];
+        [.. _chord.Card.Positions.Select(position => (Number(position.Inversion), PositionName(position)))];
 
     private static string Number(int value) => value.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     private static int Parse(string id) => int.Parse(id, System.Globalization.CultureInfo.InvariantCulture);
 
-    protected override void OnInitialized()
-    {
-        Listening.Changed += OnListening;
-        Text.Changed += OnListening;
-    }
-
-    protected override void OnParametersSet() => Sound();
-
-    /// <summary>Asks music-core for what the choices give.</summary>
-    private void Sound()
+    protected override void Sound()
     {
         ChordCard card = ChordReference.For(Choice.Root, Choice.Type, Naming, Words);
         Choice.Inversion = Math.Min(Choice.Inversion, card.Positions.Count - 1);
@@ -165,40 +148,4 @@
     private void PickType(ChordType type) => Choice.Type = type;
 
     private void PickForm(ScaleForm form) => Choice.Form = form;
-
-    /// <summary>A new choice sounds at once when the music was playing, else it waits for Play.</summary>
-    private async Task SetAsync(Action change)
-    {
-        change();
-        Sound();
-        if (Playing)
-        {
-            await Listening.PlayAsync(Name, Music, Choice.Loop);
-        }
-
-        StateHasChanged();
-    }
-
-    private Task PlayAsync() => Playing ? Listening.StopAsync() : Listening.PlayAsync(Name, Music, Choice.Loop);
-
-    private async Task LoopAsync()
-    {
-        Choice.Loop = !Choice.Loop;
-        if (Playing)
-        {
-            await Listening.PlayAsync(Name, Music, Choice.Loop);
-        }
-    }
-
-    private void OnListening()
-    {
-        Sound();
-        InvokeAsync(StateHasChanged);
-    }
-
-    public void Dispose()
-    {
-        Listening.Changed -= OnListening;
-        Text.Changed -= OnListening;
-    }
 }

@@ -1,0 +1,139 @@
+@using MotiffLab.MusicCore
+@using MotiffLab.MusicCore.Analysis
+@using MotiffLab.MusicCore.Notation
+@inherits ListeningTab
+
+@* «Исследователь» (version 0.5, Andrei approved the mockup 2026-11-12): a try-out inside the Reference. A key, its chords
+   to tap into a progression of up to eight bars, each bar's position or its removal a tap on the bar; the progression in
+   notes, in a texture over the bass and close or open, played once or round at a tempo. Everything is music-core's
+   (HarmonyExplorer); nothing is written into the piece. *@
+<div class="ref-explorer">
+    <div class="ref-row">
+        <label class="ref-row-label" for="ref-explorer-key">@Text["reference.key"]</label>
+        <span class="ref-select">
+            <select id="ref-explorer-key" @onchange="PickKeyAsync">
+                @for (int i = 0; i < HarmonyExplorer.Keys.Count; i++)
+                {
+                    MusicalKey key = HarmonyExplorer.Keys[i];
+                    <option value="@i" selected="@(key == Choice.Key)">@key.NameIn(Words)</option>
+                }
+            </select>
+            <Icon Name="chevd" />
+        </span>
+    </div>
+
+    <div class="ref-row ref-explorer-chords">
+        <span class="ref-row-label" id="ref-explorer-chords">@Text["reference.chordsOfKey"]</span>
+        <div class="ref-tiles" role="group" aria-labelledby="ref-explorer-chords">
+            @foreach (ExplorerChord chord in HarmonyExplorer.Chords(Choice.Key))
+            {
+                <button type="button" class="ref-tile" disabled="@Full" aria-label="@Text.Format("reference.addChord", chord.Numeral, chord.Symbol)"
+                        @onclick="() => SetAsync(() => Choice.Add(chord.Id))">
+                    <span class="ref-numeral">@chord.Numeral</span>
+                    <span class="ref-symbol">@chord.Symbol</span>
+                </button>
+            }
+        </div>
+    </div>
+
+    <ol class="ref-bars" aria-label="@Text["reference.progression"]">
+        @for (int i = 0; i < _progression.Bars.Count; i++)
+        {
+            int bar = i;
+            ExplorerBar shown = _progression.Bars[bar];
+            bool selected = Choice.Selected == bar;
+            <li class="ref-bar-item @(bar == 0 ? "first" : bar == _progression.Bars.Count - 1 ? "last" : null)">
+                @if (selected)
+                {
+                    @Turns(bar, shown)
+                }
+                <button type="button" class="ref-bar @(selected ? "on" : null)" aria-expanded="@(selected ? "true" : "false")"
+                        aria-label="@Text.Format("reference.barAria", bar + 1, $"{shown.Chord.Numeral}{(shown.Figure is null ? "" : " " + shown.Figure)}", shown.Symbol)"
+                        @onclick="() => Choice.Selected = selected ? null : bar">
+                    <span class="ref-numeral">@shown.Chord.Numeral<sup>@shown.Figure</sup></span>
+                    <span class="ref-symbol">@shown.Symbol</span>
+                </button>
+            </li>
+        }
+    </ol>
+
+    @if (_progression.Bars.Count == 0)
+    {
+        <p class="caption ref-empty">@Text["reference.progressionEmpty"]</p>
+    }
+    else
+    {
+        <ReferenceNotation Mei="@_progression.Music.Mei" Stretch="true" Placement="Placement"
+                           Label="@Text.Format("reference.notationAria", string.Join(", ", _progression.Bars.Select(bar => bar.Symbol)))" />
+    }
+
+    <div class="ref-explorer-sound">
+        <SegChoice Label="@Text["reference.texture"]" Options="Textures" Value="@Choice.Texture.ToString()" Pick="id => SetAsync(() => Choice.Texture = Enum.Parse<ExplorerTexture>(id))" />
+        <SegChoice Label="@Text["reference.spacing"]" Options="Spacings" Value="@Choice.Spacing.ToString()" Pick="id => SetAsync(() => Choice.Spacing = Enum.Parse<ChordSpacing>(id))" />
+    </div>
+    <div class="ref-row ref-actions">
+        <span class="ref-row-label"></span>
+        <button type="button" class="btn primary round" disabled="@(_progression.Bars.Count == 0)" aria-label="@Text[Playing ? "reference.pause" : "reference.playIt"]"
+                title="@Text[Playing ? "reference.pause" : "reference.playIt"]" @onclick="PlayAsync">
+            <Icon Name="@(Playing ? "pause" : "playf")" />
+        </button>
+        <button type="button" class="btn secondary @(Choice.Loop ? "on" : null)" aria-pressed="@(Choice.Loop ? "true" : "false")" @onclick="LoopAsync">
+            <Icon Name="loop" />@Text["reference.loop"]
+        </button>
+        <button type="button" class="btn secondary" aria-label="@Text.Format("reference.tempoAria", Choice.Tempo)" @onclick="() => SetAsync(Choice.NextTempo)">
+            <Icon Name="tempo" />@Text.Format("reference.tempo", Choice.Tempo)
+        </button>
+    </div>
+</div>
+
+@code {
+    private ExplorerProgression _progression = null!;
+
+    /// <summary>What the tab holds, kept by the sheet.</summary>
+    [Parameter, EditorRequired]
+    public ExplorerChoice Choice { get; set; } = null!;
+
+    [Parameter]
+    public NoteNaming Naming { get; set; }
+
+    protected override string Name => "explorer";
+
+    protected override ReferenceMusic Music => _progression.Music;
+
+    protected override bool Loop
+    {
+        get => Choice.Loop;
+        set => Choice.Loop = value;
+    }
+
+    private bool Full => Choice.Steps.Count >= HarmonyExplorer.MaxBars;
+
+    private IReadOnlyList<(string, string)> Textures =>
+        [.. Enum.GetValues<ExplorerTexture>().Select(texture => (texture.ToString(), Text[$"reference.texture.{texture}"]))];
+
+    private IReadOnlyList<(string, string)> Spacings =>
+        [(nameof(ChordSpacing.Close), Text["reference.spacing.close"]), (nameof(ChordSpacing.Open), Text["reference.spacing.open"])];
+
+    protected override void Sound() =>
+        _progression = HarmonyExplorer.Play(Choice.Key, Choice.Steps, Choice.Texture, Choice.Spacing, Choice.MicrosecondsPerQuarter);
+
+    private Task PickKeyAsync(ChangeEventArgs args) =>
+        int.TryParse(args.Value?.ToString(), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int index)
+            ? SetAsync(() => Choice.Start(HarmonyExplorer.Keys[index]))
+            : Task.CompletedTask;
+
+    /// <summary>Above the bar chosen: each position of its chord, by its name or figures, and Remove.</summary>
+    private RenderFragment Turns(int bar, ExplorerBar shown) =>
+        @<div class="ref-turns" role="group" aria-label="@Text.Format("reference.barTurns", bar + 1)">
+            <div class="seg" role="radiogroup" aria-label="@Text["reference.inversion"]">
+                @foreach (ChordPosition position in ChordReference.For(shown.Chord.Root, shown.Chord.Type, Naming, Words).Positions)
+                {
+                    int inversion = position.Inversion;
+                    bool on = inversion == shown.Inversion;
+                    <button type="button" role="radio" class="@(on ? "on" : null)" aria-checked="@(on ? "true" : "false")"
+                            @onclick="() => SetAsync(() => Choice.Turn(bar, inversion))">@PositionName(position)</button>
+                }
+            </div>
+            <button type="button" class="btn quiet" @onclick="() => SetAsync(() => Choice.Remove(bar))"><Icon Name="trash" />@Text["reference.removeBar"]</button>
+        </div>;
+}

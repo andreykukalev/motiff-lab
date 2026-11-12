@@ -2103,5 +2103,20 @@
   "reference.octaves": "Октавы",
   "reference.playIt": "Сыграть",
   "reference.pause": "Пауза",
-  "reference.loop": "Цикл"
+  "reference.loop": "Цикл",
+  "reference.key": "Тональность",
+  "reference.chordsOfKey": "Аккорды",
+  "reference.addChord": "Добавить {0}, {1}",
+  "reference.progression": "Последовательность",
+  "reference.progressionEmpty": "Нажмите аккорд выше, чтобы начать последовательность.",
+  "reference.barAria": "Такт {0}: {1}, {2}",
+  "reference.barTurns": "Такт {0}: обращение",
+  "reference.removeBar": "Убрать",
+  "reference.texture": "Фактура",
+  "reference.texture.Together": "Вместе",
+  "reference.texture.Arpeggio": "Арпеджио",
+  "reference.texture.Broken": "Ломаное",
+  "reference.texture.Alberti": "Альберти",
+  "reference.tempo": "Темп {0}",
+  "reference.tempoAria": "Темп {0} в минуту: нажмите для следующего"
 }

@@ -36,6 +36,10 @@
         {
             <ChordsScalesTab Choice="_chords" Listening="_listening" Naming="Naming" />
         }
+        else if (_explorer is not null)
+        {
+            <ExplorerTab Choice="_explorer" Listening="_listening" Naming="Naming" />
+        }
     </div>
 </section>
 
@@ -45,6 +49,7 @@
     private MusicalKey? _key;
     private KeyCard? _card;
     private readonly ChordsScalesChoice _chords = new();
+    private ExplorerChoice? _explorer;
     private ReferenceListening _listening = null!;
 
     [Parameter]
@@ -66,7 +71,7 @@
     [Parameter]
     public DnaKey? PieceKey { get; set; }
 
-    private static IReadOnlyList<string> Tabs => ["keys", "chords"];
+    private static IReadOnlyList<string> Tabs => ["keys", "chords", "explorer"];
 
     private Words Words => Words.For(Text.Language);
 
@@ -78,6 +83,8 @@
         Text.Changed += OnLanguage;
         await Store.LoadAsync();
         Pick(PieceKey?.Key ?? new MusicalKey(0, KeyMode.Major));
+        // The explorer starts in the piece's key where it offers that key, else in C major.
+        _explorer = new ExplorerChoice(PieceKey is { } piece && HarmonyExplorer.Keys.Contains(piece.Key) ? piece.Key : new MusicalKey(0, KeyMode.Major));
     }
 
     /// <summary>The dialog takes the focus as it opens, so Escape closes it and Tab starts inside it.</summary>

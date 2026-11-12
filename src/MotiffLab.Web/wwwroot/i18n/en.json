@@ -2050,5 +2050,20 @@
   "reference.octaves": "Octaves",
   "reference.playIt": "Play",
   "reference.pause": "Pause",
-  "reference.loop": "Loop"
+  "reference.loop": "Loop",
+  "reference.key": "Key",
+  "reference.chordsOfKey": "Chords",
+  "reference.addChord": "Add {0}, {1}",
+  "reference.progression": "The progression",
+  "reference.progressionEmpty": "Tap a chord above to start a progression.",
+  "reference.barAria": "Bar {0}: {1}, {2}",
+  "reference.barTurns": "Bar {0}: position",
+  "reference.removeBar": "Remove",
+  "reference.texture": "Texture",
+  "reference.texture.Together": "Together",
+  "reference.texture.Arpeggio": "Arpeggio",
+  "reference.texture.Broken": "Broken",
+  "reference.texture.Alberti": "Alberti",
+  "reference.tempo": "Tempo {0}",
+  "reference.tempoAria": "Tempo {0} a minute: tap for the next"
 }
