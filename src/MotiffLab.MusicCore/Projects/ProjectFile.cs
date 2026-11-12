@@ -111,6 +111,7 @@ public static partial class ProjectFile
 
             WriteOriginals(json, project);
             WritePartOf(json, project.PartOf);
+            WriteEditsOff(json, project);
 
             List<UnknownEntity> unknownMotifs = KeptUnknown(project.Unknown, "motifs", project.Motifs.Select(static motif => motif.Id), null, out HashSet<string> replacedMotifs);
             WriteList(json, "motifs", project.Motifs, unknownMotifs, motif =>
@@ -367,6 +368,7 @@ public static partial class ProjectFile
                     }
 
                     json.WriteEndArray();
+                    WriteMeters(json, bars);
                     json.WriteEndObject();
                 }
                 else
@@ -386,6 +388,7 @@ public static partial class ProjectFile
                 }
 
                 WriteMadeFrom(json, transcription.From, transcription.At);
+                WriteSentFrom(json, transcription);
                 json.WriteEndObject();
             }
             else
@@ -540,7 +543,7 @@ public static partial class ProjectFile
                 ReadFrom = readFrom,
                 Assembly = assembly,
                 Metadata = ReadMetadata(root),
-            }.WithOriginalsOf(root, unknowns).WithPartOfIn(root));
+            }.WithOriginalsOf(root, unknowns).WithPartOfIn(root).WithEditsOffIn(root));
         }
     }
 
@@ -1322,7 +1325,7 @@ public static partial class ProjectFile
         try
         {
             (string? from, DateTimeOffset? at) = ReadMadeFrom(transcription);
-            return new TranscriptionOrigin(engine, version >= 10 ? ReadBars(transcription, version) : null) { Seams = seams, From = from, At = at };
+            return new TranscriptionOrigin(engine, version >= 10 ? ReadBars(transcription, version) : null) { Seams = seams, From = from, At = at, SentFromMilliseconds = SentFromIn(transcription) };
         }
         catch (ArgumentException)
         {
@@ -1364,7 +1367,7 @@ public static partial class ProjectFile
 
         try
         {
-            return new BarGrid(new Tick(origin), Integer(bars, "sixteenthMicroseconds"), chosen, starts, beats, perBeat);
+            return WithMetersIn(new BarGrid(new Tick(origin), Integer(bars, "sixteenthMicroseconds"), chosen, starts, beats, perBeat), bars);
         }
         catch (ArgumentException)
         {

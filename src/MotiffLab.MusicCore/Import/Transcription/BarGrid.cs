@@ -142,6 +142,43 @@ public sealed partial record BarGrid
     /// <summary>How many 16ths a beat is written as.</summary>
     public int StepsPerBeat { get; }
 
+    /// <summary>
+    /// Where the bars change signature (version 0.5, «Смена размера в записи»), in order: from each one's 16th on, its bars
+    /// are of its signature, which may be one <see cref="Signatures"/> does not offer, such as 7/8; before the first, and
+    /// without any, <see cref="Signature"/>. Each starts the bars afresh, so its 16th is one of <see cref="BarStarts"/> after
+    /// the first, and a build before 0.5, which reads only <see cref="Signature"/>, lays its bars from the same starts.
+    /// </summary>
+    /// <exception cref="ArgumentException">A change is not at a bar start after the first, not after the one before, or its bar is not a whole number of 16ths.</exception>
+    public IReadOnlyList<GridMeter> Meters
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            for (int i = 0; i < value.Count; i++)
+            {
+                if (value[i].Signature.BarTicks % StepTicks != 0 || !BarStarts.Skip(1).Contains(value[i].At) || (i > 0 && value[i].At <= value[i - 1].At))
+                {
+                    throw new ArgumentException("Each change of signature starts the bars at one of the later bar starts, in order, with bars of whole 16ths.", nameof(Meters));
+                }
+            }
+
+            field = [.. value];
+        }
+    } = [];
+
+    /// <summary>The signature of the bars from a 16th on: the last change at or before it, else <see cref="Signature"/>.</summary>
+    public TimeSignature SignatureAt(int step)
+    {
+        TimeSignature signature = Signature;
+        foreach (GridMeter meter in Meters.TakeWhile(meter => meter.At <= step))
+        {
+            signature = meter.Signature;
+        }
+
+        return signature;
+    }
+
     /// <summary>True when the beats follow the playing rather than one tempo.</summary>
     public bool FollowsPlaying => Beats.Count > 1;
 
@@ -166,7 +203,8 @@ public sealed partial record BarGrid
         && Signature == other.Signature
         && StepsPerBeat == other.StepsPerBeat
         && BarStarts.SequenceEqual(other.BarStarts)
-        && Beats.SequenceEqual(other.Beats);
+        && Beats.SequenceEqual(other.Beats)
+        && Meters.SequenceEqual(other.Meters);
 
     public override int GetHashCode() => HashCode.Combine(Origin, SixteenthMicroseconds, Signature, StepsPerBeat, BarStarts.Count, Beats.Count);
 
@@ -179,7 +217,10 @@ public sealed partial record BarGrid
         int by = beats * 16 / Signature.Denominator;
         int first = (((BarStarts[0] + by) % StepsPerBar) + StepsPerBar) % StepsPerBar;
         int[] later = [.. BarStarts.Skip(1).Select(start => start + by).Where(start => start > first)];
-        return new BarGrid(Origin, SixteenthMicroseconds, Signature, [first, .. later], Beats, StepsPerBeat);
+        return new BarGrid(Origin, SixteenthMicroseconds, Signature, [first, .. later], Beats, StepsPerBeat)
+        {
+            Meters = [.. Meters.Select(meter => meter with { At = meter.At + by }).Where(meter => meter.At > first)],
+        };
     }
 
     /// <summary>When beat <paramref name="index"/> falls, in microseconds after the origin.</summary>
@@ -540,7 +581,7 @@ public sealed partial record BarGrid
             end = note.Span.End > end ? note.Span.End : end;
         }
 
-        MeterChange[] changes = [new MeterChange(Tick.Zero, Signature), .. BarStarts.Skip(1).Select(start => new MeterChange(new Tick(start * StepTicks), Signature))];
+        MeterChange[] changes = [new MeterChange(Tick.Zero, SignatureAt(BarStarts[0])), .. BarStarts.Skip(1).Select(start => new MeterChange(new Tick(start * StepTicks), SignatureAt(start)))];
         var meter = new MeterMap(changes, BarStarts[0] * StepTicks);
 
         // A tempo change on every beat, so the notes sound when they were played.
@@ -569,7 +610,7 @@ public sealed partial record BarGrid
         {
             Notes = midiNotes,
             Tempos = tempos,
-            TimeSignatures = [.. changes.Select(change => new MidiTimeSignature(change.Position, change.Position.Value, Signature.Numerator, Signature.Denominator, IsAssumed: true))],
+            TimeSignatures = [.. changes.Select(change => new MidiTimeSignature(change.Position, change.Position.Value, change.Signature.Numerator, change.Signature.Denominator, IsAssumed: true))],
             Meter = meter,
             KeySignatures = keys,
             End = end,

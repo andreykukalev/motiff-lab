@@ -884,7 +884,8 @@
         var project = Project.Create($"p_{Guid.NewGuid():N}", piece.FileName, _data, DateTimeOffset.Now) with
         {
             Scan = _scan is null ? null : ScanOrigin.Read(_scanEngine) with { Pages = _scanReports },
-            Transcription = _transcriptionEngine is null ? null : new TranscriptionOrigin(_transcriptionEngine, _bars) { Seams = _seams },
+            // Where the stretch heard starts in the recording file (version 0.5), so a piece's sound is found in it on any device; the file sent whole starts at 0.
+            Transcription = _transcriptionEngine is null ? null : new TranscriptionOrigin(_transcriptionEngine, _bars) { Seams = _seams, SentFromMilliseconds = _heardRange?.FromMilliseconds ?? 0 },
         };
         // The piece opens at a resume point (0018), so it comes back to where it was left; a scan's Check flags start open.
         if (_scan is { } check)

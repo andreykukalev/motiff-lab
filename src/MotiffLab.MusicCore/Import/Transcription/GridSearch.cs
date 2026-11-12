@@ -46,3 +46,6 @@ public sealed record GridFound(BarGrid? Grid, int Sections, bool? HintFits)
 {
     public static GridFound None { get; } = new(null, 0, null);
 }
+
+/// <summary>A change of signature in a grid: from the 16th <paramref name="At"/> (from the origin) on, bars of <paramref name="Signature"/>.</summary>
+public readonly record struct GridMeter(int At, TimeSignature Signature);

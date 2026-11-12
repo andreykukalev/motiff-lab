@@ -99,6 +99,13 @@ public sealed record Project(
     /// </summary>
     public PartOf? PartOf { get; init; }
 
+    /// <summary>
+    /// Whether the player turned the corrections off for this piece (version 0.5, «Мои правки: вкл / выкл», within version
+    /// 15): the piece opens with the notes as imported, its edit log kept. A build before 0.5 opens it with the corrections
+    /// on and drops the field when it writes the file.
+    /// </summary>
+    public bool EditsOff { get; init; }
+
     /// <summary>The title, composer and tags the player set in the library (version 0.2); none until they set one.</summary>
     public PieceMetadata Metadata { get; init; } = PieceMetadata.None;
 

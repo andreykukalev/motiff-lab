@@ -113,9 +113,16 @@ internal sealed partial class OpenPiece
         long milliseconds = heard.Long("milliseconds")!.Value;
         IReadOnlyList<RecordingPart> plan = PlanOf(heard, milliseconds);
         BarGrid? bars = BarGrid.Find(imported.Midi, search: LiveTempoRequest.Of(heard));
+        long? sentFrom = heard.Long("sentFromMs");
+        if (sentFrom is < 0)
+        {
+            throw FacadeException.BadRequest("\"sentFromMs\" is where the stretch sent starts in the recording file, 0 or later.");
+        }
+
         var origin = new TranscriptionOrigin(heard.Text("engine") ?? "unknown engine", bars)
         {
             Seams = plan.Count > 1 ? RecordingParts.Seams(plan) : [],
+            SentFromMilliseconds = sentFrom,
         };
         ImportedPiece piece = Transcribed.Mark(bars is { } grid ? grid.Apply(imported) : imported);
         Project project = Project.Create(id, name, midi, now) with { Transcription = origin };
@@ -127,14 +134,15 @@ internal sealed partial class OpenPiece
     /// A saved project, with its first motif back as the selection and that motif's variation; the corrections laid over
     /// the notes as <paramref name="layer"/> says (version 0.5), strictly by default.
     /// </summary>
-    public static OpenPiece Open(byte[] projectFile, Words words, EditsLayer layer = EditsLayer.Strict)
+    /// <param name="asTheFileSays">The corrections are left out when the file says the player turned them off ("editsOff"), whatever <paramref name="layer"/> says.</param>
+    public static OpenPiece Open(byte[] projectFile, Words words, EditsLayer layer = EditsLayer.Strict, bool asTheFileSays = false)
     {
         Project project;
         OpenedProject opened;
         try
         {
             project = ProjectFile.Read(projectFile);
-            opened = OpenedProject.Open(project, layer);
+            opened = OpenedProject.Open(project, asTheFileSays && project.EditsOff ? EditsLayer.Off : layer);
         }
         catch (ProjectFileException exception)
         {

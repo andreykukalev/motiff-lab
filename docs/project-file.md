@@ -19,6 +19,7 @@ Ticks are integers at 480 per quarter ([0002](decisions/0002-canonical-time.md))
   "readFrom": { "project": "p_…", "pages": [0, 15360, 29760] },  // only notes read from a PDF piece into a project of their own, 2026-11-05 to 2026-11-07 (0023)
   "originals": [ … ],           // within version 15 (version 0.3): the descriptions of the piece's originals the piece's own data does not show
   "partOf": { "original": "src_book", "pages": [6, 11] },   // within version 15 (version 0.4): only a piece made from a collection; or "ms": [from, to]
+  "editsOff": true,             // within version 15 (version 0.5): only while the player has turned the corrections off
   "createdAt": "…", "lastOpened": "…",
   "metadata": { "title": "…", "composer": "…", "tags": ["…"], "playlists": ["…"] },   // within version 15: only what the player set in the library
   "motifs": [ … ],              // the working selection (version 1)
@@ -36,7 +37,7 @@ Ticks are integers at 480 per quarter ([0002](decisions/0002-canonical-time.md))
   "assembly": { … },            // version 15; absent while the piece has no assembly
   "settings": { … },            // version 12
   "scan": { … },                // only a scanned piece (version 7); "from" and "at" within version 15 (version 0.3); "pages" within 15 (version 0.4)
-  "transcription": { … }        // only a transcribed piece (version 9; bars since 10; seams in 12; "from" and "at" within 15)
+  "transcription": { … }        // only a transcribed piece (version 9; bars since 10; seams in 12; "from" and "at" within 15; "bars"."meters" and "sentFromMs" within 15, version 0.5)
 }
 ```
 
@@ -92,6 +93,22 @@ Three additions of version 0.4 kept within version 15 as optional fields, like `
 - **`margin`** on a stroke (`marks.ink`, `documentMarks.ink`): which margin of its line a stroke begun outside the bars is in; `u` then counts from that edge of the line the bar is on. Without it, as in every file before 0.4, a stroke with `u` below 0 or above 1 is placed as "Marks" describes. An unknown value keeps the stroke whole as an unknown entity.
 
 In the sync these are data the player made or imported: a pull keeps this device's `partOf` when the online copy has none, and this device's `scan.pages` when the online copy has none and its notes are the same import (the same `source`), as with `originals`. A margin goes with its stroke and the whole file, as every stroke does.
+
+## Corrections off, changes of signature and the stretch heard (version 0.5)
+
+Three additions of version 0.5 kept within version 15 as optional fields, as version 0.4's were (v0.5 data design, section 9; Andrei approved them on 2026-11-12): versions 0.2 to 0.4 open such a file and drop the fields when they write it. The golden is `tests/MotiffLab.MusicCore.Tests/Golden/v15-edits-meters.motiff.json` (`Projects/EditsAndMetersFormatTests.cs`).
+
+```jsonc
+"editsOff": true,                              // the player turned the corrections off for this piece; left out otherwise
+"transcription": { "engine": "…", "bars": { "origin": 960, "sixteenthMicroseconds": 125000, "signature": "4/4",
+                   "barStarts": [0, 64], "stepsPerBeat": 4, "beats": [],
+                   "meters": [ { "at": 64, "signature": "7/8" } ] },   // where the bars change signature, in order
+                   "sentFromMs": 754000 }        // where in the recording file the stretch heard started
+```
+
+- **`editsOff`** («Мои правки: вкл / выкл»): the piece opens with the notes as imported, its `edits` kept as they are. Written only when true; `false` reads as left out, any other value is damage. The web app opens a piece so while the experiment is on (and, as a fallback, when an earlier build kept the choice on that device); the facade does when `open` asks for `"edits": "piece"`. A build before 0.5 opens the piece with the corrections on, as it always did. In the sync it is bookkeeping: the copy saved last says it.
+- **`transcription.bars.meters`**: where a recording's bars change signature («Смена размера в записи»). Each change is at one of `barStarts` after the first (`at`, in 16ths from the origin), after the one before, with bars of whole 16ths, and may name a signature the grid's search does not offer, such as `7/8`; from it on the bars are of its signature, before the first and without any of `signature`. Left out without a change. A change that is not so is damage. A build before 0.5 lays the same bars from the same starts in `signature`: the notes and their ticks are the same, only the bar lines after a change differ. In the sync it is import data: a pull keeps this device's when the online copy has the same bars without them and the same `source`; bars found again (another grid) drop them.
+- **`transcription.sentFromMs`**: where, in the recording file, the stretch sent to be heard started, in milliseconds, 0 or more; a `partOf` with `ms` counts from it, so `partOf.ms` plus it is the piece's stretch in the file, and another device that has the file (the same `sha256`) finds the piece's sound there. A piece cut from a recording heard keeps the recording's. The web app writes it when it saves a transcription (0 when the file was sent whole); the facade's `open` takes it as `transcription.sentFromMs`. Left out when not kept, as in every file before 0.5; any other value is damage. In the sync it is import data, kept from this device on a pull when the online copy has none and the same `source`.
 
 ## Title, composer, tags and playlists (`metadata`)
 

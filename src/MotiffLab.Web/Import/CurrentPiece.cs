@@ -96,17 +96,19 @@ public sealed class CurrentPiece(ProjectStore projects, DeviceSettings settings,
 
     /// <summary>
     /// How a piece's corrections are laid over its notes: strictly, as before, while the experiment is off; else one by one,
-    /// or not at all when the player turned them off for this piece on this device.
+    /// or not at all when the player turned them off for this piece: its file says so ("editsOff"), or this device does, as
+    /// builds before the file did kept it.
     /// </summary>
-    public async Task<EditsLayer> EditsLayerAsync(string projectId)
+    public async Task<EditsLayer> EditsLayerAsync(Project project)
     {
+        ArgumentNullException.ThrowIfNull(project);
         await settings.LoadAsync();
         if (!settings.IsOn(EditsLayerSetting))
         {
             return EditsLayer.Strict;
         }
 
-        return await preferences.EditsOffAsync(projectId) ? EditsLayer.Off : EditsLayer.Lenient;
+        return project.EditsOff || await preferences.EditsOffAsync(project.Id) ? EditsLayer.Off : EditsLayer.Lenient;
     }
 
     /// <summary>
@@ -116,7 +118,7 @@ public sealed class CurrentPiece(ProjectStore projects, DeviceSettings settings,
     public async Task<OpenedProject> OpenAsync(Project project)
     {
         ArgumentNullException.ThrowIfNull(project);
-        return OpenedProject.Open(project, await EditsLayerAsync(project.Id));
+        return OpenedProject.Open(project, await EditsLayerAsync(project));
     }
 
     /// <summary>Keeps the latest save, so the next one builds on it.</summary>

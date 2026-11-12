@@ -91,6 +91,7 @@ internal static class RecordingCut
             Seams = [.. heard.Seams.Select(seam => seam - from).Where(seam => seam > 0 && seam < to - from)],
             From = linked ? PieceParts.OriginalId : null,
             At = heard.At,
+            SentFromMilliseconds = heard.SentFromMilliseconds,
         };
         return new PieceParts.Cut(file.Write(), ".mid", part, (from, to));
     }
