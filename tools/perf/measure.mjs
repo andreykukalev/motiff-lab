@@ -1,5 +1,6 @@
-// Measures how the web app answers on the large-score benchmark (#419): opening the piece, scrolling its pages, the
-// playhead moving while it plays, a bar selected, the piano roll opened and Expand. Run on a published app:
+// Measures how the web app answers on the large-score benchmark (#419): starting the app, opening the piece (until its first
+// page is on screen, and until its phrases are drawn and it is ready), scrolling its pages, the playhead moving while it
+// plays, a bar selected, the piano roll opened and Expand. Run on a published app:
 //   dotnet publish src/MotiffLab.Web -c Release -o publish
 //   (cd tests/e2e && npm ci)
 //   node tools/perf/measure.mjs [publish dir ...] [--runs 3] [--profile out-dir]
@@ -147,12 +148,26 @@ async function click(page, selector, text = null) {
     await page.mouse.click(point.x, point.y);
 }
 
-async function openPiece(page, base) {
+/** Starts the app on the library and opens Add piece. */
+async function boot(page, base) {
     await page.goto(base);
     await page.getByRole("button", { name: "Add piece" }).click();
+}
+
+/**
+ * Adds the piece and waits until its phrases' brackets are drawn: the piece is ready to work on. When its first page was
+ * on screen, and the main thread's long tasks until then, go in `shown`.
+ */
+async function openPiece(page, shown) {
+    const picked = Date.now();
+    const from = await page.evaluate(() => performance.now());
     await page.getByLabel("Choose a MIDI, MusicXML or PDF file").setInputFiles(PIECE);
     await page.waitForURL(/\/playback\?project=/, { timeout: 180_000 });
+    // Found by a frame's poll, so it is on screen: two more frames would wait behind the work that follows it.
     await appears(page, ".score-page svg g.measure", 300_000);
+    shown.time = Date.now() - picked;
+    shown.long = await longBetween(page, from, await page.evaluate(() => performance.now()));
+    await appears(page, ".score button.bracket", 300_000);
     await painted(page);
 }
 
@@ -227,7 +242,10 @@ async function run(browser, base, profileDir) {
         mkdirSync(dir, { recursive: true });
     }
     const result = {};
-    result.open = await step(page, session, "open", dir, () => openPiece(page, base));
+    result.boot = await step(page, session, "boot", dir, () => boot(page, base));
+    const shown = {};
+    result.ready = await step(page, session, "open", dir, () => openPiece(page, shown));
+    result.open = { time: shown.time, long: shown.long, p95: 0, max: 0 };
     result.dom = await page.evaluate(() => document.getElementsByTagName("*").length);
     result.pages = await page.locator(".score-page").count();
     result.scroll = await step(page, session, "scroll", dir, () => scrollPages(page));
@@ -246,7 +264,7 @@ function median(values) {
 }
 
 function table(results) {
-    const rows = ["open", "scroll", "select", "play", "roll", "expand", "focusPlay"].map((name) => {
+    const rows = ["boot", "open", "ready", "scroll", "select", "play", "roll", "expand", "focusPlay"].map((name) => {
         const pick = (key) => Math.round(median(results.map((result) => result[name][key])));
         return `| ${name} | ${pick("time")} | ${pick("long")} | ${pick("p95")} | ${pick("max")} |`;
     });
