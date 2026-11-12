@@ -366,6 +366,16 @@ struct ScoreScreen: View {
             if let heard, heard.state == .stopped, shown?.selection == nil { heard.transportKept = false }
             if sheetOpen.wrappedValue { sheetOpen.wrappedValue = false }
         }
+        // The modes and the two playheads (version 0.5): a tap places a playhead on its beat, inside the selection its own;
+        // in Edit notes a note opens the roll with its editor on.
+        score.placeTapped = { [weak heard, weak shown] beat in
+            heard?.place(beat.lowerBound, selection: shown?.playRange?.range)
+        }
+        let rolling = $rollOpen
+        score.noteToEdit = { [weak shown] _ in
+            rolling.wrappedValue = true
+            if shown?.noteEditor == nil { shown?.beginNoteEdit() }
+        }
         // A flag tapped on the score opens Check on its bar.
         let checking = $checkOpen
         score.checkPicked = { _ in checking.wrappedValue = true }
@@ -632,12 +642,19 @@ struct ScoreScreen: View {
             }
             .onChange(of: player.loop) { _, loop in
                 roll.showSelection(score.selection, loop: loop)
+                syncPlayheads()
             }
+            .onChange(of: player.playheads) { _, _ in syncPlayheads() }
             .onChange(of: score.noteEditor) { _, editor in
                 // The note editor on the roll (testing item 15): a press on its notes edits them while it is open.
                 roll.showEditor(editor)
             }
             .onChange(of: score.playRange) { old, new in
+                defer { syncPlayheads() }
+                if twoPlayheads, let old, new?.selection != old.selection {
+                    selectionChanged(from: old.range, cleared: new == nil)
+                    return
+                }
                 // A loop follows what play takes for the selection, as on the web: Lead-in, or going back to the page
                 // with it on, loops the wider or the narrower span; a new selection stops the old loop.
                 guard let loop = player.loop, loop == old?.range else { return }
@@ -692,10 +709,38 @@ struct ScoreScreen: View {
 /// Settings · Experimental on the score: resume where the player stopped (#327), hands separately (#328) and selecting by
 /// beats (#349).
 extension ScoreScreen {
+    /// Whether the two playheads hold: the experiment is on and the score is not in focus, which plays as before.
+    private var twoPlayheads: Bool {
+        score.mode != nil && !score.focused
+    }
+
+    /// The two playheads as the page draws them, or the one playhead of before.
+    private func syncPlayheads() {
+        let range = score.playRange?.range
+        score.showPlayheads(twoPlayheads ? player.playheads.page(selection: range, holds: player.selectionHolds(range), fade: settings.isOn("experimental.playheadsFade")) : nil)
+    }
+
+    /// Another selection, or none (spec two-playheads, section 3): removed, the global playhead takes the selection
+    /// playhead's place; replaced, the selection gives the player back and its playhead starts at the new one's start.
+    private func selectionChanged(from old: Range<Double>, cleared: Bool) {
+        if cleared {
+            player.handOver(from: old)
+        } else {
+            player.handBack()
+            player.playheads.selectionAt = nil
+        }
+    }
+
     /// The experiments as Settings has them: selecting by beats (#349) snaps the score's selection to the piece's beat
     /// lines while its switch is on, and with hands separately (#328) off both hands sound again.
     private func applyExperiments() {
-        score.beatLines = settings.isOn("experimental.beats") ? player.beatLines : []
+        // The modes and the two playheads (version 0.5) take the selection by beats too.
+        let playheads = settings.isOn("experimental.playheads")
+        score.beatLines = settings.isOn("experimental.beats") || playheads ? player.beatLines : []
+        if playheads != (score.mode != nil) {
+            score.mode = playheads ? .navigate : nil
+        }
+        syncPlayheads()
         if !settings.isOn("experimental.hands") && player.hands != .both { player.hands = .both }
     }
 
@@ -850,14 +895,19 @@ struct ScoreBar: View {
         .buttonStyle(BarActionStyle(on: phrasesOpen))
         .accessibilityLabel(text["bar.phrases"])
         .popover(isPresented: $phrasesOpen) { PhrasesPanel(score: score, text: text) }
-        Button {
-            score.penOn.toggle()
-        } label: {
-            Icon(name: "pen", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+        if score.mode != nil {
+            // The modes of version 0.5 (Settings · Experimental): one group for the score and the roll, the Pen in it.
+            ModeGroup(score: score, text: text)
+        } else {
+            Button {
+                score.penOn.toggle()
+            } label: {
+                Icon(name: "pen", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+            }
+            .buttonStyle(BarActionStyle(on: score.penOn))
+            .accessibilityLabel(text["bar.pen"])
+            .accessibilityAddTraits(score.penOn ? .isSelected : [])
         }
-        .buttonStyle(BarActionStyle(on: score.penOn))
-        .accessibilityLabel(text["bar.pen"])
-        .accessibilityAddTraits(score.penOn ? .isSelected : [])
         Button {
             rollOpen.toggle()
         } label: {
@@ -912,14 +962,21 @@ struct ScoreBar: View {
                     .presentationCompactAdaptation(.popover)
             }
         }
+        // Under the two playheads (version 0.5) the bar's Play plays the piece from the global playhead, filled dark while
+        // it plays, and Space plays it when nothing is selected.
+        let dark = twoPlayheads && globalPlaying
         Button {
-            player.toggle()
+            if twoPlayheads { player.toggleGlobal() } else { player.toggle() }
         } label: {
-            Icon(name: player.state == .stopped ? "play" : "pause", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+            Icon(name: globalPlaying ? "pause" : "play", size: CGFloat.ds("icon-l"))
+                .foregroundStyle(dark ? Color.ds("surface") : Color.ds("ink"))
+                .frame(width: 40, height: 40)
+                .background(dark ? Color.ds("ink") : Color.clear, in: Circle())
         }
         .buttonStyle(BarActionStyle())
         .disabled(!player.ready)
-        .accessibilityLabel(player.state == .stopped ? text["transport.play"] : text["transport.pause"])
+        .keyboardShortcut(twoPlayheads && score.selection == nil ? KeyboardShortcut(.space, modifiers: []) : nil)
+        .accessibilityLabel(globalPlaying ? text["transport.pause"] : text["transport.play"])
         Button {
             more.toggle()
         } label: {
@@ -968,6 +1025,16 @@ struct ScoreBar: View {
         }
     }
 
+    /// Whether the two playheads hold (version 0.5): the experiment is on and the score is not in focus.
+    private var twoPlayheads: Bool {
+        score.mode != nil && !score.focused
+    }
+
+    /// Whether the bar's Play plays: the player plays and, under the two playheads, the selection does not have it.
+    private var globalPlaying: Bool {
+        player.state != .stopped && !(twoPlayheads && player.loop != nil)
+    }
+
     /// "p. 2 of 4", or "pp. 1–2 of 4" with two pages to a row; nothing before the score is laid out.
     private var pageText: String? {
         guard pages.count > 0 else { return nil }
@@ -1000,18 +1067,22 @@ struct Pill: View {
 
     var body: some View {
         HStack(spacing: CGFloat.ds("s-1")) {
-            Button {
-                player.toggle()
-            } label: {
-                Icon(name: player.state == .stopped ? "playf" : "pause")
-                    .foregroundStyle(Color.ds("on-accent"))
-                    .frame(width: 40, height: 40)
-                    .background(Color.ds("accent"), in: Circle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(player.state == .stopped ? text["transport.play"] : text["transport.pause"])
-            if score.selection != nil {
-                LoopButton(score: score, player: player, text: text)
+            // Under the two playheads (version 0.5) the pill has no Play and no Loop: the bar plays the piece, the
+            // selection's menu the selection.
+            if score.mode == nil || score.focused {
+                Button {
+                    player.toggle()
+                } label: {
+                    Icon(name: player.state == .stopped ? "playf" : "pause")
+                        .foregroundStyle(Color.ds("on-accent"))
+                        .frame(width: 40, height: 40)
+                        .background(Color.ds("accent"), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(player.state == .stopped ? text["transport.play"] : text["transport.pause"])
+                if score.selection != nil {
+                    LoopButton(score: score, player: player, text: text)
+                }
             }
             if score.focused {
                 Button {
@@ -1123,9 +1194,15 @@ struct LoopButton: View {
 
     var body: some View {
         let range = score.playRange?.range
-        let looping = range != nil && player.loop == range
+        // Under the two playheads (version 0.5) Loop is the choice for the selection's Play: round, or once.
+        let twoPlayheads = score.mode != nil && !score.focused
+        let looping = twoPlayheads ? player.playheads.loopChosen : range != nil && player.loop == range
         Button {
-            player.setLoop(looping ? nil : range)
+            if twoPlayheads {
+                player.toggleLoopChosen(range)
+            } else {
+                player.setLoop(looping ? nil : range)
+            }
         } label: {
             HStack(spacing: 6) {
                 Icon(name: "loop")
@@ -1224,12 +1301,15 @@ struct SelectionMenu: View {
     private var actions: some View {
         HStack(spacing: CGFloat.ds("s-1")) {
             // Selecting by beats (#349, Settings · Experimental): where the selection starts and ends, beat by beat.
-            if settings.isOn("experimental.beats"), let span = score.selection?.beatSpan(text) {
+            if settings.isOn("experimental.beats") || score.mode != nil, let span = score.selection?.beatSpan(text) {
                 Text(span)
                     .dsType(.label)
                     .foregroundStyle(Color.ds("accent"))
                     .padding(.horizontal, CGFloat.ds("s-2"))
                 Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
+            }
+            if score.mode != nil && !score.focused {
+                SelectionPlayButton(score: score, player: player, text: text)
             }
             LoopButton(score: score, player: player, text: text)
             if !score.penOn {
@@ -1293,6 +1373,8 @@ struct ClearSelectionButton: View {
             Icon(name: "close").frame(width: 32, height: 32)
         }
         .buttonStyle(DSItemStyle())
+        // Under the modes of version 0.5, Escape removes the selection too.
+        .keyboardShortcut(score.mode != nil ? KeyboardShortcut(.escape, modifiers: []) : nil)
         .accessibilityLabel(text["menu.clearSelection"])
         .help(text["menu.clearSelection"])
     }

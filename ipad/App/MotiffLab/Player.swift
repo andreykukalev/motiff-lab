@@ -130,8 +130,9 @@ final class Player: ObservableObject {
     @Published private(set) var loop: Range<Double>?
 
     /// Loops a passage and plays it from its start, or from `start` when given, or stops looping (0018 section 7: a selection
-    /// loops the selection). With `play` false the loop is set and waits for Play, as a resumed piece's does (#327).
-    func setLoop(_ range: Range<Double>?, from start: Double? = nil, play: Bool = true) {
+    /// loops the selection). With `play` false the loop is set and waits for Play, as a resumed piece's does (#327). With
+    /// `once` the passage plays through once and stops at its end, back at its start (the selection Play without Loop).
+    func setLoop(_ range: Range<Double>?, from start: Double? = nil, play: Bool = true, once: Bool = false) {
         loop = range
         // Notes heard alone (the circle's scale) give way to the piece, or the variation, as any other loop comes.
         if hearingAlone {
@@ -148,13 +149,93 @@ final class Player: ObservableObject {
             send(.loopOff)
             return
         }
-        send(.loop(start: range.lowerBound, end: range.upperBound))
+        send(.loop(start: range.lowerBound, end: range.upperBound, once: once))
         if let start {
             send(.seek(start))
         } else if !range.contains(tick) {
             send(.seek(range.lowerBound))
         }
         if play && state == .stopped { send(.play) }
+    }
+
+    // MARK: - Two playheads (version 0.5, Settings · Experimental)
+
+    /// The two playheads (TwoPlayheads): where the one without the player waits, and Loop's choice in the selection's menu.
+    @Published var playheads = TwoPlayheads()
+
+    /// Whether the selection has the player: its passage loops, or plays once.
+    func selectionHolds(_ selection: Range<Double>?) -> Bool {
+        selection != nil && loop == selection
+    }
+
+    /// The bar's Play: the piece from the global playhead. While the selection has the player, the piece takes it back.
+    func toggleGlobal() {
+        guard loop != nil else {
+            toggle()
+            return
+        }
+        handBack()
+        transportKept = true
+        send(.play)
+    }
+
+    /// Play first in the selection's menu (or Space): the selection from its playhead, round on Loop or once, or a pause.
+    func toggleSelection(_ selection: Range<Double>) {
+        if loop == selection {
+            toggle()
+            return
+        }
+        if loop == nil { playheads.globalAt = tick }
+        if state != .stopped { send(.pause) }
+        setLoop(selection, from: playheads.selectionWaits(in: selection), play: false, once: !playheads.loopChosen)
+        transportKept = true
+        send(.play)
+    }
+
+    /// Loop in the selection's menu: whether the selection Play goes round; a selection playing now follows at once.
+    func toggleLoopChosen(_ selection: Range<Double>?) {
+        playheads.loopChosen.toggle()
+        guard let selection, loop == selection else { return }
+        let playing = state != .stopped
+        setLoop(selection, from: tick, play: false, once: !playheads.loopChosen)
+        if playing { send(.play) }
+    }
+
+    /// The selection gives the player back to the piece: its playhead stays where the player was, and the global one comes
+    /// back to its place, stopped.
+    func handBack() {
+        guard loop != nil else { return }
+        playheads.selectionAt = tick
+        if state != .stopped { send(.pause) }
+        setLoop(nil)
+        send(.seek(playheads.globalAt))
+    }
+
+    /// A tap on a beat: inside the selection its playhead goes there, else the global one; the one that has the player
+    /// moves the player.
+    func place(_ at: Double, selection: Range<Double>?) {
+        switch TwoPlayheads.placed(at, selection: selection) {
+        case .selection(let tick):
+            playheads.selectionAt = tick
+            if selectionHolds(selection) { send(.seek(tick)) }
+        case .global(let tick):
+            if loop == nil {
+                send(.seek(tick))
+            } else {
+                playheads.globalAt = tick
+            }
+        }
+    }
+
+    /// The selection removed (spec two-playheads, section 3): the global playhead takes the place the selection playhead
+    /// had, stopped, unless the piece is playing.
+    func handOver(from selection: Range<Double>) {
+        defer { playheads.selectionAt = nil }
+        guard loop != nil || state == .stopped else { return }
+        let at = loop == selection ? tick : playheads.selectionWaits(in: selection)
+        if state != .stopped { send(.pause) }
+        if loop != nil { setLoop(nil) }
+        send(.seek(at))
     }
 
     /// What sounds (0018 section 7, Original / Variation / Alternate): the piece, the piece with the variation being tried
