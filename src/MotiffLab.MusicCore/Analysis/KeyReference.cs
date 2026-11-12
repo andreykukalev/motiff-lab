@@ -32,6 +32,9 @@ public readonly record struct SpelledName(int Step, int Alter)
         _ => "",
     };
 
+    /// <summary>The octave this name is written in when it sounds <paramref name="midiNumber"/>: B♯3 sounds as C4.</summary>
+    internal int OctaveOf(int midiNumber) => ((midiNumber - Alter - s_natural[Step]) / 12) - 1;
+
     /// <summary>The letter <paramref name="step"/> spelled so that it sounds <paramref name="pitchClass"/>.</summary>
     internal static SpelledName On(int step, int pitchClass)
     {
