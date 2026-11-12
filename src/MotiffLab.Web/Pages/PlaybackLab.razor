@@ -2025,8 +2025,8 @@
     /// <summary>Whether something loops: the selection, or the motif with its answer.</summary>
     private bool Looping => _looping || _answerLoop is not null;
 
-    /// <summary>The experiments music-core offers for the selection (decision record 0010).</summary>
-    private IReadOnlyList<Experiment> _offers = [];
+    /// <summary>The experiments music-core offers for the selection (decision record 0010), made when first shown or tried.</summary>
+    private LazyOffers _offers = LazyOffers.None;
 
     /// <summary>The selection's notes and facts as the experiment catalogue reads them; null without a selection.</summary>
     private InvitationContext? _invitationContext;
@@ -2486,7 +2486,7 @@
         _hear = [Player.OriginalSource];
         _chain = null;
         _variation = null;
-        _offers = [];
+        _offers = LazyOffers.None;
         _invitationContext = null;
         _trial = null;
         // A new piece has its own project, or none (#78): nothing kept about another piece shows or saves here.
@@ -2836,7 +2836,7 @@
         _circle = KeyCircle.For(selection, _notes!, _meter!, _analysis.Key, _harmony, Words);
         _sentenceFacts = doubt.On(SentenceFactsFor(selection), selection);
         _invitationContext = new InvitationContext(_notes!, _meter!, selection, _analysis, _structure, _character, Words) { Harmony = _harmony };
-        _offers = TryChips.Buttons(Facts, _invitationContext);
+        _offers = new LazyOffers(Facts, _invitationContext);
     }
 
     private async Task SelectAsync(TickSpan span, string? note)
@@ -2964,7 +2964,7 @@
         _circle = null;
         _sentenceFacts = [];
         _invitationContext = null;
-        _offers = [];
+        _offers = LazyOffers.None;
         _trial = null;
         _layered = false;
         _listenTo = ListenTo.Everything;
@@ -3127,7 +3127,7 @@
     private ExploreTrial? ActiveTrial => _trial is { } trial && ReferenceEquals(trial.Chain, _chain) ? trial : null;
 
     /// <summary>What the Explore card offers: what fits the selection, or while an experiment runs, what fitted where it was offered.</summary>
-    private IReadOnlyList<Experiment> CardOffers => ActiveTrial?.Offers ?? _offers;
+    private IReadOnlyList<Experiment> CardOffers => ActiveTrial?.Offers ?? _offers.Value;
 
     /// <summary>
     /// Tries one alternative of an experiment (decision record 0010): its steps become the variation,
@@ -3150,7 +3150,7 @@
             experiment,
             request.Alternative,
             offeredIn,
-            active?.Offers ?? _offers,
+            active?.Offers ?? _offers.Value,
             chain,
             tryingOne ? active!.Before : _chain,
             tryingOne ? active!.KeepBefore : _keep.ToHashSet(),
@@ -3240,12 +3240,6 @@
 
     /// <summary>The fact chosen on the Understand tab and what the score and the roll highlight for it (#25); null for none. A new selection clears it.</summary>
     private FactHighlight? _highlight;
-
-    /// <summary>
-    /// The experiments the Understand tab links its facts to: those offered for the same selection as the facts.
-    /// None while an experiment offered for another selection runs (the motif's return), as its offers rest on other facts.
-    /// </summary>
-    private IReadOnlyList<Experiment> UnderstandOffers => ActiveTrial is { } trial && !ReferenceEquals(trial.OfferedIn, _invitationContext) ? [] : CardOffers;
 
     /// <summary>Highlights the places of a fact, or one of them and moves playback to its start; null clears the highlight.</summary>
     private async Task ChooseFactAsync(FactChoice? choice)
