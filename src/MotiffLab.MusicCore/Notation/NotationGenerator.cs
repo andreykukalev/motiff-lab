@@ -34,7 +34,7 @@ namespace MotiffLab.MusicCore.Notation;
 /// same measures (decision record 0021).
 /// </para>
 /// </remarks>
-public static class NotationGenerator
+public static partial class NotationGenerator
 {
     /// <summary>The display grid: a 32nd note.</summary>
     public const long Grid = CanonicalTime.TicksPerQuarter / 8;
@@ -100,8 +100,8 @@ public static class NotationGenerator
     /// <param name="asHeard">
     /// For notes heard in a recording, written as a player reads them rather than as they sounded
     /// (decision record 0016): onsets on the nearest 16th (a 32nd where 16ths would merge two
-    /// onsets, and onsets within a 64th are one chord); a note shorter than a 32nd just before the next
-    /// as a grace note; and each note up to the next onset on its staff, so that the pedal or a key let
+    /// onsets, and onsets within a 64th are one chord on every staff, as is a chord spread over a 32nd);
+    /// a note shorter than a 32nd just before the next, or one that leads into a spread chord, as a grace note; and each note up to the next onset on its staff, so that the pedal or a key let
     /// go a little early does not write long ties, extra voices or short rests. A gap of a quarter or
     /// more stays a rest; a chord is written with one length. The notes themselves keep their timing.
     /// </param>
@@ -228,7 +228,8 @@ public static class NotationGenerator
         var heard = new HeardCounts();
         if (asHeard)
         {
-            staves = [.. staves.Select(staff => staff with { Notes = AsHeard(staff.Notes, heard, staff.Tuplets) })];
+            HeardOnsets together = HeardOnsets.Of(input);
+            staves = [.. staves.Select(staff => staff with { Notes = AsHeard(staff.Notes, heard, staff.Tuplets, together) })];
         }
         else
         {
@@ -379,13 +380,14 @@ public static class NotationGenerator
     private static long SnapTo(long tick, long grid) => (tick + (grid / 2)) / grid * grid;
 
     /// <summary>A staff's notes written as heard (see <see cref="Generate"/>'s <c>asHeard</c>).</summary>
-    private static ShownNote[] AsHeard(ShownNote[] notes, HeardCounts counts, TupletSpan[] tuplets)
+    /// <param name="together">Where each note starts for writing, worked out over every staff (<see cref="HeardOnsets"/>).</param>
+    private static ShownNote[] AsHeard(ShownNote[] notes, HeardCounts counts, TupletSpan[] tuplets, HeardOnsets together)
     {
         // Onsets that start together are one chord.
         var chords = new List<List<ShownNote>>();
-        foreach (ShownNote note in notes.OrderBy(note => note.Note.Span.Onset).ThenBy(note => note.Note.Pitch.MidiNumber).ThenBy(note => note.Note.Id, StringComparer.Ordinal))
+        foreach (ShownNote note in notes.OrderBy(note => together.Onset(note.Note)).ThenBy(note => note.Note.Pitch.MidiNumber).ThenBy(note => note.Note.Id, StringComparer.Ordinal))
         {
-            if (chords.Count > 0 && note.Note.Span.Onset.Value - chords[^1][0].Note.Span.Onset.Value < HeardChord)
+            if (chords.Count > 0 && together.Onset(note.Note) - together.Onset(chords[^1][0].Note) < HeardChord)
             {
                 chords[^1].Add(note);
             }
@@ -395,14 +397,15 @@ public static class NotationGenerator
             }
         }
 
-        // A single note shorter than a 32nd, with the next onset within a dotted 32nd, is a grace note.
+        // A single note shorter than a 32nd, with the next onset within a dotted 32nd, is a grace note, as is one that leads
+        // into a spread chord.
         bool[] grace = new bool[chords.Count];
         for (int i = 0; i + 1 < chords.Count; i++)
         {
             Note note = chords[i][0].Note;
+            long next = together.Onset(chords[i + 1][0].Note);
             grace[i] = chords[i].Count == 1
-                && note.Span.Duration < Grid
-                && chords[i + 1][0].Note.Span.Onset.Value - note.Span.Onset.Value < Grid * 3 / 2
+                && ((note.Span.Duration < Grid && next - together.Onset(note) < Grid * 3 / 2) || together.LeadsInto(note, next))
                 && (i == 0 || !grace[i - 1]);
         }
 
@@ -415,7 +418,7 @@ public static class NotationGenerator
                 continue;
             }
 
-            long raw = chords[i][0].Note.Span.Onset.Value;
+            long raw = together.Onset(chords[i][0].Note);
             long onset = SnapIn(raw, tuplets, HeardGrid);
             onset = onset > previous ? onset : SnapIn(raw, tuplets, Grid);
             onset = onset > previous ? onset : previous + StepAt(previous, tuplets);
