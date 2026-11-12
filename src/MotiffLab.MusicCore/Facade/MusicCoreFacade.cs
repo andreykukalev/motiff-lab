@@ -46,7 +46,8 @@ public sealed class MusicCoreFacade
     /// document.marks answer, fields added.
     /// Also within 12 (version 0.5, «Импорт папки»), library.plan on piece 0 answers the import plan of a folder the app
     /// read (<see cref="Import.LibraryImport"/>) and library.confirm the metadata of a piece once the player confirmed its
-    /// suggestions, calls added.
+    /// suggestions, calls added; library.relink answers where the library's originals are in a fresh listing of the folder
+    /// (<see cref="Import.LibraryRelink"/>), a call added.
     /// 11 lets doubt about recognised notes reach what is read from them (#352, 0027 section 12), adding fields only: a
     /// chord, a fact and a DNA chord or key built on recognised notes still to check (in a bar with an open Check flag)
     /// tell "doubt", a sentence that says where, and the chord's "certainty" and the DNA chord's "clear" say uncertain;
@@ -192,6 +193,7 @@ public sealed class MusicCoreFacade
                     "parts.split" => PartsRequest.Split(fields),
                     "library.plan" => LibraryRequest.Plan(fields),
                     "library.confirm" => LibraryRequest.Confirm(fields),
+                    "library.relink" => LibraryRequest.Relink(fields),
                     _ when Count == 0 && IsPieceCall(name) => throw new FacadeException("noPiece", "Open a piece first."),
                     _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\" without a piece."),
                 };
