@@ -169,6 +169,12 @@ async function openPiece(page, shown) {
     shown.long = await longBetween(page, from, await page.evaluate(() => performance.now()));
     await appears(page, ".score button.bracket", 300_000);
     await painted(page);
+    shown.picked = picked;
+}
+
+/** Waits until the pages away from the view are drawn too, which they are after the piece is ready (#419). */
+async function allDrawn(page) {
+    await page.waitForFunction(() => document.querySelector(".score > .score-page:not(:has(> svg))") === null, null, { polling: 100, timeout: 300_000 });
 }
 
 /** Scrolls the score a screen at a time, a frame apart, to the end of the pages and back a third of the way. */
@@ -246,6 +252,9 @@ async function run(browser, base, profileDir) {
     const shown = {};
     result.ready = await step(page, session, "open", dir, () => openPiece(page, shown));
     result.open = { time: shown.time, long: shown.long, p95: 0, max: 0 };
+    result.drawn = await step(page, session, "drawn", dir, () => allDrawn(page));
+    // From the file picked, like open and ready.
+    result.drawn.time = Date.now() - shown.picked;
     result.dom = await page.evaluate(() => document.getElementsByTagName("*").length);
     result.pages = await page.locator(".score-page").count();
     result.scroll = await step(page, session, "scroll", dir, () => scrollPages(page));
@@ -264,7 +273,7 @@ function median(values) {
 }
 
 function table(results) {
-    const rows = ["boot", "open", "ready", "scroll", "select", "play", "roll", "expand", "focusPlay"].map((name) => {
+    const rows = ["boot", "open", "ready", "drawn", "scroll", "select", "play", "roll", "expand", "focusPlay"].map((name) => {
         const pick = (key) => Math.round(median(results.map((result) => result[name][key])));
         return `| ${name} | ${pick("time")} | ${pick("long")} | ${pick("p95")} | ${pick("max")} |`;
     });
