@@ -1103,12 +1103,13 @@
     /// out, to put back. In the Insights sheet's More tools for any piece, and under Fix notes in the Check drawer.
     /// </summary>
     private RenderFragment NoteCorrections => @<text>
+    @if (_checkFixing is null && EditsLayerShown is { } layer) { <MotiffLab.Web.Workspace.EditsLayerSwitch View="layer" IdPrefix="fix" Disabled="NoteEditing" Switch="SwitchEditsLayerAsync" Drop="DropUnfitEditAsync" /> }
     <p class="meta">@Text["correct.hint"]</p>
     <div class="row">
-        <button @onclick="UndoCorrectionAsync" disabled="@_edits.IsEmpty" title="@Text["correct.undoHint"]">@Text["correct.undo"]</button>
+        <button @onclick="UndoCorrectionAsync" disabled="@(_edits.IsEmpty || EditsOff)" title="@Text["correct.undoHint"]">@Text["correct.undo"]</button>
         <span class="meta">@Text.Count("correct.inLog", _edits.Edits.Count)</span>
     </div>
-    @if (_selection is { NoteIds.Count: > 0 } picked)
+    @if (!EditsOff && _selection is { NoteIds.Count: > 0 } picked)
     {
         <table class="notes-table">
             <thead>
@@ -1152,7 +1153,7 @@
             </tbody>
         </table>
     }
-    else
+    else if (!EditsOff)
     {
         <p class="meta">@Text["correct.selectFirst"]</p>
     }
@@ -1182,6 +1183,7 @@
         <button class="btn icon" aria-label="@Text["check.close"]" title="@Text["check.close"]" @onclick="() => CloseFromAsync(Place.Check)"><Icon Name="close" /></button>
     </header>
     <p class="caption">@CheckSourceLine @Text[_project?.Scan is not null ? "check.howScan" : "check.howRecording"]</p>
+    @if (EditsLayerShown is { } layer) { <MotiffLab.Web.Workspace.EditsLayerSwitch View="layer" IdPrefix="check" Disabled="NoteEditing" Switch="SwitchEditsLayerAsync" Drop="DropUnfitEditAsync" /> }
     @if (_scanCheck is { Pages.Count: > 0 } pagesChecked && _project?.Scan is { } scanRead)
     {
         @* The summary by page from the scan server's reports (version 0.4): music-core's counts, the confirmed bars left out. *@
@@ -2299,6 +2301,7 @@
                 SuggestPhrases(phrased.PhraseLevels);
             }
 
+            StartEditsLayer(CurrentPiece.Opened);
             if (_project is { ChangesNotes: true } corrected)
             {
                 _restoring = true;
@@ -3001,7 +3004,7 @@
                 return [];
             }
 
-            var kept = _edits.Apply(_imported).Select(note => note.Id).ToHashSet(StringComparer.Ordinal);
+            var kept = Corrected(_edits).Select(note => note.Id).ToHashSet(StringComparer.Ordinal);
             return [.. _imported.Where(note => !kept.Contains(note.Id))];
         }
     }
@@ -3088,7 +3091,7 @@
     {
         _edits = edits;
         // Bars taken from a performance (decision record 0022, section 5) come after the corrections.
-        _notes = PerformanceTake.Apply(edits.Apply(_imported), _project?.TakenBars ?? []);
+        _notes = PerformanceTake.Apply(Corrected(edits), _project?.TakenBars ?? []);
         if (_selection is { } current)
         {
             // Renders between the awaits below must not see a selection that names a removed note.
@@ -3567,9 +3570,10 @@
             return;
         }
 
-        var motifs = _project.Motifs.Where(motif => motif.Id != _motifId).ToList();
-        var variations = _project.Variations.Where(variation => variation.MotifId != _motifId).ToList();
-        if (_selection is { NoteIds.Count: > 0 } selection)
+        // With the corrections off (version 0.5), the selection is over notes they would change: the motifs stay as they were.
+        var motifs = _project.Motifs.Where(motif => EditsOff || motif.Id != _motifId).ToList();
+        var variations = _project.Variations.Where(variation => EditsOff || variation.MotifId != _motifId).ToList();
+        if (!EditsOff && _selection is { NoteIds.Count: > 0 } selection)
         {
             motifs.Insert(0, SavedMotif.From(Motif.Create(_motifId, 1, selection, MotifSelectionKind.Range, MotifMode.Discovery, _notes!)));
             if (_chain is { Result: not null } chain)

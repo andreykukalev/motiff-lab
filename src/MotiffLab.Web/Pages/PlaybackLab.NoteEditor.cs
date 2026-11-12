@@ -27,8 +27,8 @@ public partial class PlaybackLab
 
     private bool NoteEditing => _editFrom is not null;
 
-    /// <summary>The editor the roll shows; none until a piece has notes.</summary>
-    private NoteEditor? RollEditor => _notes is null ? null : new NoteEditor(
+    /// <summary>The editor the roll shows; none until a piece has notes, or while the player's corrections are off (version 0.5).</summary>
+    private NoteEditor? RollEditor => _notes is null || EditsOff ? null : new NoteEditor(
         NoteEditing,
         _editTool,
         CanUndo: _editSteps.Count > 0,
