@@ -107,6 +107,9 @@ struct PieceSummary: Equatable, Sendable {
     var composerFrom: String?
     var tags: [String] = []
     var playlists: [String] = []
+    /// The piece's originals and where their bytes are (version 0.3, contract 12), for the library's line about one that
+    /// is not here.
+    var originals: [OriginalEntry] = []
 
     /// The title the player set in the library, if they did.
     var playersTitle: String? { titleFrom == "player" ? title : nil }
@@ -138,6 +141,7 @@ struct PieceSummary: Equatable, Sendable {
         composerFrom = project["composerFrom"] as? String
         tags = project["tags"] as? [String] ?? []
         playlists = project["playlists"] as? [String] ?? []
+        originals = OriginalEntry.list(project["originals"])
     }
 
     /// Reads a project file's summary through music-core; nil when the file cannot be read.

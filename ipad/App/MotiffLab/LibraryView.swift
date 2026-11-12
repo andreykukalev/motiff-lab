@@ -477,6 +477,9 @@ struct PieceCard: View {
                     Text(meta)
                         .dsType(.label)
                         .foregroundStyle(Color.ds("ink-2"))
+                    if let away = entry.originalAway {
+                        OriginalPlaceLabel(label: away.text(text), badge: away.badge)
+                    }
                     if let summary, summary.ideas > 0 || summary.checkBars > 0 {
                         HStack(spacing: CGFloat.ds("s-2")) {
                             if summary.ideas > 0 { Tag(text: text.count("library.ideas", summary.ideas), kind: .saved) }

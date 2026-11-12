@@ -117,6 +117,7 @@ extension PdfController: PKCanvasViewDelegate, UIPencilInteractionDelegate {
     /// Lays the canvas over the pages. It takes only the Pencil unless Pen is on: its drawing gesture is moved to the PDF
     /// view, so a finger still scrolls the pages.
     func attach(to view: PDFView) {
+        guard inkable else { return }
         canvas.backgroundColor = .clear
         canvas.isOpaque = false
         canvas.isScrollEnabled = false

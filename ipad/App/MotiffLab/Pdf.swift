@@ -30,6 +30,8 @@ final class PdfController: NSObject, ObservableObject, PenHolder {
 
     /// The bar's Pen: while it is on, a finger writes too and two fingers scroll. The Pencil always writes.
     @Published var penOn = false { didSet { applyInput() } }
+    /// Whether the pages take ink: not on a PDF linked in Files, whose marks would be kept nowhere (version 0.3).
+    var inkable = true
     @Published var tool = ScoreController.Tool.pen(.graphite) {
         didSet {
             if oldValue != tool { previousTool = oldValue }
@@ -289,6 +291,9 @@ struct PdfScreen: View {
     var switchView: ((Landing) async -> Void)? = nil
     /// Opens a project file just written, at a place, in this piece's place: the notes read from the PDF.
     var openRead: ((URL, Landing) async -> Void)? = nil
+    /// The PDF linked where it lies in Files (version 0.3), shown as it is: marks and bookmarks on its pages are kept with
+    /// a copy in the piece, so the pen and the bookmark are not offered here.
+    var linked = false
     @EnvironmentObject private var account: Account
     @ObservedObject private var scan = ScanServer.shared
     @State private var readingOpen = false
@@ -375,6 +380,7 @@ struct PdfScreen: View {
             SettingsSheet(settings: DeviceSettings.shared, account: account, text: text, section: .account)
         }
         .task {
+            pdf.inkable = !linked
             await pdf.load(piece: piece.id, text: text, page: piece.landing?.page)
             if let id = pdf.projectId { metronome.load(piece: id) }
         }
@@ -400,6 +406,8 @@ struct PdfScreen: View {
             barLeading
             if switchView != nil, piece.other != nil {
                 PdfNotesSwitch(onPdf: true, text: text, compact: compact) { Task { await showNotes() } }
+            } else if linked {
+                Tag(text: text["originals.linkFiles"], kind: .assumed)
             } else {
                 Tag(text: text["pdf.title"], kind: .assumed)
             }
@@ -468,15 +476,17 @@ struct PdfScreen: View {
 
     /// Bookmark the page, the metronome, the pen and More.
     @ViewBuilder private var barActions: some View {
-        Button {
-            Task { await pdf.toggleBookmark() }
-        } label: {
-            Icon(name: "bookmark", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+        if !linked {
+            Button {
+                Task { await pdf.toggleBookmark() }
+            } label: {
+                Icon(name: "bookmark", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+            }
+            .buttonStyle(BarActionStyle(on: pdf.currentBookmark != nil))
+            .disabled(pdf.page == 0)
+            .accessibilityLabel(text["pdf.bookmarkPage"])
+            .accessibilityAddTraits(pdf.currentBookmark != nil ? .isSelected : [])
         }
-        .buttonStyle(BarActionStyle(on: pdf.currentBookmark != nil))
-        .disabled(pdf.page == 0)
-        .accessibilityLabel(text["pdf.bookmarkPage"])
-        .accessibilityAddTraits(pdf.currentBookmark != nil ? .isSelected : [])
         Button {
             metronomeOpen.toggle()
             if !metronomeOpen { metronome.stop() }
@@ -486,15 +496,17 @@ struct PdfScreen: View {
         .buttonStyle(BarActionStyle(on: metronomeOpen))
         .accessibilityLabel(text["metronome.label"])
         .accessibilityAddTraits(metronomeOpen ? .isSelected : [])
-        Button {
-            pdf.penOn.toggle()
-        } label: {
-            Icon(name: "pen", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+        if !linked {
+            Button {
+                pdf.penOn.toggle()
+            } label: {
+                Icon(name: "pen", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
+            }
+            .buttonStyle(BarActionStyle(on: pdf.penOn))
+            .accessibilityLabel(text["bar.pen"])
+            .accessibilityHint(text["pencil.hint"])
+            .accessibilityAddTraits(pdf.penOn ? .isSelected : [])
         }
-        .buttonStyle(BarActionStyle(on: pdf.penOn))
-        .accessibilityLabel(text["bar.pen"])
-        .accessibilityHint(text["pencil.hint"])
-        .accessibilityAddTraits(pdf.penOn ? .isSelected : [])
         Button {
             more.toggle()
         } label: {
