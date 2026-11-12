@@ -5,33 +5,39 @@ using MotiffLab.MusicCore.Invitations;
 namespace MotiffLab.Web.Pages;
 
 /// <summary>
-/// What music-core reads about one selection that is not on screen as soon as it is selected (#419): its structure (how it
-/// sits among the phrases and where it comes back), all its facts, the context the experiment catalogue reads and the
-/// experiments it offers (decision record 0010). Each is made the first time the Insights stream, Ask, the Explore card,
-/// the DNA map or Try reads it. On a long score the structure took about half of a selection's time and the offers as
-/// long again, with nothing showing them while Insights was closed. Everything here comes from what was read when the
-/// passage was selected, so it is the same whenever it is made.
+/// What music-core reads about one selection, made the first time something on screen reads it (#419, #433): the motif,
+/// harmony and character readings and the circle of fifths from them, its structure (how it sits among the phrases and
+/// where it comes back), all its facts, the context the experiment catalogue reads and the experiments it offers (decision
+/// record 0010). The Insights stream, Ask, the Explore card, the circle, the DNA map, Try and a variation read them; a card
+/// turned by playback in phrase focus shows none of them, so turning it no longer waits for them. Everything here comes
+/// from what was read when the passage was selected, so it is the same whenever it is made.
 /// </summary>
 internal sealed class SelectionReading(
-    MotifAnalysis analysis,
+    Func<SelectionAnalysis> read,
     IReadOnlyList<MotifFact> sentence,
-    IReadOnlyList<MotifFact> character,
-    HarmonyAnalysis harmony,
     Func<StructureAnalysis> readStructure,
-    Func<StructureAnalysis, InvitationContext> context)
+    Func<SelectionAnalysis, StructureAnalysis, InvitationContext> context)
 {
+    private SelectionAnalysis? _analysis;
     private StructureAnalysis? _structure;
     private IReadOnlyList<MotifFact>? _facts;
     private InvitationContext? _context;
     private IReadOnlyList<Experiment>? _offers;
 
+    /// <summary>The motif, harmony and character readings and the circle of fifths.</summary>
+    public SelectionAnalysis Analysis => _analysis ??= read();
+
     public StructureAnalysis Structure => _structure ??= readStructure();
 
     /// <summary>Everything music-core found about the selection, for the stream to group by lens.</summary>
-    public IReadOnlyList<MotifFact> Facts => _facts ??= [.. analysis.Facts, .. Structure.Facts, .. sentence, .. character, .. harmony.Facts];
+    public IReadOnlyList<MotifFact> Facts => _facts ??=
+        [.. Analysis.Motif.Facts, .. Structure.Facts, .. sentence, .. Analysis.Character, .. Analysis.Harmony.Facts];
 
     /// <summary>The selection's notes and facts as the experiment catalogue reads them; one context for the selection, as a trial names where it was offered.</summary>
-    public InvitationContext Context => _context ??= context(Structure);
+    public InvitationContext Context => _context ??= context(Analysis, Structure);
 
     public IReadOnlyList<Experiment> Offers => _offers ??= TryChips.Buttons(Facts, Context);
 }
+
+/// <summary>A selection's motif, harmony and character readings, and the circle of fifths drawn from them.</summary>
+internal sealed record SelectionAnalysis(MotifAnalysis Motif, HarmonyAnalysis Harmony, IReadOnlyList<MotifFact> Character, KeyCircleView? Circle);

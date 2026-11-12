@@ -135,12 +135,12 @@ public sealed record WorkspaceVariation(
 
 /// <summary>
 /// The facts about the selection (S1-A1 to S1-A5), those the stream leads with, and the one chosen to highlight. The facts
-/// are read the first time something shows them (#419): a render with Insights closed reads none.
+/// and the circle are read the first time something shows them (#419): a render with Insights closed reads none.
 /// </summary>
 /// <param name="facts">The facts of the selection from every analysis, in music-core's order within each lens.</param>
 /// <param name="chosen">The fact highlighted in the score and on the roll, with the place when one is.</param>
 /// <param name="circle">The circle of fifths for the selection, from its key and chords; null when no key was read.</param>
-public sealed class WorkspaceFacts(Func<IReadOnlyList<MotifFact>> facts, FactChoice? chosen, KeyCircleView? circle = null)
+public sealed class WorkspaceFacts(Func<IReadOnlyList<MotifFact>> facts, FactChoice? chosen, Func<KeyCircleView?>? circle = null)
 {
     private IReadOnlyList<MotifFact>? _all;
     private IReadOnlyList<MotifFact>? _main;
@@ -155,7 +155,7 @@ public sealed class WorkspaceFacts(Func<IReadOnlyList<MotifFact>> facts, FactCho
     public IReadOnlyList<MotifFact> Main => _main ??= FactRanking.Main(All);
 
     /// <summary>The circle of fifths for the selection, from its key and chords; null when no key was read.</summary>
-    public KeyCircleView? Circle => circle;
+    public KeyCircleView? Circle => circle?.Invoke();
 }
 
 /// <summary>What the player kept about the selection.</summary>

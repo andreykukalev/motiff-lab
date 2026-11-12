@@ -53,7 +53,7 @@ public partial class PlaybackLab
                 // Understand links its facts only to offers for the same selection: none while an experiment offered for another
                 // selection runs (the motif's return), as its offers rest on other facts.
                 new WorkspaceVariation(_chain, _variation, trial, Card, () => trial is { } tried && !ReferenceEquals(tried.OfferedIn, reading?.Context) ? [] : Card()),
-                new WorkspaceFacts(() => reading?.Facts ?? [], _highlight?.Choice, _circle),
+                new WorkspaceFacts(() => reading?.Facts ?? [], _highlight?.Choice, () => reading?.Analysis.Circle),
                 new WorkspaceIdeas(KeptRows, KeptOnCard, KeptText));
         }
     }
