@@ -198,4 +198,56 @@ final class PiecePartsTests: XCTestCase {
         XCTAssertEqual(PieceFamily.of(part, in: summaries).origin?.playlist, "Islands")
         XCTAssertEqual(PieceFamily.of(part, in: [part: summary]).origin?.title, "Islands", "without the collection here, its original is named by its title")
     }
+
+    // MARK: - The pieces layer of a PDF with notes read (version 0.5)
+
+    func testSuggestedRowsComeFromTheProposalsPagesAndAPageStaysWithTheFirstPieceOnIt() throws {
+        let answer = #"""
+        {"proposals": [
+            {"number": 1, "title": "Piece 1", "firstBar": 0, "pages": {"first": 1, "last": 3}},
+            {"number": 2, "title": " Nocturne ", "firstBar": 40, "pages": {"first": 3, "last": 6}},
+            {"number": 3, "title": "Piece 3", "firstBar": 52, "pages": {"first": 3, "last": 9}},
+            {"number": 4, "title": "Waltz", "firstBar": 90, "pages": {"first": 10, "last": 14}}
+        ], "layer": []}
+        """#
+        let rows = try XCTUnwrap(PiecesLayer.rows(answer, pageCount: 14))
+        XCTAssertEqual(pages(rows), [[1, 2], [3, 9], [10, 14]], "each to the page before the next; two starting on page 3 are one row")
+        XCTAssertEqual(rows.rows.map(\.title), ["Piece 1", "Nocturne", "Waltz"])
+        XCTAssertEqual(rows.rows.map(\.firstBar), [0, 40, 90])
+        XCTAssertNil(rows.problem)
+    }
+
+    func testTheKeptLayerComesBeforeTheProposalsAndNotesWithoutPagesSuggestNothing() {
+        let kept = #"{"proposals": [{"title": "A", "firstBar": 0, "pages": {"first": 1, "last": 14}}], "layer": [{"title": "Prelude", "firstBar": 0, "pages": {"first": 1, "last": 4}}, {"title": "Fugue", "firstBar": 30, "pages": {"first": 5, "last": 14}}]}"#
+        XCTAssertEqual(PiecesLayer.rows(kept, pageCount: 14).map { $0.rows.map(\.title) }, ["Prelude", "Fugue"])
+        XCTAssertNil(PiecesLayer.rows(#"{"proposals": [{"title": "A", "firstBar": 0, "pages": null}], "layer": []}"#, pageCount: 14))
+        XCTAssertNil(PiecesLayer.rows(#"{"error": "badRequest", "message": "No."}"#, pageCount: 14))
+        XCTAssertNil(PiecesLayer.rows(#"{"proposals": [], "layer": []}"#, pageCount: 14))
+    }
+
+    func testConfirmSendsTheBarProposedWhileTheRowStartsOnItsPageElseTheFirstPage() throws {
+        let rows = [
+            PartRow(title: " Prelude ", first: 1, last: 4, firstBar: 0, barPage: 1),
+            PartRow(title: "", first: 6, last: 14, firstBar: 30, barPage: 5),
+        ]
+        let request = PiecesLayer.saveRequest(rows, now: Date(timeIntervalSince1970: 0))
+        let object = try XCTUnwrap(facadeObject(request))
+        let pieces = try XCTUnwrap(object["pieces"] as? [[String: Any]])
+        XCTAssertEqual(pieces[0]["firstBar"] as? Int, 0)
+        XCTAssertEqual(pieces[0]["title"] as? String, "Prelude")
+        XCTAssertNil(pieces[1]["firstBar"], "the row was moved off its bar's page")
+        XCTAssertEqual(pieces[1]["firstPage"] as? Int, 6)
+        XCTAssertEqual(object["now"] as? String, "1970-01-01T00:00:00Z")
+        XCTAssertEqual(try PiecesLayer.kept(#"{"layer": [{}, {}]}"#).get(), 2)
+        XCTAssertEqual(PiecesLayer.kept(#"{"error": "badRequest", "message": "Out of order."}"#), .failure(PartsSplitFailure(message: "Out of order.")))
+    }
+
+    func testCheckByPieceReadsThePiecesOfTheLayerAndKeepsTheListToOne() throws {
+        let answer = #"{"flags": [{"bar": 3, "reason": "barTooLong", "resolved": false}, {"bar": 25, "reason": "barTooLong", "resolved": false}], "open": 2, "pieces": [{"title": "Prelude", "firstBar": 1, "lastBar": 20, "open": 1, "total": 1}, {"title": "Fugue", "firstBar": 21, "lastBar": 40, "open": 1, "total": 1}]}"#
+        let check = try XCTUnwrap(CheckShelf(answer: answer))
+        XCTAssertEqual(check.pieces.map(\.title), ["Prelude", "Fugue"])
+        XCTAssertEqual(check.openBars(in: check.pieces[1]).map(\.bar), [25])
+        XCTAssertEqual(check.openBars(in: nil).map(\.bar), [3, 25])
+        XCTAssertEqual(CheckShelf(answer: #"{"flags": [], "open": 0}"#)?.pieces, [], "no layer, no pieces")
+    }
 }

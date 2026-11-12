@@ -733,8 +733,18 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     /// Looks right, or Check again: every flag on the bar resolved or open again, kept with the piece.
     func resolveCheck(_ bar: Int, _ resolved: Bool) {
+        resolveChecks(["bar": bar, "resolved": resolved])
+    }
+
+    /// Looks right for a whole piece of the pieces layer (version 0.5, Check by piece): every flagged bar from `first` to
+    /// `last` resolved, in one change music-core makes, kept with the piece.
+    func resolveCheckPiece(first: Int, last: Int) {
+        resolveChecks(["bars": ["first": first, "last": last], "resolved": true])
+    }
+
+    private func resolveChecks(_ fields: [String: Any]) {
         guard let piece else { return }
-        let request = Self.json(["bar": bar, "resolved": resolved]) ?? "{}"
+        let request = Self.json(fields) ?? "{}"
         Task {
             let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "check.resolve", request) }
             if let shelf = CheckShelf(answer: answer) {
