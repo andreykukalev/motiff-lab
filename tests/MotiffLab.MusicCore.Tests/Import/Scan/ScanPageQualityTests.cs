@@ -91,12 +91,14 @@ public class ScanPageQualityTests
     }
 
     [Fact]
-    public void A_poor_page_raises_no_flag_in_the_project_file_until_its_format_takes_one()
+    public void A_poor_page_raises_a_page_quality_flag_in_the_project_file_since_its_format_takes_one()
     {
         ImportedPiece piece = Pages(2, 2);
         ScanCheck check = ScanCheck.Of(piece, [Report(measures: 2), Report(contrast: 50, measures: 2)]);
 
         Assert.Equal(2, check.Flagged.Count());
-        Assert.Empty(CheckFlag.FromScan(check, []));
+        Assert.Equal(
+            [new CheckFlag(3, CheckSource.Scan, CheckReason.PageQuality, false), new CheckFlag(4, CheckSource.Scan, CheckReason.PageQuality, true)],
+            CheckFlag.FromScan(check, [4]));
     }
 }

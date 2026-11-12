@@ -54,6 +54,9 @@ public enum CheckReason
 
     /// <summary>A performance plays a bar the scan read too long or short in the meter's length (performance, 0022).</summary>
     RecordingBarLength,
+
+    /// <summary>The bar is on a page the scan server's report calls poor (scan, version 0.4, within version 15).</summary>
+    PageQuality,
 }
 
 /// <summary>
@@ -68,14 +71,15 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
 
     /// <summary>
     /// The flags of a scan's check, one per flagged bar and reason, resolved where the player confirmed the bar. A bar on a
-    /// poor page (<see cref="ScanFlag.PageQuality"/>) raises none yet: that reason is not a value of the project file
-    /// until its format takes it (v0.4 design, A1), so it lives only in the check worked out from the page reports.
+    /// poor page (<see cref="ScanFlag.PageQuality"/>, from the page reports the check was given) raises
+    /// <see cref="CheckReason.PageQuality"/>, a value of the project file since version 0.4 that a build before it keeps
+    /// whole as an unknown flag (S6).
     /// </summary>
     public static IReadOnlyList<CheckFlag> FromScan(ScanCheck check, IReadOnlyCollection<int> confirmedBars)
     {
         ArgumentNullException.ThrowIfNull(check);
         ArgumentNullException.ThrowIfNull(confirmedBars);
-        return [.. check.Flagged.SelectMany(bar => bar.Flags.Where(static flag => flag != ScanFlag.PageQuality)
+        return [.. check.Flagged.SelectMany(bar => bar.Flags
             .Select(flag => new CheckFlag(bar.Bar, CheckSource.Scan, Of(flag), confirmedBars.Contains(bar.Bar))))];
     }
 
@@ -256,6 +260,7 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
         CheckReason.StavesDiffer => ScanBar.Describe(ScanFlag.StavesDiffer, words),
         CheckReason.OutOfPianoRange => ScanBar.Describe(ScanFlag.OutOfPianoRange, words),
         CheckReason.GraceNotes => ScanBar.Describe(ScanFlag.GraceNotes, words),
+        CheckReason.PageQuality => ScanBar.Describe(ScanFlag.PageQuality, words),
         CheckReason.PartSeam => words.T(
             "Two parts of the recording were joined here, so a note may be missing or doubled.",
             "Здесь склеены две части записи: нота могла потеряться или удвоиться."),
@@ -287,6 +292,7 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
             CheckReason.StavesDiffer => words.T("Hands differ in length", "Руки разной длины"),
             CheckReason.OutOfPianoRange => words.T("Note beyond the piano", "Нота вне диапазона фортепиано"),
             CheckReason.GraceNotes => words.T("Grace notes", "Форшлаги"),
+            CheckReason.PageQuality => words.T("Poor page", "Плохая страница"),
             CheckReason.PartSeam => words.T("Parts joined here", "Стык частей записи"),
             CheckReason.TempoUncertain => words.T("Tempo fits poorly", "Темп плохо ложится на такт"),
             CheckReason.DenseCluster => words.T("Crowded notes", "Скопление нот"),
@@ -307,6 +313,7 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
             CheckReason.StavesDiffer => ScanBar.Describe(ScanFlag.StavesDiffer, words),
             CheckReason.OutOfPianoRange => ScanBar.Describe(ScanFlag.OutOfPianoRange, words),
             CheckReason.GraceNotes => ScanBar.Describe(ScanFlag.GraceNotes, words),
+            CheckReason.PageQuality => ScanBar.Describe(ScanFlag.PageQuality, words),
             CheckReason.PartSeam => words.T(
                 "Two parts of the recording were heard separately and joined in this bar: a note may be doubled or lost.",
                 "Две части записи распознавались отдельно и стыкуются в этом такте: нота может удвоиться или потеряться."),
@@ -336,6 +343,7 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
         ScanFlag.StavesDiffer => CheckReason.StavesDiffer,
         ScanFlag.OutOfPianoRange => CheckReason.OutOfPianoRange,
         ScanFlag.GraceNotes => CheckReason.GraceNotes,
+        ScanFlag.PageQuality => CheckReason.PageQuality,
         _ => throw new ArgumentOutOfRangeException(nameof(flag), flag, "Unknown scan flag."),
     };
 }
