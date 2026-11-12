@@ -10550,3 +10550,17 @@ body:has(> #app > .library) {
     background: var(--accent);
     color: var(--on-accent);
 }
+
+/* The modes on the Piano Roll (version 0.5, Scripts/roll/roll-modes.ts): the hand in Navigate, a crosshair to select by
+   beats in Select and to draw a box round notes in Edit notes. An edge of the selection still shows its own cursor. */
+.roll-notes[data-mode="navigate"] {
+    cursor: grab;
+}
+
+.roll-notes[data-mode="navigate"]:active {
+    cursor: grabbing;
+}
+
+.roll-notes[data-mode="select"], .roll-notes[data-mode="edit"] {
+    cursor: crosshair;
+}

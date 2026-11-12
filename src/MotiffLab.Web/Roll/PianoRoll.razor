@@ -234,6 +234,19 @@ else
 
     private (bool On, string Tool)? _shownEditing;
     private string? _shownPicked;
+    private (string? Mode, ScorePlayheads? Playheads) _shownRules;
+
+    /// <summary>The mode the bar chose (version 0.5, Scripts/roll/roll-modes.ts); null keeps the roll as it was.</summary>
+    [Parameter]
+    public string? Mode { get; set; }
+
+    /// <summary>The two playheads of version 0.5, drawn as on the score; null draws the one playhead as before.</summary>
+    [Parameter]
+    public ScorePlayheads? Playheads { get; set; }
+
+    /// <summary>A click under the modes: the tick under it, and whether Shift was held.</summary>
+    [Parameter]
+    public EventCallback<(long Tick, bool Extend)> Placed { get; set; }
 
     /// <summary>A note pointed at elsewhere, such as on the score: the roll selects the note at that tick and key and shows it. A new value points again.</summary>
     [Parameter]
@@ -412,6 +425,12 @@ else
             await view.InvokeVoidAsync("pointAt", point.Tick, point.Pitch);
         }
 
+        if ((Mode, Playheads) != _shownRules)
+        {
+            _shownRules = (Mode, Playheads);
+            await view.InvokeVoidAsync("setRules", Mode, Playheads);
+        }
+
         (bool, string) editing = (Editor?.On ?? false, Editor?.Tool ?? "move");
         if (editing != _shownEditing)
         {
@@ -502,6 +521,20 @@ else
     [JSInvokable]
     public Task OnRollNoteAdd(long onset, int pitch, long length) =>
         Editor?.Add(new RollNoteEdit(null, onset, pitch, length)) ?? Task.CompletedTask;
+
+    /// <summary>Called by the script when a click under the modes places a playhead (version 0.5).</summary>
+    [JSInvokable]
+    public Task OnRollPlace(long tick, bool extend) => Placed.InvokeAsync((Math.Max(0, tick), extend));
+
+    /// <summary>Called by the script when notes are picked in Edit notes, by a click or a box: the editor opens on them (version 0.5).</summary>
+    [JSInvokable]
+    public async Task OnRollNotesPicked(string[] ids)
+    {
+        if (ids.Length > 0 && Editor is { On: false } editor)
+        {
+            await editor.Begin();
+        }
+    }
 
     /// <summary>Called by the script when the editor takes a note out.</summary>
     [JSInvokable]
