@@ -172,6 +172,7 @@ internal sealed partial class OpenPiece
         "playback" => Playback(request),
         "roll" => Roll(request),
         "project.save" => Save(request),
+        "reference.key" => ReferenceRequest.Key(request, PieceDna.OpeningKey(Notes, Piece.Meter, Piece.Keys, Piece.End)),
         "dna" => Answer.Write(json => Answer.Dna(json, Doubt().On(PieceDna.Build(Notes, Piece.Meter, Piece.Keys, Piece.End, Selection, Selection is null ? null : Understood().Structure, Words, Structure)), Words, Piece.End, Piece.Meter)),
         _ => CallOnProject(name, request),
     };

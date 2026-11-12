@@ -41,37 +41,52 @@ public readonly record struct SpelledName(int Step, int Alter)
     }
 }
 
-/// <summary>The scales a key card shows: the major for a major key, the natural and the harmonic minor for a minor one.</summary>
-public enum ScaleForm
-{
-    Major,
-    NaturalMinor,
-    HarmonicMinor,
-}
-
 /// <summary>Notes the player can hear and see on a small keyboard: a scale one after the other, or a chord at once.</summary>
 /// <param name="Id">"scale.major", "scale.naturalMinor", "scale.harmonicMinor", "chord.I", "chord.iv", …: what the facade's reference.sound takes.</param>
 /// <param name="Pitches">MIDI numbers from the lowest, around middle C.</param>
-/// <param name="Together">A chord, struck at once; else a scale, a note a beat.</param>
+/// <param name="Together">A chord, struck at once; else one note after another, <see cref="Step"/> apart.</param>
 /// <param name="KeyboardLow">The C at or below the lowest note, where a small keyboard that shows them starts.</param>
 /// <param name="KeyboardHigh">The B at or above the highest note, where it ends.</param>
 public sealed record ReferenceSound(string Id, IReadOnlyList<int> Pitches, bool Together, int KeyboardLow, int KeyboardHigh)
 {
+    /// <summary>Ticks from one note to the next when they are not struck at once: a beat unless set.</summary>
+    public long Step { get; init; } = CanonicalTime.TicksPerQuarter;
+
+    /// <summary>One note after another, each held until the last ends, as a broken chord is let ring.</summary>
+    public bool Ringing { get; init; }
+
+    /// <summary>The keys the keyboard marks when they are not all the notes heard: a scale up and down marks its way up.</summary>
+    public IReadOnlyList<int>? Keys { get; init; }
+
+    /// <summary>How long it sounds, in ticks: the last note, or the chord, is held two beats.</summary>
+    public long Length => (Together ? 0 : (Pitches.Count - 1) * Step) + (2 * CanonicalTime.TicksPerQuarter);
+
     /// <summary>Whether a key of the keyboard is one of the notes, for its highlight.</summary>
-    public bool Sounds(int midiNumber) => Pitches.Contains(midiNumber);
+    public bool Sounds(int midiNumber) => (Keys ?? Pitches).Contains(midiNumber);
 }
 
 /// <summary>A scale of a key: its name, its notes spelled by letter from the tonic, and the notes to hear.</summary>
 /// <param name="Title">"Major scale", "natural minor", "harmonic minor"; in Russian «мажорная гамма», «натуральный минор», «гармонический минор».</param>
 /// <param name="Notes">The seven notes from the tonic, spelled for the naming.</param>
-public sealed record ReferenceScale(ScaleForm Form, string Title, IReadOnlyList<string> Notes, ReferenceSound Sound);
+public sealed record ReferenceScale(ScaleForm Form, string Title, IReadOnlyList<string> Notes, ReferenceSound Sound)
+{
+    /// <summary>The key's tonic, where the scale's own card (<see cref="ScaleReference"/>) starts.</summary>
+    public SpelledName Tonic { get; init; }
+}
 
 /// <summary>One of the key's three main chords: tonic, subdominant, dominant.</summary>
 /// <param name="Numeral">"I", "IV", "V" in major; "i", "iv", "V" in minor (the dominant of the harmonic minor).</param>
 /// <param name="FunctionName">"tonic", "subdominant", "dominant"; «тоника», «субдоминанта», «доминанта».</param>
 /// <param name="Symbol">The chord symbol, in letters as chord symbols are written in both languages: "F♯", "G♯m".</param>
 /// <param name="Notes">Its notes from the root, spelled for the naming: "F♯ A♯ C♯".</param>
-public sealed record ReferenceChord(string Numeral, HarmonicFunction Function, string FunctionName, string Symbol, IReadOnlyList<string> Notes, ReferenceSound Sound);
+public sealed record ReferenceChord(string Numeral, HarmonicFunction Function, string FunctionName, string Symbol, IReadOnlyList<string> Notes, ReferenceSound Sound)
+{
+    /// <summary>The chord's root, where its own card (<see cref="ChordReference"/>) starts.</summary>
+    public SpelledName Root { get; init; }
+
+    /// <summary>Major or minor, for its own card.</summary>
+    public ChordType Type { get; init; }
+}
 
 /// <summary>A key signature: how many sharps or flats, which ones in the order they are written, and where they sit on the treble staff.</summary>
 /// <param name="Count">"5 sharps", "1 flat", "no sharps or flats"; «5 диезов», «1 бемоль», «без знаков».</param>
@@ -121,15 +136,21 @@ public static class KeyReference
     /// <summary>The tempo the reference plays at: a quarter at 100 beats a minute.</summary>
     public const int MicrosecondsPerQuarter = 600_000;
 
-    private static readonly int[] s_major = [0, 2, 4, 5, 7, 9, 11];
-    private static readonly int[] s_naturalMinor = [0, 2, 3, 5, 7, 8, 10];
-    private static readonly int[] s_harmonicMinor = [0, 2, 3, 5, 7, 8, 11];
-
     // The letters sharps (F C G D A E B) and flats (B E A D G C F) are written in, and their places on the treble staff.
     private static readonly int[] s_sharpSteps = [3, 0, 4, 1, 5, 2, 6];
     private static readonly int[] s_flatSteps = [6, 2, 5, 1, 4, 0, 3];
     private static readonly int[] s_sharpStaff = [8, 5, 9, 6, 3, 7, 4];
     private static readonly int[] s_flatStaff = [4, 7, 3, 6, 2, 5, 1];
+
+    /// <summary>
+    /// The roots a chord or a scale of the Reference starts on, in the order of the keyboard: the seven letters, and each
+    /// black key spelled both ways (C♯ and D♭), seventeen in all.
+    /// </summary>
+    public static IReadOnlyList<SpelledName> Roots { get; } =
+    [
+        new(0, 0), new(0, 1), new(1, -1), new(1, 0), new(1, 1), new(2, -1), new(2, 0), new(3, 0), new(3, 1),
+        new(4, -1), new(4, 0), new(4, 1), new(5, -1), new(5, 0), new(5, 1), new(6, -1), new(6, 0),
+    ];
 
     /// <summary>The fifteen key signatures in the order the lookup offers them: none, one to seven sharps, one to seven flats.</summary>
     public static IReadOnlyList<SignatureChoice> Signatures(Words words = default) =>
@@ -179,27 +200,31 @@ public static class KeyReference
     }
 
     /// <summary>The spelled notes of a scale from its tonic, seven of them.</summary>
-    public static IReadOnlyList<SpelledName> ScaleOf(MusicalKey key, ScaleForm form) => Spell(TonicOf(key), form);
+    public static IReadOnlyList<SpelledName> ScaleOf(MusicalKey key, ScaleForm form) => ScaleReference.Spell(TonicOf(key), form);
 
     /// <summary>
-    /// The notes of a scale or chord to hear from <paramref name="at"/>: a chord struck at once and held two beats, a scale a
-    /// beat a note with the octave held two. They are inferred, since the app plays them, not a piece; their ids start with
-    /// "reference_".
+    /// The notes of a scale or chord to hear from <paramref name="at"/>: a chord struck at once and held two beats; else one
+    /// note after another, <see cref="ReferenceSound.Step"/> apart, the last held two beats, and each held until then when
+    /// the sound rings (<see cref="ReferenceSound.Ringing"/>). They are inferred, since the app plays them, not a piece;
+    /// their ids start with "reference_".
     /// </summary>
     public static IReadOnlyList<Note> Notes(ReferenceSound sound, Tick at = default)
     {
         ArgumentNullException.ThrowIfNull(sound);
-        long beat = CanonicalTime.TicksPerQuarter;
-        return [.. sound.Pitches.Select((pitch, index) => new Note
+        long end = at.Value + sound.Length;
+        return [.. sound.Pitches.Select((pitch, index) =>
         {
-            Id = $"reference_{index}",
-            Pitch = new Pitch(pitch),
-            Span = sound.Together
-                ? new TickSpan(at, beat * 2)
-                : new TickSpan(new Tick(at.Value + (index * beat)), index == sound.Pitches.Count - 1 ? beat * 2 : beat),
-            Velocity = 80,
-            Track = 0,
-            Attribution = Attribution.Inferred(1),
+            long onset = sound.Together ? at.Value : at.Value + (index * sound.Step);
+            long length = sound.Together || sound.Ringing || index == sound.Pitches.Count - 1 ? end - onset : sound.Step;
+            return new Note
+            {
+                Id = $"reference_{index}",
+                Pitch = new Pitch(pitch),
+                Span = new TickSpan(new Tick(onset), length),
+                Velocity = 80,
+                Track = 0,
+                Attribution = Attribution.Inferred(1),
+            };
         })];
     }
 
@@ -213,15 +238,10 @@ public static class KeyReference
 
     private static ReferenceScale Scale(SpelledName tonic, ScaleForm form, NoteNaming naming, Words words)
     {
-        SpelledName[] notes = Spell(tonic, form);
+        IReadOnlyList<SpelledName> notes = ScaleReference.Spell(tonic, form);
         int[] pitches = Upward([.. notes.Select(note => note.PitchClass), tonic.PitchClass], Around(tonic.PitchClass));
-        string title = form switch
-        {
-            ScaleForm.Major => words.T("major scale", "мажорная гамма"),
-            ScaleForm.NaturalMinor => words.T("natural minor", "натуральный минор"),
-            _ => words.T("harmonic minor", "гармонический минор"),
-        };
-        return new ReferenceScale(form, title, [.. notes.Select(note => note.Name(naming))], Sound($"scale.{Id(form)}", pitches, together: false));
+        string title = form == ScaleForm.Major ? words.T("major scale", "мажорная гамма") : ScaleReference.Title(form, words);
+        return new ReferenceScale(form, title, [.. notes.Select(note => note.Name(naming))], Sound($"scale.{ScaleReference.Id(form)}", pitches, together: false)) { Tonic = tonic };
     }
 
     /// <summary>I, IV and V on the major scale; i and iv on the natural minor and V on the harmonic minor, whose leading note makes it major.</summary>
@@ -229,8 +249,8 @@ public static class KeyReference
     {
         bool major = key.Mode == KeyMode.Major;
         SpelledName tonic = TonicOf(key);
-        SpelledName[] chordScale = Spell(tonic, major ? ScaleForm.Major : ScaleForm.NaturalMinor);
-        SpelledName[] dominantScale = Spell(tonic, major ? ScaleForm.Major : ScaleForm.HarmonicMinor);
+        IReadOnlyList<SpelledName> chordScale = ScaleReference.Spell(tonic, major ? ScaleForm.Major : ScaleForm.NaturalMinor);
+        IReadOnlyList<SpelledName> dominantScale = ScaleReference.Spell(tonic, major ? ScaleForm.Major : ScaleForm.HarmonicMinor);
         return
         [
             Chord(chordScale, 0, major ? "I" : "i", HarmonicFunction.Tonic, naming, words),
@@ -239,9 +259,9 @@ public static class KeyReference
         ];
     }
 
-    private static ReferenceChord Chord(SpelledName[] scale, int degree, string numeral, HarmonicFunction function, NoteNaming naming, Words words)
+    private static ReferenceChord Chord(IReadOnlyList<SpelledName> scale, int degree, string numeral, HarmonicFunction function, NoteNaming naming, Words words)
     {
-        SpelledName[] notes = [.. new[] { 0, 2, 4 }.Select(third => scale[(degree + third) % scale.Length])];
+        SpelledName[] notes = [.. new[] { 0, 2, 4 }.Select(third => scale[(degree + third) % scale.Count])];
         bool minorThird = (((notes[1].PitchClass - notes[0].PitchClass) % 12) + 12) % 12 == 3;
         int[] pitches = Upward([.. notes.Select(note => note.PitchClass)], Around(notes[0].PitchClass));
         return new ReferenceChord(
@@ -250,17 +270,19 @@ public static class KeyReference
             HarmonyAnalyzer.FunctionName(function, words),
             $"{notes[0].Letter}{(minorThird ? "m" : "")}",
             [.. notes.Select(note => note.Name(naming))],
-            Sound($"chord.{numeral}", pitches, together: true));
+            Sound($"chord.{numeral}", pitches, together: true))
+        {
+            Root = notes[0],
+            Type = minorThird ? ChordType.Minor : ChordType.Major,
+        };
     }
 
-    private static SpelledName[] Spell(SpelledName tonic, ScaleForm form) =>
-        [.. Intervals(form).Select((semitones, degree) => SpelledName.On(tonic.Step + degree, tonic.PitchClass + semitones))];
-
-    private static ReferenceSound Sound(string id, int[] pitches, bool together) =>
+    /// <summary>A sound of these notes on a keyboard from the C at or below the lowest to the B at or above the highest.</summary>
+    internal static ReferenceSound Sound(string id, int[] pitches, bool together) =>
         new(id, pitches, together, pitches.Min() - (pitches.Min() % 12), pitches.Max() + (11 - (pitches.Max() % 12)));
 
     /// <summary>The pitch classes as MIDI numbers, each the nearest above the one before, the first at <paramref name="first"/>.</summary>
-    private static int[] Upward(int[] pitchClasses, int first)
+    internal static int[] Upward(int[] pitchClasses, int first)
     {
         var pitches = new int[pitchClasses.Length];
         pitches[0] = first;
@@ -274,7 +296,7 @@ public static class KeyReference
     }
 
     /// <summary>A pitch class around middle C: from C4 up to F♯4, and from G3 for G to B, as the circle's scale starts.</summary>
-    private static int Around(int pitchClass) => 60 + pitchClass - (pitchClass > 6 ? 12 : 0);
+    internal static int Around(int pitchClass) => 60 + pitchClass - (pitchClass > 6 ? 12 : 0);
 
     private static SpelledName TonicOf(MusicalKey key)
     {
@@ -299,20 +321,6 @@ public static class KeyReference
         int other = key.Fifths - (12 * Math.Sign(key.Fifths));
         return Math.Abs(other) <= 7 ? new MusicalKey(other, key.Mode) : null;
     }
-
-    private static int[] Intervals(ScaleForm form) => form switch
-    {
-        ScaleForm.Major => s_major,
-        ScaleForm.NaturalMinor => s_naturalMinor,
-        _ => s_harmonicMinor,
-    };
-
-    private static string Id(ScaleForm form) => form switch
-    {
-        ScaleForm.Major => "major",
-        ScaleForm.NaturalMinor => "naturalMinor",
-        _ => "harmonicMinor",
-    };
 
     private static string CountOf(int fifths, Words words) => fifths switch
     {

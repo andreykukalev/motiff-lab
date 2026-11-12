@@ -32,10 +32,29 @@ Each upload is written to a temporary folder, read by homr page by page (or, for
 | Request | Answer |
 | --- | --- |
 | `GET /health` | `{"engine": "homr", "version": "0.7.0", "maxPages": 8, "signIn": false, "transcribe": {"engine": "transkun", "version": "2.0.1", "maxMegabytes": 200, "maxSeconds": 150}}` |
-| `POST /recognise`, multipart form with `file` (PDF, PNG or JPEG, up to 50 MB, `MAX_UPLOAD_MB`) | `200` with the MusicXML (`application/vnd.recordare.musicxml+xml`) and the headers `X-Engine: homr 0.7.0` and `X-Pages`; otherwise `4xx` with `{"message": "…"}` in plain words |
+| `POST /recognise`, multipart form with `file` (PDF, PNG or JPEG, up to 50 MB, `MAX_UPLOAD_MB`) | `200` with the MusicXML (`application/vnd.recordare.musicxml+xml`) and the headers `X-Engine: homr 0.7.0`, `X-Pages` and `X-Page-Report` (below); otherwise `4xx` with `{"message": "…"}` in plain words, and `X-Page-Report` too when a page could not be read |
 | `POST /transcribe`, multipart form with `file` (MP4, MOV, M4A, MP3, WAV, WebM, OGG, FLAC and the like, up to 200 MB) | `200` with the notes as MIDI (`audio/midi`, at 120 beats a minute, so a beat is half a second, with the sustain pedal as controller 64) and the headers `X-Engine: transkun 2.0.1`, `X-Seconds` (how much was heard) and `X-Cut: true` when the recording was longer than the first 2½ minutes that are heard; otherwise `4xx` with `{"message": "…"}` |
 
-Pages of a PDF are joined into one score: the measures of page 2 follow those of page 1, and measure numbers run on. One upload, scan or recording, is read at a time; a second waits its turn. `-e MAX_RECORDING_MB=…` and `-e MAX_RECORDING_SECONDS=…` change the limits for recordings.
+Pages of a PDF are joined into one score: the measures of page 2 follow those of page 1, and measure numbers run on. A page that lies sideways or upside down in the photo itself (the photo's orientation tag is followed first) is turned the right way up before homr reads it: on a page that lies sideways the staff lines run up and down, and each system opens with a brace before its staff lines and ends with a bar line after them. When the signs are not clear, as on a dim photo, the page is read as it is.
+
+### The page report
+
+`X-Page-Report` is a JSON list with one entry per page, in numbers only, so an app can tell a weak photo from a good one. Apps that do not read it lose nothing.
+
+```json
+[{"page": 1, "rotation": 90, "sharpness": 1.2, "contrast": 118, "staves": 10, "noteheads": 226, "barLines": 59, "spacePx": 13.0, "measures": 28}]
+```
+
+| Field | What it is |
+| --- | --- |
+| `rotation` | degrees the page was turned clockwise before reading: 0, 90, 180 or 270 |
+| `sharpness` | how steep the edges of the print are against its contrast; about 1 is crisp, below 0.8 soft |
+| `contrast` | how much darker the darkest print is than the paper around it, in grey levels (0–255); a page in good light has about 110 or more |
+| `staves`, `noteheads`, `barLines` | what homr found, read from its log |
+| `spacePx` | the median height of a notehead, about one staff space, in homr's working copy of the page (cropped to the paper, 1920 pixels wide) |
+| `measures` | measures in the music that came out of the page; 0 when the page could not be read |
+
+The first three are measured by this service with Pillow before homr runs; the rest come from homr's log, which is read for these counts only and never passed on, since it also names the title it read. One upload, scan or recording, is read at a time; a second waits its turn. `-e MAX_RECORDING_MB=…` and `-e MAX_RECORDING_SECONDS=…` change the limits for recordings.
 
 ## Develop
 

@@ -2,7 +2,7 @@ import SwiftUI
 
 /// A key's card in the Reference (the web app's KeyCardView): its name; the relative, parallel and enharmonic keys, each a
 /// tap to their own card; the key signature on a treble staff and in words; the scales and the three main chords with
-/// their notes, each played by a tap and shown on the small keyboard below.
+/// their notes, each played by a tap and shown on the small keyboard below, its own card then opening under this one.
 struct ReferenceCardView: View {
     let card: ReferenceCard
     let shown: ReferenceCard.Sound?
@@ -142,13 +142,13 @@ struct MiniKeyboard: View {
             let width = size.width / CGFloat(max(1, whites.count))
             for (index, pitch) in whites.enumerated() {
                 let key = Path(CGRect(x: CGFloat(index) * width, y: 0, width: width, height: size.height))
-                context.fill(key, with: .color(Color.ds(sound.pitches.contains(pitch) ? "accent" : "paper")))
+                context.fill(key, with: .color(Color.ds(sound.marked.contains(pitch) ? "accent" : "paper")))
                 context.stroke(key, with: .color(Color.ds("ink-2")), lineWidth: 0.6)
             }
             for index in whites.indices.dropFirst() where whites[index] - whites[index - 1] == 2 {
                 let pitch = whites[index] - 1
                 let key = Path(CGRect(x: CGFloat(index) * width - width * 0.32, y: 0, width: width * 0.64, height: size.height * 0.62))
-                context.fill(key, with: .color(Color.ds(sound.pitches.contains(pitch) ? "accent" : "ink")))
+                context.fill(key, with: .color(Color.ds(sound.marked.contains(pitch) ? "accent" : "ink")))
             }
         }
         .aspectRatio(CGFloat(max(1, whites.count)) * 14 / 52, contentMode: .fit)

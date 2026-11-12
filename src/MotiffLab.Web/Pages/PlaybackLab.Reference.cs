@@ -39,7 +39,7 @@ public partial class PlaybackLab
         }
 
         Tick at = _selection?.Span.Onset ?? Player.Position;
-        long length = (sound.Pitches.Count + 1) * CanonicalTime.TicksPerQuarter;
+        long length = sound.Length;
         // Near the end of the piece the notes start early enough to end with it.
         at = at.Value + length > _score.End.Value ? new Tick(Math.Max(0, _score.End.Value - length)) : at;
         await HearAloneAsync(KeyReference.Notes(sound, at));

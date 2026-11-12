@@ -1,6 +1,8 @@
 """Turns an uploaded PDF or photo into page images for homr.
 
 Everything happens in memory and in the job's own temporary folder; nothing is written anywhere else.
+Each page is looked at first (quality.py): turned the right way up if it lies sideways or upside down,
+and measured for sharpness and contrast.
 """
 
 from __future__ import annotations
@@ -10,6 +12,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from PIL import Image, ImageOps, UnidentifiedImageError
+
+from app import quality
 
 # 300 dpi is what homr was tested at (docs/decisions/0011-sheet-music-recognition.md).
 PDF_DPI = 300
@@ -21,6 +25,12 @@ MAX_LONG_SIDE = 4200
 
 class PageError(ValueError):
     """The upload cannot be turned into pages. The message is plain words for the player."""
+
+
+@dataclass(frozen=True)
+class Page:
+    path: Path
+    look: quality.Look
 
 
 @dataclass(frozen=True)
@@ -53,8 +63,8 @@ def count_pages(upload: Upload) -> int:
         pdf.close()
 
 
-def write_pages(upload: Upload, folder: Path, max_pages: int) -> list[Path]:
-    """Writes each page as a greyscale PNG into the folder, in order, and returns the paths."""
+def write_pages(upload: Upload, folder: Path, max_pages: int) -> list[Page]:
+    """Writes each page, the right way up, as a greyscale PNG into the folder, in order."""
     if upload.kind == "image":
         return [_write(_open_image(upload.data), folder, 1)]
 
@@ -69,15 +79,15 @@ def write_pages(upload: Upload, folder: Path, max_pages: int) -> list[Path]:
             raise PageError("This PDF has no pages.")
         if len(pdf) > max_pages:
             raise PageError(f"This PDF has {len(pdf)} pages. Scanning reads up to {max_pages} pages at a time.")
-        paths = []
+        written = []
         for index in range(len(pdf)):
             page = pdf[index]
             try:
                 image = page.render(scale=PDF_DPI / 72, grayscale=True).to_pil()
             finally:
                 page.close()
-            paths.append(_write(image, folder, index + 1))
-        return paths
+            written.append(_write(image, folder, index + 1))
+        return written
     finally:
         pdf.close()
 
@@ -92,12 +102,12 @@ def _open_image(data: bytes) -> Image.Image:
     return ImageOps.exif_transpose(image)
 
 
-def _write(image: Image.Image, folder: Path, number: int) -> Path:
-    image = image.convert("L")
+def _write(image: Image.Image, folder: Path, number: int) -> Page:
+    image, look = quality.examine(image)
     long_side = max(image.size)
     if long_side > MAX_LONG_SIDE:
         image.thumbnail((MAX_LONG_SIDE, MAX_LONG_SIDE), Image.Resampling.LANCZOS)
     path = folder / f"page-{number:02d}.png"
     # Saving through Pillow also drops the photo's metadata (location, camera), which homr does not need.
     image.save(path, format="PNG")
-    return path
+    return Page(path, look)

@@ -9163,6 +9163,138 @@ body:has(.library) .site-footer {
     fill: var(--accent);
 }
 
+/* Keys | Chords | Scales at the top of the Reference. */
+.ref-sheet .ref-modes {
+    align-self: flex-start;
+}
+
+/* A key's card, and under it the own card of the scale or chord last tapped on it. */
+.ref-sheet .ref-cards {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-5);
+}
+
+.ref-sheet .ref-detail {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--s-3);
+    padding-top: var(--s-4);
+    border-top: 1px solid var(--hairline);
+}
+
+.ref-sheet .ref-lookup + .ref-detail {
+    padding-top: 0;
+    border-top: 0;
+}
+
+/* A chord symbol keeps its case: F♯m7 is not F♯M7. */
+.ref-sheet .ref-detail-name {
+    margin: 0;
+    font: var(--t-heading);
+    letter-spacing: normal;
+    text-transform: none;
+    color: var(--ink);
+}
+
+.ref-sheet .ref-detail-kind {
+    margin-left: var(--s-2);
+    font: var(--t-body);
+    letter-spacing: normal;
+    text-transform: none;
+    color: var(--ink-2);
+}
+
+.ref-sheet .ref-form {
+    height: var(--h-touch);
+    padding: 0 var(--s-3);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-pill);
+    background: var(--surface-2);
+    color: var(--ink);
+    font: var(--t-body);
+    cursor: pointer;
+}
+
+.ref-sheet .ref-form:hover {
+    border-color: var(--accent);
+}
+
+.ref-sheet .ref-form[aria-pressed=true] {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--on-accent);
+}
+
+/* Degrees over notes, one column a tone. */
+.ref-sheet .ref-formula {
+    border-collapse: collapse;
+    font: var(--t-body);
+}
+
+.ref-sheet .ref-formula th {
+    padding: var(--s-1) var(--s-3) var(--s-1) 0;
+    font: var(--t-caption);
+    text-align: left;
+    color: var(--ink-2);
+}
+
+.ref-sheet .ref-formula td {
+    min-width: var(--s-8);
+    padding: var(--s-1) var(--s-2);
+    text-align: center;
+    color: var(--ink);
+}
+
+.ref-sheet .ref-formula .ref-degree {
+    font: var(--t-body-strong);
+}
+
+.ref-sheet .ref-positions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ref-sheet .ref-position {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--s-1) var(--s-3);
+    min-height: var(--h-touch);
+    padding: var(--s-1) var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-s);
+    background: var(--surface-2);
+}
+
+.ref-sheet .ref-position-name {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--s-2);
+}
+
+.ref-sheet .ref-figure {
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.ref-sheet .ref-position-play {
+    display: inline-flex;
+    gap: var(--s-1);
+    margin-left: auto;
+}
+
+.ref-sheet .btn.ref-play[aria-pressed=true] {
+    border-color: var(--accent);
+    background: var(--accent-tint);
+}
+
 /* Circle in the score's bar is a word, not an icon: its own width. */
 .lab.workspace .bar .act.ref-act {
     width: auto;

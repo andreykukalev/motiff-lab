@@ -1741,7 +1741,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     // MARK: - Strokes
 
     /// A stroke PencilKit finished: its points in the page's pixels, then kept as a mark or, with the eraser, what it
-    /// passed over taken away.
+    /// passed over taken away. The canvas covers the whole page, so the Pencil writes in the margins too: a stroke begun
+    /// left or right of a line is kept against the line's first or last bar and drawn from that edge of its line in any
+    /// layout (`anchorMark` and `placeMark` in pencil-marks.ts), and music-core keeps its points thinned (`ink.add`).
     private func strokeEnded(_ stroke: PKStroke) {
         guard let piece, shown else { return }
         let zoom = max(webView.scrollView.zoomScale, 0.01)
