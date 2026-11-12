@@ -99,8 +99,21 @@ internal static partial class SectionCues
     public static SectionCue Silence(long microseconds, bool isLong)
     {
         long seconds = (microseconds + 500_000) / 1_000_000;
-        return new SectionCue(SectionCueKind.Silence, isLong ? LongSilenceWeight : SilenceWeight, $"{seconds} s of silence before", $"перед этим {seconds} с тишины");
+        return new SectionCue(SectionCueKind.Silence, isLong ? LongSilenceWeight : SilenceWeight, $"{seconds} s of silence before", $"перед этим {seconds} с тишины") { Microseconds = microseconds };
     }
+
+    /// <summary>
+    /// A silence that alone is not a boundary between pieces (Andrei, 2026-11-12: a pause without a change of key or tempo
+    /// is not one), proposed only to make up the number of pieces the player gave.
+    /// </summary>
+    public static SectionCue SameMusic() => new(
+        SectionCueKind.SameMusic,
+        0,
+        "only a pause: the key and the tempo stay the same",
+        "только пауза: тональность и темп те же");
+
+    /// <summary>A boundary the player set.</summary>
+    public static SectionCue Added() => new(SectionCueKind.Added, 0, "added by you", "добавлено вами");
 
     /// <summary>The keys the music around a silence fits best: a hearing, said as one.</summary>
     public static SectionCue HeardKey(MusicalKey before, MusicalKey after) => new(
