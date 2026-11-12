@@ -43,6 +43,28 @@ public static class LiveBars
     }
 
     /// <summary>
+    /// Where the recording's bars read better in an odd signature (version 0.5, «Смена размера в записи», a preview: nothing
+    /// is changed or saved): <see cref="BarGrid.OddMeters"/> on the project's bars, each stretch as the numbers of the first
+    /// and last bars of <paramref name="opened"/> it covers. None for a project without bars worked out from its notes.
+    /// </summary>
+    /// <param name="opened">The project's piece as it opens, on its bars.</param>
+    public static IReadOnlyList<OddBars> OddMeters(Project project, Import.ImportedPiece opened)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+        ArgumentNullException.ThrowIfNull(opened);
+        if (project.Transcription?.Bars is not { } grid || Import.PieceImporter.Import(project.FileName, project.Source).Piece?.Midi is not { } heard)
+        {
+            return [];
+        }
+
+        long end = Math.Max(1, opened.End.Value);
+        return [.. grid.OddMeters(heard).Select(stretch => new OddBars(
+            opened.Meter.BarAt(new Tick(Math.Min(end - 1, stretch.From * BarGrid.StepTicks))).Number,
+            opened.Meter.BarAt(new Tick(Math.Min(end, stretch.To * BarGrid.StepTicks) - 1)).Number,
+            stretch.Signature))];
+    }
+
+    /// <summary>
     /// What a score of the piece says about its bars, a hint for the recording: the first version written from a score
     /// (<see cref="PerformanceSource.Score"/>), its first signature when the bars offer it and its first tempo; null without one.
     /// </summary>
@@ -114,3 +136,6 @@ public static class LiveBars
     private static Project WithoutLayer(Project project) =>
         project with { Bookmarks = [.. project.Bookmarks.Where(mark => mark.CategoryId != BookmarkCategory.PiecesId)] };
 }
+
+/// <summary>Bars <paramref name="FirstBar"/> to <paramref name="LastBar"/> of a recording that read better in <paramref name="Signature"/> (a preview).</summary>
+public sealed record OddBars(int FirstBar, int LastBar, TimeSignature Signature);

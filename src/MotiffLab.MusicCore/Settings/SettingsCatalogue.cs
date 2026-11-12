@@ -118,6 +118,10 @@ public static class SettingsCatalogue
 
         // Inside that experiment: while the piece plays, the bars other than the one playing fade, to try by feel.
         Switch("experimental.playheadsFade", SettingSection.Experimental, null, SettingScope.Device, on: true),
+
+        // Changes of signature in a recording (v0.5, a preview): where the bars read better in 5/8, 7/8, 9/8, 5/4 or 12/8
+        // (LiveBars.OddMeters), said in the Check drawer's head; nothing is changed or saved.
+        Switch("experimental.meters", SettingSection.Experimental, null, SettingScope.Device),
     ];
 
     private static readonly Dictionary<string, Setting> s_byId = All.ToDictionary(setting => setting.Id, StringComparer.Ordinal);
