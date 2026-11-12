@@ -151,7 +151,7 @@ final class ImportRunner: ObservableObject {
     /// Grows as pieces are added (every few) and when a run ends, so the library reads its pieces again.
     @Published private(set) var revision = 0
     /// The piece added last, by file, for «Распознать ноты» when the batch asked for it.
-    var added: ((URL) -> Void)?
+    var added: (@MainActor (URL) -> Void)?
     var root = ImportFolders.root
     var links = OriginalLinks.folder
     var projects: () -> URL = { ProjectFiles.folder }

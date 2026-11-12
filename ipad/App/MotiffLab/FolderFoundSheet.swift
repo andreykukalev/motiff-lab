@@ -8,6 +8,8 @@ import SwiftUI
 struct FolderFoundSheet: View {
     @ObservedObject var review: FolderReview
     let text: UIText
+    /// Where the PDFs would go for «Распознать ноты: сразу для всех»; nil when the player may not send them now.
+    var offer: RecognitionOffer?
     /// The import to start.
     let add: (ImportJob) -> Void
     /// Opens the piece found again, when the check came from it.
@@ -127,6 +129,15 @@ struct FolderFoundSheet: View {
     private var footer: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
             choice(text["folderImport.foldersBecome"], FolderMapping.allCases.map { ($0, text["folderImport.folders." + $0.rawValue]) }, review.folders) { review.folders = $0 }
+            if let offer, offer.allowed {
+                choice(text["folderImport.recognise"], [(false, text["folderImport.recogniseLater"]), (true, text["folderImport.recogniseNow"])], review.recognise) { review.recognise = $0 }
+                if review.recognise {
+                    Text(offer.hosted ? text.format("folderImport.recogniseHosted", String(offer.leftToday), String(DailyPages.limit)) : text.format("folderImport.recogniseOwn", offer.address.host ?? offer.address.absoluteString))
+                        .dsType(.caption)
+                        .foregroundStyle(Color.ds("ink-2"))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
             if review.mode == .first {
                 if review.linkable {
                     choice(text["folderImport.keep"], [(true, text["folderImport.keepLink"]), (false, text["folderImport.keepCopy"])], review.linked) { review.linked = $0 }
