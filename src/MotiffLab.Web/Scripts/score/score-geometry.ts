@@ -641,8 +641,12 @@ export class ScoreGeometry {
         return bar === undefined ? undefined : { x: bar.right, y: bar.staves[0]?.top ?? bar.top };
     }
 
-    /** The bars as the pencil layer anchors marks to them (pencil-marks.ts, 0015). */
+    /** The bars as the pencil layer anchors marks to them (pencil-marks.ts, 0015), each with the edges of its line for strokes in the margins. */
     barFrames(): BarFrame[] {
+        const edges = this.systems.map((system) => ({
+            left: Math.min(...system.bars.map((index) => this.bars[index].left)),
+            right: Math.max(...system.bars.map((index) => this.bars[index].right)),
+        }));
         return this.bars.map((bar) => ({
             tick: bar.tick,
             left: bar.left,
@@ -651,6 +655,9 @@ export class ScoreGeometry {
             bottom: bar.ink.bottom,
             staffTop: bar.staves[0]?.top ?? bar.top,
             space: bar.staves[0]?.space ?? (bar.bottom - bar.top) / 8,
+            line: bar.system,
+            lineLeft: edges[bar.system]?.left ?? bar.left,
+            lineRight: edges[bar.system]?.right ?? bar.right,
         }));
     }
 }
