@@ -1,0 +1,75 @@
+@using MotiffLab.MusicCore
+@using MotiffLab.MusicCore.Analysis
+@using MotiffLab.Web.Localization
+@inject UiText Text
+
+@* A chord's own card in the Reference (music-core's ChordCard): its symbol and name, its degrees over its notes, then root
+   position and each inversion, each played struck at once or broken and shown on the small keyboard below, which keeps
+   one stretch of keys for every position so the shape is seen to move. *@
+<section class="ref-detail" aria-labelledby="ref-chord-title">
+    <h3 id="ref-chord-title" class="ref-detail-name">@Card.Symbol <span class="ref-detail-kind">@Card.Name</span></h3>
+    <FormulaTable Formula="Card.Formula" Notes="Card.Notes" />
+
+    <h4 class="overline">@Text["reference.positions"]</h4>
+    <ul class="ref-positions">
+        @foreach (ChordPosition position in Card.Positions)
+        {
+            string spoken = $"{Card.Symbol}, {position.Title}: {string.Join(" ", position.Notes)}";
+            <li class="ref-position">
+                <span class="ref-position-name">
+                    <span class="ref-sound-title">@Words.Capitalize(position.Title)</span>
+                    @if (position.Figure is { } figure)
+                    {
+                        <span class="ref-figure">@figure</span>
+                    }
+                </span>
+                <span class="ref-notes">@string.Join(" ", position.Notes)</span>
+                <span class="ref-position-play">
+                    @Play(position.Block, "reference.block", spoken, position.Notes)
+                    @Play(position.Arpeggio, "reference.arpeggio", spoken, position.Notes)
+                </span>
+            </li>
+        }
+    </ul>
+
+    @if (_shown is { } shown)
+    {
+        <MiniKeyboard Sound="shown" Label="@Text.Format("reference.keys", string.Join(" ", _shownNames))" />
+    }
+</section>
+
+@code {
+    private ReferenceSound? _shown;
+    private IReadOnlyList<string> _shownNames = [];
+    private ChordCard? _card;
+
+    [Parameter, EditorRequired]
+    public ChordCard Card { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback<ReferenceSound> Hear { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        // A new chord's card starts on root position, shown on the keyboard; the host decides whether it is heard.
+        if (!ReferenceEquals(_card, Card))
+        {
+            _card = Card;
+            _shown = Card.Positions[0].Block;
+            _shownNames = Card.Positions[0].Notes;
+        }
+    }
+
+    private RenderFragment Play(ReferenceSound sound, string label, string spoken, IReadOnlyList<string> names) =>
+        @<button class="btn quiet compact ref-play" aria-pressed="@(_shown?.Id == sound.Id ? "true" : "false")"
+                 aria-label="@Text.Format("reference.play", $"{spoken}, {Text[label]}")" @onclick="() => ShowAsync(sound, names)">
+            <Icon Name="play" />@Text[label]
+        </button>;
+
+    private async Task ShowAsync(ReferenceSound sound, IReadOnlyList<string> names)
+    {
+        _shown = sound;
+        _shownNames = names;
+        await Hear.InvokeAsync(sound);
+    }
+}

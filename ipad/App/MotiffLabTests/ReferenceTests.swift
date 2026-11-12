@@ -3,7 +3,8 @@ import XCTest
 @testable import MotiffLab
 
 /// The Reference (an experiment, Settings · Experimental): music-core's circle of fifths and key cards on piece 0
-/// (`reference.key`, `reference.sound`) as the iPad reads them, and where a tap lands on the circle.
+/// (`reference.key`, `reference.sound`), its chord and scale cards (`reference.chord`, `reference.scale`) and the open
+/// piece's key as the iPad reads them, and where a tap lands on the circle.
 final class ReferenceTests: XCTestCase {
     func testTheCircleComesWithTheFifteenSignaturesAndNoCardUntilAKeyIsChosen() throws {
         let answer = try XCTUnwrap(ReferenceAnswer(answer: MusicCore.call(piece: 0, "reference.key", #"{"language": "en"}"#)))
@@ -44,6 +45,62 @@ final class ReferenceTests: XCTestCase {
 
         XCTAssertEqual(score.notes.map(\.pitch), [55, 59, 62])
         XCTAssertEqual(score.timeline.tempos.first?.microsecondsPerQuarter, 600_000)
+    }
+
+    func testAKeyCardsChordsAndScalesNameTheirOwnCards() throws {
+        let text = MusicCore.call(piece: 0, "reference.key", #"{"fifths": -3, "mode": "minor", "language": "en", "naming": "letters"}"#)
+        let card = try XCTUnwrap(ReferenceAnswer(answer: text)?.card)
+
+        XCTAssertEqual(card.chords.map(\.type), ["minor", "minor", "major"])
+        XCTAssertEqual(card.chords.map { $0.root?.letter }, ["C", "F", "G"])
+        XCTAssertEqual(card.scales.map(\.form), ["naturalMinor", "harmonicMinor"])
+        XCTAssertEqual(card.scales.first?.root, ReferenceRoot(step: 0, alter: 0))
+        XCTAssertNil(ReferenceAnswer(answer: text)?.pieceKey)
+    }
+
+    func testAChordCardHasItsFormulaAndInversions() throws {
+        let text = MusicCore.call(piece: 0, "reference.chord", #"{"step": 4, "alter": 0, "type": "dominant7", "language": "ru", "naming": "syllables"}"#)
+        let lookup = try XCTUnwrap(ReferenceLookup(answer: text))
+        let chord = try XCTUnwrap(lookup.chord)
+
+        XCTAssertEqual(lookup.roots.count, 17)
+        XCTAssertEqual(lookup.roots.map(\.letter).prefix(3), ["C", "C♯", "D♭"])
+        XCTAssertEqual(lookup.choices.count, 14)
+        XCTAssertEqual(chord.symbol, "G7")
+        XCTAssertEqual(chord.formula, ["1", "3", "5", "♭7"])
+        XCTAssertEqual(chord.notes, ["соль", "си", "ре", "фа"])
+        XCTAssertEqual(chord.positions.map(\.title), ["основной вид", "квинтсекстаккорд", "терцквартаккорд", "секундаккорд"])
+        XCTAssertEqual(chord.positions[1].figure, "6/5")
+        XCTAssertEqual(chord.positions[1].block.pitches, [59, 62, 65, 67])
+        XCTAssertEqual(chord.positions[1].arpeggio.id, "arpeggio.1")
+        XCTAssertNil(lookup.scale)
+    }
+
+    func testAScaleCardSoundsUpAndDownAndMarksTheWayUp() throws {
+        let text = MusicCore.call(piece: 0, "reference.scale", #"{"step": 5, "alter": 0, "form": "melodicMinor", "language": "en", "naming": "letters"}"#)
+        let scale = try XCTUnwrap(ReferenceLookup(answer: text)?.scale)
+
+        XCTAssertEqual(scale.name, "A melodic minor")
+        XCTAssertEqual(scale.notes, ["A", "B", "C", "D", "E", "F♯", "G♯"])
+        XCTAssertEqual(scale.descending, ["A", "G", "F", "E", "D", "C", "B", "A"])
+        XCTAssertEqual(scale.sound.pitches.count, 15)
+        XCTAssertEqual(scale.sound.marked, [57, 59, 60, 62, 64, 66, 68, 69])
+        let score = try XCTUnwrap(PlaybackScore.read(MusicCore.call(piece: 0, "reference.sound", #"{"step": 5, "alter": 0, "form": "melodicMinor", "id": "scale"}"#)))
+        XCTAssertEqual(score.notes.count, 15)
+    }
+
+    func testTheOpenPiecesKeyComesWithTheCircle() throws {
+        let example = try XCTUnwrap(KitPiece.example)
+        let opened = try XCTUnwrap(facadeObject(MusicCore.open(fileName: example.fileName, data: example.data, request: #"{"language": "en"}"#)))
+        let piece = Int32(opened["piece"] as? Int ?? 0)
+        defer { MusicCore.close(piece: piece) }
+        let answer = try XCTUnwrap(ReferenceAnswer(answer: MusicCore.call(piece: piece, "reference.key", #"{"language": "en"}"#)))
+        let key = try XCTUnwrap(answer.pieceKey)
+
+        XCTAssertEqual(key.name, "A minor")
+        XCTAssertTrue(key.minor)
+        XCTAssertEqual(key.position, 0)
+        XCTAssertFalse(key.inferred)
     }
 
     func testATapOnTheCircleFindsThePlaceAndTheRing() {

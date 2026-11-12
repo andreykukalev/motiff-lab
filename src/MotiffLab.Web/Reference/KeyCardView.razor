@@ -41,7 +41,7 @@
         {
             <li>
                 <button class="ref-sound" aria-pressed="@(_shown?.Id == scale.Sound.Id ? "true" : "false")"
-                        aria-label="@Text.Format("reference.play", $"{scale.Title}: {string.Join(" ", scale.Notes)}")" @onclick="() => ShowAsync(scale.Sound, scale.Notes)">
+                        aria-label="@Text.Format("reference.play", $"{scale.Title}: {string.Join(" ", scale.Notes)}")" @onclick="() => ShowScaleAsync(scale)">
                     <Icon Name="play" />
                     <span class="ref-sound-title">@Words.Capitalize(scale.Title)</span>
                     <span class="ref-notes">@string.Join(" ", scale.Notes)</span>
@@ -56,7 +56,7 @@
         {
             <li>
                 <button class="ref-sound fn-@chord.Function.ToString().ToLowerInvariant()" aria-pressed="@(_shown?.Id == chord.Sound.Id ? "true" : "false")"
-                        aria-label="@Text.Format("reference.play", $"{chord.Numeral}, {chord.FunctionName}, {chord.Symbol}: {string.Join(" ", chord.Notes)}")" @onclick="() => ShowAsync(chord.Sound, chord.Notes)">
+                        aria-label="@Text.Format("reference.play", $"{chord.Numeral}, {chord.FunctionName}, {chord.Symbol}: {string.Join(" ", chord.Notes)}")" @onclick="() => ShowChordAsync(chord)">
                     <span class="ref-numeral">@chord.Numeral</span>
                     <span class="ref-sound-title">@chord.Symbol</span>
                     <span class="ref-notes">@string.Join(" ", chord.Notes)</span>
@@ -105,6 +105,26 @@
             _shown = Card.Scales[0].Sound;
             _shownNames = Card.Scales[0].Notes;
         }
+    }
+
+    /// <summary>Opens the scale's own card under this one (with its other forms a tap away in Scales).</summary>
+    [Parameter]
+    public EventCallback<ReferenceScale> OpenScale { get; set; }
+
+    /// <summary>Opens the chord's own card under this one, with its inversions.</summary>
+    [Parameter]
+    public EventCallback<ReferenceChord> OpenChord { get; set; }
+
+    private async Task ShowScaleAsync(ReferenceScale scale)
+    {
+        await ShowAsync(scale.Sound, scale.Notes);
+        await OpenScale.InvokeAsync(scale);
+    }
+
+    private async Task ShowChordAsync(ReferenceChord chord)
+    {
+        await ShowAsync(chord.Sound, chord.Notes);
+        await OpenChord.InvokeAsync(chord);
     }
 
     private async Task ShowAsync(ReferenceSound sound, IReadOnlyList<string> names)

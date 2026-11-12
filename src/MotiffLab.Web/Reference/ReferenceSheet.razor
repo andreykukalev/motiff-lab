@@ -8,65 +8,102 @@
 @implements IDisposable
 
 @* The Reference (an experiment, Settings · Experimental; Andrei, 2026-11-11): the circle of fifths one tap away, over the
-   library or the score. The key signatures come first, as the player most often looks a key up by them (23:44 UTC): one tap
-   marks the major and its relative minor on the circle and opens the major's card. A tap on the circle opens that key's
-   card. Everything shown is music-core's KeyReference; the sheet only lays it out and hands a scale or chord to its host
+   library or the score, with chords and scales beside it. Keys come first, as the player most often calls the circle up:
+   the key signatures, as he most often looks a key up by them (23:44 UTC), mark the major and its relative minor on the
+   circle and open the major's card; a tap on the circle opens that key's card, and a tap on one of its scales or main
+   chords plays it and opens its own card underneath. Chords and Scales look one up by its root. Everything shown is
+   music-core's KeyReference, ChordReference and ScaleReference; the sheet only lays it out and hands a sound to its host
    to hear. *@
 <div class="ref-scrim" @onclick="CloseAsync"></div>
 <section class="ref-sheet" role="dialog" aria-modal="true" aria-labelledby="ref-title" tabindex="-1" @ref="_element" @onkeydown="OnKey">
     <header class="ref-head">
-        <h2 id="ref-title">@Text["reference.title"]</h2>
+        <h2 id="ref-title">@Text[TitleKey]</h2>
         <button class="btn icon" aria-label="@Text["reference.close"]" title="@Text["reference.close"]" @onclick="CloseAsync"><Icon Name="close" /></button>
     </header>
     <div class="ref-body">
-        <section class="ref-lookup" aria-labelledby="ref-lookup-title">
-            <h3 id="ref-lookup-title" class="overline">@Text["reference.bySignature"]</h3>
-            @foreach (SignatureChoice[] row in Rows)
+        <div class="seg ref-modes" role="radiogroup" aria-label="@Text["reference.mode"]">
+            @foreach (string mode in s_modes)
             {
-                <div class="ref-signatures" role="group" aria-labelledby="ref-lookup-title">
-                    @foreach (SignatureChoice choice in row)
-                    {
-                        bool on = _key?.Fifths == choice.Fifths;
-                        <button class="chip ref-sig" aria-pressed="@(on ? "true" : "false")" aria-label="@choice.Spoken" title="@choice.Spoken"
-                                @onclick="() => Pick(new MusicalKey(choice.Fifths, KeyMode.Major))">@choice.Label</button>
-                    }
-                </div>
-            }
-        </section>
-        <div class="ref-main">
-            <div class="ref-circle-wrap">
-                <ReferenceCircle Chosen="_key" PieceKey="PieceKey?.Key" PieceKeyInferred="PieceKeyInferred" Pick="Pick" />
-                @if (PieceKey is { } piece)
-                {
-                    <p class="caption ref-piece-key">
-                        <span class="ref-piece-mark" aria-hidden="true"></span>
-                        @Text.Format(PieceKeyInferred ? "reference.pieceKeyInferred" : "reference.pieceKey", piece.Key.NameIn(Words))
-                        <button class="btn quiet compact" @onclick="() => Pick(piece.Key)">@Text["reference.showPieceKey"]</button>
-                    </p>
-                }
-            </div>
-            @if (_card is { } card)
-            {
-                <KeyCardView Card="card" Words="Words" Pick="Pick" Hear="Hear" />
-            }
-            else
-            {
-                <p class="caption ref-choose">@Text["reference.choose"]</p>
+                <button role="radio" class="@(_mode == mode ? "on" : null)" aria-checked="@(_mode == mode ? "true" : "false")" @onclick="() => _mode = mode">@Text[$"reference.mode.{mode}"]</button>
             }
         </div>
+        @if (_mode == "chords")
+        {
+            <ChordLookup Card="_chord" Naming="Naming" Words="Words" Pick="pick => PickChord(pick.Root, pick.Type)" Hear="Hear" />
+        }
+        else if (_mode == "scales")
+        {
+            <ScaleLookup Card="_scale" Naming="Naming" Words="Words" Pick="pick => PickScale(pick.Root, pick.Form)" Hear="Hear" />
+        }
+        else
+        {
+            <section class="ref-lookup" aria-labelledby="ref-lookup-title">
+                <h3 id="ref-lookup-title" class="overline">@Text["reference.bySignature"]</h3>
+                @foreach (SignatureChoice[] row in Rows)
+                {
+                    <div class="ref-signatures" role="group" aria-labelledby="ref-lookup-title">
+                        @foreach (SignatureChoice choice in row)
+                        {
+                            bool on = _key?.Fifths == choice.Fifths;
+                            <button class="chip ref-sig" aria-pressed="@(on ? "true" : "false")" aria-label="@choice.Spoken" title="@choice.Spoken"
+                                    @onclick="() => Pick(new MusicalKey(choice.Fifths, KeyMode.Major))">@choice.Label</button>
+                        }
+                    </div>
+                }
+            </section>
+            <div class="ref-main">
+                <div class="ref-circle-wrap">
+                    <ReferenceCircle Chosen="_key" PieceKey="PieceKey?.Key" PieceKeyInferred="PieceKeyInferred" Pick="Pick" />
+                    @if (PieceKey is { } piece)
+                    {
+                        <p class="caption ref-piece-key">
+                            <span class="ref-piece-mark" aria-hidden="true"></span>
+                            @Text.Format(PieceKeyInferred ? "reference.pieceKeyInferred" : "reference.pieceKey", piece.Key.NameIn(Words))
+                            <button class="btn quiet compact" @onclick="() => Pick(piece.Key)">@Text["reference.showPieceKey"]</button>
+                        </p>
+                    }
+                </div>
+                @if (_card is { } card)
+                {
+                    <div class="ref-cards">
+                        <KeyCardView Card="card" Words="Words" Pick="Pick" Hear="Hear" OpenChord="OpenChord" OpenScale="OpenScale" />
+                        @if (_detail == "chord")
+                        {
+                            <ChordCardView Card="_chord" Hear="Hear" />
+                        }
+                        else if (_detail == "scale")
+                        {
+                            <ScaleCardView Card="_scale" Hear="Hear" />
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="caption ref-choose">@Text["reference.choose"]</p>
+                }
+            </div>
+        }
     </div>
 </section>
 
 @code {
+    private static readonly string[] s_modes = ["keys", "chords", "scales"];
+
     private ElementReference _element;
     private MusicalKey? _key;
     private KeyCard? _card;
     private bool _focused;
+    private string _mode = "keys";
+    private ChordCard _chord = ChordReference.For(new SpelledName(0, 0), ChordType.Major);
+    private ScaleCard _scale = ScaleReference.For(new SpelledName(0, 0), ScaleForm.Major);
+
+    /// <summary>The scale or chord of the key's card whose own card is open under it, if any.</summary>
+    private string? _detail;
 
     [Parameter]
     public EventCallback Closed { get; set; }
 
-    /// <summary>Raised with a scale or chord of the card to hear; the host plays it with the app's piano.</summary>
+    /// <summary>Raised with a scale or chord to hear; the host plays it with the app's piano.</summary>
     [Parameter]
     public EventCallback<ReferenceSound> Hear { get; set; }
 
@@ -80,6 +117,9 @@
 
     private NoteNaming Naming => NoteNames.For(Store[NoteNames.Setting], Words);
 
+    /// <summary>The sheet's title follows what it shows: the circle of fifths, chords or scales.</summary>
+    private string TitleKey => _mode == "keys" ? "reference.title" : $"reference.mode.{_mode}";
+
     /// <summary>None and the sharps on one row, the flats on the next, as Andrei listed them.</summary>
     private SignatureChoice[][] Rows
     {
@@ -92,8 +132,10 @@
 
     protected override async Task OnInitializedAsync()
     {
-        Text.Changed += StateHasChanged;
+        Text.Changed += OnLanguage;
         await Store.LoadAsync();
+        PickChord(_chord.Root, _chord.Type);
+        PickScale(_scale.Tonic, _scale.Form);
         if (PieceKey is { } piece)
         {
             Pick(piece.Key);
@@ -113,6 +155,38 @@
     {
         _key = key;
         _card = KeyReference.For(key, Naming, Words);
+        _detail = null;
+    }
+
+    private void PickChord(SpelledName root, ChordType type) => _chord = ChordReference.For(root, type, Naming, Words);
+
+    private void PickScale(SpelledName root, ScaleForm form) => _scale = ScaleReference.For(root, form, Naming, Words);
+
+    /// <summary>A main chord of the key's card: its own card opens under it, and stays the chord of Chords.</summary>
+    private void OpenChord(ReferenceChord chord)
+    {
+        PickChord(chord.Root, chord.Type);
+        _detail = "chord";
+    }
+
+    /// <summary>A scale of the key's card: its own card opens under it, and stays the scale of Scales.</summary>
+    private void OpenScale(ReferenceScale scale)
+    {
+        PickScale(scale.Tonic, scale.Form);
+        _detail = "scale";
+    }
+
+    /// <summary>A new language or naming writes the cards again in it.</summary>
+    private void OnLanguage()
+    {
+        if (_key is { } key)
+        {
+            _card = KeyReference.For(key, Naming, Words);
+        }
+
+        PickChord(_chord.Root, _chord.Type);
+        PickScale(_scale.Tonic, _scale.Form);
+        StateHasChanged();
     }
 
     private async Task OnKey(KeyboardEventArgs args)
@@ -125,5 +199,5 @@
 
     private Task CloseAsync() => Closed.InvokeAsync();
 
-    public void Dispose() => Text.Changed -= StateHasChanged;
+    public void Dispose() => Text.Changed -= OnLanguage;
 }

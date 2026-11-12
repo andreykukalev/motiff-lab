@@ -162,6 +162,15 @@ struct CircleDrawing: View {
     let circle: KeyCircle
     let chosen: Fact.Place?
     var functions = false
+    /// The key the open piece starts in (the Reference), outlined in ink, dotted when it is assumed.
+    var piece: PieceMark?
+
+    /// A key outlined on the circle: its place, its ring and whether it is assumed.
+    struct PieceMark: Equatable {
+        var position: Int
+        var minor: Bool
+        var inferred: Bool
+    }
 
     private static let outer = 100.0, middle = 66.0, inner = 36.0, step = 30.0
 
@@ -176,6 +185,12 @@ struct CircleDrawing: View {
                     label(sector.major, at: point(sector.position, 84, unit, centre), size: 11 * unit, weight: 600, colour: "ink")
                     label(sector.minor, at: point(sector.position, 57, unit, centre), size: 8.5 * unit, weight: 400, colour: "ink")
                     label(sector.signature, at: point(sector.position, 28, unit, centre), size: 7 * unit, weight: 400, colour: "ink-2")
+                }
+                if let piece {
+                    SectorShape(position: piece.position, inner: (piece.minor ? Self.inner : Self.middle) * unit,
+                                outer: (piece.minor ? Self.middle : Self.outer) * unit, centre: centre)
+                        .stroke(Color.ds("ink"), style: StrokeStyle(lineWidth: 1.6 * unit, dash: piece.inferred ? [4 * unit, 3 * unit] : []))
+                        .accessibilityHidden(true)
                 }
                 ForEach(chordAngles()) { entry in
                     let on = chosen == entry.chord.place

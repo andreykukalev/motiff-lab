@@ -1,0 +1,27 @@
+@using MotiffLab.MusicCore.Analysis
+@using MotiffLab.MusicCore.Notation
+
+@* The roots a chord or a scale of the Reference starts on (music-core's KeyReference.Roots): the seven letters and each
+   black key spelled both ways, in the order of the keyboard, named as the note naming setting says. *@
+<div class="ref-signatures ref-roots" role="group" aria-label="@Label">
+    @foreach (SpelledName root in KeyReference.Roots)
+    {
+        bool on = Chosen == root;
+        <button class="chip ref-sig" aria-pressed="@(on ? "true" : "false")" @onclick="() => Pick.InvokeAsync(root)">@root.Name(Naming)</button>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public SpelledName? Chosen { get; set; }
+
+    [Parameter]
+    public NoteNaming Naming { get; set; }
+
+    /// <summary>What the row is, read out for the group.</summary>
+    [Parameter]
+    public string? Label { get; set; }
+
+    [Parameter]
+    public EventCallback<SpelledName> Pick { get; set; }
+}

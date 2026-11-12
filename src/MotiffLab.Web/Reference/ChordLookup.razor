@@ -1,0 +1,45 @@
+@using MotiffLab.MusicCore
+@using MotiffLab.MusicCore.Analysis
+@using MotiffLab.MusicCore.Notation
+@using MotiffLab.Web.Localization
+@inject UiText Text
+
+@* Chords in the Reference: a root, then a chord on it (each chip its symbol on that root, its name read out), then the
+   chord's card (ChordCardView). Everything is music-core's ChordReference. *@
+<section class="ref-lookup" aria-labelledby="ref-chord-root">
+    <h3 id="ref-chord-root" class="overline">@Text["reference.root"]</h3>
+    <RootChips Chosen="Root" Naming="Naming" Label="@Text["reference.root"]" Pick="root => Pick.InvokeAsync((root, Type))" />
+    <h3 id="ref-chord-type" class="overline">@Text["reference.chordType"]</h3>
+    <div class="ref-signatures" role="group" aria-labelledby="ref-chord-type">
+        @foreach (ChordTypeChoice choice in ChordReference.Types(Words))
+        {
+            bool on = choice.Type == Type;
+            <button class="chip ref-sig" aria-pressed="@(on ? "true" : "false")" aria-label="@($"{Root.Letter}{choice.Suffix}, {choice.Name}")" title="@choice.Name"
+                    @onclick="() => Pick.InvokeAsync((Root, choice.Type))">@Root.Letter@choice.Suffix</button>
+        }
+    </div>
+</section>
+<ChordCardView Card="Card" Hear="Hear" />
+
+@code {
+    /// <summary>The chord chosen, kept by the sheet so that its card keeps the position shown.</summary>
+    [Parameter, EditorRequired]
+    public ChordCard Card { get; set; } = null!;
+
+    [Parameter]
+    public NoteNaming Naming { get; set; }
+
+    [Parameter]
+    public Words Words { get; set; }
+
+    /// <summary>Another root or chord chosen.</summary>
+    [Parameter]
+    public EventCallback<(SpelledName Root, ChordType Type)> Pick { get; set; }
+
+    [Parameter]
+    public EventCallback<ReferenceSound> Hear { get; set; }
+
+    private SpelledName Root => Card.Root;
+
+    private ChordType Type => Card.Type;
+}
