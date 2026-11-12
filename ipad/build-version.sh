@@ -11,12 +11,15 @@
 # same network it installs the app there; otherwise it opens Xcode, where Product > Run installs it.
 # Needs what ipad/README.md lists: Xcode, XcodeGen, CMake, the .NET 10 SDK, and the Apple ID signed in to Xcode once.
 #
-# Servers (infra/README.md, "The develop environment"): a version not yet in main (a v0.n tag is a develop commit) talks
-# to develop's API and scan server, as the web test site does: their addresses are read from the test site's
-# appsettings.json and written into Account.json for this build only. A commit already in main (a released version, a
-# hotfix tag) keeps main's servers from the committed Account.json, and so does a build when the test site does not
-# answer. MOTIFF_SERVERS=main or MOTIFF_SERVERS=develop chooses by hand.
+# Servers (infra/README.md, "The develop environment"): Account.json carries both environments, Main (the players' real
+# database) and Test (develop's servers and their test database), and the app switches between them in Settings, each
+# with its own library on the iPad. The script only sets where the build starts ("Default", for this build only): a
+# version not yet in main (a v0.n tag is a develop commit) starts in Test, where Main is read only until "Allow writing
+# to Main" is turned on; a commit already in main (a released version, a hotfix tag) starts in Main and offers Test only
+# to a tester. MOTIFF_SERVERS=main or MOTIFF_SERVERS=develop chooses by hand.
 set -euo pipefail
+# Read whole before it runs: checking out the tag below may replace this very file.
+{
 
 ref="${1:?Usage: ipad/build-version.sh <tag or branch>, for example v0.1}"
 root="$(git rev-parse --show-toplevel)"
@@ -49,24 +52,22 @@ servers="${MOTIFF_SERVERS:-}"
 if [[ -z "$servers" ]]; then
   if git merge-base --is-ancestor HEAD origin/main 2>/dev/null; then servers=main; else servers=develop; fi
 fi
-# The address after "Api": or "Scan": in a settings file, when it is a plain https address.
-address() { sed -nE "s#.*\"$1\"[[:space:]]*:[[:space:]]*\"(https://[A-Za-z0-9.-]+)\".*#\1#p"; }
-if [[ "$servers" == develop && -f "$account" ]]; then
-  site="${MOTIFF_TEST_SITE:-delightful-ground-046924d0f-develop.eastus2.4.azurestaticapps.net}"
-  settings="$(curl -fsS --max-time 20 "https://$site/appsettings.json" 2>/dev/null || true)"
-  api="$(address Api <<< "$settings")"
-  scan="$(address Scan <<< "$settings")"
-  if [[ -n "$api" && -n "$scan" ]]; then
-    # Only this build's copy changes: the committed file comes back when the script ends, built or not.
-    trap 'git -C "$root" checkout --quiet -- ipad/App/MotiffLab/Account.json' EXIT
-    sed -E -e "s#(\"Api\"[[:space:]]*:[[:space:]]*\")[^\"]*#\1$api#" -e "s#(\"Scan\"[[:space:]]*:[[:space:]]*\")[^\"]*#\1$scan#" \
-      "$account" > "$account.tmp" && mv "$account.tmp" "$account"
-  else
-    echo "    The web test site ($site) did not give its servers: this build uses main's."
-    servers=main
-  fi
+case "$servers" in
+  main) start=main ;;
+  develop | test) start=test ;;
+  *) echo "MOTIFF_SERVERS is main or develop, not $servers." >&2; exit 1 ;;
+esac
+# The addresses after "Api": in the settings file, Main's first, then Test's.
+address() { sed -nE "s#.*\"Api\"[[:space:]]*:[[:space:]]*\"(https://[A-Za-z0-9.-]+)\".*#\1#p" "$account"; }
+if grep -q '"Default"' "$account"; then
+  # Only this build's copy changes: the committed file comes back when the script ends, built or not.
+  trap 'git -C "$root" checkout --quiet -- ipad/App/MotiffLab/Account.json' EXIT
+  sed -E "s#(\"Default\"[[:space:]]*:[[:space:]]*\")[^\"]*#\1$start#" "$account" > "$account.tmp" && mv "$account.tmp" "$account"
+  echo "    Starts in $start. Main: $(address | sed -n 1p); Test: $(address | sed -n 2p)"
+else
+  # A version from before the switch (0.3) knows only Main's servers.
+  echo "    This version knows only Main's servers: $(address | sed -n 1p)"
 fi
-[[ -f "$account" ]] && echo "    $servers: $(address Api < "$account"), $(address Scan < "$account")"
 
 echo "==> music-core (2-4 minutes)"
 ipad/Core/build.sh > /tmp/motiff-core.log 2>&1 || { tail -20 /tmp/motiff-core.log; exit 1; }
@@ -96,3 +97,5 @@ else
   open MotiffLab.xcodeproj
 fi
 echo "To go back to your branch: git switch -"
+exit
+}

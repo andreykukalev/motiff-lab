@@ -66,6 +66,7 @@ struct LibraryView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: CGFloat.ds("s-6")) {
                         header
+                        MainEnvironmentLine(account: account, text: text)
                         if let problem {
                             Text(problem)
                                 .dsType(.label)
@@ -168,6 +169,14 @@ struct LibraryView: View {
             .onChange(of: syncOn) { _, on in
                 if on { Task { await refreshOnline() } }
             }
+            // Another environment (Settings): its own library and its own pieces online, nothing carried over.
+            .onChange(of: account.environment) { _, _ in
+                online = []
+                overQuota = 0
+                problem = nil
+                picked = nil
+                Task { await reload(); await refreshOnline() }
+            }
             // Recent lists the last opened first; the other lists start from A.
             .onChange(of: tab) { _, shown in
                 picked = nil
@@ -185,6 +194,7 @@ struct LibraryView: View {
                 .foregroundStyle(Color.ds("ink"))
                 .fixedSize()
                 .accessibilityAddTraits(.isHeader)
+            EnvironmentMark(account: account, text: text)
             Spacer(minLength: CGFloat.ds("s-4"))
             if !projects.isEmpty {
                 LibrarySearchField(search: $query.search, text: text)
@@ -285,10 +295,14 @@ struct LibraryView: View {
             syncing = true
             let language = text.language
             let previous = text.format("sync.previousCopy", "{0}", "%@")
-            let outcome = await CloudSync(online: account.online) { made in
+            // One environment for the whole pass: its folder, its records and its servers (the requests stop on a switch).
+            let environment = account.environment
+            let outcome = await CloudSync(online: account.online, folder: environment.projectsFolder, recordsURL: environment.syncRecordsURL) { made in
                 previous.replacingOccurrences(of: "%@", with: Self.when(made, language: language))
             }.run()
             syncing = false
+            // Switched meanwhile: the pass stopped, and the environment now chosen gets one of its own.
+            guard environment == account.environment else { return await refreshOnline() }
             overQuota = outcome.overQuota
             if outcome.changed { await reload() }
         }

@@ -4,8 +4,8 @@ import UIKit
 
 /// Where players sign in (decision record 0014): the web app's External ID tenant, its app registration and the
 /// Motiff Lab API's scopes, in `Account.json` (the same shape and values as the published web app's
-/// `appsettings.json`). The iPad signs in with MSAL on the registration's iOS redirect,
-/// `msauth.<bundle id>://auth` (infra/azure/ipad.ps1).
+/// `appsettings.json`), with one environment's servers (`EnvironmentSetup`). The iPad signs in with MSAL on the
+/// registration's iOS redirect, `msauth.<bundle id>://auth` (infra/azure/ipad.ps1).
 struct AccountOptions: Decodable, Equatable, Sendable {
     /// https://<domain>.ciamlogin.com/<tenant id>
     var authority: String
@@ -32,7 +32,7 @@ struct AccountOptions: Decodable, Equatable, Sendable {
         !authority.isEmpty && !clientId.isEmpty && !apiScope.isEmpty && URL(string: api)?.host != nil
     }
 
-    /// The options in the app, or nil in a build without sign-in; then nothing about accounts shows.
+    /// Main's options in the app, or nil in a build without sign-in; then nothing about accounts shows.
     static func load(bundle: Bundle = .main) -> AccountOptions? {
         guard let url = bundle.url(forResource: "Account", withExtension: "json"),
               let data = try? Data(contentsOf: url),
@@ -135,6 +135,8 @@ struct PlayerProfile: Equatable, Sendable {
 /// and the plan the API answers. As in the web app (Account/CloudAccount.cs), a tester's choice of Pro or no Pro is kept
 /// on this device and sent with every request to the API and the scan server (`Motiff-Plan`), which trust it only from a
 /// tester. Signing in is optional: everything on the device works without it, and the free tier sends nothing anywhere.
+/// It talks to one server environment at a time (`EnvironmentSetup`, Andrei 2026-11-12): Main or Test, switched in
+/// Settings with the sign-in kept; in a version build Main is read only unless the player allowed writing.
 @MainActor
 final class Account: ObservableObject {
     static let choiceKey = "ml-test-plan"
@@ -150,24 +152,72 @@ final class Account: ObservableObject {
     @Published private(set) var profile: PlayerProfile?
     @Published private(set) var busy = false
     @Published var problem: String?
+    /// The server environment the app works in now, and whether writing to Main was allowed for this build.
+    @Published private(set) var environment: ServerEnvironment
+    @Published private(set) var mainWritesAllowed: Bool
 
-    let options: AccountOptions?
+    /// The environments this build knows; nil in a build without sign-in.
+    let setup: EnvironmentSetup?
     private var made: MSALPublicClientApplication?
     private let defaults: UserDefaults
     private let session: URLSession
     private let text: UIText
     private var account: MSALAccount?
 
-    init(options: AccountOptions? = .load(), defaults: UserDefaults = .standard, session: URLSession = .shared, text: UIText = .current) {
-        self.options = options
+    init(setup: EnvironmentSetup? = .bundled, defaults: UserDefaults = .standard, session: URLSession = .shared, text: UIText = .current) {
+        self.setup = setup
         self.defaults = defaults
         self.session = session
         self.text = text
         choice = defaults.string(forKey: Self.choiceKey).flatMap(Plan.init(rawValue:))
+        environment = setup.map { $0.current(chosen: defaults.string(forKey: $0.choiceKey)) } ?? .main
+        mainWritesAllowed = EnvironmentSetup.mainWritesAllowed(defaults)
     }
 
+    /// An account on one environment's servers only: Main, read and written as in a build from main.
+    convenience init(options: AccountOptions?, defaults: UserDefaults = .standard, session: URLSession = .shared, text: UIText = .current) {
+        self.init(setup: options.map { EnvironmentSetup(main: $0, test: nil, buildDefault: .main) }, defaults: defaults, session: session, text: text)
+    }
+
+    /// The sign-in and the servers of the environment the app works in; nil in a build without sign-in.
+    var options: AccountOptions? { setup?.options(environment) }
+
     /// False in a build without sign-in.
-    var isAvailable: Bool { options != nil }
+    var isAvailable: Bool { setup != nil }
+
+    /// A version build (a commit not in main yet): it starts in Test, and Main is read only there by default.
+    var isVersionBuild: Bool { setup?.isVersionBuild == true }
+
+    /// Whether Settings shows the environment row: in a version build, for a tester, or away from the build's default.
+    var offersEnvironmentChoice: Bool {
+        setup?.offersChoice(current: environment, isTester: plan?.isTester == true) == true
+    }
+
+    /// Whether the app may change anything online now: false only in Main in a version build until writing is allowed.
+    var writes: Bool { setup?.writes(environment, mainAllowed: mainWritesAllowed) ?? true }
+
+    /// Switches the app to the environment (Settings, after the player confirmed it): from now on the library is that
+    /// environment's own project files and sync records, and every request goes to its servers. The sign-in stays (one
+    /// tenant); the plan and the profile are asked of the environment's API again.
+    func switchEnvironment(to target: ServerEnvironment) async {
+        guard let setup, setup.test != nil, target != environment else { return }
+        defaults.set(target.rawValue, forKey: setup.choiceKey)
+        environment = target
+        plan = nil
+        profile = nil
+        await refreshPlan()
+        await refreshProfile()
+    }
+
+    /// Allows writing to Main in a version build, for this build only, or takes it back.
+    func allowMainWrites(_ allowed: Bool) {
+        if allowed {
+            defaults.set(EnvironmentSetup.build(), forKey: EnvironmentSetup.mainWritesKey)
+        } else {
+            defaults.removeObject(forKey: EnvironmentSetup.mainWritesKey)
+        }
+        mainWritesAllowed = allowed
+    }
 
     /// The name to show: the one the player chose, else the sign-in's; nil when nobody is signed in.
     var shownName: String? { player.map { profile?.name ?? $0 } }
@@ -286,6 +336,7 @@ final class Account: ObservableObject {
 
     /// Keeps the player's name and photo (nil clears either); nil when kept, else what went wrong in the player's words.
     func saveProfile(name: String?, photo: String?) async -> String? {
+        guard writes else { return text["environment.notSaved"] }
         guard let options, player != nil, let token = await token(options.apiScope),
               var request = request(path: "profile", token: token)
         else { return text["profile.notSaved"] }
@@ -323,16 +374,22 @@ final class Account: ObservableObject {
     }
 
     /// A request to the API with a token for its scope, got without asking the player anything; nil when nobody is
-    /// signed in or there is no token.
-    func apiRequest(_ path: String) async -> URLRequest? {
-        guard let options, player != nil, let token = await token(options.apiScope) else { return nil }
+    /// signed in or there is no token. Given an environment, nil once the app works in another one, so nothing meant for
+    /// one database reaches the other.
+    func apiRequest(_ path: String, in environment: ServerEnvironment? = nil) async -> URLRequest? {
+        let expected = environment ?? self.environment
+        guard let options, player != nil, expected == self.environment, let token = await token(options.apiScope),
+              expected == self.environment
+        else { return nil }
         return request(path: path, token: token)
     }
 
-    /// The projects the player saved online, with their token on any plan (0014): listed, fetched and sent by the sync
-    /// (version 0.2, `CloudSync`), never deleted from the iPad.
+    /// The projects the player saved online in the environment the app works in now, with their token on any plan (0014):
+    /// listed, fetched and sent by the sync (version 0.2, `CloudSync`), never deleted from the iPad. Its requests stop once
+    /// the app switches environment, and it sends nothing where the app may not write (Main in a version build).
     var online: OnlineProjects {
-        OnlineProjects(session: session) { [weak self] path in await self?.apiRequest(path) }
+        let environment = self.environment
+        return OnlineProjects(session: session, request: { [weak self] path in await self?.apiRequest(path, in: environment) }, writable: writes)
     }
 
     /// Adds a tester's choice to a request for the API or the hosted scan server; nothing when there is none.

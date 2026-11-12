@@ -2,7 +2,8 @@ import Foundation
 
 /// Projects are files on the device (decision record 0019 section 2.3): one `.motiff.json` project file per piece in
 /// the app's Documents, shown in the Files app. music-core writes the file (`project.save`), so a project saved here
-/// opens in the web app and back.
+/// opens in the web app and back. Each server environment has its own folder (`ServerEnvironment.projectsFolder`):
+/// Main's is Documents itself, Test's Documents/Test.
 enum ProjectFiles {
     static let suffix = ".motiff.json"
 
@@ -14,8 +15,9 @@ enum ProjectFiles {
         var title: String { ProjectFiles.title(of: url.lastPathComponent) }
     }
 
+    /// The folder of the environment the app works in now.
     static var folder: URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        EnvironmentSetup.current().projectsFolder
     }
 
     /// The projects in the folder, the most recently changed first.

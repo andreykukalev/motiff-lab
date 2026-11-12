@@ -15,10 +15,11 @@ struct SyncRecord: Codable, Equatable, Sendable {
     var known: Bool { etag != nil || deletedOnline }
 }
 
-/// The records, by project id, in one file in Application Support (not in Documents, so the Files app does not show it).
+/// The records, by project id, in one file in Application Support (not in Documents, so the Files app does not show it),
+/// one file for each server environment: sync.json for Main, sync-test.json for Test (`ServerEnvironment`).
 enum SyncRecords {
     static var url: URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("sync.json")
+        EnvironmentSetup.current().syncRecordsURL
     }
 
     static func load(from url: URL = url) -> [String: SyncRecord] {
@@ -39,7 +40,9 @@ enum SyncRecords {
 /// API's list by music-core's rules (`project.sync`, `ProjectSync`): it sends what changed here (the copy without the PDF,
 /// `project.online`), fetches what changed online or is new there (keeping this iPad's PDF, `project.pulled`), and
 /// resolves a change on both (`project.resolve`). A piece that is only a PDF stays here (0026 C3). The library runs it
-/// when it opens, comes back to the screen, after a piece closes and on sign-in, never inside a piece.
+/// when it opens, comes back to the screen, after a piece closes and on sign-in, never inside a piece. Where the app may
+/// not write (Main in a version build, `OnlineProjects.writable`) a pass only fetches: it sends nothing and leaves a piece
+/// changed on both sides as it is here, to be resolved once writing is allowed.
 struct CloudSync {
     /// The Settings switch (`account.saveOnline`), on until the player turns it off (0014 item 13 as 0.2 amends it).
     static let onKey = "account.saveOnline"
@@ -100,7 +103,7 @@ struct CloudSync {
         ]
         switch await Self.core("project.sync", facts)?["step"] as? String {
         case "upload":
-            guard let local else { return false }
+            guard let local, online.writable else { return false }
             // Not sent again over the quota until it changes here or the account has room: the library says so meanwhile.
             if record.overQuota && hash == record.hash && !roomy { return false }
             records[id] = await upload(id, local, ifMatch: row == nil ? nil : record.etag, record)
@@ -109,7 +112,8 @@ struct CloudSync {
             guard let row else { return false }
             return await download(id, local, row, &records)
         case "resolve":
-            guard let local, let row else { return false }
+            // Resolving may send this iPad's copy, and a copy kept beside would be made again on every pass: not while read only.
+            guard let local, let row, online.writable else { return false }
             return await resolve(id, local, row, &records)
         case "forget":
             records[id] = local == nil ? nil : SyncRecord(hash: hash, deletedOnline: true)

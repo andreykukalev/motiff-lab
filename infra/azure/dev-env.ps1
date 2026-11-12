@@ -86,5 +86,5 @@ foreach ($pair in @(
 
 Write-MotiffStep 'Done'
 Write-MotiffInfo 'The next push to develop deploys the develop API and scan server here, without approval.'
-Write-MotiffInfo 'The web test site switches to them at its next deploy from develop, and version builds for the iPad'
-Write-MotiffInfo '(ipad/build-version.sh) read them from the test site.'
+Write-MotiffInfo 'The web test site switches to them at its next deploy from develop. The iPad app keeps them as its Test'
+Write-MotiffInfo 'environment in ipad/App/MotiffLab/Account.json: if the addresses above changed, change them there too.'
