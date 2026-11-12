@@ -1,0 +1,25 @@
+@inject MotiffLab.Web.Localization.UiText Text
+
+@* «Смена размера в записи» (an experiment, Settings · Experimental, version 0.5, a preview), in the Check drawer's head for a
+   transcription with bars: where music-core finds that the recording's bars read better in an odd signature (LiveBars.OddMeters),
+   one line for each stretch. Nothing is changed or saved; the bars stay as they are. *@
+<div class="live-bars" role="group" aria-label="@Text["tempo.oddMetersHeading"]">
+    @if (Stretches.Count == 0)
+    {
+        <p class="caption">@Text["tempo.oddMetersNone"]</p>
+    }
+    else
+    {
+        @foreach (MotiffLab.MusicCore.Projects.OddBars stretch in Stretches)
+        {
+            <p class="check-bar">@Text.Format("tempo.oddMetersLine", stretch.Signature, stretch.FirstBar, stretch.LastBar)</p>
+        }
+    }
+    <p class="caption">@Text["tempo.oddMetersHow"]</p>
+</div>
+
+@code {
+    /// <summary>The stretches music-core found, by the bars of the piece as it opens.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<MotiffLab.MusicCore.Projects.OddBars> Stretches { get; set; } = [];
+}

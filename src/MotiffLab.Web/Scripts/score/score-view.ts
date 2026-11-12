@@ -11,6 +11,8 @@
 import type { BarFrame } from "./pencil-marks.js";
 import { PencilLayer, type PencilState } from "./pencil-layer.js";
 import { type ScoreSelection, SelectionLayer } from "./selection-layer.js";
+import { ScoreRules } from "./score-modes.js";
+import { ScorePlayheadMarks, placesOf, type PlayheadsState } from "./playheads.js";
 import { ScoreTimeline, highlightedIds, type HighlightPlace } from "./score-timeline.js";
 import { A4_HEIGHT, A4_WIDTH, buildPdf, crop, inkBounds, type InkLayer, type PdfPage } from "./pdf-document.js";
 import { hasText, svgToPdfOperators, textOnlySvg } from "./svg-to-pdf.js";
@@ -304,6 +306,11 @@ export class ScoreView {
     private disposed = false;
     private readonly pencil: PencilLayer;
     private readonly selection: SelectionLayer;
+    /** The rules of version 0.5 (the experiment Two playheads and modes): off until Blazor names a mode. */
+    private readonly rules: ScoreRules;
+    /** The two playheads of version 0.5 (playheads.ts), drawn instead of the one playhead while Blazor gives their state. */
+    private readonly heads: ScorePlayheadMarks;
+    private headsState: PlayheadsState | null = null;
     /** A4 pages (0017), or one strip the width of the view. */
     private paged = true;
     /** Whether the bars take room by their length rather than their notes (Settings · Notes, score.evenBars; testing item 35). */
@@ -324,6 +331,8 @@ export class ScoreView {
     /** The playhead's line and the wash over its bar, made when playback first starts. */
     private playLine: HTMLElement | null = null;
     private playWash: HTMLElement | null = null;
+    /** Whether a playhead shows, so Back to playback has a place to go to. */
+    private playShown = false;
     /** Whether the piece has played since the score began to follow the player: a pause then leaves the playhead resting where it stopped. */
     private played = false;
     /** The playhead line's top in the score, for Back to playback (the line is moved by a transform, so it has no offsetTop). */
@@ -350,11 +359,30 @@ export class ScoreView {
             changed: (state: PencilState) => void this.dotnet.invokeMethodAsync("OnPencilChanged", state),
             marksChanged: (text: string) => void this.dotnet.invokeMethodAsync("OnPencilMarksChanged", text),
         });
+        this.rules = new ScoreRules(host, {
+            geometry: () => this.geometry(),
+            tickX: (tick) => this.playheadAt(tick)?.x,
+            onsetOf: (id) => this.timeline?.onsetOf(id),
+            pitchOf: (id) => this.pitchOf(id),
+            scrolled: () => (this.scrolledByHand = performance.now()),
+            beatClicked: (start, end, extend) => void this.dotnet.invokeMethodAsync("OnScoreBeatClicked", start, end, extend),
+            noteToEdit: (onset, pitch) => void this.dotnet.invokeMethodAsync("OnScoreNoteToEdit", onset, pitch),
+        });
+        this.heads = new ScorePlayheadMarks(host, {
+            at: (tick) => this.playheadAt(tick),
+            beatLines: () => this.rules.beatLines(),
+            lineX: (bar, line) => this.rules.beats.lineX(bar, line),
+            element: (id) => this.element(id),
+        });
         this.selection = new SelectionLayer(host, {
             geometry: () => this.geometry(),
             penOn: () => this.pencil.state().on,
             chosen: (first, last, byHandle) => void this.dotnet.invokeMethodAsync("OnScoreBarsChosen", first, last, byHandle),
             marksTop: (band) => this.bookmarksTop(band),
+            beats: () => this.rules.beatLines(),
+            tickX: (tick) => this.playheadAt(tick)?.x,
+            chosenSpan: (start, end, byHandle) => void this.dotnet.invokeMethodAsync("OnScoreSpanChosen", start, end, byHandle),
+            mode: () => this.rules.mode(),
         });
         this.host.classList.toggle("paged", this.paged);
         this.host.addEventListener("click", this.onClick);
@@ -494,6 +522,7 @@ export class ScoreView {
         } else {
             this.mark([], false);
             this.placePlayhead(null);
+            this.heads.hide();
         }
     }
 
@@ -504,8 +533,7 @@ export class ScoreView {
 
     /** "Back to playback": scrolls the playing system under the reading line and lets the score follow again. */
     returnToPlayhead(): void {
-        const line = this.playLine;
-        if (line === null || !line.isConnected || line.hidden) {
+        if (!this.playShown) {
             return;
         }
         this.scrolledByHand = 0;
@@ -525,7 +553,7 @@ export class ScoreView {
             if (this.playWash !== null) {
                 this.playWash.hidden = true;
             }
-            this.reportAway(-1);
+            this.reportPlace(undefined, resting);
             return;
         }
         const line = (this.playLine ??= overlay(PLAYHEAD_CLASS));
@@ -538,13 +566,22 @@ export class ScoreView {
             element.classList.toggle(RESTING_CLASS, resting);
         }
         // Moved by a transform on layers of their own, so the page under them is not painted again on every frame (testing item 31).
-        this.playTop = at.top - 6;
-        setStyle(line, "transform", `translate(${at.x - 1}px, ${this.playTop}px)`);
+        setStyle(line, "transform", `translate(${at.x - 1}px, ${at.top - 6}px)`);
         setStyle(line, "height", `${at.bottom - at.top + 12}px`);
         setStyle(wash, "transform", `translate(${at.bar.left}px, ${at.top - 4}px)`);
         setStyle(wash, "width", `${at.bar.right - at.bar.left}px`);
         setStyle(wash, "height", `${at.bottom - at.top + 8}px`);
+        this.reportPlace(at, resting);
+    }
 
+    /** Keeps where the playhead that plays is, for Back to playback, and tells Blazor when it goes out of sight while playing. */
+    private reportPlace(at: Playhead | undefined, resting: boolean): void {
+        this.playShown = at !== undefined;
+        if (at === undefined) {
+            this.reportAway(-1);
+            return;
+        }
+        this.playTop = at.top - 6;
         const shownTop = this.host.scrollTop + READING_LINE_PX - 16;
         const shownBottom = this.host.scrollTop + this.host.clientHeight - PILL_ROOM_PX;
         this.reportAway(!resting && (at.bottom < shownTop || at.top > shownBottom) ? at.bar.tick : -1);
@@ -589,6 +626,25 @@ export class ScoreView {
     /** Shows the selection as a band with handles over its bars (0018 section 3); null shows none. */
     setSelection(selection: ScoreSelection | null): void {
         this.selection.setSelection(selection);
+    }
+
+    /**
+     * The rules of version 0.5 (score-modes.ts): the mode the bar chose and music-core's beat lines, which the selection
+     * snaps to; a null mode keeps the rules before them.
+     */
+    setRules(mode: string | null, lines: number[] | null): void {
+        this.rules.set(mode, lines);
+        this.selection.place();
+    }
+
+    /** The two playheads of version 0.5 (playheads.ts); null draws the one playhead as before. */
+    setPlayheads(state: PlayheadsState | null): void {
+        this.headsState = state;
+        if (state === null) {
+            this.heads.hide();
+        } else {
+            this.placePlayhead(null);
+        }
     }
 
     /** The contextual menu Blazor draws for the selection, placed over the band as the score scrolls. */
@@ -866,6 +922,8 @@ export class ScoreView {
         this.disposed = true;
         this.pencil.dispose();
         this.selection.dispose();
+        this.rules.dispose();
+        this.heads.dispose();
         cancelAnimationFrame(this.frame);
         cancelAnimationFrame(this.replaceFrame);
         clearTimeout(this.relayoutTimer);
@@ -1585,8 +1643,12 @@ export class ScoreView {
             const tick = player.currentTick();
             this.played ||= playing;
             this.mark(this.timeline.soundingAt(tick), playing);
-            // Stopped, the playhead stays where playing stopped, so the place is not lost (testing item 28).
-            this.placePlayhead(playing || (this.played && tick > 0) ? tick : null, !playing);
+            if (this.headsState !== null) {
+                this.reportPlace(this.heads.place(placesOf(this.headsState, tick, playing)), !playing);
+            } else {
+                // Stopped, the playhead stays where playing stopped, so the place is not lost (testing item 28).
+                this.placePlayhead(playing || (this.played && tick > 0) ? tick : null, !playing);
+            }
         }
         this.frame = requestAnimationFrame(this.tick);
     };
@@ -1670,10 +1732,12 @@ export class ScoreView {
             return;
         }
         // A press the pencil layer took is handled there: a tap comes back through pick. A drag across bars has chosen them already.
-        if (this.selection.swallowsClick()) {
+        const dragged = this.selection.swallowsClick();
+        const penned = this.pencil.swallowsClick();
+        if (this.rules.click(event, dragged || penned) || dragged) {
             return;
         }
-        if (event.target instanceof Element && !this.pencil.swallowsClick()) {
+        if (event.target instanceof Element && !penned) {
             this.pick(event.target, event.shiftKey);
         }
     };
@@ -1681,7 +1745,8 @@ export class ScoreView {
     /** A click or a pen tap on the score: a note moves playback to it, a bar away from its notes selects it. */
     private pick(target: Element, extend: boolean): void {
         const timeline = this.timeline;
-        if (timeline === null) {
+        // Under the rules of version 0.5 a pen's tap writes; it never selects or moves playback.
+        if (timeline === null || this.rules.mode() !== null) {
             return;
         }
         // A click on a chord's stem finds the chord; its notes start where it starts.

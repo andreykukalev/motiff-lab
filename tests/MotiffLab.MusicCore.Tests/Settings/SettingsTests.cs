@@ -60,7 +60,7 @@ public class SettingsTests
     [Fact]
     public void The_version_0_5_experiments_are_off_on_the_device_and_one_switch_replaces_the_two_for_pieces()
     {
-        foreach (string id in new[] { "experimental.pieces", "experimental.editsLayer", "experimental.liveTempo", "experimental.harmony", "experimental.readingMarks" })
+        foreach (string id in new[] { "experimental.pieces", "experimental.editsLayer", "experimental.liveTempo", "experimental.harmony", "experimental.readingMarks", "experimental.meters" })
         {
             Setting setting = SettingsCatalogue.Get(id);
             Assert.Equal(SettingSection.Experimental, setting.Section);
@@ -70,6 +70,20 @@ public class SettingsTests
 
         Assert.Null(SettingsCatalogue.Find("experimental.autoBookmarks"));
         Assert.Null(SettingsCatalogue.Find("experimental.pieceParts"));
+    }
+
+    [Fact]
+    public void The_playheads_experiment_is_off_on_the_device_and_its_fade_is_on_inside_it()
+    {
+        foreach (string id in new[] { "experimental.playheads", "experimental.playheadsFade" })
+        {
+            Setting setting = SettingsCatalogue.Get(id);
+            Assert.Equal(SettingSection.Experimental, setting.Section);
+            Assert.Equal(SettingScope.Device, setting.Scope);
+        }
+
+        Assert.False(SettingsState.Default.IsOn("experimental.playheads"));
+        Assert.True(SettingsState.Default.IsOn("experimental.playheadsFade"));
     }
 
     [Fact]

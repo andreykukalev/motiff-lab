@@ -116,6 +116,13 @@
                 <SettingSwitch Id="experimental.reference" Label="@Text["settings.reference"]" Hint="@Text["settings.referenceHint"]" />
                 <SettingSwitch Id="experimental.harmony" Label="@Text["settings.harmony"]" Hint="@Text["settings.harmonyHint"]" />
                 <SettingSwitch Id="experimental.readingMarks" Label="@Text["settings.readingMarks"]" Hint="@Text["settings.readingMarksHint"]" />
+                <SettingSwitch Id="experimental.playheads" Label="@Text["settings.playheads"]" Hint="@Text["settings.playheadsHint"]" />
+                @if (Store.IsOn("experimental.playheads"))
+                {
+                    <SettingSwitch Id="experimental.playheadsFade" Label="@Text["settings.playheadsFade"]" Hint="@Text["settings.playheadsFadeHint"]" />
+                }
+                <SettingSwitch Id="experimental.meters" Label="@Text["settings.meters"]" Hint="@Text["settings.metersHint"]" />
+                <SettingSwitch Id="experimental.photoPages" Label="@Text["settings.photoPages"]" Hint="@Text["settings.photoPagesWebHint"]" />
                 break;
         }
 

@@ -99,6 +99,7 @@ public static class SettingsCatalogue
         Switch("experimental.harmony", SettingSection.Experimental, null, SettingScope.Device),
 
         // Photos of pages (v0.4, iPad): pages photographed in a row become one PDF piece, read by the scan server page by page.
+        // On the web (v0.5): several photos picked at once on Scan printed music, read page by page into one piece, not kept.
         Switch("experimental.photoPages", SettingSection.Experimental, null, SettingScope.Device),
 
         // At the instrument, on the iPad. Resume where you stopped (#327): the passage, focus, tempo, loop and hands of the
@@ -110,6 +111,17 @@ public static class SettingsCatalogue
 
         // Selection by beats (#349): the selection's edges snap to beats, so a passage can start and end mid-bar.
         Switch("experimental.beats", SettingSection.Experimental, null, SettingScope.Device),
+
+        // Two playheads and modes (v0.5, specs two-playheads and interaction-modes): a global playhead and one inside the
+        // selection, the selection by beats changed only by its handles, and the modes Navigate, Select, Edit notes and Pen.
+        Switch("experimental.playheads", SettingSection.Experimental, null, SettingScope.Device),
+
+        // Inside that experiment: while the piece plays, the bars other than the one playing fade, to try by feel.
+        Switch("experimental.playheadsFade", SettingSection.Experimental, null, SettingScope.Device, on: true),
+
+        // Changes of signature in a recording (v0.5, a preview): where the bars read better in 5/8, 7/8, 9/8, 5/4 or 12/8
+        // (LiveBars.OddMeters), said in the Check drawer's head; nothing is changed or saved.
+        Switch("experimental.meters", SettingSection.Experimental, null, SettingScope.Device),
     ];
 
     private static readonly Dictionary<string, Setting> s_byId = All.ToDictionary(setting => setting.Id, StringComparer.Ordinal);

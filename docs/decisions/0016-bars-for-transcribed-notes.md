@@ -30,6 +30,10 @@ A concert, or a piece whose tempo jumps, is not one beat. Behind the experiment 
 
 The tempo is then read bar by bar (`TempoProfile`, computed and never stored): the usual tempo is the median bar, the range the 10th to 90th percentile, and a change a stretch of three bars or more whose three-bar mean is a seventh slower or faster than usual, the rule "Как сыграно" writes rit. and accel. by; a recording's profile is inferred. With the pieces layer in place, the bars can still be worked out again (`LiveBars`): the layer's bookmarks no longer hold them, each piece after the first starts a section of the search, and each piece moves along by the time it was played in the recording to the nearest bar start of the new bars. Anything else placed in the bars still holds them.
 
+### Odd bars, a preview (version 0.5)
+
+Behind the experiment «Смена размера в записи» (`experimental.meters`) the app says where a recording's bars read better in an odd signature, and changes nothing. `BarGrid.OddMeters` weighs the grid's bars eight at a time, four bars apart: in each window the likely downbeats (the bass, as `Find` takes them) are counted on each bar length, against chance, and 5/8, 7/8, 9/8, 5/4 or 12/8 is taken only when it catches them at least 1.25 times as well as the best of 4/4, 3/8, 3/4 and 2/4, a near tie going to the shorter bar. Two windows or more in a row with the same odd bar make one stretch (`LiveBars.OddMeters` names its first and last bars); one window alone counts only when it is the whole piece. The bars are counted in the grid's own 16ths, so where the grid reads the playing at half speed a stretch of 7/8 means two of the playing's bars of 7/16, and a stretch can begin up to a window early or late. Applying a stretch (the `meters` field, version 15) is left for after the preview.
+
 ## Consequences
 
 - The first transcription of a piece opens in readable bars without the player doing anything, and every inference is named where it is shown.

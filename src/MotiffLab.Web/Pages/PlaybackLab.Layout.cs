@@ -684,6 +684,9 @@ public partial class PlaybackLab : IAsyncDisposable
             IJSObjectReference keys = await JS.InvokeAsync<IJSObjectReference>("import", "./js/phrases/phrase-keys.js");
             _phraseKeys = await keys.InvokeAsync<IJSObjectReference>("listen", _self);
             await keys.DisposeAsync();
+            IJSObjectReference modes = await JS.InvokeAsync<IJSObjectReference>("import", "./js/layout/mode-keys.js");
+            _modeKeys = await modes.InvokeAsync<IJSObjectReference>("listen", _self);
+            await modes.DisposeAsync();
             IJSObjectReference drawer = await JS.InvokeAsync<IJSObjectReference>("import", "./js/layout/drawer-resize.js");
             _drawerResize = await drawer.InvokeAsync<IJSObjectReference>("attach", _main, _self);
             await drawer.DisposeAsync();
@@ -703,7 +706,7 @@ public partial class PlaybackLab : IAsyncDisposable
 
     private async Task DetachLayoutAsync()
     {
-        foreach (IJSObjectReference? part in new[] { _barFade, _phraseKeys, _drawerResize, _longPress })
+        foreach (IJSObjectReference? part in new[] { _barFade, _phraseKeys, _drawerResize, _longPress, _modeKeys })
         {
             if (part is null)
             {
@@ -723,7 +726,7 @@ public partial class PlaybackLab : IAsyncDisposable
             }
         }
 
-        (_barFade, _phraseKeys, _drawerResize, _longPress) = (null, null, null, null);
+        (_barFade, _phraseKeys, _drawerResize, _longPress, _modeKeys, _modeKeysOn) = (null, null, null, null, null, null);
     }
 
     public async ValueTask DisposeAsync()

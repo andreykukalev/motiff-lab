@@ -10378,6 +10378,179 @@ body:has(> #app > .library) {
     }
 }
 
+/* The modes in the bar (version 0.5, the experiment Two playheads and modes; mockup «Указатели и режимы»): one group of
+   icons in a quiet pill, the mode chosen naming itself in the accent's tint, its text centred as in every control. */
+.lab.workspace .bar .modes {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    height: var(--h-control);
+    padding: 2px;
+    margin: 0 var(--s-1);
+    box-sizing: border-box;
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+}
+
+.lab.workspace .bar .modes .mode {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 34px;
+    min-width: 34px;
+    min-height: 0;
+    padding: 0 7px;
+    border: 0;
+    border-radius: var(--r-pill);
+    background: transparent;
+    color: var(--ink);
+    font: var(--t-label);
+    font-size: 14px;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.lab.workspace .bar .modes .mode:hover {
+    background: var(--accent-tint);
+}
+
+.lab.workspace .bar .modes .mode.on {
+    padding: 0 var(--s-3);
+    background: var(--accent-tint);
+    color: var(--accent-hover);
+    font-weight: 600;
+}
+
+.lab.workspace .bar .modes .mode:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+/* Each mode has its cursor on the score: a hand that closes while it moves the score, a cross to select, the arrow to
+   pick a note (a pointer over one), and the pen's own. */
+.score[data-mode="navigate"] {
+    cursor: grab;
+}
+
+.score[data-mode="navigate"].panning {
+    cursor: grabbing;
+}
+
+.score[data-mode="select"] {
+    cursor: crosshair;
+}
+
+.score[data-mode="edit"] {
+    cursor: default;
+}
+
+.score[data-mode="edit"] g.note {
+    cursor: pointer;
+}
+
+/* The two playheads of version 0.5 (the experiment Two playheads and modes; Scripts/score/playheads.ts). The global one is
+   «Полоса»: a neutral column one beat wide behind the notes, with a cap above the system, solid while the bar's Play plays and
+   hollow when stopped. The selection's is a cobalt line with a knob inside its band. */
+.score .gcol {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 0;
+    will-change: transform;
+    border-radius: var(--r-xs);
+    background: color-mix(in srgb, var(--ink) 20%, transparent);
+    pointer-events: none;
+}
+
+.score .gcap {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 2;
+    width: 14px;
+    height: 10px;
+    margin-left: -7px;
+    will-change: transform;
+    line-height: 0;
+    pointer-events: none;
+}
+
+.score .gcap svg {
+    display: block;
+    overflow: visible;
+}
+
+.score .gcap path {
+    fill: var(--ink);
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+}
+
+.score .gcap.stop path {
+    fill: var(--paper);
+}
+
+.score .ph-sel {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 2;
+    width: 2px;
+    border-radius: 1px;
+    will-change: transform;
+    background: var(--accent);
+    pointer-events: none;
+}
+
+.score .ph-sel .knob {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 2px var(--surface-2);
+    transform: translate(-50%, -50%);
+}
+
+/* While the bar's Play plays, the other bars fade to about a third (Settings · Experimental, a sub-option). */
+.score[data-mode] svg g.measure {
+    transition: opacity var(--t-base) var(--ease);
+}
+
+.score.fading svg g.measure:not(.lit) {
+    opacity: .32;
+}
+
+/* The bar's Play fills dark while the piece plays; the selection's Play, first in its menu, is a cobalt disc. */
+.lab.workspace .bar .act.gplay.on {
+    border-radius: 50%;
+    background: var(--ink);
+    color: var(--surface);
+}
+
+.lab.workspace .ctx .menu > .it.selplay {
+    padding-left: var(--s-1);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.lab.workspace .ctx .menu > .it.selplay .pb {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--on-accent);
+}
+
 /* The piece in another key (#351, mockup C2): under the key's card, «Für Elise в ми миноре» with Слушать and Показать ноты,
    kept to the card's foot over a hairline. The piece's own key while it is chosen: the cobalt of the choice wins over the
    ink outline of the piece's key. */
