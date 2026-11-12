@@ -48,8 +48,10 @@ public class PdfMarksOnlineTests
         Assert.Equal(ipad.DocumentMarks, online.DocumentMarks);
         Assert.DoesNotContain("\"document\"", Encoding.UTF8.GetString(ProjectFile.Write(online)), StringComparison.Ordinal);
 
-        // A piece that is only a PDF still stays on the device, marks and all.
-        Assert.Null((Project.CreateDocument("p_only", "a.pdf", s_pdf, s_now) with { DocumentMarks = ipad.DocumentMarks }).ForOnline());
+        // A piece that is only a PDF goes online too (version 0.5), its marks with it and never the PDF.
+        Project only = RoundTrip((Project.CreateDocument("p_only", "a.pdf", s_pdf, s_now) with { DocumentMarks = ipad.DocumentMarks }).ForOnline()!);
+        Assert.Null(only.Document);
+        Assert.Equal(ipad.DocumentMarks, only.DocumentMarks);
     }
 
     [Fact]
