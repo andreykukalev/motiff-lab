@@ -75,14 +75,27 @@ test("playing on past the phrase in focus turns the card, so Notes shows where t
     await page.locator(".bar").getByRole("button", { name: "Play", exact: true }).click();
     await page.locator(".roll-head").getByRole("button", { name: "Expand" }).click();
     const crumb = page.locator(".bar .crumb");
-    await expect(crumb).toContainText("phrase 1 of");
+    const play = page.locator(".bar").getByRole("button", { name: "Play", exact: true });
+    const pause = page.locator(".bar").getByRole("button", { name: "Pause", exact: true });
+    // The card holds the phrase being played. Which one that is when the card opens depends on how fast the runner is
+    // (a slow one had already played into phrase 4, #401), so playing is paused and the card read, then goes on.
+    await pause.click();
+    await expect(play).toBeVisible();
+    await expect(crumb).toContainText(/phrase \d+ of/);
+    const focused = Number(/phrase (\d+) of/.exec(await crumb.textContent())[1]);
 
     // The piece plays on into the next phrase: the card turns with it, as the roll does.
-    await expect(crumb).toContainText("phrase 2 of", { timeout: 20_000 });
+    await play.click();
+    await expect(crumb).toContainText(`phrase ${focused + 1} of`, { timeout: 20_000 });
+    // Paused again, so the card stays where the roll is while Notes is checked.
+    await pause.click();
+    await expect(play).toBeVisible();
+    const turned = await crumb.textContent();
     const showAs = page.locator(".bar").getByRole("radiogroup", { name: "Show the phrase as" });
     await showAs.getByRole("radio", { name: "Notes" }).click();
     await expect(page.locator(".focus-card .phrase-card-score")).toBeVisible();
-    await expect(crumb).not.toContainText("phrase 1 of");
+    await expect(crumb).toHaveText(turned);
+    expect(turned).not.toContain(`phrase ${focused} of`);
     expect(errors).toEqual([]);
 });
 
