@@ -28,6 +28,40 @@ public static class LiveBars
         return GridSearch.Live with { Starts = [.. StartsOf(project, opened).Skip(1)], Hint = hint };
     }
 
+    /// <summary>The bars of the project's recording found by <paramref name="search"/>, with how many sections and whether a hinted signature was taken.</summary>
+    /// <exception cref="InvalidOperationException">The project is not a transcription.</exception>
+    public static GridFound Find(Project project, GridSearch search)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+        ArgumentNullException.ThrowIfNull(search);
+        if (project.Transcription is null)
+        {
+            throw new InvalidOperationException("Only a transcription has bars worked out from its notes.");
+        }
+
+        return Import.PieceImporter.Import(project.FileName, project.Source).Piece?.Midi is { } heard ? BarGrid.FindLive(heard, search) : GridFound.None;
+    }
+
+    /// <summary>
+    /// What a score of the piece says about its bars, a hint for the recording: the first version written from a score
+    /// (<see cref="PerformanceSource.Score"/>), its first signature when the bars offer it and its first tempo; null without one.
+    /// </summary>
+    public static GridHint? HintOf(Project project)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+        foreach (SavedPerformance version in project.Performances.Where(version => version.Source == PerformanceSource.Score))
+        {
+            if (Import.PieceImporter.Import("score.mid", version.Midi).Piece is { Midi: { } midi } score)
+            {
+                TimeSignature signature = score.Meter.Changes[0].Signature;
+                int? tempo = midi.Tempos.Count > 0 && !midi.Tempos[0].IsAssumed ? (int)((60_000_000L + (midi.Tempos[0].MicrosecondsPerQuarter / 2)) / midi.Tempos[0].MicrosecondsPerQuarter) : null;
+                return new GridHint(BarGrid.Signatures.Contains(signature) ? signature : null, tempo);
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>
     /// The project in <paramref name="bars"/> (or the engine's when null), as <see cref="Project.ChangeBars"/> writes it, with
     /// the pieces layer moved along by the recording's time; a piece that would start no later than the one before it joins it.

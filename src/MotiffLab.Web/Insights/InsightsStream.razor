@@ -26,6 +26,10 @@
         </div>
     }
 
+    @if (Tempo is { } tempo && _lens is null or FactLens.Character)
+    {
+        <TempoCard View="tempo" ShowBars="ShowBars" />
+    }
     @if (IdeaRows.Count > 0)
     {
         @* The ideas kept for the passage (0018 section 6): a strip at the very top, each chip heard and shown again. *@
@@ -218,6 +222,14 @@
     /// <summary>The kept ideas listed whole.</summary>
     [Parameter]
     public RenderFragment? Ideas { get; set; }
+
+    /// <summary>The piece's tempo bar by bar («Темп живого исполнения», version 0.5); null while the experiment is off.</summary>
+    [Parameter]
+    public TempoView? Tempo { get; set; }
+
+    /// <summary>Raised from the tempo card with the first and last bar to select.</summary>
+    [Parameter]
+    public EventCallback<(int First, int Last)> ShowBars { get; set; }
 
     private bool HasSelection => State.Selection.HasNotes;
 
