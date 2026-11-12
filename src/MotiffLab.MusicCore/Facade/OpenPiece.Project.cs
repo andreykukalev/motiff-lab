@@ -320,6 +320,7 @@ internal sealed partial class OpenPiece
         _selectionKind = MotifSelectionKind.Range;
         _understood = null;
         Chain = chain;
+        _hiddenVariation = null;
         if (chain is not null)
         {
             Keep.Clear();

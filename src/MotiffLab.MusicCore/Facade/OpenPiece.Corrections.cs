@@ -34,9 +34,17 @@ internal sealed partial class OpenPiece
     /// <summary>The draft's logs before each of its steps, the last first undone.</summary>
     private readonly Stack<NoteEditLog> _draftSteps = new();
 
-    private string CallOnCorrections(string name, Request request) => name switch
+    private string CallOnCorrections(string name, Request request)
+    {
+        RefuseWhileOff(name);
+        return CallOnCorrectionsLayered(name, request);
+    }
+
+    private string CallOnCorrectionsLayered(string name, Request request) => name switch
     {
         "corrections" => CorrectionsAnswer(CorrectionBar(request)),
+        "corrections.layer" => SwitchLayer(request),
+        "corrections.drop" => DropUnfit(request),
         "corrections.begin" => BeginDraft(request),
         "corrections.save" => EndDraft(request, keep: true),
         "corrections.discard" => EndDraft(request, keep: false),
@@ -45,7 +53,7 @@ internal sealed partial class OpenPiece
         "corrections.set" => Correct(request, edits => edits.Change(Piece.Notes, CorrectableNote(request).Id, Set(CorrectableNote(request), request))),
         "corrections.change" => Correct(request, edits => edits.Change(Piece.Notes, CorrectableNote(request).Id, Changed(CorrectableNote(request), request))),
         "corrections.remove" => Correct(request, edits => edits.Remove(Piece.Notes, CorrectableNote(request).Id)),
-        "corrections.revert" => Correct(request, edits => edits.Revert(request.Required("id"))),
+        "corrections.revert" => Correct(request, edits => RevertedFor(request.Required("id")).Aggregate(edits, static (log, id) => log.Revert(id))),
         "corrections.undo" => _draftFrom is not null
             ? Correct(request, _ => _draftSteps.Count > 0 ? _draftSteps.Peek() : throw FacadeException.Unavailable("There is no correction to undo."), undo: true)
             : Correct(request, edits => edits.IsEmpty ? throw FacadeException.Unavailable("There is no correction to undo.") : edits.Undo()),
@@ -160,7 +168,10 @@ internal sealed partial class OpenPiece
         try
         {
             edits = change(Project.Edits);
-            edits.Apply(Piece.Notes);
+            if (_layer == EditsLayer.Strict)
+            {
+                edits.Apply(Piece.Notes);
+            }
         }
         catch (Exception exception) when (exception is ArgumentException or InvalidOperationException)
         {
@@ -184,12 +195,7 @@ internal sealed partial class OpenPiece
             Project = Project with { Edits = edits };
             RefreshNotes();
             // The selection keeps its passage over the corrected notes; a variation in progress was made from the old ones.
-            if (Selection is { } selection)
-            {
-                MotifSelection again = MotifSelector.Select(Notes, Piece.Meter, selection.Span, selection.Filter, MotifSelection.MaxStructureBars);
-                Selection = again.NoteIds.Count > 0 ? again : null;
-            }
-
+            Reselect();
             Chain = null;
             _chip = null;
         }
@@ -209,7 +215,7 @@ internal sealed partial class OpenPiece
             json.WriteString("added", added);
         }
 
-        HashSet<string> edited = [.. Project.Edits.EditedIds];
+        HashSet<string> edited = EditedNow();
         json.WriteNumber("bar", bar.Number);
         Answer.Span(json, "span", bar.Span);
         json.WriteStartArray("notes");
@@ -247,6 +253,7 @@ internal sealed partial class OpenPiece
         json.WriteBoolean("editing", _draftFrom is not null);
         json.WriteBoolean("canUndo", _draftFrom is not null ? _draftSteps.Count > 0 : !Project.Edits.IsEmpty);
         json.WriteBoolean("changed", _draftFrom is { } from && !from.Equals(Project.Edits));
+        LayerFields(json);
     });
 
     /// <summary>Where a note starts: its bar and beat, and the rest of the beat in words when it starts off the beat.</summary>

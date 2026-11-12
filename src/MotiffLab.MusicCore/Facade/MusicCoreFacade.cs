@@ -103,7 +103,8 @@ public sealed class MusicCoreFacade
     /// "summary", and only the document's calls work on it; with "photos" (v0.4) the PDF is that many photographed pages, and
     /// its original is described so. With "transcription" ({"engine", "milliseconds", "parts"}, the
     /// notes a recording's parts were heard as, as performance.add takes them) the data is not read: the new project is
-    /// the recording's notes, worked out as the web app works them out (0014, 0016).
+    /// the recording's notes, worked out as the web app works them out (0014, 0016). For a project file, "edits" ("on" or
+    /// "off", version 0.5) lays the corrections over the notes one by one or leaves them out; without it they must all fit.
     /// </summary>
     public string Open(string fileName, ReadOnlySpan<byte> data, string? request = null)
     {
@@ -145,7 +146,7 @@ public sealed class MusicCoreFacade
             }
 
             OpenPiece piece = IsProjectFile(fileName, bytes)
-                ? OpenPiece.Open(bytes, words)
+                ? OpenPiece.Open(bytes, words, OpenPiece.LayerOf(fields.Text("edits")))
                 : OpenPiece.Import(id, fileName, bytes, words, now);
             _pieces[number] = piece;
             _next++;
