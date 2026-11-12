@@ -23,6 +23,8 @@ builder.Services.AddScoped<UiText>();
 builder.Services.AddScoped<Preferences>();
 builder.Services.AddTransient<LibraryShelfState>();
 builder.Services.AddScoped<MotiffLab.Web.Settings.DeviceSettings>();
+builder.Services.AddScoped<MotiffLab.Web.Library.PlayerFolders>();
+builder.Services.AddScoped<MotiffLab.Web.Library.ImportJob>();
 
 // Sign-in and saving online (0014) exist only in a build whose appsettings.json names the External ID tenant.
 AccountOptions account = builder.Configuration.GetSection("Account").Get<AccountOptions>() ?? new AccountOptions();
