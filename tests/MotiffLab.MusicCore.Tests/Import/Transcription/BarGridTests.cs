@@ -18,42 +18,17 @@ public class BarGridTests
     private static byte[] FurElise() =>
         File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "Transcription", "Fixtures", "transkun-fur-elise.mid"));
 
-    private static ImportedPiece Import(byte[] midi) => PieceImporter.Import("take.mid", midi).Piece!;
+    internal static ImportedPiece Import(byte[] midi) => PieceImporter.Import("take.mid", midi).Piece!;
 
     /// <summary>
     /// Notes played to a steady beat, written as an engine writes them: at 120 BPM in 4/4, one second
     /// in, each onset off by up to 12 ms from a fixed generator. Each note is (16th, length in 16ths, pitch).
     /// </summary>
-    private static byte[] Played(int sixteenthMicroseconds, IEnumerable<(int Step, int Length, int Pitch)> notes)
-    {
-        uint seed = 12345;
-        long Jitter()
-        {
-            seed = (seed * 1_103_515_245) + 12_345;
-            return (long)((seed >> 16) % 25) - 12;
-        }
-
-        // At 120 BPM a tick lasts 500000 / 480 microseconds.
-        static long Ticks(long microseconds) => ((microseconds * 480) + 250_000) / 500_000;
-        Note[] played = [.. notes.Select((note, i) =>
-        {
-            long onset = 1_000_000 + ((long)note.Step * sixteenthMicroseconds) + (Jitter() * 1_000);
-            long end = onset + ((long)note.Length * sixteenthMicroseconds) - 20_000;
-            return new Note
-            {
-                Id = $"n_{i + 1:D4}",
-                Pitch = new Pitch(note.Pitch),
-                Span = TickSpan.FromBounds(new Tick(Ticks(onset)), new Tick(Ticks(end))),
-                Velocity = 70,
-                Track = 0,
-                Attribution = Attribution.Imported,
-            };
-        })];
-        return MidiExporter.Export(played, [], MeterMap.Default, "take");
-    }
+    private static byte[] Played(int sixteenthMicroseconds, IEnumerable<(int Step, int Length, int Pitch)> notes) =>
+        LivePlaying.Heard(LivePlaying.At(1_000_000, sixteenthMicroseconds, notes));
 
     /// <summary>Sixteen bars of 3/4 after a quarter's pickup: a low bass on each downbeat, chords on beats 2 and 3, a melody in eighths.</summary>
-    private static IEnumerable<(int, int, int)> Waltz()
+    internal static IEnumerable<(int, int, int)> Waltz()
     {
         yield return (0, 2, 72);
         yield return (2, 2, 74);
@@ -74,7 +49,7 @@ public class BarGridTests
     }
 
     /// <summary>Twelve bars of 4/4: C2 on the downbeat, G2 on beat 3, a melody in eighths.</summary>
-    private static IEnumerable<(int, int, int)> March()
+    internal static IEnumerable<(int, int, int)> March()
     {
         for (int bar = 0; bar < 12; bar++)
         {
