@@ -294,6 +294,11 @@ struct SettingsSheet: View {
             switchRow("experimental.resume", text["settings.resume"], hint: text["settings.resumeHint"])
             switchRow("experimental.hands", text["settings.hands"], hint: text["settings.handsHint"])
             switchRow("experimental.beats", text["settings.beats"], hint: text["settings.beatsHint"])
+            // Version 0.5: two playheads and the modes, with the fade of the other bars as their sub-option.
+            switchRow("experimental.playheads", text["settings.playheads"], hint: text["settings.playheadsHint"])
+            if settings.isOn("experimental.playheads") {
+                switchRow("experimental.playheadsFade", text["settings.playheadsFade"], hint: text["settings.playheadsFadeHint"])
+            }
         }
     }
 

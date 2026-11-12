@@ -37,6 +37,8 @@ export interface SelectionHost extends BeatSource {
     chosenSpan?(start: number, end: number, byHandle: boolean): void;
     /** The mode under the rules of version 0.5 (score-modes.ts); null or missing keeps the rules before them. */
     mode?(): InteractionMode | null;
+    /** Whether a finger drags at once, without the long press: the iPad in Select, where two fingers scroll. */
+    fingerDrags?(): boolean;
 }
 
 /** The selection as Blazor gives it: its span in ticks and what a screen reader says for each handle. */
@@ -271,7 +273,8 @@ export class SelectionLayer {
         if (this.drag !== null || this.handleDrag !== null || event.pointerType === "pen" || this.owner.penOn()) {
             return;
         }
-        const touch = event.pointerType === "touch";
+        // A finger waits for the long press, unless it drags at once (the iPad in Select): then it drags as a mouse does.
+        const touch = event.pointerType === "touch" && this.owner.fingerDrags?.() !== true;
         if (!touch && event.button !== 0) {
             return;
         }

@@ -137,3 +137,16 @@ button.sel-handle.dragging { background: var(--accent); }
 /* The ossia (ds.css Ossia panel, the web app's .ossia-frame): a dashed plum frame round its staves, named by an overline. */
 #focus .ossia-frame { position: absolute; box-sizing: border-box; border: 1.5px dashed var(--plum); border-radius: var(--r-xs); pointer-events: none; }
 #focus .ossia-frame .overline { position: absolute; left: var(--s-3); top: -8px; max-width: calc(100% - 2 * var(--s-3)); padding: 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--paper); color: var(--plum); font: var(--t-overline); letter-spacing: 0.06em; text-transform: uppercase; }
+
+/* The two playheads of version 0.5 (the experiment Two playheads and modes; Scripts/score/playheads.ts), as the web app
+   draws them: the global one a neutral column one beat wide with a cap above the system, solid while the bar's Play plays;
+   the selection's a cobalt line with a knob. While the bar's Play plays, the other bars fade to about a third. */
+.gcol { position: absolute; left: 0; top: 0; z-index: 0; will-change: transform; border-radius: var(--r-xs); background: color-mix(in srgb, var(--ink) 20%, transparent); pointer-events: none; }
+.gcap { position: absolute; left: 0; top: 0; z-index: 2; width: 14px; height: 10px; margin-left: -7px; will-change: transform; line-height: 0; pointer-events: none; }
+.gcap svg { display: block; overflow: visible; }
+.gcap path { fill: var(--ink); stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: round; }
+.gcap.stop path { fill: var(--paper); }
+.ph-sel { position: absolute; left: 0; top: 0; z-index: 2; width: 2px; border-radius: 1px; will-change: transform; background: var(--accent); pointer-events: none; }
+.ph-sel .knob { position: absolute; left: 50%; top: 0; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--surface-2); transform: translate(-50%, -50%); }
+body[data-mode] #pages svg g.measure { transition: opacity var(--t-base) var(--ease); }
+body.fading #pages svg g.measure:not(.lit) { opacity: .32; }

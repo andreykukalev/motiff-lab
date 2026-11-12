@@ -47,8 +47,25 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         didSet {
             applyInput()
             if shown { Task { _ = try? await webView.callAsyncJavaScript("return motiff.pen(on)", arguments: ["on": penOn], contentWorld: .page) } }
+            sendMode()
         }
     }
+    /// The mode the bar chose (version 0.5, the experiment Two playheads and modes), other than the Pen; nil while the
+    /// experiment is off, which keeps the score as before.
+    @Published var mode: InteractionMode? {
+        didSet {
+            guard mode != oldValue else { return }
+            applyInput()
+            sendMode()
+        }
+    }
+    /// A tap on a beat under the modes, from its beat line to the next: a playhead goes there.
+    var placeTapped: (@MainActor (Range<Double>) -> Void)?
+    /// A tap on a note in Edit notes, by when it starts: the roll's editor opens on it.
+    var noteToEdit: (@MainActor (Double) -> Void)?
+    /// The two playheads as the page last had them (TwoPlayheads.page), or nil for the one playhead.
+    private var playheadsWanted: [String: Any]?
+    private var playheadsShown = ""
     /// The phrases at the level shown, drawn as brackets on the score (0018 section 3).
     @Published private(set) var phrases: PhraseLevelsShown?
     /// The passage selected on the score: a bracket tapped, a bar tapped, or bars chosen by a long press and a drag.
@@ -379,6 +396,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
             markerPick = MarkerPick(bar: Int(bar), left: number(message["left"]) ?? 0, bottom: number(message["bottom"]) ?? 0)
             showVersionBar(Int(bar))
         }
+        receivedUnderModes(message)
         // A tap away from the bars puts the sheet away, and leaves the selection as it is (#338).
         if message["blank"] != nil {
             blankTapped?()
@@ -389,6 +407,17 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         if let options = message["cardLayout"] as? [String: Any] {
             cardOptions = Self.json(options)
             Task { await engraveCard() }
+        }
+    }
+
+    /// Under the modes (version 0.5) a tap places a playhead on its beat, or in Edit notes opens the note on the roll.
+    private func receivedUnderModes(_ message: [String: Any]) {
+        func number(_ value: Any?) -> Double? { (value as? NSNumber)?.doubleValue }
+        if let place = message["place"] as? [String: Any], let start = number(place["start"]), let end = number(place["end"]) {
+            placeTapped?(start..<max(end, start + 1))
+        }
+        if let edit = message["editNote"] as? [String: Any], let onset = number(edit["onset"]) {
+            noteToEdit?(onset)
         }
     }
 
@@ -1763,6 +1792,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
                 _ = try? await webView.callAsyncJavaScript("return motiff.showTick(data)", arguments: ["data": ["tick": tick]], contentWorld: .page)
             }
             _ = try? await webView.callAsyncJavaScript("return motiff.pen(on)", arguments: ["on": penOn], contentWorld: .page)
+            await sendModeNow()
+            await sendPlayheadsNow()
             let marks = await MusicCore.run { MusicCore.call(piece: piece.id, "marks") }
             await draw(marks)
             await loadPhrases(piece)
@@ -1863,8 +1894,37 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         #else
         canvas.drawingPolicy = penOn ? .anyInput : .pencilOnly
         pan.allowedTouchTypes = [UITouch.TouchType.direct, .indirectPointer].map { NSNumber(value: $0.rawValue) }
-        pan.minimumNumberOfTouches = penOn ? 2 : 1
+        pan.minimumNumberOfTouches = InteractionMode.scrollFingers(mode: mode, penOn: penOn)
         #endif
+    }
+
+    /// The mode as the page has it: "pen" while the Pen is on, none before the modes.
+    private func sendMode() {
+        guard shown else { return }
+        Task { await sendModeNow() }
+    }
+
+    private func sendModeNow() async {
+        var data: [String: Any] = [:]
+        if let mode {
+            data["name"] = penOn ? InteractionMode.pen.rawValue : mode.rawValue
+        }
+        _ = try? await webView.callAsyncJavaScript("return motiff.mode(data)", arguments: ["data": data], contentWorld: .page)
+    }
+
+    /// The two playheads the page draws (version 0.5, TwoPlayheads.page); nil draws the one playhead as before.
+    func showPlayheads(_ data: [String: Any]?) {
+        playheadsWanted = data
+        guard shown else { return }
+        let key = data.map { fields in fields.keys.sorted().map { name in "\(name)=\(String(describing: fields[name] ?? ""))" }.joined(separator: ",") } ?? ""
+        guard key != playheadsShown else { return }
+        playheadsShown = key
+        Task { await sendPlayheadsNow() }
+    }
+
+    private func sendPlayheadsNow() async {
+        let value: Any = playheadsWanted.map { $0 as Any } ?? NSNull()
+        _ = try? await webView.callAsyncJavaScript("return motiff.playheads(data)", arguments: ["data": value], contentWorld: .page)
     }
 
     /// PencilKit draws the live stroke as the tool will look: the ink's colour, the web's thickness at this zoom.

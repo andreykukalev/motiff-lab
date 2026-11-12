@@ -46,6 +46,9 @@ import { BRACKET_LIFT, ScoreGeometry, bookmarkLevels, readPage, staffFrames } fr
 import { SelectionLayer } from "../score/selection-layer.js";
 import { ScoreTimeline, highlightedIds } from "../score/score-timeline.js";
 import { DEFAULT_WIDTH, HIGHLIGHTER_SIZES, PEN_SIZES, anchorMark, framesByTick, outlinePath, placeMark, touches } from "../score/pencil-marks.js";
+import { beatUnder, modeOf } from "../score/score-modes.js";
+import { ScoreBeats } from "../score/selection-beats.js";
+import { ScorePlayheadMarks, placesOf } from "../score/playheads.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -84,7 +87,7 @@ const LAYERS = ["ink", "notes", "bookmarks", "analysis", "check"];
 /** After the player scrolls by hand, playback leaves the page where they put it for this long before following again (score-view.ts). */
 const FOLLOW_PAUSE_MS = 4000;
 
-const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], phrases: [], bookmarks: [], notes: [], highlights: [], checks: [], performance: [], unheard: new Set(), added: new Set(), artefacts: new Set(), own: new Set(), taken: [], pen: false, focus: false, ringed: new Set(), beats: null };
+const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], phrases: [], bookmarks: [], notes: [], highlights: [], checks: [], performance: [], unheard: new Set(), added: new Set(), artefacts: new Set(), own: new Set(), taken: [], pen: false, focus: false, ringed: new Set(), beats: null, mode: null, heads: null };
 let nextId = 0;
 
 /** Shows the pages and reads where their bars are; `timemap` is Verovio's, with measures and rests. */
@@ -537,7 +540,75 @@ const selection = new SelectionLayer(document.body, {
     beats: () => state.beats,
     tickX: (tick) => state.geometry?.playhead(tick, (id) => state.timeline?.onsetOf(id))?.x,
     chosenSpan: (start, end) => post({ chosen: { start, end, beats: true } }),
+    // The modes of version 0.5 (Settings · Experimental): only Select starts a selection with a drag, never from inside it,
+    // and there a finger drags at once, as two fingers scroll.
+    mode: () => state.mode,
+    fingerDrags: () => state.mode === "select",
 });
+
+/** The piece's beats as the selection reads them, for a tap to find the beat under it (version 0.5). */
+const scoreBeats = new ScoreBeats({ beats: () => state.beats, tickX: (tick) => state.geometry?.playhead(tick, (id) => state.timeline?.onsetOf(id))?.x });
+
+/** The two playheads of version 0.5, drawn as the web app's score view draws them (Scripts/score/playheads.ts). */
+const heads = new ScorePlayheadMarks(document.body, {
+    at: (tick) => (state.timeline === null ? undefined : state.geometry?.playhead(tick, (id) => state.timeline.onsetOf(id))),
+    beatLines: () => state.beats,
+    lineX: (bar, line) => scoreBeats.lineX(bar, line),
+    element: (id) => document.querySelector(`#pages [id="${CSS.escape(id)}"]`),
+});
+
+/**
+ * The mode the bar chose (version 0.5, the experiment Two playheads and modes): "navigate", "select", "edit" or "pen";
+ * none keeps the score as before.
+ */
+function mode({ name }) {
+    state.mode = modeOf(name);
+    if (state.mode === null) {
+        delete document.body.dataset.mode;
+    } else {
+        document.body.dataset.mode = state.mode;
+    }
+    selection.place();
+}
+
+/**
+ * The two playheads (version 0.5): { selectionHolds, global, selection, fade }, as the web app's Score/ScorePlayheads.cs;
+ * null draws the one playhead as before.
+ */
+function playheads(value) {
+    state.heads = value ?? null;
+    if (state.heads === null) {
+        heads.hide();
+    } else {
+        placePlayhead(null);
+    }
+}
+
+/**
+ * A tap under the modes never changes the selection: in Edit notes a tap on a note opens it on the roll's editor, and
+ * otherwise it places a playhead on the beat under it (inside the selection its own, else the global one), or puts the
+ * sheet away off the bars. The Pen only writes.
+ */
+function tapUnderModes(event, target) {
+    const geometry = state.geometry;
+    if (geometry === null || state.mode === "pen") {
+        return;
+    }
+    if (state.mode === "edit") {
+        const hit = target.closest("g.note, g.chord");
+        const note = hit?.matches("g.chord") ? hit.querySelector("g.note") : hit;
+        const onset = note?.id ? state.timeline?.onsetOf(note.id) : undefined;
+        if (onset !== undefined) {
+            post({ editNote: { onset } });
+            return;
+        }
+    }
+    const view = document.body.getBoundingClientRect();
+    const x = event.clientX - view.left + document.body.scrollLeft;
+    const y = event.clientY - view.top + document.body.scrollTop;
+    const beat = beatUnder(geometry, scoreBeats, x, y);
+    post(beat === undefined ? { blank: true } : { place: { start: beat.start, end: beat.end } });
+}
 
 /** Selection by beats on (`lines`, the beat lines in ticks from music-core's playback score) or off (none). */
 function beats({ lines }) {
@@ -638,6 +709,10 @@ document.body.addEventListener("click", (event) => {
         return;
     }
     if (selection.swallowsClick() || state.pen || target === null || target.closest(".sel-handle")) {
+        return;
+    }
+    if (state.mode !== null) {
+        tapUnderModes(event, target);
         return;
     }
     const bar = barUnder(event);
@@ -811,7 +886,7 @@ const sounding = { page: new Set(), card: new Set(), key: "", byHand: -Infinity 
  * The playhead's line and its bar's wash on the page, made on first use, the bar last reported out of sight, and whether
  * the piece has played, so a pause leaves the playhead resting where it stopped (testing item 28).
  */
-const playhead = { line: null, wash: null, away: -1, played: false, top: 0 };
+const playhead = { line: null, wash: null, away: -1, played: false, top: 0, shown: false };
 
 /** The pill's room at the bottom of the view: a playhead under it is out of sight. */
 const PILL_ROOM_PX = 84;
@@ -832,9 +907,20 @@ function playing({ tick, playing, follow, auto = true }) {
         sounding.byHand = -Infinity;
     }
     playhead.played ||= playing;
-    // Stopped, the playhead stays where playing stopped, in graphite, so the place is not lost (testing item 28).
-    const resting = !playing && playhead.played && tick > 0;
-    placePlayhead((playing || resting) && !state.focus ? tick : null, !playing);
+    if (state.heads !== null) {
+        // The two playheads (version 0.5): both always show, out of focus.
+        let at;
+        if (state.focus) {
+            heads.hide();
+        } else {
+            at = heads.place(placesOf(state.heads, tick, playing));
+        }
+        reportPlace(at, !playing);
+    } else {
+        // Stopped, the playhead stays where playing stopped, in graphite, so the place is not lost (testing item 28).
+        const resting = !playing && playhead.played && tick > 0;
+        placePlayhead((playing || resting) && !state.focus ? tick : null, !playing);
+    }
     const onPage = playing && state.timeline !== null ? state.timeline.soundingAt(tick) : [];
     const onCard = playing && state.focus && card.timeline ? card.timeline.soundingAt(tick - (card.offset ?? 0)) : [];
     const key = `${onPage.join(" ")}|${onCard.join(" ")}`;
@@ -860,7 +946,7 @@ function placePlayhead(tick, resting = false) {
                 element.hidden = true;
             }
         }
-        reportAway(-1);
+        reportPlace(undefined, resting);
         return;
     }
     playhead.line ??= overlay("playhead");
@@ -874,12 +960,22 @@ function placePlayhead(tick, resting = false) {
         element.classList.toggle("resting", resting);
     }
     // Moved by a transform on layers of their own, so the page under them is not painted again on every frame (testing item 31).
-    playhead.top = at.top - 6;
-    setStyle(line, "transform", `translate(${at.x - 1}px, ${playhead.top}px)`);
+    setStyle(line, "transform", `translate(${at.x - 1}px, ${at.top - 6}px)`);
     setStyle(line, "height", `${at.bottom - at.top + 12}px`);
     setStyle(wash, "transform", `translate(${at.bar.left}px, ${at.top - 4}px)`);
     setStyle(wash, "width", `${at.bar.right - at.bar.left}px`);
     setStyle(wash, "height", `${at.bottom - at.top + 8}px`);
+    reportPlace(at, resting);
+}
+
+/** Keeps where the playhead that plays is, for Back to playback, and tells Swift when it is out of sight while playing. */
+function reportPlace(at, resting) {
+    playhead.shown = at !== undefined;
+    if (at === undefined) {
+        reportAway(-1);
+        return;
+    }
+    playhead.top = at.top - 6;
     const shownTop = window.scrollY + READING_LINE_PX - 16;
     const shownBottom = window.scrollY + window.innerHeight - PILL_ROOM_PX;
     reportAway(!resting && (at.bottom < shownTop || at.top > shownBottom) ? at.bar.tick : -1);
@@ -909,8 +1005,7 @@ function reportAway(barTick) {
 
 /** Back to playback: the page scrolls to the line and follows the playing again. */
 function returnToPlayhead() {
-    const line = playhead.line;
-    if (line === null || !line.isConnected || line.hidden) {
+    if (!playhead.shown) {
         return false;
     }
     sounding.byHand = -Infinity;
@@ -1128,5 +1223,5 @@ function frames() {
     return state.frames;
 }
 
-window.motiff = { show, layout, anchor, erase, draw, frames, inView, phrases, select, menuSize, pen, beats, focus, card: showCard, lead, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, reveal, notes, checks, performance: showVersion, layers, playing, returnToPlayhead };
+window.motiff = { show, layout, anchor, erase, draw, frames, inView, phrases, select, menuSize, pen, beats, focus, card: showCard, lead, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, reveal, notes, checks, performance: showVersion, layers, playing, returnToPlayhead, mode, playheads };
 window.webkit?.messageHandlers?.score?.postMessage("ready");
