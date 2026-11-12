@@ -17,6 +17,7 @@ Ticks are integers at 480 per quarter ([0002](decisions/0002-canonical-time.md))
   "documentMarks": { "ink": [ … ], "bookmarks": [ … ] },  // only when the PDF's pages carry marks (version 13, 0023)
   "documentPages": [0, 15360, 29760],  // only a piece with both notes and a PDF: where each page starts, in ticks (0023)
   "readFrom": { "project": "p_…", "pages": [0, 15360, 29760] },  // only notes read from a PDF piece into a project of their own, 2026-11-05 to 2026-11-07 (0023)
+  "originals": [ … ],           // within version 15 (version 0.3): the descriptions of the piece's originals the piece's own data does not show
   "createdAt": "…", "lastOpened": "…",
   "metadata": { "title": "…", "composer": "…", "tags": ["…"], "playlists": ["…"] },   // within version 15: only what the player set in the library
   "motifs": [ … ],              // the working selection (version 1)
@@ -33,12 +34,38 @@ Ticks are integers at 480 per quarter ([0002](decisions/0002-canonical-time.md))
   "performances": [ … ],        // version 13
   "assembly": { … },            // version 15; absent while the piece has no assembly
   "settings": { … },            // version 12
-  "scan": { … },                // only a scanned piece (version 7)
-  "transcription": { … }        // only a transcribed piece (version 9; bars since 10; seams in 12)
+  "scan": { … },                // only a scanned piece (version 7); "from" and "at" within version 15 (version 0.3)
+  "transcription": { … }        // only a transcribed piece (version 9; bars since 10; seams in 12; "from" and "at" within 15)
 }
 ```
 
 The transcription keeps `"seams": [ms, …]` when a long recording was sent in parts ([0016](decisions/0016-bars-for-transcribed-notes.md)): where each part after the first takes over, in milliseconds from the start of the stretch of the recording that was sent, ascending. The Check layer flags the bars on either side of each seam (`PartSeam`). The array is left out when the recording went in one part, and a file without it reads as no seams.
+
+## Originals (`originals`)
+
+Where each original of the piece is (version 0.3, local-first; Andrei approved it on 2026-11-11, 21:20 UTC, amending 0026 C3): only the description of each original is in the file and goes online with it; the bytes stay on the devices. It is kept within version 15 as optional fields, like `metadata`, because version 0.2 of both apps refuses a file of a later version but reads past fields it does not know: a v0.2 build opens such a file, and when it writes it again it drops `originals` and the `from` and `at` links (unknown fields are dropped on writing), which the next v0.3 read takes up again as below.
+
+```jsonc
+"originals": [
+  { "id": "src_pdf",                       // "src_pdf": the PDF in `document`; "src_file": the file the notes were imported from; a version's id for its recording or MIDI file
+    "kind": "pdf" | "images" | "audio" | "midi" | "musicxml",
+    "name": "…",                           // optional: the player's name for it
+    "fileName": "Nocturne.pdf",
+    "sha256": "<64 lower-case hex digits>",  // optional: the fingerprint of the bytes as picked; a picked file is linked again by it
+    "bytes": 123456,                       // optional
+    "pages": 3,                            // optional: a PDF's or photos' pages
+    "durationMs": 61000,                   // optional: a recording's length
+    "addedAt": "…",
+    "kept": "file" | "device",             // file: inside the project file on the device (never online); device: beside it, on the device only
+    "held": [ { "device": "ipad" | "web", "at": "…" } ] }   // optional: the devices that hold the bytes, each writing only its own mark
+]
+```
+
+The piece's own data shows most originals, so a file without `originals` (every file before version 0.3, or one a v0.2 build wrote again) reads as: the PDF in `document` as `src_pdf` (kept in the file); the MIDI or MusicXML `source` of a piece imported from a file as `src_file` (not a scan's or a transcription's notes); each version from a recording (`audio`, kept on the device) or a MIDI file (`midi`, kept in the file) under the version's own id, so the web keeps the sound it stores under `<project>/<version>`. Those carry no fingerprint: the device that has the PDF works it out once (`Project.Fingerprinted`). The file writes only the descriptions that say more than that, so a piece with nothing more to say is written as before. The online copy of a piece with a PDF (`ForOnline`) writes them all, so another device shows the PDF it does not have.
+
+`scan`, `transcription` and each performance can say which original their notes were made from and when: `"from": "src_pdf"`, `"at": "…"`, both optional. A scan of the piece's own PDF says `src_pdf`; a recording version says its own id.
+
+In the sync (0026 S8) the descriptions are the player's data: a pull unites both copies by fingerprint, else by id, with no deletions (a different original with an id the other copy uses gets the next free one, `src_a_2`). The `held` marks are bookkeeping that only their own device writes: a pull takes this device's mark from its own copy and every other device's from the online copy. The iPad marks the PDF it keeps when it sends the copy online (`project.online`). An unknown `kind`, `kept` or `device` in a file of this version keeps the description whole as an unknown entity (S6). A piece that is only a PDF still stays on the device: its online copy would have neither notes nor a PDF, which version 0.2 reads as damaged.
 
 ## Title, composer, tags and playlists (`metadata`)
 
@@ -266,6 +293,7 @@ Every version since 1 opens (`ProjectFile.Read`). The rules for the versions bef
 | 8–11 | Each session becomes a resume point with the same number (`s_0001` → `r_0001`), named by the session's task, at its passage, with the session's `lastActive`; its intent is dropped. |
 | 6–11 | Observations lose `sessionId`; `factId` is absent. |
 | 15 without `metadata` | Written before the library kept a title, composer and tags: none; the card shows the file's title and composer, or its name. |
+| 15 without `originals` | Written before version 0.3, or written again by a version 0.2 build: the originals the piece's own data shows (see "Originals"), without fingerprints or marks. |
 | < 15 | No assembly. |
 | < 14 | No corrections that add a note. |
 | < 13 | No performances; no `Performance` flags. |

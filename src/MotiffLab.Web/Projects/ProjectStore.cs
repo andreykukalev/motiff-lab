@@ -19,6 +19,7 @@ namespace MotiffLab.Web.Projects;
 public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncDisposable
 {
     private IJSObjectReference? _module;
+    private IJSObjectReference? _originals;
 
     /// <summary>
     /// Saves on this device, and online when saving online is on. A PDF (0023) stays on the device: it can run to tens of
@@ -30,6 +31,12 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
         await SaveHereAsync(project);
         if (project.ForOnline() is { } copy)
         {
+            // The PDF stays here (version 0.3): the copy says this browser holds it, so another device shows where it is.
+            if (project.Document is not null && copy.FindOriginal(PieceOriginal.DocumentId) is { } pdf && !pdf.IsHeldBy(HoldingDevice.Web))
+            {
+                copy = copy.MarkHeld(PieceOriginal.DocumentId, HoldingDevice.Web, held: true, DateTimeOffset.Now);
+            }
+
             await online.QueueAsync(copy);
         }
     }
@@ -68,6 +75,8 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
             ComposerFrom = summary.Details?.Composer?.Attribution.Provenance.ToString(),
             Tags = summary.Details?.Tags,
             Playlists = summary.Details?.Playlists,
+            Originals = [.. summary.Originals.Select(static original => new StoredOriginal(
+                original.Id, original.Kind.ToString(), original.Kept.ToString(), original.InFile, [.. original.Held.Select(static device => device.ToString())]))],
         };
 
     /// <summary>The saved project, or null when there is none. Throws <see cref="ProjectFileException"/> when it is damaged.</summary>
@@ -97,7 +106,25 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
             ReadFrom = row.ReadFrom,
             Latest = row.Latest is { } latest ? new ResumeSummary(latest.Id, latest.Name, latest.At, latest.From, latest.To, Time(latest.LastActive)) : null,
             Details = DetailsOf(row),
+            Originals = OriginalsOf(row),
         })];
+    }
+
+    /// <summary>
+    /// The recordings this browser holds, as "&lt;project&gt;/&lt;original&gt;" (version 0.3), for the library's badges; none
+    /// when the browser does not say.
+    /// </summary>
+    public async Task<IReadOnlySet<string>> HeldHereAsync()
+    {
+        try
+        {
+            _originals ??= await js.InvokeAsync<IJSObjectReference>("import", "./js/storage/originals.js");
+            return new HashSet<string>(await _originals.InvokeAsync<string[]>("heldHere"), StringComparer.Ordinal);
+        }
+        catch (JSException)
+        {
+            return new HashSet<string>(StringComparer.Ordinal);
+        }
     }
 
     /// <summary>The notes read from a PDF piece (0023), the ones opened last when it was read more than once; null when there are none.</summary>
@@ -176,6 +203,16 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
             ? new PieceDetails(shown, row is { Composer: { } composer, ComposerFrom: { } composerFrom } ? Attributed(composer, composerFrom) : null, row.Tags ?? [], row.Playlists ?? [])
             : null;
 
+    /// <summary>The originals a row keeps (version 0.3); none for a row saved before, or a value this build does not know.</summary>
+    private static IReadOnlyList<OriginalSummary> OriginalsOf(StoredSummary row) =>
+        [.. (row.Originals ?? []).Where(static original => Enum.TryParse<OriginalKind>(original.Kind, out _) && Enum.TryParse<OriginalKept>(original.Kept, out _))
+            .Select(static original => new OriginalSummary(
+                original.Id,
+                Enum.Parse<OriginalKind>(original.Kind),
+                Enum.Parse<OriginalKept>(original.Kept),
+                original.InFile,
+                [.. (original.Held ?? []).Select(static device => Enum.TryParse(device, out HoldingDevice known) ? known : (HoldingDevice?)null).OfType<HoldingDevice>()]))];
+
     private static Attributed<string>? Attributed(string value, string provenance) =>
         Enum.TryParse(provenance, out Provenance kind) && kind is Provenance.UserEdited or Provenance.Imported or Provenance.Inferred
             ? new(value, kind == Provenance.Inferred ? Attribution.Inferred(1) : kind == Provenance.Imported ? Attribution.Imported : Attribution.UserEdited)
@@ -212,7 +249,12 @@ public sealed class ProjectStore(IJSRuntime js, OnlineProjects online) : IAsyncD
         public IReadOnlyList<string>? Tags { get; init; }
 
         public IReadOnlyList<string>? Playlists { get; init; }
+
+        /// <summary>The piece's originals and where their bytes are (version 0.3); rows saved before have none.</summary>
+        public IReadOnlyList<StoredOriginal>? Originals { get; init; }
     }
+
+    private sealed record StoredOriginal(string Id, string Kind, string Kept, bool InFile, IReadOnlyList<string>? Held);
 
     private sealed record StoredResume(string Id, string? Name, long At, long? From, long? To, string LastActive);
 

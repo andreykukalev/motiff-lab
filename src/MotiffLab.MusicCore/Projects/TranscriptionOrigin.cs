@@ -31,8 +31,14 @@ public sealed record TranscriptionOrigin(string Engine, BarGrid? Bars = null)
             : [.. value];
     } = [];
 
+    /// <summary>The original the notes were heard in (<see cref="PieceOriginal.Id"/>, version 0.3); null when not kept.</summary>
+    public string? From { get; init; }
+
+    /// <summary>When the notes were heard (version 0.3); null when not kept.</summary>
+    public DateTimeOffset? At { get; init; }
+
     public bool Equals(TranscriptionOrigin? other) =>
-        other is not null && Engine == other.Engine && Equals(Bars, other.Bars) && Seams.SequenceEqual(other.Seams);
+        other is not null && Engine == other.Engine && Equals(Bars, other.Bars) && Seams.SequenceEqual(other.Seams) && From == other.From && At == other.At;
 
     public override int GetHashCode() => HashCode.Combine(Engine, Bars, Seams.Count);
 }

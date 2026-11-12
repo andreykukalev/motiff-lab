@@ -1514,16 +1514,33 @@
                     <div class="row"><button class="btn secondary compact" @onclick="RestartFromSheetAsync">@Text["assembly.restartFrom"]</button></div>
                 </li>
             }
-            @if (piece.Document is not null)
+            @if (piece.FindOriginal(PieceOriginal.DocumentId) is { } pdfOriginal)
             {
                 <li class="source-card">
-                    <p class="head"><Icon Name="pages" Size="IconSize.Small" /> <strong>@piece.DocumentFileName</strong> <span class="caption">@Text["sources.pdfInside"]</span></p>
-                    <div class="row">
-                        <button class="btn quiet compact" @onclick="ShowPdfAsync">@Text["sources.openPdf"]</button>
-                        <button class="btn quiet compact" aria-expanded="@(_readingDocument ? "true" : "false")" @onclick="ToggleReadDocument">
-                            @Text["sources.readPdf"] @if (Scans.IsHosted) { <span class="tag pro">Pro</span> }
-                        </button>
-                    </div>
+                    <p class="head"><Icon Name="pages" Size="IconSize.Small" /> <strong>@pdfOriginal.Shown</strong> <span class="caption">@Text[piece.Document is null ? "originals.kindPdf" : "sources.pdfInside"]</span></p>
+                    <p class="held where-@WhereIs(pdfOriginal).ToString().ToLowerInvariant()">@WhereText(pdfOriginal)</p>
+                    @if (piece.Document is not null)
+                    {
+                        <div class="row">
+                            <button class="btn quiet compact" @onclick="ShowPdfAsync">@Text["sources.openPdf"]</button>
+                            <button class="btn quiet compact" aria-expanded="@(_readingDocument ? "true" : "false")" @onclick="ToggleReadDocument">
+                                @Text["sources.readPdf"] @if (Scans.IsHosted) { <span class="tag pro">Pro</span> }
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="row">
+                            <label class="file btn secondary compact" title="@Text["originals.relinkHint"]">
+                                @Text["originals.relink"]
+                                <InputFile OnChange="RelinkPdfAsync" accept="@MotiffLab.MusicCore.Import.PdfDocument.Extension" />
+                            </label>
+                        </div>
+                    }
+                    @if (_relinking == PieceOriginal.DocumentId && _relinkStatus is { } pdfStatus)
+                    {
+                        <p class="caption" role="status">@pdfStatus</p>
+                    }
                 </li>
             }
             @foreach (SavedPerformance kept in piece.Performances)
@@ -1533,6 +1550,24 @@
                 <li class="source-card">
                     <p class="head"><span class="dot tone-@ToneOf(kept.Id)" aria-hidden="true"></span> <strong>@kept.Name</strong> <span class="caption">@VersionRole(kept) · @BarsOfSource(kept.Id)</span></p>
                     <p>@MatchSummary(kept.Id)</p>
+                    @if (kept.Source == PerformanceSource.Recording && piece.FindOriginal(kept.Id) is { } recordingOriginal)
+                    {
+                        OriginalWhere recordingWhere = WhereIs(recordingOriginal);
+                        <p class="held where-@recordingWhere.ToString().ToLowerInvariant()"><Icon Name="mic" Size="IconSize.Small" /> @WhereText(recordingOriginal)</p>
+                        @if (recordingWhere != OriginalWhere.Here)
+                        {
+                            <div class="row">
+                                <label class="file btn secondary compact" title="@Text["originals.relinkHint"]">
+                                    @Text["originals.relink"]
+                                    <InputFile @ref="_relinkPickers[kept.Id]" OnChange="() => RelinkRecordingAsync(kept.Id)" accept="@MotiffLab.Web.Import.ScanService.AcceptedRecordings" />
+                                </label>
+                            </div>
+                        }
+                        @if (_relinking == kept.Id && _relinkStatus is { } recordingStatus)
+                        {
+                            <p class="caption" role="status">@recordingStatus</p>
+                        }
+                    }
                     <div class="row">
                         @if (corrections > 0)
                         {
@@ -1555,6 +1590,10 @@
                 </li>
             }
         </ul>
+        @if (ShownOriginals.Any())
+        {
+            <p class="caption local-first">@Text["originals.localFirst"]</p>
+        }
         @if (_readingDocument && piece.Document is { } pdf)
         {
             <MotiffLab.Web.Pdf.RecognisePanel Inline Document="pdf" FileName="@piece.DocumentFileName" Heading="@Text["sources.readPdf"]" Intro="@Text["sources.readPdfIntro"]"
@@ -1579,7 +1618,7 @@
                 <InputFile OnChange="AddDocumentAsync" accept="@MotiffLab.MusicCore.Import.PdfDocument.Extension" />
             </label>
             <p class="caption">@Text["sources.pdfHow"]</p>
-            <MotiffLab.Web.Import.RecordingVersion Heard="AddRecordingVersionAsync" />
+            <MotiffLab.Web.Import.RecordingVersion Heard="AddRecordingVersionAsync" Picked="FingerprintRecordingAsync" />
         </section>
     }
 </aside>;
@@ -2264,6 +2303,7 @@
             }
 
             await ArriveAtResumePointAsync();
+            await CheckOriginalsAsync();
             StateHasChanged();
         }
 

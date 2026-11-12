@@ -167,6 +167,7 @@ public partial class Home
         HashSet<string> readFrom = [.. all.Select(summary => summary.ReadFrom).OfType<string>()];
         _summaries = [.. all.Where(summary => summary.Origin != PieceOrigin.Pdf || !readFrom.Contains(summary.Id))];
         _covers = await Projects.CoversAsync();
+        await Shelf.KnowHeldHereAsync(Projects);
         Shelve();
         _nearlyFull = await Projects.IsNearlyFullAsync();
         _onlineOnly = null;

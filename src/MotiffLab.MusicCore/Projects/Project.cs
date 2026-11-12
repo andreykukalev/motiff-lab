@@ -116,7 +116,7 @@ public sealed record Project(
             throw new ArgumentException("The file is not a PDF.", nameof(pdf));
         }
 
-        return new(id, fileName, [], now, now, [], []) { Document = pdf };
+        return new Project(id, fileName, [], now, now, [], []) { Document = pdf }.Fingerprinted();
     }
 
     /// <summary>
@@ -125,7 +125,7 @@ public sealed record Project(
     /// and its bookmarks stay exactly as they were, for the "PDF" view beside the "Notes" one in the same piece.
     /// </summary>
     /// <exception cref="InvalidOperationException">The piece is not a PDF with no notes yet.</exception>
-    public Project Recognised(byte[] musicXml, string engine, PageMap pages)
+    public Project Recognised(byte[] musicXml, string engine, PageMap pages, DateTimeOffset? at = null)
     {
         ArgumentNullException.ThrowIfNull(musicXml);
         ArgumentNullException.ThrowIfNull(pages);
@@ -143,7 +143,7 @@ public sealed record Project(
         {
             FileName = Path.ChangeExtension(FileName, ".musicxml"),
             Source = musicXml,
-            Scan = ScanOrigin.Read(engine),
+            Scan = ScanOrigin.Read(engine) with { From = PieceOriginal.DocumentId, At = at },
             DocumentPages = pages,
         };
     }
@@ -170,21 +170,117 @@ public sealed record Project(
         }
 
         bool same = Document is { } kept && kept.AsSpan().SequenceEqual(pdf);
-        return this with
+        Project changed = this with
         {
             Document = pdf,
             DocumentPages = pages,
             DocumentMarks = same ? DocumentMarks : DocumentMarks.Empty,
             ReadFrom = null,
+            KeptOriginals = same ? KeptOriginals : [.. KeptOriginals.Where(static original => original.Id != PieceOriginal.DocumentId)],
         };
+        return changed.Fingerprinted();
+    }
+
+    /// <summary>
+    /// The descriptions the file keeps of the piece's originals (version 0.3), as they are written: laid over the ones the
+    /// piece's own data shows (<see cref="PieceOriginals.Derived"/>). Apps read <see cref="Originals"/>.
+    /// </summary>
+    public IReadOnlyList<PieceOriginal> KeptOriginals { get; init; } = [];
+
+    /// <summary>
+    /// The piece's originals (version 0.3, local-first): the PDF, the file the notes came from, the recordings and MIDI
+    /// files of its versions, and those whose bytes are only on another device. Only their descriptions are in the file.
+    /// </summary>
+    public IReadOnlyList<PieceOriginal> Originals => PieceOriginals.Over(PieceOriginals.Derived(this), KeptOriginals);
+
+    public PieceOriginal? FindOriginal(string id) => Originals.FirstOrDefault(original => original.Id == id);
+
+    /// <summary>Whether an original's bytes are in this project file: the PDF here, the imported file, a MIDI version.</summary>
+    public bool HasInFile(PieceOriginal original)
+    {
+        ArgumentNullException.ThrowIfNull(original);
+        return original.Kept == OriginalKept.File && original.Id switch
+        {
+            PieceOriginal.DocumentId => Document is not null,
+            PieceOriginal.SourceFileId => HasNotes,
+            _ => FindPerformance(original.Id) is { Source: PerformanceSource.Midi },
+        };
+    }
+
+    /// <summary>The originals as a library row keeps them: what each is and where its bytes are.</summary>
+    public IReadOnlyList<OriginalSummary> OriginalSummaries =>
+        [.. Originals.Select(original => new OriginalSummary(original.Id, original.Kind, original.Kept, HasInFile(original), [.. original.Held.Select(static mark => mark.Device)]))];
+
+    /// <summary>The original a picked file is, by its fingerprint (<see cref="PieceOriginal.Fingerprint"/>); null when none matches.</summary>
+    public PieceOriginal? OriginalWithFingerprint(string sha256) => Originals.FirstOrDefault(original => original.Matches(sha256));
+
+    /// <summary>The project with an original's description added, or put in place of the one with its id.</summary>
+    public Project WithOriginal(PieceOriginal original)
+    {
+        ArgumentNullException.ThrowIfNull(original);
+        List<PieceOriginal> kept = [.. KeptOriginals];
+        int index = kept.FindIndex(each => each.Id == original.Id);
+        if (index >= 0)
+        {
+            kept[index] = original;
+        }
+        else
+        {
+            kept.Add(original);
+        }
+
+        return this with { KeptOriginals = kept };
+    }
+
+    /// <summary>
+    /// The project with a device's mark on an original set (it holds the bytes) or taken back; the same project when the
+    /// mark is already so, so the apps save only on a change.
+    /// </summary>
+    /// <exception cref="KeyNotFoundException">No original has the id.</exception>
+    public Project MarkHeld(string id, HoldingDevice device, bool held, DateTimeOffset at)
+    {
+        PieceOriginal original = FindOriginal(id) ?? throw new KeyNotFoundException($"There is no original {id}.");
+        return original.IsHeldBy(device) == held ? this : WithOriginal(held ? original.HeldBy(device, at) : original.NotHeldBy(device));
+    }
+
+    /// <summary>
+    /// The project with the PDF's fingerprint worked out when it is not known yet (a file saved before originals were
+    /// kept), once: the device that has the PDF does it, so another device can link the file the player picks again by
+    /// it. The PDF is the one original in the file that never goes online; the imported file and a MIDI version go with
+    /// the notes. The same project when nothing was missing.
+    /// </summary>
+    public Project Fingerprinted() =>
+        Document is { } document && FindOriginal(PieceOriginal.DocumentId) is { Sha256: null } original
+            ? WithOriginal(original with { Sha256 = PieceOriginal.Fingerprint(document), Bytes = document.Length })
+            : this;
+
+    /// <summary>
+    /// The piece with its PDF linked again from a file the player picked on this device (version 0.3, «Привязать оригинал»):
+    /// the bytes match the PDF's fingerprint, so the same piece gets its PDF back, its pages linked to the bars as
+    /// <paramref name="pages"/> says; null when the file is another one.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The piece has its PDF here already, or keeps no PDF original.</exception>
+    public Project? RelinkDocument(byte[] pdf, PageMap pages)
+    {
+        ArgumentNullException.ThrowIfNull(pdf);
+        ArgumentNullException.ThrowIfNull(pages);
+        if (Document is not null || FindOriginal(PieceOriginal.DocumentId) is not { Kind: OriginalKind.Pdf } original)
+        {
+            throw new InvalidOperationException("Only a piece whose PDF is on another device links it again.");
+        }
+
+        return PdfDocument.IsPdf(pdf) && original.Matches(PieceOriginal.Fingerprint(pdf))
+            ? this with { Document = pdf, DocumentPages = HasNotes ? pages : null }
+            : null;
     }
 
     /// <summary>
     /// The copy saved online (0014): the notes and everything made from them, without the PDF, which can run to tens of
-    /// megabytes and stays on the device with its marks. A piece that is only a PDF has nothing to save online.
+    /// megabytes and stays on the device with its marks. A piece that is only a PDF has nothing to save online. The
+    /// originals' descriptions go with it (version 0.3), so another device shows where the PDF is.
     /// </summary>
     public Project? ForOnline() => Document is null ? this
-        : HasNotes ? this with { Document = null, DocumentMarks = DocumentMarks.Empty, DocumentPages = null }
+        : HasNotes ? this with { Document = null, DocumentMarks = DocumentMarks.Empty, DocumentPages = null, KeptOriginals = [.. Originals] }
         : null;
 
     /// <summary>The PDF's file name: the piece's, as a PDF.</summary>
@@ -197,6 +293,7 @@ public sealed record Project(
         CheckBars = OpenChecks.Select(flag => flag.Bar).Distinct().Count(),
         ReadFrom = ReadFrom?.ProjectId,
         Details = Details,
+        Originals = OriginalSummaries,
         Latest = RecentResumePoints.FirstOrDefault() is { } latest
             ? new ResumeSummary(latest.Id, latest.Name, latest.At.Value, latest.Passage?.Span.Onset.Value, latest.Passage?.Span.End.Value, latest.LastActive)
             : null,
@@ -466,6 +563,7 @@ public sealed record Project(
         return this with
         {
             Performances = left,
+            KeptOriginals = [.. KeptOriginals.Where(original => original.Id != id)],
             Check = left.Count == 0 ? [.. (Check ?? []).Where(flag => flag.Source != CheckSource.Performance)] : Check,
         };
     }
@@ -595,7 +693,7 @@ public sealed record Project(
             throw new InvalidOperationException("The bars cannot change once something has been placed in them.");
         }
 
-        TranscriptionOrigin origin = new(heard.Engine, bars) { Seams = heard.Seams };
+        TranscriptionOrigin origin = new(heard.Engine, bars) { Seams = heard.Seams, From = heard.From, At = heard.At };
         Project changed = this with
         {
             Transcription = origin,
@@ -722,6 +820,9 @@ public sealed record ProjectSummary(string Id, string FileName, int MotifCount, 
 
     /// <summary>The title, composer and tags the card shows (<see cref="Project.Details"/>); null for a summary saved before they were kept.</summary>
     public PieceDetails? Details { get; init; }
+
+    /// <summary>The piece's originals and where their bytes are (version 0.3); empty for a summary saved before they were kept.</summary>
+    public IReadOnlyList<OriginalSummary> Originals { get; init; } = [];
 }
 
 /// <summary>Where a piece came from: a file opened on the device, a page scanned (0011) or a recording heard (0014).</summary>

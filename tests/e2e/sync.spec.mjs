@@ -197,3 +197,44 @@ test("a piece beyond the free account's 300 stays here, and the library says so"
     await expect(page.getByRole("status").filter({ hasText: "Pieces on this device only: 1. A free account keeps 300 pieces online; the others stay here." })).toBeVisible();
     await expect(titles(page)).toHaveText(["Fur Elise, opening"]);
 });
+
+// Local-first originals (version 0.3, Andrei 2026-11-11 21:20 UTC): only the descriptions of the originals go online. A
+// recognised PDF with a recording, saved on the iPad: the PDF and the sound stayed there.
+const ipadPdf = JSON.parse(readFileSync(fixture("Golden/v15-originals-online.motiff.json"), "utf8"));
+for (const original of ipadPdf.originals) {
+    original.held = [{ device: "ipad", at: "2026-11-12T01:03:00.0000000+00:00" }];
+}
+const ipadPdfFile = JSON.stringify(ipadPdf);
+// The PDF the golden was made from (Projects/PieceOriginalTests.cs), byte for byte.
+const nocturnePdf = Buffer.from("%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\n%%EOF\n", "ascii");
+
+test("a piece whose PDF is only on the iPad says so, and the same PDF picked here is linked to it", async ({ page }) => {
+    const errors = pageErrors(page);
+    const { stored } = await signedIn(page, { online: { [ipadPdf.id]: { file: ipadPdfFile, etag: '"e1"', savedAt: "2026-11-11T09:00:00+00:00" } } });
+
+    await page.goto("/");
+    await expect(titles(page)).toHaveText(["Nocturne"]);
+    await expect(page.locator(".lib-table tbody .tag.held")).toHaveText("PDF: only on the iPad");
+
+    await titles(page).first().click();
+    await expect(page).toHaveURL(/\/playback\?project=/);
+    await page.locator(".versions-label").click();
+    const sheet = page.locator(".perf-sheet");
+    const pdfCard = sheet.locator(".source-card", { hasText: "Nocturne.pdf" });
+    await expect(pdfCard.locator(".held")).toHaveText("Only on the iPad");
+    await expect(sheet.locator(".source-card", { hasText: "Evening take" }).locator(".held")).toHaveText("Only on the iPad");
+    await expect(sheet.locator(".local-first")).toContainText("We don't keep your files");
+
+    // Another PDF is not this original; the same one is, by its fingerprint, and the piece has its PDF again.
+    await pdfCard.locator("input[type=file]").setInputFiles({ name: "Other.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\nanother\n%%EOF\n", "ascii") });
+    await expect(pdfCard.getByRole("status")).toHaveText("This is a different file. To keep it as another original, add it with Add a source.");
+    await pdfCard.locator("input[type=file]").setInputFiles({ name: "Nocturne (1).pdf", mimeType: "application/pdf", buffer: nocturnePdf });
+    await expect(pdfCard.getByRole("status")).toHaveText("The original is linked: it is on this device now.");
+    await expect(pdfCard.locator(".held")).toHaveText("In the piece's file on this device");
+    await expect(pdfCard.getByRole("button", { name: "Open PDF" })).toBeVisible();
+
+    // The copy online says this browser holds the PDF now, and still holds no PDF itself.
+    await expect.poll(() => JSON.parse(stored[ipadPdf.id].file).originals[0].held.map(mark => mark.device), { timeout: 15000 }).toEqual(["ipad", "web"]);
+    expect(JSON.parse(stored[ipadPdf.id].file).document).toBeUndefined();
+    expect(errors).toEqual([]);
+});

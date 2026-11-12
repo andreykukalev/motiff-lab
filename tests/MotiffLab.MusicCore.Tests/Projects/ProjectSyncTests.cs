@@ -162,5 +162,16 @@ public class ProjectSyncTests
 
         string pulled = Call("project.pulled", new { file = Text(FurElise()), here = (string?)null }).GetProperty("file").GetString()!;
         Assert.Equal(Text(FurElise()), pulled);
+
+        // Version 0.3: the iPad's online copy of a piece with its PDF says the iPad holds it, and a pull keeps the PDF's description.
+        Project recognised = Project.CreateDocument("p_pdf2", "b.pdf", s_pdf, s_now)
+            .Recognised(Fixture("fur-elise-original.musicxml"), "homr 0.7.0", new PageMap([MotiffLab.MusicCore.Time.Tick.Zero]));
+        string sent = Call("project.online", new { file = Text(recognised), now = "2026-11-12T01:00:00Z" }).GetProperty("file").GetString()!;
+        PieceOriginal online = ProjectFile.Read(Encoding.UTF8.GetBytes(sent)).FindOriginal(PieceOriginal.DocumentId)!;
+        Assert.Equal([new OriginalHeld(HoldingDevice.Ipad, new DateTimeOffset(2026, 11, 12, 1, 0, 0, TimeSpan.Zero))], online.Held);
+        Assert.Equal(PieceOriginal.Fingerprint(s_pdf), online.Sha256);
+        Project back = ProjectFile.Read(Encoding.UTF8.GetBytes(Call("project.pulled", new { file = sent, here = Text(recognised) }).GetProperty("file").GetString()!));
+        Assert.Equal(s_pdf, back.Document);
+        Assert.Empty(back.FindOriginal(PieceOriginal.DocumentId)!.Held);
     }
 }

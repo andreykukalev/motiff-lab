@@ -5281,6 +5281,19 @@ body:has(.library) .site-footer {
     font-weight: 500;
 }
 
+/* Where a piece's original is when it is not here (version 0.3): neutral and dashed, a fact about the device, not a mark. */
+.library .tag.held {
+    border: 1px dashed var(--hairline-strong);
+    background: var(--surface);
+    color: var(--ink-2);
+    font-weight: 500;
+}
+
+.library .lib-table .col-title .tag.held {
+    margin-inline-start: var(--s-2);
+    vertical-align: middle;
+}
+
 /* The search in the header (version 0.2, lib-1-list.png): the field shows the focus, once. */
 .library .lib-head .search {
     display: flex;
@@ -8298,6 +8311,29 @@ body:has(.library) .site-footer {
 .lab.workspace .source-card button.link {
     justify-self: start;
     font: var(--t-caption);
+}
+
+/* Where an original's bytes are (version 0.3): one quiet line, dashed when they are on no device here. */
+.workspace .source-card .held {
+    display: flex;
+    align-items: center;
+    gap: var(--s-1);
+    font: var(--t-caption);
+    color: var(--ink-2);
+}
+
+.workspace .source-card .held.where-onipad,
+.workspace .source-card .held.where-inbrowser,
+.workspace .source-card .held.where-nowhere {
+    justify-self: start;
+    padding: 0 var(--s-2);
+    border: 1px dashed var(--hairline-strong);
+    border-radius: var(--r-xs);
+}
+
+.workspace .perf-sheet .local-first {
+    margin: var(--s-2) 0 0;
+    color: var(--ink-2);
 }
 
 .workspace .source-details {

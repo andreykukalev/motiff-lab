@@ -81,6 +81,10 @@
     [Parameter, EditorRequired]
     public Func<string, byte[], Task<string?>> Heard { get; set; } = default!;
 
+    /// <summary>The file input as a recording is picked, before it is heard: the page takes its fingerprint (version 0.3, local-first originals).</summary>
+    [Parameter]
+    public Func<ElementReference, Task>? Picked { get; set; }
+
     private string Progress => _decoding ? Text["transcribe.decoding"]
         : _hearing is { Total: > 1 } hearing ? Text.Format(hearing.Retrying ? "transcribe.retrying" : "transcribe.progress", hearing.Done, hearing.Total)
         : Text["transcribe.busy"];
@@ -107,6 +111,11 @@
         _busy = true;
         try
         {
+            if (Picked is not null && _input?.Element is { } picked)
+            {
+                await Picked(picked);
+            }
+
             byte[]? midi = await HearAsync(file);
             if (midi is not null)
             {

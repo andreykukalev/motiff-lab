@@ -72,12 +72,24 @@ public static class ProjectSync
     /// The online copy as it is kept here: a PDF and its marks stay on the device (0026 C3), so when the online copy has
     /// none, the device's own PDF, its pages and its marks stay with the piece.
     /// </summary>
-    public static Project Pulled(Project online, Project? here)
+    /// <remarks>
+    /// The originals' descriptions (version 0.3) are a union of both copies by fingerprint, else by id, so an original
+    /// one device knows is never lost; <paramref name="device"/>'s own holding marks come from <paramref name="here"/>
+    /// and every other device's from the online copy (<see cref="PieceOriginals.Merge"/>).
+    /// </remarks>
+    public static Project Pulled(Project online, Project? here, HoldingDevice? device = null)
     {
         ArgumentNullException.ThrowIfNull(online);
-        return here is { Document: { } document } && online.Document is null && here.Id == online.Id
+        if (here is null || here.Id != online.Id)
+        {
+            return online;
+        }
+
+        Project kept = here is { Document: { } document } && online.Document is null
             ? online with { Document = document, DocumentPages = here.DocumentPages, DocumentMarks = here.DocumentMarks }
             : online;
+        IReadOnlyList<PieceOriginal> originals = PieceOriginals.Merge(online.Originals, here.Originals, device);
+        return originals.SequenceEqual(kept.Originals) ? kept : kept with { KeptOriginals = originals };
     }
 
     /// <summary>
@@ -93,13 +105,14 @@ public static class ProjectSync
     /// <param name="savedOnline">When the online copy was saved, as the API lists it.</param>
     /// <param name="copyTitle">The previous copy's title, with "{0}" for the piece's title.</param>
     /// <param name="newId">The previous copy's id (<c>MusicCoreFacade.NewProjectId</c>).</param>
-    public static SyncResolution Resolve(Project here, DateTimeOffset savedHere, Project online, DateTimeOffset savedOnline, string copyTitle, string newId)
+    /// <param name="device">This device, whose marks of holding an original are its own (version 0.3); null keeps the online marks.</param>
+    public static SyncResolution Resolve(Project here, DateTimeOffset savedHere, Project online, DateTimeOffset savedOnline, string copyTitle, string newId, HoldingDevice? device = null)
     {
         ArgumentNullException.ThrowIfNull(here);
         ArgumentNullException.ThrowIfNull(online);
         ArgumentNullException.ThrowIfNull(copyTitle);
         ArgumentException.ThrowIfNullOrWhiteSpace(newId);
-        Project pulled = Pulled(online, here);
+        Project pulled = Pulled(online, here, device);
         if (ProjectFile.Write(pulled).AsSpan().SequenceEqual(ProjectFile.Write(here)))
         {
             return new SyncResolution(here, Upload: false, PreviousCopy: null);

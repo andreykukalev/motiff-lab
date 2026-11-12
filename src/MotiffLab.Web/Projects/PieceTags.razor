@@ -1,10 +1,14 @@
 @using MotiffLab.Web.Localization
 
-@* What a card says about a piece besides its title: the ideas kept from it (plum), the bars Check asks about (amber) and the
-   player's own tags (neutral). Nothing when there is none of them. *@
-@if (Entry.Summary.IdeaCount > 0 || Entry.Summary.CheckBars > 0 || Entry.Tags.Count > 0)
+@* What a card says about a piece besides its title: where its original is when it is not here (version 0.3), the ideas
+   kept from it (plum), the bars Check asks about (amber) and the player's own tags (neutral). Nothing when there is none. *@
+@if (Elsewhere is not null || Entry.Summary.IdeaCount > 0 || Entry.Summary.CheckBars > 0 || Entry.Tags.Count > 0)
 {
     <p class="tags">
+        @if (Elsewhere is { } elsewhere)
+        {
+            <span class="tag held">@elsewhere</span>
+        }
         @if (Entry.Summary.IdeaCount > 0)
         {
             <span class="tag saved">@Text.Count("library.ideas", Entry.Summary.IdeaCount)</span>
@@ -26,4 +30,10 @@
 
     [Parameter, EditorRequired]
     public LibraryEntry Entry { get; set; } = default!;
+
+    /// <summary>The shelf, which knows the recordings this browser holds, for the badge when the original is elsewhere.</summary>
+    [Parameter]
+    public LibraryShelfState? Shelf { get; set; }
+
+    private string? Elsewhere => Shelf?.Elsewhere(Entry);
 }
