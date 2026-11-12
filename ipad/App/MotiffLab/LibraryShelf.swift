@@ -35,9 +35,11 @@ struct LibraryQuery: Equatable, Sendable {
     var composer: String?
     var tag: String?
     var playlist: String?
+    /// «Без нот» (version 0.5): only the pieces that are only a PDF.
+    var withoutNotes = false
 
     var narrows: Bool {
-        !search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || composer != nil || tag != nil || playlist != nil
+        !search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || composer != nil || tag != nil || playlist != nil || withoutNotes
     }
 
     /// Search and filters cleared; the order stays.
@@ -71,6 +73,9 @@ struct LibraryEntry: Identifiable, Equatable, Sendable {
     let folded: String
     /// Its first PDF, photos or recording that is not on this iPad, said on its line (version 0.3); nil when all are here.
     var originalAway: OriginalAway?
+    /// A piece that is only a PDF, whose notes can be recognised (version 0.5, «Распознать ноты» for several), and its pages.
+    var withoutNotes = false
+    var pages = 0
 
     var id: URL { url }
 
@@ -106,7 +111,7 @@ struct LibraryPage: Equatable, Sendable {
             return LibraryPage(pieces: LibraryShelf.apply(LibraryShelf.pieces(of: tab, entries), query, locale: locale), groups: nil, indexed: fromA)
         case .composers, .playlists:
             // The composer or playlist is picked here, not by a filter; search still narrows.
-            let searched = LibraryShelf.apply(entries, LibraryQuery(search: query.search, sort: query.sort, ascending: query.ascending), locale: locale)
+            let searched = LibraryShelf.apply(entries, LibraryQuery(search: query.search, sort: query.sort, ascending: query.ascending, withoutNotes: query.withoutNotes), locale: locale)
             let composers = tab == .composers
             if let picked {
                 let pieces = composers ? LibraryShelf.pieces(by: picked.name, searched) : LibraryShelf.pieces(on: picked.name ?? "", searched)
@@ -190,6 +195,7 @@ enum LibraryShelf {
                 && (query.composer.map { same(entry.composer, $0) } ?? true)
                 && (query.tag.map { tag in entry.tags.contains { same($0, tag) } } ?? true)
                 && (query.playlist.map { playlist in entry.playlists.contains { same($0, playlist) } } ?? true)
+                && (!query.withoutNotes || entry.withoutNotes)
         }
     }
 

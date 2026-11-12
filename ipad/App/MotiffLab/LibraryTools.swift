@@ -15,6 +15,10 @@ extension LibraryEntry {
             inSession: summary.map { !$0.hasNotes || $0.latest != nil } ?? false
         )
         line.originalAway = OriginalAway.of(summary)
+        if let summary, !summary.hasNotes, summary.document || AwayPdf.isAway(summary) {
+            line.withoutNotes = true
+            line.pages = max(1, summary.originals.first(where: \.isDocument)?.pages ?? summary.documentPages.count)
+        }
         return line
     }
 }
@@ -28,6 +32,8 @@ struct LibraryTabs: View {
     let tags: [String]
     let playlists: [String]
     let text: UIText
+    /// «Без нот» among the filters (version 0.5, experiment «Импорт папки»).
+    var withoutNotes = false
 
     var body: some View {
         // The filters beside the tabs while they fit, in portrait under them.
@@ -67,19 +73,25 @@ struct LibraryTabs: View {
         }
     }
 
-    /// The Composer, Tag and Playlist filters, on the lists of pieces only.
+    /// The Composer, Tag and Playlist filters, on the lists of pieces only; «Без нот» on every tab, with the experiment on.
     @ViewBuilder
     private var filters: some View {
-        if tab == .all || tab == .recent {
+        let lists = tab == .all || tab == .recent
+        if lists || withoutNotes {
             HStack(spacing: CGFloat.ds("s-3")) {
-                if !composers.isEmpty {
+                if lists && !composers.isEmpty {
                     LibraryFilter(caption: text["library.byComposer"], all: text["library.anyComposer"], values: composers, picked: $query.composer)
                 }
-                if !tags.isEmpty {
+                if lists && !tags.isEmpty {
                     LibraryFilter(caption: text["library.byTag"], all: text["library.anyTag"], values: tags, picked: $query.tag)
                 }
-                if !playlists.isEmpty {
+                if lists && !playlists.isEmpty {
                     LibraryFilter(caption: text["library.byPlaylist"], all: text["library.anyPlaylist"], values: playlists, picked: $query.playlist)
+                }
+                if withoutNotes {
+                    Button(text["recognition.withoutNotes"]) { query.withoutNotes.toggle() }
+                        .buttonStyle(DSChipStyle(on: query.withoutNotes))
+                        .accessibilityAddTraits(query.withoutNotes ? .isSelected : [])
                 }
             }
         }
@@ -150,6 +162,8 @@ struct LibraryList: View {
     let open: (LibraryEntry) -> Void
     let edit: (LibraryEntry) -> Void
     let delete: (LibraryEntry) -> Void
+    /// The pieces picked to recognise and each piece's recognition (version 0.5).
+    @Environment(\.libraryMarks) private var marks
 
     /// The width of the Opened column.
     private static let openedWidth: CGFloat = 160
@@ -168,7 +182,7 @@ struct LibraryList: View {
             .padding(.vertical, CGFloat.ds("s-3"))
             .overlay(alignment: .bottom) { Rectangle().fill(Color.ds("hairline")).frame(height: 1) }
             ForEach(entries) { entry in
-                LibraryLine(entry: entry, text: text, openedWidth: Self.openedWidth) {
+                LibraryLine(entry: entry, text: text, openedWidth: Self.openedWidth, marks: marks) {
                     open(entry)
                 } edit: {
                     edit(entry)
@@ -204,18 +218,27 @@ struct LibraryLine: View {
     let entry: LibraryEntry
     let text: UIText
     let openedWidth: CGFloat
+    var marks = LibraryMarks()
     let open: () -> Void
     let edit: () -> Void
     let delete: () -> Void
 
     var body: some View {
-        Button(action: open) {
+        Button {
+            if marks.chosen != nil { marks.toggle(entry) } else { open() }
+        } label: {
             HStack(spacing: CGFloat.ds("s-4")) {
+                if let chosen = marks.chosen {
+                    CheckBox(on: chosen.contains(entry.url)).opacity(entry.withoutNotes ? 1 : 0)
+                }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(entry.title)
-                        .font(DesignTokens.font(display: true, weight: 500, size: 19, relativeTo: .title3))
-                        .foregroundStyle(Color.ds("ink"))
-                        .lineLimit(1)
+                    HStack(spacing: CGFloat.ds("s-2")) {
+                        Text(entry.title)
+                            .font(DesignTokens.font(display: true, weight: 500, size: 19, relativeTo: .title3))
+                            .foregroundStyle(Color.ds("ink"))
+                            .lineLimit(1)
+                        if let item = marks.status(entry.url) { RecognitionTag(item: item, text: text) }
+                    }
                     if let away = entry.originalAway {
                         OriginalPlaceLabel(label: away.text(text), badge: away.badge)
                     }

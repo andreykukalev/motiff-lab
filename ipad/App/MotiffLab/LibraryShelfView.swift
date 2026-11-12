@@ -15,6 +15,8 @@ struct LibraryShelfView: View {
     let text: UIText
     /// Beside a playlist's name: «Держать на этом iPad» (version 0.5, experiment «Импорт папки»).
     var playlistAccessory: ((String) -> AnyView)?
+    /// The pieces picked to recognise and each piece's recognition, and «Без нот» among the filters (version 0.5).
+    var marks: LibraryMarks?
     let open: (URL) -> Void
     let edit: (LibraryEntry) -> Void
     let delete: (URL) -> Void
@@ -24,7 +26,7 @@ struct LibraryShelfView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-4")) {
-            LibraryTabs(tab: $tab, query: $query, composers: composers, tags: tags, playlists: playlists, text: text)
+            LibraryTabs(tab: $tab, query: $query, composers: composers, tags: tags, playlists: playlists, text: text, withoutNotes: marks != nil)
             if tab == .composers || tab == .playlists, let picked {
                 HStack(alignment: .firstTextBaseline, spacing: CGFloat.ds("s-3")) {
                     BackChip(label: LibraryTabs.label(tab, text), text: text) { self.picked = nil }
@@ -62,6 +64,7 @@ struct LibraryShelfView: View {
                 } delete: { entry in
                     delete(entry.url)
                 }
+                .environment(\.libraryMarks, marks ?? LibraryMarks())
             }
         }
     }
