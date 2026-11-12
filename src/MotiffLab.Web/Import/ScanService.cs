@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 
 using MotiffLab.MusicCore.Import.Midi;
+using MotiffLab.MusicCore.Import.Scan;
 using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.Web.Account;
 using MotiffLab.Web.Localization;
@@ -173,7 +174,7 @@ public sealed partial class ScanService(IJSRuntime js, CloudAccount account, UiT
                 byte[] musicXml = await response.Content.ReadAsByteArrayAsync(cancellation);
                 string engine = response.Headers.TryGetValues("X-Engine", out IEnumerable<string>? values) ? values.First() : "unknown engine";
                 int pages = response.Headers.TryGetValues("X-Pages", out IEnumerable<string>? counts) && int.TryParse(counts.First(), out int count) ? count : 1;
-                return new ScanResult(musicXml, engine, pages, null);
+                return new ScanResult(musicXml, engine, pages, null) { Reports = ReportsOf(response) };
             }
 
             if (IsHosted && response.StatusCode == HttpStatusCode.Forbidden)
@@ -324,6 +325,27 @@ public sealed partial class ScanService(IJSRuntime js, CloudAccount account, UiT
         }
     }
 
+    /// <summary>
+    /// What the server saw of each page (its <c>X-Page-Report</c>, version 0.4): numbers only, never the music. None from a
+    /// server before it, or when the header cannot be read: the notes are kept all the same, without the summary by page.
+    /// </summary>
+    private static IReadOnlyList<PageReport> ReportsOf(HttpResponseMessage response)
+    {
+        if (!response.Headers.TryGetValues("X-Page-Report", out IEnumerable<string>? values))
+        {
+            return [];
+        }
+
+        try
+        {
+            return PageReport.Parse(values.First());
+        }
+        catch (FormatException)
+        {
+            return [];
+        }
+    }
+
     private const string NotAScanServer = "Something answers at this address, but it is not a Motiff Lab scan server.";
 
     private static string Unreachable(Uri address) =>
@@ -403,5 +425,8 @@ public sealed record HeardSound(byte[]? Midi, TranscriptionResult Result, IReadO
 /// <param name="Engine">The engine and its version, for example "homr 0.7.0".</param>
 public sealed record ScanResult(byte[]? MusicXml, string Engine, int Pages, string? Problem)
 {
+    /// <summary>The server's report on each page it read, in order (version 0.4); empty when it sent none.</summary>
+    public IReadOnlyList<PageReport> Reports { get; init; } = [];
+
     public static ScanResult Failed(string problem) => new(null, "", 0, problem);
 }

@@ -319,9 +319,10 @@
             return imported.Rejection?.Text(Words.For(Text.Language)) ?? Text["pdf.readNone"];
         }
 
-        ScanCheck check = ScanCheck.Of(piece);
         PageMap pages = PageMap.Of(piece, Math.Max(1, _pages.Count));
-        Project read = project.Recognised(musicXml, result.Engine, pages, DateTimeOffset.Now) with
+        Project read = Recognised(project, musicXml, result, pages);
+        ScanCheck check = read.Scan!.CheckOf(piece);
+        read = read with
         {
             Check = CheckFlag.FromScan(check, []),
             LastOpened = DateTimeOffset.Now,
@@ -335,6 +336,28 @@
         Tick at = pages.StartOf(Math.Max(1, _pages.First));
         Navigation.NavigateTo(forVersion ? url + "&view=versions" : url + $"&at={at.Value}");
         return null;
+    }
+
+    /// <summary>
+    /// The PDF piece with the notes read, keeping the server's report on each page (version 0.4) so the check counts each
+    /// page's quality, and Check flags the bars of a poor page; without the reports when they are not one per page of the
+    /// notes, as from a server before 0.4.
+    /// </summary>
+    private static Project Recognised(Project project, byte[] musicXml, ScanResult result, PageMap pages)
+    {
+        if (result.Reports.Count > 0)
+        {
+            try
+            {
+                return project.Recognised(musicXml, result.Engine, pages, DateTimeOffset.Now, result.Reports);
+            }
+            catch (ArgumentException)
+            {
+                // The reports do not match the pages of the notes: the notes are kept without them.
+            }
+        }
+
+        return project.Recognised(musicXml, result.Engine, pages, DateTimeOffset.Now);
     }
 
     /// <summary>Adds another version (0022): on the notes read from this PDF, or after reading them.</summary>

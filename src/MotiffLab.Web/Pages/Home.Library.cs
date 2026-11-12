@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Components;
 
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.Web.Projects;
+using MotiffLab.Web.Workspace;
 
 namespace MotiffLab.Web.Pages;
 
@@ -29,12 +30,13 @@ public partial class Home
     }
 
     /// <summary>
-    /// Rows saved before the library kept a piece's title, composer and tags have none: each such piece is read once and its
-    /// row written again, so search and the filters know it. The cards are made again when all are done.
+    /// Rows saved before the library kept a piece's title, composer and tags have none, and rows of a piece made from a
+    /// collection saved before they kept where it came from (version 0.4) do not say so: each such piece is read once and
+    /// its row written again, so search, the filters and the collection know it. The cards are made again when all are done.
     /// </summary>
     private async Task CompleteRowsAsync()
     {
-        if (_summaries is not { } summaries || summaries.All(summary => summary.Details is not null))
+        if (_summaries is not { } summaries || !summaries.Any(Incomplete))
         {
             return;
         }
@@ -42,7 +44,7 @@ public partial class Home
         var completed = summaries.ToList();
         for (int index = 0; index < completed.Count; index++)
         {
-            if (completed[index].Details is not null)
+            if (!Incomplete(completed[index]))
             {
                 continue;
             }
@@ -63,6 +65,10 @@ public partial class Home
         _summaries = completed;
         Shelve();
     }
+
+    /// <summary>A row without the title the library shows, or of a piece made from a collection that does not say so.</summary>
+    private static bool Incomplete(ProjectSummary summary) =>
+        summary.Details is null || PartPlace.Unsaid(summary);
 
     private async Task OpenEditAsync(LibraryEntry entry)
     {

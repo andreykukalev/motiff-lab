@@ -213,6 +213,7 @@
                     {
                         <p>@Text["import.scanClean"]</p>
                     }
+                    <ScanPagesSummary Pages="scan.Pages" />
                 </section>
             }
             else if (_transcriptionEngine is not null)
@@ -327,6 +328,9 @@
 
     /// <summary>The checks of a piece read by the scan server (0011); null for a file imported on the device.</summary>
     private ScanCheck? _scan;
+
+    /// <summary>The scan server's report on each page of the notes just read (version 0.4); empty without one.</summary>
+    private IReadOnlyList<PageReport> _scanReports = [];
     private string _scanEngine = "";
     private int _scanPages;
     private bool _scanning;
@@ -524,12 +528,34 @@
                 return;
             }
 
-            _scan = ScanCheck.Of(piece);
+            _scanReports = ReportsFor(result, musicXml);
+            _scan = ScanCheck.Of(piece, _scanReports.Count > 0 ? _scanReports : null);
             (_piece, _data, _fileName, _scanEngine, _scanPages) = (_scan.Mark(piece, []), musicXml, name, result.Engine, result.Pages);
         }
         finally
         {
             _scanning = false;
+        }
+    }
+
+    /// <summary>
+    /// The server's report on each page as the pages of the notes (version 0.4); none when it sent none, or not one per page
+    /// of the notes, so the notes are kept without them.
+    /// </summary>
+    private static IReadOnlyList<PageReport> ReportsFor(ScanResult result, byte[] musicXml)
+    {
+        if (result.Reports.Count == 0)
+        {
+            return [];
+        }
+
+        try
+        {
+            return PageReport.ForScore(result.Reports, musicXml);
+        }
+        catch (ArgumentException)
+        {
+            return [];
         }
     }
 
@@ -834,7 +860,7 @@
 
         var project = Project.Create($"p_{Guid.NewGuid():N}", piece.FileName, _data, DateTimeOffset.Now) with
         {
-            Scan = _scan is null ? null : ScanOrigin.Read(_scanEngine),
+            Scan = _scan is null ? null : ScanOrigin.Read(_scanEngine) with { Pages = _scanReports },
             Transcription = _transcriptionEngine is null ? null : new TranscriptionOrigin(_transcriptionEngine, _bars) { Seams = _seams },
         };
         // The piece opens at a resume point (0018), so it comes back to where it was left; a scan's Check flags start open.

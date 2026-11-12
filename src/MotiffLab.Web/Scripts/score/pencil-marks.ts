@@ -43,7 +43,16 @@ export interface PencilMark {
     points: number[];
     /** The first point's pressure. */
     pressure: number;
+    /**
+     * For a stroke begun in a line's margin (version 0.4), which one: u then counts from that edge of the line the bar is
+     * on, in the bar's widths. Left out for a stroke begun in its bar, and on every stroke written before 0.4, which
+     * placeMark places by u below 0 or above 1 as before.
+     */
+    margin?: StrokeMargin;
 }
+
+/** Which margin of its line a stroke begun outside the bars is in: the project file's "margin" (Projects/Marks.cs). */
+export type StrokeMargin = "left" | "right";
 
 /** Where an engraved bar sits in the score's content pixels, measured after each layout. */
 export interface BarFrame {
@@ -130,14 +139,19 @@ export function nearestBar(frames: readonly BarFrame[], x: number, y: number): B
  * of that bar's line, the line's first or last bar, so the stroke stays at the edge of the line in another layout.
  */
 export function anchorBar(frames: readonly BarFrame[], x: number, y: number): BarFrame | undefined {
+    return anchorAt(frames, x, y)?.frame;
+}
+
+/** The bar a point is kept against (anchorBar) and, when the point is in a line's margin, which one. */
+function anchorAt(frames: readonly BarFrame[], x: number, y: number): { frame: BarFrame; margin?: StrokeMargin } | undefined {
     const nearest = nearestBar(frames, x, y);
-    if (nearest?.line === undefined) {
-        return nearest;
+    if (nearest === undefined || nearest.line === undefined) {
+        return nearest === undefined ? undefined : { frame: nearest };
     }
     const left = x < (nearest.lineLeft ?? nearest.left);
     const right = x > (nearest.lineRight ?? nearest.right);
     if (!left && !right) {
-        return nearest;
+        return { frame: nearest };
     }
     let edge = nearest;
     for (const frame of frames) {
@@ -145,12 +159,12 @@ export function anchorBar(frames: readonly BarFrame[], x: number, y: number): Ba
             edge = frame;
         }
     }
-    return edge;
+    return { frame: edge, margin: left ? "left" : "right" };
 }
 
 /**
  * Keeps a stroke drawn in content pixels against the bar its first point is nearest, or, begun in a line's margin, against
- * the line's first or last bar (anchorBar). Null with no points or no bars.
+ * the line's first or last bar (anchorBar), saying which margin. Null with no points or no bars.
  */
 export function anchorMark(
     frames: readonly BarFrame[],
@@ -158,7 +172,8 @@ export function anchorMark(
     style: { id: string; tool: MarkTool; colour: MarkColour; size: number },
 ): PencilMark | null {
     const first = points[0];
-    const frame = first === undefined ? undefined : anchorBar(frames, first.x, first.y);
+    const anchor = first === undefined ? undefined : anchorAt(frames, first.x, first.y);
+    const frame = anchor?.frame;
     if (first === undefined || frame === undefined || frame.space <= 0) {
         return null;
     }
@@ -167,7 +182,7 @@ export function anchorMark(
     for (const point of points.slice(1)) {
         rest.push(round((point.x - first.x) / frame.space), round((point.y - first.y) / frame.space), round(point.pressure));
     }
-    return {
+    const mark: PencilMark = {
         id: style.id,
         tool: style.tool,
         colour: style.colour,
@@ -178,20 +193,22 @@ export function anchorMark(
         points: rest,
         pressure: round(first.pressure),
     };
+    return anchor?.margin === undefined ? mark : { ...mark, margin: anchor.margin };
 }
 
 /**
- * Where a stroke starts across this layout: in its bar, or, for a stroke in a margin (u below 0 or above 1), moved out
- * by however far the bar now is from that edge of its line, so a bar that went into the middle of a line does not put
- * the stroke over its neighbour's notes. Where the bar is still at the line's edge, this is exactly where any build
- * draws it.
+ * Where a stroke starts across this layout: in its bar, or, for a stroke in a margin, counted from that edge of the line
+ * the bar is on now, so a bar that went into the middle of a line does not put the stroke over its neighbour's notes. A
+ * stroke says its margin (version 0.4); one written before says it by u below 0 or above 1. Where the bar is still at the
+ * line's edge, this is exactly where any build draws it.
  */
 function startX(mark: PencilMark, frame: BarFrame): number {
     const inBar = frame.left + mark.u * (frame.right - frame.left);
-    if (mark.u < 0) {
+    const margin = mark.margin ?? (mark.u < 0 ? "left" : mark.u > 1 ? "right" : undefined);
+    if (margin === "left") {
         return inBar + ((frame.lineLeft ?? frame.left) - frame.left);
     }
-    if (mark.u > 1) {
+    if (margin === "right") {
         return inBar + ((frame.lineRight ?? frame.right) - frame.right);
     }
     return inBar;
@@ -314,6 +331,7 @@ function distanceToSegment(a: InkPoint, b: InkPoint, x: number, y: number): numb
 }
 
 const TOOLS: ReadonlySet<string> = new Set<MarkTool>(["pen", "highlighter"]);
+const MARGINS: ReadonlySet<string> = new Set<StrokeMargin>(["left", "right"]);
 const COLOURS: ReadonlySet<string> = new Set<MarkColour>(["graphite", "carmine", "forest", "ochre", "amber"]);
 
 /** The colours of a version 1 file, by the ink nearest each. */
@@ -360,7 +378,9 @@ export function readMarks(text: string | null | undefined): PencilMark[] {
             && isNumber(candidate.size) && candidate.size > 0
             && isNumber(candidate.bar) && isNumber(candidate.u) && isNumber(candidate.v) && isNumber(candidate.pressure)
             && Array.isArray(candidate.points) && candidate.points.length % 3 === 0 && candidate.points.every(isNumber)) {
-            whole.push({ ...(candidate as PencilMark), colour });
+            // A margin this build does not know is left out: the stroke is then placed by u, as before 0.4.
+            const { margin, ...stroke } = candidate as PencilMark;
+            whole.push(MARGINS.has(margin as string) ? { ...stroke, colour, margin } : { ...stroke, colour });
         }
     }
     return whole;

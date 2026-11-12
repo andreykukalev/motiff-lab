@@ -11,6 +11,7 @@ using MotiffLab.Web.Import;
 using MotiffLab.Web.Localization;
 using MotiffLab.Web.Projects;
 using MotiffLab.Web.Score;
+using MotiffLab.Web.Workspace;
 
 namespace MotiffLab.Web.Pages;
 
@@ -187,6 +188,12 @@ public partial class Home
         if (composer is not null)
         {
             parts.Add(composer);
+        }
+
+        // Pieces in a file (an experiment, v0.4): a piece made from a collection says which, and where in it.
+        if (SettingsStore.IsOn(PartPlace.Setting) && PartPlace.CardLine(Text, summary) is { } from)
+        {
+            parts.Add(from);
         }
 
         if (summary.Origin != PieceOrigin.File)
