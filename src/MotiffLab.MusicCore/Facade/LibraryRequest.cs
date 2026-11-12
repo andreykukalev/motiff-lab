@@ -8,7 +8,7 @@ using MotiffLab.MusicCore.Projects;
 namespace MotiffLab.MusicCore.Facade;
 
 /// <summary>
-/// library.plan and library.confirm on piece 0 (contract 12, calls added; version 0.5, «Импорт папки»): the import plan
+/// library.plan, library.relink and library.confirm on piece 0 (contract 12, calls added; version 0.5, «Импорт папки»): the import plan
 /// of a folder the app read (<see cref="LibraryImport"/>), the same for the iPad as for the web, and the metadata of a
 /// piece once the player confirmed its suggestions. Nothing is kept and no file is touched: the app reads the folder and
 /// saves the projects.
@@ -73,6 +73,54 @@ internal static class LibraryRequest
         {
             Answer.Project(json, "project", project);
             json.WriteString("file", Encoding.UTF8.GetString(ProjectFile.Write(project)));
+        });
+    }
+
+    /// <summary>
+    /// {"library": [originals, as library.plan takes them, with "folder"], "files": [a fresh listing, as library.plan takes
+    /// it]} → {"originals": [{"project", "original", "status" ("linked", "unconfirmed", "moved", "pending", "changed",
+    /// "missing"), "path", "candidates": [{"path", "score", "samePlace"}]}], "fingerprint": [paths], "confirm": [paths]}
+    /// (<see cref="LibraryRelink"/>): where each original is now, and which files to hash to decide and to confirm.
+    /// </summary>
+    public static string Relink(Request fields)
+    {
+        RelinkPlan plan;
+        try
+        {
+            plan = LibraryRelink.Plan(fields.Elements("library").Select(OriginalOf), fields.Elements("files").Select(FoundOf));
+        }
+        catch (Exception exception) when (exception is ArgumentException or FormatException)
+        {
+            throw FacadeException.BadRequest(exception.Message);
+        }
+
+        return Answer.Write(json =>
+        {
+            json.WriteStartArray("originals");
+            foreach (Relinked original in plan.Originals)
+            {
+                json.WriteStartObject();
+                json.WriteString("project", original.Original.ProjectId);
+                json.WriteString("original", original.Original.OriginalId);
+                json.WriteString("status", Answer.Name(original.Status));
+                json.WriteString("path", original.Path);
+                json.WriteStartArray("candidates");
+                foreach (RelinkCandidate candidate in original.Candidates)
+                {
+                    json.WriteStartObject();
+                    json.WriteString("path", candidate.Path);
+                    json.WriteNumber("score", candidate.Score);
+                    json.WriteBoolean("samePlace", candidate.SamePlace);
+                    json.WriteEndObject();
+                }
+
+                json.WriteEndArray();
+                json.WriteEndObject();
+            }
+
+            json.WriteEndArray();
+            WriteTexts(json, "fingerprint", plan.ToFingerprint);
+            WriteTexts(json, "confirm", plan.ToConfirm);
         });
     }
 
