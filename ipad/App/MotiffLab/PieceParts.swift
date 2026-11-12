@@ -7,6 +7,10 @@ struct PartRow: Identifiable, Equatable, Sendable {
     var title: String
     var first: Int
     var last: Int
+    /// The bar music-core proposed the piece to start at, and the page that bar is on (version 0.5, «Предложить»): kept
+    /// while the row still starts on that page, so «Подтвердить пьесы» keeps the bar, not the page's first.
+    var firstBar: Int? = nil
+    var barPage: Int? = nil
 }
 
 /// Why the pieces cannot be made yet: none listed, a piece's pages outside the file, or a piece that starts before the one
@@ -100,6 +104,75 @@ struct PartRows: Equatable, Sendable {
             rows[index].first = min(max(1, rows[index].first + step), pageCount)
         } else {
             rows[index].last = min(max(1, rows[index].last + step), pageCount)
+        }
+    }
+}
+
+/// The pieces layer for a PDF with notes read (version 0.5, experiment «Несколько пьес в партитуре или записи»):
+/// «Предложить» fills the rows from music-core's proposals over the notes (`pieces.find`, by their pages), and
+/// «Подтвердить пьесы» keeps the rows as the pieces layer in the piece's file (`pieces.save`), bookmarks in the category
+/// `pieces` that sync with the web. The notes are opened apart from the PDF view for the two calls and closed after.
+enum PiecesLayer {
+    /// The rows of the pieces layer the piece keeps (the player's, confirmed here or on the web), else of music-core's
+    /// proposals, by their pages, each to the page before the next; nil when music-core refuses, proposes nothing, or a
+    /// piece has no pages (notes without a page map).
+    static func rows(_ answer: String, pageCount: Int) -> PartRows? {
+        guard let object = facadeObject(answer), object["error"] == nil else { return nil }
+        let layer = object["layer"] as? [[String: Any]] ?? []
+        let pieces = layer.isEmpty ? object["proposals"] as? [[String: Any]] ?? [] : layer
+        guard !pieces.isEmpty else { return nil }
+        var rows: [PartRow] = []
+        for proposal in pieces {
+            guard let pages = proposal["pages"] as? [String: Any],
+                  let first = (pages["first"] as? NSNumber)?.intValue,
+                  let last = (pages["last"] as? NSNumber)?.intValue else { return nil }
+            let bar = (proposal["firstBar"] as? NSNumber)?.intValue
+            let title = (proposal["title"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            if let previous = rows.last, first <= previous.first {
+                // Two pieces starting on one page: a PDF's pieces are whole pages, so the page stays with the first.
+                rows[rows.count - 1].last = max(previous.last, last)
+                continue
+            }
+            if !rows.isEmpty { rows[rows.count - 1].last = max(rows[rows.count - 1].first, first - 1) }
+            rows.append(PartRow(title: title, first: first, last: last, firstBar: bar, barPage: bar == nil ? nil : first))
+        }
+        return PartRows(rows: rows, pageCount: pageCount)
+    }
+
+    /// `pieces.save`: each row by the bar proposed while it still starts on that bar's page, else by its first page.
+    static func saveRequest(_ rows: [PartRow], now: Date) -> String {
+        let pieces: [[String: Any]] = rows.map { row in
+            var piece: [String: Any] = ["title": row.title.trimmingCharacters(in: .whitespacesAndNewlines)]
+            if let bar = row.firstBar, row.barPage == row.first {
+                piece["firstBar"] = bar
+            } else {
+                piece["firstPage"] = row.first
+            }
+            return piece
+        }
+        let fields: [String: Any] = ["pieces": pieces, "now": ISO8601DateFormatter().string(from: now)]
+        return (try? JSONSerialization.data(withJSONObject: fields)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
+    }
+
+    /// How many pieces the layer keeps, or music-core's words on why it kept none.
+    static func kept(_ answer: String) -> Result<Int, PartsSplitFailure> {
+        guard let object = facadeObject(answer) else { return .failure(PartsSplitFailure(message: nil)) }
+        if object["error"] != nil { return .failure(PartsSplitFailure(message: object["message"] as? String)) }
+        guard let layer = object["layer"] as? [Any] else { return .failure(PartsSplitFailure(message: nil)) }
+        return .success(layer.count)
+    }
+
+    /// Runs `work` on the notes of the project file at `file`, opened apart from its PDF view, and closes them; nil when
+    /// the file cannot be read or opens without notes.
+    static func withNotes<T: Sendable>(file: URL, language: String, _ work: @escaping @Sendable (Int32) -> T) async -> T? {
+        guard let data = try? Data(contentsOf: file) else { return nil }
+        let name = file.lastPathComponent
+        let request = "{\"language\": \"\(language)\"}"
+        return await MusicCore.run {
+            guard let opened = facadeObject(MusicCore.open(fileName: name, data: data, request: request)),
+                  let piece = (opened["piece"] as? NSNumber)?.int32Value, piece > 0 else { return nil }
+            defer { _ = MusicCore.close(piece: piece) }
+            return opened["document"] == nil ? work(piece) : nil
         }
     }
 }

@@ -2068,5 +2068,9 @@
   "tempo.liveHow": "The beat is found again after each pause and each jump in tempo; the pieces of the piece layer move along with the recording. A score's metre and tempo are a hint, never a rule.",
   "tempo.sectionsFound": "Sections: {0}. Bars of {1}, a quarter at about {2}.",
   "tempo.hintFit": "The score's {0} fitted.",
-  "tempo.hintNoFit": "The score's {0} did not fit: the recording reads {1}."
+  "tempo.hintNoFit": "The score's {0} did not fit: the recording reads {1}.",
+  "pieces.suggest": "Suggest",
+  "pieces.suggestHow": "Suggest where the pieces begin from the notes read, or start from the pieces kept; Confirm the pieces keeps them in the piece, on every device.",
+  "pieces.noSuggestion": "No pieces can be suggested from the notes read here.",
+  "pieces.confirmLayer": "Confirm the pieces"
 }
