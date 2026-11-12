@@ -63,6 +63,7 @@ internal sealed partial class OpenPiece
         "check.resolve" => Change(project => PiecesRequest.Resolve(project, request), CheckAnswer),
         "pieces.find" => Answer.Write(json => PiecesRequest.Find(json, Project, Piece, Notes, Words, request)),
         "pieces.save" => Change(project => PiecesRequest.Save(project, Piece, Words, Now(request), request), json => PiecesRequest.Layer(json, Project, Piece)),
+        "tempo" => Answer.Write(json => TempoRequest.Write(json, Project, Piece, Words)),
         _ when name.StartsWith("performance", StringComparison.Ordinal) => CallOnPerformance(name, request),
         _ when name.StartsWith("sources", StringComparison.Ordinal) => CallOnSources(name, request),
         _ when name.StartsWith("corrections", StringComparison.Ordinal) => CallOnCorrections(name, request),

@@ -1,3 +1,4 @@
+using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Playback;
 using MotiffLab.MusicCore.Time;
@@ -209,23 +210,7 @@ internal sealed class PlayingMarks
 
         // Microseconds a quarter, times 480, for each bar: exact integers.
         PlaybackTempo[] ordered = [.. tempos.OrderBy(tempo => tempo.At)];
-        long UnitsAt(long tick)
-        {
-            long units = 0, at = 0, perQuarter = PlaybackTempo.DefaultMicrosecondsPerQuarter;
-            foreach (PlaybackTempo tempo in ordered)
-            {
-                if (tempo.At.Value >= tick)
-                {
-                    break;
-                }
-
-                units += (tempo.At.Value - at) * perQuarter;
-                at = tempo.At.Value;
-                perQuarter = tempo.MicrosecondsPerQuarter;
-            }
-
-            return units + ((tick - at) * perQuarter);
-        }
+        long UnitsAt(long tick) => TempoProfile.Units(tick, ordered);
 
         long[] perTick = [.. bars.Select(bar => (UnitsAt(bar.Span.End.Value) - UnitsAt(bar.Span.Onset.Value)) / Math.Max(1, bar.Span.Duration))];
         long[] smooth = [.. perTick.Select((_, i) => perTick[Math.Max(0, i - 1)..Math.Min(perTick.Length, i + 2)].Sum() / (Math.Min(perTick.Length, i + 2) - Math.Max(0, i - 1)))];
