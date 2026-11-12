@@ -81,14 +81,39 @@ test("the score fills the screen, and brackets pick phrases at the level chosen"
     expect(errors).toEqual([]);
 });
 
+/**
+ * Records in the page, for each pointer move, whether the bar was faded as the move arrived (before the app's handler on
+ * the document) and once the app had handled it (after that handler), and returns a reader of the moves since a point.
+ */
+async function watchBarMoves(page) {
+    await page.evaluate(() => {
+        const faded = () => document.querySelector(".bar")?.classList.contains("faded") ?? null;
+        const moves = [];
+        let before = null;
+        window.__barMoves = moves;
+        window.addEventListener("pointermove", () => { before = faded(); }, { capture: true });
+        window.addEventListener("pointermove", () => { moves.push({ before, after: faded() }); });
+    });
+    const count = () => page.evaluate(() => window.__barMoves.length);
+    const firstSince = from => page.evaluate(start => window.__barMoves[start] ?? null, from);
+    return { count, firstSince };
+}
+
 test("the bar fades while the player reads and comes back with the next touch", async ({ page }) => {
     const errors = await openFurElise(page);
     const bar = page.locator(".bar");
+    // The fade comes two seconds after the last activity. A slow runner once took 2.5 s between a move and the next
+    // look at the bar (#408), by when it had rightly faded again; so what the bar was right after each move is read in
+    // the page as the move is handled, and the test waits for the faded state rather than for time.
+    const moves = await watchBarMoves(page);
     await page.mouse.move(600, 500);
-    await expect(bar).not.toHaveClass(/faded/);
+    await expect.poll(() => moves.firstSince(0)).toMatchObject({ after: false });
     await expect(bar).toHaveClass(/faded/, { timeout: 5_000 });
+
+    // Faded, the bar comes back with the next touch.
+    const from = await moves.count();
     await page.mouse.move(610, 510);
-    await expect(bar).not.toHaveClass(/faded/);
+    await expect.poll(() => moves.firstSince(from)).toEqual({ before: true, after: false });
     expect(errors).toEqual([]);
 });
 
