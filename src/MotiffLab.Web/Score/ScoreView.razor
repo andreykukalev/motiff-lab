@@ -68,6 +68,8 @@ else if (_loading && !HoldHeight)
     private bool _shownHold;
     private bool _shownFollow = true;
     private bool _shownEvenBars = true;
+    private string? _shownMode;
+    private IReadOnlyList<long>? _shownBeatLines;
     private bool _paged = true;
     private bool _exporting;
     private string? _pdfError;
@@ -87,6 +89,29 @@ else if (_loading && !HoldHeight)
     /// <summary>The contextual menu's items, shown above the selection; null shows no menu.</summary>
     [Parameter]
     public RenderFragment? Menu { get; set; }
+
+    /// <summary>
+    /// The mode under the rules of version 0.5 (Scripts/score/score-modes.ts): "navigate", "select", "edit" or "pen"; null keeps
+    /// the rules before them. With <see cref="BeatLines"/> the selection goes by beats, a click places a playhead and never selects.
+    /// </summary>
+    [Parameter]
+    public string? Mode { get; set; }
+
+    /// <summary>music-core's beat lines in ticks, which the selection snaps to under the rules of version 0.5.</summary>
+    [Parameter]
+    public IReadOnlyList<long>? BeatLines { get; set; }
+
+    /// <summary>Raised under the rules of version 0.5 when beats are chosen: a drag in Select, or a handle moved.</summary>
+    [Parameter]
+    public EventCallback<(Tick Start, Tick End, bool ByHandle)> SpanChosen { get; set; }
+
+    /// <summary>Raised under the rules of version 0.5 when a beat is clicked: where it starts and ends, and whether Shift was held.</summary>
+    [Parameter]
+    public EventCallback<(Tick Start, Tick End, bool Extend)> BeatClicked { get; set; }
+
+    /// <summary>Raised in Edit notes when a note is clicked: when it starts and its key (-1 for a chord's stem).</summary>
+    [Parameter]
+    public EventCallback<NotePoint> NoteToEdit { get; set; }
 
     /// <summary>Raised when bars are chosen on the score: a drag across them, or a handle moved (where the first and the last bar start).</summary>
     [Parameter]
@@ -317,6 +342,12 @@ else if (_loading && !HoldHeight)
         {
             _shownEvenBars = EvenBars;
             await _view.InvokeVoidAsync("setEvenBars", EvenBars);
+        }
+
+        if (Mode != _shownMode || !ReferenceEquals(BeatLines, _shownBeatLines))
+        {
+            (_shownMode, _shownBeatLines) = (Mode, BeatLines);
+            await _view.InvokeVoidAsync("setRules", Mode, BeatLines?.ToArray());
         }
 
         if (HoldHeight != _shownHold)
@@ -679,6 +710,20 @@ else if (_loading && !HoldHeight)
     [JSInvokable]
     public Task OnScoreBarsChosen(double first, double last, bool byHandle) =>
         BarsChosen.InvokeAsync((new Tick(Math.Max(0, (long)Math.Round(first))), new Tick(Math.Max(0, (long)Math.Round(last))), byHandle));
+
+    /// <summary>Called by the script under the rules of version 0.5 when beats are chosen by a drag or a handle.</summary>
+    [JSInvokable]
+    public Task OnScoreSpanChosen(double start, double end, bool byHandle) => SpanChosen.InvokeAsync((TickOf(start), TickOf(end), byHandle));
+
+    /// <summary>Called by the script under the rules of version 0.5 when a beat is clicked.</summary>
+    [JSInvokable]
+    public Task OnScoreBeatClicked(double start, double end, bool extend) => BeatClicked.InvokeAsync((TickOf(start), TickOf(end), extend));
+
+    /// <summary>Called by the script in Edit notes when a note is clicked.</summary>
+    [JSInvokable]
+    public Task OnScoreNoteToEdit(double tick, int pitch) => NoteToEdit.InvokeAsync(new NotePoint(TickOf(tick).Value, pitch));
+
+    private static Tick TickOf(double tick) => new(Math.Max(0, (long)Math.Round(tick)));
 
     /// <summary>Called by the script when a bar is clicked away from its notes.</summary>
     [JSInvokable]

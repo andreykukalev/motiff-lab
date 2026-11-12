@@ -3,10 +3,14 @@
 // the edges from barline to barline, a drag across bars with the mouse (or a long press, then a drag, with a
 // finger) that selects them, and the contextual menu placed above the band. The band and the handles are drawn
 // in the score's content pixels, as the brackets are; the menu belongs to Blazor and is only placed here.
-// Selection by beats (#349): selection-beats.ts.
+// Selection by beats (#349): selection-beats.ts. Where the menu goes: selection-menu.ts.
 
 import { BRACKET_LIFT, type Run, type ScoreBar, type ScoreGeometry } from "./score-geometry.js";
+import { NUMBER_HEIGHT, menuClear, menuPlace } from "./selection-menu.js";
 import { BEAT_CLASS, type Beat, type BeatSource, ScoreBeats, keyLines, spanOf, stepEdge } from "./selection-beats.js";
+import { type InteractionMode, inside } from "./score-modes.js";
+
+export { menuClear, menuPlace };
 
 /** How far the mouse moves before a press becomes a drag across bars, in pixels. */
 export const DRAG_DISTANCE = 6;
@@ -16,16 +20,6 @@ export const LONG_PRESS_MS = 450;
 
 /** How far a finger may move during the long press before the press is a scroll instead, in pixels. */
 const LONG_PRESS_SLOP = 8;
-
-/** The menu sits this far above the band's bracket number (the kit: 14 px above the selection, clear of bracket numbers). */
-const MENU_GAP = 14;
-
-/** The bracket's number stands this tall above the bracket line. */
-const NUMBER_HEIGHT = 16;
-
-/** The menu stays this far inside the window's sides, and below the bar at the top. */
-const MENU_MARGIN = 16;
-const MENU_TOP = 72;
 
 const BAND_CLASS = "sel-band";
 const HANDLE_CLASS = "sel-handle";
@@ -41,6 +35,8 @@ export interface SelectionHost extends BeatSource {
     marksTop?(band: { left: number; right: number; top: number }): number | null;
     /** Beats chosen by a drag or a handle while selecting by beats: the passage from `start` to `end`, in ticks. */
     chosenSpan?(start: number, end: number, byHandle: boolean): void;
+    /** The mode under the rules of version 0.5 (score-modes.ts); null or missing keeps the rules before them. */
+    mode?(): InteractionMode | null;
 }
 
 /** The selection as Blazor gives it: its span in ticks and what a screen reader says for each handle. */
@@ -54,55 +50,6 @@ export interface ScoreSelection {
 /** The bars from one to another in time order, whichever comes first. */
 export function ordered(a: ScoreBar, b: ScoreBar): [ScoreBar, ScoreBar] {
     return a.tick <= b.tick ? [a, b] : [b, a];
-}
-
-/**
- * The part of the window the drawers and sheets leave the menu: data-menu-clear="left" keeps it right of the element; any
- * other value ("auto") keeps it left of an element on the right half of the window or above one over its foot.
- */
-export function menuClear(elements: readonly HTMLElement[], width: number, height: number): { left: number; right: number; bottom: number } {
-    let left = 0;
-    let right = width;
-    let bottom = height;
-    for (const element of elements) {
-        const box = element.getBoundingClientRect();
-        if (box.width === 0 || box.height === 0) {
-            continue;
-        }
-        if (element.dataset.menuClear === "left") {
-            left = Math.max(left, box.right);
-        } else if (box.left >= width / 2) {
-            right = Math.min(right, box.left);
-        } else if (box.top >= height / 3) {
-            bottom = Math.min(bottom, box.top);
-        }
-    }
-    return { left, right, bottom };
-}
-
-/**
- * Where the menu goes for a band (all in window pixels): centred over the band's first run, above its
- * bracket number, or under the band's last run when there is no room above; kept inside the window, right of
- * `window.left`, left of `window.right` and above `window.bottom` where drawers and sheets cover the window.
- * `pointer` is where its little arrow sits across the menu.
- */
-export function menuPlace(
-    first: { left: number; right: number; top: number },
-    last: { bottom: number },
-    menu: { width: number; height: number },
-    window: { width: number; height: number; left?: number; right?: number; bottom?: number },
-): { left: number; top: number; below: boolean; pointer: number } {
-    const centre = (first.left + first.right) / 2;
-    const start = (window.left ?? 0) + MENU_MARGIN;
-    const end = (window.right ?? window.width) - MENU_MARGIN;
-    const left = Math.max(start, Math.min(end - menu.width, centre - menu.width / 2));
-    const above = first.top - BRACKET_LIFT - NUMBER_HEIGHT - MENU_GAP - menu.height;
-    const below = above < MENU_TOP;
-    // Under the band, the menu (or the card it holds) stays above a drawer over the foot of the window.
-    const floor = (window.bottom ?? window.height) - MENU_MARGIN;
-    const top = below ? Math.max(MENU_TOP, Math.min(last.bottom + MENU_GAP, floor - menu.height)) : above;
-    const pointer = Math.max(20, Math.min(menu.width - 20, centre - left));
-    return { left, top, below, pointer };
 }
 
 interface Drag {
@@ -333,12 +280,29 @@ export class SelectionLayer {
             return;
         }
         const at = this.point(event);
+        if (!this.dragMayStart(at)) {
+            return;
+        }
         const drag: Drag = { pointerId: event.pointerId, x: at.x, y: at.y, touch, anchor: null, current: null, anchorBeat: null, currentBeat: null, timer: 0 };
         if (touch) {
             drag.timer = window.setTimeout(() => this.startDrag(drag), LONG_PRESS_MS);
         }
         this.drag = drag;
     };
+
+    /** Under the rules of version 0.5 only Select starts a selection with a drag, and never from inside the selection. */
+    private dragMayStart(at: { x: number; y: number }): boolean {
+        const mode = this.owner.mode?.() ?? null;
+        if (mode === null) {
+            return true;
+        }
+        const bands = [...this.host.querySelectorAll<HTMLElement>(`:scope > .${BAND_CLASS}`)].map((band) => {
+            const left = parseFloat(band.style.left);
+            const top = parseFloat(band.style.top);
+            return { left, top, right: left + parseFloat(band.style.width), bottom: top + parseFloat(band.style.height) };
+        });
+        return mode === "select" && !inside(bands, at.x, at.y);
+    }
 
     private startDrag(drag: Drag): void {
         const geometry = this.owner.geometry();
