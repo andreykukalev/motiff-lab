@@ -23,6 +23,12 @@ public enum OriginalKept
 
     /// <summary>Beside the project on the device only (a recording's sound); never in the project file.</summary>
     Device,
+
+    /// <summary>
+    /// In the player's own folder, where it stays (version 0.5, «Импорт папки»): the device links the file there and reads
+    /// it in place, so its bytes are never in the project file, and the file is never changed, moved or deleted.
+    /// </summary>
+    Link,
 }
 
 /// <summary>A kind of device that can hold an original's bytes.</summary>
@@ -109,6 +115,16 @@ public sealed record PieceOriginal(string Id, OriginalKind Kind, string FileName
     /// <summary>What the player calls it; null for its file name.</summary>
     public string? Name { get; init; }
 
+    /// <summary>
+    /// Where the file was inside the folder the player imported (version 0.5, «Импорт папки»): the folders, "/" between
+    /// them, "Бах/ХТК"; empty for a file right in the chosen folder; null for a file not imported from a folder.
+    /// </summary>
+    public string? Folder
+    {
+        get;
+        init => field = value is null || IsFolder(value) ? value : throw new ArgumentException("A folder is a path inside the chosen folder: names with \"/\" between them.", nameof(Folder));
+    }
+
     /// <summary>The SHA-256 of the file's bytes as picked, 64 lower-case hex digits; null when not known (a file saved before it was kept).</summary>
     public string? Sha256
     {
@@ -148,12 +164,19 @@ public sealed record PieceOriginal(string Id, OriginalKind Kind, string FileName
     /// <summary>Whether a file the player picked is this original: the fingerprints match.</summary>
     public bool Matches(string sha256) => Sha256 is { } known && string.Equals(known, sha256, StringComparison.Ordinal);
 
+    /// <summary>Whether a path names folders inside the chosen one: empty, or names with "/" between them, none empty, "." or "..".</summary>
+    public static bool IsFolder(string path)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        return path.Length == 0 || (!path.Contains('\\') && path.Split('/').All(static name => name.Trim().Length > 0 && name is not ("." or "..")));
+    }
+
     /// <summary>The SHA-256 of some bytes, as <see cref="Sha256"/> keeps it.</summary>
     public static string Fingerprint(ReadOnlySpan<byte> bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
 
     public bool Equals(PieceOriginal? other) =>
         other is not null && Id == other.Id && Kind == other.Kind && FileName == other.FileName && Kept == other.Kept && AddedAt == other.AddedAt
-        && Name == other.Name && Sha256 == other.Sha256 && Bytes == other.Bytes && Pages == other.Pages && DurationMs == other.DurationMs
+        && Name == other.Name && Folder == other.Folder && Sha256 == other.Sha256 && Bytes == other.Bytes && Pages == other.Pages && DurationMs == other.DurationMs
         && Held.SequenceEqual(other.Held);
 
     public override int GetHashCode() => HashCode.Combine(Id, Kind, FileName, Kept, AddedAt, Sha256, Held.Count);
@@ -270,6 +293,7 @@ public static class PieceOriginals
         return described with
         {
             Name = described.Name ?? other.Name,
+            Folder = described.Folder ?? other.Folder,
             Sha256 = described.Sha256 ?? other.Sha256,
             Bytes = described.Bytes ?? other.Bytes,
             Pages = described.Pages ?? other.Pages,
@@ -283,6 +307,7 @@ public static class PieceOriginals
     private static PieceOriginal Renamed(PieceOriginal original, string id) => new(id, original.Kind, original.FileName, original.Kept, original.AddedAt)
     {
         Name = original.Name,
+        Folder = original.Folder,
         Sha256 = original.Sha256,
         Bytes = original.Bytes,
         Pages = original.Pages,

@@ -61,6 +61,7 @@ public static partial class ProjectFile
     public static byte[] Write(Project project)
     {
         ArgumentNullException.ThrowIfNull(project);
+        project = project.AsFiled();
 
         using var buffer = new MemoryStream();
         using (var json = new Utf8JsonWriter(buffer, new JsonWriterOptions { Indented = true }))
@@ -453,11 +454,6 @@ public static partial class ProjectFile
                 }
             }
 
-            if (source.Length == 0 && pdf is null)
-            {
-                throw Damaged("source");
-            }
-
             DocumentMarks documentMarks = root.TryGetProperty("documentMarks", out JsonElement documentMarksElement)
                 ? ReadDocumentMarks(documentMarksElement, unknowns)
                 : DocumentMarks.Empty;
@@ -543,7 +539,7 @@ public static partial class ProjectFile
                 ReadFrom = readFrom,
                 Assembly = assembly,
                 Metadata = ReadMetadata(root),
-            }.WithOriginalsOf(root, unknowns).WithPartOfIn(root).WithEditsOffIn(root));
+            }.WithOriginalsOf(root, unknowns).WithPartOfIn(root).WithEditsOffIn(root)).Described();
         }
     }
 

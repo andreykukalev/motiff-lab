@@ -28,7 +28,7 @@ namespace MotiffLab.MusicCore.Projects;
 /// </remarks>
 /// <param name="Id">Stable for the life of the project, for example "p_3f9c…".</param>
 /// <param name="Source">The imported file's bytes, exactly as picked.</param>
-public sealed record Project(
+public sealed partial record Project(
     string Id,
     string FileName,
     byte[] Source,

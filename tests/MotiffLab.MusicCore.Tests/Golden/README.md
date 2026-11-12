@@ -16,6 +16,7 @@ project-continuity council, 2026-11-08), with the tolerant reader for enum value
 | `v15-originals.motiff.json`, `v15-originals-online.motiff.json` | 15 | Written by version 0.3 (`Projects/PieceOriginalTests.cs`): a PDF read by the scan server with a recording version, with the originals' descriptions, fingerprints, the web's holding marks and the `from`/`at` links, as kept on the device and as sent online (no PDF). Version 0.2's reader, built from the tag `v0.2`, opened both, opened their notes and wrote them back (2026-11-12, see "Version 0.2 reads version 0.3's files"). |
 | `v15-photos-parts.motiff.json` | 15 | Written by version 0.4 (`Projects/PhotosAndPartsFormatTests.cs`): a waltz made from pages 6–7 of a photographed songbook, its two photos as a PDF (`kind: images`), read page by page with the scan server's report on each (`scan.pages`), the dim second page's bars flagged `PageQuality`, `partOf` naming the songbook's original, and a stroke in the left margin (`margin`). Versions 0.2 and 0.3, built from their tags, opened it, opened its notes and wrote it back (2026-11-12, see "Versions 0.2 and 0.3 read version 0.4's files"). |
 | `v15-edits-meters.motiff.json` | 15 | Written by version 0.5 (`Projects/EditsAndMetersFormatTests.cs`): a synthetic recording heard (four bars of 4/4, then four of 7/8, generated in code) with its bars changing signature (`transcription.bars.meters`), where the stretch heard started in the recording file (`transcription.sentFromMs`), one correction and the corrections turned off (`editsOff`). |
+| `v15-linked-pdf.motiff.json`, `v15-folder-notes.motiff.json` | 15 | Written by version 0.5 (`Projects/LinkedOriginalsFormatTests.cs`, «Импорт папки»): a PDF piece whose PDF stays in the player's folder (`kept: link`, `folder`, held by the iPad, no notes and no PDF in the file, with a title, composer, tags and a playlist), and a MusicXML score imported from a folder (`folder` on `src_file`) with its PDF linked beside it. See "Versions 0.2 to 0.4 read version 0.5's linked originals". |
 | `v16-future.motiff.json` | 16 | The version 15 file with the version raised to 16, one unknown top-level field (`future`), one unknown field in an entity (`motifs[0].future`) and the value `FutureValue` in one place for each of the 24 enum types the reader names (council fact V28). A test checks that it is exactly that. |
 
 **Missing: versions 13 and 14.** No project files of those versions were supplied (Andrei has only version 12 files),
@@ -97,6 +98,17 @@ The additions of version 0.5 (`editsOff`, `transcription.bars.meters`, `transcri
 Checked the same way on 2026-11-12, with music-core of `v0.2` and of `v0.4` reading `v15-edits-meters.motiff.json`:
 both read it, open its notes with the correction on (75 of the 76 heard), lay 8 bars of 4/4 from the same starts, write
 it and read it again with the same notes. Both drop `editsOff`, `transcription.bars.meters` and `transcription.sentFromMs` on writing.
+
+## Versions 0.2 to 0.4 read version 0.5's linked originals
+
+Checked the same way on 2026-11-12, with music-core of `v0.2`, `v0.3` and `v0.4` reading `v15-linked-pdf.motiff.json` and
+`v15-folder-notes.motiff.json` (a reader that calls `ProjectFile.Read`, `OpenedProject.Open`, `ProjectFile.Write`,
+`ProjectFile.Read` again and `ForOnline`):
+
+| Build | `v15-folder-notes` | `v15-linked-pdf` |
+| --- | --- | --- |
+| `v0.2` | reads it, opens its 53 notes, writes it and reads it again with the same notes; drops `originals` | refused as damaged ("its source cannot be read"): no notes and no PDF |
+| `v0.3`, `v0.4` | the same, keeping the linked PDF's description whole as unknown (its `kept` is unknown to them) and dropping `folder` from `src_file` | refused as damaged, the same |
 
 ## Changing a golden
 
