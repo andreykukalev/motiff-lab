@@ -2005,5 +2005,15 @@
   "parts.soundElsewhere": "Its stretch of the recording is kept on the device that split it. Pick the recording's file again to hear it here.",
   "parts.soundPick": "Pick the recording again",
   "parts.soundNotSame": "This file does not give this piece's sound. If only a stretch of the recording was heard, where it started is not kept, so the file is read from its start.",
-  "parts.soundKept": "The piece's own sound is kept on this device."
+  "parts.soundKept": "The piece's own sound is kept on this device.",
+  "checkPieces.title": "By piece",
+  "checkPieces.done": "Nothing left to check",
+  "checkPieces.open": "Open",
+  "checkPieces.all": "All pieces",
+  "checkPieces.undo": "Undo",
+  "checkPieces.resolved": "{0}: {1} marked as looking right.",
+  "checkPieces.bars.one": "{0} bar",
+  "checkPieces.bars.many": "{0} bars",
+  "checkPieces.undone.one": "{0} bar to check again.",
+  "checkPieces.undone.many": "{0} bars to check again."
 }

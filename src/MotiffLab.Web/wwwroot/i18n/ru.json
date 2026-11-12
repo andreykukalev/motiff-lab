@@ -2056,5 +2056,17 @@
   "parts.soundElsewhere": "Её отрезок записи хранится на устройстве, где пьесу выделили. Выберите файл записи ещё раз, чтобы слушать её здесь.",
   "parts.soundPick": "Выбрать запись ещё раз",
   "parts.soundNotSame": "Этот файл не даёт звук этой пьесы. Если распознавали только отрезок записи, его начало не хранится, и файл читается с начала.",
-  "parts.soundKept": "Свой звук пьесы сохранён на этом устройстве."
+  "parts.soundKept": "Свой звук пьесы сохранён на этом устройстве.",
+  "checkPieces.title": "По пьесам",
+  "checkPieces.done": "Проверять нечего",
+  "checkPieces.open": "Открыть",
+  "checkPieces.all": "Все пьесы",
+  "checkPieces.undo": "Вернуть",
+  "checkPieces.resolved": "{0}: {1} — выглядит верно.",
+  "checkPieces.bars.one": "{0} такт",
+  "checkPieces.bars.few": "{0} такта",
+  "checkPieces.bars.many": "{0} тактов",
+  "checkPieces.undone.one": "{0} такт снова на проверку.",
+  "checkPieces.undone.few": "{0} такта снова на проверку.",
+  "checkPieces.undone.many": "{0} тактов снова на проверку."
 }

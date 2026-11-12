@@ -60,7 +60,7 @@ internal sealed partial class OpenPiece
         "settings.override" => Change(project => project.OverrideSetting(request.Required("id"), request.Text("value")), json => Answer.Overrides(json, Project)),
         "project.metadata" => Change(project => MetadataRequest.Apply(project, request), json => Answer.Project(json, "project", Project)),
         "check" => Answer.Write(CheckAnswer),
-        "check.resolve" => Change(project => project.ResolveCheck(request.Int("bar") ?? throw FacadeException.BadRequest("Send \"bar\"."), request.Bool("resolved") ?? true), CheckAnswer),
+        "check.resolve" => Change(project => PiecesRequest.Resolve(project, request), CheckAnswer),
         "pieces.find" => Answer.Write(json => PiecesRequest.Find(json, Project, Piece, Notes, Words, request)),
         "pieces.save" => Change(project => PiecesRequest.Save(project, Piece, Words, Now(request), request), json => PiecesRequest.Layer(json, Project, Piece)),
         _ when name.StartsWith("performance", StringComparison.Ordinal) => CallOnPerformance(name, request),
@@ -124,9 +124,12 @@ internal sealed partial class OpenPiece
     }
 
     /// <summary>The Check flags, a recording's uncertain lengths and a scan's pages as its page reports count them (version 0.4).</summary>
-    private void CheckAnswer(Utf8JsonWriter json) =>
+    private void CheckAnswer(Utf8JsonWriter json)
+    {
         Answer.Check(json, Project, Words, Piece.Meter, Piece.End, HeardLengths.Of(Piece, Notes),
             Project.Scan is { Pages.Count: > 0 } scan && Piece.MusicXml is not null ? scan.CheckOf(Piece).Pages : []);
+        PiecesRequest.Check(json, Project, Piece.Meter);
+    }
 
     private string Marks(Func<Marks, Marks> change) => Change(project => project.ChangeMarks(change), json => Answer.Marks(json, Project.Marks, Piece.Meter));
 

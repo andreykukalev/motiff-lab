@@ -38,6 +38,12 @@ public partial class PlaybackLab
     private IReadOnlyList<IGrouping<int, CheckFlag>> OpenCheckBars =>
         _project is { } project ? [.. project.OpenChecks.GroupBy(flag => flag.Bar)] : [];
 
+    /// <summary>The open flags by bar that the drawer lists: every piece's, or, after Open on a piece, that piece's alone.</summary>
+    private IReadOnlyList<IGrouping<int, CheckFlag>> ListedCheckBars =>
+        _checkPiece is { } piece && CheckPiecesShown.Any(shown => shown.FirstBar == piece.First)
+            ? [.. OpenCheckBars.Where(bar => bar.Key >= piece.First && bar.Key <= piece.Last)]
+            : OpenCheckBars;
+
     /// <summary>The bars resolved, every flag on them, in bar order.</summary>
     private IReadOnlyList<IGrouping<int, CheckFlag>> ResolvedCheckBars =>
         _project?.Check is { } check ? [.. check.Where(flag => flag.Resolved).OrderBy(flag => flag.Bar).GroupBy(flag => flag.Bar)] : [];
@@ -131,9 +137,16 @@ public partial class PlaybackLab
             return;
         }
 
+        _checkPieceUndo = null;
+        await CheckChangedAsync(project.ResolveCheck(bar, resolved), Text.Format(resolved ? "check.resolved" : "check.reopened", bar));
+    }
+
+    /// <summary>The flags changed: the project saved with them, and what reads the checked bars brought up to date.</summary>
+    private async Task CheckChangedAsync(Project changed, string status)
+    {
         _checkFixing = null;
-        _project = project.ResolveCheck(bar, resolved);
-        _marksStatus = Text.Format(resolved ? "check.resolved" : "check.reopened", bar);
+        _project = changed;
+        _marksStatus = status;
         if (_scanCheck is not null && _project.Scan is { } scan)
         {
             _imported = _scanCheck.Mark(_imported, scan.ConfirmedBars);
@@ -265,4 +278,62 @@ public partial class PlaybackLab
         _project?.Transcription?.Bars is { } bars
             ? ChangeBarsAsync(_ => bars.Shifted(beats), Text[beats < 0 ? "check.barsEarlier" : "check.barsLater"])
             : Task.CompletedTask;
+
+    /// <summary>The piece the list keeps to, after Open (version 0.5, Check by pieces): its first and last bars; null for every piece.</summary>
+    private (int First, int Last)? _checkPiece;
+
+    /// <summary>The last Looks right for a whole piece: the project, the piece's first bar and the bars it resolved, kept here only, for Undo.</summary>
+    private (string ProjectId, int FirstBar, IReadOnlyList<int> Bars)? _checkPieceUndo;
+
+    private (Project From, IReadOnlyList<CheckPiece> Pieces)? _checkPieces;
+
+    /// <summary>The pieces of the layer with their bars to check, while the experiment is on; empty without a layer or flags.</summary>
+    private IReadOnlyList<CheckPiece> CheckPiecesShown
+    {
+        get
+        {
+            if (!PiecesOn || _project is not { } project || _meter is not { } meter)
+            {
+                return [];
+            }
+
+            if (_checkPieces is not { } cached || !ReferenceEquals(cached.From, project))
+            {
+                _checkPieces = cached = (project, CheckPieces.Of(project, meter));
+            }
+
+            return cached.Pieces;
+        }
+    }
+
+    /// <summary>The first bar of the piece whose Looks right can be undone, in the piece open.</summary>
+    private int? CheckPieceUndoable => _checkPieceUndo is { } undo && undo.ProjectId == _project?.Id ? undo.FirstBar : null;
+
+    /// <summary>Open: the list keeps to the piece's bars; again, or null, to every piece's.</summary>
+    private void ShowCheckPiece(CheckPiece? piece) => _checkPiece = piece is null ? null : (piece.FirstBar, piece.LastBar);
+
+    /// <summary>Looks right for a whole piece: every flagged bar still open in it resolved, in one save (music-core's <see cref="CheckPieces.Resolve(Project, IEnumerable{int}, bool)"/>).</summary>
+    private async Task ResolveCheckPieceAsync(CheckPiece piece)
+    {
+        if (_project is not { } project || CheckPieces.OpenBars(project, piece.FirstBar, piece.LastBar) is not { Count: > 0 } bars)
+        {
+            return;
+        }
+
+        await CheckChangedAsync(CheckPieces.Resolve(project, bars, resolved: true), Text.Format("checkPieces.resolved", piece.Title, Text.Count("checkPieces.bars", bars.Count)));
+        _checkPieceUndo = (project.Id, piece.FirstBar, bars);
+    }
+
+    /// <summary>Undo: the bars the last Looks right for a piece resolved are open again.</summary>
+    private async Task UndoCheckPieceAsync()
+    {
+        if (_checkPieceUndo is not { } undo || _project is not { } project || undo.ProjectId != project.Id)
+        {
+            return;
+        }
+
+        _checkPieceUndo = null;
+        int[] bars = [.. undo.Bars.Where(bar => (project.Check ?? []).Any(flag => flag.Bar == bar))];
+        await CheckChangedAsync(CheckPieces.Resolve(project, bars, resolved: false), Text.Count("checkPieces.undone", bars.Length));
+    }
 }

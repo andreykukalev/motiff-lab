@@ -72,6 +72,50 @@ internal static class PiecesRequest
         return PieceLayer.Save(project, pieces, piece.Meter, piece.End, words, now);
     }
 
+    /// <summary>
+    /// "pieces" in the answer to check, when the project has a pieces layer and flags: [{"title", "firstBar", "lastBar",
+    /// "open", "total"}], the bars of each piece to check, open and in all (<see cref="CheckPieces.Of"/>).
+    /// </summary>
+    public static void Check(Utf8JsonWriter json, Project project, MeterMap meter)
+    {
+        IReadOnlyList<CheckPiece> pieces = CheckPieces.Of(project, meter);
+        if (pieces.Count == 0)
+        {
+            return;
+        }
+
+        json.WriteStartArray("pieces");
+        foreach (CheckPiece piece in pieces)
+        {
+            json.WriteStartObject();
+            json.WriteString("title", piece.Title);
+            json.WriteNumber("firstBar", piece.FirstBar);
+            json.WriteNumber("lastBar", piece.LastBar);
+            json.WriteNumber("open", piece.Open);
+            json.WriteNumber("total", piece.Total);
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
+    }
+
+    /// <summary>
+    /// check.resolve: {"bar"} for one bar, or {"bars": {"first", "last"}} for a whole piece (version 0.5): every flag
+    /// there resolved, or open again with "resolved": false, in one change (<see cref="CheckPieces.Resolve(Project, int, int, bool)"/>).
+    /// </summary>
+    public static Project Resolve(Project project, Request request)
+    {
+        bool resolved = request.Bool("resolved") ?? true;
+        if (request.Has("bars"))
+        {
+            Request bars = request.Object("bars");
+            int first = bars.Int("first") ?? throw FacadeException.BadRequest("Send \"bars\": {\"first\", \"last\"}.");
+            return CheckPieces.Resolve(project, first, bars.Int("last") ?? first, resolved);
+        }
+
+        return project.ResolveCheck(request.Int("bar") ?? throw FacadeException.BadRequest("Send \"bar\", or \"bars\": {\"first\", \"last\"}."), resolved);
+    }
+
     /// <summary>"layer": [{"id", "title", "firstBar", "lastBar", "span", "pages", "ms"}]: the pieces the project keeps, in score order.</summary>
     public static void Layer(Utf8JsonWriter json, Project project, ImportedPiece opened) =>
         Layer(json, project, new Places(opened, PieceParts.PagesOf(project, opened), HeardClock.Of(project, opened)));

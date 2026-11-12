@@ -1,0 +1,62 @@
+@using MotiffLab.MusicCore.Projects
+@inject MotiffLab.Web.Localization.UiText Text
+
+@* Check by pieces, part of the experiment Several pieces in a score or recording (Settings · Experimental; version 0.5):
+   in the head of the Check drawer, one row a piece of the pieces layer with its bars to check, as music-core counts them
+   (CheckPieces). Open keeps only that piece's bars in the list below; Looks right resolves every flagged bar of the piece
+   in one save, and Undo, beside it, opens those bars again. *@
+<section class="check-pieces" aria-labelledby="check-pieces-title">
+    <h3 id="check-pieces-title" class="overline">@Text["checkPieces.title"]</h3>
+    <ul class="check-list">
+        @foreach (CheckPiece piece in Pieces)
+        {
+            bool shown = Shown == piece.FirstBar;
+            <li class="check-entry @(shown ? "on" : null)" @key="piece.FirstBar">
+                <p class="check-bar"><strong>@piece.Title</strong> <span class="caption">@BarsText(piece.FirstBar, piece.LastBar)</span></p>
+                <p class="caption">@(piece.Open > 0 ? Text.Count("check.toReview", piece.Open) : Text["checkPieces.done"])</p>
+                <div class="row">
+                    @if (piece.Open > 0 || shown)
+                    {
+                        <button class="btn secondary compact" aria-pressed="@(shown ? "true" : "false")" @onclick="() => Open.InvokeAsync(shown ? null : piece)">@Text[shown ? "checkPieces.all" : "checkPieces.open"]</button>
+                    }
+                    @if (piece.Open > 0)
+                    {
+                        <button class="btn primary compact" @onclick="() => LooksRight.InvokeAsync(piece)">@Text["scanCheck.looksRight"]</button>
+                    }
+                    @if (Undoable == piece.FirstBar)
+                    {
+                        <button class="btn quiet compact" @onclick="() => Undo.InvokeAsync()">@Text["checkPieces.undo"]</button>
+                    }
+                </div>
+            </li>
+        }
+    </ul>
+</section>
+
+@code {
+    /// <summary>The pieces of the layer with their bars to check, in score order.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<CheckPiece> Pieces { get; set; } = [];
+
+    /// <summary>Bars by their numbers, first and last, in the workspace's words.</summary>
+    [Parameter, EditorRequired]
+    public Func<int, int, string> BarsText { get; set; } = static (_, _) => "";
+
+    /// <summary>The first bar of the piece the list below keeps to; null for every piece.</summary>
+    [Parameter]
+    public int? Shown { get; set; }
+
+    /// <summary>The first bar of the piece whose Looks right can be undone; null when none can.</summary>
+    [Parameter]
+    public int? Undoable { get; set; }
+
+    /// <summary>A piece to keep the list to, or null for every piece.</summary>
+    [Parameter]
+    public EventCallback<CheckPiece?> Open { get; set; }
+
+    [Parameter]
+    public EventCallback<CheckPiece> LooksRight { get; set; }
+
+    [Parameter]
+    public EventCallback Undo { get; set; }
+}
