@@ -1,0 +1,27 @@
+@using MotiffLab.MusicCore
+@using MotiffLab.MusicCore.Analysis
+@using MotiffLab.Web.Localization
+@inject UiText Text
+
+@* A scale's own card in the Reference (music-core's ScaleCard): its name, its degrees over its notes, the way down when it
+   differs (the melodic minor), and the scale up and down to hear, its way up on the small keyboard. *@
+<section class="ref-detail" aria-labelledby="ref-scale-title">
+    <h3 id="ref-scale-title" class="ref-detail-name">@Words.Capitalize(Card.Name)</h3>
+    <FormulaTable Formula="Card.Formula" Notes="Card.Notes" />
+    @if (Card.Descending.Count > 0)
+    {
+        <p class="caption">@Text.Format("reference.descending", string.Join(" ", Card.Descending))</p>
+    }
+    <button class="btn quiet compact ref-play" aria-label="@Text.Format("reference.play", $"{Card.Name}, {Text["reference.upAndDown"]}")" @onclick="() => Hear.InvokeAsync(Card.Sound)">
+        <Icon Name="play" />@Text["reference.upAndDown"]
+    </button>
+    <MiniKeyboard Sound="Card.Sound" Label="@Text.Format("reference.keys", string.Join(" ", Card.Notes))" />
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public ScaleCard Card { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback<ReferenceSound> Hear { get; set; }
+}

@@ -1,15 +1,24 @@
 import SwiftUI
 
-/// The Reference's sheet (an experiment, Settings · Experimental; the web app's ReferenceSheet): the key signatures first, as
-/// the player most often looks a key up by them (Andrei, 2026-11-11 23:44 UTC), then the circle of fifths and the chosen
-/// key's card. A signature marks the major and its relative minor and opens the major's card; a tap on the circle opens
-/// that key's card; a scale or chord plays on the app's piano and shows on a small keyboard. Opened from the library and
-/// from the score's bar alike.
+/// The Reference's sheet (an experiment, Settings · Experimental; the web app's ReferenceSheet): Keys, Chords and Scales.
+/// Keys first, as the player most often calls the circle up: the key signatures, as he most often looks a key up by them
+/// (Andrei, 2026-11-11 23:44 UTC), then the circle of fifths and the chosen key's card. A signature marks the major and its
+/// relative minor and opens the major's card; a tap on the circle opens that key's card; a scale or chord of the card plays
+/// on the app's piano, shows on a small keyboard and opens its own card underneath. Over a piece, the key it starts in is
+/// outlined on the circle, dotted when it is assumed, and its card opens first. Chords and Scales look one up by its root.
+/// Opened from the library and from the score's bar alike.
 struct ReferenceSheet: View {
     let text: UIText
     @ObservedObject var settings: DeviceSettings
-    @StateObject private var reference = ReferenceController()
+    @StateObject private var reference: ReferenceController
     @Environment(\.dismiss) private var dismiss
+
+    /// `piece`: the open piece, whose key the circle marks; 0 from the library.
+    init(text: UIText, settings: DeviceSettings, piece: Int32 = 0) {
+        self.text = text
+        _settings = ObservedObject(wrappedValue: settings)
+        _reference = StateObject(wrappedValue: ReferenceController(piece: piece))
+    }
 
     var body: some View {
         GeometryReader { size in
@@ -17,18 +26,12 @@ struct ReferenceSheet: View {
                 header
                 ScrollView {
                     VStack(alignment: .leading, spacing: CGFloat.ds("s-5")) {
-                        lookup
-                        if let answer = reference.answer {
-                            if size.size.width > 760 {
-                                HStack(alignment: .top, spacing: CGFloat.ds("s-6")) {
-                                    circle(answer).frame(width: 340)
-                                    card(answer)
-                                }
-                            } else {
-                                circle(answer).frame(maxWidth: 360).frame(maxWidth: .infinity)
-                                card(answer)
-                            }
+                        SegmentedChoice(options: ["keys", "chords", "scales"].map { ($0, text["reference.mode.\($0)"]) },
+                                        chosen: reference.mode, label: text["reference.mode"]) { mode in
+                            reference.mode = mode
+                            Task { await loadLookup(mode) }
                         }
+                        content(wide: size.size.width > 760)
                     }
                     .padding(.horizontal, CGFloat.ds("s-6"))
                     .padding(.bottom, CGFloat.ds("s-6"))
@@ -42,9 +45,39 @@ struct ReferenceSheet: View {
         .onDisappear { reference.stop() }
     }
 
+    @ViewBuilder private func content(wide: Bool) -> some View {
+        switch reference.mode {
+        case "chords":
+            if let chords = reference.chords {
+                ReferenceLookupView(lookup: chords, kind: "chords", text: text, reference: reference) { root, type in
+                    Task { await reference.loadChord(root, type: type, language: text.language, naming: naming) }
+                }
+            }
+        case "scales":
+            if let scales = reference.scales {
+                ReferenceLookupView(lookup: scales, kind: "scales", text: text, reference: reference) { root, form in
+                    Task { await reference.loadScale(root, form: form, language: text.language, naming: naming) }
+                }
+            }
+        default:
+            lookup
+            if let answer = reference.answer {
+                if wide {
+                    HStack(alignment: .top, spacing: CGFloat.ds("s-6")) {
+                        circleColumn(answer).frame(width: 340)
+                        cards(answer)
+                    }
+                } else {
+                    circleColumn(answer).frame(maxWidth: 360).frame(maxWidth: .infinity)
+                    cards(answer)
+                }
+            }
+        }
+    }
+
     private var header: some View {
         HStack {
-            Text(text["reference.title"])
+            Text(text[reference.mode == "keys" ? "reference.title" : "reference.mode.\(reference.mode)"])
                 .dsType(.title)
                 .foregroundStyle(Color.ds("ink"))
                 .accessibilityAddTraits(.isHeader)
@@ -60,6 +93,8 @@ struct ReferenceSheet: View {
         .padding(.horizontal, CGFloat.ds("s-6"))
         .padding(.vertical, CGFloat.ds("s-3"))
     }
+
+    private var naming: String { settings["notes.naming"] }
 
     /// None and the sharps on one row, the flats on the next.
     private var lookup: some View {
@@ -85,10 +120,33 @@ struct ReferenceSheet: View {
         }
     }
 
+    /// The circle, and under it the piece's key with a way to its card.
+    private func circleColumn(_ answer: ReferenceAnswer) -> some View {
+        VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+            circle(answer)
+            if let key = answer.pieceKey {
+                FlowLayout(spacing: CGFloat.ds("s-2")) {
+                    RoundedRectangle(cornerRadius: CGFloat.ds("r-xs"))
+                        .strokeBorder(Color.ds("ink"), style: StrokeStyle(lineWidth: 1.5, dash: key.inferred ? [3, 2] : []))
+                        .frame(width: CGFloat.ds("s-4"), height: CGFloat.ds("s-3"))
+                        .accessibilityHidden(true)
+                    Text(text.format(key.inferred ? "reference.pieceKeyInferred" : "reference.pieceKey", key.name))
+                        .dsType(.caption)
+                        .foregroundStyle(Color.ds("ink-2"))
+                    Button(text["reference.showPieceKey"]) {
+                        Task { await load(key.fifths, minor: key.minor) }
+                    }
+                    .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
+                }
+            }
+        }
+    }
+
     /// The circle; a tap on a key opens its card, and VoiceOver's swipes up and down step round it.
     private func circle(_ answer: ReferenceAnswer) -> some View {
-        GeometryReader { box in
-            CircleDrawing(circle: answer.circle, chosen: nil)
+        let piece = answer.pieceKey.map { CircleDrawing.PieceMark(position: $0.position, minor: $0.minor, inferred: $0.inferred) }
+        return GeometryReader { box in
+            CircleDrawing(circle: answer.circle, chosen: nil, piece: piece)
                 .contentShape(Rectangle())
                 .onTapGesture { location in
                     guard let place = Self.place(at: location, in: box.size), let sector = answer.sectors.first(where: { $0.position == place.position }) else { return }
@@ -108,12 +166,16 @@ struct ReferenceSheet: View {
         }
     }
 
-    @ViewBuilder private func card(_ answer: ReferenceAnswer) -> some View {
+    /// The key's card, and under it the own card of the chord or scale last tapped on it.
+    @ViewBuilder private func cards(_ answer: ReferenceAnswer) -> some View {
         if let card = answer.card {
-            ReferenceCardView(card: card, shown: reference.shown, text: text) { related in
-                Task { await load(related.fifths, minor: related.minor) }
-            } hear: { sound in
-                Task { await reference.hear(sound) }
+            VStack(alignment: .leading, spacing: CGFloat.ds("s-5")) {
+                ReferenceCardView(card: card, shown: reference.shown, text: text) { related in
+                    Task { await load(related.fifths, minor: related.minor) }
+                } hear: { sound in
+                    Task { await reference.hear(sound, language: text.language, naming: naming) }
+                }
+                detail
             }
         } else {
             Text(text["reference.choose"])
@@ -122,8 +184,31 @@ struct ReferenceSheet: View {
         }
     }
 
+    @ViewBuilder private var detail: some View {
+        if reference.detail == "chord", let chord = reference.chords?.chord {
+            Divider().overlay(Color.ds("hairline"))
+            ChordCardPanel(chord: chord, shown: reference.chordShown, text: text) { sound in
+                Task { await reference.hearChord(sound) }
+            }
+        } else if reference.detail == "scale", let scale = reference.scales?.scale {
+            Divider().overlay(Color.ds("hairline"))
+            ScaleCardPanel(scale: scale, text: text) {
+                Task { await reference.hearScale() }
+            }
+        }
+    }
+
     @MainActor private func load(_ fifths: Int?, minor: Bool) async {
-        await reference.load(fifths: fifths, minor: minor, language: text.language, naming: settings["notes.naming"])
+        await reference.load(fifths: fifths, minor: minor, language: text.language, naming: naming)
+    }
+
+    /// Chords and Scales start on C major the first time they are shown.
+    @MainActor private func loadLookup(_ mode: String) async {
+        if mode == "chords", reference.chords == nil {
+            await reference.loadChord(nil, type: nil, language: text.language, naming: naming)
+        } else if mode == "scales", reference.scales == nil {
+            await reference.loadScale(nil, form: nil, language: text.language, naming: naming)
+        }
     }
 
     /// The place and ring under a tap, in CircleDrawing's units (236 across, the minors between 36 and 66 from the centre,
@@ -140,7 +225,7 @@ struct ReferenceSheet: View {
     }
 }
 
-/// A key signature to look up (ds.css `.chip`, a touch target high): the accent filled while it is chosen.
+/// A key signature, a root or a chord to look up (ds.css `.chip`, a touch target high): the accent filled while it is chosen.
 struct SignatureChoiceStyle: ButtonStyle {
     var on = false
 
