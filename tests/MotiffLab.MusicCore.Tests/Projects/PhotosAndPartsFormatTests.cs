@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json.Nodes;
 
+using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Scan;
 using MotiffLab.MusicCore.Projects;
@@ -62,6 +63,9 @@ public class PhotosAndPartsFormatTests
 
     private static Project RoundTrip(Project project) => ProjectFile.Read(ProjectFile.Write(project));
 
+    /// <summary>A note without how sure it is.</summary>
+    private static (string Id, int Pitch, TickSpan Span) Unsure(Note note) => (note.Id, note.Pitch.MidiNumber, note.Span);
+
     private static string Text(byte[] bytes) => Encoding.UTF8.GetString(bytes).ReplaceLineEndings("\n");
 
     private static string GoldenFolder([System.Runtime.CompilerServices.CallerFilePath] string source = "") =>
@@ -114,7 +118,10 @@ public class PhotosAndPartsFormatTests
 
         Project old = ProjectFile.Read(Encoding.UTF8.GetBytes(file.ToJsonString()));
 
-        Assert.Equal(OpenedProject.Open(project).Notes, OpenedProject.Open(old).Notes);
+        // The same notes; only how sure they read differs, since a weak page's bars count as less sure when the reports are kept.
+        Assert.Equal(OpenedProject.Open(project).Notes.Select(Unsure), OpenedProject.Open(old).Notes.Select(Unsure));
+        Assert.Contains(OpenedProject.Open(project).Notes, static note => note.Attribution == Attribution.Detected(ScanCheck.WeakPageConfidence));
+        Assert.DoesNotContain(OpenedProject.Open(old).Notes, static note => note.Attribution == Attribution.Detected(ScanCheck.WeakPageConfidence));
         Assert.Null(old.PartOf);
         Assert.Empty(old.Scan!.Pages);
         Assert.Null(Assert.Single(old.Marks.Ink).Margin);

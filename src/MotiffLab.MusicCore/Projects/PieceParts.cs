@@ -51,8 +51,9 @@ public sealed record PieceSplitOptions(DateTimeOffset Now, Func<string> NewId)
 /// <summary>
 /// One part made into a piece of its own: an ordinary project the app saves beside the collection's, with where it was in
 /// the collection (bars, pages, the stretch of the recording) for the app to copy the PDF's pages or the sound's stretch.
-/// Where it was is not kept in the project yet (the "partOf" field waits for the format step); the project keeps the
-/// collection's original by its fingerprint (<see cref="PieceParts.OriginalId"/>) and the playlist.
+/// The project keeps the collection's original by its fingerprint (<see cref="PieceParts.OriginalId"/>), the playlist, and
+/// where it is in that original (<see cref="Project.PartOf"/>, version 0.4): its pages, or the stretch of the recording;
+/// none for a part of a score cut by bars without pages. A scan's page reports go with the pages the part takes.
 /// </summary>
 /// <param name="Span">Where the part is in the collection's notes; null for a PDF without notes.</param>
 /// <param name="Notes">The part's notes as it opens, from tick 0; empty for a PDF without notes.</param>
@@ -137,6 +138,18 @@ public static class PieceParts
             Collection.FindOriginal(PieceOriginal.DocumentId) is { Kind: OriginalKind.Images } && part.FindOriginal(PieceOriginal.DocumentId) is { } own
                 ? part.WithOriginal(own with { Kind = OriginalKind.Images, Pages = pages })
                 : part;
+
+        /// <summary>
+        /// Where the part is in the collection's original (<see cref="Projects.PartOf"/>, version 0.4): the stretch of the
+        /// recording when the original is the recording, else the pages when the collection has pages; null when the
+        /// collection names no original, or its notes have neither (a score or a scan of one page, cut by bars), since a
+        /// place in bars is not a value of the format.
+        /// </summary>
+        public PartOf? PartOf((int First, int Last)? pages, (long From, long To)? milliseconds) =>
+            Original is null ? null
+            : Original.Kind == OriginalKind.Audio ? milliseconds is var (from, to) && to > from ? Projects.PartOf.InRecording(OriginalId, from, to) : null
+            : pages is var (first, last) ? Projects.PartOf.OnPages(OriginalId, first, last)
+            : null;
     }
 
     /// <summary>The parts of a PDF without notes: each a PDF piece of the pages the app copied.</summary>
@@ -157,7 +170,8 @@ public static class PieceParts
             after = range.Last;
             byte[] pdf = range.Pdf is { } own && PdfDocument.IsPdf(own) ? own : throw new ArgumentException($"Part {i + 1} needs its own PDF: the pages {range.First}–{range.Last} copied.", nameof(parts));
             Project project = shared.Create(range, i + 1, PdfDocument.Extension, []) with { Document = pdf };
-            made.Add(new PiecePart(i + 1, shared.AsPhotos(project.Fingerprinted(), range.Last - range.First + 1), null, []) { Pages = (range.First, range.Last) });
+            project = shared.AsPhotos(project.Fingerprinted(), range.Last - range.First + 1);
+            made.Add(new PiecePart(i + 1, project with { PartOf = shared.PartOf((range.First, range.Last), null) }, null, []) { Pages = (range.First, range.Last) });
         }
 
         return made;
@@ -208,11 +222,17 @@ public static class PieceParts
 
     private static PiecePart Part(Shared shared, PartRange range, int number, ImportedPiece piece, PageMap? pages, TickSpan span, Cut cut)
     {
+        if (pages is null && range.Pdf is not null)
+        {
+            throw new ArgumentException("These notes have no pages, so a part keeps no PDF of its own.", nameof(range));
+        }
+
+        (int First, int Last)? onPages = pages is null ? null : (pages.PageOf(span.Onset), pages.PageOf(new Tick(span.End.Value - 1)));
         Project collection = shared.Collection;
         Project project = shared.Create(range, number, cut.Extension, cut.Source) with { Transcription = cut.Transcription, Check = [] };
         if (collection.Scan is { } scan)
         {
-            project = project with { Scan = new ScanOrigin(scan.Engine, []) { From = shared.Original?.Id, At = scan.At } };
+            project = project with { Scan = new ScanOrigin(scan.Engine, []) { From = shared.Original?.Id, At = scan.At, Pages = ReportsOn(scan, pages, onPages) } };
         }
 
         ImportedPiece own = OpenedProject.Open(project).Piece;
@@ -224,17 +244,10 @@ public static class PieceParts
             Scan = project.Scan is { } read
                 ? read.Confirm(collection.Scan!.ConfirmedBars.Select(Moved).OfType<int>())
                 : null,
+            PartOf = shared.PartOf(onPages, cut.Milliseconds),
         };
-        (int First, int Last)? onPages = null;
-        if (pages is null && range.Pdf is not null)
+        if (pages is not null && onPages is var (first, last))
         {
-            throw new ArgumentException("These notes have no pages, so a part keeps no PDF of its own.", nameof(range));
-        }
-
-        if (pages is not null)
-        {
-            (int first, int last) = (pages.PageOf(span.Onset), pages.PageOf(new Tick(span.End.Value - 1)));
-            onPages = (first, last);
             project = shared.AsPhotos(WithPdf(project, range.Pdf, pages, span, first, last), last - first + 1);
         }
 
@@ -246,6 +259,15 @@ public static class PieceParts
             Milliseconds = cut.Milliseconds,
         };
     }
+
+    /// <summary>
+    /// The scan server's reports on the part's pages, numbered from 1 again, when the collection keeps one report per page
+    /// of its page map (version 0.4); none otherwise, since a report then cannot be told to belong to a page of the part.
+    /// </summary>
+    private static IReadOnlyList<Import.Scan.PageReport> ReportsOn(ScanOrigin scan, PageMap? pages, (int First, int Last)? onPages) =>
+        pages is not null && onPages is var (first, last) && scan.Pages.Count == pages.Pages
+            ? Import.Scan.PageReport.ForPages([.. scan.Pages.Skip(first - 1).Take(last - first + 1)], last - first + 1)
+            : [];
 
     /// <summary>The part with its own PDF, the pages starting where they did in the collection; as it is without one.</summary>
     private static Project WithPdf(Project project, byte[]? pdf, PageMap pages, TickSpan span, int first, int last)
@@ -265,7 +287,7 @@ public static class PieceParts
         {
             Document = pdf,
             DocumentPages = new PageMap(starts),
-            Scan = project.Scan is { } scan ? new ScanOrigin(scan.Engine, scan.ConfirmedBars) { From = PieceOriginal.DocumentId, At = scan.At } : null,
+            Scan = project.Scan is { } scan ? scan with { From = PieceOriginal.DocumentId } : null,
         }).Fingerprinted();
     }
 
@@ -335,7 +357,10 @@ public static class PieceParts
     /// <summary>
     /// The collection's original as a part keeps it (<see cref="OriginalId"/>): its PDF, else the original its notes were
     /// read or heard from, else the file they were imported from; with its fingerprint worked out when its bytes are here,
-    /// kept beside the part rather than in its file, and marked held by the device that splits it.
+    /// kept beside the part rather than in its file, and marked held by the device that splits it. A recording heard whose
+    /// piece describes no original (every one made before version 0.4) is described as the recording, by the piece's name,
+    /// with no fingerprint and held by no device, since neither app keeps that sound: so a part can say which stretch of it
+    /// it takes (<see cref="Project.PartOf"/>).
     /// </summary>
     private static PieceOriginal? OriginalOf(Project collection, PieceSplitOptions options)
     {
@@ -346,7 +371,7 @@ public static class PieceParts
             : null;
         if (found is null)
         {
-            return null;
+            return HeardFrom(collection);
         }
 
         PieceOriginal original = new(OriginalId, found.Kind, found.FileName, OriginalKept.Device, found.AddedAt)
@@ -359,5 +384,20 @@ public static class PieceParts
             Held = found.Held,
         };
         return options.Device is { } device ? original.HeldBy(device, options.Now) : original;
+    }
+
+    /// <summary>
+    /// The recording a piece was heard from, when the piece describes none: by its name, its bytes on no device; null for a
+    /// piece not heard from a recording.
+    /// </summary>
+    private static PieceOriginal? HeardFrom(Project collection)
+    {
+        if (collection.Transcription is null)
+        {
+            return null;
+        }
+
+        string name = Path.GetFileNameWithoutExtension(collection.FileName);
+        return new PieceOriginal(OriginalId, OriginalKind.Audio, string.IsNullOrWhiteSpace(name) ? "recording" : name, OriginalKept.Device, collection.CreatedAt);
     }
 }

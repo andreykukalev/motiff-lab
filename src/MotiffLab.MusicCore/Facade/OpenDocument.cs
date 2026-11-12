@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Import;
-using MotiffLab.MusicCore.Import.Scan;
 using MotiffLab.MusicCore.Projects;
 
 namespace MotiffLab.MusicCore.Facade;
@@ -119,6 +118,7 @@ internal sealed class OpenDocument
 
             json.WriteEndArray();
             json.WriteNumber("pressure", stroke.Pressure);
+            Answer.Margin(json, stroke.Margin);
             json.WriteEndObject();
         }
 
@@ -175,8 +175,9 @@ internal sealed class OpenDocument
     /// The notes a scan server read from the PDF, into this same piece (0011, 0023; testing item 16, Andrei, 2026-11-06:
     /// "the PDF is available right inside the piece"): its project file with the notes, the PDF, its marks and bookmarks as
     /// they were, where each page starts in the notes (<c>documentPages</c>), the scan's Check flags open and a resume point
-    /// at the start, as the web app's PDF view makes it. The piece is then opened as notes; until it is closed, saving it
-    /// here writes the notes too.
+    /// at the start, as the web app's PDF view makes it. With "reports" (version 0.4), as scan.join takes them, one per page
+    /// of the notes, the scan keeps the server's page reports and the bars on a poor page are flagged PageQuality. The piece
+    /// is then opened as notes; until it is closed, saving it here writes the notes too.
     /// </summary>
     private string Read(Request request)
     {
@@ -208,9 +209,10 @@ internal sealed class OpenDocument
         Project read;
         try
         {
-            read = Project.Recognised(musicXml, request.Text("engine") ?? "unknown engine", PageMap.Of(piece, pages), now) with
+            read = Project.Recognised(musicXml, request.Text("engine") ?? "unknown engine", PageMap.Of(piece, pages), now, ScanRequest.ReportsIn(request));
+            read = read with
             {
-                Check = CheckFlag.FromScan(ScanCheck.Of(piece), []),
+                Check = CheckFlag.FromScan(read.Scan!.CheckOf(piece), []),
                 LastOpened = now,
             };
         }

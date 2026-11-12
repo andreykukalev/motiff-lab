@@ -26,12 +26,12 @@ public class PiecePartsTests
 
     private static int s_ids;
 
-    private static PieceSplitOptions Options(string? playlist = null, HoldingDevice? device = null) =>
+    internal static PieceSplitOptions Options(string? playlist = null, HoldingDevice? device = null) =>
         new(s_now, () => $"p_part{Interlocked.Increment(ref s_ids)}") { Playlist = playlist, Device = device };
 
     private static byte[] TwoPieces() => File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Analysis", "Fixtures", "two-pieces.musicxml"));
 
-    private static Project Book() => Project.Create("p_book", "two-pieces.musicxml", TwoPieces(), s_now);
+    internal static Project Book() => Project.Create("p_book", "two-pieces.musicxml", TwoPieces(), s_now);
 
     /// <summary>What a note is, without its id: the part's notes from 0, moved to where the part begins.</summary>
     private static string Shape(Note note, long by) =>
@@ -145,7 +145,7 @@ public class PiecePartsTests
     }
 
     /// <summary>A scan of three pages read one at a time, with the PDF it was read from, a doubtful bar on page 2 and a bar the player checked on page 3.</summary>
-    private static Project Scan()
+    internal static Project Scan()
     {
         byte[] score = ScanJoin.Join([ScanJoinTests.Page(3), ScanJoinTests.Page(2), ScanJoinTests.Page(2)]);
         ImportedPiece piece = PieceImporter.Import("scan.musicxml", score).Piece!;
@@ -157,7 +157,7 @@ public class PiecePartsTests
         };
     }
 
-    private static byte[] Pdf(int pages) =>
+    internal static byte[] Pdf(int pages) =>
         Encoding.ASCII.GetBytes($"%PDF-1.4\n1 0 obj << /Type /Pages /Count {pages} >> endobj\n" + string.Concat(Enumerable.Range(2, pages).Select(n => $"{n} 0 obj << /Type /Page >> endobj\n")) + "%%EOF\n");
 
     [Fact]
@@ -257,7 +257,7 @@ public class PiecePartsTests
     /// A recording heard: 64 notes, one on each beat of a beat that bends with the playing, at 120 BPM as an engine writes
     /// them, and bars worked out with <paramref name="stepsPerBeat"/> 16ths a beat and a pickup of <paramref name="pickup"/> 16ths.
     /// </summary>
-    private static Project Recording(int stepsPerBeat, int pickup = 0)
+    internal static Project Recording(int stepsPerBeat, int pickup = 0)
     {
         long[] beats = [.. Enumerable.Range(0, 70).Select(static beat => (beat * Beat) + (beat % 3 * 7_001))];
         Note[] notes = [.. Enumerable.Range(0, 64).Select(i => new Note

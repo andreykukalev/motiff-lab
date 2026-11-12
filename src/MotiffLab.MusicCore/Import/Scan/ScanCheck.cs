@@ -43,10 +43,16 @@ public sealed record ScanCheck
 
     public const int HighestPianoKey = 108;
 
-    private ScanCheck(IReadOnlyList<ScanBar> bars) => Bars = bars;
+    private ScanCheck(IReadOnlyList<ScanBar> bars, IReadOnlyList<ScanPage> pages) => (Bars, Pages) = (bars, pages);
 
     /// <summary>Every measure of the score in order, flagged or not.</summary>
     public IReadOnlyList<ScanBar> Bars { get; }
+
+    /// <summary>
+    /// Each page the scan server reported on, in order, with its quality and the bars read from it; empty when the check
+    /// was given no reports. For the summary by page: «Страница 4: 9 из 12 тактов под вопросом».
+    /// </summary>
+    public IReadOnlyList<ScanPage> Pages { get; }
 
     /// <summary>The bars at least one check flagged, in order.</summary>
     public IEnumerable<ScanBar> Flagged => Bars.Where(static bar => bar.IsFlagged);
@@ -125,8 +131,12 @@ public sealed record ScanCheck
             });
         }
 
-        return new ScanCheck(bars);
+        return new ScanCheck(bars, PagesOf(pages, bars));
     }
+
+    /// <summary>Each reported page with the bars read from it; none without reports.</summary>
+    private static List<ScanPage> PagesOf(IReadOnlyList<PageReport>? pages, List<ScanBar> bars) =>
+        pages is null ? [] : [.. pages.Select((report, index) => new ScanPage(index + 1, report, [.. bars.Where(bar => bar.Page == index + 1)]))];
 
     /// <summary>The bar that starts at bar number <paramref name="bar"/>, or null when no measure does.</summary>
     public ScanBar? Find(int bar) => Bars.FirstOrDefault(scanned => scanned.Bar == bar);
@@ -248,6 +258,20 @@ public sealed record ScanBar(int Bar, string? Measure, TickSpan Span, IReadOnlyL
             "Страница с этим тактом слишком тёмная, нечёткая или не прочиталась, поэтому любая нота в такте может быть неверной. Сверьте такт со страницей или переснимите её."),
         _ => throw new ArgumentOutOfRangeException(nameof(flag), flag, "Unknown scan flag."),
     };
+}
+
+/// <summary>One page of a scan the server reported on: its place in the score, from 1, the server's report and the bars read from it.</summary>
+public sealed record ScanPage(int Page, PageReport Report, IReadOnlyList<ScanBar> Bars)
+{
+    /// <summary>How well the page can be trusted (<see cref="PageReport.Quality"/>).</summary>
+    public PageQuality Quality => Report.Quality;
+
+    /// <summary>The bars below the 0.6 a hint needs, flagged or on a weak page, other than those the player confirmed.</summary>
+    public int DoubtfulOf(IReadOnlyCollection<int> confirmedBars)
+    {
+        ArgumentNullException.ThrowIfNull(confirmedBars);
+        return Bars.Count(bar => bar.Confidence < ScanCheck.CleanConfidence && !confirmedBars.Contains(bar.Bar));
+    }
 }
 
 /// <summary>Why a scanned bar is worth checking.</summary>

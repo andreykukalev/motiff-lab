@@ -79,6 +79,27 @@ public sealed record PageReport(
         }
     }
 
+    /// <summary>
+    /// The reports as the pages of a score of <paramref name="pages"/> pages, one each in order, numbered by their place from
+    /// 1: a page read on its own is page 1 of its own report, and becomes the page it is in the joined score.
+    /// </summary>
+    /// <exception cref="ArgumentException">Not one report per page.</exception>
+    public static IReadOnlyList<PageReport> ForPages(IReadOnlyList<PageReport> reports, int pages)
+    {
+        ArgumentNullException.ThrowIfNull(reports);
+        return reports.Count == pages
+            ? [.. reports.Select((report, index) => report with { Page = index + 1 })]
+            : throw new ArgumentException($"Send one page report per page: {reports.Count} for {pages} pages.", nameof(reports));
+    }
+
+    /// <summary>
+    /// The reports as the pages of a scan's MusicXML (<see cref="ForPages"/>), its pages told by the <c>new-page</c> marks the
+    /// scan server and <see cref="ScanJoin"/> put on the first measure of each page after the first.
+    /// </summary>
+    /// <exception cref="ArgumentException">Not one report per page, or the MusicXML is not a partwise score.</exception>
+    public static IReadOnlyList<PageReport> ForScore(IReadOnlyList<PageReport> reports, byte[] musicXml) =>
+        ForPages(reports, ScanJoin.Split(musicXml).Count);
+
     /// <summary>The pages of a report already read as JSON: a list of objects, or one object for one page.</summary>
     /// <exception cref="FormatException">The JSON is not a page report.</exception>
     public static IReadOnlyList<PageReport> Of(JsonElement report)
