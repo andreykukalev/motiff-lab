@@ -1237,6 +1237,13 @@ h1, h2, .app-title strong {
     aspect-ratio: 210 / 297;
 }
 
+/* A long score (#419: 71 pages, tens of thousands of elements) stays one document, but the browser lays out and paints only
+   the engraved sheets near the view; the sheet's size comes from its width and shape, so the scroll keeps its length. A PDF's
+   sheet is left out: its bookmark tab reaches past the edge, which this would clip. */
+.score.paged .score-page:not(.pdf-page) {
+    content-visibility: auto;
+}
+
 /* A PDF's pages (0023) keep their own shape and numbers: the sheet takes the page's proportions, the drawing fills it, and the
    app adds no page number of its own over the printed one. */
 .score.paged .score-page.pdf-page {
@@ -2336,7 +2343,9 @@ h1:focus {
     background: var(--desk);
 }
 
-body:has(.workspace) .site-footer {
+/* The pages are #app's children and the footer follows them. Asked of the body with :has(), the question walked the whole
+   document on every change, a long score's tens of thousands of elements included (#419). */
+.workspace ~ .site-footer {
     display: none;
 }
 
@@ -5095,11 +5104,11 @@ body:has(.workspace) .site-footer {
     padding: var(--s-10) var(--s-10) var(--s-8);
 }
 
-body:has(.library) {
+body:has(> #app > .library) {
     background: var(--desk);
 }
 
-body:has(.library) .site-footer {
+.library ~ .site-footer {
     max-width: 1280px;
     padding: 0 var(--s-10) var(--s-8);
 }
@@ -6160,7 +6169,7 @@ body:has(.library) .site-footer {
         padding: var(--s-6) var(--s-4);
     }
 
-    body:has(.library) .site-footer {
+    .library ~ .site-footer {
         padding: 0 var(--s-4) var(--s-6);
     }
 
