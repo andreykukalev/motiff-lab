@@ -529,7 +529,7 @@ public partial class Home
             // own export coming back replaces itself (AC-S1-20).
             (Project? saved, bool unreadable) = await SavedAsync(file.Id);
             Project project = MusicCoreFacade.Imported(file, saved, unreadable);
-            OpenedProject.Open(project);
+            await CurrentPiece.OpenAsync(project);
             await Projects.SaveAsync(project);
             await RefreshAsync();
         }

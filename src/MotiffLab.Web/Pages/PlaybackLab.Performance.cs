@@ -46,7 +46,7 @@ public partial class PlaybackLab
         : null;
 
     /// <summary>The printed notes with the player's corrections: what a performance is compared with, never the bars taken.</summary>
-    private IReadOnlyList<Note> PrintedNotes => _edits.Apply(_imported);
+    private IReadOnlyList<Note> PrintedNotes => Corrected(_edits);
 
     /// <summary>The shown performance compared with the print, worked out again only when the performance or the print changes.</summary>
     private PerformanceComparison? ShownComparison

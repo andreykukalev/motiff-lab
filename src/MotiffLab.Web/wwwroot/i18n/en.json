@@ -1968,5 +1968,22 @@
   "settings.editsLayerHint": "Your note corrections are always kept. Turn them off to see the notes as they were recognised, and on again to lay them back one by one; a correction that no longer fits the notes is listed, not lost.",
   "settings.liveTempo": "Live performance tempo",
   "settings.liveTempoHint": "In a recording, the beats and bars are found again after each pause and each jump in tempo, so a concert of several pieces keeps its bars. The metre and tempo of a score, when there is one, are a hint for the recording, not a rule.",
-  "settings.piecesPdfHint": "When a PDF or photographed pages hold several pieces, “Pieces in this file” in the Contents makes each piece's pages a piece of its own in the library, in one playlist. Start from the page bookmarks or list the pages by hand. The file itself is not cut."
+  "settings.piecesPdfHint": "When a PDF or photographed pages hold several pieces, “Pieces in this file” in the Contents makes each piece's pages a piece of its own in the library, in one playlist. Start from the page bookmarks or list the pages by hand. The file itself is not cut.",
+  "edits.title": "My corrections",
+  "edits.count.one": "{0} correction",
+  "edits.count.few": "{0} corrections",
+  "edits.count.many": "{0} corrections",
+  "edits.unfit.one": "{0} no longer fits",
+  "edits.unfit.few": "{0} no longer fit",
+  "edits.unfit.many": "{0} no longer fit",
+  "edits.moved": "moved to a near note: {0}",
+  "edits.off": "Corrections are off: the notes are as they were recognised. Turn them on to correct notes.",
+  "edits.hidden": "Hidden because they no longer fit the notes: {0}. They stay in the piece.",
+  "edits.unfitHeading": "Corrections that no longer fit",
+  "edits.unfitRow": "Bar {0} · {1} · {2}",
+  "edits.reasonMissing": "the note is not there",
+  "edits.reasonChanged": "the note is different now",
+  "edits.reasonIdTaken": "a note with this number is already there",
+  "edits.drop": "Remove",
+  "edits.dropHint": "Take this correction out of the piece"
 }
