@@ -108,7 +108,7 @@ final class ScanServer: ObservableObject {
         request.timeoutInterval = 600
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         if address == hosted(account) {
-            guard let options = account.options, let token = await account.token(options.scanScope) else { return .failure(.signIn) }
+            guard let options = account.options, let token = await account.token(options.scanScope) else { return (.failure(.signIn), nil) }
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             account.addPlanChoice(to: &request)
         }
