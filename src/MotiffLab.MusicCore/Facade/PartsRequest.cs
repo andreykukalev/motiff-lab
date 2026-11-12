@@ -14,8 +14,10 @@ namespace MotiffLab.MusicCore.Facade;
 internal static class PartsRequest
 {
     /// <summary>
-    /// {"file": the collection's project file, "parts": [{"title", "bars": {"first", "last"} or "pages": {"first", "last"},
-    /// "pdf" (optional, base64: the part's pages copied), "id" (optional)}], "playlist" (optional; the collection's title),
+    /// {"file": the collection's project file, "parts": [{"title", "bars": {"first", "last"} or "pages": {"first", "last"}
+    /// or "ms": {"from", "to"} (version 0.5, a recording heard), "pdf" (optional, base64: the part's pages copied), "id",
+    /// "composer", "tags" (optional)}], "bars" (optional, version 0.5: "fresh" works a recording's parts' bars out afresh),
+    /// "playlist" (optional; the collection's title),
     /// "device" ("ipad" or "web", optional: it holds the collection's original), "pages" (optional: how many pages the
     /// collection's PDF has, as the app's viewer reads it), "now", "language"} →
     /// {"original": {"id", "kind", "fileName", "sha256"} or null, "playlist", "parts": [{"number", "title", "bars", "pages",
@@ -30,6 +32,12 @@ internal static class PartsRequest
             Device = fields.Enum<HoldingDevice>("device"),
             Words = Words.For(fields.Text("language")),
             Pages = fields.Int("pages") is { } pages ? pages > 0 ? pages : throw FacadeException.BadRequest("\"pages\" is how many pages the collection's PDF has, from 1.") : null,
+            FreshBars = fields.Text("bars") switch
+            {
+                null or "collection" => false,
+                "fresh" => true,
+                _ => throw FacadeException.BadRequest("\"bars\" is \"fresh\" (found again for each part of a recording) or \"collection\"."),
+            },
         };
         PieceSplit split;
         try
@@ -129,18 +137,34 @@ internal static class PartsRequest
         foreach (JsonElement element in fields.Elements("parts"))
         {
             Request part = Request.Of(element);
-            PartUnit unit = part.Has("pages") ? PartUnit.Pages : part.Has("bars") ? PartUnit.Bars
-                : throw FacadeException.BadRequest("Each part needs \"bars\" or \"pages\": {\"first\", \"last\"}.");
-            Request range = part.Object(unit == PartUnit.Pages ? "pages" : "bars");
-            int first = range.Int("first") ?? throw FacadeException.BadRequest("A part's range needs \"first\".");
-            ranges.Add(new PartRange(part.Text("title"), unit, first, range.Int("last") ?? first)
+            PartRange range = Range(part) with
             {
                 Pdf = part.Text("pdf") is { } pdf ? Base64(pdf) : null,
                 Id = part.Text("id"),
-            });
+                Composer = part.Text("composer"),
+                Tags = part.Texts("tags"),
+            };
+            ranges.Add(range);
         }
 
         return ranges.Count > 0 ? ranges : throw FacadeException.BadRequest("Send \"parts\", the pieces to make, each with its \"bars\" or \"pages\".");
+    }
+
+    /// <summary>A part's place: "ms" {from, to} in a recording heard (version 0.5), else "pages" or "bars" {first, last}.</summary>
+    private static PartRange Range(Request part)
+    {
+        if (part.Has("ms"))
+        {
+            Request ms = part.Object("ms");
+            long from = ms.Long("from") ?? throw FacadeException.BadRequest("A part's \"ms\" needs \"from\" and \"to\".");
+            return PartRange.InRecording(part.Text("title"), from, ms.Long("to") ?? throw FacadeException.BadRequest("A part's \"ms\" needs \"from\" and \"to\"."));
+        }
+
+        PartUnit unit = part.Has("pages") ? PartUnit.Pages : part.Has("bars") ? PartUnit.Bars
+            : throw FacadeException.BadRequest("Each part needs \"bars\" or \"pages\": {\"first\", \"last\"}, or \"ms\": {\"from\", \"to\"}.");
+        Request range = part.Object(unit == PartUnit.Pages ? "pages" : "bars");
+        int first = range.Int("first") ?? throw FacadeException.BadRequest("A part's range needs \"first\".");
+        return new PartRange(part.Text("title"), unit, first, range.Int("last") ?? first);
     }
 
     private static byte[] Base64(string text)

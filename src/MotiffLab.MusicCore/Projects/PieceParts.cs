@@ -11,6 +11,9 @@ public enum PartUnit
 {
     Bars,
     Pages,
+
+    /// <summary>A recording heard, by time (version 0.5): <see cref="PartRange.Milliseconds"/>.</summary>
+    Milliseconds,
 }
 
 /// <summary>
@@ -27,6 +30,21 @@ public sealed record PartRange(string? Title, PartUnit Unit, int First, int Last
 
     /// <summary>The new project's id; null takes the next one <see cref="PieceSplitOptions.NewId"/> gives.</summary>
     public string? Id { get; init; }
+
+    /// <summary>
+    /// For <see cref="PartUnit.Milliseconds"/>, the stretch of the recording the part takes, in milliseconds from the start
+    /// of the stretch sent (<see cref="HeardCut.StretchOf"/> gives a piece's); null for a part by bars or pages.
+    /// </summary>
+    public (long From, long To)? Milliseconds { get; init; }
+
+    /// <summary>The part's composer, as the review step names it (version 0.5); null for none.</summary>
+    public string? Composer { get; init; }
+
+    /// <summary>The part's tags, as the review step names them (version 0.5).</summary>
+    public IReadOnlyList<string> Tags { get; init; } = [];
+
+    /// <summary>A part of a recording heard by its stretch of the sound, in milliseconds (version 0.5).</summary>
+    public static PartRange InRecording(string? title, long from, long to) => new(title, PartUnit.Milliseconds, 0, 0) { Milliseconds = (from, to) };
 }
 
 /// <summary>What every part of one split shares: when it is made, the playlist it joins, the device that holds the collection.</summary>
@@ -46,6 +64,13 @@ public sealed record PieceSplitOptions(DateTimeOffset Now, Func<string> NewId)
     /// with compressed objects hides (it then counts as one page).
     /// </summary>
     public int? Pages { get; init; }
+
+    /// <summary>
+    /// For a recording heard, whether each part's bars and tempo are worked out afresh from its own stretch of the sound
+    /// (version 0.5, <see cref="HeardCut"/>; the experiment Several pieces in a score or recording), rather than carried
+    /// over from the collection's bars (<see cref="RecordingCut"/>, as in 0.4).
+    /// </summary>
+    public bool FreshBars { get; init; }
 }
 
 /// <summary>
@@ -94,6 +119,22 @@ public static class PieceParts
     /// <summary>The id each part gives the collection's original in its <c>originals</c>.</summary>
     public const string OriginalId = "src_book";
 
+    /// <summary>The id of a part's own stretch of the sound (version 0.5), cut and kept on the device that cut it.</summary>
+    public const string SoundId = "src_sound";
+
+    /// <summary>
+    /// The part with its own stretch of the sound described in its originals (<see cref="SoundId"/>): a WAV kept only on the
+    /// device that cut it, named by the part's title, with its size, length and fingerprint. The sound itself is never in
+    /// the project file.
+    /// </summary>
+    public static Project WithSound(Project part, long bytes, long durationMs, string sha256, HoldingDevice device, DateTimeOffset at)
+    {
+        ArgumentNullException.ThrowIfNull(part);
+        string fileName = Path.ChangeExtension(MidiExporter.FileName(part.Details.Title.Value), ".wav");
+        var sound = new PieceOriginal(SoundId, OriginalKind.Audio, fileName, OriginalKept.Device, at) { Bytes = bytes, DurationMs = durationMs, Sha256 = sha256 };
+        return part.WithOriginal(sound.HeldBy(device, at));
+    }
+
     /// <summary>The collection cut into the parts, in their order.</summary>
     /// <exception cref="ArgumentException">No part, a part outside the collection or overlapping another, pages for notes without pages, or a part of a PDF without its own PDF.</exception>
     /// <exception cref="NotSupportedException">The collection is a MIDI file (not a recording heard), which is not split yet.</exception>
@@ -125,7 +166,7 @@ public static class PieceParts
         {
             string title = TitleOf(range, number);
             string fileName = Path.ChangeExtension(MidiExporter.FileName(title), extension);
-            Project project = Project.Create(range.Id ?? Options.NewId(), fileName, source, Options.Now) with { Metadata = new PieceMetadata(title, null, null, [Playlist]) };
+            Project project = Project.Create(range.Id ?? Options.NewId(), fileName, source, Options.Now) with { Metadata = new PieceMetadata(title, range.Composer, range.Tags, [Playlist]) };
             return Original is { } book ? project.WithOriginal(book) : project;
         }
 
@@ -191,18 +232,21 @@ public static class PieceParts
         }
 
         MidiImport? engine = collection.Transcription is null ? null : PieceImporter.Import(collection.FileName, collection.Source).Piece?.Midi;
+        HeardClock? clock = engine is null ? null : HeardClock.Of(piece, engine);
         List<PiecePart> made = [];
         Tick after = Tick.Zero;
         for (int i = 0; i < parts.Count; i++)
         {
-            TickSpan span = SpanOf(parts[i], piece, pages);
+            TickSpan span = SpanOf(parts[i], piece, pages, clock);
             if (span.Onset < after)
             {
                 throw new ArgumentException($"Part {i + 1} begins before part {i} ends: name the parts in order, each once.", nameof(parts));
             }
 
             after = span.End;
-            Cut cut = engine is null ? ScoreCutOf(piece, span) : RecordingCut.Of(collection, piece, engine, span, shared.Original is not null);
+            Cut cut = engine is null ? ScoreCutOf(piece, span)
+                : shared.Options.FreshBars ? FreshCut(collection, engine, clock!, parts[i], span, shared.Original is not null)
+                : RecordingCut.Of(collection, piece, engine, span, shared.Original is not null);
             made.Add(Part(shared, parts[i], i + 1, piece, pages, span, cut));
         }
 
@@ -210,7 +254,18 @@ public static class PieceParts
     }
 
     /// <summary>The notes of one part, ready to become a project: its source, its origin and the stretch of a recording.</summary>
-    internal sealed record Cut(byte[] Source, string Extension, TranscriptionOrigin? Transcription, (long From, long To)? Milliseconds);
+    internal sealed record Cut(byte[] Source, string Extension, TranscriptionOrigin? Transcription, (long From, long To)? Milliseconds)
+    {
+        /// <summary>The part's own Check flags, worked out for its own bars; null moves the collection's to the part's bars.</summary>
+        public IReadOnlyList<CheckFlag>? Check { get; init; }
+    }
+
+    /// <summary>A part of a recording cut by time on bars of its own: its stretch as sent, or the time of its bar lines.</summary>
+    private static Cut FreshCut(Project collection, MidiImport engine, HeardClock clock, PartRange range, TickSpan span, bool linked)
+    {
+        (long from, long to) = range.Milliseconds ?? HeardCut.StretchOfBars(clock, span);
+        return HeardCut.Of(collection, engine, from, to, linked);
+    }
 
     private static Cut ScoreCutOf(ImportedPiece piece, TickSpan span)
     {
@@ -239,7 +294,7 @@ public static class PieceParts
         int? Moved(int bar) => BarIn(piece.Meter, own, span, bar);
         project = project with
         {
-            Check = [.. (collection.Check ?? []).Where(static flag => flag.Source != CheckSource.Performance)
+            Check = cut.Check ?? [.. (collection.Check ?? []).Where(static flag => flag.Source != CheckSource.Performance)
                 .Select(flag => Moved(flag.Bar) is { } moved ? new CheckFlag(moved, flag.Source, flag.Reason, flag.Resolved) : null).OfType<CheckFlag>()],
             Scan = project.Scan is { } read
                 ? read.Confirm(collection.Scan!.ConfirmedBars.Select(Moved).OfType<int>())
@@ -308,8 +363,19 @@ public static class PieceParts
     }
 
     /// <summary>Where a part is in the collection's notes: from its first bar's or page's start to its last one's end.</summary>
-    private static TickSpan SpanOf(PartRange range, ImportedPiece piece, PageMap? pages)
+    private static TickSpan SpanOf(PartRange range, ImportedPiece piece, PageMap? pages, HeardClock? clock)
     {
+        if (range.Unit == PartUnit.Milliseconds)
+        {
+            if (clock is null || range.Milliseconds is not var (from, to))
+            {
+                throw new ArgumentException("Only a recording heard is split by time, each part with its \"ms\".", nameof(range));
+            }
+
+            Tick onset = clock.TickAt(from * 1000), until = clock.TickAt(to * 1000);
+            return from >= 0 && until > onset ? TickSpan.FromBounds(onset, until) : throw new ArgumentException($"A part's stretch runs forwards from 0 ms; not {from}–{to} ms.", nameof(range));
+        }
+
         if (range.Unit == PartUnit.Pages)
         {
             if (pages is null)

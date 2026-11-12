@@ -62,7 +62,7 @@ internal sealed partial class OpenPiece
         "check" => Answer.Write(CheckAnswer),
         "check.resolve" => Change(project => project.ResolveCheck(request.Int("bar") ?? throw FacadeException.BadRequest("Send \"bar\"."), request.Bool("resolved") ?? true), CheckAnswer),
         "pieces.find" => Answer.Write(json => PiecesRequest.Find(json, Project, Piece, Notes, Words, request)),
-        "pieces.save" => Change(project => PiecesRequest.Save(project, Piece, Words, Now(request), request), json => PiecesRequest.Layer(json, Project, Piece.Meter, PieceParts.PagesOf(Project, Piece))),
+        "pieces.save" => Change(project => PiecesRequest.Save(project, Piece, Words, Now(request), request), json => PiecesRequest.Layer(json, Project, Piece)),
         _ when name.StartsWith("performance", StringComparison.Ordinal) => CallOnPerformance(name, request),
         _ when name.StartsWith("sources", StringComparison.Ordinal) => CallOnSources(name, request),
         _ when name.StartsWith("corrections", StringComparison.Ordinal) => CallOnCorrections(name, request),
