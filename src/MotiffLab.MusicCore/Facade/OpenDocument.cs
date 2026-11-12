@@ -18,16 +18,25 @@ internal sealed class OpenDocument
 
     public Project Project { get; private set; }
 
-    /// <summary>A new PDF piece from the file the player added.</summary>
-    public static OpenDocument Create(string id, string fileName, byte[] pdf, Words words, DateTimeOffset now)
+    /// <summary>
+    /// A new PDF piece from the file the player added. With <paramref name="photos"/> (v0.4, the iPad's «Фото страниц»
+    /// experiment), the PDF is the player's photos of that many pages put together on the device, and its original is
+    /// described so (<see cref="OriginalKind.Images"/>, a value of the project file since 0.3).
+    /// </summary>
+    public static OpenDocument Create(string id, string fileName, byte[] pdf, Words words, DateTimeOffset now, int? photos = null)
     {
         if (PdfDocument.CheckSize(pdf.Length) is { } rejection)
         {
             throw new FacadeException("import", $"{rejection.Text(words)} {rejection.TipIn(words)}".Trim()) { Data = { ["reason"] = Answer.Name(rejection.Reason), ["tip"] = rejection.TipIn(words) } };
         }
 
+        if (photos is < 1)
+        {
+            throw FacadeException.BadRequest("\"photos\" is the number of pages photographed, from 1.");
+        }
+
         return PdfDocument.IsPdf(pdf)
-            ? new OpenDocument(Project.CreateDocument(id, Path.ChangeExtension(fileName, PdfDocument.Extension), pdf, now))
+            ? new OpenDocument(Photographed(Project.CreateDocument(id, Path.ChangeExtension(fileName, PdfDocument.Extension), pdf, now), photos))
             : throw new FacadeException("import", words.T("This file is not a PDF, though its name ends in .pdf.", "Этот файл не PDF, хотя его имя кончается на .pdf.")) { Data = { ["reason"] = "damaged" } };
     }
 
@@ -45,8 +54,17 @@ internal sealed class OpenDocument
         json.WriteStartObject("document");
         json.WriteString("fileName", Project.DocumentFileName);
         json.WriteNumber("bytes", Project.Document!.Length);
+        json.WriteString("kind", Kind);
         json.WriteEndObject();
     }
+
+    /// <summary>"images" for a PDF made of photos of pages, else "pdf" (within contract 12, v0.4).</summary>
+    private string Kind => Project.FindOriginal(PieceOriginal.DocumentId)?.Kind == OriginalKind.Images ? "images" : "pdf";
+
+    private static Project Photographed(Project project, int? photos) =>
+        photos is { } pages && project.FindOriginal(PieceOriginal.DocumentId) is { } original
+            ? project.WithOriginal(original with { Kind = OriginalKind.Images, Pages = pages })
+            : project;
 
     public string Call(string name, Request request) => name switch
     {
@@ -56,9 +74,11 @@ internal sealed class OpenDocument
         "document" => Answer.Write(json =>
         {
             json.WriteString("fileName", Project.DocumentFileName);
+            json.WriteString("kind", Kind);
             json.WriteBase64String("pdf", Project.Document);
             Marks(json);
         }),
+        "document.replace" => Replace(request),
         "document.marks" => Answer.Write(Marks),
         "document.ink.add" => Change(marks => marks.WithInk([.. marks.Ink.Where(stroke => !Ids(request.Elements("strokes")).Contains(stroke.Id)), .. request.Elements("strokes").Select(ReadStroke)])),
         "document.ink.remove" => Change(marks => marks.WithInk([.. marks.Ink.Where(stroke => !request.Texts("ids").Contains(stroke.Id))])),
@@ -205,6 +225,43 @@ internal sealed class OpenDocument
             Answer.Project(json, "project", Project);
             json.WriteString("file", System.Text.Encoding.UTF8.GetString(ProjectFile.Write(Project)));
         });
+    }
+
+    /// <summary>
+    /// The pages again, as one new PDF of as many pages, while no notes are read from them (v0.4, «Фото страниц»: a page
+    /// photographed again): the marks and bookmarks stay on their pages, and the original keeps what it is, with the new
+    /// bytes' fingerprint and size. Answers the project's summary.
+    /// </summary>
+    private string Replace(Request request)
+    {
+        byte[] pdf;
+        try
+        {
+            pdf = Convert.FromBase64String(request.Required("pdf"));
+        }
+        catch (FormatException)
+        {
+            throw FacadeException.BadRequest("\"pdf\" must be base64.");
+        }
+
+        if (Project.HasNotes)
+        {
+            throw FacadeException.Unavailable("The notes of this PDF are read already, so its pages stay as they are.");
+        }
+
+        if (!PdfDocument.IsPdf(pdf) || PdfDocument.CheckSize(pdf.Length) is not null)
+        {
+            throw FacadeException.BadRequest("\"pdf\" must be a PDF of at most 50 MB.");
+        }
+
+        Project replaced = Project with { Document = pdf };
+        if (replaced.FindOriginal(PieceOriginal.DocumentId) is { } original)
+        {
+            replaced = replaced.WithOriginal(original with { Sha256 = null, Bytes = pdf.Length });
+        }
+
+        Project = replaced.Fingerprinted();
+        return Answer.Write(json => Answer.Project(json, "project", Project));
     }
 
     private static HashSet<string> Ids(IReadOnlyList<JsonElement> strokes) =>

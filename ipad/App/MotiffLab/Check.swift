@@ -214,6 +214,8 @@ struct CheckDrawer: View {
                             .dsType(.caption)
                             .foregroundStyle(Color.ds("ink-2"))
                     }
+                    // Photographed pages just read (v0.4, «Фото страниц»): their quality, until the app closes.
+                    PhotoPagesCheck(score: score, text: text)
                     ForEach(check.openBars) { bar in openEntry(bar) }
                     if !check.lengths.isEmpty {
                         // A recording's note lengths are heard less surely than their starts (#352): shown apart.
