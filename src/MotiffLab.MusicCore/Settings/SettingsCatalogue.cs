@@ -122,6 +122,11 @@ public static class SettingsCatalogue
         // Changes of signature in a recording (v0.5, a preview): where the bars read better in 5/8, 7/8, 9/8, 5/4 or 12/8
         // (LiveBars.OddMeters), said in the Check drawer's head; nothing is changed or saved.
         Switch("experimental.meters", SettingSection.Experimental, null, SettingScope.Device),
+
+        // Import a folder (v0.5, «Импорт папки»): the PDF, MIDI and MusicXML files of a folder the player chose added in one go,
+        // with repeats by fingerprint, suggested titles and composers, and folders as playlists (LibraryImport); the
+        // player's files are only read.
+        Switch("experimental.libraryImport", SettingSection.Experimental, null, SettingScope.Device),
     ];
 
     private static readonly Dictionary<string, Setting> s_byId = All.ToDictionary(setting => setting.Id, StringComparer.Ordinal);
