@@ -11,6 +11,7 @@
 import type { BarFrame } from "./pencil-marks.js";
 import { PencilLayer, type PencilState } from "./pencil-layer.js";
 import { type ScoreSelection, SelectionLayer } from "./selection-layer.js";
+import { ScoreRules } from "./score-modes.js";
 import { ScoreTimeline, highlightedIds, type HighlightPlace } from "./score-timeline.js";
 import { A4_HEIGHT, A4_WIDTH, buildPdf, crop, inkBounds, type InkLayer, type PdfPage } from "./pdf-document.js";
 import { hasText, svgToPdfOperators, textOnlySvg } from "./svg-to-pdf.js";
@@ -304,6 +305,8 @@ export class ScoreView {
     private disposed = false;
     private readonly pencil: PencilLayer;
     private readonly selection: SelectionLayer;
+    /** The rules of version 0.5 (the experiment Two playheads and modes): off until Blazor names a mode. */
+    private readonly rules: ScoreRules;
     /** A4 pages (0017), or one strip the width of the view. */
     private paged = true;
     /** Whether the bars take room by their length rather than their notes (Settings · Notes, score.evenBars; testing item 35). */
@@ -350,11 +353,24 @@ export class ScoreView {
             changed: (state: PencilState) => void this.dotnet.invokeMethodAsync("OnPencilChanged", state),
             marksChanged: (text: string) => void this.dotnet.invokeMethodAsync("OnPencilMarksChanged", text),
         });
+        this.rules = new ScoreRules(host, {
+            geometry: () => this.geometry(),
+            tickX: (tick) => this.playheadAt(tick)?.x,
+            onsetOf: (id) => this.timeline?.onsetOf(id),
+            pitchOf: (id) => this.pitchOf(id),
+            scrolled: () => (this.scrolledByHand = performance.now()),
+            beatClicked: (start, end, extend) => void this.dotnet.invokeMethodAsync("OnScoreBeatClicked", start, end, extend),
+            noteToEdit: (onset, pitch) => void this.dotnet.invokeMethodAsync("OnScoreNoteToEdit", onset, pitch),
+        });
         this.selection = new SelectionLayer(host, {
             geometry: () => this.geometry(),
             penOn: () => this.pencil.state().on,
             chosen: (first, last, byHandle) => void this.dotnet.invokeMethodAsync("OnScoreBarsChosen", first, last, byHandle),
             marksTop: (band) => this.bookmarksTop(band),
+            beats: () => this.rules.beatLines(),
+            tickX: (tick) => this.playheadAt(tick)?.x,
+            chosenSpan: (start, end, byHandle) => void this.dotnet.invokeMethodAsync("OnScoreSpanChosen", start, end, byHandle),
+            mode: () => this.rules.mode(),
         });
         this.host.classList.toggle("paged", this.paged);
         this.host.addEventListener("click", this.onClick);
@@ -589,6 +605,15 @@ export class ScoreView {
     /** Shows the selection as a band with handles over its bars (0018 section 3); null shows none. */
     setSelection(selection: ScoreSelection | null): void {
         this.selection.setSelection(selection);
+    }
+
+    /**
+     * The rules of version 0.5 (score-modes.ts): the mode the bar chose and music-core's beat lines, which the selection
+     * snaps to; a null mode keeps the rules before them.
+     */
+    setRules(mode: string | null, lines: number[] | null): void {
+        this.rules.set(mode, lines);
+        this.selection.place();
     }
 
     /** The contextual menu Blazor draws for the selection, placed over the band as the score scrolls. */
@@ -866,6 +891,7 @@ export class ScoreView {
         this.disposed = true;
         this.pencil.dispose();
         this.selection.dispose();
+        this.rules.dispose();
         cancelAnimationFrame(this.frame);
         cancelAnimationFrame(this.replaceFrame);
         clearTimeout(this.relayoutTimer);
@@ -1670,10 +1696,12 @@ export class ScoreView {
             return;
         }
         // A press the pencil layer took is handled there: a tap comes back through pick. A drag across bars has chosen them already.
-        if (this.selection.swallowsClick()) {
+        const dragged = this.selection.swallowsClick();
+        const penned = this.pencil.swallowsClick();
+        if (this.rules.click(event, dragged || penned) || dragged) {
             return;
         }
-        if (event.target instanceof Element && !this.pencil.swallowsClick()) {
+        if (event.target instanceof Element && !penned) {
             this.pick(event.target, event.shiftKey);
         }
     };
@@ -1681,7 +1709,8 @@ export class ScoreView {
     /** A click or a pen tap on the score: a note moves playback to it, a bar away from its notes selects it. */
     private pick(target: Element, extend: boolean): void {
         const timeline = this.timeline;
-        if (timeline === null) {
+        // Under the rules of version 0.5 a pen's tap writes; it never selects or moves playback.
+        if (timeline === null || this.rules.mode() !== null) {
             return;
         }
         // A click on a chord's stem finds the chord; its notes start where it starts.

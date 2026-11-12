@@ -110,7 +110,8 @@
                            Bookmarks="ScoreBookmarks" BookmarkPicked="OnBookmarkPickedAsync" Notes="ScoreNotes" MarkHighlights="ScoreHighlights" HiddenLayers="HiddenLayers"
                            NoteMarkerPicked="OpenNoteAsync" LayersRequested="OpenLayers" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync"
                            PerformanceMarkers="ScorePerformanceMarkers" Unheard="ScoreUnheard" TakenBars="ScoreTakenBars" PerformancePicked="OnPerformancePickedAsync"
-                           Pointed="_pointed" NotePicked="OnScoreNotePicked" Follow="@SettingsStore.IsOn(FollowSetting)" EvenBars="@SettingsStore.IsOn(EvenBarsSetting)" PlayheadAway="OnPlayheadAway" />
+                           Pointed="_pointed" NotePicked="OnScoreNotePicked" Follow="@SettingsStore.IsOn(FollowSetting)" EvenBars="@SettingsStore.IsOn(EvenBarsSetting)" PlayheadAway="OnPlayheadAway"
+                           Mode="@ScoreMode" BeatLines="ScoreBeatLines" SpanChosen="OnScoreSpanChosenAsync" BeatClicked="OnScoreBeatClickedAsync" NoteToEdit="OnScoreNoteToEditAsync" />
             }
             else
             {
@@ -153,7 +154,11 @@
                     <span class="sp"></span>
                     <button class="act @(_popover == Popover.Phrases ? "on" : null)" aria-expanded="@(_popover == Popover.Phrases ? "true" : "false")" aria-label="@Text["bar.phrases"]" title="@Text["bar.phrases"]"
                             data-long-press="phrases" @onclick="() => TogglePopover(Popover.Phrases)"><Icon Name="phrases" Size="IconSize.Large" /></button>
-                    @if (_scoreView?.CanDraw == true)
+                    @if (PlayheadsOn)
+                    {
+                        <ModeGroup Mode="Mode" CanDraw="@(_scoreView?.CanDraw == true)" Chosen="ChooseModeAsync" />
+                    }
+                    else if (_scoreView?.CanDraw == true)
                     {
                         <button class="act @(_penOn ? "on" : null)" aria-pressed="@(_penOn ? "true" : "false")" aria-label="@Text["bar.pen"]" title="@Text["pencil.hint"]"
                                 @onclick="TogglePenAsync"><Icon Name="pen" Size="IconSize.Large" /></button>
@@ -788,6 +793,11 @@
                 <span class="div" aria-hidden="true"></span>
                 <button class="it icon @(MenuMoreOpen ? "on" : null)" aria-expanded="@(MenuMoreOpen ? "true" : "false")" aria-label="@Text["menu.more"]" title="@Text["menu.more"]"
                         @onclick="ToggleMenuMore"><Icon Name="more" /></button>
+                @if (PlayheadsOn)
+                {
+                    @* Only ✕ or Escape removes the selection (version 0.5, the experiment Two playheads and modes). *@
+                    <button class="it icon" aria-label="@Text["menu.clearSelection"]" title="@Text["menu.clearSelection"] (Esc)" @onclick="CloseSelectionAsync"><Icon Name="close" /></button>
+                }
                 @if (MenuMoreOpen)
                 {
                     <div class="menu-more" role="group" aria-label="@Text["menu.more"]">
@@ -2333,6 +2343,7 @@
         }
 
         await SyncLayoutAsync();
+        await SyncModeKeysAsync();
     }
 
     public void Dispose()

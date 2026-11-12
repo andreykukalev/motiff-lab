@@ -73,6 +73,20 @@ public class SettingsTests
     }
 
     [Fact]
+    public void The_playheads_experiment_is_off_on_the_device_and_its_fade_is_on_inside_it()
+    {
+        foreach (string id in new[] { "experimental.playheads", "experimental.playheadsFade" })
+        {
+            Setting setting = SettingsCatalogue.Get(id);
+            Assert.Equal(SettingSection.Experimental, setting.Section);
+            Assert.Equal(SettingScope.Device, setting.Scope);
+        }
+
+        Assert.False(SettingsState.Default.IsOn("experimental.playheads"));
+        Assert.True(SettingsState.Default.IsOn("experimental.playheadsFade"));
+    }
+
+    [Fact]
     public void A_piece_overrides_only_what_it_may_and_the_project_file_keeps_it()
     {
         Project project = Project.Create("p_test", "a.mid", [1, 2, 3], DateTimeOffset.UnixEpoch)
