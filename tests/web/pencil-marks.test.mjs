@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+    anchorBar,
     anchorMark,
     framesByTick,
     nearestBar,
@@ -66,6 +67,55 @@ test("laid out again, a mark goes back to its bar at the staves' new size", () =
     ]);
     assert.equal(placed.radius, 1.5);
     assert.equal(placeMark(written, framesByTick([bar(0, 0, 100, 50)])), null);
+});
+
+/** The bars of a line from `left`, each `width` wide, as the score's geometry gives them with the line's edges. */
+const line = (number, ticks, left, width, staffTop) => ticks.map((tick, i) => ({
+    ...bar(tick, left + i * width, left + (i + 1) * width, staffTop),
+    line: number,
+    lineLeft: left,
+    lineRight: left + ticks.length * width,
+}));
+
+test("a stroke begun in a line's margin is kept against the line's first or last bar, outside it", () => {
+    const frames = [...line(0, [0, 1920, 3840], 100, 100, 50), ...line(1, [5760, 7680], 100, 150, 250)];
+    const left = anchorMark(frames, [{ x: 60, y: 60, pressure: 0.5 }, { x: 70, y: 80, pressure: 0.5 }], style);
+    assert.equal(left.bar, 0);
+    assert.equal(left.u, -0.4);
+    const right = anchorMark(frames, [{ x: 445, y: 300, pressure: 0.5 }, { x: 450, y: 320, pressure: 0.5 }], style);
+    assert.equal(right.bar, 7680);
+    assert.equal(right.u, 1.3);
+
+    // Above the staves, nearer a tall bar further in, the margin still goes to the line's first bar.
+    const tall = [{ ...frames[0], top: 30 }, { ...frames[1], top: -200 }, frames[2]];
+    assert.equal(nearestBar(tall, 95, -150).tick, 1920);
+    assert.equal(anchorBar(tall, 95, -150).tick, 0);
+    assert.equal(anchorBar(tall, 250, 60).tick, 1920);
+
+    // A PDF's pages have no lines: a stroke beside a page is kept against the page, as before.
+    const page = bar(1, 100, 300, 50);
+    assert.equal(anchorBar([page, bar(2, 400, 600, 50)], 340, 60).tick, 1);
+    assert.equal(anchorMark([page], [{ x: 60, y: 60, pressure: 0.5 }], style).u, -0.2);
+});
+
+test("laid out again, a stroke in a margin stays at the edge of its bar's line, not over the neighbouring bar", () => {
+    const written = line(0, [3840, 5760], 100, 100, 50);
+    const left = anchorMark(written, [{ x: 70, y: 60, pressure: 0.5 }, { x: 80, y: 60, pressure: 0.5 }], style);
+    const right = anchorMark(written, [{ x: 320, y: 60, pressure: 0.5 }, { x: 330, y: 60, pressure: 0.5 }], style);
+    assert.deepEqual([left.bar, left.u, right.bar, right.u], [3840, -0.3, 5760, 1.2]);
+
+    // In the layout it was written in, every build draws it where it was written.
+    assert.equal(placeMark(left, framesByTick(written)).points[0].x, 70);
+    assert.equal(placeMark(right, framesByTick(written)).points[0].x, 320);
+
+    // Laid out wider, both bars sit in the middle of a line from 0 to 500: the strokes go to that line's margins.
+    const wider = framesByTick(line(2, [1920, 3840, 5760, 7680, 9600], 0, 100, 400));
+    assert.deepEqual(placeMark(left, wider).points.map((point) => [point.x, point.y]), [[-30, 410], [-20, 410]]);
+    assert.deepEqual(placeMark(right, wider).points.map((point) => [point.x, point.y]), [[520, 410], [530, 410]]);
+
+    // A stroke inside its bar goes with the bar as before.
+    const inside = anchorMark(written, [{ x: 150, y: 60, pressure: 0.5 }], style);
+    assert.equal(placeMark(inside, wider).points[0].x, 150);
 });
 
 test("pressure thins a light touch and thickens a firm one; without it the size holds", () => {

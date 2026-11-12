@@ -31,7 +31,11 @@ export interface PencilMark {
     size: number;
     /** Where the bar it starts in begins, in ticks: stable across layouts and across the as-written and generated scores. */
     bar: number;
-    /** Where the stroke starts: across the bar, 0 at its left edge and 1 at its right. */
+    /**
+     * Where the stroke starts: across the bar, 0 at its left edge and 1 at its right. Below 0 it starts in the left margin
+     * of the bar's line and above 1 in its right margin: the bar is the line's first or last, and placeMark draws the
+     * stroke from that edge of whatever line the bar is on in this layout.
+     */
     u: number;
     /** Where the stroke starts: staff spaces below the bar's top staff line (negative above it). */
     v: number;
@@ -54,6 +58,14 @@ export interface BarFrame {
     staffTop: number;
     /** Pixels between two staff lines. */
     space: number;
+    /**
+     * The line (system) the bar is on, numbered across the score, and where its first bar starts and its last ends. A
+     * stroke begun in a line's margin is kept against its first or last bar and drawn from that edge of the line. Frames
+     * without a line (a PDF's pages) keep every stroke against the frame itself.
+     */
+    line?: number;
+    lineLeft?: number;
+    lineRight?: number;
 }
 
 /**
@@ -113,14 +125,40 @@ export function nearestBar(frames: readonly BarFrame[], x: number, y: number): B
     return best;
 }
 
-/** Keeps a stroke drawn in content pixels against the bar its first point is nearest. Null with no points or no bars. */
+/**
+ * The bar a stroke starting at a point is kept against: the one nearest, or, when the point is in the margin left or right
+ * of that bar's line, the line's first or last bar, so the stroke stays at the edge of the line in another layout.
+ */
+export function anchorBar(frames: readonly BarFrame[], x: number, y: number): BarFrame | undefined {
+    const nearest = nearestBar(frames, x, y);
+    if (nearest?.line === undefined) {
+        return nearest;
+    }
+    const left = x < (nearest.lineLeft ?? nearest.left);
+    const right = x > (nearest.lineRight ?? nearest.right);
+    if (!left && !right) {
+        return nearest;
+    }
+    let edge = nearest;
+    for (const frame of frames) {
+        if (frame.line === nearest.line && (left ? frame.left < edge.left : frame.right > edge.right)) {
+            edge = frame;
+        }
+    }
+    return edge;
+}
+
+/**
+ * Keeps a stroke drawn in content pixels against the bar its first point is nearest, or, begun in a line's margin, against
+ * the line's first or last bar (anchorBar). Null with no points or no bars.
+ */
 export function anchorMark(
     frames: readonly BarFrame[],
     points: readonly InkPoint[],
     style: { id: string; tool: MarkTool; colour: MarkColour; size: number },
 ): PencilMark | null {
     const first = points[0];
-    const frame = first === undefined ? undefined : nearestBar(frames, first.x, first.y);
+    const frame = first === undefined ? undefined : anchorBar(frames, first.x, first.y);
     if (first === undefined || frame === undefined || frame.space <= 0) {
         return null;
     }
@@ -142,13 +180,30 @@ export function anchorMark(
     };
 }
 
+/**
+ * Where a stroke starts across this layout: in its bar, or, for a stroke in a margin (u below 0 or above 1), moved out
+ * by however far the bar now is from that edge of its line, so a bar that went into the middle of a line does not put
+ * the stroke over its neighbour's notes. Where the bar is still at the line's edge, this is exactly where any build
+ * draws it.
+ */
+function startX(mark: PencilMark, frame: BarFrame): number {
+    const inBar = frame.left + mark.u * (frame.right - frame.left);
+    if (mark.u < 0) {
+        return inBar + ((frame.lineLeft ?? frame.left) - frame.left);
+    }
+    if (mark.u > 1) {
+        return inBar + ((frame.lineRight ?? frame.right) - frame.right);
+    }
+    return inBar;
+}
+
 /** Where a mark goes in this layout, in content pixels, and its thickness there; null when its bar is not engraved. */
 export function placeMark(mark: PencilMark, frames: ReadonlyMap<number, BarFrame>): { points: InkPoint[]; radius: number } | null {
     const frame = frames.get(mark.bar);
     if (frame === undefined) {
         return null;
     }
-    const x0 = frame.left + mark.u * (frame.right - frame.left);
+    const x0 = startX(mark, frame);
     const y0 = frame.staffTop + mark.v * frame.space;
     const points: InkPoint[] = [{ x: x0, y: y0, pressure: mark.pressure }];
     for (let i = 0; i + 2 < mark.points.length; i += 3) {

@@ -98,6 +98,60 @@ final class PencilTests: XCTestCase {
         XCTAssertEqual(kept?.first?["bar"] as? NSNumber, mark["bar"] as? NSNumber)
     }
 
+    /// A stroke begun in a line's margin (v0.4) is kept against the line's first bar (u below 0) or its last (u above 1),
+    /// drawn where it was written, and music-core keeps it thinned.
+    func testAStrokeInALinesMarginIsKeptAgainstTheLinesEdgeBar() async throws {
+        let view = try await scorePage()
+        let example = try XCTUnwrap(KitPiece.example)
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        defer { _ = MusicCore.close(piece: piece.id) }
+        let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
+        _ = try await call(view, "show", ["pages": piece.pages, "timemap": timemap, "dark": false])
+
+        let placed = try await view.callAsyncJavaScript("return motiff.frames()", contentWorld: .page)
+        let frames = try XCTUnwrap(placed as? [[String: Any]])
+        func value(_ frame: [String: Any], _ key: String) -> Double { (frame[key] as? NSNumber)?.doubleValue ?? .nan }
+        let line = frames.filter { value($0, "line") == 0 }
+        let first = try XCTUnwrap(line.min { value($0, "left") < value($1, "left") })
+        let last = try XCTUnwrap(line.max { value($0, "right") < value($1, "right") })
+        XCTAssertGreaterThan(line.count, 1, "the first line has several bars")
+        XCTAssertEqual(value(first, "lineLeft"), value(first, "left"))
+        XCTAssertEqual(value(last, "lineRight"), value(last, "right"))
+
+        // A short line down the margin, a few pixels out from each edge of the line, at the height of its middle staff line.
+        func stroke(_ x: Double, _ frame: [String: Any]) -> [[String: Double]] {
+            let y = value(frame, "staffTop") + 2 * value(frame, "space")
+            return (0..<40).map { ["x": x, "y": y + Double($0) * 0.5, "pressure": 0.5] }
+        }
+        let leftX = value(first, "left") - 12
+        let rightX = value(last, "right") + 12
+        let leftAnchored = try await call(view, "anchor", ["points": stroke(leftX, first), "tool": "pen", "colour": "graphite"])
+        let rightAnchored = try await call(view, "anchor", ["points": stroke(rightX, last), "tool": "pen", "colour": "carmine"])
+        let left = try XCTUnwrap(leftAnchored as? [String: Any])
+        let right = try XCTUnwrap(rightAnchored as? [String: Any])
+        XCTAssertEqual((left["bar"] as? NSNumber)?.doubleValue, value(first, "tick"))
+        XCTAssertLessThan((left["u"] as? NSNumber)?.doubleValue ?? 0, 0)
+        XCTAssertEqual((right["bar"] as? NSNumber)?.doubleValue, value(last, "tick"))
+        XCTAssertGreaterThan((right["u"] as? NSNumber)?.doubleValue ?? 0, 1)
+
+        let request = String(decoding: try JSONSerialization.data(withJSONObject: ["strokes": [left, right]]), as: UTF8.self)
+        let added = await MusicCore.run { MusicCore.call(piece: piece.id, "ink.add", request) }
+        let answer = try XCTUnwrap(facadeObject(added))
+        let ink = try XCTUnwrap(answer["ink"] as? [[String: Any]], "\(answer)")
+        XCTAssertEqual(ink.count, 2)
+        // Forty points on a straight line are kept as its two ends.
+        XCTAssertEqual((ink.first?["points"] as? [Any])?.count, 3, "the straight stroke is thinned to its ends")
+
+        let drawn = try await call(view, "draw", ["marks": ink]) as? NSNumber
+        XCTAssertEqual(drawn?.intValue, 2)
+        // Each is drawn where it was written, in the margin outside the line.
+        for (id, x) in [(left["id"] as? String ?? "?", leftX), (right["id"] as? String ?? "?", rightX)] {
+            let box = try await view.evaluateJavaScript("(() => { const b = document.querySelector('#ink path[data-id=\"\(id)\"]').getBBox(); return [b.x, b.width]; })()") as? [NSNumber]
+            let centre = (box?[0].doubleValue ?? 0) + (box?[1].doubleValue ?? 0) / 2
+            XCTAssertEqual(centre, x, accuracy: 2, "the stroke \(id) sits where it was written")
+        }
+    }
+
     func testTheBarNamesThePagesUnderTheReadingLine() async throws {
         let view = try await scorePage()
         let example = try XCTUnwrap(KitPiece.example)

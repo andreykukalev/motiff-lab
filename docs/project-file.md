@@ -115,6 +115,8 @@ Everything the player writes on the score, kept with the piece ([0018](decisions
 
 A stroke's anchor is its bar's start tick, so marks follow the piece through a new layout, the as-written and as-played scores and the PDF. Notes, highlights and fingering anchor to a span or to note ids, which the importers keep stable.
 
+A stroke begun in the margin of a line (version 0.4, same shape) is kept against the line's first bar with `u` below 0, or its last bar with `u` above 1. The apps draw such a stroke from that edge of whatever line its bar is on in the layout shown, so after another layout it stays in the margin rather than over a neighbouring bar's notes; a build before 0.4 draws it from its bar's edge, the same place while the bar is still at the line's edge. Music-core keeps every stroke an app hands in thinned (`InkThinning`: points within 0.05 staff spaces of the line through the others, and within 0.1 of its pressure, are left out); a file is read with its points as written.
+
 ## Bookmarks (`bookmarks`)
 
 The contents of the piece in the player's own order (prep item 2): four built-in categories, each with an ink of the design kit, and any number of the player's own.
