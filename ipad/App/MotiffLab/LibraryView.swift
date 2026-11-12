@@ -179,6 +179,8 @@ struct LibraryView: View {
                 if let screensFile { await open(.success(screensFile)) }
                 #endif
             }
+            // The batch never writes the notes of the piece on screen: the screen saves it as it closes.
+            .onChange(of: piece?.file) { _, file in recognitionQueue.opened(file) }
             .onChange(of: piece == nil) { _, closed in
                 // Back from a score: its project was saved as the screen closed.
                 if closed { Task { await reload(); await refreshOnline() } }
@@ -382,6 +384,9 @@ struct LibraryView: View {
     /// that is only a PDF whose PDF is not in its file (version 0.5) opens with the PDF read where this iPad links it, or
     /// says why it cannot and what can be done.
     private func openProject(_ url: URL) async {
+        // Open for the batch before its file is read, so notes it writes meanwhile are not lost under the screen.
+        recognitionQueue.opened(url)
+        defer { recognitionQueue.opened(piece?.file) }
         if let summary = summaries[url], AwayPdf.isAway(summary) {
             opening = true
             let read = await AwayPdf.read(url, summary)
@@ -439,6 +444,8 @@ struct LibraryView: View {
     /// Opens a project file in Documents in place of the piece shown, at a page or place: at a page, a piece with notes and
     /// a PDF inside it opens in its PDF view.
     private func openFile(_ file: URL, at landing: Landing) async {
+        recognitionQueue.opened(file)
+        defer { recognitionQueue.opened(piece?.file) }
         do {
             let data = try Data(contentsOf: file)
             let language = text.language
