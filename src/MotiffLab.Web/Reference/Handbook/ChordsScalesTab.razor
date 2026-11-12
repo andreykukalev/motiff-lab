@@ -1,0 +1,204 @@
+@using MotiffLab.MusicCore
+@using MotiffLab.MusicCore.Analysis
+@using MotiffLab.MusicCore.Notation
+@using MotiffLab.Web.Localization
+@implements IDisposable
+@inject UiText Text
+
+@* «Аккорды и гаммы» (version 0.5, Andrei approved the mockup 2026-11-12): what sounds on the left, a chord or a scale from
+   a root, in groups; the result on the right, its name, degrees over notes, notation and keyboard; how it sounds under
+   it, «Звучание»: the position, the spacing and the way a chord is played, or the way and octaves of a scale. Everything
+   shown is music-core's (ChordReference, ScaleReference, ReferenceSounding); the tab only lays it out. *@
+<div class="ref-cs">
+    <section class="ref-material" aria-label="@Text["reference.material"]">
+        <div class="seg ref-kind" role="radiogroup" aria-label="@Text["reference.material"]">
+            @Kind(false, "reference.chordType")
+            @Kind(true, "reference.scaleForm")
+        </div>
+        <h3 class="overline" id="ref-from-note">@Text["reference.root"]</h3>
+        <RootChips Keyboard="true" Chosen="Choice.Root" Naming="Naming" Label="@Text["reference.root"]" Pick="PickRoot" />
+        @if (Choice.Scale)
+        {
+            @foreach (IGrouping<ScaleFamily, ScaleFormChoice> family in ScaleReference.Forms(Words).GroupBy(choice => choice.Family))
+            {
+                @Group($"reference.family.{family.Key}", family.Select(choice => (choice.Form == Choice.Form, choice.Short, (string?)null, (Action)(() => PickForm(choice.Form)))))
+            }
+        }
+        else
+        {
+            @foreach (IGrouping<ChordFamily, ChordTypeChoice> family in ChordReference.Types(Words).GroupBy(choice => choice.Family))
+            {
+                @Group($"reference.family.{family.Key}", family.Select(choice => (choice.Type == Choice.Type, $"{Choice.Root.Letter}{choice.Suffix}", (string?)choice.Name, (Action)(() => PickType(choice.Type)))))
+            }
+        }
+    </section>
+
+    <section class="ref-result" aria-labelledby="ref-result-title">
+        @if (Choice.Scale)
+        {
+            <header class="ref-result-head">
+                <h3 id="ref-result-title" class="ref-result-name">@Words.Capitalize(_scale.Card.Name)</h3>
+                <FormulaTable Formula="_scale.Card.Formula" Notes="_scale.Card.Notes" />
+            </header>
+            <ReferenceNotation Mei="@_scale.Music.Mei" Placement="Placement" Label="@Text.Format("reference.notationAria", _scale.Card.Name)" />
+            <ReferenceKeys Music="_scale.Music" Naming="Naming" Label="@Text.Format("reference.keys", string.Join(" ", _scale.Card.Notes))" />
+        }
+        else
+        {
+            <header class="ref-result-head">
+                <h3 id="ref-result-title" class="ref-result-symbol">@_chord.Card.Symbol</h3>
+                <p class="ref-result-kind">
+                    <strong>@_chord.Card.Name</strong>
+                    <span>@_chord.Position.Title · @Text.Format("reference.bass", _chord.Position.Notes[0])</span>
+                </p>
+                <FormulaTable Formula="_chord.Card.Formula" Notes="_chord.Card.Notes" />
+            </header>
+            <ReferenceNotation Mei="@_chord.Music.Mei" Placement="Placement" Label="@Text.Format("reference.notationAria", $"{_chord.Card.Symbol}, {_chord.Position.Title}")" />
+            <ReferenceKeys Music="_chord.Music" Naming="Naming" Label="@Text.Format("reference.keys", string.Join(" ", _chord.Music.Keys.Select(key => key.NameIn(Naming))))" />
+        }
+
+        <section class="ref-sound-panel" aria-labelledby="ref-sound-title">
+            <h3 class="overline" id="ref-sound-title">@Text["reference.sound"]</h3>
+            @if (Choice.Scale)
+            {
+                <SegChoice Label="@Text["reference.pattern"]" Options="ScalePatterns" Value="@Choice.ScalePattern.ToString()" Pick="id => SetAsync(() => Choice.ScalePattern = Enum.Parse<ScalePattern>(id))" />
+                <SegChoice Label="@Text["reference.octaves"]" Options="s_octaves" Value="@Number(Choice.Octaves)" Pick="id => SetAsync(() => Choice.Octaves = Parse(id))" />
+            }
+            else
+            {
+                <SegChoice Label="@Text["reference.spacing"]" Options="Spacings" Value="@Choice.Spacing.ToString()" Pick="id => SetAsync(() => Choice.Spacing = Enum.Parse<ChordSpacing>(id))" />
+                <SegChoice Label="@Text["reference.inversion"]" Options="Inversions" Value="@Number(Choice.Inversion)" Pick="id => SetAsync(() => Choice.Inversion = Parse(id))" />
+                <SegChoice Label="@Text["reference.pattern"]" Options="ChordPatterns" Value="@Choice.Pattern.ToString()" Pick="id => SetAsync(() => Choice.Pattern = Enum.Parse<ChordPattern>(id))" />
+            }
+            <div class="ref-row ref-actions">
+                <span class="ref-row-label"></span>
+                <button type="button" class="btn primary" @onclick="PlayAsync">
+                    <Icon Name="@(Playing ? "pause" : "playf")" />@Text[Playing ? "reference.pause" : "reference.playIt"]
+                </button>
+                <button type="button" class="btn secondary @(Choice.Loop ? "on" : null)" aria-pressed="@(Choice.Loop ? "true" : "false")" @onclick="LoopAsync">
+                    <Icon Name="loop" />@Text["reference.loop"]
+                </button>
+            </div>
+        </section>
+    </section>
+</div>
+
+@code {
+    private const string Name = "chords";
+
+    private static readonly IReadOnlyList<(string, string)> s_octaves = [("1", "1"), ("2", "2")];
+
+    private ChordSounding _chord = null!;
+    private ScaleSounding _scale = null!;
+
+    /// <summary>What the tab shows, kept by the sheet.</summary>
+    [Parameter, EditorRequired]
+    public ChordsScalesChoice Choice { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public ReferenceListening Listening { get; set; } = null!;
+
+    [Parameter]
+    public NoteNaming Naming { get; set; }
+
+    private Words Words => Words.For(Text.Language);
+
+    private bool Playing => Listening.Playing == Name;
+
+    private ReferencePlacement? Placement => Playing ? Listening.Placement : null;
+
+    private ReferenceMusic Music => Choice.Scale ? _scale.Music : _chord.Music;
+
+    private IReadOnlyList<(string, string)> Spacings =>
+        [(nameof(ChordSpacing.Close), Text["reference.spacing.close"]), (nameof(ChordSpacing.Open), Text["reference.spacing.open"])];
+
+    private IReadOnlyList<(string, string)> ChordPatterns =>
+        [.. Enum.GetValues<ChordPattern>().Select(pattern => (pattern.ToString(), Text[$"reference.pattern.{pattern}"]))];
+
+    private IReadOnlyList<(string, string)> ScalePatterns =>
+        [.. Enum.GetValues<ScalePattern>().Select(pattern => (pattern.ToString(), Text[$"reference.pattern.{pattern}"]))];
+
+    /// <summary>Root position by its name, each inversion by its figures, or by its number where it has none.</summary>
+    private IReadOnlyList<(string, string)> Inversions =>
+        [.. _chord.Card.Positions.Select(position => (
+            Number(position.Inversion),
+            position.Inversion == 0 ? Words.Capitalize(position.Title) : position.Figure ?? Text.Format("reference.inversionNumber", position.Inversion)))];
+
+    private static string Number(int value) => value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    private static int Parse(string id) => int.Parse(id, System.Globalization.CultureInfo.InvariantCulture);
+
+    protected override void OnInitialized()
+    {
+        Listening.Changed += OnListening;
+        Text.Changed += OnListening;
+    }
+
+    protected override void OnParametersSet() => Sound();
+
+    /// <summary>Asks music-core for what the choices give.</summary>
+    private void Sound()
+    {
+        ChordCard card = ChordReference.For(Choice.Root, Choice.Type, Naming, Words);
+        Choice.Inversion = Math.Min(Choice.Inversion, card.Positions.Count - 1);
+        _chord = ReferenceSounding.Chord(card, Choice.Inversion, Choice.Spacing, Choice.Pattern);
+        _scale = ReferenceSounding.Scale(ScaleReference.For(Choice.Root, Choice.Form, Naming, Words), Choice.ScalePattern, Choice.Octaves);
+    }
+
+    private RenderFragment Kind(bool scale, string label) =>
+        @<button type="button" role="radio" class="@(Choice.Scale == scale ? "on" : null)" aria-checked="@(Choice.Scale == scale ? "true" : "false")"
+                 @onclick="() => SetAsync(() => Choice.Scale = scale)">@Text[label]</button>;
+
+    private RenderFragment Group(string family, IEnumerable<(bool On, string Label, string? Hint, Action Pick)> chips) =>
+        @<div class="ref-group">
+            <h3 class="overline">@Text[family]</h3>
+            <div class="ref-chips" role="group" aria-label="@Text[family]">
+                @foreach ((bool on, string label, string? hint, Action pick) in chips)
+                {
+                    <button type="button" class="chip" aria-pressed="@(on ? "true" : "false")" title="@hint" aria-label="@(hint is null ? null : $"{label}, {hint}")" @onclick="() => SetAsync(pick)">@label</button>
+                }
+            </div>
+        </div>;
+
+    private Task PickRoot(SpelledName root) => SetAsync(() => Choice.Root = root);
+
+    private void PickType(ChordType type) => Choice.Type = type;
+
+    private void PickForm(ScaleForm form) => Choice.Form = form;
+
+    /// <summary>A new choice sounds at once when the music was playing, else it waits for Play.</summary>
+    private async Task SetAsync(Action change)
+    {
+        change();
+        Sound();
+        if (Playing)
+        {
+            await Listening.PlayAsync(Name, Music, Choice.Loop);
+        }
+
+        StateHasChanged();
+    }
+
+    private Task PlayAsync() => Playing ? Listening.StopAsync() : Listening.PlayAsync(Name, Music, Choice.Loop);
+
+    private async Task LoopAsync()
+    {
+        Choice.Loop = !Choice.Loop;
+        if (Playing)
+        {
+            await Listening.PlayAsync(Name, Music, Choice.Loop);
+        }
+    }
+
+    private void OnListening()
+    {
+        Sound();
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        Listening.Changed -= OnListening;
+        Text.Changed -= OnListening;
+    }
+}

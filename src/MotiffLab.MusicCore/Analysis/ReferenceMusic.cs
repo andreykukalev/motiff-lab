@@ -1,4 +1,5 @@
 using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Notation;
 using MotiffLab.MusicCore.Playback;
 using MotiffLab.MusicCore.Time;
 
@@ -11,8 +12,15 @@ public readonly record struct WrittenTone(int Midi, SpelledName Name)
     public int Octave => Name.OctaveOf(Midi);
 }
 
-/// <summary>A key the Reference's keyboard marks, with the note's name on it.</summary>
-public sealed record MarkedKey(int Midi, string Name);
+/// <summary>A key the Reference's keyboard marks, with the note spelled on it.</summary>
+public sealed record MarkedKey(int Midi, SpelledName Note)
+{
+    /// <summary>The note by its letter: B♭, C♯.</summary>
+    public string Name => Note.Letter;
+
+    /// <summary>The note as the note naming setting names it.</summary>
+    public string NameIn(NoteNaming naming) => Note.Name(naming);
+}
 
 /// <summary>
 /// Music the Reference writes and plays (version 0.5, «Справочник»): a chord as it sounds, a scale, a progression of the

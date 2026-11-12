@@ -6,13 +6,17 @@
 
 @* The Reference's circle of fifths: the twelve majors outside, their relative minors inside, the signature in the middle
    (KeyCircle.Sectors). Every key is a button: a tap or Enter opens its card. The chosen key is cobalt and its relative
-   paler cobalt (the pair a key signature names); the piece's key is outlined in ink, dashed when it is assumed. *@
-<svg class="ref-circle" viewBox="-120 -120 240 240" role="group" aria-label="@Text["reference.circleAria"]">
+   paler cobalt (the pair a key signature names); the piece's key is outlined in ink, dashed when it is assumed. Shaded
+   (version 0.5, Andrei, 2026-11-12): the signatures stand round the outside and each key is a shade of one neutral tone,
+   darker with more sharps or flats (acc-0 to acc-6), so the circle reads by its accidentals. *@
+<svg class="ref-circle @(Shaded ? "shaded" : null)" viewBox="@(Shaded ? "-140 -140 280 280" : "-120 -120 240 240")" role="group" aria-label="@Text["reference.circleAria"]">
+    @foreach ((CircleSector sector, KeyMode mode) in Places())
+    {
+        @Ring(sector, mode)
+    }
     @foreach (CircleSector sector in KeyCircle.Sectors)
     {
-        @Ring(sector, KeyMode.Major)
-        @Ring(sector, KeyMode.Minor)
-        <g aria-hidden="true"><text class="ref-sign" x="@At(sector.Position, SignRadius).X" y="@At(sector.Position, SignRadius).Y">@sector.Signature</text></g>
+        <g aria-hidden="true"><text class="ref-sign" x="@At(sector.Position, Shaded ? OuterSignRadius : SignRadius).X" y="@At(sector.Position, Shaded ? OuterSignRadius : SignRadius).Y">@sector.Signature</text></g>
     }
 </svg>
 
@@ -21,6 +25,11 @@
     private const double Middle = 76;
     private const double Inner = 44;
     private const double SignRadius = 30;
+    private const double OuterSignRadius = 127;
+
+    /// <summary>The 0.5 Reference's circle: signatures outside, keys in shades of one tone by their accidentals.</summary>
+    [Parameter]
+    public bool Shaded { get; set; }
 
     /// <summary>The key whose card is open, if any.</summary>
     [Parameter]
@@ -36,6 +45,17 @@
     [Parameter]
     public EventCallback<MusicalKey> Pick { get; set; }
 
+    /// <summary>
+    /// Every key, the chosen one and the piece's last: SVG paints in order, so their outlines stay above the keys beside them.
+    /// </summary>
+    private IEnumerable<(CircleSector Sector, KeyMode Mode)> Places() =>
+        KeyCircle.Sectors
+            .SelectMany(sector => new[] { (sector, KeyMode.Major), (sector, KeyMode.Minor) })
+            .OrderBy(place => Is(Chosen, place) || Is(PieceKey, place));
+
+    private static bool Is(MusicalKey? key, (CircleSector Sector, KeyMode Mode) place) =>
+        key is { } known && known.Mode == place.Mode && KeyCircle.PositionOf(known) == place.Sector.Position;
+
     private RenderFragment Ring(CircleSector sector, KeyMode mode)
     {
         var key = new MusicalKey(sector.Fifths, mode);
@@ -50,7 +70,7 @@
             : "";
         string name = key.NameIn(Words.For(Text.Language));
         string spoken = Text.Format("reference.sectorAria", name, KeyReference.Signatures(Words.For(Text.Language)).First(choice => choice.Fifths == sector.Fifths).Spoken);
-        return @<g class="ref-key @(major ? "major" : "minor") @state @piece">
+        return @<g class="ref-key @(major ? "major" : "minor") acc-@Math.Abs(sector.Fifths) @state @piece">
             <path d="@Band(sector.Position, from, to)" role="button" tabindex="0" aria-label="@spoken" aria-pressed="@(state == "on" ? "true" : "false")"
                   @onclick="() => Pick.InvokeAsync(key)" @onkeydown="args => OnKey(args, key)" />
             <text x="@label.X" y="@label.Y" aria-hidden="true">@(major ? sector.Major : sector.Minor)</text>

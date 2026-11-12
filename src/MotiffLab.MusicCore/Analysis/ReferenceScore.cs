@@ -86,7 +86,7 @@ internal sealed class ReferenceScore(bool grandStaff, int fifths)
             Mei(bars, ids),
             low - (low % 12),
             high + (11 - (high % 12)),
-            [.. marked.Select(tone => new MarkedKey(tone.Midi, tone.Name.Letter))]);
+            [.. marked.Select(tone => new MarkedKey(tone.Midi, tone.Name))]);
     }
 
     private int StaffOf(WrittenTone tone) => grandStaff && tone.Midi < 60 ? 2 : 1;

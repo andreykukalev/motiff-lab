@@ -42,15 +42,18 @@ public partial class PlaybackLab
         await HearAloneAsync(circle.ScaleNotes(at, _score.End));
     }
 
-    /// <summary>Notes heard once on their own over the piece's timeline, in place of the piece, until they end or are stopped.</summary>
-    private async Task HearAloneAsync(IReadOnlyList<Note> scale)
+    /// <summary>
+    /// Notes heard on their own over the piece's timeline, in place of the piece, once (over their own span unless
+    /// <paramref name="over"/> is given) or round and round, until they end or are stopped.
+    /// </summary>
+    private async Task HearAloneAsync(IReadOnlyList<Note> scale, TickSpan? over = null, bool once = true)
     {
         if (_score is null || scale.Count == 0)
         {
             return;
         }
 
-        TickSpan span = TickSpan.FromBounds(scale[0].Span.Onset, scale[^1].Span.End);
+        TickSpan span = over ?? TickSpan.FromBounds(scale[0].Span.Onset, scale[^1].Span.End);
         _looping = false;
         _alternating = false;
         _answerLoop = null;
@@ -58,7 +61,7 @@ public partial class PlaybackLab
         _scaleStarted = Player.State != PlaybackState.Stopped;
         await Player.SetSourceAsync(CircleSource, _score.WithNotes(scale));
         await Player.SelectSourcesAsync(CircleSource);
-        await Player.SetLoopAsync(span, once: true);
+        await Player.SetLoopAsync(span, once);
         await Player.SeekAsync(span.Onset);
         if (Player.State == PlaybackState.Stopped)
         {
@@ -71,6 +74,7 @@ public partial class PlaybackLab
     {
         _scaleHeard = false;
         _scaleStarted = false;
+        _handbookAt = null;
         if (Player.State != PlaybackState.Stopped)
         {
             await Player.PauseAsync();

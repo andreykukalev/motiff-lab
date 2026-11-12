@@ -77,7 +77,7 @@ public static class ReferenceSounding
     }
 
     /// <summary>
-    /// The scale of <paramref name="card"/> over <paramref name="octaves"/> (1 or 2) from its tonic around middle C, played
+    /// The scale of <paramref name="card"/> over <paramref name="octaves"/> (1 or 2) from its tonic at or around middle C, played
     /// as chosen, in the key signature of its tonic's major key (minor key for the minors and the modes on a minor third),
     /// or none beyond seven sharps or flats. The melodic minor comes down natural. The keyboard marks the way up.
     /// </summary>
@@ -100,11 +100,14 @@ public static class ReferenceSounding
         return new ScaleSounding(card, pattern, octaves, score.Build(MicrosecondsPerQuarter, up));
     }
 
-    /// <summary>The scale's notes up from the tonic around middle C to the top tonic, over the octaves.</summary>
+    /// <summary>
+    /// The scale's notes up from the tonic to the top tonic, over the octaves, kept on the treble staff as far as they go: one
+    /// octave from the tonic at or above middle C (G4 to G5), two from the tonic around it (G3 to G5).
+    /// </summary>
     private static WrittenTone[] Ladder(SpelledName tonic, ScaleForm form, int octaves)
     {
         IReadOnlyList<SpelledName> notes = ScaleReference.Spell(tonic, form);
-        int start = KeyReference.Around(tonic.PitchClass);
+        int start = octaves == 1 ? 60 + tonic.PitchClass : KeyReference.Around(tonic.PitchClass);
         var ladder = new List<WrittenTone>();
         int previous = start - 1;
         for (int octave = 0; octave < octaves; octave++)

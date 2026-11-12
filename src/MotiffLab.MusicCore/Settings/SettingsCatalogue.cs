@@ -90,6 +90,10 @@ public static class SettingsCatalogue
         // Reference: the circle of fifths one tap away from the library and the piece, with any key's card (KeyReference).
         Switch("experimental.reference", SettingSection.Experimental, null, SettingScope.Device),
 
+        // «Справочник» (v0.5): the Reference with three tabs, keys on a circle shaded by their accidentals, chords and scales
+        // with how they sound (ReferenceSounding), and the harmony explorer (HarmonyExplorer); nothing is written into a piece.
+        Switch("experimental.harmony", SettingSection.Experimental, null, SettingScope.Device),
+
         // Photos of pages (v0.4, iPad): pages photographed in a row become one PDF piece, read by the scan server page by page.
         Switch("experimental.photoPages", SettingSection.Experimental, null, SettingScope.Device),
 
