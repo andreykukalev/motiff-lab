@@ -60,12 +60,6 @@ public sealed class CloudSync(ProjectStore store, OnlineProjects online, UiText 
 
     private async Task<bool> SyncAsync(string id, ProjectSummary? here, OnlineRow? row, SyncRecord record)
     {
-        // A piece that is only a PDF stays on this device (0026 C3) and is not synced.
-        if (here?.Origin == PieceOrigin.Pdf)
-        {
-            return false;
-        }
-
         switch (ProjectSync.Next(Facts(here, row, record)))
         {
             case SyncStep.Upload:

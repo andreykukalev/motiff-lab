@@ -238,3 +238,35 @@ test("a piece whose PDF is only on the iPad says so, and the same PDF picked her
     expect(JSON.parse(stored[ipadPdf.id].file).document).toBeUndefined();
     expect(errors).toEqual([]);
 });
+
+// A piece that is only a PDF goes online without the PDF (version 0.5, 0026 C3 amended 2026-11-12): imported on the iPad.
+const ipadPdfOnly = readFileSync(fixture("Golden/v15-pdf-online.motiff.json"), "utf8");
+const ipadPdfOnlyId = JSON.parse(ipadPdfOnly).id;
+// The PDF the golden describes (Projects/PdfPiecesOnlineTests.cs), byte for byte.
+const nocturneOnly = Buffer.from("%PDF-1.4 Nocturne in E-flat, two pages", "ascii");
+
+test("a piece that is only a PDF on the iPad is listed here, says where its PDF is, and takes only the same file", async ({ page }) => {
+    const errors = pageErrors(page);
+    // A browser without Chrome's file picker: the file picked is kept as a copy on this device.
+    await page.addInitScript(() => {
+        window.showOpenFilePicker = undefined;
+    });
+    const { stored } = await signedIn(page, { online: { [ipadPdfOnlyId]: { file: ipadPdfOnly, etag: '"e1"', savedAt: "2026-11-12T18:30:00+00:00" } } });
+
+    await page.goto("/");
+    await expect(titles(page)).toHaveText(["Nocturne Op. 9 No. 2"]);
+    await expect(page.locator(".lib-table tbody .tag.held")).toHaveText("PDF: only on the iPad");
+
+    await titles(page).first().click();
+    const card = page.getByRole("dialog", { name: "The original is on the iPad" });
+    await expect(card).toBeVisible();
+    await card.locator("input[type=file]").setInputFiles({ name: "Other.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\nanother\n%%EOF\n", "ascii") });
+    await expect(card).toContainText("This is a different file.");
+    await card.locator("input[type=file]").setInputFiles({ name: "Nocturne.pdf", mimeType: "application/pdf", buffer: nocturneOnly });
+    await expect(card).toBeHidden();
+
+    // The copy online says this browser holds the PDF now, and still holds no PDF itself.
+    await expect.poll(() => JSON.parse(stored[ipadPdfOnlyId].file).originals[0].held.map(mark => mark.device), { timeout: 15000 }).toEqual(["ipad", "web"]);
+    expect(JSON.parse(stored[ipadPdfOnlyId].file).document).toBeUndefined();
+    expect(errors).toEqual([]);
+});
