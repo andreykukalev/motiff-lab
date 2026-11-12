@@ -1,6 +1,7 @@
 using System.Text;
 
 using MotiffLab.MusicCore.Facade;
+using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Tests.Import.Transcription;
@@ -60,5 +61,53 @@ public class LiveTempoFacadeTests
         Assert.Equal("badRequest", Json(facade.Open("Recital.m4a", [], Transcribed(midi, "\"tempo\": \"steady\","))).GetProperty("error").GetString());
         Assert.Equal("badRequest", Json(facade.Open("Recital.m4a", [], Transcribed(midi, "\"tempo\": \"live\", \"starts\": [-5],"))).GetProperty("error").GetString());
         Assert.Equal("badRequest", Json(facade.Open("Recital.m4a", [], Transcribed(midi, "\"tempo\": \"live\", \"hint\": {\"signature\": \"5/4\"},"))).GetProperty("error").GetString());
+    }
+
+    [Fact]
+    public void Tempo_answers_the_profile_of_the_piece_and_of_each_piece_of_its_layer()
+    {
+        (byte[] midi, _) = Recital();
+        var facade = new MusicCoreFacade();
+        Json(facade.Open("Recital.m4a", [], Transcribed(midi, "\"tempo\": \"live\",")));
+
+        System.Text.Json.JsonElement tempo = Call(facade, "tempo");
+
+        Assert.True(tempo.GetProperty("inferred").GetBoolean());
+        Assert.True(tempo.GetProperty("low").GetInt32() <= tempo.GetProperty("usual").GetInt32());
+        Assert.True(tempo.GetProperty("usual").GetInt32() <= tempo.GetProperty("high").GetInt32());
+        Assert.NotEmpty(tempo.GetProperty("bars").EnumerateArray());
+        Assert.Equal("piece.tempo.profile", tempo.GetProperty("facts")[0].GetProperty("id").GetString());
+        Assert.Empty(tempo.GetProperty("pieces").EnumerateArray());
+    }
+
+    [Fact]
+    public void The_bars_change_with_the_pieces_layer_moving_along_by_the_recordings_time()
+    {
+        (byte[] midi, long second) = Recital();
+        var facade = new MusicCoreFacade();
+        Json(facade.Open("Recital.m4a", [], Transcribed(midi, "")));
+        Project project = ProjectFile.Read(Encoding.UTF8.GetBytes(facade.Call(1, "project.save")));
+        ImportedPiece opened = OpenedProject.Open(project).Piece;
+        HeardClock clock = HeardClock.Of(project, opened)!;
+        int secondBar = opened.Meter.BarAt(clock.TickAt(second)).Number + 1;
+        DateTimeOffset now = new(2026, 11, 12, 12, 0, 0, TimeSpan.Zero);
+        project = PieceLayer.Save(project, [new PieceStart("First", opened.Meter.BarAt(Tick.Zero).Number), new PieceStart("Second", secondBar)], opened.Meter, opened.End, Words.English, now);
+
+        Assert.False(project.CanChangeBars);
+        Assert.True(LiveBars.CanChange(project));
+        Assert.Equal([clock.MicrosecondsAt(opened.Meter.GetBar(secondBar).Span.Onset)], LiveBars.SearchFor(project, opened).Starts);
+
+        BarGrid live = project.FindBars(search: LiveBars.SearchFor(project, opened))!;
+        Project changed = LiveBars.Change(project, opened, live, Words.English, now);
+
+        ImportedPiece reopened = OpenedProject.Open(changed).Piece;
+        IReadOnlyList<LayerPiece> layer = PieceLayer.Read(changed, reopened.Meter);
+        Assert.Equal(["First", "Second"], layer.Select(piece => piece.Title));
+        Assert.Equal(PieceLayer.Read(project, opened.Meter).Select(piece => piece.BookmarkId), layer.Select(piece => piece.BookmarkId));
+        Assert.InRange(HeardClock.Of(changed, reopened)!.MicrosecondsAt(layer[1].Span.Onset), second - 1_500_000, second + 1_500_000);
+        Assert.Equal(live, changed.Transcription!.Bars);
+
+        // Anything else placed in the bars still keeps them.
+        Assert.False(LiveBars.CanChange(changed.AddBookmark(new Bookmark(changed.NextBookmarkId(), "Mine", BookmarkCategory.BuiltIn[0].Id, layer[0].Span, FromPhrase: false, now))));
     }
 }
