@@ -290,6 +290,8 @@ struct SettingsSheet: View {
             switchRow("experimental.pieces", text["settings.pieces"], hint: text["settings.piecesPdfHint"])
             switchRow("experimental.editsLayer", text["settings.editsLayer"], hint: text["settings.editsLayerHint"])
             switchRow("experimental.liveTempo", text["settings.liveTempo"], hint: text["settings.liveTempoHint"])
+            // Version 0.5: a whole folder of scores into the library, kept by link or copied, and their notes read in a batch.
+            switchRow("experimental.libraryImport", text["folderImport.setting"], hint: text["folderImport.settingHint"])
             // At the instrument (#327, #328, #349).
             switchRow("experimental.resume", text["settings.resume"], hint: text["settings.resumeHint"])
             switchRow("experimental.hands", text["settings.hands"], hint: text["settings.handsHint"])

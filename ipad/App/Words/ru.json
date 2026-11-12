@@ -1,0 +1,14 @@
+{
+  "folderImport.awayTitle": "PDF не на этом iPad",
+  "folderImport.changedLine": "На этом месте теперь другой файл. Ноты, пометки и правки пьесы остаются как были.",
+  "folderImport.folderLostLine": "iOS больше не пускает Motiff Lab в папку «{0}». Выберите папку в «Файлах» снова или добавьте её пьесы копией на iPad.",
+  "folderImport.folderLostTitle": "Нет доступа к папке",
+  "folderImport.missingLine": "Возможно, папку переорганизовали.",
+  "folderImport.missingTitle": "Файл не найден",
+  "folderImport.notNow": "Не сейчас",
+  "folderImport.offlineLine": "Этот PDF не скачан на iPad, а его облако сейчас недоступно. Включите «Держать на этом iPad» для его плейлиста, чтобы ноты были и без сети.",
+  "folderImport.offlineTitle": "Нужна сеть, чтобы открыть",
+  "folderImport.recheck": "Проверить папку",
+  "folderImport.setting": "Импорт папки",
+  "folderImport.settingHint": "Добавить целую папку нот из «Файлов» (iCloud Drive, Google Drive, OneDrive, Dropbox): PDF остаются на месте по ссылке или копируются на iPad; ноты распознаются потом, сразу для многих пьес."
+}

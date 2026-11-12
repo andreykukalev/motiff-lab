@@ -1,0 +1,14 @@
+{
+  "folderImport.awayTitle": "The PDF is not on this iPad",
+  "folderImport.changedLine": "The file at this place is another one now. The piece's notes, marks and changes stay as they are.",
+  "folderImport.folderLostLine": "iOS no longer lets Motiff Lab into «{0}». Choose the folder again in Files, or add its pieces as copies on this iPad.",
+  "folderImport.folderLostTitle": "No access to the folder",
+  "folderImport.missingLine": "Perhaps the folder was reorganised.",
+  "folderImport.missingTitle": "File not found",
+  "folderImport.notNow": "Not now",
+  "folderImport.offlineLine": "This PDF is not downloaded to the iPad and its cloud cannot be reached now. Turn on «Keep on this iPad» for its playlist to have it without a connection.",
+  "folderImport.offlineTitle": "A connection is needed to open it",
+  "folderImport.recheck": "Check the folder",
+  "folderImport.setting": "Import a folder",
+  "folderImport.settingHint": "Add a whole folder of scores from Files (iCloud Drive, Google Drive, OneDrive, Dropbox): PDFs stay where they are, linked, or are copied to this iPad; read their notes later, many pieces at once."
+}
