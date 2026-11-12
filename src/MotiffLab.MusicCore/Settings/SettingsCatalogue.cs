@@ -87,6 +87,10 @@ public static class SettingsCatalogue
         // Live performance tempo (v0.5): a recording's beat grid found again after each pause and tempo jump.
         Switch("experimental.liveTempo", SettingSection.Experimental, null, SettingScope.Device),
 
+        // «Для чтения» with the marks that matter (v0.5): a recording's score for reading with marked dynamics, rit. and
+        // accel., and fermatas (PlayingMarks.Significant).
+        Switch("experimental.readingMarks", SettingSection.Experimental, null, SettingScope.Device),
+
         // Reference: the circle of fifths one tap away from the library and the piece, with any key's card (KeyReference).
         Switch("experimental.reference", SettingSection.Experimental, null, SettingScope.Device),
 

@@ -2521,7 +2521,7 @@
 
     private GeneratedNotation HeardNotation(IEnumerable<Note> notes, MeterMap meter, IEnumerable<KeyChange> keys, Tick end, string? title, PlaybackScore played, IReadOnlyList<NotationOssia>? ossias = null) =>
         _readable
-            ? NotationGenerator.Generate(notes, meter, keys, end, title, asHeard: true, ossias: ossias)
+            ? ReadableNotation(notes, meter, keys, end, title, played, ossias: ossias)
             : NotationGenerator.Generate(notes, meter, keys, end, title, playedTempos: played.Tempos, pedal: played.Pedal.Select(held => held.Span), ossias: ossias);
 
     /// <summary>Notes heard in a recording, written for reading or as played.</summary>
@@ -2551,6 +2551,11 @@
         if (notation.WrittenAsHeard)
         {
             parts.Add(Text["score.readableNote"]);
+            if (HasReadingMarks(notation))
+            {
+                parts.Add(Text["score.readingMarks"]);
+            }
+
             if (notation.GraceNoteCount > 0)
             {
                 parts.Add(Text.Count("score.graceNotes", notation.GraceNoteCount));
