@@ -40,6 +40,9 @@ public sealed record GeneratedNotation(
     /// <summary>Crescendos and diminuendos written where the melody grew louder or softer: hairpins, or "cresc." and "dim." where longer than a bar.</summary>
     public int HairpinCount { get; init; }
 
+    /// <summary>Fermatas written over chords held through a beat far longer than those around it («Для чтения», version 0.5).</summary>
+    public int FermataCount { get; init; }
+
     /// <summary>Beats written as triplets (three or six notes to the beat), counted per staff.</summary>
     public int TripletCount { get; init; }
 
@@ -86,4 +89,14 @@ public readonly record struct KeyChange
     public Tick At { get; }
 
     public int Fifths { get; }
+}
+
+/// <summary>Which marks of the playing a score of notes heard in a recording carries, with the tempo that follows the playing.</summary>
+public enum PlayedMarks
+{
+    /// <summary>«Как сыграно»: dynamics, accents, tempo words, hairpins, slurs and pedal (decision record 0016).</summary>
+    All,
+
+    /// <summary>«Для чтения» (version 0.5): only the dynamics that change markedly, marked rit. and accel., and fermatas.</summary>
+    Significant,
 }
