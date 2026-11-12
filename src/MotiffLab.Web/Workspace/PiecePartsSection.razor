@@ -2,6 +2,7 @@
 @using MotiffLab.MusicCore.Projects
 @using MotiffLab.MusicCore.Time
 @inject MotiffLab.Web.Localization.UiText Text
+@inject MotiffLab.Web.Settings.DeviceSettings Settings
 
 @* Pieces in a file, part of the experiment Several pieces in a score or recording (Settings · Experimental; v0.4, made
    from the pieces layer in 0.5; ideas bank «Несколько произведений внутри одного файла или записи»: a logical
@@ -208,7 +209,8 @@
     /// <summary>The pieces music-core makes of the collection; null, with the reason in words, when it cannot.</summary>
     private PieceSplit? Split(List<(PartRow Row, PartRange Range)> chosen, Func<string> newId)
     {
-        var options = new PieceSplitOptions(DateTimeOffset.Now, newId) { Playlist = _playlist, Device = HoldingDevice.Web, Words = Words, FreshBars = true };
+        // With «Темп живого исполнения» on, each piece's beat is found again after each pause and jump in tempo (v0.5).
+        var options = new PieceSplitOptions(DateTimeOffset.Now, newId) { Playlist = _playlist, Device = HoldingDevice.Web, Words = Words, FreshBars = true, LiveTempo = Settings.IsOn(MotiffLab.Web.Insights.TempoCard.Setting) };
         try
         {
             return PieceParts.Split(Collection!, [.. chosen.Select(static each => each.Range)], options);

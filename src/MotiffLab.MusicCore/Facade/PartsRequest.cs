@@ -38,6 +38,12 @@ internal static class PartsRequest
                 "fresh" => true,
                 _ => throw FacadeException.BadRequest("\"bars\" is \"fresh\" (found again for each part of a recording) or \"collection\"."),
             },
+            LiveTempo = fields.Text("tempo") switch
+            {
+                null or "once" => false,
+                "live" => true,
+                _ => throw FacadeException.BadRequest("\"tempo\" is \"live\" (a part's beat found again in each section) or \"once\"."),
+            },
         };
         PieceSplit split;
         try
