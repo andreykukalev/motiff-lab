@@ -1,6 +1,7 @@
 """Motiff Lab sheet music recognition: a small HTTP service around homr, run on the player's own computer.
 
-POST /recognise takes one PDF or photo of printed music and returns MusicXML. POST /transcribe takes an
+POST /recognise takes one PDF or photo of printed music and returns MusicXML, with a report on each page in
+the X-Page-Report header: numbers only, never the music (see page_report). POST /transcribe takes an
 audio or video recording and returns the notes heard in it as MIDI (Transkun, decision record 0014).
 Each upload lives in its own temporary folder for as long as the request, and the folder is deleted when
 it ends. Nothing about the music is logged: the log has the request line and status only.
@@ -8,6 +9,7 @@ it ends. Nothing about the music is logged: the log has the request line and sta
 
 from __future__ import annotations
 
+import json
 import os
 import tempfile
 import threading
@@ -19,7 +21,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from starlette.concurrency import run_in_threadpool
 
-from app import auth, merge, pages, recognise, transcribe
+from app import auth, merge, pages, quality, recognise, transcribe
 
 # A scanned PDF or photo; the app allows the same 50 MB (Andrei, 2026-10-30).
 MAX_UPLOAD_BYTES = int(os.environ.get("MAX_UPLOAD_MB", "50")) * 1024 * 1024
@@ -48,7 +50,7 @@ def _verifier_from_environment() -> Callable[[str | None, str | None], None] | N
 
 
 def create_app(
-    recognise_page: Callable[[Path, int], bytes] = recognise.recognise_page,
+    recognise_page: Callable[[Path, int], recognise.Reading] = recognise.recognise_page,
     transcribe_recording: Callable[[Path, int], transcribe.Transcription] = transcribe.transcribe,
     allowed_origins: list[str] = ALLOWED_ORIGINS,
     allowed_origin_regex: str | None = ALLOWED_ORIGIN_REGEX,
@@ -61,7 +63,7 @@ def create_app(
         allow_origin_regex=allowed_origin_regex,
         allow_methods=["GET", "POST"],
         allow_headers=["*"],
-        expose_headers=["X-Engine", "X-Pages", "X-Seconds", "X-Cut"],
+        expose_headers=["X-Engine", "X-Pages", "X-Page-Report", "X-Seconds", "X-Cut"],
         max_age=600,
     )
 
@@ -120,23 +122,40 @@ def create_app(
         except pages.PageError as error:
             return _problem(415, str(error))
 
+        reports: list[dict[str, int | float]] = []
+
+        def read(page: pages.Page, number: int) -> bytes:
+            try:
+                reading = recognise_page(page.path, number)
+            except recognise.RecogniseError as error:
+                reports.append(page_report(number, page.look, error.found, None))
+                raise
+            reports.append(page_report(number, page.look, reading.found, reading.musicxml))
+            return reading.musicxml
+
         def run() -> tuple[bytes, int]:
             with busy, tempfile.TemporaryDirectory(prefix="motiff-scan-") as folder:
-                paths = pages.write_pages(upload, Path(folder), MAX_PAGES)
-                results = [recognise_page(path, number) for number, path in enumerate(paths, 1)]
-                return merge.merge(results), len(paths)
+                written = pages.write_pages(upload, Path(folder), MAX_PAGES)
+                results = [read(page, number) for number, page in enumerate(written, 1)]
+                return merge.merge(results), len(written)
 
         try:
             score, count = await run_in_threadpool(run)
         except (pages.PageError, merge.MergeError, recognise.RecogniseError) as error:
-            return _problem(422, str(error))
+            # The pages read so far, and the one that could not be read, say why.
+            return _problem(422, str(error), headers=_report_header(reports))
         finally:
             del data
 
         return Response(
             content=score,
             media_type=MUSICXML_TYPE,
-            headers={"X-Engine": f"homr {recognise.engine_version()}", "X-Pages": str(count), "Cache-Control": "no-store"},
+            headers={
+                "X-Engine": f"homr {recognise.engine_version()}",
+                "X-Pages": str(count),
+                "Cache-Control": "no-store",
+                **_report_header(reports),
+            },
         )
 
     @app.post("/transcribe")
@@ -177,6 +196,27 @@ def create_app(
     return app
 
 
+def page_report(number: int, look: quality.Look, found: recognise.Found, musicxml: bytes | None) -> dict[str, int | float]:
+    """One page of X-Page-Report. Only counts and measurements: what was seen of the photo before homr
+    (sharpness, contrast, how far it was turned), what homr found (staves, noteheads, bar lines, the
+    height of a notehead in its working copy, about one staff space) and how many measures came out."""
+    return {
+        "page": number,
+        "rotation": look.rotation,
+        "sharpness": look.sharpness,
+        "contrast": look.contrast,
+        "staves": found.staves,
+        "noteheads": found.noteheads,
+        "barLines": found.bar_lines,
+        "spacePx": found.space_px,
+        "measures": recognise.count_measures(musicxml) if musicxml is not None else 0,
+    }
+
+
+def _report_header(reports: list[dict[str, int | float]]) -> dict[str, str]:
+    return {"X-Page-Report": json.dumps(reports, separators=(",", ":"))} if reports else {}
+
+
 def _copy(source, target, limit: int) -> int:  # type: ignore[no-untyped-def]
     """Copies at most limit bytes and returns how many were copied, so an oversized upload stops early."""
     copied = 0
@@ -186,9 +226,9 @@ def _copy(source, target, limit: int) -> int:  # type: ignore[no-untyped-def]
     return copied
 
 
-def _problem(status: int, message: str, code: str | None = None) -> JSONResponse:
+def _problem(status: int, message: str, code: str | None = None, headers: dict[str, str] | None = None) -> JSONResponse:
     content = {"message": message} if code is None else {"message": message, "code": code}
-    return JSONResponse(status_code=status, content=content, headers={"Cache-Control": "no-store"})
+    return JSONResponse(status_code=status, content=content, headers={"Cache-Control": "no-store", **(headers or {})})
 
 
 app = create_app()
