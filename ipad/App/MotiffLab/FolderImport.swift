@@ -84,6 +84,11 @@ final class FolderImportModel: ObservableObject {
     func add(_ job: ImportJob) {
         review = nil
         guard !job.items.isEmpty else { return }
+        if var folder = ImportFolders.folder(job.folderId, in: root), folder.linked == nil {
+            folder.linked = job.linked
+            ImportFolders.keep(folder, in: root)
+            load()
+        }
         ImportRunner.shared.start(job)
     }
 

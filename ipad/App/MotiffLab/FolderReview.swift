@@ -73,7 +73,7 @@ final class FolderReview: ObservableObject, Identifiable {
         self.target = target
         self.root = root
         self.links = links
-        linked = linkable
+        linked = linkable && (folder.linked ?? true)
         filter = mode == .recheck ? .new : .found
     }
 

@@ -20,6 +20,8 @@ struct ImportFolder: Codable, Equatable, Identifiable, Sendable {
     /// When the bookmark was last opened, and when iOS last said it was stale and it was made again.
     var openedAt: Date?
     var refreshedAt: Date?
+    /// How its PDFs were kept when it was imported, by link or as copies; a check adds new files the same way.
+    var linked: Bool?
 
     /// «Google Drive › Ноты», as the import's screens name the place.
     var place: String { [provider, name].compactMap { $0 }.joined(separator: " › ") }
