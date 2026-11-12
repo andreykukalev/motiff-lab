@@ -13,7 +13,11 @@ import UniformTypeIdentifiers
 struct LibraryView: View {
     private let text = UIText.current
     @EnvironmentObject private var account: Account
+    /// The device's settings, for the experiments' switches (Settings · Experimental).
+    @EnvironmentObject private var deviceSettings: DeviceSettings
     @State private var settings = false
+    /// The Reference's circle of fifths (an experiment), open over the library.
+    @State private var reference = false
     @State private var adding = false
     @State private var opening = false
     @State private var choosing = false
@@ -109,6 +113,7 @@ struct LibraryView: View {
             .overlay { if opening { ProgressView() } }
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $settings) { SettingsSheet(settings: DeviceSettings.shared, account: account, text: text) }
+            .sheet(isPresented: $reference) { ReferenceSheet(text: text, settings: deviceSettings) }
             .sheet(item: $editing) { entry in
                 PiecePropertiesSheet(entry: entry, summary: summaries[entry.url], composers: composers, libraryTags: tags, libraryPlaylists: playlists, text: text) {
                     await reload()
@@ -183,6 +188,12 @@ struct LibraryView: View {
             Spacer(minLength: CGFloat.ds("s-4"))
             if !projects.isEmpty {
                 LibrarySearchField(search: $query.search, text: text)
+            }
+            if deviceSettings.isOn("experimental.reference") {
+                // The Reference (an experiment, Settings · Experimental): the circle of fifths in one tap.
+                Button(text["reference.open"]) { reference = true }
+                    .buttonStyle(DSButtonStyle(kind: .quiet))
+                    .accessibilityHint(text["reference.openHint"])
             }
             Button {
                 adding = true

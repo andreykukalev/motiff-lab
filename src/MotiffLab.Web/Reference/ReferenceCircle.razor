@@ -1,0 +1,87 @@
+@using System.Globalization
+@using MotiffLab.MusicCore
+@using MotiffLab.MusicCore.Analysis
+@using MotiffLab.Web.Localization
+@inject UiText Text
+
+@* The Reference's circle of fifths: the twelve majors outside, their relative minors inside, the signature in the middle
+   (KeyCircle.Sectors). Every key is a button: a tap or Enter opens its card. The chosen key is cobalt and its relative
+   paler cobalt (the pair a key signature names); the piece's key is outlined in ink, dashed when it is assumed. *@
+<svg class="ref-circle" viewBox="-120 -120 240 240" role="group" aria-label="@Text["reference.circleAria"]">
+    @foreach (CircleSector sector in KeyCircle.Sectors)
+    {
+        @Ring(sector, KeyMode.Major)
+        @Ring(sector, KeyMode.Minor)
+        <g aria-hidden="true"><text class="ref-sign" x="@At(sector.Position, SignRadius).X" y="@At(sector.Position, SignRadius).Y">@sector.Signature</text></g>
+    }
+</svg>
+
+@code {
+    private const double Outer = 112;
+    private const double Middle = 76;
+    private const double Inner = 44;
+    private const double SignRadius = 30;
+
+    /// <summary>The key whose card is open, if any.</summary>
+    [Parameter]
+    public MusicalKey? Chosen { get; set; }
+
+    /// <summary>The key the open piece starts in, outlined; null outside a piece.</summary>
+    [Parameter]
+    public MusicalKey? PieceKey { get; set; }
+
+    [Parameter]
+    public bool PieceKeyInferred { get; set; }
+
+    [Parameter]
+    public EventCallback<MusicalKey> Pick { get; set; }
+
+    private RenderFragment Ring(CircleSector sector, KeyMode mode)
+    {
+        var key = new MusicalKey(sector.Fifths, mode);
+        bool major = mode == KeyMode.Major;
+        (double from, double to) = major ? (Middle, Outer) : (Inner, Middle);
+        (string X, string Y) label = At(sector.Position, (from + to) / 2);
+        string state = Chosen is { } chosen && KeyCircle.PositionOf(chosen) == sector.Position
+            ? chosen.Mode == mode ? "on" : "pair"
+            : "";
+        string piece = PieceKey is { } pieceKey && pieceKey.Mode == mode && KeyCircle.PositionOf(pieceKey) == sector.Position
+            ? PieceKeyInferred ? "piece inferred" : "piece"
+            : "";
+        string name = key.NameIn(Words.For(Text.Language));
+        string spoken = Text.Format("reference.sectorAria", name, KeyReference.Signatures(Words.For(Text.Language)).First(choice => choice.Fifths == sector.Fifths).Spoken);
+        return @<g class="ref-key @(major ? "major" : "minor") @state @piece">
+            <path d="@Band(sector.Position, from, to)" role="button" tabindex="0" aria-label="@spoken" aria-pressed="@(state == "on" ? "true" : "false")"
+                  @onclick="() => Pick.InvokeAsync(key)" @onkeydown="args => OnKey(args, key)" />
+            <text x="@label.X" y="@label.Y" aria-hidden="true">@(major ? sector.Major : sector.Minor)</text>
+        </g>;
+    }
+
+    private async Task OnKey(KeyboardEventArgs args, MusicalKey key)
+    {
+        if (args.Key is "Enter" or " ")
+        {
+            await Pick.InvokeAsync(key);
+        }
+    }
+
+    /// <summary>One place of a ring, 30° wide around its middle, as an SVG path: 0° at the top, clockwise.</summary>
+    private static string Band(int position, double inner, double outer)
+    {
+        double start = (position * 30) - 15;
+        double end = start + 30;
+        (string X, string Y) a = Point(start, outer), b = Point(end, outer), c = Point(end, inner), d = Point(start, inner);
+        string r1 = Num(outer), r2 = Num(inner);
+        return $"M{a.X} {a.Y} A{r1} {r1} 0 0 1 {b.X} {b.Y} L{c.X} {c.Y} A{r2} {r2} 0 0 0 {d.X} {d.Y} Z";
+    }
+
+    private static (string X, string Y) At(int position, double radius) => Point(position * 30, radius);
+
+    private static (string X, string Y) Point(double degrees, double radius)
+    {
+        double angle = degrees * Math.PI / 180;
+        return (Num(radius * Math.Sin(angle)), Num(-radius * Math.Cos(angle)));
+    }
+
+    private static string Num(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
+}

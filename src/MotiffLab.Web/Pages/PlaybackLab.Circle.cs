@@ -39,8 +39,13 @@ public partial class PlaybackLab
         }
 
         // The scale sounds where the selection or the section starts, or ends with the piece when there is no room after it.
-        IReadOnlyList<Note> scale = circle.ScaleNotes(at, _score.End);
-        if (scale.Count == 0)
+        await HearAloneAsync(circle.ScaleNotes(at, _score.End));
+    }
+
+    /// <summary>Notes heard once on their own over the piece's timeline, in place of the piece, until they end or are stopped.</summary>
+    private async Task HearAloneAsync(IReadOnlyList<Note> scale)
+    {
+        if (_score is null || scale.Count == 0)
         {
             return;
         }

@@ -1,0 +1,48 @@
+@using MotiffLab.MusicCore.Analysis
+@using MotiffLab.Web.Localization
+@using MotiffLab.Web.Playback
+@inject UiText Text
+@inject DeviceSettings Store
+@inject Player Player
+@implements IDisposable
+
+@* Circle in the library's head (the Reference, an experiment, Settings · Experimental): shown while the experiment is on,
+   it opens the circle of fifths. No piece is loaded here, so a scale or chord of a key's card plays on the app's piano as
+   a playback score of its own, at the reference tempo. *@
+@if (Store.IsOn(Setting))
+{
+    <button class="btn quiet ref-open" aria-haspopup="dialog" title="@Text["reference.openHint"]" @onclick="() => _open = true">@Text["reference.open"]</button>
+}
+@if (_open)
+{
+    <ReferenceSheet Closed="() => _open = false" Hear="HearAsync" />
+}
+
+@code {
+    /// <summary>The experiment's switch in Settings · Experimental.</summary>
+    public const string Setting = "experimental.reference";
+
+    private bool _open;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Store.Changed += OnChanged;
+        await Store.LoadAsync();
+    }
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    private async Task HearAsync(ReferenceSound sound)
+    {
+        await Player.InitializeAsync();
+        if (!Player.IsReady)
+        {
+            return;
+        }
+
+        await Player.LoadAsync(KeyReference.Playback(sound));
+        await Player.PlayAsync();
+    }
+
+    public void Dispose() => Store.Changed -= OnChanged;
+}

@@ -45,6 +45,8 @@ else if (_firstRun is false)
                         </div>
                     }
                 </div>
+                @* The Reference (an experiment, Settings · Experimental): the circle of fifths in one tap. *@
+                <MotiffLab.Web.Reference.ReferenceButton />
                 <button class="btn quiet" aria-haspopup="dialog" @onclick="() => _settingsOpen = true">@Text["settings.title"]</button>
                 <MotiffLab.Web.Account.AccountButton Opened="OpenAccount" />
             </div>

@@ -33,6 +33,8 @@ public sealed class MusicCoreFacade
     /// long recordings), recording.parts plans the whole recording rather than its first 7 minutes, and it, performance.add
     /// with "parts" and open with "transcription" take "levels", the sound's loudness that puts the seams at quiet moments,
     /// a field added.
+    /// Also within 12, reference.key and reference.sound on piece 0 answer the circle of fifths with any key's card and its
+    /// scales and chords to hear (the Reference experiment, <see cref="Analysis.KeyReference"/>), calls added.
     /// 11 lets doubt about recognised notes reach what is read from them (#352, 0027 section 12), adding fields only: a
     /// chord, a fact and a DNA chord or key built on recognised notes still to check (in a bar with an open Check flag)
     /// tell "doubt", a sentence that says where, and the chord's "certainty" and the DNA chord's "clear" say uncertain;
@@ -171,6 +173,8 @@ public sealed class MusicCoreFacade
                     "project.pulled" => SyncRequest.Pulled(fields),
                     "project.resolve" => SyncRequest.Resolve(fields),
                     "recording.parts" => RecordingPartsOf(fields),
+                    "reference.key" => ReferenceRequest.Key(fields),
+                    "reference.sound" => ReferenceRequest.Sound(fields),
                     _ when Count == 0 && IsPieceCall(name) => throw new FacadeException("noPiece", "Open a piece first."),
                     _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\" without a piece."),
                 };
