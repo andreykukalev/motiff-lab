@@ -6295,6 +6295,12 @@ body:has(> #app > .library) {
     overflow-y: auto;
 }
 
+/* A row's own min-height replaces the flex item's automatic minimum, so in a pane taller than the sheet the rows would
+   shrink below their text and a long hint would run over the next row: rows keep their height and the pane scrolls. */
+.lab .settings-sheet .settings-pane > * {
+    flex-shrink: 0;
+}
+
 .lab .settings-sheet .settings-head {
     display: flex;
     align-items: center;

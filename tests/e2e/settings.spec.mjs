@@ -93,3 +93,19 @@ test("Even bars in Score lays the score out again, with bars as wide as their no
     await expect.poll(barlines).toBe(even);
     expect(errors).toEqual([]);
 });
+
+test("in a section taller than the sheet, each row keeps its height and its hint never runs over the next row", async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await page.goto("/");
+    await page.locator(".lib-head").getByRole("button", { name: "Settings" }).click();
+    const sheet = page.getByRole("dialog", { name: "Settings" });
+    await sheet.getByRole("tab", { name: "Experimental" }).click();
+    await expect(sheet.getByRole("switch").first()).toBeVisible();
+    const overlaps = await page.evaluate(() => {
+        const rows = [...document.querySelectorAll(".settings-sheet .settings-pane > *")].filter(e => e.offsetParent);
+        const bottom = row => Math.max(row.getBoundingClientRect().bottom,
+            ...[...row.querySelectorAll(".row-hint")].map(hint => hint.getBoundingClientRect().bottom));
+        return rows.slice(0, -1).flatMap((row, i) => bottom(row) > rows[i + 1].getBoundingClientRect().top + 0.5 ? [i] : []);
+    });
+    expect(overlaps).toEqual([]);
+});
