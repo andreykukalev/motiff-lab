@@ -38,6 +38,18 @@ export interface ProjectSummary {
     playlists?: string[] | null;
     /** The piece's originals and where their bytes are (version 0.3); rows saved earlier have none. */
     originals?: { id: string; kind: string; kept: string; inFile: boolean; held: string[] | null }[] | null;
+    /** For a piece made from a collection, the collection's original and the piece's place there (version 0.4); rows saved earlier have none. */
+    part?: {
+        kind: string;
+        fileName: string;
+        name: string | null;
+        addedAt: string;
+        sha256: string | null;
+        firstPage: number | null;
+        lastPage: number | null;
+        from: number | null;
+        to: number | null;
+    } | null;
 }
 
 /**

@@ -321,6 +321,7 @@ public sealed record Project(
         ReadFrom = ReadFrom?.ProjectId,
         Details = Details,
         Originals = OriginalSummaries,
+        Part = FindOriginal(PartOf?.Original ?? PieceParts.OriginalId) is { } collection ? new PartSummary(collection, PartOf) : null,
         Latest = RecentResumePoints.FirstOrDefault() is { } latest
             ? new ResumeSummary(latest.Id, latest.Name, latest.At.Value, latest.Passage?.Span.Onset.Value, latest.Passage?.Span.End.Value, latest.LastActive)
             : null,
@@ -850,7 +851,20 @@ public sealed record ProjectSummary(string Id, string FileName, int MotifCount, 
 
     /// <summary>The piece's originals and where their bytes are (version 0.3); empty for a summary saved before they were kept.</summary>
     public IReadOnlyList<OriginalSummary> Originals { get; init; } = [];
+
+    /// <summary>
+    /// For a piece made from a collection (version 0.4, «Пьесы в файле»), the collection's original it keeps and where it is
+    /// in it; null for a piece of its own, and for a summary saved before it was kept.
+    /// </summary>
+    public PartSummary? Part { get; init; }
 }
+
+/// <summary>
+/// A piece made from a collection, as its library row tells it (version 0.4): the collection's original as the piece keeps
+/// it (<see cref="PieceParts.OriginalId"/>) and its place there (<see cref="Projects.PartOf"/>), null for a part of a score
+/// cut by bars, whose place the format has no value for.
+/// </summary>
+public sealed record PartSummary(PieceOriginal Original, PartOf? Place);
 
 /// <summary>Where a piece came from: a file opened on the device, a page scanned (0011) or a recording heard (0014).</summary>
 public enum PieceOrigin

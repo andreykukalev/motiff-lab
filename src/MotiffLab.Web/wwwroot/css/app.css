@@ -4909,6 +4909,36 @@ body:has(.workspace) .site-footer {
     color: var(--ink);
 }
 
+/* The summary by page of a scan the server reported on (v0.4), in the Check sheet and after a scan is read. */
+.scan-pages ul.warnings {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.scan-pages ul.warnings li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2);
+    font: var(--t-body);
+    color: var(--ink);
+}
+
+.scan-pages .tag.warn {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 var(--s-2);
+    border-radius: var(--r-xs);
+    background: var(--amber-tint);
+    color: var(--ink);
+    font: var(--t-caption);
+    font-weight: 600;
+}
+
 .workspace .check-sheet .row {
     display: flex;
     flex-wrap: wrap;

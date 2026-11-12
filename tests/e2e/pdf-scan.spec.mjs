@@ -21,11 +21,14 @@ test.use({ serviceWorkers: "block" });
 async function scanServer(page) {
     const uploads = [];
     const musicXml = await readFile(scanned);
-    const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Expose-Headers": "X-Engine, X-Pages" };
+    const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Expose-Headers": "X-Engine, X-Pages, X-Page-Report" };
+    // A report on each of the PDF's 3 pages (version 0.4), while the notes it sends are one page's: the reports do not
+    // match the pages of the notes, so the notes are kept without them.
+    const report = JSON.stringify([1, 2, 3].map((number) => ({ page: number, rotation: 0, sharpness: 1.1, contrast: 50, staves: 4, noteheads: 60, barLines: 12, spacePx: 15, measures: 11 })));
     await page.route(`${server}/health`, (route) => route.fulfill({ json: { engine: "homr", version: "0.7.0", maxPages: 8 }, headers: cors }));
     await page.route(`${server}/recognise`, (route) => {
         uploads.push(route.request().postDataBuffer());
-        return route.fulfill({ body: musicXml, contentType: "application/vnd.recordare.musicxml+xml", headers: { ...cors, "X-Engine": "homr 0.7.0", "X-Pages": "3" } });
+        return route.fulfill({ body: musicXml, contentType: "application/vnd.recordare.musicxml+xml", headers: { ...cors, "X-Engine": "homr 0.7.0", "X-Pages": "3", "X-Page-Report": report } });
     });
     await page.goto("/settings");
     await page.getByRole("button", { name: "Save and check" }).click();
@@ -68,6 +71,7 @@ test("a PDF's notes are read into the same piece, the PDF stays as it was, and P
     expect(uploads).toHaveLength(1);
     expect(uploads[0].includes(file)).toBe(true);
     await expect(page.locator(".sheet.check-sheet").getByRole("heading", { level: 2 })).toHaveText("7 bars to review");
+    await expect(page.locator(".sheet.check-sheet .scan-pages")).toHaveCount(0);
     await expect(page.locator(".score .score-page svg").first()).toBeVisible();
     await expect(bar.locator(".ttl")).toHaveText("Elise");
     const views = bar.getByRole("radiogroup", { name: "View" });

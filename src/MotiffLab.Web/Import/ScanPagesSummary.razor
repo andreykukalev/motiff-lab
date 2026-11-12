@@ -1,0 +1,47 @@
+@using MotiffLab.MusicCore.Import.Scan
+@inject MotiffLab.Web.Localization.UiText Text
+
+@* The summary by page of a scan the server reported on (v0.4 data design, A: «Страница 4: 9 из 12 тактов под вопросом»):
+   only the pages with bars in question, a faint or poor print, or no bars read; nothing when every page is clear. The
+   counts are music-core's (ScanCheck.Pages, ScanPage.DoubtfulOf), never worked out here. *@
+@if (Shown.Count > 0)
+{
+    <section class="scan-pages" aria-labelledby="@HeadingId">
+        <h3 id="@HeadingId" class="overline">@Text["scanPages.heading"]</h3>
+        <ul class="warnings">
+            @foreach (ScanPage page in Shown)
+            {
+                <li @key="page.Page">
+                    @* The space keeps the line and its tag two words for a screen reader. *@
+                    @($"{Line(page)} ")
+                    @if (page.Quality != PageQuality.Good)
+                    {
+                        <span class="tag warn">@Text[page.Quality == PageQuality.Poor ? "scanPages.poor" : "scanPages.weak"]</span>
+                    }
+                </li>
+            }
+        </ul>
+        <p class="caption">@Text["scanPages.hint"]</p>
+    </section>
+}
+
+@code {
+    /// <summary>The pages the scan server reported on, as music-core's check counts them.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<ScanPage> Pages { get; set; } = [];
+
+    /// <summary>The bars the player said look right, which are no longer in question.</summary>
+    [Parameter]
+    public IReadOnlyCollection<int> Confirmed { get; set; } = [];
+
+    /// <summary>The heading's id, unique on the page.</summary>
+    [Parameter]
+    public string HeadingId { get; set; } = "scan-pages-title";
+
+    private List<ScanPage> Shown => [.. Pages.Where(page => page.Bars.Count == 0 || page.Quality != PageQuality.Good || page.DoubtfulOf(Confirmed) > 0)];
+
+    private string Line(ScanPage page) =>
+        page.Bars.Count == 0
+            ? Text.Format("scanPages.notRead", page.Page)
+            : Text.Format("scanPages.line", page.Page, page.DoubtfulOf(Confirmed), Text.Count("scanPages.of", page.Bars.Count));
+}
