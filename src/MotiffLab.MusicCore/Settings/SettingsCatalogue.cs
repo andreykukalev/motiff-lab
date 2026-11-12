@@ -95,6 +95,7 @@ public static class SettingsCatalogue
         Switch("experimental.harmony", SettingSection.Experimental, null, SettingScope.Device),
 
         // Photos of pages (v0.4, iPad): pages photographed in a row become one PDF piece, read by the scan server page by page.
+        // On the web (v0.5): several photos picked at once on Scan printed music, read page by page into one piece, not kept.
         Switch("experimental.photoPages", SettingSection.Experimental, null, SettingScope.Device),
 
         // At the instrument, on the iPad. Resume where you stopped (#327): the passage, focus, tempo, loop and hands of the

@@ -74,8 +74,8 @@
                 }
 
                 <label class="dropzone @(_scanning ? "busy" : null)">
-                    <InputFile OnChange="ScanFileAsync" accept="@ScanService.AcceptedExtensions" disabled="@(_reading || _scanning || !(Scans.IsLocal || _sendElsewhere))" aria-label="@Text["import.scanChoose"]" />
-                    <span>@(_scanning ? Text["import.scanBusy"] : Text["import.scanDrop"])</span>
+                    <InputFile OnChange="ScanFileAsync" accept="@ScanService.AcceptedExtensions" multiple="@PhotosOn" disabled="@(_reading || _scanning || !(Scans.IsLocal || _sendElsewhere))" aria-label="@Text[PhotosOn ? "import.scanChoosePhotos" : "import.scanChoose"]" />
+                    <span>@(_scanning ? ScanBusy : Text[PhotosOn ? "import.scanDropPhotos" : "import.scanDrop"])</span>
                 </label>
             }
         </section>
@@ -198,6 +198,16 @@
             @if (_scan is { } scan)
             {
                 <p class="meta">@Text.Format("import.scanRead", Text.Count("import.pageCount", _scanPages), _elapsed.TotalSeconds.ToString("0", Text.Culture))</p>
+                @if (_leftOut.Count > 0)
+                {
+                    @* Photos of pages (v0.5): a page the scan server could not read is left out of the notes, and said so. *@
+                    <ul class="warnings left-out">
+                        @foreach (LeftOutPage page in _leftOut)
+                        {
+                            <li>@Text.Format("import.scanPageLeftOut", page.Page, page.Name, page.Problem)</li>
+                        }
+                    </ul>
+                }
                 @* Check the scan (0011): the bars the rules flag come first; the player checks them in the workspace. *@
                 <section class="scan-check" aria-label="@Text["import.scanCheck"]">
                     <h3>@Text["import.scanCheck"]</h3>
@@ -355,6 +365,17 @@
     private bool _scanning;
     private bool _sendElsewhere;
 
+    /// <summary>Photos of pages (v0.5): the page being read and how many were picked; 0 while one file is read.</summary>
+    private (int Page, int Of) _photoPage;
+
+    /// <summary>The photos whose pages could not be read, left out of the notes just read.</summary>
+    private IReadOnlyList<LeftOutPage> _leftOut = [];
+
+    /// <summary>Several photos of a piece's pages may be picked at once (the experiment «Фото страниц», v0.5).</summary>
+    private bool PhotosOn => SettingsStore.IsOn(PhotoPages.Setting);
+
+    private string ScanBusy => _photoPage.Of > 1 ? Text.Format("import.scanPageBusy", _photoPage.Page, _photoPage.Of) : Text["import.scanBusy"];
+
     /// <summary>The engine that heard a transcribed recording (0014); null for anything else.</summary>
     private string? _transcriptionEngine;
 
@@ -448,6 +469,7 @@
     protected override async Task OnInitializedAsync()
     {
         await Scans.LoadAsync();
+        await SettingsStore.LoadAsync();
         _signedIn = await Account.PlayerAsync() is not null;
         // Scanning and transcription on Motiff Lab's server are one Pro feature each (0018 section 12); the server checks it too.
         _scanPro = _signedIn && await Account.AllowsAsync(MotiffLab.MusicCore.Accounts.ProFeature.Scan);
@@ -512,13 +534,20 @@
     /// <summary>Sends a PDF or photo to the scan server and imports the MusicXML it reads, with the notes marked as detected (0011).</summary>
     private async Task ScanFileAsync(InputFileChangeEventArgs args)
     {
-        _fileName = args.File.Name;
         _piece = null;
         _scan = null;
         _transcriptionEngine = null;
         _timing = null;
         _rejection = null;
         _start = 0;
+        _leftOut = [];
+        if (args.FileCount > 1)
+        {
+            await ScanPhotosAsync(args);
+            return;
+        }
+
+        _fileName = args.File.Name;
         if (args.File.Size == 0 || args.File.Size > ScanService.MaxUploadBytes)
         {
             _rejection = new(
@@ -537,28 +566,74 @@
             await stream.CopyToAsync(memory);
             ScanResult result = await Scans.RecogniseAsync(args.File.Name, memory.ToArray());
             _elapsed = watch.Elapsed;
-            if (result.MusicXml is not { } musicXml)
-            {
-                _rejection = new(ImportRejectionReason.NotMusic, result.Problem!, Text["import.scanNotReadTip"]);
-                return;
-            }
-
-            string name = Path.ChangeExtension(args.File.Name, ".musicxml");
-            PieceImportResult imported = PieceImporter.Import(name, musicXml);
-            if (imported.Piece is not { } piece)
-            {
-                _rejection = imported.Rejection;
-                return;
-            }
-
-            _scanReports = ReportsFor(result, musicXml);
-            _scan = ScanCheck.Of(piece, _scanReports.Count > 0 ? _scanReports : null);
-            (_piece, _data, _fileName, _scanEngine, _scanPages) = (_scan.Mark(piece, []), musicXml, name, result.Engine, result.Pages);
+            ShowScan(result, args.File.Name);
         }
         finally
         {
             _scanning = false;
         }
+    }
+
+    /// <summary>
+    /// Photos of pages (v0.5): several photos of one piece's pages, read one request at a time in the order of their names
+    /// and joined into one piece by music-core; a page not read is left out and said so. The photos are not kept.
+    /// </summary>
+    private async Task ScanPhotosAsync(InputFileChangeEventArgs args)
+    {
+        if (args.FileCount > PhotoPages.MaxPhotos)
+        {
+            _rejection = new(ImportRejectionReason.TooLarge, Text.Format("import.scanTooManyPhotos", args.FileCount, PhotoPages.MaxPhotos), Text["import.scanPhotosTip"]);
+            return;
+        }
+
+        IReadOnlyList<IBrowserFile> photos = PhotoPages.InOrder(args.GetMultipleFiles(PhotoPages.MaxPhotos));
+        _fileName = photos[0].Name;
+        if (photos.FirstOrDefault(photo => !PhotoPages.IsPhoto(photo.Name)) is { } other)
+        {
+            _fileName = other.Name;
+            _rejection = new(ImportRejectionReason.Unsupported, Text["import.scanPhotosOnly"], Text["import.scanPhotosTip"]);
+            return;
+        }
+
+        _scanning = true;
+        try
+        {
+            var watch = Stopwatch.StartNew();
+            PhotoPagesRead read = await PhotoPages.ReadAsync(Scans, photos, Text, page =>
+            {
+                _photoPage = (page, photos.Count);
+                StateHasChanged();
+            });
+            _elapsed = watch.Elapsed;
+            _leftOut = read.LeftOut;
+            ShowScan(read.Result, photos[0].Name);
+        }
+        finally
+        {
+            (_scanning, _photoPage) = (false, (0, 0));
+        }
+    }
+
+    /// <summary>The notes the scan server read, as a piece with its bars to check; or why there are none.</summary>
+    private void ShowScan(ScanResult result, string fileName)
+    {
+        if (result.MusicXml is not { } musicXml)
+        {
+            _rejection = new(ImportRejectionReason.NotMusic, result.Problem!, Text["import.scanNotReadTip"]);
+            return;
+        }
+
+        string name = Path.ChangeExtension(fileName, ".musicxml");
+        PieceImportResult imported = PieceImporter.Import(name, musicXml);
+        if (imported.Piece is not { } piece)
+        {
+            _rejection = imported.Rejection;
+            return;
+        }
+
+        _scanReports = ReportsFor(result, musicXml);
+        _scan = ScanCheck.Of(piece, _scanReports.Count > 0 ? _scanReports : null);
+        (_piece, _data, _fileName, _scanEngine, _scanPages) = (_scan.Mark(piece, []), musicXml, name, result.Engine, result.Pages);
     }
 
     /// <summary>

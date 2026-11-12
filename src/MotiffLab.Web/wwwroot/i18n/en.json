@@ -2087,5 +2087,14 @@
   "reference.texture.Broken": "Broken",
   "reference.texture.Alberti": "Alberti",
   "reference.tempo": "Tempo {0}",
-  "reference.tempoAria": "Tempo {0} a minute: tap for the next"
+  "reference.tempoAria": "Tempo {0} a minute: tap for the next",
+  "import.scanChoosePhotos": "Choose a PDF or photo of printed music, or several photos of one piece's pages",
+  "import.scanDropPhotos": "Drop a PDF or photo here, or several photos of one piece's pages, or click to choose",
+  "import.scanPageBusy": "Reading page {0} of {1}… this takes a while for each page",
+  "import.scanPageLeftOut": "Page {0} ({1}) could not be read and is left out: {2}",
+  "import.scanTooManyPhotos": "{0} photos are picked; up to {1} are read at a time.",
+  "import.scanPhotosOnly": "Several files are read as photos of one piece's pages: choose PNG or JPEG photos only.",
+  "import.scanPhotosTip": "The pages are read in the order of the file names. A PDF is read on its own.",
+  "import.scanPagesNotJoined": "The pages read do not join into one piece: they seem to come from different scores.",
+  "settings.photoPagesWebHint": "On Scan printed music, pick several photos of one piece's pages at once. They go to the scan server one at a time, in the order of their names, and become one piece with a summary by page; a page that could not be read is left out and named. The photos are not kept."
 }
