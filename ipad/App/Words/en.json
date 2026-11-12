@@ -100,5 +100,6 @@
   "folderImport.unfinished": "The import was not finished: {0} of {1} done",
   "folderImport.why.tooBig": "The file is too large",
   "folderImport.why.unreadable": "The file cannot be read: protected by a password or damaged",
-  "folderImport.why.unsupported": "This kind of file is not added"
+  "folderImport.why.unsupported": "This kind of file is not added",
+  "recognition.failMissing": "The piece is no longer in the library"
 }

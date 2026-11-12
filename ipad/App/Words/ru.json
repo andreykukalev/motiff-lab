@@ -105,5 +105,6 @@
   "folderImport.unfinished": "Импорт не закончен: готово {0} из {1}",
   "folderImport.why.tooBig": "Файл слишком большой",
   "folderImport.why.unreadable": "Файл не читается: защищён паролем или повреждён",
-  "folderImport.why.unsupported": "Такой файл не добавляется"
+  "folderImport.why.unsupported": "Такой файл не добавляется",
+  "recognition.failMissing": "Пьесы больше нет в библиотеке"
 }
