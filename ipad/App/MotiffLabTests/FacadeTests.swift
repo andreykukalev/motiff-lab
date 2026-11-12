@@ -476,9 +476,9 @@ final class FacadeTests: XCTestCase {
         XCTAssertEqual(Double(sound.milliseconds), 1_000, accuracy: 20)
         XCTAssertEqual(RecordingSound.read(url, most: 500)?.milliseconds, 500)
         XCTAssertEqual(sound.wav(from: 250, to: 750).count, 44 + 11_025 * 2)
-        let levels = sound.levels(from: 0, to: 1_000)
-        XCTAssertEqual(levels.count, 10, "one level every 100 ms")
-        XCTAssertEqual(Double(levels[3]), 8_000 * 2 / .pi, accuracy: 60, "the mean size of a sine 8,000 high")
+        let heard = sound.levels(from: 0, to: 1_000)
+        XCTAssertEqual(heard.count, 10, "one level every 100 ms")
+        XCTAssertEqual(Double(heard[3]), 8_000 * 2 / .pi, accuracy: 60, "the mean size of a sine 8,000 high")
     }
 
     func testTheNotesAScanReadsFromAPdfFillThatPieceWhichOpensAsNotesOrAsItsPdf() throws {
