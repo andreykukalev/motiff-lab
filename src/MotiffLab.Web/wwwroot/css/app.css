@@ -10451,3 +10451,102 @@ body:has(> #app > .library) {
 .score[data-mode="edit"] g.note {
     cursor: pointer;
 }
+
+/* The two playheads of version 0.5 (the experiment Two playheads and modes; Scripts/score/playheads.ts). The global one is
+   «Полоса»: a neutral column one beat wide behind the notes, with a cap above the system, solid while the bar's Play plays and
+   hollow when stopped. The selection's is a cobalt line with a knob inside its band. */
+.score .gcol {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 0;
+    will-change: transform;
+    border-radius: var(--r-xs);
+    background: color-mix(in srgb, var(--ink) 20%, transparent);
+    pointer-events: none;
+}
+
+.score .gcap {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 2;
+    width: 14px;
+    height: 10px;
+    margin-left: -7px;
+    will-change: transform;
+    line-height: 0;
+    pointer-events: none;
+}
+
+.score .gcap svg {
+    display: block;
+    overflow: visible;
+}
+
+.score .gcap path {
+    fill: var(--ink);
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+}
+
+.score .gcap.stop path {
+    fill: var(--paper);
+}
+
+.score .ph-sel {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 2;
+    width: 2px;
+    border-radius: 1px;
+    will-change: transform;
+    background: var(--accent);
+    pointer-events: none;
+}
+
+.score .ph-sel .knob {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 2px var(--surface-2);
+    transform: translate(-50%, -50%);
+}
+
+/* While the bar's Play plays, the other bars fade to about a third (Settings · Experimental, a sub-option). */
+.score[data-mode] svg g.measure {
+    transition: opacity var(--t-base) var(--ease);
+}
+
+.score.fading svg g.measure:not(.lit) {
+    opacity: .32;
+}
+
+/* The bar's Play fills dark while the piece plays; the selection's Play, first in its menu, is a cobalt disc. */
+.lab.workspace .bar .act.gplay.on {
+    border-radius: 50%;
+    background: var(--ink);
+    color: var(--surface);
+}
+
+.lab.workspace .ctx .menu > .it.selplay {
+    padding-left: var(--s-1);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.lab.workspace .ctx .menu > .it.selplay .pb {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--on-accent);
+}

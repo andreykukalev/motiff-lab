@@ -126,7 +126,7 @@ public partial class PlaybackLab
 
     /// <summary>
     /// A click on a beat of the score: Shift and a click in Select extend the selection to it, as its nearer handle would;
-    /// any other click places the playhead there and leaves the selection as it is.
+    /// any other click places a playhead there (PlaybackLab.Playheads.cs) and leaves the selection as it is.
     /// </summary>
     private async Task OnScoreBeatClickedAsync((Tick Start, Tick End, bool Extend) beat)
     {
@@ -138,17 +138,6 @@ public partial class PlaybackLab
         }
 
         await PlacePlayheadAsync(beat.Start);
-    }
-
-    /// <summary>The playhead put at a beat: while a loop holds it elsewhere, the loop lets it go.</summary>
-    private async Task PlacePlayheadAsync(Tick at)
-    {
-        if (Player.Loop is { } loop && !loop.Contains(at))
-        {
-            await StopLoopingAsync();
-        }
-
-        await Player.SeekAsync(at);
     }
 
     /// <summary>A note clicked in Edit notes: the roll opens on it with the editor on and the note picked.</summary>

@@ -2107,5 +2107,10 @@
   "tempo.oddMetersHeading": "Odd bars in the recording",
   "tempo.oddMetersLine": "Looks like {0} in bars {1}–{2}",
   "tempo.oddMetersNone": "No stretch reads better in 5/8, 7/8, 9/8, 5/4 or 12/8.",
-  "tempo.oddMetersHow": "A preview worked out from where the bass falls, eight bars at a time: the bars stay as they are and nothing is saved."
+  "tempo.oddMetersHow": "A preview worked out from where the bass falls, eight bars at a time: the bars stay as they are and nothing is saved.",
+  "selection.play": "Play the selection",
+  "selection.playShort": "Play",
+  "selection.playHint": "Play the selection · Space",
+  "settings.playheadsFade": "Fade the other bars while the piece plays",
+  "settings.playheadsFadeHint": "While the bar's Play plays, every bar but the one playing fades to about a third; the selection's Play fades nothing."
 }
