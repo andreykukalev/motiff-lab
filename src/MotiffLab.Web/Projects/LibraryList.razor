@@ -20,6 +20,10 @@
             <tr class="@(MenuOpen == entry.Summary.Id ? "menu-open" : null)" id="@($"lib-at-{index}")" @key="entry.Summary.Id" @onclick="() => Opened.InvokeAsync(entry)">
                 <th scope="row" class="col-title">
                     <button class="ttl" @onclick="() => Opened.InvokeAsync(entry)" @onclick:stopPropagation="true" disabled="@Busy">@entry.Title</button>
+                    @if (Shelf?.Elsewhere(entry) is { } elsewhere)
+                    {
+                        <span class="tag held">@elsewhere</span>
+                    }
                 </th>
                 <td class="col-composer">@entry.Composer</td>
                 <td class="col-playlists">@string.Join(", ", entry.Playlists)</td>
@@ -58,6 +62,10 @@
     /// <summary>The piece whose ••• menu is open, if any.</summary>
     [Parameter]
     public string? MenuOpen { get; set; }
+
+    /// <summary>The shelf, which knows the recordings this browser holds, for a line's badge when its original is elsewhere (version 0.3).</summary>
+    [Parameter]
+    public LibraryShelfState? Shelf { get; set; }
 
     /// <summary>A piece is being opened: the lines wait.</summary>
     [Parameter]

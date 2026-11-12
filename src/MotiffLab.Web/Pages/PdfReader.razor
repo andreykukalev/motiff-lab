@@ -303,7 +303,7 @@
 
         ScanCheck check = ScanCheck.Of(piece);
         PageMap pages = PageMap.Of(piece, Math.Max(1, _pages.Count));
-        Project read = project.Recognised(musicXml, result.Engine, pages) with
+        Project read = project.Recognised(musicXml, result.Engine, pages, DateTimeOffset.Now) with
         {
             Check = CheckFlag.FromScan(check, []),
             LastOpened = DateTimeOffset.Now,

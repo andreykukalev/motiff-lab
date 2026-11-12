@@ -28,6 +28,23 @@ public sealed class LibraryShelfState(Preferences preferences, UiText text)
 
     public LibraryTab Tab { get; private set; }
 
+    /// <summary>The recordings this browser holds, as "&lt;project&gt;/&lt;original&gt;" (version 0.3).</summary>
+    public IReadOnlySet<string> HeldHere { get; private set; } = new HashSet<string>(StringComparer.Ordinal);
+
+    /// <summary>Asks the device which recordings this browser holds, for the badges.</summary>
+    public async Task KnowHeldHereAsync(ProjectStore store)
+    {
+        ArgumentNullException.ThrowIfNull(store);
+        HeldHere = await store.HeldHereAsync();
+    }
+
+    /// <summary>«PDF: только на iPad»: where a piece's original is when it is not here; null when every one is.</summary>
+    public string? Elsewhere(LibraryEntry entry)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        return OriginalPlaces.Badge(text, entry.Summary, HeldHere);
+    }
+
     /// <summary>The composer or playlist opened on its tab; null while the tab lists them.</summary>
     public LibraryGroup? Picked { get; private set; }
 

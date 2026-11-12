@@ -83,7 +83,7 @@ public sealed record SavedPerformance(string Id, string Name, PerformanceSource 
         && RecordingStart == other.RecordingStart && Anchors.SequenceEqual(other.Anchors) && Engine == other.Engine
         && Dismissed.SequenceEqual(other.Dismissed) && Taken.Count == other.Taken.Count
         && Taken.Zip(other.Taken).All(pair => pair.First.Bar == pair.Second.Bar && pair.First.Removed.SequenceEqual(pair.Second.Removed) && pair.First.Added.SequenceEqual(pair.Second.Added))
-        && Equals(Merge, other.Merge) && From == other.From && At == other.At;
+        && Equals(Merge, other.Merge) && (From, At).Equals((other.From, other.At));
 
     public override int GetHashCode() => HashCode.Combine(Id, Name, Source, Midi.Length, Anchors.Count, Taken.Count);
 }

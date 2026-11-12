@@ -1757,5 +1757,18 @@
   "assembly.open": "Open the assembly",
   "assembly.details": "More",
   "assembly.detailsLine": "{0} bars match, {1} partly, {2} differ, {3} not found, of {4}",
-  "assembly.unreadable": "The version's notes could not be read."
+  "assembly.unreadable": "The version's notes could not be read.",
+  "originals.inFile": "In the piece's file on this device",
+  "originals.here": "On this device",
+  "originals.onIpad": "Only on the iPad",
+  "originals.inBrowser": "Only in another browser",
+  "originals.nowhere": "Not on any device",
+  "originals.kindPdf": "PDF",
+  "originals.kindImages": "Photos",
+  "originals.kindAudio": "Recording",
+  "originals.relink": "Link the original",
+  "originals.relinkHint": "Pick the same file on this device: it is checked by its fingerprint and kept here, with no copy of the piece.",
+  "originals.linked": "The original is linked: it is on this device now.",
+  "originals.otherFile": "This is a different file. To keep it as another original, add it with Add a source.",
+  "originals.localFirst": "We don't keep your files: PDFs and recordings stay on the device where you added them, and another device shows where they are, so you can link the same file there. Moving them between devices through Pro or your own Google Drive comes later."
 }

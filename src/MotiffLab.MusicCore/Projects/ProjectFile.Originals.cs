@@ -78,7 +78,10 @@ public static partial class ProjectFile
         });
     }
 
-    /// <summary>The originals a file keeps; none when it has no "originals", as every file written before version 0.3.</summary>
+    /// <summary>The project with the originals its file keeps; none when it has no "originals", as every file before version 0.3.</summary>
+    private static Project WithOriginalsOf(this Project project, JsonElement root, Unknowns unknowns) =>
+        project with { KeptOriginals = ReadOriginals(root, unknowns) };
+
     private static List<PieceOriginal> ReadOriginals(JsonElement root, Unknowns unknowns)
     {
         if (!root.TryGetProperty(OriginalsList, out JsonElement originals))

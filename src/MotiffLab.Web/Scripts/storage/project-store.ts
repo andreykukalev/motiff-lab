@@ -36,6 +36,8 @@ export interface ProjectSummary {
     composerFrom?: string | null;
     tags?: string[] | null;
     playlists?: string[] | null;
+    /** The piece's originals and where their bytes are (version 0.3); rows saved earlier have none. */
+    originals?: { id: string; kind: string; kept: string; inFile: boolean; held: string[] | null }[] | null;
 }
 
 /**

@@ -123,7 +123,7 @@ else if (_firstRun is false)
                                     <div class="what">
                                         <h3 class="ttl" id="@headingId">@title</h3>
                                         <p class="meta">@MetaLine(summary, cover, entry.Composer)</p>
-                                        <PieceTags Entry="entry" />
+                                        <PieceTags Entry="entry" Shelf="Shelf" />
                                     </div>
                                     @CardMenu(entry)
                                 </div>
@@ -151,7 +151,7 @@ else if (_firstRun is false)
                 else if (!page.IsEmpty)
                 {
                     <LibraryList Entries="page.Pieces" Query="Shelf.Query" Sorted="column => Narrow(Shelf.Query.SortedBy(column))" Opened="entry => CardClickedAsync(entry.Summary)"
-                                 Menu="CardMenu" When="Day" MenuOpen="@_menu" Busy="_opening" />
+                                 Menu="CardMenu" When="Day" MenuOpen="@_menu" Busy="_opening" Shelf="Shelf" />
                 }
                 @if (page.Indexed && !page.IsEmpty)
                 {

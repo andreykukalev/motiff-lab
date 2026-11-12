@@ -188,7 +188,7 @@ internal sealed class OpenDocument
         Project read;
         try
         {
-            read = Project.Recognised(musicXml, request.Text("engine") ?? "unknown engine", PageMap.Of(piece, pages)) with
+            read = Project.Recognised(musicXml, request.Text("engine") ?? "unknown engine", PageMap.Of(piece, pages), now) with
             {
                 Check = CheckFlag.FromScan(ScanCheck.Of(piece), []),
                 LastOpened = now,

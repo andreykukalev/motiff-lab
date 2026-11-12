@@ -401,6 +401,7 @@ public partial class PlaybackLab
             {
                 // Its sound stays on this device, to be heard while comparing (0024, scenario 2).
                 await KeepRecordingAsync(id);
+                await KeepRecordingOriginalAsync(id, fileName);
             }
 
             StateHasChanged();

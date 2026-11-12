@@ -195,6 +195,22 @@ public sealed record Project(
 
     public PieceOriginal? FindOriginal(string id) => Originals.FirstOrDefault(original => original.Id == id);
 
+    /// <summary>Whether an original's bytes are in this project file: the PDF here, the imported file, a MIDI version.</summary>
+    public bool HasInFile(PieceOriginal original)
+    {
+        ArgumentNullException.ThrowIfNull(original);
+        return original.Kept == OriginalKept.File && original.Id switch
+        {
+            PieceOriginal.DocumentId => Document is not null,
+            PieceOriginal.SourceFileId => HasNotes,
+            _ => FindPerformance(original.Id) is { Source: PerformanceSource.Midi },
+        };
+    }
+
+    /// <summary>The originals as a library row keeps them: what each is and where its bytes are.</summary>
+    public IReadOnlyList<OriginalSummary> OriginalSummaries =>
+        [.. Originals.Select(original => new OriginalSummary(original.Id, original.Kind, original.Kept, HasInFile(original), [.. original.Held.Select(static mark => mark.Device)]))];
+
     /// <summary>The original a picked file is, by its fingerprint (<see cref="PieceOriginal.Fingerprint"/>); null when none matches.</summary>
     public PieceOriginal? OriginalWithFingerprint(string sha256) => Originals.FirstOrDefault(original => original.Matches(sha256));
 
@@ -277,6 +293,7 @@ public sealed record Project(
         CheckBars = OpenChecks.Select(flag => flag.Bar).Distinct().Count(),
         ReadFrom = ReadFrom?.ProjectId,
         Details = Details,
+        Originals = OriginalSummaries,
         Latest = RecentResumePoints.FirstOrDefault() is { } latest
             ? new ResumeSummary(latest.Id, latest.Name, latest.At.Value, latest.Passage?.Span.Onset.Value, latest.Passage?.Span.End.Value, latest.LastActive)
             : null,
@@ -803,6 +820,9 @@ public sealed record ProjectSummary(string Id, string FileName, int MotifCount, 
 
     /// <summary>The title, composer and tags the card shows (<see cref="Project.Details"/>); null for a summary saved before they were kept.</summary>
     public PieceDetails? Details { get; init; }
+
+    /// <summary>The piece's originals and where their bytes are (version 0.3); empty for a summary saved before they were kept.</summary>
+    public IReadOnlyList<OriginalSummary> Originals { get; init; } = [];
 }
 
 /// <summary>Where a piece came from: a file opened on the device, a page scanned (0011) or a recording heard (0014).</summary>

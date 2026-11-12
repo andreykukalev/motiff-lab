@@ -77,11 +77,24 @@ public partial class PlaybackLab
             return;
         }
 
-        IBrowserFile file = args.File;
+        (byte[]? data, string? problem) = await PickedPdfAsync(args.File);
+        if (data is null)
+        {
+            _performanceStatus = problem;
+            return;
+        }
+
+        _project = project.WithDocument(data, PageMap.Even(_meter, _score.End, PdfDocument.PageCount(data)));
+        _performanceStatus = Text["sources.pdfKept"];
+        await CheckOriginalsAsync(changed: true);
+    }
+
+    /// <summary>The bytes of a PDF the player picked, or why they cannot be kept: too large, or not a PDF.</summary>
+    private async Task<(byte[]? Data, string? Problem)> PickedPdfAsync(IBrowserFile file)
+    {
         if (PdfDocument.CheckSize(file.Size) is { } tooLarge)
         {
-            _performanceStatus = tooLarge.Text(Words);
-            return;
+            return (null, tooLarge.Text(Words));
         }
 
         byte[] data;
@@ -92,16 +105,7 @@ public partial class PlaybackLab
             data = memory.ToArray();
         }
 
-        if (!PdfDocument.IsPdf(data))
-        {
-            _performanceStatus = Text["sources.notPdf"];
-            return;
-        }
-
-        _project = project.WithDocument(data, PageMap.Even(_meter, _score.End, PdfDocument.PageCount(data)));
-        _performanceStatus = Text["sources.pdfKept"];
-        CurrentPiece.Saved(_project);
-        await Projects.SaveAsync(_project);
+        return PdfDocument.IsPdf(data) ? (data, null) : (null, Text["sources.notPdf"]);
     }
 
     /// <summary>

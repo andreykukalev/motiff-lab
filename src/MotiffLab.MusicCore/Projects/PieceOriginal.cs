@@ -35,6 +35,56 @@ public enum HoldingDevice
 /// <summary>A device's own mark that it holds an original's bytes, written and taken back only by that device.</summary>
 public sealed record OriginalHeld(HoldingDevice Device, DateTimeOffset At);
 
+/// <summary>Where an original's bytes are, as one device sees them: the badge both apps show on it.</summary>
+public enum OriginalWhere
+{
+    /// <summary>In the project file on this device (the PDF, the imported file); it never goes online.</summary>
+    InFile,
+
+    /// <summary>On this device, beside the project file (a recording's sound).</summary>
+    Here,
+
+    /// <summary>Only on an iPad.</summary>
+    OnIpad,
+
+    /// <summary>Only in a browser: the web app on a computer, or another browser than this one.</summary>
+    InBrowser,
+
+    /// <summary>No device says it holds them.</summary>
+    Nowhere,
+}
+
+/// <summary>An original as a library row keeps it (version 0.3): what it is and where its bytes are, without loading the project.</summary>
+/// <param name="InFile">The bytes are in this project file, here.</param>
+public sealed record OriginalSummary(string Id, OriginalKind Kind, OriginalKept Kept, bool InFile, IReadOnlyList<HoldingDevice> Held)
+{
+    /// <summary>
+    /// Where the bytes are as <paramref name="self"/> sees them; <paramref name="heldHere"/> when this device has them beside
+    /// the file. Another kind of device comes first: a mark of this device's own kind is another iPad or another browser.
+    /// </summary>
+    public OriginalWhere Where(HoldingDevice self, bool heldHere)
+    {
+        if (InFile || heldHere)
+        {
+            return InFile ? OriginalWhere.InFile : OriginalWhere.Here;
+        }
+
+        HoldingDevice other = self == HoldingDevice.Web ? HoldingDevice.Ipad : HoldingDevice.Web;
+        HoldingDevice? holder = Held.Contains(other) ? other : Held.Contains(self) ? self : null;
+        return holder switch
+        {
+            HoldingDevice.Ipad => OriginalWhere.OnIpad,
+            HoldingDevice.Web => OriginalWhere.InBrowser,
+            _ => OriginalWhere.Nowhere,
+        };
+    }
+
+    public bool Equals(OriginalSummary? other) =>
+        other is not null && Id == other.Id && Kind == other.Kind && Kept == other.Kept && InFile == other.InFile && Held.SequenceEqual(other.Held);
+
+    public override int GetHashCode() => HashCode.Combine(Id, Kind, Kept, InFile, Held.Count);
+}
+
 /// <summary>
 /// The description of one original of a piece (version 0.3, Andrei 2026-11-11 21:20 UTC: local-first): what it is, its
 /// name, size and fingerprint, and which devices hold its bytes. Only the description is in the project file and goes
@@ -157,7 +207,8 @@ public static class PieceOriginals
 
     /// <summary>
     /// The kept descriptions laid over the derived ones: a kept one takes the place of the derived one with its id, and
-    /// the kept ones with no derived one (a PDF whose bytes stayed on another device) follow in their order.
+    /// the kept ones with no derived one (a PDF whose bytes stayed on another device) follow in their order; the PDF comes
+    /// first, then the imported file, so every device lists them alike.
     /// </summary>
     public static IReadOnlyList<PieceOriginal> Over(IReadOnlyList<PieceOriginal> derived, IReadOnlyList<PieceOriginal> kept)
     {
@@ -165,7 +216,8 @@ public static class PieceOriginals
         ArgumentNullException.ThrowIfNull(kept);
         Dictionary<string, PieceOriginal> byId = kept.ToDictionary(static original => original.Id, StringComparer.Ordinal);
         HashSet<string> derivedIds = [.. derived.Select(static original => original.Id)];
-        return [.. derived.Select(original => byId.GetValueOrDefault(original.Id, original)), .. kept.Where(original => !derivedIds.Contains(original.Id))];
+        IEnumerable<PieceOriginal> all = [.. derived.Select(original => byId.GetValueOrDefault(original.Id, original)), .. kept.Where(original => !derivedIds.Contains(original.Id))];
+        return [.. all.OrderBy(static original => original.Id switch { PieceOriginal.DocumentId => 0, PieceOriginal.SourceFileId => 1, _ => 2 })];
     }
 
     /// <summary>
@@ -192,17 +244,7 @@ public static class PieceOriginals
             }
 
             matched.Add(mine);
-            merged.Add(original with
-            {
-                Name = original.Name ?? mine.Name,
-                Sha256 = original.Sha256 ?? mine.Sha256,
-                Bytes = original.Bytes ?? mine.Bytes,
-                Pages = original.Pages ?? mine.Pages,
-                DurationMs = original.DurationMs ?? mine.DurationMs,
-                Held = device is { } thisDevice
-                    ? [.. original.Held.Where(mark => mark.Device != thisDevice), .. mine.Held.Where(mark => mark.Device == thisDevice)]
-                    : original.Held,
-            });
+            merged.Add(Combined(original, mine, device));
         }
 
         HashSet<string> ids = [.. merged.Select(static original => original.Id)];
@@ -211,19 +253,42 @@ public static class PieceOriginals
             // A different original that only carries an id the online copy uses keeps a free id of its own.
             string id = ids.Contains(mine.Id) ? FreeId(mine.Id, ids) : mine.Id;
             ids.Add(id);
-            merged.Add(id == mine.Id ? mine : new PieceOriginal(id, mine.Kind, mine.FileName, mine.Kept, mine.AddedAt)
-            {
-                Name = mine.Name,
-                Sha256 = mine.Sha256,
-                Bytes = mine.Bytes,
-                Pages = mine.Pages,
-                DurationMs = mine.DurationMs,
-                Held = mine.Held,
-            });
+            merged.Add(id == mine.Id ? mine : Renamed(mine, id));
         }
 
         return merged;
     }
+
+    /// <summary>
+    /// One original from both copies: the online description, or this device's when only it has the fingerprint (the
+    /// online copy was written again by a build that drops the descriptions, version 0.2, and shows only what its data
+    /// does), filled in from the other; the marks as <see cref="Merge"/> says.
+    /// </summary>
+    private static PieceOriginal Combined(PieceOriginal online, PieceOriginal mine, HoldingDevice? device)
+    {
+        (PieceOriginal described, PieceOriginal other) = online.Sha256 is null && mine.Sha256 is not null ? (mine, online) : (online, mine);
+        return described with
+        {
+            Name = described.Name ?? other.Name,
+            Sha256 = described.Sha256 ?? other.Sha256,
+            Bytes = described.Bytes ?? other.Bytes,
+            Pages = described.Pages ?? other.Pages,
+            DurationMs = described.DurationMs ?? other.DurationMs,
+            Held = device is { } thisDevice
+                ? [.. online.Held.Where(mark => mark.Device != thisDevice), .. mine.Held.Where(mark => mark.Device == thisDevice)]
+                : online.Held,
+        };
+    }
+
+    private static PieceOriginal Renamed(PieceOriginal original, string id) => new(id, original.Kind, original.FileName, original.Kept, original.AddedAt)
+    {
+        Name = original.Name,
+        Sha256 = original.Sha256,
+        Bytes = original.Bytes,
+        Pages = original.Pages,
+        DurationMs = original.DurationMs,
+        Held = original.Held,
+    };
 
     /// <summary>MIDI or MusicXML by the file's extension, as the importers take it; null for anything else.</summary>
     public static OriginalKind? FileKind(string fileName)

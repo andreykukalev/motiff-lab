@@ -157,6 +157,34 @@ public class PieceOriginalTests
         Assert.Throws<KeyNotFoundException>(() => project.MarkHeld("src_none", HoldingDevice.Web, held: true, s_now));
     }
 
+    [Theory]
+    [InlineData(true, false, new HoldingDevice[0], HoldingDevice.Web, OriginalWhere.InFile)]
+    [InlineData(false, true, new HoldingDevice[0], HoldingDevice.Web, OriginalWhere.Here)]
+    [InlineData(false, false, new[] { HoldingDevice.Ipad }, HoldingDevice.Web, OriginalWhere.OnIpad)]
+    [InlineData(false, false, new[] { HoldingDevice.Ipad, HoldingDevice.Web }, HoldingDevice.Web, OriginalWhere.OnIpad)]
+    [InlineData(false, false, new[] { HoldingDevice.Web }, HoldingDevice.Web, OriginalWhere.InBrowser)]
+    [InlineData(false, false, new[] { HoldingDevice.Ipad, HoldingDevice.Web }, HoldingDevice.Ipad, OriginalWhere.InBrowser)]
+    [InlineData(false, false, new[] { HoldingDevice.Ipad }, HoldingDevice.Ipad, OriginalWhere.OnIpad)]
+    [InlineData(false, false, new HoldingDevice[0], HoldingDevice.Ipad, OriginalWhere.Nowhere)]
+    public void The_badge_says_where_the_bytes_are_as_this_device_sees_them(bool inFile, bool heldHere, HoldingDevice[] held, HoldingDevice self, OriginalWhere where)
+    {
+        OriginalSummary original = new("src_pdf", OriginalKind.Pdf, OriginalKept.File, inFile, held);
+
+        Assert.Equal(where, original.Where(self, heldHere));
+    }
+
+    [Fact]
+    public void A_library_row_keeps_each_original_and_whether_its_bytes_are_in_the_file()
+    {
+        Project online = RoundTrip(Recognised().ForOnline()!);
+
+        Assert.Equal(
+            [new OriginalSummary(PieceOriginal.DocumentId, OriginalKind.Pdf, OriginalKept.File, InFile: false, [HoldingDevice.Web]),
+             new OriginalSummary("perf_1", OriginalKind.Audio, OriginalKept.Device, InFile: false, [HoldingDevice.Web])],
+            online.Summary.Originals);
+        Assert.True(Recognised().Summary.Originals[0].InFile);
+    }
+
     [Fact]
     public void Removing_a_version_removes_its_recording_description()
     {
@@ -201,17 +229,23 @@ public class PieceOriginalTests
         Assert.Equal("b.wav", merged[1].FileName);
     }
 
-    [Fact]
-    public void An_original_of_a_kind_a_later_build_adds_is_kept_and_written_back()
+    /// <summary>
+    /// A later build adds a value: a kind, or a third way of keeping the bytes (Andrei, 2026-11-12 00:05 UTC: "link", a file
+    /// left in the player's own Google Drive folder). This build keeps the description whole and writes it back.
+    /// </summary>
+    [Theory]
+    [InlineData("kind", "hologram", nameof(OriginalKind))]
+    [InlineData("kept", "link", nameof(OriginalKept))]
+    public void An_original_with_a_value_a_later_build_adds_is_kept_and_written_back(string field, string value, string type)
     {
         JsonObject file = JsonNode.Parse(ProjectFile.Write(Recognised()))!.AsObject();
-        file["originals"]![0]!["kind"] = "hologram";
+        file["originals"]![0]![field] = value;
         byte[] bytes = Encoding.UTF8.GetBytes(file.ToJsonString());
 
         Project project = ProjectFile.Read(bytes);
 
-        Assert.Contains(project.Unknown, entity => entity.List == "originals" && entity.Enum == nameof(OriginalKind));
-        Assert.Contains("hologram", Encoding.UTF8.GetString(ProjectFile.Write(project)), StringComparison.Ordinal);
+        Assert.Contains(project.Unknown, entity => entity.List == "originals" && entity.Enum == type);
+        Assert.Contains($"\"{value}\"", Encoding.UTF8.GetString(ProjectFile.Write(project)), StringComparison.Ordinal);
     }
 
     [Theory]
@@ -276,5 +310,10 @@ public class PieceOriginalTests
         Assert.Equal(project.Document, old.Document);
         Assert.Equal(project.Performances[0].Midi, old.Performances[0].Midi);
         Assert.Equal(project.Originals.Select(original => original.Id), old.Originals.Select(original => original.Id));
+
+        // Through the sync: a v0.2 device writes the online copy without the new fields; the v0.3 device that pulls it
+        // keeps every description it had, with its fingerprints and its own marks.
+        Project pulled = ProjectSync.Pulled(old with { Document = null, DocumentPages = null }, project, HoldingDevice.Web);
+        Assert.Equal(project.Originals, pulled.Originals);
     }
 }

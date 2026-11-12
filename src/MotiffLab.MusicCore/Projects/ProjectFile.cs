@@ -538,8 +538,7 @@ public static partial class ProjectFile
                 ReadFrom = readFrom,
                 Assembly = assembly,
                 Metadata = ReadMetadata(root),
-                KeptOriginals = ReadOriginals(root, unknowns),
-            });
+            }.WithOriginalsOf(root, unknowns));
         }
     }
 
