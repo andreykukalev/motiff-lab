@@ -37,10 +37,13 @@ public sealed record LibraryQuery(string? Search, LibrarySort Sort, bool Ascendi
 {
     public static LibraryQuery All { get; } = new(null, LibrarySort.Title, true, null, null, null);
 
-    public bool Narrows => !string.IsNullOrWhiteSpace(Search) || Composer is not null || Tag is not null || Playlist is not null;
+    /// <summary>Only the PDF pieces with no notes yet («Без нот», version 0.5, with the import's experiment).</summary>
+    public bool WithoutNotes { get; init; }
+
+    public bool Narrows => !string.IsNullOrWhiteSpace(Search) || Composer is not null || Tag is not null || Playlist is not null || WithoutNotes;
 
     /// <summary>Search and filters cleared; the order stays.</summary>
-    public LibraryQuery Cleared => this with { Search = null, Composer = null, Tag = null, Playlist = null };
+    public LibraryQuery Cleared => this with { Search = null, Composer = null, Tag = null, Playlist = null, WithoutNotes = false };
 
     /// <summary>
     /// Ordered by this column: the same column again turns the order round, another one starts its natural way (titles and
@@ -145,7 +148,8 @@ public static class LibraryShelf
             words.All(word => entry.Folded.Contains(word, StringComparison.Ordinal))
             && (query.Composer is null || Same(entry.Composer, query.Composer))
             && (query.Tag is null || entry.Tags.Any(tag => Same(tag, query.Tag)))
-            && (query.Playlist is null || entry.Playlists.Any(name => Same(name, query.Playlist))))];
+            && (query.Playlist is null || entry.Playlists.Any(name => Same(name, query.Playlist)))
+            && (!query.WithoutNotes || entry.Summary.Origin == PieceOrigin.Pdf))];
         StringComparer byText = Comparer(culture);
         IReadOnlyList<LibraryEntry> ordered = query.Sort switch
         {

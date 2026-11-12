@@ -35,6 +35,9 @@ public sealed record JobState(string Folder, string FolderName, bool Linked, IRe
 {
     public bool Paused { get; init; }
 
+    /// <summary>«Распознать ноты: сразу для всех»: each PDF added goes to the batch the player agreed to (version 0.5).</summary>
+    public bool Recognise { get; init; }
+
     public int Done => Files.Count(static file => file.State != JobFileState.Waiting);
 
     public int Added => Files.Count(static file => file.State == JobFileState.Added);
@@ -51,7 +54,7 @@ public sealed record JobState(string Folder, string FolderName, bool Linked, IRe
 /// and goes on after a reload from the next file, since its state is kept on the device after each one. The files are
 /// only read.
 /// </summary>
-public sealed class ImportJob(PlayerFolders folders, ProjectStore projects)
+public sealed class ImportJob(PlayerFolders folders, ProjectStore projects, RecognitionQueue recognition)
 {
     /// <summary>The experiment's switch in Settings · Experimental («Импорт папки», version 0.5), off by default.</summary>
     public const string Setting = "experimental.libraryImport";
@@ -224,6 +227,11 @@ public sealed class ImportJob(PlayerFolders folders, ProjectStore projects)
         if (state.Linked && project.LinksDocument)
         {
             await folders.LinkAsync(id, new PieceLink(state.Folder, file.Path));
+        }
+
+        if (state.Recognise && !project.HasNotes)
+        {
+            await recognition.SendAsync([new PieceToRead(id, file.Title ?? Path.GetFileNameWithoutExtension(file.Path), file.Pages ?? 1)]);
         }
 
         return file with { State = JobFileState.Added };

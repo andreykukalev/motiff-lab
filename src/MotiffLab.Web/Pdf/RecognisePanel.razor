@@ -1,6 +1,5 @@
 @using MotiffLab.Web.Import
 @inject ScanService Scans
-@inject MotiffLab.Web.Account.CloudAccount Account
 @inject MotiffLab.Web.Localization.UiText Text
 
 @* Read the notes from a PDF kept in a piece (0011, 0023): the kept PDF goes to the scan server, as on Scan printed music,
@@ -13,43 +12,13 @@
     {
         <p class="caption">@Intro</p>
     }
-    @if (!_ready)
-    {
-        <p class="caption">@Text["pdf.readChecking"]</p>
-    }
-    else if (Scans.Address is not { } server)
-    {
-        @if (Scans.HostedAddress is not null)
-        {
-            <p class="caption">@Text["scan.turnedOff"] <a href="settings#scan">@Text["scan.turnOn"]</a>.</p>
-        }
-        else
-        {
-            <p class="caption">@Text["import.scanSetUp"] <a href="settings#scan-heading">@Text["import.scanSetUpLink"]</a>.</p>
-        }
-    }
-    else if (Scans.IsHosted && !_signedIn)
-    {
-        <MotiffLab.Web.Account.SignInPrompt Text="@Text["scan.signInPrompt"]" />
-    }
-    else if (Scans.IsHosted && !_pro)
-    {
-        <p class="pro-offer">
-            <span class="tag pro">Pro</span> @Text["scan.proPrompt"]
-            @if (Account.IsAvailable)
-            {
-                <a href="settings#plan">@Text["ask.offerPlan"]</a>
-            }
-        </p>
-    }
-    else
-    {
-        <p class="caption">@Text.Format(Scans.IsLocal ? "pdf.readLineHere" : "pdf.readLine", server)</p>
+    <ScanReady>
+        <p class="caption">@Text.Format(Scans.IsLocal ? "pdf.readLineHere" : "pdf.readLine", Scans.Address!)</p>
         @if (!Scans.IsLocal)
         {
             <label class="consent">
                 <input type="checkbox" role="switch" class="switch" @bind="_send" disabled="@_reading" />
-                <span>@(Scans.IsHosted ? Text["pdf.sendHosted"] : Text.Format("pdf.sendElsewhere", server.Host))</span>
+                <span>@(Scans.IsHosted ? Text["pdf.sendHosted"] : Text.Format("pdf.sendElsewhere", Scans.Address!.Host))</span>
             </label>
         }
 
@@ -57,7 +26,7 @@
             @(_reading ? Text["import.scanBusy"] : Text["pdf.readSend"])
         </button>
         <p class="caption">@(Keeps ?? Text["pdf.readKeeps"])</p>
-    }
+    </ScanReady>
 
     @if (_problem is not null)
     {
@@ -66,9 +35,6 @@
 </div>
 
 @code {
-    private bool _ready;
-    private bool _signedIn;
-    private bool _pro;
     private bool _send;
     private bool _reading;
     private string? _problem;
@@ -100,15 +66,6 @@
     /// <summary>Takes what the scan server read; returns why the notes cannot be used, or null once they are a piece.</summary>
     [Parameter, EditorRequired]
     public Func<ScanResult, Task<string?>> Read { get; set; } = default!;
-
-    protected override async Task OnInitializedAsync()
-    {
-        await Scans.LoadAsync();
-        _signedIn = await Account.PlayerAsync() is not null;
-        // Scanning on Motiff Lab's server is Pro (0018 section 12); the server checks it too.
-        _pro = _signedIn && await Account.AllowsAsync(MotiffLab.MusicCore.Accounts.ProFeature.Scan);
-        _ready = true;
-    }
 
     private async Task ReadAsync()
     {

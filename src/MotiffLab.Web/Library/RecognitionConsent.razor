@@ -1,0 +1,105 @@
+@using MotiffLab.Web.Import
+@using MotiffLab.Web.Localization
+
+@* One consent for a batch (version 0.5, «Импорт папки», ux-prototype/v0.5/screens/import-web-4-consent.png): the pieces and
+   their pages, where the PDFs go, about how long it takes, today's pages on Motiff Lab's server against its 100 a day, and
+   that the notes go into these same pieces. Nothing is sent before «Отправить». On Motiff Lab's server it needs an account
+   and Pro, offered here as on one PDF. *@
+<section class="lib-sheet consent-sheet" role="dialog" aria-modal="true" aria-labelledby="consent-title" tabindex="-1" @ref="_element" @onkeydown="OnKey">
+    <header class="hd">
+        <h2 class="ttl" id="consent-title">
+            @Text["recognition.title"]
+            @if (Scans.IsHosted)
+            {
+                <span class="tag pro">Pro</span>
+            }
+        </h2>
+        <button class="btn icon" aria-label="@Text["library.close"]" title="@Text["library.close"]" @onclick="() => Cancelled.InvokeAsync()"><Icon Name="close" /></button>
+    </header>
+    <p class="how-many">@Text.Format("recognition.howMany", Text.Count("recognition.pieces", Pieces.Count), Text.Count("recognition.pages", Pages))</p>
+    <p class="caption names">@Names</p>
+
+    <ScanReady Checked="CheckedAsync">
+        <dl class="facts">
+            <dt>@Text["recognition.where"]</dt>
+            <dd>@(Scans.IsHosted ? Text["recognition.whereHosted"] : Scans.IsLocal ? Text["recognition.whereHere"] : Text.Format("recognition.whereOwn", Scans.Address!.Host))</dd>
+            <dt>@Text["recognition.wait"]</dt>
+            <dd>@Text.Format("recognition.waitLine", HostedPages.Minutes(Pages))</dd>
+            @if (Scans.IsHosted)
+            {
+                <dt>@Text["recognition.today"]</dt>
+                <dd>
+                    @Text.Format("recognition.todayLine", Math.Min(HostedPages.Limit, _used + Pages), HostedPages.Limit)
+                    <span class="track" aria-hidden="true"><span class="fill" style="--done: @(Math.Min(100, (_used + Pages) * 100 / HostedPages.Limit))%"></span></span>
+                    @if (_used + Pages > HostedPages.Limit)
+                    {
+                        <span class="caption over">
+                            @Text.Format("recognition.tomorrow", Math.Max(0, HostedPages.Limit - _used))
+                            <a href="settings#scan-heading">@Text["recognition.ownServer"]</a>
+                        </span>
+                    }
+                </dd>
+            }
+            <dt>@Text["recognition.what"]</dt>
+            <dd>@Text["recognition.whatLine"]</dd>
+        </dl>
+        <footer class="acts">
+            <button class="btn quiet" @onclick="() => Cancelled.InvokeAsync()">@Text["recognition.cancel"]</button>
+            <button class="btn primary" @onclick="() => Agreed.InvokeAsync()" disabled="@(Pieces.Count == 0)">@Text.Count("recognition.send", Pages)</button>
+        </footer>
+    </ScanReady>
+</section>
+
+@code {
+    [Inject]
+    private UiText Text { get; set; } = default!;
+
+    [Inject]
+    private ScanService Scans { get; set; } = default!;
+
+    [Inject]
+    private HostedPages Hosted { get; set; } = default!;
+
+    /// <summary>The pieces to read, with their pages.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<PieceToRead> Pieces { get; set; } = [];
+
+    /// <summary>«Отправить»: the player agreed to send these pieces to the server named.</summary>
+    [Parameter]
+    public EventCallback Agreed { get; set; }
+
+    [Parameter]
+    public EventCallback Cancelled { get; set; }
+
+    /// <summary>The most titles named before «и ещё N».</summary>
+    private const int NamedTitles = 5;
+
+    private ElementReference _element;
+    private int _used;
+
+    private int Pages => Pieces.Sum(static piece => piece.Pages);
+
+    /// <summary>"Arabesque No. 1, Ballade No. 1, op. 23 и ещё 6".</summary>
+    private string Names => string.Join(", ", Pieces.Take(NamedTitles).Select(static piece => piece.Title))
+        + (Pieces.Count > NamedTitles ? " " + Text.Format("recognition.andMore", Pieces.Count - NamedTitles) : "");
+
+    /// <summary>Today's pages on Motiff Lab's server, once the server is known.</summary>
+    private async Task CheckedAsync() => _used = Scans.IsHosted ? await Hosted.UsedAsync() : 0;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                await _element.FocusAsync();
+            }
+            catch (InvalidOperationException)
+            {
+                // Not on the page yet.
+            }
+        }
+    }
+
+    private Task OnKey(KeyboardEventArgs args) => args.Key == "Escape" ? Cancelled.InvokeAsync() : Task.CompletedTask;
+}

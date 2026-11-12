@@ -1,6 +1,5 @@
 @using MotiffLab.MusicCore.Import.Transcription
 @inject ScanService Scans
-@inject MotiffLab.Web.Account.CloudAccount Account
 @inject MotiffLab.Web.Localization.UiText Text
 
 @* A recording as another version (0022): its sound goes to the scan server, as on Transcribe a recording, and the notes
@@ -9,43 +8,13 @@
    offered here. *@
 <section class="recording-version" aria-label="@Text["version.recordingHeading"]">
     <p class="overline">@Text["version.recordingHeading"]</p>
-    @if (!_ready)
-    {
-        <p class="caption">@Text["pdf.readChecking"]</p>
-    }
-    else if (Scans.Address is not { } server)
-    {
-        @if (Scans.HostedAddress is not null)
-        {
-            <p class="caption">@Text["scan.turnedOff"] <a href="settings#scan">@Text["scan.turnOn"]</a>.</p>
-        }
-        else
-        {
-            <p class="caption">@Text["transcribe.setUp"] <a href="settings#scan-heading">@Text["transcribe.setUpLink"]</a>.</p>
-        }
-    }
-    else if (Scans.IsHosted && !_signedIn)
-    {
-        <MotiffLab.Web.Account.SignInPrompt Text="@Text["transcribe.signInPrompt"]" />
-    }
-    else if (Scans.IsHosted && !_pro)
-    {
-        <p class="pro-offer">
-            <span class="tag pro">Pro</span> @Text["transcribe.proPrompt"]
-            @if (Account.IsAvailable)
-            {
-                <a href="settings#plan">@Text["ask.offerPlan"]</a>
-            }
-        </p>
-    }
-    else
-    {
-        <p class="caption">@Text.Format("version.recordingLine", Scans.IsHosted ? Text["version.hostedServer"] : server.Host)</p>
+    <ScanReady Hearing="true">
+        <p class="caption">@Text.Format("version.recordingLine", Scans.IsHosted ? Text["version.hostedServer"] : Scans.Address!.Host)</p>
         @if (!Scans.IsLocal)
         {
             <label class="consent">
                 <input type="checkbox" role="switch" class="switch" @bind="_send" disabled="@_busy" />
-                <span>@(Scans.IsHosted ? Text["transcribe.sendHosted"] : Text.Format("transcribe.sendElsewhere", server.Host))</span>
+                <span>@(Scans.IsHosted ? Text["transcribe.sendHosted"] : Text.Format("transcribe.sendElsewhere", Scans.Address!.Host))</span>
             </label>
         }
 
@@ -53,7 +22,7 @@
             @(_busy ? Progress : Text["version.addRecording"])
             <InputFile @ref="_input" OnChange="PickAsync" accept="@ScanService.AcceptedRecordings" disabled="@(_busy || !(Scans.IsLocal || _send))" aria-label="@Text["version.chooseRecording"]" />
         </label>
-    }
+    </ScanReady>
 
     @if (_note is not null)
     {
@@ -67,9 +36,6 @@
 
 @code {
     private InputFile? _input;
-    private bool _ready;
-    private bool _signedIn;
-    private bool _pro;
     private bool _send;
     private bool _busy;
     private bool _decoding;
@@ -88,15 +54,6 @@
     private string Progress => _decoding ? Text["transcribe.decoding"]
         : _hearing is { Total: > 1 } hearing ? Text.Format(hearing.Retrying ? "transcribe.retrying" : "transcribe.progress", hearing.Done, hearing.Total)
         : Text["transcribe.busy"];
-
-    protected override async Task OnInitializedAsync()
-    {
-        await Scans.LoadAsync();
-        _signedIn = await Account.PlayerAsync() is not null;
-        // Transcription on Motiff Lab's server is Pro (0018 section 12); the server checks it too.
-        _pro = _signedIn && await Account.AllowsAsync(MotiffLab.MusicCore.Accounts.ProFeature.Transcribe);
-        _ready = true;
-    }
 
     private async Task PickAsync(InputFileChangeEventArgs args)
     {

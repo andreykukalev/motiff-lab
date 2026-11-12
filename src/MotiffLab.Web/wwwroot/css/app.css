@@ -11221,3 +11221,188 @@ body:has(> #app > .library) {
         grid-template-columns: 1fr;
     }
 }
+
+/* Batch recognition (version 0.5, «Импорт папки», import-web-4..5): what is picked over the list, a box on each PDF piece,
+   one consent, and on each piece of the batch where its notes are. */
+.library .lib-pickbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-3);
+    min-height: var(--h-touch);
+    margin-top: var(--s-4);
+}
+
+.library .lib-pickbar .what {
+    margin: 0;
+    font: var(--t-body-strong);
+    color: var(--ink);
+}
+
+.library .lib-pickbar .sp {
+    flex: 1;
+}
+
+.library .lib-table .col-pick {
+    width: calc(var(--h-touch) - var(--s-2));
+    padding: 0 0 0 var(--s-3);
+}
+
+.library .lib-table .col-pick input {
+    width: var(--s-5);
+    height: var(--s-5);
+    margin: 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.library .st {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-1);
+    height: 22px;
+    margin-inline-start: var(--s-3);
+    padding: 0 var(--s-2);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-xs);
+    background: var(--surface-2);
+    color: var(--ink-2);
+    font: var(--t-caption);
+    font-weight: 600;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.library .st .ic {
+    width: 14px;
+    height: 14px;
+}
+
+.library .st.done .ic {
+    color: var(--success);
+}
+
+.library .st.failed {
+    max-width: 24rem;
+    overflow: hidden;
+    color: var(--danger);
+    text-overflow: ellipsis;
+}
+
+.library .st .dot {
+    width: 8px;
+    height: 8px;
+    border: 1.5px solid var(--ink-3);
+    border-radius: 50%;
+    box-sizing: border-box;
+}
+
+.library .st .spin {
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--hairline-strong);
+    border-top-color: var(--ink-2);
+    border-radius: 50%;
+    box-sizing: border-box;
+    animation: st-spin calc(var(--t-slow) * 3) linear infinite;
+}
+
+@keyframes st-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .library .st .spin {
+        animation: none;
+    }
+}
+
+.library .run-bar .own {
+    font: var(--t-caption);
+    white-space: nowrap;
+}
+
+.library .consent-sheet {
+    width: min(560px, calc(100vw - 2 * var(--s-4)));
+}
+
+.library .consent-sheet .hd .ttl {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.library .consent-sheet .how-many {
+    margin: 0;
+    color: var(--ink);
+    font: var(--t-title);
+    font-size: 22px;
+}
+
+.library .consent-sheet .names {
+    margin: calc(-1 * var(--s-2)) 0 0;
+    color: var(--ink-2);
+}
+
+.library .consent-sheet .facts {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: var(--s-3) var(--s-4);
+    margin: 0;
+}
+
+.library .consent-sheet dt {
+    color: var(--ink-2);
+    font: var(--t-label);
+    line-height: 22px;
+}
+
+.library .consent-sheet dd {
+    margin: 0;
+    color: var(--ink);
+    font: var(--t-body);
+}
+
+.library .consent-sheet .track {
+    position: relative;
+    display: block;
+    height: 6px;
+    margin-top: var(--s-2);
+    overflow: hidden;
+    border-radius: var(--r-pill);
+    background: var(--hairline);
+}
+
+.library .consent-sheet .fill {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: var(--done, 0%);
+    background: var(--ink-2);
+}
+
+.library .consent-sheet .over {
+    display: block;
+    margin-top: var(--s-2);
+    color: var(--ink-2);
+}
+
+.library .consent-sheet .acts {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--s-2);
+}
+
+@media (max-width: 600px) {
+    .library .consent-sheet .facts {
+        grid-template-columns: 1fr;
+        gap: var(--s-1);
+    }
+
+    .library .consent-sheet dd {
+        margin-bottom: var(--s-2);
+    }
+}

@@ -1,0 +1,94 @@
+@using MotiffLab.Web.Localization
+@implements IDisposable
+
+@* The batch's line over the library (version 0.5, ux-prototype/v0.5/screens/import-web-5-status.png): «Распознаю ноты: готово
+   2 из 8», about how long is left, Pause; when it waits, why, in plain words: the day's pages on Motiff Lab's server are
+   used up (the rest tomorrow, or the player's own server, which has no limit), sign-in, Pro, the server, the folder.
+   Nothing shows while the experiment is off or there is no batch. *@
+@if (_on && Queue.Batch is { } batch)
+{
+    <div class="run-bar recognition-bar" role="status" aria-live="polite">
+        <span class="what">@Headline(batch)</span>
+        <span class="where">@Where(batch)</span>
+        @if (batch.Stopped == "limit")
+        {
+            <a class="own" href="settings#scan-heading">@Text["recognition.ownServer"]</a>
+        }
+        <span class="sp"></span>
+        @if (Queue.Running)
+        {
+            <button class="btn quiet" @onclick="Queue.PauseAsync"><Icon Name="pause" /> @Text["folder.pause"]</button>
+        }
+        else if (!batch.Finished)
+        {
+            <button class="btn quiet" @onclick="Queue.ResumeAsync"><Icon Name="play" /> @Text["folder.resume"]</button>
+            <button class="btn quiet" @onclick="Queue.CloseAsync">@Text["folder.stop"]</button>
+        }
+        else
+        {
+            <button class="btn quiet" @onclick="Queue.CloseAsync">@Text["library.done"]</button>
+        }
+        <span class="track" aria-hidden="true"><span class="fill" style="--done: @(batch.Items.Count == 0 ? 100 : batch.Done * 100 / batch.Items.Count)%"></span></span>
+    </div>
+}
+
+@code {
+    [Inject]
+    private RecognitionQueue Queue { get; set; } = default!;
+
+    [Inject]
+    private UiText Text { get; set; } = default!;
+
+    [Inject]
+    private MotiffLab.Web.Settings.DeviceSettings Settings { get; set; } = default!;
+
+    [Inject]
+    private MotiffLab.Web.Import.ScanService Scans { get; set; } = default!;
+
+    /// <summary>After a piece got its notes: the library reads its list again.</summary>
+    [Parameter]
+    public EventCallback Listed { get; set; }
+
+    private bool _on;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Queue.Changed += OnChanged;
+        Queue.Read += OnRead;
+        await Settings.LoadAsync();
+        _on = Settings.IsOn(ImportJob.Setting);
+        if (_on)
+        {
+            await Queue.LoadAsync();
+            await Scans.LoadAsync();
+        }
+    }
+
+    public void Dispose()
+    {
+        Queue.Changed -= OnChanged;
+        Queue.Read -= OnRead;
+    }
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private void OnRead() => _ = InvokeAsync(() => Listed.InvokeAsync());
+
+    /// <summary>«Распознаю ноты: готово 2 из 8», «Распознавание остановлено на 2 из 8», «Ноты распознаны: 7 из 8».</summary>
+    private string Headline(RecognitionBatch batch) =>
+        Queue.Running ? Text.Format("recognition.running", batch.Done, batch.Items.Count)
+        : batch.Finished ? Text.Format("recognition.finished", batch.Read, batch.Items.Count)
+        : Text.Format("recognition.stopped", batch.Done, batch.Items.Count);
+
+    /// <summary>About how long is left while it reads; why it waits when it waits; how many did not work at the end.</summary>
+    private string? Where(RecognitionBatch batch) =>
+        Queue.Running ? Text.Format("recognition.left", HostedPages.Minutes(batch.PagesLeft))
+        : batch.Finished ? (batch.Failed > 0 ? Text.Count("recognition.failedCount", batch.Failed) : null)
+        : batch.Stopped switch
+        {
+            "limit" => Text.Format("recognition.stop.limit", HostedPages.Limit),
+            "server" => Text.Format("recognition.stop.server", Scans.Address?.Host ?? ""),
+            { } why => Text[$"recognition.stop.{why}"],
+            null => Text["recognition.stop.paused"],
+        };
+}

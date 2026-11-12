@@ -108,6 +108,15 @@
                         <button role="radio" aria-checked="@(on ? "true" : "false")" class="@(on ? "on" : null)" @key="mapping" @onclick="() => Map(mapping)">@Text[MappingKey(mapping)]</button>
                     }
                 </div>
+                @if (_scan.ToAdd.Any(static row => FolderScan.IsPdf(row.Path)))
+                {
+                    @* «Распознать ноты» (version 0.5, import-web-2): later, picked in the library, or all of them now, after one consent. *@
+                    <span class="lbl" id="found-recognise">@Text["folder.recognise"]</span>
+                    <div class="seg" role="radiogroup" aria-labelledby="found-recognise">
+                        <button role="radio" aria-checked="@(_recogniseNow ? "false" : "true")" class="@(_recogniseNow ? null : "on")" @onclick="() => _recogniseNow = false">@Text["folder.recogniseLater"]</button>
+                        <button role="radio" aria-checked="@(_recogniseNow ? "true" : "false")" class="@(_recogniseNow ? "on" : null)" @onclick="() => _recogniseNow = true">@Text["folder.recogniseNow"]</button>
+                    </div>
+                }
                 @if (!_scan.Linked)
                 {
                     <span class="lbl">@Text["folder.copies"]</span>
@@ -120,6 +129,13 @@
         </footer>
     }
 </section>
+
+@if (_consent && _scan is { } toRead)
+{
+    <div class="lib-scrim" @onclick="() => _consent = false"></div>
+    <RecognitionConsent Pieces="@([.. toRead.ToAdd.Where(static row => FolderScan.IsPdf(row.Path)).Select(static row => new PieceToRead(row.Path, row.Title, row.Planned.File.Pages ?? 1))])"
+                        Agreed="() => StartAsync(recognise: true)" Cancelled="() => _consent = false" />
+}
 
 @code {
     /// <summary>A counter that filters the list: «Новых 628».</summary>

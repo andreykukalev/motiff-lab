@@ -1,42 +1,120 @@
+@using MotiffLab.Web.Library
 @using MotiffLab.Web.Localization
+@implements IDisposable
 
 @* The list of pieces (version 0.2, ux-prototype/v2/screens/lib-1-list.png): Title, Composer, Playlists and Opened, a heading
    ordering the list by its column and again turning the order round; one line a piece, a tap opening it where it was left,
-   and its ••• for the rest. Each line carries its place, for the index at the edge. *@
-<table class="lib-table">
-    <thead>
-        <tr>
-            <th scope="col" class="col-title" aria-sort="@AriaSort(LibrarySort.Title)">@Heading(LibrarySort.Title, Text["library.fieldTitle"])</th>
-            <th scope="col" class="col-composer" aria-sort="@AriaSort(LibrarySort.Composer)">@Heading(LibrarySort.Composer, Text["library.fieldComposer"])</th>
-            <th scope="col" class="col-playlists"><span class="head">@Text["library.fieldPlaylists"]</span></th>
-            <th scope="col" class="col-opened" aria-sort="@AriaSort(LibrarySort.Opened)">@Heading(LibrarySort.Opened, Text["library.colOpened"])</th>
-            <th scope="col" class="col-more"><span class="visually-hidden">@Text["library.more"]</span></th>
-        </tr>
-    </thead>
-    <tbody>
-        @for (int index = 0; index < Entries.Count; index++)
-        {
-            LibraryEntry entry = Entries[index];
-            <tr class="@(MenuOpen == entry.Summary.Id ? "menu-open" : null)" id="@($"lib-at-{index}")" @key="entry.Summary.Id" @onclick="() => Opened.InvokeAsync(entry)">
-                <th scope="row" class="col-title">
-                    <button class="ttl" @onclick="() => Opened.InvokeAsync(entry)" @onclick:stopPropagation="true" disabled="@Busy">@entry.Title</button>
-                    @if (Shelf?.Elsewhere(entry) is { } elsewhere)
-                    {
-                        <span class="tag held">@elsewhere</span>
-                    }
-                </th>
-                <td class="col-composer">@entry.Composer</td>
-                <td class="col-playlists">@string.Join(", ", entry.Playlists)</td>
-                <td class="col-opened">@When(entry.Summary.LastOpened)</td>
-                <td class="col-more" @onclick:stopPropagation="true">@Menu(entry)</td>
+   and its ••• for the rest. Each line carries its place, for the index at the edge. With the import's experiment (version
+   0.5, ux-prototype/v0.5/screens/import-web-4..5): a box on each PDF piece while picking pieces to read, the bar with what is
+   picked, and on each piece of a batch where its notes are. *@
+<div class="lib-list">
+    @if (Pick.Picking)
+    {
+        <div class="lib-pickbar" role="group" aria-label="@Text["recognition.title"]">
+            <p class="what" role="status">@Text.Format("recognition.picked", Text.Count("recognition.pieces", Pick.Picked.Count), Text.Count("recognition.pages", Pick.PagesPicked))</p>
+            <span class="sp"></span>
+            <button class="btn quiet" @onclick="Pick.Stop">@Text["recognition.unpick"]</button>
+            <button class="btn primary" @onclick="() => _consent = true" disabled="@(Pick.Picked.Count == 0)">@Text["recognition.title"]</button>
+        </div>
+    }
+    <table class="lib-table @(Pick.Picking ? "picking" : null)">
+        <thead>
+            <tr>
+                @if (Pick.Picking)
+                {
+                    <th scope="col" class="col-pick">
+                        <input type="checkbox" aria-label="@Text["recognition.pickAll"]" checked="@AllPicked" @onchange="() => Pick.ToggleAllAsync(Entries)" />
+                    </th>
+                }
+                <th scope="col" class="col-title" aria-sort="@AriaSort(LibrarySort.Title)">@Heading(LibrarySort.Title, Text["library.fieldTitle"])</th>
+                <th scope="col" class="col-composer" aria-sort="@AriaSort(LibrarySort.Composer)">@Heading(LibrarySort.Composer, Text["library.fieldComposer"])</th>
+                <th scope="col" class="col-playlists"><span class="head">@Text["library.fieldPlaylists"]</span></th>
+                <th scope="col" class="col-opened" aria-sort="@AriaSort(LibrarySort.Opened)">@Heading(LibrarySort.Opened, Text["library.colOpened"])</th>
+                <th scope="col" class="col-more"><span class="visually-hidden">@Text["library.more"]</span></th>
             </tr>
-        }
-    </tbody>
-</table>
+        </thead>
+        <tbody>
+            @for (int index = 0; index < Entries.Count; index++)
+            {
+                LibraryEntry entry = Entries[index];
+                <tr class="@(MenuOpen == entry.Summary.Id ? "menu-open" : null)" id="@($"lib-at-{index}")" @key="entry.Summary.Id" @onclick="() => TappedAsync(entry)">
+                    @if (Pick.Picking)
+                    {
+                        <td class="col-pick" @onclick:stopPropagation="true">
+                            @if (RecognitionPick.CanPick(entry))
+                            {
+                                <input type="checkbox" aria-label="@Text.Format("recognition.pickPiece", entry.Title)" checked="@Pick.IsPicked(entry.Summary.Id)" @onchange="() => Pick.ToggleAsync(entry)" />
+                            }
+                        </td>
+                    }
+                    <th scope="row" class="col-title">
+                        <button class="ttl" @onclick="() => Opened.InvokeAsync(entry)" @onclick:stopPropagation="true" disabled="@Busy">@entry.Title</button>
+                        @if (Shelf?.Elsewhere(entry) is { } elsewhere)
+                        {
+                            <span class="tag held">@elsewhere</span>
+                        }
+                        @if (Queue.StatusOf(entry.Summary.Id) is { } status)
+                        {
+                            <RecognitionStatus Item="status" />
+                        }
+                    </th>
+                    <td class="col-composer">@entry.Composer</td>
+                    <td class="col-playlists">@string.Join(", ", entry.Playlists)</td>
+                    <td class="col-opened">@When(entry.Summary.LastOpened)</td>
+                    <td class="col-more" @onclick:stopPropagation="true">@Menu(entry)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    @if (_consent)
+    {
+        <div class="lib-scrim" @onclick="() => _consent = false"></div>
+        <RecognitionConsent Pieces="Pick.ToRead" Agreed="SendAsync" Cancelled="() => _consent = false" />
+    }
+</div>
 
 @code {
     [Inject]
     private UiText Text { get; set; } = default!;
+
+    [Inject]
+    private RecognitionPick Pick { get; set; } = default!;
+
+    [Inject]
+    private RecognitionQueue Queue { get; set; } = default!;
+
+    private bool _consent;
+
+    private bool AllPicked => Pick.Picked.Count > 0 && Entries.Where(RecognitionPick.CanPick).All(entry => Pick.IsPicked(entry.Summary.Id));
+
+    protected override async Task OnInitializedAsync()
+    {
+        Pick.Changed += OnChanged;
+        Queue.Changed += OnChanged;
+        await Queue.LoadAsync();
+    }
+
+    public void Dispose()
+    {
+        Pick.Changed -= OnChanged;
+        Queue.Changed -= OnChanged;
+    }
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    /// <summary>A tap on a line opens the piece; while picking, it picks a PDF piece instead.</summary>
+    private Task TappedAsync(LibraryEntry entry) =>
+        Pick.Picking && RecognitionPick.CanPick(entry) ? Pick.ToggleAsync(entry) : Opened.InvokeAsync(entry);
+
+    /// <summary>«Отправить»: the picked pieces go to the batch, and picking ends.</summary>
+    private async Task SendAsync()
+    {
+        IReadOnlyList<PieceToRead> pieces = Pick.ToRead;
+        _consent = false;
+        Pick.Stop();
+        await Queue.SendAsync(pieces);
+    }
 
     [Parameter, EditorRequired]
     public IReadOnlyList<LibraryEntry> Entries { get; set; } = [];
