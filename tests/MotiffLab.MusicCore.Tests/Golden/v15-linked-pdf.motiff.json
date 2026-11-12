@@ -1,0 +1,88 @@
+{
+  "format": "motiff-lab-project",
+  "version": 15,
+  "id": "p_7a1b2c3d4e5f4a6b8c9d0e1f2a3b4c5d",
+  "fileName": "Bach - Prelude in C.pdf",
+  "createdAt": "2026-11-12T18:00:00.0000000\u002B00:00",
+  "lastOpened": "2026-11-12T18:00:00.0000000\u002B00:00",
+  "metadata": {
+    "title": "Prelude in C",
+    "composer": "Bach",
+    "tags": [
+      "\u0411\u0430\u0445",
+      "\u0425\u0422\u041A"
+    ],
+    "playlists": [
+      "\u0425\u0422\u041A"
+    ]
+  },
+  "source": "",
+  "originals": [
+    {
+      "id": "src_pdf",
+      "kind": "pdf",
+      "fileName": "Bach - Prelude in C.pdf",
+      "folder": "\u0411\u0430\u0445/\u0425\u0422\u041A",
+      "sha256": "bdddb6e34f5b7ca5d33a2f3fe66b8798afac5ce3b20145f15bf8071daca77926",
+      "bytes": 34,
+      "pages": 3,
+      "addedAt": "2026-11-12T18:00:00.0000000\u002B00:00",
+      "kept": "link",
+      "held": [
+        {
+          "device": "ipad",
+          "at": "2026-11-12T18:00:00.0000000\u002B00:00"
+        }
+      ]
+    }
+  ],
+  "motifs": [],
+  "variations": [],
+  "observations": [],
+  "edits": [],
+  "phrases": {
+    "added": [],
+    "removed": [],
+    "short": {
+      "added": [],
+      "removed": []
+    },
+    "sentences": {
+      "added": [],
+      "removed": []
+    }
+  },
+  "marks": {
+    "ink": [],
+    "notes": [],
+    "highlights": [],
+    "fingering": []
+  },
+  "bookmarks": {
+    "categories": [
+      {
+        "id": "practise",
+        "ink": "Carmine"
+      },
+      {
+        "id": "performance",
+        "ink": "Forest"
+      },
+      {
+        "id": "structure",
+        "ink": "Graphite"
+      },
+      {
+        "id": "teacher",
+        "ink": "Ochre"
+      }
+    ],
+    "items": []
+  },
+  "resumePoints": [],
+  "check": [],
+  "performances": [],
+  "settings": {},
+  "scan": null,
+  "transcription": null
+}

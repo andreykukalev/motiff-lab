@@ -148,6 +148,11 @@ public sealed class MusicCoreFacade
                 });
             }
 
+            if (IsProjectFile(fileName, bytes) && IsAway(bytes))
+            {
+                throw new FacadeException("originalAway", "This piece's PDF is not in its file: link the file again where it is (Привязать оригинал).");
+            }
+
             OpenPiece piece = IsProjectFile(fileName, bytes)
                 ? OpenPiece.Open(bytes, words, OpenPiece.LayerOf(fields.Text("edits")), asTheFileSays: fields.Text("edits") == "piece")
                 : OpenPiece.Import(id, fileName, bytes, words, now);
@@ -327,6 +332,22 @@ public sealed class MusicCoreFacade
         catch (ProjectFileException)
         {
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Whether a project file is a piece with no notes and no PDF in it (version 0.5): its PDF is in the player's folder or
+    /// on another device, so it is listed (project.summary) and opens only once the file is linked again.
+    /// </summary>
+    private static bool IsAway(byte[] projectFile)
+    {
+        try
+        {
+            return ProjectFile.Read(projectFile) is { HasNotes: false, Document: null };
+        }
+        catch (ProjectFileException)
+        {
+            return false;
         }
     }
 

@@ -230,12 +230,12 @@ public class PieceOriginalTests
     }
 
     /// <summary>
-    /// A later build adds a value: a kind, or a third way of keeping the bytes (Andrei, 2026-11-12 00:05 UTC: "link", a file
-    /// left in the player's own Google Drive folder). This build keeps the description whole and writes it back.
+    /// A later build adds a value: a kind, or another way of keeping the bytes (as "link" was added in version 0.5, a file
+    /// left in the player's own folder). This build keeps the description whole and writes it back.
     /// </summary>
     [Theory]
     [InlineData("kind", "hologram", nameof(OriginalKind))]
-    [InlineData("kept", "link", nameof(OriginalKept))]
+    [InlineData("kept", "cloud", nameof(OriginalKept))]
     public void An_original_with_a_value_a_later_build_adds_is_kept_and_written_back(string field, string value, string type)
     {
         JsonObject file = JsonNode.Parse(ProjectFile.Write(Recognised()))!.AsObject();

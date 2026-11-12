@@ -12,9 +12,10 @@ namespace MotiffLab.MusicCore.Facade;
 internal static partial class Answer
 {
     /// <summary>
-    /// "originals": [{"id", "kind" ("pdf" / "images" / "audio" / "midi" / "musicxml"), "shown", "fileName", "sha256",
-    /// "bytes", "pages", "durationMs" (each null when not known), "kept" ("file" / "device"), "inFile", "held": [{"device"
-    /// ("ipad" / "web"), "at"}]}], in the order <see cref="Project.Originals"/> lists them.
+    /// "originals": [{"id", "kind" ("pdf" / "images" / "audio" / "midi" / "musicxml"), "shown", "fileName", "folder"
+    /// (version 0.5, where it was in the folder the player imported), "sha256", "bytes", "pages", "durationMs" (each null
+    /// when not known), "kept" ("file" / "device" / "link", version 0.5: in the player's folder), "inFile", "held":
+    /// [{"device" ("ipad" / "web"), "at"}]}], in the order <see cref="Project.Originals"/> lists them.
     /// </summary>
     public static void Originals(Utf8JsonWriter json, Project project)
     {
@@ -26,6 +27,7 @@ internal static partial class Answer
             json.WriteString("kind", original.Kind.ToString().ToLowerInvariant());
             json.WriteString("shown", original.Shown);
             json.WriteString("fileName", original.FileName);
+            OptionalText(json, "folder", original.Folder);
             OptionalText(json, "sha256", original.Sha256);
             OptionalNumber(json, "bytes", original.Bytes);
             OptionalNumber(json, "pages", original.Pages);

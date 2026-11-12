@@ -38,6 +38,11 @@ public static partial class ProjectFile
             }
 
             json.WriteString("fileName", original.FileName);
+            if (original.Folder is { } folder)
+            {
+                json.WriteString("folder", folder);
+            }
+
             if (original.Sha256 is { } sha256)
             {
                 json.WriteString("sha256", sha256);
@@ -102,6 +107,7 @@ public static partial class ProjectFile
             return new PieceOriginal(Text(original, "id"), LowerName<OriginalKind>(original, "kind"), Text(original, "fileName"), LowerName<OriginalKept>(original, "kept"), Time(original, "addedAt"))
             {
                 Name = original.TryGetProperty("name", out _) ? Text(original, "name") : null,
+                Folder = original.TryGetProperty("folder", out JsonElement folder) ? FolderOf(folder) : null,
                 Sha256 = original.TryGetProperty("sha256", out _) ? Text(original, "sha256") : null,
                 Bytes = original.TryGetProperty("bytes", out _) ? Long(original, "bytes") : null,
                 Pages = original.TryGetProperty("pages", out _) ? Integer(original, "pages") : null,
@@ -120,6 +126,17 @@ public static partial class ProjectFile
             throw Damaged(OriginalsList);
         }
     }
+
+    /// <summary>"folder" (version 0.5): where the file was inside the folder the player imported; empty text for the folder itself.</summary>
+    private static string FolderOf(JsonElement folder) =>
+        folder.ValueKind == JsonValueKind.String && PieceOriginal.IsFolder(folder.GetString()!) ? folder.GetString()! : throw Damaged(OriginalsList);
+
+    /// <summary>
+    /// The project read, when it is a piece: with notes, with its PDF, or (version 0.5) describing its PDF that is in the
+    /// player's folder or on another device (<see cref="Project.DescribesDocument"/>); a file with none of them is damaged.
+    /// </summary>
+    private static Project Described(this Project project) =>
+        project.HasNotes || project.Document is not null || project.DescribesDocument ? project : throw Damaged("source");
 
     /// <summary>"from" and "at" on a scan, a transcription or a performance (version 0.3): the original the notes were made from, and when.</summary>
     private static void WriteMadeFrom(Utf8JsonWriter json, string? from, DateTimeOffset? at)

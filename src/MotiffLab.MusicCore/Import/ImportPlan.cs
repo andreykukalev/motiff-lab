@@ -92,6 +92,7 @@ public sealed record LibraryOriginal(string ProjectId, string OriginalId, string
             Bytes = original.Bytes,
             Pages = original.Pages,
             FileName = original.FileName,
+            Folder = original.Folder,
             Title = details.Title.Value,
             Composer = details.Composer?.Value,
         });
