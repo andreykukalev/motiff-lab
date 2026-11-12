@@ -48,11 +48,22 @@ test("the selection's band stays on its bar's staves far down a long score", asy
     await expect(page).toHaveURL(/\/playback\?project=/);
     await expect(page.locator(".score button.bracket").first()).toBeAttached({ timeout: 120_000 });
 
-    // A bar in the middle of a page more than half way down.
+    // A bar in the middle of a page more than half way down, once that page is drawn (pages away from the view are drawn
+    // after the first, #419).
     await page.evaluate(() => {
         const host = document.querySelector(".score");
         host.scrollTop = host.scrollHeight * 0.6;
     });
+    await expect.poll(() => page.evaluate(() => {
+        const host = document.querySelector(".score");
+        const view = host.getBoundingClientRect();
+        const middle = (view.top + view.bottom) / 2;
+        const sheet = [...host.querySelectorAll(":scope > .score-page")].find((candidate) => {
+            const box = candidate.getBoundingClientRect();
+            return box.top <= middle && box.bottom > middle;
+        });
+        return sheet?.querySelector("svg g.measure") !== null && sheet !== undefined;
+    })).toBe(true);
     const bar = await page.evaluate(() => {
         const host = document.querySelector(".score");
         const view = host.getBoundingClientRect();

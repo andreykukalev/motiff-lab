@@ -46,6 +46,13 @@ const SCALE = 40;
 const MIN_PAGE_WIDTH = 900;
 
 const RELAYOUT_DELAY_MS = 200;
+/**
+ * A long score (#419) shows the sheets in view first and draws the others straight after, this much of the main thread at a
+ * time, so the page answers between; and its first sheets are shown before Verovio's timemap is read.
+ */
+const FILL_BUDGET_MS = 30;
+/** How long a load waits for the browser to draw its first sheets before going on, when no frame comes (a page out of sight). */
+const PAINT_WAIT_MS = 100;
 
 /** Only a change of width beyond this lays the score out again. */
 const RELAYOUT_THRESHOLD_PX = 24;
@@ -230,6 +237,24 @@ function loadToolkit(): Promise<VerovioToolkit> {
     return toolkit;
 }
 
+/** Starts loading Verovio before a score is there to engrave (#419), so a piece being read meanwhile does not wait for it. */
+export function warmEngraver(): void {
+    loadToolkit().catch(() => undefined);
+}
+
+/** Resolves once the browser has drawn what changed, or after a moment when it draws no frame (a page out of sight). */
+function painted(): Promise<void> {
+    return new Promise((done) => {
+        const timer = window.setTimeout(done, PAINT_WAIT_MS);
+        requestAnimationFrame(() =>
+            window.setTimeout(() => {
+                clearTimeout(timer);
+                done();
+            }, 0),
+        );
+    });
+}
+
 export class ScoreView {
     private readonly host: HTMLElement;
     private readonly dotnet: DotNetObject;
@@ -286,8 +311,13 @@ export class ScoreView {
     /** What was loaded, so a change of layout can engrave it again. */
     private data: string | null = null;
     /** The pages as engraved, and their geometry once read (score-geometry.ts): read again after every layout. */
-    private pageSvgs: string[] = [];
-    private pageGeometry: PageGeometry[] | null = null;
+    /** Each page's drawing, null for a page still to engrave (#419). */
+    private pageSvgs: (string | null)[] = [];
+    /** Each engraved page's geometry, read from its drawing. */
+    private pageGeometry: (PageGeometry | null)[] = [];
+    /** Whether each sheet has its drawing on it. */
+    private pageShown: boolean[] = [];
+    private fillTimer = 0;
     /** The pages under the reading line as last reported, so the bar hears only of a change. */
     private pagesShown = "";
     private scrollFrame = 0;
@@ -359,10 +389,21 @@ export class ScoreView {
         this.engraver = engraver;
         this.pitches = new Map();
         this.highlighted = new Set();
-        this.timeline = ScoreTimeline.fromTimemap(engraver.renderToTimemap({ includeRests: true, includeMeasures: true }));
+        // On A4 sheets the timemap is read, and the sheets out of view drawn, once the first ones are on screen (#419).
+        this.timeline = this.paged ? null : this.readTimeline(engraver);
         this.render();
-        const heading = this.pageSvgs.length > 0 ? titleBlock(this.pageSvgs[0]) : null;
-        return { pages: engraver.getPageCount(), notes: this.timeline.spans.length, title: heading?.title || null };
+        const first = this.pageSvgs[0] ?? null;
+        const heading = first !== null ? titleBlock(first) : null;
+        const result = { pages: engraver.getPageCount(), notes: this.timeline?.spans.length ?? 0, title: heading?.title || null };
+        if (this.paged) {
+            await painted();
+            this.scheduleFill();
+        }
+        return result;
+    }
+
+    private readTimeline(engraver: VerovioToolkit): ScoreTimeline {
+        return ScoreTimeline.fromTimemap(engraver.renderToTimemap({ includeRests: true, includeMeasures: true }));
     }
 
     /** Even bars on or off (Settings · Notes): what is showing is engraved again, keeping the player's place in it. */
@@ -405,9 +446,9 @@ export class ScoreView {
         engraver.loadData(data);
         this.pitches = new Map();
         this.highlighted = new Set();
-        this.timeline = ScoreTimeline.fromTimemap(engraver.renderToTimemap({ includeRests: true, includeMeasures: true }));
-        this.render();
-        host.scrollTop = place * host.scrollHeight;
+        this.timeline = this.readTimeline(engraver);
+        this.render(place);
+        this.scheduleFill();
     }
 
     /**
@@ -617,6 +658,7 @@ export class ScoreView {
 
     /** The pages as engraved, with the stretch of the piece on each, for the Contents drawer; none in the strip. */
     pageOutline(): PageOutline[] {
+        this.drawAll();
         const geometry = this.geometry();
         for (const url of this.thumbnails) {
             URL.revokeObjectURL(url);
@@ -628,7 +670,7 @@ export class ScoreView {
         const pages: PageOutline[] = [];
         this.pageSvgs.forEach((svg, index) => {
             const bars = geometry.bars.filter((bar) => bar.page === index + 1);
-            if (bars.length === 0) {
+            if (svg === null || bars.length === 0) {
                 return;
             }
             const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
@@ -643,18 +685,20 @@ export class ScoreView {
      * each page starts, with the phrases and bars Blazor names. Nothing is kept in the strip, which has no pages.
      */
     async saveCover(id: string, phraseStarts: number[], barStarts: number[], firstBar: number): Promise<boolean> {
-        const geometry = this.geometry();
-        if (geometry === null || !this.paged || this.pageSvgs.length === 0) {
+        // The cover names where every page starts: with sheets still to draw, the next render tries again.
+        const first = this.pageSvgs[0] ?? null;
+        const geometry = this.pageSvgs.includes(null) ? null : this.geometry();
+        if (geometry === null || first === null || !this.paged) {
             return false;
         }
         const pageStarts = this.pageSvgs.map((_, index) => {
             const ticks = geometry.bars.filter((bar) => bar.page === index + 1).map((bar) => bar.tick);
             return ticks.length > 0 ? Math.min(...ticks) : Number.MAX_SAFE_INTEGER;
         });
-        const heading = titleBlock(this.pageSvgs[0]);
+        const heading = titleBlock(first);
         await saveCover({
             id,
-            svg: this.pageSvgs[0],
+            svg: first,
             title: heading?.title || null,
             lines: heading?.lines ?? [],
             pages: this.pageSvgs.length,
@@ -677,6 +721,7 @@ export class ScoreView {
 
     /** Where the first bar on a page starts, in ticks; null in the strip or for a page with no bars. */
     firstTickOn(page: number): number | null {
+        this.drawAll();
         const geometry = this.geometry();
         const ticks = geometry === null || !this.paged ? [] : geometry.bars.filter((bar) => bar.page === page).map((bar) => bar.tick);
         return ticks.length > 0 ? Math.min(...ticks) : null;
@@ -684,6 +729,7 @@ export class ScoreView {
 
     /** Scrolls to the top of the page a place in the piece is on, as the PDF view's pages lead to the notes (0023). */
     showTick(tick: number): void {
+        this.drawAll();
         const geometry = this.geometry();
         if (geometry === null || !this.paged) {
             return;
@@ -747,7 +793,8 @@ export class ScoreView {
         const host = this.host;
         // An A4 sheet is the page's own box, the drawing as wide as it and from its top (app.css: .score svg is 100% wide,
         // its height from its shape): measuring the sheet rather than the drawing leaves the pages out of sight unrendered
-        // (content-visibility, #419). The strip's sheet is as tall as its drawing, which is measured.
+        // (content-visibility, #419). The strip's sheet is as tall as its drawing, which is measured. A sheet still to draw
+        // has no bars yet.
         const sheets = host.querySelectorAll(this.paged ? ":scope > .score-page" : ":scope > .score-page > svg");
         const view = host.getBoundingClientRect();
         // Kept while the view and the sheets stay where they are: a drawer, a bar or a setting that moves the sheets without
@@ -756,24 +803,25 @@ export class ScoreView {
             const box = sheet?.getBoundingClientRect();
             return box === undefined ? [] : [box.left - view.left + host.scrollLeft, box.top - view.top + host.scrollTop, box.width];
         });
-        const key = `${host.clientWidth}x${host.clientHeight}x${host.scrollHeight}x${this.pageSvgs.length}`;
+        const drawn = this.pageGeometry.filter((page) => page !== null).length;
+        const key = `${host.clientWidth}x${host.clientHeight}x${host.scrollHeight}x${this.pageSvgs.length}x${drawn}`;
         const kept = this.placedGeometry;
         if (kept?.key === key && kept.ends.length === ends.length && kept.ends.every((value, index) => Math.abs(value - ends[index]) < 1)) {
             return kept.geometry;
         }
         // Sheets that moved under marks drawn over them: the marks are drawn again where the bars are now.
-        if (this.placedGeometry !== null) {
+        if (kept !== null) {
             this.replaceMarks();
         }
-        this.pageGeometry ??= this.pageSvgs.map((svg, index) => readPage(svg, index + 1));
-        const pages = this.pageGeometry;
+        const pages: PageGeometry[] = [];
         const placements: PagePlacement[] = [];
         sheets.forEach((element, index) => {
-            const page = pages[index];
-            if (page === undefined) {
+            const page = this.pageGeometry[index] ?? null;
+            if (page === null) {
                 return;
             }
             const box = element.getBoundingClientRect();
+            pages.push(page);
             if (this.paged) {
                 const scale = box.width / page.width;
                 placements.push({ left: box.left - view.left + host.scrollLeft, top: box.top - view.top + host.scrollTop, scale });
@@ -821,6 +869,7 @@ export class ScoreView {
         cancelAnimationFrame(this.frame);
         cancelAnimationFrame(this.replaceFrame);
         clearTimeout(this.relayoutTimer);
+        clearTimeout(this.fillTimer);
         this.resizeObserver.disconnect();
         this.host.removeEventListener("click", this.onClick);
         this.host.removeEventListener("wheel", this.onScrollByHand);
@@ -858,38 +907,152 @@ export class ScoreView {
         };
     }
 
-    private render(): void {
+    /**
+     * Lays the engraved pages out as sheets, scrolled to `place` (a share of the score's height) when given. In the strip
+     * every page is drawn, as its sheet is as tall as its drawing; an A4 sheet keeps its size empty, so a long score draws
+     * the sheets in view and a screen round them now and the rest after (#419): the look, once drawn, is the same.
+     */
+    private render(place: number | null = null): void {
         const engraver = this.engraver;
         if (engraver === null) {
             return;
         }
 
-        const pages: Element[] = [];
-        this.pageSvgs = [];
-        this.pageGeometry = null;
-        for (let page = 1; page <= engraver.getPageCount(); page++) {
+        clearTimeout(this.fillTimer);
+        const count = engraver.getPageCount();
+        this.pageSvgs = new Array<string | null>(count).fill(null);
+        this.pageGeometry = new Array<PageGeometry | null>(count).fill(null);
+        this.pageShown = new Array<boolean>(count).fill(false);
+        const sheets: HTMLElement[] = [];
+        for (let page = 1; page <= count; page++) {
             const container = document.createElement("div");
             container.className = "score-page";
-            const svg = engraver.renderToSVG(page);
-            this.pageSvgs.push(svg);
-            container.innerHTML = svg;
             if (this.paged) {
                 container.dataset.page = String(page);
-                const heading = page === 1 ? titleBlock(svg) : null;
-                if (heading !== null) {
-                    container.append(titleElement(heading.title, heading.lines));
-                }
             }
-            pages.push(container);
+            sheets.push(container);
         }
-        this.host.replaceChildren(...pages);
-        this.pagesShown = "";
-        this.placedGeometry = null;
-        this.outside = new Set();
+        this.host.replaceChildren(...sheets);
+        if (this.paged) {
+            if (place !== null) {
+                this.host.scrollTop = place * this.host.scrollHeight;
+            }
+            for (const index of this.sheetsNear(sheets)) {
+                this.drawPage(sheets[index], index);
+            }
+        } else {
+            sheets.forEach((sheet, index) => this.drawPage(sheet, index));
+            if (place !== null) {
+                this.host.scrollTop = place * this.host.scrollHeight;
+            }
+        }
         if (this.holding) {
             this.keepHeight();
         }
+        this.dress();
+    }
 
+    /** The first sheet, for the title, and the sheets in view or within a screen of it. */
+    private sheetsNear(sheets: HTMLElement[]): number[] {
+        const view = this.host.getBoundingClientRect();
+        const margin = this.host.clientHeight;
+        return [...sheets.keys()].filter((index) => {
+            const box = sheets[index].getBoundingClientRect();
+            return index === 0 || (box.bottom >= view.top - margin && box.top <= view.bottom + margin);
+        });
+    }
+
+    /** Engraves a page as SVG, when it is not yet, and reads where its bars and notes are. */
+    private readPageSvg(index: number): string | null {
+        const engraver = this.engraver;
+        if (engraver === null) {
+            return null;
+        }
+        let svg = this.pageSvgs[index] ?? null;
+        if (svg === null) {
+            svg = engraver.renderToSVG(index + 1);
+            this.pageSvgs[index] = svg;
+            this.pageGeometry[index] = readPage(svg, index + 1);
+        }
+        return svg;
+    }
+
+    /** Draws a page on its sheet, with the title on the first sheet. */
+    private drawPage(sheet: HTMLElement, index: number): void {
+        const svg = this.readPageSvg(index);
+        if (svg === null || this.pageShown[index]) {
+            return;
+        }
+        this.pageShown[index] = true;
+        sheet.innerHTML = svg;
+        const heading = this.paged && index === 0 ? titleBlock(svg) : null;
+        if (heading !== null) {
+            sheet.append(titleElement(heading.title, heading.lines));
+        }
+    }
+
+    /** Reads the timemap and engraves the other pages a little at a time after the first sheets are on screen, then draws them. */
+    private scheduleFill(): void {
+        clearTimeout(this.fillTimer);
+        if (!this.disposed && this.engraver !== null && (this.timeline === null || this.pageShown.includes(false))) {
+            this.fillTimer = window.setTimeout(this.fill, 0);
+        }
+    }
+
+    private readonly fill = (): void => {
+        const engraver = this.engraver;
+        if (engraver === null || this.disposed) {
+            return;
+        }
+        if (this.timeline === null) {
+            this.timeline = this.readTimeline(engraver);
+            this.dress();
+            this.scheduleFill();
+            return;
+        }
+        // Nearest the middle of the view first, so the marks there have their bars soonest.
+        const sheets = this.pageElements();
+        const view = this.host.getBoundingClientRect();
+        const middle = (view.top + view.bottom) / 2;
+        const distance = (index: number): number => {
+            const box = sheets[index].getBoundingClientRect();
+            return Math.abs((box.top + box.bottom) / 2 - middle);
+        };
+        const order = [...sheets.keys()].filter((index) => this.pageSvgs[index] === null).sort((a, b) => distance(a) - distance(b));
+        const started = performance.now();
+        for (const index of order) {
+            this.readPageSvg(index);
+            if (performance.now() - started >= FILL_BUDGET_MS) {
+                break;
+            }
+        }
+        if (this.pageSvgs.includes(null)) {
+            this.scheduleFill();
+            return;
+        }
+        // Every page engraved: the sheets are drawn in one go, which the browser styles and lays out only where they show
+        // (content-visibility), where sheets drawn a few at a time were styled each time.
+        sheets.forEach((sheet, index) => this.drawPage(sheet, index));
+        this.dress();
+    };
+
+    /** Draws every sheet still to draw now, for what reads the whole score. */
+    private drawAll(): void {
+        const engraver = this.engraver;
+        if (engraver === null || (this.timeline !== null && !this.pageShown.includes(false))) {
+            return;
+        }
+        clearTimeout(this.fillTimer);
+        this.timeline ??= this.readTimeline(engraver);
+        this.pageElements().forEach((sheet, index) => this.drawPage(sheet, index));
+        this.dress();
+    }
+
+    /** Puts what is shown over the score back on the pages drawn: the range, the brackets, the marks and the notes playing. */
+    private dress(): void {
+        this.pagesShown = "";
+        this.placedGeometry = null;
+        this.outside = new Set();
         this.applyRange(false);
         this.placePhrases();
         this.selection.place();
@@ -946,10 +1109,24 @@ export class ScoreView {
     private readonly onScroll = (): void => {
         cancelAnimationFrame(this.scrollFrame);
         this.scrollFrame = requestAnimationFrame(() => {
+            this.drawNear();
             this.reportPages();
             this.selection.placeMenu();
         });
     };
+
+    /** Draws the sheets scrolled into view, or within a screen of it, before the rest are drawn (#419). */
+    private drawNear(): void {
+        if (!this.paged || !this.pageShown.includes(false)) {
+            return;
+        }
+        const sheets = this.pageElements();
+        const near = this.sheetsNear(sheets).filter((index) => !this.pageShown[index]);
+        near.forEach((index) => this.drawPage(sheets[index], index));
+        if (near.length > 0) {
+            this.dress();
+        }
+    }
 
     private readonly onKeyDown = (event: KeyboardEvent): void => {
         if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.target !== this.host) {
@@ -1385,15 +1562,17 @@ export class ScoreView {
                 this.pencil.relayout();
                 this.reportPages();
             } else if (this.engraver !== null && !this.disposed) {
-                this.engraver.setOptions(this.layoutOptions());
-                this.engraver.redoLayout();
-                // Laid out again at a new width, the score keeps the player's place in it rather than jumping to the top.
-                const host = this.host;
-                const place = host.scrollHeight > 0 ? host.scrollTop / host.scrollHeight : 0;
-                this.render();
-                host.scrollTop = place * host.scrollHeight;
+                this.layOutStrip(this.engraver);
             }
         }, RELAYOUT_DELAY_MS);
+    }
+
+    /** Lays the strip out again at the view's new width, keeping the player's place in it rather than jumping to the top. */
+    private layOutStrip(engraver: VerovioToolkit): void {
+        engraver.setOptions(this.layoutOptions());
+        engraver.redoLayout();
+        const host = this.host;
+        this.render(host.scrollHeight > 0 ? host.scrollTop / host.scrollHeight : 0);
     }
 
     private readonly tick = (): void => {

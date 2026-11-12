@@ -105,7 +105,7 @@
                 @* Clicks on the page outside the score and the overlays clear the selection, except inside panels marked data-keeps-selection (docs/ui-conventions.md). *@
                 <ScoreView @ref="_scoreView" Source="shown" Range="ShownRange" Phrases="ScorePhrases" Highlight="_highlight?.Places" HoldHeight="false" PencilKey="ShownPencilKey" Ink="@ShownInk"
                            MarksChanged="OnPencilMarksChangedAsync" Title="@ScoreTitle.Of(_title)" BarPicked="OnScoreBarPickedAsync" PaperTapped="OnPaperTappedAsync" PagesShown="OnPagesShown"
-                           BracketPicked="OnBracketPickedAsync" PencilChanged="OnPenChanged" TitleRead="OnTitleRead"
+                           BracketPicked="OnBracketPickedAsync" PencilChanged="OnPenChanged" TitleRead="OnTitleRead" Engraved="OnEngraved"
                            Selection="_selection?.Span" BarsChosen="OnScoreBarsChosenAsync" Menu="@(MenuShown ? SelectionMenu : null)"
                            Bookmarks="ScoreBookmarks" BookmarkPicked="OnBookmarkPickedAsync" Notes="ScoreNotes" MarkHighlights="ScoreHighlights" HiddenLayers="HiddenLayers"
                            NoteMarkerPicked="OpenNoteAsync" LayersRequested="OpenLayers" Checks="ScoreChecks" CheckPicked="OnCheckPickedAsync"
@@ -1983,7 +1983,6 @@
     private int _lastBar;
     private MotifSelection? _selection;
     private MotifAnalysis? _analysis;
-    private StructureAnalysis? _structure;
     private IReadOnlyList<MotifFact> _character = [];
     private HarmonyAnalysis _harmony = HarmonyAnalysis.None;
     /// <summary>The circle of fifths for the selection, from its key and chords (<see cref="KeyCircle"/>).</summary>
@@ -2003,7 +2002,7 @@
     private string? _selectionNote;
 
     /// <summary>Everything music-core found about the selection, for the facts panel to group by lens.</summary>
-    private IReadOnlyList<MotifFact> Facts => [.. _analysis?.Facts ?? [], .. _structure?.Facts ?? [], .. _sentenceFacts, .. _character, .. _harmony.Facts];
+    private IReadOnlyList<MotifFact> Facts => _reading?.Facts ?? [];
     private readonly HashSet<KeepProperty> _keep = [KeepProperty.Pitches, KeepProperty.PitchOrder];
 
     private const long SixteenthTicks = CanonicalTime.TicksPerQuarter / 4;
@@ -2029,11 +2028,8 @@
     /// <summary>Whether something loops: the selection, or the motif with its answer.</summary>
     private bool Looping => _looping || _answerLoop is not null;
 
-    /// <summary>The experiments music-core offers for the selection (decision record 0010), made when first shown or tried.</summary>
-    private LazyOffers _offers = LazyOffers.None;
-
-    /// <summary>The selection's notes and facts as the experiment catalogue reads them; null without a selection.</summary>
-    private InvitationContext? _invitationContext;
+    /// <summary>The selection's structure, facts, context and offers, read when first needed; null without a selection.</summary>
+    private SelectionReading? _reading;
 
     /// <summary>The last experiment tried; see <see cref="ActiveTrial"/>.</summary>
     private ExploreTrial? _trial;
@@ -2237,6 +2233,7 @@
     protected override void OnInitialized()
     {
         Player.Changed += OnPlayerChanged;
+        Player.Moved += OnPlayerMoved;
         Text.Changed += OnLanguageChanged;
         SettingsStore.Changed += OnSettingsChanged;
     }
@@ -2250,6 +2247,7 @@
         if (firstRender)
         {
             await ReadLayoutPreferencesAsync();
+            await WarmEngraverAsync();
             await Player.InitializeAsync();
         }
 
@@ -2291,6 +2289,7 @@
         if (CurrentPiece.Piece is { } piece && CurrentPiece.Version != _pieceVersion && Player.IsReady)
         {
             _pieceVersion = CurrentPiece.Version;
+            ExpectEngraving();
             await LoadPieceAsync(piece);
             if (_filters.Contains(CurrentPiece.StartWith))
             {
@@ -2302,9 +2301,12 @@
             _level = ProjectLevel;
             if (_project is { PhraseLevels.IsEmpty: false } phrased)
             {
-                SuggestPhrases(phrased.PhraseLevels);
+                ReadLevelsWith(phrased.PhraseLevels);
             }
 
+            // The score shows before the piece is read at its levels (#419); restoring the selection needs them.
+            await ScoreShownAsync();
+            EnsureLevels();
             StartEditsLayer(CurrentPiece.Opened);
             if (_project is { ChangesNotes: true } corrected)
             {
@@ -2336,6 +2338,7 @@
     public void Dispose()
     {
         Player.Changed -= OnPlayerChanged;
+        Player.Moved -= OnPlayerMoved;
         Text.Changed -= OnLanguageChanged;
         SettingsStore.Changed -= OnSettingsChanged;
     }
@@ -2372,6 +2375,7 @@
     private async Task LoadFurEliseAsync()
     {
         await LoadPieceAsync(FurElise.Import(), FurElise.Title);
+        EnsureLevels();
         // Für Elise has no project, so the address no longer names one.
         if (ProjectId is not null)
         {
@@ -2469,7 +2473,7 @@
         _lastBar = MotifSelector.LastBar(_meter, _score.End);
         _pieceStructure = null;
         _level = DefaultLevel;
-        SuggestPhrases(LevelEdits.None);
+        ReadLevelsLater();
         _filters = Filters(piece.Notes, _tracks);
         _filter = SelectionFilter.All;
         _keptIds = null;
@@ -2478,7 +2482,7 @@
         _focusSpan = null;
         _highlight = null;
         _analysis = null;
-        _structure = null;
+        _reading = null;
         _character = [];
         _harmony = HarmonyAnalysis.None;
         _circle = null;
@@ -2490,8 +2494,6 @@
         _hear = [Player.OriginalSource];
         _chain = null;
         _variation = null;
-        _offers = LazyOffers.None;
-        _invitationContext = null;
         _trial = null;
         // A new piece has its own project, or none (#78): nothing kept about another piece shows or saves here.
         _project = null;
@@ -2828,19 +2830,25 @@
     /// <summary>The facts about a selection and the experiments offered for them.</summary>
     private void Analyze(MotifSelection selection)
     {
+        EnsureLevels();
         IReadOnlyList<PhraseBoundary> phrases = _phrases!.Boundaries;
         KeySignature? key = KeySignature.InForce(_keys, selection.Span.Onset);
         // Recognised notes still to check make what is read from them uncertain, and say where (#352).
         NoteDoubt doubt = Doubt;
-        MotifAnalysis read = MotifAnalyzer.Analyze(_notes!, _meter!, selection, key, _accents, phrases, Words);
-        _harmony = doubt.On(HarmonyAnalyzer.Analyze(_notes!, _meter!, selection, read.Key?.Key, Words), selection);
-        _analysis = doubt.On(read, selection);
-        _structure = doubt.On(StructureAnalyzer.Analyze(_notes!, _meter!, selection, phrases, Words), selection);
-        _character = doubt.On(MotifAnalyzer.AnalyzeCharacter(_notes!, _meter!, selection, key, _characterContext!, Words), selection);
-        _circle = KeyCircle.For(selection, _notes!, _meter!, _analysis.Key, _harmony, Words);
+        IReadOnlyList<Note> notes = _notes!;
+        MeterMap meter = _meter!;
+        Words words = Words;
+        MotifAnalysis read = MotifAnalyzer.Analyze(notes, meter, selection, key, _accents, phrases, words);
+        HarmonyAnalysis harmony = doubt.On(HarmonyAnalyzer.Analyze(notes, meter, selection, read.Key?.Key, words), selection);
+        MotifAnalysis analysis = doubt.On(read, selection);
+        IReadOnlyList<MotifFact> character = doubt.On(MotifAnalyzer.AnalyzeCharacter(notes, meter, selection, key, _characterContext!, words), selection);
+        (_harmony, _analysis, _character) = (harmony, analysis, character);
+        _circle = KeyCircle.For(selection, notes, meter, analysis.Key, harmony, words);
         _sentenceFacts = doubt.On(SentenceFactsFor(selection), selection);
-        _invitationContext = new InvitationContext(_notes!, _meter!, selection, _analysis, _structure, _character, Words) { Harmony = _harmony };
-        _offers = new LazyOffers(Facts, _invitationContext);
+        // The structure, and what is read from it, waits until something shows it (#419).
+        _reading = new SelectionReading(analysis, _sentenceFacts, character, harmony,
+            () => doubt.On(StructureAnalyzer.Analyze(notes, meter, selection, phrases, words), selection),
+            structure => new InvitationContext(notes, meter, selection, analysis, structure, character, words) { Harmony = harmony });
     }
 
     private async Task SelectAsync(TickSpan span, string? note)
@@ -2962,13 +2970,11 @@
         _focusSpan = null;
         _highlight = null;
         _analysis = null;
-        _structure = null;
+        _reading = null;
         _character = [];
         _harmony = HarmonyAnalysis.None;
         _circle = null;
         _sentenceFacts = [];
-        _invitationContext = null;
-        _offers = LazyOffers.None;
         _trial = null;
         _layered = false;
         _listenTo = ListenTo.Everything;
@@ -3131,7 +3137,7 @@
     private ExploreTrial? ActiveTrial => _trial is { } trial && ReferenceEquals(trial.Chain, _chain) ? trial : null;
 
     /// <summary>What the Explore card offers: what fits the selection, or while an experiment runs, what fitted where it was offered.</summary>
-    private IReadOnlyList<Experiment> CardOffers => ActiveTrial?.Offers ?? _offers.Value;
+    private IReadOnlyList<Experiment> CardOffers => ActiveTrial?.Offers ?? _reading?.Offers ?? [];
 
     /// <summary>
     /// Tries one alternative of an experiment (decision record 0010): its steps become the variation,
@@ -3140,21 +3146,21 @@
     /// </summary>
     private async Task TryExperimentAsync(ExploreRequest request)
     {
-        if (_selection is not { NoteIds.Count: > 0 } selection || _invitationContext is null)
+        if (_selection is not { NoteIds.Count: > 0 } selection || _reading is not { } reading)
         {
             return;
         }
 
         ExploreTrial? active = ActiveTrial;
         bool tryingOne = active is { Kept: false };
-        InvitationContext offeredIn = active?.OfferedIn ?? _invitationContext;
+        InvitationContext offeredIn = active?.OfferedIn ?? reading.Context;
         Experiment experiment = request.Experiment;
         VariationChain chain = ExperimentCatalogue.Start(experiment, request.Alternative, offeredIn);
         var trial = new ExploreTrial(
             experiment,
             request.Alternative,
             offeredIn,
-            active?.Offers ?? _offers.Value,
+            active?.Offers ?? reading.Offers,
             chain,
             tryingOne ? active!.Before : _chain,
             tryingOne ? active!.KeepBefore : _keep.ToHashSet(),
@@ -3580,7 +3586,7 @@
             }
         }
 
-        _project = TouchResumePoint((_project with { Motifs = motifs, Variations = variations, Edits = _edits }).WithPhraseLevels(Levels?.Edits ?? LevelEdits.None));
+        _project = TouchResumePoint((_project with { Motifs = motifs, Variations = variations, Edits = _edits }).WithPhraseLevels(Levels?.Edits ?? _levelsToRead ?? LevelEdits.None));
         CurrentPiece.Saved(_project);
         await Projects.SaveAsync(_project);
     }

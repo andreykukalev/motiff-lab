@@ -269,7 +269,9 @@ public partial class PlaybackLab : IAsyncDisposable
     /// </summary>
     private void SuggestPhrases(LevelEdits? edits = null)
     {
-        PhraseLevels levels = PhraseLevels.Suggest(_notes!, _meter!, _phraseMarks, _score!.End, KeySignature.InForce(_keys, Tick.Zero), Words, edits ?? Levels?.Edits);
+        LevelEdits? with = edits ?? _levelsToRead ?? Levels?.Edits;
+        _levelsToRead = null;
+        PhraseLevels levels = PhraseLevels.Suggest(_notes!, _meter!, _phraseMarks, _score!.End, KeySignature.InForce(_keys, Tick.Zero), Words, with);
         _pieceStructure = PieceStructure.Of(_notes!, _meter!, levels, Words);
         _phrases = levels.Phrases;
         _sentences = levels.Sentences;
@@ -599,6 +601,7 @@ public partial class PlaybackLab : IAsyncDisposable
     [JSInvokable]
     public async Task StepAsync(int direction)
     {
+        EnsureLevels();
         await StepUnitAsync(direction);
         StateHasChanged();
     }
