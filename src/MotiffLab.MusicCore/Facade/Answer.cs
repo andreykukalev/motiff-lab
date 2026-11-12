@@ -448,13 +448,19 @@ internal static partial class Answer
         json.WriteEndObject();
     }
 
-    public static void Selection(Utf8JsonWriter json, string name, MotifSelection selection, KeySignature? key)
+    /// <summary>
+    /// A selection: its span, its bars and, since #349 (within contract 12), the beat of the first bar it starts on and the
+    /// beat of the last bar it ends in ("bar 5, beat 2 → bar 8, beat 3"), counted as <see cref="MeterMap.ToPosition"/> counts them.
+    /// </summary>
+    public static void Selection(Utf8JsonWriter json, string name, MotifSelection selection, KeySignature? key, MeterMap meter)
     {
         json.WriteStartObject(name);
         json.WriteNumber("onset", selection.Span.Onset.Value);
         json.WriteNumber("end", selection.Span.End.Value);
         json.WriteNumber("firstBar", selection.FirstBar);
         json.WriteNumber("lastBar", selection.LastBar);
+        json.WriteNumber("firstBeat", meter.ToPosition(selection.Span.Onset).Beat);
+        json.WriteNumber("lastBeat", meter.ToPosition(new Tick(Math.Max(selection.Span.Onset.Value, selection.Span.End.Value - 1))).Beat);
         json.WriteNumber("barCount", selection.BarCount);
         Filter(json, "filter", selection.Filter);
         Texts(json, "noteIds", selection.NoteIds);
@@ -1239,6 +1245,16 @@ internal static partial class Answer
         }
 
         json.WriteEndArray();
+    }
+
+    /// <summary>Which hands the piece's notes carry and whether any was inferred: {"hands": {right, left, inferred}} (#328).</summary>
+    public static void Hands(Utf8JsonWriter json, PlaybackHands hands)
+    {
+        json.WriteStartObject("hands");
+        json.WriteBoolean("right", hands.Right);
+        json.WriteBoolean("left", hands.Left);
+        json.WriteBoolean("inferred", hands.Inferred);
+        json.WriteEndObject();
     }
 
     public static void Catalogue(Utf8JsonWriter json, Words words)

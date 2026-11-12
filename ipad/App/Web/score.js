@@ -84,7 +84,7 @@ const LAYERS = ["ink", "notes", "bookmarks", "analysis", "check"];
 /** After the player scrolls by hand, playback leaves the page where they put it for this long before following again (score-view.ts). */
 const FOLLOW_PAUSE_MS = 4000;
 
-const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], phrases: [], bookmarks: [], notes: [], highlights: [], checks: [], performance: [], unheard: new Set(), added: new Set(), artefacts: new Set(), own: new Set(), taken: [], pen: false, focus: false, ringed: new Set() };
+const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], phrases: [], bookmarks: [], notes: [], highlights: [], checks: [], performance: [], unheard: new Set(), added: new Set(), artefacts: new Set(), own: new Set(), taken: [], pen: false, focus: false, ringed: new Set(), beats: null };
 let nextId = 0;
 
 /** Shows the pages and reads where their bars are; `timemap` is Verovio's, with measures and rests. */
@@ -532,7 +532,18 @@ const selection = new SelectionLayer(document.body, {
             post({ chosen: { start: first, end } });
         }
     },
+    // Selection by beats (#349, Settings · Experimental): the beat lines music-core gives, which the drag and the handles
+    // snap to, and where a tick sounds across its bar, for a band that starts or ends mid-bar.
+    beats: () => state.beats,
+    tickX: (tick) => state.geometry?.playhead(tick, (id) => state.timeline?.onsetOf(id))?.x,
+    chosenSpan: (start, end) => post({ chosen: { start, end, beats: true } }),
 });
+
+/** Selection by beats on (`lines`, the beat lines in ticks from music-core's playback score) or off (none). */
+function beats({ lines }) {
+    state.beats = Array.isArray(lines) && lines.length > 0 ? lines : null;
+    selection.place();
+}
 const placeMenu = selection.placeMenu.bind(selection);
 selection.placeMenu = () => {
     placeMenu();
@@ -1117,5 +1128,5 @@ function frames() {
     return state.frames;
 }
 
-window.motiff = { show, layout, anchor, erase, draw, frames, inView, phrases, select, menuSize, pen, focus, card: showCard, lead, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, reveal, notes, checks, performance: showVersion, layers, playing, returnToPlayhead };
+window.motiff = { show, layout, anchor, erase, draw, frames, inView, phrases, select, menuSize, pen, beats, focus, card: showCard, lead, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, reveal, notes, checks, performance: showVersion, layers, playing, returnToPlayhead };
 window.webkit?.messageHandlers?.score?.postMessage("ready");
