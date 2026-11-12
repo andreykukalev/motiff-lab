@@ -114,15 +114,21 @@ public sealed record WorkspacePlayback(
 /// <param name="Chain">The chain of steps on the selection, or null before the first.</param>
 /// <param name="Current">The variation the chain gives, or null when it has no result.</param>
 /// <param name="Trial">The experiment tried on the chain, while it is the chain's; see <see cref="ExploreTrial"/>.</param>
-/// <param name="Offers">The experiments the Explore card offers: the trial's, or those for the selection.</param>
-/// <param name="UnderstandOffers">The offers Understand links its facts to: the card's, unless the trial was offered for another passage.</param>
+/// <param name="OffersNow">Gives <see cref="Offers"/>, made only when read (#419).</param>
+/// <param name="UnderstandOffersNow">Gives <see cref="UnderstandOffers"/>, made only when read.</param>
 public sealed record WorkspaceVariation(
     VariationChain? Chain,
     Variation? Current,
     ExploreTrial? Trial,
-    IReadOnlyList<Experiment> Offers,
-    IReadOnlyList<Experiment> UnderstandOffers)
+    Func<IReadOnlyList<Experiment>> OffersNow,
+    Func<IReadOnlyList<Experiment>> UnderstandOffersNow)
 {
+    /// <summary>The experiments the Explore card offers: the trial's, or those for the selection.</summary>
+    public IReadOnlyList<Experiment> Offers => OffersNow();
+
+    /// <summary>The offers Understand links its facts to: the card's, unless the trial was offered for another passage.</summary>
+    public IReadOnlyList<Experiment> UnderstandOffers => UnderstandOffersNow();
+
     /// <summary>What changed, from the diff, when there is a variation.</summary>
     public string? Explanation => Current?.Explanation;
 }
@@ -131,9 +137,8 @@ public sealed record WorkspaceVariation(
 /// <param name="All">The facts of the selection from every analysis, in music-core's order within each lens.</param>
 /// <param name="Chosen">The fact highlighted in the score and on the roll, with the place when one is.</param>
 /// <param name="Main">The facts the Insights stream leads with, under Main (testing item 14): the harmonic motion, the texture, the strongest of the rest (<see cref="FactRanking.Main"/>).</param>
-/// <param name="Recommended">The one experiment recommended next: the first the catalogue offers for the selection, so it can always run; null without offers.</param>
 /// <param name="Circle">The circle of fifths for the selection, from its key and chords; null when no key was read.</param>
-public sealed record WorkspaceFacts(IReadOnlyList<MotifFact> All, FactChoice? Chosen, IReadOnlyList<MotifFact> Main, Experiment? Recommended, KeyCircleView? Circle = null);
+public sealed record WorkspaceFacts(IReadOnlyList<MotifFact> All, FactChoice? Chosen, IReadOnlyList<MotifFact> Main, KeyCircleView? Circle = null);
 
 /// <summary>What the player kept about the selection.</summary>
 /// <param name="Rows">The observations kept for the selected phrase, with where each one comes from.</param>
