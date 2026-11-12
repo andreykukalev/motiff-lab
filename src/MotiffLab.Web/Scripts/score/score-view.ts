@@ -1109,10 +1109,24 @@ export class ScoreView {
     private readonly onScroll = (): void => {
         cancelAnimationFrame(this.scrollFrame);
         this.scrollFrame = requestAnimationFrame(() => {
+            this.drawNear();
             this.reportPages();
             this.selection.placeMenu();
         });
     };
+
+    /** Draws the sheets scrolled into view, or within a screen of it, before the rest are drawn (#419). */
+    private drawNear(): void {
+        if (!this.paged || !this.pageShown.includes(false)) {
+            return;
+        }
+        const sheets = this.pageElements();
+        const near = this.sheetsNear(sheets).filter((index) => !this.pageShown[index]);
+        near.forEach((index) => this.drawPage(sheets[index], index));
+        if (near.length > 0) {
+            this.dress();
+        }
+    }
 
     private readonly onKeyDown = (event: KeyboardEvent): void => {
         if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.target !== this.host) {
