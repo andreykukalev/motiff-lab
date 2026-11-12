@@ -16,7 +16,7 @@ body { background: var(--desk); color: var(--ink); font: var(--t-body); font-var
 .ic.s { width: var(--icon-s); height: var(--icon-s); }
 
 /* buttons */
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2); height: var(--h-control); padding: 0 var(--s-4); border-radius: var(--r-s); border: 1px solid transparent; font: var(--t-label); font-size: 15px; color: var(--ink); background: transparent; cursor: pointer; white-space: nowrap; transition: background var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2); height: var(--h-control); padding: 0 var(--s-4); border-radius: var(--r-s); border: 1px solid transparent; font: var(--t-label); font-size: 15px; line-height: 1; color: var(--ink); background: transparent; cursor: pointer; white-space: nowrap; transition: background var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
 .btn.primary { background: var(--accent); color: var(--on-accent); }
 .btn.primary.hover { background: var(--accent-hover); }
 .btn.secondary { background: var(--surface-2); border-color: var(--hairline-strong); }
@@ -31,12 +31,12 @@ body { background: var(--desk); color: var(--ink); font: var(--t-body); font-var
 .btn.icon { width: var(--h-control); padding: 0; }
 
 /* segmented control */
-.seg { display: inline-flex; padding: 2px; background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-pill); height: var(--h-compact); }
-.seg > span { padding: 0 var(--s-3); line-height: 26px; border-radius: var(--r-pill); font: var(--t-label); color: var(--ink-2); }
+.seg { display: inline-flex; align-items: stretch; padding: 2px; background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-pill); height: var(--h-compact); }
+.seg > span { display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2); padding: 0 var(--s-3); border-radius: var(--r-pill); font: var(--t-label); line-height: 1; color: var(--ink-2); }
 .seg > span.on { background: var(--accent-tint-strong); color: var(--ink); font-weight: 600; }
 
 /* chips & tags */
-.chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 var(--s-3); border-radius: var(--r-pill); border: 1px solid var(--hairline-strong); font: var(--t-label); color: var(--ink); background: var(--surface-2); }
+.chip { display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2); height: 28px; padding: 0 var(--s-3); border-radius: var(--r-pill); border: 1px solid var(--hairline-strong); font: var(--t-label); line-height: 1; color: var(--ink); background: var(--surface-2); }
 .chip.on { background: var(--accent-tint); border-color: var(--accent); }
 .tag { display: inline-flex; align-items: center; height: 22px; padding: 0 var(--s-2); border-radius: var(--r-xs); font: var(--t-caption); font-weight: 600; }
 .tag.detected { background: var(--accent-tint); color: var(--accent); }
@@ -55,13 +55,13 @@ body { background: var(--desk); color: var(--ink); font: var(--t-body); font-var
 /* transport pill */
 .pill { position: absolute; left: 50%; transform: translateX(-50%); bottom: 16px; height: 52px; display: flex; align-items: center; gap: var(--s-1); padding: 0 var(--s-2) 0 6px; border-radius: var(--r-pill); background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(12px); border: 1px solid var(--hairline); box-shadow: var(--shadow-pill); font: var(--t-label); }
 .pill .play { width: 40px; height: 40px; border-radius: 50%; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; }
-.pill .it { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 var(--s-3); border-radius: var(--r-pill); color: var(--ink-2); }
+.pill .it { display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2); height: 36px; line-height: 1; padding: 0 var(--s-3); border-radius: var(--r-pill); color: var(--ink-2); }
 .pill .it.on { background: var(--accent-tint); color: var(--accent); font-weight: 600; }
 .pill .div { width: 1px; height: 22px; background: var(--hairline); margin: 0 2px; }
 
 /* contextual menu */
 .menu { position: absolute; display: inline-flex; align-items: center; height: 44px; padding: 0 var(--s-1); border-radius: var(--r-pill); background: var(--surface-2); border: 1px solid var(--hairline); box-shadow: var(--shadow-menu); font: var(--t-label); font-size: 14px; }
-.menu .it { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 var(--s-3); border-radius: var(--r-pill); color: var(--ink); }
+.menu .it { display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2); height: 36px; line-height: 1; padding: 0 var(--s-3); border-radius: var(--r-pill); color: var(--ink); }
 .menu .it.hover { background: var(--accent-tint); }
 .menu .div { width: 1px; height: 20px; background: var(--hairline); margin: 0 2px; }
 .menu::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 12px; height: 12px; background: var(--surface-2); border-right: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline); transform: translateX(-50%) rotate(45deg); }
@@ -71,7 +71,7 @@ body { background: var(--desk); color: var(--ink); font: var(--t-body); font-var
 .sheet .grab { position: absolute; left: 6px; top: 50%; width: 4px; height: 36px; margin-top: -18px; border-radius: 2px; background: var(--hairline-strong); }
 .sheet .hd { padding: var(--s-4) var(--s-5) 0 var(--s-6); }
 .tabs { display: flex; gap: var(--s-5); border-bottom: 1px solid var(--hairline); padding: 0 var(--s-6); }
-.tabs > span { padding: var(--s-3) 0; font: var(--t-label); font-size: 14px; color: var(--ink-2); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tabs > span { display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2); padding: var(--s-3) 0; font: var(--t-label); font-size: 14px; line-height: 1; color: var(--ink-2); border-bottom: 2px solid transparent; margin-bottom: -1px; }
 .tabs > span.on { color: var(--ink); font-weight: 600; border-bottom-color: var(--accent); }
 .sheet .bd { padding: var(--s-4) var(--s-5) var(--s-4) var(--s-6); overflow: hidden; }
 .fact { padding: var(--s-3) var(--s-3); border-radius: var(--r-s); border: 1px solid transparent; margin: 0 calc(-1 * var(--s-3)); }

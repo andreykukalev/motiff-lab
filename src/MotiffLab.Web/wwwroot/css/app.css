@@ -135,6 +135,7 @@ h1, h2, .app-title strong {
 .seg {
     display: inline-flex;
     flex-wrap: wrap;
+    align-items: stretch;
     gap: 2px;
     padding: 2px;
     background: var(--surface);
@@ -144,6 +145,10 @@ h1, h2, .app-title strong {
 
 .seg > button,
 .lab .seg > button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-2);
     min-height: var(--h-compact);
     padding: 0 var(--s-3);
     border: 0;
@@ -2363,6 +2368,7 @@ h1:focus {
 .lab.workspace .btn {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: var(--s-2);
     height: var(--h-control);
     padding: 0 var(--s-4);
@@ -3073,8 +3079,9 @@ h1:focus {
 .lab.workspace :is(.drawer, .sheet, .focus-roll, .ask-pop) .chip {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    height: 32px;
+    justify-content: center;
+    gap: var(--s-2);
+    height: var(--h-compact);
     min-height: 0;
     padding: 0 var(--s-3);
     border-radius: var(--r-pill);
@@ -5520,6 +5527,7 @@ body:has(> #app > .library) {
     display: inline-flex;
     flex: none;
     align-items: center;
+    justify-content: center;
     gap: var(--s-1);
     height: var(--h-compact);
     min-height: 0;
@@ -6335,6 +6343,7 @@ body:has(> #app > .library) {
 .lab .settings-sheet .seg {
     display: inline-flex;
     flex-wrap: wrap;
+    align-items: stretch;
 }
 
 .lab .settings-sheet .seg.presets {
@@ -8952,6 +8961,7 @@ body:has(> #app > .library) {
 .ref-sheet .btn {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: var(--s-2);
     min-height: var(--h-compact);
     padding: 0 var(--s-3);
