@@ -121,13 +121,18 @@ public static class NotationGenerator
     /// the whole piece when null. Every note is still planned, so voices, ties and the key in force are the same
     /// as in the whole score; the bars keep their numbers.
     /// </param>
+    /// <param name="marks">
+    /// With <paramref name="playedTempos"/>: <see cref="PlayedMarks.Significant"/> for «Для чтения» (version 0.5), only the
+    /// dynamics that change by two steps or more, "rit." and "accel." where the bars grow a fifth longer or shorter, and
+    /// fermatas; no accents, hairpins, slurs or pedal. Usually with <paramref name="asHeard"/>.
+    /// </param>
     /// <param name="ossias">
     /// Staves above the original, bar for bar, at three quarters of the size, each with its label at the left:
     /// a variation in place of the passage it changed, or the same notes written as played (item 10). Their
     /// staves are numbered first; their note ids carry the prefix <c>ossia-</c> (<c>ossia2-</c> for a second),
     /// so a note shown twice has two ids.
     /// </param>
-    public static GeneratedNotation Generate(IEnumerable<Note> notes, MeterMap meter, IEnumerable<KeyChange> keys, Tick end, string? title = null, bool asHeard = false, IReadOnlyList<PlaybackTempo>? playedTempos = null, IEnumerable<TickSpan>? pedal = null, BarRange? bars = null, IReadOnlyList<NotationOssia>? ossias = null)
+    public static GeneratedNotation Generate(IEnumerable<Note> notes, MeterMap meter, IEnumerable<KeyChange> keys, Tick end, string? title = null, bool asHeard = false, IReadOnlyList<PlaybackTempo>? playedTempos = null, IEnumerable<TickSpan>? pedal = null, BarRange? bars = null, IReadOnlyList<NotationOssia>? ossias = null, PlayedMarks marks = PlayedMarks.All)
     {
         ArgumentNullException.ThrowIfNull(notes);
         ArgumentNullException.ThrowIfNull(meter);
@@ -167,7 +172,7 @@ public static class NotationGenerator
             nextStaff += part.Staves.Count;
         }
 
-        PartPlan main = PlanPart(input, written, asHeard, playedTempos, pedal, nextStaff, ossia: false);
+        PartPlan main = PlanPart(input, written, asHeard, playedTempos, pedal, nextStaff, ossia: false, marks);
         parts.Add(main);
 
         var measures = new List<MeasurePlan>(written.Count);
@@ -185,6 +190,7 @@ public static class NotationGenerator
             DynamicCount = main.Marks?.Dynamics.Count ?? 0,
             TempoWordCount = main.Marks?.TempoWords.Count ?? 0,
             HairpinCount = main.Marks?.Hairpins.Count ?? 0,
+            FermataCount = main.Marks?.Fermatas.Count ?? 0,
             TripletCount = main.Staves.Sum(staff => staff.Tuplets.Length),
             SlurCount = main.SlurCount,
             PedalCount = main.PedalCount,
@@ -201,7 +207,7 @@ public static class NotationGenerator
     /// and the marks of the playing. Only the bars written get control events that end inside them. An ossia
     /// has only the staves that show notes in the bars written: a variation of the melody is one staff above the grand staff.
     /// </summary>
-    private static PartPlan PlanPart(Note[] input, WrittenBars written, bool asHeard, IReadOnlyList<PlaybackTempo>? playedTempos, IEnumerable<TickSpan>? pedal, int firstStaff, bool ossia)
+    private static PartPlan PlanPart(Note[] input, WrittenBars written, bool asHeard, IReadOnlyList<PlaybackTempo>? playedTempos, IEnumerable<TickSpan>? pedal, int firstStaff, bool ossia, PlayedMarks kind = PlayedMarks.All)
     {
         Bar[] bars = written.Bars;
         var shown = input.Select(note => new ShownNote(note, Snap(note.Span.Onset.Value), Snap(note.Span.End.Value))).ToArray();
@@ -227,7 +233,8 @@ public static class NotationGenerator
 
         int approximated = staves.SelectMany(staff => staff.Notes).Count(note => note.Onset != note.Note.Span.Onset.Value || note.End != note.Note.Span.End.Value);
 
-        PlayingMarks? marks = playedTempos is null ? null : PlayingMarks.Of(input, bars, playedTempos);
+        bool significant = kind == PlayedMarks.Significant;
+        PlayingMarks? marks = playedTempos is null ? null : significant ? PlayingMarks.Significant(input, bars, playedTempos) : PlayingMarks.Of(input, bars, playedTempos);
         var shortened = new HashSet<string>();
         foreach (StaffPlan staff in staves)
         {
@@ -256,7 +263,12 @@ public static class NotationGenerator
                 controls[first].Hairpins.Add(new HairpinPlan(start, crescendo, word ? null : $"{Number(final - first)}m+{Beat(bars[final], stop)}"));
             }
 
-            foreach ((Chord from, Chord to, int staff) in Slurs(staves, bars))
+            foreach (long held in marks.Fermatas.Where(at => at >= written.Start && at < written.End))
+            {
+                controls[BarIndex(bars, held)].Fermatas.Add(held);
+            }
+
+            foreach ((Chord from, Chord to, int staff) in significant ? [] : Slurs(staves, bars))
             {
                 // A slur to a chord beyond the bars written has nowhere to end.
                 if (to.Onset >= written.End)
@@ -269,7 +281,8 @@ public static class NotationGenerator
             }
 
             int bottom = staves.Max(staff => staff.Number);
-            foreach (TickSpan held in (pedal ?? []).OrderBy(span => span.Onset))
+            IEnumerable<TickSpan> pedals = significant || pedal is null ? [] : pedal;
+            foreach (TickSpan held in pedals.OrderBy(span => span.Onset))
             {
                 long down = Snap(held.Onset.Value), up = Math.Min(Snap(held.End.Value), written.End);
                 if (up - down < Grid || down >= written.End)
@@ -1162,6 +1175,15 @@ public static class NotationGenerator
             xml.WriteEndElement();
         }
 
+        foreach (long held in part.Controls.Fermatas)
+        {
+            xml.WriteStartElement("fermata", MeiNamespace);
+            xml.WriteAttributeString("staff", top);
+            xml.WriteAttributeString("place", "above");
+            xml.WriteAttributeString("tstamp", Beat(held));
+            xml.WriteEndElement();
+        }
+
         foreach ((long at, bool down, int staff) in part.Controls.Pedals)
         {
             xml.WriteStartElement("pedal", MeiNamespace);
@@ -1415,6 +1437,9 @@ public static class NotationGenerator
 
         /// <summary>"Ped." (down) or "*" (up) at a tick, under a staff.</summary>
         public List<(long At, bool Down, int Staff)> Pedals { get; } = [];
+
+        /// <summary>Fermatas over the top staff, at the onsets of the chords held.</summary>
+        public List<long> Fermatas { get; } = [];
     }
 
     /// <param name="Tstamp2">Where it ends: bars ahead and the beat in that bar, as MEI writes it; none for "cresc." or "dim." written as a word.</param>

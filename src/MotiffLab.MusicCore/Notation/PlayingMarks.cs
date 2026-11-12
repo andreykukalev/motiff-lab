@@ -34,12 +34,27 @@ internal sealed class PlayingMarks
 
     private const long HairpinTicks = 2 * CanonicalTime.TicksPerQuarter;
 
-    private PlayingMarks(HashSet<string> accented, Dictionary<int, (long At, string Level)> dynamics, Dictionary<int, string> tempoWords, IReadOnlyList<(long Start, long End, bool Crescendo)> hairpins)
+    /// <summary>For «Для чтения»: how much the bars, three at a time, must grow longer or shorter than usual for "rit." or "accel.": a fifth.</summary>
+    private const int ReadingTempoShare = 5;
+
+    /// <summary>For «Как сыграно»: a seventh, as decision record 0016 has it.</summary>
+    private const int PlayedTempoShare = 7;
+
+    /// <summary>For «Для чтения»: the fewest steps between two dynamics for the second to be written (p to mf, not mp to mf).</summary>
+    private const int ReadingDynamicSteps = 2;
+
+    /// <summary>How many beats around a beat its length is weighed against, and how many times their median it must last for a fermata.</summary>
+    private const int FermataNeighbours = 8;
+
+    private const int FermataTimes = 2;
+
+    private PlayingMarks(HashSet<string> accented, Dictionary<int, (long At, string Level)> dynamics, Dictionary<int, string> tempoWords, IReadOnlyList<(long Start, long End, bool Crescendo)> hairpins, IReadOnlyList<long>? fermatas = null)
     {
         Accented = accented;
         Dynamics = dynamics;
         TempoWords = tempoWords;
         Hairpins = hairpins;
+        Fermatas = fermatas ?? [];
     }
 
     /// <summary>Ids of the notes written with an accent.</summary>
@@ -54,7 +69,80 @@ internal sealed class PlayingMarks
     /// <summary>Crescendo and diminuendo hairpins, from one onset to another, in order.</summary>
     public IReadOnlyList<(long Start, long End, bool Crescendo)> Hairpins { get; }
 
+    /// <summary>The onsets of the chords held with a fermata, in order (only <see cref="Significant"/> finds them).</summary>
+    public IReadOnlyList<long> Fermatas { get; }
+
     public static PlayingMarks Of(IReadOnlyList<Note> notes, IReadOnlyList<Bar> bars, IReadOnlyList<PlaybackTempo> tempos)
+    {
+        (Note[] onsets, List<Note>[] inBar, string?[] levels, Func<int, bool, int?> median) = Loudness(notes, bars);
+        var dynamics = new Dictionary<int, (long, string)>();
+        var accented = new HashSet<string>(StringComparer.Ordinal);
+        string? written = null;
+        for (int i = 0; i < bars.Count; i++)
+        {
+            // A new dynamic when the level changes and holds for the next bar too.
+            if (levels[i] is { } level && level != written && (i + 1 == bars.Count || levels[i + 1] is null || levels[i + 1] == level))
+            {
+                dynamics[i] = (inBar[i][0].Span.Onset.Value, level);
+                written = level;
+            }
+
+            foreach (bool high in new[] { true, false })
+            {
+                if (median(i, high) is not { } middle)
+                {
+                    continue;
+                }
+
+                foreach (Note onset in inBar[i].Where(onset => High(onset) == high && onset.Velocity >= middle + AccentMargin && 4 * onset.Velocity >= 5 * middle))
+                {
+                    accented.Add(onset.Id);
+                }
+            }
+        }
+
+        Note[] melody = onsets.Any(High) ? [.. onsets.Where(High)] : onsets;
+        return new PlayingMarks(accented, dynamics, WordsFor(bars, tempos, PlayedTempoShare), HairpinsFor(melody));
+    }
+
+    /// <summary>
+    /// «Для чтения» (version 0.5, <c>experimental.readingMarks</c>): only what a player reading the score needs of how it
+    /// was played, picked from what <see cref="Of"/> works out. The first dynamic, then a dynamic only where the level moves
+    /// two steps or more (p to mf, not mp to mf) and holds for the next bar too; "rit." and "accel." where the bars, three at
+    /// a time, grow a fifth longer or shorter than usual, and "a tempo" once back; and a fermata over a chord held through a
+    /// beat that lasts at least twice the median of the eight beats around it with no new onset within it. No accents,
+    /// hairpins, slurs or pedal: those stay in «Как сыграно». All of it is inferred. Pure and deterministic.
+    /// </summary>
+    public static PlayingMarks Significant(IReadOnlyList<Note> notes, IReadOnlyList<Bar> bars, IReadOnlyList<PlaybackTempo> tempos)
+    {
+        ArgumentNullException.ThrowIfNull(notes);
+        ArgumentNullException.ThrowIfNull(bars);
+        ArgumentNullException.ThrowIfNull(tempos);
+        (_, List<Note>[] inBar, string?[] levels, _) = Loudness(notes, bars);
+        var dynamics = new Dictionary<int, (long, string)>();
+        int? written = null;
+        for (int i = 0; i < bars.Count; i++)
+        {
+            if (levels[i] is not { } level)
+            {
+                continue;
+            }
+
+            int step = Array.FindIndex(s_levels, entry => entry.Level == level);
+            if (written is null || (Math.Abs(step - written.Value) >= ReadingDynamicSteps && i + 1 < bars.Count && levels[i + 1] == level))
+            {
+                dynamics[i] = (inBar[i][0].Span.Onset.Value, level);
+                written = step;
+            }
+        }
+
+        return new PlayingMarks(new HashSet<string>(StringComparer.Ordinal), dynamics, WordsFor(bars, tempos, ReadingTempoShare), [], FermatasOf(notes, bars, tempos));
+    }
+
+    private static bool High(Note note) => note.Pitch.MidiNumber >= MiddleC;
+
+    /// <summary>Each onset by its loudest note, the onsets of each bar, each bar's level and the median loudness by bar and register.</summary>
+    private static (Note[] Onsets, List<Note>[] InBar, string?[] Levels, Func<int, bool, int?> Median) Loudness(IReadOnlyList<Note> notes, IReadOnlyList<Bar> bars)
     {
         // Each onset by its loudest note, which is the one heard.
         var onsets = notes
@@ -82,7 +170,6 @@ internal sealed class PlayingMarks
         // A bar's loudness: the median of the onsets in it and the bars either side, so that one loud
         // chord does not change the dynamic. The melody, at or above middle C, is what is heard, so the
         // dynamic follows it, and a note is accented against its own register.
-        static bool High(Note note) => note.Pitch.MidiNumber >= MiddleC;
         int? Median(int i, bool high)
         {
             int[] velocities = [.. inBar[Math.Max(0, i - 1)..Math.Min(bars.Count, i + 2)].SelectMany(list => list).Where(note => High(note) == high).Select(note => note.Velocity).Order()];
@@ -97,34 +184,7 @@ internal sealed class PlayingMarks
                 : null;
         }
 
-        var dynamics = new Dictionary<int, (long, string)>();
-        var accented = new HashSet<string>(StringComparer.Ordinal);
-        string? written = null;
-        for (int i = 0; i < bars.Count; i++)
-        {
-            // A new dynamic when the level changes and holds for the next bar too.
-            if (levels[i] is { } level && level != written && (i + 1 == bars.Count || levels[i + 1] is null || levels[i + 1] == level))
-            {
-                dynamics[i] = (inBar[i][0].Span.Onset.Value, level);
-                written = level;
-            }
-
-            foreach (bool high in new[] { true, false })
-            {
-                if (Median(i, high) is not { } median)
-                {
-                    continue;
-                }
-
-                foreach (Note onset in inBar[i].Where(onset => High(onset) == high && onset.Velocity >= median + AccentMargin && 4 * onset.Velocity >= 5 * median))
-                {
-                    accented.Add(onset.Id);
-                }
-            }
-        }
-
-        Note[] melody = onsets.Any(High) ? [.. onsets.Where(High)] : onsets;
-        return new PlayingMarks(accented, dynamics, WordsFor(bars, tempos), HairpinsFor(melody));
+        return (onsets, inBar, levels, Median);
     }
 
     /// <summary>
@@ -196,11 +256,11 @@ internal sealed class PlayingMarks
     }
 
     /// <summary>
-    /// "rit." where the bars, taken three at a time, grow a seventh longer than usual for the piece,
-    /// "accel." where they grow that much shorter, and "a tempo" once they are back within a
-    /// fourteenth of usual.
+    /// "rit." where the bars, taken three at a time, grow a <paramref name="share"/>th longer than usual for the piece
+    /// (a seventh as played, a fifth for reading), "accel." where they grow that much shorter, and "a tempo" once they are
+    /// back within a fourteenth of usual.
     /// </summary>
-    private static Dictionary<int, string> WordsFor(IReadOnlyList<Bar> bars, IReadOnlyList<PlaybackTempo> tempos)
+    private static Dictionary<int, string> WordsFor(IReadOnlyList<Bar> bars, IReadOnlyList<PlaybackTempo> tempos, int share)
     {
         var words = new Dictionary<int, string>();
         if (bars.Count < 3 || tempos.Count < 2)
@@ -218,7 +278,7 @@ internal sealed class PlayingMarks
         int state = 0;
         for (int i = 0; i < bars.Count; i++)
         {
-            int now = 7 * smooth[i] > 8 * usual ? 1 : 7 * smooth[i] < 6 * usual ? -1 : 0;
+            int now = share * smooth[i] > (share + 1) * usual ? 1 : share * smooth[i] < (share - 1) * usual ? -1 : 0;
             bool back = 14 * Math.Abs(smooth[i] - usual) <= usual;
             if (state == 0 && now != 0)
             {
@@ -233,5 +293,55 @@ internal sealed class PlayingMarks
         }
 
         return words;
+    }
+
+    /// <summary>
+    /// The chords held with a fermata: a beat (the signature's own unit) that lasts at least <see cref="FermataTimes"/> times
+    /// the median of the <see cref="FermataNeighbours"/> beats around it, with no onset after its start and before its end,
+    /// over a chord still sounding at its start; the fermata goes on that chord's onset, once however many beats it holds.
+    /// None without a tempo that follows the playing.
+    /// </summary>
+    private static List<long> FermatasOf(IReadOnlyList<Note> notes, IReadOnlyList<Bar> bars, IReadOnlyList<PlaybackTempo> tempos)
+    {
+        var fermatas = new List<long>();
+        if (tempos.Count < 2)
+        {
+            return fermatas;
+        }
+
+        PlaybackTempo[] ordered = [.. tempos.OrderBy(tempo => tempo.At)];
+        var beats = new List<(long Start, long End)>();
+        foreach (Bar bar in bars)
+        {
+            long unit = 4L * CanonicalTime.TicksPerQuarter / bar.Signature.Denominator;
+            for (long at = bar.Span.Onset.Value; at < bar.Span.End.Value; at += unit)
+            {
+                beats.Add((at, Math.Min(at + unit, bar.Span.End.Value)));
+            }
+        }
+
+        long[] lengths = [.. beats.Select(beat => TempoProfile.Units(beat.End, ordered) - TempoProfile.Units(beat.Start, ordered))];
+        long[] onsets = [.. notes.Select(note => note.Span.Onset.Value).Distinct().Order()];
+        for (int i = 0; i < beats.Count; i++)
+        {
+            int from = Math.Max(0, i - (FermataNeighbours / 2)), to = Math.Min(beats.Count, i + (FermataNeighbours / 2) + 1);
+            long[] around = [.. Enumerable.Range(from, to - from).Where(k => k != i).Select(k => lengths[k]).Order()];
+            (long start, long end) = beats[i];
+            if (around.Length < FermataNeighbours / 2 || lengths[i] < FermataTimes * around[around.Length / 2])
+            {
+                continue;
+            }
+
+            int next = Array.BinarySearch(onsets, start + 1);
+            next = next < 0 ? ~next : next;
+            bool struck = next < onsets.Length && onsets[next] < end;
+            long? held = notes.Where(note => note.Span.Onset.Value <= start && note.Span.End.Value > start).Select(note => (long?)note.Span.Onset.Value).Max();
+            if (!struck && held is { } chord && (fermatas.Count == 0 || fermatas[^1] != chord))
+            {
+                fermatas.Add(chord);
+            }
+        }
+
+        return fermatas;
     }
 }
