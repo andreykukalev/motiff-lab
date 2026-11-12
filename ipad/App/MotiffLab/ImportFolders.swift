@@ -133,11 +133,12 @@ enum FolderAccess {
         }
     }
 
-    /// Opens the folder, keeps what was found on it, and runs `work` inside it while the app holds the folder's scope.
+    /// Opens the folder, keeps what was found on it, and runs `work` inside it while the app holds the folder's scope; a
+    /// folder whose bookmark does not open is still read this launch through the place Files lent when it was picked.
     static func within<T>(_ folder: ImportFolder, root: URL = ImportFolders.root, _ work: (URL) async -> T) async -> Result<T, FolderProblem> {
         let opened = open(folder)
         if opened.folder != folder { ImportFolders.keep(opened.folder, in: root) }
-        guard let url = opened.url else { return .failure(opened.folder.problem ?? .lost) }
+        guard let url = opened.url ?? LentFolders.shared.url(folder.id) else { return .failure(opened.folder.problem ?? .lost) }
         let lent = url.startAccessingSecurityScopedResource()
         defer { if lent { url.stopAccessingSecurityScopedResource() } }
         return .success(await work(url))
@@ -156,5 +157,28 @@ enum FolderAccess {
     /// A file inside the folder by its path there, "Шопен/Баллады/Ballade No. 1.pdf".
     static func file(_ path: String, in folder: URL) -> URL {
         path.split(separator: "/").reduce(folder) { $0.appendingPathComponent(String($1), isDirectory: false) }
+    }
+}
+
+/// The folders Files lent the app when the player picked them, held until the app quits: a folder whose bookmark iOS would
+/// not open again can still be read in this launch, its pieces added as copies on the iPad.
+final class LentFolders: @unchecked Sendable {
+    static let shared = LentFolders()
+    private let lock = NSLock()
+    private var urls: [String: URL] = [:]
+
+    /// Holds the place picked in Files for the folder: its security scope stays open until the app quits.
+    func hold(_ url: URL, for id: String) {
+        _ = url.startAccessingSecurityScopedResource()
+        lock.lock()
+        defer { lock.unlock() }
+        if let earlier = urls[id], earlier != url { earlier.stopAccessingSecurityScopedResource() }
+        urls[id] = url
+    }
+
+    func url(_ id: String) -> URL? {
+        lock.lock()
+        defer { lock.unlock() }
+        return urls[id]
     }
 }

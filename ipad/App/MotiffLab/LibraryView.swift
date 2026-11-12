@@ -47,6 +47,9 @@ struct LibraryView: View {
     @State private var editing: LibraryEntry?
     /// A piece whose PDF could not be read where it lies (version 0.5), and what can be done.
     @State private var away: AwayPrompt?
+    /// «Импорт папки» (version 0.5, an experiment): the folders imported, their review and «Держать на этом iPad».
+    @StateObject private var folderImport = FolderImportModel()
+    private var importOn: Bool { deviceSettings.isOn("experimental.libraryImport") }
 
     /// The shelf's columns, for the projects here and those saved online.
     static let columns = [GridItem(.adaptive(minimum: 320), spacing: CGFloat.ds("s-6"), alignment: .top)]
@@ -69,6 +72,7 @@ struct LibraryView: View {
                     VStack(alignment: .leading, spacing: CGFloat.ds("s-6")) {
                         header
                         MainEnvironmentLine(account: account, text: text)
+                        if importOn { ImportBanner(runner: ImportRunner.shared, text: text) }
                         if let problem {
                             Text(problem)
                                 .dsType(.label)
@@ -86,7 +90,7 @@ struct LibraryView: View {
                                 .foregroundStyle(Color.ds("ink-2"))
                                 .frame(maxWidth: 560, alignment: .leading)
                         } else {
-                            LibraryShelfView(page: page, summaries: summaries, composers: composers, tags: tags, playlists: playlists, tab: $tab, query: $query, picked: $picked, text: text) { url in
+                            LibraryShelfView(page: page, summaries: summaries, composers: composers, tags: tags, playlists: playlists, tab: $tab, query: $query, picked: $picked, text: text, playlistAccessory: importOn ? { name in AnyView(KeepPlaylistToggle(model: folderImport, playlist: name, summaries: summaries, text: text)) } : nil) { url in
                                 Task { await openProject(url) }
                             } edit: { entry in
                                 editing = entry
@@ -132,11 +136,14 @@ struct LibraryView: View {
                 } demo: {
                     adding = false
                     Task { await openExample() }
+                } folder: { result in
+                    adding = false
+                    folderImport.later { folderImport.picked(result, pieces: summaries) }
                 }
                 .environmentObject(account)
             }
             .sheet(item: $away) { prompt in
-                AwayPieceSheet(prompt: prompt, text: text, recheck: nil) { found in
+                AwayPieceSheet(prompt: prompt, text: text, recheck: recheck(prompt)) { found in
                     await openFound(prompt.url, found, title: prompt.summary.playersTitle)
                 }
             }
@@ -153,6 +160,7 @@ struct LibraryView: View {
             .fileImporter(isPresented: $choosing, allowedContentTypes: Self.openable) { result in
                 Task { await open(result) }
             }
+            .folderImport(folderImport, text: text, summaries: summaries, on: importOn) { await reload() } open: { url in await openProject(url) }
             .task {
                 #if DEBUG
                 let screensFile = ScreensHook.start()
@@ -226,6 +234,9 @@ struct LibraryView: View {
                     choosing = true
                 } label: {
                     Text(text["home.importProject"])
+                }
+                if importOn {
+                    FolderMenuItems(folders: folderImport.folders, text: text) { folder in folderImport.recheck(folder, pieces: summaries) }
                 }
             } label: {
                 Icon(name: "more", size: CGFloat.ds("icon-l"))
@@ -380,6 +391,12 @@ struct LibraryView: View {
         } catch {
             problem = error.localizedDescription
         }
+    }
+
+    /// «Проверить папку» for a piece whose PDF was not found, when it came from a folder imported here (experiment on).
+    private func recheck(_ prompt: AwayPrompt) -> (() -> Void)? {
+        guard importOn, let folder = folderImport.folder(of: prompt.summary) else { return nil }
+        return { folderImport.later { folderImport.recheck(folder, pieces: summaries, target: prompt.url) } }
     }
 
     /// A piece that is only a PDF, opened with its PDF found where it lies; saved to its own file, which never takes a
