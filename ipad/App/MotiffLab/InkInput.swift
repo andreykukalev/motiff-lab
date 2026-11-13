@@ -5,7 +5,8 @@ import UIKit.UIGestureRecognizerSubclass
 /// and drawn while it is written with the very outline the page then keeps (InkOutline, the page's `outlinePath`), its
 /// pressure and its pencil grain, so it looks the same before and after the Pencil lifts. Who writes and who scrolls is
 /// InputRules': the gesture takes only the pointers that write, the scroll view's pan only those that scroll, and a touch
-/// on a selection handle is left to the handle.
+/// on a selection handle is left to the handle. The eraser draws nothing here: its points go to the host as they come,
+/// which takes the marks under it at once and saves the press when it lifts (BUG-05).
 @MainActor
 final class InkInput: NSObject, UIGestureRecognizerDelegate {
     let gesture = InkGesture()
@@ -19,6 +20,12 @@ final class InkInput: NSObject, UIGestureRecognizerDelegate {
     var style: (CGPoint) -> LiveInkView.Style? = { _ in nil }
     /// A stroke written, its points in the host's coordinates: the host keeps it and then calls `live.dropOldest()`.
     var ended: ([InkSample]) -> Void = { _ in }
+    /// Whether the stroke now beginning rubs out instead of writing: the eraser (BUG-05). Such a stroke draws nothing over
+    /// the page; its points go to `rubbed` as they come, so the host takes the marks under it at once.
+    var rubs: () -> Bool = { false }
+    /// The eraser's newest points in the host's coordinates, as they come, the reported ones only (never the predicted:
+    /// the eraser takes only where it has been); `lifted` is true once, last, when it lifts or the touch is let go.
+    var rubbed: (_ points: [CGPoint], _ lifted: Bool) -> Void = { _, _ in }
     /// The selection handles' centres in the host's coordinates: a touch there moves the handle and never writes.
     var handles: () -> [CGPoint] = { [] }
     /// While the page is still (phrase focus), nothing writes on it.
@@ -26,6 +33,9 @@ final class InkInput: NSObject, UIGestureRecognizerDelegate {
         didSet { apply(rules) }
     }
     private var writing: LiveInkView.Style?
+    /// The eraser is down, and how many of its points have gone to `rubbed`.
+    private var rubbing = false
+    private var rubbedCount = 0
 
     /// Whether this iPad is used with a stylus: the iPad's setting «Only draw with Apple Pencil», read when asked, so a
     /// change in Settings counts from the next tool chosen or the next time the piece is shown.
@@ -65,21 +75,47 @@ final class InkInput: NSObject, UIGestureRecognizerDelegate {
     @objc private func drew(_ recognizer: InkGesture) {
         switch recognizer.state {
         case .began, .changed:
-            if writing == nil, let first = recognizer.samples.first {
-                writing = style(first.point)
+            if writing == nil, !rubbing, let first = recognizer.samples.first {
+                if rubs() {
+                    rubbing = true
+                    rubbedCount = 0
+                } else {
+                    writing = style(first.point)
+                }
+            }
+            if rubbing {
+                rub(recognizer, lifted: false)
+                return
             }
             guard let writing else { return }
             live.show(recognizer.samples + recognizer.predicted, style: writing)
         case .ended:
+            if rubbing {
+                rub(recognizer, lifted: true)
+                return
+            }
             guard let writing else { return }
             self.writing = nil
             live.show(recognizer.samples, style: writing)
             live.finish()
             ended(recognizer.samples)
         default:
+            // A touch let go (a second finger came) keeps what the eraser took: the page already shows it so.
+            if rubbing { rub(recognizer, lifted: true) }
             writing = nil
             live.clear()
         }
+    }
+
+    /// Hands the eraser's points not handed yet to `rubbed`, and, when it lifts, ends the press.
+    private func rub(_ recognizer: InkGesture, lifted: Bool) {
+        let points = recognizer.samples.dropFirst(rubbedCount).map(\.point)
+        rubbedCount = recognizer.samples.count
+        if lifted {
+            rubbing = false
+            rubbedCount = 0
+        }
+        if !points.isEmpty || lifted { rubbed(points, lifted) }
     }
 
     // MARK: - UIGestureRecognizerDelegate
@@ -94,6 +130,21 @@ final class InkInput: NSObject, UIGestureRecognizerDelegate {
     /// Two fingers scroll and pinch beside a finger writing, which then lets its stroke go.
     func gestureRecognizer(_ recognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
         other === pan || other is UIPinchGestureRecognizer
+    }
+}
+
+/// Changes to the ink one after another, each once the one before has finished (BUG-05): the eraser's moves, the save
+/// when it lifts, a stroke kept and Undo, so a move never meets a press half saved and Undo takes back the step just saved.
+@MainActor
+final class InkQueue {
+    private var last: Task<Void, Never>?
+
+    func then(_ work: @escaping @MainActor () async -> Void) {
+        let before = last
+        last = Task { @MainActor in
+            await before?.value
+            await work()
+        }
     }
 }
 

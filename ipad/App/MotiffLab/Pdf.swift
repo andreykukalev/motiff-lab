@@ -59,8 +59,14 @@ final class PdfController: NSObject, ObservableObject, PenHolder {
     /// The thickness of the pen and of the highlighter, each kept apart (PenSizes) and on the device (PenMemory).
     @Published var penWidth = PenMemory.savedWidth(highlighter: false) { didSet { keepWidths() } }
     @Published var highlighterWidth = PenMemory.savedWidth(highlighter: true) { didSet { keepWidths() } }
-    /// The strokes added here, newest last, for Undo.
-    var added: [String] = []
+    /// What the pen and the eraser did here, newest last, for Undo: a stroke kept, or a press of the eraser (BUG-05).
+    var steps: [InkStep] = []
+    /// The eraser on a page while it is pressed, and the presses lifted and still being saved, shown as they left the
+    /// pages (PdfInk.swift, BUG-05).
+    var rubbing: PageEraser?
+    var closing: [PageEraser] = []
+    /// The ink's changes, one after another: the eraser's saves and Undo.
+    let inkQueue = InkQueue()
     private(set) var piece: Int32 = 0
     private(set) var projectId: String?
 
@@ -132,7 +138,9 @@ final class PdfController: NSObject, ObservableObject, PenHolder {
         await change("document.bookmark.remove", ["id": bookmark.id])
     }
 
-    func change(_ call: String, _ fields: [String: Any]) async {
+    /// A change through music-core; the pages are drawn from its answer unless `draws` is false, for the first of two calls
+    /// that make one change, so they never show it half done.
+    func change(_ call: String, _ fields: [String: Any], draws: Bool = true) async {
         guard let body = try? JSONSerialization.data(withJSONObject: fields), let request = String(data: body, encoding: .utf8) else { return }
         let piece = piece
         let answer = await MusicCore.run { MusicCore.call(piece: piece, call, request) }
@@ -141,17 +149,18 @@ final class PdfController: NSObject, ObservableObject, PenHolder {
             problem = object["message"] as? String
             return
         }
+        guard draws else { return }
         bookmarks = Self.bookmarks(object["marks"])
         strokes = DocumentStroke.list(object["marks"])
         markPages()
     }
 
     /// The strokes on each page and the carmine tab on each bookmarked page's right edge, near the top (the web app's
-    /// `.pdf-page.bookmarked`), drawn by PDFKit with the pages.
-    private func markPages() {
+    /// `.pdf-page.bookmarked`), drawn by PDFKit with the pages; the strokes as the eraser left them while it is pressed.
+    func markPages() {
         guard let document else { return }
         let marked = Set(bookmarks.map(\.page))
-        let inked = Dictionary(grouping: strokes, by: \.page)
+        let inked = Dictionary(grouping: shownStrokes, by: \.page)
         for index in 0..<document.pageCount {
             guard let page = document.page(at: index) else { continue }
             for annotation in page.annotations where annotation is BookmarkTab || annotation is InkMark {

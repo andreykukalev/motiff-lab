@@ -4,7 +4,8 @@
 // outline and grain (InkInput.swift); when it ends, Swift hands its points here to be kept against its bar (`anchor`),
 // saves the stroke in the project file through music-core (`ink.add`), and gives the marks back to be drawn (`draw`).
 // The pencil's marks are filled with the grain of Web/grain.png (score.html, #479 item 7); the eraser cuts the marks
-// it passes over into what is left of them (`eraseAlong`). Who selects, taps or writes with a finger or the Pencil is
+// it passes over into what is left of them as it moves (`rub`, BUG-05), and Swift saves what it did when it lifts
+// (`rubEnd`). Who selects, taps or writes with a finger or the Pencil is
 // Swift's (`input`, InputRules.swift, #479 item 18).
 //
 // The score is also the selection surface (0018 section 3): the web app's own selection layer
@@ -49,7 +50,7 @@ import { cardLayout } from "../score/phrase-card.js";
 import { BRACKET_LIFT, ScoreGeometry, bookmarkLevels, readPage, staffFrames } from "../score/score-geometry.js";
 import { SelectionLayer } from "../score/selection-layer.js";
 import { ScoreTimeline, highlightedIds } from "../score/score-timeline.js";
-import { DEFAULT_WIDTH, HIGHLIGHTER_SIZES, PEN_SIZES, anchorMark, eraseAlong, framesByTick, outlinePath, placeMark, touches } from "../score/pencil-marks.js";
+import { DEFAULT_WIDTH, HIGHLIGHTER_SIZES, NO_RUBBING, PEN_SIZES, anchorMark, framesByTick, outlinePath, placeMark, rubAlong, rubbedMarks, touches } from "../score/pencil-marks.js";
 import { beatUnder, modeOf } from "../score/score-modes.js";
 import { ScoreBeats } from "../score/selection-beats.js";
 import { ScorePlayheadMarks, onePlace } from "../score/playheads.js";
@@ -90,6 +91,8 @@ const FOLLOW_PAUSE_MS = 4000;
 
 const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], bookmarks: [], notes: [], highlights: [], checks: [], performance: [], unheard: new Set(), added: new Set(), artefacts: new Set(), own: new Set(), taken: [], pen: false, focus: false, ringed: new Set(), beats: null, mode: null, heads: null, input: null };
 let nextId = 0;
+/** The press of the eraser now (BUG-05): what it has cut since it came down, shown at once (`rubbedMarks`). */
+let rubbing = NO_RUBBING;
 
 /** The kind of pointer that pressed last ("touch" for a finger, "pen" for the Pencil), for the tap that follows. */
 let lastPointer = "touch";
@@ -691,8 +694,7 @@ document.body.addEventListener("click", (event) => {
  * an empty object when there is no bar (WebKit's async calls do not take a null back).
  */
 function anchor({ points, tool, colour, width = DEFAULT_WIDTH }) {
-    nextId += 1;
-    const id = `m${Date.now().toString(36)}${nextId.toString(36)}`;
+    const id = newMarkId();
     // The thickness chosen in the palette, thin to thick, as the web app's pencil layer sizes its marks.
     const size = (tool === "highlighter" ? HIGHLIGHTER_SIZES : PEN_SIZES)[width] ?? (tool === "highlighter" ? HIGHLIGHTER_SIZES : PEN_SIZES)[DEFAULT_WIDTH];
     return anchorMark(state.frames, points, { id, tool, colour: tool === "highlighter" ? "amber" : colour, size }) ?? {};
@@ -710,30 +712,48 @@ function erase({ points }) {
     return ids;
 }
 
+function newMarkId() {
+    nextId += 1;
+    return `m${Date.now().toString(36)}${nextId.toString(36)}`;
+}
+
+/** The eraser cuts along `points` from where it was, in the document's pixels; nothing else changes. */
+function rubOn(from, points) {
+    return rubAlong(from, state.marks, points, { frames: state.frames, byTick: state.byTick, reach: ERASER_REACH, newId: newMarkId });
+}
+
 /**
- * The eraser's path, in the document's pixels (#479 item 7): the marks it passed over, and what is left of each, kept
- * against its bars again, as a real eraser leaves a line in pieces. Swift adds the pieces and removes the marks.
+ * The eraser moved on to these points, in the document's pixels (BUG-05): the marks under it go at once, as a real
+ * eraser leaves a line in pieces (#479 item 7), and the page is drawn again where it took something. Answers how many
+ * marks the page shows.
+ */
+function rub({ points }) {
+    const moved = rubOn(rubbing, points ?? []);
+    rubbing = moved.rubbing;
+    if (moved.cut) {
+        redraw();
+    }
+    return rubbedMarks(rubbing, state.marks).length;
+}
+
+/**
+ * The eraser lifted: what the press did, for Swift to save as one step: the saved marks it cut, whole (for Undo), and the
+ * pieces left of them, each kept against its bar. The page keeps showing them so until music-core's answer is drawn.
+ */
+function rubEnd() {
+    const done = rubbing;
+    rubbing = NO_RUBBING;
+    state.marks = rubbedMarks(done, state.marks);
+    return { removed: done.removed, added: done.pieces };
+}
+
+/**
+ * The eraser's whole path at once, in the document's pixels: the marks it passes over, by id, and what is left of each,
+ * as one press would leave them. Nothing on the page changes.
  */
 function eraseAlongPath({ points }) {
-    const removed = [];
-    const added = [];
-    for (const mark of state.marks) {
-        const place = placeMark(mark, state.byTick);
-        const pieces = place === null ? null : eraseAlong(place.points, place.radius, points, ERASER_REACH);
-        if (pieces === null) {
-            continue;
-        }
-        removed.push(mark.id);
-        for (const piece of pieces) {
-            nextId += 1;
-            const id = `m${Date.now().toString(36)}${nextId.toString(36)}`;
-            const kept = anchorMark(state.frames, piece, { id, tool: mark.tool, colour: mark.colour, size: mark.size });
-            if (kept !== null) {
-                added.push(kept);
-            }
-        }
-    }
-    return { removed, added };
+    const done = rubOn(NO_RUBBING, points ?? []).rubbing;
+    return { removed: done.removed.map((mark) => mark.id), added: done.pieces };
 }
 
 /** Draws the piece's marks, as music-core answers them (`marks.ink`). */
@@ -745,6 +765,7 @@ function draw({ marks }) {
 
 function redraw() {
     const ink = document.getElementById("ink");
+    const shown = rubbedMarks(rubbing, state.marks);
     ink.setAttribute("width", document.documentElement.scrollWidth);
     ink.setAttribute("height", document.documentElement.scrollHeight);
     // The highlighter's strokes are one layer under the pencil's, opaque inside it and translucent as a whole, so where
@@ -752,7 +773,7 @@ function redraw() {
     const highlights = document.createElementNS(SVG, "g");
     highlights.setAttribute("class", "highlights");
     ink.replaceChildren(highlights);
-    for (const mark of state.marks) {
+    for (const mark of shown) {
         const place = placeMark(mark, state.byTick);
         if (place === null) {
             continue;
@@ -1220,5 +1241,5 @@ function frames() {
     return state.frames;
 }
 
-window.motiff = { show, layout, anchor, erase, eraseAlong: eraseAlongPath, input, draw, frames, inView, select, menuSize, pen, beats, focus, card: showCard, lead, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, reveal, notes, checks, performance: showVersion, layers, playing, returnToPlayhead, mode, playheads };
+window.motiff = { show, layout, anchor, erase, eraseAlong: eraseAlongPath, rub, rubEnd, input, draw, frames, inView, select, menuSize, pen, beats, focus, card: showCard, lead, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, reveal, notes, checks, performance: showVersion, layers, playing, returnToPlayhead, mode, playheads };
 window.webkit?.messageHandlers?.score?.postMessage("ready");

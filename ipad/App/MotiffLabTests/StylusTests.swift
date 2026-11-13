@@ -123,6 +123,56 @@ final class StylusTests: XCTestCase {
         XCTAssertEqual(InkSplit.pieces(line, radius: 1, path: along, reach: 5)?.count, 0, "a path along it takes all of it")
     }
 
+    /// The eraser on a PDF's page rubs out as it moves (BUG-05): each move cuts at once from where the last left off, a
+    /// piece cut again is replaced, and only the kept stroke goes when it lifts.
+    func testThePdfEraserRubsOutAsItMovesAndThePressIsOneStep() throws {
+        // A space of this page is one point; the stroke's half-thickness is a quarter point.
+        let box = CGRect(x: 0, y: 0, width: 120, height: 200)
+        let line = (0...10).map { (CGPoint(x: 10 + Double($0) * 10, y: 100), 0.5) }
+        let stroke = try XCTUnwrap(DocumentStroke(id: "a", tool: "pen", colour: "carmine", size: 0.16, page: 1, box: box, points: line))
+        let elsewhere = try XCTUnwrap(DocumentStroke(id: "b", tool: "pen", colour: "graphite", size: 0.16, page: 2, box: box, points: line))
+        let kept = [stroke, elsewhere]
+        XCTAssertEqual(stroke.samples(in: box).last?.point.x ?? 0, 110, accuracy: 1e-9)
+
+        var eraser = PageEraser(page: 1, box: box, reach: 1)
+        XCTAssertTrue(eraser.move(to: [CGPoint(x: 60, y: 90), CGPoint(x: 60, y: 110)], over: kept), "the first move takes what it passes")
+        XCTAssertEqual(eraser.removed.map(\.id), ["a"])
+        XCTAssertEqual(eraser.pieces.count, 2, "both ends are left")
+        XCTAssertEqual(eraser.shown(kept).map(\.id), ["b"] + eraser.pieces.map(\.id), "the page shows the pieces at once, the other page as it was")
+        XCTAssertTrue(eraser.pieces.allSatisfy { $0.colour == "carmine" && $0.page == 1 && $0.size == 0.16 })
+
+        // Round below the line and up across the right-hand piece.
+        let right = try XCTUnwrap(eraser.pieces.last?.id)
+        XCTAssertTrue(eraser.move(to: [CGPoint(x: 60, y: 120), CGPoint(x: 90, y: 120), CGPoint(x: 90, y: 90)], over: kept))
+        XCTAssertEqual(eraser.removed.map(\.id), ["a"], "only the kept stroke goes when it lifts")
+        XCTAssertEqual(eraser.pieces.count, 3, "the right-hand piece is cut in two")
+        XCTAssertFalse(eraser.pieces.contains { $0.id == right })
+        XCTAssertFalse(eraser.move(to: [CGPoint(x: 90, y: 60)], over: kept), "a move over nothing takes nothing")
+        XCTAssertFalse(eraser.move(to: [], over: kept))
+        let saved = eraser.shown(kept)
+        XCTAssertEqual(eraser.shown(saved).count, saved.count, "pieces already kept are not shown twice")
+
+        // A fast move: neither point is near the line, the way between them crosses it.
+        var fast = PageEraser(page: 1, box: box, reach: 1)
+        XCTAssertFalse(fast.move(to: [CGPoint(x: 50, y: 60)], over: kept))
+        XCTAssertTrue(fast.move(to: [CGPoint(x: 52, y: 140)], over: kept))
+        XCTAssertEqual(fast.pieces.count, 2)
+    }
+
+    /// Undo takes a press of the eraser back whole: the pieces go, the strokes it cut come back, drawn once at the end.
+    @MainActor
+    func testUndoTakesAPressOfTheEraserBackWhole() async {
+        var calls: [String] = []
+        let press = InkStep(added: ["p1", "p2"], removed: [["id": "a"]])
+        await press.undo(remove: "ink.remove", add: "ink.add") { call, request, draws in
+            calls.append("\(call) \(request.keys.sorted().joined()) \(draws)")
+        }
+        XCTAssertEqual(calls, ["ink.remove ids false", "ink.add strokes true"])
+        calls = []
+        await InkStep(added: ["s"]).undo(remove: "ink.remove", add: "ink.add") { call, _, draws in calls.append("\(call) \(draws)") }
+        XCTAssertEqual(calls, ["ink.remove true"], "a stroke written goes, drawn at once")
+    }
+
     func testTheLineIsWalkedInShortStepsWithItsPressure() {
         let walked = InkSplit.densified([InkSample(.zero, pressure: 0), InkSample(CGPoint(x: 10, y: 0), pressure: 1)], step: 2.5)
         XCTAssertEqual(walked.map(\.point.x), [0, 2.5, 5, 7.5, 10])
