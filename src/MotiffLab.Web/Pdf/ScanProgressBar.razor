@@ -1,0 +1,26 @@
+@implements IDisposable
+@inject MotiffLab.Web.Localization.UiText Text
+
+@* While a score's notes are read (v0.5, issue #479 item 10): a bar, the part or the pages being read and about how long is
+   left, moving every few seconds by the rough time a page takes; the bar never shows the score done before it is. *@
+<div class="scan-progress" role="status">
+    <span class="track" role="progressbar" aria-label="@Text["scan.progressLabel"]" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@Percent">
+        <span class="fill" style="--done: @(Percent)%"></span>
+    </span>
+    <span class="caption">@Progress.Line(Text) · @Text.Format("recognition.left", Progress.MinutesLeft(DateTimeOffset.Now))</span>
+</div>
+
+@code {
+    /// <summary>The score being read.</summary>
+    [Parameter, EditorRequired]
+    public ScanProgress Progress { get; set; } = default!;
+
+    private Timer? _timer;
+
+    private int Percent => Progress.Percent(DateTimeOffset.Now);
+
+    protected override void OnInitialized() =>
+        _timer = new Timer(_ => InvokeAsync(StateHasChanged), null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(3));
+
+    public void Dispose() => _timer?.Dispose();
+}

@@ -30,6 +30,7 @@ builder.Services.AddScoped<MotiffLab.Web.Library.FolderSheets>();
 builder.Services.AddScoped<MotiffLab.Web.Library.FolderChanges>();
 builder.Services.AddScoped<MotiffLab.Web.Library.HostedPages>();
 builder.Services.AddScoped<MotiffLab.Web.Library.PdfPages>();
+builder.Services.AddScoped<MotiffLab.Web.Pdf.ScoreScan>();
 builder.Services.AddScoped<MotiffLab.Web.Library.RecognitionQueue>();
 builder.Services.AddScoped<MotiffLab.Web.Library.RecognitionPick>();
 

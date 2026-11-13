@@ -579,13 +579,14 @@ struct PdfScreen: View {
 
     /// Sends the PDF to the scan server and puts the notes it read into this same piece (testing item 16), which opens as
     /// notes where the page under the bar starts (the web app's `ReadNotesAsync`). Answers why not, or nil once they open.
-    /// With «Фото страниц» on, the server's report on the pages goes with the notes (v0.4).
+    /// With «Фото страниц» on, the server's report on the pages goes with the notes (v0.4). A PDF longer than the server
+    /// reads at once goes in parts, with the panel's bar (issue #479).
     private func readNotes() async -> String? {
         guard let address = scanAddress, let data = pdf.original else { return text["pdf.readNone"] }
         switch await ScanServer.recognise(fileName: pdf.fileName, data: data, address: address, account: account) {
         case .failure(let problem): return problem.text(text)
         case .success(let read):
-            let reports = DeviceSettings.shared.isOn("experimental.photoPages") ? read.report.map { [$0] } : nil
+            let reports = DeviceSettings.shared.isOn("experimental.photoPages") ? read.reports : nil
             return await fill(read.musicXml, engine: read.engine, pages: max(1, pdf.pageCount), reports: reports)
         }
     }

@@ -17,17 +17,21 @@ const server = "http://localhost:8765";
 // The app's service worker would answer the page's requests before the test's stand-in server could.
 test.use({ serviceWorkers: "block" });
 
-/** Plays the scan server and points the app at it; returns the PDFs it was sent. */
-async function scanServer(page) {
+/**
+ * Plays the scan server and points the app at it; returns the PDFs it was sent. It reads `maxPages` pages a request, as
+ * it says on /health, and `hold` (a promise) keeps the answer to the first upload back until it settles.
+ */
+async function scanServer(page, { maxPages = 8, hold = null } = {}) {
     const uploads = [];
     const musicXml = await readFile(scanned);
     const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Expose-Headers": "X-Engine, X-Pages, X-Page-Report" };
     // A report on each of the PDF's 3 pages (version 0.4), while the notes it sends are one page's: the reports do not
     // match the pages of the notes, so the notes are kept without them.
     const report = JSON.stringify([1, 2, 3].map((number) => ({ page: number, rotation: 0, sharpness: 1.1, contrast: 50, staves: 4, noteheads: 60, barLines: 12, spacePx: 15, measures: 11 })));
-    await page.route(`${server}/health`, (route) => route.fulfill({ json: { engine: "homr", version: "0.7.0", maxPages: 8 }, headers: cors }));
-    await page.route(`${server}/recognise`, (route) => {
+    await page.route(`${server}/health`, (route) => route.fulfill({ json: { engine: "homr", version: "0.7.0", maxPages }, headers: cors }));
+    await page.route(`${server}/recognise`, async (route) => {
         uploads.push(route.request().postDataBuffer());
+        if (uploads.length === 1 && hold) await hold;
         return route.fulfill({ body: musicXml, contentType: "application/vnd.recordare.musicxml+xml", headers: { ...cors, "X-Engine": "homr 0.7.0", "X-Pages": "3", "X-Page-Report": report } });
     });
     await page.goto("/settings");
@@ -61,7 +65,8 @@ test("a PDF's notes are read into the same piece, the PDF stays as it was, and P
     await page.locator("button.scrim").click();
     await bar.getByRole("button", { name: "Recognise notes" }).click();
     const panel = page.getByRole("dialog", { name: "Recognise notes" });
-    await expect(panel).toContainText(`goes to the scan server at ${server}/ on this computer`);
+    await expect(panel).toContainText(`to the scan server set in Settings, ${server}/ on this computer`);
+    await expect(panel.getByRole("switch")).toHaveCount(0);
     await expect(panel).toContainText("The notes go into this same piece");
     expect(await violations(page)).toEqual([]);
     await panel.getByRole("button", { name: "Recognise notes" }).click();
@@ -127,4 +132,45 @@ test("Add a version on a PDF reads its notes first, then opens Sources on the sa
     await expect(page.locator(".assembly-offer")).toContainText("Matches in bars");
     expect(await violations(page)).toEqual([]);
     expect(errors).toEqual([]);
+});
+
+test("a PDF longer than the server reads at a time goes in parts, one after another, with a bar while it is read (#479)", async ({ page }) => {
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(String(error)));
+    let release;
+    const hold = new Promise((resolve) => (release = resolve));
+    const uploads = await scanServer(page, { maxPages: 4, hold });
+    const pdfId = await addPdf(page, pdf(6));
+
+    // No switch to turn on: Recognise notes sends it, and the bar says which part is read and about how long is left.
+    await page.locator(".bar").getByRole("button", { name: "Recognise notes" }).click();
+    const panel = page.getByRole("dialog", { name: "Recognise notes" });
+    await expect(panel.getByRole("switch")).toHaveCount(0);
+    await panel.getByRole("button", { name: "Recognise notes" }).click();
+    await expect(panel.getByRole("progressbar", { name: "Recognising the notes" })).toBeVisible();
+    await expect(panel.locator(".scan-progress")).toContainText("Part 1 of 2 · pages 1–4");
+    await expect(panel.locator(".scan-progress")).toContainText(/about \d+ min\. left/);
+    expect(await violations(page)).toEqual([]);
+    expect(uploads).toHaveLength(1);
+    release();
+
+    // Two PDFs went, pages 1 to 4 and then 5 and 6, each with its pages as they are; the notes of both open as one piece.
+    await expect(page).toHaveURL(new RegExp(`/playback\\?project=${pdfId}&resume=r_[0-9a-z_]+&at=0$`));
+    expect(uploads).toHaveLength(2);
+    const pagesIn = (upload) => [1, 2, 3, 4, 5, 6].filter((number) => upload.toString("latin1").includes(`(${number}) Tj`));
+    expect(pagesIn(uploads[0])).toEqual([1, 2, 3, 4]);
+    expect(pagesIn(uploads[1])).toEqual([5, 6]);
+    await expect(page.locator(".score .score-page svg").first()).toBeVisible();
+    expect(errors).toEqual([]);
+});
+
+test("a PDF of more than 100 pages is not sent, and the panel says why", async ({ page }) => {
+    const uploads = await scanServer(page, { maxPages: 4 });
+    await addPdf(page, pdf(101));
+
+    await page.locator(".bar").getByRole("button", { name: "Recognise notes" }).click();
+    const panel = page.getByRole("dialog", { name: "Recognise notes" });
+    await panel.getByRole("button", { name: "Recognise notes" }).click();
+    await expect(panel.getByRole("alert")).toContainText("This PDF has 101 pages. Recognition reads scores of up to 100 pages");
+    expect(uploads).toHaveLength(0);
 });

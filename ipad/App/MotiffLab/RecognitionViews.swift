@@ -27,16 +27,31 @@ extension EnvironmentValues {
     }
 }
 
-/// A piece's recognition on its line (import-ipad-5-status): «в очереди», «распознаётся», «есть ноты», «не вышло: …».
+/// A piece's recognition on its line (import-ipad-5-status): «в очереди», «распознаётся», «есть ноты», «не вышло: …». While
+/// it is read, a small bar and the part or pages being read (issue #479 item 10).
+@MainActor
 struct RecognitionTag: View {
     let item: RecognitionItem
     let text: UIText
+    @ObservedObject private var queue = RecognitionQueue.shared
+
+    init(item: RecognitionItem, text: UIText) {
+        self.item = item
+        self.text = text
+    }
 
     var body: some View {
         HStack(spacing: CGFloat.ds("s-1")) {
             switch item.state {
             case .queued: Circle().strokeBorder(Color.ds("ink-3")).frame(width: 8, height: 8)
-            case .reading: ProgressView().controlSize(.mini)
+            case .reading:
+                if let progress = reading {
+                    TimelineView(.periodic(from: .now, by: 3)) { context in
+                        ProgressView(value: progress.fraction(at: context.date)).tint(Color.ds("ink-2")).frame(width: 40)
+                    }
+                } else {
+                    ProgressView().controlSize(.mini)
+                }
             case .done: Icon(name: "check", size: CGFloat.ds("icon-s"))
             case .failed: EmptyView()
             }
@@ -50,9 +65,15 @@ struct RecognitionTag: View {
         .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-xs")).strokeBorder(Color.ds("hairline")))
     }
 
+    /// How far this piece is, while the batch reads it.
+    private var reading: ScanProgress? {
+        queue.progress.flatMap { $0.file == item.file ? $0.progress : nil }
+    }
+
     private var words: String {
         switch item.state {
         case .failed: text.format("recognition.failedWhy", item.reason ?? "")
+        case .reading where reading != nil: text["recognition.state.reading"] + " · " + (reading?.line(text) ?? "")
         default: text["recognition.state." + item.state.rawValue]
         }
     }
@@ -113,24 +134,29 @@ struct RecognitionTop: View {
         }
     }
 
+    /// The banner moves with the page being read (issue #479 item 10): the bar by pages, the part being read and the time left.
     private func banner(_ batch: RecognitionBatch) -> some View {
-        VStack(spacing: 0) {
-            HStack(spacing: CGFloat.ds("s-4")) {
-                Text(headline(batch)).dsType(.bodyStrong).foregroundStyle(Color.ds("ink"))
-                if !batch.finished && batch.stopped == nil {
-                    Text(text.format("recognition.minutesLeft", String(DailyPages.minutes(batch.pagesLeft))))
-                        .dsType(.label)
-                        .foregroundStyle(Color.ds("ink-2"))
+        TimelineView(.periodic(from: .now, by: 5)) { context in
+            let current = queue.running ? queue.progress?.progress : nil
+            VStack(spacing: 0) {
+                HStack(spacing: CGFloat.ds("s-4")) {
+                    Text(headline(batch)).dsType(.bodyStrong).foregroundStyle(Color.ds("ink"))
+                    if !batch.finished && batch.stopped == nil {
+                        Text(left(batch, current, at: context.date))
+                            .monospacedDigit()
+                            .dsType(.label)
+                            .foregroundStyle(Color.ds("ink-2"))
+                    }
+                    Spacer(minLength: CGFloat.ds("s-2"))
+                    actions(batch)
                 }
-                Spacer(minLength: CGFloat.ds("s-2"))
-                actions(batch)
-            }
-            .padding(.horizontal, CGFloat.ds("s-4"))
-            .frame(minHeight: CGFloat.ds("h-touch"))
-            if !batch.finished {
-                ProgressView(value: Double(batch.done), total: Double(max(batch.items.count, 1)))
-                    .tint(Color.ds("ink-2"))
-                    .accessibilityLabel(headline(batch))
+                .padding(.horizontal, CGFloat.ds("s-4"))
+                .frame(minHeight: CGFloat.ds("h-touch"))
+                if !batch.finished {
+                    ProgressView(value: Self.share(batch, current, at: context.date))
+                        .tint(Color.ds("ink-2"))
+                        .accessibilityLabel(headline(batch))
+                }
             }
         }
         .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
@@ -146,7 +172,23 @@ struct RecognitionTop: View {
         }
         if let stopped = batch.stopped { return text["recognition.stopped." + stopped] }
         if batch.paused { return text.format("recognition.pausedAt", String(batch.done), String(batch.items.count)) }
-        return text.format("recognition.reading", String(batch.done), String(batch.items.count))
+        // The web app's words win where both name a key, and its «recognition.reading» is the line's one word.
+        return text.format("recognition.running", String(batch.done), String(batch.items.count))
+    }
+
+    /// «Часть 1 из 2 · страницы 1–4 · ещё около 3 мин»: the piece being read, then the time left for the whole batch.
+    private func left(_ batch: RecognitionBatch, _ current: ScanProgress?, at now: Date) -> String {
+        guard let current else { return text.format("recognition.minutesLeft", String(DailyPages.minutes(batch.pagesLeft))) }
+        let others = max(0, batch.pagesLeft - current.pages)
+        let minutes = current.minutesLeft(at: now) + (others > 0 ? DailyPages.minutes(others) : 0)
+        return current.line(text) + " · " + text.format("recognition.minutesLeft", String(minutes))
+    }
+
+    /// The share of the batch's pages read by now, the piece being read counted by its own progress.
+    static func share(_ batch: RecognitionBatch, _ current: ScanProgress?, at now: Date) -> Double {
+        let total = batch.items.reduce(0) { $0 + max(1, $1.pages) }
+        let reading = current.map { $0.fraction(at: now) * Double($0.pages) } ?? 0
+        return min(1, (Double(total - batch.pagesLeft) + reading) / Double(max(1, total)))
     }
 
     @ViewBuilder
@@ -193,8 +235,9 @@ struct RecognitionOffer: Equatable {
     }
 }
 
-/// One consent for the batch (import-ipad-4-consent): how many pieces and pages, where the PDFs go, how long it takes,
-/// what is left of today's limit on Motiff Lab's server, and what becomes of the notes.
+/// One consent for the batch (import-ipad-4-consent): how many pieces and pages, where the PDFs go (the server set in
+/// Settings), how long it takes, what is left of today's limit on Motiff Lab's server, and what becomes of the notes. As on
+/// one PDF, pressing «Распознать ноты» is the player's yes (issue #479 item 17).
 struct RecogniseConsentSheet: View {
     let pieces: Int
     let pages: Int
@@ -224,7 +267,7 @@ struct RecogniseConsentSheet: View {
             HStack(spacing: CGFloat.ds("s-3")) {
                 Spacer()
                 Button(text["recognition.cancel"]) { dismiss() }.buttonStyle(DSButtonStyle(kind: .quiet))
-                Button(text.count("recognition.send", pages)) {
+                Button(text["recognition.recognise"]) {
                     dismiss()
                     send()
                 }

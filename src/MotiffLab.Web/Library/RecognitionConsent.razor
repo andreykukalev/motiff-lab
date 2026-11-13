@@ -2,9 +2,10 @@
 @using MotiffLab.Web.Localization
 
 @* One consent for a batch (version 0.5, «Импорт папки», ux-prototype/v0.5/screens/import-web-4-consent.png): the pieces and
-   their pages, where the PDFs go, about how long it takes, today's pages on Motiff Lab's server against its 100 a day, and
-   that the notes go into these same pieces. Nothing is sent before «Отправить». On Motiff Lab's server it needs an account
-   and Pro, offered here as on one PDF. *@
+   their pages, where the PDFs go (the server set in Settings), about how long it takes, today's pages on Motiff Lab's server
+   against its 1000 a day, and that the notes go into these same pieces. Nothing is sent before «Распознать ноты»: pressing it
+   is the player's yes, as on one PDF (v0.5, issue #479 item 17). On Motiff Lab's server it needs an account and Pro, offered
+   here as on one PDF. *@
 <section class="lib-sheet consent-sheet" role="dialog" aria-modal="true" aria-labelledby="consent-title" tabindex="-1" @ref="_element" @onkeydown="OnKey">
     <header class="hd">
         <h2 class="ttl" id="consent-title">
@@ -45,7 +46,7 @@
         </dl>
         <footer class="acts">
             <button class="btn quiet" @onclick="() => Cancelled.InvokeAsync()">@Text["recognition.cancel"]</button>
-            <button class="btn primary" @onclick="() => Agreed.InvokeAsync()" disabled="@(Pieces.Count == 0)">@Text.Count("recognition.send", Pages)</button>
+            <button class="btn primary" @onclick="() => Agreed.InvokeAsync()" disabled="@(Pieces.Count == 0)">@Text["pdf.readSend"]</button>
         </footer>
     </ScanReady>
 </section>
@@ -64,7 +65,7 @@
     [Parameter, EditorRequired]
     public IReadOnlyList<PieceToRead> Pieces { get; set; } = [];
 
-    /// <summary>«Отправить»: the player agreed to send these pieces to the server named.</summary>
+    /// <summary>«Распознать ноты»: the player agreed to send these pieces to the server named.</summary>
     [Parameter]
     public EventCallback Agreed { get; set; }
 

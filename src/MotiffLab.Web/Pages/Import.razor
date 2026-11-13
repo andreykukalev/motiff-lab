@@ -16,6 +16,7 @@
 @inject NavigationManager Navigation
 @inject MotiffLab.Web.Analytics.UsageAnalytics Analytics
 @inject ScanService Scans
+@inject MotiffLab.Web.Pdf.ScoreScan ScoreScan
 @inject MotiffLab.Web.Localization.UiText Text
 @inject MotiffLab.Web.Account.CloudAccount Account
 @inject MotiffLab.Web.Settings.DeviceSettings SettingsStore
@@ -63,20 +64,17 @@
             }
             else
             {
-                @* What leaves the device, as one short line and one switch above the file field (0018 section 9). *@
+                @* What leaves the device, as one short line above the file field (0018 section 9): picking the file sends it, with
+                   no switch to turn on each time (v0.5, issue #479 item 17). *@
                 <p class="meta">@Text.Format(Scans.IsLocal ? "import.scanLineHere" : "import.scanLine", server)</p>
-                @if (!Scans.IsLocal)
-                {
-                    <label class="consent">
-                        <input type="checkbox" role="switch" class="switch" @bind="_sendElsewhere" />
-                        <span>@(Scans.IsHosted ? Text["scan.sendHosted"] : Text.Format("import.scanSendElsewhere", server.Host))</span>
-                    </label>
-                }
-
                 <label class="dropzone @(_scanning ? "busy" : null)">
-                    <InputFile OnChange="ScanFileAsync" accept="@ScanService.AcceptedExtensions" multiple="@PhotosOn" disabled="@(_reading || _scanning || !(Scans.IsLocal || _sendElsewhere))" aria-label="@Text[PhotosOn ? "import.scanChoosePhotos" : "import.scanChoose"]" />
+                    <InputFile OnChange="ScanFileAsync" accept="@ScanService.AcceptedExtensions" multiple="@PhotosOn" disabled="@(_reading || _scanning)" aria-label="@Text[PhotosOn ? "import.scanChoosePhotos" : "import.scanChoose"]" />
                     <span>@(_scanning ? ScanBusy : Text[PhotosOn ? "import.scanDropPhotos" : "import.scanDrop"])</span>
                 </label>
+                @if (_scanning && _scanProgress is { } progress)
+                {
+                    <MotiffLab.Web.Pdf.ScanProgressBar Progress="progress" />
+                }
             }
         </section>
     }
@@ -363,7 +361,9 @@
     private string _scanEngine = "";
     private int _scanPages;
     private bool _scanning;
-    private bool _sendElsewhere;
+
+    /// <summary>How far a PDF's notes are read (v0.5, issue #479), while one is.</summary>
+    private MotiffLab.Web.Pdf.ScanProgress? _scanProgress;
 
     /// <summary>Photos of pages (v0.5): the page being read and how many were picked; 0 while one file is read.</summary>
     private (int Page, int Of) _photoPage;
@@ -564,13 +564,25 @@
             await using Stream stream = args.File.OpenReadStream(ScanService.MaxUploadBytes);
             using var memory = new MemoryStream();
             await stream.CopyToAsync(memory);
-            ScanResult result = await Scans.RecogniseAsync(args.File.Name, memory.ToArray());
+            byte[] data = memory.ToArray();
+            // A PDF longer than the server reads at once goes in parts, up to 100 pages (v0.5, issue #479); a photo as it is.
+            ScanResult result = data.AsSpan().StartsWith("%PDF"u8)
+                ? await ScoreScan.ReadAsync(args.File.Name, data, progress =>
+                {
+                    _scanProgress = progress;
+                    StateHasChanged();
+                })
+                : await Scans.RecogniseAsync(args.File.Name, data);
             _elapsed = watch.Elapsed;
             ShowScan(result, args.File.Name);
         }
+        catch (Microsoft.JSInterop.JSException)
+        {
+            _rejection = new(ImportRejectionReason.NotMusic, Text["pdf.unreadable"], Text["import.scanNotReadTip"]);
+        }
         finally
         {
-            _scanning = false;
+            (_scanning, _scanProgress) = (false, null);
         }
     }
 

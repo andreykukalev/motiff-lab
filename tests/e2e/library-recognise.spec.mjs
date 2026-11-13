@@ -77,7 +77,7 @@ test("PDF pieces are picked in the list and read after one consent, page by page
     await expect(consent).toContainText("The notes go into these same pieces.");
     expect(await violations(page)).toEqual([]);
     expect(uploads).toHaveLength(0);
-    await consent.getByRole("button", { name: "Send 3 pages" }).click();
+    await consent.getByRole("button", { name: "Recognise notes" }).click();
     await expect(consent).toBeHidden();
 
     // Each page goes as an image, one at a time; each piece has its notes, and its line says so.
@@ -133,7 +133,7 @@ test("Read the notes now, for all, in the folder sheet adds the pieces and reads
     const consent = page.getByRole("dialog", { name: "Read the notes" });
     await expect(consent).toContainText("2 pieces, 3 pages");
     expect(uploads).toHaveLength(0);
-    await consent.getByRole("button", { name: "Send 3 pages" }).click();
+    await consent.getByRole("button", { name: "Recognise notes" }).click();
 
     await expect(page.locator(".recognition-bar")).toContainText("Notes read: 2 of 2", { timeout: 30000 });
     expect(uploads).toHaveLength(3);
