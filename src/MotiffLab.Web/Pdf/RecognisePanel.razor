@@ -1,11 +1,14 @@
 @using MotiffLab.Web.Import
 @inject ScanService Scans
+@inject ScoreScan Score
 @inject MotiffLab.Web.Localization.UiText Text
 
 @* Read the notes from a PDF kept in a piece (0011, 0023): the kept PDF goes to the scan server, as on Scan printed music,
    and the notes it reads go into the same piece (testing item 16, Andrei, 2026-11-06), or become another version of a
-   piece that has notes. What leaves the device is one line and one switch, as there; on Motiff Lab's server it needs an
-   account and Pro, offered here. *@
+   piece that has notes. What leaves the device is one line naming the server set in Settings, and Recognise notes sends
+   it: pressing the button is the player's yes, with no switch to turn on each time (v0.5, issue #479 item 17). A PDF
+   longer than the server reads at once goes in parts, up to 100 pages (ScoreScan), with a bar while it is read. On Motiff
+   Lab's server it needs an account and Pro, offered here. *@
 <div class="@(Inline ? "recognise-inline" : "popover recognise-popover")" role="@(Inline ? "group" : "dialog")" aria-label="@(Heading ?? Text["pdf.readNotes"])">
     <p class="overline">@(Heading ?? Text["pdf.readNotes"])</p>
     @if (Intro is not null)
@@ -13,18 +16,14 @@
         <p class="caption">@Intro</p>
     }
     <ScanReady>
-        <p class="caption">@Text.Format(Scans.IsLocal ? "pdf.readLineHere" : "pdf.readLine", Scans.Address!)</p>
-        @if (!Scans.IsLocal)
-        {
-            <label class="consent">
-                <input type="checkbox" role="switch" class="switch" @bind="_send" disabled="@_reading" />
-                <span>@(Scans.IsHosted ? Text["pdf.sendHosted"] : Text.Format("pdf.sendElsewhere", Scans.Address!.Host))</span>
-            </label>
-        }
-
-        <button class="btn primary" @onclick="ReadAsync" disabled="@(_reading || !(Scans.IsLocal || _send))">
+        <p class="caption">@(Scans.IsHosted ? Text["pdf.readLineHosted"] : Text.Format(Scans.IsLocal ? "pdf.readLineHere" : "pdf.readLine", Scans.Address!))</p>
+        <button class="btn primary" @onclick="ReadAsync" disabled="@_reading">
             @(_reading ? Text["import.scanBusy"] : Text["pdf.readSend"])
         </button>
+        @if (_reading && _progress is { } progress)
+        {
+            <ScanProgressBar Progress="progress" />
+        }
         <p class="caption">@(Keeps ?? Text["pdf.readKeeps"])</p>
     </ScanReady>
 
@@ -35,8 +34,8 @@
 </div>
 
 @code {
-    private bool _send;
     private bool _reading;
+    private ScanProgress? _progress;
     private string? _problem;
 
     /// <summary>The PDF, exactly as the player added it.</summary>
@@ -73,12 +72,20 @@
         _problem = null;
         try
         {
-            ScanResult result = await Scans.RecogniseAsync(FileName, Document);
+            ScanResult result = await Score.ReadAsync(FileName, Document, progress =>
+            {
+                _progress = progress;
+                StateHasChanged();
+            });
             _problem = result.MusicXml is null ? result.Problem : await Read(result);
+        }
+        catch (Microsoft.JSInterop.JSException)
+        {
+            _problem = Text["pdf.unreadable"];
         }
         finally
         {
-            _reading = false;
+            (_reading, _progress) = (false, null);
         }
     }
 }

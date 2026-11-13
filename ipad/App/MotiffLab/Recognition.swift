@@ -59,10 +59,12 @@ enum RecognitionStore {
     }
 }
 
-/// Motiff Lab's hosted scan server reads 100 pages a day for each player, counted on this device by player and day (the
-/// player's own server has no limit).
+/// Motiff Lab's hosted scan server reads 1000 pages a day for each player (Andrei, 2026-11-13; 100 before), counted on this
+/// device by player and day (the player's own server has no limit).
 enum DailyPages {
-    static let limit = 100
+    static let limit = 1000
+    /// About how long the scan server takes for a page, for the estimates shown.
+    static let secondsPerPage = 30
 
     static func key(player: String, day: Date) -> String {
         let parts = Calendar(identifier: .gregorian).dateComponents([.year, .month, .day], from: day)
@@ -78,7 +80,7 @@ enum DailyPages {
     }
 
     /// About how long a batch takes, in minutes: half a minute a page, as the scan server reads.
-    static func minutes(_ pages: Int) -> Int { max(1, (pages * 30 + 59) / 60) }
+    static func minutes(_ pages: Int) -> Int { max(1, (pages * secondsPerPage + 59) / 60) }
 }
 
 /// Why one piece's notes were not read, and whether the batch stops there for it (no connection, no sign-in, no Pro, the
@@ -100,6 +102,8 @@ final class RecognitionQueue: ObservableObject {
     @Published private(set) var running = false
     /// Grows as each piece is done, so the library reads its pieces again.
     @Published private(set) var revision = 0
+    /// How far the piece being read is, by its project file's name (issue #479 item 10); nil between pieces.
+    @Published private(set) var progress: (file: String, progress: ScanProgress)?
     var account: Account?
     var root = ImportFolders.root
     var links = OriginalLinks.folder
@@ -206,7 +210,13 @@ final class RecognitionQueue: ObservableObject {
             }
             batch?.items[index].state = .reading
             RecognitionStore.save(batch, in: root)
-            let outcome = await Self.recognise(projects().appendingPathComponent(item.file), address: address, account: account, links: links, folders: root) { self.open == item.file }
+            let file = item.file
+            let outcome = await Self.recognise(
+                projects().appendingPathComponent(file), address: address, account: account, links: links, folders: root,
+                progress: { [weak self] in self?.progress = (file, $0) },
+                isOpen: { self.open == file }
+            )
+            progress = nil
             guard batch?.id == current.id, batch?.items.indices.contains(index) == true else { return }
             switch outcome {
             case .success(let pages):
@@ -229,8 +239,8 @@ final class RecognitionQueue: ObservableObject {
 
     /// One piece's PDF read by the scan server and its notes put into the same piece (`document.read`), as «Распознать
     /// ноты» on its PDF does: the pages sent, or why not. `isOpen` says, just before the notes are written, whether the piece
-    /// is open on screen now.
-    static func recognise(_ url: URL, address: URL, account: Account, links: URL, folders: URL, isOpen: () -> Bool) async -> Result<Int, RecognitionFailure> {
+    /// is open on screen now; `progress` hears as each part of a long PDF is sent.
+    static func recognise(_ url: URL, address: URL, account: Account, links: URL, folders: URL, progress: ScanProgressListener? = nil, isOpen: () -> Bool) async -> Result<Int, RecognitionFailure> {
         let text = UIText.current
         guard let summary = await PieceSummary.read(url), let project = try? Data(contentsOf: url) else {
             return .failure(RecognitionFailure(reason: text["recognition.failMissing"]))
@@ -247,19 +257,19 @@ final class RecognitionQueue: ObservableObject {
             return .failure(RecognitionFailure(reason: text["pdf.unreadable"]))
         }
         let piece = open.id
-        let outcome = await read(piece, url: url, address: address, account: account, text: text, isOpen: isOpen)
+        let outcome = await read(piece, url: url, address: address, account: account, text: text, progress: progress, isOpen: isOpen)
         _ = await MusicCore.run { MusicCore.close(piece: piece) }
         return outcome
     }
 
-    private static func read(_ piece: Int32, url: URL, address: URL, account: Account, text: UIText, isOpen: () -> Bool) async -> Result<Int, RecognitionFailure> {
+    private static func read(_ piece: Int32, url: URL, address: URL, account: Account, text: UIText, progress: ScanProgressListener?, isOpen: () -> Bool) async -> Result<Int, RecognitionFailure> {
         let document = await MusicCore.run { MusicCore.call(piece: piece, "document") }
         guard let object = facadeObject(document), let base64 = object["pdf"] as? String, let data = Data(base64Encoded: base64) else {
             return .failure(RecognitionFailure(reason: text["pdf.unreadable"]))
         }
         let name = (object["fileName"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "score.pdf"
         let pages = max(1, PDFDocument(data: data)?.pageCount ?? 1)
-        switch await ScanServer.recognise(fileName: name, data: data, address: address, account: account) {
+        switch await ScanServer.recognise(fileName: name, data: data, address: address, account: account, progress: progress) {
         case .failure(let problem):
             return .failure(RecognitionFailure(reason: problem.text(text), stop: stop(problem)))
         case .success(let scanned):
@@ -284,7 +294,7 @@ final class RecognitionQueue: ObservableObject {
         case .signIn: "signIn"
         case .needsPro: "needsPro"
         case .unreachable, .notAScanServer: "unreachable"
-        case .tooLarge, .server: nil
+        case .tooLarge, .tooManyPages, .server: nil
         }
     }
 }

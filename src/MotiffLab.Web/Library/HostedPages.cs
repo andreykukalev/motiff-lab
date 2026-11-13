@@ -6,13 +6,14 @@ using MotiffLab.Web.Projects;
 namespace MotiffLab.Web.Library;
 
 /// <summary>
-/// The pages Motiff Lab's hosted scan server read today for the signed-in player (version 0.5, «Импорт папки»): 100 a day,
-/// counted on this device by player and by local day, as on the iPad; the player's own server has no limit. Kept only here.
+/// The pages Motiff Lab's hosted scan server read today for the signed-in player (version 0.5, «Импорт папки»): 1000 a day
+/// (Andrei, 2026-11-13; 100 before), counted on this device by player and by local day, as on the iPad; the player's own
+/// server has no limit. Kept only here.
 /// </summary>
 public sealed class HostedPages(Preferences preferences, CloudAccount account)
 {
     /// <summary>The pages a day the hosted server reads for one player.</summary>
-    public const int Limit = 100;
+    public const int Limit = 1000;
 
     /// <summary>About how long the scan server takes for a page, in seconds, for the estimate shown before sending.</summary>
     public const int SecondsPerPage = 30;

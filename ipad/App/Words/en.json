@@ -134,7 +134,7 @@
   "recognition.state.failed": "did not work",
   "recognition.state.queued": "queued",
   "recognition.state.reading": "being recognised",
-  "recognition.stopped.limit": "Today's 100 pages on the Motiff Lab server are used: the rest continue tomorrow",
+  "recognition.stopped.limit": "Today's 1000 pages on the Motiff Lab server are used: the rest continue tomorrow",
   "recognition.stopped.needsPro": "Recognition on the Motiff Lab server is Pro",
   "recognition.stopped.offline": "No connection: recognition is paused",
   "recognition.stopped.signIn": "Sign in to recognise on the Motiff Lab server",

@@ -142,7 +142,7 @@
   "recognition.state.failed": "не вышло",
   "recognition.state.queued": "в очереди",
   "recognition.state.reading": "распознаётся",
-  "recognition.stopped.limit": "Дневной лимит 100 страниц на сервере Motiff Lab исчерпан: остальное — завтра",
+  "recognition.stopped.limit": "Дневной лимит 1000 страниц на сервере Motiff Lab исчерпан: остальное — завтра",
   "recognition.stopped.needsPro": "Распознавание на сервере Motiff Lab — в Pro",
   "recognition.stopped.offline": "Нет сети: распознавание на паузе",
   "recognition.stopped.signIn": "Войдите, чтобы распознавать на сервере Motiff Lab",

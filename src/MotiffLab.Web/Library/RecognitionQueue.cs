@@ -61,8 +61,9 @@ public sealed record PieceToRead(string Project, string Title, int Pages);
 /// Batch recognition from the library (version 0.5, «Импорт папки», ux-prototype/v0.5/screens/import-web-4..5): the PDF
 /// pieces the player picked go to the scan server one piece at a time and page by page, after one consent naming the
 /// pieces, the pages and the server; the notes of the pages are joined by music-core (<see cref="ScanJoin"/>) and go into the
-/// same piece, as «Распознать ноты» on one PDF does. On Motiff Lab's server the day's 100 pages are counted on this device
-/// (<see cref="HostedPages"/>): what does not fit waits until tomorrow. Pausable; kept on the device. The PDFs are only read.
+/// same piece, as «Распознать ноты» on one PDF does. A piece of more than <see cref="ScanParts.MostPages"/> pages is not read.
+/// On Motiff Lab's server the day's 1000 pages are counted on this device (<see cref="HostedPages"/>): what does not fit waits
+/// until tomorrow. Pausable; kept on the device. The PDFs are only read.
 /// </summary>
 public sealed class RecognitionQueue(
     PlayerFolders folders,
@@ -289,9 +290,9 @@ public sealed class RecognitionQueue(
                 return (RecognitionState.Failed, text["pdf.unreadable"], null);
             }
 
-            if (onHosted && count > HostedPages.Limit)
+            if (count > ScanParts.MostPages)
             {
-                return (RecognitionState.Failed, text.Format("recognition.failTooLong", HostedPages.Limit), null);
+                return (RecognitionState.Failed, text.Format("recognition.failTooMany", ScanParts.MostPages), null);
             }
 
             if (onHosted && await hosted.LeftAsync() < count)

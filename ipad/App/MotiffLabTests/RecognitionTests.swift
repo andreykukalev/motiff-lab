@@ -2,7 +2,7 @@ import XCTest
 @testable import MotiffLab
 
 /// «Распознать ноты» for several pieces (version 0.5): the PDF-only pieces are picked and filtered as «Без нот», the batch
-/// is kept after each piece and carried on after a relaunch, and Motiff Lab's server reads at most 100 pages a day for a
+/// is kept after each piece and carried on after a relaunch, and Motiff Lab's server reads at most 1000 pages a day for a
 /// player, counted on this device.
 @MainActor
 final class RecognitionTests: XCTestCase {
@@ -29,7 +29,7 @@ final class RecognitionTests: XCTestCase {
         XCTAssertEqual(DailyPages.used(player: "andrei", on: day, defaults: defaults), 50)
         XCTAssertEqual(DailyPages.used(player: "andrei", on: next, defaults: defaults), 0, "a new day starts again")
         XCTAssertEqual(DailyPages.used(player: "someone", on: day, defaults: defaults), 0, "each player has their own")
-        XCTAssertEqual(DailyPages.limit, 100)
+        XCTAssertEqual(DailyPages.limit, 1000, "Andrei, 2026-11-13")
         XCTAssertEqual(DailyPages.minutes(41), 21)
         XCTAssertEqual(DailyPages.minutes(1), 1)
     }
@@ -110,7 +110,8 @@ final class RecognitionTests: XCTestCase {
             let text = UIText(language: language)
             for key in keys { XCTAssertNotEqual(text[key], key, "\(language): \(key)") }
         }
-        XCTAssertEqual(UIText(language: "ru").count("recognition.send", 41), "Отправить 41 страницу")
+        XCTAssertEqual(UIText(language: "ru")["recognition.recognise"], "Распознать ноты", "the consent's button, as on one PDF (#479)")
+        XCTAssertEqual(UIText(language: "en").format("recognition.running", "0", "1"), "Reading the notes: 0 of 1 done", "the banner, in the web app's words")
         XCTAssertEqual(UIText(language: "ru").count("recognition.pieces", 8), "8 пьес")
     }
 

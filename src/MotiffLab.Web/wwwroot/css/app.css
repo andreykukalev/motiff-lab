@@ -2678,12 +2678,34 @@ h1:focus {
     width: min(22rem, calc(100% - 2 * var(--s-4)));
 }
 
-.recognise-popover label.consent {
-    display: flex;
-    align-items: center;
-    gap: var(--s-3);
-    font: var(--t-label);
-    color: var(--ink);
+/* While a score's notes are read (v0.5, issue #479): the bar, the part or pages being read and the time left. */
+.scan-progress {
+    display: grid;
+    gap: var(--s-1);
+}
+
+.scan-progress .track {
+    position: relative;
+    display: block;
+    height: var(--s-1);
+    overflow: hidden;
+    border-radius: var(--r-pill);
+    background: var(--hairline);
+}
+
+.scan-progress .fill {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: var(--done, 0%);
+    background: var(--ink-2);
+    transition: width var(--t-slow) var(--ease);
+}
+
+.scan-progress .caption {
+    color: var(--ink-2);
+    font: var(--t-caption);
 }
 
 .recognise-popover .problem {
@@ -4806,14 +4828,6 @@ h1:focus {
     padding: var(--s-3);
     border-radius: var(--r-m);
     background: var(--surface-2);
-}
-
-.workspace .perf-sheet .recognise-inline label.consent {
-    display: flex;
-    align-items: center;
-    gap: var(--s-3);
-    font: var(--t-label);
-    color: var(--ink);
 }
 
 .workspace .perf-sheet .recognise-inline .problem {
