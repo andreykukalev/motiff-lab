@@ -152,5 +152,7 @@
   "recognition.whereHere": "PDF уйдут на сервер распознавания на этом устройстве ({0}) и не покинут его.",
   "recognition.whereHosted": "PDF уйдут на сервер распознавания Motiff Lab, который удалит их после чтения.",
   "recognition.whereOwn": "PDF уйдут на ваш сервер распознавания {0}.",
-  "recognition.withoutNotes": "Без нот"
+  "recognition.withoutNotes": "Без нот",
+  "settings.planChecking": "Проверяю…",
+  "settings.planRetry": "Попробовать ещё раз"
 }

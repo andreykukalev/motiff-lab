@@ -71,6 +71,11 @@ struct LibraryView: View {
     var body: some View {
         NavigationStack {
             let page = LibraryPage.of(entries, query, tab: tab, picked: picked, locale: Locale(identifier: text.language))
+            // The header keeps the kit's space below the status bar (v0.5 put it right under the clock): the scroll view
+            // runs up under the bar, and its content starts the bar's height plus the page's padding down, so the space
+            // never depends on whether a scroll view with a hidden navigation bar insets its content by itself.
+            GeometryReader { window in
+            let bar = Self.statusBar(window.safeAreaInsets.top)
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: CGFloat.ds("s-6")) {
@@ -110,17 +115,22 @@ struct LibraryView: View {
                         }
                     }
                     .padding(.horizontal, CGFloat.ds("s-12"))
-                    .padding(.vertical, CGFloat.ds("s-10"))
+                    .padding(.top, bar + CGFloat.ds("s-10"))
+                    .padding(.bottom, CGFloat.ds("s-10"))
                 }
+                .ignoresSafeArea(edges: .top)
                 .overlay(alignment: .trailing) {
                     if page.indexed && !page.isEmpty {
                         LibraryIndex(letters: LibraryShelf.indexLetters(page.initials), text: text) { letter in
                             guard let at = LibraryShelf.target(letter, in: page.initials, locale: Locale(identifier: text.language)) else { return }
-                            proxy.scrollTo(page.id(at: at), anchor: .top)
+                            // Just below the status bar, which the scroll view runs under.
+                            let frame = window.size.height + window.safeAreaInsets.top
+                            proxy.scrollTo(page.id(at: at), anchor: UnitPoint(x: 0, y: frame > 0 ? bar / frame : 0))
                         }
                         .padding(.trailing, CGFloat.ds("s-2"))
                     }
                 }
+            }
             }
             .background(Color.ds("desk").ignoresSafeArea())
             .disabled(opening)
@@ -209,6 +219,12 @@ struct LibraryView: View {
                 query.ascending = true
             }
         }
+    }
+
+    /// The space the status bar takes at the top: the window's top safe area, and never less than the bar's height on an
+    /// iPad (s-6), for a window whose safe area does not include it.
+    static func statusBar(_ safeTop: CGFloat) -> CGFloat {
+        Swift.max(safeTop, CGFloat.ds("s-6"))
     }
 
     /// The library's name, the search, Add piece, the overflow and the account (lib-1).

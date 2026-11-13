@@ -144,5 +144,7 @@
   "recognition.whereHere": "The PDFs go to the recognition server on this device ({0}); they do not leave it.",
   "recognition.whereHosted": "The PDFs go to the Motiff Lab recognition server, which deletes them once read.",
   "recognition.whereOwn": "The PDFs go to your recognition server at {0}.",
-  "recognition.withoutNotes": "Without notes"
+  "recognition.withoutNotes": "Without notes",
+  "settings.planChecking": "Checking…",
+  "settings.planRetry": "Try again"
 }

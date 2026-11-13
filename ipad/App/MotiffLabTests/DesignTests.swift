@@ -58,4 +58,10 @@ final class DesignTests: XCTestCase {
         XCTAssertEqual(UIText.pluralForm("ru", 12), "many")
         XCTAssertEqual(UIText.pluralForm("ru", 22), "few")
     }
+
+    /// The library's header keeps the page's padding below the status bar, even where the safe area leaves the bar out.
+    @MainActor func testTheLibraryLeavesRoomForTheStatusBar() {
+        XCTAssertEqual(LibraryView.statusBar(0), CGFloat.ds("s-6"))
+        XCTAssertEqual(LibraryView.statusBar(CGFloat.ds("s-12")), CGFloat.ds("s-12"))
+    }
 }
