@@ -8,7 +8,8 @@
 // (ipad/App/MotiffLab/PlaybackPosition.swift, PlaybackModel), and both run the one case file
 // ipad/App/MotiffLabTests/Golden/playback-model.json (tests/web/playback-model.test.mjs, PlaybackPositionTests.swift).
 // The rules are the design's transitions T1–T16: a playhead taken (T14) pauses playback, dragged (T15) it moves the
-// position, the blue one inside the selection, and let go (T16) it plays on when it played. Scrubbing comes in slice I4.
+// position, the blue one inside the selection, and the notes it passes sound (the engine's scrub, #495 UX-09), and let
+// go (T16) the drag's notes fade and it plays on when it played.
 
 /** A stretch of ticks [start, end), 480 to the quarter. */
 export interface Span {
@@ -34,7 +35,11 @@ export type Step =
     | { type: "play" }
     | { type: "seek"; at: number }
     | { type: "loop"; start: number; end: number }
-    | { type: "loopOff" };
+    | { type: "loopOff" }
+    /** The position moved by a drag while stopped: the notes whose starts it passed sound (#495 UX-09). */
+    | { type: "scrub"; from: number; to: number }
+    /** The drag let go: the notes it sounded fade. */
+    | { type: "scrubEnd" };
 
 /** Which playhead a gesture held: the black one is the piece's, the blue one the selection's. */
 export type Handle = "black" | "blue";
@@ -214,7 +219,7 @@ function grab(state: ModelState): Decision {
 /**
  * T15: the position follows the held playhead. The black one goes anywhere in the piece (the view keeps it in its bar on
  * the score); the blue one stays inside the selection, so Цикл is never touched while it moves. Nothing is sent when the
- * place is where the position already is.
+ * place is where the position already is. The engine scrubs there: the notes whose starts it passes sound.
  */
 function drag(state: ModelState, handle: Handle, at: number): Decision {
     const selection = state.selection;
@@ -225,13 +230,14 @@ function drag(state: ModelState, handle: Handle, at: number): Decision {
     if (to === state.tick) {
         return { state, steps: [] };
     }
-    return { state: { ...state, tick: to }, steps: [{ type: "seek", at: to }] };
+    return { state: { ...state, tick: to }, steps: [{ type: "scrub", from: state.tick, to }] };
 }
 
 /** T16, the rules of letting go: the black playhead let go outside the selection with Цикл on turns Цикл off (as T12); the
- * blue one stays inside the selection and leaves Цикл alone. Playing when the gesture began, it plays on from there. */
+ * blue one stays inside the selection and leaves Цикл alone. The drag's notes fade first; playing when the gesture began,
+ * it plays on from there. */
 function release(state: ModelState, handle: Handle, resume: boolean): Decision {
-    const steps: Step[] = [];
+    const steps: Step[] = [{ type: "scrubEnd" }];
     let after = state;
     if (handle === "black" && engineLoop(state) !== null && !insideOf(state.selection, state.tick)) {
         after = { ...after, loop: false };

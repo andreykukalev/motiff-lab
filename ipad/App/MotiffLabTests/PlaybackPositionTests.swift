@@ -140,6 +140,10 @@ final class PlaybackPositionTests: XCTestCase {
                 return .play
             case "loopOff":
                 return .loopOff
+            case "scrubEnd":
+                return .scrubEnd
+            case "scrub":
+                if let from = number(step["from"]), let to = number(step["to"]) { return .scrub(from: from, to: to) }
             case "seek":
                 if let at = number(step["at"]) { return .seek(at) }
             case "loop":

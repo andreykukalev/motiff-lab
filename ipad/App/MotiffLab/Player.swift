@@ -235,6 +235,10 @@ final class Player: ObservableObject {
                 applyLoop(range)
             case .loopOff:
                 applyLoop(nil)
+            case .scrub(let from, let to):
+                send(.scrub(from: from, to: to))
+            case .scrubEnd:
+                send(.scrubEnd)
             }
         }
     }
@@ -354,7 +358,8 @@ final class Player: ObservableObject {
 
     /// Stops the sound and the audio engine; the screen calls this when it closes.
     func shutdown() {
-        // A playhead held as the screen closes is let go where it is; the pause below ends what sounds.
+        // A playhead held as the screen closes is let go where it is: what the drag sounds fades, the pause ends the rest.
+        if drag != nil { send(.scrubEnd) }
         drag = nil
         polling?.cancel()
         polling = nil
