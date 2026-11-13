@@ -70,6 +70,20 @@ enum DesignTokens {
         return CGFloat(value)
     }
 
+    /// A timing token in seconds, such as "t-base" (0.2); 0 when it is missing.
+    static func duration(_ name: String) -> Double {
+        guard let text = stands.light[name], text.hasSuffix("ms"), let value = Double(text.dropLast(2)) else { return 0 }
+        return value / 1000
+    }
+
+    /// The kit's easing curve (`--ease`, "cubic-bezier(.2,.8,.2,1)") as its four control values; a plain ease-out's
+    /// when it is missing.
+    static var ease: [Double] {
+        guard let text = stands.light["ease"], text.hasPrefix("cubic-bezier("), text.hasSuffix(")") else { return [0, 0, 0.58, 1] }
+        let values = text.dropFirst(13).dropLast().split(separator: ",").compactMap { Double($0.trimmingCharacters(in: .whitespaces)) }
+        return values.count == 4 ? values : [0, 0, 0.58, 1]
+    }
+
     /// A shadow token's first layer, such as "shadow-pill": "0 6px 20px rgba(31,28,24,.18)", in the stand the iPad's
     /// appearance asks for. SwiftUI's radius is about half the CSS blur.
     static func shadow(_ name: String) -> (color: Color, radius: CGFloat, x: CGFloat, y: CGFloat) {
@@ -179,6 +193,14 @@ extension CGFloat {
     /// A length token, such as `.ds("s-4")`.
     static func ds(_ name: String) -> CGFloat {
         DesignTokens.length(name)
+    }
+}
+
+extension Animation {
+    /// The kit's motion: a timing token, such as `.ds("t-base")`, on the kit's easing curve.
+    static func ds(_ name: String) -> Animation {
+        let ease = DesignTokens.ease
+        return .timingCurve(ease[0], ease[1], ease[2], ease[3], duration: DesignTokens.duration(name))
     }
 }
 

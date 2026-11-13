@@ -1,8 +1,9 @@
 import SwiftUI
 
 /// The library's shelf (version 0.2, ux-prototype/v2/screens/lib-1-list.png and lib-3-sessions.png): the tabs, then the
-/// list of pieces with its columns, the composers or the playlists with their pieces, or the sessions of current work as
-/// cards; and a way back to everything when the search or a filter finds nothing.
+/// list of pieces with its columns, the composers or the playlists with their pieces, the sessions of current work as
+/// cards, or the pieces saved online that are not here (#479); and a way back to everything when the search or a filter
+/// finds nothing.
 struct LibraryShelfView: View {
     let page: LibraryPage
     let summaries: [URL: PieceSummary]
@@ -17,6 +18,8 @@ struct LibraryShelfView: View {
     var playlistAccessory: ((String) -> AnyView)?
     /// The pieces picked to recognise and each piece's recognition, and «Без нот» among the filters (version 0.5).
     var marks: LibraryMarks?
+    /// The pieces saved online that are not on this iPad, for their tab; nil or none hides it.
+    var online: OnlineTab?
     let open: (URL) -> Void
     let edit: (LibraryEntry) -> Void
     let delete: (URL) -> Void
@@ -26,7 +29,7 @@ struct LibraryShelfView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-4")) {
-            LibraryTabs(tab: $tab, query: $query, composers: composers, tags: tags, playlists: playlists, text: text, withoutNotes: marks != nil)
+            LibraryTabs(tab: $tab, query: $query, composers: composers, tags: tags, playlists: playlists, text: text, withoutNotes: marks != nil, online: !(online?.projects.isEmpty ?? true))
             if tab == .composers || tab == .playlists, let picked {
                 HStack(alignment: .firstTextBaseline, spacing: CGFloat.ds("s-3")) {
                     BackChip(label: LibraryTabs.label(tab, text), text: text) { self.picked = nil }
@@ -40,7 +43,14 @@ struct LibraryShelfView: View {
                     }
                 }
             }
-            if page.isEmpty {
+            if tab == .online {
+                let found = LibraryShelf.online(online?.projects ?? [], search: query.search, locale: Locale(identifier: text.language))
+                if found.isEmpty {
+                    empty
+                } else if let online {
+                    OnlineList(projects: found, text: text, get: online.get)
+                }
+            } else if page.isEmpty {
                 empty
             } else if let rows = page.groups {
                 GroupList(rows: rows, text: text) { picked = $0 }

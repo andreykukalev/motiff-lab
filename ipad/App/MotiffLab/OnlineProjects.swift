@@ -189,8 +189,48 @@ struct OnlineProjects {
     }
 }
 
-/// "Saved online, not on this device" (`home.onlineOnly`) under the library's own projects, as on the web
-/// (Pages/Home.razor): a card for each project with its title and Get it here.
+/// The library's tab «Нет на этом iPad» (version 0.5, #479): the projects saved online that are not here, and how one comes.
+struct OnlineTab {
+    let projects: [OnlineProject]
+    let get: (OnlineProject) -> Void
+}
+
+/// The tab «Нет на этом iPad»: a line for each project saved online and not here, from A, its title in the serif and Get
+/// it here at the right, as the list of pieces draws its lines.
+struct OnlineList: View {
+    let projects: [OnlineProject]
+    let text: UIText
+    let get: (OnlineProject) -> Void
+
+    var body: some View {
+        LazyVStack(alignment: .leading, spacing: 0) {
+            Text(text["home.onlineOnly"])
+                .overline()
+                .padding(.horizontal, CGFloat.ds("s-4"))
+                .padding(.vertical, CGFloat.ds("s-3"))
+                .accessibilityAddTraits(.isHeader)
+            ForEach(projects) { project in
+                HStack(spacing: CGFloat.ds("s-4")) {
+                    Text(project.title)
+                        .font(DesignTokens.font(display: true, weight: 500, size: 19, relativeTo: .title3))
+                        .foregroundStyle(Color.ds("ink"))
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Button(text["home.getHere"]) { get(project) }
+                        .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
+                }
+                .padding(.horizontal, CGFloat.ds("s-4"))
+                .frame(minHeight: CGFloat.ds("h-touch") + CGFloat.ds("s-4"))
+                .overlay(alignment: .bottom) { Rectangle().fill(Color.ds("hairline")).frame(height: 1) }
+                .accessibilityElement(children: .contain)
+                .id(project.id)
+            }
+        }
+    }
+}
+
+/// "Saved online, not on this device" (`home.onlineOnly`) when the library has no project of its own yet, as on the web
+/// (Pages/Home.razor): a card for each project with its title and Get it here. With pieces here, they have their own tab.
 struct OnlineShelf: View {
     let text: UIText
     let projects: [OnlineProject]

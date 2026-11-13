@@ -602,7 +602,7 @@ struct VersionPage: View {
                 .foregroundStyle(Color.ds("ink-2"))
             TextField(text["performance.name"], text: $name)
                 .dsType(.label)
-                .textFieldStyle(.roundedBorder)
+                .modifier(FieldLook())
                 .submitLabel(.done)
                 .onSubmit { score.renameVersion(name) }
         }

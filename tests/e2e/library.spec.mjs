@@ -107,6 +107,8 @@ test("a piece's properties: title, a composer from the library, tags and playlis
     const sheet = await properties(page, "Waltz sketch");
     await expect(sheet.getByLabel("Title")).toBeFocused();
     await expect(sheet.getByLabel("Title")).toHaveAttribute("placeholder", "Waltz sketch");
+    // The title starts as the piece is named, not empty (#479).
+    await expect(sheet.getByLabel("Title")).toHaveValue("Waltz sketch");
     await sheet.getByLabel("Title").fill("My waltz");
     await sheet.getByLabel("Composer", { exact: true }).fill("beet");
     await sheet.getByRole("button", { name: "Ludwig van Beethoven already in the library" }).click();

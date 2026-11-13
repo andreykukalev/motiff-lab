@@ -5,11 +5,13 @@ import UniformTypeIdentifiers
 /// lib-4-props.png): the screen outside the piece and the way into one, as short as it can be: find a piece and start.
 /// The pieces are a list with Title, Composer, Playlists and Opened columns and an index at the edge, searched, filtered by
 /// composer, tag and playlist, and in tabs: All pieces, Composers, Recent, Playlists, and Sessions, the cards of current
-/// work, each resumed with one tap. A piece's properties (title, composer, tags, playlists) are edited from a long press.
+/// work, each resumed with one tap. A piece's properties (title, composer, tags, playlists) are edited from a long press or a
+/// swipe on its line, which also deletes it (#479).
 /// The pieces are project files in the app's Documents (0019 section 2.3), read by music-core (`project.summary`) without
 /// opening them. One Add piece action holds the ways in; the overflow imports a project file. Everything here runs on the
 /// device and is free; signed in, the pieces sync with the player's other devices by themselves (version 0.2,
-/// `CloudSync`), and a project saved online that is still not here is listed under them, to download (0014, #335).
+/// `CloudSync`), and a project saved online that is still not here is listed in a tab of its own, to download (0014, #335,
+/// #479). The search's keyboard goes away when the list scrolls or empty space is tapped.
 struct LibraryView: View {
     private let text = UIText.current
     @EnvironmentObject private var account: Account
@@ -45,6 +47,8 @@ struct LibraryView: View {
     /// The composer or playlist picked on its tab.
     @State private var picked: LibraryGroup?
     @State private var editing: LibraryEntry?
+    /// Whether the search is typed in: off when the list scrolls or empty space is tapped (#479).
+    @FocusState private var searching: Bool
     /// A piece whose PDF could not be read where it lies (version 0.5), and what can be done.
     @State private var away: AwayPrompt?
     /// «Импорт папки» (version 0.5, an experiment): the folders imported, their review and «Держать на этом iPad».
@@ -101,23 +105,36 @@ struct LibraryView: View {
                                 .dsType(.body)
                                 .foregroundStyle(Color.ds("ink-2"))
                                 .frame(maxWidth: 560, alignment: .leading)
+                            // No tabs without a piece here: the ones saved online are the shelf's cards.
+                            if !online.isEmpty {
+                                OnlineShelf(text: text, projects: online) { project in Task { await getHere(project) } }
+                            }
                         } else {
-                            LibraryShelfView(page: page, summaries: summaries, composers: composers, tags: tags, playlists: playlists, tab: $tab, query: $query, picked: $picked, text: text, playlistAccessory: playlistToggle, marks: importOn ? marks : nil) { url in
+                            LibraryShelfView(page: page, summaries: summaries, composers: composers, tags: tags, playlists: playlists, tab: $tab, query: $query, picked: $picked, text: text, playlistAccessory: playlistToggle, marks: importOn ? marks : nil, online: onlineTab) { url in
+                                searching = false
                                 Task { await openProject(url) }
                             } edit: { entry in
+                                searching = false
                                 editing = entry
                             } delete: { url in
                                 delete(url)
                             }
                         }
-                        if !online.isEmpty {
-                            OnlineShelf(text: text, projects: online) { project in Task { await getHere(project) } }
-                        }
                     }
                     .padding(.horizontal, CGFloat.ds("s-12"))
                     .padding(.top, bar + CGFloat.ds("s-10"))
                     .padding(.bottom, CGFloat.ds("s-10"))
+                    // Empty space down to the screen's foot puts the search's keyboard away; a line's or a button's own
+                    // tap is drawn over it and keeps working.
+                    .frame(maxWidth: .infinity, minHeight: window.size.height + window.safeAreaInsets.top, alignment: .topLeading)
+                    .background {
+                        Color.clear
+                            .contentShape(Rectangle())
+                            .onTapGesture { searching = false }
+                            .accessibilityHidden(true)
+                    }
                 }
+                .scrollDismissesKeyboard(.immediately)
                 .ignoresSafeArea(edges: .top)
                 .overlay(alignment: .trailing) {
                     if page.indexed && !page.isEmpty {
@@ -180,6 +197,8 @@ struct LibraryView: View {
             .folderImport(folderImport, text: text, summaries: summaries, on: importOn, account: account) { await reload() } open: { url in await openProject(url) }
             .recognition(chosen: $chosen, consenting: $consenting, account: account, entries: entries, on: importOn, text: text) { settings = true } reload: { await reload() }
             .task {
+                // «Нет на этом iPad» is not kept as the tab to start on: it is there only once the list online has come.
+                if tab == .online { tab = .all }
                 #if DEBUG
                 let screensFile = ScreensHook.start()
                 #endif
@@ -212,11 +231,16 @@ struct LibraryView: View {
                 picked = nil
                 Task { await reload(); await refreshOnline() }
             }
+            // The last piece saved online that was not here came: its tab goes, and All pieces is shown.
+            .onChange(of: online.isEmpty) { _, none in
+                tab = tab.shown(online: !none)
+            }
             // The Test library cleared (Settings · About, `TestLibrary`): read again from what is left, nothing.
             .onChange(of: account.libraryCleared) { _, _ in online = []; overQuota = 0; picked = nil; folderImport.load(); Task { await reload(); await refreshOnline() } }
             // Recent lists the last opened first; the other lists start from A.
             .onChange(of: tab) { _, shown in
                 picked = nil
+                searching = false
                 query.sort = shown == .recent ? .recent : .title
                 query.ascending = true
             }
@@ -240,7 +264,7 @@ struct LibraryView: View {
             EnvironmentMark(account: account, text: text)
             Spacer(minLength: CGFloat.ds("s-4"))
             if !projects.isEmpty {
-                LibrarySearchField(search: $query.search, text: text)
+                LibrarySearchField(search: $query.search, text: text, focus: $searching)
             }
             if deviceSettings.isOn("experimental.reference") {
                 // The Reference (an experiment, Settings · Experimental): the circle of fifths in one tap.
@@ -313,6 +337,12 @@ struct LibraryView: View {
         }
         summaries = read
         shelve()
+    }
+
+    /// The tab «Нет на этом iPad», while a project saved online is not here.
+    private var onlineTab: OnlineTab? {
+        guard !online.isEmpty else { return nil }
+        return OnlineTab(projects: online) { project in Task { await getHere(project) } }
     }
 
     /// The pieces made again from the project files and their summaries; a composer, tag or playlist no piece has any more
@@ -556,33 +586,3 @@ extension OpenPiece: Hashable {
     static func == (lhs: OpenPiece, rhs: OpenPiece) -> Bool { lhs.id == rhs.id }
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
 }
-
-#if DEBUG
-/// The way in for the screenshot UI test (`MotiffLabScreens`, the `Screens` scheme), in Debug builds only:
-/// `-ml-screens-reset` removes the projects in Documents before the library first reads them, and
-/// `-ml-screens-open <path>` then opens that file as if it was picked in Files. Read once per launch. With `-ml-screens`
-/// the score also has a hidden button that chooses the next phrase, as a tap on its bracket would.
-@MainActor
-enum ScreensHook {
-    private static var used = false
-    private static var phrase = 1
-
-    static let active = ProcessInfo.processInfo.arguments.contains("-ml-screens")
-
-    /// Phrase 2, then 3, and so on: each press chooses another phrase, so it never lifts the chosen one into focus.
-    static func nextPhrase() -> Int {
-        phrase += 1
-        return phrase
-    }
-
-    static func start(arguments: [String] = ProcessInfo.processInfo.arguments) -> URL? {
-        guard !used else { return nil }
-        used = true
-        if arguments.contains("-ml-screens-reset") {
-            for entry in ProjectFiles.list() { try? FileManager.default.removeItem(at: entry.url) }
-        }
-        guard let index = arguments.firstIndex(of: "-ml-screens-open"), arguments.indices.contains(index + 1) else { return nil }
-        return URL(fileURLWithPath: arguments[index + 1])
-    }
-}
-#endif
