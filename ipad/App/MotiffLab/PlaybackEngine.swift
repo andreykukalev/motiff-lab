@@ -74,6 +74,11 @@ enum EngineMessage: Sendable {
     case tracks(muted: Set<Int>, soloed: Set<Int>)
     case noteOn(pitch: Int, velocity: Int)
     case noteOff(pitch: Int)
+    /// A playhead dragged while stopped (#495 UX-09): the position goes from one tick to the other, and the notes whose starts
+    /// it passed sound, forward or back.
+    case scrub(from: Double, to: Double)
+    /// The drag let go: the notes it sounded fade.
+    case scrubEnd
 }
 
 struct PositionReport: Sendable, Equatable {
@@ -218,6 +223,10 @@ final class PlaybackEngine {
             }
         case .noteOff(let pitch):
             release(at: 0) { $0.sourceId == Self.liveSource && $0.pitch == pitch }
+        case .scrub(let from, let to):
+            scrub(from: from, to: to)
+        case .scrubEnd:
+            release(at: 0) { $0.sourceId == Self.scrubSource }
         }
     }
 
@@ -337,6 +346,8 @@ final class PlaybackEngine {
 
     private func play() {
         guard let timeline, transportState == .stopped else { return }
+        // What a drag sounded gives way to the piece: playback starts clean.
+        release(at: 0) { $0.sourceId == Self.scrubSource }
 
         if hasLoop && (position < loopStart || position >= loopEnd) {
             position = loopStart
@@ -582,7 +593,9 @@ final class PlaybackEngine {
 
     // MARK: - Voices
 
-    private func startVoice(_ sourceId: String, _ pitch: Int, _ velocity: Int, _ track: Int, _ endTick: Double, _ frame: Int) {
+    /// Starts a voice at a frame of the block. It is released at `endTick` while playing, or, with `hold`, that many frames
+    /// after it starts, counted down block by block whether or not anything plays (a drag's notes).
+    private func startVoice(_ sourceId: String, _ pitch: Int, _ velocity: Int, _ track: Int, _ endTick: Double, _ frame: Int, hold: Int = .max) {
         guard let region = regionByPitch[pitch] else { return }
 
         // A key struck again is damped first, as on a piano.
@@ -595,7 +608,7 @@ final class PlaybackEngine {
         let loudness = Float(velocity) / 127
         voices.append(Voice(
             sourceId: sourceId, pitch: pitch, track: track, data: region.data, read: 0, step: stepByPitch[pitch],
-            gain: 0.08 + 0.92 * loudness * loudness, level: 1, startAt: frame, releaseAt: .max, released: false,
+            gain: 0.08 + 0.92 * loudness * loudness, level: 1, startAt: frame, releaseAt: hold == .max ? .max : frame + hold, released: false,
             endTick: endTick, order: voiceOrder
         ))
         voiceOrder += 1
@@ -752,6 +765,45 @@ final class PlaybackEngine {
         var age: Int
         var frequency: Double
         var gain: Double
+    }
+}
+
+/// Scrubbing (#495 UX-09, the architect's design playback-model-v0.5.2, slice I4): the notes a dragged playhead passes.
+extension PlaybackEngine {
+    /// The drag's voices, apart from the piece's, so its end, Play or a seek fades them all.
+    static let scrubSource = "scrub"
+    /// One move strikes at most this many starts, those nearest where it went: a fast drag never floods the voices.
+    static let scrubGroups = 6
+    /// A note a drag strikes sounds as long as it lasts at the tempo, never longer than this, in seconds, then fades.
+    static let scrubSeconds = 1.5
+
+    /// A playhead dragged while stopped (#495 UX-09): the position goes to `to` without striking what sounds there (a seek
+    /// would) and without fading what the drag already sounds; the starts of the active sources' audible notes it passed
+    /// sound, forward those in (from, to], back those in [to, from), each start's notes together, as a chord. A move that
+    /// passes more starts than `scrubGroups` strikes only those nearest `to`. Each note sounds its length at the tempo, at
+    /// most `scrubSeconds`, then fades as a released note does. The metronome stays silent. Ignored while playing.
+    fileprivate func scrub(from: Double, to: Double) {
+        guard let timeline, transportState == .stopped else { return }
+        let start = min(max(0, from), timeline.end)
+        let target = min(max(0, to), timeline.end)
+        position = target
+        relocate(chase: false)
+        requestReport()
+        // Forward the start itself is behind and the place reached is passed; back the other way round.
+        let passed = { (onset: Double) in target > start ? onset > start && onset <= target : onset >= target && onset < start }
+        var chords: [Double: [PlaybackNote]] = [:]
+        for id in active {
+            for note in sources[id]?.notes ?? [] where passed(note.onset) && isAudible(note.track) {
+                chords[note.onset, default: []].append(note)
+            }
+        }
+        let longest = Int(Self.scrubSeconds * sampleRate)
+        for onset in chords.keys.sorted(by: { abs($0 - target) < abs($1 - target) }).prefix(Self.scrubGroups) {
+            for note in chords[onset] ?? [] {
+                let frames = Int((note.duration / ticksPerFrame(tempoIndex(note.onset))).rounded())
+                startVoice(Self.scrubSource, note.pitch, note.velocity, note.track, .infinity, 0, hold: min(longest, max(1, frames)))
+            }
+        }
     }
 }
 

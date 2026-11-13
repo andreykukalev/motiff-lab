@@ -341,6 +341,142 @@ final class PlaybackEngineTests: XCTestCase {
         let loudest = out.indices.max { abs(out[$0]) < abs(out[$1]) }
         XCTAssertEqual(Double(loudest ?? 0), 480, accuracy: 1)
     }
+
+    // MARK: - Scrubbing (#495 UX-09): the notes a dragged playhead passes
+
+    /// Notes as (onset, duration, pitch), full velocity, on track 0, made the one active source.
+    private func chords(_ engine: PlaybackEngine, _ notes: [(Double, Double, Int)]) {
+        engine.handle(.source(id: "a", notes: notes.map { PlaybackNote(onset: $0.0, duration: $0.1, pitch: $0.2, velocity: 127, track: 0) }))
+        engine.handle(.activeSources(["a"]))
+    }
+
+    /// An engine whose sample sounds steadily for four seconds, so how long a voice is held shows in the output.
+    private func sustained() -> PlaybackEngine {
+        let e = engine(samples: false)
+        e.handle(.samples([SampleRegion(pitch: 60, tuneCents: 0, data: [Float](repeating: 0.5, count: Int(rate) * 4), sampleRate: rate)]))
+        return e
+    }
+
+    func testADragForwardSoundsTheStartsItPassesAndGoesThere() {
+        let e = engine()
+        chords(e, [(0, 240, 60), (480, 240, 62), (960, 240, 64), (1440, 240, 65)])
+        e.handle(.scrub(from: 0, to: 1000))
+
+        XCTAssertEqual(e.tick, 1000)
+        XCTAssertEqual(e.transportState, .stopped)
+        XCTAssertEqual(e.voiceCount, 2, "the starts at 480 and 960: the one it left is behind it")
+        XCTAssertFalse(noteStarts(e.render(frames: 1024)).isEmpty, "they sound at once")
+    }
+
+    func testADragBackSoundsTheStartsItPassesTheOtherWay() {
+        let e = engine()
+        chords(e, [(0, 240, 60), (480, 240, 62), (960, 240, 64), (1440, 240, 65)])
+        e.handle(.scrub(from: 1440, to: 480))
+
+        XCTAssertEqual(e.tick, 480)
+        XCTAssertEqual(e.voiceCount, 2, "back, the place reached sounds and the one it left does not: 480 and 960")
+    }
+
+    func testAChordADragPassesSoundsWhole() {
+        let e = engine()
+        chords(e, [(480, 240, 60), (480, 240, 64), (480, 240, 67), (960, 240, 72)])
+        e.handle(.scrub(from: 0, to: 600))
+
+        XCTAssertEqual(e.voiceCount, 3)
+    }
+
+    func testAFastDragStrikesOnlyTheStartsNearestWhereItWent() {
+        let e = engine()
+        chords(e, (1...20).map { (Double($0 * 120), 120.0, 40 + $0) })
+        e.handle(.scrub(from: 0, to: 2400))
+
+        XCTAssertEqual(e.voiceCount, PlaybackEngine.scrubGroups)
+    }
+
+    func testMutedTracksAndTheMetronomeStaySilentWhileADragScrubs() {
+        let beats: [PlaybackTimeline.Beat] = [.init(at: 0, downbeat: true), .init(at: 480, downbeat: false), .init(at: 960, downbeat: false)]
+        let e = engine(beats: beats, samples: false)
+        e.handle(.metronome(true))
+        e.handle(.scrub(from: 0, to: 1000))
+        XCTAssertTrue(e.render(frames: 4096).allSatisfy { $0 == 0 }, "no click")
+
+        let muted = engine()
+        muted.handle(.source(id: "a", notes: [PlaybackNote(onset: 480, duration: 240, pitch: 60, velocity: 127, track: 1)]))
+        muted.handle(.activeSources(["a"]))
+        muted.handle(.tracks(muted: [1], soloed: []))
+        muted.handle(.scrub(from: 0, to: 1000))
+        XCTAssertEqual(muted.voiceCount, 0)
+    }
+
+    func testANoteADragStrikesSoundsItsLengthAtMostASecondAndAHalfThenFades() {
+        // 240 ticks at 120 BPM are a quarter of a second; 3840 are four seconds, held a second and a half.
+        for (duration, held) in [(240.0, 0.25), (3840.0, PlaybackEngine.scrubSeconds)] {
+            let e = sustained()
+            chords(e, [(480, duration, 60)])
+            e.handle(.scrub(from: 0, to: 480))
+            let out = e.render(frames: frames(rate * (held + 0.6)))
+            let full = abs(out[Int(rate * 0.01)])
+
+            XCTAssertGreaterThan(full, 0, "\(duration): it sounds")
+            XCTAssertEqual(abs(out[Int(rate * (held - 0.01))]), full, accuracy: full * 0.01, "\(duration): held its length")
+            XCTAssertLessThan(abs(out[Int(rate * (held + 0.5))]), full * 0.05, "\(duration): then fading")
+            _ = e.render(frames: frames(rate))
+            XCTAssertEqual(e.voiceCount, 0, "\(duration): no voice hangs")
+        }
+    }
+
+    func testLettingGoFadesWhatTheDragSounds() {
+        let e = sustained()
+        chords(e, [(480, 3840, 60)])
+        e.handle(.scrub(from: 0, to: 480))
+        let before = e.render(frames: frames(rate * 0.1))
+        e.handle(.scrubEnd)
+        let after = e.render(frames: frames(rate * 0.6))
+
+        XCTAssertLessThan(abs(after[after.count - 1]), abs(before[before.count - 1]) * 0.05)
+        _ = e.render(frames: frames(rate))
+        XCTAssertEqual(e.voiceCount, 0)
+        XCTAssertEqual(e.tick, 480, "the position stays where the drag left it")
+    }
+
+    func testADragIsIgnoredWhilePlaying() {
+        let e = engine()
+        chords(e, [(0, 1920, 60), (960, 240, 64)])
+        e.handle(.play)
+        _ = e.render(frames: frames(Double(quarter)))
+        let tick = e.tick
+        let voices = e.voiceCount
+
+        e.handle(.scrub(from: tick, to: 1500))
+
+        XCTAssertEqual(e.tick, tick)
+        XCTAssertEqual(e.voiceCount, voices)
+    }
+
+    func testPlayAfterADragStartsCleanFromWhereItWent() {
+        let e = engine()
+        // Past the end of the notes it struck, so playback has none of them still sounding to strike again.
+        chords(e, [(480, 240, 60), (960, 240, 64), (1440, 240, 67)])
+        e.handle(.scrub(from: 0, to: 1250))
+        _ = e.render(frames: 1024)
+        e.handle(.play)
+
+        let out = e.render(frames: frames(Double(quarter * 2)))
+
+        XCTAssertEqual(noteStarts(out), [Int(((1440 - 1250) * Double(quarter) / 480).rounded(.up))], "the piece's next note, on its frame")
+    }
+
+    func testThePlayAfterADragFadesItsNotes() {
+        let e = sustained()
+        chords(e, [(480, 3840, 60)])
+        // Dragged past the note's end: playback from there has nothing of its own to sound.
+        e.handle(.scrub(from: 0, to: 4400))
+        let before = e.render(frames: frames(rate * 0.1))
+        e.handle(.play)
+        let after = e.render(frames: frames(rate * 0.6))
+
+        XCTAssertLessThan(abs(after[after.count - 1]), abs(before[before.count - 1]) * 0.05)
+    }
 }
 
 /// The piano, the playback score from music-core, and the project files.

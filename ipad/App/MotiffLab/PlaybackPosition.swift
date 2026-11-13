@@ -206,7 +206,7 @@ enum PlaybackModel {
 
     /// T15: the position follows the held playhead. The black one goes anywhere in the piece (the view keeps it in its bar on
     /// the score); the blue one stays inside the selection, so Цикл is never touched while it moves. Nothing is sent when the
-    /// place is where the position already is.
+    /// place is where the position already is. The engine scrubs there: the notes whose starts it passes sound (#495 UX-09).
     private static func drag(_ state: State, _ handle: Handle, to at: Double) -> Decision {
         var to = max(0, at)
         if handle == .blue {
@@ -216,14 +216,15 @@ enum PlaybackModel {
         guard to != state.tick else { return (state, []) }
         var after = state
         after.tick = to
-        return (after, [.seek(to)])
+        return (after, [.scrub(from: state.tick, to: to)])
     }
 
     /// T16, the rules of letting go: the black playhead let go outside the selection with Цикл on turns Цикл off (as T12);
-    /// the blue one stays inside the selection and leaves Цикл alone. Playing when the gesture began, it plays on from there.
+    /// the blue one stays inside the selection and leaves Цикл alone. The drag's notes fade first; playing when the gesture
+    /// began, it plays on from there.
     private static func release(_ state: State, _ handle: Handle, resume: Bool) -> Decision {
         var after = state
-        var steps: [TransportStep] = []
+        var steps: [TransportStep] = [.scrubEnd]
         if handle == .black && engineLoop(state) != nil && !inside(state.tick, state.selection) {
             after.loop = false
             steps.append(.loopOff)
@@ -243,6 +244,10 @@ enum TransportStep: Equatable {
     case seek(Double)
     case loop(Range<Double>)
     case loopOff
+    /// The position moved by a drag while stopped: the notes whose starts it passed sound (#495 UX-09).
+    case scrub(from: Double, to: Double)
+    /// The drag let go: the notes it sounded fade.
+    case scrubEnd
 }
 
 /// A place written as bar.beat: "16.2" is bar 16, beat 2, the bar's printed number and the beat as a selection counts it.
