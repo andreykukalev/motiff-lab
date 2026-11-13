@@ -113,11 +113,10 @@ public static class SettingsCatalogue
         Switch("experimental.beats", SettingSection.Experimental, null, SettingScope.Device),
 
         // Two playheads and modes (v0.5, specs two-playheads and interaction-modes): a global playhead and one inside the
-        // selection, the selection by beats changed only by its handles, and the modes Navigate, Select, Edit notes and Pen.
+        // selection (on the iPad since v0.5.2 one playback position, cobalt inside the selection and ink outside it), the
+        // selection by beats changed only by its handles, and the modes Navigate, Select, Edit notes and Pen. The fade of the
+        // other bars while the piece played was removed in v0.5.2 (#479 item 19): every bar stays as readable.
         Switch("experimental.playheads", SettingSection.Experimental, null, SettingScope.Device),
-
-        // Inside that experiment: while the piece plays, the bars other than the one playing fade, to try by feel.
-        Switch("experimental.playheadsFade", SettingSection.Experimental, null, SettingScope.Device, on: true),
 
         // Changes of signature in a recording (v0.5, a preview): where the bars read better in 5/8, 7/8, 9/8, 5/4 or 12/8
         // (LiveBars.OddMeters), said in the Check drawer's head; nothing is changed or saved.

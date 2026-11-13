@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { beatAt, gestureFor, notesInBox } from "../../src/MotiffLab.Web/wwwroot/js/roll/roll-modes.js";
+import { drawPlayheads, drawPositionLine, gestureFor, notesInBox } from "../../src/MotiffLab.Web/wwwroot/js/roll/roll-modes.js";
 
 test("each mode begins its own gesture, and a press inside the selection only places a playhead in Select", () => {
     assert.equal(gestureFor("navigate", false), "pan");
@@ -15,12 +15,38 @@ test("each mode begins its own gesture, and a press inside the selection only pl
     assert.equal(gestureFor("pen", false), "place");
 });
 
-test("the beat under a tick runs from its beat line to the next, within its bar", () => {
-    const bars = [{ number: 1, onset: 0, end: 720, beatTicks: 240 }, { number: 2, onset: 720, end: 1440, beatTicks: 240 }];
-    assert.deepEqual(beatAt(bars, 0), { start: 0, end: 240 });
-    assert.deepEqual(beatAt(bars, 500), { start: 480, end: 720 });
-    assert.deepEqual(beatAt(bars, 721), { start: 720, end: 960 });
-    assert.equal(beatAt(bars, 2000), undefined);
+/** A canvas context that keeps what was drawn: each rectangle and each disc with the colour it was filled in. */
+function recorder() {
+    const drawn = { rects: [], discs: [] };
+    let arc = null;
+    const context = {
+        fillStyle: "",
+        fillRect: (x, y, w, h) => drawn.rects.push({ x, y, w, h, colour: context.fillStyle }),
+        beginPath: () => { arc = null; },
+        arc: (x, y, radius) => { arc = { x, y, radius }; },
+        fill: () => drawn.discs.push({ ...arc, colour: context.fillStyle }),
+    };
+    return { context, drawn };
+}
+
+const frame = { xOf: (tick) => 62 + tick / 10, header: 24, left: 62, right: 800, height: 300 };
+const inks = { ink: "ink", accent: "accent", surface: "surface", paper: "paper" };
+
+test("the piece's playhead on the roll is an ink line with a dot, hollow when it stands; no grey column (#479 item 19)", () => {
+    const { context, drawn } = recorder();
+    drawPlayheads(context, frame, { selectionHolds: false, global: 0, selection: null }, 960, false, inks);
+    assert.deepEqual(drawn.rects, [{ x: 157, y: 24, w: 2, h: 276, colour: "ink" }], "one 2 px line, nothing a beat wide");
+    assert.deepEqual(drawn.discs.map((disc) => disc.colour), ["surface", "ink", "surface"], "a ring, the dot, and its hollow middle");
+
+    const playing = recorder();
+    drawPlayheads(playing.context, frame, { selectionHolds: false, global: 0, selection: 1200 }, 960, true, inks);
+    assert.deepEqual(playing.drawn.discs.map((disc) => disc.colour), ["surface", "ink", "surface", "accent"], "solid while playing; the selection's knob in cobalt");
+});
+
+test("a playback line off the notes is not drawn", () => {
+    const { context, drawn } = recorder();
+    drawPositionLine(context, frame, 40, { colour: "ink", knobY: 24, radius: 6, solid: true }, inks);
+    assert.deepEqual(drawn, { rects: [], discs: [] });
 });
 
 const note = (id, onset, end, pitch) => ({ id, onset, end, pitch, track: 0, voice: 0, hand: 0, noteInferred: false, handInferred: false });

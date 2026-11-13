@@ -17,8 +17,6 @@ namespace MotiffLab.Web.Pages;
 /// </summary>
 public partial class PlaybackLab
 {
-    private const string PlayheadsFadeSetting = "experimental.playheadsFade";
-
     /// <summary>Loop in the selection's menu: the selection Play goes round, or plays once and stops.</summary>
     private bool _loopChosen = true;
 
@@ -46,7 +44,7 @@ public partial class PlaybackLab
 
     /// <summary>The playheads the score draws, or null while the experiment is off (the one playhead as before) or in focus.</summary>
     private ScorePlayheads? Playheads => TwoPlayheads
-        ? new ScorePlayheads(_looping, _globalAt.Value, _looping ? _selection?.Span.Onset.Value : SelectionWaitsAt?.Value, SettingsStore.IsOn(PlayheadsFadeSetting))
+        ? new ScorePlayheads(_looping, _globalAt.Value, _looping ? _selection?.Span.Onset.Value : SelectionWaitsAt?.Value)
         : null;
 
     /// <summary>The bar's Play: the piece from the global playhead. While the selection has the player, the piece takes it back.</summary>

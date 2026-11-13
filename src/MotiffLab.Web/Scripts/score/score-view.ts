@@ -349,9 +349,7 @@ export class ScoreView {
         });
         this.heads = new ScorePlayheadMarks(host, {
             at: (tick) => this.playheadAt(tick),
-            beatLines: () => this.rules.beatLines(),
-            lineX: (bar, line) => this.rules.beats.lineX(bar, line),
-            element: (id) => this.element(id),
+            lineBottom: (bar) => this.geometry()?.lineInkBottom(bar.system) ?? bar.bottom,
         });
         this.selection = new SelectionLayer(host, {
             geometry: () => this.geometry(),

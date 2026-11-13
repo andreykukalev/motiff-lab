@@ -32,6 +32,7 @@ import { PlayheadControl, onPlayhead, type PlayheadContext, type Span } from "./
 import { type InteractionMode, modeOf } from "../score/score-modes.js";
 import type { PlayheadsState } from "../score/playheads.js";
 import { drawBox, drawPlayheads, gestureFor, notesInBox, type RollGesture } from "./roll-modes.js";
+import { LOOP_LANE, OVERVIEW_HEIGHT, drawLoopLane, drawOverview, drawPosition, overviewTick, type StripInks } from "./roll-strips.js";
 
 interface DotNetObject {
     invokeMethodAsync(method: string, ...args: unknown[]): Promise<unknown>;
@@ -89,7 +90,7 @@ export type EditTool = "move" | "add" | "delete";
 const CHECK_FLAG = 14;
 const CHECK_TARGET = 22;
 // Tall enough to press and drag on for a bar selection (WCAG 2.2 target size, 2.5.8).
-const HEADER = 24;
+const BAR_ROW = 24;
 /** The playhead's handle under the bar numbers (Andrei, v0.2): drawn this wide and tall; a mouse takes it this near. */
 const KNOB_WIDTH = 12;
 const KNOB_HEIGHT = 16;
@@ -178,6 +179,9 @@ const HIGHLIGHT_UNDERLINE = 4;
 let VARIATION_LINK = "";
 let GHOST_LINE = "";
 let PATTERN_INK = "";
+/** The strips of the iPad's roll (roll-strips.ts): the whole-piece track and its muted words. */
+let STRIP_LINE = "";
+let STRIP_MUTED = "";
 let LANE_COLOURS: string[] = [];
 /** What a finger needs (`--h-touch`) and the handle's corners (`--r-xs`), in pixels. */
 let TOUCH = 44;
@@ -199,6 +203,8 @@ function readPalette(element: Element): boolean {
     MUTED = t("ink-2");
     CHARCOAL = t("surface-2");
     PAPER = t("paper");
+    STRIP_LINE = t("hairline-strong");
+    STRIP_MUTED = t("ink-3");
     ON_NOTE = t("on-accent");
     ACCENT = t("accent");
     BAR_LINE = mix(SURFACE, INK, 0.3);
@@ -256,6 +262,17 @@ export class PianoRoll {
     private readonly fitButton: HTMLButtonElement;
     /** The playhead the player moves (roll-playhead.ts): its control for the keyboard and a screen reader, and its drag. */
     private readonly playhead: PlayheadControl;
+    /** The whole piece in one line over the roll (v0.5.2, #479 item 25), shown with the lanes. */
+    private readonly overview: HTMLCanvasElement;
+    /**
+     * The lanes of the iPad's roll (v0.5.2, #479 item 25, roll-strips.ts): one position, ink outside the selection and cobalt
+     * inside; the loop strip under the bar numbers and the whole piece over them. Off on the web.
+     */
+    private lanes = false;
+    /** Whether the selection loops (Цикл on), and the position written as bar.beat for the whole-piece strip. */
+    private looping = false;
+    private placeLabel = "";
+    private overviewPointer: number | null = null;
     private readonly resizeObserver: ResizeObserver;
     private readonly patterns = new Map<PatternKind, CanvasPattern | null>();
     private model: RollModel | null = null;
@@ -399,7 +416,16 @@ export class PianoRoll {
             () => this.invalidate(),
         );
 
-        this.host.replaceChildren(this.roll, this.scroller, this.keys, this.legend, this.zoomBar, this.playhead.element);
+        this.overview = document.createElement("canvas");
+        this.overview.className = "roll-overview";
+        this.overview.style.display = "none";
+        this.overview.setAttribute("aria-hidden", "true");
+        this.overview.addEventListener("pointerdown", this.onOverviewDown);
+        this.overview.addEventListener("pointermove", this.onOverviewMove);
+        this.overview.addEventListener("pointerup", this.onOverviewUp);
+        this.overview.addEventListener("pointercancel", this.onOverviewUp);
+
+        this.host.replaceChildren(this.overview, this.roll, this.scroller, this.keys, this.legend, this.zoomBar, this.playhead.element);
 
         this.roll.addEventListener("pointerdown", this.onPointerDown);
         this.roll.addEventListener("pointermove", this.onPointerMove);
@@ -695,6 +721,26 @@ export class PianoRoll {
         this.invalidate();
     }
 
+    /**
+     * The lanes (v0.5.2, #479 item 25): one playback position in ink outside the selection and cobalt inside it, the loop strip
+     * under the bar numbers and the whole piece over the roll. A tap in either strip moves the position; on the whole piece
+     * the roll goes there too. With the lanes a tap on the notes plays nothing.
+     */
+    setLanes(on: boolean): void {
+        this.lanes = on;
+        this.overview.style.display = on ? "" : "none";
+        this.invalidate();
+    }
+
+    /** The position written as bar.beat for the whole-piece strip, and whether the selection loops. */
+    setPlace(label: string, looping: boolean): void {
+        if (label !== this.placeLabel || looping !== this.looping) {
+            this.placeLabel = label;
+            this.looping = looping;
+            this.invalidate();
+        }
+    }
+
     /** In phrase focus the roll fits every selection it is given (testing item 12). */
     setFitsSelection(on: boolean): void {
         this.fitsSelection = on;
@@ -855,6 +901,10 @@ export class PianoRoll {
         cancelAnimationFrame(this.frame);
         this.resizeObserver.disconnect();
         this.roll.removeEventListener("pointerdown", this.onPointerDown);
+        this.overview.removeEventListener("pointerdown", this.onOverviewDown);
+        this.overview.removeEventListener("pointermove", this.onOverviewMove);
+        this.overview.removeEventListener("pointerup", this.onOverviewUp);
+        this.overview.removeEventListener("pointercancel", this.onOverviewUp);
         this.roll.removeEventListener("pointermove", this.onPointerMove);
         this.roll.removeEventListener("pointerup", this.onPointerUp);
         this.roll.removeEventListener("pointercancel", this.onPointerCancel);
@@ -900,6 +950,11 @@ export class PianoRoll {
 
     private invalidate(): void {
         this.dirty = true;
+    }
+
+    /** Where the notes start: under the bar numbers, and under the loop strip with the lanes. */
+    private get header(): number {
+        return this.lanes ? BAR_ROW + LOOP_LANE : BAR_ROW;
     }
 
     /**
@@ -1092,7 +1147,8 @@ export class PianoRoll {
         // The parts' margins (css: .roll-scroll, .roll-keys, .roll-legend) sit between them, and the bar numbers sit above the
         // notes; a page that hides the parts (the iPad's, in touch reading) has no margins to leave.
         const margins = rest > 0 ? 20 : 0;
-        return Math.max(MIN_ROLL_HEIGHT, Math.floor(this.host.clientHeight - rest - margins - HEADER));
+        const overview = this.lanes ? OVERVIEW_HEIGHT : 0;
+        return Math.max(MIN_ROLL_HEIGHT, Math.floor(this.host.clientHeight - rest - margins - this.header - overview));
     }
 
     private draw(): void {
@@ -1107,9 +1163,12 @@ export class PianoRoll {
             this.fit();
         }
         const { low, high, row } = this.pitchRange();
-        const height = HEADER + (high - low + 1) * row;
+        const height = this.header + (high - low + 1) * row;
         this.drawRoll(width, height, low, high, row);
         this.drawKeyboard(width);
+        if (this.lanes) {
+            this.drawOverview(width);
+        }
         // The zoom floats over the bottom right corner of the notes.
         this.zoomBar.style.top = `${this.roll.offsetTop + height - this.zoomBar.offsetHeight - 8}px`;
 
@@ -1125,7 +1184,7 @@ export class PianoRoll {
 
         // Pitch rows, black-key rows darker, a line under each C.
         for (let pitch = low; pitch <= high; pitch++) {
-            const y = HEADER + (high - pitch) * row;
+            const y = this.header + (high - pitch) * row;
             if (isBlackKey(pitch)) {
                 context.fillStyle = SURFACE_DARK;
                 context.fillRect(GUTTER, y, width - GUTTER, row);
@@ -1150,10 +1209,10 @@ export class PianoRoll {
         for (const line of model.grid(from, to)) {
             const x = Math.round(this.xOf(line.tick));
             context.fillStyle = line.bar === null ? BEAT_LINE : BAR_LINE;
-            context.fillRect(x, line.bar === null ? HEADER : 0, 1, height);
+            context.fillRect(x, line.bar === null ? this.header : 0, 1, height);
             if (line.bar !== null && x - lastLabel >= 28) {
                 context.fillStyle = INK;
-                context.fillText(String(line.bar), x + 3, HEADER / 2);
+                context.fillText(String(line.bar), x + 3, BAR_ROW / 2);
                 lastLabel = x;
             }
         }
@@ -1170,14 +1229,14 @@ export class PianoRoll {
             context.setLineDash(phrase.inferred ? [4, 3] : []);
             context.globalAlpha = PHRASE_LINE_ALPHA;
             context.beginPath();
-            context.moveTo(x, HEADER);
+            context.moveTo(x, this.header);
             context.lineTo(x, height);
             context.stroke();
             context.globalAlpha = 1;
             context.lineWidth = 2;
             context.beginPath();
             context.moveTo(x, 0);
-            context.lineTo(x, HEADER);
+            context.lineTo(x, BAR_ROW);
             context.stroke();
             context.setLineDash([]);
             context.fillStyle = colour;
@@ -1196,26 +1255,26 @@ export class PianoRoll {
             const right = Math.min(width, this.xOf(band.end));
             if (right > left) {
                 context.fillStyle = SELECTION_BAND;
-                context.fillRect(left, HEADER, right - left, height - HEADER);
+                context.fillRect(left, this.header, right - left, height - this.header);
                 context.fillStyle = SELECTION_HEADER;
-                context.fillRect(left, HEADER - 4, right - left, 4);
+                context.fillRect(left, BAR_ROW - 4, right - left, 4);
                 context.fillStyle = ACCENT;
                 context.fillRect(Math.round(left), 0, 1, height);
                 context.fillRect(Math.round(right) - 1, 0, 1, height);
                 // Grips on the bar numbers show that the edges can be dragged.
                 if (this.drag === null) {
                     if (left > GUTTER) {
-                        context.fillRect(Math.round(left), 0, 4, HEADER);
+                        context.fillRect(Math.round(left), 0, 4, BAR_ROW);
                     }
                     if (right < width) {
-                        context.fillRect(Math.round(right) - 4, 0, 4, HEADER);
+                        context.fillRect(Math.round(right) - 4, 0, 4, BAR_ROW);
                     }
                 }
             }
         }
 
         // The range that plays, which a variation can make longer or shorter than the selection.
-        const play = this.drag === null ? this.playRange : null;
+        const play = this.drag === null && !this.lanes ? this.playRange : null;
         if (play !== null) {
             const left = Math.max(GUTTER, this.xOf(play.start));
             const right = Math.min(width, this.xOf(play.end));
@@ -1226,7 +1285,7 @@ export class PianoRoll {
                 if (play.end > selectionEnd) {
                     const from = Math.max(GUTTER, this.xOf(selectionEnd));
                     context.fillStyle = PLAY_RANGE_EXTENSION;
-                    context.fillRect(from, HEADER, right - from, height - HEADER);
+                    context.fillRect(from, this.header, right - from, height - this.header);
                 }
                 if (play.end !== selectionEnd && right < width) {
                     context.strokeStyle = PLAY_RANGE;
@@ -1246,7 +1305,7 @@ export class PianoRoll {
             const right = Math.min(width, this.xOf(span.end));
             if (right > left) {
                 context.fillStyle = HIGHLIGHT_BAND;
-                context.fillRect(left, HEADER, right - left, height - HEADER);
+                context.fillRect(left, this.header, right - left, height - this.header);
                 context.fillStyle = HIGHLIGHT;
                 context.fillRect(left, height - HIGHLIGHT_UNDERLINE, Math.max(2, right - left - 1), HIGHLIGHT_UNDERLINE);
             }
@@ -1254,7 +1313,7 @@ export class PianoRoll {
 
         context.save();
         context.beginPath();
-        context.rect(GUTTER, HEADER, width - GUTTER, height - HEADER);
+        context.rect(GUTTER, this.header, width - GUTTER, height - this.header);
         context.clip();
         const sounding = new Set(this.soundingNow(model));
         context.font = noteFont(row);
@@ -1267,7 +1326,7 @@ export class PianoRoll {
             const at = this.editDrag?.index === index ? this.edited(index) : { onset: note.onset, pitch: note.pitch, length: note.end - note.onset };
             const x = this.xOf(at.onset);
             const w = Math.max(2, (at.length * this.zoom) / TICKS_PER_QUARTER - 1);
-            const y = HEADER + (high - at.pitch) * row + 1;
+            const y = this.header + (high - at.pitch) * row + 1;
             const h = Math.max(2, row - 2);
             const lane = this.laneIndex.get(laneKey(note, this.colourBy)) ?? 0;
 
@@ -1345,7 +1404,7 @@ export class PianoRoll {
         for (const tag of chosen) {
             const tagWidth = context.measureText(tag.text).width + 8;
             const left = Math.min(Math.max(GUTTER + 1, tag.x - 1), width - tagWidth - 1);
-            const top = Math.max(HEADER + 1, tag.y - 17);
+            const top = Math.max(this.header + 1, tag.y - 17);
             context.fillStyle = INK;
             context.beginPath();
             context.roundRect(left, top, tagWidth, 14, 3);
@@ -1370,7 +1429,11 @@ export class PianoRoll {
         const playheadContext = this.playheadContext();
         if (playheadContext !== null) {
             const left = this.roll.offsetLeft + Math.min(Math.max(at, GUTTER), width);
-            this.playhead.place(left, this.roll.offsetTop + HEADER, TOUCH, playheadContext, this.labels);
+            this.playhead.place(left, this.roll.offsetTop + BAR_ROW, TOUCH, playheadContext, this.labels);
+        }
+        if (this.lanes) {
+            this.drawLanes(context, width, height);
+            return;
         }
         if (this.drawRules(context, width, height)) {
             return;
@@ -1382,12 +1445,12 @@ export class PianoRoll {
         context.fillStyle = ACCENT;
         context.fillRect(x - 1, 0, 2, height);
         context.beginPath();
-        context.roundRect(x - KNOB_WIDTH / 2, HEADER, KNOB_WIDTH, KNOB_HEIGHT, [0, 0, KNOB_RADIUS, KNOB_RADIUS]);
+        context.roundRect(x - KNOB_WIDTH / 2, this.header, KNOB_WIDTH, KNOB_HEIGHT, [0, 0, KNOB_RADIUS, KNOB_RADIUS]);
         context.fill();
         if (this.playhead.focused) {
             context.strokeStyle = ACCENT;
             context.lineWidth = 2;
-            context.strokeRect(x - KNOB_WIDTH / 2 - 3, HEADER - 3, KNOB_WIDTH + 6, KNOB_HEIGHT + 6);
+            context.strokeRect(x - KNOB_WIDTH / 2 - 3, this.header - 3, KNOB_WIDTH + 6, KNOB_HEIGHT + 6);
         }
     }
 
@@ -1400,8 +1463,68 @@ export class PianoRoll {
         return { bars: model.bars, span: this.playheadSpan(), end: model.end, tick: this.player?.currentTick() ?? this.tickNow };
     }
 
-    /** Where the playhead stays: the loop, else the selection; null for neither. */
+    /** The loop strip and the one position, with the lanes (roll-strips.ts). */
+    private drawLanes(context: CanvasRenderingContext2D, width: number, height: number): void {
+        const frame = { top: BAR_ROW, left: GUTTER, right: width, height, xOf: (tick: number) => this.xOf(tick) };
+        const playing = this.player !== null && this.player.state() !== "stopped";
+        drawLoopLane(context, frame, this.motif, this.looping, this.stripInks());
+        drawPosition(context, frame, this.tickNow, this.motif, playing, this.stripInks());
+    }
+
+    /** The whole piece in one line over the roll: the position, the bars on screen, the selection. */
+    private drawOverview(width: number): void {
+        const model = this.model;
+        if (model === null) {
+            return;
+        }
+        const context = prepare(this.overview, width, OVERVIEW_HEIGHT);
+        const view = { start: this.scroll, end: this.scroll + this.visibleTicks() };
+        const lastBar = String(model.bars.at(-1)?.number ?? "");
+        const playing = this.player !== null && this.player.state() !== "stopped";
+        drawOverview(context, width, { tick: this.tickNow, label: this.placeLabel, end: model.end, lastBar, view, selection: this.motif, playing }, this.stripInks());
+    }
+
+    private stripInks(): StripInks {
+        return { ink: INK, accent: ACCENT, tint: SELECTION_BAND, surface: SURFACE, line: STRIP_LINE, muted: STRIP_MUTED };
+    }
+
+    /** A press on the whole piece moves the position there and the roll with it; a drag goes on doing so. */
+    private readonly onOverviewDown = (event: PointerEvent): void => {
+        this.overview.setPointerCapture(event.pointerId);
+        this.overviewPointer = event.pointerId;
+        event.preventDefault();
+        this.overviewTo(event);
+    };
+
+    private readonly onOverviewMove = (event: PointerEvent): void => {
+        if (this.overviewPointer === event.pointerId) {
+            this.overviewTo(event);
+        }
+    };
+
+    private readonly onOverviewUp = (event: PointerEvent): void => {
+        if (this.overviewPointer === event.pointerId) {
+            this.overviewPointer = null;
+        }
+    };
+
+    private overviewTo(event: PointerEvent): void {
+        const model = this.model;
+        if (model === null) {
+            return;
+        }
+        const tick = overviewTick(event.clientX - this.overview.getBoundingClientRect().left, this.host.clientWidth, model.end);
+        this.playhead.go(tick, false);
+        this.scrollTo(tick - this.visibleTicks() / 2);
+        this.handUntil = performance.now() + HAND_PAUSE_MS;
+        this.fitted = false;
+    }
+
+    /** Where the playhead stays: the loop, else the selection; null for neither, and with the lanes, where it goes anywhere. */
     private playheadSpan(): Span | null {
+        if (this.lanes) {
+            return null;
+        }
         return this.playRange ?? (this.motif === null ? null : { start: this.motif.start, end: this.motif.end });
     }
 
@@ -1412,7 +1535,7 @@ export class PianoRoll {
     private pressPlayhead(event: PointerEvent, x: number, y: number): boolean {
         const finger = event.pointerType !== "mouse";
         const line = this.touchReading && finger;
-        if (this.editing || this.player === null || !onPlayhead(x, y, this.xOf(this.tickNow), HEADER, finger ? TOUCH : KNOB_MOUSE, line)) {
+        if (this.editing || this.player === null || !onPlayhead(x, y, this.xOf(this.tickNow), BAR_ROW, finger ? TOUCH : KNOB_MOUSE, line)) {
             return false;
         }
         this.playhead.begin(event.pointerId, x);
@@ -1518,7 +1641,7 @@ export class PianoRoll {
             return;
         }
         const { high, row } = this.pitchRange();
-        const pitchAt = (y: number): number => high - Math.floor((y - HEADER) / row);
+        const pitchAt = (y: number): number => high - Math.floor((y - this.header) / row);
         const picked = notesInBox(model.notes, { fromTick: this.tickAtX(from.x), toTick: this.tickAtX(to.x), fromPitch: pitchAt(from.y), toPitch: pitchAt(to.y) });
         this.boxPicked = new Set(picked);
         this.editId = picked.length > 0 ? model.notes[picked[0]].id : null;
@@ -1550,9 +1673,9 @@ export class PianoRoll {
         if (this.heads === null || model === null) {
             return false;
         }
-        const frame = { xOf: (tick: number) => this.xOf(tick), header: HEADER, left: GUTTER, right: width, height };
+        const frame = { xOf: (tick: number) => this.xOf(tick), header: this.header, left: GUTTER, right: width, height };
         const playing = this.player !== null && this.player.state() !== "stopped";
-        drawPlayheads(context, frame, model.bars, this.heads, this.tickNow, playing, { ink: INK, accent: ACCENT, surface: CHARCOAL, paper: PAPER });
+        drawPlayheads(context, frame, this.heads, this.tickNow, playing, { ink: INK, accent: ACCENT, surface: CHARCOAL, paper: PAPER });
         return true;
     }
 
@@ -1584,13 +1707,13 @@ export class PianoRoll {
         }
         const chosen = new Set([...this.selected].map((index) => model.notes[index]?.pitch));
         context.fillStyle = SURFACE;
-        context.fillRect(0, HEADER, GUTTER, (high - low + 1) * row);
+        context.fillRect(0, this.header, GUTTER, (high - low + 1) * row);
         this.drawOctaves(context, low, high, row);
         context.font = `${Math.min(12, Math.max(9, row - 6))}px "Source Sans 3", system-ui, sans-serif`;
         context.textAlign = "left";
         context.textBaseline = "middle";
         for (let pitch = low; pitch <= high; pitch++) {
-            const y = HEADER + (high - pitch) * row;
+            const y = this.header + (high - pitch) * row;
             const black = isBlackKey(pitch);
             const lane = lit.get(pitch);
             const pointed = chosen.has(pitch);
@@ -1605,7 +1728,7 @@ export class PianoRoll {
             }
         }
         context.fillStyle = BAR_LINE;
-        context.fillRect(GUTTER - 3, HEADER, 1, (high - low + 1) * row);
+        context.fillRect(GUTTER - 3, this.header, 1, (high - low + 1) * row);
         // A small arrow at the right of the keyboard where rows go on above or below the view.
         context.fillStyle = MUTED;
         const arrow = (tipY: number, direction: 1 | -1): void => {
@@ -1617,10 +1740,10 @@ export class PianoRoll {
             context.fill();
         };
         if (above) {
-            arrow(HEADER + 2, 1);
+            arrow(this.header + 2, 1);
         }
         if (below) {
-            arrow(HEADER + (high - low + 1) * row - 2, -1);
+            arrow(this.header + (high - low + 1) * row - 2, -1);
         }
     }
 
@@ -1638,7 +1761,7 @@ export class PianoRoll {
         for (let octave = Math.floor(low / 12); octave <= Math.floor(high / 12); octave++) {
             const bottom = Math.max(low, octave * 12);
             const top = Math.min(high, octave * 12 + 11);
-            const y = HEADER + (high - top) * row;
+            const y = this.header + (high - top) * row;
             const length = (top - bottom + 1) * row;
             context.fillStyle = octave % 2 === 0 ? SURFACE_DARK : SURFACE;
             context.fillRect(0, y, OCTAVE_BAND - 2, length);
@@ -1667,10 +1790,10 @@ export class PianoRoll {
         for (const flag of this.checkPlaces(model, from, to, width)) {
             context.fillStyle = CHECK_FILL;
             context.beginPath();
-            context.roundRect(flag.x, (HEADER - CHECK_FLAG) / 2, CHECK_FLAG, CHECK_FLAG, 2);
+            context.roundRect(flag.x, (BAR_ROW - CHECK_FLAG) / 2, CHECK_FLAG, CHECK_FLAG, 2);
             context.fill();
             context.fillStyle = KEY_BLACK;
-            context.fillText("?", flag.x + CHECK_FLAG / 2, HEADER / 2 + 0.5);
+            context.fillText("?", flag.x + CHECK_FLAG / 2, BAR_ROW / 2 + 0.5);
         }
     }
 
@@ -1704,7 +1827,7 @@ export class PianoRoll {
             }
             const x = this.xOf(note.onset);
             const w = Math.max(4, ((note.end - note.onset) * this.zoom) / TICKS_PER_QUARTER - 1);
-            const y = HEADER + (high - note.pitch) * row + 1;
+            const y = this.header + (high - note.pitch) * row + 1;
             context.strokeRect(x + 1, y + 1, w - 2, Math.max(2, row - 2) - 2);
         }
         context.restore();
@@ -1716,14 +1839,14 @@ export class PianoRoll {
         if (variation === null) {
             return;
         }
-        const centre = (pitch: number): number => HEADER + (high - pitch) * row + row / 2;
+        const centre = (pitch: number): number => this.header + (high - pitch) * row + row / 2;
         for (const note of variation) {
             if (note.end < from || note.onset > to || note.pitch < low || note.pitch > high) {
                 continue;
             }
             const x = this.xOf(note.onset);
             const w = Math.max(2, ((note.end - note.onset) * this.zoom) / TICKS_PER_QUARTER - 1);
-            const y = HEADER + (high - note.pitch) * row + 1;
+            const y = this.header + (high - note.pitch) * row + 1;
             const h = Math.max(2, row - 2);
             if (note.onset !== note.fromOnset || note.pitch !== note.fromPitch) {
                 context.strokeStyle = VARIATION_LINK;
@@ -1902,14 +2025,14 @@ export class PianoRoll {
             return;
         }
         const { high, row } = this.pitchRange();
-        const pitch = high - Math.floor((y - HEADER) / row);
+        const pitch = high - Math.floor((y - this.header) / row);
         this.roll.setPointerCapture(event.pointerId);
         // No text selection while dragging; focus by hand so the keys (Escape, arrows) reach the roll.
         event.preventDefault();
         this.roll.focus({ preventScroll: true });
         if (x < GUTTER) {
             // The pitch names play their row's key, as the keyboard does.
-            if (y >= HEADER) {
+            if (y >= this.header) {
                 this.press = { pointer: event.pointerId, x, y, tick: -1, pitch, add: false, sounding: this.strike(pitch), top: null };
             }
             return;
@@ -1919,7 +2042,7 @@ export class PianoRoll {
             return;
         }
         // In touch reading a finger on the notes moves through the music: it neither selects nor sounds.
-        if (this.touchReading && !this.editing && y >= HEADER && event.pointerType !== "mouse") {
+        if (this.touchReading && !this.editing && y >= this.header && event.pointerType !== "mouse") {
             this.pan = { pointer: event.pointerId, x, y, scroll: this.scroll, top: this.pitchRange().high, moving: false };
             return;
         }
@@ -1931,10 +2054,13 @@ export class PianoRoll {
             this.invalidate();
             return;
         }
-        if (y < HEADER && this.editing) {
+        if (this.pressLoopLane(y, tick)) {
             return;
         }
-        if (y < HEADER) {
+        if (y < this.header && this.editing) {
+            return;
+        }
+        if (y < this.header) {
             // A Check flag opens Check at its bar.
             const width = this.host.clientWidth;
             const flag = this.checkPlaces(model, this.scroll, this.scroll + this.visibleTicks(), width)
@@ -2021,7 +2147,7 @@ export class PianoRoll {
         if (this.editing && this.model !== null) {
             const tick = this.tickAtX(x);
             const { high, row } = this.pitchRange();
-            const index = x >= GUTTER ? this.model.noteAt(tick, high - Math.floor((event.clientY - box.top - HEADER) / row)) : undefined;
+            const index = x >= GUTTER ? this.model.noteAt(tick, high - Math.floor((event.clientY - box.top - this.header) / row)) : undefined;
             this.roll.style.cursor = index === undefined
                 ? this.editTool === "add" ? "copy" : ""
                 : this.editTool === "delete" ? "not-allowed"
@@ -2041,7 +2167,7 @@ export class PianoRoll {
                     this.scrollPitch(Math.round((y - press.y) / row), press.top);
                     return;
                 }
-                const pitch = high - Math.floor((y - HEADER) / row);
+                const pitch = high - Math.floor((y - this.header) / row);
                 if (pitch !== press.pitch) {
                     this.release(press.sounding);
                     press.pitch = pitch;
@@ -2197,10 +2323,22 @@ export class PianoRoll {
         if (motif === null) {
             return null;
         }
-        if (Math.abs(x - this.xOf(motif.end)) <= EDGE_GRAB) {
+        // The lanes' handles take a finger (WCAG 2.2, 2.5.8).
+        const grab = this.lanes ? TOUCH / 2 : EDGE_GRAB;
+        if (Math.abs(x - this.xOf(motif.end)) <= grab) {
             return "end";
         }
-        return Math.abs(x - this.xOf(motif.start)) <= EDGE_GRAB ? "start" : null;
+        return Math.abs(x - this.xOf(motif.start)) <= grab ? "start" : null;
+    }
+
+    /** A press on the loop strip inside the selection moves the position there (the lanes); elsewhere bars are selected as before. */
+    private pressLoopLane(y: number, tick: number): boolean {
+        const motif = this.motif;
+        if (!this.lanes || this.editing || motif === null || y < BAR_ROW || y >= this.header || tick < motif.start || tick >= motif.end) {
+            return false;
+        }
+        this.playhead.go(Math.round(tick), false);
+        return true;
     }
 
     /** Strikes a key by hand and lights it; returns the pitch, to release later. */

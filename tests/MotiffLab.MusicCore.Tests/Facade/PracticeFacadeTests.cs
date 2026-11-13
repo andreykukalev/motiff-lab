@@ -64,6 +64,33 @@ public class PracticeFacadeTests
     }
 
     [Fact]
+    public void The_playback_beats_and_bars_name_their_bar_and_beat_as_a_selection_counts_them()
+    {
+        // Version 0.5.2, the iPad's one playback position: the pill and the roll write a place as bar.beat ("16.2").
+        JsonElement playback = Call("playback");
+        JsonElement[] bars = [.. playback.GetProperty("bars").EnumerateArray()];
+        JsonElement[] beats = [.. playback.GetProperty("beats").EnumerateArray()];
+        (long first, _, long beat) = TwoBars();
+
+        JsonElement second = beats.Single(each => each.GetProperty("at").GetInt64() == first + beat);
+        JsonElement full = bars.First(bar => bar.GetProperty("onset").GetInt64() == first);
+        Assert.Equal(full.GetProperty("number").GetInt32(), second.GetProperty("bar").GetInt32());
+        Assert.Equal(2, second.GetProperty("beat").GetInt32());
+        Assert.Equal(1, full.GetProperty("firstBeat").GetInt32());
+        Assert.True(beats.Where(each => each.GetProperty("downbeat").GetBoolean()).All(each => each.GetProperty("beat").GetInt32() == 1));
+
+        // Für Elise starts with a pickup, counted from the end of a full bar: its first beat is not beat 1.
+        JsonElement pickup = bars[0];
+        Assert.True(pickup.GetProperty("pickup").GetBoolean());
+        Assert.Equal(0, beats[0].GetProperty("bar").GetInt32());
+        Assert.True(pickup.GetProperty("firstBeat").GetInt32() > 1);
+
+        // The same count as a selection's: the beat a selection starts on is the beat its onset falls in.
+        JsonElement selection = Call("select", $$"""{"span": {"onset": {{first + beat}}, "end": {{first + (2 * beat)}}}, "snap": "beat"}""").GetProperty("selection");
+        Assert.Equal((second.GetProperty("bar").GetInt32(), second.GetProperty("beat").GetInt32()), (selection.GetProperty("firstBar").GetInt32(), selection.GetProperty("firstBeat").GetInt32()));
+    }
+
+    [Fact]
     public void One_hand_plays_alone_and_the_answer_says_which_hands_the_piece_has()
     {
         JsonElement both = Call("playback");

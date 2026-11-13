@@ -1,12 +1,12 @@
-// The two playheads of version 0.5 on the score (the experiment Two playheads and modes, Settings · Experimental; product
-// spec two-playheads, as the mockup «Указатели и режимы» settled it). The global playhead is «Полоса»: a neutral column one
-// beat wide behind the notes with a cap above the system, solid while the bar's Play plays and hollow when stopped. The
-// selection playhead is a cobalt line with a knob inside the selection's band. While the global Play plays the other bars
-// fade to about a third (a sub-option, on by default); the selection's Play fades nothing. One player, two places: the
-// player's place is the one that has it, the other waits where Blazor says.
+// The playheads of version 0.5 on the score (the experiment Two playheads and modes, Settings · Experimental; product spec
+// two-playheads, as the mockup v0.5.2 settled it, #479 item 19). The place in the piece is variant A: a short track under
+// the system that plays, only as wide as the bar, filled up to the place, with a dot on it, in the notation's dark ink;
+// the dot is solid while the piece plays and hollow when it stands. Nothing covers the notes and no bar fades. The
+// selection's playhead is a cobalt line with a knob inside the selection's band: cobalt is the selection's colour only.
+// The web app has two places (the piece's and the selection's, placesOf); the iPad has one, which is the selection's
+// cobalt line inside it and the ink track outside it (onePlace).
 
 import type { Playhead, ScoreBar } from "./score-geometry.js";
-import { barLines } from "./selection-beats.js";
 
 /** What Blazor says (Score/ScorePlayheads.cs). */
 export interface PlayheadsState {
@@ -15,129 +15,108 @@ export interface PlayheadsState {
     global: number;
     /** Where the selection playhead waits while the piece has the player; null without a selection. */
     selection: number | null;
-    fade: boolean;
 }
 
 /** Where each playhead goes this frame, in ticks; null hides it. */
 export interface PlayheadPlaces {
     global: number | null;
     selection: number | null;
-    /** Whether the global Play plays: the cap fills and the other bars may fade. */
+    /** Whether the piece plays from the global place: its dot is solid. */
     globalPlays: boolean;
-    fade: boolean;
 }
 
 /** The places of the two playheads from what Blazor said and the player's place. */
 export function placesOf(state: PlayheadsState, playerTick: number, playing: boolean): PlayheadPlaces {
-    const globalPlays = playing && !state.selectionHolds;
     return {
         global: state.selectionHolds ? state.global : playerTick,
         selection: state.selectionHolds ? playerTick : state.selection,
-        globalPlays,
-        fade: state.fade && globalPlays,
+        globalPlays: playing && !state.selectionHolds,
     };
 }
 
-/** The beat a tick falls in among a bar's beat lines: from the last line at or before it to the next; undefined without two lines. */
-export function beatOf(lines: readonly number[], tick: number): { start: number; end: number } | undefined {
-    let index = -1;
-    for (let i = 0; i < lines.length - 1; i++) {
-        if (lines[i] <= tick) {
-            index = i;
-        }
-    }
-    return index < 0 ? undefined : { start: lines[index], end: lines[index + 1] };
+/** A stretch of ticks [start, end). */
+export interface TickSpan {
+    start: number;
+    end: number;
 }
 
-/** The column when the bar has no beat lines: this wide round the playhead's place, in pixels (the mockup's 28). */
-const COLUMN_WIDTH = 28;
-/** The cap stands this far above the system's top staff line; the column reaches this far above and below the staves. */
-const CAP_RISE = 20;
-const COLUMN_REACH = 6;
+/**
+ * The one playback position of the iPad (version 0.5.2, #479 item 25): inside the selection it is the selection's cobalt
+ * line, outside it the ink track, never both.
+ */
+export function onePlace(selection: TickSpan | null, playerTick: number, playing: boolean): PlayheadPlaces {
+    const inside = selection !== null && playerTick >= selection.start && playerTick < selection.end;
+    return {
+        global: inside ? null : playerTick,
+        selection: inside ? playerTick : null,
+        globalPlays: playing && !inside,
+    };
+}
+
+/** The track keeps this far from the bar lines at each side, and this far under the lowest ink of its system, in pixels. */
+const TRACK_INSET = 3;
+const TRACK_GAP = 10;
 /** The selection playhead reaches this far above and below the staves, its knob on top. */
 const LINE_REACH = 8;
 
-export const FADING_CLASS = "fading";
-export const LIT_CLASS = "lit";
-
-const CAP_PATH = "M1 1h12L7 9z";
+/** Where the track goes for a place: across its bar, under its system, and how far it is filled. */
+export function trackOf(at: Playhead, lineBottom: number): { left: number; top: number; width: number; filled: number } {
+    const left = at.bar.left + TRACK_INSET;
+    const width = Math.max(0, at.bar.right - at.bar.left - 2 * TRACK_INSET);
+    const top = Math.max(at.bottom, lineBottom) + TRACK_GAP;
+    return { left, top, width, filled: Math.min(width, Math.max(0, at.x - left)) };
+}
 
 /** What the playheads need from the score view. */
 export interface PlayheadsHost {
     /** Where a tick sounds on screen: across its bar and the system's staves. */
     at(tick: number): Playhead | undefined;
-    /** music-core's beat lines, in ticks; null while there are none. */
-    beatLines(): readonly number[] | null;
-    /** Where a beat line of a bar is across. */
-    lineX(bar: ScoreBar, line: number): number;
-    /** A bar's drawing, by its id. */
-    element(id: string): Element | null;
+    /** The lowest ink of the system a bar is on, so the track runs under every note of the line. */
+    lineBottom(bar: ScoreBar): number;
 }
 
-/** The two playheads drawn over one score. */
+/** The playheads drawn over one score. */
 export class ScorePlayheadMarks {
-    private column: HTMLElement | null = null;
-    private cap: HTMLElement | null = null;
+    private track: { element: HTMLElement; fill: HTMLElement; dot: HTMLElement } | null = null;
     private line: HTMLElement | null = null;
-    private lit: Element | null = null;
 
     constructor(
         private readonly host: HTMLElement,
         private readonly owner: PlayheadsHost,
     ) {}
 
-    /** Draws both playheads; returns where the one that plays is, for the score to follow and to say when it is out of sight. */
+    /** Draws the playheads; returns where the one that plays is, for the score to follow and to say when it is out of sight. */
     place(places: PlayheadPlaces): Playhead | undefined {
         const global = places.global === null ? undefined : this.owner.at(places.global);
         const selection = places.selection === null ? undefined : this.owner.at(places.selection);
-        this.placeGlobal(global, places);
+        this.placeGlobal(global, places.globalPlays);
         this.placeSelection(selection);
-        this.fade(places.fade ? global?.bar : undefined);
-        return places.globalPlays ? global : selection;
+        return places.globalPlays || places.selection === null ? global : selection;
     }
 
     hide(): void {
-        for (const element of [this.column, this.cap, this.line]) {
-            if (element !== null) {
-                element.hidden = true;
-            }
-        }
-        this.fade(undefined);
+        hideAll(this.track?.element ?? null, this.line);
     }
 
     dispose(): void {
         this.hide();
-        for (const element of [this.column, this.cap, this.line]) {
-            element?.remove();
-        }
+        this.track?.element.remove();
+        this.line?.remove();
     }
 
-    private placeGlobal(at: Playhead | undefined, places: PlayheadPlaces): void {
+    private placeGlobal(at: Playhead | undefined, plays: boolean): void {
         if (at === undefined) {
-            hideAll(this.column, this.cap);
+            hideAll(this.track?.element ?? null);
             return;
         }
-        const column = (this.column ??= mark("gcol"));
-        const cap = (this.cap ??= capMark());
-        const [left, right] = this.columnAcross(at, places.global ?? 0);
-        show(this.host, column);
-        show(this.host, cap);
-        transform(column, left, at.top - COLUMN_REACH);
-        size(column, right - left, at.bottom - at.top + 2 * COLUMN_REACH);
-        transform(cap, (left + right) / 2, at.top - CAP_RISE);
-        cap.classList.toggle("stop", !places.globalPlays);
-    }
-
-    /** The column across the beat the tick is in, from music-core's beat lines; a fixed width round the place without them. */
-    private columnAcross(at: Playhead, tick: number): [number, number] {
-        const lines = this.owner.beatLines();
-        const beat = lines === null ? undefined : beatOf(barLines(lines, at.bar), tick);
-        if (beat === undefined) {
-            return [at.x - COLUMN_WIDTH / 2, at.x + COLUMN_WIDTH / 2];
-        }
-        const left = this.owner.lineX(at.bar, beat.start);
-        const right = this.owner.lineX(at.bar, beat.end);
-        return right - left >= 2 ? [left, right] : [at.x - COLUMN_WIDTH / 2, at.x + COLUMN_WIDTH / 2];
+        const track = (this.track ??= trackMark());
+        const place = trackOf(at, this.owner.lineBottom(at.bar));
+        show(this.host, track.element);
+        transform(track.element, place.left, place.top);
+        size(track.element, place.width, null);
+        size(track.fill, place.filled, null);
+        transform(track.dot, place.filled, 0);
+        track.element.classList.toggle("stop", !plays);
     }
 
     private placeSelection(at: Playhead | undefined): void {
@@ -150,17 +129,17 @@ export class ScorePlayheadMarks {
         transform(line, at.x - 1, at.top - LINE_REACH);
         size(line, null, at.bottom - at.top + 2 * LINE_REACH);
     }
+}
 
-    /** The other bars fade while the global Play plays; the bar playing stays lit. */
-    private fade(bar: ScoreBar | undefined): void {
-        this.host.classList.toggle(FADING_CLASS, bar !== undefined);
-        const lit = bar === undefined ? null : this.owner.element(bar.id);
-        if (lit !== this.lit) {
-            this.lit?.classList.remove(LIT_CLASS);
-            lit?.classList.add(LIT_CLASS);
-            this.lit = lit;
-        }
-    }
+/** The track with its fill and its dot. */
+function trackMark(): { element: HTMLElement; fill: HTMLElement; dot: HTMLElement } {
+    const element = mark("gtrack");
+    const fill = mark("fill");
+    const dot = mark("dot");
+    fill.hidden = false;
+    dot.hidden = false;
+    element.append(fill, dot);
+    return { element, fill, dot };
 }
 
 /** An overlay over the score that takes no taps and is not read out. */
@@ -170,19 +149,6 @@ function mark(className: string): HTMLElement {
     element.setAttribute("aria-hidden", "true");
     element.hidden = true;
     return element;
-}
-
-function capMark(): HTMLElement {
-    const cap = mark("gcap");
-    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.setAttribute("width", "14");
-    svg.setAttribute("height", "10");
-    svg.setAttribute("viewBox", "0 0 14 10");
-    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    path.setAttribute("d", CAP_PATH);
-    svg.append(path);
-    cap.append(svg);
-    return cap;
 }
 
 function lineMark(): HTMLElement {
@@ -215,13 +181,17 @@ function transform(element: HTMLElement, x: number, y: number): void {
     }
 }
 
-function size(element: HTMLElement, width: number | null, height: number): void {
-    const w = width === null ? "" : `${width}px`;
-    const h = `${height}px`;
-    if (width !== null && element.style.width !== w) {
-        element.style.width = w;
+function size(element: HTMLElement, width: number | null, height: number | null): void {
+    if (width !== null) {
+        const w = `${width}px`;
+        if (element.style.width !== w) {
+            element.style.width = w;
+        }
     }
-    if (element.style.height !== h) {
-        element.style.height = h;
+    if (height !== null) {
+        const h = `${height}px`;
+        if (element.style.height !== h) {
+            element.style.height = h;
+        }
     }
 }
