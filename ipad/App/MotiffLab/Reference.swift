@@ -144,32 +144,45 @@ struct ReferenceCard: Equatable {
     }
 }
 
-/// The Reference's state: the circle and the chosen key's card from music-core, and the piano that plays a scale or chord.
+/// The Reference's state: the circle and the chosen key's card from music-core, the chords and scales as they sound, the
+/// harmony explorer, and the piano that plays them.
 @MainActor
 final class ReferenceController: ObservableObject {
     @Published private(set) var answer: ReferenceAnswer?
     /// The scale or chord shown on the keyboard: the card's first scale until another is played.
     @Published private(set) var shown: ReferenceCard.Sound?
-    /// Keys, Chords or Scales: what the sheet looks up ("keys", "chords", "scales").
+    /// The sheet's tab, as the web's «Справочник» has them: "keys", "chords" (chords and scales) or "explorer".
     @Published var mode = "keys"
-    /// The roots and chords of Chords, with the chord chosen (`reference.chord`).
-    @Published private(set) var chords: ReferenceLookup?
-    /// The roots and scales of Scales, with the scale chosen (`reference.scale`).
-    @Published private(set) var scales: ReferenceLookup?
+    /// The roots and chords to choose from, with the chord chosen (`reference.chord`).
+    @Published var chords: ReferenceLookup?
+    /// The roots and scales to choose from, with the scale chosen (`reference.scale`).
+    @Published var scales: ReferenceLookup?
     /// The position of the chord's card shown on its keyboard: root position, struck, until another is played.
     @Published private(set) var chordShown: ReferenceCard.Sound?
-    /// "chord" or "scale": the own card open under the key's card, of the chord or scale last tapped on it.
+    /// "chord" or "scale": the own card open beside or under the key's card, of the chord or scale last tapped on it.
     @Published private(set) var detail: String?
+    /// Chords and scales: a chord or a scale chosen apart from how it sounds (position, spacing, way, octaves).
+    @Published var sounding = SoundingChoice()
+    /// The chord or scale as it sounds, from music-core (`reference.sounding`).
+    @Published var sounded: ReferenceSounding?
+    /// The harmony explorer's key, progression and how it is played.
+    @Published var explorer = ExplorerChoice()
+    /// The progression as music-core plays it (`reference.explorer`).
+    @Published var progression: ExplorerAnswer?
+    /// The tab whose music plays, once or round ("chords", "explorer"); nil while none does.
+    @Published var playing: String?
     /// The open piece, whose key `reference.key` marks on the circle; 0 outside a piece.
     let piece: Int32
-    private let piano = ReferencePiano()
+    let piano = ReferencePiano()
 
     init(piece: Int32 = 0) {
         self.piece = piece
+        piano.ended = { [weak self] in self?.playing = nil }
     }
 
     /// The circle with no key chosen, or the card of a key ("fifths", major or minor). On a piece it also tells the piece's
-    /// key, and the first load opens that key's card, as the web's sheet does.
+    /// key, and the first load opens that key's card, as the web's sheet does, and starts the explorer in it. A key's
+    /// card opens with its tonic chord's own card beside it, silent, so the sheet's room holds what the key is made of.
     func load(fifths: Int? = nil, minor: Bool = false, language: String, naming: String) async {
         var request: [String: Any] = ["language": language, "naming": naming]
         if let fifths {
@@ -189,7 +202,10 @@ final class ReferenceController: ObservableObject {
         shown = next.card?.scales.first
         detail = nil
         if first, fifths == nil, let key = next.pieceKey {
+            explorer.start(fifths: key.fifths, minor: key.minor)
             await load(fifths: key.fifths, minor: key.minor, language: language, naming: naming)
+        } else if let tonic = next.card?.chords.first {
+            await openCard(tonic, language: language, naming: naming)
         }
     }
 
@@ -210,16 +226,25 @@ final class ReferenceController: ObservableObject {
         scales = next
     }
 
-    /// Shows a scale or chord of the key's card on its keyboard, plays it once, and opens its own card under the key's card.
+    /// Shows a scale or chord of the key's card on its keyboard, plays it once in place of the tabs' music, and opens its
+    /// own card beside or under the key's card; it is then the chord or scale «Аккорды и гаммы» shows.
     func hear(_ sound: ReferenceCard.Sound, language: String, naming: String) async {
         shown = sound
         guard let card = answer?.card else { return }
+        playing = nil
         await play(["fifths": card.fifths, "mode": card.minor ? "minor" : "major", "id": sound.id])
+        await openCard(sound, language: language, naming: naming)
+    }
+
+    /// Opens the own card of a scale or chord of the key's card, without a sound.
+    private func openCard(_ sound: ReferenceCard.Sound, language: String, naming: String) async {
         if let type = sound.type {
             await loadChord(sound.root, type: type, language: language, naming: naming)
+            sounding.scale = false
             detail = "chord"
         } else if let form = sound.form {
             await loadScale(sound.root, form: form, language: language, naming: naming)
+            sounding.scale = true
             detail = "scale"
         }
     }
@@ -228,16 +253,35 @@ final class ReferenceController: ObservableObject {
     func hearChord(_ sound: ReferenceCard.Sound) async {
         guard let chord = chords?.chord else { return }
         chordShown = sound
+        playing = nil
         await play(Self.lookup(chord.root, ["type": chord.type, "id": sound.id]))
     }
 
     /// Plays the scale's card up and down.
     func hearScale() async {
         guard let scale = scales?.scale else { return }
+        playing = nil
         await play(Self.lookup(scale.root, ["form": scale.form, "id": scale.sound.id]))
     }
 
+    /// Plays a tab's music, once or round and round, in place of whatever the sheet played; the tab shows Pause meanwhile.
+    func listen(_ tab: String, _ score: PlaybackScore?, loop: Bool) async {
+        guard let score, !score.notes.isEmpty else {
+            pause()
+            return
+        }
+        playing = tab
+        await piano.play(score, loop: loop)
+    }
+
+    /// Stops the tabs' music, keeping the piano ready.
+    func pause() {
+        playing = nil
+        piano.pause()
+    }
+
     func stop() {
+        playing = nil
         piano.stop()
     }
 
@@ -249,29 +293,33 @@ final class ReferenceController: ObservableObject {
     }
 
     /// A request naming a root by its letter ("step", "alter"), with the other fields.
-    private static func lookup(_ root: ReferenceRoot?, _ fields: [String: Any]) -> [String: Any] {
+    static func lookup(_ root: ReferenceRoot?, _ fields: [String: Any]) -> [String: Any] {
         var request = fields
         request["step"] = root?.step ?? 0
         request["alter"] = root?.alter ?? 0
         return request
     }
 
-    private static func json(_ object: [String: Any]) -> String {
+    static func json(_ object: [String: Any]) -> String {
         guard let data = try? JSONSerialization.data(withJSONObject: object) else { return "{}" }
         return String(decoding: data, as: UTF8.self)
     }
 }
 
 /// The app's piano for the Reference, which may open with no piece loaded (from the library): the same engine as `Player`
-/// (`PlaybackEngine` through `Player.Renderer`), on its own audio engine, playing one short score at a time.
+/// (`PlaybackEngine` through `Player.Renderer`), on its own audio engine, playing one short score at a time, once or round.
 @MainActor
 final class ReferencePiano {
     private let audio = AVAudioEngine()
     private var renderer: Player.Renderer?
     /// The start under way, so two quick taps start the audio once.
     private var starting: Task<Player.Renderer?, Never>?
+    /// Follows the engine's reports while music plays once, to tell when it has ended.
+    private var watching: Task<Void, Never>?
+    /// Called when music played once has come to its end.
+    var ended: (() -> Void)?
 
-    func play(_ score: PlaybackScore) async {
+    func play(_ score: PlaybackScore, loop: Bool = false) async {
         if starting == nil {
             starting = Task { await self.start() }
         }
@@ -279,17 +327,51 @@ final class ReferencePiano {
             starting = nil
             return
         }
+        watching?.cancel()
+        _ = renderer.takeReports()
         renderer.send(.pause)
         renderer.send(.timeline(score.timeline))
         renderer.send(.source(id: "reference", notes: score.notes))
         renderer.send(.activeSources(["reference"]))
+        if loop {
+            renderer.send(.loop(start: 0, end: score.timeline.end))
+        }
         renderer.send(.play)
+        watch(renderer)
+    }
+
+    /// Pauses the music, keeping the audio running for the next.
+    func pause() {
+        watching?.cancel()
+        renderer?.send(.pause)
     }
 
     /// Stops the sound and the audio: the sheet calls this as it closes.
     func stop() {
+        watching?.cancel()
         renderer?.send(.pause)
         audio.stop()
+    }
+
+    /// The music before may still report its end while the new one loads: an end counts only once the engine has
+    /// reported this music playing.
+    private func watch(_ renderer: Player.Renderer) {
+        watching = Task { [weak self] in
+            var started = false
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 100_000_000)
+                for stamped in renderer.takeReports() {
+                    switch stamped.report {
+                    case .position(let position):
+                        started = started || position.state == .playing
+                    case .ended:
+                        guard started, !Task.isCancelled else { continue }
+                        self?.ended?()
+                        return
+                    }
+                }
+            }
+        }
     }
 
     /// Starts the audio and loads the piano.

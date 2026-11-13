@@ -1,17 +1,22 @@
 import SwiftUI
 
-/// The Reference's sheet (an experiment, Settings · Experimental; the web app's ReferenceSheet): Keys, Chords and Scales.
-/// Keys first, as the player most often calls the circle up: the key signatures, as he most often looks a key up by them
-/// (Andrei, 2026-11-11 23:44 UTC), then the circle of fifths and the chosen key's card. A signature marks the major and its
-/// relative minor and opens the major's card; a tap on the circle opens that key's card; a scale or chord of the card plays
-/// on the app's piano, shows on a small keyboard and opens its own card underneath. Over a piece, the key it starts in is
-/// outlined on the circle, dotted when it is assumed, and its card opens first. Chords and Scales look one up by its root.
-/// Opened from the library and from the score's bar alike.
+/// The Reference's sheet, «Справочник» (an experiment, Settings · Experimental; the web app's HandbookSheet, v0.5): its
+/// sections as tabs, Тональности, Аккорды и гаммы and Исследователь. Keys first, as the player most often calls the circle
+/// up: the key signatures, as he most often looks a key up by them (Andrei, 2026-11-11 23:44 UTC), then the circle of
+/// fifths, the chosen key's card and the own card of its chord or scale, side by side as far as the sheet's width allows,
+/// so the sheet's room holds music rather than empty paper (#479 item 6). A signature marks the major and its relative
+/// minor and opens the major's card; a tap on the circle opens that key's card; a scale or chord of the card plays on the
+/// app's piano and opens its own card. Over a piece, the key it starts in is outlined on the circle, dotted when it is
+/// assumed, and its card opens first, and the explorer starts in it. Opened from the library and from the score's bar alike.
 struct ReferenceSheet: View {
     let text: UIText
     @ObservedObject var settings: DeviceSettings
     @StateObject private var reference: ReferenceController
     @Environment(\.dismiss) private var dismiss
+
+    /// The content's width from which the sheet lays its parts side by side in three columns, and in two.
+    static let threeColumns: CGFloat = 900
+    static let twoColumns: CGFloat = 600
 
     /// `piece`: the open piece, whose key the circle marks; 0 from the library.
     init(text: UIText, settings: DeviceSettings, piece: Int32 = 0) {
@@ -22,20 +27,15 @@ struct ReferenceSheet: View {
 
     var body: some View {
         GeometryReader { size in
+            let width = size.size.width - 2 * CGFloat.ds("s-6")
             VStack(alignment: .leading, spacing: 0) {
                 header
+                Divider().overlay(Color.ds("hairline"))
                 ScrollView {
-                    VStack(alignment: .leading, spacing: CGFloat.ds("s-5")) {
-                        SegmentedChoice(options: ["keys", "chords", "scales"].map { ($0, text["reference.mode.\($0)"]) },
-                                        chosen: reference.mode, label: text["reference.mode"]) { mode in
-                            reference.mode = mode
-                            Task { await loadLookup(mode) }
-                        }
-                        content(wide: size.size.width > 760)
-                    }
-                    .padding(.horizontal, CGFloat.ds("s-6"))
-                    .padding(.bottom, CGFloat.ds("s-6"))
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    content(width: width)
+                        .padding(.horizontal, CGFloat.ds("s-6"))
+                        .padding(.vertical, CGFloat.ds("s-5"))
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }
@@ -45,56 +45,98 @@ struct ReferenceSheet: View {
         .onDisappear { reference.stop() }
     }
 
-    @ViewBuilder private func content(wide: Bool) -> some View {
+    @ViewBuilder private func content(width: CGFloat) -> some View {
         switch reference.mode {
         case "chords":
-            if let chords = reference.chords {
-                ReferenceLookupView(lookup: chords, kind: "chords", text: text, reference: reference) { root, type in
-                    Task { await reference.loadChord(root, type: type, language: text.language, naming: naming) }
-                }
-            }
-        case "scales":
-            if let scales = reference.scales {
-                ReferenceLookupView(lookup: scales, kind: "scales", text: text, reference: reference) { root, form in
-                    Task { await reference.loadScale(root, form: form, language: text.language, naming: naming) }
-                }
-            }
+            ReferenceChordsScalesView(reference: reference, text: text, naming: naming, wide: width >= Self.threeColumns)
+        case "explorer":
+            ReferenceExplorerView(reference: reference, text: text, naming: naming, wide: width >= Self.twoColumns)
         default:
-            lookup
-            if let answer = reference.answer {
-                if wide {
-                    HStack(alignment: .top, spacing: CGFloat.ds("s-6")) {
-                        circleColumn(answer).frame(width: 340)
-                        cards(answer)
-                    }
-                } else {
-                    circleColumn(answer).frame(maxWidth: 360).frame(maxWidth: .infinity)
-                    cards(answer)
-                }
-            }
+            keys(width: width)
         }
     }
 
+    /// The title and the tabs on one row when they fit, the tabs under the title when not.
     private var header: some View {
-        HStack {
-            Text(text[reference.mode == "keys" ? "reference.title" : "reference.mode.\(reference.mode)"])
-                .dsType(.title)
-                .foregroundStyle(Color.ds("ink"))
-                .accessibilityAddTraits(.isHeader)
-            Spacer()
-            Button {
-                dismiss()
-            } label: {
-                Icon(name: "close").frame(width: CGFloat.ds("h-touch"), height: CGFloat.ds("h-touch"))
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: CGFloat.ds("s-5")) {
+                title
+                tabs
+                Spacer(minLength: 0)
+                close
             }
-            .buttonStyle(BarActionStyle())
-            .accessibilityLabel(text["reference.close"])
+            VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+                HStack {
+                    title
+                    Spacer(minLength: 0)
+                    close
+                }
+                tabs
+            }
         }
         .padding(.horizontal, CGFloat.ds("s-6"))
         .padding(.vertical, CGFloat.ds("s-3"))
     }
 
+    private var title: some View {
+        Text(text["reference.handbook"])
+            .dsType(.title)
+            .foregroundStyle(Color.ds("ink"))
+            .lineLimit(1)
+            .accessibilityAddTraits(.isHeader)
+    }
+
+    private var tabs: some View {
+        SegmentedChoice(options: ["keys", "chords", "explorer"].map { ($0, text["reference.tab.\($0)"]) },
+                        chosen: reference.mode, label: text["reference.tabs"]) { mode in
+            reference.mode = mode
+            Task { await loadTab(mode) }
+        }
+        .frame(height: CGFloat.ds("h-touch"))
+    }
+
+    private var close: some View {
+        Button {
+            dismiss()
+        } label: {
+            Icon(name: "close").frame(width: CGFloat.ds("h-touch"), height: CGFloat.ds("h-touch"))
+        }
+        .buttonStyle(BarActionStyle())
+        .accessibilityLabel(text["reference.closeHandbook"])
+    }
+
     private var naming: String { settings["notes.naming"] }
+
+    /// Тональности: the signatures across the top; under them the circle, the key's card and its chord's or scale's own card
+    /// in three columns when the sheet is wide, the circle and the key's card side by side with the own card under them
+    /// when it is middling, all one above the other when it is narrow.
+    @ViewBuilder private func keys(width: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: CGFloat.ds("s-5")) {
+            lookup
+            if let answer = reference.answer {
+                if width >= Self.threeColumns {
+                    HStack(alignment: .top, spacing: CGFloat.ds("s-6")) {
+                        circleColumn(answer).frame(width: width * 0.32)
+                        keyCard(answer).frame(maxWidth: .infinity, alignment: .leading)
+                        if reference.detail != nil {
+                            VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) { detail }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                } else if width >= Self.twoColumns {
+                    HStack(alignment: .top, spacing: CGFloat.ds("s-6")) {
+                        circleColumn(answer).frame(width: width * 0.42)
+                        keyCard(answer).frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    detailBelow
+                } else {
+                    circleColumn(answer).frame(maxWidth: CGFloat.ds("s-12") * 8).frame(maxWidth: .infinity)
+                    keyCard(answer)
+                    detailBelow
+                }
+            }
+        }
+    }
 
     /// None and the sharps on one row, the flats on the next.
     private var lookup: some View {
@@ -166,16 +208,13 @@ struct ReferenceSheet: View {
         }
     }
 
-    /// The key's card, and under it the own card of the chord or scale last tapped on it.
-    @ViewBuilder private func cards(_ answer: ReferenceAnswer) -> some View {
+    /// The key's card, or a word on how to choose one.
+    @ViewBuilder private func keyCard(_ answer: ReferenceAnswer) -> some View {
         if let card = answer.card {
-            VStack(alignment: .leading, spacing: CGFloat.ds("s-5")) {
-                ReferenceCardView(card: card, shown: reference.shown, text: text) { related in
-                    Task { await load(related.fifths, minor: related.minor) }
-                } hear: { sound in
-                    Task { await reference.hear(sound, language: text.language, naming: naming) }
-                }
-                detail
+            ReferenceCardView(card: card, shown: reference.shown, text: text) { related in
+                Task { await load(related.fifths, minor: related.minor) }
+            } hear: { sound in
+                Task { await reference.hear(sound, language: text.language, naming: naming) }
             }
         } else {
             Text(text["reference.choose"])
@@ -184,14 +223,21 @@ struct ReferenceSheet: View {
         }
     }
 
+    /// The own card under the key's card, past a rule.
+    @ViewBuilder private var detailBelow: some View {
+        if reference.detail != nil {
+            Divider().overlay(Color.ds("hairline"))
+            detail
+        }
+    }
+
+    /// The own card of the chord or scale last opened from the key's card.
     @ViewBuilder private var detail: some View {
         if reference.detail == "chord", let chord = reference.chords?.chord {
-            Divider().overlay(Color.ds("hairline"))
             ChordCardPanel(chord: chord, shown: reference.chordShown, text: text) { sound in
                 Task { await reference.hearChord(sound) }
             }
         } else if reference.detail == "scale", let scale = reference.scales?.scale {
-            Divider().overlay(Color.ds("hairline"))
             ScaleCardPanel(scale: scale, text: text) {
                 Task { await reference.hearScale() }
             }
@@ -202,12 +248,13 @@ struct ReferenceSheet: View {
         await reference.load(fifths: fifths, minor: minor, language: text.language, naming: naming)
     }
 
-    /// Chords and Scales start on C major the first time they are shown.
-    @MainActor private func loadLookup(_ mode: String) async {
-        if mode == "chords", reference.chords == nil {
-            await reference.loadChord(nil, type: nil, language: text.language, naming: naming)
-        } else if mode == "scales", reference.scales == nil {
-            await reference.loadScale(nil, form: nil, language: text.language, naming: naming)
+    /// Аккорды и гаммы asks music-core each time it is shown, as a key card may have chosen its chord or scale since; the
+    /// explorer the first time.
+    @MainActor private func loadTab(_ mode: String) async {
+        if mode == "chords" {
+            await reference.loadSounding(language: text.language, naming: naming)
+        } else if mode == "explorer", reference.progression == nil {
+            await reference.loadExplorer(language: text.language, naming: naming)
         }
     }
 
