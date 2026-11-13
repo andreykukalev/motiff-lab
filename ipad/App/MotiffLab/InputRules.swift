@@ -104,3 +104,60 @@ struct InputRules: Equatable, Sendable {
     /// How far from a selection handle's centre a touch takes the handle rather than the pen: the 44 pt target.
     static let handleReach = 22.0
 }
+
+/// The piano roll's own two modes (#479 item 23, the approved mockup v0.5.2): Navigate, where the stylus and a finger move
+/// the roll every way and a press on the notes neither selects nor edits, and Edit notes, where the roll's note editor is
+/// open. Note editing lives only here, not in the bar's modes. The selection's handles and the loop strip work in both,
+/// as on the score.
+enum RollMode: String, CaseIterable, Sendable {
+    case navigate, edit
+
+    /// The kit's icon: the page with arrows, as the bar's Navigate, and the note with a pen.
+    var icon: String {
+        switch self {
+        case .navigate: "scroll"
+        case .edit: "editnote"
+        }
+    }
+
+    var label: String { "rollMode.\(rawValue)" }
+    var hint: String { "rollMode.\(rawValue)Hint" }
+
+    /// The mode the roll is in: Edit notes while the editor is open and chosen, else Navigate.
+    static func shown(chosen: RollMode, editorOpen: Bool) -> RollMode {
+        chosen == .edit && editorOpen ? .edit : .navigate
+    }
+
+    /// What choosing a mode does to the note editor: Edit notes opens it when it is closed; Navigate closes it when nothing
+    /// was changed, and keeps a draft with changes open (its Cancel and Save stay) so that no edit is lost by a switch.
+    static func choose(_ mode: RollMode, editorOpen: Bool, changed: Bool) -> (openEditor: Bool, closeEditor: Bool) {
+        switch mode {
+        case .edit: (!editorOpen, false)
+        case .navigate: (false, editorOpen && !changed)
+        }
+    }
+}
+
+/// Who edits and who moves the roll (#479 item 23), by InputRules' reading of the iPad: with a stylus, the stylus edits in
+/// Edit notes and a finger always moves the roll; without one, one finger edits and two move it, so every edit works with
+/// a finger alone. In Navigate every pointer moves the roll, with one finger.
+struct RollInput: Equatable, Sendable {
+    var stylus: Bool
+    var mode: RollMode
+
+    /// Whether a press of the pointer on the notes edits them; otherwise it moves the roll.
+    func edits(_ pointer: InputRules.Pointer) -> Bool {
+        guard mode == .edit else { return false }
+        return stylus ? pointer == .stylus : true
+    }
+
+    /// How many fingers move the roll: two while one finger edits.
+    var scrollFingers: Int {
+        !stylus && mode == .edit ? 2 : 1
+    }
+
+    /// What the roll is told (`roll.input`).
+    var page: [String: Any] {
+        ["touch": edits(.finger), "pen": edits(.stylus), "scrollFingers": scrollFingers]
+    }
+}

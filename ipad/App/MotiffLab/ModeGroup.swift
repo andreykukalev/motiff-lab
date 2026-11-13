@@ -1,18 +1,18 @@
 import SwiftUI
 
 /// The modes in the bar (version 0.5, the experiment Two playheads and modes; the web app's Score/ModeGroup.razor; the
-/// approved mockup v0.5.2, #479 item 21): Navigate, Select, Edit notes and Pen in one capsule, the chosen one with its
-/// icon and its name, the others with the icon alone, and H, S, E and P on a keyboard. No caption over it.
+/// approved mockup v0.5.2, #479 items 21 and 23): Navigate, Select and Pen in one capsule (Edit notes lives in the piano roll),
+/// the chosen one with its icon and its name, the others with the icon alone, and H, S and P on a keyboard. No caption over it.
 struct ModeCapsule: View {
     let chosen: InteractionMode
     let text: UIText
-    /// The modes this view does not have (Select and Edit notes on a PDF's pages), shown and not chosen.
+    /// The modes this view does not have (Select on a PDF's pages), shown and not chosen.
     var unavailable: Set<InteractionMode> = []
     let choose: (InteractionMode) -> Void
 
     var body: some View {
         HStack(spacing: 2) {
-            ForEach(InteractionMode.allCases, id: \.self) { mode in
+            ForEach(InteractionMode.inBar, id: \.self) { mode in
                 button(mode)
             }
         }

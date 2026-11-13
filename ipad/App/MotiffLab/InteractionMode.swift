@@ -1,9 +1,9 @@
 import Foundation
 
 /// The modes of version 0.5 (the experiment Two playheads and modes, Settings · Experimental; product spec
-/// interaction-modes, «Правила выделения по режимам»): one group in the bar for the score and the roll, as on the web.
-/// Who writes, selects and scrolls on the iPad in each mode is InputRules' (#479 item 18). The Pen is the bar's Pen being
-/// on (`ScoreController.penOn`).
+/// interaction-modes, «Правила выделения по режимам»): one group in the bar, as on the web, without Edit notes on the iPad
+/// (`inBar`, #479 item 23). Who writes, selects and scrolls on the iPad in each mode is InputRules' (#479 item 18). The
+/// Pen is the bar's Pen being on (`ScoreController.penOn`).
 enum InteractionMode: String, CaseIterable, Sendable {
     case navigate, select, edit, pen
 
@@ -30,4 +30,8 @@ enum InteractionMode: String, CaseIterable, Sendable {
     /// Its name and its hint in the web app's words.
     var label: String { "mode.\(rawValue)" }
     var hint: String { "mode.\(rawValue)Hint" }
+
+    /// The modes in the iPad's bar: Edit notes is not one of them, as notes are edited only in the piano roll, which has
+    /// its own Navigate and Edit notes (RollMode, #479 item 23). The web keeps all four.
+    static let inBar: [InteractionMode] = [.navigate, .select, .pen]
 }

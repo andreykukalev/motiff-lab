@@ -507,7 +507,7 @@ const heads = new ScorePlayheadMarks(document.body, {
 });
 
 /**
- * The mode the bar chose (version 0.5, the experiment Two playheads and modes): "navigate", "select", "edit" or "pen";
+ * The mode the bar chose (version 0.5, the experiment Two playheads and modes): "navigate", "select" or "pen";
  * none keeps the score as before.
  */
 function mode({ name }) {
@@ -550,24 +550,14 @@ function playheads(value) {
 }
 
 /**
- * A tap under the modes never changes the selection: in Edit notes a tap on a note opens it on the roll's editor, and
- * otherwise it places a playhead on the beat under it (inside the selection its own, else the global one), or puts the
- * sheet away off the bars. The Pen only writes.
+ * A tap under the modes never changes the selection: it places the playhead on the beat under it, or puts the sheet away
+ * off the bars. Notes are edited only in the roll (#479 item 23). The Pen only writes.
  */
-function tapUnderModes(event, target) {
+function tapUnderModes(event) {
     const geometry = state.geometry;
     // In the Pen a tap by a finger that does not write places the playhead, as in Navigate (#479 item 18).
     if (geometry === null || (state.mode === "pen" && state.input === null)) {
         return;
-    }
-    if (state.mode === "edit") {
-        const hit = target.closest("g.note, g.chord");
-        const note = hit?.matches("g.chord") ? hit.querySelector("g.note") : hit;
-        const onset = note?.id ? state.timeline?.onsetOf(note.id) : undefined;
-        if (onset !== undefined) {
-            post({ editNote: { onset } });
-            return;
-        }
     }
     const view = document.body.getBoundingClientRect();
     const x = event.clientX - view.left + document.body.scrollLeft;
@@ -689,7 +679,7 @@ document.body.addEventListener("click", (event) => {
         return;
     }
     if (state.mode !== null) {
-        tapUnderModes(event, target);
+        tapUnderModes(event);
         return;
     }
     const bar = barUnder(event);

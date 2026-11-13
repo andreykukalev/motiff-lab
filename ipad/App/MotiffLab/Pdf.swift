@@ -500,7 +500,7 @@ struct PdfScreen: View {
             PaletteDivider()
             if settings.isOn("experimental.playheads") {
                 // The score's modes: nothing on a PDF's pages is selected or edited, so only Navigate and Pen choose.
-                ModeCapsule(chosen: pdf.penOn ? .pen : .navigate, text: text, unavailable: [.select, .edit]) { mode in
+                ModeCapsule(chosen: pdf.penOn ? .pen : .navigate, text: text, unavailable: [.select]) { mode in
                     pdf.penOn = mode == .pen
                 }
             } else {

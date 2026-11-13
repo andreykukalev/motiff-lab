@@ -33,9 +33,23 @@ import { type InteractionMode, modeOf } from "../score/score-modes.js";
 import type { PlayheadsState } from "../score/playheads.js";
 import { drawBox, drawPlayheads, gestureFor, notesInBox, type RollGesture } from "./roll-modes.js";
 import { LOOP_LANE, OVERVIEW_HEIGHT, drawLoopLane, drawOverview, drawPosition, overviewTick, type StripInks } from "./roll-strips.js";
+import { barShareInView, barsInView, octavesInView, pinchFactors, rowForOctaves, sameZoom, stepBars, stepOctaves, type AxisZoom } from "./roll-zoom.js";
 
 interface DotNetObject {
     invokeMethodAsync(method: string, ...args: unknown[]): Promise<unknown>;
+}
+
+/** A pinch: the fingers' spread, the zoom and the rows when it started, and the fingers' middle and the view then. */
+interface Pinch {
+    distance: number;
+    zoom: number;
+    rowScale: number;
+    dx: number;
+    dy: number;
+    midX: number;
+    midY: number;
+    scroll: number;
+    top: number;
 }
 
 /** The part of the playback player (Scripts/playback/playback.ts) the views read every frame. */
@@ -303,7 +317,23 @@ export class PianoRoll {
     private fitsSelection = false;
     /** Fingers on the notes, for a pinch, and the zoom when the pinch started. */
     private readonly touches = new Map<number, { x: number; y: number }>();
-    private pinch: { distance: number; zoom: number; rowScale: number } | null = null;
+    /** A pinch: the fingers' spread, the zoom and the rows when it started, the fingers' middle and the view then. */
+    private pinch: Pinch | null = null;
+    /**
+     * The zoom on each axis (the iPad's roll, v0.5.2, #479 item 23, roll-zoom.ts): the host draws its own controls for the
+     * bars and the octaves in view (OnRollZoom), so the floating zoom goes; a pinch zooms the axis it spreads along and two
+     * fingers move the roll too. Off on the web.
+     */
+    private axisZoom = false;
+    private zoomReported: AxisZoom | null = null;
+    /**
+     * Which pointers edit with the editor on and how many fingers move the roll (the iPad's InputRules, #479 item 23): with a
+     * stylus the stylus edits and a finger moves the roll; without one a finger edits and two move it. Null: every pointer
+     * edits, as on the web.
+     */
+    private pointerRules: { touch: boolean; pen: boolean; scrollFingers: number } | null = null;
+    /** A finger's tap in the editor that adds or takes out a note when it is lifted, as a second finger may yet make it a scroll. */
+    private editTap: { pointer: number; x: number; y: number; tick: number; pitch: number } | null = null;
     /**
      * Touch reading (the iPad's roll, #338): a finger on the notes moves through the music instead of selecting, two
      * fingers zoom the time only, a tap never clears the selection or sounds a note, and every new selection is fitted.
@@ -541,23 +571,20 @@ export class PianoRoll {
     /** A press on the notes while the editor is on: picks, starts a drag, adds or takes out a note. */
     private editPress(event: PointerEvent, model: RollModel, x: number, y: number, tick: number, pitch: number): void {
         const index = model.noteAt(tick, pitch);
-        if (this.editTool === "delete") {
-            if (index !== undefined) {
-                void this.dotnet.invokeMethodAsync("OnRollNoteRemove", model.notes[index].id);
-            }
+        if (this.editTool !== "move" && this.waitsForLift(event)) {
+            // A finger that edits while two fingers move the roll (an iPad without a stylus): it adds or takes out when lifted.
+            this.editTap = { pointer: event.pointerId, x, y, tick, pitch };
+            return;
+        }
+        if (this.editTool === "delete" || (this.editTool === "add" && index === undefined)) {
+            this.tapEdit(model, tick, pitch);
             return;
         }
         if (index === undefined) {
-            if (this.editTool === "add") {
-                const onset = Math.max(0, Math.floor(tick / EDIT_STEP) * EDIT_STEP);
-                this.release(this.strike(pitch));
-                void this.dotnet.invokeMethodAsync("OnRollNoteAdd", onset, pitch, this.editLength);
-            } else {
-                this.editId = null;
-                this.boxPicked.clear();
-                this.beginRulePress(event, x, y, tick, pitch, true);
-                this.invalidate();
-            }
+            this.editId = null;
+            this.boxPicked.clear();
+            this.beginRulePress(event, x, y, tick, pitch, true);
+            this.invalidate();
             return;
         }
         const note = model.notes[index];
@@ -719,6 +746,117 @@ export class PianoRoll {
         this.touchReading = on;
         this.pan = null;
         this.invalidate();
+    }
+
+    /**
+     * The zoom on each axis (v0.5.2, #479 item 23), for the iPad's roll: the floating zoom goes, as the host draws its own
+     * controls from what OnRollZoom tells it (the bars and the octaves in view, and which steps are left); a pinch zooms the
+     * time across and the pitch up and down, and two fingers move the roll.
+     */
+    setAxisZoom(on: boolean): void {
+        this.axisZoom = on;
+        this.zoomBar.style.display = on ? "none" : "";
+        this.zoomReported = null;
+        this.invalidate();
+    }
+
+    /** Which pointers edit with the editor on ("touch", "pen") and how many fingers move the roll; null for every pointer, one finger. */
+    setPointerRules(rules: { touch: boolean; pen: boolean; scrollFingers: number } | null): void {
+        this.pointerRules = rules;
+        this.cancelEditPress();
+        this.invalidate();
+    }
+
+    /** A step of the time zoom: + (1) shows fewer bars, − (−1) more, round the middle of the view; the rows stay. */
+    zoomTime(direction: 1 | -1): void {
+        const model = this.model;
+        if (model === null) {
+            return;
+        }
+        const share = barShareInView(model.bars, this.scroll, this.scroll + this.visibleTicks());
+        if (share <= 0) {
+            return;
+        }
+        this.byHand();
+        this.zoomTo((this.zoom * share) / stepBars(share, direction), this.rowScale, this.timeWidth() / 2);
+    }
+
+    /** A step of the pitch zoom: + (1) one octave fewer in view, − (−1) one more, round the middle row; the time stays. */
+    zoomPitch(direction: 1 | -1): void {
+        const height = this.rollHeight();
+        const octaves = octavesInView(Math.floor(height / this.rowHeight()));
+        this.byHand();
+        this.rowsAround(rowForOctaves(stepOctaves(octaves, direction), height, READING_MIN_ROW, MAX_ROW) / ROW_AT_100, this.header + height / 2);
+    }
+
+    /** Sets the rows' height, keeping the pitch at a height on the roll where it is. */
+    private rowsAround(rowScale: number, y: number): void {
+        const before = this.pitchRange();
+        const pitch = before.high - (y - this.header) / before.row;
+        this.rowScale = Math.min(MAX_ROW / ROW_AT_100, Math.max(READING_MIN_ROW / ROW_AT_100, rowScale));
+        this.pitchTop = Math.round(pitch + (y - this.header) / this.rowHeight());
+        this.invalidate();
+    }
+
+    /** Tells the host the bars and the octaves in view and which steps are left, when they change (the zoom on each axis). */
+    private reportZoom(): void {
+        const model = this.model;
+        if (!this.axisZoom || model === null) {
+            return;
+        }
+        const row = this.rowHeight();
+        const octaves = octavesInView(Math.floor(this.rollHeight() / row));
+        const now: AxisZoom = {
+            bars: barsInView(model.bars, this.scroll, this.scroll + this.visibleTicks()),
+            octaves,
+            timeIn: this.zoom < MAX_ZOOM,
+            timeOut: this.zoom > MIN_ZOOM,
+            pitchIn: octaves > 1 && row < MAX_ROW,
+            pitchOut: row > READING_MIN_ROW,
+        };
+        if (!sameZoom(this.zoomReported, now)) {
+            this.zoomReported = now;
+            void this.dotnet.invokeMethodAsync("OnRollZoom", now);
+        }
+    }
+
+    /** Whether a pointer of this type edits with the editor on, under the iPad's rules; every pointer without them. */
+    private editsWith(type: string): boolean {
+        const rules = this.pointerRules;
+        return rules === null || (type === "touch" ? rules.touch : rules.pen);
+    }
+
+    /** Whether a finger's tap in the editor waits to be lifted: two fingers move the roll, so a second may still come. */
+    private waitsForLift(event: PointerEvent): boolean {
+        return event.pointerType === "touch" && (this.pointerRules?.scrollFingers ?? 1) > 1;
+    }
+
+    /** Lets go of a note being dragged in the editor, sending nothing, and of a tap not yet lifted. */
+    private cancelEditPress(): void {
+        if (this.editDrag !== null) {
+            this.release(this.editDrag.sounding);
+            this.editDrag = null;
+        }
+        this.editTap = null;
+    }
+
+    /** A tap in the editor with Add or Remove: a note added where there is none, taken out, or picked. */
+    private tapEdit(model: RollModel, tick: number, pitch: number): void {
+        const index = model.noteAt(tick, pitch);
+        if (this.editTool === "delete") {
+            if (index !== undefined) {
+                void this.dotnet.invokeMethodAsync("OnRollNoteRemove", model.notes[index].id);
+            }
+            return;
+        }
+        if (index !== undefined) {
+            this.editId = model.notes[index].id;
+            this.invalidate();
+            return;
+        }
+        const onset = Math.max(0, Math.floor(tick / EDIT_STEP) * EDIT_STEP);
+        this.release(this.strike(pitch));
+        void this.dotnet.invokeMethodAsync("OnRollNoteAdd", onset, pitch, this.editLength);
     }
 
     /**
@@ -1171,6 +1309,7 @@ export class PianoRoll {
         }
         // The zoom floats over the bottom right corner of the notes.
         this.zoomBar.style.top = `${this.roll.offsetTop + height - this.zoomBar.offsetHeight - 8}px`;
+        this.reportZoom();
 
         this.scroller.max = String(this.maxScroll());
         this.scroller.value = String(this.scroll);
@@ -2041,47 +2180,18 @@ export class PianoRoll {
         if (this.pressPlayhead(event, x, y)) {
             return;
         }
-        // In touch reading a finger on the notes moves through the music: it neither selects nor sounds.
-        if (this.touchReading && !this.editing && y >= this.header && event.pointerType !== "mouse") {
-            this.pan = { pointer: event.pointerId, x, y, scroll: this.scroll, top: this.pitchRange().high, moving: false };
-            return;
-        }
-        // A press on an edge of the selection drags that edge; the other edge stays where it is.
-        const edge = this.editing ? null : this.edgeAt(x);
-        if (edge !== null && this.motif !== null) {
-            const anchor = edge === "start" ? this.motif.end - 1 : this.motif.start;
-            this.drag = { pointer: event.pointerId, anchorX: Number.NaN, anchor, current: tick, edge: true };
-            this.invalidate();
-            return;
-        }
-        if (this.pressLoopLane(y, tick)) {
-            return;
-        }
-        if (y < this.header && this.editing) {
+        // Whether this press edits notes: with the editor on, by the pointer the iPad's rules give the editor (all on the web).
+        const edits = this.editing && this.editsWith(event.pointerType);
+        if (this.pressPanOrEdge(event, x, y, tick, edits) || this.pressLoopLane(y, tick)) {
             return;
         }
         if (y < this.header) {
-            // A Check flag opens Check at its bar.
-            const width = this.host.clientWidth;
-            const flag = this.checkPlaces(model, this.scroll, this.scroll + this.visibleTicks(), width)
-                .find((place) => Math.abs(x - (place.x + CHECK_FLAG / 2)) <= CHECK_TARGET / 2);
-            if (flag !== undefined) {
-                void this.dotnet.invokeMethodAsync("OnRollCheckPicked", flag.bar);
-                return;
+            if (!this.editing) {
+                this.pressBarNumbers(event, model, x, y, tick, pitch);
             }
-            if (this.beginRulePress(event, x, y, tick, pitch)) {
-                return;
-            }
-            // Shift-click on a bar number extends the selection to that bar.
-            if (event.shiftKey && this.motif !== null) {
-                void this.dotnet.invokeMethodAsync("OnRollRange", Math.round(tick), Math.round(tick), true, true);
-                return;
-            }
-            this.drag = { pointer: event.pointerId, anchorX: x, anchor: tick, current: tick, edge: false };
-            this.invalidate();
             return;
         }
-        if (this.editing) {
+        if (edits) {
             this.editPress(event, model, x, y, tick, pitch);
             return;
         }
@@ -2093,6 +2203,48 @@ export class PianoRoll {
         const sounding = index !== undefined ? this.strike(model.notes[index].pitch) : null;
         this.press = { pointer: event.pointerId, x, y, tick, pitch, add: event.shiftKey || event.ctrlKey || event.metaKey, sounding, top: null };
     };
+
+    /**
+     * A press that moves the roll or drags an edge of the selection; true when it was one. In touch reading a finger on the
+     * notes moves through the music: it neither selects nor sounds; so does a pointer that does not edit while the editor is
+     * on (#479 item 23). A press on an edge drags that edge, the other staying where it is; under the iPad's rules the
+     * handles over the notes take it with the editor on too, as the selection's handles do in every mode.
+     */
+    private pressPanOrEdge(event: PointerEvent, x: number, y: number, tick: number, edits: boolean): boolean {
+        if (this.touchReading && !edits && y >= this.header && event.pointerType !== "mouse") {
+            this.pan = { pointer: event.pointerId, x, y, scroll: this.scroll, top: this.pitchRange().high, moving: false };
+            return true;
+        }
+        const edge = this.editing && (this.pointerRules === null || y >= this.header) ? null : this.edgeAt(x);
+        if (edge === null || this.motif === null) {
+            return false;
+        }
+        const anchor = edge === "start" ? this.motif.end - 1 : this.motif.start;
+        this.drag = { pointer: event.pointerId, anchorX: Number.NaN, anchor, current: tick, edge: true };
+        this.invalidate();
+        return true;
+    }
+
+    /** A press on the bar numbers: a Check flag opens Check at its bar; else it begins selecting bars, or Shift extends. */
+    private pressBarNumbers(event: PointerEvent, model: RollModel, x: number, y: number, tick: number, pitch: number): void {
+        const width = this.host.clientWidth;
+        const flag = this.checkPlaces(model, this.scroll, this.scroll + this.visibleTicks(), width)
+            .find((place) => Math.abs(x - (place.x + CHECK_FLAG / 2)) <= CHECK_TARGET / 2);
+        if (flag !== undefined) {
+            void this.dotnet.invokeMethodAsync("OnRollCheckPicked", flag.bar);
+            return;
+        }
+        if (this.beginRulePress(event, x, y, tick, pitch)) {
+            return;
+        }
+        // Shift-click on a bar number extends the selection to that bar.
+        if (event.shiftKey && this.motif !== null) {
+            void this.dotnet.invokeMethodAsync("OnRollRange", Math.round(tick), Math.round(tick), true, true);
+            return;
+        }
+        this.drag = { pointer: event.pointerId, anchorX: x, anchor: tick, current: tick, edge: false };
+        this.invalidate();
+    }
 
     /**
      * Two fingers on the notes pinch the zoom (testing item 13): the second finger cancels what the first began (a press,
@@ -2112,10 +2264,24 @@ export class PianoRoll {
         }
         this.drag = null;
         this.pan = null;
+        if (this.touchReading) {
+            // Two fingers move the roll: what the first began in the editor goes, nothing sent (#479 item 23).
+            this.cancelEditPress();
+        }
         this.playhead.cancel();
         this.roll.setPointerCapture(event.pointerId);
         const [a, b] = [...this.touches.values()];
-        this.pinch = { distance: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), zoom: this.zoom, rowScale: this.rowScale };
+        this.pinch = {
+            distance: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)),
+            zoom: this.zoom,
+            rowScale: this.rowScale,
+            dx: a.x - b.x,
+            dy: a.y - b.y,
+            midX: (a.x + b.x) / 2,
+            midY: (a.y + b.y) / 2,
+            scroll: this.scroll,
+            top: this.pitchRange().high,
+        };
         this.invalidate();
         return true;
     }
@@ -2144,7 +2310,7 @@ export class PianoRoll {
             this.invalidate();
             return;
         }
-        if (this.editing && this.model !== null) {
+        if (this.editing && this.drag === null && this.model !== null) {
             const tick = this.tickAtX(x);
             const { high, row } = this.pitchRange();
             const index = x >= GUTTER ? this.model.noteAt(tick, high - Math.floor((event.clientY - box.top - this.header) / row)) : undefined;
@@ -2199,16 +2365,7 @@ export class PianoRoll {
      * A click on a note selects it; a click on an empty place clears the selection.
      */
     private readonly onPointerUp = (event: PointerEvent): void => {
-        if (this.endedByFingers(event) || this.releasePlayhead(event) || this.endRulePress(event)) {
-            return;
-        }
-        const editDrag = this.editDrag;
-        if (editDrag !== null && event.pointerId === editDrag.pointer) {
-            const { onset, pitch, length } = this.edited(editDrag.index);
-            this.editDrag = null;
-            this.release(editDrag.sounding);
-            this.sendEdit(editDrag.index, onset, pitch, length);
-            this.invalidate();
+        if (this.endedByFingers(event) || this.releasePlayhead(event) || this.endRulePress(event) || this.endEditPress(event)) {
             return;
         }
         const press = this.press;
@@ -2242,12 +2399,36 @@ export class PianoRoll {
         this.invalidate();
     };
 
+    /** The end of a press in the editor: a finger's tap adds or takes out a note, a drag sends where the note went. */
+    private endEditPress(event: PointerEvent): boolean {
+        const tap = this.editTap;
+        if (tap !== null && event.pointerId === tap.pointer) {
+            this.editTap = null;
+            const area = this.roll.getBoundingClientRect();
+            if (this.model !== null && Math.hypot(event.clientX - area.left - tap.x, event.clientY - area.top - tap.y) < CLICK_SLOP) {
+                this.tapEdit(this.model, tap.tick, tap.pitch);
+            }
+            return true;
+        }
+        const editDrag = this.editDrag;
+        if (editDrag === null || event.pointerId !== editDrag.pointer) {
+            return false;
+        }
+        const { onset, pitch, length } = this.edited(editDrag.index);
+        this.editDrag = null;
+        this.release(editDrag.sounding);
+        this.sendEdit(editDrag.index, onset, pitch, length);
+        this.invalidate();
+        return true;
+    }
+
     private readonly onPointerCancel = (event: PointerEvent): void => {
         this.touches.delete(event.pointerId);
         this.pinch = null;
         this.release(this.press?.sounding ?? null);
         this.release(this.editDrag?.sounding ?? null);
         this.editDrag = null;
+        this.editTap = null;
         this.drag = null;
         this.press = null;
         this.pan = null;
@@ -2267,7 +2448,9 @@ export class PianoRoll {
             const [a, b] = [...this.touches.values()];
             const factor = Math.hypot(a.x - b.x, a.y - b.y) / pinch.distance;
             const anchor = Math.max(0, (a.x + b.x) / 2 - GUTTER);
-            if (this.touchReading) {
+            if (this.touchReading && this.axisZoom) {
+                this.pinchOnAxes(pinch, a, b);
+            } else if (this.touchReading) {
                 // Two fingers zoom the time only, so the rows stay where they are.
                 this.byHand();
                 this.zoomTo(pinch.zoom * factor, this.rowScale, anchor);
@@ -2281,6 +2464,28 @@ export class PianoRoll {
             return true;
         }
         return false;
+    }
+
+    /**
+     * A pinch with the zoom on each axis (#479 item 23): the time zooms by the fingers' spread across, round where they began,
+     * and the rows by their spread up and down (pinchFactors), and the roll follows the fingers' middle, so two fingers move
+     * it as one finger does.
+     */
+    private pinchOnAxes(pinch: Pinch, a: { x: number; y: number }, b: { x: number; y: number }): void {
+        const factors = pinchFactors({ dx: pinch.dx, dy: pinch.dy }, { dx: a.x - b.x, dy: a.y - b.y });
+        this.byHand();
+        this.scroll = pinch.scroll;
+        this.pitchTop = pinch.top;
+        this.zoomTo(pinch.zoom * factors.time, pinch.rowScale, Math.max(0, pinch.midX - GUTTER));
+        if (factors.pitch !== 1) {
+            this.rowsAround(pinch.rowScale * factors.pitch, pinch.midY);
+        }
+        this.scrollTo(this.scroll - (((a.x + b.x) / 2 - pinch.midX) * TICKS_PER_QUARTER) / this.zoom);
+        const { high, row, above, below } = this.pitchRange();
+        if (above || below) {
+            this.pitchTop = high + Math.round(((a.y + b.y) / 2 - pinch.midY) / row);
+        }
+        this.invalidate();
     }
 
     /** The end of a pinch, or of a finger on the roll in touch reading; true when it was one. */
@@ -2334,7 +2539,7 @@ export class PianoRoll {
     /** A press on the loop strip inside the selection moves the position there (the lanes); elsewhere bars are selected as before. */
     private pressLoopLane(y: number, tick: number): boolean {
         const motif = this.motif;
-        if (!this.lanes || this.editing || motif === null || y < BAR_ROW || y >= this.header || tick < motif.start || tick >= motif.end) {
+        if (!this.lanes || (this.editing && this.pointerRules === null) || motif === null || y < BAR_ROW || y >= this.header || tick < motif.start || tick >= motif.end) {
             return false;
         }
         this.playhead.go(Math.round(tick), false);
