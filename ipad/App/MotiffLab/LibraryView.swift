@@ -83,7 +83,7 @@ struct LibraryView: View {
                         MainEnvironmentLine(account: account, text: text)
                         if importOn {
                             ImportBanner(runner: ImportRunner.shared, text: text)
-                            RecognitionTop(queue: recognitionQueue, text: text, chosen: $chosen, entries: entries) { consenting = true }
+                            RecognitionTop(queue: recognitionQueue, text: text, chosen: $chosen, entries: entries, shown: page.pieces) { consenting = true }
                         }
                         if let problem {
                             Text(problem)
@@ -434,7 +434,19 @@ struct LibraryView: View {
         LibraryMarks(chosen: chosen, toggle: { entry in
             guard entry.withoutNotes, chosen != nil else { return }
             if chosen?.contains(entry.url) == true { chosen?.remove(entry.url) } else { chosen?.insert(entry.url) }
-        }, status: { url in recognitionQueue.status(of: url) })
+        }, status: { url in recognitionQueue.status(of: url) }, rename: { entry, field, value in
+            Task { await rename(entry, field, to: value) }
+        })
+    }
+
+    /// A title or composer typed on a piece's line while choosing: written into the project file as the properties do.
+    private func rename(_ entry: LibraryEntry, _ field: String, to value: String) async {
+        do {
+            try await PieceDetailsFile.set(entry.url, field, to: LibraryShelf.clean(value))
+            await reload()
+        } catch {
+            problem = (error as? ProjectError)?.message ?? error.localizedDescription
+        }
     }
 
     /// «Проверить папку» for a piece whose PDF was not found, when it came from a folder imported here (experiment on).

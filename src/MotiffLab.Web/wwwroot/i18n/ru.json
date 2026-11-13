@@ -2234,7 +2234,6 @@
   "folder.top": "самой папке",
   "folder.fromFileName": "из имени файла",
   "folder.fromFolder": "из папки",
-  "folder.fromPdf": "из свойств PDF",
   "folder.fromScore": "из файла",
   "folder.adding": "Добавляю {0} из {1}",
   "folder.added": "Добавлено {0} из {1}",

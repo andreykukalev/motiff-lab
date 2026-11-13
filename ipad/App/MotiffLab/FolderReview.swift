@@ -88,6 +88,18 @@ final class FolderReview: ObservableObject, Identifiable {
         }
     }
 
+    /// Whether every new file the filter shows is ticked, the state of «Выбрать все».
+    var allShownTicked: Bool { shown.filter(\.isNew).allSatisfy { !unchecked.contains($0.path) } }
+
+    /// «Выбрать все»: ticks every new file the filter shows, or unticks them all when all are ticked.
+    func tickAllShown() { unchecked = Self.ticking(unchecked, shown: shown) }
+
+    /// The files left unticked once «Выбрать все» is pressed over the files shown.
+    static func ticking(_ unchecked: Set<String>, shown: [PlannedFile]) -> Set<String> {
+        let new = Set(shown.filter(\.isNew).map(\.path))
+        return new.isDisjoint(with: unchecked) ? unchecked.union(new) : unchecked.subtracting(new)
+    }
+
     /// The new files the player left ticked: what «Добавить N пьес» adds.
     var toAdd: [PlannedFile] { plan.files.filter { $0.isNew && !unchecked.contains($0.path) } }
 

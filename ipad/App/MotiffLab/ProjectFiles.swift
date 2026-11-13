@@ -182,8 +182,20 @@ enum PieceDetailsFile {
             "tags": tags,
             "playlists": playlists,
         ])
+        try write(changed.file, to: url)
+    }
+
+    /// Writes one field the player typed on the piece's line, "title" or "composer" (version 0.5.1, «Распознать ноты» for
+    /// several pieces); the others stay as they are. Empty clears it, so the file's own shows again.
+    static func set(_ url: URL, _ field: String, to value: String?) async throws {
+        let changed = try await change(url, [field: value.map { $0 as Any } ?? NSNull()])
+        try write(changed.file, to: url)
+    }
+
+    /// The project file written in place, keeping its date.
+    private static func write(_ file: String, to url: URL) throws {
         let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
-        try Data(changed.file.utf8).write(to: url, options: .atomic)
+        try Data(file.utf8).write(to: url, options: .atomic)
         if let modified {
             try? FileManager.default.setAttributes([.modificationDate: modified], ofItemAtPath: url.path)
         }

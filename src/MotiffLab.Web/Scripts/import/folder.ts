@@ -197,15 +197,26 @@ export async function listFolder(id: string, extensions: string[], dotnet: DotNe
     if (!kept?.handle || (await permission(id)) !== "granted") {
         throw new Error("permission");
     }
-    for await (const [path, handle] of walk(kept.handle, "")) {
-        if (isNotes(path, lower)) {
-            listing.files.push({ path: path.normalize("NFC"), bytes: (await handle.getFile()).size });
-        } else {
+    await listHandles(kept.handle, lower, listing, seen);
+    return listing;
+}
+
+/**
+ * The folder's files read through its handle into the listing. Two names that differ only in how a letter is composed
+ * are one path: listed once, as music-core plans it (it refuses a path twice).
+ */
+async function listHandles(root: FileSystemDirectoryHandle, lower: string[], listing: Listing, seen: () => void): Promise<void> {
+    const listed = new Set<string>();
+    for await (const [path, handle] of walk(root, "")) {
+        const composed = path.normalize("NFC");
+        if (!isNotes(path, lower)) {
             listing.others++;
+        } else if (!listed.has(composed)) {
+            listed.add(composed);
+            listing.files.push({ path: composed, bytes: (await handle.getFile()).size });
         }
         seen();
     }
-    return listing;
 }
 
 /** A child by its name, or by the same name composed the other way (a Mac writes "ü" as "u" and a mark). */

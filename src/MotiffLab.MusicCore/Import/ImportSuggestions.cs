@@ -4,14 +4,14 @@ namespace MotiffLab.MusicCore.Import;
 
 /// <summary>
 /// The title, composer, playlists and tags suggested for each file of a folder import (version 0.5), in the order of
-/// trust: the folder mapping the player chose, the MusicXML header, the PDF's own information, the file's name, then the
-/// folder's name or the other pieces in it. Each is a guess (provenance inferred, <see cref="Suggestion"/>).
+/// trust: the folder mapping the player chose, the MusicXML header, the file's name, then the folder's name or the other
+/// pieces in it. Each is a guess (provenance inferred, <see cref="Suggestion"/>). The PDF's own Title and Author are not
+/// used (Andrei, version 0.5): files cut from one book carry the book's, so many files looked like one piece.
 /// </summary>
 internal sealed class ImportSuggestions
 {
     private const double Chosen = 0.8;
     private const double Header = 0.9;
-    private const double Pdf = 0.5;
     private const double Named = 0.6;
     private const double Unsure = 0.4;
     private const double NameOnly = 0.3;
@@ -19,12 +19,15 @@ internal sealed class ImportSuggestions
     private readonly FolderMapping _folders;
     private readonly Dictionary<string, string> _playlists;
     private readonly Dictionary<string, string> _agreed;
+    private readonly HashSet<string> _alone;
 
     public ImportSuggestions(IReadOnlyList<FoundFile> files, FolderMapping folders)
     {
         _folders = folders;
         _playlists = PlaylistNames(files);
         _agreed = AgreedComposers(files);
+        _alone = [.. files.Where(static file => file.Kind is not null).GroupBy(static file => file.Folder, StringComparer.Ordinal)
+            .Where(static folder => folder.Count() == 1).Select(static folder => folder.Single().Path)];
     }
 
     /// <summary>The file as a new piece with its suggestions.</summary>
@@ -37,20 +40,24 @@ internal sealed class ImportSuggestions
             Composer = ComposerOf(file, segments),
             Playlists = _folders == FolderMapping.Playlists && segments.Length > 0 ? [_playlists[file.Folder]] : [],
             Tags = _folders == FolderMapping.Tags ? [.. segments.Distinct(StringComparer.OrdinalIgnoreCase)] : [],
-            PossibleCollection = file.Kind == OriginalKind.Pdf && file.Pages > LibraryImport.CollectionPages,
+            PossibleCollection = file.Kind == OriginalKind.Pdf && IsPossibleCollection(file, segments),
         };
     }
+
+    /// <summary>
+    /// A PDF that is perhaps several pieces, a guess: more than <see cref="LibraryImport.CollectionPages"/> pages, a name
+    /// that says so (<see cref="FileNameDetails.NamesCollection"/>), or alone in a folder whose name says so.
+    /// </summary>
+    private bool IsPossibleCollection(FoundFile file, string[] segments) =>
+        file.Pages > LibraryImport.CollectionPages
+        || FileNameDetails.NamesCollection(PieceDetails.TitleOf(file.Name))
+        || (segments.Length > 0 && _alone.Contains(file.Path) && FileNameDetails.NamesCollection(segments[^1]));
 
     private static Suggestion TitleOf(FoundFile file)
     {
         if (Clean(file.Header.Title) is { } written)
         {
             return new(written, SuggestionSource.ScoreHeader, Header);
-        }
-
-        if (FileNameDetails.PdfTitle(file.PdfTitle) is { } pdf && FileNameDetails.OfText(pdf).Title is { } fromPdf)
-        {
-            return new(fromPdf, SuggestionSource.PdfInfo, Pdf);
         }
 
         return FileNameDetails.Of(file.Name).Title is { } named
@@ -81,19 +88,12 @@ internal sealed class ImportSuggestions
         return _agreed.TryGetValue(file.Folder, out string? agreed) ? new(agreed, SuggestionSource.Folder, Unsure) : null;
     }
 
-    /// <summary>The composer the file itself suggests: its header, its PDF information, its name.</summary>
+    /// <summary>The composer the file itself suggests: its header, then its name.</summary>
     private static Suggestion? OwnComposer(FoundFile file)
     {
         if (Clean(file.Header.Composer) is { } written)
         {
             return new(written, SuggestionSource.ScoreHeader, Header);
-        }
-
-        string? fromPdf = FileNameDetails.PdfAuthor(file.PdfAuthor)
-            ?? (FileNameDetails.PdfTitle(file.PdfTitle) is { } title ? FileNameDetails.OfText(title).Composer : null);
-        if (fromPdf is not null)
-        {
-            return new(fromPdf, SuggestionSource.PdfInfo, Pdf);
         }
 
         return FileNameDetails.Of(file.Name).Composer is { } named

@@ -200,6 +200,9 @@ struct FoundTable: View {
                 .padding(.vertical, CGFloat.ds("s-2"))
                 .overlay(alignment: .bottom) { Rectangle().fill(Color.ds("hairline")).frame(height: 1) }
             }
+            if review.shown.contains(where: \.isNew) {
+                selectAll
+            }
             ForEach(review.shown) { file in
                 FoundLine(file: file, review: review, text: text, compact: size == .compact)
             }
@@ -210,6 +213,26 @@ struct FoundTable: View {
                     .padding(.vertical, CGFloat.ds("s-4"))
             }
         }
+    }
+}
+
+extension FoundTable {
+    /// «Выбрать все» (version 0.5.1): ticks or unticks every new file the filter shows.
+    var selectAll: some View {
+        let on = review.allShownTicked
+        return Button {
+            review.tickAllShown()
+        } label: {
+            HStack(spacing: CGFloat.ds("s-4")) {
+                CheckBox(on: on).frame(width: CGFloat.ds("h-touch"), height: CGFloat.ds("h-touch"))
+                Text(text["folderImport.selectAll"]).dsType(.body).foregroundStyle(Color.ds("ink"))
+                Spacer(minLength: 0)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(on ? .isSelected : [])
+        .overlay(alignment: .bottom) { Rectangle().fill(Color.ds("hairline")).frame(height: 1) }
     }
 }
 

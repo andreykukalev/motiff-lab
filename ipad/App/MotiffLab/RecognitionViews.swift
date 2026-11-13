@@ -6,6 +6,14 @@ struct LibraryMarks {
     var chosen: Set<URL>?
     var toggle: (LibraryEntry) -> Void = { _ in }
     var status: (URL) -> RecognitionItem? = { _ in nil }
+    /// While choosing (version 0.5.1): the player typed a piece's "title" or "composer" on its line; empty clears it.
+    var rename: (LibraryEntry, String, String) -> Void = { _, _, _ in }
+
+    /// «Выбрать все»: every piece shown that can be picked, or none of them when all already are.
+    static func all(_ chosen: Set<URL>, shown: [LibraryEntry]) -> Set<URL> {
+        let pickable = Set(shown.filter(\.withoutNotes).map(\.url))
+        return pickable.isSubset(of: chosen) ? chosen.subtracting(pickable) : chosen.union(pickable)
+    }
 }
 
 private struct LibraryMarksKey: EnvironmentKey {
@@ -65,6 +73,8 @@ struct RecognitionTop: View {
     let text: UIText
     @Binding var chosen: Set<URL>?
     let entries: [LibraryEntry]
+    /// The pieces the list shows now, which «Выбрать все» picks.
+    var shown: [LibraryEntry] = []
     let recognise: () -> Void
 
     var body: some View {
@@ -73,7 +83,23 @@ struct RecognitionTop: View {
         }
         if let chosen {
             let picked = entries.filter { chosen.contains($0.url) }
+            let pickable = shown.filter(\.withoutNotes)
             HStack(spacing: CGFloat.ds("s-4")) {
+                if !pickable.isEmpty {
+                    let all = pickable.allSatisfy { chosen.contains($0.url) }
+                    Button {
+                        self.chosen = LibraryMarks.all(chosen, shown: shown)
+                    } label: {
+                        HStack(spacing: CGFloat.ds("s-2")) {
+                            CheckBox(on: all)
+                            Text(text["recognition.selectAll"]).dsType(.body).foregroundStyle(Color.ds("ink"))
+                        }
+                        .frame(minHeight: CGFloat.ds("h-touch"))
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(all ? .isSelected : [])
+                }
                 Text(picked.isEmpty ? text["recognition.chooseHint"] : text.format("recognition.chosenLine", text.count("recognition.pieces", picked.count)) + " · " + text.count("recognition.pages", picked.reduce(0) { $0 + $1.pages }))
                     .dsType(.bodyStrong)
                     .foregroundStyle(Color.ds("ink"))

@@ -213,7 +213,9 @@ struct LibraryList: View {
     }
 }
 
-/// One piece in the list: its title in the serif, its composer, its playlists, and when it was last opened.
+/// One piece in the list: its title in the serif, its composer, its playlists, and when it was last opened. While the player
+/// chooses pieces to recognise, a piece that can be picked has its tick, and its title and composer typed over in place
+/// (version 0.5.1).
 struct LibraryLine: View {
     let entry: LibraryEntry
     let text: UIText
@@ -224,12 +226,50 @@ struct LibraryLine: View {
     let delete: () -> Void
 
     var body: some View {
+        if let chosen = marks.chosen, entry.withoutNotes {
+            choosing(chosen)
+        } else {
+            line
+        }
+    }
+
+    /// The line while choosing: the tick a button of its own, the title and composer fields.
+    private func choosing(_ chosen: Set<URL>) -> some View {
+        HStack(spacing: CGFloat.ds("s-4")) {
+            Button {
+                marks.toggle(entry)
+            } label: {
+                CheckBox(on: chosen.contains(entry.url)).frame(width: CGFloat.ds("h-touch"), height: CGFloat.ds("h-touch"))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(entry.title)
+            .accessibilityAddTraits(chosen.contains(entry.url) ? .isSelected : [])
+            HStack(spacing: CGFloat.ds("s-2")) {
+                LineField(value: entry.title, label: text["library.fieldTitle"], serif: true) { marks.rename(entry, "title", $0) }
+                if let item = marks.status(entry.url) { RecognitionTag(item: item, text: text) }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            LineField(value: entry.composer ?? "", label: text["library.fieldComposer"], serif: false) { marks.rename(entry, "composer", $0) }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text(entry.playlists.joined(separator: ", "))
+                .dsType(.body)
+                .foregroundStyle(Color.ds("ink-2"))
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Color.clear.frame(width: openedWidth, height: 1)
+        }
+        .padding(.horizontal, CGFloat.ds("s-4"))
+        .frame(minHeight: CGFloat.ds("h-touch") + CGFloat.ds("s-4"))
+        .overlay(alignment: .bottom) { Rectangle().fill(Color.ds("hairline")).frame(height: 1) }
+    }
+
+    private var line: some View {
         Button {
             if marks.chosen != nil { marks.toggle(entry) } else { open() }
         } label: {
             HStack(spacing: CGFloat.ds("s-4")) {
                 if let chosen = marks.chosen {
-                    CheckBox(on: chosen.contains(entry.url)).opacity(entry.withoutNotes ? 1 : 0)
+                    CheckBox(on: chosen.contains(entry.url)).frame(width: CGFloat.ds("h-touch"), height: CGFloat.ds("h-touch")).opacity(entry.withoutNotes ? 1 : 0)
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: CGFloat.ds("s-2")) {
@@ -269,6 +309,36 @@ struct LibraryLine: View {
         .modifier(PieceActions(text: text, edit: edit, delete: delete))
         .accessibilityElement(children: .combine)
         .accessibilityAction(named: text["library.properties"], edit)
+    }
+}
+
+/// A title or composer typed over in place on a library line: what the piece says until the player types, kept when they
+/// press Done or leave the field; an empty field gives the file's own back.
+struct LineField: View {
+    let value: String
+    let label: String
+    let serif: Bool
+    let commit: (String) -> Void
+    @State private var typed: String?
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        TextField(label, text: Binding { typed ?? value } set: { typed = $0 })
+            .font(serif ? DesignTokens.font(display: true, weight: 500, size: 19, relativeTo: .title3) : DesignTokens.font(weight: 400, size: 15, relativeTo: .body))
+            .foregroundStyle(serif ? Color.ds("ink") : Color.ds("ink-2"))
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .submitLabel(.done)
+            .focused($focused)
+            .onSubmit(keep)
+            .onChange(of: focused) { _, on in if !on { keep() } }
+            .accessibilityLabel(label)
+    }
+
+    private func keep() {
+        guard let typed else { return }
+        self.typed = nil
+        if typed != value { commit(typed) }
     }
 }
 

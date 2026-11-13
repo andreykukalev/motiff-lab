@@ -203,10 +203,28 @@ final class FolderImportTests: XCTestCase {
         XCTAssertEqual(ImportFolders.folder("f9", in: records)?.problem, .lost, "the lost bookmark is still said")
     }
 
+    @MainActor
+    func testSelectAllTicksEveryNewFileShownOrNone() {
+        let shown = [["path": "a.pdf", "status": "new"], ["path": "b.pdf", "status": "new"], ["path": "c.pdf", "status": "duplicate"]].compactMap(PlannedFile.init)
+
+        XCTAssertEqual(FolderReview.ticking(["b.pdf", "x.pdf"], shown: shown), ["x.pdf"], "one unticked: all ticked")
+        XCTAssertEqual(FolderReview.ticking(["x.pdf"], shown: shown), ["a.pdf", "b.pdf", "x.pdf"], "all ticked: none")
+    }
+
+    func testEachFileIsListedOnceByPath() {
+        let files = [
+            FolderFile(path: "Шопен/Ballade.pdf", bytes: 1, modified: nil),
+            FolderFile(path: "Bach.pdf", bytes: 10, modified: nil),
+            FolderFile(path: "Шопен/Ballade.pdf", bytes: 5000, modified: nil),
+        ]
+
+        XCTAssertEqual(FolderScan.unique(files).map { "\($0.path) \($0.bytes)" }, ["Bach.pdf 10", "Шопен/Ballade.pdf 5000"])
+    }
+
     func testEveryWordTheImportNamesIsInBothLanguages() {
         var keys = FoundFilter.allCases.map { FoundFilter.key + $0.rawValue } + ["folderImport.filter.changed"]
         keys += FolderMapping.allCases.map { "folderImport.folders." + $0.rawValue }
-        keys += ["fileName", "folder", "pdfInfo", "scoreHeader", "folderChoice", "player"].map { "folderImport.from." + $0 }
+        keys += ["fileName", "folder", "scoreHeader", "folderChoice", "player"].map { "folderImport.from." + $0 }
         keys += ["waiting", "added", "failed", "skipped"].map { "folderImport.state." + $0 }
         keys += ["offline", "folderLost"].map { "folderImport.paused." + $0 }
         keys += ["failDamaged", "failMissing", "failOffline", "failUnreadable", "skippedSame", "folderLostShort", "offlineTitle"].map { "folderImport." + $0 }
