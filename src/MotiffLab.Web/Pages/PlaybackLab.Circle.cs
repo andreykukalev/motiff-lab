@@ -82,6 +82,8 @@ public partial class PlaybackLab
 
         await Player.SetLoopAsync(null);
         await Player.SelectSourcesAsync(_hear);
+        // Under the playback model the selection's loop and its notes come back with Цикл on.
+        await FollowModelAsync();
     }
 
     /// <summary>The scale has played to its end, or playback was paused over it: the piece's notes come back.</summary>

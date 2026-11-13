@@ -65,6 +65,18 @@ public partial class PlaybackLab
     /// </summary>
     private async Task OnPlayheadMovedAsync(RollSeek seek)
     {
+        if (ModelHolds)
+        {
+            // Under the playback model (v0.5.2) the roll moves the black playhead as a tap on the score does (T12).
+            await PlacePlayheadAsync(seek.At);
+            if (seek.Play && Player.State == PlaybackState.Stopped)
+            {
+                await PressAsync();
+            }
+
+            return;
+        }
+
         if (seek.Play && !Looping && _selection is { NoteIds.Count: > 0 })
         {
             await ToggleLoopSelectionAsync();

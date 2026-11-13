@@ -31,6 +31,12 @@ async function drag(page, from, to) {
 
 const status = (page) => page.locator(".selection-status");
 
+/** The selection the status names and its notes, without what is heard: under the playback model (v0.5.2) a click outside the selection turns Цикл off. */
+const named = async (page) => {
+    const text = await status(page).textContent();
+    return text.slice(0, text.indexOf(".", text.indexOf(":")) + 1);
+};
+
 test("the modes choose what a drag does, and only the handles, ✕ and Escape change the selection", async ({ page }) => {
     await withExperiment(page);
     const errors = await openFurElise(page);
@@ -49,25 +55,25 @@ test("the modes choose what a drag does, and only the handles, ✕ and Escape ch
     await expect(page.locator("div.score")).toHaveAttribute("data-mode", "select");
     await drag(page, { x: bars[2].left + 4, y: bars[2].middle }, { x: (bars[4].left + bars[4].right) / 2, y: bars[4].middle });
     await expect(status(page)).toContainText(/Selected bar \d+, beat \d+, through bar \d+, beat \d+/);
-    const selected = await status(page).textContent();
+    const selected = await named(page);
 
     // A click inside or outside, and a drag that starts inside, leave it as it is.
     await page.mouse.click(bars[3].left + 12, bars[3].middle);
     await page.mouse.click(bars[5].left + 12, bars[5].middle);
     await drag(page, { x: bars[3].left + 12, y: bars[3].middle }, { x: bars[5].right - 4, y: bars[5].middle });
-    await expect(status(page)).toHaveText(selected);
+    await expect(status(page)).toContainText(selected);
 
     // Shift and a click in Select extend it to the beat clicked.
     await page.keyboard.down("Shift");
     await page.mouse.click(bars[5].right - 6, bars[5].middle);
     await page.keyboard.up("Shift");
-    await expect(status(page)).not.toHaveText(selected);
-    const extended = await status(page).textContent();
+    await expect(status(page)).not.toContainText(selected);
+    const extended = await named(page);
 
     // Navigate again: a drag elsewhere moves nothing of the selection; ✕ in the menu removes it.
     await page.keyboard.press("h");
     await drag(page, { x: bars[0].left + 10, y: bars[0].middle }, { x: bars[1].right - 4, y: bars[1].middle });
-    await expect(status(page)).toHaveText(extended);
+    await expect(status(page)).toContainText(extended);
     await page.locator(".ctx").getByRole("button", { name: "Clear the selection" }).click();
     await expect(status(page)).toContainText("Nothing selected");
 

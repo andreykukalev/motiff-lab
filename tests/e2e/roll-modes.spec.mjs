@@ -7,6 +7,12 @@ import { openFurElise } from "./steps.mjs";
 
 const status = (page) => page.locator(".selection-status");
 
+/** The selection the status names and its notes, without what is heard: under the playback model (v0.5.2) a click outside the selection turns Цикл off. */
+const named = async (page) => {
+    const text = await status(page).textContent();
+    return text.slice(0, text.indexOf(".", text.indexOf(":")) + 1);
+};
+
 async function drag(page, from, to) {
     await page.mouse.move(from.x, from.y);
     await page.mouse.down();
@@ -34,18 +40,18 @@ test("on the roll each mode does its own thing, and only Select's drag selects",
     await expect(roll).toHaveAttribute("data-mode", "select");
     await drag(page, at(0.2), at(0.45));
     await expect(status(page)).toContainText(/^Selected bars? \d+/);
-    const selected = await status(page).textContent();
+    const selected = await named(page);
     await drag(page, at(0.3), at(0.8));
     await page.mouse.click(at(0.3).x, at(0.3).y);
     await page.mouse.click(at(0.8).x, at(0.8).y);
-    await expect(status(page)).toHaveText(selected);
+    await expect(status(page)).toContainText(selected);
 
     // Edit notes: a box round notes opens the editor on them; the selection stays.
     await page.keyboard.press("e");
     await expect(roll).toHaveAttribute("data-mode", "edit");
     await drag(page, at(0.01, 0.02), at(0.99, 0.98));
     await expect(page.locator(".roll-drawer").getByRole("button", { name: "Cancel" })).toBeVisible();
-    await expect(status(page)).toHaveText(selected);
+    await expect(status(page)).toContainText(selected);
     await page.locator(".roll-drawer").getByRole("button", { name: "Cancel" }).click();
     expect(errors).toEqual([]);
 });
