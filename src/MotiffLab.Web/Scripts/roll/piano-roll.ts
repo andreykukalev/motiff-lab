@@ -33,6 +33,7 @@ import { type InteractionMode, modeOf } from "../score/score-modes.js";
 import type { PlayheadsState } from "../score/playheads.js";
 import { drawBox, drawPlayheads, gestureFor, notesInBox, type RollGesture } from "./roll-modes.js";
 import { LOOP_LANE, OVERVIEW_HEIGHT, drawLoopLane, drawOverview, drawPosition, overviewTick, type StripInks } from "./roll-strips.js";
+import { viewOf } from "../playback/playback-model.js";
 import { barShareInView, barsInView, octavesInView, pinchFactors, rowForOctaves, sameZoom, stepBars, stepOctaves, type AxisZoom } from "./roll-zoom.js";
 import { fitsWhenTurned, selectionShift, viewOnLoad } from "./roll-view.js";
 
@@ -280,8 +281,8 @@ export class PianoRoll {
     /** The whole piece in one line over the roll (v0.5.2, #479 item 25), shown with the lanes. */
     private readonly overview: HTMLCanvasElement;
     /**
-     * The lanes of the iPad's roll (v0.5.2, #479 item 25, roll-strips.ts): one position, ink outside the selection and cobalt
-     * inside; the loop strip under the bar numbers and the whole piece over them. Off on the web.
+     * The lanes of the iPad's roll (v0.5.2, #479 item 25, roll-strips.ts): the black and the blue playheads of the playback
+     * model (#495 UX-10); the loop strip under the bar numbers and the whole piece over them. Off on the web.
      */
     private lanes = false;
     /** Whether the selection loops (Цикл on), and the position written as bar.beat for the whole-piece strip. */
@@ -869,8 +870,8 @@ export class PianoRoll {
     }
 
     /**
-     * The lanes (v0.5.2, #479 item 25): one playback position in ink outside the selection and cobalt inside it, the loop strip
-     * under the bar numbers and the whole piece over the roll. A tap in either strip moves the position; on the whole piece
+     * The lanes (v0.5.2, #479 item 25): the two playheads of the playback model (#495 UX-10), the loop strip under the bar
+     * numbers and the whole piece over the roll. A tap in either strip moves the position; on the whole piece
      * the roll goes there too. With the lanes a tap on the notes plays nothing.
      */
     setLanes(on: boolean): void {
@@ -1616,12 +1617,13 @@ export class PianoRoll {
         return { bars: model.bars, span: this.playheadSpan(), end: model.end, tick: this.player?.currentTick() ?? this.tickNow };
     }
 
-    /** The loop strip and the one position, with the lanes (roll-strips.ts). */
+    /** The loop strip and the two playheads of the playback model, with the lanes (roll-strips.ts, playback-model.ts). */
     private drawLanes(context: CanvasRenderingContext2D, width: number, height: number): void {
         const frame = { top: BAR_ROW, left: GUTTER, right: width, height, xOf: (tick: number) => this.xOf(tick) };
         const playing = this.player !== null && this.player.state() !== "stopped";
+        const view = viewOf({ selection: this.motif, loop: this.looping, tick: this.tickNow, transport: playing ? "playing" : "stopped" });
         drawLoopLane(context, frame, this.motif, this.looping, this.stripInks());
-        drawPosition(context, frame, this.tickNow, this.motif, playing, this.stripInks());
+        drawPosition(context, frame, view, this.stripInks());
     }
 
     /** The whole piece in one line over the roll: the position, the bars on screen, the selection. */

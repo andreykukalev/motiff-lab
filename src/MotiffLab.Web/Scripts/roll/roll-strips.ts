@@ -1,8 +1,10 @@
-// The strips of the iPad's roll (v0.5.2, #479 item 25, approved mockup): one playback position, drawn in ink outside the
-// selection and in cobalt inside it; under the bar numbers a loop strip, the selection's bounds with a handle at each end
-// and the loop sign, where a tap moves the position; and over everything the whole piece in one line, always shown: the
-// position written as bar.beat, a frame round the bars on screen, the selection in cobalt and the position's dot, where a
-// tap moves the position and the roll. Pure drawing on a context the roll gives; nothing here touches the DOM.
+// The strips of the iPad's roll (v0.5.2, #479 item 25, approved mockup; the playback model's two playheads, #495 UX-10):
+// the black playhead, the position, as an ink line down the notes with its dot on the whole-piece strip; with a selection
+// the blue playhead, the position held to it, as a cobalt line with its handle in the loop strip; under the bar numbers
+// the loop strip, the selection's bounds with a handle at each end and the loop sign, where a tap moves the position; and
+// over everything the whole piece in one line, always shown: the position written as bar.beat, a frame round the bars on
+// screen, the selection in cobalt and the black dot, where a tap moves the position and the roll. Pure drawing on a
+// context the roll gives; nothing here touches the DOM.
 import { drawPositionLine } from "./roll-modes.js";
 
 /** The loop strip's height under the bar numbers, and the whole-piece strip's height over the roll, in pixels. */
@@ -44,7 +46,7 @@ export interface LaneFrame {
     xOf(tick: number): number;
 }
 
-/** Whether a tick lies inside the selection, [start, end): the position is cobalt there and ink elsewhere. */
+/** Whether a tick lies inside the selection, [start, end). */
 export function insideOf(selection: TickSpan | null, tick: number): boolean {
     return selection !== null && tick >= selection.start && tick < selection.end;
 }
@@ -109,11 +111,30 @@ function drawLoopSign(context: CanvasRenderingContext2D, x: number, y: number, c
     context.fill();
 }
 
-/** The one playback position down the roll: cobalt inside the selection, ink outside, its dot in the loop lane, hollow when it stands. */
-export function drawPosition(context: CanvasRenderingContext2D, frame: LaneFrame, tick: number, selection: TickSpan | null, playing: boolean, inks: StripInks): void {
-    const colour = insideOf(selection, tick) ? inks.accent : inks.ink;
+/** Where the two playheads are, from the playback model's view (playback-model.ts, viewOf). */
+export interface PositionPlaces {
+    black: number;
+    blue: number | null;
+    playing: boolean;
+}
+
+/**
+ * The two playheads down the roll: the black one an ink line under the loop strip (its dot is on the whole-piece strip),
+ * and with a selection the blue one a cobalt line over it with its handle in the loop strip, hollow when it stands. Where
+ * they meet the cobalt line covers the ink one, and both handles show, each in its strip.
+ */
+export function drawPosition(context: CanvasRenderingContext2D, frame: LaneFrame, places: PositionPlaces, inks: StripInks): void {
+    const black = Math.round(frame.xOf(places.black));
+    if (black >= frame.left && black <= frame.right) {
+        context.fillStyle = inks.ink;
+        context.fillRect(black - 1, frame.top + LOOP_LANE, 2, frame.height - frame.top - LOOP_LANE);
+    }
+    if (places.blue === null) {
+        return;
+    }
     const lines = { xOf: frame.xOf, header: frame.top, left: frame.left, right: frame.right, height: frame.height };
-    drawPositionLine(context, lines, frame.xOf(tick), { colour, knobY: frame.top + LOOP_LANE / 2, radius: DOT_RADIUS, solid: playing }, { ink: inks.ink, accent: inks.accent, surface: inks.surface, paper: inks.surface });
+    const mark = { colour: inks.accent, knobY: frame.top + LOOP_LANE / 2, radius: DOT_RADIUS, solid: places.playing };
+    drawPositionLine(context, lines, frame.xOf(places.blue), mark, { ink: inks.ink, accent: inks.accent, surface: inks.surface, paper: inks.surface });
 }
 
 /** What the whole-piece strip shows: the position and its label, the piece's end and last bar, the bars on screen, the selection. */
@@ -139,18 +160,17 @@ export function overviewTick(x: number, width: number, end: number): number {
     return Math.round(share * end);
 }
 
-/** The whole-piece strip: label, track, the frame round the bars on screen, the selection in cobalt, the position's dot. */
+/** The whole-piece strip: label, track, the frame round the bars on screen, the selection in cobalt, the black playhead's dot. */
 export function drawOverview(context: CanvasRenderingContext2D, width: number, state: OverviewState, inks: StripInks): void {
     const track = overviewTrack(width);
     const middle = OVERVIEW_HEIGHT / 2;
     const xOf = (tick: number): number => track.left + (track.right - track.left) * (state.end > 0 ? Math.min(1, Math.max(0, tick / state.end)) : 0);
-    const inside = insideOf(state.selection, state.tick);
     context.fillStyle = inks.surface;
     context.fillRect(0, 0, width, OVERVIEW_HEIGHT);
     context.font = "600 12px \"Source Sans 3\", system-ui, sans-serif";
     context.textBaseline = "middle";
     context.textAlign = "left";
-    context.fillStyle = inside ? inks.accent : inks.ink;
+    context.fillStyle = inks.ink;
     context.fillText(state.label, 8, middle);
     context.font = "11px \"Source Sans 3\", system-ui, sans-serif";
     context.textAlign = "right";
@@ -173,7 +193,7 @@ export function drawOverview(context: CanvasRenderingContext2D, width: number, s
     const dot = xOf(state.tick);
     context.beginPath();
     context.arc(dot, middle, DOT_RADIUS, 0, 2 * Math.PI);
-    context.fillStyle = inside ? inks.accent : inks.ink;
+    context.fillStyle = inks.ink;
     context.fill();
     if (!state.playing) {
         context.beginPath();

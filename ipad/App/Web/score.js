@@ -53,7 +53,8 @@ import { ScoreTimeline, highlightedIds } from "../score/score-timeline.js";
 import { DEFAULT_WIDTH, HIGHLIGHTER_SIZES, NO_RUBBING, PEN_SIZES, anchorMark, framesByTick, outlinePath, placeMark, rubAlong, rubbedMarks, touches } from "../score/pencil-marks.js";
 import { beatUnder, modeOf } from "../score/score-modes.js";
 import { ScoreBeats } from "../score/selection-beats.js";
-import { ScorePlayheadMarks, onePlace } from "../score/playheads.js";
+import { ScorePlayheadMarks, playheadsOf } from "../score/playheads.js";
+import { viewOf } from "../playback/playback-model.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -501,8 +502,9 @@ const selection = new SelectionLayer(document.body, {
 const scoreBeats = new ScoreBeats({ beats: () => state.beats, tickX: (tick) => state.geometry?.playhead(tick, (id) => state.timeline?.onsetOf(id))?.x });
 
 /**
- * The one playback position of version 0.5.2 (#479 items 19 and 25), drawn as the web app's score view draws its playheads
- * (Scripts/score/playheads.ts): the ink track under the bar outside the selection, the cobalt line inside it.
+ * The two playheads of the playback model (version 0.5.2, #495 UX-10, Scripts/playback/playback-model.ts), drawn as the web
+ * app's score view draws its playheads (Scripts/score/playheads.ts): the black track under the bar at the position, always,
+ * and with a selection the cobalt line at the position held to it.
  */
 const heads = new ScorePlayheadMarks(document.body, {
     at: (tick) => (state.timeline === null ? undefined : state.geometry?.playhead(tick, (id) => state.timeline.onsetOf(id))),
@@ -540,8 +542,8 @@ function tapActs() {
 }
 
 /**
- * The one playback position under the modes (version 0.5.2): { selection: { start, end } or null }, the selection it turns
- * cobalt in; null draws the playhead of before the modes.
+ * The playback model under the modes (version 0.5.2, #495 UX-10): { selection: { start, end } or null, loop: Цикл on },
+ * the selection the blue playhead keeps to; null draws the playhead of before the modes.
  */
 function playheads(value) {
     state.heads = value ?? null;
@@ -926,12 +928,14 @@ function playing({ tick, playing, follow, auto = true }) {
     }
     playhead.played ||= playing;
     if (state.heads !== null) {
-        // The one position (version 0.5.2): it always shows out of focus, cobalt inside the selection and ink outside it.
+        // The playback model (version 0.5.2): out of focus the black playhead always shows, and the blue one with a selection.
         let at;
         if (state.focus) {
             heads.hide();
         } else {
-            at = heads.place(onePlace(state.heads.selection ?? null, tick, playing));
+            const chosen = state.heads.selection ?? null;
+            const view = viewOf({ selection: chosen, loop: state.heads.loop === true, tick, transport: playing ? "playing" : "stopped" });
+            at = heads.place(playheadsOf(view, chosen));
         }
         reportPlace(at, !playing);
     } else {

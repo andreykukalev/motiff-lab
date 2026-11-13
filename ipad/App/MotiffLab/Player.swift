@@ -165,11 +165,15 @@ final class Player: ObservableObject {
         send(.loop(start: range.lowerBound, end: range.upperBound, once: once))
     }
 
-    // MARK: - One playback position (version 0.5.2, Settings · Experimental; #479 items 19, 22, 25)
+    // MARK: - The playback model (version 0.5.2, #495 UX-10; Settings · Experimental, «Два указателя и режимы»)
 
-    /// Цикл: the selection loops while it is on, also when playing began before it was made; off, playback goes on past it.
-    /// It turns on by itself when a selection appears (PlaybackPosition.cycle).
-    @Published var cycle = true
+    /// The selection as the range it plays (the model's S), the player's copy of the score's: the player owns it and Цикл,
+    /// and the views only read them (PlaybackModel).
+    @Published private(set) var selection: Range<Double>?
+
+    /// Цикл: the selection loops while it is on, and Play keeps the position inside it. It turns on by itself when a
+    /// selection appears, and is kept while there is none.
+    @Published private(set) var cycle = true
 
     /// The piece's beats as bar.beat, from music-core's playback score: the pill's and the roll's words for a place.
     private(set) var barBeats = BarBeats()
@@ -179,46 +183,38 @@ final class Player: ObservableObject {
         barBeats.at(tick)?.text ?? ""
     }
 
-    /// The engine loops the selection while Цикл is on, without moving the position: a selection made while playing loops
-    /// when playback reaches it.
-    func holdLoop(selection: Range<Double>?) {
-        let wanted = PlaybackPosition.loop(selection: selection, cycle: cycle)
-        guard wanted != loop else { return }
-        applyLoop(wanted)
+    /// The model's state now: the selection and Цикл are the player's, the position and the transport the engine's.
+    var model: PlaybackModel.State {
+        PlaybackModel.State(selection: selection, loop: cycle, tick: tick, transport: state)
     }
 
-    /// Цикл turned on or off: the selection loops from here, or playback goes on past it.
-    func toggleCycle(selection: Range<Double>?) {
-        cycle.toggle()
-        holdLoop(selection: selection)
-    }
-
-    /// The cobalt Play, or Space with a selection (PlaybackPosition.playSelection).
-    func playSelection(_ selection: Range<Double>) {
-        holdLoop(selection: selection)
-        perform(PlaybackPosition.playSelection(selection, at: tick, playing: state != .stopped))
-    }
-
-    /// The ink Play, or Space with nothing selected (PlaybackPosition.playPiece).
-    func playPiece(selection: Range<Double>?) {
-        holdLoop(selection: selection)
-        let decided = PlaybackPosition.playPiece(selection: selection, at: tick, playing: state != .stopped, cycle: cycle)
-        cycle = decided.cycle
+    /// One event of the playback model: the engine gets its steps, and the selection and Цикл become what the model says;
+    /// the position and the transport come back from the engine.
+    func apply(_ event: PlaybackModel.Event) {
+        let decided = PlaybackModel.next(model, event)
+        selection = decided.state.selection
+        cycle = decided.state.loop
         perform(decided.steps)
-        // The engine has the loop the steps gave it.
-        loop = PlaybackPosition.loop(selection: selection, cycle: decided.cycle)
     }
 
-    /// The one position moved by a tap on a beat, the loop strip or the whole piece: anywhere, playing on from there when it
-    /// plays; `play` starts it from there.
+    /// The score's selection as it is now, after focus or with the experiment turned on: the model takes it (T9–T11), and
+    /// the engine loops what the model says again, in place of the loop another owner, such as focus, gave it.
+    func hold(selection range: Range<Double>?) {
+        apply(.select(range))
+        let wanted = PlaybackModel.engineLoop(model)
+        if wanted != loop { applyLoop(wanted) }
+    }
+
+    /// A tap on a beat, a bar or the whole-piece strip (T12): the position goes there, playing on from there when it plays,
+    /// and Цикл turns off when it leaves the selection; `play` starts it from there.
     func go(to at: Double, play: Bool) {
-        send(.seek(max(0, at)))
+        apply(.seek(at))
         if play && state == .stopped {
-            transportKept = true
-            send(.play)
+            perform([.play])
         }
     }
 
+    /// The model's steps to the engine; its loop goes through applyLoop, so `loop` says what the engine loops.
     private func perform(_ steps: [TransportStep]) {
         for step in steps {
             switch step {
@@ -230,9 +226,9 @@ final class Player: ObservableObject {
             case .seek(let at):
                 send(.seek(at))
             case .loop(let range):
-                send(.loop(start: range.lowerBound, end: range.upperBound, once: false))
+                applyLoop(range)
             case .loopOff:
-                send(.loopOff)
+                applyLoop(nil)
             }
         }
     }
