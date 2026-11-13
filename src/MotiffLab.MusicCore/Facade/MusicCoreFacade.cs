@@ -53,6 +53,8 @@ public sealed class MusicCoreFacade
     /// (<see cref="Import.LibraryRelink"/>), a call added; library.linked makes a piece of a PDF left in the player's folder
     /// and library.link moves an original to where it was found again, calls added; open takes "pdf" (base64) for a piece
     /// whose PDF is away (it answered "originalAway" before), and answers "otherFile" when the fingerprint differs.
+    /// Also within 12 (version 0.5.2, the iPad's one playback position), playback's beats answer "bar" and "beat" and its
+    /// bars "firstBeat", so an app writes a place as bar.beat as music-core counts it, fields added.
     /// 11 lets doubt about recognised notes reach what is read from them (#352, 0027 section 12), adding fields only: a
     /// chord, a fact and a DNA chord or key built on recognised notes still to check (in a bar with an open Check flag)
     /// tell "doubt", a sentence that says where, and the chord's "certainty" and the DNA chord's "clear" say uncertain;

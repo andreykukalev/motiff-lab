@@ -133,10 +133,22 @@ function theme(dark) {
     document.dispatchEvent(new Event(THEME_CHANGED));
 }
 
-/** Where the player is: its tick, and "playing", "paused" or "stopped". */
-function position({ tick, playing }) {
+/**
+ * Where the player is: its tick, and "playing", "paused" or "stopped"; with the lanes (v0.5.2) also the place written as
+ * bar.beat for the whole-piece strip and whether the selection loops (Цикл).
+ */
+function position({ tick, playing, label, looping }) {
     heard.tick = tick;
     heard.state = playing ? "playing" : "stopped";
+    view.setPlace(label ?? "", Boolean(looping));
+}
+
+/**
+ * The lanes of version 0.5.2 (#479 item 25), on under the modes outside phrase focus: one position, ink outside the
+ * selection and cobalt inside, the loop strip under the bar numbers and the whole piece over the roll.
+ */
+function lanes(on) {
+    view.setLanes(Boolean(on));
 }
 
 /** The selection, its span shaded and its notes lit, or none; and the span that loops, or none. */
@@ -183,5 +195,5 @@ function edit({ on, tool, picked }) {
     view.pickForEdit(on ? picked ?? null : null);
 }
 
-window.roll = { load, nextColour, colour, theme, position, selection, noteNames, highlight, fits, edit };
+window.roll = { load, nextColour, colour, theme, position, selection, noteNames, highlight, fits, edit, lanes };
 post("ready");

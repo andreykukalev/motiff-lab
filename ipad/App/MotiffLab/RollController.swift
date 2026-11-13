@@ -41,6 +41,8 @@ final class RollController: NSObject, ObservableObject {
     private var shownSelection: [String: Any]?
     private var shownHighlight: [[String: Any]] = []
     private var fits = false
+    /// The lanes of version 0.5.2 (#479 item 25): one position, the loop strip and the whole piece; under the modes, not in focus.
+    private var lanesOn = false
     /// The note editor as last shown: on or off, its tool and the note picked.
     private var editor: [String: Any] = ["on": false]
     /// How the notes were named when the roll was loaded: "auto", "letters" or "syllables" (the setting "notes.naming").
@@ -78,10 +80,20 @@ final class RollController: NSObject, ObservableObject {
         Task { await load() }
     }
 
-    /// Where the player is: the roll marks the keys sounding and keeps the playhead in view.
-    func position(_ tick: Double, playing: Bool) {
+    /// Where the player is: the roll marks the keys sounding and keeps the playhead in view. With the lanes, also the place as
+    /// bar.beat for the whole-piece strip and whether the selection loops (Цикл).
+    func position(_ tick: Double, playing: Bool, label: String = "", looping: Bool = false) {
         guard loaded else { return }
-        Task { _ = try? await webView.callAsyncJavaScript("return roll.position(data)", arguments: ["data": ["tick": tick, "playing": playing]], contentWorld: .page) }
+        let data: [String: Any] = ["tick": tick, "playing": playing, "label": label, "looping": looping]
+        Task { _ = try? await webView.callAsyncJavaScript("return roll.position(data)", arguments: ["data": data], contentWorld: .page) }
+    }
+
+    /// The lanes of version 0.5.2 on or off (#479 item 25): on under the modes outside phrase focus.
+    func lanes(_ on: Bool) {
+        guard on != lanesOn else { return }
+        lanesOn = on
+        guard loaded else { return }
+        Task { _ = try? await webView.callAsyncJavaScript("return roll.lanes(on)", arguments: ["on": on], contentWorld: .page) }
     }
 
     /// The selection, shaded with its notes lit, and the span that loops; nil for none.
@@ -188,6 +200,9 @@ final class RollController: NSObject, ObservableObject {
             colourBy = shown?["colourBy"] as? String ?? "hand"
             canChangeColour = ((shown?["modes"] as? [Any])?.count ?? 0) > 1
             loaded = true
+            if lanesOn {
+                _ = try? await webView.callAsyncJavaScript("return roll.lanes(on)", arguments: ["on": true], contentWorld: .page)
+            }
             if fits {
                 _ = try? await webView.callAsyncJavaScript("return roll.fits(on)", arguments: ["on": true], contentWorld: .page)
             }
@@ -268,6 +283,8 @@ struct RollDrawer: View {
     @ObservedObject var roll: RollController
     @ObservedObject var score: ScoreController
     let text: UIText
+    /// The selection's span as bar.beat, "9.1 – 12.3", under the one playback position (v0.5.2); nil for its bars.
+    var span: String?
     /// Expand: the phrase in focus as a roll (testing item 12).
     let expand: () -> Void
     let close: () -> Void
@@ -395,6 +412,7 @@ struct RollDrawer: View {
     /// "Piano roll · bars 9–16", or "Piano roll" with nothing selected.
     private var heading: String {
         guard let selection = score.selection else { return text["roll.heading"] }
+        if let span { return text.format("roll.headingBars", span) }
         let bars = selection.firstBar == selection.lastBar
             ? text.format("bars.one", String(selection.firstBar))
             : text.format("bars.range", String(selection.firstBar), String(selection.lastBar))

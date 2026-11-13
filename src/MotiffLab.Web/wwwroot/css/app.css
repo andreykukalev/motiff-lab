@@ -10418,47 +10418,53 @@ body:has(> #app > .library) {
     cursor: pointer;
 }
 
-/* The two playheads of version 0.5 (the experiment Two playheads and modes; Scripts/score/playheads.ts). The global one is
-   «Полоса»: a neutral column one beat wide behind the notes, with a cap above the system, solid while the bar's Play plays and
-   hollow when stopped. The selection's is a cobalt line with a knob inside its band. */
-.score .gcol {
-    position: absolute;
-    left: 0;
-    top: 0;
-    z-index: 0;
-    will-change: transform;
-    border-radius: var(--r-xs);
-    background: color-mix(in srgb, var(--ink) 20%, transparent);
-    pointer-events: none;
-}
-
-.score .gcap {
+/* The playheads of version 0.5 (the experiment Two playheads and modes; Scripts/score/playheads.ts; #479 item 19). The
+   piece's place is a short track under the system that plays, as wide as its bar, filled up to the place, with a dot on it:
+   solid while the piece plays, hollow when it stands. It is in the notation's dark ink, so it reads on the paper in both
+   themes, and covers no note; no bar fades. The selection's playhead is a cobalt line with a knob inside its band. */
+.score .gtrack {
     position: absolute;
     left: 0;
     top: 0;
     z-index: 2;
-    width: 14px;
-    height: 10px;
-    margin-left: -7px;
+    height: 2px;
+    border-radius: var(--r-xs);
     will-change: transform;
-    line-height: 0;
+    background: color-mix(in srgb, var(--notation) 24%, transparent);
     pointer-events: none;
 }
 
-.score .gcap svg {
-    display: block;
-    overflow: visible;
+.score .gtrack .fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    border-radius: inherit;
+    background: color-mix(in srgb, var(--notation) 62%, var(--paper));
 }
 
-.score .gcap path {
-    fill: var(--ink);
-    stroke: var(--ink);
-    stroke-width: 1.5;
-    stroke-linejoin: round;
+.score .gtrack .dot {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: var(--s-3);
+    height: var(--s-3);
+    margin: calc(var(--s-3) / -2) 0 0 calc(var(--s-3) / -2);
+    border-radius: 50%;
+    background: var(--notation);
+    box-shadow: 0 0 0 2px var(--paper);
 }
 
-.score .gcap.stop path {
-    fill: var(--paper);
+.score .gtrack.stop .dot {
+    background: var(--paper);
+    box-shadow: inset 0 0 0 2px var(--notation), 0 0 0 2px var(--paper);
+}
+
+/* Under the modes the notes sounding stay in the notation's ink, drawn heavier: cobalt is the selection's colour only. */
+.score[data-mode] g.note.playing, .score[data-mode] g.chord.playing {
+    fill: var(--notation);
+    stroke: var(--notation);
+    color: var(--notation);
 }
 
 .score .ph-sel {
@@ -10483,15 +10489,6 @@ body:has(> #app > .library) {
     background: var(--accent);
     box-shadow: 0 0 0 2px var(--surface-2);
     transform: translate(-50%, -50%);
-}
-
-/* While the bar's Play plays, the other bars fade to about a third (Settings · Experimental, a sub-option). */
-.score[data-mode] svg g.measure {
-    transition: opacity var(--t-base) var(--ease);
-}
-
-.score.fading svg g.measure:not(.lit) {
-    opacity: .32;
 }
 
 /* The bar's Play fills dark while the piece plays; the selection's Play, first in its menu, is a cobalt disc. */

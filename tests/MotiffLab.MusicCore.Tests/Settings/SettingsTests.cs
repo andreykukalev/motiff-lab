@@ -73,17 +73,15 @@ public class SettingsTests
     }
 
     [Fact]
-    public void The_playheads_experiment_is_off_on_the_device_and_its_fade_is_on_inside_it()
+    public void The_playheads_experiment_is_off_on_the_device_and_has_no_fade_any_more()
     {
-        foreach (string id in new[] { "experimental.playheads", "experimental.playheadsFade" })
-        {
-            Setting setting = SettingsCatalogue.Get(id);
-            Assert.Equal(SettingSection.Experimental, setting.Section);
-            Assert.Equal(SettingScope.Device, setting.Scope);
-        }
-
+        Setting setting = SettingsCatalogue.Get("experimental.playheads");
+        Assert.Equal(SettingSection.Experimental, setting.Section);
+        Assert.Equal(SettingScope.Device, setting.Scope);
         Assert.False(SettingsState.Default.IsOn("experimental.playheads"));
-        Assert.True(SettingsState.Default.IsOn("experimental.playheadsFade"));
+
+        // The fade of the other bars went in v0.5.2 (#479 item 19); a device that kept the switch reads past it.
+        Assert.Null(SettingsCatalogue.Find("experimental.playheadsFade"));
     }
 
     [Fact]
