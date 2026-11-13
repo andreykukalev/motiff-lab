@@ -455,8 +455,9 @@ final class PlaybackEngineTests: XCTestCase {
 
     func testPlayAfterADragStartsCleanFromWhereItWent() {
         let e = engine()
-        // Past the end of the notes it struck, so playback has none of them still sounding to strike again.
-        chords(e, [(480, 240, 60), (960, 240, 64), (1440, 240, 67)])
+        // Past the end of the notes it struck, so playback has none of them still sounding to strike again. The note
+        // played next is middle C, the test sample's own pitch, so its spike lands `spike` frames after its start.
+        chords(e, [(480, 240, 62), (960, 240, 64), (1440, 240, 60)])
         e.handle(.scrub(from: 0, to: 1250))
         _ = e.render(frames: 1024)
         e.handle(.play)
