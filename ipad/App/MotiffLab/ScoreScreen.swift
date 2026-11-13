@@ -394,11 +394,7 @@ struct ScoreScreen: View {
         // on from there when it plays; in focus it stays inside the loop. Notes are edited only in the roll (#479 item 23).
         score.placeTapped = { [weak heard, weak shown] beat in
             guard let heard, let shown else { return }
-            if shown.onePosition {
-                heard.go(to: beat.lowerBound, play: false)
-            } else {
-                heard.seek(to: Player.place(beat.lowerBound, inside: heard.loop))
-            }
+            if shown.onePosition { heard.go(to: beat.lowerBound, play: false) } else { heard.seek(to: Player.place(beat.lowerBound, inside: heard.loop)) }
         }
         // A flag tapped on the score opens Check on its bar.
         let checking = $checkOpen
