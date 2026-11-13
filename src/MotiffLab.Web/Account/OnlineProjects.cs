@@ -22,7 +22,7 @@ namespace MotiffLab.Web.Account;
 /// another device is never overwritten unseen. Nothing is sent while signed out or with saving online off, and nothing
 /// other than the project files and the player's sign-in.
 /// </remarks>
-public sealed class OnlineProjects(CloudAccount account, Preferences preferences, UiText text) : IDisposable
+public sealed class OnlineProjects(CloudAccount account, Preferences preferences, UiText text, TestReset reset) : IDisposable
 {
     private const string OnKey = "ml-online";
 
@@ -106,9 +106,15 @@ public sealed class OnlineProjects(CloudAccount account, Preferences preferences
         try
         {
             using HttpResponseMessage response = await _http.SendAsync(request);
-            return response.IsSuccessStatusCode
-                ? (await response.Content.ReadFromJsonAsync<OnlineRow[]>() ?? [], null)
-                : (null, text[Problem(response.StatusCode)]);
+            if (!response.IsSuccessStatusCode)
+            {
+                return (null, text[Problem(response.StatusCode)]);
+            }
+
+            // Everything was cleared from another device (TestReset): this library goes too, before anything syncs.
+            return ResetsHere && await reset.ApplyAsync(response)
+                ? (null, text["testLibrary.clearedElsewhere"])
+                : (await response.Content.ReadFromJsonAsync<OnlineRow[]>() ?? [], null);
         }
         catch (HttpRequestException)
         {
@@ -170,6 +176,12 @@ public sealed class OnlineProjects(CloudAccount account, Preferences preferences
             return false;
         }
 
+        if (ResetsHere)
+        {
+            // So the API refuses a piece from before a reset this browser has not applied yet (TestReset).
+            request.Headers.TryAddWithoutValidation(TestReset.SeenHeader, await reset.AppliedAsync());
+        }
+
         DateTimeOffset sent = DateTimeOffset.UtcNow;
         try
         {
@@ -195,6 +207,10 @@ public sealed class OnlineProjects(CloudAccount account, Preferences preferences
                 // Changed on another device since this one saw it: the next sync fetches it and keeps both.
                 await NoteAsync(copy.Id, await RecordAsync(copy.Id) with { SavedAt = null });
                 SetStatus("online.changedElsewhere");
+            }
+            else if (response.StatusCode == HttpStatusCode.Conflict && ResetsHere && await reset.ApplyAsync(response))
+            {
+                SetStatus("testLibrary.clearedElsewhere");
             }
             else
             {
@@ -282,9 +298,10 @@ public sealed class OnlineProjects(CloudAccount account, Preferences preferences
     }
 
     /// <summary>
-    /// Deletes the signed-in player's copies in the test database (the API's DELETE /me, their profile there too), for
-    /// «Очистить тестовую библиотеку» on the test site. Only on develop's own API (<see cref="IsDevelopApi"/>): a test
-    /// site still on the main servers deletes nothing online. Saving online stays as it was.
+    /// Deletes the signed-in player's copies in the test database and tells their other devices to clear their test
+    /// library at their next sync (the API's POST /me/reset, their profile there too), for «Очистить всё» on the test site.
+    /// This browser keeps the reset's stamp at once, so it does not clear again. Only on develop's own API
+    /// (<see cref="IsDevelopApi"/>): a test site still on the main servers deletes nothing online. Saving online stays as it was.
     /// </summary>
     public async Task<TestCopies> DeleteTestCopiesAsync()
     {
@@ -293,16 +310,22 @@ public sealed class OnlineProjects(CloudAccount account, Preferences preferences
             return TestCopies.SignedOut;
         }
 
-        if (!IsDevelopApi(account.Options.Api))
+        if (!ResetsHere)
         {
             return TestCopies.NotDevelop;
         }
 
-        using HttpRequestMessage request = await RequestAsync(HttpMethod.Delete, "me");
+        using HttpRequestMessage request = await RequestAsync(HttpMethod.Post, "me/reset");
         try
         {
             using HttpResponseMessage response = await _http.SendAsync(request);
-            return response.IsSuccessStatusCode ? TestCopies.Deleted : TestCopies.Failed;
+            if (!response.IsSuccessStatusCode)
+            {
+                return TestCopies.Failed;
+            }
+
+            await reset.RecordAsync(response);
+            return TestCopies.Deleted;
         }
         catch (HttpRequestException)
         {
@@ -314,6 +337,9 @@ public sealed class OnlineProjects(CloudAccount account, Preferences preferences
     public static bool IsDevelopApi(string address) =>
         Uri.TryCreate(address, UriKind.Absolute, out Uri? uri) && uri.Scheme == Uri.UriSchemeHttps
         && uri.Host.StartsWith("ca-motifflab-api-dev.", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Whether «Очистить всё» reaches this browser (<see cref="TestReset"/>): only with develop's own API.</summary>
+    private bool ResetsHere => IsDevelopApi(account.Options.Api);
 
     public void Dispose()
     {

@@ -155,7 +155,7 @@
   "testLibrary.cleared.one": "{0} piece deleted: the test library on this iPad is empty.",
   "testLibrary.clearedFailed.many": "{0} files could not be deleted; try again.",
   "testLibrary.clearedFailed.one": "{0} file could not be deleted; try again.",
-  "testLibrary.confirmMessage": "All pieces of the test environment on this iPad are deleted: their project files, marks and sync records, the folders added for import and the copies kept for playlists. Signed in, your copies in the test database go too. Your original files (PDFs, recordings, folders added by link) are never touched, and the Main library stays as it is. This cannot be undone.",
-  "testLibrary.hint": "Only in the test environment: an empty library on this iPad for a new testing cycle. Empty the test database first.",
+  "testLibrary.confirmMessage": "Your copies in the test database and the test library on this iPad are deleted: its project files, marks and sync records, the folders added for import and the copies kept for playlists. The test library on your other devices (the web test site, another iPad) is cleared the next time they open the library or sync with this account. Signed out, only this iPad is cleared. Your original files (PDFs, recordings, folders added by link) are never touched, and the Main library stays as it is. This cannot be undone.",
+  "testLibrary.hint": "Only in the test environment, for a new testing cycle: empties your data in the test database and the test library on every device you sign in with.",
   "testLibrary.notTest": "The iPad is not working in the test environment: nothing was deleted."
 }

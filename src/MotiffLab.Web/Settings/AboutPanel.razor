@@ -5,9 +5,10 @@
 @implements IAsyncDisposable
 
 @* Settings · About (Andrei, 2026-11-13): which build this is, to tell that the latest version is here (BuildInfo, written at
-   build time by MotiffLab.Web.csproj), and where it works. On the web test site only, «Очистить тестовую библиотеку»: an
-   empty library in this browser for a new testing cycle (Scripts/storage/test-library.ts; infra/README.md, "A fresh
-   testing cycle"). *@
+   build time by MotiffLab.Web.csproj), and where it works. On the web test site only, «Очистить всё»: for a new testing
+   cycle, the player's data in the test database and an empty library in this browser, and every other device of theirs
+   clears its own test library at its next sync (Account/TestReset.cs, Scripts/storage/test-library.ts; infra/README.md,
+   "A fresh testing cycle"). *@
 <div class="set-row">
     <span class="label">@Text["about.version"]</span>
     <span class="about-value">@VersionText</span>

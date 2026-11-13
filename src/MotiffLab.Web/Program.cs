@@ -38,6 +38,7 @@ builder.Services.AddScoped<MotiffLab.Web.Library.RecognitionPick>();
 AccountOptions account = builder.Configuration.GetSection("Account").Get<AccountOptions>() ?? new AccountOptions();
 builder.Services.AddSingleton(account);
 builder.Services.AddScoped<CloudAccount>();
+builder.Services.AddScoped<TestReset>();
 builder.Services.AddScoped<OnlineProjects>();
 builder.Services.AddScoped<CloudSync>();
 if (account.IsConfigured)

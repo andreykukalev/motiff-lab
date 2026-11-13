@@ -229,18 +229,26 @@ final class Account: ObservableObject {
         mainWritesAllowed = allowed
     }
 
-    /// The signed-in player's copies in the Test database deleted with the API's DELETE /me (the profile kept there goes
-    /// too), for «Очистить тестовую библиотеку». Only in Test and only on develop's own API (`TestLibrary.deletesOnline`):
-    /// nothing is ever asked of Main's database.
+    /// The signed-in player's copies in the Test database deleted with the API's POST /me/reset (the profile kept there goes
+    /// too), for «Очистить всё»; the reset's stamp is kept as applied here at once, so this iPad does not clear again, and
+    /// the player's other devices clear their test library at their next sync (`TestReset`). Only in Test and only on
+    /// develop's own API (`TestLibrary.deletesOnline`): nothing is ever asked of Main's database.
     func deleteTestCopies() async -> TestLibrary.Online {
         guard player != nil else { return .signedOut }
         guard TestLibrary.deletesOnline(setup, in: environment) else { return .notDevelop }
-        guard var request = await apiRequest("me", in: .test) else { return .failed }
-        request.httpMethod = "DELETE"
+        guard var request = await apiRequest("me/reset", in: .test) else { return .failed }
+        request.httpMethod = "POST"
         request.timeoutInterval = Self.coldStartTimeout
-        guard let answer = try? await session.data(for: request), (answer.1 as? HTTPURLResponse)?.statusCode == 200 else { return .failed }
+        guard let answer = try? await session.data(for: request), let response = answer.1 as? HTTPURLResponse, response.statusCode == 200
+        else { return .failed }
+        if let stamp = TestReset.stamp(response.value(forHTTPHeaderField: TestReset.header)) { resetApplied(stamp) }
         if environment == .test { profile = nil }
         return .deleted
+    }
+
+    /// Keeps a reset stamp as applied in Test (`TestReset`): after this iPad's own «Очистить всё», or one from another device.
+    func resetApplied(_ stamp: Int64) {
+        TestReset.record(stamp, in: defaults, environment: .test)
     }
 
     /// Tells the library that the Test library was cleared.
@@ -438,10 +446,13 @@ final class Account: ObservableObject {
     /// The projects the player saved online in the environment the app works in now, with their token on any plan (0014):
     /// listed, fetched and sent by the sync (version 0.2, `CloudSync`), never deleted from the iPad (but for clearing the test
     /// library in Test, `deleteTestCopies`). Its requests stop once
-    /// the app switches environment, and it sends nothing where the app may not write (Main in a version build).
+    /// the app switches environment, and it sends nothing where the app may not write (Main in a version build). In Test on
+    /// develop's API it also hears of «Очистить всё» from another device (`TestReset`).
     var online: OnlineProjects {
         let environment = self.environment
-        return OnlineProjects(session: session, request: { [weak self] path in await self?.apiRequest(path, in: environment) }, writable: writes)
+        let resets: Int64? = TestReset.applies(setup, in: environment) ? TestReset.applied(defaults, in: environment) : nil
+        return OnlineProjects(
+            session: session, request: { [weak self] path in await self?.apiRequest(path, in: environment) }, writable: writes, resetApplied: resets)
     }
 
     /// Adds a tester's choice to a request for the API or the hosted scan server; nothing when there is none.
