@@ -10,11 +10,14 @@ import {
     densify,
     eraseAlong,
     framesByTick,
+    NO_RUBBING,
     nearestBar,
     outlinePath,
     placeMark,
     radiusAt,
     readMarks,
+    rubAlong,
+    rubbedMarks,
     touches,
     writeMarks,
 } from "../../src/MotiffLab.Web/wwwroot/js/score/pencil-marks.js";
@@ -230,4 +233,57 @@ test("the eraser cuts a stroke where it passes and leaves the rest (#479 item 7)
     assert.equal(pieces[1].at(-1).x, 100);
     assert.equal(eraseAlong(line, 1, [{ x: 50, y: 40 }], 5), null, "a path that misses leaves the stroke alone");
     assert.deepEqual(eraseAlong(line, 1, [{ x: -10, y: 0 }, { x: 110, y: 0 }], 5), [], "a path along it takes all of it");
+});
+
+// The eraser rubs out as it moves (BUG-05): each move cuts at once from where the last left off, and the press is one step.
+const rubFrames = [bar(0, 0, 400, 50), bar(1920, 0, 400, 250)];
+const rubLayout = (() => {
+    let next = 0;
+    return { frames: rubFrames, byTick: framesByTick(rubFrames), reach: 5, newId: () => `p${++next}` };
+})();
+const across = (y, id = "m1") => anchorMark(rubFrames, Array.from({ length: 11 }, (_, i) => ({ x: 100 + i * 20, y, pressure: 0.5 })), { ...style, id });
+
+test("each move of the eraser cuts at once, and a piece cut again is replaced, not counted twice (BUG-05)", () => {
+    const marks = [across(70)];
+    const first = rubAlong(NO_RUBBING, marks, [{ x: 200, y: 60 }, { x: 200, y: 80 }], rubLayout);
+    assert.equal(first.cut, true, "the first move takes what it passes over");
+    assert.deepEqual(first.rubbing.removed.map((mark) => mark.id), ["m1"]);
+    assert.equal(first.rubbing.pieces.length, 2, "both ends are left");
+    const shown = rubbedMarks(first.rubbing, marks);
+    assert.deepEqual(shown.map((mark) => mark.id), first.rubbing.pieces.map((mark) => mark.id), "the page shows the pieces, not the mark");
+    assert.ok(shown.every((mark) => mark.colour === "carmine" && mark.size === 0.2 && mark.bar === 0));
+
+    // Round below the line and up across it again further right.
+    const second = rubAlong(first.rubbing, marks, [{ x: 200, y: 100 }, { x: 260, y: 100 }, { x: 260, y: 60 }], rubLayout);
+    assert.equal(second.cut, true);
+    assert.deepEqual(second.rubbing.removed.map((mark) => mark.id), ["m1"], "only the saved mark goes when the eraser lifts");
+    assert.equal(second.rubbing.pieces.length, 3, "a second pass cuts the right-hand piece in two");
+    assert.ok(second.rubbing.pieces.every((piece) => !first.rubbing.pieces.slice(1).some((old) => old.id === piece.id)));
+
+    const missed = rubAlong(second.rubbing, marks, [{ x: 260, y: 20 }], rubLayout);
+    assert.equal(missed.cut, false, "a move over nothing takes nothing");
+    assert.equal(missed.rubbing.pieces.length, 3);
+    assert.deepEqual(rubAlong(NO_RUBBING, marks, [], rubLayout), { rubbing: NO_RUBBING, cut: false });
+});
+
+test("the eraser rubs out between the points it reports, so a fast move leaves no gap (BUG-05)", () => {
+    const marks = [across(70)];
+    // Neither point is near the line; the way between them crosses it.
+    const down = rubAlong(NO_RUBBING, marks, [{ x: 200, y: 20 }], rubLayout);
+    assert.equal(down.cut, false);
+    const moved = rubAlong(down.rubbing, marks, [{ x: 210, y: 130 }], rubLayout);
+    assert.equal(moved.cut, true, "the move from the last point to this one passes over the line");
+    assert.equal(moved.rubbing.pieces.length, 2);
+});
+
+test("one press takes several marks, short and long, on any bar it passes (BUG-05)", () => {
+    const dot = anchorMark(rubFrames, [{ x: 300, y: 270, pressure: 0.5 }, { x: 301, y: 270, pressure: 0.5 }], { ...style, id: "dot" });
+    const marks = [across(70, "top"), across(270, "low"), dot];
+    const down = rubAlong(NO_RUBBING, marks, [{ x: 300, y: 40 }, { x: 300, y: 300 }], rubLayout);
+    assert.deepEqual(down.rubbing.removed.map((mark) => mark.id), ["top", "low", "dot"]);
+    assert.ok(down.rubbing.pieces.every((piece) => piece.id !== "dot"), "a short mark under the eraser goes whole");
+    assert.deepEqual(new Set(down.rubbing.pieces.map((piece) => piece.bar)), new Set([0, 1920]), "each piece is kept against its own bar");
+    // The saved list may already hold the pieces (music-core's answer): they are not shown twice.
+    const saved = [...rubbedMarks(down.rubbing, marks)];
+    assert.equal(rubbedMarks(down.rubbing, saved).length, saved.length);
 });

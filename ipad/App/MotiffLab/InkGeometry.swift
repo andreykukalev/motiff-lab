@@ -106,6 +106,22 @@ enum InkOutline {
     }
 }
 
+/// One step Undo takes back: the strokes a stroke of the pen or a press of the eraser added, by id, and the strokes the
+/// eraser took, whole, as music-core keeps them, to put back. A press of the eraser is one step, however much it took
+/// (BUG-05).
+struct InkStep {
+    var added: [String]
+    var removed: [[String: Any]] = []
+
+    /// Takes the step back through `change(call, request, draws)`: the strokes it added go, then the strokes it took come
+    /// back, the answer drawn only at the last call, so a press of the eraser comes back whole at once.
+    @MainActor
+    func undo(remove: String, add: String, through change: (String, [String: Any], Bool) async -> Void) async {
+        if !added.isEmpty { await change(remove, ["ids": added], removed.isEmpty) }
+        if !removed.isEmpty { await change(add, ["strokes": removed], true) }
+    }
+}
+
 /// What is left of a stroke after the eraser passed along a path (#479 item 7): the runs of its centre line farther from
 /// the path than the eraser's reach and the stroke's own half-thickness, as a real eraser leaves a line in pieces. The
 /// line is first walked in short steps, so a cut can fall between two of its points. The same as the score page's
@@ -115,6 +131,7 @@ enum InkSplit {
     static func pieces(_ samples: [InkSample], radius: Double, path: [CGPoint], reach: Double) -> [[InkSample]]? {
         guard !samples.isEmpty, !path.isEmpty else { return nil }
         let limit = reach + radius
+        guard near(bounds(samples.map(\.point)), bounds(path), within: limit) else { return nil }
         let walked = densified(samples, step: max(0.5, limit / 2))
         let gone = walked.map { distance(from: $0.point, to: path) <= limit }
         guard gone.contains(true) else { return nil }
@@ -130,6 +147,22 @@ enum InkSplit {
         }
         if run.count > 1 { pieces.append(run) }
         return pieces
+    }
+
+    /// The box round the points (a point's box has no size): a quick no before every point is measured.
+    static func bounds(_ points: [CGPoint]) -> CGRect {
+        guard let first = points.first else { return .null }
+        var box = CGRect(origin: first, size: .zero)
+        for point in points.dropFirst() {
+            box = box.union(CGRect(origin: point, size: .zero))
+        }
+        return box
+    }
+
+    /// Whether two boxes come within `gap` of each other.
+    static func near(_ a: CGRect, _ b: CGRect, within gap: Double) -> Bool {
+        let reach = CGFloat(gap)
+        return a.minX - reach <= b.maxX && b.minX - reach <= a.maxX && a.minY - reach <= b.maxY && b.minY - reach <= a.maxY
     }
 
     /// The stroke's points with more between any two further apart than `step`, their pressure taken along the line.

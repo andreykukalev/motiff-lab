@@ -375,6 +375,9 @@ export function eraseAlong(
         return null;
     }
     const limit = reach + radius;
+    if (!boxesMeet(points, path, limit)) {
+        return null;
+    }
     const walked = densify(points, Math.max(0.5, limit / 2));
     const gone = walked.map((point) => distanceToPath(path, point.x, point.y) <= limit);
     if (!gone.includes(true)) {
@@ -396,6 +399,90 @@ export function eraseAlong(
         pieces.push(run);
     }
     return pieces;
+}
+
+/** Whether two sets of points' boxes come within `gap` of each other: a quick no before measuring every point. */
+function boxesMeet(a: ReadonlyArray<{ x: number; y: number }>, b: ReadonlyArray<{ x: number; y: number }>, gap: number): boolean {
+    const box = (points: ReadonlyArray<{ x: number; y: number }>) => {
+        const edges = { left: Infinity, right: -Infinity, top: Infinity, bottom: -Infinity };
+        for (const point of points) {
+            edges.left = Math.min(edges.left, point.x);
+            edges.right = Math.max(edges.right, point.x);
+            edges.top = Math.min(edges.top, point.y);
+            edges.bottom = Math.max(edges.bottom, point.y);
+        }
+        return edges;
+    };
+    const one = box(a);
+    const two = box(b);
+    return one.left - gap <= two.right && two.left - gap <= one.right && one.top - gap <= two.bottom && two.top - gap <= one.bottom;
+}
+
+/**
+ * One press of the eraser while it lasts (the iPad, BUG-05): the eraser rubs out as it moves, not when it lifts. Each move
+ * cuts what it passes over at once (eraseAlong, from where the last move left off), and the page shows the marks so
+ * (rubbedMarks); when it lifts, the cut marks go and the pieces are saved as one step, which Undo takes back whole.
+ */
+export interface Rubbing {
+    /** The saved marks it cut, whole: to take away when it lifts, and to put back on Undo. */
+    readonly removed: readonly PencilMark[];
+    /** What is left of them, kept against their bars again, not saved yet. */
+    readonly pieces: readonly PencilMark[];
+    /** Where the eraser was at its last move; null before the first. */
+    readonly last: { x: number; y: number } | null;
+}
+
+/** A press of the eraser that has taken nothing yet. */
+export const NO_RUBBING: Rubbing = { removed: [], pieces: [], last: null };
+
+/** The marks as they look while the eraser is pressed: the saved ones without those it cut, and the pieces left. */
+export function rubbedMarks(rubbing: Rubbing, marks: readonly PencilMark[]): PencilMark[] {
+    if (rubbing.removed.length === 0 && rubbing.pieces.length === 0) {
+        return [...marks];
+    }
+    const gone = new Set([...rubbing.removed, ...rubbing.pieces].map((mark) => mark.id));
+    return [...marks.filter((mark) => !gone.has(mark.id)), ...rubbing.pieces];
+}
+
+/**
+ * The eraser moved on to `points` (content pixels) from where it was: what it has cut now. A mark it cuts is replaced by
+ * what is left of it, each piece in the mark's tool, ink and size; a piece cut again is replaced in turn, and only a saved
+ * mark goes to `removed`. `cut` says whether this move took anything, so the page is drawn again only then.
+ */
+export function rubAlong(
+    rubbing: Rubbing,
+    marks: readonly PencilMark[],
+    points: ReadonlyArray<{ x: number; y: number }>,
+    layout: { frames: readonly BarFrame[]; byTick: ReadonlyMap<number, BarFrame>; reach: number; newId: () => string },
+): { rubbing: Rubbing; cut: boolean } {
+    if (points.length === 0) {
+        return { rubbing, cut: false };
+    }
+    const path = rubbing.last === null ? [...points] : [rubbing.last, ...points];
+    const last = points[points.length - 1];
+    const removed = [...rubbing.removed];
+    let pieces = [...rubbing.pieces];
+    let cut = false;
+    for (const mark of rubbedMarks(rubbing, marks)) {
+        const place = placeMark(mark, layout.byTick);
+        const left = place === null ? null : eraseAlong(place.points, place.radius, path, layout.reach);
+        if (left === null) {
+            continue;
+        }
+        cut = true;
+        if (pieces.some((piece) => piece.id === mark.id)) {
+            pieces = pieces.filter((piece) => piece.id !== mark.id);
+        } else {
+            removed.push(mark);
+        }
+        for (const run of left) {
+            const kept = anchorMark(layout.frames, run, { id: layout.newId(), tool: mark.tool, colour: mark.colour, size: mark.size });
+            if (kept !== null) {
+                pieces.push(kept);
+            }
+        }
+    }
+    return { rubbing: { removed, pieces, last: { x: last.x, y: last.y } }, cut };
 }
 
 const TOOLS: ReadonlySet<string> = new Set<MarkTool>(["pen", "highlighter"]);

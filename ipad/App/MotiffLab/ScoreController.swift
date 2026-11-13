@@ -271,8 +271,13 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     private let text = UIText.current
     /// Pixels between two staff lines on screen, for the width of the live stroke.
     private var staffSpace: CGFloat = 8
-    /// The strokes added here, newest last, for Undo.
-    private var added: [String] = []
+    /// What the pen and the eraser did here, newest last, for Undo: a stroke kept, or a press of the eraser (BUG-05).
+    private var steps: [InkStep] = []
+    /// The page's ink changes, one after another: strokes kept, the eraser's moves and saves, Undo.
+    private let inkQueue = InkQueue()
+    /// The eraser's points not yet sent to the page, in the page's pixels, and whether a send is waiting in the queue.
+    private var rubPoints: [[String: Double]] = []
+    private var rubQueued = false
     /// Verovio's options for the card at its width now, as the page gives them.
     private var cardOptions: String?
     /// The places ringed for the fact chosen in Insights.
@@ -310,6 +315,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         ink.attach(to: webView, pan: webView.scrollView.panGestureRecognizer)
         ink.style = { [weak self] point in self?.liveStyle(at: point) }
         ink.ended = { [weak self] samples in self?.strokeEnded(samples) }
+        ink.rubs = { [weak self] in self?.tool == .eraser }
+        ink.rubbed = { [weak self] points, lifted in self?.rubbed(points, lifted: lifted) }
         ink.handles = { [weak self] in self?.handlesInView() ?? [] }
         ink.pencil.perform = { [weak self] action, point in self?.pencilGesture(action, at: point) }
         applyInput()
@@ -341,10 +348,16 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         if pageReady { Task { await render() } }
     }
 
+    /// Takes back the last step, after any change still being saved: a stroke goes, and a press of the eraser is put back
+    /// whole, the pieces it left taken away and the marks it cut kept again (BUG-05).
     func undo() {
-        guard let last = added.popLast(), let piece else { return }
-        canUndo = !added.isEmpty
-        Task { await change(piece.id, "ink.remove", ["ids": [last]]) }
+        inkQueue.then { [weak self] in
+            guard let self, let piece = self.piece, let last = self.steps.popLast() else { return }
+            self.canUndo = !self.steps.isEmpty
+            await last.undo(remove: "ink.remove", add: "ink.add") { call, request, draws in
+                await self.change(piece.id, call, request, draws: draws)
+            }
+        }
     }
 
     // MARK: - The page
@@ -1842,59 +1855,91 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         _ = try? await webView.callAsyncJavaScript("return motiff.notes(data)", arguments: ["data": ["notes": notes, "highlights": highlights]], contentWorld: .page)
     }
 
-    private func change(_ piece: Int32, _ call: String, _ request: [String: Any]) async {
+    /// A change to the marks through music-core; the answer is drawn unless `draws` is false, for the first of two calls
+    /// that make one change, so the page never shows it half done.
+    private func change(_ piece: Int32, _ call: String, _ request: [String: Any], draws: Bool = true) async {
         guard let data = try? JSONSerialization.data(withJSONObject: request) else { return }
         let text = String(decoding: data, as: UTF8.self)
         let answer = await MusicCore.run { MusicCore.call(piece: piece, call, text) }
-        await draw(answer)
+        if draws { await draw(answer) }
     }
 
     // MARK: - Strokes
 
     /// A stroke the pen finished (InkInput), its points in the web view's coordinates: in the page's pixels, then kept as
-    /// a mark or, with the eraser, what it passed over cut away. The pen covers the whole page, so the Pencil writes in the
-    /// margins too: a stroke begun left or right of a line is kept against the line's first or last bar and drawn from that
-    /// edge of its line in any layout (`anchorMark` and `placeMark` in pencil-marks.ts), and music-core keeps its points
-    /// thinned (`ink.add`). The stroke written stays over the page until the page draws it as kept.
+    /// a mark. The pen covers the whole page, so the Pencil writes in the margins too: a stroke begun left or right of a
+    /// line is kept against the line's first or last bar and drawn from that edge of its line in any layout (`anchorMark`
+    /// and `placeMark` in pencil-marks.ts), and music-core keeps its points thinned (`ink.add`). The stroke written stays
+    /// over the page until the page draws it as kept.
     private func strokeEnded(_ samples: [InkSample]) {
         guard let piece, shown, !samples.isEmpty else {
             ink.live.dropOldest()
             return
         }
-        let zoom = max(webView.scrollView.zoomScale, 0.01)
         let points: [[String: Double]] = samples.map { sample in
-            let inPage = webView.scrollView.convert(sample.point, from: webView)
-            return ["x": inPage.x / zoom, "y": inPage.y / zoom, "pressure": sample.pressure]
+            var point = pagePoint(sample.point)
+            point["pressure"] = sample.pressure
+            return point
         }
         let tool = tool
-        Task {
+        inkQueue.then { [weak self] in
+            guard let self else { return }
             switch tool {
-            case .eraser:
-                ink.live.dropOldest()
-                await erase(piece.id, points)
             case .pen(let colour):
-                await add(piece.id, points, tool: "pen", colour: colour.rawValue, width: penWidth)
-                ink.live.dropOldest()
+                await self.add(piece.id, points, tool: "pen", colour: colour.rawValue, width: self.penWidth)
             case .highlighter:
-                await add(piece.id, points, tool: "highlighter", colour: "amber", width: highlighterWidth)
-                ink.live.dropOldest()
+                await self.add(piece.id, points, tool: "highlighter", colour: "amber", width: self.highlighterWidth)
+            case .eraser:
+                // The eraser rubs out as it moves (`rubbed`); a stroke written before it was chosen is not kept.
+                break
             }
+            self.ink.live.dropOldest()
         }
     }
 
-    /// The eraser cuts the marks it passed over (#479 item 7): what is left of each is kept as new marks, then the marks
-    /// it touched go.
-    private func erase(_ piece: Int32, _ points: [[String: Double]]) async {
-        guard let cut = try? await webView.callAsyncJavaScript("return motiff.eraseAlong(data)", arguments: ["data": ["points": points]], contentWorld: .page) as? [String: Any],
-              let removed = cut["removed"] as? [String], !removed.isEmpty
+    /// A point of the web view in the page's pixels, as the page measures its bars and marks.
+    private func pagePoint(_ point: CGPoint) -> [String: Double] {
+        let zoom = max(webView.scrollView.zoomScale, 0.01)
+        let inPage = webView.scrollView.convert(point, from: webView)
+        return ["x": inPage.x / zoom, "y": inPage.y / zoom]
+    }
+
+    /// The eraser moved (InkInput, BUG-05): the page takes the marks under it at once (`motiff.rub`), cutting them where
+    /// it passes (#479 item 7), with nothing drawn for the eraser itself; when it lifts, the press is saved as one step.
+    /// Points that come while the page is still busy go together in the next send, so a fast eraser never queues up.
+    private func rubbed(_ points: [CGPoint], lifted: Bool) {
+        rubPoints += points.map(pagePoint)
+        if !rubQueued, !rubPoints.isEmpty {
+            rubQueued = true
+            inkQueue.then { [weak self] in await self?.sendRub() }
+        }
+        if lifted {
+            let piece = piece?.id
+            inkQueue.then { [weak self] in await self?.endRub(piece) }
+        }
+    }
+
+    private func sendRub() async {
+        rubQueued = false
+        let points = rubPoints
+        rubPoints = []
+        guard !points.isEmpty else { return }
+        _ = try? await webView.callAsyncJavaScript("return motiff.rub(data)", arguments: ["data": ["points": points]], contentWorld: .page)
+    }
+
+    /// The eraser lifted: what the press did is saved as one step (`ink.add` for the pieces left, `ink.remove` for the
+    /// marks it cut, drawn once both are done), and Undo puts it back whole.
+    private func endRub(_ piece: Int32?) async {
+        guard let cut = try? await webView.callAsyncJavaScript("return motiff.rubEnd()", contentWorld: .page) as? [String: Any],
+              let removed = cut["removed"] as? [[String: Any]], !removed.isEmpty, let piece
         else { return }
         let pieces = cut["added"] as? [[String: Any]] ?? []
         if !pieces.isEmpty {
-            await change(piece, "ink.add", ["strokes": pieces])
+            await change(piece, "ink.add", ["strokes": pieces], draws: false)
         }
-        added.removeAll { removed.contains($0) }
-        canUndo = !added.isEmpty
-        await change(piece, "ink.remove", ["ids": removed])
+        await change(piece, "ink.remove", ["ids": removed.compactMap { $0["id"] as? String }])
+        steps.append(InkStep(added: pieces.compactMap { $0["id"] as? String }, removed: removed))
+        canUndo = true
     }
 
     /// The mark `motiff.anchor` makes goes to `ink.add` as it is, its `margin` (v0.4) with it when the page sets one.
@@ -1903,7 +1948,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         guard let mark = try? await webView.callAsyncJavaScript("return motiff.anchor(data)", arguments: ["data": request], contentWorld: .page) as? [String: Any],
               let id = mark["id"] as? String
         else { return }
-        added.append(id)
+        steps.append(InkStep(added: [id]))
         canUndo = true
         await change(piece, "ink.add", ["strokes": [mark]])
     }
@@ -1956,7 +2001,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
 
     /// How the stroke beginning now looks while it is written: as the page will draw it at this zoom (InkOutline), the
     /// pencil in its ink with the page's grain from the page's top left corner, the highlighter opaque on a layer as
-    /// translucent as the page's, the eraser a light trail as wide as it reaches.
+    /// translucent as the page's. The eraser draws nothing: what it takes goes from the page as it moves (BUG-05).
     private func liveStyle(at point: CGPoint) -> LiveInkView.Style? {
         let zoom = webView.scrollView.zoomScale
         let theme = UITraitCollection(userInterfaceStyle: dark ? .dark : .light)
@@ -1975,15 +2020,9 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
                 radius: PenSizes.highlighter[highlighterWidth] * space / 2, followsPressure: false, alpha: PenSizes.highlighterAlpha
             )
         case .eraser:
-            return LiveInkView.Style(
-                colour: DesignTokens.color("ink-graphite").withAlphaComponent(0.25),
-                radius: Self.eraserReach * Double(zoom), followsPressure: false
-            )
+            return nil
         }
     }
-
-    /// How far the eraser reaches from its path, in the page's pixels (score.js ERASER_REACH).
-    private static let eraserReach = 10.0
 }
 
 /// Passes the page's messages on without the web view keeping the controller alive.
