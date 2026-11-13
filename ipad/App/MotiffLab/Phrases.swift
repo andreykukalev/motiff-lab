@@ -1,7 +1,8 @@
 import Foundation
 
-/// The phrases of a piece at the level shown (facade `phrases`, 0018 section 3): Short, Phrases or Sentences, drawn as
-/// pencil brackets above the top staff (Web/score.js) that select their unit when tapped.
+/// The phrases of a piece at the level shown (facade `phrases`, 0018 section 3): Short, Phrases or Sentences. They are
+/// no longer drawn as brackets above the top staff (Andrei, 2026-11-13, #479 item 14); focus steps by
+/// them and a selection is named by them.
 struct PhraseLevelsShown: Equatable, Sendable {
     /// "short", "phrase" or "sentence".
     var level: String
@@ -56,17 +57,6 @@ struct PhraseUnit: Equatable, Sendable {
         selectableOnset = number(selectable?["onset"]) ?? onset
         selectableEnd = number(selectable?["end"]) ?? end
         provenance = (answer["start"] as? [String: Any])?["provenance"] as? String ?? "inferred"
-    }
-
-    /// How its start was found, as the bracket's class, as the web app has it: the start of the piece, the player's own,
-    /// inferred, or imported from the file.
-    var kind: String {
-        if number == 1 { return "start" }
-        switch provenance {
-        case "userEdited", "userConfirmed": return "yours"
-        case "inferred", "detected": return "inferred"
-        default: return "imported"
-        }
     }
 }
 

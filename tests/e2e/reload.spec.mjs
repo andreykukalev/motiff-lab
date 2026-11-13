@@ -2,7 +2,7 @@
 // device, whether the file came through the import screen or the workspace's own Open file. The address names
 // the resume point too (0018), so the work has a context to come back to from the library.
 import { expect, test } from "@playwright/test";
-import { librarySessions } from "./steps.mjs";
+import { librarySessions, selectPhrase } from "./steps.mjs";
 import { fileURLToPath } from "node:url";
 
 const minuet = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/MusicXml/Fixtures/importer-grand-staff.musicxml", import.meta.url));
@@ -17,13 +17,12 @@ test("a piece opened from the import screen is open again after a reload", async
     await page.getByText("Open the piece").click();
     await expect(page).toHaveURL(/\/playback\?project=p_[0-9a-f]+&resume=r_\d{4}$/);
     await expect(title(page)).toHaveText("Waltz sketch");
-    const phrases = page.locator(".score button.bracket[aria-label]");
-    await phrases.nth(0).click();
+    await selectPhrase(page);
     await expect(page.locator(".selection-status")).toContainText("Selected phrase 1");
 
     await page.reload();
     await expect(title(page)).toHaveText("Waltz sketch", { timeout: 30_000 });
-    await expect(phrases.first()).toBeVisible();
+    await expect(page.locator(".score svg").first()).toBeVisible();
     // The selection is saved as the project's motif, so it comes back too.
     await expect(page.locator(".selection-status")).toContainText("Selected phrase 1");
     expect(errors).toEqual([]);

@@ -1,7 +1,7 @@
 // Practise a phrase (#50, docs/08-central-product-model.md; 0018 section 2): the transport pill plays it, loops it, slows
 // it down and plays one hand; moving to the next phrase and opening the Insights sheet keep the tempo, the loop and the hand.
 import { expect, test } from "@playwright/test";
-import { openFurElise, selectBar, openInsights } from "./steps.mjs";
+import { openFurElise, selectBar, openInsights, selectPhrase } from "./steps.mjs";
 
 test("practise a phrase: loop it, slow it down, hear one hand and move on", async ({ page }) => {
     const errors = await openFurElise(page);
@@ -9,7 +9,7 @@ test("practise a phrase: loop it, slow it down, hear one hand and move on", asyn
     const selection = page.locator(".selection-status");
     const tempo = pill.locator(".mono");
 
-    await page.locator(".score button.bracket[aria-label]").first().click();
+    await selectPhrase(page);
     await expect(selection).toContainText("Selected phrase 1");
 
     // The loop and the tempo, within reach on the pill.

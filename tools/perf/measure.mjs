@@ -1,5 +1,5 @@
 // Measures how the web app answers on the large-score benchmark (#419): starting the app, opening the piece (until its first
-// page is on screen, and until its phrases are drawn and it is ready), scrolling its pages, the playhead moving while it
+// page is on screen, and until its phrases are read and it is ready), scrolling its pages, the playhead moving while it
 // plays, a bar selected, the piano roll opened and Expand. Run on a published app:
 //   dotnet publish src/MotiffLab.Web -c Release -o publish
 //   (cd tests/e2e && npm ci)
@@ -135,6 +135,18 @@ function appears(page, selector, timeout = 120_000) {
     return page.waitForFunction((css) => document.querySelector(css) !== null, selector, { polling: "raf", timeout });
 }
 
+/**
+ * Waits until the piece's phrases are read: the Phrases popover counts them then. The score draws no phrase brackets to
+ * wait for (#479 item 14), so the popover is opened, read and put away again.
+ */
+async function phrasesRead(page, timeout = 120_000) {
+    await click(page, '.bar button[aria-label="Phrases"]');
+    await page.waitForFunction(() => (document.querySelector(".phrases-popover .caption")?.textContent.trim() ?? "") !== "", null, { polling: "raf", timeout });
+    // A tap beside the popover, on its scrim, puts it away (tests/e2e/steps.mjs closePopover).
+    await page.mouse.click(4, 300);
+    await page.waitForFunction(() => document.querySelector(".phrases-popover") === null, null, { polling: "raf" });
+}
+
 /** Clicks the middle of the first element matching a selector (and holding the text, when given) with the mouse. */
 async function click(page, selector, text = null) {
     const point = await page.evaluate(([css, words]) => {
@@ -155,7 +167,7 @@ async function boot(page, base) {
 }
 
 /**
- * Adds the piece and waits until its phrases' brackets are drawn: the piece is ready to work on. When its first page was
+ * Adds the piece and waits until its phrases are read: the piece is ready to work on. When its first page was
  * on screen, and the main thread's long tasks until then, go in `shown`.
  */
 async function openPiece(page, shown) {
@@ -167,7 +179,7 @@ async function openPiece(page, shown) {
     await appears(page, ".score-page svg g.measure", 300_000);
     shown.time = Date.now() - picked;
     shown.long = await longBetween(page, from, await page.evaluate(() => performance.now()));
-    await appears(page, ".score button.bracket", 300_000);
+    await phrasesRead(page, 300_000);
     await painted(page);
     shown.picked = picked;
 }
@@ -254,7 +266,7 @@ async function turn(page) {
 async function focusOnPlaying(page, base) {
     await page.goto(`${base}/playback`);
     await page.getByRole("button", { name: "Für Elise" }).click();
-    await appears(page, ".score button.bracket");
+    await phrasesRead(page);
     await page.waitForTimeout(1000);
     await page.evaluate(() => {
         const measure = document.querySelectorAll(".score svg g.measure")[5];

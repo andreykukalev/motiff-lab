@@ -132,6 +132,37 @@ export async function selectBar(page, bar, { pickup = 0.5, barQuarters = 1.5 } =
     await expect(page.locator(".selection-status")).toContainText(new RegExp(`(bar|такт) ${bar}(?!\\d)`, "i"));
 }
 
+/** The selection status line once something is selected, in English or Russian (selection.phrase, .sentence, .selected). */
+const SELECTED = /Selected|Выделен|Выбрано/;
+
+/**
+ * Selects a unit of the level shown with Page Down (phrase-keys.ts), as the score draws no phrase brackets to tap
+ * (Andrei, 2026-11-13, #479 item 14): the first unit when nothing is selected, then `steps` units on from it, or from
+ * the selection there is. Returns the selection's status line.
+ */
+export async function selectPhrase(page, steps = 0) {
+    const status = page.locator(".selection-status");
+    // The keys are listened to a moment after the title shows (PlaybackLab.Layout.cs), so a press that came before is pressed again.
+    await expect(async () => {
+        if (!SELECTED.test(await status.textContent() ?? "")) {
+            await page.keyboard.press("PageDown");
+        }
+        await expect(status).toContainText(SELECTED, { timeout: 3_000 });
+    }).toPass({ timeout: 20_000 });
+    for (let step = 0; step < steps; step++) {
+        const before = await status.textContent();
+        await page.keyboard.press("PageDown");
+        await expect(status).not.toHaveText(before ?? "");
+    }
+    return status;
+}
+
+/** Lifts the selection into focus (0018 section 4) with Focus in its menu. */
+export async function focusSelection(page) {
+    await page.locator(".ctx .menu").getByRole("button", { name: /^(Focus|Фокус)$/ }).click();
+    await expect(page.locator(".focus-card")).toBeVisible();
+}
+
 /** Opens the piano roll drawer from the bar (0018 section 4), if it is not open. */
 export async function openRoll(page) {
     const action = page.locator(".bar").getByRole("button", { name: /^(Piano roll|Фортепианный ролл)$/ });

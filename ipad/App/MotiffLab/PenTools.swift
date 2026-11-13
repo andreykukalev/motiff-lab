@@ -7,6 +7,65 @@ enum PenSizes {
     static let pen: [Double] = [0.1, 0.16, 0.3]
     static let highlighter: [Double] = [1.4, 2.2, 3.2]
     static let defaultWidth = 1
+
+    /// How much of the highlighter's amber a highlighted place shows, however many strokes cover it: the alpha of the
+    /// `amber-tint` token. Highlighter strokes are drawn opaque as one layer and the layer is laid on the page once at this
+    /// alpha (#479 item 9: overlapping strokes showed darker blotches), live in PencilKit and on the page after.
+    static var highlighterAlpha: CGFloat { DesignTokens.color("amber-tint").cgColor.alpha }
+}
+
+/// The pen's tool, ink and thicknesses, kept on the device and shared by the score and a PDF's pages (#479 item 11): PDF |
+/// Notes and opening a piece again keep the pencil the player chose instead of going back to graphite.
+enum PenMemory {
+    static let toolKey = "motiff.pen.tool"
+    static let previousKey = "motiff.pen.previous"
+    static let penWidthKey = "motiff.pen.width.pen"
+    static let highlighterWidthKey = "motiff.pen.width.highlighter"
+
+    /// How a tool is kept: "pen.graphite" (and the other inks), "highlighter" or "eraser".
+    static func code(_ tool: ScoreController.Tool) -> String {
+        switch tool {
+        case .pen(let ink): "pen.\(ink.rawValue)"
+        case .highlighter: "highlighter"
+        case .eraser: "eraser"
+        }
+    }
+
+    /// The tool a kept code names; nil for anything else.
+    static func tool(_ code: String?) -> ScoreController.Tool? {
+        guard let code else { return nil }
+        if code == "highlighter" { return .highlighter }
+        if code == "eraser" { return .eraser }
+        guard code.hasPrefix("pen."), let ink = ScoreController.Ink(rawValue: String(code.dropFirst(4))) else { return nil }
+        return .pen(ink)
+    }
+
+    /// The tool last chosen on this device; the graphite pencil the first time.
+    static func savedTool(in defaults: UserDefaults = .standard) -> ScoreController.Tool {
+        tool(defaults.string(forKey: toolKey)) ?? .pen(.graphite)
+    }
+
+    /// The tool before it, for the way back from the eraser and the Pencil's double tap.
+    static func savedPrevious(in defaults: UserDefaults = .standard) -> ScoreController.Tool {
+        tool(defaults.string(forKey: previousKey)) ?? .eraser
+    }
+
+    /// The thickness last chosen for the pen or, with `highlighter`, the highlighter; the middle one the first time.
+    static func savedWidth(highlighter: Bool, in defaults: UserDefaults = .standard) -> Int {
+        let key = highlighter ? highlighterWidthKey : penWidthKey
+        guard defaults.object(forKey: key) != nil else { return PenSizes.defaultWidth }
+        let width = defaults.integer(forKey: key)
+        return PenSizes.pen.indices.contains(width) ? width : PenSizes.defaultWidth
+    }
+
+    static func keep(tool: ScoreController.Tool, previous: ScoreController.Tool, in defaults: UserDefaults = .standard) {
+        defaults.set(code(tool), forKey: toolKey)
+        defaults.set(code(previous), forKey: previousKey)
+    }
+
+    static func keep(width: Int, highlighter: Bool, in defaults: UserDefaults = .standard) {
+        defaults.set(width, forKey: highlighter ? highlighterWidthKey : penWidthKey)
+    }
 }
 
 /// What the pen palette changes, on the score and on a PDF's pages: the tool, its thickness and the Pen itself.
@@ -32,6 +91,12 @@ extension PenHolder {
     /// The size a new mark of the tool now is kept at, in staff spaces.
     var drawingSize: Double {
         tool == .highlighter ? PenSizes.highlighter[highlighterWidth] : PenSizes.pen[penWidth]
+    }
+
+    /// Keeps both thicknesses on the device (PenMemory), for the next piece and the other view.
+    func keepWidths() {
+        PenMemory.keep(width: penWidth, highlighter: false)
+        PenMemory.keep(width: highlighterWidth, highlighter: true)
     }
 
     /// A thickness chosen: for the highlighter or the pen, back from the eraser to the tool before it.

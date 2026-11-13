@@ -49,7 +49,6 @@ else if (_loading && !HoldHeight)
     private ElementReference _menu;
     private TickSpan? _shownSelection;
     private bool _selectionShown;
-    private IReadOnlyList<ScorePhrase>? _shownPhrases;
     private IReadOnlyList<ScoreBookmark>? _shownBookmarks;
     private IReadOnlyList<ScoreMarginNote>? _shownNotes;
     private IReadOnlyList<ScoreHighlightMark>? _shownMarkHighlights;
@@ -133,11 +132,7 @@ else if (_loading && !HoldHeight)
     [Parameter]
     public TickSpan? Range { get; set; }
 
-    /// <summary>Where phrases start, marked above the staves (#18); null or empty marks none.</summary>
-    [Parameter]
-    public IReadOnlyList<ScorePhrase>? Phrases { get; set; }
-
-    /// <summary>The bookmarks, drawn above the phrase brackets (0018 section 5); null or empty draws none.</summary>
+    /// <summary>The bookmarks, drawn above the top staff (0018 section 5); null or empty draws none.</summary>
     [Parameter]
     public IReadOnlyList<ScoreBookmark>? Bookmarks { get; set; }
 
@@ -277,10 +272,6 @@ else if (_loading && !HoldHeight)
     [Parameter]
     public EventCallback Engraved { get; set; }
 
-    /// <summary>Raised when the player taps a phrase's bracket, with the number <see cref="ScorePhrase"/> gave it.</summary>
-    [Parameter]
-    public EventCallback<int> BracketPicked { get; set; }
-
     /// <summary>Raised when the pen is turned on or off, or a mark is made, so the bar shows Pen as active (0018 section 5).</summary>
     [Parameter]
     public EventCallback<PencilState> PencilChanged { get; set; }
@@ -374,11 +365,6 @@ else if (_loading && !HoldHeight)
                 await ShowRangeAsync(_view);
             }
 
-            if (!ReferenceEquals(Phrases, _shownPhrases))
-            {
-                await ShowPhrasesAsync(_view);
-            }
-
             if (!ReferenceEquals(Bookmarks, _shownBookmarks))
             {
                 await ShowBookmarksAsync(_view);
@@ -435,7 +421,6 @@ else if (_loading && !HoldHeight)
             }
 
             await ShowRangeAsync(_view);
-            await ShowPhrasesAsync(_view);
             await ShowBookmarksAsync(_view);
             await ShowMarksAsync(_view);
             await ShowLayersAsync(_view);
@@ -482,16 +467,10 @@ else if (_loading && !HoldHeight)
         await view.InvokeVoidAsync("setRange", Range?.Onset.Value, Range?.End.Value);
     }
 
-    private async Task ShowPhrasesAsync(IJSObjectReference view)
-    {
-        _shownPhrases = Phrases;
-        // Cast, so the array goes across as one argument rather than as the argument list.
-        await view.InvokeVoidAsync("setPhrases", (object)(Phrases ?? []).ToArray());
-    }
-
     private async Task ShowBookmarksAsync(IJSObjectReference view)
     {
         _shownBookmarks = Bookmarks;
+        // Cast, so the array goes across as one argument rather than as the argument list.
         await view.InvokeVoidAsync("setBookmarks", (object)(Bookmarks ?? []).ToArray());
     }
 
@@ -712,10 +691,6 @@ else if (_loading && !HoldHeight)
             await _view.InvokeVoidAsync("showTick", tick);
         }
     }
-
-    /// <summary>Called by the script when a phrase's bracket is tapped.</summary>
-    [JSInvokable]
-    public Task OnBracketClicked(int number) => BracketPicked.InvokeAsync(number);
 
     /// <summary>Called by the script when bars are chosen by a drag or a handle.</summary>
     [JSInvokable]

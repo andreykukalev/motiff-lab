@@ -240,7 +240,6 @@ struct SettingsSheet: View {
             Text(text["settings.presetHint.\(settings.preset)"])
                 .dsType(.caption)
                 .foregroundStyle(Color.ds("ink-2"))
-            switchRow("guidance.brackets", text["settings.brackets"])
             switchRow("guidance.transportPill", text["settings.pillWithSelection"], on: "selection", off: "playing", hint: text["settings.pillWithSelectionHint"])
         case .score:
             choiceRow("phrases.granularity", text["settings.granularity"], hint: text["settings.granularityHint"]) { text[Self.granularityKey($0)] }

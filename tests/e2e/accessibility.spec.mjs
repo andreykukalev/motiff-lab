@@ -3,7 +3,7 @@
 // markup and styles, which are the same in each engine.
 import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { closePopover, openAdjust, openFurElise, openInsights, openMore, openMoreTools, openRoll, selectBar, tryWay, violations, librarySessions } from "./steps.mjs";
+import { closePopover, openAdjust, openFurElise, openInsights, openMore, openMoreTools, openRoll, selectBar, tryWay, violations, librarySessions, focusSelection, selectPhrase } from "./steps.mjs";
 
 const midi = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/Midi/Fixtures/two-hands-type1.mid", import.meta.url));
 
@@ -75,8 +75,8 @@ test("the score page: the bar, its popovers, the pill and its tempo, the roll dr
         await openMore(page);
         expect(await violations(page)).toEqual([]);
         await closePopover(page);
-        // A phrase not selected yet: a second tap on the selected one would lift it into focus.
-        await page.locator(".score button.bracket[aria-label][aria-pressed='false']").first().click();
+        // A phrase selected.
+        await selectPhrase(page);
         await page.locator(".pill").getByRole("button", { name: /^Tempo/ }).click();
         expect(await violations(page)).toEqual([]);
         await page.locator(".pill").getByRole("button", { name: /^Tempo/ }).click();
@@ -136,13 +136,12 @@ test("marks: the note card, a marker, the highlight swatches, the Contents' note
 
 test("phrase focus: the card with its ossia, the variation chips, the focus bar and Lead-in, in both themes", async ({ page }) => {
     await openFurElise(page);
-    const bracket = page.locator(".score button.bracket[aria-label]").first();
-    await bracket.click();
+    await selectPhrase(page);
     await openInsights(page);
     await tryWay(page, "Held chord");
     await page.locator(".stream").getByRole("button", { name: "Keep this variation" }).click();
     await page.locator(".bar").getByRole("button", { name: "Insights" }).click();
-    await bracket.click();
+    await focusSelection(page);
     await expect(page.locator(".focus-card .ossia-frame").first()).toBeVisible();
     await page.locator(".pill").getByRole("button", { name: "Lead-in" }).click();
     await page.locator(".pill").getByRole("button", { name: "Pause" }).click();
@@ -154,8 +153,8 @@ test("phrase focus: the card with its ossia, the variation chips, the focus bar 
 
 test("playback lab with a selection, the Insights stream, an experiment, Adjust and the note editor", async ({ page }) => {
     await openFurElise(page);
-    // A phrase picked: its bracket on the score and the stream of its facts, each with its Evidence.
-    await page.locator(".score button.bracket[aria-label]").nth(1).click();
+    // A phrase picked and the stream of its facts, each with its Evidence.
+    await selectPhrase(page, 1);
     const stream = await openInsights(page);
     await stream.getByRole("button", { name: "Evidence" }).first().click();
     expect(await violations(page)).toEqual([]);
@@ -187,7 +186,7 @@ test("playback lab with a selection, the Insights stream, an experiment, Adjust 
 
 test("kept for this phrase: a kept variation with its note, renaming, a note alone and deleting", async ({ page }) => {
     await openFurElise(page);
-    await page.locator(".score button.bracket[aria-label]").first().click();
+    await selectPhrase(page);
     await openInsights(page);
     const card = page.locator(".stream .explore");
     const kept = page.locator(".observations");

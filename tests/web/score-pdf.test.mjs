@@ -224,7 +224,9 @@ test("the iPad app engraves its A4 pages with the web app's Verovio options", as
     const swift = await readFile(new URL("../../ipad/App/MotiffLab/Engraver.swift", import.meta.url), "utf8");
     const literal = swift.match(/static let a4Leland = """\n([\s\S]*?)\n\s*"""/);
     assert.ok(literal, "Engraver.a4Leland is a multi-line string literal");
-    assert.deepEqual(JSON.parse(literal[1]), { ...A4_LAYOUT });
+    // The iPad's pages start below its floating bar, so they take the paper's margins (#479 item 12), which break a piece
+    // into the same pages as the web's screen (the test above).
+    assert.deepEqual(JSON.parse(literal[1]), { ...A4_PDF_LAYOUT });
     const even = swift.match(/static let evenSpacing = """\n([\s\S]*?)\n\s*"""/);
     assert.ok(even, "Engraver.evenSpacing is a multi-line string literal");
     assert.deepEqual(JSON.parse(even[1]), { ...EVEN_SPACING });

@@ -1,13 +1,21 @@
 // The score page (decision record 0018, sections 2 to 4): the score is the whole screen with the bar floating over it,
-// phrases are brackets on the score at the level the player chooses, and the transport pill, the piano roll drawer and
-// the Insights sheet come and go without touching the selection.
+// the selection steps by phrases at the level the player chooses, and the transport pill, the piano roll drawer and the
+// Insights sheet come and go without touching the selection. The phrases are not drawn as brackets above the top staff
+// (Andrei, 2026-11-13, #479 item 14).
 import { expect, test } from "@playwright/test";
-import { closePopover, openFurElise, openInsights, openRoll } from "./steps.mjs";
+import { closePopover, openFurElise, openInsights, openRoll, selectPhrase } from "./steps.mjs";
 
-test("the score fills the screen, and brackets pick phrases at the level chosen", async ({ page }) => {
+/** The Phrases popover says how many units the piece has at the level shown. */
+async function expectUnits(page, text) {
+    await page.locator(".bar").getByRole("button", { name: "Phrases" }).click();
+    await expect(page.getByRole("dialog", { name: "Phrases" })).toContainText(text);
+    await closePopover(page);
+}
+
+test("the score fills the screen, draws no phrase brackets, and the selection steps by phrases at the level chosen", async ({ page }) => {
     const errors = await openFurElise(page);
     const bar = page.locator(".bar");
-    const brackets = page.locator(".score button.bracket[aria-label]");
+    const brackets = page.locator(".score button.bracket");
     const selection = page.locator(".selection-status");
     const pill = page.locator(".pill");
 
@@ -19,38 +27,31 @@ test("the score fills the screen, and brackets pick phrases at the level chosen"
     await expect(page.locator(".roll")).toHaveCount(0);
     await expect(page.locator(".sheet")).toHaveCount(0);
 
-    // Für Elise is twenty-one phrases at the default level; a tap on a bracket selects its phrase and brings the pill.
-    await expect(brackets).toHaveCount(21);
-    await expect(brackets.nth(1)).toHaveAccessibleName("Phrase 2, bars 4–8");
-    await brackets.nth(1).click();
-    await expect(brackets.nth(1)).toHaveAttribute("aria-pressed", "true");
-    await expect(selection).toContainText("Selected phrase 2");
+    // Für Elise is twenty-one phrases at the default level, none drawn over the staves; Page Down selects the first and
+    // the next and brings the pill.
+    await expect(brackets).toHaveCount(0);
+    await selectPhrase(page, 1);
+    await expect(selection).toContainText("Selected phrase 2, bars 4–8");
     await expect(pill).toBeVisible();
 
     // Page Up and Page Down step from phrase to phrase, as page-turner pedals do.
     await page.keyboard.press("PageUp");
     await expect(selection).toContainText("Selected phrase 1");
-    await expect(brackets.nth(0)).toHaveAttribute("aria-pressed", "true");
 
-    // The Phrases popover: a coarser level redraws the brackets and the selection moves to the unit around it.
+    // The Phrases popover: at a coarser level the selection moves to the unit around it; it has no switch for brackets.
     await bar.getByRole("button", { name: "Phrases" }).click();
     const popover = page.getByRole("dialog", { name: "Phrases" });
+    await expect(popover).toContainText("21 phrases in the piece");
+    await expect(popover.getByRole("switch")).toHaveCount(0);
     await popover.getByRole("radio", { name: "Sentences" }).click();
-    await expect(brackets).toHaveCount(4);
     await expect(selection).toContainText("Selected sentence");
     await expect(popover).toContainText("4 sentences in the piece");
     await popover.getByRole("radio", { name: "Short" }).click();
-    await expect.poll(() => brackets.count()).toBeGreaterThan(21);
+    await expect(popover).toContainText("short phrases in the piece");
     await popover.getByRole("radio", { name: "Phrases" }).click();
-    await expect(brackets).toHaveCount(21);
+    await expect(popover).toContainText("21 phrases in the piece");
     await expect(selection).toContainText("Selected phrase 1");
-
-    // The brackets can be hidden for a clean page.
-    const show = popover.getByRole("switch", { name: "Show brackets" });
-    await show.uncheck();
     await expect(brackets).toHaveCount(0);
-    await show.check();
-    await expect(brackets).toHaveCount(21);
     await closePopover(page);
 
     // The roll and the sheet come and go; the selection stays as it was.
@@ -122,7 +123,6 @@ test("bars dragged across on the score are selected, the handles move the edges,
     const bars = page.locator("div.score g.measure");
     const selection = page.locator(".selection-status");
     const menu = page.getByRole("toolbar", { name: "Selection" });
-    const brackets = page.locator(".score button.bracket[aria-label]");
     await expect(menu).toBeHidden();
 
     // A drag with the mouse from bar 1 to bar 3 selects them, banded, with the menu above.
@@ -153,15 +153,14 @@ test("bars dragged across on the score are selected, the handles move the edges,
     await menu.getByRole("button", { name: "More for the selection" }).click();
     await expect(menu.getByRole("button", { name: "Merge with the next phrase" })).toHaveCount(0);
     await menu.getByRole("button", { name: "Make a phrase" }).click();
-    await expect(brackets).toHaveCount(22);
-    await expect(brackets.nth(1)).toHaveAttribute("aria-pressed", "true");
     await expect(selection).toContainText("Selected phrase 2");
+    await expectUnits(page, "22 phrases in the piece");
 
     // Merge with the next phrase takes the boundary after it away.
     await menu.getByRole("button", { name: "More for the selection" }).click();
     await menu.getByRole("button", { name: "Merge with the next phrase" }).click();
-    await expect(brackets).toHaveCount(21);
     await expect(selection).toContainText("Selected phrase 2");
+    await expectUnits(page, "21 phrases in the piece");
 
     // A phrase with the playhead outside it can be merged on, but not made or split.
     await menu.getByRole("button", { name: "More for the selection" }).click();
@@ -175,13 +174,13 @@ test("bars dragged across on the score are selected, the handles move the edges,
     await bars.nth(5).locator("g.note").first().dispatchEvent("click");
     await menu.getByRole("button", { name: "More for the selection" }).click();
     await menu.getByRole("button", { name: "Split here" }).click();
-    await expect(brackets).toHaveCount(22);
     await expect(selection).toContainText("Selected phrase 2");
+    await expectUnits(page, "22 phrases in the piece");
 
     // Reset to detected brings the suggested phrases back.
     await page.locator(".bar").getByRole("button", { name: "Phrases" }).click();
     await page.getByRole("dialog", { name: "Phrases" }).getByRole("button", { name: "Reset to detected" }).click();
-    await expect(brackets).toHaveCount(21);
+    await expect(page.getByRole("dialog", { name: "Phrases" })).toContainText("21 phrases in the piece");
     await closePopover(page);
 
     // With the pen on, the menu goes away and the mouse writes rather than selects.

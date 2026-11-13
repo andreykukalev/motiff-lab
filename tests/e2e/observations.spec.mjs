@@ -4,7 +4,7 @@
 // has no project, so it says what is kept lasts while the page is open; an imported piece saves it with its project.
 import { expect, test } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { clearByPage, openAdjust, openFurElise, openInsights, heardChoice, tryWay, librarySessions } from "./steps.mjs";
+import { clearByPage, openAdjust, openFurElise, openInsights, heardChoice, tryWay, librarySessions, focusSelection, selectPhrase } from "./steps.mjs";
 
 /** Lists the kept ideas whole from the strip at the top of the Insights stream. */
 async function manageIdeas(page) {
@@ -18,12 +18,11 @@ const minuet = fileURLToPath(new URL("../MotiffLab.MusicCore.Tests/Import/MusicX
 
 test("keep a variation with a note, come back to it, rename, export and delete it", async ({ page }) => {
     const errors = await openFurElise(page);
-    const phrases = page.locator(".score button.bracket[aria-label]");
     const selection = page.locator(".selection-status");
     const card = page.locator(".stream .explore");
     const kept = page.locator(".observations");
 
-    await phrases.nth(0).click();
+    await selectPhrase(page);
     await openInsights(page);
     await expect(kept.getByRole("heading", { name: "Kept for phrase 1" })).toBeVisible();
     await expect(kept).toContainText("Nothing kept for this phrase yet.");
@@ -49,17 +48,16 @@ test("keep a variation with a note, come back to it, rename, export and delete i
     await expect(item).toContainText("Your note: Lighter, like a dance on tiptoe.");
     await expect(item).toContainText("You hear this");
     await expect(item.getByRole("button", { name: "Open" })).toBeDisabled();
-    await expect(phrases.nth(0)).toHaveAccessibleName(/, 1 kept$/);
 
     // Another phrase lists nothing; clearing leaves no variation to hear.
-    await phrases.nth(1).click();
+    await selectPhrase(page, 1);
     await expect(kept.getByRole("heading", { name: "Kept for phrase 2" })).toBeVisible();
     await expect(kept.getByRole("listitem")).toHaveCount(0);
     await clearByPage(page);
     await expect(page.locator(".inspector-head .compare-switch")).toHaveCount(0);
 
     // Back on phrase 1, opening the kept one puts its variation back, heard at once and ready to compare.
-    await phrases.nth(0).click();
+    await selectPhrase(page);
     await expect(item).not.toContainText("You hear this");
     await item.getByRole("button", { name: "Open" }).click();
     await expect(selection).toContainText("Opened “Repeated chord in 8ths”.");
@@ -103,7 +101,6 @@ test("keep a variation with a note, come back to it, rename, export and delete i
     await kept.getByRole("button", { name: "Keep note" }).click();
     await expect(kept.getByRole("listitem")).toHaveCount(2);
     await expect(kept.getByRole("listitem").nth(1)).toContainText("Count the pickup as a breath.");
-    await expect(phrases.nth(0)).toHaveAccessibleName(/, 2 kept$/);
 
     // Delete asks first.
     await renamed.getByRole("button", { name: "Delete" }).click();
@@ -113,7 +110,6 @@ test("keep a variation with a note, come back to it, rename, export and delete i
     await renamed.getByRole("button", { name: "Delete for good" }).click();
     await expect(kept.getByRole("listitem")).toHaveCount(1);
     await expect(kept).toContainText("Deleted “Tiptoe”.");
-    await expect(phrases.nth(0)).toHaveAccessibleName(/, 1 kept$/);
 
     await page.locator(".pill").getByRole("button", { name: "Pause" }).click();
     expect(errors).toEqual([]);
@@ -125,11 +121,10 @@ test("what is kept is saved with the project and comes back when it is opened ag
     await page.goto("/import");
     await page.setInputFiles("input[type=file]", minuet);
     await page.getByText("Open the piece").click();
-    const phrases = page.locator(".score button.bracket[aria-label]");
     const kept = page.locator(".observations");
     const card = page.locator(".stream .explore");
 
-    await phrases.nth(0).click();
+    await selectPhrase(page);
     await openInsights(page);
     await expect(kept).not.toContainText("not saved as a project");
     await tryWay(page, "Passing notes");
@@ -150,16 +145,15 @@ test("what is kept is saved with the project and comes back when it is opened ag
     await expect(piece.locator(".tag.saved")).toHaveText("1 idea");
     await piece.getByRole("button", { name: "Resume Waltz sketch" }).click();
     await expect(page.locator(".selection-status")).toContainText("Selected phrase 1");
-    await expect(phrases.nth(0)).toHaveAccessibleName(/, 1 kept$/);
-    await phrases.nth(0).click();
+    await focusSelection(page);
     await openInsights(page);
     await manageIdeas(page);
     const item = kept.getByRole("listitem", { name: "Passing notes" });
     await expect(item).toContainText("Your note: Airier.");
-    // The second tap on the phrase lifted it into focus: back to the page, then a tap on the paper puts the selection away.
+    // Focus lifted the phrase: back to the page, then a tap on the paper puts the selection away.
     await page.locator(".bar").getByRole("button", { name: "Back to page" }).click();
     await clearByPage(page);
-    await phrases.nth(0).click();
+    await selectPhrase(page);
     await item.getByRole("button", { name: "Open" }).click();
     await expect(item).toContainText("You hear this");
     await expect(page.locator(".inspector-head .compare-switch")).toBeVisible();

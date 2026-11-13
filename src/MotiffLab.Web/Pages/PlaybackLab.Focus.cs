@@ -18,8 +18,8 @@ namespace MotiffLab.Web.Pages;
 /// the phrase is, Original / Variation / Alternate when there is a variation and Reading / As played for a transcription.
 /// A variation is engraved as an ossia above the original, bar for bar, from music-core's excerpt (<see cref="NotationGenerator"/>);
 /// the variations kept for the phrase are chips above the card that pick the one heard and shown. Previous and next walk
-/// the piece at the level shown; Lead-in on the pill plays a bar before and after. Enter with Focus in the contextual menu
-/// or a second tap on the selected bracket; leave with Back, a tap on the dimmed page or Escape.
+/// the piece at the level shown; Lead-in on the pill plays a bar before and after. Enter with Focus in the contextual menu;
+/// leave with Back, a tap on the dimmed page or Escape.
 /// </summary>
 public partial class PlaybackLab
 {

@@ -4,8 +4,9 @@
 // pencil marks are drawn over it (pencil-layer.ts, 0015). The score is laid out as A4 pages or as one
 // strip the width of the view, and exported as an A4 PDF (decision record 0017). In the redesign (0018)
 // the A4 pages are one continuously scrolling document, two to a row in landscape, with the title set
-// by the app on the first page, the pages under the top of the view reported for the bar, and the
-// phrases drawn as pencil brackets above the top staff that select their phrase when tapped.
+// by the app on the first page, and the pages under the top of the view reported for the bar. The phrases are no longer
+// drawn as brackets above the top staff (Andrei, 2026-11-13, #479 item 14: the strip read as an extra staff line); they
+// stay in music-core, and the selection still steps and snaps by them.
 // Blazor imports this module through JS interop. Verovio loads on first use.
 
 import type { BarFrame } from "./pencil-marks.js";
@@ -79,16 +80,10 @@ const SCROLL_KEYS = new Set(["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home
 /** Notes outside the range that plays for the selection (no longer drawn faint: the band shows the selection, 0018 section 3). */
 const OUTSIDE_CLASS = "outside";
 
-/** A phrase's pencil bracket above the top staff (0018 section 3, design/kit/ds.css), placed over the engraving. */
-const BRACKET_CLASS = "bracket";
-/** Where a bracket's number sits from its left end (the CSS's left), and how far along the next number starting there goes. */
-const BRACKET_NUMBER_LEFT = -2;
-const BRACKET_NUMBER_STEP = 16;
-
-/** A bookmark's bracket in its category's ink, above the phrase brackets with its title in italic (0018 section 5, design/kit/ds.css .bmb). */
+/** A bookmark's bracket in its category's ink above the top staff, with its title in italic (0018 section 5, design/kit/ds.css .bmb). */
 const BOOKMARK_CLASS = "bmb";
 
-/** Bookmarks sit this far above the top staff, over the phrase brackets and their numbers; overlapping ones stack by the next amount. */
+/** Bookmarks sit this far above the top staff, clear of a version's labels over the bars; overlapping ones stack by the next amount. */
 const BOOKMARK_LIFT = 40;
 const BOOKMARK_STACK = 24;
 
@@ -137,21 +132,6 @@ const HIGHLIGHT_CLASS = "highlight";
 const HIGHLIGHT_MARK_CLASS = "highlight-mark";
 /** A note pointed at on the piano roll (0018 section 4): cobalt, as pointing is. */
 const POINTED_CLASS = "pointed";
-
-/** A phrase as Blazor sends it for its bracket: where it starts and ends, its number at the level shown, and how its start was found. */
-export interface ScorePhrase {
-    start: number;
-    end: number;
-    number: number;
-    /** "start", "imported", "inferred" or "yours", as a class. */
-    kind: string;
-    /** The selected phrase: its bracket is drawn in the accent. */
-    current: boolean;
-    /** Whether the player kept ideas from it: a plum dot at the bracket's right end. */
-    ideas: boolean;
-    /** What a screen reader says for the bracket. */
-    label: string;
-}
 
 /** A bookmark as Blazor sends it: where it starts and ends, its title, its category's ink, and what a screen reader says. */
 export interface ScoreBookmark {
@@ -269,7 +249,6 @@ export class ScoreView {
     /** The range that plays for the selection [start, end), or null when nothing is selected. */
     private range: { start: number; end: number } | null = null;
     private holding = false;
-    private phrases: ScorePhrase[] = [];
     private bookmarks: ScoreBookmark[] = [];
     private marginNotes: ScoreMarginNote[] = [];
     private checks: ScoreCheckFlag[] = [];
@@ -652,13 +631,7 @@ export class ScoreView {
         this.selection.setMenu(menu);
     }
 
-    /** Draws the phrases' brackets above the top staff; an empty list draws none. */
-    setPhrases(phrases: ScorePhrase[]): void {
-        this.phrases = phrases;
-        this.placePhrases();
-    }
-
-    /** Draws the bookmarks' brackets above the phrase brackets; an empty list draws none. */
+    /** Draws the bookmarks' brackets above the top staff; an empty list draws none. */
     setBookmarks(bookmarks: ScoreBookmark[]): void {
         this.bookmarks = bookmarks;
         this.placeBookmarks();
@@ -906,7 +879,7 @@ export class ScoreView {
             if (this.disposed || this.engraver === null) {
                 return;
             }
-            this.placePhrases();
+            this.placeOverlays();
             this.selection.place();
             this.applyHighlight(false);
             this.pencil.relayout();
@@ -1106,13 +1079,13 @@ export class ScoreView {
         this.dress();
     }
 
-    /** Puts what is shown over the score back on the pages drawn: the range, the brackets, the marks and the notes playing. */
+    /** Puts what is shown over the score back on the pages drawn: the range, the bookmarks, the marks and the notes playing. */
     private dress(): void {
         this.pagesShown = "";
         this.placedGeometry = null;
         this.outside = new Set();
         this.applyRange(false);
-        this.placePhrases();
+        this.placeOverlays();
         this.selection.place();
         this.applyHighlight(false);
         this.applyPointed(false);
@@ -1243,61 +1216,10 @@ export class ScoreView {
         }
     }
 
-    private placePhrases(): void {
+    /** The bookmarks and the marks over the bars, placed again where the bars are now. */
+    private placeOverlays(): void {
         this.placeBookmarks();
         this.placeMarks();
-        for (const old of this.host.querySelectorAll(`:scope > .${BRACKET_CLASS}`)) {
-            old.remove();
-        }
-        if (this.phrases.length === 0) {
-            return;
-        }
-        const geometry = this.geometry();
-        if (geometry === null) {
-            return;
-        }
-        // Two units that start in the same bar (one a bar long or less) would put their numbers one over the other: the later
-        // number moves along by one place (testing item 33).
-        const numbered = new Map<string, number>();
-        for (const phrase of this.phrases) {
-            for (const run of geometry.bracket(phrase.start, phrase.end)) {
-                const bracket = document.createElement("button");
-                bracket.type = "button";
-                bracket.className = `${BRACKET_CLASS} ${phrase.kind}`;
-                bracket.classList.toggle("on", phrase.current);
-                bracket.classList.toggle("from", !run.first);
-                bracket.classList.toggle("on-to", !run.last);
-                bracket.dataset.phrase = String(phrase.number);
-                bracket.style.left = `${run.left}px`;
-                bracket.style.top = `${run.top}px`;
-                bracket.style.width = `${Math.max(4, run.right - run.left)}px`;
-                if (run.first) {
-                    bracket.setAttribute("aria-label", phrase.label);
-                    bracket.setAttribute("aria-pressed", phrase.current ? "true" : "false");
-                    const number = document.createElement("span");
-                    number.className = "n";
-                    number.setAttribute("aria-hidden", "true");
-                    number.textContent = String(phrase.number);
-                    const place = `${run.page}:${run.system}:${Math.round(run.left)}`;
-                    const before = numbered.get(place) ?? 0;
-                    numbered.set(place, before + 1);
-                    if (before > 0) {
-                        number.style.left = `${BRACKET_NUMBER_LEFT + before * BRACKET_NUMBER_STEP}px`;
-                    }
-                    bracket.append(number);
-                } else {
-                    // The rest of a phrase that runs on to the next system is the same target, said once.
-                    bracket.tabIndex = -1;
-                    bracket.setAttribute("aria-hidden", "true");
-                }
-                if (run.last && phrase.ideas) {
-                    const dot = document.createElement("span");
-                    dot.className = "dot";
-                    bracket.append(dot);
-                }
-                this.host.append(bracket);
-            }
-        }
     }
 
     private placeMarks(): void {
@@ -1370,7 +1292,7 @@ export class ScoreView {
         const checkPlaces = this.checks.map((check) => flagAt(check.tick, true));
         const notePlaces = this.marginNotes.map((note) => flagAt(note.tick, false));
         const flags = [...checkPlaces, ...notePlaces].filter((place): place is FlagPlace => place !== undefined);
-        // A performance's marker sits above the bar's top left, over the phrase bracket; it may run on over the next
+        // A performance's marker sits above the bar's top left, under the bookmarks; it may run on over the next
         // bar, up to the next marker, Check flag or note on the same system.
         const placed = this.performanceMarkers
             .map((marker) => ({ marker, bar: geometry.barAt(marker.tick) }))
@@ -1614,7 +1536,7 @@ export class ScoreView {
                 // A4 pages keep their layout and only scale with the view: the marks over them move with it.
                 this.laidOutWidth = this.host.clientWidth;
                 this.laidOutHeight = this.host.clientHeight;
-                this.placePhrases();
+                this.placeOverlays();
                 this.selection.place();
                 this.applyHighlight(false);
                 this.pencil.relayout();
@@ -1724,11 +1646,6 @@ export class ScoreView {
         const mark = event.target instanceof Element ? event.target.closest<HTMLElement>(`.${BOOKMARK_CLASS}`) : null;
         if (mark !== null) {
             void this.dotnet.invokeMethodAsync("OnBookmarkClicked", mark.dataset.bookmark);
-            return;
-        }
-        const bracket = event.target instanceof Element ? event.target.closest<HTMLElement>(`.${BRACKET_CLASS}`) : null;
-        if (bracket !== null) {
-            void this.dotnet.invokeMethodAsync("OnBracketClicked", Number(bracket.dataset.phrase));
             return;
         }
         // A press the pencil layer took is handled there: a tap comes back through pick. A drag across bars has chosen them already.

@@ -32,21 +32,16 @@ body { margin: 0; padding: var(--pad-top) var(--s-4) var(--pad-bottom); backgrou
 .mark.pen.carmine { fill: var(--ink-carmine); }
 .mark.pen.forest { fill: var(--ink-forest); }
 .mark.pen.ochre { fill: var(--ink-ochre); }
-.mark.highlighter { fill: var(--amber); opacity: 0.38; mix-blend-mode: multiply; }
+/* The highlighter's strokes are one layer (#479 item 9): opaque amber inside it, the layer as translucent as the
+   amber-tint token, so overlapping strokes never darken. */
+.mark.highlighter { fill: var(--amber); }
+#ink g.highlights { opacity: 0.38; mix-blend-mode: multiply; }
 
-/* Phrase brackets (0018 section 3, as the web app's app.css draws them): pencil over the top staff, numbered at the left
-   end, the selected one in the accent. Each is a button with a hit area taller than its line. */
+/* A long press on the score chooses bars; it never brings up the system's callout. */
 body { -webkit-touch-callout: none; }
-button.bracket { position: absolute; z-index: 1; height: 9px; min-height: 0; padding: 0; box-sizing: border-box; background: transparent; border: 1.25px solid var(--ink-graphite); border-bottom: 0; border-radius: 2px 2px 0 0; opacity: 0.75; }
-button.bracket::before { content: ""; position: absolute; inset: -16px -2px -3px; }
-button.bracket.on { opacity: 1; border-width: 1.5px; border-bottom: 0; border-color: var(--accent); }
-button.bracket.from { border-left: 0; border-top-left-radius: 0; }
-button.bracket.on-to { border-right: 0; border-top-right-radius: 0; }
-.bracket .n { position: absolute; left: -2px; top: -16px; font: 600 11px/14px var(--font-ui); color: var(--ink-graphite); }
-.bracket.on .n { color: var(--accent); }
 
 /* Bookmarks (0018 section 5, design/kit/ds.css .bmb, as the web app's app.css draws them): a bracket in the category's ink
-   above the phrase brackets, the title in italic serif at its left end; overlapping ones stack. Each is a button with a
+   above the top staff, the title in italic serif at its left end; overlapping ones stack. Each is a button with a
    hit area over its title and line. */
 .ink-graphite { --mark: var(--ink-graphite); }
 .ink-carmine { --mark: var(--ink-carmine); }
@@ -89,8 +84,7 @@ g.note.version-artefact { fill: var(--ink-3); stroke: var(--ink-3); color: var(-
 body.hide-ink #ink,
 body.hide-notes :is(button.marker, div.hl),
 body.hide-bookmarks button.bmb,
-body.hide-analysis :is(button.bracket, .ring),
-body.hide-brackets button.bracket,
+body.hide-analysis .ring,
 body.hide-check button.check-flag { display: none; }
 
 /* The selection: a cobalt band over the selected bars on each system, and round handles on the first and last barline. */

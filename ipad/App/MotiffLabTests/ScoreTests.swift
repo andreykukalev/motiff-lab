@@ -4,8 +4,9 @@ import XCTest
 
 /// Opening a piece as the app does: music-core's MEI laid out by Verovio on A4 pages in Leland.
 final class ScoreTests: XCTestCase {
-    /// Four pages with the web app's A4 options (Engraver.a4Leland = A4_LAYOUT: scale 50, top margin 500, no vertical
-    /// justification); it was three with the iPad's own larger scale before the two were made equal.
+    /// Four pages with the web app's A4 options (Engraver.a4Leland = A4_PDF_LAYOUT: scale 50, the paper's 20 mm top margin,
+    /// which breaks the pages as A4_LAYOUT does, no vertical justification); it was three with the iPad's own larger scale
+    /// before the two were made equal.
     func testTheExampleOpensOnFourA4Pages() async throws {
         let example = try XCTUnwrap(KitPiece.example)
         let clock = ContinuousClock()
@@ -25,7 +26,9 @@ final class ScoreTests: XCTestCase {
         let even = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(Engraver.a4(evenBars: true).utf8)) as? [String: Any])
         XCTAssertEqual((even["spacingLinear"] as? NSNumber)?.doubleValue, 0.08)
         XCTAssertEqual((even["spacingNonLinear"] as? NSNumber)?.doubleValue, 0.9)
-        XCTAssertEqual((even["pageMarginTop"] as? NSNumber)?.intValue, 500)
+        // The music starts just below the floating bar (#479 item 12): the paper's top margin, not the web screen's 500.
+        XCTAssertEqual((even["pageMarginTop"] as? NSNumber)?.intValue, 200)
+        XCTAssertEqual((even["pageMarginBottom"] as? NSNumber)?.intValue, 460)
         let byNotes = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(Engraver.a4(evenBars: false).utf8)) as? [String: Any])
         XCTAssertEqual((byNotes["spacingNonLinear"] as? NSNumber)?.doubleValue, 0.6)
     }

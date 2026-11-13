@@ -4,10 +4,11 @@
 // it ends, Swift hands its points here to be kept against its bar (`anchor`), saves the stroke in the project file
 // through music-core (`ink.add`), and gives the marks back to be drawn (`draw`).
 //
-// The score is also the selection surface (0018 section 3): the phrases are drawn as pencil brackets above the top
-// staff (`phrases`), and the web app's own selection layer (Scripts/score/selection-layer.ts) draws the band and its
-// handles and turns a long press and a drag across bars into a choice of bars. What the player does on the score goes
-// to Swift as a message: a bracket or a bar tapped, bars chosen, and where the selection menu goes.
+// The score is also the selection surface (0018 section 3): the web app's own selection layer
+// (Scripts/score/selection-layer.ts) draws the band and its handles and turns a long press and a drag across bars into a
+// choice of bars. What the player does on the score goes to Swift as a message: a bar tapped, bars chosen, and where the
+// selection menu goes. The phrases are no longer drawn as brackets above the top staff (Andrei, 2026-11-13, #479 item 14:
+// the strip read as an extra staff line); they stay in music-core, and focus still steps by them.
 //
 // Phrase focus (0018 section 4) lifts the selection into a card across the screen with the page dimmed behind it
 // (`focus`, `card`): Swift engraves the phrase's bars with Verovio at the card's width, with the web app's own card
@@ -18,7 +19,7 @@
 // A fact chosen in the Insights stream (0018 section 6) rings its places on the score (`highlight`), as the web app's
 // score view does: the notes turn cobalt with a box round each notehead, and the first comes into view.
 //
-// The player's bookmarks (0018 section 5) are brackets in their category's ink above the phrase brackets, titled in
+// The player's bookmarks (0018 section 5) are brackets in their category's ink above the top staff, titled in
 // italic at the left end and stacked where they overlap, as the web app's score view draws them (`bookmarks`); a tap
 // gives the bookmark to Swift. The Contents drawer's Pages tab shows the pages as small pictures (`outline`), and a
 // page or a bookmark chosen there is brought into view (`showPage`, `reveal`).
@@ -29,7 +30,7 @@
 // bar to its left; a tap gives the bar to Swift. Each layer of marks can be hidden for a clean page (`layers`).
 //
 // Another version of the piece (0022) marks the bars it has otherwise with a plum label above the bar's top left, over the
-// phrase bracket and before any Check flag or note on the bar, and tints the printed notes it does not have
+// bookmarks' level and before any Check flag or note on the bar, and tints the printed notes it does not have
 // (`performance`), as the web app's score view does; a tap on a label gives its bar to Swift with where the label is. These
 // show only with Extra information on (testing item 33). While a merge draft shows the version or the result, the notes from
 // the version are plum and the player's own amber; a thin plum line runs under each bar taken from a version. Above the
@@ -58,10 +59,7 @@ const ERASER_REACH = 10;
 /** The reading line, this far below the top of the view: the pages it crosses are the ones the bar names, as on the web. */
 const READING_LINE_PX = 72;
 
-/** Where a bracket's number sits from its left end (the CSS's left), and how far along the next number starting there goes. */
-const BRACKET_NUMBER_LEFT = -2;
-const BRACKET_NUMBER_STEP = 16;
-/** Bookmarks sit this far above the top staff, over the phrase brackets and their numbers, and overlapping ones stack by the next amount, as on the web. */
+/** Bookmarks sit this far above the top staff, clear of a version's labels over the bars, and overlapping ones stack by the next amount, as on the web. */
 const BOOKMARK_LIFT = 40;
 const BOOKMARK_STACK = 24;
 
@@ -81,13 +79,13 @@ const PERFORMANCE_TARGET = 24;
 const PERFORMANCE_MIN_WIDTH = 36;
 const PERFORMANCE_MAX_WIDTH = 180;
 
-/** The layers of marks that can be hidden: the pencil, notes and highlights, bookmarks, the analysis (brackets, rings) and Check. */
+/** The layers of marks that can be hidden: the pencil, notes and highlights, bookmarks, the analysis (rings) and Check. */
 const LAYERS = ["ink", "notes", "bookmarks", "analysis", "check"];
 
 /** After the player scrolls by hand, playback leaves the page where they put it for this long before following again (score-view.ts). */
 const FOLLOW_PAUSE_MS = 4000;
 
-const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], phrases: [], bookmarks: [], notes: [], highlights: [], checks: [], performance: [], unheard: new Set(), added: new Set(), artefacts: new Set(), own: new Set(), taken: [], pen: false, focus: false, ringed: new Set(), beats: null, mode: null, heads: null };
+const state = { pages: [], svgs: [], timeline: null, geometry: null, frames: [], byTick: new Map(), marks: [], bookmarks: [], notes: [], highlights: [], checks: [], performance: [], unheard: new Set(), added: new Set(), artefacts: new Set(), own: new Set(), taken: [], pen: false, focus: false, ringed: new Set(), beats: null, mode: null, heads: null };
 let nextId = 0;
 
 /** Shows the pages and reads where their bars are; `timemap` is Verovio's, with measures and rests. */
@@ -132,7 +130,6 @@ function layout() {
     state.frames = geometry.barFrames();
     state.byTick = framesByTick(state.frames);
     redraw();
-    placePhrases();
     placeBookmarks();
     placeNotes();
     placeRings();
@@ -189,65 +186,8 @@ function post(message) {
 }
 
 /**
- * The phrases at the level shown, as pencil brackets above the top staff, numbered at the left end; the selected one
- * in the accent. Each phrase is { start, end, number, kind, current, label }.
- */
-function phrases({ units }) {
-    state.phrases = units ?? [];
-    placePhrases();
-    return state.phrases.length;
-}
-
-function placePhrases() {
-    for (const old of document.querySelectorAll("body > .bracket")) {
-        old.remove();
-    }
-    const geometry = state.geometry;
-    if (geometry === null) {
-        return;
-    }
-    // Two units that start in the same bar (one a bar long or less) would put their numbers one over the other: the later
-    // number moves along by one place (testing item 33).
-    const numbered = new Map();
-    for (const phrase of state.phrases) {
-        for (const run of geometry.bracket(phrase.start, phrase.end)) {
-            const bracket = document.createElement("button");
-            bracket.type = "button";
-            bracket.className = `bracket ${phrase.kind}`;
-            bracket.classList.toggle("on", phrase.current);
-            bracket.classList.toggle("from", !run.first);
-            bracket.classList.toggle("on-to", !run.last);
-            bracket.dataset.phrase = String(phrase.number);
-            bracket.style.left = `${run.left}px`;
-            bracket.style.top = `${run.top}px`;
-            bracket.style.width = `${Math.max(4, run.right - run.left)}px`;
-            if (run.first) {
-                bracket.setAttribute("aria-label", phrase.label);
-                bracket.setAttribute("aria-pressed", phrase.current ? "true" : "false");
-                const number = document.createElement("span");
-                number.className = "n";
-                number.setAttribute("aria-hidden", "true");
-                number.textContent = String(phrase.number);
-                const place = `${run.page}:${run.system}:${Math.round(run.left)}`;
-                const before = numbered.get(place) ?? 0;
-                numbered.set(place, before + 1);
-                if (before > 0) {
-                    number.style.left = `${BRACKET_NUMBER_LEFT + before * BRACKET_NUMBER_STEP}px`;
-                }
-                bracket.append(number);
-            } else {
-                // The rest of a phrase that runs on to the next system is the same target, said once.
-                bracket.tabIndex = -1;
-                bracket.setAttribute("aria-hidden", "true");
-            }
-            document.body.append(bracket);
-        }
-    }
-}
-
-/**
  * The bookmarks, each { id, start, end, title, ink, label }: brackets in the category's ink ("graphite", "carmine",
- * "forest" or "ochre") above the phrase brackets, the title in italic at the left end of every run, overlapping ones
+ * "forest" or "ochre") above the top staff, the title in italic at the left end of every run, overlapping ones
  * stacked.
  */
 function bookmarks({ items }) {
@@ -446,7 +386,7 @@ function placeNotes() {
 }
 
 /**
- * Another version's labels above the bars' top left, over the phrase bracket: one may run on over the next bar, up to the
+ * Another version's labels above the bars' top left, under the bookmarks: one may run on over the next bar, up to the
  * next label, Check flag or note on the same system, and goes up above the flags when a narrow bar leaves it too little room.
  */
 function placePerformance(geometry, flags) {
@@ -477,19 +417,18 @@ function placePerformance(geometry, flags) {
 }
 
 /**
- * Hides the layers named, for a clean page, and the phrase brackets when Settings turns them off ("brackets"); the
- * others show. With `slate`, Night stand shows light notes on a dark page. Returns what is hidden.
+ * Hides the layers named, for a clean page; the others show. With `slate`, Night stand shows light notes on a dark page. Returns what is hidden.
  */
 function layers({ hidden, slate }) {
     const names = hidden ?? [];
-    for (const layer of [...LAYERS, "brackets"]) {
+    for (const layer of LAYERS) {
         document.body.classList.toggle(`hide-${layer}`, names.includes(layer));
     }
     document.documentElement.toggleAttribute("data-page", false);
     if (slate) {
         document.documentElement.setAttribute("data-page", "slate");
     }
-    return [...LAYERS, "brackets"].filter((layer) => names.includes(layer));
+    return LAYERS.filter((layer) => names.includes(layer));
 }
 
 /** The top of the bookmark titles over a band's first run, in window pixels, for the menu to clear; null when none is there. */
@@ -674,7 +613,7 @@ function barUnder(event) {
 }
 
 /**
- * A tap on the score: a bracket selects its phrase, and a tap anywhere in a bar, on a note or between them, names that bar
+ * A tap on the score: a tap anywhere in a bar, on a note or between them, names that bar
  * to Swift, which selects it when nothing is selected. A tap never plays (#338): the music starts only with Play or Loop.
  */
 document.body.addEventListener("click", (event) => {
@@ -701,11 +640,6 @@ document.body.addEventListener("click", (event) => {
     const bookmark = target?.closest(".bmb");
     if (bookmark) {
         post({ bookmark: bookmark.dataset.bookmark });
-        return;
-    }
-    const bracket = target?.closest(".bracket");
-    if (bracket) {
-        post({ bracket: Number(bracket.dataset.phrase) });
         return;
     }
     if (selection.swallowsClick() || state.pen || target === null || target.closest(".sel-handle")) {
@@ -754,7 +688,11 @@ function redraw() {
     const ink = document.getElementById("ink");
     ink.setAttribute("width", document.documentElement.scrollWidth);
     ink.setAttribute("height", document.documentElement.scrollHeight);
-    ink.replaceChildren();
+    // The highlighter's strokes are one layer under the pencil's, opaque inside it and translucent as a whole, so where
+    // strokes overlap the amber is as light as anywhere else (#479 item 9).
+    const highlights = document.createElementNS(SVG, "g");
+    highlights.setAttribute("class", "highlights");
+    ink.replaceChildren(highlights);
     for (const mark of state.marks) {
         const place = placeMark(mark, state.byTick);
         if (place === null) {
@@ -764,7 +702,7 @@ function redraw() {
         path.setAttribute("class", `mark ${mark.tool} ${mark.colour}`);
         path.setAttribute("d", outlinePath(place.points, place.radius, mark.tool === "pen"));
         path.dataset.id = mark.id;
-        ink.append(path);
+        (mark.tool === "highlighter" ? highlights : ink).append(path);
     }
 }
 
@@ -1223,5 +1161,5 @@ function frames() {
     return state.frames;
 }
 
-window.motiff = { show, layout, anchor, erase, draw, frames, inView, phrases, select, menuSize, pen, beats, focus, card: showCard, lead, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, reveal, notes, checks, performance: showVersion, layers, playing, returnToPlayhead, mode, playheads };
+window.motiff = { show, layout, anchor, erase, draw, frames, inView, select, menuSize, pen, beats, focus, card: showCard, lead, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, reveal, notes, checks, performance: showVersion, layers, playing, returnToPlayhead, mode, playheads };
 window.webkit?.messageHandlers?.score?.postMessage("ready");
