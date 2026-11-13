@@ -1,6 +1,6 @@
 // The two playheads of version 0.5 (the experiment Two playheads and modes, Settings · Experimental; product spec
-// two-playheads): the global one, a column one beat wide with a cap, placed by a click outside the selection and played by
-// the bar's Play, which fills dark and fades the other bars; the selection's, a cobalt line, placed by a click inside it and
+// two-playheads): the global one, a track under its bar with a dot (v0.5.2, #479 item 19), placed by a click outside the
+// selection and played by the bar's Play, which fills dark and fades nothing; the selection's, a cobalt line, placed by a click inside it and
 // played by Play first in its menu or Space; when the selection goes, the global playhead takes the selection playhead's place.
 import { expect, test } from "@playwright/test";
 import { openFurElise, withAudioDiagnostic } from "./steps.mjs";
@@ -41,19 +41,18 @@ test("two playheads: each placed by a click, each with its Play, and the global 
     await withExperiment(page);
     const errors = await openFurElise(page);
     const bars = await firstSystem(page);
-    const column = page.locator("div.score .gcol");
-    const cap = page.locator("div.score .gcap");
+    const track = page.locator("div.score .gtrack");
     const line = page.locator("div.score .ph-sel");
     const score = page.locator("div.score");
 
-    // The global playhead stands at the start, stopped: a hollow cap; the one playhead of before is not drawn.
-    await expect(column).toBeVisible();
-    await expect(cap).toHaveClass(/stop/);
+    // The global playhead stands at the start, stopped: a hollow dot; the one playhead of before is not drawn.
+    await expect(track).toBeVisible();
+    await expect(track).toHaveClass(/stop/);
     await expect(page.locator("div.score .playhead")).toBeHidden();
 
     // A click on a bar places it there.
     await page.mouse.click(bars[2].left + 12, bars[2].middle);
-    await expect.poll(async () => barOf(bars, await across(column))).toBe(2);
+    await expect.poll(async () => barOf(bars, await across(track))).toBe(2);
 
     // A selection by beats: its playhead stands at its start, and a click inside places it; the global one stays.
     await page.keyboard.press("s");
@@ -63,7 +62,7 @@ test("two playheads: each placed by a click, each with its Play, and the global 
     await expect.poll(async () => barOf(bars, await across(line))).toBe(4);
     await page.mouse.click(bars[5].left + 12, bars[5].middle);
     await expect.poll(async () => barOf(bars, await across(line))).toBe(5);
-    expect(barOf(bars, await across(column))).toBe(2);
+    expect(barOf(bars, await across(track))).toBe(2);
 
     // Play first in the selection's menu plays the selection; the global playhead waits and nothing fades. Space pauses.
     const menu = page.locator(".ctx");
@@ -74,25 +73,25 @@ test("two playheads: each placed by a click, each with its Play, and the global 
         await expect(menu.getByRole("button", { name: "Pause" })).toBeVisible();
     });
     await expect(score).not.toHaveClass(/fading/);
-    expect(barOf(bars, await across(column))).toBe(2);
+    expect(barOf(bars, await across(track))).toBe(2);
     await page.keyboard.press("Space");
     await expect(menu.getByRole("button", { name: "Play the selection" })).toBeVisible();
     const left = barOf(bars, await across(line));
     expect(left === 4 || left === 5).toBe(true);
-    expect(barOf(bars, await across(column))).toBe(2);
+    expect(barOf(bars, await across(track))).toBe(2);
 
     // Escape removes the selection: the global playhead takes the selection playhead's place, which goes.
     await page.keyboard.press("Escape");
     await expect(page.locator(".selection-status")).toContainText("Nothing selected");
     await expect(line).toBeHidden();
-    await expect.poll(async () => barOf(bars, await across(column))).toBe(left);
+    await expect.poll(async () => barOf(bars, await across(track))).toBe(left);
 
-    // The bar's Play plays the piece from there: it fills dark, the cap is solid and the other bars fade.
+    // The bar's Play plays the piece from there: it fills dark, the dot is solid and no bar fades (#479 item 19).
     await page.locator(".bar").getByRole("button", { name: "Play", exact: true }).click();
     await expect(page.locator(".bar .act.gplay")).toHaveClass(/\bon\b/);
-    await expect(cap).not.toHaveClass(/stop/);
-    await expect(score).toHaveClass(/fading/);
-    await expect(page.locator("div.score svg g.measure.lit")).toHaveCount(1);
+    await expect(track).not.toHaveClass(/stop/);
+    await expect(score).not.toHaveClass(/fading/);
+    await expect(page.locator("div.score svg g.measure.lit")).toHaveCount(0);
     await page.keyboard.press("Space");
     await expect(page.locator(".bar .act.gplay")).not.toHaveClass(/\bon\b/);
     await expect(score).not.toHaveClass(/fading/);

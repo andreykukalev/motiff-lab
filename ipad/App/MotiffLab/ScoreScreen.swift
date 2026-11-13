@@ -97,8 +97,16 @@ struct ScoreScreen: View {
     /// Whether the roll is on screen: in its drawer, or over the card in focus.
     private var rollShown: Bool { rollOpen || (score.focused && score.focusRoll) }
 
+    /// The selection's span as bar.beat for the roll's heading, under the one playback position (v0.5.2); nil for its bars.
+    private var rollSpan: String? {
+        guard score.onePosition, let range = score.playRange?.range, let span = player.barBeats.span(range) else { return nil }
+        return text.format("pill.span", span.first, span.last)
+    }
+
     private var pillShown: Bool {
-        ((score.selection != nil || player.transportKept) && settings["guidance.transportPill"] != "playing") || player.state != .stopped
+        // Under the one playback position (v0.5.2, #479 item 22) the pill always shows: it is where the music plays.
+        if score.onePosition { return true }
+        return ((score.selection != nil || player.transportKept) && settings["guidance.transportPill"] != "playing") || player.state != .stopped
     }
 
     /// Piece DNA from More: the map music-core gives for the piece as it is now, the selection as its first idea.
@@ -258,7 +266,7 @@ struct ScoreScreen: View {
             }
             .overlay(alignment: .bottom) {
                 if rollOpen {
-                    RollDrawer(roll: roll, score: score, text: text, expand: {
+                    RollDrawer(roll: roll, score: score, text: text, span: rollSpan, expand: {
                         rollBeforeFocus = true
                         rollOpen = false
                         score.expandRoll(at: player.tick)
@@ -366,10 +374,11 @@ struct ScoreScreen: View {
             if let heard, heard.state == .stopped, shown?.selection == nil { heard.transportKept = false }
             if sheetOpen.wrappedValue { sheetOpen.wrappedValue = false }
         }
-        // The modes and the two playheads (version 0.5): a tap places a playhead on its beat, inside the selection its own;
-        // in Edit notes a note opens the roll with its editor on.
+        // The modes (version 0.5): a tap on a beat moves the one playback position there (v0.5.2), playing on from there when
+        // it plays; in focus it stays inside the loop. In Edit notes a note opens the roll with its editor on.
         score.placeTapped = { [weak heard, weak shown] beat in
-            heard?.place(beat.lowerBound, selection: shown?.playRange?.range)
+            guard let heard else { return }
+            heard.go(to: shown?.onePosition == true ? beat.lowerBound : Player.place(beat.lowerBound, inside: heard.loop), play: false)
         }
         let rolling = $rollOpen
         score.noteToEdit = { [weak shown] _ in
@@ -420,9 +429,7 @@ struct ScoreScreen: View {
         }
         roll.barsPicked = { [weak shown] first, last, extend in shown?.selectBars(first, last, extend: extend) }
         roll.cleared = { [weak shown] in shown?.clearSelection() }
-        roll.spacePressed = { [weak heard] in heard?.toggle() }
-        // The playhead moved on the roll (v0.2): it stays inside the loop, and a tap in a selection that does not loop yet loops it.
-        roll.playheadMoved = { [weak heard, weak shown] tick, play in heard?.move(to: tick, play: play, selection: shown?.playRange?.range) }
+        wireRollPlayback()
         roll.noteEdited = { [weak shown] edit in shown?.editNote(edit) }
         // The note edits saved are written to the project file at once.
         let file = piece.file
@@ -462,8 +469,11 @@ struct ScoreScreen: View {
                 }
             }
             .onChange(of: score.focused) { _, focused in
-                // Focus covers the page: the drawer goes, and comes back when the player opens it again.
+                // Focus covers the page: the drawer goes, and comes back when the player opens it again. Out of focus the one
+                // playback position takes the loop back to Цикл's choice (v0.5.2).
                 if focused { contentsOpen = false }
+                syncPlayheads()
+                if score.onePosition { player.holdLoop(selection: score.playRange?.range) }
                 // Back from the roll in focus opens the roll drawer again when it was open before.
                 if !focused && rollBeforeFocus {
                     rollBeforeFocus = false
@@ -620,12 +630,12 @@ struct ScoreScreen: View {
             .onChange(of: player.tick) { _, tick in
                 score.playhead(tick, playing: player.state == .playing)
                 if player.state == .playing && player.loop == nil && player.hearing == .original { score.followPlaying(tick) }
-                if rollShown { roll.position(tick, playing: player.state == .playing) }
+                if rollShown { showRollPosition() }
             }
             .onChange(of: player.state) { old, state in
                 // A new Play follows the music again, even after the player scrolled away by hand.
                 score.playhead(player.tick, playing: state == .playing, follow: old != .playing && state == .playing)
-                if rollShown { roll.position(player.tick, playing: state == .playing) }
+                if rollShown { showRollPosition() }
             }
             .onChange(of: score.selection) { _, selection in
                 roll.showSelection(selection, loop: player.loop)
@@ -642,27 +652,15 @@ struct ScoreScreen: View {
             }
             .onChange(of: player.loop) { _, loop in
                 roll.showSelection(score.selection, loop: loop)
-                syncPlayheads()
+                if rollShown { showRollPosition() }
             }
-            .onChange(of: player.playheads) { _, _ in syncPlayheads() }
             .onChange(of: score.noteEditor) { _, editor in
                 // The note editor on the roll (testing item 15): a press on its notes edits them while it is open.
                 roll.showEditor(editor)
             }
             .onChange(of: score.playRange) { old, new in
-                defer { syncPlayheads() }
-                if twoPlayheads, let old, new?.selection != old.selection {
-                    selectionChanged(from: old.range, cleared: new == nil)
-                    return
-                }
-                // A loop follows what play takes for the selection, as on the web: Lead-in, or going back to the page
-                // with it on, loops the wider or the narrower span; a new selection stops the old loop.
-                guard let loop = player.loop, loop == old?.range else { return }
-                if let new, new.selection == old?.selection {
-                    player.setLoop(new.range)
-                } else {
-                    player.setLoop(nil)
-                }
+                playRangeChanged(from: old, to: new)
+                syncPlayheads()
             }
     }
 
@@ -709,26 +707,69 @@ struct ScoreScreen: View {
 /// Settings · Experimental on the score: resume where the player stopped (#327), hands separately (#328) and selecting by
 /// beats (#349).
 extension ScoreScreen {
-    /// Whether the two playheads hold: the experiment is on and the score is not in focus, which plays as before.
-    private var twoPlayheads: Bool {
-        score.mode != nil && !score.focused
-    }
-
-    /// The two playheads as the page draws them, or the one playhead of before.
+    /// The one playback position as the page and the roll show it (v0.5.2, #479 items 19, 22, 25): the selection, inside which
+    /// the position is cobalt, and the roll's lanes; nil and off for the one playhead of before, and in focus.
     private func syncPlayheads() {
+        let on = score.onePosition
         let range = score.playRange?.range
-        score.showPlayheads(twoPlayheads ? player.playheads.page(selection: range, holds: player.selectionHolds(range), fade: settings.isOn("experimental.playheadsFade")) : nil)
+        var data: [String: Any]?
+        if on {
+            let selection: Any = range.map { ["start": $0.lowerBound, "end": $0.upperBound] as Any } ?? NSNull()
+            data = ["selection": selection]
+        }
+        score.showPlayheads(data)
+        roll.lanes(on)
+        if rollShown { showRollPosition() }
     }
 
-    /// Another selection, or none (spec two-playheads, section 3): removed, the global playhead takes the selection
-    /// playhead's place; replaced, the selection gives the player back and its playhead starts at the new one's start.
-    private func selectionChanged(from old: Range<Double>, cleared: Bool) {
-        if cleared {
-            player.handOver(from: old)
-        } else {
-            player.handBack()
-            player.playheads.selectionAt = nil
+    /// Space and the playhead on the roll. The playhead moved there (v0.2) stays inside the loop, and a tap in a selection that
+    /// does not loop yet loops it; under the one playback position (v0.5.2) it goes anywhere, and so do taps on the loop strip
+    /// and the whole piece.
+    private func wireRollPlayback() {
+        let heard = player
+        let shown = score
+        roll.spacePressed = { [weak heard, weak shown] in
+            guard let heard, let shown else { return }
+            if shown.onePosition { heard.space(selection: shown.playRange?.range) } else { heard.toggle() }
         }
+        // The playhead moved on the roll (v0.2): it stays inside the loop, and a tap in a selection that does not loop yet loops
+        // it. Under the one playback position (v0.5.2) it goes anywhere: the loop strip and the whole piece move it too.
+        roll.playheadMoved = { [weak heard, weak shown] tick, play in
+            guard let heard, let shown else { return }
+            if shown.onePosition {
+                heard.go(to: tick, play: play)
+            } else {
+                heard.move(to: tick, play: play, selection: shown.playRange?.range)
+            }
+        }
+    }
+
+    /// Where the player is, for the roll: with the lanes, also the place as bar.beat and whether the selection loops.
+    private func showRollPosition() {
+        let on = score.onePosition
+        roll.position(player.tick, playing: player.state == .playing, label: on ? player.placeLabel : "", looping: on && player.loop != nil)
+    }
+
+    /// What plays for the selection changed. A loop follows it, as on the web: Lead-in, or going back to the page with it on,
+    /// loops the wider or the narrower span; a new selection stops the old loop. Under the one playback position, Цикл decides.
+    private func playRangeChanged(from old: ScoreController.PlayRange?, to new: ScoreController.PlayRange?) {
+        if score.onePosition {
+            selectionChanged(from: old?.range, to: new?.range)
+            return
+        }
+        guard let loop = player.loop, loop == old?.range else { return }
+        if let new, new.selection == old?.selection {
+            player.setLoop(new.range)
+        } else {
+            player.setLoop(nil)
+        }
+    }
+
+    /// Another selection, or none, under the one playback position: Цикл turns on when a selection appears, and the engine
+    /// loops it while Цикл is on; removed, nothing loops and the position stays where it is.
+    private func selectionChanged(from old: Range<Double>?, to new: Range<Double>?) {
+        player.cycle = PlaybackPosition.cycle(after: old, new, was: player.cycle)
+        player.holdLoop(selection: new)
     }
 
     /// The experiments as Settings has them: selecting by beats (#349) snaps the score's selection to the piece's beat
@@ -741,6 +782,7 @@ extension ScoreScreen {
             score.mode = playheads ? .navigate : nil
         }
         syncPlayheads()
+        if score.onePosition { player.holdLoop(selection: score.playRange?.range) }
         if !settings.isOn("experimental.hands") && player.hands != .both { player.hands = .both }
     }
 
@@ -918,21 +960,7 @@ struct ScoreBar: View {
                     .presentationCompactAdaptation(.popover)
             }
         }
-        // Under the two playheads (version 0.5) the bar's Play plays the piece from the global playhead, filled dark while
-        // it plays, and Space plays it when nothing is selected.
-        let dark = twoPlayheads && globalPlaying
-        Button {
-            if twoPlayheads { player.toggleGlobal() } else { player.toggle() }
-        } label: {
-            Icon(name: globalPlaying ? "pause" : "play", size: CGFloat.ds("icon-l"))
-                .foregroundStyle(dark ? Color.ds("surface") : Color.ds("ink"))
-                .frame(width: 40, height: 40)
-                .background(dark ? Color.ds("ink") : Color.clear, in: Circle())
-        }
-        .buttonStyle(BarActionStyle())
-        .disabled(!player.ready)
-        .keyboardShortcut(twoPlayheads && score.selection == nil ? KeyboardShortcut(.space, modifiers: []) : nil)
-        .accessibilityLabel(globalPlaying ? text["transport.pause"] : text["transport.play"])
+        barPlay
         Button {
             more.toggle()
         } label: {
@@ -981,14 +1009,20 @@ struct ScoreBar: View {
         }
     }
 
-    /// Whether the two playheads hold (version 0.5): the experiment is on and the score is not in focus.
-    private var twoPlayheads: Bool {
-        score.mode != nil && !score.focused
-    }
-
-    /// Whether the bar's Play plays: the player plays and, under the two playheads, the selection does not have it.
-    private var globalPlaying: Bool {
-        player.state != .stopped && !(twoPlayheads && player.loop != nil)
+    /// The bar's Play; none under the one playback position (v0.5.2, #479 item 22), where the pill, always shown, plays.
+    @ViewBuilder private var barPlay: some View {
+        if !score.onePosition {
+            Button {
+                player.toggle()
+            } label: {
+                Icon(name: player.state != .stopped ? "pause" : "play", size: CGFloat.ds("icon-l"))
+                    .foregroundStyle(Color.ds("ink"))
+                    .frame(width: 40, height: 40)
+            }
+            .buttonStyle(BarActionStyle())
+            .disabled(!player.ready)
+            .accessibilityLabel(player.state != .stopped ? text["transport.pause"] : text["transport.play"])
+        }
     }
 
     /// "p. 2 of 4", or "pp. 1–2 of 4" with two pages to a row; nothing before the score is laid out.
@@ -1078,9 +1112,10 @@ struct Pill: View {
 
     var body: some View {
         HStack(spacing: CGFloat.ds("s-1")) {
-            // Under the two playheads (version 0.5) the pill has no Play and no Loop: the bar plays the piece, the
-            // selection's menu the selection.
-            if score.mode == nil || score.focused {
+            // Under the one playback position (v0.5.2, #479 item 22): the selection's cobalt Play, Цикл and the piece's ink Play.
+            if score.onePosition {
+                PositionTransport(player: player, score: score, text: text)
+            } else {
                 Button {
                     player.toggle()
                 } label: {
@@ -1205,15 +1240,9 @@ struct LoopButton: View {
 
     var body: some View {
         let range = score.playRange?.range
-        // Under the two playheads (version 0.5) Loop is the choice for the selection's Play: round, or once.
-        let twoPlayheads = score.mode != nil && !score.focused
-        let looping = twoPlayheads ? player.playheads.loopChosen : range != nil && player.loop == range
+        let looping = range != nil && player.loop == range
         Button {
-            if twoPlayheads {
-                player.toggleLoopChosen(range)
-            } else {
-                player.setLoop(looping ? nil : range)
-            }
+            player.setLoop(looping ? nil : range)
         } label: {
             HStack(spacing: 6) {
                 Icon(name: "loop")
@@ -1309,20 +1338,29 @@ struct SelectionMenu: View {
         .accessibilityLabel(text["menu.label"])
     }
 
+    /// Where the selection starts and ends: as bar.beat, "9.1 – 12.3", under the one playback position (v0.5.2); beat by
+    /// beat while selecting by beats (#349, Settings · Experimental).
+    private var menuSpan: String? {
+        if score.onePosition, let range = score.playRange?.range, let span = player.barBeats.span(range) {
+            return text.format("pill.span", span.first, span.last)
+        }
+        guard settings.isOn("experimental.beats") || score.mode != nil else { return nil }
+        return score.selection?.beatSpan(text)
+    }
+
     private var actions: some View {
         HStack(spacing: CGFloat.ds("s-1")) {
             // Selecting by beats (#349, Settings · Experimental): where the selection starts and ends, beat by beat.
-            if settings.isOn("experimental.beats") || score.mode != nil, let span = score.selection?.beatSpan(text) {
+            if let span = menuSpan {
                 Text(span)
                     .dsType(.label)
                     .foregroundStyle(Color.ds("accent"))
                     .padding(.horizontal, CGFloat.ds("s-2"))
                 Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
             }
-            if score.mode != nil && !score.focused {
-                SelectionPlayButton(score: score, player: player, text: text)
+            if !score.onePosition {
+                LoopButton(score: score, player: player, text: text)
             }
-            LoopButton(score: score, player: player, text: text)
             if !score.penOn {
                 Button {
                     score.enterFocus()

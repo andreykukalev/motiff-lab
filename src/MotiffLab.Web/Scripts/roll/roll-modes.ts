@@ -4,12 +4,12 @@
 // with a drag from outside it (Andrei's exception to mockup a4); Edit notes draws a box round notes to pick them for the
 // editor, which is not a selection; Pen draws nothing here. In every mode a drag that starts inside the selection leaves it
 // alone, a click places a playhead on the beat under it (inside the selection its own, else the global one) and never
-// changes the selection, and the edges still resize it. The playheads are drawn as on the score: the global one a column one
-// beat wide with a cap over the bar numbers, the selection's a cobalt line with a knob. Nothing here touches the DOM.
+// changes the selection, and the edges still resize it. The playheads are lines (v0.5.2, #479 item 19): the global one in ink
+// with a dot on the bar numbers, the selection's in cobalt with a knob; no grey column. Nothing here touches the DOM.
 
 import type { InteractionMode } from "../score/score-modes.js";
 import type { PlayheadsState } from "../score/playheads.js";
-import type { RollBar, RollNote } from "./roll-model.js";
+import type { RollNote } from "./roll-model.js";
 
 /** What a press on the notes or the bar numbers begins under the rules. */
 export type RollGesture = "pan" | "range" | "place" | "box";
@@ -29,17 +29,6 @@ export function gestureFor(mode: InteractionMode, insideSelection: boolean): Rol
         default:
             return "place";
     }
-}
-
-/** The beat a tick falls in, from the bars' beats: from its beat line to the next, never past the bar's end. */
-export function beatAt(bars: readonly RollBar[], tick: number): { start: number; end: number } | undefined {
-    const bar = bars.find((each) => tick >= each.onset && tick < each.end);
-    if (bar === undefined) {
-        return undefined;
-    }
-    const step = bar.beatTicks > 0 ? bar.beatTicks : bar.end - bar.onset;
-    const start = bar.onset + Math.floor((tick - bar.onset) / step) * step;
-    return { start, end: Math.min(start + step, bar.end) };
 }
 
 /** A box drawn across the roll, in ticks and keys: from one corner to the other, either way round. */
@@ -80,69 +69,51 @@ export interface RollFrame {
     height: number;
 }
 
-const COLUMN_SHARE = 0.2;
-const CAP_WIDTH = 12;
-const CAP_HEIGHT = 8;
 const KNOB_RADIUS = 7;
+const DOT_RADIUS = 6;
+const HOLLOW = 2;
 const RING = 2;
 
-/** The two playheads over the roll: the global column with its cap, and the selection's line with its knob. */
-export function drawPlayheads(context: CanvasRenderingContext2D, frame: RollFrame, bars: readonly RollBar[], state: PlayheadsState, playerTick: number, playing: boolean, inks: PlayheadInks): void {
+/** A playback line: its colour, where its knob sits, how big it is, and whether it is solid or hollow (stopped). */
+export interface PositionMark {
+    colour: string;
+    knobY: number;
+    radius: number;
+    solid: boolean;
+}
+
+/**
+ * The two playheads over the roll (v0.5.2, #479 item 19): the piece's an ink line with a dot on the bar numbers, solid while
+ * the piece plays and hollow when it stands, and the selection's a cobalt line with its knob. No grey column.
+ */
+export function drawPlayheads(context: CanvasRenderingContext2D, frame: RollFrame, state: PlayheadsState, playerTick: number, playing: boolean, inks: PlayheadInks): void {
     const global = state.selectionHolds ? state.global : playerTick;
     const selection = state.selectionHolds ? playerTick : state.selection;
-    const beat = beatAt(bars, global);
-    if (beat !== undefined) {
-        drawColumn(context, frame, beat, playing && !state.selectionHolds, inks);
-    }
+    drawPositionLine(context, frame, frame.xOf(global), { colour: inks.ink, knobY: frame.header, radius: DOT_RADIUS, solid: playing && !state.selectionHolds }, inks);
     if (selection !== null) {
-        drawSelectionLine(context, frame, frame.xOf(selection), inks);
+        drawPositionLine(context, frame, frame.xOf(selection), { colour: inks.accent, knobY: frame.header, radius: KNOB_RADIUS, solid: true }, inks);
     }
 }
 
-function drawColumn(context: CanvasRenderingContext2D, frame: RollFrame, beat: { start: number; end: number }, plays: boolean, inks: PlayheadInks): void {
-    const left = frame.xOf(beat.start);
-    const right = frame.xOf(beat.end);
-    if (right < frame.left || left > frame.right) {
-        return;
-    }
-    context.save();
-    context.globalAlpha = COLUMN_SHARE;
-    context.fillStyle = inks.ink;
-    context.fillRect(Math.max(left, frame.left), frame.header, Math.min(right, frame.right) - Math.max(left, frame.left), frame.height - frame.header);
-    context.restore();
-    const middle = (left + right) / 2;
-    if (middle < frame.left || middle > frame.right) {
-        return;
-    }
-    const top = frame.header - CAP_HEIGHT - 2;
-    context.beginPath();
-    context.moveTo(middle - CAP_WIDTH / 2, top);
-    context.lineTo(middle + CAP_WIDTH / 2, top);
-    context.lineTo(middle, top + CAP_HEIGHT);
-    context.closePath();
-    context.fillStyle = plays ? inks.ink : inks.paper;
-    context.fill();
-    context.lineWidth = 1.5;
-    context.lineJoin = "round";
-    context.strokeStyle = inks.ink;
-    context.stroke();
-}
-
-function drawSelectionLine(context: CanvasRenderingContext2D, frame: RollFrame, at: number, inks: PlayheadInks): void {
+/** A playback line down the notes from the bar numbers, with its knob ringed in the surface; hollow when it stands. */
+export function drawPositionLine(context: CanvasRenderingContext2D, frame: RollFrame, at: number, mark: PositionMark, inks: PlayheadInks): void {
     if (at < frame.left || at > frame.right) {
         return;
     }
     const x = Math.round(at);
-    context.fillStyle = inks.accent;
+    context.fillStyle = mark.colour;
     context.fillRect(x - 1, frame.header, 2, frame.height - frame.header);
-    context.beginPath();
-    context.arc(x, frame.header, KNOB_RADIUS + RING, 0, 2 * Math.PI);
-    context.fillStyle = inks.surface;
-    context.fill();
-    context.beginPath();
-    context.arc(x, frame.header, KNOB_RADIUS, 0, 2 * Math.PI);
-    context.fillStyle = inks.accent;
-    context.fill();
+    const disc = (radius: number, colour: string): void => {
+        context.beginPath();
+        context.arc(x, mark.knobY, radius, 0, 2 * Math.PI);
+        context.fillStyle = colour;
+        context.fill();
+    };
+    disc(mark.radius + RING, inks.surface);
+    disc(mark.radius, mark.colour);
+    if (!mark.solid) {
+        disc(mark.radius - HOLLOW, inks.surface);
+    }
 }
 
 /** The box being drawn in Edit notes: a dashed cobalt outline over a light wash. */

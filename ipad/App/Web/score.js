@@ -49,7 +49,7 @@ import { ScoreTimeline, highlightedIds } from "../score/score-timeline.js";
 import { DEFAULT_WIDTH, HIGHLIGHTER_SIZES, PEN_SIZES, anchorMark, framesByTick, outlinePath, placeMark, touches } from "../score/pencil-marks.js";
 import { beatUnder, modeOf } from "../score/score-modes.js";
 import { ScoreBeats } from "../score/selection-beats.js";
-import { ScorePlayheadMarks, placesOf } from "../score/playheads.js";
+import { ScorePlayheadMarks, onePlace } from "../score/playheads.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -488,12 +488,13 @@ const selection = new SelectionLayer(document.body, {
 /** The piece's beats as the selection reads them, for a tap to find the beat under it (version 0.5). */
 const scoreBeats = new ScoreBeats({ beats: () => state.beats, tickX: (tick) => state.geometry?.playhead(tick, (id) => state.timeline?.onsetOf(id))?.x });
 
-/** The two playheads of version 0.5, drawn as the web app's score view draws them (Scripts/score/playheads.ts). */
+/**
+ * The one playback position of version 0.5.2 (#479 items 19 and 25), drawn as the web app's score view draws its playheads
+ * (Scripts/score/playheads.ts): the ink track under the bar outside the selection, the cobalt line inside it.
+ */
 const heads = new ScorePlayheadMarks(document.body, {
     at: (tick) => (state.timeline === null ? undefined : state.geometry?.playhead(tick, (id) => state.timeline.onsetOf(id))),
-    beatLines: () => state.beats,
-    lineX: (bar, line) => scoreBeats.lineX(bar, line),
-    element: (id) => document.querySelector(`#pages [id="${CSS.escape(id)}"]`),
+    lineBottom: (bar) => state.geometry?.lineInkBottom(bar.system) ?? bar.bottom,
 });
 
 /**
@@ -511,8 +512,8 @@ function mode({ name }) {
 }
 
 /**
- * The two playheads (version 0.5): { selectionHolds, global, selection, fade }, as the web app's Score/ScorePlayheads.cs;
- * null draws the one playhead as before.
+ * The one playback position under the modes (version 0.5.2): { selection: { start, end } or null }, the selection it turns
+ * cobalt in; null draws the playhead of before the modes.
  */
 function playheads(value) {
     state.heads = value ?? null;
@@ -846,12 +847,12 @@ function playing({ tick, playing, follow, auto = true }) {
     }
     playhead.played ||= playing;
     if (state.heads !== null) {
-        // The two playheads (version 0.5): both always show, out of focus.
+        // The one position (version 0.5.2): it always shows out of focus, cobalt inside the selection and ink outside it.
         let at;
         if (state.focus) {
             heads.hide();
         } else {
-            at = heads.place(placesOf(state.heads, tick, playing));
+            at = heads.place(onePlace(state.heads.selection ?? null, tick, playing));
         }
         reportPlace(at, !playing);
     } else {

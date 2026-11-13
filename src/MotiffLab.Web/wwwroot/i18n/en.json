@@ -2129,8 +2129,6 @@
   "selection.play": "Play the selection",
   "selection.playShort": "Play",
   "selection.playHint": "Play the selection · Space",
-  "settings.playheadsFade": "Fade the other bars while the piece plays",
-  "settings.playheadsFadeHint": "While the bar's Play plays, every bar but the one playing fades to about a third; the selection's Play fades nothing.",
   "import.scanChoosePhotos": "Choose a PDF or photo of printed music, or several photos of one piece's pages",
   "import.scanDropPhotos": "Drop a PDF or photo here, or several photos of one piece's pages, or click to choose",
   "import.scanPageBusy": "Reading page {0} of {1}… this takes a while for each page",

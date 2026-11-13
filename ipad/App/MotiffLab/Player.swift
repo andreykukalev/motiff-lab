@@ -70,6 +70,7 @@ final class Player: ObservableObject {
             renderer.send(.timeline(score.timeline))
             barNumbers = score.barNumbers
             beatLines = score.timeline.beats.map(\.at)
+            barBeats = score.barBeats
             handsHeld = score.hands
             self.piece = piece
             renderer.send(.source(id: "piece", notes: score.notes))
@@ -133,6 +134,18 @@ final class Player: ObservableObject {
     /// loops the selection). With `play` false the loop is set and waits for Play, as a resumed piece's does (#327). With
     /// `once` the passage plays through once and stops at its end, back at its start (the selection Play without Loop).
     func setLoop(_ range: Range<Double>?, from start: Double? = nil, play: Bool = true, once: Bool = false) {
+        applyLoop(range, once: once)
+        guard let range else { return }
+        if let start {
+            send(.seek(start))
+        } else if !range.contains(tick) {
+            send(.seek(range.lowerBound))
+        }
+        if play && state == .stopped { send(.play) }
+    }
+
+    /// The engine loops a passage, or nothing, and the place stays.
+    private func applyLoop(_ range: Range<Double>?, once: Bool = false) {
         loop = range
         // Notes heard alone (the circle's scale) give way to the piece, or the variation, as any other loop comes.
         if hearingAlone {
@@ -150,92 +163,78 @@ final class Player: ObservableObject {
             return
         }
         send(.loop(start: range.lowerBound, end: range.upperBound, once: once))
-        if let start {
-            send(.seek(start))
-        } else if !range.contains(tick) {
-            send(.seek(range.lowerBound))
+    }
+
+    // MARK: - One playback position (version 0.5.2, Settings · Experimental; #479 items 19, 22, 25)
+
+    /// Цикл: the selection loops while it is on, also when playing began before it was made; off, playback goes on past it.
+    /// It turns on by itself when a selection appears (PlaybackPosition.cycle).
+    @Published var cycle = true
+
+    /// The piece's beats as bar.beat, from music-core's playback score: the pill's and the roll's words for a place.
+    private(set) var barBeats = BarBeats()
+
+    /// The position as bar.beat, "16.2"; empty before the score is read.
+    var placeLabel: String {
+        barBeats.at(tick)?.text ?? ""
+    }
+
+    /// The engine loops the selection while Цикл is on, without moving the position: a selection made while playing loops
+    /// when playback reaches it.
+    func holdLoop(selection: Range<Double>?) {
+        let wanted = PlaybackPosition.loop(selection: selection, cycle: cycle)
+        guard wanted != loop else { return }
+        applyLoop(wanted)
+    }
+
+    /// Цикл turned on or off: the selection loops from here, or playback goes on past it.
+    func toggleCycle(selection: Range<Double>?) {
+        cycle.toggle()
+        holdLoop(selection: selection)
+    }
+
+    /// The cobalt Play, or Space with a selection (PlaybackPosition.playSelection).
+    func playSelection(_ selection: Range<Double>) {
+        holdLoop(selection: selection)
+        perform(PlaybackPosition.playSelection(selection, at: tick, playing: state != .stopped))
+    }
+
+    /// The ink Play, or Space with nothing selected (PlaybackPosition.playPiece).
+    func playPiece(selection: Range<Double>?) {
+        holdLoop(selection: selection)
+        let decided = PlaybackPosition.playPiece(selection: selection, at: tick, playing: state != .stopped, cycle: cycle)
+        cycle = decided.cycle
+        perform(decided.steps)
+        // The engine has the loop the steps gave it.
+        loop = PlaybackPosition.loop(selection: selection, cycle: decided.cycle)
+    }
+
+    /// The one position moved by a tap on a beat, the loop strip or the whole piece: anywhere, playing on from there when it
+    /// plays; `play` starts it from there.
+    func go(to at: Double, play: Bool) {
+        send(.seek(max(0, at)))
+        if play && state == .stopped {
+            transportKept = true
+            send(.play)
         }
-        if play && state == .stopped { send(.play) }
     }
 
-    // MARK: - Two playheads (version 0.5, Settings · Experimental)
-
-    /// The two playheads (TwoPlayheads): where the one without the player waits, and Loop's choice in the selection's menu.
-    @Published var playheads = TwoPlayheads()
-
-    /// Whether the selection has the player: its passage loops, or plays once.
-    func selectionHolds(_ selection: Range<Double>?) -> Bool {
-        selection != nil && loop == selection
-    }
-
-    /// The bar's Play: the piece from the global playhead. While the selection has the player, the piece takes it back.
-    func toggleGlobal() {
-        guard loop != nil else {
-            toggle()
-            return
-        }
-        handBack()
-        transportKept = true
-        send(.play)
-    }
-
-    /// Play first in the selection's menu (or Space): the selection from its playhead, round on Loop or once, or a pause.
-    func toggleSelection(_ selection: Range<Double>) {
-        if loop == selection {
-            toggle()
-            return
-        }
-        if loop == nil { playheads.globalAt = tick }
-        if state != .stopped { send(.pause) }
-        setLoop(selection, from: playheads.selectionWaits(in: selection), play: false, once: !playheads.loopChosen)
-        transportKept = true
-        send(.play)
-    }
-
-    /// Loop in the selection's menu: whether the selection Play goes round; a selection playing now follows at once.
-    func toggleLoopChosen(_ selection: Range<Double>?) {
-        playheads.loopChosen.toggle()
-        guard let selection, loop == selection else { return }
-        let playing = state != .stopped
-        setLoop(selection, from: tick, play: false, once: !playheads.loopChosen)
-        if playing { send(.play) }
-    }
-
-    /// The selection gives the player back to the piece: its playhead stays where the player was, and the global one comes
-    /// back to its place, stopped.
-    func handBack() {
-        guard loop != nil else { return }
-        playheads.selectionAt = tick
-        if state != .stopped { send(.pause) }
-        setLoop(nil)
-        send(.seek(playheads.globalAt))
-    }
-
-    /// A tap on a beat: inside the selection its playhead goes there, else the global one; the one that has the player
-    /// moves the player.
-    func place(_ at: Double, selection: Range<Double>?) {
-        switch TwoPlayheads.placed(at, selection: selection) {
-        case .selection(let tick):
-            playheads.selectionAt = tick
-            if selectionHolds(selection) { send(.seek(tick)) }
-        case .global(let tick):
-            if loop == nil {
-                send(.seek(tick))
-            } else {
-                playheads.globalAt = tick
+    private func perform(_ steps: [TransportStep]) {
+        for step in steps {
+            switch step {
+            case .pause:
+                send(.pause)
+            case .play:
+                transportKept = true
+                send(.play)
+            case .seek(let at):
+                send(.seek(at))
+            case .loop(let range):
+                send(.loop(start: range.lowerBound, end: range.upperBound, once: false))
+            case .loopOff:
+                send(.loopOff)
             }
         }
-    }
-
-    /// The selection removed (spec two-playheads, section 3): the global playhead takes the place the selection playhead
-    /// had, stopped, unless the piece is playing.
-    func handOver(from selection: Range<Double>) {
-        defer { playheads.selectionAt = nil }
-        guard loop != nil || state == .stopped else { return }
-        let at = loop == selection ? tick : playheads.selectionWaits(in: selection)
-        if state != .stopped { send(.pause) }
-        if loop != nil { setLoop(nil) }
-        send(.seek(at))
     }
 
     /// What sounds (0018 section 7, Original / Variation / Alternate): the piece, the piece with the variation being tried
@@ -329,6 +328,7 @@ final class Player: ObservableObject {
         guard let score = PlaybackScore.read(answer) else { return }
         barNumbers = score.barNumbers
         beatLines = score.timeline.beats.map(\.at)
+        barBeats = score.barBeats
         handsHeld = score.hands
         send(.timeline(score.timeline))
         send(.source(id: Self.pieceSource, notes: score.notes))
@@ -492,6 +492,8 @@ struct PlaybackScore: Sendable {
     var barNumbers: [(start: Double, number: Int)] = []
     /// Which hands the piece's notes carry, and whether any was inferred (#328).
     var hands = HandsHeld()
+    /// Each beat's bar and beat, for writing a place as bar.beat (v0.5.2).
+    var barBeats = BarBeats()
 
     static func read(_ text: String) -> PlaybackScore? {
         guard let object = facadeObject(text), let end = number(object["end"]) else { return nil }
@@ -518,7 +520,8 @@ struct PlaybackScore: Sendable {
             guard let start = number(bar["onset"]), let printed = number(bar["number"]) else { return nil }
             return (start, Int(printed))
         }
-        return PlaybackScore(notes: notes, timeline: PlaybackTimeline(tempos: tempos, beats: beats, bars: bars, end: end), barNumbers: numbers, hands: HandsHeld(answer: object))
+        let timeline = PlaybackTimeline(tempos: tempos, beats: beats, bars: bars, end: end)
+        return PlaybackScore(notes: notes, timeline: timeline, barNumbers: numbers, hands: HandsHeld(answer: object), barBeats: BarBeats.read(items("beats")))
     }
 
     private static func number(_ value: Any?) -> Double? {

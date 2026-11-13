@@ -65,7 +65,7 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
     var placeTapped: (@MainActor (Range<Double>) -> Void)?
     /// A tap on a note in Edit notes, by when it starts: the roll's editor opens on it.
     var noteToEdit: (@MainActor (Double) -> Void)?
-    /// The two playheads as the page last had them (TwoPlayheads.page), or nil for the one playhead.
+    /// The one playback position as the page last had it (the selection it turns cobalt in), or nil for the one playhead of before.
     private var playheadsWanted: [String: Any]?
     private var playheadsShown = ""
     /// The phrases at the level shown (0018 section 3), no longer drawn on the score (#479 item 14).
@@ -1905,7 +1905,8 @@ final class ScoreController: NSObject, ObservableObject, PenHolder {
         _ = try? await webView.callAsyncJavaScript("return motiff.mode(data)", arguments: ["data": data], contentWorld: .page)
     }
 
-    /// The two playheads the page draws (version 0.5, TwoPlayheads.page); nil draws the one playhead as before.
+    /// The one playback position the page draws (v0.5.2, #479 item 19): `{ selection: {start, end} or null }`, inside which it
+    /// is the cobalt line and outside it the ink track under its bar; nil draws the one playhead as before.
     func showPlayheads(_ data: [String: Any]?) {
         playheadsWanted = data
         guard shown else { return }

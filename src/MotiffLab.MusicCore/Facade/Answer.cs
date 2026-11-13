@@ -1186,6 +1186,12 @@ internal static partial class Answer
         json.WriteEndObject();
     }
 
+    /// <summary>
+    /// A playback score: its end, notes, pedal, tempos, beats and bars. Within contract 12 (version 0.5.2, the iPad's one
+    /// playback position) each beat also tells its "bar" and its "beat" in the bar, and each bar the "firstBeat" its start
+    /// falls in, counted as <see cref="MeterMap.ToPosition"/> counts them, so an app writes a place as bar.beat ("16.2")
+    /// without counting beats itself.
+    /// </summary>
     public static void Playback(Utf8JsonWriter json, PlaybackScore score)
     {
         json.WriteNumber("end", score.End.Value);
@@ -1229,6 +1235,9 @@ internal static partial class Answer
             json.WriteStartObject();
             json.WriteNumber("at", beat.At.Value);
             json.WriteBoolean("downbeat", beat.IsDownbeat);
+            MetricPosition place = score.Meter.ToPosition(beat.At);
+            json.WriteNumber("bar", place.Bar);
+            json.WriteNumber("beat", place.Beat);
             json.WriteEndObject();
         }
 
@@ -1243,6 +1252,7 @@ internal static partial class Answer
             json.WriteNumber("beatTicks", bar.BeatTicks);
             json.WriteNumber("beatsPerBar", bar.BeatsPerBar);
             json.WriteBoolean("pickup", bar.IsPickup);
+            json.WriteNumber("firstBeat", score.Meter.ToPosition(bar.Span.Onset).Beat);
             json.WriteEndObject();
         }
 

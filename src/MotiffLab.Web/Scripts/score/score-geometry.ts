@@ -635,6 +635,12 @@ export class ScoreGeometry {
         return points;
     }
 
+    /** The lowest ink of a system, its notes and their stems included: what the playhead's track runs under (#479 item 19). */
+    lineInkBottom(system: number): number {
+        const bars = this.systems[system]?.bars ?? [];
+        return bars.reduce((lowest, index) => Math.max(lowest, this.bars[index].ink.bottom, this.bars[index].bottom), Number.NEGATIVE_INFINITY);
+    }
+
     /** Where a mark on a bar goes, such as a Check flag or a margin note's marker: the top right corner of its top staff. */
     flag(tick: number): { x: number; y: number } | undefined {
         const bar = this.barAt(tick);

@@ -373,6 +373,9 @@ final class PianoAndProjectTests: XCTestCase {
         XCTAssertFalse(score.timeline.bars.isEmpty)
         XCTAssertGreaterThan(score.timeline.end, 0)
         XCTAssertTrue(score.notes.allSatisfy { (21...108).contains($0.pitch) && $0.duration > 0 })
+        // Each beat names its bar and beat (v0.5.2): the pill and the roll write the position as bar.beat.
+        XCTAssertEqual(score.barBeats.marks.count, score.timeline.beats.count)
+        XCTAssertEqual(score.barBeats.at(0)?.beat, score.barBeats.marks.first?.place.beat)
     }
 
     func testAPieceSavedAsAProjectFileOpensAgainAsItself() async throws {

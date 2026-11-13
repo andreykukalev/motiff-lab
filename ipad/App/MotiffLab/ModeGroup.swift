@@ -50,34 +50,3 @@ struct ModeGroup: View {
         }
     }
 }
-
-/// Play first in the selection's menu (version 0.5): the selection from its playhead, round on Loop or once without it;
-/// Space too. A cobalt disc, as the web app's menu has it.
-struct SelectionPlayButton: View {
-    @ObservedObject var score: ScoreController
-    @ObservedObject var player: Player
-    let text: UIText
-
-    var body: some View {
-        let range = score.playRange?.range
-        let playing = player.state != .stopped && player.selectionHolds(range)
-        Button {
-            if let range { player.toggleSelection(range) }
-        } label: {
-            HStack(spacing: 6) {
-                Icon(name: playing ? "pause" : "playf", size: CGFloat.ds("icon-s"))
-                    .foregroundStyle(Color.ds("on-accent"))
-                    .frame(width: 30, height: 30)
-                    .background(Color.ds("accent"), in: Circle())
-                Text(playing ? text["transport.pause"] : text["selection.playShort"])
-                    .foregroundStyle(Color.ds("accent"))
-                    .fontWeight(.semibold)
-            }
-        }
-        .buttonStyle(DSItemStyle())
-        .disabled(range == nil || !player.ready)
-        .keyboardShortcut(.space, modifiers: [])
-        .accessibilityLabel(playing ? text["transport.pause"] : text["selection.play"])
-        .accessibilityHint(text["selection.playHint"])
-    }
-}
