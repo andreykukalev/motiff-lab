@@ -106,6 +106,8 @@
   "folderImport.why.tooBig": "The file is too large",
   "folderImport.why.unreadable": "The file cannot be read: protected by a password or damaged",
   "folderImport.why.unsupported": "This kind of file is not added",
+  "library.edit": "Edit",
+  "library.tabOnline": "Not on this iPad",
   "recognition.cancel": "Cancel",
   "recognition.choose": "Recognise notes in several pieces",
   "recognition.chooseHint": "Tick the PDF pieces whose notes to recognise",

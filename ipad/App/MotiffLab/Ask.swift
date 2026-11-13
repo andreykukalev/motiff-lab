@@ -91,6 +91,7 @@ struct AskPopover: View {
                 HStack(spacing: CGFloat.ds("s-2")) {
                     TextField(text["ask.placeholder"], text: $draft)
                         .dsType(.body)
+                        .foregroundStyle(Color.ds("ink"))
                         .focused($typing)
                         .submitLabel(.send)
                         .onSubmit {
@@ -199,6 +200,7 @@ struct AskStreamFoot: View {
             }
             TextField(text["ask.placeholder"], text: $draft)
                 .dsType(.body)
+                .foregroundStyle(Color.ds("ink"))
                 .submitLabel(.send)
                 .onSubmit {
                     conversation.ask(draft)

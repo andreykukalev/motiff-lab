@@ -23,8 +23,9 @@ extension LibraryEntry {
     }
 }
 
-/// The library's tabs (ux-prototype/v2/screens/lib-1-list.png): All pieces, Composers, Recent, Playlists and Sessions, the
-/// one shown underlined in the accent; on the lists of pieces, the Composer, Tag and Playlist filters as menus at the right.
+/// The library's tabs (ux-prototype/v2/screens/lib-1-list.png): All pieces, Composers, Recent, Playlists and Sessions, and
+/// «Нет на этом iPad» while a piece saved online is not here (#479), the one shown underlined in the accent; on the lists of
+/// pieces, the Composer, Tag and Playlist filters as menus at the right.
 struct LibraryTabs: View {
     @Binding var tab: LibraryTab
     @Binding var query: LibraryQuery
@@ -34,6 +35,8 @@ struct LibraryTabs: View {
     let text: UIText
     /// «Без нот» among the filters (version 0.5, experiment «Импорт папки»).
     var withoutNotes = false
+    /// Whether a piece saved online is not on this iPad, for its tab.
+    var online = false
 
     var body: some View {
         // The filters beside the tabs while they fit, in portrait under them.
@@ -52,7 +55,7 @@ struct LibraryTabs: View {
     }
 
     private var tabs: some View {
-        ForEach(LibraryTab.allCases, id: \.self) { each in
+        ForEach(LibraryTab.tabs(online: online), id: \.self) { each in
             let on = each == tab
             Button {
                 tab = each
@@ -73,11 +76,13 @@ struct LibraryTabs: View {
         }
     }
 
-    /// The Composer, Tag and Playlist filters, on the lists of pieces only; «Без нот» on every tab, with the experiment on.
+    /// The Composer, Tag and Playlist filters, on the lists of pieces only; «Без нот» on every tab of pieces, with the
+    /// experiment on.
     @ViewBuilder
     private var filters: some View {
         let lists = tab == .all || tab == .recent
-        if lists || withoutNotes {
+        let notes = withoutNotes && tab != .online
+        if lists || notes {
             HStack(spacing: CGFloat.ds("s-3")) {
                 if lists && !composers.isEmpty {
                     LibraryFilter(caption: text["library.byComposer"], all: text["library.anyComposer"], values: composers, picked: $query.composer)
@@ -88,7 +93,7 @@ struct LibraryTabs: View {
                 if lists && !playlists.isEmpty {
                     LibraryFilter(caption: text["library.byPlaylist"], all: text["library.anyPlaylist"], values: playlists, picked: $query.playlist)
                 }
-                if withoutNotes {
+                if notes {
                     Button(text["recognition.withoutNotes"]) { query.withoutNotes.toggle() }
                         .buttonStyle(DSChipStyle(on: query.withoutNotes))
                         .accessibilityAddTraits(query.withoutNotes ? .isSelected : [])
@@ -108,6 +113,7 @@ struct LibraryTabs: View {
         case .recent: text["library.tabRecent"]
         case .playlists: text["library.tabPlaylists"]
         case .sessions: text["library.tabSessions"]
+        case .online: text["library.tabOnline"]
         }
     }
 }
@@ -164,6 +170,8 @@ struct LibraryList: View {
     let delete: (LibraryEntry) -> Void
     /// The pieces picked to recognise and each piece's recognition (version 0.5).
     @Environment(\.libraryMarks) private var marks
+    /// The line whose swiped actions are uncovered, one at a time (#479).
+    @State private var swiped: URL?
 
     /// The width of the Opened column.
     private static let openedWidth: CGFloat = 160
@@ -182,8 +190,9 @@ struct LibraryList: View {
             .padding(.vertical, CGFloat.ds("s-3"))
             .overlay(alignment: .bottom) { Rectangle().fill(Color.ds("hairline")).frame(height: 1) }
             ForEach(entries) { entry in
-                LibraryLine(entry: entry, text: text, openedWidth: Self.openedWidth, marks: marks) {
-                    open(entry)
+                LibraryLine(entry: entry, text: text, openedWidth: Self.openedWidth, marks: marks, swiped: swipe(entry)) {
+                    // A tap while another line shows its actions covers them, as in Messages.
+                    if swiped == nil { open(entry) } else { swiped = nil }
                 } edit: {
                     edit(entry)
                 } delete: {
@@ -191,6 +200,15 @@ struct LibraryList: View {
                 }
                 .id(entry.id)
             }
+        }
+    }
+
+    /// Whether a line's actions are uncovered: opening one covers the others'.
+    private func swipe(_ entry: LibraryEntry) -> Binding<Bool> {
+        Binding {
+            swiped == entry.url
+        } set: { on in
+            if on { swiped = entry.url } else if swiped == entry.url { swiped = nil }
         }
     }
 
@@ -221,6 +239,8 @@ struct LibraryLine: View {
     let text: UIText
     let openedWidth: CGFloat
     var marks = LibraryMarks()
+    /// Whether its swiped actions are uncovered (#479).
+    var swiped: Binding<Bool>?
     let open: () -> Void
     let edit: () -> Void
     let delete: () -> Void
@@ -306,7 +326,7 @@ struct LibraryLine: View {
         }
         .buttonStyle(.plain)
         .overlay(alignment: .bottom) { Rectangle().fill(Color.ds("hairline")).frame(height: 1) }
-        .modifier(PieceActions(text: text, edit: edit, delete: delete))
+        .modifier(PieceActions(text: text, edit: edit, delete: delete, swiped: marks.chosen == nil ? swiped : nil))
         .accessibilityElement(children: .combine)
         .accessibilityAction(named: text["library.properties"], edit)
     }
@@ -423,18 +443,22 @@ struct GroupList: View {
 }
 
 /// The library's search (lib-1, at the top beside Add): words found in the title, the composer and the tags, whatever their
-/// case and accents.
+/// case and accents. The library puts the keyboard away when the list scrolls or empty space is tapped (#479), through
+/// `focus`.
 struct LibrarySearchField: View {
     @Binding var search: String
     let text: UIText
+    var focus: FocusState<Bool>.Binding
 
     var body: some View {
         HStack(spacing: CGFloat.ds("s-2")) {
             Icon(name: "search")
                 .foregroundStyle(Color.ds("ink-2"))
             TextField(text["library.searchHint"], text: $search)
+                .focused(focus)
                 .dsType(.body)
-                .foregroundStyle(Color.ds("ink"))
+                .foregroundStyle(Color.ds(FieldLook.ink))
+                .tint(Color.ds("accent"))
                 .submitLabel(.search)
                 .autocorrectionDisabled()
                 .accessibilityLabel(text["library.search"])
@@ -454,20 +478,36 @@ struct LibrarySearchField: View {
         .padding(.leading, CGFloat.ds("s-3"))
         .frame(height: CGFloat.ds("h-touch"))
         .frame(minWidth: 160, maxWidth: 360)
-        .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-s")))
+        .background(Color.ds(FieldLook.background), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-s")))
         .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-s")).strokeBorder(Color.ds("hairline-strong")))
     }
 }
 
 /// What a long press on a piece offers, on a line of the list and on a session's card: its properties, and Delete, which
-/// asks once more.
+/// asks once more. A line of the list offers the same under a swipe to the left (`LineSwipe`, #479).
 struct PieceActions: ViewModifier {
     let text: UIText
     let edit: () -> Void
     let delete: () -> Void
+    /// On a line of the list: whether its swiped actions are uncovered; nil on a card, which has no swipe.
+    var swiped: Binding<Bool>?
     @State private var confirming = false
 
     func body(content: Content) -> some View {
+        Group {
+            if let swiped {
+                menu(content).modifier(LineSwipe(text: text, open: swiped, edit: edit) { confirming = true })
+            } else {
+                menu(content)
+            }
+        }
+        .confirmationDialog(text["home.deleteForGood"], isPresented: $confirming, titleVisibility: .hidden) {
+            Button(text["home.deleteForGood"], role: .destructive, action: delete)
+            Button(text["home.keep"], role: .cancel) {}
+        }
+    }
+
+    private func menu(_ content: Content) -> some View {
         content
             .contextMenu {
                 Button(action: edit) {
@@ -478,10 +518,6 @@ struct PieceActions: ViewModifier {
                 } label: {
                     Text(text["home.delete"])
                 }
-            }
-            .confirmationDialog(text["home.deleteForGood"], isPresented: $confirming, titleVisibility: .hidden) {
-                Button(text["home.deleteForGood"], role: .destructive, action: delete)
-                Button(text["home.keep"], role: .cancel) {}
             }
     }
 }

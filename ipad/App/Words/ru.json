@@ -111,6 +111,8 @@
   "folderImport.why.tooBig": "Файл слишком большой",
   "folderImport.why.unreadable": "Файл не читается: защищён паролем или повреждён",
   "folderImport.why.unsupported": "Такой файл не добавляется",
+  "library.edit": "Изменить",
+  "library.tabOnline": "Нет на этом iPad",
   "recognition.cancel": "Отмена",
   "recognition.choose": "Распознать ноты в нескольких пьесах",
   "recognition.chooseHint": "Отметьте PDF-пьесы, ноты которых распознать",

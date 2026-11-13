@@ -501,7 +501,7 @@ private struct ProfileEditor: View {
             Text(text["profile.name"]).dsType(.label).foregroundStyle(Color.ds("ink"))
             TextField(account.player ?? "", text: $name)
                 .dsType(.body)
-                .textFieldStyle(.roundedBorder)
+                .modifier(FieldLook())
                 .textInputAutocapitalization(.words)
                 .submitLabel(.done)
                 .onChange(of: name) { _, value in

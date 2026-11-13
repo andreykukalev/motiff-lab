@@ -59,6 +59,52 @@ final class DesignTests: XCTestCase {
         XCTAssertEqual(UIText.pluralForm("ru", 22), "few")
     }
 
+    /// The kit's timing and easing, for the app's motion.
+    func testMotionComesFromTheTokens() {
+        XCTAssertEqual(DesignTokens.duration("t-base"), 0.2, accuracy: 0.0001)
+        XCTAssertEqual(DesignTokens.duration("t-fast"), 0.12, accuracy: 0.0001)
+        XCTAssertEqual(DesignTokens.duration("no-such"), 0)
+        XCTAssertEqual(DesignTokens.ease, [0.2, 0.8, 0.2, 1])
+    }
+
+    /// What is typed in a field, and the swiped actions' names, read in both stands (#479: the Night ink on the paper was
+    /// light on light): at least 4.5:1, WCAG AA for body text.
+    @MainActor func testFieldsAndSwipedActionsReadInBothStands() {
+        for style in [UIUserInterfaceStyle.light, .dark] {
+            let traits = UITraitCollection(userInterfaceStyle: style)
+            for (text, fill) in [(FieldLook.ink, FieldLook.background), (LineSwipe.label, LineSwipe.editFill), (LineSwipe.label, LineSwipe.deleteFill)] {
+                let ratio = Self.contrast(DesignTokens.dynamicColor(text).resolvedColor(with: traits), DesignTokens.dynamicColor(fill).resolvedColor(with: traits))
+                XCTAssertGreaterThanOrEqual(ratio, 4.5, "\(text) on \(fill), \(style == .dark ? "Night" : "Daylight")")
+            }
+        }
+    }
+
+    /// A line's swipe (#479): it opens past half its actions or with a flick to the left, never moves right of its place
+    /// and only a little past the actions.
+    @MainActor func testALineOpensPastHalfItsActionsOrWithAFlick() {
+        let half = LineSwipe.revealed / 2
+        XCTAssertTrue(LineSwipe.opens(rest: 0, moved: -half - 1, speed: 0))
+        XCTAssertFalse(LineSwipe.opens(rest: 0, moved: -half + 1, speed: 0))
+        XCTAssertTrue(LineSwipe.opens(rest: 0, moved: -CGFloat.ds("s-4"), speed: -CGFloat.ds("h-touch") * 20))
+        XCTAssertFalse(LineSwipe.opens(rest: -LineSwipe.revealed, moved: CGFloat.ds("s-4"), speed: CGFloat.ds("h-touch") * 20))
+        XCTAssertTrue(LineSwipe.opens(rest: -LineSwipe.revealed, moved: CGFloat.ds("s-4"), speed: 0))
+        XCTAssertEqual(LineSwipe.offset(rest: 0, moved: CGFloat.ds("s-12")), 0)
+        XCTAssertEqual(LineSwipe.offset(rest: 0, moved: -LineSwipe.revealed * 3), -LineSwipe.revealed - CGFloat.ds("s-6"))
+    }
+
+    private static func contrast(_ one: UIColor, _ other: UIColor) -> CGFloat {
+        let lighter = max(luminance(one), luminance(other))
+        let darker = min(luminance(one), luminance(other))
+        return (lighter + 0.05) / (darker + 0.05)
+    }
+
+    private static func luminance(_ color: UIColor) -> CGFloat {
+        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0
+        color.getRed(&red, green: &green, blue: &blue, alpha: nil)
+        let linear = { (value: CGFloat) -> CGFloat in value <= 0.03928 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4) }
+        return 0.2126 * linear(red) + 0.7152 * linear(green) + 0.0722 * linear(blue)
+    }
+
     /// The library's header keeps the page's padding below the status bar, even where the safe area leaves the bar out.
     @MainActor func testTheLibraryLeavesRoomForTheStatusBar() {
         XCTAssertEqual(LibraryView.statusBar(0), CGFloat.ds("s-6"))
